@@ -5,3 +5,11 @@
 .rounded-corners {
     border-radius: 2%;
 }
+
+.md-typeset__table {
+    width: 100%;
+}
+
+.md-typeset__table table:not([class]) {
+    display: table
+}
