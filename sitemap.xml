@@ -66,6 +66,26 @@
          <changefreq>daily</changefreq>
     </url>
     <url>
+         <loc>https://insper.github.io/platform/checkpoints/checkpoint2/</loc>
+         <lastmod>2025-02-06</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://insper.github.io/platform/checkpoints/checkpoint3/</loc>
+         <lastmod>2025-02-06</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://insper.github.io/platform/checkpoints/checkpoint4/</loc>
+         <lastmod>2025-02-06</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://insper.github.io/platform/checkpoints/checkpoint5/</loc>
+         <lastmod>2025-02-06</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
          <loc>https://insper.github.io/platform/cloud/aws/</loc>
          <lastmod>2025-02-06</lastmod>
          <changefreq>daily</changefreq>
