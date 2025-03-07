@@ -133,6 +133,11 @@
     <label class="md-overlay" for="__drawer"></label>
     <div data-md-component="skip">
       
+        
+        <a href="#security" class="md-skip">
+          Skip to content
+        </a>
+      
     </div>
     <div data-md-component="announce">
       
@@ -457,6 +462,18 @@
       
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    3. Security Spring Cloud
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -467,6 +484,80 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#security" class="md-nav__link">
+    <span class="md-ellipsis">
+      Security
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Security">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#authentication" class="md-nav__link">
+    <span class="md-ellipsis">
+      Authentication
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#authorization" class="md-nav__link">
+    <span class="md-ellipsis">
+      Authorization
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#jwt-json-web-token" class="md-nav__link">
+    <span class="md-ellipsis">
+      JWT - JSON Web Token
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="JWT - JSON Web Token">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#addtional-material" class="md-nav__link">
+    <span class="md-ellipsis">
+      Addtional Material
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -890,6 +981,71 @@
   
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#security" class="md-nav__link">
+    <span class="md-ellipsis">
+      Security
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Security">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#authentication" class="md-nav__link">
+    <span class="md-ellipsis">
+      Authentication
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#authorization" class="md-nav__link">
+    <span class="md-ellipsis">
+      Authorization
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#jwt-json-web-token" class="md-nav__link">
+    <span class="md-ellipsis">
+      JWT - JSON Web Token
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="JWT - JSON Web Token">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#addtional-material" class="md-nav__link">
+    <span class="md-ellipsis">
+      Addtional Material
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -961,6 +1117,241 @@
     AuthController &lt;|-- AuthResource
     AuthResource *-- AuthService
     AuthService ..&gt; Register</code></pre>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Register</label><label for="__tabbed_1_2">Login</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>POST /auth/register
+</span></code></pre></div>
+<p>Body
+<div class="language-json highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="p">{</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">    </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Antonio do Estudo&quot;</span><span class="p">,</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="nt">&quot;email&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;acme@insper.edu.br&quot;</span><span class="p">,</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="nt">&quot;password&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;123@321&quot;</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="p">}</span>
+</span></code></pre></div></p>
+<p>Sequence Diagram</p>
+<pre class="mermaid"><code>sequenceDiagram
+autonumber
+actor User
+User-&gt;&gt;+Auth: register (RegisterIn)
+Auth-&gt;&gt;+Account: create (AccountIn)
+Account-&gt;&gt;-Auth: returns the new account (AccountOut)
+Auth-&gt;&gt;-User: returns 201 (TokenOut)</code></pre>
+</div>
+<div class="tabbed-block">
+<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>POST /auth/login
+</span></code></pre></div>
+<p>Body
+<div class="language-json highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="p">{</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">    </span><span class="nt">&quot;email&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;acme@insper.edu.br&quot;</span><span class="p">,</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="nt">&quot;password&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;123@321&quot;</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="p">}</span>
+</span></code></pre></div></p>
+<p>Sequence Diagram</p>
+<pre class="mermaid"><code>sequenceDiagram
+autonumber
+actor User
+User-&gt;&gt;+Auth: authenticate (LoginIn)
+Auth-&gt;&gt;+Account: findByEmailAndPassword
+critical validated
+    Account-&gt;&gt;-Auth: returns the account
+option denied
+    Auth--&gt;&gt;User: unauthorized message
+end  
+Auth-&gt;&gt;Auth: generates a token
+Auth-&gt;&gt;-User: returns TokenOut
+User-&gt;&gt;User: stores the token to use for the next requests</code></pre>
+</div>
+</div>
+</div>
+<h2 id="security">Security</h2>
+<p>Security is an important aspect of software development. It involves protecting the confidentiality, integrity, and availability of data and resources. Two key concepts in security are authentication and authorization.</p>
+<h3 id="authentication"><a href="#authentication">Authentication</a></h3>
+<p>Authentication is the process of verifying the identity of a user or system. It ensures that the user or system is who they claim to be. Common authentication methods include passwords, biometrics, and two-factor authentication. The system checks these credentials against the stored data. If the credentials are valid, the system confirms the user's identity.</p>
+<p>In many systems, after successful authentication, the system generates a token. This token is a piece of data that represents the user's authentication session. It's like a digital ticket that proves the user's identity for a certain period of time.</p>
+<p>This token is then sent back to the user. The user's client software (like a web browser) stores this token and sends it along with every subsequent request to the server (in case of stateless server). This way, the server knows that the request comes from an authenticated user without needing to ask for the credentials again.</p>
+<p>Here's a simplified step-by-step process:</p>
+<pre class="mermaid"><code>sequenceDiagram
+  autonumber
+  actor User
+  User-&gt;&gt;+Auth Service: authentication(credentials)
+  Auth Service-&gt;&gt;Auth Service: verifies credenditals and generates a token
+  Auth Service-&gt;&gt;-User: returns the token
+  User-&gt;&gt;User: stores the token to use for the next requests</code></pre>
+<ol>
+<li>The user sends their username and password (or other credentials) to the server;</li>
+<li>The server verifies the credentials. If they're valid, the server generates a token.</li>
+<li>The server sends this token back to the user.</li>
+<li>The user's client software stores this token.</li>
+<li>For every subsequent request, the client sends this token along with the request.</li>
+<li>The server checks the token to ensure it's valid and hasn't expired.</li>
+<li>This token-based authentication process is commonly used in many modern web applications and APIs. It helps maintain the user's session and allows the server to authenticate requests without storing the user's state.</li>
+</ol>
+<h3 id="authorization"><a href="#authorization">Authorization</a></h3>
+<p>Authorization is the process of granting or denying access to specific resources or actions based on the authenticated user's privileges. It determines what a user is allowed to do within a system. Authorization can be role-based, where permissions are assigned based on predefined roles, or attribute-based, where permissions are based on specific attributes of the user.</p>
+<p>In many systems, the token not only represents the user's identity, but also includes information about their permissions or roles. This is often done using a type of token called a <a href="./jwt.md">JSON Web Token (JWT)</a>, which can include a payload of data.</p>
+<p>Here's a simplified step-by-step process:</p>
+<pre class="mermaid"><code>sequenceDiagram
+  autonumber
+  actor User
+  User-&gt;&gt;Auth Service: request with token
+  Auth Service-&gt;&gt;Auth Service: decodes the token and extracts claims
+  Auth Service-&gt;&gt;Auth Service: verifies permissions
+  critical allowed
+    Auth Service-&gt;&gt;Secured Resource: authorizes the request
+    Secured Resource-&gt;&gt;User: returns the response
+  option denied
+    Auth Service--&gt;&gt;User: unauthorized message
+  end  </code></pre>
+<ol>
+<li>After authentication, the user's client software sends a request to a server. This request includes the token.</li>
+<li>The server decodes the token and extracts the user's identity and permissions.</li>
+<li>The server checks whether the user has the necessary permissions for the requested action. This could involve checking the user's roles or other attributes against the requirements for the action.</li>
+<li>If the user has the necessary permissions, the server allows the action. If not, the server denies the action.</li>
+</ol>
+<p>This process allows the server to authorize actions without needing to repeatedly look up the user's permissions. It also allows for stateless servers, as the necessary information is included in every request.</p>
+<p>By implementing strong authentication and authorization mechanisms, software systems can ensure that only authorized users have access to sensitive data and functionalities, reducing the risk of unauthorized access and potential security breaches.</p>
+<p>As the platform has only one entrace point, it is</p>
+<p>JWT is a decentralized </p>
+<p>The point of entrance of API is the gateway, then as suggested by <sup id="fnref:8"><a class="footnote-ref" href="#fn:8">8</a></sup>.</p>
+<p>The gateway is responsible for the security of the system. It is the first point of contact for all incoming requests. The gateway is responsible for routing requests to the appropriate services and ensuring that only authorized users can access the system.</p>
+<pre class="mermaid"><code>sequenceDiagram
+  autonumber
+  actor User
+  User-&gt;&gt;Gateway: route(ServerHttpRequest)
+  Gateway-&gt;&gt;+AuthenticationFilter: filter(ServerWebExchange, GatewayFilterChain)
+  AuthenticationFilter-&gt;&gt;RouteValidator: isSecured.test(ServerHttpRequest)
+  RouteValidator--&gt;&gt;AuthenticationFilter: True | False
+  critical notSecured
+    AuthenticationFilter-&gt;&gt;Gateway: follow the flux
+  end
+  AuthenticationFilter-&gt;&gt;AuthenticationFilter: isAuthMissing(ServerHttpRequest)
+  critical isAuthMissing
+    AuthenticationFilter-&gt;&gt;User: unauthorized message
+  end
+  AuthenticationFilter-&gt;&gt;AuthenticationFilter: validateAuthorizationHeader()
+  critical isInvalidAuthorizationHeader
+    AuthenticationFilter-&gt;&gt;User: unauthorized message
+  end
+  AuthenticationFilter-&gt;&gt;Auth: solve(Token)
+  critical isInvalidToken
+    Auth-&gt;&gt;User: unauthorized message
+  end
+  Auth-&gt;&gt;AuthenticationFilter: returns token claims
+  AuthenticationFilter-&gt;&gt;AuthenticationFilter: updateRequestHeader(ServerHttpRequest)
+  AuthenticationFilter-&gt;&gt;Gateway: follow the flux</code></pre>
+<h2 id="jwt-json-web-token">JWT - JSON Web Token</h2>
+<p>JWT stands for JSON Web Token. It is a compact, URL-safe means of representing claims between two parties. JWTs are commonly used to secure the transmission of information between parties in a web environment, typically for authentication and information exchange. The JWT specification is defined by RFC 7519<sup id="fnref:1"><a class="footnote-ref" href="#fn:1">1</a></sup> and it is a decentralized approach for security (which can support <a href="../concepts.md#horizontal-scalability-scale-out">horizontal scalability</a>).</p>
+<p>Here are the key components and concepts of JWT:</p>
+<ul>
+<li><strong>JSON Format:</strong> JWTs are represented as JSON objects that are easy to parse and generate. The JSON format makes them human-readable and easy to work with.</li>
+<li>
+<p><strong>Three Parts:</strong> JWTs consist of three parts separated by dots (<code>.</code>): Header, Payload, and Signature.</p>
+<ul>
+<li>
+<p><strong>Header:</strong> The header typically consists of two parts: the type of the token (JWT) and the signing algorithm being used, such as HMAC SHA256 or RSA.</p>
+</li>
+<li>
+<p><strong>Payload:</strong> The payload contains the claims. Claims are statements about an entity (typically, the user) and additional data. There are three types of claims: registered, public, and private claims.</p>
+</li>
+<li>
+<p><strong>Signature:</strong> To create the signature part, you take the encoded header, the encoded payload, a secret, the algorithm specified in the header, and sign that.</p>
+</li>
+</ul>
+</li>
+<li>
+<p><strong>Encoding:</strong> Each of the three parts is Base64Url encoded, and the resulting strings are concatenated with periods between them. The final JWT looks like: <code>xxxxx.yyyyy.zzzzz</code>.</p>
+</li>
+<li><strong>Stateless and Self-contained:</strong> JWTs are stateless, meaning that all the information needed is within the token itself. The server doesn't need to store the user's state. They are also self-contained, meaning that all the information needed is contained within the token.</li>
+<li><strong>Use Cases:</strong> JWTs are commonly used for authentication and information exchange between parties. For example, after a user logs in, a server could generate a JWT and send it to the client. The client can then include the JWT in the headers of subsequent requests to access protected resources. The server can verify the authenticity of the JWT using the stored secret key.</li>
+<li><strong>Security Considerations:</strong> While JWTs are widely used and versatile, it's important to handle them securely. For instance, the key used to sign the JWT should be kept secret, and HTTPS should be used to transmit JWTs to prevent man-in-the-middle attacks.</li>
+</ul>
+<p>Here's a simple example of a JWT created on JWT Builder<sup id="fnref:2"><a class="footnote-ref" href="#fn:2">2</a></sup>:</p>
+<p><code>eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJJbnNwZXIiLCJpYXQiOjE3MDMwMDgzMzgsImV4cCI6MjAxODU0MTEzOCwiYXVkIjoid3d3Lmluc3Blci5lZHUuYnIiLCJzdWIiOiJodW1iZXJ0b3JzQGluc3Blci5lZHUuYnIiLCJHaXZlbk5hbWUiOiJIdW1iZXJ0byIsIlN1cm5hbWUiOiJTYW5kbWFubiIsIkVtYWlsIjoiaHVtYmVydG9yc0BpbnNwZXIuZWR1LmJyIiwiUm9sZSI6IlByb2Zlc3NvciJ9.SsGdvR5GbYWTRbxY7IGxHt1vSxhkpRueBJWsi0lrPhJVCICp119QjU8F3QvHW0yF5tw-HhQ9RVh0l89t4M0LNw</code></p>
+<p>This JWT consists of three parts, decoded by <sup id="fnref:3"><a class="footnote-ref" href="#fn:3">3</a></sup>:</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="2:3"><input checked="checked" id="__tabbed_2_1" name="__tabbed_2" type="radio" /><input id="__tabbed_2_2" name="__tabbed_2" type="radio" /><input id="__tabbed_2_3" name="__tabbed_2" type="radio" /><div class="tabbed-labels"><label for="__tabbed_2_1">Header</label><label for="__tabbed_2_2">Payload</label><label for="__tabbed_2_3">Signature</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<p><code>eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9</code></p>
+<div class="language-json highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="p">{</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">&quot;typ&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;JWT&quot;</span><span class="p">,</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span><span class="nt">&quot;alg&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;HS512&quot;</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="p">}</span>
+</span></code></pre></div>
+</div>
+<div class="tabbed-block">
+<p><code>eyJpc3MiOiJJbnNwZXIiLCJpYXQiOjE3MDMwMDgzMzgsImV4cCI6MjAxODU0MTEzOCwiYXVkIjoid3d3Lmluc3Blci5lZHUuYnIiLCJzdWIiOiJodW1iZXJ0b3JzQGluc3Blci5lZHUuYnIiLCJHaXZlbk5hbWUiOiJIdW1iZXJ0byIsIlN1cm5hbWUiOiJTYW5kbWFubiIsIkVtYWlsIjoiaHVtYmVydG9yc0BpbnNwZXIuZWR1LmJyIiwiUm9sZSI6IlByb2Zlc3NvciJ9</code></p>
+<div class="language-json highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="p">{</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="nt">&quot;iss&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Insper&quot;</span><span class="p">,</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span><span class="nt">&quot;iat&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1703008338</span><span class="p">,</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">  </span><span class="nt">&quot;exp&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">2018541138</span><span class="p">,</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">  </span><span class="nt">&quot;aud&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;www.insper.edu.br&quot;</span><span class="p">,</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">  </span><span class="nt">&quot;sub&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;humbertors@insper.edu.br&quot;</span><span class="p">,</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">  </span><span class="nt">&quot;GivenName&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Humberto&quot;</span><span class="p">,</span>
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="w">  </span><span class="nt">&quot;Surname&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Sandmann&quot;</span><span class="p">,</span>
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">  </span><span class="nt">&quot;Email&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;humbertors@insper.edu.br&quot;</span><span class="p">,</span>
+</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="w">  </span><span class="nt">&quot;Role&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Professor&quot;</span>
+</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="p">}</span>
+</span></code></pre></div>
+</div>
+<div class="tabbed-block">
+<p><code>SsGdvR5GbYWTRbxY7IGxHt1vSxhkpRueBJWsi0lrPhJVCICp119QjU8F3QvHW0yF5tw-HhQ9RVh0l89t4M0LNw</code></p>
+<div class="language-py highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">HMACSHA512</span><span class="p">(</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>  <span class="n">base64UrlEncode</span><span class="p">(</span><span class="n">header</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;.&quot;</span> <span class="o">+</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>  <span class="n">base64UrlEncode</span><span class="p">(</span><span class="n">payload</span><span class="p">),</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>  <span class="n">qwertyuiopasdfghjklzxcvbnm123456</span><span class="p">,</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="p">)</span>
+</span></code></pre></div>
+</div>
+</div>
+</div>
+<p>JWTs are widely used in web development due to their simplicity, flexibility, and support across various programming languages and frameworks. They are commonly used in token-based authentication systems.</p>
+<h3 id="addtional-material">Addtional Material</h3>
+<ul>
+<li>
+<p><a href="./jwt.md" target="_blank">JSON Web Token</a></p>
+</li>
+<li>
+<p><span class="twemoji youtube"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M549.655 124.083c-6.281-23.65-24.787-42.276-48.284-48.597C458.781 64 288 64 288 64S117.22 64 74.629 75.486c-23.497 6.322-42.003 24.947-48.284 48.597-11.412 42.867-11.412 132.305-11.412 132.305s0 89.438 11.412 132.305c6.281 23.65 24.787 41.5 48.284 47.821C117.22 448 288 448 288 448s170.78 0 213.371-11.486c23.497-6.321 42.003-24.171 48.284-47.821 11.412-42.867 11.412-132.305 11.412-132.305s0-89.438-11.412-132.305m-317.51 213.508V175.185l142.739 81.205z"/></svg></span> <a href="https://www.youtube.com/watch?v=5w-YCcOjPD0" target="_blank">Autenticação e Autorização com Spring Security e JWT Tokens</a> by <a href="https://github.com/Fernanda-Kipper" target="_blank">Fernanda Kipper</a></p>
+<p><a href="https://www.youtube.com/watch?v=5w-YCcOjPD0" target="_blank"><img alt="" src="https://img.youtube.com/vi/5w-YCcOjPD0/0.jpg" width="60%" /></a></p>
+</li>
+<li>
+<p><a href="../../handout/microservices/auth.md">Spring Cloud Security</a></p>
+</li>
+<li>
+<p><span class="twemoji youtube"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M549.655 124.083c-6.281-23.65-24.787-42.276-48.284-48.597C458.781 64 288 64 288 64S117.22 64 74.629 75.486c-23.497 6.322-42.003 24.947-48.284 48.597-11.412 42.867-11.412 132.305-11.412 132.305s0 89.438 11.412 132.305c6.281 23.65 24.787 41.5 48.284 47.821C117.22 448 288 448 288 448s170.78 0 213.371-11.486c23.497-6.321 42.003-24.171 48.284-47.821 11.412-42.867 11.412-132.305 11.412-132.305s0-89.438-11.412-132.305m-317.51 213.508V175.185l142.739 81.205z"/></svg></span> <a href="https://www.youtube.com/watch?v=P2CPd9ynFLg" target="_blank">ByeteByteGo - Why is JWT popular?</a></p>
+<p><a href="https://www.youtube.com/watch?v=P2CPd9ynFLg" target="_blank"><img alt="" src="https://img.youtube.com/vi/P2CPd9ynFLg/0.jpg" width="60%" /></a></p>
+</li>
+</ul>
+<div class="footnote">
+<hr />
+<ol>
+<li id="fn:1">
+<p><a href="https://datatracker.ietf.org/doc/html/rfc7519" target="_blank">RFC 7519 - JSON Web Token (JWT)</a>, 2015.&#160;<a class="footnote-backref" href="#fnref:1" title="Jump back to footnote 1 in the text">&#8617;</a></p>
+</li>
+<li id="fn:2">
+<p><a href="http://jwtbuilder.jamiekurtz.com" target="_blank">JWT - Builder</a>.&#160;<a class="footnote-backref" href="#fnref:2" title="Jump back to footnote 2 in the text">&#8617;</a></p>
+</li>
+<li id="fn:3">
+<p><a href="https://jwt.io/" target="_blank">jwt.io - JWT Verification</a>.&#160;<a class="footnote-backref" href="#fnref:3" title="Jump back to footnote 3 in the text">&#8617;</a></p>
+</li>
+<li id="fn:4">
+<p><a href="https://www.unixtimestamp.com" target="_blank">Unix Time Stamp - Epoch Converter</a>.&#160;<a class="footnote-backref" href="#fnref:4" title="Jump back to footnote 4 in the text">&#8617;</a></p>
+</li>
+<li id="fn:5">
+<p>DELANTHA, R., <a href="https://medium.com/@rajithgama/spring-cloud-gateway-security-with-jwt-23045ba59b8a" target="_blank">Spring Cloud Gateway security with JWT</a>, 2023.&#160;<a class="footnote-backref" href="#fnref:5" title="Jump back to footnote 5 in the text">&#8617;</a></p>
+</li>
+<li id="fn:6">
+<p><a href="https://en.wikipedia.org/wiki/Pepper_(cryptography)" target="_blank">Wikipedia - Pepper (cryptography)</a>.&#160;<a class="footnote-backref" href="#fnref:6" title="Jump back to footnote 6 in the text">&#8617;</a></p>
+</li>
+<li id="fn:7">
+<p>PGzlan, <a href="https://dev.to/0xog_pg/serve-your-hash-with-salt-and-pepper-for-stronger-account-security-587k" target="_blank">Serve your hash with Salt and Pepper for Stronger Account Security</a>, 2023.&#160;<a class="footnote-backref" href="#fnref:7" title="Jump back to footnote 7 in the text">&#8617;</a></p>
+</li>
+<li id="fn:8">
+<p>DELANTHA, R., <a href="https://medium.com/@rajithgama/spring-cloud-gateway-security-with-jwt-23045ba59b8a" target="_blank">Spring Cloud Gateway security with JWT</a>, 2023.&#160;<a class="footnote-backref" href="#fnref:8" title="Jump back to footnote 8 in the text">&#8617;</a></p>
+</li>
+</ol>
+</div>
 
 
 
@@ -1003,12 +1394,13 @@
   <span class="md-source-file__fact">
     <span class="md-icon" title="Contributors">
       
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 4a4 4 0 0 1 4 4 4 4 0 0 1-4 4 4 4 0 0 1-4-4 4 4 0 0 1 4-4m0 10c4.42 0 8 1.79 8 4v2H4v-2c0-2.21 3.58-4 8-4"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 5.5A3.5 3.5 0 0 1 15.5 9a3.5 3.5 0 0 1-3.5 3.5A3.5 3.5 0 0 1 8.5 9 3.5 3.5 0 0 1 12 5.5M5 8c.56 0 1.08.15 1.53.42-.15 1.43.27 2.85 1.13 3.96C7.16 13.34 6.16 14 5 14a3 3 0 0 1-3-3 3 3 0 0 1 3-3m14 0a3 3 0 0 1 3 3 3 3 0 0 1-3 3c-1.16 0-2.16-.66-2.66-1.62a5.54 5.54 0 0 0 1.13-3.96c.45-.27.97-.42 1.53-.42M5.5 18.25c0-2.07 2.91-3.75 6.5-3.75s6.5 1.68 6.5 3.75V20h-13zM0 20v-1.5c0-1.39 1.89-2.56 4.45-2.9-.59.68-.95 1.62-.95 2.65V20zm24 0h-3.5v-1.75c0-1.03-.36-1.97-.95-2.65 2.56.34 4.45 1.51 4.45 2.9z"/></svg>
       
     </span>
     <nav>
       
-        <a href="mailto:hsandmann@ieee.org">Humberto Sandmann</a>
+        <a href="mailto:hsandmann@ieee.org">Humberto Sandmann</a>, 
+        <a href="mailto:not.committed.yet">Not Committed Yet</a>
     </nav>
   </span>
 
