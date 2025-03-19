@@ -1053,8 +1053,10 @@
         gateway e1@==&gt; exchange:::exchange
         e1@{ animate: true }
     end
-    internet e2@==&gt;|request| gateway
+    exchange e2@==&gt; 3partyapi@{label: "3rd-party API"}
+    internet e3@==&gt;|request| gateway
     e2@{ animate: true }
+    e3@{ animate: true }
     classDef exchange fill:#f99</code></pre>
 </div>
 <div class="footnote">
