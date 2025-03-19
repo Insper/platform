@@ -24,7 +24,7 @@
     
     
       
-        <title>2. Gateway Spring Cloud - Platforms, Microservices, DevOps and APIs</title>
+        <title>2. Gateway - Platforms, Microservices, DevOps and APIs</title>
       
     
     
@@ -169,7 +169,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              2. Gateway Spring Cloud
+              2. Gateway
             
           </span>
         </div>
@@ -415,7 +415,7 @@
         
   
   <span class="md-ellipsis">
-    1. CRUD Spring Boot
+    1. CRUD
     
   </span>
   
@@ -444,7 +444,7 @@
           
   
   <span class="md-ellipsis">
-    2. Gateway Spring Cloud
+    2. Gateway
     
   </span>
   
@@ -456,7 +456,7 @@
         
   
   <span class="md-ellipsis">
-    2. Gateway Spring Cloud
+    2. Gateway
     
   </span>
   
@@ -505,7 +505,7 @@
         
   
   <span class="md-ellipsis">
-    3. Security Spring Cloud
+    3. Security
     
   </span>
   
@@ -1054,7 +1054,7 @@
   
 
 
-  <h1>2. Gateway Spring Cloud</h1>
+  <h1>2. Gateway</h1>
 
 <p>The main functionality of Gateway Microservice is to route the incoming requests to the appropriate microservice, therefore, it is the entry point for all the incoming requests. In counterpart, each microservice have to expose their own port and endpoints to the internet, which is not a good practice. The Gateway Microservice will act as a reverse proxy and route the incoming requests to the appropriate microservice. Also, it will also handle the authentication and authorization of the incoming requests.</p>
 <pre class="mermaid"><code>flowchart LR
@@ -1273,10 +1273,10 @@
 </span><span id="__span-1-24"><a id="__codelineno-1-24" name="__codelineno-1-24"></a><span class="w">          </span><span class="nt">predicates</span><span class="p">:</span>
 </span><span id="__span-1-25"><a id="__codelineno-1-25" name="__codelineno-1-25"></a><span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Path=/auth/**</span>
 </span><span id="__span-1-26"><a id="__codelineno-1-26" name="__codelineno-1-26"></a>
-</span><span id="__span-1-27"><a id="__codelineno-1-27" name="__codelineno-1-27"></a><span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">exchange</span>
-</span><span id="__span-1-28"><a id="__codelineno-1-28" name="__codelineno-1-28"></a><span class="w">          </span><span class="nt">uri</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http://exchange:80</span>
-</span><span id="__span-1-29"><a id="__codelineno-1-29" name="__codelineno-1-29"></a><span class="w">          </span><span class="nt">predicates</span><span class="p">:</span>
-</span><span id="__span-1-30"><a id="__codelineno-1-30" name="__codelineno-1-30"></a><span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Path=/exchange/**</span>
+</span><span id="__span-1-27"><a id="__codelineno-1-27" name="__codelineno-1-27"></a><span class="w">        </span><span class="c1"># - id: exchange</span>
+</span><span id="__span-1-28"><a id="__codelineno-1-28" name="__codelineno-1-28"></a><span class="w">        </span><span class="c1">#   uri: http://exchange:80</span>
+</span><span id="__span-1-29"><a id="__codelineno-1-29" name="__codelineno-1-29"></a><span class="w">        </span><span class="c1">#   predicates:</span>
+</span><span id="__span-1-30"><a id="__codelineno-1-30" name="__codelineno-1-30"></a><span class="w">        </span><span class="c1">#     - Path=/exchange/**</span>
 </span><span id="__span-1-31"><a id="__codelineno-1-31" name="__codelineno-1-31"></a>
 </span><span id="__span-1-32"><a id="__codelineno-1-32" name="__codelineno-1-32"></a><span class="nt">logging</span><span class="p">:</span>
 </span><span id="__span-1-33"><a id="__codelineno-1-33" name="__codelineno-1-33"></a><span class="w">  </span><span class="nt">level</span><span class="p">:</span>

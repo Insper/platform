@@ -24,7 +24,7 @@
     
     
       
-        <title>3. Security Spring Cloud - Platforms, Microservices, DevOps and APIs</title>
+        <title>3. Security - Platforms, Microservices, DevOps and APIs</title>
       
     
     
@@ -169,7 +169,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              3. Security Spring Cloud
+              3. Security
             
           </span>
         </div>
@@ -415,7 +415,7 @@
         
   
   <span class="md-ellipsis">
-    1. CRUD Spring Boot
+    1. CRUD
     
   </span>
   
@@ -437,7 +437,7 @@
         
   
   <span class="md-ellipsis">
-    2. Gateway Spring Cloud
+    2. Gateway
     
   </span>
   
@@ -466,7 +466,7 @@
           
   
   <span class="md-ellipsis">
-    3. Security Spring Cloud
+    3. Security
     
   </span>
   
@@ -478,7 +478,7 @@
         
   
   <span class="md-ellipsis">
-    3. Security Spring Cloud
+    3. Security
     
   </span>
   
@@ -1204,7 +1204,7 @@
   
 
 
-  <h1>3. Security Spring Cloud</h1>
+  <h1>3. Security</h1>
 
 <p>A secutiry of the system is a very important aspect of the system. All security systems are based on authentication and authorization.</p>
 <ul>
@@ -2489,10 +2489,10 @@ User-&gt;&gt;User: stores the token to use for the next requests</code></pre>
 </span><span id="__span-20-24"><a id="__codelineno-20-24" name="__codelineno-20-24"></a><span class="w">          </span><span class="nt">predicates</span><span class="p">:</span>
 </span><span id="__span-20-25"><a id="__codelineno-20-25" name="__codelineno-20-25"></a><span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Path=/auth/**</span>
 </span><span id="__span-20-26"><a id="__codelineno-20-26" name="__codelineno-20-26"></a>
-</span><span id="__span-20-27"><a id="__codelineno-20-27" name="__codelineno-20-27"></a><span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">exchange</span>
-</span><span id="__span-20-28"><a id="__codelineno-20-28" name="__codelineno-20-28"></a><span class="w">          </span><span class="nt">uri</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http://exchange:80</span>
-</span><span id="__span-20-29"><a id="__codelineno-20-29" name="__codelineno-20-29"></a><span class="w">          </span><span class="nt">predicates</span><span class="p">:</span>
-</span><span id="__span-20-30"><a id="__codelineno-20-30" name="__codelineno-20-30"></a><span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Path=/exchange/**</span>
+</span><span id="__span-20-27"><a id="__codelineno-20-27" name="__codelineno-20-27"></a><span class="w">        </span><span class="c1"># - id: exchange</span>
+</span><span id="__span-20-28"><a id="__codelineno-20-28" name="__codelineno-20-28"></a><span class="w">        </span><span class="c1">#   uri: http://exchange:80</span>
+</span><span id="__span-20-29"><a id="__codelineno-20-29" name="__codelineno-20-29"></a><span class="w">        </span><span class="c1">#   predicates:</span>
+</span><span id="__span-20-30"><a id="__codelineno-20-30" name="__codelineno-20-30"></a><span class="w">        </span><span class="c1">#     - Path=/exchange/**</span>
 </span><span id="__span-20-31"><a id="__codelineno-20-31" name="__codelineno-20-31"></a>
 </span><span id="__span-20-32"><a id="__codelineno-20-32" name="__codelineno-20-32"></a><span class="nt">logging</span><span class="p">:</span>
 </span><span id="__span-20-33"><a id="__codelineno-20-33" name="__codelineno-20-33"></a><span class="w">  </span><span class="nt">level</span><span class="p">:</span>
