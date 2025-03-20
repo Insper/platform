@@ -1125,17 +1125,23 @@
         others --&gt; db
         auth --&gt; account
         gateway --&gt; exchange
-        gateway --&gt; product:::color
-        gateway --&gt; order:::color
-        product --&gt; db
-        order --&gt; db
-        order --&gt; product
+        gateway e5@==&gt; product:::color
+        gateway e6@==&gt; order:::color
+        product e2@==&gt; db
+        order e3@==&gt; db
+        order e4@==&gt; product
     end
-    exchange e2@==&gt; 3partyapi@{label: "3rd-party API"}
-    internet e3@==&gt;|request| gateway
+    exchange --&gt; 3partyapi@{label: "3rd-party API"}
+    internet e1@==&gt;|request| gateway
+    e1@{ animate: true }
     e2@{ animate: true }
     e3@{ animate: true }
-    classDef color fill:#f99</code></pre>
+    e4@{ animate: true }
+    e5@{ animate: true }
+    e6@{ animate: true }
+    classDef color fill:#f22
+    click product "#product-api" "Product API"
+    click order "#order-api" "Order API"</code></pre>
 <h2 id="product-api">Product API</h2>
 <p>The API should have the following endpoints:</p>
 <div class="admonition info">
@@ -1312,7 +1318,7 @@
 </span><span id="__span-9-17"><a id="__codelineno-9-17" name="__codelineno-9-17"></a><span class="p">}</span>
 </span></code></pre></div></td></tr></table></div>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>Response<span class="w"> </span>code:<span class="w"> </span><span class="m">201</span><span class="w"> </span><span class="o">(</span>created<span class="o">)</span>
-</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>Response<span class="w"> </span>code:<span class="w"> </span><span class="m">404</span><span class="w"> </span><span class="o">(</span>not<span class="w"> </span>found<span class="o">)</span>,<span class="w"> </span><span class="k">if</span><span class="w"> </span>the<span class="w"> </span>product<span class="w"> </span>does<span class="w"> </span>not<span class="w"> </span>exist.
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>Response<span class="w"> </span>code:<span class="w"> </span><span class="m">400</span><span class="w"> </span><span class="o">(</span>bad<span class="w"> </span>request<span class="o">)</span>,<span class="w"> </span><span class="k">if</span><span class="w"> </span>the<span class="w"> </span>product<span class="w"> </span>does<span class="w"> </span>not<span class="w"> </span>exist.
 </span></code></pre></div></p>
 </div>
 </div>
@@ -1443,7 +1449,7 @@
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date">March 19, 2025</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date">March 20, 2025</span>
   </span>
 
     
