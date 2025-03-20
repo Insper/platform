@@ -996,10 +996,6 @@
 
   <h1>1. Exchange API</h1>
 
-<div class="admonition warning">
-<p class="admonition-title">Attention</p>
-<p><strong>To consume the API, the user must be authenticated.</strong></p>
-</div>
 <p>Using FastAPI<sup id="fnref:1"><a class="footnote-ref" href="#fn:1">1</a></sup> (or other framework) on Python <span class="twemoji" title="Python is mandatory!"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M11 9h2V7h-2m1 13c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8m0-18A10 10 0 0 0 2 12a10 10 0 0 0 10 10 10 10 0 0 0 10-10A10 10 0 0 0 12 2m-1 15h2v-6h-2z"/></svg></span>, create a REST API that allows the user to convert between currencies. The API should have the following endpoints:</p>
 <div class="admonition info">
 <p class="admonition-title">GET /exchange/{from}/{to}</p>
@@ -1037,6 +1033,10 @@
 <div class="admonition tip">
 <p class="admonition-title">Hint</p>
 <p>You can use the <code>requests</code> library to make HTTP requests to the third-party API.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Attention</p>
+<p><strong>To consume the API, the user must be authenticated.</strong></p>
 </div>
 <div class="admonition danger">
 <p class="admonition-title">Gateway</p>
