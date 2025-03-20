@@ -1111,10 +1111,6 @@
   <h1>2. Order and Product APIs</h1>
 
 <p>Create a RESTful API for a store. The API should have two main resources: <code>product</code> and <code>order</code>.</p>
-<div class="admonition warning">
-<p class="admonition-title">Attention</p>
-<p><strong>To consume the API, the user must be authenticated.</strong></p>
-</div>
 <pre class="mermaid"><code>flowchart LR
     subgraph api
         direction TB
@@ -1142,6 +1138,10 @@
     classDef color fill:#f22
     click product "#product-api" "Product API"
     click order "#order-api" "Order API"</code></pre>
+<div class="admonition warning">
+<p class="admonition-title">Attention</p>
+<p><strong>To consume the API, the user must be authenticated.</strong></p>
+</div>
 <h2 id="product-api">Product API</h2>
 <p>The API should have the following endpoints:</p>
 <div class="admonition info">
