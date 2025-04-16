@@ -2,13 +2,12 @@ package store.gateway.security;
 
 import java.util.List;
 import java.util.function.Predicate;
-
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
 
 @Component
 public class RouterValidator {
-
+    
     private List<String> openApiEndpoints = List.of(
         "POST /auth/register",
         "POST /auth/login"

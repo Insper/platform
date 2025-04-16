@@ -41,8 +41,17 @@ services:
       - LOGGING_LEVEL_STORE=${LOGGING_LEVEL_STORE:-debug}
     ports:
       - 8080:8080
+  exchange:
+    build:
+      context: ./entrega_1_microservicos
+      dockerfile: Dockerfile
 
-  # exchange:
-  #   build:
-  #     context: ./exchange-service
-  #     dockerfile: Dockerfile
+  product:
+    build:
+      context: ./product-service
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_HOST: db
+      DATABASE_USER: ${POSTGRES_USER:-store}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-store}
+
