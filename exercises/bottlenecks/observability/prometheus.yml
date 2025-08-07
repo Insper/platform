@@ -1,0 +1,46 @@
+scrape_configs:
+
+  - job_name: 'GatewayMetrics'
+    metrics_path: '/gateway/actuator/prometheus'
+    scrape_interval: 1s
+    static_configs:
+      - targets:
+        - gateway:8080
+        labels:
+          application: 'Gateway Application'
+
+  - job_name: 'AuthMetrics'
+    metrics_path: '/auth/actuator/prometheus'
+    scrape_interval: 1s
+    static_configs:
+      - targets:
+        - auth:8080
+        labels:
+          application: 'Auth Application'
+
+  # - job_name: 'AccountMetrics'
+  #   metrics_path: '/account/actuator/prometheus'
+  #   scrape_interval: 1s
+  #   static_configs:
+  #     - targets:
+  #       - account:8080
+  #       labels:
+  #         application: 'Account Application'
+
+  # - job_name: 'ProductMetrics'
+  #   metrics_path: '/product/actuator/prometheus'
+  #   scrape_interval: 1s
+  #   static_configs:
+  #     - targets:
+  #       - product:8080
+  #       labels:
+  #         application: 'Product Application'
+
+  # - job_name: 'OrderMetrics'
+  #   metrics_path: '/order/actuator/prometheus'
+  #   scrape_interval: 1s
+  #   static_configs:
+  #     - targets:
+  #       - order:8080
+  #       labels:
+  #         application: 'Order Application'  
