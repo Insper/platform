@@ -296,7 +296,7 @@ Os testes de carga são uma parte importante do desenvolvimento de software, poi
         Open another terminal window and run the load test against the `gateway` deployment. This will simulate a high load on the application, causing the HPA to scale the number of pods in the deployment.
 
         ``` { .bash .copy }
-        kubectl run -i --tty load-generator --rm --image=busybox:1.28 --restart=Never -- /bin/sh -c "while sleep 0.01; do wget -q -O- http://gateway/info; done"
+        kubectl run -i --tty load-generator --rm --image=busybox:1.28 --restart=Never -- /bin/sh -c "while sleep 0.01; do wget -q -O- http://gateway/health-check; done"
         ```
 
         In the command above, the `wget` command is used to send requests to the `/info` endpoint of the `gateway` deployment. The `while` loop will continue to send requests until you stop it (e.g., by pressing `Ctrl+C`). The interval between requests is set to 0.01 seconds, which simulates a high load on the application. Try to increase and decrease the interval to see how the HPA reacts to different loads.
