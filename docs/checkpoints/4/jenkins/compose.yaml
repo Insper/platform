@@ -9,7 +9,7 @@ services:
       dockerfile_inline: |
         FROM jenkins/jenkins:jdk21
         USER root
-        
+
         # Install tools
         RUN apt-get update && apt-get install -y lsb-release iputils-ping maven
 
@@ -23,13 +23,21 @@ services:
         RUN apt-get update && apt-get install -y docker-ce
 
         # Install kubectl
-        RUN apt-get install -y apt-transport-https ca-certificates curl
-        RUN curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.30/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
-        RUN chmod 644 /etc/apt/keyrings/kubernetes-apt-keyring.gpg
-        RUN echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.30/deb/ /' | tee /etc/apt/sources.list.d/kubernetes.list
-        RUN chmod 644 /etc/apt/sources.list.d/kubernetes.list
-        RUN apt-get update && apt-get install -y kubectl
-        
+        RUN apt-get install -y apt-transport-https ca-certificates curl && \
+            curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.30/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg && \
+            chmod 644 /etc/apt/keyrings/kubernetes-apt-keyring.gpg && \
+            echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.30/deb/ /' | tee /etc/apt/sources.list.d/kubernetes.list && \
+            chmod 644 /etc/apt/sources.list.d/kubernetes.list && \
+            apt-get update && apt-get install -y kubectl
+
+        # Install AWS CLI
+        RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-$(arch).zip" -o "awscliv2.zip" && \
+            echo "Unzipping AWS CLI..." && \
+            unzip awscliv2.zip && \
+            ./aws/install --update && \
+            rm awscliv2.zip && \
+            rm -rf ./aws
+
         RUN usermod -aG docker jenkins
     ports:
       - 9080:8080
