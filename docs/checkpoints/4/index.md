@@ -13,7 +13,7 @@ jenkins/
 
 ??? info "Source"
 
-    === "compose.yaml"
+    === "[compose.yaml](jenkins/compose.yaml){:download='compose.yaml'}"
 
         ``` { .yaml .copy .select linenums="1" }
         --8<-- "https://raw.githubusercontent.com/Insper/platform/refs/heads/main/docs/checkpoints/4/jenkins/compose.yaml"
