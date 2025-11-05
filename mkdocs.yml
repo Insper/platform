@@ -132,13 +132,14 @@ nav:
     - 7. Cloud: classes/cloud/index.md
     - 8. Orchestration: classes/orchestration/index.md
     - 9. Reliability: classes/reliability/index.md
-    - 10. Service Model: classes/paas/index.md
-    - Checkpoints:
-      - 1. CRUD: checkpoints/1/index.md
-      - 2. Gateway: checkpoints/2/index.md
-      - 3. Security: checkpoints/3/index.md
-      - 4. DevOps: checkpoints/4/index.md
-      - 5. Orchestration: checkpoints/5/index.md
+    - 10. Cloud Service Models: classes/cloud_service_models/index.md
+
+  - Checkpoints:
+    - 1. CRUD: checkpoints/1/index.md
+    - 2. Gateway: checkpoints/2/index.md
+    - 3. Security: checkpoints/3/index.md
+    - 4. DevOps: checkpoints/4/index.md
+    - 5. Orchestration: checkpoints/5/index.md
 
   - Exercises:
     - Individual:
