@@ -131,7 +131,8 @@ nav:
     - 6. DevOps: classes/devops/index.md
     - 7. Cloud: classes/cloud/index.md
     - 8. Orchestration: classes/orchestration/index.md
-    - 9. PaaS: classes/paas/index.md
+    - 9. Reliability: classes/reliability/index.md
+    - 10. Service Model: classes/paas/index.md
     - Checkpoints:
       - 1. CRUD: checkpoints/1/index.md
       - 2. Gateway: checkpoints/2/index.md
