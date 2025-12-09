@@ -1,6 +1,30 @@
 # [Plataformas, Microsserviços e APIs](#plataformas-microsservicos-e-apis)
 
-<!-- ![Insper](https://www.insper.edu.br/wp-content/themes/insper/dist/image/logo.png){ align=right } -->
+
+## [Versions](#versions)
+
+<div class="grid cards" markdown>
+
+-   __[![](./versions/2025.2/2025.2.jpg){ .rounded-corners .width-full}](./versions/2025.2/)__
+
+    ---
+
+    [2025.2](./versions/2025.2/)
+
+-   __[![](./versions/2025.1/2025.1.jpg){ .rounded-corners .width-full}](./versions/2025.1/)__
+
+    ---
+
+    [2025.1](./versions/2025.1/)
+    
+-   __[![](./versions/2024.1/2024.1.jpg){ .rounded-corners .width-full}](./versions/2024.1/)__
+
+    ---
+
+    [2024.1](./versions/2024.1/)
+
+
+</div>
 
 ???+ info inline end
 

@@ -60,8 +60,8 @@ Reliability is a critical aspect of modern software systems, ensuring that servi
 
 ```mermaid
 flowchart TD
-    A("SLI: Measurable Metric<br><small>e.g., % successful requests</small>") --> B("SLO: Target Value<br><small>Internal target (e.g., 99.99% uptime)</small>")
-    B --> C("SLA: Formal Agreement<br><small>External contract (e.g., 99.95% uptime)</small>")
+    A("SLI: Measurable Metric<br><small>e.g., % successful requests</small>") --> B("SLO: Target Value<br><small>Internal target<br>(e.g., 99.99% uptime)</small>")
+    B --> C("SLA: Formal Agreement<br><small>External contract<br>(e.g., 99.95% uptime)</small>")
     C --> D[Customer Expectations]
     B --> E[Error Budget Management]
     A --> F[Monitoring & Alerting]
