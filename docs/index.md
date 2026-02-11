@@ -3,6 +3,12 @@
 
 <div class="grid cards" markdown>
 
+-   __[![](./versions/2026.1/2026.1.jpg){ .rounded-corners .width-full}](./versions/2026.1/)__
+
+    ---
+
+    [2026.1](./versions/2026.1/)
+
 -   __[![](./versions/2025.2/2025.2.jpg){ .rounded-corners .width-full}](./versions/2025.2/)__
 
     ---

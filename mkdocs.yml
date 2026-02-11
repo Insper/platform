@@ -120,7 +120,7 @@ extra_css:
 
 nav:
   - Ementa: index.md
-  - 2025.2: versions/2025.2/index.md
+  - 2026.1: versions/2026.1/index.md
 
   - Classes:
     - 1. Distributed Systems: classes/distributed-systems/index.md
@@ -153,6 +153,7 @@ nav:
     
   - Versions:
     - Terms and Conditions: versions/terms-and-conditions.md
+    - 2026.1: versions/2026.1/index.md
     - 2025.2: versions/2025.2/index.md
     - 2025.1: versions/2025.1/index.md
     - 2024.1: versions/2024.1/index.md
