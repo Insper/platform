@@ -1,6 +1,20 @@
-![It Works on My Machine](itworksonmymachine.png){ width="40%" align="right" }
 
-How to avoid the classical..
+
+When a server has so much traffic that it cannot handle it, the solution is to add more servers or increase the capacity of existing ones. This is called **scalability**.
+
+The scalability could be achieved:
+
+- by adding more servers to the system, which is known as **horizontal scaling**, or;
+
+- by increasing the capacity of existing servers, which is known as **vertical scaling**.
+
+Horizontal scaling allows for better fault tolerance and can handle more traffic, while vertical scaling can be more cost-effective for smaller applications. However, adding more servers can be a complex and time-consuming process, especially if the application is not designed to run in a distributed environment.
+
+Then, how can we ensure that our application can run consistently across different environments, such as development, testing, and production, without encountering issues related to dependencies, configurations, or compatibility?
+  
+How to avoid the classical...
+
+![It Works on My Machine](itworksonmymachine.png){ width="35%" }
 
 The answer is: **CONTAINERIZATION**.
 
