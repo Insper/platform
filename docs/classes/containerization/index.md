@@ -58,7 +58,7 @@ In summary, Docker containers and virtual machines have different levels of abst
 
 ## Docker Compose
 
-Docker Compose is a tool for defining and running multi-container Docker applications. With Compose, you can use a YAML file to configure your application's services, networks, and volumes, making it easier to manage complex applications. All the services defined in the `compose.yaml` file can be started with a single command, allowing you to run multiple containers as a single application.
+Docker Compose is a tool for defining and running multi-container Docker applications - in a **declarative language**. With Compose, you can use a YAML file to configure your application's services, networks, and volumes, making it easier to manage complex applications. All the services defined in the `compose.yaml` file can be started with a single command, allowing you to run multiple containers as a single application.
 
 ``` {.yaml title="compose.yaml"}
 --8<-- "docs/classes/containerization/compose-example.yaml"
@@ -131,87 +131,40 @@ flowchart LR
 
         **NEVER** leave ports exposed in production unless absolutely necessary.
 
-## Additional Information
 
-### Private Networks
+## Clouding
 
-Private networks are networks that are not directly accessible from the public internet. They are used to isolate resources and provide a secure environment for communication between devices. In the context of Docker, private networks allow containers to communicate with each other without exposing their services to the outside world.
+Containerization is a key technology for cloud computing, as it allows applications to be packaged and deployed in a consistent and portable manner across different cloud environments. Many cloud providers, such as AWS, Google Cloud, and Microsoft Azure, offer managed container services that allow developers to easily deploy and manage containerized applications in the cloud. These services typically provide features such as automatic scaling, load balancing, and integration with other cloud services, making it easier for developers to build and deploy applications in the cloud using containerization.
 
-<center>
-``` mermaid
----
-title: Network Address Translation (NAT)
----
-flowchart TB
-    host1@{ shape: docs, label: "Host 1"} ---|Public IP| internet([Internet])
-    host2@{ shape: docs, label: "Host 2"} ---|Public IP| internet([Internet])
-    host3@{ shape: docs, label: "Host 3"} ---|Public IP| internet([Internet])
-    internet((Internet)) ---|Public IP| router1((Border Router<br>NAT<br>10.0.0.0/8))
-    router1 ---|Private IP| device1([Device 1])
-    router1 ---|Private IP| device2([Device 2])
-    router1 ---|Private IP| device3([Device 3])
-    router1 ---|Private IP| router2((Router<br>NAT<br>172.16.0.0/12))
-    router2 ---|Private IP| router3((Router<br>NAT<br>192.168.0.0/16))
-    router2 ---|Private IP| router4((Router<br>NAT<br>192.168.0.0/16))
-    router2 ---|Private IP| device4([Device 4])
-    router2 ---|Private IP| device5([Device 5])
-    router3 ---|Private IP| device6([Device 6])
-    router3 ---|Private IP| device7([Device 7])
-    router4 ---|Private IP| device8([Device 8])
-    router4 ---|Private IP| device9([Device 9])
-    classDef internet fill:#ccf
-    classDef router fill:#fcc
-    classDef device fill:#cfc
-    class internet internet
-    class router1,router2,router3,router4 router
-    class device1,device2,device3,device4,device5,device6,device7,device8,device9 device
-```
-<i>The diagram illustrates a network setup with multiple routers and devices, where each router uses Network Address Translation (NAT) to manage private IP addresses. The internet is connected to the first router (the border router), which has a public IP address, while the other routers and devices use private IP addresses within their respective subnets.</i>
-</center>
+!!! tip "Cloud Course"
 
-Private networks are defined by specific IP address ranges that are reserved for private use. These ranges are not routable on the public internet, ensuring that devices within a private network can communicate securely without interference from external networks.
-
-### Reserved IPv4 Addresses [^5]
-
-#### General Reserved IPv4 Addresses
-
-| Address block (CIDR)| Address range | Number of addresses | Scope | Description
-|----------------------|----------------|--------------------:|-------|-------------
-| 0.0.0.0/8            | 0.0.0.0<br>0.255.255.255 | 16.777.216 | Software | Current (local, "this") network |
-| 10.0.0.0/8           | 10.0.0.0<br>10.255.255.255 | 16.777.216 | Private network | Used for local communications within a private network |
-| 100.64.0.0/10       | 100.64.0.0<br>100.127.255.255 | 4.194.304 | Private network | Shared address space for communications between a service provider and its subscribers when using a carrier-grade NAT |
-| 127.0.0.0/8         | 127.0.0.0<br>127.255.255.255 | 16.777.216 | Host | Used for loopback addresses to the local host |
-| 169.254.0.0/16      | 169.254.0.0<br>169.254.255.255 | 65.536 | Subnet | Used for link-local addresses between two hosts on a single link when no IP address is otherwise specified, such as would have normally been retrieved from a DHCP server |
-| 172.16.0.0/12      | 172.16.0.0<br>172.31.255.255 | 1.048.576 | Private network | Used for local communications within a private network |
-| 192.0.0.0/24       | 192.0.0.0<br>192.0.0.255 | 256 | Private network | IETF Protocol Assignments, DS-Lite (/29) |
-| 192.0.2.0/24       | 192.0.2.0<br>192.0.2.255 | 256 | Documentation | Assigned as TEST-NET-1, documentation and examples |
-| 192.88.99.0/24     | 192.88.99.0<br>192.88.99.255 | 256 | Internet | Reserved. Formerly used for IPv6 to IPv4 relay (included IPv6 address block 2002::/16). |
-| 192.168.0.0/16     | 192.168.0.0<br>192.168.255.255 | 65.536 | Private network | Used for local communications within a private network |
-| 198.18.0.0/15      | 198.18.0.0<br>198.19.255.255 | 131.072 | Private network | Used for benchmark testing of inter-network communications between two separate subnets |
-| 198.51.100.0/24    | 198.51.100.0<br>198.51.100.255 | 256 | Documentation | Assigned as TEST-NET-2, documentation and examples |
-| 203.0.113.0/24     | 203.0.113.0<br>203.0.113.255 | 256 | Documentation | Assigned as TEST-NET-3, documentation and examples |
-| 224.0.0.0/4        | 224.0.0.0<br>239.255.255.255 | 268.435.456 | Internet | In use for multicast (former Class D network) |
-| 233.252.0.0/24     | 233.252.0.0<br>233.252.0.255 | 256 | Documentation | Assigned as MCAST-TEST-NET, documentation and examples (This is part of the above multicast space.) |
-| 240.0.0.0/4       | 240.0.0.0<br>255.255.255.254 | 268.435.455 | Internet | Reserved for future use (former Class E network) |
-| 255.255.255.255/32 | 255.255.255.255           | 1   | Subnet      | Reserved for the "limited broadcast" destination address |
+    A good course to learn about cloud computing is [Computação em Nuvem](https://insper.github.io/computacao-nuvem/){:target="_blank"}, offered by [Insper](https://www.insper.edu.br/){:target="_blank"}. This course covers the fundamentals of cloud computing, including cloud architecture, deployment models, and cloud services. It also includes hands-on exercises and projects to help students gain practical experience with cloud technologies.
 
 
-#### Private IPv4 Addresses [^3]
+### Data centers
 
-| Address block (CIDR) | Address range | Number of addresses | Scope | Description |
-|----------------------|----------------|--------------------:|-------|-------------
-| 10.0.0.0/8           | 10.0.0.0<br>10.255.255.255 | 16.777.216 | Private network | Used for local communications within a private network |
-| 172.16.0.0/12      | 172.16.0.0<br>172.31.255.255 | 1.048.576 | Private network | Used for local communications within a private network |
-| 192.168.0.0/16     | 192.168.0.0<br>192.168.255.255 | 65.536 | Private network | Used for local communications within a private network |
+=== ":fontawesome-brands-google: Google"
+    
+    :fontawesome-brands-youtube:{ .youtube } [Inside a Google data center](https://youtu.be/XZmGGAbHqa0){:target='_blank'}
+
+    [![](https://img.youtube.com/vi/XZmGGAbHqa0/0.jpg){ width=80% }](https://youtu.be/XZmGGAbHqa0){:target='_blank'}
+
+=== ":fontawesome-brands-aws: AWS"
+
+    :fontawesome-brands-youtube:{ .youtube } [Inside Amazon's Massive Data Center](https://youtu.be/q6WlzHLxNKI){:target='_blank'}
+
+    [![](https://img.youtube.com/vi/q6WlzHLxNKI/0.jpg){ width=80% }](https://youtu.be/q6WlzHLxNKI){:target='_blank'}
+
+
+=== ":simple-tesla: Tesla"
+
+    :fontawesome-brands-youtube:{ .youtube } [Inside Elon Musk's Colossus Supercomputer!](https://youtu.be/Tw696JVSxJQ){:target='_blank'}
+
+    [![](https://img.youtube.com/vi/Tw696JVSxJQ/0.jpg){ width=80% }](https://youtu.be/Tw696JVSxJQ){:target='_blank'}
+
 
 
 
 [^1]: [Docker vs. Virtual Machines: Differences You Should Know](https://cloudacademy.com/blog/docker-vs-virtual-machines-differences-you-should-know/){:target="_blank"}
 
 [^2]: [Docker Networking](https://docs.docker.com/engine/network/){:target="_blank"}
-
-[^3]: [RFC 1918 - Address Allocation for Private Internets](https://datatracker.ietf.org/doc/html/rfc1918){:target="_blank"}
-
-[^4]: [Private Network](https://en.wikipedia.org/wiki/Private_network){:target="_blank"}
-
-[^5]: [Reserved IP Addresses](https://en.wikipedia.org/wiki/Reserved_IP_addresses){:target="_blank"}

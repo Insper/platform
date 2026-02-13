@@ -9,10 +9,10 @@ services:
         RUN apt update
         RUN apt install -y net-tools iputils-ping
     ports:
-      - "80:80"
+      - 80:80
 
   app:
-    image: openjdk:23-slim
+    image: eclipse-temurin:25-jdk
     depends_on:
       - db
 
@@ -23,6 +23,6 @@ services:
       POSTGRES_PASSWORD: password
       POSTGRES_DB: mydb
     volumes:
-      - volume/db:/var/lib/postgresql/data
+      - ${VOLUME}/db:/var/lib/postgresql/data
     ports:
       - 5432:5432
