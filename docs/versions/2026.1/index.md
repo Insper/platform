@@ -9,11 +9,13 @@
 | Aula | Sex. | 12h00 :fontawesome-solid-arrow-right-long: 14h00 |
 | Atendimento | Ter. | 12h00 :fontawesome-solid-arrow-right-long: 13h30 |
 
-## Instructor
+
+## Instructors
 
 | [:material-web:](https://hsandmann.github.io/){:target="_blank"} [:simple-github:](https://github.com/hsandmann){:target="_blank"} [:material-linkedin:](https://www.linkedin.com/in/hsandmann/){:target="_blank"} Instructor | Humberto Sandmann |
 
-<!-- | [:simple-github:](https://github.com/giuvallente){:target="_blank"} [:material-linkedin:](https://www.linkedin.com/in/giulia-gomes-vallente-1b06ba302/){:target="_blank"} Student Assistant | Giúlia Gomes Vallente | -->
+| [:simple-github:](https://github.com/luabatepietro){:target="_blank"} [:material-linkedin:](https://www.linkedin.com/in/lucas-abatepietro-286a03270/){:target="_blank"} Student Assistant | Lucas Abatepietro |
+
 
 ## Students
 
