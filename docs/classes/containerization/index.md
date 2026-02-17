@@ -145,6 +145,7 @@ flowchart LR
 
         **NEVER** leave ports exposed in production unless absolutely necessary.
 
+To delivery a project, this could be deployed on-premises, in a private cloud, or in a public cloud. In all these cases, containerization can be used to package and deploy the application consistently across different environments.
 
 ## Clouding
 
@@ -154,6 +155,21 @@ Containerization is a key technology for cloud computing, as it allows applicati
 
     A good course to learn about cloud computing is [Computação em Nuvem](https://insper.github.io/computacao-nuvem/){:target="_blank"}, offered by [Insper](https://www.insper.edu.br/){:target="_blank"}. This course covers the fundamentals of cloud computing, including cloud architecture, deployment models, and cloud services. It also includes hands-on exercises and projects to help students gain practical experience with cloud technologies.
 
+In a cloud environment, it is possible to create virtual machines (VMs) and run Docker containers on them. This allows for greater flexibility and scalability, as you can easily deploy and manage containerized applications in the cloud. Also, these containers run inside of virtual private networks (VPNs), which provide an additional layer of security and isolation for the applications running in the cloud.
+
+Containerization offers several benefits that make it an attractive choice for companies:
+
+1. **Portability:** Containers encapsulate an application and its dependencies, making it easy to move and run the application across different environments without compatibility issues.
+
+2. **Scalability:** Containers can be easily scaled up or down to handle varying workloads, allowing companies to efficiently manage resources and meet demand.
+
+3. **Efficiency:** Containers share the host operating system's kernel, which makes them more lightweight and efficient compared to traditional virtual machines. This allows companies to run more applications on the same hardware.
+
+4. **Consistency:** Containers provide a consistent environment for applications, ensuring that they run the same way in development, testing, and production environments. This reduces the "it works on my machine" problem and improves collaboration between teams.
+
+### Cost-effectiveness
+
+Containerization can help companies save costs by reducing the need for expensive hardware and allowing for more efficient use of resources. Containers can run on a shared infrastructure, which can lead to cost savings compared to running applications on dedicated servers or virtual machines. Additionally, container orchestration tools like Kubernetes can help optimize resource allocation and reduce operational costs by automating the deployment and management of containerized applications.
 
 ### Data centers
 
