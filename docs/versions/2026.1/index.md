@@ -55,7 +55,7 @@
 
 
 ```python exec="1" html="1"
---8<-- "docs/versions/2025.2/grade.py"
+--8<-- "docs/versions/2026.1/grade.py"
 ```
 
 
