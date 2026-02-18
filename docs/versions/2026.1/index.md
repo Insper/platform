@@ -41,7 +41,22 @@ $$
 --8<-- "docs/versions/2026.1/grade.py"
 ```
 
-1. **Quizzes**: the course will have 3 quizzes, the quiz with the lowest grade will be dropped. And, the final quiz grade will be the uniform average of the two best grade quizzes.
+1. **Quizzes**: the course will have 3 quizzes, the quiz with the lowest grade will be dropped. And, the final quiz grade will be the uniform average of the two best grade quizzes:
+
+    $$
+    \text{Quizzes} = \frac{\text{Q1} + \text{Q2} + \text{Q3} - \min(\text{Q1}, \text{Q2}, \text{Q3})}{2}
+    $$
+
+1. **Microservice**: the students will have to implement a microservice. The grade is a concept grade, based on `Notas da Engenharia`:
+
+    | Concept | Grade |
+    |:-:|:-:|
+    | A (+) | 9 (10) |
+    | B (+) | 7 (8) |
+    | C (+) | 5 (6) |
+    | D | 4 |
+    | I | 0 |
+
 
 1. **Team**: the team have to be composed **by 2 up to 3 members**. The team grade will be the same for all members of the team. The team grade will be based on the project delivery and documentation.
 
