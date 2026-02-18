@@ -47,7 +47,7 @@ $$
 
     !!! warning "Group Registration"
 
-        :calendar: Deadline to register: ==**March 6th, 2026**==.
+        :fontawesome-regular-calendar: Deadline to register: ==**March 6th, 2026**==.
 
         :material-account-group: Teams from 2 up to 3 members.
 
@@ -68,7 +68,7 @@ $$
 
     !!! warning "Documentation Requirements"
 
-        :calendar: Deadline to deliver: ==**May 22th, 2026**==.
+        :fontawesome-regular-calendar: Deadline to deliver: ==**May 22th, 2026**==.
 
         :material-github: The project documentation HAVE TO be hosted on GitHub Pages and should be public;
 
