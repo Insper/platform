@@ -197,6 +197,21 @@ Containerization can help companies save costs by reducing the need for expensiv
 
     [![](https://img.youtube.com/vi/Tw696JVSxJQ/0.jpg){ width=100% }](https://youtu.be/Tw696JVSxJQ){:target='_blank'}
 
+---
+
+## Exercises
+
+1. What are the main differences between Docker containers and virtual machines? Provide examples of use cases where each technology would be more suitable.
+
+1. How does Docker Compose facilitate the management of multi-container applications? Provide an example of a `compose.yaml` file for a simple web application with a database.
+
+1. Try to run a simple `compose.yaml` file:
+
+    ``` {.yaml title="compose.yaml"}
+    --8<-- "docs/classes/containerization/compose-example.yaml"
+    ```
+
+    Then, access the web service on port 80 of your host machine and verify that it is working correctly. If you encounter any issues, check the logs of the containers using `docker logs <container>` and troubleshoot accordingly.
 
 
 
