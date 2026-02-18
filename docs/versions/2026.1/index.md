@@ -19,33 +19,6 @@
 
 ## Students
 
-
-<!-- !!! danger "Template"
-        
-    Template to deliver the project: [https://hsandmann.github.io/documentation.template/](https://hsandmann.github.io/documentation.template/){target="_blank"}. -->
-
-<!-- <div class="grid cards" markdown>
-
--   !!! warning "Individual"
-
-        Deadline to register: ==**September 24, 2025**==.
-
-        :material-account: Individual registration.
-
-        Form to register individual students: [https://forms.gle/mG6riaBW99vHxRpc7](https://forms.gle/mG6riaBW99vHxRpc7){target="_blank"}.
-
--   !!! warning "Group"
-
-        Deadline to register: ==**September 24, 2025**==.
-
-        :material-account-group: Teams from 2 up to 3 members.
-
-        Form to register student groups: [https://forms.gle/B2QuGVsacetXfkeg7](https://forms.gle/B2QuGVsacetXfkeg7){target="_blank"}.
-
-        This is ==MANDATORY== to organize the teams and the AWS accounts.
-
-</div> -->
-
 <!-- 
 <iframe src="https://docs.google.com/spreadsheets/d/e/2PACX-1vSqrV3biuxQAPpWqWXcOFpH3Aq5png2oP-dd-QNmU6njaTxispZ9CsOilHPZZcovL9dxTdrPLk3h7Uv/pubhtml?gid=1397413588&amp;single=false&amp;widget=false&amp;headers=false" width="100%" height="460px"></iframe>
  -->
@@ -72,33 +45,62 @@ $$
 
 1. **Quizzes**: the course will have 3 quizzes, the quiz with the lowest grade will be dropped. And, the final quiz grade will be the uniform average of the two best grade quizzes.
 
-2. **Team**: the team have to be composed **by 2 up to 3 members**. The team grade will be the same for all members of the team. The team grade will be based on the project delivery and documentation. The team registration **HAVE TO** be done until ==March 6th, 2026==.
+1. **Team**: the team have to be composed **by 2 up to 3 members**. The team grade will be the same for all members of the team. The team grade will be based on the project delivery and documentation.
 
     !!! warning "Group Registration"
 
-        Deadline to register: ==**March 6th, 2026**==.
+        :calendar: Deadline to register: ==**March 6th, 2026**==.
 
         :material-account-group: Teams from 2 up to 3 members.
 
-        Form to register student groups: [https://forms.gle/B2QuGVsacetXfkeg7](https://forms.gle/B2QuGVsacetXfkeg7){target="_blank"}.
+        :material-github: Create a repository on GitHub to share the project code and documentation.
 
-        This is ==MANDATORY== to organize the teams and the AWS accounts.
+        :material-form-select: Form to register student groups: [https://forms.gle/B2QuGVsacetXfkeg7](https://forms.gle/B2QuGVsacetXfkeg7){target="_blank"}.
+
+        :material-cloud: This is ==MANDATORY== to organize the teams and the AWS accounts.
+
+    !!! tip "Repository name"
+
+        The repository name should be something profissional, for example: `platform`, `microservices`, etc.
+
+        Also, the repository should linked to GitHub authors.
 
 
-<!-- !!! danger "Entrega"
+1. **Documentation**: the project documentation will be evaluated based on the quality of the documentation and the completeness of the documentation. The documentation should be complete and should cover all the aspects of the project, including the architecture, the design decisions, the implementation details, and the testing strategy. The documentation should be clear and concise, and should be easy to understand. The documentation should be well-structured and should follow the best practices of software documentation. The purpose of the documentation is to provide a portfolio about the subject to potential employers or collaborators.
 
-    - Trabalho em grupo deve ser documentado no GitHub. Um template está disponível para auxiliar na documentação: [template de entrega](https://hsandmann.github.io/documentation.template/){target="_blank"}. -->
+    !!! warning "Documentation Requirements"
+
+        :calendar: Deadline to deliver: ==**May 31th, 2026**==.
+
+        :material-github: The project documentation HAVE TO be hosted on GitHub Pages and should be public;
+
+        :simple-materialformkdocs: The format to publish the documentation is [mkdocs](https://www.mkdocs.org/){target="_blank"}, the documentation should be published in the GitHub Pages;
+
+        :octicons-project-template-16: A template based on [material](https://squidfunk.github.io/mkdocs-material/){target="_blank"} is available to assist with the documentation: [delivery template](https://hsandmann.github.io/documentation.template/){target="_blank"}.
+
+    !!! tip "Template"
+
+        A template based on [material](https://squidfunk.github.io/mkdocs-material/){target="_blank"} is available to assist with the documentation: [delivery template](https://hsandmann.github.io/documentation.template/){target="_blank"}.
+
+        1. Fork the template repository;
+        1. Clone the forked repository;
+        1. Edit the documentation;
+        1. Push the changes to the forked repository;
+        1. Publish the documentation on GitHub Pages.
+
+        There is instructions more accurate on [Using this template](https://hsandmann.github.io/documentation.template/thisdocumentation/){target="_blank"}.
 
 
-<!-- 
 ## Planning
 
 <iframe src="https://docs.google.com/spreadsheets/d/e/2PACX-1vTTLC6eG1IMbnD1AQ3NgswsscD2y-H5vHZqyun_nhtPWY3auFOQznEslwYBF0dD5Uck9x2k6Fmo6rKw/pubhtml?gid=1658402287&amp;single=true&amp;widget=true&amp;headers=false" width="100%" height="600px"></iframe>
 
+<!-- 
+
 ## Repositories
 
 Principal: 
-[https://github.com/repo-classes/pma.25.2](https://github.com/repo-classes/pma.25.2){target="_blank"}
+[https://github.com/repo-classes/pma.26.1](https://github.com/repo-classes/pma.26.1){target="_blank"}
 
 | Microservice | Interface | Implementation |
 |-|-|-|

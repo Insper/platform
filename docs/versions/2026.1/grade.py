@@ -47,9 +47,9 @@ ax[1].pie(
 )
 ax[1].title.set_text("Team")
 ax[1].set(aspect="equal")
-ax[1].text(-.32, .0, "Architecture", color='black', ha='center')
-ax[1].text(.25, -.35, "Production", color='black', ha='center')
-ax[1].text(.25, .3, "Report", color='black', ha='center')
+ax[1].text(-.52, .0, "Dev", color='black', ha='center')
+ax[1].text(.28, -.35, "Ops", color='black', ha='center')
+ax[1].text(.28, .3, "Doc", color='black', ha='center')
 
 plt.tight_layout()
 
