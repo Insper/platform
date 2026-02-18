@@ -20,9 +20,9 @@
 ## Students
 
 
-!!! danger "Template"
+<!-- !!! danger "Template"
         
-    Template to deliver the project: [https://hsandmann.github.io/documentation.template/](https://hsandmann.github.io/documentation.template/){target="_blank"}.
+    Template to deliver the project: [https://hsandmann.github.io/documentation.template/](https://hsandmann.github.io/documentation.template/){target="_blank"}. -->
 
 <!-- <div class="grid cards" markdown>
 
@@ -53,62 +53,26 @@
 
 ## Grade
 
+$$
+\text{Final Grade} = \left\{\begin{array}{lll}
+    \text{Individual} \geq 5 \bigwedge \text{Team} \geq 5 &
+    \implies &
+    \displaystyle \frac{ \text{Individual} + \text{Team} } {2}
+    \\
+    \\
+    \text{Otherwise} &
+    \implies &
+    \min\left(\text{Individual}, \text{Team}\right)
+    \end{array}\right.
+$$
 
 ```python exec="1" html="1"
 --8<-- "docs/versions/2026.1/grade.py"
 ```
 
+<!-- !!! danger "Entrega"
 
-=== ":material-target: Final"
-
-    $$
-    \text{Final Grade} = \left\{\begin{array}{lll}
-        \text{Individual} \geq 5 \bigwedge \text{Team} \geq 5 &
-        \implies &
-        \displaystyle \frac{ \text{Individual} + \text{Team} } {2}
-        \\
-        \\
-        \text{Otherwise} &
-        \implies &
-        \min\left(\text{Individual}, \text{Team}\right)
-        \end{array}\right.
-    $$
-
-=== ":octicons-person-24: Individual"
-
-    <!-- $$
-    \text{Individual} = \text{Tarefas} \times 0.7 + \text{Prova Intermediária} \times 0.3
-    $$ -->
-
-    | Tarefa | Descrição | Peso |
-    |-|-|-:|
-    | Checkpoint 1 | Product | 15% |
-    | Checkpoint 2 | Order | 15% |
-    | Checkpoint 3 | Exchange | 10% |
-    | Checkpoint 4 | DevOps | 15% |
-    | Checkpoint 5 | Orchestration | 15% |
-    | Bootnecks | InMemory Database<br>Message Queues<br>Observability<br>Code quality<br>OAuth2<br>Payments (sandboxes) | 20% |
-    | Documentation | README with MkDocs | 10% |
-
-    !!! danger "Entrega"
-        - A entrega de um checkpoint implica, **OBRIGATORIAMENTE**, na entrega do checkpoint anterior;
-        - Trabalho em grupo deve ser documentado no GitHub.
-
-=== ":octicons-people-24: Team"
-
-    | Tarefas | Descrição | Peso |
-    |-|-|-:|
-    | AWS | Configurar AWS | 5% |
-    | EKS | Disponibilizar a aplicação | 15% |
-    | Testes | Testes de carga | 20% |
-    | CI/CD | Jenkins | 10% |
-    | Custos | Análise de custos | 15% |
-    | PaaS | Plano de uso da plataforma | 15% |
-    | Apresentação | Storytelling e documentação | 20% |
-
-    !!! danger "Entrega"
-
-        - Trabalho em grupo deve ser documentado no GitHub. Um template está disponível para auxiliar na documentação: [template de entrega](https://hsandmann.github.io/documentation.template/){target="_blank"}.
+    - Trabalho em grupo deve ser documentado no GitHub. Um template está disponível para auxiliar na documentação: [template de entrega](https://hsandmann.github.io/documentation.template/){target="_blank"}. -->
 
 
 <!-- 
