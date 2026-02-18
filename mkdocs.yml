@@ -134,12 +134,12 @@ nav:
     # - 9. Reliability: classes/reliability/index.md
     # - 10. Cloud Service Models: classes/cloud_service_models/index.md
 
-  # - Checkpoints:
-  #   - 1. CRUD: checkpoints/1/index.md
-  #   - 2. Gateway: checkpoints/2/index.md
-  #   - 3. Security: checkpoints/3/index.md
-  #   - 4. DevOps: checkpoints/4/index.md
-  #   - 5. Orchestration: checkpoints/5/index.md
+  - Hands-on:
+    - 1. CRUD: hands-on/1/index.md
+  #   - 2. Gateway: hands-on/2/index.md
+  #   - 3. Security: hands-on/3/index.md
+  #   - 4. DevOps: hands-on/4/index.md
+  #   - 5. Orchestration: hands-on/5/index.md
 
   # - Exercises:
   #   - Individual:
@@ -232,6 +232,7 @@ nav:
   - Appendix:
     - Network: ./appendix/network.md
     - Development Setup: ./appendix/development-setup.md
+    - Git Submodules: ./appendix/git-submodules.md
     - REST vs GraphQL: ./appendix/rest-vs-graphql.md
     - Versioning REST APIs: ./appendix/versioning-rest-apis.md
     - RSA Algorithm: ./appendix/rsa.md
