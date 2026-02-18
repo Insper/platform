@@ -70,6 +70,21 @@ $$
 --8<-- "docs/versions/2026.1/grade.py"
 ```
 
+1. **Quizzes**: the course will have 3 quizzes, the quiz with the lowest grade will be dropped. And, the final quiz grade will be the uniform average of the two best grade quizzes.
+
+2. **Team**: the team have to be composed **by 2 up to 3 members**. The team grade will be the same for all members of the team. The team grade will be based on the project delivery and documentation. The team registration **HAVE TO** be done until ==March 6th, 2026==.
+
+    !!! warning "Group Registration"
+
+        Deadline to register: ==**March 6th, 2026**==.
+
+        :material-account-group: Teams from 2 up to 3 members.
+
+        Form to register student groups: [https://forms.gle/B2QuGVsacetXfkeg7](https://forms.gle/B2QuGVsacetXfkeg7){target="_blank"}.
+
+        This is ==MANDATORY== to organize the teams and the AWS accounts.
+
+
 <!-- !!! danger "Entrega"
 
     - Trabalho em grupo deve ser documentado no GitHub. Um template está disponível para auxiliar na documentação: [template de entrega](https://hsandmann.github.io/documentation.template/){target="_blank"}. -->

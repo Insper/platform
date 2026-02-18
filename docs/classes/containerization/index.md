@@ -114,23 +114,28 @@ flowchart LR
     name: app
 
       db:
-        image: postgres:17
+        image: postgres:latest
         environment:
           POSTGRES_DB: ${POSTGRES_DB:-projeto} # (1)!
           POSTGRES_USER: ${POSTGRES_USER:-projeto}
           POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-projeto}
+        volumes:
+          - ${VOLUME}/db:/var/lib/postgresql/data # (2)!
         ports:
-          - 5432:5432 #(2)!
+          - 5432:5432 #(3)!
     ```
 
     1. If the `POSTGRES_DB` environment variable does not exist or is null - if it is not defined in the `.env` file - the default value will be `project`. See [documentation](https://docs.docker.com/reference/compose-file/interpolation/){target='_blank'}.
 
-    2. Here, a tunnel is created from the database container's port 5432 to the host's port 5432 (in this case, localhost). In a production environment, this port should not be exposed, as no one outside the compose should access the database directly.
+    2. The `volumes` section maps a directory on the host machine to a directory in the container. This allows data to persist even if the container is removed or recreated. In this example, the `db` service's data is stored in the `${VOLUME}/db` directory on the host machine, which is mapped to the `/var/lib/postgresql/data` directory in the container. This means that any data stored in the database will persist even if the container is stopped or removed.
+
+    3. Here, a tunnel is created from the database container's port 5432 to the host's port 5432 (in this case, localhost). In a production environment, this port should not be exposed, as no one outside the compose should access the database directly.
 
     ``` { .env title=".env" }
     POSTGRES_DB=superproject
     POSTGRES_USER=myproject
     POSTGRES_PASSWORD=S3cr3t
+    VOLUME=/path/to/volume
     ```
 
     When you run `docker compose up`, Docker Compose will automatically read the `.env` file in the same directory as the `compose.yaml` file and use the defined environment variables. If a variable is not defined in the `.env` file, it will use the default value specified in the `compose.yaml` file.
