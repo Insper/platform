@@ -119,7 +119,7 @@ extra_css:
   - assets/stylesheets/extra.css
 
 nav:
-  - Ementa: index.md
+  - Home: index.md
   - 2026.1: versions/2026.1/index.md
 
   - Classes:
