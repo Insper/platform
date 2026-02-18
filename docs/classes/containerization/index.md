@@ -111,7 +111,7 @@ flowchart LR
     Therefore, **to facilitate the correction**, you can pass the environment variables directly in the `compose.yaml`, which Docker Compose will automatically read and use when starting the containers. Example:
 
     ``` { .yaml title="compose.yaml" }
-    name: app
+    name: myapp
 
       db:
         image: postgres:latest
