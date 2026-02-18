@@ -1,5 +1,5 @@
 
-<!-- ![Class 2026.1](2026.1.jpg){ .rounded-corners } -->
+![Class 2026.1](2026.1.jpg){ .rounded-corners }
 
 ## Meetings
 
@@ -70,7 +70,7 @@ $$
 
     !!! warning "Documentation Requirements"
 
-        :calendar: Deadline to deliver: ==**May 31th, 2026**==.
+        :calendar: Deadline to deliver: ==**May 22th, 2026**==.
 
         :material-github: The project documentation HAVE TO be hosted on GitHub Pages and should be public;
 
@@ -93,7 +93,9 @@ $$
 
 ## Planning
 
-<iframe src="https://docs.google.com/spreadsheets/d/e/2PACX-1vTTLC6eG1IMbnD1AQ3NgswsscD2y-H5vHZqyun_nhtPWY3auFOQznEslwYBF0dD5Uck9x2k6Fmo6rKw/pubhtml?gid=1658402287&amp;single=true&amp;widget=true&amp;headers=false" width="100%" height="600px"></iframe>
+<iframe src="https://docs.google.com/spreadsheets/d/e/2PACX-1vSyTlMWIk3iQTAM0Vy_X_GXwRu4miSBmRCHWxwTR-8cf0zAlWvcY1HsxCZxV6MRmflvbWh2gCKJ647F/pubhtml?widget=true&amp;headers=false" width="100%" height="600px"></iframe>
+
+
 
 <!-- 
 
