@@ -37,7 +37,7 @@ ax[1].pie(
         'SLA & Costs\n10%', 'Quality\n10%'
     ],
     colors=[
-        "steelblue", "dodgerblue", "deepskyblue", "skyblue", "ligthcyan",
+        "steelblue", "dodgerblue", "deepskyblue", "skyblue", "lightcyan",
         "orchid", "violet", "plum", "pink",
         'orange', 'lemonchiffon',
     ],
