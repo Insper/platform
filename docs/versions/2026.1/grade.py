@@ -32,7 +32,7 @@ ax[1].pie(
         10, 10
     ],
     labels=[
-        'Gateway\n10%', 'Auth\n5%', 'Account\n5%', 'Exchange', 'Bottlenecks\n20%',
+        'Gateway\n5%', 'Auth\n5%', 'Account\n5%', 'Exchange\n5%', 'Bottlenecks\n20%',
         'Cloud Setup\n5%', 'Orchestration\n10%', 'CI/CD\n10%', 'Stress Test\n15%',
         'SLA & Costs\n10%', 'Quality\n10%'
     ],
