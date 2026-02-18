@@ -55,7 +55,7 @@ $$
 
         :material-github: Create a repository on GitHub to share the project code and documentation.
 
-        :material-form-select: Form to register student groups: [https://forms.gle/B2QuGVsacetXfkeg7](https://forms.gle/B2QuGVsacetXfkeg7){target="_blank"}.
+        :material-form-select: Form to register student groups: [https://forms.gle/DoRxGcnx5vb5ggkYA](https://forms.gle/DoRxGcnx5vb5ggkYA){target="_blank"}.
 
         :material-cloud: This is ==MANDATORY== to organize the teams and the AWS accounts.
 
