@@ -57,6 +57,8 @@ markdown_extensions:
   - attr_list
   - md_in_html
   - markdown_grid_tables:
+  - markdown_include.include:
+      base_path: docs
   - pymdownx.arithmatex:
       generic: true
   - pymdownx.details
@@ -126,8 +128,8 @@ nav:
     - 1. Distributed Systems: classes/distributed-systems/index.md
     - 2. Containerization: classes/containerization/index.md
     - 3. Microservices: classes/microservices/index.md
-    # - 4. APIs: classes/api/index.md
-    # - 5. Architectures: classes/architectures/index.md
+    - 4. Architectures: classes/architectures/index.md
+    - 5. API: classes/api/index.md
     # - 6. DevOps: classes/devops/index.md
     # - 7. Cloud: classes/cloud/index.md
     # - 8. Orchestration: classes/orchestration/index.md

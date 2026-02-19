@@ -1,5 +1,6 @@
 markdown-grid-tables
 markdown-exec
+markdown-include
 mkdocs-badges
 mkdocs-material
 mkdocs-material-extensions

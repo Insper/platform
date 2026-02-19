@@ -35,8 +35,34 @@ By focusing on the domain and domain logic, DDD provides techniques to develop c
   <figcaption><i>Source: <a href="https://bytebytego.com/guides/9-best-practices-for-developing-microservices/" target="_blank">System Design 101 - Microservice Architecture</a></i></figcaption>
 </figure>
 
+## Typical Microservices Architecture
 
+<figure markdown>
+  ![typical microservices architecture](https://assets.bytebytego.com/diagrams/0396-typical-microservice-architecture.png){target="_blank"}
+  <figcaption><i>Source: <a href="https://bytebytego.com/guides/what-does-a-typical-microservice-architecture-look-like/" target="_blank">System Design 101 - Microservice Architecture</a></i></figcaption>
+</figure>
 
+Components of a typical microservices architecture include:
+
+- **Load Balancer**: Distributes incoming network traffic across multiple servers to ensure no single server becomes overwhelmed.
+
+- **CDN (Content Delivery Network)**: A geographically distributed network of servers that delivers content to users based on their location, improving performance and availability.
+
+- **API Gateway**: Acts as a single entry point for all clients, routing requests to the appropriate microservices and handling cross-cutting concerns such as authentication, logging, and rate limiting.
+
+- **Identity Provider**: Manages user authentication and authorization, often using protocols like OAuth2 or OpenID Connect.
+
+- **Service Discovery & Registry**: Allows microservices to find and communicate with each other without hardcoding their network locations.
+
+- **Configuration Service**: Centralizes the management of configuration settings for all microservices, allowing for dynamic updates without redeploying services.
+
+- **Microservices**: Independent services that implement specific business capabilities, communicating with each other through APIs.
+
+## Our Microservices Architecture
+
+The proposed architecture for our microservices will be based on the principles of Domain-Driven Design (DDD) and will follow the Clean Architecture pattern. Each microservice will be designed to have a single responsibility, and we will ensure that they are loosely coupled and independently deployable. We will also implement a robust API Gateway to handle client requests and route them to the appropriate microservices. Additionally, we will use a service discovery mechanism to allow microservices to find and communicate with each other without hardcoding their network locations. Finally, we will implement monitoring and logging to ensure that we can detect and diagnose problems effectively in our distributed system. A diagram of the proposed architecture is shown below.
+
+{! classes/microservices/microservice-diagram.md !}
 
 [^1]: XU, A., [System Design 101](https://github.com/ByteByteGoHq/system-design-101){target="_blank"}: A comprehensive guide to system design, covering various architectural patterns, including microservices. It provides insights into best practices, trade-offs, and real-world examples to help developers design scalable and maintainable systems.
 

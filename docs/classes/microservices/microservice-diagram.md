@@ -1,33 +1,23 @@
 ``` mermaid
 flowchart LR
-  subgraph Client
+  subgraph client["Internet"]
     direction LR
     Web
     Mobile
     Desktop
   end
-  subgraph Microservices
+  subgraph Trusted Layer
     direction LR
+    lb["Load Balance"]
     gateway["Gateway"]
-    subgraph Essentials
-      direction TB
-      discovery["Discovery"]
-      auth["Auth"]
-      config["Configuration"]
-    end
-    subgraph Businesses
-      direction TB
+    auth["Auth"]
+    subgraph bm ["Business Microservice"]
+      direction LR
       ms1["Service 1"]
       ms2["Service 2"]
       ms3["Service 3"]
     end
   end
-  Client --> lb["Load Balance"] --> gateway --> Businesses
+  client --> lb --> gateway --> bm
   gateway --> auth
-  gateway --> discovery
-  click gateway "../gateway/" "Gateway"
-  click discovery "../discovery/" "Discovery"
-  click auth "../auth-service/" "Auth"
-  click config "../config/" "Configuration"
-  click lb "../load-balancing/" "Load Balance"
 ```
