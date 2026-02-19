@@ -3,7 +3,6 @@
 
 Total desacoplamento das regras de negócios das camadas de interface:
 
-
 <figure markdown>
   ![Clean Architecture](https://blog.cleancoder.com/uncle-bob/images/2012-08-13-the-clean-architecture/CleanArchitecture.jpg){ width="100%" }
   <figcaption><i>Source: <a href="https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html" target="_blank">The Clean Code Blog</a></i></figcaption>
@@ -47,6 +46,9 @@ flowchart LR
   classDef entity fill:#ff9
 
 ```
+
+
+## Hexagonal Architecture
 
 
 ## Referências:

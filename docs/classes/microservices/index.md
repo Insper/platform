@@ -1,6 +1,4 @@
-## Microservices Concepts
-
-Microservices, also known as the microservices architecture, is an architectural style that structures an application as a collection of small autonomous services, modeled around a business domain.
+**Microservices**, also known as the microservices architecture, is an architectural style that structures an application as a collection of small autonomous services, modeled around a business domain.
 
 Key concepts of microservices include:
 
@@ -9,13 +7,13 @@ Key concepts of microservices include:
 - **Decentralization**: Microservices architecture favors decentralized governance. Teams have the freedom to choose the best technology stack that suits their service.
 - **Isolation of Failures**: If a microservice fails, it should not impact the availability of other services.
 - **Data Isolation**: Each microservice should have its own database to ensure that the services are loosely coupled and can evolve independently.
-- **Communication**: Microservices communicate with each other through well-defined APIs and protocols, typically HTTP/REST with [JSON](./security/jwt.md) or gRPC with Protobuf.
+- **Communication**: Microservices communicate with each other through well-defined APIs and protocols, typically HTTP/REST with JSON[^4][^5] or gRPC with Protobuf.
 - **Infrastructure Automation**: Due to the distributed nature of the microservices architecture, automation of infrastructure is a must. This includes automated provisioning, scaling, and deployment.
 - **Observability**: With many different services, it's important to have excellent monitoring and logging to detect and diagnose problems.
 
-### Domain Driven Design
+## Domain Driven Design
 
-Domain-Driven Design (DDD) is a software development approach that emphasizes collaboration between technical experts and domain experts. The goal is to create software that is a deep reflection of the underlying domain, which is the specific area of business or activity that the software is intended to support.
+[Domain-Driven Design (DDD)](https://en.wikipedia.org/wiki/Domain-driven_design){target="_blank"} is a software development approach that emphasizes collaboration between technical experts and domain experts. The goal is to create software that is a deep reflection of the underlying domain, which is the specific area of business or activity that the software is intended to support.
 
 Key concepts of DDD include:
 
@@ -30,49 +28,22 @@ Key concepts of DDD include:
 
 By focusing on the domain and domain logic, DDD provides techniques to develop complex systems targeting real-world scenarios. It helps to reduce the complexity by dividing the system into manageable and interconnected parts.
 
+## Best Practices
+
 <figure markdown>
   ![Best practices for microservices](https://assets.bytebytego.com/diagrams/0275-micro-best-practices.png){ width="100%" }
   <figcaption><i>Source: <a href="https://bytebytego.com/guides/9-best-practices-for-developing-microservices/" target="_blank">System Design 101 - Microservice Architecture</a></i></figcaption>
 </figure>
 
 
-### Design a Microservice Platform
-
-``` mermaid
-flowchart LR
-  subgraph Client
-    direction LR
-    Web
-    Mobile
-    Desktop
-  end
-  subgraph Microservices
-    direction LR
-    gateway["Gateway"]
-    subgraph Essentials
-      direction TB
-      discovery["Discovery"]
-      auth["Auth"]
-      config["Configuration"]
-    end
-    subgraph Businesses
-      direction TB
-      ms1["Service 1"]
-      ms2["Service 2"]
-      ms3["Service 3"]
-    end
-  end
-  Client --> lb["Load Balance"] --> gateway --> Businesses
-  gateway --> auth
-  gateway --> discovery
-  click gateway "../gateway/" "Gateway"
-  click discovery "../discovery/" "Discovery"
-  click auth "../auth-service/" "Auth"
-  click config "../config/" "Configuration"
-  click lb "../load-balancing/" "Load Balance"
-```
 
 
-[^1]: XU, A., [System Design 101](https://github.com/ByteByteGoHq/system-design-101).
+[^1]: XU, A., [System Design 101](https://github.com/ByteByteGoHq/system-design-101){target="_blank"}: A comprehensive guide to system design, covering various architectural patterns, including microservices. It provides insights into best practices, trade-offs, and real-world examples to help developers design scalable and maintainable systems.
 
-[^2]: [Wikipedia - Domain Driven Design](https://en.wikipedia.org/wiki/Domain-driven_design)
+[^2]: [Wikipedia - Domain Driven Design](https://en.wikipedia.org/wiki/Domain-driven_design){target="_blank"}: A software development approach that emphasizes collaboration between technical experts and domain experts to create software that is a deep reflection of the underlying domain. It provides techniques to develop complex systems targeting real-world scenarios by focusing on the domain and domain logic.
+
+[^3]: [Domain-Driven Design Reference](https://domainlanguage.com/ddd/reference/){target="_blank"}: A comprehensive reference for Domain-Driven Design, covering all the key concepts and patterns in detail. It serves as a valuable resource for developers and architects looking to implement DDD in their projects.
+
+[^4]: [RFC 7159](https://datatracker.ietf.org/doc/html/rfc4627){target="_blank"}: The application/json Media Type for JavaScript Object Notation (JSON).
+
+[^5]: [JSON](https://www.json.org/){target="_blank"}: JSON (JavaScript Object Notation) is a lightweight data-interchange format that is easy for humans to read and write, and easy for machines to parse and generate. It is based on a subset of the JavaScript Programming Language, Standard ECMA-262 3rd Edition - December 1999. JSON is a text format that is completely language independent but uses conventions that are familiar to programmers of the C-family of languages, including C, C++, C#, Java, JavaScript, Perl, Python, and many others. These properties make JSON an ideal data-interchange language.

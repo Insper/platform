@@ -125,7 +125,7 @@ nav:
   - Classes:
     - 1. Distributed Systems: classes/distributed-systems/index.md
     - 2. Containerization: classes/containerization/index.md
-    # - 3. Microservices: classes/microservices/index.md
+    - 3. Microservices: classes/microservices/index.md
     # - 4. APIs: classes/api/index.md
     # - 5. Architectures: classes/architectures/index.md
     # - 6. DevOps: classes/devops/index.md
