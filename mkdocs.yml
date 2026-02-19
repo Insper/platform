@@ -125,11 +125,11 @@ nav:
   - 2026.1: versions/2026.1/index.md
 
   - Classes:
-    - 1. Distributed Systems: classes/distributed-systems/index.md
+    - 1. Distributed Systems: classes/distributed_systems/index.md
     - 2. Containerization: classes/containerization/index.md
     - 3. Microservices: classes/microservices/index.md
-    - 4. Architectures: classes/architectures/index.md
-    - 5. API: classes/api/index.md
+    # - 4. Architectures: classes/architectures/index.md
+    # - 5. API: classes/api/index.md
     # - 6. DevOps: classes/devops/index.md
     # - 7. Cloud: classes/cloud/index.md
     # - 8. Orchestration: classes/orchestration/index.md
