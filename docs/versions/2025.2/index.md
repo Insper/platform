@@ -1,5 +1,5 @@
 
-<!-- ![Class 2025.2](2025.2.jpg){ .rounded-corners } -->
+![Class 2025.2](2025.2.jpg){ .rounded-corners }
 
 ## Instructors
 
