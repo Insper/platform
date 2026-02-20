@@ -1,11 +1,6 @@
-## Account Microservice
+# Account :: Implementation
 
-The Account microservice is responsible for managing user accounts, basically, almost every application has a user account system. This microservice provides the necessary endpoints to create, read, update, and delete accounts. The microservice is built using Spring Boot and follows the [Domain-Driven Design (DDD)](https://martinfowler.com/bliki/DomainDrivenDesign.html){target="_blank"} approach.
-
-The microservice is divided into two main modules: `account` and `account-service`:
-
-- the `account` module contains the API definition and the data transfer objects (DTOs) for the Account microservice;
-- the `account-service` module contains the service implementation, repository, and entity classes.
+The implementation of the Account microservice is defined in the `account-service` module, which contains the implementation of the API defined in the `account` module, as well as, the database access and the business logic for the Account microservice. 
 
 ``` mermaid
 classDiagram
@@ -73,25 +68,24 @@ classDiagram
     AccountRepository ..> AccountModel
 ```
 
-This approach allows the separation of concerns and the organization of the codebase into different modules, making it easier to maintain and scale the application. Also, it creates a facility to reuse the microservice by other microservices in the future - builts in Java.
+## 1. Repository
 
-The construction of the Account microservice follows the Clean Architecture approach, which promotes the total decoupling of business rules from interface layers. The diagram below illustrates the flow of data among the layers of the Account microservice:
+Create the repository for the Account interface on GitHub, and clone it as a submodule to your local machine;
 
-``` mermaid
-sequenceDiagram
-    title Clean architecture's approach 
-    Actor Request
-    Request ->>+ Controller: 
-    Controller ->>+ Service: parser (AccountIn -> Account)
-    Service ->>+ Repository: parser (Account -> AccountModel)
-    Repository ->>+ Database: 
-    Database ->>- Repository: 
-    Repository ->>- Service: parser (Account <- AccountModel)
-    Service ->>- Controller: parser (AccountOut <- Account)
-    Controller ->>- Request: 
+``` bash
+> git submodule add <repository_url> api/account-service
+> git submodule update --init --recursive
 ```
 
-Previously to build the Account microservice, it is necessary to prepare the environment by installing the database to persist the data. For that, we will use a Docker Compose file to create a PostgreSQL container, as well as, a cluster to isolate the microservices from external access, creating a secure environment - trusted layer. A Docker Compose file is a YAML file that defines how Docker containers should behave in production. The file contains the configuration for the database, the microservices, and the network configuration.
+``` tree
+api/
+    account/
+    account-service/
+```
+
+## 2. Docker Compose
+
+Previously work on the Account microservice, it is necessary to prepare the environment by installing the database to persist the data. For that, we will use a Docker Compose file to create a PostgreSQL container, as well as, a cluster to isolate the microservices from external access, creating a secure environment - trusted layer. A Docker Compose file is a YAML file that defines how Docker containers should behave in production. The file contains the configuration for the database, the microservices, and the network configuration.
 
 ``` mermaid
 flowchart LR
@@ -104,8 +98,6 @@ flowchart LR
     e3@{ animate: true }
     classDef red fill:#fcc
 ```
-
-## Docker Compose
 
 ``` tree
 api/
@@ -136,60 +128,16 @@ api/
 ```
 
 
-## Account
+## 3. Account-Service Module
+
+To create this interface module, we will use the Spring Boot framework, through the Spring Initializr, at [https://start.spring.io/], which is a web-based tool that allows us to generate a Spring Boot project with the necessary dependencies and configurations. 
+
+![](./spring_start.png){}
 
 
 ``` tree
 api/
     account/
-        src/
-            main/
-                java/
-                    store/
-                        account/
-                            AccountController.java
-                            AccountIn.java
-                            AccountOut.java
-        pom.xml
-```
-
-??? info "Source"
-
-    === "pom.xml"
-
-        ``` { .yaml .copy .select linenums="1" }
-        --8<-- "https://raw.githubusercontent.com/repo-classes/pma252.account/refs/heads/main/pom.xml"
-        ```
-
-    === "AccountController"
-
-        ``` { .java title='AccountController.java' .copy .select linenums='1' }
-        --8<-- "https://raw.githubusercontent.com/repo-classes/pma252.account/refs/heads/main/src/main/java/store/account/AccountController.java"
-        ```
-
-    === "AccountIn"
-
-        ``` { .java title='AccountIn.java' .copy .select linenums='1' }
-        --8<-- "https://raw.githubusercontent.com/repo-classes/pma252.account/refs/heads/main/src/main/java/store/account/AccountIn.java"
-        ```
-
-    === "AccountOut"
-
-        ``` { .java title='AccountOut.java' .copy .select linenums='1' }
-        --8<-- "https://raw.githubusercontent.com/repo-classes/pma252.account/refs/heads/main/src/main/java/store/account/AccountOut.java"
-        ```
-
-
-    <!-- termynal -->
-
-    ``` { bash }
-    > mvn clean install
-    ```
-
-## Account-Service
-
-``` tree
-api/
     account-service/
         src/
             main/
@@ -212,6 +160,8 @@ api/
                             V2025.09.02.001__create_index_email.sql
         pom.xml
         Dockerfile
+    .env
+    compose.yaml
 ```
 
 ??? info "Source"
@@ -300,13 +250,6 @@ api/
 ``` { bash }
 > mvn clean package spring-boot:run
 ```
-<!--
-## API
 
-!!swagger-http http://127.0.0.1:8080/account/api-docs!! -->
-
-
-
-<!-- ![type:video](https://odysee.com/$/embed/@RobBraxmanTech:6/fingerprint-vs-vpn) -->
 
 [^1]: [Criando Migrations com Flyway no seu projeto Java Spring & PostgreSQL](https://www.youtube.com/watch?v=LX5jaieOIAk){target="_blank"}
