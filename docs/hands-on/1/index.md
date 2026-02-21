@@ -75,7 +75,9 @@ classDiagram
     AccountRepository ..> AccountModel
 ```
 
-This approach allows the separation of concerns and the organization of the codebase into different modules, making it easier to maintain and scale the application. Also, it creates a facility to reuse the microservice by other microservices in the future - builts in Java.
+!!! example "Java Advantages"
+
+    This approach allows the separation of concerns and the organization of the codebase into different modules, making it easier to maintain and scale the application. Also, it creates a facility to reuse the microservice by other microservices in the future - builts in Java.
 
 The construction of the Account microservice follows the Clean Architecture approach, which promotes the total decoupling of business rules from interface layers. The diagram below illustrates the flow of data among the layers of the Account microservice:
 
@@ -97,11 +99,22 @@ sequenceDiagram
 
 To start the development of the Account microservice, the steps are as follows:
 
-1. Create the interface for the Account microservice in the `account` module, defining the API endpoints and the data transfer objects (DTOs);
+<div class="grid cards" markdown>
 
-    [Interface](./interface/)
+-   __[1. Interface](./interface/)__
 
-2. Implement the service layer in the `account-service` module, creating the necessary classes to handle the business logic and the data persistence;
+    ---
 
-    [Implementation](./implementation/)
+    Create the interface for the Account microservice in the `account` module, defining the API endpoints and the data transfer objects (DTOs);
 
+    [Interface](./interface/){ .md-button .md-button }
+
+-   __[2. Implementation](./implementation/)__
+
+    ---
+
+    Implement the service layer in the `account-service` module, creating the necessary classes to handle the business logic and the data persistence;
+
+    [Implementation](./implementation/){ .md-button .md-button }
+
+</div>

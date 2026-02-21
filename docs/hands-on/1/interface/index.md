@@ -26,22 +26,27 @@ classDiagram
 
 ## 1. Repository
 
-Create the repository for the Account interface on GitHub, and clone it as a submodule to your local machine;
+- a. At github, create a new repository for the Account interface. Example: `account`.
 
-``` bash
-> git submodule add <repository_url> api/account
-> git submodule update --init --recursive
-```
+- b. Then, clone this repository as a submodule to your local machine. To do this, run the following commands at the root of the project:
+
+    ``` bash
+    git submodule add <repository_url> api/account
+    git submodule update --init --recursive
+    ```
+
+This will create a new directory called `account` inside the `api` directory, which will contain the code for the Account interface. The resulting directory structure will look like this:
 
 ``` tree
-api/
-    account/
+platform/
+    api/
+        account/
 ```
 
 
-## 2. Interface Account Module
+## 2. Code
 
-To create this interface module, we will use the Spring Boot framework, through the Spring Initializr, at [https://start.spring.io/], which is a web-based tool that allows us to generate a Spring Boot project with the necessary dependencies and configurations. 
+To code this interface module, we will use the Spring Boot framework, through the Spring Initializr, at [https://start.spring.io/], which is a web-based tool that allows us to generate a Spring Boot project with the necessary dependencies and configurations. 
 
 ![](./spring_start.png){}
 

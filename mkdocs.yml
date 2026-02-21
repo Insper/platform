@@ -137,7 +137,7 @@ nav:
     # - 10. Cloud Service Models: classes/cloud_service_models/index.md
 
   - Hands-on:
-    - 0. Requirements: hands-on/0/index.md
+    - 0. Prerequisites: hands-on/0/index.md
     - 1. Account Service:
       - a. Introduction: hands-on/1/index.md
       - b. Interface: hands-on/1/interface/index.md
