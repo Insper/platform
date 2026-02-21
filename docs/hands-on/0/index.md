@@ -78,3 +78,6 @@ Steps:
         ```
 
     This will start a local development server, and you can access the documentation by navigating to [`http://127.0.0.1:8000`](http://127.0.0.1:8000){target="_blank"} in your web browser.
+
+
+Now, with no more delay, you can start the hands-on exercises!

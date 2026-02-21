@@ -5,17 +5,17 @@ The prerequisites for this course include:
 1. **[Git](#git)**: Version control system to manage your code.
 1. **[Docker](#docker)**: Containerization platform to run applications in isolated environments.
 1. **[Java](#java)**: Programming language for backend development.
-1. **[Maven](#maven)**: Build automation tool for Java projects.
+1. **[Maven](#maven)**: Package and build automation tool for Java projects.
 
 ## Git
 
 Git is a distributed version control system that allows you to track changes in your code and collaborate with others. To install Git, follow the instructions for your operating system:
 
-=== "Windows"
+=== ":material-microsoft-windows: Windows"
 
     Download and install Git from [git-scm.com](https://git-scm.com/download/win){:target="_blank"}.
 
-=== "macOS"
+=== ":simple-apple: macOS"
 
     Install Git using Homebrew with the command:
 
@@ -23,7 +23,7 @@ Git is a distributed version control system that allows you to track changes in 
     brew install git
     ```
 
-=== "Linux"
+=== ":simple-linux: Linux"
 
     Install Git using your package manager, e.g.,
 
@@ -44,7 +44,7 @@ To install Docker Engine, see [Install Docker Engine](https://docs.docker.com/en
 
 Java is a widely-used programming language for building backend applications. To install Java, follow the instructions for your operating system:
 
-=== "Windows"
+=== ":material-microsoft-windows: Windows"
 
     Download and unzip the [OpenJDK](https://jdk.java.net/){:target="_blank"}.
 
@@ -56,7 +56,7 @@ Java is a widely-used programming language for building backend applications. To
 
     Also, add the `bin` directory of the JDK installation path to your `PATH` environment variable.
 
-=== "macOS"
+=== ":simple-apple: macOS"
 
     Install Java using Homebrew with the command:
 
@@ -64,7 +64,7 @@ Java is a widely-used programming language for building backend applications. To
     brew install openjdk
     ```
 
-=== "Linux"
+=== ":simple-linux: Linux"
 
     Install Java using your package manager, e.g.,
 
@@ -79,7 +79,7 @@ Java is a widely-used programming language for building backend applications. To
 
 Maven is a build automation tool primarily used for Java projects. It helps manage project dependencies, build processes, and documentation. To install Maven, follow the instructions for your operating system:
 
-=== "Windows"
+=== ":material-microsoft-windows: Windows"
 
     Download and unzip the [Maven binary](https://maven.apache.org/){:target="_blank"}.
 
@@ -87,7 +87,7 @@ Maven is a build automation tool primarily used for Java projects. It helps mana
 
     Also, add the `bin` directory of the Maven installation path to your `PATH` environment variable.
 
-=== "macOS"
+=== ":simple-apple: macOS"
 
     Install Maven using Homebrew with the command:
 
@@ -95,7 +95,7 @@ Maven is a build automation tool primarily used for Java projects. It helps mana
     brew install maven
     ```
 
-=== "Linux"
+=== ":simple-linux: Linux"
 
     Install Maven using your package manager, e.g.,
 
