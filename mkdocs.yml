@@ -137,11 +137,11 @@ nav:
     # - 10. Cloud Service Models: classes/cloud_service_models/index.md
 
   - Hands-on:
-    - 0. Preconditions: hands-on/0/index.md
-    - 1. CRUD:
-      - Start: hands-on/1/index.md
-      - Interface: hands-on/1/interface/index.md
-      - Implementation: hands-on/1/implementation/index.md
+    - 0. Requirements: hands-on/0/index.md
+    - 1. Account Service:
+      - a. Introduction: hands-on/1/index.md
+      - b. Interface: hands-on/1/interface/index.md
+      - c. Implementation: hands-on/1/implementation/index.md
   #   - 2. Gateway: hands-on/2/index.md
   #   - 3. Security: hands-on/3/index.md
   #   - 4. DevOps: hands-on/4/index.md

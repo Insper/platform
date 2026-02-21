@@ -1,4 +1,6 @@
-# Account Microservice
+!!! tip "Main Goal"
+
+    The main goal of this section is to implement a simple [CRUD (Create, Read, Update, Delete)](https://grokipedia.com/page/Create_read_update_and_delete){target="_blank"} microservice for illustration purposes.
 
 The Account microservice is responsible for managing user accounts, basically, almost every application has a user account system. This microservice provides the necessary endpoints to create, read, update, and delete accounts. The microservice is built using Spring Boot and follows the [Domain-Driven Design (DDD)](https://martinfowler.com/bliki/DomainDrivenDesign.html){target="_blank"} approach.
 

@@ -1,5 +1,3 @@
-# Account :: Interface
-
 The interface of the Account microservice is defined in the `account` module, which contains the API definition and the data transfer objects (DTOs) for the Account microservice.
 
 The main purpose of the section is to create the following API endpoints:

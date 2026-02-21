@@ -1,5 +1,3 @@
-# Account :: Implementation
-
 The implementation of the Account microservice is defined in the `account-service` module, which contains the implementation of the API defined in the `account` module, as well as, the database access and the business logic for the Account microservice. 
 
 ``` mermaid
