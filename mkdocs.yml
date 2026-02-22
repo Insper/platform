@@ -140,8 +140,9 @@ nav:
     - 0. Prerequisites: hands-on/0/index.md
     - 1. Account Service:
       - a. Introduction: hands-on/1/index.md
-      - b. Interface: hands-on/1/interface/index.md
-      - c. Implementation: hands-on/1/implementation/index.md
+      - b. Controller: hands-on/1/controller/index.md
+      - c. Service: hands-on/1/service/index.md
+      - d. Repository: hands-on/1/repository/index.md
   #   - 2. Gateway: hands-on/2/index.md
   #   - 3. Security: hands-on/3/index.md
   #   - 4. DevOps: hands-on/4/index.md

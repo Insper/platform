@@ -85,36 +85,46 @@ The construction of the Account microservice follows the Clean Architecture appr
 sequenceDiagram
     title Clean architecture's approach 
     Actor Request
-    Request ->>+ Controller: 
+    Request ->>+ Controller: JSON
     Controller ->>+ Service: parser (AccountIn -> Account)
     Service ->>+ Repository: parser (Account -> AccountModel)
     Repository ->>+ Database: 
     Database ->>- Repository: 
     Repository ->>- Service: parser (Account <- AccountModel)
     Service ->>- Controller: parser (AccountOut <- Account)
-    Controller ->>- Request: 
+    Controller ->>- Request: JSON
 ```
 
 
 
-To start the development of the Account microservice, the steps are as follows:
+To develop of the Account microservice, the steps are as follows:
 
 <div class="grid cards" markdown>
 
--   __[1. Interface](./interface/)__
+-   __[1. Controller](./controller/)__
 
     ---
 
     Create the interface for the Account microservice in the `account` module, defining the API endpoints and the data transfer objects (DTOs);
 
-    [Interface](./interface/){ .md-button .md-button }
+    [Controller](./controller/){ .md-button .md-button }
 
--   __[2. Implementation](./implementation/)__
+
+-   __[2. Service](./service/)__
 
     ---
 
     Implement the service layer in the `account-service` module, creating the necessary classes to handle the business logic and the data persistence;
 
-    [Implementation](./implementation/){ .md-button .md-button }
+    [Service](./service/){ .md-button .md-button }
+
+
+-   __[3. Repository](./repository/)__
+
+    ---
+
+    Implement the persistence layer for `account-service` module, creating the necessary classes to handle the data persistence;
+
+    [Repository](./repository/){ .md-button .md-button }
 
 </div>
