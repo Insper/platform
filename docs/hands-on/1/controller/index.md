@@ -48,9 +48,30 @@ platform/
 
 To code this interface module, we will use the Spring Boot framework, through the Spring Initializr, at [https://start.spring.io/], which is a web-based tool that allows us to generate a Spring Boot project with the necessary dependencies and configurations. 
 
-![](./spring_start.png){}
+<figure>
+    <img src="./spring_start.png" alt="Spring Initializr" width="800"/>
+    <figcaption>Spring Initializr</figcaption>
+</figure>
 
+Note:
 
+- Project: Maven
+- Language: Java
+- Spring Boot: 4.0.3 (stable version for now)
+- Group: store (the company name, for example)
+- Artifact: account (the microservice name, for example)
+- Package name: store.account
+- Packaging: Jar
+- Configurarion: YAML
+- Java: 25 (LTS version for now)
+
+Additionally, we need to add the following dependencies:
+
+- Lombok: a Java library that helps to reduce boilerplate code by generating getters, setters, constructors, and other common methods at compile time using annotations.
+
+- OpenFeign: a declarative web service client that simplifies the process of making HTTP requests to other microservices. It allows us to define interfaces for our API clients and automatically generates the implementation at runtime.
+
+Then, download the zip file and extract it to the `api/account` directory. The resulting directory structure will look like this:
 
 ``` tree
 api/
