@@ -48,7 +48,7 @@ Several foundational theorems and algorithms underpin distributed systems. Here,
 
 The CAP Theorem[^4], proposed by Eric Brewer in 2000 and formally proven by Seth Gilbert and Nancy Lynch in 2002, states that in a distributed system with replicated data, it is impossible to simultaneously guarantee all three of the following properties:
 
-[![CAP Theorem Diagram](https://upload.wikimedia.org/wikipedia/commons/9/98/CAP_Theorem_Euler_Diagram.png)](https://en.wikipedia.org/wiki/CAP_theorem){target="_blank"}
+[![CAP Theorem Diagram](https://upload.wikimedia.org/wikipedia/commons/9/98/CAP_Theorem_Euler_Diagram.png)](https://en.wikipedia.org/wiki/CAP_theorem){target="_blank" width="60%"}
 
 - **Consistency (C)**: Every read operation receives the most recent write or an error. In other words, all nodes see the same data at the same time, akin to linearizability in concurrent programming. For example, in a banking system, consistency ensures that account balances are up-to-date across all replicas.
 
