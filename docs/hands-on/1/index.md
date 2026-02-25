@@ -126,9 +126,6 @@ To develop of the Account microservice, the steps are as follows:
 
     [Containerization](./containerization/){ .md-button .md-button }
 
-</div>
-
-
 -   __[4. Repository](./repository/)__
 
     ---

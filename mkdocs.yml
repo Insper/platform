@@ -33,6 +33,7 @@ theme:
     - navigation.top
     - navigation.path
     - navigation.tracking
+    - navigation.footer
   icon:
     # logo: assets/images/devops
     admonition:
