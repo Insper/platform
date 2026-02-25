@@ -32,7 +32,6 @@ classDiagram
 
     ``` bash
     git submodule add <repository_url> api/account
-    git submodule update --init --recursive
     ```
 
 This will create a new directory called `account` inside the `api` directory, which will contain the code for the Account interface. The resulting directory structure will look like this:
@@ -59,7 +58,7 @@ Note:
 - Language: Java
 - Spring Boot: 4.0.3 (stable version for now)
 - Group: store (the company name, for example)
-- Artifact: account (the microservice name, for example)
+- Artifact: account (the microservice name)
 - Package name: store.account
 - Packaging: Jar
 - Configurarion: YAML
@@ -67,11 +66,29 @@ Note:
 
 Additionally, we need to add the following dependencies:
 
-- Lombok: a Java library that helps to reduce boilerplate code by generating getters, setters, constructors, and other common methods at compile time using annotations.
+- *Lombok*: a Java library that helps to reduce boilerplate code by generating getters, setters, constructors, and other common methods at compile time using annotations.
 
-- OpenFeign: a declarative web service client that simplifies the process of making HTTP requests to other microservices. It allows us to define interfaces for our API clients and automatically generates the implementation at runtime.
+- *OpenFeign*: a declarative web service client that simplifies the process of making HTTP requests to other microservices. It allows us to define interfaces for our API clients and automatically generates the implementation at runtime.
 
 Then, download the zip file and extract it to the `api/account` directory. The resulting directory structure will look like this:
+
+``` tree
+api/
+    account/
+        src/
+            main/
+                java/
+                    store/
+                        account/
+                            AccountApplication.java
+            resources/
+                application.yaml
+        pom.xml
+```
+
+In this case, the `AccountApplication` class is useless, since this module is only for the interface, and will not be run as a standalone application. Therefore, we can delete this class and the `application.yaml` file. Also, we can delete the `src/test` directory, since we will not be writing tests for this module. Still, we do not need the `src/main/resources` directory, since we will not be adding any resources to this module. Therefore, we can delete this directory as well. The resulting directory structure will look like this:
+
+Now, this time to code the interface, which consists of the `AccountController` class, which defines the API endpoints for the Account microservice, and the `AccountIn` and `AccountOut` classes, which are the DTOs for the input and output of the API endpoints, respectively. The resulting directory structure will look like this:
 
 ``` tree
 api/
@@ -87,41 +104,41 @@ api/
         pom.xml
 ```
 
+A possible implementation of the `AccountController`, `AccountIn`, and `AccountOut` classes is shown below:
+
 !!! example "Source"
 
     === "pom.xml"
 
         ``` { .yaml .copy .select linenums="1" }
-        --8<-- "https://raw.githubusercontent.com/repo-classes/pma252.account/refs/heads/main/pom.xml"
+        --8<-- "docs/hands-on/1/controller/code/pom.xml"
         ```
 
     === "AccountController"
 
         ``` { .java title='AccountController.java' .copy .select linenums='1' }
-        --8<-- "https://raw.githubusercontent.com/repo-classes/pma252.account/refs/heads/main/src/main/java/store/account/AccountController.java"
+        --8<-- "docs/hands-on/1/controller/code/AccountController.java"
         ```
 
     === "AccountIn"
 
         ``` { .java title='AccountIn.java' .copy .select linenums='1' }
-        --8<-- "https://raw.githubusercontent.com/repo-classes/pma252.account/refs/heads/main/src/main/java/store/account/AccountIn.java"
+        --8<-- "docs/hands-on/1/controller/code/AccountIn.java"
         ```
 
     === "AccountOut"
 
         ``` { .java title='AccountOut.java' .copy .select linenums='1' }
-        --8<-- "https://raw.githubusercontent.com/repo-classes/pma252.account/refs/heads/main/src/main/java/store/account/AccountOut.java"
+        --8<-- "docs/hands-on/1/controller/code/AccountOut.java"
         ```
 
 
-## 3. Build and Install the Package
+## 3. Package and Install
 
 After coding the interface, we need to install the package to the local Maven repository, so that it can be used by other modules in the project. To do this, run the following command at the root of the project:
 
-<!-- termynal -->
-
 ``` { bash }
-> mvn clean install
+mvn clean install
 ```
 
 ---

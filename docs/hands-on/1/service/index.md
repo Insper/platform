@@ -71,8 +71,7 @@ classDiagram
 Create the repository for the Account interface on GitHub, and clone it as a submodule to your local machine;
 
 ``` bash
-> git submodule add <repository_url> api/account-service
-> git submodule update --init --recursive
+git submodule add <repository_url> api/account-service
 ```
 
 ``` tree
@@ -81,61 +80,12 @@ api/
     account-service/
 ```
 
-## 2. Docker Compose
+## 2. Code
 
-Previously work on the Account microservice, it is necessary to prepare the environment by installing the database to persist the data. For that, we will use a Docker Compose file to create a PostgreSQL container, as well as, a cluster to isolate the microservices from external access, creating a secure environment - trusted layer. A Docker Compose file is a YAML file that defines how Docker containers should behave in production. The file contains the configuration for the database, the microservices, and the network configuration.
-
-``` mermaid
-flowchart LR
-    subgraph api [Trusted Layer]
-        direction TB
-        account e3@==> db@{ shape: cyl, label: "Database" }
-    end
-    internet e1@==>|request| account:::red
-    e1@{ animate: true }
-    e3@{ animate: true }
-    classDef red fill:#fcc
-```
+Now, we will code the implementation of the Account microservice, which consists of a lot of classes. The resulting directory structure will look like this:
 
 ``` tree
 api/
-    account/
-    account-service/
-    .env
-    compose.yaml
-```
-
-=== "compose.yaml"
-    ``` { .yaml .copy .select linenums="1" }
-    --8<-- "https://raw.githubusercontent.com/repo-classes/pma.25.2/refs/heads/main/api/compose.yaml"
-    ```
-
-=== ".env"
-    ``` { .sh .copy .select linenums="1" }
-    --8<-- "https://raw.githubusercontent.com/repo-classes/pma.25.2/refs/heads/main/api/.env"
-    ```
-
-<!-- termynal -->
-
-``` { bash }
-> docker compose up -d --build
-
-[+] Running 2/2
- ✔ Network store_default  Created            0.1s 
- ✔ Container store-db-1   Started            0.2s 
-```
-
-
-## 3. Account-Service Module
-
-To create this interface module, we will use the Spring Boot framework, through the Spring Initializr, at [https://start.spring.io/], which is a web-based tool that allows us to generate a Spring Boot project with the necessary dependencies and configurations. 
-
-![](./spring_start.png){}
-
-
-``` tree
-api/
-    account/
     account-service/
         src/
             main/
@@ -151,103 +101,146 @@ api/
                             AccountService.java
                 resources/
                     application.yaml
-                    db/
-                        migration/
-                            V2025.08.29.001__create_schema.sql
-                            V2025.08.29.002__create_table_account.sql
-                            V2025.09.02.001__create_index_email.sql
         pom.xml
-        Dockerfile
-    .env
-    compose.yaml
 ```
 
-??? info "Source"
+| Class | Description |
+| --- | --- |
+| `Account` | This class represents the Account entity, which is the main entity of the Account microservice. It contains the attributes of the Account entity, such as `id`, `name`, `email`, `password`, and `sha256`. |
+| `AccountModel` | This class represents the Account model, which is responsible for the persistence logic of the Account microservice. It contains the methods for creating, deleting, finding, and updating accounts. |
+| `AccountParser` | This class is responsible for parsing the input and output of the API endpoints, converting the `AccountIn` and `AccountOut` DTOs to the `Account` entity, and vice versa. |
+| `AccountRepository` | This interface is responsible for the data persistence of the Account entity, using an Object-Relational Mapping (ORM) framework to interact with the database. |
+| `AccountResource` | This class is responsible for the API endpoints of the Account microservice, implementing the `AccountController` interface defined in the `account` module, and using the `AccountService` to handle the business logic of the API endpoints. |
+| `AccountService` | This class is responsible for the business logic of the Account microservice, using the `AccountRepository` to handle the data persistence of the Account entity, and the `AccountParser` to handle the parsing of the input and output of the API endpoints. |
+| `AccountApplication` | This class is the main class of the Account microservice, which is responsible for running the Spring Boot application. It contains the `main` method, which is the entry point of the application. |
+
+To code this microservice, we will use the Spring Boot framework, through the Spring Initializr, at [https://start.spring.io/], which is a web-based tool that allows us to generate a Spring Boot project with the necessary dependencies and configurations. 
+
+<figure>
+    <img src="./spring_start.png" alt="Spring Initializr" width="800"/>
+    <figcaption>Spring Initializr</figcaption>
+</figure>
+
+Note:
+
+- Project: Maven
+- Language: Java
+- Spring Boot: 4.0.3 (stable version for now)
+- Group: store (the company name, for example)
+- Artifact: account-service (the implementation name)
+- Package name: store.account
+- Packaging: Jar
+- Configurarion: YAML
+- Java: 25 (LTS version for now)
+
+Additionally, we need to add the following dependencies:
+
+- *Spring Web*: a dependency that allows us to create RESTful web services using the Spring framework. It provides the necessary tools and libraries to handle HTTP requests and responses, as well as, to define API endpoints and controllers.
+
+- *Lombok*: a Java library that helps to reduce boilerplate code by generating getters, setters, constructors, and other common methods at compile time using annotations.
+
+- *OpenFeign*: a declarative web service client that simplifies the process of making HTTP requests to other microservices. It allows us to define interfaces for our API clients and automatically generates the implementation at runtime.
+
+
+
+!!! example "Source"
 
     === "pom.xml"
 
         ``` { .yaml .copy .select linenums="1" }
-        --8<-- "https://raw.githubusercontent.com/repo-classes/pma252.account-service/refs/heads/main/pom.xml"
+        --8<-- "docs/hands-on/1/service/pom.xml"
         ```
 
     === "Dockerfile"
 
         ``` { .dockerfile .copy .select linenums="1" }
-        --8<-- "https://raw.githubusercontent.com/repo-classes/pma252.account-service/refs/heads/main/Dockerfile"
+        --8<-- "https://raw.githubusercontent.com/repo-classes/pma261.account-service/refs/heads/main/Dockerfile"
         ```
 
     === "application.yaml"
 
         ``` { .yaml .copy .select linenums="1" }
-        --8<-- "https://raw.githubusercontent.com/repo-classes/pma252.account-service/refs/heads/main/src/main/resources/application.yaml"
+        --8<-- "https://raw.githubusercontent.com/repo-classes/pma261.account-service/refs/heads/main/src/main/resources/application.yaml"
         ```
 
     === "Account.java"
 
         ``` { .java .copy .select linenums='1' }
-        --8<-- "https://raw.githubusercontent.com/repo-classes/pma252.account-service/refs/heads/main/src/main/java/store/account/Account.java"
+        --8<-- "https://raw.githubusercontent.com/repo-classes/pma261.account-service/refs/heads/main/src/main/java/store/account/Account.java"
         ```
 
     === "AccountApplication.java"
 
         ``` { .java .copy .select linenums='1' }
-        --8<-- "https://raw.githubusercontent.com/repo-classes/pma252.account-service/refs/heads/main/src/main/java/store/account/AccountApplication.java"
+        --8<-- "https://raw.githubusercontent.com/repo-classes/pma261.account-service/refs/heads/main/src/main/java/store/account/AccountApplication.java"
         ```
 
     === "AccountModel.java"
 
         ``` { .java .copy .select linenums='1' }
-        --8<-- "https://raw.githubusercontent.com/repo-classes/pma252.account-service/refs/heads/main/src/main/java/store/account/AccountModel.java"
+        --8<-- "https://raw.githubusercontent.com/repo-classes/pma261.account-service/refs/heads/main/src/main/java/store/account/AccountModel.java"
         ```
 
     === "AccountParser.java"
 
         ``` { .java .copy .select linenums='1' }
-        --8<-- "https://raw.githubusercontent.com/repo-classes/pma252.account-service/refs/heads/main/src/main/java/store/account/AccountParser.java"
+        --8<-- "https://raw.githubusercontent.com/repo-classes/pma261.account-service/refs/heads/main/src/main/java/store/account/AccountParser.java"
         ```
 
     === "AccountRepository.java"
 
         ``` { .java .copy .select linenums='1' }
-        --8<-- "https://raw.githubusercontent.com/repo-classes/pma252.account-service/refs/heads/main/src/main/java/store/account/AccountRepository.java"
+        --8<-- "https://raw.githubusercontent.com/repo-classes/pma261.account-service/refs/heads/main/src/main/java/store/account/AccountRepository.java"
         ```
 
     === "AccountResource.java"
 
         ``` { .java .copy .select linenums='1' }
-        --8<-- "https://raw.githubusercontent.com/repo-classes/pma252.account-service/refs/heads/main/src/main/java/store/account/AccountResource.java"
+        --8<-- "https://raw.githubusercontent.com/repo-classes/pma261.account-service/refs/heads/main/src/main/java/store/account/AccountResource.java"
         ```
 
     === "AccountService.java"
 
         ``` { .java .copy .select linenums='1' }
-        --8<-- "https://raw.githubusercontent.com/repo-classes/pma252.account-service/refs/heads/main/src/main/java/store/account/AccountService.java"
+        --8<-- "https://raw.githubusercontent.com/repo-classes/pma261.account-service/refs/heads/main/src/main/java/store/account/AccountService.java"
         ```
 
     === "V2025.08.29.001__create_schema.sql"
 
         ``` { .sql .copy .select linenums="1" }
-        --8<-- "https://raw.githubusercontent.com/repo-classes/pma252.account-service/refs/heads/main/src/main/resources/db/migration/V2025.08.29.001__create_schema.sql"
+        --8<-- "https://raw.githubusercontent.com/repo-classes/pma261.account-service/refs/heads/main/src/main/resources/db/migration/V2025.08.29.001__create_schema.sql"
         ```
 
     === "V2025.08.29.002__create_table_account.sql"
 
         ``` { .sql .copy .select linenums="1" }
-        --8<-- "https://raw.githubusercontent.com/repo-classes/pma252.account-service/refs/heads/main/src/main/resources/db/migration/V2025.08.29.002__create_table_account.sql"
+        --8<-- "https://raw.githubusercontent.com/repo-classes/pma261.account-service/refs/heads/main/src/main/resources/db/migration/V2025.08.29.002__create_table_account.sql"
         ```
 
     === "V2025.09.02.001__create_index_email.sql"
 
         ``` { .sql .copy .select linenums="1" }
-        --8<-- "https://raw.githubusercontent.com/repo-classes/pma252.account-service/refs/heads/main/src/main/resources/db/migration/V2025.09.02.001__create_index_email.sql"
+        --8<-- "https://raw.githubusercontent.com/repo-classes/pma261.account-service/refs/heads/main/src/main/resources/db/migration/V2025.09.02.001__create_index_email.sql"
         ```
 
 
-<!-- termynal -->
+## 3. Package and Run
 
 ``` { bash }
-> mvn clean package spring-boot:run
+mvn clean package
+java -jar target/account-service-1.0.0.jar
 ```
 
+or
 
-[^1]: [Criando Migrations com Flyway no seu projeto Java Spring & PostgreSQL](https://www.youtube.com/watch?v=LX5jaieOIAk){target="_blank"}
+``` { bash }
+mvn clean package spring-boot:run
+```
+
+---
+
+Done! The Account Microservice is now ready to be used in the project.
+
+Let's move on to the next section, where we will containerize the Account microservice using Docker, and run it using Docker Compose.
+
+[Containerization](../containerization/){ .md-button .md-button }

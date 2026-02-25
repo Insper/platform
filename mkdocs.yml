@@ -138,10 +138,11 @@ nav:
 
   - Hands-on:
     - 0. Prerequisites: hands-on/0/index.md
-    - 1. Account Service:
+    - 1. CRUD Microservices:
       - a. Introduction: hands-on/1/index.md
       - b. Controller: hands-on/1/controller/index.md
       - c. Service: hands-on/1/service/index.md
+      - d. Containerization: hands-on/1/containerization/index.md
       - d. Repository: hands-on/1/repository/index.md
   #   - 2. Gateway: hands-on/2/index.md
   #   - 3. Security: hands-on/3/index.md
