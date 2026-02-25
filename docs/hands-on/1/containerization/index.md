@@ -19,6 +19,8 @@ flowchart LR
 api/
     account/
     account-service/
+        src/
+        Dockerfile
     .env
     compose.yaml
 ```
@@ -31,6 +33,11 @@ api/
 === ".env"
     ``` { .sh .copy .select linenums="1" }
     --8<-- "https://raw.githubusercontent.com/repo-classes/pma.26.1/refs/heads/main/api/.env"
+    ```
+
+=== "Dockerfile"
+    ``` { .dockerfile .copy .select linenums="1" }
+    --8<-- "docs/hands-on/1/containerization/code/Dockerfile"
     ```
 
 <!-- termynal -->
