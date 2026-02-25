@@ -87,7 +87,7 @@ api/
         pom.xml
 ```
 
-??? info "Source"
+!!! example "Source"
 
     === "pom.xml"
 
@@ -114,12 +114,23 @@ api/
         ```
 
 
-    <!-- termynal -->
+## 3. Build and Install the Package
 
-    ``` { bash }
-    > mvn clean install
-    ```
+After coding the interface, we need to install the package to the local Maven repository, so that it can be used by other modules in the project. To do this, run the following command at the root of the project:
 
+<!-- termynal -->
+
+``` { bash }
+> mvn clean install
+```
+
+---
+
+Done! The Account interface is now ready to be used by other modules in the project.
+
+Let's move on to the next section, where we will implement the Account microservice using the interface we just created.
+
+[Service](../service/){ .md-button .md-button }
 
 <!--
 ## API
