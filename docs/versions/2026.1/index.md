@@ -113,12 +113,12 @@ $$
 ## Repositories
 
 Principal: 
-[https://github.com/repo-classes/pma.26.1](https://github.com/repo-classes/pma.26.1){target="_blank"}
+[https://github.com/repo-classes/pma.261](https://github.com/repo-classes/pma.261){target="_blank"}
 
-<!-- | Microservice | Interface | Implementation |
+| Microservice | Interface | Implementation |
 |-|-|-|
-| Account | [account](https://github.com/repo-classes/pma252.account){target="_blank"} | [account-service](https://github.com/repo-classes/pma252.account-service){target="_blank"} |
-| Auth | [auth](https://github.com/repo-classes/pma252.auth){target="_blank"} | [auth-service](https://github.com/repo-classes/pma252.auth-service){target="_blank"} |
-| Gateway |  | [gateway-service](https://github.com/repo-classes/pma252.gateway-service){target="_blank"} |
- -->
+| Account | [account](https://github.com/repo-classes/pma.261.account){target="_blank"} | [account-service](https://github.com/repo-classes/pma.261.account-service){target="_blank"} |
+| Auth | [auth](https://github.com/repo-classes/pma.261.auth){target="_blank"} | [auth-service](https://github.com/repo-classes/pma.261.auth-service){target="_blank"} |
+| Gateway |  | [gateway-service](https://github.com/repo-classes/pma.261.gateway-service){target="_blank"} |
+
 
