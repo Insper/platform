@@ -118,8 +118,18 @@ To develop of the Account microservice, the steps are as follows:
 
     [Service](./service/){ .md-button .md-button }
 
+-   __[3. Containerization](./containerization/)__
 
--   __[3. Repository](./repository/)__
+    ---
+
+    Create the Dockerfile for the Account microservice, and build the Docker image for the microservice;
+
+    [Containerization](./containerization/){ .md-button .md-button }
+
+</div>
+
+
+-   __[4. Repository](./repository/)__
 
     ---
 

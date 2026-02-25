@@ -10,5 +10,5 @@ public record AccountIn(
     String password
 
 ) {
-
+    
 }

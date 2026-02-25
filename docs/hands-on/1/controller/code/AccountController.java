@@ -10,11 +10,11 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
-@FeignClient(name = "account", url = "http://account:8080")
+@FeignClient(
+    name="account",
+    url="http://account:8080"
+)
 public interface AccountController {
-
-    @GetMapping("/accounts/healthCheck")
-    public ResponseEntity<String> healthCheck();
 
     @PostMapping("/accounts")
     public ResponseEntity<Void> create(
@@ -26,12 +26,15 @@ public interface AccountController {
         @PathVariable String id
     );
 
+    @GetMapping("/accounts/health-check")
+    public ResponseEntity<Void> healthCheck();
+
     @GetMapping("/accounts")
-    public ResponseEntity<List<AccountOut>> listAll();
+    public ResponseEntity<List<AccountOut>> findAll();
 
     @GetMapping("/accounts/{id}")
-    public ResponseEntity<AccountOut> listById(
+    public ResponseEntity<AccountOut> findById(
         @PathVariable String id
-    );    
-    
+    );
+
 }

@@ -92,13 +92,8 @@ api/
                 java/
                     store/
                         account/
-                            Account.java
                             AccountApplication.java
-                            AccountModel.java
-                            AccountParser.java
-                            AccountRepository.java
                             AccountResource.java
-                            AccountService.java
                 resources/
                     application.yaml
         pom.xml
@@ -106,12 +101,7 @@ api/
 
 | Class | Description |
 | --- | --- |
-| `Account` | This class represents the Account entity, which is the main entity of the Account microservice. It contains the attributes of the Account entity, such as `id`, `name`, `email`, `password`, and `sha256`. |
-| `AccountModel` | This class represents the Account model, which is responsible for the persistence logic of the Account microservice. It contains the methods for creating, deleting, finding, and updating accounts. |
-| `AccountParser` | This class is responsible for parsing the input and output of the API endpoints, converting the `AccountIn` and `AccountOut` DTOs to the `Account` entity, and vice versa. |
-| `AccountRepository` | This interface is responsible for the data persistence of the Account entity, using an Object-Relational Mapping (ORM) framework to interact with the database. |
 | `AccountResource` | This class is responsible for the API endpoints of the Account microservice, implementing the `AccountController` interface defined in the `account` module, and using the `AccountService` to handle the business logic of the API endpoints. |
-| `AccountService` | This class is responsible for the business logic of the Account microservice, using the `AccountRepository` to handle the data persistence of the Account entity, and the `AccountParser` to handle the parsing of the input and output of the API endpoints. |
 | `AccountApplication` | This class is the main class of the Account microservice, which is responsible for running the Spring Boot application. It contains the `main` method, which is the entry point of the application. |
 
 To code this microservice, we will use the Spring Boot framework, through the Spring Initializr, at [https://start.spring.io/], which is a web-based tool that allows us to generate a Spring Boot project with the necessary dependencies and configurations. 
@@ -141,86 +131,34 @@ Additionally, we need to add the following dependencies:
 
 - *OpenFeign*: a declarative web service client that simplifies the process of making HTTP requests to other microservices. It allows us to define interfaces for our API clients and automatically generates the implementation at runtime.
 
+For now, we will just create the `AccountResource` and `AccountApplication` classes, and the `application.yaml` configuration file. We will implement the business logic and the data persistence in the next sections.
 
+At `AccountResource.java`, the only endpoint implemented for now is `health-check`, which is a simple endpoint that returns a `200 OK` status code, indicating that the microservice is up and running.
 
 !!! example "Source"
 
     === "pom.xml"
 
         ``` { .yaml .copy .select linenums="1" }
-        --8<-- "docs/hands-on/1/service/pom.xml"
-        ```
-
-    === "Dockerfile"
-
-        ``` { .dockerfile .copy .select linenums="1" }
-        --8<-- "https://raw.githubusercontent.com/repo-classes/pma261.account-service/refs/heads/main/Dockerfile"
+        --8<-- "docs/hands-on/1/service/code/pom.xml"
         ```
 
     === "application.yaml"
 
         ``` { .yaml .copy .select linenums="1" }
-        --8<-- "https://raw.githubusercontent.com/repo-classes/pma261.account-service/refs/heads/main/src/main/resources/application.yaml"
-        ```
-
-    === "Account.java"
-
-        ``` { .java .copy .select linenums='1' }
-        --8<-- "https://raw.githubusercontent.com/repo-classes/pma261.account-service/refs/heads/main/src/main/java/store/account/Account.java"
+        --8<-- "docs/hands-on/1/service/code/application.yaml"
         ```
 
     === "AccountApplication.java"
 
         ``` { .java .copy .select linenums='1' }
-        --8<-- "https://raw.githubusercontent.com/repo-classes/pma261.account-service/refs/heads/main/src/main/java/store/account/AccountApplication.java"
-        ```
-
-    === "AccountModel.java"
-
-        ``` { .java .copy .select linenums='1' }
-        --8<-- "https://raw.githubusercontent.com/repo-classes/pma261.account-service/refs/heads/main/src/main/java/store/account/AccountModel.java"
-        ```
-
-    === "AccountParser.java"
-
-        ``` { .java .copy .select linenums='1' }
-        --8<-- "https://raw.githubusercontent.com/repo-classes/pma261.account-service/refs/heads/main/src/main/java/store/account/AccountParser.java"
-        ```
-
-    === "AccountRepository.java"
-
-        ``` { .java .copy .select linenums='1' }
-        --8<-- "https://raw.githubusercontent.com/repo-classes/pma261.account-service/refs/heads/main/src/main/java/store/account/AccountRepository.java"
+        --8<-- "docs/hands-on/1/service/code/AccountApplication.java"
         ```
 
     === "AccountResource.java"
 
         ``` { .java .copy .select linenums='1' }
-        --8<-- "https://raw.githubusercontent.com/repo-classes/pma261.account-service/refs/heads/main/src/main/java/store/account/AccountResource.java"
-        ```
-
-    === "AccountService.java"
-
-        ``` { .java .copy .select linenums='1' }
-        --8<-- "https://raw.githubusercontent.com/repo-classes/pma261.account-service/refs/heads/main/src/main/java/store/account/AccountService.java"
-        ```
-
-    === "V2025.08.29.001__create_schema.sql"
-
-        ``` { .sql .copy .select linenums="1" }
-        --8<-- "https://raw.githubusercontent.com/repo-classes/pma261.account-service/refs/heads/main/src/main/resources/db/migration/V2025.08.29.001__create_schema.sql"
-        ```
-
-    === "V2025.08.29.002__create_table_account.sql"
-
-        ``` { .sql .copy .select linenums="1" }
-        --8<-- "https://raw.githubusercontent.com/repo-classes/pma261.account-service/refs/heads/main/src/main/resources/db/migration/V2025.08.29.002__create_table_account.sql"
-        ```
-
-    === "V2025.09.02.001__create_index_email.sql"
-
-        ``` { .sql .copy .select linenums="1" }
-        --8<-- "https://raw.githubusercontent.com/repo-classes/pma261.account-service/refs/heads/main/src/main/resources/db/migration/V2025.09.02.001__create_index_email.sql"
+        --8<-- "docs/hands-on/1/service/code/AccountResource.java"
         ```
 
 
