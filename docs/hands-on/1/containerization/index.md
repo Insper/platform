@@ -65,3 +65,4 @@ ____
 
 Done! In the next hands-on, we will connect to the database and execute some queries to check if the data is being persisted correctly.
 
+[Repository](../repository/){ .md-button .md-button }
