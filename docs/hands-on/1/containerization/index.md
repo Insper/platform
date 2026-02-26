@@ -36,18 +36,20 @@ The content of the files are as follows:
 
 === "compose.yaml"
     ``` { .yaml .copy .select linenums="1" }
-    --8<-- "docs/hands-on/1/containerization/compose.yaml"
+    --8<-- "docs/hands-on/1/containerization/code/compose.yaml"
     ```
 
 === ".env"
-    ``` { .sh .copy .select linenums="1" }
-    --8<-- "docs/hands-on/1/containerization/.env"
+    ``` { .yaml .copy .select linenums="1" }
+    --8<-- "docs/hands-on/1/containerization/code/.env"
     ```
 
 === "Dockerfile"
-    ``` { .dockerfile .copy .select linenums="1" }
+    ``` { .dockerfile .download data-filename="Dockerfile" .copy .select linenums="1" }
     --8<-- "docs/hands-on/1/containerization/code/Dockerfile"
     ```
+
+In this configuration, we use the `postgres:17` image to create a PostgreSQL container, and we set the environment variables for the database using the `.env` file.
 
 To run the application, we need to execute the following command:
 
