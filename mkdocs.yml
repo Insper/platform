@@ -139,7 +139,7 @@ nav:
 
   - Hands-on:
     - 0. Prerequisites: hands-on/0/index.md
-    - 1. CRUD Microservices:
+    - 1. CRUD:
       - a. Introduction: hands-on/1/index.md
       - b. Controller: hands-on/1/controller/index.md
       - c. Service: hands-on/1/service/index.md
