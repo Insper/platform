@@ -11,7 +11,7 @@ spring:
       enabled: true
 
   datasource:
-    url: ${DATABASE_URL}
+    url: jdbc:postgresql://${DATABASE_HOST}:${DATABASE_PORT}/${DATABASE_DB}
     username: ${DATABASE_USERNAME}
     password: ${DATABASE_PASSWORD}
     driver-class-name: org.postgresql.Driver
