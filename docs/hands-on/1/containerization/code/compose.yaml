@@ -15,7 +15,7 @@ services:
 
   account:
     build:
-      context: .
+      context: ./account-service
       dockerfile: Dockerfile
     ports:
       - 8080:8080
