@@ -96,7 +96,7 @@ Where, respecting the clean architecture, we have the following classes:
 
     === "pom.xml"
 
-        ``` { .yaml .copy .select linenums="1" hl_lines="46-50 52-60" }
+        ``` { .yaml .copy .select linenums="1" hl_lines="33-36 50-54 56-64" }
         --8<-- "docs/hands-on/1/repository/code/pom.xml"
         ```
 
