@@ -201,5 +201,9 @@ Yet, if you want to monitor the logs of the microservice without going inside th
 docker logs -f account-service
 ```
 
+---
+
+Done!
+
 
 [^1]: [Criando Migrations com Flyway no seu projeto Java Spring & PostgreSQL](https://www.youtube.com/watch?v=LX5jaieOIAk){target="_blank"}
