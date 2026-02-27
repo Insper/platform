@@ -145,7 +145,7 @@ nav:
       - c. Service: hands-on/1/service/index.md
       - d. Containerization: hands-on/1/containerization/index.md
       - d. Repository: hands-on/1/repository/index.md
-  #   - 2. Gateway: hands-on/2/index.md
+    - 2. Gateway: hands-on/2/index.md
   #   - 3. Security: hands-on/3/index.md
   #   - 4. DevOps: hands-on/4/index.md
   #   - 5. Orchestration: hands-on/5/index.md

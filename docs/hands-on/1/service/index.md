@@ -139,7 +139,7 @@ At `AccountResource.java`, the only endpoint implemented for now is `health-chec
 
     === "pom.xml"
 
-        ``` { .yaml .copy .select linenums="1" }
+        ``` { .yaml .copy .select linenums="1" hl_lines="40-44"}
         --8<-- "docs/hands-on/1/service/code/pom.xml"
         ```
 
@@ -157,7 +157,7 @@ At `AccountResource.java`, the only endpoint implemented for now is `health-chec
 
     === "AccountResource.java"
 
-        ``` { .java .copy .select linenums='1' }
+        ``` { .java .copy .select linenums='1' hl_lines="23-26"}
         --8<-- "docs/hands-on/1/service/code/AccountResource.java"
         ```
 

@@ -1,0 +1,26 @@
+server:
+  port: 8080
+  
+spring:
+
+  application:
+    name: account
+
+  mvc:
+    problemdetails:
+      enabled: true
+
+  datasource:
+    url: ${DATABASE_URL}
+    username: ${DATABASE_USERNAME}
+    password: ${DATABASE_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  flyway:
+    baseline-on-migrate: true
+    schemas: account
+
+  jpa:
+    properties:
+      hibernate:
+        default_schema: account
