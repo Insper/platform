@@ -1,0 +1,29 @@
+name: store
+
+services:
+
+  db:
+    image: postgres:17
+    ports:
+      - 5432:5432
+    volumes:
+      - ${VOLUME_DB}:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: ${DB_USER:-store}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-devpass}
+      POSTGRES_DB: ${DB_NAME:-store}
+
+  account:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_HOST: db # Refferences the service name defined in this file
+      DATABASE_PORT: 5432 # Default PostgreSQL port
+      DATABASE_DB: ${DB_NAME:-store} # Optional: Use the same DB name as defined for the db service
+      DATABASE_USERNAME: ${DB_USER:-store} # Optional: Use the same username as defined for the db service
+      DATABASE_PASSWORD: ${DB_PASSWORD:-devpass} # Optional
+    ports:
+      - 8080:8080
+    depends_on:
+      - db

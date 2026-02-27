@@ -1,0 +1,820 @@
+<!DOCTYPE html><html lang=en class=no-js><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><meta name=author content="Sandmann, H."><link href=https://insper.github.io/platform/versions/2025.2/ rel=canonical><link href=../2026.1/ rel=prev><link href=../2025.1/ rel=next><link rel=icon href=../../assets/images/favicon.png><meta name=generator content="mkdocs-1.6.1, mkdocs-material-9.7.3"><title>2025.2 - Platforms, Microservices, DevOps and APIs</title><link rel=stylesheet href=../../assets/stylesheets/main.484c7ddc.min.css><link rel=stylesheet href=../../assets/stylesheets/palette.ab4e12ef.min.css><style>:root{--md-admonition-icon--note:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20448%20512%22%3E%3C%21--%21%20Font%20Awesome%20Free%207.1.0%20by%20%40fontawesome%20-%20https%3A//fontawesome.com%20License%20-%20https%3A//fontawesome.com/license/free%20%28Icons%3A%20CC%20BY%204.0%2C%20Fonts%3A%20SIL%20OFL%201.1%2C%20Code%3A%20MIT%20License%29%20Copyright%202025%20Fonticons%2C%20Inc.--%3E%3Cpath%20d%3D%22M64%20480c-35.3%200-64-28.7-64-64V96c0-35.3%2028.7-64%2064-64h320c35.3%200%2064%2028.7%2064%2064v213.5c0%2017-6.7%2033.3-18.7%2045.3L322.7%20461.3c-12%2012-28.3%2018.7-45.3%2018.7zm325.5-176H296c-13.3%200-24%2010.7-24%2024v93.5z%22/%3E%3C/svg%3E');--md-admonition-icon--abstract:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20448%20512%22%3E%3C%21--%21%20Font%20Awesome%20Free%207.1.0%20by%20%40fontawesome%20-%20https%3A//fontawesome.com%20License%20-%20https%3A//fontawesome.com/license/free%20%28Icons%3A%20CC%20BY%204.0%2C%20Fonts%3A%20SIL%20OFL%201.1%2C%20Code%3A%20MIT%20License%29%20Copyright%202025%20Fonticons%2C%20Inc.--%3E%3Cpath%20d%3D%22M384%20512H96c-53%200-96-43-96-96V96C0%2043%2043%200%2096%200h304c26.5%200%2048%2021.5%2048%2048v288c0%2020.9-13.4%2038.7-32%2045.3V448c17.7%200%2032%2014.3%2032%2032s-14.3%2032-32%2032zM96%20384c-17.7%200-32%2014.3-32%2032s14.3%2032%2032%2032h256v-64zm32-232c0%2013.3%2010.7%2024%2024%2024h176c13.3%200%2024-10.7%2024-24s-10.7-24-24-24H152c-13.3%200-24%2010.7-24%2024m24%2072c-13.3%200-24%2010.7-24%2024s10.7%2024%2024%2024h176c13.3%200%2024-10.7%2024-24s-10.7-24-24-24z%22/%3E%3C/svg%3E');--md-admonition-icon--info:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20512%20512%22%3E%3C%21--%21%20Font%20Awesome%20Free%207.1.0%20by%20%40fontawesome%20-%20https%3A//fontawesome.com%20License%20-%20https%3A//fontawesome.com/license/free%20%28Icons%3A%20CC%20BY%204.0%2C%20Fonts%3A%20SIL%20OFL%201.1%2C%20Code%3A%20MIT%20License%29%20Copyright%202025%20Fonticons%2C%20Inc.--%3E%3Cpath%20d%3D%22M256%20512a256%20256%200%201%200%200-512%20256%20256%200%201%200%200%20512m-32-352a32%2032%200%201%201%2064%200%2032%2032%200%201%201-64%200m-8%2064h48c13.3%200%2024%2010.7%2024%2024v88h8c13.3%200%2024%2010.7%2024%2024s-10.7%2024-24%2024h-80c-13.3%200-24-10.7-24-24s10.7-24%2024-24h24v-64h-24c-13.3%200-24-10.7-24-24s10.7-24%2024-24%22/%3E%3C/svg%3E');--md-admonition-icon--tip:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20512%20512%22%3E%3C%21--%21%20Font%20Awesome%20Free%207.1.0%20by%20%40fontawesome%20-%20https%3A//fontawesome.com%20License%20-%20https%3A//fontawesome.com/license/free%20%28Icons%3A%20CC%20BY%204.0%2C%20Fonts%3A%20SIL%20OFL%201.1%2C%20Code%3A%20MIT%20License%29%20Copyright%202025%20Fonticons%2C%20Inc.--%3E%3Cpath%20d%3D%22M461.2%2018.9C472.7%2024%20480%2035.4%20480%2048v416c0%2012.6-7.3%2024-18.8%2029.1s-24.8%203.2-34.3-5.1l-46.6-40.7c-43.6-38.1-98.7-60.3-156.4-63V480c0%2017.7-14.3%2032-32%2032h-32c-17.7%200-32-14.3-32-32v-96C57.3%20384%200%20326.7%200%20256s57.3-128%20128-128h84.5c61.8-.2%20121.4-22.7%20167.9-63.3L427%2024c9.4-8.3%2022.9-10.2%2034.3-5.1zM224%20320v.2c70.3%202.7%20137.8%2028.5%20192%2073.4V118.3c-54.2%2044.9-121.7%2070.7-192%2073.4z%22/%3E%3C/svg%3E');--md-admonition-icon--success:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20448%20512%22%3E%3C%21--%21%20Font%20Awesome%20Free%207.1.0%20by%20%40fontawesome%20-%20https%3A//fontawesome.com%20License%20-%20https%3A//fontawesome.com/license/free%20%28Icons%3A%20CC%20BY%204.0%2C%20Fonts%3A%20SIL%20OFL%201.1%2C%20Code%3A%20MIT%20License%29%20Copyright%202025%20Fonticons%2C%20Inc.--%3E%3Cpath%20d%3D%22M434.8%2070.1c14.3%2010.4%2017.5%2030.4%207.1%2044.7l-256%20352c-5.5%207.6-14%2012.3-23.4%2013.1s-18.5-2.7-25.1-9.3l-128-128c-12.5-12.5-12.5-32.8%200-45.3s32.8-12.5%2045.3%200l101.5%20101.5%20234-321.7c10.4-14.3%2030.4-17.5%2044.7-7.1z%22/%3E%3C/svg%3E');--md-admonition-icon--question:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20512%20512%22%3E%3C%21--%21%20Font%20Awesome%20Free%207.1.0%20by%20%40fontawesome%20-%20https%3A//fontawesome.com%20License%20-%20https%3A//fontawesome.com/license/free%20%28Icons%3A%20CC%20BY%204.0%2C%20Fonts%3A%20SIL%20OFL%201.1%2C%20Code%3A%20MIT%20License%29%20Copyright%202025%20Fonticons%2C%20Inc.--%3E%3Cpath%20d%3D%22M256%20512a256%20256%200%201%200%200-512%20256%20256%200%201%200%200%20512m0-336c-17.7%200-32%2014.3-32%2032%200%2013.3-10.7%2024-24%2024s-24-10.7-24-24c0-44.2%2035.8-80%2080-80s80%2035.8%2080%2080c0%2047.2-36%2067.2-56%2074.5v3.8c0%2013.3-10.7%2024-24%2024s-24-10.7-24-24v-8.1c0-20.5%2014.8-35.2%2030.1-40.2%206.4-2.1%2013.2-5.5%2018.2-10.3%204.3-4.2%207.7-10%207.7-19.6%200-17.7-14.3-32-32-32zm-32%20192a32%2032%200%201%201%2064%200%2032%2032%200%201%201-64%200%22/%3E%3C/svg%3E');--md-admonition-icon--warning:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20512%20512%22%3E%3C%21--%21%20Font%20Awesome%20Free%207.1.0%20by%20%40fontawesome%20-%20https%3A//fontawesome.com%20License%20-%20https%3A//fontawesome.com/license/free%20%28Icons%3A%20CC%20BY%204.0%2C%20Fonts%3A%20SIL%20OFL%201.1%2C%20Code%3A%20MIT%20License%29%20Copyright%202025%20Fonticons%2C%20Inc.--%3E%3Cpath%20d%3D%22M256%200c14.7%200%2028.2%208.1%2035.2%2021l216%20400c6.7%2012.4%206.4%2027.4-.8%2039.5S486.1%20480%20472%20480H40c-14.1%200-27.2-7.4-34.4-19.5s-7.5-27.1-.8-39.5l216-400c7-12.9%2020.5-21%2035.2-21m0%20352a32%2032%200%201%200%200%2064%2032%2032%200%201%200%200-64m0-192c-18.2%200-32.7%2015.5-31.4%2033.7l7.4%20104c.9%2012.5%2011.4%2022.3%2023.9%2022.3%2012.6%200%2023-9.7%2023.9-22.3l7.4-104c1.3-18.2-13.1-33.7-31.4-33.7z%22/%3E%3C/svg%3E');--md-admonition-icon--failure:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20576%20512%22%3E%3C%21--%21%20Font%20Awesome%20Free%207.1.0%20by%20%40fontawesome%20-%20https%3A//fontawesome.com%20License%20-%20https%3A//fontawesome.com/license/free%20%28Icons%3A%20CC%20BY%204.0%2C%20Fonts%3A%20SIL%20OFL%201.1%2C%20Code%3A%20MIT%20License%29%20Copyright%202025%20Fonticons%2C%20Inc.--%3E%3Cpath%20d%3D%22M480-16c6.9%200%2013%204.4%2015.2%2010.9l13.5%2040.4%2040.4%2013.5C555.6%2051%20560%2057.1%20560%2064s-4.4%2013-10.9%2015.2l-40.4%2013.5-13.5%2040.4c-2.2%206.5-8.3%2010.9-15.2%2010.9s-13-4.4-15.2-10.9l-13.5-40.4-40.4-13.5C404.4%2077%20400%2070.9%20400%2064s4.4-13%2010.9-15.2l40.4-13.5%2013.5-40.4C467-11.6%20473.1-16%20480-16M321.4%2097.4c12.5-12.5%2032.8-12.5%2045.3%200l80%2080c12.5%2012.5%2012.5%2032.8%200%2045.3l-10.9%2010.9c7.9%2022%2012.2%2045.7%2012.2%2070.5%200%20114.9-93.1%20208-208%20208S32%20418.9%2032%20304%20125.1%2096%20240%2096c24.7%200%2048.5%204.3%2070.5%2012.3zM144%20304c0-53%2043-96%2096-96%2013.3%200%2024-10.7%2024-24s-10.7-24-24-24c-79.5%200-144%2064.5-144%20144%200%2013.3%2010.7%2024%2024%2024s24-10.7%2024-24%22/%3E%3C/svg%3E');--md-admonition-icon--danger:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20512%20512%22%3E%3C%21--%21%20Font%20Awesome%20Free%207.1.0%20by%20%40fontawesome%20-%20https%3A//fontawesome.com%20License%20-%20https%3A//fontawesome.com/license/free%20%28Icons%3A%20CC%20BY%204.0%2C%20Fonts%3A%20SIL%20OFL%201.1%2C%20Code%3A%20MIT%20License%29%20Copyright%202025%20Fonticons%2C%20Inc.--%3E%3Cpath%20d%3D%22M416%20427.4c58.5-44%2096-111.6%2096-187.4C512%20107.5%20397.4%200%20256%200S0%20107.5%200%20240c0%2075.8%2037.5%20143.4%2096%20187.4V464c0%2026.5%2021.5%2048%2048%2048h32v-40c0-13.3%2010.7-24%2024-24s24%2010.7%2024%2024v40h64v-40c0-13.3%2010.7-24%2024-24s24%2010.7%2024%2024v40h32c26.5%200%2048-21.5%2048-48zM96%20256a64%2064%200%201%201%20128%200%2064%2064%200%201%201-128%200m256-64a64%2064%200%201%201%200%20128%2064%2064%200%201%201%200-128%22/%3E%3C/svg%3E');--md-admonition-icon--bug:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20640%20512%22%3E%3C%21--%21%20Font%20Awesome%20Free%207.1.0%20by%20%40fontawesome%20-%20https%3A//fontawesome.com%20License%20-%20https%3A//fontawesome.com/license/free%20%28Icons%3A%20CC%20BY%204.0%2C%20Fonts%3A%20SIL%20OFL%201.1%2C%20Code%3A%20MIT%20License%29%20Copyright%202025%20Fonticons%2C%20Inc.--%3E%3Cpath%20d%3D%22M352%200c0-17.7-14.3-32-32-32s-32%2014.3-32%2032v64h-96c-53%200-96%2043-96%2096v224c0%2053%2043%2096%2096%2096h256c53%200%2096-43%2096-96V160c0-53-43-96-96-96h-96zM160%20368c0-13.3%2010.7-24%2024-24h32c13.3%200%2024%2010.7%2024%2024s-10.7%2024-24%2024h-32c-13.3%200-24-10.7-24-24m120%200c0-13.3%2010.7-24%2024-24h32c13.3%200%2024%2010.7%2024%2024s-10.7%2024-24%2024h-32c-13.3%200-24-10.7-24-24m120%200c0-13.3%2010.7-24%2024-24h32c13.3%200%2024%2010.7%2024%2024s-10.7%2024-24%2024h-32c-13.3%200-24-10.7-24-24M224%20176a48%2048%200%201%201%200%2096%2048%2048%200%201%201%200-96m144%2048a48%2048%200%201%201%2096%200%2048%2048%200%201%201-96%200m-304%200c0-17.7-14.3-32-32-32S0%20206.3%200%20224v96c0%2017.7%2014.3%2032%2032%2032s32-14.3%2032-32zm544-32c-17.7%200-32%2014.3-32%2032v96c0%2017.7%2014.3%2032%2032%2032s32-14.3%2032-32v-96c0-17.7-14.3-32-32-32%22/%3E%3C/svg%3E');--md-admonition-icon--example:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20448%20512%22%3E%3C%21--%21%20Font%20Awesome%20Free%207.1.0%20by%20%40fontawesome%20-%20https%3A//fontawesome.com%20License%20-%20https%3A//fontawesome.com/license/free%20%28Icons%3A%20CC%20BY%204.0%2C%20Fonts%3A%20SIL%20OFL%201.1%2C%20Code%3A%20MIT%20License%29%20Copyright%202025%20Fonticons%2C%20Inc.--%3E%3Cpath%20d%3D%22M288%200H128c-17.7%200-32%2014.3-32%2032s14.3%2032%2032%2032v151.5L7.5%20426.3C2.6%20435%200%20444.7%200%20454.7%200%20486.4%2025.6%20512%2057.3%20512h333.4c31.6%200%2057.3-25.6%2057.3-57.3%200-10-2.6-19.8-7.5-28.4L320%20215.5V64c17.7%200%2032-14.3%2032-32S337.7%200%20320%200zm-96%20215.5V64h64v151.5c0%2011.1%202.9%2022.1%208.4%2031.8L306%20320H142l41.6-72.7c5.5-9.7%208.4-20.6%208.4-31.8%22/%3E%3C/svg%3E');--md-admonition-icon--quote:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20448%20512%22%3E%3C%21--%21%20Font%20Awesome%20Free%207.1.0%20by%20%40fontawesome%20-%20https%3A//fontawesome.com%20License%20-%20https%3A//fontawesome.com/license/free%20%28Icons%3A%20CC%20BY%204.0%2C%20Fonts%3A%20SIL%20OFL%201.1%2C%20Code%3A%20MIT%20License%29%20Copyright%202025%20Fonticons%2C%20Inc.--%3E%3Cpath%20d%3D%22M0%20216C0%20149.7%2053.7%2096%20120%2096h8c17.7%200%2032%2014.3%2032%2032s-14.3%2032-32%2032h-8c-30.9%200-56%2025.1-56%2056v8h64c35.3%200%2064%2028.7%2064%2064v64c0%2035.3-28.7%2064-64%2064H64c-35.3%200-64-28.7-64-64zm256%200c0-66.3%2053.7-120%20120-120h8c17.7%200%2032%2014.3%2032%2032s-14.3%2032-32%2032h-8c-30.9%200-56%2025.1-56%2056v8h64c35.3%200%2064%2028.7%2064%2064v64c0%2035.3-28.7%2064-64%2064h-64c-35.3%200-64-28.7-64-64z%22/%3E%3C/svg%3E');}</style><link rel=preconnect href=https://fonts.gstatic.com crossorigin><link rel=stylesheet href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback"><style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style><link rel=stylesheet href=../../assets/_markdown_exec_pyodide.css><link rel=stylesheet href=../../assets/stylesheets/extra.css><link rel=stylesheet href=../../assets/stylesheets/badge.css><link rel=stylesheet href=../../termynal.css><script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script><link href=../../assets/stylesheets/glightbox.min.css rel=stylesheet><script src=../../assets/javascripts/glightbox.min.js></script><style id=glightbox-style>
+            html.glightbox-open { overflow: initial; height: 100%; }
+            .gslide-title { margin-top: 0px; user-select: text; }
+            .gslide-desc { color: #666; user-select: text; }
+            .gslide-image img { background: white; }
+            .gscrollbar-fixer { padding-right: 15px; }
+            .gdesc-inner { font-size: 0.75rem; }
+            body[data-md-color-scheme="slate"] .gdesc-inner { background: var(--md-default-bg-color); }
+            body[data-md-color-scheme="slate"] .gslide-title { color: var(--md-default-fg-color); }
+            body[data-md-color-scheme="slate"] .gslide-desc { color: var(--md-default-fg-color); }
+        </style></head> <body dir=ltr data-md-color-scheme=default data-md-color-primary=grey data-md-color-accent=indigo> <input class=md-toggle data-md-toggle=drawer type=checkbox id=__drawer autocomplete=off> <input class=md-toggle data-md-toggle=search type=checkbox id=__search autocomplete=off> <label class=md-overlay for=__drawer></label> <div data-md-component=skip> <a href=#instructors class=md-skip> Skip to content </a> </div> <div data-md-component=announce> </div> <header class="md-header md-header--shadow" data-md-component=header> <nav class="md-header__inner md-grid" aria-label=Header> <a href=../.. title="Platforms, Microservices, DevOps and APIs" class="md-header__button md-logo" aria-label="Platforms, Microservices, DevOps and APIs" data-md-component=logo> <img src=../../assets/images/logo.png alt=logo> </a> <label class="md-header__button md-icon" for=__drawer> <svg xmlns=http://www.w3.org/2000/svg viewbox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg> </label> <div class=md-header__title data-md-component=header-title> <div class=md-header__ellipsis> <div class=md-header__topic> <span class=md-ellipsis> Platforms, Microservices, DevOps and APIs </span> </div> <div class=md-header__topic data-md-component=header-topic> <span class=md-ellipsis> 2025.2 </span> </div> </div> </div> <form class=md-header__option data-md-component=palette> <input class=md-option data-md-color-media data-md-color-scheme=default data-md-color-primary=grey data-md-color-accent=indigo aria-label="Switch to dark mode" type=radio name=__palette id=__palette_0> <label class="md-header__button md-icon" title="Switch to dark mode" for=__palette_1 hidden> <svg xmlns=http://www.w3.org/2000/svg viewbox="0 0 24 24"><path d="M17 6H7c-3.31 0-6 2.69-6 6s2.69 6 6 6h10c3.31 0 6-2.69 6-6s-2.69-6-6-6m0 10H7c-2.21 0-4-1.79-4-4s1.79-4 4-4h10c2.21 0 4 1.79 4 4s-1.79 4-4 4M7 9c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3"></path></svg> </label> <input class=md-option data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme=default data-md-color-primary=grey data-md-color-accent=indigo aria-label="Switch to dark mode" type=radio name=__palette id=__palette_1> <label class="md-header__button md-icon" title="Switch to dark mode" for=__palette_0 hidden> <svg xmlns=http://www.w3.org/2000/svg viewbox="0 0 24 24"><path d="M17 6H7c-3.31 0-6 2.69-6 6s2.69 6 6 6h10c3.31 0 6-2.69 6-6s-2.69-6-6-6m0 10H7c-2.21 0-4-1.79-4-4s1.79-4 4-4h10c2.21 0 4 1.79 4 4s-1.79 4-4 4M7 9c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3"></path></svg> </label> </form> <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script> <label class="md-header__button md-icon" for=__search> <svg xmlns=http://www.w3.org/2000/svg viewbox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg> </label> <div class=md-search data-md-component=search role=dialog> <label class=md-search__overlay for=__search></label> <div class=md-search__inner role=search> <form class=md-search__form name=search> <input type=text class=md-search__input name=query aria-label=Search placeholder=Search autocapitalize=off autocorrect=off autocomplete=off spellcheck=false data-md-component=search-query required> <label class="md-search__icon md-icon" for=__search> <svg xmlns=http://www.w3.org/2000/svg viewbox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg> <svg xmlns=http://www.w3.org/2000/svg viewbox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg> </label> <nav class=md-search__options aria-label=Search> <button type=reset class="md-search__icon md-icon" title=Clear aria-label=Clear tabindex=-1> <svg xmlns=http://www.w3.org/2000/svg viewbox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg> </button> </nav> </form> <div class=md-search__output> <div class=md-search__scrollwrap tabindex=0 data-md-scrollfix> <div class=md-search-result data-md-component=search-result> <div class=md-search-result__meta> Initializing search </div> <ol class=md-search-result__list role=presentation></ol> </div> </div> </div> </div> </div> <div class=md-header__source> <a href=https://github.com/insper/platform title="Go to repository" class=md-source data-md-component=source> <div class="md-source__icon md-icon"> <svg xmlns=http://www.w3.org/2000/svg viewbox="0 0 448 512"><!-- Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"></path></svg> </div> <div class=md-source__repository> insper/platform </div> </a> </div> </nav> </header> <div class=md-container data-md-component=container> <main class=md-main data-md-component=main> <div class="md-main__inner md-grid"> <div class="md-sidebar md-sidebar--primary" data-md-component=sidebar data-md-type=navigation> <div class=md-sidebar__scrollwrap> <div class=md-sidebar__inner> <nav class="md-nav md-nav--primary" aria-label=Navigation data-md-level=0> <label class=md-nav__title for=__drawer> <a href=../.. title="Platforms, Microservices, DevOps and APIs" class="md-nav__button md-logo" aria-label="Platforms, Microservices, DevOps and APIs" data-md-component=logo> <img src=../../assets/images/logo.png alt=logo> </a> Platforms, Microservices, DevOps and APIs </label> <div class=md-nav__source> <a href=https://github.com/insper/platform title="Go to repository" class=md-source data-md-component=source> <div class="md-source__icon md-icon"> <svg xmlns=http://www.w3.org/2000/svg viewbox="0 0 448 512"><!-- Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"></path></svg> </div> <div class=md-source__repository> insper/platform </div> </a> </div> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../.. class=md-nav__link> <span class=md-ellipsis> Home </span> </a> </li> <li class=md-nav__item> <a href=../2026.1/ class=md-nav__link> <span class=md-ellipsis> 2026.1 </span> </a> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3> <label class=md-nav__link for=__nav_3 id=__nav_3_label tabindex=0> <span class=md-ellipsis> Classes </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=1 aria-labelledby=__nav_3_label aria-expanded=false> <label class=md-nav__title for=__nav_3> <span class="md-nav__icon md-icon"></span> Classes </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../classes/distributed_systems/ class=md-nav__link> <span class=md-ellipsis> 1. Distributed Systems </span> </a> </li> <li class=md-nav__item> <a href=../../classes/containerization/ class=md-nav__link> <span class=md-ellipsis> 2. Containerization </span> </a> </li> <li class=md-nav__item> <a href=../../classes/microservices/ class=md-nav__link> <span class=md-ellipsis> 3. Microservices </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_4> <label class=md-nav__link for=__nav_4 id=__nav_4_label tabindex=0> <span class=md-ellipsis> Hands-on </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=1 aria-labelledby=__nav_4_label aria-expanded=false> <label class=md-nav__title for=__nav_4> <span class="md-nav__icon md-icon"></span> Hands-on </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../hands-on/0/ class=md-nav__link> <span class=md-ellipsis> 0. Prerequisites </span> </a> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_4_2> <label class=md-nav__link for=__nav_4_2 id=__nav_4_2_label tabindex=0> <span class=md-ellipsis> 1. CRUD </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=2 aria-labelledby=__nav_4_2_label aria-expanded=false> <label class=md-nav__title for=__nav_4_2> <span class="md-nav__icon md-icon"></span> 1. CRUD </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../hands-on/1/ class=md-nav__link> <span class=md-ellipsis> a. Introduction </span> </a> </li> <li class=md-nav__item> <a href=../../hands-on/1/controller/ class=md-nav__link> <span class=md-ellipsis> b. Controller </span> </a> </li> <li class=md-nav__item> <a href=../../hands-on/1/service/ class=md-nav__link> <span class=md-ellipsis> c. Service </span> </a> </li> <li class=md-nav__item> <a href=../../hands-on/1/containerization/ class=md-nav__link> <span class=md-ellipsis> d. Containerization </span> </a> </li> <li class=md-nav__item> <a href=../../hands-on/1/repository/ class=md-nav__link> <span class=md-ellipsis> d. Repository </span> </a> </li> </ul> </nav> </li> <li class=md-nav__item> <a href=../../hands-on/2/ class=md-nav__link> <span class=md-ellipsis> 2. Gateway </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--active md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_5 checked> <label class=md-nav__link for=__nav_5 id=__nav_5_label tabindex=0> <span class=md-ellipsis> Versions </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=1 aria-labelledby=__nav_5_label aria-expanded=true> <label class=md-nav__title for=__nav_5> <span class="md-nav__icon md-icon"></span> Versions </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../terms-and-conditions/ class=md-nav__link> <span class=md-ellipsis> Terms and Conditions </span> </a> </li> <li class=md-nav__item> <a href=../2026.1/ class=md-nav__link> <span class=md-ellipsis> 2026.1 </span> </a> </li> <li class="md-nav__item md-nav__item--active"> <input class="md-nav__toggle md-toggle" type=checkbox id=__toc> <label class="md-nav__link md-nav__link--active" for=__toc> <span class=md-ellipsis> 2025.2 </span> <span class="md-nav__icon md-icon"></span> </label> <a href=./ class="md-nav__link md-nav__link--active"> <span class=md-ellipsis> 2025.2 </span> </a> <nav class="md-nav md-nav--secondary" aria-label="Table of contents"> <label class=md-nav__title for=__toc> <span class="md-nav__icon md-icon"></span> Table of contents </label> <ul class=md-nav__list data-md-component=toc data-md-scrollfix> <li class=md-nav__item> <a href=#instructors class=md-nav__link> <span class=md-ellipsis> Instructors </span> </a> </li> <li class=md-nav__item> <a href=#students class=md-nav__link> <span class=md-ellipsis> Students </span> </a> </li> <li class=md-nav__item> <a href=#meetings class=md-nav__link> <span class=md-ellipsis> Meetings </span> </a> </li> <li class=md-nav__item> <a href=#grade class=md-nav__link> <span class=md-ellipsis> Grade </span> </a> </li> <li class=md-nav__item> <a href=#planning class=md-nav__link> <span class=md-ellipsis> Planning </span> </a> </li> <li class=md-nav__item> <a href=#repositories class=md-nav__link> <span class=md-ellipsis> Repositories </span> </a> </li> </ul> </nav> </li> <li class=md-nav__item> <a href=../2025.1/ class=md-nav__link> <span class=md-ellipsis> 2025.1 </span> </a> </li> <li class=md-nav__item> <a href=../2024.1/ class=md-nav__link> <span class=md-ellipsis> 2024.1 </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_6> <label class=md-nav__link for=__nav_6 id=__nav_6_label tabindex=0> <span class=md-ellipsis> Appendix </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=1 aria-labelledby=__nav_6_label aria-expanded=false> <label class=md-nav__title for=__nav_6> <span class="md-nav__icon md-icon"></span> Appendix </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../appendix/network/ class=md-nav__link> <span class=md-ellipsis> Network </span> </a> </li> <li class=md-nav__item> <a href=../../appendix/development-setup/ class=md-nav__link> <span class=md-ellipsis> Development Setup </span> </a> </li> <li class=md-nav__item> <a href=../../appendix/git-submodules/ class=md-nav__link> <span class=md-ellipsis> Git Submodules </span> </a> </li> <li class=md-nav__item> <a href=../../appendix/rest-vs-graphql/ class=md-nav__link> <span class=md-ellipsis> REST vs GraphQL </span> </a> </li> <li class=md-nav__item> <a href=../../appendix/versioning-rest-apis/ class=md-nav__link> <span class=md-ellipsis> Versioning REST APIs </span> </a> </li> <li class=md-nav__item> <a href=../../appendix/rsa/ class=md-nav__link> <span class=md-ellipsis> RSA Algorithm </span> </a> </li> <li class=md-nav__item> <a href=../../appendix/ohmyzsh/ class=md-nav__link> <span class=md-ellipsis> Oh My Zsh </span> </a> </li> <li class=md-nav__item> <a href=../../appendix/others/ class=md-nav__link> <span class=md-ellipsis> Others </span> </a> </li> </ul> </nav> </li> <li class=md-nav__item> <a href=../../disclaimer/ class=md-nav__link> <span class=md-ellipsis> Disclaimer </span> </a> </li> </ul> </nav> </div> </div> </div> <div class="md-sidebar md-sidebar--secondary" data-md-component=sidebar data-md-type=toc> <div class=md-sidebar__scrollwrap> <div class=md-sidebar__inner> <nav class="md-nav md-nav--secondary" aria-label="Table of contents"> <label class=md-nav__title for=__toc> <span class="md-nav__icon md-icon"></span> Table of contents </label> <ul class=md-nav__list data-md-component=toc data-md-scrollfix> <li class=md-nav__item> <a href=#instructors class=md-nav__link> <span class=md-ellipsis> Instructors </span> </a> </li> <li class=md-nav__item> <a href=#students class=md-nav__link> <span class=md-ellipsis> Students </span> </a> </li> <li class=md-nav__item> <a href=#meetings class=md-nav__link> <span class=md-ellipsis> Meetings </span> </a> </li> <li class=md-nav__item> <a href=#grade class=md-nav__link> <span class=md-ellipsis> Grade </span> </a> </li> <li class=md-nav__item> <a href=#planning class=md-nav__link> <span class=md-ellipsis> Planning </span> </a> </li> <li class=md-nav__item> <a href=#repositories class=md-nav__link> <span class=md-ellipsis> Repositories </span> </a> </li> </ul> </nav> </div> </div> </div> <div class=md-content data-md-component=content> <nav class=md-path aria-label=Navigation> <ol class=md-path__list> <li class=md-path__item> <a href=../.. class=md-path__link> <span class=md-ellipsis> Home </span> </a> </li> <li class=md-path__item> <a href=../terms-and-conditions/ class=md-path__link> <span class=md-ellipsis> Versions </span> </a> </li> </ol> </nav> <article class="md-content__inner md-typeset"> <h1>2025.2</h1> <p><a class=glightbox data-type=image data-width=auto data-height=auto href=2025.2.jpg data-desc-position=bottom><img alt="Class 2025.2" class=rounded-corners src=2025.2.jpg></a></p> <h2 id=instructors>Instructors</h2> <p><span class="badge badge-normal"><span class=sep> [</span><span class=title><a href=https://hsandmann.github.io/ target=_blank><span class=twemoji><svg xmlns=http://www.w3.org/2000/svg viewbox="0 0 24 24"><path d="M16.36 14c.08-.66.14-1.32.14-2s-.06-1.34-.14-2h3.38c.16.64.26 1.31.26 2s-.1 1.36-.26 2m-5.15 5.56c.6-1.11 1.06-2.31 1.38-3.56h2.95a8.03 8.03 0 0 1-4.33 3.56M14.34 14H9.66c-.1-.66-.16-1.32-.16-2s.06-1.35.16-2h4.68c.09.65.16 1.32.16 2s-.07 1.34-.16 2M12 19.96c-.83-1.2-1.5-2.53-1.91-3.96h3.82c-.41 1.43-1.08 2.76-1.91 3.96M8 8H5.08A7.92 7.92 0 0 1 9.4 4.44C8.8 5.55 8.35 6.75 8 8m-2.92 8H8c.35 1.25.8 2.45 1.4 3.56A8 8 0 0 1 5.08 16m-.82-2C4.1 13.36 4 12.69 4 12s.1-1.36.26-2h3.38c-.08.66-.14 1.32-.14 2s.06 1.34.14 2M12 4.03c.83 1.2 1.5 2.54 1.91 3.97h-3.82c.41-1.43 1.08-2.77 1.91-3.97M18.92 8h-2.95a15.7 15.7 0 0 0-1.38-3.56c1.84.63 3.37 1.9 4.33 3.56M12 2C6.47 2 2 6.5 2 12a10 10 0 0 0 10 10 10 10 0 0 0 10-10A10 10 0 0 0 12 2"></path></svg></span></a> <a href=https://github.com/hsandmann target=_blank><span class=twemoji><svg xmlns=http://www.w3.org/2000/svg viewbox="0 0 24 24"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"></path></svg></span></a> <a href=https://www.linkedin.com/in/hsandmann/ target=_blank><span class=twemoji><svg xmlns=http://www.w3.org/2000/svg viewbox="0 0 24 24"><path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.32 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93zM6.88 8.56a1.68 1.68 0 0 0 1.68-1.68c0-.93-.75-1.69-1.68-1.69a1.69 1.69 0 0 0-1.69 1.69c0 .93.76 1.68 1.69 1.68m1.39 9.94v-8.37H5.5v8.37z"></path></svg></span></a> Instructor</span><span class=sep> : </span><span class=value>Humberto Sandmann</span><span class=sep>] </span></span></p> <p><span class="badge badge-normal"><span class=sep> [</span><span class=title><a href=https://github.com/giuvallente target=_blank><span class=twemoji><svg xmlns=http://www.w3.org/2000/svg viewbox="0 0 24 24"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"></path></svg></span></a> <a href=https://www.linkedin.com/in/giulia-gomes-vallente-1b06ba302/ target=_blank><span class=twemoji><svg xmlns=http://www.w3.org/2000/svg viewbox="0 0 24 24"><path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.32 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93zM6.88 8.56a1.68 1.68 0 0 0 1.68-1.68c0-.93-.75-1.69-1.68-1.69a1.69 1.69 0 0 0-1.69 1.69c0 .93.76 1.68 1.69 1.68m1.39 9.94v-8.37H5.5v8.37z"></path></svg></span></a> Student Assistant</span><span class=sep> : </span><span class=value>Giúlia Gomes Vallente</span><span class=sep>] </span></span></p> <h2 id=students>Students</h2> <div class="admonition danger"> <p class=admonition-title>Template</p> <p>Template to deliver the project: <a href=https://hsandmann.github.io/documentation.template/ target=_blank>https://hsandmann.github.io/documentation.template/</a>.</p> </div> <div class="grid cards"> <ul> <li> <div class="admonition warning"> <p class=admonition-title>Individual</p> <p>Deadline to register: <mark><strong>September 24, 2025</strong></mark>.</p> <p><span class=twemoji><svg xmlns=http://www.w3.org/2000/svg viewbox="0 0 24 24"><path d="M12 4a4 4 0 0 1 4 4 4 4 0 0 1-4 4 4 4 0 0 1-4-4 4 4 0 0 1 4-4m0 10c4.42 0 8 1.79 8 4v2H4v-2c0-2.21 3.58-4 8-4"></path></svg></span> Individual registration.</p> <p>Form to register individual students: <a href=https://forms.gle/mG6riaBW99vHxRpc7 target=_blank>https://forms.gle/mG6riaBW99vHxRpc7</a>.</p> </div> </li> <li> <div class="admonition warning"> <p class=admonition-title>Group</p> <p>Deadline to register: <mark><strong>September 24, 2025</strong></mark>.</p> <p><span class=twemoji><svg xmlns=http://www.w3.org/2000/svg viewbox="0 0 24 24"><path d="M12 5.5A3.5 3.5 0 0 1 15.5 9a3.5 3.5 0 0 1-3.5 3.5A3.5 3.5 0 0 1 8.5 9 3.5 3.5 0 0 1 12 5.5M5 8c.56 0 1.08.15 1.53.42-.15 1.43.27 2.85 1.13 3.96C7.16 13.34 6.16 14 5 14a3 3 0 0 1-3-3 3 3 0 0 1 3-3m14 0a3 3 0 0 1 3 3 3 3 0 0 1-3 3c-1.16 0-2.16-.66-2.66-1.62a5.54 5.54 0 0 0 1.13-3.96c.45-.27.97-.42 1.53-.42M5.5 18.25c0-2.07 2.91-3.75 6.5-3.75s6.5 1.68 6.5 3.75V20h-13zM0 20v-1.5c0-1.39 1.89-2.56 4.45-2.9-.59.68-.95 1.62-.95 2.65V20zm24 0h-3.5v-1.75c0-1.03-.36-1.97-.95-2.65 2.56.34 4.45 1.51 4.45 2.9z"></path></svg></span> Teams from 2 up to 3 members.</p> <p>Form to register student groups: <a href=https://forms.gle/B2QuGVsacetXfkeg7 target=_blank>https://forms.gle/B2QuGVsacetXfkeg7</a>.</p> <p>This is <mark>MANDATORY</mark> to organize the teams and the AWS accounts.</p> </div> </li> </ul> </div> <iframe src="https://docs.google.com/spreadsheets/d/e/2PACX-1vSqrV3biuxQAPpWqWXcOFpH3Aq5png2oP-dd-QNmU6njaTxispZ9CsOilHPZZcovL9dxTdrPLk3h7Uv/pubhtml?gid=1397413588&single=false&widget=false&headers=false" width=100% height=460px></iframe> <h2 id=meetings>Meetings</h2> <table> <thead> <tr> <th><span class=twemoji><svg xmlns=http://www.w3.org/2000/svg viewbox="0 0 24 24"><path d="M12 13.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5"></path><path d="M19.071 3.429h.001c3.905 3.905 3.905 10.237 0 14.142l-5.403 5.403a2.36 2.36 0 0 1-3.336 0l-5.375-5.375-.028-.028c-3.905-3.905-3.905-10.237 0-14.142s10.236-3.905 14.141 0M5.99 4.489v.001a8.5 8.5 0 0 0 0 12.02l.023.024.002.002 5.378 5.378a.86.86 0 0 0 1.214 0l5.403-5.404a8.5 8.5 0 0 0-.043-11.977A8.5 8.5 0 0 0 5.99 4.489"></path></svg></span></th> <th style="text-align: center;"><span class=twemoji><svg xmlns=http://www.w3.org/2000/svg viewbox="0 0 448 512"><!-- Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M120 0c13.3 0 24 10.7 24 24v40h160V24c0-13.3 10.7-24 24-24s24 10.7 24 24v40h32c35.3 0 64 28.7 64 64v288c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64V128c0-35.3 28.7-64 64-64h32V24c0-13.3 10.7-24 24-24m0 112H64c-8.8 0-16 7.2-16 16v48h352v-48c0-8.8-7.2-16-16-16zM48 224v192c0 8.8 7.2 16 16 16h320c8.8 0 16-7.2 16-16V224z"></path></svg></span></th> <th style="text-align: center;"><span class=twemoji><svg xmlns=http://www.w3.org/2000/svg viewbox="0 0 512 512"><!-- Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M464 256a208 208 0 1 1-416 0 208 208 0 1 1 416 0M0 256a256 256 0 1 0 512 0 256 256 0 1 0-512 0m232-136v136c0 8 4 15.5 10.7 20l96 64c11 7.4 25.9 4.4 33.3-6.7s4.4-25.9-6.7-33.3L280 243.2V120c0-13.3-10.7-24-24-24s-24 10.7-24 24"></path></svg></span></th> </tr> </thead> <tbody> <tr> <td>Aula</td> <td style="text-align: center;">Qua.</td> <td style="text-align: center;">12h00 <span class=twemoji><svg xmlns=http://www.w3.org/2000/svg viewbox="0 0 576 512"><!-- Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M566.6 278.6c12.5-12.5 12.5-32.8 0-45.3l-128-128c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3l73.4 73.4H32c-17.7 0-32 14.3-32 32s14.3 32 32 32h434.7l-73.4 73.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0l128-128z"></path></svg></span> 14h00</td> </tr> <tr> <td>Atendimento</td> <td style="text-align: center;">Sex.</td> <td style="text-align: center;">09h40 <span class=twemoji><svg xmlns=http://www.w3.org/2000/svg viewbox="0 0 576 512"><!-- Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M566.6 278.6c12.5-12.5 12.5-32.8 0-45.3l-128-128c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3l73.4 73.4H32c-17.7 0-32 14.3-32 32s14.3 32 32 32h434.7l-73.4 73.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0l128-128z"></path></svg></span> 11h10</td> </tr> <tr> <td>Aula</td> <td style="text-align: center;">Sex.</td> <td style="text-align: center;">12h00 <span class=twemoji><svg xmlns=http://www.w3.org/2000/svg viewbox="0 0 576 512"><!-- Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M566.6 278.6c12.5-12.5 12.5-32.8 0-45.3l-128-128c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3l73.4 73.4H32c-17.7 0-32 14.3-32 32s14.3 32 32 32h434.7l-73.4 73.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0l128-128z"></path></svg></span> 14h00</td> </tr> </tbody> </table> <h2 id=grade>Grade</h2> <!--?xml version="1.0" encoding="utf-8" standalone="no"?--> <svg xmlns:xlink=http://www.w3.org/1999/xlink width=720pt height=360pt viewbox="0 0 720 360" xmlns=http://www.w3.org/2000/svg version=1.1> <metadata> <rdf:rdf xmlns:dc=http://purl.org/dc/elements/1.1/ xmlns:cc=http://creativecommons.org/ns# xmlns:rdf=http://www.w3.org/1999/02/22-rdf-syntax-ns#> <cc:work> <dc:type rdf:resource=http://purl.org/dc/dcmitype/StillImage></dc:type> <dc:date>2026-02-27T17:23:48.934380</dc:date> <dc:format>image/svg+xml</dc:format> <dc:creator> <cc:agent> <dc:title>Matplotlib v3.10.8, https://matplotlib.org/</dc:title> </cc:agent> </dc:creator> </cc:work> </rdf:rdf> </metadata> <defs> <style type=text/css>*{stroke-linejoin: round; stroke-linecap: butt}</style> </defs> <g id=figure_1> <g id=patch_1> <path d="M 0 360 
+L 720 360 
+L 720 0 
+L 0 0 
+L 0 360 
+z
+" style="fill: none"></path> </g> <g id=axes_1> <g id=patch_2> <path d="M 181.174253 55.720162 
+C 161.223425 55.720162 141.553038 60.442604 123.776721 69.50009 
+C 106.000403 78.557577 90.617904 91.695472 78.891101 107.836031 
+L 181.174253 182.149091 
+z
+" style="fill: #48d1cc"></path> </g> <g id=patch_3> <path d="M 78.8911 107.836032 
+C 67.164295 123.976594 59.422871 142.666049 56.301872 162.371251 
+C 53.180872 182.076452 54.768052 202.243409 60.933194 221.217776 
+L 181.174253 182.149091 
+z
+" style="fill: #20b2aa"></path> </g> <g id=patch_4> <path d="M 60.933194 221.217776 
+C 65.032853 233.835231 71.09309 245.729115 78.891108 256.462157 
+C 86.689126 267.1952 96.128167 276.634248 106.861217 284.432259 
+L 181.174253 182.149091 
+z
+" style="fill: #40e0d0"></path> </g> <g id=patch_5> <path d="M 106.861217 284.432259 
+C 123.001787 296.159064 141.691257 303.900488 161.396465 307.02148 
+C 181.101675 310.142472 201.268645 308.555277 220.243013 302.39012 
+L 181.174253 182.149091 
+z
+" style="fill: #7fffd4"></path> </g> <g id=patch_6> <path d="M 220.243013 302.39012 
+C 239.217376 296.224964 256.465671 285.655183 270.573035 271.547812 
+C 284.680398 257.440441 295.250194 240.192086 301.415328 221.217715 
+L 181.174253 182.149091 
+z
+" style="fill: #66cdaa"></path> </g> <g id=patch_7> <path d="M 301.415328 221.217715 
+C 309.664527 195.829236 309.664511 168.468778 301.415283 143.080308 
+C 293.166046 117.691838 277.083992 95.556819 255.487252 79.865893 
+L 181.174253 182.149091 
+z
+" style="fill: #00fa9a"></path> </g> <g id=patch_8> <path d="M 255.487252 79.865893 
+C 244.754209 72.06789 232.860359 66.007676 220.242915 61.908024 
+C 207.625472 57.808372 194.440977 55.720162 181.174211 55.720162 
+L 181.174253 182.149091 
+z
+" style="fill: #00ff7f"></path> </g> <g id=matplotlib.axis_1></g> <g id=matplotlib.axis_2></g> <g id=text_1> <!-- Product --> <g transform="translate(80.07292 60.994558) scale(0.1 -0.1)"> <defs> <path id=DejaVuSans-50 d="M 1259 4147 
+L 1259 2394 
+L 2053 2394 
+Q 2494 2394 2734 2622 
+Q 2975 2850 2975 3272 
+Q 2975 3691 2734 3919 
+Q 2494 4147 2053 4147 
+L 1259 4147 
+z
+M 628 4666 
+L 2053 4666 
+Q 2838 4666 3239 4311 
+Q 3641 3956 3641 3272 
+Q 3641 2581 3239 2228 
+Q 2838 1875 2053 1875 
+L 1259 1875 
+L 1259 0 
+L 628 0 
+L 628 4666 
+z
+" transform=scale(0.015625)></path> <path id=DejaVuSans-72 d="M 2631 2963 
+Q 2534 3019 2420 3045 
+Q 2306 3072 2169 3072 
+Q 1681 3072 1420 2755 
+Q 1159 2438 1159 1844 
+L 1159 0 
+L 581 0 
+L 581 3500 
+L 1159 3500 
+L 1159 2956 
+Q 1341 3275 1631 3429 
+Q 1922 3584 2338 3584 
+Q 2397 3584 2469 3576 
+Q 2541 3569 2628 3553 
+L 2631 2963 
+z
+" transform=scale(0.015625)></path> <path id=DejaVuSans-6f d="M 1959 3097 
+Q 1497 3097 1228 2736 
+Q 959 2375 959 1747 
+Q 959 1119 1226 758 
+Q 1494 397 1959 397 
+Q 2419 397 2687 759 
+Q 2956 1122 2956 1747 
+Q 2956 2369 2687 2733 
+Q 2419 3097 1959 3097 
+z
+M 1959 3584 
+Q 2709 3584 3137 3096 
+Q 3566 2609 3566 1747 
+Q 3566 888 3137 398 
+Q 2709 -91 1959 -91 
+Q 1206 -91 779 398 
+Q 353 888 353 1747 
+Q 353 2609 779 3096 
+Q 1206 3584 1959 3584 
+z
+" transform=scale(0.015625)></path> <path id=DejaVuSans-64 d="M 2906 2969 
+L 2906 4863 
+L 3481 4863 
+L 3481 0 
+L 2906 0 
+L 2906 525 
+Q 2725 213 2448 61 
+Q 2172 -91 1784 -91 
+Q 1150 -91 751 415 
+Q 353 922 353 1747 
+Q 353 2572 751 3078 
+Q 1150 3584 1784 3584 
+Q 2172 3584 2448 3432 
+Q 2725 3281 2906 2969 
+z
+M 947 1747 
+Q 947 1113 1208 752 
+Q 1469 391 1925 391 
+Q 2381 391 2643 752 
+Q 2906 1113 2906 1747 
+Q 2906 2381 2643 2742 
+Q 2381 3103 1925 3103 
+Q 1469 3103 1208 2742 
+Q 947 2381 947 1747 
+z
+" transform=scale(0.015625)></path> <path id=DejaVuSans-75 d="M 544 1381 
+L 544 3500 
+L 1119 3500 
+L 1119 1403 
+Q 1119 906 1312 657 
+Q 1506 409 1894 409 
+Q 2359 409 2629 706 
+Q 2900 1003 2900 1516 
+L 2900 3500 
+L 3475 3500 
+L 3475 0 
+L 2900 0 
+L 2900 538 
+Q 2691 219 2414 64 
+Q 2138 -91 1772 -91 
+Q 1169 -91 856 284 
+Q 544 659 544 1381 
+z
+M 1991 3584 
+L 1991 3584 
+z
+" transform=scale(0.015625)></path> <path id=DejaVuSans-63 d="M 3122 3366 
+L 3122 2828 
+Q 2878 2963 2633 3030 
+Q 2388 3097 2138 3097 
+Q 1578 3097 1268 2742 
+Q 959 2388 959 1747 
+Q 959 1106 1268 751 
+Q 1578 397 2138 397 
+Q 2388 397 2633 464 
+Q 2878 531 3122 666 
+L 3122 134 
+Q 2881 22 2623 -34 
+Q 2366 -91 2075 -91 
+Q 1284 -91 818 406 
+Q 353 903 353 1747 
+Q 353 2603 823 3093 
+Q 1294 3584 2113 3584 
+Q 2378 3584 2631 3529 
+Q 2884 3475 3122 3366 
+z
+" transform=scale(0.015625)></path> <path id=DejaVuSans-74 d="M 1172 4494 
+L 1172 3500 
+L 2356 3500 
+L 2356 3053 
+L 1172 3053 
+L 1172 1153 
+Q 1172 725 1289 603 
+Q 1406 481 1766 481 
+L 2356 481 
+L 2356 0 
+L 1766 0 
+Q 1100 0 847 248 
+Q 594 497 594 1153 
+L 594 3053 
+L 172 3053 
+L 172 3500 
+L 594 3500 
+L 594 4494 
+L 1172 4494 
+z
+" transform=scale(0.015625)></path> </defs> <use xlink:href=#DejaVuSans-50></use> <use xlink:href=#DejaVuSans-72 transform="translate(58.552734 0)"></use> <use xlink:href=#DejaVuSans-6f transform="translate(97.416016 0)"></use> <use xlink:href=#DejaVuSans-64 transform="translate(158.597656 0)"></use> <use xlink:href=#DejaVuSans-75 transform="translate(222.074219 0)"></use> <use xlink:href=#DejaVuSans-63 transform="translate(285.453125 0)"></use> <use xlink:href=#DejaVuSans-74 transform="translate(340.433594 0)"></use> </g> </g> <g id=text_2> <!-- 15% --> <g transform="translate(135.622461 117.319061) scale(0.1 -0.1)"> <defs> <path id=DejaVuSans-31 d="M 794 531 
+L 1825 531 
+L 1825 4091 
+L 703 3866 
+L 703 4441 
+L 1819 4666 
+L 2450 4666 
+L 2450 531 
+L 3481 531 
+L 3481 0 
+L 794 0 
+L 794 531 
+z
+" transform=scale(0.015625)></path> <path id=DejaVuSans-35 d="M 691 4666 
+L 3169 4666 
+L 3169 4134 
+L 1269 4134 
+L 1269 2991 
+Q 1406 3038 1543 3061 
+Q 1681 3084 1819 3084 
+Q 2600 3084 3056 2656 
+Q 3513 2228 3513 1497 
+Q 3513 744 3044 326 
+Q 2575 -91 1722 -91 
+Q 1428 -91 1123 -41 
+Q 819 9 494 109 
+L 494 744 
+Q 775 591 1075 516 
+Q 1375 441 1709 441 
+Q 2250 441 2565 725 
+Q 2881 1009 2881 1497 
+Q 2881 1984 2565 2268 
+Q 2250 2553 1709 2553 
+Q 1456 2553 1204 2497 
+Q 953 2441 691 2322 
+L 691 4666 
+z
+" transform=scale(0.015625)></path> <path id=DejaVuSans-25 d="M 4653 2053 
+Q 4381 2053 4226 1822 
+Q 4072 1591 4072 1178 
+Q 4072 772 4226 539 
+Q 4381 306 4653 306 
+Q 4919 306 5073 539 
+Q 5228 772 5228 1178 
+Q 5228 1588 5073 1820 
+Q 4919 2053 4653 2053 
+z
+M 4653 2450 
+Q 5147 2450 5437 2106 
+Q 5728 1763 5728 1178 
+Q 5728 594 5436 251 
+Q 5144 -91 4653 -91 
+Q 4153 -91 3862 251 
+Q 3572 594 3572 1178 
+Q 3572 1766 3864 2108 
+Q 4156 2450 4653 2450 
+z
+M 1428 4353 
+Q 1159 4353 1004 4120 
+Q 850 3888 850 3481 
+Q 850 3069 1003 2837 
+Q 1156 2606 1428 2606 
+Q 1700 2606 1854 2837 
+Q 2009 3069 2009 3481 
+Q 2009 3884 1853 4118 
+Q 1697 4353 1428 4353 
+z
+M 4250 4750 
+L 4750 4750 
+L 1831 -91 
+L 1331 -91 
+L 4250 4750 
+z
+M 1428 4750 
+Q 1922 4750 2215 4408 
+Q 2509 4066 2509 3481 
+Q 2509 2891 2217 2550 
+Q 1925 2209 1428 2209 
+Q 931 2209 642 2551 
+Q 353 2894 353 3481 
+Q 353 4063 643 4406 
+Q 934 4750 1428 4750 
+z
+" transform=scale(0.015625)></path> </defs> <use xlink:href=#DejaVuSans-31></use> <use xlink:href=#DejaVuSans-35 transform="translate(63.623047 0)"></use> <use xlink:href=#DejaVuSans-25 transform="translate(127.246094 0)"></use> </g> </g> <g id=text_3> <!-- Order --> <g transform="translate(15.394318 163.152876) scale(0.1 -0.1)"> <defs> <path id=DejaVuSans-4f d="M 2522 4238 
+Q 1834 4238 1429 3725 
+Q 1025 3213 1025 2328 
+Q 1025 1447 1429 934 
+Q 1834 422 2522 422 
+Q 3209 422 3611 934 
+Q 4013 1447 4013 2328 
+Q 4013 3213 3611 3725 
+Q 3209 4238 2522 4238 
+z
+M 2522 4750 
+Q 3503 4750 4090 4092 
+Q 4678 3434 4678 2328 
+Q 4678 1225 4090 567 
+Q 3503 -91 2522 -91 
+Q 1538 -91 948 565 
+Q 359 1222 359 2328 
+Q 359 3434 948 4092 
+Q 1538 4750 2522 4750 
+z
+" transform=scale(0.015625)></path> <path id=DejaVuSans-65 d="M 3597 1894 
+L 3597 1613 
+L 953 1613 
+Q 991 1019 1311 708 
+Q 1631 397 2203 397 
+Q 2534 397 2845 478 
+Q 3156 559 3463 722 
+L 3463 178 
+Q 3153 47 2828 -22 
+Q 2503 -91 2169 -91 
+Q 1331 -91 842 396 
+Q 353 884 353 1716 
+Q 353 2575 817 3079 
+Q 1281 3584 2069 3584 
+Q 2775 3584 3186 3129 
+Q 3597 2675 3597 1894 
+z
+M 3022 2063 
+Q 3016 2534 2758 2815 
+Q 2500 3097 2075 3097 
+Q 1594 3097 1305 2825 
+Q 1016 2553 972 2059 
+L 3022 2063 
+z
+" transform=scale(0.015625)></path> </defs> <use xlink:href=#DejaVuSans-4f></use> <use xlink:href=#DejaVuSans-72 transform="translate(78.710938 0)"></use> <use xlink:href=#DejaVuSans-64 transform="translate(118.074219 0)"></use> <use xlink:href=#DejaVuSans-65 transform="translate(181.550781 0)"></use> <use xlink:href=#DejaVuSans-72 transform="translate(243.074219 0)"></use> </g> </g> <g id=text_4> <!-- 15% --> <g transform="translate(95.137542 173.04178) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-31></use> <use xlink:href=#DejaVuSans-35 transform="translate(63.623047 0)"></use> <use xlink:href=#DejaVuSans-25 transform="translate(127.246094 0)"></use> </g> </g> <g id=text_5> <!-- Exchange --> <g transform="translate(19.797189 266.65287) scale(0.1 -0.1)"> <defs> <path id=DejaVuSans-45 d="M 628 4666 
+L 3578 4666 
+L 3578 4134 
+L 1259 4134 
+L 1259 2753 
+L 3481 2753 
+L 3481 2222 
+L 1259 2222 
+L 1259 531 
+L 3634 531 
+L 3634 0 
+L 628 0 
+L 628 4666 
+z
+" transform=scale(0.015625)></path> <path id=DejaVuSans-78 d="M 3513 3500 
+L 2247 1797 
+L 3578 0 
+L 2900 0 
+L 1881 1375 
+L 863 0 
+L 184 0 
+L 1544 1831 
+L 300 3500 
+L 978 3500 
+L 1906 2253 
+L 2834 3500 
+L 3513 3500 
+z
+" transform=scale(0.015625)></path> <path id=DejaVuSans-68 d="M 3513 2113 
+L 3513 0 
+L 2938 0 
+L 2938 2094 
+Q 2938 2591 2744 2837 
+Q 2550 3084 2163 3084 
+Q 1697 3084 1428 2787 
+Q 1159 2491 1159 1978 
+L 1159 0 
+L 581 0 
+L 581 4863 
+L 1159 4863 
+L 1159 2956 
+Q 1366 3272 1645 3428 
+Q 1925 3584 2291 3584 
+Q 2894 3584 3203 3211 
+Q 3513 2838 3513 2113 
+z
+" transform=scale(0.015625)></path> <path id=DejaVuSans-61 d="M 2194 1759 
+Q 1497 1759 1228 1600 
+Q 959 1441 959 1056 
+Q 959 750 1161 570 
+Q 1363 391 1709 391 
+Q 2188 391 2477 730 
+Q 2766 1069 2766 1631 
+L 2766 1759 
+L 2194 1759 
+z
+M 3341 1997 
+L 3341 0 
+L 2766 0 
+L 2766 531 
+Q 2569 213 2275 61 
+Q 1981 -91 1556 -91 
+Q 1019 -91 701 211 
+Q 384 513 384 1019 
+Q 384 1609 779 1909 
+Q 1175 2209 1959 2209 
+L 2766 2209 
+L 2766 2266 
+Q 2766 2663 2505 2880 
+Q 2244 3097 1772 3097 
+Q 1472 3097 1187 3025 
+Q 903 2953 641 2809 
+L 641 3341 
+Q 956 3463 1253 3523 
+Q 1550 3584 1831 3584 
+Q 2591 3584 2966 3190 
+Q 3341 2797 3341 1997 
+z
+" transform=scale(0.015625)></path> <path id=DejaVuSans-6e d="M 3513 2113 
+L 3513 0 
+L 2938 0 
+L 2938 2094 
+Q 2938 2591 2744 2837 
+Q 2550 3084 2163 3084 
+Q 1697 3084 1428 2787 
+Q 1159 2491 1159 1978 
+L 1159 0 
+L 581 0 
+L 581 3500 
+L 1159 3500 
+L 1159 2956 
+Q 1366 3272 1645 3428 
+Q 1925 3584 2291 3584 
+Q 2894 3584 3203 3211 
+Q 3513 2838 3513 2113 
+z
+" transform=scale(0.015625)></path> <path id=DejaVuSans-67 d="M 2906 1791 
+Q 2906 2416 2648 2759 
+Q 2391 3103 1925 3103 
+Q 1463 3103 1205 2759 
+Q 947 2416 947 1791 
+Q 947 1169 1205 825 
+Q 1463 481 1925 481 
+Q 2391 481 2648 825 
+Q 2906 1169 2906 1791 
+z
+M 3481 434 
+Q 3481 -459 3084 -895 
+Q 2688 -1331 1869 -1331 
+Q 1566 -1331 1297 -1286 
+Q 1028 -1241 775 -1147 
+L 775 -588 
+Q 1028 -725 1275 -790 
+Q 1522 -856 1778 -856 
+Q 2344 -856 2625 -561 
+Q 2906 -266 2906 331 
+L 2906 616 
+Q 2728 306 2450 153 
+Q 2172 0 1784 0 
+Q 1141 0 747 490 
+Q 353 981 353 1791 
+Q 353 2603 747 3093 
+Q 1141 3584 1784 3584 
+Q 2172 3584 2450 3431 
+Q 2728 3278 2906 2969 
+L 2906 3500 
+L 3481 3500 
+L 3481 434 
+z
+" transform=scale(0.015625)></path> </defs> <use xlink:href=#DejaVuSans-45></use> <use xlink:href=#DejaVuSans-78 transform="translate(63.183594 0)"></use> <use xlink:href=#DejaVuSans-63 transform="translate(120.613281 0)"></use> <use xlink:href=#DejaVuSans-68 transform="translate(175.59375 0)"></use> <use xlink:href=#DejaVuSans-61 transform="translate(238.972656 0)"></use> <use xlink:href=#DejaVuSans-6e transform="translate(300.251953 0)"></use> <use xlink:href=#DejaVuSans-67 transform="translate(363.630859 0)"></use> <use xlink:href=#DejaVuSans-65 transform="translate(427.107422 0)"></use> </g> </g> <g id=text_6> <!-- 10% --> <g transform="translate(108.691096 229.496323) scale(0.1 -0.1)"> <defs> <path id=DejaVuSans-30 d="M 2034 4250 
+Q 1547 4250 1301 3770 
+Q 1056 3291 1056 2328 
+Q 1056 1369 1301 889 
+Q 1547 409 2034 409 
+Q 2525 409 2770 889 
+Q 3016 1369 3016 2328 
+Q 3016 3291 2770 3770 
+Q 2525 4250 2034 4250 
+z
+M 2034 4750 
+Q 2819 4750 3233 4129 
+Q 3647 3509 3647 2328 
+Q 3647 1150 3233 529 
+Q 2819 -91 2034 -91 
+Q 1250 -91 836 529 
+Q 422 1150 422 2328 
+Q 422 3509 836 4129 
+Q 1250 4750 2034 4750 
+z
+" transform=scale(0.015625)></path> </defs> <use xlink:href=#DejaVuSans-31></use> <use xlink:href=#DejaVuSans-30 transform="translate(63.623047 0)"></use> <use xlink:href=#DejaVuSans-25 transform="translate(127.246094 0)"></use> </g> </g> <g id=text_7> <!-- DevOps --> <g transform="translate(120.217123 322.268092) scale(0.1 -0.1)"> <defs> <path id=DejaVuSans-44 d="M 1259 4147 
+L 1259 519 
+L 2022 519 
+Q 2988 519 3436 956 
+Q 3884 1394 3884 2338 
+Q 3884 3275 3436 3711 
+Q 2988 4147 2022 4147 
+L 1259 4147 
+z
+M 628 4666 
+L 1925 4666 
+Q 3281 4666 3915 4102 
+Q 4550 3538 4550 2338 
+Q 4550 1131 3912 565 
+Q 3275 0 1925 0 
+L 628 0 
+L 628 4666 
+z
+" transform=scale(0.015625)></path> <path id=DejaVuSans-76 d="M 191 3500 
+L 800 3500 
+L 1894 563 
+L 2988 3500 
+L 3597 3500 
+L 2284 0 
+L 1503 0 
+L 191 3500 
+z
+" transform=scale(0.015625)></path> <path id=DejaVuSans-70 d="M 1159 525 
+L 1159 -1331 
+L 581 -1331 
+L 581 3500 
+L 1159 3500 
+L 1159 2969 
+Q 1341 3281 1617 3432 
+Q 1894 3584 2278 3584 
+Q 2916 3584 3314 3078 
+Q 3713 2572 3713 1747 
+Q 3713 922 3314 415 
+Q 2916 -91 2278 -91 
+Q 1894 -91 1617 61 
+Q 1341 213 1159 525 
+z
+M 3116 1747 
+Q 3116 2381 2855 2742 
+Q 2594 3103 2138 3103 
+Q 1681 3103 1420 2742 
+Q 1159 2381 1159 1747 
+Q 1159 1113 1420 752 
+Q 1681 391 2138 391 
+Q 2594 391 2855 752 
+Q 3116 1113 3116 1747 
+z
+" transform=scale(0.015625)></path> <path id=DejaVuSans-73 d="M 2834 3397 
+L 2834 2853 
+Q 2591 2978 2328 3040 
+Q 2066 3103 1784 3103 
+Q 1356 3103 1142 2972 
+Q 928 2841 928 2578 
+Q 928 2378 1081 2264 
+Q 1234 2150 1697 2047 
+L 1894 2003 
+Q 2506 1872 2764 1633 
+Q 3022 1394 3022 966 
+Q 3022 478 2636 193 
+Q 2250 -91 1575 -91 
+Q 1294 -91 989 -36 
+Q 684 19 347 128 
+L 347 722 
+Q 666 556 975 473 
+Q 1284 391 1588 391 
+Q 1994 391 2212 530 
+Q 2431 669 2431 922 
+Q 2431 1156 2273 1281 
+Q 2116 1406 1581 1522 
+L 1381 1569 
+Q 847 1681 609 1914 
+Q 372 2147 372 2553 
+Q 372 3047 722 3315 
+Q 1072 3584 1716 3584 
+Q 2034 3584 2315 3537 
+Q 2597 3491 2834 3397 
+z
+" transform=scale(0.015625)></path> </defs> <use xlink:href=#DejaVuSans-44></use> <use xlink:href=#DejaVuSans-65 transform="translate(77.001953 0)"></use> <use xlink:href=#DejaVuSans-76 transform="translate(138.525391 0)"></use> <use xlink:href=#DejaVuSans-4f transform="translate(197.705078 0)"></use> <use xlink:href=#DejaVuSans-70 transform="translate(276.416016 0)"></use> <use xlink:href=#DejaVuSans-73 transform="translate(339.892578 0)"></use> </g> </g> <g id=text_8> <!-- 15% --> <g transform="translate(158.194299 259.831898) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-31></use> <use xlink:href=#DejaVuSans-35 transform="translate(63.623047 0)"></use> <use xlink:href=#DejaVuSans-25 transform="translate(127.246094 0)"></use> </g> </g> <g id=text_9> <!-- Orchestration --> <g transform="translate(279.512914 283.247061) scale(0.1 -0.1)"> <defs> <path id=DejaVuSans-69 d="M 603 3500 
+L 1178 3500 
+L 1178 0 
+L 603 0 
+L 603 3500 
+z
+M 603 4863 
+L 1178 4863 
+L 1178 4134 
+L 603 4134 
+L 603 4863 
+z
+" transform=scale(0.015625)></path> </defs> <use xlink:href=#DejaVuSans-4f></use> <use xlink:href=#DejaVuSans-72 transform="translate(78.710938 0)"></use> <use xlink:href=#DejaVuSans-63 transform="translate(117.574219 0)"></use> <use xlink:href=#DejaVuSans-68 transform="translate(172.554688 0)"></use> <use xlink:href=#DejaVuSans-65 transform="translate(235.933594 0)"></use> <use xlink:href=#DejaVuSans-73 transform="translate(297.457031 0)"></use> <use xlink:href=#DejaVuSans-74 transform="translate(349.556641 0)"></use> <use xlink:href=#DejaVuSans-72 transform="translate(388.765625 0)"></use> <use xlink:href=#DejaVuSans-61 transform="translate(429.878906 0)"></use> <use xlink:href=#DejaVuSans-74 transform="translate(491.158203 0)"></use> <use xlink:href=#DejaVuSans-69 transform="translate(530.367188 0)"></use> <use xlink:href=#DejaVuSans-6f transform="translate(558.150391 0)"></use> <use xlink:href=#DejaVuSans-6e transform="translate(619.332031 0)"></use> </g> </g> <g id=text_10> <!-- 15% --> <g transform="translate(223.700242 238.5477) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-31></use> <use xlink:href=#DejaVuSans-35 transform="translate(63.623047 0)"></use> <use xlink:href=#DejaVuSans-25 transform="translate(127.246094 0)"></use> </g> </g> <g id=text_11> <!-- Bootnecks --> <g transform="translate(313.439382 141.932806) scale(0.1 -0.1)"> <defs> <path id=DejaVuSans-42 d="M 1259 2228 
+L 1259 519 
+L 2272 519 
+Q 2781 519 3026 730 
+Q 3272 941 3272 1375 
+Q 3272 1813 3026 2020 
+Q 2781 2228 2272 2228 
+L 1259 2228 
+z
+M 1259 4147 
+L 1259 2741 
+L 2194 2741 
+Q 2656 2741 2882 2914 
+Q 3109 3088 3109 3444 
+Q 3109 3797 2882 3972 
+Q 2656 4147 2194 4147 
+L 1259 4147 
+z
+M 628 4666 
+L 2241 4666 
+Q 2963 4666 3353 4366 
+Q 3744 4066 3744 3513 
+Q 3744 3084 3544 2831 
+Q 3344 2578 2956 2516 
+Q 3422 2416 3680 2098 
+Q 3938 1781 3938 1306 
+Q 3938 681 3513 340 
+Q 3088 0 2303 0 
+L 628 0 
+L 628 4666 
+z
+" transform=scale(0.015625)></path> <path id=DejaVuSans-6b d="M 581 4863 
+L 1159 4863 
+L 1159 1991 
+L 2875 3500 
+L 3609 3500 
+L 1753 1863 
+L 3688 0 
+L 2938 0 
+L 1159 1709 
+L 1159 0 
+L 581 0 
+L 581 4863 
+z
+" transform=scale(0.015625)></path> </defs> <use xlink:href=#DejaVuSans-42></use> <use xlink:href=#DejaVuSans-6f transform="translate(68.603516 0)"></use> <use xlink:href=#DejaVuSans-6f transform="translate(129.785156 0)"></use> <use xlink:href=#DejaVuSans-74 transform="translate(190.966797 0)"></use> <use xlink:href=#DejaVuSans-6e transform="translate(230.175781 0)"></use> <use xlink:href=#DejaVuSans-65 transform="translate(293.554688 0)"></use> <use xlink:href=#DejaVuSans-63 transform="translate(355.078125 0)"></use> <use xlink:href=#DejaVuSans-6b transform="translate(410.058594 0)"></use> <use xlink:href=#DejaVuSans-73 transform="translate(467.96875 0)"></use> </g> </g> <g id=text_12> <!-- 20% --> <g transform="translate(242.205588 161.467197) scale(0.1 -0.1)"> <defs> <path id=DejaVuSans-32 d="M 1228 531 
+L 3431 531 
+L 3431 0 
+L 469 0 
+L 469 531 
+Q 828 903 1448 1529 
+Q 2069 2156 2228 2338 
+Q 2531 2678 2651 2914 
+Q 2772 3150 2772 3378 
+Q 2772 3750 2511 3984 
+Q 2250 4219 1831 4219 
+Q 1534 4219 1204 4116 
+Q 875 4013 500 3803 
+L 500 4441 
+Q 881 4594 1212 4672 
+Q 1544 4750 1819 4750 
+Q 2544 4750 2975 4387 
+Q 3406 4025 3406 3419 
+Q 3406 3131 3298 2873 
+Q 3191 2616 2906 2266 
+Q 2828 2175 2409 1742 
+Q 1991 1309 1228 531 
+z
+" transform=scale(0.015625)></path> </defs> <use xlink:href=#DejaVuSans-32></use> <use xlink:href=#DejaVuSans-30 transform="translate(63.623047 0)"></use> <use xlink:href=#DejaVuSans-25 transform="translate(127.246094 0)"></use> </g> </g> <g id=text_13> <!-- Documentation --> <g transform="translate(224.149719 52.643274) scale(0.1 -0.1)"> <defs> <path id=DejaVuSans-6d d="M 3328 2828 
+Q 3544 3216 3844 3400 
+Q 4144 3584 4550 3584 
+Q 5097 3584 5394 3201 
+Q 5691 2819 5691 2113 
+L 5691 0 
+L 5113 0 
+L 5113 2094 
+Q 5113 2597 4934 2840 
+Q 4756 3084 4391 3084 
+Q 3944 3084 3684 2787 
+Q 3425 2491 3425 1978 
+L 3425 0 
+L 2847 0 
+L 2847 2094 
+Q 2847 2600 2669 2842 
+Q 2491 3084 2119 3084 
+Q 1678 3084 1418 2786 
+Q 1159 2488 1159 1978 
+L 1159 0 
+L 581 0 
+L 581 3500 
+L 1159 3500 
+L 1159 2956 
+Q 1356 3278 1631 3431 
+Q 1906 3584 2284 3584 
+Q 2666 3584 2933 3390 
+Q 3200 3197 3328 2828 
+z
+" transform=scale(0.015625)></path> </defs> <use xlink:href=#DejaVuSans-44></use> <use xlink:href=#DejaVuSans-6f transform="translate(77.001953 0)"></use> <use xlink:href=#DejaVuSans-63 transform="translate(138.183594 0)"></use> <use xlink:href=#DejaVuSans-75 transform="translate(193.164062 0)"></use> <use xlink:href=#DejaVuSans-6d transform="translate(256.542969 0)"></use> <use xlink:href=#DejaVuSans-65 transform="translate(353.955078 0)"></use> <use xlink:href=#DejaVuSans-6e transform="translate(415.478516 0)"></use> <use xlink:href=#DejaVuSans-74 transform="translate(478.857422 0)"></use> <use xlink:href=#DejaVuSans-61 transform="translate(518.066406 0)"></use> <use xlink:href=#DejaVuSans-74 transform="translate(579.345703 0)"></use> <use xlink:href=#DejaVuSans-69 transform="translate(618.554688 0)"></use> <use xlink:href=#DejaVuSans-6f transform="translate(646.337891 0)"></use> <use xlink:href=#DejaVuSans-6e transform="translate(707.519531 0)"></use> </g> </g> <g id=text_14> <!-- 10% --> <g transform="translate(193.502135 112.763816) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-31></use> <use xlink:href=#DejaVuSans-30 transform="translate(63.623047 0)"></use> <use xlink:href=#DejaVuSans-25 transform="translate(127.246094 0)"></use> </g> </g> <g id=text_15> <!-- Individual --> <g transform="translate(151.952378 18.11293) scale(0.12 -0.12)"> <defs> <path id=DejaVuSans-49 d="M 628 4666 
+L 1259 4666 
+L 1259 0 
+L 628 0 
+L 628 4666 
+z
+" transform=scale(0.015625)></path> <path id=DejaVuSans-6c d="M 603 4863 
+L 1178 4863 
+L 1178 0 
+L 603 0 
+L 603 4863 
+z
+" transform=scale(0.015625)></path> </defs> <use xlink:href=#DejaVuSans-49></use> <use xlink:href=#DejaVuSans-6e transform="translate(29.492188 0)"></use> <use xlink:href=#DejaVuSans-64 transform="translate(92.871094 0)"></use> <use xlink:href=#DejaVuSans-69 transform="translate(156.347656 0)"></use> <use xlink:href=#DejaVuSans-76 transform="translate(184.130859 0)"></use> <use xlink:href=#DejaVuSans-69 transform="translate(243.310547 0)"></use> <use xlink:href=#DejaVuSans-64 transform="translate(271.09375 0)"></use> <use xlink:href=#DejaVuSans-75 transform="translate(334.570312 0)"></use> <use xlink:href=#DejaVuSans-61 transform="translate(397.949219 0)"></use> <use xlink:href=#DejaVuSans-6c transform="translate(459.228516 0)"></use> </g> </g> </g> <g id=axes_2> <g id=patch_9> <path d="M 543.455992 55.720162 
+C 536.832785 55.720162 530.219806 56.240615 523.678142 57.276713 
+C 517.136477 58.312812 510.686332 59.861355 504.387288 61.90804 
+L 543.455992 182.149091 
+z
+" style="fill: #b0e0e6"></path> </g> <g id=patch_10> <path d="M 504.387284 61.908039 
+C 485.412922 68.073188 468.164604 78.642976 454.05724 92.75034 
+C 439.949877 106.857703 429.380081 124.106036 423.21494 143.080399 
+L 543.455992 182.149091 
+z
+" style="fill: #add8e6"></path> </g> <g id=patch_11> <path d="M 423.21494 143.080399 
+C 414.965718 168.468878 414.965718 195.829294 423.214932 221.217776 
+C 431.464146 246.606261 447.546223 268.741317 469.142956 284.432259 
+L 543.455992 182.149091 
+z
+" style="fill: #00bfff"></path> </g> <g id=patch_12> <path d="M 469.142956 284.432259 
+C 479.876006 292.23027 491.769889 298.290506 504.387345 302.390158 
+C 517.0048 306.48981 530.189278 308.57802 543.456054 308.57802 
+L 543.455992 182.149091 
+z
+" style="fill: #87ceeb"></path> </g> <g id=patch_13> <path d="M 543.456054 308.57802 
+C 563.406882 308.578012 583.077232 303.855568 600.853546 294.798077 
+C 618.629859 285.740586 634.012378 272.602674 645.739175 256.462112 
+L 543.455992 182.149091 
+z
+" style="fill: #87cefa"></path> </g> <g id=patch_14> <path d="M 645.739175 256.462112 
+C 657.465972 240.32155 665.207397 221.632061 668.328381 201.926859 
+C 671.449373 182.221656 669.862185 162.054727 663.697036 143.080365 
+L 543.455992 182.149091 
+z
+" style="fill: #4682b4"></path> </g> <g id=patch_15> <path d="M 663.697036 143.080365 
+C 655.447815 117.691891 639.365775 95.556872 617.769043 79.86593 
+C 596.172314 64.174989 570.150971 55.720147 543.455949 55.720162 
+L 543.455992 182.149091 
+z
+" style="fill: #1e90ff"></path> </g> <g id=matplotlib.axis_3></g> <g id=matplotlib.axis_4></g> <g id=text_16> <!-- AWS --> <g transform="translate(499.173788 47.548851) scale(0.1 -0.1)"> <defs> <path id=DejaVuSans-41 d="M 2188 4044 
+L 1331 1722 
+L 3047 1722 
+L 2188 4044 
+z
+M 1831 4666 
+L 2547 4666 
+L 4325 0 
+L 3669 0 
+L 3244 1197 
+L 1141 1197 
+L 716 0 
+L 50 0 
+L 1831 4666 
+z
+" transform=scale(0.015625)></path> <path id=DejaVuSans-57 d="M 213 4666 
+L 850 4666 
+L 1831 722 
+L 2809 4666 
+L 3519 4666 
+L 4500 722 
+L 5478 4666 
+L 6119 4666 
+L 4947 0 
+L 4153 0 
+L 3169 4050 
+L 2175 0 
+L 1381 0 
+L 213 4666 
+z
+" transform=scale(0.015625)></path> <path id=DejaVuSans-53 d="M 3425 4513 
+L 3425 3897 
+Q 3066 4069 2747 4153 
+Q 2428 4238 2131 4238 
+Q 1616 4238 1336 4038 
+Q 1056 3838 1056 3469 
+Q 1056 3159 1242 3001 
+Q 1428 2844 1947 2747 
+L 2328 2669 
+Q 3034 2534 3370 2195 
+Q 3706 1856 3706 1288 
+Q 3706 609 3251 259 
+Q 2797 -91 1919 -91 
+Q 1588 -91 1214 -16 
+Q 841 59 441 206 
+L 441 856 
+Q 825 641 1194 531 
+Q 1563 422 1919 422 
+Q 2459 422 2753 634 
+Q 3047 847 3047 1241 
+Q 3047 1584 2836 1778 
+Q 2625 1972 2144 2069 
+L 1759 2144 
+Q 1053 2284 737 2584 
+Q 422 2884 422 3419 
+Q 422 4038 858 4394 
+Q 1294 4750 2059 4750 
+Q 2388 4750 2728 4690 
+Q 3069 4631 3425 4513 
+z
+" transform=scale(0.015625)></path> </defs> <use xlink:href=#DejaVuSans-41></use> <use xlink:href=#DejaVuSans-57 transform="translate(62.908203 0)"></use> <use xlink:href=#DejaVuSans-53 transform="translate(161.785156 0)"></use> </g> </g> <g id=text_17> <!-- 5% --> <g transform="translate(523.657247 109.98504) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-35></use> <use xlink:href=#DejaVuSans-25 transform="translate(63.623047 0)"></use> </g> </g> <g id=text_18> <!-- EKS --> <g transform="translate(425.892363 86.569838) scale(0.1 -0.1)"> <defs> <path id=DejaVuSans-4b d="M 628 4666 
+L 1259 4666 
+L 1259 2694 
+L 3353 4666 
+L 4166 4666 
+L 1850 2491 
+L 4331 0 
+L 3500 0 
+L 1259 2247 
+L 1259 0 
+L 628 0 
+L 628 4666 
+z
+" transform=scale(0.015625)></path> </defs> <use xlink:href=#DejaVuSans-45></use> <use xlink:href=#DejaVuSans-4b transform="translate(63.183594 0)"></use> <use xlink:href=#DejaVuSans-53 transform="translate(128.759766 0)"></use> </g> </g> <g id=text_19> <!-- 15% --> <g transform="translate(478.703458 131.269214) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-31></use> <use xlink:href=#DejaVuSans-35 transform="translate(63.623047 0)"></use> <use xlink:href=#DejaVuSans-25 transform="translate(127.246094 0)"></use> </g> </g> <g id=text_20> <!-- Tests --> <g transform="translate(386.290839 227.884051) scale(0.1 -0.1)"> <defs> <path id=DejaVuSans-54 d="M -19 4666 
+L 3928 4666 
+L 3928 4134 
+L 2272 4134 
+L 2272 0 
+L 1638 0 
+L 1638 4134 
+L -19 4134 
+L -19 4666 
+z
+" transform=scale(0.015625)></path> </defs> <use xlink:href=#DejaVuSans-54></use> <use xlink:href=#DejaVuSans-65 transform="translate(44.083984 0)"></use> <use xlink:href=#DejaVuSans-73 transform="translate(105.607422 0)"></use> <use xlink:href=#DejaVuSans-74 transform="translate(157.707031 0)"></use> <use xlink:href=#DejaVuSans-73 transform="translate(196.916016 0)"></use> </g> </g> <g id=text_21> <!-- 20% --> <g transform="translate(460.198082 208.349694) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-32></use> <use xlink:href=#DejaVuSans-30 transform="translate(63.623047 0)"></use> <use xlink:href=#DejaVuSans-25 transform="translate(127.246094 0)"></use> </g> </g> <g id=text_22> <!-- CI/CD --> <g transform="translate(472.496108 317.173644) scale(0.1 -0.1)"> <defs> <path id=DejaVuSans-43 d="M 4122 4306 
+L 4122 3641 
+Q 3803 3938 3442 4084 
+Q 3081 4231 2675 4231 
+Q 1875 4231 1450 3742 
+Q 1025 3253 1025 2328 
+Q 1025 1406 1450 917 
+Q 1875 428 2675 428 
+Q 3081 428 3442 575 
+Q 3803 722 4122 1019 
+L 4122 359 
+Q 3791 134 3420 21 
+Q 3050 -91 2638 -91 
+Q 1578 -91 968 557 
+Q 359 1206 359 2328 
+Q 359 3453 968 4101 
+Q 1578 4750 2638 4750 
+Q 3056 4750 3426 4639 
+Q 3797 4528 4122 4306 
+z
+" transform=scale(0.015625)></path> <path id=DejaVuSans-2f d="M 1625 4666 
+L 2156 4666 
+L 531 -594 
+L 0 -594 
+L 1625 4666 
+z
+" transform=scale(0.015625)></path> </defs> <use xlink:href=#DejaVuSans-43></use> <use xlink:href=#DejaVuSans-49 transform="translate(69.824219 0)"></use> <use xlink:href=#DejaVuSans-2f transform="translate(99.316406 0)"></use> <use xlink:href=#DejaVuSans-43 transform="translate(133.007812 0)"></use> <use xlink:href=#DejaVuSans-44 transform="translate(202.832031 0)"></use> </g> </g> <g id=text_23> <!-- 10% --> <g transform="translate(508.901524 257.053108) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-31></use> <use xlink:href=#DejaVuSans-30 transform="translate(63.623047 0)"></use> <use xlink:href=#DejaVuSans-25 transform="translate(127.246094 0)"></use> </g> </g> <g id=text_24> <!-- Costs --> <g transform="translate(606.593362 308.822323) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-43></use> <use xlink:href=#DejaVuSans-6f transform="translate(69.824219 0)"></use> <use xlink:href=#DejaVuSans-73 transform="translate(131.005859 0)"></use> <use xlink:href=#DejaVuSans-74 transform="translate(183.105469 0)"></use> <use xlink:href=#DejaVuSans-73 transform="translate(222.314453 0)"></use> </g> </g> <g id=text_25> <!-- 15% --> <g transform="translate(566.781276 252.497843) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-31></use> <use xlink:href=#DejaVuSans-35 transform="translate(63.623047 0)"></use> <use xlink:href=#DejaVuSans-25 transform="translate(127.246094 0)"></use> </g> </g> <g id=text_26> <!-- PaaS --> <g transform="translate(680.815621 206.664011) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-50></use> <use xlink:href=#DejaVuSans-61 transform="translate(55.802734 0)"></use> <use xlink:href=#DejaVuSans-61 transform="translate(117.082031 0)"></use> <use xlink:href=#DejaVuSans-53 transform="translate(178.361328 0)"></use> </g> </g> <g id=text_27> <!-- 15% --> <g transform="translate(607.266145 196.775127) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-31></use> <use xlink:href=#DejaVuSans-35 transform="translate(63.623047 0)"></use> <use xlink:href=#DejaVuSans-25 transform="translate(127.246094 0)"></use> </g> </g> <g id=text_28> <!-- Presentation --> <g transform="translate(625.200241 72.396914) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-50></use> <use xlink:href=#DejaVuSans-72 transform="translate(58.552734 0)"></use> <use xlink:href=#DejaVuSans-65 transform="translate(97.416016 0)"></use> <use xlink:href=#DejaVuSans-73 transform="translate(158.939453 0)"></use> <use xlink:href=#DejaVuSans-65 transform="translate(211.039062 0)"></use> <use xlink:href=#DejaVuSans-6e transform="translate(272.5625 0)"></use> <use xlink:href=#DejaVuSans-74 transform="translate(335.941406 0)"></use> <use xlink:href=#DejaVuSans-61 transform="translate(375.150391 0)"></use> <use xlink:href=#DejaVuSans-74 transform="translate(436.429688 0)"></use> <use xlink:href=#DejaVuSans-69 transform="translate(475.638672 0)"></use> <use xlink:href=#DejaVuSans-6f transform="translate(503.421875 0)"></use> <use xlink:href=#DejaVuSans-6e transform="translate(564.603516 0)"></use> </g> </g> <g id=text_29> <!-- 20% --> <g transform="translate(576.930483 123.538529) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-32></use> <use xlink:href=#DejaVuSans-30 transform="translate(63.623047 0)"></use> <use xlink:href=#DejaVuSans-25 transform="translate(127.246094 0)"></use> </g> </g> <g id=text_30> <!-- Team --> <g transform="translate(527.598179 18.11293) scale(0.12 -0.12)"> <use xlink:href=#DejaVuSans-54></use> <use xlink:href=#DejaVuSans-65 transform="translate(44.083984 0)"></use> <use xlink:href=#DejaVuSans-61 transform="translate(105.607422 0)"></use> <use xlink:href=#DejaVuSans-6d transform="translate(166.886719 0)"></use> </g> </g> </g> </g> </svg> <div class="tabbed-set tabbed-alternate" data-tabs=1:3><input checked id=__tabbed_1_1 name=__tabbed_1 type=radio><input id=__tabbed_1_2 name=__tabbed_1 type=radio><input id=__tabbed_1_3 name=__tabbed_1 type=radio><div class=tabbed-labels><label for=__tabbed_1_1><span class=twemoji><svg xmlns=http://www.w3.org/2000/svg viewbox="0 0 24 24"><path d="M11 2v2.07A8 8 0 0 0 4.07 11H2v2h2.07A8 8 0 0 0 11 19.93V22h2v-2.07A8 8 0 0 0 19.93 13H22v-2h-2.07A8 8 0 0 0 13 4.07V2m-2 4.08V8h2V6.09c2.5.41 4.5 2.41 4.92 4.91H16v2h1.91c-.41 2.5-2.41 4.5-4.91 4.92V16h-2v1.91C8.5 17.5 6.5 15.5 6.08 13H8v-2H6.09C6.5 8.5 8.5 6.5 11 6.08M12 11a1 1 0 0 0-1 1 1 1 0 0 0 1 1 1 1 0 0 0 1-1 1 1 0 0 0-1-1"></path></svg></span> Final</label><label for=__tabbed_1_2><span class=twemoji><svg xmlns=http://www.w3.org/2000/svg viewbox="0 0 24 24"><path d="M12 2.5a5.5 5.5 0 0 1 3.096 10.047 9.005 9.005 0 0 1 5.9 8.181.75.75 0 1 1-1.499.044 7.5 7.5 0 0 0-14.993 0 .75.75 0 0 1-1.5-.045 9.005 9.005 0 0 1 5.9-8.18A5.5 5.5 0 0 1 12 2.5M8 8a4 4 0 1 0 8 0 4 4 0 0 0-8 0"></path></svg></span> Individual</label><label for=__tabbed_1_3><span class=twemoji><svg xmlns=http://www.w3.org/2000/svg viewbox="0 0 24 24"><path d="M3.5 8a5.5 5.5 0 1 1 8.596 4.547 9.005 9.005 0 0 1 5.9 8.18.751.751 0 0 1-1.5.045 7.5 7.5 0 0 0-14.993 0 .75.75 0 0 1-1.499-.044 9.005 9.005 0 0 1 5.9-8.181A5.5 5.5 0 0 1 3.5 8M9 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8m8.29 4q-.221 0-.434.03a.75.75 0 1 1-.212-1.484 4.53 4.53 0 0 1 3.38 8.097 6.69 6.69 0 0 1 3.956 6.107.75.75 0 0 1-1.5 0 5.19 5.19 0 0 0-3.696-4.972l-.534-.16v-1.676l.41-.209A3.03 3.03 0 0 0 17.29 8"></path></svg></span> Team</label></div> <div class=tabbed-content> <div class=tabbed-block> <div class=arithmatex>\[ \text{Final Grade} = \left\{\begin{array}{lll} \text{Individual} \geq 5 \bigwedge \text{Team} \geq 5 &amp; \implies &amp; \displaystyle \frac{ \text{Individual} + \text{Team} } {2} \\ \\ \text{Otherwise} &amp; \implies &amp; \min\left(\text{Individual}, \text{Team}\right) \end{array}\right. \]</div> </div> <div class=tabbed-block> <!-- $$
+\text{Individual} = \text{Tarefas} \times 0.7 + \text{Prova Intermediária} \times 0.3
+$$ --> <table> <thead> <tr> <th>Tarefa</th> <th>Descrição</th> <th style="text-align: right;">Peso</th> </tr> </thead> <tbody> <tr> <td>Checkpoint 1</td> <td>Product</td> <td style="text-align: right;">15%</td> </tr> <tr> <td>Checkpoint 2</td> <td>Order</td> <td style="text-align: right;">15%</td> </tr> <tr> <td>Checkpoint 3</td> <td>Exchange</td> <td style="text-align: right;">10%</td> </tr> <tr> <td>Checkpoint 4</td> <td>DevOps</td> <td style="text-align: right;">15%</td> </tr> <tr> <td>Checkpoint 5</td> <td>Orchestration</td> <td style="text-align: right;">15%</td> </tr> <tr> <td>Bootnecks</td> <td>InMemory Database<br>Message Queues<br>Observability<br>Code quality<br>OAuth2<br>Payments (sandboxes)</td> <td style="text-align: right;">20%</td> </tr> <tr> <td>Documentation</td> <td>README with MkDocs</td> <td style="text-align: right;">10%</td> </tr> </tbody> </table> <div class="admonition danger"> <p class=admonition-title>Entrega</p> <ul> <li>A entrega de um checkpoint implica, <strong>OBRIGATORIAMENTE</strong>, na entrega do checkpoint anterior;</li> <li>Trabalho em grupo deve ser documentado no GitHub.</li> </ul> </div> </div> <div class=tabbed-block> <table> <thead> <tr> <th>Tarefas</th> <th>Descrição</th> <th style="text-align: right;">Peso</th> </tr> </thead> <tbody> <tr> <td>AWS</td> <td>Configurar AWS</td> <td style="text-align: right;">5%</td> </tr> <tr> <td>EKS</td> <td>Disponibilizar a aplicação</td> <td style="text-align: right;">15%</td> </tr> <tr> <td>Testes</td> <td>Testes de carga</td> <td style="text-align: right;">20%</td> </tr> <tr> <td>CI/CD</td> <td>Jenkins</td> <td style="text-align: right;">10%</td> </tr> <tr> <td>Custos</td> <td>Análise de custos</td> <td style="text-align: right;">15%</td> </tr> <tr> <td>PaaS</td> <td>Plano de uso da plataforma</td> <td style="text-align: right;">15%</td> </tr> <tr> <td>Apresentação</td> <td>Storytelling e documentação</td> <td style="text-align: right;">20%</td> </tr> </tbody> </table> <div class="admonition danger"> <p class=admonition-title>Entrega</p> <ul> <li>Trabalho em grupo deve ser documentado no GitHub. Um template está disponível para auxiliar na documentação: <a href=https://hsandmann.github.io/documentation.template/ target=_blank>template de entrega</a>.</li> </ul> </div> </div> </div> </div> <h2 id=planning>Planning</h2> <iframe src="https://docs.google.com/spreadsheets/d/e/2PACX-1vTTLC6eG1IMbnD1AQ3NgswsscD2y-H5vHZqyun_nhtPWY3auFOQznEslwYBF0dD5Uck9x2k6Fmo6rKw/pubhtml?gid=1658402287&single=true&widget=true&headers=false" width=100% height=600px></iframe> <h2 id=repositories>Repositories</h2> <p>Principal: <a href=https://github.com/repo-classes/pma.25.2 target=_blank>https://github.com/repo-classes/pma.25.2</a></p> <table> <thead> <tr> <th>Microservice</th> <th>Interface</th> <th>Implementation</th> </tr> </thead> <tbody> <tr> <td>Account</td> <td><a href=https://github.com/repo-classes/pma252.account target=_blank>account</a></td> <td><a href=https://github.com/repo-classes/pma252.account-service target=_blank>account-service</a></td> </tr> <tr> <td>Auth</td> <td><a href=https://github.com/repo-classes/pma252.auth target=_blank>auth</a></td> <td><a href=https://github.com/repo-classes/pma252.auth-service target=_blank>auth-service</a></td> </tr> <tr> <td>Gateway</td> <td></td> <td><a href=https://github.com/repo-classes/pma252.gateway-service target=_blank>gateway-service</a></td> </tr> </tbody> </table> <aside class=md-source-file> <span class=md-source-file__fact> <span class=md-icon title="Last update"> <svg xmlns=http://www.w3.org/2000/svg viewbox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"></path></svg> </span> <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="February 27, 2026 17:22:59 UTC">February 27, 2026</span> </span> <span class=md-source-file__fact> <span class=md-icon title=Created> <svg xmlns=http://www.w3.org/2000/svg viewbox="0 0 24 24"><path d="M14.47 15.08 11 13V7h1.5v5.25l3.08 1.83c-.41.28-.79.62-1.11 1m-1.39 4.84c-.36.05-.71.08-1.08.08-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8c0 .37-.03.72-.08 1.08.69.1 1.33.32 1.92.64.1-.56.16-1.13.16-1.72 0-5.5-4.5-10-10-10S2 6.5 2 12s4.47 10 10 10c.59 0 1.16-.06 1.72-.16-.32-.59-.54-1.23-.64-1.92M18 15v3h-3v2h3v3h2v-3h3v-2h-3v-3z"></path></svg> </span> <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="February 27, 2026 17:22:59 UTC">February 27, 2026</span> </span> <span class=md-source-file__fact> <span class=md-icon title=Contributors> <svg xmlns=http://www.w3.org/2000/svg viewbox="0 0 24 24"><path d="M12 4a4 4 0 0 1 4 4 4 4 0 0 1-4 4 4 4 0 0 1-4-4 4 4 0 0 1 4-4m0 10c4.42 0 8 1.79 8 4v2H4v-2c0-2.21 3.58-4 8-4"></path></svg> </span> <nav> <a href=mailto:hsandmann@ieee.org>Humberto Sandmann</a> </nav> </span> </aside> </article> </div> <script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script> </div> <button type=button class="md-top md-icon" data-md-component=top hidden> <svg xmlns=http://www.w3.org/2000/svg viewbox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg> Back to top </button> </main> <footer class=md-footer> <nav class="md-footer__inner md-grid" aria-label=Footer> <a href=../2026.1/ class="md-footer__link md-footer__link--prev" aria-label="Previous: 2026.1"> <div class="md-footer__button md-icon"> <svg xmlns=http://www.w3.org/2000/svg viewbox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg> </div> <div class=md-footer__title> <span class=md-footer__direction> Previous </span> <div class=md-ellipsis> 2026.1 </div> </div> </a> <a href=../2025.1/ class="md-footer__link md-footer__link--next" aria-label="Next: 2025.1"> <div class=md-footer__title> <span class=md-footer__direction> Next </span> <div class=md-ellipsis> 2025.1 </div> </div> <div class="md-footer__button md-icon"> <svg xmlns=http://www.w3.org/2000/svg viewbox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg> </div> </a> </nav> <div class="md-footer-meta md-typeset"> <div class="md-footer-meta__inner md-grid"> <div class=md-copyright> Made with <a href=https://squidfunk.github.io/mkdocs-material/ target=_blank rel=noopener> Material for MkDocs </a> </div> </div> </div> </footer> </div> <div class=md-dialog data-md-component=dialog> <div class="md-dialog__inner md-typeset"></div> </div> <div class=md-progress data-md-component=progress role=progressbar></div> <script id=__config type=application/json>{"annotate": null, "base": "../..", "features": ["content.code.copy", "content.code.select", "content.code.annotate", "content.tooltips", "navigation.instant", "navigation.instant.progress", "navigation.top", "navigation.path", "navigation.tracking", "navigation.footer"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script> <script src=../../assets/javascripts/bundle.79ae519e.min.js></script> <script src=../../assets/_markdown_exec_pyodide.js></script> <script src=../../assets/javascripts/mathjax.js></script> <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script> <script src=https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js></script> <script src=../../assets/javascripts/badge.js async></script> <script src=../../termynal.js></script> <script id=init-glightbox>const lightbox = GLightbox({"touchNavigation": true, "loop": false, "zoomable": true, "draggable": true, "openEffect": "zoom", "closeEffect": "zoom", "slideEffect": "slide"});
+document$.subscribe(()=>{ lightbox.reload(); });
+</script></body></html>
