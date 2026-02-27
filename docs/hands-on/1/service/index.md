@@ -175,6 +175,14 @@ or
 mvn clean package spring-boot:run
 ```
 
+Check the health of the microservice by sending a GET request to the `health-check` endpoint:
+
+``` { bash }
+curl -X GET http://localhost:8080/health-check
+```
+
+If everything is working correctly, you should receive a `200 OK` status code in the response, indicating that the microservice is up and running.
+
 ---
 
 Done! The Account Microservice is now ready to be used in the project.

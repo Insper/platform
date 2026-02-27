@@ -1,6 +1,7 @@
 name: store
 
 services:
+
   db:
     image: postgres:17
     ports:
@@ -9,7 +10,7 @@ services:
       - ${VOLUME_DB}:/var/lib/postgresql/data
     environment:
       POSTGRES_USER: ${DB_USER:-store}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-5t0r3}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-devpass}
       POSTGRES_DB: ${DB_NAME:-store}
 
   account:

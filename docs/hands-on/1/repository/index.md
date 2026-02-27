@@ -33,8 +33,6 @@ api/
 | `AccountRepository` | This interface is responsible for the data persistence of the Account entity, using an Object-Relational Mapping (ORM) framework to interact with the database. |
 | `AccountResource` | This class is responsible for the API endpoints of the Account microservice, implementing the `AccountController` interface defined in the `account` module, and using the `AccountService` to handle the business logic of the API endpoints. |
 | `AccountService` | This class is responsible for the business logic of the Account microservice, using the `AccountRepository` to handle the data persistence of the Account entity, and the `AccountParser` to handle the parsing of the input and output of the API endpoints. |
-| `AccountApplication` | This class is the main class of the Account microservice, which is responsible for running the Spring Boot application. It contains the `main` method, which is the entry point of the application. |
-
 
 
 !!! example "Source"
