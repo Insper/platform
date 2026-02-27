@@ -28,14 +28,10 @@ public class AccountModel {
     @Column(name = "email")
     private String email;
 
-    @Column(name = "sha256")
-    private String sha256;
-
     public AccountModel(Account a) {
         this.id = a.id();
         this.name = a.name();
         this.email = a.email();
-        this.sha256 = a.sha256();
     }
 
     public Account to() {
@@ -43,7 +39,6 @@ public class AccountModel {
             .id(this.id)
             .name(this.name)
             .email(this.email)
-            .sha256(this.sha256)
             .build();
     }
     
