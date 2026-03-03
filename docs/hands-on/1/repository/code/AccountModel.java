@@ -18,8 +18,8 @@ import lombok.experimental.Accessors;
 public class AccountModel {
 
     @Id
-    @Column(name = "id")
     @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "id")
     private String id;
 
     @Column(name = "name")
@@ -27,19 +27,5 @@ public class AccountModel {
 
     @Column(name = "email")
     private String email;
-
-    public AccountModel(Account a) {
-        this.id = a.id();
-        this.name = a.name();
-        this.email = a.email();
-    }
-
-    public Account to() {
-        return Account.builder()
-            .id(this.id)
-            .name(this.name)
-            .email(this.email)
-            .build();
-    }
     
 }
