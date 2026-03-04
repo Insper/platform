@@ -63,9 +63,9 @@ api/
                 resources/
                     db/
                         migration/
-                            V2026.02.27.001__create_schema.sql
-                            V2026.02.27.002__create_table_account.sql
-                            V2026.02.27.003__create_index_email.sql
+                            V2026.03.27.001__create_schema.sql
+                            V2026.03.27.002__create_table.sql
+                            V2026.03.27.003__create_index_email.sql
                     application.yaml
         pom.xml
     compose.yaml
@@ -90,7 +90,7 @@ Where, respecting the clean architecture, we have the following classes:
 
     === "compose.yaml"
 
-        ``` { .yaml .copy .select linenums="1" hl_lines="20-25" }
+        ``` { .yaml .copy .select linenums="1" hl_lines="8 22 25-30" }
         --8<-- "docs/hands-on/1/repository/code/compose.yaml"
         ```
 
@@ -132,7 +132,7 @@ Where, respecting the clean architecture, we have the following classes:
 
     === "AccountResource.java"
 
-        ``` { .java .copy .select linenums='1' }
+        ``` { .java .copy .select linenums='1' hl_lines="12-13 34-38" }
         --8<-- "docs/hands-on/1/repository/code/AccountResource.java"
         ```
 
