@@ -90,7 +90,7 @@ Where, respecting the clean architecture, we have the following classes:
 
     === "compose.yaml"
 
-        ``` { .yaml .copy .select linenums="1" hl_lines="8 22 25-30" }
+        ``` { .yaml .copy .select linenums="1" hl_lines="7 21 24-29" }
         --8<-- "docs/hands-on/1/repository/code/compose.yaml"
         ```
 
