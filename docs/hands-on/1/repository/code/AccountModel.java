@@ -27,5 +27,13 @@ public class AccountModel {
 
     @Column(name = "email")
     private String email;
+
+    public Account to() {
+        return Account.builder()
+            .id(id)
+            .name(name)
+            .email(email)
+            .build();
+    }
     
 }

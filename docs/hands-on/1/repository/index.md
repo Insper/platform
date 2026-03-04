@@ -148,16 +148,10 @@ Where, respecting the clean architecture, we have the following classes:
         --8<-- "docs/hands-on/1/repository/code/V2026.03.04.001__create_schema.sql"
         ```
 
-    === "V2026.03.04.002__create_table_account.sql"
+    === "V2026.03.04.002__create_table.sql"
 
         ``` { .sql .copy .select linenums="1" }
-        --8<-- "docs/hands-on/1/repository/code/V2026.03.04.002__create_table_account.sql"
-        ```
-
-    === "V2026.03.04.003__create_index_email.sql"
-
-        ``` { .sql .copy .select linenums="1" }
-        --8<-- "docs/hands-on/1/repository/code/V2026.03.04.003__create_index_email.sql"
+        --8<-- "docs/hands-on/1/repository/code/V2026.03.04.002__create_table.sql"
         ```
 
 4. Running the Microservice

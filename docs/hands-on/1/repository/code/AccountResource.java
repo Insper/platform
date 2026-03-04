@@ -2,11 +2,15 @@ package store.account;
 
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 public class AccountResource implements AccountController {
+
+    @Autowired
+    private AccountService accountService;
 
     @Override
     public ResponseEntity<Void> create(AccountIn in) {
@@ -27,8 +31,11 @@ public class AccountResource implements AccountController {
 
     @Override
     public ResponseEntity<List<AccountOut>> findAll() {
-        // TODO Auto-generated method stub
-        return null;
+        return ResponseEntity.ok(
+            AccountParser.to(
+                accountService.findByAll()
+            )
+        );
     }
 
     @Override

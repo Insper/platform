@@ -2,13 +2,8 @@ server:
   port: 8080
   
 spring:
-
   application:
     name: account
-
-  mvc:
-    problemdetails:
-      enabled: true
 
   datasource:
     url: jdbc:postgresql://${DATABASE_HOST}:${DATABASE_PORT}/${DATABASE_DB}
