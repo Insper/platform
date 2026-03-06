@@ -28,11 +28,22 @@ public class AccountModel {
     @Column(name = "email")
     private String email;
 
+    @Column(name = "password_sha256")
+    private String passwordSha256;
+
+    public AccountModel(Account a) {
+        this.id = a.id();
+        this.name = a.name();
+        this.email = a.email();
+        this.passwordSha256 = a.passwordSha256();
+    }
+
     public Account to() {
         return Account.builder()
-            .id(id)
-            .name(name)
-            .email(email)
+            .id(this.id)
+            .name(this.name)
+            .email(this.email)
+            .passwordSha256(this.passwordSha256)
             .build();
     }
     
