@@ -6,14 +6,18 @@ From previous hands-on, we have already see that this microservice uses clean ar
 sequenceDiagram
     title Clean architecture's approach 
     Actor Request
-    Request ->>+ Controller: JSON
+    participant Controller as Controller<br>Resource
+    participant Service@{ "type": "control" }
+    participant Repository@{ "type" : "entity" }
+    participant Database@{ "type" : "database" }
+    Request ->>+ Controller: Rest API (JSON)
     Controller ->>+ Service: parser (AccountIn -> Account)
     Service ->>+ Repository: parser (Account -> AccountModel)
     Repository ->>+ Database: 
     Database ->>- Repository: 
     Repository ->>- Service: parser (Account <- AccountModel)
     Service ->>- Controller: parser (AccountOut <- Account)
-    Controller ->>- Request: JSON
+    Controller ->>- Request: Rest API (JSON)
 ```
 
 The relationships between the different layers is done though the use of different DTOs (Data Transfer Objects). Then, to translate between the different layers, we use parsers, which are responsible for converting the DTOs to the entities and vice versa.

@@ -85,14 +85,18 @@ The construction of the Account microservice follows the Clean Architecture appr
 sequenceDiagram
     title Clean architecture's approach 
     Actor Request
-    Request ->>+ Controller: JSON
+    participant Controller@{ "type": "boundary", "alias": "Controller<br>Resource" }
+    participant Service@{ "type": "control" }
+    participant Repository@{ "type" : "entity" }
+    participant Database@{ "type" : "database" }
+    Request ->>+ Controller: Rest API (JSON)
     Controller ->>+ Service: parser (AccountIn -> Account)
     Service ->>+ Repository: parser (Account -> AccountModel)
     Repository ->>+ Database: 
     Database ->>- Repository: 
     Repository ->>- Service: parser (Account <- AccountModel)
     Service ->>- Controller: parser (AccountOut <- Account)
-    Controller ->>- Request: JSON
+    Controller ->>- Request: Rest API (JSON)
 ```
 
 
