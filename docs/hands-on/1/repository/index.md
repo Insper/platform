@@ -164,7 +164,7 @@ Where, respecting the clean architecture, we have the following classes:
         --8<-- "docs/hands-on/1/repository/code/V2026.03.06.001__create_field_pass_sha256.sql"
         ```
 
-4. Running the Microservice
+## 4. Running
 
 To run the Account microservice, we can use the `docker-compose` command to start the microservice and its dependencies (e.g., the PostgreSQL database). Make sure you are in the root directory of the project, where the `compose.yaml` file is located, and run the following command:
 
