@@ -69,7 +69,7 @@ api/
                         migration/
                             V2026.03.27.001__create_schema.sql
                             V2026.03.27.002__create_table.sql
-                            V2026.03.27.003__create_index_email.sql
+                            V2026.03.06.001__create_field_pass_sha256.sql
                     application.yaml
         pom.xml
     compose.yaml
@@ -156,6 +156,12 @@ Where, respecting the clean architecture, we have the following classes:
 
         ``` { .sql .copy .select linenums="1" }
         --8<-- "docs/hands-on/1/repository/code/V2026.03.04.002__create_table.sql"
+        ```
+
+    === "V2026.03.06.001__create_field_pass_sha256.sql"
+
+        ``` { .sql .copy .select linenums="1" }
+        --8<-- "docs/hands-on/1/repository/code/V2026.03.06.001__create_field_pass_sha256.sql"
         ```
 
 4. Running the Microservice
