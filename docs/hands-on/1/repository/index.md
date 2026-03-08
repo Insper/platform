@@ -136,7 +136,7 @@ Where, respecting the clean architecture, we have the following classes:
 
     === "AccountResource.java"
 
-        ``` { .java .copy .select linenums='1' hl_lines="12-13 34-38" }
+        ``` { .java .copy .select linenums='1' hl_lines="14-15 19-29 34-35 45-49 54-59" }
         --8<-- "docs/hands-on/1/repository/code/AccountResource.java"
         ```
 
