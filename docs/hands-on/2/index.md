@@ -50,38 +50,40 @@ api
                     application.yaml
         pom.xml
         Dockerfile
+    .env
+    compose.yaml
 ```
 
 !!! info "Source"
 
     === "pom.xml"
 
-        ``` { .yaml .copy .select linenums="1" }
-        --8<-- "docs/hands-on/2/gateway-service/code/pom.xml"
+        ``` { .yaml .copy .select linenums="1" hl_lines="24-31" }
+        --8<-- "docs/hands-on/2/code/pom.xml"
         ```
 
     === "application.yaml"
 
-        ``` { .yaml .copy .select linenums="1" }
-        --8<-- "docs/hands-on/2/gateway-service/code/application.yaml"
+        ``` { .yaml .copy .select linenums="1" hl_lines="5-27" }
+        --8<-- "docs/hands-on/2/code/application.yaml"
         ```
 
     === "GatewayApplication.java"
 
         ``` { .java .copy .select linenums='1' }
-        --8<-- "docs/hands-on/2/gateway-service/code/GatewayApplication.java"
+        --8<-- "docs/hands-on/2/code/GatewayApplication.java"
         ```
 
     === "GatewayResource.java"
 
         ``` { .java .copy .select linenums='1' }
-        --8<-- "docs/hands-on/2/gateway-service/code/GatewayResource.java"
+        --8<-- "docs/hands-on/2/code/GatewayResource.java"
         ```
 
     === "Dockerfile"
 
         ``` { .dockerfile .copy .select linenums="1" }
-        --8<-- "docs/hands-on/2/gateway-service/code/Dockerfile"
+        --8<-- "docs/hands-on/2/code/Dockerfile"
         ```
 
 Note that the Gateway Microservice is implemented using Spring Cloud Gateway, which is a library that provides a simple and effective way to route the incoming requests to the appropriate microservice. It also provides a lot of features such as authentication, authorization, load balancing, caching, logging, monitoring, and rate limiting.
@@ -93,4 +95,12 @@ Also, the Gateway Microservice is implemented using WebFlux, which is a reactive
     The `application.yaml` file is configured to route the incoming requests to the appropriate microservice, therefore, you need to make sure that the microservices are running and exposing their ports before starting the Gateway Microservice.
 
     Also, the `application.yaml` file is configured the CORs to allow the incoming requests from the internet, therefore, you need to make sure that the CORS configuration is correct before starting the Gateway Microservice.
+
+After finishing the implementation of the Gateway Microservice, we can include it in the `compose.yaml` file and start it using Docker Compose. You can also test the Gateway Microservice by sending requests to the exposed port of the Gateway Microservice and checking if the requests are routed to the appropriate microservice.
+
+``` { .dockerfile .copy .select linenums="1" title="compose.yaml" }
+--8<-- "docs/hands-on/2/code/compose.yaml"
+``` 
+
+Note that the other microservices declared in the `compose.yaml` file do not have its ports exposed to the internet, therefore, they can only be accessed through the Gateway Microservice.
 
