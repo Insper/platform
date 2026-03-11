@@ -90,7 +90,11 @@ git pull                # normal pull of superproject
 git submodule update --init --recursive
 ```
 
-If you want to update submodules to latest remote (and record new commits):
+To bring the superproject and all submodules up to date in a single step (Highly Recommended):
+
+```bash
+git pull --recurse-submodules
+```
 
 ```bash
 git submodule update --remote --merge   # or --rebase
@@ -107,6 +111,7 @@ git commit -m "Update all submodules to latest"
 | Clone repo + all submodules                  | `git clone --recursive <url>`                            |
 | Init + fetch submodules after normal clone   | `git submodule update --init --recursive`                |
 | Update to recorded commits                   | `git submodule update --recursive`                       |
+| Pull superproject + update submodules        | `git pull --recurse-submodules`                          |
 | Update submodules to latest remote           | `git submodule update --remote [--merge or --rebase]`    |
 | Run command in every submodule               | `git submodule foreach 'git status'`                     |
 | Remove a submodule (modern Git)              | `git submodule deinit -f path/to/sub`<br>`rm -rf .git/modules/path/to/sub`<br>`git rm -f path/to/sub` |
