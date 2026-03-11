@@ -17,6 +17,17 @@ flowchart LR
     classDef red fill:#fcc
 ```
 
+Advantages of using a Gateway Microservice:
+
+- It provides a single entry point for all the incoming requests, which makes it easier to manage and secure the application;
+- Only a single port needs to be exposed to the internet, which makes it easier to secure the application;
+- It can handle:
+    - The authentication and authorization of the incoming requests, which makes it easier to secure the application;
+    - The load balancing of the incoming requests, which makes it easier to scale the application;
+    - The caching of the incoming requests, which makes it easier to improve the performance of the application;
+    - The logging and monitoring of the incoming requests, which makes it easier to debug and troubleshoot the application;
+    - The rate limiting of the incoming requests, which makes it easier to protect the application from DDoS attacks;
+
 The key functionalities of Gateway Microservice are:
 
 - **Routing**: it will route the incoming requests to the appropriate microservice.
@@ -41,40 +52,45 @@ api
         Dockerfile
 ```
 
-<!-- ??? info "Source"
+!!! info "Source"
 
     === "pom.xml"
 
         ``` { .yaml .copy .select linenums="1" }
-        --8<-- "https://raw.githubusercontent.com/repo-classes/pma252.gateway-service/refs/heads/main/pom.xml"
+        --8<-- "docs/hands-on/2/gateway-service/code/pom.xml"
         ```
 
     === "application.yaml"
 
         ``` { .yaml .copy .select linenums="1" }
-        --8<-- "https://raw.githubusercontent.com/repo-classes/pma252.gateway-service/refs/heads/main/src/main/resources/application.yaml"
+        --8<-- "docs/hands-on/2/gateway-service/code/application.yaml"
         ```
 
     === "GatewayApplication.java"
 
         ``` { .java .copy .select linenums='1' }
-        --8<-- "https://raw.githubusercontent.com/repo-classes/pma252.gateway-service/refs/heads/main/src/main/java/store/gateway/GatewayApplication.java"
+        --8<-- "docs/hands-on/2/gateway-service/code/GatewayApplication.java"
         ```
 
     === "GatewayResource.java"
 
         ``` { .java .copy .select linenums='1' }
-        --8<-- "https://raw.githubusercontent.com/repo-classes/pma252.gateway-service/refs/heads/main/src/main/java/store/gateway/GatewayResource.java"
-        ```
-
-    === "CorsFilter.java"
-
-        ``` { .java .copy .select linenums='1' }
-        --8<-- "https://raw.githubusercontent.com/repo-classes/pma252.gateway-service/refs/heads/main/src/main/java/store/gateway/security/CorsFilter.java"
+        --8<-- "docs/hands-on/2/gateway-service/code/GatewayResource.java"
         ```
 
     === "Dockerfile"
 
         ``` { .dockerfile .copy .select linenums="1" }
-        --8<-- "https://raw.githubusercontent.com/repo-classes/pma252.gateway-service/refs/heads/main/Dockerfile"
-        ``` -->
+        --8<-- "docs/hands-on/2/gateway-service/code/Dockerfile"
+        ```
+
+Note that the Gateway Microservice is implemented using Spring Cloud Gateway, which is a library that provides a simple and effective way to route the incoming requests to the appropriate microservice. It also provides a lot of features such as authentication, authorization, load balancing, caching, logging, monitoring, and rate limiting.
+
+Also, the Gateway Microservice is implemented using WebFlux, which is a reactive programming model that allows to handle a large number of concurrent requests with a small number of threads. This makes it easier to scale the application and improve the performance of the application.
+
+!!! warning "application.yaml"
+
+    The `application.yaml` file is configured to route the incoming requests to the appropriate microservice, therefore, you need to make sure that the microservices are running and exposing their ports before starting the Gateway Microservice.
+
+    Also, the `application.yaml` file is configured the CORs to allow the incoming requests from the internet, therefore, you need to make sure that the CORS configuration is correct before starting the Gateway Microservice.
+
