@@ -372,14 +372,13 @@ api
                             GatewayResource.java
                             security
                                 AuthorizationFilter.java
-                                CorsFilter.java
                                 RouterValidator.java
                 resources
                     application.yaml
         pom.xml
         Dockerfile
 ```
-
+<!-- 
 ??? info "Source"
 
     === "pom.xml"
@@ -429,7 +428,7 @@ api
         ``` { .dockerfile .copy .select linenums="1" }
         --8<-- "https://raw.githubusercontent.com/repo-classes/pma252.gateway-service/refs/heads/main/Dockerfile"
         ```
-
+ -->
 
 
 
