@@ -1,11 +1,21 @@
 
 Install:
 
-``` shell
-sudo apt install zsh
-chsh -s $(which zsh)
-sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
-```
+=== ":simple-linux: Linux"
+
+    ``` shell
+    sudo apt install zsh
+    chsh -s $(which zsh)
+    sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+    ```
+
+=== ":simple-apple: MacOS"
+
+    ``` shell
+    brew install zsh
+    chsh -s $(which zsh)
+    sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+    ```
 
 Plugins:
 
@@ -25,13 +35,13 @@ nano ~/.zshrc
 ``` properties title="~/.zshrc"
 ZSH_THEME="afowler"
 plugins=(
-  git
-  zsh-syntax-highlighting
-  zsh-autosuggestions
-  fzf
+	git
+	zsh-syntax-highlighting
+	zsh-autosuggestions
+	fzf
 )
 ```
 
-Reference:
 
-- [Oh My Zsh](https://ohmyz.sh/){target='_blank'}
+
+[^1]: [Oh My Zsh](https://ohmyz.sh/){target='_blank'}
