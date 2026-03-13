@@ -242,8 +242,8 @@ nav:
     - Network: ./appendix/network.md
     - Development Setup: ./appendix/development-setup.md
     - Git Submodules: ./appendix/git-submodules.md
-    - REST vs GraphQL: ./appendix/rest-vs-graphql.md
-    - Versioning REST APIs: ./appendix/versioning-rest-apis.md
+    # - REST vs GraphQL: ./appendix/rest-vs-graphql.md
+    # - Versioning REST APIs: ./appendix/versioning-rest-apis.md
     - RSA Algorithm: ./appendix/rsa.md
     - Oh My Zsh: ./appendix/ohmyzsh.md
     - Others: ./appendix/others.md
