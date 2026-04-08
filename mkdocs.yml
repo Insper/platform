@@ -246,6 +246,7 @@ nav:
     - Versioning REST APIs: ./appendix/versioning-rest-apis.md
     - RSA Algorithm: ./appendix/rsa.md
     - Oh My Zsh: ./appendix/ohmyzsh.md
+    - Git Actions: ./appendix/gitactions.md
     - Others: ./appendix/others.md
   
   - Disclaimer: ./disclaimer.md
