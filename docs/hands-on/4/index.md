@@ -145,6 +145,9 @@ Jenkins supports two pipeline syntaxes:
 
 The examples below use the **declarative** syntax.
 
+
+## 5. Examples
+
 ### Creating a Job
 
 === "New item"
@@ -158,8 +161,6 @@ The examples below use the **declarative** syntax.
 Create a **New Item**, choose the **Pipeline** type, and set the *Definition* to **Pipeline script from SCM**. Jenkins will clone the repository and read the `Jenkinsfile` on every build.
 
 ![Pipeline job overview](./jenkins/images/jenkins.pipeline.png){width=100%}
-
-## 5. Examples
 
 ### `auth` — Build only
 
