@@ -33,7 +33,7 @@ jenkins/
 !!! info "Source"
 
     ``` { .yaml .copy .select linenums="1" title="compose.yaml" }
-    --8<-- "docs/hands-on/4/jenkins/setup/compose.yaml"
+    --8<-- "docs/hands-on/4/jenkins/code/compose.yaml"
     ```
 
 The `compose.yaml` builds a custom image on top of `jenkins/jenkins:jdk25` with extra tooling pre-installed:
@@ -111,7 +111,7 @@ Before creating pipelines that push Docker images, store the Docker Hub secret i
 
 **Manage Jenkins → Credentials → System → Global credentials → Add Credentials**
 
-![Add Docker Hub credentials](./jenkins/images/jenkins.crenditials.add.png){width=100%}
+![Add Docker Hub credentials](./jenkins/images/jenkins.credentials.add.png){width=100%}
 
 | Field | Value |
 |---|---|
@@ -175,7 +175,7 @@ api/
 !!! info "Source"
 
     ``` { .groovy .copy .select linenums="1" title="Jenkinsfile" }
-    --8<-- "docs/hands-on/4/jenkins/setup/Jenkinsfile.auth"
+    --8<-- "docs/hands-on/4/jenkins/code/Jenkinsfile.auth"
     ```
 
 The single `Build` stage runs `mvn -B -DskipTests clean install`. The `-B` flag enables *batch mode* (no interactive prompts), which is required in non-interactive CI environments.
@@ -193,7 +193,7 @@ api/
 !!! info "Source"
 
     ``` { .groovy .copy .select linenums="1" title="Jenkinsfile" }
-    --8<-- "docs/hands-on/4/jenkins/setup/Jenkinsfile.auth-service"
+    --8<-- "docs/hands-on/4/jenkins/code/Jenkinsfile.auth-service"
     ```
 
 #### Walkthrough
