@@ -1,9 +1,28 @@
 
-Jenkis is a continuous integration and continuous delivery (CI/CD) tool that automates the process of building, testing, and deploying software. It is widely used in DevOps practices to streamline the software development lifecycle.
+[DevOps](https://en.wikipedia.org/wiki/DevOps){:target="_blank"} practices aim to shorten the software development lifecycle by automating the build, test, and deployment stages. Two key practices underpin this automation[^1]:
 
-## Containerized Jenkins
+- **Continuous Integration (CI)** — developers merge changes frequently; each merge triggers an automated build and test cycle.
+- **Continuous Delivery (CD)** — every change that passes CI is automatically packaged and made ready to deploy to any environment.
 
-In this checkpoint, we will set up a Jenkins server using Docker Compose. This will allow us to run Jenkins in a containerized environment, making it easy to manage and deploy.
+``` mermaid
+flowchart LR
+    dev([Developer]) -->|git push| scm[Source Control]
+    scm -->|webhook / poll| ci[CI Server\nJenkins]
+    subgraph pipeline [Pipeline]
+        direction LR
+        build[Build] --> test[Test] --> image[Package\nDocker Image] --> push[Push\nRegistry]
+    end
+    ci --> pipeline
+    push -->|deploy| env([Target\nEnvironment])
+    classDef highlight fill:#FCBE3E
+    class ci highlight
+```
+
+[Jenkins](https://www.jenkins.io/){:target="_blank"} is one of the most widely adopted open-source automation servers. It orchestrates CI/CD pipelines through a rich plugin ecosystem and supports **Pipeline as Code** — pipeline definitions committed to the repository alongside application code in a file called `Jenkinsfile`[^2].
+
+## 1. Setup — Containerized Jenkins
+
+Running Jenkins inside Docker keeps the host machine clean and makes the environment reproducible across machines.
 
 ``` { .tree .copy .select }
 api/
@@ -11,101 +30,253 @@ jenkins/
     compose.yaml
 ```
 
-??? info "Source"
+!!! info "Source"
 
-    === "[compose.yaml](jenkins/compose.yaml){:download='compose.yaml'}"
+    ``` { .yaml .copy .select linenums="1" title="compose.yaml" }
+    --8<-- "docs/hands-on/4/jenkins/setup/compose.yaml"
+    ```
 
-        ``` { .yaml .copy .select linenums="1" }
-        --8<-- "https://raw.githubusercontent.com/Insper/platform/refs/heads/main/docs/checkpoints/4/jenkins/compose.yaml"
-        ```
+The `compose.yaml` builds a custom image on top of `jenkins/jenkins:jdk25` with extra tooling pre-installed:
 
-<!-- termynal -->
+| Tool | Purpose |
+|---|---|
+| Maven | Build Java projects |
+| Docker CE | Build and push container images from within pipelines |
+| kubectl | Deploy to Kubernetes clusters |
+| AWS CLI | Interact with AWS services (ECR, ECS, EKS …) |
 
-To run this container:
+The Jenkins process is added to the `docker` group so that pipelines can invoke `docker` commands without requiring root. The host Docker socket (`/var/run/docker.sock`) is bind-mounted into the container for this purpose[^3].
 
-``` { .bash .copy .select }
-docker compose up -d --build
-```
+!!! warning "Docker socket security"
+    Mounting `/var/run/docker.sock` gives the container full control over the host Docker daemon. This is acceptable for local development, but should be hardened (e.g., rootless Docker or a dedicated build daemon) in shared or production environments.
 
-``` bash
+**Start the server:**
+
+``` { .bash .select }
 jenkins/# docker compose up -d --build
 
 [+] Running 2/2
- ✔ jenkins Created              0.1s 
- ✔ Container jenkins Started    0.2s 
+ ✔ jenkins Created              0.1s
+ ✔ Container jenkins Started    0.2s
 ```
 
-Jenkins is now running on port 9080. You can access it by navigating to [http://localhost:9080/](http://localhost:9080/){target="_blank"} in your web browser.
+Jenkins is now available at [http://localhost:9080/](http://localhost:9080/){target="_blank"}.
 
-## Jenkins Configuration
+## 2. Initial Configuration
 
-Once Jenkins is running, you will need to configure it. The first time you access Jenkins, you will be prompted to unlock it using an initial admin password.
+### Unlock Jenkins
 
-!!! warning "Admin"
-    Please, to avoid permission issues, run the console as administrator.
+On first start, Jenkins generates a random *initial admin password* to prevent unauthorised access[^4]. Open the UI and enter it when prompted:
 
-Setting the a number of executors to 10 will allow us to run two jobs in parallel. This is useful for speeding up the build process, especially when we have multiple projects or stages that can be executed concurrently.
+![Jenkins unlock screen](./jenkins/images/jenkins.unlock.png){width=100%}
 
-![](./jenkins.system.nexecutors.png){width=100%}
+Retrieve the password with either command:
 
+=== "From container logs"
 
-## Pipeline
+    ``` { .bash .select }
+    docker logs jenkins 2>&1 | grep -A 3 "initialAdminPassword"
+    ```
 
-In this checkpoint, we will create a Jenkins pipeline that will build and deploy our application, [Pipeline as Code](https://www.jenkins.io/doc/book/pipeline/pipeline-as-code/){target="_blank"}. The pipeline will be defined in a `Jenkinsfile` located in the root of our project.
+=== "From the secrets file"
 
-![](./jenkins.pipeline.png){width=100%}
+    ``` { .bash .select }
+    docker exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword
+    ```
+
+!!! warning "Windows — run as Administrator"
+    Open the terminal as **Administrator** to avoid permission errors when reading the Jenkins secrets directory.
+
+    ![First run as admin](./jenkins/images/jenkins.first.admin.png){width=100%}
+
+After entering the password, choose **Install suggested plugins** and create an admin user.
+
+### Number of Executors
+
+An *executor* is a slot where Jenkins runs one pipeline stage or job. The default is 2; raising it lets multiple jobs run in parallel, which is useful when building several microservices in the same instance.
+
+**Manage Jenkins → Nodes → Built-In Node → Configure → Number of executors → 10**
+
+=== "Nodes"
+
+    ![](./jenkins/images/jenkins.nodes.png)
+
+=== "Configure"
+
+    ![](./jenkins/images/jenkins.nodes.configure.executors.png)
+
+## 3. Credentials
+
+Before creating pipelines that push Docker images, store the Docker Hub secret in Jenkins' credential store. Credentials are injected into pipelines at runtime — they are never written to disk or visible in logs[^5].
+
+**Manage Jenkins → Credentials → System → Global credentials → Add Credentials**
+
+![Add Docker Hub credentials](./jenkins/images/jenkins.crenditials.add.png){width=100%}
+
+| Field | Value |
+|---|---|
+| Kind | Username with password |
+| Username | Your Docker Hub username |
+| Password | Docker Hub access token (see tip below) |
+| ID | `dockerhub-credential` |
+
+!!! tip "Use access tokens, not your account password"
+    Create a dedicated token with **Read & Write** scope at **Docker Hub → Account Settings → Security → Access Tokens**. If the token is ever compromised you can revoke it without touching your account password[^6].
+
+## 4. Pipeline as Code
+
+A `Jenkinsfile` describes the pipeline in a declarative DSL and lives in the root of the repository. Jenkins checks it out automatically when a build is triggered, so the pipeline evolves alongside the code[^7].
+
+``` mermaid
+flowchart LR
+    repo[Git Repository\nJenkinsfile] -->|SCM checkout| jenkins[Jenkins Job]
+    jenkins --> s1[Stage: Build]
+    s1 --> s2[Stage: Test]
+    s2 --> s3[Stage: Build & Push Image]
+    s3 --> s4[Stage: Deploy]
+```
+
+Jenkins supports two pipeline syntaxes:
+
+| Syntax | Description |
+|---|---|
+| **Declarative** | Structured, opinionated DSL — recommended for most projects |
+| **Scripted** | Full Groovy — maximum flexibility, steeper learning curve |
+
+The examples below use the **declarative** syntax.
+
+### Creating a Job
+
+=== "New item"
+
+    ![](./jenkins/images/jenkins.new.item.png)
+
+=== "Configure pipeline"
+
+    ![](./jenkins/images/jenkins.configure.auth.png)
+
+Create a **New Item**, choose the **Pipeline** type, and set the *Definition* to **Pipeline script from SCM**. Jenkins will clone the repository and read the `Jenkinsfile` on every build.
+
+![Pipeline job overview](./jenkins/images/jenkins.pipeline.png){width=100%}
+
+## 5. Examples
+
+### `auth` — Build only
+
+The first pipeline compiles the `auth` module and produces the artifact:
 
 ``` { .tree .copy .select }
 api/
-    account/
+    auth/
         Jenkinsfile
 ```
-??? info "Source"
 
-    === "Jenkinsfile"
+!!! info "Source"
 
-        ``` { .groovy .copy .select linenums="1" }
-        --8<-- "https://raw.githubusercontent.com/hsandmann/insper.store.account/refs/heads/main/Jenkinsfile"
-        ```
+    ``` { .groovy .copy .select linenums="1" title="Jenkinsfile" }
+    --8<-- "docs/hands-on/4/jenkins/setup/Jenkinsfile.auth"
+    ```
 
-The `Jenkinsfile` defines the stages of our pipeline, including building the application, running tests, and deploying the application - **Pipeline as Code**. Each stage can be customized to fit the needs of your project.
-The pipeline can be triggered manually or automatically based on events such as code commits or pull requests. This allows for continuous integration and continuous delivery (CI/CD) of our application.
+The single `Build` stage runs `mvn -B -DskipTests clean install`. The `-B` flag enables *batch mode* (no interactive prompts), which is required in non-interactive CI environments.
+
+### `auth-service` — Build, package, and push
+
+A complete pipeline that builds the service, creates a multi-platform Docker image, and pushes it to Docker Hub:
+
+``` { .tree .copy .select }
+api/
+    auth-service/
+        Jenkinsfile
+```
+
+!!! info "Source"
+
+    ``` { .groovy .copy .select linenums="1" title="Jenkinsfile" }
+    --8<-- "docs/hands-on/4/jenkins/setup/Jenkinsfile.auth-service"
+    ```
+
+#### Walkthrough
+
+**`environment` block**
+
+```groovy
+environment {
+    SERVICE = 'auth'
+    NAME    = "humbertosandmann/${env.SERVICE}"
+}
+```
+
+Declares two pipeline-wide variables. `NAME` is the fully-qualified Docker Hub repository. Referencing `env.SERVICE` inside `NAME` avoids duplicating the service name.
 
 ---
 
-eg.: Pipeline for account-service:
+**`Dependencies` stage**
 
-``` { .tree .copy .select }
-api/
-    account-service/
-        Jenkinsfile
+```groovy
+stage('Dependencies') {
+    steps {
+        build job: 'account', wait: true
+        build job: 'auth',    wait: true
+    }
+}
 ```
 
-``` { .groovy .copy .select title="Jenkinsfile" }
---8<-- "https://raw.githubusercontent.com/hsandmann/insper.store.account-service/refs/heads/main/Jenkinsfile"
+Triggers upstream Jenkins jobs before proceeding. `wait: true` blocks until each job completes successfully, guaranteeing that dependency artifacts are up to date before the current service is built.
+
+---
+
+**`Build` stage**
+
+```groovy
+sh 'mvn -B -DskipTests clean package'
 ```
 
-The pipeline is defined in a declarative syntax, which makes it easy to read and understand. Each stage can contain multiple steps, which are the individual tasks that need to be performed:
+Compiles the project and produces the runnable JAR. Tests are intentionally skipped here — add a separate `Test` stage with `mvn test` if you want the pipeline to enforce test results.
 
-1. The `environment` block defines environment variables that can be used throughout the pipeline. In this case, we define the `SERVICE` and `NAME` variables, which are used in the `Build & Push Image` stage.
+---
 
-1. The `Build & Push Image` stage uses the `withCredentials` block to securely access Docker Hub credentials stored in Jenkins. The `docker login` command authenticates with Docker Hub, and the `docker buildx build` command builds and pushes the Docker image to the specified tags.
-The `docker buildx` command is used to build multi-platform images, allowing us to create images that can run on different architectures (e.g., ARM and AMD64). The `--platform` flag specifies the target platforms, and the `--push` flag pushes the built image to Docker Hub.
+**`Build & Push Image` stage**
 
-1. The `docker buildx create` command creates a new buildx builder instance, which is used to build multi-platform images. The `--use` flag sets this builder as the default for the current shell session. The `--node` flag specifies the name of the builder node, which is used to identify the builder instance.
+```groovy
+withCredentials([usernamePassword(
+    credentialsId: 'dockerhub-credential',
+    usernameVariable: 'USERNAME',
+    passwordVariable: 'TOKEN')]) {
 
-1. The `docker buildx rm` command removes the builder instance after the build is complete, freeing up resources.
+    sh "docker login -u $USERNAME -p $TOKEN"
+    sh "docker buildx create --use \
+          --platform=linux/arm64,linux/amd64 \
+          --node multi-platform-builder-${env.SERVICE} \
+          --name multi-platform-builder-${env.SERVICE}"
+    sh "docker buildx build \
+          --platform=linux/arm64,linux/amd64 \
+          --push \
+          --tag ${env.NAME}:latest \
+          --tag ${env.NAME}:${env.BUILD_ID} \
+          -f Dockerfile ."
+    sh "docker buildx rm --force multi-platform-builder-${env.SERVICE}"
+}
+```
 
-The pipeline can be triggered manually or automatically based on events such as code commits or pull requests. This allows for continuous integration and continuous delivery (CI/CD) of our application.
+- **`withCredentials`** — injects the Docker Hub token stored in step 3 into the build environment. The values are masked in all Jenkins logs[^5].
+- **`docker buildx`** — creates a *BuildKit* builder that cross-compiles images for both `linux/arm64` (Apple Silicon, AWS Graviton) and `linux/amd64` (standard x86-64)[^8].
+- **Dual tags** — `:latest` provides a stable reference; `:<BUILD_ID>` pins a specific Jenkins build so any image can be traced back to its source commit.
+- The builder instance is removed after the push to free up system resources.
 
-For setting up the credentials, you can use the Jenkins UI to create a new credential of type "Username with password". The `credentialsId` used in the pipeline should match the ID of the credential you created.
+---
 
-<!-- ![Jenkins Credentials](../assets/images/jenkins.crenditials.png){width=100%} -->
+[^1]: HUMBLE, J.; FARLEY, D. *Continuous Delivery: Reliable Software Releases through Build, Test, and Deployment Automation*. Addison-Wesley, 2010.
 
-![Jenkins Credentials](./jenkins.crenditials.add.png){width=100%}
+[^2]: [Jenkins — Pipeline overview](https://www.jenkins.io/doc/book/pipeline/){:target="_blank"}. Jenkins documentation.
 
-Also, Jenkins could deploy the application to a Docker Compose environment. This can be done by adding a new stage to the pipeline that uses the `docker compose` command to deploy the application.
+[^3]: MERKEL, D. Docker: Lightweight Linux containers for consistent development and deployment. *Linux Journal*, 2014. See also [Docker socket documentation](https://docs.docker.com/engine/reference/commandline/dockerd/#daemon-socket-option){:target="_blank"}.
 
+[^4]: [Jenkins — Initial setup](https://www.jenkins.io/doc/book/installing/docker/#setup-wizard){:target="_blank"}. Jenkins documentation.
 
+[^5]: [Jenkins — Using credentials](https://www.jenkins.io/doc/book/using/using-credentials/){:target="_blank"}. Jenkins documentation.
 
-[^1]: [Jenkins](https://www.jenkins.io/doc/book/using/){target="_blank"} - Jenkins documentation.
+[^6]: [Docker Hub — Access tokens](https://docs.docker.com/docker-hub/access-tokens/){:target="_blank"}. Docker documentation.
+
+[^7]: [Jenkins — Pipeline as Code](https://www.jenkins.io/doc/book/pipeline/pipeline-as-code/){:target="_blank"}. Jenkins documentation.
+
+[^8]: [Docker Buildx — Multi-platform images](https://docs.docker.com/build/building/multi-platform/){:target="_blank"}. Docker documentation.

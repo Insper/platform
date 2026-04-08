@@ -1,4 +1,3 @@
-# docker compose up -d --build --force-recreate
 name: ops
 
 services:
@@ -7,11 +6,11 @@ services:
     container_name: jenkins
     build:
       dockerfile_inline: |
-        FROM jenkins/jenkins:jdk21
+        FROM jenkins/jenkins:jdk25
         USER root
 
-        # Install tools
-        RUN apt-get update && apt-get install -y lsb-release iputils-ping maven
+        # Install Tools
+        RUN apt-get update && apt-get install -y lsb-release net-tools iputils-ping maven curl
 
         # Install Docker
         RUN curl -fsSLo /usr/share/keyrings/docker-archive-keyring.asc \
@@ -23,12 +22,9 @@ services:
         RUN apt-get update && apt-get install -y docker-ce
 
         # Install kubectl
-        RUN apt-get install -y apt-transport-https ca-certificates curl && \
-            curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.30/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg && \
-            chmod 644 /etc/apt/keyrings/kubernetes-apt-keyring.gpg && \
-            echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.30/deb/ /' | tee /etc/apt/sources.list.d/kubernetes.list && \
-            chmod 644 /etc/apt/sources.list.d/kubernetes.list && \
-            apt-get update && apt-get install -y kubectl
+        RUN curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/$(dpkg --print-architecture)/kubectl" \
+            && chmod +x kubectl \
+            && mv kubectl /usr/local/bin/kubectl
 
         # Install AWS CLI
         RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-$(arch).zip" -o "awscliv2.zip" && \
