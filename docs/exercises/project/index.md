@@ -26,6 +26,12 @@ Ao final, o projeto principal deve incorporar no GitHub as implementações indi
 | PaaS & Costs & SLA | Cost Analysis | 10% |
 | MKDocs | Documentation (use IA) | 10% |
 
-!!! danger "Entrega"
+!!! warn "Entrega"
 
-    - Trabalho em grupo deve ser documentado no GitHub. Um template está disponível para auxiliar na documentação: [template de entrega](https://hsandmann.github.io/documentation.template/){target="_blank"}.
+    - Trabalho em grupo deve ser documentado no GitHub. Um template está disponível para auxiliar na documentação: [template de entrega](https://hsandmann.github.io/documentation.template/){target="_blank"}. Pode utilizar IA para auxiliar na documentação, mas revise o conteúdo gerado para garantir que esteja correto e completo.
+
+!!! danger "Uso de IA para implementação"
+
+    O uso de IA para implementação do projeto é permitido parcialmente. O projeto deve ser implementado pelos membros do grupo, utilizando os conhecimentos adquiridos durante o curso. O uso de IA para implementação deve ser limitado a tarefas específicas, como geração de código *boilerplate*, sugestões de melhorias e correção de erros. O uso de IA para implementação deve ser documentado na entrega do projeto, incluindo quais partes do projeto foram implementadas com o auxílio de IA e quais partes foram implementadas pelos membros do grupo.
+
+    Todos os membros do grupo devem estar envolvidos na implementação do projeto, mesmo que o uso de IA seja permitido. O projeto deve ser um esforço colaborativo, onde cada membro do grupo contribui para a implementação do projeto e tem conhecimento sobre todas as partes do projeto. Assim, todos os membros **DEVEM** ser capazes de explicar e defender o projeto, incluindo as partes implementadas com o auxílio de IA.
