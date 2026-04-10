@@ -36,6 +36,7 @@ flowchart LR
 | **Action** | A reusable unit of automation published on the GitHub Marketplace (e.g., `actions/checkout`). |
 | **Runner** | The virtual machine that executes the job (`ubuntu-latest`, `windows-latest`, `macos-latest`). |
 
+
 ---
 
 ### Example — CI pipeline for a Spring Boot microservice
@@ -132,4 +133,5 @@ Both tools implement the same CI/CD concepts, but with different trade-offs:
 | **Marketplace** | 20,000+ pre-built actions | Extensive plugin ecosystem |
 | **Cost** | Free for public repos; minutes-based for private | Free and open source; you pay for infrastructure |
 | **Self-hosted runners** | Supported | Native — Jenkins IS the server |
-| **Best for** | New projects, open source, GitHub-centric teams | Enterprise environments, complex pipelines, on-premise |
+| **Best for** | New projects, open source, GitHub-centric teams | Enterprise environments, complex pipelines |
+
