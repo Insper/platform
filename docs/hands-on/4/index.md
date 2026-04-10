@@ -24,13 +24,13 @@ flowchart LR
 
 Running Jenkins inside Docker keeps the host machine clean and makes the environment reproducible across machines.
 
-``` { .tree .copy .select }
-api/
-jenkins/
-    compose.yaml
-```
-
 !!! info "Source"
+
+    ``` { .tree .copy .select }
+    api/
+    jenkins/
+        compose.yaml
+    ```
 
     ``` { .yaml .copy .select linenums="1" title="compose.yaml" }
     --8<-- "docs/hands-on/4/jenkins/code/compose.yaml"
@@ -148,7 +148,26 @@ The examples below use the **declarative** syntax.
 
 ## 5. Examples
 
-### Creating a Job
+### `auth` — Build only
+
+The first pipeline compiles the `auth` module and produces the artifact:
+
+
+!!! info "Source"
+
+    ``` { .tree .copy .select }
+    api/
+        auth/
+            Jenkinsfile
+    ```
+
+    ``` { .groovy .copy .select linenums="1" title="Jenkinsfile" }
+    --8<-- "docs/hands-on/4/jenkins/code/Jenkinsfile.auth"
+    ```
+
+The single `Build` stage runs `mvn -B -DskipTests clean install`. The `-B` flag enables *batch mode* (no interactive prompts), which is required in non-interactive CI environments.
+
+**Creating a Job**
 
 === "New item"
 
@@ -160,37 +179,19 @@ The examples below use the **declarative** syntax.
 
 Create a **New Item**, choose the **Pipeline** type, and set the *Definition* to **Pipeline script from SCM**. Jenkins will clone the repository and read the `Jenkinsfile` on every build.
 
-![Pipeline job overview](./jenkins/images/jenkins.pipeline.png){width=100%}
-
-### `auth` — Build only
-
-The first pipeline compiles the `auth` module and produces the artifact:
-
-``` { .tree .copy .select }
-api/
-    auth/
-        Jenkinsfile
-```
-
-!!! info "Source"
-
-    ``` { .groovy .copy .select linenums="1" title="Jenkinsfile" }
-    --8<-- "docs/hands-on/4/jenkins/code/Jenkinsfile.auth"
-    ```
-
-The single `Build` stage runs `mvn -B -DskipTests clean install`. The `-B` flag enables *batch mode* (no interactive prompts), which is required in non-interactive CI environments.
-
 ### `auth-service` — Build, package, and push
+
+![Pipeline job overview](./jenkins/images/jenkins.pipeline.png){width=100%}
 
 A complete pipeline that builds the service, creates a multi-platform Docker image, and pushes it to Docker Hub:
 
-``` { .tree .copy .select }
-api/
-    auth-service/
-        Jenkinsfile
-```
-
 !!! info "Source"
+
+    ``` { .tree .copy .select }
+    api/
+        auth-service/
+            Jenkinsfile
+    ```
 
     ``` { .groovy .copy .select linenums="1" title="Jenkinsfile" }
     --8<-- "docs/hands-on/4/jenkins/code/Jenkinsfile.auth-service"
