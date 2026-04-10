@@ -26,7 +26,7 @@ Ao final, o projeto principal deve incorporar no GitHub as implementações indi
 | PaaS & Costs & SLA | Cost Analysis | 10% |
 | MKDocs | Documentation (use IA) | 10% |
 
-!!! warn "Entrega"
+!!! warning "Entrega"
 
     - Trabalho em grupo deve ser documentado no GitHub. Um template está disponível para auxiliar na documentação: [template de entrega](https://hsandmann.github.io/documentation.template/){target="_blank"}. Pode utilizar IA para auxiliar na documentação, mas revise o conteúdo gerado para garantir que esteja correto e completo.
 
