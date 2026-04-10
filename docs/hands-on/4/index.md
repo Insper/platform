@@ -265,7 +265,7 @@ withCredentials([usernamePassword(
 - **Dual tags** — `:latest` provides a stable reference; `:<BUILD_ID>` pins a specific Jenkins build so any image can be traced back to its source commit.
 - The builder instance is removed after the push to free up system resources.
 
----
+
 
 [^1]: HUMBLE, J.; FARLEY, D. *Continuous Delivery: Reliable Software Releases through Build, Test, and Deployment Automation*. Addison-Wesley, 2010.
 
