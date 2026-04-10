@@ -1,4 +1,4 @@
-Kubernetes should be installed and running on your local machine. You can use Minikube or Kind for this purpose. If you are using Docker Desktop, make sure Kubernetes is enabled in the settings.
+Kubernetes must be installed and running on your local machine. You can use Minikube or Kind for this purpose. If you are using Docker Desktop, make sure Kubernetes is enabled in the settings.
 
 !!! warning "TO DO"
 
@@ -26,7 +26,7 @@ Kubernetes should be installed and running on your local machine. You can use Mi
     - `product-service`, and;
     - `order-service`.
 
-    **Execute** the all services in the same cluster, and make sure they are running. You can use the following command to check if the services are running. You can user local kubernetes or a cloud provider, such as AWS, Azure, or Google Cloud Platform. **Evidence** the services are running in the same cluster using a video.
+    **Run** all services in the same cluster and verify they are healthy. You may use a local Kubernetes setup or a cloud provider such as AWS, Azure, or Google Cloud Platform. **Demonstrate** that all services are running in the same cluster by recording a short video.
 
 ---
 

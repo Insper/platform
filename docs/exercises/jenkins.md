@@ -1,4 +1,4 @@
-Now, it is time to create a pipeline to deploy the application to a cloud provider. You can use any cloud provider you prefer, such as AWS, Azure, or Google Cloud Platform. The pipeline should include the following steps:
+With the application containerized, the next step is to set up a CI/CD pipeline to automate deployments to a cloud provider. You may use any provider of your choice — AWS, Azure, or Google Cloud Platform. The pipeline should include the following stages:
 
 1. SCM
 1. Dependencies
@@ -8,7 +8,7 @@ Now, it is time to create a pipeline to deploy the application to a cloud provid
 
 !!! warning "TO DO"
 
-    All microservices should be deployed in the same cluster, to do this, it is mandatory to user Jenkinsfile in each microservice. The pipeline should be created in the root of the project, and it should include all microservices:
+    All microservices must be deployed to the same cluster. Each microservice is required to have its own `Jenkinsfile`. The pipeline should be defined at the root of the project and must cover all microservices:
     
     - `account-service`;
     - `auth-service`;

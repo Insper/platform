@@ -1,5 +1,5 @@
 
-Now, the user wants to create an API that allows the user to convert between currencies. The API should use a third-party API to get the exchange rates. Note, this microservice ==HAVE TO== be code in Python.
+The next step is to create an API that allows users to convert between currencies. The API must use a third-party service to fetch exchange rates. Note that this microservice **must** be implemented in Python.
 
 ``` mermaid
 flowchart LR
@@ -31,11 +31,11 @@ flowchart LR
     **To consume the API, the user must be authenticated.**
 
 
-Using FastAPI[^1] (or other framework) on Python :material-information-outline:{ title="Python is mandatory!" }, create a REST API that allows the user to convert between currencies. The API should have the following endpoints:
+Using FastAPI[^1] (or another framework) on Python :material-information-outline:{ title="Python is mandatory!" }, create a REST API that allows users to convert between currencies. The API should expose the following endpoint:
 
 !!! info "GET /exchange/{from}/{to}"
 
-    Get the current of a coin from one currency to another. E.g. `GET /coin/USD/EUR`.
+    Get the current exchange rate from one currency to another. E.g. `GET /exchange/USD/EUR`.
 
     === "Response"
 
@@ -51,7 +51,7 @@ Using FastAPI[^1] (or other framework) on Python :material-information-outline:{
         Response code: 200 (ok)
         ```
 
-The API should use a third-party API to get the exchange rates. You can use the free tier of the API, e.g.:
+The API should rely on a third-party service to fetch exchange rates. You can use the free tier of any of the following, e.g.:
 
 - [AwesomeAPI](https://github.com/awesomeapibrasil/economy-api){target="_blank"};
 - [ExchangeRate-API](https://www.exchangerate-api.com/){target="_blank"};

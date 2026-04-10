@@ -140,29 +140,36 @@ nav:
   - Hands-on:
     - 0. Prerequisites: hands-on/0/index.md
     - 1. CRUD:
-      - a. Introduction: hands-on/1/index.md
+      - a. Overview: hands-on/1/index.md
       - b. Controller: hands-on/1/controller/index.md
       - c. Service: hands-on/1/service/index.md
       - d. Containerization: hands-on/1/containerization/index.md
       - e. Repository: hands-on/1/repository/index.md
     - 2. Gateway: hands-on/2/index.md
     - 3. Security: 
-      - a. Introduction: hands-on/3/index.md
+      - a. Overview: hands-on/3/index.md
       - b. JWT: hands-on/3/jwt/index.md
       - c. Open Routes: hands-on/3/open-routes/index.md
       - d. Authorization: hands-on/3/authorization/index.md
     - 4. DevOps: hands-on/4/index.md
   #   - 5. Orchestration: hands-on/5/index.md
 
-  # - Exercises:
-  #   - Individual:
-  #     - 1. Product API: exercises/product.md
-  #     - 2. Order API: exercises/order.md
-  #     - 3. Exchange API: exercises/exchange.md
-  #     - 4. Jenkins: exercises/jenkins.md
-  #     - 5. MiniKube: exercises/minikube.md
-  #     - Bottlenecks: exercises/bottlenecks/bottlenecks.md
-  #   - Project: exercises/project/project.md
+  - Exercises:
+    - Project:
+      - Overview: exercises/project/index.md
+      - AWS: exercises/project/aws.md
+      - EKS: exercises/project/eks.md
+      - CI/CD: exercises/project/cicd.md
+      - Load Testing: exercises/project/load-testing.md
+      - Costs & PaaS: exercises/project/costs.md
+      - Presentation: exercises/project/presentation.md
+    - Individual:
+      - Product API: exercises/product.md
+      - Order API: exercises/order.md
+      - Exchange API: exercises/exchange.md
+      - Jenkins: exercises/jenkins.md
+      - MiniKube: exercises/minikube.md
+      - Bottlenecks: exercises/bottlenecks/bottlenecks.md
     
   - Versions:
     - Terms and Conditions: versions/terms-and-conditions.md

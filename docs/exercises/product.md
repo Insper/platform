@@ -1,5 +1,5 @@
 
-Create a RESTful API for a store. The API should have two main resources: `product` and `order`.
+Build a RESTful API for an online store. The API is organized around two core resources: `product` and `order`.
 
 
 ``` mermaid
@@ -33,7 +33,7 @@ flowchart LR
 
 ## Product API
 
-The API should have the following endpoints:
+The Product API must expose the following endpoints:
 
 !!! info "POST /product"
 
