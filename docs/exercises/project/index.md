@@ -10,6 +10,10 @@ Para isso é esperado que cada membro do grupo implemente ao menos um microservi
 
 Ao final, o projeto principal deve incorporar no GitHub as implementações individuais, como submodules. O projeto inteiro deve ser integrado e estar funcional, ou seja, os microserviços devem estar comunicando entre si e a aplicação deve estar disponível para acesso.
 
+```python exec="1" html="1"
+--8<-- "docs/exercises/project/grade.py"
+```
+
 | Tasks | Description | Weight |
 |-|-|-:|
 | Gateway | API Gateway | 5% |
