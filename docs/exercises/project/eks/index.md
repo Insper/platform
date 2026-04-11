@@ -3,7 +3,7 @@
 
 O Amazon Elastic Kubernetes Service (EKS) é um serviço gerenciado que facilita a execução do Kubernetes na AWS sem a necessidade de instalar e operar seu próprio plano de controle ou nós de trabalho do Kubernetes. O EKS cuida da alta disponibilidade e escalabilidade do plano de controle do Kubernetes, permitindo que você se concentre em implantar e gerenciar seus aplicativos.
 
-[EKS](https://docs.aws.amazon.com/eks/latest/userguide/getting-started.html){target="_blank"}
+[EKS](https://docs.aws.amazon.com/latest/userguide/getting-started.html){target="_blank"}
 
 !!! danger "Custo de Uso"
 
@@ -26,9 +26,9 @@ O Amazon Elastic Kubernetes Service (EKS) é um serviço gerenciado que facilita
     
     === "1. Create EKS Role"
 
-        ![](eks/role/01.png){ width=100% }
-        ![](eks/role/02.png){ width=100% }
-        ![](eks/role/03.png){ width=100% }
+        ![](role/01.png){ width=100% }
+        ![](role/02.png){ width=100% }
+        ![](role/03.png){ width=100% }
 
     === "2. Create a VPC"
 
@@ -77,16 +77,16 @@ O Amazon Elastic Kubernetes Service (EKS) é um serviço gerenciado que facilita
 
         To create the VPC, use the AWS CloudFormation with the template file: [amazon-eks-vpc-private-subnets.yaml](../../assets/templates/amazon-eks-vpc-private-subnets.yaml) (download it and upload it as a CloudFormation template).
 
-        ![](eks/vpc/01.png){ width=100% }
-        ![](eks/vpc/02.png){ width=100% }
-        ![](eks/vpc/03.png){ width=100% }
+        ![](vpc/01.png){ width=100% }
+        ![](vpc/02.png){ width=100% }
+        ![](vpc/03.png){ width=100% }
 
 
     === "3. Create EKS Cluster"
 
-        ![](eks/cluster/01.png){ width=100% }
-        ![](eks/cluster/02.png){ width=100% }
-        ![](eks/cluster/03.png){ width=100% }
+        ![](cluster/01.png){ width=100% }
+        ![](cluster/02.png){ width=100% }
+        ![](cluster/03.png){ width=100% }
 
         !!! warning "Pay Attention"
     
@@ -96,7 +96,7 @@ O Amazon Elastic Kubernetes Service (EKS) é um serviço gerenciado que facilita
 
     === "4. Create a Role for the Node Group"
 
-        ![](eks/nodegroup-role/01.png){ width=100% }
+        ![](nodegroup-role/01.png){ width=100% }
 
         ---
 
@@ -108,22 +108,22 @@ O Amazon Elastic Kubernetes Service (EKS) é um serviço gerenciado que facilita
 
         ---
 
-        ![](eks/nodegroup-role/02.png){ width=100% }
-        ![](eks/nodegroup-role/03.png){ width=100% }
+        ![](nodegroup-role/02.png){ width=100% }
+        ![](nodegroup-role/03.png){ width=100% }
 
 
     === "5. Define the Node Group"
 
-        ![](eks/nodegroup/01.png){ width=100% }
-        ![](eks/nodegroup/02.png){ width=100% }
+        ![](nodegroup/01.png){ width=100% }
+        ![](nodegroup/02.png){ width=100% }
 
         **Define the Configuration of machine type**
 
-        ![](eks/nodegroup/03.png){ width=100% }
+        ![](nodegroup/03.png){ width=100% }
 
         Only private subnets:
 
-        ![](eks/nodegroup/04.png){ width=100% }
+        ![](nodegroup/04.png){ width=100% }
 
 
     === "6. Access the EKS Cluster"

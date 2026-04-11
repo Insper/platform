@@ -22,12 +22,12 @@ Ao final, o projeto principal deve incorporar no GitHub as implementações indi
 | Exchange | Currency Exchange | 5% |
 | Bottlenecks | Bottlenecks | 20% |
 | | | |
-| AWS | Cloud Setup | 5% |
-| EKS | Orchestration | 10% |
+| [AWS](aws/index.md) | Cloud Setup | 5% |
+| [EKS](eks/index.md) | Orchestration | 10% |
 | Jenkins or GitHub Actions | CI/CD | 10% |
-| Testes | Stress Testing | 15% |
+| [Load Testing](load-testing/index.md) | Stress Testing | 15% |
 | | | |
-| PaaS & Costs & SLA | Cost Analysis | 10% |
+| [PaaS & Costs & SLA](paas-costs-sla/index.md) | Cost Analysis | 10% |
 | MKDocs | Documentation (use IA) | 10% |
 
 !!! warning "Entrega"
