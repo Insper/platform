@@ -169,7 +169,7 @@ nav:
       - Exchange API: exercises/exchange.md
       - Jenkins: exercises/jenkins.md
       - MiniKube: exercises/minikube.md
-      - Bottlenecks: exercises/bottlenecks/bottlenecks.md
+      - Bottlenecks: exercises/bottlenecks/index.md
     
   - Versions:
     - Terms and Conditions: versions/terms-and-conditions.md
