@@ -157,18 +157,18 @@ nav:
   - Exercises:
     - Project:
       - Overview: exercises/project/index.md
-      - AWS: exercises/project/aws.md
-      - EKS: exercises/project/eks.md
-      - CI/CD: exercises/project/cicd.md
-      - Load Testing: exercises/project/load-testing.md
-      - Costs & PaaS: exercises/project/costs.md
-      - Presentation: exercises/project/presentation.md
+      - AWS: exercises/project/aws/index.md
+      - EKS: exercises/project/eks/index.md
+      - CI/CD: exercises/project/ci-cd/index.md
+      - Load Testing: exercises/project/load-testing/index.md
+      - Costs & PaaS: exercises/project/costs/index.md
+      - Presentation: exercises/project/presentation/index.md
     - Individual:
-      - Product API: exercises/product.md
-      - Order API: exercises/order.md
-      - Exchange API: exercises/exchange.md
-      - Jenkins: exercises/jenkins.md
-      - MiniKube: exercises/minikube.md
+      - Product API: exercises/product/index.md
+      - Order API: exercises/order/index.md
+      - Exchange API: exercises/exchange/index.md
+      - Jenkins: exercises/jenkins/index.md
+      - MiniKube: exercises/minikube/index.md
       - Bottlenecks: exercises/bottlenecks/index.md
     
   - Versions:

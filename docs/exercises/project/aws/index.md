@@ -12,9 +12,9 @@ A AWS é uma plataforma de computação em nuvem que oferece uma ampla gama de s
     
     === "1. Create User"
 
-        ![](aws/user/01.png){ width=100% }
-        ![](aws/user/02.png){ width=100% }
-        ![](aws/user/03.png){ width=100% }
+        ![](user/01.png){ width=100% }
+        ![](user/02.png){ width=100% }
+        ![](user/03.png){ width=100% }
 
     === "2. Loggin at AWS Dashboard"
 
@@ -22,9 +22,9 @@ A AWS é uma plataforma de computação em nuvem que oferece uma ampla gama de s
 
     === "3. Create Access Key"
 
-        ![](aws/credential/01.png){ width=100% }
-        ![](aws/credential/02.png){ width=100% }
-        ![](aws/credential/03.png){ width=100% }
+        ![](credential/01.png){ width=100% }
+        ![](credential/02.png){ width=100% }
+        ![](credential/03.png){ width=100% }
 
     === "4. Configure AWS CLI"
 
