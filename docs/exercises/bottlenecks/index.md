@@ -1,11 +1,19 @@
 
 To deliver a high-performance application, you need to identify and address potential bottlenecks in your system. This document outlines some common bottlenecks and how to mitigate them.
 
-
+| Bottleneck | Description | Mitigation |
+| --- | --- | --- |
+| Caching | Storing frequently accessed data in memory to reduce database load. | Use in-memory databases like Redis or Memcached. |
+| Observability | Monitoring the internal state of the system to identify performance issues. | Use tools like Prometheus and Grafana for monitoring. |
+| Messaging | Decoupling components to handle asynchronous tasks. | Use message queues like RabbitMQ or Apache Kafka. |
+| Load Balancing | Distributing incoming traffic across multiple servers to prevent overload. | Use load balancers like Nginx or HAProxy. |
+| Vulnerability Scanning | Identifying and addressing security vulnerabilities in the application. | Use tools like SonarQube, OWASP ZAP, or Snyk for vulnerability scanning. |
+| Payment Processing | Handling payment transactions efficiently and securely. | Use third-party payment gateways like Stripe or PayPal, and ensure proper integration and error handling. |
+| Authentication & Authorization | Managing user permissions and access control efficiently. | Implement role-based access control (RBAC). Or, use OAuth2 for token-based authentication. |
 
 ## Caching
 
-In-memory databases are a great way to improve the performance of your application. They can be used to store frequently accessed data, reducing the need to query the database for every request. Exemples of in-memory databases include Redis and Memcached.
+In-memory databases are a great way to improve the performance of your application. They can be used to store frequently accessed data, reducing the need to query the database for every request. Examples of in-memory databases include Redis and Memcached.
 
 <iframe width="100%" height="470" src="https://www.youtube.com/embed/YcI9b-lgi7w" allowfullscreen></iframe>
 
