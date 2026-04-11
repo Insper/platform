@@ -121,6 +121,10 @@ flowchart LR
 
         All monetary values are stored in the database in **US Dollars (USD)**. When a `currency` parameter is provided, the service must call the Exchange API to convert the totals before returning the response.
 
+        !!! tip "Openfeign"
+
+        If you're using Spring Boot, you can leverage [OpenFeign](https://spring.io/projects/spring-cloud-openfeign){target="_blank"} to create a declarative REST client for the Exchange API. This allows you to easily integrate the currency conversion logic into your Order API without manually handling HTTP requests and responses.
+
     === "Response (USD, default)"
 
         ``` { .json .copy .select linenums='1' }
