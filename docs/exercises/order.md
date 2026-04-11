@@ -33,7 +33,7 @@ flowchart LR
 
 ## Order API
 
-!!! info "POST /order"
+!!! info "POST /orders"
 
     Create a new order **for the current user**.
 
@@ -86,7 +86,7 @@ flowchart LR
         Response code: 400 (bad request), if the product does not exist.
         ```
 
-!!! info "GET /order"
+!!! info "GET /orders"
 
     Get all orders **for the current user**.
 
@@ -111,7 +111,7 @@ flowchart LR
         Response code: 200 (ok)
         ```
 
-!!! info "GET /order/{id}"
+!!! info "GET /orders/{id}"
 
     Get the order details by its ID. **The order must belong to the current user.**, otherwise, return a `404`.
 

@@ -35,7 +35,7 @@ flowchart LR
 
 The Product API must expose the following endpoints:
 
-!!! info "POST /product"
+!!! info "POST /products"
 
     Create a new product.
 
@@ -63,7 +63,7 @@ The Product API must expose the following endpoints:
         Response code: 201 (created)
         ```
 
-!!! info "GET /product"
+!!! info "GET /products"
 
     Get all products.
 
@@ -89,7 +89,7 @@ The Product API must expose the following endpoints:
         Response code: 200 (ok)
         ```
 
-!!! info "GET /product/{id}"
+!!! info "GET /products/{id}"
 
     Get a product by its ID.
 
@@ -107,7 +107,7 @@ The Product API must expose the following endpoints:
         Response code: 200 (ok)
         ```
 
-!!! info "DELETE /product/{id}"
+!!! info "DELETE /products/{id}"
 
     Delete a product by its ID.
 
