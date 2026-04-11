@@ -33,7 +33,7 @@ flowchart LR
 
 Using FastAPI[^1] (or another framework) on Python :material-information-outline:{ title="Python is mandatory!" }, create a REST API that allows users to convert between currencies. The API should expose the following endpoint:
 
-!!! info "GET /exchange/{from}/{to}"
+!!! info "GET /exchanges/{from}/{to}"
 
     Get the current exchange rate from one currency to another. E.g. `GET /exchange/USD/EUR`.
 
