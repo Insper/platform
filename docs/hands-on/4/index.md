@@ -148,21 +148,21 @@ The examples below use the **declarative** syntax.
 
 ## 5. Examples
 
-### `auth` — Build only
+### `account` — Build only
 
-The first pipeline compiles the `auth` module and produces the artifact:
+The first pipeline compiles the `account` module and produces the artifact:
 
 
 !!! info "Source"
 
     ``` { .tree .copy .select }
     api/
-        auth/
+        account/
             Jenkinsfile
     ```
 
     ``` { .groovy .copy .select linenums="1" title="Jenkinsfile" }
-    --8<-- "docs/hands-on/4/jenkins/code/Jenkinsfile.auth"
+    --8<-- "docs/hands-on/4/jenkins/code/Jenkinsfile.account"
     ```
 
 The single `Build` stage runs `mvn -B -DskipTests clean install`. The `-B` flag enables *batch mode* (no interactive prompts), which is required in non-interactive CI environments.
@@ -175,11 +175,11 @@ The single `Build` stage runs `mvn -B -DskipTests clean install`. The `-B` flag 
 
 === "Configure pipeline"
 
-    ![](./jenkins/images/jenkins.configure.auth.png)
+    ![](./jenkins/images/jenkins.configure.account.png)
 
 Create a **New Item**, choose the **Pipeline** type, and set the *Definition* to **Pipeline script from SCM**. Jenkins will clone the repository and read the `Jenkinsfile` on every build.
 
-### `auth-service` — Build, package, and push
+### `account-service` — Build, package, and push
 
 ![Pipeline job overview](./jenkins/images/jenkins.pipeline.png){width=100%}
 
@@ -189,12 +189,12 @@ A complete pipeline that builds the service, creates a multi-platform Docker ima
 
     ``` { .tree .copy .select }
     api/
-        auth-service/
+        account-service/
             Jenkinsfile
     ```
 
     ``` { .groovy .copy .select linenums="1" title="Jenkinsfile" }
-    --8<-- "docs/hands-on/4/jenkins/code/Jenkinsfile.auth-service"
+    --8<-- "docs/hands-on/4/jenkins/code/Jenkinsfile.account-service"
     ```
 
 #### Walkthrough
@@ -203,7 +203,7 @@ A complete pipeline that builds the service, creates a multi-platform Docker ima
 
 ```groovy
 environment {
-    SERVICE = 'auth'
+    SERVICE = 'account'
     NAME    = "humbertosandmann/${env.SERVICE}"
 }
 ```
@@ -218,7 +218,6 @@ Declares two pipeline-wide variables. `NAME` is the fully-qualified Docker Hub r
 stage('Dependencies') {
     steps {
         build job: 'account', wait: true
-        build job: 'auth',    wait: true
     }
 }
 ```
