@@ -131,7 +131,7 @@ flowchart TD
     === "secrets.yaml"
 
         ``` { .yaml .copy .select linenums="1" }
-        --8<-- "https://raw.githubusercontent.com/Insper/platform/refs/heads/main/docs/checkpoints/5/k8s/secrets.yaml"
+        --8<-- "docs/hands-on/5/k8s/secrets.yaml"
         ```
 
         ```{ .bash .copy .select }
@@ -142,7 +142,7 @@ flowchart TD
     === "configmap.yaml"
 
         ``` { .yaml .copy .select linenums="1" }
-        --8<-- "https://raw.githubusercontent.com/Insper/platform/refs/heads/main/docs/checkpoints/5/k8s/configmap.yaml"
+        --8<-- "docs/hands-on/5/k8s/configmap.yaml"
         ```
 
         ```{ .bash .copy .select }
@@ -153,7 +153,7 @@ flowchart TD
     === "deployment.yaml"
 
         ``` { .yaml .copy .select linenums="1" }
-        --8<-- "https://raw.githubusercontent.com/Insper/platform/refs/heads/main/docs/checkpoints/5/k8s/deployment.yaml"
+        --8<-- "docs/hands-on/5/k8s/deployment.yaml"
         ```
 
         ```{ .bash .copy .select }
@@ -165,7 +165,7 @@ flowchart TD
     === "service.yaml"
 
         ``` { .yaml .copy .select linenums="1" }
-        --8<-- "https://raw.githubusercontent.com/Insper/platform/refs/heads/main/docs/checkpoints/5/k8s/service.yaml"
+        --8<-- "docs/hands-on/5/k8s/service.yaml"
         ```
 
         ```{ .bash .copy .select }
@@ -184,7 +184,7 @@ flowchart TD
     === "k8s.yaml"
 
         ``` { .yaml .copy .select linenums="1" }
-        --8<-- "https://raw.githubusercontent.com/hsandmann/insper.store.gateway-service/refs/heads/main/k8s/k8s.yaml"
+        --8<-- "docs/hands-on/5/k8s/k8s.yaml"
         ```
 
         ```{ .bash .copy .select }
