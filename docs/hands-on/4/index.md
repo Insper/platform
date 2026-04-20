@@ -1,6 +1,9 @@
 
 [DevOps](https://en.wikipedia.org/wiki/DevOps){:target="_blank"} practices aim to shorten the software development lifecycle by automating the build, test, and deployment stages. Two key practices underpin this automation[^1]:
 
+![](./images/cicd.png)
+<small>CI/CD overview. Source: [ByteByteGo - A Crash Course in CI/CD](https://blog.bytebytego.com/p/a-crash-course-in-cicd){:target="_blank"}</small>
+
 - **Continuous Integration (CI)** — developers merge changes frequently; each merge triggers an automated build and test cycle.
 - **Continuous Delivery (CD)** — every change that passes CI is automatically packaged and made ready to deploy to any environment.
 
