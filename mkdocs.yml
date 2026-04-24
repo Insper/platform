@@ -153,7 +153,13 @@ nav:
       - d. Authorization: hands-on/3/authorization/index.md
     - 4. DevOps: hands-on/4/index.md
     - 5. Orchestration: hands-on/5/index.md
-    - 6. Observability: hands-on/6/index.md
+    - 6. Observability:
+      - a. Overview: hands-on/6/index.md
+      - b. Microservices: hands-on/6/microservices/index.md
+      - c. Docker Compose: hands-on/6/docker/index.md
+      - d. Prometheus: hands-on/6/prometheus/index.md
+      - e. Grafana: hands-on/6/grafana/index.md
+      - f. Run: hands-on/6/run/index.md
 
   - Exercises:
     - Project:
