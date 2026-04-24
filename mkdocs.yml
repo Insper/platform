@@ -153,6 +153,7 @@ nav:
       - d. Authorization: hands-on/3/authorization/index.md
     - 4. DevOps: hands-on/4/index.md
     - 5. Orchestration: hands-on/5/index.md
+    - 6. Observability: hands-on/6/index.md
 
   - Exercises:
     - Project:
