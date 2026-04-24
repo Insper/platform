@@ -131,22 +131,7 @@ Configure each service's `application.yaml` to expose the Prometheus endpoint un
 
 !!! info "Why different base paths?"
 
-    The gateway routes all traffic through a single external port (`:80`). Each microservice uses its own context prefix so the Prometheus endpoint becomes reachable as `/gateway/actuator/prometheus`, `/auth/actuator/prometheus`, and `/accounts/actuator/prometheus` — without port conflicts and without exposing internal ports directly.
-
-### 1.3 Open the actuator route in the Gateway
-
-The gateway-service requires **one extra step** that the other services do not. The `AuthorizationFilter` is a `GlobalFilter` that intercepts every request — including Prometheus scrapes hitting `gateway:8080` from within the Docker network. Since `/gateway/actuator/prometheus` is not in `RouterValidator`'s open routes list, Prometheus will receive a **401 Unauthorized** response.
-
-Add the actuator path to the open routes in `RouterValidator.java`:
-
-``` { .java .copy .select }
-private List<String> openApiEndpoints = List.of(
-    "POST /auth/register",
-    "GET /auth/logout",
-    "POST /auth/login",
-    "ANY /gateway/actuator/**"   // (1)!
-);
-```
+    The gateway routes all traffic through a single external port (`:80`). Each microservice uses its own context prefix so the Prometheus endpoint becomes reachable as `/gateway/actuator/prometheus`, `/auth/actuator/prometheus`, and `/accounts/actuator/prometheus` — without port conflicts and without exposing internal ports directly.`
 
 1. The `RouterValidator` already handles `/**` wildcards via the `deep` branch in the `noneMatch` predicate, so this single entry opens all actuator sub-paths.
 
@@ -156,7 +141,7 @@ private List<String> openApiEndpoints = List.of(
 
 Two new services — `prometheus` and `grafana` — must be added to `compose.yaml`. Both services share the same private Docker network as the microservices, so Prometheus can reach them by hostname.
 
-``` { .yaml .copy .select }
+``` { .yaml .copy .select .title="compose.yaml" linenums="1" }
   prometheus:
     image: prom/prometheus:latest
     hostname: prometheus
