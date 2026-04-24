@@ -141,7 +141,7 @@ Configure each service's `application.yaml` to expose the Prometheus endpoint un
 
 Two new services — `prometheus` and `grafana` — must be added to `compose.yaml`. Both services share the same private Docker network as the microservices, so Prometheus can reach them by hostname.
 
-``` { .yaml .copy .select .title="compose.yaml" linenums="1" }
+``` { .yaml .copy .select title="compose.yaml" linenums="1" }
   prometheus:
     image: prom/prometheus:latest
     hostname: prometheus
