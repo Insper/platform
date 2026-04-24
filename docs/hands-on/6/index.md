@@ -193,6 +193,44 @@ api/
 
 [Prometheus](https://prometheus.io){target="_blank"} works by **pulling** (`scraping`) metrics from each service endpoint at a configured interval and storing the time-series data locally.
 
+``` mermaid
+---
+title: Prometheus — Scrape Cycle
+---
+flowchart LR
+    config["prometheus.yml"]:::config -->|load on startup| scraper
+
+    subgraph prom [Prometheus :9090]
+        direction TB
+        scraper["Scraper\n(pull model)"]
+        tsdb[("Time-Series\nDatabase")]
+        queryapi["Query API\n(PromQL)"]
+        scraper -->|store| tsdb
+        tsdb --> queryapi
+    end
+
+    subgraph services [Microservices]
+        direction TB
+        gateway["gateway:8080\n/gateway/actuator/prometheus"]
+        auth["auth:8080\n/auth/actuator/prometheus"]
+        account["account:8080\n/accounts/actuator/prometheus"]
+    end
+
+    scraper e1@-.->|"HTTP GET every 1s"| gateway
+    scraper e2@-.->|"HTTP GET every 1s"| auth
+    scraper e3@-.->|"HTTP GET every 1s"| account
+
+    gateway -.->|"text/plain metrics"| scraper
+    auth -.->|"text/plain metrics"| scraper
+    account -.->|"text/plain metrics"| scraper
+
+    e1@{ animate: true }
+    e2@{ animate: true }
+    e3@{ animate: true }
+
+    classDef config fill:#fffbe6,stroke:#f0c040
+```
+
 Create the file `setup/prometheus/prometheus.yml`:
 
 ``` { .yaml .copy .select linenums="1" }
@@ -244,6 +282,38 @@ Once the stack is running, access the Prometheus UI to query metrics directly:
 ## 4. Grafana
 
 [Grafana](https://grafana.com){target="_blank"} connects to Prometheus as a datasource and provides rich, interactive dashboards for visualizing the collected metrics.
+
+``` mermaid
+---
+title: Grafana — Query & Visualization Flow
+---
+flowchart LR
+    user["User\n(Browser)"]
+
+    subgraph grafana [Grafana :3000]
+        direction TB
+        ds["Datasource\n(Prometheus)"]
+        panels["Dashboard Panels"]
+        ds -->|time-series data| panels
+    end
+
+    subgraph prom [Prometheus :9090]
+        direction TB
+        tsdb[("Time-Series\nDatabase")]
+        api["Query API\n(PromQL)"]
+        tsdb --> api
+    end
+
+    user e0@==>|open dashboard| grafana
+    ds e1@-.->|PromQL query| api
+    api e2@-.->|time-series data| ds
+    panels e3@==>|render charts| user
+
+    e0@{ animate: true }
+    e1@{ animate: true }
+    e2@{ animate: true }
+    e3@{ animate: true }
+```
 
 Create the datasource provisioning file at `setup/grafana/provisioning/datasources/datasources.yml`:
 
