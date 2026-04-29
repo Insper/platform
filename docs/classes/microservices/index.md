@@ -1,75 +1,82 @@
-**Microservices**, also known as the microservices architecture, is an architectural style that structures an application as a collection of small autonomous services, modeled around a business domain.
 
-Key concepts of microservices include:
+**Microservices** — also called the microservices architecture — is an architectural style that structures an application as a collection of small, autonomous services each modelled around a specific business domain. Rather than building one large deployable unit (a *monolith*), the system is composed of independently deployable pieces that collaborate through well-defined APIs.
 
-- **Single Responsibility**: Each microservice should have a single responsibility and should implement a single business capability.
-- **Independence**: Microservices should be able to run and evolve independently of each other. They should be independently deployable and scalable.
-- **Decentralization**: Microservices architecture favors decentralized governance. Teams have the freedom to choose the best technology stack that suits their service.
-- **Isolation of Failures**: If a microservice fails, it should not impact the availability of other services.
-- **Data Isolation**: Each microservice should have its own database to ensure that the services are loosely coupled and can evolve independently.
-- **Communication**: Microservices communicate with each other through well-defined APIs and protocols, typically HTTP/REST with JSON[^4][^5] or gRPC with Protobuf.
-- **Infrastructure Automation**: Due to the distributed nature of the microservices architecture, automation of infrastructure is a must. This includes automated provisioning, scaling, and deployment.
-- **Observability**: With many different services, it's important to have excellent monitoring and logging to detect and diagnose problems.
+---
 
-## Domain Driven Design
+## Key principles
 
-[Domain-Driven Design (DDD)](https://en.wikipedia.org/wiki/Domain-driven_design){target="_blank"} is a software development approach that emphasizes collaboration between technical experts and domain experts. The goal is to create software that is a deep reflection of the underlying domain, which is the specific area of business or activity that the software is intended to support.
+| Principle | What it means |
+|---|---|
+| **Single Responsibility** | Each service implements exactly one business capability. |
+| **Independence** | Services can be developed, deployed, and scaled without coordinating with other services. |
+| **Decentralisation** | Teams choose the technology stack that best fits their service — no forced uniformity. |
+| **Failure isolation** | A failing service does not cascade and bring down the rest of the system. |
+| **Data isolation** | Each service owns its own database. No shared schema, no shared tables. |
+| **API-first communication** | Services talk through explicit contracts — HTTP/REST with JSON, or gRPC with Protobuf. |
+| **Infrastructure automation** | Automated provisioning, scaling, and deployment are prerequisites, not afterthoughts. |
+| **Observability** | With many independent services, comprehensive monitoring, logging, and tracing are essential. |
 
-Key concepts of DDD include:
+---
 
-- **Ubiquitous Language**: A common language established between developers and domain experts, used to describe all aspects of the domain.
-- **Bounded Context**: A boundary within which a particular model is defined and applicable.
-- **Entities**: Objects that have a distinct identity that persists over time and across different representations.
-- **Value Objects**: Objects that are defined by their attributes, not their identity.
-- **Aggregates**: Clusters of entities and value objects that are treated as a single unit.
-- **Repositories**: They provide a way to obtain references to aggregates.
-- **Domain Events**: Events that domain experts care about.
-- **Services**: Operations that don't naturally belong to any entity or value object.
+## Monolith vs. Microservices
 
-By focusing on the domain and domain logic, DDD provides techniques to develop complex systems targeting real-world scenarios. It helps to reduce the complexity by dividing the system into manageable and interconnected parts.
+``` mermaid
+flowchart LR
+  subgraph mono [Monolith]
+    direction TB
+    ui_m[UI]
+    biz_m[Business Logic]
+    data_m[Data Access]
+    ui_m --> biz_m --> data_m
+  end
 
-## Best Practices
+  subgraph micro [Microservices]
+    direction TB
+    gw[API Gateway]
+    s1[Service A]
+    s2[Service B]
+    s3[Service C]
+    db1[(DB A)]
+    db2[(DB B)]
+    db3[(DB C)]
+    gw --> s1 & s2 & s3
+    s1 --> db1
+    s2 --> db2
+    s3 --> db3
+  end
+```
 
-<figure markdown>
-  ![Best practices for microservices](https://assets.bytebytego.com/diagrams/0275-micro-best-practices.png){ width="100%" }
-  <figcaption><i>Source: <a href="https://bytebytego.com/guides/9-best-practices-for-developing-microservices/" target="_blank">System Design 101 - Microservice Architecture</a></i></figcaption>
-</figure>
+Neither style is universally better. Microservices bring independent deployability and scalability at the cost of distributed-system complexity. A monolith is simpler to develop, test, and operate — until the team or the domain grows large enough that the coupling becomes a bottleneck.
 
-## Typical Microservices Architecture
+!!! tip "Start with a monolith"
+    Most successful microservice architectures began as monoliths. Identify stable service boundaries (using Domain-Driven Design) before splitting, rather than decomposing prematurely.
 
-<figure markdown>
-  ![typical microservices architecture](https://assets.bytebytego.com/diagrams/0396-typical-microservice-architecture.png){target="_blank"}
-  <figcaption><i>Source: <a href="https://bytebytego.com/guides/what-does-a-typical-microservice-architecture-look-like/" target="_blank">System Design 101 - Microservice Architecture</a></i></figcaption>
-</figure>
+---
 
-Components of a typical microservices architecture include:
+## Topics covered
 
-- **Load Balancer**: Distributes incoming network traffic across multiple servers to ensure no single server becomes overwhelmed.
+<div class="grid cards" markdown>
 
-- **CDN (Content Delivery Network)**: A geographically distributed network of servers that delivers content to users based on their location, improving performance and availability.
+-   :material-domain:{ .lg .middle } **Domain-Driven Design**
 
-- **API Gateway**: Acts as a single entry point for all clients, routing requests to the appropriate microservices and handling cross-cutting concerns such as authentication, logging, and rate limiting.
+    ---
 
-- **Identity Provider**: Manages user authentication and authorization, often using protocols like OAuth2 or OpenID Connect.
+    The vocabulary and techniques used to identify service boundaries: ubiquitous language, bounded contexts, entities, value objects, aggregates, domain events, and repositories.
 
-- **Service Discovery & Registry**: Allows microservices to find and communicate with each other without hardcoding their network locations.
+    [:octicons-arrow-right-24: Domain-Driven Design](ddd/index.md)
 
-- **Configuration Service**: Centralizes the management of configuration settings for all microservices, allowing for dynamic updates without redeploying services.
+-   :material-sitemap:{ .lg .middle } **Architecture & Components**
 
-- **Microservices**: Independent services that implement specific business capabilities, communicating with each other through APIs.
+    ---
 
-## Our Microservices Architecture
+    The building blocks of a production microservices system: load balancers, API gateway, identity provider, service discovery, configuration service, and the course's reference architecture.
 
-The proposed architecture for our microservices will be based on the principles of Domain-Driven Design (DDD) and will follow the Clean Architecture pattern. Each microservice will be designed to have a single responsibility, and we will ensure that they are loosely coupled and independently deployable. We will also implement a robust API Gateway to handle client requests and route them to the appropriate microservices. Additionally, we will use a service discovery mechanism to allow microservices to find and communicate with each other without hardcoding their network locations. Finally, we will implement monitoring and logging to ensure that we can detect and diagnose problems effectively in our distributed system. A diagram of the proposed architecture is shown below.
+    [:octicons-arrow-right-24: Architecture & Components](architecture/index.md)
 
-{! classes/microservices/microservice-diagram.md !}
+</div>
 
-[^1]: XU, A., [System Design 101](https://github.com/ByteByteGoHq/system-design-101){target="_blank"}: A comprehensive guide to system design, covering various architectural patterns, including microservices. It provides insights into best practices, trade-offs, and real-world examples to help developers design scalable and maintainable systems.
+---
 
-[^2]: [Wikipedia - Domain Driven Design](https://en.wikipedia.org/wiki/Domain-driven_design){target="_blank"}: A software development approach that emphasizes collaboration between technical experts and domain experts to create software that is a deep reflection of the underlying domain. It provides techniques to develop complex systems targeting real-world scenarios by focusing on the domain and domain logic.
-
-[^3]: [Domain-Driven Design Reference](https://domainlanguage.com/ddd/reference/){target="_blank"}: A comprehensive reference for Domain-Driven Design, covering all the key concepts and patterns in detail. It serves as a valuable resource for developers and architects looking to implement DDD in their projects.
-
-[^4]: [RFC 7159](https://datatracker.ietf.org/doc/html/rfc4627){target="_blank"}: The application/json Media Type for JavaScript Object Notation (JSON).
-
-[^5]: [JSON](https://www.json.org/){target="_blank"}: JSON (JavaScript Object Notation) is a lightweight data-interchange format that is easy for humans to read and write, and easy for machines to parse and generate. It is based on a subset of the JavaScript Programming Language, Standard ECMA-262 3rd Edition - December 1999. JSON is a text format that is completely language independent but uses conventions that are familiar to programmers of the C-family of languages, including C, C++, C#, Java, JavaScript, Perl, Python, and many others. These properties make JSON an ideal data-interchange language.
+[^1]: XU, A. [System Design 101](https://github.com/ByteByteGoHq/system-design-101){target="_blank"}
+[^2]: NEWMAN, S. *Building Microservices*. O'Reilly, 2021.
+[^3]: EVANS, E. *Domain-Driven Design*. Addison-Wesley, 2003.
