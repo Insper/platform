@@ -3,34 +3,14 @@ Nginx is configured as an [HTTP reverse proxy](https://nginx.org/en/docs/http/ng
 Create the file `setup/nginx/nginx.conf`:
 
 ``` { .nginx .copy .select linenums="1" title="nginx.conf" }
-events {}
-
-http {
-
-    upstream gateway_cluster {
-        least_conn;
-        server gateway:8080;
-    }
-
-    server {
-        listen 80;
-
-        location / {
-            proxy_pass         http://gateway_cluster;
-            proxy_set_header   Host              $host;
-            proxy_set_header   X-Real-IP         $remote_addr;
-            proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
-            proxy_set_header   X-Forwarded-Proto $scheme;
-        }
-    }
-}
+--8<-- "docs/hands-on/7/nginx/nginx.conf"
 ```
 
 Key directives:
 
 | Directive | Purpose |
 |---|---|
-| `upstream gateway_cluster` | Names a pool of backend servers. Docker DNS expands `gateway:8080` to all replica IPs at startup. |
+| `upstream gateways` | Names a pool of backend servers. Docker DNS expands `gateway:8080` to all replica IPs at startup. |
 | `least_conn` | Load balancing algorithm: each new request goes to the replica with the fewest active connections. |
 | `proxy_pass` | Forwards the matched request to the upstream pool. |
 | `X-Real-IP` | Passes the original client IP address to the backend service. |
