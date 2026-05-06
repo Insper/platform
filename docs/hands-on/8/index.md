@@ -90,7 +90,7 @@ All three gateway replicas share the same Redis instance. A cache entry written 
 
 <div class="grid cards" markdown>
 
--   __b. Docker Compose__
+-   :material-file-code:{ .lg .middle } **[Docker Compose](./docker/)**
 
     ---
 
@@ -98,7 +98,7 @@ All three gateway replicas share the same Redis instance. A cache entry written 
 
     [Docker Compose](./docker/){ .md-button }
 
--   __c. Spring Boot__
+-   :material-leaf:{ .lg .middle } **[Spring Boot](./spring/)**
 
     ---
 
@@ -106,7 +106,7 @@ All three gateway replicas share the same Redis instance. A cache entry written 
 
     [Spring Boot](./spring/){ .md-button }
 
--   __d. Run__
+-   :material-play-circle:{ .lg .middle } **[Run](./run/)**
 
     ---
 

@@ -99,28 +99,28 @@ To develop the security layer, the steps are as follows:
 
 <div class="grid cards" markdown>
 
--   __[1. JWT](./jwt/)__
+-   :material-key:{ .lg .middle } **[JWT](./jwt/)**
 
     ---
 
     Create the `auth` interface module defining the API endpoints and DTOs, then implement `JwtService` to generate and validate signed tokens;
 
-    [JWT](./jwt/){ .md-button .md-button }
+    [JWT](./jwt/){ .md-button }
 
--   __[2. Open Routes](./open-routes/)__
+-   :material-road-variant:{ .lg .middle } **[Open Routes](./open-routes/)**
 
     ---
 
     Set up the `auth-service` module with `AuthResource` and `AuthService`, and configure `RouterValidator` to distinguish secured from open endpoints;
 
-    [Open Routes](./open-routes/){ .md-button .md-button }
+    [Open Routes](./open-routes/){ .md-button }
 
--   __[3. Authorization](./authorization/)__
+-   :material-shield-check:{ .lg .middle } **[Authorization](./authorization/)**
 
     ---
 
     Implement the `AuthorizationFilter` in `gateway-service` to intercept every request, validate the JWT cookie, and forward the resolved identity to downstream services;
 
-    [Authorization](./authorization/){ .md-button .md-button }
+    [Authorization](./authorization/){ .md-button }
 
 </div>

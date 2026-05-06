@@ -130,28 +130,36 @@ nav:
       - Overview: classes/distributed_systems/index.md
       - CAP Theorem: classes/distributed_systems/cap/index.md
       - Consensus & Algorithms: classes/distributed_systems/consensus/index.md
+      - Quiz: classes/distributed_systems/quiz.md
     - 2. Containerization:
       - Overview: classes/containerization/index.md
       - Docker: classes/containerization/docker/index.md
       - Docker Compose: classes/containerization/compose/index.md
+      - Quiz: classes/containerization/quiz.md
     - 3. Microservices:
       - Overview: classes/microservices/index.md
       - Domain-Driven Design: classes/microservices/ddd/index.md
       - Architecture & Components: classes/microservices/architecture/index.md
+      - Quiz: classes/microservices/quiz.md
     - 4. Architectures:
       - Overview: classes/architectures/index.md
       - Clean Architecture: classes/architectures/clean/index.md
       - Hexagonal Architecture: classes/architectures/hexagonal/index.md
+      - Quiz: classes/architectures/quiz.md
     - 5. API:
       - Overview: classes/api/index.md
       - REST API Design: classes/api/rest/index.md
       - OpenAPI & Swagger: classes/api/swagger/index.md
-    - 6. Service Models: classes/service_models/index.md
+      - Quiz: classes/api/quiz.md
+    - 6. Service Models:
+      - Overview: classes/service_models/index.md
+      - Quiz: classes/service_models/quiz.md
     - 7. Reliability:
       - Overview: classes/reliability/index.md
       - SLI / SLO / SLA: classes/reliability/sli-slo-sla/index.md
       - Resilience Patterns: classes/reliability/patterns/index.md
       - Chaos Engineering: classes/reliability/chaos/index.md
+      - Quiz: classes/reliability/quiz.md
 
   - Hands-on:
     - 0. Prerequisites: hands-on/0/index.md
@@ -161,14 +169,22 @@ nav:
       - c. Service: hands-on/1/service/index.md
       - d. Containerization: hands-on/1/containerization/index.md
       - e. Repository: hands-on/1/repository/index.md
-    - 2. Gateway: hands-on/2/index.md
-    - 3. Security: 
+      - Quiz: hands-on/1/quiz.md
+    - 2. Gateway:
+      - a. Overview: hands-on/2/index.md
+      - Quiz: hands-on/2/quiz.md
+    - 3. Security:
       - a. Overview: hands-on/3/index.md
       - b. JWT: hands-on/3/jwt/index.md
       - c. Open Routes: hands-on/3/open-routes/index.md
       - d. Authorization: hands-on/3/authorization/index.md
-    - 4. DevOps: hands-on/4/index.md
-    - 5. Orchestration: hands-on/5/index.md
+      - Quiz: hands-on/3/quiz.md
+    - 4. DevOps:
+      - a. Overview: hands-on/4/index.md
+      - Quiz: hands-on/4/quiz.md
+    - 5. Orchestration:
+      - a. Overview: hands-on/5/index.md
+      - Quiz: hands-on/5/quiz.md
     - 6. Observability:
       - a. Overview: hands-on/6/index.md
       - b. Microservices: hands-on/6/microservices/index.md
@@ -176,16 +192,19 @@ nav:
       - d. Prometheus: hands-on/6/prometheus/index.md
       - e. Grafana: hands-on/6/grafana/index.md
       - f. Run: hands-on/6/run/index.md
+      - Quiz: hands-on/6/quiz.md
     - 7. Load Balancer:
       - a. Overview: hands-on/7/index.md
       - b. Nginx: hands-on/7/nginx/index.md
       - c. Docker Compose: hands-on/7/docker/index.md
       - d. Run: hands-on/7/run/index.md
+      - Quiz: hands-on/7/quiz.md
     - 8. In-Memory Cache:
       - a. Overview: hands-on/8/index.md
       - b. Docker Compose: hands-on/8/docker/index.md
       - c. Spring Boot: hands-on/8/spring/index.md
       - d. Run: hands-on/8/run/index.md
+      - Quiz: hands-on/8/quiz.md
 
   - Exercises:
     - Project:
@@ -230,7 +249,9 @@ nav:
   #   - Concepts: ./business/concepts.md
   
   - Appendix:
-    - Network: ./appendix/network.md
+    - Network:
+      - Overview: ./appendix/network.md
+      - Quiz: appendix/network-quiz.md
     - Development Setup: ./appendix/development-setup.md
     - Git Submodules: ./appendix/git-submodules.md
     # - REST vs GraphQL: ./appendix/rest-vs-graphql.md

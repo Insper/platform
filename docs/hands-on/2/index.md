@@ -103,4 +103,3 @@ After finishing the implementation of the Gateway Microservice, we can include i
 ``` 
 
 Note that the other microservices declared in the `compose.yaml` file do not have its ports exposed to the internet, therefore, they can only be accessed through the Gateway Microservice.
-

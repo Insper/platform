@@ -105,37 +105,36 @@ To develop of the Account microservice, the steps are as follows:
 
 <div class="grid cards" markdown>
 
--   __[1. Controller](./controller/)__
+-   :material-code-braces:{ .lg .middle } **[Controller](./controller/)**
 
     ---
 
     Create the interface for the Account microservice in the `account` module, defining the API endpoints and the data transfer objects (DTOs);
 
-    [Controller](./controller/){ .md-button .md-button }
+    [Controller](./controller/){ .md-button }
 
-
--   __[2. Service](./service/)__
+-   :material-cog:{ .lg .middle } **[Service](./service/)**
 
     ---
 
     Implement the service layer in the `account-service` module, creating the necessary classes to handle the business logic and the data persistence;
 
-    [Service](./service/){ .md-button .md-button }
+    [Service](./service/){ .md-button }
 
--   __[3. Containerization](./containerization/)__
+-   :fontawesome-brands-docker:{ .lg .middle } **[Containerization](./containerization/)**
 
     ---
 
     Create the Dockerfile for the Account microservice, and build the Docker image for the microservice;
 
-    [Containerization](./containerization/){ .md-button .md-button }
+    [Containerization](./containerization/){ .md-button }
 
--   __[4. Repository](./repository/)__
+-   :material-database:{ .lg .middle } **[Repository](./repository/)**
 
     ---
 
     Implement the persistence layer for `account-service` module, creating the necessary classes to handle the data persistence;
 
-    [Repository](./repository/){ .md-button .md-button }
+    [Repository](./repository/){ .md-button }
 
 </div>

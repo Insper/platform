@@ -137,7 +137,7 @@ The steps to implement this are:
 
 <div class="grid cards" markdown>
 
--   __b. Nginx__
+-   :material-swap-horizontal-bold:{ .lg .middle } **[Nginx](./nginx/)**
 
     ---
 
@@ -145,7 +145,7 @@ The steps to implement this are:
 
     [Nginx](./nginx/){ .md-button }
 
--   __c. Docker Compose__
+-   :material-file-code:{ .lg .middle } **[Docker Compose](./docker/)**
 
     ---
 
@@ -153,7 +153,7 @@ The steps to implement this are:
 
     [Docker Compose](./docker/){ .md-button }
 
--   __d. Run__
+-   :material-play-circle:{ .lg .middle } **[Run](./run/)**
 
     ---
 

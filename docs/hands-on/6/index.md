@@ -38,36 +38,44 @@ The setup requires changes across three areas:
 
 <div class="grid cards" markdown>
 
--   __b. Microservices__
+-   :material-server-network:{ .lg .middle } **[Microservices](./microservices/)**
 
     ---
 
     Add Actuator and Prometheus registry dependencies to each Spring Boot service and expose the metrics endpoint.
 
--   __c. Docker Compose__
+    [Microservices](./microservices/){ .md-button }
+
+-   :material-file-code:{ .lg .middle } **[Docker Compose](./docker/)**
 
     ---
 
     Add Prometheus and Grafana services to the `docker compose.yaml` file, ensuring they are on the same network as the microservices.
 
+    [Docker Compose](./docker/){ .md-button }
 
--   __d. Prometheus__
+-   :material-chart-timeline-variant:{ .lg .middle } **[Prometheus](./prometheus/)**
 
     ---
 
     Deploy Prometheus via Docker Compose and configure it to scrape metrics from each microservice.
 
--   __e. Grafana__
+    [Prometheus](./prometheus/){ .md-button }
+
+-   :material-chart-areaspline:{ .lg .middle } **[Grafana](./grafana/)**
 
     ---
 
     Deploy Grafana via Docker Compose, connect it to Prometheus, and explore pre-built dashboards.
 
--   __f. Run__
+    [Grafana](./grafana/){ .md-button }
+
+-   :material-play-circle:{ .lg .middle } **[Run](./run/)**
 
     ---
 
     Rebuild and start the full stack using Docker Compose, then verify that all services are running and metrics are being scraped.
 
+    [Run](./run/){ .md-button }
 
 </div>
