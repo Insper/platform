@@ -17,9 +17,16 @@ pip3 install -r requirements.txt
 ## Common Commands
 
 ```bash
-mkdocs serve                   # Local dev server at http://127.0.0.1:8000
-mkdocs build                   # Build static site into site/
-mkdocs gh-deploy --force       # Deploy to GitHub Pages (CI does this automatically on main)
+mkdocs serve                          # Local dev server at http://127.0.0.1:8000
+mkdocs serve --dirtyreload            # Faster rebuild (only changed files)
+mkdocs build                          # Build static site into site/
+mkdocs gh-deploy --force              # Deploy to GitHub Pages (CI does this automatically on main)
+```
+
+The `git-committers` plugin requires `MKDOCS_GIT_COMMITTERS_APIKEY` at build time. For local dev without a real token, set a dummy value to avoid build failures:
+
+```bash
+MKDOCS_GIT_COMMITTERS_APIKEY=dummy mkdocs serve
 ```
 
 ## Architecture
@@ -48,6 +55,26 @@ GitHub Actions (`.github/workflows/main.yaml`) triggers on every push and PR. De
 
 ## Content Patterns
 
-- Markdown files use pymdownx extensions heavily: `=== "Tab"` for tabbed content, ` ```mermaid ``` ` for diagrams, `///` for admonitions
-- Python data viz (matplotlib, seaborn, numpy, pandas) can be embedded in docs via `markdown-exec`
-- Navigation structure is explicitly declared in `mkdocs.yml` — adding a new page requires updating the `nav:` section there
+Markdown files use pymdownx extensions heavily:
+
+- **Tabs**: `=== "Tab Name"` blocks
+- **Admonitions**: `!!! tip "Title"` / `??? note "Collapsible"` (types: note, tip, info, warning, danger, example, etc.)
+- **Diagrams**: ` ```mermaid ``` ` fenced blocks (Mermaid v10+)
+- **Card grids**: `<div class="grid cards" markdown>` with `-   __Title__` list items
+
+Embed Python and produce output (matplotlib, seaborn, numpy, pandas) directly in Markdown via `markdown-exec`:
+
+````markdown
+```python exec="true"
+import matplotlib.pyplot as plt
+# code here
+```
+````
+
+Include another Markdown file verbatim with `markdown-include`:
+
+```markdown
+{!path/to/file.md!}
+```
+
+Navigation structure is explicitly declared in `mkdocs.yml` — adding a new page requires updating the `nav:` section there.

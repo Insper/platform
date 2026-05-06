@@ -176,6 +176,11 @@ nav:
       - d. Prometheus: hands-on/6/prometheus/index.md
       - e. Grafana: hands-on/6/grafana/index.md
       - f. Run: hands-on/6/run/index.md
+    - 7. Load Balancer:
+      - a. Overview: hands-on/7/index.md
+      - b. Nginx: hands-on/7/nginx/index.md
+      - c. Docker Compose: hands-on/7/docker/index.md
+      - d. Run: hands-on/7/run/index.md
 
   - Exercises:
     - Project:
