@@ -74,6 +74,28 @@ The final image contains only the JRE and the compiled JAR — Maven and the sou
 
 ---
 
+### Layer caching
+
+Docker builds images layer by layer. If a layer has not changed since the last build, Docker reuses the cached version — skipping that step entirely. **Layer order matters**: place instructions that change infrequently (dependencies) before instructions that change often (source code).
+
+``` mermaid
+flowchart LR
+    subgraph bad [Poor order — cache busted on every code change]
+        direction TB
+        b1["COPY src ./src\n(changes every commit)"]:::changed --> b2["RUN mvn package"]:::changed --> b3["RUN mvn dependency:go-offline"]:::changed
+    end
+    subgraph good [Good order — dependencies cached separately]
+        direction TB
+        g1["COPY pom.xml ."]:::cached --> g2["RUN mvn dependency:go-offline"]:::cached --> g3["COPY src ./src\n(changes every commit)"]:::changed --> g4["RUN mvn package\n(only rebuilds app)"]:::changed
+    end
+    classDef cached fill:#6c6,color:#fff
+    classDef changed fill:#f66,color:#fff
+```
+
+The multi-stage Dockerfile above already exploits this: `RUN mvn dependency:go-offline` runs only when `pom.xml` changes, not on every code change.
+
+---
+
 ## Essential commands
 
 ### Managing containers

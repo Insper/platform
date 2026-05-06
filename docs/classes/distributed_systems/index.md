@@ -35,11 +35,29 @@ Web applications follow the client-server model (browsers request from servers).
 
 | Challenge | Root cause |
 |---|---|
-| **Complexity** | Coordination, synchronisation, and distributed state are hard. The *fallacies of distributed computing* (Deutsch) list common wrong assumptions: the network is reliable, latency is zero, bandwidth is infinite. |
-| **Network overhead** | Messages can be delayed, lost, or duplicated. All must be handled explicitly. |
-| **Consistency vs availability** | Keeping data consistent across nodes while staying available under failure is provably impossible to do perfectly — see the CAP Theorem. |
+| **Complexity** | Coordination, synchronisation, and distributed state are hard to reason about and implement correctly. |
+| **Network overhead** | Messages can be delayed, lost, or duplicated. Every failure mode must be handled explicitly. |
+| **Consistency vs availability** | Keeping data consistent across nodes while staying available under failure is provably impossible — see the CAP Theorem. |
 | **Expanded attack surface** | More nodes mean more entry points. Byzantine faults (malicious nodes) require dedicated protocols. |
 | **Operational cost** | Debugging, monitoring, and deploying distributed systems requires specialised tooling (Prometheus, Kubernetes, distributed tracing). |
+
+### The 8 Fallacies of Distributed Computing
+
+Peter Deutsch[^2] identified eight assumptions developers commonly make when building distributed systems — all of them wrong:
+
+| Fallacy | Reality |
+|---|---|
+| The network is reliable | Packets are dropped, links fail, cables are cut |
+| Latency is zero | Network round-trips add milliseconds; cross-region adds hundreds |
+| Bandwidth is infinite | Transferring large payloads saturates links |
+| The network is secure | Traffic must be encrypted and authenticated at every hop |
+| Topology doesn't change | Nodes go up and down; IPs change; services are rescheduled |
+| There is one administrator | Multiple teams, multiple cloud accounts, multiple policies |
+| Transport cost is zero | Serialisation, compression, and egress fees are real |
+| The network is homogeneous | Different systems speak different protocols and encodings |
+
+!!! warning "Design for failure, not against it"
+    These fallacies share a common root: treating the network as a reliable local function call. The correct posture is to assume failure will happen and design every interaction to degrade gracefully.
 
 ---
 

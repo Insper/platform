@@ -151,14 +151,38 @@ public class PricingService {
 
 ## Using DDD to find microservice boundaries
 
-1. **Event storming**: gather domain experts and developers; identify all domain events on a timeline.
-2. **Group by bounded context**: cluster events, commands, and aggregates that belong together.
-3. **Name each context**: the names should come from the ubiquitous language.
-4. **Draw context maps**: identify how contexts interact — shared kernel, customer/supplier, anti-corruption layer.
-5. **One context → one service** (as a starting point; merge or split based on operational and team constraints).
+**Event Storming** (Alberto Brandolini)[^4] is the most effective technique for discovering bounded contexts collaboratively. Domain experts and developers gather in front of a wall of sticky notes and map out the entire domain on a shared timeline.
+
+``` mermaid
+flowchart LR
+    ev1["🟠 OrderPlaced\n(domain event)"]
+    ev2["🟠 PaymentCharged"]
+    ev3["🟠 InventoryReserved"]
+    ev4["🟠 OrderShipped"]
+    cmd1["🔵 Place Order\n(command)"]
+    cmd2["🔵 Charge Card"]
+    cmd3["🔵 Reserve Items"]
+
+    cmd1 --> ev1 --> cmd2 & cmd3
+    cmd2 --> ev2
+    cmd3 --> ev3
+    ev2 & ev3 --> ev4
+```
+
+The process:
+
+1. **Identify domain events** (orange) — things that happened, past tense: *OrderPlaced*, *PaymentFailed*, *ItemShipped*
+2. **Add commands** (blue) — what triggered each event: *Place Order*, *Charge Card*
+3. **Group by bounded context** — cluster events and commands that belong together under the same ubiquitous language
+4. **Draw context maps** — identify how contexts interact: shared kernel, customer/supplier relationship, or anti-corruption layer
+5. **One context → one service** as a starting point; merge or split based on operational and team constraints
+
+!!! tip "Bounded context ≠ microservice (always)"
+    A bounded context is a conceptual boundary. In practice, a small team might implement two related bounded contexts in one service to avoid the operational overhead of a separate deployment. Only split when independence of deployment or scale becomes valuable.
 
 ---
 
 [^1]: EVANS, E. *Domain-Driven Design: Tackling Complexity in the Heart of Software*. Addison-Wesley, 2003.
 [^2]: VERNON, V. *Implementing Domain-Driven Design*. Addison-Wesley, 2013.
 [^3]: [Domain-Driven Design Reference](https://domainlanguage.com/ddd/reference/){target="_blank"} — Eric Evans's condensed reference card.
+[^4]: BRANDOLINI, A. [Introducing Event Storming](https://www.eventstorming.com){target="_blank"}. eventstorming.com.

@@ -135,6 +135,33 @@ Spring Boot's `@ControllerAdvice` + `@ExceptionHandler` is the standard way to p
 
 ---
 
+## Pagination and filtering
+
+Collections should never return unbounded results. Use query parameters for pagination and filtering:
+
+``` http
+GET /orders?page=2&size=20&sort=createdAt,desc
+GET /orders?status=PENDING&customerId=7
+```
+
+| Pattern | Parameters | Notes |
+|---|---|---|
+| **Offset pagination** | `?page=2&size=20` | Simple; expensive on large datasets (DB must skip rows) |
+| **Cursor pagination** | `?after=eyJpZCI6NDJ9` | Efficient for large tables; opaque cursor prevents page drift |
+| **Filtering** | `?status=PENDING` | Always filter on the server — never return all records and filter in the client |
+| **Sorting** | `?sort=field,direction` | Multiple sort fields: `?sort=name,asc&sort=createdAt,desc` |
+
+The response should include pagination metadata:
+
+```json
+{
+  "content": [...],
+  "page": { "number": 2, "size": 20, "total": 150, "totalPages": 8 }
+}
+```
+
+---
+
 ## Versioning
 
 APIs evolve. When a breaking change is unavoidable, version the API so existing clients are not broken:

@@ -1,18 +1,32 @@
 
-An **API** (Application Programming Interface) is a contract that defines how two software components can communicate. It specifies what operations are available, what inputs they accept, and what outputs they return — without exposing the internal implementation.
+An **API** (Application Programming Interface) is a contract that defines how two software components communicate. It specifies what operations are available, what inputs they accept, and what outputs they return — without exposing the internal implementation.
 
-In the context of microservices and web platforms, APIs are the primary integration mechanism: services expose APIs, clients consume them, and teams can evolve each side independently as long as the contract is respected.
+In the context of microservices, APIs are the primary integration mechanism: services expose APIs, clients consume them, and teams evolve each side independently as long as the contract is respected. A stable API boundary means the implementation behind it can be completely replaced without impacting any consumer.
+
+``` mermaid
+flowchart LR
+    consumer["Client\n(mobile, browser, service)"]
+    api["API\n(contract)"]:::highlighted
+    impl["Implementation\n(language, DB, framework)"]
+
+    consumer -->|"request"| api
+    api -->|"response"| consumer
+    api -->|"hides"| impl
+    consumer -.-x|"cannot see"| impl
+
+    classDef highlighted fill:#fcc
+```
 
 ---
 
 ## Why APIs matter
 
-Without a stable API contract, every change to a service risks breaking all of its consumers. A well-designed API:
-
-- **Decouples** producer from consumer — each can evolve independently.
-- **Hides implementation** — clients have no knowledge of the database, language, or framework behind it.
-- **Enables scaling** — the same API can be consumed by web clients, mobile apps, other microservices, and third-party integrators.
-- **Enforces boundaries** — an API is the explicit expression of what a service *does*, nothing more.
+| Without a stable API | With a stable API contract |
+|---|---|
+| Every internal change risks breaking consumers | Consumers are isolated from implementation changes |
+| Teams must coordinate every deployment | Teams deploy independently |
+| Integration errors surface at runtime | Contract is testable before integration |
+| Documentation drifts and becomes stale | Contract is the single source of truth |
 
 ---
 
@@ -20,13 +34,26 @@ Without a stable API contract, every change to a service risks breaking all of i
 
 | Style | Protocol | Format | Typical use |
 |---|---|---|---|
-| **REST** | HTTP | JSON / XML | Public and internal web APIs; the most common choice |
-| **gRPC** | HTTP/2 | Protobuf (binary) | High-performance internal service-to-service calls |
-| **GraphQL** | HTTP | JSON | Flexible client-driven queries; BFF (backend for frontend) |
-| **WebSocket** | TCP | Any | Real-time bidirectional communication (chat, live feeds) |
-| **Message-based** | AMQP / Kafka | JSON / Avro | Async event-driven integration |
+| **REST** | HTTP/1.1 or HTTP/2 | JSON / XML | Public and internal web APIs — the dominant choice |
+| **gRPC** | HTTP/2 | Protocol Buffers (binary) | High-performance internal service-to-service calls |
+| **GraphQL** | HTTP | JSON | Flexible client-driven queries; Backend for Frontend (BFF) pattern |
+| **WebSocket** | TCP (full-duplex) | Any | Real-time bidirectional communication — chat, live feeds, collaboration |
+| **Message-based** | AMQP / Kafka | JSON / Avro | Asynchronous event-driven integration between services |
 
-This course focuses on **REST**, the dominant style for microservice APIs, and on documenting them with **OpenAPI/Swagger**.
+### REST maturity (Richardson Model)[^3]
+
+Not all HTTP APIs are equally RESTful. Leonard Richardson defined a maturity model with four levels:
+
+| Level | Characteristic | Example |
+|---|---|---|
+| **0 — Swamp of POX** | Single endpoint for all operations | `POST /service?op=getOrder` |
+| **1 — Resources** | Separate URIs per resource | `GET /orders/42` |
+| **2 — HTTP Verbs** | Correct use of GET, POST, PUT, DELETE + status codes | `DELETE /orders/42` → `204` |
+| **3 — Hypermedia (HATEOAS)** | Responses include links to next possible actions | `"links": [{"rel": "cancel", "href": "/orders/42/cancel"}]` |
+
+Most production REST APIs operate at level 2. Level 3 is rare in microservices but common in public APIs.
+
+This course focuses on **Level 2 REST** and on documenting APIs with **OpenAPI / Swagger**.
 
 ---
 
@@ -38,7 +65,7 @@ This course focuses on **REST**, the dominant style for microservice APIs, and o
 
     ---
 
-    HTTP methods, status codes, URL conventions, request/response structure, versioning, and design principles that make APIs predictable and easy to consume.
+    HTTP methods, status codes, URL conventions, request and response structure, versioning, and the design principles that make APIs predictable and easy to consume.
 
     [:octicons-arrow-right-24: REST API Design](rest/index.md)
 
@@ -56,3 +83,4 @@ This course focuses on **REST**, the dominant style for microservice APIs, and o
 
 [^1]: [RFC 9110 — HTTP Semantics](https://www.rfc-editor.org/rfc/rfc9110){:target="_blank"}
 [^2]: FIELDING, R. T. *Architectural Styles and the Design of Network-based Software Architectures*. Doctoral dissertation, UC Irvine, 2000. (Original REST definition.)
+[^3]: FOWLER, M. [Richardson Maturity Model](https://martinfowler.com/articles/richardsonMaturityModel.html){:target="_blank"}. martinfowler.com, 2010.

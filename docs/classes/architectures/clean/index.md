@@ -122,6 +122,25 @@ com.example.product/
 
 ---
 
+## Where does this class belong?
+
+A quick decision guide for placing a new class:
+
+``` mermaid
+flowchart TD
+    start([New class]) --> q1{Does it contain\nbusiness rules?}
+    q1 -->|Yes| q2{Does it depend on\na framework annotation?}
+    q2 -->|Yes| fix1["Move the business rule\nto an inner class\nLeave the annotation\nin the adapter layer"]:::warn
+    q2 -->|No| entity["Entity or Use Case ✓"]:::ok
+    q1 -->|No| q3{Does it translate\nbetween layers?}
+    q3 -->|Yes| adapter["Interface Adapter ✓"]:::ok
+    q3 -->|No| infra["Frameworks & Drivers ✓"]:::ok
+    classDef ok fill:#6c6,color:#fff
+    classDef warn fill:#f90,color:#000
+```
+
+---
+
 ## Common mistakes
 
 !!! warning "Leaking framework types inward"
