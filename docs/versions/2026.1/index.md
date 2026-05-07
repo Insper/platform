@@ -44,7 +44,7 @@ $$
 1. **Quizzes**: the course will have 3 quizzes, the quiz with the lowest grade will be dropped. And, the final quiz grade will be the uniform average of the two best grade quizzes:
 
     $$
-    \text{Quizzes} = \frac{\text{Q1} + \text{Q2} + \text{Q3} - \min(\text{Q1}, \text{Q2}, \text{Q3})}{2}
+    \text{Quizzes} = \frac{\text{Q}_1 + \text{Q}_2 + \text{Q}_3 - \min(\text{Q}_1, \text{Q}_2, \text{Q}_3)}{2}
     $$
 
 1. **Microservice**: the students will have to implement a microservice. The grade is a concept grade, based on `Notas da Engenharia`:
