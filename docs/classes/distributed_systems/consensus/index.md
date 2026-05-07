@@ -168,3 +168,4 @@ CRDTs are used in shopping carts (Dynamo), collaborative editors (Google Docs), 
 [^2]: LAMPORT, L. [Paxos Made Simple](https://lamport.azurewebsites.net/pubs/paxos-simple.pdf){target="_blank"}. ACM SIGACT News, 2001.
 [^3]: ONGARO, D.; OUSTERHOUT, J. [In Search of an Understandable Consensus Algorithm (Raft)](https://raft.github.io/raft.pdf){target="_blank"}. USENIX ATC, 2014.
 [^4]: [Raft Visualization](https://raft.github.io/){target="_blank"} — interactive animation of leader election and log replication.
+[^5]: [The Secret Lives of Data: Raft](https://thesecretlivesofdata.com/raft/){target="_blank"} — an engaging narrative visualization of Raft's mechanics and design decisions.
