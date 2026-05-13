@@ -75,7 +75,7 @@ O Amazon Elastic Kubernetes Service (EKS) é um serviço gerenciado que facilita
 
         Create a VPC with the following configuration, including 2 public and 2 private subnets. The public subnets will be used for the load balancers, and the private subnets will be used for the pods. The VPC should be created in the same region as the EKS cluster.
 
-        To create the VPC, use the AWS CloudFormation with the template file: [amazon-eks-vpc-private-subnets.yaml](../../assets/templates/amazon-eks-vpc-private-subnets.yaml) (download it and upload it as a CloudFormation template).
+        To create the VPC, use the AWS CloudFormation with the template file: [amazon-eks-vpc-private-subnets.yaml](amazon-eks-vpc-private-subnets.yaml){: download="amazon-eks-vpc-private-subnets.yaml"} (download it and upload it as a CloudFormation template).
 
         ![](vpc/01.png){ width=100% }
         ![](vpc/02.png){ width=100% }
