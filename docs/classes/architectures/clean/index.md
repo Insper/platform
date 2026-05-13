@@ -141,6 +141,70 @@ flowchart TD
 
 ---
 
+## Full working example
+
+The five files below show a complete `Account` microservice slice across all four layers. Each file is in a different layer — notice that dependencies always point inward.
+
+``` mermaid
+flowchart RL
+    AccountController -->|"Parser converts\nRecordIn → DTO"| AccountService
+    AccountService -->|"depends on interface"| AccountRepository
+    AccountJpaAdapter -->|"implements"| AccountRepository
+    AccountTable -.-|"used by\nadapter only"| AccountJpaAdapter
+    AccountMapper -.-|"used by\nadapter only"| AccountJpaAdapter
+
+    style AccountController fill:#6f6
+    style AccountService fill:#f99
+    style AccountRepository fill:#ff9
+    style AccountJpaAdapter fill:#fcc
+    style AccountTable fill:#fcc
+    style AccountMapper fill:#fcc
+```
+
+=== "Account.java — domain entity"
+
+    ``` { .java .copy .select linenums="1" }
+    --8<-- "docs/classes/architectures/clean/examples/Account.java"
+    ```
+
+=== "AccountRepository.java — port"
+
+    ``` { .java .copy .select linenums="1" }
+    --8<-- "docs/classes/architectures/clean/examples/AccountRepository.java"
+    ```
+
+=== "AccountService.java — use case"
+
+    ``` { .java .copy .select linenums="1" }
+    --8<-- "docs/classes/architectures/clean/examples/AccountService.java"
+    ```
+
+=== "AccountController.java — adapter in"
+
+    ``` { .java .copy .select linenums="1" }
+    --8<-- "docs/classes/architectures/clean/examples/AccountController.java"
+    ```
+
+=== "AccountTable.java — @Entity"
+
+    ``` { .java .copy .select linenums="1" }
+    --8<-- "docs/classes/architectures/clean/examples/AccountTable.java"
+    ```
+
+=== "AccountJpaAdapter.java — adapter out"
+
+    ``` { .java .copy .select linenums="1" }
+    --8<-- "docs/classes/architectures/clean/examples/AccountJpaAdapter.java"
+    ```
+
+=== "AccountMapper.java — boundary converter"
+
+    ``` { .java .copy .select linenums="1" }
+    --8<-- "docs/classes/architectures/clean/examples/AccountMapper.java"
+    ```
+
+---
+
 ## Common mistakes
 
 !!! warning "Leaking framework types inward"

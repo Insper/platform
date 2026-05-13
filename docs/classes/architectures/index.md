@@ -21,9 +21,17 @@ flowchart LR
 
 ---
 
-## Architectures covered
+## Topics covered
 
 <div class="grid cards" markdown>
+
+-   :material-check-decagram:{ .lg .middle } **SOLID Principles**
+
+    ---
+
+    Five class-level design rules — Single Responsibility, Open/Closed, Liskov Substitution, Interface Segregation, Dependency Inversion — that make code maintainable and testable. The foundation that both architectures below rely on.
+
+    [:octicons-arrow-right-24: SOLID Principles](solid/index.md)
 
 -   :material-layers:{ .lg .middle } **Clean Architecture**
 

@@ -170,6 +170,48 @@ An adapter is a class that **translates** between an external technology and a p
 
 ---
 
+## Full working example
+
+The files below show the complete authentication slice of the `auth-service`. Each file is annotated with its location relative to the hexagon boundary.
+
+=== "AuthService.java — primary port"
+
+    ``` { .java .copy .select linenums="1" }
+    --8<-- "docs/classes/architectures/hexagonal/examples/AuthService.java"
+    ```
+
+=== "AuthServiceImpl.java — core implementation"
+
+    ``` { .java .copy .select linenums="1" }
+    --8<-- "docs/classes/architectures/hexagonal/examples/AuthServiceImpl.java"
+    ```
+
+=== "AccountRepository.java — secondary port"
+
+    ``` { .java .copy .select linenums="1" }
+    --8<-- "docs/classes/architectures/hexagonal/examples/AccountRepository.java"
+    ```
+
+=== "AuthController.java — driving adapter"
+
+    ``` { .java .copy .select linenums="1" }
+    --8<-- "docs/classes/architectures/hexagonal/examples/AuthController.java"
+    ```
+
+=== "AccountJpaAdapter.java — driven adapter"
+
+    ``` { .java .copy .select linenums="1" }
+    --8<-- "docs/classes/architectures/hexagonal/examples/AccountJpaAdapter.java"
+    ```
+
+=== "InMemoryAccountRepository.java — test adapter"
+
+    ``` { .java .copy .select linenums="1" }
+    --8<-- "docs/classes/architectures/hexagonal/examples/InMemoryAccountRepository.java"
+    ```
+
+---
+
 ## Testing strategy
 
 The key testing insight of Hexagonal Architecture is that the **application core can be fully tested without any infrastructure**. Replace every driven adapter with an in-memory stub; drive the primary port directly from a test.
@@ -183,18 +225,8 @@ flowchart LR
   classDef adapter fill:#fd9,stroke:#a60
 ```
 
-```java
-class AuthServiceTest {
-    InMemoryAccountRepository accounts = new InMemoryAccountRepository();
-    AuthService service = new AuthServiceImpl(accounts);
-
-    @Test
-    void loginSucceeds_whenCredentialsAreValid() {
-        accounts.save(Account.of("user@example.com", passwordHash("secret")));
-        TokenOut token = service.login("user@example.com", "secret");
-        assertThat(token).isNotNull();
-    }
-}
+``` { .java .copy .select linenums="1" title="AuthServiceTest.java" }
+--8<-- "docs/classes/architectures/hexagonal/examples/AuthServiceTest.java"
 ```
 
 No Spring `@SpringBootTest`, no H2, no port 8080 — the test runs in milliseconds and covers the business rule directly.

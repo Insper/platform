@@ -143,6 +143,7 @@ nav:
       - Quiz: classes/microservices/quiz.md
     - 4. Architectures:
       - Overview: classes/architectures/index.md
+      - SOLID Principles: classes/architectures/solid/index.md
       - Clean Architecture: classes/architectures/clean/index.md
       - Hexagonal Architecture: classes/architectures/hexagonal/index.md
       - Quiz: classes/architectures/quiz.md
