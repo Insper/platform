@@ -83,7 +83,7 @@ $$
 
     !!! warning "Documentation Requirements"
 
-        :fontawesome-regular-calendar: Deadline to deliver: ==**May 22th, 2026**==.
+        :fontawesome-regular-calendar: Deadline to deliver: ==**May 29th, 2026**==.
 
         :material-github: The project documentation HAVE TO be hosted on GitHub Pages and should be public;
 
