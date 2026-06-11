@@ -166,6 +166,9 @@ nav:
       - 10. Security — OAuth2 & Zero Trust:
         - Overview: 2026.2/classes/security/index.md
         - Quiz: 2026.2/classes/security/quiz.md
+      - 11. Cloud Deployment Roadmap:
+        - Overview: 2026.2/classes/deployment/index.md
+        - Quiz: 2026.2/classes/deployment/quiz.md
 
     - Hands-on:
       - 0. Prerequisites: 2026.2/hands-on/0/index.md

@@ -1,4 +1,4 @@
-# 10. Security: OAuth 2.0, OIDC & Zero Trust
+# Security: OAuth 2.0, OIDC & Zero Trust
 
 The previous security hands-on introduced JSON Web Tokens as the mechanism for carrying identity across services. JWT is a transport format — it answers "who is this user?" But it says nothing about how that user proved their identity, who issued the token, or whether it should be trusted by a third-party service. OAuth 2.0 and OpenID Connect fill these gaps, and Zero Trust architecture takes the next step: distrust everything, verify always.
 

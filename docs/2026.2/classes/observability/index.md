@@ -1,5 +1,5 @@
 
-# 9. Observability
+# Observability
 
 A system you cannot observe is a system you cannot operate. Monitoring tells you that something is wrong; observability tells you *why*. The distinction matters in microservices: a request that touches eight services and three databases cannot be diagnosed from a single metric on a single dashboard. Observability is the property of a system that makes its internal state inferable from external outputs.
 
