@@ -1,4 +1,6 @@
 
+![Class 2026.2](2026.2.jpg){ .rounded-corners }
+
 ## Meetings
 
 | :octicons-location-24: | :fontawesome-regular-calendar: | :fontawesome-regular-clock: |
