@@ -5,9 +5,9 @@
 
 | :octicons-location-24: | :fontawesome-regular-calendar: | :fontawesome-regular-clock: |
 |-|:-:|:-:|
-| Aula | Qua. | 12h00 :fontawesome-solid-arrow-right-long: 14h00 |
-| Aula | Sex. | 12h00 :fontawesome-solid-arrow-right-long: 14h00 |
-| Atendimento | Ter. | 12h00 :fontawesome-solid-arrow-right-long: 13h30 |
+| Aula | Mon. | 07h30 :fontawesome-solid-arrow-right-long: 09h30 |
+| Aula | Fri. | 12h00 :fontawesome-solid-arrow-right-long: 14h00 |
+| Officer Hours | - | 99h00 :fontawesome-solid-arrow-right-long: 99h30 |
 
 
 ## Instructors
