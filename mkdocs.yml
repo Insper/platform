@@ -57,7 +57,6 @@ markdown_extensions:
   - admonition
   - attr_list
   - md_in_html
-  - markdown_grid_tables:
   - markdown_include.include:
       base_path: docs
   - pymdownx.arithmatex:
@@ -83,7 +82,6 @@ markdown_extensions:
   - pymdownx.tasklist:
       custom_checkbox: true
   - footnotes
-  - pymdownx.critic
   - pymdownx.caret
   - pymdownx.keys
   - pymdownx.mark
@@ -104,9 +102,7 @@ plugins:
   - search
   - minify:
       minify_html: true
-  - badges
   - markdown-exec
-  - mkdocs-pdf
   - render_swagger:
       allow_arbitrary_locations : true
   - termynal:
@@ -343,25 +339,7 @@ nav:
   - 2025.2: 2025.2/index.md
   - 2025.1: 2025.1/index.md
   - 2024.1: 2024.1/index.md
-  
-  # - DevOps:
-  #   - Concepts: ./devops/concepts.md
-  #   - Version Control: ./devops/version-control-system.md
-  #   - Docker: ./devops/docker.md
-  #   - Packaging: ./devops/packaging.md
-  #   - Release: ./devops/release.md
-  #   # - Nexus: nexus.md
-  #   # - SonarQube: sonarqube.md
-  #   - Kubernetes: ./devops/kubernetes.md
-  # - Cloud Computing:
-  #   - AWS: ./cloud/aws.md
-  #   - GCP: ./cloud/gcp.md
-  #   - Azure: ./cloud/azure.md
-  #   - GitActions: ./cloud/gitactions.md
-  #   - Terraform: ./cloud/terraform.md
-  # - Business:
-  #   - Concepts: ./business/concepts.md
-  
+
   - Appendix:
     - Network:
       - Overview: appendix/network/index.md
