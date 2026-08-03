@@ -7,8 +7,7 @@
 |-|:-:|:-:|
 | Aula | Mon. | 07h30 :fontawesome-solid-arrow-right-long: 09h30 |
 | Aula | Fri. | 12h00 :fontawesome-solid-arrow-right-long: 14h00 |
-| Officer Hours | - | 99h00 :fontawesome-solid-arrow-right-long: 99h30 |
-
+| Office hours | Tue. | 12h00 :fontawesome-solid-arrow-right-long: 13h30 |
 
 ## Instructors
 
