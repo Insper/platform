@@ -1,10 +1,21 @@
 ![Class 2024.1](2024.1.jpg){ .rounded-corners }
 
-???+ info
+## Instructor
 
-    :fontawesome-regular-address-book: Prof. [Humberto Sandmann](https://hsandmann.github.io){target='_blank'}
+<div class="grid cards" markdown>
 
-    :fontawesome-regular-envelope: [humbertors@insper.edu.br](mailto:humbertors@insper.edu.br){target='_blank'}
+-   :material-account-tie:{ .lg .middle } **Instructor**
+
+    ---
+
+    **Humberto Sandmann**
+
+    [:material-web:](https://hsandmann.github.io/){:target="_blank"}
+    [:simple-github:](https://github.com/hsandmann){:target="_blank"}
+    [:material-linkedin:](https://www.linkedin.com/in/hsandmann/){:target="_blank"}
+    [:fontawesome-regular-envelope:](mailto:humbertors@insper.edu.br){:target="_blank"}
+
+</div>
 
 
 !!! example "Students"

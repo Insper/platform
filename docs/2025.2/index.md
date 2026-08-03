@@ -3,9 +3,28 @@
 
 ## Instructors
 
-| [:material-web:](https://hsandmann.github.io/){:target="_blank"} [:simple-github:](https://github.com/hsandmann){:target="_blank"} [:material-linkedin:](https://www.linkedin.com/in/hsandmann/){:target="_blank"} Instructor | Humberto Sandmann |
+<div class="grid cards" markdown>
 
-| [:simple-github:](https://github.com/giuvallente){:target="_blank"} [:material-linkedin:](https://www.linkedin.com/in/giulia-gomes-vallente-1b06ba302/){:target="_blank"} Student Assistant | Giúlia Gomes Vallente |
+-   :material-account-tie:{ .lg .middle } **Instructor**
+
+    ---
+
+    **Humberto Sandmann**
+
+    [:material-web:](https://hsandmann.github.io/){:target="_blank"}
+    [:simple-github:](https://github.com/hsandmann){:target="_blank"}
+    [:material-linkedin:](https://www.linkedin.com/in/hsandmann/){:target="_blank"}
+
+-   :material-school:{ .lg .middle } **Student Assistant**
+
+    ---
+
+    **Giúlia Gomes Vallente**
+
+    [:simple-github:](https://github.com/giuvallente){:target="_blank"}
+    [:material-linkedin:](https://www.linkedin.com/in/giulia-gomes-vallente-1b06ba302/){:target="_blank"}
+
+</div>
 
 ## Students
 

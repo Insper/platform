@@ -12,9 +12,28 @@
 
 ## Instructors
 
-| [:material-web:](https://hsandmann.github.io/){:target="_blank"} [:simple-github:](https://github.com/hsandmann){:target="_blank"} [:material-linkedin:](https://www.linkedin.com/in/hsandmann/){:target="_blank"} Instructor | Humberto Sandmann |
+<div class="grid cards" markdown>
 
-| [:simple-github:](https://github.com/luabatepietro){:target="_blank"} [:material-linkedin:](https://www.linkedin.com/in/lucas-abatepietro-286a03270/){:target="_blank"} Student Assistant | Lucas Abatepietro |
+-   :material-account-tie:{ .lg .middle } **Instructor**
+
+    ---
+
+    **Humberto Sandmann**
+
+    [:material-web:](https://hsandmann.github.io/){:target="_blank"}
+    [:simple-github:](https://github.com/hsandmann){:target="_blank"}
+    [:material-linkedin:](https://www.linkedin.com/in/hsandmann/){:target="_blank"}
+
+-   :material-school:{ .lg .middle } **Student Assistant**
+
+    ---
+
+    **Lucas Abatepietro**
+
+    [:simple-github:](https://github.com/luabatepietro){:target="_blank"}
+    [:material-linkedin:](https://www.linkedin.com/in/lucas-abatepietro-286a03270/){:target="_blank"}
+
+</div>
 
 
 ## Students
