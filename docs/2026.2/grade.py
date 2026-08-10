@@ -5,9 +5,9 @@ fig, ax = plt.subplots(1, 2, figsize=(10, 5))
 
 # individual
 ax[0].pie(
-    [10, 10, 30, 50],
-    labels=["Quizzes", "Microservice", "Midterm exam", "Final exam"],
-    colors=["aquamarine", "mediumaquamarine", "mediumspringgreen", "mediumturquoise"],
+    [10, 30, 60],
+    labels=["Quizzes", "Midterm exam", "Final exam"],
+    colors=["aquamarine", "mediumspringgreen", "mediumturquoise"],
     autopct='%1.0f%%',
     startangle=90)
 ax[0].title.set_text("Individual")

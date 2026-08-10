@@ -58,10 +58,10 @@ $$
 --8<-- "docs/2026.2/grade.py"
 ```
 
-1. **Quizzes**: the course will have 4 quizzes; the lowest is dropped and the final grade is the average of the three best:
+1. **Quizzes**: the course will have 3 quizzes; the lowest is dropped and the final grade is the average of the three best:
 
     $$
-    \text{Quizzes} = \frac{\text{Q}_1 + \text{Q}_2 + \text{Q}_3 + \text{Q}_4 - \min(\text{Q}_1, \text{Q}_2, \text{Q}_3, \text{Q}_4)}{3}
+    \text{Quizzes} = \frac{\text{Q}_1 + \text{Q}_2 + \text{Q}_3 - \min(\text{Q}_1, \text{Q}_2, \text{Q}_3)}{2}
     $$
 
 1. **Microservice**: the students will have to implement a microservice. The grade is a concept grade, based on `Notas da Engenharia`:
@@ -107,10 +107,68 @@ $$
         :octicons-project-template-16: Delivery template: [documentation template](https://hsandmann.github.io/documentation.template/){target="_blank"}.
 
 
+!!! danger "ORAL EXAMINATION"
+
+    **ALL GRADES** in this course are subject to an oral examination for validation. If the outcome of the oral examination is negative, that specific grade will be **ZEROED**.
+
 ## Planning
 
-<!-- TODO: embed planning spreadsheet here -->
+## Calendar
 
+<div class="calendar-wrap" markdown>
+
+<div class="table-fit" markdown>
+
+| | Sun | Mon | Tue | Wed | Thu | Fri | Sat |
+|-|-|-|-|-|-|-|-|
+| Aug |    | 10 |    |    |    | 14 |    |
+|     |    | 17 |    |    |    | 21 |    |
+|     |    | 24 |    |    |    | 28 |    |
+|     |    | 31 |    |    |    |    |    |
+| Sep |    |    |    |    |    | 04 |    |
+|     |    |    |    |    |    | 11 |    |
+|     |    | 14 |    |    |    | 18 |    |
+|     |    | 21 |    |    | <span class='calendar-mexam'>24</span> | <span class='calendar-mexam'>25</span> |    |
+|     |    | <span class='calendar-mexam'>28</span> | <span class='calendar-mexam'>29</span> |  <span class='calendar-mexam'>30</span> |    |    |    |
+| Oct |    | 05 |    |    |    | 09 |    |
+|     |    |    |    |    |    | 16 |    |
+|     |    | 19 |    |    |    | 23 |    |
+|     |    | 26 |    |    |    | 30 |    |
+| Nov |    |    |    |    |    | 06 |    |
+|     |    | 09 |    |    |    | 13 |    |
+|     |    | 16 |    |    |    |    |    |
+|     |    | 23 |    |    | <span class='calendar-fexam'>26</span> | <span class='calendar-fexam'>27</span> |    |
+|     |    | <span class='calendar-fexam'>30</span> |    |    |    |    |    |
+| Dec |    |    | <span class='calendar-fexam'>01</span> | <span class='calendar-fexam'>02</span> |    |    |    |
+|     |    | <span class='calendar-sexam'>07</span> | <span class='calendar-sexam'>08</span> | <span class='calendar-sexam'>09</span> |.  |    |    |
+
+</div>
+
+<div class="calendar-legend" markdown>
+
+<div class="calendar-legend-box" markdown>
+
+<p class="calendar-legend-title">Individual</p>
+
+<span class='calendar-mexam'>Midterm Exam</span>
+<span class='calendar-fexam'>Final Exam</span>
+<span class='calendar-sexam'>Substitutive Exam</span>
+
+</div>
+
+<div class="calendar-legend-box" markdown>
+
+<p class="calendar-legend-title">Team</p>
+
+<span class='calendar-eda'>EDA</span>
+<span class='calendar-classification'>Classification</span>
+<span class='calendar-regression'>Regression</span>
+
+</div>
+
+</div>
+
+</div>
 
 ## Repositories
 
