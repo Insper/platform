@@ -156,7 +156,7 @@ $$
 
 </div>
 
-<div class="calendar-legend-box" markdown>
+<!-- <div class="calendar-legend-box" markdown>
 
 <p class="calendar-legend-title">Team</p>
 
@@ -164,7 +164,7 @@ $$
 <span class='calendar-classification'>Classification</span>
 <span class='calendar-regression'>Regression</span>
 
-</div>
+</div> -->
 
 </div>
 
