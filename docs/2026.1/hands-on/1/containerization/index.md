@@ -7,7 +7,6 @@ The bellow diagram illustrates the architecture of the system, that will be crea
 ``` mermaid
 flowchart LR
     subgraph api [Trusted Layer]
-        direction TB
         account e3@==> db@{ shape: cyl, label: "Database" }
     end
     internet e1@==>|request| account:::red

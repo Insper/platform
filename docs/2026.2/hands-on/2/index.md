@@ -4,7 +4,6 @@ The main functionality of Gateway Microservice is to route the incoming requests
 ``` mermaid
 flowchart LR
     subgraph api [Trusted Layer]
-        direction TB
         gateway e2@==> account
         gateway e4@==> others
         account --> db@{ shape: cyl, label: "Database" }

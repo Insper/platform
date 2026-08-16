@@ -11,7 +11,6 @@ Security is a critical aspect of any platform. In a microservice architecture, a
 ``` mermaid
 flowchart LR
     subgraph api [Trusted Layer]
-        direction TB
         gateway --> account
         gateway --> others
         gateway e4@==> auth:::red

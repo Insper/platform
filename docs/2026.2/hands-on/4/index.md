@@ -12,7 +12,6 @@ flowchart LR
     dev([Developer]) -->|git push| scm[Source Control]
     scm -->|webhook / poll| ci[CI Server\nJenkins]
     subgraph pipeline [Pipeline]
-        direction LR
         build[Build] --> test[Test] --> image[Package\nDocker Image] --> push[Push\nRegistry]
     end
     ci --> pipeline
