@@ -4,7 +4,6 @@ The next step is to create an API that allows users to convert between currencie
 ``` mermaid
 flowchart LR
     subgraph api [Trusted Layer]
-        direction TB
         gateway --> account
         gateway --> auth
         account --> db@{ shape: cyl, label: "Database" }

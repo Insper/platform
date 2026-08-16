@@ -5,7 +5,6 @@ Build a RESTful API for an online store. The API is organized around two core re
 ``` mermaid
 flowchart LR
     subgraph api [Trusted Layer]
-        direction TB
         gateway --> account
         gateway --> auth
         account --> db@{ shape: cyl, label: "Database" }

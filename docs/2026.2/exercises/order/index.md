@@ -4,7 +4,6 @@ With the Product API in place, the next step is to implement the Order API. Orde
 ``` mermaid
 flowchart LR
     subgraph api [Trusted Layer]
-        direction TB
         gateway --> account
         gateway --> auth
         account --> db@{ shape: cyl, label: "Database" }
