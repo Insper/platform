@@ -124,23 +124,23 @@ $$
 | Aug |    | 10 |    |    |    | 14 |    |
 |     |    | 17 |    |    |    | 21 |    |
 |     |    | 24 |    |    |    | 28 |    |
-|     |    | 31 |    |    |    |    |    |
+|     |    | <span class='q1'>31</span> |    |    |    |    |    |
 | Sep |    |    |    |    |    | 04 |    |
 |     |    |    |    |    |    | 11 |    |
-|     |    | 14 |    |    |    | 18 |    |
-|     |    | 21 |    |    | <span class='calendar-mexam'>24</span> | <span class='calendar-mexam'>25</span> |    |
-|     |    | <span class='calendar-mexam'>28</span> | <span class='calendar-mexam'>29</span> |  <span class='calendar-mexam'>30</span> |    |    |    |
+|     |    | 14 |    |    |    | <span class='q1'>18</span> |    |
+|     |    | 21 |    |    | <span class='mexam'>24</span> | <span class='mexam'>25</span> |    |
+|     |    | <span class='mexam'>28</span> | <span class='mexam'>29</span> |  <span class='mexam'>30</span> |    |    |    |
 | Oct |    | 05 |    |    |    | 09 |    |
 |     |    |    |    |    |    | 16 |    |
-|     |    | 19 |    |    |    | 23 |    |
+|     |    | 19 |    |    |    | <span class='q1'>23</span> |    |
 |     |    | 26 |    |    |    | 30 |    |
 | Nov |    |    |    |    |    | 06 |    |
 |     |    | 09 |    |    |    | 13 |    |
 |     |    | 16 |    |    |    |    |    |
-|     |    | 23 |    |    | <span class='calendar-fexam'>26</span> | <span class='calendar-fexam'>27</span> |    |
-|     |    | <span class='calendar-fexam'>30</span> |    |    |    |    |    |
-| Dec |    |    | <span class='calendar-fexam'>01</span> | <span class='calendar-fexam'>02</span> |    |    |    |
-|     |    | <span class='calendar-sexam'>07</span> | <span class='calendar-sexam'>08</span> | <span class='calendar-sexam'>09</span> |.  |    |    |
+|     |    | <span class='project'>23</span> |    |    | <span class='fexam'>26</span> | <span class='fexam'>27</span> |    |
+|     |    | <span class='fexam'>30</span> |    |    |    |    |    |
+| Dec |    |    | <span class='fexam'>01</span> | <span class='fexam'>02</span> |    |    |    |
+|     |    | <span class='sexam'>07</span> | <span class='sexam'>08</span> | <span class='sexam'>09</span> |.  |    |    |
 
 </div>
 
@@ -150,21 +150,21 @@ $$
 
 <p class="calendar-legend-title">Individual</p>
 
-<span class='calendar-mexam'>Midterm Exam</span>
-<span class='calendar-fexam'>Final Exam</span>
-<span class='calendar-sexam'>Substitutive Exam</span>
+<span class='quizzes'>Quizzes</span>
+
+<span class='mexam'>Midterm Exam</span>
+<span class='fexam'>Final Exam</span>
+<span class='sexam'>Substitutive Exam</span>
 
 </div>
 
-<!-- <div class="calendar-legend-box" markdown>
+<div class="calendar-legend-box" markdown>
 
 <p class="calendar-legend-title">Team</p>
 
-<span class='calendar-eda'>EDA</span>
-<span class='calendar-classification'>Classification</span>
-<span class='calendar-regression'>Regression</span>
+<span class='project'>Project</span>
 
-</div> -->
+</div>
 
 </div>
 
@@ -178,7 +178,7 @@ API:
 
 | Microservice | Interface | Implementation |
 |-|-|-|
-| Account | account | account-service |
+| Account | [account](https://github.com/repo-classes/pma262-account){:target="_blank"} | [account-service](https://github.com/repo-classes/pma262-account-service){:target="_blank"} |
 | Auth | auth | auth-service |
 | Gateway |  | gateway-service |
 | Product | product | product-service |

@@ -118,14 +118,6 @@
     margin: 0;
 }
 
-.calendar-mexam, .calendar-fexam, .calendar-sexam,
-.calendar-ssprint, .calendar-fsprint,
-.calendar-eda, .calendar-classification, .calendar-regression {
-    padding: 4px;
-    border-radius: 4px;
-    color: white;
-}
-
 /* Syllabus: quieter table chrome, emphasis on the lesson titles */
 .md-typeset .syllabus h3 {
     margin: 1.8em 0 .4em;
@@ -176,11 +168,23 @@
     color: var(--md-default-fg-color--light);
 }
 
-.calendar-mexam { background-color: #EE0F0F; }
-.calendar-fexam { background-color: crimson; }
-.calendar-sexam { background-color: coral; }
-.calendar-ssprint { background-color: blue; }
-.calendar-fsprint { background-color: darkblue; }
-.calendar-eda { background-color: green; }
-.calendar-classification { background-color: darkseagreen; }
-.calendar-regression { background-color: yellowgreen; }
+.mexam, .fexam, .sexam,
+.quizzes, .q1, .q2, .q3,
+.project {
+    padding: 4px;
+    border-radius: 4px;
+    color: black;
+}
+
+.mexam { background-color: mediumspringgreen; }
+.fexam { background-color: mediumturquoise; }
+.sexam { background-color: green; color: white; }
+
+.quizzes, .q1, .q2, .q3 {
+    background-color: aquamarine;
+}
+
+.project {
+    color: white;
+    background-color: hotpink;
+}
