@@ -1,0 +1,10 @@
+markdown-grid-tables
+mkdocs-badges
+mkdocs-material
+mkdocs-material-extensions
+mkdocs-minify-plugin
+mkdocs-glightbox
+mkdocs-git-authors-plugin
+mkdocs-git-revision-date-localized-plugin
+mkdocs-render-swagger-plugin
+termynal
