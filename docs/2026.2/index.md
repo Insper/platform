@@ -172,7 +172,7 @@ $$
 
 ## Repositories
 
-Principal (root): `https://github.com/repo-classes/pma.262`
+Principal (root): [https://github.com/repo-classes/pma262](https://github.com/repo-classes/pma262){:target="_blank"}
 
 API:
 
