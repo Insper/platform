@@ -179,9 +179,5 @@ API:
 | Microservice | Interface | Implementation |
 |-|-|-|
 | Account | [account](https://github.com/repo-classes/pma262-account){:target="_blank"} | [account-service](https://github.com/repo-classes/pma262-account-service){:target="_blank"} |
-| Auth | auth | auth-service |
-| Gateway |  | gateway-service |
-| Product | product | product-service |
-| Order | order | order-service |
-| Exchange | exchange | exchange-service |
-| Notification |  | notification-service |
+| Gateway |  | [gateway-service](https://github.com/repo-classes/pma262-gateway-service){:target="_blank"} |
+| Auth | [auth](https://github.com/repo-classes/pma262-auth){:target="_blank"} | [auth-service](https://github.com/repo-classes/pma262-auth-service){:target="_blank"} |
