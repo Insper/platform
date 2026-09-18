@@ -132,24 +132,3 @@ Load balancing is the process of distributing incoming network traffic across mu
 Vulnerability scanning is the process of identifying and addressing security vulnerabilities in your application. Tools like OWASP ZAP and Snyk can help you identify potential security issues in your code and dependencies.
 
 <iframe width="100%" height="470" src="https://www.youtube.com/embed/361bfIvXMBI" allowfullscreen></iframe>
-
-
-
-
----
-
-!!! danger "Entrega"
-
-    Individualmente, cada aluno deve criar um repositório no GitHub, com a documentação em MkDocs dos exercícios realizados e também com o projeto e entrega o link via BlabkBoard. Na documentação publicada deve constar:
-
-    - Nome do aluno e grupo;
-    - Documentação das atividades realizadas;
-    - Código fonte das atividades realizadas;
-    - Documentação do projeto;
-    - Código fonte do projeto;
-    - Link para todos os repositórios utilizados;
-    - Destaques para os bottlenecks implementados (ao menos 2 por indivíduo);
-    - Apresentação do projeto;
-    - Vídeo de apresentação do projeto (2-3 minutos);
-    
-    Um template de documentação pode ser encontrado em [Template de Documentação](https://hsandmann.github.io/documentation.template/){target="_blank"}.

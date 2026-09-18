@@ -64,26 +64,4 @@ Or, you can scrape the data from a website.
 
     You can use the `requests` library to make HTTP requests to the third-party API.
 
-
----
-
-!!! danger "Entrega"
-
-    Individualmente, cada aluno deve criar um repositório no GitHub, com a documentação em MkDocs dos exercícios realizados e também com o projeto e entrega o link via BlabkBoard. Na documentação publicada deve constar:
-
-    - Nome do aluno e grupo;
-    - Documentação das atividades realizadas;
-    - Código fonte das atividades realizadas;
-    - Documentação do projeto;
-    - Código fonte do projeto;
-    - Link para todos os repositórios utilizados;
-    - Destaques para os bottlenecks implementados (ao menos 2 por indivíduo);
-    - Apresentação do projeto;
-    - Vídeo de apresentação do projeto (2-3 minutos);
-    
-    Um template de documentação pode ser encontrado em [Template de Documentação](https://hsandmann.github.io/documentation.template/){target="_blank"}.
-
-
-
-
 [^1]: [FastAPI - First Steps](https://fastapi.tiangolo.com/tutorial/first-steps/){target="_blank"}.
