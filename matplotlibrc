@@ -1,0 +1,3 @@
+# Non-interactive backend: Zensical renders pages on worker threads,
+# where GUI backends (e.g. macOS) cannot create figures.
+backend: Agg

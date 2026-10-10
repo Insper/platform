@@ -4,12 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Course documentation site for Insper's Platforms & Microservices course (5th semester, 80 hours), built with MkDocs + Material theme. Content covers distributed systems, containerization, microservices, DevOps, security, and observability. Instructor: Humberto Sandmann.
+Course documentation site for Insper's Platforms & Microservices course (5th semester, 80 hours), built with [Zensical](https://zensical.org) (Material theme, `classic` variant) from the MkDocs-format `mkdocs.yml`. Content covers distributed systems, containerization, microservices, DevOps, security, and observability. Instructor: Humberto Sandmann.
 
 ## Setup
 
 ```bash
-python3 -m venv env
+python3.12 -m venv env         # Zensical needs Python >= 3.10 (CI uses 3.12)
 source ./env/bin/activate      # Required every session
 pip3 install -r requirements.txt
 ```
@@ -17,17 +17,13 @@ pip3 install -r requirements.txt
 ## Common Commands
 
 ```bash
-mkdocs serve                          # Local dev server at http://127.0.0.1:8000
-mkdocs serve --dirtyreload            # Faster rebuild (only changed files)
-mkdocs build                          # Build static site into site/
-mkdocs gh-deploy --force              # Deploy to GitHub Pages (CI does this automatically on main)
+zensical serve                        # Local dev server at http://127.0.0.1:8000/platform/
+zensical build --clean                # Build static site into site/
 ```
 
-The `git-committers` plugin requires `MKDOCS_GIT_COMMITTERS_APIKEY` at build time. For local dev without a real token, set a dummy value to avoid build failures:
+Zensical reads `mkdocs.yml` directly. It has no `gh-deploy`: CI builds `site/` and publishes it to the `gh-pages` branch. Unsupported MkDocs plugins are ignored silently, so check the generated HTML when adding a plugin.
 
-```bash
-MKDOCS_GIT_COMMITTERS_APIKEY=dummy mkdocs serve
-```
+`matplotlibrc` (project root) forces the `Agg` backend: Zensical renders pages on worker threads, where `markdown-exec` plots fail with GUI backends.
 
 ## Architecture
 
@@ -40,18 +36,20 @@ This is a documentation repository — no application code, no tests.
 - `docs/versions/` — versioned course editions (2024.1–2026.1) with grading rubrics and schedules
 - `docs/appendix/` — supporting topics (git, networking, dev setup, RSA, etc.)
 
-**`mkdocs.yml`** is the central config (271 lines). It defines navigation, plugins, and Markdown extensions. Key capabilities enabled:
+**`mkdocs.yml`** is the central config. It defines navigation, plugins, and Markdown extensions. Key capabilities enabled:
 - Mermaid diagram rendering (via superfences)
-- Swagger/OpenAPI rendering (via `mkdocs-render-swagger-plugin`)
 - Embedded Python execution in Markdown (via `markdown-exec`)
-- PDF export, image lightbox, terminal animations (termynal)
-- Git-based author/revision tracking (requires `MKDOCS_GIT_COMMITTERS_APIKEY` in `.env`)
+- Image lightbox (`glightbox`), search, HTML minification
+- Terminal animations: the `termynal` Markdown extension converts code blocks preceded by `<!-- termynal -->`; its assets are vendored in `docs/assets/` and initialized by `termynal-init.js`
+- `exclude` plugin keeps `2026.2/exams/` out of the build (Zensical does not support `exclude_docs`)
+
+No git-based revision dates/authors: Zensical does not support the `git-*` plugins.
 
 **`site/`** is generated output — never edit manually; it's rebuilt on deploy.
 
 ## CI/CD
 
-GitHub Actions (`.github/workflows/main.yaml`) triggers on every push and PR. Deployment to GitHub Pages runs only on pushes to `main` using `mkdocs gh-deploy --force` with Python 3.12.
+GitHub Actions (`.github/workflows/main.yaml`) triggers on every push and PR. Deployment to GitHub Pages runs only on pushes to `main`: `zensical build --clean` with Python 3.12, then `peaceiris/actions-gh-pages` publishes `site/` to the `gh-pages` branch.
 
 ## Content Patterns
 

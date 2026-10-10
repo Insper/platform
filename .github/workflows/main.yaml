@@ -15,6 +15,8 @@ jobs:
   deploy:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
 
       # Checkout source form GitHub
@@ -29,6 +31,13 @@ jobs:
       - run: |
           pip install -r requirements.txt
           
-      # deploy
+      # build
       - run: |
-          mkdocs gh-deploy --force
+          zensical build --clean
+
+      # deploy (Zensical has no gh-deploy: publish site/ to the gh-pages branch)
+      - uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./site
+          force_orphan: true

@@ -6,6 +6,8 @@ repo_name: insper/platform
 
 theme:
   name: material
+  # Zensical: keep the Material look (white logo on the grey header, extra CSS)
+  variant: classic
   palette:
     # primary: grey
     # Light mode
@@ -57,8 +59,6 @@ markdown_extensions:
   - admonition
   - attr_list
   - md_in_html
-  - markdown_include.include:
-      base_path: docs
   - pymdownx.arithmatex:
       generic: true
   - pymdownx.details
@@ -67,8 +67,8 @@ markdown_extensions:
       line_spans: __span
       pygments_lang_class: true
   - pymdownx.emoji:
-      emoji_index: !!python/name:material.extensions.emoji.twemoji 
-      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+      emoji_index: !!python/name:zensical.extensions.emoji.twemoji
+      emoji_generator: !!python/name:zensical.extensions.emoji.to_svg
   - pymdownx.inlinehilite
   - pymdownx.snippets:
       url_download: true
@@ -87,37 +87,37 @@ markdown_extensions:
   - pymdownx.mark
   - pymdownx.tilde
   - tables
-
-
-plugins:
-  - glightbox
-  - git-revision-date-localized:
-      enable_creation_date: true
-      enable_git_follow: false
-  - git-authors
-  - git-committers:
-      repository: insper/platform
-      branch: main
-      token: !ENV MKDOCS_GIT_COMMITTERS_APIKEY
-  - search
-  - minify:
-      minify_html: true
-  - markdown-exec
-  - render_swagger:
-      allow_arbitrary_locations : true
+  # Terminal animations for ``` termynal blocks (assets in extra_css/extra_javascript)
   - termynal:
       prompt_literal_start:
         - "$"
         - ">"
 
+
+plugins:
+  - glightbox
+  - search
+  - minify:
+      minify_html: true
+  - markdown-exec
+  # A pasta de provas NÃO vai para o site: docs/ é publicado em insper.github.io/platform.
+  # Remova esta entrada depois de aplicar a prova, se quiser divulgá-la.
+  # (Zensical não suporta exclude_docs; o plugin exclude é o equivalente.)
+  - exclude:
+      glob:
+        - "2026.2/exams/*"
+
 extra_javascript:
   - assets/javascripts/mathjax.js
   - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
   - assets/javascripts/interview.js
+  - assets/javascripts/termynal.js
+  - assets/javascripts/termynal-init.js
 
 extra_css:
   - assets/stylesheets/extra.css
   - assets/stylesheets/interview.css
+  - assets/stylesheets/termynal.css
 
 nav:
   - Overview: index.md

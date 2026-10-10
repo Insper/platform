@@ -1,18 +1,11 @@
-markdown-grid-tables
+# Static site generator (alpha: pinned so builds stay reproducible)
+zensical==0.0.69
+
+# Markdown extensions
 markdown-exec
-markdown-include
-mkdocs-badges
-mkdocs-material
-mkdocs-material-extensions
-mkdocs-minify-plugin
-mkdocs-glightbox
-mkdocs-git-authors-plugin
-mkdocs-git-committers-plugin-2
-mkdocs-git-revision-date-localized-plugin
-mkdocs-render-swagger-plugin
-mkdocs-pdf
-neoteroi-mkdocs
 termynal
+
+# Libraries used by ```python exec="true" blocks
 matplotlib
 matplotlib_venn
 numpy
