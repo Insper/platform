@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Course documentation site for Insper's Platforms & Microservices course (5th semester, 80 hours), built with [Zensical](https://zensical.org) (`modern` variant, light/dark/system palette toggle) from the MkDocs-format `mkdocs.yml`. Content covers distributed systems, containerization, microservices, DevOps, security, and observability. Instructor: Humberto Sandmann.
+Course documentation site for Insper's Platforms & Microservices course (5th semester, 80 hours), built with [Zensical](https://zensical.org) (`modern` variant, light/dark/system palette toggle) configured in `zensical.toml`. Content covers distributed systems, containerization, microservices, DevOps, security, and observability. Instructor: Humberto Sandmann.
 
 ## Setup
 
@@ -21,7 +21,7 @@ zensical serve                        # Local dev server at http://127.0.0.1:800
 zensical build --clean                # Build static site into site/
 ```
 
-Zensical reads `mkdocs.yml` directly. It has no `gh-deploy`: CI builds `site/` and publishes it to the `gh-pages` branch. Unsupported MkDocs plugins are ignored silently, so check the generated HTML when adding a plugin.
+Zensical has no `gh-deploy`: CI builds `site/` and publishes it to the `gh-pages` branch. Unsupported MkDocs plugins are ignored silently, so check the generated HTML when adding a plugin.
 
 `matplotlibrc` (project root) forces the `Agg` backend: Zensical renders pages on worker threads, where `markdown-exec` plots fail with GUI backends.
 
@@ -36,7 +36,7 @@ This is a documentation repository — no application code, no tests.
 - `docs/versions/` — versioned course editions (2024.1–2026.1) with grading rubrics and schedules
 - `docs/appendix/` — supporting topics (git, networking, dev setup, RSA, etc.)
 
-**`mkdocs.yml`** is the central config. It defines navigation, plugins, and Markdown extensions. Key capabilities enabled:
+**`zensical.toml`** is the central config (everything under `[project]`). TOML has no `!!python/name` tags: functions are referenced as strings (e.g. `"zensical.extensions.emoji.twemoji"`). It defines navigation, plugins, and Markdown extensions. Key capabilities enabled:
 - Mermaid diagram rendering (via superfences)
 - Embedded Python execution in Markdown (via `markdown-exec`)
 - Image lightbox (`glightbox`), search, HTML minification
@@ -75,4 +75,4 @@ Include another Markdown file verbatim with `markdown-include`:
 {!path/to/file.md!}
 ```
 
-Navigation structure is explicitly declared in `mkdocs.yml` — adding a new page requires updating the `nav:` section there.
+Navigation structure is explicitly declared in `zensical.toml` — adding a new page requires updating the `nav` array there. Quote numeric titles (`"2026.2"`): an unquoted `2026.2` is a dotted key in TOML.

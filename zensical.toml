@@ -1,0 +1,400 @@
+# Zensical configuration (https://zensical.org)
+
+[project]
+site_name = "Platforms, Microservices, DevOps and APIs"
+site_author = "Sandmann, H."
+site_url = "https://insper.github.io/platform"
+repo_url = "https://github.com/insper/platform"
+repo_name = "insper/platform"
+
+extra_css = [
+  "assets/stylesheets/extra.css",
+  "assets/stylesheets/interview.css",
+  "assets/stylesheets/termynal.css",
+]
+extra_javascript = [
+  "assets/javascripts/mathjax.js",
+  "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js",
+  "assets/javascripts/interview.js",
+  "assets/javascripts/termynal.js",
+  "assets/javascripts/termynal-init.js",
+]
+
+nav = [
+  { "Overview" = "index.md" },
+  { "2026.2" = [
+    { "Overview" = "2026.2/index.md" },
+    { "Classes" = [
+      { "1. Distributed Systems" = [
+        { "Overview" = "2026.2/classes/distributed_systems/index.md" },
+        { "CAP Theorem" = "2026.2/classes/distributed_systems/cap/index.md" },
+        { "Consensus & Algorithms" = "2026.2/classes/distributed_systems/consensus/index.md" },
+        { "Quiz" = "2026.2/classes/distributed_systems/quiz.md" },
+      ] },
+      { "2. Containerization" = [
+        { "Overview" = "2026.2/classes/containerization/index.md" },
+        { "Docker" = "2026.2/classes/containerization/docker/index.md" },
+        { "Docker Compose" = "2026.2/classes/containerization/compose/index.md" },
+        { "Quiz" = "2026.2/classes/containerization/quiz.md" },
+      ] },
+      { "3. API" = [
+        { "Overview" = "2026.2/classes/api/index.md" },
+        { "REST API Design" = "2026.2/classes/api/rest/index.md" },
+        { "OpenAPI & Swagger" = "2026.2/classes/api/swagger/index.md" },
+        { "Quiz" = "2026.2/classes/api/quiz.md" },
+      ] },
+      { "4. Microservices" = [
+        { "Overview" = "2026.2/classes/microservices/index.md" },
+        { "Domain-Driven Design" = "2026.2/classes/microservices/ddd/index.md" },
+        { "Architecture & Components" = "2026.2/classes/microservices/architecture/index.md" },
+        { "Quiz" = "2026.2/classes/microservices/quiz.md" },
+      ] },
+      { "5. Security — OAuth2 & Zero Trust" = [
+        { "Overview" = "2026.2/classes/security/index.md" },
+        { "Quiz" = "2026.2/classes/security/quiz.md" },
+      ] },
+      { "6. Architectures" = [
+        { "Overview" = "2026.2/classes/architectures/index.md" },
+        { "SOLID Principles" = "2026.2/classes/architectures/solid/index.md" },
+        { "Clean Architecture" = "2026.2/classes/architectures/clean/index.md" },
+        { "Hexagonal Architecture" = "2026.2/classes/architectures/hexagonal/index.md" },
+        { "Quiz" = "2026.2/classes/architectures/quiz.md" },
+      ] },
+      { "7. Event-Driven Architecture" = [
+        { "Overview" = "2026.2/classes/event_driven/index.md" },
+        { "Quiz" = "2026.2/classes/event_driven/quiz.md" },
+      ] },
+      { "8. Reliability" = [
+        { "Overview" = "2026.2/classes/reliability/index.md" },
+        { "SLI / SLO / SLA" = "2026.2/classes/reliability/sli-slo-sla/index.md" },
+        { "Resilience Patterns" = "2026.2/classes/reliability/patterns/index.md" },
+        { "Chaos Engineering" = "2026.2/classes/reliability/chaos/index.md" },
+        { "Quiz" = "2026.2/classes/reliability/quiz.md" },
+      ] },
+      { "9. Observability" = [
+        { "Overview" = "2026.2/classes/observability/index.md" },
+        { "Quiz" = "2026.2/classes/observability/quiz.md" },
+      ] },
+      { "10. Service Models" = [
+        { "Overview" = "2026.2/classes/service_models/index.md" },
+        { "Quiz" = "2026.2/classes/service_models/quiz.md" },
+      ] },
+      { "11. Cloud Deployment Roadmap" = [
+        { "Overview" = "2026.2/classes/deployment/index.md" },
+        { "Quiz" = "2026.2/classes/deployment/quiz.md" },
+      ] },
+    ] },
+    { "Hands-on" = [
+      { "0. Prerequisites" = "2026.2/hands-on/0/index.md" },
+      { "1. CRUD" = [
+        { "a. Overview" = "2026.2/hands-on/1/index.md" },
+        { "b. Controller" = "2026.2/hands-on/1/controller/index.md" },
+        { "c. Service" = "2026.2/hands-on/1/service/index.md" },
+        { "d. Containerization" = "2026.2/hands-on/1/containerization/index.md" },
+        { "e. Repository" = "2026.2/hands-on/1/repository/index.md" },
+        { "Quiz" = "2026.2/hands-on/1/quiz.md" },
+      ] },
+      { "2. Gateway" = [
+        { "a. Overview" = "2026.2/hands-on/2/index.md" },
+        { "Quiz" = "2026.2/hands-on/2/quiz.md" },
+      ] },
+      { "3. Security" = [
+        { "a. Overview" = "2026.2/hands-on/3/index.md" },
+        { "b. JWT" = "2026.2/hands-on/3/jwt/index.md" },
+        { "c. Open Routes" = "2026.2/hands-on/3/open-routes/index.md" },
+        { "d. Authorization" = "2026.2/hands-on/3/authorization/index.md" },
+        { "Quiz" = "2026.2/hands-on/3/quiz.md" },
+      ] },
+      { "4. DevOps" = [
+        { "a. Overview" = "2026.2/hands-on/4/index.md" },
+        { "Quiz" = "2026.2/hands-on/4/quiz.md" },
+      ] },
+      { "5. Orchestration" = [
+        { "a. Overview" = "2026.2/hands-on/5/index.md" },
+        { "Quiz" = "2026.2/hands-on/5/quiz.md" },
+      ] },
+      { "6. Observability" = [
+        { "a. Overview" = "2026.2/hands-on/6/index.md" },
+        { "b. Microservices" = "2026.2/hands-on/6/microservices/index.md" },
+        { "c. Docker Compose" = "2026.2/hands-on/6/docker/index.md" },
+        { "d. Prometheus" = "2026.2/hands-on/6/prometheus/index.md" },
+        { "e. Grafana" = "2026.2/hands-on/6/grafana/index.md" },
+        { "f. Run" = "2026.2/hands-on/6/run/index.md" },
+        { "Quiz" = "2026.2/hands-on/6/quiz.md" },
+      ] },
+      { "7. Load Balancer" = [
+        { "a. Overview" = "2026.2/hands-on/7/index.md" },
+        { "b. Nginx" = "2026.2/hands-on/7/nginx/index.md" },
+        { "c. Docker Compose" = "2026.2/hands-on/7/docker/index.md" },
+        { "d. Run" = "2026.2/hands-on/7/run/index.md" },
+        { "Quiz" = "2026.2/hands-on/7/quiz.md" },
+      ] },
+      { "8. In-Memory Cache" = [
+        { "a. Overview" = "2026.2/hands-on/8/index.md" },
+        { "b. Docker Compose" = "2026.2/hands-on/8/docker/index.md" },
+        { "c. Spring Boot" = "2026.2/hands-on/8/spring/index.md" },
+        { "d. Run" = "2026.2/hands-on/8/run/index.md" },
+        { "Quiz" = "2026.2/hands-on/8/quiz.md" },
+      ] },
+      { "9. Kafka Messaging" = [
+        { "a. Overview" = "2026.2/hands-on/9/index.md" },
+        { "Quiz" = "2026.2/hands-on/9/quiz.md" },
+      ] },
+      { "10. Distributed Tracing" = [
+        { "a. Overview" = "2026.2/hands-on/10/index.md" },
+        { "Quiz" = "2026.2/hands-on/10/quiz.md" },
+      ] },
+      { "11. AI in CI/CD" = [
+        { "a. Overview" = "2026.2/hands-on/11/index.md" },
+        { "Quiz" = "2026.2/hands-on/11/quiz.md" },
+      ] },
+    ] },
+    { "Exercises" = [
+      { "Project" = [
+        { "Overview" = "2026.2/exercises/project/index.md" },
+        { "AWS" = "2026.2/exercises/project/aws/index.md" },
+        { "EKS" = "2026.2/exercises/project/eks/index.md" },
+        { "CI/CD" = "2026.2/exercises/project/ci-cd/index.md" },
+        { "Load Testing" = "2026.2/exercises/project/load-testing/index.md" },
+        { "Costs & PaaS" = "2026.2/exercises/project/costs/index.md" },
+        { "Presentation" = "2026.2/exercises/project/presentation/index.md" },
+      ] },
+      { "Individual" = [
+        { "Product API" = "2026.2/exercises/product/index.md" },
+        { "Order API" = "2026.2/exercises/order/index.md" },
+        { "Exchange API" = "2026.2/exercises/exchange/index.md" },
+        { "Jenkins" = "2026.2/exercises/jenkins/index.md" },
+        { "MiniKube" = "2026.2/exercises/minikube/index.md" },
+        { "Bottlenecks" = "2026.2/exercises/bottlenecks/index.md" },
+      ] },
+    ] },
+    { "Interview Material" = "2026.2/interview/index.md" },
+  ] },
+
+  { "2026.1" = [
+    { "Overview" = "2026.1/index.md" },
+    { "Classes" = [
+      { "1. Distributed Systems" = [
+        { "Overview" = "2026.1/classes/distributed_systems/index.md" },
+        { "CAP Theorem" = "2026.1/classes/distributed_systems/cap/index.md" },
+        { "Consensus & Algorithms" = "2026.1/classes/distributed_systems/consensus/index.md" },
+        { "Quiz" = "2026.1/classes/distributed_systems/quiz.md" },
+      ] },
+      { "2. Containerization" = [
+        { "Overview" = "2026.1/classes/containerization/index.md" },
+        { "Docker" = "2026.1/classes/containerization/docker/index.md" },
+        { "Docker Compose" = "2026.1/classes/containerization/compose/index.md" },
+        { "Quiz" = "2026.1/classes/containerization/quiz.md" },
+      ] },
+      { "3. Microservices" = [
+        { "Overview" = "2026.1/classes/microservices/index.md" },
+        { "Domain-Driven Design" = "2026.1/classes/microservices/ddd/index.md" },
+        { "Architecture & Components" = "2026.1/classes/microservices/architecture/index.md" },
+        { "Quiz" = "2026.1/classes/microservices/quiz.md" },
+      ] },
+      { "4. Architectures" = [
+        { "Overview" = "2026.1/classes/architectures/index.md" },
+        { "SOLID Principles" = "2026.1/classes/architectures/solid/index.md" },
+        { "Clean Architecture" = "2026.1/classes/architectures/clean/index.md" },
+        { "Hexagonal Architecture" = "2026.1/classes/architectures/hexagonal/index.md" },
+        { "Quiz" = "2026.1/classes/architectures/quiz.md" },
+      ] },
+      { "5. API" = [
+        { "Overview" = "2026.1/classes/api/index.md" },
+        { "REST API Design" = "2026.1/classes/api/rest/index.md" },
+        { "OpenAPI & Swagger" = "2026.1/classes/api/swagger/index.md" },
+        { "Quiz" = "2026.1/classes/api/quiz.md" },
+      ] },
+      { "6. Service Models" = [
+        { "Overview" = "2026.1/classes/service_models/index.md" },
+        { "Quiz" = "2026.1/classes/service_models/quiz.md" },
+      ] },
+      { "7. Reliability" = [
+        { "Overview" = "2026.1/classes/reliability/index.md" },
+        { "SLI / SLO / SLA" = "2026.1/classes/reliability/sli-slo-sla/index.md" },
+        { "Resilience Patterns" = "2026.1/classes/reliability/patterns/index.md" },
+        { "Chaos Engineering" = "2026.1/classes/reliability/chaos/index.md" },
+        { "Quiz" = "2026.1/classes/reliability/quiz.md" },
+      ] },
+    ] },
+    { "Hands-on" = [
+      { "0. Prerequisites" = "2026.1/hands-on/0/index.md" },
+      { "1. CRUD" = [
+        { "a. Overview" = "2026.1/hands-on/1/index.md" },
+        { "b. Controller" = "2026.1/hands-on/1/controller/index.md" },
+        { "c. Service" = "2026.1/hands-on/1/service/index.md" },
+        { "d. Containerization" = "2026.1/hands-on/1/containerization/index.md" },
+        { "e. Repository" = "2026.1/hands-on/1/repository/index.md" },
+        { "Quiz" = "2026.1/hands-on/1/quiz.md" },
+      ] },
+      { "2. Gateway" = [
+        { "a. Overview" = "2026.1/hands-on/2/index.md" },
+        { "Quiz" = "2026.1/hands-on/2/quiz.md" },
+      ] },
+      { "3. Security" = [
+        { "a. Overview" = "2026.1/hands-on/3/index.md" },
+        { "b. JWT" = "2026.1/hands-on/3/jwt/index.md" },
+        { "c. Open Routes" = "2026.1/hands-on/3/open-routes/index.md" },
+        { "d. Authorization" = "2026.1/hands-on/3/authorization/index.md" },
+        { "Quiz" = "2026.1/hands-on/3/quiz.md" },
+      ] },
+      { "4. DevOps" = [
+        { "a. Overview" = "2026.1/hands-on/4/index.md" },
+        { "Quiz" = "2026.1/hands-on/4/quiz.md" },
+      ] },
+      { "5. Orchestration" = [
+        { "a. Overview" = "2026.1/hands-on/5/index.md" },
+        { "Quiz" = "2026.1/hands-on/5/quiz.md" },
+      ] },
+      { "6. Observability" = [
+        { "a. Overview" = "2026.1/hands-on/6/index.md" },
+        { "b. Microservices" = "2026.1/hands-on/6/microservices/index.md" },
+        { "c. Docker Compose" = "2026.1/hands-on/6/docker/index.md" },
+        { "d. Prometheus" = "2026.1/hands-on/6/prometheus/index.md" },
+        { "e. Grafana" = "2026.1/hands-on/6/grafana/index.md" },
+        { "f. Run" = "2026.1/hands-on/6/run/index.md" },
+        { "Quiz" = "2026.1/hands-on/6/quiz.md" },
+      ] },
+      { "7. Load Balancer" = [
+        { "a. Overview" = "2026.1/hands-on/7/index.md" },
+        { "b. Nginx" = "2026.1/hands-on/7/nginx/index.md" },
+        { "c. Docker Compose" = "2026.1/hands-on/7/docker/index.md" },
+        { "d. Run" = "2026.1/hands-on/7/run/index.md" },
+        { "Quiz" = "2026.1/hands-on/7/quiz.md" },
+      ] },
+      { "8. In-Memory Cache" = [
+        { "a. Overview" = "2026.1/hands-on/8/index.md" },
+        { "b. Docker Compose" = "2026.1/hands-on/8/docker/index.md" },
+        { "c. Spring Boot" = "2026.1/hands-on/8/spring/index.md" },
+        { "d. Run" = "2026.1/hands-on/8/run/index.md" },
+        { "Quiz" = "2026.1/hands-on/8/quiz.md" },
+      ] },
+    ] },
+    { "Exercises" = [
+      { "Project" = [
+        { "Overview" = "2026.1/exercises/project/index.md" },
+        { "AWS" = "2026.1/exercises/project/aws/index.md" },
+        { "EKS" = "2026.1/exercises/project/eks/index.md" },
+        { "CI/CD" = "2026.1/exercises/project/ci-cd/index.md" },
+        { "Load Testing" = "2026.1/exercises/project/load-testing/index.md" },
+        { "Costs & PaaS" = "2026.1/exercises/project/costs/index.md" },
+        { "Presentation" = "2026.1/exercises/project/presentation/index.md" },
+      ] },
+      { "Individual" = [
+        { "Product API" = "2026.1/exercises/product/index.md" },
+        { "Order API" = "2026.1/exercises/order/index.md" },
+        { "Exchange API" = "2026.1/exercises/exchange/index.md" },
+        { "Jenkins" = "2026.1/exercises/jenkins/index.md" },
+        { "MiniKube" = "2026.1/exercises/minikube/index.md" },
+        { "Bottlenecks" = "2026.1/exercises/bottlenecks/index.md" },
+      ] },
+    ] },
+  ] },
+
+  { "2025.2" = "2025.2/index.md" },
+  { "2025.1" = "2025.1/index.md" },
+  { "2024.1" = "2024.1/index.md" },
+  { "Appendix" = [
+    { "Network" = [
+      { "Overview" = "appendix/network/index.md" },
+      { "Quiz" = "appendix/network/quiz.md" },
+    ] },
+    { "Development Setup" = "appendix/development-setup.md" },
+    { "Git Submodules" = "appendix/git-submodules.md" },
+    { "RSA Algorithm" = "appendix/rsa.md" },
+    { "Oh My Zsh" = "appendix/ohmyzsh.md" },
+    { "Git Actions" = "appendix/gitactions.md" },
+    { "Others" = "appendix/others.md" },
+  ] },
+
+  { "Terms and Conditions" = "terms-and-conditions/index.md" },
+  { "Disclaimer" = "disclaimer/index.md" },
+]
+
+[project.theme]
+variant = "modern"
+logo = "assets/images/logo.png"
+features = [
+  "content.code.copy",
+  "content.code.select",
+  "content.code.annotate",
+  "content.tooltips",
+  "navigation.instant",
+  "navigation.instant.progress",
+  "navigation.top",
+  "navigation.path",
+  "navigation.tracking",
+  "navigation.footer",
+  "search.highlight",
+  "toc.follow",
+]
+
+[project.theme.icon.admonition]
+note = "fontawesome/solid/note-sticky"
+abstract = "fontawesome/solid/book"
+info = "fontawesome/solid/circle-info"
+tip = "fontawesome/solid/bullhorn"
+success = "fontawesome/solid/check"
+question = "fontawesome/solid/circle-question"
+warning = "fontawesome/solid/triangle-exclamation"
+failure = "fontawesome/solid/bomb"
+danger = "fontawesome/solid/skull"
+bug = "fontawesome/solid/robot"
+example = "fontawesome/solid/flask"
+quote = "fontawesome/solid/quote-left"
+
+# Follow the operating system preference
+[[project.theme.palette]]
+media = "(prefers-color-scheme)"
+toggle.icon = "lucide/sun-moon"
+toggle.name = "Switch to light mode"
+
+# Light mode
+[[project.theme.palette]]
+media = "(prefers-color-scheme: light)"
+scheme = "default"
+toggle.icon = "lucide/sun"
+toggle.name = "Switch to dark mode"
+
+# Dark mode
+[[project.theme.palette]]
+media = "(prefers-color-scheme: dark)"
+scheme = "slate"
+toggle.icon = "lucide/moon"
+toggle.name = "Switch to system preference"
+
+[project.markdown_extensions]
+admonition = {}
+attr_list = {}
+md_in_html = {}
+pymdownx.arithmatex.generic = true
+pymdownx.details = {}
+pymdownx.highlight.anchor_linenums = true
+pymdownx.highlight.line_spans = "__span"
+pymdownx.highlight.pygments_lang_class = true
+pymdownx.emoji.emoji_index = "zensical.extensions.emoji.twemoji"
+pymdownx.emoji.emoji_generator = "zensical.extensions.emoji.to_svg"
+pymdownx.inlinehilite = {}
+pymdownx.snippets.url_download = true
+pymdownx.superfences.custom_fences = [
+  { name = "mermaid", class = "mermaid", format = "pymdownx.superfences.fence_code_format" },
+]
+pymdownx.tabbed.alternate_style = true
+pymdownx.tasklist.custom_checkbox = true
+footnotes = {}
+pymdownx.caret = {}
+pymdownx.keys = {}
+pymdownx.mark = {}
+pymdownx.tilde = {}
+tables = {}
+# Terminal animations for blocks preceded by <!-- termynal --> (assets in extra_*)
+termynal.prompt_literal_start = ["$", ">"]
+
+[project.plugins]
+glightbox = {}
+search = {}
+minify.minify_html = true
+"markdown-exec" = {}
+# A pasta de provas NÃO vai para o site: docs/ é publicado em insper.github.io/platform.
+# Remova esta entrada depois de aplicar a prova, se quiser divulgá-la.
+exclude.glob = ["2026.2/exams/*"]

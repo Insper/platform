@@ -2,10 +2,10 @@
 
 Para utilizar o código deste repositório, siga as instruções a seguir:
 
-Crie um ambiente virtual do Python:
+Crie um ambiente virtual do Python (o Zensical requer Python 3.10 ou superior):
 
 ``` shell
-python3 -m venv env
+python3.12 -m venv env
 ```
 
 Ative o ambiente virtual (**você deve fazer isso sempre que for executar algum script deste repositório**):
@@ -22,14 +22,10 @@ pip3 install -r requirements.txt
 
 ## Deployment
 
-O material utiliza o [mkdocs](https://www.mkdocs.org/) para gerar a documentação. Para visualizar a documentação, execute o comando:
+O material utiliza o [Zensical](https://zensical.org/) para gerar a documentação (configuração em `zensical.toml`). Para visualizar a documentação, execute o comando:
 
 ``` shell
-mkdocs serve
+zensical serve
 ```
 
-Para subir ao GitHub Pages, execute o comando:
-
-``` shell
-mkdocs gh-deploy
-```
+A publicação no GitHub Pages é feita pelo CI a cada push na `main`: ele executa `zensical build --clean` e publica a pasta `site/` no branch `gh-pages`.
