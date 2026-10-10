@@ -7,7 +7,7 @@ Measuring reliability requires a shared vocabulary that connects raw telemetry t
 | **SLO** | Service Level Objective | An internal target for that metric |
 | **SLA** | Service Level Agreement | A contractual commitment to customers |
 
-``` mermaid
+``` mermaid-sim
 flowchart LR
     telemetry["Telemetry\n(logs, metrics, traces)"]
     sli["SLI\nRaw measurement"]

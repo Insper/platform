@@ -4,7 +4,7 @@ A Docker Compose file is a YAML file that defines how Docker containers should b
 
 The bellow diagram illustrates the architecture of the system, that will be created using Docker Compose, where the microservices are isolated from the external access, creating a trusted layer. The microservices can only access the database, and the external access is blocked.
 
-``` mermaid
+``` mermaid-sim
 flowchart LR
     subgraph api [Trusted Layer]
         account e3@==> db@{ shape: cyl, label: "Database" }

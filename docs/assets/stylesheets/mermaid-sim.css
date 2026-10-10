@@ -1,0 +1,129 @@
+/* Mermaid simulator (see assets/javascripts/mermaid-sim.js) */
+
+.md-typeset .msim {
+  --msim-accent: var(--md-accent-fg-color, #526cfe);
+  margin: 1em 0;
+  border: .05rem solid var(--md-default-fg-color--lightest);
+  border-radius: .4rem;
+  outline: none;
+}
+
+.md-typeset .msim:focus-visible {
+  border-color: var(--msim-accent);
+}
+
+.md-typeset .msim-canvas {
+  display: flex;
+  justify-content: center;
+  padding: 1rem .8rem;
+  overflow-x: auto;
+}
+
+/* placeholder size until the diagram renders (also lets it be observed) */
+.md-typeset .msim-canvas:empty {
+  min-height: 6rem;
+}
+
+.md-typeset .msim-canvas svg {
+  height: auto;
+}
+
+/* Control bar */
+.md-typeset .msim-bar {
+  display: flex;
+  align-items: center;
+  gap: .3rem;
+  padding: .35rem .6rem;
+  border-top: .05rem solid var(--md-default-fg-color--lightest);
+  background: var(--md-code-bg-color);
+  border-radius: 0 0 .4rem .4rem;
+  font-size: .64rem;
+}
+
+.md-typeset .msim-bar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: none;
+  border-radius: .25rem;
+  background: none;
+  color: var(--md-default-fg-color--light);
+  cursor: pointer;
+}
+
+.md-typeset .msim-bar button:hover {
+  background: var(--md-default-fg-color--lightest);
+  color: var(--md-default-fg-color);
+}
+
+.md-typeset .msim-bar .msim-play {
+  color: var(--msim-accent);
+}
+
+.md-typeset .msim-step {
+  margin-left: .3rem;
+  color: var(--md-default-fg-color--light);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.md-typeset .msim-caption {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--md-default-fg-color);
+}
+
+/* Simulation states */
+.md-typeset .msim svg .msim-todo {
+  opacity: .15;
+}
+
+.md-typeset .msim svg .msim-done,
+.md-typeset .msim svg .msim-active,
+.md-typeset .msim svg .node,
+.md-typeset .msim svg .edgeLabel,
+.md-typeset .msim svg .messageText {
+  transition: opacity .3s;
+}
+
+.md-typeset .msim svg path.msim-active,
+.md-typeset .msim svg line.msim-active {
+  stroke: var(--msim-accent) !important;
+  stroke-width: 3px !important;
+}
+
+.md-typeset .msim svg .edgeLabel.msim-active,
+.md-typeset .msim svg .messageText.msim-active {
+  font-weight: 700;
+}
+
+.md-typeset .msim svg text.messageText.msim-active {
+  fill: var(--msim-accent) !important;
+}
+
+.md-typeset .msim svg .node.msim-current :is(rect, circle, polygon, path, ellipse) {
+  stroke: var(--msim-accent) !important;
+  stroke-width: 2.5px !important;
+}
+
+.md-typeset .msim svg .msim-dot {
+  fill: var(--msim-accent);
+  stroke: var(--md-default-bg-color);
+  stroke-width: 2px;
+  pointer-events: none;
+}
+
+.md-typeset .msim-error {
+  white-space: pre-wrap;
+}
+
+@media (max-width: 600px) {
+  .md-typeset .msim-caption {
+    display: none;
+  }
+}

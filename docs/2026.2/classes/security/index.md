@@ -44,7 +44,7 @@ The previous security hands-on introduced JSON Web Tokens as the mechanism for c
 
 ### Authorization Code + PKCE Flow
 
-```mermaid
+``` mermaid-sim
 sequenceDiagram
     autonumber
     actor User
@@ -67,7 +67,7 @@ sequenceDiagram
 
 ### Access Token Lifecycle
 
-```mermaid
+``` mermaid-sim
 stateDiagram-v2
     [*] --> Active : token issued
     Active --> Expired : exp claim reached
@@ -105,7 +105,7 @@ OIDC extends OAuth 2.0 with three additions:
 
 ### OAuth 2.0 and OIDC Layers
 
-```mermaid
+``` mermaid-sim
 flowchart TB
     subgraph "OIDC Layer (identity)"
         id["ID Token\n(who is the user?)"]
@@ -143,7 +143,7 @@ JWKS-based validation flow:
 4. The Gateway verifies the token signature using the cached JWKS
 5. On a `kid` miss (key rotation): re-fetch JWKS once, then retry validation
 
-```mermaid
+``` mermaid-sim
 sequenceDiagram
     participant C as Client
     participant GW as API Gateway
@@ -184,7 +184,7 @@ When two services call each other directly (not via the Gateway), how do they tr
 - **Standard TLS**: server presents a certificate → client verifies it
 - **mTLS**: server AND client both present certificates → both verify the other
 
-```mermaid
+``` mermaid-sim
 sequenceDiagram
     participant Order as order-service
     participant Inv as inventory-service
@@ -211,7 +211,7 @@ Traditional perimeter security trusts everything inside the network and blocks e
 
 Zero Trust principle: **"Never trust, always verify"** — every request is authenticated and authorised regardless of network location.
 
-```mermaid
+``` mermaid-sim
 flowchart LR
     subgraph "Perimeter Model"
         fw["Firewall"] --> |"trusted zone"| int["Internal services\n(trust each other implicitly)"]

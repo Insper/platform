@@ -9,7 +9,7 @@ The microservice is divided into two main modules: `account` and `account-servic
 - the `account` module contains the API definition and the data transfer objects (DTOs) for the Account microservice;
 - the `account-service` module contains the service implementation, repository, and entity classes.
 
-``` mermaid
+``` mermaid-sim
 classDiagram
     namespace account {
         class AccountController {
@@ -81,7 +81,7 @@ classDiagram
 
 The construction of the Account microservice follows the Clean Architecture approach, which promotes the total decoupling of business rules from interface layers. The diagram below illustrates the flow of data among the layers of the Account microservice:
 
-``` mermaid
+``` mermaid-sim
 sequenceDiagram
     title Clean architecture's approach 
     Actor Request

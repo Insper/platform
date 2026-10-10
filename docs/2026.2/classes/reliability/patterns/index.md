@@ -3,7 +3,7 @@ When a downstream service degrades or fails, the naive default — keep sending 
 
 Resilience patterns are design decisions that interrupt this propagation. They do not prevent failures; they **limit how far a failure travels** through the system[^1].
 
-``` mermaid
+``` mermaid-sim
 flowchart LR
     client --> gateway
     gateway -->|"Timeout\nCircuit Breaker\nBulkhead"| downstream:::slow
@@ -23,7 +23,7 @@ A **timeout** is a deadline applied to an outbound call. If the downstream servi
 
 Without a timeout, a single hanging dependency can hold threads indefinitely. With a timeout, the maximum damage any single slow call can do is bounded.
 
-``` mermaid
+``` mermaid-sim
 sequenceDiagram
     participant C as Client
     participant G as Gateway
@@ -52,7 +52,7 @@ sequenceDiagram
 
 A **retry** re-attempts a failed request after a waiting period. Retries are appropriate for **transient failures** — brief network blips, momentary service restarts, or transient resource exhaustion — where the same request is likely to succeed on a subsequent attempt.
 
-``` mermaid
+``` mermaid-sim
 sequenceDiagram
     participant C as Client
     participant S as Service
@@ -104,7 +104,7 @@ The circuit breaker[^3] is named by analogy with the electrical component: when 
 
 This prevents the calling service from wasting threads and connections on a dependency that is known to be unavailable.
 
-``` mermaid
+``` mermaid-sim
 stateDiagram-v2
     [*] --> Closed
 
@@ -223,7 +223,7 @@ plt.close()
 
 The bulkhead pattern — named after watertight compartments in a ship hull — **isolates resources by dependency**. Rather than sharing a single thread pool across all downstream calls, each dependency gets its own pool.
 
-``` mermaid
+``` mermaid-sim
 flowchart TD
     gateway --> poolA["Thread Pool A\n(max 10 threads)"]
     gateway --> poolB["Thread Pool B\n(max 10 threads)"]
@@ -248,7 +248,7 @@ Rate limiting caps the number of requests a client (or the system) can make with
 
 The **token bucket** is the most common rate limiting algorithm. It models a bucket that fills at a constant rate with tokens; each request consumes one token; requests that arrive when the bucket is empty are rejected or queued.
 
-``` mermaid
+``` mermaid-sim
 flowchart LR
     refill["Token source\n(refill rate: 100 req/s)"] -->|adds tokens| bucket["Token Bucket\n(capacity: 200)"]
     request["Incoming\nRequest"] -->|consumes 1 token| bucket
@@ -277,7 +277,7 @@ Two distinct types serve different purposes:
 **Readiness**
 : *Is the service ready to serve traffic?* Returns `200 OK` only if all dependencies (database, cache, downstream services) are reachable and warmed up. If a readiness check fails, the orchestrator **removes the instance from the load balancer pool** without restarting it.
 
-``` mermaid
+``` mermaid-sim
 flowchart LR
     lb["Load Balancer"] -->|"GET /actuator/health/readiness"| svc["Service Instance"]
     svc -->|200 OK| lb
@@ -299,7 +299,7 @@ Spring Boot Actuator exposes both at `/actuator/health/liveness` and `/actuator/
 
 These patterns are layered, not chosen in isolation. A production-grade call chain combines all of them:
 
-``` mermaid
+``` mermaid-sim
 flowchart LR
     client --> rl["Rate Limiter\n(protect service)"]
     rl --> cb["Circuit Breaker\n(fast-fail open deps)"]

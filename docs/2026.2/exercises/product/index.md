@@ -2,7 +2,7 @@
 Build a RESTful API for an online store. The API is organized around two core resources: `product` and `order`.
 
 
-``` mermaid
+``` mermaid-sim
 flowchart LR
     subgraph api [Trusted Layer]
         gateway --> account

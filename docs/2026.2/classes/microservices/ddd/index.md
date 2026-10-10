@@ -33,7 +33,7 @@ public class Account {
 
 A **Bounded Context** is the boundary within which a particular model is defined and applicable. The same word can mean different things in different contexts — and that is fine, as long as each context has a clear boundary.
 
-``` mermaid
+``` mermaid-sim
 flowchart LR
   subgraph Sales ["Bounded Context: Sales"]
     c1[Customer\n- name\n- creditLimit\n- salesRegion]
@@ -90,7 +90,7 @@ Value objects should be **immutable**. Operations return new instances rather th
 
 An **Aggregate** is a cluster of entities and value objects treated as a single unit for data changes. Every aggregate has one **Aggregate Root** — the only entry point for modifications.
 
-``` mermaid
+``` mermaid-sim
 flowchart TB
   subgraph Order [Aggregate: Order]
     root[Order\n«root»]
@@ -153,7 +153,7 @@ public class PricingService {
 
 **Event Storming** (Alberto Brandolini)[^4] is the most effective technique for discovering bounded contexts collaboratively. Domain experts and developers gather in front of a wall of sticky notes and map out the entire domain on a shared timeline.
 
-``` mermaid
+``` mermaid-sim
 flowchart LR
     ev1["🟠 OrderPlaced\n(domain event)"]
     ev2["🟠 PaymentCharged"]

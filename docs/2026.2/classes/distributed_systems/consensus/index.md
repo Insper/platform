@@ -34,7 +34,7 @@ Most datacenter algorithms assume crash-stop or crash-recovery. Byzantine fault 
 
 Paxos[^2], introduced by Leslie Lamport (1998), was the first practical consensus algorithm for crash-stop failures in asynchronous networks. It operates in two phases and tolerates up to ⌊(N-1)/2⌋ failures with N nodes.
 
-``` mermaid
+``` mermaid-sim
 sequenceDiagram
   participant P as Proposer
   participant A1 as Acceptor 1
@@ -73,7 +73,7 @@ Raft[^3] (Ongaro and Ousterhout, 2014) was designed explicitly for understandabi
 2. **Log replication** — the leader appends entries to its log and replicates them to followers.
 3. **Safety** — a committed entry is never overwritten; leaders only commit after a quorum acknowledges.
 
-``` mermaid
+``` mermaid-sim
 stateDiagram-v2
   [*] --> Follower
   Follower --> Candidate : election timeout
@@ -86,7 +86,7 @@ stateDiagram-v2
 
 ### Leader election sequence
 
-``` mermaid
+``` mermaid-sim
 sequenceDiagram
   participant N1 as Node 1 (Candidate)
   participant N2 as Node 2 (Follower)
@@ -109,7 +109,7 @@ Raft is used in **etcd** (the key-value store underpinning Kubernetes), **Cockro
 
 ### Log replication
 
-``` mermaid
+``` mermaid-sim
 sequenceDiagram
   participant C as Client
   participant L as Leader

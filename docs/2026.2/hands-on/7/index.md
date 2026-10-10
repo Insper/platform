@@ -14,7 +14,7 @@ A **proxy** is an intermediary that sits between clients and servers, forwarding
 
     Common uses: corporate firewalls, content filtering, anonymization (VPN, Tor).
 
-    ``` mermaid
+    ``` mermaid-sim
     flowchart LR
         client1[Client 1] --> fp[Forward Proxy]
         client2[Client 2] --> fp
@@ -27,7 +27,7 @@ A **proxy** is an intermediary that sits between clients and servers, forwarding
 
     Common uses: load balancing, SSL termination, caching, rate limiting.
 
-    ``` mermaid
+    ``` mermaid-sim
     flowchart LR
         internet[Internet] --> rp[Reverse Proxy]
         rp --> s1[Backend 1]
@@ -51,7 +51,7 @@ Load balancers are classified by the OSI layer at which they inspect traffic:
 
     Examples: AWS Network Load Balancer (NLB), HAProxy TCP mode.
 
-    ``` mermaid
+    ``` mermaid-sim
     flowchart LR
         client -->|"TCP :443"| lb["L4 Load Balancer\n(IP + Port)"]
         lb -->|"10.0.0.1:8080"| s1[Server 1]
@@ -69,7 +69,7 @@ Load balancers are classified by the OSI layer at which they inspect traffic:
 
     Examples: Nginx, Traefik, AWS Application Load Balancer (ALB).
 
-    ``` mermaid
+    ``` mermaid-sim
     flowchart LR
         client --> lb["L7 Load Balancer\n(HTTP-aware)"]
         lb -->|"/api/auth/*"| auth[Auth Service]
@@ -93,7 +93,7 @@ Adding Nginx as a load balancer changes the entry point of the platform. The gat
 
 === "Before"
 
-    ``` mermaid
+    ``` mermaid-sim
     flowchart LR
         subgraph api [Trusted Layer]
             gateway:::orange --> auth
@@ -107,7 +107,7 @@ Adding Nginx as a load balancer changes the entry point of the platform. The gat
 
 === "After"
 
-    ``` mermaid
+    ``` mermaid-sim
     flowchart LR
         subgraph lb [Load Balancer Layer]
             nginx["Nginx\n:80"]:::highlighted

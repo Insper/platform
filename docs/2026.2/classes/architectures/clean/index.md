@@ -34,7 +34,7 @@ A practical heuristic for deciding which layer a class belongs to:
 
 The diagram below shows how Clean Architecture layers map to the classes and packages used in the course's Spring Boot microservices:
 
-``` mermaid
+``` mermaid-sim
 flowchart LR
   subgraph Adapters ["Interface Adapters (green)"]
     direction TB
@@ -126,7 +126,7 @@ com.example.product/
 
 A quick decision guide for placing a new class:
 
-``` mermaid
+``` mermaid-sim
 flowchart TD
     start([New class]) --> q1{Does it contain\nbusiness rules?}
     q1 -->|Yes| q2{Does it depend on\na framework annotation?}
@@ -145,7 +145,7 @@ flowchart TD
 
 The five files below show a complete `Account` microservice slice across all four layers. Each file is in a different layer — notice that dependencies always point inward.
 
-``` mermaid
+``` mermaid-sim
 flowchart RL
     AccountController -->|"Parser converts\nRecordIn → DTO"| AccountService
     AccountService -->|"depends on interface"| AccountRepository

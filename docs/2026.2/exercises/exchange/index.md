@@ -1,7 +1,7 @@
 
 The next step is to create an API that allows users to convert between currencies. The API must use a third-party service to fetch exchange rates. Note that this microservice **must** be implemented in Python.
 
-``` mermaid
+``` mermaid-sim
 flowchart LR
     subgraph api [Trusted Layer]
         gateway --> account

@@ -5,7 +5,7 @@
 
 ## Core concepts
 
-``` mermaid
+``` mermaid-sim
 flowchart LR
   df[Dockerfile] -->|docker build| img[Image]
   img -->|docker run| c1[Container A]
@@ -78,7 +78,7 @@ The final image contains only the JRE and the compiled JAR — Maven and the sou
 
 Docker builds images layer by layer. If a layer has not changed since the last build, Docker reuses the cached version — skipping that step entirely. **Layer order matters**: place instructions that change infrequently (dependencies) before instructions that change often (source code).
 
-``` mermaid
+``` mermaid-sim
 flowchart LR
     subgraph bad [Poor order — cache busted on every code change]
         direction TB

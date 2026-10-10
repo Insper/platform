@@ -19,7 +19,7 @@ An **in-memory database** (IMDB) keeps its primary working dataset in RAM rather
 
 The typical production pattern is **cache-aside**: the application checks the in-memory store first; only on a **cache miss** does it query the database and then populate the cache with the result.
 
-``` mermaid
+``` mermaid-sim
 flowchart LR
     app[Service] -->|"1. GET account:42"| redis[(Redis)]
     redis -->|"2a. cache hit → return"| app
@@ -63,7 +63,7 @@ For this hands-on we enable AOF (`--appendonly yes`), providing durability witho
 
 Adding Redis to the platform introduces a shared cache layer between all microservice replicas and the database:
 
-``` mermaid
+``` mermaid-sim
 flowchart LR
     subgraph lb [Load Balancer]
         nginx["Nginx\n:80"]

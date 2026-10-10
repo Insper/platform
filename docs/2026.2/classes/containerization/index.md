@@ -7,7 +7,7 @@ When a server cannot handle growing traffic, two strategies exist:
 **Horizontal scaling** (scale-out)
 : Add more servers and distribute the load across them. Theoretically unbounded, but introduces a critical problem: **consistency across environments**.
 
-``` mermaid
+``` mermaid-sim
 flowchart LR
     subgraph vs [Vertical Scaling]
         s1["Server\n4 CPU / 8 GB"]:::small -->|upgrade| s2["Server\n32 CPU / 128 GB"]:::big
@@ -29,7 +29,7 @@ An application that works on a developer's laptop may fail in production because
 
 Both containers and virtual machines (VMs) provide isolation, but at different levels of the stack:
 
-``` mermaid
+``` mermaid-sim
 flowchart TB
     subgraph vm [Virtual Machines]
         direction TB
@@ -73,7 +73,7 @@ The key insight: containers share the host kernel, so they start in seconds and 
 
 ## The container lifecycle
 
-``` mermaid
+``` mermaid-sim
 flowchart LR
     src[Source Code\n+ Dockerfile] -->|docker build| img[Image\n:tag]
     img -->|docker push| reg[(Registry\nDocker Hub / ECR)]

@@ -2,7 +2,7 @@ The interface of the Account microservice is defined in the `account` module, wh
 
 The main purpose of the section is to create the following API endpoints:
 
-``` mermaid
+``` mermaid-sim
 classDiagram
     namespace account {
         class AccountController {

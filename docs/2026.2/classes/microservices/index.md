@@ -7,7 +7,7 @@ The microservices style is a response to a specific problem: as teams and codeba
 
 ## Monolith vs. Microservices
 
-``` mermaid
+``` mermaid-sim
 flowchart LR
     subgraph mono [Monolith]
         direction TB
@@ -128,7 +128,7 @@ Services in a microservice system communicate in two fundamentally different way
 
     The caller sends a request and **waits** for a response. Simple to reason about, but creates **temporal coupling** — the caller cannot complete its operation if the callee is down.
 
-    ``` mermaid
+    ``` mermaid-sim
     sequenceDiagram
         participant Client
         participant Gateway
@@ -149,7 +149,7 @@ Services in a microservice system communicate in two fundamentally different way
 
     The producer **publishes an event** and continues. Consumers process the event independently, in their own time. This eliminates temporal coupling — services can be down and process the message when they recover.
 
-    ``` mermaid
+    ``` mermaid-sim
     sequenceDiagram
         participant Order Service
         participant Message Broker

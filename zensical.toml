@@ -11,6 +11,7 @@ extra_css = [
   "assets/stylesheets/extra.css",
   "assets/stylesheets/interview.css",
   "assets/stylesheets/termynal.css",
+  "assets/stylesheets/mermaid-sim.css",
 ]
 extra_javascript = [
   "assets/javascripts/mathjax.js",
@@ -18,6 +19,7 @@ extra_javascript = [
   "assets/javascripts/interview.js",
   "assets/javascripts/termynal.js",
   "assets/javascripts/termynal-init.js",
+  "assets/javascripts/mermaid-sim.js",
 ]
 
 nav = [
@@ -378,6 +380,8 @@ pymdownx.inlinehilite = {}
 pymdownx.snippets.url_download = true
 pymdownx.superfences.custom_fences = [
   { name = "mermaid", class = "mermaid", format = "pymdownx.superfences.fence_code_format" },
+  # Step-by-step diagram simulator (assets/javascripts/mermaid-sim.js)
+  { name = "mermaid-sim", class = "mermaid-sim", format = "pymdownx.superfences.fence_code_format" },
 ]
 pymdownx.tabbed.alternate_style = true
 pymdownx.tasklist.custom_checkbox = true

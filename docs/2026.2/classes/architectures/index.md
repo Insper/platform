@@ -11,7 +11,7 @@ Without an explicit architectural rule, dependencies accumulate in both directio
 
 Both architectures solve this through a single constraint: **dependencies flow in one direction only**, pointing toward the stable core.
 
-``` mermaid
+``` mermaid-sim
 flowchart LR
   External["External World\n(HTTP, DB, MQ, CLI)"]
   Core["Application Core\n(Business Rules)"]
@@ -73,7 +73,7 @@ flowchart LR
 
 Most applications read data far more often than they write it. CQRS separates the **write side** (commands that mutate state) from the **read side** (queries that return views), allowing each to be optimised independently.
 
-``` mermaid
+``` mermaid-sim
 flowchart LR
     client(["Client"])
 

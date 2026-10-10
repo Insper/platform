@@ -1,4 +1,4 @@
-``` mermaid
+``` mermaid-sim
 flowchart LR
   subgraph client["Internet"]
     direction LR

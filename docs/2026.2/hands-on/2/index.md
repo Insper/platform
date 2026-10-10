@@ -1,7 +1,7 @@
 
 The main functionality of Gateway Microservice is to route the incoming requests to the appropriate microservice, therefore, it is the entry point for all the incoming requests. In counterpart, each microservice have to expose their own port and endpoints to the internet, which is not a good practice. The Gateway Microservice will act as a reverse proxy and route the incoming requests to the appropriate microservice. Also, it will also handle the authentication and authorization of the incoming requests.
 
-``` mermaid
+``` mermaid-sim
 flowchart LR
     subgraph api [Trusted Layer]
         gateway e2@==> account

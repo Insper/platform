@@ -12,7 +12,7 @@ In this hands-on, we will focus on **monitoring**, wiring together [Spring Boot 
 
 The resulting architecture adds a dedicated observability layer alongside the existing microservices:
 
-``` mermaid
+``` mermaid-sim
 flowchart LR
     subgraph obs [Observability Layer]
         prometheus@{ shape: cyl, label: "Prometheus\n:9090" }

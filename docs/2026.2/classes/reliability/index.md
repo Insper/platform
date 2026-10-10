@@ -44,7 +44,7 @@ Each additional "nine" is a 10× reduction in allowable downtime. Moving from th
 
 Distributed systems fail in ways that single-machine systems do not. Partial failures — where some components work and others do not — are far more common than total outages, and substantially harder to handle correctly.
 
-``` mermaid
+``` mermaid-sim
 flowchart TD
     F[Failure] --> T[Transient\nTemporary, self-healing\ne.g. brief network blip]
     F --> P[Permanent\nRequires intervention\ne.g. disk crash, OOM kill]
@@ -64,7 +64,7 @@ flowchart TD
 
 A single slow dependency can exhaust resources in its caller — thread pool slots, connection pool entries, memory — and propagate that exhaustion upstream through the entire service graph. This is the most dangerous failure pattern in microservice architectures[^2].
 
-``` mermaid
+``` mermaid-sim
 flowchart LR
     client -->|many concurrent requests| gateway:::saturated
     gateway -->|requests queue up\nwaiting for reply| payment:::slow

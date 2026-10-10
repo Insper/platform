@@ -60,7 +60,7 @@ Centralises configuration for all services (Spring Cloud Config, AWS Parameter S
 
 The diagram below shows the reference architecture used in this course:
 
-``` mermaid
+``` mermaid-sim
 flowchart LR
   subgraph client["Internet"]
     direction LR

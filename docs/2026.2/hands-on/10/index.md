@@ -10,7 +10,7 @@ Consider a slow `/orders` response. Prometheus shows elevated `http_server_reque
 
 Without tracing, the only option is to stare at logs across four separate services and guess.
 
-``` mermaid
+``` mermaid-sim
 sequenceDiagram
     participant C as Client
     participant G as Gateway
@@ -30,7 +30,7 @@ sequenceDiagram
 
 With tracing, every hop is measured as a **span** and all spans for one request share a **trace ID**. The Jaeger UI renders the full call graph as a flame chart so you can see the slow span immediately.
 
-``` mermaid
+``` mermaid-sim
 sequenceDiagram
     participant C as Client
     participant G as Gateway
@@ -58,7 +58,7 @@ The bottleneck is immediately visible: the JDBC query inside ProductService acco
 
 This hands-on adds Jaeger to the observability layer and wires the OpenTelemetry Java agent into each service container:
 
-``` mermaid
+``` mermaid-sim
 flowchart LR
     subgraph obs [Observability Layer]
         prometheus@{ shape: cyl, label: "Prometheus\n:9090" }
@@ -213,7 +213,7 @@ traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
 
 The trace ID `4bf92f3577b34da6a3ce929d0e0e4736` is present on every service in the chain. All spans carrying that ID are grouped into one trace in Jaeger.
 
-``` mermaid
+``` mermaid-sim
 sequenceDiagram
     participant G as Gateway Agent
     participant O as Order Agent

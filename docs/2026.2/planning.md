@@ -19,7 +19,7 @@ The route to deliver a robust and scalable web application using microservices a
 
 At the initial of internet era, the most common architecture for web applications ran on a single server, where all components of the application were tightly coupled and deployed as a single unit. This architecture is known as monolithic architecture. However, as applications grew in complexity and scale, this architecture became difficult to maintain and scale.
 
-``` mermaid
+``` mermaid-sim
 graph TD
     A[Monolithic Architecture] --> B[Presentation Layer]
     A --> C[Business Logic Layer]

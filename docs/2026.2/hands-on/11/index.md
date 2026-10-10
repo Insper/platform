@@ -12,7 +12,7 @@ AI is not replacing engineers in software development — it is changing which t
 
 The reviewer runs as a GitHub Actions job triggered on every pull request event. It fetches the diff, sends it to the Claude API, and posts the structured response as a PR comment before human reviewers arrive.
 
-``` mermaid
+``` mermaid-sim
 sequenceDiagram
     autonumber
     actor Dev as Developer

@@ -2,7 +2,7 @@ Now, with the controller implemented, we can move on to the service layer of the
 
 From previous hands-on, we have already see that this microservice uses clean architecture, which means that the service layer is independent of the controller layer and the repository layer. This allows us to easily test the business logic of the service layer without having to worry about the details of the controller layer or the repository layer. The following diagram illustrates the architecture of the Account microservice, showing the relationships between the different layers and classes:
 
-``` mermaid
+``` mermaid-sim
 sequenceDiagram
     title Clean architecture's approach 
     Actor Request

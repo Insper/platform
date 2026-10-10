@@ -8,7 +8,7 @@ Security is a critical aspect of any platform. In a microservice architecture, a
 
 - **Authorization** is the process of verifying what the authenticated user has access to. The Gateway intercepts every request and checks the JWT before routing it to any secured service.
 
-``` mermaid
+``` mermaid-sim
 flowchart LR
     subgraph api [Trusted Layer]
         gateway --> account
@@ -32,7 +32,7 @@ The security layer is built across three modules:
 - the `auth-service` module contains the service implementation, including JWT generation and validation, and delegates account creation to the `account` microservice;
 - the `gateway-service` module acts as the single entry point for all requests, enforcing authentication via a global filter.
 
-``` mermaid
+``` mermaid-sim
 classDiagram
     namespace auth {
         class AuthController {

@@ -76,7 +76,7 @@ Choosing the right tool depends on factors like workload scale, team expertise, 
 
 Kubernetes is an open-source container orchestration platform that automates the deployment, scaling, and management of containerized applications. It provides a robust framework for running distributed systems resiliently, allowing you to manage clusters of hosts running Linux containers. A `cluster` is a set of machines (physical or virtual) that run Kubernetes and can be managed as a single entity. To manage these clusters, Kubernetes uses a set of APIs and a control plane to manage the state of the cluster.
 
-``` mermaid
+``` mermaid-sim
 flowchart TD
     Deployment:::orange -->|defines| ReplicaSet
     ReplicaSet -->|manages| pod((Pod))

@@ -34,7 +34,7 @@ O Amazon Elastic Kubernetes Service (EKS) é um serviço gerenciado que facilita
 
         Overview of the VPC:
 
-        ``` mermaid
+        ``` mermaid-sim
         flowchart TB
         subgraph Region
             direction LR

@@ -57,7 +57,7 @@ Markdown files use pymdownx extensions heavily:
 
 - **Tabs**: `=== "Tab Name"` blocks
 - **Admonitions**: `!!! tip "Title"` / `??? note "Collapsible"` (types: note, tip, info, warning, danger, example, etc.)
-- **Diagrams**: ` ```mermaid ``` ` fenced blocks (Mermaid v10+)
+- **Diagrams**: ` ```mermaid ``` ` fenced blocks (Mermaid v11). In 2026.2 use ` ``` mermaid-sim ` instead: same Mermaid source, rendered by `assets/javascripts/mermaid-sim.js` as a step-by-step simulator (flowchart edges, sequence messages and state transitions play in source order; class diagrams stay static)
 - **Card grids**: `<div class="grid cards" markdown>` with `-   __Title__` list items
 
 Embed Python and produce output (matplotlib, seaborn, numpy, pandas) directly in Markdown via `markdown-exec`:

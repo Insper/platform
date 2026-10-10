@@ -1,7 +1,7 @@
 
 With the Product API in place, the next step is to implement the Order API. Orders are tied to authenticated users and reference existing products.
 
-``` mermaid
+``` mermaid-sim
 flowchart LR
     subgraph api [Trusted Layer]
         gateway --> account

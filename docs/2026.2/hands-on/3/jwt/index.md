@@ -71,7 +71,7 @@ The key claims used in this platform are:
 
 After a successful login, the server generates a JWT, sets it in an `HttpOnly` cookie, and returns it to the browser. For every subsequent request, the browser sends the cookie automatically — the Gateway reads it and resolves the identity without asking the user to log in again.
 
-``` mermaid
+``` mermaid-sim
 sequenceDiagram
   autonumber
   actor User

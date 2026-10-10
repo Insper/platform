@@ -58,7 +58,7 @@ http_requests_total{method="GET", status="200", service="order"} 4823
 
 ### Metrics Pipeline
 
-``` mermaid
+``` mermaid-sim
 flowchart LR
     app["Spring Boot\n(Actuator + Micrometer)"]
     prom["Prometheus"]
@@ -122,7 +122,7 @@ Logback pattern to include the trace ID:
 
 ### Log Aggregation Pipeline
 
-``` mermaid
+``` mermaid-sim
 flowchart LR
     svc1["Service A\n(JSON logs → stdout)"]
     svc2["Service B\n(JSON logs → stdout)"]
@@ -177,7 +177,7 @@ Every service propagates this header unchanged on downstream calls — only the 
 
 ### Request Flow with Spans
 
-``` mermaid
+``` mermaid-sim
 sequenceDiagram
     autonumber
     actor User
@@ -217,7 +217,7 @@ OpenTelemetry is the CNCF standard for generating, collecting, and exporting tel
 | **Collector** | Standalone process that receives, processes, and exports telemetry |
 | **Exporter** | Protocol adapter (OTLP, Jaeger, Zipkin, Prometheus) |
 
-``` mermaid
+``` mermaid-sim
 flowchart LR
     app["Application\n(OTel SDK)"]
     collector["OTel Collector"]
@@ -294,7 +294,7 @@ public Order processOrder(OrderRequest request) {
 
 Loki + Grafana + Tempo + Mimir/Prometheus — the LGTM stack — puts all three observability signals into a single UI. The key advantage is **signal correlation**: you can jump from a metric spike to the traces that caused it to the log lines that explain it, all without leaving Grafana.
 
-``` mermaid
+``` mermaid-sim
 flowchart LR
     app["Application"]
     prom["Prometheus\n(metrics)"]

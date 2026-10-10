@@ -3,7 +3,7 @@ An **API** (Application Programming Interface) is a contract that defines how tw
 
 In the context of microservices, APIs are the primary integration mechanism: services expose APIs, clients consume them, and teams evolve each side independently as long as the contract is respected. A stable API boundary means the implementation behind it can be completely replaced without impacting any consumer.
 
-``` mermaid
+``` mermaid-sim
 flowchart LR
     consumer["Client\n(mobile, browser, service)"]
     api["API\n(contract)"]:::highlighted

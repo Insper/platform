@@ -38,7 +38,7 @@ volumes:
 
 All services share a default bridge network. Each service is reachable from other services using its **service name as the hostname** (`db`, `app`, `web`).
 
-``` mermaid
+``` mermaid-sim
 flowchart LR
     user[User] -->|HTTP :80| web[Web]
     subgraph myapp [172.18.0.0/16]

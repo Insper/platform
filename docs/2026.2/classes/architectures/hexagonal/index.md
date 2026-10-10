@@ -1,7 +1,7 @@
 
 [Hexagonal Architecture](https://alistair.cockburn.us/hexagonal-architecture/){:target="_blank"} — also called **Ports & Adapters** — was introduced by Alistair Cockburn in 2005. The idea is to place the application core at the centre and expose it through *ports* (interfaces), which external *adapters* connect to. The hexagon shape is arbitrary; it signals that the application has multiple equivalent entry/exit points with no privileged side[^1].
 
-``` mermaid
+``` mermaid-sim
 flowchart LR
   subgraph hexagon [Application Core]
     domain[Domain Model]
@@ -216,7 +216,7 @@ The files below show the complete authentication slice of the `auth-service`. Ea
 
 The key testing insight of Hexagonal Architecture is that the **application core can be fully tested without any infrastructure**. Replace every driven adapter with an in-memory stub; drive the primary port directly from a test.
 
-``` mermaid
+``` mermaid-sim
 flowchart LR
   test([JUnit Test]):::adapter -->|drives| AuthService
   AuthService --> AccountRepository

@@ -13,7 +13,7 @@ Two delivery models side by side: the synchronous chain forces the producer to w
 
     The producer must wait for every downstream service to complete before returning a response to the client. Latency accumulates, and a single slow (or failing) dependency stalls the entire request.
 
-    ``` mermaid
+    ``` mermaid-sim
     sequenceDiagram
         autonumber
         participant Client
@@ -36,7 +36,7 @@ Two delivery models side by side: the synchronous chain forces the producer to w
 
     The producer publishes a single event and immediately returns. Each downstream service consumes the event independently — in parallel, on its own schedule, without the producer knowing or caring.
 
-    ``` mermaid
+    ``` mermaid-sim
     sequenceDiagram
         participant Client
         participant OrderService
@@ -129,7 +129,7 @@ plt.close()
 
 Kafka organises messages into **topics**, each split into ordered **partitions**. Multiple consumer groups can read the same topic independently — each group maintains its own offset pointer per partition.
 
-``` mermaid
+``` mermaid-sim
 flowchart LR
     subgraph broker ["Kafka Broker"]
         subgraph topic ["Topic: order-events"]
@@ -184,7 +184,7 @@ Use cases: order processing, payment handling, image resizing jobs.
 
 Instead of storing only the current state, the system stores the **full history of events**. Current state is derived by replaying all events from the beginning (or from a snapshot).
 
-``` mermaid
+``` mermaid-sim
 sequenceDiagram
     actor User
     User->>+CommandHandler: PlaceOrder
@@ -201,7 +201,7 @@ This means the write model is the event log itself. Projections (read models) ar
 
 Separate the **write side** (commands, events, event store) from the **read side** (queries, projections, read model). The write side is optimised for consistency and auditability; the read side is optimised for query performance.
 
-``` mermaid
+``` mermaid-sim
 flowchart LR
     client --> |"POST /orders (Command)"| cmd["Command Handler"]
     cmd --> |"OrderCreated"| bus["Event Bus (Kafka)"]
@@ -218,7 +218,7 @@ CQRS is commonly paired with Event Sourcing because the event log is the natural
 
 When a consumer fails to process a message repeatedly, it must not block the rest of the stream. A **Dead Letter Queue (DLQ)** is a separate topic where messages are moved after exhausting retry attempts, allowing the main stream to continue while the failing messages are investigated and reprocessed manually.
 
-``` mermaid
+``` mermaid-sim
 stateDiagram-v2
     [*] --> Pending
     Pending --> Processing : consumer picks up

@@ -9,7 +9,7 @@
 | **I** | Interface Segregation Principle | Robert C. Martin |
 | **D** | Dependency Inversion Principle | Robert C. Martin |
 
-``` mermaid
+``` mermaid-sim
 flowchart LR
     S["S — Single Responsibility\nOne reason to change"] -->|composes into| arch
     O["O — Open / Closed\nExtend, don't modify"] -->|composes into| arch
@@ -47,7 +47,7 @@ A class is *responsible to* one actor. An actor is a group of users or stakehold
 
     Each specialist class changes for its own reason only. `AccountService` changes only when the account-creation workflow changes.
 
-``` mermaid
+``` mermaid-sim
 flowchart LR
     subgraph bad ["❌ Before — one class, many concerns"]
         as["AccountService\n• validate\n• persist\n• send email\n• audit"]
@@ -88,7 +88,7 @@ A module is *open* if it can be extended with new behaviour. It is *closed* if i
     --8<-- "docs/2026.2/classes/architectures/solid/examples/OcpGoodDiscountService.java"
     ```
 
-``` mermaid
+``` mermaid-sim
 classDiagram
     class DiscountService {
         +calculate(account) double
@@ -130,7 +130,7 @@ Every subtype must honour the **contract** of the supertype — not just the met
     --8<-- "docs/2026.2/classes/architectures/solid/examples/LspGoodShape.java"
     ```
 
-``` mermaid
+``` mermaid-sim
 classDiagram
     class Shape {
         <<interface>>
@@ -172,7 +172,7 @@ A fat interface forces clients to declare dependencies on methods they never cal
     --8<-- "docs/2026.2/classes/architectures/solid/examples/IspGoodAccountRepository.java"
     ```
 
-``` mermaid
+``` mermaid-sim
 classDiagram
     class AccountReader {
         <<interface>>
@@ -226,7 +226,7 @@ Without DIP, high-level business logic (use cases) knows about and instantiates 
     --8<-- "docs/2026.2/classes/architectures/solid/examples/DipGoodAccountService.java"
     ```
 
-``` mermaid
+``` mermaid-sim
 flowchart LR
     subgraph bad ["❌ Before"]
         as_bad["AccountService"] -->|new| mysql["MySqlAccountRepository"]

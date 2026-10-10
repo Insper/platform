@@ -6,7 +6,7 @@ Not every endpoint requires authentication. Registration and login must be publi
 
 The `RouterValidator` encodes this policy as a simple predicate:
 
-``` mermaid
+``` mermaid-sim
 flowchart LR
     request[Incoming Request]
     open{Is open route?}
@@ -100,7 +100,7 @@ api/
 
 **Validating a token** (`getId`): it parses and verifies the signature, then checks that the token is neither premature (`nbf`) nor expired (`exp`). If valid, it returns the account's `id`.
 
-``` mermaid
+``` mermaid-sim
 sequenceDiagram
     autonumber
     actor User

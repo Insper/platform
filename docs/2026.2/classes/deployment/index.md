@@ -8,7 +8,7 @@ Kubernetes is not the right answer for every team. It solves real problems at sc
 
 Cloud providers have progressively abstracted away infrastructure concerns. The tradeoff is always the same: less control, less operational burden.
 
-```mermaid
+``` mermaid-sim
 flowchart LR
     vm["EC2 / VMs\n(full control,\nfull burden)"]
     ecs["ECS Fargate\n(containers,\nno nodes)"]
@@ -44,7 +44,7 @@ flowchart LR
 
     **Fewer than 10 services? Start here.**
 
-    ```mermaid
+    ``` mermaid-sim
     flowchart TD
         A["Need custom domains + HTTPS?"]
         B["Railway / Render\n(free tier)"]
@@ -67,7 +67,7 @@ flowchart LR
 
     **10–50 services. You need production-grade infrastructure but probably not a full platform engineering team.**
 
-    ```mermaid
+    ``` mermaid-sim
     flowchart TD
         A["Dedicated ops / platform engineer?"]
         B["ECS Fargate + ALB + RDS\n(serverless containers, no nodes)"]
@@ -268,7 +268,7 @@ plt.close()
 !!! tip "The right answer changes as you grow"
     Start simple and migrate deliberately. Each migration should be driven by a **concrete pain point**, not speculation about future scale. A working app on Railway is worth more than a perfectly architected EKS cluster with no users.
 
-```mermaid
+``` mermaid-sim
 flowchart TD
     start(["Idea / Prototype"])
     r["Railway / Fly.io\n(Day 1 — ship fast)"]

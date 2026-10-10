@@ -50,7 +50,7 @@ The [Principles of Chaos Engineering](https://principlesofchaos.org){target="_bl
 
 ## The experiment lifecycle
 
-``` mermaid
+``` mermaid-sim
 flowchart LR
     H["1. Hypothesise\nDefine steady state\nand expected behaviour"]
     D["2. Design\nChoose failure type\nand blast radius"]
@@ -84,7 +84,7 @@ A chaos experiment that **confirms the hypothesis** (the system behaves as expec
 
 The blast radius of a chaos experiment is the set of users and systems affected by the injected failure. Controlling it is what separates engineering practice from recklessness.
 
-``` mermaid
+``` mermaid-sim
 flowchart TD
     S1["Stage 1\nUnit / integration tests\n(no users affected)"]
     S2["Stage 2\nStagin / canary environment\n(internal users only)"]

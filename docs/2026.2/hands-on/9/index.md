@@ -10,7 +10,7 @@ The platform currently uses synchronous REST calls for all inter-service communi
 
 === "Before"
 
-    ``` mermaid
+    ``` mermaid-sim
     flowchart LR
         client[Client] -->|REST| gw[Gateway]
         gw -->|REST| order[order-service]
@@ -20,7 +20,7 @@ The platform currently uses synchronous REST calls for all inter-service communi
 
 === "After"
 
-    ``` mermaid
+    ``` mermaid-sim
     flowchart LR
         client[Client] -->|REST| gw[Gateway]
         gw -->|REST| order[order-service]

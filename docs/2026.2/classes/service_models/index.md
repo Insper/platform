@@ -9,7 +9,7 @@ The three foundational models defined by NIST[^1] are **IaaS**, **PaaS**, and **
 
 Every cloud service model can be mapped to the same six-layer stack. The dividing line between what the provider manages (green) and what the customer manages (orange) shifts as you move up the model hierarchy:
 
-``` mermaid
+``` mermaid-sim
 graph TD
   subgraph On-Premises
     direction TB
@@ -219,7 +219,7 @@ A managed database where the provider handles provisioning, backups, replication
 
 ## Decision framework
 
-``` mermaid
+``` mermaid-sim
 flowchart TD
   start([What do you need?]) --> q1{Need full OS control\nor lift-and-shift?}
   q1 -->|Yes| iaas[IaaS\nEC2, GCE, Azure VM]

@@ -4,7 +4,7 @@ The `gateway-service` is the **single entry point** for all requests. Beyond rou
 
 The Gateway uses Spring Cloud Gateway's `GlobalFilter` mechanism. Every request passes through `AuthorizationFilter` before being routed. The filter follows this decision tree:
 
-``` mermaid
+``` mermaid-sim
 flowchart TD
     A[Incoming request] --> B{RouterValidator\nisSecured?}
     B -- No --> C[Forward to service]
@@ -28,7 +28,7 @@ This means downstream microservices **never need to parse JWTs themselves** — 
 
 ## 2. Full Request Sequence
 
-``` mermaid
+``` mermaid-sim
 sequenceDiagram
   autonumber
   actor User

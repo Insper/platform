@@ -7,7 +7,7 @@
 - **Continuous Integration (CI)** — developers merge changes frequently; each merge triggers an automated build and test cycle.
 - **Continuous Delivery (CD)** — every change that passes CI is automatically packaged and made ready to deploy to any environment.
 
-``` mermaid
+``` mermaid-sim
 flowchart LR
     dev([Developer]) -->|git push| scm[Source Control]
     scm -->|webhook / poll| ci[CI Server\nJenkins]
@@ -129,7 +129,7 @@ Before creating pipelines that push Docker images, store the Docker Hub secret i
 
 A `Jenkinsfile` describes the pipeline in a declarative DSL and lives in the root of the repository. Jenkins checks it out automatically when a build is triggered, so the pipeline evolves alongside the code[^7].
 
-``` mermaid
+``` mermaid-sim
 flowchart LR
     repo[Git Repository\nJenkinsfile] -->|SCM checkout| jenkins[Jenkins Job]
     jenkins --> s1[Stage: Build]

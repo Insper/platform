@@ -1,4 +1,4 @@
-```mermaid
+``` mermaid-sim
 graph TD
     subgraph On-Premises
         direction TB
