@@ -113,9 +113,11 @@ plugins:
 extra_javascript:
   - assets/javascripts/mathjax.js
   - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+  - assets/javascripts/interview.js
 
 extra_css:
   - assets/stylesheets/extra.css
+  - assets/stylesheets/interview.css
 
 nav:
   - Overview: index.md
@@ -240,6 +242,8 @@ nav:
         - Jenkins: 2026.2/exercises/jenkins/index.md
         - MiniKube: 2026.2/exercises/minikube/index.md
         - Bottlenecks: 2026.2/exercises/bottlenecks/index.md
+
+    - Interview Material: 2026.2/interview/index.md
 
   - 2026.1:
     - Overview: 2026.1/index.md
