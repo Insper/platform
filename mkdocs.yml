@@ -6,24 +6,27 @@ repo_name: insper/platform
 
 theme:
   name: material
-  # Zensical: keep the Material look (white logo on the grey header, extra CSS)
-  variant: classic
+  variant: modern
   palette:
-    # primary: grey
-    # Light mode
-    - scheme: default
-      primary: grey
+    # Follow the operating system preference
+    - media: "(prefers-color-scheme)"
       toggle:
-        icon: material/toggle-switch-off-outline
+        icon: lucide/sun-moon
+        name: Switch to light mode
+
+    # Light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: lucide/sun
         name: Switch to dark mode
 
-    # Palette toggle for light mode
-    - media: "(prefers-color-scheme: light)"
-      scheme: default 
-      primary: grey
+    # Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
       toggle:
-        icon: material/toggle-switch-off-outline
-        name: Switch to dark mode
+        icon: lucide/moon
+        name: Switch to system preference
 
   features:
     - content.code.copy
@@ -36,6 +39,8 @@ theme:
     - navigation.path
     - navigation.tracking
     - navigation.footer
+    - search.highlight
+    - toc.follow
   icon:
     # logo: assets/images/devops
     admonition:

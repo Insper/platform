@@ -188,3 +188,7 @@
     color: white;
     background-color: hotpink;
 }
+/* The logo is white line art: darken it on the light header (modern variant) */
+[data-md-color-scheme="default"] .md-logo img {
+    filter: invert(1);
+}
