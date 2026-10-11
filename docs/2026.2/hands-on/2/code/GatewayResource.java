@@ -1,5 +1,7 @@
 package store.gateway;
 
+import java.util.Map;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -7,14 +9,13 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class GatewayResource {
 
-    @GetMapping("/")
-    public ResponseEntity<String> hello() {
-        return ResponseEntity.ok("Store API");
-    }
-
     @GetMapping("/health-check")
-    public ResponseEntity<Void> healthCheck() {
-        return ResponseEntity.ok().build();
+    public ResponseEntity<Map<String, String>> healthCheck() {
+        // only the container's hostname: it tells which replica answered
+        // (never return System.getenv(): it would expose every secret)
+        return ResponseEntity.ok(Map.of(
+            "hostname", System.getenv().getOrDefault("HOSTNAME", "unknown")
+        ));
     }
     
 }

@@ -226,7 +226,7 @@ The producer setting `acks` chooses how much of this the producer waits for:
 Hands-on 9 uses `acks: all` with `enable.idempotence: true`; the idempotent producer attaches a sequence number to each message so that the producer's own retries do not create duplicates in the log. (Since Kafka 3.0 both are already the producer defaults.)
 
 !!! info "ZooKeeper and KRaft"
-    Older Kafka clusters stored their metadata in a separate ZooKeeper ensemble — the setup used in Hands-on 9. Kafka now has its own Raft-based metadata quorum (**KRaft**; see [Consensus](../distributed_systems/consensus/index.md)), and Kafka 4.0 (2025) removed ZooKeeper support entirely.
+    Older Kafka clusters stored their metadata in a separate ZooKeeper ensemble. Kafka now has its own Raft-based metadata quorum (**KRaft**; see [Consensus](../distributed_systems/consensus/index.md)), and Kafka 4.0 (2025) removed ZooKeeper support entirely. [Hands-on 9](../../hands-on/9/index.md) runs Kafka 4 in KRaft mode: a single node that is both broker and controller.
 
 ---
 

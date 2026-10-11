@@ -178,7 +178,7 @@ environment {
 withCredentials([usernamePassword(
     credentialsId: 'dockerhub-credential',
     usernameVariable: 'USERNAME', passwordVariable: 'TOKEN')]) {
-  sh "docker login -u $USERNAME -p $TOKEN"
+  sh 'echo $TOKEN | docker login -u $USERNAME --password-stdin'
   sh "docker buildx create --use --platform=linux/arm64,linux/amd64 ..."
   sh "docker buildx build --platform=linux/arm64,linux/amd64 --push \
         --tag ${env.NAME}:latest --tag ${env.NAME}:${env.BUILD_ID} -f Dockerfile ."
@@ -186,7 +186,7 @@ withCredentials([usernamePassword(
 }
 ```
 
-- `withCredentials` injects the token; values are **masked** in the logs.
+- `withCredentials` injects the token; values are **masked** in the logs. Single quotes: the **shell** expands `$TOKEN`, not Groovy.
 - `buildx` builds for `linux/arm64` (Apple Silicon, Graviton) **and** `linux/amd64`.
 - Two tags: `:latest` (stable reference) + `:<BUILD_ID>` (traceable to a build).
 

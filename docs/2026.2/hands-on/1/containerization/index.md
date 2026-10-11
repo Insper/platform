@@ -48,7 +48,7 @@ The content of the files are as follows:
     --8<-- "docs/2026.2/hands-on/1/containerization/code/Dockerfile"
     ```
 
-In this configuration, we use the `postgres:17` image to create a PostgreSQL container, and we set the environment variables for the database using the `.env` file.
+In this configuration, we use the `postgres:17` image to create a PostgreSQL container, and we set the environment variables for the database using the `.env` file. Only `account` publishes a port (`8080`); the database has no `ports`, so it is reachable only from inside the Compose network — the trusted layer.
 
 To run the application, we need to execute the following command:
 

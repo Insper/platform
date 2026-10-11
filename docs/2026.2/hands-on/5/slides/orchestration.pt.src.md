@@ -251,7 +251,7 @@ kubectl get pods
 kubectl get services
 ```
 
-- O Service `gateway` recebe um **EXTERNAL-IP** (na AWS, um hostname `…elb.amazonaws.com`): chame-o pelo navegador.
+- O Service `gateway` recebe um **EXTERNAL-IP** (na AWS, um hostname `…elb.amazonaws.com`): abra `http://<EXTERNAL-IP>:8080/health-check` → `{"hostname": …}`.
 - É **HTTP**, não HTTPS: TLS exige certificados e um **Ingress**.
 - Um **Ingress** roteia o tráfego HTTP/S externo para vários serviços sob um único domínio.
 

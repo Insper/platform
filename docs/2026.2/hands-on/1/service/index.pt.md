@@ -4,9 +4,10 @@ A implementação do microsserviço Account é definida no módulo `account-serv
 classDiagram
     namespace account {
         class AccountController {
-            +create(AccountIn accountIn): AccountOut
-            +delete(String id): void
+            +create(AccountIn in): Void
             +findAll(): List<AccountOut>
+            +delete(String id): Void
+            +healthCheck(): Void
             +findById(String id): AccountOut
         }
         class AccountIn {
@@ -22,35 +23,37 @@ classDiagram
     }
     namespace account-service {
         class AccountResource {
-            +create(AccountIn accountIn): AccountOut
-            +delete(String id): void
+            +create(AccountIn in): Void
             +findAll(): List<AccountOut>
+            +delete(String id): Void
+            +healthCheck(): Void
             +findById(String id): AccountOut
         }
         class AccountService {
-            +create(AccountIn accountIn): AccountOut
+            +create(Account account): Account
+            +findById(String id): Account
             +delete(String id): void
-            +findAll(): List<AccountOut>
-            +findById(String id): AccountOut
+            +findAll(): List<Account>
         }
         class AccountRepository {
-            +create(AccountIn accountIn): AccountOut
-            +delete(String id): void
-            +findAll(): List<AccountOut>
-            +findById(String id): AccountOut
+            +save(AccountModel model): AccountModel
+            +findById(String id): Optional<AccountModel>
+            +deleteById(String id): void
+            +findAll(): List<AccountModel>
         }
         class Account {
             -String id
             -String name
             -String email
             -String password
-            -String sha256
+            -String hashPassword
         }
         class AccountModel {
-            +create(AccountIn accountIn): AccountOut
-            +delete(String id): void
-            +findAll(): List<AccountOut>
-            +findById(String id): AccountOut
+            -String id
+            -String name
+            -String email
+            -String hashPassword
+            +to(): Account
         }
     }
     <<Interface>> AccountController
@@ -92,7 +95,7 @@ api/
                 java/
                     store/
                         account/
-                            AccountApplication.java
+                            AccountServiceApplication.java
                             AccountResource.java
                 resources/
                     application.yaml
@@ -102,7 +105,7 @@ api/
 | Classe | Descrição |
 | --- | --- |
 | `AccountResource` | Esta classe é responsável pelos endpoints da API do microsserviço Account: ela implementa a interface `AccountController` definida no módulo `account` e usa o `AccountService` para tratar a lógica de negócio dos endpoints. |
-| `AccountApplication` | Esta é a classe principal do microsserviço Account, responsável por executar a aplicação Spring Boot. Ela contém o método `main`, que é o ponto de entrada da aplicação. |
+| `AccountServiceApplication` | Esta é a classe principal do microsserviço Account, responsável por executar a aplicação Spring Boot. Ela contém o método `main`, que é o ponto de entrada da aplicação. |
 
 Para codificar esse microsserviço, vamos usar o framework Spring Boot, por meio do Spring Initializr, em [https://start.spring.io/], uma ferramenta web que permite gerar um projeto Spring Boot com as dependências e configurações necessárias. 
 
@@ -115,7 +118,7 @@ Observe:
 
 - Project: Maven
 - Language: Java
-- Spring Boot: 4.0.3 (versão estável no momento)
+- Spring Boot: 4.1.1 (versão estável no momento)
 - Group: store (o nome da empresa, por exemplo)
 - Artifact: account-service (o nome da implementação)
 - Package name: store.account
@@ -131,15 +134,17 @@ Além disso, precisamos adicionar as seguintes dependências:
 
 - *OpenFeign*: um cliente declarativo de serviços web que simplifica o envio de requisições HTTP para outros microsserviços. Ele permite definir interfaces para os nossos clientes de API e gera automaticamente a implementação em tempo de execução.
 
-Por enquanto, vamos criar apenas as classes `AccountResource` e `AccountApplication` e o arquivo de configuração `application.yaml`. Implementaremos a lógica de negócio e a persistência dos dados nas próximas seções.
+Por enquanto, vamos criar apenas as classes `AccountResource` e `AccountServiceApplication` e o arquivo de configuração `application.yaml`. Implementaremos a lógica de negócio e a persistência dos dados nas próximas seções.
 
 Em `AccountResource.java`, o único endpoint implementado por enquanto é o `health-check`, um endpoint simples que retorna o código de status `200 OK`, indicando que o microsserviço está no ar e funcionando.
+
+O `pom.xml` também declara o módulo `account` (em destaque) como dependência: é assim que o `AccountResource` enxerga `AccountController`, `AccountIn` e `AccountOut`. O `AccountResource` é anotado com `@Controller`; como todo método devolve um `ResponseEntity`, o Spring escreve o corpo em JSON sem `@ResponseBody` (o `@RestController` também funcionaria).
 
 !!! example "Código-fonte"
 
     === "pom.xml"
 
-        ``` { .yaml .copy .select linenums="1" hl_lines="40-44"}
+        ``` { .yaml .copy .select linenums="1" hl_lines="36-40"}
         --8<-- "docs/2026.2/hands-on/1/service/code/pom.xml"
         ```
 
@@ -149,15 +154,15 @@ Em `AccountResource.java`, o único endpoint implementado por enquanto é o `hea
         --8<-- "docs/2026.2/hands-on/1/service/code/application.yaml"
         ```
 
-    === "AccountApplication.java"
+    === "AccountServiceApplication.java"
 
         ``` { .java .copy .select linenums='1' }
-        --8<-- "docs/2026.2/hands-on/1/service/code/AccountApplication.java"
+        --8<-- "docs/2026.2/hands-on/1/service/code/AccountServiceApplication.java"
         ```
 
     === "AccountResource.java"
 
-        ``` { .java .copy .select linenums='1' hl_lines="23-26"}
+        ``` { .java .copy .select linenums='1' hl_lines="29-34"}
         --8<-- "docs/2026.2/hands-on/1/service/code/AccountResource.java"
         ```
 

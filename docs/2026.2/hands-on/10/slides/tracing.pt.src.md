@@ -200,7 +200,7 @@ O agente grava `trace_id` e `span_id` no **MDC** do SLF4J. Adicione `opentelemet
 ```bash
 docker compose up -d --build
 docker compose ps jaeger
-curl -s -X POST http://localhost/orders \
+curl -s -X POST http://localhost:8080/orders \
   -H "Content-Type: application/json" \
   -d '{"accountId": 1, "productId": 7, "quantity": 2}' | jq
 ```

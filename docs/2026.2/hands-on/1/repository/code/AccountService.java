@@ -5,7 +5,6 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 import java.util.List;
-import java.util.stream.StreamSupport;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -20,31 +19,48 @@ public class AccountService {
 
     public Account create(Account account) {
 
-        if (account.password() == null || account.password().trim().length() == 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password is empty");
+        if (null == account.password()) {
+            throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST, "Password is empty"
+            );            
         }
 
-        account.passwordSha256(calcHash(account.password()));
+        final String pass = account.password().trim();
+        if (pass.length() < 6) {
+            throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST, "Password must have at least 6 characters"
+            );
+        }
+
+        if (account.email() == null || account.email().trim().isEmpty()) {
+            throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST, "Email is empty"
+            );
+        }
+
+        // agora calcula o hash
+        account.hashPassword(calcHash(pass));
 
         return accountRepository.save(
             new AccountModel(account)
         ).to();
     }
 
+    public Account findById(String id) {
+        // null when the id does not exist: AccountResource answers 404
+        return accountRepository.findById(id)
+            .map(AccountModel::to)
+            .orElse(null);
+    }
+
     public void delete(String id) {
         accountRepository.deleteById(id);
     }
 
-    public Account findById(String id) {
-        return accountRepository.findById(id).orElse(null).to();
-    }
-
-    public List<Account> findByAll() {
-        return StreamSupport.stream(
-            accountRepository.findAll().spliterator(),
-            false // transform from stream to list
-        ).map(AccountModel::to) // parser from Model to Account
-        .toList();
+    public List<Account> findAll() {
+        return accountRepository.findAll().stream()
+            .map(AccountModel::to)
+            .toList();
     }
 
     private String calcHash(String text) {

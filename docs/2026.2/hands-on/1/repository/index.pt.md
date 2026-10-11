@@ -1,4 +1,4 @@
-Agora, com o controller implementado, podemos passar para a camada de serviço do microsserviço Account. A camada de serviço é responsável pela lógica de negócio do microsserviço e interage com a camada de repositório para tratar a persistência dos dados da entidade Account. A camada de serviço é implementada na classe `AccountService`, que contém os métodos para criar, excluir, buscar e atualizar contas. A classe `AccountService` usa o `AccountRepository` para tratar a persistência dos dados da entidade Account e o `AccountParser` para tratar a conversão da entrada e da saída dos endpoints da API.
+Agora, com o controller implementado, podemos passar para a camada de serviço do microsserviço Account. A camada de serviço é responsável pela lógica de negócio do microsserviço e interage com a camada de repositório para tratar a persistência dos dados da entidade Account. A camada de serviço é implementada na classe `AccountService`, que contém os métodos para criar, buscar (todas, ou uma pelo id) e excluir contas. A classe `AccountService` usa o `AccountRepository` para tratar a persistência dos dados da entidade Account e o `AccountParser` para tratar a conversão da entrada e da saída dos endpoints da API.
 
 No hands-on anterior, já vimos que este microsserviço usa arquitetura limpa (clean architecture), o que significa que a camada de serviço é independente da camada de controller e da camada de repositório. Isso nos permite testar facilmente a lógica de negócio da camada de serviço sem nos preocuparmos com os detalhes da camada de controller ou da camada de repositório. O diagrama a seguir ilustra a arquitetura do microsserviço Account, mostrando as relações entre as diferentes camadas e classes:
 
@@ -42,7 +42,7 @@ Com o ORM configurado, precisamos gerenciar as mudanças no esquema do banco de 
 
 O Flyway é uma ferramenta de migração de banco de dados que permite gerenciar e versionar as mudanças no esquema do banco. Ele oferece uma forma de definir e executar migrações, que são scripts que modificam o esquema do banco de dados, como criar tabelas, adicionar colunas ou mudar tipos de dados. No contexto do microsserviço Account, vamos usar o Flyway para gerenciar as migrações, garantindo que o esquema do banco de dados esteja sempre atualizado e consistente entre os diferentes ambientes.
 
-No código, temos um diretório `db/migration`, que contém os scripts de migração do microsserviço Account. Cada script de migração segue um formato específico de nome, começando por um número de versão (p. ex., `V2026.02.27.001`) seguido de uma descrição da migração (p. ex., `create_schema`). Esses scripts são executados em ordem pelo Flyway, garantindo que o esquema do banco de dados esteja sempre atualizado.
+No código, temos um diretório `db/migration`, que contém os scripts de migração do microsserviço Account. Cada script de migração segue um formato específico de nome, começando por um número de versão (p. ex., `V2026.08.24.001`) seguido de uma descrição da migração (p. ex., `create_schema`). Esses scripts são executados em ordem pelo Flyway, garantindo que o esquema do banco de dados esteja sempre atualizado.
 
 ## 3. Código
 
@@ -58,7 +58,7 @@ api/
                     store/
                         account/
                             Account.java
-                            AccountApplication.java
+                            AccountServiceApplication.java
                             AccountModel.java
                             AccountParser.java
                             AccountRepository.java
@@ -67,9 +67,8 @@ api/
                 resources/
                     db/
                         migration/
-                            V2026.03.27.001__create_schema.sql
-                            V2026.03.27.002__create_table.sql
-                            V2026.03.06.001__create_field_pass_sha256.sql
+                            V2026.08.24.001__create_schema.sql
+                            V2026.08.24.002__create_table.sql
                     application.yaml
         pom.xml
     compose.yaml
@@ -80,10 +79,10 @@ Respeitando a arquitetura limpa, temos as seguintes classes:
 
 | Classe | Descrição |
 | --- | --- |
-| `Account` | Esta classe representa a entidade Account, a entidade principal do microsserviço Account. Ela contém os atributos da entidade, como `id`, `name`, `email`, `password` e `sha256`. |
-| `AccountModel` | Esta classe representa o modelo Account, responsável pela lógica de persistência do microsserviço Account. Ela contém os métodos para criar, excluir, buscar e atualizar contas. |
+| `Account` | Esta classe representa a entidade Account, a entidade principal do microsserviço Account. Ela contém os atributos da entidade, como `id`, `name`, `email`, `password` (o valor original, só na entrada) e `hashPassword`. |
+| `AccountModel` | Esta classe é a entidade JPA mapeada para a tabela `accounts.accounts` (`id`, `name`, `email`, `hash_password`). Seu construtor `AccountModel(Account)` e seu método `to()` fazem a conversão entre a entidade e o modelo. |
 | `AccountParser` | Esta classe é responsável por converter a entrada e a saída dos endpoints da API, transformando os DTOs `AccountIn` e `AccountOut` na entidade `Account` e vice-versa. |
-| `AccountRepository` | Esta interface é responsável pela persistência dos dados da entidade Account, usando um framework de mapeamento objeto-relacional (ORM) para interagir com o banco de dados. |
+| `AccountRepository` | Esta interface é responsável pela persistência dos dados da entidade Account, usando um framework de mapeamento objeto-relacional (ORM) para interagir com o banco de dados. Ela estende `CrudRepository` e redeclara `findAll()` para devolver uma `List` em vez de um `Iterable`. |
 | `AccountResource` | Esta classe é responsável pelos endpoints da API do microsserviço Account: ela implementa a interface `AccountController` definida no módulo `account` e usa o `AccountService` para tratar a lógica de negócio dos endpoints. |
 | `AccountService` | Esta classe é responsável pela lógica de negócio do microsserviço Account, usando o `AccountRepository` para tratar a persistência dos dados da entidade Account e o `AccountParser` para tratar a conversão da entrada e da saída dos endpoints da API. |
 
@@ -94,19 +93,19 @@ Respeitando a arquitetura limpa, temos as seguintes classes:
 
     === "compose.yaml"
 
-        ``` { .yaml .copy .select linenums="1" hl_lines="7 21 24-29" }
+        ``` { .yaml .copy .select linenums="1" hl_lines="20-25" }
         --8<-- "docs/2026.2/hands-on/1/repository/code/compose.yaml"
         ```
 
     === "pom.xml"
 
-        ``` { .yaml .copy .select linenums="1" hl_lines="33-36 50-54 56-64" }
+        ``` { .yaml .copy .select linenums="1" hl_lines="36-56" }
         --8<-- "docs/2026.2/hands-on/1/repository/code/pom.xml"
         ```
 
     === "application.yaml"
 
-        ``` { .yaml .copy .select linenums="1" hl_lines="8-12 14-16 18-21" }
+        ``` { .yaml .copy .select linenums="1" hl_lines="5-9 11-13 15-18" }
         --8<-- "docs/2026.2/hands-on/1/repository/code/application.yaml"
         ```
 
@@ -136,7 +135,7 @@ Respeitando a arquitetura limpa, temos as seguintes classes:
 
     === "AccountResource.java"
 
-        ``` { .java .copy .select linenums='1' hl_lines="14-15 19-29 34-35 45-49 54-59" }
+        ``` { .java .copy .select linenums='1' hl_lines="15-16 20-29 34-35 40 53-55" }
         --8<-- "docs/2026.2/hands-on/1/repository/code/AccountResource.java"
         ```
 
@@ -146,23 +145,22 @@ Respeitando a arquitetura limpa, temos as seguintes classes:
         --8<-- "docs/2026.2/hands-on/1/repository/code/AccountService.java"
         ```
 
-    === "V2026.03.04.001__create_schema.sql"
+    === "V2026.08.24.001__create_schema.sql"
 
         ``` { .sql .copy .select linenums="1" }
-        --8<-- "docs/2026.2/hands-on/1/repository/code/V2026.03.04.001__create_schema.sql"
+        --8<-- "docs/2026.2/hands-on/1/repository/code/V2026.08.24.001__create_schema.sql"
         ```
 
-    === "V2026.03.04.002__create_table.sql"
+    === "V2026.08.24.002__create_table.sql"
 
         ``` { .sql .copy .select linenums="1" }
-        --8<-- "docs/2026.2/hands-on/1/repository/code/V2026.03.04.002__create_table.sql"
+        --8<-- "docs/2026.2/hands-on/1/repository/code/V2026.08.24.002__create_table.sql"
         ```
 
-    === "V2026.03.06.001__create_field_pass_sha256.sql"
+As regras de negócio ficam no `AccountService`:
 
-        ``` { .sql .copy .select linenums="1" }
-        --8<-- "docs/2026.2/hands-on/1/repository/code/V2026.03.06.001__create_field_pass_sha256.sql"
-        ```
+- `create` responde `400 Bad Request` quando a senha está ausente ou tem menos de 6 caracteres, ou quando o email está vazio; caso contrário, guarda apenas o hash SHA-256 (em Base64) da senha, em `hash_password` — nunca a própria senha.
+- `findById` devolve `null` para um id inexistente, e o `AccountResource` transforma isso em `404 Not Found`.
 
 ## 4. Execução
 
@@ -176,19 +174,13 @@ Observe que a flag `--build` é usada para gerar as imagens Docker antes de inic
 
 Também podemos monitorar os logs do microsserviço para ver se ele está rodando corretamente. Observe que as migrações do Flyway estão sendo executadas e que o microsserviço está subindo sem erros. Você deve ver logs indicando que o microsserviço está no ar e conectado ao banco de dados. Além disso, você também pode verificar o banco de dados para conferir se as migrações foram executadas corretamente e se as tabelas foram criadas como esperado.
 
-1. Entrando no container:
-
-    ``` { bash title="Entering the container" }
-    docker exec -it account-service bash
-    ```
-
-2. Entrando no banco de dados PostgreSQL:
+1. Entrando no banco de dados PostgreSQL. O `psql` fica no container **`db`** (a imagem `postgres`), não no do account; por isso, abra-o lá, com o nome do serviço do `compose.yaml` e o usuário/banco definidos por `DB_USER` e `DB_NAME` (ambos `store`):
 
     ``` { bash title="Entering the PostgreSQL database" }
-    psql -U store -d store
+    docker compose exec db psql -U store -d store
     ```
 
-3. Verificando as migrações:
+2. Verificando as migrações:
 
     ``` { bash title="List the schemas" }
     \dn
@@ -199,10 +191,10 @@ Também podemos monitorar os logs do microsserviço para ver se ele está rodand
     ```
 
 
-E, se você quiser monitorar os logs do microsserviço sem entrar no container, pode usar o comando `docker logs` para ver os logs do container. Assim você acompanha os logs em tempo real e pode monitorar a inicialização do microsserviço, bem como quaisquer erros ou problemas que surjam.
+E, se você quiser monitorar os logs do microsserviço sem entrar no container, pode usar o comando `docker compose logs` com o nome do serviço (`account`) para ver os logs do container. Assim você acompanha os logs em tempo real e pode monitorar a inicialização do microsserviço, bem como quaisquer erros ou problemas que surjam.
 
 ``` { bash title="Monitoring the logs" }
-docker logs -f account-service
+docker compose logs -f account
 ```
 
 ---

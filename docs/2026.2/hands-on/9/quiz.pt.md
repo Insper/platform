@@ -90,9 +90,9 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 **Q7.** Por que `KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092` é a configuração correta para o Docker Compose (usando o nome do serviço, e não `localhost`)?
 
-- A. `localhost` é reservado para a conexão com o Zookeeper; o Kafka precisa de um hostname separado
+- A. `localhost` é reservado para o listener do controller KRaft; o tráfego dos clientes precisa de um hostname separado
 - B. Os brokers Kafka usam `KAFKA_ADVERTISED_LISTENERS` para dizer aos clientes a qual endereço se conectar depois do bootstrap inicial; dentro do Docker Compose, os outros containers resolvem os nomes de serviço pelo DNS interno do Docker, então `kafka:9092` é alcançável, enquanto `localhost:9092` se referiria à interface de loopback de cada container
-- C. A imagem da Confluent Platform não aceita `localhost` como endereço de listener por uma restrição de licença
+- C. A imagem oficial `apache/kafka` não aceita `localhost` como endereço de listener
 - D. Usar `localhost` exporia o broker Kafka na máquina host, criando uma vulnerabilidade de segurança
 
 ??? success "Resposta"

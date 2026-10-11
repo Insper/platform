@@ -13,11 +13,11 @@ A apresentação do seu projeto é uma parte importante do processo de desenvolv
     - Desafios enfrentados - bottlenecks;
     - Conclusão e próximos passos.
 
-    O vídeo de apresentação deve ter entre 2 e 3 minutos e deve ser enviado junto com a documentação do projeto.
+    O vídeo de apresentação deve ter entre 1 e 2 minutos e deve ser enviado junto com a documentação do projeto.
 
 !!! tip "Vídeo de apresentação"
 
-    Excepcionalmente, nesta edição do curso, a apresentação do projeto será feita através de um vídeo de 3 a 5 minutos, onde cada grupo deve apresentar o projeto e os bottlenecks implementados. O vídeo deve ser enviado junto com a documentação do projeto.
+    Excepcionalmente, nesta edição do curso, a apresentação do projeto será feita através de um vídeo de 1 a 2 minutos, onde cada grupo deve apresentar o projeto e os bottlenecks implementados. O vídeo deve ser enviado junto com a documentação do projeto.
 
 !!! danger "Entrega"
 
@@ -31,6 +31,6 @@ A apresentação do seu projeto é uma parte importante do processo de desenvolv
     - Link para todos os repositórios utilizados;
     - Destaques para os bottlenecks implementados (ao menos 2 por indivíduo);
     - Apresentação do projeto;
-    - Vídeo de apresentação do projeto (2-3 minutos);
+    - Vídeo de apresentação do projeto (1-2 minutos);
     
     Um template de documentação pode ser encontrado em [Template de Documentação](https://hsandmann.github.io/documentation.template/){target="_blank"}.

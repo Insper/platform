@@ -100,10 +100,10 @@ Quem tem a **chave secreta** consegue forjar tokens: guarde-a em uma variável d
 
 | Método | Caminho | Faz |
 |---|---|---|
-| `POST` | `/auth/register` | `RegisterIn(name, email, password)` → cria a conta |
+| `POST` | `/auth/register` | `create`: `RegisterIn(name, email, password)` → cria a conta |
 | `POST` | `/auth/login` | `LoginIn(email, password)` → define o cookie JWT |
 | `GET` | `/auth/logout` | apaga o cookie |
-| `GET` | `/auth/whoiam` | header `id-account` → `AccountOut` |
+| `GET` | `/auth/me` | header `id-account` → `AccountOut` |
 | `POST` | `/auth/solve` | `TokenOut(token)` → `{ "idAccount": … }` — **interno, só o Gateway** |
 | `GET` | `/auth/health-check` | `200 OK` |
 
@@ -115,15 +115,15 @@ Quem tem a **chave secreta** consegue forjar tokens: guarde-a em uma variável d
 |---|---|
 | `AuthApplication` | `@EnableFeignClients(basePackages = "store.account")` |
 | `AuthResource` | implementa `AuthController`; grava o cookie no login/logout |
-| `AuthService` | cadastra via `account`; no login, busca a conta e pede um token |
-| `JwtService` | assina e interpreta JWTs com a biblioteca **JJWT** (chave HMAC) |
+| `AuthService` | cadastra via `account` (`AuthParser` → `Register`); no login, o `POST /accounts/login` confere as credenciais e então pede um token |
+| `JwtService` | assina e interpreta JWTs com a biblioteca **JJWT** (chave HMAC: segredo de 256 bits → `HS256`) |
 
 ```yaml
 store:
   jwt:
-    secretKey: ${JWT_SECRET_KEY}
-    duration: 86400000 # 24 hours in milliseconds
-    httpOnly: ${JWT_HTTP_ONLY}
+    secretKey: ${JWT_SECRET_KEY:EBwrdOOcAIDRLON9hbJV0+O3PTdfTjgMCQIxwLH7ws8=}
+    httpOnly: ${JWT_HTTP_ONLY:true}
+    duration: ${JWT_DURATION:3600000} # 1 hour in milliseconds
 ```
 
 ---
@@ -151,18 +151,19 @@ public String generate(AccountOut account, long duration) {
 
 ```java
 public String getId(String jwt) {
-    JwtParser parser = Jwts.parser().verifyWith(getKey()).build();
-    Claims claims = parser.parseSignedClaims(jwt).getPayload(); // checks the signature
-    Date now = new Date();
-    if (claims.getNotBefore().after(now))
-        throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Token is not valid yet!");
-    if (claims.getExpiration().before(now))
-        throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Token is expired!");
-    return claims.getId();
+    try {
+        JwtParser parser = Jwts.parser().verifyWith(getKey()).build();
+        // checks the signature, nbf and exp: a JwtException otherwise
+        Claims claims = parser.parseSignedClaims(jwt).getPayload();
+        return claims.getId();
+    } catch (JwtException e) {
+        throw new ResponseStatusException(
+            HttpStatus.UNAUTHORIZED, "Invalid token");
+    }
 }
 ```
 
-<p class="small">É isso que o <code>/auth/solve</code> executa: um token válido vira um <code>idAccount</code>.</p>
+<p class="small">É isso que o <code>/auth/solve</code> executa: um token válido vira um <code>idAccount</code>; um inválido ou expirado, um <code>401</code> (não um <code>500</code>).</p>
 
 ---
 
@@ -170,7 +171,7 @@ public String getId(String jwt) {
 
 ## Login → cookie
 
-1. `POST /auth/login` → `AuthService.login` → busca da conta → `JwtService.generate`.
+1. `POST /auth/login` → `AuthService.login` → `POST /accounts/login` (confere o hash) → `JwtService.generate`.
 2. O `AuthResource` responde com `Set-Cookie: __store_jwt_token=<jwt>`.
 3. O navegador o guarda e o **envia automaticamente** em cada requisição seguinte.
 
@@ -218,12 +219,13 @@ Um `GlobalFilter`: **toda** requisição passa por ele antes do roteamento.
 1. `isSecured`? **Não** → encaminha como está.
 2. Cookie `__store_jwt_token` presente? **Não** → `401 Unauthorized`.
 3. `POST http://auth:8080/auth/solve` com `{ "token": jwt }`.
-4. Token inválido → `401`. Válido → adiciona headers e encaminha:
+4. Token inválido → `401`. Válido → adiciona o header e encaminha:
 
 | Header | Valor |
 |---|---|
 | `id-account` | o UUID da conta, tirado do token |
-| `Authorization` | `Bearer <jwt>` |
+
+<p class="small">Um <code>id-account</code> enviado pelo cliente é descartado antes (<code>RemoveRequestHeader</code>): ninguém se passa por outra conta.</p>
 
 <!--
 Enfatize: os serviços seguintes nunca interpretam JWTs; eles só leem o header id-account.
@@ -261,12 +263,14 @@ public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
 <div>
 
 ```yaml
+default-filters:
+  - RemoveRequestHeader=id-account
 routes:
-  - id: accounts
+  - id: account-service
     uri: http://account:8080
     predicates:
       - Path=/accounts/**
-  - id: auth
+  - id: auth-service
     uri: http://auth:8080
     predicates:
       - Path=/auth/**
@@ -275,17 +279,17 @@ routes:
 </div>
 <div>
 
-- Cadeia: `db` → `account` → `auth` → `gateway`.
-- **Só o `gateway` publica** a porta `8080`.
-- O `auth` recebe `JWT_SECRET_KEY`, `JWT_HTTP_ONLY`.
-- O `gateway` recebe `CORS_ALLOWED_ORIGINS`, `CORS_ALLOWED_CREDENTIALS`.
+- Serviço novo: `auth` (depois do `gateway`, hands-on 2).
+- **Só o `gateway` publica** a porta `8080`; o `auth` fica do lado de dentro.
+- O `auth` roda com os padrões: `JWT_SECRET_KEY`, `JWT_HTTP_ONLY`, `JWT_DURATION`.
+- `gateway`: o `CORS_ALLOWED_ORIGINS` também tem padrão.
 
 </div>
 </div>
 
 <div class="warn">
 
-Nunca reutilize a chave de exemplo: gere uma com pelo menos 256 bits — `openssl rand -base64 32`.
+A chave padrão é pública (está no repositório): fora do desenvolvimento, defina a `JWT_SECRET_KEY` com uma sua — `openssl rand -base64 32`.
 
 </div>
 

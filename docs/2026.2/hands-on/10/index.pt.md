@@ -320,7 +320,7 @@ jaeger    jaegertracing/all-in-one:1.57  running   0.0.0.0:4317->4317/tcp, 0.0.0
 Gere algum tráfego para que haja traces para explorar:
 
 ``` { .bash .copy .select }
-curl -s -X POST http://localhost/orders \
+curl -s -X POST http://localhost:8080/orders \
   -H "Content-Type: application/json" \
   -d '{"accountId": 1, "productId": 7, "quantity": 2}' | jq
 ```

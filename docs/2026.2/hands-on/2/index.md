@@ -52,7 +52,7 @@ api
                 java/
                     store/
                         gateway/
-                            GatewayApplication.java
+                            GatewayServiceApplication.java
                             GatewayResource.java
                 resources/
                     application.yaml
@@ -66,20 +66,20 @@ api
 
     === "pom.xml"
 
-        ``` { .yaml .copy .select linenums="1" hl_lines="24-31" }
+        ``` { .yaml .copy .select linenums="1" hl_lines="23-30" }
         --8<-- "docs/2026.2/hands-on/2/code/pom.xml"
         ```
 
     === "application.yaml"
 
-        ``` { .yaml .copy .select linenums="1" hl_lines="5-27" }
+        ``` { .yaml .copy .select linenums="1" hl_lines="5-32" }
         --8<-- "docs/2026.2/hands-on/2/code/application.yaml"
         ```
 
-    === "GatewayApplication.java"
+    === "GatewayServiceApplication.java"
 
         ``` { .java .copy .select linenums='1' }
-        --8<-- "docs/2026.2/hands-on/2/code/GatewayApplication.java"
+        --8<-- "docs/2026.2/hands-on/2/code/GatewayServiceApplication.java"
         ```
 
     === "GatewayResource.java"
@@ -98,15 +98,25 @@ Note that the Gateway Microservice is implemented using Spring Cloud Gateway, wh
 
 Also, the Gateway Microservice is implemented using WebFlux, which is a reactive programming model that allows to handle a large number of concurrent requests with a small number of threads. This makes it easier to scale the application and improve the performance of the application.
 
+Everything the gateway reads lives under `spring.cloud.gateway.server.webflux` — the prefix of Spring Cloud Gateway 5 (Spring Cloud 2025.1); a key left directly under `spring.cloud.gateway` is silently ignored:
+
+| Key | What it does |
+| --- | --- |
+| `routes` | Each route has an `id`, a `uri` and a `Path` predicate: `/accounts/**` goes to `http://account:8080`, the Compose service name of the account microservice. |
+| `globalcors` | CORS for every path, configured once. The allowed origins come from `CORS_ALLOWED_ORIGINS`, with the local front ends as default; `allowCredentials: true` lets the browser send cookies (the token of [hands-on 3](../3/index.md)) — which is why the origins are listed and not `*`. |
+| `default-filters` | Filters applied to every route. `RemoveRequestHeader=id-account` drops any `id-account` header sent by the client, so only the gateway can set it (hands-on 3); `DedupeResponseHeader` removes the CORS headers duplicated when a service also sets them. |
+
+`GatewayResource` answers `GET /health-check` with the container's hostname, which shows which replica answered once there are several ([hands-on 7](../7/index.md)). It returns that single variable on purpose: answering with `System.getenv()` would publish every environment variable — passwords and secrets included.
+
 !!! warning "application.yaml"
 
-    The `application.yaml` file is configured to route the incoming requests to the appropriate microservice, therefore, you need to make sure that the microservices are running and exposing their ports before starting the Gateway Microservice.
+    The routes point to the Compose service names (`account`), so the target containers must be running in the same Compose network; otherwise the gateway answers with an error for that route.
 
-    Also, the `application.yaml` file is configured the CORs to allow the incoming requests from the internet, therefore, you need to make sure that the CORS configuration is correct before starting the Gateway Microservice.
+    Also, a browser call from an origin that is not in `allowedOrigins` is blocked by CORS: set `CORS_ALLOWED_ORIGINS` for the front end you use.
 
 After finishing the implementation of the Gateway Microservice, we can include it in the `compose.yaml` file and start it using Docker Compose. You can also test the Gateway Microservice by sending requests to the exposed port of the Gateway Microservice and checking if the requests are routed to the appropriate microservice.
 
-``` { .dockerfile .copy .select linenums="1" title="compose.yaml" }
+``` { .yaml .copy .select linenums="1" title="compose.yaml" }
 --8<-- "docs/2026.2/hands-on/2/code/compose.yaml"
 ``` 
 

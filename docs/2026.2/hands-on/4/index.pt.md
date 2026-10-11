@@ -39,6 +39,7 @@ Rodar o Jenkins dentro do Docker mantém a máquina hospedeira limpa e torna o a
     ``` { .tree .copy .select }
     api/
     jenkins/
+        .gitignore
         compose.yaml
     ```
 
@@ -56,6 +57,8 @@ O `compose.yaml` constrói uma imagem personalizada sobre `jenkins/jenkins:jdk25
 | AWS CLI | Interagir com os serviços da AWS (ECR, ECS, EKS …) |
 
 O processo do Jenkins é adicionado ao grupo `docker` para que os pipelines possam executar comandos `docker` sem precisar de root. Para isso, o socket do Docker do hospedeiro (`/var/run/docker.sock`) é montado (bind mount) dentro do container[^3].
+
+A home do Jenkins (`/var/jenkins_home`: plugins, jobs, credenciais) é montada em `./config/jenkins` (ou em `$CONFIG/jenkins`, quando a variável `CONFIG` está definida), então sobrevive a um `docker compose down`. Essa pasta guarda segredos, por isso o `jenkins/.gitignore` deixa `config/` e `.env` fora do git.
 
 !!! warning "Segurança do socket do Docker"
     Montar o `/var/run/docker.sock` dá ao container controle total sobre o daemon Docker do hospedeiro. Isso é aceitável em desenvolvimento local, mas deve ser reforçado (por exemplo, com Docker rootless ou um daemon de build dedicado) em ambientes compartilhados ou de produção.
@@ -254,7 +257,7 @@ withCredentials([usernamePassword(
     usernameVariable: 'USERNAME',
     passwordVariable: 'TOKEN')]) {
 
-    sh "docker login -u $USERNAME -p $TOKEN"
+    sh 'echo $TOKEN | docker login -u $USERNAME --password-stdin'
     sh "docker buildx create --use \
           --platform=linux/arm64,linux/amd64 \
           --node multi-platform-builder-${env.SERVICE} \
@@ -270,6 +273,7 @@ withCredentials([usernamePassword(
 ```
 
 - **`withCredentials`** — injeta no ambiente de build o token do Docker Hub guardado no passo 3. Os valores são mascarados em todos os logs do Jenkins[^5].
+- **`docker login --password-stdin`** em um `sh` com **aspas simples** — quem expande o `$TOKEN` é o shell, não o Groovy, então o segredo não é interpolado na string Groovy (o Jenkins avisa sobre isso) e não aparece na lista de processos, como aconteceria com `-p $TOKEN`[^5].
 - **`docker buildx`** — cria um builder *BuildKit* que gera imagens tanto para `linux/arm64` (Apple Silicon, AWS Graviton) quanto para `linux/amd64` (x86-64 padrão)[^8].
 - **Duas tags** — `:latest` oferece uma referência estável; `:<BUILD_ID>` fixa um build específico do Jenkins, de modo que qualquer imagem pode ser rastreada até o commit de origem.
 - A instância do builder é removida após o push para liberar recursos do sistema.

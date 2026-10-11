@@ -134,7 +134,7 @@
 <pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-text">api/
     gateway-service/
         src/main/java/store/gateway/
-            GatewayApplication.java
+            GatewayServiceApplication.java
             GatewayResource.java
         src/main/resources/application.yaml
         pom.xml
@@ -145,7 +145,7 @@
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="6" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="6" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="13">
 <h2 id="pomxml-the-dependencies">pom.xml: the dependencies</h2>
-<p>Spring Boot <code>4.0.3</code>, Java <code>25</code>, Spring Cloud <code>2025.1.0</code> (imported via <code>spring-cloud-dependencies</code>).</p>
+<p>Spring Boot <code>4.1.1</code>, Java <code>25</code>, Spring Cloud <code>2025.1.3</code> (imported via <code>spring-cloud-dependencies</code>).</p>
 <pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">dependency</span>&gt;</span>
     <span class="hljs-tag">&lt;<span class="hljs-name">groupId</span>&gt;</span>org.springframework.boot<span class="hljs-tag">&lt;/<span class="hljs-name">groupId</span>&gt;</span>
     <span class="hljs-tag">&lt;<span class="hljs-name">artifactId</span>&gt;</span>spring-boot-starter-webflux<span class="hljs-tag">&lt;/<span class="hljs-name">artifactId</span>&gt;</span>
@@ -161,33 +161,37 @@
 <h2 id="applicationyaml-routes">application.yaml: routes</h2>
 <p>Under <code>spring.cloud.gateway.server.webflux</code>:</p>
 <pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-yaml"><span class="hljs-attr">routes:</span>
-  <span class="hljs-bullet">-</span> <span class="hljs-attr">id:</span> <span class="hljs-string">insper</span>
+  <span class="hljs-bullet">-</span> <span class="hljs-attr">id:</span> <span class="hljs-string">insper-service</span>
     <span class="hljs-attr">uri:</span> <span class="hljs-string">https://www.insper.edu.br</span>
     <span class="hljs-attr">predicates:</span>
       <span class="hljs-bullet">-</span> <span class="hljs-string">Path=/insper/**</span>
 
-  <span class="hljs-bullet">-</span> <span class="hljs-attr">id:</span> <span class="hljs-string">accounts</span>
-    <span class="hljs-attr">uri:</span> <span class="hljs-string">http://account:8080</span>   <span class="hljs-comment"># hostname of the container</span>
+  <span class="hljs-bullet">-</span> <span class="hljs-attr">id:</span> <span class="hljs-string">account-service</span>
+    <span class="hljs-attr">uri:</span> <span class="hljs-string">http://account:8080</span>   <span class="hljs-comment"># Compose service name</span>
     <span class="hljs-attr">predicates:</span>
       <span class="hljs-bullet">-</span> <span class="hljs-string">Path=/accounts/**</span>
 </code></pre>
 <p>A request matching the <code>Path</code> <strong>predicate</strong> is forwarded to the route's <code>uri</code>.</p>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="8" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="8" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="13">
-<h2 id="applicationyaml-cors">application.yaml: CORS</h2>
-<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-yaml"><span class="hljs-attr">globalcors:</span>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="8" data-paginate="true" data-class="tight" data-lang="en" data-theme="platform" lang="en" class="tight" data-marpit-pagination="8" style="--paginate:true;--class:tight;--lang:en;--theme:platform;" data-marpit-pagination-total="13">
+<h2 id="applicationyaml-cors-and-default-filters">application.yaml: CORS and default filters</h2>
+<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-yaml"><span class="hljs-attr">default-filters:</span>
+  <span class="hljs-bullet">-</span> <span class="hljs-string">RemoveRequestHeader=id-account</span>
+  <span class="hljs-bullet">-</span> <span class="hljs-string">DedupeResponseHeader=Access-Control-Allow-Credentials</span> <span class="hljs-string">Access-Control-Allow-Origin</span>
+<span class="hljs-attr">globalcors:</span>
   <span class="hljs-attr">corsConfigurations:</span>
     <span class="hljs-string">&#x27;[/**]&#x27;</span><span class="hljs-string">:</span>
-      <span class="hljs-attr">allowedOrigins:</span> <span class="hljs-string">${CORS_ALLOWED_ORIGINS:*}</span>
+      <span class="hljs-attr">allowedOrigins:</span> <span class="hljs-string">${CORS_ALLOWED_ORIGINS:http://localhost,http://localhost:3000,http://localhost:8080}</span>
       <span class="hljs-attr">allowedHeaders:</span> <span class="hljs-string">&quot;*&quot;</span>
       <span class="hljs-attr">allowedMethods:</span> <span class="hljs-string">&quot;*&quot;</span>
+      <span class="hljs-attr">allowCredentials:</span> <span class="hljs-literal">true</span>
 </code></pre>
 <ul>
-<li>CORS is configured <strong>once, at the gateway</strong>, for every path.</li>
-<li><code>CORS_ALLOWED_ORIGINS</code> comes from the environment; default <code>*</code> (any origin).</li>
+<li>CORS is configured <strong>once, at the gateway</strong>, for every path; <code>CORS_ALLOWED_ORIGINS</code> overrides the local defaults.</li>
+<li><code>RemoveRequestHeader=id-account</code>: a client can never forge the header the gateway sets in hands-on 3.</li>
 </ul>
 <div class="warn">
-<p><code>*</code> is fine for development; check the CORS configuration before exposing the gateway.</p>
+<p><code>allowCredentials: true</code> (cookies) forbids <code>*</code> as origin — and every key must sit under <code>spring.cloud.gateway.server.webflux</code>, or Gateway 5 ignores it.</p>
 </div>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="9" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="9" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="13">
@@ -195,18 +199,16 @@
 <pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-java"><span class="hljs-meta">@RestController</span>
 <span class="hljs-keyword">public</span> <span class="hljs-keyword">class</span> <span class="hljs-title class_">GatewayResource</span> {
 
-    <span class="hljs-meta">@GetMapping(&quot;/&quot;)</span>
-    <span class="hljs-keyword">public</span> <span class="hljs-type">ResponseEntity</span>&lt;String&gt; <span class="hljs-title function_">hello</span><span class="hljs-params">()</span> {
-        <span class="hljs-keyword">return</span> ResponseEntity.ok(<span class="hljs-string">&quot;Store API&quot;</span>);
-    }
-
     <span class="hljs-meta">@GetMapping(&quot;/health-check&quot;)</span>
-    <span class="hljs-keyword">public</span> <span class="hljs-type">ResponseEntity</span>&lt;Void&gt; <span class="hljs-title function_">healthCheck</span><span class="hljs-params">()</span> {
-        <span class="hljs-keyword">return</span> ResponseEntity.ok().build();
+    <span class="hljs-keyword">public</span> <span class="hljs-type">ResponseEntity</span>&lt;Map&lt;String, String&gt;&gt; <span class="hljs-title function_">healthCheck</span><span class="hljs-params">()</span> {
+        <span class="hljs-comment">// only the hostname: which replica answered</span>
+        <span class="hljs-keyword">return</span> ResponseEntity.ok(Map.of(
+            <span class="hljs-string">&quot;hostname&quot;</span>, System.getenv().getOrDefault(<span class="hljs-string">&quot;HOSTNAME&quot;</span>, <span class="hljs-string">&quot;unknown&quot;</span>)
+        ));
     }
 }
 </code></pre>
-<p class="small"><code>GatewayApplication</code> is a plain <code>@SpringBootApplication</code>.</p>
+<p class="small">Never return <code>System.getenv()</code>: it would publish every secret. <code>GatewayServiceApplication</code> is a plain <code>@SpringBootApplication</code>.</p>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="10" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="10" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="13">
 <h2 id="dockerfile-and-composeyaml">Dockerfile and compose.yaml</h2>
@@ -222,28 +224,27 @@
 <pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-yaml"><span class="hljs-attr">account:</span>
   <span class="hljs-attr">build:</span>
     <span class="hljs-attr">context:</span> <span class="hljs-string">./account-service</span>
-  <span class="hljs-attr">hostname:</span> <span class="hljs-string">account</span>
   <span class="hljs-attr">deploy:</span>
-    <span class="hljs-attr">replicas:</span> <span class="hljs-number">2</span>
+    <span class="hljs-attr">replicas:</span> <span class="hljs-number">1</span>
 
 <span class="hljs-attr">gateway:</span>
   <span class="hljs-attr">build:</span>
     <span class="hljs-attr">context:</span> <span class="hljs-string">./gateway-service</span>
-  <span class="hljs-attr">hostname:</span> <span class="hljs-string">gateway</span>
   <span class="hljs-attr">ports:</span>
     <span class="hljs-bullet">-</span> <span class="hljs-number">8080</span><span class="hljs-string">:8080</span>
+  <span class="hljs-attr">deploy:</span>
+    <span class="hljs-attr">replicas:</span> <span class="hljs-number">1</span>
 </code></pre>
 </div>
 </div>
 <div class="ok">
-<p>Only the gateway publishes a port. <code>account</code> (2 replicas) is reachable <strong>only through the gateway</strong>.</p>
+<p>Only the gateway publishes a port. <code>account</code> is reachable <strong>only through the gateway</strong>.</p>
 </div>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="11" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="11" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="13">
 <h2 id="run-and-verify">Run and verify</h2>
 <pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-bash">docker compose up -d --build
-curl http://localhost:8080/               <span class="hljs-comment"># Store API</span>
-curl http://localhost:8080/health-check   <span class="hljs-comment"># 200 OK</span>
+curl http://localhost:8080/health-check   <span class="hljs-comment"># {&quot;hostname&quot;:&quot;...&quot;}</span>
 curl http://localhost:8080/accounts/...   <span class="hljs-comment"># routed to account:8080</span>
 </code></pre>
 <ul>
@@ -256,7 +257,7 @@ curl http://localhost:8080/accounts/...   <span class="hljs-comment"># routed to
 <h2 id="common-pitfalls">Common pitfalls</h2>
 <ul>
 <li><strong>Services not running</strong>: the route <code>http://account:8080</code> needs the <code>account</code> container up and on the same Compose network.</li>
-<li><strong>Wrong hostname</strong>: the route uses the Compose <code>hostname</code> (<code>account</code>), not <code>localhost</code>.</li>
+<li><strong>Wrong host</strong>: the route uses the Compose service name (<code>account</code>), not <code>localhost</code>.</li>
 <li><strong>No jar</strong>: <code>COPY target/*.jar</code> fails if the project was not packaged.</li>
 <li><strong>CORS</strong>: a browser call fails if the origin is not in <code>allowedOrigins</code>.</li>
 <li><strong>Leaking ports</strong>: publishing <code>account</code>'s port bypasses the gateway.</li>

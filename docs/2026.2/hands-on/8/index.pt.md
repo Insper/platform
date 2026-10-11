@@ -75,7 +75,7 @@ Adicionar o Redis à plataforma introduz uma camada de cache compartilhada entre
 ``` mermaid-sim
 flowchart LR
     subgraph lb [Balanceador de carga]
-        nginx["Nginx\n:80"]
+        nginx["lb (Nginx)\n:8080"]
     end
     subgraph api [Camada confiável]
         nginx e1@==> gw1["gateway\n(réplica 1)"]
@@ -86,7 +86,7 @@ flowchart LR
         auth & account e4@-->|"leitura/escrita no cache"| redis["Redis\n:6379"]:::highlighted
         redis -->|"só em cache miss"| db@{ shape: cyl, label: "PostgreSQL" }
     end
-    internet e0@==>|":80"| nginx
+    internet e0@==>|":8080"| nginx
     e0@{ animate: true }
     e1@{ animate: true }
     e2@{ animate: true }

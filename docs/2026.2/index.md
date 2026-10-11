@@ -58,7 +58,7 @@ $$
 --8<-- "docs/2026.2/grade.py"
 ```
 
-1. **Quizzes**: the course will have 3 quizzes; the lowest is dropped and the final grade is the average of the three best:
+1. **Quizzes**: the course will have 3 quizzes; the lowest is dropped and the final grade is the average of the two best:
 
     $$
     \text{Quizzes} = \frac{\text{Q}_1 + \text{Q}_2 + \text{Q}_3 - \min(\text{Q}_1, \text{Q}_2, \text{Q}_3)}{2}
@@ -79,7 +79,7 @@ $$
 
     !!! warning "Group Registration"
 
-        :fontawesome-regular-calendar: Deadline to register: ==**March 6th, 2027**==.
+        :fontawesome-regular-calendar: Deadline to register: ==**September 4th, 2026**==.
 
         :material-account-group: Teams from 2 up to 3 members.
 
@@ -98,7 +98,7 @@ $$
 
     !!! warning "Documentation Requirements"
 
-        :fontawesome-regular-calendar: Deadline to deliver: ==**May 28th, 2027**==.
+        :fontawesome-regular-calendar: Deadline to deliver: ==**November 16th, 2026**==.
 
         :material-github: Documentation MUST be hosted on GitHub Pages (public).
 

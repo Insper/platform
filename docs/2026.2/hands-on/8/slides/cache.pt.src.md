@@ -262,11 +262,11 @@ Classes em cache (`AccountOut`) devem ser serializáveis em JSON: construtor sem
 
 ```bash
 docker compose up -d --build
-curl -s http://localhost/accounts/42 | jq    # 1st: miss, hits the database
+curl -s http://localhost:8080/accounts/42 | jq    # 1st: miss, hits the database
 docker compose exec redis redis-cli
 > KEYS accounts::*                           # 1) "accounts::42"
 > GET "accounts::42"                         # {"id":"42","name":"Ada Lovelace",...}
-curl -s http://localhost/accounts/42 | jq    # 2nd: hit
+curl -s http://localhost:8080/accounts/42 | jq    # 2nd: hit
 docker compose logs account --tail 20        # no database query this time
 ```
 
@@ -275,8 +275,8 @@ docker compose logs account --tail 20        # no database query this time
 ## 3 · Medir
 
 ```bash
-curl -o /dev/null -s -w "Cache miss: %{time_total}s\n" http://localhost/accounts/42
-curl -o /dev/null -s -w "Cache hit:  %{time_total}s\n" http://localhost/accounts/42
+curl -o /dev/null -s -w "Cache miss: %{time_total}s\n" http://localhost:8080/accounts/42
+curl -o /dev/null -s -w "Cache hit:  %{time_total}s\n" http://localhost:8080/accounts/42
 ```
 
 - Típico: **miss 0,058 s**, **hit 0,004 s** — 10–15× mais rápido, sem ida e volta ao banco.

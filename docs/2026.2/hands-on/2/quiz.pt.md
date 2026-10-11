@@ -14,7 +14,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **C — Só o gateway fica exposto à internet.**
 
-    O isolamento de portas é uma propriedade de segurança: nenhum cliente externo consegue alcançar `account-service:8080` ou `auth-service:8080` diretamente. Eles só podem ser alcançados por meio do gateway, que aplica autenticação, limitação de taxa (rate limiting) e regras de roteamento. Esse padrão de "camada confiável" significa que uma requisição externa maliciosa só consegue entrar por um único ponto controlado.
+    O isolamento de portas é uma propriedade de segurança: nenhum cliente externo consegue alcançar `account:8080` ou `auth:8080` diretamente. Eles só podem ser alcançados por meio do gateway, que aplica autenticação, limitação de taxa (rate limiting) e regras de roteamento. Esse padrão de "camada confiável" significa que uma requisição externa maliciosa só consegue entrar por um único ponto controlado.
 
 ---
 
@@ -46,21 +46,21 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q4.** No `application.yaml`, as rotas do gateway são configuradas com `uri: lb://account`. O que significa o prefixo `lb://`?
+**Q4.** No `application.yaml`, a rota do account é configurada com `uri: http://account:8080`. Como o gateway encontra o endereço do `account`?
 
-- A. Usa o balanceador de carga da máquina host
-- B. Habilita o balanceamento de carga no lado do cliente do Spring Cloud LoadBalancer entre todas as instâncias registradas do serviço `account`
+- A. Lê o arquivo `/etc/hosts` da máquina host
+- B. `account` é o nome do serviço no Compose: o DNS embutido do Docker o resolve para o IP do container `account` na rede do Compose
 - C. Conecta a um balanceador de carga Nginx externo
-- D. Roteia para o serviço account pela interface de loopback do Linux
+- D. Lê o endereço do arquivo `.env`
 
 ??? success "Resposta"
-    **B — Balanceamento de carga no lado do cliente via Spring Cloud LoadBalancer.**
+    **B — O nome do serviço no Compose, resolvido pelo DNS do Docker.**
 
-    `lb://account` diz ao Spring Cloud Gateway para resolver `account` pelo registro de serviços (ou pelo DNS do Docker, dependendo da configuração) e aplicar balanceamento de carga no lado do cliente entre todas as instâncias saudáveis. O prefixo `lb://` é a abstração do Spring sobre vários backends de descoberta (Eureka, Consul, DNS do Kubernetes).
+    O Compose coloca todos os serviços do projeto em uma rede com um DNS embutido: o nome `account` resolve para o IP do seu container (para todos eles, se houver várias réplicas). Uma URI `lb://account` pediria ao Spring Cloud LoadBalancer que escolhesse uma instância em um registro de serviços (Eureka, Consul, Kubernetes) — o gateway desta disciplina não usa isso.
 
 ---
 
-**Q5.** A entrada do gateway no `compose.yaml` tem `depends_on: [account]`. Quando adicionar `condition: service_healthy` a essa dependência seria importante?
+**Q5.** Suponha que a entrada do gateway no `compose.yaml` tivesse `depends_on: [account]`. Quando adicionar `condition: service_healthy` a essa dependência seria importante?
 
 - A. Nunca — o gateway sobe rápido e o serviço account está sempre pronto antes
 - B. Quando a rotina de inicialização do gateway faz chamadas HTTP imediatas ao account (p. ex., validação de rotas), ele precisa que o account esteja totalmente inicializado, e não apenas iniciado
@@ -70,4 +70,4 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — Quando o gateway faz chamadas HTTP ao serviço downstream durante a inicialização.**
 
-    Se o gateway valida rotas ou busca configurações do account na inicialização, e o processo do account já subiu mas a conexão com o banco de dados ainda não está pronta, o gateway falha ao iniciar. `condition: service_healthy` espera até que o health check do account (p. ex., `/actuator/health`) retorne 200 antes de iniciar o gateway.
+    Se o gateway valida rotas ou busca configurações do account na inicialização, e o processo do account já subiu mas a conexão com o banco de dados ainda não está pronta, o gateway falha ao iniciar. `condition: service_healthy` espera até que o health check do account (p. ex., `/accounts/health-check`) retorne 200 antes de iniciar o gateway.

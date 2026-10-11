@@ -79,7 +79,7 @@ $$
 
     !!! warning "Cadastro dos grupos"
 
-        :fontawesome-regular-calendar: Prazo para o cadastro: ==**6 de março de 2027**==.
+        :fontawesome-regular-calendar: Prazo para o cadastro: ==**4 de setembro de 2026**==.
 
         :material-account-group: Equipes de 2 a 3 integrantes.
 
@@ -98,7 +98,7 @@ $$
 
     !!! warning "Requisitos da documentação"
 
-        :fontawesome-regular-calendar: Prazo de entrega: ==**28 de maio de 2027**==.
+        :fontawesome-regular-calendar: Prazo de entrega: ==**16 de novembro de 2026**==.
 
         :material-github: A documentação DEVE ser hospedada no GitHub Pages (pública).
 

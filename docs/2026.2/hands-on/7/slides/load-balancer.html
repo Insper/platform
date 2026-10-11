@@ -189,14 +189,14 @@
 </div>
 <div>
 <h3 id="after">After</h3>
-<p>internet → <code>:80</code> <strong>Nginx</strong> → gateway ×3 → <code>auth</code>, <code>account</code> → database</p>
+<p>internet → <code>:8080</code> <strong>lb</strong> (Nginx <code>:80</code>) → gateway ×3 → <code>auth</code>, <code>account</code> → database</p>
 <p>Only Nginx is reachable from outside the Docker network.</p>
 </div>
 </div>
-<p>Steps: <strong>1</strong> <code>nginx.conf</code> → <strong>2</strong> <code>compose.yaml</code> (nginx + gateway replicas) → <strong>3</strong> run and verify.</p>
+<p>Steps: <strong>1</strong> <code>nginx.conf</code> → <strong>2</strong> <code>compose.yaml</code> (<code>lb</code> + gateway replicas) → <strong>3</strong> run and verify.</p>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="7" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="7" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="13">
-<h2 id="1--setupnginxnginxconf">1 · <code>setup/nginx/nginx.conf</code></h2>
+<h2 id="1--setupnginxconf">1 · <code>setup/nginx.conf</code></h2>
 <pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-nginx"><span class="hljs-section">http</span> {
     <span class="hljs-section">upstream</span> gateways {
         <span class="hljs-attribute">server</span> gateway:<span class="hljs-number">8080</span>;
@@ -228,8 +228,8 @@
 <td>the pool of backends; Docker DNS expands <code>gateway:8080</code> to <strong>all replica IPs</strong></td>
 </tr>
 <tr>
-<td><code>least_conn;</code></td>
-<td>optional algorithm line inside <code>upstream</code>: next request → fewest active connections</td>
+<td><em>(no algorithm line)</em></td>
+<td>default <strong>Round Robin</strong>; <code>least_conn;</code> would send the next request → fewest active connections</td>
 </tr>
 <tr>
 <td><code>proxy_pass</code></td>
@@ -255,13 +255,12 @@
 <h2 id="2--docker-compose">2 · Docker Compose</h2>
 <div class="cols">
 <div>
-<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-yaml">  <span class="hljs-attr">nginx:</span>
-    <span class="hljs-attr">image:</span> <span class="hljs-string">nginx:alpine</span>
-    <span class="hljs-attr">hostname:</span> <span class="hljs-string">nginx</span>
+<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-yaml">  <span class="hljs-attr">lb:</span>
+    <span class="hljs-attr">image:</span> <span class="hljs-string">nginx:latest</span>
     <span class="hljs-attr">ports:</span>
-      <span class="hljs-bullet">-</span> <span class="hljs-number">8080</span><span class="hljs-string">:80</span>
+      <span class="hljs-bullet">-</span> <span class="hljs-string">&quot;8080:80&quot;</span>
     <span class="hljs-attr">volumes:</span>
-      <span class="hljs-bullet">-</span> <span class="hljs-string">$SETUP/nginx/nginx.conf:/etc/nginx/nginx.conf:ro</span>
+      <span class="hljs-bullet">-</span> <span class="hljs-string">./setup/nginx.conf:/etc/nginx/nginx.conf:ro</span>
     <span class="hljs-attr">depends_on:</span>
       <span class="hljs-bullet">-</span> <span class="hljs-string">gateway</span>
 </code></pre>
@@ -274,17 +273,14 @@
     <span class="hljs-comment"># ports removed</span>
     <span class="hljs-attr">deploy:</span>
       <span class="hljs-attr">replicas:</span> <span class="hljs-number">3</span>
-    <span class="hljs-attr">depends_on:</span>
-      <span class="hljs-bullet">-</span> <span class="hljs-string">account</span>
-      <span class="hljs-bullet">-</span> <span class="hljs-string">auth</span>
 </code></pre>
 </div>
 </div>
 <ul>
-<li><code>.env</code>: <code>SETUP=./setup</code>. The gateway has <strong>no <code>ports</code></strong> — only reachable through Nginx.</li>
+<li>The gateway has <strong>no <code>ports</code></strong> — only reachable through <code>lb</code>. <code>depends_on</code>: Nginx must find <code>gateway</code> when it starts.</li>
 <li>Remove <code>hostname: gateway</code>: one hostname cannot go to several containers. The service name <code>gateway</code> still resolves.</li>
 </ul>
-<p class="small">The run step reaches Nginx at <code>http://localhost/</code> (host port 80); with <code>8080:80</code>, use <code>http://localhost:8080/</code>.</p>
+<p class="small">Host port 8080 → Nginx (80): clients keep calling <code>http://localhost:8080</code>. The repository keeps <code>replicas: 1</code>; use 3 to see the balancing.</p>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="10" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="10" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="13">
 <h2 id="how-nginx-finds-the-replicas">How Nginx finds the replicas</h2>
@@ -295,25 +291,25 @@
 </ol>
 <div class="warn">
 <p>Replicas added later are <strong>invisible</strong> to Nginx until it re-resolves the name:<br />
-<code>docker compose exec nginx nginx -s reload</code></p>
+<code>docker compose exec lb nginx -s reload</code></p>
 </div>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="11" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="11" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="13">
 <h2 id="3--run-and-verify">3 · Run and verify</h2>
 <pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-bash">docker compose up -d --build
-docker compose ps -a        <span class="hljs-comment"># nginx + gateway-1, -2, -3, no ports on the gateways</span>
-<span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> {1..9}; <span class="hljs-keyword">do</span> curl -s -o /dev/null http://localhost/gateway/actuator/health; <span class="hljs-keyword">done</span>
+docker compose ps -a        <span class="hljs-comment"># lb + gateway-1, -2, -3, no ports on the gateways</span>
+<span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> {1..9}; <span class="hljs-keyword">do</span> curl -s http://localhost:8080/health-check; <span class="hljs-built_in">echo</span>; <span class="hljs-keyword">done</span>
 docker compose logs gateway --<span class="hljs-built_in">tail</span> 30
 </code></pre>
 <ul>
-<li>Each of the three gateway containers should show request entries.</li>
-<li>All requests on one replica? Nginx started <strong>before</strong> the replicas were ready → <code>docker compose restart nginx</code>.</li>
+<li><code>/health-check</code> answers the replica's hostname: the output cycles through the three gateways.</li>
+<li>All requests on one replica? Nginx started <strong>before</strong> the replicas were ready → <code>docker compose restart lb</code>.</li>
 </ul>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="12" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="12" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="13">
 <h2 id="scale-at-runtime">Scale at runtime</h2>
 <pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-bash">docker compose up -d --scale gateway=5     <span class="hljs-comment"># add replicas, no rebuild</span>
-docker compose <span class="hljs-built_in">exec</span> nginx nginx -s reload  <span class="hljs-comment"># re-query Docker DNS</span>
+docker compose <span class="hljs-built_in">exec</span> lb nginx -s reload     <span class="hljs-comment"># re-query Docker DNS</span>
 docker compose ps gateway                  <span class="hljs-comment"># confirm the count</span>
 docker compose up -d --scale gateway=1     <span class="hljs-comment"># scale down</span>
 </code></pre>

@@ -21,7 +21,7 @@ theme: platform
 **O order-service publica `OrderCreated`; um notification-service reage por conta própria**
 
 <!--
-Roteiro: (1) por que não mais uma chamada REST; (2) Kafka, Zookeeper e Kafka UI no compose; (3) o
+Roteiro: (1) por que não mais uma chamada REST; (2) Kafka (modo KRaft) e Kafka UI no compose; (3) o
 producer do order-service; (4) o consumer Python do notification-service; (5) teste; (6) DLQ, idempotência.
 -->
 
@@ -72,7 +72,7 @@ Desacoplamento: amanhã um **analytics-service** pode consumir `order-events` se
 
 ## Os passos
 
-1. **Docker Compose** — adicionar Zookeeper, Kafka e Kafka UI.
+1. **Docker Compose** — adicionar o Kafka (modo KRaft, sem ZooKeeper) e o Kafka UI.
 2. **order-service** — `spring-kafka`, o record `OrderCreatedEvent`, config do producer, publisher.
 3. **notification-service** — um novo consumer em Python / FastAPI.
 4. **Teste** — criar um pedido, ver o evento no Kafka UI e nos logs de notificação.
@@ -84,12 +84,12 @@ Desacoplamento: amanhã um **analytics-service** pode consumir `order-events` se
 
 | Serviço | Imagem | Porta | Papel |
 |---|---|---|---|
-| `zookeeper` | `confluentinc/cp-zookeeper:7.6.0` | 2181 | coordenação do cluster |
-| `kafka` | `confluentinc/cp-kafka:7.6.0` | 9092 | o broker |
+| `kafka` | `apache/kafka:4.3.1` | 9092 | broker + controller KRaft |
 | `kafka-ui` | `provectuslabs/kafka-ui:latest` | 8090 → 8080 | tópicos, mensagens, lag dos consumers |
 
 Configurações principais do Kafka:
 
+- `KAFKA_PROCESS_ROLES: broker,controller` — **KRaft**: o Kafka guarda os próprios metadados; o ZooKeeper foi removido no Kafka 4.0.
 - `KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092` — clientes se conectam pelo nome do serviço.
 - `KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"` — `order-events` é criado na primeira publicação.
 - `KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1` — um único broker em desenvolvimento.
@@ -186,7 +186,7 @@ notification-service/
 
 ```text
 fastapi==0.110.0
-kafka-python==2.0.2
+kafka-python==2.3.2
 uvicorn==0.29.0
 ```
 
@@ -230,7 +230,7 @@ for message in consumer:
 
 ```bash
 docker compose up --build -d
-docker compose ps        # kafka, zookeeper, kafka-ui, notification-service, order-service
+docker compose ps        # kafka, kafka-ui, notification-service, order-service
 curl -s -X POST http://localhost:8080/orders \
     -H "Content-Type: application/json" \
     -d '{"customerId":"cust-42","items":[{"productId":"p1","quantity":2}]}' | jq .
@@ -280,7 +280,7 @@ except Exception as e:
 
 1. Use REST quando quem chama precisa da resposta agora; use **eventos** para trabalho fire-and-forget.
 2. O order-service publica `OrderCreated` em `order-events` e **não conhece seus consumers**.
-3. O Kafka roda com o Zookeeper no compose; o **Kafka UI** mostra tópicos, mensagens e lag.
+3. O Kafka roda em modo **KRaft** no compose (sem ZooKeeper); o **Kafka UI** mostra tópicos, mensagens e lag.
 4. Spring: `KafkaTemplate.send(topic, key, event)` com serializer **JSON** e `acks: all`.
 5. Python: um `KafkaConsumer` no grupo `notification-group` com **commit manual** → at-least-once.
 6. Mensagens que falham vão para uma **DLQ**; os consumers devem ser **idempotentes**.

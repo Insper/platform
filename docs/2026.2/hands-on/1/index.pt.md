@@ -2,7 +2,7 @@
 
     O objetivo principal desta seção é implementar um microsserviço [CRUD (Create, Read, Update, Delete)](https://grokipedia.com/page/Create_read_update_and_delete){target="_blank"} simples, para fins de ilustração.
 
-O microsserviço Account é responsável por gerenciar as contas de usuário — praticamente toda aplicação tem um sistema de contas de usuário. Esse microsserviço fornece os endpoints necessários para criar, ler, atualizar e excluir contas. Ele é construído com Spring Boot e segue a abordagem [Domain-Driven Design (DDD)](https://martinfowler.com/bliki/DomainDrivenDesign.html){target="_blank"}.
+O microsserviço Account é responsável por gerenciar as contas de usuário — praticamente toda aplicação tem um sistema de contas de usuário. Esse microsserviço fornece os endpoints para criar, ler (listar todas ou buscar uma pelo id) e excluir contas; um endpoint de atualização não faz parte dele. Ele é construído com Spring Boot e segue a abordagem [Domain-Driven Design (DDD)](https://martinfowler.com/bliki/DomainDrivenDesign.html){target="_blank"}.
 
 ## Slides
 
@@ -22,9 +22,10 @@ O microsserviço é dividido em dois módulos principais: `account` e `account-s
 classDiagram
     namespace account {
         class AccountController {
-            +create(AccountIn accountIn): AccountOut
-            +delete(String id): void
+            +create(AccountIn in): Void
             +findAll(): List<AccountOut>
+            +delete(String id): Void
+            +healthCheck(): Void
             +findById(String id): AccountOut
         }
         class AccountIn {
@@ -40,35 +41,37 @@ classDiagram
     }
     namespace account-service {
         class AccountResource {
-            +create(AccountIn accountIn): AccountOut
-            +delete(String id): void
+            +create(AccountIn in): Void
             +findAll(): List<AccountOut>
+            +delete(String id): Void
+            +healthCheck(): Void
             +findById(String id): AccountOut
         }
         class AccountService {
-            +create(AccountIn accountIn): AccountOut
+            +create(Account account): Account
+            +findById(String id): Account
             +delete(String id): void
-            +findAll(): List<AccountOut>
-            +findById(String id): AccountOut
+            +findAll(): List<Account>
         }
         class AccountRepository {
-            +create(AccountIn accountIn): AccountOut
-            +delete(String id): void
-            +findAll(): List<AccountOut>
-            +findById(String id): AccountOut
+            +save(AccountModel model): AccountModel
+            +findById(String id): Optional<AccountModel>
+            +deleteById(String id): void
+            +findAll(): List<AccountModel>
         }
         class Account {
             -String id
             -String name
             -String email
             -String password
-            -String sha256
+            -String hashPassword
         }
         class AccountModel {
-            +create(AccountIn accountIn): AccountOut
-            +delete(String id): void
-            +findAll(): List<AccountOut>
-            +findById(String id): AccountOut
+            -String id
+            -String name
+            -String email
+            -String hashPassword
+            +to(): Account
         }
     }
     <<Interface>> AccountController

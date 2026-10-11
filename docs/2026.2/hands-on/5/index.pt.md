@@ -204,14 +204,14 @@ flowchart TD
 
         ```{ .bash .select }
         NAME         TYPE           CLUSTER-IP     EXTERNAL-IP                                                              PORT(S)        AGE
-        gateway      LoadBalancer   10.100.59.61   aac9dbab7421e4ec0a1b19472728b793-834724138.us-east-2.elb.amazonaws.com   80:31973/TCP   34m
+        gateway      LoadBalancer   10.100.59.61   aac9dbab7421e4ec0a1b19472728b793-834724138.us-east-2.elb.amazonaws.com   8080:31973/TCP 34m
         kubernetes   ClusterIP      10.100.0.1     <none>                                                                   443/TCP        5d5h
         ```
 
-        No navegador, você pode acessar o serviço de gateway usando o IP externo:
+        No navegador, você pode acessar o serviço de gateway usando o IP externo e a porta do Service (`8080`) — por exemplo, o endpoint `/health-check` do gateway, que responde com o `hostname` do pod que atendeu a requisição:
 
         ``` {.bash .copy .select }
-        http://aac9dbab7421e4ec0a1b19472728b793-834724138.us-east-2.elb.amazonaws.com/info # (1)!
+        http://aac9dbab7421e4ec0a1b19472728b793-834724138.us-east-2.elb.amazonaws.com:8080/health-check # (1)!
         ```
 
         1. Observe que é uma requisição HTTP, e não HTTPS. Para usar HTTPS, você precisa configurar certificados TLS e ajustar o recurso Ingress de acordo.

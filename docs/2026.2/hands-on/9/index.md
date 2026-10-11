@@ -47,27 +47,29 @@ Click the slides and use ← → to move through them; **F** goes full screen an
 
 ## 2. Docker Compose — Adding Kafka
 
-Add Zookeeper, Kafka, and Kafka UI to `docker-compose.yml`. Kafka UI provides a browser-based interface for inspecting topics and messages during development.
+Add Kafka and Kafka UI to `docker-compose.yml`. A single Kafka 4 node runs in **KRaft** mode — no ZooKeeper container. Kafka UI provides a browser-based interface for inspecting topics and messages during development.
 
 === "docker-compose.yml additions"
 
     ``` { .yaml .copy .select }
-      zookeeper:
-        image: confluentinc/cp-zookeeper:7.6.0
-        environment:
-          ZOOKEEPER_CLIENT_PORT: 2181
-
       kafka:
-        image: confluentinc/cp-kafka:7.6.0
-        depends_on:
-          - zookeeper
+        image: apache/kafka:4.3.1
         ports:
           - "9092:9092"
         environment:
-          KAFKA_BROKER_ID: 1
-          KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+          # KRaft combined mode: this single node is both broker and controller
+          KAFKA_NODE_ID: 1
+          KAFKA_PROCESS_ROLES: broker,controller
+          KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+          KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
           KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+          KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+          KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+          KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+          # single broker: internal topics cannot have more than 1 replica
           KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+          KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+          KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
           KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
 
       kafka-ui:
@@ -80,6 +82,10 @@ Add Zookeeper, Kafka, and Kafka UI to `docker-compose.yml`. Kafka UI provides a 
           KAFKA_CLUSTERS_0_NAME: local
           KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
     ```
+
+!!! info "KRaft — no ZooKeeper"
+
+    Kafka keeps its cluster metadata (topics, partitions, leaders) in its own Raft-based controller quorum, **KRaft**. Before, this metadata lived in a separate ZooKeeper ensemble; Kafka 4.0 (2025) removed ZooKeeper support entirely. Here the single node is both broker and controller (`KAFKA_PROCESS_ROLES: broker,controller`): clients talk to the `PLAINTEXT` listener on `kafka:9092`, and the controller quorum uses the `CONTROLLER` listener on port 9093. See [Event-Driven Architecture](../../classes/event_driven/index.md).
 
 !!! note "Kafka UI"
 
@@ -196,7 +202,7 @@ notification-service/
 
     ``` { .text .copy .select }
     fastapi==0.110.0
-    kafka-python==2.0.2
+    kafka-python==2.3.2
     uvicorn==0.29.0
     ```
 
@@ -277,7 +283,6 @@ $ docker compose up --build -d
 $ docker compose ps
 NAME                    STATUS
 kafka                   running
-zookeeper               running
 kafka-ui                running
 notification-service    running
 order-service           running
@@ -332,7 +337,7 @@ except Exception as e:
 
 ## 7. Checklist
 
-- [ ] Kafka + Zookeeper + Kafka UI added to `docker-compose.yml`
+- [ ] Kafka (KRaft mode) + Kafka UI added to `docker-compose.yml`
 - [ ] `OrderCreatedEvent` record created in order-service
 - [ ] `spring-kafka` dependency added, `application.yaml` configured
 - [ ] `OrderEventPublisher` publishes to `order-events` after save

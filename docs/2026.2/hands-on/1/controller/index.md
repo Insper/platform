@@ -6,9 +6,10 @@ The main purpose of the section is to create the following API endpoints:
 classDiagram
     namespace account {
         class AccountController {
-            +create(AccountIn accountIn): AccountOut
-            +delete(String id): void
+            +create(AccountIn in): Void
             +findAll(): List<AccountOut>
+            +delete(String id): Void
+            +healthCheck(): Void
             +findById(String id): AccountOut
         }
         class AccountIn {
@@ -56,7 +57,7 @@ Note:
 
 - Project: Maven
 - Language: Java
-- Spring Boot: 4.0.3 (stable version for now)
+- Spring Boot: 4.1.0 (stable version for now)
 - Group: store (the company name, for example)
 - Artifact: account (the microservice name)
 - Package name: store.account
@@ -131,6 +132,12 @@ A possible implementation of the `AccountController`, `AccountIn`, and `AccountO
         ``` { .java title='AccountOut.java' .copy .select linenums='1' }
         --8<-- "docs/2026.2/hands-on/1/controller/code/AccountOut.java"
         ```
+
+The DTOs are Java `record`s with Lombok's `@Builder`; `@Accessors(fluent = true)` keeps the accessors without the `get` prefix (`in.email()`, not `in.getEmail()`), the same style used by the classes of `account-service`.
+
+!!! info "One more endpoint later"
+
+    In [hands-on 3](../../3/index.md), this interface gains `POST /accounts/login`, which the authentication service calls to check an email and a password.
 
 
 ## 3. Package and Install

@@ -35,7 +35,7 @@ Quase toda aplicação tem **contas de usuário**. Qual é o menor serviço capa
 
 </div>
 
-* Uma API **CRUD**: **C**reate, **R**ead, **U**pdate, **D**elete (criar, ler, atualizar, excluir) contas.
+* Uma API **CRUD** de contas — aqui **C**reate, **R**ead e **D**elete (criar, ler, excluir; sem atualizar).
 * Construída com **Spring Boot**, seguindo **Domain-Driven Design** e **Clean Architecture**.
 * Persistida no **PostgreSQL**, rodando no **Docker Compose**.
 * É o modelo que todos os outros microsserviços da disciplina vão copiar.
@@ -101,18 +101,18 @@ Enfatize que as regras de negócio nunca veem JSON nem anotações JPA: esse é 
 public interface AccountController {
     @PostMapping("/accounts")
     ResponseEntity<Void> create(@RequestBody AccountIn in);
+    @GetMapping("/accounts")
+    ResponseEntity<List<AccountOut>> findAll();
     @DeleteMapping("/accounts/{id}")
     ResponseEntity<Void> delete(@PathVariable String id);
     @GetMapping("/accounts/health-check")
     ResponseEntity<Void> healthCheck();
-    @GetMapping("/accounts")
-    ResponseEntity<List<AccountOut>> findAll();
     @GetMapping("/accounts/{id}")
     ResponseEntity<AccountOut> findById(@PathVariable String id);
 }
 ```
 
-<p class="small">Os DTOs são records com <code>@Builder</code> do Lombok: <code>AccountIn(name, email, password)</code> e <code>AccountOut(id, name, email)</code> — a senha nunca sai.</p>
+<p class="small">Os DTOs são records com <code>@Builder</code> do Lombok e <code>@Accessors(fluent = true)</code>: <code>AccountIn(name, email, password)</code> e <code>AccountOut(id, name, email)</code> — a senha nunca sai.</p>
 
 ---
 
@@ -121,10 +121,10 @@ public interface AccountController {
 | Spring Initializr | `account` | `account-service` |
 |---|---|---|
 | Project / Language | Maven / Java 25 | Maven / Java 25 |
-| Spring Boot | 4.0.3 | 4.0.3 |
+| Spring Boot | 4.1.0 | 4.1.1 |
 | Group / Package | `store` / `store.account` | `store` / `store.account` |
 | Dependências | Lombok, OpenFeign | Spring Web, Lombok, OpenFeign |
-| Mantém | só a interface + DTOs | `AccountApplication`, `application.yaml` |
+| Mantém | só a interface + DTOs | `AccountServiceApplication`, `application.yaml` |
 
 Cada módulo é um repositório git próprio, adicionado como submódulo:
 
@@ -140,13 +140,13 @@ git submodule add <repository_url> api/account-service
 `AccountResource` implementa `AccountController`; no início, só o `health-check` é de verdade.
 
 ```java
-@RestController
+@Controller
 public class AccountResource implements AccountController {
     @Override
     public ResponseEntity<Void> healthCheck() {
         return ResponseEntity.ok().build();
     }
-    // create, delete, findAll, findById: filled in later
+    // create, findAll, delete, findById: filled in later
 }
 ```
 
@@ -210,8 +210,8 @@ public class AccountModel {
     private String id;
     private String name;
     private String email;
-    @Column(name = "password_sha256")
-    private String passwordSha256;
+    @Column(name = "hash_password")
+    private String hashPassword;
 }
 ```
 
@@ -221,6 +221,7 @@ public class AccountModel {
 ```java
 public interface AccountRepository
     extends CrudRepository<AccountModel, String> {
+    List<AccountModel> findAll();
 }
 ```
 
@@ -232,19 +233,26 @@ public interface AccountRepository
 
 ---
 
+<!-- _class: tight -->
+
 ## A regra de negócio vive no `AccountService`
 
 ```java
 public Account create(Account account) {
-    if (account.password() == null || account.password().trim().length() == 0) {
-        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password is empty");
-    }
-    account.passwordSha256(calcHash(account.password()));
+    if (null == account.password())
+        throw new ResponseStatusException(BAD_REQUEST, "Password is empty");
+    final String pass = account.password().trim();
+    if (pass.length() < 6)
+        throw new ResponseStatusException(BAD_REQUEST,
+            "Password must have at least 6 characters");
+    if (account.email() == null || account.email().trim().isEmpty())
+        throw new ResponseStatusException(BAD_REQUEST, "Email is empty");
+    account.hashPassword(calcHash(pass));
     return accountRepository.save(new AccountModel(account)).to();
 }
 ```
 
-- Só o **hash SHA-256** (Base64) é armazenado, nunca a senha em texto puro.
+- Entrada inválida → `400 Bad Request`; só o **hash SHA-256** (Base64) é armazenado, nunca a senha em texto puro.
 - `AccountModel(account)` e `.to()` são os parsers entre entidade e modelo.
 
 ---
@@ -259,7 +267,7 @@ public Account create(Account account) {
 | `DELETE` | `/accounts/{id}` | `204 No Content` |
 | `GET` | `/accounts/health-check` | `200 OK` |
 
-<p class="small"><code>create</code> monta o cabeçalho <code>Location</code> com <code>ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}")</code>.</p>
+<p class="small"><code>create</code> monta o cabeçalho <code>Location</code> com <code>ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}")</code>; um id inexistente em <code>findById</code> lança <code>ResponseStatusException(NOT_FOUND)</code>.</p>
 
 ---
 
@@ -271,9 +279,8 @@ O esquema é **versionado**: scripts em `resources/db/migration`, executados em 
 
 | Script | Mudança |
 |---|---|
-| `V2026.03.04.001__create_schema.sql` | `CREATE SCHEMA IF NOT EXISTS accounts` |
-| `V2026.03.04.002__create_table.sql` | tabela `accounts.accounts (id, name, email UNIQUE)` |
-| `V2026.03.06.001__create_field_pass_sha256.sql` | `ADD COLUMN password_sha256` |
+| `V2026.08.24.001__create_schema.sql` | `CREATE SCHEMA IF NOT EXISTS accounts` |
+| `V2026.08.24.002__create_table.sql` | tabela `accounts.accounts (id, name, email UNIQUE, hash_password)` |
 
 ```yaml
 spring:
@@ -296,12 +303,13 @@ Formato do nome: V<versão>__<descrição>.sql. Uma mudança nova é um script n
 O `compose.yaml` passa `DATABASE_HOST: db`, `DATABASE_PORT: 5432`, `DATABASE_DB`, `DATABASE_USERNAME`, `DATABASE_PASSWORD` ao `account`.
 
 ```bash
-docker compose up --build          # build images and start db + account
-docker compose ps -a               # container names and status
-docker logs -f <account container> # look for the Flyway migrations
+docker compose up --build                     # build images and start db + account
+docker compose ps -a                          # container names and status
+docker compose logs -f account                # look for the Flyway migrations
+docker compose exec db psql -U store -d store # open psql in the db container
 ```
 
-Dentro do PostgreSQL (`psql -U store -d store`):
+Dentro do `psql` (ele roda no container `db`, não no `account`):
 
 - `\dn` lista os esquemas — `accounts` precisa estar lá.
 - `\dt *.*` lista as tabelas — `accounts.accounts` precisa estar lá.

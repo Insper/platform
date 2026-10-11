@@ -123,13 +123,12 @@ services:
       - account
       - auth
 
-  nginx:
-    image: nginx:alpine
-    hostname: nginx
+  lb:
+    image: nginx:latest
     ports:
-      - 80:80
+      - "8080:80"
     volumes:
-      - $SETUP/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./setup/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       - gateway
 

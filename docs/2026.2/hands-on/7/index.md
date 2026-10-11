@@ -44,7 +44,7 @@ A **proxy** is an intermediary that sits between clients and servers, forwarding
         rp --> s3[Backend 3]
     ```
 
-In this hands-on, **Nginx acts as a reverse proxy** — the only component exposed on port 80, distributing traffic to gateway replicas that remain invisible to external clients.
+In this hands-on, **Nginx acts as a reverse proxy** — the only component exposed (host port 8080, port 80 inside its container), distributing traffic to gateway replicas that remain invisible to external clients.
 
 ## Load Balancer Types
 
@@ -119,7 +119,7 @@ Adding Nginx as a load balancer changes the entry point of the platform. The gat
     ``` mermaid-sim
     flowchart LR
         subgraph lb [Load Balancer Layer]
-            nginx["Nginx\n:80"]:::highlighted
+            nginx["lb · Nginx\n:80"]:::highlighted
         end
         subgraph api [Trusted Layer]
             gw1["gateway\n(replica 1)"]
@@ -131,7 +131,7 @@ Adding Nginx as a load balancer changes the entry point of the platform. The gat
             gw1 & gw2 & gw3 --> auth & account
             account --> db
         end
-        internet e0@==>|":80"| nginx
+        internet e0@==>|":8080"| nginx
         nginx e1@==> gw1
         nginx e2@==> gw2
         nginx e3@==> gw3
@@ -158,7 +158,7 @@ The steps to implement this are:
 
     ---
 
-    Add the `nginx` service to `compose.yaml`, remove the gateway's exposed port, and configure replicas.
+    Add the `lb` (Nginx) service to `compose.yaml`, remove the gateway's exposed port, and configure replicas.
 
     [Docker Compose](./docker/){ .md-button }
 

@@ -1,4 +1,4 @@
-Now, with the controller implemented, we can move on to the service layer of the Account microservice. The service layer is responsible for the business logic of the microservice, and it interacts with the repository layer to handle the data persistence of the Account entity. The service layer is implemented in the `AccountService` class, which contains the methods for creating, deleting, finding, and updating accounts. The `AccountService` class uses the `AccountRepository` to handle the data persistence of the Account entity, and the `AccountParser` to handle the parsing of the input and output of the API endpoints.
+Now, with the controller implemented, we can move on to the service layer of the Account microservice. The service layer is responsible for the business logic of the microservice, and it interacts with the repository layer to handle the data persistence of the Account entity. The service layer is implemented in the `AccountService` class, which contains the methods for creating, finding (all, or one by id), and deleting accounts. The `AccountService` class uses the `AccountRepository` to handle the data persistence of the Account entity, and the `AccountParser` to handle the parsing of the input and output of the API endpoints.
 
 From previous hands-on, we have already see that this microservice uses clean architecture, which means that the service layer is independent of the controller layer and the repository layer. This allows us to easily test the business logic of the service layer without having to worry about the details of the controller layer or the repository layer. The following diagram illustrates the architecture of the Account microservice, showing the relationships between the different layers and classes:
 
@@ -42,7 +42,7 @@ Once we have the ORM set up, we need to manage our database schema changes. As o
 
 Flyway is a database migration tool that allows us to manage and version our database schema changes. It provides a way to define and execute database migrations, which are scripts that modify the database schema, such as creating tables, adding columns, or changing data types. In the context of the Account microservice, we will use Flyway to manage our database migrations, ensuring that our database schema is always up-to-date and consistent across different environments.
 
-In the code, we have a `db/migration` directory, which contains the migration scripts for the Account microservice. Each migration script is named in a specific format, starting with a version number (e.g., `V2026.02.27.001`) followed by a description of the migration (e.g., `create_schema`). These migration scripts will be executed in order by Flyway to ensure that our database schema is always up-to-date.
+In the code, we have a `db/migration` directory, which contains the migration scripts for the Account microservice. Each migration script is named in a specific format, starting with a version number (e.g., `V2026.08.24.001`) followed by a description of the migration (e.g., `create_schema`). These migration scripts will be executed in order by Flyway to ensure that our database schema is always up-to-date.
 
 ## 3. Code
 
@@ -58,7 +58,7 @@ api/
                     store/
                         account/
                             Account.java
-                            AccountApplication.java
+                            AccountServiceApplication.java
                             AccountModel.java
                             AccountParser.java
                             AccountRepository.java
@@ -67,9 +67,8 @@ api/
                 resources/
                     db/
                         migration/
-                            V2026.03.27.001__create_schema.sql
-                            V2026.03.27.002__create_table.sql
-                            V2026.03.06.001__create_field_pass_sha256.sql
+                            V2026.08.24.001__create_schema.sql
+                            V2026.08.24.002__create_table.sql
                     application.yaml
         pom.xml
     compose.yaml
@@ -80,10 +79,10 @@ Where, respecting the clean architecture, we have the following classes:
 
 | Class | Description |
 | --- | --- |
-| `Account` | This class represents the Account entity, which is the main entity of the Account microservice. It contains the attributes of the Account entity, such as `id`, `name`, `email`, `password`, and `sha256`. |
-| `AccountModel` | This class represents the Account model, which is responsible for the persistence logic of the Account microservice. It contains the methods for creating, deleting, finding, and updating accounts. |
+| `Account` | This class represents the Account entity, which is the main entity of the Account microservice. It contains the attributes of the Account entity, such as `id`, `name`, `email`, `password` (the raw value, only on the way in), and `hashPassword`. |
+| `AccountModel` | This class is the JPA entity mapped to the table `accounts.accounts` (`id`, `name`, `email`, `hash_password`). Its constructor `AccountModel(Account)` and its method `to()` convert between the entity and the model. |
 | `AccountParser` | This class is responsible for parsing the input and output of the API endpoints, converting the `AccountIn` and `AccountOut` DTOs to the `Account` entity, and vice versa. |
-| `AccountRepository` | This interface is responsible for the data persistence of the Account entity, using an Object-Relational Mapping (ORM) framework to interact with the database. |
+| `AccountRepository` | This interface is responsible for the data persistence of the Account entity, using an Object-Relational Mapping (ORM) framework to interact with the database. It extends `CrudRepository` and redeclares `findAll()` to return a `List` instead of an `Iterable`. |
 | `AccountResource` | This class is responsible for the API endpoints of the Account microservice, implementing the `AccountController` interface defined in the `account` module, and using the `AccountService` to handle the business logic of the API endpoints. |
 | `AccountService` | This class is responsible for the business logic of the Account microservice, using the `AccountRepository` to handle the data persistence of the Account entity, and the `AccountParser` to handle the parsing of the input and output of the API endpoints. |
 
@@ -94,19 +93,19 @@ Where, respecting the clean architecture, we have the following classes:
 
     === "compose.yaml"
 
-        ``` { .yaml .copy .select linenums="1" hl_lines="7 21 24-29" }
+        ``` { .yaml .copy .select linenums="1" hl_lines="20-25" }
         --8<-- "docs/2026.2/hands-on/1/repository/code/compose.yaml"
         ```
 
     === "pom.xml"
 
-        ``` { .yaml .copy .select linenums="1" hl_lines="33-36 50-54 56-64" }
+        ``` { .yaml .copy .select linenums="1" hl_lines="36-56" }
         --8<-- "docs/2026.2/hands-on/1/repository/code/pom.xml"
         ```
 
     === "application.yaml"
 
-        ``` { .yaml .copy .select linenums="1" hl_lines="8-12 14-16 18-21" }
+        ``` { .yaml .copy .select linenums="1" hl_lines="5-9 11-13 15-18" }
         --8<-- "docs/2026.2/hands-on/1/repository/code/application.yaml"
         ```
 
@@ -136,7 +135,7 @@ Where, respecting the clean architecture, we have the following classes:
 
     === "AccountResource.java"
 
-        ``` { .java .copy .select linenums='1' hl_lines="14-15 19-29 34-35 45-49 54-59" }
+        ``` { .java .copy .select linenums='1' hl_lines="15-16 20-29 34-35 40 53-55" }
         --8<-- "docs/2026.2/hands-on/1/repository/code/AccountResource.java"
         ```
 
@@ -146,23 +145,22 @@ Where, respecting the clean architecture, we have the following classes:
         --8<-- "docs/2026.2/hands-on/1/repository/code/AccountService.java"
         ```
 
-    === "V2026.03.04.001__create_schema.sql"
+    === "V2026.08.24.001__create_schema.sql"
 
         ``` { .sql .copy .select linenums="1" }
-        --8<-- "docs/2026.2/hands-on/1/repository/code/V2026.03.04.001__create_schema.sql"
+        --8<-- "docs/2026.2/hands-on/1/repository/code/V2026.08.24.001__create_schema.sql"
         ```
 
-    === "V2026.03.04.002__create_table.sql"
+    === "V2026.08.24.002__create_table.sql"
 
         ``` { .sql .copy .select linenums="1" }
-        --8<-- "docs/2026.2/hands-on/1/repository/code/V2026.03.04.002__create_table.sql"
+        --8<-- "docs/2026.2/hands-on/1/repository/code/V2026.08.24.002__create_table.sql"
         ```
 
-    === "V2026.03.06.001__create_field_pass_sha256.sql"
+The business rules live in `AccountService`:
 
-        ``` { .sql .copy .select linenums="1" }
-        --8<-- "docs/2026.2/hands-on/1/repository/code/V2026.03.06.001__create_field_pass_sha256.sql"
-        ```
+- `create` answers `400 Bad Request` when the password is missing or shorter than 6 characters, or when the email is empty; otherwise it stores only the SHA-256 hash (Base64) of the password, in `hash_password` — never the password itself.
+- `findById` returns `null` for an unknown id, and `AccountResource` turns it into `404 Not Found`.
 
 ## 4. Running
 
@@ -176,19 +174,13 @@ Note that the `--build` flag is used to build the Docker images before starting 
 
 Also, we can monitoring the logs of the microservice to see if it is running correctly. See there that the Flyway migrations are being executed, and that the microservice is starting up without any errors. You should see logs indicating that the microservice is up and running, and that it is connected to the database. In additional, you can also check the database to see if the migrations have been executed correctly, and that the tables have been created as expected.
 
-1. Going inside the container:
-
-    ``` { bash title="Entering the container" }
-    docker exec -it account-service bash
-    ```
-
-2. Going inside the PostgreSQL database:
+1. Going inside the PostgreSQL database. `psql` lives in the **`db`** container (the `postgres` image), not in the account one, so open it there with the service name from `compose.yaml` and the user/database defined by `DB_USER` and `DB_NAME` (both `store`):
 
     ``` { bash title="Entering the PostgreSQL database" }
-    psql -U store -d store
+    docker compose exec db psql -U store -d store
     ```
 
-3. Verifying the migrations:
+2. Verifying the migrations:
 
     ``` { bash title="List the schemas" }
     \dn
@@ -199,10 +191,10 @@ Also, we can monitoring the logs of the microservice to see if it is running cor
     ```
 
 
-Yet, if you want to monitor the logs of the microservice without going inside the container, you can use the `docker logs` command to view the logs of the container. This will allow you to see the logs in real-time, and you can use it to monitor the startup process of the microservice, as well as any errors or issues that may arise.
+Yet, if you want to monitor the logs of the microservice without going inside the container, you can use the `docker compose logs` command with the service name (`account`) to view the logs of the container. This will allow you to see the logs in real-time, and you can use it to monitor the startup process of the microservice, as well as any errors or issues that may arise.
 
 ``` { bash title="Monitoring the logs" }
-docker logs -f account-service
+docker compose logs -f account
 ```
 
 ---

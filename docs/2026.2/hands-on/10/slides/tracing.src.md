@@ -200,7 +200,7 @@ The agent writes `trace_id` and `span_id` into the SLF4J **MDC**. Add `opentelem
 ```bash
 docker compose up -d --build
 docker compose ps jaeger
-curl -s -X POST http://localhost/orders \
+curl -s -X POST http://localhost:8080/orders \
   -H "Content-Type: application/json" \
   -d '{"accountId": 1, "productId": 7, "quantity": 2}' | jq
 ```

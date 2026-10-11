@@ -116,18 +116,18 @@ O gateway é exposto diretamente.
 
 ### Depois
 
-internet → `:80` **Nginx** → gateway ×3 → `auth`, `account` → banco de dados
+internet → `:8080` **lb** (Nginx `:80`) → gateway ×3 → `auth`, `account` → banco de dados
 
 Só o Nginx é acessível de fora da rede Docker.
 
 </div>
 </div>
 
-Passos: **1** `nginx.conf` → **2** `compose.yaml` (nginx + réplicas do gateway) → **3** executar e verificar.
+Passos: **1** `nginx.conf` → **2** `compose.yaml` (`lb` + réplicas do gateway) → **3** executar e verificar.
 
 ---
 
-## 1 · `setup/nginx/nginx.conf`
+## 1 · `setup/nginx.conf`
 
 ```nginx
 http {
@@ -154,7 +154,7 @@ http {
 | Diretiva | Finalidade |
 |---|---|
 | `upstream gateways` | o pool de backends; o DNS do Docker expande `gateway:8080` para **os IPs de todas as réplicas** |
-| `least_conn;` | linha opcional de algoritmo no `upstream`: próxima requisição → menos conexões ativas |
+| _(sem linha de algoritmo)_ | **Round Robin** padrão; `least_conn;` mandaria a próxima requisição → menos conexões ativas |
 | `proxy_pass` | encaminha a requisição para o pool upstream |
 | `X-Real-IP` | IP original do cliente para o backend |
 | `X-Forwarded-For` | acrescenta o IP do cliente à cadeia de encaminhamento (logs, auditoria) |
@@ -172,13 +172,12 @@ http {
 <div>
 
 ```yaml
-  nginx:
-    image: nginx:alpine
-    hostname: nginx
+  lb:
+    image: nginx:latest
     ports:
-      - 8080:80
+      - "8080:80"
     volumes:
-      - $SETUP/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./setup/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       - gateway
 ```
@@ -194,18 +193,15 @@ http {
     # ports removed
     deploy:
       replicas: 3
-    depends_on:
-      - account
-      - auth
 ```
 
 </div>
 </div>
 
-- `.env`: `SETUP=./setup`. O gateway **não tem `ports`** — só é acessível pelo Nginx.
+- O gateway **não tem `ports`** — só é acessível pelo `lb`. `depends_on`: o Nginx precisa achar o `gateway` ao iniciar.
 - Remova `hostname: gateway`: um hostname não pode ir para vários containers. O nome de serviço `gateway` continua resolvendo.
 
-<p class="small">O passo de execução acessa o Nginx em <code>http://localhost/</code> (porta 80 do host); com <code>8080:80</code>, use <code>http://localhost:8080/</code>.</p>
+<p class="small">Porta 8080 do host → Nginx (80): os clientes continuam chamando <code>http://localhost:8080</code>. O repositório mantém <code>replicas: 1</code>; use 3 para ver o balanceamento.</p>
 
 ---
 
@@ -218,7 +214,7 @@ http {
 <div class="warn">
 
 Réplicas adicionadas depois ficam **invisíveis** para o Nginx até ele resolver o nome de novo:
-`docker compose exec nginx nginx -s reload`
+`docker compose exec lb nginx -s reload`
 
 </div>
 
@@ -228,13 +224,13 @@ Réplicas adicionadas depois ficam **invisíveis** para o Nginx até ele resolve
 
 ```bash
 docker compose up -d --build
-docker compose ps -a        # nginx + gateway-1, -2, -3, no ports on the gateways
-for i in {1..9}; do curl -s -o /dev/null http://localhost/gateway/actuator/health; done
+docker compose ps -a        # lb + gateway-1, -2, -3, no ports on the gateways
+for i in {1..9}; do curl -s http://localhost:8080/health-check; echo; done
 docker compose logs gateway --tail 30
 ```
 
-- Cada um dos três containers do gateway deve mostrar entradas de requisição.
-- Todas as requisições em uma réplica? O Nginx subiu **antes** de as réplicas estarem prontas → `docker compose restart nginx`.
+- O `/health-check` responde o hostname da réplica: a saída alterna entre os três gateways.
+- Todas as requisições em uma réplica? O Nginx subiu **antes** de as réplicas estarem prontas → `docker compose restart lb`.
 
 ---
 
@@ -242,7 +238,7 @@ docker compose logs gateway --tail 30
 
 ```bash
 docker compose up -d --scale gateway=5     # add replicas, no rebuild
-docker compose exec nginx nginx -s reload  # re-query Docker DNS
+docker compose exec lb nginx -s reload     # re-query Docker DNS
 docker compose ps gateway                  # confirm the count
 docker compose up -d --scale gateway=1     # scale down
 ```

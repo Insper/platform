@@ -75,7 +75,7 @@ Adding Redis to the platform introduces a shared cache layer between all microse
 ``` mermaid-sim
 flowchart LR
     subgraph lb [Load Balancer]
-        nginx["Nginx\n:80"]
+        nginx["lb (Nginx)\n:8080"]
     end
     subgraph api [Trusted Layer]
         nginx e1@==> gw1["gateway\n(replica 1)"]
@@ -86,7 +86,7 @@ flowchart LR
         auth & account e4@-->|"cache read/write"| redis["Redis\n:6379"]:::highlighted
         redis -->|"cache miss only"| db@{ shape: cyl, label: "PostgreSQL" }
     end
-    internet e0@==>|":80"| nginx
+    internet e0@==>|":8080"| nginx
     e0@{ animate: true }
     e1@{ animate: true }
     e2@{ animate: true }

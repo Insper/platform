@@ -28,7 +28,7 @@ Clique em **"Resposta"** para ver a resposta correta e a explicação.
 ??? success "Resposta"
     **C — O serviço de autenticação.**
 
-    O serviço de autenticação é responsável por: receber as credenciais de login, validá-las junto ao serviço de contas, gerar um JWT assinado com a identidade e os papéis do usuário e devolvê-lo ao cliente. Separar isso do serviço de contas mantém a lógica de autenticação coesa e com deploy independente.
+    O serviço de autenticação é responsável por: receber as credenciais de login, pedir ao serviço de contas que as confira (`POST /accounts/login`, que compara hashes de senha), gerar um JWT assinado com a identidade da conta (`id`, `name`, `email`) e devolvê-lo ao cliente em um cookie. Separar isso do serviço de contas mantém a lógica de autenticação coesa e com deploy independente.
 
 ---
 
@@ -56,20 +56,20 @@ Clique em **"Resposta"** para ver a resposta correta e a explicação.
 ??? success "Resposta"
     **C — No `AuthorizationFilter` do gateway.**
 
-    O gateway intercepta todas as requisições. O `AuthorizationFilter` verifica o JWT da requisição (vindo de um cookie ou do header `Authorization`), chama o serviço de autenticação para validá-lo e, então, ou encaminha a requisição com a identidade resolvida, ou devolve `401 Unauthorized`. Os microsserviços de negócio nunca recebem requisições não autenticadas.
+    O gateway intercepta todas as requisições. O `AuthorizationFilter` verifica o JWT da requisição (vindo do cookie `__store_jwt_token`), chama o serviço de autenticação (`POST /auth/solve`) para validá-lo e, então, ou encaminha a requisição com a identidade resolvida, ou devolve `401 Unauthorized`. Os microsserviços de negócio nunca recebem requisições não autenticadas.
 
 ---
 
-**Q5.** Por que o `AuthService` é definido como uma **interface no módulo `auth`**, e não diretamente dentro do `auth-service`?
+**Q5.** Por que o `AuthController` é definido como uma **interface no módulo `auth`**, e não diretamente dentro do `auth-service`?
 
 - A. O Spring Boot exige que interfaces e implementações fiquem em módulos Maven separados
 - B. Isso reduz o tempo de compilação, ao separar a interface da implementação
-- C. Outros serviços (gateway, account) podem depender do módulo de interface `auth` sem carregar a implementação completa e suas dependências transitivas — seguindo o Princípio da Inversão de Dependência
+- C. Outros serviços podem chamar o auth via Feign dependendo só do módulo de interface `auth`, sem carregar a implementação completa e suas dependências transitivas — seguindo o Princípio da Inversão de Dependência
 - D. Isso permite fazer o deploy do serviço de autenticação como uma imagem Docker separada e menor
 
 ??? success "Resposta"
     **C — Separação da interface para um gerenciamento limpo de dependências.**
 
-    O gateway precisa chamar o serviço de autenticação (para validar tokens). Ele depende do módulo de interface `auth` — uma biblioteca enxuta, só com a interface e os DTOs. Se dependesse do `auth-service`, ele levaria o Spring Data JPA, o driver do banco de dados e todas as outras dependências do auth-service para o classpath do gateway.
+    Um cliente Feign só precisa da interface e dos DTOs, então quem chama depende da biblioteca enxuta `auth` — exatamente como o próprio `auth-service` chama o `account-service` pela biblioteca `account`. Depender do `auth-service` levaria o JJWT, o Spring MVC e todo o resto do serviço para o classpath de quem chama. (O Gateway é a exceção: ele é reativo, então chama o `/auth/solve` com `WebClient`, e não com Feign.)
 
 ---

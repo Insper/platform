@@ -263,7 +263,7 @@ CRDTs are used in Riak's data types, Redis Enterprise Active-Active databases an
 | **Consul** | Service discovery, distributed locks | Raft |
 | **Apache Kafka** | Distributed log, messaging | KRaft (Raft-based); ZooKeeper mode was removed in Kafka 4.0 (2025) |
 
-The Kafka setup of [Hands-on 9](../../../hands-on/9/index.md) still runs a ZooKeeper container next to the broker; newer Kafka versions run the same coordination inside the brokers themselves with KRaft.
+The Kafka setup of [Hands-on 9](../../../hands-on/9/index.md) runs Kafka 4 in KRaft mode: there is no ZooKeeper container — the coordination runs inside Kafka itself, on its own Raft quorum.
 
 !!! warning "Pitfalls"
     - **Do not implement Paxos or Raft yourself** for an application. Delegate to a proven system: etcd, ZooKeeper, Consul, or the database (a `SELECT … FOR UPDATE`, a unique constraint, an advisory lock).

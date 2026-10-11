@@ -3,13 +3,19 @@ package store.account;
 import java.util.List;
 
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.stereotype.Controller;
 
-@RestController
+@Controller
 public class AccountResource implements AccountController {
 
     @Override
     public ResponseEntity<Void> create(AccountIn in) {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public ResponseEntity<List<AccountOut>> findAll() {
         // TODO Auto-generated method stub
         return null;
     }
@@ -22,13 +28,9 @@ public class AccountResource implements AccountController {
 
     @Override
     public ResponseEntity<Void> healthCheck() {
-        return ResponseEntity.ok().build();
-    }
-
-    @Override
-    public ResponseEntity<List<AccountOut>> findAll() {
-        // TODO Auto-generated method stub
-        return null;
+        return ResponseEntity
+            .ok()
+            .build();
     }
 
     @Override

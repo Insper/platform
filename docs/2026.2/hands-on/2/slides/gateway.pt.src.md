@@ -81,7 +81,7 @@ Funcionalidades principais: **roteamento** para o microsserviço certo e **auten
 api/
     gateway-service/
         src/main/java/store/gateway/
-            GatewayApplication.java
+            GatewayServiceApplication.java
             GatewayResource.java
         src/main/resources/application.yaml
         pom.xml
@@ -94,7 +94,7 @@ api/
 
 ## pom.xml: as dependências
 
-Spring Boot `4.0.3`, Java `25`, Spring Cloud `2025.1.0` (importado via `spring-cloud-dependencies`).
+Spring Boot `4.1.1`, Java `25`, Spring Cloud `2025.1.3` (importado via `spring-cloud-dependencies`).
 
 ```xml
 <dependency>
@@ -117,13 +117,13 @@ Em `spring.cloud.gateway.server.webflux`:
 
 ```yaml
 routes:
-  - id: insper
+  - id: insper-service
     uri: https://www.insper.edu.br
     predicates:
       - Path=/insper/**
 
-  - id: accounts
-    uri: http://account:8080   # hostname of the container
+  - id: account-service
+    uri: http://account:8080   # Compose service name
     predicates:
       - Path=/accounts/**
 ```
@@ -132,23 +132,29 @@ Uma requisição que casa com o **predicado** `Path` é encaminhada para a `uri`
 
 ---
 
-## application.yaml: CORS
+<!-- _class: tight -->
+
+## application.yaml: CORS e filtros padrão
 
 ```yaml
+default-filters:
+  - RemoveRequestHeader=id-account
+  - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin
 globalcors:
   corsConfigurations:
     '[/**]':
-      allowedOrigins: ${CORS_ALLOWED_ORIGINS:*}
+      allowedOrigins: ${CORS_ALLOWED_ORIGINS:http://localhost,http://localhost:3000,http://localhost:8080}
       allowedHeaders: "*"
       allowedMethods: "*"
+      allowCredentials: true
 ```
 
-- O CORS é configurado **uma vez, no gateway**, para todos os caminhos.
-- `CORS_ALLOWED_ORIGINS` vem do ambiente; o padrão é `*` (qualquer origem).
+- O CORS é configurado **uma vez, no gateway**, para todos os caminhos; `CORS_ALLOWED_ORIGINS` substitui os padrões locais.
+- `RemoveRequestHeader=id-account`: um cliente nunca consegue forjar o cabeçalho que o gateway define no hands-on 3.
 
 <div class="warn">
 
-`*` serve para desenvolvimento; revise a configuração de CORS antes de expor o gateway.
+`allowCredentials: true` (cookies) proíbe `*` como origem — e toda chave precisa ficar sob `spring.cloud.gateway.server.webflux`, ou o Gateway 5 a ignora.
 
 </div>
 
@@ -160,19 +166,17 @@ globalcors:
 @RestController
 public class GatewayResource {
 
-    @GetMapping("/")
-    public ResponseEntity<String> hello() {
-        return ResponseEntity.ok("Store API");
-    }
-
     @GetMapping("/health-check")
-    public ResponseEntity<Void> healthCheck() {
-        return ResponseEntity.ok().build();
+    public ResponseEntity<Map<String, String>> healthCheck() {
+        // only the hostname: which replica answered
+        return ResponseEntity.ok(Map.of(
+            "hostname", System.getenv().getOrDefault("HOSTNAME", "unknown")
+        ));
     }
 }
 ```
 
-<p class="small"><code>GatewayApplication</code> é um <code>@SpringBootApplication</code> simples.</p>
+<p class="small">Nunca devolva <code>System.getenv()</code>: isso publicaria todos os segredos. <code>GatewayServiceApplication</code> é um <code>@SpringBootApplication</code> simples.</p>
 
 ---
 
@@ -195,16 +199,16 @@ ENTRYPOINT ["java", "-jar", "/app.jar"]
 account:
   build:
     context: ./account-service
-  hostname: account
   deploy:
-    replicas: 2
+    replicas: 1
 
 gateway:
   build:
     context: ./gateway-service
-  hostname: gateway
   ports:
     - 8080:8080
+  deploy:
+    replicas: 1
 ```
 
 </div>
@@ -212,7 +216,7 @@ gateway:
 
 <div class="ok">
 
-Só o gateway publica uma porta. O `account` (2 réplicas) só é alcançável **por meio do gateway**.
+Só o gateway publica uma porta. O `account` só é alcançável **por meio do gateway**.
 
 </div>
 
@@ -222,8 +226,7 @@ Só o gateway publica uma porta. O `account` (2 réplicas) só é alcançável *
 
 ```bash
 docker compose up -d --build
-curl http://localhost:8080/               # Store API
-curl http://localhost:8080/health-check   # 200 OK
+curl http://localhost:8080/health-check   # {"hostname":"..."}
 curl http://localhost:8080/accounts/...   # routed to account:8080
 ```
 
@@ -237,7 +240,7 @@ curl http://localhost:8080/accounts/...   # routed to account:8080
 ## Armadilhas comuns
 
 - **Serviços parados**: a rota `http://account:8080` precisa do container `account` no ar e na mesma rede do Compose.
-- **Hostname errado**: a rota usa o `hostname` do Compose (`account`), não `localhost`.
+- **Host errado**: a rota usa o nome do serviço no Compose (`account`), não `localhost`.
 - **Sem jar**: `COPY target/*.jar` falha se o projeto não foi empacotado.
 - **CORS**: uma chamada do navegador falha se a origem não estiver em `allowedOrigins`.
 - **Portas vazando**: publicar a porta do `account` contorna o gateway.

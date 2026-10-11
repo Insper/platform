@@ -15,7 +15,7 @@ Expected output includes:
 ```
 NAME                STATUS     PORTS
 store-redis-1       running    0.0.0.0:6379->6379/tcp
-store-nginx-1       running    0.0.0.0:80->80/tcp
+store-lb-1          running    0.0.0.0:8080->80/tcp
 store-gateway-1     running
 store-gateway-2     running
 store-gateway-3     running
@@ -32,7 +32,7 @@ store-db-1          running    0.0.0.0:5432->5432/tcp
 Send a request to retrieve an account:
 
 ``` { .bash .copy .select }
-curl -s http://localhost/accounts/42 | jq
+curl -s http://localhost:8080/accounts/42 | jq
 ```
 
 The first call hits the database. Open a Redis CLI session and inspect the key that was written:
@@ -68,7 +68,7 @@ Expected — a JSON string:
 Send the same request again:
 
 ``` { .bash .copy .select }
-curl -s http://localhost/accounts/42 | jq
+curl -s http://localhost:8080/accounts/42 | jq
 ```
 
 Check the service logs — the database should **not** be queried this time:
@@ -84,11 +84,11 @@ If the cache is working, you will see a log line for the first request but **non
 Use `curl`'s built-in timing output to compare response times:
 
 ``` { .bash .copy .select }
-curl -o /dev/null -s -w "Cache miss: %{time_total}s\n" http://localhost/accounts/42
+curl -o /dev/null -s -w "Cache miss: %{time_total}s\n" http://localhost:8080/accounts/42
 ```
 
 ``` { .bash .copy .select }
-curl -o /dev/null -s -w "Cache hit:  %{time_total}s\n" http://localhost/accounts/42
+curl -o /dev/null -s -w "Cache hit:  %{time_total}s\n" http://localhost:8080/accounts/42
 ```
 
 A typical result:

@@ -180,7 +180,7 @@
 <tr>
 <td><code>POST</code></td>
 <td><code>/auth/register</code></td>
-<td><code>RegisterIn(name, email, password)</code> → cria a conta</td>
+<td><code>create</code>: <code>RegisterIn(name, email, password)</code> → cria a conta</td>
 </tr>
 <tr>
 <td><code>POST</code></td>
@@ -194,7 +194,7 @@
 </tr>
 <tr>
 <td><code>GET</code></td>
-<td><code>/auth/whoiam</code></td>
+<td><code>/auth/me</code></td>
 <td>header <code>id-account</code> → <code>AccountOut</code></td>
 </tr>
 <tr>
@@ -230,19 +230,19 @@
 </tr>
 <tr>
 <td><code>AuthService</code></td>
-<td>cadastra via <code>account</code>; no login, busca a conta e pede um token</td>
+<td>cadastra via <code>account</code> (<code>AuthParser</code> → <code>Register</code>); no login, o <code>POST /accounts/login</code> confere as credenciais e então pede um token</td>
 </tr>
 <tr>
 <td><code>JwtService</code></td>
-<td>assina e interpreta JWTs com a biblioteca <strong>JJWT</strong> (chave HMAC)</td>
+<td>assina e interpreta JWTs com a biblioteca <strong>JJWT</strong> (chave HMAC: segredo de 256 bits → <code>HS256</code>)</td>
 </tr>
 </tbody>
 </table>
 <pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-yaml"><span class="hljs-attr">store:</span>
   <span class="hljs-attr">jwt:</span>
-    <span class="hljs-attr">secretKey:</span> <span class="hljs-string">${JWT_SECRET_KEY}</span>
-    <span class="hljs-attr">duration:</span> <span class="hljs-number">86400000</span> <span class="hljs-comment"># 24 hours in milliseconds</span>
-    <span class="hljs-attr">httpOnly:</span> <span class="hljs-string">${JWT_HTTP_ONLY}</span>
+    <span class="hljs-attr">secretKey:</span> <span class="hljs-string">${JWT_SECRET_KEY:EBwrdOOcAIDRLON9hbJV0+O3PTdfTjgMCQIxwLH7ws8=}</span>
+    <span class="hljs-attr">httpOnly:</span> <span class="hljs-string">${JWT_HTTP_ONLY:true}</span>
+    <span class="hljs-attr">duration:</span> <span class="hljs-string">${JWT_DURATION:3600000}</span> <span class="hljs-comment"># 1 hour in milliseconds</span>
 </code></pre>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="8" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="8" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="16">
@@ -264,22 +264,23 @@
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="9" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="9" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="16">
 <h2 id="jwtservicegetid"><code>JwtService.getId</code></h2>
 <pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-java"><span class="hljs-keyword">public</span> <span class="hljs-type">String</span> <span class="hljs-title function_">getId</span><span class="hljs-params">(String jwt)</span> {
-    <span class="hljs-type">JwtParser</span> <span class="hljs-variable">parser</span> <span class="hljs-operator">=</span> Jwts.parser().verifyWith(getKey()).build();
-    <span class="hljs-type">Claims</span> <span class="hljs-variable">claims</span> <span class="hljs-operator">=</span> parser.parseSignedClaims(jwt).getPayload(); <span class="hljs-comment">// checks the signature</span>
-    <span class="hljs-type">Date</span> <span class="hljs-variable">now</span> <span class="hljs-operator">=</span> <span class="hljs-keyword">new</span> <span class="hljs-title class_">Date</span>();
-    <span class="hljs-keyword">if</span> (claims.getNotBefore().after(now))
-        <span class="hljs-keyword">throw</span> <span class="hljs-keyword">new</span> <span class="hljs-title class_">ResponseStatusException</span>(HttpStatus.UNAUTHORIZED, <span class="hljs-string">&quot;Token is not valid yet!&quot;</span>);
-    <span class="hljs-keyword">if</span> (claims.getExpiration().before(now))
-        <span class="hljs-keyword">throw</span> <span class="hljs-keyword">new</span> <span class="hljs-title class_">ResponseStatusException</span>(HttpStatus.UNAUTHORIZED, <span class="hljs-string">&quot;Token is expired!&quot;</span>);
-    <span class="hljs-keyword">return</span> claims.getId();
+    <span class="hljs-keyword">try</span> {
+        <span class="hljs-type">JwtParser</span> <span class="hljs-variable">parser</span> <span class="hljs-operator">=</span> Jwts.parser().verifyWith(getKey()).build();
+        <span class="hljs-comment">// checks the signature, nbf and exp: a JwtException otherwise</span>
+        <span class="hljs-type">Claims</span> <span class="hljs-variable">claims</span> <span class="hljs-operator">=</span> parser.parseSignedClaims(jwt).getPayload();
+        <span class="hljs-keyword">return</span> claims.getId();
+    } <span class="hljs-keyword">catch</span> (JwtException e) {
+        <span class="hljs-keyword">throw</span> <span class="hljs-keyword">new</span> <span class="hljs-title class_">ResponseStatusException</span>(
+            HttpStatus.UNAUTHORIZED, <span class="hljs-string">&quot;Invalid token&quot;</span>);
+    }
 }
 </code></pre>
-<p class="small">É isso que o <code>/auth/solve</code> executa: um token válido vira um <code>idAccount</code>.</p>
+<p class="small">É isso que o <code>/auth/solve</code> executa: um token válido vira um <code>idAccount</code>; um inválido ou expirado, um <code>401</code> (não um <code>500</code>).</p>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="10" data-paginate="true" data-class="tight" data-lang="pt-BR" data-theme="platform" lang="pt-BR" class="tight" data-marpit-pagination="10" style="--paginate:true;--class:tight;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="16">
 <h2 id="login-%E2%86%92-cookie">Login → cookie</h2>
 <ol>
-<li><code>POST /auth/login</code> → <code>AuthService.login</code> → busca da conta → <code>JwtService.generate</code>.</li>
+<li><code>POST /auth/login</code> → <code>AuthService.login</code> → <code>POST /accounts/login</code> (confere o hash) → <code>JwtService.generate</code>.</li>
 <li>O <code>AuthResource</code> responde com <code>Set-Cookie: __store_jwt_token=&lt;jwt&gt;</code>.</li>
 <li>O navegador o guarda e o <strong>envia automaticamente</strong> em cada requisição seguinte.</li>
 </ol>
@@ -340,7 +341,7 @@
 <li><code>isSecured</code>? <strong>Não</strong> → encaminha como está.</li>
 <li>Cookie <code>__store_jwt_token</code> presente? <strong>Não</strong> → <code>401 Unauthorized</code>.</li>
 <li><code>POST http://auth:8080/auth/solve</code> com <code>{ &quot;token&quot;: jwt }</code>.</li>
-<li>Token inválido → <code>401</code>. Válido → adiciona headers e encaminha:</li>
+<li>Token inválido → <code>401</code>. Válido → adiciona o header e encaminha:</li>
 </ol>
 <table>
 <thead>
@@ -354,12 +355,9 @@
 <td><code>id-account</code></td>
 <td>o UUID da conta, tirado do token</td>
 </tr>
-<tr>
-<td><code>Authorization</code></td>
-<td><code>Bearer &lt;jwt&gt;</code></td>
-</tr>
 </tbody>
 </table>
+<p class="small">Um <code>id-account</code> enviado pelo cliente é descartado antes (<code>RemoveRequestHeader</code>): ninguém se passa por outra conta.</p>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="13" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="13" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="16">
 <h2 id="authorizationfilterfilter"><code>AuthorizationFilter.filter</code></h2>
@@ -383,12 +381,14 @@
 <h2 id="ligando-tudo-rotas-e-compose">Ligando tudo: rotas e Compose</h2>
 <div class="cols">
 <div>
-<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-yaml"><span class="hljs-attr">routes:</span>
-  <span class="hljs-bullet">-</span> <span class="hljs-attr">id:</span> <span class="hljs-string">accounts</span>
+<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-yaml"><span class="hljs-attr">default-filters:</span>
+  <span class="hljs-bullet">-</span> <span class="hljs-string">RemoveRequestHeader=id-account</span>
+<span class="hljs-attr">routes:</span>
+  <span class="hljs-bullet">-</span> <span class="hljs-attr">id:</span> <span class="hljs-string">account-service</span>
     <span class="hljs-attr">uri:</span> <span class="hljs-string">http://account:8080</span>
     <span class="hljs-attr">predicates:</span>
       <span class="hljs-bullet">-</span> <span class="hljs-string">Path=/accounts/**</span>
-  <span class="hljs-bullet">-</span> <span class="hljs-attr">id:</span> <span class="hljs-string">auth</span>
+  <span class="hljs-bullet">-</span> <span class="hljs-attr">id:</span> <span class="hljs-string">auth-service</span>
     <span class="hljs-attr">uri:</span> <span class="hljs-string">http://auth:8080</span>
     <span class="hljs-attr">predicates:</span>
       <span class="hljs-bullet">-</span> <span class="hljs-string">Path=/auth/**</span>
@@ -396,15 +396,15 @@
 </div>
 <div>
 <ul>
-<li>Cadeia: <code>db</code> → <code>account</code> → <code>auth</code> → <code>gateway</code>.</li>
-<li><strong>Só o <code>gateway</code> publica</strong> a porta <code>8080</code>.</li>
-<li>O <code>auth</code> recebe <code>JWT_SECRET_KEY</code>, <code>JWT_HTTP_ONLY</code>.</li>
-<li>O <code>gateway</code> recebe <code>CORS_ALLOWED_ORIGINS</code>, <code>CORS_ALLOWED_CREDENTIALS</code>.</li>
+<li>Serviço novo: <code>auth</code> (depois do <code>gateway</code>, hands-on 2).</li>
+<li><strong>Só o <code>gateway</code> publica</strong> a porta <code>8080</code>; o <code>auth</code> fica do lado de dentro.</li>
+<li>O <code>auth</code> roda com os padrões: <code>JWT_SECRET_KEY</code>, <code>JWT_HTTP_ONLY</code>, <code>JWT_DURATION</code>.</li>
+<li><code>gateway</code>: o <code>CORS_ALLOWED_ORIGINS</code> também tem padrão.</li>
 </ul>
 </div>
 </div>
 <div class="warn">
-<p>Nunca reutilize a chave de exemplo: gere uma com pelo menos 256 bits — <code>openssl rand -base64 32</code>.</p>
+<p>A chave padrão é pública (está no repositório): fora do desenvolvimento, defina a <code>JWT_SECRET_KEY</code> com uma sua — <code>openssl rand -base64 32</code>.</p>
 </div>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="15" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="15" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="16">

@@ -45,9 +45,9 @@ The security layer is built across three modules:
 classDiagram
     namespace auth {
         class AuthController {
+            +create(RegisterIn): void
             +login(LoginIn): void
-            +register(RegisterIn): void
-            +whoIAm(String idAccount): AccountOut
+            +me(String idAccount): AccountOut
             +solveToken(TokenOut): Map
             +logout(): void
             +healthCheck(): void
@@ -67,17 +67,26 @@ classDiagram
     }
     namespace auth-service {
         class AuthResource {
+            +create(RegisterIn): void
             +login(LoginIn): void
-            +register(RegisterIn): void
-            +whoIAm(String idAccount): AccountOut
+            +me(String idAccount): AccountOut
             +solveToken(TokenOut): Map
             +logout(): void
+            +healthCheck(): void
         }
         class AuthService {
-            +login(String email, String password): TokenOut
-            +register(RegisterIn): void
-            +solveToken(String token): String
-            +whoIAm(String idAccount): AccountOut
+            +create(Register): void
+            +login(String email, String password): String
+            +solve(String jwt): Map
+            +me(String idAccount): AccountOut
+        }
+        class AuthParser {
+            +to(RegisterIn): Register
+        }
+        class Register {
+            -String name
+            -String email
+            -String password
         }
         class JwtService {
             +generate(AccountOut account, long duration): String
@@ -100,6 +109,8 @@ classDiagram
     AuthController <|-- AuthResource
     AuthResource *-- AuthService
     AuthService *-- JwtService
+    AuthResource ..> AuthParser
+    AuthParser ..> Register
     AuthorizationFilter *-- RouterValidator
 ```
 

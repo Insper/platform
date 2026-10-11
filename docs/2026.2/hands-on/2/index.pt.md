@@ -52,7 +52,7 @@ api
                 java/
                     store/
                         gateway/
-                            GatewayApplication.java
+                            GatewayServiceApplication.java
                             GatewayResource.java
                 resources/
                     application.yaml
@@ -66,20 +66,20 @@ api
 
     === "pom.xml"
 
-        ``` { .yaml .copy .select linenums="1" hl_lines="24-31" }
+        ``` { .yaml .copy .select linenums="1" hl_lines="23-30" }
         --8<-- "docs/2026.2/hands-on/2/code/pom.xml"
         ```
 
     === "application.yaml"
 
-        ``` { .yaml .copy .select linenums="1" hl_lines="5-27" }
+        ``` { .yaml .copy .select linenums="1" hl_lines="5-32" }
         --8<-- "docs/2026.2/hands-on/2/code/application.yaml"
         ```
 
-    === "GatewayApplication.java"
+    === "GatewayServiceApplication.java"
 
         ``` { .java .copy .select linenums='1' }
-        --8<-- "docs/2026.2/hands-on/2/code/GatewayApplication.java"
+        --8<-- "docs/2026.2/hands-on/2/code/GatewayServiceApplication.java"
         ```
 
     === "GatewayResource.java"
@@ -98,15 +98,25 @@ Observe que o microsserviço Gateway é implementado com o Spring Cloud Gateway,
 
 Além disso, o microsserviço Gateway é implementado com WebFlux, um modelo de programação reativa que permite tratar um grande número de requisições concorrentes com um número pequeno de threads. Isso facilita escalar a aplicação e melhorar o seu desempenho.
 
+Tudo o que o gateway lê fica sob `spring.cloud.gateway.server.webflux` — o prefixo do Spring Cloud Gateway 5 (Spring Cloud 2025.1); uma chave deixada diretamente sob `spring.cloud.gateway` é ignorada sem aviso:
+
+| Chave | O que faz |
+| --- | --- |
+| `routes` | Cada rota tem um `id`, uma `uri` e um predicado `Path`: `/accounts/**` vai para `http://account:8080`, o nome do serviço do microsserviço account no Compose. |
+| `globalcors` | CORS para todos os caminhos, configurado uma única vez. As origens permitidas vêm de `CORS_ALLOWED_ORIGINS`, com os front-ends locais como padrão; `allowCredentials: true` permite que o navegador envie cookies (o token do [hands-on 3](../3/index.md)) — por isso as origens são listadas, e não `*`. |
+| `default-filters` | Filtros aplicados a todas as rotas. `RemoveRequestHeader=id-account` descarta qualquer cabeçalho `id-account` enviado pelo cliente, para que só o gateway possa defini-lo (hands-on 3); `DedupeResponseHeader` remove os cabeçalhos de CORS duplicados quando um serviço também os define. |
+
+O `GatewayResource` responde `GET /health-check` com o hostname do container, o que mostra qual réplica respondeu quando houver várias ([hands-on 7](../7/index.md)). Ele devolve só essa variável de propósito: responder com `System.getenv()` publicaria todas as variáveis de ambiente — senhas e segredos incluídos.
+
 !!! warning "application.yaml"
 
-    O arquivo `application.yaml` está configurado para rotear as requisições recebidas para o microsserviço adequado; portanto, você precisa garantir que os microsserviços estejam rodando e expondo as suas portas antes de iniciar o microsserviço Gateway.
+    As rotas apontam para os nomes dos serviços no Compose (`account`); por isso, os containers de destino precisam estar rodando na mesma rede do Compose — caso contrário, o gateway responde com erro para aquela rota.
 
-    Além disso, o arquivo `application.yaml` configura o CORS para permitir as requisições vindas da internet; portanto, você precisa garantir que a configuração de CORS esteja correta antes de iniciar o microsserviço Gateway.
+    Além disso, uma chamada do navegador vinda de uma origem que não está em `allowedOrigins` é bloqueada pelo CORS: defina `CORS_ALLOWED_ORIGINS` para o front-end que você usa.
 
 Depois de terminar a implementação do microsserviço Gateway, podemos incluí-lo no arquivo `compose.yaml` e iniciá-lo com o Docker Compose. Você também pode testar o microsserviço Gateway enviando requisições para a porta exposta por ele e verificando se as requisições são roteadas para o microsserviço adequado.
 
-``` { .dockerfile .copy .select linenums="1" title="compose.yaml" }
+``` { .yaml .copy .select linenums="1" title="compose.yaml" }
 --8<-- "docs/2026.2/hands-on/2/code/compose.yaml"
 ``` 
 

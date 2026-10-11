@@ -14,7 +14,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 ??? success "Answer"
     **C — Only gateway is internet-facing.**
 
-    Port isolation is a security property: no external client can reach `account-service:8080` or `auth-service:8080` directly. They can only be reached through the gateway, which enforces authentication, rate limiting, and routing rules. This "trusted layer" pattern means a compromised external request can only enter through one controlled point.
+    Port isolation is a security property: no external client can reach `account:8080` or `auth:8080` directly. They can only be reached through the gateway, which enforces authentication, rate limiting, and routing rules. This "trusted layer" pattern means a compromised external request can only enter through one controlled point.
 
 ---
 
@@ -46,21 +46,21 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ---
 
-**Q4.** In `application.yaml`, the gateway routes are configured with `uri: lb://account`. What does the `lb://` prefix mean?
+**Q4.** In `application.yaml`, the account route is configured with `uri: http://account:8080`. How does the gateway find the address of `account`?
 
-- A. It uses the host machine's load balancer
-- B. It enables Spring Cloud LoadBalancer client-side load balancing across all registered instances of the `account` service
+- A. It reads the host machine's `/etc/hosts` file
+- B. `account` is the Compose service name: Docker's embedded DNS resolves it to the IP of the `account` container on the Compose network
 - C. It connects to an external Nginx load balancer
-- D. It routes to the account service via the Linux loopback interface
+- D. It reads the address from the `.env` file
 
 ??? success "Answer"
-    **B — Client-side load balancing via Spring Cloud LoadBalancer.**
+    **B — The Compose service name, resolved by Docker's DNS.**
 
-    `lb://account` tells Spring Cloud Gateway to resolve `account` through the service registry (or Docker DNS, depending on configuration) and apply client-side load balancing across all healthy instances. The `lb://` prefix is Spring's abstraction over various discovery backends (Eureka, Consul, Kubernetes DNS).
+    Compose puts every service of the project on one network with an embedded DNS: the name `account` resolves to the IP of its container (to all of them, if there are several replicas). A `lb://account` URI would instead ask Spring Cloud LoadBalancer to pick an instance from a service registry (Eureka, Consul, Kubernetes) — this course's gateway does not use it.
 
 ---
 
-**Q5.** The gateway's `compose.yaml` entry has `depends_on: [account]`. When would adding `condition: service_healthy` to this dependency be important?
+**Q5.** Suppose the gateway's `compose.yaml` entry had `depends_on: [account]`. When would adding `condition: service_healthy` to this dependency be important?
 
 - A. Never — the gateway starts quickly and the account service is always ready first
 - B. When the gateway's startup routine immediately makes HTTP calls to account (e.g., route validation), it needs account to be fully initialised, not just started
@@ -70,4 +70,4 @@ Click **"Answer"** to reveal the correct answer and explanation.
 ??? success "Answer"
     **B — When the gateway makes startup-time HTTP calls to the downstream service.**
 
-    If the gateway validates routes or prefetches configuration from account at startup, and account's process has started but the database connection isn't ready yet, the gateway will fail to start. `condition: service_healthy` waits until account's health check (e.g., `/actuator/health`) returns 200 before starting the gateway.
+    If the gateway validates routes or prefetches configuration from account at startup, and account's process has started but the database connection isn't ready yet, the gateway will fail to start. `condition: service_healthy` waits until account's health check (e.g., `/accounts/health-check`) returns 200 before starting the gateway.

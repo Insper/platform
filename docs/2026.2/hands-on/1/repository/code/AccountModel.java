@@ -28,14 +28,14 @@ public class AccountModel {
     @Column(name = "email")
     private String email;
 
-    @Column(name = "password_sha256")
-    private String passwordSha256;
+    @Column(name = "hash_password")
+    private String hashPassword;
 
     public AccountModel(Account a) {
         this.id = a.id();
         this.name = a.name();
         this.email = a.email();
-        this.passwordSha256 = a.passwordSha256();
+        this.hashPassword = a.hashPassword();
     }
 
     public Account to() {
@@ -43,7 +43,7 @@ public class AccountModel {
             .id(this.id)
             .name(this.name)
             .email(this.email)
-            .passwordSha256(this.passwordSha256)
+            .hashPassword(this.hashPassword)
             .build();
     }
     

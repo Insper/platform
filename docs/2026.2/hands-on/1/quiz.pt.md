@@ -56,7 +56,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **C — Service = lógica de negócio; Repository = abstração de persistência.**
 
-    O `AccountService` decide *o que* fazer (validar a conta, verificar duplicidades, gerar o hash da senha). O `AccountRepository` sabe *como persistir*. O Service depende da *interface* do Repository — nunca da implementação JPA —, o que o torna testável com um repositório em memória.
+    O `AccountService` decide *o que* fazer (validar a senha e o email, gerar o hash da senha). O `AccountRepository` sabe *como persistir*. O Service depende da *interface* do Repository — nunca da implementação JPA —, o que o torna testável com um repositório em memória.
 
 ---
 
@@ -140,6 +140,6 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — `DATABASE_HOST`, `DATABASE_PORT` etc. a partir do `.env`.**
 
-    O compose.yaml passa as partes da conexão como variáveis de ambiente individuais. O `application.yaml` as lê via `${DATABASE_HOST:localhost}`, com valores padrão para o desenvolvimento local. O arquivo `.env` fornece os valores de produção sem nunca aparecer no repositório.
+    O compose.yaml passa as partes da conexão como variáveis de ambiente: `DATABASE_HOST: db` e `DATABASE_PORT: 5432`, além do banco, do usuário e da senha vindos do `.env`. O `application.yaml` as lê como `${DATABASE_HOST}`, `${DATABASE_PORT}`, `${DATABASE_DB}`, … para montar a URL JDBC — sem valores padrão, então o serviço falha na inicialização se faltar alguma. O arquivo `.env` mantém as credenciais fora do `compose.yaml` e fora do repositório.
 
 ---

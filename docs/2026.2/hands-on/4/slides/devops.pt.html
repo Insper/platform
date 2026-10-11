@@ -243,7 +243,7 @@ docker <span class="hljs-built_in">exec</span> jenkins <span class="hljs-built_i
 <pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-groovy">withCredentials([usernamePassword(
     <span class="hljs-symbol">credentialsId:</span> <span class="hljs-string">&#x27;dockerhub-credential&#x27;</span>,
     <span class="hljs-symbol">usernameVariable:</span> <span class="hljs-string">&#x27;USERNAME&#x27;</span>, <span class="hljs-attr">passwordVariable:</span> <span class="hljs-string">&#x27;TOKEN&#x27;</span>)]) {
-  sh <span class="hljs-string">&quot;docker login -u $USERNAME -p $TOKEN&quot;</span>
+  sh <span class="hljs-string">&#x27;echo $TOKEN | docker login -u $USERNAME --password-stdin&#x27;</span>
   sh <span class="hljs-string">&quot;docker buildx create --use --platform=linux/arm64,linux/amd64 ...&quot;</span>
   sh <span class="hljs-string">&quot;docker buildx build --platform=linux/arm64,linux/amd64 --push \
         --tag ${env.NAME}:latest --tag ${env.NAME}:${env.BUILD_ID} -f Dockerfile .&quot;</span>
@@ -251,7 +251,7 @@ docker <span class="hljs-built_in">exec</span> jenkins <span class="hljs-built_i
 }
 </code></pre>
 <ul>
-<li><code>withCredentials</code> injeta o token; os valores ficam <strong>mascarados</strong> nos logs.</li>
+<li><code>withCredentials</code> injeta o token; os valores ficam <strong>mascarados</strong> nos logs. Aspas simples: quem expande o <code>$TOKEN</code> é o <strong>shell</strong>, não o Groovy.</li>
 <li>O <code>buildx</code> gera para <code>linux/arm64</code> (Apple Silicon, Graviton) <strong>e</strong> <code>linux/amd64</code>.</li>
 <li>Duas tags: <code>:latest</code> (referência estável) + <code>:&lt;BUILD_ID&gt;</code> (rastreável até um build).</li>
 </ul>

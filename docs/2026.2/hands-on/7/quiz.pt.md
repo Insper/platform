@@ -8,13 +8,13 @@ Clique em **"Resposta"** para ver a resposta correta e a explicação.
 
 - A. Atua como registro de serviços (service registry), acompanhando quais réplicas do gateway estão vivas
 - B. Faz a terminação TLS e descriptografa o tráfego HTTPS antes de encaminhá-lo ao gateway
-- C. É um proxy reverso e balanceador de carga de camada 7 que recebe todo o tráfego externo na porta 80 e o distribui entre as réplicas do gateway
+- C. É um proxy reverso e balanceador de carga de camada 7 que recebe todo o tráfego externo (porta 8080 do host, porta 80 do Nginx) e o distribui entre as réplicas do gateway
 - D. Substitui o serviço de gateway, roteando diretamente para os microsserviços
 
 ??? success "Resposta"
     **C — Proxy reverso e balanceador de carga L7.**
 
-    O Nginx fica na borda: todo o tráfego externo na porta 80 chega ao Nginx. Ele inspeciona a requisição HTTP e a encaminha para uma das réplicas do gateway, de acordo com o algoritmo configurado. As réplicas do gateway não têm portas expostas — só são acessíveis de dentro da rede Docker, através do Nginx.
+    O Nginx fica na borda: todo o tráfego externo chega ao Nginx (o serviço `lb`, porta 8080 do host → porta 80). Ele inspeciona a requisição HTTP e a encaminha para uma das réplicas do gateway, de acordo com o algoritmo configurado. As réplicas do gateway não têm portas expostas — só são acessíveis de dentro da rede Docker, através do Nginx.
 
 ---
 

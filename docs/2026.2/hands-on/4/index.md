@@ -40,6 +40,7 @@ Running Jenkins inside Docker keeps the host machine clean and makes the environ
     ``` { .tree .copy .select }
     api/
     jenkins/
+        .gitignore
         compose.yaml
     ```
 
@@ -57,6 +58,8 @@ The `compose.yaml` builds a custom image on top of `jenkins/jenkins:jdk25` with 
 | AWS CLI | Interact with AWS services (ECR, ECS, EKS …) |
 
 The Jenkins process is added to the `docker` group so that pipelines can invoke `docker` commands without requiring root. The host Docker socket (`/var/run/docker.sock`) is bind-mounted into the container for this purpose[^3].
+
+Jenkins' home (`/var/jenkins_home`: plugins, jobs, credentials) is bind-mounted to `./config/jenkins` (or `$CONFIG/jenkins`, when the `CONFIG` variable is set), so it survives `docker compose down`. That folder holds secrets, so the `jenkins/.gitignore` keeps `config/` and `.env` out of git.
 
 !!! warning "Docker socket security"
     Mounting `/var/run/docker.sock` gives the container full control over the host Docker daemon. This is acceptable for local development, but should be hardened (e.g., rootless Docker or a dedicated build daemon) in shared or production environments.
@@ -255,7 +258,7 @@ withCredentials([usernamePassword(
     usernameVariable: 'USERNAME',
     passwordVariable: 'TOKEN')]) {
 
-    sh "docker login -u $USERNAME -p $TOKEN"
+    sh 'echo $TOKEN | docker login -u $USERNAME --password-stdin'
     sh "docker buildx create --use \
           --platform=linux/arm64,linux/amd64 \
           --node multi-platform-builder-${env.SERVICE} \
@@ -271,6 +274,7 @@ withCredentials([usernamePassword(
 ```
 
 - **`withCredentials`** — injects the Docker Hub token stored in step 3 into the build environment. The values are masked in all Jenkins logs[^5].
+- **`docker login --password-stdin`** in a **single-quoted** `sh` — the shell, not Groovy, expands `$TOKEN`, so the secret is not interpolated into the Groovy string (Jenkins warns about that) and does not show up in the process list, as `-p $TOKEN` would[^5].
 - **`docker buildx`** — creates a *BuildKit* builder that cross-compiles images for both `linux/arm64` (Apple Silicon, AWS Graviton) and `linux/amd64` (standard x86-64)[^8].
 - **Dual tags** — `:latest` provides a stable reference; `:<BUILD_ID>` pins a specific Jenkins build so any image can be traced back to its source commit.
 - The builder instance is removed after the push to free up system resources.

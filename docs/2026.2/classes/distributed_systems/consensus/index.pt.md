@@ -263,7 +263,7 @@ CRDTs são usados nos tipos de dados do Riak, nos bancos Active-Active do Redis 
 | **Consul** | Descoberta de serviços, locks distribuídos | Raft |
 | **Apache Kafka** | Log distribuído, mensageria | KRaft (baseado em Raft); o modo ZooKeeper foi removido no Kafka 4.0 (2025) |
 
-O setup do Kafka do [Hands-on 9](../../../hands-on/9/index.md) ainda roda um container do ZooKeeper ao lado do broker; versões mais novas do Kafka fazem a mesma coordenação dentro dos próprios brokers, com o KRaft.
+O setup do Kafka do [Hands-on 9](../../../hands-on/9/index.md) roda o Kafka 4 em modo KRaft: não há container do ZooKeeper — a coordenação roda dentro do próprio Kafka, em seu próprio quórum Raft.
 
 !!! warning "Armadilhas"
     - **Não implemente Paxos nem Raft por conta própria** em uma aplicação. Delegue a um sistema comprovado: etcd, ZooKeeper, Consul ou o banco de dados (um `SELECT … FOR UPDATE`, uma restrição de unicidade, um advisory lock).

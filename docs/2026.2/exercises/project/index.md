@@ -1,12 +1,13 @@
 
-The project is the opportunity to put into practice the knowledge acquired during the course. It must be developed in a group of at most 3 people - ideally 2 people - and must be delivered at the end of the course. The project must be developed using the technologies and tools presented during the course, including AWS, EKS, CI/CD, load testing and cost analysis.
+The project is the opportunity to put into practice the knowledge acquired during the course. It must be developed in a group of 2 to 3 people and must be delivered at the end of the course. The project must be developed using the technologies and tools presented during the course, including AWS, EKS, CI/CD, load testing and cost analysis.
 
 The project is a web application that allows users to buy and sell products. 
-To that end, each member of the group is expected to implement at least one microservice, among the following:
+It integrates the microservices of the platform listed in the table below, and each member of the group is expected to implement at least one of them:
 
-- **Product API**: responsible for managing the products available for purchase, including information such as name, description, price and stock.
-- **Order API**: responsible for managing customer orders, including information such as products purchased, quantity, total price and order status.
-- **Exchange API**: responsible for managing the exchange rates between different currencies, allowing users to carry out transactions in different currencies.
+- **Gateway**: the API gateway, the single entry point that routes the requests to the services.
+- **Auth**: authentication and authorization — login, and issuing and validating the tokens.
+- **Account**: account management — registration and the users' data.
+- **Exchange**: currency exchange — the exchange rates between different currencies, allowing users to carry out transactions in different currencies.
 
 In the end, the main project must incorporate the individual implementations on GitHub, as submodules. The whole project must be integrated and working, that is, the microservices must communicate with each other and the application must be available for access.
 

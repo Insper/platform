@@ -48,7 +48,7 @@ O conteúdo dos arquivos é o seguinte:
     --8<-- "docs/2026.2/hands-on/1/containerization/code/Dockerfile"
     ```
 
-Nessa configuração, usamos a imagem `postgres:17` para criar um container PostgreSQL e definimos as variáveis de ambiente do banco de dados por meio do arquivo `.env`.
+Nessa configuração, usamos a imagem `postgres:17` para criar um container PostgreSQL e definimos as variáveis de ambiente do banco de dados por meio do arquivo `.env`. Só o `account` publica uma porta (`8080`); o banco não tem `ports`, então só é acessível de dentro da rede do Compose — a camada confiável.
 
 Para executar a aplicação, precisamos rodar o seguinte comando:
 

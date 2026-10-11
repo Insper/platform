@@ -251,7 +251,7 @@ releases/download/v2.4.0/opentelemetry-javaagent.jar \
 <h2 id="step-5--run-and-find-a-trace">Step 5 — Run and find a trace</h2>
 <pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-bash">docker compose up -d --build
 docker compose ps jaeger
-curl -s -X POST http://localhost/orders \
+curl -s -X POST http://localhost:8080/orders \
   -H <span class="hljs-string">&quot;Content-Type: application/json&quot;</span> \
   -d <span class="hljs-string">&#x27;{&quot;accountId&quot;: 1, &quot;productId&quot;: 7, &quot;quantity&quot;: 2}&#x27;</span> | jq
 </code></pre>

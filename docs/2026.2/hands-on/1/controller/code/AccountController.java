@@ -21,6 +21,9 @@ public interface AccountController {
         @RequestBody AccountIn in
     );
 
+    @GetMapping("/accounts")
+    public ResponseEntity<List<AccountOut>> findAll();
+    
     @DeleteMapping("/accounts/{id}")
     public ResponseEntity<Void> delete(
         @PathVariable String id
@@ -28,9 +31,6 @@ public interface AccountController {
 
     @GetMapping("/accounts/health-check")
     public ResponseEntity<Void> healthCheck();
-
-    @GetMapping("/accounts")
-    public ResponseEntity<List<AccountOut>> findAll();
 
     @GetMapping("/accounts/{id}")
     public ResponseEntity<AccountOut> findById(

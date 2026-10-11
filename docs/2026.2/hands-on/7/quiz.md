@@ -8,13 +8,13 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 - A. It acts as a service registry, tracking which gateway replicas are alive
 - B. It terminates TLS and decrypts HTTPS traffic before forwarding to the gateway
-- C. It is a Layer 7 reverse proxy and load balancer that receives all external traffic on port 80 and distributes it across gateway replicas
+- C. It is a Layer 7 reverse proxy and load balancer that receives all external traffic (host port 8080, Nginx's port 80) and distributes it across gateway replicas
 - D. It replaces the gateway service, routing directly to microservices
 
 ??? success "Answer"
     **C — L7 reverse proxy and load balancer.**
 
-    Nginx sits at the edge: all external traffic on port 80 arrives at Nginx. It inspects the HTTP request and forwards it to one of the gateway replicas based on the configured algorithm. The gateway replicas have no exposed ports — they are only reachable from within the Docker network through Nginx.
+    Nginx sits at the edge: all external traffic arrives at Nginx (the `lb` service, host port 8080 → port 80). It inspects the HTTP request and forwards it to one of the gateway replicas based on the configured algorithm. The gateway replicas have no exposed ports — they are only reachable from within the Docker network through Nginx.
 
 ---
 

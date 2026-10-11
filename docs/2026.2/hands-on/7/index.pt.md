@@ -44,7 +44,7 @@ Um **proxy** é um intermediário que fica entre clientes e servidores, encaminh
         rp --> s3[Backend 3]
     ```
 
-Neste hands-on, **o Nginx atua como proxy reverso** — o único componente exposto na porta 80, distribuindo o tráfego entre réplicas do gateway que permanecem invisíveis para os clientes externos.
+Neste hands-on, **o Nginx atua como proxy reverso** — o único componente exposto (porta 8080 do host, porta 80 dentro do seu container), distribuindo o tráfego entre réplicas do gateway que permanecem invisíveis para os clientes externos.
 
 ## Tipos de balanceador de carga
 
@@ -119,7 +119,7 @@ Adicionar o Nginx como balanceador de carga muda o ponto de entrada da plataform
     ``` mermaid-sim
     flowchart LR
         subgraph lb [Camada de balanceamento de carga]
-            nginx["Nginx\n:80"]:::highlighted
+            nginx["lb · Nginx\n:80"]:::highlighted
         end
         subgraph api [Camada confiável]
             gw1["gateway\n(réplica 1)"]
@@ -131,7 +131,7 @@ Adicionar o Nginx como balanceador de carga muda o ponto de entrada da plataform
             gw1 & gw2 & gw3 --> auth & account
             account --> db
         end
-        internet e0@==>|":80"| nginx
+        internet e0@==>|":8080"| nginx
         nginx e1@==> gw1
         nginx e2@==> gw2
         nginx e3@==> gw3
@@ -158,7 +158,7 @@ Os passos para implementar isso são:
 
     ---
 
-    Adicione o serviço `nginx` ao `compose.yaml`, remova a porta exposta do gateway e configure as réplicas.
+    Adicione o serviço `lb` (Nginx) ao `compose.yaml`, remova a porta exposta do gateway e configure as réplicas.
 
     [Docker Compose](./docker/){ .md-button }
 

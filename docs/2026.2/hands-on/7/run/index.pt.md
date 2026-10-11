@@ -4,7 +4,7 @@ Reconstrua todas as imagens e suba a stack completa:
 docker compose up -d --build
 ```
 
-Verifique se três réplicas do `gateway` e uma instância do `nginx` estão rodando junto com os demais serviços:
+Verifique se três réplicas do `gateway` e uma instância do `lb` (Nginx) estão rodando junto com os demais serviços:
 
 ``` { .bash .copy .select }
 docker compose ps -a
@@ -14,24 +14,23 @@ Saída esperada:
 
 ```
 NAME                STATUS     PORTS
-store-nginx-1       running    0.0.0.0:80->80/tcp
+store-lb-1          running    0.0.0.0:8080->80/tcp
 store-gateway-1     running
 store-gateway-2     running
 store-gateway-3     running
 store-auth-1        running
 store-account-1     running
-store-account-2     running
-store-db-1          running    0.0.0.0:5432->5432/tcp
+store-db-1          running
 ```
 
-Observe que os containers do gateway não têm portas publicadas — eles só são acessíveis através do Nginx, na rede Docker interna.
+Observe que só o `lb` publica uma porta: os containers do gateway (e os demais serviços) só são acessíveis através do Nginx, na rede Docker interna.
 
 ## Verificar a distribuição de carga
 
-Envie uma rajada de requisições pelo Nginx e acompanhe os logs dos containers do gateway para confirmar que o tráfego está espalhado entre as três réplicas:
+Envie uma rajada de requisições pelo Nginx. O `/health-check` do gateway responde com o hostname do container que a atendeu; por isso, a saída alterna entre as três réplicas — e os logs do gateway mostram o mesmo:
 
 ``` { .bash .copy .select }
-for i in {1..9}; do curl -s -o /dev/null http://localhost/gateway/actuator/health; done
+for i in {1..9}; do curl -s http://localhost:8080/health-check; echo; done
 ```
 
 ``` { .bash .copy .select }
@@ -41,7 +40,7 @@ docker compose logs gateway --tail 30
 Cada um dos três containers deve mostrar entradas de requisição. Se todas as requisições caírem em uma única réplica, o Nginx pode ter subido antes de as réplicas do gateway estarem totalmente prontas. Reinicie o Nginx para que ele resolva novamente o registro DNS de `gateway`:
 
 ``` { .bash .copy .select }
-docker compose restart nginx
+docker compose restart lb
 ```
 
 ## Escalar em tempo de execução
@@ -55,7 +54,7 @@ docker compose up -d --scale gateway=5
 Depois de escalar, recarregue o Nginx para que ele consulte novamente o DNS do Docker e encontre os IPs das novas réplicas:
 
 ``` { .bash .copy .select }
-docker compose exec nginx nginx -s reload
+docker compose exec lb nginx -s reload
 ```
 
 Confirme o novo número de réplicas:

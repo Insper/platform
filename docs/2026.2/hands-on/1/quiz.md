@@ -56,7 +56,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 ??? success "Answer"
     **C — Service = business logic; Repository = persistence abstraction.**
 
-    `AccountService` decides *what* to do (validate the account, check for duplicates, hash the password). `AccountRepository` knows *how to persist* it. The Service depends on the Repository *interface* — never on the JPA implementation — making it testable with an in-memory repository.
+    `AccountService` decides *what* to do (validate the password and the email, hash the password). `AccountRepository` knows *how to persist* it. The Service depends on the Repository *interface* — never on the JPA implementation — making it testable with an in-memory repository.
 
 ---
 
@@ -130,7 +130,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ---
 
-**Q10.** After adding the `account-service` Docker image to `compose.yaml`, which two environment variables are used to configure the database connection instead of hard-coded values?
+**Q10.** After adding the `account-service` Docker image to `compose.yaml`, which environment variables are used to configure the database connection instead of hard-coded values?
 
 - A. `SPRING_DATASOURCE_URL` and `SPRING_DATASOURCE_PASSWORD` hard-coded in compose.yaml
 - B. `DATABASE_HOST`, `DATABASE_PORT`, `DATABASE_DB`, `DATABASE_USERNAME`, `DATABASE_PASSWORD` passed as env vars — resolved from `.env` at runtime
@@ -140,6 +140,6 @@ Click **"Answer"** to reveal the correct answer and explanation.
 ??? success "Answer"
     **B — `DATABASE_HOST`, `DATABASE_PORT`, etc. from `.env`.**
 
-    The compose.yaml passes individual connection parts as environment variables. `application.yaml` reads them via `${DATABASE_HOST:localhost}` with defaults for local development. The `.env` file provides production values without ever appearing in the repository.
+    The compose.yaml passes the connection parts as environment variables: `DATABASE_HOST: db` and `DATABASE_PORT: 5432`, plus the database, user and password taken from `.env`. `application.yaml` reads them as `${DATABASE_HOST}`, `${DATABASE_PORT}`, `${DATABASE_DB}`, … to build the JDBC URL — without default values, so the service fails at startup if one is missing. The `.env` file keeps the credentials out of `compose.yaml` and out of the repository.
 
 ---

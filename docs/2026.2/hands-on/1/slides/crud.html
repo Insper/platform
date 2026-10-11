@@ -78,7 +78,7 @@
 <p>Almost every application has <strong>user accounts</strong>. What is the smallest service that can manage them?</p>
 </div>
 <ul>
-<li data-marpit-fragment="1">A <strong>CRUD</strong> API: <strong>C</strong>reate, <strong>R</strong>ead, <strong>U</strong>pdate, <strong>D</strong>elete accounts.</li>
+<li data-marpit-fragment="1">A <strong>CRUD</strong> API for accounts — here <strong>C</strong>reate, <strong>R</strong>ead and <strong>D</strong>elete (no update).</li>
 <li data-marpit-fragment="2">Built with <strong>Spring Boot</strong>, following <strong>Domain-Driven Design</strong> and <strong>Clean Architecture</strong>.</li>
 <li data-marpit-fragment="3">Persisted in <strong>PostgreSQL</strong>, running in <strong>Docker Compose</strong>.</li>
 <li data-marpit-fragment="4">It is the template every other microservice of the course will copy.</li>
@@ -152,17 +152,17 @@
 <span class="hljs-keyword">public</span> <span class="hljs-keyword">interface</span> <span class="hljs-title class_">AccountController</span> {
     <span class="hljs-meta">@PostMapping(&quot;/accounts&quot;)</span>
     <span class="hljs-type">ResponseEntity</span>&lt;Void&gt; <span class="hljs-title function_">create</span><span class="hljs-params">(<span class="hljs-meta">@RequestBody</span> AccountIn in)</span>;
+    <span class="hljs-meta">@GetMapping(&quot;/accounts&quot;)</span>
+    <span class="hljs-type">ResponseEntity</span>&lt;List&lt;AccountOut&gt;&gt; <span class="hljs-title function_">findAll</span><span class="hljs-params">()</span>;
     <span class="hljs-meta">@DeleteMapping(&quot;/accounts/{id}&quot;)</span>
     <span class="hljs-type">ResponseEntity</span>&lt;Void&gt; <span class="hljs-title function_">delete</span><span class="hljs-params">(<span class="hljs-meta">@PathVariable</span> String id)</span>;
     <span class="hljs-meta">@GetMapping(&quot;/accounts/health-check&quot;)</span>
     <span class="hljs-type">ResponseEntity</span>&lt;Void&gt; <span class="hljs-title function_">healthCheck</span><span class="hljs-params">()</span>;
-    <span class="hljs-meta">@GetMapping(&quot;/accounts&quot;)</span>
-    <span class="hljs-type">ResponseEntity</span>&lt;List&lt;AccountOut&gt;&gt; <span class="hljs-title function_">findAll</span><span class="hljs-params">()</span>;
     <span class="hljs-meta">@GetMapping(&quot;/accounts/{id}&quot;)</span>
     <span class="hljs-type">ResponseEntity</span>&lt;AccountOut&gt; <span class="hljs-title function_">findById</span><span class="hljs-params">(<span class="hljs-meta">@PathVariable</span> String id)</span>;
 }
 </code></pre>
-<p class="small">DTOs are Lombok <code>@Builder</code> records: <code>AccountIn(name, email, password)</code> and <code>AccountOut(id, name, email)</code> — the password never goes out.</p>
+<p class="small">DTOs are Lombok <code>@Builder</code> records with <code>@Accessors(fluent = true)</code>: <code>AccountIn(name, email, password)</code> and <code>AccountOut(id, name, email)</code> — the password never goes out.</p>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="6" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="6" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="15">
 <h2 id="project-setup">Project setup</h2>
@@ -182,8 +182,8 @@
 </tr>
 <tr>
 <td>Spring Boot</td>
-<td>4.0.3</td>
-<td>4.0.3</td>
+<td>4.1.0</td>
+<td>4.1.1</td>
 </tr>
 <tr>
 <td>Group / Package</td>
@@ -198,7 +198,7 @@
 <tr>
 <td>Keeps</td>
 <td>only the interface + DTOs</td>
-<td><code>AccountApplication</code>, <code>application.yaml</code></td>
+<td><code>AccountServiceApplication</code>, <code>application.yaml</code></td>
 </tr>
 </tbody>
 </table>
@@ -210,13 +210,13 @@ git submodule add &lt;repository_url&gt; api/account-service
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="7" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="7" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="15">
 <h2 id="step-2--service-make-it-answer">Step 2 — Service: make it answer</h2>
 <p><code>AccountResource</code> implements <code>AccountController</code>; at first only <code>health-check</code> is real.</p>
-<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-java"><span class="hljs-meta">@RestController</span>
+<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-java"><span class="hljs-meta">@Controller</span>
 <span class="hljs-keyword">public</span> <span class="hljs-keyword">class</span> <span class="hljs-title class_">AccountResource</span> <span class="hljs-keyword">implements</span> <span class="hljs-title class_">AccountController</span> {
     <span class="hljs-meta">@Override</span>
     <span class="hljs-keyword">public</span> <span class="hljs-type">ResponseEntity</span>&lt;Void&gt; <span class="hljs-title function_">healthCheck</span><span class="hljs-params">()</span> {
         <span class="hljs-keyword">return</span> ResponseEntity.ok().build();
     }
-    <span class="hljs-comment">// create, delete, findAll, findById: filled in later</span>
+    <span class="hljs-comment">// create, findAll, delete, findById: filled in later</span>
 }
 </code></pre>
 <pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-bash">mvn clean package spring-boot:run
@@ -264,14 +264,15 @@ curl -X GET http://localhost:8080/accounts/health-check   <span class="hljs-comm
     <span class="hljs-keyword">private</span> String id;
     <span class="hljs-keyword">private</span> String name;
     <span class="hljs-keyword">private</span> String email;
-    <span class="hljs-meta">@Column(name = &quot;password_sha256&quot;)</span>
-    <span class="hljs-keyword">private</span> String passwordSha256;
+    <span class="hljs-meta">@Column(name = &quot;hash_password&quot;)</span>
+    <span class="hljs-keyword">private</span> String hashPassword;
 }
 </code></pre>
 </div>
 <div>
 <pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-java"><span class="hljs-keyword">public</span> <span class="hljs-keyword">interface</span> <span class="hljs-title class_">AccountRepository</span>
     <span class="hljs-keyword">extends</span> <span class="hljs-title class_">CrudRepository</span>&lt;AccountModel, String&gt; {
+    <span class="hljs-type">List</span>&lt;AccountModel&gt; <span class="hljs-title function_">findAll</span><span class="hljs-params">()</span>;
 }
 </code></pre>
 <ul>
@@ -281,18 +282,23 @@ curl -X GET http://localhost:8080/accounts/health-check   <span class="hljs-comm
 </div>
 </div>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="10" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="10" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="15">
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="10" data-paginate="true" data-class="tight" data-lang="en" data-theme="platform" lang="en" class="tight" data-marpit-pagination="10" style="--paginate:true;--class:tight;--lang:en;--theme:platform;" data-marpit-pagination-total="15">
 <h2 id="the-business-rule-lives-in-accountservice">The business rule lives in <code>AccountService</code></h2>
 <pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-java"><span class="hljs-keyword">public</span> <span class="hljs-type">Account</span> <span class="hljs-title function_">create</span><span class="hljs-params">(Account account)</span> {
-    <span class="hljs-keyword">if</span> (account.password() == <span class="hljs-literal">null</span> || account.password().trim().length() == <span class="hljs-number">0</span>) {
-        <span class="hljs-keyword">throw</span> <span class="hljs-keyword">new</span> <span class="hljs-title class_">ResponseStatusException</span>(HttpStatus.BAD_REQUEST, <span class="hljs-string">&quot;Password is empty&quot;</span>);
-    }
-    account.passwordSha256(calcHash(account.password()));
+    <span class="hljs-keyword">if</span> (<span class="hljs-literal">null</span> == account.password())
+        <span class="hljs-keyword">throw</span> <span class="hljs-keyword">new</span> <span class="hljs-title class_">ResponseStatusException</span>(BAD_REQUEST, <span class="hljs-string">&quot;Password is empty&quot;</span>);
+    <span class="hljs-keyword">final</span> <span class="hljs-type">String</span> <span class="hljs-variable">pass</span> <span class="hljs-operator">=</span> account.password().trim();
+    <span class="hljs-keyword">if</span> (pass.length() &lt; <span class="hljs-number">6</span>)
+        <span class="hljs-keyword">throw</span> <span class="hljs-keyword">new</span> <span class="hljs-title class_">ResponseStatusException</span>(BAD_REQUEST,
+            <span class="hljs-string">&quot;Password must have at least 6 characters&quot;</span>);
+    <span class="hljs-keyword">if</span> (account.email() == <span class="hljs-literal">null</span> || account.email().trim().isEmpty())
+        <span class="hljs-keyword">throw</span> <span class="hljs-keyword">new</span> <span class="hljs-title class_">ResponseStatusException</span>(BAD_REQUEST, <span class="hljs-string">&quot;Email is empty&quot;</span>);
+    account.hashPassword(calcHash(pass));
     <span class="hljs-keyword">return</span> accountRepository.save(<span class="hljs-keyword">new</span> <span class="hljs-title class_">AccountModel</span>(account)).to();
 }
 </code></pre>
 <ul>
-<li>Only the <strong>SHA-256 hash</strong> (Base64) is stored, never the raw password.</li>
+<li>Bad input → <code>400 Bad Request</code>; only the <strong>SHA-256 hash</strong> (Base64) is stored, never the raw password.</li>
 <li><code>AccountModel(account)</code> and <code>.to()</code> are the parsers between entity and model.</li>
 </ul>
 </section>
@@ -334,7 +340,7 @@ curl -X GET http://localhost:8080/accounts/health-check   <span class="hljs-comm
 </tr>
 </tbody>
 </table>
-<p class="small"><code>create</code> builds the <code>Location</code> header with <code>ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}")</code>.</p>
+<p class="small"><code>create</code> builds the <code>Location</code> header with <code>ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}")</code>; an unknown id in <code>findById</code> throws <code>ResponseStatusException(NOT_FOUND)</code>.</p>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="12" data-paginate="true" data-class="tight" data-lang="en" data-theme="platform" lang="en" class="tight" data-marpit-pagination="12" style="--paginate:true;--class:tight;--lang:en;--theme:platform;" data-marpit-pagination-total="15">
 <h2 id="database-migrations-with-flyway">Database migrations with Flyway</h2>
@@ -348,16 +354,12 @@ curl -X GET http://localhost:8080/accounts/health-check   <span class="hljs-comm
 </thead>
 <tbody>
 <tr>
-<td><code>V2026.03.04.001__create_schema.sql</code></td>
+<td><code>V2026.08.24.001__create_schema.sql</code></td>
 <td><code>CREATE SCHEMA IF NOT EXISTS accounts</code></td>
 </tr>
 <tr>
-<td><code>V2026.03.04.002__create_table.sql</code></td>
-<td>table <code>accounts.accounts (id, name, email UNIQUE)</code></td>
-</tr>
-<tr>
-<td><code>V2026.03.06.001__create_field_pass_sha256.sql</code></td>
-<td><code>ADD COLUMN password_sha256</code></td>
+<td><code>V2026.08.24.002__create_table.sql</code></td>
+<td>table <code>accounts.accounts (id, name, email UNIQUE, hash_password)</code></td>
 </tr>
 </tbody>
 </table>
@@ -373,11 +375,12 @@ curl -X GET http://localhost:8080/accounts/health-check   <span class="hljs-comm
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="13" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="13" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="15">
 <h2 id="run-and-verify">Run and verify</h2>
 <p><code>compose.yaml</code> passes <code>DATABASE_HOST: db</code>, <code>DATABASE_PORT: 5432</code>, <code>DATABASE_DB</code>, <code>DATABASE_USERNAME</code>, <code>DATABASE_PASSWORD</code> to <code>account</code>.</p>
-<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-bash">docker compose up --build          <span class="hljs-comment"># build images and start db + account</span>
-docker compose ps -a               <span class="hljs-comment"># container names and status</span>
-docker logs -f &lt;account container&gt; <span class="hljs-comment"># look for the Flyway migrations</span>
+<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-bash">docker compose up --build                     <span class="hljs-comment"># build images and start db + account</span>
+docker compose ps -a                          <span class="hljs-comment"># container names and status</span>
+docker compose logs -f account                <span class="hljs-comment"># look for the Flyway migrations</span>
+docker compose <span class="hljs-built_in">exec</span> db psql -U store -d store <span class="hljs-comment"># open psql in the db container</span>
 </code></pre>
-<p>Inside PostgreSQL (<code>psql -U store -d store</code>):</p>
+<p>Inside <code>psql</code> (it runs in the <code>db</code> container, not in <code>account</code>):</p>
 <ul>
 <li><code>\dn</code> lists the schemas — <code>accounts</code> must be there.</li>
 <li><code>\dt *.*</code> lists the tables — <code>accounts.accounts</code> must be there.</li>

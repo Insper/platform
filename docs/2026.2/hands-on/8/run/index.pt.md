@@ -15,7 +15,7 @@ A saída esperada inclui:
 ```
 NAME                STATUS     PORTS
 store-redis-1       running    0.0.0.0:6379->6379/tcp
-store-nginx-1       running    0.0.0.0:80->80/tcp
+store-lb-1          running    0.0.0.0:8080->80/tcp
 store-gateway-1     running
 store-gateway-2     running
 store-gateway-3     running
@@ -32,7 +32,7 @@ store-db-1          running    0.0.0.0:5432->5432/tcp
 Envie uma requisição para buscar uma conta:
 
 ``` { .bash .copy .select }
-curl -s http://localhost/accounts/42 | jq
+curl -s http://localhost:8080/accounts/42 | jq
 ```
 
 A primeira chamada vai ao banco de dados. Abra uma sessão do Redis CLI e inspecione a chave que foi gravada:
@@ -68,7 +68,7 @@ Esperado — uma string JSON:
 Envie a mesma requisição novamente:
 
 ``` { .bash .copy .select }
-curl -s http://localhost/accounts/42 | jq
+curl -s http://localhost:8080/accounts/42 | jq
 ```
 
 Confira os logs do serviço — desta vez o banco de dados **não** deve ser consultado:
@@ -84,11 +84,11 @@ Se o cache estiver funcionando, você verá uma linha de log para a primeira req
 Use a saída de tempos embutida do `curl` para comparar os tempos de resposta:
 
 ``` { .bash .copy .select }
-curl -o /dev/null -s -w "Cache miss: %{time_total}s\n" http://localhost/accounts/42
+curl -o /dev/null -s -w "Cache miss: %{time_total}s\n" http://localhost:8080/accounts/42
 ```
 
 ``` { .bash .copy .select }
-curl -o /dev/null -s -w "Cache hit:  %{time_total}s\n" http://localhost/accounts/42
+curl -o /dev/null -s -w "Cache hit:  %{time_total}s\n" http://localhost:8080/accounts/42
 ```
 
 Um resultado típico:
