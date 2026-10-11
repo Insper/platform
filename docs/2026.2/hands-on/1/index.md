@@ -4,6 +4,15 @@
 
 The Account microservice is responsible for managing user accounts, basically, almost every application has a user account system. This microservice provides the necessary endpoints to create, read, update, and delete accounts. The microservice is built using Spring Boot and follows the [Domain-Driven Design (DDD)](https://martinfowler.com/bliki/DomainDrivenDesign.html){target="_blank"} approach.
 
+## Slides
+
+<div class="slides-embed">
+  <iframe src="slides/crud.html" title="Slides: hands-on 1 — crud" loading="lazy" allowfullscreen></iframe>
+</div>
+
+Click the slides and use ← → to move through them; **F** goes full screen and **P** opens the presenter view, with the notes.
+[:material-presentation: Open the slides in a new tab](slides/crud.html){:target="_blank"}
+
 The microservice is divided into two main modules: `account` and `account-service`:
 
 - the `account` module contains the API definition and the data transfer objects (DTOs) for the Account microservice;

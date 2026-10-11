@@ -4,6 +4,15 @@
 
 You already have Prometheus scraping metrics and Grafana displaying dashboards. Metrics answer "how much" and "how often". They cannot tell you *which* service inside a multi-hop request chain is responsible for a 2-second tail latency. Distributed tracing answers that question.
 
+## Slides
+
+<div class="slides-embed">
+  <iframe src="slides/tracing.html" title="Slides: distributed tracing" loading="lazy" allowfullscreen></iframe>
+</div>
+
+Click the slides and use ← → to move through them; **F** goes full screen and **P** opens the presenter view, with the notes.
+[:material-presentation: Open the slides in a new tab](slides/tracing.html){:target="_blank"}
+
 ## The Problem This Solves
 
 Consider a slow `/orders` response. Prometheus shows elevated `http_server_requests_seconds` on the gateway, but the gateway delegates to OrderService which in turn calls ProductService and the database. The metric cannot tell you where the time went.

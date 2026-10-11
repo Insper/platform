@@ -1,0 +1,119 @@
+/* @theme platform */
+/*
+ * Marp theme for the course slides. It mirrors the site theme (Zensical,
+ * modern variant): same fonts, the same light and dark palettes and the same
+ * accent. theme.js marks every <section> with data-scheme="light|dark",
+ * following the palette of the page that embeds the deck (or, opened on its
+ * own, the saved palette / the system preference).
+ *
+ * Marp scopes this CSS inside the deck, so the variables live on `section`.
+ */
+@import 'default';
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
+
+section {
+  --bg: #ffffff; --card: #f5f5f5; --border: rgba(0, 0, 0, .12);
+  --fg: rgba(0, 0, 0, .87); --strong: #000000; --muted: rgba(0, 0, 0, .55);
+  --accent: #526cfe; --link: #4051b5;
+  --green: #00a68f; --orange: #e67e00; --red: #e5173f;
+  --code-fg: #36464e;
+}
+section[data-scheme="dark"] {
+  --bg: hsl(225, 15%, 5%); --card: hsl(225, 20%, 10%); --border: hsla(225, 15%, 90%, .12);
+  --fg: hsla(225, 15%, 90%, .82); --strong: #ffffff; --muted: hsla(225, 15%, 90%, .56);
+  --accent: #6b80ff; --link: #5e8bde;
+  --green: #1de9b6; --orange: #ffab40; --red: #ff5c7a;
+  --code-fg: hsl(225, 20%, 80%);
+}
+/* before theme.js runs, follow the system: avoids a light flash on a dark site */
+@media (prefers-color-scheme: dark) {
+  section:not([data-scheme]) {
+    --bg: hsl(225, 15%, 5%); --card: hsl(225, 20%, 10%); --border: hsla(225, 15%, 90%, .12);
+    --fg: hsla(225, 15%, 90%, .82); --strong: #ffffff; --muted: hsla(225, 15%, 90%, .56);
+    --accent: #6b80ff; --link: #5e8bde;
+    --green: #1de9b6; --orange: #ffab40; --red: #ff5c7a;
+    --code-fg: hsl(225, 20%, 80%);
+  }
+}
+
+section {
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 26px; line-height: 1.45; padding: 44px 64px 52px;
+  background: var(--bg); color: var(--fg);
+}
+section h1, section h2, section h3 {
+  color: var(--strong); font-weight: 700; letter-spacing: -0.01em; line-height: 1.15;
+}
+section h1 { font-size: 1.9em; margin: 0 0 .3em; }
+section h2 { font-size: 1.3em; margin: 0 0 .55em; padding: 0; border: 0; }
+section h3 { font-size: .95em; color: var(--muted); font-weight: 600; margin: .2em 0 .4em; }
+section strong { color: var(--strong); }
+section a { color: var(--link); }
+section p { margin: 0 0 .5em; }
+section ul, section ol { margin: 0 0 .5em; }
+section li + li { margin-top: .25em; }
+
+section code {
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: .82em; background: var(--card); color: var(--code-fg);
+  padding: .05em .3em; border-radius: 4px;
+}
+section pre {
+  background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+  padding: .6em .9em; margin: .4em 0 .6em; font-size: .72em; line-height: 1.5;
+}
+section pre code { background: transparent; padding: 0; font-size: 1em; color: var(--code-fg); }
+
+section table { font-size: .72em; border-collapse: collapse; margin: .3em 0 .6em; }
+section table th, section table td { background: transparent; border: 0; padding: .3em .8em; }
+section table th { color: var(--muted); font-weight: 600; border-bottom: 2px solid var(--border); text-align: left; }
+section table td { border-bottom: 1px solid var(--border); }
+section table tr { background: transparent !important; }
+section blockquote {
+  border-left: 4px solid var(--accent); color: var(--muted);
+  margin: .4em 0; padding: .1em 1em;
+}
+section blockquote::before, section blockquote::after { content: none; }
+
+section::after { color: var(--muted); font-size: 14px; }   /* slide number */
+
+/* title and section openers */
+section.lead { justify-content: center; }
+section.lead h1 { font-size: 2.2em; }
+section.lead .kicker, section .kicker {
+  color: var(--accent); text-transform: uppercase; letter-spacing: .12em;
+  font-size: .55em; font-weight: 700; margin-bottom: .5em;
+}
+section.lead p { color: var(--muted); }
+section.lead strong { color: var(--accent); }
+
+/* boxes: question for the class, takeaway, caution */
+section .q, section .ok, section .warn {
+  background: var(--card); border-left: 4px solid var(--accent);
+  padding: .5em .9em; border-radius: 0 8px 8px 0; margin: .5em 0;
+}
+section .ok { border-left-color: var(--green); }
+section .warn { border-left-color: var(--red); }
+section .q > :last-child, section .ok > :last-child, section .warn > :last-child { margin-bottom: 0; }
+
+section .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 36px; align-items: start; }
+section .cols3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; align-items: start; }
+section .small { font-size: .78em; color: var(--muted); }
+section .muted { color: var(--muted); }
+section .big { font-size: 1.4em; font-weight: 700; }
+
+/* a dense slide: <!-- _class: tight --> */
+section.tight { font-size: 22px; padding: 34px 56px 40px; }
+
+/* syntax highlighting (highlight.js classes from Marp), readable in both schemes */
+section .hljs-keyword, section .hljs-selector-tag, section .hljs-built_in { color: #7b30d0; }
+section .hljs-string, section .hljs-attr + .hljs-string { color: #1c7d4d; }
+section .hljs-attr, section .hljs-attribute, section .hljs-property { color: #a3300f; }
+section .hljs-number, section .hljs-literal { color: #c24e00; }
+section .hljs-comment { color: var(--muted); font-style: italic; }
+section .hljs-title, section .hljs-section, section .hljs-type { color: #0b5cad; }
+section[data-scheme="dark"] .hljs-keyword, section[data-scheme="dark"] .hljs-selector-tag, section[data-scheme="dark"] .hljs-built_in { color: #c792ea; }
+section[data-scheme="dark"] .hljs-string { color: #a5d6a7; }
+section[data-scheme="dark"] .hljs-attr, section[data-scheme="dark"] .hljs-attribute, section[data-scheme="dark"] .hljs-property { color: #ffab91; }
+section[data-scheme="dark"] .hljs-number, section[data-scheme="dark"] .hljs-literal { color: #ffcc80; }
+section[data-scheme="dark"] .hljs-title, section[data-scheme="dark"] .hljs-section, section[data-scheme="dark"] .hljs-type { color: #82b1ff; }

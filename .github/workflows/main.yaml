@@ -31,9 +31,10 @@ jobs:
       - run: |
           pip install -r requirements.txt
           
-      # build
+      # build: English (default) into site/, then Brazilian Portuguese into site/pt/
       - run: |
           zensical build --clean
+          python scripts/i18n/build.py
 
       # deploy (Zensical has no gh-deploy: publish site/ to the gh-pages branch)
       - uses: peaceiris/actions-gh-pages@v4

@@ -22,6 +22,15 @@ flowchart LR
 
 [Jenkins](https://www.jenkins.io/){:target="_blank"} is one of the most widely adopted open-source automation servers. It orchestrates CI/CD pipelines through a rich plugin ecosystem and supports **Pipeline as Code** — pipeline definitions committed to the repository alongside application code in a file called `Jenkinsfile`[^2].
 
+## Slides
+
+<div class="slides-embed">
+  <iframe src="slides/devops.html" title="Slides: hands-on 4 — devops" loading="lazy" allowfullscreen></iframe>
+</div>
+
+Click the slides and use ← → to move through them; **F** goes full screen and **P** opens the presenter view, with the notes.
+[:material-presentation: Open the slides in a new tab](slides/devops.html){:target="_blank"}
+
 ## 1. Setup — Containerized Jenkins
 
 Running Jenkins inside Docker keeps the host machine clean and makes the environment reproducible across machines.

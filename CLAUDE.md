@@ -45,6 +45,54 @@ This is a documentation repository — no application code, no tests.
 
 No git-based revision dates/authors: Zensical does not support the `git-*` plugins.
 
+### Two languages: English (default) and Brazilian Portuguese
+
+Every page `X.md` (English) may have a translation `X.pt.md` next to it. The English build ignores
+`*.pt.md` (`exclude` plugin). Zensical has no i18n plugin, so `python scripts/i18n/build.py` stages a
+copy of `docs/` in `.i18n/pt/` (gitignored) where each `X.pt.md` replaces `X.md` — an untranslated page
+stays in English — and builds it into `site/pt/` with a config derived from `zensical.toml`: menu titles
+from `scripts/i18n/pt.json`, theme language `pt-BR`, `site_url` + `/pt`. Run it **after**
+`zensical build` (CI does both). Both sites share paths (`/platform/<page>` ↔ `/platform/pt/<page>`);
+the language selector (`extra.alternate`) plus `assets/javascripts/i18n.js` switch keeping the page.
+
+```bash
+python scripts/i18n/build.py --serve     # preview Portuguese at http://127.0.0.1:8002/platform/pt/
+python scripts/i18n/build.py --status    # pages still without a .pt.md
+python scripts/i18n/check.py [folder]    # each .pt.md has the English structure and identical code
+```
+
+When translating: links keep the English file names (`cap/index.md`, not `.pt`); snippet includes,
+images and code blocks stay identical (only Mermaid labels are translated); a page that embeds a deck
+points to `slides/<slug>.pt.html`, built from `slides/<slug>.pt.src.md`. **When you change an English
+page, update its `.pt.md` too.** A new menu title needs an entry in `scripts/i18n/pt.json` (the build
+lists the missing ones). Scripts with interface text (`mermaid-sim.js`, `interview.js`) pick the
+language from `<html lang>`.
+
+### Slides (Marp), 2026.2
+
+Every 2026.2 class and hands-on has a summary deck at `<topic>/slides/<slug>.src.md`, in Marp Markdown,
+embedded in the topic's overview page under `## Slides`:
+
+```html
+<div class="slides-embed">
+  <iframe src="slides/<slug>.html" title="Slides: ..." loading="lazy" allowfullscreen></iframe>
+</div>
+```
+
+`python scripts/slides/build.py` (or `--only <src.md>`) runs the Marp CLI (`npx`, version pinned, needs
+Node) into `<slug>.html` next to the source; the built `.html` is committed, so CI needs no Node.
+**Edit the `.src.md`, never the built `.html`**; `--check` fails when a deck is stale. The `exclude`
+plugin keeps `*/slides/*.src.md` out of the site. `{{INCLUDE:path}}` (relative to the repo root)
+inlines a file before Marp runs.
+
+Every deck uses the theme `scripts/slides/theme.css` (`theme: platform`), which mirrors the site's
+fonts and light/dark palettes, and includes `scripts/slides/theme.js` in its first slide so it follows
+the palette of the page that embeds it. Writing rules: each slide is a fixed 1280×720 (≤ ~7 bullets,
+one table, or a short code block — split otherwise; `<!-- _class: tight -->` for dense slides);
+`-` lists, `*` only to reveal an answer one item at a time; boxes `.q` (question), `.ok`
+(takeaway), `.warn` (pitfall); `.cols` for two columns; no Mermaid (Marp does not render it);
+speaker notes as HTML comments; last slide `## Takeaways`.
+
 **`site/`** is generated output — never edit manually; it's rebuilt on deploy.
 
 ## CI/CD

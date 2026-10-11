@@ -1,14 +1,14 @@
 
-O projeto é a oportunidade de colocar em prática os conhecimentos adquiridos durante o curso. Ele deve ser desenvolvido em grupo, com no máximo 3 pessoas - idealmente 2 pessoas, e deve ser entregue ao final do curso. O projeto deve ser desenvolvido utilizando as tecnologias e ferramentas apresentadas durante o curso, incluindo AWS, EKS, CI/CD, testes de carga e análise de custos.
+The project is the opportunity to put into practice the knowledge acquired during the course. It must be developed in a group of at most 3 people - ideally 2 people - and must be delivered at the end of the course. The project must be developed using the technologies and tools presented during the course, including AWS, EKS, CI/CD, load testing and cost analysis.
 
-O projeto é uma aplicação web que permite aos usuários comprar e vender produtos. 
-Para isso é esperado que cada membro do grupo implemente ao menos um microserviço, dentre os seguintes:
+The project is a web application that allows users to buy and sell products. 
+To that end, each member of the group is expected to implement at least one microservice, among the following:
 
-- **Product API**: responsável por gerenciar os produtos disponíveis para compra, incluindo informações como nome, descrição, preço e estoque.
-- **Order API**: responsável por gerenciar os pedidos dos clientes, incluindo informações como produtos comprados, quantidade, preço total e status do pedido.
-- **Exchange API**: responsável por gerenciar as taxas de câmbio entre diferentes moedas, permitindo que os usuários realizem transações em diferentes moedas.
+- **Product API**: responsible for managing the products available for purchase, including information such as name, description, price and stock.
+- **Order API**: responsible for managing customer orders, including information such as products purchased, quantity, total price and order status.
+- **Exchange API**: responsible for managing the exchange rates between different currencies, allowing users to carry out transactions in different currencies.
 
-Ao final, o projeto principal deve incorporar no GitHub as implementações individuais, como submodules. O projeto inteiro deve ser integrado e estar funcional, ou seja, os microserviços devem estar comunicando entre si e a aplicação deve estar disponível para acesso.
+In the end, the main project must incorporate the individual implementations on GitHub, as submodules. The whole project must be integrated and working, that is, the microservices must communicate with each other and the application must be available for access.
 
 ```python exec="1" html="1"
 --8<-- "docs/2026.2/exercises/project/grade.py"
@@ -28,14 +28,14 @@ Ao final, o projeto principal deve incorporar no GitHub as implementações indi
 | [Load Testing](load-testing/index.md) | Stress Testing | 15% |
 | | | |
 | [PaaS & Costs & SLA](costs/index.md) | Cost Analysis | 10% |
-| MKDocs | Documentation (use IA) | 10% |
+| MKDocs | Documentation (use AI) | 10% |
 
-!!! warning "Entrega"
+!!! warning "Delivery"
 
-    - Trabalho em grupo deve ser documentado no GitHub. Um template está disponível para auxiliar na documentação: [template de entrega](https://hsandmann.github.io/documentation.template/){target="_blank"}. Pode utilizar IA para auxiliar na documentação, mas revise o conteúdo gerado para garantir que esteja correto e completo.
+    - Group work must be documented on GitHub. A template is available to help with the documentation: [delivery template](https://hsandmann.github.io/documentation.template/){target="_blank"}. You may use AI to help with the documentation, but review the generated content to make sure it is correct and complete.
 
-!!! danger "Uso de IA para implementação"
+!!! danger "Use of AI for implementation"
 
-    O uso de IA para implementação do projeto é permitido parcialmente. O projeto deve ser implementado pelos membros do grupo, utilizando os conhecimentos adquiridos durante o curso. O uso de IA para implementação deve ser limitado a tarefas específicas, como geração de código *boilerplate*, sugestões de melhorias e correção de erros. O uso de IA para implementação deve ser documentado na entrega do projeto, incluindo quais partes do projeto foram implementadas com o auxílio de IA e quais partes foram implementadas pelos membros do grupo.
+    The use of AI to implement the project is partially allowed. The project must be implemented by the group members, using the knowledge acquired during the course. The use of AI for implementation must be limited to specific tasks, such as generating *boilerplate* code, suggesting improvements and fixing errors. The use of AI for implementation must be documented in the project delivery, including which parts of the project were implemented with the help of AI and which parts were implemented by the group members.
 
-    Todos os membros do grupo devem estar envolvidos na implementação do projeto, mesmo que o uso de IA seja permitido. O projeto deve ser um esforço colaborativo, onde cada membro do grupo contribui para a implementação do projeto e tem conhecimento sobre todas as partes do projeto. Assim, todos os membros **DEVEM** ser capazes de explicar e defender o projeto, incluindo as partes implementadas com o auxílio de IA.
+    All group members must be involved in implementing the project, even though the use of AI is allowed. The project must be a collaborative effort, in which each group member contributes to the implementation and knows every part of the project. Therefore, all members **MUST** be able to explain and defend the project, including the parts implemented with the help of AI.

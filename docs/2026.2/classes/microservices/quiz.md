@@ -75,9 +75,37 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ---
 
+**Q6.** In the Order API, an order item stores only the product's `id` (plus quantity and total), not a full `Product` object. Which DDD rule does this follow?
+
+- A. Value objects must be immutable
+- B. Aggregates reference other aggregates by identity only
+- C. Every entity needs its own repository
+- D. Domain events must be written in the past tense
+
+??? success "Answer"
+    **B — Reference other aggregates by identity.**
+
+    `Order` and `Product` are different aggregates, in different bounded contexts (and services). Holding only the product id means the order aggregate can never modify a product, and the two can be stored in different databases. It also matches the Ordering context's model: the item keeps the price *paid*, so a later catalogue price change does not alter past orders.
+
+---
+
+**Q7.** The exchange service consumes a third-party rates API whose JSON format it does not control. Which context-map pattern keeps that format from spreading through the exchange service's code?
+
+- A. Shared Kernel
+- B. Conformist
+- C. Anti-Corruption Layer
+- D. Published Language
+
+??? success "Answer"
+    **C — Anti-Corruption Layer.**
+
+    An ACL is a translation layer at the border: it calls the provider and converts the provider's model into the service's own (e.g. a `Rate` value object). If the provider changes or is replaced, only the ACL changes. A *conformist* would adopt the provider's model as is; a *shared kernel* is code shared by two cooperating teams, which is impossible with a third party.
+
+---
+
 ## Microservice Architecture
 
-**Q6.** What is the primary role of an **API Gateway** in a microservices architecture?
+**Q8.** What is the primary role of an **API Gateway** in a microservices architecture?
 
 - A. It stores shared configuration for all microservices
 - B. It acts as a message broker between services using async events
@@ -91,7 +119,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ---
 
-**Q7.** Why does each microservice own its **own database** (database-per-service pattern)?
+**Q9.** Why does each microservice own its **own database** (database-per-service pattern)?
 
 - A. It reduces infrastructure cost by using smaller, cheaper databases
 - B. It is required by the OpenAPI specification
@@ -105,10 +133,10 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ---
 
-**Q8.** What is the key trade-off between **synchronous (HTTP)** and **asynchronous (messaging)** inter-service communication?
+**Q10.** What is the key trade-off between **synchronous (HTTP)** and **asynchronous (messaging)** inter-service communication?
 
 - A. Sync is more secure; async is less secure
-- B. Sync gives immediate results but creates temporal coupling; async decouples services but the caller cannot wait for a result
+- B. Sync gives immediate results but creates temporal coupling; async decouples services but the producer does not get an immediate result
 - C. Async is always better — sync should never be used in microservices
 - D. Sync uses more CPU; async uses more memory
 
@@ -119,7 +147,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ---
 
-**Q9.** What problem does **Service Discovery** solve in a dynamic microservice environment?
+**Q11.** What problem does **Service Discovery** solve in a dynamic microservice environment?
 
 - A. It prevents two services from being deployed with the same name
 - B. It allows services to find each other's current network locations dynamically, since IP addresses change as instances scale up or down
@@ -133,14 +161,42 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ---
 
-**Q10.** In the course's reference architecture, who is responsible for **validating JWT tokens** on each request?
+**Q12.** In the course's reference architecture, who is responsible for **validating JWT tokens** on each request?
 
 - A. Each business microservice validates the token independently on every request
 - B. The identity provider re-validates the token on every request via a callback
-- C. The Gateway delegates validation to the Auth Service; business microservices trust the claims in the forwarded JWT without re-validating
+- C. The Gateway delegates validation to the Auth Service and forwards the caller's identity in the `id-account` header; business microservices trust that header without re-validating
 - D. The load balancer validates tokens before passing requests to the gateway
 
 ??? success "Answer"
-    **C — Gateway delegates to Auth Service; business services trust forwarded claims.**
+    **C — Gateway delegates to Auth Service; business services trust the `id-account` header.**
 
-    The gateway intercepts every request, calls the Auth Service to validate the JWT, and then forwards the resolved identity (e.g., `X-Account-Id` header) to the downstream service. Business microservices trust these headers without calling Auth Service themselves, keeping each service focused on its domain.
+    The gateway's `AuthorizationFilter` intercepts every request to a secured route, reads the JWT from the cookie, calls `POST /auth/solve` on the Auth Service, and forwards the resolved identity in the `id-account` header to the downstream service. Business microservices trust this header without calling the Auth Service themselves, keeping each service focused on its domain. This is only safe because the services are not reachable from outside: a service exposed directly could receive a forged `id-account`.
+
+---
+
+**Q13.** A checkout request passes synchronously through three services, each available 99.9% of the time. Approximately how available is the checkout as a whole?
+
+- A. 99.9% — the chain is as available as each service
+- B. 99.97% — redundancy across three services increases availability
+- C. 99.7% — the availabilities multiply (0.999³), roughly tripling the downtime
+- D. 97% — each hop removes one percentage point
+
+??? success "Answer"
+    **C — about 99.7%.**
+
+    In a synchronous chain the request succeeds only if *every* service is up, so availabilities multiply: 0.999 × 0.999 × 0.999 ≈ 0.997. Downtime grows from about 8.8 hours a year to about 26 hours. This is why long synchronous chains are avoided, and why work that does not need an immediate answer is moved to events.
+
+---
+
+**Q14.** Which situation is a symptom of a **distributed monolith**?
+
+- A. The exchange service is written in Python and the others in Java
+- B. The product and order services must always be deployed on the same day because the order service reads the product tables directly
+- C. The order service publishes `OrderCreated` to Kafka and does not know who consumes it
+- D. The gateway runs three replicas behind Nginx
+
+??? success "Answer"
+    **B — Coordinated deployments caused by shared tables.**
+
+    A distributed monolith has the network costs of microservices without their independence: services share data or are so coupled that they must be released together. A is *decentralised governance*, C is healthy asynchronous decoupling, and D is horizontal scaling of the entry point.

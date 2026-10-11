@@ -1,22 +1,22 @@
 
-## Custos
+## Costs
 
-A análise de custos é uma parte importante do desenvolvimento de software, pois ajuda a garantir que seu projeto esteja dentro do orçamento. Existem várias ferramentas disponíveis para ajudar na análise de custos, incluindo o AWS Cost Explorer[^1] e o AWS Budgets[^2].
+Cost analysis is an important part of software development, as it helps ensure that your project stays within budget. Several tools are available to help with cost analysis, including AWS Cost Explorer[^1] and AWS Budgets[^2].
 
 !!! info "TO DO"
 
-    Monte um plano de custos para o seu projeto, incluindo os custos de uso do EKS, RDS e outros serviços da AWS que você está utilizando. Use a calculadora de preços da AWS para estimar os custos do seu projeto.
+    Put together a cost plan for your project, including the costs of using EKS, RDS and the other AWS services you are using. Use the AWS pricing calculator to estimate your project's costs.
 
 
 ## PaaS
 
-A plataforma como serviço (PaaS) é um modelo de computação em nuvem que fornece uma plataforma para desenvolver, executar e gerenciar aplicativos sem a complexidade de construir e manter a infraestrutura normalmente associada ao desenvolvimento e lançamento de aplicativos.
+Platform as a Service (PaaS) is a cloud computing model that provides a platform to develop, run and manage applications without the complexity of building and maintaining the infrastructure usually associated with developing and launching applications.
 
 ![](paas/iaas-paas-saas-diagram.png){ width=100% }
 
 !!! info "TO DO"
 
-    Descreva onde seu grupo utilizou PaaS e como utilizou.
+    Describe where your group used PaaS and how it was used.
 
 [^1]: [AWS Cost Explorer](https://aws.amazon.com/aws-cost-management/aws-cost-explorer/){target="_blank"}
 [^2]: [AWS Budgets](https://aws.amazon.com/aws-cost-management/aws-budgets/){target="_blank"}

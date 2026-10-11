@@ -61,9 +61,9 @@
 
 | :octicons-location-24: | :fontawesome-regular-calendar: | :fontawesome-regular-clock: |
 |-|:-:|:-:|
-| Aula | Qua. | 12h00 :fontawesome-solid-arrow-right-long: 14h00 |
-| Atendimento | Sex. | 09h40 :fontawesome-solid-arrow-right-long: 11h10 |
-| Aula | Sex. | 12h00 :fontawesome-solid-arrow-right-long: 14h00 |
+| Class | Wed. | 12:00 :fontawesome-solid-arrow-right-long: 14:00 |
+| Office hours | Fri. | 09:40 :fontawesome-solid-arrow-right-long: 11:10 |
+| Class | Fri. | 12:00 :fontawesome-solid-arrow-right-long: 14:00 |
 
 
 ## Grade
@@ -92,38 +92,38 @@
 === ":octicons-person-24: Individual"
 
     <!-- $$
-    \text{Individual} = \text{Tarefas} \times 0.7 + \text{Prova Intermediária} \times 0.3
+    \text{Individual} = \text{Tasks} \times 0.7 + \text{Midterm Exam} \times 0.3
     $$ -->
 
-    | Tarefa | Descrição | Peso |
+    | Task | Description | Weight |
     |-|-|-:|
     | Checkpoint 1 | Product | 15% |
     | Checkpoint 2 | Order | 15% |
     | Checkpoint 3 | Exchange | 10% |
     | Checkpoint 4 | DevOps | 15% |
     | Checkpoint 5 | Orchestration | 15% |
-    | Bootnecks | InMemory Database<br>Message Queues<br>Observability<br>Code quality<br>OAuth2<br>Payments (sandboxes) | 20% |
+    | Bottlenecks | InMemory Database<br>Message Queues<br>Observability<br>Code quality<br>OAuth2<br>Payments (sandboxes) | 20% |
     | Documentation | README with MkDocs | 10% |
 
-    !!! danger "Entrega"
-        - A entrega de um checkpoint implica, **OBRIGATORIAMENTE**, na entrega do checkpoint anterior;
-        - Trabalho em grupo deve ser documentado no GitHub.
+    !!! danger "Delivery"
+        - Delivering a checkpoint **MANDATORILY** requires delivering the previous checkpoint;
+        - Group work must be documented on GitHub.
 
 === ":octicons-people-24: Team"
 
-    | Tarefas | Descrição | Peso |
+    | Tasks | Description | Weight |
     |-|-|-:|
-    | AWS | Configurar AWS | 5% |
-    | EKS | Disponibilizar a aplicação | 15% |
-    | Testes | Testes de carga | 20% |
+    | AWS | Set up AWS | 5% |
+    | EKS | Make the application available | 15% |
+    | Tests | Load tests | 20% |
     | CI/CD | Jenkins | 10% |
-    | Custos | Análise de custos | 15% |
-    | PaaS | Plano de uso da plataforma | 15% |
-    | Apresentação | Storytelling e documentação | 20% |
+    | Costs | Cost analysis | 15% |
+    | PaaS | Platform usage plan | 15% |
+    | Presentation | Storytelling and documentation | 20% |
 
-    !!! danger "Entrega"
+    !!! danger "Delivery"
 
-        - Trabalho em grupo deve ser documentado no GitHub. Um template está disponível para auxiliar na documentação: [template de entrega](https://hsandmann.github.io/documentation.template/){target="_blank"}.
+        - Group work must be documented on GitHub. A template is available to help with the documentation: [delivery template](https://hsandmann.github.io/documentation.template/){target="_blank"}.
 
 ## Planning
 
@@ -131,7 +131,7 @@
 
 ## Repositories
 
-Principal: 
+Main: 
 [https://github.com/repo-classes/pma.25.2](https://github.com/repo-classes/pma.25.2){target="_blank"}
 
 | Microservice | Interface | Implementation |

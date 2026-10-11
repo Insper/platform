@@ -25,11 +25,11 @@
 
 !!! abstract "Meetings"
 
-    | Evento | Dia | Início | Término |
+    | Event | Day | Start | End |
     |-|:-:|-:|-:|
-    | Aula | Qua. | 09h45 | 11h45 |
-    | Aula | Sex. | 07h30 | 09h30 |
-    | Atendimento | Seg. | 12h00 | 13h30 |
+    | Class | Wed. | 09:45 | 11:45 |
+    | Class | Fri. | 07:30 | 09:30 |
+    | Office hours | Mon. | 12:00 | 13:30 |
 
 
 !!! success "Grades"
@@ -51,125 +51,125 @@
 
 
     === "Individual"
-        | Avaliação | | Descrição | Data | Nota (%) |
+        | Assessment | | Description | Date | Grade (%) |
         |-|-|-|:-:|-:|
-        | Roteiros |  | Média aritmética dos 2 roteiros de maiores notas. | | 60.0 |
-        |  | Roteiro 1 | Testes | - | |
-        |  | Roteiro 2 | Bottlenecks | 22.mai | |
-        |  | Roteiro 3 | Cloud | 22.mai | |
-        | Participação | | Nota geral atribuída ao grupo distribuída aos membros pelo próprio grupo, apenas notas inteiras $[0; 10]$ | | 40.0 |
+        | Assignments |  | Arithmetic mean of the 2 highest-graded assignments. | | 60.0 |
+        |  | Assignment 1 | Tests | - | |
+        |  | Assignment 2 | Bottlenecks | May 22 | |
+        |  | Assignment 3 | Cloud | May 22 | |
+        | Participation | | Overall grade given to the group, distributed among its members by the group itself, integer grades only $[0; 10]$ | | 40.0 |
 
     === "Team"
-        | Avaliação | | Descrição | Data | Nota (%) |
+        | Assessment | | Description | Date | Grade (%) |
         |-|-|-|:-:|-:|
         | Checkpoints | | | | |
-        | | CP1 | Montar um Spring Cloud | 05.abr | 7.5 |
-        | | CP2 | Testes e Pipeline | 19.abr | 7.5 |
-        | | CP3 | K8s | 10.mai | 7.5 |
-        | | CP4 | Platform as a Product | 22.mai | 7.5 |
-        | Apresentação | | | | 10.0 |
-        | Projeto | | | | 60.0 |
+        | | CP1 | Build a Spring Cloud | Apr 05 | 7.5 |
+        | | CP2 | Tests and Pipeline | Apr 19 | 7.5 |
+        | | CP3 | K8s | May 10 | 7.5 |
+        | | CP4 | Platform as a Product | May 22 | 7.5 |
+        | Presentation | | | | 10.0 |
+        | Project | | | | 60.0 |
 
 
 !!! Individual
 
-    === "Roteiro 1"
+    === "Assignment 1"
 
-        Testes
+        Tests
 
-        - [x] Roteiros de testes de funcionalidades ou de testes de carga
-        - [x] Documentação dos resultados obtidos
+        - [x] Functional test scripts or load test scripts
+        - [x] Documentation of the results obtained
 
-    === "Roteiro 2"
+    === "Assignment 2"
 
         Bottlenecks
 
-        - [x] Implementação de um microserviço de *bottleneck* para o projeto:
+        - [x] Implementation of a *bottleneck* microservice for the project:
 
-            - Mensageria
+            - Messaging
                 * [RabbitMQ](https://spring.io/guides/gs/messaging-rabbitmq){target='_blank'}
                 * [Kafka](https://www.baeldung.com/spring-kafka){target='_blank'}
-                * [Spring e Kafka, Giuliana Bezerra](https://youtu.be/97TF2xZgAhU){target='_blank'}
-            - Resiliência
+                * [Spring and Kafka, Giuliana Bezerra](https://youtu.be/97TF2xZgAhU){target='_blank'}
+            - Resilience
                 * [Spring Cloud Circuit Breaker](https://spring.io/guides/gs/cloud-circuit-breaker){target='_blank'}
-            - Configuração
+            - Configuration
                 * [Spring Cloud Config](https://docs.spring.io/spring-cloud-config/docs/current/reference/html/){target='_blank'}
             - In-Memory Database
                 * [Redis, Giuliana Bezerra](https://youtu.be/YcI9b-lgi7w){target='_blank'}
             - Payments (sandboxes)
                 * [PayPal](https://developer.paypal.com/tools/sandbox/){target='_blank'}
-                * [Hearland](https://developer.heartlandpaymentsystems.com/){target='_blank'}
+                * [Heartland](https://developer.heartlandpaymentsystems.com/){target='_blank'}
                 * [Mercado Pago](https://www.mercadopago.com.br/developers/pt){target='_blank'}
             - Jenkins
                 * [SonarQube](https://docs.sonarsource.com/sonarqube/latest/analyzing-source-code/ci-integration/jenkins-integration/key-features/){target='_blank'}
-                * [Dependency Analyzes](){target='_blank'}
+                * [Dependency Analysis](){target='_blank'}
 
-    === "Roteiro 3"
+    === "Assignment 3"
 
         Cloud
 
-        - [x] Roteiro de publicação de um microsserviço em Cloud
+        - [x] Guide to deploying a microservice to the Cloud
 
-    === "Participação"
+    === "Participation"
 
-        - [x] Contribuições no GitHub dos participantes
-        - [x] Documentação das reuniões (dayly, retro, etc)
-        - [x] Nota geral atribuída pelo professor mas dividida pelo grupo
+        - [x] Participants' contributions on GitHub
+        - [x] Documentation of the meetings (daily, retro, etc.)
+        - [x] Overall grade given by the instructor but divided by the group
 
 
 !!! Team
 
     === "Checkpoint 1"
 
-        Desenvolvimento Spring Cloud
+        Spring Cloud development
 
-        - [x] Serviço de discovery
-        - [x] Serviço de gateway
-        - [x] Serviço de autenticação e autorização
-        - [x] 3 microsserviços com persistência de dados
-        - [x] Comunicação entre, ao menos 2, microsserviços, além de: Gateway $\rightarrow$ Auth $\rightarrow$ Account
-        - [x] Monitoramento com dashboard de microsserviços
-        - [x] Documentação das APIs padrão Swagger
-        - [x] Cluster em Docker Compose para deploy dos microsserviços
+        - [x] Discovery service
+        - [x] Gateway service
+        - [x] Authentication and authorization service
+        - [x] 3 microservices with data persistence
+        - [x] Communication between at least 2 microservices, besides: Gateway $\rightarrow$ Auth $\rightarrow$ Account
+        - [x] Monitoring with a microservices dashboard
+        - [x] API documentation in the Swagger standard
+        - [x] Docker Compose cluster to deploy the microservices
 
     === "Checkpoint 2"
 
-        Testes e Pipeline
+        Tests and Pipeline
 
-        - [x] Plano de testes
-        - [x] Script Jenkins - [Pipeline as Code](https://www.jenkins.io/doc/book/pipeline/pipeline-as-code/){target="_blank"}
+        - [x] Test plan
+        - [x] Jenkins script - [Pipeline as Code](https://www.jenkins.io/doc/book/pipeline/pipeline-as-code/){target="_blank"}
 
     === "Checkpoint 3"
 
         K8s
 
-        - [x] Release no [Minikube](https://kubernetes.io/pt-br/docs/tutorials/hello-minikube/){target="_blank"}
-        - [x] Scripts declarativos dos serviços
+        - [x] Release on [Minikube](https://kubernetes.io/pt-br/docs/tutorials/hello-minikube/){target="_blank"}
+        - [x] Declarative scripts for the services
 
     === "Checkpoint 4"
 
         Platform as a Service
 
-        - [x] Plano de uso da plataforma como um produto (PaaS)
-        - [x] Vislumbrar uso da plataforma por terceiros
+        - [x] Plan for using the platform as a product (PaaS)
+        - [x] Envision third parties using the platform
 
-    === "Apresentação"
+    === "Presentation"
 
-        - [x] Storytelling (começo, meio, fim)
-        - [x] Fluídez
-        - [x] Qualidade do material apresentado
-        - [x] Tempo
-        - [x] Participação
+        - [x] Storytelling (beginning, middle, end)
+        - [x] Fluency
+        - [x] Quality of the material presented
+        - [x] Time
+        - [x] Participation
 
-    === "Projeto"
+    === "Project"
 
         - [x] Checkpoint 1
         - [x] Checkpoint 2
         - [x] Checkpoint 3
         - [x] Checkpoint 4
-        - [x] Planejamento
-        - [x] Documentação (markdown)
-        - [x] Frontend (funcionalidades básicas: login, registro, dashboard, etc)
+        - [x] Planning
+        - [x] Documentation (markdown)
+        - [x] Frontend (basic features: login, sign-up, dashboard, etc.)
 
 !!! Planning
 

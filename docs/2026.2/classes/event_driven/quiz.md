@@ -144,3 +144,57 @@ Click **"Answer"** to reveal the correct answer and explanation.
     A partition is an ordered, append-only sequence. Within partition 0 you know message at offset 5 came after offset 4. But partition 0 offset 5 and partition 1 offset 3 were written independently — there is no global sequence number linking them. If strict global ordering is required, use a single partition (at the cost of parallelism) or include an application-level timestamp and sort at read time.
 
 ---
+
+**Q11.** The order service publishes `OrderCreated`, `OrderPaid` and `OrderShipped` for each order to a topic with 6 partitions. The shipping consumer must see the events of the same order in sequence. What should the producer do?
+
+- A. Publish without a key so Kafka balances the load evenly
+- B. Use the `orderId` as the message key, so all events of one order land in the same partition
+- C. Use a single consumer for the whole topic
+- D. Add a timestamp to each event; Kafka orders messages by timestamp across partitions
+
+??? success "Answer"
+    **B — Key by `orderId`.**
+
+    The default partitioner hashes the key, so the same key always goes to the same partition, and Kafka guarantees order within a partition. Different orders still spread over the 6 partitions and are processed in parallel. Option A loses ordering; C keeps ordering only by giving up parallelism (and does not fix the order *across* partitions); D is false — Kafka does not reorder messages by timestamp.
+
+---
+
+**Q12.** The notification service commits the Kafka offset **after** sending the e-mail. It crashes right after sending, before committing. What happens on restart, and what should the code do about it?
+
+- A. The message is lost; nothing can be done
+- B. The message is read again (at-least-once delivery); the consumer must be idempotent, e.g. skip orders it already notified
+- C. Kafka detects the crash and deletes the message so it is not processed twice
+- D. The message goes to the dead letter queue automatically
+
+??? success "Answer"
+    **B — Redelivery; make the consumer idempotent.**
+
+    Committing after processing gives **at-least-once** delivery: the consumer resumes from the last committed offset and sees the message again. Committing *before* processing would give at-most-once (lost message instead of duplicate). Kafka's exactly-once transactions cover only Kafka-to-Kafka processing, not an e-mail, so the realistic design is at-least-once plus an idempotent consumer (a processed-messages table, upserts or unique constraints).
+
+---
+
+**Q13.** The order service saves an order in Postgres and then calls `kafkaTemplate.send(...)`. What problem does the **transactional outbox** solve here?
+
+- A. It makes Kafka faster by batching messages in Postgres
+- B. It removes the need for consumer groups
+- C. It avoids the dual write: the order and the event are written in the same local database transaction, and a relay publishes the event afterwards, so a crash can no longer leave an order without its event (or an event without its order)
+- D. It guarantees that each event is delivered exactly once to every consumer
+
+??? success "Answer"
+    **C — It turns two writes to two systems into one local transaction.**
+
+    Without the outbox, a crash between the database commit and the publish loses the event; a rollback after the publish produces an event for an order that does not exist. With the outbox, both rows commit together, and a relay (polling or CDC) publishes the event. The relay may publish twice after a crash, so D is false — consumers still need to be idempotent.
+
+---
+
+**Q14.** In a choreographed saga, inventory reserves stock after `OrderCreated`, but the payment service then emits `PaymentFailed`. What should happen?
+
+- A. The database rolls back the stock reservation automatically, as in an ACID transaction
+- B. The inventory service runs a **compensating transaction** that releases the stock, and the order is marked as cancelled
+- C. The order service retries the payment forever until it succeeds
+- D. Nothing — the stock remains reserved until an operator fixes it manually
+
+??? success "Answer"
+    **B — Compensate the steps already done.**
+
+    Each saga step is a local transaction in a different service and database, so there is no global rollback (A). Instead, every step that can be undone has a compensating action — here, `StockReleased` — triggered by the failure event, and the order moves to `CANCELLED`. Compensations, like the steps, must be idempotent because events may be redelivered.

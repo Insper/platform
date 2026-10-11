@@ -192,3 +192,59 @@
 [data-md-color-scheme="default"] .md-logo img {
     filter: invert(1);
 }
+
+/* Class slides (Marp, scripts/slides/build.py) embedded in the page */
+.md-typeset .slides-embed {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    margin: 1em 0 .4em;
+    border: 1px solid var(--md-default-fg-color--lightest);
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--md-default-bg-color);
+}
+
+.md-typeset .slides-embed iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+}
+
+/* CAP theorem diagram (classes/distributed_systems/cap/cap-venn*.svg, inlined) */
+.md-typeset .cap-venn {
+    display: block;
+    width: 100%;
+    max-width: 34rem;
+    height: auto;
+    margin: 1.2em auto;
+    font-family: var(--md-text-font-family);
+}
+.md-typeset .cap-venn .ring { fill-opacity: .14; stroke-width: 2.5; }
+.md-typeset .cap-venn .c { fill: #2f6fed; stroke: #2f6fed; }
+.md-typeset .cap-venn .a { fill: #1e9e5a; stroke: #1e9e5a; }
+.md-typeset .cap-venn .p { fill: #e5484d; stroke: #e5484d; }
+[data-md-color-scheme="slate"] .md-typeset .cap-venn .ring { fill-opacity: .2; }
+[data-md-color-scheme="slate"] .md-typeset .cap-venn .c { fill: #6e9bff; stroke: #6e9bff; }
+[data-md-color-scheme="slate"] .md-typeset .cap-venn .a { fill: #4cc38a; stroke: #4cc38a; }
+[data-md-color-scheme="slate"] .md-typeset .cap-venn .p { fill: #ff6b6f; stroke: #ff6b6f; }
+.md-typeset .cap-venn text {
+    fill: var(--md-default-fg-color);
+    /* halo in the page colour: circle outlines never cut through the letters */
+    paint-order: stroke;
+    stroke: var(--md-default-bg-color);
+    stroke-width: 3px;
+    stroke-linejoin: round;
+}
+.md-typeset .cap-venn .name { font-size: 25px; font-weight: 700; }
+.md-typeset .cap-venn .def { font-size: 14px; fill: var(--md-default-fg-color--light); }
+.md-typeset .cap-venn .pair { font-size: 24px; font-weight: 800; }
+.md-typeset .cap-venn .ex { font-size: 13px; fill: var(--md-default-fg-color--light); }
+.md-typeset .cap-venn .ca { fill: var(--md-default-fg-color--light); }
+.md-typeset .cap-venn .pair.ca { text-decoration: line-through; }
+.md-typeset .cap-venn .none { fill: var(--md-default-bg-color); stroke: #e5484d; stroke-width: 2.5; }
+.md-typeset .cap-venn .none-x { stroke: #e5484d; stroke-width: 3; stroke-linecap: round; }
+.md-typeset .cap-venn .none-t { font-weight: 600; fill: var(--md-default-fg-color); }
+.md-typeset .cap-venn .foot { font-size: 15px; font-style: italic; fill: var(--md-default-fg-color--light); }

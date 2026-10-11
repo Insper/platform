@@ -1,11 +1,13 @@
 
-**SOLID** is an acronym for five object-oriented design principles introduced by Robert C. Martin[^1]. They were first articulated in his 2000 paper *Design Principles and Design Patterns* and popularised by the book *Clean Code* (2008). These principles operate at the **class and module level** — they are the building blocks that Clean Architecture and Hexagonal Architecture enforce at the system level.
+In [Hands-on 1](../../../hands-on/1/index.md) `AccountService` starts small: create, read, delete. Then someone adds email validation, a welcome email, an audit log, a discount rule per customer type, an admin bulk import… Six months later the class has 600 lines, every change breaks an unrelated test, and nobody can unit-test it without a database and an SMTP server. Nothing here is an *architecture* problem yet — it is a **class design** problem, and SOLID is the vocabulary for it.
+
+**SOLID** is an acronym for five object-oriented design principles collected by Robert C. Martin[^1]. He first described them together in his 2000 paper *Design Principles and Design Patterns* and in the book *Agile Software Development: Principles, Patterns, and Practices* (2002); the acronym itself was suggested by Michael Feathers around 2004. These principles operate at the **class and module level** — they are the building blocks that Clean Architecture and Hexagonal Architecture enforce at the system level.
 
 | Letter | Principle | Coined by |
 |---|---|---|
 | **S** | Single Responsibility Principle | Robert C. Martin |
 | **O** | Open/Closed Principle | Bertrand Meyer, 1988[^2] |
-| **L** | Liskov Substitution Principle | Barbara Liskov, 1987[^3] |
+| **L** | Liskov Substitution Principle | Barbara Liskov, 1987; formalised with Jeannette Wing in 1994[^3] |
 | **I** | Interface Segregation Principle | Robert C. Martin |
 | **D** | Dependency Inversion Principle | Robert C. Martin |
 
@@ -26,7 +28,7 @@ flowchart LR
 
 > "A class should have one, and only one, reason to change." — Robert C. Martin
 
-A class is *responsible to* one actor. An actor is a group of users or stakeholders who care about the same concern. If a class serves two actors, changes requested by one risk breaking functionality for the other.
+A class is *responsible to* one actor[^4]. An actor is a group of users or stakeholders who care about the same concern. If a class serves two actors, changes requested by one risk breaking functionality for the other.
 
 !!! info "What SRP does NOT mean"
     SRP does not mean a class should do only one thing. It means a class should have one *reason to change* — one owner. A service class may orchestrate several steps, but if all those steps serve the same business concern and the same stakeholder, the class has a single responsibility.
@@ -108,13 +110,16 @@ classDiagram
     PartnerDiscountPolicy ..|> DiscountPolicy
 ```
 
-Adding `PartnerDiscountPolicy` requires creating one new class — `DiscountService` is never touched.
+Adding `PartnerDiscountPolicy` requires creating one new class — `DiscountService` is never touched. In Spring, annotating each policy with `@Component` is enough: the container injects every `DiscountPolicy` bean into the `List<DiscountPolicy>` constructor parameter.
+
+!!! warning "Closed against which changes?"
+    No class is closed against every change. OCP asks you to anticipate the **likely** axis of variation (here: new customer types) and put the abstraction there. Adding extension points "just in case" produces interfaces with a single implementation forever.
 
 ---
 
 ## L — Liskov Substitution Principle
 
-> "If S is a subtype of T, then objects of type T may be replaced with objects of type S without altering any of the desirable properties of the program." — Barbara Liskov, 1987
+> "If S is a subtype of T, then objects of type T may be replaced with objects of type S without altering any of the desirable properties of the program." — the usual paraphrase of Barbara Liskov (1987) and Liskov & Wing (1994)
 
 Every subtype must honour the **contract** of the supertype — not just the method signatures, but the **behaviour**. A caller that works correctly with `T` must work correctly with any `S extends T` without modification.
 
@@ -151,6 +156,9 @@ classDiagram
 
 !!! tip "LSP and testing"
     A practical test: if substituting a subtype causes a test written for the supertype to fail, the subtype violates LSP. This is why a test suite written against an interface (`Shape`) must pass for every implementation.
+
+!!! example "LSP in the store: test adapters"
+    `InMemoryAccountRepository` (used in unit tests) and `AccountJpaAdapter` (used in production) both implement `AccountRepository`. If the database rejects a duplicate email through a `UNIQUE` constraint but the in-memory version silently overwrites it, the two are **not** substitutable: unit tests pass and production fails. Keep the behaviour the port promises — not just its method signatures — identical in every implementation, ideally by running one shared *contract test* against both.
 
 ---
 
@@ -238,6 +246,15 @@ flowchart LR
     end
 ```
 
+Notice **who owns the interface**: `AccountRepository` is declared next to `AccountService` (the high-level module), in business terms, and the JPA class implements it. If the interface lived in the persistence package and mirrored JPA, the dependency would not really be inverted.
+
+DIP (a design principle) is often confused with two related mechanisms:
+
+- **Dependency Injection** — a technique: objects receive their dependencies (usually through the constructor) instead of creating them with `new`. Spring's container does this for every `@Service`, `@Repository` and `@Component`.
+- **Inversion of Control** — the general idea that a framework calls your code (and wires it), rather than your code calling the framework.
+
+Dependency Injection is how DIP is usually *implemented* in Spring, but injecting a concrete class still couples you to it; DIP requires that the injected type be an abstraction owned by the high-level module.
+
 DIP is the principle that makes **Clean Architecture** and **Hexagonal Architecture** possible: by inverting dependencies at every layer boundary, each layer can be developed, tested, and replaced independently.
 
 ---
@@ -251,6 +268,22 @@ DIP is the principle that makes **Clean Architecture** and **Hexagonal Architect
 | **LSP** | Subtypes that break supertype contracts cause subtle runtime bugs | Honour behavioural contracts, not just method signatures |
 | **ISP** | Fat interfaces force callers to depend on unused methods | Split interfaces by client need |
 | **DIP** | High-level logic coupled to low-level infrastructure | Both depend on an abstraction; details depend on policies |
+
+!!! warning "SOLID is a guide, not a goal"
+    - **Interface for every class.** An interface with exactly one implementation and no test double adds a file and nothing else. Introduce the abstraction when a second implementation (or a test fake) appears.
+    - **SRP taken to one method per class.** Splitting too far scatters one business concept across ten files; split by *reason to change*, not by line count.
+    - **Inheritance for reuse.** Most LSP violations come from `extends` used to share code; prefer composition and small interfaces.
+    - **Speculative generality.** Principles applied to imagined future requirements produce complexity you pay for today (YAGNI — *You Aren't Gonna Need It*).
+
+---
+
+## Key takeaways
+
+- SOLID is about **managing change**: each principle limits how far a change in one place ripples through the code.
+- **SRP**: one reason to change (one actor) per class. **OCP**: add behaviour by adding classes behind an interface.
+- **LSP**: subtypes and implementations must keep the **behaviour** of the contract — including test doubles and adapters.
+- **ISP**: give each client a small interface with only what it uses. **DIP**: business code owns the interfaces; infrastructure implements them.
+- **DIP + dependency injection** is the bridge to [Clean Architecture](../clean/index.md) and [Hexagonal Architecture](../hexagonal/index.md), where the same ideas are applied to the whole service.
 
 ---
 

@@ -20,6 +20,7 @@ extra_javascript = [
   "assets/javascripts/termynal.js",
   "assets/javascripts/termynal-init.js",
   "assets/javascripts/mermaid-sim.js",
+  "assets/javascripts/i18n.js",
 ]
 
 nav = [
@@ -53,6 +54,8 @@ nav = [
       ] },
       { "5. Security — OAuth2 & Zero Trust" = [
         { "Overview" = "2026.2/classes/security/index.md" },
+        { "OAuth 2.0 & OpenID Connect" = "2026.2/classes/security/oauth/index.md" },
+        { "Zero Trust, mTLS & Secrets" = "2026.2/classes/security/zero-trust/index.md" },
         { "Quiz" = "2026.2/classes/security/quiz.md" },
       ] },
       { "6. Architectures" = [
@@ -401,4 +404,21 @@ minify.minify_html = true
 "markdown-exec" = {}
 # A pasta de provas NÃO vai para o site: docs/ é publicado em insper.github.io/platform.
 # Remova esta entrada depois de aplicar a prova, se quiser divulgá-la.
-exclude.glob = ["2026.2/exams/*"]
+exclude.glob = [
+  "2026.2/exams/*",
+  # Slides (Marp): the .src.md is built into the .html next to it (scripts/slides/build.py)
+  "*/slides/*.src.md",
+  # Portuguese pages: built by scripts/i18n/build.py into site/pt
+  "*.pt.md",
+]
+
+# Language selector: English (default) and Brazilian Portuguese (scripts/i18n/build.py)
+[[project.extra.alternate]]
+name = "English"
+link = "/platform/"
+lang = "en"
+
+[[project.extra.alternate]]
+name = "Português (Brasil)"
+link = "/platform/pt/"
+lang = "pt-BR"

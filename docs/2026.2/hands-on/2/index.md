@@ -33,6 +33,15 @@ The key functionalities of Gateway Microservice are:
 - **Authentication/Authorization**: it will handle the authentication and the authorization of the incoming requests.
 
 
+## Slides
+
+<div class="slides-embed">
+  <iframe src="slides/gateway.html" title="Slides: hands-on 2 — gateway" loading="lazy" allowfullscreen></iframe>
+</div>
+
+Click the slides and use ← → to move through them; **F** goes full screen and **P** opens the presenter view, with the notes.
+[:material-presentation: Open the slides in a new tab](slides/gateway.html){:target="_blank"}
+
 ## Gateway-Service
 
 ``` tree

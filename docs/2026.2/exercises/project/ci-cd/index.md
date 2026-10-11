@@ -1,8 +1,8 @@
 
 ## CI/CD
 
-A integração contínua (CI) e a entrega contínua (CD) são práticas de desenvolvimento de software que ajudam a garantir que seu código esteja sempre em um estado implantável. O Jenkins é uma ferramenta popular para implementar CI/CD em seus projetos.
+Continuous integration (CI) and continuous delivery (CD) are software development practices that help ensure your code is always in a deployable state. Jenkins is a popular tool for implementing CI/CD in your projects.
 
 !!! info "TO DO"
 
-    Complemente seu pipeline de CI/CD de forma que após o push da imagem no Docker Hub, o Jenkins faça o deploy da imagem no EKS.
+    Extend your CI/CD pipeline so that, after the image is pushed to Docker Hub, Jenkins deploys the image to EKS.

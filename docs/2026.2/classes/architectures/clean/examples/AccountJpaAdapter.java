@@ -20,6 +20,11 @@ public class AccountJpaAdapter implements AccountRepository {
     }
 
     @Override
+    public List<Account> findAll() {
+        return jpa.findAll().stream().map(AccountMapper::toDomain).toList();
+    }
+
+    @Override
     public Account save(Account account) {
         AccountTable saved = jpa.save(AccountMapper.toTable(account));
         return AccountMapper.toDomain(saved);

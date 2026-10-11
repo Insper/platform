@@ -6,6 +6,15 @@
 
 The platform currently uses synchronous REST calls for all inter-service communication. Every call the order-service makes — to account-service, to product-service — happens inline, before the response is returned to the client. This works for operations where the caller needs a result immediately. But some operations are fire-and-forget: when an order is created, sending an email confirmation doesn't need to block the customer. This hands-on adds Apache Kafka as the messaging backbone for exactly these cases.
 
+## Slides
+
+<div class="slides-embed">
+  <iframe src="slides/kafka.html" title="Slides: kafka messaging" loading="lazy" allowfullscreen></iframe>
+</div>
+
+Click the slides and use ← → to move through them; **F** goes full screen and **P** opens the presenter view, with the notes.
+[:material-presentation: Open the slides in a new tab](slides/kafka.html){:target="_blank"}
+
 ## 1. Architecture
 
 === "Before"

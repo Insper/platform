@@ -4,6 +4,15 @@
 
 When the gateway scales horizontally, each JVM instance has its own local cache. A request routed to replica 1 caches an account; the same account fetched via replica 2 triggers another database query. A **shared external cache** (Redis) solves this: all replicas read from and write to the same store.
 
+## Slides
+
+<div class="slides-embed">
+  <iframe src="slides/cache.html" title="Slides: in-memory cache" loading="lazy" allowfullscreen></iframe>
+</div>
+
+Click the slides and use ← → to move through them; **F** goes full screen and **P** opens the presenter view, with the notes.
+[:material-presentation: Open the slides in a new tab](slides/cache.html){:target="_blank"}
+
 ## In-Memory Databases
 
 An **in-memory database** (IMDB) keeps its primary working dataset in RAM rather than on disk. Because RAM access latency is measured in nanoseconds while disk access is measured in milliseconds, IMDBs are orders of magnitude faster for read-heavy workloads.

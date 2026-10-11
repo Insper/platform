@@ -1,17 +1,19 @@
 
+You added timeouts, a circuit breaker and a fallback to the call from the order service to the product service. Do they work? The unit tests pass, but nobody has ever seen the breaker open in production — and the first time it matters will be during a real outage, at night, with real customers. The only way to *know* is to cause the failure yourself, on purpose, while you are watching.
+
 **Chaos Engineering** is the discipline of experimenting on a system in order to build confidence in its ability to withstand turbulent conditions in production[^1]. Rather than waiting for failures to happen organically, practitioners inject controlled failures deliberately — and use the results to find and fix weaknesses before real incidents do.
 
-> "The way to make systems more reliable is to make them fail all the time." — Jesse Robbins, co-founder of Chef and early Chaos Engineering practitioner at Amazon[^2]
+> "The best way to avoid failure is to fail constantly." — John Ciancutti, Netflix, 2010[^5]
+
+The idea is older than the name. At Amazon in the early 2000s, Jesse Robbins (later co-founder of Opscode, the company behind Chef) ran **GameDay** exercises that deliberately caused major failures in production systems to expose hidden weaknesses in software and in the teams operating it[^4].
 
 ---
 
 ## Origin: Netflix and the Simian Army
 
-In April 2011, an Amazon Web Services failure in the `us-east-1` region caused a multi-hour outage for a large portion of the internet. Netflix, which had recently migrated to AWS, suffered significant degradation — despite having invested heavily in fault-tolerant design.
+In 2008 a database corruption stopped Netflix from shipping DVDs for three days. The company decided to move away from its own data centre to AWS, accepting that in the cloud individual instances can disappear at any time. During that migration (around 2010) the engineers built **Chaos Monkey**: a service that randomly terminates instances in production during business hours, forcing every team to build services that survive arbitrary instance loss[^5]. Running it during working hours is deliberate — the engineers are at their desks to see and fix what breaks.
 
-The incident revealed a critical gap: Netflix had *designed* for failure but had never *tested* whether the designs actually worked under real conditions. The engineering team's response was **Chaos Monkey**: a service that randomly terminates EC2 instances in production during business hours, forcing engineers to build systems that could survive arbitrary instance loss.
-
-Chaos Monkey became the first member of the **Simian Army** — a collection of tools that introduced different failure scenarios:
+The practice was tested for real in April 2011, when a large AWS failure in the `us-east-1` region took down many well-known sites for hours; Netflix kept streaming, with some degradation, largely because its services were already built to lose instances. That year Netflix described a whole **Simian Army**[^6] — a collection of tools that introduced different failure scenarios:
 
 | Tool | Failure injected |
 |---|---|
@@ -23,7 +25,7 @@ Chaos Monkey became the first member of the **Simian Army** — a collection of 
 | **Security Monkey** | Finds and reports security policy violations |
 | **Chaos Gorilla** | Simulates failure of an entire AWS Availability Zone |
 
-The insight was transformational: **failure is not a special case to be avoided; it is the environment that production systems live in, and the only way to know your system survives it is to test it there.**
+The insight was transformational: **failure is not a special case to be avoided; it is the environment that production systems live in, and the only way to know your system survives it is to test it there.** In 2016 Netflix engineers formalised the practice and gave it its name in an IEEE Software article[^2]; the principles below come from that work.
 
 ---
 
@@ -50,6 +52,8 @@ The [Principles of Chaos Engineering](https://principlesofchaos.org){target="_bl
 
 ## The experiment lifecycle
 
+Each experiment follows the scientific method[^3]: state what you expect, change one variable, measure, and compare.
+
 ``` mermaid-sim
 flowchart LR
     H["1. Hypothesise\nDefine steady state\nand expected behaviour"]
@@ -64,6 +68,19 @@ flowchart LR
 ```
 
 A chaos experiment that **confirms the hypothesis** (the system behaves as expected) builds confidence in that failure mode. An experiment that **falsifies the hypothesis** is a finding: the system does not handle this failure correctly, and the team now knows before a real incident teaches them.
+
+!!! example "An experiment on the store"
+
+    | Step | Content |
+    |---|---|
+    | **Steady state** | `POST /orders`: availability ≥ 99.9% and P95 latency < 500 ms (from the Grafana dashboard of [Hands-on 6](../../../hands-on/6/index.md)). |
+    | **Hypothesis** | "If the product service answers in 3 s instead of 50 ms, the order service's circuit breaker opens within 30 s, orders fail fast with a clear `503`, and `GET /orders` keeps its normal latency." |
+    | **Injection** | Put Toxiproxy between order and product and add a 3 s `latency` toxic — first in the Docker Compose environment, later on one replica. |
+    | **Blast radius** | One environment, 10 minutes, abort if the availability of `GET /orders` drops below 99%. |
+    | **Observe** | `resilience4j_circuitbreaker_state`, error rate and P95 per route, the order service's busy threads, traces in Jaeger. |
+    | **Possible findings** | The Feign read timeout was never configured, so the breaker only counts calls after 60 s; or the retry multiplies calls and the breaker opens too late. |
+
+    Either outcome is useful: a confirmed hypothesis is evidence that the patterns work; a falsified one is a bug found on your terms.
 
 ---
 
@@ -87,7 +104,7 @@ The blast radius of a chaos experiment is the set of users and systems affected 
 ``` mermaid-sim
 flowchart TD
     S1["Stage 1\nUnit / integration tests\n(no users affected)"]
-    S2["Stage 2\nStagin / canary environment\n(internal users only)"]
+    S2["Stage 2\nStaging / canary environment\n(internal users only)"]
     S3["Stage 3\n1% of production traffic\n(small user cohort)"]
     S4["Stage 4\nFull production\n(all traffic, all regions)"]
 
@@ -145,9 +162,35 @@ Chaos engineering without observability is dangerous and unproductive. Before ru
 
 > **Start with observability. Then add resilience patterns. Then run chaos experiments to validate the patterns actually work.**
 
+!!! warning "Common pitfalls"
+
+    - **Chaos without a hypothesis** is just breaking things: if you did not say in advance what should happen, you cannot learn from what did happen.
+    - **Starting in production**: the principle says production is the goal, not the first step. Begin in a test environment and widen the blast radius only when smaller experiments pass.
+    - **No abort switch**: every experiment needs a way to stop it in seconds.
+    - **Fixing nothing**: an experiment whose findings never become tickets only consumed error budget.
+
+---
+
+## Connections
+
+- [SLI / SLO / SLA](../sli-slo-sla/index.md) — the steady state is expressed as SLIs, and experiments spend error budget.
+- [Resilience Patterns](../patterns/index.md) — what chaos experiments verify.
+- [Observability](../../observability/index.md) and [Hands-on 10](../../../hands-on/10/index.md) — you need metrics and traces to observe an experiment.
+- [Hands-on 5](../../../hands-on/5/index.md) — deleting a pod by hand (`kubectl delete pod`) is the simplest chaos experiment you can run on Kubernetes.
+
+## Key takeaways
+
+- Chaos engineering is **experimentation**: a steady-state hypothesis, a controlled injection, measurement and analysis.
+- It grew from Netflix's Chaos Monkey (2010) and the Simian Army, and from Amazon's GameDays.
+- Inject **real-world** failures (instance loss, latency, dependency errors) and keep the **blast radius** small, widening it step by step.
+- A falsified hypothesis is a **finding**, not a failure.
+- Prerequisites: observability, resilience patterns, an automated abort — and a blameless culture.
+
 ---
 
 [^1]: [Principles of Chaos Engineering](https://principlesofchaos.org){target="_blank"}. principlesofchaos.org.
-[^2]: BASIRI, A. et al. [Chaos Engineering](https://dl.acm.org/doi/10.1145/2842766.2899390){target="_blank"}. ACM Queue, 2016.
+[^2]: BASIRI, A. et al. [Chaos Engineering](https://ieeexplore.ieee.org/document/7436642){target="_blank"}. *IEEE Software*, v. 33, n. 3, p. 35–41, 2016.
 [^3]: ROSENTHAL, C.; JONES, N. *Chaos Engineering: System Resiliency in Practice*. O'Reilly, 2020.
-[^4]: CASEY, J. [Resilience Engineering: Learning to Embrace Failure](https://www.infoq.com/presentations/resilience-failure-netflix/){target="_blank"}. Netflix Tech Blog, 2012.
+[^4]: ROBBINS, J. et al. [Resilience Engineering: Learning to Embrace Failure](https://queue.acm.org/detail.cfm?id=2371297){target="_blank"}. *ACM Queue*, v. 10, n. 9, 2012.
+[^5]: CIANCUTTI, J. [5 Lessons We've Learned Using AWS](https://techblog.netflix.com/2010/12/5-lessons-weve-learned-using-aws.html){target="_blank"}. Netflix Tech Blog, Dec. 2010.
+[^6]: IZRAILEVSKY, Y.; TSEITLIN, A. [The Netflix Simian Army](https://techblog.netflix.com/2011/07/netflix-simian-army.html){target="_blank"}. Netflix Tech Blog, Jul. 2011.

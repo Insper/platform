@@ -28,4 +28,10 @@ O material utiliza o [Zensical](https://zensical.org/) para gerar a documentaç�
 zensical serve
 ```
 
-A publicação no GitHub Pages é feita pelo CI a cada push na `main`: ele executa `zensical build --clean` e publica a pasta `site/` no branch `gh-pages`.
+O site tem dois idiomas: inglês (padrão) e português do Brasil. Cada página `X.md` pode ter a tradução `X.pt.md` ao lado. Para visualizar a versão em português:
+
+``` shell
+python scripts/i18n/build.py --serve
+```
+
+A publicação no GitHub Pages é feita pelo CI a cada push na `main`: ele executa `zensical build --clean` e `python scripts/i18n/build.py` (que gera `site/pt/`) e publica a pasta `site/` no branch `gh-pages`.

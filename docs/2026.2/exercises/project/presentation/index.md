@@ -1,36 +1,36 @@
 
-## Apresentação
+## Presentation
 
-A apresentação do seu projeto é uma parte importante do processo de desenvolvimento de software. É a oportunidade de mostrar seu trabalho e explicar como sua aplicação funciona. Use ferramentas como o PowerPoint ou o Google Slides para criar uma apresentação visualmente atraente. Se possível, faça uma demonstração ao vivo da sua aplicação para mostrar como ela funciona na prática, assim bem como um vídeo de apresentação do projeto.
+Presenting your project is an important part of the software development process. It is the opportunity to show your work and explain how your application works. Use tools such as PowerPoint or Google Slides to create a visually appealing presentation. If possible, give a live demo of your application to show how it works in practice, as well as a presentation video of the project.
 
 !!! info "TO DO"
 
-    Crie uma apresentação do seu projeto, incluindo os seguintes tópicos:
+    Create a presentation of your project, covering the following topics:
 
-    - Introdução ao projeto;
-    - Arquitetura do projeto;
-    - Demonstração da aplicação;
-    - Desafios enfrentados - bottlenecks;
-    - Conclusão e próximos passos.
+    - Introduction to the project;
+    - Project architecture;
+    - Application demo;
+    - Challenges faced - bottlenecks;
+    - Conclusion and next steps.
 
-    O vídeo de apresentação deve ter entre 2 e 3 minutos e deve ser enviado junto com a documentação do projeto.
+    The presentation video must be between 2 and 3 minutes long and must be submitted together with the project documentation.
 
-!!! tip "Video de Apresentação"
+!!! tip "Presentation Video"
 
-    Excepcionalmente, nesta edição do curso, a apresentação do projeto será feita através de um vídeo de 3 a 5 minutos, onde cada grupo deve apresentar o projeto e os bottlenecks implementados. O vídeo deve ser enviado junto com a documentação do projeto.
+    Exceptionally, in this edition of the course, the project presentation will be a 3 to 5 minute video, in which each group must present the project and the bottlenecks implemented. The video must be submitted together with the project documentation.
 
-!!! danger "Entrega"
+!!! danger "Delivery"
 
-    Individualmente, cada aluno deve criar um repositório no GitHub, com a documentação em MkDocs dos exercícios realizados e também com o projeto e entrega o link via BlabkBoard. Na documentação publicada deve constar:
+    Individually, each student must create a GitHub repository with the MkDocs documentation of the exercises done and also of the project, and submit the link via Blackboard. The published documentation must include:
 
-    - Nome do aluno e grupo;
-    - Documentação das atividades realizadas;
-    - Código fonte das atividades realizadas;
-    - Documentação do projeto;
-    - Código fonte do projeto;
-    - Link para todos os repositórios utilizados;
-    - Destaques para os bottlenecks implementados (ao menos 2 por indivíduo);
-    - Apresentação do projeto;
-    - Vídeo de apresentação do projeto (2-3 minutos);
+    - Student's name and group;
+    - Documentation of the activities done;
+    - Source code of the activities done;
+    - Project documentation;
+    - Project source code;
+    - Links to all repositories used;
+    - Highlights of the bottlenecks implemented (at least 2 per individual);
+    - Project presentation;
+    - Project presentation video (2-3 minutes);
     
-    Um template de documentação pode ser encontrado em [Template de Documentação](https://hsandmann.github.io/documentation.template/){target="_blank"}.
+    A documentation template can be found at [Documentation Template](https://hsandmann.github.io/documentation.template/){target="_blank"}.

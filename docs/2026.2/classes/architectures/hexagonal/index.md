@@ -1,5 +1,7 @@
 
-[Hexagonal Architecture](https://alistair.cockburn.us/hexagonal-architecture/){:target="_blank"} — also called **Ports & Adapters** — was introduced by Alistair Cockburn in 2005. The idea is to place the application core at the centre and expose it through *ports* (interfaces), which external *adapters* connect to. The hexagon shape is arbitrary; it signals that the application has multiple equivalent entry/exit points with no privileged side[^1].
+Look at the `auth-service` of [Hands-on 3](../../../hands-on/3/index.md) from the outside. It is *called* by the gateway over HTTP, and could soon be called by a Kafka consumer or a CLI tool for administrators; your tests want to call it too. It *calls* other things: `account-service` via Feign, a JWT library, maybe Redis for revoked tokens. Layer diagrams draw HTTP "on top" and the database "at the bottom", but for the business logic they are the same kind of thing — **the outside world** — and each of them should be replaceable without touching the login rules.
+
+[Hexagonal Architecture](https://alistair.cockburn.us/hexagonal-architecture/){:target="_blank"} — also called **Ports & Adapters** — was introduced by Alistair Cockburn in 2005. The idea is to place the application core at the centre and expose it through *ports* (interfaces), which external *adapters* connect to. The hexagon shape is arbitrary; it signals that the application has multiple equivalent entry/exit points with no privileged side — there is no "top" and "bottom", only **inside** and **outside**[^1].
 
 ``` mermaid-sim
 flowchart LR
@@ -57,13 +59,14 @@ The implementation of this interface also lives inside the core — it is the ap
 // Also inside the core — depends only on secondary ports
 public class AuthServiceImpl implements AuthService {
     private final AccountRepository accounts; // ← secondary port
+    private final JwtService jwt;
 
     @Override
     public TokenOut login(String email, String password) {
         Account account = accounts.findByEmail(email)
-            .orElseThrow(() -> new InvalidCredentialsException());
-        account.validatePassword(password);
-        return TokenOut.issue(account);
+            .filter(a -> a.matchesPassword(password))
+            .orElseThrow(InvalidCredentialsException::new);
+        return new TokenOut(jwt.generate(account));
     }
 }
 ```
@@ -116,7 +119,7 @@ An adapter is a class that **translates** between an external technology and a p
         public void run(String[] args) {
             String email = args[0], password = args[1];
             TokenOut token = authService.login(email, password);
-            System.out.println("Token: " + token.value());
+            System.out.println("Token: " + token.token());
         }
     }
     ```
@@ -167,6 +170,48 @@ An adapter is a class that **translates** between an external technology and a p
   ![Hexagonal Architecture](https://upload.wikimedia.org/wikipedia/commons/thumb/7/75/Hexagonal_Architecture.svg/1920px-Hexagonal_Architecture.svg.png){ width="80%" }
   <figcaption><i>Source: <a href="https://en.wikipedia.org/wiki/Hexagonal_architecture_(software)" target="_blank">Wikipedia — Hexagonal Architecture</a></i></figcaption>
 </figure>
+
+---
+
+### A request through the hexagon
+
+A login crosses the hexagon twice: in through a primary port, out through a secondary port, and back.
+
+``` mermaid-sim
+sequenceDiagram
+    autonumber
+    participant GW as gateway
+    participant In as AuthController (driving adapter)
+    participant Core as AuthServiceImpl (core)
+    participant Out as AccountJpaAdapter (driven adapter)
+    participant DB as Postgres
+    GW->>In: POST /auth/login {email, password}
+    In->>Core: login(email, password) via AuthService port
+    Core->>Out: findByEmail(email) via AccountRepository port
+    Out->>DB: SELECT ... WHERE email = ?
+    DB-->>Out: row
+    Out-->>Core: Account (mapped from AccountTable)
+    Core->>Core: matchesPassword, generate JWT
+    Core-->>In: TokenOut
+    In-->>GW: 200 OK + token
+```
+
+Replace the first participant with a test and the fourth with `InMemoryAccountRepository`, and the core runs exactly the same code — that is the whole point.
+
+### The store's services as hexagons
+
+| Outside actor | Kind | Adapter in the store |
+|---|---|---|
+| Gateway calling `POST /auth/login` | driving | `AuthResource` / `AuthController` (REST) |
+| Kafka topic `accounts` (see [Hands-on 9](../../../hands-on/9/index.md)) | driving | a `@KafkaListener` consumer |
+| JUnit test | driving | the test class itself |
+| `account-service` | driven | Feign client (`AccountController` in Hands-on 3) |
+| Postgres | driven | `AccountJpaAdapter` |
+| Redis (cache, revoked tokens) | driven | a Redis adapter (see [Hands-on 8](../../../hands-on/8/index.md)) |
+| Kafka (publishing `AccountCreated`) | driven | a `KafkaTemplate` adapter |
+
+!!! info "Hands-on 3, read through this lens"
+    In Hands-on 3, `AuthService` calls the Feign interface `AccountController` directly. That interface is defined by the `account` API module, not by the auth core — so the port is shaped by the remote service, and a change in `account`'s API reaches the login logic. The strict hexagonal version declares a small port in the auth core (for example `AccountLookup.findByEmail`) and makes the Feign client one adapter behind it.
 
 ---
 
@@ -263,8 +308,23 @@ com.example.auth/
 !!! warning "The core importing the adapter"
     Any `import com.example.adapter.*` inside the domain or application package is an immediate violation. Dependency injection (Spring, CDI) should resolve the adapter at runtime, not at compile time.
 
-!!! warning "Too many ports"
-    One port per use case leads to interface explosion. Group related operations — `AccountRepository` is one port, not separate ports for `findByEmail`, `save`, and `delete`.
+!!! warning "Wrong port granularity"
+    One port *per method* (`FindAccountByEmailPort`, `SaveAccountPort`, `DeleteAccountPort`…) leads to interface explosion. Group operations by cohesion — `AccountRepository` is one port for one concept. On the driving side, one interface per **use case** (`RegisterAccountUseCase`, `LoginUseCase`) is a legitimate style that keeps each interface small (ISP); a single `AuthService` with a few related methods is also fine. Pick one convention per service and keep it.
+
+!!! warning "Leaking domain objects through the driving adapter"
+    Returning the domain `Account` (with its `passwordHash`) straight from the REST controller couples the HTTP contract to the domain — and here leaks a secret. Driving adapters convert domain results into response records (`TokenOut`, `AccountOut`).
+
+---
+
+## Key takeaways
+
+- The application has an **inside** (domain + application services) and an **outside** (everything else); there is no privileged top or bottom.
+- **Ports** are interfaces owned by the core: **driving/primary** ports say what the application *offers*; **driven/secondary** ports say what it *needs*.
+- **Adapters** translate between a technology and a port: REST, CLI, Kafka listeners and tests *drive* the core; JPA, Feign, Redis and Kafka producers are *driven* by it.
+- Ports are named in **domain terms**, never shaped by the technology behind them.
+- Swapping driven adapters for in-memory ones lets the core be tested with plain JUnit in milliseconds — compare with the layers of [Clean Architecture](../clean/index.md), which describe the inside of the hexagon.
+
+Video introductions: CodeOpinion[^2] (English) and Fernanda Kipper[^3] (Portuguese).
 
 ---
 

@@ -27,6 +27,12 @@ public class Account {
         );
     }
 
+    // Rebuilds an Account that already exists (e.g. loaded from the database):
+    // no validation and no new id — the data was validated when it was created.
+    public static Account reconstruct(String id, String name, String email, String passwordHash) {
+        return new Account(id, name, email, passwordHash);
+    }
+
     public boolean matchesPassword(String rawPassword) {
         return PasswordHash.verify(rawPassword, this.passwordHash);
     }

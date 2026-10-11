@@ -1,22 +1,22 @@
 
-## Configuração do EKS
+## EKS Setup
 
-O Amazon Elastic Kubernetes Service (EKS) é um serviço gerenciado que facilita a execução do Kubernetes na AWS sem a necessidade de instalar e operar seu próprio plano de controle ou nós de trabalho do Kubernetes. O EKS cuida da alta disponibilidade e escalabilidade do plano de controle do Kubernetes, permitindo que você se concentre em implantar e gerenciar seus aplicativos.
+Amazon Elastic Kubernetes Service (EKS) is a managed service that makes it easy to run Kubernetes on AWS without having to install and operate your own Kubernetes control plane or worker nodes. EKS takes care of the high availability and scalability of the Kubernetes control plane, letting you focus on deploying and managing your applications.
 
 [EKS](https://docs.aws.amazon.com/latest/userguide/getting-started.html){target="_blank"}
 
-!!! danger "Custo de Uso"
+!!! danger "Usage Cost"
 
-    O custo de uso do EKS pode variar dependendo da região e dos serviços utilizados. É importante monitorar os custos e otimizar o uso dos recursos para evitar surpresas na fatura. Você pode usar a calculadora de preços da AWS para estimar os custos do seu projeto.
+    The cost of using EKS can vary depending on the region and the services used. It is important to monitor costs and optimize resource usage to avoid surprises on the bill. You can use the AWS pricing calculator to estimate your project's costs.
 
-    **CUIDADO**: o tipo de instância EC2 é um dos principais fatores que afetam o custo do EKS. Instâncias maiores e mais poderosas custam mais, enquanto instâncias menores e menos poderosas custam menos. Além disso, o uso de recursos adicionais, como armazenamento em bloco e balanceadores de carga, também pode aumentar os custos[^1].
+    **CAUTION**: the EC2 instance type is one of the main factors affecting the cost of EKS. Larger, more powerful instances cost more, while smaller, less powerful instances cost less. In addition, the use of extra resources, such as block storage and load balancers, can also increase costs[^1].
 
 
 !!! info "TO DO"
 
-    Faça um cluster EKS e faça o deploy da aplicação Spring Boot no cluster. Você pode usar o AWS CLI ou o console da AWS para criar e gerenciar seu cluster EKS.
+    Create an EKS cluster and deploy the Spring Boot application to the cluster. You can use the AWS CLI or the AWS console to create and manage your EKS cluster.
 
-    Para implementar a base de dados, você pode usar o Amazon RDS (Relational Database Service) ou o Amazon DynamoDB, dependendo das necessidades do seu projeto. 
+    To implement the database, you can use Amazon RDS (Relational Database Service) or Amazon DynamoDB, depending on your project's needs. 
 
 !!! tip "Roadmap"
 

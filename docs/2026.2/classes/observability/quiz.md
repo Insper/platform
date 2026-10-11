@@ -29,7 +29,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 ??? success "Answer"
     **C — Histograms are aggregatable; summaries are not.**
 
-    A Summary calculates quantiles inside the application process — once exported, the `p99` value of instance A and instance B cannot be meaningfully combined. A Histogram exports raw bucket counts, so `histogram_quantile(0.99, sum(rate(http_duration_bucket[5m])))` correctly computes the p99 across all instances and across any chosen time window. In a horizontally-scaled microservice this distinction is critical.
+    A Summary calculates quantiles inside the application process — once exported, the `p99` value of instance A and instance B cannot be meaningfully combined. A Histogram exports raw bucket counts, so `histogram_quantile(0.99, sum by (le) (rate(http_server_requests_seconds_bucket[5m])))` correctly computes the p99 across all instances and across any chosen time window. In a horizontally-scaled microservice this distinction is critical.
 
 ---
 
@@ -61,7 +61,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 ??? success "Answer"
     **B — Attaches key-value pairs to every log line on the current thread.**
 
-    MDC stores a thread-local map that the logging framework (Logback, Log4j2) automatically appends to every log statement using a pattern like `%X{traceId}`. When OpenTelemetry propagates the `traceId` into MDC at the entry point of a request, every subsequent log line — across all called methods in that thread — carries the same ID, making it trivial to filter an entire request's log history with a single query.
+    MDC stores a thread-local map whose values the logging framework (Logback, Log4j2) can print in every log line using a pattern like `%X{trace_id}`. With the OpenTelemetry Java agent, the agent itself puts `trace_id` and `span_id` into the MDC while a span is active, so every log line of the request carries the same ID with no application code — making it trivial to filter an entire request's log history with a single query. `MDC.put` is still useful for your own business keys (customer ID, order ID), which you must remove at the end of the request.
 
 ---
 
@@ -134,12 +134,12 @@ Click **"Answer"** to reveal the correct answer and explanation.
 - A. Deployment Frequency — more deploys means faster response
 - B. Lead Time for Changes — measures the full commit-to-production pipeline
 - C. Change Failure Rate — tracks how often deployments cause incidents
-- D. Mean Time to Recovery (MTTR) — measures elapsed time from incident start to service restoration
+- D. Failed Deployment Recovery Time (formerly MTTR / time to restore service) — measures elapsed time from a failure to service restoration
 
 ??? success "Answer"
-    **D — Mean Time to Recovery (MTTR).**
+    **D — Failed Deployment Recovery Time (formerly MTTR).**
 
-    MTTR is defined as the time from when an incident is detected (typically when an alert fires) to when the service is restored to normal operation. It directly captures incident response effectiveness — including detection speed, diagnosis time, fix deployment, and verification. The other three metrics measure delivery throughput and reliability, not recovery speed. Elite teams achieve MTTR under one hour.
+    This metric is the time from when a failure starts (typically when an alert fires) to when the service is restored to normal operation. It directly captures incident response effectiveness — including detection speed, diagnosis time, fix deployment, and verification. Deployment frequency and lead time measure throughput; change failure rate measures how often changes break things, not how fast you recover. Elite teams recover in under one hour.
 
 ---
 
@@ -156,3 +156,62 @@ Click **"Answer"** to reveal the correct answer and explanation.
     **B — Java bytecode instrumentation via `java.lang.instrument`.**
 
     The JVM's `java.lang.instrument` API, combined with a `ClassFileTransformer`, allows a `-javaagent` JAR to intercept every class as it is loaded and rewrite its bytecode before it reaches the application. The OTel Java agent uses this mechanism to inject span creation, HTTP header propagation, and JDBC tracing into Spring MVC, RestTemplate, WebClient, Hibernate, and dozens of other libraries — all without touching the application source code.
+
+---
+
+## Added topics
+
+**Q11.** A developer adds the label `userId` to the metric `http_server_requests_seconds` so they can see the latency of each user. The store has 200,000 users. What is the problem?
+
+- A. None — Prometheus compresses labels, so extra labels are free
+- B. Every distinct label value creates a new time series; hundreds of thousands of series per endpoint and status make Prometheus' memory and query cost explode (high cardinality)
+- C. Prometheus rejects labels whose name ends in `Id`
+- D. The metric becomes a gauge instead of a histogram
+
+??? success "Answer"
+    **B — Unbounded label cardinality.**
+
+    A time series is identified by its metric name plus the full set of label values, so 200,000 users × each URI × each status × each histogram bucket is millions of series. Per-user detail belongs in **logs and traces** (which are designed for high-cardinality fields); metrics should use bounded labels such as `uri` (the template `/orders/{id}`), `method` and `status`.
+
+---
+
+**Q12.** The services use head sampling at 10%, and the OTel Collector has a tail-sampling rule "keep 100% of traces with an ERROR span". What fraction of error traces ends up in Jaeger?
+
+- A. 100% — the tail rule overrides the head decision
+- B. About 10% — traces dropped by head sampling are never sent to the Collector, so the tail rule cannot recover them
+- C. 0% — head and tail sampling cannot be combined
+- D. 110% — the two rules add up
+
+??? success "Answer"
+    **B — About 10%.**
+
+    Sampling decisions are applied in sequence: a trace not sampled at the head is never recorded or exported, so the Collector never sees it. To keep all error traces, sample 100% (or a high ratio) at the head and let the Collector's tail-sampling policy keep all error/slow traces plus a small fraction of the others.
+
+---
+
+**Q13.** Why should `histogram_quantile` be applied to `sum by (le) (rate(..._bucket[5m]))` rather than to `sum(rate(..._bucket[5m]))`?
+
+- A. `sum` without `by (le)` merges all buckets into one number, removing the bucket boundaries that `histogram_quantile` needs to estimate the percentile
+- B. `by (le)` makes the query faster but gives the same result
+- C. `le` stands for "latency estimate" and is required by Grafana
+- D. Without `by (le)` the result is in milliseconds instead of seconds
+
+??? success "Answer"
+    **A — The `le` label carries the bucket boundaries.**
+
+    Each histogram bucket is a series with an `le` ("less than or equal") label, such as `le="0.1"`. Summing across instances must keep `le` so that each bucket's counts from all instances are added together; summing everything into one number destroys the distribution and `histogram_quantile` returns nothing useful.
+
+---
+
+**Q14.** Which alert is the best one to wake up the on-call engineer at 3 a.m.?
+
+- A. CPU of an order-service pod above 80% for 5 minutes
+- B. JVM heap usage above 70%
+- C. More than 5% of `POST /orders` requests returning 5xx for 5 minutes (or the SLO error budget burning at 14.4×)
+- D. A new deployment was made
+
+??? success "Answer"
+    **C — Alert on a symptom users feel.**
+
+    Paging alerts should be urgent, actionable and tied to user impact: failing orders are exactly that. High CPU or heap usage (A, B) may be perfectly normal while users are happy — they are causes worth a dashboard or a ticket, not a page. A deployment (D) is an event to annotate on dashboards, not an alert.
+

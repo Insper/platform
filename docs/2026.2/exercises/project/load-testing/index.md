@@ -1,20 +1,20 @@
 
-## Testes de Carga
+## Load Testing
 
-Os testes de carga são uma parte importante do desenvolvimento de software, pois ajudam a garantir que sua aplicação possa lidar com o tráfego esperado. Existem várias ferramentas disponíveis para realizar testes de carga, incluindo Apache JMeter, Gatling e Locust.
+Load tests are an important part of software development, as they help ensure that your application can handle the expected traffic. Several tools are available to run load tests, including Apache JMeter, Gatling and Locust.
 
 [Kubernetes - HPA - Increase the load](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale-walkthrough/#increase-load){target="_blank"}
 
 !!! info "TO DO"
 
-    Faça um teste de carga na sua aplicação Spring Boot. Grave um video do teste de carga, mostrando:
-    - O teste de carga em execução;
-    - HPA (Horizontal Pod Autoscaler) em execução.
+    Run a load test on your Spring Boot application. Record a video of the load test, showing:
+    - The load test running;
+    - The HPA (Horizontal Pod Autoscaler) running.
 
-    !!! tip "Dicas"
+    !!! tip "Tips"
 
-    - No do link do HPA, você encontrará um exemplo de teste de carga. Ele aponta para um apache httpd, mas você pode adaptá-lo para o seu projeto Spring Boot;
-    - Um endereço de exemplo para o teste de carga é: `http://<dns-name>/info`. Pois o `gateway` possui um endpoint `/info` que retorna informações sobre a aplicação. Você pode usar esse endpoint para testar a carga da sua aplicação.
+    - In the HPA link, you will find an example of a load test. It targets an Apache httpd, but you can adapt it to your Spring Boot project;
+    - An example address for the load test is: `http://<dns-name>/info`, since the `gateway` has an `/info` endpoint that returns information about the application. You can use this endpoint to load test your application.
 
     !!! example "Example of HPA"
 

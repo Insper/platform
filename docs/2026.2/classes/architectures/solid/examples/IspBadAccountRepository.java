@@ -20,5 +20,6 @@ public interface AccountRepository {
     List<Account> findInactive(Duration since);
 }
 
-// ReadOnlyAccountService is forced to implement (or stub) write and admin methods
-// even though it never uses them — a clear ISP violation.
+// A read-only client (e.g. a profile page service) now depends on all nine methods:
+// a change to bulkImport() or countByRegion() affects it, and any test fake of this
+// interface must stub write, admin and reporting methods it never calls.

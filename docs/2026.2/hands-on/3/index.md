@@ -8,6 +8,15 @@ Security is a critical aspect of any platform. In a microservice architecture, a
 
 - **Authorization** is the process of verifying what the authenticated user has access to. The Gateway intercepts every request and checks the JWT before routing it to any secured service.
 
+## Slides
+
+<div class="slides-embed">
+  <iframe src="slides/security.html" title="Slides: hands-on 3 — security" loading="lazy" allowfullscreen></iframe>
+</div>
+
+Click the slides and use ← → to move through them; **F** goes full screen and **P** opens the presenter view, with the notes.
+[:material-presentation: Open the slides in a new tab](slides/security.html){:target="_blank"}
+
 ``` mermaid-sim
 flowchart LR
     subgraph api [Trusted Layer]

@@ -1,281 +1,140 @@
 # Security: OAuth 2.0, OIDC & Zero Trust
 
-The previous security hands-on introduced JSON Web Tokens as the mechanism for carrying identity across services. JWT is a transport format — it answers "who is this user?" But it says nothing about how that user proved their identity, who issued the token, or whether it should be trusted by a third-party service. OAuth 2.0 and OpenID Connect fill these gaps, and Zero Trust architecture takes the next step: distrust everything, verify always.
+In [Hands-on 3](../../hands-on/3/index.md) we secured the store with a homemade scheme: `auth-service` checks the password, signs a JSON Web Token (JWT) with an HMAC secret and returns it in a cookie; on every request the gateway asks `auth-service` to resolve the token and forwards the caller's id in the `id-account` header. That works for one web app with one login form. Now the store wants **"Sign in with Google"**, a **mobile app**, a **nightly job** that calls `order-service` with no user behind it, and — one day — a vulnerable library lets an attacker run code inside the `product-service` pod. The homemade scheme has no answer to any of these.
+
+JWT is a transport format — it carries claims such as "this is account 42". It says nothing about how the user proved their identity, who may issue tokens, how a third-party app gets access without seeing the password, or why one service should trust a call from another. **OAuth 2.0** and **OpenID Connect** are the standards that fill these gaps; **Zero Trust** is the architecture that stops trusting the network itself: distrust everything, verify always.
+
+!!! abstract "Learning objectives"
+
+    By the end of this class you should be able to:
+
+    - **Distinguish** authentication from authorization and point out which component of the store performs each one.
+    - **Explain** the four OAuth 2.0 roles and **choose** the right grant (Authorization Code + PKCE, Client Credentials, Device Code) for a given client.
+    - **Compare** access, refresh and ID tokens, and explain what OpenID Connect adds on top of OAuth 2.0.
+    - **Configure** a gateway to validate JWTs locally with a JWKS, and **compare** it with the remote validation (`/auth/solve`) used in Hands-on 3.
+    - **Apply** Zero Trust controls — mTLS, NetworkPolicy, least privilege — to service-to-service traffic in Kubernetes.
+    - **Choose** a secrets-management approach and explain why a base64 Kubernetes Secret is not encryption.
 
 !!! warning "Prerequisite"
-    This class builds on the JWT concepts from Hands-on 3. Make sure you are comfortable with JWT structure (header.payload.signature), the `sub`, `exp`, and `iss` claims, and how the Gateway validates tokens before reading this.
+    This class builds on the JWT concepts from [Hands-on 3](../../hands-on/3/index.md). Make sure you are comfortable with the JWT structure (header.payload.signature), the `sub`, `exp` and `iss` claims, and how the gateway validates tokens before reading this — see [Hands-on 3 — JWT](../../hands-on/3/jwt/index.md) and [Hands-on 3 — Authorization](../../hands-on/3/authorization/index.md).
+
+## Slides
+
+<div class="slides-embed">
+  <iframe src="slides/security.html" title="Slides: security — oauth2 & zero trust" loading="lazy" allowfullscreen></iframe>
+</div>
+
+Click the slides and use ← → to move through them; **F** goes full screen and **P** opens the presenter view, with the notes.
+[:material-presentation: Open the slides in a new tab](slides/security.html){:target="_blank"}
 
 ---
 
-## What JWT Alone Cannot Do
+## Roadmap
 
-| Problem | JWT alone | OAuth 2.0 + OIDC |
-|---|---|---|
-| Third-party login (Google, GitHub) | ✗ Cannot delegate | ✓ Authorization Code flow |
-| Token revocation before expiry | ✗ Self-contained, cannot be revoked | ✓ Token introspection endpoint |
-| Key rotation without redeployment | ✗ Secret hardcoded in services | ✓ JWKS endpoint — keys fetched dynamically |
-| Service-to-service auth | ✗ Usually shares user JWT (wrong) | ✓ Client Credentials grant |
-| User identity (not just auth) | ✗ JWT only proves auth | ✓ OIDC ID Token + UserInfo endpoint |
+1. **Overview** (this page) — authentication vs. authorization, what Hands-on 3 built, what JWT alone cannot do, and the map of security layers of the store.
+2. [OAuth 2.0 & OpenID Connect](oauth/index.md) — roles, tokens and scopes, grant types (Authorization Code + PKCE, Client Credentials), OIDC and the ID Token, and how the gateway validates tokens (JWKS vs. introspection).
+3. [Zero Trust, mTLS & Secrets](zero-trust/index.md) — perimeter vs. Zero Trust, mutual TLS and workload identity, Kubernetes NetworkPolicy, and secrets management.
 
 ---
 
-## OAuth 2.0
+## Authentication vs. authorization
 
-### Roles
+Two questions are asked on every request, and they are often confused:
 
-| Role | Description | Example |
+| | **Authentication** (authN) | **Authorization** (authZ) |
 |---|---|---|
-| **Resource Owner** | The user who owns the data | End user of the app |
-| **Client** | The application requesting access | Your frontend / mobile app |
-| **Authorization Server** | Issues tokens after authenticating the user | Keycloak, Auth0, AWS Cognito |
-| **Resource Server** | API that holds the protected resource | order-service, account-service |
+| Question | *Who are you?* | *What are you allowed to do?* |
+| Input | a **credential**: password, certificate, token | the authenticated identity + a **policy** (roles, scopes, ownership) |
+| Failure | `401 Unauthorized` (no or invalid credential) | `403 Forbidden` (valid identity, not allowed) |
+| In the store | `auth-service` checks email + password at `POST /auth/login`; the gateway checks the token on each request | `order-service` checks that order `123` belongs to the `id-account` that asked for it |
 
-### Grant Types
+A few terms used throughout the class:
 
-| Grant Type | Use Case | Security Level |
-|---|---|---|
-| **Authorization Code + PKCE** | Web/mobile apps where a user logs in | Highest — recommended default |
-| **Client Credentials** | Service-to-service (no user involved) | High (machine-to-machine) |
-| **Device Code** | Devices without a browser (smart TV, CLI) | Medium |
-| **Resource Owner Password (ROPC)** | Legacy — avoid completely | Low — exposes credentials to client |
+- **Principal** — the authenticated entity: a user (`ada@store.com`) or a workload (`order-service`).
+- **Credential** — what a principal presents to prove its identity (a password, a private key, a token).
+- **Token** — a string issued after authentication that the principal presents instead of the credential. A **bearer token** grants access to *whoever holds it*, like cash: steal it and you can spend it.
+- **Claim** — a statement inside a token, such as `"sub": "42"` or `"scope": "orders:read"`.
 
-!!! danger "Never use ROPC"
-    Resource Owner Password Credentials grant requires the client to collect the user's username and password directly. This defeats the entire purpose of OAuth 2.0 (delegated authorization without sharing credentials). It is deprecated in OAuth 2.1 and should never appear in new code.
+!!! warning "Authorization is not done once at the gateway"
+    The gateway can say "this is account 42". Only `order-service` knows whether order `123` belongs to account 42. Forgetting this check — `GET /orders/123` returns any order to any logged-in user — is **Broken Object Level Authorization**, the number-one risk in the OWASP API Security Top 10 (2023)[^1].
 
-### Authorization Code + PKCE Flow
+---
+
+## What Hands-on 3 built
+
+The flow below is the one you implemented: the token is a **reference** that only `auth-service` can read, and the gateway asks for it on every call.
 
 ``` mermaid-sim
 sequenceDiagram
     autonumber
-    actor User
-    participant App as Client App\n(Browser/Mobile)
-    participant Auth as Authorization Server\n(Keycloak)
-    participant API as Resource Server\n(order-service)
-
-    User->>App: click "Login"
-    App->>App: generate code_verifier + code_challenge (S256)
-    App->>Auth: GET /authorize?response_type=code&client_id=...&code_challenge=...
-    Auth->>User: login form
-    User->>Auth: credentials
-    Auth->>App: redirect with ?code=AUTH_CODE
-    App->>Auth: POST /token {code, code_verifier}
-    Auth->>App: {access_token, refresh_token, id_token}
-    App->>API: GET /orders Authorization: Bearer access_token
-    API->>Auth: GET /jwks (validate token signature)
-    API->>App: 200 OK order data
+    actor B as Browser
+    participant GW as gateway-service
+    participant AU as auth-service
+    participant AC as account-service
+    B->>GW: POST /auth/login {email, password}
+    GW->>AU: forward (open route)
+    AU->>AU: check password, sign JWT (HMAC secret)
+    AU-->>B: Set-Cookie: __store_jwt_token
+    B->>GW: GET /accounts/me + cookie
+    GW->>AU: POST /auth/solve {token}
+    AU-->>GW: {idAccount}
+    GW->>AC: GET /accounts/me + id-account header
+    AC-->>B: 200 OK
 ```
 
-### Access Token Lifecycle
+It is a sound design for a single application, and it has three properties worth naming:
 
-``` mermaid-sim
-stateDiagram-v2
-    [*] --> Active : token issued
-    Active --> Expired : exp claim reached
-    Active --> Revoked : logout / admin action
-    Expired --> [*]
-    Revoked --> [*]
-    Active --> Refreshed : client uses refresh_token
-    Refreshed --> Active : new access_token issued
-```
+- **Symmetric signature (HMAC, e.g. HS256)** — the same secret signs and verifies. Only `auth-service` holds `JWT_SECRET_KEY`, so only it can validate tokens; that is why the gateway must call it.
+- **Remote validation** — one extra network hop per request, but `auth-service` could refuse a token immediately (for example, after logout).
+- **Trust in the network** — `account-service` believes any `id-account` header, because only the gateway can reach it inside the Docker network.
 
-The **access token** is short-lived (typically 5–60 minutes) and sent with every API request. The **refresh token** is long-lived (days to weeks), stored securely by the client, and used only to obtain new access tokens without prompting the user to log in again.
+## What JWT alone cannot do
+
+| Problem | Homemade JWT (Hands-on 3) | Standard answer | Where |
+|---|---|---|---|
+| Third-party login ("Sign in with Google") | ✗ no way to delegate | Authorization Code + PKCE flow | [OAuth](oauth/index.md#authorization-code-pkce) |
+| Service-to-service calls with no user | ✗ no standard; services reuse a user token or a shared password | Client Credentials grant | [OAuth](oauth/index.md#client-credentials) |
+| Let other services verify tokens themselves | ✗ HMAC secret would have to be copied to every service | asymmetric keys published as a JWKS | [OAuth](oauth/index.md#local-validation-with-jwks) |
+| Revoke a token before it expires | only with a remote check on every call | short-lived access tokens + refresh tokens; introspection | [OAuth](oauth/index.md#token-lifecycle) |
+| Standard user identity for the client app | ✗ ad-hoc claims | OIDC ID Token + UserInfo endpoint | [OAuth](oauth/index.md#openid-connect-oidc) |
+| A compromised pod calling other services | ✗ the internal network is trusted | mTLS, NetworkPolicy, authorization policies | [Zero Trust](zero-trust/index.md) |
 
 ---
 
-## OpenID Connect (OIDC)
+## The security layers of the store
 
-OAuth 2.0 handles authorization ("can this client access this resource?"). OpenID Connect adds authentication ("who is this user?") by defining an ID Token — a JWT with standardised user claims.
-
-OIDC extends OAuth 2.0 with three additions:
-
-- The `openid` scope in the authorization request
-- **ID Token** — a JWT containing user identity claims (`sub`, `name`, `email`, `iss`, `aud`)
-- **UserInfo endpoint** — `GET /userinfo` returns additional profile claims on demand
-
-### ID Token Claims
-
-| Claim | Meaning |
-|---|---|
-| `sub` | Subject — unique user identifier at this provider |
-| `iss` | Issuer — URL of the authorization server |
-| `aud` | Audience — must match the client_id |
-| `exp` / `iat` | Expiry / issued-at timestamps |
-| `name`, `email` | Standard user profile claims |
-| `nonce` | Replay attack prevention |
-
-### OAuth 2.0 and OIDC Layers
-
-``` mermaid-sim
-flowchart TB
-    subgraph "OIDC Layer (identity)"
-        id["ID Token\n(who is the user?)"]
-        ui["UserInfo Endpoint"]
-    end
-    subgraph "OAuth 2.0 Layer (authorization)"
-        at["Access Token\n(what can the client do?)"]
-        rt["Refresh Token"]
-    end
-    app["Client App"] --> at & id
-```
-
-The Authorization Server exposes a discovery document at `GET /.well-known/openid-configuration` which returns all endpoint URLs, supported scopes, and the JWKS URI. Clients can bootstrap automatically without hardcoded configuration.
-
-### Common OIDC Providers
-
-| Provider | Use case |
-|---|---|
-| **Keycloak** | Self-hosted, full-featured, ideal for internal services |
-| **Auth0** | Managed cloud, fast integration |
-| **AWS Cognito** | Native AWS integration |
-| **Google / GitHub** | Social login for public-facing apps |
-
----
-
-## Token Validation at the Gateway
-
-Rather than every microservice validating tokens independently, the Gateway is the single validation point. This keeps auth logic in one place and lets downstream services remain simple.
-
-JWKS-based validation flow:
-
-1. The Auth Server publishes public keys at `/jwks.json`
-2. The Gateway fetches and caches JWKS on startup
-3. Each incoming request carries `Authorization: Bearer <token>`
-4. The Gateway verifies the token signature using the cached JWKS
-5. On a `kid` miss (key rotation): re-fetch JWKS once, then retry validation
-
-``` mermaid-sim
-sequenceDiagram
-    participant C as Client
-    participant GW as API Gateway
-    participant Auth as Auth Server
-    participant SVC as order-service
-
-    C->>GW: GET /orders Bearer token
-    GW->>GW: validate token signature\n(using cached JWKS)
-    alt token invalid
-        GW-->>C: 401 Unauthorized
-    else token valid
-        GW->>SVC: GET /orders\n+ X-User-Id, X-User-Role headers
-        SVC-->>GW: 200 OK
-        GW-->>C: 200 OK
-    end
-    Note over GW,Auth: JWKS re-fetched on cache miss / key rotation
-```
-
-=== "application.yml"
-    ```yaml
-    spring:
-      security:
-        oauth2:
-          resourceserver:
-            jwt:
-              jwk-set-uri: http://keycloak:8080/realms/store/protocol/openid-connect/certs
-    ```
-
-!!! tip "Forward user context downstream"
-    After validation, the Gateway should forward user identity as trusted headers (e.g., `X-User-Id: <sub>`, `X-User-Role: <role>`) so downstream services do not need to parse tokens. Downstream services must only accept these headers from the Gateway — never from external clients.
-
----
-
-## Service-to-Service Security (mTLS)
-
-When two services call each other directly (not via the Gateway), how do they trust each other? mTLS (mutual TLS) requires both sides to present a certificate.
-
-- **Standard TLS**: server presents a certificate → client verifies it
-- **mTLS**: server AND client both present certificates → both verify the other
-
-``` mermaid-sim
-sequenceDiagram
-    participant Order as order-service
-    participant Inv as inventory-service
-    participant CA as Certificate Authority\n(SPIFFE/SPIRE)
-
-    Order->>CA: request X.509 cert (SVID)
-    CA-->>Order: cert with SPIFFE URI\n(spiffe://cluster/ns/default/sa/order)
-    Inv->>CA: request X.509 cert
-    CA-->>Inv: cert
-    Order->>Inv: TLS ClientHello + Order cert
-    Inv->>Inv: verify Order cert against CA
-    Inv-->>Order: TLS ServerHello + Inv cert
-    Order->>Order: verify Inv cert against CA
-    Note over Order,Inv: Encrypted channel + mutual identity
-```
-
-Service meshes (Istio, Linkerd) inject sidecar proxies that handle mTLS transparently — no application code changes needed. SPIFFE/SPIRE provides the workload identity (SVID) that replaces static certificates, issuing short-lived X.509 credentials tied to service accounts rather than long-lived secrets.
-
----
-
-## Zero Trust Architecture
-
-Traditional perimeter security trusts everything inside the network and blocks everything outside. The problem: once an attacker is inside — via a compromised credential, insider threat, or lateral movement — they can reach everything.
-
-Zero Trust principle: **"Never trust, always verify"** — every request is authenticated and authorised regardless of network location.
+No single control protects a system. **Defense in depth** stacks independent layers, so that an attacker who defeats one still faces the next. The diagram follows a request from the Internet down to the data:
 
 ``` mermaid-sim
 flowchart LR
-    subgraph "Perimeter Model"
-        fw["Firewall"] --> |"trusted zone"| int["Internal services\n(trust each other implicitly)"]
-    end
-    subgraph "Zero Trust Model"
-        any["Any request\n(internal or external)"] --> |"identity + policy check"| pol["Policy Engine\n(AuthZ)"]
-        pol --> |"allow (with least privilege)"| res["Resource"]
-        pol --> |"deny"| rej["Rejected"]
-    end
+    U(["Client"]) -->|"HTTPS (TLS)"| GW["Gateway<br>validates token"]
+    IdP["Identity Provider<br>(auth-service / Keycloak)"] -->|"issues tokens"| U
+    GW -->|"identity header<br>(mTLS inside)"| SVC["order-service<br>checks ownership"]
+    SVC -->|"allowed by<br>NetworkPolicy"| PS["product-service"]
+    SVC -->|"short-lived<br>DB credential"| DB[("Postgres")]
 ```
 
-### Zero Trust Pillars
+| Layer | Threat | Control | Where in the course |
+|---|---|---|---|
+| Edge | eavesdropping, abuse | TLS, rate limiting | [Hands-on 2 — Gateway](../../hands-on/2/index.md), [Hands-on 7 — Nginx](../../hands-on/7/index.md) |
+| Identity | stolen or forged credentials | OAuth 2.0 / OIDC, short-lived tokens | [OAuth 2.0 & OIDC](oauth/index.md), [Hands-on 3](../../hands-on/3/index.md) |
+| Request | user reads someone else's data | authorization in each service (ownership, roles, scopes) | this page |
+| Service-to-service | lateral movement from a compromised pod | mTLS, NetworkPolicy, authorization policies | [Zero Trust](zero-trust/index.md), [Hands-on 5](../../hands-on/5/index.md) |
+| Data | leaked passwords and keys | secrets manager, encryption at rest | [Zero Trust — Secrets](zero-trust/index.md#secrets-management) |
 
-| Pillar | Mechanism |
-|---|---|
-| **Verify identity** | OAuth 2.0 / OIDC, mTLS, SPIFFE |
-| **Least privilege** | RBAC/ABAC, short-lived tokens, scopes |
-| **Assume breach** | Micro-segmentation, encrypt in transit + at rest |
-| **Continuous validation** | Short token TTL, re-auth on sensitivity escalation |
-
-A Kubernetes NetworkPolicy enforces Zero Trust at the network layer by allowing only explicit, named sources:
-
-```yaml
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: order-service-ingress
-spec:
-  podSelector:
-    matchLabels:
-      app: order-service
-  policyTypes:
-    - Ingress
-  ingress:
-    - from:
-        - podSelector:
-            matchLabels:
-              app: gateway-service
-      ports:
-        - port: 8080
-```
-
-This policy allows only `gateway-service` pods to reach `order-service` on port 8080. All other ingress traffic is denied by default.
+!!! warning "Common mistakes"
+    - **Security only at the gateway.** If any service is reachable without passing through the gateway (a `NodePort`, a debug port, a misconfigured Ingress), anyone can send `id-account: <any id>` and impersonate any user.
+    - **Rolling your own crypto or protocol.** Hashing, signing and token flows are subtle; use a vetted library (JJWT, Spring Security) and a standard flow.
+    - **Long-lived bearer tokens.** Hands-on 3 issues 24-hour tokens; a stolen one is valid for a day. Short access tokens plus refresh tokens shrink that window.
 
 ---
 
-## Secrets Management
+## Key takeaways
 
-!!! danger "Kubernetes Secrets are base64, not encrypted"
-    A Kubernetes Secret stores data as base64-encoded strings. Base64 is encoding, not encryption. Anyone with `kubectl get secret` permissions can read all secrets. In production, use envelope encryption (etcd encrypted at rest) or an external secrets manager.
+- **Authentication** answers *who*, **authorization** answers *what*; the gateway authenticates, but each service must still authorize access to its own objects.
+- A JWT is only a **format**. OAuth 2.0 defines **how tokens are obtained and delegated**; OIDC adds a standard **identity** (ID Token).
+- Hands-on 3 uses a **symmetric** key and **remote** validation; standard deployments use **asymmetric** keys and a **JWKS** so any service can validate locally.
+- **Zero Trust** removes the assumption that the internal network is safe: every call carries a verifiable identity and is checked against a policy.
+- Security is **layered**: TLS at the edge, tokens for users, mTLS and NetworkPolicy between services, a secrets manager for credentials.
 
-| Approach | Pros | Cons |
-|---|---|---|
-| **Kubernetes Secrets** | Simple, native | Base64 only; requires RBAC discipline |
-| **AWS Secrets Manager** | Managed, auto-rotation, audit log | AWS-only; extra latency |
-| **HashiCorp Vault** | Dynamic secrets, any cloud/on-prem, fine-grained audit | Operational overhead |
-
-HashiCorp Vault introduces the concept of **dynamic secrets**: instead of storing a long-lived database password, Vault generates a short-lived, unique credential per request. When the lease expires the credential is automatically revoked, eliminating the risk of stolen long-lived secrets.
-
-The **Vault agent sidecar** pattern injects secrets as files into the pod at runtime — the application reads a file, never calls Vault directly, and never stores credentials in environment variables or config maps:
-
-```yaml
-annotations:
-  vault.hashicorp.com/agent-inject: "true"
-  vault.hashicorp.com/agent-inject-secret-db: "database/creds/order-service"
-  vault.hashicorp.com/role: "order-service"
-```
+[^1]: OWASP. [API1:2023 — Broken Object Level Authorization](https://owasp.org/API-Security/editions/2023/en/0xa1-broken-object-level-authorization/){target="_blank"}. OWASP API Security Top 10, 2023.

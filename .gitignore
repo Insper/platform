@@ -11,3 +11,4 @@ __pycache__/
 pl-insper-bccpmad/
 # Provas (enunciados, versões e gabaritos): nunca versionar — o repositório é público.
 docs/*/exams/
+.i18n/

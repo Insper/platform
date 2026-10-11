@@ -21,15 +21,15 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 **Q2.** For a **99.9% availability SLO** over 28 days, approximately how many minutes of downtime are permitted?
 
-- A. ~4.38 minutes
-- B. ~43.8 minutes
-- C. ~438 minutes
+- A. ~4.03 minutes
+- B. ~40.3 minutes
+- C. ~403 minutes
 - D. ~8.77 hours
 
 ??? success "Answer"
-    **B — ~43.8 minutes.**
+    **B — ~40.3 minutes.**
 
-    0.1% of 28 days × 24 h × 60 min = 0.001 × 28 × 1440 ≈ 40.3 minutes. The commonly cited figure is ~43.8 minutes because 28 days × 24 h × 60 min = 40,320 minutes, and 0.1% of that is 40.32 minutes (the discrepancy depends on the exact window used). Either way, the error budget for three-nines is roughly 40–44 minutes per month.
+    28 days × 24 h × 60 min = 40,320 minutes, and 0.1% of that is ≈ 40.3 minutes. The figure of ~43.8 minutes that appears in many "nines" tables is for an average calendar month (365.25 / 12 ≈ 30.44 days), and 8.77 hours is the budget for a whole year. Always compute the budget for the window the SLO actually uses.
 
 ---
 
@@ -71,7 +71,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 ??? success "Answer"
     **D — Budget exhausted in ~48 hours.**
 
-    Burn rate 1 = consuming the budget at exactly the rate the SLO allows. Burn rate 14.4 = consuming it 14.4× faster. A 28-day budget at 14.4× burn rate is exhausted in 28/14.4 ≈ 1.94 days ≈ 47 hours. This is the threshold where an immediate page is warranted — the incident is moving too fast for next-business-day resolution.
+    Burn rate 1 = consuming the budget at exactly the rate the SLO allows. Burn rate 14.4 = consuming it 14.4× faster. A 28-day budget at 14.4× burn rate is exhausted in 28/14.4 ≈ 1.94 days ≈ 47 hours. This is the threshold where an immediate page is warranted — the incident is moving too fast for next-business-day resolution. (In one hour, a 14.4× burn consumes about 2% of the budget, which is how the SRE Workbook derives the number.)
 
 ---
 
@@ -143,13 +143,69 @@ Click **"Answer"** to reveal the correct answer and explanation.
 ??? success "Answer"
     **B — Rate limiter → circuit breaker → bulkhead → timeout → retry with backoff.**
 
-    Each layer handles a distinct failure scenario: the rate limiter protects against traffic spikes and abuse; the circuit breaker fast-fails calls to known-failing dependencies; the bulkhead isolates thread pools so one slow dependency cannot starve others; the timeout bounds wait time; the retry handles transient failures. The order matters — rate limiting and fast-failing happen before consuming a bulkhead thread.
+    Each layer handles a distinct failure scenario: the rate limiter protects against traffic spikes and abuse; the circuit breaker fast-fails calls to known-failing dependencies; the bulkhead isolates thread pools so one slow dependency cannot starve others; the timeout bounds wait time; the retry handles transient failures. In the layering shown in class, rate limiting and fast-failing happen before consuming a bulkhead thread. Libraries may nest them differently — Resilience4j's default puts Retry outermost so each attempt passes through the breaker — but the set of layers is the same, and C and D each miss essential ones.
+
+---
+
+**Q11.** Two gateway replicas, each available 99% of the time and failing independently, sit behind Nginx. Any one replica can serve all traffic. What is the availability of the gateway layer (ignoring Nginx)?
+
+- A. 98.01%
+- B. 99%
+- C. 99.5%
+- D. 99.99%
+
+??? success "Answer"
+    **D — 99.99%.**
+
+    In parallel, the layer is down only when *both* replicas are down at the same time: 0.01 × 0.01 = 0.0001, so availability = 1 − 0.0001 = 99.99%. Option A (0.99²) is the formula for components in **series**, where every one must work. The result holds only if the failures are independent — two replicas on the same node or with the same bad configuration fail together.
+
+---
+
+**Q12.** The order service's liveness probe calls the database and fails when it is unreachable. The database is down for 15 seconds. What happens on Kubernetes?
+
+- A. Nothing — Kubernetes ignores liveness failures shorter than one minute
+- B. The pods are removed from the Service's endpoints until the database is back, then receive traffic again
+- C. Every replica fails liveness at the same time and is restarted, so a short database blip becomes a full outage while all JVMs boot again
+- D. Only one replica is restarted, because Kubernetes restarts pods one at a time
+
+??? success "Answer"
+    **C — All replicas restart together.**
+
+    Liveness answers "is this process stuck?"; a failure triggers a **restart**. Because every replica depends on the same database, they all fail liveness together and are all restarted, turning a 15-second hiccup into minutes of downtime. Option B describes what a **readiness** failure does. Keep external dependencies out of liveness.
+
+---
+
+**Q13.** The gateway, the order service and its Feign client for the product service each retry failed calls up to 3 times. The product service starts failing. How many calls can a single user request generate to the product service in the worst case?
+
+- A. 3
+- B. 9
+- C. 27
+- D. 81
+
+??? success "Answer"
+    **C — 27 (3 × 3 × 3).**
+
+    Retries at each layer multiply: each of the gateway's 3 attempts reaches the order service, which makes 3 attempts, each of which the Feign client tries 3 times. This *retry amplification* hits the struggling service hardest exactly when it is weakest. Retry at one layer only, cap attempts, use backoff with jitter and stop retrying when the circuit breaker is open.
+
+---
+
+**Q14.** A client sends `POST /orders` with the header `Idempotency-Key: k-42`. The server creates the order, but the response is lost and the client retries with the same key. What should the server do?
+
+- A. Create a second order, because every `POST` creates a new resource
+- B. Return `409 Conflict` and ask the client to generate a new key
+- C. Recognise the key as already processed and return the result of the first request without creating another order
+- D. Delete the first order and create a new one to keep the data consistent
+
+??? success "Answer"
+    **C — Return the stored result for the same key.**
+
+    The idempotency key identifies one *logical* operation. The server stores the keys it has processed (with their results), so a repeated key returns the original response instead of duplicating the order. This makes a non-idempotent `POST` safe to retry.
 
 ---
 
 ## Chaos Engineering
 
-**Q11 (bonus).** The first Principle of Chaos Engineering requires establishing a **steady state** before injecting failures. What does "steady state" refer to?
+**Q15 (bonus).** The first Principle of Chaos Engineering requires establishing a **steady state** before injecting failures. What does "steady state" refer to?
 
 - A. A deployment freeze where no code changes are made during the experiment
 - B. A measurable baseline of normal system behaviour expressed as SLIs — request rate, error rate, latency — against which the experiment's impact is evaluated

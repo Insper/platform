@@ -17,6 +17,17 @@
   var sims = [];
   var observer = null;
 
+  /* Interface strings follow the page language (<html lang>). */
+  var T = (document.documentElement.lang || "").indexOf("pt") === 0 ? {
+    steps: "passos", step: "Passo", hint: "Aperte play para simular",
+    reset: "Recomeçar", prev: "Passo anterior (←)", play: "Reproduzir / pausar (espaço)",
+    next: "Próximo passo (→)", all: "Ver o diagrama inteiro"
+  } : {
+    steps: "steps", step: "Step", hint: "Press play to simulate",
+    reset: "Restart", prev: "Previous step (←)", play: "Play / pause (space)",
+    next: "Next step (→)", all: "Show the whole diagram"
+  };
+
   var ICONS = {
     reset: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>',
     prev: '<path d="m15 18-6-6 6-6"/>',
@@ -185,13 +196,13 @@
     var bar = document.createElement("div");
     bar.className = "msim-bar";
     bar.innerHTML =
-      '<button type="button" data-msim="reset" title="Restart">' + icon("reset") + "</button>" +
-      '<button type="button" data-msim="prev" title="Previous step (←)">' + icon("prev") + "</button>" +
-      '<button type="button" data-msim="play" class="msim-play" title="Play / pause (space)">' + icon("play") + "</button>" +
-      '<button type="button" data-msim="next" title="Next step (→)">' + icon("next") + "</button>" +
+      '<button type="button" data-msim="reset" title="' + T.reset + '">' + icon("reset") + "</button>" +
+      '<button type="button" data-msim="prev" title="' + T.prev + '">' + icon("prev") + "</button>" +
+      '<button type="button" data-msim="play" class="msim-play" title="' + T.play + '">' + icon("play") + "</button>" +
+      '<button type="button" data-msim="next" title="' + T.next + '">' + icon("next") + "</button>" +
       '<span class="msim-step"></span>' +
       '<span class="msim-caption"></span>' +
-      '<button type="button" data-msim="all" title="Show the whole diagram">' + icon("all") + "</button>";
+      '<button type="button" data-msim="all" title="' + T.all + '">' + icon("all") + "</button>";
     this.root.appendChild(bar);
     this.bar = bar;
   };
@@ -218,8 +229,8 @@
     self.dot(idx >= 0 ? self.steps[idx] : null);
     if (!self.bar) return;
     self.bar.querySelector(".msim-step").textContent =
-      idx < 0 ? self.steps.length + " steps" : "Step " + (idx + 1) + "/" + self.steps.length;
-    self.bar.querySelector(".msim-caption").textContent = idx < 0 ? "Press play to simulate" : self.steps[idx].caption;
+      idx < 0 ? self.steps.length + " " + T.steps : T.step + " " + (idx + 1) + "/" + self.steps.length;
+    self.bar.querySelector(".msim-caption").textContent = idx < 0 ? T.hint : self.steps[idx].caption;
     self.bar.querySelector(".msim-play").innerHTML = icon(self.timer ? "pause" : "play");
   };
 

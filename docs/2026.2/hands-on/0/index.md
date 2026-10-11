@@ -5,6 +5,15 @@ To set up your development environment, check the appendix [Development Setup](.
 
 After that your environment should be ready to start the exercises. We should create a root repository, to made easy to access the other microservices repositories and also the documentation.
 
+## Slides
+
+<div class="slides-embed">
+  <iframe src="slides/prerequisites.html" title="Slides: hands-on 0 — prerequisites" loading="lazy" allowfullscreen></iframe>
+</div>
+
+Click the slides and use ← → to move through them; **F** goes full screen and **P** opens the presenter view, with the notes.
+[:material-presentation: Open the slides in a new tab](slides/prerequisites.html){:target="_blank"}
+
 ## Root Repository
 
 The root repository will serve as the central point for accessing all other microservices repositories and the documentation. It will help in organizing the project structure and managing dependencies efficiently.

@@ -1,7 +1,7 @@
 
-## Configuração do AWS
+## AWS Setup
 
-A AWS é uma plataforma de computação em nuvem que oferece uma ampla gama de serviços, incluindo computação, armazenamento, banco de dados, análise, rede, mobilidade, ferramentas de desenvolvedor, gerenciamento e segurança. Para configurar a AWS, você precisará criar uma conta e configurar os serviços necessários para o seu projeto.
+AWS is a cloud computing platform that offers a wide range of services, including compute, storage, databases, analytics, networking, mobile, developer tools, management and security. To set up AWS, you will need to create an account and configure the services required for your project.
 
 
 !!! tip "Roadmap"

@@ -5,9 +5,9 @@
 
 | :octicons-location-24: | :fontawesome-regular-calendar: | :fontawesome-regular-clock: |
 |-|:-:|:-:|
-| Aula | Mon. | 07h30 :fontawesome-solid-arrow-right-long: 09h30 |
-| Aula | Fri. | 12h00 :fontawesome-solid-arrow-right-long: 14h00 |
-| Office hours | Tue. | 12h00 :fontawesome-solid-arrow-right-long: 13h30 |
+| Class | Mon. | 07:30 :fontawesome-solid-arrow-right-long: 09:30 |
+| Class | Fri. | 12:00 :fontawesome-solid-arrow-right-long: 14:00 |
+| Office hours | Tue. | 12:00 :fontawesome-solid-arrow-right-long: 13:30 |
 
 ## Instructors
 
@@ -172,7 +172,7 @@ $$
 
 ## Repositories
 
-Principal (root): [https://github.com/repo-classes/pma262](https://github.com/repo-classes/pma262){:target="_blank"}
+Main (root): [https://github.com/repo-classes/pma262](https://github.com/repo-classes/pma262){:target="_blank"}
 
 API:
 

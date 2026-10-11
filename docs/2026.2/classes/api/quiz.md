@@ -15,7 +15,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 ??? success "Answer"
     **C — `PUT`.**
 
-    *Safe* means the request does not modify server state. *Idempotent* means calling it multiple times has the same effect as calling it once. `PUT /orders/42` with the same body is safe to retry — the result is the same order state regardless of how many times it is called. `POST /orders` would create a new order on each call (not idempotent).
+    *Safe* means the request does not modify server state. *Idempotent* means calling it multiple times has the same effect as calling it once. `PUT /orders/42` with the same body can be retried freely — the result is the same order state regardless of how many times it is called, but the first call did change state, so it is not *safe*. `POST /orders` would create a new order on each call (not idempotent).
 
 ---
 
@@ -71,7 +71,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 ??? success "Answer"
     **C — Offset is expensive and drift-prone; cursor reads from a stable pointer.**
 
-    `OFFSET 10000 LIMIT 20` forces the database to count and skip 10,000 rows — slow on large tables. If a new item is inserted on page 3 while the client reads page 4, rows shift and the client sees duplicates or skips items. A cursor (e.g., `after=eyJpZCI6NDJ9`) encodes the last-seen record and reads forward from exactly that point, immune to insertions.
+    `OFFSET 10000 LIMIT 20` forces the database to count and skip 10,000 rows — slow on large tables. If a new item is inserted on page 3 while the client reads page 4, rows shift and the client sees duplicates or skips items. A cursor (e.g., `after=eyJpZCI6NDJ9`) encodes the last-seen record and reads forward from exactly that point (`WHERE id > :last`), using the index and immune to insertions. Option D is wrong: jumping to an arbitrary page is what cursors *cannot* do.
 
 ---
 
@@ -89,9 +89,51 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ---
 
+**Q7.** A client calls `DELETE /products/42` and gets `204`. The response to a retry of the same request is `404 Not Found`. Is `DELETE` still idempotent?
+
+- A. No — idempotent requests must always return the same response
+- B. Yes — idempotency is about the effect on server state: after one call or many, product 42 does not exist
+- C. No — the server should have returned `204` again to be idempotent
+- D. Only if the client sends an `Idempotency-Key` header
+
+??? success "Answer"
+    **B — Idempotency is about the state, not the response.**
+
+    RFC 9110 defines idempotent methods by their *intended effect on the server*. The second `DELETE` finds nothing to delete, so `404` is a correct answer and the state is unchanged. A client that retries a `DELETE` should treat `404` as success.
+
+---
+
+**Q8.** A mobile app sends `POST /orders`, the connection drops, and the app does not know whether the order was created. Which design lets it retry **without creating a duplicate order**?
+
+- A. Switch the endpoint to `GET /orders/create`, since `GET` is idempotent
+- B. Retry immediately, as many times as needed, until a response arrives
+- C. Send a client-generated `Idempotency-Key` header; the server stores processed keys and returns the stored result when a key repeats
+- D. Return `202 Accepted` instead of `201 Created`
+
+??? success "Answer"
+    **C — Idempotency key.**
+
+    The key identifies the *logical* operation. The first request creates the order and records the key; the retry finds the key and returns the same order instead of creating another. Option A breaks HTTP semantics (`GET` must not change state), B creates duplicates, and D changes the status code but not the duplication problem.
+
+---
+
+**Q9.** The product service is consumed by the web front-end and the order service. Which change is **breaking** and therefore needs a new API version?
+
+- A. Adding a new optional field `description` to `ProductIn`
+- B. Adding a new field `category` to `ProductOut`
+- C. Adding a new endpoint `GET /products/search`
+- D. Renaming the response field `price` to `unitPrice`
+
+??? success "Answer"
+    **D — Renaming a response field.**
+
+    Existing clients still read `price` and now get nothing. Adding endpoints, optional request fields or response fields is backward compatible as long as clients are *tolerant readers* that ignore unknown fields. A breaking change goes to a new version (`/v2/products`) with a deprecation period for `/v1`.
+
+---
+
 ## OpenAPI & Swagger
 
-**Q7.** What does the **springdoc-openapi** library generate automatically at startup?
+**Q10.** What does the **springdoc-openapi** library generate automatically at startup?
 
 - A. A PDF export of all controller method signatures
 - B. A Postman collection for manual API testing
@@ -105,7 +147,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ---
 
-**Q8.** Where should Swagger UI be **disabled**, and why?
+**Q11.** Where should Swagger UI be **disabled**, and why?
 
 - A. In development — developers should use `curl` instead
 - B. In staging — the staging environment must mirror production exactly
@@ -119,7 +161,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ---
 
-**Q9.** What is the purpose of `@Schema` on a Java record field in a springdoc-openapi project?
+**Q12.** What is the purpose of `@Schema` on a Java record field in a springdoc-openapi project?
 
 - A. It marks the field as required for JSON deserialization
 - B. It maps the field name to a different JSON key in the serialised output
@@ -129,11 +171,11 @@ Click **"Answer"** to reveal the correct answer and explanation.
 ??? success "Answer"
     **C — Adds description and example to the OpenAPI document.**
 
-    Without `@Schema`, springdoc only knows the field name and type. `@Schema(description = "Price in BRL", example = "299.90")` makes the generated documentation self-explanatory — consumers know what the field means and what a valid value looks like, without reading the source code.
+    Without `@Schema`, springdoc only knows the field name and type. `@Schema(description = "Unit price", example = "10.12")` makes the generated documentation self-explanatory — consumers know what the field means and what a valid value looks like, without reading the source code.
 
 ---
 
-**Q10.** To allow Swagger UI to send **authenticated requests** with a JWT Bearer token, what must be configured?
+**Q13.** To allow Swagger UI to send **authenticated requests** with a JWT Bearer token, what must be configured?
 
 - A. Add `@Secured` to every controller method and include the token in the request body
 - B. Enable Spring Security's basic auth fallback in `application.yaml`
@@ -144,3 +186,17 @@ Click **"Answer"** to reveal the correct answer and explanation.
     **C — `SecurityScheme` of type HTTP/bearer + Authorize button.**
 
     Adding the security scheme to the `OpenAPI` bean tells springdoc to render an **Authorize** button in Swagger UI. The user pastes a JWT there, and all subsequent requests include `Authorization: Bearer <token>`. Without this configuration, Swagger UI sends unauthenticated requests to all secured endpoints.
+
+---
+
+**Q14.** In an OpenAPI 3 document, where are the reusable data models (such as `ProductOut`) defined, so that several responses can reference them with `$ref`?
+
+- A. `info`
+- B. `servers`
+- C. `paths./products/{id}.get.parameters`
+- D. `components.schemas`
+
+??? success "Answer"
+    **D — `components.schemas`.**
+
+    `paths` describes the endpoints; each response points to a model with `$ref: "#/components/schemas/ProductOut"`, so the model is defined once. `info` holds title and version, `servers` the base URLs, and `parameters` the path, query, header and cookie inputs of one operation. springdoc builds `components.schemas` from your DTO records.

@@ -23,11 +23,11 @@
 
 ## Meetings
 
-| Evento | Dia | Início | Término |
+| Event | Day | Start | End |
 |-|:-:|-:|-:|
-| Aula | Qua. | 13h30 | 15h30 |
-| Aula | Sex. | 13h30 | 15h30 |
-| Atendimento | Qua. | 09h30 | 11h00 |
+| Class | Wed. | 13:30 | 15:30 |
+| Class | Fri. | 13:30 | 15:30 |
+| Office hours | Wed. | 09:30 | 11:00 |
 
 
 ## Grade
@@ -50,34 +50,34 @@
 === "Individual"
 
     <!-- $$
-    \text{Individual} = \text{Tarefas} \times 0.7 + \text{Prova Intermediária} \times 0.3
+    \text{Individual} = \text{Tasks} \times 0.7 + \text{Midterm Exam} \times 0.3
     $$ -->
 
-    | Tarefa | Descrição | Peso |
+    | Task | Description | Weight |
     |-|-|-:|
     | Checkpoint 1 | CRUD Microservice | 10% |
     | Checkpoint 2 | Gateway | 15% |
     | Checkpoint 3 | Security | 15% |
     | Checkpoint 4 | DevOps | 15% |
     | Checkpoint 5 | Orchestration | 15% |
-    | Bootnecks | InMemory Database<br>Message Queues<br>Observability<br>Code quality<br>OAuth2<br>Payments (sandboxes) | 20% |
+    | Bottlenecks | InMemory Database<br>Message Queues<br>Observability<br>Code quality<br>OAuth2<br>Payments (sandboxes) | 20% |
     | Documentation | README with MkDocs | 10% |
 
-    !!! danger "Entrega"
-        - A entrega de um checkpoint implica, **OBRIGATORIAMENTE**, na entrega do checkpoint anterior;
-        - Trabalho em grupo deve ser documentado no GitHub.
+    !!! danger "Delivery"
+        - Delivering a checkpoint **MANDATORILY** requires delivering the previous checkpoint;
+        - Group work must be documented on GitHub.
 
 === "Team"
 
-    | Tarefas | Descrição | Peso |
+    | Tasks | Description | Weight |
     |-|-|-:|
-    | AWS | Configurar AWS | 5% |
-    | EKS | Disponibilizar a aplicação | 15% |
-    | Testes | Testes de carga | 20% |
+    | AWS | Set up AWS | 5% |
+    | EKS | Make the application available | 15% |
+    | Tests | Load tests | 20% |
     | CI/CD | Jenkins | 10% |
-    | Custos | Análise de custos | 15% |
-    | PaaS | Plano de uso da plataforma | 15% |
-    | Apresentação | Storytelling | 20% |
+    | Costs | Cost analysis | 15% |
+    | PaaS | Platform usage plan | 15% |
+    | Presentation | Storytelling | 20% |
 
 
 ## Planning

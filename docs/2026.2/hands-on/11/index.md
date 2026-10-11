@@ -6,6 +6,15 @@
 
 AI is not replacing engineers in software development — it is changing which tasks consume their attention. Code review is one of the highest-leverage places to introduce AI assistance: reviewers are scarce, turnaround times are long, and many issues (missing null checks, hardcoded secrets, REST endpoint convention violations) are mechanical enough for a model to catch reliably. This hands-on adds an automated AI reviewer to every pull request in the student project repository.
 
+## Slides
+
+<div class="slides-embed">
+  <iframe src="slides/ai-cicd.html" title="Slides: ai in ci/cd" loading="lazy" allowfullscreen></iframe>
+</div>
+
+Click the slides and use ← → to move through them; **F** goes full screen and **P** opens the presenter view, with the notes.
+[:material-presentation: Open the slides in a new tab](slides/ai-cicd.html){:target="_blank"}
+
 ---
 
 ## 1. Architecture

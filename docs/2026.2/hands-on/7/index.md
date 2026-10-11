@@ -4,6 +4,15 @@
 
 Previous hands-on modules built a microservice platform with a single gateway instance handling all external traffic. Under sustained load, that gateway becomes a bottleneck — one process, one thread pool, no redundancy. A **load balancer** solves this by distributing incoming requests across multiple identical instances of the same service.
 
+## Slides
+
+<div class="slides-embed">
+  <iframe src="slides/load-balancer.html" title="Slides: load balancer" loading="lazy" allowfullscreen></iframe>
+</div>
+
+Click the slides and use ← → to move through them; **F** goes full screen and **P** opens the presenter view, with the notes.
+[:material-presentation: Open the slides in a new tab](slides/load-balancer.html){:target="_blank"}
+
 ## Proxy
 
 A **proxy** is an intermediary that sits between clients and servers, forwarding requests on behalf of one side or the other.

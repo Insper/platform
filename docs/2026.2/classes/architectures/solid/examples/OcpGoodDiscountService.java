@@ -11,8 +11,9 @@ public class DiscountService {
     public double calculate(Account account) {
         return policies.stream()
             .filter(p -> p.appliesTo(account))
-            .mapToDouble(p -> p.calculate(account))
-            .sum();
+            .findFirst()                                // same rule as before: one policy applies
+            .map(p -> p.calculate(account))
+            .orElse(account.orderTotal() * 0.05);       // default discount
     }
 }
 

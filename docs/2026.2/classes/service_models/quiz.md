@@ -31,17 +31,17 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ---
 
-**Q3.** Which characteristic is **unique to FaaS** compared to all other cloud service models?
+**Q3.** Which characteristic **best defines FaaS** compared to the other cloud service models?
 
 - A. The provider manages the OS and runtime
 - B. Applications are deployed as Docker containers
 - C. Multi-tenancy isolates customer data by tenant ID
-- D. The platform scales to zero when idle and bills per invocation plus execution duration in milliseconds
+- D. The unit of deployment is a single function that scales to zero when idle and is billed per invocation plus execution duration
 
 ??? success "Answer"
-    **D — Scales to zero; billed per invocation + milliseconds.**
+    **D — A function as the unit of deployment, scale to zero, billed per invocation + duration.**
 
-    No other model scales to zero automatically. PaaS runs continuously (even at idle, you pay for the minimum instance). FaaS only incurs cost when the function actually executes. The trade-off is cold-start latency and a maximum execution time (e.g., 15 min on AWS Lambda).
+    PaaS also manages the OS and runtime (A), CaaS deploys containers (B), and multi-tenancy is the SaaS hallmark (C). Scaling to zero is no longer *exclusive* to FaaS — serverless container platforms such as Google Cloud Run and Azure Container Apps also scale to zero — but the combination "deploy a function, pay per invocation and per millisecond" is what defines FaaS. A classic PaaS keeps at least one instance running and bills for it even at idle. The trade-off is cold-start latency and a maximum execution time (15 min on AWS Lambda).
 
 ---
 
@@ -111,13 +111,13 @@ Click **"Answer"** to reveal the correct answer and explanation.
 ??? success "Answer"
     **C — Consistently low latency at high sustained traffic.**
 
-    FaaS suffers from *cold starts* — the platform must initialise a new function instance when there is no warm instance available. For sporadic or bursty workloads (webhooks, scheduled jobs) this is acceptable. For a high-traffic API requiring sub-100 ms P99 latency, a always-warm PaaS or CaaS deployment is more appropriate.
+    FaaS suffers from *cold starts* — the platform must initialise a new function instance when there is no warm instance available. For sporadic or bursty workloads (webhooks, scheduled jobs) this is acceptable. For a high-traffic API requiring sub-100 ms P99 latency, an always-warm PaaS or CaaS deployment is more appropriate. Lambda's *provisioned concurrency* can keep instances warm, but then you pay for idle capacity and lose the main FaaS cost advantage.
 
 ---
 
 **Q9.** A company runs a custom machine learning training pipeline that needs **GPU instances** and a **specific Linux kernel version**. Which cloud model fits best?
 
-- A. SaaS — use an existing ML platform like AWS SageMaker
+- A. SaaS — subscribe to an off-the-shelf ML product
 - B. PaaS — the provider will configure the GPU and kernel automatically
 - C. FaaS — GPU-accelerated functions are ideal for ML workloads
 - D. IaaS — provides raw GPU VMs with full OS control, including kernel selection
@@ -125,7 +125,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 ??? success "Answer"
     **D — IaaS.**
 
-    When the workload requires a specific OS kernel, custom drivers, or specialised hardware control, only IaaS gives the necessary level of access. PaaS abstracts the OS away; SaaS won't let you bring custom kernels; FaaS doesn't expose GPU hardware at all (in most implementations).
+    When the workload requires a specific OS kernel, custom drivers, or specialised hardware control, only IaaS gives the necessary level of access. PaaS abstracts the OS away; SaaS won't let you bring custom kernels; FaaS doesn't expose GPU hardware at all (in most implementations). Managed ML platforms such as AWS SageMaker can provide GPUs, but they choose the OS and kernel for you.
 
 ---
 
@@ -139,4 +139,60 @@ Click **"Answer"** to reveal the correct answer and explanation.
 ??? success "Answer"
     **C — CaaS with managed Kubernetes control plane.**
 
-    GKE and EKS manage the Kubernetes control plane (API server, scheduler, etcd) but the customer provisions and manages worker nodes (or uses managed node groups). The customer is responsible for deploying and configuring workloads, networking policies, and cluster upgrades. This is CaaS — a step above IaaS, a step below full PaaS.
+    GKE and EKS manage the Kubernetes control plane (API server, scheduler, etcd). In the classic mode the customer provisions and manages worker nodes (or uses managed node groups); modes such as GKE Autopilot and EKS Auto Mode hand node management to the provider too. In every mode the customer is responsible for deploying and configuring workloads, network policies, access control, and triggering cluster version upgrades. This is CaaS — a step above IaaS, a step below full PaaS.
+
+---
+
+**Q11.** Which of the following is **not** one of the five essential characteristics of cloud computing in the NIST definition (SP 800-145)?
+
+- A. On-demand self-service
+- B. Rapid elasticity
+- C. Measured service
+- D. A guaranteed 99.99% availability SLA
+
+??? success "Answer"
+    **D — An availability SLA is not part of the definition.**
+
+    NIST defines cloud computing by five characteristics: on-demand self-service, broad network access, resource pooling, rapid elasticity, and measured service. SLAs are contractual terms that individual providers offer per service (and they vary widely); a service can be "cloud" without a 99.99% SLA. Conversely, a server rented on a three-year contract with a strong SLA is not cloud if you cannot provision it yourself and pay per use.
+
+---
+
+**Q12.** A company replaces its own datacentre servers (bought every 5 years) with EC2 instances billed per second. How does this change the **cost model**?
+
+- A. From OpEx to CapEx: the company now owns the instances
+- B. From CapEx to OpEx: no up-front purchase sized for the expected peak; the company pays monthly for what it uses
+- C. Nothing changes: both are capital expenditure
+- D. From CapEx to OpEx, which guarantees a lower total cost for every workload
+
+??? success "Answer"
+    **B — From CapEx to OpEx.**
+
+    Buying servers is capital expenditure: a large up-front payment for an asset sized for the peak you *expect*. Cloud resources are operational expenditure: you pay for what you use and can stop paying when you stop using it. D is the trap — OpEx removes the up-front bet but is not automatically cheaper; a workload running at full load 24/7 for years can cost more in the cloud than on owned hardware.
+
+---
+
+**Q13.** A team runs the store's order service on EKS and stores invoices in an S3 bucket. Someone sets the bucket to **public**, and the invoices leak. Under the shared responsibility model, whose responsibility was this?
+
+- A. AWS — S3 is a managed service, so its security is the provider's job
+- B. AWS — the provider should block every public bucket automatically
+- C. The customer — access configuration of the data is "security *in* the cloud", which always stays with the customer
+- D. Nobody — public buckets are a known limitation of object storage
+
+??? success "Answer"
+    **C — The customer.**
+
+    AWS is responsible for security *of* the cloud: the datacentres, the hardware, the hypervisor and the S3 service itself. The customer is responsible for security *in* the cloud: who can read the data, IAM policies, bucket policies, encryption settings. Managed services move operational layers to the provider, but deciding who may access your data never moves.
+
+---
+
+**Q14.** The store's Postgres currently runs on an EC2 VM that the team installed by hand. They move it to **Amazon RDS**. Which statement describes what changed?
+
+- A. Nothing changes operationally — RDS is just Postgres on a VM with a different name
+- B. The team now manages the OS, but no longer the schema
+- C. Backups, replication, failover and OS/database patching become provider-managed configuration; the team still owns the schema, queries, access rules and the data
+- D. The team can no longer connect with a standard Postgres client or JDBC driver
+
+??? success "Answer"
+    **C — The database moved from IaaS to DBaaS.**
+
+    On EC2 the team installs Postgres, patches the OS, writes backup scripts and handles failover. With RDS those become settings (backup retention, Multi-AZ, maintenance window) that AWS executes. The application still connects with the same JDBC URL format and driver, and the team still owns schema design, query tuning, and who may connect (security groups, database users).

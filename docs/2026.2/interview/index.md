@@ -13,25 +13,25 @@ hide:
       <span class="badge badge-gray">2026.2</span>
     </div>
     <h1>System Design &amp; Scalability</h1>
-    <p>Material de apoio para entrevistas técnicas — como pensar, comunicar e projetar sistemas escaláveis. Baseado em <em>Cracking the Coding Interview</em> (G. McDowell) e referências de engenharia de software de alto nível, conectado aos tópicos e hands-ons da disciplina.</p>
+    <p>Study material for technical interviews — how to think about, communicate and design scalable systems. Based on <em>Cracking the Coding Interview</em> (G. McDowell) and top-tier software engineering references, connected to the topics and hands-ons of the course.</p>
   </header>
 
   <!-- TABLE OF CONTENTS -->
-  <nav class="toc" aria-label="Sumário">
-    <h2>Sumário</h2>
+  <nav class="toc" aria-label="Contents">
+    <h2>Contents</h2>
     <div class="toc-grid">
       <a href="#sec-intro">Algorithms vs. System Design</a>
-      <a href="#sec-abordagem">Handling the Questions (8 princípios)</a>
-      <a href="#sec-design">Design Step-By-Step (5 passos)</a>
-      <a href="#sec-algo">Algorithms that Scale (4 passos)</a>
+      <a href="#sec-abordagem">Handling the Questions (8 principles)</a>
+      <a href="#sec-design">Design Step-By-Step (5 steps)</a>
+      <a href="#sec-algo">Algorithms that Scale (4 steps)</a>
       <a href="#sec-numbers">Back-of-the-Envelope</a>
       <a href="#sec-concepts">Key Concepts</a>
-      <a href="#sec-example">Exemplo Guiado: URL Shortener</a>
-      <a href="#sec-practice">Problemas para Praticar</a>
-      <a href="#sec-course">Conexão com a Disciplina</a>
+      <a href="#sec-example">Worked Example: URL Shortener</a>
+      <a href="#sec-practice">Practice Problems</a>
+      <a href="#sec-course">Connection to the Course</a>
       <a href="#sec-quiz">Quiz</a>
-      <a href="#sec-checklist">Checklist de Entrevista</a>
-      <a href="#sec-refs">Referências</a>
+      <a href="#sec-checklist">Interview Checklist</a>
+      <a href="#sec-refs">References</a>
     </div>
   </nav>
 
@@ -41,56 +41,56 @@ hide:
   <section class="section" id="sec-intro">
     <div class="section-header">
       <h2>Algorithms vs. System Design</h2>
-      <p>Dois tipos de problema, duas habilidades distintas — mas a mesma lógica de raciocínio estruturado.</p>
+      <p>Two kinds of problem, two distinct skills — but the same structured way of reasoning.</p>
     </div>
 
     <div class="card-grid">
       <div class="card border-green">
         <div class="card-label green">Algorithm Questions</div>
-        <h3>Problema fechado</h3>
-        <p>Geralmente têm solução determinística. O foco está na correção do algoritmo, na complexidade O(n) e na implementação limpa. Exemplos: "encontre o caminho mais curto", "verifique se uma árvore é BST".</p>
+        <h3>Closed problem</h3>
+        <p>They usually have a deterministic solution. The focus is on the correctness of the algorithm, its O(n) complexity and a clean implementation. Examples: "find the shortest path", "check whether a tree is a BST".</p>
       </div>
       <div class="card border-blue">
         <div class="card-label blue">System Design Questions</div>
-        <h3>Problema aberto</h3>
-        <p>Não existe resposta única. O foco está nos tradeoffs, na escalabilidade, na comunicação e no raciocínio de engenharia. Exemplos: "projete o Twitter", "projete um sistema de encurtamento de URLs para 100M de usuários".</p>
+        <h3>Open problem</h3>
+        <p>There is no single answer. The focus is on tradeoffs, scalability, communication and engineering reasoning. Examples: "design Twitter", "design a URL shortening system for 100M users".</p>
       </div>
     </div>
 
     <div class="callout">
       <p><strong>"Tackle the problem by doing it just like you would at work."</strong><br>
-      Faça perguntas. Engaje o entrevistador. Discuta os tradeoffs. Não existe resposta perfeita — existe raciocínio bem articulado e soluções justificadas.</p>
+      Ask questions. Engage the interviewer. Discuss the tradeoffs. There is no perfect answer — there is well-articulated reasoning and justified solutions.</p>
     </div>
 
     <div class="itip">
-      <div class="itip-label">Mindset essencial</div>
-      <p>Em system design, o entrevistador quer ver <strong>como você pensa</strong>, não apenas o que você memorizou. Um candidato que faz boas perguntas, explicita suas assunções e admite incertezas com raciocínio sólido frequentemente supera um candidato que tenta recitar uma arquitetura pronta.</p>
+      <div class="itip-label">Essential mindset</div>
+      <p>In system design, the interviewer wants to see <strong>how you think</strong>, not just what you have memorized. A candidate who asks good questions, makes assumptions explicit and admits uncertainty with solid reasoning often outperforms a candidate who tries to recite a ready-made architecture.</p>
     </div>
 
-    <h3 class="sub-h">O que o entrevistador avalia</h3>
+    <h3 class="sub-h">What the interviewer evaluates</h3>
     <div class="tag-strip">
-      <span class="badge badge-green">Comunicação clara</span>
-      <span class="badge badge-blue">Raciocínio estruturado</span>
-      <span class="badge badge-amber">Conhecimento técnico</span>
-      <span class="badge badge-purple">Gestão de tradeoffs</span>
-      <span class="badge badge-coral">Estimativas realistas</span>
-      <span class="badge badge-gray">Identificar gargalos</span>
+      <span class="badge badge-green">Clear communication</span>
+      <span class="badge badge-blue">Structured reasoning</span>
+      <span class="badge badge-amber">Technical knowledge</span>
+      <span class="badge badge-purple">Managing tradeoffs</span>
+      <span class="badge badge-coral">Realistic estimates</span>
+      <span class="badge badge-gray">Spotting bottlenecks</span>
     </div>
 
     <div class="table-wrap" style="margin-top:16px;"><table class="cmp-table">
       <thead>
         <tr>
-          <th>Aspecto</th>
+          <th>Aspect</th>
           <th>Algorithm Interview</th>
           <th>System Design Interview</th>
         </tr>
       </thead>
       <tbody>
-        <tr><td>Resposta correta</td><td>Determinística, geralmente única</td><td>Múltiplas soluções válidas</td></tr>
-        <tr><td>Foco</td><td>Correção e complexidade</td><td>Tradeoffs e escalabilidade</td></tr>
-        <tr><td>Duração típica</td><td>20–45 min</td><td>45–60 min</td></tr>
-        <tr><td>Comunicação</td><td>Importante</td><td>Crítica — é a principal avaliação</td></tr>
-        <tr><td>Lousa/diagrama</td><td>Útil</td><td>Obrigatório</td></tr>
+        <tr><td>Correct answer</td><td>Deterministic, usually unique</td><td>Multiple valid solutions</td></tr>
+        <tr><td>Focus</td><td>Correctness and complexity</td><td>Tradeoffs and scalability</td></tr>
+        <tr><td>Typical length</td><td>20–45 min</td><td>45–60 min</td></tr>
+        <tr><td>Communication</td><td>Important</td><td>Critical — it is the main evaluation</td></tr>
+        <tr><td>Whiteboard/diagram</td><td>Useful</td><td>Mandatory</td></tr>
       </tbody>
     </table></div>
   </section>
@@ -103,7 +103,7 @@ hide:
   <section class="section" id="sec-abordagem">
     <div class="section-header">
       <h2>Handling the Questions</h2>
-      <p>8 princípios para conduzir a entrevista de system design com confiança e clareza.</p>
+      <p>8 principles to run a system design interview with confidence and clarity.</p>
     </div>
 
     <div class="step-list">
@@ -111,62 +111,62 @@ hide:
         <div class="step-num green">1</div>
         <div class="step-body">
           <strong>Communicate</strong>
-          <span>Pense em voz alta. O entrevistador quer acompanhar seu raciocínio, não apenas ver a solução final. Silêncio prolongado é o maior inimigo numa entrevista de system design — mesmo que você ainda não saiba a resposta, verbalize o que está pensando: "estou considerando usar um cache aqui porque..."</span>
+          <span>Think out loud. The interviewer wants to follow your reasoning, not just see the final solution. Long silence is the biggest enemy in a system design interview — even if you don't know the answer yet, say what you are thinking: "I'm considering a cache here because..."</span>
         </div>
       </div>
       <div class="step-item">
         <div class="step-num green">2</div>
         <div class="step-body">
           <strong>Go broad first</strong>
-          <span>Antes de mergulhar em detalhes, esboce o sistema inteiro em alto nível. Estabeleça os componentes principais antes de aprofundar em qualquer um deles. Detalhar prematuramente um componente que depois precisa ser redesenhado é um erro comum.</span>
+          <span>Before diving into details, sketch the whole system at a high level. Establish the main components before going deep into any of them. Detailing a component too early, only to redesign it later, is a common mistake.</span>
         </div>
       </div>
       <div class="step-item">
         <div class="step-num green">3</div>
         <div class="step-body">
           <strong>Use the whiteboard</strong>
-          <span>Desenhe! Diagramas ajudam tanto o entrevistador quanto você a manter o raciocínio organizado. Um diagrama de blocos claro comunica mais do que minutos de explicação verbal. Comece simples e refine.</span>
+          <span>Draw! Diagrams help both the interviewer and you keep the reasoning organized. A clear block diagram communicates more than minutes of verbal explanation. Start simple and refine.</span>
         </div>
       </div>
       <div class="step-item">
         <div class="step-num green">4</div>
         <div class="step-body">
           <strong>Acknowledge interviewer concerns</strong>
-          <span>Se o entrevistador fizer uma objeção ou apontar um problema, não ignore nem defenda a posição a todo custo. Diga: "boa observação, deixa eu reconsiderar essa parte". Isso demonstra maturidade técnica e abertura para feedback.</span>
+          <span>If the interviewer raises an objection or points out a problem, don't ignore it or defend your position at all costs. Say: "good point, let me reconsider that part". This shows technical maturity and openness to feedback.</span>
         </div>
       </div>
       <div class="step-item">
         <div class="step-num green">5</div>
         <div class="step-body">
           <strong>Be careful about assumptions</strong>
-          <span>Assunções implícitas são armadilhas. Se você assumir que o sistema tem 1.000 usuários quando na verdade são 1 bilhão, toda a sua solução pode estar errada. Pergunte antes de assumir.</span>
+          <span>Implicit assumptions are traps. If you assume the system has 1,000 users when it actually has 1 billion, your whole solution may be wrong. Ask before you assume.</span>
         </div>
       </div>
       <div class="step-item">
         <div class="step-num green">6</div>
         <div class="step-body">
           <strong>State your assumptions explicitly</strong>
-          <span>Quando precisar assumir algo (o que é inevitável), diga em voz alta: "vou assumir que o sistema precisa suportar 10M de usuários ativos por dia, com pico de 100k req/s". O entrevistador pode corrigir, confirmar ou dar mais contexto.</span>
+          <span>When you need to assume something (which is unavoidable), say it out loud: "I'll assume the system must support 10M daily active users, peaking at 100k req/s". The interviewer can correct it, confirm it or give more context.</span>
         </div>
       </div>
       <div class="step-item">
         <div class="step-num green">7</div>
         <div class="step-body">
           <strong>Estimate when necessary</strong>
-          <span>Back-of-envelope calculations são esperadas e valorizadas. Saiba fazer estimativas rápidas de throughput, storage e bandwidth. Ex.: "1M de usuários × 100KB/usuário = ~100GB de storage". Não precisa ser exato — a ordem de grandeza é o que importa.</span>
+          <span>Back-of-envelope calculations are expected and valued. Know how to make quick estimates of throughput, storage and bandwidth. E.g.: "1M users × 100KB/user = ~100GB of storage". It doesn't need to be exact — the order of magnitude is what matters.</span>
         </div>
       </div>
       <div class="step-item">
         <div class="step-num green">8</div>
         <div class="step-body">
           <strong>Drive</strong>
-          <span>Você lidera a sessão. Não espere o entrevistador dizer o que fazer a seguir. Proponha o próximo passo: "vou focar agora no database layer, tudo bem?" ou "identifico dois gargalos principais — deixa eu abordar o mais crítico primeiro". Mostre protagonismo.</span>
+          <span>You lead the session. Don't wait for the interviewer to tell you what to do next. Propose the next step: "I'll focus on the database layer now, OK?" or "I see two main bottlenecks — let me tackle the most critical one first". Take ownership.</span>
         </div>
       </div>
     </div>
 
     <div class="callout callout-amber">
-      <p><strong>Dica prática:</strong> Use transições explícitas entre etapas. Ao passar de "componentes principais" para "identificar gargalos", diga: <em>"Agora que temos os componentes principais, vou identificar onde estão os pontos críticos desse sistema."</em> Isso mantém o entrevistador orientado na sua estrutura.</p>
+      <p><strong>Practical tip:</strong> Use explicit transitions between stages. When moving from "main components" to "identifying bottlenecks", say: <em>"Now that we have the main components, I'll identify the critical points of this system."</em> This keeps the interviewer oriented in your structure.</p>
     </div>
   </section>
 
@@ -178,7 +178,7 @@ hide:
   <section class="section" id="sec-design">
     <div class="section-header">
       <h2>Design: Step-By-Step</h2>
-      <p>Estrutura em 5 passos para projetar sistemas complexos de forma organizada durante a entrevista.</p>
+      <p>A 5-step structure to design complex systems in an organized way during the interview.</p>
     </div>
 
     <div class="step-list">
@@ -186,42 +186,42 @@ hide:
         <div class="step-num amber">1</div>
         <div class="step-body">
           <strong>Scope the Problem</strong>
-          <span>Faça perguntas para delimitar o problema. Quantos usuários? Quais features são essenciais vs. nice-to-have? O sistema é leitura-intensiva ou escrita-intensiva? É necessária consistência forte ou eventual é suficiente? Defina o escopo antes de qualquer arquitetura. Perguntas típicas: "Quais são as principais features que devo projetar?", "Qual a escala esperada em 1 ano?", "Há restrições de latência?"</span>
+          <span>Ask questions to narrow down the problem. How many users? Which features are essential vs. nice-to-have? Is the system read-intensive or write-intensive? Is strong consistency required, or is eventual consistency enough? Define the scope before any architecture. Typical questions: "What are the main features I should design?", "What scale do we expect in 1 year?", "Are there latency constraints?"</span>
         </div>
       </div>
       <div class="step-item">
         <div class="step-num amber">2</div>
         <div class="step-body">
           <strong>Make Reasonable Assumptions</strong>
-          <span>Com o escopo definido, declare assunções explícitas: "vou assumir 10M DAU, pico de 100k req/s, disponibilidade de 99.9% (downtime máximo de ~8.7h/ano), e que o sistema é muito mais read-heavy do que write-heavy (100:1)". Isso ancora toda a conversa seguinte e demonstra que você pensa em métricas concretas.</span>
+          <span>With the scope defined, state explicit assumptions: "I'll assume 10M DAU, a peak of 100k req/s, 99.9% availability (at most ~8.7h of downtime per year), and that the system is far more read-heavy than write-heavy (100:1)". This anchors the rest of the conversation and shows that you think in concrete metrics.</span>
         </div>
       </div>
       <div class="step-item">
         <div class="step-num amber">3</div>
         <div class="step-body">
           <strong>Draw the Major Components</strong>
-          <span>Esboce os blocos principais: clients → load balancers → web/app servers → caches → databases → message queues → CDN. Não entre em detalhes ainda — visão macro primeiro. Cada bloco deve ter um propósito claro. Rotule as setas com o tipo de dado que flui entre os componentes.</span>
+          <span>Sketch the main blocks: clients → load balancers → web/app servers → caches → databases → message queues → CDN. Don't go into details yet — big picture first. Each block must have a clear purpose. Label the arrows with the kind of data flowing between components.</span>
         </div>
       </div>
       <div class="step-item">
         <div class="step-num amber">4</div>
         <div class="step-body">
           <strong>Identify the Key Issues</strong>
-          <span>Onde estão os gargalos? Quais são os single points of failure? Quais componentes vão "quebrar" primeiro com o crescimento? O banco de dados é o gargalo de leitura? O servidor de aplicação tem estado que impede escalar horizontalmente? Identifique os pontos críticos antes de propor soluções.</span>
+          <span>Where are the bottlenecks? What are the single points of failure? Which components will "break" first as the system grows? Is the database the read bottleneck? Does the application server hold state that prevents horizontal scaling? Identify the critical points before proposing solutions.</span>
         </div>
       </div>
       <div class="step-item">
         <div class="step-num amber">5</div>
         <div class="step-body">
           <strong>Redesign for the Key Issues</strong>
-          <span>Agora você aprofunda: adiciona sharding no banco, caching em hot paths, escala horizontal nos app servers, CDN para assets estáticos, filas para processamento assíncrono. Redesenhe iterativamente com foco nos problemas identificados. Justifique cada decisão com os tradeoffs envolvidos.</span>
+          <span>Now you go deeper: add sharding to the database, caching on hot paths, horizontal scaling of the app servers, a CDN for static assets, queues for asynchronous processing. Redesign iteratively, focusing on the problems you identified. Justify each decision with the tradeoffs involved.</span>
         </div>
       </div>
     </div>
 
     <!-- DIAGRAMA SVG -->
     <div class="diagram-wrap">
-      <div class="diagram-label">exemplo — arquitetura de URL shortener escalável</div>
+      <div class="diagram-label">example — scalable URL shortener architecture</div>
       <svg viewBox="0 0 800 260" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <marker id="a" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
@@ -321,21 +321,21 @@ hide:
 
         <!-- labels -->
         <text x="43"  y="200" text-anchor="middle" font-size="9" fill="#9a9a94" font-family="JetBrains Mono,monospace">step 1</text>
-        <text x="43"  y="212" text-anchor="middle" font-size="9" fill="#9a9a94" font-family="JetBrains Mono,monospace">escopo</text>
+        <text x="43"  y="212" text-anchor="middle" font-size="9" fill="#9a9a94" font-family="JetBrains Mono,monospace">scope</text>
         <text x="229" y="200" text-anchor="middle" font-size="9" fill="#9a9a94" font-family="JetBrains Mono,monospace">steps 2–3</text>
-        <text x="229" y="212" text-anchor="middle" font-size="9" fill="#9a9a94" font-family="JetBrains Mono,monospace">componentes</text>
+        <text x="229" y="212" text-anchor="middle" font-size="9" fill="#9a9a94" font-family="JetBrains Mono,monospace">components</text>
         <text x="454" y="200" text-anchor="middle" font-size="9" fill="#9a9a94" font-family="JetBrains Mono,monospace">step 4–5</text>
-        <text x="454" y="212" text-anchor="middle" font-size="9" fill="#9a9a94" font-family="JetBrains Mono,monospace">gargalos / redesign</text>
+        <text x="454" y="212" text-anchor="middle" font-size="9" fill="#9a9a94" font-family="JetBrains Mono,monospace">bottlenecks / redesign</text>
         <text x="667" y="200" text-anchor="middle" font-size="9" fill="#9a9a94" font-family="JetBrains Mono,monospace">async processing</text>
-        <text x="667" y="212" text-anchor="middle" font-size="9" fill="#9a9a94" font-family="JetBrains Mono,monospace">desacoplamento</text>
+        <text x="667" y="212" text-anchor="middle" font-size="9" fill="#9a9a94" font-family="JetBrains Mono,monospace">decoupling</text>
       </svg>
     </div>
 
     <div class="itip">
-      <div class="itip-label">Pergunta-chave de escopo</div>
-      <p>Sempre pergunte: <strong>"Este sistema é read-heavy ou write-heavy?"</strong> — isso muda tudo. <br>
-      Read-heavy (ex: URL shortener, Twitter timeline) → caching agressivo, DB replicas para leitura.<br>
-      Write-heavy (ex: log ingestion, chat em tempo real) → filas + processamento assíncrono, eventual consistency.</p>
+      <div class="itip-label">Key scoping question</div>
+      <p>Always ask: <strong>"Is this system read-heavy or write-heavy?"</strong> — it changes everything. <br>
+      Read-heavy (e.g. URL shortener, Twitter timeline) → aggressive caching, DB read replicas.<br>
+      Write-heavy (e.g. log ingestion, real-time chat) → queues + asynchronous processing, eventual consistency.</p>
     </div>
   </section>
 
@@ -347,11 +347,11 @@ hide:
   <section class="section" id="sec-algo">
     <div class="section-header">
       <h2>Algorithms that Scale: Step-By-Step</h2>
-      <p>Quando o problema é algorítmico mas precisa operar em escala massiva — dados que não cabem em uma máquina.</p>
+      <p>When the problem is algorithmic but must run at massive scale — data that does not fit in one machine.</p>
     </div>
 
     <div class="callout callout-blue">
-      <p>Diferente do system design puro, aqui você começa com um algoritmo correto e vai iterando para que ele funcione com bilhões de registros. A chave é reconhecer onde a solução "quebra" ao escalar e abordar especificamente esses pontos.</p>
+      <p>Unlike pure system design, here you start from a correct algorithm and iterate until it works with billions of records. The key is to recognize where the solution "breaks" as it scales and to address exactly those points.</p>
     </div>
 
     <div class="step-list">
@@ -359,48 +359,48 @@ hide:
         <div class="step-num amber">1</div>
         <div class="step-body">
           <strong>Ask Questions</strong>
-          <span>Quantos dados? Qual a distribuição? Quais as constraints de tempo e memória? O dado cabe em RAM? Há duplicatas? Está ordenado? Pode haver aproximações (approximate algorithms) ou é necessária precisão exata? As perguntas certas revelam o verdadeiro problema e as técnicas aplicáveis.</span>
+          <span>How much data? What is the distribution? What are the time and memory constraints? Does the data fit in RAM? Are there duplicates? Is it sorted? Are approximations (approximate algorithms) acceptable, or is exact precision required? The right questions reveal the real problem and the applicable techniques.</span>
         </div>
       </div>
       <div class="step-item">
         <div class="step-num amber">2</div>
         <div class="step-body">
           <strong>Make Believe</strong>
-          <span>Assuma que o dado cabe em uma única máquina e resolva o problema lá. Encontre o algoritmo correto ignorando escala por enquanto. Isso dá a solução base que você vai adaptar. Ex.: para top-K palavras em 1TB de logs, começaria com um HashMap + MinHeap de tamanho K.</span>
+          <span>Assume the data fits in a single machine and solve the problem there. Find the correct algorithm, ignoring scale for now. This gives you the baseline solution you will adapt. E.g.: for the top-K words in 1TB of logs, you would start with a HashMap + a MinHeap of size K.</span>
         </div>
       </div>
       <div class="step-item">
         <div class="step-num amber">3</div>
         <div class="step-body">
           <strong>Get Real</strong>
-          <span>Agora enfrente a realidade: o dado não cabe em RAM, ou não cabe em disco de uma máquina, ou o processamento em série seria lento demais. Como você divide o problema? Particionamento por hash? Sampling? Streaming? Quais partes são paralelizáveis?</span>
+          <span>Now face reality: the data doesn't fit in RAM, or doesn't fit on one machine's disk, or serial processing would be too slow. How do you split the problem? Hash partitioning? Sampling? Streaming? Which parts can be parallelized?</span>
         </div>
       </div>
       <div class="step-item">
         <div class="step-num amber">4</div>
         <div class="step-body">
           <strong>Solve Problems</strong>
-          <span>Identifique quais partes da solução do passo 2 quebram em escala e corrija especificamente esses pontos. Sharding, MapReduce, approximate counting (HyperLogLog para distinct counts, Count-Min Sketch para frequências), reservoir sampling para dados em stream.</span>
+          <span>Identify which parts of the step 2 solution break at scale and fix exactly those points. Sharding, MapReduce, approximate counting (HyperLogLog for distinct counts, Count-Min Sketch for frequencies), reservoir sampling for streaming data.</span>
         </div>
       </div>
     </div>
 
     <div class="card-grid">
       <div class="card border-amber">
-        <div class="card-label amber">Exemplo completo</div>
-        <h3>Top-K palavras em 1TB de logs</h3>
-        <p><strong>Make believe:</strong> HashMap&lt;String, Integer&gt; para contar + MinHeap de tamanho K para os top-K. O(N log K).<br><br>
-        <strong>Get real:</strong> 1TB não cabe em RAM (assume ~10GB de heap).<br><br>
-        <strong>Solve:</strong> Particione o arquivo em N chunks. Cada worker processa um chunk → emite (palavra, count). Redutor central agrega contagens por palavra e mantém MinHeap global de tamanho K.<br><br>
-        Alternativa: MapReduce — Map emite (palavra, 1), Reduce soma e cada reducer mantém top-K local, merge final.</p>
+        <div class="card-label amber">Full example</div>
+        <h3>Top-K words in 1TB of logs</h3>
+        <p><strong>Make believe:</strong> HashMap&lt;String, Integer&gt; to count + a MinHeap of size K for the top-K. O(N log K).<br><br>
+        <strong>Get real:</strong> 1TB doesn't fit in RAM (assume ~10GB of heap).<br><br>
+        <strong>Solve:</strong> Split the file into N chunks. Each worker processes one chunk → emits (word, count). A central reducer aggregates counts per word and keeps a global MinHeap of size K.<br><br>
+        Alternative: MapReduce — Map emits (word, 1), Reduce sums, each reducer keeps a local top-K, final merge.</p>
       </div>
       <div class="card border-purple">
-        <div class="card-label purple">Técnicas de escala</div>
-        <h3>Quando usar cada abordagem</h3>
-        <p><strong>MapReduce:</strong> dados em batch, paralelizáveis, fits word count, PageRank, join de tabelas grandes.<br><br>
-        <strong>HyperLogLog:</strong> contagem de elementos distintos com ~1% de erro usando O(log log N) memória. Ideal para "quantos usuários únicos visitaram?"<br><br>
-        <strong>Count-Min Sketch:</strong> frequência aproximada de elementos. Ideal para top-K com alta cardinalidade.<br><br>
-        <strong>Bloom Filter:</strong> verificação probabilística de pertencimento. "Este URL já foi visitado?" com zero falsos negativos.</p>
+        <div class="card-label purple">Scaling techniques</div>
+        <h3>When to use each approach</h3>
+        <p><strong>MapReduce:</strong> batch, parallelizable data; fits word count, PageRank, joins of large tables.<br><br>
+        <strong>HyperLogLog:</strong> counts distinct elements with ~1% error using O(log log N) memory. Ideal for "how many unique users visited?"<br><br>
+        <strong>Count-Min Sketch:</strong> approximate frequency of elements. Ideal for top-K with high cardinality.<br><br>
+        <strong>Bloom Filter:</strong> probabilistic membership check. "Has this URL already been visited?" with zero false negatives.</p>
       </div>
     </div>
   </section>
@@ -414,82 +414,82 @@ hide:
   <section class="section" id="sec-numbers">
     <div class="section-header">
       <h2>Back-of-the-Envelope</h2>
-      <p>Números de referência para estimativas rápidas — a ordem de grandeza é o que importa, não a precisão.</p>
+      <p>Reference numbers for quick estimates — the order of magnitude is what matters, not precision.</p>
     </div>
 
     <div class="metric-grid">
       <div class="metric-card">
-        <div class="metric-label">1 dia</div>
+        <div class="metric-label">1 day</div>
         <div class="metric-val" style="color:var(--blue);">~10⁵ s</div>
-        <div class="metric-desc">86.400 s. Arredonde para 100k e faça as contas de cabeça.</div>
+        <div class="metric-desc">86,400 s. Round it to 100k and do the math in your head.</div>
       </div>
       <div class="metric-card">
-        <div class="metric-label">1M req/dia</div>
+        <div class="metric-label">1M req/day</div>
         <div class="metric-val" style="color:var(--accent);">~12/s</div>
-        <div class="metric-desc">Isso é a média. Pico típico: 2–5× a média — dimensione para o pico.</div>
+        <div class="metric-desc">That is the average. Typical peak: 2–5× the average — size for the peak.</div>
       </div>
       <div class="metric-card">
         <div class="metric-label">Read : Write</div>
         <div class="metric-val" style="color:var(--coral);">100:1</div>
-        <div class="metric-desc">Proporção típica de sistemas read-heavy (feeds, URL shortener, catálogos).</div>
+        <div class="metric-desc">Typical ratio of read-heavy systems (feeds, URL shortener, catalogs).</div>
       </div>
     </div>
 
-    <h3 class="sub-h">Latências que todo engenheiro deveria conhecer</h3>
+    <h3 class="sub-h">Latencies every engineer should know</h3>
     <div class="table-wrap">
       <table class="cmp-table">
-        <thead><tr><th>Operação</th><th>Latência aprox.</th><th>Implicação</th></tr></thead>
+        <thead><tr><th>Operation</th><th>Approx. latency</th><th>Implication</th></tr></thead>
         <tbody>
-          <tr><td>Referência ao cache L1</td><td>~1 ns</td><td>CPU é praticamente "grátis" frente a I/O</td></tr>
-          <tr><td>Acesso à memória principal (RAM)</td><td>~100 ns</td><td>Por isso caches em memória (Redis) respondem em sub-ms</td></tr>
-          <tr><td>Ler 1 MB sequencial da RAM</td><td>~5–10 μs</td><td>Varrer dados em memória é barato</td></tr>
-          <tr><td>Leitura aleatória em SSD (4 KB)</td><td>~20–100 μs</td><td>~1.000× mais lenta que RAM</td></tr>
-          <tr><td>Round trip no mesmo datacenter</td><td>~0,5 ms</td><td>Cada chamada entre microservices custa isso no mínimo</td></tr>
-          <tr><td>Ler 1 MB sequencial do SSD</td><td>~0,2–1 ms</td><td>Leitura sequencial é muito mais barata que aleatória</td></tr>
-          <tr><td>Seek em disco rotacional (HDD)</td><td>~5–10 ms</td><td>Evite acesso aleatório em HDD no caminho crítico</td></tr>
-          <tr><td>Round trip São Paulo ↔ Virgínia (us-east-1)</td><td>~110–130 ms</td><td>Evite chamadas síncronas entre regiões; use CDN/edge</td></tr>
+          <tr><td>L1 cache reference</td><td>~1 ns</td><td>CPU is practically "free" compared to I/O</td></tr>
+          <tr><td>Main memory (RAM) access</td><td>~100 ns</td><td>That's why in-memory caches (Redis) answer in sub-ms</td></tr>
+          <tr><td>Read 1 MB sequentially from RAM</td><td>~5–10 μs</td><td>Scanning data in memory is cheap</td></tr>
+          <tr><td>Random SSD read (4 KB)</td><td>~20–100 μs</td><td>~1,000× slower than RAM</td></tr>
+          <tr><td>Round trip within the same datacenter</td><td>~0.5 ms</td><td>Every call between microservices costs at least this much</td></tr>
+          <tr><td>Read 1 MB sequentially from SSD</td><td>~0.2–1 ms</td><td>Sequential reads are much cheaper than random ones</td></tr>
+          <tr><td>Spinning disk (HDD) seek</td><td>~5–10 ms</td><td>Avoid random HDD access on the critical path</td></tr>
+          <tr><td>Round trip São Paulo ↔ Virginia (us-east-1)</td><td>~110–130 ms</td><td>Avoid synchronous cross-region calls; use CDN/edge</td></tr>
         </tbody>
       </table>
     </div>
 
-    <h3 class="sub-h">Disponibilidade — os "noves"</h3>
+    <h3 class="sub-h">Availability — the "nines"</h3>
     <div class="table-wrap">
       <table class="cmp-table">
-        <thead><tr><th>SLO</th><th>Downtime / ano</th><th>Downtime / mês</th></tr></thead>
+        <thead><tr><th>SLO</th><th>Downtime / year</th><th>Downtime / month</th></tr></thead>
         <tbody>
-          <tr><td>99%</td><td>~3,65 dias</td><td>~7,3 h</td></tr>
-          <tr><td>99,9%</td><td>~8,77 h</td><td>~43,8 min</td></tr>
-          <tr><td>99,95%</td><td>~4,38 h</td><td>~21,9 min</td></tr>
-          <tr><td>99,99%</td><td>~52,6 min</td><td>~4,38 min</td></tr>
-          <tr><td>99,999%</td><td>~5,26 min</td><td>~26,3 s</td></tr>
+          <tr><td>99%</td><td>~3.65 days</td><td>~7.3 h</td></tr>
+          <tr><td>99.9%</td><td>~8.77 h</td><td>~43.8 min</td></tr>
+          <tr><td>99.95%</td><td>~4.38 h</td><td>~21.9 min</td></tr>
+          <tr><td>99.99%</td><td>~52.6 min</td><td>~4.38 min</td></tr>
+          <tr><td>99.999%</td><td>~5.26 min</td><td>~26.3 s</td></tr>
         </tbody>
       </table>
     </div>
 
     <div class="card-grid">
       <div class="card border-blue">
-        <div class="card-label blue">Potências de 2</div>
-        <h3>Unidades de armazenamento</h3>
-        <p><strong>2¹⁰</strong> ≈ 10³ → KB (mil)<br>
-        <strong>2²⁰</strong> ≈ 10⁶ → MB (milhão)<br>
-        <strong>2³⁰</strong> ≈ 10⁹ → GB (bilhão)<br>
-        <strong>2⁴⁰</strong> ≈ 10¹² → TB (trilhão)<br>
+        <div class="card-label blue">Powers of 2</div>
+        <h3>Storage units</h3>
+        <p><strong>2¹⁰</strong> ≈ 10³ → KB (thousand)<br>
+        <strong>2²⁰</strong> ≈ 10⁶ → MB (million)<br>
+        <strong>2³⁰</strong> ≈ 10⁹ → GB (billion)<br>
+        <strong>2⁴⁰</strong> ≈ 10¹² → TB (trillion)<br>
         <strong>2⁵⁰</strong> ≈ 10¹⁵ → PB</p>
       </div>
       <div class="card border-green">
-        <div class="card-label green">Tamanhos típicos</div>
-        <h3>Para estimar storage</h3>
-        <p><strong>ID numérico / timestamp:</strong> 8 B<br>
-        <strong>UUID:</strong> 16 B (36 B como texto)<br>
-        <strong>Registro "pequeno" (URL, post curto):</strong> ~0,5–1 KB<br>
-        <strong>Foto comprimida:</strong> ~200 KB – 2 MB<br>
-        <strong>1 min de vídeo HD:</strong> ~50–100 MB</p>
+        <div class="card-label green">Typical sizes</div>
+        <h3>To estimate storage</h3>
+        <p><strong>Numeric ID / timestamp:</strong> 8 B<br>
+        <strong>UUID:</strong> 16 B (36 B as text)<br>
+        <strong>"Small" record (URL, short post):</strong> ~0.5–1 KB<br>
+        <strong>Compressed photo:</strong> ~200 KB – 2 MB<br>
+        <strong>1 min of HD video:</strong> ~50–100 MB</p>
       </div>
     </div>
 
     <div class="itip">
-      <div class="itip-label">Como apresentar uma estimativa</div>
-      <p>Arredonde agressivamente, faça a conta <strong>em voz alta</strong> e, principalmente, diga o que o número muda na arquitetura. "São ~3 TB em 5 anos — cabe em um banco com réplicas, então sharding é uma otimização futura, não um requisito do dia 1." Estimativa que não leva a uma decisão é só aritmética.</p>
+      <div class="itip-label">How to present an estimate</div>
+      <p>Round aggressively, do the math <strong>out loud</strong> and, above all, say what the number changes in the architecture. "That's ~3 TB in 5 years — it fits in one database with replicas, so sharding is a future optimization, not a day-1 requirement." An estimate that does not lead to a decision is just arithmetic.</p>
     </div>
   </section>
 
@@ -501,7 +501,7 @@ hide:
   <section class="section" id="sec-concepts">
     <div class="section-header">
       <h2>Key Concepts</h2>
-      <p>Os conceitos que aparecem em toda entrevista de system design — clique em cada item para expandir a explicação.</p>
+      <p>The concepts that show up in every system design interview — click each item to expand the explanation.</p>
     </div>
 
     <div class="acc" id="acc-concepts">
@@ -511,22 +511,22 @@ hide:
         <button class="acc-header" type="button" aria-expanded="false">
           <div class="acc-title-wrap">
             <span class="acc-title">Horizontal vs. Vertical Scaling</span>
-            <span class="badge badge-green">fundamento</span>
+            <span class="badge badge-green">fundamentals</span>
           </div>
           <span class="acc-arrow">▶</span>
         </button>
         <div class="acc-body">
-          <p><strong>Vertical scaling (scale up):</strong> adiciona mais CPU, RAM ou disco na mesma máquina. É simples — não requer mudança de código. Mas tem limite físico e hardware (não existe uma máquina com RAM infinita), cria single point of failure e o custo cresce exponencialmente com a capacidade.</p>
-          <p><strong>Horizontal scaling (scale out):</strong> adiciona mais máquinas. Teoricamente ilimitado e mais econômico em escala. Exige design stateless nos servidores de aplicação, load balancing, e coordenação entre nós. A maioria dos sistemas web de grande escala usa horizontal.</p>
-          <p><strong>Estratégia prática:</strong> comece com vertical (mais simples, zero refactoring), mas projete para horizontal desde o início. Quando vertical atingir custo ou limite físico, migre para horizontal. O erro é não planejar isso desde o início.</p>
+          <p><strong>Vertical scaling (scale up):</strong> adds more CPU, RAM or disk to the same machine. It is simple — no code changes required. But it has a physical and hardware limit (there is no machine with infinite RAM), creates a single point of failure, and cost grows exponentially with capacity.</p>
+          <p><strong>Horizontal scaling (scale out):</strong> adds more machines. Theoretically unlimited and cheaper at scale. It requires stateless application servers, load balancing and coordination between nodes. Most large-scale web systems scale horizontally.</p>
+          <p><strong>Practical strategy:</strong> start vertical (simpler, zero refactoring), but design for horizontal from the start. When vertical hits a cost or physical limit, move to horizontal. The mistake is not planning for this from the beginning.</p>
           <div class="table-wrap" style="margin-top:12px;"><table class="cmp-table">
-            <thead><tr><th>Aspecto</th><th>Vertical</th><th>Horizontal</th></tr></thead>
+            <thead><tr><th>Aspect</th><th>Vertical</th><th>Horizontal</th></tr></thead>
             <tbody>
-              <tr><td>Implementação</td><td>Simples</td><td>Complexa</td></tr>
-              <tr><td>Limite</td><td>Hardware máximo</td><td>Praticamente ilimitado</td></tr>
-              <tr><td>Custo</td><td>Cresce exponencialmente</td><td>Cresce linearmente</td></tr>
-              <tr><td>Single point of failure</td><td>Sim</td><td>Não (com redundância)</td></tr>
-              <tr><td>Downtime na expansão</td><td>Geralmente sim</td><td>Não</td></tr>
+              <tr><td>Implementation</td><td>Simple</td><td>Complex</td></tr>
+              <tr><td>Limit</td><td>Maximum hardware</td><td>Practically unlimited</td></tr>
+              <tr><td>Cost</td><td>Grows exponentially</td><td>Grows linearly</td></tr>
+              <tr><td>Single point of failure</td><td>Yes</td><td>No (with redundancy)</td></tr>
+              <tr><td>Downtime when expanding</td><td>Usually yes</td><td>No</td></tr>
             </tbody>
           </table></div>
         </div>
@@ -537,21 +537,21 @@ hide:
         <button class="acc-header" type="button" aria-expanded="false">
           <div class="acc-title-wrap">
             <span class="acc-title">Load Balancer</span>
-            <span class="badge badge-blue">infraestrutura</span>
+            <span class="badge badge-blue">infrastructure</span>
           </div>
           <span class="acc-arrow">▶</span>
         </button>
         <div class="acc-body">
-          <p>Distribui requisições entre múltiplos servidores backend, impedindo que qualquer servidor fique sobrecarregado enquanto outros ficam ociosos. Também executa health checks e remove automaticamente servidores com falha do pool.</p>
-          <p><strong>Algoritmos de distribuição:</strong></p>
+          <p>Distributes requests across multiple backend servers, preventing any server from being overloaded while others sit idle. It also runs health checks and automatically removes failed servers from the pool.</p>
+          <p><strong>Distribution algorithms:</strong></p>
           <ul>
-            <li><code>Round-robin:</code> cada servidor recebe requisições em rotação. Simples, mas ignora carga atual.</li>
-            <li><code>Weighted round-robin:</code> servidores mais potentes recebem proporção maior de requisições.</li>
-            <li><code>Least connections:</code> encaminha para o servidor com menos conexões ativas. Melhor para requests de duração variável.</li>
-            <li><code>IP hash:</code> <code>shard = hash(client_IP) % N</code>. Garante sticky sessions (mesmo cliente → mesmo servidor). Útil quando há estado no servidor.</li>
+            <li><code>Round-robin:</code> each server receives requests in turn. Simple, but ignores the current load.</li>
+            <li><code>Weighted round-robin:</code> more powerful servers receive a larger share of requests.</li>
+            <li><code>Least connections:</code> forwards to the server with the fewest active connections. Better for requests of variable duration.</li>
+            <li><code>IP hash:</code> <code>shard = hash(client_IP) % N</code>. Guarantees sticky sessions (same client → same server). Useful when the server holds state.</li>
           </ul>
-          <p><strong>Tipos de implementação:</strong> Hardware (F5, Cisco), software (Nginx, HAProxy, Envoy), cloud-managed (AWS ALB/NLB, GCP Cloud Load Balancing).</p>
-          <p><strong>Cuidado:</strong> o load balancer em si pode se tornar single point of failure. Solução: pares ativo/passivo (primary + standby com failover automático) ou DNS-based load balancing (múltiplos IPs no DNS com TTL curto).</p>
+          <p><strong>Implementation types:</strong> Hardware (F5, Cisco), software (Nginx, HAProxy, Envoy), cloud-managed (AWS ALB/NLB, GCP Cloud Load Balancing).</p>
+          <p><strong>Watch out:</strong> the load balancer itself can become a single point of failure. Solution: active/passive pairs (primary + standby with automatic failover) or DNS-based load balancing (multiple IPs in DNS with a short TTL).</p>
         </div>
       </div>
 
@@ -560,20 +560,20 @@ hide:
         <button class="acc-header" type="button" aria-expanded="false">
           <div class="acc-title-wrap">
             <span class="acc-title">Database Denormalization &amp; NoSQL</span>
-            <span class="badge badge-amber">dados</span>
+            <span class="badge badge-amber">data</span>
           </div>
           <span class="acc-arrow">▶</span>
         </button>
         <div class="acc-body">
-          <p><strong>Denormalization:</strong> desnormalizar um banco relacional significa duplicar dados estrategicamente para evitar JOINs caros. Você troca consistência (updates precisam ser feitos em múltiplos lugares) por performance de leitura. Funciona bem quando leituras superam escritas em grande proporção e JOINs são um gargalo comprovado.</p>
-          <p><strong>NoSQL — quando e qual usar:</strong></p>
+          <p><strong>Denormalization:</strong> denormalizing a relational database means strategically duplicating data to avoid expensive JOINs. You trade consistency (updates must be made in several places) for read performance. It works well when reads far outnumber writes and JOINs are a proven bottleneck.</p>
+          <p><strong>NoSQL — when and which to use:</strong></p>
           <ul>
-            <li><strong>Key-Value</strong> (Redis, DynamoDB): acesso O(1) por chave. Ideal para sessions, caching, leaderboards, rate limiting.</li>
-            <li><strong>Document</strong> (MongoDB, Couchbase): dados semi-estruturados, schema flexível. Ideal para catálogos de produtos, perfis de usuário.</li>
-            <li><strong>Column-family</strong> (Cassandra, HBase): escrita massiva distribuída, queries por partition key. Ideal para séries temporais, IoT, logs.</li>
-            <li><strong>Graph</strong> (Neo4j, Amazon Neptune): relacionamentos complexos entre entidades. Ideal para social graphs, sistemas de recomendação, detecção de fraude.</li>
+            <li><strong>Key-Value</strong> (Redis, DynamoDB): O(1) access by key. Ideal for sessions, caching, leaderboards, rate limiting.</li>
+            <li><strong>Document</strong> (MongoDB, Couchbase): semi-structured data, flexible schema. Ideal for product catalogs, user profiles.</li>
+            <li><strong>Column-family</strong> (Cassandra, HBase): massive distributed writes, queries by partition key. Ideal for time series, IoT, logs.</li>
+            <li><strong>Graph</strong> (Neo4j, Amazon Neptune): complex relationships between entities. Ideal for social graphs, recommendation systems, fraud detection.</li>
           </ul>
-          <p><strong>CAP Theorem:</strong> em um sistema distribuído, você pode garantir no máximo 2 das 3 propriedades: <code>Consistency</code> (todos os nós veem os mesmos dados), <code>Availability</code> (toda request recebe resposta), <code>Partition tolerance</code> (o sistema funciona mesmo com falhas de rede). Na prática, P é inevitável — você escolhe entre CP (consistência) ou AP (disponibilidade).</p>
+          <p><strong>CAP Theorem:</strong> in a distributed system, you can guarantee at most 2 of the 3 properties: <code>Consistency</code> (all nodes see the same data), <code>Availability</code> (every request gets a response), <code>Partition tolerance</code> (the system keeps working despite network failures). In practice, P is unavoidable — you choose between CP (consistency) and AP (availability).</p>
         </div>
       </div>
 
@@ -582,20 +582,20 @@ hide:
         <button class="acc-header" type="button" aria-expanded="false">
           <div class="acc-title-wrap">
             <span class="acc-title">Database Partitioning (Sharding)</span>
-            <span class="badge badge-amber">dados</span>
+            <span class="badge badge-amber">data</span>
           </div>
           <span class="acc-arrow">▶</span>
         </button>
         <div class="acc-body">
-          <p>Divide o banco de dados em múltiplos nós (shards), onde cada nó armazena um subconjunto dos dados. Permite escalar horizontalmente o armazenamento e a throughput de queries além dos limites de uma única máquina.</p>
-          <p><strong>Estratégias de sharding:</strong></p>
+          <p>Splits the database across multiple nodes (shards), where each node stores a subset of the data. It lets you scale storage and query throughput horizontally beyond the limits of a single machine.</p>
+          <p><strong>Sharding strategies:</strong></p>
           <ul>
-            <li><strong>Vertical partitioning:</strong> diferentes tabelas em diferentes servidores. Simples, mas limita o crescimento de tabelas individuais.</li>
-            <li><strong>Horizontal (range-based):</strong> usuários com id 1–1M no shard A, 1M–2M no B. Bom para range queries, mas pode criar hot spots se a distribuição for desigual.</li>
-            <li><strong>Hash-based:</strong> <code>shard = hash(user_id) % N</code>. Distribuição uniforme, evita hot spots. Dificulta range queries. <strong>Consistent hashing</strong> minimiza o remapeamento de dados ao adicionar ou remover nós.</li>
-            <li><strong>Directory-based:</strong> uma lookup table mapeia chave → shard. Flexível (permite mover dados sem rehashing), mas a tabela vira um gargalo e um ponto único de falha.</li>
+            <li><strong>Vertical partitioning:</strong> different tables on different servers. Simple, but limits the growth of individual tables.</li>
+            <li><strong>Horizontal (range-based):</strong> users with id 1–1M on shard A, 1M–2M on B. Good for range queries, but can create hot spots if the distribution is uneven.</li>
+            <li><strong>Hash-based:</strong> <code>shard = hash(user_id) % N</code>. Uniform distribution, avoids hot spots. Makes range queries harder. <strong>Consistent hashing</strong> minimizes data remapping when nodes are added or removed.</li>
+            <li><strong>Directory-based:</strong> a lookup table maps key → shard. Flexible (lets you move data without rehashing), but the table becomes a bottleneck and a single point of failure.</li>
           </ul>
-          <p><strong>Problema clássico:</strong> queries que cruzam shards (cross-shard joins) são extremamente caras. Projete o sharding key levando em conta os access patterns mais frequentes. Se 90% das queries são por <code>user_id</code>, use <code>user_id</code> como sharding key.</p>
+          <p><strong>Classic problem:</strong> queries that span shards (cross-shard joins) are extremely expensive. Choose the sharding key based on the most frequent access patterns. If 90% of queries are by <code>user_id</code>, use <code>user_id</code> as the sharding key.</p>
         </div>
       </div>
 
@@ -609,20 +609,20 @@ hide:
           <span class="acc-arrow">▶</span>
         </button>
         <div class="acc-body">
-          <p>Armazena resultados computados ou dados frequentemente acessados em memória (muito mais rápida que disco) para evitar recomputation ou I/O ao banco. É uma das otimizações de maior impacto em sistemas read-heavy.</p>
-          <p><strong>Políticas de eviction (quando a memória está cheia):</strong></p>
+          <p>Stores computed results or frequently accessed data in memory (much faster than disk) to avoid recomputation or database I/O. It is one of the highest-impact optimizations in read-heavy systems.</p>
+          <p><strong>Eviction policies (when memory is full):</strong></p>
           <ul>
-            <li><code>LRU (Least Recently Used):</code> remove o item acessado há mais tempo. É o padrão — funciona bem na maioria dos workloads.</li>
-            <li><code>LFU (Least Frequently Used):</code> remove o item acessado com menos frequência. Melhor quando a popularidade dos dados é estável ao longo do tempo.</li>
-            <li><code>TTL (Time-To-Live):</code> cada item tem um prazo de expiração. Essencial para dados com validade temporal (ex: preços, sessões).</li>
+            <li><code>LRU (Least Recently Used):</code> removes the item accessed longest ago. It is the default — it works well for most workloads.</li>
+            <li><code>LFU (Least Frequently Used):</code> removes the least frequently accessed item. Better when data popularity is stable over time.</li>
+            <li><code>TTL (Time-To-Live):</code> each item has an expiration time. Essential for time-sensitive data (e.g. prices, sessions).</li>
           </ul>
           <p><strong>Write strategies:</strong></p>
           <ul>
-            <li><code>Write-through:</code> escreve no cache e no banco simultaneamente. Consistência garantida, mas latência de escrita maior.</li>
-            <li><code>Write-back (write-behind):</code> escreve no cache imediatamente, propaga ao banco de forma assíncrona. Maior throughput, mas risco de perda de dados se o cache falhar.</li>
-            <li><code>Write-around:</code> escreve direto no banco, bypassa o cache. O cache só é populado na leitura seguinte. Útil quando os dados escritos raramente são lidos logo após.</li>
+            <li><code>Write-through:</code> writes to the cache and the database at the same time. Guaranteed consistency, but higher write latency.</li>
+            <li><code>Write-back (write-behind):</code> writes to the cache immediately and propagates to the database asynchronously. Higher throughput, but risk of data loss if the cache fails.</li>
+            <li><code>Write-around:</code> writes straight to the database, bypassing the cache. The cache is only populated on the next read. Useful when written data is rarely read right afterwards.</li>
           </ul>
-          <p><strong>Problemas clássicos:</strong> <em>Cache stampede</em> (expiração simultânea de muitas chaves causa flood de queries ao banco — use probabilistic expiration ou mutex lock), <em>cold start</em> (cache vazio após deploy — use warm-up scripts), <em>cache poisoning</em> (dados inválidos no cache).</p>
+          <p><strong>Classic problems:</strong> <em>Cache stampede</em> (many keys expiring at the same time cause a flood of database queries — use probabilistic expiration or a mutex lock), <em>cold start</em> (empty cache after a deploy — use warm-up scripts), <em>cache poisoning</em> (invalid data in the cache).</p>
         </div>
       </div>
 
@@ -631,27 +631,27 @@ hide:
         <button class="acc-header" type="button" aria-expanded="false">
           <div class="acc-title-wrap">
             <span class="acc-title">Asynchronous Processing &amp; Queues</span>
-            <span class="badge badge-green">arquitetura</span>
+            <span class="badge badge-green">architecture</span>
           </div>
           <span class="acc-arrow">▶</span>
         </button>
         <div class="acc-body">
-          <p>Em vez de processar tudo de forma síncrona dentro da request do usuário, você enfileira o trabalho pesado para execução assíncrona. O usuário recebe uma resposta rápida (confirmação de recebimento), e workers processam em background.</p>
-          <p><strong>Casos de uso clássicos:</strong></p>
+          <p>Instead of processing everything synchronously inside the user's request, you enqueue the heavy work for asynchronous execution. The user gets a fast response (an acknowledgment), and workers do the processing in the background.</p>
+          <p><strong>Classic use cases:</strong></p>
           <ul>
-            <li>Envio de email/SMS após cadastro</li>
-            <li>Geração de thumbnail de imagem após upload</li>
-            <li>Processamento de pagamento com retry automático</li>
-            <li>Indexação de conteúdo para mecanismo de busca</li>
-            <li>Notificações push para dispositivos móveis</li>
+            <li>Sending email/SMS after sign-up</li>
+            <li>Generating an image thumbnail after upload</li>
+            <li>Payment processing with automatic retry</li>
+            <li>Indexing content for a search engine</li>
+            <li>Push notifications to mobile devices</li>
           </ul>
-          <p><strong>Ferramentas e tradeoffs:</strong></p>
+          <p><strong>Tools and tradeoffs:</strong></p>
           <ul>
-            <li><code>RabbitMQ:</code> AMQP, garantia de entrega (at-least-once), roteamento complexo por exchange/binding. Ideal para workloads que precisam de garantias de entrega.</li>
-            <li><code>Apache Kafka:</code> log distribuído, retenção persistente de mensagens, possibilidade de replay, throughput muito alto (milhões de msg/s). Ideal para event streaming, auditoria, múltiplos consumidores independentes.</li>
-            <li><code>Amazon SQS:</code> managed, zero ops, SQS Standard (at-least-once, sem ordem) ou FIFO (exactly-once, ordenado). Ideal para quem quer simplicidade na nuvem AWS.</li>
+            <li><code>RabbitMQ:</code> AMQP, delivery guarantees (at-least-once), complex routing via exchange/binding. Ideal for workloads that need delivery guarantees.</li>
+            <li><code>Apache Kafka:</code> distributed log, persistent message retention, replay capability, very high throughput (millions of msg/s). Ideal for event streaming, auditing, multiple independent consumers.</li>
+            <li><code>Amazon SQS:</code> managed, zero ops, SQS Standard (at-least-once, unordered) or FIFO (exactly-once, ordered). Ideal if you want simplicity on AWS.</li>
           </ul>
-          <p>O padrão produtor-consumidor desacopla serviços, absorve picos de tráfego (o produtor pode ser muito mais rápido que o consumidor por curtos períodos) e permite retry automático em caso de falha do worker.</p>
+          <p>The producer-consumer pattern decouples services, absorbs traffic spikes (the producer can be much faster than the consumer for short periods) and enables automatic retry when a worker fails.</p>
         </div>
       </div>
 
@@ -660,37 +660,37 @@ hide:
         <button class="acc-header" type="button" aria-expanded="false">
           <div class="acc-title-wrap">
             <span class="acc-title">Networking Metrics</span>
-            <span class="badge badge-blue">métricas</span>
+            <span class="badge badge-blue">metrics</span>
           </div>
           <span class="acc-arrow">▶</span>
         </button>
         <div class="acc-body">
-          <p>Três métricas fundamentais para entender e dimensionar a capacidade de rede de um sistema distribuído:</p>
+          <p>Three fundamental metrics to understand and size the network capacity of a distributed system:</p>
           <div class="metric-grid" style="margin-top:12px;">
             <div class="metric-card">
               <div class="metric-label">Bandwidth</div>
               <div class="metric-val" style="color:var(--blue);">cap.</div>
-              <div class="metric-desc">Capacidade máxima teórica do canal em bits/segundo. É o teto — quanto o link pode transportar no máximo.</div>
+              <div class="metric-desc">Theoretical maximum capacity of the channel in bits/second. It is the ceiling — the most the link can carry.</div>
             </div>
             <div class="metric-card">
               <div class="metric-val" style="color:var(--accent);">real</div>
               <div class="metric-label">Throughput</div>
-              <div class="metric-desc">Taxa real de transferência bem-sucedida. Sempre ≤ bandwidth. Reduzida por congestionamento, retransmissões e overhead.</div>
+              <div class="metric-desc">Actual rate of successful transfer. Always ≤ bandwidth. Reduced by congestion, retransmissions and overhead.</div>
             </div>
             <div class="metric-card">
               <div class="metric-val" style="color:var(--coral);">RTT</div>
               <div class="metric-label">Latency</div>
-              <div class="metric-desc">Tempo para um pacote ir de A a B (one-way) ou A→B→A (Round-Trip Time). Composta por propagation + transmission + processing + queuing delay.</div>
+              <div class="metric-desc">Time for a packet to go from A to B (one-way) or A→B→A (Round-Trip Time). Made up of propagation + transmission + processing + queuing delay.</div>
             </div>
           </div>
-          <p><strong>Componentes da latência:</strong></p>
+          <p><strong>Components of latency:</strong></p>
           <ul>
-            <li><code>Propagation delay:</code> velocidade da luz × distância. São Paulo → Nova York ≈ 100ms mínimo.</li>
-            <li><code>Transmission delay:</code> tamanho do pacote ÷ bandwidth. Um arquivo de 1GB em link de 100Mbps leva ~80 segundos.</li>
-            <li><code>Processing delay:</code> tempo que roteadores levam para processar o header e decidir o próximo salto.</li>
-            <li><code>Queuing delay:</code> tempo esperando em buffers de roteadores congestionados. Variável e imprevisível.</li>
+            <li><code>Propagation delay:</code> speed of light × distance. São Paulo → New York ≈ 100ms minimum.</li>
+            <li><code>Transmission delay:</code> packet size ÷ bandwidth. A 1GB file over a 100Mbps link takes ~80 seconds.</li>
+            <li><code>Processing delay:</code> time routers take to process the header and decide the next hop.</li>
+            <li><code>Queuing delay:</code> time spent waiting in the buffers of congested routers. Variable and unpredictable.</li>
           </ul>
-          <p><strong>Regra prática:</strong> otimizar throughput (batching, compressão) pode aumentar latência. Otimizar latência (requests menores, conexões persistentes) pode reduzir throughput. Entenda qual é mais crítico para o seu sistema antes de otimizar.</p>
+          <p><strong>Rule of thumb:</strong> optimizing throughput (batching, compression) can increase latency. Optimizing latency (smaller requests, persistent connections) can reduce throughput. Understand which one is more critical for your system before optimizing.</p>
         </div>
       </div>
 
@@ -704,23 +704,23 @@ hide:
           <span class="acc-arrow">▶</span>
         </button>
         <div class="acc-body">
-          <p>Paradigma de programação para processar grandes datasets em paralelo num cluster. O programador define apenas as funções Map e Reduce; o framework cuida de distribuição, paralelismo, fault tolerance e shuffle.</p>
-          <p><strong>Fluxo das duas fases:</strong></p>
+          <p>A programming paradigm for processing large datasets in parallel on a cluster. The programmer only defines the Map and Reduce functions; the framework takes care of distribution, parallelism, fault tolerance and the shuffle.</p>
+          <p><strong>The flow of the two phases:</strong></p>
           <ul>
-            <li><strong>Map:</strong> cada worker lê um chunk dos dados de entrada e emite pares <code>(key, value)</code>. Ex.: para word count, cada linha → emite <code>(palavra, 1)</code> para cada palavra encontrada.</li>
-            <li><strong>Shuffle &amp; Sort:</strong> o framework agrupa automaticamente todos os valores emitidos pela mesma key e os envia para o mesmo reducer.</li>
-            <li><strong>Reduce:</strong> o reducer recebe <code>(key, [v1, v2, v3, ...])</code> e produz o resultado final. Ex.: <code>(palavra, [1,1,1]) → (palavra, 3)</code>.</li>
+            <li><strong>Map:</strong> each worker reads a chunk of the input data and emits <code>(key, value)</code> pairs. E.g.: for word count, each line → emits <code>(word, 1)</code> for every word found.</li>
+            <li><strong>Shuffle &amp; Sort:</strong> the framework automatically groups all values emitted for the same key and sends them to the same reducer.</li>
+            <li><strong>Reduce:</strong> the reducer receives <code>(key, [v1, v2, v3, ...])</code> and produces the final result. E.g.: <code>(word, [1,1,1]) → (word, 3)</code>.</li>
           </ul>
-          <p><strong>O framework cuida de:</strong> distribuição de dados entre workers, execução paralela, re-execução automática de tasks que falharam (fault tolerance), shuffle/sort entre Map e Reduce, e monitoramento.</p>
-          <p><strong>Implementações:</strong> Hadoop MapReduce (batch, I/O em disco — robusto mas lento), Apache Spark (in-memory — 10-100x mais rápido para iterative algorithms como ML, streaming via Spark Streaming).</p>
-          <p><strong>Quando NÃO usar:</strong> queries em tempo real com requisito de baixa latência, transações ACID que precisam de consistência forte, sistemas de cache ou lookup simples. MapReduce é para processamento batch de grandes volumes.</p>
-          <pre># Pseudocódigo — Word Count em MapReduce
+          <p><strong>The framework takes care of:</strong> distributing data among workers, parallel execution, automatic re-execution of failed tasks (fault tolerance), shuffle/sort between Map and Reduce, and monitoring.</p>
+          <p><strong>Implementations:</strong> Hadoop MapReduce (batch, disk I/O — robust but slow), Apache Spark (in-memory — 10-100x faster for iterative algorithms such as ML, streaming via Spark Streaming).</p>
+          <p><strong>When NOT to use it:</strong> real-time queries with low-latency requirements, ACID transactions that need strong consistency, caching systems or simple lookups. MapReduce is for batch processing of large volumes.</p>
+          <pre># Pseudocode — Word Count in MapReduce
 def map(document_id, text):
     for word in text.split():
-        emit(word, 1)           # emite (key, value)
+        emit(word, 1)           # emits (key, value)
 
-def reduce(word, counts):       # recebe (key, [v1, v2, ...])
-    emit(word, sum(counts))     # agrega e emite resultado final</pre>
+def reduce(word, counts):       # receives (key, [v1, v2, ...])
+    emit(word, sum(counts))     # aggregates and emits the final result</pre>
         </div>
       </div>
 
@@ -729,17 +729,17 @@ def reduce(word, counts):       # recebe (key, [v1, v2, ...])
         <button class="acc-header" type="button" aria-expanded="false">
           <div class="acc-title-wrap">
             <span class="acc-title">Consistent Hashing</span>
-            <span class="badge badge-amber">dados</span>
+            <span class="badge badge-amber">data</span>
           </div>
           <span class="acc-arrow">▶</span>
         </button>
         <div class="acc-body">
-          <p><strong>O problema:</strong> com <code>shard = hash(key) % N</code>, mudar N (adicionar um nó ou perder um) remapeia quase todas as chaves. Num cache distribuído isso equivale a esvaziar o cache inteiro de uma vez — e todo o tráfego cai no banco.</p>
-          <p><strong>A solução:</strong> nós e chaves são posicionados num anel de hash (ex.: 0 … 2³²−1). Cada chave pertence ao primeiro nó encontrado no sentido horário. Ao adicionar ou remover um nó, só as chaves do intervalo vizinho mudam de dono — em média <code>K/N</code> chaves.</p>
+          <p><strong>The problem:</strong> with <code>shard = hash(key) % N</code>, changing N (adding a node or losing one) remaps almost every key. In a distributed cache this amounts to emptying the whole cache at once — and all traffic falls on the database.</p>
+          <p><strong>The solution:</strong> nodes and keys are placed on a hash ring (e.g. 0 … 2³²−1). Each key belongs to the first node found going clockwise. When a node is added or removed, only the keys in the neighboring range change owner — on average <code>K/N</code> keys.</p>
           <ul>
-            <li><strong>Virtual nodes:</strong> cada nó físico ocupa várias posições no anel, o que uniformiza a distribuição e permite dar mais peso a máquinas maiores.</li>
-            <li><strong>Replicação:</strong> a chave também é guardada nos próximos R−1 nós do anel (modelo do Dynamo e do Cassandra).</li>
-            <li><strong>Onde aparece:</strong> Cassandra, DynamoDB, Riak, clientes de Memcached (ketama), Nginx (<code>hash $request_uri consistent;</code>).</li>
+            <li><strong>Virtual nodes:</strong> each physical node takes several positions on the ring, which evens out the distribution and lets you give more weight to bigger machines.</li>
+            <li><strong>Replication:</strong> the key is also stored on the next R−1 nodes of the ring (the Dynamo and Cassandra model).</li>
+            <li><strong>Where it shows up:</strong> Cassandra, DynamoDB, Riak, Memcached clients (ketama), Nginx (<code>hash $request_uri consistent;</code>).</li>
           </ul>
         </div>
       </div>
@@ -749,21 +749,21 @@ def reduce(word, counts):       # recebe (key, [v1, v2, ...])
         <button class="acc-header" type="button" aria-expanded="false">
           <div class="acc-title-wrap">
             <span class="acc-title">Replication &amp; Consistency Models</span>
-            <span class="badge badge-amber">dados</span>
+            <span class="badge badge-amber">data</span>
           </div>
           <span class="acc-arrow">▶</span>
         </button>
         <div class="acc-body">
-          <p>Replicar dados aumenta disponibilidade e capacidade de leitura, mas obriga você a escolher <strong>o que o cliente pode ver</strong> enquanto as réplicas convergem.</p>
-          <p><strong>Topologias:</strong></p>
+          <p>Replicating data increases availability and read capacity, but forces you to choose <strong>what the client may see</strong> while the replicas converge.</p>
+          <p><strong>Topologies:</strong></p>
           <ul>
-            <li><strong>Leader-follower (primary-replica):</strong> escritas no líder, leituras escaladas nas réplicas. Com replicação assíncrona existe <em>replication lag</em> — uma leitura na réplica pode retornar dado antigo.</li>
-            <li><strong>Multi-leader:</strong> escritas aceitas em várias regiões. Exige resolução de conflitos (last-write-wins, CRDTs, merge na aplicação).</li>
-            <li><strong>Leaderless (quorum):</strong> N réplicas; a escrita é confirmada por W e a leitura consulta R. Se <code>R + W &gt; N</code>, toda leitura encontra ao menos uma réplica com a última escrita confirmada. Ex.: N=3, W=2, R=2.</li>
+            <li><strong>Leader-follower (primary-replica):</strong> writes go to the leader, reads scale out on the replicas. With asynchronous replication there is <em>replication lag</em> — a read on a replica may return stale data.</li>
+            <li><strong>Multi-leader:</strong> writes accepted in several regions. Requires conflict resolution (last-write-wins, CRDTs, merge in the application).</li>
+            <li><strong>Leaderless (quorum):</strong> N replicas; a write is acknowledged by W and a read queries R. If <code>R + W &gt; N</code>, every read hits at least one replica with the latest acknowledged write. E.g.: N=3, W=2, R=2.</li>
           </ul>
-          <p><strong>Modelos de consistência (do mais forte ao mais fraco):</strong> linearizability (strong) → read-your-writes → monotonic reads → eventual consistency.</p>
-          <p><strong>Truque prático:</strong> para garantir read-your-writes sem consistência forte global, leia do líder por alguns segundos depois que o próprio usuário escreveu (ex.: após editar o perfil).</p>
-          <p class="acc-link">Na disciplina: <a href="../classes/distributed_systems/cap/">CAP Theorem</a> · <a href="../classes/distributed_systems/consensus/">Consensus &amp; Algorithms</a></p>
+          <p><strong>Consistency models (strongest to weakest):</strong> linearizability (strong) → read-your-writes → monotonic reads → eventual consistency.</p>
+          <p><strong>Practical trick:</strong> to guarantee read-your-writes without global strong consistency, read from the leader for a few seconds after the user's own write (e.g. after editing their profile).</p>
+          <p class="acc-link">In the course: <a href="../classes/distributed_systems/cap/">CAP Theorem</a> · <a href="../classes/distributed_systems/consensus/">Consensus &amp; Algorithms</a></p>
         </div>
       </div>
 
@@ -772,19 +772,19 @@ def reduce(word, counts):       # recebe (key, [v1, v2, ...])
         <button class="acc-header" type="button" aria-expanded="false">
           <div class="acc-title-wrap">
             <span class="acc-title">CDN &amp; Edge</span>
-            <span class="badge badge-blue">infraestrutura</span>
+            <span class="badge badge-blue">infrastructure</span>
           </div>
           <span class="acc-arrow">▶</span>
         </button>
         <div class="acc-body">
-          <p>Uma CDN (Content Delivery Network) é uma rede de servidores de borda que guardam cópias do conteúdo perto do usuário. Reduz a latência (o RTT até a borda é muito menor que até a origem) e tira carga da origem.</p>
+          <p>A CDN (Content Delivery Network) is a network of edge servers that keep copies of content close to the user. It reduces latency (the RTT to the edge is much smaller than to the origin) and takes load off the origin.</p>
           <ul>
-            <li><strong>Pull CDN:</strong> a borda busca na origem no primeiro acesso (cache miss) e guarda conforme <code>Cache-Control</code>/TTL. Simples, padrão na maioria dos casos.</li>
-            <li><strong>Push CDN:</strong> você publica o conteúdo na CDN explicitamente. Útil para arquivos grandes e pouco alterados.</li>
-            <li><strong>Invalidação:</strong> prefira versionar o nome do arquivo (<code>app.3f9a1c.js</code>) a invalidar cache — invalidação é lenta e cara.</li>
-            <li><strong>Além de estáticos:</strong> TLS termination, proteção DDoS/WAF, edge compute e cache de respostas dinâmicas com TTL curto.</li>
+            <li><strong>Pull CDN:</strong> the edge fetches from the origin on the first access (cache miss) and stores it according to <code>Cache-Control</code>/TTL. Simple, the default in most cases.</li>
+            <li><strong>Push CDN:</strong> you publish the content to the CDN explicitly. Useful for large, rarely changing files.</li>
+            <li><strong>Invalidation:</strong> prefer versioning the file name (<code>app.3f9a1c.js</code>) over invalidating the cache — invalidation is slow and expensive.</li>
+            <li><strong>Beyond static files:</strong> TLS termination, DDoS/WAF protection, edge compute and caching of dynamic responses with a short TTL.</li>
           </ul>
-          <p><strong>Exemplos:</strong> Amazon CloudFront, Cloudflare, Akamai, Fastly.</p>
+          <p><strong>Examples:</strong> Amazon CloudFront, Cloudflare, Akamai, Fastly.</p>
         </div>
       </div>
 
@@ -793,21 +793,21 @@ def reduce(word, counts):       # recebe (key, [v1, v2, ...])
         <button class="acc-header" type="button" aria-expanded="false">
           <div class="acc-title-wrap">
             <span class="acc-title">Rate Limiting</span>
-            <span class="badge badge-coral">resiliência</span>
+            <span class="badge badge-coral">resilience</span>
           </div>
           <span class="acc-arrow">▶</span>
         </button>
         <div class="acc-body">
-          <p>Limita quantas requisições um cliente (usuário, API key, IP) pode fazer numa janela de tempo. Protege contra abuso e picos acidentais, garante fair use e controla custo. A resposta padrão é <code>HTTP 429 Too Many Requests</code> com header <code>Retry-After</code>.</p>
-          <p><strong>Algoritmos:</strong></p>
+          <p>Limits how many requests a client (user, API key, IP) can make within a time window. It protects against abuse and accidental spikes, ensures fair use and controls cost. The standard response is <code>HTTP 429 Too Many Requests</code> with a <code>Retry-After</code> header.</p>
+          <p><strong>Algorithms:</strong></p>
           <ul>
-            <li><code>Token bucket:</code> tokens são repostos a uma taxa fixa; cada request consome um. Permite bursts até o tamanho do balde. O mais usado em APIs.</li>
-            <li><code>Leaky bucket:</code> requests entram numa fila que é drenada a taxa constante. Suaviza o tráfego (é o modelo do <code>limit_req</code> do Nginx).</li>
-            <li><code>Fixed window counter:</code> contador por janela (ex.: por minuto). Simples, mas permite até 2× o limite na virada da janela.</li>
-            <li><code>Sliding window (log ou counter):</code> mais preciso que a janela fixa, com custo maior de memória/cálculo.</li>
+            <li><code>Token bucket:</code> tokens are refilled at a fixed rate; each request consumes one. Allows bursts up to the bucket size. The most common choice for APIs.</li>
+            <li><code>Leaky bucket:</code> requests enter a queue that is drained at a constant rate. Smooths traffic (it is the model behind Nginx's <code>limit_req</code>).</li>
+            <li><code>Fixed window counter:</code> one counter per window (e.g. per minute). Simple, but allows up to 2× the limit at the window boundary.</li>
+            <li><code>Sliding window (log or counter):</code> more accurate than the fixed window, at a higher memory/computation cost.</li>
           </ul>
-          <p><strong>Distribuído:</strong> com várias réplicas do gateway, o contador precisa ser compartilhado — tipicamente Redis (<code>INCR</code> + <code>EXPIRE</code>, ou um script Lua para atomicidade). Decida também o comportamento se o Redis cair: <em>fail-open</em> (deixa passar) ou <em>fail-closed</em> (bloqueia).</p>
-          <p class="acc-link">Na disciplina: <a href="../hands-on/2/">Hands-on 2 — Gateway</a> · <a href="../hands-on/8/">Hands-on 8 — In-Memory Cache</a></p>
+          <p><strong>Distributed:</strong> with several gateway replicas, the counter must be shared — typically Redis (<code>INCR</code> + <code>EXPIRE</code>, or a Lua script for atomicity). Also decide what happens if Redis goes down: <em>fail-open</em> (let traffic through) or <em>fail-closed</em> (block it).</p>
+          <p class="acc-link">In the course: <a href="../hands-on/2/">Hands-on 2 — Gateway</a> · <a href="../hands-on/8/">Hands-on 8 — In-Memory Cache</a></p>
         </div>
       </div>
 
@@ -816,19 +816,19 @@ def reduce(word, counts):       # recebe (key, [v1, v2, ...])
         <button class="acc-header" type="button" aria-expanded="false">
           <div class="acc-title-wrap">
             <span class="acc-title">API Gateway &amp; Microservices</span>
-            <span class="badge badge-green">arquitetura</span>
+            <span class="badge badge-green">architecture</span>
           </div>
           <span class="acc-arrow">▶</span>
         </button>
         <div class="acc-body">
-          <p><strong>API Gateway:</strong> ponto único de entrada do sistema. Concentra preocupações transversais — roteamento, autenticação (validação de JWT), rate limiting, TLS, CORS, agregação de respostas — para que os serviços internos não precisem repeti-las.</p>
+          <p><strong>API Gateway:</strong> the single entry point of the system. It concentrates cross-cutting concerns — routing, authentication (JWT validation), rate limiting, TLS, CORS, response aggregation — so internal services don't have to repeat them.</p>
           <ul>
-            <li><strong>Comunicação:</strong> síncrona (REST/gRPC) quando o cliente precisa da resposta agora; assíncrona (eventos em fila) quando o trabalho pode acontecer depois.</li>
-            <li><strong>Database per service:</strong> cada serviço é dono dos seus dados. Consistência entre serviços via <em>Saga</em> (orquestrada ou coreografada) e <em>Outbox pattern</em> para publicar eventos de forma confiável.</li>
-            <li><strong>Service discovery:</strong> DNS do orquestrador (Kubernetes Services) ou registry (Eureka, Consul).</li>
+            <li><strong>Communication:</strong> synchronous (REST/gRPC) when the client needs the answer now; asynchronous (events on a queue) when the work can happen later.</li>
+            <li><strong>Database per service:</strong> each service owns its data. Consistency across services via <em>Saga</em> (orchestrated or choreographed) and the <em>Outbox pattern</em> to publish events reliably.</li>
+            <li><strong>Service discovery:</strong> the orchestrator's DNS (Kubernetes Services) or a registry (Eureka, Consul).</li>
           </ul>
-          <p><strong>Tradeoff que impressiona em entrevista:</strong> saber quando <em>não</em> usar microservices. Time pequeno e domínio ainda instável → comece com um monolito modular e extraia serviços quando houver motivo concreto (escala independente, deploy independente, times distintos).</p>
-          <p class="acc-link">Na disciplina: <a href="../classes/microservices/architecture/">Microservices — Architecture &amp; Components</a> · <a href="../hands-on/2/">Hands-on 2 — Gateway</a> · <a href="../hands-on/3/">Hands-on 3 — Security</a></p>
+          <p><strong>A tradeoff that impresses in interviews:</strong> knowing when <em>not</em> to use microservices. Small team and a still-unstable domain → start with a modular monolith and extract services when there is a concrete reason (independent scaling, independent deploys, separate teams).</p>
+          <p class="acc-link">In the course: <a href="../classes/microservices/architecture/">Microservices — Architecture &amp; Components</a> · <a href="../hands-on/2/">Hands-on 2 — Gateway</a> · <a href="../hands-on/3/">Hands-on 3 — Security</a></p>
         </div>
       </div>
 
@@ -837,22 +837,22 @@ def reduce(word, counts):       # recebe (key, [v1, v2, ...])
         <button class="acc-header" type="button" aria-expanded="false">
           <div class="acc-title-wrap">
             <span class="acc-title">Resilience Patterns</span>
-            <span class="badge badge-coral">resiliência</span>
+            <span class="badge badge-coral">resilience</span>
           </div>
           <span class="acc-arrow">▶</span>
         </button>
         <div class="acc-body">
-          <p>Em sistemas distribuídos, falhas parciais são a regra. Estes padrões evitam que a falha de uma dependência derrube o sistema inteiro (falha em cascata).</p>
+          <p>In distributed systems, partial failures are the rule. These patterns keep the failure of one dependency from bringing down the whole system (cascading failure).</p>
           <ul>
-            <li><code>Timeout:</code> toda chamada remota precisa de um. Sem timeout, uma dependência lenta esgota as threads de quem a chama.</li>
-            <li><code>Retry com exponential backoff + jitter:</code> apenas para erros transitórios e operações idempotentes. O jitter evita que todos os clientes tentem de novo ao mesmo tempo (thundering herd).</li>
-            <li><code>Circuit breaker:</code> closed → open (falha rápido, sem chamar a dependência) → half-open (testa se ela voltou).</li>
-            <li><code>Bulkhead:</code> pools de recursos isolados por dependência, para que uma não consuma todas as conexões.</li>
-            <li><code>Idempotency key:</code> o cliente envia um identificador único; o servidor deduplica repetições da mesma operação.</li>
-            <li><code>Fallback / graceful degradation:</code> resposta degradada (cache, valor padrão) em vez de erro.</li>
-            <li><code>Load shedding:</code> rejeitar parte do tráfego cedo quando saturado, em vez de degradar todas as requisições.</li>
+            <li><code>Timeout:</code> every remote call needs one. Without a timeout, a slow dependency exhausts the threads of its callers.</li>
+            <li><code>Retry with exponential backoff + jitter:</code> only for transient errors and idempotent operations. Jitter keeps all clients from retrying at the same time (thundering herd).</li>
+            <li><code>Circuit breaker:</code> closed → open (fails fast, without calling the dependency) → half-open (tests whether it is back).</li>
+            <li><code>Bulkhead:</code> resource pools isolated per dependency, so that one cannot consume all the connections.</li>
+            <li><code>Idempotency key:</code> the client sends a unique identifier; the server deduplicates repetitions of the same operation.</li>
+            <li><code>Fallback / graceful degradation:</code> a degraded response (cache, default value) instead of an error.</li>
+            <li><code>Load shedding:</code> reject part of the traffic early when saturated, instead of degrading every request.</li>
           </ul>
-          <p class="acc-link">Na disciplina: <a href="../classes/reliability/patterns/">Resilience Patterns</a> · <a href="../classes/reliability/chaos/">Chaos Engineering</a></p>
+          <p class="acc-link">In the course: <a href="../classes/reliability/patterns/">Resilience Patterns</a> · <a href="../classes/reliability/chaos/">Chaos Engineering</a></p>
         </div>
       </div>
 
@@ -861,20 +861,20 @@ def reduce(word, counts):       # recebe (key, [v1, v2, ...])
         <button class="acc-header" type="button" aria-expanded="false">
           <div class="acc-title-wrap">
             <span class="acc-title">Observability &amp; SLOs</span>
-            <span class="badge badge-blue">métricas</span>
+            <span class="badge badge-blue">metrics</span>
           </div>
           <span class="acc-arrow">▶</span>
         </button>
         <div class="acc-body">
-          <p>Projetar o sistema não basta: você precisa saber <strong>quando</strong> e <strong>onde</strong> ele está falhando. Mencionar observabilidade no fim da entrevista mostra maturidade de produção.</p>
+          <p>Designing the system is not enough: you need to know <strong>when</strong> and <strong>where</strong> it is failing. Bringing up observability at the end of the interview shows production maturity.</p>
           <ul>
-            <li><strong>Logs:</strong> o que aconteceu, evento a evento. Estruturados (JSON) e com trace id.</li>
-            <li><strong>Métricas:</strong> quanto e com que frequência. Método <em>RED</em> para serviços (Rate, Errors, Duration) e <em>USE</em> para recursos (Utilization, Saturation, Errors).</li>
-            <li><strong>Traces:</strong> onde o tempo foi gasto numa requisição que atravessa vários serviços.</li>
+            <li><strong>Logs:</strong> what happened, event by event. Structured (JSON) and with a trace id.</li>
+            <li><strong>Metrics:</strong> how much and how often. The <em>RED</em> method for services (Rate, Errors, Duration) and <em>USE</em> for resources (Utilization, Saturation, Errors).</li>
+            <li><strong>Traces:</strong> where the time was spent in a request that crosses several services.</li>
           </ul>
-          <p><strong>SLI / SLO / SLA:</strong> SLI é a medida (ex.: % de requests com latência &lt; 300 ms); SLO é a meta interna (ex.: 99,9% em 28 dias); SLA é o contrato com o cliente, com penalidade. O <em>error budget</em> (1 − SLO) define quanto risco você pode gastar com deploys e experimentos.</p>
-          <p><strong>Use percentis, não médias:</strong> p50, p95 e p99. A média esconde a cauda — e é na cauda que estão os usuários insatisfeitos.</p>
-          <p class="acc-link">Na disciplina: <a href="../classes/observability/">Observability</a> · <a href="../classes/reliability/sli-slo-sla/">SLI / SLO / SLA</a> · <a href="../hands-on/6/">Hands-on 6</a> · <a href="../hands-on/10/">Hands-on 10</a></p>
+          <p><strong>SLI / SLO / SLA:</strong> the SLI is the measurement (e.g. % of requests with latency &lt; 300 ms); the SLO is the internal target (e.g. 99.9% over 28 days); the SLA is the contract with the customer, with a penalty. The <em>error budget</em> (1 − SLO) defines how much risk you can spend on deploys and experiments.</p>
+          <p><strong>Use percentiles, not averages:</strong> p50, p95 and p99. The average hides the tail — and the tail is where the unhappy users are.</p>
+          <p class="acc-link">In the course: <a href="../classes/observability/">Observability</a> · <a href="../classes/reliability/sli-slo-sla/">SLI / SLO / SLA</a> · <a href="../hands-on/6/">Hands-on 6</a> · <a href="../hands-on/10/">Hands-on 10</a></p>
         </div>
       </div>
 
@@ -889,8 +889,8 @@ def reduce(word, counts):       # recebe (key, [v1, v2, ...])
   ════════════════════════════════════════════════ -->
   <section class="section" id="sec-example">
     <div class="section-header">
-      <h2>Exemplo Guiado: URL Shortener</h2>
-      <p>Os 5 passos aplicados ao sistema do diagrama acima — o roteiro de uma resposta de ~45 minutos.</p>
+      <h2>Worked Example: URL Shortener</h2>
+      <p>The 5 steps applied to the system in the diagram above — the outline of a ~45-minute answer.</p>
     </div>
 
     <div class="step-list">
@@ -898,59 +898,59 @@ def reduce(word, counts):       # recebe (key, [v1, v2, ...])
         <div class="step-num amber">1</div>
         <div class="step-body">
           <strong>Scope the Problem</strong>
-          <span>Funcionais: encurtar uma URL longa, redirecionar o código curto para a URL original, alias customizado e expiração (opcionais), contagem de cliques. Fora do escopo: contas de usuário e edição de links. Não-funcionais: redirect com baixa latência (p99 &lt; 100 ms), alta disponibilidade e códigos não triviais de adivinhar.</span>
+          <span>Functional: shorten a long URL, redirect the short code to the original URL, custom alias and expiration (optional), click counting. Out of scope: user accounts and link editing. Non-functional: low-latency redirect (p99 &lt; 100 ms), high availability and codes that are not trivial to guess.</span>
         </div>
       </div>
       <div class="step-item">
         <div class="step-num amber">2</div>
         <div class="step-body">
           <strong>Make Reasonable Assumptions</strong>
-          <span>100M novas URLs/mês → ~40 escritas/s. Read:write de 100:1 → ~4.000 redirects/s em média (pico ~10k/s). Storage em 5 anos: 6B registros × ~500 B ≈ 3 TB. Cache: ~350M redirects/dia; guardar os 20% mais acessados ≈ 35 GB em RAM — cabe em um pequeno cluster Redis.</span>
+          <span>100M new URLs/month → ~40 writes/s. A 100:1 read:write ratio → ~4,000 redirects/s on average (peak ~10k/s). Storage over 5 years: 6B records × ~500 B ≈ 3 TB. Cache: ~350M redirects/day; keeping the 20% most accessed ≈ 35 GB of RAM — fits in a small Redis cluster.</span>
         </div>
       </div>
       <div class="step-item">
         <div class="step-num amber">3</div>
         <div class="step-body">
           <strong>Draw the Major Components</strong>
-          <span>API: <code>POST /api/v1/urls {longUrl, alias?, expiresAt?}</code> → <code>201 {shortUrl}</code> e <code>GET /{code}</code> → <code>301/302 Location: longUrl</code>. Modelo: <code>urls(code PK, long_url, created_at, expires_at)</code>. Componentes: load balancer → app servers stateless → banco.</span>
+          <span>API: <code>POST /api/v1/urls {longUrl, alias?, expiresAt?}</code> → <code>201 {shortUrl}</code> and <code>GET /{code}</code> → <code>301/302 Location: longUrl</code>. Model: <code>urls(code PK, long_url, created_at, expires_at)</code>. Components: load balancer → stateless app servers → database.</span>
         </div>
       </div>
       <div class="step-item">
         <div class="step-num amber">4</div>
         <div class="step-body">
           <strong>Identify the Key Issues</strong>
-          <span>(a) Gerar códigos únicos sem colisão e sem coordenação cara entre servidores. (b) O banco recebe todo o tráfego de leitura. (c) Contar cliques de forma síncrona deixaria o redirect mais lento.</span>
+          <span>(a) Generating unique codes without collisions and without expensive coordination between servers. (b) The database takes all the read traffic. (c) Counting clicks synchronously would slow down the redirect.</span>
         </div>
       </div>
       <div class="step-item">
         <div class="step-num amber">5</div>
         <div class="step-body">
           <strong>Redesign for the Key Issues</strong>
-          <span>Cache-aside em Redis para os códigos quentes; réplicas de leitura no banco; sharding por hash do <code>code</code> só se o volume exigir. Cada clique vira um evento numa fila (Kafka/SQS) consumido por workers que gravam no banco de analytics — o redirect não espera por isso.</span>
+          <span>Cache-aside in Redis for the hot codes; read replicas on the database; sharding by hash of the <code>code</code> only if the volume requires it. Each click becomes an event on a queue (Kafka/SQS) consumed by workers that write to the analytics database — the redirect does not wait for it.</span>
         </div>
       </div>
     </div>
 
-    <h3 class="sub-h">Como gerar o código curto?</h3>
+    <h3 class="sub-h">How to generate the short code?</h3>
     <div class="card-grid-3">
       <div class="card border-green">
-        <div class="card-label green">Opção A</div>
-        <h3>Hash + truncar</h3>
-        <p>Hash (MD5/SHA-256) da URL, primeiros 7 caracteres em base62. Determinístico: a mesma URL gera o mesmo código. <strong>Contra:</strong> colisões precisam ser detectadas e resolvidas (re-hash com salt).</p>
+        <div class="card-label green">Option A</div>
+        <h3>Hash + truncate</h3>
+        <p>Hash (MD5/SHA-256) of the URL, first 7 characters in base62. Deterministic: the same URL produces the same code. <strong>Con:</strong> collisions must be detected and resolved (re-hash with a salt).</p>
       </div>
       <div class="card border-blue">
-        <div class="card-label blue">Opção B</div>
-        <h3>Contador + base62</h3>
-        <p>ID único (sequence, Snowflake ou faixas pré-alocadas por servidor) convertido para base62. Sem colisões. <strong>Contra:</strong> códigos sequenciais são previsíveis e permitem enumerar links.</p>
+        <div class="card-label blue">Option B</div>
+        <h3>Counter + base62</h3>
+        <p>A unique ID (sequence, Snowflake or ranges pre-allocated per server) converted to base62. No collisions. <strong>Con:</strong> sequential codes are predictable and allow links to be enumerated.</p>
       </div>
       <div class="card border-purple">
-        <div class="card-label purple">Opção C</div>
+        <div class="card-label purple">Option C</div>
         <h3>Key Generation Service</h3>
-        <p>Um serviço pré-gera chaves aleatórias e as entrega em lotes aos app servers. Sem colisão no caminho da requisição e imprevisível. <strong>Contra:</strong> mais um componente para operar e replicar.</p>
+        <p>A service pre-generates random keys and hands them out in batches to the app servers. No collisions on the request path, and unpredictable. <strong>Con:</strong> one more component to operate and replicate.</p>
       </div>
     </div>
 
-    <pre># base62: 62^7 ≈ 3,5 trilhões de códigos — sobra para 6B URLs
+    <pre># base62: 62^7 ≈ 3.5 trillion codes — plenty for 6B URLs
 ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 def base62(n: int) -> str:
@@ -961,9 +961,9 @@ def base62(n: int) -> str:
     return s or "0"</pre>
 
     <div class="itip">
-      <div class="itip-label">Tradeoff clássico: 301 ou 302?</div>
-      <p><strong>301 (Moved Permanently)</strong> é cacheado pelo navegador: menos carga no servidor, mas os cliques seguintes não passam por você — a contagem fica incompleta.<br>
-      <strong>302 (Found)</strong> passa sempre pelo servidor: analytics preciso, mas mais tráfego. Não existe resposta certa — escolha e justifique com os requisitos do passo 1.</p>
+      <div class="itip-label">Classic tradeoff: 301 or 302?</div>
+      <p><strong>301 (Moved Permanently)</strong> is cached by the browser: less load on the server, but subsequent clicks no longer go through you — the count is incomplete.<br>
+      <strong>302 (Found)</strong> always goes through the server: accurate analytics, but more traffic. There is no right answer — choose and justify it with the requirements from step 1.</p>
     </div>
   </section>
 
@@ -974,8 +974,8 @@ def base62(n: int) -> str:
   ════════════════════════════════════════════════ -->
   <section class="section" id="sec-practice">
     <div class="section-header">
-      <h2>Problemas para Praticar</h2>
-      <p>Perguntas clássicas de entrevista. Tente resolver com os 5 passos antes de abrir os pontos-chave.</p>
+      <h2>Practice Problems</h2>
+      <p>Classic interview questions. Try to solve them with the 5 steps before opening the key points.</p>
     </div>
 
     <div class="acc">
@@ -983,17 +983,17 @@ def base62(n: int) -> str:
       <div class="acc-item">
         <button class="acc-header" type="button" aria-expanded="false">
           <div class="acc-title-wrap">
-            <span class="acc-title">Rate Limiter distribuído</span>
-            <span class="badge badge-green">médio</span>
+            <span class="acc-title">Distributed Rate Limiter</span>
+            <span class="badge badge-green">medium</span>
           </div>
           <span class="acc-arrow">▶</span>
         </button>
         <div class="acc-body">
           <ul>
-            <li>Escolha do algoritmo (token bucket vs. sliding window) e justificativa.</li>
-            <li>Estado compartilhado entre réplicas do gateway (Redis) e atomicidade (script Lua).</li>
-            <li>Regras por cliente/endpoint, resposta <code>429</code> com <code>Retry-After</code>.</li>
-            <li>Fail-open vs. fail-closed se o armazenamento de contadores cair.</li>
+            <li>Choice of algorithm (token bucket vs. sliding window) and its justification.</li>
+            <li>State shared across gateway replicas (Redis) and atomicity (Lua script).</li>
+            <li>Rules per client/endpoint, a <code>429</code> response with <code>Retry-After</code>.</li>
+            <li>Fail-open vs. fail-closed if the counter storage goes down.</li>
           </ul>
         </div>
       </div>
@@ -1002,16 +1002,16 @@ def base62(n: int) -> str:
         <button class="acc-header" type="button" aria-expanded="false">
           <div class="acc-title-wrap">
             <span class="acc-title">News Feed (Twitter / Instagram)</span>
-            <span class="badge badge-amber">difícil</span>
+            <span class="badge badge-amber">hard</span>
           </div>
           <span class="acc-arrow">▶</span>
         </button>
         <div class="acc-body">
           <ul>
-            <li><strong>Fan-out on write</strong> (push para timelines pré-computadas) vs. <strong>fan-out on read</strong> (monta a timeline na leitura).</li>
-            <li>Modelo híbrido: push para usuários comuns, pull para celebridades com milhões de seguidores.</li>
-            <li>Timeline em cache (lista de IDs no Redis), mídia em object storage + CDN.</li>
-            <li>Paginação por cursor, não por offset.</li>
+            <li><strong>Fan-out on write</strong> (push to pre-computed timelines) vs. <strong>fan-out on read</strong> (build the timeline at read time).</li>
+            <li>Hybrid model: push for regular users, pull for celebrities with millions of followers.</li>
+            <li>Timeline in cache (a list of IDs in Redis), media in object storage + CDN.</li>
+            <li>Cursor-based pagination, not offset-based.</li>
           </ul>
         </div>
       </div>
@@ -1020,16 +1020,16 @@ def base62(n: int) -> str:
         <button class="acc-header" type="button" aria-expanded="false">
           <div class="acc-title-wrap">
             <span class="acc-title">Chat (WhatsApp / Slack)</span>
-            <span class="badge badge-amber">difícil</span>
+            <span class="badge badge-amber">hard</span>
           </div>
           <span class="acc-arrow">▶</span>
         </button>
         <div class="acc-body">
           <ul>
-            <li>Conexões persistentes (WebSocket) e um serviço que sabe em qual servidor cada usuário está conectado.</li>
-            <li>Ordenação por conversa (sequence number por <code>conversation_id</code>) — ordem global não é necessária.</li>
-            <li>Entrega para usuários offline (store-and-forward) e confirmações de entrega/leitura.</li>
-            <li>Particionamento do armazenamento de mensagens por conversa (ex.: Cassandra).</li>
+            <li>Persistent connections (WebSocket) and a service that knows which server each user is connected to.</li>
+            <li>Per-conversation ordering (a sequence number per <code>conversation_id</code>) — global ordering is not needed.</li>
+            <li>Delivery to offline users (store-and-forward) and delivery/read receipts.</li>
+            <li>Partitioning the message storage by conversation (e.g. Cassandra).</li>
           </ul>
         </div>
       </div>
@@ -1038,16 +1038,16 @@ def base62(n: int) -> str:
         <button class="acc-header" type="button" aria-expanded="false">
           <div class="acc-title-wrap">
             <span class="acc-title">Notification System</span>
-            <span class="badge badge-green">médio</span>
+            <span class="badge badge-green">medium</span>
           </div>
           <span class="acc-arrow">▶</span>
         </button>
         <div class="acc-body">
           <ul>
-            <li>Múltiplos canais (push, e-mail, SMS) com filas e workers separados por canal.</li>
-            <li>Retries com backoff e idempotência para não notificar duas vezes.</li>
-            <li>Preferências e opt-out do usuário, rate limit por usuário, templates.</li>
-            <li>Integração com provedores externos (APNs, FCM, SES, Twilio) e o que fazer quando eles falham.</li>
+            <li>Multiple channels (push, e-mail, SMS) with separate queues and workers per channel.</li>
+            <li>Retries with backoff and idempotency so nobody is notified twice.</li>
+            <li>User preferences and opt-out, per-user rate limit, templates.</li>
+            <li>Integration with external providers (APNs, FCM, SES, Twilio) and what to do when they fail.</li>
           </ul>
         </div>
       </div>
@@ -1056,16 +1056,16 @@ def base62(n: int) -> str:
         <button class="acc-header" type="button" aria-expanded="false">
           <div class="acc-title-wrap">
             <span class="acc-title">Web Crawler</span>
-            <span class="badge badge-green">médio</span>
+            <span class="badge badge-green">medium</span>
           </div>
           <span class="acc-arrow">▶</span>
         </button>
         <div class="acc-body">
           <ul>
-            <li>URL frontier: fila com prioridade e particionada por domínio.</li>
-            <li>Politeness: respeitar <code>robots.txt</code> e limitar requisições por domínio.</li>
-            <li>Deduplicação: Bloom filter para URLs já vistas, hash de conteúdo para páginas duplicadas.</li>
-            <li>Cache de DNS, armazenamento distribuído das páginas, detecção de spider traps.</li>
+            <li>URL frontier: a prioritized queue partitioned by domain.</li>
+            <li>Politeness: respect <code>robots.txt</code> and limit requests per domain.</li>
+            <li>Deduplication: a Bloom filter for URLs already seen, a content hash for duplicate pages.</li>
+            <li>DNS cache, distributed page storage, spider-trap detection.</li>
           </ul>
         </div>
       </div>
@@ -1074,16 +1074,16 @@ def base62(n: int) -> str:
         <button class="acc-header" type="button" aria-expanded="false">
           <div class="acc-title-wrap">
             <span class="acc-title">Ride Sharing (Uber / 99)</span>
-            <span class="badge badge-amber">difícil</span>
+            <span class="badge badge-amber">hard</span>
           </div>
           <span class="acc-arrow">▶</span>
         </button>
         <div class="acc-body">
           <ul>
-            <li>Atualizações frequentes de localização (a cada poucos segundos) — sistema write-heavy.</li>
-            <li>Índice geoespacial: geohash, quadtree ou H3 para "motoristas próximos".</li>
-            <li>Matching com garantia de que um motorista não seja atribuído a duas corridas (lock/consistência forte nesse ponto).</li>
-            <li>Preço dinâmico, ETA e particionamento por região/cidade.</li>
+            <li>Frequent location updates (every few seconds) — a write-heavy system.</li>
+            <li>Geospatial index: geohash, quadtree or H3 for "nearby drivers".</li>
+            <li>Matching that guarantees a driver is never assigned to two rides (lock/strong consistency at that point).</li>
+            <li>Surge pricing, ETA and partitioning by region/city.</li>
           </ul>
         </div>
       </div>
@@ -1091,17 +1091,17 @@ def base62(n: int) -> str:
       <div class="acc-item">
         <button class="acc-header" type="button" aria-expanded="false">
           <div class="acc-title-wrap">
-            <span class="acc-title">Key-Value Store distribuído</span>
-            <span class="badge badge-coral">avançado</span>
+            <span class="acc-title">Distributed Key-Value Store</span>
+            <span class="badge badge-coral">advanced</span>
           </div>
           <span class="acc-arrow">▶</span>
         </button>
         <div class="acc-body">
           <ul>
-            <li>Particionamento com consistent hashing e virtual nodes.</li>
-            <li>Replicação com quorum configurável (N, R, W) e o tradeoff consistência × latência.</li>
-            <li>Detecção de falhas (gossip), hinted handoff e anti-entropy (Merkle trees).</li>
-            <li>Resolução de conflitos: vector clocks ou last-write-wins.</li>
+            <li>Partitioning with consistent hashing and virtual nodes.</li>
+            <li>Replication with a configurable quorum (N, R, W) and the consistency × latency tradeoff.</li>
+            <li>Failure detection (gossip), hinted handoff and anti-entropy (Merkle trees).</li>
+            <li>Conflict resolution: vector clocks or last-write-wins.</li>
           </ul>
         </div>
       </div>
@@ -1116,59 +1116,59 @@ def base62(n: int) -> str:
   ════════════════════════════════════════════════ -->
   <section class="section" id="sec-course">
     <div class="section-header">
-      <h2>Conexão com a Disciplina</h2>
-      <p>Onde cada conceito de entrevista aparece nas aulas e nos hands-ons de 2026.2.</p>
+      <h2>Connection to the Course</h2>
+      <p>Where each interview concept appears in the 2026.2 classes and hands-ons.</p>
     </div>
 
     <div class="callout">
-      <p>Os hands-ons constroem, peça por peça, a mesma arquitetura do diagrama: <strong>gateway → load balancer → serviços stateless → cache → banco → fila → observabilidade</strong>. Use o seu projeto como exemplo concreto na entrevista: <em>"no meu projeto, coloquei Redis compartilhado atrás do gateway porque cada réplica tinha um cache local inconsistente..."</em></p>
+      <p>The hands-ons build, piece by piece, the same architecture as the diagram: <strong>gateway → load balancer → stateless services → cache → database → queue → observability</strong>. Use your project as a concrete example in the interview: <em>"in my project, I put a shared Redis behind the gateway because each replica had an inconsistent local cache..."</em></p>
     </div>
 
     <div class="card-grid-3">
       <a class="card border-amber" href="../classes/distributed_systems/">
-        <div class="card-label amber">Aula 1</div>
+        <div class="card-label amber">Class 1</div>
         <h3>Distributed Systems</h3>
-        <p>CAP theorem, consistência e algoritmos de consenso.</p>
+        <p>CAP theorem, consistency and consensus algorithms.</p>
       </a>
       <a class="card border-green" href="../hands-on/2/">
         <div class="card-label green">Hands-on 2</div>
         <h3>Gateway</h3>
-        <p>Ponto único de entrada, roteamento e o lugar natural do rate limiting.</p>
+        <p>Single entry point, routing and the natural place for rate limiting.</p>
       </a>
       <a class="card border-blue" href="../hands-on/7/">
         <div class="card-label blue">Hands-on 7</div>
         <h3>Load Balancer</h3>
-        <p>Nginx distribuindo tráfego entre réplicas — escala horizontal na prática.</p>
+        <p>Nginx distributing traffic across replicas — horizontal scaling in practice.</p>
       </a>
       <a class="card border-purple" href="../hands-on/8/">
         <div class="card-label purple">Hands-on 8</div>
         <h3>In-Memory Cache</h3>
-        <p>Redis compartilhado entre réplicas, cache-aside e TTL.</p>
+        <p>Redis shared across replicas, cache-aside and TTL.</p>
       </a>
       <a class="card border-green" href="../hands-on/9/">
         <div class="card-label green">Hands-on 9</div>
         <h3>Kafka Messaging</h3>
-        <p>Processamento assíncrono orientado a eventos e desacoplamento entre serviços.</p>
+        <p>Event-driven asynchronous processing and decoupling between services.</p>
       </a>
       <a class="card border-coral" href="../classes/reliability/">
-        <div class="card-label coral">Aula 8</div>
+        <div class="card-label coral">Class 8</div>
         <h3>Reliability</h3>
-        <p>SLI/SLO/SLA, resilience patterns e chaos engineering.</p>
+        <p>SLI/SLO/SLA, resilience patterns and chaos engineering.</p>
       </a>
       <a class="card border-blue" href="../hands-on/6/">
         <div class="card-label blue">Hands-on 6</div>
         <h3>Observability</h3>
-        <p>Métricas com Prometheus e dashboards no Grafana.</p>
+        <p>Metrics with Prometheus and dashboards in Grafana.</p>
       </a>
       <a class="card border-blue" href="../hands-on/10/">
         <div class="card-label blue">Hands-on 10</div>
         <h3>Distributed Tracing</h3>
-        <p>OpenTelemetry + Jaeger: onde o tempo de uma requisição foi gasto.</p>
+        <p>OpenTelemetry + Jaeger: where a request's time was spent.</p>
       </a>
       <a class="card border-amber" href="../exercises/bottlenecks/">
-        <div class="card-label amber">Exercício</div>
+        <div class="card-label amber">Exercise</div>
         <h3>Bottlenecks</h3>
-        <p>Identificar e mitigar gargalos — o passo 4 do roteiro de design.</p>
+        <p>Identify and mitigate bottlenecks — step 4 of the design outline.</p>
       </a>
     </div>
   </section>
@@ -1181,22 +1181,22 @@ def base62(n: int) -> str:
   <section class="section" id="sec-quiz">
     <div class="section-header">
       <h2>Quiz</h2>
-      <p>Teste seus conhecimentos com questões no estilo de entrevista real.</p>
+      <p>Test your knowledge with questions in the style of a real interview.</p>
     </div>
 
     <div class="quiz-section">
       <div class="quiz-progress"><div class="quiz-progress-fill" id="iv-qpf" style="width:10%"></div></div>
-      <div class="quiz-num" id="iv-qnum">Questão 1</div>
+      <div class="quiz-num" id="iv-qnum">Question 1</div>
       <div class="quiz-q" id="iv-qtext"></div>
       <div class="quiz-opts" id="iv-qopts"></div>
       <div id="iv-qfb"></div>
       <div class="quiz-nav">
-        <button type="button" data-iv-prev>← anterior</button>
+        <button type="button" data-iv-prev>← previous</button>
         <span class="quiz-score" id="iv-qscore"></span>
-        <button type="button" data-iv-next>próxima →</button>
+        <button type="button" data-iv-next>next →</button>
       </div>
     </div>
-    <button type="button" class="btn-ghost" data-iv-quiz-reset>↺ reiniciar quiz</button>
+    <button type="button" class="btn-ghost" data-iv-quiz-reset>↺ restart quiz</button>
   </section>
 
   <hr class="section-divider">
@@ -1206,13 +1206,13 @@ def base62(n: int) -> str:
   ════════════════════════════════════════════════ -->
   <section class="section" id="sec-checklist">
     <div class="section-header">
-      <h2>Checklist de Entrevista</h2>
-      <p>Use para avaliar sua preparação antes de entrar numa entrevista de System Design. Marque os itens conforme pratica — o progresso fica salvo neste navegador.</p>
+      <h2>Interview Checklist</h2>
+      <p>Use it to assess your preparation before a System Design interview. Tick the items as you practice — your progress is saved in this browser.</p>
     </div>
 
     <div class="check-progress" id="iv-check-progress"></div>
     <div class="checklist" id="iv-checklist"></div>
-    <button type="button" class="btn-ghost" data-iv-check-reset>↺ resetar checklist</button>
+    <button type="button" class="btn-ghost" data-iv-check-reset>↺ reset checklist</button>
   </section>
 
   <hr class="section-divider">
@@ -1222,130 +1222,130 @@ def base62(n: int) -> str:
   ════════════════════════════════════════════════ -->
   <section class="section" id="sec-refs">
     <div class="section-header">
-      <h2>Referências</h2>
-      <p>Recursos fundamentais para aprofundamento — organizados por tipo e relevância para entrevistas técnicas.</p>
+      <h2>References</h2>
+      <p>Essential resources to go further — organized by type and relevance to technical interviews.</p>
     </div>
 
-    <h3 class="sub-h">Livros</h3>
+    <h3 class="sub-h">Books</h3>
     <div class="refs-grid">
       <a class="ref-card" href="https://www.crackingthecodinginterview.com/" target="_blank" rel="noopener">
-        <div class="ref-type" style="color:var(--accent);">Livro — referência principal</div>
-        <div class="ref-title">Cracking the Coding Interview (6ª ed.)</div>
-        <div class="ref-desc">Gayle Laakmann McDowell. Capítulo 9 dedicado a System Design e Scalability. Fonte principal do conteúdo desta aula.</div>
+        <div class="ref-type" style="color:var(--accent);">Book — main reference</div>
+        <div class="ref-title">Cracking the Coding Interview (6th ed.)</div>
+        <div class="ref-desc">Gayle Laakmann McDowell. Chapter 9 is dedicated to System Design and Scalability. The main source for the content of this page.</div>
         <div class="ref-url">crackingthecodinginterview.com</div>
       </a>
       <a class="ref-card" href="https://www.oreilly.com/library/view/designing-data-intensive-applications/9781491903063/" target="_blank" rel="noopener">
-        <div class="ref-type" style="color:var(--blue);">Livro — referência avançada</div>
+        <div class="ref-type" style="color:var(--blue);">Book — advanced reference</div>
         <div class="ref-title">Designing Data-Intensive Applications</div>
-        <div class="ref-desc">Martin Kleppmann (O'Reilly). O melhor livro sobre sistemas distribuídos: replicação, particionamento, transactions, stream processing. Leitura obrigatória.</div>
+        <div class="ref-desc">Martin Kleppmann (O'Reilly). The best book on distributed systems: replication, partitioning, transactions, stream processing. Required reading.</div>
         <div class="ref-url">oreilly.com — ISBN 978-1491903063</div>
       </a>
       <a class="ref-card" href="https://www.amazon.com/System-Design-Interview-insiders-Second/dp/B08CMF2CQF" target="_blank" rel="noopener">
-        <div class="ref-type" style="color:var(--purple);">Livro — prep de entrevistas</div>
+        <div class="ref-type" style="color:var(--purple);">Book — interview prep</div>
         <div class="ref-title">System Design Interview (Vol. 1 &amp; 2)</div>
-        <div class="ref-desc">Alex Xu. Casos práticos de design de sistemas reais (URL shortener, Twitter, YouTube, Uber). Excelente para praticar o formato de entrevista.</div>
+        <div class="ref-desc">Alex Xu. Practical design cases of real systems (URL shortener, Twitter, YouTube, Uber). Excellent for practicing the interview format.</div>
         <div class="ref-url">amazon.com — Alex Xu</div>
       </a>
       <a class="ref-card" href="https://www.amazon.com/Clean-Architecture-Craftsmans-Software-Structure/dp/0134494164" target="_blank" rel="noopener">
-        <div class="ref-type" style="color:var(--amber);">Livro — arquitetura de software</div>
+        <div class="ref-type" style="color:var(--amber);">Book — software architecture</div>
         <div class="ref-title">Clean Architecture</div>
-        <div class="ref-desc">Robert C. Martin (Uncle Bob). Princípios de design de software que se conectam diretamente às decisões arquiteturais em entrevistas de system design.</div>
+        <div class="ref-desc">Robert C. Martin (Uncle Bob). Software design principles that connect directly to the architectural decisions in system design interviews.</div>
         <div class="ref-url">amazon.com — Robert C. Martin</div>
       </a>
     </div>
 
-    <h3 class="sub-h">Recursos Online Gratuitos</h3>
+    <h3 class="sub-h">Free Online Resources</h3>
     <div class="refs-grid">
       <a class="ref-card" href="https://github.com/donnemartin/system-design-primer" target="_blank" rel="noopener">
-        <div class="ref-type" style="color:var(--accent);">GitHub — repositório essencial</div>
+        <div class="ref-type" style="color:var(--accent);">GitHub — essential repository</div>
         <div class="ref-title">System Design Primer</div>
-        <div class="ref-desc">Donnemartin. O repositório mais completo e gratuito sobre system design. Inclui flashcards, exemplos completos, diagramas e guia de estudo estruturado. Mais de 280k stars no GitHub.</div>
+        <div class="ref-desc">Donnemartin. The most complete free repository on system design. Includes flashcards, full examples, diagrams and a structured study guide. More than 280k stars on GitHub.</div>
         <div class="ref-url">github.com/donnemartin/system-design-primer</div>
       </a>
       <a class="ref-card" href="https://highscalability.com/" target="_blank" rel="noopener">
-        <div class="ref-type" style="color:var(--blue);">Blog — casos reais</div>
+        <div class="ref-type" style="color:var(--blue);">Blog — real cases</div>
         <div class="ref-title">High Scalability</div>
-        <div class="ref-desc">Blog dedicado a como grandes sistemas (Twitter, Netflix, Amazon, Instagram) foram construídos e escalados. Cada post é um estudo de caso real de arquitetura.</div>
+        <div class="ref-desc">A blog about how large systems (Twitter, Netflix, Amazon, Instagram) were built and scaled. Each post is a real architecture case study.</div>
         <div class="ref-url">highscalability.com</div>
       </a>
       <a class="ref-card" href="https://www.youtube.com/@ByteByteGo" target="_blank" rel="noopener">
-        <div class="ref-type" style="color:var(--purple);">YouTube — vídeos</div>
+        <div class="ref-type" style="color:var(--purple);">YouTube — videos</div>
         <div class="ref-title">ByteByteGo (Alex Xu)</div>
-        <div class="ref-desc">Canal do YouTube com animações e explicações visuais de system design. Excelente para entender visualmente como os componentes se conectam. Complementa o livro System Design Interview.</div>
+        <div class="ref-desc">A YouTube channel with animations and visual explanations of system design. Excellent for seeing how the components connect. Complements the System Design Interview book.</div>
         <div class="ref-url">youtube.com/@ByteByteGo</div>
       </a>
       <a class="ref-card" href="https://www.educative.io/courses/grokking-modern-system-design-interview-for-engineers-managers" target="_blank" rel="noopener">
-        <div class="ref-type" style="color:var(--amber);">Curso interativo</div>
+        <div class="ref-type" style="color:var(--amber);">Interactive course</div>
         <div class="ref-title">Grokking Modern System Design Interview</div>
-        <div class="ref-desc">Educative.io. Curso estruturado com problemas práticos e soluções passo a passo. Cobre design de sistemas como TinyURL, Instagram, Netflix e Uber.</div>
+        <div class="ref-desc">Educative.io. A structured course with practice problems and step-by-step solutions. Covers the design of systems such as TinyURL, Instagram, Netflix and Uber.</div>
         <div class="ref-url">educative.io</div>
       </a>
       <a class="ref-card" href="https://www.geeksforgeeks.org/system-design-tutorial/" target="_blank" rel="noopener">
         <div class="ref-type" style="color:var(--coral);">Tutorial</div>
         <div class="ref-title">GeeksforGeeks — System Design Tutorial</div>
-        <div class="ref-desc">Tutorial completo com artigos individuais para cada conceito: load balancing, caching, sharding, CAP theorem, consistent hashing, SQL vs NoSQL e mais.</div>
+        <div class="ref-desc">A complete tutorial with an article for each concept: load balancing, caching, sharding, CAP theorem, consistent hashing, SQL vs NoSQL and more.</div>
         <div class="ref-url">geeksforgeeks.org/system-design-tutorial</div>
       </a>
       <a class="ref-card" href="https://leetcode.com/discuss/interview-question/system-design" target="_blank" rel="noopener">
-        <div class="ref-type" style="color:var(--accent);">Prática</div>
+        <div class="ref-type" style="color:var(--accent);">Practice</div>
         <div class="ref-title">LeetCode — System Design Discussions</div>
-        <div class="ref-desc">Fórum do LeetCode com discussões de system design questions reais feitas em entrevistas nas principais empresas de tecnologia (FAANG, startups de alto crescimento).</div>
+        <div class="ref-desc">LeetCode forum with discussions of real system design questions asked in interviews at major tech companies (FAANG, high-growth startups).</div>
         <div class="ref-url">leetcode.com/discuss/system-design</div>
       </a>
       <a class="ref-card" href="https://sre.google/books/" target="_blank" rel="noopener">
-        <div class="ref-type" style="color:var(--blue);">Livro online — gratuito</div>
+        <div class="ref-type" style="color:var(--blue);">Online book — free</div>
         <div class="ref-title">Site Reliability Engineering (Google)</div>
-        <div class="ref-desc">Os livros de SRE do Google, disponíveis gratuitamente. Referência para SLOs, error budgets, monitoramento e resposta a incidentes — a parte "operar em produção" do system design.</div>
+        <div class="ref-desc">Google's SRE books, available for free. The reference for SLOs, error budgets, monitoring and incident response — the "running in production" side of system design.</div>
         <div class="ref-url">sre.google/books</div>
       </a>
     </div>
 
-    <h3 class="sub-h">Artigos &amp; Papers Técnicos</h3>
+    <h3 class="sub-h">Technical Articles &amp; Papers</h3>
     <div class="refs-grid">
       <a class="ref-card" href="https://static.googleusercontent.com/media/research.google.com/en//archive/mapreduce-osdi04.pdf" target="_blank" rel="noopener">
         <div class="ref-type" style="color:var(--blue);">Paper — Google</div>
         <div class="ref-title">MapReduce: Simplified Data Processing on Large Clusters</div>
-        <div class="ref-desc">Dean &amp; Ghemawat, OSDI 2004. O paper original do MapReduce. Leitura fundamental para entender o modelo de programação, casos de uso e implementação de referência.</div>
+        <div class="ref-desc">Dean &amp; Ghemawat, OSDI 2004. The original MapReduce paper. Essential reading to understand the programming model, use cases and the reference implementation.</div>
         <div class="ref-url">research.google.com — OSDI 2004</div>
       </a>
       <a class="ref-card" href="https://www.allthingsdistributed.com/2007/10/amazons_dynamo.html" target="_blank" rel="noopener">
         <div class="ref-type" style="color:var(--amber);">Paper — Amazon</div>
         <div class="ref-title">Dynamo: Amazon's Highly Available Key-Value Store</div>
-        <div class="ref-desc">DeCandia et al., SOSP 2007. Paper que introduziu consistent hashing, eventual consistency e o CAP theorem na prática. Fundação conceitual para Cassandra, DynamoDB e Riak.</div>
+        <div class="ref-desc">DeCandia et al., SOSP 2007. The paper that brought consistent hashing, eventual consistency and the CAP theorem into practice. The conceptual foundation of Cassandra, DynamoDB and Riak.</div>
         <div class="ref-url">allthingsdistributed.com — SOSP 2007</div>
       </a>
       <a class="ref-card" href="https://engineering.fb.com/category/core-data/" target="_blank" rel="noopener">
-        <div class="ref-type" style="color:var(--purple);">Blog de engenharia</div>
+        <div class="ref-type" style="color:var(--purple);">Engineering blog</div>
         <div class="ref-title">Meta Engineering Blog</div>
-        <div class="ref-desc">Artigos técnicos sobre como o Facebook/Meta escala sistemas: TAO (distributed data store), Cassandra, cache hierarchy, Haystack (object storage) e mais. Casos reais em escala de bilhões.</div>
+        <div class="ref-desc">Technical articles on how Facebook/Meta scales its systems: TAO (distributed data store), Cassandra, cache hierarchy, Haystack (object storage) and more. Real cases at the scale of billions.</div>
         <div class="ref-url">engineering.fb.com</div>
       </a>
       <a class="ref-card" href="https://netflixtechblog.com/" target="_blank" rel="noopener">
-        <div class="ref-type" style="color:var(--coral);">Blog de engenharia</div>
+        <div class="ref-type" style="color:var(--coral);">Engineering blog</div>
         <div class="ref-title">Netflix Tech Blog</div>
-        <div class="ref-desc">Como o Netflix resolve problemas de escala: microservices, chaos engineering (Chaos Monkey), global CDN, video encoding, recomendações com ML. Referência para sistemas de alta disponibilidade.</div>
+        <div class="ref-desc">How Netflix solves scaling problems: microservices, chaos engineering (Chaos Monkey), global CDN, video encoding, ML-based recommendations. A reference for high-availability systems.</div>
         <div class="ref-url">netflixtechblog.com</div>
       </a>
       <a class="ref-card" href="https://gist.github.com/jboner/2841832" target="_blank" rel="noopener">
-        <div class="ref-type" style="color:var(--accent);">Referência rápida</div>
+        <div class="ref-type" style="color:var(--accent);">Quick reference</div>
         <div class="ref-title">Latency Numbers Every Programmer Should Know</div>
-        <div class="ref-desc">A tabela clássica de latências popularizada por Jeff Dean e Peter Norvig — a base para as estimativas back-of-the-envelope desta página.</div>
+        <div class="ref-desc">The classic latency table popularized by Jeff Dean and Peter Norvig — the basis for the back-of-the-envelope estimates on this page.</div>
         <div class="ref-url">gist.github.com/jboner/2841832</div>
       </a>
     </div>
 
-    <h3 class="sub-h">Ferramentas para Praticar</h3>
+    <h3 class="sub-h">Tools to Practice</h3>
     <div class="refs-grid">
       <a class="ref-card" href="https://www.pramp.com/" target="_blank" rel="noopener">
-        <div class="ref-type" style="color:var(--accent);">Prática com peers</div>
+        <div class="ref-type" style="color:var(--accent);">Peer practice</div>
         <div class="ref-title">Pramp</div>
-        <div class="ref-desc">Plataforma gratuita para praticar entrevistas técnicas com outros candidatos. Inclui sessões de system design com feedback estruturado. Excelente para simular o ambiente real de entrevista.</div>
+        <div class="ref-desc">A free platform to practice technical interviews with other candidates. Includes system design sessions with structured feedback. Excellent for simulating a real interview setting.</div>
         <div class="ref-url">pramp.com</div>
       </a>
       <a class="ref-card" href="https://interviewing.io/" target="_blank" rel="noopener">
         <div class="ref-type" style="color:var(--blue);">Mock interviews</div>
         <div class="ref-title">interviewing.io</div>
-        <div class="ref-desc">Mock interviews com engenheiros de empresas como Google, Facebook, Amazon. Permite praticar system design e algoritmos com feedback de profissionais experientes em entrevistas.</div>
+        <div class="ref-desc">Mock interviews with engineers from companies such as Google, Facebook and Amazon. Lets you practice system design and algorithms with feedback from experienced interviewers.</div>
         <div class="ref-url">interviewing.io</div>
       </a>
     </div>
@@ -1355,7 +1355,7 @@ def base62(n: int) -> str:
 
   <footer class="site-footer">
     <span>Coding Interview Prep · System Design &amp; Scalability</span>
-    <span>Material de apoio — uso educacional</span>
+    <span>Study material — educational use</span>
   </footer>
 
 </div>

@@ -17,12 +17,12 @@ services:
       - db
 
   db:
-    image: postgres:latest
+    image: postgres:17
     environment:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
       POSTGRES_DB: mydb
     volumes:
-      - ${VOLUME}/db:/var/lib/postgresql/data
+      - ${VOLUME:-./volume}/db:/var/lib/postgresql/data
     ports:
       - 5432:5432

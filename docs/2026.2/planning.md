@@ -52,9 +52,9 @@ Infrastructure:
 
 Virtual Infrastructure: This includes the virtual servers, storage devices, and networking equipment that are used to host the application.
 Docker Compose
-Rede e Sub-redes
-IPs e Portas
-Segurança e Firewall
+Networks and Subnets
+IPs and Ports
+Security and Firewall
 
 Software Architecture: This includes the design and implementation of the microservices, including the use of design patterns, security considerations, and messaging.
 Maven - package management
@@ -64,12 +64,12 @@ JWT - JSON Web Tokens
 Messaging - RabbitMQ, Kafka
 
 CAP Theorem
-Vertical e Horizontal Scaling
+Vertical and Horizontal Scaling
 Load Balancing
 Auto Scaling
 Observability
-DevOps e CI/CD
-Orquestração de Contêineres
+DevOps and CI/CD
+Container Orchestration
 Kubernetes
 AWS Elastic Kubernetes Service (EKS)
 AWS Elastic Container Service (ECS)

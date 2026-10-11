@@ -1,6 +1,6 @@
 // Interface Adapters layer — translates HTTP ↔ Use Case.
-// The only Spring annotation in this file is @RestController.
-// Business logic lives entirely in AccountService.
+// Spring Web annotations (@RestController, @PostMapping, ...) appear only in this layer.
+// The controller translates and delegates; business logic lives entirely in AccountService.
 @RestController
 @RequestMapping("/accounts")
 public class AccountController implements AccountApi {

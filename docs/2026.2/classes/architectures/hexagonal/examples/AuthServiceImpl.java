@@ -1,5 +1,6 @@
 // Primary port implementation — also lives inside the application core.
-// Depends only on secondary ports (AccountRepository, TokenRepository).
+// Depends on secondary ports (AccountRepository, TokenRepository) and on JwtService.
+// In a stricter design JwtService would also be a port (e.g. TokenIssuer) with a JJWT adapter.
 public class AuthServiceImpl implements AuthService {
 
     private final AccountRepository accounts;  // secondary port
@@ -16,10 +17,11 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public TokenOut login(String email, String password) {
+        // Same error for "unknown email" and "wrong password": telling them apart
+        // would let an attacker discover which emails are registered.
         Account account = accounts.findByEmail(email)
-            .orElseThrow(() -> new InvalidCredentialsException("Account not found"));
-        if (!account.matchesPassword(password))
-            throw new InvalidCredentialsException("Wrong password");
+            .filter(a -> a.matchesPassword(password))
+            .orElseThrow(() -> new InvalidCredentialsException("Invalid credentials"));
         String token = jwt.generate(account);
         tokens.store(token, account.id());
         return new TokenOut(token);

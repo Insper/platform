@@ -1,4 +1,13 @@
 
+## Slides
+
+<div class="slides-embed">
+  <iframe src="slides/orchestration.html" title="Slides: hands-on 5 — orchestration" loading="lazy" allowfullscreen></iframe>
+</div>
+
+Click the slides and use ← → to move through them; **F** goes full screen and **P** opens the presenter view, with the notes.
+[:material-presentation: Open the slides in a new tab](slides/orchestration.html){:target="_blank"}
+
 ## What is an Orchestrator?
 An orchestrator is a system that automates the deployment, management, scaling, and operation of containerized applications. Containers package an application with its dependencies, making it portable across environments. Orchestrators handle critical tasks such as:
 

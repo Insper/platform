@@ -10,6 +10,15 @@ Observability is a critical property of distributed systems. Without it, underst
 
 In this hands-on, we will focus on **monitoring**, wiring together [Spring Boot Actuator](https://docs.spring.io/spring-boot/docs/current/reference/html/actuator.html){target="_blank"}, Prometheus, and Grafana.
 
+## Slides
+
+<div class="slides-embed">
+  <iframe src="slides/observability.html" title="Slides: observability" loading="lazy" allowfullscreen></iframe>
+</div>
+
+Click the slides and use ← → to move through them; **F** goes full screen and **P** opens the presenter view, with the notes.
+[:material-presentation: Open the slides in a new tab](slides/observability.html){:target="_blank"}
+
 The resulting architecture adds a dedicated observability layer alongside the existing microservices:
 
 ``` mermaid-sim
