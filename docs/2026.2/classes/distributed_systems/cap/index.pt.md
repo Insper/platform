@@ -63,11 +63,12 @@ Durante uma partição, o sistema recusa requisições em vez de devolver dados 
 
 **Use quando:** a correção é inegociável — transações financeiras, sistemas de estoque, repositórios de identidade.
 
-```
-Node A ──── [partition] ──── Node B
-   │                            │
-Client                       Returns error
-writes here                  (unavailable)
+``` mermaid-sim
+flowchart LR
+    CA(["Cliente A"]) -->|"1 · escreve estoque = 0"| A[("Nó A<br/>estoque = 0")]
+    A -.-x|"2 · replica ✗ partição"| B[("Nó B<br/>estoque = 5")]
+    CB(["Cliente B"]) -->|"3 · lê o estoque"| B
+    B -->|"4 · erro: indisponível"| CB
 ```
 
 ### AP — Disponível e tolerante a partições
@@ -78,12 +79,13 @@ Durante uma partição, todos os nós continuam respondendo, mas podem divergir 
 
 **Use quando:** a disponibilidade importa mais do que a precisão momentânea — carrinhos de compras, feeds de redes sociais, índices de busca.
 
-```
-Node A ──── [partition] ──── Node B
-   │                            │
-Client A sees              Client B sees
-version 5                  version 4 (stale)
-         ← converge after partition heals →
+``` mermaid-sim
+flowchart LR
+    CA(["Cliente A"]) -->|"1 · escreve estoque = 0"| A[("Nó A<br/>estoque = 0")]
+    A -.-x|"2 · replica ✗ partição"| B[("Nó B<br/>estoque = 5")]
+    CB(["Cliente B"]) -->|"3 · lê o estoque"| B
+    B -->|"4 · estoque = 5 (desatualizado)"| CB
+    A ==>|"5 · partição resolvida: sincroniza"| B
 ```
 
 ### CA — Consistente e disponível
@@ -111,11 +113,14 @@ Pressupõe que não há partições, o que só é realista em sistemas de uma ú
 
 O teorema CAP trata apenas do cenário de partição. O **PACELC** (Daniel Abadi, 2010)[^2] o estende perguntando: *mesmo quando não há partição, qual é o trade-off?*
 
-```
-If Partition:
-  → choose between Availability and Consistency
-Else (normal operation):
-  → choose between Latency and Consistency
+``` mermaid-sim
+flowchart LR
+    Q{"Há<br/>partição?"} -->|"sim · P"| PAC{"Disponibilidade<br/>ou Consistência?"}
+    PAC -->|A| PA["PA: responde, talvez desatualizado"]
+    PAC -->|C| PC["PC: recusa ou espera"]
+    Q -->|"não · E (else)"| ELC{"Latência<br/>ou Consistência?"}
+    ELC -->|L| EL["EL: responde antes de<br/>as réplicas confirmarem"]
+    ELC -->|C| EC["EC: espera<br/>as réplicas"]
 ```
 
 O motivo é a replicação: para ser consistente, uma escrita precisa esperar que as outras réplicas a confirmem (uma ida e volta pela rede, possivelmente até outra região); para ser rápida, ela precisa responder antes disso — e aceitar que uma réplica fique brevemente defasada.

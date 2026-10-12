@@ -63,11 +63,12 @@ During a partition, the system refuses requests rather than returning potentiall
 
 **Use when:** correctness is non-negotiable — financial transactions, inventory systems, identity stores.
 
-```
-Node A ──── [partition] ──── Node B
-   │                            │
-Client                       Returns error
-writes here                  (unavailable)
+``` mermaid-sim
+flowchart LR
+    CA(["Client A"]) -->|"1 · write stock = 0"| A[("Node A<br/>stock = 0")]
+    A -.-x|"2 · replicate ✗ partition"| B[("Node B<br/>stock = 5")]
+    CB(["Client B"]) -->|"3 · read stock"| B
+    B -->|"4 · error: unavailable"| CB
 ```
 
 ### AP — Available and Partition-Tolerant
@@ -78,12 +79,13 @@ During a partition, every node continues to respond, but nodes may diverge and r
 
 **Use when:** availability matters more than momentary accuracy — shopping carts, social media feeds, search indexes.
 
-```
-Node A ──── [partition] ──── Node B
-   │                            │
-Client A sees              Client B sees
-version 5                  version 4 (stale)
-         ← converge after partition heals →
+``` mermaid-sim
+flowchart LR
+    CA(["Client A"]) -->|"1 · write stock = 0"| A[("Node A<br/>stock = 0")]
+    A -.-x|"2 · replicate ✗ partition"| B[("Node B<br/>stock = 5")]
+    CB(["Client B"]) -->|"3 · read stock"| B
+    B -->|"4 · stock = 5 (stale)"| CB
+    A ==>|"5 · partition heals: sync"| B
 ```
 
 ### CA — Consistent and Available
@@ -111,11 +113,14 @@ Assumes no partitions, which is only realistic for single-machine systems or tig
 
 The CAP theorem only addresses the partition scenario. **PACELC** (Daniel Abadi, 2010)[^2] extends it by asking: *even when there is no partition, what is the trade-off?*
 
-```
-If Partition:
-  → choose between Availability and Consistency
-Else (normal operation):
-  → choose between Latency and Consistency
+``` mermaid-sim
+flowchart LR
+    Q{"Is there a<br/>partition?"} -->|"yes · P"| PAC{"Availability<br/>or Consistency?"}
+    PAC -->|A| PA["PA: answer, maybe stale"]
+    PAC -->|C| PC["PC: refuse or wait"]
+    Q -->|"no · E (else)"| ELC{"Latency<br/>or Consistency?"}
+    ELC -->|L| EL["EL: answer before<br/>the replicas confirm"]
+    ELC -->|C| EC["EC: wait for<br/>the replicas"]
 ```
 
 The reason is replication: to be consistent, a write must wait for other replicas to acknowledge it (a network round-trip, possibly to another region); to be fast, it must answer before they do — and accept that a replica may briefly lag behind.

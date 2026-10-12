@@ -243,7 +243,6 @@
 .md-typeset .cap-venn .pair { font-size: 24px; font-weight: 800; }
 .md-typeset .cap-venn .ex { font-size: 13px; fill: var(--md-default-fg-color--light); }
 .md-typeset .cap-venn .ca { fill: var(--md-default-fg-color--light); }
-.md-typeset .cap-venn .pair.ca { text-decoration: line-through; }
 .md-typeset .cap-venn .none { fill: var(--md-default-bg-color); stroke: #e5484d; stroke-width: 2.5; }
 .md-typeset .cap-venn .none-x { stroke: #e5484d; stroke-width: 3; stroke-linecap: round; }
 .md-typeset .cap-venn .none-t { font-weight: 600; fill: var(--md-default-fg-color); }
