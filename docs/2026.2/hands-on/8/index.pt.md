@@ -7,11 +7,11 @@ Quando o gateway escala horizontalmente, cada instância da JVM tem o seu própr
 ## Slides
 
 <div class="slides-embed">
-  <iframe src="slides/cache.pt.html" title="Slides: cache em memória" loading="lazy" allowfullscreen></iframe>
+  <iframe src="slides/cache.html" title="Slides: cache em memória" loading="lazy" allowfullscreen></iframe>
 </div>
 
 Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** abre a visão do apresentador, com as notas.
-[:material-presentation: Abrir os slides em uma nova aba](slides/cache.pt.html){:target="_blank"}
+[:material-presentation: Abrir os slides em uma nova aba](slides/cache.html){:target="_blank"}
 
 ## Bancos de dados em memória
 

@@ -24,11 +24,11 @@ O estilo de microsserviços é uma resposta a esse problema específico: à medi
 ## Slides
 
 <div class="slides-embed">
-  <iframe src="slides/microservices.pt.html" title="Slides: microsserviços" loading="lazy" allowfullscreen></iframe>
+  <iframe src="slides/microservices.html" title="Slides: microsserviços" loading="lazy" allowfullscreen></iframe>
 </div>
 
 Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** abre a visão do apresentador, com as notas.
-[:material-presentation: Abrir os slides em uma nova aba](slides/microservices.pt.html){:target="_blank"}
+[:material-presentation: Abrir os slides em uma nova aba](slides/microservices.html){:target="_blank"}
 
 ---
 

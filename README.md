@@ -25,13 +25,14 @@ pip3 install -r requirements.txt
 O material utiliza o [Zensical](https://zensical.org/) para gerar a documentação (configuração em `zensical.toml`). Para visualizar a documentação, execute o comando:
 
 ``` shell
-zensical serve
+zensical-i18n serve
 ```
 
-O site tem dois idiomas: inglês (padrão) e português do Brasil. Cada página `X.md` pode ter a tradução `X.pt.md` ao lado. Para visualizar a versão em português:
+O site tem dois idiomas, gerados pelo [zensical-i18n](https://github.com/hsandmann/zensical-i18n): inglês (padrão) e português do Brasil. Cada página `X.md` pode ter a tradução `X.pt.md` ao lado. Para gerar os dois idiomas e para visualizar a versão em português:
 
 ``` shell
-python scripts/i18n/build.py --serve
+zensical-i18n build
+zensical-i18n serve --lang pt
 ```
 
-A publicação no GitHub Pages é feita pelo CI a cada push na `main`: ele executa `zensical build --clean` e `python scripts/i18n/build.py` (que gera `site/pt/`) e publica a pasta `site/` no branch `gh-pages`.
+A publicação no GitHub Pages é feita pelo CI a cada push na `main`: ele executa `zensical-i18n build --clean` (inglês em `site/`, português em `site/pt/`) e publica a pasta `site/` no branch `gh-pages`.

@@ -24,11 +24,11 @@ O [Jenkins](https://www.jenkins.io/){:target="_blank"} é um dos servidores de a
 ## Slides
 
 <div class="slides-embed">
-  <iframe src="slides/devops.pt.html" title="Slides: hands-on 4 — devops" loading="lazy" allowfullscreen></iframe>
+  <iframe src="slides/devops.html" title="Slides: hands-on 4 — devops" loading="lazy" allowfullscreen></iframe>
 </div>
 
 Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** abre a visão do apresentador, com as notas.
-[:material-presentation: Abrir os slides em uma nova aba](slides/devops.pt.html){:target="_blank"}
+[:material-presentation: Abrir os slides em uma nova aba](slides/devops.html){:target="_blank"}
 
 ## 1. Preparação — Jenkins em container
 

@@ -9,11 +9,11 @@ Hoje a plataforma usa chamadas REST síncronas para toda a comunicação entre s
 ## Slides
 
 <div class="slides-embed">
-  <iframe src="slides/kafka.pt.html" title="Slides: mensageria com Kafka" loading="lazy" allowfullscreen></iframe>
+  <iframe src="slides/kafka.html" title="Slides: mensageria com Kafka" loading="lazy" allowfullscreen></iframe>
 </div>
 
 Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** abre a visão do apresentador, com as notas.
-[:material-presentation: Abrir os slides em uma nova aba](slides/kafka.pt.html){:target="_blank"}
+[:material-presentation: Abrir os slides em uma nova aba](slides/kafka.html){:target="_blank"}
 
 ## 1. Arquitetura
 

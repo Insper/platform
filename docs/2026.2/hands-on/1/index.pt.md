@@ -7,11 +7,11 @@ O microsserviço Account é responsável por gerenciar as contas de usuário —
 ## Slides
 
 <div class="slides-embed">
-  <iframe src="slides/crud.pt.html" title="Slides: hands-on 1 — CRUD" loading="lazy" allowfullscreen></iframe>
+  <iframe src="slides/crud.html" title="Slides: hands-on 1 — CRUD" loading="lazy" allowfullscreen></iframe>
 </div>
 
 Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** abre a visão do apresentador, com as notas.
-[:material-presentation: Abrir os slides em uma nova aba](slides/crud.pt.html){:target="_blank"}
+[:material-presentation: Abrir os slides em uma nova aba](slides/crud.html){:target="_blank"}
 
 O microsserviço é dividido em dois módulos principais: `account` e `account-service`:
 

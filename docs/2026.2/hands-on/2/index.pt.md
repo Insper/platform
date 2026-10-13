@@ -36,11 +36,11 @@ As principais funcionalidades do microsserviço Gateway são:
 ## Slides
 
 <div class="slides-embed">
-  <iframe src="slides/gateway.pt.html" title="Slides: hands-on 2 — gateway" loading="lazy" allowfullscreen></iframe>
+  <iframe src="slides/gateway.html" title="Slides: hands-on 2 — gateway" loading="lazy" allowfullscreen></iframe>
 </div>
 
 Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** abre a visão do apresentador, com as notas.
-[:material-presentation: Abrir os slides em uma nova aba](slides/gateway.pt.html){:target="_blank"}
+[:material-presentation: Abrir os slides em uma nova aba](slides/gateway.html){:target="_blank"}
 
 ## Gateway-Service
 

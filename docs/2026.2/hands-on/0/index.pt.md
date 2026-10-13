@@ -7,11 +7,11 @@ Depois disso, o seu ambiente deve estar pronto para começar os exercícios. Vam
 ## Slides
 
 <div class="slides-embed">
-  <iframe src="slides/prerequisites.pt.html" title="Slides: hands-on 0 — pré-requisitos" loading="lazy" allowfullscreen></iframe>
+  <iframe src="slides/prerequisites.html" title="Slides: hands-on 0 — pré-requisitos" loading="lazy" allowfullscreen></iframe>
 </div>
 
 Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** abre a visão do apresentador, com as notas.
-[:material-presentation: Abrir os slides em uma nova aba](slides/prerequisites.pt.html){:target="_blank"}
+[:material-presentation: Abrir os slides em uma nova aba](slides/prerequisites.html){:target="_blank"}
 
 ## Repositório raiz
 

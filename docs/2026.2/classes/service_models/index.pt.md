@@ -18,11 +18,11 @@ Os três modelos fundamentais definidos pelo NIST[^1] são **IaaS**, **PaaS** e 
 ## Slides
 
 <div class="slides-embed">
-  <iframe src="slides/service-models.pt.html" title="Slides: modelos de serviço" loading="lazy" allowfullscreen></iframe>
+  <iframe src="slides/service-models.html" title="Slides: modelos de serviço" loading="lazy" allowfullscreen></iframe>
 </div>
 
 Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** abre a visão do apresentador, com as notas.
-[:material-presentation: Abrir os slides em uma nova aba](slides/service-models.pt.html){:target="_blank"}
+[:material-presentation: Abrir os slides em uma nova aba](slides/service-models.html){:target="_blank"}
 
 ---
 

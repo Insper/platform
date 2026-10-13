@@ -9,11 +9,11 @@ A IA não está substituindo engenheiros no desenvolvimento de software — ela 
 ## Slides
 
 <div class="slides-embed">
-  <iframe src="slides/ai-cicd.pt.html" title="Slides: IA no CI/CD" loading="lazy" allowfullscreen></iframe>
+  <iframe src="slides/ai-cicd.html" title="Slides: IA no CI/CD" loading="lazy" allowfullscreen></iframe>
 </div>
 
 Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** abre a visão do apresentador, com as notas.
-[:material-presentation: Abrir os slides em uma nova aba](slides/ai-cicd.pt.html){:target="_blank"}
+[:material-presentation: Abrir os slides em uma nova aba](slides/ai-cicd.html){:target="_blank"}
 
 ---
 

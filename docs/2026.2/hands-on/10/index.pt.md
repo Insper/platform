@@ -7,11 +7,11 @@ Você já tem o Prometheus coletando métricas e o Grafana exibindo dashboards. 
 ## Slides
 
 <div class="slides-embed">
-  <iframe src="slides/tracing.pt.html" title="Slides: rastreamento distribuído" loading="lazy" allowfullscreen></iframe>
+  <iframe src="slides/tracing.html" title="Slides: rastreamento distribuído" loading="lazy" allowfullscreen></iframe>
 </div>
 
 Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** abre a visão do apresentador, com as notas.
-[:material-presentation: Abrir os slides em uma nova aba](slides/tracing.pt.html){:target="_blank"}
+[:material-presentation: Abrir os slides em uma nova aba](slides/tracing.html){:target="_blank"}
 
 ## O problema que isso resolve
 

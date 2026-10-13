@@ -20,7 +20,6 @@ extra_javascript = [
   "assets/javascripts/termynal.js",
   "assets/javascripts/termynal-init.js",
   "assets/javascripts/mermaid-sim.js",
-  "assets/javascripts/i18n.js",
 ]
 
 nav = [
@@ -408,17 +407,88 @@ exclude.glob = [
   "2026.2/exams/*",
   # Slides (Marp): the .src.md is built into the .html next to it (scripts/slides/build.py)
   "*/slides/*.src.md",
-  # Portuguese pages: built by scripts/i18n/build.py into site/pt
-  "*.pt.md",
 ]
 
-# Language selector: English (default) and Brazilian Portuguese (scripts/i18n/build.py)
-[[project.extra.alternate]]
-name = "🇺🇸 English"
-link = "/platform/"
-lang = "en"
+# Languages (zensical-i18n): English at the site root, Portuguese in /pt/.
+# Translations live next to the originals: page.md (English) and page.pt.md.
+# Build with `zensical-i18n build`; preview with `zensical-i18n serve --lang pt`.
+[project.plugins.i18n]
+docs_structure = "suffix"
+fallback_to_default = true
+reconfigure_theme = true
+translate_admonitions = true
 
-[[project.extra.alternate]]
+[[project.plugins.i18n.languages]]
+locale = "en"
+name = "🇺🇸 English"
+default = true
+
+[[project.plugins.i18n.languages]]
+locale = "pt"
 name = "🇧🇷 Português"
-link = "/platform/pt/"
-lang = "pt-BR"
+site_name = "Plataformas, Microsserviços, DevOps e APIs"
+untranslated_notice = "Esta página ainda não foi traduzida. Exibindo a versão em {language}."
+
+[project.plugins.i18n.languages.theme]
+language = "pt-BR"
+
+[project.plugins.i18n.languages.nav_translations]
+"Overview" = "Visão geral"
+"a. Overview" = "a. Visão geral"
+"Classes" = "Aulas"
+"Exercises" = "Exercícios"
+"Project" = "Projeto"
+"Appendix" = "Apêndice"
+"Interview Material" = "Material para Entrevistas"
+"Terms and Conditions" = "Termos e Condições"
+"Disclaimer" = "Aviso Legal"
+"0. Prerequisites" = "0. Pré-requisitos"
+"1. Distributed Systems" = "1. Sistemas Distribuídos"
+"2. Containerization" = "2. Containerização"
+"3. Microservices" = "3. Microsserviços"
+"3. Security" = "3. Segurança"
+"4. Architectures" = "4. Arquiteturas"
+"4. Microservices" = "4. Microsserviços"
+"5. Orchestration" = "5. Orquestração"
+"5. Security — OAuth2 & Zero Trust" = "5. Segurança — OAuth2 & Zero Trust"
+"6. Architectures" = "6. Arquiteturas"
+"6. Observability" = "6. Observabilidade"
+"6. Service Models" = "6. Modelos de Serviço"
+"7. Event-Driven Architecture" = "7. Arquitetura Orientada a Eventos"
+"7. Load Balancer" = "7. Balanceador de Carga"
+"7. Reliability" = "7. Confiabilidade"
+"8. In-Memory Cache" = "8. Cache em Memória"
+"8. Reliability" = "8. Confiabilidade"
+"9. Kafka Messaging" = "9. Mensageria com Kafka"
+"9. Observability" = "9. Observabilidade"
+"10. Distributed Tracing" = "10. Rastreamento Distribuído"
+"10. Service Models" = "10. Modelos de Serviço"
+"11. AI in CI/CD" = "11. IA no CI/CD"
+"11. Cloud Deployment Roadmap" = "11. Roteiro de Implantação na Nuvem"
+"Architecture & Components" = "Arquitetura & Componentes"
+"Bottlenecks" = "Gargalos"
+"CAP Theorem" = "Teorema CAP"
+"Chaos Engineering" = "Engenharia do Caos"
+"Clean Architecture" = "Arquitetura Limpa"
+"Consensus & Algorithms" = "Consenso & Algoritmos"
+"Costs & PaaS" = "Custos & PaaS"
+"Development Setup" = "Ambiente de Desenvolvimento"
+"Exchange API" = "API de Câmbio"
+"Hexagonal Architecture" = "Arquitetura Hexagonal"
+"Load Testing" = "Teste de Carga"
+"Network" = "Redes"
+"Order API" = "API de Pedidos"
+"Others" = "Outros"
+"Presentation" = "Apresentação"
+"Product API" = "API de Produtos"
+"REST API Design" = "Design de APIs REST"
+"RSA Algorithm" = "Algoritmo RSA"
+"Resilience Patterns" = "Padrões de Resiliência"
+"SOLID Principles" = "Princípios SOLID"
+"Zero Trust, mTLS & Secrets" = "Zero Trust, mTLS & Segredos"
+"b. Microservices" = "b. Microsserviços"
+"c. Open Routes" = "c. Rotas Abertas"
+"d. Authorization" = "d. Autorização"
+"d. Containerization" = "d. Containerização"
+"d. Run" = "d. Execução"
+"f. Run" = "f. Execução"

@@ -17,11 +17,11 @@ A aula anterior, [Modelos de serviço](../service_models/index.md), deu o vocabu
 ## Slides
 
 <div class="slides-embed">
-  <iframe src="slides/deployment.pt.html" title="Slides: roteiro de deploy na nuvem" loading="lazy" allowfullscreen></iframe>
+  <iframe src="slides/deployment.html" title="Slides: roteiro de deploy na nuvem" loading="lazy" allowfullscreen></iframe>
 </div>
 
 Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** abre a visão do apresentador, com as notas.
-[:material-presentation: Abrir os slides em uma nova aba](slides/deployment.pt.html){:target="_blank"}
+[:material-presentation: Abrir os slides em uma nova aba](slides/deployment.html){:target="_blank"}
 
 ---
 

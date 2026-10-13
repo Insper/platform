@@ -11,11 +11,11 @@ Segurança é um aspecto crítico de qualquer plataforma. Em uma arquitetura de 
 ## Slides
 
 <div class="slides-embed">
-  <iframe src="slides/security.pt.html" title="Slides: hands-on 3 — segurança" loading="lazy" allowfullscreen></iframe>
+  <iframe src="slides/security.html" title="Slides: hands-on 3 — segurança" loading="lazy" allowfullscreen></iframe>
 </div>
 
 Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** abre a visão do apresentador, com as notas.
-[:material-presentation: Abrir os slides em uma nova aba](slides/security.pt.html){:target="_blank"}
+[:material-presentation: Abrir os slides em uma nova aba](slides/security.html){:target="_blank"}
 
 ``` mermaid-sim
 flowchart LR

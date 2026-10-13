@@ -49,11 +49,11 @@ A **containerização** resolve isso empacotando a aplicação junto com todas a
 ## Slides
 
 <div class="slides-embed">
-  <iframe src="slides/containerization.pt.html" title="Slides: containerização" loading="lazy" allowfullscreen></iframe>
+  <iframe src="slides/containerization.html" title="Slides: containerização" loading="lazy" allowfullscreen></iframe>
 </div>
 
 Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** abre a visão do apresentador, com as notas.
-[:material-presentation: Abrir os slides em uma nova aba](slides/containerization.pt.html){:target="_blank"}
+[:material-presentation: Abrir os slides em uma nova aba](slides/containerization.html){:target="_blank"}
 
 ---
 

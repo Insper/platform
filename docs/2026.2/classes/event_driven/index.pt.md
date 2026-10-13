@@ -17,11 +17,11 @@ REST síncrono funciona bem quando quem chama precisa de uma resposta imediata. 
 ## Slides
 
 <div class="slides-embed">
-  <iframe src="slides/event-driven.pt.html" title="Slides: arquitetura orientada a eventos" loading="lazy" allowfullscreen></iframe>
+  <iframe src="slides/event-driven.html" title="Slides: arquitetura orientada a eventos" loading="lazy" allowfullscreen></iframe>
 </div>
 
 Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** abre a visão do apresentador, com as notas.
-[:material-presentation: Abrir os slides em uma nova aba](slides/event-driven.pt.html){:target="_blank"}
+[:material-presentation: Abrir os slides em uma nova aba](slides/event-driven.html){:target="_blank"}
 
 ---
 

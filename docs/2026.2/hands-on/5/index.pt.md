@@ -1,11 +1,11 @@
 ## Slides
 
 <div class="slides-embed">
-  <iframe src="slides/orchestration.pt.html" title="Slides: hands-on 5 — orquestração" loading="lazy" allowfullscreen></iframe>
+  <iframe src="slides/orchestration.html" title="Slides: hands-on 5 — orquestração" loading="lazy" allowfullscreen></iframe>
 </div>
 
 Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** abre a visão do apresentador, com as notas.
-[:material-presentation: Abrir os slides em uma nova aba](slides/orchestration.pt.html){:target="_blank"}
+[:material-presentation: Abrir os slides em uma nova aba](slides/orchestration.html){:target="_blank"}
 
 ## O que é um orquestrador?
 Um orquestrador é um sistema que automatiza o deploy, o gerenciamento, a escala e a operação de aplicações em containers. Os containers empacotam a aplicação com suas dependências, tornando-a portável entre ambientes. Os orquestradores cuidam de tarefas críticas, como:

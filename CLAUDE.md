@@ -17,9 +17,12 @@ pip3 install -r requirements.txt
 ## Common Commands
 
 ```bash
-zensical serve                        # Local dev server at http://127.0.0.1:8000/platform/
-zensical build --clean                # Build static site into site/
+zensical-i18n build                   # Build both languages into site/ (English) and site/pt/
+zensical-i18n serve                   # Preview English at http://127.0.0.1:8000/platform/ (live reload)
+zensical-i18n serve --lang pt         # Preview Portuguese
 ```
+
+`zensical-i18n` wraps `zensical` (same options); plain `zensical build` still works but builds only one language.
 
 Zensical has no `gh-deploy`: CI builds `site/` and publishes it to the `gh-pages` branch. Unsupported MkDocs plugins are ignored silently, so check the generated HTML when adding a plugin.
 
@@ -47,26 +50,24 @@ No git-based revision dates/authors: Zensical does not support the `git-*` plugi
 
 ### Two languages: English (default) and Brazilian Portuguese
 
-Every page `X.md` (English) may have a translation `X.pt.md` next to it. The English build ignores
-`*.pt.md` (`exclude` plugin). Zensical has no i18n plugin, so `python scripts/i18n/build.py` stages a
-copy of `docs/` in `.i18n/pt/` (gitignored) where each `X.pt.md` replaces `X.md` — an untranslated page
-stays in English — and builds it into `site/pt/` with a config derived from `zensical.toml`: menu titles
-from `scripts/i18n/pt.json`, theme language `pt-BR`, `site_url` + `/pt`. Run it **after**
-`zensical build` (CI does both). Both sites share paths (`/platform/<page>` ↔ `/platform/pt/<page>`);
-the language selector (`extra.alternate`) plus `assets/javascripts/i18n.js` switch keeping the page.
+Built by [zensical-i18n](https://github.com/hsandmann/zensical-i18n) (`[project.plugins.i18n]` in
+`zensical.toml`, suffix structure, as mkdocs-static-i18n). Every page `X.md` (English) may have a
+translation `X.pt.md` next to it — any file works the same way: `slides/x.pt.html` is the Portuguese
+version of `slides/x.html`. English is built to the site root and Portuguese to `/pt/`, sharing paths
+(`/platform/<page>` ↔ `/platform/pt/<page>`); the plugin adds the language selector (it keeps the page),
+hreflang sitemaps, translated default admonition titles, and a notice on pages that fall back to English.
+
+When translating: links, snippet includes and image paths keep the English file names, with no suffix
+(`cap/index.md`, `slides/x.html`) — the plugin resolves them per language; code blocks stay identical
+(only Mermaid labels are translated). A snippet is read from the repository, not resolved per language,
+so a translated included file needs its own path (e.g. `cap-venn.pt.svg`). Decks: `slides/<slug>.pt.src.md`
+builds `slides/<slug>.pt.html`. **When you change an English page, update its `.pt.md` too.** A new menu
+title needs an entry in `[project.plugins.i18n.languages.nav_translations]`. Scripts with interface text
+(`mermaid-sim.js`, `interview.js`) pick the language from `<html lang>`.
 
 ```bash
-python scripts/i18n/build.py --serve     # preview Portuguese at http://127.0.0.1:8002/platform/pt/
-python scripts/i18n/build.py --status    # pages still without a .pt.md
 python scripts/i18n/check.py [folder]    # each .pt.md has the English structure and identical code
 ```
-
-When translating: links keep the English file names (`cap/index.md`, not `.pt`); snippet includes,
-images and code blocks stay identical (only Mermaid labels are translated); a page that embeds a deck
-points to `slides/<slug>.pt.html`, built from `slides/<slug>.pt.src.md`. **When you change an English
-page, update its `.pt.md` too.** A new menu title needs an entry in `scripts/i18n/pt.json` (the build
-lists the missing ones). Scripts with interface text (`mermaid-sim.js`, `interview.js`) pick the
-language from `<html lang>`.
 
 ### Slides (Marp), 2026.2
 
@@ -97,7 +98,7 @@ speaker notes as HTML comments; last slide `## Takeaways`.
 
 ## CI/CD
 
-GitHub Actions (`.github/workflows/main.yaml`) triggers on every push and PR. Deployment to GitHub Pages runs only on pushes to `main`: `zensical build --clean` with Python 3.12, then `peaceiris/actions-gh-pages` publishes `site/` to the `gh-pages` branch.
+GitHub Actions (`.github/workflows/main.yaml`) triggers on every push and PR. Deployment to GitHub Pages runs only on pushes to `main`: `zensical-i18n build --clean` (both languages) with Python 3.12, then `peaceiris/actions-gh-pages` publishes `site/` to the `gh-pages` branch.
 
 ## Content Patterns
 

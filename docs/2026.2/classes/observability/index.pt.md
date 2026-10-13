@@ -17,11 +17,11 @@ Imagine um cliente reclamando que "o checkout está lento" na loja. A requisiç�
 ## Slides
 
 <div class="slides-embed">
-  <iframe src="slides/observability.pt.html" title="Slides: observabilidade" loading="lazy" allowfullscreen></iframe>
+  <iframe src="slides/observability.html" title="Slides: observabilidade" loading="lazy" allowfullscreen></iframe>
 </div>
 
 Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** abre a visão do apresentador, com as notas.
-[:material-presentation: Abrir os slides em uma nova aba](slides/observability.pt.html){:target="_blank"}
+[:material-presentation: Abrir os slides em uma nova aba](slides/observability.html){:target="_blank"}
 
 ---
 

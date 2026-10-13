@@ -21,11 +21,11 @@ O JWT é um formato de transporte — ele carrega claims como "esta é a conta 4
 ## Slides
 
 <div class="slides-embed">
-  <iframe src="slides/security.pt.html" title="Slides: segurança — oauth2 e zero trust" loading="lazy" allowfullscreen></iframe>
+  <iframe src="slides/security.html" title="Slides: segurança — oauth2 e zero trust" loading="lazy" allowfullscreen></iframe>
 </div>
 
 Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** abre a visão do apresentador, com as notas.
-[:material-presentation: Abrir os slides em uma nova aba](slides/security.pt.html){:target="_blank"}
+[:material-presentation: Abrir os slides em uma nova aba](slides/security.html){:target="_blank"}
 
 ---
 

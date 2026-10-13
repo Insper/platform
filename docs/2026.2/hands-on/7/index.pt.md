@@ -7,11 +7,11 @@ Os hands-on anteriores construíram uma plataforma de microsserviços com uma ú
 ## Slides
 
 <div class="slides-embed">
-  <iframe src="slides/load-balancer.pt.html" title="Slides: balanceador de carga" loading="lazy" allowfullscreen></iframe>
+  <iframe src="slides/load-balancer.html" title="Slides: balanceador de carga" loading="lazy" allowfullscreen></iframe>
 </div>
 
 Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** abre a visão do apresentador, com as notas.
-[:material-presentation: Abrir os slides em uma nova aba](slides/load-balancer.pt.html){:target="_blank"}
+[:material-presentation: Abrir os slides em uma nova aba](slides/load-balancer.html){:target="_blank"}
 
 ## Proxy
 

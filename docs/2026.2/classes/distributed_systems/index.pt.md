@@ -26,11 +26,11 @@ Essa arquitetura sustenta as plataformas de nuvem modernas (AWS, Google Cloud, A
 ## Slides
 
 <div class="slides-embed">
-  <iframe src="slides/distributed-systems.pt.html" title="Slides: sistemas distribuídos" loading="lazy" allowfullscreen></iframe>
+  <iframe src="slides/distributed-systems.html" title="Slides: sistemas distribuídos" loading="lazy" allowfullscreen></iframe>
 </div>
 
 Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** abre a visão do apresentador, com as notas.
-[:material-presentation: Abrir os slides em uma nova aba](slides/distributed-systems.pt.html){:target="_blank"}
+[:material-presentation: Abrir os slides em uma nova aba](slides/distributed-systems.html){:target="_blank"}
 
 ---
 

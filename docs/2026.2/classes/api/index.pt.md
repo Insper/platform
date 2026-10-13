@@ -38,11 +38,11 @@ flowchart LR
 ## Slides
 
 <div class="slides-embed">
-  <iframe src="slides/api.pt.html" title="Slides: APIs" loading="lazy" allowfullscreen></iframe>
+  <iframe src="slides/api.html" title="Slides: APIs" loading="lazy" allowfullscreen></iframe>
 </div>
 
 Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** abre a visão do apresentador, com as notas.
-[:material-presentation: Abrir os slides em uma nova aba](slides/api.pt.html){:target="_blank"}
+[:material-presentation: Abrir os slides em uma nova aba](slides/api.html){:target="_blank"}
 
 ---
 
