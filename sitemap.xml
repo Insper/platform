@@ -1,0 +1,1191 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  <url>
+    <loc>https://insper.github.io/platform/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2024.1/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2024.1/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2024.1/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2024.1/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2025.1/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2025.1/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2025.1/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2025.1/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2025.2/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2025.2/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2025.2/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2025.2/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/classes/api/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/classes/api/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/classes/api/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/classes/api/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/classes/api/quiz/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/classes/api/quiz/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/classes/api/quiz/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/classes/api/quiz/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/classes/api/rest/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/classes/api/rest/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/classes/api/rest/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/classes/api/rest/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/classes/api/swagger/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/classes/api/swagger/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/classes/api/swagger/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/classes/api/swagger/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/classes/architectures/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/classes/architectures/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/classes/architectures/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/classes/architectures/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/classes/architectures/clean/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/classes/architectures/clean/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/classes/architectures/clean/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/classes/architectures/clean/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/classes/architectures/hexagonal/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/classes/architectures/hexagonal/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/classes/architectures/hexagonal/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/classes/architectures/hexagonal/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/classes/architectures/quiz/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/classes/architectures/quiz/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/classes/architectures/quiz/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/classes/architectures/quiz/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/classes/architectures/solid/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/classes/architectures/solid/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/classes/architectures/solid/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/classes/architectures/solid/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/classes/cloud_service_models/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/classes/cloud_service_models/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/classes/cloud_service_models/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/classes/cloud_service_models/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/classes/cloud_service_models/visual_matrix/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/classes/cloud_service_models/visual_matrix/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/classes/cloud_service_models/visual_matrix/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/classes/cloud_service_models/visual_matrix/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/classes/containerization/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/classes/containerization/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/classes/containerization/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/classes/containerization/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/classes/containerization/compose/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/classes/containerization/compose/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/classes/containerization/compose/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/classes/containerization/compose/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/classes/containerization/docker/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/classes/containerization/docker/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/classes/containerization/docker/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/classes/containerization/docker/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/classes/containerization/quiz/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/classes/containerization/quiz/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/classes/containerization/quiz/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/classes/containerization/quiz/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/classes/distributed_systems/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/classes/distributed_systems/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/classes/distributed_systems/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/classes/distributed_systems/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/classes/distributed_systems/cap/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/classes/distributed_systems/cap/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/classes/distributed_systems/cap/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/classes/distributed_systems/cap/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/classes/distributed_systems/consensus/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/classes/distributed_systems/consensus/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/classes/distributed_systems/consensus/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/classes/distributed_systems/consensus/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/classes/distributed_systems/quiz/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/classes/distributed_systems/quiz/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/classes/distributed_systems/quiz/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/classes/distributed_systems/quiz/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/classes/microservices/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/classes/microservices/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/classes/microservices/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/classes/microservices/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/classes/microservices/architecture/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/classes/microservices/architecture/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/classes/microservices/architecture/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/classes/microservices/architecture/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/classes/microservices/ddd/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/classes/microservices/ddd/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/classes/microservices/ddd/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/classes/microservices/ddd/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/classes/microservices/microservice-diagram/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/classes/microservices/microservice-diagram/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/classes/microservices/microservice-diagram/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/classes/microservices/microservice-diagram/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/classes/microservices/quiz/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/classes/microservices/quiz/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/classes/microservices/quiz/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/classes/microservices/quiz/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/classes/orchestration/</loc>
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/classes/reliability/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/classes/reliability/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/classes/reliability/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/classes/reliability/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/classes/reliability/chaos/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/classes/reliability/chaos/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/classes/reliability/chaos/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/classes/reliability/chaos/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/classes/reliability/patterns/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/classes/reliability/patterns/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/classes/reliability/patterns/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/classes/reliability/patterns/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/classes/reliability/quiz/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/classes/reliability/quiz/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/classes/reliability/quiz/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/classes/reliability/quiz/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/classes/reliability/sli-slo-sla/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/classes/reliability/sli-slo-sla/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/classes/reliability/sli-slo-sla/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/classes/reliability/sli-slo-sla/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/classes/service_models/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/classes/service_models/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/classes/service_models/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/classes/service_models/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/classes/service_models/quiz/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/classes/service_models/quiz/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/classes/service_models/quiz/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/classes/service_models/quiz/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/exercises/bottlenecks/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/exercises/bottlenecks/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/exercises/bottlenecks/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/exercises/bottlenecks/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/exercises/exchange/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/exercises/exchange/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/exercises/exchange/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/exercises/exchange/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/exercises/jenkins/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/exercises/jenkins/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/exercises/jenkins/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/exercises/jenkins/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/exercises/minikube/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/exercises/minikube/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/exercises/minikube/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/exercises/minikube/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/exercises/order/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/exercises/order/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/exercises/order/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/exercises/order/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/exercises/product/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/exercises/product/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/exercises/product/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/exercises/product/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/exercises/project/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/exercises/project/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/exercises/project/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/exercises/project/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/exercises/project/aws/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/exercises/project/aws/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/exercises/project/aws/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/exercises/project/aws/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/exercises/project/ci-cd/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/exercises/project/ci-cd/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/exercises/project/ci-cd/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/exercises/project/ci-cd/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/exercises/project/costs/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/exercises/project/costs/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/exercises/project/costs/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/exercises/project/costs/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/exercises/project/eks/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/exercises/project/eks/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/exercises/project/eks/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/exercises/project/eks/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/exercises/project/load-testing/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/exercises/project/load-testing/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/exercises/project/load-testing/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/exercises/project/load-testing/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/exercises/project/presentation/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/exercises/project/presentation/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/exercises/project/presentation/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/exercises/project/presentation/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/hands-on/0/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/hands-on/0/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/hands-on/0/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/hands-on/0/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/hands-on/1/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/hands-on/1/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/hands-on/1/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/hands-on/1/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/hands-on/1/containerization/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/hands-on/1/containerization/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/hands-on/1/containerization/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/hands-on/1/containerization/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/hands-on/1/controller/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/hands-on/1/controller/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/hands-on/1/controller/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/hands-on/1/controller/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/hands-on/1/quiz/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/hands-on/1/quiz/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/hands-on/1/quiz/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/hands-on/1/quiz/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/hands-on/1/repository/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/hands-on/1/repository/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/hands-on/1/repository/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/hands-on/1/repository/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/hands-on/1/service/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/hands-on/1/service/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/hands-on/1/service/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/hands-on/1/service/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/hands-on/2/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/hands-on/2/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/hands-on/2/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/hands-on/2/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/hands-on/2/quiz/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/hands-on/2/quiz/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/hands-on/2/quiz/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/hands-on/2/quiz/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/hands-on/3/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/hands-on/3/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/hands-on/3/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/hands-on/3/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/hands-on/3/authorization/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/hands-on/3/authorization/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/hands-on/3/authorization/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/hands-on/3/authorization/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/hands-on/3/jwt/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/hands-on/3/jwt/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/hands-on/3/jwt/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/hands-on/3/jwt/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/hands-on/3/open-routes/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/hands-on/3/open-routes/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/hands-on/3/open-routes/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/hands-on/3/open-routes/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/hands-on/3/quiz/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/hands-on/3/quiz/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/hands-on/3/quiz/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/hands-on/3/quiz/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/hands-on/4/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/hands-on/4/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/hands-on/4/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/hands-on/4/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/hands-on/4/quiz/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/hands-on/4/quiz/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/hands-on/4/quiz/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/hands-on/4/quiz/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/hands-on/5/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/hands-on/5/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/hands-on/5/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/hands-on/5/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/hands-on/5/quiz/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/hands-on/5/quiz/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/hands-on/5/quiz/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/hands-on/5/quiz/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/hands-on/6/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/hands-on/6/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/hands-on/6/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/hands-on/6/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/hands-on/6/docker/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/hands-on/6/docker/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/hands-on/6/docker/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/hands-on/6/docker/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/hands-on/6/grafana/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/hands-on/6/grafana/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/hands-on/6/grafana/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/hands-on/6/grafana/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/hands-on/6/microservices/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/hands-on/6/microservices/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/hands-on/6/microservices/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/hands-on/6/microservices/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/hands-on/6/prometheus/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/hands-on/6/prometheus/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/hands-on/6/prometheus/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/hands-on/6/prometheus/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/hands-on/6/quiz/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/hands-on/6/quiz/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/hands-on/6/quiz/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/hands-on/6/quiz/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/hands-on/6/run/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/hands-on/6/run/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/hands-on/6/run/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/hands-on/6/run/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/hands-on/7/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/hands-on/7/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/hands-on/7/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/hands-on/7/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/hands-on/7/docker/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/hands-on/7/docker/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/hands-on/7/docker/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/hands-on/7/docker/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/hands-on/7/nginx/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/hands-on/7/nginx/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/hands-on/7/nginx/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/hands-on/7/nginx/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/hands-on/7/quiz/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/hands-on/7/quiz/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/hands-on/7/quiz/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/hands-on/7/quiz/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/hands-on/7/run/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/hands-on/7/run/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/hands-on/7/run/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/hands-on/7/run/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/hands-on/8/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/hands-on/8/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/hands-on/8/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/hands-on/8/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/hands-on/8/docker/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/hands-on/8/docker/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/hands-on/8/docker/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/hands-on/8/docker/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/hands-on/8/quiz/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/hands-on/8/quiz/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/hands-on/8/quiz/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/hands-on/8/quiz/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/hands-on/8/run/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/hands-on/8/run/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/hands-on/8/run/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/hands-on/8/run/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/hands-on/8/spring/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/hands-on/8/spring/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/hands-on/8/spring/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/hands-on/8/spring/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.1/planning/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.1/planning/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.1/planning/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.1/planning/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/classes/api/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/classes/api/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/classes/api/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/classes/api/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/classes/api/quiz/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/classes/api/quiz/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/classes/api/quiz/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/classes/api/quiz/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/classes/api/rest/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/classes/api/rest/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/classes/api/rest/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/classes/api/rest/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/classes/api/swagger/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/classes/api/swagger/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/classes/api/swagger/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/classes/api/swagger/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/classes/architectures/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/classes/architectures/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/classes/architectures/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/classes/architectures/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/classes/architectures/clean/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/classes/architectures/clean/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/classes/architectures/clean/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/classes/architectures/clean/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/classes/architectures/hexagonal/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/classes/architectures/hexagonal/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/classes/architectures/hexagonal/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/classes/architectures/hexagonal/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/classes/architectures/quiz/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/classes/architectures/quiz/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/classes/architectures/quiz/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/classes/architectures/quiz/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/classes/architectures/solid/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/classes/architectures/solid/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/classes/architectures/solid/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/classes/architectures/solid/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/classes/cloud_service_models/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/classes/cloud_service_models/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/classes/cloud_service_models/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/classes/cloud_service_models/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/classes/cloud_service_models/visual_matrix/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/classes/cloud_service_models/visual_matrix/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/classes/cloud_service_models/visual_matrix/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/classes/cloud_service_models/visual_matrix/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/classes/containerization/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/classes/containerization/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/classes/containerization/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/classes/containerization/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/classes/containerization/compose/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/classes/containerization/compose/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/classes/containerization/compose/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/classes/containerization/compose/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/classes/containerization/docker/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/classes/containerization/docker/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/classes/containerization/docker/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/classes/containerization/docker/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/classes/containerization/quiz/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/classes/containerization/quiz/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/classes/containerization/quiz/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/classes/containerization/quiz/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/classes/deployment/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/classes/deployment/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/classes/deployment/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/classes/deployment/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/classes/deployment/quiz/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/classes/deployment/quiz/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/classes/deployment/quiz/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/classes/deployment/quiz/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/classes/distributed_systems/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/classes/distributed_systems/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/classes/distributed_systems/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/classes/distributed_systems/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/classes/distributed_systems/cap/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/classes/distributed_systems/cap/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/classes/distributed_systems/cap/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/classes/distributed_systems/cap/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/classes/distributed_systems/consensus/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/classes/distributed_systems/consensus/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/classes/distributed_systems/consensus/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/classes/distributed_systems/consensus/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/classes/distributed_systems/quiz/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/classes/distributed_systems/quiz/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/classes/distributed_systems/quiz/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/classes/distributed_systems/quiz/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/classes/event_driven/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/classes/event_driven/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/classes/event_driven/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/classes/event_driven/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/classes/event_driven/quiz/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/classes/event_driven/quiz/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/classes/event_driven/quiz/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/classes/event_driven/quiz/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/classes/microservices/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/classes/microservices/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/classes/microservices/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/classes/microservices/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/classes/microservices/architecture/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/classes/microservices/architecture/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/classes/microservices/architecture/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/classes/microservices/architecture/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/classes/microservices/ddd/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/classes/microservices/ddd/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/classes/microservices/ddd/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/classes/microservices/ddd/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/classes/microservices/microservice-diagram/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/classes/microservices/microservice-diagram/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/classes/microservices/microservice-diagram/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/classes/microservices/microservice-diagram/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/classes/microservices/quiz/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/classes/microservices/quiz/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/classes/microservices/quiz/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/classes/microservices/quiz/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/classes/observability/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/classes/observability/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/classes/observability/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/classes/observability/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/classes/observability/quiz/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/classes/observability/quiz/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/classes/observability/quiz/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/classes/observability/quiz/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/classes/orchestration/</loc>
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/classes/reliability/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/classes/reliability/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/classes/reliability/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/classes/reliability/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/classes/reliability/chaos/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/classes/reliability/chaos/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/classes/reliability/chaos/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/classes/reliability/chaos/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/classes/reliability/patterns/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/classes/reliability/patterns/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/classes/reliability/patterns/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/classes/reliability/patterns/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/classes/reliability/quiz/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/classes/reliability/quiz/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/classes/reliability/quiz/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/classes/reliability/quiz/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/classes/reliability/sli-slo-sla/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/classes/reliability/sli-slo-sla/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/classes/reliability/sli-slo-sla/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/classes/reliability/sli-slo-sla/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/classes/security/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/classes/security/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/classes/security/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/classes/security/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/classes/security/oauth/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/classes/security/oauth/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/classes/security/oauth/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/classes/security/oauth/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/classes/security/quiz/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/classes/security/quiz/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/classes/security/quiz/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/classes/security/quiz/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/classes/security/zero-trust/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/classes/security/zero-trust/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/classes/security/zero-trust/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/classes/security/zero-trust/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/classes/service_models/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/classes/service_models/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/classes/service_models/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/classes/service_models/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/classes/service_models/quiz/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/classes/service_models/quiz/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/classes/service_models/quiz/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/classes/service_models/quiz/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/exercises/bottlenecks/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/exercises/bottlenecks/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/exercises/bottlenecks/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/exercises/bottlenecks/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/exercises/exchange/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/exercises/exchange/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/exercises/exchange/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/exercises/exchange/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/exercises/jenkins/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/exercises/jenkins/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/exercises/jenkins/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/exercises/jenkins/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/exercises/minikube/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/exercises/minikube/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/exercises/minikube/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/exercises/minikube/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/exercises/order/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/exercises/order/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/exercises/order/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/exercises/order/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/exercises/product/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/exercises/product/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/exercises/product/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/exercises/product/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/exercises/project/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/exercises/project/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/exercises/project/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/exercises/project/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/exercises/project/aws/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/exercises/project/aws/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/exercises/project/aws/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/exercises/project/aws/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/exercises/project/ci-cd/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/exercises/project/ci-cd/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/exercises/project/ci-cd/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/exercises/project/ci-cd/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/exercises/project/costs/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/exercises/project/costs/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/exercises/project/costs/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/exercises/project/costs/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/exercises/project/eks/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/exercises/project/eks/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/exercises/project/eks/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/exercises/project/eks/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/exercises/project/load-testing/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/exercises/project/load-testing/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/exercises/project/load-testing/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/exercises/project/load-testing/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/exercises/project/presentation/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/exercises/project/presentation/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/exercises/project/presentation/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/exercises/project/presentation/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/hands-on/0/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/hands-on/0/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/hands-on/0/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/hands-on/0/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/hands-on/1/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/hands-on/1/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/hands-on/1/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/hands-on/1/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/hands-on/1/containerization/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/hands-on/1/containerization/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/hands-on/1/containerization/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/hands-on/1/containerization/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/hands-on/1/controller/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/hands-on/1/controller/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/hands-on/1/controller/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/hands-on/1/controller/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/hands-on/1/quiz/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/hands-on/1/quiz/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/hands-on/1/quiz/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/hands-on/1/quiz/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/hands-on/1/repository/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/hands-on/1/repository/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/hands-on/1/repository/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/hands-on/1/repository/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/hands-on/1/service/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/hands-on/1/service/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/hands-on/1/service/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/hands-on/1/service/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/hands-on/10/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/hands-on/10/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/hands-on/10/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/hands-on/10/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/hands-on/10/quiz/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/hands-on/10/quiz/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/hands-on/10/quiz/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/hands-on/10/quiz/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/hands-on/11/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/hands-on/11/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/hands-on/11/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/hands-on/11/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/hands-on/11/quiz/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/hands-on/11/quiz/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/hands-on/11/quiz/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/hands-on/11/quiz/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/hands-on/2/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/hands-on/2/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/hands-on/2/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/hands-on/2/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/hands-on/2/quiz/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/hands-on/2/quiz/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/hands-on/2/quiz/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/hands-on/2/quiz/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/hands-on/3/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/hands-on/3/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/hands-on/3/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/hands-on/3/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/hands-on/3/authorization/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/hands-on/3/authorization/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/hands-on/3/authorization/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/hands-on/3/authorization/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/hands-on/3/jwt/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/hands-on/3/jwt/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/hands-on/3/jwt/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/hands-on/3/jwt/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/hands-on/3/open-routes/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/hands-on/3/open-routes/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/hands-on/3/open-routes/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/hands-on/3/open-routes/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/hands-on/3/quiz/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/hands-on/3/quiz/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/hands-on/3/quiz/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/hands-on/3/quiz/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/hands-on/4/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/hands-on/4/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/hands-on/4/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/hands-on/4/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/hands-on/4/quiz/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/hands-on/4/quiz/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/hands-on/4/quiz/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/hands-on/4/quiz/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/hands-on/5/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/hands-on/5/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/hands-on/5/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/hands-on/5/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/hands-on/5/quiz/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/hands-on/5/quiz/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/hands-on/5/quiz/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/hands-on/5/quiz/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/hands-on/6/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/hands-on/6/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/hands-on/6/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/hands-on/6/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/hands-on/6/docker/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/hands-on/6/docker/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/hands-on/6/docker/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/hands-on/6/docker/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/hands-on/6/grafana/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/hands-on/6/grafana/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/hands-on/6/grafana/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/hands-on/6/grafana/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/hands-on/6/microservices/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/hands-on/6/microservices/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/hands-on/6/microservices/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/hands-on/6/microservices/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/hands-on/6/prometheus/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/hands-on/6/prometheus/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/hands-on/6/prometheus/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/hands-on/6/prometheus/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/hands-on/6/quiz/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/hands-on/6/quiz/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/hands-on/6/quiz/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/hands-on/6/quiz/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/hands-on/6/run/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/hands-on/6/run/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/hands-on/6/run/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/hands-on/6/run/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/hands-on/7/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/hands-on/7/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/hands-on/7/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/hands-on/7/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/hands-on/7/docker/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/hands-on/7/docker/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/hands-on/7/docker/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/hands-on/7/docker/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/hands-on/7/nginx/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/hands-on/7/nginx/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/hands-on/7/nginx/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/hands-on/7/nginx/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/hands-on/7/quiz/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/hands-on/7/quiz/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/hands-on/7/quiz/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/hands-on/7/quiz/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/hands-on/7/run/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/hands-on/7/run/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/hands-on/7/run/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/hands-on/7/run/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/hands-on/8/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/hands-on/8/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/hands-on/8/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/hands-on/8/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/hands-on/8/docker/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/hands-on/8/docker/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/hands-on/8/docker/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/hands-on/8/docker/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/hands-on/8/quiz/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/hands-on/8/quiz/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/hands-on/8/quiz/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/hands-on/8/quiz/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/hands-on/8/run/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/hands-on/8/run/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/hands-on/8/run/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/hands-on/8/run/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/hands-on/8/spring/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/hands-on/8/spring/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/hands-on/8/spring/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/hands-on/8/spring/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/hands-on/9/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/hands-on/9/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/hands-on/9/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/hands-on/9/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/hands-on/9/quiz/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/hands-on/9/quiz/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/hands-on/9/quiz/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/hands-on/9/quiz/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/interview/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/interview/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/interview/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/interview/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/2026.2/planning/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/2026.2/planning/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/2026.2/planning/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/2026.2/planning/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/appendix/development-setup/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/appendix/development-setup/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/appendix/development-setup/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/appendix/development-setup/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/appendix/git-submodules/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/appendix/git-submodules/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/appendix/git-submodules/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/appendix/git-submodules/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/appendix/gitactions/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/appendix/gitactions/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/appendix/gitactions/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/appendix/gitactions/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/appendix/network/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/appendix/network/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/appendix/network/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/appendix/network/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/appendix/network/quiz/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/appendix/network/quiz/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/appendix/network/quiz/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/appendix/network/quiz/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/appendix/ohmyzsh/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/appendix/ohmyzsh/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/appendix/ohmyzsh/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/appendix/ohmyzsh/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/appendix/others/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/appendix/others/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/appendix/others/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/appendix/others/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/appendix/rest-vs-graphql/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/appendix/rest-vs-graphql/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/appendix/rest-vs-graphql/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/appendix/rest-vs-graphql/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/appendix/rsa/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/appendix/rsa/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/appendix/rsa/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/appendix/rsa/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/appendix/versioning-rest-apis/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/appendix/versioning-rest-apis/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/appendix/versioning-rest-apis/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/appendix/versioning-rest-apis/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/disclaimer/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/disclaimer/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/disclaimer/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/disclaimer/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/platform/security/concepts/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/platform/security/concepts/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/platform/security/concepts/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/platform/security/concepts/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/platform/security/jwt/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/platform/security/jwt/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/platform/security/jwt/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/platform/security/jwt/" />
+  </url>
+  <url>
+    <loc>https://insper.github.io/platform/terms-and-conditions/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://insper.github.io/platform/terms-and-conditions/" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://insper.github.io/platform/pt/terms-and-conditions/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://insper.github.io/platform/terms-and-conditions/" />
+  </url>
+</urlset>
