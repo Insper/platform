@@ -1,6 +1,7 @@
 site/
 env/
 .env/
+.venv/
 .cache/
 .vscode/
 target/
@@ -12,3 +13,7 @@ pl-insper-bccpmad/
 # Provas (enunciados, versões e gabaritos): nunca versionar — o repositório é público.
 docs/*/exams/
 .zensical-i18n/
+.venv/
+docs/2027.1/hands-on/*/boxoffice-after-lab-*.zip
+docs/2027.1/hands-on/*/code/**/.venv/
+docs/2027.1/hands-on/*/code/**/target/

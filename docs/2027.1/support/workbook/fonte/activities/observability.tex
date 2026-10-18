@@ -1,0 +1,103 @@
+\activity{10}{Observability}{observability}{Saturday, 10:04, four minutes into the stadium on-sale. Support fills with ``checkout spins forever''. Every pod is green, CPU sits at 45\%, the error rate is 0.3\%, the health checks pass, and yet the median fan waits nine seconds to pay. Four teams each show a dashboard proving that \emph{their} service is fine. Which signals, shared context and alerts would have found the slow hop in minutes, and who acts on them?}
+\stages{\stClarify\ \stEstimate\ \stDeep}
+
+\begin{know}
+  \item \textbf{Monitoring} answers questions you asked in advance; \textbf{observability} lets you infer the internal state from the outputs and ask new questions. Five palette components, one question each: metrics (is something wrong?), logs (what happened?), tracing (where?), alerting (must a human act now?), health check (should this instance get traffic?).
+  \item \textbf{RED} (rate, errors, duration) for services; \textbf{USE} (utilization, saturation, errors) for resources such as CPU, pools and queues. Saturation (work waiting) is the leading indicator.
+  \item \textbf{Cardinality}: the number of series of a metric is the product of the number of values of each label. Keep labels bounded; per-customer detail goes to traces and logs.
+  \item Latency goes in \textbf{histograms}: sum the buckets of all pods (\texttt{sum by (le)}) before computing a percentile. Never average percentiles.
+  \item A \textbf{trace} is a tree of spans under one 128-bit \texttt{trace\_id}, propagated with the W3C \texttt{traceparent} header; logs carry the same id. Spans for \emph{waiting} (pool, lock, queue) reveal saturation.
+  \item \textbf{Sampling}: head sampling decides blindly at the start; tail sampling (in the OpenTelemetry Collector) keeps every error and slow trace. Metrics are computed from 100\% of the traffic, before sampling.
+  \item \textbf{Burn rate} $b = \text{error ratio} / (1 - \text{SLO})$; budget consumed $= b \cdot t / \text{window}$. Multi-window rules: page at $14.4\times$ over 1 h (confirmed by 5 min) and $6\times$ over 6 h (30 min); ticket at $1\times$ over 3 days (6 h). Alert on symptoms, not causes.
+  \item \textbf{Incidents}: mitigate first, then investigate. MTTD (detect), MTTM (mitigate) and MTTR (resolve) count from the start of the impact, MTTA (acknowledge) from the page; blameless postmortems end in owned, dated action items.
+\end{know}
+
+\begin{ex}{1}{Which signal answers?}
+\items
+  \item Name the palette component that answers each question: (1) ``the checkout error rate jumped from 0.1\% to 4\%: is something wrong, and how much?''; (2) ``3.8 s of a 4 s checkout: where?''; (3) ``what exactly happened to order 81234?''; (4) ``the checkout SLO is burning 14$\times$ faster than sustainable: must someone act now?''; (5) ``\texttt{/health/ready} returns 503 during warm-up: should this pod get traffic?''.
+  \item Classify each metric as RED or USE: the request rate of \texttt{POST /checkout}; the CPU utilization of the inventory database; the pending acquisitions of the payment connection pool; the 5xx ratio of \texttt{POST /checkout}; the p99 of \texttt{POST /checkout}. Which one is a saturation signal?
+  \item In the hook, CPU at 45\% and errors at 0.3\% looked fine. Why are these the wrong signals to watch for ``checkout spins forever''?
+\end{enumerate}
+\lines{5}
+\end{ex}
+
+\simulator{You can't fix what you don't measure}{observability-stack}{Utilization shows ``?'' until a service is connected to Metrics. Wire Metrics, a Health Check on the load balancer and Alerting, then compare how long the replica crash at t = 50 s costs with and without them.}
+
+\begin{ex}{1}{Counting series}
+A latency histogram has 15 buckets plus \texttt{\_sum} and \texttt{\_count}. Each series costs about 4 KiB of memory in the metrics store. Each row adds one label to the previous ones.
+\begin{center}\small
+\begin{tabular}{@{}lrrr@{}}
+  \toprule
+  label added & values & series & memory \\
+  \midrule
+  histogram (15 buckets $+$ \texttt{\_sum} $+$ \texttt{\_count}) & 17 & \blank\hspace{1.8cm} & \hspace{1.8cm} \\
+  \texttt{http\_request\_method} & 4 & \blank & \\
+  \texttt{http\_route} & 25 & \blank & \\
+  \texttt{http\_response\_status\_code} & 6 & \blank & \\
+  \texttt{pod} & 20 & \blank & \\
+  \texttt{customer\_id} & 1\,000\,000 & \blank & \\
+  \bottomrule
+\end{tabular}
+\end{center}
+\items
+  \item Fill in the table.
+  \item A developer wants \texttt{customer\_id} as a label ``to debug angry fans''. Where does that information belong instead?
+\end{enumerate}
+\lines{3}
+\end{ex}
+
+\begin{ex}{2}{Four pods, one p99}
+The fleet behind \texttt{POST /checkout} served 100\,000 requests in an hour. Pods \texttt{a}, \texttt{b} and \texttt{c} served 30\,000 each with a p99 of 180 ms. Pod \texttt{d}, on a noisy host, served the other 10\,000 with a median of 400 ms, a p90 of 760 ms and a p99 of 1\,260 ms.
+\items
+  \item A dashboard averages the four p99s. What does it show?
+  \item How many requests are in the slowest 1\% of the fleet? Where do they come from? Estimate the true fleet p99.
+  \item The histogram buckets are 0.1, 0.25, 0.5, 1 and 2.5 s (cumulative, ``less than or equal''). Which buckets does a 0.3 s request increment? The SLO is ``checkouts under 2 s'': can you compute it from these buckets?
+  \item Write, in words, how the fleet p99 must be computed.
+\end{enumerate}
+\lines{6}
+\end{ex}
+
+\begin{ex}{2}{What telemetry costs}
+\items
+  \item A normal day: 500 req/s, each producing 8 spans of 500 B and 5 log lines of 300 B. Compute the trace and log volumes in MB/s and GB/day. And per 30 days of traces at 100\% sampling?
+  \item A busy day: 2\,000 req/s, 8 spans of 500 B per request, 1\% of the requests fail and 2\% are slower than 2 s. Compute the trace storage per day and the error traces kept per day for: keep everything; head sampling at 10\%; tail sampling that keeps all errors, all slow requests and 5\% of the rest.
+  \item The flash sale multiplies traffic by 50. Which of the three strategies would you run, and why must the RED metrics still be computed from all requests?
+\end{enumerate}
+\lines{6}
+\end{ex}
+
+\begin{ex}{2}{Burn rates and detection time}
+The checkout SLO is 99.9\% over a rolling \textbf{28-day} window (672 h).
+\items
+  \item How many minutes of full outage does the budget allow?
+  \item For an error ratio of 1.44\%: burn rate, share of the budget spent in 1 h, and time until the budget is gone. Same for 0.6\% (share spent in 6 h).
+  \item The fast page fires when the 1-hour error ratio exceeds $14.4 \times 0.1\% = 1.44\%$. For a constant error ratio $e$ starting at time 0, it fires after $t = 60 \times 1.44\% / e$ minutes. Compute $t$ for $e = 100\%$ and $e = 2\%$. For $e = 0.7\%$, which rule fires (the 6 h rule uses $6 \times 0.1\% = 0.6\%$), and after how long?
+  \item At 10:03 of an on-sale the error ratio jumps to 4\% and stays there. When does the fast page fire? The on-sale is over in 30 minutes: what do you change?
+\end{enumerate}
+\lines{6}
+\end{ex}
+
+\begin{ex}{2}{Read the waterfall}
+The trace of one slow checkout (total 9.12 s): gateway 9.12 s $\to$ \texttt{order} 9.08 s $\to$ \texttt{inventory} \texttt{PUT /holds} 0.09 s (of which PostgreSQL 0.02 s); \texttt{payment} \texttt{POST /charges} 8.95 s, of which \texttt{pool.acquire} 7.90 s and the provider call 1.02 s; Kafka publish 0.01 s. The payment adapter has a pool of 20 connections.
+\items
+  \item Where is the critical path? What share of the 9.12 s is spent waiting inside BoxOffice?
+  \item With Little's Law, how many charges per second can a pool of 20 connections sustain when each provider call takes 1.02 s? What happens to fans when more arrive?
+  \item Fill in symptom $\to$ cause $\to$ fix: why did CPU at 45\% and green health checks hide the problem, and which two changes would you make in the code and which metric would you watch?
+\end{enumerate}
+\lines{6}
+\end{ex}
+
+\simulator{A slow dependency saturates a pool}{cascading-failure}{Run as is and read the bottleneck in the Report: threads exhausted while the CPU is almost idle. Then add a 300 ms timeout on the call to the external API and compare the error rate and p99 of the routes that do not use it.}
+
+\begin{ex}{3}{The incident, the bill and the wiring}
+The on-sale timeline: 10:00 sales open; 10:02 impact starts; 10:03 page; 10:04 acknowledged; 10:06 SEV1 declared; 10:11 an exemplar trace shows the pool wait; 10:14 mitigated; 10:40 resolved. About 12\% of the checkouts failed between 10:02 and 10:14, at 200 checkouts/s. In a normal 30-day window BoxOffice has about 2 million checkouts, with an SLO of 99.9\%.
+\items
+  \item Compute MTTD, MTTA, MTTM and MTTR for this incident.
+  \item How many checkouts failed? How many months' worth of error budget is that?
+  \item Draw the observability wiring of the checkout path: which component observes which, where the \texttt{trace\_id} flows, which alert pages and which opens a ticket.
+  \item Write two postmortem action items (what, type, owner) that would have prevented or shortened this incident.
+\end{enumerate}
+\palette{\comp{edge}{API Gateway}\ \comp{compute}{App Server}\ \comp{storage}{SQL Database}\ \comp{external}{Payment}\ \comp{observability}{Metrics}\ \comp{observability}{Logs}\ \comp{observability}{Tracing}\ \comp{observability}{Alerting}\ \comp{observability}{Health Check}}
+\frameblank{5.2cm}
+\lines{3}
+\end{ex}

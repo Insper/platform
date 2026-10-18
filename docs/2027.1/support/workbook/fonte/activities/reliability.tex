@@ -1,0 +1,92 @@
+\activity{9}{Reliability \& Resilience}{reliability}{10:02, two minutes into the stadium on-sale: the waiting room admits fans at a steady pace and \texttt{inventory} is at 60\% of its capacity. Then the payment provider starts answering in 4 seconds instead of 200 ms. Within a minute \texttt{order} has no free threads, the gateway has none either, and fans who only wanted to browse the catalog get errors, although nothing is broken. How do you stop a slow dependency from taking everything down, and how do you decide, with numbers, how much failure BoxOffice can accept?}
+\stages{\stClarify\ \stEstimate\ \stDeep}
+
+\begin{know}
+  \item $A = \text{MTTF}/(\text{MTTF} + \text{MTTR})$ (mean time to failure, mean time to repair). MTTR $=$ detect $+$ diagnose $+$ fix, and is usually the cheaper lever. Each nine is 10$\times$ less downtime: always state the window (99.9\% $=$ 43.8 min per month, 40.3 min per 28 days).
+  \item In series $A = \prod a_i$; $n$ independent replicas $1 - (1-a)^n$. The unreplicated component dominates; correlated failures break the formula.
+  \item \textbf{SLI} (service level indicator) $=$ good events / valid events; \textbf{SLO} (objective) $=$ SLI $\ge$ target over a window; \textbf{error budget} $= 1 - $ SLO; \textbf{SLA} (agreement) $=$ an external contract with credits, looser than the SLO.
+  \item \textbf{Burn rate} $=$ observed error rate $/ (1 - \text{SLO})$: at 1 the budget lasts exactly the window. Page on 14.4$\times$ over 1 h (confirmed over 5 min) and 6$\times$ over 6 h; open a ticket at 1$\times$ over 3 days.
+  \item \textbf{Slow is worse than dead}: calls in flight $=$ rate $\times$ time (Little's Law); a slow dependency fills the caller's threads and the exhaustion cascades upstream.
+  \item The stack for a risky call: \textbf{timeout} ($\approx$ p99.9, inside the caller's deadline), \textbf{one retry} with exponential backoff, full jitter and an idempotency key, a \textbf{circuit breaker} that also counts slow calls, a \textbf{bulkhead} sized by Little's Law, an honest \textbf{fallback}. Load shedding protects the whole system; rate limiting protects it from each client.
+  \item \textbf{RPO} (recovery point objective) $=$ data you may lose, in time; \textbf{RTO} (recovery time objective) $=$ time until service returns. Replication protects against losing machines, backups with point-in-time recovery against corrupting data. DR strategies: backup and restore, pilot light, warm standby, active-active.
+  \item \textbf{Chaos engineering}: a steady-state hypothesis on SLIs, a real fault, a small blast radius, abort conditions, then game days.
+\end{know}
+
+\begin{ex}{1}{Recover faster or fail less?}
+\items
+  \item \texttt{inventory} crashes once every 30 days (MTTF $= 720$ h) and takes 2 h to repair. Availability?
+  \item Option A halves the failures (MTTF $= 1\,440$ h). Option B lets Kubernetes restart the pod in 1 minute. Availability of each? Which do you fund first?
+  \item How much downtime does 99.99\% allow per month (30.44 days)? Can a human be in the recovery loop?
+\end{enumerate}
+\lines{4}
+\end{ex}
+
+\begin{ex}{1}{The error budget}
+SLI: seat-hold requests that succeed in under 500 ms. SLO: 99.9\% over 28 days. Traffic: 1\,000\,000 hold requests per day.
+\items
+  \item How many failed requests does the budget allow in the window? And in minutes of full outage?
+  \item A bad deploy returns 5\% errors for 3 hours. How many failures, and what share of the budget?
+  \item Partner venues get an SLA of 99.5\% monthly. Why is the SLA looser than the SLO?
+\end{enumerate}
+\lines{4}
+\end{ex}
+
+\begin{ex}{2}{Burn rate and alerts}
+Same SLO: 99.9\% over 28 days.
+\items
+  \item Burn rate and days until the budget is gone when the error rate is 0.1\%, 0.6\% and 1.44\%.
+  \item The fast page fires at burn 14.4 over 1 hour. What share of the 28-day budget has been spent when it fires?
+  \item Why does the rule also require the last 5 minutes to be above 14.4? And why not page on ``CPU above 80\%''?
+  \item 70\% of the budget is left and the feature goes to 5\% of fans behind a flag; another week only 8\% is left and the on-sale is on Friday. Ship or wait, each time?
+\end{enumerate}
+\lines{6}
+\end{ex}
+
+\begin{ex}{2}{Where the nines go}
+The purchase path: load balancer 99.99\%; gateway, \texttt{order} and \texttt{inventory} at 99.5\% each (one instance each); SQL 99.9\%; payment provider 99.9\%.
+\items
+  \item Availability of the path and minutes down per month (43\,830 min)?
+  \item Run 3 replicas of each of the three stateless services (independent failures). New availability?
+  \item Then a Multi-AZ SQL with failover (99.95\%), then a second payment provider in parallel. Availability after each step?
+\end{enumerate}
+\lines{5}
+\end{ex}
+
+\begin{ex}{2}{The slow provider}
+\texttt{order} has 200 request threads and receives 100 purchases/s; each purchase calls the payment provider.
+\items
+  \item Threads busy waiting for the provider at 200 ms, 1 s and 4 s. When does \texttt{order} fail, and why do catalog pages fail too?
+  \item A 1 s timeout: at most how many threads wait for the provider?
+  \item A bulkhead allows 50 concurrent payment calls. How much headroom over the normal 20? At 4 s, how many threads still serve other requests?
+  \item The gateway gives a fan 6 s and \texttt{order} 5 s. With a 2 s timeout per attempt and 1 retry after $\approx$ 300 ms, does the payment fit?
+\end{enumerate}
+\lines{6}
+\end{ex}
+
+\simulator{Cascading failure}{cascading-failure}{Run as is and read the bottleneck: threads exhausted with idle CPU. Set a 300 ms timeout on app $\to$ recommendations, then add a fallback and a circuit breaker, and compare the healthy routes.}
+
+\begin{ex}{2}{Retries that make it worse}
+\items
+  \item The gateway, \texttt{order} and \texttt{payment} each try a call 3 times. How many provider calls can one click produce?
+  \item Exponential backoff with base 200 ms: the first three waits? With full jitter, what is the third wait?
+  \item Retry or not: connect timeout; read timeout on \texttt{POST /charges} without an idempotency key; 503 with Retry-After; 409 Conflict; ``card declined''.
+  \item The breaker opens when 50\% of the last 20 calls failed or took more than 1.5 s, stays open 30 s and closes after 3 good probes. What does the fan see while it is open?
+\end{enumerate}
+\lines{6}
+\end{ex}
+
+\simulator{Retry storm}{retry-storm}{After the database restart the call rate jumps to about 4$\times$ and the service never recovers. Enable the circuit breaker, or one retry with exponential backoff and jitter, and watch it drain its queue.}
+
+\begin{ex}{3}{Disaster recovery for BoxOffice}
+\items
+  \item At 22:00 someone runs a \texttt{DELETE} without \texttt{WHERE} on orders. Does the synchronous standby save you? What does?
+  \item Restoring the 2 TB base backup runs at 200 MB/s. How long? The order RTO is 15 min: which DR strategy do you need?
+  \item Warm-standby failover: detect 2 min, declare 5 min, promote 1 min, scale from 2 to 12 replicas 5 min, DNS TTL 60 s. RTO? What changes if the TTL is 1 hour?
+  \item Draw the two regions and write one chaos experiment (hypothesis, fault, abort condition) for the slow provider.
+\end{enumerate}
+\lines{4}
+\palette{\comp{edge}{DNS} \comp{edge}{Load Balancer} \comp{compute}{App Server} \comp{storage}{SQL Database} \comp{storage}{Object Store} \comp{network}{VPC} \comp{observability}{Health Check}}
+\frameblank{5.5cm}
+\end{ex}
+
+\simulator{Surviving a region outage}{multi-region}{Build the second region, connect DNS with a health check and lower the TTL: at t = 60 s the first region disappears and errors last about (3 s $+$ TTL).}

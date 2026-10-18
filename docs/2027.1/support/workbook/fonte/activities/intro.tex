@@ -1,0 +1,122 @@
+\activity{1}{What is System Design}{intro}{Friday, 10:00. BoxOffice opens the sale of the year's biggest stadium show: 60\,000 seats, 2 million fans refreshing the page at the same second. At 10:00:04 the site answers in 9 seconds, at 10:00:20 it answers nothing, and at 10:03 it comes back with 312 seats sold twice. No function had a bug. Which decisions above the code (how many machines, which database, where the data lives, what waits for what) decide whether BoxOffice answers in time and sells each seat once, and how do you defend them with numbers?}
+\stages{\stClarify\ \stDesign}
+
+\begin{know}
+  \item \textbf{System design} chooses the components, the interfaces between them and the data that flows through them, so that the system does what it must (functional) and does it well enough (non-functional), on many machines joined by an unreliable network.
+  \item \textbf{Functional requirements} (what the system does) decide the APIs and the data. \textbf{Non-functional requirements} (how well) decide the architecture.
+  \item Eight \textbf{quality attributes} carry most decisions: scalability, availability, latency, consistency, durability, cost, security and operability. Each target needs a number, a percentile, a window and a load level (``hold p99 $<$ 300 ms at 5\,000 holds/s'').
+  \item A \textbf{quality attribute scenario} has six parts: source, stimulus, environment, artifact, response, response measure.
+  \item \textbf{Durability is not availability}: RPO (recovery point objective) is how much recent data you may lose; MTTR (mean time to recovery) is how fast service comes back. Strong consistency only where the business needs it (seat state); the catalog may be 60 s stale.
+  \item \textbf{The scaling journey}: add a component only for a measured symptom, and expect the new problem it brings (replica $\to$ lag, cache $\to$ invalidation, queue $\to$ duplicates, services $\to$ network failures, shards $\to$ hot partitions). Stateless app servers come first.
+  \item A cache with hit ratio $h$ sends $(1-h)$ of the reads to the database: 90\% cuts the load 10$\times$, 99\% cuts it 100$\times$.
+  \item \textbf{The interview framework} (45 min): clarify (0--5) $\to$ estimate (5--9) $\to$ API and data model (9--14) $\to$ high-level design (14--24) $\to$ deep dives (24--36) $\to$ bottlenecks and trade-offs (36--41) $\to$ wrap-up (41--45).
+\end{know}
+
+\begin{ex}{1}{What or how well?}
+For each BoxOffice requirement, write F (functional) or NF (non-functional) and, for NF, the quality attribute it constrains.
+\begin{center}\small
+\begin{tabular}{@{}p{10.2cm}cc@{}}
+  \toprule
+  requirement & F / NF & attribute \\
+  \midrule
+  (a) A fan can hold up to 6 seats for 10 minutes. & \blank\hspace{1cm} & \hspace{2.4cm} \\
+  (b) Holds complete in under 300 ms (p99) at 5\,000 holds/s. & \blank & \\
+  (c) A seat is sold at most once. & \blank & \\
+  (d) Zero paid orders lost (RPO $=$ 0). & \blank & \\
+  (e) A fan can download the ticket PDF from ``My tickets''. & \blank & \\
+  (f) Less than R\$ 0.10 of infrastructure per ticket sold. & \blank & \\
+  (g) Deploy every day without downtime; MTTR $<$ 30 min. & \blank & \\
+  (h) The catalog may show data up to 60 s old. & \blank & \\
+  \bottomrule
+\end{tabular}
+\end{center}
+\lines{1}
+\end{ex}
+
+\begin{ex}{1}{Make it testable}
+Rewrite each vague requirement as a measurable target (number, percentile or fraction, window, load). Then answer (d).
+\items
+  \item ``Search must be fast.''
+  \item ``The checkout must always be up, and we can never lose an order.''
+  \item ``Tickets must arrive quickly after payment.''
+  \item The target for checkout is 99.95\% per rolling 28 days. How many minutes of downtime does it allow? And 99.9\%?
+\end{enumerate}
+\lines{5}
+\end{ex}
+
+\begin{ex}{2}{Numbers that decide}
+Answer each item with one calculation and the decision it supports.
+\items
+  \item A page runs 200 database queries one after the other (the N$+$1 problem), each paying a 0.5 ms round trip in the data centre. How much latency do the round trips alone add?
+  \item The catalog database is at 80\% CPU and 95\% of its queries are reads of data that changes a few times a day. A cache-aside with a 95\% hit ratio is added. By what factor does the read load on the database fall?
+  \item The catalog serves 1\,000 reads/s. With that 95\% hit ratio, how many reads/s still reach the database? Do you add read replicas or a cache first?
+  \item Event pages weigh about 1 MB each, at 1\,000 page views/s. How many GB/s and Gbit/s leave the origin? Which component do you add?
+\end{enumerate}
+\lines{5}
+\end{ex}
+
+\simulator{Add a cache}{read-heavy-cache}{Insert a Cache between the app and the database and watch the database utilization fall with the hit ratio. At t = 100 s the cache is flushed: watch the stampede of misses.}
+
+\begin{ex}{2}{Symptom, component, new problem}
+Each row is a stage of the BoxOffice scaling journey. Fill in the component you add and the new problem it creates.
+\begin{center}\small
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{6.2cm}p{3.6cm}p{4.4cm}@{}}
+  \toprule
+  measured symptom & component added & new problem \\
+  \midrule
+  (a) One app server: a crash or a deploy takes the site down; CPU 85\% at the peak hour. & \blank & \\[1.2em]
+  (b) Database CPU 70\% at the peak, 95\% of queries are reads. & \blank & \\[1.2em]
+  (c) Checkout takes 2--3 s, mostly PDF generation and e-mail. & \blank & \\[1.2em]
+  (d) 2 M fans arrive in one minute for 60\,000 seats. & \blank & \\[1.2em]
+  (e) Five teams step on each other in one codebase. & \blank & \\[1.2em]
+  (f) Bots buy 30\% of the tickets in the first second. & \blank & \\[1.2em]
+  \bottomrule
+\end{tabular}
+\end{center}
+\hint{every fix in the scaling journey creates a problem the next class teaches you to solve.}
+\end{ex}
+
+\simulator{Find the breaking point}{monolith}{Press run and read the Report: breaking point and bottleneck. Add a Load Balancer and app replicas and run again: after the app is scaled, which component becomes the bottleneck?}
+
+\begin{ex}{2}{The first nine minutes of an interview}
+The interviewer says ``design the ticket sale for a stadium show''. You clarify: 20 M registered fans, 2 M daily active; each active fan views about 20 pages a day; 100\,000 orders a day of about 1 KB; the on-sale brings 2 M fans in the first minute for 60\,000 seats.
+\items
+  \item Average and peak (3$\times$) catalog reads per second. Use 1 day $\approx 10^5$ s.
+  \item Orders per second on an average day.
+  \item Order storage per day and per year. Does it force sharding?
+  \item Fans arriving per second in the first minute of the on-sale.
+  \item Which two design decisions come out of these four lines of arithmetic?
+  \item In a 45-minute interview, when should the estimates be done, and what comes right after them?
+\end{enumerate}
+\lines{6}
+\end{ex}
+
+\begin{ex}{2}{One seat, two fans}
+Two fans press ``Hold'' on seat A-12 at the same millisecond. The \texttt{inventory} service runs, for each request:
+\begin{center}\small\ttfamily
+UPDATE seat SET status='HELD', hold\_id=:holdId, version=version+1\\
+WHERE event\_id=:eventId AND seat\_id IN (:seatIds) AND status='FREE'
+\end{center}
+\items
+  \item Why can only one of the two updates change the row? What does the service answer to the other fan?
+  \item A fan asks for A-12 and A-13, and only A-13 is free. How many rows are updated, and what must the service do?
+  \item Compare this conditional update with a pessimistic lock (\texttt{SELECT \dots{} FOR UPDATE}) and with a lock in Redis: one advantage and one cost of each.
+  \item A hold uses 5 ms of the database and 8 holds run in parallel. What is the maximum hold rate? Why would you admit only about 1\,000 fans/s?
+\end{enumerate}
+\lines{6}
+\end{ex}
+
+\begin{ex}{3}{BoxOffice on one page}
+Draw the high-level design of BoxOffice for the 10:00 on-sale, covering: browse the catalog, hold seats, pay through an external provider, receive the ticket by e-mail.
+\palette{\comp{client}{Client}\ \comp{edge}{DNS}\ \comp{edge}{CDN}\ \comp{edge}{Load Balancer}\ \comp{edge}{API Gateway}\ \comp{compute}{App Server}\ \comp{compute}{Worker}\ \comp{storage}{Cache}\ \comp{storage}{SQL Database}\ \comp{messaging}{Message Queue}\ \comp{external}{Payment}\ \comp{external}{Email}}
+\frameblank{6.2cm}
+\items
+  \item Write the quality attribute scenario of the on-sale (the six parts).
+  \item Mark on the drawing which data must be strongly consistent and which may be stale.
+  \item State two trade-offs of your design, each with a number (``the cache cuts \dots{} at the price of \dots'').
+  \item Which component breaks first if the waiting room is removed? What does the fan see?
+\end{enumerate}
+\lines{4}
+\end{ex}
+
+\simulator{The 10:00 on-sale}{flash-sale}{Follow the hints one at a time: CDN, catalog cache, then API Gateway sending purchases to a waiting-room queue drained by order workers. Compare errors and p99 before and after the waiting room.}

@@ -1,0 +1,107 @@
+\activity{5}{Compute \& Services}{compute}{It is 09:59 on the day a stadium tour goes on sale. Two million fans refresh the event page for 60 thousand seats. In the next ten minutes BoxOffice must render the catalog for millions of page views, hold and sell seats without double booking, charge cards through an external provider, generate 60 thousand tickets and e-mails and release expired holds; at 03:00 the same platform serves a few hundred requests per second. Where should the code run, how should it be split and scaled, and how is it kept safe when it depends on providers it does not control?}
+\stages{\stEstimate\ \stDesign\ \stDeep}
+
+\begin{know}
+  \item A \textbf{stateless} app server keeps nothing another replica would need: sessions go to a JWT (JSON web token) or Redis, files to the object store, counters to Redis, schedules to a scheduler with a lock. Then any replica serves any request.
+  \item \textbf{Replicas}: $N = \lceil \text{peak RPS} / (\text{RPS per replica} \times \text{target utilization}) \rceil + \text{spare}$, with a target of 50--70\% (queueing latency explodes near 100\%). The database connections set a ceiling: $\text{replicas} \times \text{pool size} \le$ what the database accepts.
+  \item \textbf{Monolith $\to$ modular monolith $\to$ microservices} is a spectrum. Split only for a real force: scaling profile, team autonomy, failure isolation, security scope, technology. Services in series multiply availability.
+  \item \textbf{Workers} (Little's Law): workers $= \lambda \times$ time per job. The backlog grows at $\lambda_\text{in} - \mu_\text{workers}$ and drains at $\mu_\text{workers} - \lambda_\text{in}$. Delivery is at least once: jobs must be idempotent, retried with backoff, with a DLQ (dead-letter queue).
+  \item \textbf{Schedulers}: \texttt{@Scheduled} on $N$ replicas runs $N$ times. Use a CronJob, a distributed lock or a leader, and protect writes with fencing tokens or conditional updates.
+  \item \textbf{Serverless} (FaaS, functions as a service): one request per environment, so concurrency $=$ rate $\times$ duration; cold starts; account limits (AWS Lambda: 1\,000 concurrent per region by default); the database behind them does not scale.
+  \item \textbf{Autoscaling} (Kubernetes HPA): $\text{desired} = \lceil \text{current replicas} \times \text{current metric} / \text{target} \rceil$. Reactive scaling lags 1--4 minutes, so pre-scale for known peaks.
+  \item \textbf{External integrations}: a timeout means UNKNOWN, not failed. Idempotency keys identify the logical operation in both directions; webhooks are signed, deduplicated by event id and applied as monotonic state transitions; reconciliation catches the rest.
+\end{know}
+
+\begin{ex}{1}{Where does the state go?}
+Each item keeps state inside one replica. Say where it should live so that replicas become stateless, and what breaks today.
+\begin{center}\small
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{5.4cm}p{4cm}p{4.6cm}@{}}
+  \toprule
+  state today & where it should live & what breaks today \\
+  \midrule
+  (a) the logged-in session in server memory & \blank & \\[1.2em]
+  (b) a poster uploaded to the local disk & \blank & \\[1.2em]
+  (c) seat holds in a \texttt{ConcurrentHashMap} & \blank & \\[1.2em]
+  (d) an in-process cache of prices, no TTL & \blank & \\[1.2em]
+  (e) \texttt{@Scheduled} release of expired holds & \blank & \\[1.2em]
+  (f) a ``purchases today'' counter in a field & \blank & \\[1.2em]
+  \bottomrule
+\end{tabular}
+\end{center}
+\lines{1}
+\end{ex}
+
+\begin{ex}{1}{How many replicas?}
+A \texttt{catalog} replica has 10 vCPUs and spends 20 ms of CPU per request. The on-sale peak at the API is 4\,000 req/s.
+\items
+  \item What is the capacity of one replica?
+  \item How many replicas at 100\% utilization? At a 65\% target? With one spare?
+  \item Each replica has a pool of 20 database connections and PostgreSQL accepts 500. What is the maximum number of replicas? Why not ``just run 100''?
+  \item Another service: 500 req/s per replica, a peak of 6\,000 req/s, a 60\% target and one spare. How many replicas?
+\end{enumerate}
+\lines{5}
+\end{ex}
+
+\simulator{Scale out behind a load balancer}{scale-out}{Raise the app replicas until utilization is about 0.6, then add a Health Check to the Load Balancer. When a replica dies at t = 80 s, the survivors must absorb its share: that is the spare in your sizing.}
+
+\begin{ex}{2}{Tickets in the background}
+The 60\,000 seats sell in about 10 minutes, 100 orders/s; off-peak there are 10 orders/s. Rendering a ticket PDF takes 0.8 s of a worker.
+\items
+  \item How many workers keep up with the peak?
+  \item With 40 workers: capacity, backlog after the 10 minutes of peak, and how long the last fan of the peak waits for the ticket.
+  \item After the peak, how long does the backlog take to drain?
+  \item The SLO is ``tickets in the inbox within 5 minutes''. Do 40 workers meet it? Do 60?
+  \item The e-mail provider accepts at most 100 messages/s. What happens if you run 500 notification workers?
+\end{enumerate}
+\lines{6}
+\end{ex}
+
+\simulator{A queue absorbs the spike}{async-queue}{Replace the call app $\to$ worker by app $\to$ Message Queue $\to$ worker and run the spike profile: the backlog grows during the spike and drains after it, at the rate you just computed.}
+
+\begin{ex}{2}{Bursts, functions and the HPA}
+\items
+  \item A presale code check runs as a function: 2\,000 req/s, 0.2 s each. How many concurrent environments? And at 1\,500 req/s? What happens to the database if each opens a connection?
+  \item Lambda costs US\$ 0.20 per million requests plus US\$ 0.0000166667 per GB-second. What is the cost per million invocations of a 512 MB function running 100 ms?
+  \item An HPA targets 60\% CPU; there are 6 replicas at 90\%. How many does it ask for?
+  \item Traffic jumps from 1\,000 to 20\,000 req/s within 20 s at 10:00. Each replica serves 500 req/s, the target is 60\% and a new replica needs about 90 s to be ready. Why will the HPA not save the first minutes, and how many replicas should be running at 09:45?
+\end{enumerate}
+\lines{6}
+\end{ex}
+
+\simulator{Cold starts and limits}{serverless-burst}{The spike profile jumps from 200 to 2\,000 req/s with a concurrency limit of 50. Raise the limit until the 429s disappear and watch cold starts in p99; then add provisioned instances and compare cost.}
+
+\begin{ex}{2}{One job, many replicas}
+\items
+  \item The ``24 h before the show'' reminder runs with \texttt{@Scheduled} on each of the 10 \texttt{order} replicas. How many e-mails does each fan get? Give two fixes.
+  \item With ShedLock, replica A takes the lock with token 33 for 25 s, then stops for 40 s in garbage collection; replica B takes token 34 and runs the job. A wakes up and writes. What protects the data?
+  \item Holds expire after 10 minutes. Compare a sweeper every 30 s, a delayed message and lazy expiry (checking \texttt{expires\_at} when the seat is read). If the scheduler is down for 5 minutes, can a seat be lost?
+  \item Why does the scheduler not ``open the sale'' at 10:00:00 by itself?
+\end{enumerate}
+\lines{5}
+\end{ex}
+
+\begin{ex}{2}{Paying through someone else}
+The fan clicks ``Pay'' at 10:03; \texttt{payment} calls the provider and gets no answer in 5 s.
+\items
+  \item What is the state of the payment now? What must \texttt{payment} do next, and with which key?
+  \item For each provider response, retry or not: connection refused; timeout after sending; 503; 429; 402 (card declined); 422.
+  \item The provider's webhook reports the result. List four checks the receiver makes before changing the order (one is about time: deliveries older than 300 s are rejected).
+  \item The webhook never arrives. What finds the payment, and how often should it run?
+  \item The provider is down for 20 minutes during the on-sale. What does BoxOffice do with the holds?
+\end{enumerate}
+\lines{6}
+\end{ex}
+
+\simulator{Retries need idempotency}{payment-system}{The provider becomes 4$\times$ slower at t = 60 s and retries after timeouts charge cards again. Turn on the idempotency key, then move the call behind a queue and a payment worker: duplicates vanish and buyer latency stops depending on the provider.}
+
+\begin{ex}{3}{The checkout path}
+Draw the services and components of the BoxOffice checkout, from ``Pay'' to the ticket in the inbox, and mark every call as synchronous or asynchronous.
+\palette{\comp{client}{Client}\ \comp{edge}{API Gateway}\ \comp{compute}{App Server}\ \comp{compute}{Worker}\ \comp{compute}{Serverless}\ \comp{compute}{Scheduler}\ \comp{compute}{Notifications}\ \comp{storage}{SQL Database}\ \comp{messaging}{Message Queue}\ \comp{external}{Payment}\ \comp{external}{Email}}
+\frameblank{6cm}
+\items
+  \item The team wants 9 microservices from day one. Which one would you extract first from a modular monolith, and which force justifies it?
+  \item Three services at 99.9\% each are called in series on the checkout. What is the availability of the chain? What does it tell you about splitting?
+  \item Which part would you run as serverless, and which never?
+\end{enumerate}
+\lines{4}
+\end{ex}

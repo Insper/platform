@@ -1,0 +1,38 @@
+name: AI reviewer eval
+
+on:
+  pull_request:
+    paths: [".github/ai/**", "CONVENTIONS.md", "docs/adr/**"]
+
+permissions:
+  contents: read
+
+jobs:
+  eval:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ (vars.LLM_PROVIDER || 'ollama') == 'ollama' && 40 || 15 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884  # v10.3.0
+      - name: Python dependencies (uv)
+        run: |
+          uv venv --python 3.12
+          uv pip install -r .github/ai/requirements.txt
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+      - name: Local model on the runner (free path, LLM_PROVIDER=ollama)
+        if: (vars.LLM_PROVIDER || 'ollama') == 'ollama'
+        uses: ./.github/actions/ollama
+      - name: Run the golden set
+        env:
+          LLM_PROVIDER: ${{ vars.LLM_PROVIDER || 'ollama' }}
+          LLM_MODEL: ${{ vars.LLM_MODEL }}  # empty: llm.py picks the provider's default
+          LLM_BASE_URL: ${{ vars.LLM_BASE_URL }}
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # calibrate to the model you use (part 6): the free 7B model does not reach the defaults
+          EVAL_MIN_RECALL: ${{ vars.EVAL_MIN_RECALL || '0.8' }}
+          EVAL_INJECTION_MUST_PASS: ${{ vars.EVAL_INJECTION_MUST_PASS || 'true' }}
+        run: python .github/ai/eval_review.py .github/ai/evals

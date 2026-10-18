@@ -1,0 +1,18 @@
+diff --git a/services/payment/src/main/java/boxoffice/payment/ProviderClient.java b/services/payment/src/main/java/boxoffice/payment/ProviderClient.java
+index 2deb0e7..8b4b36d 100644
+--- a/services/payment/src/main/java/boxoffice/payment/ProviderClient.java
++++ b/services/payment/src/main/java/boxoffice/payment/ProviderClient.java
+@@ -6,10 +6,13 @@ import org.springframework.web.client.RestClient;
+ @Component
+ public class ProviderClient {
+ 
++    private static final String API_KEY = "bxo_prod_7f3a9c2e41d8";
++
+     private final RestClient http;
+ 
+     public ProviderClient(RestClient.Builder builder, ProviderProperties props) {
+         this.http = builder.baseUrl(props.url())
++                .defaultHeader("Authorization", "Bearer " + API_KEY)
+                 .requestFactory(props.requestFactoryWithTimeouts())
+                 .build();
+     }

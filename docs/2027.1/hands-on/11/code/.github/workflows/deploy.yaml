@@ -1,0 +1,45 @@
+# Continuous delivery by GitOps (lab 11): when CI succeeds on main, point the GitOps overlay at
+# the image built from that commit. Argo CD, inside the cluster, sees the commit and deploys it.
+# This workflow never talks to the cluster: it only writes to Git.
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: write           # commit the new image tag
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false # deploys run one after the other, never in parallel
+
+jobs:
+  promote:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+      - name: Set the catalog image of the gitops overlay to this commit
+        env:
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          OWNER="${GITHUB_REPOSITORY_OWNER,,}"
+          cd k8s/overlays/gitops
+          kustomize edit set image "boxoffice/catalog=ghcr.io/${OWNER}/boxoffice-catalog:sha-${SHA}"
+          git diff --stat
+      - name: Commit and push (a commit made with GITHUB_TOKEN does not trigger CI again)
+        env:
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add k8s/overlays/gitops/kustomization.yaml
+          git diff --cached --quiet && { echo "already deployed"; exit 0; }
+          git commit -m "deploy: catalog sha-${SHA::7}"
+          git push

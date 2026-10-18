@@ -1,0 +1,106 @@
+\activity{4}{Traffic \& Edge}{edge}{It is 09:59:58. Tickets for a stadium show go on sale at 10:00: 60 thousand seats, about 2 million fans with the page open, many pressing ``refresh'' every second. At 10:00:00 every phone sends a request at once. Most of those requests should never reach the \texttt{inventory} service, and the ones that do must arrive at a healthy replica, in a fair order, from real fans and not from scalper bots. Which hops between the phone and \texttt{inventory} absorb, filter and route that traffic?}
+\stages{\stEstimate\ \stDesign}
+
+\begin{know}
+  \item The \textbf{edge} is DNS $\to$ CDN $\to$ WAF (web application firewall) $\to$ load balancer $\to$ API gateway $\to$ ingress. Each hop makes one decision (where, does it need to go further, is it allowed, which replica, is the caller within quota) and should remove work from the next.
+  \item \textbf{DNS} answers are cached for the TTL (time to live): authoritative servers see about one query per resolver per TTL. \textbf{DNS failover} $\approx$ detection (check interval $\times$ failures) $+$ TTL: minutes, not seconds.
+  \item \textbf{CDN}: origin load $=$ edge traffic $\times (1 - h)$, with $h$ the hit ratio; every extra nine divides the origin load by 10. \textbf{Micro-caching} hot dynamic data (\texttt{s-maxage=1}) caps the origin at about one request per second per PoP (point of presence), or per shield. Prefer versioned file names to purges.
+  \item \textbf{L4} balances connections; \textbf{L7} balances requests (paths, TLS, retries). Algorithms: round robin, least connections, power of two choices, consistent hashing. Health checks remove a dead replica after interval $\times$ failures.
+  \item \textbf{Consistent hashing}: adding a node to a ring of $N$ moves about $1/(N+1)$ of the keys, against $N/(N+1)$ with $\text{hash} \bmod N$. Virtual nodes (100--200 per server) balance the ring.
+  \item \textbf{Token bucket}: capacity $=$ the burst, refill rate $=$ the sustained limit. A fixed window allows 2$\times$ the limit around the boundary; the \textbf{sliding window counter} estimates $\text{current} + \text{previous} \times (1 - \text{elapsed}/\text{window})$.
+  \item Rate limits across replicas need a \textbf{shared, atomic counter} (Redis $+$ Lua); per-replica counters multiply the limit. Answer \textbf{429} with \texttt{Retry-After}; decide fail-open or fail-closed.
+  \item \textbf{Round trips to the first byte} on a new connection: TCP $+$ TLS 1.2 $=$ 4, TCP $+$ TLS 1.3 $=$ 3, QUIC $=$ 2, QUIC 0-RTT $=$ 1. Latency is round trips $\times$ distance: terminate near the user and reuse connections.
+\end{know}
+
+\begin{ex}{1}{Round trips}
+\items
+  \item Complete the cold and warm budgets of one seat-map request from São Paulo (user and region in São Paulo):\\[.3em]
+  {\small\begin{tabular}{@{}lcc@{}}
+    \toprule
+    step & cold & warm \\
+    \midrule
+    DNS lookup & 30 ms & 0 ms \\
+    TCP $+$ TLS 1.3 (2 RTT $\times$ 10 ms) & 20 ms & 0 ms \\
+    CDN $\to$ WAF $\to$ LB & 5 ms & 5 ms \\
+    gateway: JWT check $+$ Redis rate limit & 5 ms & 5 ms \\
+    ingress $\to$ \texttt{inventory} $\to$ PostgreSQL & 40 ms & 40 ms \\
+    60 KB of JSON over mobile & 30 ms & 30 ms \\
+    \midrule
+    total & \blank\hspace{1.2cm} & \hspace{1.2cm} \\
+    \bottomrule
+  \end{tabular}}
+  \item How many milliseconds to the first byte for a new connection with TCP $+$ TLS 1.2, TCP $+$ TLS 1.3, QUIC and QUIC 0-RTT, at a round trip of 10 ms (same city) and of 150 ms (another continent)?
+  \item Why is 0-RTT never used for \texttt{POST /orders}?
+\end{enumerate}
+\lines{4}
+\end{ex}
+
+\begin{ex}{1}{DNS in numbers}
+\items
+  \item 2 M fans resolve \texttt{boxoffice.com} through about 5\,000 resolvers, and the record has a TTL of 60 s. About how many queries per second reach the authoritative server?
+  \item DNS health checks run every 30 s and mark the São Paulo region unhealthy after 3 failures in a row; the TTL is 60 s. What is the best-case failover time?
+  \item A migration is on Tuesday and the record's TTL is 1 hour. What should you do on Monday, and why?
+  \item Why is a load balancer with health checks, and not DNS, the right tool to stop sending traffic to one dead server inside a region?
+\end{enumerate}
+\lines{5}
+\end{ex}
+
+\simulator{Losing a region}{multi-region}{Draw the second region, connect DNS to it, attach a Health Check to DNS and lower the TTL. When the first region goes down at t = 60 s, errors last about detection plus TTL: compare with your answer to (b).}
+
+\begin{ex}{2}{What the CDN removes}
+\items
+  \item 200\,000 req/s reach the CDN. How many reach the origin with hit ratios of 90\%, 99\% and 99.9\%?
+  \item Going from 95\% to 99\%: ``only 4 points better''. By what factor does the origin load fall?
+  \item 2 M fans poll the seat JSON every 5 s. How many req/s is that at the edge? With \texttt{s-maxage=1} and 50 PoPs serving Brazil, how many reach the origin, and how old can the data be? With an origin shield?
+  \item Write a \texttt{Cache-Control} header for: the JS bundle \texttt{app.3f9a1c.js}; the event HTML page; the seat JSON; an order or payment response.
+\end{enumerate}
+\lines{6}
+\end{ex}
+
+\simulator{Static content at the edge}{cdn-static}{Put a CDN after the DNS (dns $\to$ cdn $\to$ lb) and lower the app replicas: the app tier falls from saturated to about a third of its capacity, as the miss ratio predicts.}
+
+\begin{ex}{2}{Balancing and rings}
+\items
+  \item One \texttt{inventory} replica handles 800 holds/s and the sale needs 5\,000. How many replicas, with no headroom? How many would you run?
+  \item A ring has positions 0--99 and servers A $=$ 10, B $=$ 40, C $=$ 75; a key goes to the first server clockwise. Who owns the keys at positions 30, 50 and 90? Server D joins at 55: which of these keys move, and which range of positions moves in general?
+  \item 40\,000 seat-hold keys on 5 nodes; a 6th node is added. About how many keys move with $\text{hash} \bmod N$, and how many with a ring?
+  \item Why does a ring with one point per server leave one node with about half of the keys, and what fixes it?
+  \item The health check runs every 5 s and removes a pod after 2 failures. For how long can a crashed pod still receive traffic? What does draining add at shutdown?
+\end{enumerate}
+\lines{6}
+\end{ex}
+
+\begin{ex}{2}{The token bucket}
+The gateway gives each fan a bucket of capacity 20, refilled at 10 tokens/s; each request takes one token.
+\items
+  \item The fan was idle and sends 50 requests at once. How many are accepted? What do the others get?
+  \item A script then sends 14 req/s steadily, starting with a full bucket. For how long is everything accepted, and what is accepted after that?
+  \item How long does an empty bucket take to fill up again?
+  \item Another policy: capacity 50, refill 5/s, and 100 requests arrive after a long idle period. Accepted, rejected, time to refill and long-run average?
+\end{enumerate}
+\lines{5}
+\end{ex}
+
+\simulator{Reject the excess fast}{rate-limiter}{Set a rate limit on the API Gateway below the app capacity: bots are cut by per-client token buckets, real fans keep a low p99 and the app stays below saturation.}
+
+\begin{ex}{2}{Windows and replicas}
+\items
+  \item A fixed window allows 100 requests per minute. How many can a client send between 10:00:59 and 10:01:00?
+  \item A sliding window counter with a limit of 100/min: the previous minute had 80 requests and, 15 s into the current one, there were 30. What is the estimate? Is the next request allowed?
+  \item The gateway runs 6 replicas, each with its own in-memory bucket of 10 req/s per fan, behind a round-robin load balancer. What rate can a fan really get? What is the fix?
+  \item A botnet uses 50\,000 residential IPs and the WAF allows 100 requests per minute per IP. How many req/s get through? Name two better keys for the limit.
+\end{enumerate}
+\lines{5}
+\end{ex}
+
+\begin{ex}{3}{The edge for 10:00}
+Design the edge of BoxOffice for the on-sale and say what each hop removes, with a number.
+\palette{\comp{client}{Client}\ \comp{client}{Mobile}\ \comp{edge}{DNS}\ \comp{edge}{CDN}\ \comp{edge}{WAF}\ \comp{edge}{Load Balancer}\ \comp{edge}{API Gateway}\ \comp{edge}{Ingress}\ \comp{messaging}{Message Queue}\ \comp{compute}{App Server}\ \comp{storage}{Cache}}
+\frameblank{6cm}
+\items
+  \item Today the app polls \texttt{GET seats} every 2 s. How many req/s do 2 M fans generate? Propose a cheaper way to push seat changes during the sale, and its cost.
+  \item Give the configuration of each hop: DNS TTL, what the CDN caches and for how long, WAF rules, the gateway limit for \texttt{POST /api/holds}, the waiting-room admission rate.
+  \item What do you do if Redis, which holds the rate-limit counters, goes down at 10:00?
+\end{enumerate}
+\lines{4}
+\end{ex}

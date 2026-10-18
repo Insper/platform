@@ -1,0 +1,15 @@
+% Compiles one activity and its answers, to check the layout while writing.
+% From this folder (\slug is the class folder name):
+%   pdflatex -output-directory=/tmp/wb "\def\slug{estimation}\input{test.tex}"   (twice)
+\documentclass[11pt,a4paper]{article}
+\input{preamble}
+\begin{document}
+\input{activities/\slug}
+\clearpage
+\gdef\currentactivity{Worked answers}
+\begin{multicols}{2}
+\small\raggedright
+\setlength{\parskip}{.25em}
+\input{answers/\slug}
+\end{multicols}
+\end{document}

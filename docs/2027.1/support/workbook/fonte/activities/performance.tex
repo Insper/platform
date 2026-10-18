@@ -1,0 +1,114 @@
+\activity{15}{Performance Engineering}{performance}{Last year's on-sale went down at 10:02, although the team had load-tested: 200 virtual users against staging, p95 of 180 ms, ``all green''. Staging had a tenth of the data, the virtual users waited for each response before sending the next, the test never reached the point where the connection pool ran out, nobody had written down what ``good enough'' meant and the report showed averages. How do you design, run and read a load test that measures what real fans experience, and how do you turn its result into a capacity number?}
+\stages{\stClarify\ \stEstimate\ \stDeep}
+
+\begin{know}
+  \item \textbf{Response time} $R$ $=$ service time $S$ $+$ waiting. Tuning code shortens $S$; adding capacity or cutting load shortens the waiting, which dominates near saturation.
+  \item \textbf{Little's Law} $N = X \times R$ ($N$ concurrency, $X$ throughput) sizes threads, connections, load-test VUs (virtual users) and waiting rooms; the \textbf{utilization law} $U = X \times S$ gives the busy fraction of one resource.
+  \item \textbf{The knee}: the highest throughput at which the latency SLO (service level objective) still holds, around 70--80\% utilization. \textbf{Plan with the knee, not with the maximum.} Past the peak, more concurrency can give \emph{less} throughput (retrograde scaling).
+  \item \textbf{Closed vs open workload}: a closed test (fixed users, think time $Z$) sends $X = N/(R + Z)$ and backs off when the system slows; an \textbf{open} test keeps the arrival rate $\lambda$ fixed, like real fans. VUs needed $\approx$ arrival rate $\times$ iteration time; \texttt{dropped\_iterations} must be 0.
+  \item \textbf{Coordinated omission}: a tester that waits for each response stops sending during a stall and measures from the actual send time, so it omits exactly the slow samples. Use open-model generators and measure from the intended start time.
+  \item \textbf{Test types}: smoke (it works), load (expected peak, 15--60 min), stress (1.5--2$\times$ peak, degrades and recovers), spike (seconds to peak), soak (hours at average load: leaks), breakpoint (ramp until abort: a capacity number).
+  \item \textbf{RED} (rate, errors, duration) per service says \emph{which} service suffers; \textbf{USE} (utilization, saturation, errors) per resource, pools and locks included, says \emph{why}.
+  \item \textbf{Capacity}: replicas $= \lceil \text{peak} / (\text{knee per replica} \times (1 - \text{headroom})) \rceil$, plus enough to survive losing one zone; check shared resources (connections). Autoscaling takes 1--4 min: pre-scale known peaks, and keep performance budgets in CI.
+\end{know}
+
+\begin{ex}{1}{Three laws and a mean}
+\items
+  \item \texttt{POST /holds} serves 1\,800 holds/s and a hold takes 0.12 s end to end. How many holds are in flight?
+  \item A query uses 0.4 ms of CPU and runs 2\,000 times per second on one core. How busy is the core?
+  \item ``Mean latency 120 ms'' fits two worlds: everyone waits 120 ms, or 99\% wait 20 ms and 1\% wait 10 s. Check the second, and say what the report should show instead.
+  \item 2\,000 holds/s, 150 ms each: how many concurrent holds must the service (threads, connections) support?
+\end{enumerate}
+\lines{4}
+\end{ex}
+
+\begin{ex}{1}{Which test answers the question?}
+Name the test type (smoke, load, stress, spike, soak or breakpoint) for each question, with its load and duration.
+\items
+  \item Does the new image start and answer every endpoint without errors?
+  \item Does \texttt{POST /holds} keep p99 $<$ 300 ms at the expected peak, for 20 minutes?
+  \item Does memory grow slowly until the pods are killed after a few hours?
+  \item What happens when traffic goes from almost nothing to 1.5$\times$ the peak in 30 seconds, at 10:00?
+  \item How many holds per second can one deployment take before the SLO breaks?
+  \item At twice the peak, does the system shed load with 429/503 and recover afterwards?
+\end{enumerate}
+\lines{4}
+\end{ex}
+
+\begin{ex}{2}{The test that backed off}
+Last year's test had 200 VUs with think time $Z = 1$ s.
+\items
+  \item Compute the throughput the closed test sends when $R = 0.1$ s, 0.5 s and 2 s.
+  \item By what percentage did the test reduce the load when the system slowed from 0.1 s to 2 s? What does an open test at 182 req/s do instead, and what happens to its queue at $R = 2$ s?
+  \item When is a closed model the right one? Give one BoxOffice example.
+  \item An open test must start 1\,000 \texttt{hold()} iterations per second and each iteration takes 3.5 s (two requests plus think time). How many VUs must it pre-allocate? A run shows \texttt{dropped\_iterations} $=$ 48\,000: what does it mean?
+\end{enumerate}
+\lines{6}
+\end{ex}
+
+\begin{ex}{2}{What the tool did not record}
+A server answers in 1 ms but freezes for 1.5 s four times during a 60 s test. The tester intends to send 100 requests per second.
+\items
+  \item An open-model tester records one sample per intended request. How many samples in total? A closed-loop tester sends nothing while it waits for the frozen request: about how many samples does it lose per freeze, and in total?
+  \item In the open model, about what fraction of the samples waited more than a few milliseconds? Each freeze delays about 150 requests by 1.5 s, 1.49 s, 1.48 s\,\dots\ down to 0.01 s: estimate the p99 (the 60 slowest samples).
+  \item The closed loop records only 4 slow samples out of about 5\,400. What p99 does it report? Which of the two would pass a ``p99 $<$ 300 ms'' threshold, and which one do fans experience?
+  \item Name two ways to avoid this error.
+\end{enumerate}
+\lines{6}
+\end{ex}
+
+\begin{ex}{2}{Read the breakpoint, then find the cause}
+A stepped breakpoint test of one \texttt{inventory} deployment (4 pods), SLO p99 $<$ 300 ms:
+\begin{center}\small
+\begin{tabular}{@{}lrrrrrrrr@{}}
+  \toprule
+  offered (req/s) & 800 & 1\,000 & 1\,100 & 1\,200 & 1\,300 & 1\,400 & 1\,600 \\
+  achieved (req/s) & 811 & 994 & 1\,105 & 1\,204 & 1\,231 & 1\,179 & 1\,118 \\
+  p99 (ms) & 105 & 140 & 237 & 658 & 5\,000 & 4\,650 & 4\,789 \\
+  errors & 0\% & 0\% & 0\% & 0\% & 5.4\% & 15.0\% & 30.6\% \\
+  \bottomrule
+\end{tabular}
+\end{center}
+\items
+  \item Where is the knee, and where is the maximum throughput?
+  \item Why does the achieved throughput \emph{fall} after 1\,300?
+  \item Which number goes into the capacity plan, and what is it per pod?
+\end{enumerate}
+At 1\,500 holds/s the p99 is 2.1 s. USE readings: \texttt{inventory} CPU 45\%; GC under 2\%; Tomcat threads 200/200 busy; Hikari pool 10/10 active with 180 requests pending; PostgreSQL CPU 35\%, sessions waiting on \texttt{Lock: tuple}. The hold transaction also calls the pricing service (40 ms) while holding its connection (6 ms of SQL).
+\begin{enumerate}[label=\textbf{(\alph*)},leftmargin=2em,itemsep=.25em,topsep=.2em,resume]
+  \item By Little's Law, how long does a request wait for a connection on average?
+  \item Write the chain symptom $\to$ cause $\to$ fix. Will more pods help?
+  \item How many connections are busy at 1\,500 holds/s with pricing inside the transaction, and with pricing called before \texttt{BEGIN}?
+\end{enumerate}
+\lines{6}
+\end{ex}
+
+\simulator{Find the knee}{monolith}{Run the breakpoint profile and note where p99 bends and which component reaches 100\% first. Give that component more capacity and run again: does the knee move, and what is the new bottleneck?}
+
+\begin{ex}{3}{The capacity plan for March 14}
+The on-sale peak is 4\,500 holds/s; one \texttt{inventory} pod has a knee of 275 holds/s; run at 75\% of the knee (25\% headroom); pods are spread over 3 zones and must survive losing one; each pod has a pool of 10 connections; a hold keeps a connection for 6 ms.
+\items
+  \item How many pods for the peak, and how many to survive a zone loss (round up to a multiple of 3)?
+  \item A waiting room caps holds at 3\,000/s. How many pods now? Do the same for \texttt{order} (knee 150/pod, 3\,000 req/s without the waiting room, 2\,000 with it).
+  \item How many client connections do the 33 \texttt{inventory} pods open, and how many are actually active at the peak? What do you put between the pods and PostgreSQL?
+  \item Holds jump from 500/s to 4\,500/s while the running capacity is 1\,100/s, and autoscaling needs 2 minutes. How many requests pile up? What do you do instead?
+\end{enumerate}
+\lines{6}
+\end{ex}
+
+\simulator{The waiting room under a spike}{flash-sale}{Run the spike profile, then bypass the queue (or raise the admission rate) and run again. Compare the holds p99, the database utilization and the error rate: where does the excess load go?}
+
+\begin{ex}{3}{A test plan you can defend}
+Write the one-page plan for the on-sale test and draw the test environment. The expected total peak is 30\,000 req/s.
+\palette{\comp{client}{Client}\ \comp{edge}{CDN}\ \comp{edge}{API Gateway}\ \comp{compute}{App Server}\ \comp{storage}{SQL Database}\ \comp{storage}{Cache}\ \comp{external}{Payment}\ \comp{observability}{Metrics}\ \comp{observability}{Tracing}}
+\frameblank{4.6cm}
+\items
+  \item Draw where the load generator runs, what is real and what is simulated (the payment provider), and what you observe.
+  \item Objective and workload: what target rate do you test (with 50\% margin), which model, which data, which mock latency for payment?
+  \item The CI budget fails a PR if the p95 of \texttt{POST /holds} at 20 holds/s regresses more than 15\%. Baseline 120 ms; the PR measures 141 ms. Pass or fail? What is the largest p95 that passes?
+  \item Name the exit criteria of the campaign.
+\end{enumerate}
+\lines{3}
+\end{ex}
+
+\simulator{Autoscaling is not instant}{serverless-burst}{Run the spike: watch cold-start latency and throttled requests at the concurrency limit, then raise the limit or add provisioned instances and compare.}

@@ -1,0 +1,13 @@
+diff --git a/services/catalog/src/main/java/boxoffice/catalog/VenueController.java b/services/catalog/src/main/java/boxoffice/catalog/VenueController.java
+index 60a9e09..96a6400 100644
+--- a/services/catalog/src/main/java/boxoffice/catalog/VenueController.java
++++ b/services/catalog/src/main/java/boxoffice/catalog/VenueController.java
+@@ -15,7 +15,6 @@ public class VenueController {
+ 
+     @GetMapping("/catalog/venues")
+     public List<Venue> list() {
+-        List<Venue> all = venues.findAll();
+-        return all;
++        return venues.findAll();
+     }
+ }

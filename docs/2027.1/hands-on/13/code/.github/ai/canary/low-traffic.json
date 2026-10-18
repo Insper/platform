@@ -1,0 +1,2 @@
+{"stable": {"rps": 35.0, "errors": 0.0, "error_rate": 0.0, "p99": 0.150},
+ "canary": {"rps": 0.8, "errors": 0.0, "error_rate": 0.0, "p99": 0.140}}

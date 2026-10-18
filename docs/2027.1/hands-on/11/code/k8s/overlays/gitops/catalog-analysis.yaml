@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: catalog-slo
+spec:
+  metrics:
+    - name: error-rate
+      interval: 30s
+      failureLimit: 1                # a second bad measurement aborts and rolls back
+      successCondition: len(result) == 0 || isNaN(result[0]) || result[0] < 0.01
+      provider:
+        prometheus:
+          address: http://prometheus.monitoring:9090
+          query: |
+            sum(rate(http_server_requests_seconds_count{service="catalog-canary", status=~"5.."}[1m]))
+            /
+            sum(rate(http_server_requests_seconds_count{service="catalog-canary"}[1m]))
+    - name: p99-latency
+      interval: 30s
+      failureLimit: 1
+      successCondition: len(result) == 0 || isNaN(result[0]) || result[0] < 0.5
+      provider:
+        prometheus:
+          address: http://prometheus.monitoring:9090
+          query: |
+            histogram_quantile(0.99, sum by (le) (
+              rate(http_server_requests_seconds_bucket{service="catalog-canary"}[1m])))

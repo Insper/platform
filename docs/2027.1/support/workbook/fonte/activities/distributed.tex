@@ -1,0 +1,103 @@
+\activity{3}{Distributed Systems}{distributed}{It is 10:00:00 and 2 million fans press ``Hold seat'' for 60\,000 seats, each to be sold exactly once. One fan, on a train, waits five seconds, sees ``Something went wrong, try again'' and presses again. Did the first request hold a seat? Is she about to hold two, or be charged twice? How can BoxOffice, running on many machines joined only by a network, sell each seat once and never charge her twice?}
+\stages{\stDesign\ \stDeep}
+
+\begin{know}
+  \item A \textbf{distributed system} is a set of nodes that cooperate only by messages: no shared memory, no shared clock. If each of $N$ machines fails on a given day with probability $p$, some machine fails with probability $1 - (1-p)^N$.
+  \item A caller \textbf{cannot tell slow from dead}: after a timeout the request may have been lost, processed with the reply lost, or still be running. Retried operations must be \textbf{idempotent}, $f(f(x)) = f(x)$: conditional writes (compare-and-set) or an idempotency key stored in the same transaction as the change. ``Exactly once'' is at-least-once delivery $+$ idempotent processing.
+  \item \textbf{Replication}: single-leader (no write conflicts), multi-leader and leaderless (conflicts: last-writer-wins, version vectors, CRDTs, conflict-free replicated data types). Asynchronous followers lag: a read right after a write may be stale. \textbf{Read-your-writes}: read from the leader for a few seconds after a write, or wait for a version token.
+  \item \textbf{CAP}: during a network partition, choose consistency (linearizability: refuse) or availability (answer, maybe stale). \textbf{PACELC}: else, without a partition, choose latency or consistency; a synchronous write pays one round trip to the replicas (1--2 ms across zones, 150--200 ms across continents).
+  \item \textbf{Majorities}: majority $= \lfloor N/2 \rfloor + 1$, tolerated failures $= \lfloor (N-1)/2 \rfloor$. Use 3 or 5 nodes across 3 zones. Raft elects one leader per term and commits an entry once a majority has it.
+  \item \textbf{Quorums} in leaderless stores: with $N$ replicas, writes to $W$ and reads from $R$ overlap when $R + W > N$.
+  \item A \textbf{lease} or lock expires; the storage must also check a \textbf{fencing token} that grows with every grant and reject tokens lower than the highest it has seen.
+  \item \textbf{Across services} no 2PC (two-phase commit: blocks when the coordinator fails): a \textbf{saga} of local transactions with compensations; the successful charge is the pivot step.
+  \item \textbf{No global clock}: clocks drift (20 ppm $\approx$ 1.7 s/day). Lamport clocks give $a \to b \Rightarrow L(a) < L(b)$ (receive: $\max(\text{local}, t) + 1$); vector clocks also detect concurrency. Never order events by wall clocks of different machines.
+\end{know}
+
+\begin{ex}{1}{Failure is normal}
+Each machine of a fleet fails on a given day with probability $p = 0.1\%$, independently.
+\items
+  \item What is the probability that at least one machine fails on a given day with 3 machines? With 1\,000? With 3\,000?
+  \item Use $(1-p)^N \approx e^{-pN}$ to check the 1\,000-machine case in your head.
+  \item What does the result mean for how you design a service that runs on 3\,000 machines?
+\end{enumerate}
+\lines{4}
+\end{ex}
+
+\begin{ex}{1}{Safe to retry?}
+\items
+  \item Mark each operation as idempotent (I) or not (N):\\[.3em]
+  {\small\begin{tabular}{@{}lc@{}}
+    \texttt{GET /events/42} & \blank\hspace{1cm} \\
+    \texttt{PUT /holds/A-12 \{"fan": 42\}} & \blank \\
+    \texttt{DELETE /holds/A-12} & \blank \\
+    \texttt{POST /orders} & \blank \\
+    \texttt{UPDATE seats SET sold = sold + 1} & \blank \\
+    \texttt{UPDATE seats SET status='HELD' WHERE id='A-12' AND status='FREE'} & \blank \\
+  \end{tabular}}
+  \item \texttt{order} asks \texttt{payment} to authorize R\$ 450 and gets no reply in 2 s. List the four things that may have happened. In which of them does a plain retry charge the fan twice?
+\end{enumerate}
+\lines{4}
+\end{ex}
+
+\begin{ex}{2}{The idempotency key}
+The app creates a UUID when the fan taps ``Pay'' and sends it as \texttt{Idempotency-Key} on every attempt. \texttt{order} has a table \texttt{idempotency\_keys(key PRIMARY KEY, request\_hash, response)}.
+\items
+  \item Write, in order, the three statements of the transaction that creates order 981, so that a retry with the same key returns the first response and creates nothing.
+  \item Why must the key be stored in the \emph{same} transaction as the order, and not in Redis after the commit?
+  \item The reply \texttt{201 Created} is lost on the train and the app retries. Trace what happens. What does the fan get?
+  \item A developer generates a new UUID on each retry ``to be safe''. What breaks?
+  \item The same key is forwarded to the payment provider. Why? The provider keeps keys for 24 hours: what does that limit?
+\end{enumerate}
+\lines{6}
+\end{ex}
+
+\simulator{Retries need idempotency}{payment-system}{The provider becomes 4$\times$ slower at t = 60 s and retries after a timeout charge cards again. Turn on the idempotency key on the payment edge and watch the duplicate charges drop to zero.}
+
+\begin{ex}{2}{The stale ``My tickets''}
+The fan paid at 10:00:41 and saw ``Order 981 confirmed'', but ``My tickets'', read from an asynchronous replica about 300 ms later, was empty. Model the chance of a stale read as $P(\text{stale}) = e^{-t/\bar\ell}$, with $t$ the time since the write and $\bar\ell$ the mean replication lag.
+\items
+  \item Compute $P(\text{stale})$ at $t = 300$ ms for $\bar\ell = 20$ ms (a quiet day), 200 ms (busy) and 800 ms (the on-sale).
+  \item Which guarantee is the fan missing? Give two ways to provide it without making every read go to the leader.
+  \item The remaining-seat counter shows 120, then 340, then 95 on three refreshes. Which guarantee is broken, and how do you fix it?
+  \item For each piece of BoxOffice data, choose the weakest model that is still correct: seats and holds, payments, ``My tickets'', the remaining-seat counter, the catalog, ``people interested'' counters.
+\end{enumerate}
+\lines{6}
+\end{ex}
+
+\simulator{Replicas and lag}{db-replicas}{Add read replicas and watch reads spread while the primary keeps every write. Raise the write share to 30\%: the replication lag grows, and so does the chance of the stale read you just computed.}
+
+\begin{ex}{2}{Majorities, quorums and fences}
+\items
+  \item Fill in the majority and the failures tolerated for $N = 3, 4, 5$ and 7. Why is a 4-node cluster a bad idea?
+  \item Five etcd nodes are spread over 3 zones as 2$+$2$+$1 or as 3$+$1$+$1. In each layout, one zone with the most nodes dies. Can the cluster still accept writes?
+  \item Three nodes of 99\% availability each: what is the availability of the majority (2 of 3 up)? Use $a^3 + 3a^2(1-a)$.
+  \item A Cassandra-style store has $N = 3$. Which pairs $(W, R)$ guarantee that a read sees the last acknowledged write: (1, 1), (2, 2), (3, 1), (1, 3), (2, 1)? Which pair would you pick, and what does it tolerate?
+  \item Worker A holds the lock for the 09:55 reminder with fencing token 33, pauses 15 s in garbage collection and its lease expires; worker B gets token 34 and writes. A wakes up and writes. What does the storage do, and why?
+\end{enumerate}
+\lines{6}
+\end{ex}
+
+\begin{ex}{2}{Whose clock?}
+Bruno releases seat A-12 at real time 10:00:00.040 on \texttt{inventory-1}, whose clock is 50 ms ahead. Carla holds A-12 at real time 10:00:00.060 on \texttt{inventory-2}, whose clock is right. The store resolves conflicts by last-writer-wins on the timestamps.
+\items
+  \item Which write wins, and what happens to Carla?
+  \item A clock drifts 20 ppm (parts per million). How far off is it after one day without NTP? And a 40 ppm clock after 10 minutes?
+  \item Lamport clocks: \texttt{order} creates order 981 ($L = 1$) and sends \texttt{OrderPaid} with $L = 2$ to the \texttt{inventory} consumer, whose clock is 0. The consumer then sends \texttt{TicketIssued} to \texttt{notification}, whose clock is 1 after an unrelated local event. Compute the consumer's clock on receipt, the timestamp of \texttt{TicketIssued} and \texttt{notification}'s clock on receipt.
+  \item Two replicas have vector clocks $[1, 1, 0]$ and $[1, 0, 1]$. Which came first?
+  \item Propose two ways to order the hold and the release correctly.
+\end{enumerate}
+\lines{6}
+\end{ex}
+
+\begin{ex}{3}{Two regions and a checkout}
+BoxOffice runs in São Paulo and Lisbon, each with a full copy of the data, and the link between them drops for 2 minutes during an on-sale.
+\items
+  \item For seats, payments, the catalog and like counters, choose CP or AP and say exactly what the fan sees during the partition.
+  \item Without a partition, a checkout makes 5 sequential writes. How long do they take with synchronous replication inside a region (1--2 ms per write) and across the Atlantic ($\approx$ 200 ms per write)? What does PACELC tell you to do with seats?
+  \item Design the checkout as a saga over \texttt{order}, \texttt{inventory} and \texttt{payment}: list the steps, the compensation of each, and the pivot step. The card is declined at the payment step: which compensations run, in which order?
+  \item Why not a 2PC across the three services? Give two reasons.
+\end{enumerate}
+\lines{7}
+\end{ex}
+
+\simulator{Losing a region}{multi-region}{Build the second region and connect DNS to it. When the first region goes down at t = 60 s, watch errors last about detection plus the DNS TTL, and think of the writes that had not replicated yet.}

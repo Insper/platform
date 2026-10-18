@@ -4,6 +4,17 @@
  * container is present. Re-initializes on Material's instant navigation.
  * Bilingual: texts come from I18N.pt or I18N.en according to <html lang>;
  * each language keeps its own checklist progress in localStorage.
+ *
+ * A page may bring its own data (2027.1 and later): put inside the `.iv`
+ * container
+ *   <script type="application/json" class="iv-quiz-data">
+ *     {"key": "2027.1-system-design",
+ *      "en": {"quiz": [...], "check": [...]}, "pt": {...}}
+ *   </script>
+ * Quiz items are {q, opts, correct, fb, topic?}; when items have a `topic`,
+ * filter buttons are rendered into #iv-quiz-filter (if present). The
+ * checklist is saved under "iv-<key>-checklist-<lang>". Pages without that
+ * script (2026.2) keep the built-in data and key below.
  */
 (function () {
   var quizPt = [
@@ -319,22 +330,24 @@
     pt: {
       quiz: quizPt, check: checkPt,
       question: "Questão", of: " de ", correct: " corretas",
-      ok: "✓ Correto! ", wrong: "✗ Não exatamente. ", items: " itens"
+      ok: "✓ Correto! ", wrong: "✗ Não exatamente. ", items: " itens", all: "Todos"
     },
     en: {
       quiz: quizEn, check: checkEn,
       question: "Question", of: " of ", correct: " correct",
-      ok: "✓ Correct! ", wrong: "✗ Not quite. ", items: " items"
+      ok: "✓ Correct! ", wrong: "✗ Not quite. ", items: " items", all: "All"
     }
   };
 
   var lang = "en";
   var T = I18N.en;
-  var quizData = T.quiz;
+  var quizAll = T.quiz;     /* every question of the page */
+  var quizData = T.quiz;    /* the questions shown (after the topic filter) */
   var checkData = T.check;
   var STORAGE_KEY = "iv-2026.2-checklist-en";
   var currentQ = 0;
-  var answered = {};
+  var answered = {};        /* index in quizAll → chosen option */
+  var topic = "";           /* "" = all topics */
   var checks = {};
 
   function $(id) { return document.getElementById(id); }
@@ -350,10 +363,28 @@
   }
 
   /* ─── QUIZ ─── */
+  function indexOf(q) { return quizAll.indexOf(q); }
+
+  function renderFilter() {
+    var box = $("iv-quiz-filter");
+    if (!box) return;
+    var topics = [];
+    quizAll.forEach(function (q) {
+      if (q.topic && topics.indexOf(q.topic) < 0) topics.push(q.topic);
+    });
+    if (!topics.length) { box.innerHTML = ""; return; }
+    box.innerHTML = [""].concat(topics).map(function (t) {
+      return '<button type="button" class="btn-ghost' + (t === topic ? " on" : "") +
+        '" data-iv-topic="' + t + '">' + (t || T.all) + "</button>";
+    }).join("");
+  }
+
   function renderQuiz() {
     if (!$("iv-qtext")) return;
+    renderFilter();
+    if (!quizData.length) return;
     var q = quizData[currentQ];
-    var ans = answered[currentQ];
+    var ans = answered[indexOf(q)];
     $("iv-qnum").textContent = T.question + " " + (currentQ + 1) + T.of + quizData.length;
     $("iv-qpf").style.width = ((currentQ + 1) / quizData.length * 100) + "%";
     $("iv-qtext").textContent = q.q;
@@ -379,7 +410,7 @@
     }
 
     var keys = Object.keys(answered);
-    var correct = keys.filter(function (k) { return answered[k] === quizData[k].correct; }).length;
+    var correct = keys.filter(function (k) { return answered[k] === quizAll[k].correct; }).length;
     $("iv-qscore").textContent = keys.length > 0 ? correct + "/" + keys.length + T.correct : "";
   }
 
@@ -410,15 +441,32 @@
     var htmlLang = (document.documentElement.lang || "").toLowerCase();
     lang = htmlLang.indexOf("pt") === 0 ? "pt" : "en";
     T = I18N[lang];
-    quizData = T.quiz;
+    quizAll = T.quiz;
     checkData = T.check;
     STORAGE_KEY = "iv-2026.2-checklist-" + lang;
+
+    /* Page-provided data overrides the built-in 2026.2 data. */
+    var el = document.querySelector(".iv script.iv-quiz-data");
+    if (!el) return;
+    try {
+      var data = JSON.parse(el.textContent);
+      var d = data[lang] || data.en || data.pt || {};
+      if (d.quiz) quizAll = d.quiz;
+      if (d.check) checkData = d.check;
+      if (data.key) STORAGE_KEY = "iv-" + data.key + "-checklist-" + lang;
+    } catch (e) { /* malformed data: keep the defaults */ }
+  }
+
+  function applyTopic() {
+    quizData = topic ? quizAll.filter(function (q) { return q.topic === topic; }) : quizAll;
+    currentQ = 0;
   }
 
   function init() {
     if (!document.querySelector(".iv")) return;
     setLanguage();
-    currentQ = 0;
+    topic = "";
+    applyTopic();
     answered = {};
     loadChecks();
     renderQuiz();
@@ -440,10 +488,19 @@
 
     var opt = ev.target.closest("[data-iv-answer]");
     if (opt) {
-      if (answered[currentQ] === undefined) {
-        answered[currentQ] = parseInt(opt.getAttribute("data-iv-answer"), 10);
+      var qi = indexOf(quizData[currentQ]);
+      if (answered[qi] === undefined) {
+        answered[qi] = parseInt(opt.getAttribute("data-iv-answer"), 10);
         renderQuiz();
       }
+      return;
+    }
+
+    var tb = ev.target.closest("[data-iv-topic]");
+    if (tb) {
+      topic = tb.getAttribute("data-iv-topic");
+      applyTopic();
+      renderQuiz();
       return;
     }
 
@@ -456,7 +513,7 @@
       return;
     }
     if (ev.target.closest("[data-iv-quiz-reset]")) {
-      currentQ = 0; answered = {}; renderQuiz();
+      topic = ""; applyTopic(); answered = {}; renderQuiz();
       return;
     }
 

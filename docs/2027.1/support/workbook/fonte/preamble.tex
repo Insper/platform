@@ -1,0 +1,196 @@
+% Preamble of the System Design workbook (2027.1): packages, colours and macros.
+% Included by workbook.tex (and by the one-activity test files, see README.md).
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+\usepackage{mathpazo}
+\usepackage[scaled=.92]{helvet}
+\usepackage{amsmath,amssymb}
+\usepackage[a4paper,top=2.5cm,bottom=2.3cm,left=2.2cm,right=2.2cm,headheight=14pt]{geometry}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{multicol}
+\usepackage{fontawesome5}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric,positioning,arrows.meta}
+\usepackage{qrcode}
+\usepackage[most]{tcolorbox}
+\usepackage{needspace}
+\usepackage{microtype}
+\usepackage{upquote}
+\usepackage[hidelinks]{hyperref}
+
+% ---------------------------------------------------------------- colours
+% Every colour carries one meaning, the same in the workbook, the cheat sheet,
+% the concept map and the study cards (see README.md, "Colour system").
+\definecolor{insper}{HTML}{C8102E}
+\definecolor{ink}{HTML}{24292F}
+\definecolor{soft}{HTML}{6E7781}
+\definecolor{paper}{HTML}{F4F6F8}
+% the answer (green) and the most common mistake (red)
+\definecolor{right}{HTML}{1E7B4F}\definecolor{rightbg}{HTML}{EAF5EF}
+\definecolor{wrong}{HTML}{B42318}\definecolor{wrongbg}{HTML}{FCEEEE}
+% the four stages of the design method
+\definecolor{stA}{HTML}{57606A}\definecolor{stAbg}{HTML}{F2F4F6}   % clarify: requirements, SLOs, scope, wrap-up
+\definecolor{stB}{HTML}{1F5FAD}\definecolor{stBbg}{HTML}{EAF1FA}   % estimate: numbers, load, capacity, cost
+\definecolor{stC}{HTML}{6B3FA0}\definecolor{stCbg}{HTML}{F2ECF8}   % design: API, data, components, patterns
+\definecolor{stD}{HTML}{B4530A}\definecolor{stDbg}{HTML}{FCF1E7}   % deep dive: failures, bottlenecks, trade-offs
+% exercise levels: a scale that also reads by the dots and the name
+\definecolor{lvone}{HTML}{1E7B4F}\definecolor{lvonebg}{HTML}{EAF5EF}     % warm-up
+\definecolor{lvtwo}{HTML}{1F5FAD}\definecolor{lvtwobg}{HTML}{EAF1FA}     % practice
+\definecolor{lvthree}{HTML}{B42318}\definecolor{lvthreebg}{HTML}{FCEEEE} % challenge
+% the class summary (teal) and the simulator boxes (plum)
+\definecolor{know}{HTML}{0B6E6E}\definecolor{knowbg}{HTML}{EAF5F5}
+\definecolor{sim}{HTML}{8A2D6E}\definecolor{simbg}{HTML}{F8EEF4}
+% palette categories: the colours of the simulator (playground.css), used only
+% as identity chips next to a component name, never as a meaning
+\definecolor{catclient}{HTML}{2563EB}
+\definecolor{catedge}{HTML}{7C3AED}
+\definecolor{catcompute}{HTML}{16A34A}
+\definecolor{catstorage}{HTML}{EA580C}
+\definecolor{catmessaging}{HTML}{D97706}
+\definecolor{catobservability}{HTML}{0D9488}
+\definecolor{catnetwork}{HTML}{65A30D}
+\definecolor{catai}{HTML}{DB2777}
+\definecolor{catexternal}{HTML}{64748B}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{.4em}
+\renewcommand{\arraystretch}{1.15}
+
+\newcommand{\course}{System Design — 2027.1}
+\newcommand{\siteroot}{https://insper.github.io/platform}
+\newcommand{\site}{\siteroot/2027.1}
+\newcommand{\currentactivity}{}
+
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0pt}
+\fancyhead[L]{\sffamily\scriptsize\color{soft}\course}
+\fancyhead[R]{\sffamily\scriptsize\bfseries\color{insper}\currentactivity}
+\fancyfoot[C]{\sffamily\scriptsize\color{soft}\thepage\ of \pageref{LastPage}}
+
+% ---------------------------------------------------------------- activity opening
+% \activity{number}{Title}{class slug}{the class question}
+\newcounter{exercise}
+\newcommand{\activity}[4]{%
+  \clearpage
+  \setcounter{exercise}{0}%
+  \gdef\currentactivity{Class #1. #2}%
+  \phantomsection\addcontentsline{toc}{section}{#1. #2}\label{act-#1}%
+  \begin{tcolorbox}[enhanced,colback=insper,colframe=insper,boxrule=0pt,arc=4pt,
+      left=12pt,right=10pt,top=10pt,bottom=10pt,sidebyside,righthand width=2.05cm,
+      sidebyside gap=10pt,halign lower=center,valign lower=center]
+    {\color{white}\sffamily
+     {\footnotesize CLASS ACTIVITY\par}\vspace{.15em}
+     {\fontsize{30}{32}\selectfont\bfseries #1\par}\vspace{.3em}
+     {\Large\bfseries #2}\par\vspace{.35em}
+     {\scriptsize\href{\site/classes/#3/}{insper.github.io/platform/2027.1/classes/#3/}\par}\vspace{.1em}
+     {\scriptsize worked answers on page \pageref{ans-#1}}}
+    \tcblower
+    \tikz\node[fill=white,rounded corners=2pt,inner sep=3pt]{\qrcode[height=1.65cm]{\site/classes/#3/}};
+  \end{tcolorbox}
+  \vspace{.2em}
+  \begin{tcolorbox}[enhanced,colback=insper!5,colframe=insper!5,boxrule=0pt,arc=3pt,
+      borderline west={3pt}{0pt}{insper},left=10pt,right=10pt,top=6pt,bottom=6pt]
+    {\sffamily\bfseries\color{insper}\faQuestionCircle\ The class question.}\ #4
+  \end{tcolorbox}}
+
+% stage tags (colour and name: they also read in greyscale)
+\newcommand{\tagbox}[3]{\tikz[baseline=(e.base)]\node[fill=#2,draw=#1,text=#1,rounded corners=2pt,
+  line width=.6pt,inner xsep=5pt,inner ysep=2pt,font=\sffamily\scriptsize\bfseries](e){#3};}
+\newcommand{\stClarify}{\tagbox{stA}{stAbg}{\faClipboardList\ clarify}}
+\newcommand{\stEstimate}{\tagbox{stB}{stBbg}{\faCalculator\ estimate}}
+\newcommand{\stDesign}{\tagbox{stC}{stCbg}{\faProjectDiagram\ design}}
+\newcommand{\stDeep}{\tagbox{stD}{stDbg}{\faSearchPlus\ deep dive}}
+\newcommand{\stages}[1]{\par\vspace{.1em}{\sffamily\scriptsize\color{soft}STAGES OF THE METHOD IN THIS CLASS\quad}#1\par\vspace{.2em}}
+
+% the summary before the exercises
+\newenvironment{know}{%
+  \begin{tcolorbox}[enhanced,colback=knowbg,colframe=know,boxrule=.6pt,arc=3pt,
+      left=9pt,right=9pt,top=5pt,bottom=5pt,
+      title={\faBookOpen\ \ What you need to know},fonttitle=\sffamily\bfseries\small,
+      colbacktitle=know,coltitle=white]
+  \small
+  % in the summary, key terms (in bold) take the summary colour
+  \renewcommand{\textbf}[1]{{\bfseries\color{know}##1}}
+  \begin{itemize}[leftmargin=1.1em,itemsep=.2em,topsep=.1em,parsep=0pt]}
+  {\end{itemize}\end{tcolorbox}}
+
+% ---------------------------------------------------------------- exercises
+\newcommand{\pill}[2]{\tikz[baseline=(t.base)]\node[fill=#1,text=white,rounded corners=5pt,
+  inner xsep=6pt,inner ysep=2.5pt,font=\sffamily\scriptsize\bfseries](t){#2};}
+\newcommand{\level}[1]{%
+  \ifcase#1\or\pill{lvone}{$\bullet$\ WARM-UP}%
+  \or\pill{lvtwo}{$\bullet\bullet$\ PRACTICE}%
+  \or\pill{lvthree}{$\bullet\bullet\bullet$\ CHALLENGE}\fi}
+\newcommand{\lvcolor}[1]{\ifcase#1\or lvone\or lvtwo\or lvthree\fi}
+\newcommand{\exnum}[2]{\tikz[baseline=(n.base)]\node[circle,fill=\lvcolor{#1},text=white,
+  inner sep=1.6pt,minimum size=1.45em,font=\sffamily\small\bfseries](n){#2};}
+
+% \begin{ex}{level 1, 2 or 3}{title}
+% every exercise is one unbreakable block: statement, figure and answer space
+% never split across pages
+\newenvironment{ex}[2]{%
+  \par\vspace{1.0em}%
+  \refstepcounter{exercise}%
+  \noindent\begin{minipage}{\linewidth}\raggedright\setlength{\parskip}{.4em}%
+  \noindent\exnum{#1}{\theexercise}\hspace{.55em}{\sffamily\bfseries\color{\lvcolor{#1}}#2}\hfill\level{#1}\par
+  \vspace{-.25em}{\color{\lvcolor{#1}}\rule{\linewidth}{.8pt}}\par
+  \vspace{-.4em}}
+  {\par\end{minipage}\par}
+
+% dotted lines to write on
+\newcommand{\lines}[1]{\par\nopagebreak
+  {\color{soft!55}\foreach \i in {1,...,#1}{\par\noindent\rule{0pt}{.8cm}\dotfill}}\par}
+% blank frame (drawing or computation)
+\newcommand{\frameblank}[1]{\par\nopagebreak\vspace{.2em}
+  \begin{tcolorbox}[colback=white,colframe=soft!40,boxrule=.4pt,arc=2pt,height=#1]\end{tcolorbox}}
+\newcommand{\hint}[1]{\par{\small\color{soft}\faLightbulb[regular]\ \textit{Hint:} #1}\par}
+% tall empty cell, for tables to fill in
+\newcommand{\blank}{\rule{0pt}{1.6em}}
+\newcommand{\items}{\begin{enumerate}[label=\textbf{(\alph*)},leftmargin=2em,itemsep=.25em,topsep=.2em]}
+
+% palette chips: \comp{category}{Label} draws a component of the simulator palette
+\newcommand{\comp}[2]{\tikz[baseline=(c.base)]\node[draw=cat#1,line width=.5pt,fill=white,text=ink,
+  rounded corners=1.5pt,inner xsep=3pt,inner ysep=1.6pt,font=\sffamily\scriptsize,
+  path picture={\fill[cat#1] (path picture bounding box.south west) rectangle ([xshift=2.2pt]path picture bounding box.north west);}]
+  (c){\hspace{2pt}#2};}
+% "draw with these components": a row of chips above a drawing frame
+\newcommand{\palette}[1]{\par\noindent{\sffamily\scriptsize\bfseries\color{soft}DRAW WITH\quad}#1\par}
+
+% \simulator{title}{scenario id}{what to do}
+% the box sticks to the exercise before it (breaks before it only if it does not fit)
+\newcommand{\simulator}[3]{%
+  \par\nopagebreak[3]\vspace{.9em}
+  \begin{tcolorbox}[enhanced,colback=simbg,colframe=sim,boxrule=.6pt,arc=3pt,
+      left=6pt,right=8pt,top=5pt,bottom=5pt,sidebyside,lefthand width=1.55cm,sidebyside gap=10pt,
+      segmentation style={draw=sim!40,dashed}]
+    \qrcode[height=1.45cm]{\siteroot/playground/scenarios/\##2}
+    \tcblower
+    {\sffamily\scriptsize\bfseries\color{sim}\faMousePointer\ \ CHECK IT IN THE SIMULATOR}\hfill{\sffamily\scriptsize\color{soft}scenario \texttt{#2}}\par
+    {\sffamily\bfseries #1}\par\vspace{.15em}
+    {\small #3}
+  \end{tcolorbox}}
+
+% ---------------------------------------------------------------- answers
+\newcommand{\ansclass}[2]{%
+  \par\needspace{6\baselineskip}\vspace{.9em}
+  \phantomsection\label{ans-#1}%
+  \noindent\tikz[baseline=(c.base)]\node[fill=insper,text=white,rounded corners=2pt,inner sep=3pt,
+    font=\sffamily\bfseries\small](c){#1};\ {\sffamily\bfseries\color{insper}#2}\par\vspace{-.2em}
+  {\color{insper}\rule{\linewidth}{.5pt}}\par\vspace{-.1em}}
+\newcommand{\ans}[1]{\par\vspace{.3em}\noindent{\sffamily\bfseries\color{right}#1.}\ }
+% the final answer, in green (and bold: it also reads in greyscale)
+\newcommand{\final}[1]{{\color{right}\bfseries #1}}
+% the most common mistake, in red, with the × sign
+\newcommand{\careful}[1]{\par\vspace{.15em}\noindent
+  \colorbox{wrongbg}{\parbox{\dimexpr\linewidth-2\fboxsep}{{\color{wrong}\bfseries$\times$ Careful:}\ #1}}\par}
+\newcommand{\wrongtag}[1]{{\color{wrong}\bfseries #1}}

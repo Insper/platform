@@ -1,0 +1,44 @@
+\gdef\currentactivity{How to use}
+\section*{\sffamily How to use this workbook}
+\small\setlength{\parskip}{.3em}
+
+Every class of System Design has a page on the site, with text, diagrams, a quiz, slides and the simulator (the System Design Playground). This workbook is your side of the class: one activity per class, done on paper, to practise what the page teaches with numbers small enough to work out by hand. The scenarios come from the classes whenever possible: BoxOffice, the ticketing platform of the whole course, with its flash sale at 10:00 (2 million fans, 60\,000 seats), its catalog, its seat inventory, its payment provider and its support assistant. The short cases created for the workbook carry in the statement everything you need to solve them.
+
+\subsection*{\sffamily Each activity has four parts}
+
+\begin{enumerate}[leftmargin=1.6em,itemsep=.3em]
+  \item \textbf{The class question}, the problem the class page opens with. When you finish the activity, you should be able to answer it.
+  \item \textbf{What you need to know}: a short summary to consult while you work. It does not replace the class page (the QR code at the top takes you there).
+  \item \textbf{The exercises}, in order of difficulty. Do them in order: each one prepares the next.
+  \item \textbf{The worked answers}, at the end of the workbook. Try first; when you get it wrong, read the whole comment, because the reasoning is there.
+\end{enumerate}
+
+\subsection*{\sffamily The three levels}
+
+{\small\begin{tabularx}{\linewidth}{@{}l X@{}}
+  \level{1} & recognise and apply one idea of the class directly: a definition, a short calculation, a classification. \\[.5em]
+  \level{2} & use the idea in a case like the one in class, with numbers and a justified decision. \\[.5em]
+  \level{3} & combine several ideas in an open case, as in the project, the exams and a system-design interview: size it, draw it, diagnose it, defend a trade-off. \\
+\end{tabularx}}
+
+\subsection*{\sffamily The colours}
+
+{\small\begin{tabularx}{\linewidth}{@{}l X@{}}
+  \stClarify\ \stEstimate & the stages of the design method that the class trains: \textbf{clarify} (requirements, SLOs, scope and the wrap-up), \textbf{estimate} (load, latency, capacity and cost)\dots \\[.2em]
+  \stDesign\ \stDeep & \dots\textbf{design} (API, data model, components and patterns) and \textbf{deep dive} (failure modes, bottlenecks and trade-offs). The same colours as the cheat sheet, the concept map and the study cards. \\[.4em]
+  {\sffamily\small\bfseries\color{know}\faBookOpen\ What you need to know} & the class summary; key terms come out in this colour. \\[.4em]
+  {\sffamily\small\bfseries\color{sim}\faMousePointer\ Check it in the simulator} & a QR code that opens a playground scenario. It asks for no new answer: it lets you see, by playing with it, what you have just computed. \\[.4em]
+  \comp{edge}{Load Balancer}\ \comp{storage}{Cache} & a component of the simulator palette, with the colour of its category in the simulator. It only identifies the component; it carries no other meaning. \\[.4em]
+  \final{\sffamily\small answer} \ \wrongtag{\sffamily\small $\times$ Careful} & in the worked answers: in green, the answer and the reasoning; in red, the most common mistake. \\
+\end{tabularx}}
+
+\vspace{.1em}
+\begin{tcolorbox}[enhanced,colback=paper,colframe=paper,boxrule=0pt,arc=3pt,borderline west={3pt}{0pt}{insper},left=10pt]
+  {\sffamily\bfseries The thread of the course.} The 16 activities follow the order of the classes. Classes 1 to 3 give the method and the tools: requirements and the interview framework, back-of-the-envelope numbers and queueing, and the distributed-systems fundamentals. Classes 4 to 8 walk the palette from the edge to the data: traffic and edge, compute, databases, caching and messaging. Classes 9 to 12 keep the system alive and shippable: reliability, observability, network and security, cloud-native delivery. Classes 13 and 14 bring AI in, as a system to design and as a teammate in the pipeline. Class 15 measures it all, and class 16 puts everything together in the classic interview problems. Each class uses the previous ones.
+\end{tcolorbox}
+
+\vspace{.2em}
+{\small\color{soft}Conventions: 1 K $= 10^3$, 1 M $= 10^6$, 1 B $= 10^9$ (decimal, as in estimates); 1 day $\approx 10^5$ s (86\,400 s); req/s for requests per second; p99 for the 99th percentile. ``By hand'' means without a computer (a simple calculator helps). Component names as in the simulator palette.}
+
+% back to the body size and spacing of the activities
+\normalsize\setlength{\parskip}{.4em}

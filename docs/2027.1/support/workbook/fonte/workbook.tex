@@ -1,0 +1,97 @@
+% System Design workbook, 2027.1: one activity per class, 1 to 16.
+% Each activity: the class question, what you need to know, exercises at three
+% levels (warm-up, practice, challenge) and worked answers at the end.
+%
+% Structure: preamble.tex (packages, colours and macros), activities/<slug>.tex
+% (the activity), answers/<slug>.tex (its worked answers), verify/<slug>.py
+% (recomputes every number). See README.md.
+%
+% Build, in this folder:
+%   latexmk -pdf workbook.tex
+%   cp workbook.pdf ../workbook-system-design.pdf
+%   latexmk -c
+\documentclass[11pt,a4paper]{article}
+\input{preamble}
+
+\begin{document}
+
+% ================================================================= cover
+\begin{titlepage}
+  \newgeometry{top=2.2cm,bottom=2.2cm,left=2.2cm,right=2.2cm}
+  {\color{insper}\rule{\linewidth}{2.5pt}}\par
+  \vspace{.6em}
+  \IfFileExists{insper-logo.png}{\includegraphics[height=1.1cm]{insper-logo.png}}{\Large\bfseries Insper}\par
+  \vspace{5.5cm}
+  {\sffamily\color{insper}\large\bfseries SYSTEM ARCHITECTURE · SYSTEM DESIGN · 2027.1}\par\vspace{.6em}
+  {\sffamily\fontsize{34}{38}\selectfont\bfseries\color{ink} Workbook}\par\vspace{.5em}
+  {\sffamily\LARGE\color{ink} The 16 classes, from requirements to case studies}\par
+  \vspace{1.0cm}
+  {\sffamily\small\color{soft}\stClarify\ \stEstimate\ \stDesign\ \stDeep}\par
+  \vspace{1.0cm}
+  {\large Humberto Sandmann}\par
+  \vfill
+  {\large Name: \rule{9.4cm}{.4pt}}\par\vspace{1em}
+  {\large Project team: \rule{8.1cm}{.4pt}}\par
+  \vspace{1.2cm}
+  {\small\color{soft}Version 2027.1 · October 2026}
+\end{titlepage}
+\restoregeometry
+
+% ================================================================= how to use
+\input{how-to-use}
+
+\clearpage
+\gdef\currentactivity{}
+{\setlength{\parskip}{.15em}\renewcommand{\contentsname}{\sffamily Contents}\tableofcontents}
+
+% ================================================================= activities
+% the 16 classes, in course order (the number is the one in the site navigation)
+\input{activities/intro}
+\input{activities/estimation}
+\input{activities/distributed}
+\input{activities/edge}
+\input{activities/compute}
+\input{activities/databases}
+\input{activities/caching}
+\input{activities/messaging}
+\input{activities/reliability}
+\input{activities/observability}
+\input{activities/network-security}
+\input{activities/cloud-native}
+\input{activities/ai-systems}
+\input{activities/ai-delivery}
+\input{activities/performance}
+\input{activities/case-studies}
+
+% ================================================================= answers
+\clearpage
+\gdef\currentactivity{Worked answers}
+\phantomsection\addcontentsline{toc}{section}{Worked answers}
+\section*{\sffamily Worked answers}
+
+{\small Every number was checked in Python (\texttt{verify/}). When the answer is open, the comment says what a good answer must contain. \textbf{How to read:} \final{in green and bold}, the answer; \wrongtag{$\times$ Careful}, in red, the most common mistake.}
+
+\begin{multicols}{2}
+\small\raggedright
+\setlength{\parskip}{.25em}
+
+\input{answers/intro}
+\input{answers/estimation}
+\input{answers/distributed}
+\input{answers/edge}
+\input{answers/compute}
+\input{answers/databases}
+\input{answers/caching}
+\input{answers/messaging}
+\input{answers/reliability}
+\input{answers/observability}
+\input{answers/network-security}
+\input{answers/cloud-native}
+\input{answers/ai-systems}
+\input{answers/ai-delivery}
+\input{answers/performance}
+\input{answers/case-studies}
+
+\end{multicols}
+
+\end{document}

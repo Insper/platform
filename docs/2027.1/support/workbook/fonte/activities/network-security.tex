@@ -1,0 +1,88 @@
+\activity{11}{Network \& Security}{network-security}{BoxOffice goes to production in the cloud and, within a month, four stories land on the team's desk: a stolen laptop with the payment provider's API key in a \texttt{.env} file; a proposal to keep the user's password in the mobile app; bots that grab 30\% of the seat holds in the first minute of an on-sale; and a vulnerable library that lets an attacker run code in one \texttt{search} pod, from where every service, the database and the Internet are one connection away. Where do you draw the network boundaries, the identities and the secret lifecycles so that each story stays small?}
+\stages{\stDesign\ \stDeep}
+
+\begin{know}
+  \item \textbf{Threat modeling}: draw a data-flow diagram (DFD), ask what can go wrong with \textbf{STRIDE} at each trust boundary, rate likelihood $\times$ impact, decide (mitigate, accept, transfer, eliminate). Processes face all six threats; data stores and data flows face T, I and D; external entities face S and R.
+  \item STRIDE and the property each violates: \textbf{S}poofing (authentication), \textbf{T}ampering (integrity), \textbf{R}epudiation (non-repudiation), \textbf{I}nformation disclosure (confidentiality), \textbf{D}enial of service (availability), \textbf{E}levation of privilege (authorization).
+  \item \textbf{CIDR}: a block \texttt{/p} holds $2^{32-p}$ addresses; AWS reserves 5 per subnet. A subnet is \textbf{public} if its route table sends \texttt{0.0.0.0/0} to the Internet gateway, \textbf{private} if it sends it to a NAT gateway (outbound only), \textbf{isolated} if it has no default route.
+  \item \textbf{Security groups} are stateful, allow-only and attached to network interfaces (they can reference other groups); \textbf{NACLs} are stateless and attached to subnets. Neither is a workload identity; in Kubernetes, a default-deny \textbf{NetworkPolicy} closes pod-to-pod traffic.
+  \item A NAT gateway lives in one availability zone (AZ): use one per AZ for critical egress, and VPC endpoints for traffic to the cloud's own services.
+  \item \textbf{Service mesh}: mTLS with SPIFFE identities \emph{authenticates} callers; an AuthorizationPolicy \emph{authorizes} them. Timeouts and retries move to the proxy; retries in two layers multiply.
+  \item \textbf{Identity}: authentication failure is 401, authorization failure 403 (or 404). A JWT is \texttt{header.payload.signature}, Base64URL-encoded, not encrypted. OAuth 2.1 requires Authorization Code with PKCE (Proof Key for Code Exchange) and drops the password grant. With local validation, a revoked user keeps access for up to one access-token lifetime.
+  \item \textbf{Zero Trust}: never trust, always verify; short-lived workload identities instead of static keys; secrets in a secrets manager with dual-key rotation; supply chain: SBOM (software bill of materials), scan, sign, verify at admission.
+\end{know}
+
+\begin{ex}{1}{STRIDE at BoxOffice}
+\items
+  \item Classify each threat with its STRIDE letter and the property it violates: (1) a forged ``payment captured'' webhook; (2) the price changed in the request body; (3) ``I never bought these tickets'' and nobody can prove otherwise; (4) \texttt{GET /orders/1042} returns another user's order; (5) bots open 100\,000 seat holds and nobody else can buy; (6) a normal user calls \texttt{POST /admin/events}.
+  \item Give one control for (1), (4) and (5).
+  \item ``Bots hoard seat holds at 10:00'' is rated high likelihood $\times$ high impact. What is the decision, and which four controls does it combine?
+  \item Which STRIDE categories apply to the inventory database (a data store) in the DFD?
+\end{enumerate}
+\lines{5}
+\end{ex}
+
+\simulator{Rate limiting protects the backend}{rate-limiter}{Real fans plus scraper bots melt the catalog. Set a rate limit on the API Gateway below the app capacity (or add a WAF in front) and watch the bots being cut first while real users keep a low p99.}
+
+\begin{ex}{1}{Counting addresses}
+\items
+  \item Total and usable addresses on AWS for \texttt{/16}, \texttt{/19}, \texttt{/22}, \texttt{/24} and \texttt{/28}.
+  \item The BoxOffice VPC is \texttt{10.20.0.0/16} in 3 AZs. Each AZ gets a public \texttt{/24} (load balancer, NAT), a private app \texttt{/19} (Kubernetes nodes and pods) and an isolated data \texttt{/22} (PostgreSQL, Redis, Kafka). How many addresses are allocated, and what share of the \texttt{/16} is still free?
+  \item With the AWS VPC CNI every pod takes one VPC address. Why would a \texttt{/24} app subnet ``run out at the first autoscaling event''?
+\end{enumerate}
+\lines{4}
+\end{ex}
+
+\begin{ex}{2}{Draw the BoxOffice network}
+Draw the VPC \texttt{10.20.0.0/16} with two of its three AZs: the three tiers per AZ, the Internet gateway, one NAT gateway per AZ, the load balancer, the app pods, PostgreSQL and the call from \texttt{payment} to the external provider.
+\items
+  \item Write the default route of each tier's route table.
+  \item Write the security-group chain from the Internet to the database (ports and sources).
+  \item Trace the outbound call of the \texttt{payment} pod to the provider: which subnet, which gateway, which source IP does the provider see?
+\end{enumerate}
+\palette{\comp{client}{Client}\ \comp{edge}{Load Balancer}\ \comp{compute}{App Server}\ \comp{storage}{SQL Database}\ \comp{network}{VPC}\ \comp{network}{Subnet}\ \comp{network}{NAT Gateway}\ \comp{external}{Payment}}
+\frameblank{6cm}
+\lines{4}
+\end{ex}
+
+\begin{ex}{2}{One NAT, three NATs, no NAT}
+Prices (illustrative): NAT gateway US\$ 0.045 per hour plus US\$ 0.045 per GB processed; a month has 730 h (30 days for traffic).
+\items
+  \item To save money there is a single NAT gateway, in AZ \texttt{a}. AZ \texttt{a} fails. What happens to checkout in AZs \texttt{b} and \texttt{c}?
+  \item What do one NAT and three NATs cost per month in hours alone? What else changes with three, for the payment provider?
+  \item Each of 30 nodes pulls about 2 GB of images per day and 50 GB/day of logs go to object storage, all through the NAT. How much does that traffic cost per month in data processing, and what removes it?
+\end{enumerate}
+\lines{5}
+\end{ex}
+
+\begin{ex}{2}{Tokens, logins and the stolen phone}
+\items
+  \item The mobile team proposes a login screen that sends e-mail and password and keeps the password in the phone. Which OAuth 2.1 flow replaces it, and what does PKCE protect against?
+  \item A decoded access token has \texttt{iat} $= 1\,792\,310\,400$ and \texttt{exp} $= 1\,792\,311\,300$ (seconds). What is its lifetime? Is the payload secret?
+  \item A user's phone is stolen at 14:00; at 14:05 they log out on the web and the refresh token is revoked. The gateway validates access tokens locally; the last one was issued at 13:58. Until when can the thief call the API? Name two ways to close that window.
+  \item Fan A calls \texttt{GET /orders/1042}, which belongs to fan B, with a valid token. What should the API answer, and why can't the gateway check it?
+\end{enumerate}
+\lines{6}
+\end{ex}
+
+\begin{ex}{2}{A mesh between the services}
+\items
+  \item STRICT mTLS is on in the \texttt{boxoffice} namespace, and no AuthorizationPolicy exists. Can the compromised \texttt{search} pod call \texttt{POST /charges} on \texttt{payment}? Write, in words, the policy that allows only what is needed.
+  \item The mesh route to \texttt{payment} has a total timeout of 3 s and 2 retries with 1 s per try, and \texttt{order} also uses a client library with 3 attempts. How many calls can one click send to a struggling \texttt{payment}? What do you change?
+  \item Sidecars cost about 50 MB per pod. Nine services at 6 replicas: total? During the flash sale \texttt{order} and \texttt{inventory} go to 40 replicas each: new total? Which data plane reduces it?
+\end{enumerate}
+\lines{6}
+\end{ex}
+
+\simulator{Timeouts in the right place}{cascading-failure}{A slow third party without timeouts exhausts the caller's threads. Turn on the timeout and then the circuit breaker, and compare the error rate and p99 of the other routes.}
+
+\begin{ex}{3}{Contain the compromised pod and the leaked key}
+The attacker in the \texttt{search} pod (1) sends requests with the header \texttt{X-Account-Id: acc-42} to \texttt{order}; (2) reads \texttt{DATABASE\_URL} with a password shared by every service and \texttt{PSP\_API\_KEY} from a ConfigMap; (3) connects to PostgreSQL; (4) sends the data to \texttt{https://attacker.example}.
+\items
+  \item For each step, name the control that stops it and the layer where it lives.
+  \item The payment key also leaked on the stolen laptop. Write the first two steps of the runbook.
+  \item The provider allows two active keys; the External Secrets Operator refreshes the Kubernetes secret every hour. Write the rotation plan, with when it is safe to revoke the old key.
+  \item In one sentence each: why is a Kubernetes Secret not a secrets manager, and what replaces the shared database password?
+\end{enumerate}
+\lines{9}
+\end{ex}

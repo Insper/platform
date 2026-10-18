@@ -1,0 +1,107 @@
+\activity{2}{Estimation \& Performance Math}{estimation}{``One PostgreSQL can't take the stadium on-sale, we need a distributed database.'' --- ``Of course it can, Postgres is fast.'' Both engineers are guessing. How many requests per second does the on-sale generate, how long does one seat hold keep the database busy, how full can the database run before latency explodes, and what does one slow call behind a page do to the fans? Settle it in five minutes on a whiteboard.}
+\stages{\stEstimate\ \stDeep}
+
+\begin{know}
+  \item \textbf{Estimate to pick a side of a threshold}, in five steps: name the decision, state the assumptions, compute with powers of ten (1 day $= 86\,400$ s $\approx 10^5$ s, so 1 M/day $\approx$ 12/s), sanity-check, conclude. Being within 2--3$\times$ is enough.
+  \item $\text{QPS}_\text{avg} = \text{DAU} \times \text{actions per day} / 86\,400$; size for the \textbf{peak} ($2$--$3\times$ for consumer products; a flash sale is a separate, much bigger spike). Storage $=$ items $\times$ size $\times$ retention $\times$ replication. Bandwidth $=$ req/s $\times$ bytes; 1 byte $=$ 8 bits.
+  \item \textbf{Latency numbers}: RAM $\approx$ 100 ns; NVMe read $\approx$ 20--100 µs; round trip in a zone $\approx$ 0.1--0.5 ms; Redis GET or primary-key SQL $\approx$ 0.2--1 ms; São Paulo--Virginia $\approx$ 110--130 ms. Round trips add up when calls are sequential.
+  \item \textbf{Little's Law}: $L = \lambda W$ ($L$ requests in the system, $\lambda$ arrival rate, $W$ time in the system). It sizes thread pools, connection pools and queues.
+  \item \textbf{Utilization}: $\rho = \lambda S / c$ ($S$ service time, $c$ parallel slots); capacity $X_{\max} = c/S$. The most utilized resource is the bottleneck.
+  \item \textbf{The knee}: for one server (M/M/1) the mean response time is $R = S/(1-\rho)$ and $\text{p99} \approx 4.6\,R$. Latency-sensitive components run at 50--70\% at peak, which also leaves room to lose a node.
+  \item \textbf{Percentiles} come from histograms and are never averaged. With fan-out to $N$ calls, each slow with probability $q$: $P(\text{slow}) = 1 - (1-q)^N$.
+  \item \textbf{Availability}: $A = \text{MTTF}/(\text{MTTF} + \text{MTTR})$; in series $A = \prod a_i$; $n$ replicas in parallel $1 - (1-a)^n$ (if failures are independent). Always quote downtime with a window: 99.9\% is 43.8 min per average month.
+\end{know}
+
+\begin{ex}{1}{Powers of ten}
+Answer in one line each, rounding to one significant digit.
+\items
+  \item 1 million requests per day, 100 million per day and 1 billion per day: how many per second, on average?
+  \item BoxOffice has 2 M daily active fans who view about 20 pages each. How many page reads per second on average? And at a peak of 3$\times$?
+  \item A server has a 10 Gbit/s network card. How many gigabytes per second can it send, at most?
+  \item 1\,200 page views per second, each loading a 1 MB poster: how many Gbit/s leave the origin? With a CDN that hits 95\%?
+\end{enumerate}
+\lines{4}
+\end{ex}
+
+\begin{ex}{1}{Three ways to draw a seat map}
+The seat map of the stadium shows the state of 60\,000 seats. Use a same-zone round trip of 0.5 ms and a 10 Gbit/s network.
+\items
+  \item Version (a) runs one query per seat. How long does the page take, counting only the round trips?
+  \item Version (b) runs one query that returns 60\,000 rows of about 50 B. How many megabytes travel, and how long does that take on the network? Give the order of magnitude of the whole request (one round trip $+$ 10--30 ms of database work $+$ transfer).
+  \item Version (c) reads one compressed blob of 300 KB from Redis, refreshed every second. Order of magnitude?
+  \item A colleague's endpoint makes 50 sequential Redis calls of 0.2--0.5 ms each. How much time is spent in round trips, and what is the fix?
+\end{enumerate}
+\lines{4}
+\end{ex}
+
+\begin{ex}{2}{Little's Law sizes the pools}
+The \texttt{inventory} service receives $\lambda = 1\,000$ holds/s. A hold spends $W = 40$ ms in the service, of which 10 ms hold a database connection. On the database, a hold uses $S = 5$ ms of one of $c = 8$ parallel slots.
+\items
+  \item How many holds are in flight in the service at any moment? With 4 replicas, how many threads per replica, at least?
+  \item How many database connections are busy on average? A colleague wants a pool of 200 connections ``to be safe''. What do you answer?
+  \item What is the utilization $\rho$ of the database, and its capacity $X_{\max}$ in holds/s?
+  \item The payment provider slows from 300 ms to 3 s while \texttt{order} receives 100 orders/s and has 200 threads. How many calls are in flight before and after? What happens to \texttt{order}?
+\end{enumerate}
+\lines{6}
+\end{ex}
+
+\begin{ex}{2}{Where is the knee?}
+Model the inventory database as one M/M/1 server with $S = 5$ ms.
+\begin{center}\small
+\begin{tabular}{@{}lcccc@{}}
+  \toprule
+  utilization $\rho$ & 50\% & 70\% & 90\% & 95\% \\
+  \midrule
+  mean $R = S/(1-\rho)$ & \blank\hspace{1.4cm} & \hspace{1.4cm} & \hspace{1.4cm} & \hspace{1.4cm} \\
+  p99 $\approx 4.6\,R$ & \blank & & & \\
+  \bottomrule
+\end{tabular}
+\end{center}
+\items
+  \item Fill in the table.
+  \item Last on-sale the database ran at 70\% with a hold p99 of about 75 ms. This time it ran at 92\%, ``only 22 points more'', and the p99 reached almost 300 ms. By what factor does $1/(1-\rho)$ grow from 70\% to 92\%? What does the model give for the p99 at 92\%? What happens next, with a 300 ms hold target, to timeouts and retries?
+  \item Four replicas share the load at 60\% each and one dies. At what utilization do the other three run? And if they had been at 80\%?
+\end{enumerate}
+\lines{5}
+\end{ex}
+
+\simulator{Find the breaking point}{monolith}{Run the breakpoint profile and note the rate where p99 starts to rise sharply (the knee) and the rate where errors appear. Compute the database capacity by hand ($c/S$): is the knee near 70--80\% of it?}
+
+\begin{ex}{2}{The tail you multiply}
+A backend call is slower than its p99 with probability $q = 1\%$.
+\items
+  \item A page fans out to $N$ calls in parallel and is slow if any call is slow. Compute $P(\text{slow})$ for $N = 5$, 20 and 100.
+  \item BoxOffice search queries 20 shards, each with p50 15 ms and p99 120 ms. What fraction of searches take at least 120 ms? And with 10 shards?
+  \item Two pods report p99 = 100 ms and p99 = 1\,000 ms. A dashboard shows the fleet p99 as 550 ms. What is wrong, and how should it be computed?
+  \item Name one technique that cuts the tail of a fan-out, and one request where it must not be used.
+\end{enumerate}
+\lines{6}
+\end{ex}
+
+\simulator{Which percentile moves first?}{scale-out}{Run the load profile and note p50 and p99. Then set chaos to low so that one replica is occasionally slow: compare how much p99 moves with how much p50 moves.}
+
+\begin{ex}{2}{The checkout chain}
+BoxOffice promises 99.95\% for checkout. The chain is: edge and gateway 99.99\%; \texttt{auth}, \texttt{order}, \texttt{inventory} and the inventory database 99.95\% each; payment provider 99.9\%; e-mail provider, called synchronously, 99.5\%.
+\items
+  \item Compute the availability of the chain and its downtime in 30 days.
+  \item Make the e-mail asynchronous (it leaves the chain). New availability?
+  \item Add a second payment provider in parallel (independent failures). New availability?
+  \item What else must change to reach 99.95\%? State the ``rule of the extra nine''.
+  \item The \texttt{inventory} service crashes once every 30 days (MTTF $= 720$ h) and takes 2 h to repair. Compare halving the failures with replacing the instance automatically in 2 minutes.
+\end{enumerate}
+\lines{7}
+\end{ex}
+
+\begin{ex}{3}{Can one PostgreSQL take the on-sale?}
+Settle the argument of the class question. Assumptions: 2 M fans arrive in the first 60 s and click ``Hold'' once; 60\,000 seats, 2 seats per successful fan; one hold takes $S = 5$ ms of one of $c = 8$ database slots; the database must stay at or below 70\%.
+\items
+  \item Demand: hold attempts per second.
+  \item Capacity: holds/s at 100\% and at 70\%. By what factor does demand exceed capacity?
+  \item Design: a waiting room admits 1\,000 fans/s. How long until all seats are held? How long would the last of the 2 M fans wait in line to be admitted?
+  \item Storage, 5 years: 100\,000 orders/day of 1 KB with 3 replicas; 200\,000 ticket PDFs/day of 100 KB. Does the transactional data force sharding? What would you do with the PDFs?
+  \item Write the conclusion in two sentences, the way you would say it in an interview.
+\end{enumerate}
+\lines{8}
+\end{ex}
+
+\simulator{The flash sale}{flash-sale}{Follow the hints: CDN, catalog cache, then an API Gateway routing purchases to a waiting-room queue drained by order workers. Watch errors and p99 at t = 60 s, when traffic jumps 20$\times$.}

@@ -1,0 +1,92 @@
+\activity{12}{Cloud-Native Platforms}{cloud-native}{BoxOffice runs on a laptop: nine services, PostgreSQL, Redis and Kafka, started with one \texttt{docker compose up}. On a normal Tuesday the platform serves a few hundred requests per second; on the morning of a stadium on-sale it must absorb twenty times that for thirty minutes and shrink back afterwards, so nobody pays for idle machines. The team wants to ship a fix to \texttt{inventory} without taking the site down at 10:00, and to know the monthly bill before the invoice arrives. Which platform, packaging, scaling and delivery make that possible?}
+\stages{\stEstimate\ \stDesign\ \stDeep}
+
+\begin{know}
+  \item \textbf{Cloud-native} $=$ immutable artifacts $+$ declarative desired state $+$ elasticity $+$ automation. The app must cooperate: stateless processes (twelve-factor VI), fast start and graceful shutdown (IX), config in the environment (III).
+  \item \textbf{Service models} trade control for effort: IaaS $\to$ CaaS (containers) $\to$ PaaS $\to$ FaaS (functions) $\to$ SaaS. Data, identities and access rules always stay yours.
+  \item A \textbf{container} is a process with namespaces (its view) and cgroups (its limits) on a shared kernel. An OCI image is layers addressed by SHA-256 \textbf{digests}: tags move, digests do not.
+  \item \textbf{Kubernetes} reconciles desired with actual state. \textbf{Requests} are what the scheduler reserves and the base of the autoscaler's percentage; above the memory \textbf{limit} the container is OOMKilled, above a CPU limit it is throttled.
+  \item \textbf{Probes}: startup (has it started?), readiness (should it get traffic?), liveness (is it stuck? restart). Keep liveness local; never put a shared database in them.
+  \item \textbf{HPA} (Horizontal Pod Autoscaler), every 15 s: $\text{desired} = \lceil \text{current} \times \text{current metric} / \text{target metric} \rceil$. Nodes take minutes, a JVM 20--40 s: \textbf{pre-scale} for known peaks.
+  \item \textbf{Delivery}: build the image once, promote it by digest; GitOps (Argo CD pulls the desired state from Git); a \textbf{canary} gated by error rate and p99 against the stable version; expand/contract schema changes. The canary must see enough requests to detect a regression.
+  \item \textbf{FinOps}: cost $=$ capacity $\times$ time. Commitments for the floor, on-demand for the daily wave, spot for interruptible work. Data services, egress and logs often outweigh compute; track the unit cost (per ticket sold).
+\end{know}
+
+\begin{ex}{1}{Stateless, small and pinned}
+\items
+  \item The first \texttt{inventory} kept seat holds in an in-memory map. With 3 replicas behind a load balancer, a hold of seat A-12 on replica 1 looked free on replica 2. Which factor was broken, and where must the hold live?
+  \item The JVM of \texttt{inventory} sized its heap from the 64 GB host and was OOMKilled in a 1 GiB container. With \texttt{-XX:MaxRAMPercentage=75}, what is the maximum heap?
+  \item During the flash sale the autoscaler adds 20 pods, each on a node that does not have the image yet. How many GB are pulled with the naive 800 MB image and with the 250 MB multi-stage, distroless one?
+  \item Why does production reference \texttt{catalog@sha256:\dots} instead of \texttt{catalog:latest}?
+\end{enumerate}
+\lines{5}
+\end{ex}
+
+\begin{ex}{1}{Read the Deployment}
+The \texttt{catalog} Deployment: 4 replicas; rolling update with \texttt{maxSurge} 25\% and \texttt{maxUnavailable} 0; requests CPU 500m and memory 768Mi, memory limit 768Mi, no CPU limit; startup probe every 5 s with failure threshold 12; readiness every 5 s, threshold 3; liveness every 10 s, threshold 3.
+\items
+  \item How long may the JVM take to start? After how long without answering is a pod removed from the Service, and after how long is it restarted?
+  \item During a rollout, how many pods can exist at most, and how many must stay ready?
+  \item A colleague wants readiness to check PostgreSQL ``to be safe''. What happens during a 20-second database failover?
+  \item Why no CPU limit? (Hint: 20 threads with a 1-CPU limit and a 100 ms accounting period.)
+\end{enumerate}
+\lines{5}
+\end{ex}
+
+\begin{ex}{2}{The autoscaler and the on-sale}
+The HPA of \texttt{catalog} has min 4, max 40 replicas, a CPU target of 60\% (of the request) and may double the replicas every 15 s.
+\items
+  \item 4 pods at 90\% CPU: how many does the HPA want? And 5 pods at 96\%?
+  \item Starting from 4, how many 15-second steps until 40 replicas, if the metric keeps asking for more? Add a JVM warm-up of 20--40 s and new nodes that take minutes.
+  \item On-sale traffic goes from 5\% to 100\% of the peak in seconds at 10:00. Write a scaling plan that does not rely on reacting.
+  \item A normal Tuesday peaks at about 300 req/s and the on-sale is $20\times$ that. One replica serves about 150 req/s at the 60\% target. How many replicas does the on-sale need? Is the HPA maximum of 40 enough?
+\end{enumerate}
+\lines{6}
+\end{ex}
+
+\simulator{Scale out for the spike}{scale-out}{Run the spike profile with 2 replicas, then with 6: compare p99 and errors. If autoscaling is on, watch the lag between the start of the spike and the moment new replicas are healthy.}
+
+\begin{ex}{2}{How long must a canary run?}
+\texttt{inventory} serves 400 req/s. The rollout sends 5\%, then 25\%, then 50\% of the traffic to the new version, with 10-minute pauses; the analysis aborts if the error rate is above 0.5\% or the p99 above 300 ms in 2 one-minute checks. To detect a rise of the error rate from a baseline of 0.1\% (one-sided 5\% test, 80\% power), the canary needs about 835 requests to catch 1\%, 2\,312 to catch 0.5\% and 18\,527 to catch 0.2\%.
+\items
+  \item How many requests per second does the canary see at 5\% and at 25\%? How long does each detection take at each weight?
+  \item A 30-second canary at 5\% ``found nothing''. How many requests did it see, and what can it conclude?
+  \item The rule is a change freeze on the purchase path from 30 minutes before an on-sale; an urgent fix may go through an expedited canary (5\% $\to$ 100\% with a 5-minute analysis) at 09:42, or wait. The team wants to ship at 09:55: what does the rule say? Which of the three regressions can a 5-minute analysis at 5\% detect?
+  \item The fix adds a column. Write the four steps of an expand/contract migration and say why the database cannot ``roll back'' like the pods.
+\end{enumerate}
+\lines{7}
+\end{ex}
+
+\begin{ex}{2}{Draw the platform}
+Draw BoxOffice in production: the runtime path of a request and the delivery path of a fix (CI builds, signs and pushes an image; a commit changes the digest in the environment repository; Argo CD syncs the cluster; the canary goes live).
+\items
+  \item Mark each runtime component with its service model (CaaS, DBaaS, FaaS, SaaS).
+  \item Where is the image digest pinned? What does Argo CD's self-heal do if someone edits a Deployment with \texttt{kubectl} at 09:58?
+\end{enumerate}
+\palette{\comp{edge}{DNS}\ \comp{edge}{CDN}\ \comp{edge}{Ingress}\ \comp{compute}{App Server}\ \comp{compute}{Serverless}\ \comp{storage}{SQL Database}\ \comp{storage}{Cache}\ \comp{messaging}{Kafka}\ \comp{storage}{Object Store}\ \comp{external}{Payment}}
+\frameblank{6cm}
+\lines{3}
+\end{ex}
+
+\begin{ex}{2}{The bill before the invoice}
+Prices (illustrative, USD, 730 h per month): Kubernetes control plane 0.10/h; node 0.192/h; PostgreSQL instance 0.225/h and storage 0.115 per GB-month per copy; NAT gateway 0.045/h $+$ 0.045/GB; CDN egress 0.085/GB; log ingestion 0.50/GB.
+\items
+  \item Compute: the control plane; 6 steady nodes; PostgreSQL Multi-AZ (2 instances, 2 copies of 200 GB); 3 NAT gateways processing 2 TB; 20 TB of CDN egress; 1 TB of logs.
+  \item Each of 4 on-sales per month needs 24 extra nodes for 2 hours. What do they cost? And keeping 30 nodes running all month?
+  \item The whole steady bill is about US\$ 4\,999 and the on-sale extras about US\$ 43. Which line of (a) is the largest, and what is the cost per ticket at 400\,000 tickets a month?
+\end{enumerate}
+\lines{7}
+\end{ex}
+
+\begin{ex}{3}{Functions or containers?}
+A function costs US\$ 0.20 per million calls, US\$ 0.0000166667 per GB-second and US\$ 1.00 per million calls of the HTTP front door. A container task (0.5 vCPU, 1 GB) costs US\$ 18.02 per month and serves 50 req/s; there are at least 2 tasks behind a load balancer of US\$ 22.27 per month. A month has 2\,628\,000 s.
+\items
+  \item Cost of one request of 100 ms at 512 MB as a function. Monthly floor of the containers.
+  \item Above which \emph{average} rate are the containers cheaper? What changes at 120 req/s?
+  \item The thumbnail generator runs 2 M times a month for 0.5 s at 1 GB. Monthly cost as a function?
+  \item Decide, with one reason each: the thumbnails, the payment webhook receiver and the purchase path at 10:00. Name two reasons against functions on the purchase path.
+\end{enumerate}
+\lines{8}
+\end{ex}
+
+\simulator{Serverless burst}{serverless-burst}{The spike profile jumps from 200 to 2\,000 req/s on a function with a concurrency limit of 50 and 600 ms cold starts. Raise the limit, then add provisioned instances, and compare p99, throttling and cost.}
