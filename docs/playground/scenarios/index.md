@@ -1,6 +1,6 @@
 # Scenario guide
 
-Every scenario of the [System Design Playground](../index.md) is a small lab: a BoxOffice situation, an initial design that **fails** its goals for a reason, and one possible fix. Each section below says what the scenario teaches, what to try, what to watch, the goals, and questions to discuss in class. The embedded simulators are compact (run controls, metrics and parameters); use **Open in the playground** (↗) to edit the structure.
+Every scenario of the [System Design Playground](../index.md) is a small lab: a realistic situation, an initial design that **fails** its goals for a reason, and one possible fix. Each section below says what the scenario teaches, what to try, what to watch, the goals, and questions to discuss in class. The embedded simulators are compact (run controls, metrics and parameters); use **Open in the playground** (↗) to edit the structure.
 
 ## How to work on a scenario
 
@@ -31,8 +31,8 @@ Every scenario of the [System Design Playground](../index.md) is a small lab: a 
 | [Rate limiting protects the backend](#rate-limiter) | Rejecting excess traffic fast (429) protects the backend and the real users; letting it queue degrades everyone |
 | [Surviving a region outage](#multi-region) | Surviving a region needs a full second stack and a way to move users |
 | [Serverless burst: cold starts and limits](#serverless-burst) | Functions scale per request |
-| [BoxOffice flash sale at 10:00](#flash-sale) | A flash sale is designed for the peak |
-| [URL shortener (box.office/xyz)](#url-shortener) | A read-heavy key lookup |
+| [Flash sale: a limited-stock launch](#flash-sale) | A flash sale is designed for the peak |
+| [URL shortener (sho.rt/xyz)](#url-shortener) | A read-heavy key lookup |
 | [News feed: fan-out on write vs on read](#news-feed) | Fan-out on write moves work from the read path (frequent) to the write path (rare) |
 | [Chat for a live event](#chat) | Chat separates storing messages (partitioned, append-heavy) from delivering them (pub/sub to the connected servers) |
 | [Ride-sharing: a write-heavy geo index](#ride-sharing) | Location updates are a write-heavy stream |
@@ -48,7 +48,7 @@ Every scenario of the [System Design Playground](../index.md) is a small lab: a 
 
 ## Monolith: find the breaking point { #monolith }
 
-BoxOffice v1: one app server and one PostgreSQL. The breakpoint profile ramps the load until errors pass 5% or p99 explodes. Where does it break, and which component breaks first? Make it survive 2 000 req/s without spending more than 2 000 USD/month.
+Version 1 of the app: one app server and one PostgreSQL. The breakpoint profile ramps the load until errors pass 5% or p99 explodes. Where does it break, and which component breaks first? Make it survive 2 000 req/s without spending more than 2 000 USD/month.
 
 - **Lesson:** Every system has a breaking point, and the first component to saturate decides it. Scaling one tier moves the bottleneck to the next one.
 - **Setup:** `monolith` · profile `breakpoint` · target 600 req/s · 90% reads · seed 7 · chaos `off`
@@ -86,7 +86,7 @@ The catalog gets 1 500 req/s. Two replicas are not enough, and at t = 80 s one r
 
 ## Read-heavy catalog: add a cache { #read-heavy-cache }
 
-Fans browse events: 3 000 req/s, 95% reads. The app tier is fine; the database is not. At t = 100 s the cache (once you have one) is flushed: will the database survive the stampede of misses?
+Users browse the catalog: 3 000 req/s, 95% reads. The app tier is fine; the database is not. At t = 100 s the cache (once you have one) is flushed: will the database survive the stampede of misses?
 
 - **Lesson:** A cache in front of the database cuts its read load to reads × (1 − hit ratio); a cold cache sends everything back to the database at once (stampede).
 - **Setup:** `read-heavy-cache` · profile `load` · target 3,000 req/s · 95% reads · seed 3 · chaos `off` · scripted events: t = 100 s — cache flushed (deploy / restart)
@@ -105,7 +105,7 @@ Fans browse events: 3 000 req/s, 95% reads. The app tier is fine; the database i
 
 ## Offload static content to a CDN { #cdn-static }
 
-Event pages are full of posters, images and scripts: 3 000 req/s, 98% reads, served by the app from object storage. Users far from the region wait, and the app is saturated. Serve them from the edge.
+Product pages are full of images, styles and scripts: 3 000 req/s, 98% reads, served by the app from object storage. Users far from the region wait, and the app is saturated. Serve them from the edge.
 
 - **Lesson:** Static and cacheable content belongs at the edge: the origin only sees misses and writes, and users get a nearby answer.
 - **Setup:** `cdn-static` · profile `load` · target 3,000 req/s · 98% reads · seed 5 · chaos `off`
@@ -120,7 +120,7 @@ Event pages are full of posters, images and scripts: 3 000 req/s, 98% reads, ser
 
     1. What decides the hit ratio of a CDN (TTL, cache key, content)?
     2. Why is egress (USD/GB) often the largest line of a media site?
-    3. How would you invalidate a poster that changed?
+    3. How would you invalidate an image that changed?
 
 ## Read replicas and replication lag { #db-replicas }
 
@@ -143,7 +143,7 @@ Event pages are full of posters, images and scripts: 3 000 req/s, 98% reads, ser
 
 ## Partitions and the hot key { #sharding }
 
-Ticket lookups and updates (50% writes) at 8 000 req/s on a key-value store with 2 partitions. At t = 60 s a celebrity posts a link to one show: one key gets a huge share of the traffic for a minute. More partitions fix the average — do they fix the hot key?
+Stock lookups and updates (50% writes) at 8 000 req/s on a key-value store with 2 partitions. At t = 60 s a celebrity posts a link to one product: one key gets a huge share of the traffic for a minute. More partitions fix the average — do they fix the hot key?
 
 - **Lesson:** Partitioning scales with the number of partitions only while keys are spread evenly; a hot key concentrates the load on one partition.
 - **Setup:** `sharding` · profile `load` · target 8,000 req/s · 50% reads · seed 17 · chaos `off` · scripted events: t = 60 s — celebrity effect: one hot key
@@ -162,7 +162,7 @@ Ticket lookups and updates (50% writes) at 8 000 req/s on a key-value store with
 
 ## A queue absorbs the spike { #async-queue }
 
-Each order generates a ticket PDF (50 ms of work). Today the order service waits for it. The spike profile multiplies the load by 5 for 30 s: the workers cannot keep up and orders fail. Let the user go and do the work later.
+Each order generates a PDF receipt (50 ms of work). Today the order service waits for it. The spike profile multiplies the load by 5 for 30 s: the workers cannot keep up and orders fail. Let the user go and do the work later.
 
 - **Lesson:** A queue decouples the user from slow work: the producer waits only for the broker; the backlog absorbs the spike and drains afterwards.
 - **Setup:** `async-queue` · profile `spike` · target 150 req/s · 0% reads · seed 19 · chaos `off`
@@ -181,7 +181,7 @@ Each order generates a ticket PDF (50 ms of work). Today the order service waits
 
 ## Publish an event, let consumers react { #event-fanout }
 
-When an order is placed, BoxOffice notifies the buyer, updates analytics and re-indexes availability — today with three synchronous calls in a row. At t = 60 s analytics becomes 20× slower and orders slow down with it. Decouple the order service from its consumers.
+When an order is placed, the app notifies the buyer, updates analytics and re-indexes availability — today with three synchronous calls in a row. At t = 60 s analytics becomes 20× slower and orders slow down with it. Decouple the order service from its consumers.
 
 - **Lesson:** With an event log each consumer group reads at its own pace: a slow consumer lags behind without slowing the producer or the others.
 - **Setup:** `event-fanout` · profile `load` · target 400 req/s · 0% reads · seed 23 · chaos `off` · scripted events: t = 60 s — analytics is 20× slower
@@ -238,7 +238,7 @@ The inventory service retries every failed query 3 times, immediately, with a 10
 
 ## Rate limiting protects the backend { #rate-limiter }
 
-1 000 req/s of real fans — plus scraper bots sending twice that. The catalog melts down for everybody. Reject the excess fast at the gateway (429) instead of letting it queue behind the real users.
+1 000 req/s of real users — plus scraper bots sending twice that. The catalog melts down for everybody. Reject the excess fast at the gateway (429) instead of letting it queue behind the real users.
 
 - **Lesson:** Rejecting excess traffic fast (429) protects the backend and the real users; letting it queue degrades everyone.
 - **Setup:** `rate-limiter` · profile `load` · target 1,000 req/s · 90% reads · seed 37 · chaos `off`
@@ -257,7 +257,7 @@ The inventory service retries every failed query 3 times, immediately, with a 10
 
 ## Surviving a region outage { #multi-region }
 
-BoxOffice runs in one cloud region. At t = 60 s the whole region goes down. Build a second region and let DNS move users there. Failover time = detection + DNS TTL: check both.
+The app runs in one cloud region. At t = 60 s the whole region goes down. Build a second region and let DNS move users there. Failover time = detection + DNS TTL: check both.
 
 - **Lesson:** Surviving a region needs a full second stack and a way to move users: DNS failover takes detection plus TTL.
 - **Setup:** `multi-region` · profile `load` · target 1,000 req/s · 90% reads · seed 41 · chaos `off` · scripted events: t = 60 s — region sa-east-1 is down
@@ -276,7 +276,7 @@ BoxOffice runs in one cloud region. At t = 60 s the whole region goes down. Buil
 
 ## Serverless burst: cold starts and limits { #serverless-burst }
 
-A presale code check runs as a function. The spike profile jumps from 200 to 2 000 req/s. New instances start cold (600 ms) and the account has a concurrency limit of 50. Instances needed = λ × W (Little's Law).
+A discount-coupon check runs as a function. The spike profile jumps from 200 to 2 000 req/s. New instances start cold (600 ms) and the account has a concurrency limit of 50. Instances needed = λ × W (Little's Law).
 
 - **Lesson:** Functions scale per request: instances = λ × W, cold starts hit exactly when traffic jumps, and the concurrency limit throttles the rest.
 - **Setup:** `serverless-burst` · profile `spike` · target 200 req/s · 90% reads · seed 43 · chaos `off`
@@ -293,12 +293,12 @@ A presale code check runs as a function. The spike profile jumps from 200 to 2 0
     2. Why do cold starts increase the number of instances needed?
     3. When is a container with autoscaling cheaper than functions?
 
-## BoxOffice flash sale at 10:00 { #flash-sale }
+## Flash sale: a limited-stock launch { #flash-sale }
 
-A stadium show goes on sale at t = 60 s: traffic jumps 20× (to ~6 000 req/s) for 90 s. 80% of requests read the event page, 20% try to buy. The database holds the seats (no double booking!) and the payment provider accepts 500 req/s. Today everything collapses. Design for the peak: serve reads from the edge and caches, and put buyers in a waiting room (queue) drained at the speed the inventory and the payment provider can handle.
+A limited-stock product goes on sale at t = 60 s: traffic jumps 20× (to ~6 000 req/s) for 90 s. 80% of requests read the product page, 20% try to buy. The database holds the stock (no overselling!) and the payment provider accepts 500 req/s. Today everything collapses. Design for the peak: serve reads from the edge and caches, and put buyers in a waiting room (queue) drained at the speed the inventory and the payment provider can handle.
 
 - **Lesson:** A flash sale is designed for the peak: reads are absorbed by the edge and caches, and buyers wait in a queue drained at the pace of the inventory and the payment provider.
-- **Setup:** `flash-sale` · profile `load` · target 300 req/s · 80% reads · seed 2027 · chaos `off` · scripted events: t = 60 s — 10:00 — sales open
+- **Setup:** `flash-sale` · profile `load` · target 300 req/s · 80% reads · seed 2027 · chaos `off` · scripted events: t = 60 s — the sale opens
 - **Goals:** p99 < 300 ms · error rate < 1% · consumer lag < 300 s
 - **Try:** Follow the hints one at a time: CDN, catalog cache, then API Gateway routing writes to a waiting-room queue consumed by order workers.
 - **Observe:** With the waiting room, errors vanish and p99 stays low; the consumer lag is how long a buyer waits in line.
@@ -308,13 +308,13 @@ A stadium show goes on sale at t = 60 s: traffic jumps 20× (to ~6 000 req/s) fo
 
 ??? question "Questions to discuss"
 
-    1. How many seats can be sold per second if payment allows 500 req/s and each order takes one call?
-    2. How do you avoid selling the same seat twice (holds, SELECT … FOR UPDATE)?
+    1. How many items can be sold per second if payment allows 500 req/s and each order takes one call?
+    2. How do you avoid selling more items than are in stock (reservations, SELECT … FOR UPDATE)?
     3. How would you tell users their position in the line?
 
-## URL shortener (box.office/xyz) { #url-shortener }
+## URL shortener (sho.rt/xyz) { #url-shortener }
 
-Every ticket e-mail carries a short link. 5 000 redirects/s, 99% reads, a few writes (new links). The classic interview problem: what is the read path, and what store fits a key → URL lookup?
+Every order e-mail and shared post carries a short link. 5 000 redirects/s, 99% reads, a few writes (new links). The classic interview problem: what is the read path, and what store fits a key → URL lookup?
 
 - **Lesson:** A read-heavy key lookup: cache + key-value store, sized with simple arithmetic.
 - **Setup:** `url-shortener` · profile `load` · target 5,000 req/s · 99% reads · seed 47 · chaos `off`
@@ -333,7 +333,7 @@ Every ticket e-mail carries a short link. 5 000 redirects/s, 99% reads, a few wr
 
 ## News feed: fan-out on write vs on read { #news-feed }
 
-The BoxOffice feed shows posts from the artists and venues a fan follows. Today the feed is assembled when it is read: a heavy query (40 ms) that merges hundreds of sources. 2 000 req/s, 95% reads. Precompute timelines when something is posted instead.
+The feed shows posts from the accounts a user follows. Today the feed is assembled when it is read: a heavy query (40 ms) that merges hundreds of sources. 2 000 req/s, 95% reads. Precompute timelines when something is posted instead.
 
 - **Lesson:** Fan-out on write moves work from the read path (frequent) to the write path (rare): a feed read becomes one key lookup.
 - **Setup:** `news-feed` · profile `load` · target 2,000 req/s · 95% reads · seed 53 · chaos `off`
@@ -346,13 +346,13 @@ The BoxOffice feed shows posts from the artists and venues a fan follows. Today 
 
 ??? question "Questions to discuss"
 
-    1. What breaks when an artist has 10 million followers?
+    1. What breaks when an account has 10 million followers?
     2. How does a hybrid approach treat celebrities?
     3. Which consistency does a feed really need?
 
 ## Chat for a live event { #chat }
 
-During a show, fans chat in the event room: 2 000 req/s, half are new messages. Each message is stored in PostgreSQL and delivered synchronously before the sender gets an answer. Writes overload the database and the sender waits for every delivery.
+During a live event, users chat in its room: 2 000 req/s, half are new messages. Each message is stored in PostgreSQL and delivered synchronously before the sender gets an answer. Writes overload the database and the sender waits for every delivery.
 
 - **Lesson:** Chat separates storing messages (partitioned, append-heavy) from delivering them (pub/sub to the connected servers).
 - **Setup:** `chat` · profile `load` · target 2,000 req/s · 50% reads · seed 59 · chaos `off`
@@ -371,7 +371,7 @@ During a show, fans chat in the event room: 2 000 req/s, half are new messages. 
 
 ## Ride-sharing: a write-heavy geo index { #ride-sharing }
 
-After the show, BoxOffice partners' drivers send their position every 4 s: 20 000 req/s, 90% writes, while riders query nearby drivers. A relational database cannot absorb that write rate. Keep only the latest position per driver in a partitioned store and stream the history.
+Drivers send their position every 4 s: 20 000 req/s, 90% writes, while riders query nearby drivers. A relational database cannot absorb that write rate. Keep only the latest position per driver in a partitioned store and stream the history.
 
 - **Lesson:** Location updates are a write-heavy stream: keep only the latest position in a partitioned store and send the history asynchronously.
 - **Setup:** `ride-sharing` · profile `load` · target 20,000 req/s · 10% reads · seed 61 · chaos `off`
@@ -390,7 +390,7 @@ After the show, BoxOffice partners' drivers send their position every 4 s: 20 00
 
 ## Video streaming: CDN + object store + transcoding { #video-streaming }
 
-Venues upload show teasers; fans watch them. 2 000 segment requests/s from viewers go through the app, and each upload is transcoded synchronously (20 s per video) while the uploader waits. Serve segments from the edge and transcode in the background.
+Creators upload videos; users watch them. 2 000 segment requests/s from viewers go through the app, and each upload is transcoded synchronously (20 s per video) while the uploader waits. Serve segments from the edge and transcode in the background.
 
 - **Lesson:** Video is bytes at the edge plus heavy batch work in the background: CDN + object store for viewers, a queue + workers for transcoding.
 - **Setup:** `video-streaming` · profile `load` · target 2,000 req/s · 99% reads · seed 67 · chaos `off`
@@ -466,7 +466,7 @@ Every keystroke in the search box asks for suggestions: 10 000 req/s, all reads,
 
 ## AI support assistant (RAG + tools) { #ai-assistant }
 
-The BoxOffice assistant answers questions about events and orders. Its agent loop takes 6 steps (6 LLM calls + tool calls) per question, the provider quota is 10 calls/s, and nothing checks for prompt injection. 2 questions/s already exceed the quota, take seconds, and cost a fortune.
+The support assistant answers questions about products and orders. Its agent loop takes 6 steps (6 LLM calls + tool calls) per question, the provider quota is 10 calls/s, and nothing checks for prompt injection. 2 questions/s already exceed the quota, take seconds, and cost a fortune.
 
 - **Lesson:** In an LLM application latency and cost scale with the number of model calls: fewer agent steps, a semantic cache and quota-aware routing matter more than raw capacity; guardrails belong in the path.
 - **Setup:** `ai-assistant` · profile `load` · target 2 req/s · 100% reads · seed 83 · chaos `off`
@@ -504,7 +504,7 @@ Utilization is hidden ("?") until a service is connected to Metrics. At t = 50 s
 
 ## Microservices on Kubernetes: pods vs nodes { #microservices }
 
-BoxOffice was split into catalog, inventory, order and notify microservices, each with its own database, behind an API gateway, on a Kubernetes cluster of 2 nodes × 6 pods. At 2 000 req/s the catalog's HPA asks for more pods than the cluster can schedule: they stay Pending, and the catalog drowns. Buying is a synchronous chain (order → inventory, catalog, notify, its DB): every hop adds its latency to the buyer's wait.
+The app was split into catalog, inventory, order and notify microservices, each with its own database, behind an API gateway, on a Kubernetes cluster of 2 nodes × 6 pods. At 2 000 req/s the catalog's HPA asks for more pods than the cluster can schedule: they stay Pending, and the catalog drowns. Buying is a synchronous chain (order → inventory, catalog, notify, its DB): every hop adds its latency to the buyer's wait.
 
 - **Lesson:** The HPA adds pods, but only nodes add room: pods beyond nodes × pods per node stay Pending and serve nothing. In a chain of synchronous microservices every hop adds its latency to the user's wait, so work that the user does not need to wait for belongs behind a queue.
 - **Setup:** `microservices` · profile `load` · target 2,000 req/s · 80% reads · seed 2031 · chaos `off`
@@ -557,4 +557,4 @@ Flash-sale checkout: 1 500 req/s, half of them writes (orders), on a DB Cluster 
 
     1. Lost writes ≈ write rate × lag: estimate them from the inspector just before t = 90 s.
     2. With one follower slowed down, why does sync suffer and quorum with 2 followers not?
-    3. RPO 0 and RTO 5 s triple the database bill: for which BoxOffice data is it worth it (orders, sessions, analytics)?
+    3. RPO 0 and RTO 5 s triple the database bill: for which data is it worth it (orders, sessions, analytics)?

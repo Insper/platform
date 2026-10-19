@@ -20,7 +20,7 @@ Escolha um cenário na barra (ou **Tela em branco**), aperte ▶ e leia os pain�
 
 1. Escolha **Cenário → Monólito** (já carregado acima) e aperte ▶. O perfil *breakpoint* aumenta a carga até o sistema quebrar.
 2. Ao final abre o **Relatório**: ponto de ruptura, percentis, o **gargalo** com uma explicação, e as metas (✓/✗).
-3. Adicione um **Load Balancer** da paleta (clique em **+** ou arraste para a tela), conecte *fans → Load Balancer → boxoffice* (arraste da pequena alça à direita de um nó até outro nó), exclua a aresta antiga e aumente as réplicas da aplicação no inspetor.
+3. Adicione um **Load Balancer** da paleta (clique em **+** ou arraste para a tela), conecte *users → Load Balancer → app* (arraste da pequena alça à direita de um nó até outro nó), exclua a aresta antiga e aumente as réplicas da aplicação no inspetor.
 4. Aperte ⟲ (recomeçar a execução) e ▶ de novo. Compare.
 5. Travou? Abra **Dicas** no painel da direita, ou **Mostrar uma solução possível**.
 
@@ -203,7 +203,7 @@ As metas são avaliadas na **janela estável** do perfil (sombreada nos gráfico
 
 Toda a aleatoriedade — chegadas, tempos de serviço, acertos de cache, que falhas acontecem e quando — vem de um único **gerador com semente**, dividido em fluxos independentes por finalidade. **Mesma semente + mesmo projeto + mesmo perfil ⇒ a mesma execução**, então você pode mudar uma coisa e atribuir a diferença a ela. Mudar o nível de caos não embaralha as chegadas. 🎲 sorteia uma nova semente; um projeto robusto passa com qualquer semente.
 
-O **caos** (*desligado, baixo, médio, alto* = ×0, ×1, ×3, ×8) define a taxa de eventos aleatórios. Você também pode injetar qualquer evento com o botão ⚡, e os cenários têm **eventos programados** em instantes fixos (ex.: *10:00 — abrem as vendas*). Os eventos aparecem na aba **Eventos** e como marcas tracejadas nos gráficos.
+O **caos** (*desligado, baixo, médio, alto* = ×0, ×1, ×3, ×8) define a taxa de eventos aleatórios. Você também pode injetar qualquer evento com o botão ⚡, e os cenários têm **eventos programados** em instantes fixos (ex.: *abre a venda*). Os eventos aparecem na aba **Eventos** e como marcas tracejadas nos gráficos.
 
 | Evento | Efeito |
 |---|---|
@@ -275,10 +275,10 @@ O JSON de um projeto é pequeno e legível:
   "design": {
     "version": 1,
     "nodes": [
-      { "id": "client", "type": "client", "x": 80, "y": 200, "label": "fans", "params": {} },
+      { "id": "client", "type": "client", "x": 80, "y": 200, "label": "users", "params": {} },
       { "id": "lb", "type": "lb", "x": 280, "y": 200, "label": "", "params": {} },
-      { "id": "app", "type": "app", "x": 480, "y": 200, "label": "boxoffice", "params": { "replicas": 6 } },
-      { "id": "db", "type": "sql", "x": 700, "y": 200, "label": "boxoffice-db", "params": {} }
+      { "id": "app", "type": "app", "x": 480, "y": 200, "label": "app", "params": { "replicas": 6 } },
+      { "id": "db", "type": "sql", "x": 700, "y": 200, "label": "db", "params": {} }
     ],
     "edges": [
       { "id": "client-lb", "from": "client", "to": "lb", "params": {} },
@@ -307,7 +307,7 @@ Escreva uma instrução curta *Experimente* antes de cada simulador: o que mudar
 ## Limitações
 
 - É um **modelo fluido com traces amostrados**, não um simulador de pacotes: as filas guardam *taxas*, e os percentis vêm de cerca de 400 requisições amostradas por segundo simulado. Eventos muito raros (p99,99) não são resolvidos.
-- As requisições são independentes; não há sessões, transações nem locks (reservas de assentos são discutidas nas aulas, não simuladas).
+- As requisições são independentes; não há sessões, transações nem locks (reservas de estoque são discutidas nas aulas, não simuladas).
 - Um cluster Kubernetes é uma contagem de vagas (nós × pods por nó): não há encaixe por CPU e memória, regras de afinidade nem pod disruption budgets, e os pods se espalham por igual entre os nós.
 - A latência de rede entre usuários e o sistema não é somada (a latência mostrada é do lado servidor), exceto os +70 ms de chamadas entre regiões e +1 ms por salto num service mesh.
 - Capacidades e preços são números redondos ilustrativos. Quando o playground e um teste de carga discordarem, confie no teste de carga — e descubra por quê.

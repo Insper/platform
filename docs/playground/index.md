@@ -20,7 +20,7 @@ Pick a scenario in the toolbar (or **Blank canvas**), press ▶ and read the pan
 
 1. Choose **Scenario → Monolith** (already loaded above) and press ▶. The *breakpoint* profile ramps the load until the system breaks.
 2. When the run ends the **Report** opens: breaking point, percentiles, the **bottleneck** with an explanation, and the goals (✓/✗).
-3. Add a **Load Balancer** from the palette (click **+** or drag it to the canvas), connect *fans → Load Balancer → boxoffice* (drag from the small handle on the right of a node to another node), delete the old edge, and raise the replicas of the app in the inspector.
+3. Add a **Load Balancer** from the palette (click **+** or drag it to the canvas), connect *users → Load Balancer → app* (drag from the small handle on the right of a node to another node), delete the old edge, and raise the replicas of the app in the inspector.
 4. Press ⟲ (restart the run) and ▶ again. Compare.
 5. Stuck? Open **Hints** in the right panel, or **Show a possible solution**.
 
@@ -203,7 +203,7 @@ Goals are evaluated over the **steady window** of the profile (shaded in the cha
 
 All randomness — arrivals, service times, cache hits, which failures happen and when — comes from one **seeded generator**, split into independent streams per purpose. **Same seed + same design + same profile ⇒ the same run**, so you can change one thing and attribute the difference to it. Changing the chaos level does not reshuffle the arrivals. 🎲 draws a new seed; a robust design passes with any seed.
 
-**Chaos** (*off, low, medium, high* = ×0, ×1, ×3, ×8) sets the rate of random events. You can also inject any event yourself with the ⚡ button, and scenarios have **scripted events** at fixed times (e.g. *10:00 — sales open*). Events appear in the **Events** tab and as dashed markers on the charts.
+**Chaos** (*off, low, medium, high* = ×0, ×1, ×3, ×8) sets the rate of random events. You can also inject any event yourself with the ⚡ button, and scenarios have **scripted events** at fixed times (e.g. *the sale opens*). Events appear in the **Events** tab and as dashed markers on the charts.
 
 | Event | Effect |
 |---|---|
@@ -275,10 +275,10 @@ The JSON of a design is small and readable:
   "design": {
     "version": 1,
     "nodes": [
-      { "id": "client", "type": "client", "x": 80, "y": 200, "label": "fans", "params": {} },
+      { "id": "client", "type": "client", "x": 80, "y": 200, "label": "users", "params": {} },
       { "id": "lb", "type": "lb", "x": 280, "y": 200, "label": "", "params": {} },
-      { "id": "app", "type": "app", "x": 480, "y": 200, "label": "boxoffice", "params": { "replicas": 6 } },
-      { "id": "db", "type": "sql", "x": 700, "y": 200, "label": "boxoffice-db", "params": {} }
+      { "id": "app", "type": "app", "x": 480, "y": 200, "label": "app", "params": { "replicas": 6 } },
+      { "id": "db", "type": "sql", "x": 700, "y": 200, "label": "db", "params": {} }
     ],
     "edges": [
       { "id": "client-lb", "from": "client", "to": "lb", "params": {} },
@@ -307,7 +307,7 @@ Write a short *Try it* instruction before each embed: what to change, what to ob
 ## Limitations
 
 - It is a **fluid model with sampled traces**, not a packet-level simulator: queues hold *rates*, and percentiles come from about 400 sampled requests per simulated second. Very rare events (p99.99) are not resolved.
-- Requests are independent; there are no sessions, transactions or locks (seat holds are discussed in the classes, not simulated).
+- Requests are independent; there are no sessions, transactions or locks (stock reservations are discussed in the classes, not simulated).
 - A Kubernetes cluster is a count of slots (nodes × pods per node): there is no bin packing by CPU and memory, no affinity rules and no pod disruption budgets, and the pods are spread evenly over the nodes.
 - Network latency between users and the system is not added (the latency shown is server-side), except the +70 ms of calls between regions and +1 ms per hop in a service mesh.
 - Capacities and prices are illustrative round numbers. When the playground and a load test disagree, trust the load test — and find out why.
