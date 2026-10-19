@@ -36,8 +36,7 @@
 
 ## Students
 
-<!-- TODO: embed student list spreadsheet here -->
-
+<iframe src="https://docs.google.com/spreadsheets/d/e/2PACX-1vQhgjDzB7RwtjYf856ZX61y9VdGNuvVdeRoun_8DS8oxo7uaAjn4XphXw8T1UkpJYzGDNStCpuojKxq/pubhtml?gid=1349948680&amp;single=true&amp;widget=true&amp;headers=false"></iframe>
 
 ## Grade
 
