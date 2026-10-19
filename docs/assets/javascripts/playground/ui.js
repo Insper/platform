@@ -770,12 +770,16 @@
       var gl = svg("g", { class: "sdp-node-glyph", transform: "translate(12,9)" });
       gl.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + c.glyph + "</svg>";
       g.appendChild(gl);
-      var label = svg("text", { class: "sdp-node-label", x: 38, y: 21 });
+      // three fixed lines: the name given in the design, the component type (never replaced by
+      // live numbers; omitted when it equals the name) and the live metrics
+      var label = svg("text", { class: "sdp-node-label", x: 38, y: 20 });
       var name = String(n.label || c.label);
       label.textContent = name.length > 17 ? name.slice(0, 16) + "…" : name;
       g.appendChild(label);
-      var sub = svg("text", { class: "sdp-node-sub", x: 38, y: 36 });
-      sub.textContent = n.label && n.label !== c.label ? c.label : "";
+      var type = svg("text", { class: "sdp-node-type", x: 38, y: 34 });
+      type.textContent = name !== c.label ? c.label : "";
+      g.appendChild(type);
+      var sub = svg("text", { class: "sdp-node-sub", x: 12, y: 50 });
       g.appendChild(sub);
       var badge = svg("text", { class: "sdp-node-badge", x: W - 8, y: 15, "text-anchor": "end" });
       g.appendChild(badge);
@@ -817,7 +821,6 @@
       else if (sim.t > 0 || force) text = observed ? "ρ " + dec(Math.min(rho, 9.99), 2) + " · " + fmtNum(v.proc) + " " + t("rps") : "ρ ? · " + t("rps") + " ?";
       if (st === "down") text = t("down").toUpperCase();
       var nn = ne.n;
-      if (!(sim.t > 0) && def.role !== "source" && def.role !== "side") text = nn.label && nn.label !== def.label ? def.label : "";
       if (ne.sub.textContent !== text) ne.sub.textContent = text;
       if (def.role !== "source" && def.role !== "side" && def.role !== "msg") {
         if (nn.type === "sql") { var rr = (nn.params && nn.params.readReplicas) || 0; badge = rr ? "1+" + rr : ""; }
