@@ -36,7 +36,8 @@
 
 ## Students
 
-<iframe src="https://docs.google.com/spreadsheets/d/e/2PACX-1vQhgjDzB7RwtjYf856ZX61y9VdGNuvVdeRoun_8DS8oxo7uaAjn4XphXw8T1UkpJYzGDNStCpuojKxq/pubhtml?gid=1349948680&amp;single=true&amp;widget=true&amp;headers=false"></iframe>
+<iframe src="https://docs.google.com/spreadsheets/d/e/2PACX-1vQhgjDzB7RwtjYf856ZX61y9VdGNuvVdeRoun_8DS8oxo7uaAjn4XphXw8T1UkpJYzGDNStCpuojKxq/pubhtml?gid=1349948680&amp;single=false&amp;widget=false&amp;headers=false" width="100%" height="750px"></iframe>
+
 
 ## Grade
 
