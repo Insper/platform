@@ -1,0 +1,95 @@
+\activity{7}{Caching}{caching}{At 10:00 the \texttt{catalog} service receives tens of thousands of \texttt{GET /events/42} per second, and each one runs the same three SQL queries for data that has not changed in a week. The database reaches 100\% CPU, queries go from 3 ms to 800 ms and the checkout, which shares that database, times out before anyone has bought a ticket. How do you serve that data from somewhere faster without acting on a stale answer, and what happens when the copy expires or disappears?}
+\stages{\stEstimate\ \stDesign\ \stDeep}
+
+\begin{know}
+  \item Caches work because popularity is skewed (\textbf{Zipf}: item of rank $i$ is requested with probability $\propto 1/i^s$): a small hot set takes most of the reads. Size the cache for the \textbf{working set}, not the whole dataset.
+  \item \textbf{Hit ratio} $h$: the fraction of reads the cache answers. $t_\text{eff} = h \cdot t_\text{hit} + (1-h) \cdot t_\text{miss}$ and $\text{QPS}_\text{DB} = (1-h) \cdot \text{QPS}_\text{total}$: think in \textbf{miss ratio}, each extra nine is 10$\times$ less database load.
+  \item \textbf{Cache-aside} (the default): read the cache; on a miss read the database and fill the cache with a \textbf{TTL} (time to live). On a write: write the database, commit, then \textbf{delete} the key. Write-through, write-behind and refresh-ahead trade consistency, data loss and complexity.
+  \item A TTL caps the hit ratio: a key read $r$ times/s with TTL $T$ has $h \le 1 - 1/(rT + 1)$. Add jitter ($\pm 10\%$) so keys do not expire together.
+  \item \textbf{Cache what you display, not what you decide on}: the seat map may be 1--2 s stale; a seat hold, the price at checkout and a payment never come from a cache.
+  \item \textbf{Stampede}: when a hot key expires, misses $=$ reads/s $\times$ recompute time (Little's Law). Fixes: request coalescing, a lock, stale-while-revalidate, early probabilistic refresh. \textbf{Avalanche}: many keys expiring at once. \textbf{Penetration}: requests for keys that do not exist (negative cache, Bloom filter).
+  \item \textbf{Hot key}: one key can exceed one node's network card; fix it with a short in-process L1 cache or key copies, not with more nodes. Eviction: LRU, LFU, W-TinyLFU.
+  \item \textbf{Redis}: $\approx 10^5$ simple operations/s per node, 16\,384 hash slots in a cluster, asynchronous replication. Once the database is sized for the misses, the cache is load-bearing: plan for it being down.
+\end{know}
+
+\begin{ex}{1}{Why a small cache works}
+\items
+  \item BoxOffice lists 100\,000 events and popularity follows Zipf with $s = 1$. A cache keeps the top 1\,000 (1\%). With $s = 1$ the share of reads they get is $\approx \ln k / \ln N$. Compute it.
+  \item For each item say \emph{cache} (and roughly how stale it may be) or \emph{never cache}: the event description; the seat map shown on the page; the hold of seat A-12 for 10 minutes; the price charged at checkout; a fan's session.
+\end{enumerate}
+\lines{4}
+\end{ex}
+
+\begin{ex}{1}{The miss ratio is what matters}
+The event page at 10:00: 50\,000 reads/s; a hit costs 0.5 ms; a miss costs 8.5 ms (failed lookup $+$ 8 ms query).
+\begin{center}\small
+\begin{tabular}{@{}lccc@{}}
+  \toprule
+  hit ratio $h$ & 90\% & 99\% & 99.9\% \\
+  \midrule
+  $t_\text{eff}$ (ms) & \blank\hspace{1.6cm} & \hspace{1.6cm} & \hspace{1.6cm} \\
+  database QPS & \blank & & \\
+  \bottomrule
+\end{tabular}
+\end{center}
+\items
+  \item Fill in the table.
+  \item A colleague says ``99\% is only 4 points better than 95\%''. With 40\,000 reads/s, compute the database load at 95\% and at 99\%.
+\end{enumerate}
+\lines{3}
+\end{ex}
+
+\simulator{Add a cache}{read-heavy-cache}{Insert a Cache between the app and the database and run: the database utilization falls with the miss ratio, not with the hit ratio.}
+
+\begin{ex}{2}{How big is the cache?}
+\items
+  \item The catalog cache keeps the 20\,000 most popular of 100\,000 events, 4 KB of JSON each plus 100 B of per-key overhead. Size?
+  \item Add search results (200\,000 queries $\times$ 2 KB) and sessions (2 M fans $\times$ 0.5 KB). Total? With one replica and 50\% headroom?
+  \item At the on-sale the cache serves 300\,000 reads/s and one Redis primary does about 100\,000 operations/s. How many primaries? Is the cluster sized by memory or by throughput?
+\end{enumerate}
+\lines{5}
+\end{ex}
+
+\begin{ex}{2}{TTL and invalidation}
+\items
+  \item The hot key \texttt{event:42} is read 1\,000 times/s with a 60 s TTL. Use $h \le 1 - 1/(rT+1)$: how many reads per miss? A cold event is read once every 10 minutes with the same TTL: what is its hit ratio?
+  \item Two writers change a price. W1 sets 100 and W2 sets 120; the database ends at 120. The code \emph{updates} the cache after each write, and W1's cache update arrives last. What does the page show, and until when? Why does \emph{delete after commit} avoid this?
+  \item Why must the delete happen after the commit and not inside the transaction?
+\end{enumerate}
+\lines{5}
+\end{ex}
+
+\begin{ex}{2}{Stampede, avalanche, penetration}
+\items
+  \item The hot key expires while 20\,000 reads/s arrive and rebuilding it takes 0.2 s. How many requests reach the database? With request coalescing on 20 app replicas?
+  \item At 09:50 a script warms 5\,000 event pages with a TTL of 600 s. What happens at 10:00:00? Fix it.
+  \item Bots request \texttt{/events/1} to \texttt{/events/99999999}. Why does the cache not help? A Bloom filter with 1\% false positives needs $-\ln 0.01/(\ln 2)^2$ bits per element: how much memory for 100\,000 real events?
+\end{enumerate}
+\lines{5}
+\end{ex}
+
+\simulator{Flush the cache under load}{read-heavy-cache}{At t = 100 s the cache is flushed: without request coalescing the database saturates for several seconds; turn coalescing on and run again.}
+
+\begin{ex}{2}{The hot key}
+2 M fans refresh the event page every 5 s, and every refresh reads \texttt{event:42} (4 KB) from Redis.
+\items
+  \item Reads/s on that one key? Bandwidth in Gbit/s? Does it fit a 10 Gbit/s network card?
+  \item Adding Redis nodes does not help. Why?
+  \item Fix 1: each of the 50 catalog replicas keeps an in-process copy with a 1 s TTL. Reads/s at Redis? Fix 2: copy the key into 8 keys (\texttt{event:42\#0} \dots\ \texttt{\#7}). Reads/s per copy? What does each fix cost?
+\end{enumerate}
+\lines{5}
+\end{ex}
+
+\simulator{Partitions and the hot key}{sharding}{When one key gets a huge share of the traffic at t = 60 s, more partitions do not help; add a Cache in front of the store and run again.}
+
+\begin{ex}{3}{The caching plan for the on-sale}
+Design the caching of BoxOffice for the stadium on-sale.
+\items
+  \item For the event description, the venue, the price table, the seat map, the ``1\,203 seats left'' counter and the seat hold, give the layer(s) (CDN, gateway, in-process L1, Redis) and the TTL or ``never''.
+  \item Redis fails at 10:11 and takes 15 s to fail over. What do the catalog replicas do so the database (sized for 2\,000 QPS of misses) survives?
+  \item Draw the read path and where each invalidation goes.
+\end{enumerate}
+\lines{4}
+\palette{\comp{client}{Client} \comp{edge}{CDN} \comp{edge}{API Gateway} \comp{compute}{App Server} \comp{storage}{Cache} \comp{storage}{SQL Database} \comp{messaging}{Pub/Sub}}
+\frameblank{6cm}
+\end{ex}

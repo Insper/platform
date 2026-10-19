@@ -1,0 +1,54 @@
+# The performance-budget environment of CI (lab 11): the same small stack on every run, so that
+# runs are comparable. Paths are relative to this file (.github/ci/).
+name: perf
+
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: boxoffice
+      POSTGRES_USER: boxoffice
+      POSTGRES_PASSWORD: boxoffice
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U boxoffice -d boxoffice"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:8-alpine
+    command: ["redis-server", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru", "--save", ""]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  catalog:
+    build: ../../services/catalog
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: boxoffice
+      DB_USER: boxoffice
+      DB_PASSWORD: boxoffice
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    ports:
+      - "8082:8082"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"          # the same limit as in docker-compose.yaml: budgets are per replica
+          memory: 768M
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8082/actuator/health/readiness || exit 1"]
+      interval: 5s
+      timeout: 3s
+      start_period: 60s
+      retries: 30

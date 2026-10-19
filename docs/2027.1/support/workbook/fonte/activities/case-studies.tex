@@ -1,0 +1,126 @@
+\activity{16}{Case Studies}{case-studies}{It is 10:00 and BoxOffice opens the sale of a stadium show: two million fans, sixty thousand seats. Over the semester you built every piece needed to survive that morning. Now an interviewer gives you a one-sentence prompt, a blank whiteboard and 45 minutes. How do you turn the requirements into numbers and the numbers into a design (cache, queue, partition key, idempotency, admission control), and defend what breaks first?}
+\stages{\stClarify\ \stEstimate\ \stDesign\ \stDeep}
+
+\begin{know}
+  \item \textbf{The 45 minutes}: clarify (5) $\to$ estimate (5) $\to$ API and data model (5--7) $\to$ high-level design (10) $\to$ deep dives (10--15) $\to$ bottlenecks, failures and trade-offs (5) $\to$ wrap-up (2--3). Broad before deep.
+  \item \textbf{Every number ends in a decision}: QPS $=$ events/day $\div$ 86\,400 (1 M/day $\approx$ 12/s), peak $=$ average $\times$ 3 to 5, storage $=$ count $\times$ bytes $\times$ retention ($\times$ replication).
+  \item \textbf{Little's Law} $L = \lambda W$ appears everywhere: admission rate $\lambda = L/W$, calls in flight $=$ rate $\times$ latency, active trips, concurrent streams.
+  \item \textbf{Cache math}: database load $=$ ops $\times (1-h)$ for a hit ratio $h$. \textbf{ID space}: $62^7 \approx 3.5 \times 10^{12}$ codes of 7 base-62 characters.
+  \item \textbf{Consistent hashing}: going from $N$ to $N+1$ nodes, \texttt{hash mod N} moves about $1 - 1/(N+1)$ of the keys, a ring about $1/(N+1)$; virtual nodes balance the load.
+  \item \textbf{Exactly-once effect $=$ at-least-once $+$ idempotency}: idempotency keys, \texttt{SET NX} claims, event-id dedupe, conditional updates, unique constraints. \textbf{A timeout means unknown, not failed.}
+  \item \textbf{Fan-out} on write (push), on read (pull) or hybrid with a celebrity threshold; spread bursts (campaigns, waiting rooms): turn a spike into a flow.
+  \item \textbf{Strong consistency only where it matters}: seats, money, driver assignment. Feeds, counters, positions and analytics are eventual. Protect the one resource that cannot scale (hot rows, the payment provider) with \textbf{admission control}, not with autoscaling.
+\end{know}
+
+\begin{ex}{1}{The framework and the decision}
+\items
+  \item Put the seven steps of the interview in order and give each its minutes in a 45-minute interview.
+  \item Match each estimate (1--5) with the decision it forces (A--E).
+\end{enumerate}
+\begin{center}\small
+\begin{tabular}{@{}l >{\raggedright\arraybackslash}p{6.2cm} l >{\raggedright\arraybackslash}p{6.0cm}@{}}
+  \toprule
+  1 & hot set of the URL shortener: 33 GB & A & one PostgreSQL is enough, no sharding \\
+  2 & on-sale: 170\,000 req/s on a few hot seat rows & B & keep the vectors in pgvector \\
+  3 & payment ledger: 88 GB per year & C & a cache in front of the store \\
+  4 & home timelines: 1.3 TB of IDs in memory & D & admission control (a waiting room) \\
+  5 & assistant knowledge base: 1 GB of vectors & E & a sharded Redis cluster storing IDs only \\
+  \bottomrule
+\end{tabular}
+\end{center}
+\lines{3}
+\end{ex}
+
+\begin{ex}{1}{Little's Law in five systems}
+Compute the missing quantity and say what it sizes.
+\items
+  \item Ticketing: at most 10\,000 fans may shop at once and each takes 5 minutes. Admission rate?
+  \item Payments: 300 payments/s at the peak, the provider answers in 2 s. Calls in flight?
+  \item Ride sharing: 20 M trips a day of 20 minutes each. Trips per second and active trips?
+  \item Video: 50 M daily viewers watch 30 minutes each. Concurrent streams on average?
+  \item AI assistant: 39 LLM turns/s at the peak; a turn is 0.8 s to the first token, 300 tokens at 50 tokens/s, and 1 s of tool calls. Concurrent streams?
+\end{enumerate}
+\lines{5}
+\end{ex}
+
+\begin{ex}{2}{URL shortener in ten minutes}
+``Design \texttt{bx.example/aB3x9Kq}'': 100 M new links a month, 100 redirects per link, kept 5 years, 500 B per record, redirect p99 $<$ 100 ms.
+\items
+  \item Writes/s, redirects/s (average and peak $\times$3), number of records and storage.
+  \item Is 6 base-62 characters enough? And 7? What fraction of the 7-character space do you use in 5 years?
+  \item The hot set is 20\% of a day's redirected records. How big is it, and where does it live?
+  \item Codes come from a counter leased in ranges of 10\,000 and encoded in base 62. Why ranges, and why must the numbers be scrambled before encoding?
+  \item Write the two endpoints. Redirect with 301 or 302? Justify with analytics and expiration.
+\end{enumerate}
+\lines{6}
+\end{ex}
+
+\simulator{A caching problem with an ID problem attached}{url-shortener}{Replace the SQL database with Cache $\to$ NoSQL and size the app tier: p99 drops to tens of milliseconds and most redirects never reach the store.}
+
+\begin{ex}{2}{Rate limiter at the window boundary}
+A limit of 10 requests per second per user. A client sends 10 requests at $t = 0.99$ s and 10 at $t = 1.01$ s.
+\items
+  \item How many are allowed by a fixed window (windows $[0,1)$ and $[1,2)$)? By a token bucket of capacity 10 refilling 10 tokens/s, full at $t = 0$? By a sliding log?
+  \item The API has 20 gateway replicas and each keeps its own token bucket. How many requests per second can one user get? Give two fixes.
+  \item One million active clients and 2 rules: memory for token buckets (100 B each) vs a sliding log at 600 requests/min per client (50 B per entry)?
+  \item The counter store (Redis) is down. Fail open or fail closed for \texttt{GET /events}, and for \texttt{POST /login}?
+\end{enumerate}
+\lines{5}
+\end{ex}
+
+\simulator{Reject early, protect the backend}{rate-limiter}{Set a rate limit on the API Gateway below the app capacity: bots are cut first with 429, real fans keep a low p99 and the app stays below saturation.}
+
+\begin{ex}{2}{A distributed cache for 2 M ops/s}
+1 B items of 1\,000 B, plus 50 B of key and 50 B of overhead each; nodes with 64 GB of RAM serving 80\,000 ops/s; 2 M ops/s; one replica per primary.
+\items
+  \item Total data. How many primaries by memory, how many by throughput, and how many nodes in total?
+  \item Database load at 95\% and at 90\% hit ratio. What is one point of hit ratio worth? What happens to the database when 1 of the 25 primaries dies and its keys miss?
+  \item Going from 4 to 5 nodes, what fraction of keys moves with \texttt{hash mod N}, and with a consistent-hashing ring? Why add virtual nodes?
+\end{enumerate}
+\lines{5}
+\end{ex}
+
+\simulator{The hot partition}{sharding}{Raise the partitions to 8 and run: at t = 60 s the celebrity key still saturates one partition. Add a Cache in front of the NoSQL store for the hot reads.}
+
+\begin{ex}{2}{News feed: push, pull or both?}
+100 M daily users; each posts 0.2 times and reads the feed 10 times a day; 200 followers on average; timelines keep 800 post IDs of 8 B (overhead $\times$2); posts of 1\,000 B.
+\items
+  \item Posts/s and feed reads/s (peak $\times$3). What is the read/write ratio?
+  \item Fan-out on write: timeline inserts per second? Timeline memory? Post storage per year?
+  \item An artist with 50 M followers posts. How long would that single post take with the whole fan-out capacity of (b)?
+  \item With a celebrity threshold of 10\,000 followers, 1.7\% of the authors are celebrities and 92\% of the fan-out writes disappear. Describe the hybrid read path.
+\end{enumerate}
+\lines{5}
+\end{ex}
+
+\simulator{Precompute the timelines}{news-feed}{Route reads to a timeline cache and writes through Kafka to fan-out workers: reads become cheap and the consumer lag shows how long a post takes to reach the timelines.}
+
+\begin{ex}{3}{Payments that never charge twice}
+BoxOffice: 300\,000 payments a day, peaks of 300/s, the provider (PSP) answers in 2 s; 0.1\% of calls are retried after a timeout.
+\items
+  \item Average payments/s and calls in flight at the peak. Without idempotency, how many double charges a day?
+  \item The call to the PSP times out. What state does the payment go to, what do you do next, and which idempotency key do you send: \texttt{order-7f3c-attempt-1}, a random UUID per call, or \texttt{user-42}?
+  \item A 200.00 BRL ticket with a 30.00 fee is charged (230.00); the PSP keeps 2.5\%. Write the ledger transaction at capture (accounts: \texttt{psp\_receivable}, \texttt{psp\_fees}, \texttt{promoter\_payable}, \texttt{platform\_revenue}; debits $+$, credits $-$). What must every transaction satisfy? After settlement (T2) and the payout to the promoter (T3), how much does the bank hold?
+  \item Why not one database transaction around the PSP call? What catches what slips through?
+\end{enumerate}
+\lines{6}
+\end{ex}
+
+\simulator{Retries need idempotency}{payment-system}{Turn on the idempotency key on the payment edge: duplicate charges drop to zero. Then move the call behind a queue and a payment worker: buyer latency no longer depends on the provider.}
+
+\begin{ex}{3}{BoxOffice flash sale on the whiteboard}
+2 M fans arrive within 120 s of 10:00; 60\,000 seats, 2 per order; an admitted fan shops for 5 minutes; at most 10\,000 shop at once; 60\% of admitted fans buy; the PSP answers in 2 s; a hold lasts 10 minutes.
+\items
+  \item Joins per second; admission rate; admitted fans needed; sell-out time; orders/s; payment calls in flight.
+  \item Write the SQL that holds seats without double booking (one statement, with lazy expiration). How does the service know it lost the race?
+\end{enumerate}
+\palette{\comp{client}{Client}\ \comp{edge}{CDN}\ \comp{edge}{WAF}\ \comp{edge}{API Gateway}\ \comp{messaging}{Message Queue}\ \comp{compute}{App Server}\ \comp{storage}{Cache}\ \comp{storage}{SQL Database}\ \comp{external}{Payment}}
+\frameblank{4.6cm}
+\begin{enumerate}[label=\textbf{(\alph*)},leftmargin=2em,itemsep=.25em,topsep=.2em,resume]
+  \item Draw the design: reads from the edge, the waiting room, the hold, the payment.
+  \item The PSP goes down at 10:05. What happens to holds and admissions? A fan is at position 48\,210: what do you show?
+\end{enumerate}
+\lines{4}
+\end{ex}
+
+\simulator{The flash sale, end to end}{flash-sale}{Bypass the waiting room and watch the SQL utilization; restore it and tune the order workers to find the admission rate. Add chaos on the payment provider.}

@@ -1,0 +1,12 @@
+{
+  "title": "catalog: search events by name",
+  "body": "Adds a search method used by the new search box.",
+  "injection": false,
+  "expected": [
+    {
+      "file": "services/catalog/src/main/java/boxoffice/catalog/EventRepository.java",
+      "line": 21,
+      "what": "SQL built by string concatenation (SQL injection)"
+    }
+  ]
+}

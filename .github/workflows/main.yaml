@@ -6,7 +6,6 @@ on:
 # Environment
 env:
   CI: true
-  PYTHON_VERSION: 3.12
 
 # Jobs to run
 jobs:
@@ -22,18 +21,19 @@ jobs:
       # Checkout source form GitHub
       - uses: actions/checkout@v4
 
-      # Install Python runtime and dependencies
-      - uses: actions/setup-python@v4
+      # Install uv; it installs the Python of .python-version (3.12) by itself
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: true
 
-      # pip
-      - run: |
-          pip install -r requirements.txt
-          
+      # Dependencies exactly as in uv.lock
+      - run: uv sync --frozen
+
+      # 2027.1 hands-on: cumulative BoxOffice zips (boxoffice-after-lab-<n>.zip), not committed
+      - run: uv run scripts/handouts/snapshots.py
+
       # build: English (default) into site/, Brazilian Portuguese into site/pt/
-      - run: |
-          zensical-i18n build --clean
+      - run: uv run zensical-i18n build --clean
 
       # deploy (Zensical has no gh-deploy: publish site/ to the gh-pages branch)
       - uses: peaceiris/actions-gh-pages@v4

@@ -1,0 +1,21 @@
+name: Local model (Ollama)
+description: >-
+  Free path of lab 13. Installs Ollama on the runner and prepares qwen2.5-coder-16k.
+  CPU only: expect minutes per call, not seconds.
+runs:
+  using: composite
+  steps:
+    - name: Install and start Ollama
+      shell: bash
+      run: |
+        curl -fsSL https://ollama.com/install.sh | sh
+        if ! curl -sf http://localhost:11434/api/version > /dev/null; then
+          (ollama serve > "$RUNNER_TEMP/ollama.log" 2>&1 &)
+        fi
+        for _ in $(seq 1 30); do
+          curl -sf http://localhost:11434/api/version && break
+          sleep 1
+        done
+    - name: Prepare the model
+      shell: bash
+      run: bash .github/ai/ollama-model.sh

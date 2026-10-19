@@ -1,0 +1,15 @@
+# Lab 11: keep dependencies and pinned actions up to date with reviewed pull requests.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: maven
+    directories: ["/services/*"]
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker
+    directories: ["/services/*"]
+    schedule:
+      interval: weekly

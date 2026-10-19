@@ -12,6 +12,8 @@ extra_css = [
   "assets/stylesheets/interview.css",
   "assets/stylesheets/termynal.css",
   "assets/stylesheets/mermaid-sim.css",
+  "assets/stylesheets/playground.css",
+  "assets/stylesheets/support.css",
 ]
 extra_javascript = [
   "assets/javascripts/mathjax.js",
@@ -20,10 +22,334 @@ extra_javascript = [
   "assets/javascripts/termynal.js",
   "assets/javascripts/termynal-init.js",
   "assets/javascripts/mermaid-sim.js",
+  # System Design Playground (2027.1): order matters
+  "assets/javascripts/playground/rng.js",
+  "assets/javascripts/playground/catalog.js",
+  "assets/javascripts/playground/engine.js",
+  "assets/javascripts/playground/scenarios.js",
+  "assets/javascripts/playground/ui.js",
+  # Support (2027.1): concept map and study cards; lessons table first, then the engine
+  "assets/javascripts/support/arq-lessons.js",
+  "assets/javascripts/support/dgm.js",
+  "assets/javascripts/support/dgm-mapa-arq.js",
+  "assets/javascripts/support/dgm-cartas-arq.js",
 ]
 
 nav = [
   { "Overview" = "index.md" },
+  # System Design Playground: edition-independent (docs/playground/)
+  # published at /playground/ but not listed yet: uncomment to show it in the nav
+#~   { "Playground" = [
+#~     { "Simulator" = "playground/index.md" },
+#~     { "Scenarios" = "playground/scenarios/index.md" },
+#~   ] },
+  # 2027.1 is published but not listed yet: uncomment the block below to show it in the nav
+  # >>> 2027.1 nav (generated)
+#~   { "2027.1" = [
+#~     { "Overview" = "2027.1/index.md" },
+#~     { "Planning" = "2027.1/planning.md" },
+#~     { "Classes" = [
+#~       { "1. What is System Design" = [
+#~         { "Overview" = "2027.1/classes/intro/index.md" },
+#~         { "Requirements" = "2027.1/classes/intro/requirements/index.md" },
+#~         { "The Scaling Journey" = "2027.1/classes/intro/scaling-journey/index.md" },
+#~         { "The Interview Framework" = "2027.1/classes/intro/interview-framework/index.md" },
+#~         { "Quiz" = "2027.1/classes/intro/quiz.md" },
+#~       ] },
+#~       { "2. Estimation & Performance Math" = [
+#~         { "Overview" = "2027.1/classes/estimation/index.md" },
+#~         { "Numbers Every Engineer Should Know" = "2027.1/classes/estimation/numbers/index.md" },
+#~         { "Queueing, Little's Law & Scalability" = "2027.1/classes/estimation/queueing/index.md" },
+#~         { "Percentiles & Tail Latency" = "2027.1/classes/estimation/percentiles/index.md" },
+#~         { "Availability Math" = "2027.1/classes/estimation/availability-math/index.md" },
+#~         { "Quiz" = "2027.1/classes/estimation/quiz.md" },
+#~       ] },
+#~       { "3. Distributed Systems" = [
+#~         { "Overview" = "2027.1/classes/distributed/index.md" },
+#~         { "Replication & Consistency" = "2027.1/classes/distributed/consistency/index.md" },
+#~         { "CAP & PACELC" = "2027.1/classes/distributed/cap-pacelc/index.md" },
+#~         { "Consensus & Quorums" = "2027.1/classes/distributed/consensus/index.md" },
+#~         { "Distributed Transactions" = "2027.1/classes/distributed/transactions/index.md" },
+#~         { "Time & Clocks" = "2027.1/classes/distributed/time-clocks/index.md" },
+#~         { "Quiz" = "2027.1/classes/distributed/quiz.md" },
+#~       ] },
+#~       { "4. Traffic & Edge" = [
+#~         { "Overview" = "2027.1/classes/edge/index.md" },
+#~         { "DNS & CDN" = "2027.1/classes/edge/dns-cdn/index.md" },
+#~         { "Load Balancing" = "2027.1/classes/edge/load-balancing/index.md" },
+#~         { "API Gateway & Rate Limiting" = "2027.1/classes/edge/api-gateway/index.md" },
+#~         { "Protocols" = "2027.1/classes/edge/protocols/index.md" },
+#~         { "Quiz" = "2027.1/classes/edge/quiz.md" },
+#~       ] },
+#~       { "5. Compute & Services" = [
+#~         { "Overview" = "2027.1/classes/compute/index.md" },
+#~         { "Services" = "2027.1/classes/compute/services/index.md" },
+#~         { "API Styles" = "2027.1/classes/compute/api-styles/index.md" },
+#~         { "Async Work" = "2027.1/classes/compute/async-work/index.md" },
+#~         { "Serverless & Autoscaling" = "2027.1/classes/compute/serverless-autoscaling/index.md" },
+#~         { "External Integrations" = "2027.1/classes/compute/integrations/index.md" },
+#~         { "Quiz" = "2027.1/classes/compute/quiz.md" },
+#~       ] },
+#~       { "6. Databases & Data Systems" = [
+#~         { "Overview" = "2027.1/classes/databases/index.md" },
+#~         { "Data Models & Storage Engines" = "2027.1/classes/databases/models/index.md" },
+#~         { "Transactions & Isolation" = "2027.1/classes/databases/transactions/index.md" },
+#~         { "Replication" = "2027.1/classes/databases/replication/index.md" },
+#~         { "Partitioning & NewSQL" = "2027.1/classes/databases/partitioning/index.md" },
+#~         { "Specialized Stores" = "2027.1/classes/databases/specialized/index.md" },
+#~         { "Quiz" = "2027.1/classes/databases/quiz.md" },
+#~       ] },
+#~       { "7. Caching" = [
+#~         { "Overview" = "2027.1/classes/caching/index.md" },
+#~         { "Caching Patterns" = "2027.1/classes/caching/patterns/index.md" },
+#~         { "Invalidation & Eviction" = "2027.1/classes/caching/invalidation/index.md" },
+#~         { "Failure Modes" = "2027.1/classes/caching/failure-modes/index.md" },
+#~         { "Redis" = "2027.1/classes/caching/redis/index.md" },
+#~         { "Quiz" = "2027.1/classes/caching/quiz.md" },
+#~       ] },
+#~       { "8. Messaging & Event-Driven" = [
+#~         { "Overview" = "2027.1/classes/messaging/index.md" },
+#~         { "Queues & Pub/Sub" = "2027.1/classes/messaging/queues-pubsub/index.md" },
+#~         { "Kafka & Event Logs" = "2027.1/classes/messaging/kafka/index.md" },
+#~         { "Delivery Semantics" = "2027.1/classes/messaging/semantics/index.md" },
+#~         { "Outbox, Sagas & CQRS" = "2027.1/classes/messaging/patterns/index.md" },
+#~         { "Quiz" = "2027.1/classes/messaging/quiz.md" },
+#~       ] },
+#~       { "9. Reliability & Resilience" = [
+#~         { "Overview" = "2027.1/classes/reliability/index.md" },
+#~         { "SLIs, SLOs & Error Budgets" = "2027.1/classes/reliability/slo/index.md" },
+#~         { "Resilience Patterns" = "2027.1/classes/reliability/patterns/index.md" },
+#~         { "Disaster Recovery" = "2027.1/classes/reliability/disaster-recovery/index.md" },
+#~         { "Chaos Engineering" = "2027.1/classes/reliability/chaos/index.md" },
+#~         { "Quiz" = "2027.1/classes/reliability/quiz.md" },
+#~       ] },
+#~       { "10. Observability" = [
+#~         { "Overview" = "2027.1/classes/observability/index.md" },
+#~         { "Signals" = "2027.1/classes/observability/signals/index.md" },
+#~         { "OpenTelemetry" = "2027.1/classes/observability/opentelemetry/index.md" },
+#~         { "Alerting" = "2027.1/classes/observability/alerting/index.md" },
+#~         { "Incident Response" = "2027.1/classes/observability/incident-response/index.md" },
+#~         { "Quiz" = "2027.1/classes/observability/quiz.md" },
+#~       ] },
+#~       { "11. Network & Security" = [
+#~         { "Overview" = "2027.1/classes/network-security/index.md" },
+#~         { "Cloud Networking" = "2027.1/classes/network-security/cloud-network/index.md" },
+#~         { "Service Mesh" = "2027.1/classes/network-security/service-mesh/index.md" },
+#~         { "Identity: OAuth 2.1, OIDC & JWT" = "2027.1/classes/network-security/identity/index.md" },
+#~         { "Zero Trust, Secrets & Supply Chain" = "2027.1/classes/network-security/zero-trust/index.md" },
+#~         { "Quiz" = "2027.1/classes/network-security/quiz.md" },
+#~       ] },
+#~       { "12. Cloud-Native Platforms" = [
+#~         { "Overview" = "2027.1/classes/cloud-native/index.md" },
+#~         { "Containers" = "2027.1/classes/cloud-native/containers/index.md" },
+#~         { "Kubernetes" = "2027.1/classes/cloud-native/kubernetes/index.md" },
+#~         { "Delivery" = "2027.1/classes/cloud-native/delivery/index.md" },
+#~         { "FinOps" = "2027.1/classes/cloud-native/finops/index.md" },
+#~         { "Quiz" = "2027.1/classes/cloud-native/quiz.md" },
+#~       ] },
+#~       { "13. AI Systems & Agents" = [
+#~         { "Overview" = "2027.1/classes/ai-systems/index.md" },
+#~         { "LLM Gateway" = "2027.1/classes/ai-systems/llm-gateway/index.md" },
+#~         { "Agents & Tools" = "2027.1/classes/ai-systems/agents/index.md" },
+#~         { "RAG & Memory" = "2027.1/classes/ai-systems/rag-memory/index.md" },
+#~         { "Safety, Evals & Observability" = "2027.1/classes/ai-systems/safety-evals/index.md" },
+#~         { "Quiz" = "2027.1/classes/ai-systems/quiz.md" },
+#~       ] },
+#~       { "14. AI-Assisted Delivery" = [
+#~         { "Overview" = "2027.1/classes/ai-delivery/index.md" },
+#~         { "Code Review" = "2027.1/classes/ai-delivery/code-review/index.md" },
+#~         { "Testing" = "2027.1/classes/ai-delivery/testing/index.md" },
+#~         { "Agents in CI" = "2027.1/classes/ai-delivery/agents-in-ci/index.md" },
+#~         { "Release & Operate" = "2027.1/classes/ai-delivery/release-operate/index.md" },
+#~         { "Security & Governance" = "2027.1/classes/ai-delivery/security-governance/index.md" },
+#~         { "Quiz" = "2027.1/classes/ai-delivery/quiz.md" },
+#~       ] },
+#~       { "15. Performance Engineering" = [
+#~         { "Overview" = "2027.1/classes/performance/index.md" },
+#~         { "Methodology" = "2027.1/classes/performance/methodology/index.md" },
+#~         { "Load Testing" = "2027.1/classes/performance/load-testing/index.md" },
+#~         { "Finding Bottlenecks" = "2027.1/classes/performance/bottlenecks/index.md" },
+#~         { "Capacity Planning" = "2027.1/classes/performance/capacity-planning/index.md" },
+#~         { "Quiz" = "2027.1/classes/performance/quiz.md" },
+#~       ] },
+#~       { "16. Case Studies" = [
+#~         { "Overview" = "2027.1/classes/case-studies/index.md" },
+#~         { "URL Shortener" = "2027.1/classes/case-studies/url-shortener/index.md" },
+#~         { "Rate Limiter" = "2027.1/classes/case-studies/rate-limiter/index.md" },
+#~         { "Distributed Cache" = "2027.1/classes/case-studies/distributed-cache/index.md" },
+#~         { "Search Autocomplete" = "2027.1/classes/case-studies/search-autocomplete/index.md" },
+#~         { "Notification System" = "2027.1/classes/case-studies/notification-system/index.md" },
+#~         { "News Feed" = "2027.1/classes/case-studies/news-feed/index.md" },
+#~         { "Chat" = "2027.1/classes/case-studies/chat/index.md" },
+#~         { "Ride Sharing" = "2027.1/classes/case-studies/ride-sharing/index.md" },
+#~         { "Video Streaming" = "2027.1/classes/case-studies/video-streaming/index.md" },
+#~         { "Payment System" = "2027.1/classes/case-studies/payment-system/index.md" },
+#~         { "Ticketing (BoxOffice Flash Sale)" = "2027.1/classes/case-studies/ticketing/index.md" },
+#~         { "AI Assistant" = "2027.1/classes/case-studies/ai-assistant/index.md" },
+#~         { "Quiz" = "2027.1/classes/case-studies/quiz.md" },
+#~       ] },
+#~     ] },
+#~     { "Hands-on" = [
+#~       { "0. Environment" = [
+#~         { "a. Overview" = "2027.1/hands-on/0/index.md" },
+#~         { "Quiz" = "2027.1/hands-on/0/quiz.md" },
+#~       ] },
+#~       { "1. First Service" = [
+#~         { "a. Overview" = "2027.1/hands-on/1/index.md" },
+#~         { "b. API" = "2027.1/hands-on/1/api/index.md" },
+#~         { "c. Persistence" = "2027.1/hands-on/1/persistence/index.md" },
+#~         { "d. Container" = "2027.1/hands-on/1/container/index.md" },
+#~         { "Quiz" = "2027.1/hands-on/1/quiz.md" },
+#~       ] },
+#~       { "2. Measure First" = [
+#~         { "a. Overview" = "2027.1/hands-on/2/index.md" },
+#~         { "Quiz" = "2027.1/hands-on/2/quiz.md" },
+#~       ] },
+#~       { "3. Edge" = [
+#~         { "a. Overview" = "2027.1/hands-on/3/index.md" },
+#~         { "Quiz" = "2027.1/hands-on/3/quiz.md" },
+#~       ] },
+#~       { "4. Gateway & Identity" = [
+#~         { "a. Overview" = "2027.1/hands-on/4/index.md" },
+#~         { "b. Auth Service" = "2027.1/hands-on/4/auth/index.md" },
+#~         { "c. Gateway" = "2027.1/hands-on/4/gateway/index.md" },
+#~         { "Quiz" = "2027.1/hands-on/4/quiz.md" },
+#~       ] },
+#~       { "5. Caching" = [
+#~         { "a. Overview" = "2027.1/hands-on/5/index.md" },
+#~         { "b. Cache-Aside" = "2027.1/hands-on/5/cache-aside/index.md" },
+#~         { "c. Stampede" = "2027.1/hands-on/5/stampede/index.md" },
+#~         { "Quiz" = "2027.1/hands-on/5/quiz.md" },
+#~       ] },
+#~       { "6. Data at Scale" = [
+#~         { "a. Overview" = "2027.1/hands-on/6/index.md" },
+#~         { "b. Holds & Locking" = "2027.1/hands-on/6/holds/index.md" },
+#~         { "c. Replica & Pooling" = "2027.1/hands-on/6/replicas/index.md" },
+#~         { "d. Indexes & EXPLAIN" = "2027.1/hands-on/6/indexes/index.md" },
+#~         { "Quiz" = "2027.1/hands-on/6/quiz.md" },
+#~       ] },
+#~       { "7. Async Messaging" = [
+#~         { "a. Overview" = "2027.1/hands-on/7/index.md" },
+#~         { "b. Kafka in Compose" = "2027.1/hands-on/7/kafka/index.md" },
+#~         { "c. Transactional Outbox" = "2027.1/hands-on/7/outbox/index.md" },
+#~         { "d. Idempotent Consumer and DLT" = "2027.1/hands-on/7/consumer/index.md" },
+#~         { "e. Waiting Room" = "2027.1/hands-on/7/waiting-room/index.md" },
+#~         { "f. Measure It" = "2027.1/hands-on/7/measure/index.md" },
+#~         { "Quiz" = "2027.1/hands-on/7/quiz.md" },
+#~       ] },
+#~       { "8. Observability" = [
+#~         { "a. Overview" = "2027.1/hands-on/8/index.md" },
+#~         { "b. Instrument Everything" = "2027.1/hands-on/8/instrument/index.md" },
+#~         { "c. RED Dashboard" = "2027.1/hands-on/8/dashboard/index.md" },
+#~         { "d. SLO and Burn-Rate Alert" = "2027.1/hands-on/8/slo/index.md" },
+#~         { "e. Measure It" = "2027.1/hands-on/8/measure/index.md" },
+#~         { "Quiz" = "2027.1/hands-on/8/quiz.md" },
+#~       ] },
+#~       { "9. Resilience & Chaos" = [
+#~         { "a. Overview" = "2027.1/hands-on/9/index.md" },
+#~         { "b. Payment, Provider and Toxiproxy" = "2027.1/hands-on/9/payment/index.md" },
+#~         { "c. Resilience Patterns" = "2027.1/hands-on/9/patterns/index.md" },
+#~         { "d. Game Day" = "2027.1/hands-on/9/game-day/index.md" },
+#~         { "e. Measure It" = "2027.1/hands-on/9/measure/index.md" },
+#~         { "Quiz" = "2027.1/hands-on/9/quiz.md" },
+#~       ] },
+#~       { "10. Kubernetes" = [
+#~         { "a. Overview" = "2027.1/hands-on/10/index.md" },
+#~         { "b. A Local Cluster" = "2027.1/hands-on/10/cluster/index.md" },
+#~         { "c. Deploy BoxOffice" = "2027.1/hands-on/10/deploy/index.md" },
+#~         { "d. Autoscaling" = "2027.1/hands-on/10/autoscaling/index.md" },
+#~         { "e. Ingress" = "2027.1/hands-on/10/ingress/index.md" },
+#~         { "f. Measure It" = "2027.1/hands-on/10/measure/index.md" },
+#~         { "Quiz" = "2027.1/hands-on/10/quiz.md" },
+#~       ] },
+#~       { "11. Delivery" = [
+#~         { "a. Overview" = "2027.1/hands-on/11/index.md" },
+#~         { "b. Tests and CI" = "2027.1/hands-on/11/ci/index.md" },
+#~         { "c. Image and Supply Chain" = "2027.1/hands-on/11/supply-chain/index.md" },
+#~         { "d. Performance Gate" = "2027.1/hands-on/11/performance-gate/index.md" },
+#~         { "e. GitOps with Argo CD" = "2027.1/hands-on/11/gitops/index.md" },
+#~         { "f. Canary with Argo Rollouts" = "2027.1/hands-on/11/canary/index.md" },
+#~         { "g. Measure It" = "2027.1/hands-on/11/measure/index.md" },
+#~         { "Quiz" = "2027.1/hands-on/11/quiz.md" },
+#~       ] },
+#~       { "12. AI Assistant" = [
+#~         { "a. Overview" = "2027.1/hands-on/12/index.md" },
+#~         { "b. Service and LLM Gateway" = "2027.1/hands-on/12/service/index.md" },
+#~         { "c. RAG with pgvector" = "2027.1/hands-on/12/rag/index.md" },
+#~         { "d. Tools and the Agent Loop" = "2027.1/hands-on/12/tools/index.md" },
+#~         { "e. Guardrails and Metrics" = "2027.1/hands-on/12/guardrails/index.md" },
+#~         { "f. Measure It" = "2027.1/hands-on/12/measure/index.md" },
+#~         { "Quiz" = "2027.1/hands-on/12/quiz.md" },
+#~       ] },
+#~       { "13. AI in CI/CD" = [
+#~         { "a. Overview" = "2027.1/hands-on/13/index.md" },
+#~         { "b. AI Review" = "2027.1/hands-on/13/review/index.md" },
+#~         { "c. AI Tests" = "2027.1/hands-on/13/tests/index.md" },
+#~         { "d. Fix Agent" = "2027.1/hands-on/13/fix-agent/index.md" },
+#~         { "e. Release Notes" = "2027.1/hands-on/13/release-notes/index.md" },
+#~         { "f. Explained Canary" = "2027.1/hands-on/13/canary/index.md" },
+#~         { "g. Security Hardening" = "2027.1/hands-on/13/security/index.md" },
+#~         { "h. Measure It" = "2027.1/hands-on/13/measure/index.md" },
+#~         { "Quiz" = "2027.1/hands-on/13/quiz.md" },
+#~       ] },
+#~     ] },
+#~     { "Exercises" = [
+#~       { "Overview" = "2027.1/exercises/index.md" },
+#~       { "Individual" = [
+#~         { "1. Estimation" = "2027.1/exercises/estimation/index.md" },
+#~         { "2. Load-Test Report" = "2027.1/exercises/load-test-report/index.md" },
+#~         { "3. Cache & Database" = "2027.1/exercises/cache-db/index.md" },
+#~         { "4. Event-Driven" = "2027.1/exercises/event-driven/index.md" },
+#~         { "5. Kubernetes Autoscaling" = "2027.1/exercises/kubernetes-autoscaling/index.md" },
+#~         { "6. Playground Design" = "2027.1/exercises/playground-design/index.md" },
+#~         { "7. Design Doc" = "2027.1/exercises/design-doc/index.md" },
+#~       ] },
+#~       { "Project" = [
+#~         { "Overview" = "2027.1/exercises/project/index.md" },
+#~         { "Milestones" = "2027.1/exercises/project/milestones/index.md" },
+#~         { "Design Doc" = "2027.1/exercises/project/design-doc/index.md" },
+#~         { "Load-Test Campaign" = "2027.1/exercises/project/load-test-campaign/index.md" },
+#~         { "Game Day" = "2027.1/exercises/project/game-day/index.md" },
+#~         { "Cost Report" = "2027.1/exercises/project/cost-report/index.md" },
+#~         { "Presentation" = "2027.1/exercises/project/presentation/index.md" },
+#~       ] },
+#~     ] },
+#~     { "Support" = [
+#~       { "Workbook" = "2027.1/support/workbook/index.md" },
+#~       { "Cheat Sheet" = "2027.1/support/cheat-sheet/index.md" },
+#~       { "Concept Map" = "2027.1/support/concept-map/index.md" },
+#~       { "Study Cards" = "2027.1/support/flashcards/index.md" },
+#~       { "Interview" = [
+#~         { "Overview" = "2027.1/support/interview/index.md" },
+#~         { "Framework" = "2027.1/support/interview/framework/index.md" },
+#~         { "Quick Reference" = "2027.1/support/interview/quick-reference/index.md" },
+#~         { "Practice Problems" = "2027.1/support/interview/problems/index.md" },
+#~         { "Mock Interviews" = "2027.1/support/interview/mock/index.md" },
+#~         { "Behavioral" = "2027.1/support/interview/behavioral/index.md" },
+#~       ] },
+#~     ] },
+#~     { "Reference" = [
+#~       { "Overview" = "2027.1/reference/index.md" },
+#~       { "Components" = [
+#~         { "Overview" = "2027.1/reference/components/index.md" },
+#~         { "Client" = "2027.1/reference/components/client/index.md" },
+#~         { "Traffic & Edge" = "2027.1/reference/components/edge/index.md" },
+#~         { "Compute" = "2027.1/reference/components/compute/index.md" },
+#~         { "Storage" = "2027.1/reference/components/storage/index.md" },
+#~         { "Messaging" = "2027.1/reference/components/messaging/index.md" },
+#~         { "Observability" = "2027.1/reference/components/observability/index.md" },
+#~         { "Network" = "2027.1/reference/components/network/index.md" },
+#~         { "AI & Agents" = "2027.1/reference/components/ai/index.md" },
+#~         { "External" = "2027.1/reference/components/external/index.md" },
+#~       ] },
+#~       { "Numbers" = "2027.1/reference/numbers/index.md" },
+#~       { "Glossary" = "2027.1/reference/glossary/index.md" },
+#~       { "Tools" = "2027.1/reference/tools/index.md" },
+#~       { "Reading List" = "2027.1/reference/reading/index.md" },
+#~     ] },
+#~   ] },
+  # <<< 2027.1 nav
+
   { "2026.2" = [
     { "Overview" = "2026.2/index.md" },
     { "Classes" = [
@@ -405,6 +731,10 @@ minify.minify_html = true
 # Remova esta entrada depois de aplicar a prova, se quiser divulgá-la.
 exclude.glob = [
   "2026.2/exams/*",
+  # LaTeX sources of the 2027.1 workbook and cheat sheet
+  "2027.1/support/*/fonte/*",
+  # Lab code overlays: Markdown files there are repo files (CONVENTIONS.md, ADRs), not site pages
+  "2027.1/hands-on/*/code/**/*.md",
   # Slides (Marp): the .src.md is built into the .html next to it (scripts/slides/build.py)
   "*/slides/*.src.md",
 ]
@@ -492,3 +822,176 @@ language = "pt-BR"
 "d. Containerization" = "d. Containerização"
 "d. Run" = "d. Execução"
 "f. Run" = "f. Execução"
+# 2027.1
+"0. Environment" = "0. Ambiente"
+"1. Estimation" = "1. Estimativas"
+"1. First Service" = "1. Primeiro Serviço"
+"1. What is System Design" = "1. O que é Design de Sistemas"
+"10. Observability" = "10. Observabilidade"
+"11. Delivery" = "11. Entrega"
+"11. Network & Security" = "11. Redes e Segurança"
+"12. AI Assistant" = "12. Assistente de IA"
+"12. Cloud-Native Platforms" = "12. Plataformas Cloud-Native"
+"13. AI Systems & Agents" = "13. Sistemas de IA e Agentes"
+"13. AI in CI/CD" = "13. IA no CI/CD"
+"14. AI-Assisted Delivery" = "14. Entrega Assistida por IA"
+"15. Performance Engineering" = "15. Engenharia de Desempenho"
+"16. Case Studies" = "16. Estudos de Caso"
+"2. Estimation & Performance Math" = "2. Estimativas e Matemática de Desempenho"
+"2. Load-Test Report" = "2. Relatório de Teste de Carga"
+"2. Measure First" = "2. Meça Primeiro"
+"3. Cache & Database" = "3. Cache e Banco de Dados"
+"3. Distributed Systems" = "3. Sistemas Distribuídos"
+"3. Edge" = "3. Borda"
+"4. Event-Driven" = "4. Orientado a Eventos"
+"4. Gateway & Identity" = "4. Gateway e Identidade"
+"4. Traffic & Edge" = "4. Tráfego e Borda"
+"5. Caching" = "5. Cache"
+"5. Compute & Services" = "5. Computação e Serviços"
+"5. Kubernetes Autoscaling" = "5. Autoscaling no Kubernetes"
+"6. Data at Scale" = "6. Dados em Escala"
+"6. Databases & Data Systems" = "6. Bancos de Dados e Sistemas de Dados"
+"6. Playground Design" = "6. Design no Playground"
+"7. Async Messaging" = "7. Mensageria Assíncrona"
+"7. Caching" = "7. Cache"
+"8. Messaging & Event-Driven" = "8. Mensageria e Eventos"
+"8. Observability" = "8. Observabilidade"
+"9. Reliability & Resilience" = "9. Confiabilidade e Resiliência"
+"9. Resilience & Chaos" = "9. Resiliência e Caos"
+"AI & Agents" = "IA e Agentes"
+"AI Assistant" = "Assistente de IA"
+"API Gateway & Rate Limiting" = "API Gateway e Rate Limiting"
+"API Styles" = "Estilos de API"
+"Agents & Tools" = "Agentes e Ferramentas"
+"Agents in CI" = "Agentes no CI"
+"Alerting" = "Alertas"
+"Async Work" = "Trabalho Assíncrono"
+"Availability Math" = "Matemática da Disponibilidade"
+"Behavioral" = "Comportamental"
+"CAP & PACELC" = "CAP e PACELC"
+"Caching Patterns" = "Padrões de Cache"
+"Capacity Planning" = "Planejamento de Capacidade"
+"Cheat Sheet" = "Folha de Consulta"
+"Client" = "Cliente"
+"Cloud Networking" = "Redes em Nuvem"
+"Code Review" = "Revisão de Código"
+"Components" = "Componentes"
+"Compute" = "Computação"
+"Concept Map" = "Mapa de Conceitos"
+"Consensus & Quorums" = "Consenso e Quóruns"
+"Cost Report" = "Relatório de Custos"
+"DNS & CDN" = "DNS e CDN"
+"Data Models & Storage Engines" = "Modelos de Dados e Motores de Armazenamento"
+"Delivery" = "Entrega"
+"Delivery Semantics" = "Semântica de Entrega"
+"Disaster Recovery" = "Recuperação de Desastres"
+"Distributed Cache" = "Cache Distribuído"
+"Distributed Transactions" = "Transações Distribuídas"
+"External" = "Externos"
+"External Integrations" = "Integrações Externas"
+"Failure Modes" = "Modos de Falha"
+"Finding Bottlenecks" = "Encontrando Gargalos"
+"Glossary" = "Glossário"
+"Identity: OAuth 2.1, OIDC & JWT" = "Identidade: OAuth 2.1, OIDC e JWT"
+"Incident Response" = "Resposta a Incidentes"
+"Individual" = "Individuais"
+"Interview" = "Entrevista"
+"Invalidation & Eviction" = "Invalidação e Despejo"
+"Kafka & Event Logs" = "Kafka e Logs de Eventos"
+"Load Balancing" = "Balanceamento de Carga"
+"Load-Test Campaign" = "Campanha de Testes de Carga"
+"Messaging" = "Mensageria"
+"Methodology" = "Metodologia"
+"Milestones" = "Marcos"
+"Mock Interviews" = "Entrevistas Simuladas"
+"Notification System" = "Sistema de Notificações"
+"Numbers" = "Números"
+"Numbers Every Engineer Should Know" = "Números que Todo Engenheiro Deve Saber"
+"Observability" = "Observabilidade"
+"Outbox, Sagas & CQRS" = "Outbox, Sagas e CQRS"
+"Partitioning & NewSQL" = "Particionamento e NewSQL"
+"Payment System" = "Sistema de Pagamentos"
+"Percentiles & Tail Latency" = "Percentis e Latência de Cauda"
+"Planning" = "Planejamento"
+"Practice Problems" = "Problemas para Praticar"
+"Protocols" = "Protocolos"
+"Queueing, Little's Law & Scalability" = "Filas, Lei de Little e Escalabilidade"
+"Queues & Pub/Sub" = "Filas e Pub/Sub"
+"Quick Reference" = "Referência Rápida"
+"Quiz" = "Quiz"
+"RAG & Memory" = "RAG e Memória"
+"Reading List" = "Lista de Leitura"
+"Reference" = "Referência"
+"Release & Operate" = "Release e Operação"
+"Replication" = "Replicação"
+"Replication & Consistency" = "Replicação e Consistência"
+"Requirements" = "Requisitos"
+"Ride Sharing" = "Corridas por Aplicativo"
+"SLIs, SLOs & Error Budgets" = "SLIs, SLOs e Error Budgets"
+"Safety, Evals & Observability" = "Segurança, Avaliação e Observabilidade"
+"Scenarios" = "Cenários"
+"Search Autocomplete" = "Autocompletar de Busca"
+"Security & Governance" = "Segurança e Governança"
+"Serverless & Autoscaling" = "Serverless e Autoscaling"
+"Services" = "Serviços"
+"Signals" = "Sinais"
+"Simulator" = "Simulador"
+"Specialized Stores" = "Armazenamentos Especializados"
+"Storage" = "Armazenamento"
+"Study Cards" = "Cartas de Estudo"
+"Support" = "Apoio"
+"Testing" = "Testes"
+"The Interview Framework" = "O Método da Entrevista"
+"The Scaling Journey" = "A Jornada de Escala"
+"Ticketing (BoxOffice Flash Sale)" = "Ingressos (Venda Relâmpago do BoxOffice)"
+"Time & Clocks" = "Tempo e Relógios"
+"Tools" = "Ferramentas"
+"Traffic & Edge" = "Tráfego e Borda"
+"Transactions & Isolation" = "Transações e Isolamento"
+"URL Shortener" = "Encurtador de URLs"
+"Video Streaming" = "Streaming de Vídeo"
+"Workbook" = "Caderno"
+"Zero Trust, Secrets & Supply Chain" = "Zero Trust, Segredos e Cadeia de Suprimentos"
+"b. AI Review" = "b. Revisão por IA"
+"c. AI Tests" = "c. Testes com IA"
+"d. Fix Agent" = "d. Agente de Correção"
+"e. Release Notes" = "e. Notas de Versão"
+"f. Explained Canary" = "f. Canary Explicado"
+"g. Security Hardening" = "g. Endurecimento de Segurança"
+"h. Measure It" = "h. Meça"
+"b. A Local Cluster" = "b. Um Cluster Local"
+"b. API" = "b. API"
+"b. Auth Service" = "b. Serviço de Autenticação"
+"b. Cache-Aside" = "b. Cache-Aside"
+"b. Holds & Locking" = "b. Reservas e Locks"
+"b. Instrument Everything" = "b. Instrumente Tudo"
+"b. Kafka in Compose" = "b. Kafka no Compose"
+"b. Payment, Provider and Toxiproxy" = "b. Pagamento, Provedor e Toxiproxy"
+"b. Service and LLM Gateway" = "b. Serviço e Gateway de LLM"
+"b. Tests and CI" = "b. Testes e CI"
+"c. Deploy BoxOffice" = "c. Implante o BoxOffice"
+"c. Gateway" = "c. Gateway"
+"c. Image and Supply Chain" = "c. Imagem e Cadeia de Suprimentos"
+"c. Persistence" = "c. Persistência"
+"c. RAG with pgvector" = "c. RAG com pgvector"
+"c. RED Dashboard" = "c. Dashboard RED"
+"c. Replica & Pooling" = "c. Réplica e Pool de Conexões"
+"c. Resilience Patterns" = "c. Padrões de Resiliência"
+"c. Stampede" = "c. Stampede"
+"c. Transactional Outbox" = "c. Transactional Outbox"
+"d. Autoscaling" = "d. Autoescalonamento"
+"d. Container" = "d. Container"
+"d. Game Day" = "d. Game Day"
+"d. Idempotent Consumer and DLT" = "d. Consumidor Idempotente e DLT"
+"d. Indexes & EXPLAIN" = "d. Índices e EXPLAIN"
+"d. Performance Gate" = "d. Portão de Desempenho"
+"d. SLO and Burn-Rate Alert" = "d. SLO e Alerta de Burn Rate"
+"d. Tools and the Agent Loop" = "d. Ferramentas e o Loop do Agente"
+"e. GitOps with Argo CD" = "e. GitOps com Argo CD"
+"e. Guardrails and Metrics" = "e. Guardrails e Métricas"
+"e. Ingress" = "e. Ingress"
+"e. Measure It" = "e. Meça"
+"e. Waiting Room" = "e. Sala de Espera"
+"f. Canary with Argo Rollouts" = "f. Canary com Argo Rollouts"
+"f. Measure It" = "f. Meça"
+"g. Measure It" = "g. Meça"

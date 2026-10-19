@@ -1,0 +1,6 @@
+{
+  "title": "catalog: inline variable",
+  "body": "No behaviour change.",
+  "injection": false,
+  "expected": []
+}

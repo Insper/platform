@@ -1,0 +1,12 @@
+# build output
+target/
+*.class
+# IDEs and OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+# local secrets: never commit them
+.env
+# k6 HTML reports are big; commit the JSON summaries and the tables in results/*.md
+results/*.html

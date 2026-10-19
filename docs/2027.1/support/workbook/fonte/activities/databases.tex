@@ -1,0 +1,107 @@
+\activity{6}{Databases \& Data Systems}{databases}{BoxOffice kept everything in one PostgreSQL: events, seats, orders, users, even the posters. At 10:02 of the stadium on-sale the database CPU was at 100\%, a marketing report held locks for 40 seconds and two fans received tickets for seat A-12. Which store should hold each kind of data, and how do you scale it so that 60\,000 seats are sold exactly once under a 2-million-fan rush?}
+\stages{\stDesign\ \stEstimate\ \stDeep}
+
+\begin{know}
+  \item Describe data by four properties before choosing a store: \textbf{access pattern}, read/write ratio and volume, \textbf{consistency need}, query flexibility. The system of record is separate from \textbf{derived data} (cache, search index, warehouse, vectors), which can be rebuilt.
+  \item \textbf{Relational} (SQL) is the default when an invariant spans rows (``one seat, one ticket''). Key-value, document, wide-column and graph stores are designed around queries known in advance.
+  \item \textbf{B-tree}: 8 KiB pages, fan-out $\approx 500$, so $500^4$ keys fit in 4 levels; read-optimized, updated in place. \textbf{LSM-tree} (log-structured merge): memtable $+$ sorted files $+$ compaction; write-optimized.
+  \item \textbf{Check-then-act race}: a \texttt{SELECT} followed by an \texttt{UPDATE} loses updates at read committed (the PostgreSQL default). Put the check inside the write: \texttt{UPDATE \dots\ WHERE status='AVAILABLE'} and test that one row changed.
+  \item \textbf{Write skew} survives snapshot isolation; serializable isolation (abort and retry) or a lock on one ``limit'' row fixes it. A \textbf{hot row} admits at most $1/t$ transactions per second, $t$ being the lock hold time.
+  \item \textbf{Replication} scales reads, not writes. Asynchronous replicas \textbf{lag}, which breaks read-your-writes. Busy connections $=$ queries/s $\times$ query time. Leaderless quorums overlap when $R + W > N$ ($N$ copies, $W$ write acks, $R$ read answers).
+  \item \textbf{Partitioning}: \texttt{hash mod N} moves almost every key when $N$ changes; \textbf{consistent hashing} moves about $1/N$ and virtual nodes even out the load. A good key has high cardinality, even spread and locality on the hot path.
+  \item \textbf{Specialized stores}: search engine (inverted index), object store (blobs, pre-signed URLs, CDN), data warehouse (columns, OLAP, fed by CDC), vector database (embeddings; size $=$ count $\times$ dimensions $\times$ 4 B).
+\end{know}
+
+\begin{ex}{1}{Which store for which data?}
+The BoxOffice data map. For each kind of data, choose a component and compute the volume where asked.
+\begin{center}\small
+\begin{tabular}{@{}p{5.6cm}p{3.6cm}p{5.2cm}@{}}
+  \toprule
+  data & volume & component \\
+  \midrule
+  seats and holds (60\,000 per stadium event) & tiny, bursts of writes & \blank \\
+  orders: 20 M per year, $\approx$ 1 KB each & \blank\ GB/year & \\
+  posters and PDF tickets (2 MB each) & 100s of GB/year & \blank \\
+  clickstream: 100 M events/day, $\approx$ 200 B & \blank\ GB/day & \\
+  sessions and counters, with a TTL & millions of small keys & \blank \\
+  assistant: 100\,000 vectors of 1\,024 dims & \blank\ MB & \\
+  \bottomrule
+\end{tabular}
+\end{center}
+\hint{choose among \comp{storage}{SQL Database} \comp{storage}{NoSQL DB} \comp{storage}{Cache} \comp{storage}{Object Store} \comp{storage}{Data Warehouse} \comp{storage}{Vector DB}.}
+\lines{2}
+\end{ex}
+
+\begin{ex}{1}{Inside the storage engine}
+PostgreSQL pages are 8 KiB (8\,192 B) and a key with its pointer takes about 16 B.
+\items
+  \item What is the fan-out of a B-tree page? Round it to 500 and give the number of keys reachable with 2, 3 and 4 levels.
+  \item How many levels hold the 3 million seats of 50 events? And a billion rows? Why does a point lookup cost only 1--2 disk reads?
+  \item Changing a 100 B row rewrites its 8 KiB page: write amplification $\approx 1 + 8\,192/100$. An LSM-tree with 3 levels and size ratio $T = 10$ has $\approx 2 + 3 \times T/2$. Compute both. Which engine would you pick for gate scans at 50 gates, written all evening and rarely read?
+\end{enumerate}
+\lines{4}
+\end{ex}
+
+\begin{ex}{2}{Alice, Bob and seat A-12}
+At 10:00:03 Alice and Bob both click ``Hold'' on seat A-12. The code reads the seat and then writes it, in one transaction at read committed:
+
+\smallskip
+{\small\texttt{SELECT status FROM seats WHERE event\_id=42 AND seat\_id='A-12';}\\
+\texttt{-- if AVAILABLE:\ UPDATE seats SET status='HELD', held\_by=:me WHERE \dots;}}
+\items
+  \item Draw the timeline that ends with both fans told ``you have 10 minutes to pay''. Name the anomaly.
+  \item Rewrite the \texttt{UPDATE} so the check is inside the write. How does the service know who won? Which constraint is the last line of defence?
+  \item Limit: 6 tickets per customer per event. Alice holds 4 and opens two tabs; each counts 4, checks $4 + 2 \le 6$ and holds 2 more seats. How many does she end with? Does repeatable read stop it? Give two fixes.
+\end{enumerate}
+\lines{6}
+\end{ex}
+
+\begin{ex}{2}{One row, forty rows, sixty thousand rows}
+A row lock serves one transaction at a time: a row held $t$ seconds per transaction admits at most $1/t$ per second. The database tops out at 10\,000 transactions/s.
+\items
+  \item The design keeps one counter row \texttt{events.seats\_left}, locked 5 ms per hold. Maximum holds/s? Compare with 2 M fans.
+  \item One counter per section (40 sections), and one row per seat (60\,000 rows), still 5 ms each. Maximum holds/s of each design?
+  \item A developer calls the payment provider \emph{inside} the hold transaction, so the lock is held 100 times longer. What happens to the one-row design?
+\end{enumerate}
+\lines{4}
+\end{ex}
+
+\simulator{A waiting room in front of the seats}{flash-sale}{Run it as is and then with the waiting-room queue: the inventory database has a fixed number of holds per second to give; the queue decides how fast fans reach it.}
+
+\begin{ex}{2}{Replicas, lag and pools}
+The catalog database runs at 90\% CPU before the sale; two read replicas bring it to 30\%. Then ``My tickets'' shows up empty for some fans who just paid.
+\items
+  \item The lag is random with mean $m$; the chance that a read 300 ms after the write is stale is $e^{-300/m}$. Compute it for $m = 20$ ms (quiet), 200 ms (busy) and 1\,000 ms (on-sale burst).
+  \item Give two ways to guarantee read-your-writes on ``My tickets''.
+  \item 2\,000 queries/s of 5 ms each: how many connections are busy? Twenty pods each open a pool of 50: how many connections reach PostgreSQL, and what do you put in between?
+  \item A leaderless store keeps $N = 3$ copies. Which $(W, R)$ pairs guarantee overlap? Which one tolerates one node down for both reads and writes?
+\end{enumerate}
+\lines{6}
+\end{ex}
+
+\simulator{Read replicas and replication lag}{db-replicas}{Add two read replicas and watch the primary's utilization fall; then raise the write share and watch the lag grow: replicas take reads, never writes.}
+
+\begin{ex}{2}{The ring and the hot key}
+A ring of hash values: node A at 0x10, B at 0x40, C at 0xB0. Each key goes to the first node clockwise.
+\items
+  \item Where do \texttt{seat:A-12} (hash 0x1F), \texttt{seat:C-07} (0x9A) and \texttt{seat:Z-99} (0xF3) go?
+  \item Node D joins at 0x80. Which keys move, and from which node?
+  \item A cluster grows from 9 to 10 nodes. With \texttt{hash mod N}, a key stays only if \texttt{h mod 9 = h mod 10}: what fraction moves? And with consistent hashing?
+  \item Seats are partitioned by \texttt{event\_id}. What happens at 10:00, and which key would you use instead?
+\end{enumerate}
+\lines{5}
+\end{ex}
+
+\simulator{Partitions and the hot key}{sharding}{Raise the partitions from 2 to 8 and run: the average improves, but when the celebrity link hits one key at t = 60 s its partition still saturates. A cache in front absorbs the hot reads.}
+
+\begin{ex}{3}{BoxOffice in five years}
+BoxOffice now sells in 30 countries: about 1 billion orders of 1 KB and 5\,000 order writes/s at peak; marketing wants sales per minute per city for the last 2 years (clickstream 20 GB/day, 30 columns per event); fans search ``tayler swift sp''; the assistant answers from policy documents.
+\items
+  \item Estimate the orders volume. Partition it? By which key (\texttt{customer\_id}, \texttt{created\_at} or \texttt{event\_id})? Why?
+  \item The 2-year report reads 3 of the 30 columns. Estimate the raw volume, the volume a column store reads, and with 5--10$\times$ compression.
+  \item Draw the data architecture: the system of record, how changes reach search and the warehouse without dual writes, where posters live.
+\end{enumerate}
+\lines{4}
+\palette{\comp{compute}{App Server} \comp{storage}{SQL Database} \comp{storage}{Cache} \comp{compute}{Search} \comp{storage}{Object Store} \comp{edge}{CDN} \comp{storage}{Data Warehouse} \comp{storage}{Vector DB} \comp{messaging}{Kafka}}
+\frameblank{7cm}
+\end{ex}

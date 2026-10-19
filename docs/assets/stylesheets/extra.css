@@ -247,3 +247,19 @@
 .md-typeset .cap-venn .none-x { stroke: #e5484d; stroke-width: 3; stroke-linecap: round; }
 .md-typeset .cap-venn .none-t { font-weight: 600; fill: var(--md-default-fg-color); }
 .md-typeset .cap-venn .foot { font-size: 15px; font-style: italic; fill: var(--md-default-fg-color--light); }
+
+/* Embedded PDF (Support: workbook and cheat sheet) */
+.md-typeset .pdf-embed {
+    margin: 1.2em 0 0.6em;
+    border: 1px solid var(--md-default-fg-color--lightest);
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--md-code-bg-color);
+}
+
+.md-typeset .pdf-embed iframe {
+    display: block;
+    width: 100%;
+    height: min(88vh, 1100px);
+    border: 0;
+}

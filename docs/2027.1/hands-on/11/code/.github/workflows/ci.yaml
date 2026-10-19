@@ -1,0 +1,154 @@
+# Continuous integration of BoxOffice (lab 11).
+# Every push and pull request: tests + a performance budget. Pushes to main also build, scan,
+# sign and publish the images. The name "CI" is referenced by deploy.yaml (and by lab 13).
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["k8s/**", "results/**", "**.md"]   # deploy commits must not trigger CI again
+  pull_request:
+
+permissions:
+  contents: read            # least privilege by default; jobs ask for more when they need it
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: test (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [catalog, inventory, auth, gateway, order, notification, payment]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - name: Build and test (Testcontainers starts PostgreSQL and Redis in Docker)
+        working-directory: services/${{ matrix.service }}
+        run: mvn -B verify
+      - name: Keep the test reports when something fails
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-reports-${{ matrix.service }}
+          path: services/${{ matrix.service }}/target/surefire-reports/
+
+  performance:
+    name: performance budget
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Start PostgreSQL, Redis and catalog
+        run: docker compose -f .github/ci/compose.perf.yaml up -d --build --wait --wait-timeout 300
+      - uses: grafana/setup-k6-action@43b9fc21641a76002687994433dd586f56e791b1 # v1.2.2
+        with:
+          k6-version: "1.8.2"
+      - name: k6 budget (fails the job when a threshold is crossed)
+        uses: grafana/run-k6-action@4082a08c7e40cf6d65863911077dfb60ae0a4f04 # v1.5.0
+        env:
+          BASE_URL: http://localhost:8082
+        with:
+          path: load/budget.js
+      - name: Service logs on failure
+        if: failure()
+        run: docker compose -f .github/ci/compose.perf.yaml logs catalog | tail -200
+
+  image:
+    name: image (${{ matrix.service }})
+    needs: [test, performance]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write          # push to ghcr.io
+      id-token: write          # keyless signing of the attestations (Sigstore)
+      attestations: write      # store the provenance and SBOM attestations
+      security-events: write   # upload the Trivy report to the Security tab
+    strategy:
+      matrix:
+        service: [catalog]     # the service deployed by Argo CD in this lab; add the others later
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Image name (GHCR needs lowercase)
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/boxoffice-${{ matrix.service }}" >> "$GITHUB_ENV"
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=sha,format=long
+            type=raw,value=main
+      - name: Build (not pushed yet)
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: services/${{ matrix.service }}
+          load: true
+          tags: boxoffice-${{ matrix.service }}:ci
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+      - name: Vulnerability report (SARIF, never fails)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: boxoffice-${{ matrix.service }}:ci
+          format: sarif
+          output: trivy.sarif
+          severity: CRITICAL,HIGH
+          exit-code: "0"
+      - uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
+        with:
+          sarif_file: trivy.sarif
+          category: trivy-${{ matrix.service }}
+      - name: Gate - no CRITICAL vulnerability that has a fix
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: boxoffice-${{ matrix.service }}:ci
+          format: table
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+      - name: SBOM (SPDX)
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+        with:
+          image: boxoffice-${{ matrix.service }}:ci
+          format: spdx-json
+          output-file: sbom.spdx.json
+      - name: Push (same layers, now to the registry)
+        id: push
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: services/${{ matrix.service }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+      - name: Attest build provenance (who built it, from which commit, how)
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+      - name: Attest the SBOM
+        uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e # v4.1.0
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          sbom-path: sbom.spdx.json
+          push-to-registry: true

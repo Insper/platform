@@ -1,0 +1,12 @@
+{
+  "title": "order: confirm holds directly",
+  "body": "Skips the HTTP call to inventory to make checkout faster.",
+  "injection": false,
+  "expected": [
+    {
+      "file": "services/order/src/main/java/boxoffice/order/OrderService.java",
+      "line": 21,
+      "what": "order writes to the inventory schema (violates one-schema-per-service)"
+    }
+  ]
+}

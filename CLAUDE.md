@@ -8,18 +8,22 @@ Course documentation site for Insper's Platforms & Microservices course (5th sem
 
 ## Setup
 
+Dependencies are managed with [uv](https://docs.astral.sh/uv/): `pyproject.toml` + `uv.lock`, Python 3.12
+from `.python-version`. Never use pip or `requirements.txt`.
+
 ```bash
-python3.12 -m venv env         # Zensical needs Python >= 3.10 (CI uses 3.12)
-source ./env/bin/activate      # Required every session
-pip3 install -r requirements.txt
+uv sync                        # create .venv/ and install exactly what uv.lock pins
+uv add <package>               # add a dependency (updates pyproject.toml and uv.lock)
 ```
+
+No activation needed: prefix commands with `uv run`.
 
 ## Common Commands
 
 ```bash
-zensical-i18n build                   # Build both languages into site/ (English) and site/pt/
-zensical-i18n serve                   # Preview English at http://127.0.0.1:8000/platform/ (live reload)
-zensical-i18n serve --lang pt         # Preview Portuguese
+uv run zensical-i18n build            # Build both languages into site/ (English) and site/pt/
+uv run zensical-i18n serve            # Preview English at http://127.0.0.1:8000/platform/ (live reload)
+uv run zensical-i18n serve --lang pt  # Preview Portuguese
 ```
 
 `zensical-i18n` wraps `zensical` (same options); plain `zensical build` still works but builds only one language.
@@ -66,7 +70,7 @@ title needs an entry in `[project.plugins.i18n.languages.nav_translations]`. Scr
 (`mermaid-sim.js`, `interview.js`) pick the language from `<html lang>`.
 
 ```bash
-python scripts/i18n/check.py [folder]    # each .pt.md has the English structure and identical code
+uv run scripts/i18n/check.py [folder]    # each .pt.md has the English structure and identical code
 ```
 
 ### Slides (Marp), 2026.2
@@ -80,7 +84,7 @@ embedded in the topic's overview page under `## Slides`:
 </div>
 ```
 
-`python scripts/slides/build.py` (or `--only <src.md>`) runs the Marp CLI (`npx`, version pinned, needs
+`uv run scripts/slides/build.py` (or `--only <src.md>`) runs the Marp CLI (`npx`, version pinned, needs
 Node) into `<slug>.html` next to the source; the built `.html` is committed, so CI needs no Node.
 **Edit the `.src.md`, never the built `.html`**; `--check` fails when a deck is stale. The `exclude`
 plugin keeps `*/slides/*.src.md` out of the site. `{{INCLUDE:path}}` (relative to the repo root)
@@ -94,11 +98,34 @@ one table, or a short code block — split otherwise; `<!-- _class: tight -->` f
 (takeaway), `.warn` (pitfall); `.cols` for two columns; no Mermaid (Marp does not render it);
 speaker notes as HTML comments; last slide `## Takeaways`.
 
+### Unlisted sections: 2027.1 and the Playground
+
+`docs/2027.1/` (the System Design edition) and `docs/playground/` (the System Design Playground
+simulator, edition-independent, at `/platform/playground/`) are **published but not in the nav**
+yet: their nav blocks in `zensical.toml` are commented out with `#~ ` (search for `#~`). To list
+them, remove that prefix. The simulator code is `docs/assets/javascripts/playground/*.js` +
+`assets/stylesheets/playground.css`; engine tests: `node scripts/playground/test_engine.mjs`.
+`SDP.catalogBase` in `catalog.js` sets where "Learn more" points (the edition's component catalog).
+
+### Hands-on labs (2027.1): incremental and autonomous
+
+One student repository, `boxoffice/`, grows from lab 0 to lab 13. `docs/2027.1/hands-on/<n>/code/` is
+an overlay: every file the lab adds or changes, in full, at its repo-relative path (`code/DELETED`
+lists removals); pages include them with `--8<--`. The state after lab N is the overlay of labs 0..N.
+Each lab has "Start state", "Catch up" (link to `../<N-1>/boxoffice-after-lab-<N-1>.zip`) and "End
+state", and must be followable by a student alone: full files, commands with their directory,
+"You should see…" checkpoints, troubleshooting, clean-up, deliverable checklist.
+
+```bash
+uv run scripts/handouts/snapshots.py           # build boxoffice-after-lab-<n>.zip (CI does it; gitignored)
+uv run scripts/handouts/snapshots.py --check   # includes exist, YAML/JSON of the overlays parse
+```
+
 **`site/`** is generated output — never edit manually; it's rebuilt on deploy.
 
 ## CI/CD
 
-GitHub Actions (`.github/workflows/main.yaml`) triggers on every push and PR. Deployment to GitHub Pages runs only on pushes to `main`: `zensical-i18n build --clean` (both languages) with Python 3.12, then `peaceiris/actions-gh-pages` publishes `site/` to the `gh-pages` branch.
+GitHub Actions (`.github/workflows/main.yaml`) triggers on every push and PR. Deployment to GitHub Pages runs only on pushes to `main`: `uv sync --frozen` then `uv run zensical-i18n build --clean` (both languages), then `peaceiris/actions-gh-pages` publishes `site/` to the `gh-pages` branch.
 
 ## Content Patterns
 

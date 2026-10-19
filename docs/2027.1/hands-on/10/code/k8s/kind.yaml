@@ -1,0 +1,11 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: boxoffice
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      - containerPort: 30080   # NodePort of the Ingress controller (Traefik)
+        hostPort: 80           # http://localhost
+        protocol: TCP
+  - role: worker
+  - role: worker

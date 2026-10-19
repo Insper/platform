@@ -1,0 +1,14 @@
+diff --git a/services/catalog/src/main/java/boxoffice/catalog/EventRepository.java b/services/catalog/src/main/java/boxoffice/catalog/EventRepository.java
+index e791c29..e9fb19e 100644
+--- a/services/catalog/src/main/java/boxoffice/catalog/EventRepository.java
++++ b/services/catalog/src/main/java/boxoffice/catalog/EventRepository.java
+@@ -16,4 +16,9 @@ public class EventRepository {
+     public List<Event> findAll() {
+         return jdbc.query("select id, name, starts_at from catalog.event", Event.MAPPER);
+     }
++
++    public List<Event> search(String text) {
++        return jdbc.query("select id, name, starts_at from catalog.event where name ilike '%"
++                + text + "%'", Event.MAPPER);
++    }
+ }

@@ -1,0 +1,113 @@
+\activity{14}{AI-Assisted Delivery}{ai-delivery}{BoxOffice has twelve engineers who merge about sixty pull requests (PRs) a week, and a PR waits most of a working day for its first human review. ``Let's put AI in the pipeline'': two weeks later there is a bot with fifteen ignored comments per PR, an agent that ``fixed'' a red build by deleting the failing test, release notes announcing a feature nobody built and an invoice nobody predicted. Where should AI steps sit in the pipeline, with what context, permissions, checks and budget, so that they cut review latency and catch real bugs?}
+\stages{\stEstimate\ \stDesign\ \stDeep}
+
+\begin{know}
+  \item \textbf{AI proposes; rules and humans dispose.} An AI step branches off the delivery path and returns through a deterministic check or a human. Approvals, merges, rollbacks and quarantines are never the model's decision.
+  \item \textbf{Autonomy levels}: 0 assistant, 1 copilot, 2 reviewer/drafter, 3 supervised agent (opens a draft PR), 4 autonomous within guardrails. Choose by blast radius and by how well the result can be verified; accountability stays with the human who merges.
+  \item \textbf{The contract of an AI step}: trigger; context (trusted or untrusted); output validated against a schema; action with least privilege (the permission is the worst case of any prompt injection); budget and fallback (fail open if advisory, fail closed if a gate relies on it).
+  \item \textbf{Three costs}: tokens, runner minutes and \textbf{attention}, usually the largest. Review cost $=$ (cached prefix $\times\, p_\text{read}$ $+$ written prefix $\times\, p_\text{in} \times 1.25$ $+$ diff $\times\, p_\text{in}$ $+$ output $\times\, p_\text{out}$) $/10^6$, prices $p$ in US\$ per million tokens.
+  \item \textbf{Precision} $=$ useful comments $\div$ posted comments; \textbf{recall} $=$ problems found $\div$ real problems. Anything that talks to humans needs precision first. Roll out shadow $\to$ advisory $\to$ gate, per category.
+  \item \textbf{Generated tests}: AI is good at inputs, weak at the \textbf{oracle} (deciding what is correct). Judge tests by \textbf{mutation score} (killed mutants $\div$ total mutants), not by coverage. Test selection trades recall for runner minutes and needs a full-suite safety net.
+  \item \textbf{Agents in CI} (continuous integration): every turn re-sends the growing context, so cost grows about \textbf{quadratically} with turns; budgets are enforced by the harness, never by the prompt. Judge by \textbf{dollars per merged fix}.
+  \item \textbf{Security}: never give one step the \textbf{lethal trifecta} (untrusted input, private data or secrets, a way to act or exfiltrate). Watch \texttt{pull\_request\_target}, \texttt{\$\{\{ github.event.* \}\}} inside \texttt{run:}, unpinned actions and invented package names (slopsquatting).
+\end{know}
+
+\begin{ex}{1}{How much autonomy?}
+For each change, choose the highest autonomy level (0 to 4) an AI step should have, and justify it in one line with blast radius and verifiability.
+\items
+  \item A patch bump of \texttt{jackson-databind}, 2.18.1 $\to$ 2.18.2, in a repository with a fast, trustworthy CI.
+  \item A change to the \texttt{SELECT \dots\ FOR UPDATE} that holds seats in \texttt{inventory}.
+  \item The Spanish translation of the \texttt{notification} messages.
+  \item An agent proposes a fix that deletes the failing \texttt{HoldExpiryTest}. The build turns green. Who is accountable if the PR is merged, and what deterministic check would have stopped it?
+\end{enumerate}
+\lines{4}
+\end{ex}
+
+\begin{ex}{1}{The contract of the reviewer}
+Fill in the contract of an AI code reviewer for the BoxOffice repositories.
+\begin{center}\small
+\begin{tabular}{@{}l p{9.6cm}@{}}
+  \toprule
+  trigger & \blank \\
+  context, trusted & \blank \\
+  context, untrusted & \blank \\
+  output & \blank \\
+  action (permission) & \blank \\
+  budget and fallback & \blank \\
+  \bottomrule
+\end{tabular}
+\end{center}
+\hint{a review that fails or times out must not block the PR.}
+\end{ex}
+
+\begin{ex}{2}{What one review costs}
+A review sends an 8\,000-token stable prefix (instructions, conventions, ADRs, Architecture Decision Records), 6\,000 tokens of diff and PR text, and receives 1\,500 output tokens. Mid-size model: US\$ 2 input, US\$ 10 output, US\$ 0.20 cached read per million tokens; writing the prefix to the cache costs 1.25$\times$ the input price.
+\items
+  \item Cost of one review with a cold cache (the prefix is written).
+  \item Cost with 80\% of the prefix read from the cache (the other 20\% is written).
+  \item Monthly bill for BoxOffice (250 reviews) and for a 500-engineer company (20\,000 reviews).
+  \item What share of the warm-cache bill is output, although output is about a tenth of the tokens?
+  \item A reviewer with 40\% precision posts 4 comments on each of 5\,000 reviews a week; reading a comment takes 1 minute. How many hours a week go to useless comments? Which cost matters more?
+\end{enumerate}
+\lines{6}
+\end{ex}
+
+\begin{ex}{2}{Where to set the threshold}
+On a sample of 100 PRs with 150 real problems, the reviewer emitted comments at three confidence levels: high 60 (48 real), medium 90 (45 real) and low 150 (30 real).
+\begin{center}\small
+\begin{tabular}{@{}lccc@{}}
+  \toprule
+  post comments with confidence & comments per PR & precision & recall \\
+  \midrule
+  $\ge$ high & \blank\hspace{1.4cm} & \hspace{1.4cm} & \hspace{1.4cm} \\
+  $\ge$ medium & \blank & & \\
+  $\ge$ low (everything) & \blank & & \\
+  \bottomrule
+\end{tabular}
+\end{center}
+\items
+  \item Fill in the table.
+  \item Which threshold would you start with, and why not the others?
+  \item Describe the rollout to a blocking check in three stages. What is a gate allowed to do, and what never?
+\end{enumerate}
+\lines{5}
+\end{ex}
+
+\begin{ex}{2}{Tests that check something}
+In the classes changed by a PR, mutation testing creates 200 mutants; the existing tests kill 82. The team accepts generated tests only if they raise the mutation score by at least 5 percentage points (pp).
+\items
+  \item What is the baseline mutation score?
+  \item PR A adds 40 generated tests, coverage goes from 45\% to 95\% and 84 mutants are killed. PR B adds 3 property-based tests, coverage goes to 60\% and 96 mutants are killed. Which do you accept?
+  \item A hold must last 10 minutes; the code says \texttt{plusMinutes(8)} and the generated test asserts 8 minutes. It passes. What went wrong, and where must the oracle come from?
+  \item Test selection: 60 PRs a week with 3 pushes each, 5 working days; the full suite takes 25 min, the selected subset 4 min. How many runs a day, and how many runner-minutes a day does selection save?
+  \item 4\% of pushes break a test. With a selection recall of 95\%, how many breaks per week slip to the nightly full run? What is the safety net for?
+\end{enumerate}
+\lines{6}
+\end{ex}
+
+\begin{ex}{2}{An agent fixes the build}
+A fix-the-build agent starts with 20\,000 tokens of context (instructions, tools, log) and each turn adds 2\,500 tokens; each turn produces 400 output tokens. Large model: US\$ 4 input and US\$ 20 output per million tokens, no prompt cache.
+\items
+  \item Turn $i$ sends $20\,000 + 2\,500\,(i-1)$ input tokens. Show that $n$ turns send $20\,000\,n + 1\,250\,n(n-1)$ tokens, and compute the cost of a run of 10 turns and of 40 turns.
+  \item With prompt caching the class gets US\$ 0.35 and US\$ 1.43. Why does caching change the slope so much?
+  \item An agent costs US\$ 0.80 per run and produces a mergeable fix 1 time in 4. What is the cost per merged fix?
+  \item Write the four budgets you would enforce for this agent, with values, and who enforces each one.
+\end{enumerate}
+\lines{6}
+\end{ex}
+
+\simulator{300 reviews and 300 agents at once}{ai-assistant}{Use the spike profile and imagine the spike is a mass dependency upgrade that triggers hundreds of AI reviews and fix agents. Watch the LLM Gateway queue and errors, then lower the per-client quota: the bots slow down, the fans do not.}
+
+\begin{ex}{3}{Design the fix-the-build pipeline}
+Design the CI pipeline around the fix-the-build agent so that it can propose fixes for 14 red services without being able to harm the repository.
+\palette{\comp{compute}{Worker}\ \comp{ai}{Orchestrator}\ \comp{ai}{LLM Gateway}\ \comp{ai}{Tool Registry}\ \comp{messaging}{Message Queue}\ \comp{observability}{Logs}\ \comp{external}{3rd Party API}}
+\frameblank{5.2cm}
+\items
+  \item Draw it: who triggers the agent, where it runs, which job holds a write token, how a fix becomes a draft PR, where budgets and the audit trail live.
+  \item A colleague's workflow runs on \texttt{pull\_request\_target}, puts the PR title inside a \texttt{run:} command and gives the agent the repository secrets. Which three legs of the lethal trifecta does it combine, and which one would you remove?
+  \item Version 1.8.0 of \texttt{inventory} is at 25\% of the traffic: canary errors 2.9\% against 0.1\% on the stable version, p99 2.3$\times$ higher. Who decides to abort, and what is the AI step allowed to do?
+\end{enumerate}
+\lines{4}
+\end{ex}
+
+\simulator{Measure before you decide}{observability-stack}{A canary verdict needs numbers: connect Metrics, Health Checks and Alerting and watch how the crash at t = 50 s is detected in seconds instead of half a minute.}

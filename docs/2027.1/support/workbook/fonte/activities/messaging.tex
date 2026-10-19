@@ -1,0 +1,90 @@
+\activity{8}{Messaging \& Event-Driven}{messaging}{At 10:00 two million fans press ``Buy'' for 60\,000 seats, and the first BoxOffice does everything in one synchronous request: hold the seats, charge the card, send the e-mail, push a notification, update search and record the sale. The e-mail provider answers in 800 ms instead of 80 ms, the \texttt{order} service runs out of threads and fans about to pay see an error. Which steps must the fan wait for, and how do you hand off the rest as messages without losing, duplicating or silently delaying them?}
+\stages{\stDesign\ \stEstimate\ \stDeep}
+
+\begin{know}
+  \item \textbf{Call or send?} If the caller needs the answer to continue, call; if the work only has to happen eventually, send a message. Synchronous latencies add and availabilities multiply; asynchronous work leaves the chain (only the broker stays).
+  \item \textbf{Queue} (one consumer per message, deleted on ack), \textbf{pub/sub} (a copy per subscription), \textbf{event log} or stream (records kept until retention; each consumer group reads at its own offset and can replay).
+  \item \textbf{Load levelling}: during a spike the backlog grows at (arrival rate $-$ drain rate); wait $=$ backlog $/$ drain rate. A queue absorbs spikes, not a permanent shortage. Workers needed $= \lambda \times S$ (Little's Law).
+  \item \textbf{Kafka}: partition $=$ hash(key) mod $N$; order only within a partition; consumers in a group $\le$ partitions; \textbf{lag} $=$ log-end offset $-$ committed offset. Partitions $N \ge \max(T/p, T/c)$ for throughput $T$ and per-partition producer $p$ and consumer $c$ rates.
+  \item Durability: replication factor 3, \texttt{acks=all}, \texttt{min.insync.replicas=2}; retention 7 days by default.
+  \item \textbf{Delivery}: at-most-once (commit before processing) loses; at-least-once (commit after) duplicates. \textbf{Effectively-once} $=$ at-least-once $+$ idempotent processing (dedup row in the same transaction, idempotency keys). Bounded retries with backoff, then a \textbf{DLQ} (dead-letter queue).
+  \item \textbf{Dual writes} (write the database, then publish) lose or invent events: use a \textbf{transactional outbox} (or CDC, change data capture).
+  \item \textbf{Saga}: a sequence of local transactions with compensations; the \textbf{pivot} (payment) is the step after which you go forward only. CQRS and event sourcing only when a requirement asks for them.
+\end{know}
+
+\begin{ex}{1}{Wait for it or send it?}
+\items
+  \item For each step of the purchase, say \emph{synchronous} (the fan waits) or \emph{asynchronous} (a message), and through which palette component: hold the seats; charge the card; send the confirmation e-mail; push a notification; update the ``seats left'' shown in search; record the sale for analytics; generate the PDF ticket.
+  \item With every step synchronous, how much does the e-mail slowdown (80 $\to$ 800 ms) add to every purchase?
+\end{enumerate}
+\lines{4}
+\end{ex}
+
+\begin{ex}{1}{Availability of the chain}
+\texttt{order} is available 99.95\% of the time; three downstream services (notification, search, analytics) are 99.9\% each; the broker is 99.95\%.
+\items
+  \item Availability of a purchase when \texttt{order} calls the three services synchronously? How many hours of failed purchases per month (730 h)?
+  \item And when \texttt{order} only publishes an event to the broker?
+  \item What did you buy with the broker, and what did you pay for it?
+\end{enumerate}
+\lines{4}
+\end{ex}
+
+\begin{ex}{2}{The queue absorbs the spike}
+Before 10:00 BoxOffice receives 200 purchase requests/s. From 10:00 to 10:03 it receives 6\,000/s. The workers behind the queue process 2\,000/s.
+\items
+  \item How fast does the backlog grow during the spike? How big is it at 10:03?
+  \item How long does the last fan who arrived at 10:03 wait for the work to start (ignore later arrivals)?
+  \item With 4\,000/s of workers, backlog and wait?
+  \item A second case: 5\,000/s for 2 minutes against 3\,000/s of processing. A colleague answers ``600\,000 messages, 48 s of wait''. What two mistakes did he make?
+\end{enumerate}
+\lines{6}
+\end{ex}
+
+\simulator{A queue absorbs the spike}{async-queue}{Replace the call app $\to$ worker by app $\to$ Message Queue $\to$ worker and run the spike profile: errors disappear, the backlog grows for 30 s and drains after; consumer lag $=$ backlog $/$ drain rate.}
+
+\begin{ex}{2}{How many PDF workers?}
+The 60\,000 seats are sold 2 per order in 3 minutes. Each ticket PDF takes $S = 0.4$ s of a worker.
+\items
+  \item Orders per second? Busy workers if the PDFs must keep up in real time? How many workers for $\approx$ 70\% utilization?
+  \item With only 20 workers: PDFs/s, backlog after 3 minutes and time to drain it.
+  \item The promise is ``tickets within 15 minutes''. Which option do you choose?
+  \item The queue's visibility timeout is 30 s and a rare PDF takes 45 s. What happens, and what do you change?
+\end{enumerate}
+\lines{6}
+\end{ex}
+
+\begin{ex}{2}{Partitions, keys and lag}
+\items
+  \item A topic has 8 partitions and the notification service runs 12 instances in one consumer group. How many do work?
+  \item Purchase events are keyed by show; 60\% of purchases are for the stadium show. What happens? Which key would you use, and what ordering do you keep?
+  \item Notification sends one e-mail per \texttt{OrderConfirmed} in about 50 ms, so one partition is consumed at $c = 20$ records/s. The on-sale produces 30\,000 orders in 180 s. Minimum number of partitions? What would you create?
+  \item Lag per partition: P0 15, P1 8, P2 64\,767. Is it a capacity problem? What do you look for?
+\end{enumerate}
+\lines{6}
+\end{ex}
+
+\simulator{Publish an event, let consumers react}{event-fanout}{Publish to Kafka and let notification, analytics and the indexer consume. When analytics slows down at t = 60 s, only its own lag grows; order latency stays flat.}
+
+\begin{ex}{2}{Ana got three e-mails, Bruno got none}
+\items
+  \item Ana's consumer sent the e-mail and crashed before committing the offset, three times. Bruno's \texttt{order} committed the order and crashed before publishing the event. Name each failure (which guarantee, which hop).
+  \item Fix Ana: what does the consumer store, in which transaction, and keyed by what?
+  \item Fix Bruno: describe the transactional outbox in two sentences.
+  \item A poisoned message fails forever. The retry policy is 1 try $+$ 3 retries with backoff 1 s, 4 s, 16 s. How long until it reaches the DLQ? What must happen with the DLQ?
+\end{enumerate}
+\lines{6}
+\end{ex}
+
+\begin{ex}{3}{The checkout saga and the waiting room}
+\items
+  \item Write the checkout saga: create order, hold seats, charge, mark seats sold, confirm. Give each step's compensation and mark the pivot. What does the fan's \texttt{POST /orders} answer, and when?
+  \item The waiting room admits fans at 50\% of the measured inventory throughput (2\,000 holds/s). Admission rate? A fan at position 512\,384: how long until admission?
+  \item Draw the purchase path with the waiting room, the outbox and the consumers.
+\end{enumerate}
+\lines{4}
+\palette{\comp{client}{Client} \comp{edge}{API Gateway} \comp{messaging}{Message Queue} \comp{compute}{Worker} \comp{storage}{SQL Database} \comp{messaging}{Kafka} \comp{compute}{Notifications} \comp{external}{Payment}}
+\frameblank{6cm}
+\end{ex}
+
+\simulator{The flash-sale waiting room}{flash-sale}{Route purchases through the API Gateway to a waiting-room queue drained by order workers: errors vanish and the consumer lag becomes the time a buyer waits in line.}

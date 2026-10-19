@@ -1,0 +1,27 @@
+[project]
+name = "platform"
+version = "2027.1"
+description = "Course site of Insper's System Architecture course (Zensical, two languages)"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    # Static site generator (alpha: pinned so builds stay reproducible)
+    "zensical==0.0.70",
+    # Two languages (English, Portuguese): wraps zensical, build with `zensical-i18n build`
+    "zensical-i18n==0.3.0",
+    # Markdown extensions
+    "markdown-exec",
+    "termynal",
+    # Libraries used by ```python exec="true" blocks
+    "matplotlib",
+    "matplotlib-venn",
+    "numpy",
+    "pandas",
+    "scikit-learn",
+    "seaborn",
+    "tabulate",
+]
+
+[tool.uv]
+# A documentation site, not a Python package: uv only manages the environment
+package = false
