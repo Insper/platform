@@ -749,6 +749,11 @@
   /* ─── Render the design (structure) ─── */
   P.renderGraph = function () {
     var self = this, d = this.design, u = this.uid;
+    // The graph is rebuilt from scratch: if keyboard focus was on (or inside) the canvas — e.g. on the
+    // block just clicked — it would fall back to <body> and Delete/Backspace, D, C… would no longer reach
+    // this instance. Remember it and give it back after the rebuild (see restoreFocus below).
+    var act = document.activeElement, hadFocus = !!(act && this.svg && this.svg.contains(act));
+    var focusId = hadFocus && act.getAttribute ? act.getAttribute("data-node") : null;
     this.gFrames.innerHTML = ""; this.gEdges.innerHTML = ""; this.gDots.innerHTML = ""; this.gNodes.innerHTML = "";
     this.nodeEls = {}; this.edgeEls = {};
     this.empty.style.display = d.nodes.length || d.frames.length ? "none" : "";
@@ -829,9 +834,17 @@
       self.nodeEls[n.id] = { g: g, sub: sub, badge: badge, bar: bar, barBg: barBg, pend: pend, def: c, n: n };
     });
     this.applyView();
+    if (hadFocus) this.restoreFocus(focusId);
   };
 
   P.focusNode = function (id) { var ne = this.nodeEls && this.nodeEls[id]; if (ne && ne.g.focus) ne.g.focus(); };
+  P.restoreFocus = function (id) {
+    var ne = id && this.nodeEls && this.nodeEls[id];
+    try {
+      if (ne && ne.g.focus) ne.g.focus({ preventScroll: true });
+      else this.root.focus({ preventScroll: true });
+    } catch (e) { /* old browsers: focus without options */ if (ne && ne.g.focus) ne.g.focus(); else this.root.focus(); }
+  };
   P.isSel = function (kind, id) { return !!this.sel && this.sel.kind === kind && this.sel.id === id; };
 
   /* ─── Per-frame live update of the canvas ─── */
@@ -1695,6 +1708,15 @@
   /* ─── Pointer interaction: select, drag nodes/frames, connect, pan ─── */
   P.onPointerDown = function (ev) {
     if (ev.button !== undefined && ev.button !== 0) return;
+    // A click on the canvas can trigger a redraw (e.g. the Label field commits on blur) that removes the
+    // element the browser was about to focus; afterwards, keep keyboard focus inside this instance so
+    // Delete/Backspace, D and C act on the selection.
+    var me = this;
+    setTimeout(function () {
+      if (me.dead) return;
+      var a = document.activeElement;
+      if (!a || !me.root.contains(a)) me.restoreFocus(me.sel && me.sel.kind === "node" ? me.sel.id : null);
+    }, 0);
     var tgt = ev.target, p = this.toWorld(ev);
     var handle = tgt.getAttribute && tgt.getAttribute("data-handle");
     var nodeG = tgt.closest ? tgt.closest(".sdp-node") : null;
