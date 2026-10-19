@@ -20,6 +20,11 @@
  *      for hits, errors, timeouts and retries). Their latencies feed the
  *      percentile histograms (p50/p95/p99/p999) and the Trace waterfall.
  *
+ * Kubernetes Cluster frames add a third, discrete part: nodes inside a
+ * cluster run as pods, and at most (ready worker nodes × pods per node) of
+ * them are scheduled; the others are Pending (not serving) until there is
+ * room (see clusterStep).
+ *
  * Randomness comes from seeded streams (rng.js): same seed + same design +
  * same profile ⇒ the same run.
  *
@@ -41,6 +46,12 @@
   var EDGE_SIGMA = 0.6;         // lognormal shape assumed for "latency of a call" in the fluid model
   var WINDOW_TICKS = 50;        // sliding window for live percentiles (5 s)
   var LINE = 128;               // ring buffer (ticks) for delayed retries
+  var K8S_DETECT_S = 40;        // a lost Kubernetes node: NotReady and its endpoints removed after 40 s
+  var JOIN_S = 10;              // a new pod waits for its endpoints to propagate (0 with a Service Registry)
+  var CA_IDLE_S = 120;          // the cluster autoscaler removes a node not needed for this long
+  var DB_REPLACE_S = 120;       // DB Cluster: a dead node is replaced after this long
+  /* managed services and external providers never run as pods of a cluster */
+  var NOT_POD = { dns: 1, cdn: 1, lb: 1, waf: 1, serverless: 1, objstore: 1, dwh: 1, dbcluster: 1, queue: 1, pubsub: 1, stream: 1, nat: 1, vpn: 1, llmgw: 1 };
 
   /* ─── Latency histogram: log buckets, ~4% resolution (HDR-like) ─── */
   var HB = 0.05, HF = Math.log(1.04), NB = 420;
@@ -69,7 +80,7 @@
   function isCompute(n) { return n.def.cat === "compute" || n.def.cat === "ai" || n.type === "apigw"; }
   function isService(n) { return n.role !== "source" && n.role !== "side" && n.role !== "frame"; }
   var EVENTS = {
-    crash: { rate: 0.3, scope: "node", ok: function (n) { return isService(n) && !n.def.d.ext && n.type !== "dns" && n.type !== "cdn"; } },
+    crash: { rate: 0.3, scope: "node", ok: function (n) { return isService(n) && !n.def.d.ext && n.type !== "dns" && n.type !== "cdn" && n.type !== "dbcluster"; } },
     slow: { rate: 0.25, scope: "node", ok: function (n) { return isService(n) && n.role !== "split"; } },
     viral: { rate: 0.6, scope: "global" },
     hotkey: { rate: 0.4, scope: "global", ok: function (sim) { return sim.hasPartitioned; } },
@@ -80,9 +91,11 @@
     extOutage: { rate: 0.5, scope: "node", ok: function (n) { return !!n.def.d.ext; } },
     badDeploy: { rate: 0.3, scope: "global", ok: function (sim) { return sim.nodes.some(isCompute); } },
     noisy: { rate: 0.25, scope: "node", ok: function (n) { return isService(n) && !n.def.d.ext && n.role !== "split"; } },
-    gcStorm: { rate: 0.2, scope: "node", ok: function (n) { return n.type === "app"; } }
+    gcStorm: { rate: 0.2, scope: "node", ok: function (n) { return n.type === "app"; } },
+    nodeFail: { rate: 0.2, scope: "global", ok: function (sim) { return sim.clusters.length > 0; } },
+    primaryFail: { rate: 0.3, scope: "node", ok: function (n) { return n.type === "dbcluster"; } }
   };
-  var EVENT_ORDER = ["crash", "slow", "viral", "hotkey", "flush", "az", "region", "partition", "extOutage", "badDeploy", "noisy", "gcStorm"];
+  var EVENT_ORDER = ["crash", "slow", "viral", "hotkey", "flush", "az", "region", "partition", "extOutage", "badDeploy", "noisy", "gcStorm", "nodeFail", "primaryFail"];
 
   /* ─── Small math helpers ─── */
   function clamp(x, a, b) { return x < a ? a : x > b ? b : x; }
@@ -91,6 +104,20 @@
   function fin(x) { return isFinite(x) ? x : 0; }
   function lnMean(median, s) { s = clamp(s, 0, 3); return median * Math.exp(s * s / 2); }
   function sigma(p, d) { return clamp(num(p.sigma, d), 0, 3); }
+  /* Container CPU limit (× request): capacity scales with it, and below 1
+     the container is throttled, so its own work takes longer. */
+  function cpuLim(n) { return n.type === "container" ? clamp(num(n.p.cpuLimit, 1), 0.1, 4) : 1; }
+  function capOf(n, d) { return num(n.p.capacity, d === undefined ? 1000 : d) * cpuLim(n); }
+  /* (a latency degradation of a DB Cluster slows a follower, not its own work: see dbRepl) */
+  function medianMs(n) { return num(n.p.latencyMs, 1) * (n.type === "dbcluster" ? 1 : n.latF) / Math.min(1, cpuLim(n)); }
+
+  /* ─── DB Cluster helpers ─── */
+  function dbShape(n) {
+    var p = n.p, R = clamp(Math.round(num(p.replicasPerShard, 2)), 0, 5);
+    var mode = R === 0 ? "async" : (p.replication === "sync" || p.replication === "quorum" ? p.replication : "async");
+    var acked = mode === "async" ? 0 : mode === "sync" ? 1 : Math.floor((R + 1) / 2);
+    return { S: clamp(Math.round(num(p.shards, 1)), 1, 64), R: R, mode: mode, acked: acked, lagging: R - acked, fol: p.readsFrom !== "primary" && R > 0 };
+  }
   /* replica counts drive loops (autoscaling) and must stay bounded */
   var MAX_REPLICAS = 10000;
   function reps(x, d) { return clamp(Math.round(num(x, d)), 1, MAX_REPLICAS); }
@@ -179,7 +206,10 @@
       if (!def || def.role === "frame" || (key && map[key])) return;
       var id = freshId(n.id, "n");
       if (key) map[key] = id;
-      out.nodes.push({ id: id, type: n.type, x: fin(num(n.x, 0)), y: fin(num(n.y, 0)), label: str(n.label, 40), params: cleanParams(n.params, CAT.PARAMS) });
+      /* a label equal to the component type is no label: the block shows the type once */
+      var label = str(n.label, 40).trim();
+      if (label === def.label) label = "";
+      out.nodes.push({ id: id, type: n.type, x: fin(num(n.x, 0)), y: fin(num(n.y, 0)), label: label, params: cleanParams(n.params, CAT.PARAMS) });
     });
     (Array.isArray(d.edges) ? d.edges : []).forEach(function (e) {
       if (!e || typeof e !== "object") return;
@@ -188,8 +218,11 @@
       out.edges.push({ id: freshId(e.id || ("e" + a + "_" + b), "e"), from: a, to: b, params: cleanParams(e.params, CAT.EDGE_PARAMS) });
     });
     (Array.isArray(d.frames) ? d.frames : []).forEach(function (f) {
-      if (!f || (f.type !== "vpc" && f.type !== "subnet")) return;
-      out.frames.push({ id: freshId(f.id, "f"), type: f.type, x: fin(num(f.x, 0)), y: fin(num(f.y, 0)), w: clamp(fin(num(f.w, 300)), 80, 1e5), h: clamp(fin(num(f.h, 200)), 60, 1e5), name: str(f.name, 30), region: str(f.region, 30), zone: str(f.zone, 30) });
+      var def = f && typeof f === "object" ? defOf(f.type) : null;
+      if (!def || def.role !== "frame") return;
+      var fr = { id: freshId(f.id, "f"), type: f.type, x: fin(num(f.x, 0)), y: fin(num(f.y, 0)), w: clamp(fin(num(f.w, 300)), 80, 1e5), h: clamp(fin(num(f.h, 200)), 60, 1e5), name: str(f.name, 30), region: str(f.region, 30), zone: str(f.zone, 30) };
+      if (def.params.length) fr.params = cleanParams(f.params, CAT.PARAMS);
+      out.frames.push(fr);
     });
     return out;
   }
@@ -278,6 +311,7 @@
     this.noiseX = 0;
     this.state = {};       // node runtime state by id (survives live design edits)
     this.estate = {};      // edge runtime state by id
+    this.cstate = {};      // Kubernetes cluster runtime state by frame id
     this.active = [];      // active events
     this.downs = [];       // replica-down records {node, k, t0, detectAt, until, cause}
     this.log = [];
@@ -288,7 +322,8 @@
     this.winHist = new Float64Array(NB); this.winTotal = 0;
     this.tickHists = []; for (var i = 0; i < WINDOW_TICKS; i++) this.tickHists.push({ h: new Uint16Array(NB), n: 0, list: [] });
     this.runHist = new Float64Array(NB); this.runN = 0;
-    this.acc = { offered: 0, served: 0, runOffered: 0, runServed: 0, costSum: 0, costN: 0, trOk: 0, trErr: 0, trDeg: 0, dups: 0, maxLag: 0, maxRepLag: 0, servedWinSum: 0, winTicks: 0 };
+    this.runHistW = new Float64Array(NB); this.runNW = 0;   // writes only
+    this.acc = { offered: 0, served: 0, runOffered: 0, runServed: 0, costSum: 0, costN: 0, trOk: 0, trErr: 0, trDeg: 0, dups: 0, maxLag: 0, maxRepLag: 0, servedWinSum: 0, winTicks: 0, lostWrites: 0, staleSum: 0, readSum: 0 };
     this.trStats = {};
     this.slowTrace = null;
     this.breakpoint = null; this.knee = null; this.baseP99 = [];
@@ -321,22 +356,49 @@
         st = self.state[n.id] = {
           q: 0, h: 1, holdPrev: lnMean(num(p.latencyMs, 1), num(p.sigma, 0.3)), muPrev: 0, ready: reps(p.replicas, 1),
           pending: [], paramReplicas: reps(p.replicas, 1), leakT0: 0, warm: num(p.provisioned, 0),
-          repLag: 0, rhoAcc: 0, rhoN: 0, firstHot: null, maxRho: 0, backlog: 0, sPrev: [1, 1], schedLast: -1
+          repLag: 0, rhoAcc: 0, rhoN: 0, firstHot: null, maxRho: 0, backlog: 0, sPrev: [1, 1], schedLast: -1,
+          unsched: 0, lost: []   // pods of a cluster: Pending (no room) and lost with a node (recreated later)
         };
       }
       var want = reps(p.replicas, 1);
-      if (want !== st.paramReplicas) { st.ready = want; st.pending = []; st.paramReplicas = want; }
+      if (want !== st.paramReplicas) { st.ready = want; st.pending = []; st.paramReplicas = want; st.unsched = 0; st.lost = []; }
       n.st = st;
     });
 
     /* zones and regions from frames (node centre inside the rectangle) */
+    function inside(n, f) { return n.x >= f.x && n.x <= f.x + f.w && n.y >= f.y && n.y <= f.y + f.h; }
     design.frames.forEach(function (f) {
       nodes.forEach(function (n) {
-        if (n.x >= f.x && n.x <= f.x + f.w && n.y >= f.y && n.y <= f.y + f.h) {
-          if (f.type === "vpc") { n.region = f.region || f.name || "region-1"; n.inVpc = true; }
-          else n.zone = f.zone || f.name || "a";
-        }
+        if (!inside(n, f)) return;
+        if (f.type === "vpc") { n.region = f.region || f.name || "region-1"; n.inVpc = true; }
+        else if (f.type === "subnet") n.zone = f.zone || f.name || "a";
       });
+    });
+
+    /* Kubernetes clusters: the nodes inside a k8s frame run as its pods
+       (a node belongs to the first cluster that contains it) */
+    var clusters = [], clusterById = {}, cstates = {};
+    design.frames.forEach(function (f) {
+      if (f.type !== "k8s") return;
+      var p = CAT.merge(defOf("k8s").d, f.params || {}), want = reps(p.nodes, 3);
+      var cs = self.cstate[f.id];
+      if (!cs) cs = self.cstate[f.id] = { ready: want, starting: [], failed: [], paramNodes: want, idleSince: null, pendingLogged: false };
+      if (want !== cs.paramNodes) { cs.ready = want; cs.starting = []; cs.failed = []; cs.paramNodes = want; }
+      var cl = { id: f.id, label: f.name || "Kubernetes", p: p, st: cs, members: [], C: 0 };
+      nodes.forEach(function (n) {
+        if (!n.cluster && isService(n) && !n.def.d.ext && !NOT_POD[n.type] && inside(n, f)) { n.cluster = cl; cl.members.push(n); }
+      });
+      clusters.push(cl); clusterById[f.id] = cl; cstates[f.id] = 1;
+    });
+    Object.keys(this.cstate).forEach(function (id) { if (!cstates[id]) delete self.cstate[id]; });
+    /* a node taken out of its cluster: its Pending pods simply start */
+    nodes.forEach(function (n) {
+      var st = n.st;
+      if (n.cluster || !(st.unsched || st.lost.length)) return;
+      var k = st.unsched;
+      st.lost.forEach(function (l) { k += l.k; });
+      for (var i = 0; i < k; i++) st.pending.push(self.t + self.warmupOf(n));
+      st.unsched = 0; st.lost = [];
     });
     this.zones = {}; this.regions = {};
     nodes.forEach(function (n) { if (isService(n)) { self.zones[n.region + "/" + n.zone] = 1; self.regions[n.region] = 1; } });
@@ -387,6 +449,7 @@
       n.mesh = n.role !== "side" && n.attached.filter(function (s) { return s.type === "mesh"; })[0] || null;
       n.observed = attachedTo(n, "metrics") || (!!n.mesh && meshMetrics) || n.role === "source";
       n.hc = attachedTo(n, "healthcheck");
+      n.registered = n.role !== "side" && attachedTo(n, "registry");
     });
     this.hasLogs = nodes.some(function (n) { return n.type === "logs" && n.attached.length > 0; });
     this.hasTracing = nodes.some(function (n) { return n.type === "tracing" && n.attached.length > 0; });
@@ -421,8 +484,13 @@
       if (n.role === "split") {
         if (n.out.length) n.groups.push({ split: true, edges: n.out.slice() });
       } else if (n.type === "apigw") {
+        /* targets of the same type are load-balanced, except microservices and
+           containers: each one is a different service, i.e. its own route */
         var byType = {};
-        n.out.forEach(function (e) { (byType[e.to.type] = byType[e.to.type] || []).push(e); });
+        n.out.forEach(function (e) {
+          var key = e.to.type === "microservice" || e.to.type === "container" ? "#" + e.to.id : e.to.type;
+          (byType[key] = byType[key] || []).push(e);
+        });
         Object.keys(byType).forEach(function (t) {
           var list = byType[t];
           if (list.length >= 2) n.groups.push({ split: true, edges: list });
@@ -434,10 +502,11 @@
       n.groups.forEach(function (g) { g.shares = g.edges.map(function () { return g.split ? 1 / g.edges.length : 1; }); });
     });
 
-    /* failure detection time: by whoever routes around the node */
+    /* failure detection time: by whoever routes around the node. A Service
+       Registry also lets direct (client-side) callers drop dead replicas. */
     flowEdges.forEach(function (e) {
       var splitter = e.from.role === "split" || (e.from.type === "apigw" && e.from.groups.some(function (g) { return g.split && g.edges.indexOf(e) >= 0; }));
-      e.detectS = splitter ? ((e.from.hc || e.to.hc) ? DETECT_HC_S : DETECT_S) + (e.from.type === "dns" ? num(e.from.p.ttlS, 60) : 0) : Infinity;
+      e.detectS = splitter ? ((e.from.hc || e.to.hc || e.to.registered) ? DETECT_HC_S : DETECT_S) + (e.from.type === "dns" ? num(e.from.p.ttlS, 60) : 0) : e.to.registered ? DETECT_HC_S : Infinity;
     });
     nodes.forEach(function (n) {
       n.detectS = Infinity;
@@ -462,9 +531,12 @@
     Object.keys(this.estate).forEach(function (id) { if (!estates[id]) delete self.estate[id]; });
 
     this.nodes = nodes; this.byId = byId; this.order = order; this.flowEdges = flowEdges;
+    this.clusters = clusters; this.clusterById = clusterById;
+    this.clusterStep(true);
     this.sources = nodes.filter(function (n) { return n.role === "source"; });
     this.clients = nodes.filter(function (n) { return n.type === "client" || n.type === "mobile"; });
-    this.hasPartitioned = nodes.some(function (n) { return n.def.d.partitioned && n.role !== "msg"; });
+    this.hasDb = nodes.some(function (n) { return n.type === "dbcluster"; });
+    this.hasPartitioned = nodes.some(function (n) { return (n.def.d.partitioned && n.role !== "msg") || (n.type === "dbcluster" && dbShape(n).S > 1); });
     this.theory = this.theoreticalAvailability();
     nodes.forEach(function (n) { if (!n.st.muPrev) n.st.muPrev = self.nominalMu(n); });
   };
@@ -472,7 +544,13 @@
   Sim.prototype.nominalMu = function (n) {
     var p = n.p;
     if (n.type === "serverless") return num(p.concurrencyLimit, 1000) * 1000 / lnMean(num(p.latencyMs, 30), num(p.sigma, 0.5));
-    return n.st.ready * num(p.capacity, 1000);
+    return n.st.ready * capOf(n);
+  };
+
+  /* Time until a new replica takes traffic: a container's start-up time,
+     otherwise the warm-up parameter. */
+  Sim.prototype.warmupOf = function (n) {
+    return n.type === "container" ? num(n.p.startupS, 20) : num(n.p.warmupS, 60);
   };
 
   /* ─── Theoretical availability (series / parallel), for the report ─── */
@@ -482,6 +560,7 @@
       var a = num(n.p.avail, 0.999);
       var r = n.type === "sql" ? 1 : n.st.ready;
       if (n.type === "sql" && n.p.standby) return 1 - (1 - a) * (1 - a);
+      if (n.type === "dbcluster") { var sh = dbShape(n); return Math.pow(sh.R > 0 ? 1 - Math.pow(1 - a, sh.R + 1) : a, sh.S); }
       return r >= 2 && n.detectS < Infinity ? 1 - Math.pow(1 - a, r) : a;
     }
     function A(n) {
@@ -527,7 +606,12 @@
     if (this.log.length > 500) this.log.shift();
   };
 
-  Sim.prototype.nodeName = function (id) { var n = this.byId[id]; return n ? n.label : id; };
+  Sim.prototype.nodeName = function (id) {
+    var n = this.byId[id];
+    if (n) return n.label;
+    var cl = this.clusterById && this.clusterById[id];
+    return cl ? cl.label : id;
+  };
 
   /* Start an event. ev: {type, target?, durationS?, factor?, scripted?, label?} */
   Sim.prototype.fire = function (ev, R) {
@@ -560,6 +644,8 @@
           if (x.type === "sql" || x.type === "cdn" || x.type === "dns") k = x.type === "sql" ? 1 : 0;
           if (x.type === "lb" && type === "az") k = 0;   // managed load balancers span AZs
           if (x.def.d.ext) k = 0;
+          /* a DB Cluster spans the AZs: the zone takes the primary of one shard */
+          if (x.type === "dbcluster" && type === "az") { k = 0; self.failPrimary(x, Math.floor(R.random() * dbShape(x).S)); }
           if (k > 0) down(x, k, t + dur, type);
         });
         ev = { type: type, target: key };
@@ -612,6 +698,23 @@
         if (!n) return null;
         dur = dur || R.uniform(30, 60);
         break;
+      case "primaryFail": {
+        if (!n || n.type !== "dbcluster") return null;
+        var shp = dbShape(n), shard = ev.shard !== undefined ? clamp(Math.round(num(ev.shard, 0)), 0, shp.S - 1) : Math.floor(R.random() * shp.S);
+        var fr = this.failPrimary(n, shard);
+        dur = fr.backAt - t;
+        info.shard = shard + 1; info.lost = Math.round(fr.lost); info.mode = shp.mode;
+        break;
+      }
+      case "nodeFail": {
+        var cl = ev.target ? this.clusterById[ev.target] : R.pick(this.clusters);
+        if (!cl || cl.st.ready < 1) return null;
+        ev.target = cl.id;
+        dur = dur || R.uniform(120, 300);
+        info.lost = this.failNode(cl, t + dur);
+        info.nodes = cl.st.ready;
+        break;
+      }
       default:
         return null;
     }
@@ -648,6 +751,9 @@
     if (level > 0) {
       var R = this.R.events;
       EVENT_ORDER.forEach(function (type) {
+        /* no draw at all without a cluster: designs without one keep their event sequence */
+        if (type === "nodeFail" && !self.clusters.length) return;
+        if (type === "primaryFail" && !self.hasDb) return;
         var spec = EVENTS[type], base = spec.rate * level / 3600 * DT;
         if (spec.scope === "node") {
           self.nodes.forEach(function (n) {
@@ -666,6 +772,9 @@
       else still.push(a);
     });
     this.active = still;
+    this.nodes.forEach(function (n) {
+      if (n.st.dbFails && n.st.dbFails.length) n.st.dbFails = n.st.dbFails.filter(function (f) { return t < f.backAt; });
+    });
     this.downs = this.downs.filter(function (d) {
       if (t >= d.until) {
         var n = self.byId[d.node];
@@ -690,7 +799,7 @@
     this.trafficF = 1; this.zipfBoost = 0;
     this.nodes.forEach(function (n) {
       n.latF = 1; n.capF = 1; n.errBoost = 0; n.gcF = 1; n.extDown = false; n.quotaF = 1;
-      n.down = 0; n.downUndet = 0; n.allDownSince = null;
+      n.down = 0; n.downUndet = 0; n.allDownSince = null; n.ghost = 0;
     });
     this.flowEdges.forEach(function (e) { e.part = false; e.partSince = 0; });
     this.active.forEach(function (a) {
@@ -711,6 +820,9 @@
     this.downs.forEach(function (d) {
       var n = self.byId[d.node];
       if (!n) return;
+      /* pods lost with a Kubernetes node are already out of `ready`, but
+         callers keep sending them requests until they notice */
+      if (d.ghost) { if (t < d.detectAt) n.ghost += d.k; return; }
       n.down += d.k;
       if (t < d.detectAt) n.downUndet += d.k;
     });
@@ -737,7 +849,7 @@
   };
 
   Sim.prototype.serviceMean = function (n) {
-    var p = n.p, S = lnMean(num(p.latencyMs, 1) * n.latF, num(p.sigma, 0.4));
+    var p = n.p, S = lnMean(medianMs(n), num(p.sigma, 0.4));
     if (n.type === "app") S += num(p.gc, 0.002) * n.gcF * 175;
     return S;
   };
@@ -757,10 +869,13 @@
     }
     if (n.role === "msg") { this.forwardMsg(n); return; }
 
-    var ready = st.ready, alive = Math.max(0, ready - n.down);
+    var ready = st.ready, alive = Math.max(0, ready - n.down), G = n.ghost || 0;
     var S = this.serviceMean(n);
     n.S = S;
-    n.dead = n.down >= ready ? 1 : n.downUndet / Math.max(1, ready);
+    /* share of the requests sent to replicas that are dead but not yet
+       detected (they hang). A cluster service with no pod at all and no
+       stale endpoint answers at once (503: no endpoints). */
+    n.dead = ready === 0 && !G ? 0 : n.down >= ready ? 1 : (n.downUndet + G) / Math.max(1, ready + G);
 
     /* rate limit / provider quota (LLM: only model calls count) */
     var semHit = n.type === "llmgw" ? clamp(num(p.semanticCacheHit, 0), 0, 0.95) : 0;
@@ -791,12 +906,18 @@
 
     var through = (1 - n.rl) * (1 - n.dead);
     var Fa = [F[0] * through, F[1] * through, F[2] * (1 - n.rlBot) * (1 - n.dead)];
+    /* DB Cluster: requests to a shard without a primary fail (failover) */
+    n.dbFailW = 0; n.dbFailR = 0;
+    if (n.type === "dbcluster") {
+      this.dbFailShares(n);
+      Fa[0] *= 1 - n.dbFailR; Fa[1] *= 1 - n.dbFailW; Fa[2] *= 1 - n.dbFailR;
+    }
     var wc = num(p.writeCost, 1);
     var work = Fa[0] + Fa[2] + wc * Fa[1];
     var lamA = Fa[0] + Fa[1] + Fa[2];
 
     /* CPU capacity (work units / s) */
-    var cap = num(p.capacity, 1000) * n.capF, muCpu;
+    var cap = capOf(n) * n.capF, muCpu;
     if (n.down >= ready) muCpu = 0;
     else if (n.type === "serverless") {
       muCpu = Infinity;   // the limit is concurrency (below), not CPU
@@ -806,6 +927,8 @@
       n.rhoW = rhoW;
       var rhoS = Math.max(rhoAll, rhoW);
       muCpu = rhoS > 0 ? work / rhoS : cap * (1 + rr);
+    } else if (n.type === "dbcluster") {
+      muCpu = this.dbCapacity(n, Fa, cap, wc, work);
     } else if (n.def.d.partitioned) {
       n.hot = this.hotShare(alive);
       muCpu = cap / n.hot;
@@ -817,7 +940,8 @@
     /* thread / connection limit (Little's Law: L = λ·W ≤ threads) */
     var threads = num(p.threads, Infinity), muThr = Infinity, kWork = lamA > 0 ? work / lamA : 1;
     if (isFinite(threads) && n.type !== "serverless") {
-      var conc = threads * (n.type === "sql" ? 1 + Math.max(0, Math.round(num(p.readReplicas, 0))) : alive);
+      var dsh = n.type === "dbcluster" ? dbShape(n) : null;
+      var conc = threads * (n.type === "sql" ? 1 + Math.max(0, Math.round(num(p.readReplicas, 0))) : dsh ? dsh.S * (dsh.fol ? 1 + dsh.R : 1) : alive);
       muThr = st.holdPrev > 0 ? conc / (st.holdPrev / 1000) * kWork : Infinity;
       n.threadsTotal = conc;
     } else n.threadsTotal = Infinity;
@@ -903,12 +1027,21 @@
     n.out_ = out;
 
     /* SQL replication lag (display + goal): grows with the write load */
-    if (n.type === "sql" && num(p.readReplicas, 0) > 0) {
+    n.stale = 0;
+    if ((n.type === "sql" && num(p.readReplicas, 0) > 0) || (n.type === "dbcluster" && dbShape(n).lagging > 0)) {
       var rw = n.rhoW || 0;
       if (rw >= 1) st.repLag += (rw - 1) * DT * 5;
       else st.repLag = Math.max(0.02 + 0.5 * Math.pow(rw, 3) / (1 - Math.min(rw, 0.97)), st.repLag - DT);
       n.repLag = st.repLag;
+      /* stale reads: reads served by lagging followers, of keys written within the lag
+         (a client reads back what it wrote ~1 s later) */
+      if (n.type === "dbcluster") {
+        var sh = dbShape(n), rd = Fa[0] + Fa[2], wshare = rd + Fa[1] > 0 ? Fa[1] / (rd + Fa[1]) : 0;
+        n.stale = sh.fol ? sh.lagging / (1 + sh.R) * wshare * Math.min(1, st.repLag) : 0;
+        n.readsOk = rd;
+      }
     } else n.repLag = 0;
+    if (n.type === "dbcluster") n.replMs = this.dbReplMean(n);
 
     /* thread occupancy for the inspector: L = λ·hold */
     if (n.type !== "serverless") n.inflight = proc / kWork * st.holdPrev / 1000;
@@ -920,6 +1053,85 @@
     var leak = num(n.p.leakPerMin, 0);
     if (!(leak > 0)) return 1;
     return Math.max(0.1, 1 - leak / 100 * (this.t - n.st.leakT0) / 60);
+  };
+
+  /* ─── DB Cluster ───
+     Shard i receives the share h_i of the keys: the hottest shard
+     p₁ + (1 − p₁)/S (Zipf), the others (1 − p₁)/S. Writes go to the shard's
+     primary (capacity ÷ write cost); reads to the primary or to all its
+     nodes. A primary failure (failPrimary) leaves the shard without a
+     primary for failoverS: its writes fail (and its reads, if they go to
+     the primary or there is no follower); then a follower is promoted and
+     the shard has one node fewer until the replacement joins. */
+  Sim.prototype.dbShare = function (n, sh, i) {
+    if (sh.S <= 1) return 1;
+    var h0 = this.hotShare(sh.S);
+    return i === 0 ? h0 : (1 - h0) / (sh.S - 1);
+  };
+  Sim.prototype.dbShardState = function (n, i) {
+    var t = this.t, f = null;
+    (n.st.dbFails || []).forEach(function (x) { if (x.shard === i) f = x; });
+    if (!f) return { primary: true, lostNodes: 0 };
+    return { primary: t >= f.promoteAt, lostNodes: 1 };
+  };
+  Sim.prototype.dbFailShares = function (n) {
+    var sh = dbShape(n), fw = 0, fr = 0, self = this;
+    (n.st.dbFails || []).forEach(function (f) {
+      if (self.t >= f.promoteAt || f.shard >= sh.S) return;
+      var h = self.dbShare(n, sh, f.shard);
+      fw += h;
+      if (!sh.fol) fr += h;
+    });
+    n.dbFailW = clamp(fw, 0, 1); n.dbFailR = clamp(fr, 0, 1);
+  };
+  /* effective capacity (work units/s) = work ÷ utilization of the busiest shard */
+  Sim.prototype.dbCapacity = function (n, Fa, cap, wc, work) {
+    var sh = dbShape(n), rd = Fa[0] + Fa[2], wr = Fa[1], rhoMax = 0, rhoW = 0, other = 0, self = this;
+    for (var i = 0; i < sh.S; i++) {
+      var h = this.dbShare(n, sh, i), ss = this.dbShardState(n, i);
+      var nodes = 1 + sh.R - ss.lostNodes, serving = sh.fol ? Math.max(1, nodes - (ss.primary ? 0 : 1)) : 1;
+      var w = ss.primary ? h * wr : 0, r = h * rd;
+      var rho = (r + wc * w) / (cap * serving), rw = wc * w / cap;
+      rho = Math.max(rho, rw);
+      if (i === 0) n.rhoHot = rho; else other = Math.max(other, rho);
+      rhoMax = Math.max(rhoMax, rho); rhoW = Math.max(rhoW, rw);
+    }
+    void self;
+    n.rhoOther = sh.S > 1 ? other : null;
+    n.rhoW = rhoW;
+    return rhoMax > 0 ? work / rhoMax : cap * sh.S * (sh.fol ? 1 + sh.R : 1);
+  };
+  /* mean extra latency of a write: the acknowledgement of the followers */
+  Sim.prototype.dbReplMean = function (n) {
+    var sh = dbShape(n), rtt = num(n.p.replRttMs, 2), slow = n.latF || 1;
+    if (sh.mode === "async") return 0;
+    if (sh.mode === "sync") return lnMean(rtt * slow, EDGE_SIGMA);
+    /* quorum: the acked-th fastest of R followers; the slow one (follower 1) is skipped if it can be */
+    var f = sh.acked <= sh.R - 1 ? 1 : slow;
+    return lnMean(rtt * f, EDGE_SIGMA) * (sh.R >= 2 ? 0.8 : 1);
+  };
+  Sim.prototype.dbReplSample = function (n, R) {
+    var sh = dbShape(n), rtt = num(n.p.replRttMs, 2), slow = n.latF || 1;
+    if (sh.mode === "async") return 0;
+    if (sh.mode === "sync") return R.lognormal(rtt * slow, EDGE_SIGMA);
+    var xs = [];
+    for (var i = 0; i < sh.R; i++) xs.push(R.lognormal(rtt * (i === 0 ? slow : 1), EDGE_SIGMA));
+    xs.sort(function (a, b) { return a - b; });
+    return xs[sh.acked - 1];
+  };
+  /* The primary of shard i dies. Async: the writes inside the replication
+     lag are lost (RPO). Returns the failure record. */
+  Sim.prototype.failPrimary = function (n, i) {
+    var sh = dbShape(n), t = this.t, st = n.st, fo = Math.max(0, num(n.p.failoverS, 30));
+    st.dbFails = (st.dbFails || []).filter(function (f) { return f.shard !== i; });
+    var wr = (n.inF ? n.inF[1] : 0) * this.dbShare(n, sh, i);
+    var lost = sh.mode === "async" && sh.R > 0 ? wr * (st.repLag || 0) : 0;
+    var f = sh.R > 0 ? { shard: i, t0: t, promoteAt: t + fo, backAt: t + fo + DB_REPLACE_S, lost: lost }
+      : { shard: i, t0: t, promoteAt: t + DB_REPLACE_S, backAt: t + DB_REPLACE_S, lost: 0 };
+    st.dbFails.push(f);
+    st.lostWrites = (st.lostWrites || 0) + lost;
+    this.acc.lostWrites += lost;
+    return f;
   };
 
   /* Messaging node: accept publishes, keep backlogs, let consumers drain. */
@@ -993,7 +1205,7 @@
           var c = e.to;
           var deadKnown = (c.allDownSince !== null && t >= c.allDownSince + e.detectS) || (e.part && t >= e.partSince + e.detectS);
           if (deadKnown) return 0;
-          var capPer = num(c.p.capacity, 1), known = Math.max(0, (c.down || 0) - (c.downUndet || 0));
+          var capPer = capOf(c, 1), known = Math.max(0, (c.down || 0) - (c.downUndet || 0));
           var capT = c.role === "msg" || !isFinite(capPer) ? 1 : Math.max(0.01, (c.st.ready - known) * capPer);
           return capT * e.ratio;
         });
@@ -1148,9 +1360,11 @@
       var Td = mc * Tdown[c], sd = (1 - mc) + mc * sdown[c];
       var okT = n.waitMs + S + (1 - n.eb) * Td;
       var alive = n.pRej * 1 + (1 - n.pRej) * okT;
+      var dbf = c === 1 ? (n.dbFailW || 0) : (n.dbFailR || 0);
+      if (n.type === "dbcluster" && c === 1) { okT += n.replMs || 0; alive = n.pRej * 1 + (1 - n.pRej) * okT; }
       n.W[c] = n.rl * 1 + (1 - n.rl) * (n.dead * HANG_MS + (1 - n.dead) * alive);
-      n.s[c] = (1 - n.rl) * (1 - n.dead) * (1 - n.pRej) * (1 - n.eb) * sd;
-      n.fast[c] = 1 - (1 - n.rl) * (1 - n.pRej);
+      n.s[c] = (1 - n.rl) * (1 - n.dead) * (1 - n.pRej) * (1 - n.eb) * (1 - dbf) * sd;
+      n.fast[c] = 1 - (1 - n.rl) * (1 - n.pRej) * (1 - dbf);
       n.Wok[c] = okT;
       n.sok[c] = (1 - n.eb) * sd;
       if (n.type === "cache" && c === 1 && p.policy === "write-through") n.W[c] += S;
@@ -1213,15 +1427,147 @@
       var util = st.rhoAcc / st.rhoN;
       st.rhoAcc = 0; st.rhoN = 0;
       var target = clamp(num(p.targetUtil, 0.6), 0.1, 0.95), cur = st.ready + st.pending.length;
-      var desired = clamp(Math.ceil(st.ready * util / target), reps(p.minReplicas, 1), reps(p.maxReplicas, 20));
+      /* in a cluster the HPA counts the pods it asked for, scheduled or not */
+      if (n.cluster) { cur += st.unsched; st.lost.forEach(function (l) { cur += l.k; }); }
+      var desired = clamp(Math.ceil(Math.max(1, st.ready) * util / target), reps(p.minReplicas, 1), reps(p.maxReplicas, 20));
       if (desired > cur) {
-        for (var i = cur; i < desired; i++) st.pending.push(t + num(p.warmupS, 60));
+        /* new pods of a cluster wait for a free slot (clusterStep); elsewhere they just start */
+        if (n.cluster) st.unsched += desired - cur;
+        else for (var i = cur; i < desired; i++) st.pending.push(t + self.warmupOf(n));
         self.logEvent("scale", "up", n.id, { from: cur, to: desired });
+      } else if (n.cluster && desired < cur && st.unsched > 0) {
+        var drop = Math.min(st.unsched, cur - desired);
+        st.unsched -= drop;
+        self.logEvent("scale", "down", n.id, { from: cur, to: cur - drop });
       } else if (desired < st.ready && st.pending.length === 0) {
         var to = Math.max(desired, Math.ceil(st.ready / 2));
         if (to < st.ready) { self.logEvent("scale", "down", n.id, { from: st.ready, to: to }); st.ready = to; }
       }
     });
+  };
+
+  /* ─── Kubernetes clusters ───
+     Capacity C = ready worker nodes × pods per node. Every replica of a
+     member node is a pod: ready, starting (st.pending) or Pending
+     (st.unsched, no room). Each tick: repaired / new nodes join, pods lost
+     with a node come back as Pending, pods above C are evicted to Pending,
+     Pending pods take free slots (round robin over the services), and the
+     cluster autoscaler adds or removes nodes. */
+  Sim.prototype.clusterStep = function (quiet) {
+    var self = this, t = this.t;
+    function log(type, phase, target, info) { if (!quiet) self.logEvent(type, phase, target, info); }
+    this.clusters.forEach(function (cl) {
+      var cs = cl.st, p = cl.p, ms = cl.members;
+      var ppn = clamp(Math.round(num(p.podsPerNode, 10)), 1, 10000), base = reps(p.nodes, 3);
+      cs.failed = cs.failed.filter(function (u) {
+        if (t >= u) { cs.ready++; log("cluster", "repaired", cl.id, { nodes: cs.ready }); return false; }
+        return true;
+      });
+      cs.starting = cs.starting.filter(function (r) {
+        if (t >= r) { cs.ready++; log("cluster", "ready", cl.id, { nodes: cs.ready }); return false; }
+        return true;
+      });
+      ms.forEach(function (m) {
+        m.st.lost = m.st.lost.filter(function (l) { if (t >= l.at) { m.st.unsched += l.k; return false; } return true; });
+      });
+      var C = cs.ready * ppn, used = 0;
+      ms.forEach(function (m) { used += m.st.ready + m.st.pending.length; });
+      /* too many pods (fewer nodes, more replicas): the newest go back to Pending */
+      var evicted = 0;
+      while (used > C) {
+        var moved = false;
+        for (var i = ms.length - 1; i >= 0 && used > C; i--) {
+          var st = ms[i].st;
+          if (st.pending.length) st.pending.pop();
+          else if (st.ready > 0) st.ready--;
+          else continue;
+          st.unsched++; used--; evicted++; moved = true;
+        }
+        if (!moved) break;
+      }
+      if (evicted && t > 0) log("cluster", "evict", cl.id, { pods: evicted });
+      /* schedule Pending pods in the free slots, one per service in turn */
+      var free = C - used;
+      while (free > 0) {
+        var any = false;
+        for (var j = 0; j < ms.length && free > 0; j++) {
+          var m = ms[j];
+          if (m.st.unsched <= 0) continue;
+          m.st.unsched--; free--; any = true;
+          m.st.pending.push(t + self.warmupOf(m) + (m.registered ? 0 : JOIN_S));
+        }
+        if (!any) break;
+      }
+      var pend = 0, lost = 0, demand = 0;
+      ms.forEach(function (m) {
+        pend += m.st.unsched;
+        m.st.lost.forEach(function (l) { lost += l.k; });
+        demand += m.st.ready + m.st.pending.length + m.st.unsched;
+      });
+      demand += lost;
+      if (pend > 0 && !cs.pendingLogged) { log("cluster", "pending", cl.id, { pods: pend }); cs.pendingLogged = !quiet; }
+      else if (pend === 0) cs.pendingLogged = false;
+      /* cluster autoscaler: enough new nodes for the Pending pods; removes a
+         node that has not been needed for CA_IDLE_S */
+      if (p.clusterAutoscaler) {
+        var maxN = Math.max(base, clamp(Math.round(num(p.maxNodes, 10)), 1, 10000));
+        var coming = cs.starting.length * ppn;
+        if (pend > coming) {
+          var add = Math.min(Math.ceil((pend - coming) / ppn), maxN - cs.ready - cs.starting.length - cs.failed.length);
+          if (add > 0) {
+            for (var k = 0; k < add; k++) cs.starting.push(t + num(p.nodeStartupS, 90));
+            log("cluster", "up", cl.id, { from: cs.ready + cs.starting.length - add, to: cs.ready + cs.starting.length });
+          }
+        }
+        if (!cs.starting.length && cs.ready > base && demand <= (cs.ready - 1) * ppn) {
+          if (cs.idleSince === null) cs.idleSince = t;
+          else if (t - cs.idleSince >= CA_IDLE_S) { cs.ready--; cs.idleSince = null; log("cluster", "down", cl.id, { from: cs.ready + 1, to: cs.ready }); }
+        } else cs.idleSince = null;
+      } else cs.idleSince = null;
+      cl.C = C; cl.pend = pend + lost;
+    });
+  };
+
+  /* A worker node dies: its pods (spread evenly over the services, largest
+     remainder) are lost. Callers keep sending them requests until they
+     notice (ghost endpoints); Kubernetes recreates them after K8S_DETECT_S.
+     The node is replaced at `until`. Returns the number of pods lost. */
+  Sim.prototype.failNode = function (cl, until) {
+    var cs = cl.st, ms = cl.members, t = this.t, self = this;
+    var ppn = clamp(Math.round(num(cl.p.podsPerNode, 10)), 1, 10000);
+    var running = ms.map(function (m) { return m.st.ready + m.st.pending.length; });
+    var U = running.reduce(function (a, b) { return a + b; }, 0), nodes = cs.ready;
+    cs.ready--; cs.failed.push(until);
+    var onNode = Math.min(ppn, Math.ceil(U / Math.max(1, nodes)), U);
+    var raw = running.map(function (r) { return U > 0 ? onNode * r / U : 0; }), lost = raw.map(Math.floor);
+    var rest = onNode - lost.reduce(function (a, b) { return a + b; }, 0);
+    raw.map(function (r, i) { return i; }).sort(function (a, b) { return (raw[b] - lost[b]) - (raw[a] - lost[a]) || a - b; })
+      .forEach(function (i) { if (rest > 0 && lost[i] < running[i]) { lost[i]++; rest--; } });
+    ms.forEach(function (m, i) {
+      var k = lost[i], st = m.st;
+      if (!k) return;
+      var kr = Math.min(k, st.ready), ks = k - kr;
+      st.ready -= kr;
+      if (ks) st.pending.splice(st.pending.length - ks, ks);
+      if (kr) {
+        var det = t + Math.min(m.detectS, K8S_DETECT_S);
+        self.downs.push({ node: m.id, k: kr, t0: t, detectAt: det, until: det, cause: "nodeFail", ghost: true });
+      }
+      st.lost.push({ at: t + K8S_DETECT_S, k: k });
+    });
+    return onNode;
+  };
+
+  Sim.prototype.clusterView = function (id) {
+    var cl = this.clusterById[id];
+    if (!cl) return null;
+    var cs = cl.st, v = { nodes: cs.ready, starting: cs.starting.length, failed: cs.failed.length, capacity: cl.C, running: 0, startingPods: 0, pending: 0, members: cl.members.length, cost: cl.cost || 0, autoscaler: !!cl.p.clusterAutoscaler };
+    cl.members.forEach(function (m) {
+      v.running += m.st.ready; v.startingPods += m.st.pending.length; v.pending += m.st.unsched;
+      m.st.lost.forEach(function (l) { v.pending += l.k; });
+    });
+    v.scheduled = v.running + v.startingPods;
+    return v;
   };
 
   /* ─── Cost (USD / month, extrapolated from current rates) ─── */
@@ -1241,12 +1587,18 @@
       } else {
         var reps = st.ready + st.pending.length;
         if (n.type === "sql") reps = (p.standby ? 2 : 1) + Math.max(0, Math.round(num(p.readReplicas, 0)));
+        if (n.type === "dbcluster") { var dsh = dbShape(n); reps = dsh.S * (1 + dsh.R); }
+        if (n.cluster) reps = 0;   // pods are paid through the cluster's worker nodes
         c = price * reps + num(p.perMillion, 0) * (n.lam || 0) / 1e6 * MONTH_S;
         if (p.perGB) c += (n.lam || 0) * num(p.respKB || p.payloadKB, 20) / 1e6 * num(p.perGB, 0) * MONTH_S;
         if (n.type === "llmgw") c += (n.proc || 0) * (1 - (n.semHit || 0)) * num(p.tokensPerReq, 2000) / 1000 * num(p.pricePer1k, 0.005) * MONTH_S;
       }
       n.cost = fin(c);
       total += n.cost;
+    });
+    this.clusters.forEach(function (cl) {
+      cl.cost = fin((cl.st.ready + cl.st.starting.length) * num(cl.p.nodePrice, 140));
+      total += cl.cost;
     });
     void self;
     return total;
@@ -1266,10 +1618,12 @@
     if (R.random() < n.rl) return this.span(ctx, n, at, 0, 1, 1, false, depth, "429");
     if (R.random() < n.dead) return this.span(ctx, n, at, 0, HANG_MS, HANG_MS, false, depth, "dead");
     if (R.random() < n.pRej) return this.span(ctx, n, at, 0, 1, 1, false, depth, "503");
+    if (n.type === "dbcluster" && R.random() < (c === 1 ? n.dbFailW : n.dbFailR)) return this.span(ctx, n, at, 0, 1, 1, false, depth, "failover");
     var wait = n.waitMs > 0 ? R.exponential(n.waitMs) : 0;
-    var svc = n.role === "source" ? 0 : R.lognormal(num(p.latencyMs, 1) * n.latF, sigma(p, 0.4));
+    var svc = n.role === "source" ? 0 : R.lognormal(medianMs(n), sigma(p, 0.4));
     if (n.type === "app" && R.random() < num(p.gc, 0.002) * n.gcF) svc += R.uniform(50, 300);
     if (n.type === "serverless" && R.random() < (n.coldShare || 0)) svc += num(p.coldStartMs, 600);
+    if (n.type === "dbcluster" && c === 1) svc += this.dbReplSample(n, R);
     var semantic = n.type === "llmgw" && R.random() < (n.semHit || 0);
     if (semantic) svc = R.lognormal(20, 0.3);
     else if (n.type === "llmgw" && R.random() < (n.fallbackShare || 0)) svc *= 1.5;
@@ -1358,7 +1712,7 @@
         var bk = bucket(res.ms);
         ring.h[bk]++; ring.n++;
         this.winHist[bk]++; this.winTotal++;
-        if (inWin) { this.runHist[bk]++; this.runN++; }
+        if (inWin) { this.runHist[bk]++; this.runN++; if (c === 1) { this.runHistW[bk]++; this.runNW++; } }
         if (res.deg) this.acc.trDeg += inWin ? 1 : 0;
         if (inWin) this.acc.trOk++;
       } else if (inWin) this.acc.trErr++;
@@ -1390,6 +1744,7 @@
     var self = this, s = this.settings;
     this.t = Math.round((this.tick * DT) * 1000) / 1000;
     this.runEvents();
+    this.clusterStep();
     this.applyModifiers();
     this.nodes.forEach(function (n) { n.inF = [0, 0, 0]; });
     this.flowEdges.forEach(function (e) { e.rate = 0; e.retryRate = 0; e.base = 0; e.lag = 0; e.backlog = 0; });
@@ -1445,14 +1800,19 @@
       var rho = isFinite(n.rho) ? n.rho : 10;
       if (n.role !== "msg" || n.out.length) maxUtil = Math.max(maxUtil, Math.min(rho, 10));
       n.st.maxRho = Math.max(n.st.maxRho, Math.min(rho, 10));
+      /* a saturated cluster service whose extra pods are Pending: that is the real cause */
+      var fh = n.st.firstHot;
+      if (fh && fh.reason === "cpu" && n.cluster && n.st.unsched > 0 && rho >= 0.85) { fh.reason = "pending"; fh.pending = n.st.unsched; }
       if (!n.st.firstHot && n.role !== "msg" && (rho >= 0.85 || n.pRej > 0.001 || n.rl > 0.001)) {
         var reason = n.rl > 0.001 || n.def.d.ext ? (n.type === "apigw" ? "ratelimit" : "quota") :
+          n.cluster && n.st.unsched > 0 ? "pending" :
           (n.rhoThr >= 0.85 && n.rhoThr >= n.rhoCpu) ? (n.type === "sql" ? "connections" : "threads") :
-          (n.type === "sql" && n.rhoW >= 0.85) ? "writes" : (n.def.d.partitioned && n.hot > 1.5 / Math.max(1, n.st.ready) && n.st.ready > 1) ? "hotkey" :
+          (n.type === "dbcluster" && n.rhoOther !== null && n.rhoHot > 1.5 * n.rhoOther) ? "hotkey" :
+          ((n.type === "sql" || n.type === "dbcluster") && n.rhoW >= 0.85) ? "writes" : (n.def.d.partitioned && n.hot > 1.5 / Math.max(1, n.st.ready) && n.st.ready > 1) ? "hotkey" :
           n.type === "serverless" ? "concurrency" : "cpu";
         var slowest = null, worst = -1;
         n.out.forEach(function (e) { var x = e._x ? e._x[0].T : 0; if (x > worst && !e.async) { worst = x; slowest = e.to.id; } });
-        n.st.firstHot = { t: self.t, rho: rho, rhoCpu: n.rhoCpu, rhoThr: n.rhoThr, reason: reason, hold: n.hold, lam: n.lam, threads: n.threadsTotal, slowest: slowest, slowestMs: worst };
+        n.st.firstHot = { t: self.t, rho: rho, rhoCpu: n.rhoCpu, rhoThr: n.rhoThr, reason: reason, hold: n.hold, lam: n.lam, threads: n.threadsTotal, slowest: slowest, slowestMs: worst, pending: n.st.unsched, cluster: n.cluster ? n.cluster.label : null };
       }
     });
     if (inWin) {
@@ -1461,8 +1821,9 @@
       this.acc.maxLag = Math.max(this.acc.maxLag, lagMax);
       this.acc.maxRepLag = Math.max(this.acc.maxRepLag, repLag);
       this.acc.servedWinSum += served; this.acc.winTicks++;
-      var dup = 0;
+      var dup = 0, self2 = this;
       this.flowEdges.forEach(function (e) { dup += e.dupRate || 0; });
+      this.nodes.forEach(function (n) { if (n.type === "dbcluster" && n.readsOk) { self2.acc.staleSum += n.readsOk * (n.stale || 0) * DT; self2.acc.readSum += n.readsOk * DT; } });
       this.acc.dups += dup * DT;
     }
     this.sec.offered += offered; this.sec.served += served; this.sec.cost += cost; this.sec.n++;
@@ -1503,15 +1864,20 @@
   Sim.prototype.nodeView = function (id) {
     var n = this.byId[id];
     if (!n) return null;
-    var st = n.st;
-    if (n.rho === undefined) return { lam: 0, proc: 0, rho: 0, rhoCpu: 0, rhoThr: 0, inflight: 0, threads: n.threadsTotal, q: 0, waitMs: 0, W: 0, Ww: 0, s: 1, err: 0, pRej: 0, rl: 0, ready: st.ready, pending: st.pending.length, down: 0, dead: 0, h: st.h, backlog: 0, lag: 0, cost: 0, repLag: 0, observed: !!n.observed, attached: n.attached.length, status: "ok" };
+    var st = n.st, unsched = st.unsched || 0;
+    (st.lost || []).forEach(function (l) { unsched += l.k; });
+    if (n.rho === undefined) return { lam: 0, proc: 0, rho: 0, rhoCpu: 0, rhoThr: 0, inflight: 0, threads: n.threadsTotal, q: 0, waitMs: 0, W: 0, Ww: 0, s: 1, err: 0, pRej: 0, rl: 0, ready: st.ready, pending: st.pending.length, unsched: unsched, cluster: n.cluster ? n.cluster.id : null, down: 0, dead: 0, h: st.h, backlog: 0, lag: 0, cost: 0, repLag: 0, observed: !!n.observed, attached: n.attached.length, status: "ok" };
     return {
       lam: fin(n.lam), proc: fin(n.proc), rho: n.rho, rhoCpu: n.rhoCpu, rhoThr: n.rhoThr, inflight: fin(n.inflight), threads: n.threadsTotal,
-      q: st.q, waitMs: fin(n.waitMs), W: n.W ? fin(n.W[0]) : 0, Ww: n.W ? fin(n.W[1]) : 0, s: n.s ? n.s[0] : 1, err: n.s ? 1 - n.s[0] : 0,
-      pRej: n.pRej || 0, rl: n.rl || 0, ready: st.ready, pending: st.pending.length, down: n.down || 0, dead: n.dead || 0,
+      q: st.q, waitMs: fin(n.waitMs), W: n.W ? fin(n.W[0]) : 0, Ww: n.W ? fin(n.W[1]) : 0, s: n.s ? n.s[0] : 1,
+      /* errors of the requests arriving now: reads and writes in their mix */
+      err: n.s ? fin(1 - ((n.mix ? n.mix[0] + n.mix[2] : 1) * n.s[0] + (n.mix ? n.mix[1] : 0) * n.s[1])) : 0,
+      pRej: n.pRej || 0, rl: n.rl || 0, ready: st.ready, pending: st.pending.length, unsched: unsched, cluster: n.cluster ? n.cluster.id : null, down: n.down || 0, dead: n.dead || 0,
       hit: n.hit, h: st.h, backlog: n.backlog || 0, lag: n.lag || 0, drops: fin(n.drops || 0), cost: n.cost || 0, repLag: n.repLag || 0,
       observed: !!n.observed, instances: n.instances, coldShare: n.coldShare, hot: n.hot, attached: n.attached.length,
       latF: n.latF, capF: n.capF, errBoost: n.errBoost, extDown: n.extDown,
+      rhoHot: n.rhoHot, rhoOther: n.rhoOther, stale: n.stale || 0, lostWrites: st.lostWrites || 0, replMs: n.replMs || 0,
+      dbFailW: n.dbFailW || 0, dbFails: (st.dbFails || []).map(function (f) { return { shard: f.shard, promoteAt: f.promoteAt, backAt: f.backAt }; }),
       status: n.role === "source" || n.role === "side" ? "ok" : n.down >= st.ready ? "down" : !isFinite(n.rho) || n.rho >= 0.9 || n.pRej > 0.01 ? "hot" : n.rho >= 0.7 ? "warm" : "ok"
     };
   };
@@ -1541,6 +1907,8 @@
     return {
       p50: quantile(this.runHist, this.runN, 0.5), p95: quantile(this.runHist, this.runN, 0.95),
       p99: quantile(this.runHist, this.runN, 0.99), p999: quantile(this.runHist, this.runN, 0.999),
+      p99Write: quantile(this.runHistW, this.runNW, 0.99),
+      lostWrites: A.lostWrites, staleReads: A.readSum > 0 ? A.staleSum / A.readSum * 100 : 0,
       errorRate: A.offered > 0 ? Math.max(0, 1 - A.served / A.offered) * 100 : 0,
       availability: A.runOffered > 0 ? Math.min(100, A.runServed / A.runOffered * 100) : 100,
       throughput: A.winTicks ? A.servedWinSum / A.winTicks : 0,
@@ -1572,7 +1940,7 @@
     this.nodes.forEach(function (n) {
       var h = n.st.firstHot;
       if (!h) return;
-      if (!best || h.t < best.t || (h.t === best.t && n.st.maxRho > self.byId[best.id].st.maxRho)) best = { id: n.id, label: n.label, type: n.type, t: h.t, rho: h.rho, rhoCpu: h.rhoCpu, rhoThr: h.rhoThr, reason: h.reason, hold: h.hold, lam: h.lam, threads: h.threads, slowest: h.slowest ? self.nodeName(h.slowest) : null, slowestMs: h.slowestMs, maxRho: n.st.maxRho };
+      if (!best || h.t < best.t || (h.t === best.t && n.st.maxRho > self.byId[best.id].st.maxRho)) best = { id: n.id, label: n.label, type: n.type, t: h.t, rho: h.rho, rhoCpu: h.rhoCpu, rhoThr: h.rhoThr, reason: h.reason, hold: h.hold, lam: h.lam, threads: h.threads, slowest: h.slowest ? self.nodeName(h.slowest) : null, slowestMs: h.slowestMs, maxRho: n.st.maxRho, pending: h.pending || 0, cluster: h.cluster || null };
     });
     return best;
   };
@@ -1598,6 +1966,6 @@
     create: function (design, settings, opts) { return new Sim(design, settings, opts); },
     Sim: Sim, normalizeDesign: normalizeDesign, emptyDesign: emptyDesign, wouldCycle: wouldCycle,
     toMermaid: toMermaid, checkGoal: checkGoal, zipfTop: zipfTop, sakasegawa: sakasegawa,
-    timeoutStats: timeoutStats, quantile: quantile, bucket: bucket, NB: NB
+    timeoutStats: timeoutStats, quantile: quantile, bucket: bucket, NB: NB, K8S_DETECT_S: K8S_DETECT_S, JOIN_S: JOIN_S, CA_IDLE_S: CA_IDLE_S
   };
 });

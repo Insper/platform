@@ -8,7 +8,7 @@ A seção de referência é a parte do curso que você deixa aberta em outra aba
 
     ---
 
-    Os 44 componentes da paleta, uma entrada para cada: o que é, quando usar e quando não usar, números-chave, modos de falha, parâmetros no playground, produtos reais na AWS, no GCP, no Azure e em código aberto, e uma frase para a entrevista.
+    Os 49 componentes da paleta, uma entrada para cada: o que é, quando usar e quando não usar, números-chave, modos de falha, parâmetros no playground, produtos reais na AWS, no GCP, no Azure e em código aberto, e uma frase para a entrevista.
 
 -   __[Números](numbers/index.md)__
 

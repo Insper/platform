@@ -26,6 +26,7 @@
   --sdp-c-client: #2563eb;
   --sdp-c-edge: #7c3aed;
   --sdp-c-compute: #16a34a;
+  --sdp-c-containers: #0284c7;
   --sdp-c-storage: #ea580c;
   --sdp-c-messaging: #d97706;
   --sdp-c-observability: #0d9488;
@@ -61,6 +62,7 @@
   --sdp-c-client: #60a5fa;
   --sdp-c-edge: #a78bfa;
   --sdp-c-compute: #4ade80;
+  --sdp-c-containers: #38bdf8;
   --sdp-c-storage: #fb923c;
   --sdp-c-messaging: #fbbf24;
   --sdp-c-observability: #2dd4bf;
@@ -76,6 +78,7 @@
 .sdp-cat-client { --cat: var(--sdp-c-client); }
 .sdp-cat-edge { --cat: var(--sdp-c-edge); }
 .sdp-cat-compute { --cat: var(--sdp-c-compute); }
+.sdp-cat-containers { --cat: var(--sdp-c-containers); }
 .sdp-cat-storage { --cat: var(--sdp-c-storage); }
 .sdp-cat-messaging { --cat: var(--sdp-c-messaging); }
 .sdp-cat-observability { --cat: var(--sdp-c-observability); }
@@ -245,6 +248,13 @@
 .sdp-frame-label { font-size: 11px; font-weight: 600; fill: var(--sdp-c-network); cursor: move; }
 .sdp-frame-resize { stroke: var(--sdp-c-network); stroke-width: 1.5; cursor: nwse-resize; }
 .sdp-frame.is-sel .sdp-frame-box { stroke-width: 2.2; stroke: var(--sdp-accent); }
+/* Kubernetes cluster frame: containers colour, solid outline, live info in the title bar */
+.sdp-frame-k8s .sdp-frame-box { fill: var(--sdp-c-containers); stroke: var(--sdp-c-containers); stroke-dasharray: none; fill-opacity: .045; }
+.sdp-frame-k8s .sdp-frame-bar { fill: var(--sdp-c-containers); }
+.sdp-frame-k8s .sdp-frame-label { fill: var(--sdp-c-containers); }
+.sdp-frame-k8s .sdp-frame-resize { stroke: var(--sdp-c-containers); }
+.sdp-frame-info { font-size: 10px; fill: var(--sdp-fg-light); font-variant-numeric: tabular-nums; pointer-events: none; }
+.sdp-frame-info.is-pending { fill: var(--sdp-warm); font-weight: 700; }
 
 .sdp-edge-hit { stroke: transparent; stroke-width: 12; fill: none; cursor: pointer; }
 .sdp-edge-line { stroke: var(--sdp-edge); stroke-width: 1.5; fill: none; opacity: .75; }
@@ -272,6 +282,7 @@
 .sdp-node-type { font-size: 10px; fill: var(--sdp-fg-light); }
 .sdp-node-sub { font-size: 10px; fill: var(--sdp-fg-light); font-variant-numeric: tabular-nums; }
 .sdp-node-badge { font-size: 10px; font-weight: 700; fill: var(--cat); font-variant-numeric: tabular-nums; }
+.sdp-node-pending { font-size: 9px; font-weight: 700; fill: var(--sdp-warm); font-variant-numeric: tabular-nums; }
 .sdp-bar-bg { fill: var(--sdp-line); }
 .sdp-bar { fill: var(--sdp-ok); transition: width .2s linear; }
 .sdp-st-warm .sdp-bar { fill: var(--sdp-warm); }
