@@ -434,6 +434,6 @@
     get: function (id) { return BY_ID[id]; },
     params: params, merge: merge, lang: lang, text: text,
     /* node box size in canvas units (x, y of a node are its centre) */
-    NODE_W: 150, NODE_H: 54
+    NODE_W: 150, NODE_H: 68
   };
 });

@@ -269,6 +269,7 @@
 .sdp-node-stripe { fill: var(--cat); }
 .sdp-node-glyph { color: var(--cat); }
 .sdp-node-label { font-size: 12px; font-weight: 600; fill: var(--sdp-fg); }
+.sdp-node-type { font-size: 10px; fill: var(--sdp-fg-light); }
 .sdp-node-sub { font-size: 10px; fill: var(--sdp-fg-light); font-variant-numeric: tabular-nums; }
 .sdp-node-badge { font-size: 10px; font-weight: 700; fill: var(--cat); font-variant-numeric: tabular-nums; }
 .sdp-bar-bg { fill: var(--sdp-line); }

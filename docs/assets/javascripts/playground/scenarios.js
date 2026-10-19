@@ -532,8 +532,8 @@
     ],
     solution: derive(ai, {
       dropEdges: ["gw-orch"], set: [["orch", { steps: 3 }], ["llm", { semanticCacheHit: 0.3, fallbackModel: true }]],
-      move: [["gw", 220, 220], ["orch", 560, 220], ["llm", 780, 100], ["tools", 780, 230], ["cat", 980, 230], ["mem", 780, 360], ["vec", 980, 360]],
-      nodes: [N("safe", "safety", 390, 220, "guardrails")], edges: [E("gw", "safe"), E("safe", "orch")]
+      move: [["gw", 250, 220], ["orch", 590, 220], ["llm", 800, 100], ["tools", 800, 230], ["cat", 1000, 230], ["mem", 800, 360], ["vec", 1000, 360]],
+      nodes: [N("safe", "safety", 420, 220, "guardrails")], edges: [E("gw", "safe"), E("safe", "orch")]
     })
   });
 
