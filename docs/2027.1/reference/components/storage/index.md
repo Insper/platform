@@ -1,12 +1,13 @@
 # Storage
 
-**Storage** is where the state of the system lives — and state is what makes systems hard. Compute can be replaced, restarted and multiplied freely; data must survive crashes, be read back correctly and stay consistent when many requests touch it at once. Each storage component in the palette answers a different question: *where is the truth?* (SQL Database), *how do I store huge volumes with simple access?* (NoSQL DB), *how do I avoid asking the database again?* (Cache), *where do big files go?* (Object Store), *how do I analyse history?* (Data Warehouse), *how do I find things by meaning?* (Vector DB).
+**Storage** is where the state of the system lives — and state is what makes systems hard. Compute can be replaced, restarted and multiplied freely; data must survive crashes, be read back correctly and stay consistent when many requests touch it at once. Each storage component in the palette answers a different question: *where is the truth?* (SQL Database), *how does it survive a dead primary, and how much can it lose?* (DB Cluster), *how do I store huge volumes with simple access?* (NoSQL DB), *how do I avoid asking the database again?* (Cache), *where do big files go?* (Object Store), *how do I analyse history?* (Data Warehouse), *how do I find things by meaning?* (Vector DB).
 
 In BoxOffice, the seat inventory and the orders live in PostgreSQL (the truth, with transactions — no double booking); the catalog of events is read millions of times and sits behind a Redis cache; posters, venue maps and PDF tickets go to an object store; sales history flows into a data warehouse for the "best-selling artists" dashboard; and the support assistant finds the right FAQ answer through a vector index.
 
 | Component | One-liner | Playground id |
 |---|---|---|
 | [SQL Database](#sql) | Relational tables, SQL, transactions: the default system of record | `sql` |
+| [DB Cluster](#dbcluster) | Replicated, optionally sharded database with automatic failover | `dbcluster` |
 | [NoSQL DB](#nosql) | Key-value, document or wide-column stores that partition horizontally | `nosql` |
 | [Cache](#cache) | In-memory copy of hot data: sub-millisecond reads, offloads the database | `cache` |
 | [Object Store](#objstore) | Cheap, durable storage of files (blobs) by key, over HTTP | `objstore` |
@@ -96,6 +97,90 @@ flowchart LR
     "The source of truth for seats and orders is a relational database, because I need transactions to guarantee no double booking. I scale reads with replicas and a cache, keep writes on one primary with a standby for failover, and only shard when write volume or data size forces me to."
 
 **Learn more:** [Databases › Data models](../../../classes/databases/models/index.md) · [Databases › Transactions](../../../classes/databases/transactions/index.md) · [Databases › Replication](../../../classes/databases/replication/index.md) · [Case study: ticketing](../../../classes/case-studies/ticketing/index.md) · [Hands-on 1](../../../hands-on/1/index.md) · [Hands-on 6](../../../hands-on/6/index.md)
+
+---
+
+## DB Cluster { #dbcluster }
+
+**What it is.** A database run as a **group of nodes** instead of one server: each **shard** (a slice of the keys) has one **primary** that accepts the writes and **followers** that receive a copy of its log, and a cluster manager (or a consensus protocol such as Raft or Paxos) **detects a dead primary and promotes a follower** automatically. It adds what a single [SQL Database](#sql) node cannot give: read capacity from followers, write capacity from more shards, and survival of a node or zone failure. The two knobs every design must choose are **how a write is acknowledged** — *async* (the primary alone, fast, may lose the last writes on failover), *sync* (the primary plus one follower) or *quorum* (a majority of the shard's nodes) — and **where reads go** (primary only: always fresh; followers too: more capacity, possibly stale).
+
+**When to use.**
+
+- Any system of record that must survive the loss of a machine or an availability zone without losing confirmed data: BoxOffice orders and payments.
+- Read-heavy workloads that outgrow one node: reads from followers (when a slightly stale answer is acceptable, e.g. the event catalog).
+- Write volume or data size beyond one primary: shard by a key with many distinct, evenly used values (`event_id`, `user_id`).
+- When the RPO (data you may lose) and RTO (time you may be down) are explicit requirements: they decide the replication mode and the failover mechanism.
+
+**When not to (or watch out).**
+
+- **Async replication loses data on failover**: the writes still inside the replication lag when the primary dies are gone (RPO > 0). Use sync or quorum for money and seats.
+- **Sync and quorum cost latency on every write** (a round trip to a follower, often in another AZ); a single synchronous follower that becomes slow slows all writes — quorum tolerates one slow follower.
+- **Followers lag**: reading from them breaks read-your-writes → read your own writes from the primary, or wait for the follower's position.
+- **Sharding is hard to undo**: cross-shard joins and transactions become expensive, and a **hot key** (one popular event) saturates its shard while the others idle.
+- Failover is not instant: detection plus promotion plus clients reconnecting is typically tens of seconds — the RTO.
+- Split brain: two nodes that both believe they are primary corrupt data → consensus-based leader election, fencing.
+
+**Key numbers.**
+
+| Metric | Typical value | Note |
+|---|---|---|
+| Replication round trip to a follower in another AZ | ≈ 1–2 ms | ≈ illustrative; added to every write with sync or quorum |
+| Async replication lag (same region) | ≈ milliseconds; seconds under heavy write load | Lost on failover with async: RPO ≈ the lag at that moment |
+| Automatic failover | ≈ 30 s (Aurora: typically under 30 s); ≈ 60–120 s (RDS Multi-AZ instance) | ≈ approximate; detection + promotion + DNS/client reconnection |
+| Patroni (PostgreSQL HA) leader lock | `ttl` 30 s, `loop_wait` 10 s | Documented defaults: a dead primary is replaced after ≈ 30 s |
+| Majority of a shard | ⌊N/2⌋ + 1 of N nodes | 3 nodes tolerate 1 failure, 5 tolerate 2 |
+| Aurora storage | 6 copies in 3 AZs; write quorum 4/6, read quorum 3/6 | Survives the loss of an AZ plus one more copy |
+| Theoretical availability of a 3-node shard | 1 − (1 − 0.999)³ ≈ 99.9999999% | Ideal: ignores correlated failures, failover time and bugs |
+
+**Failure modes.**
+
+- **Primary failure** — writes to its shard fail until a follower is promoted (RTO); with async replication the last writes are lost (RPO) → sync/quorum for critical data, idempotent client retries.
+- **Slow synchronous follower** — every write waits for it → quorum instead of a single sync follower, alerts on replication latency.
+- **Replication lag** → stale reads, users don't see their own writes → read-your-writes routing, lag-aware load balancing, monitoring the lag.
+- **Hot shard** — skewed keys send most requests to one shard → better shard key, split hot keys, cache in front.
+- **Split brain** — a network partition leaves two primaries → consensus (Raft/Paxos), fencing tokens, majority-only writes.
+- **No followers** — a node failure means the shard is down until the node comes back → at least one follower per shard in another AZ.
+
+**In the playground.** `dbcluster` is a **call** node that models a replicated, optionally sharded database. Parameters (defaults in parentheses): `shards` (1; 1–64), `replicasPerShard` (2 followers per shard; 0–5), `replication` (`async`, or `sync` / `quorum`), `readsFrom` (`followers`, or `primary`), `failoverS` (30 s to detect a dead primary and promote a follower), `replRttMs` (2 ms replication round trip to a follower, cross-AZ, lognormal), `capacity` (3,000 reads/s per node), `latencyMs` (4 ms), `threads` (200 connections per node), `writeCost` (3: a write costs 3 reads of capacity) and `price` (450 USD/month per node, illustrative).
+
+- **Capacity.** Writes: shards × capacity ÷ writeCost (only primaries write). Reads: shards × (1 + replicasPerShard) × capacity when reading from followers, shards × capacity when reading from the primary. Keys are spread over the shards with the clients' Zipf skew: the hottest shard receives p₁ + (1 − p₁)/shards of the requests (p₁ = share of the hottest key), so it saturates first; the inspector shows the utilization of the hot shard and of the others.
+- **Write latency.** `async`: the primary only. `sync`: + one round trip to the synchronous follower. `quorum`: + the round trip of the ⌊(R+1)/2⌋-th fastest follower (a majority of the shard's 1 + R nodes) — so one slow follower hurts `sync` but not `quorum`. A *latency degradation* event on a DB Cluster slows one follower (the synchronous one) ×5–20.
+- **Replication lag** of the followers that are not part of the acknowledgement (all of them with `async`, R − 1 with `sync`, R − ⌊(R+1)/2⌋ with `quorum`) grows with the primary's write utilization ρw, as for the SQL read replicas: lag ≈ 0.02 s + 0.5 · ρw³ ÷ (1 − ρw) s, without bound above ρw = 1. Stale reads ≈ share of reads served by lagging followers × write share × min(1, lag ÷ 1 s) (the playground assumes a client reads back what it wrote about one second later).
+- **Primary failure** (random with chaos, injectable with ⚡; an AZ outage also triggers one). The primary of one shard dies: writes to that shard — and reads too with `readsFrom = primary` — fail for `failoverS` (the **RTO**); then a follower is promoted and the shard runs with one node fewer until a replacement joins 120 s later. With `async`, the writes inside the replication lag at that moment are **lost** (lost writes ≈ shard write rate × lag; the report counts them — the **RPO** lesson); with `sync` or `quorum`, no writes are lost, at the price of higher write latency. With `replicasPerShard = 0` there is no failover: the shard is down (reads and writes) for 120 s until the node comes back — no data lost, just unavailable.
+- **Cost** = shards × (1 + replicasPerShard) × price. **Theoretical availability**: per shard 1 − (1 − a)^(1+R) with a = 0.999 per node, all shards in series.
+
+Scenarios: [`db-failover`](../../../../playground/scenarios/index.md#db-failover), [`db-replicas`](../../../../playground/scenarios/index.md#db-replicas), [`sharding`](../../../../playground/scenarios/index.md#sharding).
+
+**Real products.**
+
+=== "AWS"
+
+    - **Amazon Aurora** — PostgreSQL/MySQL-compatible; quorum-replicated storage across 3 AZs, up to 15 readers, automatic failover; **Aurora Limitless Database** for sharding.
+    - **Amazon RDS Multi-AZ** — a synchronous standby (instance) or two readable standbys (Multi-AZ DB cluster).
+    - **Amazon DynamoDB** and **Amazon DocumentDB** — managed partitioned and replicated stores.
+
+=== "GCP"
+
+    - **Cloud SQL** with high availability — a synchronous standby in another zone.
+    - **AlloyDB for PostgreSQL** — HA primary plus read pools.
+    - **Spanner** — sharded (splits), Paxos-replicated SQL with external consistency.
+
+=== "Azure"
+
+    - **Azure SQL Database** (Business Critical / zone-redundant) and **Azure Database for PostgreSQL** with zone-redundant HA.
+    - **Azure Cosmos DB** — partitioned, multi-region, with tunable consistency; **Cosmos DB for PostgreSQL** (Citus).
+
+=== "Open source"
+
+    - **PostgreSQL** with **Patroni** — streaming replication (async, sync or quorum `ANY k`) and automatic failover; **Citus** for sharding.
+    - **Vitess** — sharding and failover for MySQL.
+    - **CockroachDB**, **YugabyteDB**, **TiDB** — distributed SQL, Raft per range.
+    - **MongoDB** replica sets + sharding (write concern `majority`).
+
+!!! tip "In the interview"
+    "The orders database is a cluster: a primary and two followers in different zones. Async replication is cheaper on every write but can lose the last writes on failover, so for orders and seats I use quorum (or sync) replication, which means zero data loss and one cross-zone round trip per write. Failover takes about 30 seconds — that's my RTO — and I shard by event only when one primary can't take the writes."
+
+**Learn more:** [Databases › Replication](../../../classes/databases/replication/index.md) · [Databases › Replication lag](../../../classes/databases/replication/index.md#lag) · [Databases › Partitioning](../../../classes/databases/partitioning/index.md) · [Databases › Hot partitions](../../../classes/databases/partitioning/index.md#hot-partitions) · [Databases › Transactions](../../../classes/databases/transactions/index.md) · [Distributed › Consensus › Majorities](../../../classes/distributed/consensus/index.md#majorities) · [Distributed › CAP & PACELC](../../../classes/distributed/cap-pacelc/index.md#pacelc) · [Reliability › Disaster recovery](../../../classes/reliability/disaster-recovery/index.md)
 
 ---
 

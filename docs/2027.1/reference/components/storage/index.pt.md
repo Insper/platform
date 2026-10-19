@@ -1,12 +1,13 @@
 # Armazenamento
 
-O **armazenamento** é onde vive o estado do sistema — e o estado é o que torna sistemas difíceis. A computação pode ser trocada, reiniciada e multiplicada à vontade; os dados precisam sobreviver a quedas, ser lidos de volta corretamente e permanecer consistentes quando muitas requisições mexem neles ao mesmo tempo. Cada componente de armazenamento da paleta responde a uma pergunta diferente: *onde está a verdade?* (SQL Database), *como guardar volumes enormes com acesso simples?* (NoSQL DB), *como evitar perguntar de novo ao banco?* (Cache), *para onde vão os arquivos grandes?* (Object Store), *como analisar o histórico?* (Data Warehouse), *como encontrar coisas pelo significado?* (Vector DB).
+O **armazenamento** é onde vive o estado do sistema — e o estado é o que torna sistemas difíceis. A computação pode ser trocada, reiniciada e multiplicada à vontade; os dados precisam sobreviver a quedas, ser lidos de volta corretamente e permanecer consistentes quando muitas requisições mexem neles ao mesmo tempo. Cada componente de armazenamento da paleta responde a uma pergunta diferente: *onde está a verdade?* (SQL Database), *como sobreviver a um primário morto, e quanto se pode perder?* (DB Cluster), *como guardar volumes enormes com acesso simples?* (NoSQL DB), *como evitar perguntar de novo ao banco?* (Cache), *para onde vão os arquivos grandes?* (Object Store), *como analisar o histórico?* (Data Warehouse), *como encontrar coisas pelo significado?* (Vector DB).
 
 No BoxOffice, o inventário de assentos e os pedidos vivem no PostgreSQL (a verdade, com transações — nada de venda dupla); o catálogo de eventos é lido milhões de vezes e fica atrás de um cache Redis; pôsteres, mapas dos locais e ingressos em PDF vão para um object store; o histórico de vendas flui para um data warehouse que alimenta o painel de "artistas mais vendidos"; e o assistente de suporte encontra a resposta certa do FAQ por meio de um índice vetorial.
 
 | Componente | Em uma frase | Id no playground |
 |---|---|---|
 | [SQL Database](#sql) | Tabelas relacionais, SQL, transações: o sistema de registro padrão | `sql` |
+| [DB Cluster](#dbcluster) | Banco replicado, opcionalmente particionado, com failover automático | `dbcluster` |
 | [NoSQL DB](#nosql) | Bancos chave-valor, de documentos ou de colunas largas que particionam horizontalmente | `nosql` |
 | [Cache](#cache) | Cópia em memória dos dados quentes: leituras abaixo de 1 ms, alivia o banco | `cache` |
 | [Object Store](#objstore) | Armazenamento barato e durável de arquivos (blobs) por chave, via HTTP | `objstore` |
@@ -96,6 +97,90 @@ flowchart LR
     "A fonte da verdade de assentos e pedidos é um banco relacional, porque preciso de transações para garantir que não haja venda dupla. Escalo as leituras com réplicas e um cache, mantenho as escritas num primário com standby para failover, e só particiono quando o volume de escrita ou o tamanho dos dados me obrigarem."
 
 **Saiba mais:** [Bancos de dados › Modelos de dados](../../../classes/databases/models/index.md) · [Bancos de dados › Transações](../../../classes/databases/transactions/index.md) · [Bancos de dados › Replicação](../../../classes/databases/replication/index.md) · [Estudo de caso: ingressos](../../../classes/case-studies/ticketing/index.md) · [Hands-on 1](../../../hands-on/1/index.md) · [Hands-on 6](../../../hands-on/6/index.md)
+
+---
+
+## DB Cluster { #dbcluster }
+
+**O que é.** Um banco de dados rodando como um **grupo de nós** em vez de um único servidor: cada **shard** (uma fatia das chaves) tem um **primário** que aceita as escritas e **seguidores** que recebem uma cópia do seu log, e um gerenciador do cluster (ou um protocolo de consenso como Raft ou Paxos) **detecta um primário morto e promove um seguidor** automaticamente. Ele acrescenta o que um único nó [SQL Database](#sql) não oferece: capacidade de leitura nos seguidores, capacidade de escrita com mais shards e sobrevivência à falha de um nó ou de uma zona. Os dois botões que todo projeto precisa escolher são **como uma escrita é confirmada** — *async* (só o primário: rápido, pode perder as últimas escritas no failover), *sync* (o primário mais um seguidor) ou *quorum* (a maioria dos nós do shard) — e **para onde vão as leituras** (só o primário: sempre frescas; seguidores também: mais capacidade, possivelmente desatualizadas).
+
+**Quando usar.**
+
+- Todo sistema de registro que precisa sobreviver à perda de uma máquina ou de uma zona de disponibilidade sem perder dados confirmados: pedidos e pagamentos do BoxOffice.
+- Cargas dominadas por leitura que não cabem mais em um nó: leituras nos seguidores (quando uma resposta um pouco desatualizada é aceitável, ex.: o catálogo de eventos).
+- Volume de escrita ou tamanho dos dados além de um primário: particione por uma chave com muitos valores distintos e usados de forma equilibrada (`event_id`, `user_id`).
+- Quando RPO (dados que você pode perder) e RTO (tempo que você pode ficar fora do ar) são requisitos explícitos: eles decidem o modo de replicação e o mecanismo de failover.
+
+**Quando não usar (ou cuidado).**
+
+- **Replicação assíncrona perde dados no failover**: as escritas ainda dentro do atraso de replicação quando o primário morre desaparecem (RPO > 0). Use sync ou quorum para dinheiro e assentos.
+- **Sync e quorum custam latência em toda escrita** (uma ida e volta a um seguidor, muitas vezes em outra AZ); um único seguidor síncrono que fica lento deixa todas as escritas lentas — o quorum tolera um seguidor lento.
+- **Seguidores atrasam**: ler deles quebra o read-your-writes → leia suas próprias escritas no primário, ou espere a posição do seguidor.
+- **Particionar é difícil de desfazer**: joins e transações entre shards ficam caros, e uma **chave quente** (um evento popular) satura o seu shard enquanto os outros ficam ociosos.
+- O failover não é instantâneo: detecção mais promoção mais reconexão dos clientes leva tipicamente dezenas de segundos — o RTO.
+- Split brain: dois nós que acreditam ser o primário corrompem os dados → eleição de líder por consenso, fencing.
+
+**Números-chave.**
+
+| Métrica | Valor típico | Observação |
+|---|---|---|
+| Ida e volta da replicação até um seguidor em outra AZ | ≈ 1–2 ms | ≈ ilustrativo; somada a toda escrita com sync ou quorum |
+| Atraso da replicação assíncrona (mesma região) | ≈ milissegundos; segundos sob carga pesada de escrita | Perdido no failover com async: RPO ≈ o atraso naquele momento |
+| Failover automático | ≈ 30 s (Aurora: em geral menos de 30 s); ≈ 60–120 s (instância RDS Multi-AZ) | ≈ aproximado; detecção + promoção + reconexão via DNS/cliente |
+| Trava de líder do Patroni (HA do PostgreSQL) | `ttl` 30 s, `loop_wait` 10 s | Padrões documentados: um primário morto é substituído em ≈ 30 s |
+| Maioria de um shard | ⌊N/2⌋ + 1 de N nós | 3 nós toleram 1 falha, 5 toleram 2 |
+| Armazenamento do Aurora | 6 cópias em 3 AZs; quórum de escrita 4/6, de leitura 3/6 | Sobrevive à perda de uma AZ e de mais uma cópia |
+| Disponibilidade teórica de um shard de 3 nós | 1 − (1 − 0,999)³ ≈ 99,9999999% | Ideal: ignora falhas correlacionadas, tempo de failover e bugs |
+
+**Modos de falha.**
+
+- **Falha do primário** — as escritas no seu shard falham até um seguidor ser promovido (RTO); com replicação assíncrona as últimas escritas se perdem (RPO) → sync/quorum para dados críticos, retries idempotentes no cliente.
+- **Seguidor síncrono lento** — toda escrita espera por ele → quorum em vez de um único seguidor síncrono, alertas sobre a latência de replicação.
+- **Atraso de replicação** → leituras desatualizadas, usuários não veem as próprias escritas → roteamento read-your-writes, balanceamento ciente do atraso, monitorar o atraso.
+- **Shard quente** — chaves assimétricas mandam a maior parte das requisições para um shard → chave de shard melhor, dividir chaves quentes, cache na frente.
+- **Split brain** — uma partição de rede deixa dois primários → consenso (Raft/Paxos), fencing tokens, escritas só com maioria.
+- **Sem seguidores** — uma falha de nó deixa o shard fora do ar até o nó voltar → ao menos um seguidor por shard em outra AZ.
+
+**No playground.** `dbcluster` é um nó de **chamada** que modela um banco replicado e opcionalmente particionado. Parâmetros (padrões entre parênteses): `shards` (1; 1–64), `replicasPerShard` (2 seguidores por shard; 0–5), `replication` (`async`, ou `sync` / `quorum`), `readsFrom` (`followers`, ou `primary`), `failoverS` (30 s para detectar um primário morto e promover um seguidor), `replRttMs` (2 ms de ida e volta da replicação até um seguidor, entre AZs, lognormal), `capacity` (3.000 leituras/s por nó), `latencyMs` (4 ms), `threads` (200 conexões por nó), `writeCost` (3: uma escrita custa 3 leituras de capacidade) e `price` (450 USD/mês por nó, ilustrativo).
+
+- **Capacidade.** Escritas: shards × capacity ÷ writeCost (só os primários escrevem). Leituras: shards × (1 + replicasPerShard) × capacity quando se lê dos seguidores, shards × capacity quando se lê do primário. As chaves se espalham pelos shards com a assimetria Zipf dos clientes: o shard mais quente recebe p₁ + (1 − p₁)/shards das requisições (p₁ = parcela da chave mais quente), então ele satura primeiro; o inspetor mostra a utilização do shard quente e dos demais.
+- **Latência de escrita.** `async`: só o primário. `sync`: + uma ida e volta ao seguidor síncrono. `quorum`: + a ida e volta do ⌊(R+1)/2⌋-ésimo seguidor mais rápido (a maioria dos 1 + R nós do shard) — então um seguidor lento prejudica o `sync`, mas não o `quorum`. Um evento de *degradação de latência* num DB Cluster deixa um seguidor (o síncrono) ×5–20 mais lento.
+- **Atraso de replicação** dos seguidores que não fazem parte da confirmação (todos com `async`, R − 1 com `sync`, R − ⌊(R+1)/2⌋ com `quorum`) cresce com a utilização de escrita do primário ρw, como nas réplicas de leitura do SQL: atraso ≈ 0,02 s + 0,5 · ρw³ ÷ (1 − ρw) s, sem limite acima de ρw = 1. Leituras desatualizadas ≈ parcela das leituras atendidas por seguidores atrasados × parcela de escritas × min(1, atraso ÷ 1 s) (o playground supõe que um cliente relê o que escreveu cerca de um segundo depois).
+- **Falha do primário** (aleatória com caos, injetável com ⚡; uma queda de AZ também dispara uma). O primário de um shard morre: as escritas nesse shard — e as leituras também, com `readsFrom = primary` — falham durante `failoverS` (o **RTO**); depois um seguidor é promovido e o shard roda com um nó a menos até um substituto entrar 120 s depois. Com `async`, as escritas dentro do atraso de replicação naquele momento são **perdidas** (escritas perdidas ≈ taxa de escrita do shard × atraso; o relatório as conta — a lição do **RPO**); com `sync` ou `quorum`, nenhuma escrita se perde, ao preço de uma latência de escrita maior. Com `replicasPerShard = 0` não há failover: o shard fica fora do ar (leituras e escritas) por 120 s até o nó voltar — sem perda de dados, só indisponível.
+- **Custo** = shards × (1 + replicasPerShard) × price. **Disponibilidade teórica**: por shard 1 − (1 − a)^(1+R) com a = 0,999 por nó, todos os shards em série.
+
+Cenários: [`db-failover`](../../../../playground/scenarios/index.md#db-failover), [`db-replicas`](../../../../playground/scenarios/index.md#db-replicas), [`sharding`](../../../../playground/scenarios/index.md#sharding).
+
+**Produtos reais.**
+
+=== "AWS"
+
+    - **Amazon Aurora** — compatível com PostgreSQL/MySQL; armazenamento replicado por quórum em 3 AZs, até 15 leitores, failover automático; **Aurora Limitless Database** para sharding.
+    - **Amazon RDS Multi-AZ** — um standby síncrono (instância) ou dois standbys legíveis (Multi-AZ DB cluster).
+    - **Amazon DynamoDB** e **Amazon DocumentDB** — bancos gerenciados particionados e replicados.
+
+=== "GCP"
+
+    - **Cloud SQL** com alta disponibilidade — um standby síncrono em outra zona.
+    - **AlloyDB for PostgreSQL** — primário com HA mais pools de leitura.
+    - **Spanner** — SQL particionado (splits), replicado com Paxos, com consistência externa.
+
+=== "Azure"
+
+    - **Azure SQL Database** (Business Critical / redundante entre zonas) e **Azure Database for PostgreSQL** com HA redundante entre zonas.
+    - **Azure Cosmos DB** — particionado, multirregião, com consistência ajustável; **Cosmos DB for PostgreSQL** (Citus).
+
+=== "Código aberto"
+
+    - **PostgreSQL** com **Patroni** — replicação por streaming (async, sync ou quórum `ANY k`) e failover automático; **Citus** para sharding.
+    - **Vitess** — sharding e failover para MySQL.
+    - **CockroachDB**, **YugabyteDB**, **TiDB** — SQL distribuído, Raft por faixa de chaves.
+    - **MongoDB** replica sets + sharding (write concern `majority`).
+
+!!! tip "Na entrevista"
+    "O banco de pedidos é um cluster: um primário e dois seguidores em zonas diferentes. A replicação assíncrona é mais barata em cada escrita, mas pode perder as últimas escritas no failover; por isso, para pedidos e assentos uso replicação por quórum (ou síncrona), o que significa zero perda de dados e uma ida e volta entre zonas por escrita. O failover leva cerca de 30 segundos — esse é o meu RTO — e só particiono por evento quando um primário não dá conta das escritas."
+
+**Saiba mais:** [Bancos de dados › Replicação](../../../classes/databases/replication/index.md) · [Bancos de dados › Atraso de replicação](../../../classes/databases/replication/index.md#lag) · [Bancos de dados › Particionamento](../../../classes/databases/partitioning/index.md) · [Bancos de dados › Partições quentes](../../../classes/databases/partitioning/index.md#hot-partitions) · [Bancos de dados › Transações](../../../classes/databases/transactions/index.md) · [Distribuídos › Consenso › Maiorias](../../../classes/distributed/consensus/index.md#majorities) · [Distribuídos › CAP e PACELC](../../../classes/distributed/cap-pacelc/index.md#pacelc) · [Confiabilidade › Recuperação de desastres](../../../classes/reliability/disaster-recovery/index.md)
 
 ---
 

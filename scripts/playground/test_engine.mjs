@@ -176,6 +176,12 @@ test("Mermaid export lists every node and edge", () => {
   assert(m.startsWith("flowchart LR") && m.split("\n").length === 1 + 4 + 3, m);
 });
 
+test("the catalog has 49 components in 10 categories", () => {
+  assert(CAT.LIST.length === 49 && CAT.CATEGORIES.length === 10, CAT.LIST.length + " / " + CAT.CATEGORIES.length);
+  assert(CAT.CATEGORIES[3].id === "containers", "containers is not after compute");
+  CAT.LIST.forEach((c) => c.params.forEach((p) => assert(CAT.PARAMS[p], c.id + ": unknown parameter " + p)));
+});
+
 test("every catalog component can be simulated alone behind a client", () => {
   CAT.LIST.forEach((c) => {
     if (c.role === "frame") return;
@@ -296,6 +302,182 @@ test("Mermaid ids are safe identifiers", () => {
   assert(!/\bend\b(?!")/.test(m.replace(/"[^"]*"/g, "")), m);
 });
 
+console.log("containers, Kubernetes, service registry");
+/* client → lb → microservice "a" (and "b") inside a k8s frame */
+const kube = (k8s = {}, a = {}, b = null, extra = {}) => ({
+  nodes: [{ id: "c", type: "client", x: 0, y: 0 }, { id: "lb", type: "lb", x: 150, y: 0 },
+    { id: "a", type: "microservice", x: 400, y: 0, params: a }].concat(b ? [{ id: "b", type: "microservice", x: 600, y: 0, params: b }] : [], extra.nodes || []),
+  edges: [{ id: "e0", from: "c", to: "lb" }, { id: "e1", from: "lb", to: "a" }].concat(b ? [{ id: "e2", from: "a", to: "b", params: extra.ab || {} }] : [], extra.edges || []),
+  frames: [{ id: "k", type: "k8s", x: 300, y: -100, w: 400, h: 200, name: "prod", params: k8s }]
+});
+
+test("labels equal to the component type are dropped; new nodes keep empty labels", () => {
+  const n = E.normalizeDesign({ nodes: [{ id: "a", type: "app", label: "App Server" }, { id: "b", type: "app", label: " checkout " }, { id: "c", type: "k8s" }] });
+  assert(n.nodes[0].label === "" && n.nodes[1].label === "checkout", JSON.stringify(n.nodes.map((x) => x.label)));
+  assert(n.nodes.length === 2, "a frame type was accepted as a node");
+  assert(E.toMermaid(n).includes('["App Server"]'), "Mermaid does not fall back to the type");
+});
+
+test("container: capacity scales with the CPU limit, throttling slows requests", () => {
+  const d = (cpuLimit) => ({ nodes: [{ id: "c", type: "client" }, { id: "x", type: "container", params: { replicas: 2, cpuLimit } }], edges: [{ id: "e", from: "c", to: "x" }] });
+  const full = runFor(E.create(d(1), { profile: "load", targetRps: 300, seed: 3, noise: 0 }), 60).nodeView("x");
+  const half = runFor(E.create(d(0.5), { profile: "load", targetRps: 300, seed: 3, noise: 0 }), 60).nodeView("x");
+  near(full.rhoCpu, full.lam / (2 * 300), 0.01, "ρ at limit 1");
+  near(half.rhoCpu, half.lam / (2 * 300 * 0.5), 0.01, "ρ at limit 0.5");
+  const s1 = E.create(d(1), {}), s2 = E.create(d(0.5), {});
+  s1.step(1); s2.step(1);
+  near(s2.byId.x.S, 2 * s1.byId.x.S, 0.01, "service time at limit 0.5");
+});
+
+test("container: autoscaled replicas take traffic after startupS", () => {
+  const d = (startupS) => ({ nodes: [{ id: "c", type: "client" }, { id: "x", type: "container", params: { replicas: 1, autoscale: true, maxReplicas: 10, startupS } }], edges: [{ id: "e", from: "c", to: "x" }] });
+  const s = E.create(d(40), { profile: "load", targetRps: 600, seed: 1 });
+  runFor(s, 15.05);
+  const up = s.log.find((l) => l.type === "scale" && l.phase === "up");
+  assert(up && up.t === 15, "no scale-up at 15 s");
+  assert(s.byId.x.st.pending.every((r) => Math.abs(r - 55) < 1e-6), "pending ready times " + s.byId.x.st.pending);
+  runFor(s, 39); assert(s.byId.x.st.ready === 1, "replicas ready before startupS");
+  runFor(s, 2); assert(s.byId.x.st.ready > 1, "replicas not ready after startupS");
+});
+
+test("k8s: replicas beyond nodes × pods per node are Pending and do not serve", () => {
+  const sim = E.create(kube({ nodes: 2, podsPerNode: 3 }, { replicas: 4 }, { replicas: 4 }), { profile: "load", targetRps: 200, seed: 1 });
+  const a = sim.nodeView("a"), b = sim.nodeView("b"), v = sim.clusterView("k");
+  assert(v.capacity === 6 && v.scheduled === 6 && v.pending === 2, JSON.stringify(v));
+  assert(a.ready + b.ready === 6 && a.unsched + b.unsched === 2 && a.cluster === "k", `a ${a.ready}/${a.unsched} b ${b.ready}/${b.unsched}`);
+  runFor(sim, 30);
+  near(sim.nodeView("a").rhoCpu, sim.nodeView("a").lam / (sim.byId.a.st.ready * 400), 0.01, "ρ counts only scheduled pods");
+  assert(sim.log.some((l) => l.type === "cluster" && l.phase === "pending"), "no pending event logged");
+});
+
+test("k8s: inside a cluster you pay for nodes, not pods", () => {
+  const sim = runFor(E.create(kube({ nodes: 3, nodePrice: 100 }, { replicas: 5, price: 999 }), { profile: "load", targetRps: 100, seed: 1 }), 5);
+  assert(sim.byId.a.cost === 0, "pod price counted: " + sim.byId.a.cost);
+  near(sim.now.cost, 300 + sim.byId.lb.cost, 0.001, "cluster cost");
+});
+
+test("k8s: HPA pods wait for room; the cluster autoscaler adds a node after nodeStartupS", () => {
+  const mk = (ca) => E.create(kube({ nodes: 1, podsPerNode: 4, clusterAutoscaler: ca, nodeStartupS: 60, maxNodes: 5 }, { replicas: 2, autoscale: true, maxReplicas: 12 }), { profile: "load", targetRps: 2000, seed: 2 });
+  const off = runFor(mk(false), 120), on = mk(true);
+  assert(off.nodeView("a").ready === 4 && off.nodeView("a").unsched > 0, "without the autoscaler the pods should stay Pending");
+  runFor(on, 120);
+  const up = on.log.find((l) => l.type === "cluster" && l.phase === "up"), ready = on.log.find((l) => l.type === "cluster" && l.phase === "ready");
+  assert(up && ready && Math.abs(ready.t - up.t - 60) < 0.15, `node added at ${up && up.t}, ready at ${ready && ready.t}`);
+  runFor(on, 40);
+  assert(on.nodeView("a").ready > 4, "pending pods did not start on the new node: " + on.nodeView("a").ready);
+  const e1 = off.series.errRate.slice(-10).reduce((x, y) => x + y) / 10, e2 = on.series.errRate.slice(-10).reduce((x, y) => x + y) / 10;
+  assert(e2 < e1, `autoscaler did not reduce errors (${e1} → ${e2})`);
+});
+
+test("k8s: a node failure loses its pods, which are rescheduled where there is room", () => {
+  const ev = (sc) => ({ id: "t", settings: {}, events: [{ t: 30, type: "nodeFail", target: "k", durationS: 600 }], goals: [] });
+  const mk = (ppn) => E.create(kube({ nodes: 3, podsPerNode: ppn }, { replicas: 6 }, { replicas: 6 }), { profile: "load", targetRps: 500, seed: 4 }, { scenario: ev() });
+  const room = mk(6), full = mk(4);
+  runFor(room, 31); runFor(full, 31);
+  assert(room.nodeView("a").ready === 4 && room.nodeView("b").ready === 4, "pods on the dead node: " + room.nodeView("a").ready + "/" + room.nodeView("b").ready);
+  assert(room.clusterView("k").nodes === 2 && room.clusterView("k").failed === 1, "node count");
+  runFor(room, 40 + 20 + 10 + 2); runFor(full, 72);
+  assert(room.nodeView("a").ready === 6 && room.nodeView("b").ready === 6, "not rescheduled: " + room.nodeView("a").ready);
+  assert(full.nodeView("a").ready === 4 && full.nodeView("a").unsched === 2, "no room: the lost pods should be Pending");
+});
+
+test("service registry: dead replicas are dropped in 3 s instead of never (direct calls)", () => {
+  const mk = (reg) => {
+    const d = { nodes: [{ id: "c", type: "client" }, { id: "a", type: "app", params: { replicas: 4 } }, { id: "b", type: "microservice", params: { replicas: 4 } }].concat(reg ? [{ id: "r", type: "registry" }] : []),
+      edges: [{ id: "e0", from: "c", to: "a" }, { id: "e1", from: "a", to: "b", params: { timeoutMs: 200 } }].concat(reg ? [{ id: "e2", from: "r", to: "b" }] : []) };
+    return E.create(d, { profile: "load", targetRps: 300, seed: 5 }, { scenario: { id: "t", settings: {}, events: [{ t: 30, type: "crash", target: "b", durationS: 60 }], goals: [] } });
+  };
+  const without = runFor(mk(false), 40), withReg = runFor(mk(true), 40);
+  assert(without.byId.b.dead > 0.2, "without a registry the dead replica keeps its share: " + without.byId.b.dead);
+  assert(withReg.byId.b.dead === 0, "with a registry the dead replica is still called: " + withReg.byId.b.dead);
+  assert(withReg.byId.b.detectS === 3 && without.byId.b.detectS === Infinity, "detection times");
+});
+
+test("service registry: new pods of a cluster join without the 10 s propagation delay", () => {
+  const mk = (reg) => E.create(kube({ nodes: 2, podsPerNode: 10 }, { replicas: 2, autoscale: true }, null,
+    reg ? { nodes: [{ id: "r", type: "registry", x: 900, y: 300 }], edges: [{ id: "er", from: "r", to: "a" }] } : {}), { profile: "load", targetRps: 1500, seed: 6 });
+  const a = runFor(mk(false), 16), b = runFor(mk(true), 16);
+  near(a.byId.a.st.pending[0] - b.byId.a.st.pending[0], 10, 0.01, "join delay");
+});
+
+test("k8s and container runs are deterministic with a seed", () => {
+  const sc = SC.get("k8s-node-failure");
+  const run = () => runAll(E.create(sc.design, { ...sc.settings, chaos: "high" }, { scenario: sc }));
+  const a = run(), b = run();
+  assert(JSON.stringify(a.series) === JSON.stringify(b.series) && JSON.stringify(a.log) === JSON.stringify(b.log), "runs differ");
+});
+
+test("designs without clusters or DB clusters keep their random event sequence", () => {
+  /* the new event types draw no random numbers when their component is absent */
+  const sim = runFor(E.create(mono(4), { profile: "load", targetRps: 800, seed: 3, chaos: "high" }), 120);
+  assert(!sim.log.some((l) => l.type === "nodeFail" || l.type === "primaryFail"), "impossible event fired");
+});
+
+console.log("DB cluster");
+const dbc = (params, extra = {}) => ({
+  nodes: [{ id: "c", type: "client", params: { zipfS: extra.zipfS ?? 0 } }, { id: "db", type: "dbcluster", params }],
+  edges: [{ id: "e", from: "c", to: "db" }]
+});
+
+test("DB cluster: write capacity = shards × capacity ÷ write cost; reads use the followers", () => {
+  const w = runFor(E.create(dbc({ shards: 2, replicasPerShard: 2 }), { profile: "load", targetRps: 1200, readRatio: 0, seed: 1, noise: 0 }), 60).nodeView("db");
+  near(w.rhoHot, w.lam * 0.5 * 3 / 3000, 0.02, "write ρ of a shard");
+  const rf = runFor(E.create(dbc({ replicasPerShard: 2 }), { profile: "load", targetRps: 3000, readRatio: 1, seed: 1, noise: 0 }), 60).nodeView("db");
+  const rp = runFor(E.create(dbc({ replicasPerShard: 2, readsFrom: "primary" }), { profile: "load", targetRps: 3000, readRatio: 1, seed: 1, noise: 0 }), 60).nodeView("db");
+  near(rf.rhoCpu, rf.lam / (3 * 3000), 0.02, "reads on 3 nodes");
+  near(rp.rhoCpu, rp.lam / 3000, 0.02, "reads on the primary");
+});
+
+test("DB cluster: a hot key saturates one shard first", () => {
+  const even = runFor(E.create(dbc({ shards: 4 }, { zipfS: 0 }), { profile: "load", targetRps: 2000, readRatio: 0, seed: 1, noise: 0 }), 60).nodeView("db");
+  const hot = runFor(E.create(dbc({ shards: 4 }, { zipfS: 1.3 }), { profile: "load", targetRps: 2000, readRatio: 0, seed: 1, noise: 0 }), 60).nodeView("db");
+  near(even.rhoHot, even.rhoOther, 0.02, "uniform keys: shards equally busy");
+  assert(hot.rhoHot > 1.5 * hot.rhoOther, `hot shard ${hot.rhoHot} vs others ${hot.rhoOther}`);
+});
+
+test("DB cluster: writes to a shard fail during failover, then the follower is promoted", () => {
+  const mk = (fo, R = 1) => E.create(dbc({ shards: 1, replicasPerShard: R, failoverS: fo }), { profile: "load", targetRps: 400, readRatio: 0.5, seed: 2 },
+    { scenario: { id: "t", settings: {}, events: [{ t: 60, type: "primaryFail", target: "db", shard: 0 }], goals: [] } });
+  const s = runFor(mk(20), 70), i = s.series.t.length - 1;
+  near(s.series.errRate[i], 0.5, 0.05, "writes fail during failover (half the requests)");
+  runFor(s, 20);
+  assert(s.series.errRate[s.series.t.length - 1] < 0.01, "errors after the promotion: " + s.series.errRate[s.series.t.length - 1]);
+  const none = runFor(mk(20, 0), 100);
+  assert(none.series.errRate[none.series.t.length - 1] > 0.95, "without followers the shard should be down (reads too)");
+});
+
+test("DB cluster: async failover loses the writes in the lag; sync and quorum lose none", () => {
+  const run = (replication) => runAll(E.create(dbc({ replicasPerShard: 2, replication }), { profile: "load", targetRps: 1000, readRatio: 0.5, seed: 3 },
+    { scenario: { id: "t", settings: {}, events: [{ t: 90, type: "primaryFail", target: "db", shard: 0 }], goals: [] } }));
+  const a = run("async"), s = run("sync"), q = run("quorum");
+  const lag = a.series.repLag[89];
+  assert(a.stats().lostWrites > 10, "async lost " + a.stats().lostWrites);
+  near(a.stats().lostWrites, 500 * lag, 0.3, "lost ≈ write rate × lag");
+  assert(s.stats().lostWrites === 0 && q.stats().lostWrites === 0, "sync/quorum lost writes");
+  assert(s.stats().p99Write > a.stats().p99Write && q.stats().p99Write > a.stats().p99Write, "replication should add write latency");
+});
+
+test("DB cluster: a slow follower hurts sync more than quorum", () => {
+  const run = (replication) => runFor(E.create(dbc({ replicasPerShard: 2, replication }), { profile: "load", targetRps: 500, readRatio: 0.5, seed: 4 },
+    { scenario: { id: "t", settings: {}, events: [{ t: 10, type: "slow", target: "db", factor: 20, durationS: 200 }], goals: [] } }), 60);
+  const s = run("sync").windowPercentiles(), q = run("quorum").windowPercentiles();
+  assert(s.p99 > 2 * q.p99, `sync p99 ${s.p99} vs quorum ${q.p99}`);
+});
+
+test("DB cluster: stale reads only with lagging followers serving reads", () => {
+  const st = (p) => runAll(E.create(dbc(p), { profile: "load", targetRps: 1500, readRatio: 0.5, seed: 5 })).stats().staleReads;
+  assert(st({ replication: "async" }) > 0, "async reads from followers should be stale sometimes");
+  assert(st({ replication: "async", readsFrom: "primary" }) === 0, "primary reads are never stale");
+  assert(st({ replication: "quorum", replicasPerShard: 1 }) === 0, "a quorum of 1 follower has no lagging follower");
+});
+
+test("DB cluster runs are deterministic with a seed", () => {
+  const sc = SC.get("db-failover");
+  const run = () => runAll(E.create(sc.design, { ...sc.settings, chaos: "high" }, { scenario: sc }));
+  const a = run(), b = run();
+  assert(JSON.stringify(a.series) === JSON.stringify(b.series) && JSON.stringify(a.log) === JSON.stringify(b.log) && a.stats().lostWrites === b.stats().lostWrites, "runs differ");
+});
+
 console.log("scenarios");
 const goalsOK = [];
 SC.LIST.forEach((sc) => {
@@ -325,7 +507,8 @@ SC.LIST.forEach((sc) => {
 test("all scenario ids of the course are implemented", () => {
   const ids = ["blank", "monolith", "scale-out", "read-heavy-cache", "cdn-static", "db-replicas", "sharding", "async-queue", "event-fanout",
     "cascading-failure", "retry-storm", "rate-limiter", "multi-region", "serverless-burst", "flash-sale", "url-shortener", "news-feed", "chat",
-    "ride-sharing", "video-streaming", "notification-system", "payment-system", "search-autocomplete", "ai-assistant", "observability-stack"];
+    "ride-sharing", "video-streaming", "notification-system", "payment-system", "search-autocomplete", "ai-assistant", "observability-stack",
+    "microservices", "k8s-node-failure", "db-failover"];
   ids.forEach((id) => assert(SC.get(id), "missing " + id));
   SC.LIST.forEach((s) => assert(s.title.en && s.title.pt && s.brief.en && s.brief.pt, s.id + " texts"));
 });

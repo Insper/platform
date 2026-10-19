@@ -2,7 +2,7 @@
 
 Every box you can drop on the canvas of the [System Design Playground](../../../playground/index.md) has an entry in this catalog: **what it is**, **when to use it and when not to**, **key numbers**, **failure modes**, **how it behaves in the playground**, **real products** on AWS, GCP, Azure and in open source, and a one-liner you can say **in the interview**. The simulator's "learn more" links land on these entries.
 
-The palette has 44 components in 9 categories. They follow a request from left to right: a **client** reaches the **edge**, the edge forwards to **compute**, compute reads and writes **storage** and publishes to **messaging**, everything is watched by **observability**, laid out inside a **network**, and some requests go to **AI** components or to **external** providers.
+The palette has 49 components in 10 categories. They follow a request from left to right: a **client** reaches the **edge**, the edge forwards to **compute**, compute is packaged and scaled in **containers** (on a Kubernetes cluster), compute reads and writes **storage** and publishes to **messaging**, everything is watched by **observability**, laid out inside a **network**, and some requests go to **AI** components or to **external** providers.
 
 ``` mermaid
 flowchart LR
@@ -10,6 +10,7 @@ flowchart LR
     ED --> CO[Compute]
     CO --> ST[Storage]
     CO --> MS[Messaging]
+    CT[Containers: microservices, Kubernetes] -.runs.-> CO
     MS --> CO
     CO --> AI[AI & Agents]
     CO --> EX[External]
@@ -26,7 +27,8 @@ flowchart LR
 | [Client](client/index.md) | Who sends the traffic, and how? | 2 | [Intro](../../classes/intro/index.md), [Edge › Protocols](../../classes/edge/protocols/index.md) |
 | [Traffic & Edge](edge/index.md) | How does a request find us and get in safely? | 6 | [Edge](../../classes/edge/index.md) |
 | [Compute](compute/index.md) | Where does the code run, and how does it scale? | 8 | [Compute](../../classes/compute/index.md) |
-| [Storage](storage/index.md) | Where does the data live, and how fast can we read it? | 6 | [Databases](../../classes/databases/index.md), [Caching](../../classes/caching/index.md) |
+| [Containers](containers/index.md) | How do we package, deploy and scale independent services? | 4 | [Cloud-native](../../classes/cloud-native/index.md), [Compute › Services](../../classes/compute/services/index.md) |
+| [Storage](storage/index.md) | Where does the data live, and how fast can we read it? | 7 | [Databases](../../classes/databases/index.md), [Caching](../../classes/caching/index.md) |
 | [Messaging](messaging/index.md) | How do services talk without waiting for each other? | 4 | [Messaging](../../classes/messaging/index.md) |
 | [Observability](observability/index.md) | How do we know what is happening? | 5 | [Observability](../../classes/observability/index.md) |
 | [Network](network/index.md) | Who can talk to whom? | 5 | [Network & security](../../classes/network-security/index.md) |
@@ -53,7 +55,12 @@ flowchart LR
 | `scheduler` | [Scheduler](compute/index.md#scheduler) | Compute | Runs jobs on a schedule (cron) exactly when they should |
 | `notifications` | [Notifications](compute/index.md#notifications) | Compute | Sends email, push and SMS through providers, asynchronously |
 | `analytics` | [Analytics](compute/index.md#analytics) | Compute | Collects and aggregates events for reports and dashboards |
+| `microservice` | [Microservice](containers/index.md#microservice) | Containers | One bounded context, deployed and scaled independently, with its own database |
+| `container` | [Container](containers/index.md#container) | Containers | A process packaged in an image; CPU limit and start-up time set its capacity |
+| `k8s` | [Kubernetes Cluster](containers/index.md#k8s) | Containers | Worker nodes that run services as pods; Pending pods, node failures, cluster autoscaler |
+| `registry` | [Service Registry](containers/index.md#registry) | Containers | Service discovery: callers find healthy replicas and drop dead ones in seconds |
 | `sql` | [SQL Database](storage/index.md#sql) | Storage | Relational data with transactions; the source of truth |
+| `dbcluster` | [DB Cluster](storage/index.md#dbcluster) | Storage | Replicated, optionally sharded database with automatic failover |
 | `nosql` | [NoSQL DB](storage/index.md#nosql) | Storage | Key-value, document or wide-column stores that partition horizontally |
 | `cache` | [Cache](storage/index.md#cache) | Storage | In-memory copies of hot data (Redis); cuts latency and DB load |
 | `objstore` | [Object Store](storage/index.md#objstore) | Storage | Cheap, durable storage for files and media (S3-like) |

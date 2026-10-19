@@ -119,7 +119,8 @@ Arquiteturas reais são montadas a partir de um conjunto surpreendentemente pequ
 | **Cliente** | Client, Mobile | [1. Introdução](index.md) |
 | **Tráfego e borda** | DNS, CDN, Load Balancer, WAF, API Gateway, Ingress | [4. Tráfego e Borda](../edge/index.md) |
 | **Computação** | App Server, Worker, Serverless, Auth Service, Search, Scheduler, Notifications, Analytics | [5. Computação e Serviços](../compute/index.md) |
-| **Armazenamento** | SQL Database, NoSQL DB, Cache, Object Store, Data Warehouse, Vector DB | [6. Bancos de Dados](../databases/index.md), [7. Cache](../caching/index.md) |
+| **Contêineres** | Microservice, Container, Kubernetes Cluster, Service Registry | [12. Cloud-Native](../cloud-native/index.md), [5. Computação e Serviços](../compute/services/index.md) |
+| **Armazenamento** | SQL Database, DB Cluster, NoSQL DB, Cache, Object Store, Data Warehouse, Vector DB | [6. Bancos de Dados](../databases/index.md), [7. Cache](../caching/index.md) |
 | **Mensageria** | Message Queue, Pub/Sub, Event Stream, Kafka | [8. Mensageria](../messaging/index.md) |
 | **Observabilidade** | Metrics, Logs, Tracing, Alerting, Health Check | [10. Observabilidade](../observability/index.md) |
 | **Rede** | VPC, Subnet, NAT Gateway, VPN, Service Mesh | [11. Rede e Segurança](../network-security/index.md) |
@@ -257,7 +258,7 @@ flowchart LR
 
 - Design de sistemas decide **componentes, interfaces e dados** para que um sistema cumpra requisitos funcionais *e* não funcionais sob **carga** e **falha parcial**.
 - É uma **disciplina de trade-offs**: cada componente compra uma qualidade com outra; bons designs dizem qual.
-- A disciplina é organizada em torno de uma **paleta de componentes** com nove categorias; cada aula teórica ensina um grupo, e o [catálogo](../../reference/components/index.md) é o seu dicionário.
+- A disciplina é organizada em torno de uma **paleta de componentes** com dez categorias; cada aula teórica ensina um grupo, e o [catálogo](../../reference/components/index.md) é o seu dicionário.
 - A **BoxOffice** — uma plataforma de ingressos com uma venda relâmpago às 10:00 — é o exemplo em toda parte.
 - O **playground** permite montar, carregar e quebrar arquiteturas em minutos; os laboratórios fazem o mesmo com código real e medições reais.
 

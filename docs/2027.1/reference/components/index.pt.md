@@ -2,7 +2,7 @@
 
 Toda caixa que você pode colocar no canvas do [System Design Playground](../../../playground/index.md) tem uma entrada neste catálogo: **o que é**, **quando usar e quando não usar**, **números-chave**, **modos de falha**, **como se comporta no playground**, **produtos reais** na AWS, no GCP, no Azure e em código aberto, e uma frase que você pode dizer **na entrevista**. Os links "saiba mais" do simulador apontam para essas entradas.
 
-A paleta tem 44 componentes em 9 categorias. Elas seguem uma requisição da esquerda para a direita: um **cliente** chega à **borda**, a borda encaminha para a **computação**, a computação lê e escreve no **armazenamento** e publica na **mensageria**, tudo é acompanhado pela **observabilidade**, disposto dentro de uma **rede**, e algumas requisições vão para componentes de **IA** ou para provedores **externos**.
+A paleta tem 49 componentes em 10 categorias. Elas seguem uma requisição da esquerda para a direita: um **cliente** chega à **borda**, a borda encaminha para a **computação**, a computação é empacotada e escalada em **contêineres** (num cluster Kubernetes), a computação lê e escreve no **armazenamento** e publica na **mensageria**, tudo é acompanhado pela **observabilidade**, disposto dentro de uma **rede**, e algumas requisições vão para componentes de **IA** ou para provedores **externos**.
 
 ``` mermaid
 flowchart LR
@@ -10,6 +10,7 @@ flowchart LR
     ED --> CO[Computação]
     CO --> ST[Armazenamento]
     CO --> MS[Mensageria]
+    CT[Contêineres: microsserviços, Kubernetes] -.executa.-> CO
     MS --> CO
     CO --> AI[IA e agentes]
     CO --> EX[Externos]
@@ -26,7 +27,8 @@ flowchart LR
 | [Cliente](client/index.md) | Quem envia o tráfego, e como? | 2 | [Introdução](../../classes/intro/index.md), [Borda › Protocolos](../../classes/edge/protocols/index.md) |
 | [Tráfego e borda](edge/index.md) | Como uma requisição nos encontra e entra com segurança? | 6 | [Borda](../../classes/edge/index.md) |
 | [Computação](compute/index.md) | Onde o código roda, e como escala? | 8 | [Computação](../../classes/compute/index.md) |
-| [Armazenamento](storage/index.md) | Onde os dados vivem, e com que rapidez os lemos? | 6 | [Bancos de dados](../../classes/databases/index.md), [Cache](../../classes/caching/index.md) |
+| [Contêineres](containers/index.md) | Como empacotar, implantar e escalar serviços independentes? | 4 | [Cloud-native](../../classes/cloud-native/index.md), [Computação › Serviços](../../classes/compute/services/index.md) |
+| [Armazenamento](storage/index.md) | Onde os dados vivem, e com que rapidez os lemos? | 7 | [Bancos de dados](../../classes/databases/index.md), [Cache](../../classes/caching/index.md) |
 | [Mensageria](messaging/index.md) | Como os serviços conversam sem esperar uns pelos outros? | 4 | [Mensageria](../../classes/messaging/index.md) |
 | [Observabilidade](observability/index.md) | Como sabemos o que está acontecendo? | 5 | [Observabilidade](../../classes/observability/index.md) |
 | [Rede](network/index.md) | Quem pode falar com quem? | 5 | [Rede e segurança](../../classes/network-security/index.md) |
@@ -53,7 +55,12 @@ flowchart LR
 | `scheduler` | [Scheduler](compute/index.md#scheduler) | Computação | Roda jobs agendados (cron) exatamente quando devem rodar |
 | `notifications` | [Notifications](compute/index.md#notifications) | Computação | Envia e-mail, push e SMS por provedores, de forma assíncrona |
 | `analytics` | [Analytics](compute/index.md#analytics) | Computação | Coleta e agrega eventos para relatórios e dashboards |
+| `microservice` | [Microservice](containers/index.md#microservice) | Contêineres | Um contexto delimitado, implantado e escalado de forma independente, com seu próprio banco |
+| `container` | [Container](containers/index.md#container) | Contêineres | Um processo empacotado numa imagem; limite de CPU e tempo de partida definem sua capacidade |
+| `k8s` | [Kubernetes Cluster](containers/index.md#k8s) | Contêineres | Nós de trabalho que rodam serviços como pods; pods Pending, falhas de nó, cluster autoscaler |
+| `registry` | [Service Registry](containers/index.md#registry) | Contêineres | Descoberta de serviços: quem chama encontra réplicas saudáveis e descarta as mortas em segundos |
 | `sql` | [SQL Database](storage/index.md#sql) | Armazenamento | Dados relacionais com transações; a fonte da verdade |
+| `dbcluster` | [DB Cluster](storage/index.md#dbcluster) | Armazenamento | Banco replicado, opcionalmente particionado, com failover automático |
 | `nosql` | [NoSQL DB](storage/index.md#nosql) | Armazenamento | Bancos chave-valor, de documentos ou de colunas largas que particionam horizontalmente |
 | `cache` | [Cache](storage/index.md#cache) | Armazenamento | Cópias em memória dos dados quentes (Redis); corta latência e carga no banco |
 | `objstore` | [Object Store](storage/index.md#objstore) | Armazenamento | Armazenamento barato e durável para arquivos e mídia (tipo S3) |

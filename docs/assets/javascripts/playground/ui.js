@@ -20,6 +20,7 @@
   var W = CAT.NODE_W, H = CAT.NODE_H, NS = "http://www.w3.org/2000/svg";
   var LANG = CAT.lang();
   var counter = 0, instances = [];
+  var FRAME_PREFIX = { vpc: "vpc", subnet: "az", k8s: "k8s" };
   var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   /* ─── Interface strings ─── */
@@ -40,7 +41,7 @@
       learnMore: "Learn more", delete: "Delete", duplicate: "Duplicate", label: "Label", params: "Parameters", live: "Live",
       edge: "Call", frame: "Frame", name: "Name", region: "Region", zone: "Availability zone", none: "none",
       cycle: "That call would create a cycle: requests must flow one way.", dupEdge: "These nodes are already connected.", self: "A node cannot call itself.",
-      frameNoEdge: "VPC and subnet frames are areas, not services: drop nodes inside them.", connectHint: "Click the target node (Esc to cancel).",
+      frameNoEdge: "VPC, subnet and cluster frames are areas, not services: drop nodes inside them.", connectHint: "Click the target node (Esc to cancel).",
       copied: "Copied to the clipboard.", copyFail: "Could not copy — select and copy manually.", imported: "Design imported.", badFile: "Not a valid playground design.",
       selectTarget: "Target", injectBtn: "Inject", anyTarget: "(random)", allMeasured: "", notMeasured: "not measured (connect Metrics)",
       shortcuts: "Keyboard shortcuts", close: "Close", lambda: "Arriving λ", util: "Utilization ρ", cpu: "CPU", threads: "Threads in use",
@@ -53,7 +54,11 @@
       eventsRun: "Events", pass: "pass", fail: "fail", breaking: "Breaking point", knee: "Knee (p99 doubled)", copyMd: "Copy report (Markdown)",
       window: "steady window", hottest: "Busiest nodes (max ρ)", degraded: "degraded answers", godOn: "God mode on", empty: "Drag components here from the palette, or click +.",
       delSel: "Delete the selection", dupSel: "Duplicate", connect: "Connect: select a node, press C, click the target", panZoom: "Pan: drag the background · Zoom: Ctrl/⌘ + wheel or the buttons",
-      runKey: "Run / pause", stepKey: "Advance 1 s", undoKey: "Undo / redo", helpKey: "This help", escKey: "Cancel / deselect", fitKey: "Fit to screen", nodeKey: "Move to a component · select it"
+      runKey: "Run / pause", stepKey: "Advance 1 s", undoKey: "Undo / redo", helpKey: "This help", escKey: "Cancel / deselect", fitKey: "Fit to screen", nodeKey: "Move to a component · select it",
+      unsched: "pending", unschedLong: "Pending (no room in the cluster)", podsPending: "PENDING", inCluster: "Runs in cluster", nodesK: "Worker nodes", podsK: "Pods scheduled / capacity",
+      pendingK: "Pending pods", nodesReady: "ready", nodesStarting: "starting", nodesFailed: "failed", membersK: "Services (pods)", frameNoParams: "",
+      shardsK: "Shards × nodes", shardRho: "Shard utilization ρ", hotShard: "hot", otherShards: "others", replK: "Replication", staleK: "Stale reads",
+      lostK: "Lost writes", failoverK: "Failover", promoted: "promoted, one node fewer", noPrimary: "no primary", writeExtra: "Write ack wait", p99w: "p99 (writes)"
     },
     pt: {
       scenario: "Cenário", profile: "Perfil de carga", target: "RPS-alvo", read: "% leituras", seed: "Semente", newSeed: "Nova semente aleatória",
@@ -71,7 +76,7 @@
       learnMore: "Saiba mais", delete: "Excluir", duplicate: "Duplicar", label: "Rótulo", params: "Parâmetros", live: "Ao vivo",
       edge: "Chamada", frame: "Moldura", name: "Nome", region: "Região", zone: "Zona de disponibilidade", none: "nenhum",
       cycle: "Essa chamada criaria um ciclo: as requisições fluem em um sentido.", dupEdge: "Esses nós já estão conectados.", self: "Um nó não pode chamar a si mesmo.",
-      frameNoEdge: "Molduras de VPC e sub-rede são áreas, não serviços: coloque nós dentro delas.", connectHint: "Clique no nó de destino (Esc cancela).",
+      frameNoEdge: "Molduras de VPC, sub-rede e cluster são áreas, não serviços: coloque nós dentro delas.", connectHint: "Clique no nó de destino (Esc cancela).",
       copied: "Copiado para a área de transferência.", copyFail: "Não foi possível copiar — selecione e copie manualmente.", imported: "Projeto importado.", badFile: "Não é um projeto válido do playground.",
       selectTarget: "Alvo", injectBtn: "Injetar", anyTarget: "(aleatório)", allMeasured: "", notMeasured: "não medido (conecte Metrics)",
       shortcuts: "Atalhos de teclado", close: "Fechar", lambda: "Chegando λ", util: "Utilização ρ", cpu: "CPU", threads: "Threads em uso",
@@ -84,10 +89,18 @@
       eventsRun: "Eventos", pass: "ok", fail: "falhou", breaking: "Ponto de ruptura", knee: "Joelho (p99 dobrou)", copyMd: "Copiar relatório (Markdown)",
       window: "janela estável", hottest: "Nós mais ocupados (ρ máx.)", degraded: "respostas degradadas", godOn: "Modo deus ligado", empty: "Arraste componentes da paleta para cá, ou clique em +.",
       delSel: "Excluir a seleção", dupSel: "Duplicar", connect: "Conectar: selecione um nó, aperte C, clique no destino", panZoom: "Mover: arraste o fundo · Zoom: Ctrl/⌘ + roda ou os botões",
-      runKey: "Executar / pausar", stepKey: "Avançar 1 s", undoKey: "Desfazer / refazer", helpKey: "Esta ajuda", escKey: "Cancelar / desmarcar", fitKey: "Enquadrar", nodeKey: "Ir a um componente · selecioná-lo"
+      runKey: "Executar / pausar", stepKey: "Avançar 1 s", undoKey: "Desfazer / refazer", helpKey: "Esta ajuda", escKey: "Cancelar / desmarcar", fitKey: "Enquadrar", nodeKey: "Ir a um componente · selecioná-lo",
+      unsched: "pendentes", unschedLong: "Pendentes (sem espaço no cluster)", podsPending: "PENDENTE", inCluster: "Roda no cluster", nodesK: "Nós de trabalho", podsK: "Pods alocados / capacidade",
+      pendingK: "Pods pendentes", nodesReady: "prontos", nodesStarting: "subindo", nodesFailed: "com falha", membersK: "Serviços (pods)", frameNoParams: "",
+      shardsK: "Shards × nós", shardRho: "Utilização dos shards ρ", hotShard: "quente", otherShards: "demais", replK: "Replicação", staleK: "Leituras desatualizadas",
+      lostK: "Escritas perdidas", failoverK: "Failover", promoted: "promovido, um nó a menos", noPrimary: "sem primário", writeExtra: "Espera do ack da escrita", p99w: "p99 (escritas)"
     }
   };
   function t(k) { return (STR[LANG] && STR[LANG][k]) || STR.en[k] || k; }
+  /* the name a node is shown with: its label, or its type when it has none
+     (a label equal to the type counts as none) */
+  function hasLabel(n, c) { return !!n.label && n.label !== c.label; }
+  function nameOf(n, c) { return hasLabel(n, c) ? n.label : c.label; }
   function tx(o) { return CAT.text(o, LANG); }
 
   var PROFILE_LABEL = {
@@ -107,7 +120,13 @@
     region: { en: "Region outage", pt: "Queda de região" }, partition: { en: "Network partition", pt: "Partição de rede" },
     extOutage: { en: "3rd-party outage / throttling", pt: "Queda / limitação de terceiro" }, badDeploy: { en: "Bad deploy (30% errors)", pt: "Deploy ruim (30% de erros)" },
     noisy: { en: "Noisy neighbour (−30% capacity)", pt: "Vizinho barulhento (−30% de capacidade)" }, gcStorm: { en: "GC pause storm", pt: "Tempestade de pausas de GC" },
-    scale: { en: "Autoscaling", pt: "Autoescala" }
+    nodeFail: { en: "Node failure (Kubernetes)", pt: "Falha de nó (Kubernetes)" }, primaryFail: { en: "Primary failure (DB Cluster)", pt: "Falha do primário (DB Cluster)" },
+    scale: { en: "Autoscaling", pt: "Autoescala" }, cluster: { en: "Kubernetes cluster", pt: "Cluster Kubernetes" }
+  };
+  var CLUSTER_PHASE = {
+    pending: { en: "pods Pending: no room", pt: "pods Pending: sem espaço" }, up: { en: "cluster autoscaler adds nodes", pt: "cluster autoscaler adiciona nós" },
+    ready: { en: "node ready", pt: "nó pronto" }, down: { en: "idle node removed", pt: "nó ocioso removido" }, repaired: { en: "failed node replaced", pt: "nó com falha substituído" },
+    evict: { en: "pods evicted (no room)", pt: "pods despejados (sem espaço)" }
   };
   var GOAL_LABEL = {
     p50: ["p50", "ms"], p95: ["p95", "ms"], p99: ["p99", "ms"], p999: ["p99.9", "ms"],
@@ -116,7 +135,9 @@
     consumerLag: [{ en: "consumer lag", pt: "atraso do consumidor" }, "s"], replicationLag: [{ en: "replication lag", pt: "atraso de replicação" }, "s"],
     unsafeRate: [{ en: "unsafe answers", pt: "respostas inseguras" }, "%"], duplicates: [{ en: "duplicate charges", pt: "cobranças duplicadas" }, ""],
     breakingPoint: [{ en: "breaking point", pt: "ponto de ruptura" }, "req/s"], observed: [{ en: "services measured", pt: "serviços medidos" }, "%"],
-    degraded: [{ en: "degraded answers", pt: "respostas degradadas" }, "%"]
+    degraded: [{ en: "degraded answers", pt: "respostas degradadas" }, "%"],
+    p99Write: [{ en: "p99 (writes)", pt: "p99 (escritas)" }, "ms"], lostWrites: [{ en: "lost writes", pt: "escritas perdidas" }, ""],
+    staleReads: [{ en: "stale reads", pt: "leituras desatualizadas" }, "%"]
   };
   var BOTTLENECK = {
     cpu: { en: "{n} reached ρ = {rho} at t = {t} s: about {lam} req/s for its capacity. Add replicas (horizontal scaling), put a cache in front, or reduce the work per request.", pt: "{n} chegou a ρ = {rho} em t = {t} s: cerca de {lam} req/s para sua capacidade. Adicione réplicas (escala horizontal), coloque um cache na frente ou reduza o trabalho por requisição." },
@@ -126,6 +147,7 @@
     hotkey: { en: "One partition of {n} saturates while the others idle (hot key, t = {t} s). More partitions barely help: cache the hot key or split it.", pt: "Uma partição de {n} satura enquanto as outras ficam ociosas (chave quente, t = {t} s). Mais partições quase não ajudam: faça cache da chave quente ou divida-a." },
     quota: { en: "{n} hit the provider quota at t = {t} s (429 Too Many Requests). Make fewer calls (cache, batching), pace them with a queue, or get a higher quota.", pt: "{n} atingiu a cota do provedor em t = {t} s (429 Too Many Requests). Faça menos chamadas (cache, lotes), dose-as com uma fila ou obtenha uma cota maior." },
     ratelimit: { en: "The gateway {n} is rejecting the excess (429) since t = {t} s — by design: it protects the backend.", pt: "O gateway {n} rejeita o excesso (429) desde t = {t} s — de propósito: protege o backend." },
+    pending: { en: "{n} saturated at t = {t} s and needed more pods than the cluster {cl} could schedule ({pending} Pending): the HPA asked for them, but nodes × pods per node was full, so they do not serve. Add nodes, turn on the cluster autoscaler (a new node takes ~90 s), leave headroom, or reduce the pods needed (cache, lighter requests).", pt: "{n} saturou em t = {t} s e precisou de mais pods do que o cluster {cl} conseguia alocar ({pending} Pending): o HPA os pediu, mas nós × pods por nó estava cheio, então eles não atendem. Adicione nós, ligue o cluster autoscaler (um nó novo leva ~90 s), deixe folga ou reduza os pods necessários (cache, requisições mais leves)." },
     concurrency: { en: "{n} reached its concurrency limit at t = {t} s: instances = λ × W (plus cold starts). Raise the limit or keep warm (provisioned) instances.", pt: "{n} atingiu o limite de concorrência em t = {t} s: instâncias = λ × W (mais cold starts). Aumente o limite ou mantenha instâncias quentes (provisionadas)." }
   };
 
@@ -731,13 +753,21 @@
     this.nodeEls = {}; this.edgeEls = {};
     this.empty.style.display = d.nodes.length || d.frames.length ? "none" : "";
 
+    this.frameEls = {};
     d.frames.forEach(function (f) {
-      var g = svg("g", { class: "sdp-frame sdp-frame-" + f.type + (self.isSel("frame", f.id) ? " is-sel" : ""), "data-frame": f.id });
+      var g = svg("g", { class: "sdp-frame sdp-frame-" + f.type + (f.type === "k8s" ? " sdp-cat-containers" : "") + (self.isSel("frame", f.id) ? " is-sel" : ""), "data-frame": f.id });
       g.appendChild(svg("rect", { class: "sdp-frame-box", x: f.x, y: f.y, width: f.w, height: f.h, rx: 10 }));
       g.appendChild(svg("rect", { class: "sdp-frame-bar", x: f.x, y: f.y, width: f.w, height: 22, rx: 10 }));
       var tl = svg("text", { class: "sdp-frame-label", x: f.x + 10, y: f.y + 15 });
-      tl.textContent = (f.type === "vpc" ? "VPC · " + (f.region || f.name) : "subnet · AZ " + (f.zone || f.name)) + (f.name && f.name !== f.region && f.name !== f.zone ? " — " + f.name : "");
+      if (f.type === "k8s") tl.textContent = "Kubernetes" + (f.name ? " · " + f.name : "");
+      else tl.textContent = (f.type === "vpc" ? "VPC · " + (f.region || f.name) : "subnet · AZ " + (f.zone || f.name)) + (f.name && f.name !== f.region && f.name !== f.zone ? " — " + f.name : "");
       g.appendChild(tl);
+      if (f.type === "k8s") {
+        /* live line (nodes, pods, Pending), right-aligned in the title bar */
+        var info = svg("text", { class: "sdp-frame-info", x: f.x + f.w - 10, y: f.y + 15, "text-anchor": "end" });
+        g.appendChild(info);
+        self.frameEls[f.id] = { info: info, w: f.w };
+      }
       if (self.full) g.appendChild(svg("path", { class: "sdp-frame-resize", d: "M" + (f.x + f.w - 14) + " " + (f.y + f.h - 3) + "L" + (f.x + f.w - 3) + " " + (f.y + f.h - 14) + "M" + (f.x + f.w - 8) + " " + (f.y + f.h - 3) + "L" + (f.x + f.w - 3) + " " + (f.y + f.h - 8), "data-resize": f.id }));
       self.gFrames.appendChild(g);
     });
@@ -764,7 +794,7 @@
 
     d.nodes.forEach(function (n) {
       var c = CAT.get(n.type);
-      var g = svg("g", { class: "sdp-node sdp-cat-" + c.cat + (self.isSel("node", n.id) ? " is-sel" : "") + (self.connectFrom === n.id ? " is-connect" : ""), "data-node": n.id, transform: "translate(" + (n.x - W / 2) + "," + (n.y - H / 2) + ")", tabindex: "0", role: "button", "aria-label": (n.label ? n.label + " (" + c.label + ")" : c.label) });
+      var g = svg("g", { class: "sdp-node sdp-cat-" + c.cat + (self.isSel("node", n.id) ? " is-sel" : "") + (self.connectFrom === n.id ? " is-connect" : ""), "data-node": n.id, transform: "translate(" + (n.x - W / 2) + "," + (n.y - H / 2) + ")", tabindex: "0", role: "button", "aria-label": (hasLabel(n, c) ? n.label + " (" + c.label + ")" : c.label) });
       g.appendChild(svg("rect", { class: "sdp-node-box", width: W, height: H, rx: 8 }));
       g.appendChild(svg("rect", { class: "sdp-node-stripe", width: 4, height: H - 12, x: 3, y: 6, rx: 2 }));
       var gl = svg("g", { class: "sdp-node-glyph", transform: "translate(12,9)" });
@@ -773,12 +803,15 @@
       // three fixed lines: the name given in the design, the component type (never replaced by
       // live numbers; omitted when it equals the name) and the live metrics
       var label = svg("text", { class: "sdp-node-label", x: 38, y: 20 });
-      var name = String(n.label || c.label);
+      var name = String(nameOf(n, c));
       label.textContent = name.length > 17 ? name.slice(0, 16) + "…" : name;
       g.appendChild(label);
       var type = svg("text", { class: "sdp-node-type", x: 38, y: 34 });
-      type.textContent = name !== c.label ? c.label : "";
+      type.textContent = hasLabel(n, c) ? c.label : "";
       g.appendChild(type);
+      /* Pods of a Kubernetes cluster that could not be scheduled */
+      var pend = svg("text", { class: "sdp-node-pending", x: W - 8, y: 34, "text-anchor": "end" });
+      g.appendChild(pend);
       var sub = svg("text", { class: "sdp-node-sub", x: 12, y: 50 });
       g.appendChild(sub);
       var badge = svg("text", { class: "sdp-node-badge", x: W - 8, y: 15, "text-anchor": "end" });
@@ -790,10 +823,10 @@
       g.appendChild(hatch);
       if (self.full && c.role !== "frame") g.appendChild(svg("circle", { class: "sdp-handle", cx: W, cy: H / 2, r: 6, "data-handle": n.id }));
       var title = svg("title");
-      title.textContent = (n.label ? n.label + " — " : "") + c.label + ": " + tx(c.desc);
+      title.textContent = (hasLabel(n, c) ? n.label + " — " : "") + c.label + ": " + tx(c.desc);
       g.appendChild(title);
       self.gNodes.appendChild(g);
-      self.nodeEls[n.id] = { g: g, sub: sub, badge: badge, bar: bar, barBg: barBg, def: c, n: n };
+      self.nodeEls[n.id] = { g: g, sub: sub, badge: badge, bar: bar, barBg: barBg, pend: pend, def: c, n: n };
     });
     this.applyView();
   };
@@ -819,17 +852,30 @@
       else if (def.role === "side") text = v.attached ? "↔ " + v.attached : "";
       else if (def.role === "msg") text = observed ? (v.backlog > 1 ? "backlog " + fmtNum(v.backlog) + " · " + fmtS(v.lag) : fmtNum(v.lam) + " " + t("rps")) : "ρ ? · " + fmtNum(v.lam) + " " + t("rps");
       else if (sim.t > 0 || force) text = observed ? "ρ " + dec(Math.min(rho, 9.99), 2) + " · " + fmtNum(v.proc) + " " + t("rps") : "ρ ? · " + t("rps") + " ?";
-      if (st === "down") text = t("down").toUpperCase();
+      if (st === "down") text = v.ready === 0 && v.unsched > 0 ? t("podsPending") : t("down").toUpperCase();
       var nn = ne.n;
+      var pt = v.unsched > 0 ? v.unsched + " " + t("unsched") : "";
+      if (ne.pend.textContent !== pt) ne.pend.textContent = pt;
       if (ne.sub.textContent !== text) ne.sub.textContent = text;
       if (def.role !== "source" && def.role !== "side" && def.role !== "msg") {
         if (nn.type === "sql") { var rr = (nn.params && nn.params.readReplicas) || 0; badge = rr ? "1+" + rr : ""; }
+        else if (nn.type === "dbcluster") { var pp = CAT.params(nn); badge = (pp.shards > 1 ? pp.shards + "×" : "") + "1+" + pp.replicasPerShard; }
         else if (nn.type === "serverless") badge = v.instances ? "×" + Math.round(v.instances) : "λ";
         else if (v.ready > 1 || v.pending) badge = "×" + v.ready + (v.pending ? "+" + v.pending : "");
       } else if (nn.type === "kafka" || nn.type === "stream") badge = "P" + ((nn.params && nn.params.partitions) || def.d.partitions);
       if (ne.badge.textContent !== badge) ne.badge.textContent = badge;
       var bw = observed && def.role !== "side" && def.role !== "source" ? (W - 24) * clamp(rho, 0, 1) : 0;
       ne.bar.setAttribute("width", bw.toFixed(1));
+    }
+    for (var fid in this.frameEls) {
+      var fe = this.frameEls[fid], cv = sim.clusterView(fid);
+      if (!cv) continue;
+      var ftxt = (LANG === "pt" ? "nós " : "nodes ") + cv.nodes + (cv.starting ? " (+" + cv.starting + ")" : "") + (cv.failed ? " · ✕" + cv.failed : "") +
+        " · pods " + cv.scheduled + "/" + cv.capacity + (cv.pending ? " · " + cv.pending + " " + t("unsched") : "");
+      if (fe.w < 300) ftxt = cv.scheduled + "/" + cv.capacity + (cv.pending ? " ·" + cv.pending + "⏳" : "");
+      if (fe.info.textContent !== ftxt) fe.info.textContent = ftxt;
+      var fcls = "sdp-frame-info" + (cv.pending ? " is-pending" : "");
+      if (fe.info.getAttribute("class") !== fcls) fe.info.setAttribute("class", fcls);
     }
     var dt = this.frameDt || 0;
     if (running) this.phase += dt * 0.6;
@@ -1123,10 +1169,17 @@
     if (this.full) {
       var lab = el("div", { class: "sdp-param" });
       var l = el("label", { class: "sdp-param-label" }); l.appendChild(el("span", { text: t("label") }));
-      var inp = el("input", { type: "text", class: "sdp-text", value: n.label || "", placeholder: c.label, "aria-label": t("label") });
+      var inp = el("input", { type: "text", class: "sdp-text", value: hasLabel(n, c) ? n.label : "", placeholder: c.label, "aria-label": t("label") });
       var before = null;
       inp.addEventListener("focus", function () { before = self.snapshot(); });
-      inp.addEventListener("change", function () { n.label = inp.value.trim().slice(0, 40); self.commit(before, true, true); before = self.snapshot(); });
+      inp.addEventListener("change", function () {
+        var v = inp.value.trim().slice(0, 40);
+        if (v === c.label) { v = ""; inp.value = ""; }   // the type itself is no label
+        var cur = self.node(n.id);                         // commit() normalizes the design into new objects
+        if (!cur) return;
+        cur.label = v;
+        self.commit(before, true, true); before = self.snapshot();
+      });
       lab.appendChild(l); lab.appendChild(inp);
       ins.appendChild(lab);
     }
@@ -1177,7 +1230,23 @@
           rows.push([t("latencyW"), fmtMs(v.W)]);
         }
         rows.push([t("errors"), fmtPct(v.err)]);
-        if (c.role !== "msg" && n.type !== "serverless" && !c.d.ext) rows.push([t("replicas"), v.ready + " " + t("ready") + (v.pending ? " · " + v.pending + " " + t("pending") : "") + (v.down ? " · " + v.down + " " + t("down") : "")]);
+        if (c.role !== "msg" && n.type !== "serverless" && !c.d.ext && n.type !== "dbcluster") rows.push([t("replicas"), v.ready + " " + t("ready") + (v.pending ? " · " + v.pending + " " + t("pending") : "") + (v.down ? " · " + v.down + " " + t("down") : "")]);
+        if (v.cluster) {
+          var cl = sim.clusterById[v.cluster];
+          rows.push([t("inCluster"), cl ? cl.label : v.cluster]);
+          if (v.unsched) rows.push([t("unschedLong"), String(v.unsched)]);
+        }
+        if (n.type === "dbcluster") {
+          var pp = CAT.params(n);
+          rows.push([t("shardsK"), pp.shards + " × " + (1 + pp.replicasPerShard)]);
+          rows.push([t("shardRho"), q(v.rhoHot === undefined ? "—" : (pp.shards > 1 ? t("hotShard") + " " + dec(Math.min(v.rhoHot, 9.99), 2) + " · " + t("otherShards") + " " + dec(Math.min(v.rhoOther || 0, 9.99), 2) : dec(Math.min(v.rhoHot, 9.99), 2)))]);
+          rows.push([t("replK"), (pp.replicasPerShard ? pp.replication : "—") + (v.replMs ? " · " + t("writeExtra") + " " + fmtMs(v.replMs) : "")]);
+          if (v.stale > 0) rows.push([t("staleK"), fmtPct(v.stale)]);
+          if (v.lostWrites > 0) rows.push([t("lostK"), fmtNum(v.lostWrites)]);
+          (v.dbFails || []).forEach(function (f) {
+            rows.push([t("failoverK") + " · shard " + (f.shard + 1), sim.t < f.promoteAt ? t("noPrimary") + " (" + fmtS(f.promoteAt - sim.t) + ")" : t("promoted") + " (" + fmtS(f.backAt - sim.t) + ")"]);
+          });
+        }
         if (v.hit !== undefined && c.role === "cache") rows.push([t("hit"), fmtPct(v.hit)]);
         if (c.role === "msg") { rows.push([t("backlog"), fmtNum(v.backlog)]); rows.push([t("lag"), fmtS(v.lag)]); }
         if (v.repLag) rows.push([t("repLag"), fmtS(v.repLag)]);
@@ -1187,6 +1256,14 @@
           rows.push([t("little"), fmtNum(v.proc) + " × " + dec(hold / 1000, 3) + " s ≈ " + fmtNum(v.inflight)]);
         }
       }
+    } else if (this.sel.kind === "frame") {
+      var cv = sim.clusterView(this.sel.id);
+      if (!cv) { this.liveBox.innerHTML = ""; return; }
+      rows.push([t("nodesK"), cv.nodes + " " + t("nodesReady") + (cv.starting ? " · " + cv.starting + " " + t("nodesStarting") : "") + (cv.failed ? " · " + cv.failed + " " + t("nodesFailed") : "")]);
+      rows.push([t("podsK"), cv.scheduled + " / " + cv.capacity + (cv.startingPods ? " (" + cv.startingPods + " " + t("pending") + ")" : "")]);
+      rows.push([t("pendingK"), String(cv.pending)]);
+      rows.push([t("membersK"), String(cv.members)]);
+      rows.push([t("nodeCost"), fmtUsd(cv.cost)]);
     } else if (this.sel.kind === "edge") {
       var e = sim.edgeView(this.sel.id);
       if (!e) { this.liveBox.innerHTML = '<p class="sdp-meta">' + esc(LANG === "pt" ? "Conexão lateral (observabilidade / mesh): fora do caminho das requisições." : "Side connection (observability / mesh): not in the request path.") + "</p>"; return; }
@@ -1205,7 +1282,7 @@
   P.renderEdgeInspector = function (ins) {
     var e = this.edge(this.sel.id), self = this, a = this.node(e.from), b = this.node(e.to);
     var ca = CAT.get(a.type), cb = CAT.get(b.type);
-    ins.appendChild(el("h3", { class: "sdp-ins-title", text: t("edge") + ": " + (a.label || ca.label) + " → " + (b.label || cb.label) }));
+    ins.appendChild(el("h3", { class: "sdp-ins-title", text: t("edge") + ": " + nameOf(a, ca) + " → " + nameOf(b, cb) }));
     this.liveBox = el("div", { class: "sdp-live" });
     ins.appendChild(this.liveBox);
     this.updateInspectorLive();
@@ -1238,23 +1315,44 @@
 
   P.renderFrameInspector = function (ins) {
     var f = this.frame(this.sel.id), c = CAT.get(f.type), self = this;
-    var head = el("div", { class: "sdp-ins-head sdp-cat-network" });
+    var head = el("div", { class: "sdp-ins-head sdp-cat-" + c.cat });
     head.innerHTML = '<span class="sdp-ins-glyph">' + glyph(f.type, 22) + "</span><span><b>" + esc(c.label) + "</b></span>";
     ins.appendChild(head);
     ins.appendChild(el("p", { class: "sdp-desc", text: tx(c.desc) }));
+    if (c.numbers) ins.appendChild(el("p", { class: "sdp-numbers", text: tx(c.numbers) }));
     var pre = sitePrefix(), cb = catalogBase(this.root);
-    if (pre !== null && cb) ins.appendChild(el("a", { class: "sdp-learn", href: pre + cb + "network/#" + c.id, text: t("learnMore") + " →" }));
+    if (pre !== null && cb) ins.appendChild(el("a", { class: "sdp-learn", href: pre + cb + c.cat + "/#" + c.id, text: t("learnMore") + " →" }));
     function textRow(label, key) {
       var row = el("div", { class: "sdp-param" }), l = el("label", { class: "sdp-param-label" });
       l.appendChild(el("span", { text: label }));
       var inp = el("input", { type: "text", class: "sdp-text", value: f[key] || "" });
-      inp.addEventListener("change", function () { var before = self.snapshot(); f[key] = inp.value.trim().slice(0, 30); self.commit(before, true, true); });
+      inp.addEventListener("change", function () {
+        var cur = self.frame(f.id), before = self.snapshot();
+        if (!cur) return;
+        cur[key] = inp.value.trim().slice(0, 30);
+        self.commit(before, true, true);
+      });
       row.appendChild(l); row.appendChild(inp);
       return row;
     }
+    if (f.type === "k8s") {
+      if (this.full) ins.appendChild(textRow(t("name"), "name"));
+      this.liveBox = el("div", { class: "sdp-live" });
+      ins.appendChild(this.liveBox);
+      this.updateInspectorLive();
+      ins.appendChild(el("h4", { text: t("params") }));
+      var eff = CAT.merge(c.d, f.params || {});
+      c.params.forEach(function (pid) {
+        var def = CAT.PARAMS[pid];
+        if (!def || (pid === "maxNodes" && !eff.clusterAutoscaler)) return;
+        ins.appendChild(paramRow(def, eff[pid], function (val) { self.setFrameParam(f.id, pid, val); }));
+      });
+    }
     if (this.full) {
-      ins.appendChild(textRow(f.type === "vpc" ? t("region") : t("zone"), f.type === "vpc" ? "region" : "zone"));
-      ins.appendChild(textRow(t("name"), "name"));
+      if (f.type !== "k8s") {
+        ins.appendChild(textRow(f.type === "vpc" ? t("region") : t("zone"), f.type === "vpc" ? "region" : "zone"));
+        ins.appendChild(textRow(t("name"), "name"));
+      }
       var del = el("button", { type: "button", class: "sdp-btn-text is-danger", text: t("delete") + " (Del)" });
       del.addEventListener("click", function () { self.deleteSel(); });
       ins.appendChild(del);
@@ -1267,7 +1365,7 @@
     var details = sim.hasLogs || info.scripted;
     var tgt = "";
     if (l.target && details) {
-      if (sim.byId[l.target]) tgt = sim.nodeName(l.target);
+      if (sim.byId[l.target] || (sim.clusterById && sim.clusterById[l.target])) tgt = sim.nodeName(l.target);
       else if (info.from) tgt = sim.nodeName(info.from) + " → " + sim.nodeName(info.to);
       else tgt = String(l.target).replace(/^default\//, "");
     }
@@ -1275,11 +1373,18 @@
       if (!details) return lab;
       return lab + ": " + tgt + (info.to !== undefined ? " " + info.from + " → " + info.to : info.replicas ? " (" + info.replicas + " " + t("ready") + ")" : "");
     }
+    if (l.type === "cluster") {
+      var ph = CLUSTER_PHASE[l.phase] ? tx(CLUSTER_PHASE[l.phase]) : l.phase;
+      var det = info.pods ? info.pods + " pods" : info.to !== undefined ? info.from + " → " + info.to + (LANG === "pt" ? " nós" : " nodes") : info.nodes !== undefined ? info.nodes + (LANG === "pt" ? " nós" : " nodes") : "";
+      return lab + ": " + ph + (tgt ? " — " + tgt : "") + (details && det ? " (" + det + ")" : "");
+    }
     if (l.phase === "end") return "▼ " + lab + (tgt ? " — " + tgt : "") + (LANG === "pt" ? " (fim)" : " (over)");
     var extra = [];
     if (details) {
       if (info.factor) extra.push("×" + dec(info.factor, 1));
       if (info.mode) extra.push(info.mode);
+      if (info.shard) extra.push("shard " + info.shard);
+      if (info.lost !== undefined) extra.push(l.type === "primaryFail" ? fmtNum(info.lost) + " " + tx(GOAL_LABEL.lostWrites[0]) : info.lost + " pods");
       if (info.durationS) extra.push(info.durationS + " s");
     }
     var label = info.label ? tx(info.label) + " — " : "";
@@ -1296,7 +1401,7 @@
     if (!sim.log.length) { p.appendChild(el("p", { class: "sdp-meta", text: t("noEvents") })); return; }
     var list = el("ol", { class: "sdp-log" });
     sim.log.slice().reverse().forEach(function (l) {
-      var sev = l.type === "scale" ? "info" : l.phase === "end" ? "ok" : (l.type === "viral" || l.type === "hotkey" || l.type === "flush") ? "warn" : "bad";
+      var sev = l.type === "scale" || l.type === "cluster" ? "info" : l.phase === "end" ? "ok" : (l.type === "viral" || l.type === "hotkey" || l.type === "flush") ? "warn" : "bad";
       var li = el("li", { class: "sdp-log-" + sev });
       li.innerHTML = '<span class="sdp-log-t">' + esc(dec(l.t, 1)) + " s</span> " + esc(self.eventText(l));
       list.appendChild(li);
@@ -1325,7 +1430,8 @@
       [t("errRate"), dec(st.errorRate, 2) + "%"], [t("availability"), dec(st.availability, 3) + "%"],
       [LANG === "pt" ? "Vazão média" : "Mean throughput", fmtNum(st.throughput) + " " + t("rps")], [t("maxSustained") + " (p99 ≤ " + fmtMs(r.sloMs) + ")", fmtNum(r.maxSustained) + " " + t("rps")],
       [t("cost") + " (" + t("costNote") + ")", fmtUsd(st.costPerMonth)], [t("theory"), r.theory ? dec(r.theory * 100, 3) + "%" : "—"]
-    ].concat(st.consumerLag > 0 ? [[t("lag") + " (max)", fmtS(st.consumerLag)]] : [])
+    ].concat(sim.hasDb ? [[t("p99w"), fmtMs(st.p99Write)], [t("lostK"), fmtNum(st.lostWrites)], [t("staleK"), dec(st.staleReads, 2) + "%"]] : [])
+      .concat(st.consumerLag > 0 ? [[t("lag") + " (max)", fmtS(st.consumerLag)]] : [])
       .concat(st.degraded > 0.01 ? [[t("degraded"), dec(st.degraded, 2) + "%"]] : [])
       .concat(r.breakpoint ? [[t("breaking"), fmtNum(r.breakpoint.rps) + " " + t("rps") + " @ " + r.breakpoint.t + " s"]] : [])
       .concat(r.knee ? [[t("knee"), fmtNum(r.knee.rps) + " " + t("rps") + " @ " + r.knee.t + " s"]] : [])
@@ -1368,7 +1474,8 @@
     var L = b.lam * (b.hold || 0) / 1000;
     return fill(tx(tpl), {
       n: b.label, rho: dec(Math.min(b.rho, 9.99), 2), t: dec(b.t, 1), lam: fmtNum(b.lam), cpu: fmtPct(Math.min(b.rhoCpu, 1), 0),
-      hold: fmtNum(b.hold), holdS: dec((b.hold || 0) / 1000, 3), L: fmtNum(L), threads: fmtNum(b.threads), slow: b.slowest || "—"
+      hold: fmtNum(b.hold), holdS: dec((b.hold || 0) / 1000, 3), L: fmtNum(L), threads: fmtNum(b.threads), slow: b.slowest || "—",
+      pending: fmtNum(b.pending || 0), cl: b.cluster || ""
     });
   };
 
@@ -1508,9 +1615,11 @@
     var c = CAT.get(type), before = this.snapshot();
     x = Math.round(x / 10) * 10; y = Math.round(y / 10) * 10;
     if (c.role === "frame") {
-      var f = { id: this.newId(type === "vpc" ? "vpc" : "az"), type: type, x: x - 180, y: y - 110, w: type === "vpc" ? 420 : 300, h: type === "vpc" ? 240 : 180, name: "" };
+      var big = type !== "subnet";
+      var f = { id: this.newId(FRAME_PREFIX[type] || type), type: type, x: x - 180, y: y - 110, w: type === "k8s" ? 480 : big ? 420 : 300, h: type === "k8s" ? 280 : big ? 240 : 180, name: "" };
       if (type === "vpc") f.region = "region-" + (this.design.frames.filter(function (q) { return q.type === "vpc"; }).length + 1);
-      else f.zone = "abc"[this.design.frames.filter(function (q) { return q.type === "subnet"; }).length % 3];
+      else if (type === "subnet") f.zone = "abc"[this.design.frames.filter(function (q) { return q.type === "subnet"; }).length % 3];
+      else f.params = {};
       this.design.frames.push(f);
       this.sel = { kind: "frame", id: f.id };
     } else {
@@ -1525,6 +1634,12 @@
     n.params = n.params || {};
     n.params[key] = val;
     this.commit(before, true, key !== "autoscale");   // autoscale shows/hides its own parameters
+  };
+  P.setFrameParam = function (id, key, val) {
+    var f = this.frame(id), before = this.editSnapshot("f:" + id + ":" + key);
+    f.params = f.params || {};
+    f.params[key] = val;
+    this.commit(before, true, key !== "clusterAutoscaler");   // it shows/hides "max nodes"
   };
   P.setEdgeParam = function (id, key, val) {
     var e = this.edge(id), before = this.editSnapshot("e:" + id + ":" + key);
@@ -1564,7 +1679,7 @@
       this.sel = { kind: "node", id: copy.id };
     } else if (this.sel.kind === "frame") {
       var f = this.frame(this.sel.id), fc = JSON.parse(JSON.stringify(f));
-      fc.id = this.newId(f.type === "vpc" ? "vpc" : "az"); fc.y += f.h + 30;
+      fc.id = this.newId(FRAME_PREFIX[f.type] || f.type); fc.y += f.h + 30;
       this.design.frames.push(fc);
       this.sel = { kind: "frame", id: fc.id };
     } else return;
@@ -1747,6 +1862,7 @@
       else if (k === "partition") opts = sim.flowEdges.filter(function (e) { return e.from.role !== "source"; }).map(function (e) { return [e.id, e.from.label + " → " + e.to.label]; });
       else if (k === "az") opts = Object.keys(sim.zones).map(function (z) { return [z, z]; });
       else if (k === "region") opts = Object.keys(sim.regions).map(function (z) { return [z, z]; });
+      else if (k === "nodeFail") opts = sim.clusters.map(function (c) { return [c.id, "Kubernetes · " + c.label]; });
       else {
         var spec = ENG.EVENTS[k];
         opts = sim.nodes.filter(function (n) { return spec.scope === "node" ? spec.ok(n) : (n.def.cat === "compute" || n.def.cat === "ai" || n.type === "apigw"); }).map(function (n) { return [n.id, n.label]; });
@@ -1760,7 +1876,7 @@
     var go = el("button", { type: "button", class: "sdp-btn-text is-primary", text: "⚡ " + t("injectBtn") });
     go.addEventListener("click", function () {
       var k = type.value, tg = target.value || null;
-      if (!tg && k !== "viral" && k !== "hotkey" && k !== "az" && k !== "region" && k !== "partition" && k !== "badDeploy") {
+      if (!tg && k !== "viral" && k !== "hotkey" && k !== "az" && k !== "region" && k !== "partition" && k !== "badDeploy" && k !== "nodeFail") {
         var choices = Array.prototype.slice.call(target.options).filter(function (o) { return o.value; });
         if (!choices.length) { self.say("—"); return; }
         tg = choices[Math.floor(self.sim.R.manual.random() * choices.length)].value;

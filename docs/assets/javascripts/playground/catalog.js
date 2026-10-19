@@ -5,7 +5,9 @@
  * reference pages under 2027.1/reference/components/). Each entry gives:
  *   - cat     the palette category,
  *   - role    how the engine routes requests through it
- *             source | split | call | cache | msg | side | frame,
+ *             source | split | call | cache | msg | side | frame
+ *             (frames are areas drawn behind nodes: VPC, Subnet and
+ *             Kubernetes Cluster, stored in design.frames),
  *   - d       default parameters (numbers are illustrative, chosen to be
  *             explainable in class, not benchmarks of a product),
  *   - params  the parameters the inspector lets you edit,
@@ -33,6 +35,7 @@
     { id: "client", label: { en: "Client", pt: "Cliente" } },
     { id: "edge", label: { en: "Traffic & edge", pt: "Tráfego & borda" } },
     { id: "compute", label: { en: "Compute", pt: "Computação" } },
+    { id: "containers", label: { en: "Containers", pt: "Contêineres" } },
     { id: "storage", label: { en: "Storage", pt: "Armazenamento" } },
     { id: "messaging", label: { en: "Messaging", pt: "Mensageria" } },
     { id: "observability", label: { en: "Observability", pt: "Observabilidade" } },
@@ -98,7 +101,23 @@
     payloadKB: P("num", { en: "Payload (KB)", pt: "Payload (KB)" }, { en: "Data per request through the NAT, billed per GB.", pt: "Dados por requisição pelo NAT, cobrados por GB." }, { min: 0.1, max: 100000, log: true }),
     meshTimeoutMs: P("num", { en: "Default timeout (ms)", pt: "Timeout padrão (ms)" }, { en: "Applied by the sidecars to calls of attached services that set none.", pt: "Aplicado pelos sidecars às chamadas dos serviços anexados que não definem um." }, { min: 10, max: 60000, log: true }),
     meshRetries: P("int", { en: "Default retries", pt: "Retries padrão" }, null, { min: 0, max: 5, step: 1 }),
-    price: P("num", { en: "Price / replica (USD/month)", pt: "Preço / réplica (USD/mês)" }, { en: "Illustrative on-demand price.", pt: "Preço ilustrativo sob demanda." }, { min: 0, max: 100000, log: true })
+    price: P("num", { en: "Price / replica (USD/month)", pt: "Preço / réplica (USD/mês)" }, { en: "Illustrative on-demand price.", pt: "Preço ilustrativo sob demanda." }, { min: 0, max: 100000, log: true }),
+    /* DB Cluster */
+    shards: P("int", { en: "Shards", pt: "Shards" }, { en: "Partitions of the keys, each with its own primary. Write capacity grows with them — unless a hot key concentrates the load on one shard.", pt: "Partições das chaves, cada uma com seu primário. A capacidade de escrita cresce com elas — a menos que uma chave quente concentre a carga em um shard." }, { min: 1, max: 64, step: 1 }),
+    replicasPerShard: P("int", { en: "Followers per shard", pt: "Seguidores por shard" }, { en: "Copies of each shard. They serve reads (if reads go to followers) and one is promoted when the primary dies. 0 = no failover.", pt: "Cópias de cada shard. Atendem leituras (se as leituras vão aos seguidores) e uma é promovida quando o primário morre. 0 = sem failover." }, { min: 0, max: 5, step: 1 }),
+    replication: P("enum", { en: "Replication", pt: "Replicação" }, { en: "async: the primary answers at once (followers lag; a failover loses the writes in the lag). sync: + a round trip to one follower. quorum: + the round trip of a majority (a slow follower does not matter).", pt: "async: o primário responde na hora (seguidores atrasam; um failover perde as escritas no atraso). sync: + uma ida e volta a um seguidor. quorum: + a ida e volta de uma maioria (um seguidor lento não importa)." }, { options: ["async", "sync", "quorum"] }),
+    readsFrom: P("enum", { en: "Reads from", pt: "Leituras de" }, { en: "followers: reads spread over all nodes of the shard (more capacity, maybe stale); primary: always fresh, primaries only.", pt: "followers: leituras espalhadas por todos os nós do shard (mais capacidade, talvez desatualizadas); primary: sempre frescas, só nos primários." }, { options: ["followers", "primary"] }),
+    failoverS: P("num", { en: "Failover time (s)", pt: "Tempo de failover (s)" }, { en: "Time to detect a dead primary and promote a follower: writes to that shard fail meanwhile (the RTO).", pt: "Tempo para detectar um primário morto e promover um seguidor: escritas naquele shard falham enquanto isso (o RTO)." }, { min: 1, max: 600, log: true }),
+    replRttMs: P("num", { en: "Replication round trip (ms)", pt: "Ida e volta da replicação (ms)" }, { en: "Median time to ship a write to a follower and get its ack (≈ 1–3 ms across AZs, ≈ 70 ms across regions).", pt: "Tempo mediano para enviar uma escrita a um seguidor e receber o ack (≈ 1–3 ms entre AZs, ≈ 70 ms entre regiões)." }, { min: 0.1, max: 500, log: true }),
+    /* containers and Kubernetes */
+    startupS: P("num", { en: "Start-up time (s)", pt: "Tempo de partida (s)" }, { en: "Image pull + process start + warm-up before a new replica takes traffic (autoscaling, rescheduling).", pt: "Download da imagem + início do processo + aquecimento antes de uma réplica nova receber tráfego (autoescala, reescalonamento)." }, { min: 0, max: 600, step: 1 }),
+    cpuLimit: P("num", { en: "CPU limit (× request)", pt: "Limite de CPU (× request)" }, { en: "CPU limit as a multiple of the CPU request the capacity is quoted for. Capacity / replica = capacity × limit; below 1 the container is throttled (CFS quota): fewer req/s and slower requests.", pt: "Limite de CPU como múltiplo do request para o qual a capacidade vale. Capacidade / réplica = capacidade × limite; abaixo de 1 o contêiner sofre throttling (cota CFS): menos req/s e requisições mais lentas." }, { min: 0.1, max: 4, step: 0.05 }),
+    nodes: P("int", { en: "Worker nodes", pt: "Nós de trabalho" }, { en: "Virtual machines of the cluster. The scheduler places at most nodes × pods per node replicas.", pt: "Máquinas virtuais do cluster. O escalonador coloca no máximo nós × pods por nó réplicas." }, { min: 1, max: 200, log: true }),
+    podsPerNode: P("int", { en: "Pods per node", pt: "Pods por nó" }, { en: "Replicas that fit on one node (by their CPU/memory requests). Replicas beyond nodes × pods per node stay Pending: they do not serve.", pt: "Réplicas que cabem em um nó (pelos requests de CPU/memória). Réplicas além de nós × pods por nó ficam Pending: não atendem." }, { min: 1, max: 250, log: true }),
+    clusterAutoscaler: P("bool", { en: "Cluster autoscaler", pt: "Cluster autoscaler" }, { en: "Pending pods trigger new nodes (ready after the node start-up, up to the max); nodes not needed for 2 min are removed (never below Worker nodes).", pt: "Pods Pending disparam nós novos (prontos após a partida do nó, até o máximo); nós desnecessários por 2 min são removidos (nunca abaixo de Nós de trabalho)." }),
+    maxNodes: P("int", { en: "Cluster autoscaler max nodes", pt: "Máx. de nós do cluster autoscaler" }, null, { min: 1, max: 500, log: true }),
+    nodeStartupS: P("num", { en: "Node start-up (s)", pt: "Partida do nó (s)" }, { en: "Time to boot a new VM and join the cluster (≈ 60–180 s).", pt: "Tempo para ligar uma VM nova e entrar no cluster (≈ 60–180 s)." }, { min: 10, max: 900, step: 5 }),
+    nodePrice: P("num", { en: "Price / worker node (USD/month)", pt: "Preço / nó de trabalho (USD/mês)" }, { en: "Illustrative on-demand price of one worker VM. Inside a cluster you pay for nodes, not pods: the replicas' own price is not counted.", pt: "Preço ilustrativo sob demanda de uma VM de trabalho. Dentro de um cluster paga-se pelos nós, não pelos pods: o preço das réplicas não é contado." }, { min: 0, max: 100000, log: true })
   };
 
   var EDGE_PARAMS = {
@@ -234,6 +253,31 @@
       { en: "Feeds a data warehouse in batches or micro-batches.", pt: "Alimenta um data warehouse em lotes ou micro-lotes." },
       '<path d="M4 20h16M7 16v-5M12 16V6M17 16V8"/>'),
 
+    /* CONTAINERS (microservices and orchestration) */
+    C("microservice", "containers", "Microservice", "call",
+      merge({ replicas: 2, capacity: 400, latencyMs: 8, sigma: 0.4, threads: 200, queueLimit: 200, price: 60, perMillion: 0, avail: 0.995, mtbf: 1 }, merge(AUTOSCALE_D, { warmupS: 20 })),
+      COMPUTE,
+      { en: "One bounded context (e.g. catalog, inventory, order) built, deployed and scaled independently, with its own database (database-per-service: no other service touches its tables). Every call to another microservice is a network hop: it adds latency and one more thing that can fail.", pt: "Um contexto delimitado (ex.: catálogo, estoque, pedidos) construído, implantado e escalado de forma independente, com seu próprio banco (database-per-service: nenhum outro serviço toca suas tabelas). Toda chamada a outro microsserviço é um salto de rede: soma latência e mais uma coisa que pode falhar." },
+      { en: "≈ 400 req/s per replica (a 2-vCPU pod) at 8 ms; a new replica takes traffic in ≈ 20 s. A synchronous chain of N services: latencies add, availabilities multiply (0.995ᴺ).", pt: "≈ 400 req/s por réplica (um pod de 2 vCPU) a 8 ms; uma réplica nova recebe tráfego em ≈ 20 s. Uma cadeia síncrona de N serviços: latências somam, disponibilidades multiplicam (0,995ᴺ)." },
+      '<path d="M12 2.5l8.2 4.75v9.5L12 21.5l-8.2-4.75v-9.5z"/><path d="M12 8.5l3 1.75v3.5L12 15.5l-3-1.75v-3.5z"/>'),
+    C("container", "containers", "Container", "call",
+      merge({ replicas: 1, capacity: 300, latencyMs: 10, sigma: 0.4, threads: 100, queueLimit: 200, price: 40, perMillion: 0, avail: 0.995, mtbf: 1, startupS: 20, cpuLimit: 1 }, AUTOSCALE_D),
+      ["replicas", "capacity", "cpuLimit", "startupS", "latencyMs", "threads", "queueLimit", "parallelCalls", "autoscale", "minReplicas", "maxReplicas", "targetUtil", "multiAZ", "price"],
+      { en: "A process packaged with its dependencies in an image (Docker/OCI), isolated by namespaces and limited by cgroups. A new replica pulls the image and starts the process before it takes traffic; a low CPU limit throttles it.", pt: "Um processo empacotado com suas dependências em uma imagem (Docker/OCI), isolado por namespaces e limitado por cgroups. Uma réplica nova baixa a imagem e inicia o processo antes de receber tráfego; um limite de CPU baixo a estrangula (throttling)." },
+      { en: "Start-up ≈ 1–30 s (image pull + JVM warm-up). Capacity = capacity × CPU limit: a limit of 0.5 halves the req/s and makes requests ≈ 2× slower.", pt: "Partida ≈ 1–30 s (download da imagem + aquecimento da JVM). Capacidade = capacidade × limite de CPU: limite 0,5 corta as req/s pela metade e deixa as requisições ≈ 2× mais lentas." },
+      '<rect x="2.5" y="6" width="19" height="13" rx="1"/><path d="M6.5 9v7M10.5 9v7M14.5 9v7M18.5 9v7"/>'),
+    C("k8s", "containers", "Kubernetes Cluster", "frame",
+      { price: 0, nodes: 3, podsPerNode: 10, clusterAutoscaler: false, maxNodes: 10, nodeStartupS: 90, nodePrice: 140 },
+      ["nodes", "podsPerNode", "clusterAutoscaler", "maxNodes", "nodeStartupS", "nodePrice"],
+      { en: "Worker nodes that run, as pods, the services drawn inside the frame. The scheduler places at most nodes × pods per node replicas; the others stay Pending (not serving) until there is room. The HPA adds pods; only the cluster autoscaler adds nodes.", pt: "Nós de trabalho que rodam, como pods, os serviços desenhados dentro da moldura. O escalonador coloca no máximo nós × pods por nó réplicas; as outras ficam Pending (sem atender) até haver espaço. O HPA adiciona pods; só o cluster autoscaler adiciona nós." },
+      { en: "A new node ≈ 60–180 s, a new pod ≈ 5–30 s. You pay per worker node (≈ 140 USD/month each, illustrative), not per pod.", pt: "Um nó novo ≈ 60–180 s, um pod novo ≈ 5–30 s. Paga-se por nó de trabalho (≈ 140 USD/mês cada, ilustrativo), não por pod." },
+      '<path d="M12 2.5l7.4 3.6 1.8 8-5.1 6.4H8l-5.1-6.4 1.8-8z"/><circle cx="12" cy="12" r="2.5"/><path d="M12 5.5v4M12 14.5v4M6.4 9.6l3.3 1.4M17.6 9.6l-3.3 1.4"/>'),
+    C("registry", "containers", "Service Registry", "side",
+      { price: 30, perNode: 5, avail: 1 }, ["price"],
+      { en: "Service discovery (e.g. Consul, Eureka, Kubernetes Services + DNS): instances register and report their health; callers ask for healthy instances. Connect it to services: callers drop a dead replica in 3 s instead of 30 s (40 s for a lost Kubernetes node) — also on direct service-to-service calls — and new replicas take traffic as soon as they are ready.", pt: "Descoberta de serviços (ex.: Consul, Eureka, Services + DNS do Kubernetes): instâncias se registram e informam sua saúde; quem chama pede instâncias saudáveis. Conecte aos serviços: quem chama descarta uma réplica morta em 3 s em vez de 30 s (40 s para um nó Kubernetes perdido) — também nas chamadas diretas entre serviços — e réplicas novas recebem tráfego assim que ficam prontas." },
+      { en: "Heartbeats / TTL ≈ 1–10 s. Without it, pods in a cluster wait ≈ 10 s for their endpoints to propagate.", pt: "Heartbeats / TTL ≈ 1–10 s. Sem ele, pods num cluster esperam ≈ 10 s até seus endpoints se propagarem." },
+      '<rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="8.5" cy="8" r="1"/><circle cx="8.5" cy="12" r="1"/><circle cx="8.5" cy="16" r="1"/><path d="M11.5 8h5M11.5 12h5M11.5 16h5"/>'),
+
     /* STORAGE */
     C("sql", "storage", "SQL Database", "call",
       { replicas: 1, capacity: 3000, latencyMs: 4, sigma: 0.5, threads: 200, queueLimit: 400, price: 450, perMillion: 0, avail: 0.999, mtbf: 0.4, readReplicas: 0, standby: false, writeCost: 3, parallelCalls: false },
@@ -241,6 +285,12 @@
       { en: "Relational database (e.g. PostgreSQL): transactions, joins, strong consistency on a single primary. Reads can go to replicas; writes cannot.", pt: "Banco relacional (ex.: PostgreSQL): transações, joins, consistência forte em um primário. Leituras podem ir a réplicas; escritas não." },
       { en: "Indexed lookup ≈ 1–5 ms; a primary does a few thousand simple queries/s; connections are scarce (≈ 100–500).", pt: "Busca indexada ≈ 1–5 ms; um primário faz alguns milhares de consultas simples/s; conexões são escassas (≈ 100–500)." },
       '<ellipse cx="12" cy="5" rx="7" ry="3"/><path d="M5 5v14c0 1.7 3.1 3 7 3s7-1.3 7-3V5M5 12c0 1.7 3.1 3 7 3s7-1.3 7-3"/>'),
+    C("dbcluster", "storage", "DB Cluster", "call",
+      { replicas: 1, capacity: 3000, latencyMs: 4, sigma: 0.5, threads: 200, queueLimit: 400, price: 450, perMillion: 0, avail: 0.999, mtbf: 0.4, writeCost: 3, shards: 1, replicasPerShard: 2, replication: "async", readsFrom: "followers", failoverS: 30, replRttMs: 2, parallelCalls: false },
+      ["shards", "replicasPerShard", "replication", "readsFrom", "failoverS", "replRttMs", "capacity", "latencyMs", "threads", "writeCost", "price"],
+      { en: "A replicated, optionally sharded database with automatic failover (e.g. Aurora, Patroni, Vitess, CockroachDB). Each shard has a primary that takes its writes and followers that copy them; when a primary dies a follower is promoted. Replication mode trades write latency for lost data (RPO).", pt: "Um banco replicado, opcionalmente particionado, com failover automático (ex.: Aurora, Patroni, Vitess, CockroachDB). Cada shard tem um primário que recebe as escritas e seguidores que as copiam; quando um primário morre, um seguidor é promovido. O modo de replicação troca latência de escrita por dados perdidos (RPO)." },
+      { en: "Writes: shards × capacity ÷ write cost; reads: shards × (1 + followers) × capacity. Async failover loses ≈ write rate × lag; sync/quorum lose nothing but add a round trip to every write.", pt: "Escritas: shards × capacidade ÷ custo da escrita; leituras: shards × (1 + seguidores) × capacidade. Failover assíncrono perde ≈ taxa de escrita × atraso; sync/quorum não perdem nada mas somam uma ida e volta a cada escrita." },
+      '<ellipse cx="8" cy="5" rx="5" ry="2"/><path d="M3 5v6c0 1.1 2.2 2 5 2s5-.9 5-2V5"/><ellipse cx="16" cy="13" rx="5" ry="2"/><path d="M11 13v6c0 1.1 2.2 2 5 2s5-.9 5-2v-6"/>'),
     C("nosql", "storage", "NoSQL DB", "call",
       { replicas: 4, capacity: 5000, latencyMs: 3, sigma: 0.4, threads: 1000, queueLimit: 2000, price: 180, perMillion: 0, avail: 0.9995, mtbf: 0.4, writeCost: 1.2, partitioned: true, parallelCalls: false },
       ["replicas", "capacity", "latencyMs", "writeCost", "price"],

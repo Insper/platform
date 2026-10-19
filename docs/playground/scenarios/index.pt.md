@@ -42,6 +42,9 @@ Cada cenário do [System Design Playground](../index.md) é um pequeno laborató
 | [Autocompletar da busca](#search-autocomplete) | Autocompletar é um problema de latência |
 | [Assistente de suporte com IA (RAG + ferramentas)](#ai-assistant) | Numa aplicação com LLM, latência e custo crescem com o número de chamadas ao modelo |
 | [Não se conserta o que não se mede](#observability-stack) | Observabilidade muda o resultado |
+| [Microsserviços no Kubernetes: pods vs nós](#microservices) | O HPA adiciona pods, só nós trazem espaço; cada salto síncrono soma à espera do usuário |
+| [Kubernetes: perdendo um nó](#k8s-node-failure) | Planeje N+1 também para nós: um nó perdido leva vários pods de uma vez, e eles só voltam se houver espaço |
+| [Failover do banco: RTO e RPO](#db-failover) | Um failover custa o tempo sem primário (RTO) e as escritas ainda não replicadas (RPO) |
 
 ## Monólito: encontre o ponto de ruptura { #monolith }
 
@@ -498,3 +501,60 @@ A utilização fica oculta ("?") até o serviço ser ligado ao Metrics. Em t = 5
     1. Disponibilidade = MTTF / (MTTF + MTTR): que parte cada nó melhorou?
     2. Que quatro sinais de ouro você poria no painel?
     3. Por que alertar por taxa de queima do SLO e não por CPU?
+
+## Microsserviços no Kubernetes: pods vs nós { #microservices }
+
+O BoxOffice foi dividido nos microsserviços catalog, inventory, order e notify, cada um com seu banco, atrás de um API gateway, num cluster Kubernetes de 2 nós × 6 pods. Com 2 000 req/s o HPA do catálogo pede mais pods do que o cluster consegue alocar: eles ficam Pending, e o catálogo afoga. Comprar é uma cadeia síncrona (order → inventory, catalog, notify, seu banco): cada salto soma sua latência à espera do comprador.
+
+- **Lição:** O HPA adiciona pods, mas só nós trazem espaço: pods além de nós × pods por nó ficam Pending e não atendem nada. Numa cadeia de microsserviços síncronos cada salto soma sua latência à espera do usuário, então o trabalho que o usuário não precisa esperar vai para trás de uma fila.
+- **Configuração:** `microservices` · perfil `load` · alvo 2.000 req/s · 80% leituras · semente 2031 · caos `off`
+- **Metas:** taxa de erro < 1% · p99 < 200 ms · custo/mês < US$ 8.500
+- **Tente:** Selecione a moldura do cluster: pods = nós × pods por nó. Adicione nós ou ligue o cluster autoscaler (um nó leva ~90 s, então mantenha alguma folga), aumente o mínimo de réplicas do catálogo e coloque uma fila entre order e notify.
+- **Observe:** Como está, erros ≈ 25% e p99 ≈ 3,8 s: o HPA do catálogo quer ~14 pods, mas o cluster de 2 × 6 está cheio (6 catalog + 2 order + 2 inventory + 2 notify), então 9 pods ficam Pending; e o comprador ainda espera o notify (mediana de 120 ms, σ 0,6). A solução possível — 3 nós com o cluster autoscaler (máx. 6; ele adiciona um 4º nó em ~45 s, pronto em ~135 s), réplicas e mínimo do catálogo em 10, e order → fila *confirmations* → notify — passa com erros ≈ 0%, p99 ≈ 60 ms e ≈ 8 000 USD/mês. Leia as linhas de custo: o preço por requisição do API gateway, não os nós, domina a conta.
+- **Relacionado:** [Computação & serviços](../../2027.1/classes/compute/index.md) · [Plataformas cloud-native](../../2027.1/classes/cloud-native/index.md)
+
+<div class="sdp" data-scenario="microservices" data-mode="compact" data-height="480"></div>
+
+??? question "Perguntas para discutir"
+
+    1. O catálogo recebe as leituras (80% de 2 000 req/s) mais uma chamada por pedido (400 req/s), a 250 req/s por pod. Quantos pods ele precisa com ρ = 0,6, e eles cabem em 2 nós × 6 pods?
+    2. Que chamadas da cadeia de compra precisam terminar antes de o comprador ter resposta, e quais podem virar eventos?
+    3. O gateway cobra 1 USD por milhão de requisições: quanto isso dá por mês a 2 000 req/s, e como você o reduziria?
+
+## Kubernetes: perdendo um nó { #k8s-node-failure }
+
+Catalog e pricing rodam 6 pods cada num cluster de 3 nós × 4 pods: completamente cheio. Em t = 60 s um nó morre e leva um terço dos pods. Quem chama continua mandando requisições aos pods mortos até perceber (30 s atrás do balanceador, 40 s na chamada direta catalog → pricing), e os pods perdidos não têm onde ser realocados. Sobreviva à perda de qualquer nó.
+
+- **Lição:** N+1 vale para nós, não só para réplicas: um nó perdido leva vários pods de uma vez, quem chama continua chamando-os até perceber, e o Kubernetes só consegue realocá-los onde houver espaço. Uma chamada direta entre serviços precisa de descoberta de serviços e de timeout para parar de esperar por pods mortos.
+- **Configuração:** `k8s-node-failure` · perfil `load` · alvo 1.700 req/s · 90% leituras · semente 2033 · caos `off` · eventos programados: t = 60 s — um nó de trabalho morre
+- **Metas:** taxa de erro < 1% · p99 < 150 ms · custo/mês < US$ 2.000
+- **Tente:** Deixe espaço no cluster (mais pods por nó ou um nó a mais) e dimensione as réplicas para que as sobreviventes aguentem a carga (ρ após perder um terço abaixo de ~0,85). Coloque timeout com retries em catalog → pricing e conecte um Service Registry a catalog e pricing.
+- **Observe:** Como está, o nó leva 2 pods do catalog + 2 do pricing. As chamadas catalog → pricing continuam indo aos pods mortos do pricing por 40 s; cada uma trava 10 s, as threads do catálogo acabam e a falha cascateia (~90% de erros nessa janela); após 40 s os pods perdidos são recriados mas ficam Pending (sem espaço): ≈ 27% de erros e p99 > 4 s na execução. A solução possível — 8 pods por nó (3 × 8 = 24 vagas: após perder um nó, 16 vagas para os 16 pods — N+1 para nós), 8 réplicas cada, um Service Registry conectado a catalog e pricing, e timeout de 300 ms + 2 retries em catalog → pricing — passa com erros ≈ 0,8% e p99 ≈ 43 ms: pods mortos são descartados em 3 s, uma chamada que cai num deles desiste após 300 ms e é retentada num pod vivo, os pods sobreviventes aguentam a carga, e os 6 pods perdidos são todos realocados após 40 s.
+- **Relacionado:** [Plataformas cloud-native](../../2027.1/classes/cloud-native/index.md) · [Confiabilidade](../../2027.1/classes/reliability/index.md)
+
+<div class="sdp" data-scenario="k8s-node-failure" data-mode="compact" data-height="420"></div>
+
+??? question "Perguntas para discutir"
+
+    1. Com 3 nós × 4 pods e 12 pods, quantos pods uma falha de nó leva, e onde o Kubernetes pode colocá-los? E com 8 pods por nó e 8 réplicas cada?
+    2. Por que a chamada direta catalog → pricing machuca mais que a aresta balanceador → catalog? Use a Lei de Little com uma trava de 10 s.
+    3. Por que os pods de um serviço devem se espalhar por nós e zonas diferentes (topology spread constraints)?
+
+## Failover do banco: RTO e RPO { #db-failover }
+
+Checkout da venda relâmpago: 1 500 req/s, metade escritas (pedidos), num DB Cluster com um primário e um seguidor replicado de forma assíncrona. Em t = 90 s o primário morre. Até um seguidor ser promovido (30 s) toda escrita falha, e as escritas ainda dentro do atraso de replicação se perdem de vez: pedidos pagos e esquecidos. Faça o failover não perder nada e doer pouco.
+
+- **Lição:** Um failover tem dois custos: o tempo sem primário (RTO) e as escritas ainda não replicadas (RPO). Replicação síncrona ou por quorum zera o RPO ao preço de uma ida e volta por escrita; um failover rápido e mais shards reduzem o RTO e a parcela de escritas que ele atinge — e toda cópia é paga.
+- **Configuração:** `db-failover` · perfil `load` · alvo 1.500 req/s · 50% leituras · semente 2035 · caos `off` · eventos programados: t = 90 s — o primário de orders-db morre
+- **Metas:** escritas perdidas < 1 · disponibilidade ≥ 99% · p99 (escritas) < 100 ms
+- **Tente:** Troque a replicação para sync ou quorum, reduza o tempo de failover e divida as chaves em shards. Depois injete uma degradação de latência no cluster (ela deixa um seguidor lento) e compare sync e quorum no p99 de escrita.
+- **Observe:** Como está, ≈ 1 570 escritas se perdem quando o primário morre, as escritas falham por 30 s (disponibilidade ≈ 90,6%), e após a promoção um único nó carrega leituras e escritas, então o p99 de escrita chega a ≈ 375 ms. A solução possível — 2 shards, 2 seguidores cada, quorum, failover de 5 s — passa com 0 escritas perdidas, disponibilidade ≈ 99,2% e p99 de escrita ≈ 34 ms; mas a conta do banco vai de 900 para 2 700 USD/mês (2 shards × 3 nós × 450).
+- **Relacionado:** [Bancos de dados](../../2027.1/classes/databases/index.md) · [Confiabilidade](../../2027.1/classes/reliability/index.md)
+
+<div class="sdp" data-scenario="db-failover" data-mode="compact" data-height="420"></div>
+
+??? question "Perguntas para discutir"
+
+    1. Escritas perdidas ≈ taxa de escrita × atraso: estime-as pelo inspetor logo antes de t = 90 s.
+    2. Com um seguidor lento, por que o sync sofre e o quorum com 2 seguidores não?
+    3. RPO 0 e RTO de 5 s triplicam a conta do banco: para que dados do BoxOffice vale a pena (pedidos, sessões, analytics)?

@@ -26,6 +26,8 @@
     if (type === "vpc") f.region = (extra && extra.region) || name; else f.zone = (extra && extra.zone) || name;
     return f;
   }
+  /* a Kubernetes Cluster frame */
+  function K(id, x, y, w, h, name, params) { return { id: id, type: "k8s", x: x, y: y, w: w, h: h, name: name, params: params || {} }; }
   function D(nodes, edges, frames) { return { version: 1, nodes: nodes, edges: edges, frames: frames || [] }; }
   function G(metric, op, value) { return { metric: metric, op: op, value: value }; }
   function clone(x) { return JSON.parse(JSON.stringify(x)); }
@@ -36,6 +38,9 @@
       d.nodes.forEach(function (n) { if (n.id === s[0]) for (var k in s[1]) n.params[k] = s[1][k]; });
     });
     if (change.dropNodes) d.nodes = d.nodes.filter(function (n) { return change.dropNodes.indexOf(n.id) < 0; });
+    (change.setFrames || []).forEach(function (s) {
+      d.frames.forEach(function (f) { if (f.id === s[0]) { f.params = f.params || {}; for (var k in s[1]) f.params[k] = s[1][k]; } });
+    });
     if (change.dropEdges) d.edges = d.edges.filter(function (e) { return change.dropEdges.indexOf(e.id) < 0; });
     d.edges = d.edges.filter(function (e) { return !change.dropNodes || (change.dropNodes.indexOf(e.from) < 0 && change.dropNodes.indexOf(e.to) < 0); });
     (change.move || []).forEach(function (m) { d.nodes.forEach(function (n) { if (n.id === m[0]) { n.x = m[1]; n.y = m[2]; } }); });
@@ -559,6 +564,88 @@
       nodes: [N("m", "metrics", 480, 360), N("hc", "healthcheck", 280, 360), N("al", "alerting", 700, 360), N("tr", "tracing", 480, 60), N("lg", "logs", 700, 60)],
       edges: [E("lb", "m"), E("app", "m"), E("db", "m"), E("hc", "lb"), E("al", "m"), E("app", "tr"), E("app", "lg")]
     })
+  });
+
+  /* ═══ microservices ═══ */
+  var ms = D([N("client", "client", 80, 250, "fans"), N("gw", "apigw", 270, 250, "gateway"),
+    N("catalog", "microservice", 510, 140, "catalog", { replicas: 6, capacity: 250, autoscale: true, minReplicas: 6, maxReplicas: 30 }),
+    N("order", "microservice", 510, 360, "order", { autoscale: true, minReplicas: 2, maxReplicas: 10 }),
+    N("inventory", "microservice", 740, 300, "inventory", { autoscale: true, minReplicas: 2, maxReplicas: 10 }),
+    N("notify", "microservice", 740, 420, "notify", { latencyMs: 120, sigma: 0.6, autoscale: true, minReplicas: 2, maxReplicas: 10 }),
+    N("catdb", "sql", 1010, 140, "catalog-db", { readReplicas: 1 }), N("invdb", "sql", 1010, 300, "inventory-db"), N("orddb", "sql", 1010, 420, "order-db")],
+  [E("client", "gw"), E("gw", "catalog", { filter: "read" }), E("gw", "order", { filter: "write" }), E("catalog", "catdb"),
+    E("order", "inventory"), E("order", "catalog"), E("order", "notify"), E("order", "orddb"), E("inventory", "invdb")],
+  [K("cluster", 400, 70, 470, 420, "boxoffice", { nodes: 2, podsPerNode: 6 })]);
+  add({
+    id: "microservices",
+    title: T("Microservices on Kubernetes: pods vs nodes", "Microsserviços no Kubernetes: pods vs nós"),
+    brief: T("BoxOffice was split into catalog, inventory, order and notify microservices, each with its own database, behind an API gateway, on a Kubernetes cluster of 2 nodes × 6 pods. At 2 000 req/s the catalog's HPA asks for more pods than the cluster can schedule: they stay Pending, and the catalog drowns. Buying is a synchronous chain (order → inventory, catalog, notify, its DB): every hop adds its latency to the buyer's wait.",
+      "O BoxOffice foi dividido nos microsserviços catalog, inventory, order e notify, cada um com seu banco, atrás de um API gateway, num cluster Kubernetes de 2 nós × 6 pods. Com 2 000 req/s o HPA do catálogo pede mais pods do que o cluster consegue alocar: eles ficam Pending, e o catálogo afoga. Comprar é uma cadeia síncrona (order → inventory, catalog, notify, seu banco): cada salto soma sua latência à espera do comprador."),
+    settings: { profile: "load", targetRps: 2000, readRatio: 0.8, seed: 2031, chaos: "off" },
+    design: ms,
+    goals: [G("errorRate", "<", 1), G("p99", "<", 200), G("costPerMonth", "<", 8500)],
+    hints: [
+      T("Select the cluster frame: pods = nodes × pods per node. The HPA only adds pods; when they do not fit they are Pending. Add nodes, or turn on the cluster autoscaler (a new node takes ~90 s, so keep some headroom too).", "Selecione a moldura do cluster: pods = nós × pods por nó. O HPA só adiciona pods; quando não cabem, ficam Pending. Adicione nós ou ligue o cluster autoscaler (um nó novo leva ~90 s, então mantenha alguma folga também)."),
+      T("Look at the Trace tab (add Tracing) or think: the buyer waits for order + inventory + catalog + notify + the database. Does the confirmation have to be sent before answering? Put a queue between order and notify.", "Olhe a aba Trace (adicione Tracing) ou pense: o comprador espera order + inventory + catalog + notify + o banco. A confirmação precisa sair antes da resposta? Coloque uma fila entre order e notify."),
+      T("Do not buy nodes you do not need: each one is ≈ 140 USD/month. A cache in front of the catalog would also cut the pods it needs.", "Não compre nós que não precisa: cada um custa ≈ 140 USD/mês. Um cache na frente do catálogo também reduziria os pods de que ele precisa.")
+    ],
+    solution: derive(ms, {
+      setFrames: [["cluster", { nodes: 3, clusterAutoscaler: true, maxNodes: 6 }]],
+      set: [["catalog", { replicas: 10, minReplicas: 10 }]],
+      dropEdges: ["order-notify"],
+      nodes: [N("mq", "queue", 630, 570, "confirmations")],
+      edges: [E("order", "mq"), E("mq", "notify")]
+    })
+  });
+
+  /* ═══ k8s-node-failure ═══ */
+  var kn = D([N("client", "client", 80, 220, "fans"), N("lb", "lb", 270, 220, "ingress LB"),
+    N("catalog", "microservice", 500, 220, "catalog", { replicas: 6 }), N("pricing", "microservice", 740, 220, "pricing", { replicas: 6 }),
+    N("db", "sql", 980, 220, "catalog-db", { readReplicas: 1 })],
+  [E("client", "lb"), E("lb", "catalog"), E("catalog", "pricing"), E("catalog", "db")],
+  [K("cluster", 400, 110, 470, 220, "boxoffice", { nodes: 3, podsPerNode: 4 })]);
+  add({
+    id: "k8s-node-failure",
+    title: T("Kubernetes: losing a node", "Kubernetes: perdendo um nó"),
+    brief: T("Catalog and pricing run 6 pods each on a cluster of 3 nodes × 4 pods: completely full. At t = 60 s a worker node dies and takes a third of the pods with it. Callers keep sending requests to the dead pods until they notice (30 s behind the load balancer, 40 s for the direct catalog → pricing call), and the lost pods have nowhere to be rescheduled. Survive the loss of any one node.",
+      "Catalog e pricing rodam 6 pods cada num cluster de 3 nós × 4 pods: completamente cheio. Em t = 60 s um nó morre e leva um terço dos pods. Quem chama continua mandando requisições aos pods mortos até perceber (30 s atrás do balanceador, 40 s na chamada direta catalog → pricing), e os pods perdidos não têm onde ser realocados. Sobreviva à perda de qualquer nó."),
+    settings: { profile: "load", targetRps: 1700, readRatio: 0.9, seed: 2033, chaos: "off" },
+    design: kn,
+    events: [{ t: 60, type: "nodeFail", target: "cluster", durationS: 600, label: T("a worker node dies", "um nó de trabalho morre") }],
+    goals: [G("errorRate", "<", 1), G("p99", "<", 150), G("costPerMonth", "<", 2000)],
+    hints: [
+      T("N+1 for nodes: leave room in the cluster for the pods of one node (more pods per node, or one more node), so the lost pods can be rescheduled at once.", "N+1 para nós: deixe espaço no cluster para os pods de um nó (mais pods por nó, ou um nó a mais), para que os pods perdidos sejam realocados na hora."),
+      T("Size the replicas so that the survivors carry the load while the lost pods restart (ρ after losing a third of them below ~0.85), and put a timeout with retries on catalog → pricing: a call to a dead pod hangs and holds a thread.", "Dimensione as réplicas para que as sobreviventes aguentem a carga enquanto os pods perdidos reiniciam (ρ após perder um terço delas abaixo de ~0,85), e coloque timeout com retries em catalog → pricing: uma chamada a um pod morto trava e segura uma thread."),
+      T("Connect a Service Registry to catalog and pricing (or a Health Check to the load balancer): callers stop using dead pods in 3 s instead of 30–40 s.", "Conecte um Service Registry a catalog e pricing (ou um Health Check ao balanceador): quem chama para de usar pods mortos em 3 s em vez de 30–40 s.")
+    ],
+    solution: derive(kn, {
+      setFrames: [["cluster", { podsPerNode: 8 }]],
+      set: [["catalog", { replicas: 8 }], ["pricing", { replicas: 8 }]],
+      edgeParams: [["catalog-pricing", { timeoutMs: 300, retries: 2 }]],
+      nodes: [N("reg", "registry", 620, 420, "discovery")],
+      edges: [E("reg", "catalog"), E("reg", "pricing")]
+    })
+  });
+
+  /* ═══ db-failover ═══ */
+  var dbf = D([N("client", "client", 80, 220, "buyers"), N("lb", "lb", 270, 220), N("app", "app", 470, 220, "checkout", { replicas: 6 }),
+    N("db", "dbcluster", 700, 220, "orders-db", { replicasPerShard: 1, replication: "async", failoverS: 30 })],
+  [E("client", "lb"), E("lb", "app"), E("app", "db")]);
+  add({
+    id: "db-failover",
+    title: T("Database failover: RTO and RPO", "Failover do banco: RTO e RPO"),
+    brief: T("Flash-sale checkout: 1 500 req/s, half of them writes (orders), on a DB Cluster with one primary and one follower replicated asynchronously. At t = 90 s the primary dies. Until a follower is promoted (30 s) every write fails, and the writes still inside the replication lag are lost for good: orders paid and forgotten. Make the failover lose nothing and hurt little.",
+      "Checkout da venda relâmpago: 1 500 req/s, metade escritas (pedidos), num DB Cluster com um primário e um seguidor replicado de forma assíncrona. Em t = 90 s o primário morre. Até um seguidor ser promovido (30 s) toda escrita falha, e as escritas ainda dentro do atraso de replicação se perdem de vez: pedidos pagos e esquecidos. Faça o failover não perder nada e doer pouco."),
+    settings: { profile: "load", targetRps: 1500, readRatio: 0.5, seed: 2035, chaos: "off" },
+    design: dbf,
+    events: [{ t: 90, type: "primaryFail", target: "db", shard: 0, label: T("the primary of orders-db dies", "o primário de orders-db morre") }],
+    goals: [G("lostWrites", "<", 1), G("availability", ">=", 99), G("p99Write", "<", 100)],
+    hints: [
+      T("Lost writes ≈ write rate × replication lag at the moment of the failure (the RPO). Replication sync or quorum: a write is acknowledged only when a follower has it — nothing is lost, every write pays a round trip.", "Escritas perdidas ≈ taxa de escrita × atraso de replicação no momento da falha (o RPO). Replicação sync ou quorum: uma escrita só é confirmada quando um seguidor a tem — nada se perde, toda escrita paga uma ida e volta."),
+      T("Availability: every second of failover is a second of failed writes (the RTO). Shorten the failover time, and split the keys into shards so a dead primary takes only part of the writes.", "Disponibilidade: cada segundo de failover é um segundo de escritas falhando (o RTO). Reduza o tempo de failover e divida as chaves em shards para que um primário morto leve só parte das escritas."),
+      T("Quorum with 2 followers waits for the fastest of them: inject a latency degradation on the cluster (it slows one follower) and compare sync and quorum on the write p99.", "Quorum com 2 seguidores espera o mais rápido deles: injete uma degradação de latência no cluster (ela deixa um seguidor lento) e compare sync e quorum no p99 de escrita.")
+    ],
+    solution: derive(dbf, { set: [["db", { shards: 2, replicasPerShard: 2, replication: "quorum", failoverS: 5 }]] })
   });
 
   var BY_ID = {};

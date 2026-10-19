@@ -8,7 +8,7 @@ The reference section is the part of the course you keep open in another tab: wh
 
     ---
 
-    The 44 components of the palette, one entry each: what it is, when to use it and when not to, key numbers, failure modes, playground parameters, real products on AWS, GCP, Azure and open source, and an interview one-liner.
+    The 49 components of the palette, one entry each: what it is, when to use it and when not to, key numbers, failure modes, playground parameters, real products on AWS, GCP, Azure and open source, and an interview one-liner.
 
 -   __[Numbers](numbers/index.md)__
 

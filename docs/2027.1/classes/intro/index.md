@@ -119,7 +119,8 @@ Real architectures are assembled from a surprisingly small set of building block
 | **Client** | Client, Mobile | [1. Intro](index.md) |
 | **Traffic & edge** | DNS, CDN, Load Balancer, WAF, API Gateway, Ingress | [4. Traffic & Edge](../edge/index.md) |
 | **Compute** | App Server, Worker, Serverless, Auth Service, Search, Scheduler, Notifications, Analytics | [5. Compute & Services](../compute/index.md) |
-| **Storage** | SQL Database, NoSQL DB, Cache, Object Store, Data Warehouse, Vector DB | [6. Databases](../databases/index.md), [7. Caching](../caching/index.md) |
+| **Containers** | Microservice, Container, Kubernetes Cluster, Service Registry | [12. Cloud-Native](../cloud-native/index.md), [5. Compute & Services](../compute/services/index.md) |
+| **Storage** | SQL Database, DB Cluster, NoSQL DB, Cache, Object Store, Data Warehouse, Vector DB | [6. Databases](../databases/index.md), [7. Caching](../caching/index.md) |
 | **Messaging** | Message Queue, Pub/Sub, Event Stream, Kafka | [8. Messaging](../messaging/index.md) |
 | **Observability** | Metrics, Logs, Tracing, Alerting, Health Check | [10. Observability](../observability/index.md) |
 | **Network** | VPC, Subnet, NAT Gateway, VPN, Service Mesh | [11. Network & Security](../network-security/index.md) |
@@ -257,7 +258,7 @@ flowchart LR
 
 - System design decides **components, interfaces and data** so that a system meets functional *and* non-functional requirements under **load** and **partial failure**.
 - It is a **trade-off discipline**: every component buys one quality with another; good designs say which.
-- The course is organized around a **component palette** of nine categories; each theory class teaches one group, and the [catalog](../../reference/components/index.md) is your dictionary.
+- The course is organized around a **component palette** of ten categories; each theory class teaches one group, and the [catalog](../../reference/components/index.md) is your dictionary.
 - **BoxOffice** — a ticketing platform with a 10:00 flash sale — is the example everywhere.
 - The **playground** lets you build, load and break architectures in minutes; the labs do the same with real code and real measurements.
 

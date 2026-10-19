@@ -28,16 +28,17 @@ Pick a scenario in the toolbar (or **Blank canvas**), press ▶ and read the pan
 
 | Action | How |
 |---|---|
-| Add a component | Click **+** in the palette (or double-click the item), or drag it onto the canvas |
+| Add a component | Click **+** in the palette (or double-click the item), or drag it onto the canvas. The palette has 49 components in 10 categories: Client, Traffic & edge, Compute, Containers, Storage, Messaging, Observability, Network, AI & agents and External |
+| Name it | A new component has no label: its block shows only its type. Type a label in the inspector (the type is the placeholder) and the block shows the name and, below it, the type; clearing the label, or typing the type itself, goes back to the type alone |
 | Connect A → B (A calls B) | Drag from the round handle on the right edge of A and drop on B; or select A, press `C`, click B |
 | Select | Click a node, an edge or a frame; click the background to see the scenario brief and goals |
 | Edit | The inspector (right) shows the description, key numbers, a **Learn more** link to the component catalog, live values and the parameters (slider + number) |
 | Move / pan / zoom | Drag a node; drag the background to pan; `Ctrl`/`⌘` + wheel (or pinch) and the ± buttons to zoom; `F` fits the design to the screen |
 | Delete, duplicate, undo | `Del`/`⌫`, `D`, `Ctrl`/`⌘`+`Z` and `Shift`+`Ctrl`/`⌘`+`Z` (also in the toolbar) |
-| Regions and zones | Add a **VPC** (region) or **Subnet** (availability zone) frame and place nodes inside; drag the frame by its title bar, resize it by the corner |
-| Side connections | **Metrics, Logs, Tracing, Alerting, Health Check** and **Service Mesh** are not in the request path: connect them to the services they watch (either direction) |
+| Frames | Add a **VPC** (region), **Subnet** (availability zone) or **Kubernetes Cluster** frame and place nodes inside (a node belongs to a frame when its centre is inside it); drag the frame by its title bar, resize it by the corner. A Kubernetes Cluster runs the services inside it as pods ([see below](#kubernetes-clusters)) |
+| Side connections | **Metrics, Logs, Tracing, Alerting, Health Check, Service Registry** and **Service Mesh** are not in the request path: connect them to the services they watch (either direction) |
 
-Edges flow one way: a connection that would create a cycle is refused. An edge into a broker (**Message Queue, Pub/Sub, Event Stream, Kafka**) is asynchronous: the caller only waits for the broker's acknowledgement.
+Edges flow one way: a connection that would create a cycle is refused. An edge into a broker (**Message Queue, Pub/Sub, Event Stream, Kafka**) is asynchronous: the caller only waits for the broker's acknowledgement. Exports (Mermaid, report, events) name a component without a label by its type.
 
 ## How the model works { #how-the-model-works }
 
@@ -47,20 +48,23 @@ Time advances in **ticks of 0.1 s** of simulated time; the speed selector runs 1
 
 Each client generates arrivals from the **load profile** × random noise × traffic events. The number of arrivals in a tick is a Poisson draw with mean $\lambda \cdot \Delta t$, so even a constant target shows realistic jitter. A request is a **read** (share set by *Read %* in the toolbar, or per client) or a **write**; writes usually cost more downstream (a write on SQL uses 3 reads' worth of capacity). Bots (client parameter *bot traffic*) are extra load that a WAF or a rate limiter can stop; goals only count real users.
 
-### How a node routes requests
+### How a node routes requests { #how-a-node-routes-requests }
 
 | Role | Components | What happens to a request |
 |---|---|---|
-| split | DNS, Load Balancer, Ingress (API Gateway for 2+ targets of the same type) | goes to **one** healthy target, in proportion to capacity × edge weight; DNS can be *failover* |
-| call | App Server, Worker, Auth, Search, Serverless, Orchestrator, … | calls **every** outgoing edge (subject to the edge *ratio* and *read/write filter*), one after the other (latencies add) or in parallel (the slowest wins) |
+| split | DNS, Load Balancer, Ingress (API Gateway for 2+ targets of the same type, except Microservice and Container) | goes to **one** healthy target, in proportion to capacity × edge weight; DNS can be *failover* |
+| call | App Server, Microservice, Container, Worker, Auth, Search, Serverless, SQL Database, DB Cluster, Orchestrator, … | calls **every** outgoing edge (subject to the edge *ratio* and *read/write filter*), one after the other (latencies add) or in parallel (the slowest wins) |
 | cache | Cache, CDN | a read **hits** with the current hit ratio and returns; misses and writes go to the targets |
 | broker | Message Queue (competing consumers), Pub/Sub, Event Stream, Kafka (a copy per consumer) | the producer gets an ack; messages wait in a **backlog** that consumers drain at their capacity |
-| side | Metrics, Logs, Tracing, Alerting, Health Check, Service Mesh | not in the path; they change what you can see and how fast failures are detected and repaired |
+| side | Metrics, Logs, Tracing, Alerting, Health Check, Service Registry, Service Mesh | not in the path; they change what you can see and how fast failures are detected and repaired |
 | source | Client, Mobile, Scheduler | generate the load (the scheduler: *N* jobs every *T* seconds) |
+| frame | VPC, Subnet, Kubernetes Cluster | never receives requests; places the nodes inside it in a region, a zone or a cluster |
+
+An **API Gateway** groups its targets by type: 2+ targets of the same type (say, three App Servers) are load-balanced, as by a split node, and different types are all called (say, Auth and then the service). **Microservices and Containers are the exception**: each one is a different service, so the gateway treats each as **its own route** and does not load-balance between them. Choose which requests take which route with the edge *ratio* and *read/write filter* (reads → catalog, writes → order). To scale one service, raise its replicas; do not draw copies of it.
 
 ### Capacity, utilization and queues
 
-For each node, per tick: the **offered rate** $\lambda$ is the sum of what its callers send (including retries). Its **capacity** is $\mu = \text{healthy replicas} \times \text{capacity per replica}$ (SQL: reads spread over the primary and its read replicas, writes only on the primary; partitioned stores: limited by the busiest partition). The **utilization** is
+For each node, per tick: the **offered rate** $\lambda$ is the sum of what its callers send (including retries). Its **capacity** is $\mu = \text{healthy replicas} \times \text{capacity per replica}$ (SQL: reads spread over the primary and its read replicas, writes only on the primary; partitioned stores: limited by the busiest partition; DB Cluster: limited by the busiest shard, [see below](#db-cluster); Container: scaled by the CPU limit, [see below](#containers)). The **utilization** is
 
 $$\rho = \frac{\lambda}{\mu}$$
 
@@ -90,7 +94,7 @@ $$\text{load on the target} = \lambda \cdot (1 + p + p^2 + \dots + p^r) \qquad P
 
 When $p$ is close to 1 the target receives up to $(r+1)\times$ the load — a **retry storm**. *Backoff* waits $100\,\text{ms} \times 2^n$ between attempts (*exp+jitter* spreads them randomly), which adds latency and smooths the waves but does not reduce the total in a long outage. A **circuit breaker** opens when more than 50% of the calls fail over 5 s: calls fail at once for 10 s, then a few probe calls (half-open) decide whether to close it. A **fallback** turns a failed call into a degraded answer (counted as success). A **bulkhead** limits the share of the caller's threads one call may hold. An **idempotency key** makes retries to a payment provider safe: without it, a retry after a timeout counts as a possible **duplicate charge**.
 
-### Caches, CDNs and hot keys
+### Caches, CDNs and hot keys { #caches-cdns-and-hot-keys }
 
 A cache with hit ratio $h$ sends only the misses on: database reads $= \text{reads} \times (1-h)$. With *cache-aside* frequent writes invalidate entries and lower $h$; *write-through* keeps it but makes writes slower. After a **flush** the hit ratio starts at 0 and climbs back during the *warm-up*; meanwhile every read misses at once — a **stampede**. *Request coalescing* lets concurrent misses for the same key share one query. Key popularity follows a Zipf law: with $P$ partitions, the busiest one receives $p_1 + (1-p_1)/P$ of the load, where $p_1$ is the share of the hottest key — so a **hot key** saturates a partition no matter how many you add.
 
@@ -102,13 +106,78 @@ A broker accepts messages up to its capacity and keeps them in a backlog. Consum
 
 With *autoscaling* on, every 15 s a node compares its average **CPU** utilization with the target and sets $\lceil \text{replicas} \times \rho / \text{target} \rceil$ replicas (between min and max); new replicas take traffic after the *warm-up*. The first decision comes at t = 15 s, and a scale-in removes at most half of the replicas at a time. Like a Kubernetes HPA, it watches CPU — a node starved of threads does not scale. A **serverless** function runs one instance per concurrent request: instances $= \lambda \cdot W$. Requests beyond the warm instances land on new ones and pay the **cold start**; beyond the *concurrency limit* they are throttled (429). *Provisioned* instances are always warm (and always billed).
 
+### Containers { #containers }
+
+A **Container** is a compute node with two extra parameters. Its *CPU limit* $\ell$ is a multiple of the CPU request its capacity is quoted for: it scales the capacity and, below 1, throttles the container (CFS quota), so its own work takes longer:
+
+$$\mu_{\text{replica}} = \text{capacity} \times \ell \qquad \text{median service time} = \frac{\text{service time p50}}{\min(1, \ell)}$$
+
+A limit of 0.5 halves the req/s **and** doubles the service time; a limit above 1 adds req/s but does not make a request faster. Its *start-up time* (default 20 s: image pull + process start + warm-up) replaces the warm-up: it is how long a new replica takes before it gets traffic, whether the autoscaler added it or Kubernetes rescheduled it. A **Microservice** is a compute node with the defaults of a 2-vCPU pod (400 req/s per replica at 8 ms, 2 replicas, 20 s warm-up); what sets it apart is how an API Gateway routes to it ([above](#how-a-node-routes-requests)) and how a cluster schedules it (below).
+
+### Kubernetes clusters { #kubernetes-clusters }
+
+A **Kubernetes Cluster** frame runs, as **pods**, the services whose centre is inside it (a node belongs to the first cluster that contains it). Managed services and external providers never run as pods, even when drawn inside: DNS, CDN, Load Balancer, WAF, Serverless, Object Store, Data Warehouse, DB Cluster, Message Queue, Pub/Sub, Event Stream, NAT, VPN, LLM Gateway and the External components. Every replica of a member is a pod, and the cluster has room for
+
+$$C = \text{ready worker nodes} \times \text{pods per node}$$
+
+pods. A pod is *ready* (serving), *starting* or **Pending** (no room). Every tick:
+
+- Pods beyond $C$ are **Pending**: they do not serve. The block of the service shows *N pending*, the inspector shows them next to the ready and starting replicas, and the frame's title bar shows the live nodes, pods and Pending pods. When the cluster shrinks, the newest pods (starting ones first) are evicted back to Pending.
+- Pending pods take the free slots, one service at a time (round robin). A pod that gets a slot starts and takes traffic after its warm-up (the start-up time of a Container) **+ 10 s** for its endpoints to propagate — 0 s when the service is registered in a [Service Registry](#service-discovery).
+- The HPA (*Autoscaling* of a member) works as described above, but counts the pods it asked for, scheduled or not, and the pods it adds first wait for a free slot. **The HPA adds pods, never nodes**: when the pods do not fit, they stay Pending and the service stays saturated. A scale-in drops Pending pods first.
+
+With the **cluster autoscaler** on, when the Pending pods are more than the nodes already starting will hold, it starts
+
+$$\text{new nodes} = \left\lceil \frac{\text{Pending} - \text{starting nodes} \times \text{pods per node}}{\text{pods per node}} \right\rceil$$
+
+(up to *max nodes*), each ready after the *node start-up*. It removes one node after 120 s during which no node is starting and all the pods asked for (Pending included) fit on one node fewer — demand $\le (\text{ready} - 1) \times \text{pods per node}$ — and never goes below *Worker nodes*. The cluster costs $(\text{ready} + \text{starting nodes}) \times \text{node price}$; the pods' own price is not counted (per-request charges still are). Defaults: 3 nodes × 10 pods per node, cluster autoscaler off (max 10 nodes), node start-up 90 s, 140 USD/month per node.
+
+A **node failure** (an [event](#randomness-seeds-chaos-and-events)) kills one ready node. It held $\min\left(\text{pods per node}, \lceil \text{pods} \div \text{nodes} \rceil\right)$ pods, spread over the services in proportion to their pods (largest remainder). They stop serving at once, but callers keep sending them requests — which hang, as on any dead replica, for 10 s or until the edge timeout — until they notice, after $\min(\text{detection}, 40\,\text{s})$: 30 s behind a load balancer, 3 s with a Health Check or a Service Registry, 40 s (the node's *NotReady* timeout) on a direct call. After 40 s Kubernetes recreates the lost pods: they become Pending and start only where there is room. The node comes back when the event ends. A service with no pod at all (and no stale endpoint) answers at once with 503 (*no endpoints*).
+
+### Service discovery { #service-discovery }
+
+A **Service Registry** (side node) registers the services connected to it, in either direction. For a registered service:
+
+- **Dead replicas are dropped in 3 s by every caller** — a load balancer, an API gateway or another service calling it directly. Without a registry a direct service-to-service call has no one to detect a crash: a crashed replica keeps receiving its share of the calls (which hang) until it is repaired, and pods lost with a Kubernetes node until the 40 s *NotReady* timeout.
+- New pods take traffic as soon as they are ready: no 10 s wait for the endpoints to propagate.
+
+It costs 30 USD/month + 5 per attached service.
+
+### Replicated databases (DB Cluster) { #db-cluster }
+
+A **DB Cluster** has $S$ *shards*, each with a primary that takes its writes and $R$ *followers per shard* that copy them. Defaults: 1 shard, 2 followers, replication `async`, reads from `followers`, failover 30 s, replication round trip 2 ms, and per node 3 000 req/s, 4 ms, 200 connections, write cost 3 and 450 USD/month. Its capacity is
+
+$$\mu_{\text{writes}} = \frac{S \times \text{capacity}}{\text{write cost}} \qquad \mu_{\text{reads}} = S \times (1 + R) \times \text{capacity}$$
+
+when reads go to the followers ($S \times \text{capacity}$ when they go to the primary). Keys follow the Zipf law of the [hot key](#caches-cdns-and-hot-keys): the hottest shard receives $h_1 = p_1 + (1-p_1)/S$ of the requests and each of the others $(1-h_1)/(S-1)$. The busiest shard sets the capacity, so a hot key saturates one shard however many you add; the inspector shows the utilization of the hot shard and of the others.
+
+A write is acknowledged after its replication:
+
+| Replication | Extra latency of a write | Followers behind (lagging) | Lost on a failover |
+|---|---|---|---|
+| `async` | none | all $R$ | the writes inside the lag |
+| `sync` | the round trip to the synchronous follower | $R - 1$ | none |
+| `quorum` | the round trip of the $\lfloor (R+1)/2 \rfloor$-th fastest follower | $R - \lfloor (R+1)/2 \rfloor$ | none |
+
+Each round trip is sampled from a lognormal around the *replication round trip*. A **latency degradation** on a DB Cluster slows one follower — the synchronous one: `sync` waits for it on every write, `quorum` (with $R \ge 2$) answers with the faster ones. The followers behind lag
+
+$$\text{lag} \approx 0.02 + \frac{0.5\,\rho_w^3}{1 - \rho_w}\ \text{s}$$
+
+where $\rho_w$ is the write utilization of the busiest primary (the lag grows without limit while $\rho_w \ge 1$). When reads go to the followers, a share of them is **stale** (reads a key written within the lag):
+
+$$\text{stale reads} \approx \frac{\text{followers behind}}{1 + R} \times \text{write share} \times \min\left(1, \frac{\text{lag}}{1\,\text{s}}\right)$$
+
+A **primary failure** ([event](#randomness-seeds-chaos-and-events)) hits one shard. Its writes fail for the *failover time* (the RTO) — its reads too if they go to the primary — then a follower is promoted and the shard runs with one node fewer for 120 s. With `async` replication the writes not yet replicated are lost: $\text{lost writes} \approx \text{shard write rate} \times \text{lag}$ (the RPO); `sync` and `quorum` lose nothing. With $R = 0$ there is no failover: the shard is down for 120 s. An AZ outage causes a primary failure on one shard (the cluster spans the zones). The DB Cluster costs $S \times (1 + R) \times \text{price}$; its theoretical availability is $1 - (1-a)^{1+R}$ per shard, with the shards in series:
+
+$$A = \left[1 - (1-a)^{1+R}\right]^{S}$$
+
 ### External services and AI
 
 External APIs (3rd Party, Payment, Email) have a **quota** enforced as a token bucket (2 s of burst): above it they answer 429; they are slower, have a long latency tail and fail more often than your own services. The **LLM Gateway** includes the model call (≈ 1.2 s), a provider quota, a *semantic cache* (similar prompts answered in ≈ 20 ms, no tokens) and an optional *fallback model*. The **Orchestrator** runs the agent loop: each request makes *steps* sequential calls to its LLM and tool edges, so latency and cost grow linearly with the steps. A request path that does not go through a **Safety Mesh** lets prompt-injection attempts (2% of the requests, illustrative) reach the model: the *unsafe answers* metric.
 
 ### Cost and availability
 
-The cost tile is **USD per month, illustrative**, extrapolated from the current rates: replicas × price + per-request and per-GB charges (CDN egress, NAT, LLM tokens, function invocations) + observability. The Report also shows the **theoretical availability** of the design from per-replica availabilities, with the series/parallel rules of the course:
+The cost tile is **USD per month, illustrative**, extrapolated from the current rates: replicas × price + per-request and per-GB charges (CDN egress, NAT, LLM tokens, function invocations) + observability. Inside a Kubernetes Cluster you pay for the worker nodes, not the pods; a DB Cluster bills every node of every shard; a Service Registry costs 30 + 5 per attached service. The Report also shows the **theoretical availability** of the design from per-replica availabilities, with the series/parallel rules of the course:
 
 $$A_{\text{series}} = \prod_i A_i \qquad A_{\text{parallel}} = 1 - \prod_i (1 - A_i)$$
 
@@ -130,7 +199,7 @@ The profiles use the vocabulary of k6 and of the performance class. *Target RPS*
 
 Goals are evaluated over the **steady window** of the profile (shaded in the charts), so the ramp-up does not count; availability uses the whole run.
 
-## Randomness: seeds, chaos and events
+## Randomness: seeds, chaos and events { #randomness-seeds-chaos-and-events }
 
 All randomness — arrivals, service times, cache hits, which failures happen and when — comes from one **seeded generator**, split into independent streams per purpose. **Same seed + same design + same profile ⇒ the same run**, so you can change one thing and attribute the difference to it. Changing the chaos level does not reshuffle the arrivals. 🎲 draws a new seed; a robust design passes with any seed.
 
@@ -138,24 +207,28 @@ All randomness — arrivals, service times, cache hits, which failures happen an
 
 | Event | Effect |
 |---|---|
-| Replica crash | one replica dies; callers keep sending it requests until a load balancer **detects** it (30 s, or 3 s with a Health Check); it comes back after the repair time (halved with Alerting) |
-| Latency degradation | a node or external dependency becomes 5–20× slower for 20–120 s |
+| Replica crash | one replica dies; callers keep sending it requests until a load balancer **detects** it (30 s, or 3 s with a Health Check or when the service is registered in a Service Registry); a direct call detects it only through a Service Registry (3 s) — without one, the dead replica keeps its share of the calls until it is repaired; it comes back after the repair time (halved with Alerting) |
+| Latency degradation | a node or external dependency becomes 5–20× slower for 20–120 s (on a DB Cluster: one follower, the synchronous one, becomes slower) |
 | Viral traffic spike | the traffic of the clients × 3–10 for 30–90 s |
-| Hot key (celebrity) | key popularity skews: one partition / cache shard concentrates the load |
+| Hot key (celebrity) | key popularity skews: one partition / cache shard / DB Cluster shard concentrates the load |
 | Cache flush | the hit ratio drops to 0 and warms up again |
-| AZ outage | nodes in that availability zone go down (a node spread over 3 AZs loses a third; a database with standby fails over in ~60 s) |
+| AZ outage | nodes in that availability zone go down (a node spread over 3 AZs loses a third; a database with standby fails over in ~60 s; a DB Cluster loses the primary of one shard) |
 | Region outage | every node in that region goes down |
 | Network partition | one call drops all traffic: callers hang until their timeout |
 | 3rd-party outage / throttling | an external service fails or its quota drops to 20% |
 | Bad deploy | a service returns 30% errors until rolled back |
 | Noisy neighbour | a node loses 30% of its capacity |
 | GC pause storm | frequent long pauses on an app server |
+| Node failure | (Kubernetes Cluster) one ready worker node dies with its pods (≈ ⌈pods ÷ nodes⌉, spread over the services); callers keep sending them requests until they notice (min(detection, 40 s)); the lost pods are recreated after 40 s, Pending if there is no room; the node comes back when the event ends (2–5 min) |
+| Primary failure | (DB Cluster) the primary of one shard dies: its writes fail for the failover time (its reads too if they go to the primary), then a follower is promoted and the shard has one node fewer for 120 s; with `async` replication the writes inside the lag are lost; with no followers the shard is down for 120 s |
+
+*Node failure* and *Primary failure* only apply to a Kubernetes Cluster and a DB Cluster: designs without those components never draw them, and their sequence of random events does not change. A DB Cluster never has a *Replica crash*: its failures are primary failures.
 
 ## Goals and the test report
 
-Each scenario has 2–4 goals, checked live in the right panel (grey = waiting for the steady window, green = passing, red = failing) and finally in the **Report**. Metrics you will meet: `p99` (ms), `error rate` (%), `availability` (%), `throughput` (req/s), `cost` (USD/month), `consumer lag` (s), `replication lag` (s), `breaking point` (req/s), `duplicate charges`, `unsafe answers` (%), `services measured` (%).
+Each scenario has 2–4 goals, checked live in the right panel (grey = waiting for the steady window, green = passing, red = failing) and finally in the **Report**. Metrics you will meet: `p99` (ms), `error rate` (%), `availability` (%), `throughput` (req/s), `cost` (USD/month), `consumer lag` (s), `replication lag` (s), `breaking point` (req/s), `duplicate charges`, `unsafe answers` (%), `services measured` (%), `lost writes` (writes lost in failovers of a DB Cluster), `stale reads` (% of the reads of a DB Cluster), `p99 (writes)` (ms, successful writes only).
 
-The Report lists the profile, seed and duration; p50/p95/p99/p99.9; error rate and availability; mean throughput and the **maximum throughput within the SLO**; cost; theoretical availability; for *breakpoint* runs, the breaking point and the **knee** (where p99 doubles relative to the start); the **bottleneck** — the first node to pass 85% utilization (or run out of threads, connections or quota) — with an explanation in the terms of the course; the events of the run; and each goal with the hints when one fails. **Copy report (Markdown)** puts it, with a Mermaid diagram of your design, in the clipboard — ready for an exercise submission.
+The Report lists the profile, seed and duration; p50/p95/p99/p99.9; error rate and availability; mean throughput and the **maximum throughput within the SLO**; cost; theoretical availability; for *breakpoint* runs, the breaking point and the **knee** (where p99 doubles relative to the start); the **bottleneck** — the first node to pass 85% utilization (or run out of threads, connections or quota, or wait for Pending pods) — with an explanation in the terms of the course; the events of the run; and each goal with the hints when one fails. **Copy report (Markdown)** puts it, with a Mermaid diagram of your design, in the clipboard — ready for an exercise submission.
 
 ## Observability inside the playground
 
@@ -166,6 +239,7 @@ The observability components change what you can see, as in real life:
 - **Tracing**: enables the **Trace** tab, a waterfall of the slowest sampled request (queue wait hatched).
 - **Health Check**: failure detection by load balancers and DNS drops from 30 s to 3 s.
 - **Alerting** (connected to Metrics): halves the time to repair a crashed replica.
+- **Service Registry**: every caller of a registered service — load balancer or direct call — drops a dead replica in 3 s, and new pods take traffic without the 10 s endpoint delay.
 - **Service Mesh**: services connected to it get +1 ms per call and default timeouts, retries with backoff and circuit breakers; with Metrics connected to the mesh, every attached service is measured.
 
 ## Keyboard shortcuts
@@ -234,5 +308,6 @@ Write a short *Try it* instruction before each embed: what to change, what to ob
 
 - It is a **fluid model with sampled traces**, not a packet-level simulator: queues hold *rates*, and percentiles come from about 400 sampled requests per simulated second. Very rare events (p99.99) are not resolved.
 - Requests are independent; there are no sessions, transactions or locks (seat holds are discussed in the classes, not simulated).
+- A Kubernetes cluster is a count of slots (nodes × pods per node): there is no bin packing by CPU and memory, no affinity rules and no pod disruption budgets, and the pods are spread evenly over the nodes.
 - Network latency between users and the system is not added (the latency shown is server-side), except the +70 ms of calls between regions and +1 ms per hop in a service mesh.
 - Capacities and prices are illustrative round numbers. When the playground and a load test disagree, trust the load test — and find out why.

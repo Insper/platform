@@ -42,6 +42,9 @@ Every scenario of the [System Design Playground](../index.md) is a small lab: a 
 | [Search autocomplete](#search-autocomplete) | Autocomplete is a latency problem |
 | [AI support assistant (RAG + tools)](#ai-assistant) | In an LLM application latency and cost scale with the number of model calls |
 | [You can't fix what you don't measure](#observability-stack) | Observability changes outcomes |
+| [Microservices on Kubernetes: pods vs nodes](#microservices) | The HPA adds pods, only nodes add room; every synchronous hop adds to the user's wait |
+| [Kubernetes: losing a node](#k8s-node-failure) | Plan N+1 for nodes too: a lost node takes several pods at once, and they come back only if there is room |
+| [Database failover: RTO and RPO](#db-failover) | A failover costs the time without a primary (RTO) and the writes not yet replicated (RPO) |
 
 ## Monolith: find the breaking point { #monolith }
 
@@ -498,3 +501,60 @@ Utilization is hidden ("?") until a service is connected to Metrics. At t = 50 s
     1. Availability = MTTF / (MTTF + MTTR): which part did each node improve?
     2. Which four golden signals would you put on the dashboard?
     3. Why alert on SLO burn rate instead of CPU?
+
+## Microservices on Kubernetes: pods vs nodes { #microservices }
+
+BoxOffice was split into catalog, inventory, order and notify microservices, each with its own database, behind an API gateway, on a Kubernetes cluster of 2 nodes × 6 pods. At 2 000 req/s the catalog's HPA asks for more pods than the cluster can schedule: they stay Pending, and the catalog drowns. Buying is a synchronous chain (order → inventory, catalog, notify, its DB): every hop adds its latency to the buyer's wait.
+
+- **Lesson:** The HPA adds pods, but only nodes add room: pods beyond nodes × pods per node stay Pending and serve nothing. In a chain of synchronous microservices every hop adds its latency to the user's wait, so work that the user does not need to wait for belongs behind a queue.
+- **Setup:** `microservices` · profile `load` · target 2,000 req/s · 80% reads · seed 2031 · chaos `off`
+- **Goals:** error rate < 1% · p99 < 200 ms · cost/month < US$ 8,500
+- **Try:** Select the cluster frame: pods = nodes × pods per node. Add nodes or turn on the cluster autoscaler (a node takes ~90 s, so keep some headroom), raise the catalog's minimum replicas, and put a queue between order and notify.
+- **Observe:** As drawn, errors ≈ 25% and p99 ≈ 3.8 s: the catalog's HPA wants ~14 pods, but the 2 × 6 cluster is full (6 catalog + 2 order + 2 inventory + 2 notify), so 9 pods stay Pending; and the buyer also waits for notify (120 ms median, σ 0.6). The possible solution — 3 nodes with the cluster autoscaler (max 6; it adds a 4th node at ~45 s, ready at ~135 s), catalog replicas and minimum 10, and order → queue *confirmations* → notify — passes with errors ≈ 0%, p99 ≈ 60 ms and ≈ 8 000 USD/month. Read the cost lines: the API gateway's per-request price, not the nodes, dominates the bill.
+- **Related:** [Compute & services](../../2027.1/classes/compute/index.md) · [Cloud-native platforms](../../2027.1/classes/cloud-native/index.md)
+
+<div class="sdp" data-scenario="microservices" data-mode="compact" data-height="480"></div>
+
+??? question "Questions to discuss"
+
+    1. The catalog receives the reads (80% of 2 000 req/s) plus one call per order (400 req/s), at 250 req/s per pod. How many pods does it need at ρ = 0.6, and do they fit in 2 nodes × 6 pods?
+    2. Which calls of the buying chain must finish before the buyer gets an answer, and which can become events?
+    3. The gateway charges 1 USD per million requests: how much is that per month at 2 000 req/s, and how would you cut it?
+
+## Kubernetes: losing a node { #k8s-node-failure }
+
+Catalog and pricing run 6 pods each on a cluster of 3 nodes × 4 pods: completely full. At t = 60 s a worker node dies and takes a third of the pods with it. Callers keep sending requests to the dead pods until they notice (30 s behind the load balancer, 40 s for the direct catalog → pricing call), and the lost pods have nowhere to be rescheduled. Survive the loss of any one node.
+
+- **Lesson:** N+1 applies to nodes, not only to replicas: a lost node takes several pods at once, callers keep calling them until they notice, and Kubernetes can only reschedule them where there is room. A direct service-to-service call needs service discovery and a timeout to stop waiting for dead pods.
+- **Setup:** `k8s-node-failure` · profile `load` · target 1,700 req/s · 90% reads · seed 2033 · chaos `off` · scripted events: t = 60 s — a worker node dies
+- **Goals:** error rate < 1% · p99 < 150 ms · cost/month < US$ 2,000
+- **Try:** Leave room in the cluster (more pods per node or one more node) and size the replicas so the survivors carry the load (ρ after losing a third below ~0.85). Put a timeout with retries on catalog → pricing, and connect a Service Registry to catalog and pricing.
+- **Observe:** As drawn, the node takes 2 catalog + 2 pricing pods. Catalog → pricing calls keep going to the dead pricing pods for 40 s; each one hangs 10 s, the catalog's threads run out and the failure cascades (~90% errors in that window); after 40 s the lost pods are recreated but stay Pending (no room): ≈ 27% errors and p99 > 4 s over the run. The possible solution — 8 pods per node (3 × 8 = 24 slots: after losing a node, 16 slots for the 16 pods — N+1 for nodes), 8 replicas each, a Service Registry connected to catalog and pricing, and a 300 ms timeout + 2 retries on catalog → pricing — passes with errors ≈ 0.8% and p99 ≈ 43 ms: dead pods are dropped in 3 s, a call that lands on one gives up after 300 ms and is retried on a live pod, the surviving pods carry the load, and the 6 lost pods are all rescheduled after 40 s.
+- **Related:** [Cloud-native platforms](../../2027.1/classes/cloud-native/index.md) · [Reliability](../../2027.1/classes/reliability/index.md)
+
+<div class="sdp" data-scenario="k8s-node-failure" data-mode="compact" data-height="420"></div>
+
+??? question "Questions to discuss"
+
+    1. With 3 nodes × 4 pods and 12 pods, how many pods does one node failure take, and where can Kubernetes put them? And with 8 pods per node and 8 replicas each?
+    2. Why does the direct catalog → pricing call hurt more than the load balancer → catalog edge? Use Little's Law with a 10 s hang.
+    3. Why should the pods of one service be spread over different nodes and zones (topology spread constraints)?
+
+## Database failover: RTO and RPO { #db-failover }
+
+Flash-sale checkout: 1 500 req/s, half of them writes (orders), on a DB Cluster with one primary and one follower replicated asynchronously. At t = 90 s the primary dies. Until a follower is promoted (30 s) every write fails, and the writes still inside the replication lag are lost for good: orders paid and forgotten. Make the failover lose nothing and hurt little.
+
+- **Lesson:** A failover has two costs: the time without a primary (RTO) and the writes not yet replicated (RPO). Synchronous or quorum replication makes the RPO zero at the price of a round trip per write; a fast failover and more shards shrink the RTO and the share of writes it hits — and every copy is paid.
+- **Setup:** `db-failover` · profile `load` · target 1,500 req/s · 50% reads · seed 2035 · chaos `off` · scripted events: t = 90 s — the primary of orders-db dies
+- **Goals:** lost writes < 1 · availability ≥ 99% · p99 (writes) < 100 ms
+- **Try:** Switch the replication to sync or quorum, shorten the failover time and split the keys into shards. Then inject a latency degradation on the cluster (it slows one follower) and compare sync and quorum on the write p99.
+- **Observe:** As drawn, ≈ 1 570 writes are lost when the primary dies, writes fail for 30 s (availability ≈ 90.6%), and after the promotion a single node carries reads and writes, so the write p99 reaches ≈ 375 ms. The possible solution — 2 shards, 2 followers each, quorum, failover 5 s — passes with 0 lost writes, availability ≈ 99.2% and a write p99 ≈ 34 ms; but the database bill goes from 900 to 2 700 USD/month (2 shards × 3 nodes × 450).
+- **Related:** [Databases](../../2027.1/classes/databases/index.md) · [Reliability](../../2027.1/classes/reliability/index.md)
+
+<div class="sdp" data-scenario="db-failover" data-mode="compact" data-height="420"></div>
+
+??? question "Questions to discuss"
+
+    1. Lost writes ≈ write rate × lag: estimate them from the inspector just before t = 90 s.
+    2. With one follower slowed down, why does sync suffer and quorum with 2 followers not?
+    3. RPO 0 and RTO 5 s triple the database bill: for which BoxOffice data is it worth it (orders, sessions, analytics)?
