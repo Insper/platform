@@ -1,7 +1,7 @@
 /*
  * System Design Playground: scenarios.
  *
- * Each scenario is a lesson: a BoxOffice situation, an initial design that
+ * Each scenario is a lesson: a realistic situation, an initial design that
  * FAILS its goals in an instructive way, the load settings (profile, target
  * RPS, read share, seed, chaos), scripted events (things that happen at a
  * fixed time, e.g. "the sale opens at t = 60 s"), 2–4 goals, 1–3 hints and
@@ -65,13 +65,13 @@
   });
 
   /* ═══ monolith ═══ */
-  var mono = D([N("client", "client", 80, 200, "fans"), N("app", "app", 320, 200, "boxoffice"), N("db", "sql", 560, 200, "boxoffice-db")],
+  var mono = D([N("client", "client", 80, 200, "users"), N("app", "app", 320, 200, "app"), N("db", "sql", 560, 200, "db")],
     [E("client", "app"), E("app", "db")]);
   add({
     id: "monolith",
     title: T("Monolith: find the breaking point", "Monólito: encontre o ponto de ruptura"),
-    brief: T("BoxOffice v1: one app server and one PostgreSQL. The breakpoint profile ramps the load until errors pass 5% or p99 explodes. Where does it break, and which component breaks first? Make it survive 2 000 req/s without spending more than 2 000 USD/month.",
-      "BoxOffice v1: um servidor de aplicação e um PostgreSQL. O perfil breakpoint aumenta a carga até os erros passarem de 5% ou o p99 explodir. Onde quebra, e qual componente quebra primeiro? Faça aguentar 2 000 req/s gastando no máximo 2 000 USD/mês."),
+    brief: T("Version 1 of the app: one app server and one PostgreSQL. The breakpoint profile ramps the load until errors pass 5% or p99 explodes. Where does it break, and which component breaks first? Make it survive 2 000 req/s without spending more than 2 000 USD/month.",
+      "Versão 1 da aplicação: um servidor de aplicação e um PostgreSQL. O perfil breakpoint aumenta a carga até os erros passarem de 5% ou o p99 explodir. Onde quebra, e qual componente quebra primeiro? Faça aguentar 2 000 req/s gastando no máximo 2 000 USD/mês."),
     settings: { profile: "breakpoint", targetRps: 600, readRatio: 0.9, seed: 7, chaos: "off" },
     design: mono,
     goals: [G("breakingPoint", ">=", 2000), G("costPerMonth", "<", 2000)],
@@ -80,12 +80,12 @@
       T("A stateless app scales horizontally: put a Load Balancer in front and raise the replicas.", "Uma aplicação sem estado escala horizontalmente: coloque um Load Balancer na frente e aumente as réplicas."),
       T("After the app, watch the database: writes cost 3× a read, and there is only one primary.", "Depois da aplicação, observe o banco: escritas custam 3× uma leitura, e há um só primário.")
     ],
-    solution: D([N("client", "client", 80, 200, "fans"), N("lb", "lb", 280, 200), N("app", "app", 480, 200, "boxoffice", { replicas: 6 }), N("db", "sql", 700, 200, "boxoffice-db")],
+    solution: D([N("client", "client", 80, 200, "users"), N("lb", "lb", 280, 200), N("app", "app", 480, 200, "app", { replicas: 6 }), N("db", "sql", 700, 200, "db")],
       [E("client", "lb"), E("lb", "app"), E("app", "db")])
   });
 
   /* ═══ scale-out ═══ */
-  var scale = D([N("client", "client", 80, 200, "fans"), N("lb", "lb", 300, 200), N("app", "app", 520, 200, "catalog", { replicas: 2 }), N("db", "sql", 760, 200, "catalog-db")],
+  var scale = D([N("client", "client", 80, 200, "users"), N("lb", "lb", 300, 200), N("app", "app", 520, 200, "catalog", { replicas: 2 }), N("db", "sql", 760, 200, "catalog-db")],
     [E("client", "lb"), E("lb", "app"), E("app", "db")]);
   add({
     id: "scale-out",
@@ -104,13 +104,13 @@
   });
 
   /* ═══ read-heavy-cache ═══ */
-  var rhc = D([N("client", "client", 80, 200, "fans"), N("lb", "lb", 280, 200), N("app", "app", 480, 200, "catalog", { replicas: 8 }), N("db", "sql", 760, 200, "catalog-db")],
+  var rhc = D([N("client", "client", 80, 200, "users"), N("lb", "lb", 280, 200), N("app", "app", 480, 200, "catalog", { replicas: 8 }), N("db", "sql", 760, 200, "catalog-db")],
     [E("client", "lb"), E("lb", "app"), E("app", "db")]);
   add({
     id: "read-heavy-cache",
     title: T("Read-heavy catalog: add a cache", "Catálogo com muitas leituras: adicione um cache"),
-    brief: T("Fans browse events: 3 000 req/s, 95% reads. The app tier is fine; the database is not. At t = 100 s the cache (once you have one) is flushed: will the database survive the stampede of misses?",
-      "Fãs navegam pelos eventos: 3 000 req/s, 95% leituras. A camada de aplicação aguenta; o banco não. Em t = 100 s o cache (quando houver um) é esvaziado: o banco sobrevive à avalanche de misses?"),
+    brief: T("Users browse the catalog: 3 000 req/s, 95% reads. The app tier is fine; the database is not. At t = 100 s the cache (once you have one) is flushed: will the database survive the stampede of misses?",
+      "Usuários navegam pelo catálogo: 3 000 req/s, 95% leituras. A camada de aplicação aguenta; o banco não. Em t = 100 s o cache (quando houver um) é esvaziado: o banco sobrevive à avalanche de misses?"),
     settings: { profile: "load", targetRps: 3000, readRatio: 0.95, seed: 3, chaos: "off" },
     design: rhc,
     events: [{ t: 100, type: "flush", targetType: "cache", label: T("cache flushed (deploy / restart)", "cache esvaziado (deploy / reinício)") }],
@@ -123,13 +123,13 @@
   });
 
   /* ═══ cdn-static ═══ */
-  var cdn = D([N("client", "client", 80, 200, "fans"), N("dns", "dns", 260, 200), N("lb", "lb", 440, 200), N("app", "app", 640, 200, "web", { replicas: 4 }), N("obj", "objstore", 860, 200, "posters & images")],
+  var cdn = D([N("client", "client", 80, 200, "users"), N("dns", "dns", 260, 200), N("lb", "lb", 440, 200), N("app", "app", 640, 200, "web", { replicas: 4 }), N("obj", "objstore", 860, 200, "static assets")],
     [E("client", "dns"), E("dns", "lb"), E("lb", "app"), E("app", "obj")]);
   add({
     id: "cdn-static",
     title: T("Offload static content to a CDN", "Tire o conteúdo estático da origem com uma CDN"),
-    brief: T("Event pages are full of posters, images and scripts: 3 000 req/s, 98% reads, served by the app from object storage. Users far from the region wait, and the app is saturated. Serve them from the edge.",
-      "As páginas de eventos têm pôsteres, imagens e scripts: 3 000 req/s, 98% leituras, servidos pela aplicação a partir do object storage. Usuários longe da região esperam, e a aplicação satura. Sirva-os pela borda."),
+    brief: T("Product pages are full of images, styles and scripts: 3 000 req/s, 98% reads, served by the app from object storage. Users far from the region wait, and the app is saturated. Serve them from the edge.",
+      "As páginas de produtos têm imagens, estilos e scripts: 3 000 req/s, 98% leituras, servidos pela aplicação a partir do object storage. Usuários longe da região esperam, e a aplicação satura. Sirva-os pela borda."),
     settings: { profile: "load", targetRps: 3000, readRatio: 0.98, seed: 5, chaos: "off" },
     design: cdn,
     goals: [G("p99", "<", 150), G("errorRate", "<", 0.5)],
@@ -145,7 +145,7 @@
   });
 
   /* ═══ db-replicas ═══ */
-  var dbr = D([N("client", "client", 80, 200, "fans"), N("lb", "lb", 280, 200), N("app", "app", 480, 200, "catalog", { replicas: 12 }), N("db", "sql", 720, 200, "catalog-db")],
+  var dbr = D([N("client", "client", 80, 200, "users"), N("lb", "lb", 280, 200), N("app", "app", 480, 200, "catalog", { replicas: 12 }), N("db", "sql", 720, 200, "catalog-db")],
     [E("client", "lb"), E("lb", "app"), E("app", "db")]);
   add({
     id: "db-replicas",
@@ -163,13 +163,13 @@
   });
 
   /* ═══ sharding ═══ */
-  var shard = D([N("client", "client", 80, 200, "fans"), N("lb", "lb", 280, 200), N("app", "app", 480, 200, "tickets", { replicas: 24 }), N("kv", "nosql", 760, 200, "tickets-kv", { replicas: 2 })],
+  var shard = D([N("client", "client", 80, 200, "users"), N("lb", "lb", 280, 200), N("app", "app", 480, 200, "stock", { replicas: 24 }), N("kv", "nosql", 760, 200, "stock-kv", { replicas: 2 })],
     [E("client", "lb"), E("lb", "app"), E("app", "kv")]);
   add({
     id: "sharding",
     title: T("Partitions and the hot key", "Partições e a chave quente"),
-    brief: T("Ticket lookups and updates (50% writes) at 8 000 req/s on a key-value store with 2 partitions. At t = 60 s a celebrity posts a link to one show: one key gets a huge share of the traffic for a minute. More partitions fix the average — do they fix the hot key?",
-      "Consultas e atualizações de ingressos (50% escritas) a 8 000 req/s em um banco chave-valor com 2 partições. Em t = 60 s uma celebridade posta o link de um show: uma chave recebe uma fatia enorme do tráfego por um minuto. Mais partições resolvem a média — resolvem a chave quente?"),
+    brief: T("Stock lookups and updates (50% writes) at 8 000 req/s on a key-value store with 2 partitions. At t = 60 s a celebrity posts a link to one product: one key gets a huge share of the traffic for a minute. More partitions fix the average — do they fix the hot key?",
+      "Consultas e atualizações de estoque (50% escritas) a 8 000 req/s em um banco chave-valor com 2 partições. Em t = 60 s uma celebridade posta o link de um produto: uma chave recebe uma fatia enorme do tráfego por um minuto. Mais partições resolvem a média — resolvem a chave quente?"),
     settings: { profile: "load", targetRps: 8000, readRatio: 0.5, seed: 17, chaos: "off" },
     design: shard,
     events: [{ t: 60, type: "hotkey", factor: 1.0, durationS: 60, label: T("celebrity effect: one hot key", "efeito celebridade: uma chave quente") }],
@@ -182,13 +182,13 @@
   });
 
   /* ═══ async-queue ═══ */
-  var aq = D([N("client", "client", 80, 200, "buyers"), N("lb", "lb", 280, 200), N("app", "app", 480, 200, "order", { replicas: 2 }), N("worker", "worker", 720, 200, "ticket-pdf")],
+  var aq = D([N("client", "client", 80, 200, "buyers"), N("lb", "lb", 280, 200), N("app", "app", 480, 200, "order", { replicas: 2 }), N("worker", "worker", 720, 200, "receipt-pdf")],
     [E("client", "lb"), E("lb", "app"), E("app", "worker")]);
   add({
     id: "async-queue",
     title: T("A queue absorbs the spike", "Uma fila absorve o pico"),
-    brief: T("Each order generates a ticket PDF (50 ms of work). Today the order service waits for it. The spike profile multiplies the load by 5 for 30 s: the workers cannot keep up and orders fail. Let the user go and do the work later.",
-      "Cada pedido gera um PDF do ingresso (50 ms de trabalho). Hoje o serviço de pedidos espera por ele. O perfil spike multiplica a carga por 5 durante 30 s: os workers não acompanham e pedidos falham. Libere o usuário e faça o trabalho depois."),
+    brief: T("Each order generates a PDF receipt (50 ms of work). Today the order service waits for it. The spike profile multiplies the load by 5 for 30 s: the workers cannot keep up and orders fail. Let the user go and do the work later.",
+      "Cada pedido gera um recibo em PDF (50 ms de trabalho). Hoje o serviço de pedidos espera por ele. O perfil spike multiplica a carga por 5 durante 30 s: os workers não acompanham e pedidos falham. Libere o usuário e faça o trabalho depois."),
     settings: { profile: "spike", targetRps: 150, readRatio: 0, seed: 19, chaos: "off", spikeFactor: 5 },
     design: aq,
     goals: [G("errorRate", "<", 0.1), G("p99", "<", 100), G("consumerLag", "<", 60)],
@@ -206,8 +206,8 @@
   add({
     id: "event-fanout",
     title: T("Publish an event, let consumers react", "Publique um evento, deixe os consumidores reagirem"),
-    brief: T("When an order is placed, BoxOffice notifies the buyer, updates analytics and re-indexes availability — today with three synchronous calls in a row. At t = 60 s analytics becomes 20× slower and orders slow down with it. Decouple the order service from its consumers.",
-      "Quando um pedido é feito, o BoxOffice avisa o comprador, atualiza o analytics e reindexa a disponibilidade — hoje com três chamadas síncronas em sequência. Em t = 60 s o analytics fica 20× mais lento e os pedidos ficam lentos junto. Desacople o serviço de pedidos dos consumidores."),
+    brief: T("When an order is placed, the app notifies the buyer, updates analytics and re-indexes availability — today with three synchronous calls in a row. At t = 60 s analytics becomes 20× slower and orders slow down with it. Decouple the order service from its consumers.",
+      "Quando um pedido é feito, a aplicação avisa o comprador, atualiza o analytics e reindexa a disponibilidade — hoje com três chamadas síncronas em sequência. Em t = 60 s o analytics fica 20× mais lento e os pedidos ficam lentos junto. Desacople o serviço de pedidos dos consumidores."),
     settings: { profile: "load", targetRps: 400, readRatio: 0, seed: 23, chaos: "off" },
     design: ef,
     events: [{ t: 60, type: "slow", targetType: "analytics", factor: 20, durationS: 60, label: T("analytics is 20× slower", "analytics 20× mais lento") }],
@@ -223,7 +223,7 @@
   });
 
   /* ═══ cascading-failure ═══ */
-  var cf = D([N("client", "client", 80, 200, "fans"), N("lb", "lb", 260, 200), N("app", "app", 460, 200, "catalog", { replicas: 4 }), N("db", "sql", 720, 120, "catalog-db"),
+  var cf = D([N("client", "client", 80, 200, "users"), N("lb", "lb", 260, 200), N("app", "app", 460, 200, "catalog", { replicas: 4 }), N("db", "sql", 720, 120, "catalog-db"),
     N("tp", "thirdparty", 720, 300, "recommendations")],
   [E("client", "lb"), E("lb", "app"), E("app", "db"), E("app", "tp", { ratio: 0.5 })]);
   add({
@@ -237,13 +237,13 @@
     goals: [G("errorRate", "<", 1), G("p99", "<", 500)],
     hints: [
       T("Select the edge app → recommendations and set a timeout (e.g. 300 ms): a thread never waits longer than that.", "Selecione a aresta app → recommendations e defina um timeout (ex.: 300 ms): uma thread nunca espera mais que isso."),
-      T("Add a fallback (show popular events instead) and a circuit breaker: when most calls fail, stop calling for a while.", "Adicione um fallback (mostrar eventos populares) e um circuit breaker: quando a maioria das chamadas falha, pare de chamar por um tempo.")
+      T("Add a fallback (show popular items instead) and a circuit breaker: when most calls fail, stop calling for a while.", "Adicione um fallback (mostrar itens populares) e um circuit breaker: quando a maioria das chamadas falha, pare de chamar por um tempo.")
     ],
     solution: derive(cf, { edgeParams: [["app-tp", { timeoutMs: 300, circuitBreaker: true, fallback: true }]] })
   });
 
   /* ═══ retry-storm ═══ */
-  var rs = D([N("client", "client", 80, 200, "fans"), N("lb", "lb", 280, 200), N("app", "app", 480, 200, "inventory", { replicas: 6 }), N("db", "sql", 740, 200, "inventory-db")],
+  var rs = D([N("client", "client", 80, 200, "users"), N("lb", "lb", 280, 200), N("app", "app", 480, 200, "inventory", { replicas: 6 }), N("db", "sql", 740, 200, "inventory-db")],
     [E("client", "lb"), E("lb", "app"), E("app", "db", { retries: 3, backoff: "none", timeoutMs: 100 })]);
   add({
     id: "retry-storm",
@@ -262,13 +262,13 @@
   });
 
   /* ═══ rate-limiter ═══ */
-  var rl = D([N("client", "client", 80, 200, "fans + bots", { botShare: 2 }), N("gw", "apigw", 300, 200, "gateway"), N("app", "app", 520, 200, "catalog", { replicas: 4 }), N("db", "sql", 760, 200, "catalog-db")],
+  var rl = D([N("client", "client", 80, 200, "users + bots", { botShare: 2 }), N("gw", "apigw", 300, 200, "gateway"), N("app", "app", 520, 200, "catalog", { replicas: 4 }), N("db", "sql", 760, 200, "catalog-db")],
     [E("client", "gw"), E("gw", "app"), E("app", "db")]);
   add({
     id: "rate-limiter",
     title: T("Rate limiting protects the backend", "Rate limiting protege o backend"),
-    brief: T("1 000 req/s of real fans — plus scraper bots sending twice that. The catalog melts down for everybody. Reject the excess fast at the gateway (429) instead of letting it queue behind the real users.",
-      "1 000 req/s de fãs reais — mais bots raspadores enviando o dobro disso. O catálogo derrete para todos. Rejeite o excesso rapidamente no gateway (429) em vez de deixá-lo enfileirar atrás dos usuários reais."),
+    brief: T("1 000 req/s of real users — plus scraper bots sending twice that. The catalog melts down for everybody. Reject the excess fast at the gateway (429) instead of letting it queue behind the real users.",
+      "1 000 req/s de usuários reais — mais bots raspadores enviando o dobro disso. O catálogo derrete para todos. Rejeite o excesso rapidamente no gateway (429) em vez de deixá-lo enfileirar atrás dos usuários reais."),
     settings: { profile: "load", targetRps: 1000, readRatio: 0.9, seed: 37, chaos: "off" },
     design: rl,
     goals: [G("errorRate", "<", 1), G("p99", "<", 200)],
@@ -280,14 +280,14 @@
   });
 
   /* ═══ multi-region ═══ */
-  var mr = D([N("client", "client", 80, 260, "fans"), N("dns", "dns", 260, 260), N("lb", "lb", 480, 160), N("app", "app", 680, 160, "boxoffice", { replicas: 4 }), N("db", "sql", 880, 160, "boxoffice-db")],
+  var mr = D([N("client", "client", 80, 260, "users"), N("dns", "dns", 260, 260), N("lb", "lb", 480, 160), N("app", "app", 680, 160, "app", { replicas: 4 }), N("db", "sql", 880, 160, "db")],
     [E("client", "dns"), E("dns", "lb"), E("lb", "app"), E("app", "db")],
     [F("r1", "vpc", 390, 90, 590, 150, "sa-east-1")]);
   add({
     id: "multi-region",
     title: T("Surviving a region outage", "Sobrevivendo à queda de uma região"),
-    brief: T("BoxOffice runs in one cloud region. At t = 60 s the whole region goes down. Build a second region and let DNS move users there. Failover time = detection + DNS TTL: check both.",
-      "O BoxOffice roda em uma região de nuvem. Em t = 60 s a região inteira cai. Construa uma segunda região e deixe o DNS levar os usuários para lá. Tempo de failover = detecção + TTL do DNS: confira os dois."),
+    brief: T("The app runs in one cloud region. At t = 60 s the whole region goes down. Build a second region and let DNS move users there. Failover time = detection + DNS TTL: check both.",
+      "A aplicação roda em uma região de nuvem. Em t = 60 s a região inteira cai. Construa uma segunda região e deixe o DNS levar os usuários para lá. Tempo de failover = detecção + TTL do DNS: confira os dois."),
     settings: { profile: "load", targetRps: 1000, readRatio: 0.9, seed: 41, chaos: "off" },
     design: mr,
     events: [{ t: 60, type: "region", target: "sa-east-1", durationS: 600, label: T("region sa-east-1 is down", "região sa-east-1 fora do ar") }],
@@ -299,20 +299,20 @@
     ],
     solution: derive(mr, {
       set: [["dns", { ttlS: 5 }]],
-      nodes: [N("lb2", "lb", 480, 380), N("app2", "app", 680, 380, "boxoffice", { replicas: 4 }), N("db2", "sql", 880, 380, "boxoffice-db"), N("hc", "healthcheck", 260, 420)],
+      nodes: [N("lb2", "lb", 480, 380), N("app2", "app", 680, 380, "app", { replicas: 4 }), N("db2", "sql", 880, 380, "db"), N("hc", "healthcheck", 260, 420)],
       edges: [E("dns", "lb2"), E("lb2", "app2"), E("app2", "db2"), E("hc", "dns")],
       frames: [F("r2", "vpc", 390, 310, 590, 150, "us-east-1")]
     })
   });
 
   /* ═══ serverless-burst ═══ */
-  var sb = D([N("client", "client", 80, 200, "fans"), N("gw", "apigw", 300, 200, "gateway"), N("fn", "serverless", 520, 200, "presale-check", { concurrencyLimit: 50 }), N("kv", "nosql", 760, 200, "presale-codes")],
+  var sb = D([N("client", "client", 80, 200, "users"), N("gw", "apigw", 300, 200, "gateway"), N("fn", "serverless", 520, 200, "coupon-check", { concurrencyLimit: 50 }), N("kv", "nosql", 760, 200, "coupon-codes")],
     [E("client", "gw"), E("gw", "fn"), E("fn", "kv")]);
   add({
     id: "serverless-burst",
     title: T("Serverless burst: cold starts and limits", "Pico serverless: cold starts e limites"),
-    brief: T("A presale code check runs as a function. The spike profile jumps from 200 to 2 000 req/s. New instances start cold (600 ms) and the account has a concurrency limit of 50. Instances needed = λ × W (Little's Law).",
-      "A verificação de código de pré-venda roda como função. O perfil spike salta de 200 para 2 000 req/s. Instâncias novas partem a frio (600 ms) e a conta tem limite de concorrência de 50. Instâncias necessárias = λ × W (Lei de Little)."),
+    brief: T("A discount-coupon check runs as a function. The spike profile jumps from 200 to 2 000 req/s. New instances start cold (600 ms) and the account has a concurrency limit of 50. Instances needed = λ × W (Little's Law).",
+      "A verificação de cupom de desconto roda como função. O perfil spike salta de 200 para 2 000 req/s. Instâncias novas partem a frio (600 ms) e a conta tem limite de concorrência de 50. Instâncias necessárias = λ × W (Lei de Little)."),
     settings: { profile: "spike", targetRps: 200, readRatio: 0.9, seed: 43, chaos: "off", spikeFactor: 10 },
     design: sb,
     goals: [G("errorRate", "<", 0.5), G("p99", "<", 300), G("costPerMonth", "<", 5000)],
@@ -324,24 +324,24 @@
   });
 
   /* ═══ flash-sale ═══ */
-  var fs = D([N("client", "client", 80, 220, "fans"), N("lb", "lb", 280, 220), N("app", "app", 480, 220, "boxoffice", { replicas: 6 }), N("db", "sql", 720, 140, "inventory-db"), N("pay", "payment", 720, 320, "payment provider")],
+  var fs = D([N("client", "client", 80, 220, "users"), N("lb", "lb", 280, 220), N("app", "app", 480, 220, "app", { replicas: 6 }), N("db", "sql", 720, 140, "inventory-db"), N("pay", "payment", 720, 320, "payment provider")],
     [E("client", "lb"), E("lb", "app"), E("app", "db"), E("app", "pay", { filter: "write" })]);
   add({
     id: "flash-sale",
-    title: T("BoxOffice flash sale at 10:00", "Venda relâmpago do BoxOffice às 10:00"),
-    brief: T("A stadium show goes on sale at t = 60 s: traffic jumps 20× (to ~6 000 req/s) for 90 s. 80% of requests read the event page, 20% try to buy. The database holds the seats (no double booking!) and the payment provider accepts 500 req/s. Today everything collapses. Design for the peak: serve reads from the edge and caches, and put buyers in a waiting room (queue) drained at the speed the inventory and the payment provider can handle.",
-      "Um show de estádio abre as vendas em t = 60 s: o tráfego salta 20× (~6 000 req/s) por 90 s. 80% das requisições leem a página do evento, 20% tentam comprar. O banco guarda os assentos (nada de venda dupla!) e o provedor de pagamento aceita 500 req/s. Hoje tudo desaba. Projete para o pico: sirva leituras da borda e de caches, e coloque os compradores numa sala de espera (fila) drenada na velocidade que o inventário e o provedor aguentam."),
+    title: T("Flash sale: a limited-stock launch", "Venda relâmpago: um lançamento com estoque limitado"),
+    brief: T("A limited-stock product goes on sale at t = 60 s: traffic jumps 20× (to ~6 000 req/s) for 90 s. 80% of requests read the product page, 20% try to buy. The database holds the stock (no overselling!) and the payment provider accepts 500 req/s. Today everything collapses. Design for the peak: serve reads from the edge and caches, and put buyers in a waiting room (queue) drained at the speed the inventory and the payment provider can handle.",
+      "Um produto com estoque limitado entra à venda em t = 60 s: o tráfego salta 20× (~6 000 req/s) por 90 s. 80% das requisições leem a página do produto, 20% tentam comprar. O banco guarda o estoque (nada de vender o que não há!) e o provedor de pagamento aceita 500 req/s. Hoje tudo desaba. Projete para o pico: sirva leituras da borda e de caches, e coloque os compradores numa sala de espera (fila) drenada na velocidade que o inventário e o provedor aguentam."),
     settings: { profile: "load", targetRps: 300, readRatio: 0.8, seed: 2027, chaos: "off" },
     design: fs,
-    events: [{ t: 60, type: "viral", factor: 20, durationS: 90, label: T("10:00 — sales open", "10:00 — abrem as vendas") }],
+    events: [{ t: 60, type: "viral", factor: 20, durationS: 90, label: T("the sale opens", "abre a venda") }],
     goals: [G("p99", "<", 300), G("errorRate", "<", 1), G("consumerLag", "<", 300)],
     hints: [
-      T("Reads: a CDN in front (event pages are the same for everybody) and a Cache before the database.", "Leituras: uma CDN na frente (as páginas do evento são iguais para todos) e um Cache antes do banco."),
+      T("Reads: a CDN in front (product pages are the same for everybody) and a Cache before the database.", "Leituras: uma CDN na frente (as páginas do produto são iguais para todos) e um Cache antes do banco."),
       T("Writes: an API Gateway can route reads to the catalog app and writes (filter = write) to a Message Queue — the waiting room. Workers take buyers from it at a safe pace.", "Escritas: um API Gateway pode mandar leituras ao app do catálogo e escritas (filtro = write) para uma Message Queue — a sala de espera. Workers tiram compradores dela num ritmo seguro."),
       T("Size the workers below the payment quota (500 req/s): the consumer lag is how long a buyer waits in line.", "Dimensione os workers abaixo da cota do pagamento (500 req/s): o atraso do consumidor é quanto o comprador espera na fila.")
     ],
     solution: D([
-      N("client", "client", 80, 220, "fans"), N("cdn", "cdn", 260, 220, "", { hitRatio: 0.85 }), N("gw", "apigw", 440, 220, "gateway"),
+      N("client", "client", 80, 220, "users"), N("cdn", "cdn", 260, 220, "", { hitRatio: 0.85 }), N("gw", "apigw", 440, 220, "gateway"),
       N("cat", "app", 640, 120, "catalog", { replicas: 3 }), N("cache", "cache", 840, 120, "catalog-cache"),
       N("wr", "queue", 640, 340, "waiting room"), N("ord", "worker", 840, 340, "order", { replicas: 4, capacity: 100, threads: 100 }),
       N("db", "sql", 1060, 220, "inventory-db"), N("pay", "payment", 1060, 400, "payment provider")
@@ -356,9 +356,9 @@
     [E("client", "lb"), E("lb", "app"), E("app", "db")]);
   add({
     id: "url-shortener",
-    title: T("URL shortener (box.office/xyz)", "Encurtador de URLs (box.office/xyz)"),
-    brief: T("Every ticket e-mail carries a short link. 5 000 redirects/s, 99% reads, a few writes (new links). The classic interview problem: what is the read path, and what store fits a key → URL lookup?",
-      "Cada e-mail de ingresso leva um link curto. 5 000 redirecionamentos/s, 99% leituras, poucas escritas (novos links). O clássico de entrevista: qual é o caminho de leitura, e que banco serve para chave → URL?"),
+    title: T("URL shortener (sho.rt/xyz)", "Encurtador de URLs (sho.rt/xyz)"),
+    brief: T("Every order e-mail and shared post carries a short link. 5 000 redirects/s, 99% reads, a few writes (new links). The classic interview problem: what is the read path, and what store fits a key → URL lookup?",
+      "Cada e-mail de pedido e post compartilhado leva um link curto. 5 000 redirecionamentos/s, 99% leituras, poucas escritas (novos links). O clássico de entrevista: qual é o caminho de leitura, e que banco serve para chave → URL?"),
     settings: { profile: "load", targetRps: 5000, readRatio: 0.99, seed: 47, chaos: "off" },
     design: us,
     goals: [G("p99", "<", 50), G("errorRate", "<", 0.1), G("costPerMonth", "<", 3500)],
@@ -370,13 +370,13 @@
   });
 
   /* ═══ news-feed ═══ */
-  var nf = D([N("client", "client", 80, 200, "fans"), N("lb", "lb", 280, 200), N("app", "app", 480, 200, "feed", { replicas: 6 }), N("db", "sql", 740, 200, "posts (fan-out on read)", { capacity: 600, latencyMs: 40 })],
+  var nf = D([N("client", "client", 80, 200, "users"), N("lb", "lb", 280, 200), N("app", "app", 480, 200, "feed", { replicas: 6 }), N("db", "sql", 740, 200, "posts (fan-out on read)", { capacity: 600, latencyMs: 40 })],
     [E("client", "lb"), E("lb", "app"), E("app", "db")]);
   add({
     id: "news-feed",
     title: T("News feed: fan-out on write vs on read", "Feed de notícias: fan-out na escrita vs na leitura"),
-    brief: T("The BoxOffice feed shows posts from the artists and venues a fan follows. Today the feed is assembled when it is read: a heavy query (40 ms) that merges hundreds of sources. 2 000 req/s, 95% reads. Precompute timelines when something is posted instead.",
-      "O feed do BoxOffice mostra posts dos artistas e locais que o fã segue. Hoje o feed é montado na leitura: uma consulta pesada (40 ms) que junta centenas de fontes. 2 000 req/s, 95% leituras. Em vez disso, pré-calcule as timelines quando algo é postado."),
+    brief: T("The feed shows posts from the accounts a user follows. Today the feed is assembled when it is read: a heavy query (40 ms) that merges hundreds of sources. 2 000 req/s, 95% reads. Precompute timelines when something is posted instead.",
+      "O feed mostra posts das contas que o usuário segue. Hoje o feed é montado na leitura: uma consulta pesada (40 ms) que junta centenas de fontes. 2 000 req/s, 95% leituras. Em vez disso, pré-calcule as timelines quando algo é postado."),
     settings: { profile: "load", targetRps: 2000, readRatio: 0.95, seed: 53, chaos: "off" },
     design: nf,
     goals: [G("p99", "<", 100), G("errorRate", "<", 0.5), G("consumerLag", "<", 10)],
@@ -386,7 +386,7 @@
       T("Celebrities with millions of followers make fan-out on write expensive: real systems mix both (hybrid).", "Celebridades com milhões de seguidores tornam o fan-out na escrita caro: sistemas reais misturam os dois (híbrido).")
     ],
     solution: D([
-      N("client", "client", 80, 200, "fans"), N("lb", "lb", 260, 200), N("app", "app", 440, 200, "feed", { replicas: 6 }),
+      N("client", "client", 80, 200, "users"), N("lb", "lb", 260, 200), N("app", "app", 440, 200, "feed", { replicas: 6 }),
       N("cache", "cache", 660, 100, "timeline-cache", { hitRatio: 0.98 }), N("tl", "nosql", 1080, 100, "timelines"),
       N("db", "sql", 660, 220, "posts", { capacity: 600, latencyMs: 40 }), N("k", "kafka", 660, 340, "post-events"), N("fo", "worker", 870, 340, "fan-out", { replicas: 4 })
     ], [
@@ -396,13 +396,13 @@
   });
 
   /* ═══ chat ═══ */
-  var ch = D([N("client", "client", 80, 200, "fans"), N("lb", "lb", 280, 200), N("app", "app", 480, 200, "chat (websockets)", { replicas: 6 }), N("db", "sql", 740, 120, "messages"), N("nt", "notifications", 740, 300, "delivery")],
+  var ch = D([N("client", "client", 80, 200, "users"), N("lb", "lb", 280, 200), N("app", "app", 480, 200, "chat (websockets)", { replicas: 6 }), N("db", "sql", 740, 120, "messages"), N("nt", "notifications", 740, 300, "delivery")],
     [E("client", "lb"), E("lb", "app"), E("app", "db"), E("app", "nt")]);
   add({
     id: "chat",
     title: T("Chat for a live event", "Chat de um evento ao vivo"),
-    brief: T("During a show, fans chat in the event room: 2 000 req/s, half are new messages. Each message is stored in PostgreSQL and delivered synchronously before the sender gets an answer. Writes overload the database and the sender waits for every delivery.",
-      "Durante um show, fãs conversam na sala do evento: 2 000 req/s, metade são mensagens novas. Cada mensagem é gravada no PostgreSQL e entregue de forma síncrona antes de o remetente ter resposta. As escritas sobrecarregam o banco e o remetente espera cada entrega."),
+    brief: T("During a live event, users chat in its room: 2 000 req/s, half are new messages. Each message is stored in PostgreSQL and delivered synchronously before the sender gets an answer. Writes overload the database and the sender waits for every delivery.",
+      "Durante um evento ao vivo, usuários conversam na sala: 2 000 req/s, metade são mensagens novas. Cada mensagem é gravada no PostgreSQL e entregue de forma síncrona antes de o remetente ter resposta. As escritas sobrecarregam o banco e o remetente espera cada entrega."),
     settings: { profile: "load", targetRps: 2000, readRatio: 0.5, seed: 59, chaos: "off" },
     design: ch,
     goals: [G("p99", "<", 80), G("errorRate", "<", 0.1), G("consumerLag", "<", 2)],
@@ -419,8 +419,8 @@
   add({
     id: "ride-sharing",
     title: T("Ride-sharing: a write-heavy geo index", "Carona: um índice geográfico com muitas escritas"),
-    brief: T("After the show, BoxOffice partners' drivers send their position every 4 s: 20 000 req/s, 90% writes, while riders query nearby drivers. A relational database cannot absorb that write rate. Keep only the latest position per driver in a partitioned store and stream the history.",
-      "Depois do show, motoristas parceiros do BoxOffice enviam a posição a cada 4 s: 20 000 req/s, 90% escritas, enquanto passageiros buscam motoristas próximos. Um banco relacional não absorve essa taxa de escrita. Guarde só a última posição por motorista num banco particionado e transmita o histórico."),
+    brief: T("Drivers send their position every 4 s: 20 000 req/s, 90% writes, while riders query nearby drivers. A relational database cannot absorb that write rate. Keep only the latest position per driver in a partitioned store and stream the history.",
+      "Motoristas enviam a posição a cada 4 s: 20 000 req/s, 90% escritas, enquanto passageiros buscam motoristas próximos. Um banco relacional não absorve essa taxa de escrita. Guarde só a última posição por motorista num banco particionado e transmita o histórico."),
     settings: { profile: "load", targetRps: 20000, readRatio: 0.1, seed: 61, chaos: "off" },
     design: rd,
     goals: [G("p99", "<", 100), G("errorRate", "<", 0.5), G("costPerMonth", "<", 6000)],
@@ -432,15 +432,15 @@
   });
 
   /* ═══ video-streaming ═══ */
-  var vs = D([N("viewers", "client", 80, 140, "viewers", { weight: 4000, readRatio: 1 }), N("creators", "mobile", 80, 320, "venues (uploads)", { weight: 1, readRatio: 0 }),
+  var vs = D([N("viewers", "client", 80, 140, "viewers", { weight: 4000, readRatio: 1 }), N("creators", "mobile", 80, 320, "uploads", { weight: 1, readRatio: 0 }),
     N("lb", "lb", 280, 220), N("app", "app", 480, 220, "media", { replicas: 4 }), N("obj", "objstore", 740, 140, "videos"),
     N("tw", "worker", 740, 320, "transcoder", { replicas: 8, capacity: 0.05, latencyMs: 20000, sigma: 0.3, threads: 1, queueLimit: 2 })],
   [E("viewers", "lb"), E("creators", "lb"), E("lb", "app"), E("app", "obj"), E("app", "tw", { filter: "write" })]);
   add({
     id: "video-streaming",
     title: T("Video streaming: CDN + object store + transcoding", "Streaming de vídeo: CDN + object store + transcodificação"),
-    brief: T("Venues upload show teasers; fans watch them. 2 000 segment requests/s from viewers go through the app, and each upload is transcoded synchronously (20 s per video) while the uploader waits. Serve segments from the edge and transcode in the background.",
-      "Locais enviam teasers dos shows; fãs assistem. 2 000 requisições/s de segmentos passam pela aplicação, e cada upload é transcodificado de forma síncrona (20 s por vídeo) enquanto quem enviou espera. Sirva segmentos pela borda e transcodifique em segundo plano."),
+    brief: T("Creators upload videos; users watch them. 2 000 segment requests/s from viewers go through the app, and each upload is transcoded synchronously (20 s per video) while the uploader waits. Serve segments from the edge and transcode in the background.",
+      "Criadores enviam vídeos; usuários assistem. 2 000 requisições/s de segmentos passam pela aplicação, e cada upload é transcodificado de forma síncrona (20 s por vídeo) enquanto quem enviou espera. Sirva segmentos pela borda e transcodifique em segundo plano."),
     settings: { profile: "load", targetRps: 2000, readRatio: 0.99, seed: 67, chaos: "off" },
     design: vs,
     goals: [G("p99", "<", 150), G("errorRate", "<", 0.5), G("consumerLag", "<", 120)],
@@ -449,7 +449,7 @@
       T("Uploads: store the original, enqueue a transcoding job (app → queue → transcoder) and answer right away. Throughput of the transcoders = replicas × 1/20 s.", "Uploads: grave o original, enfileire um job (app → queue → transcoder) e responda na hora. Vazão dos transcoders = réplicas × 1/20 s.")
     ],
     solution: D([
-      N("viewers", "client", 80, 120, "viewers", { weight: 4000, readRatio: 1 }), N("creators", "mobile", 80, 340, "venues (uploads)", { weight: 1, readRatio: 0 }),
+      N("viewers", "client", 80, 120, "viewers", { weight: 4000, readRatio: 1 }), N("creators", "mobile", 80, 340, "uploads", { weight: 1, readRatio: 0 }),
       N("cdn", "cdn", 300, 120, "", { hitRatio: 0.95 }), N("gw", "apigw", 300, 340, "upload API"), N("app", "app", 500, 340, "media", { replicas: 1 }),
       N("obj", "objstore", 760, 120, "videos"), N("q", "queue", 700, 340, "transcode-jobs"),
       N("tw", "worker", 900, 340, "transcoder", { replicas: 16, capacity: 0.05, latencyMs: 20000, sigma: 0.3, threads: 1, queueLimit: 2 })
@@ -500,7 +500,7 @@
   });
 
   /* ═══ search-autocomplete ═══ */
-  var sa = D([N("client", "client", 80, 200, "fans typing"), N("lb", "lb", 280, 200), N("app", "app", 480, 200, "suggest", { replicas: 24 }), N("se", "search", 740, 200, "search")],
+  var sa = D([N("client", "client", 80, 200, "users typing"), N("lb", "lb", 280, 200), N("app", "app", 480, 200, "suggest", { replicas: 24 }), N("se", "search", 740, 200, "search")],
     [E("client", "lb"), E("lb", "app"), E("app", "se")]);
   add({
     id: "search-autocomplete",
@@ -518,21 +518,21 @@
   });
 
   /* ═══ ai-assistant ═══ */
-  var ai = D([N("client", "client", 80, 220, "fans"), N("gw", "apigw", 260, 220, "gateway"), N("orch", "orchestrator", 460, 220, "assistant", { steps: 6 }),
+  var ai = D([N("client", "client", 80, 220, "users"), N("gw", "apigw", 260, 220, "gateway"), N("orch", "orchestrator", 460, 220, "assistant", { steps: 6 }),
     N("llm", "llmgw", 700, 100, "LLM gateway", { quota: 10 }), N("tools", "toolreg", 700, 230, "tools (MCP)"), N("cat", "app", 920, 230, "catalog"),
-    N("mem", "memory", 700, 360, "RAG memory"), N("vec", "vectordb", 920, 360, "event embeddings")],
+    N("mem", "memory", 700, 360, "RAG memory"), N("vec", "vectordb", 920, 360, "doc embeddings")],
   [E("client", "gw"), E("gw", "orch"), E("orch", "llm"), E("orch", "tools"), E("tools", "cat"), E("orch", "mem"), E("mem", "vec")]);
   add({
     id: "ai-assistant",
     title: T("AI support assistant (RAG + tools)", "Assistente de suporte com IA (RAG + ferramentas)"),
-    brief: T("The BoxOffice assistant answers questions about events and orders. Its agent loop takes 6 steps (6 LLM calls + tool calls) per question, the provider quota is 10 calls/s, and nothing checks for prompt injection. 2 questions/s already exceed the quota, take seconds, and cost a fortune.",
-      "O assistente do BoxOffice responde perguntas sobre eventos e pedidos. Seu laço de agente faz 6 passos (6 chamadas ao LLM + ferramentas) por pergunta, a cota do provedor é de 10 chamadas/s, e nada verifica prompt injection. 2 perguntas/s já estouram a cota, levam segundos e custam uma fortuna."),
+    brief: T("The support assistant answers questions about products and orders. Its agent loop takes 6 steps (6 LLM calls + tool calls) per question, the provider quota is 10 calls/s, and nothing checks for prompt injection. 2 questions/s already exceed the quota, take seconds, and cost a fortune.",
+      "O assistente de suporte responde perguntas sobre produtos e pedidos. Seu laço de agente faz 6 passos (6 chamadas ao LLM + ferramentas) por pergunta, a cota do provedor é de 10 chamadas/s, e nada verifica prompt injection. 2 perguntas/s já estouram a cota, levam segundos e custam uma fortuna."),
     settings: { profile: "load", targetRps: 2, readRatio: 1, seed: 83, chaos: "off" },
     design: ai,
     goals: [G("errorRate", "<", 1), G("p99", "<", 10000), G("costPerMonth", "<", 60000), G("unsafeRate", "<", 0.1)],
     hints: [
       T("Fewer agent steps: a good retrieval step (RAG) answers most questions in 2–3 LLM calls. Latency and cost scale with the steps.", "Menos passos: uma boa etapa de recuperação (RAG) responde a maioria em 2–3 chamadas. Latência e custo crescem com os passos."),
-      T("Turn on the LLM gateway's semantic cache (fans ask the same things) and a fallback model for when the provider throttles.", "Ligue o cache semântico do LLM gateway (fãs perguntam as mesmas coisas) e um modelo reserva para quando o provedor limitar."),
+      T("Turn on the LLM gateway's semantic cache (users ask the same things) and a fallback model for when the provider throttles.", "Ligue o cache semântico do LLM gateway (usuários perguntam as mesmas coisas) e um modelo reserva para quando o provedor limitar."),
       T("Put a Safety Mesh in the path (gateway → safety → assistant): every prompt goes through the guardrails.", "Coloque um Safety Mesh no caminho (gateway → safety → assistant): todo prompt passa pelos guardrails.")
     ],
     solution: derive(ai, {
@@ -543,7 +543,7 @@
   });
 
   /* ═══ observability-stack ═══ */
-  var ob = D([N("client", "client", 80, 200, "fans"), N("lb", "lb", 280, 200), N("app", "app", 480, 200, "catalog", { replicas: 3 }), N("db", "sql", 720, 200, "catalog-db")],
+  var ob = D([N("client", "client", 80, 200, "users"), N("lb", "lb", 280, 200), N("app", "app", 480, 200, "catalog", { replicas: 3 }), N("db", "sql", 720, 200, "catalog-db")],
     [E("client", "lb"), E("lb", "app"), E("app", "db")]);
   add({
     id: "observability-stack",
@@ -567,7 +567,7 @@
   });
 
   /* ═══ microservices ═══ */
-  var ms = D([N("client", "client", 80, 250, "fans"), N("gw", "apigw", 270, 250, "gateway"),
+  var ms = D([N("client", "client", 80, 250, "users"), N("gw", "apigw", 270, 250, "gateway"),
     N("catalog", "microservice", 510, 140, "catalog", { replicas: 6, capacity: 250, autoscale: true, minReplicas: 6, maxReplicas: 30 }),
     N("order", "microservice", 510, 360, "order", { autoscale: true, minReplicas: 2, maxReplicas: 10 }),
     N("inventory", "microservice", 740, 300, "inventory", { autoscale: true, minReplicas: 2, maxReplicas: 10 }),
@@ -575,12 +575,12 @@
     N("catdb", "sql", 1010, 140, "catalog-db", { readReplicas: 1 }), N("invdb", "sql", 1010, 300, "inventory-db"), N("orddb", "sql", 1010, 420, "order-db")],
   [E("client", "gw"), E("gw", "catalog", { filter: "read" }), E("gw", "order", { filter: "write" }), E("catalog", "catdb"),
     E("order", "inventory"), E("order", "catalog"), E("order", "notify"), E("order", "orddb"), E("inventory", "invdb")],
-  [K("cluster", 400, 70, 470, 420, "boxoffice", { nodes: 2, podsPerNode: 6 })]);
+  [K("cluster", 400, 70, 470, 420, "prod", { nodes: 2, podsPerNode: 6 })]);
   add({
     id: "microservices",
     title: T("Microservices on Kubernetes: pods vs nodes", "Microsserviços no Kubernetes: pods vs nós"),
-    brief: T("BoxOffice was split into catalog, inventory, order and notify microservices, each with its own database, behind an API gateway, on a Kubernetes cluster of 2 nodes × 6 pods. At 2 000 req/s the catalog's HPA asks for more pods than the cluster can schedule: they stay Pending, and the catalog drowns. Buying is a synchronous chain (order → inventory, catalog, notify, its DB): every hop adds its latency to the buyer's wait.",
-      "O BoxOffice foi dividido nos microsserviços catalog, inventory, order e notify, cada um com seu banco, atrás de um API gateway, num cluster Kubernetes de 2 nós × 6 pods. Com 2 000 req/s o HPA do catálogo pede mais pods do que o cluster consegue alocar: eles ficam Pending, e o catálogo afoga. Comprar é uma cadeia síncrona (order → inventory, catalog, notify, seu banco): cada salto soma sua latência à espera do comprador."),
+    brief: T("The app was split into catalog, inventory, order and notify microservices, each with its own database, behind an API gateway, on a Kubernetes cluster of 2 nodes × 6 pods. At 2 000 req/s the catalog's HPA asks for more pods than the cluster can schedule: they stay Pending, and the catalog drowns. Buying is a synchronous chain (order → inventory, catalog, notify, its DB): every hop adds its latency to the buyer's wait.",
+      "A aplicação foi dividida nos microsserviços catalog, inventory, order e notify, cada um com seu banco, atrás de um API gateway, num cluster Kubernetes de 2 nós × 6 pods. Com 2 000 req/s o HPA do catálogo pede mais pods do que o cluster consegue alocar: eles ficam Pending, e o catálogo afoga. Comprar é uma cadeia síncrona (order → inventory, catalog, notify, seu banco): cada salto soma sua latência à espera do comprador."),
     settings: { profile: "load", targetRps: 2000, readRatio: 0.8, seed: 2031, chaos: "off" },
     design: ms,
     goals: [G("errorRate", "<", 1), G("p99", "<", 200), G("costPerMonth", "<", 8500)],
@@ -599,11 +599,11 @@
   });
 
   /* ═══ k8s-node-failure ═══ */
-  var kn = D([N("client", "client", 80, 220, "fans"), N("lb", "lb", 270, 220, "ingress LB"),
+  var kn = D([N("client", "client", 80, 220, "users"), N("lb", "lb", 270, 220, "ingress LB"),
     N("catalog", "microservice", 500, 220, "catalog", { replicas: 6 }), N("pricing", "microservice", 740, 220, "pricing", { replicas: 6 }),
     N("db", "sql", 980, 220, "catalog-db", { readReplicas: 1 })],
   [E("client", "lb"), E("lb", "catalog"), E("catalog", "pricing"), E("catalog", "db")],
-  [K("cluster", 400, 110, 470, 220, "boxoffice", { nodes: 3, podsPerNode: 4 })]);
+  [K("cluster", 400, 110, 470, 220, "prod", { nodes: 3, podsPerNode: 4 })]);
   add({
     id: "k8s-node-failure",
     title: T("Kubernetes: losing a node", "Kubernetes: perdendo um nó"),
