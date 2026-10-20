@@ -22,6 +22,8 @@ extra_javascript = [
   "assets/javascripts/termynal.js",
   "assets/javascripts/termynal-init.js",
   "assets/javascripts/mermaid-sim.js",
+  # circles today in the edition calendars (.calendar-wrap)
+  "assets/javascripts/calendar-today.js",
   # System Design Playground (2027.1): order matters
   "assets/javascripts/playground/rng.js",
   "assets/javascripts/playground/catalog.js",

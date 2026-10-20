@@ -131,8 +131,8 @@ $$
 |     |    | <span class='mexam'>28</span> | <span class='mexam'>29</span> |  <span class='mexam'>30</span> |    |    |    |
 | Out |    | 05 |    |    |    | 09 |    |
 |     |    |    |    |    |    | 16 |    |
-|     |    | 19 |    |    |    | <span class='q1'>23</span> |    |
-|     |    | 26 |    |    |    | 30 |    |
+|     |    | 19 |    |    |    | 23 |    |
+|     |    | <span class='q1'>26</span> |    |    |    | 30 |    |
 | Nov |    |    |    |    |    | 06 |    |
 |     |    | 09 |    |    |    | 13 |    |
 |     |    | <span class='project'>16</span> |    |    |    |    |    |
