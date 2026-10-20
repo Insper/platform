@@ -263,3 +263,18 @@
     height: min(88vh, 1100px);
     border: 0;
 }
+
+/* Today's date, circled by javascripts/calendar-today.js */
+.md-typeset .calendar-today {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    min-width: 2.1em;
+    min-height: 2.1em;
+    padding: .2em .3em;
+    border: 2px solid var(--md-default-fg-color);
+    border-radius: 999px;
+    font-weight: 700;
+    line-height: 1;
+}
