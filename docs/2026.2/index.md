@@ -137,10 +137,8 @@ $$
 | Nov |    |    |    |    |    | 06 |    |
 |     |    | 09 |    |    |    | 13 |    |
 |     |    | <span class='project'>16</span> |    |    |    |    |    |
-|     |    | 23 |    |    | <span class='fexam'>26</span> | <span class='fexam'>27</span> |    |
-|     |    | <span class='fexam'>30</span> |    |    |    |    |    |
-| Dec |    |    | <span class='fexam'>01</span> | <span class='fexam'>02</span> |    |    |    |
-|     |    | <span class='sexam'>07</span> | <span class='sexam'>08</span> | <span class='sexam'>09</span> |.  |    |    |
+|     |    | 23 |    |    |    | <span class='fexam'>27</span> |    |
+| Dec |    | <span class='sexam'>07</span> | <span class='sexam'>08</span> | <span class='sexam'>09</span> |.  |    |    |
 
 </div>
 
