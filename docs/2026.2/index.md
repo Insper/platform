@@ -128,8 +128,7 @@ $$
 | Sep |    |    |    |    |    | 04 |    |
 |     |    |    |    |    |    | 11 |    |
 |     |    | 14 |    |    |    | <span class='q1'>18</span> |    |
-|     |    | 21 |    |    | <span class='mexam'>24</span> | <span class='mexam'>25</span> |    |
-|     |    | <span class='mexam'>28</span> | <span class='mexam'>29</span> |  <span class='mexam'>30</span> |    |    |    |
+|     |    | 21 |    |    |    | <span class='mexam'>25</span> |    |
 | Oct |    | 05 |    |    |    | 09 |    |
 |     |    |    |    |    |    | 16 |    |
 |     |    | 19 |    |    |    | 23 |    |
