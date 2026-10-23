@@ -1,0 +1,11 @@
+# Non-secret settings shared by the services (the same variables as in docker-compose.yaml)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: boxoffice-config
+data:
+  DB_HOST: db
+  DB_PORT: "5432"
+  DB_NAME: boxoffice
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"

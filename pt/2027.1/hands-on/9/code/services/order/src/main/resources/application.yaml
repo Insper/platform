@@ -1,0 +1,95 @@
+server:
+  port: 8084
+  tomcat:
+    threads:
+      max: 50                        # lab 9: small on purpose, to make thread exhaustion visible
+
+spring:
+  application:
+    name: order
+  mvc:
+    problemdetails:
+      enabled: true
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:db}:${DB_PORT:5432}/${DB_NAME:boxoffice}?currentSchema=orders
+    username: ${DB_USER:boxoffice}
+    password: ${DB_PASSWORD:boxoffice}
+  flyway:
+    schemas: orders
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: 6379
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}
+    producer:
+      acks: all
+      properties:
+        enable.idempotence: true
+        linger.ms: 5
+        max.block.ms: 5000     # Kafka down: fail the relay run in 5 s (default 60 s) and retry
+
+boxoffice:
+  order:
+    notify-mode: ${NOTIFY_MODE:outbox}
+    notification-url: ${NOTIFICATION_URL:http://notification:8086}
+    topic: order-events
+    relay-interval-ms: 200
+  waiting-room:
+    admit-per-second: ${ADMIT_PER_SECOND:20}
+    admission-ttl: 5m
+  payment:                           # lab 9
+    url: ${PAYMENT_URL:http://payment:8085}
+    resilience: ${PAYMENT_RESILIENCE:true}   # false = call payment with no Resilience4j at all
+    connect-timeout: 500ms
+    read-timeout: ${PAYMENT_READ_TIMEOUT:1s} # 0 = wait forever
+
+resilience4j:
+  retry:
+    instances:
+      payment:
+        max-attempts: ${PAYMENT_RETRY_ATTEMPTS:3}    # 1 = no retry
+        wait-duration: 200ms
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2            # 200 ms, 400 ms ...
+        enable-randomized-wait: true
+        randomized-wait-factor: 0.5                  # ... each +/- 50% (jitter)
+        retry-exceptions:
+          - org.springframework.web.client.ResourceAccessException   # timeouts, connection refused/reset
+          - org.springframework.web.client.HttpServerErrorException  # 5xx
+        ignore-exceptions:
+          - io.github.resilience4j.circuitbreaker.CallNotPermittedException  # circuit open: fail fast
+          - io.github.resilience4j.bulkhead.BulkheadFullException           # bulkhead full: fail fast
+  circuitbreaker:
+    instances:
+      payment:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 20
+        minimum-number-of-calls: 10
+        failure-rate-threshold: 50                   # open when >= 50% of the last 20 calls failed...
+        slow-call-duration-threshold: 800ms
+        slow-call-rate-threshold: 50                 # ... or >= 50% were slower than 800 ms
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+        register-health-indicator: true
+        ignore-exceptions:
+          - io.github.resilience4j.bulkhead.BulkheadFullException  # our own refusal is not the dependency's fault
+  bulkhead:
+    instances:
+      payment:
+        max-concurrent-calls: ${PAYMENT_BULKHEAD:10} # at most 10 of the 50 threads wait on payment
+        max-wait-duration: 0                         # full = reject immediately
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,circuitbreakers,circuitbreakerevents,retries,bulkheads
+  endpoint:
+    health:
+      probes:
+        enabled: true        # /actuator/health/liveness and /readiness
+  health:
+    circuitbreakers:
+      enabled: true          # lab 9: breaker state in /actuator/health

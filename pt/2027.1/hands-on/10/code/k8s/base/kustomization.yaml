@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: boxoffice
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: boxoffice
+resources:
+  - namespace.yaml
+  - config.yaml
+  - db.yaml
+  - redis.yaml
+  - catalog.yaml
+  - catalog-hpa.yaml
+  - ingress.yaml

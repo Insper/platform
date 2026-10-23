@@ -1,0 +1,445 @@
+name: boxoffice
+
+# lab 8: OpenTelemetry settings shared by every Java service (merged into each "environment")
+x-otel: &otel
+  JAVA_TOOL_OPTIONS: -javaagent:/otel/opentelemetry-javaagent.jar
+  OTEL_JAVAAGENT_ENABLED: ${OTEL_ON:-true}          # false = same image, agent off
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-lgtm:4318
+  OTEL_METRIC_EXPORT_INTERVAL: "10000"              # 10 s instead of 60 s
+  OTEL_RESOURCE_ATTRIBUTES: service.namespace=boxoffice,deployment.environment.name=local
+  OTEL_TRACES_SAMPLER: ${OTEL_TRACES_SAMPLER:-parentbased_always_on}
+  OTEL_TRACES_SAMPLER_ARG: ${OTEL_TRACES_SAMPLER_ARG:-1.0}
+  LOGGING_PATTERN_CORRELATION: "[%X{trace_id:-},%X{span_id:-}] "   # trace id in console logs
+
+# settings shared by the three catalog replicas (a YAML anchor)
+x-catalog: &catalog
+  build: ./services/catalog
+  image: boxoffice-catalog
+  volumes:
+    - ./infra/otel:/otel:ro          # lab 8: the Java agent
+  environment:
+    <<: *otel
+    OTEL_SERVICE_NAME: catalog       # three replicas, ONE service
+    DB_HOST: db
+    DB_PORT: 5432
+    DB_NAME: ${DB_NAME:-boxoffice}
+    DB_USER: ${DB_USER:-boxoffice}
+    DB_PASSWORD: ${DB_PASSWORD:-boxoffice}
+    DB_POOL_SIZE: ${DB_POOL_SIZE:-10}
+    REDIS_HOST: redis
+    REDIS_PORT: 6379
+    CACHE_ENABLED: ${CACHE_ENABLED:-true}
+    CACHE_TTL_EVENT: ${CACHE_TTL_EVENT:-60s}
+    CACHE_TTL_LIST: ${CACHE_TTL_LIST:-10s}
+    CACHE_STAMPEDE_PROTECTION: ${CACHE_STAMPEDE_PROTECTION:-false}
+  depends_on:
+    db:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  deploy:
+    resources:
+      limits:
+        cpus: "1.0"
+        memory: 768M
+  healthcheck:
+    test: ["CMD-SHELL", "wget -qO- http://localhost:8082/actuator/health/readiness || exit 1"]
+    interval: 10s
+    timeout: 3s
+    start_period: 40s
+    retries: 3
+
+services:
+
+  db:
+    image: postgres:17
+    command: ["postgres", "-c", "max_connections=${DB_MAX_CONNECTIONS:-100}"]
+    environment:
+      POSTGRES_DB: ${DB_NAME:-boxoffice}
+      POSTGRES_USER: ${DB_USER:-boxoffice}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-boxoffice}
+      REPLICATION_PASSWORD: ${REPLICATION_PASSWORD:-replicator}
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      # runs only when the volume is new: creates the "replicator" user
+      - ./infra/postgres/10-replication.sh:/docker-entrypoint-initdb.d/10-replication.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # read-only streaming replica of db (hot standby)
+  db-replica:
+    image: postgres:17
+    user: postgres
+    entrypoint: ["/usr/local/bin/replica-entrypoint.sh"]
+    environment:
+      PGPASSWORD: ${REPLICATION_PASSWORD:-replicator}     # used by pg_basebackup
+      REPLICA_DELAY: ${REPLICA_DELAY:-0}                   # e.g. 2s: artificial lag
+    ports:
+      - "5433:5432"
+    volumes:
+      - replica-data:/var/lib/postgresql/data
+      - ./infra/postgres/replica-entrypoint.sh:/usr/local/bin/replica-entrypoint.sh:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U boxoffice -d boxoffice"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  pgbouncer:
+    image: edoburu/pgbouncer:v1.26.0-p0
+    ports:
+      - "6432:6432"
+    volumes:
+      - ./infra/pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
+      - ./infra/pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt:ro
+    depends_on:
+      db:
+        condition: service_healthy
+
+  redis:
+    image: redis:8-alpine
+    # a pure cache: bounded memory, evict least-recently-used keys, no persistence
+    command: ["redis-server", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru",
+              "--save", "", "--appendonly", "no"]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # three identical replicas; no "ports:" — only the edge is reachable from outside
+  catalog-1:
+    <<: *catalog
+    hostname: catalog-1
+  catalog-2:
+    <<: *catalog
+    hostname: catalog-2
+  catalog-3:
+    <<: *catalog
+    hostname: catalog-3
+
+  inventory:
+    build: ./services/inventory
+    volumes:
+      - ./infra/otel:/otel:ro
+    environment:
+      <<: *otel
+      OTEL_SERVICE_NAME: inventory
+      DB_HOST: ${INVENTORY_DB_HOST:-pgbouncer}      # writes go through PgBouncer...
+      DB_PORT: ${INVENTORY_DB_PORT:-6432}
+      DB_MIGRATION_HOST: db                         # ...migrations straight to the primary
+      DB_REPLICA_HOST: ${DB_REPLICA_HOST:-db-replica}
+      DB_REPLICA_PORT: 5432
+      DB_NAME: ${DB_NAME:-boxoffice}
+      DB_USER: ${DB_USER:-boxoffice}
+      DB_PASSWORD: ${DB_PASSWORD:-boxoffice}
+      DB_POOL_SIZE: ${INVENTORY_POOL_SIZE:-20}
+      INVENTORY_LOCKING: ${INVENTORY_LOCKING:-pessimistic}
+      INVENTORY_HOLD_TTL: ${INVENTORY_HOLD_TTL:-PT10M}
+    ports:
+      - "8083:8083"            # published for experiments; clients go through the edge
+    depends_on:
+      db:
+        condition: service_healthy
+      db-replica:
+        condition: service_healthy
+      pgbouncer:
+        condition: service_started
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 768M
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8083/actuator/health/readiness || exit 1"]
+      interval: 10s
+      timeout: 3s
+      start_period: 40s
+      retries: 3
+
+  auth:
+    build: ./services/auth
+    volumes:
+      - ./infra/otel:/otel:ro
+    environment:
+      <<: *otel
+      OTEL_SERVICE_NAME: auth
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-boxoffice}
+      DB_USER: ${DB_USER:-boxoffice}
+      DB_PASSWORD: ${DB_PASSWORD:-boxoffice}
+      JWT_ISSUER: ${JWT_ISSUER:-boxoffice-auth}
+      JWT_TTL: ${JWT_TTL:-PT1H}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@boxoffice.dev}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-boxoffice-admin}
+    depends_on:
+      db:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 768M
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8081/actuator/health/readiness || exit 1"]
+      interval: 10s
+      timeout: 3s
+      start_period: 40s
+      retries: 3
+
+  gateway:
+    build: ./services/gateway
+    volumes:
+      - ./infra/otel:/otel:ro
+    environment:
+      <<: *otel
+      OTEL_SERVICE_NAME: gateway
+      AUTH_URL: http://auth:8081
+      INVENTORY_URL: http://inventory:8083
+      AUTH_JWKS_URI: http://auth:8081/auth/.well-known/jwks.json
+      JWT_ISSUER: ${JWT_ISSUER:-boxoffice-auth}
+    ports:
+      - "8080:8080"          # published for experiments; clients use the edge (port 80)
+    depends_on:
+      - auth
+      - inventory
+      - catalog-1
+      - catalog-2
+      - catalog-3
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 768M
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health/readiness || exit 1"]
+      interval: 10s
+      timeout: 3s
+      start_period: 40s
+      retries: 3
+
+  edge:
+    image: nginx:1.30-alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - gateway
+
+  # ---- lab 7: Kafka (KRaft), Kafka UI, Mailpit, order and notification ----
+
+  kafka:
+    image: apache/kafka:4.3.1
+    hostname: kafka
+    ports:
+      - "9094:9094"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:9094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://localhost:9094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 > /dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      start_period: 60s      # a busy laptop can take a minute to start the broker
+      retries: 20
+
+  kafka-init:
+    image: apache/kafka:4.3.1
+    depends_on:
+      kafka:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists \
+          --topic order-events --partitions 6 --replication-factor 1 &&
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists \
+          --topic order-events-dlt --partitions 6 --replication-factor 1
+    restart: "no"
+
+  kafka-ui:
+    image: kafbat/kafka-ui:v1.5.0
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8089:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: boxoffice
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+
+  mailpit:
+    image: axllent/mailpit:v1.31
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+
+  order:
+    build: ./services/order
+    volumes:
+      - ./infra/otel:/otel:ro
+    environment:
+      <<: *otel
+      OTEL_SERVICE_NAME: order
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-boxoffice}
+      DB_USER: ${DB_USER:-boxoffice}
+      DB_PASSWORD: ${DB_PASSWORD:-boxoffice}
+      REDIS_HOST: redis
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      NOTIFICATION_URL: http://notification:8086
+      PAYMENT_URL: http://toxiproxy:18085            # lab 9: through Toxiproxy, not payment:8085
+      PAYMENT_RESILIENCE: ${PAYMENT_RESILIENCE:-true}
+      PAYMENT_READ_TIMEOUT: ${PAYMENT_READ_TIMEOUT:-1s}
+      PAYMENT_RETRY_ATTEMPTS: ${PAYMENT_RETRY_ATTEMPTS:-3}
+      PAYMENT_BULKHEAD: ${PAYMENT_BULKHEAD:-10}
+      NOTIFY_MODE: ${NOTIFY_MODE:-outbox}            # outbox (after) | sync (before)
+      ADMIT_PER_SECOND: ${ADMIT_PER_SECOND:-20}      # waiting-room admission rate
+    ports:
+      - "8084:8084"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 768M
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8084/actuator/health/readiness || exit 1"]
+      interval: 10s
+      timeout: 3s
+      start_period: 40s
+      retries: 3
+
+  notification:
+    build: ./services/notification
+    volumes:
+      - ./infra/otel:/otel:ro
+    environment:
+      <<: *otel
+      OTEL_SERVICE_NAME: notification
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-boxoffice}
+      DB_USER: ${DB_USER:-boxoffice}
+      DB_PASSWORD: ${DB_PASSWORD:-boxoffice}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      MAIL_HOST: mailpit
+      NOTIFY_CONCURRENCY: ${NOTIFY_CONCURRENCY:-3}   # consumer threads (max useful: 6 partitions)
+      EMAIL_LATENCY: ${EMAIL_LATENCY:-50ms}          # simulated e-mail provider latency
+      NOTIFY_IDEMPOTENT: ${NOTIFY_IDEMPOTENT:-true}  # false = no dedupe (to see duplicates)
+    ports:
+      - "8086:8086"
+    depends_on:
+      db:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+      kafka-init:
+        condition: service_completed_successfully
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 768M
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8086/actuator/health/readiness || exit 1"]
+      interval: 10s
+      timeout: 3s
+      start_period: 40s
+      retries: 3
+
+  # ---- lab 8: observability backend (Grafana, Prometheus, Tempo, Loki, OTel Collector) ----
+
+  otel-lgtm:
+    image: grafana/otel-lgtm:0.37.0
+    ports:
+      - "3000:3000"   # Grafana (no login)
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+    volumes:
+      - ./infra/grafana/dashboards.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/boxoffice.yaml:ro
+      - ./infra/grafana/dashboards:/otel-lgtm/boxoffice-dashboards:ro
+      - ./infra/grafana/alerting:/otel-lgtm/grafana/conf/provisioning/alerting:ro
+
+  # ---- lab 9: payment adapter, fake provider and fault injection ----
+
+  psp:
+    image: wiremock/wiremock:3.13.2
+    volumes:
+      - ./infra/psp:/home/wiremock:ro
+
+  toxiproxy:
+    image: ghcr.io/shopify/toxiproxy:2.13.0
+    command: ["-host=0.0.0.0", "-config=/config/toxiproxy.json"]
+    volumes:
+      - ./infra/toxiproxy/toxiproxy.json:/config/toxiproxy.json:ro
+    ports:
+      - "8474:8474"
+
+  payment:
+    build: ./services/payment
+    volumes:
+      - ./infra/otel:/otel:ro
+    environment:
+      <<: *otel
+      OTEL_SERVICE_NAME: payment
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-boxoffice}
+      DB_USER: ${DB_USER:-boxoffice}
+      DB_PASSWORD: ${DB_PASSWORD:-boxoffice}
+      PSP_URL: http://toxiproxy:18095                 # the provider, through Toxiproxy
+    ports:
+      - "8085:8085"
+    depends_on:
+      db:
+        condition: service_healthy
+      toxiproxy:
+        condition: service_started
+      psp:
+        condition: service_started
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 768M
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8085/actuator/health/readiness || exit 1"]
+      interval: 10s
+      timeout: 3s
+      start_period: 40s
+      retries: 3
+
+volumes:
+  db-data:
+  replica-data:

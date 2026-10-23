@@ -1,0 +1,4 @@
+[
+  { "name": "payment", "listen": "0.0.0.0:18085", "upstream": "payment:8085", "enabled": true },
+  { "name": "psp",     "listen": "0.0.0.0:18095", "upstream": "psp:8080",     "enabled": true }
+]

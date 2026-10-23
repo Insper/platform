@@ -1,0 +1,1233 @@
+ <!doctype html><html lang="pt" class=no-js> <head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><meta name=author content="Sandmann, H."><link rel=canonical href=https://insper.github.io/platform/pt/2027.1/classes/databases/partitioning/><link rel=icon href=../../../../assets/images/favicon.png><meta name=generator content=zensical-0.0.70><title>Index - Plataformas, Microsserviços, DevOps e APIs</title><link rel=stylesheet href=../../../../assets/stylesheets/modern/main.e442bf79.min.css><link rel=stylesheet href=../../../../assets/stylesheets/modern/palette.b60ce83d.min.css><style>:root{--md-admonition-icon--abstract:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20448%20512%22%3E%3C%21--%21%20Font%20Awesome%20Free%207.3.1%20by%20%40fontawesome%20-%20https%3A//fontawesome.com%20License%20-%20https%3A//fontawesome.com/license/free%20%28Icons%3A%20CC%20BY%204.0%2C%20Fonts%3A%20SIL%20OFL%201.1%2C%20Code%3A%20MIT%20License%29%20Copyright%202026%20Fonticons%2C%20Inc.--%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M384%20512H96c-53%200-96-43-96-96V96C0%2043%2043%200%2096%200h304c26.5%200%2048%2021.5%2048%2048v288c0%2020.9-13.4%2038.7-32%2045.3V448c17.7%200%2032%2014.3%2032%2032s-14.3%2032-32%2032zM96%20384c-17.7%200-32%2014.3-32%2032s14.3%2032%2032%2032h256v-64zm32-232c0%2013.3%2010.7%2024%2024%2024h176c13.3%200%2024-10.7%2024-24s-10.7-24-24-24H152c-13.3%200-24%2010.7-24%2024m24%2072c-13.3%200-24%2010.7-24%2024s10.7%2024%2024%2024h176c13.3%200%2024-10.7%2024-24s-10.7-24-24-24z%22/%3E%3C/svg%3E');--md-admonition-icon--bug:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20640%20512%22%3E%3C%21--%21%20Font%20Awesome%20Free%207.3.1%20by%20%40fontawesome%20-%20https%3A//fontawesome.com%20License%20-%20https%3A//fontawesome.com/license/free%20%28Icons%3A%20CC%20BY%204.0%2C%20Fonts%3A%20SIL%20OFL%201.1%2C%20Code%3A%20MIT%20License%29%20Copyright%202026%20Fonticons%2C%20Inc.--%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M352%200c0-17.7-14.3-32-32-32s-32%2014.3-32%2032v64h-96c-53%200-96%2043-96%2096v224c0%2053%2043%2096%2096%2096h256c53%200%2096-43%2096-96V160c0-53-43-96-96-96h-96zM160%20368c0-13.3%2010.7-24%2024-24h32c13.3%200%2024%2010.7%2024%2024s-10.7%2024-24%2024h-32c-13.3%200-24-10.7-24-24m120%200c0-13.3%2010.7-24%2024-24h32c13.3%200%2024%2010.7%2024%2024s-10.7%2024-24%2024h-32c-13.3%200-24-10.7-24-24m120%200c0-13.3%2010.7-24%2024-24h32c13.3%200%2024%2010.7%2024%2024s-10.7%2024-24%2024h-32c-13.3%200-24-10.7-24-24M224%20176a48%2048%200%201%201%200%2096%2048%2048%200%201%201%200-96m144%2048a48%2048%200%201%201%2096%200%2048%2048%200%201%201-96%200m-304%200c0-17.7-14.3-32-32-32S0%20206.3%200%20224v96c0%2017.7%2014.3%2032%2032%2032s32-14.3%2032-32zm544-32c-17.7%200-32%2014.3-32%2032v96c0%2017.7%2014.3%2032%2032%2032s32-14.3%2032-32v-96c0-17.7-14.3-32-32-32%22/%3E%3C/svg%3E');--md-admonition-icon--danger:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20512%20512%22%3E%3C%21--%21%20Font%20Awesome%20Free%207.3.1%20by%20%40fontawesome%20-%20https%3A//fontawesome.com%20License%20-%20https%3A//fontawesome.com/license/free%20%28Icons%3A%20CC%20BY%204.0%2C%20Fonts%3A%20SIL%20OFL%201.1%2C%20Code%3A%20MIT%20License%29%20Copyright%202026%20Fonticons%2C%20Inc.--%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M416%20427.4c58.5-44%2096-111.6%2096-187.4C512%20107.5%20397.4%200%20256%200S0%20107.5%200%20240c0%2075.8%2037.5%20143.4%2096%20187.4V464c0%2026.5%2021.5%2048%2048%2048h32v-40c0-13.3%2010.7-24%2024-24s24%2010.7%2024%2024v40h64v-40c0-13.3%2010.7-24%2024-24s24%2010.7%2024%2024v40h32c26.5%200%2048-21.5%2048-48zM96%20256a64%2064%200%201%201%20128%200%2064%2064%200%201%201-128%200m256-64a64%2064%200%201%201%200%20128%2064%2064%200%201%201%200-128%22/%3E%3C/svg%3E');--md-admonition-icon--example:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20448%20512%22%3E%3C%21--%21%20Font%20Awesome%20Free%207.3.1%20by%20%40fontawesome%20-%20https%3A//fontawesome.com%20License%20-%20https%3A//fontawesome.com/license/free%20%28Icons%3A%20CC%20BY%204.0%2C%20Fonts%3A%20SIL%20OFL%201.1%2C%20Code%3A%20MIT%20License%29%20Copyright%202026%20Fonticons%2C%20Inc.--%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M288%200H128c-17.7%200-32%2014.3-32%2032s14.3%2032%2032%2032v151.5L7.5%20426.3C2.6%20435%200%20444.7%200%20454.7%200%20486.4%2025.6%20512%2057.3%20512h333.4c31.6%200%2057.3-25.6%2057.3-57.3%200-10-2.6-19.8-7.5-28.4L320%20215.5V64c17.7%200%2032-14.3%2032-32S337.7%200%20320%200zm-96%20215.5V64h64v151.5c0%2011.1%202.9%2022.1%208.4%2031.8L306%20320H142l41.6-72.7c5.5-9.7%208.4-20.6%208.4-31.8%22/%3E%3C/svg%3E');--md-admonition-icon--failure:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20576%20512%22%3E%3C%21--%21%20Font%20Awesome%20Free%207.3.1%20by%20%40fontawesome%20-%20https%3A//fontawesome.com%20License%20-%20https%3A//fontawesome.com/license/free%20%28Icons%3A%20CC%20BY%204.0%2C%20Fonts%3A%20SIL%20OFL%201.1%2C%20Code%3A%20MIT%20License%29%20Copyright%202026%20Fonticons%2C%20Inc.--%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M480-16c6.9%200%2013%204.4%2015.2%2010.9l13.5%2040.4%2040.4%2013.5C555.6%2051%20560%2057.1%20560%2064s-4.4%2013-10.9%2015.2l-40.4%2013.5-13.5%2040.4c-2.2%206.5-8.3%2010.9-15.2%2010.9s-13-4.4-15.2-10.9l-13.5-40.4-40.4-13.5C404.4%2077%20400%2070.9%20400%2064s4.4-13%2010.9-15.2l40.4-13.5%2013.5-40.4C467-11.6%20473.1-16%20480-16M321.4%2097.4c12.5-12.5%2032.8-12.5%2045.3%200l80%2080c12.5%2012.5%2012.5%2032.8%200%2045.3l-10.9%2010.9c7.9%2022%2012.2%2045.7%2012.2%2070.5%200%20114.9-93.1%20208-208%20208S32%20418.9%2032%20304%20125.1%2096%20240%2096c24.7%200%2048.5%204.3%2070.5%2012.3zM144%20304c0-53%2043-96%2096-96%2013.3%200%2024-10.7%2024-24s-10.7-24-24-24c-79.5%200-144%2064.5-144%20144%200%2013.3%2010.7%2024%2024%2024s24-10.7%2024-24%22/%3E%3C/svg%3E');--md-admonition-icon--info:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20512%20512%22%3E%3C%21--%21%20Font%20Awesome%20Free%207.3.1%20by%20%40fontawesome%20-%20https%3A//fontawesome.com%20License%20-%20https%3A//fontawesome.com/license/free%20%28Icons%3A%20CC%20BY%204.0%2C%20Fonts%3A%20SIL%20OFL%201.1%2C%20Code%3A%20MIT%20License%29%20Copyright%202026%20Fonticons%2C%20Inc.--%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M256%20512a256%20256%200%201%200%200-512%20256%20256%200%201%200%200%20512m-32-352a32%2032%200%201%201%2064%200%2032%2032%200%201%201-64%200m-8%2064h48c13.3%200%2024%2010.7%2024%2024v88h8c13.3%200%2024%2010.7%2024%2024s-10.7%2024-24%2024h-80c-13.3%200-24-10.7-24-24s10.7-24%2024-24h24v-64h-24c-13.3%200-24-10.7-24-24s10.7-24%2024-24%22/%3E%3C/svg%3E');--md-admonition-icon--note:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20448%20512%22%3E%3C%21--%21%20Font%20Awesome%20Free%207.3.1%20by%20%40fontawesome%20-%20https%3A//fontawesome.com%20License%20-%20https%3A//fontawesome.com/license/free%20%28Icons%3A%20CC%20BY%204.0%2C%20Fonts%3A%20SIL%20OFL%201.1%2C%20Code%3A%20MIT%20License%29%20Copyright%202026%20Fonticons%2C%20Inc.--%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M64%20480c-35.3%200-64-28.7-64-64V96c0-35.3%2028.7-64%2064-64h320c35.3%200%2064%2028.7%2064%2064v213.5c0%2017-6.7%2033.3-18.7%2045.3L322.7%20461.3c-12%2012-28.3%2018.7-45.3%2018.7zm325.5-176H296c-13.3%200-24%2010.7-24%2024v93.5z%22/%3E%3C/svg%3E');--md-admonition-icon--question:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20512%20512%22%3E%3C%21--%21%20Font%20Awesome%20Free%207.3.1%20by%20%40fontawesome%20-%20https%3A//fontawesome.com%20License%20-%20https%3A//fontawesome.com/license/free%20%28Icons%3A%20CC%20BY%204.0%2C%20Fonts%3A%20SIL%20OFL%201.1%2C%20Code%3A%20MIT%20License%29%20Copyright%202026%20Fonticons%2C%20Inc.--%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M256%20512a256%20256%200%201%200%200-512%20256%20256%200%201%200%200%20512m0-336c-17.7%200-32%2014.3-32%2032%200%2013.3-10.7%2024-24%2024s-24-10.7-24-24c0-44.2%2035.8-80%2080-80s80%2035.8%2080%2080c0%2047.2-36%2067.2-56%2074.5v3.8c0%2013.3-10.7%2024-24%2024s-24-10.7-24-24v-8.1c0-20.5%2014.8-35.2%2030.1-40.2%206.4-2.1%2013.2-5.5%2018.2-10.3%204.3-4.2%207.7-10%207.7-19.6%200-17.7-14.3-32-32-32zm-32%20192a32%2032%200%201%201%2064%200%2032%2032%200%201%201-64%200%22/%3E%3C/svg%3E');--md-admonition-icon--quote:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20448%20512%22%3E%3C%21--%21%20Font%20Awesome%20Free%207.3.1%20by%20%40fontawesome%20-%20https%3A//fontawesome.com%20License%20-%20https%3A//fontawesome.com/license/free%20%28Icons%3A%20CC%20BY%204.0%2C%20Fonts%3A%20SIL%20OFL%201.1%2C%20Code%3A%20MIT%20License%29%20Copyright%202026%20Fonticons%2C%20Inc.--%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M0%20216C0%20149.7%2053.7%2096%20120%2096h8c17.7%200%2032%2014.3%2032%2032s-14.3%2032-32%2032h-8c-30.9%200-56%2025.1-56%2056v8h64c35.3%200%2064%2028.7%2064%2064v64c0%2035.3-28.7%2064-64%2064H64c-35.3%200-64-28.7-64-64zm256%200c0-66.3%2053.7-120%20120-120h8c17.7%200%2032%2014.3%2032%2032s-14.3%2032-32%2032h-8c-30.9%200-56%2025.1-56%2056v8h64c35.3%200%2064%2028.7%2064%2064v64c0%2035.3-28.7%2064-64%2064h-64c-35.3%200-64-28.7-64-64z%22/%3E%3C/svg%3E');--md-admonition-icon--success:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20448%20512%22%3E%3C%21--%21%20Font%20Awesome%20Free%207.3.1%20by%20%40fontawesome%20-%20https%3A//fontawesome.com%20License%20-%20https%3A//fontawesome.com/license/free%20%28Icons%3A%20CC%20BY%204.0%2C%20Fonts%3A%20SIL%20OFL%201.1%2C%20Code%3A%20MIT%20License%29%20Copyright%202026%20Fonticons%2C%20Inc.--%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M434.8%2070.1c14.3%2010.4%2017.5%2030.4%207.1%2044.7l-256%20352c-5.5%207.6-14%2012.3-23.4%2013.1s-18.5-2.7-25.1-9.3l-128-128c-12.5-12.5-12.5-32.8%200-45.3s32.8-12.5%2045.3%200l101.5%20101.5%20234-321.7c10.4-14.3%2030.4-17.5%2044.7-7.1z%22/%3E%3C/svg%3E');--md-admonition-icon--tip:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20512%20512%22%3E%3C%21--%21%20Font%20Awesome%20Free%207.3.1%20by%20%40fontawesome%20-%20https%3A//fontawesome.com%20License%20-%20https%3A//fontawesome.com/license/free%20%28Icons%3A%20CC%20BY%204.0%2C%20Fonts%3A%20SIL%20OFL%201.1%2C%20Code%3A%20MIT%20License%29%20Copyright%202026%20Fonticons%2C%20Inc.--%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M461.2%2018.9C472.7%2024%20480%2035.4%20480%2048v416c0%2012.6-7.3%2024-18.8%2029.1s-24.8%203.2-34.3-5.1l-46.6-40.7c-43.6-38.1-98.7-60.3-156.4-63V480c0%2017.7-14.3%2032-32%2032h-32c-17.7%200-32-14.3-32-32v-96C57.3%20384%200%20326.7%200%20256s57.3-128%20128-128h84.5c61.8-.2%20121.4-22.7%20167.9-63.3L427%2024c9.4-8.3%2022.9-10.2%2034.3-5.1zM224%20320v.2c70.3%202.7%20137.8%2028.5%20192%2073.4V118.3c-54.2%2044.9-121.7%2070.7-192%2073.4z%22/%3E%3C/svg%3E');--md-admonition-icon--warning:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20512%20512%22%3E%3C%21--%21%20Font%20Awesome%20Free%207.3.1%20by%20%40fontawesome%20-%20https%3A//fontawesome.com%20License%20-%20https%3A//fontawesome.com/license/free%20%28Icons%3A%20CC%20BY%204.0%2C%20Fonts%3A%20SIL%20OFL%201.1%2C%20Code%3A%20MIT%20License%29%20Copyright%202026%20Fonticons%2C%20Inc.--%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M256%200c14.7%200%2028.2%208.1%2035.2%2021l216%20400c6.7%2012.4%206.4%2027.4-.8%2039.5S486.1%20480%20472%20480H40c-14.1%200-27.2-7.4-34.4-19.5s-7.5-27.1-.8-39.5l216-400c7-12.9%2020.5-21%2035.2-21m0%20352a32%2032%200%201%200%200%2064%2032%2032%200%201%200%200-64m0-192c-18.2%200-32.7%2015.5-31.4%2033.7l7.4%20104c.9%2012.5%2011.4%2022.3%2023.9%2022.3%2012.6%200%2023-9.7%2023.9-22.3l7.4-104c1.3-18.2-13.1-33.7-31.4-33.7z%22/%3E%3C/svg%3E');}</style><link rel=preconnect href=https://fonts.gstatic.com crossorigin><link rel=stylesheet href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&amp;display=fallback"><style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style><link rel=stylesheet href=../../../../assets/stylesheets/extra.css><link rel=stylesheet href=../../../../assets/stylesheets/interview.css><link rel=stylesheet href=../../../../assets/stylesheets/termynal.css><link rel=stylesheet href=../../../../assets/stylesheets/mermaid-sim.css><link rel=stylesheet href=../../../../assets/stylesheets/playground.css><link rel=stylesheet href=../../../../assets/stylesheets/support.css><script>__md_scope=new URL("../../../..",location),__md_scope.pathname.endsWith("/")||(__md_scope=new URL(__md_scope.pathname+"/",location)),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,_=__md_scope)=>JSON.parse(t.getItem(_.pathname+"."+e)),__md_set=(e,t,_=localStorage,a=__md_scope)=>{try{_.setItem(a.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script></head> <body dir=ltr data-md-color-scheme=default data-md-color-primary=indigo data-md-color-accent=indigo> <input class=md-toggle data-md-toggle=drawer type=checkbox id=__drawer autocomplete=off> <input class=md-toggle data-md-toggle=search type=checkbox id=__search autocomplete=off> <label class=md-overlay for=__drawer aria-hidden=true></label> <div data-md-component=skip> <a href=#__skip class=md-skip> Pular para conteúdo </a> </div> <div data-md-component=announce> </div> <header class="md-header md-header--shadow" data-md-component=header> <nav class="md-header__inner md-grid" aria-label=Cabeçalho> <a href=../../../.. title="Plataformas, Microsserviços, DevOps e APIs" class="md-header__button md-logo" aria-label="Plataformas, Microsserviços, DevOps e APIs" data-md-component=logo> <img src=../../../../assets/images/logo.png alt="Plataformas, Microsserviços, DevOps e APIs"> </a> <label class="md-header__button md-icon" for=__drawer aria-label=Navegação> <svg xmlns=http://www.w3.org/2000/svg fill=none stroke=currentColor stroke-linecap=round stroke-linejoin=round stroke-width=2 class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg> </label> <div class=md-header__title data-md-component=header-title> <div class=md-header__ellipsis> <div class=md-header__topic> <span class=md-ellipsis> Plataformas, Microsserviços, DevOps e APIs </span> </div> <div class=md-header__topic data-md-component=header-topic> <span class=md-ellipsis> Index </span> </div> </div> </div> <form class=md-header__option data-md-component=palette> <input class=md-option data-md-color-media=(prefers-color-scheme) data-md-color-scheme=default data-md-color-primary=indigo data-md-color-accent=indigo aria-label="Switch to light mode" type=radio name=__palette id=__palette_0> <label class="md-header__button md-icon" title="Switch to light mode" for=__palette_1 hidden> <svg xmlns=http://www.w3.org/2000/svg fill=none stroke=currentColor stroke-linecap=round stroke-linejoin=round stroke-width=2 class="lucide lucide-sun-moon" viewBox="0 0 24 24"><path d="M12 2v2M14.837 16.385a6 6 0 1 1-7.223-7.222c.624-.147.97.66.715 1.248a4 4 0 0 0 5.26 5.259c.589-.255 1.396.09 1.248.715M16 12a4 4 0 0 0-4-4M19 5l-1.256 1.256M20 12h2"/></svg> </label> <input class=md-option data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme=default data-md-color-primary=indigo data-md-color-accent=indigo aria-label="Switch to dark mode" type=radio name=__palette id=__palette_1> <label class="md-header__button md-icon" title="Switch to dark mode" for=__palette_2 hidden> <svg xmlns=http://www.w3.org/2000/svg fill=none stroke=currentColor stroke-linecap=round stroke-linejoin=round stroke-width=2 class="lucide lucide-sun" viewBox="0 0 24 24"><circle cx=12 cy=12 r=4 /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg> </label> <input class=md-option data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme=slate data-md-color-primary=indigo data-md-color-accent=indigo aria-label="Switch to system preference" type=radio name=__palette id=__palette_2> <label class="md-header__button md-icon" title="Switch to system preference" for=__palette_0 hidden> <svg xmlns=http://www.w3.org/2000/svg fill=none stroke=currentColor stroke-linecap=round stroke-linejoin=round stroke-width=2 class="lucide lucide-moon" viewBox="0 0 24 24"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/></svg> </label> </form> <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script> <div class="md-header__option md-i18n" data-md-i18n data-md-i18n-base=../../../../ data-md-i18n-manifest=../../../../zensical-i18n.json> <div class=md-select> <button class="md-header__button md-i18n__button" aria-label="Selecione o idioma (pt)"> <span class=md-icon> <svg xmlns=http://www.w3.org/2000/svg fill=none stroke=currentColor stroke-linecap=round stroke-linejoin=round stroke-width=2 class="lucide lucide-languages" viewBox="0 0 24 24"><path d="m5 8 6 6M4 14l6-6 2-3M2 5h12M7 2h1M22 22l-5-10-5 10M14 18h6"/></svg> </span> <span class=md-i18n__code>pt</span> <span class="md-i18n__chevron md-icon"> <svg xmlns=http://www.w3.org/2000/svg fill=none stroke=currentColor stroke-linecap=round stroke-linejoin=round stroke-width=2 class="lucide lucide-chevron-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg> </span> </button> <div class="md-select__inner md-i18n__inner"> <ul class="md-select__list md-i18n__list"> <li class=md-select__item> <a href=../../../../../2027.1/classes/databases/partitioning/ hreflang=en lang=en class="md-select__link md-i18n__link" target=_self data-md-i18n-locale=en data-md-i18n-root=../> <span class=md-i18n__name>🇺🇸 English</span> <span class=md-i18n__locale>en</span> <span class="md-i18n__check md-icon"> <svg xmlns=http://www.w3.org/2000/svg fill=none stroke=currentColor stroke-linecap=round stroke-linejoin=round stroke-width=2 class="lucide lucide-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg> </span> </a> </li> <li class=md-select__item> <a href=././ hreflang=pt class="md-select__link md-i18n__link" target=_self data-md-i18n-locale=pt data-md-i18n-root=./ aria-current=true> <span class=md-i18n__name>🇧🇷 Português</span> <span class=md-i18n__locale>pt</span> <span class="md-i18n__check md-icon"> <svg xmlns=http://www.w3.org/2000/svg fill=none stroke=currentColor stroke-linecap=round stroke-linejoin=round stroke-width=2 class="lucide lucide-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg> </span> </a> </li> </ul> </div> </div> <style>
+  .md-i18n .md-i18n__button:not([hidden]) {
+    display: inline-flex;
+    gap: .3rem;
+    align-items: center;
+    padding-inline: .5rem .4rem;
+    border-radius: 1rem;
+    transition: background-color .25s, opacity .25s;
+  }
+  .md-i18n__button:hover,
+  .md-i18n .md-select:focus-within .md-i18n__button {
+    background-color: color-mix(in srgb, currentcolor 8%, transparent);
+  }
+  .md-i18n__code {
+    font-size: .6rem;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+  .md-i18n .md-i18n__chevron svg {
+    width: .7rem;
+    height: .7rem;
+    opacity: .7;
+    transition: transform .25s cubic-bezier(.1, .7, .1, 1);
+  }
+  .md-i18n .md-select:hover .md-i18n__chevron svg,
+  .md-i18n .md-select:focus-within .md-i18n__chevron svg {
+    transform: rotate(180deg);
+  }
+  .md-i18n__inner {
+    min-width: 11rem;
+  }
+  .md-i18n__list {
+    padding: .3rem;
+  }
+  .md-i18n .md-i18n__link {
+    display: flex;
+    gap: .6rem;
+    align-items: center;
+    padding: .2rem .5rem;
+    border-radius: .3rem;
+    line-height: 1.6rem;
+  }
+  .md-i18n .md-i18n__link:is(:hover, :focus) {
+    background-color: var(--md-default-fg-color--lightest);
+  }
+  .md-i18n__name {
+    flex-grow: 1;
+    font-size: .7rem;
+    white-space: nowrap;
+  }
+  .md-i18n__locale {
+    font-size: .55rem;
+    font-weight: 700;
+    color: var(--md-default-fg-color--light);
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+  .md-i18n .md-i18n__check svg {
+    width: .8rem;
+    height: .8rem;
+    color: var(--md-accent-fg-color);
+    visibility: hidden;
+  }
+  .md-i18n__link[aria-current] .md-i18n__name {
+    font-weight: 700;
+  }
+  .md-i18n__link[aria-current] .md-i18n__check svg {
+    visibility: visible;
+  }
+  .md-i18n__link[data-md-i18n-missing] .md-i18n__name {
+    color: var(--md-default-fg-color--light);
+  }
+  .md-typeset .md-i18n-notice {
+    display: flex;
+    gap: .6rem;
+    align-items: flex-start;
+    padding: .6rem .8rem;
+    margin: 0 0 1.5em;
+    font-size: .7rem;
+    color: var(--md-default-fg-color--light);
+    background-color: color-mix(in srgb, var(--md-accent-fg-color) 6%, transparent);
+    border: .05rem solid color-mix(in srgb, var(--md-accent-fg-color) 25%, transparent);
+    border-radius: .4rem;
+  }
+  .md-typeset .md-i18n-notice p {
+    margin: 0;
+  }
+  .md-i18n-notice .md-icon svg {
+    width: 1rem;
+    height: 1rem;
+    margin-top: .1rem;
+    color: var(--md-accent-fg-color);
+  }
+  @media screen and (max-width: 59.984375em) {
+    [dir=rtl] .md-i18n .md-select__inner {
+      left: 0;
+      transform: translate3d(0, .3rem, 0);
+    }
+    [dir=rtl] .md-i18n .md-select:is(:hover, :focus-within) .md-select__inner {
+      transform: translate3d(0, 0, 0);
+    }
+    [dir=rtl] .md-i18n .md-select__inner::after {
+      right: auto;
+      left: 1rem;
+    }
+  }
+  @media print {
+    .md-typeset .md-i18n-notice {
+      display: none;
+    }
+  }
+</style> <script>
+  (function () {
+    var root = document.currentScript.parentElement
+    var base = new URL(root.dataset.mdI18nBase, location.href)
+    var links = root.querySelectorAll("[data-md-i18n-locale]")
+    var pages = null
+
+    /* Decode a path segment by segment, so encoded slashes and hashes are
+       compared correctly with the paths in the manifest */
+    function decode(path) {
+      return path.split("/").map(function (segment) {
+        try {
+          return decodeURIComponent(segment)
+        } catch (err) {
+          return segment
+        }
+      }).join("/")
+    }
+
+    /* Compute encoded path of current page, relative to the language root */
+    function current() {
+      var path = location.pathname
+      return path.startsWith(base.pathname)
+        ? path.slice(base.pathname.length)
+        : ""
+    }
+
+    /* Link languages to the current page, or their home pages */
+    function update() {
+      if (!pages) return
+      var path = current()
+      var page = decode(path)
+
+      /* Index pages are listed as folders or index.html, depending on the
+         use_directory_urls setting, while either form can be visited */
+      var alias = /(^|\/)$/.test(page)
+        ? page + "index.html"
+        : page.replace(/index\.html$/, "")
+      links.forEach(function (link) {
+        var locale = link.dataset.mdI18nLocale
+        var home = new URL(link.dataset.mdI18nRoot, base)
+
+        /* Leave links to other sites and other protocols untouched */
+        if (home.origin !== base.origin || !/^https?:$/.test(home.protocol))
+          return
+
+        /* Link to the current page, if the language has it */
+        var known = Object.hasOwn(pages, locale) ? pages[locale] : []
+        var exists = known.includes(page) || known.includes(alias)
+        link.href = exists
+          ? new URL(path, home).href + location.hash
+          : home.href
+        link.toggleAttribute("data-md-i18n-missing", !exists)
+      })
+    }
+
+    /* Load manifest, and update links on interaction */
+    fetch(root.dataset.mdI18nManifest)
+      .then(function (res) { return res.ok ? res.json() : {} })
+      .then(function (data) {
+        pages = data.pages && typeof data.pages === "object" ? data.pages : null
+        update()
+      })
+      .catch(function () {})
+    root.addEventListener("pointerenter", update)
+    root.addEventListener("focusin", update)
+
+    /* Update links on instant navigation, once the theme is loaded */
+    function observe() {
+      if (window.document$)
+        window.document$.subscribe(update)
+    }
+    if (document.readyState === "loading")
+      document.addEventListener("DOMContentLoaded", observe)
+    else
+      observe()
+
+    /* Close selector on escape */
+    root.addEventListener("keydown", function (ev) {
+      if (ev.key === "Escape" && root.contains(document.activeElement))
+        document.activeElement.blur()
+    })
+  })()
+</script> </div> <label class="md-header__button md-icon" for=__search aria-label=Pesquisar> <svg xmlns=http://www.w3.org/2000/svg fill=none stroke=currentColor stroke-linecap=round stroke-linejoin=round stroke-width=2 class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx=11 cy=11 r=8 /></svg> </label> <div class=md-search data-md-component=search role=dialog aria-label=Pesquisar> <button type=button class=md-search__button> Pesquisar </button> </div> <div class=md-header__source> <a href=https://github.com/insper/platform title="Ir para repositório" class=md-source data-md-component=source> <div class="md-source__icon md-icon"> <svg xmlns=http://www.w3.org/2000/svg viewBox="0 0 448 512"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill=currentColor d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg> </div> <div class=md-source__repository> insper/platform </div> </a> </div> </nav> </header> <div class=md-container data-md-component=container> <main class=md-main data-md-component=main> <div class="md-main__inner md-grid"> <div class="md-sidebar md-sidebar--primary" data-md-component=sidebar data-md-type=navigation> <div class=md-sidebar__scrollwrap> <div class=md-sidebar__inner> <nav class="md-nav md-nav--primary" aria-label=Navegação data-md-level=0> <label class=md-nav__title for=__drawer> <a href=../../../.. title="Plataformas, Microsserviços, DevOps e APIs" class="md-nav__button md-logo" aria-label="Plataformas, Microsserviços, DevOps e APIs" data-md-component=logo> <img src=../../../../assets/images/logo.png alt="Plataformas, Microsserviços, DevOps e APIs"> </a> Plataformas, Microsserviços, DevOps e APIs </label> <div class=md-nav__source> <a href=https://github.com/insper/platform title="Ir para repositório" class=md-source data-md-component=source> <div class="md-source__icon md-icon"> <svg xmlns=http://www.w3.org/2000/svg viewBox="0 0 448 512"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill=currentColor d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg> </div> <div class=md-source__repository> insper/platform </div> </a> </div> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../.. class=md-nav__link> <span class=md-ellipsis> Visão geral </span> </a> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2> <label class=md-nav__link for=__nav_2 id=__nav_2_label tabindex=0> <span class=md-ellipsis> 2026.2 </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=1 aria-labelledby=__nav_2_label aria-expanded=false> <label class=md-nav__title for=__nav_2> <span class="md-nav__icon md-icon"></span> 2026.2 </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/ class=md-nav__link> <span class=md-ellipsis> Visão geral </span> </a> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_2> <label class=md-nav__link for=__nav_2_2 id=__nav_2_2_label tabindex=0> <span class=md-ellipsis> Aulas </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=2 aria-labelledby=__nav_2_2_label aria-expanded=false> <label class=md-nav__title for=__nav_2_2> <span class="md-nav__icon md-icon"></span> Aulas </label> <ul class=md-nav__list data-md-scrollfix> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_2_1> <label class=md-nav__link for=__nav_2_2_1 id=__nav_2_2_1_label tabindex=0> <span class=md-ellipsis> 1. Sistemas Distribuídos </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_2_2_1_label aria-expanded=false> <label class=md-nav__title for=__nav_2_2_1> <span class="md-nav__icon md-icon"></span> 1. Sistemas Distribuídos </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/classes/distributed_systems/ class=md-nav__link> <span class=md-ellipsis> Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/distributed_systems/cap/ class=md-nav__link> <span class=md-ellipsis> Teorema CAP </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/distributed_systems/consensus/ class=md-nav__link> <span class=md-ellipsis> Consenso &amp; Algoritmos </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/distributed_systems/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_2_2> <label class=md-nav__link for=__nav_2_2_2 id=__nav_2_2_2_label tabindex=0> <span class=md-ellipsis> 2. Containerização </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_2_2_2_label aria-expanded=false> <label class=md-nav__title for=__nav_2_2_2> <span class="md-nav__icon md-icon"></span> 2. Containerização </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/classes/containerization/ class=md-nav__link> <span class=md-ellipsis> Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/containerization/docker/ class=md-nav__link> <span class=md-ellipsis> Docker </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/containerization/compose/ class=md-nav__link> <span class=md-ellipsis> Docker Compose </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/containerization/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_2_3> <label class=md-nav__link for=__nav_2_2_3 id=__nav_2_2_3_label tabindex=0> <span class=md-ellipsis> 3. API </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_2_2_3_label aria-expanded=false> <label class=md-nav__title for=__nav_2_2_3> <span class="md-nav__icon md-icon"></span> 3. API </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/classes/api/ class=md-nav__link> <span class=md-ellipsis> Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/api/rest/ class=md-nav__link> <span class=md-ellipsis> Design de APIs REST </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/api/swagger/ class=md-nav__link> <span class=md-ellipsis> OpenAPI &amp; Swagger </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/api/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_2_4> <label class=md-nav__link for=__nav_2_2_4 id=__nav_2_2_4_label tabindex=0> <span class=md-ellipsis> 4. Microsserviços </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_2_2_4_label aria-expanded=false> <label class=md-nav__title for=__nav_2_2_4> <span class="md-nav__icon md-icon"></span> 4. Microsserviços </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/classes/microservices/ class=md-nav__link> <span class=md-ellipsis> Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/microservices/ddd/ class=md-nav__link> <span class=md-ellipsis> Domain-Driven Design </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/microservices/architecture/ class=md-nav__link> <span class=md-ellipsis> Arquitetura &amp; Componentes </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/microservices/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_2_5> <label class=md-nav__link for=__nav_2_2_5 id=__nav_2_2_5_label tabindex=0> <span class=md-ellipsis> 5. Segurança — OAuth2 &amp; Zero Trust </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_2_2_5_label aria-expanded=false> <label class=md-nav__title for=__nav_2_2_5> <span class="md-nav__icon md-icon"></span> 5. Segurança — OAuth2 &amp; Zero Trust </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/classes/security/ class=md-nav__link> <span class=md-ellipsis> Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/security/oauth/ class=md-nav__link> <span class=md-ellipsis> OAuth 2.0 &amp; OpenID Connect </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/security/zero-trust/ class=md-nav__link> <span class=md-ellipsis> Zero Trust, mTLS &amp; Segredos </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/security/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_2_6> <label class=md-nav__link for=__nav_2_2_6 id=__nav_2_2_6_label tabindex=0> <span class=md-ellipsis> 6. Arquiteturas </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_2_2_6_label aria-expanded=false> <label class=md-nav__title for=__nav_2_2_6> <span class="md-nav__icon md-icon"></span> 6. Arquiteturas </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/classes/architectures/ class=md-nav__link> <span class=md-ellipsis> Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/architectures/solid/ class=md-nav__link> <span class=md-ellipsis> Princípios SOLID </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/architectures/clean/ class=md-nav__link> <span class=md-ellipsis> Arquitetura Limpa </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/architectures/hexagonal/ class=md-nav__link> <span class=md-ellipsis> Arquitetura Hexagonal </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/architectures/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_2_7> <label class=md-nav__link for=__nav_2_2_7 id=__nav_2_2_7_label tabindex=0> <span class=md-ellipsis> 7. Arquitetura Orientada a Eventos </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_2_2_7_label aria-expanded=false> <label class=md-nav__title for=__nav_2_2_7> <span class="md-nav__icon md-icon"></span> 7. Arquitetura Orientada a Eventos </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/classes/event_driven/ class=md-nav__link> <span class=md-ellipsis> Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/event_driven/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_2_8> <label class=md-nav__link for=__nav_2_2_8 id=__nav_2_2_8_label tabindex=0> <span class=md-ellipsis> 8. Confiabilidade </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_2_2_8_label aria-expanded=false> <label class=md-nav__title for=__nav_2_2_8> <span class="md-nav__icon md-icon"></span> 8. Confiabilidade </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/classes/reliability/ class=md-nav__link> <span class=md-ellipsis> Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/reliability/sli-slo-sla/ class=md-nav__link> <span class=md-ellipsis> SLI / SLO / SLA </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/reliability/patterns/ class=md-nav__link> <span class=md-ellipsis> Padrões de Resiliência </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/reliability/chaos/ class=md-nav__link> <span class=md-ellipsis> Engenharia do Caos </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/reliability/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_2_9> <label class=md-nav__link for=__nav_2_2_9 id=__nav_2_2_9_label tabindex=0> <span class=md-ellipsis> 9. Observabilidade </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_2_2_9_label aria-expanded=false> <label class=md-nav__title for=__nav_2_2_9> <span class="md-nav__icon md-icon"></span> 9. Observabilidade </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/classes/observability/ class=md-nav__link> <span class=md-ellipsis> Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/observability/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_2_10> <label class=md-nav__link for=__nav_2_2_10 id=__nav_2_2_10_label tabindex=0> <span class=md-ellipsis> 10. Modelos de Serviço </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_2_2_10_label aria-expanded=false> <label class=md-nav__title for=__nav_2_2_10> <span class="md-nav__icon md-icon"></span> 10. Modelos de Serviço </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/classes/service_models/ class=md-nav__link> <span class=md-ellipsis> Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/service_models/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_2_11> <label class=md-nav__link for=__nav_2_2_11 id=__nav_2_2_11_label tabindex=0> <span class=md-ellipsis> 11. Roteiro de Implantação na Nuvem </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_2_2_11_label aria-expanded=false> <label class=md-nav__title for=__nav_2_2_11> <span class="md-nav__icon md-icon"></span> 11. Roteiro de Implantação na Nuvem </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/classes/deployment/ class=md-nav__link> <span class=md-ellipsis> Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/deployment/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_3> <label class=md-nav__link for=__nav_2_3 id=__nav_2_3_label tabindex=0> <span class=md-ellipsis> Hands-on </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=2 aria-labelledby=__nav_2_3_label aria-expanded=false> <label class=md-nav__title for=__nav_2_3> <span class="md-nav__icon md-icon"></span> Hands-on </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/0/ class=md-nav__link> <span class=md-ellipsis> 0. Pré-requisitos </span> </a> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_3_2> <label class=md-nav__link for=__nav_2_3_2 id=__nav_2_3_2_label tabindex=0> <span class=md-ellipsis> 1. CRUD </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_2_3_2_label aria-expanded=false> <label class=md-nav__title for=__nav_2_3_2> <span class="md-nav__icon md-icon"></span> 1. CRUD </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/1/ class=md-nav__link> <span class=md-ellipsis> a. Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/1/controller/ class=md-nav__link> <span class=md-ellipsis> b. Controller </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/1/service/ class=md-nav__link> <span class=md-ellipsis> c. Service </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/1/containerization/ class=md-nav__link> <span class=md-ellipsis> d. Containerização </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/1/repository/ class=md-nav__link> <span class=md-ellipsis> e. Repository </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/1/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_3_3> <label class=md-nav__link for=__nav_2_3_3 id=__nav_2_3_3_label tabindex=0> <span class=md-ellipsis> 2. Gateway </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_2_3_3_label aria-expanded=false> <label class=md-nav__title for=__nav_2_3_3> <span class="md-nav__icon md-icon"></span> 2. Gateway </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/2/ class=md-nav__link> <span class=md-ellipsis> a. Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/2/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_3_4> <label class=md-nav__link for=__nav_2_3_4 id=__nav_2_3_4_label tabindex=0> <span class=md-ellipsis> 3. Segurança </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_2_3_4_label aria-expanded=false> <label class=md-nav__title for=__nav_2_3_4> <span class="md-nav__icon md-icon"></span> 3. Segurança </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/3/ class=md-nav__link> <span class=md-ellipsis> a. Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/3/jwt/ class=md-nav__link> <span class=md-ellipsis> b. JWT </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/3/open-routes/ class=md-nav__link> <span class=md-ellipsis> c. Rotas Abertas </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/3/authorization/ class=md-nav__link> <span class=md-ellipsis> d. Autorização </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/3/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_3_5> <label class=md-nav__link for=__nav_2_3_5 id=__nav_2_3_5_label tabindex=0> <span class=md-ellipsis> 4. DevOps </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_2_3_5_label aria-expanded=false> <label class=md-nav__title for=__nav_2_3_5> <span class="md-nav__icon md-icon"></span> 4. DevOps </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/4/ class=md-nav__link> <span class=md-ellipsis> a. Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/4/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_3_6> <label class=md-nav__link for=__nav_2_3_6 id=__nav_2_3_6_label tabindex=0> <span class=md-ellipsis> 5. Orquestração </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_2_3_6_label aria-expanded=false> <label class=md-nav__title for=__nav_2_3_6> <span class="md-nav__icon md-icon"></span> 5. Orquestração </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/5/ class=md-nav__link> <span class=md-ellipsis> a. Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/5/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_3_7> <label class=md-nav__link for=__nav_2_3_7 id=__nav_2_3_7_label tabindex=0> <span class=md-ellipsis> 6. Observabilidade </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_2_3_7_label aria-expanded=false> <label class=md-nav__title for=__nav_2_3_7> <span class="md-nav__icon md-icon"></span> 6. Observabilidade </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/6/ class=md-nav__link> <span class=md-ellipsis> a. Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/6/microservices/ class=md-nav__link> <span class=md-ellipsis> b. Microsserviços </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/6/docker/ class=md-nav__link> <span class=md-ellipsis> c. Docker Compose </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/6/prometheus/ class=md-nav__link> <span class=md-ellipsis> d. Prometheus </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/6/grafana/ class=md-nav__link> <span class=md-ellipsis> e. Grafana </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/6/run/ class=md-nav__link> <span class=md-ellipsis> f. Execução </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/6/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_3_8> <label class=md-nav__link for=__nav_2_3_8 id=__nav_2_3_8_label tabindex=0> <span class=md-ellipsis> 7. Balanceador de Carga </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_2_3_8_label aria-expanded=false> <label class=md-nav__title for=__nav_2_3_8> <span class="md-nav__icon md-icon"></span> 7. Balanceador de Carga </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/7/ class=md-nav__link> <span class=md-ellipsis> a. Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/7/nginx/ class=md-nav__link> <span class=md-ellipsis> b. Nginx </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/7/docker/ class=md-nav__link> <span class=md-ellipsis> c. Docker Compose </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/7/run/ class=md-nav__link> <span class=md-ellipsis> d. Execução </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/7/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_3_9> <label class=md-nav__link for=__nav_2_3_9 id=__nav_2_3_9_label tabindex=0> <span class=md-ellipsis> 8. Cache em Memória </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_2_3_9_label aria-expanded=false> <label class=md-nav__title for=__nav_2_3_9> <span class="md-nav__icon md-icon"></span> 8. Cache em Memória </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/8/ class=md-nav__link> <span class=md-ellipsis> a. Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/8/docker/ class=md-nav__link> <span class=md-ellipsis> b. Docker Compose </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/8/spring/ class=md-nav__link> <span class=md-ellipsis> c. Spring Boot </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/8/run/ class=md-nav__link> <span class=md-ellipsis> d. Execução </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/8/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_3_10> <label class=md-nav__link for=__nav_2_3_10 id=__nav_2_3_10_label tabindex=0> <span class=md-ellipsis> 9. Mensageria com Kafka </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_2_3_10_label aria-expanded=false> <label class=md-nav__title for=__nav_2_3_10> <span class="md-nav__icon md-icon"></span> 9. Mensageria com Kafka </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/9/ class=md-nav__link> <span class=md-ellipsis> a. Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/9/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_3_11> <label class=md-nav__link for=__nav_2_3_11 id=__nav_2_3_11_label tabindex=0> <span class=md-ellipsis> 10. Rastreamento Distribuído </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_2_3_11_label aria-expanded=false> <label class=md-nav__title for=__nav_2_3_11> <span class="md-nav__icon md-icon"></span> 10. Rastreamento Distribuído </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/10/ class=md-nav__link> <span class=md-ellipsis> a. Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/10/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_3_12> <label class=md-nav__link for=__nav_2_3_12 id=__nav_2_3_12_label tabindex=0> <span class=md-ellipsis> 11. IA no CI/CD </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_2_3_12_label aria-expanded=false> <label class=md-nav__title for=__nav_2_3_12> <span class="md-nav__icon md-icon"></span> 11. IA no CI/CD </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/11/ class=md-nav__link> <span class=md-ellipsis> a. Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/11/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_4> <label class=md-nav__link for=__nav_2_4 id=__nav_2_4_label tabindex=0> <span class=md-ellipsis> Exercícios </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=2 aria-labelledby=__nav_2_4_label aria-expanded=false> <label class=md-nav__title for=__nav_2_4> <span class="md-nav__icon md-icon"></span> Exercícios </label> <ul class=md-nav__list data-md-scrollfix> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_4_1> <label class=md-nav__link for=__nav_2_4_1 id=__nav_2_4_1_label tabindex=0> <span class=md-ellipsis> Projeto </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_2_4_1_label aria-expanded=false> <label class=md-nav__title for=__nav_2_4_1> <span class="md-nav__icon md-icon"></span> Projeto </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/exercises/project/ class=md-nav__link> <span class=md-ellipsis> Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/exercises/project/aws/ class=md-nav__link> <span class=md-ellipsis> AWS </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/exercises/project/eks/ class=md-nav__link> <span class=md-ellipsis> EKS </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/exercises/project/ci-cd/ class=md-nav__link> <span class=md-ellipsis> CI/CD </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/exercises/project/load-testing/ class=md-nav__link> <span class=md-ellipsis> Teste de Carga </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/exercises/project/costs/ class=md-nav__link> <span class=md-ellipsis> Custos &amp; PaaS </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/exercises/project/presentation/ class=md-nav__link> <span class=md-ellipsis> Apresentação </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_4_2> <label class=md-nav__link for=__nav_2_4_2 id=__nav_2_4_2_label tabindex=0> <span class=md-ellipsis> Individuais </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_2_4_2_label aria-expanded=false> <label class=md-nav__title for=__nav_2_4_2> <span class="md-nav__icon md-icon"></span> Individuais </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/exercises/product/ class=md-nav__link> <span class=md-ellipsis> API de Produtos </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/exercises/order/ class=md-nav__link> <span class=md-ellipsis> API de Pedidos </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/exercises/exchange/ class=md-nav__link> <span class=md-ellipsis> API de Câmbio </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/exercises/jenkins/ class=md-nav__link> <span class=md-ellipsis> Jenkins </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/exercises/minikube/ class=md-nav__link> <span class=md-ellipsis> MiniKube </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/exercises/bottlenecks/ class=md-nav__link> <span class=md-ellipsis> Gargalos </span> </a> </li> </ul> </nav> </li> </ul> </nav> </li> <li class=md-nav__item> <a href=../../../../2026.2/interview/ class=md-nav__link> <span class=md-ellipsis> Material para Entrevistas </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3> <label class=md-nav__link for=__nav_3 id=__nav_3_label tabindex=0> <span class=md-ellipsis> 2026.1 </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=1 aria-labelledby=__nav_3_label aria-expanded=false> <label class=md-nav__title for=__nav_3> <span class="md-nav__icon md-icon"></span> 2026.1 </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/ class=md-nav__link> <span class=md-ellipsis> Visão geral </span> </a> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_2> <label class=md-nav__link for=__nav_3_2 id=__nav_3_2_label tabindex=0> <span class=md-ellipsis> Aulas </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=2 aria-labelledby=__nav_3_2_label aria-expanded=false> <label class=md-nav__title for=__nav_3_2> <span class="md-nav__icon md-icon"></span> Aulas </label> <ul class=md-nav__list data-md-scrollfix> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_2_1> <label class=md-nav__link for=__nav_3_2_1 id=__nav_3_2_1_label tabindex=0> <span class=md-ellipsis> 1. Sistemas Distribuídos </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_2_1_label aria-expanded=false> <label class=md-nav__title for=__nav_3_2_1> <span class="md-nav__icon md-icon"></span> 1. Sistemas Distribuídos </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/classes/distributed_systems/ class=md-nav__link> <span class=md-ellipsis> Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/distributed_systems/cap/ class=md-nav__link> <span class=md-ellipsis> Teorema CAP </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/distributed_systems/consensus/ class=md-nav__link> <span class=md-ellipsis> Consenso &amp; Algoritmos </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/distributed_systems/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_2_2> <label class=md-nav__link for=__nav_3_2_2 id=__nav_3_2_2_label tabindex=0> <span class=md-ellipsis> 2. Containerização </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_2_2_label aria-expanded=false> <label class=md-nav__title for=__nav_3_2_2> <span class="md-nav__icon md-icon"></span> 2. Containerização </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/classes/containerization/ class=md-nav__link> <span class=md-ellipsis> Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/containerization/docker/ class=md-nav__link> <span class=md-ellipsis> Docker </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/containerization/compose/ class=md-nav__link> <span class=md-ellipsis> Docker Compose </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/containerization/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_2_3> <label class=md-nav__link for=__nav_3_2_3 id=__nav_3_2_3_label tabindex=0> <span class=md-ellipsis> 3. Microsserviços </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_2_3_label aria-expanded=false> <label class=md-nav__title for=__nav_3_2_3> <span class="md-nav__icon md-icon"></span> 3. Microsserviços </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/classes/microservices/ class=md-nav__link> <span class=md-ellipsis> Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/microservices/ddd/ class=md-nav__link> <span class=md-ellipsis> Domain-Driven Design </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/microservices/architecture/ class=md-nav__link> <span class=md-ellipsis> Arquitetura &amp; Componentes </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/microservices/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_2_4> <label class=md-nav__link for=__nav_3_2_4 id=__nav_3_2_4_label tabindex=0> <span class=md-ellipsis> 4. Arquiteturas </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_2_4_label aria-expanded=false> <label class=md-nav__title for=__nav_3_2_4> <span class="md-nav__icon md-icon"></span> 4. Arquiteturas </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/classes/architectures/ class=md-nav__link> <span class=md-ellipsis> Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/architectures/solid/ class=md-nav__link> <span class=md-ellipsis> Princípios SOLID </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/architectures/clean/ class=md-nav__link> <span class=md-ellipsis> Arquitetura Limpa </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/architectures/hexagonal/ class=md-nav__link> <span class=md-ellipsis> Arquitetura Hexagonal </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/architectures/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_2_5> <label class=md-nav__link for=__nav_3_2_5 id=__nav_3_2_5_label tabindex=0> <span class=md-ellipsis> 5. API </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_2_5_label aria-expanded=false> <label class=md-nav__title for=__nav_3_2_5> <span class="md-nav__icon md-icon"></span> 5. API </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/classes/api/ class=md-nav__link> <span class=md-ellipsis> Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/api/rest/ class=md-nav__link> <span class=md-ellipsis> Design de APIs REST </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/api/swagger/ class=md-nav__link> <span class=md-ellipsis> OpenAPI &amp; Swagger </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/api/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_2_6> <label class=md-nav__link for=__nav_3_2_6 id=__nav_3_2_6_label tabindex=0> <span class=md-ellipsis> 6. Modelos de Serviço </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_2_6_label aria-expanded=false> <label class=md-nav__title for=__nav_3_2_6> <span class="md-nav__icon md-icon"></span> 6. Modelos de Serviço </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/classes/service_models/ class=md-nav__link> <span class=md-ellipsis> Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/service_models/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_2_7> <label class=md-nav__link for=__nav_3_2_7 id=__nav_3_2_7_label tabindex=0> <span class=md-ellipsis> 7. Confiabilidade </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_2_7_label aria-expanded=false> <label class=md-nav__title for=__nav_3_2_7> <span class="md-nav__icon md-icon"></span> 7. Confiabilidade </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/classes/reliability/ class=md-nav__link> <span class=md-ellipsis> Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/reliability/sli-slo-sla/ class=md-nav__link> <span class=md-ellipsis> SLI / SLO / SLA </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/reliability/patterns/ class=md-nav__link> <span class=md-ellipsis> Padrões de Resiliência </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/reliability/chaos/ class=md-nav__link> <span class=md-ellipsis> Engenharia do Caos </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/reliability/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_3> <label class=md-nav__link for=__nav_3_3 id=__nav_3_3_label tabindex=0> <span class=md-ellipsis> Hands-on </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=2 aria-labelledby=__nav_3_3_label aria-expanded=false> <label class=md-nav__title for=__nav_3_3> <span class="md-nav__icon md-icon"></span> Hands-on </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/0/ class=md-nav__link> <span class=md-ellipsis> 0. Pré-requisitos </span> </a> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_3_2> <label class=md-nav__link for=__nav_3_3_2 id=__nav_3_3_2_label tabindex=0> <span class=md-ellipsis> 1. CRUD </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_3_2_label aria-expanded=false> <label class=md-nav__title for=__nav_3_3_2> <span class="md-nav__icon md-icon"></span> 1. CRUD </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/1/ class=md-nav__link> <span class=md-ellipsis> a. Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/1/controller/ class=md-nav__link> <span class=md-ellipsis> b. Controller </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/1/service/ class=md-nav__link> <span class=md-ellipsis> c. Service </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/1/containerization/ class=md-nav__link> <span class=md-ellipsis> d. Containerização </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/1/repository/ class=md-nav__link> <span class=md-ellipsis> e. Repository </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/1/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_3_3> <label class=md-nav__link for=__nav_3_3_3 id=__nav_3_3_3_label tabindex=0> <span class=md-ellipsis> 2. Gateway </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_3_3_label aria-expanded=false> <label class=md-nav__title for=__nav_3_3_3> <span class="md-nav__icon md-icon"></span> 2. Gateway </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/2/ class=md-nav__link> <span class=md-ellipsis> a. Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/2/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_3_4> <label class=md-nav__link for=__nav_3_3_4 id=__nav_3_3_4_label tabindex=0> <span class=md-ellipsis> 3. Segurança </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_3_4_label aria-expanded=false> <label class=md-nav__title for=__nav_3_3_4> <span class="md-nav__icon md-icon"></span> 3. Segurança </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/3/ class=md-nav__link> <span class=md-ellipsis> a. Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/3/jwt/ class=md-nav__link> <span class=md-ellipsis> b. JWT </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/3/open-routes/ class=md-nav__link> <span class=md-ellipsis> c. Rotas Abertas </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/3/authorization/ class=md-nav__link> <span class=md-ellipsis> d. Autorização </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/3/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_3_5> <label class=md-nav__link for=__nav_3_3_5 id=__nav_3_3_5_label tabindex=0> <span class=md-ellipsis> 4. DevOps </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_3_5_label aria-expanded=false> <label class=md-nav__title for=__nav_3_3_5> <span class="md-nav__icon md-icon"></span> 4. DevOps </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/4/ class=md-nav__link> <span class=md-ellipsis> a. Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/4/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_3_6> <label class=md-nav__link for=__nav_3_3_6 id=__nav_3_3_6_label tabindex=0> <span class=md-ellipsis> 5. Orquestração </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_3_6_label aria-expanded=false> <label class=md-nav__title for=__nav_3_3_6> <span class="md-nav__icon md-icon"></span> 5. Orquestração </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/5/ class=md-nav__link> <span class=md-ellipsis> a. Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/5/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_3_7> <label class=md-nav__link for=__nav_3_3_7 id=__nav_3_3_7_label tabindex=0> <span class=md-ellipsis> 6. Observabilidade </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_3_7_label aria-expanded=false> <label class=md-nav__title for=__nav_3_3_7> <span class="md-nav__icon md-icon"></span> 6. Observabilidade </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/6/ class=md-nav__link> <span class=md-ellipsis> a. Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/6/microservices/ class=md-nav__link> <span class=md-ellipsis> b. Microsserviços </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/6/docker/ class=md-nav__link> <span class=md-ellipsis> c. Docker Compose </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/6/prometheus/ class=md-nav__link> <span class=md-ellipsis> d. Prometheus </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/6/grafana/ class=md-nav__link> <span class=md-ellipsis> e. Grafana </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/6/run/ class=md-nav__link> <span class=md-ellipsis> f. Execução </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/6/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_3_8> <label class=md-nav__link for=__nav_3_3_8 id=__nav_3_3_8_label tabindex=0> <span class=md-ellipsis> 7. Balanceador de Carga </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_3_8_label aria-expanded=false> <label class=md-nav__title for=__nav_3_3_8> <span class="md-nav__icon md-icon"></span> 7. Balanceador de Carga </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/7/ class=md-nav__link> <span class=md-ellipsis> a. Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/7/nginx/ class=md-nav__link> <span class=md-ellipsis> b. Nginx </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/7/docker/ class=md-nav__link> <span class=md-ellipsis> c. Docker Compose </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/7/run/ class=md-nav__link> <span class=md-ellipsis> d. Execução </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/7/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_3_9> <label class=md-nav__link for=__nav_3_3_9 id=__nav_3_3_9_label tabindex=0> <span class=md-ellipsis> 8. Cache em Memória </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_3_9_label aria-expanded=false> <label class=md-nav__title for=__nav_3_3_9> <span class="md-nav__icon md-icon"></span> 8. Cache em Memória </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/8/ class=md-nav__link> <span class=md-ellipsis> a. Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/8/docker/ class=md-nav__link> <span class=md-ellipsis> b. Docker Compose </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/8/spring/ class=md-nav__link> <span class=md-ellipsis> c. Spring Boot </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/8/run/ class=md-nav__link> <span class=md-ellipsis> d. Execução </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/8/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_4> <label class=md-nav__link for=__nav_3_4 id=__nav_3_4_label tabindex=0> <span class=md-ellipsis> Exercícios </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=2 aria-labelledby=__nav_3_4_label aria-expanded=false> <label class=md-nav__title for=__nav_3_4> <span class="md-nav__icon md-icon"></span> Exercícios </label> <ul class=md-nav__list data-md-scrollfix> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_4_1> <label class=md-nav__link for=__nav_3_4_1 id=__nav_3_4_1_label tabindex=0> <span class=md-ellipsis> Projeto </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_4_1_label aria-expanded=false> <label class=md-nav__title for=__nav_3_4_1> <span class="md-nav__icon md-icon"></span> Projeto </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/exercises/project/ class=md-nav__link> <span class=md-ellipsis> Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/exercises/project/aws/ class=md-nav__link> <span class=md-ellipsis> AWS </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/exercises/project/eks/ class=md-nav__link> <span class=md-ellipsis> EKS </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/exercises/project/ci-cd/ class=md-nav__link> <span class=md-ellipsis> CI/CD </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/exercises/project/load-testing/ class=md-nav__link> <span class=md-ellipsis> Teste de Carga </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/exercises/project/costs/ class=md-nav__link> <span class=md-ellipsis> Custos &amp; PaaS </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/exercises/project/presentation/ class=md-nav__link> <span class=md-ellipsis> Apresentação </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_4_2> <label class=md-nav__link for=__nav_3_4_2 id=__nav_3_4_2_label tabindex=0> <span class=md-ellipsis> Individuais </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_4_2_label aria-expanded=false> <label class=md-nav__title for=__nav_3_4_2> <span class="md-nav__icon md-icon"></span> Individuais </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/exercises/product/ class=md-nav__link> <span class=md-ellipsis> API de Produtos </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/exercises/order/ class=md-nav__link> <span class=md-ellipsis> API de Pedidos </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/exercises/exchange/ class=md-nav__link> <span class=md-ellipsis> API de Câmbio </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/exercises/jenkins/ class=md-nav__link> <span class=md-ellipsis> Jenkins </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/exercises/minikube/ class=md-nav__link> <span class=md-ellipsis> MiniKube </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/exercises/bottlenecks/ class=md-nav__link> <span class=md-ellipsis> Gargalos </span> </a> </li> </ul> </nav> </li> </ul> </nav> </li> </ul> </nav> </li> <li class=md-nav__item> <a href=../../../../2025.2/ class=md-nav__link> <span class=md-ellipsis> 2025.2 </span> </a> </li> <li class=md-nav__item> <a href=../../../../2025.1/ class=md-nav__link> <span class=md-ellipsis> 2025.1 </span> </a> </li> <li class=md-nav__item> <a href=../../../../2024.1/ class=md-nav__link> <span class=md-ellipsis> 2024.1 </span> </a> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_7> <label class=md-nav__link for=__nav_7 id=__nav_7_label tabindex=0> <span class=md-ellipsis> Apêndice </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=1 aria-labelledby=__nav_7_label aria-expanded=false> <label class=md-nav__title for=__nav_7> <span class="md-nav__icon md-icon"></span> Apêndice </label> <ul class=md-nav__list data-md-scrollfix> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_7_1> <label class=md-nav__link for=__nav_7_1 id=__nav_7_1_label tabindex=0> <span class=md-ellipsis> Redes </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=2 aria-labelledby=__nav_7_1_label aria-expanded=false> <label class=md-nav__title for=__nav_7_1> <span class="md-nav__icon md-icon"></span> Redes </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../appendix/network/ class=md-nav__link> <span class=md-ellipsis> Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../appendix/network/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class=md-nav__item> <a href=../../../../appendix/development-setup/ class=md-nav__link> <span class=md-ellipsis> Ambiente de Desenvolvimento </span> </a> </li> <li class=md-nav__item> <a href=../../../../appendix/git-submodules/ class=md-nav__link> <span class=md-ellipsis> Git Submodules </span> </a> </li> <li class=md-nav__item> <a href=../../../../appendix/rsa/ class=md-nav__link> <span class=md-ellipsis> Algoritmo RSA </span> </a> </li> <li class=md-nav__item> <a href=../../../../appendix/ohmyzsh/ class=md-nav__link> <span class=md-ellipsis> Oh My Zsh </span> </a> </li> <li class=md-nav__item> <a href=../../../../appendix/gitactions/ class=md-nav__link> <span class=md-ellipsis> Git Actions </span> </a> </li> <li class=md-nav__item> <a href=../../../../appendix/others/ class=md-nav__link> <span class=md-ellipsis> Outros </span> </a> </li> </ul> </nav> </li> <li class=md-nav__item> <a href=../../../../terms-and-conditions/ class=md-nav__link> <span class=md-ellipsis> Termos e Condições </span> </a> </li> <li class=md-nav__item> <a href=../../../../disclaimer/ class=md-nav__link> <span class=md-ellipsis> Aviso Legal </span> </a> </li> </ul> </nav> </div> </div> </div> <div class="md-sidebar md-sidebar--secondary" data-md-component=sidebar data-md-type=toc> <div class=md-sidebar__scrollwrap> <input class="md-nav__toggle md-toggle" type=checkbox id=__toc> <div class=md-sidebar-button__wrapper> <label class=md-sidebar-button for=__toc></label> </div> <div class=md-sidebar__inner> <nav class="md-nav md-nav--secondary" aria-label=Índice> <label class=md-nav__title for=__toc> <span class="md-nav__icon md-icon"></span> Índice </label> <ul class=md-nav__list data-md-component=toc data-md-scrollfix> <li class=md-nav__item> <a href=#particionamento-por-intervalo-de-chaves class=md-nav__link> <span class=md-ellipsis> <span class=md-typeset> Particionamento por intervalo de chaves </span> </span> </a> </li> <li class=md-nav__item> <a href=#particionamento-por-hash class=md-nav__link> <span class=md-ellipsis> <span class=md-typeset> Particionamento por hash </span> </span> </a> </li> <li class=md-nav__item> <a href=#consistent-hashing class=md-nav__link> <span class=md-ellipsis> <span class=md-typeset> Hashing consistente </span> </span> </a> <nav class=md-nav aria-label="Hashing consistente"> <ul class=md-nav__list> <li class=md-nav__item> <a href=#numero-fixo-de-particoes class=md-nav__link> <span class=md-ellipsis> <span class=md-typeset> Número fixo de partições </span> </span> </a> </li> </ul> </nav> </li> <li class=md-nav__item> <a href=#escolhendo-a-chave-de-particao class=md-nav__link> <span class=md-ellipsis> <span class=md-typeset> Escolhendo a chave de partição </span> </span> </a> </li> <li class=md-nav__item> <a href=#hot-partitions class=md-nav__link> <span class=md-ellipsis> <span class=md-typeset> Partições quentes </span> </span> </a> </li> <li class=md-nav__item> <a href=#indices-secundarios-em-dados-particionados class=md-nav__link> <span class=md-ellipsis> <span class=md-typeset> Índices secundários em dados particionados </span> </span> </a> </li> <li class=md-nav__item> <a href=#rebalanceamento-e-resharding class=md-nav__link> <span class=md-ellipsis> <span class=md-typeset> Rebalanceamento e resharding </span> </span> </a> <nav class=md-nav aria-label="Rebalanceamento e resharding"> <ul class=md-nav__list> <li class=md-nav__item> <a href=#roteamento-de-requisicoes class=md-nav__link> <span class=md-ellipsis> <span class=md-typeset> Roteamento de requisições </span> </span> </a> </li> </ul> </nav> </li> <li class=md-nav__item> <a href=#consultas-e-transacoes-entre-particoes class=md-nav__link> <span class=md-ellipsis> <span class=md-typeset> Consultas e transações entre partições </span> </span> </a> </li> <li class=md-nav__item> <a href=#newsql class=md-nav__link> <span class=md-ellipsis> <span class=md-typeset> NewSQL: bancos SQL distribuídos </span> </span> </a> </li> <li class=md-nav__item> <a href=#how-it-connects class=md-nav__link> <span class=md-ellipsis> <span class=md-typeset> Como se conecta </span> </span> </a> </li> </ul> </nav> </div> </div> </div> <div class=md-content data-md-component=content> <article class="md-content__inner md-typeset"> <a id=__skip tabindex=-1></a> <h1>Index</h1> <p>Três anos depois do lançamento, a BoxOffice vende em 30 países. As tabelas <code>orders</code> e <code>tickets</code> crescem centenas de milhões de linhas por ano, o disco do primário é medido em terabytes e a taxa de escrita durante as grandes aberturas de vendas chega perto do que uma máquina consegue absorver. As réplicas não ajudam mais: elas escalam leituras, e toda réplica continua tendo de aplicar <strong>todas</strong> as escritas. O próximo degrau da <a href=../#scaling-ladder>escada de escalabilidade</a> é dividir os próprios dados entre máquinas.</p> <p>O <strong>particionamento</strong> — também chamado de <strong>sharding</strong> — divide um conjunto de dados de forma que cada registro pertença a exatamente uma <strong>partição</strong> (shard), e partições diferentes vivam em nós diferentes. Cada nó cuida apenas da sua parte das leituras, das escritas e do armazenamento. Os nomes variam conforme o produto — <em>shard</em> no MongoDB e no Elasticsearch, <em>region</em> no HBase, <em>tablet</em> no Bigtable, <em>range</em> no CockroachDB, <em>vnode</em> no Cassandra —, mas as perguntas são sempre as mesmas: <strong>por qual chave, como distribuir por igual, como encontrar e como mover quando os nós mudam</strong><sup id=fnref:1><a class=footnote-ref href=#fn:1>1</a></sup>.</p> <pre class=mermaid-sim><code>flowchart LR
+    R["roteador&lt;br/&gt;partição = f(chave)"] --&gt;|"cliente 7"| S1[("shard 1&lt;br/&gt;+ réplicas")]
+    R --&gt;|"cliente 1042"| S2[("shard 2&lt;br/&gt;+ réplicas")]
+    R --&gt;|"cliente 98311"| S3[("shard 3&lt;br/&gt;+ réplicas")]</code></pre> <p>O particionamento normalmente é <strong>combinado</strong> com replicação: cada partição tem seu próprio líder e seus seguidores, então um nó pode ser líder de algumas partições e seguidor de outras.</p> <hr> <h2 id=particionamento-por-intervalo-de-chaves>Particionamento por intervalo de chaves</h2> <p>Atribua a cada partição um <strong>intervalo contínuo</strong> de chaves, como os volumes de uma enciclopédia: <code>A–F</code>, <code>G–M</code>, <code>N–S</code>, <code>T–Z</code>. Dentro de uma partição, as chaves ficam ordenadas.</p> <ul> <li><strong>Consultas por intervalo são baratas</strong>: "pedidos de 2027-03-01 a 2027-03-07" lê uma ou duas partições.</li> <li><strong>Os limites se adaptam</strong> aos dados: quando um intervalo fica grande demais, ele é <strong>dividido</strong> em dois (tablets do Bigtable, regions do HBase e ranges do CockroachDB e do TiDB fazem isso automaticamente).</li> <li><strong>Perigo — chaves sequenciais.</strong> Se a chave é um timestamp ou um id autoincremental, <em>todas as novas escritas vão para o último intervalo</em>. O clickstream de hoje cai num único nó enquanto os outros ficam ociosos. Corrija prefixando a chave com outra coisa: <code>(event_id, timestamp)</code> em vez de <code>timestamp</code>.</li> </ul> <h2 id=particionamento-por-hash>Particionamento por hash</h2> <p>Aplique uma função de hash à chave e use o hash para escolher a partição. Um bom hash espalha uniformemente até chaves sequenciais.</p> <ul> <li><strong>Carga equilibrada</strong> para escritas e leituras pontuais.</li> <li><strong>Consultas por intervalo se espalham</strong>: chaves vizinhas caem em partições sem relação entre si, então "pedidos desta semana" precisa consultar todas as partições.</li> <li><strong>Chaves compostas</strong> recuperam alguma localidade: o Cassandra faz hash apenas da <em>partition key</em> e mantém as linhas ordenadas pelas <em>clustering columns</em> dentro dela — <code>PRIMARY KEY ((event_id), scanned_at)</code> dá uma distribuição equilibrada entre eventos e intervalos de tempo baratos dentro de um evento.</li> </ul> <p>A implementação ingênua, <code>partition = hash(key) mod N</code>, tem uma falha fatal: quando <strong>N muda</strong>, quase todas as chaves mudam de partição.</p> <hr> <h2 id=consistent-hashing>Hashing consistente</h2> <p>O <strong>hashing consistente</strong> (<em>consistent hashing</em>)<sup id=fnref:2><a class=footnote-ref href=#fn:2>2</a></sup> coloca nós e chaves no mesmo espaço circular de hash (um <strong>anel</strong>, por exemplo de 0 a 2^64 − 1). Cada chave pertence ao primeiro nó encontrado andando no sentido horário a partir da posição da chave.</p> <pre class=mermaid-sim><code>flowchart LR
+    K1["chave seat:A-12&lt;br/&gt;hash = 0x1F…"] --&gt;|"anda no sentido horário"| N1["nó B&lt;br/&gt;em 0x40…"]
+    K2["chave seat:C-07&lt;br/&gt;hash = 0x9A…"] --&gt;|"anda no sentido horário"| N2["nó C&lt;br/&gt;em 0xB0…"]
+    K3["chave seat:Z-99&lt;br/&gt;hash = 0xF3…"] --&gt;|"dá a volta no anel"| N0["nó A&lt;br/&gt;em 0x10…"]
+    NEW["novo nó D em 0x80…"] -.-&gt;|"assume só as chaves&lt;br/&gt;entre 0x40 e 0x80"| N2</code></pre> <p>Quando um nó entra, ele assume apenas as chaves entre ele e seu antecessor; quando um nó sai, só as chaves dele vão para o sucessor. Em média, <strong>1/N das chaves se move</strong>, o mínimo possível — contra quase todas com <code>mod N</code>.</p> <p>Com uma única posição por nó, os arcos ficam desiguais e um nó pode ficar com muito mais do que sua parte. Os <strong>nós virtuais</strong> (<em>vnodes</em>) resolvem isso: cada nó físico ocupa muitas posições no anel (100–256 é comum), então sua fatia total se equilibra na média, e um nó com o dobro da capacidade pode simplesmente ficar com o dobro de vnodes.</p> <p>A simulação abaixo faz hash de 20.000 chaves com MD5. À esquerda, a porcentagem de chaves que mudam de nó quando o cluster cresce de N − 1 para N nós; à direita, quão desbalanceados ficam 10 nós (nó mais carregado ÷ média) conforme cresce o número de nós virtuais:</p> <!--?xml version="1.0" encoding="utf-8" standalone="no"?--> <!doctype svg public "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg xmlns:xlink=http://www.w3.org/1999/xlink width=792pt height=302.4pt viewBox="0 0 792 302.4" xmlns=http://www.w3.org/2000/svg version=1.1> <metadata> <rdf:RDF xmlns:dc=http://purl.org/dc/elements/1.1/ xmlns:cc=http://creativecommons.org/ns# xmlns:rdf=http://www.w3.org/1999/02/22-rdf-syntax-ns#> <cc:Work> <dc:type rdf:resource=http://purl.org/dc/dcmitype/StillImage /> <dc:date>2026-10-23T08:16:11.007802</dc:date> <dc:format>image/svg+xml</dc:format> <dc:creator> <cc:Agent> <dc:title>Matplotlib v3.11.2, https://matplotlib.org/</dc:title> </cc:Agent> </dc:creator> </cc:Work> </rdf:RDF> </metadata> <defs> <style type=text/css>*{stroke-linejoin: round; stroke-linecap: butt}</style> </defs> <g id=figure_1> <g id=patch_1> <path d="M 0 302.4 
+L 792 302.4 
+L 792 0 
+L 0 0 
+L 0 302.4 
+z
+" style="fill: none; opacity: 0"/> </g> <g id=axes_1> <g id=patch_2> <path d="M 51.562344 260.277656 
+L 392.4 260.277656 
+L 392.4 26.16 
+L 51.562344 26.16 
+L 51.562344 260.277656 
+z
+" style="fill: none"/> </g> <g id=matplotlib.axis_1> <g id=xtick_1> <g id=line2d_1> <path d="M 67.054964 260.277656 
+L 67.054964 26.16 
+" clip-path=url(#p62c0fa1cc3) style="fill: none; stroke: #b0b0b0; stroke-opacity: 0.25; stroke-width: 0.8; stroke-linecap: square"/> </g> <g id=line2d_2> <defs> <path id=m620a43a852 d="M 0 0 
+L 0 3.5 
+" style="stroke: #888888; stroke-width: 0.8"/> </defs> <g> <use xlink:href=#m620a43a852 x=67.054964 y=260.277656 style="fill: #888888; stroke: #888888; stroke-width: 0.8"/> </g> </g> <g id=text_1> <!-- 2 --> <g style="fill: #888888" transform="translate(63.873714 274.875313) scale(0.1 -0.1)"> <defs> <path id=DejaVuSans-15 d="M 1228 531 
+L 3431 531 
+L 3431 0 
+L 469 0 
+L 469 531 
+Q 828 903 1448 1529 
+Q 2069 2156 2228 2338 
+Q 2531 2678 2651 2914 
+Q 2772 3150 2772 3378 
+Q 2772 3750 2511 3984 
+Q 2250 4219 1831 4219 
+Q 1534 4219 1204 4116 
+Q 875 4013 500 3803 
+L 500 4441 
+Q 881 4594 1212 4672 
+Q 1544 4750 1819 4750 
+Q 2544 4750 2975 4387 
+Q 3406 4025 3406 3419 
+Q 3406 3131 3298 2873 
+Q 3191 2616 2906 2266 
+Q 2828 2175 2409 1742 
+Q 1991 1309 1228 531 
+z
+" transform=scale(0.015625) /> </defs> <use xlink:href=#DejaVuSans-15 /> </g> </g> </g> <g id=xtick_2> <g id=line2d_3> <path d="M 111.319595 260.277656 
+L 111.319595 26.16 
+" clip-path=url(#p62c0fa1cc3) style="fill: none; stroke: #b0b0b0; stroke-opacity: 0.25; stroke-width: 0.8; stroke-linecap: square"/> </g> <g id=line2d_4> <g> <use xlink:href=#m620a43a852 x=111.319595 y=260.277656 style="fill: #888888; stroke: #888888; stroke-width: 0.8"/> </g> </g> <g id=text_2> <!-- 4 --> <g style="fill: #888888" transform="translate(108.138345 274.875313) scale(0.1 -0.1)"> <defs> <path id=DejaVuSans-17 d="M 2419 4116 
+L 825 1625 
+L 2419 1625 
+L 2419 4116 
+z
+M 2253 4666 
+L 3047 4666 
+L 3047 1625 
+L 3713 1625 
+L 3713 1100 
+L 3047 1100 
+L 3047 0 
+L 2419 0 
+L 2419 1100 
+L 313 1100 
+L 313 1709 
+L 2253 4666 
+z
+" transform=scale(0.015625) /> </defs> <use xlink:href=#DejaVuSans-17 /> </g> </g> </g> <g id=xtick_3> <g id=line2d_5> <path d="M 155.584226 260.277656 
+L 155.584226 26.16 
+" clip-path=url(#p62c0fa1cc3) style="fill: none; stroke: #b0b0b0; stroke-opacity: 0.25; stroke-width: 0.8; stroke-linecap: square"/> </g> <g id=line2d_6> <g> <use xlink:href=#m620a43a852 x=155.584226 y=260.277656 style="fill: #888888; stroke: #888888; stroke-width: 0.8"/> </g> </g> <g id=text_3> <!-- 6 --> <g style="fill: #888888" transform="translate(152.402976 274.875313) scale(0.1 -0.1)"> <defs> <path id=DejaVuSans-19 d="M 2113 2584 
+Q 1688 2584 1439 2293 
+Q 1191 2003 1191 1497 
+Q 1191 994 1439 701 
+Q 1688 409 2113 409 
+Q 2538 409 2786 701 
+Q 3034 994 3034 1497 
+Q 3034 2003 2786 2293 
+Q 2538 2584 2113 2584 
+z
+M 3366 4563 
+L 3366 3988 
+Q 3128 4100 2886 4159 
+Q 2644 4219 2406 4219 
+Q 1781 4219 1451 3797 
+Q 1122 3375 1075 2522 
+Q 1259 2794 1537 2939 
+Q 1816 3084 2150 3084 
+Q 2853 3084 3261 2657 
+Q 3669 2231 3669 1497 
+Q 3669 778 3244 343 
+Q 2819 -91 2113 -91 
+Q 1303 -91 875 529 
+Q 447 1150 447 2328 
+Q 447 3434 972 4092 
+Q 1497 4750 2381 4750 
+Q 2619 4750 2861 4703 
+Q 3103 4656 3366 4563 
+z
+" transform=scale(0.015625) /> </defs> <use xlink:href=#DejaVuSans-19 /> </g> </g> </g> <g id=xtick_4> <g id=line2d_7> <path d="M 199.848857 260.277656 
+L 199.848857 26.16 
+" clip-path=url(#p62c0fa1cc3) style="fill: none; stroke: #b0b0b0; stroke-opacity: 0.25; stroke-width: 0.8; stroke-linecap: square"/> </g> <g id=line2d_8> <g> <use xlink:href=#m620a43a852 x=199.848857 y=260.277656 style="fill: #888888; stroke: #888888; stroke-width: 0.8"/> </g> </g> <g id=text_4> <!-- 8 --> <g style="fill: #888888" transform="translate(196.667607 274.875313) scale(0.1 -0.1)"> <defs> <path id=DejaVuSans-1b d="M 2034 2216 
+Q 1584 2216 1326 1975 
+Q 1069 1734 1069 1313 
+Q 1069 891 1326 650 
+Q 1584 409 2034 409 
+Q 2484 409 2743 651 
+Q 3003 894 3003 1313 
+Q 3003 1734 2745 1975 
+Q 2488 2216 2034 2216 
+z
+M 1403 2484 
+Q 997 2584 770 2862 
+Q 544 3141 544 3541 
+Q 544 4100 942 4425 
+Q 1341 4750 2034 4750 
+Q 2731 4750 3128 4425 
+Q 3525 4100 3525 3541 
+Q 3525 3141 3298 2862 
+Q 3072 2584 2669 2484 
+Q 3125 2378 3379 2068 
+Q 3634 1759 3634 1313 
+Q 3634 634 3220 271 
+Q 2806 -91 2034 -91 
+Q 1263 -91 848 271 
+Q 434 634 434 1313 
+Q 434 1759 690 2068 
+Q 947 2378 1403 2484 
+z
+M 1172 3481 
+Q 1172 3119 1398 2916 
+Q 1625 2713 2034 2713 
+Q 2441 2713 2670 2916 
+Q 2900 3119 2900 3481 
+Q 2900 3844 2670 4047 
+Q 2441 4250 2034 4250 
+Q 1625 4250 1398 4047 
+Q 1172 3844 1172 3481 
+z
+" transform=scale(0.015625) /> </defs> <use xlink:href=#DejaVuSans-1b /> </g> </g> </g> <g id=xtick_5> <g id=line2d_9> <path d="M 244.113487 260.277656 
+L 244.113487 26.16 
+" clip-path=url(#p62c0fa1cc3) style="fill: none; stroke: #b0b0b0; stroke-opacity: 0.25; stroke-width: 0.8; stroke-linecap: square"/> </g> <g id=line2d_10> <g> <use xlink:href=#m620a43a852 x=244.113487 y=260.277656 style="fill: #888888; stroke: #888888; stroke-width: 0.8"/> </g> </g> <g id=text_5> <!-- 10 --> <g style="fill: #888888" transform="translate(237.750987 274.875313) scale(0.1 -0.1)"> <defs> <path id=DejaVuSans-14 d="M 794 531 
+L 1825 531 
+L 1825 4091 
+L 703 3866 
+L 703 4441 
+L 1819 4666 
+L 2450 4666 
+L 2450 531 
+L 3481 531 
+L 3481 0 
+L 794 0 
+L 794 531 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-13 d="M 2034 4250 
+Q 1547 4250 1301 3770 
+Q 1056 3291 1056 2328 
+Q 1056 1369 1301 889 
+Q 1547 409 2034 409 
+Q 2525 409 2770 889 
+Q 3016 1369 3016 2328 
+Q 3016 3291 2770 3770 
+Q 2525 4250 2034 4250 
+z
+M 2034 4750 
+Q 2819 4750 3233 4129 
+Q 3647 3509 3647 2328 
+Q 3647 1150 3233 529 
+Q 2819 -91 2034 -91 
+Q 1250 -91 836 529 
+Q 422 1150 422 2328 
+Q 422 3509 836 4129 
+Q 1250 4750 2034 4750 
+z
+" transform=scale(0.015625) /> </defs> <use xlink:href=#DejaVuSans-14 /> <use xlink:href=#DejaVuSans-13 transform="translate(63.625 0)"/> </g> </g> </g> <g id=xtick_6> <g id=line2d_11> <path d="M 288.378118 260.277656 
+L 288.378118 26.16 
+" clip-path=url(#p62c0fa1cc3) style="fill: none; stroke: #b0b0b0; stroke-opacity: 0.25; stroke-width: 0.8; stroke-linecap: square"/> </g> <g id=line2d_12> <g> <use xlink:href=#m620a43a852 x=288.378118 y=260.277656 style="fill: #888888; stroke: #888888; stroke-width: 0.8"/> </g> </g> <g id=text_6> <!-- 12 --> <g style="fill: #888888" transform="translate(282.015618 274.875313) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-14 /> <use xlink:href=#DejaVuSans-15 transform="translate(63.625 0)"/> </g> </g> </g> <g id=xtick_7> <g id=line2d_13> <path d="M 332.642749 260.277656 
+L 332.642749 26.16 
+" clip-path=url(#p62c0fa1cc3) style="fill: none; stroke: #b0b0b0; stroke-opacity: 0.25; stroke-width: 0.8; stroke-linecap: square"/> </g> <g id=line2d_14> <g> <use xlink:href=#m620a43a852 x=332.642749 y=260.277656 style="fill: #888888; stroke: #888888; stroke-width: 0.8"/> </g> </g> <g id=text_7> <!-- 14 --> <g style="fill: #888888" transform="translate(326.280249 274.875313) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-14 /> <use xlink:href=#DejaVuSans-17 transform="translate(63.625 0)"/> </g> </g> </g> <g id=xtick_8> <g id=line2d_15> <path d="M 376.907379 260.277656 
+L 376.907379 26.16 
+" clip-path=url(#p62c0fa1cc3) style="fill: none; stroke: #b0b0b0; stroke-opacity: 0.25; stroke-width: 0.8; stroke-linecap: square"/> </g> <g id=line2d_16> <g> <use xlink:href=#m620a43a852 x=376.907379 y=260.277656 style="fill: #888888; stroke: #888888; stroke-width: 0.8"/> </g> </g> <g id=text_8> <!-- 16 --> <g style="fill: #888888" transform="translate(370.544879 274.875313) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-14 /> <use xlink:href=#DejaVuSans-19 transform="translate(63.625 0)"/> </g> </g> </g> <g id=text_9> <!-- nodes after adding one (N) --> <g style="fill: #888888" transform="translate(154.621016 288.876094) scale(0.1 -0.1)"> <defs> <path id=DejaVuSans-51 d="M 3513 2113 
+L 3513 0 
+L 2938 0 
+L 2938 2094 
+Q 2938 2591 2744 2837 
+Q 2550 3084 2163 3084 
+Q 1697 3084 1428 2787 
+Q 1159 2491 1159 1978 
+L 1159 0 
+L 581 0 
+L 581 3500 
+L 1159 3500 
+L 1159 2956 
+Q 1366 3272 1645 3428 
+Q 1925 3584 2291 3584 
+Q 2894 3584 3203 3211 
+Q 3513 2838 3513 2113 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-52 d="M 1959 3097 
+Q 1497 3097 1228 2736 
+Q 959 2375 959 1747 
+Q 959 1119 1226 758 
+Q 1494 397 1959 397 
+Q 2419 397 2687 759 
+Q 2956 1122 2956 1747 
+Q 2956 2369 2687 2733 
+Q 2419 3097 1959 3097 
+z
+M 1959 3584 
+Q 2709 3584 3137 3096 
+Q 3566 2609 3566 1747 
+Q 3566 888 3137 398 
+Q 2709 -91 1959 -91 
+Q 1206 -91 779 398 
+Q 353 888 353 1747 
+Q 353 2609 779 3096 
+Q 1206 3584 1959 3584 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-47 d="M 2906 2969 
+L 2906 4863 
+L 3481 4863 
+L 3481 0 
+L 2906 0 
+L 2906 525 
+Q 2725 213 2448 61 
+Q 2172 -91 1784 -91 
+Q 1150 -91 751 415 
+Q 353 922 353 1747 
+Q 353 2572 751 3078 
+Q 1150 3584 1784 3584 
+Q 2172 3584 2448 3432 
+Q 2725 3281 2906 2969 
+z
+M 947 1747 
+Q 947 1113 1208 752 
+Q 1469 391 1925 391 
+Q 2381 391 2643 752 
+Q 2906 1113 2906 1747 
+Q 2906 2381 2643 2742 
+Q 2381 3103 1925 3103 
+Q 1469 3103 1208 2742 
+Q 947 2381 947 1747 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-48 d="M 3597 1894 
+L 3597 1613 
+L 953 1613 
+Q 991 1019 1311 708 
+Q 1631 397 2203 397 
+Q 2534 397 2845 478 
+Q 3156 559 3463 722 
+L 3463 178 
+Q 3153 47 2828 -22 
+Q 2503 -91 2169 -91 
+Q 1331 -91 842 396 
+Q 353 884 353 1716 
+Q 353 2575 817 3079 
+Q 1281 3584 2069 3584 
+Q 2775 3584 3186 3129 
+Q 3597 2675 3597 1894 
+z
+M 3022 2063 
+Q 3016 2534 2758 2815 
+Q 2500 3097 2075 3097 
+Q 1594 3097 1305 2825 
+Q 1016 2553 972 2059 
+L 3022 2063 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-56 d="M 2834 3397 
+L 2834 2853 
+Q 2591 2978 2328 3040 
+Q 2066 3103 1784 3103 
+Q 1356 3103 1142 2972 
+Q 928 2841 928 2578 
+Q 928 2378 1081 2264 
+Q 1234 2150 1697 2047 
+L 1894 2003 
+Q 2506 1872 2764 1633 
+Q 3022 1394 3022 966 
+Q 3022 478 2636 193 
+Q 2250 -91 1575 -91 
+Q 1294 -91 989 -36 
+Q 684 19 347 128 
+L 347 722 
+Q 666 556 975 473 
+Q 1284 391 1588 391 
+Q 1994 391 2212 530 
+Q 2431 669 2431 922 
+Q 2431 1156 2273 1281 
+Q 2116 1406 1581 1522 
+L 1381 1569 
+Q 847 1681 609 1914 
+Q 372 2147 372 2553 
+Q 372 3047 722 3315 
+Q 1072 3584 1716 3584 
+Q 2034 3584 2315 3537 
+Q 2597 3491 2834 3397 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-3 transform=scale(0.015625) /> <path id=DejaVuSans-44 d="M 2194 1759 
+Q 1497 1759 1228 1600 
+Q 959 1441 959 1056 
+Q 959 750 1161 570 
+Q 1363 391 1709 391 
+Q 2188 391 2477 730 
+Q 2766 1069 2766 1631 
+L 2766 1759 
+L 2194 1759 
+z
+M 3341 1997 
+L 3341 0 
+L 2766 0 
+L 2766 531 
+Q 2569 213 2275 61 
+Q 1981 -91 1556 -91 
+Q 1019 -91 701 211 
+Q 384 513 384 1019 
+Q 384 1609 779 1909 
+Q 1175 2209 1959 2209 
+L 2766 2209 
+L 2766 2266 
+Q 2766 2663 2505 2880 
+Q 2244 3097 1772 3097 
+Q 1472 3097 1187 3025 
+Q 903 2953 641 2809 
+L 641 3341 
+Q 956 3463 1253 3523 
+Q 1550 3584 1831 3584 
+Q 2591 3584 2966 3190 
+Q 3341 2797 3341 1997 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-49 d="M 2375 4863 
+L 2375 4384 
+L 1825 4384 
+Q 1516 4384 1395 4259 
+Q 1275 4134 1275 3809 
+L 1275 3500 
+L 2222 3500 
+L 2222 3053 
+L 1275 3053 
+L 1275 0 
+L 697 0 
+L 697 3053 
+L 147 3053 
+L 147 3500 
+L 697 3500 
+L 697 3744 
+Q 697 4328 969 4595 
+Q 1241 4863 1831 4863 
+L 2375 4863 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-57 d="M 1172 4494 
+L 1172 3500 
+L 2356 3500 
+L 2356 3053 
+L 1172 3053 
+L 1172 1153 
+Q 1172 725 1289 603 
+Q 1406 481 1766 481 
+L 2356 481 
+L 2356 0 
+L 1766 0 
+Q 1100 0 847 248 
+Q 594 497 594 1153 
+L 594 3053 
+L 172 3053 
+L 172 3500 
+L 594 3500 
+L 594 4494 
+L 1172 4494 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-55 d="M 2631 2963 
+Q 2534 3019 2420 3045 
+Q 2306 3072 2169 3072 
+Q 1681 3072 1420 2755 
+Q 1159 2438 1159 1844 
+L 1159 0 
+L 581 0 
+L 581 3500 
+L 1159 3500 
+L 1159 2956 
+Q 1341 3275 1631 3429 
+Q 1922 3584 2338 3584 
+Q 2397 3584 2469 3576 
+Q 2541 3569 2628 3553 
+L 2631 2963 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-4c d="M 603 3500 
+L 1178 3500 
+L 1178 0 
+L 603 0 
+L 603 3500 
+z
+M 603 4863 
+L 1178 4863 
+L 1178 4134 
+L 603 4134 
+L 603 4863 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-4a d="M 2906 1791 
+Q 2906 2416 2648 2759 
+Q 2391 3103 1925 3103 
+Q 1463 3103 1205 2759 
+Q 947 2416 947 1791 
+Q 947 1169 1205 825 
+Q 1463 481 1925 481 
+Q 2391 481 2648 825 
+Q 2906 1169 2906 1791 
+z
+M 3481 434 
+Q 3481 -459 3084 -895 
+Q 2688 -1331 1869 -1331 
+Q 1566 -1331 1297 -1286 
+Q 1028 -1241 775 -1147 
+L 775 -588 
+Q 1028 -725 1275 -790 
+Q 1522 -856 1778 -856 
+Q 2344 -856 2625 -561 
+Q 2906 -266 2906 331 
+L 2906 616 
+Q 2728 306 2450 153 
+Q 2172 0 1784 0 
+Q 1141 0 747 490 
+Q 353 981 353 1791 
+Q 353 2603 747 3093 
+Q 1141 3584 1784 3584 
+Q 2172 3584 2450 3431 
+Q 2728 3278 2906 2969 
+L 2906 3500 
+L 3481 3500 
+L 3481 434 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-b d="M 1984 4856 
+Q 1566 4138 1362 3434 
+Q 1159 2731 1159 2009 
+Q 1159 1288 1364 580 
+Q 1569 -128 1984 -844 
+L 1484 -844 
+Q 1016 -109 783 600 
+Q 550 1309 550 2009 
+Q 550 2706 781 3412 
+Q 1013 4119 1484 4856 
+L 1984 4856 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-31 d="M 628 4666 
+L 1478 4666 
+L 3547 763 
+L 3547 4666 
+L 4159 4666 
+L 4159 0 
+L 3309 0 
+L 1241 3903 
+L 1241 0 
+L 628 0 
+L 628 4666 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-c d="M 513 4856 
+L 1013 4856 
+Q 1481 4119 1714 3412 
+Q 1947 2706 1947 2009 
+Q 1947 1309 1714 600 
+Q 1481 -109 1013 -844 
+L 513 -844 
+Q 928 -128 1133 580 
+Q 1338 1288 1338 2009 
+Q 1338 2731 1133 3434 
+Q 928 4138 513 4856 
+z
+" transform=scale(0.015625) /> </defs> <use xlink:href=#DejaVuSans-51 /> <use xlink:href=#DejaVuSans-52 transform="translate(63.375 0)"/> <use xlink:href=#DejaVuSans-47 transform="translate(124.5625 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(188.046875 0)"/> <use xlink:href=#DejaVuSans-56 transform="translate(249.578125 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(301.671875 0)"/> <use xlink:href=#DejaVuSans-44 transform="translate(333.453125 0)"/> <use xlink:href=#DejaVuSans-49 transform="translate(394.734375 0)"/> <use xlink:href=#DejaVuSans-57 transform="translate(428.1875 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(467.390625 0)"/> <use xlink:href=#DejaVuSans-55 transform="translate(528.921875 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(570.03125 0)"/> <use xlink:href=#DejaVuSans-44 transform="translate(601.8125 0)"/> <use xlink:href=#DejaVuSans-47 transform="translate(663.09375 0)"/> <use xlink:href=#DejaVuSans-47 transform="translate(726.578125 0)"/> <use xlink:href=#DejaVuSans-4c transform="translate(790.0625 0)"/> <use xlink:href=#DejaVuSans-51 transform="translate(817.84375 0)"/> <use xlink:href=#DejaVuSans-4a transform="translate(881.21875 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(944.703125 0)"/> <use xlink:href=#DejaVuSans-52 transform="translate(976.484375 0)"/> <use xlink:href=#DejaVuSans-51 transform="translate(1037.671875 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(1101.046875 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(1162.578125 0)"/> <use xlink:href=#DejaVuSans-b transform="translate(1194.359375 0)"/> <use xlink:href=#DejaVuSans-31 transform="translate(1233.375 0)"/> <use xlink:href=#DejaVuSans-c transform="translate(1308.1875 0)"/> </g> </g> </g> <g id=matplotlib.axis_2> <g id=ytick_1> <g id=line2d_17> <path d="M 51.562344 260.277656 
+L 392.4 260.277656 
+" clip-path=url(#p62c0fa1cc3) style="fill: none; stroke: #b0b0b0; stroke-opacity: 0.25; stroke-width: 0.8; stroke-linecap: square"/> </g> <g id=line2d_18> <defs> <path id=m0ceec0b575 d="M 0 0 
+L -3.5 0 
+" style="stroke: #888888; stroke-width: 0.8"/> </defs> <g> <use xlink:href=#m0ceec0b575 x=51.562344 y=260.277656 style="fill: #888888; stroke: #888888; stroke-width: 0.8"/> </g> </g> <g id=text_10> <!-- 0 --> <g style="fill: #888888" transform="translate(38.199844 264.076484) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-13 /> </g> </g> </g> <g id=ytick_2> <g id=line2d_19> <path d="M 51.562344 213.454125 
+L 392.4 213.454125 
+" clip-path=url(#p62c0fa1cc3) style="fill: none; stroke: #b0b0b0; stroke-opacity: 0.25; stroke-width: 0.8; stroke-linecap: square"/> </g> <g id=line2d_20> <g> <use xlink:href=#m0ceec0b575 x=51.562344 y=213.454125 style="fill: #888888; stroke: #888888; stroke-width: 0.8"/> </g> </g> <g id=text_11> <!-- 20 --> <g style="fill: #888888" transform="translate(31.837344 217.252953) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-15 /> <use xlink:href=#DejaVuSans-13 transform="translate(63.625 0)"/> </g> </g> </g> <g id=ytick_3> <g id=line2d_21> <path d="M 51.562344 166.630594 
+L 392.4 166.630594 
+" clip-path=url(#p62c0fa1cc3) style="fill: none; stroke: #b0b0b0; stroke-opacity: 0.25; stroke-width: 0.8; stroke-linecap: square"/> </g> <g id=line2d_22> <g> <use xlink:href=#m0ceec0b575 x=51.562344 y=166.630594 style="fill: #888888; stroke: #888888; stroke-width: 0.8"/> </g> </g> <g id=text_12> <!-- 40 --> <g style="fill: #888888" transform="translate(31.837344 170.429422) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-17 /> <use xlink:href=#DejaVuSans-13 transform="translate(63.625 0)"/> </g> </g> </g> <g id=ytick_4> <g id=line2d_23> <path d="M 51.562344 119.807063 
+L 392.4 119.807063 
+" clip-path=url(#p62c0fa1cc3) style="fill: none; stroke: #b0b0b0; stroke-opacity: 0.25; stroke-width: 0.8; stroke-linecap: square"/> </g> <g id=line2d_24> <g> <use xlink:href=#m0ceec0b575 x=51.562344 y=119.807063 style="fill: #888888; stroke: #888888; stroke-width: 0.8"/> </g> </g> <g id=text_13> <!-- 60 --> <g style="fill: #888888" transform="translate(31.837344 123.605891) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-19 /> <use xlink:href=#DejaVuSans-13 transform="translate(63.625 0)"/> </g> </g> </g> <g id=ytick_5> <g id=line2d_25> <path d="M 51.562344 72.983531 
+L 392.4 72.983531 
+" clip-path=url(#p62c0fa1cc3) style="fill: none; stroke: #b0b0b0; stroke-opacity: 0.25; stroke-width: 0.8; stroke-linecap: square"/> </g> <g id=line2d_26> <g> <use xlink:href=#m0ceec0b575 x=51.562344 y=72.983531 style="fill: #888888; stroke: #888888; stroke-width: 0.8"/> </g> </g> <g id=text_14> <!-- 80 --> <g style="fill: #888888" transform="translate(31.837344 76.782359) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-1b /> <use xlink:href=#DejaVuSans-13 transform="translate(63.625 0)"/> </g> </g> </g> <g id=ytick_6> <g id=line2d_27> <path d="M 51.562344 26.16 
+L 392.4 26.16 
+" clip-path=url(#p62c0fa1cc3) style="fill: none; stroke: #b0b0b0; stroke-opacity: 0.25; stroke-width: 0.8; stroke-linecap: square"/> </g> <g id=line2d_28> <g> <use xlink:href=#m0ceec0b575 x=51.562344 y=26.16 style="fill: #888888; stroke: #888888; stroke-width: 0.8"/> </g> </g> <g id=text_15> <!-- 100 --> <g style="fill: #888888" transform="translate(25.474844 29.958828) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-14 /> <use xlink:href=#DejaVuSans-13 transform="translate(63.625 0)"/> <use xlink:href=#DejaVuSans-13 transform="translate(127.25 0)"/> </g> </g> </g> <g id=text_16> <!-- % of keys that change node --> <g style="fill: #888888" transform="translate(19.0725 213.125859) rotate(-90) scale(0.1 -0.1)"> <defs> <path id=DejaVuSans-8 d="M 4653 2053 
+Q 4381 2053 4226 1822 
+Q 4072 1591 4072 1178 
+Q 4072 772 4226 539 
+Q 4381 306 4653 306 
+Q 4919 306 5073 539 
+Q 5228 772 5228 1178 
+Q 5228 1588 5073 1820 
+Q 4919 2053 4653 2053 
+z
+M 4653 2450 
+Q 5147 2450 5437 2106 
+Q 5728 1763 5728 1178 
+Q 5728 594 5436 251 
+Q 5144 -91 4653 -91 
+Q 4153 -91 3862 251 
+Q 3572 594 3572 1178 
+Q 3572 1766 3864 2108 
+Q 4156 2450 4653 2450 
+z
+M 1428 4353 
+Q 1159 4353 1004 4120 
+Q 850 3888 850 3481 
+Q 850 3069 1003 2837 
+Q 1156 2606 1428 2606 
+Q 1700 2606 1854 2837 
+Q 2009 3069 2009 3481 
+Q 2009 3884 1853 4118 
+Q 1697 4353 1428 4353 
+z
+M 4250 4750 
+L 4750 4750 
+L 1831 -91 
+L 1331 -91 
+L 4250 4750 
+z
+M 1428 4750 
+Q 1922 4750 2215 4408 
+Q 2509 4066 2509 3481 
+Q 2509 2891 2217 2550 
+Q 1925 2209 1428 2209 
+Q 931 2209 642 2551 
+Q 353 2894 353 3481 
+Q 353 4063 643 4406 
+Q 934 4750 1428 4750 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-4e d="M 581 4863 
+L 1159 4863 
+L 1159 1991 
+L 2875 3500 
+L 3609 3500 
+L 1753 1863 
+L 3688 0 
+L 2938 0 
+L 1159 1709 
+L 1159 0 
+L 581 0 
+L 581 4863 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-5c d="M 2059 -325 
+Q 1816 -950 1584 -1140 
+Q 1353 -1331 966 -1331 
+L 506 -1331 
+L 506 -850 
+L 844 -850 
+Q 1081 -850 1212 -737 
+Q 1344 -625 1503 -206 
+L 1606 56 
+L 191 3500 
+L 800 3500 
+L 1894 763 
+L 2988 3500 
+L 3597 3500 
+L 2059 -325 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-4b d="M 3513 2113 
+L 3513 0 
+L 2938 0 
+L 2938 2094 
+Q 2938 2591 2744 2837 
+Q 2550 3084 2163 3084 
+Q 1697 3084 1428 2787 
+Q 1159 2491 1159 1978 
+L 1159 0 
+L 581 0 
+L 581 4863 
+L 1159 4863 
+L 1159 2956 
+Q 1366 3272 1645 3428 
+Q 1925 3584 2291 3584 
+Q 2894 3584 3203 3211 
+Q 3513 2838 3513 2113 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-46 d="M 3122 3366 
+L 3122 2828 
+Q 2878 2963 2633 3030 
+Q 2388 3097 2138 3097 
+Q 1578 3097 1268 2742 
+Q 959 2388 959 1747 
+Q 959 1106 1268 751 
+Q 1578 397 2138 397 
+Q 2388 397 2633 464 
+Q 2878 531 3122 666 
+L 3122 134 
+Q 2881 22 2623 -34 
+Q 2366 -91 2075 -91 
+Q 1284 -91 818 406 
+Q 353 903 353 1747 
+Q 353 2603 823 3093 
+Q 1294 3584 2113 3584 
+Q 2378 3584 2631 3529 
+Q 2884 3475 3122 3366 
+z
+" transform=scale(0.015625) /> </defs> <use xlink:href=#DejaVuSans-8 /> <use xlink:href=#DejaVuSans-3 transform="translate(95.015625 0)"/> <use xlink:href=#DejaVuSans-52 transform="translate(126.796875 0)"/> <use xlink:href=#DejaVuSans-49 transform="translate(187.984375 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(223.1875 0)"/> <use xlink:href=#DejaVuSans-4e transform="translate(254.96875 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(309.3125 0)"/> <use xlink:href=#DejaVuSans-5c transform="translate(370.84375 0)"/> <use xlink:href=#DejaVuSans-56 transform="translate(430.03125 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(482.125 0)"/> <use xlink:href=#DejaVuSans-57 transform="translate(513.90625 0)"/> <use xlink:href=#DejaVuSans-4b transform="translate(553.109375 0)"/> <use xlink:href=#DejaVuSans-44 transform="translate(616.484375 0)"/> <use xlink:href=#DejaVuSans-57 transform="translate(677.765625 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(716.96875 0)"/> <use xlink:href=#DejaVuSans-46 transform="translate(748.75 0)"/> <use xlink:href=#DejaVuSans-4b transform="translate(803.734375 0)"/> <use xlink:href=#DejaVuSans-44 transform="translate(867.109375 0)"/> <use xlink:href=#DejaVuSans-51 transform="translate(928.390625 0)"/> <use xlink:href=#DejaVuSans-4a transform="translate(991.765625 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(1055.25 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(1116.78125 0)"/> <use xlink:href=#DejaVuSans-51 transform="translate(1148.5625 0)"/> <use xlink:href=#DejaVuSans-52 transform="translate(1211.9375 0)"/> <use xlink:href=#DejaVuSans-47 transform="translate(1273.125 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(1336.609375 0)"/> </g> </g> </g> <g id=line2d_29> <path d="M 67.054964 143.452946 
+L 89.18728 103.652944 
+L 111.319595 83.951943 
+L 133.451911 73.884884 
+L 155.584226 65.491766 
+L 177.716541 59.322766 
+L 199.848857 55.272531 
+L 221.981172 52.275825 
+L 244.113487 50.215589 
+L 266.245803 47.932942 
+L 288.378118 46.048295 
+L 310.510433 43.672001 
+L 332.642749 42.489707 
+L 354.775064 41.014765 
+L 376.907379 40.675295 
+" clip-path=url(#p62c0fa1cc3) style="fill: none; stroke: #e45756; stroke-width: 2; stroke-linecap: square"/> <defs> <path id=m9f55cd5603 d="M 0 3 
+C 0.795609 3 1.55874 2.683901 2.12132 2.12132 
+C 2.683901 1.55874 3 0.795609 3 0 
+C 3 -0.795609 2.683901 -1.55874 2.12132 -2.12132 
+C 1.55874 -2.683901 0.795609 -3 0 -3 
+C -0.795609 -3 -1.55874 -2.683901 -2.12132 -2.12132 
+C -2.683901 -1.55874 -3 -0.795609 -3 0 
+C -3 0.795609 -2.683901 1.55874 -2.12132 2.12132 
+C -1.55874 2.683901 -0.795609 3 0 3 
+z
+" style="stroke: #e45756"/> </defs> <g clip-path=url(#p62c0fa1cc3)> <use xlink:href=#m9f55cd5603 x=67.054964 y=143.452946 style="fill: #e45756; stroke: #e45756"/> <use xlink:href=#m9f55cd5603 x=89.18728 y=103.652944 style="fill: #e45756; stroke: #e45756"/> <use xlink:href=#m9f55cd5603 x=111.319595 y=83.951943 style="fill: #e45756; stroke: #e45756"/> <use xlink:href=#m9f55cd5603 x=133.451911 y=73.884884 style="fill: #e45756; stroke: #e45756"/> <use xlink:href=#m9f55cd5603 x=155.584226 y=65.491766 style="fill: #e45756; stroke: #e45756"/> <use xlink:href=#m9f55cd5603 x=177.716541 y=59.322766 style="fill: #e45756; stroke: #e45756"/> <use xlink:href=#m9f55cd5603 x=199.848857 y=55.272531 style="fill: #e45756; stroke: #e45756"/> <use xlink:href=#m9f55cd5603 x=221.981172 y=52.275825 style="fill: #e45756; stroke: #e45756"/> <use xlink:href=#m9f55cd5603 x=244.113487 y=50.215589 style="fill: #e45756; stroke: #e45756"/> <use xlink:href=#m9f55cd5603 x=266.245803 y=47.932942 style="fill: #e45756; stroke: #e45756"/> <use xlink:href=#m9f55cd5603 x=288.378118 y=46.048295 style="fill: #e45756; stroke: #e45756"/> <use xlink:href=#m9f55cd5603 x=310.510433 y=43.672001 style="fill: #e45756; stroke: #e45756"/> <use xlink:href=#m9f55cd5603 x=332.642749 y=42.489707 style="fill: #e45756; stroke: #e45756"/> <use xlink:href=#m9f55cd5603 x=354.775064 y=41.014765 style="fill: #e45756; stroke: #e45756"/> <use xlink:href=#m9f55cd5603 x=376.907379 y=40.675295 style="fill: #e45756; stroke: #e45756"/> </g> </g> <g id=line2d_30> <path d="M 67.054964 163.317829 
+L 89.18728 174.4033 
+L 111.319595 203.808478 
+L 133.451911 212.353772 
+L 155.584226 219.857243 
+L 177.716541 224.972714 
+L 199.848857 231.586537 
+L 221.981172 235.812361 
+L 244.113487 235.578244 
+L 266.245803 239.335832 
+L 288.378118 239.733832 
+L 310.510433 243.456303 
+L 332.642749 243.304126 
+L 354.775064 243.959656 
+L 376.907379 244.369362 
+" clip-path=url(#p62c0fa1cc3) style="fill: none; stroke: #4c78a8; stroke-width: 2; stroke-linecap: square"/> <defs> <path id=m85ed331d9e d="M -3 3 
+L 3 3 
+L 3 -3 
+L -3 -3 
+z
+" style="stroke: #4c78a8; stroke-linejoin: miter"/> </defs> <g clip-path=url(#p62c0fa1cc3)> <use xlink:href=#m85ed331d9e x=67.054964 y=163.317829 style="fill: #4c78a8; stroke: #4c78a8; stroke-linejoin: miter"/> <use xlink:href=#m85ed331d9e x=89.18728 y=174.4033 style="fill: #4c78a8; stroke: #4c78a8; stroke-linejoin: miter"/> <use xlink:href=#m85ed331d9e x=111.319595 y=203.808478 style="fill: #4c78a8; stroke: #4c78a8; stroke-linejoin: miter"/> <use xlink:href=#m85ed331d9e x=133.451911 y=212.353772 style="fill: #4c78a8; stroke: #4c78a8; stroke-linejoin: miter"/> <use xlink:href=#m85ed331d9e x=155.584226 y=219.857243 style="fill: #4c78a8; stroke: #4c78a8; stroke-linejoin: miter"/> <use xlink:href=#m85ed331d9e x=177.716541 y=224.972714 style="fill: #4c78a8; stroke: #4c78a8; stroke-linejoin: miter"/> <use xlink:href=#m85ed331d9e x=199.848857 y=231.586537 style="fill: #4c78a8; stroke: #4c78a8; stroke-linejoin: miter"/> <use xlink:href=#m85ed331d9e x=221.981172 y=235.812361 style="fill: #4c78a8; stroke: #4c78a8; stroke-linejoin: miter"/> <use xlink:href=#m85ed331d9e x=244.113487 y=235.578244 style="fill: #4c78a8; stroke: #4c78a8; stroke-linejoin: miter"/> <use xlink:href=#m85ed331d9e x=266.245803 y=239.335832 style="fill: #4c78a8; stroke: #4c78a8; stroke-linejoin: miter"/> <use xlink:href=#m85ed331d9e x=288.378118 y=239.733832 style="fill: #4c78a8; stroke: #4c78a8; stroke-linejoin: miter"/> <use xlink:href=#m85ed331d9e x=310.510433 y=243.456303 style="fill: #4c78a8; stroke: #4c78a8; stroke-linejoin: miter"/> <use xlink:href=#m85ed331d9e x=332.642749 y=243.304126 style="fill: #4c78a8; stroke: #4c78a8; stroke-linejoin: miter"/> <use xlink:href=#m85ed331d9e x=354.775064 y=243.959656 style="fill: #4c78a8; stroke: #4c78a8; stroke-linejoin: miter"/> <use xlink:href=#m85ed331d9e x=376.907379 y=244.369362 style="fill: #4c78a8; stroke: #4c78a8; stroke-linejoin: miter"/> </g> </g> <g id=line2d_31> <path d="M 67.054964 143.218828 
+L 89.18728 182.238438 
+L 111.319595 201.748242 
+L 133.451911 213.454125 
+L 155.584226 221.258047 
+L 177.716541 226.832277 
+L 199.848857 231.012949 
+L 221.981172 234.264583 
+L 244.113487 236.865891 
+L 266.245803 238.994233 
+L 288.378118 240.767852 
+L 310.510433 242.268606 
+L 332.642749 243.554967 
+L 354.775064 244.669813 
+L 376.907379 245.645303 
+" clip-path=url(#p62c0fa1cc3) style="fill: none; stroke-dasharray: 2,3.3; stroke-dashoffset: 0; stroke: #888888; stroke-width: 2"/> </g> <g id=patch_3> <path d="M 51.562344 260.277656 
+L 51.562344 26.16 
+" style="fill: none; stroke: #888888; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/> </g> <g id=patch_4> <path d="M 392.4 260.277656 
+L 392.4 26.16 
+" style="fill: none; stroke: #888888; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/> </g> <g id=patch_5> <path d="M 51.562344 260.277656 
+L 392.4 260.277656 
+" style="fill: none; stroke: #888888; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/> </g> <g id=patch_6> <path d="M 51.562344 26.16 
+L 392.4 26.16 
+" style="fill: none; stroke: #888888; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/> </g> <g id=text_17> <!-- Adding a node: how much data moves? --> <g style="fill: #888888" transform="translate(103.258047 20.16) scale(0.12 -0.12)"> <defs> <path id=DejaVuSans-24 d="M 2188 4044 
+L 1331 1722 
+L 3047 1722 
+L 2188 4044 
+z
+M 1831 4666 
+L 2547 4666 
+L 4325 0 
+L 3669 0 
+L 3244 1197 
+L 1141 1197 
+L 716 0 
+L 50 0 
+L 1831 4666 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-1d d="M 750 794 
+L 1409 794 
+L 1409 0 
+L 750 0 
+L 750 794 
+z
+M 750 3309 
+L 1409 3309 
+L 1409 2516 
+L 750 2516 
+L 750 3309 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-5a d="M 269 3500 
+L 844 3500 
+L 1563 769 
+L 2278 3500 
+L 2956 3500 
+L 3675 769 
+L 4391 3500 
+L 4966 3500 
+L 4050 0 
+L 3372 0 
+L 2619 2869 
+L 1863 0 
+L 1184 0 
+L 269 3500 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-50 d="M 3328 2828 
+Q 3544 3216 3844 3400 
+Q 4144 3584 4550 3584 
+Q 5097 3584 5394 3201 
+Q 5691 2819 5691 2113 
+L 5691 0 
+L 5113 0 
+L 5113 2094 
+Q 5113 2597 4934 2840 
+Q 4756 3084 4391 3084 
+Q 3944 3084 3684 2787 
+Q 3425 2491 3425 1978 
+L 3425 0 
+L 2847 0 
+L 2847 2094 
+Q 2847 2600 2669 2842 
+Q 2491 3084 2119 3084 
+Q 1678 3084 1418 2786 
+Q 1159 2488 1159 1978 
+L 1159 0 
+L 581 0 
+L 581 3500 
+L 1159 3500 
+L 1159 2956 
+Q 1356 3278 1631 3431 
+Q 1906 3584 2284 3584 
+Q 2666 3584 2933 3390 
+Q 3200 3197 3328 2828 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-58 d="M 544 1381 
+L 544 3500 
+L 1119 3500 
+L 1119 1403 
+Q 1119 906 1312 657 
+Q 1506 409 1894 409 
+Q 2359 409 2629 706 
+Q 2900 1003 2900 1516 
+L 2900 3500 
+L 3475 3500 
+L 3475 0 
+L 2900 0 
+L 2900 538 
+Q 2691 219 2414 64 
+Q 2138 -91 1772 -91 
+Q 1169 -91 856 284 
+Q 544 659 544 1381 
+z
+M 1991 3584 
+L 1991 3584 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-59 d="M 191 3500 
+L 800 3500 
+L 1894 563 
+L 2988 3500 
+L 3597 3500 
+L 2284 0 
+L 1503 0 
+L 191 3500 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-22 d="M 1222 794 
+L 1856 794 
+L 1856 0 
+L 1222 0 
+L 1222 794 
+z
+M 1838 1253 
+L 1241 1253 
+L 1241 1734 
+Q 1241 2050 1328 2253 
+Q 1416 2456 1697 2725 
+L 1978 3003 
+Q 2156 3169 2236 3316 
+Q 2316 3463 2316 3616 
+Q 2316 3894 2111 4066 
+Q 1906 4238 1569 4238 
+Q 1322 4238 1042 4128 
+Q 763 4019 459 3809 
+L 459 4397 
+Q 753 4575 1054 4662 
+Q 1356 4750 1678 4750 
+Q 2253 4750 2601 4447 
+Q 2950 4144 2950 3647 
+Q 2950 3409 2837 3195 
+Q 2725 2981 2444 2713 
+L 2169 2444 
+Q 2022 2297 1961 2214 
+Q 1900 2131 1875 2053 
+Q 1856 1988 1847 1894 
+Q 1838 1800 1838 1638 
+L 1838 1253 
+z
+" transform=scale(0.015625) /> </defs> <use xlink:href=#DejaVuSans-24 /> <use xlink:href=#DejaVuSans-47 transform="translate(66.65625 0)"/> <use xlink:href=#DejaVuSans-47 transform="translate(130.140625 0)"/> <use xlink:href=#DejaVuSans-4c transform="translate(193.625 0)"/> <use xlink:href=#DejaVuSans-51 transform="translate(221.40625 0)"/> <use xlink:href=#DejaVuSans-4a transform="translate(284.78125 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(348.265625 0)"/> <use xlink:href=#DejaVuSans-44 transform="translate(380.046875 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(441.328125 0)"/> <use xlink:href=#DejaVuSans-51 transform="translate(473.109375 0)"/> <use xlink:href=#DejaVuSans-52 transform="translate(536.484375 0)"/> <use xlink:href=#DejaVuSans-47 transform="translate(597.671875 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(661.15625 0)"/> <use xlink:href=#DejaVuSans-1d transform="translate(722.6875 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(756.375 0)"/> <use xlink:href=#DejaVuSans-4b transform="translate(788.15625 0)"/> <use xlink:href=#DejaVuSans-52 transform="translate(851.53125 0)"/> <use xlink:href=#DejaVuSans-5a transform="translate(912.71875 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(994.5 0)"/> <use xlink:href=#DejaVuSans-50 transform="translate(1026.28125 0)"/> <use xlink:href=#DejaVuSans-58 transform="translate(1123.6875 0)"/> <use xlink:href=#DejaVuSans-46 transform="translate(1187.0625 0)"/> <use xlink:href=#DejaVuSans-4b transform="translate(1242.046875 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(1305.421875 0)"/> <use xlink:href=#DejaVuSans-47 transform="translate(1337.203125 0)"/> <use xlink:href=#DejaVuSans-44 transform="translate(1400.6875 0)"/> <use xlink:href=#DejaVuSans-57 transform="translate(1461.96875 0)"/> <use xlink:href=#DejaVuSans-44 transform="translate(1501.171875 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(1562.453125 0)"/> <use xlink:href=#DejaVuSans-50 transform="translate(1594.234375 0)"/> <use xlink:href=#DejaVuSans-52 transform="translate(1691.640625 0)"/> <use xlink:href=#DejaVuSans-59 transform="translate(1752.828125 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(1812.015625 0)"/> <use xlink:href=#DejaVuSans-56 transform="translate(1873.546875 0)"/> <use xlink:href=#DejaVuSans-22 transform="translate(1925.640625 0)"/> </g> </g> <g id=legend_1> <g id=line2d_32> <path d="M 211.976719 128.906367 
+L 220.976719 128.906367 
+L 229.976719 128.906367 
+" style="fill: none; stroke: #e45756; stroke-width: 2; stroke-linecap: square"/> <g> <use xlink:href=#m9f55cd5603 x=220.976719 y=128.906367 style="fill: #e45756; stroke: #e45756"/> </g> </g> <g id=text_18> <!-- hash(key) mod N --> <g style="fill: #888888" transform="translate(237.176719 132.056367) scale(0.09 -0.09)"> <use xlink:href=#DejaVuSans-4b /> <use xlink:href=#DejaVuSans-44 transform="translate(63.375 0)"/> <use xlink:href=#DejaVuSans-56 transform="translate(124.65625 0)"/> <use xlink:href=#DejaVuSans-4b transform="translate(176.75 0)"/> <use xlink:href=#DejaVuSans-b transform="translate(240.125 0)"/> <use xlink:href=#DejaVuSans-4e transform="translate(279.140625 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(333.484375 0)"/> <use xlink:href=#DejaVuSans-5c transform="translate(395.015625 0)"/> <use xlink:href=#DejaVuSans-c transform="translate(454.203125 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(493.21875 0)"/> <use xlink:href=#DejaVuSans-50 transform="translate(525 0)"/> <use xlink:href=#DejaVuSans-52 transform="translate(622.40625 0)"/> <use xlink:href=#DejaVuSans-47 transform="translate(683.59375 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(747.078125 0)"/> <use xlink:href=#DejaVuSans-31 transform="translate(778.859375 0)"/> </g> </g> <g id=line2d_33> <path d="M 211.976719 142.40707 
+L 220.976719 142.40707 
+L 229.976719 142.40707 
+" style="fill: none; stroke: #4c78a8; stroke-width: 2; stroke-linecap: square"/> <g> <use xlink:href=#m85ed331d9e x=220.976719 y=142.40707 style="fill: #4c78a8; stroke: #4c78a8; stroke-linejoin: miter"/> </g> </g> <g id=text_19> <!-- consistent hashing (100 vnodes) --> <g style="fill: #888888" transform="translate(237.176719 145.55707) scale(0.09 -0.09)"> <use xlink:href=#DejaVuSans-46 /> <use xlink:href=#DejaVuSans-52 transform="translate(54.984375 0)"/> <use xlink:href=#DejaVuSans-51 transform="translate(116.171875 0)"/> <use xlink:href=#DejaVuSans-56 transform="translate(179.546875 0)"/> <use xlink:href=#DejaVuSans-4c transform="translate(231.640625 0)"/> <use xlink:href=#DejaVuSans-56 transform="translate(259.421875 0)"/> <use xlink:href=#DejaVuSans-57 transform="translate(311.515625 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(350.71875 0)"/> <use xlink:href=#DejaVuSans-51 transform="translate(412.25 0)"/> <use xlink:href=#DejaVuSans-57 transform="translate(475.625 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(514.828125 0)"/> <use xlink:href=#DejaVuSans-4b transform="translate(546.609375 0)"/> <use xlink:href=#DejaVuSans-44 transform="translate(609.984375 0)"/> <use xlink:href=#DejaVuSans-56 transform="translate(671.265625 0)"/> <use xlink:href=#DejaVuSans-4b transform="translate(723.359375 0)"/> <use xlink:href=#DejaVuSans-4c transform="translate(786.734375 0)"/> <use xlink:href=#DejaVuSans-51 transform="translate(814.515625 0)"/> <use xlink:href=#DejaVuSans-4a transform="translate(877.890625 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(941.375 0)"/> <use xlink:href=#DejaVuSans-b transform="translate(973.15625 0)"/> <use xlink:href=#DejaVuSans-14 transform="translate(1012.171875 0)"/> <use xlink:href=#DejaVuSans-13 transform="translate(1075.796875 0)"/> <use xlink:href=#DejaVuSans-13 transform="translate(1139.421875 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(1203.046875 0)"/> <use xlink:href=#DejaVuSans-59 transform="translate(1234.828125 0)"/> <use xlink:href=#DejaVuSans-51 transform="translate(1294.015625 0)"/> <use xlink:href=#DejaVuSans-52 transform="translate(1357.390625 0)"/> <use xlink:href=#DejaVuSans-47 transform="translate(1418.578125 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(1482.0625 0)"/> <use xlink:href=#DejaVuSans-56 transform="translate(1543.59375 0)"/> <use xlink:href=#DejaVuSans-c transform="translate(1595.6875 0)"/> </g> </g> <g id=line2d_34> <path d="M 211.976719 155.907773 
+L 220.976719 155.907773 
+L 229.976719 155.907773 
+" style="fill: none; stroke-dasharray: 2,3.3; stroke-dashoffset: 0; stroke: #888888; stroke-width: 2"/> </g> <g id=text_20> <!-- minimum possible: 1/N --> <g style="fill: #888888" transform="translate(237.176719 159.057773) scale(0.09 -0.09)"> <defs> <path id=DejaVuSans-53 d="M 1159 525 
+L 1159 -1331 
+L 581 -1331 
+L 581 3500 
+L 1159 3500 
+L 1159 2969 
+Q 1341 3281 1617 3432 
+Q 1894 3584 2278 3584 
+Q 2916 3584 3314 3078 
+Q 3713 2572 3713 1747 
+Q 3713 922 3314 415 
+Q 2916 -91 2278 -91 
+Q 1894 -91 1617 61 
+Q 1341 213 1159 525 
+z
+M 3116 1747 
+Q 3116 2381 2855 2742 
+Q 2594 3103 2138 3103 
+Q 1681 3103 1420 2742 
+Q 1159 2381 1159 1747 
+Q 1159 1113 1420 752 
+Q 1681 391 2138 391 
+Q 2594 391 2855 752 
+Q 3116 1113 3116 1747 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-45 d="M 3116 1747 
+Q 3116 2381 2855 2742 
+Q 2594 3103 2138 3103 
+Q 1681 3103 1420 2742 
+Q 1159 2381 1159 1747 
+Q 1159 1113 1420 752 
+Q 1681 391 2138 391 
+Q 2594 391 2855 752 
+Q 3116 1113 3116 1747 
+z
+M 1159 2969 
+Q 1341 3281 1617 3432 
+Q 1894 3584 2278 3584 
+Q 2916 3584 3314 3078 
+Q 3713 2572 3713 1747 
+Q 3713 922 3314 415 
+Q 2916 -91 2278 -91 
+Q 1894 -91 1617 61 
+Q 1341 213 1159 525 
+L 1159 0 
+L 581 0 
+L 581 4863 
+L 1159 4863 
+L 1159 2969 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-4f d="M 603 4863 
+L 1178 4863 
+L 1178 0 
+L 603 0 
+L 603 4863 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-12 d="M 1625 4666 
+L 2156 4666 
+L 531 -594 
+L 0 -594 
+L 1625 4666 
+z
+" transform=scale(0.015625) /> </defs> <use xlink:href=#DejaVuSans-50 /> <use xlink:href=#DejaVuSans-4c transform="translate(97.40625 0)"/> <use xlink:href=#DejaVuSans-51 transform="translate(125.1875 0)"/> <use xlink:href=#DejaVuSans-4c transform="translate(188.5625 0)"/> <use xlink:href=#DejaVuSans-50 transform="translate(216.34375 0)"/> <use xlink:href=#DejaVuSans-58 transform="translate(313.75 0)"/> <use xlink:href=#DejaVuSans-50 transform="translate(377.125 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(474.53125 0)"/> <use xlink:href=#DejaVuSans-53 transform="translate(506.3125 0)"/> <use xlink:href=#DejaVuSans-52 transform="translate(569.796875 0)"/> <use xlink:href=#DejaVuSans-56 transform="translate(630.984375 0)"/> <use xlink:href=#DejaVuSans-56 transform="translate(683.078125 0)"/> <use xlink:href=#DejaVuSans-4c transform="translate(735.171875 0)"/> <use xlink:href=#DejaVuSans-45 transform="translate(762.953125 0)"/> <use xlink:href=#DejaVuSans-4f transform="translate(826.4375 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(854.21875 0)"/> <use xlink:href=#DejaVuSans-1d transform="translate(915.75 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(949.4375 0)"/> <use xlink:href=#DejaVuSans-14 transform="translate(981.21875 0)"/> <use xlink:href=#DejaVuSans-12 transform="translate(1044.84375 0)"/> <use xlink:href=#DejaVuSans-31 transform="translate(1078.53125 0)"/> </g> </g> </g> </g> <g id=axes_2> <g id=patch_7> <path d="M 440.362344 260.277656 
+L 781.2 260.277656 
+L 781.2 26.16 
+L 440.362344 26.16 
+L 440.362344 260.277656 
+z
+" style="fill: none"/> </g> <g id=patch_8> <path d="M 455.854964 260.277656 
+L 507.497034 260.277656 
+L 507.497034 37.30846 
+L 455.854964 37.30846 
+z
+" clip-path=url(#pa8757d6df8) style="fill: #54a24b"/> </g> <g id=patch_9> <path d="M 520.407551 260.277656 
+L 572.04962 260.277656 
+L 572.04962 131.535431 
+L 520.407551 131.535431 
+z
+" clip-path=url(#pa8757d6df8) style="fill: #54a24b"/> </g> <g id=patch_10> <path d="M 584.960137 260.277656 
+L 636.602206 260.277656 
+L 636.602206 180.23993 
+L 584.960137 180.23993 
+z
+" clip-path=url(#pa8757d6df8) style="fill: #54a24b"/> </g> <g id=patch_11> <path d="M 649.512724 260.277656 
+L 701.154793 260.277656 
+L 701.154793 174.233041 
+L 649.512724 174.233041 
+z
+" clip-path=url(#pa8757d6df8) style="fill: #54a24b"/> </g> <g id=patch_12> <path d="M 714.06531 260.277656 
+L 765.707379 260.277656 
+L 765.707379 190.435405 
+L 714.06531 190.435405 
+z
+" clip-path=url(#pa8757d6df8) style="fill: #54a24b"/> </g> <g id=matplotlib.axis_3> <g id=xtick_9> <g id=line2d_35> <path d="M 481.675999 260.277656 
+L 481.675999 26.16 
+" clip-path=url(#pa8757d6df8) style="fill: none; stroke: #b0b0b0; stroke-opacity: 0.25; stroke-width: 0.8; stroke-linecap: square"/> </g> <g id=line2d_36> <g> <use xlink:href=#m620a43a852 x=481.675999 y=260.277656 style="fill: #888888; stroke: #888888; stroke-width: 0.8"/> </g> </g> <g id=text_21> <!-- 1 --> <g style="fill: #888888" transform="translate(478.494749 274.875313) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-14 /> </g> </g> </g> <g id=xtick_10> <g id=line2d_37> <path d="M 546.228585 260.277656 
+L 546.228585 26.16 
+" clip-path=url(#pa8757d6df8) style="fill: none; stroke: #b0b0b0; stroke-opacity: 0.25; stroke-width: 0.8; stroke-linecap: square"/> </g> <g id=line2d_38> <g> <use xlink:href=#m620a43a852 x=546.228585 y=260.277656 style="fill: #888888; stroke: #888888; stroke-width: 0.8"/> </g> </g> <g id=text_22> <!-- 4 --> <g style="fill: #888888" transform="translate(543.047335 274.875313) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-17 /> </g> </g> </g> <g id=xtick_11> <g id=line2d_39> <path d="M 610.781172 260.277656 
+L 610.781172 26.16 
+" clip-path=url(#pa8757d6df8) style="fill: none; stroke: #b0b0b0; stroke-opacity: 0.25; stroke-width: 0.8; stroke-linecap: square"/> </g> <g id=line2d_40> <g> <use xlink:href=#m620a43a852 x=610.781172 y=260.277656 style="fill: #888888; stroke: #888888; stroke-width: 0.8"/> </g> </g> <g id=text_23> <!-- 16 --> <g style="fill: #888888" transform="translate(604.418672 274.875313) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-14 /> <use xlink:href=#DejaVuSans-19 transform="translate(63.625 0)"/> </g> </g> </g> <g id=xtick_12> <g id=line2d_41> <path d="M 675.333758 260.277656 
+L 675.333758 26.16 
+" clip-path=url(#pa8757d6df8) style="fill: none; stroke: #b0b0b0; stroke-opacity: 0.25; stroke-width: 0.8; stroke-linecap: square"/> </g> <g id=line2d_42> <g> <use xlink:href=#m620a43a852 x=675.333758 y=260.277656 style="fill: #888888; stroke: #888888; stroke-width: 0.8"/> </g> </g> <g id=text_24> <!-- 64 --> <g style="fill: #888888" transform="translate(668.971258 274.875313) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-19 /> <use xlink:href=#DejaVuSans-17 transform="translate(63.625 0)"/> </g> </g> </g> <g id=xtick_13> <g id=line2d_43> <path d="M 739.886345 260.277656 
+L 739.886345 26.16 
+" clip-path=url(#pa8757d6df8) style="fill: none; stroke: #b0b0b0; stroke-opacity: 0.25; stroke-width: 0.8; stroke-linecap: square"/> </g> <g id=line2d_44> <g> <use xlink:href=#m620a43a852 x=739.886345 y=260.277656 style="fill: #888888; stroke: #888888; stroke-width: 0.8"/> </g> </g> <g id=text_25> <!-- 256 --> <g style="fill: #888888" transform="translate(730.342595 274.875313) scale(0.1 -0.1)"> <defs> <path id=DejaVuSans-18 d="M 691 4666 
+L 3169 4666 
+L 3169 4134 
+L 1269 4134 
+L 1269 2991 
+Q 1406 3038 1543 3061 
+Q 1681 3084 1819 3084 
+Q 2600 3084 3056 2656 
+Q 3513 2228 3513 1497 
+Q 3513 744 3044 326 
+Q 2575 -91 1722 -91 
+Q 1428 -91 1123 -41 
+Q 819 9 494 109 
+L 494 744 
+Q 775 591 1075 516 
+Q 1375 441 1709 441 
+Q 2250 441 2565 725 
+Q 2881 1009 2881 1497 
+Q 2881 1984 2565 2268 
+Q 2250 2553 1709 2553 
+Q 1456 2553 1204 2497 
+Q 953 2441 691 2322 
+L 691 4666 
+z
+" transform=scale(0.015625) /> </defs> <use xlink:href=#DejaVuSans-15 /> <use xlink:href=#DejaVuSans-18 transform="translate(63.625 0)"/> <use xlink:href=#DejaVuSans-19 transform="translate(127.25 0)"/> </g> </g> </g> <g id=text_26> <!-- virtual nodes per physical node (10 nodes) --> <g style="fill: #888888" transform="translate(503.546016 288.876094) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-59 /> <use xlink:href=#DejaVuSans-4c transform="translate(59.1875 0)"/> <use xlink:href=#DejaVuSans-55 transform="translate(86.96875 0)"/> <use xlink:href=#DejaVuSans-57 transform="translate(128.078125 0)"/> <use xlink:href=#DejaVuSans-58 transform="translate(167.28125 0)"/> <use xlink:href=#DejaVuSans-44 transform="translate(230.65625 0)"/> <use xlink:href=#DejaVuSans-4f transform="translate(291.9375 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(319.71875 0)"/> <use xlink:href=#DejaVuSans-51 transform="translate(351.5 0)"/> <use xlink:href=#DejaVuSans-52 transform="translate(414.875 0)"/> <use xlink:href=#DejaVuSans-47 transform="translate(476.0625 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(539.546875 0)"/> <use xlink:href=#DejaVuSans-56 transform="translate(601.078125 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(653.171875 0)"/> <use xlink:href=#DejaVuSans-53 transform="translate(684.953125 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(748.4375 0)"/> <use xlink:href=#DejaVuSans-55 transform="translate(809.96875 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(851.078125 0)"/> <use xlink:href=#DejaVuSans-53 transform="translate(882.859375 0)"/> <use xlink:href=#DejaVuSans-4b transform="translate(946.34375 0)"/> <use xlink:href=#DejaVuSans-5c transform="translate(1009.71875 0)"/> <use xlink:href=#DejaVuSans-56 transform="translate(1068.90625 0)"/> <use xlink:href=#DejaVuSans-4c transform="translate(1121 0)"/> <use xlink:href=#DejaVuSans-46 transform="translate(1148.78125 0)"/> <use xlink:href=#DejaVuSans-44 transform="translate(1203.765625 0)"/> <use xlink:href=#DejaVuSans-4f transform="translate(1265.046875 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(1292.828125 0)"/> <use xlink:href=#DejaVuSans-51 transform="translate(1324.609375 0)"/> <use xlink:href=#DejaVuSans-52 transform="translate(1387.984375 0)"/> <use xlink:href=#DejaVuSans-47 transform="translate(1449.171875 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(1512.65625 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(1574.1875 0)"/> <use xlink:href=#DejaVuSans-b transform="translate(1605.96875 0)"/> <use xlink:href=#DejaVuSans-14 transform="translate(1644.984375 0)"/> <use xlink:href=#DejaVuSans-13 transform="translate(1708.609375 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(1772.234375 0)"/> <use xlink:href=#DejaVuSans-51 transform="translate(1804.015625 0)"/> <use xlink:href=#DejaVuSans-52 transform="translate(1867.390625 0)"/> <use xlink:href=#DejaVuSans-47 transform="translate(1928.578125 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(1992.0625 0)"/> <use xlink:href=#DejaVuSans-56 transform="translate(2053.59375 0)"/> <use xlink:href=#DejaVuSans-c transform="translate(2105.6875 0)"/> </g> </g> </g> <g id=matplotlib.axis_4> <g id=ytick_7> <g id=line2d_45> <path d="M 440.362344 260.277656 
+L 781.2 260.277656 
+" clip-path=url(#pa8757d6df8) style="fill: none; stroke: #b0b0b0; stroke-opacity: 0.25; stroke-width: 0.8; stroke-linecap: square"/> </g> <g id=line2d_46> <g> <use xlink:href=#m0ceec0b575 x=440.362344 y=260.277656 style="fill: #888888; stroke: #888888; stroke-width: 0.8"/> </g> </g> <g id=text_27> <!-- 0.0 --> <g style="fill: #888888" transform="translate(417.459219 264.076484) scale(0.1 -0.1)"> <defs> <path id=DejaVuSans-11 d="M 684 794 
+L 1344 794 
+L 1344 0 
+L 684 0 
+L 684 794 
+z
+" transform=scale(0.015625) /> </defs> <use xlink:href=#DejaVuSans-13 /> <use xlink:href=#DejaVuSans-11 transform="translate(63.625 0)"/> <use xlink:href=#DejaVuSans-13 transform="translate(95.40625 0)"/> </g> </g> </g> <g id=ytick_8> <g id=line2d_47> <path d="M 440.362344 227.80799 
+L 781.2 227.80799 
+" clip-path=url(#pa8757d6df8) style="fill: none; stroke: #b0b0b0; stroke-opacity: 0.25; stroke-width: 0.8; stroke-linecap: square"/> </g> <g id=line2d_48> <g> <use xlink:href=#m0ceec0b575 x=440.362344 y=227.80799 style="fill: #888888; stroke: #888888; stroke-width: 0.8"/> </g> </g> <g id=text_28> <!-- 0.5 --> <g style="fill: #888888" transform="translate(417.459219 231.606818) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-13 /> <use xlink:href=#DejaVuSans-11 transform="translate(63.625 0)"/> <use xlink:href=#DejaVuSans-18 transform="translate(95.40625 0)"/> </g> </g> </g> <g id=ytick_9> <g id=line2d_49> <path d="M 440.362344 195.338324 
+L 781.2 195.338324 
+" clip-path=url(#pa8757d6df8) style="fill: none; stroke: #b0b0b0; stroke-opacity: 0.25; stroke-width: 0.8; stroke-linecap: square"/> </g> <g id=line2d_50> <g> <use xlink:href=#m0ceec0b575 x=440.362344 y=195.338324 style="fill: #888888; stroke: #888888; stroke-width: 0.8"/> </g> </g> <g id=text_29> <!-- 1.0 --> <g style="fill: #888888" transform="translate(417.459219 199.137152) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-14 /> <use xlink:href=#DejaVuSans-11 transform="translate(63.625 0)"/> <use xlink:href=#DejaVuSans-13 transform="translate(95.40625 0)"/> </g> </g> </g> <g id=ytick_10> <g id=line2d_51> <path d="M 440.362344 162.868658 
+L 781.2 162.868658 
+" clip-path=url(#pa8757d6df8) style="fill: none; stroke: #b0b0b0; stroke-opacity: 0.25; stroke-width: 0.8; stroke-linecap: square"/> </g> <g id=line2d_52> <g> <use xlink:href=#m0ceec0b575 x=440.362344 y=162.868658 style="fill: #888888; stroke: #888888; stroke-width: 0.8"/> </g> </g> <g id=text_30> <!-- 1.5 --> <g style="fill: #888888" transform="translate(417.459219 166.667486) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-14 /> <use xlink:href=#DejaVuSans-11 transform="translate(63.625 0)"/> <use xlink:href=#DejaVuSans-18 transform="translate(95.40625 0)"/> </g> </g> </g> <g id=ytick_11> <g id=line2d_53> <path d="M 440.362344 130.398992 
+L 781.2 130.398992 
+" clip-path=url(#pa8757d6df8) style="fill: none; stroke: #b0b0b0; stroke-opacity: 0.25; stroke-width: 0.8; stroke-linecap: square"/> </g> <g id=line2d_54> <g> <use xlink:href=#m0ceec0b575 x=440.362344 y=130.398992 style="fill: #888888; stroke: #888888; stroke-width: 0.8"/> </g> </g> <g id=text_31> <!-- 2.0 --> <g style="fill: #888888" transform="translate(417.459219 134.19782) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-15 /> <use xlink:href=#DejaVuSans-11 transform="translate(63.625 0)"/> <use xlink:href=#DejaVuSans-13 transform="translate(95.40625 0)"/> </g> </g> </g> <g id=ytick_12> <g id=line2d_55> <path d="M 440.362344 97.929326 
+L 781.2 97.929326 
+" clip-path=url(#pa8757d6df8) style="fill: none; stroke: #b0b0b0; stroke-opacity: 0.25; stroke-width: 0.8; stroke-linecap: square"/> </g> <g id=line2d_56> <g> <use xlink:href=#m0ceec0b575 x=440.362344 y=97.929326 style="fill: #888888; stroke: #888888; stroke-width: 0.8"/> </g> </g> <g id=text_32> <!-- 2.5 --> <g style="fill: #888888" transform="translate(417.459219 101.728154) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-15 /> <use xlink:href=#DejaVuSans-11 transform="translate(63.625 0)"/> <use xlink:href=#DejaVuSans-18 transform="translate(95.40625 0)"/> </g> </g> </g> <g id=ytick_13> <g id=line2d_57> <path d="M 440.362344 65.45966 
+L 781.2 65.45966 
+" clip-path=url(#pa8757d6df8) style="fill: none; stroke: #b0b0b0; stroke-opacity: 0.25; stroke-width: 0.8; stroke-linecap: square"/> </g> <g id=line2d_58> <g> <use xlink:href=#m0ceec0b575 x=440.362344 y=65.45966 style="fill: #888888; stroke: #888888; stroke-width: 0.8"/> </g> </g> <g id=text_33> <!-- 3.0 --> <g style="fill: #888888" transform="translate(417.459219 69.258488) scale(0.1 -0.1)"> <defs> <path id=DejaVuSans-16 d="M 2597 2516 
+Q 3050 2419 3304 2112 
+Q 3559 1806 3559 1356 
+Q 3559 666 3084 287 
+Q 2609 -91 1734 -91 
+Q 1441 -91 1130 -33 
+Q 819 25 488 141 
+L 488 750 
+Q 750 597 1062 519 
+Q 1375 441 1716 441 
+Q 2309 441 2620 675 
+Q 2931 909 2931 1356 
+Q 2931 1769 2642 2001 
+Q 2353 2234 1838 2234 
+L 1294 2234 
+L 1294 2753 
+L 1863 2753 
+Q 2328 2753 2575 2939 
+Q 2822 3125 2822 3475 
+Q 2822 3834 2567 4026 
+Q 2313 4219 1838 4219 
+Q 1578 4219 1281 4162 
+Q 984 4106 628 3988 
+L 628 4550 
+Q 988 4650 1302 4700 
+Q 1616 4750 1894 4750 
+Q 2613 4750 3031 4423 
+Q 3450 4097 3450 3541 
+Q 3450 3153 3228 2886 
+Q 3006 2619 2597 2516 
+z
+" transform=scale(0.015625) /> </defs> <use xlink:href=#DejaVuSans-16 /> <use xlink:href=#DejaVuSans-11 transform="translate(63.625 0)"/> <use xlink:href=#DejaVuSans-13 transform="translate(95.40625 0)"/> </g> </g> </g> <g id=ytick_14> <g id=line2d_59> <path d="M 440.362344 32.989994 
+L 781.2 32.989994 
+" clip-path=url(#pa8757d6df8) style="fill: none; stroke: #b0b0b0; stroke-opacity: 0.25; stroke-width: 0.8; stroke-linecap: square"/> </g> <g id=line2d_60> <g> <use xlink:href=#m0ceec0b575 x=440.362344 y=32.989994 style="fill: #888888; stroke: #888888; stroke-width: 0.8"/> </g> </g> <g id=text_34> <!-- 3.5 --> <g style="fill: #888888" transform="translate(417.459219 36.788822) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-16 /> <use xlink:href=#DejaVuSans-11 transform="translate(63.625 0)"/> <use xlink:href=#DejaVuSans-18 transform="translate(95.40625 0)"/> </g> </g> </g> <g id=text_35> <!-- busiest node / average load --> <g style="fill: #888888" transform="translate(411.056875 212.873516) rotate(-90) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-45 /> <use xlink:href=#DejaVuSans-58 transform="translate(63.484375 0)"/> <use xlink:href=#DejaVuSans-56 transform="translate(126.859375 0)"/> <use xlink:href=#DejaVuSans-4c transform="translate(178.953125 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(206.734375 0)"/> <use xlink:href=#DejaVuSans-56 transform="translate(268.265625 0)"/> <use xlink:href=#DejaVuSans-57 transform="translate(320.359375 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(359.5625 0)"/> <use xlink:href=#DejaVuSans-51 transform="translate(391.34375 0)"/> <use xlink:href=#DejaVuSans-52 transform="translate(454.71875 0)"/> <use xlink:href=#DejaVuSans-47 transform="translate(515.90625 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(579.390625 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(640.921875 0)"/> <use xlink:href=#DejaVuSans-12 transform="translate(672.703125 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(706.390625 0)"/> <use xlink:href=#DejaVuSans-44 transform="translate(738.171875 0)"/> <use xlink:href=#DejaVuSans-59 transform="translate(799.453125 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(858.640625 0)"/> <use xlink:href=#DejaVuSans-55 transform="translate(920.171875 0)"/> <use xlink:href=#DejaVuSans-44 transform="translate(961.28125 0)"/> <use xlink:href=#DejaVuSans-4a transform="translate(1022.5625 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(1086.046875 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(1147.578125 0)"/> <use xlink:href=#DejaVuSans-4f transform="translate(1179.359375 0)"/> <use xlink:href=#DejaVuSans-52 transform="translate(1207.140625 0)"/> <use xlink:href=#DejaVuSans-44 transform="translate(1268.328125 0)"/> <use xlink:href=#DejaVuSans-47 transform="translate(1329.609375 0)"/> </g> </g> </g> <g id=line2d_61> <path d="M 440.362344 195.338324 
+L 781.2 195.338324 
+" clip-path=url(#pa8757d6df8) style="fill: none; stroke-dasharray: 1.5,2.475; stroke-dashoffset: 0; stroke: #888888; stroke-width: 1.5"/> </g> <g id=patch_13> <path d="M 440.362344 260.277656 
+L 440.362344 26.16 
+" style="fill: none; stroke: #888888; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/> </g> <g id=patch_14> <path d="M 781.2 260.277656 
+L 781.2 26.16 
+" style="fill: none; stroke: #888888; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/> </g> <g id=patch_15> <path d="M 440.362344 260.277656 
+L 781.2 260.277656 
+" style="fill: none; stroke: #888888; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/> </g> <g id=patch_16> <path d="M 440.362344 26.16 
+L 781.2 26.16 
+" style="fill: none; stroke: #888888; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/> </g> <g id=text_36> <!-- Virtual nodes even out the load --> <g style="fill: #888888" transform="translate(516.308359 20.16) scale(0.12 -0.12)"> <defs> <path id=DejaVuSans-39 d="M 1831 0 
+L 50 4666 
+L 709 4666 
+L 2188 738 
+L 3669 4666 
+L 4325 4666 
+L 2547 0 
+L 1831 0 
+z
+" transform=scale(0.015625) /> </defs> <use xlink:href=#DejaVuSans-39 /> <use xlink:href=#DejaVuSans-4c transform="translate(66.203125 0)"/> <use xlink:href=#DejaVuSans-55 transform="translate(93.984375 0)"/> <use xlink:href=#DejaVuSans-57 transform="translate(135.09375 0)"/> <use xlink:href=#DejaVuSans-58 transform="translate(174.296875 0)"/> <use xlink:href=#DejaVuSans-44 transform="translate(237.671875 0)"/> <use xlink:href=#DejaVuSans-4f transform="translate(298.953125 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(326.734375 0)"/> <use xlink:href=#DejaVuSans-51 transform="translate(358.515625 0)"/> <use xlink:href=#DejaVuSans-52 transform="translate(421.890625 0)"/> <use xlink:href=#DejaVuSans-47 transform="translate(483.078125 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(546.5625 0)"/> <use xlink:href=#DejaVuSans-56 transform="translate(608.09375 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(660.1875 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(691.96875 0)"/> <use xlink:href=#DejaVuSans-59 transform="translate(753.5 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(812.6875 0)"/> <use xlink:href=#DejaVuSans-51 transform="translate(874.21875 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(937.59375 0)"/> <use xlink:href=#DejaVuSans-52 transform="translate(969.375 0)"/> <use xlink:href=#DejaVuSans-58 transform="translate(1030.5625 0)"/> <use xlink:href=#DejaVuSans-57 transform="translate(1093.9375 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(1133.140625 0)"/> <use xlink:href=#DejaVuSans-57 transform="translate(1164.921875 0)"/> <use xlink:href=#DejaVuSans-4b transform="translate(1204.125 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(1267.5 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(1329.03125 0)"/> <use xlink:href=#DejaVuSans-4f transform="translate(1360.8125 0)"/> <use xlink:href=#DejaVuSans-52 transform="translate(1388.59375 0)"/> <use xlink:href=#DejaVuSans-44 transform="translate(1449.78125 0)"/> <use xlink:href=#DejaVuSans-47 transform="translate(1511.0625 0)"/> </g> </g> </g> </g> <defs> <clipPath id=p62c0fa1cc3> <rect x=51.562344 y=26.16 width=340.837656 height=234.117656 /> </clipPath> <clipPath id=pa8757d6df8> <rect x=440.362344 y=26.16 width=340.837656 height=234.117656 /> </clipPath> </defs> </svg> <p>Ir de 9 para 10 nós com <code>mod N</code> move cerca de 90% das chaves — num cache distribuído, é o mesmo que despejar o cache inteiro sobre o banco de uma vez. Com hashing consistente, cerca de 10% se move. E com uma única posição por nó, o nó mais carregado leva várias vezes a sua parte justa; algumas centenas de vnodes o aproximam de 1.</p> <p>O hashing consistente é usado pelo Dynamo e pelo DynamoDB, Cassandra e ScyllaDB, Riak, sharding do Memcached no lado do cliente (o algoritmo <em>ketama</em>), upstreams <code>hash … consistent</code> do Nginx e muitos balanceadores de carga. Vale reconhecer dois parentes: o <strong>rendezvous hashing</strong> (<em>highest random weight</em>: cada chave escolhe o nó com o maior <code>hash(key, node)</code>)<sup id=fnref:3><a class=footnote-ref href=#fn:3>3</a></sup> e o <strong>jump consistent hash</strong> (sem anel, balanceamento quase perfeito, mas nós só podem ser adicionados ou removidos no final)<sup id=fnref:4><a class=footnote-ref href=#fn:4>4</a></sup>.</p> <h3 id=numero-fixo-de-particoes>Número fixo de partições</h3> <p>Uma alternativa mais simples que muitos sistemas usam: crie de antemão <strong>muito mais partições do que nós</strong> e atribua partições inteiras aos nós. Adicionar um nó significa mover para ele algumas <em>partições inteiras</em>; o mapeamento chave → partição nunca muda.</p> <ul> <li><strong>Redis Cluster</strong>: 16.384 hash slots, <code>slot = CRC16(key) mod 16384</code>; os slots são movidos entre os nós (veja <a href=../../caching/redis/>Redis</a>).</li> <li><strong>Elasticsearch / OpenSearch</strong>: o número de shards primários é fixado na criação do índice.</li> <li><strong>Kafka</strong>: as partições de um tópico (veja <a href=../../messaging/kafka/>Kafka</a>).</li> </ul> <p>O porém: escolha bem a quantidade. Partições de menos limitam até onde você consegue escalar; partições demais acrescentam overhead por partição.</p> <table> <thead> <tr> <th>Estratégia</th> <th>Chave → partição</th> <th>Consultas por intervalo</th> <th>Adicionar um nó</th> <th>Usada por</th> </tr> </thead> <tbody> <tr> <td>Intervalo de chaves</td> <td>limites ordenados, divididos quando crescem</td> <td>eficientes</td> <td>dividir e mover intervalos</td> <td>Bigtable, HBase, CockroachDB, TiDB, MongoDB (ranged)</td> </tr> <tr> <td>Hash mod N</td> <td><code>hash(k) mod N</code></td> <td>espalham para todas</td> <td><strong>move quase tudo</strong></td> <td>nada sério — evite</td> </tr> <tr> <td>Hashing consistente</td> <td>primeiro nó no sentido horário do anel</td> <td>espalham para todas</td> <td>~1/N das chaves se move</td> <td>Dynamo, Cassandra, Riak, clientes Memcached</td> </tr> <tr> <td>Partições fixas</td> <td><code>hash(k) mod P</code>, P fixo e grande</td> <td>espalham para todas</td> <td>mover partições inteiras</td> <td>Redis Cluster, Elasticsearch, Kafka, Couchbase</td> </tr> <tr> <td>Diretório</td> <td>tabela de consulta chave → shard</td> <td>depende</td> <td>atualizar a tabela</td> <td>sharding sob medida, Vitess (vindexes)</td> </tr> </tbody> </table> <hr> <h2 id=escolhendo-a-chave-de-particao>Escolhendo a chave de partição</h2> <p>A chave de partição é a decisão de maior consequência e a menos reversível de um design com sharding. Uma boa chave tem:</p> <ol> <li><strong>Alta cardinalidade</strong> — muitos valores distintos, para que os dados possam ser cortados em muitos pedaços.</li> <li><strong>Distribuição equilibrada</strong> tanto dos dados <em>quanto do tráfego</em> entre os valores.</li> <li><strong>Localidade das consultas</strong> — as consultas mais frequentes e todas as transações tocam <strong>uma</strong> partição.</li> </ol> <table> <thead> <tr> <th>Dado da BoxOffice</th> <th>Chave candidata</th> <th>Localidade</th> <th>Distribuição</th> <th>Veredito</th> </tr> </thead> <tbody> <tr> <td><code>orders</code>, <code>tickets</code></td> <td><code>customer_id</code></td> <td>"meus pedidos" e o checkout tocam um shard</td> <td>milhões de clientes, equilibrada</td> <td><strong>boa</strong>; relatórios por evento se espalham → rode-os no <a href=../specialized/#data-warehouses>data warehouse</a></td> </tr> <tr> <td><code>orders</code></td> <td><code>created_at</code></td> <td>intervalos de tempo são locais</td> <td>todas as escritas de hoje num shard</td> <td>ruim (chave sequencial)</td> </tr> <tr> <td><code>seats</code> (inventário)</td> <td><code>event_id</code></td> <td>uma transação de reserva fica num shard</td> <td><strong>um show no estádio = um shard quente</strong></td> <td>boa localidade, desequilíbrio perigoso — veja abaixo</td> </tr> <tr> <td><code>seats</code></td> <td><code>(event_id, section)</code></td> <td>uma reserva de assentos de um setor fica local</td> <td>o show no estádio se espalha por ~40 setores</td> <td><strong>melhor</strong> para grandes eventos</td> </tr> <tr> <td><code>gate_scans</code></td> <td><code>(event_id, gate)</code></td> <td>as leituras recentes do portão são locais</td> <td>50 portões espalham a carga</td> <td>boa</td> </tr> </tbody> </table> <details class=question> <summary>Pense antes: por que não particionar <code>seats</code> apenas por <code>seat_id</code>?</summary> <p>A distribuição seria perfeita, mas a consulta principal — "assentos disponíveis do evento 42, setor B" — se espalharia por todos os shards, e uma reserva em grupo de 4 assentos vizinhos viraria uma transação entre shards. A localidade da consulta dominante e das transações vale mais do que uma distribuição perfeita.</p> </details> <hr> <h2 id=hot-partitions>Partições quentes</h2> <p>Mesmo com um hash perfeito, o <strong>tráfego</strong> raramente é uniforme. Uma <strong>partição quente</strong> (<em>hot partition</em>, ou chave quente) recebe muito mais carga do que as outras: a celebridade cujos posts todo mundo lê, o produto em promoção na Black Friday, o show no estádio às 10:00. O hash não consegue espalhar uma carga que mira <em>uma única chave</em>.</p> <p><strong>Experimente.</strong> O cenário <code>sharding</code> espalha uma tabela NoSQL por várias partições. Execute-o com tráfego uniforme e anote a carga por partição; depois deixe a distribuição de chaves desequilibrada (uma chave quente) e veja uma única partição saturar e sua latência subir enquanto as outras ficam ociosas — adicionar partições não ajuda.</p> <div class=sdp data-scenario=sharding data-mode=compact data-height=520></div> <p>Mitigações, da menos à mais invasiva:</p> <table> <thead> <tr> <th>Técnica</th> <th>Como</th> <th>Custo</th> </tr> </thead> <tbody> <tr> <td><strong>Cachear as leituras</strong></td> <td>a página do evento quente é servida pelo cache ou pela CDN, não pelo shard (<a href=../../caching/>Cache</a>)</td> <td>dados desatualizados</td> </tr> <tr> <td><strong>Limitar e enfileirar as escritas</strong></td> <td>uma sala de espera admite fãs no ritmo que o shard consegue atender (<a href=../transactions/#contention>cenário flash-sale</a>)</td> <td>os usuários esperam</td> </tr> <tr> <td><strong>Chave mais fina</strong></td> <td><code>(event_id, section)</code> em vez de <code>event_id</code></td> <td>consultas sobre o evento inteiro se espalham por ~40 partições</td> </tr> <tr> <td><strong>Salting de chave / write sharding</strong></td> <td>acrescente um sufixo <code>0–9</code> a uma chave quente (<code>event:42#7</code>); as escritas escolhem um sufixo aleatório, as leituras juntam os dez</td> <td>as leituras fazem 10× o trabalho</td> </tr> <tr> <td><strong>Contadores fragmentados</strong> (<em>sharded counters</em>)</td> <td>"assentos restantes" mantido como 10 subcontadores, somados na leitura</td> <td>leituras aproximadas durante as atualizações</td> </tr> <tr> <td><strong>Capacidade dedicada</strong></td> <td>mova a partição quente para um nó só dela; bancos gerenciados podem dividi-la automaticamente (adaptive capacity do DynamoDB)</td> <td>operação, custo</td> </tr> </tbody> </table> <div class="admonition example"> <p class=admonition-title>BoxOffice: o plano de particionamento do inventário</p> <ul> <li>Chave de partição <code>(event_id, section)</code>. Um show normal tem 5–10 setores; o show no estádio tem ~40, espalhados por muitos nós.</li> <li>Reservas e confirmações são transações de uma única partição (todos os assentos de uma reserva em grupo ficam no mesmo setor, por design da interface).</li> <li>Os "assentos restantes" da página do evento são um <strong>contador fragmentado</strong> por setor, agregado a cada segundo no cache — nunca uma linha quente.</li> <li>A <strong>sala de espera</strong> limita as tentativas concorrentes de reserva ao que a partição mais carregada consegue atender.</li> </ul> </div> <hr> <h2 id=indices-secundarios-em-dados-particionados>Índices secundários em dados particionados</h2> <p>Particionar por <code>customer_id</code> deixa "pedidos do cliente 7" rápido. E "pedidos do evento 42"? É preciso um <strong>índice secundário</strong>, e em dados particionados ele vem em dois sabores:</p> <pre class=mermaid><code>flowchart TB
+    subgraph local ["Índice local (particionado por documento)"]
+        Q1["consulta: event_id = 42"] --&gt; P1["shard 1&lt;br/&gt;+ seu próprio índice"]
+        Q1 --&gt; P2["shard 2&lt;br/&gt;+ seu próprio índice"]
+        Q1 --&gt; P3["shard 3&lt;br/&gt;+ seu próprio índice"]
+    end
+    subgraph global ["Índice global (particionado por termo)"]
+        Q2["consulta: event_id = 42"] --&gt; IX["partição do índice&lt;br/&gt;para event_id 42"]
+        IX --&gt; D1["shard 1"]
+        IX --&gt; D3["shard 3"]
+    end</code></pre> <table> <thead> <tr> <th></th> <th>Índice local</th> <th>Índice global</th> </tr> </thead> <tbody> <tr> <td>Escrita</td> <td>atualiza o índice no mesmo shard — barata, transacional</td> <td>atualiza uma partição de índice em outro lugar — muitas vezes <strong>assíncrona</strong></td> </tr> <tr> <td>Leitura pela coluna indexada</td> <td><strong>scatter/gather</strong> em todos os shards; latência de cauda do mais lento</td> <td>uma partição de índice e depois só os shards que têm resultados</td> </tr> <tr> <td>Exemplos</td> <td>MongoDB, índices secundários do Cassandra, Elasticsearch</td> <td>índices secundários globais do DynamoDB (eventualmente consistentes), índices do Spanner/CockroachDB (transacionais)</td> </tr> </tbody> </table> <p>O scatter/gather é mais perigoso do que parece: uma consulta a 20 shards é tão lenta quanto o <strong>mais lento</strong> dos 20. A chance de os 20 responderem dentro do próprio p99 é 0,99²⁰ ≈ 82 %, então o p99 de um shard é só cerca do <strong>p82</strong> da consulta — 18 % das consultas são mais lentas. Para o p99 da <em>consulta</em> ficar abaixo de uma meta, cada shard precisa cumpri-la no seu <strong>p99,95</strong> (0,99^(1/20) ≈ 0,9995) (veja <a href=../../estimation/percentiles/>Percentis</a>).</p> <hr> <h2 id=rebalanceamento-e-resharding>Rebalanceamento e resharding</h2> <p>Nós são adicionados, removidos e falham; os dados crescem de forma desigual. O <strong>rebalanceamento</strong> move partições para manter a carga equilibrada, de preferência enquanto o banco continua atendendo tráfego e movendo apenas os dados que precisam se mover.</p> <ul> <li>Prefira esquemas em que o mapeamento chave → partição é estável (partições fixas, hashing consistente, divisão de intervalos), para que o rebalanceamento mova partições, não chaves individuais.</li> <li>O rebalanceamento disputa rede e disco com o tráfego real; limite sua velocidade e evite rebalanceamento totalmente automático disparado por um nó que está apenas lento (isso pode virar uma cascata).</li> <li><strong>Trocar a chave de partição</strong> (resharding) é um projeto de migração. A receita comum é online:</li> </ul> <pre class=mermaid-sim><code>flowchart LR
+    A["1. crie os novos shards&lt;br/&gt;com a nova chave"] --&gt; B["2. escrita dupla:&lt;br/&gt;antigo + novo"]
+    B --&gt; C["3. backfill do histórico&lt;br/&gt;(cópia + CDC para alcançar)"]
+    C --&gt; D["4. verifique:&lt;br/&gt;compare as leituras"]
+    D --&gt; E["5. mude as leituras&lt;br/&gt;para os novos shards"]
+    E --&gt; F["6. pare as escritas antigas,&lt;br/&gt;apague os shards antigos"]</code></pre> <p>Camadas de sharding automatizam boa parte disso para bancos relacionais existentes: o <strong>Vitess</strong> para MySQL (criado no YouTube) e o <strong>Citus</strong> para PostgreSQL cuidam de roteamento, resharding e consultas distribuídas.</p> <h3 id=roteamento-de-requisicoes>Roteamento de requisições</h3> <p>Algum componente precisa saber qual nó guarda qual partição:</p> <table> <thead> <tr> <th>Abordagem</th> <th>Como</th> <th>Exemplos</th> </tr> </thead> <tbody> <tr> <td>Qualquer nó encaminha</td> <td>o cliente fala com qualquer nó; ele encaminha ou redireciona</td> <td>Cassandra, Redis Cluster (redirecionamentos <code>MOVED</code>)</td> </tr> <tr> <td>Camada de roteamento</td> <td>um proxy sem estado conhece o mapa</td> <td><code>mongos</code> do MongoDB, <code>vtgate</code> do Vitess, coordenador do Citus</td> </tr> <tr> <td>Cliente que conhece as partições</td> <td>a biblioteca cliente mantém o mapa em cache</td> <td>clientes Kafka, SDK do DynamoDB via endpoints, clientes Redis "inteligentes"</td> </tr> </tbody> </table> <p>O próprio mapa é um metadado pequeno e crítico — guardado num armazenamento de consenso como etcd ou ZooKeeper, ou propagado por gossip entre os nós (veja <a href=../../distributed/consensus/>Consenso</a>).</p> <hr> <h2 id=consultas-e-transacoes-entre-particoes>Consultas e transações entre partições</h2> <p>O particionamento funciona lindamente até uma operação precisar de <strong>várias partições ao mesmo tempo</strong>:</p> <ul> <li><strong>Joins e agregações</strong> entre shards viram scatter/gather, feitos por um coordenador — mais lentos e limitados pelo shard mais lento.</li> <li><strong>Transações</strong> entre shards precisam de um protocolo de coordenação — commit em duas fases ou commit baseado em consenso — com idas e voltas extras e novos modos de falha (veja <a href=../transactions/#across-services>Transações</a>).</li> <li><strong>Constraints de unicidade</strong> em colunas que não são a chave (e-mail único quando o sharding é por <code>customer_id</code>) precisam de um índice global ou de uma tabela de consulta separada.</li> </ul> <p>Então o objetivo do design é: <strong>escolher as chaves para que o caminho quente seja de uma única partição</strong> e mandar o resto para sistemas feitos para isso (um data warehouse para analytics, um índice de busca para consultas transversais).</p> <hr> <h2 id=newsql>NewSQL: bancos SQL distribuídos</h2> <p>E se você quiser particionamento <em>e</em> transações SQL entre partições, sem escrever uma camada de sharding? Os bancos <strong>NewSQL</strong>, ou <strong>SQL distribuído</strong>, fazem isso<sup id=fnref:5><a class=footnote-ref href=#fn:5>5</a></sup>:</p> <ul> <li>O <strong>Google Spanner</strong><sup id=fnref:6><a class=footnote-ref href=#fn:6>6</a></sup> divide as tabelas em intervalos, replica cada intervalo com <strong>Paxos</strong> entre zonas ou regiões e executa transações distribuídas com commit em duas fases sobre esses grupos. Sua API <strong>TrueTime</strong> expõe a incerteza do relógio (alguns milissegundos, limitada por GPS e relógios atômicos); um commit espera essa incerteza passar, o que dá <strong>consistência externa</strong> (transações linearizáveis) no mundo todo.</li> <li>O <strong>CockroachDB</strong><sup id=fnref:7><a class=footnote-ref href=#fn:7>7</a></sup> (protocolo de rede do PostgreSQL) divide os dados em intervalos de algumas centenas de megabytes, replica cada um com <strong>Raft</strong> e usa relógios lógicos híbridos em vez de hardware especial; o isolamento serializable é o padrão.</li> <li>O <strong>YugabyteDB</strong> (compatível com PostgreSQL) e o <strong>TiDB</strong> (compatível com MySQL) seguem designs parecidos; os provedores de nuvem também oferecem SQL distribuído gerenciado e serverless.</li> </ul> <pre class=mermaid-sim><code>sequenceDiagram
+    participant C as Cliente
+    participant G as Nó gateway
+    participant R1 as Líder do intervalo 1 (orders)
+    participant R2 as Líder do intervalo 2 (tickets)
+    C-&gt;&gt;G: BEGIN, INSERT order, INSERT tickets, COMMIT
+    G-&gt;&gt;R1: intenção de escrita (replicada por Raft)
+    G-&gt;&gt;R2: intenção de escrita (replicada por Raft)
+    R1--&gt;&gt;G: ok (maioria confirmou)
+    R2--&gt;&gt;G: ok (maioria confirmou)
+    G-&gt;&gt;G: registro de commit (atômico)
+    G--&gt;&gt;C: COMMIT ok</code></pre> <table> <thead> <tr> <th></th> <th>SQL em um nó + réplicas</th> <th>SQL com sharding (Citus, Vitess)</th> <th>SQL distribuído (Spanner, CockroachDB…)</th> <th>NoSQL (Cassandra, DynamoDB)</th> </tr> </thead> <tbody> <tr> <td>Escala de escrita</td> <td>um primário</td> <td>por shard</td> <td>automática, por intervalo</td> <td>automática, por partição</td> </tr> <tr> <td>Transações entre partições</td> <td>n/a (um nó)</td> <td>limitadas / 2PC</td> <td><strong>sim</strong>, serializable</td> <td>limitadas ou nenhuma</td> </tr> <tr> <td>Latência de escrita</td> <td>a menor</td> <td>baixa</td> <td>+ ida e volta do consenso (mais se for multirregião)</td> <td>baixa, ajustável</td> </tr> <tr> <td>SQL e joins</td> <td>completos</td> <td>a maior parte, com ressalvas</td> <td>a maior parte</td> <td>nenhum / limitado</td> </tr> <tr> <td>Operação</td> <td>simples</td> <td>camada de sharding para operar</td> <td>gerenciada ou complexa</td> <td>gerenciada ou complexa</td> </tr> </tbody> </table> <p>SQL distribuído não sai de graça: toda escrita é replicada por consenso, então a latência é maior do que num único nó, e uma transação que abrange regiões paga idas e voltas entre regiões. É a resposta certa quando você <strong>precisa</strong> ao mesmo tempo de transações SQL e de mais capacidade de escrita ou resiliência geográfica do que um primário consegue dar — não como padrão.</p> <div class="admonition tip"> <p class=admonition-title>Na entrevista</p> <ul> <li>Introduza o sharding só depois de estimar: "~1 bilhão de pedidos × 1 KB ≈ 1 TB, ~5 mil escritas/s no pico — além de um primário confortável, então eu particiono <code>orders</code> por <code>customer_id</code>".</li> <li>Justifique a chave com os <strong>três critérios</strong> (cardinalidade, distribuição, localidade do caminho quente) e diga o que se espalha ("relatórios por evento vão para o data warehouse").</li> <li>Diga "hashing consistente <strong>com nós virtuais</strong>" e por quê: adicionar um nó move ~1/N das chaves, não todas.</li> <li>Levante sempre a <strong>partição quente</strong> antes que o entrevistador o faça — a celebridade, a flash sale — e dê uma mitigação concreta (cache, chave mais fina, salting, fila).</li> <li>Se as transações precisam abranger partições, mencione SQL distribuído (Spanner, CockroachDB) e seu custo: idas e voltas de consenso.</li> </ul> </div> <div class="admonition warning"> <p class=admonition-title>Armadilhas comuns</p> <ul> <li><strong><code>hash mod N</code></strong> para qualquer coisa que um dia vá mudar de tamanho.</li> <li><strong>Chaves de partição sequenciais</strong> (timestamps, autoincremento) com particionamento por intervalo: um shard quente recebe todas as escritas.</li> <li><strong>Uma chave que ignora o caminho quente</strong>: transações que viram entre shards desde o primeiro dia.</li> <li><strong>Poucas partições fixas</strong>: depois você não consegue escalar além de um nó por partição.</li> <li><strong>Scatter/gather no caminho quente</strong>: o p99 da consulta vira o p99 do shard mais lento.</li> <li><strong>Sharding cedo demais</strong>: você paga a complexidade por anos antes de precisar da capacidade.</li> </ul> </div> <h2 id=how-it-connects>Como se conecta</h2> <pre class=mermaid><code>flowchart LR
+    RANGE["por faixa de chave"] --&gt; KEY["escolher a chave de partição&lt;br/&gt;cardinalidade, distribuição, localidade"]
+    HASH["por hash"] --&gt; KEY
+    CH["hashing consistente&lt;br/&gt;nós virtuais"] --&gt; HASH
+    KEY --&gt; HOT["partições quentes&lt;br/&gt;o evento em venda"]
+    HOT --&gt; MIT["cache, chave mais fina, salting,&lt;br/&gt;fila → Caching, Mensageria"]
+    KEY --&gt; SEC["índices secundários&lt;br/&gt;locais vs globais"]
+    KEY --&gt; RESH["rebalanceamento,&lt;br/&gt;roteamento de requisições"]
+    KEY --&gt; XP["consultas entre partições&lt;br/&gt;relatórios → warehouse"]
+    XP --&gt; NEW["NewSQL: Spanner, CockroachDB&lt;br/&gt;consenso por faixa → Distribuídos"]
+    CH -.-&gt; LB["o mesmo anel nos balanceadores&lt;br/&gt;→ Borda"]</code></pre> <p><strong>Componentes da paleta:</strong> <a href=../../../reference/components/storage/#nosql><code>nosql</code></a> (Cassandra, DynamoDB, MongoDB particionam por chave) · <a href=../../../reference/components/storage/#sql><code>sql</code></a> (PostgreSQL fragmentado, ou SQL distribuído) · <a href=../../../reference/components/storage/#cache><code>cache</code></a> (hash slots do Redis Cluster; serve a página do evento quente no lugar do shard) · <a href=../../../reference/components/compute/#search><code>search</code></a> (shards do Elasticsearch) · <a href=../../../reference/components/messaging/#kafka><code>kafka</code></a> (partições por chave) · <a href=../../../reference/components/messaging/#queue><code>queue</code></a> (a sala de espera na frente de uma partição quente) · <a href=../../../reference/components/edge/#lb><code>lb</code></a> (hashing consistente para afinidade) · <a href=../../../reference/components/storage/#dwh><code>dwh</code></a> (onde ficam os relatórios scatter-gather). <strong>Cenários:</strong> <code>sharding</code>, <code>flash-sale</code>. <strong>Continua em:</strong> <a href=../specialized/>Armazenamentos Especializados</a>, <a href=../../distributed/consensus/>Distribuídos — consenso</a>, <a href=../../edge/load-balancing/>Borda — balanceamento de carga</a>, <a href=../../caching/redis/#cluster>Caching — Redis Cluster</a>, <a href=../../case-studies/distributed-cache/>Estudo de caso: cache distribuído</a>.</p> <hr> <div class=footnote> <hr> <ol> <li id=fn:1> <p>KLEPPMANN, M.; RICCOMINI, C. <em>Designing Data-Intensive Applications</em>. 2. ed. O'Reilly. Capítulo "Sharding" (chamado "Partitioning" na 1ª edição). <a class=footnote-backref href=#fnref:1 title="Jump back to footnote 1 in the text">↩</a></p> </li> <li id=fn:2> <p>KARGER, D. et al. Consistent Hashing and Random Trees: Distributed Caching Protocols for Relieving Hot Spots on the World Wide Web. <em>ACM STOC</em>, 1997. <a class=footnote-backref href=#fnref:2 title="Jump back to footnote 2 in the text">↩</a></p> </li> <li id=fn:3> <p>THALER, D. G.; RAVISHANKAR, C. V. Using Name-Based Mappings to Increase Hit Rates. <em>IEEE/ACM Transactions on Networking</em>, 6(1), 1998. <a class=footnote-backref href=#fnref:3 title="Jump back to footnote 3 in the text">↩</a></p> </li> <li id=fn:4> <p>LAMPING, J.; VEACH, E. A Fast, Minimal Memory, Consistent Hash Algorithm. arXiv:1406.2294, 2014. <a class=footnote-backref href=#fnref:4 title="Jump back to footnote 4 in the text">↩</a></p> </li> <li id=fn:5> <p>PAVLO, A.; ASLETT, M. What's Really New with NewSQL? <em>ACM SIGMOD Record</em>, 45(2), 2016. <a class=footnote-backref href=#fnref:5 title="Jump back to footnote 5 in the text">↩</a></p> </li> <li id=fn:6> <p>CORBETT, J. C. et al. Spanner: Google's Globally-Distributed Database. <em>USENIX OSDI</em>, 2012. <a class=footnote-backref href=#fnref:6 title="Jump back to footnote 6 in the text">↩</a></p> </li> <li id=fn:7> <p>TAFT, R. et al. CockroachDB: The Resilient Geo-Distributed SQL Database. <em>ACM SIGMOD</em>, 2020. <a class=footnote-backref href=#fnref:7 title="Jump back to footnote 7 in the text">↩</a></p> </li> </ol> </div> </article> </div> <script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script> </div> <button type=button class="md-top md-icon" data-md-component=top hidden> <svg xmlns=http://www.w3.org/2000/svg fill=none stroke=currentColor stroke-linecap=round stroke-linejoin=round stroke-width=2 class="lucide lucide-circle-arrow-up" viewBox="0 0 24 24"><circle cx=12 cy=12 r=10 /><path d="m16 12-4-4-4 4M12 16V8"/></svg> Voltar para o topo </button> </main> <footer class=md-footer> <div class="md-footer-meta md-typeset"> <div class="md-footer-meta__inner md-grid"> <div class=md-copyright> Made with <a href=https://zensical.org/ target=_blank rel=noopener> Zensical </a> </div> </div> </div> </footer> </div> <div class=md-dialog data-md-component=dialog role=status aria-atomic=true> <div class="md-dialog__inner md-typeset"></div> </div> <div class=md-progress data-md-component=progress role=progressbar aria-label=Loading></div> <script id=__config type=application/json>{"annotate":null,"base":"../../../..","features":["content.code.copy","content.code.select","content.code.annotate","content.tooltips","navigation.instant","navigation.instant.progress","navigation.top","navigation.path","navigation.tracking","navigation.footer","search.highlight","toc.follow"],"redirect":null,"search":"../../../../assets/javascripts/workers/search.c47bb847.min.js","tags":null,"translations":{"clipboard.copied":"Copiado para área de transferência","clipboard.copy":"Copiar para área de transferência","clipboard.error":"Could not copy to clipboard","search.result.more.one":"mais 1 nesta página","search.result.more.other":"# mais nesta página","search.result.none":"Nenhum documento encontrado","search.result.one":"1 documento encontrado","search.result.other":"# documentos encontrados","search.result.placeholder":"Digite para iniciar a busca","search.result.term.missing":"Ausente","select.version":"Selecione a versão"},"version":null}</script> <script src=../../../../assets/javascripts/bundle.a2388154.min.js></script> <script src=../../../../assets/javascripts/mathjax.js></script> <script src=https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js></script> <script src=../../../../assets/javascripts/interview.js></script> <script src=../../../../assets/javascripts/termynal.js></script> <script src=../../../../assets/javascripts/termynal-init.js></script> <script src=../../../../assets/javascripts/mermaid-sim.js></script> <script src=../../../../assets/javascripts/calendar-today.js></script> <script src=../../../../assets/javascripts/playground/rng.js></script> <script src=../../../../assets/javascripts/playground/catalog.js></script> <script src=../../../../assets/javascripts/playground/engine.js></script> <script src=../../../../assets/javascripts/playground/scenarios.js></script> <script src=../../../../assets/javascripts/playground/ui.js></script> <script src=../../../../assets/javascripts/support/arq-lessons.js></script> <script src=../../../../assets/javascripts/support/dgm.js></script> <script src=../../../../assets/javascripts/support/dgm-mapa-arq.js></script> <script src=../../../../assets/javascripts/support/dgm-cartas-arq.js></script> </body> </html>

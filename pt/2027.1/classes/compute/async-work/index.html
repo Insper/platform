@@ -1,0 +1,1003 @@
+ <!doctype html><html lang="pt" class=no-js> <head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><meta name=author content="Sandmann, H."><link rel=canonical href=https://insper.github.io/platform/pt/2027.1/classes/compute/async-work/><link rel=icon href=../../../../assets/images/favicon.png><meta name=generator content=zensical-0.0.70><title>Index - Plataformas, Microsserviços, DevOps e APIs</title><link rel=stylesheet href=../../../../assets/stylesheets/modern/main.e442bf79.min.css><link rel=stylesheet href=../../../../assets/stylesheets/modern/palette.b60ce83d.min.css><style>:root{--md-admonition-icon--abstract:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20448%20512%22%3E%3C%21--%21%20Font%20Awesome%20Free%207.3.1%20by%20%40fontawesome%20-%20https%3A//fontawesome.com%20License%20-%20https%3A//fontawesome.com/license/free%20%28Icons%3A%20CC%20BY%204.0%2C%20Fonts%3A%20SIL%20OFL%201.1%2C%20Code%3A%20MIT%20License%29%20Copyright%202026%20Fonticons%2C%20Inc.--%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M384%20512H96c-53%200-96-43-96-96V96C0%2043%2043%200%2096%200h304c26.5%200%2048%2021.5%2048%2048v288c0%2020.9-13.4%2038.7-32%2045.3V448c17.7%200%2032%2014.3%2032%2032s-14.3%2032-32%2032zM96%20384c-17.7%200-32%2014.3-32%2032s14.3%2032%2032%2032h256v-64zm32-232c0%2013.3%2010.7%2024%2024%2024h176c13.3%200%2024-10.7%2024-24s-10.7-24-24-24H152c-13.3%200-24%2010.7-24%2024m24%2072c-13.3%200-24%2010.7-24%2024s10.7%2024%2024%2024h176c13.3%200%2024-10.7%2024-24s-10.7-24-24-24z%22/%3E%3C/svg%3E');--md-admonition-icon--bug:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20640%20512%22%3E%3C%21--%21%20Font%20Awesome%20Free%207.3.1%20by%20%40fontawesome%20-%20https%3A//fontawesome.com%20License%20-%20https%3A//fontawesome.com/license/free%20%28Icons%3A%20CC%20BY%204.0%2C%20Fonts%3A%20SIL%20OFL%201.1%2C%20Code%3A%20MIT%20License%29%20Copyright%202026%20Fonticons%2C%20Inc.--%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M352%200c0-17.7-14.3-32-32-32s-32%2014.3-32%2032v64h-96c-53%200-96%2043-96%2096v224c0%2053%2043%2096%2096%2096h256c53%200%2096-43%2096-96V160c0-53-43-96-96-96h-96zM160%20368c0-13.3%2010.7-24%2024-24h32c13.3%200%2024%2010.7%2024%2024s-10.7%2024-24%2024h-32c-13.3%200-24-10.7-24-24m120%200c0-13.3%2010.7-24%2024-24h32c13.3%200%2024%2010.7%2024%2024s-10.7%2024-24%2024h-32c-13.3%200-24-10.7-24-24m120%200c0-13.3%2010.7-24%2024-24h32c13.3%200%2024%2010.7%2024%2024s-10.7%2024-24%2024h-32c-13.3%200-24-10.7-24-24M224%20176a48%2048%200%201%201%200%2096%2048%2048%200%201%201%200-96m144%2048a48%2048%200%201%201%2096%200%2048%2048%200%201%201-96%200m-304%200c0-17.7-14.3-32-32-32S0%20206.3%200%20224v96c0%2017.7%2014.3%2032%2032%2032s32-14.3%2032-32zm544-32c-17.7%200-32%2014.3-32%2032v96c0%2017.7%2014.3%2032%2032%2032s32-14.3%2032-32v-96c0-17.7-14.3-32-32-32%22/%3E%3C/svg%3E');--md-admonition-icon--danger:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20512%20512%22%3E%3C%21--%21%20Font%20Awesome%20Free%207.3.1%20by%20%40fontawesome%20-%20https%3A//fontawesome.com%20License%20-%20https%3A//fontawesome.com/license/free%20%28Icons%3A%20CC%20BY%204.0%2C%20Fonts%3A%20SIL%20OFL%201.1%2C%20Code%3A%20MIT%20License%29%20Copyright%202026%20Fonticons%2C%20Inc.--%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M416%20427.4c58.5-44%2096-111.6%2096-187.4C512%20107.5%20397.4%200%20256%200S0%20107.5%200%20240c0%2075.8%2037.5%20143.4%2096%20187.4V464c0%2026.5%2021.5%2048%2048%2048h32v-40c0-13.3%2010.7-24%2024-24s24%2010.7%2024%2024v40h64v-40c0-13.3%2010.7-24%2024-24s24%2010.7%2024%2024v40h32c26.5%200%2048-21.5%2048-48zM96%20256a64%2064%200%201%201%20128%200%2064%2064%200%201%201-128%200m256-64a64%2064%200%201%201%200%20128%2064%2064%200%201%201%200-128%22/%3E%3C/svg%3E');--md-admonition-icon--example:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20448%20512%22%3E%3C%21--%21%20Font%20Awesome%20Free%207.3.1%20by%20%40fontawesome%20-%20https%3A//fontawesome.com%20License%20-%20https%3A//fontawesome.com/license/free%20%28Icons%3A%20CC%20BY%204.0%2C%20Fonts%3A%20SIL%20OFL%201.1%2C%20Code%3A%20MIT%20License%29%20Copyright%202026%20Fonticons%2C%20Inc.--%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M288%200H128c-17.7%200-32%2014.3-32%2032s14.3%2032%2032%2032v151.5L7.5%20426.3C2.6%20435%200%20444.7%200%20454.7%200%20486.4%2025.6%20512%2057.3%20512h333.4c31.6%200%2057.3-25.6%2057.3-57.3%200-10-2.6-19.8-7.5-28.4L320%20215.5V64c17.7%200%2032-14.3%2032-32S337.7%200%20320%200zm-96%20215.5V64h64v151.5c0%2011.1%202.9%2022.1%208.4%2031.8L306%20320H142l41.6-72.7c5.5-9.7%208.4-20.6%208.4-31.8%22/%3E%3C/svg%3E');--md-admonition-icon--failure:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20576%20512%22%3E%3C%21--%21%20Font%20Awesome%20Free%207.3.1%20by%20%40fontawesome%20-%20https%3A//fontawesome.com%20License%20-%20https%3A//fontawesome.com/license/free%20%28Icons%3A%20CC%20BY%204.0%2C%20Fonts%3A%20SIL%20OFL%201.1%2C%20Code%3A%20MIT%20License%29%20Copyright%202026%20Fonticons%2C%20Inc.--%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M480-16c6.9%200%2013%204.4%2015.2%2010.9l13.5%2040.4%2040.4%2013.5C555.6%2051%20560%2057.1%20560%2064s-4.4%2013-10.9%2015.2l-40.4%2013.5-13.5%2040.4c-2.2%206.5-8.3%2010.9-15.2%2010.9s-13-4.4-15.2-10.9l-13.5-40.4-40.4-13.5C404.4%2077%20400%2070.9%20400%2064s4.4-13%2010.9-15.2l40.4-13.5%2013.5-40.4C467-11.6%20473.1-16%20480-16M321.4%2097.4c12.5-12.5%2032.8-12.5%2045.3%200l80%2080c12.5%2012.5%2012.5%2032.8%200%2045.3l-10.9%2010.9c7.9%2022%2012.2%2045.7%2012.2%2070.5%200%20114.9-93.1%20208-208%20208S32%20418.9%2032%20304%20125.1%2096%20240%2096c24.7%200%2048.5%204.3%2070.5%2012.3zM144%20304c0-53%2043-96%2096-96%2013.3%200%2024-10.7%2024-24s-10.7-24-24-24c-79.5%200-144%2064.5-144%20144%200%2013.3%2010.7%2024%2024%2024s24-10.7%2024-24%22/%3E%3C/svg%3E');--md-admonition-icon--info:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20512%20512%22%3E%3C%21--%21%20Font%20Awesome%20Free%207.3.1%20by%20%40fontawesome%20-%20https%3A//fontawesome.com%20License%20-%20https%3A//fontawesome.com/license/free%20%28Icons%3A%20CC%20BY%204.0%2C%20Fonts%3A%20SIL%20OFL%201.1%2C%20Code%3A%20MIT%20License%29%20Copyright%202026%20Fonticons%2C%20Inc.--%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M256%20512a256%20256%200%201%200%200-512%20256%20256%200%201%200%200%20512m-32-352a32%2032%200%201%201%2064%200%2032%2032%200%201%201-64%200m-8%2064h48c13.3%200%2024%2010.7%2024%2024v88h8c13.3%200%2024%2010.7%2024%2024s-10.7%2024-24%2024h-80c-13.3%200-24-10.7-24-24s10.7-24%2024-24h24v-64h-24c-13.3%200-24-10.7-24-24s10.7-24%2024-24%22/%3E%3C/svg%3E');--md-admonition-icon--note:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20448%20512%22%3E%3C%21--%21%20Font%20Awesome%20Free%207.3.1%20by%20%40fontawesome%20-%20https%3A//fontawesome.com%20License%20-%20https%3A//fontawesome.com/license/free%20%28Icons%3A%20CC%20BY%204.0%2C%20Fonts%3A%20SIL%20OFL%201.1%2C%20Code%3A%20MIT%20License%29%20Copyright%202026%20Fonticons%2C%20Inc.--%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M64%20480c-35.3%200-64-28.7-64-64V96c0-35.3%2028.7-64%2064-64h320c35.3%200%2064%2028.7%2064%2064v213.5c0%2017-6.7%2033.3-18.7%2045.3L322.7%20461.3c-12%2012-28.3%2018.7-45.3%2018.7zm325.5-176H296c-13.3%200-24%2010.7-24%2024v93.5z%22/%3E%3C/svg%3E');--md-admonition-icon--question:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20512%20512%22%3E%3C%21--%21%20Font%20Awesome%20Free%207.3.1%20by%20%40fontawesome%20-%20https%3A//fontawesome.com%20License%20-%20https%3A//fontawesome.com/license/free%20%28Icons%3A%20CC%20BY%204.0%2C%20Fonts%3A%20SIL%20OFL%201.1%2C%20Code%3A%20MIT%20License%29%20Copyright%202026%20Fonticons%2C%20Inc.--%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M256%20512a256%20256%200%201%200%200-512%20256%20256%200%201%200%200%20512m0-336c-17.7%200-32%2014.3-32%2032%200%2013.3-10.7%2024-24%2024s-24-10.7-24-24c0-44.2%2035.8-80%2080-80s80%2035.8%2080%2080c0%2047.2-36%2067.2-56%2074.5v3.8c0%2013.3-10.7%2024-24%2024s-24-10.7-24-24v-8.1c0-20.5%2014.8-35.2%2030.1-40.2%206.4-2.1%2013.2-5.5%2018.2-10.3%204.3-4.2%207.7-10%207.7-19.6%200-17.7-14.3-32-32-32zm-32%20192a32%2032%200%201%201%2064%200%2032%2032%200%201%201-64%200%22/%3E%3C/svg%3E');--md-admonition-icon--quote:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20448%20512%22%3E%3C%21--%21%20Font%20Awesome%20Free%207.3.1%20by%20%40fontawesome%20-%20https%3A//fontawesome.com%20License%20-%20https%3A//fontawesome.com/license/free%20%28Icons%3A%20CC%20BY%204.0%2C%20Fonts%3A%20SIL%20OFL%201.1%2C%20Code%3A%20MIT%20License%29%20Copyright%202026%20Fonticons%2C%20Inc.--%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M0%20216C0%20149.7%2053.7%2096%20120%2096h8c17.7%200%2032%2014.3%2032%2032s-14.3%2032-32%2032h-8c-30.9%200-56%2025.1-56%2056v8h64c35.3%200%2064%2028.7%2064%2064v64c0%2035.3-28.7%2064-64%2064H64c-35.3%200-64-28.7-64-64zm256%200c0-66.3%2053.7-120%20120-120h8c17.7%200%2032%2014.3%2032%2032s-14.3%2032-32%2032h-8c-30.9%200-56%2025.1-56%2056v8h64c35.3%200%2064%2028.7%2064%2064v64c0%2035.3-28.7%2064-64%2064h-64c-35.3%200-64-28.7-64-64z%22/%3E%3C/svg%3E');--md-admonition-icon--success:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20448%20512%22%3E%3C%21--%21%20Font%20Awesome%20Free%207.3.1%20by%20%40fontawesome%20-%20https%3A//fontawesome.com%20License%20-%20https%3A//fontawesome.com/license/free%20%28Icons%3A%20CC%20BY%204.0%2C%20Fonts%3A%20SIL%20OFL%201.1%2C%20Code%3A%20MIT%20License%29%20Copyright%202026%20Fonticons%2C%20Inc.--%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M434.8%2070.1c14.3%2010.4%2017.5%2030.4%207.1%2044.7l-256%20352c-5.5%207.6-14%2012.3-23.4%2013.1s-18.5-2.7-25.1-9.3l-128-128c-12.5-12.5-12.5-32.8%200-45.3s32.8-12.5%2045.3%200l101.5%20101.5%20234-321.7c10.4-14.3%2030.4-17.5%2044.7-7.1z%22/%3E%3C/svg%3E');--md-admonition-icon--tip:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20512%20512%22%3E%3C%21--%21%20Font%20Awesome%20Free%207.3.1%20by%20%40fontawesome%20-%20https%3A//fontawesome.com%20License%20-%20https%3A//fontawesome.com/license/free%20%28Icons%3A%20CC%20BY%204.0%2C%20Fonts%3A%20SIL%20OFL%201.1%2C%20Code%3A%20MIT%20License%29%20Copyright%202026%20Fonticons%2C%20Inc.--%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M461.2%2018.9C472.7%2024%20480%2035.4%20480%2048v416c0%2012.6-7.3%2024-18.8%2029.1s-24.8%203.2-34.3-5.1l-46.6-40.7c-43.6-38.1-98.7-60.3-156.4-63V480c0%2017.7-14.3%2032-32%2032h-32c-17.7%200-32-14.3-32-32v-96C57.3%20384%200%20326.7%200%20256s57.3-128%20128-128h84.5c61.8-.2%20121.4-22.7%20167.9-63.3L427%2024c9.4-8.3%2022.9-10.2%2034.3-5.1zM224%20320v.2c70.3%202.7%20137.8%2028.5%20192%2073.4V118.3c-54.2%2044.9-121.7%2070.7-192%2073.4z%22/%3E%3C/svg%3E');--md-admonition-icon--warning:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20512%20512%22%3E%3C%21--%21%20Font%20Awesome%20Free%207.3.1%20by%20%40fontawesome%20-%20https%3A//fontawesome.com%20License%20-%20https%3A//fontawesome.com/license/free%20%28Icons%3A%20CC%20BY%204.0%2C%20Fonts%3A%20SIL%20OFL%201.1%2C%20Code%3A%20MIT%20License%29%20Copyright%202026%20Fonticons%2C%20Inc.--%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M256%200c14.7%200%2028.2%208.1%2035.2%2021l216%20400c6.7%2012.4%206.4%2027.4-.8%2039.5S486.1%20480%20472%20480H40c-14.1%200-27.2-7.4-34.4-19.5s-7.5-27.1-.8-39.5l216-400c7-12.9%2020.5-21%2035.2-21m0%20352a32%2032%200%201%200%200%2064%2032%2032%200%201%200%200-64m0-192c-18.2%200-32.7%2015.5-31.4%2033.7l7.4%20104c.9%2012.5%2011.4%2022.3%2023.9%2022.3%2012.6%200%2023-9.7%2023.9-22.3l7.4-104c1.3-18.2-13.1-33.7-31.4-33.7z%22/%3E%3C/svg%3E');}</style><link rel=preconnect href=https://fonts.gstatic.com crossorigin><link rel=stylesheet href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&amp;display=fallback"><style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style><link rel=stylesheet href=../../../../assets/stylesheets/extra.css><link rel=stylesheet href=../../../../assets/stylesheets/interview.css><link rel=stylesheet href=../../../../assets/stylesheets/termynal.css><link rel=stylesheet href=../../../../assets/stylesheets/mermaid-sim.css><link rel=stylesheet href=../../../../assets/stylesheets/playground.css><link rel=stylesheet href=../../../../assets/stylesheets/support.css><script>__md_scope=new URL("../../../..",location),__md_scope.pathname.endsWith("/")||(__md_scope=new URL(__md_scope.pathname+"/",location)),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,_=__md_scope)=>JSON.parse(t.getItem(_.pathname+"."+e)),__md_set=(e,t,_=localStorage,a=__md_scope)=>{try{_.setItem(a.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script></head> <body dir=ltr data-md-color-scheme=default data-md-color-primary=indigo data-md-color-accent=indigo> <input class=md-toggle data-md-toggle=drawer type=checkbox id=__drawer autocomplete=off> <input class=md-toggle data-md-toggle=search type=checkbox id=__search autocomplete=off> <label class=md-overlay for=__drawer aria-hidden=true></label> <div data-md-component=skip> <a href=#__skip class=md-skip> Pular para conteúdo </a> </div> <div data-md-component=announce> </div> <header class="md-header md-header--shadow" data-md-component=header> <nav class="md-header__inner md-grid" aria-label=Cabeçalho> <a href=../../../.. title="Plataformas, Microsserviços, DevOps e APIs" class="md-header__button md-logo" aria-label="Plataformas, Microsserviços, DevOps e APIs" data-md-component=logo> <img src=../../../../assets/images/logo.png alt="Plataformas, Microsserviços, DevOps e APIs"> </a> <label class="md-header__button md-icon" for=__drawer aria-label=Navegação> <svg xmlns=http://www.w3.org/2000/svg fill=none stroke=currentColor stroke-linecap=round stroke-linejoin=round stroke-width=2 class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg> </label> <div class=md-header__title data-md-component=header-title> <div class=md-header__ellipsis> <div class=md-header__topic> <span class=md-ellipsis> Plataformas, Microsserviços, DevOps e APIs </span> </div> <div class=md-header__topic data-md-component=header-topic> <span class=md-ellipsis> Index </span> </div> </div> </div> <form class=md-header__option data-md-component=palette> <input class=md-option data-md-color-media=(prefers-color-scheme) data-md-color-scheme=default data-md-color-primary=indigo data-md-color-accent=indigo aria-label="Switch to light mode" type=radio name=__palette id=__palette_0> <label class="md-header__button md-icon" title="Switch to light mode" for=__palette_1 hidden> <svg xmlns=http://www.w3.org/2000/svg fill=none stroke=currentColor stroke-linecap=round stroke-linejoin=round stroke-width=2 class="lucide lucide-sun-moon" viewBox="0 0 24 24"><path d="M12 2v2M14.837 16.385a6 6 0 1 1-7.223-7.222c.624-.147.97.66.715 1.248a4 4 0 0 0 5.26 5.259c.589-.255 1.396.09 1.248.715M16 12a4 4 0 0 0-4-4M19 5l-1.256 1.256M20 12h2"/></svg> </label> <input class=md-option data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme=default data-md-color-primary=indigo data-md-color-accent=indigo aria-label="Switch to dark mode" type=radio name=__palette id=__palette_1> <label class="md-header__button md-icon" title="Switch to dark mode" for=__palette_2 hidden> <svg xmlns=http://www.w3.org/2000/svg fill=none stroke=currentColor stroke-linecap=round stroke-linejoin=round stroke-width=2 class="lucide lucide-sun" viewBox="0 0 24 24"><circle cx=12 cy=12 r=4 /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg> </label> <input class=md-option data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme=slate data-md-color-primary=indigo data-md-color-accent=indigo aria-label="Switch to system preference" type=radio name=__palette id=__palette_2> <label class="md-header__button md-icon" title="Switch to system preference" for=__palette_0 hidden> <svg xmlns=http://www.w3.org/2000/svg fill=none stroke=currentColor stroke-linecap=round stroke-linejoin=round stroke-width=2 class="lucide lucide-moon" viewBox="0 0 24 24"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/></svg> </label> </form> <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script> <div class="md-header__option md-i18n" data-md-i18n data-md-i18n-base=../../../../ data-md-i18n-manifest=../../../../zensical-i18n.json> <div class=md-select> <button class="md-header__button md-i18n__button" aria-label="Selecione o idioma (pt)"> <span class=md-icon> <svg xmlns=http://www.w3.org/2000/svg fill=none stroke=currentColor stroke-linecap=round stroke-linejoin=round stroke-width=2 class="lucide lucide-languages" viewBox="0 0 24 24"><path d="m5 8 6 6M4 14l6-6 2-3M2 5h12M7 2h1M22 22l-5-10-5 10M14 18h6"/></svg> </span> <span class=md-i18n__code>pt</span> <span class="md-i18n__chevron md-icon"> <svg xmlns=http://www.w3.org/2000/svg fill=none stroke=currentColor stroke-linecap=round stroke-linejoin=round stroke-width=2 class="lucide lucide-chevron-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg> </span> </button> <div class="md-select__inner md-i18n__inner"> <ul class="md-select__list md-i18n__list"> <li class=md-select__item> <a href=../../../../../2027.1/classes/compute/async-work/ hreflang=en lang=en class="md-select__link md-i18n__link" target=_self data-md-i18n-locale=en data-md-i18n-root=../> <span class=md-i18n__name>🇺🇸 English</span> <span class=md-i18n__locale>en</span> <span class="md-i18n__check md-icon"> <svg xmlns=http://www.w3.org/2000/svg fill=none stroke=currentColor stroke-linecap=round stroke-linejoin=round stroke-width=2 class="lucide lucide-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg> </span> </a> </li> <li class=md-select__item> <a href=././ hreflang=pt class="md-select__link md-i18n__link" target=_self data-md-i18n-locale=pt data-md-i18n-root=./ aria-current=true> <span class=md-i18n__name>🇧🇷 Português</span> <span class=md-i18n__locale>pt</span> <span class="md-i18n__check md-icon"> <svg xmlns=http://www.w3.org/2000/svg fill=none stroke=currentColor stroke-linecap=round stroke-linejoin=round stroke-width=2 class="lucide lucide-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg> </span> </a> </li> </ul> </div> </div> <style>
+  .md-i18n .md-i18n__button:not([hidden]) {
+    display: inline-flex;
+    gap: .3rem;
+    align-items: center;
+    padding-inline: .5rem .4rem;
+    border-radius: 1rem;
+    transition: background-color .25s, opacity .25s;
+  }
+  .md-i18n__button:hover,
+  .md-i18n .md-select:focus-within .md-i18n__button {
+    background-color: color-mix(in srgb, currentcolor 8%, transparent);
+  }
+  .md-i18n__code {
+    font-size: .6rem;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+  .md-i18n .md-i18n__chevron svg {
+    width: .7rem;
+    height: .7rem;
+    opacity: .7;
+    transition: transform .25s cubic-bezier(.1, .7, .1, 1);
+  }
+  .md-i18n .md-select:hover .md-i18n__chevron svg,
+  .md-i18n .md-select:focus-within .md-i18n__chevron svg {
+    transform: rotate(180deg);
+  }
+  .md-i18n__inner {
+    min-width: 11rem;
+  }
+  .md-i18n__list {
+    padding: .3rem;
+  }
+  .md-i18n .md-i18n__link {
+    display: flex;
+    gap: .6rem;
+    align-items: center;
+    padding: .2rem .5rem;
+    border-radius: .3rem;
+    line-height: 1.6rem;
+  }
+  .md-i18n .md-i18n__link:is(:hover, :focus) {
+    background-color: var(--md-default-fg-color--lightest);
+  }
+  .md-i18n__name {
+    flex-grow: 1;
+    font-size: .7rem;
+    white-space: nowrap;
+  }
+  .md-i18n__locale {
+    font-size: .55rem;
+    font-weight: 700;
+    color: var(--md-default-fg-color--light);
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+  .md-i18n .md-i18n__check svg {
+    width: .8rem;
+    height: .8rem;
+    color: var(--md-accent-fg-color);
+    visibility: hidden;
+  }
+  .md-i18n__link[aria-current] .md-i18n__name {
+    font-weight: 700;
+  }
+  .md-i18n__link[aria-current] .md-i18n__check svg {
+    visibility: visible;
+  }
+  .md-i18n__link[data-md-i18n-missing] .md-i18n__name {
+    color: var(--md-default-fg-color--light);
+  }
+  .md-typeset .md-i18n-notice {
+    display: flex;
+    gap: .6rem;
+    align-items: flex-start;
+    padding: .6rem .8rem;
+    margin: 0 0 1.5em;
+    font-size: .7rem;
+    color: var(--md-default-fg-color--light);
+    background-color: color-mix(in srgb, var(--md-accent-fg-color) 6%, transparent);
+    border: .05rem solid color-mix(in srgb, var(--md-accent-fg-color) 25%, transparent);
+    border-radius: .4rem;
+  }
+  .md-typeset .md-i18n-notice p {
+    margin: 0;
+  }
+  .md-i18n-notice .md-icon svg {
+    width: 1rem;
+    height: 1rem;
+    margin-top: .1rem;
+    color: var(--md-accent-fg-color);
+  }
+  @media screen and (max-width: 59.984375em) {
+    [dir=rtl] .md-i18n .md-select__inner {
+      left: 0;
+      transform: translate3d(0, .3rem, 0);
+    }
+    [dir=rtl] .md-i18n .md-select:is(:hover, :focus-within) .md-select__inner {
+      transform: translate3d(0, 0, 0);
+    }
+    [dir=rtl] .md-i18n .md-select__inner::after {
+      right: auto;
+      left: 1rem;
+    }
+  }
+  @media print {
+    .md-typeset .md-i18n-notice {
+      display: none;
+    }
+  }
+</style> <script>
+  (function () {
+    var root = document.currentScript.parentElement
+    var base = new URL(root.dataset.mdI18nBase, location.href)
+    var links = root.querySelectorAll("[data-md-i18n-locale]")
+    var pages = null
+
+    /* Decode a path segment by segment, so encoded slashes and hashes are
+       compared correctly with the paths in the manifest */
+    function decode(path) {
+      return path.split("/").map(function (segment) {
+        try {
+          return decodeURIComponent(segment)
+        } catch (err) {
+          return segment
+        }
+      }).join("/")
+    }
+
+    /* Compute encoded path of current page, relative to the language root */
+    function current() {
+      var path = location.pathname
+      return path.startsWith(base.pathname)
+        ? path.slice(base.pathname.length)
+        : ""
+    }
+
+    /* Link languages to the current page, or their home pages */
+    function update() {
+      if (!pages) return
+      var path = current()
+      var page = decode(path)
+
+      /* Index pages are listed as folders or index.html, depending on the
+         use_directory_urls setting, while either form can be visited */
+      var alias = /(^|\/)$/.test(page)
+        ? page + "index.html"
+        : page.replace(/index\.html$/, "")
+      links.forEach(function (link) {
+        var locale = link.dataset.mdI18nLocale
+        var home = new URL(link.dataset.mdI18nRoot, base)
+
+        /* Leave links to other sites and other protocols untouched */
+        if (home.origin !== base.origin || !/^https?:$/.test(home.protocol))
+          return
+
+        /* Link to the current page, if the language has it */
+        var known = Object.hasOwn(pages, locale) ? pages[locale] : []
+        var exists = known.includes(page) || known.includes(alias)
+        link.href = exists
+          ? new URL(path, home).href + location.hash
+          : home.href
+        link.toggleAttribute("data-md-i18n-missing", !exists)
+      })
+    }
+
+    /* Load manifest, and update links on interaction */
+    fetch(root.dataset.mdI18nManifest)
+      .then(function (res) { return res.ok ? res.json() : {} })
+      .then(function (data) {
+        pages = data.pages && typeof data.pages === "object" ? data.pages : null
+        update()
+      })
+      .catch(function () {})
+    root.addEventListener("pointerenter", update)
+    root.addEventListener("focusin", update)
+
+    /* Update links on instant navigation, once the theme is loaded */
+    function observe() {
+      if (window.document$)
+        window.document$.subscribe(update)
+    }
+    if (document.readyState === "loading")
+      document.addEventListener("DOMContentLoaded", observe)
+    else
+      observe()
+
+    /* Close selector on escape */
+    root.addEventListener("keydown", function (ev) {
+      if (ev.key === "Escape" && root.contains(document.activeElement))
+        document.activeElement.blur()
+    })
+  })()
+</script> </div> <label class="md-header__button md-icon" for=__search aria-label=Pesquisar> <svg xmlns=http://www.w3.org/2000/svg fill=none stroke=currentColor stroke-linecap=round stroke-linejoin=round stroke-width=2 class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx=11 cy=11 r=8 /></svg> </label> <div class=md-search data-md-component=search role=dialog aria-label=Pesquisar> <button type=button class=md-search__button> Pesquisar </button> </div> <div class=md-header__source> <a href=https://github.com/insper/platform title="Ir para repositório" class=md-source data-md-component=source> <div class="md-source__icon md-icon"> <svg xmlns=http://www.w3.org/2000/svg viewBox="0 0 448 512"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill=currentColor d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg> </div> <div class=md-source__repository> insper/platform </div> </a> </div> </nav> </header> <div class=md-container data-md-component=container> <main class=md-main data-md-component=main> <div class="md-main__inner md-grid"> <div class="md-sidebar md-sidebar--primary" data-md-component=sidebar data-md-type=navigation> <div class=md-sidebar__scrollwrap> <div class=md-sidebar__inner> <nav class="md-nav md-nav--primary" aria-label=Navegação data-md-level=0> <label class=md-nav__title for=__drawer> <a href=../../../.. title="Plataformas, Microsserviços, DevOps e APIs" class="md-nav__button md-logo" aria-label="Plataformas, Microsserviços, DevOps e APIs" data-md-component=logo> <img src=../../../../assets/images/logo.png alt="Plataformas, Microsserviços, DevOps e APIs"> </a> Plataformas, Microsserviços, DevOps e APIs </label> <div class=md-nav__source> <a href=https://github.com/insper/platform title="Ir para repositório" class=md-source data-md-component=source> <div class="md-source__icon md-icon"> <svg xmlns=http://www.w3.org/2000/svg viewBox="0 0 448 512"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill=currentColor d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg> </div> <div class=md-source__repository> insper/platform </div> </a> </div> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../.. class=md-nav__link> <span class=md-ellipsis> Visão geral </span> </a> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2> <label class=md-nav__link for=__nav_2 id=__nav_2_label tabindex=0> <span class=md-ellipsis> 2026.2 </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=1 aria-labelledby=__nav_2_label aria-expanded=false> <label class=md-nav__title for=__nav_2> <span class="md-nav__icon md-icon"></span> 2026.2 </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/ class=md-nav__link> <span class=md-ellipsis> Visão geral </span> </a> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_2> <label class=md-nav__link for=__nav_2_2 id=__nav_2_2_label tabindex=0> <span class=md-ellipsis> Aulas </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=2 aria-labelledby=__nav_2_2_label aria-expanded=false> <label class=md-nav__title for=__nav_2_2> <span class="md-nav__icon md-icon"></span> Aulas </label> <ul class=md-nav__list data-md-scrollfix> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_2_1> <label class=md-nav__link for=__nav_2_2_1 id=__nav_2_2_1_label tabindex=0> <span class=md-ellipsis> 1. Sistemas Distribuídos </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_2_2_1_label aria-expanded=false> <label class=md-nav__title for=__nav_2_2_1> <span class="md-nav__icon md-icon"></span> 1. Sistemas Distribuídos </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/classes/distributed_systems/ class=md-nav__link> <span class=md-ellipsis> Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/distributed_systems/cap/ class=md-nav__link> <span class=md-ellipsis> Teorema CAP </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/distributed_systems/consensus/ class=md-nav__link> <span class=md-ellipsis> Consenso &amp; Algoritmos </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/distributed_systems/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_2_2> <label class=md-nav__link for=__nav_2_2_2 id=__nav_2_2_2_label tabindex=0> <span class=md-ellipsis> 2. Containerização </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_2_2_2_label aria-expanded=false> <label class=md-nav__title for=__nav_2_2_2> <span class="md-nav__icon md-icon"></span> 2. Containerização </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/classes/containerization/ class=md-nav__link> <span class=md-ellipsis> Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/containerization/docker/ class=md-nav__link> <span class=md-ellipsis> Docker </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/containerization/compose/ class=md-nav__link> <span class=md-ellipsis> Docker Compose </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/containerization/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_2_3> <label class=md-nav__link for=__nav_2_2_3 id=__nav_2_2_3_label tabindex=0> <span class=md-ellipsis> 3. API </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_2_2_3_label aria-expanded=false> <label class=md-nav__title for=__nav_2_2_3> <span class="md-nav__icon md-icon"></span> 3. API </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/classes/api/ class=md-nav__link> <span class=md-ellipsis> Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/api/rest/ class=md-nav__link> <span class=md-ellipsis> Design de APIs REST </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/api/swagger/ class=md-nav__link> <span class=md-ellipsis> OpenAPI &amp; Swagger </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/api/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_2_4> <label class=md-nav__link for=__nav_2_2_4 id=__nav_2_2_4_label tabindex=0> <span class=md-ellipsis> 4. Microsserviços </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_2_2_4_label aria-expanded=false> <label class=md-nav__title for=__nav_2_2_4> <span class="md-nav__icon md-icon"></span> 4. Microsserviços </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/classes/microservices/ class=md-nav__link> <span class=md-ellipsis> Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/microservices/ddd/ class=md-nav__link> <span class=md-ellipsis> Domain-Driven Design </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/microservices/architecture/ class=md-nav__link> <span class=md-ellipsis> Arquitetura &amp; Componentes </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/microservices/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_2_5> <label class=md-nav__link for=__nav_2_2_5 id=__nav_2_2_5_label tabindex=0> <span class=md-ellipsis> 5. Segurança — OAuth2 &amp; Zero Trust </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_2_2_5_label aria-expanded=false> <label class=md-nav__title for=__nav_2_2_5> <span class="md-nav__icon md-icon"></span> 5. Segurança — OAuth2 &amp; Zero Trust </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/classes/security/ class=md-nav__link> <span class=md-ellipsis> Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/security/oauth/ class=md-nav__link> <span class=md-ellipsis> OAuth 2.0 &amp; OpenID Connect </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/security/zero-trust/ class=md-nav__link> <span class=md-ellipsis> Zero Trust, mTLS &amp; Segredos </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/security/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_2_6> <label class=md-nav__link for=__nav_2_2_6 id=__nav_2_2_6_label tabindex=0> <span class=md-ellipsis> 6. Arquiteturas </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_2_2_6_label aria-expanded=false> <label class=md-nav__title for=__nav_2_2_6> <span class="md-nav__icon md-icon"></span> 6. Arquiteturas </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/classes/architectures/ class=md-nav__link> <span class=md-ellipsis> Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/architectures/solid/ class=md-nav__link> <span class=md-ellipsis> Princípios SOLID </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/architectures/clean/ class=md-nav__link> <span class=md-ellipsis> Arquitetura Limpa </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/architectures/hexagonal/ class=md-nav__link> <span class=md-ellipsis> Arquitetura Hexagonal </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/architectures/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_2_7> <label class=md-nav__link for=__nav_2_2_7 id=__nav_2_2_7_label tabindex=0> <span class=md-ellipsis> 7. Arquitetura Orientada a Eventos </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_2_2_7_label aria-expanded=false> <label class=md-nav__title for=__nav_2_2_7> <span class="md-nav__icon md-icon"></span> 7. Arquitetura Orientada a Eventos </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/classes/event_driven/ class=md-nav__link> <span class=md-ellipsis> Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/event_driven/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_2_8> <label class=md-nav__link for=__nav_2_2_8 id=__nav_2_2_8_label tabindex=0> <span class=md-ellipsis> 8. Confiabilidade </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_2_2_8_label aria-expanded=false> <label class=md-nav__title for=__nav_2_2_8> <span class="md-nav__icon md-icon"></span> 8. Confiabilidade </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/classes/reliability/ class=md-nav__link> <span class=md-ellipsis> Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/reliability/sli-slo-sla/ class=md-nav__link> <span class=md-ellipsis> SLI / SLO / SLA </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/reliability/patterns/ class=md-nav__link> <span class=md-ellipsis> Padrões de Resiliência </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/reliability/chaos/ class=md-nav__link> <span class=md-ellipsis> Engenharia do Caos </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/reliability/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_2_9> <label class=md-nav__link for=__nav_2_2_9 id=__nav_2_2_9_label tabindex=0> <span class=md-ellipsis> 9. Observabilidade </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_2_2_9_label aria-expanded=false> <label class=md-nav__title for=__nav_2_2_9> <span class="md-nav__icon md-icon"></span> 9. Observabilidade </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/classes/observability/ class=md-nav__link> <span class=md-ellipsis> Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/observability/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_2_10> <label class=md-nav__link for=__nav_2_2_10 id=__nav_2_2_10_label tabindex=0> <span class=md-ellipsis> 10. Modelos de Serviço </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_2_2_10_label aria-expanded=false> <label class=md-nav__title for=__nav_2_2_10> <span class="md-nav__icon md-icon"></span> 10. Modelos de Serviço </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/classes/service_models/ class=md-nav__link> <span class=md-ellipsis> Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/service_models/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_2_11> <label class=md-nav__link for=__nav_2_2_11 id=__nav_2_2_11_label tabindex=0> <span class=md-ellipsis> 11. Roteiro de Implantação na Nuvem </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_2_2_11_label aria-expanded=false> <label class=md-nav__title for=__nav_2_2_11> <span class="md-nav__icon md-icon"></span> 11. Roteiro de Implantação na Nuvem </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/classes/deployment/ class=md-nav__link> <span class=md-ellipsis> Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/deployment/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_3> <label class=md-nav__link for=__nav_2_3 id=__nav_2_3_label tabindex=0> <span class=md-ellipsis> Hands-on </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=2 aria-labelledby=__nav_2_3_label aria-expanded=false> <label class=md-nav__title for=__nav_2_3> <span class="md-nav__icon md-icon"></span> Hands-on </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/0/ class=md-nav__link> <span class=md-ellipsis> 0. Pré-requisitos </span> </a> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_3_2> <label class=md-nav__link for=__nav_2_3_2 id=__nav_2_3_2_label tabindex=0> <span class=md-ellipsis> 1. CRUD </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_2_3_2_label aria-expanded=false> <label class=md-nav__title for=__nav_2_3_2> <span class="md-nav__icon md-icon"></span> 1. CRUD </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/1/ class=md-nav__link> <span class=md-ellipsis> a. Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/1/controller/ class=md-nav__link> <span class=md-ellipsis> b. Controller </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/1/service/ class=md-nav__link> <span class=md-ellipsis> c. Service </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/1/containerization/ class=md-nav__link> <span class=md-ellipsis> d. Containerização </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/1/repository/ class=md-nav__link> <span class=md-ellipsis> e. Repository </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/1/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_3_3> <label class=md-nav__link for=__nav_2_3_3 id=__nav_2_3_3_label tabindex=0> <span class=md-ellipsis> 2. Gateway </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_2_3_3_label aria-expanded=false> <label class=md-nav__title for=__nav_2_3_3> <span class="md-nav__icon md-icon"></span> 2. Gateway </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/2/ class=md-nav__link> <span class=md-ellipsis> a. Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/2/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_3_4> <label class=md-nav__link for=__nav_2_3_4 id=__nav_2_3_4_label tabindex=0> <span class=md-ellipsis> 3. Segurança </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_2_3_4_label aria-expanded=false> <label class=md-nav__title for=__nav_2_3_4> <span class="md-nav__icon md-icon"></span> 3. Segurança </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/3/ class=md-nav__link> <span class=md-ellipsis> a. Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/3/jwt/ class=md-nav__link> <span class=md-ellipsis> b. JWT </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/3/open-routes/ class=md-nav__link> <span class=md-ellipsis> c. Rotas Abertas </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/3/authorization/ class=md-nav__link> <span class=md-ellipsis> d. Autorização </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/3/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_3_5> <label class=md-nav__link for=__nav_2_3_5 id=__nav_2_3_5_label tabindex=0> <span class=md-ellipsis> 4. DevOps </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_2_3_5_label aria-expanded=false> <label class=md-nav__title for=__nav_2_3_5> <span class="md-nav__icon md-icon"></span> 4. DevOps </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/4/ class=md-nav__link> <span class=md-ellipsis> a. Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/4/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_3_6> <label class=md-nav__link for=__nav_2_3_6 id=__nav_2_3_6_label tabindex=0> <span class=md-ellipsis> 5. Orquestração </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_2_3_6_label aria-expanded=false> <label class=md-nav__title for=__nav_2_3_6> <span class="md-nav__icon md-icon"></span> 5. Orquestração </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/5/ class=md-nav__link> <span class=md-ellipsis> a. Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/5/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_3_7> <label class=md-nav__link for=__nav_2_3_7 id=__nav_2_3_7_label tabindex=0> <span class=md-ellipsis> 6. Observabilidade </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_2_3_7_label aria-expanded=false> <label class=md-nav__title for=__nav_2_3_7> <span class="md-nav__icon md-icon"></span> 6. Observabilidade </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/6/ class=md-nav__link> <span class=md-ellipsis> a. Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/6/microservices/ class=md-nav__link> <span class=md-ellipsis> b. Microsserviços </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/6/docker/ class=md-nav__link> <span class=md-ellipsis> c. Docker Compose </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/6/prometheus/ class=md-nav__link> <span class=md-ellipsis> d. Prometheus </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/6/grafana/ class=md-nav__link> <span class=md-ellipsis> e. Grafana </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/6/run/ class=md-nav__link> <span class=md-ellipsis> f. Execução </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/6/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_3_8> <label class=md-nav__link for=__nav_2_3_8 id=__nav_2_3_8_label tabindex=0> <span class=md-ellipsis> 7. Balanceador de Carga </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_2_3_8_label aria-expanded=false> <label class=md-nav__title for=__nav_2_3_8> <span class="md-nav__icon md-icon"></span> 7. Balanceador de Carga </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/7/ class=md-nav__link> <span class=md-ellipsis> a. Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/7/nginx/ class=md-nav__link> <span class=md-ellipsis> b. Nginx </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/7/docker/ class=md-nav__link> <span class=md-ellipsis> c. Docker Compose </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/7/run/ class=md-nav__link> <span class=md-ellipsis> d. Execução </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/7/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_3_9> <label class=md-nav__link for=__nav_2_3_9 id=__nav_2_3_9_label tabindex=0> <span class=md-ellipsis> 8. Cache em Memória </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_2_3_9_label aria-expanded=false> <label class=md-nav__title for=__nav_2_3_9> <span class="md-nav__icon md-icon"></span> 8. Cache em Memória </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/8/ class=md-nav__link> <span class=md-ellipsis> a. Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/8/docker/ class=md-nav__link> <span class=md-ellipsis> b. Docker Compose </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/8/spring/ class=md-nav__link> <span class=md-ellipsis> c. Spring Boot </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/8/run/ class=md-nav__link> <span class=md-ellipsis> d. Execução </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/8/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_3_10> <label class=md-nav__link for=__nav_2_3_10 id=__nav_2_3_10_label tabindex=0> <span class=md-ellipsis> 9. Mensageria com Kafka </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_2_3_10_label aria-expanded=false> <label class=md-nav__title for=__nav_2_3_10> <span class="md-nav__icon md-icon"></span> 9. Mensageria com Kafka </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/9/ class=md-nav__link> <span class=md-ellipsis> a. Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/9/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_3_11> <label class=md-nav__link for=__nav_2_3_11 id=__nav_2_3_11_label tabindex=0> <span class=md-ellipsis> 10. Rastreamento Distribuído </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_2_3_11_label aria-expanded=false> <label class=md-nav__title for=__nav_2_3_11> <span class="md-nav__icon md-icon"></span> 10. Rastreamento Distribuído </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/10/ class=md-nav__link> <span class=md-ellipsis> a. Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/10/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_3_12> <label class=md-nav__link for=__nav_2_3_12 id=__nav_2_3_12_label tabindex=0> <span class=md-ellipsis> 11. IA no CI/CD </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_2_3_12_label aria-expanded=false> <label class=md-nav__title for=__nav_2_3_12> <span class="md-nav__icon md-icon"></span> 11. IA no CI/CD </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/11/ class=md-nav__link> <span class=md-ellipsis> a. Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/11/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_4> <label class=md-nav__link for=__nav_2_4 id=__nav_2_4_label tabindex=0> <span class=md-ellipsis> Exercícios </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=2 aria-labelledby=__nav_2_4_label aria-expanded=false> <label class=md-nav__title for=__nav_2_4> <span class="md-nav__icon md-icon"></span> Exercícios </label> <ul class=md-nav__list data-md-scrollfix> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_4_1> <label class=md-nav__link for=__nav_2_4_1 id=__nav_2_4_1_label tabindex=0> <span class=md-ellipsis> Projeto </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_2_4_1_label aria-expanded=false> <label class=md-nav__title for=__nav_2_4_1> <span class="md-nav__icon md-icon"></span> Projeto </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/exercises/project/ class=md-nav__link> <span class=md-ellipsis> Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/exercises/project/aws/ class=md-nav__link> <span class=md-ellipsis> AWS </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/exercises/project/eks/ class=md-nav__link> <span class=md-ellipsis> EKS </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/exercises/project/ci-cd/ class=md-nav__link> <span class=md-ellipsis> CI/CD </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/exercises/project/load-testing/ class=md-nav__link> <span class=md-ellipsis> Teste de Carga </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/exercises/project/costs/ class=md-nav__link> <span class=md-ellipsis> Custos &amp; PaaS </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/exercises/project/presentation/ class=md-nav__link> <span class=md-ellipsis> Apresentação </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2_4_2> <label class=md-nav__link for=__nav_2_4_2 id=__nav_2_4_2_label tabindex=0> <span class=md-ellipsis> Individuais </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_2_4_2_label aria-expanded=false> <label class=md-nav__title for=__nav_2_4_2> <span class="md-nav__icon md-icon"></span> Individuais </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/exercises/product/ class=md-nav__link> <span class=md-ellipsis> API de Produtos </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/exercises/order/ class=md-nav__link> <span class=md-ellipsis> API de Pedidos </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/exercises/exchange/ class=md-nav__link> <span class=md-ellipsis> API de Câmbio </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/exercises/jenkins/ class=md-nav__link> <span class=md-ellipsis> Jenkins </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/exercises/minikube/ class=md-nav__link> <span class=md-ellipsis> MiniKube </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/exercises/bottlenecks/ class=md-nav__link> <span class=md-ellipsis> Gargalos </span> </a> </li> </ul> </nav> </li> </ul> </nav> </li> <li class=md-nav__item> <a href=../../../../2026.2/interview/ class=md-nav__link> <span class=md-ellipsis> Material para Entrevistas </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3> <label class=md-nav__link for=__nav_3 id=__nav_3_label tabindex=0> <span class=md-ellipsis> 2026.1 </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=1 aria-labelledby=__nav_3_label aria-expanded=false> <label class=md-nav__title for=__nav_3> <span class="md-nav__icon md-icon"></span> 2026.1 </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/ class=md-nav__link> <span class=md-ellipsis> Visão geral </span> </a> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_2> <label class=md-nav__link for=__nav_3_2 id=__nav_3_2_label tabindex=0> <span class=md-ellipsis> Aulas </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=2 aria-labelledby=__nav_3_2_label aria-expanded=false> <label class=md-nav__title for=__nav_3_2> <span class="md-nav__icon md-icon"></span> Aulas </label> <ul class=md-nav__list data-md-scrollfix> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_2_1> <label class=md-nav__link for=__nav_3_2_1 id=__nav_3_2_1_label tabindex=0> <span class=md-ellipsis> 1. Sistemas Distribuídos </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_2_1_label aria-expanded=false> <label class=md-nav__title for=__nav_3_2_1> <span class="md-nav__icon md-icon"></span> 1. Sistemas Distribuídos </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/classes/distributed_systems/ class=md-nav__link> <span class=md-ellipsis> Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/distributed_systems/cap/ class=md-nav__link> <span class=md-ellipsis> Teorema CAP </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/distributed_systems/consensus/ class=md-nav__link> <span class=md-ellipsis> Consenso &amp; Algoritmos </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/distributed_systems/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_2_2> <label class=md-nav__link for=__nav_3_2_2 id=__nav_3_2_2_label tabindex=0> <span class=md-ellipsis> 2. Containerização </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_2_2_label aria-expanded=false> <label class=md-nav__title for=__nav_3_2_2> <span class="md-nav__icon md-icon"></span> 2. Containerização </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/classes/containerization/ class=md-nav__link> <span class=md-ellipsis> Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/containerization/docker/ class=md-nav__link> <span class=md-ellipsis> Docker </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/containerization/compose/ class=md-nav__link> <span class=md-ellipsis> Docker Compose </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/containerization/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_2_3> <label class=md-nav__link for=__nav_3_2_3 id=__nav_3_2_3_label tabindex=0> <span class=md-ellipsis> 3. Microsserviços </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_2_3_label aria-expanded=false> <label class=md-nav__title for=__nav_3_2_3> <span class="md-nav__icon md-icon"></span> 3. Microsserviços </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/classes/microservices/ class=md-nav__link> <span class=md-ellipsis> Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/microservices/ddd/ class=md-nav__link> <span class=md-ellipsis> Domain-Driven Design </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/microservices/architecture/ class=md-nav__link> <span class=md-ellipsis> Arquitetura &amp; Componentes </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/microservices/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_2_4> <label class=md-nav__link for=__nav_3_2_4 id=__nav_3_2_4_label tabindex=0> <span class=md-ellipsis> 4. Arquiteturas </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_2_4_label aria-expanded=false> <label class=md-nav__title for=__nav_3_2_4> <span class="md-nav__icon md-icon"></span> 4. Arquiteturas </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/classes/architectures/ class=md-nav__link> <span class=md-ellipsis> Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/architectures/solid/ class=md-nav__link> <span class=md-ellipsis> Princípios SOLID </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/architectures/clean/ class=md-nav__link> <span class=md-ellipsis> Arquitetura Limpa </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/architectures/hexagonal/ class=md-nav__link> <span class=md-ellipsis> Arquitetura Hexagonal </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/architectures/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_2_5> <label class=md-nav__link for=__nav_3_2_5 id=__nav_3_2_5_label tabindex=0> <span class=md-ellipsis> 5. API </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_2_5_label aria-expanded=false> <label class=md-nav__title for=__nav_3_2_5> <span class="md-nav__icon md-icon"></span> 5. API </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/classes/api/ class=md-nav__link> <span class=md-ellipsis> Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/api/rest/ class=md-nav__link> <span class=md-ellipsis> Design de APIs REST </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/api/swagger/ class=md-nav__link> <span class=md-ellipsis> OpenAPI &amp; Swagger </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/api/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_2_6> <label class=md-nav__link for=__nav_3_2_6 id=__nav_3_2_6_label tabindex=0> <span class=md-ellipsis> 6. Modelos de Serviço </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_2_6_label aria-expanded=false> <label class=md-nav__title for=__nav_3_2_6> <span class="md-nav__icon md-icon"></span> 6. Modelos de Serviço </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/classes/service_models/ class=md-nav__link> <span class=md-ellipsis> Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/service_models/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_2_7> <label class=md-nav__link for=__nav_3_2_7 id=__nav_3_2_7_label tabindex=0> <span class=md-ellipsis> 7. Confiabilidade </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_2_7_label aria-expanded=false> <label class=md-nav__title for=__nav_3_2_7> <span class="md-nav__icon md-icon"></span> 7. Confiabilidade </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/classes/reliability/ class=md-nav__link> <span class=md-ellipsis> Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/reliability/sli-slo-sla/ class=md-nav__link> <span class=md-ellipsis> SLI / SLO / SLA </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/reliability/patterns/ class=md-nav__link> <span class=md-ellipsis> Padrões de Resiliência </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/reliability/chaos/ class=md-nav__link> <span class=md-ellipsis> Engenharia do Caos </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/reliability/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_3> <label class=md-nav__link for=__nav_3_3 id=__nav_3_3_label tabindex=0> <span class=md-ellipsis> Hands-on </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=2 aria-labelledby=__nav_3_3_label aria-expanded=false> <label class=md-nav__title for=__nav_3_3> <span class="md-nav__icon md-icon"></span> Hands-on </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/0/ class=md-nav__link> <span class=md-ellipsis> 0. Pré-requisitos </span> </a> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_3_2> <label class=md-nav__link for=__nav_3_3_2 id=__nav_3_3_2_label tabindex=0> <span class=md-ellipsis> 1. CRUD </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_3_2_label aria-expanded=false> <label class=md-nav__title for=__nav_3_3_2> <span class="md-nav__icon md-icon"></span> 1. CRUD </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/1/ class=md-nav__link> <span class=md-ellipsis> a. Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/1/controller/ class=md-nav__link> <span class=md-ellipsis> b. Controller </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/1/service/ class=md-nav__link> <span class=md-ellipsis> c. Service </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/1/containerization/ class=md-nav__link> <span class=md-ellipsis> d. Containerização </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/1/repository/ class=md-nav__link> <span class=md-ellipsis> e. Repository </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/1/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_3_3> <label class=md-nav__link for=__nav_3_3_3 id=__nav_3_3_3_label tabindex=0> <span class=md-ellipsis> 2. Gateway </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_3_3_label aria-expanded=false> <label class=md-nav__title for=__nav_3_3_3> <span class="md-nav__icon md-icon"></span> 2. Gateway </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/2/ class=md-nav__link> <span class=md-ellipsis> a. Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/2/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_3_4> <label class=md-nav__link for=__nav_3_3_4 id=__nav_3_3_4_label tabindex=0> <span class=md-ellipsis> 3. Segurança </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_3_4_label aria-expanded=false> <label class=md-nav__title for=__nav_3_3_4> <span class="md-nav__icon md-icon"></span> 3. Segurança </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/3/ class=md-nav__link> <span class=md-ellipsis> a. Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/3/jwt/ class=md-nav__link> <span class=md-ellipsis> b. JWT </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/3/open-routes/ class=md-nav__link> <span class=md-ellipsis> c. Rotas Abertas </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/3/authorization/ class=md-nav__link> <span class=md-ellipsis> d. Autorização </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/3/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_3_5> <label class=md-nav__link for=__nav_3_3_5 id=__nav_3_3_5_label tabindex=0> <span class=md-ellipsis> 4. DevOps </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_3_5_label aria-expanded=false> <label class=md-nav__title for=__nav_3_3_5> <span class="md-nav__icon md-icon"></span> 4. DevOps </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/4/ class=md-nav__link> <span class=md-ellipsis> a. Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/4/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_3_6> <label class=md-nav__link for=__nav_3_3_6 id=__nav_3_3_6_label tabindex=0> <span class=md-ellipsis> 5. Orquestração </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_3_6_label aria-expanded=false> <label class=md-nav__title for=__nav_3_3_6> <span class="md-nav__icon md-icon"></span> 5. Orquestração </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/5/ class=md-nav__link> <span class=md-ellipsis> a. Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/5/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_3_7> <label class=md-nav__link for=__nav_3_3_7 id=__nav_3_3_7_label tabindex=0> <span class=md-ellipsis> 6. Observabilidade </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_3_7_label aria-expanded=false> <label class=md-nav__title for=__nav_3_3_7> <span class="md-nav__icon md-icon"></span> 6. Observabilidade </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/6/ class=md-nav__link> <span class=md-ellipsis> a. Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/6/microservices/ class=md-nav__link> <span class=md-ellipsis> b. Microsserviços </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/6/docker/ class=md-nav__link> <span class=md-ellipsis> c. Docker Compose </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/6/prometheus/ class=md-nav__link> <span class=md-ellipsis> d. Prometheus </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/6/grafana/ class=md-nav__link> <span class=md-ellipsis> e. Grafana </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/6/run/ class=md-nav__link> <span class=md-ellipsis> f. Execução </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/6/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_3_8> <label class=md-nav__link for=__nav_3_3_8 id=__nav_3_3_8_label tabindex=0> <span class=md-ellipsis> 7. Balanceador de Carga </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_3_8_label aria-expanded=false> <label class=md-nav__title for=__nav_3_3_8> <span class="md-nav__icon md-icon"></span> 7. Balanceador de Carga </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/7/ class=md-nav__link> <span class=md-ellipsis> a. Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/7/nginx/ class=md-nav__link> <span class=md-ellipsis> b. Nginx </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/7/docker/ class=md-nav__link> <span class=md-ellipsis> c. Docker Compose </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/7/run/ class=md-nav__link> <span class=md-ellipsis> d. Execução </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/7/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_3_9> <label class=md-nav__link for=__nav_3_3_9 id=__nav_3_3_9_label tabindex=0> <span class=md-ellipsis> 8. Cache em Memória </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_3_9_label aria-expanded=false> <label class=md-nav__title for=__nav_3_3_9> <span class="md-nav__icon md-icon"></span> 8. Cache em Memória </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/8/ class=md-nav__link> <span class=md-ellipsis> a. Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/8/docker/ class=md-nav__link> <span class=md-ellipsis> b. Docker Compose </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/8/spring/ class=md-nav__link> <span class=md-ellipsis> c. Spring Boot </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/8/run/ class=md-nav__link> <span class=md-ellipsis> d. Execução </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/8/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_4> <label class=md-nav__link for=__nav_3_4 id=__nav_3_4_label tabindex=0> <span class=md-ellipsis> Exercícios </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=2 aria-labelledby=__nav_3_4_label aria-expanded=false> <label class=md-nav__title for=__nav_3_4> <span class="md-nav__icon md-icon"></span> Exercícios </label> <ul class=md-nav__list data-md-scrollfix> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_4_1> <label class=md-nav__link for=__nav_3_4_1 id=__nav_3_4_1_label tabindex=0> <span class=md-ellipsis> Projeto </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_4_1_label aria-expanded=false> <label class=md-nav__title for=__nav_3_4_1> <span class="md-nav__icon md-icon"></span> Projeto </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/exercises/project/ class=md-nav__link> <span class=md-ellipsis> Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/exercises/project/aws/ class=md-nav__link> <span class=md-ellipsis> AWS </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/exercises/project/eks/ class=md-nav__link> <span class=md-ellipsis> EKS </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/exercises/project/ci-cd/ class=md-nav__link> <span class=md-ellipsis> CI/CD </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/exercises/project/load-testing/ class=md-nav__link> <span class=md-ellipsis> Teste de Carga </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/exercises/project/costs/ class=md-nav__link> <span class=md-ellipsis> Custos &amp; PaaS </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/exercises/project/presentation/ class=md-nav__link> <span class=md-ellipsis> Apresentação </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_4_2> <label class=md-nav__link for=__nav_3_4_2 id=__nav_3_4_2_label tabindex=0> <span class=md-ellipsis> Individuais </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_4_2_label aria-expanded=false> <label class=md-nav__title for=__nav_3_4_2> <span class="md-nav__icon md-icon"></span> Individuais </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/exercises/product/ class=md-nav__link> <span class=md-ellipsis> API de Produtos </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/exercises/order/ class=md-nav__link> <span class=md-ellipsis> API de Pedidos </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/exercises/exchange/ class=md-nav__link> <span class=md-ellipsis> API de Câmbio </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/exercises/jenkins/ class=md-nav__link> <span class=md-ellipsis> Jenkins </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/exercises/minikube/ class=md-nav__link> <span class=md-ellipsis> MiniKube </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/exercises/bottlenecks/ class=md-nav__link> <span class=md-ellipsis> Gargalos </span> </a> </li> </ul> </nav> </li> </ul> </nav> </li> </ul> </nav> </li> <li class=md-nav__item> <a href=../../../../2025.2/ class=md-nav__link> <span class=md-ellipsis> 2025.2 </span> </a> </li> <li class=md-nav__item> <a href=../../../../2025.1/ class=md-nav__link> <span class=md-ellipsis> 2025.1 </span> </a> </li> <li class=md-nav__item> <a href=../../../../2024.1/ class=md-nav__link> <span class=md-ellipsis> 2024.1 </span> </a> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_7> <label class=md-nav__link for=__nav_7 id=__nav_7_label tabindex=0> <span class=md-ellipsis> Apêndice </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=1 aria-labelledby=__nav_7_label aria-expanded=false> <label class=md-nav__title for=__nav_7> <span class="md-nav__icon md-icon"></span> Apêndice </label> <ul class=md-nav__list data-md-scrollfix> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_7_1> <label class=md-nav__link for=__nav_7_1 id=__nav_7_1_label tabindex=0> <span class=md-ellipsis> Redes </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=2 aria-labelledby=__nav_7_1_label aria-expanded=false> <label class=md-nav__title for=__nav_7_1> <span class="md-nav__icon md-icon"></span> Redes </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../appendix/network/ class=md-nav__link> <span class=md-ellipsis> Visão geral </span> </a> </li> <li class=md-nav__item> <a href=../../../../appendix/network/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class=md-nav__item> <a href=../../../../appendix/development-setup/ class=md-nav__link> <span class=md-ellipsis> Ambiente de Desenvolvimento </span> </a> </li> <li class=md-nav__item> <a href=../../../../appendix/git-submodules/ class=md-nav__link> <span class=md-ellipsis> Git Submodules </span> </a> </li> <li class=md-nav__item> <a href=../../../../appendix/rsa/ class=md-nav__link> <span class=md-ellipsis> Algoritmo RSA </span> </a> </li> <li class=md-nav__item> <a href=../../../../appendix/ohmyzsh/ class=md-nav__link> <span class=md-ellipsis> Oh My Zsh </span> </a> </li> <li class=md-nav__item> <a href=../../../../appendix/gitactions/ class=md-nav__link> <span class=md-ellipsis> Git Actions </span> </a> </li> <li class=md-nav__item> <a href=../../../../appendix/others/ class=md-nav__link> <span class=md-ellipsis> Outros </span> </a> </li> </ul> </nav> </li> <li class=md-nav__item> <a href=../../../../terms-and-conditions/ class=md-nav__link> <span class=md-ellipsis> Termos e Condições </span> </a> </li> <li class=md-nav__item> <a href=../../../../disclaimer/ class=md-nav__link> <span class=md-ellipsis> Aviso Legal </span> </a> </li> </ul> </nav> </div> </div> </div> <div class="md-sidebar md-sidebar--secondary" data-md-component=sidebar data-md-type=toc> <div class=md-sidebar__scrollwrap> <input class="md-nav__toggle md-toggle" type=checkbox id=__toc> <div class=md-sidebar-button__wrapper> <label class=md-sidebar-button for=__toc></label> </div> <div class=md-sidebar__inner> <nav class="md-nav md-nav--secondary" aria-label=Índice> <label class=md-nav__title for=__toc> <span class="md-nav__icon md-icon"></span> Índice </label> <ul class=md-nav__list data-md-component=toc data-md-scrollfix> <li class=md-nav__item> <a href=#o-que-pertence-ao-caminho-da-requisicao class=md-nav__link> <span class=md-ellipsis> <span class=md-typeset> O que pertence ao caminho da requisição? </span> </span> </a> </li> <li class=md-nav__item> <a href=#quantos-workers class=md-nav__link> <span class=md-ellipsis> <span class=md-typeset> Quantos workers? </span> </span> </a> <nav class=md-nav aria-label="Quantos workers?"> <ul class=md-nav__list> <li class=md-nav__item> <a href=#experimente-no-playground class=md-nav__link> <span class=md-ellipsis> <span class=md-typeset> Experimente no playground </span> </span> </a> </li> </ul> </nav> </li> <li class=md-nav__item> <a href=#projetando-jobs-que-sobrevivem-ao-mundo-real class=md-nav__link> <span class=md-ellipsis> <span class=md-typeset> Projetando jobs que sobrevivem ao mundo real </span> </span> </a> <nav class=md-nav aria-label="Projetando jobs que sobrevivem ao mundo real"> <ul class=md-nav__list> <li class=md-nav__item> <a href=#onde-os-jobs-vivem class=md-nav__link> <span class=md-ellipsis> <span class=md-typeset> Onde os jobs vivem </span> </span> </a> </li> </ul> </nav> </li> <li class=md-nav__item> <a href=#schedulers class=md-nav__link> <span class=md-ellipsis> <span class=md-typeset> Schedulers </span> </span> </a> <nav class=md-nav aria-label=Schedulers> <ul class=md-nav__list> <li class=md-nav__item> <a href=#o-problema-do-cron-duplicado class=md-nav__link> <span class=md-ellipsis> <span class=md-typeset> O problema do cron duplicado </span> </span> </a> </li> <li class=md-nav__item> <a href=#locks-expiram-fencing-tokens class=md-nav__link> <span class=md-ellipsis> <span class=md-typeset> Locks expiram: fencing tokens </span> </span> </a> </li> <li class=md-nav__item> <a href=#trabalho-atrasado-tres-formas-de-expirar-um-hold class=md-nav__link> <span class=md-ellipsis> <span class=md-typeset> Trabalho atrasado: três formas de expirar um hold </span> </span> </a> </li> </ul> </nav> </li> <li class=md-nav__item> <a href=#trade-offs-em-resumo class=md-nav__link> <span class=md-ellipsis> <span class=md-typeset> Trade-offs em resumo </span> </span> </a> </li> <li class=md-nav__item> <a href=#how-it-connects class=md-nav__link> <span class=md-ellipsis> <span class=md-typeset> Como se conecta </span> </span> </a> </li> <li class=md-nav__item> <a href=#principais-conclusoes class=md-nav__link> <span class=md-ellipsis> <span class=md-typeset> Principais conclusões </span> </span> </a> </li> </ul> </nav> </div> </div> </div> <div class=md-content data-md-component=content> <article class="md-content__inner md-typeset"> <a id=__skip tabindex=-1></a> <h1>Index</h1> <p>Quando o pagamento de um pedido é aprovado, a BoxOffice tem muito a fazer: marcar o pedido como confirmado, transformar o hold em assentos vendidos, <strong>gerar o PDF do ingresso</strong> com um QR code (cerca de 800 ms de CPU), <strong>enviá-lo por e-mail</strong> pelo provedor (300 ms, às vezes 5 s), mandar uma <strong>notificação push</strong>, atualizar o <strong>painel de vendas</strong> e reindexar a disponibilidade para a <strong>busca</strong>. Se a requisição de checkout fizer tudo isso antes de responder, o fã espera segundos, cada provedor lento deixa o checkout lento, e uma queda do e-mail <em>derruba a venda de ingressos</em>.</p> <p>Nada desse trabalho muda a resposta que o fã está esperando — "seu pedido está confirmado". Ele pode acontecer um instante depois, em outro lugar. Esta página trata desse "outro lugar": <strong>workers</strong> que processam jobs de uma fila e <strong>schedulers</strong> que iniciam trabalho num horário definido — e de como deixar ambos corretos quando jobs são reexecutados e réplicas rodam em paralelo.</p> <hr> <h2 id=o-que-pertence-ao-caminho-da-requisicao>O que pertence ao caminho da requisição?</h2> <p>Faça uma pergunta sobre cada etapa: <strong>a resposta ao usuário depende dela?</strong></p> <table> <thead> <tr> <th>Etapa depois de "pagar"</th> <th>A resposta depende dela?</th> <th>Onde roda</th> </tr> </thead> <tbody> <tr> <td>Verificar que o pagamento foi aprovado, confirmar o hold → pedido <code>CONFIRMED</code></td> <td>sim — ela <em>é</em> a resposta</td> <td>na requisição (ou no handler do webhook de pagamento)</td> </tr> <tr> <td>Gerar o PDF do ingresso</td> <td>não</td> <td>worker</td> </tr> <tr> <td>Enviar o e-mail com o ingresso</td> <td>não</td> <td>worker (notification)</td> </tr> <tr> <td>Notificação push</td> <td>não</td> <td>worker (notification)</td> </tr> <tr> <td>Atualizar o painel de vendas</td> <td>não</td> <td>consumidor de analytics</td> </tr> <tr> <td>Atualizar a disponibilidade na busca</td> <td>não</td> <td>consumidor de search</td> </tr> </tbody> </table> <p>Tudo abaixo da primeira linha vira um <strong>job</strong> (uma unidade de trabalho descrita por uma mensagem pequena) colocado numa <strong>fila</strong> e executado por <strong>workers</strong> (processos que puxam jobs e os executam).</p> <pre class=mermaid-sim><code>sequenceDiagram
+    participant F as Fã
+    participant O as order
+    participant Q as Fila / Kafka
+    participant W as worker de ingressos
+    participant N as worker de notificação
+    participant E as Provedor de e-mail
+    F-&gt;&gt;O: POST /orders/ord_9/confirm
+    O-&gt;&gt;O: pedido CONFIRMED (uma transação no BD)
+    O-&gt;&gt;Q: OrderConfirmed {orderId: ord_9}
+    O--&gt;&gt;F: 200 Seu pedido está confirmado
+    Q-&gt;&gt;W: gerar ingressos de ord_9
+    W-&gt;&gt;W: PDF + QR → object store
+    W-&gt;&gt;Q: TicketsIssued {orderId: ord_9}
+    Q-&gt;&gt;N: TicketsIssued
+    N-&gt;&gt;E: enviar e-mail com o link
+    E--&gt;&gt;N: 202 na fila</code></pre> <p>O que você ganha:</p> <ul> <li><strong>Latência</strong>: o checkout responde em dezenas de milissegundos em vez de segundos.</li> <li><strong>Disponibilidade</strong>: o provedor de e-mail pode ficar fora do ar por 20 minutos; os jobs esperam na fila e o checkout continua vendendo.</li> <li><strong>Nivelamento de carga</strong>: a fila absorve o pico da abertura de vendas; os workers a esvaziam no próprio ritmo, constante.</li> <li><strong>Escala independente</strong>: gerar ingressos consome CPU, enviar e-mail é limitado por I/O — cada pool de workers escala por conta própria.</li> </ul> <p>O que você paga: o resultado chega <strong>eventualmente</strong>, não imediatamente; é preciso mostrar o status ("seus ingressos estão sendo emitidos"), tratar falhas sem um usuário a quem mostrar um erro e tornar cada job seguro para rodar mais de uma vez.</p> <div class="admonition info"> <p class=admonition-title>Publicando com confiabilidade</p> <p>"Fazer commit do pedido e <em>depois</em> publicar o evento" tem uma brecha: se o processo morrer entre os dois, o pedido existe e nenhum ingresso é emitido. O <strong>transactional outbox</strong> fecha essa brecha — grave o evento numa tabela <code>outbox</code> na <em>mesma</em> transação do pedido e deixe um relay publicá-lo. A aula 8 (<a href=../../messaging/>mensageria</a>) trata disso; o <a href=../../../hands-on/7/>hands-on 7</a> o implementa.</p> </div> <hr> <h2 id=quantos-workers>Quantos workers?</h2> <p>Workers são dimensionados como qualquer servidor, com a <strong>Lei de Little</strong>: o número de jobs em andamento é igual à taxa de chegada vezes o tempo que cada job leva.</p> <div class=arithmatex>\[ \text{workers needed} = \text{job arrival rate} \times \text{time per job} \]</div> <p>Quando as chegadas superam a capacidade, o excesso se acumula como <strong>backlog</strong>, e o backlog só é drenado à <em>diferença</em> entre capacidade e chegadas:</p> <div class=arithmatex>\[ \text{backlog growth} = \lambda_{\text{in}} - \mu_{\text{workers}}, \qquad \text{drain time} = \frac{\text{backlog}}{\mu_{\text{workers}} - \lambda_{\text{in}}} \]</div> <div class="admonition example"> <p class=admonition-title>Exemplo resolvido — geração de ingressos na abertura de vendas</p> <p>Suponha (valores ilustrativos) que 60.000 assentos sejam vendidos em cerca de 10 minutos → <strong>100 pedidos/s</strong>; fora do pico, 10 pedidos/s. Gerar os ingressos de um pedido ocupa um worker por <strong>0,8 s</strong>.</p> <ul> <li>Para acompanhar o pico: 100 × 0,8 = <strong>80 workers</strong> ocupados o tempo todo.</li> <li>Com apenas 40 workers (capacidade de 50/s), o backlog cresce 50 jobs/s: depois de 10 minutos, há <strong>30.000 jobs</strong> esperando. O último fã espera cerca de 30.000 / 50 = 600 s = <strong>10 minutos</strong> pelos ingressos e, depois do pico, o backlog é drenado a 50 − 10 = 40 jobs/s, levando mais <strong>12,5 minutos</strong>.</li> <li>Isso é aceitável? Só o SLO pode dizer. Se a promessa é "ingressos na sua caixa de entrada em até 5 minutos", 40 workers não bastam.</li> </ul> </div> <!--?xml version="1.0" encoding="utf-8" standalone="no"?--> <!doctype svg public "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg xmlns:xlink=http://www.w3.org/1999/xlink width=576pt height=259.2pt viewBox="0 0 576 259.2" xmlns=http://www.w3.org/2000/svg version=1.1> <metadata> <rdf:RDF xmlns:dc=http://purl.org/dc/elements/1.1/ xmlns:cc=http://creativecommons.org/ns# xmlns:rdf=http://www.w3.org/1999/02/22-rdf-syntax-ns#> <cc:Work> <dc:type rdf:resource=http://purl.org/dc/dcmitype/StillImage /> <dc:date>2026-10-23T08:16:09.555248</dc:date> <dc:format>image/svg+xml</dc:format> <dc:creator> <cc:Agent> <dc:title>Matplotlib v3.11.2, https://matplotlib.org/</dc:title> </cc:Agent> </dc:creator> </cc:Work> </rdf:RDF> </metadata> <defs> <style type=text/css>*{stroke-linejoin: round; stroke-linecap: butt}</style> </defs> <g id=figure_1> <g id=patch_1> <path d="M 0 259.2 
+L 576 259.2 
+L 576 0 
+L 0 0 
+L 0 259.2 
+z
+" style="fill: none"/> </g> <g id=axes_1> <g id=patch_2> <path d="M 45.082344 217.077656 
+L 565.2 217.077656 
+L 565.2 26.16 
+L 45.082344 26.16 
+L 45.082344 217.077656 
+z
+" style="fill: none"/> </g> <g id=patch_3> <path d="M 163.322435 217.077656 
+L 257.920814 217.077656 
+L 257.920814 26.16 
+L 163.322435 26.16 
+z
+" clip-path=url(#pee9fc0f533) style="fill: #808080; opacity: 0.12; stroke: #808080; stroke-linejoin: miter"/> </g> <g id=matplotlib.axis_1> <g id=xtick_1> <g id=line2d_1> <defs> <path id=m46b4724ed4 d="M 0 0 
+L 0 3.5 
+" style="stroke: #000000; stroke-width: 0.8"/> </defs> <g> <use xlink:href=#m46b4724ed4 x=68.724055 y=217.077656 style="stroke: #000000; stroke-width: 0.8"/> </g> </g> <g id=text_1> <!-- 0 --> <g transform="translate(65.542805 231.675313) scale(0.1 -0.1)"> <defs> <path id=DejaVuSans-13 d="M 2034 4250 
+Q 1547 4250 1301 3770 
+Q 1056 3291 1056 2328 
+Q 1056 1369 1301 889 
+Q 1547 409 2034 409 
+Q 2525 409 2770 889 
+Q 3016 1369 3016 2328 
+Q 3016 3291 2770 3770 
+Q 2525 4250 2034 4250 
+z
+M 2034 4750 
+Q 2819 4750 3233 4129 
+Q 3647 3509 3647 2328 
+Q 3647 1150 3233 529 
+Q 2819 -91 2034 -91 
+Q 1250 -91 836 529 
+Q 422 1150 422 2328 
+Q 422 3509 836 4129 
+Q 1250 4750 2034 4750 
+z
+" transform=scale(0.015625) /> </defs> <use xlink:href=#DejaVuSans-13 /> </g> </g> </g> <g id=xtick_2> <g id=line2d_2> <g> <use xlink:href=#m46b4724ed4 x=163.322435 y=217.077656 style="stroke: #000000; stroke-width: 0.8"/> </g> </g> <g id=text_2> <!-- 10 --> <g transform="translate(156.959935 231.675313) scale(0.1 -0.1)"> <defs> <path id=DejaVuSans-14 d="M 794 531 
+L 1825 531 
+L 1825 4091 
+L 703 3866 
+L 703 4441 
+L 1819 4666 
+L 2450 4666 
+L 2450 531 
+L 3481 531 
+L 3481 0 
+L 794 0 
+L 794 531 
+z
+" transform=scale(0.015625) /> </defs> <use xlink:href=#DejaVuSans-14 /> <use xlink:href=#DejaVuSans-13 transform="translate(63.625 0)"/> </g> </g> </g> <g id=xtick_3> <g id=line2d_3> <g> <use xlink:href=#m46b4724ed4 x=257.920814 y=217.077656 style="stroke: #000000; stroke-width: 0.8"/> </g> </g> <g id=text_3> <!-- 20 --> <g transform="translate(251.558314 231.675313) scale(0.1 -0.1)"> <defs> <path id=DejaVuSans-15 d="M 1228 531 
+L 3431 531 
+L 3431 0 
+L 469 0 
+L 469 531 
+Q 828 903 1448 1529 
+Q 2069 2156 2228 2338 
+Q 2531 2678 2651 2914 
+Q 2772 3150 2772 3378 
+Q 2772 3750 2511 3984 
+Q 2250 4219 1831 4219 
+Q 1534 4219 1204 4116 
+Q 875 4013 500 3803 
+L 500 4441 
+Q 881 4594 1212 4672 
+Q 1544 4750 1819 4750 
+Q 2544 4750 2975 4387 
+Q 3406 4025 3406 3419 
+Q 3406 3131 3298 2873 
+Q 3191 2616 2906 2266 
+Q 2828 2175 2409 1742 
+Q 1991 1309 1228 531 
+z
+" transform=scale(0.015625) /> </defs> <use xlink:href=#DejaVuSans-15 /> <use xlink:href=#DejaVuSans-13 transform="translate(63.625 0)"/> </g> </g> </g> <g id=xtick_4> <g id=line2d_4> <g> <use xlink:href=#m46b4724ed4 x=352.519194 y=217.077656 style="stroke: #000000; stroke-width: 0.8"/> </g> </g> <g id=text_4> <!-- 30 --> <g transform="translate(346.156694 231.675313) scale(0.1 -0.1)"> <defs> <path id=DejaVuSans-16 d="M 2597 2516 
+Q 3050 2419 3304 2112 
+Q 3559 1806 3559 1356 
+Q 3559 666 3084 287 
+Q 2609 -91 1734 -91 
+Q 1441 -91 1130 -33 
+Q 819 25 488 141 
+L 488 750 
+Q 750 597 1062 519 
+Q 1375 441 1716 441 
+Q 2309 441 2620 675 
+Q 2931 909 2931 1356 
+Q 2931 1769 2642 2001 
+Q 2353 2234 1838 2234 
+L 1294 2234 
+L 1294 2753 
+L 1863 2753 
+Q 2328 2753 2575 2939 
+Q 2822 3125 2822 3475 
+Q 2822 3834 2567 4026 
+Q 2313 4219 1838 4219 
+Q 1578 4219 1281 4162 
+Q 984 4106 628 3988 
+L 628 4550 
+Q 988 4650 1302 4700 
+Q 1616 4750 1894 4750 
+Q 2613 4750 3031 4423 
+Q 3450 4097 3450 3541 
+Q 3450 3153 3228 2886 
+Q 3006 2619 2597 2516 
+z
+" transform=scale(0.015625) /> </defs> <use xlink:href=#DejaVuSans-16 /> <use xlink:href=#DejaVuSans-13 transform="translate(63.625 0)"/> </g> </g> </g> <g id=xtick_5> <g id=line2d_5> <g> <use xlink:href=#m46b4724ed4 x=447.117573 y=217.077656 style="stroke: #000000; stroke-width: 0.8"/> </g> </g> <g id=text_5> <!-- 40 --> <g transform="translate(440.755073 231.675313) scale(0.1 -0.1)"> <defs> <path id=DejaVuSans-17 d="M 2419 4116 
+L 825 1625 
+L 2419 1625 
+L 2419 4116 
+z
+M 2253 4666 
+L 3047 4666 
+L 3047 1625 
+L 3713 1625 
+L 3713 1100 
+L 3047 1100 
+L 3047 0 
+L 2419 0 
+L 2419 1100 
+L 313 1100 
+L 313 1709 
+L 2253 4666 
+z
+" transform=scale(0.015625) /> </defs> <use xlink:href=#DejaVuSans-17 /> <use xlink:href=#DejaVuSans-13 transform="translate(63.625 0)"/> </g> </g> </g> <g id=xtick_6> <g id=line2d_6> <g> <use xlink:href=#m46b4724ed4 x=541.715952 y=217.077656 style="stroke: #000000; stroke-width: 0.8"/> </g> </g> <g id=text_6> <!-- 50 --> <g transform="translate(535.353452 231.675313) scale(0.1 -0.1)"> <defs> <path id=DejaVuSans-18 d="M 691 4666 
+L 3169 4666 
+L 3169 4134 
+L 1269 4134 
+L 1269 2991 
+Q 1406 3038 1543 3061 
+Q 1681 3084 1819 3084 
+Q 2600 3084 3056 2656 
+Q 3513 2228 3513 1497 
+Q 3513 744 3044 326 
+Q 2575 -91 1722 -91 
+Q 1428 -91 1123 -41 
+Q 819 9 494 109 
+L 494 744 
+Q 775 591 1075 516 
+Q 1375 441 1709 441 
+Q 2250 441 2565 725 
+Q 2881 1009 2881 1497 
+Q 2881 1984 2565 2268 
+Q 2250 2553 1709 2553 
+Q 1456 2553 1204 2497 
+Q 953 2441 691 2322 
+L 691 4666 
+z
+" transform=scale(0.015625) /> </defs> <use xlink:href=#DejaVuSans-18 /> <use xlink:href=#DejaVuSans-13 transform="translate(63.625 0)"/> </g> </g> </g> <g id=text_7> <!-- minutes --> <g transform="translate(284.902891 245.676094) scale(0.1 -0.1)"> <defs> <path id=DejaVuSans-50 d="M 3328 2828 
+Q 3544 3216 3844 3400 
+Q 4144 3584 4550 3584 
+Q 5097 3584 5394 3201 
+Q 5691 2819 5691 2113 
+L 5691 0 
+L 5113 0 
+L 5113 2094 
+Q 5113 2597 4934 2840 
+Q 4756 3084 4391 3084 
+Q 3944 3084 3684 2787 
+Q 3425 2491 3425 1978 
+L 3425 0 
+L 2847 0 
+L 2847 2094 
+Q 2847 2600 2669 2842 
+Q 2491 3084 2119 3084 
+Q 1678 3084 1418 2786 
+Q 1159 2488 1159 1978 
+L 1159 0 
+L 581 0 
+L 581 3500 
+L 1159 3500 
+L 1159 2956 
+Q 1356 3278 1631 3431 
+Q 1906 3584 2284 3584 
+Q 2666 3584 2933 3390 
+Q 3200 3197 3328 2828 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-4c d="M 603 3500 
+L 1178 3500 
+L 1178 0 
+L 603 0 
+L 603 3500 
+z
+M 603 4863 
+L 1178 4863 
+L 1178 4134 
+L 603 4134 
+L 603 4863 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-51 d="M 3513 2113 
+L 3513 0 
+L 2938 0 
+L 2938 2094 
+Q 2938 2591 2744 2837 
+Q 2550 3084 2163 3084 
+Q 1697 3084 1428 2787 
+Q 1159 2491 1159 1978 
+L 1159 0 
+L 581 0 
+L 581 3500 
+L 1159 3500 
+L 1159 2956 
+Q 1366 3272 1645 3428 
+Q 1925 3584 2291 3584 
+Q 2894 3584 3203 3211 
+Q 3513 2838 3513 2113 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-58 d="M 544 1381 
+L 544 3500 
+L 1119 3500 
+L 1119 1403 
+Q 1119 906 1312 657 
+Q 1506 409 1894 409 
+Q 2359 409 2629 706 
+Q 2900 1003 2900 1516 
+L 2900 3500 
+L 3475 3500 
+L 3475 0 
+L 2900 0 
+L 2900 538 
+Q 2691 219 2414 64 
+Q 2138 -91 1772 -91 
+Q 1169 -91 856 284 
+Q 544 659 544 1381 
+z
+M 1991 3584 
+L 1991 3584 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-57 d="M 1172 4494 
+L 1172 3500 
+L 2356 3500 
+L 2356 3053 
+L 1172 3053 
+L 1172 1153 
+Q 1172 725 1289 603 
+Q 1406 481 1766 481 
+L 2356 481 
+L 2356 0 
+L 1766 0 
+Q 1100 0 847 248 
+Q 594 497 594 1153 
+L 594 3053 
+L 172 3053 
+L 172 3500 
+L 594 3500 
+L 594 4494 
+L 1172 4494 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-48 d="M 3597 1894 
+L 3597 1613 
+L 953 1613 
+Q 991 1019 1311 708 
+Q 1631 397 2203 397 
+Q 2534 397 2845 478 
+Q 3156 559 3463 722 
+L 3463 178 
+Q 3153 47 2828 -22 
+Q 2503 -91 2169 -91 
+Q 1331 -91 842 396 
+Q 353 884 353 1716 
+Q 353 2575 817 3079 
+Q 1281 3584 2069 3584 
+Q 2775 3584 3186 3129 
+Q 3597 2675 3597 1894 
+z
+M 3022 2063 
+Q 3016 2534 2758 2815 
+Q 2500 3097 2075 3097 
+Q 1594 3097 1305 2825 
+Q 1016 2553 972 2059 
+L 3022 2063 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-56 d="M 2834 3397 
+L 2834 2853 
+Q 2591 2978 2328 3040 
+Q 2066 3103 1784 3103 
+Q 1356 3103 1142 2972 
+Q 928 2841 928 2578 
+Q 928 2378 1081 2264 
+Q 1234 2150 1697 2047 
+L 1894 2003 
+Q 2506 1872 2764 1633 
+Q 3022 1394 3022 966 
+Q 3022 478 2636 193 
+Q 2250 -91 1575 -91 
+Q 1294 -91 989 -36 
+Q 684 19 347 128 
+L 347 722 
+Q 666 556 975 473 
+Q 1284 391 1588 391 
+Q 1994 391 2212 530 
+Q 2431 669 2431 922 
+Q 2431 1156 2273 1281 
+Q 2116 1406 1581 1522 
+L 1381 1569 
+Q 847 1681 609 1914 
+Q 372 2147 372 2553 
+Q 372 3047 722 3315 
+Q 1072 3584 1716 3584 
+Q 2034 3584 2315 3537 
+Q 2597 3491 2834 3397 
+z
+" transform=scale(0.015625) /> </defs> <use xlink:href=#DejaVuSans-50 /> <use xlink:href=#DejaVuSans-4c transform="translate(97.40625 0)"/> <use xlink:href=#DejaVuSans-51 transform="translate(125.1875 0)"/> <use xlink:href=#DejaVuSans-58 transform="translate(188.5625 0)"/> <use xlink:href=#DejaVuSans-57 transform="translate(251.9375 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(291.140625 0)"/> <use xlink:href=#DejaVuSans-56 transform="translate(352.671875 0)"/> </g> </g> </g> <g id=matplotlib.axis_2> <g id=ytick_1> <g id=line2d_7> <defs> <path id=m91bc31ed5a d="M 0 0 
+L -3.5 0 
+" style="stroke: #000000; stroke-width: 0.8"/> </defs> <g> <use xlink:href=#m91bc31ed5a x=45.082344 y=208.399581 style="stroke: #000000; stroke-width: 0.8"/> </g> </g> <g id=text_8> <!-- 0 --> <g transform="translate(31.719844 212.198409) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-13 /> </g> </g> </g> <g id=ytick_2> <g id=line2d_8> <g> <use xlink:href=#m91bc31ed5a x=45.082344 y=179.472663 style="stroke: #000000; stroke-width: 0.8"/> </g> </g> <g id=text_9> <!-- 5 --> <g transform="translate(31.719844 183.271491) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-18 /> </g> </g> </g> <g id=ytick_3> <g id=line2d_9> <g> <use xlink:href=#m91bc31ed5a x=45.082344 y=150.545746 style="stroke: #000000; stroke-width: 0.8"/> </g> </g> <g id=text_10> <!-- 10 --> <g transform="translate(25.357344 154.344574) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-14 /> <use xlink:href=#DejaVuSans-13 transform="translate(63.625 0)"/> </g> </g> </g> <g id=ytick_4> <g id=line2d_10> <g> <use xlink:href=#m91bc31ed5a x=45.082344 y=121.618828 style="stroke: #000000; stroke-width: 0.8"/> </g> </g> <g id=text_11> <!-- 15 --> <g transform="translate(25.357344 125.417656) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-14 /> <use xlink:href=#DejaVuSans-18 transform="translate(63.625 0)"/> </g> </g> </g> <g id=ytick_5> <g id=line2d_11> <g> <use xlink:href=#m91bc31ed5a x=45.082344 y=92.691911 style="stroke: #000000; stroke-width: 0.8"/> </g> </g> <g id=text_12> <!-- 20 --> <g transform="translate(25.357344 96.490739) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-15 /> <use xlink:href=#DejaVuSans-13 transform="translate(63.625 0)"/> </g> </g> </g> <g id=ytick_6> <g id=line2d_12> <g> <use xlink:href=#m91bc31ed5a x=45.082344 y=63.764993 style="stroke: #000000; stroke-width: 0.8"/> </g> </g> <g id=text_13> <!-- 25 --> <g transform="translate(25.357344 67.563821) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-15 /> <use xlink:href=#DejaVuSans-18 transform="translate(63.625 0)"/> </g> </g> </g> <g id=ytick_7> <g id=line2d_13> <g> <use xlink:href=#m91bc31ed5a x=45.082344 y=34.838075 style="stroke: #000000; stroke-width: 0.8"/> </g> </g> <g id=text_14> <!-- 30 --> <g transform="translate(25.357344 38.636903) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-16 /> <use xlink:href=#DejaVuSans-13 transform="translate(63.625 0)"/> </g> </g> </g> <g id=text_15> <!-- backlog (thousand jobs) --> <g transform="translate(18.955 181.800078) rotate(-90) scale(0.1 -0.1)"> <defs> <path id=DejaVuSans-45 d="M 3116 1747 
+Q 3116 2381 2855 2742 
+Q 2594 3103 2138 3103 
+Q 1681 3103 1420 2742 
+Q 1159 2381 1159 1747 
+Q 1159 1113 1420 752 
+Q 1681 391 2138 391 
+Q 2594 391 2855 752 
+Q 3116 1113 3116 1747 
+z
+M 1159 2969 
+Q 1341 3281 1617 3432 
+Q 1894 3584 2278 3584 
+Q 2916 3584 3314 3078 
+Q 3713 2572 3713 1747 
+Q 3713 922 3314 415 
+Q 2916 -91 2278 -91 
+Q 1894 -91 1617 61 
+Q 1341 213 1159 525 
+L 1159 0 
+L 581 0 
+L 581 4863 
+L 1159 4863 
+L 1159 2969 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-44 d="M 2194 1759 
+Q 1497 1759 1228 1600 
+Q 959 1441 959 1056 
+Q 959 750 1161 570 
+Q 1363 391 1709 391 
+Q 2188 391 2477 730 
+Q 2766 1069 2766 1631 
+L 2766 1759 
+L 2194 1759 
+z
+M 3341 1997 
+L 3341 0 
+L 2766 0 
+L 2766 531 
+Q 2569 213 2275 61 
+Q 1981 -91 1556 -91 
+Q 1019 -91 701 211 
+Q 384 513 384 1019 
+Q 384 1609 779 1909 
+Q 1175 2209 1959 2209 
+L 2766 2209 
+L 2766 2266 
+Q 2766 2663 2505 2880 
+Q 2244 3097 1772 3097 
+Q 1472 3097 1187 3025 
+Q 903 2953 641 2809 
+L 641 3341 
+Q 956 3463 1253 3523 
+Q 1550 3584 1831 3584 
+Q 2591 3584 2966 3190 
+Q 3341 2797 3341 1997 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-46 d="M 3122 3366 
+L 3122 2828 
+Q 2878 2963 2633 3030 
+Q 2388 3097 2138 3097 
+Q 1578 3097 1268 2742 
+Q 959 2388 959 1747 
+Q 959 1106 1268 751 
+Q 1578 397 2138 397 
+Q 2388 397 2633 464 
+Q 2878 531 3122 666 
+L 3122 134 
+Q 2881 22 2623 -34 
+Q 2366 -91 2075 -91 
+Q 1284 -91 818 406 
+Q 353 903 353 1747 
+Q 353 2603 823 3093 
+Q 1294 3584 2113 3584 
+Q 2378 3584 2631 3529 
+Q 2884 3475 3122 3366 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-4e d="M 581 4863 
+L 1159 4863 
+L 1159 1991 
+L 2875 3500 
+L 3609 3500 
+L 1753 1863 
+L 3688 0 
+L 2938 0 
+L 1159 1709 
+L 1159 0 
+L 581 0 
+L 581 4863 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-4f d="M 603 4863 
+L 1178 4863 
+L 1178 0 
+L 603 0 
+L 603 4863 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-52 d="M 1959 3097 
+Q 1497 3097 1228 2736 
+Q 959 2375 959 1747 
+Q 959 1119 1226 758 
+Q 1494 397 1959 397 
+Q 2419 397 2687 759 
+Q 2956 1122 2956 1747 
+Q 2956 2369 2687 2733 
+Q 2419 3097 1959 3097 
+z
+M 1959 3584 
+Q 2709 3584 3137 3096 
+Q 3566 2609 3566 1747 
+Q 3566 888 3137 398 
+Q 2709 -91 1959 -91 
+Q 1206 -91 779 398 
+Q 353 888 353 1747 
+Q 353 2609 779 3096 
+Q 1206 3584 1959 3584 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-4a d="M 2906 1791 
+Q 2906 2416 2648 2759 
+Q 2391 3103 1925 3103 
+Q 1463 3103 1205 2759 
+Q 947 2416 947 1791 
+Q 947 1169 1205 825 
+Q 1463 481 1925 481 
+Q 2391 481 2648 825 
+Q 2906 1169 2906 1791 
+z
+M 3481 434 
+Q 3481 -459 3084 -895 
+Q 2688 -1331 1869 -1331 
+Q 1566 -1331 1297 -1286 
+Q 1028 -1241 775 -1147 
+L 775 -588 
+Q 1028 -725 1275 -790 
+Q 1522 -856 1778 -856 
+Q 2344 -856 2625 -561 
+Q 2906 -266 2906 331 
+L 2906 616 
+Q 2728 306 2450 153 
+Q 2172 0 1784 0 
+Q 1141 0 747 490 
+Q 353 981 353 1791 
+Q 353 2603 747 3093 
+Q 1141 3584 1784 3584 
+Q 2172 3584 2450 3431 
+Q 2728 3278 2906 2969 
+L 2906 3500 
+L 3481 3500 
+L 3481 434 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-3 transform=scale(0.015625) /> <path id=DejaVuSans-b d="M 1984 4856 
+Q 1566 4138 1362 3434 
+Q 1159 2731 1159 2009 
+Q 1159 1288 1364 580 
+Q 1569 -128 1984 -844 
+L 1484 -844 
+Q 1016 -109 783 600 
+Q 550 1309 550 2009 
+Q 550 2706 781 3412 
+Q 1013 4119 1484 4856 
+L 1984 4856 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-4b d="M 3513 2113 
+L 3513 0 
+L 2938 0 
+L 2938 2094 
+Q 2938 2591 2744 2837 
+Q 2550 3084 2163 3084 
+Q 1697 3084 1428 2787 
+Q 1159 2491 1159 1978 
+L 1159 0 
+L 581 0 
+L 581 4863 
+L 1159 4863 
+L 1159 2956 
+Q 1366 3272 1645 3428 
+Q 1925 3584 2291 3584 
+Q 2894 3584 3203 3211 
+Q 3513 2838 3513 2113 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-47 d="M 2906 2969 
+L 2906 4863 
+L 3481 4863 
+L 3481 0 
+L 2906 0 
+L 2906 525 
+Q 2725 213 2448 61 
+Q 2172 -91 1784 -91 
+Q 1150 -91 751 415 
+Q 353 922 353 1747 
+Q 353 2572 751 3078 
+Q 1150 3584 1784 3584 
+Q 2172 3584 2448 3432 
+Q 2725 3281 2906 2969 
+z
+M 947 1747 
+Q 947 1113 1208 752 
+Q 1469 391 1925 391 
+Q 2381 391 2643 752 
+Q 2906 1113 2906 1747 
+Q 2906 2381 2643 2742 
+Q 2381 3103 1925 3103 
+Q 1469 3103 1208 2742 
+Q 947 2381 947 1747 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-4d d="M 603 3500 
+L 1178 3500 
+L 1178 -63 
+Q 1178 -731 923 -1031 
+Q 669 -1331 103 -1331 
+L -116 -1331 
+L -116 -844 
+L 38 -844 
+Q 366 -844 484 -692 
+Q 603 -541 603 -63 
+L 603 3500 
+z
+M 603 4863 
+L 1178 4863 
+L 1178 4134 
+L 603 4134 
+L 603 4863 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-c d="M 513 4856 
+L 1013 4856 
+Q 1481 4119 1714 3412 
+Q 1947 2706 1947 2009 
+Q 1947 1309 1714 600 
+Q 1481 -109 1013 -844 
+L 513 -844 
+Q 928 -128 1133 580 
+Q 1338 1288 1338 2009 
+Q 1338 2731 1133 3434 
+Q 928 4138 513 4856 
+z
+" transform=scale(0.015625) /> </defs> <use xlink:href=#DejaVuSans-45 /> <use xlink:href=#DejaVuSans-44 transform="translate(63.484375 0)"/> <use xlink:href=#DejaVuSans-46 transform="translate(124.765625 0)"/> <use xlink:href=#DejaVuSans-4e transform="translate(179.75 0)"/> <use xlink:href=#DejaVuSans-4f transform="translate(237.65625 0)"/> <use xlink:href=#DejaVuSans-52 transform="translate(265.4375 0)"/> <use xlink:href=#DejaVuSans-4a transform="translate(326.625 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(390.109375 0)"/> <use xlink:href=#DejaVuSans-b transform="translate(421.890625 0)"/> <use xlink:href=#DejaVuSans-57 transform="translate(460.90625 0)"/> <use xlink:href=#DejaVuSans-4b transform="translate(500.109375 0)"/> <use xlink:href=#DejaVuSans-52 transform="translate(563.484375 0)"/> <use xlink:href=#DejaVuSans-58 transform="translate(624.671875 0)"/> <use xlink:href=#DejaVuSans-56 transform="translate(688.046875 0)"/> <use xlink:href=#DejaVuSans-44 transform="translate(740.140625 0)"/> <use xlink:href=#DejaVuSans-51 transform="translate(801.421875 0)"/> <use xlink:href=#DejaVuSans-47 transform="translate(864.796875 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(928.28125 0)"/> <use xlink:href=#DejaVuSans-4d transform="translate(960.0625 0)"/> <use xlink:href=#DejaVuSans-52 transform="translate(987.84375 0)"/> <use xlink:href=#DejaVuSans-45 transform="translate(1049.03125 0)"/> <use xlink:href=#DejaVuSans-56 transform="translate(1112.515625 0)"/> <use xlink:href=#DejaVuSans-c transform="translate(1164.609375 0)"/> </g> </g> </g> <g id=line2d_14> <path d="M 68.724055 208.399581 
+L 163.164771 208.399581 
+L 257.76315 34.838075 
+L 376.011124 208.399581 
+L 541.558288 208.399581 
+L 541.558288 208.399581 
+" clip-path=url(#pee9fc0f533) style="fill: none; stroke: #d62728; stroke-width: 1.5; stroke-linecap: square"/> </g> <g id=line2d_15> <path d="M 68.724055 208.399581 
+L 163.164771 208.399581 
+L 257.76315 121.618828 
+L 294.183526 208.399581 
+L 541.558288 208.399581 
+L 541.558288 208.399581 
+" clip-path=url(#pee9fc0f533) style="fill: none; stroke: #ff7f0e; stroke-width: 1.5; stroke-linecap: square"/> </g> <g id=line2d_16> <path d="M 68.724055 208.399581 
+L 541.558288 208.399581 
+L 541.558288 208.399581 
+" clip-path=url(#pee9fc0f533) style="fill: none; stroke: #2ca02c; stroke-width: 1.5; stroke-linecap: square"/> </g> <g id=patch_4> <path d="M 45.082344 217.077656 
+L 45.082344 26.16 
+" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/> </g> <g id=patch_5> <path d="M 565.2 217.077656 
+L 565.2 26.16 
+" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/> </g> <g id=patch_6> <path d="M 45.082344 217.077656 
+L 565.2 217.077656 
+" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/> </g> <g id=patch_7> <path d="M 45.082344 26.16 
+L 565.2 26.16 
+" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/> </g> <g id=text_16> <!-- on-sale peak --> <g transform="translate(185.049124 47.618698) scale(0.08 -0.08)"> <defs> <path id=DejaVuSans-10 d="M 313 2009 
+L 1997 2009 
+L 1997 1497 
+L 313 1497 
+L 313 2009 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-53 d="M 1159 525 
+L 1159 -1331 
+L 581 -1331 
+L 581 3500 
+L 1159 3500 
+L 1159 2969 
+Q 1341 3281 1617 3432 
+Q 1894 3584 2278 3584 
+Q 2916 3584 3314 3078 
+Q 3713 2572 3713 1747 
+Q 3713 922 3314 415 
+Q 2916 -91 2278 -91 
+Q 1894 -91 1617 61 
+Q 1341 213 1159 525 
+z
+M 3116 1747 
+Q 3116 2381 2855 2742 
+Q 2594 3103 2138 3103 
+Q 1681 3103 1420 2742 
+Q 1159 2381 1159 1747 
+Q 1159 1113 1420 752 
+Q 1681 391 2138 391 
+Q 2594 391 2855 752 
+Q 3116 1113 3116 1747 
+z
+" transform=scale(0.015625) /> </defs> <use xlink:href=#DejaVuSans-52 /> <use xlink:href=#DejaVuSans-51 transform="translate(61.1875 0)"/> <use xlink:href=#DejaVuSans-10 transform="translate(124.5625 0)"/> <use xlink:href=#DejaVuSans-56 transform="translate(160.640625 0)"/> <use xlink:href=#DejaVuSans-44 transform="translate(212.734375 0)"/> <use xlink:href=#DejaVuSans-4f transform="translate(274.015625 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(301.796875 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(363.328125 0)"/> <use xlink:href=#DejaVuSans-53 transform="translate(395.109375 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(458.59375 0)"/> <use xlink:href=#DejaVuSans-44 transform="translate(520.125 0)"/> <use xlink:href=#DejaVuSans-4e transform="translate(581.40625 0)"/> </g> <!-- 100 jobs/s --> <g transform="translate(190.102249 57.220885) scale(0.08 -0.08)"> <defs> <path id=DejaVuSans-12 d="M 1625 4666 
+L 2156 4666 
+L 531 -594 
+L 0 -594 
+L 1625 4666 
+z
+" transform=scale(0.015625) /> </defs> <use xlink:href=#DejaVuSans-14 /> <use xlink:href=#DejaVuSans-13 transform="translate(63.625 0)"/> <use xlink:href=#DejaVuSans-13 transform="translate(127.25 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(190.875 0)"/> <use xlink:href=#DejaVuSans-4d transform="translate(222.65625 0)"/> <use xlink:href=#DejaVuSans-52 transform="translate(250.4375 0)"/> <use xlink:href=#DejaVuSans-45 transform="translate(311.625 0)"/> <use xlink:href=#DejaVuSans-56 transform="translate(375.109375 0)"/> <use xlink:href=#DejaVuSans-12 transform="translate(427.203125 0)"/> <use xlink:href=#DejaVuSans-56 transform="translate(460.890625 0)"/> </g> </g> <g id=text_17> <!-- Queue backlog during the on-sale spike --> <g transform="translate(185.931484 20.16) scale(0.12 -0.12)"> <defs> <path id=DejaVuSans-34 d="M 2522 4238 
+Q 1834 4238 1429 3725 
+Q 1025 3213 1025 2328 
+Q 1025 1447 1429 934 
+Q 1834 422 2522 422 
+Q 3209 422 3611 934 
+Q 4013 1447 4013 2328 
+Q 4013 3213 3611 3725 
+Q 3209 4238 2522 4238 
+z
+M 3406 84 
+L 4238 -825 
+L 3475 -825 
+L 2784 -78 
+Q 2681 -84 2626 -87 
+Q 2572 -91 2522 -91 
+Q 1538 -91 948 567 
+Q 359 1225 359 2328 
+Q 359 3434 948 4092 
+Q 1538 4750 2522 4750 
+Q 3503 4750 4090 4092 
+Q 4678 3434 4678 2328 
+Q 4678 1516 4351 937 
+Q 4025 359 3406 84 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-55 d="M 2631 2963 
+Q 2534 3019 2420 3045 
+Q 2306 3072 2169 3072 
+Q 1681 3072 1420 2755 
+Q 1159 2438 1159 1844 
+L 1159 0 
+L 581 0 
+L 581 3500 
+L 1159 3500 
+L 1159 2956 
+Q 1341 3275 1631 3429 
+Q 1922 3584 2338 3584 
+Q 2397 3584 2469 3576 
+Q 2541 3569 2628 3553 
+L 2631 2963 
+z
+" transform=scale(0.015625) /> </defs> <use xlink:href=#DejaVuSans-34 /> <use xlink:href=#DejaVuSans-58 transform="translate(78.71875 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(142.09375 0)"/> <use xlink:href=#DejaVuSans-58 transform="translate(203.625 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(267 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(328.53125 0)"/> <use xlink:href=#DejaVuSans-45 transform="translate(360.3125 0)"/> <use xlink:href=#DejaVuSans-44 transform="translate(423.796875 0)"/> <use xlink:href=#DejaVuSans-46 transform="translate(485.078125 0)"/> <use xlink:href=#DejaVuSans-4e transform="translate(540.0625 0)"/> <use xlink:href=#DejaVuSans-4f transform="translate(597.96875 0)"/> <use xlink:href=#DejaVuSans-52 transform="translate(625.75 0)"/> <use xlink:href=#DejaVuSans-4a transform="translate(686.9375 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(750.421875 0)"/> <use xlink:href=#DejaVuSans-47 transform="translate(782.203125 0)"/> <use xlink:href=#DejaVuSans-58 transform="translate(845.6875 0)"/> <use xlink:href=#DejaVuSans-55 transform="translate(909.0625 0)"/> <use xlink:href=#DejaVuSans-4c transform="translate(950.171875 0)"/> <use xlink:href=#DejaVuSans-51 transform="translate(977.953125 0)"/> <use xlink:href=#DejaVuSans-4a transform="translate(1041.328125 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(1104.8125 0)"/> <use xlink:href=#DejaVuSans-57 transform="translate(1136.59375 0)"/> <use xlink:href=#DejaVuSans-4b transform="translate(1175.796875 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(1239.171875 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(1300.703125 0)"/> <use xlink:href=#DejaVuSans-52 transform="translate(1332.484375 0)"/> <use xlink:href=#DejaVuSans-51 transform="translate(1393.671875 0)"/> <use xlink:href=#DejaVuSans-10 transform="translate(1457.046875 0)"/> <use xlink:href=#DejaVuSans-56 transform="translate(1493.125 0)"/> <use xlink:href=#DejaVuSans-44 transform="translate(1545.21875 0)"/> <use xlink:href=#DejaVuSans-4f transform="translate(1606.5 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(1634.28125 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(1695.8125 0)"/> <use xlink:href=#DejaVuSans-56 transform="translate(1727.59375 0)"/> <use xlink:href=#DejaVuSans-53 transform="translate(1779.6875 0)"/> <use xlink:href=#DejaVuSans-4c transform="translate(1843.171875 0)"/> <use xlink:href=#DejaVuSans-4e transform="translate(1870.953125 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(1925.296875 0)"/> </g> </g> <g id=legend_1> <g id=patch_8> <path d="M 434.91125 68.561875 
+L 559.6 68.561875 
+Q 561.2 68.561875 561.2 66.961875 
+L 561.2 31.76 
+Q 561.2 30.16 559.6 30.16 
+L 434.91125 30.16 
+Q 433.31125 30.16 433.31125 31.76 
+L 433.31125 66.961875 
+Q 433.31125 68.561875 434.91125 68.561875 
+z
+" style="fill: #ffffff; opacity: 0.8; stroke: #cccccc; stroke-linejoin: miter"/> </g> <g id=line2d_17> <path d="M 436.51125 36.63875 
+L 444.51125 36.63875 
+L 452.51125 36.63875 
+" style="fill: none; stroke: #d62728; stroke-width: 1.5; stroke-linecap: square"/> </g> <g id=text_18> <!-- 40 workers (50 jobs/s) --> <g transform="translate(458.91125 39.43875) scale(0.08 -0.08)"> <defs> <path id=DejaVuSans-5a d="M 269 3500 
+L 844 3500 
+L 1563 769 
+L 2278 3500 
+L 2956 3500 
+L 3675 769 
+L 4391 3500 
+L 4966 3500 
+L 4050 0 
+L 3372 0 
+L 2619 2869 
+L 1863 0 
+L 1184 0 
+L 269 3500 
+z
+" transform=scale(0.015625) /> </defs> <use xlink:href=#DejaVuSans-17 /> <use xlink:href=#DejaVuSans-13 transform="translate(63.625 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(127.25 0)"/> <use xlink:href=#DejaVuSans-5a transform="translate(159.03125 0)"/> <use xlink:href=#DejaVuSans-52 transform="translate(240.8125 0)"/> <use xlink:href=#DejaVuSans-55 transform="translate(302 0)"/> <use xlink:href=#DejaVuSans-4e transform="translate(343.109375 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(397.453125 0)"/> <use xlink:href=#DejaVuSans-55 transform="translate(458.984375 0)"/> <use xlink:href=#DejaVuSans-56 transform="translate(500.09375 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(552.1875 0)"/> <use xlink:href=#DejaVuSans-b transform="translate(583.96875 0)"/> <use xlink:href=#DejaVuSans-18 transform="translate(622.984375 0)"/> <use xlink:href=#DejaVuSans-13 transform="translate(686.609375 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(750.234375 0)"/> <use xlink:href=#DejaVuSans-4d transform="translate(782.015625 0)"/> <use xlink:href=#DejaVuSans-52 transform="translate(809.796875 0)"/> <use xlink:href=#DejaVuSans-45 transform="translate(870.984375 0)"/> <use xlink:href=#DejaVuSans-56 transform="translate(934.46875 0)"/> <use xlink:href=#DejaVuSans-12 transform="translate(986.5625 0)"/> <use xlink:href=#DejaVuSans-56 transform="translate(1020.25 0)"/> <use xlink:href=#DejaVuSans-c transform="translate(1072.34375 0)"/> </g> </g> <g id=line2d_18> <path d="M 436.51125 48.639375 
+L 444.51125 48.639375 
+L 452.51125 48.639375 
+" style="fill: none; stroke: #ff7f0e; stroke-width: 1.5; stroke-linecap: square"/> </g> <g id=text_19> <!-- 60 workers (75 jobs/s) --> <g transform="translate(458.91125 51.439375) scale(0.08 -0.08)"> <defs> <path id=DejaVuSans-19 d="M 2113 2584 
+Q 1688 2584 1439 2293 
+Q 1191 2003 1191 1497 
+Q 1191 994 1439 701 
+Q 1688 409 2113 409 
+Q 2538 409 2786 701 
+Q 3034 994 3034 1497 
+Q 3034 2003 2786 2293 
+Q 2538 2584 2113 2584 
+z
+M 3366 4563 
+L 3366 3988 
+Q 3128 4100 2886 4159 
+Q 2644 4219 2406 4219 
+Q 1781 4219 1451 3797 
+Q 1122 3375 1075 2522 
+Q 1259 2794 1537 2939 
+Q 1816 3084 2150 3084 
+Q 2853 3084 3261 2657 
+Q 3669 2231 3669 1497 
+Q 3669 778 3244 343 
+Q 2819 -91 2113 -91 
+Q 1303 -91 875 529 
+Q 447 1150 447 2328 
+Q 447 3434 972 4092 
+Q 1497 4750 2381 4750 
+Q 2619 4750 2861 4703 
+Q 3103 4656 3366 4563 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-1a d="M 525 4666 
+L 3525 4666 
+L 3525 4397 
+L 1831 0 
+L 1172 0 
+L 2766 4134 
+L 525 4134 
+L 525 4666 
+z
+" transform=scale(0.015625) /> </defs> <use xlink:href=#DejaVuSans-19 /> <use xlink:href=#DejaVuSans-13 transform="translate(63.625 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(127.25 0)"/> <use xlink:href=#DejaVuSans-5a transform="translate(159.03125 0)"/> <use xlink:href=#DejaVuSans-52 transform="translate(240.8125 0)"/> <use xlink:href=#DejaVuSans-55 transform="translate(302 0)"/> <use xlink:href=#DejaVuSans-4e transform="translate(343.109375 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(397.453125 0)"/> <use xlink:href=#DejaVuSans-55 transform="translate(458.984375 0)"/> <use xlink:href=#DejaVuSans-56 transform="translate(500.09375 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(552.1875 0)"/> <use xlink:href=#DejaVuSans-b transform="translate(583.96875 0)"/> <use xlink:href=#DejaVuSans-1a transform="translate(622.984375 0)"/> <use xlink:href=#DejaVuSans-18 transform="translate(686.609375 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(750.234375 0)"/> <use xlink:href=#DejaVuSans-4d transform="translate(782.015625 0)"/> <use xlink:href=#DejaVuSans-52 transform="translate(809.796875 0)"/> <use xlink:href=#DejaVuSans-45 transform="translate(870.984375 0)"/> <use xlink:href=#DejaVuSans-56 transform="translate(934.46875 0)"/> <use xlink:href=#DejaVuSans-12 transform="translate(986.5625 0)"/> <use xlink:href=#DejaVuSans-56 transform="translate(1020.25 0)"/> <use xlink:href=#DejaVuSans-c transform="translate(1072.34375 0)"/> </g> </g> <g id=line2d_19> <path d="M 436.51125 60.64 
+L 444.51125 60.64 
+L 452.51125 60.64 
+" style="fill: none; stroke: #2ca02c; stroke-width: 1.5; stroke-linecap: square"/> </g> <g id=text_20> <!-- 100 workers (125 jobs/s) --> <g transform="translate(458.91125 63.44) scale(0.08 -0.08)"> <use xlink:href=#DejaVuSans-14 /> <use xlink:href=#DejaVuSans-13 transform="translate(63.625 0)"/> <use xlink:href=#DejaVuSans-13 transform="translate(127.25 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(190.875 0)"/> <use xlink:href=#DejaVuSans-5a transform="translate(222.65625 0)"/> <use xlink:href=#DejaVuSans-52 transform="translate(304.4375 0)"/> <use xlink:href=#DejaVuSans-55 transform="translate(365.625 0)"/> <use xlink:href=#DejaVuSans-4e transform="translate(406.734375 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(461.078125 0)"/> <use xlink:href=#DejaVuSans-55 transform="translate(522.609375 0)"/> <use xlink:href=#DejaVuSans-56 transform="translate(563.71875 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(615.8125 0)"/> <use xlink:href=#DejaVuSans-b transform="translate(647.59375 0)"/> <use xlink:href=#DejaVuSans-14 transform="translate(686.609375 0)"/> <use xlink:href=#DejaVuSans-15 transform="translate(750.234375 0)"/> <use xlink:href=#DejaVuSans-18 transform="translate(813.859375 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(877.484375 0)"/> <use xlink:href=#DejaVuSans-4d transform="translate(909.265625 0)"/> <use xlink:href=#DejaVuSans-52 transform="translate(937.046875 0)"/> <use xlink:href=#DejaVuSans-45 transform="translate(998.234375 0)"/> <use xlink:href=#DejaVuSans-56 transform="translate(1061.71875 0)"/> <use xlink:href=#DejaVuSans-12 transform="translate(1113.8125 0)"/> <use xlink:href=#DejaVuSans-56 transform="translate(1147.5 0)"/> <use xlink:href=#DejaVuSans-c transform="translate(1199.59375 0)"/> </g> </g> </g> </g> </g> <defs> <clipPath id=pee9fc0f533> <rect x=45.082344 y=26.16 width=520.117656 height=190.917656 /> </clipPath> </defs> </svg> <p>O gráfico traz duas lições. Primeiro, uma fila <strong>converte um problema de capacidade em atraso</strong>: nada falhou com 40 workers, os fãs só esperaram. Segundo, <strong>quem está a jusante define o limite real</strong>: se o provedor de e-mail aceita no máximo, digamos, 100 mensagens por segundo no seu plano, 500 workers de notificação não enviam mais rápido — só colecionam <code>429 Too Many Requests</code>. Dimensione o pool de workers pela dependência mais lenta e deixe a fila guardar o resto.</p> <p>Escale workers pela <strong>profundidade da fila ou pelo consumer lag</strong>, não pela CPU: um worker esperando um provedor lento não usa CPU, mas também não está livre. <a href=../serverless-autoscaling/#scaling-workers-on-queue-depth>Serverless e autoscaling</a> mostra como (KEDA).</p> <h3 id=experimente-no-playground>Experimente no playground</h3> <p>Abra o cenário <code>async-queue</code>: produtores escrevem numa fila esvaziada por um pool de workers.</p> <ol> <li>Rode o perfil <strong>spike</strong> e observe o <strong>backlog</strong> e o <strong>consumer lag</strong> subirem durante a rajada e depois caírem.</li> <li>Dobre as réplicas de workers: o pico do backlog cai e é drenado mais cedo — confira com a fórmula acima.</li> <li>Reduza o rate limit do serviço a jusante: mais workers deixam de ajudar, e aparecem erros no lugar.</li> </ol> <div class=sdp data-scenario=async-queue data-mode=compact data-height=520 data-profile=spike></div> <hr> <h2 id=projetando-jobs-que-sobrevivem-ao-mundo-real>Projetando jobs que sobrevivem ao mundo real</h2> <p>Uma fila não é mágica: workers caem no meio de jobs, brokers reentregam, provedores estouram o timeout. A maioria dos brokers oferece entrega <strong>at-least-once</strong> (pelo menos uma vez): um job só é removido (confirmado, <em>ack</em>) depois que o worker avisa que terminou, então uma queda antes do ack significa que o job será entregue <em>de novo</em>. Todas as regras abaixo decorrem disso.</p> <table> <thead> <tr> <th>Regra</th> <th>Por quê</th> <th>Exemplo na BoxOffice</th> </tr> </thead> <tbody> <tr> <td><strong>Torne os jobs idempotentes</strong></td> <td>o mesmo job <em>vai</em> rodar duas vezes</td> <td>antes de gerar, verifique se <code>ord_9</code> já tem ingressos; envie o e-mail com uma chave de deduplicação <code>ord_9:tickets</code></td> </tr> <tr> <td><strong>Dê o ack depois do trabalho, não antes</strong></td> <td>dar o ack primeiro transforma uma queda num job perdido</td> <td>fazer commit do offset do Kafka depois que o PDF foi armazenado</td> </tr> <tr> <td><strong>Coloque ids na mensagem, não dados</strong></td> <td>as mensagens ficam pequenas; o worker lê o estado atual</td> <td><code>{"orderId": "ord_9"}</code>, não o pedido inteiro</td> </tr> <tr> <td><strong>Faça retry com backoff e depois estacione</strong></td> <td>erros transitórios se resolvem; os permanentes não podem travar a fila</td> <td>4 tentativas com 1 s, 2 s, 4 s, depois a <strong>dead letter queue</strong> (DLQ)</td> </tr> <tr> <td><strong>Defina um timeout por job</strong></td> <td>um job travado prende um worker para sempre</td> <td>a geração do PDF é abortada após 10 s</td> </tr> <tr> <td><strong>Separe filas por prioridade</strong></td> <td>um job em massa não pode atrasar os urgentes</td> <td><code>tickets</code> (urgente) e <code>marketing-emails</code> (em massa) em filas e pools diferentes</td> </tr> <tr> <td><strong>Registre o status do job</strong></td> <td>usuários e suporte precisam ver o progresso</td> <td><code>ticket_status = PENDING / ISSUED / FAILED</code> no pedido</td> </tr> <tr> <td><strong>Respeite os limites a jusante</strong></td> <td>mais paralelismo do que o provedor permite = erros</td> <td>um rate limiter no worker de notificação</td> </tr> </tbody> </table> <p>Uma <strong>mensagem envenenada</strong> (<em>poison message</em>) é aquela que falha sempre (um payload malformado, um bug). Sem limite de retries, ela é reprocessada para sempre e, em partições ordenadas, bloqueia todas as mensagens atrás dela. A DLQ a estaciona para um humano (ou para uma versão corrigida do código) e deixa a fila seguir. Monitore o tamanho da DLQ: uma DLQ crescendo é um incidente.</p> <p>Com o Spring for Apache Kafka, retries com backoff e um tópico de dead letter são poucas anotações<sup id=fnref:3><a class=footnote-ref href=#fn:3>3</a></sup>:</p> <div class="language-java highlight"><span class=filename>ticket-worker: TicketJobListener.java</span><pre><span></span><code><span id=__span-0-1><a id=__codelineno-0-1 name=__codelineno-0-1 href=#__codelineno-0-1></a><span class=nd>@Component</span>
+</span><span id=__span-0-2><a id=__codelineno-0-2 name=__codelineno-0-2 href=#__codelineno-0-2></a><span class=kd>class</span> <span class=nc>TicketJobListener</span><span class=w> </span><span class=p>{</span>
+</span><span id=__span-0-3><a id=__codelineno-0-3 name=__codelineno-0-3 href=#__codelineno-0-3></a>
+</span><span id=__span-0-4><a id=__codelineno-0-4 name=__codelineno-0-4 href=#__codelineno-0-4></a><span class=w>    </span><span class=kd>private</span><span class=w> </span><span class=kd>final</span><span class=w> </span><span class=n>TicketService</span><span class=w> </span><span class=n>tickets</span><span class=p>;</span>
+</span><span id=__span-0-5><a id=__codelineno-0-5 name=__codelineno-0-5 href=#__codelineno-0-5></a>
+</span><span id=__span-0-6><a id=__codelineno-0-6 name=__codelineno-0-6 href=#__codelineno-0-6></a><span class=w>    </span><span class=n>TicketJobListener</span><span class=p>(</span><span class=n>TicketService</span><span class=w> </span><span class=n>tickets</span><span class=p>)</span><span class=w> </span><span class=p>{</span><span class=w> </span><span class=k>this</span><span class=p>.</span><span class=na>tickets</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=n>tickets</span><span class=p>;</span><span class=w> </span><span class=p>}</span>
+</span><span id=__span-0-7><a id=__codelineno-0-7 name=__codelineno-0-7 href=#__codelineno-0-7></a>
+</span><span id=__span-0-8><a id=__codelineno-0-8 name=__codelineno-0-8 href=#__codelineno-0-8></a><span class=w>    </span><span class=nd>@RetryableTopic</span><span class=p>(</span>
+</span><span id=__span-0-9><a id=__codelineno-0-9 name=__codelineno-0-9 href=#__codelineno-0-9></a><span class=w>        </span><span class=n>attempts</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=s>"4"</span><span class=p>,</span><span class=w>                                    </span><span class=c1>// 1 try + 3 retries</span>
+</span><span id=__span-0-10><a id=__codelineno-0-10 name=__codelineno-0-10 href=#__codelineno-0-10></a><span class=w>        </span><span class=n>backOff</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=nd>@BackOff</span><span class=p>(</span><span class=n>delay</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=mi>1000</span><span class=p>,</span><span class=w> </span><span class=n>multiplier</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=mf>2.0</span><span class=p>),</span><span class=w> </span><span class=c1>// 1 s, 2 s, 4 s (Spring Kafka 4)</span>
+</span><span id=__span-0-11><a id=__codelineno-0-11 name=__codelineno-0-11 href=#__codelineno-0-11></a><span class=w>        </span><span class=n>dltTopicSuffix</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=s>".dlt"</span><span class=p>)</span>
+</span><span id=__span-0-12><a id=__codelineno-0-12 name=__codelineno-0-12 href=#__codelineno-0-12></a><span class=w>    </span><span class=nd>@KafkaListener</span><span class=p>(</span><span class=n>topics</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=s>"order.confirmed.v1"</span><span class=p>,</span><span class=w> </span><span class=n>groupId</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=s>"ticket-worker"</span><span class=p>)</span>
+</span><span id=__span-0-13><a id=__codelineno-0-13 name=__codelineno-0-13 href=#__codelineno-0-13></a><span class=w>    </span><span class=kt>void</span><span class=w> </span><span class=nf>onOrderConfirmed</span><span class=p>(</span><span class=n>OrderConfirmed</span><span class=w> </span><span class=n>event</span><span class=p>)</span><span class=w> </span><span class=p>{</span>
+</span><span id=__span-0-14><a id=__codelineno-0-14 name=__codelineno-0-14 href=#__codelineno-0-14></a><span class=w>        </span><span class=k>if</span><span class=w> </span><span class=p>(</span><span class=n>tickets</span><span class=p>.</span><span class=na>alreadyIssued</span><span class=p>(</span><span class=n>event</span><span class=p>.</span><span class=na>orderId</span><span class=p>()))</span><span class=w> </span><span class=p>{</span>
+</span><span id=__span-0-15><a id=__codelineno-0-15 name=__codelineno-0-15 href=#__codelineno-0-15></a><span class=w>            </span><span class=k>return</span><span class=p>;</span><span class=w>                                        </span><span class=c1>// idempotent: duplicate delivery</span>
+</span><span id=__span-0-16><a id=__codelineno-0-16 name=__codelineno-0-16 href=#__codelineno-0-16></a><span class=w>        </span><span class=p>}</span>
+</span><span id=__span-0-17><a id=__codelineno-0-17 name=__codelineno-0-17 href=#__codelineno-0-17></a><span class=w>        </span><span class=n>tickets</span><span class=p>.</span><span class=na>renderAndStore</span><span class=p>(</span><span class=n>event</span><span class=p>.</span><span class=na>orderId</span><span class=p>());</span><span class=w>           </span><span class=c1>// PDF + QR → object store</span>
+</span><span id=__span-0-18><a id=__codelineno-0-18 name=__codelineno-0-18 href=#__codelineno-0-18></a><span class=w>    </span><span class=p>}</span>
+</span><span id=__span-0-19><a id=__codelineno-0-19 name=__codelineno-0-19 href=#__codelineno-0-19></a>
+</span><span id=__span-0-20><a id=__codelineno-0-20 name=__codelineno-0-20 href=#__codelineno-0-20></a><span class=w>    </span><span class=nd>@DltHandler</span>
+</span><span id=__span-0-21><a id=__codelineno-0-21 name=__codelineno-0-21 href=#__codelineno-0-21></a><span class=w>    </span><span class=kt>void</span><span class=w> </span><span class=nf>onDeadLetter</span><span class=p>(</span><span class=n>OrderConfirmed</span><span class=w> </span><span class=n>event</span><span class=p>)</span><span class=w> </span><span class=p>{</span>
+</span><span id=__span-0-22><a id=__codelineno-0-22 name=__codelineno-0-22 href=#__codelineno-0-22></a><span class=w>        </span><span class=n>tickets</span><span class=p>.</span><span class=na>markFailed</span><span class=p>(</span><span class=n>event</span><span class=p>.</span><span class=na>orderId</span><span class=p>());</span><span class=w>               </span><span class=c1>// visible to support; alert on rate</span>
+</span><span id=__span-0-23><a id=__codelineno-0-23 name=__codelineno-0-23 href=#__codelineno-0-23></a><span class=w>    </span><span class=p>}</span>
+</span><span id=__span-0-24><a id=__codelineno-0-24 name=__codelineno-0-24 href=#__codelineno-0-24></a><span class=p>}</span>
+</span></code></pre></div> <h3 id=onde-os-jobs-vivem>Onde os jobs vivem</h3> <table> <thead> <tr> <th>Opção</th> <th>Durável?</th> <th>Bom para</th> <th>Cuidado com</th> </tr> </thead> <tbody> <tr> <td>No próprio processo (<code>@Async</code>, um pool de threads)</td> <td><strong>não</strong> — perdido numa queda ou num deploy</td> <td>trabalho fire-and-forget que você pode se dar ao luxo de perder</td> <td>não é uma fila; sem retries, sem visibilidade</td> </tr> <tr> <td>Filas baseadas em Redis (Sidekiq, Celery, BullMQ)</td> <td>em geral (depende da configuração de persistência)</td> <td>filas de jobs simples, com retries e agendamentos</td> <td>memória do Redis e configuração de persistência</td> </tr> <tr> <td>Filas de broker (SQS, RabbitMQ, Cloud Tasks)</td> <td>sim</td> <td>um job → um worker, ack por mensagem, atrasos, DLQ</td> <td>ordenação fraca ou só por grupo</td> </tr> <tr> <td>Log de eventos (Kafka, Pub/Sub, Kinesis)</td> <td>sim, com replay</td> <td>muitos consumidores dos mesmos fatos, alto throughput, ordenação por chave</td> <td>paralelismo limitado pelas partições; acks por offset</td> </tr> <tr> <td>Motores de workflow (Temporal, AWS Step Functions)</td> <td>sim, com estado</td> <td>processos de várias etapas que duram de minutos a dias, com compensações</td> <td>uma nova plataforma para aprender e operar</td> </tr> </tbody> </table> <p>Os motores de <strong>execução durável</strong> (<em>durable execution</em>) merecem menção: quando um processo tem muitas etapas e esperas — "evento cancelado → reembolsar 60.000 pedidos → enviar e-mail a cada fã → esperar 7 dias → fechar a contabilidade" — escrevê-lo como um workflow, cujo progresso o motor persiste após cada etapa, é mais simples e mais seguro do que encadear filas à mão<sup id=fnref:4><a class=footnote-ref href=#fn:4>4</a></sup>.</p> <hr> <h2 id=schedulers>Schedulers</h2> <p>Parte do trabalho é disparada pelo <strong>tempo</strong>, não por uma requisição ou um evento:</p> <ul> <li>a cada 30 s, <strong>liberar os holds expirados</strong> para que seus assentos possam ser vendidos de novo;</li> <li>às 10:00:00, <strong>abrir as vendas</strong> de um evento;</li> <li>24 h antes de cada show, <strong>enviar um lembrete</strong> a cada portador de ingresso;</li> <li>toda noite, <strong>conciliar</strong> os pagamentos com o relatório do provedor (<a href=../integrations/#reconciliation>integrações</a>).</li> </ul> <h3 id=o-problema-do-cron-duplicado>O problema do cron duplicado</h3> <p>A implementação óbvia é um método <code>@Scheduled</code> no serviço. Funciona com uma réplica. Com 10 réplicas, <strong>o job roda 10 vezes</strong>: 10 e-mails de lembrete por fã, 10 varreduras concorrentes brigando pelas mesmas linhas. O mesmo acontece com uma entrada de cron copiada em cada VM. Há quatro soluções padrão:</p> <div class="tabbed-set tabbed-alternate" data-tabs=1:4><input checked=checked id=__tabbed_1_1 name=__tabbed_1 type=radio><input id=__tabbed_1_2 name=__tabbed_1 type=radio><input id=__tabbed_1_3 name=__tabbed_1 type=radio><input id=__tabbed_1_4 name=__tabbed_1 type=radio><div class=tabbed-labels><label for=__tabbed_1_1>CronJob do Kubernetes</label><label for=__tabbed_1_2>Lock distribuído (ShedLock)</label><label for=__tabbed_1_3>Eleição de líder</label><label for=__tabbed_1_4>Scheduler gerenciado</label></div> <div class=tabbed-content> <div class=tabbed-block> <p>Rode o job como um pod próprio, de vida curta, criado pelo cluster segundo um agendamento, de modo que as réplicas do serviço nunca o executem.</p> <div class="language-yaml highlight"><span class=filename>release-holds-cronjob.yaml</span><pre><span></span><code><span id=__span-1-1><a id=__codelineno-1-1 name=__codelineno-1-1 href=#__codelineno-1-1></a><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class="l l-Scalar l-Scalar-Plain">batch/v1</span>
+</span><span id=__span-1-2><a id=__codelineno-1-2 name=__codelineno-1-2 href=#__codelineno-1-2></a><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class="l l-Scalar l-Scalar-Plain">CronJob</span>
+</span><span id=__span-1-3><a id=__codelineno-1-3 name=__codelineno-1-3 href=#__codelineno-1-3></a><span class=nt>metadata</span><span class=p>:</span>
+</span><span id=__span-1-4><a id=__codelineno-1-4 name=__codelineno-1-4 href=#__codelineno-1-4></a><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class="l l-Scalar l-Scalar-Plain">release-expired-holds</span>
+</span><span id=__span-1-5><a id=__codelineno-1-5 name=__codelineno-1-5 href=#__codelineno-1-5></a><span class=nt>spec</span><span class=p>:</span>
+</span><span id=__span-1-6><a id=__codelineno-1-6 name=__codelineno-1-6 href=#__codelineno-1-6></a><span class=w>  </span><span class=nt>schedule</span><span class=p>:</span><span class=w> </span><span class=s>"*</span><span class=nv> </span><span class=s>*</span><span class=nv> </span><span class=s>*</span><span class=nv> </span><span class=s>*</span><span class=nv> </span><span class=s>*"</span><span class=w>              </span><span class=c1># every minute (cron's finest granularity)</span>
+</span><span id=__span-1-7><a id=__codelineno-1-7 name=__codelineno-1-7 href=#__codelineno-1-7></a><span class=w>  </span><span class=nt>concurrencyPolicy</span><span class=p>:</span><span class=w> </span><span class="l l-Scalar l-Scalar-Plain">Forbid</span><span class=w>          </span><span class=c1># never two runs at the same time</span>
+</span><span id=__span-1-8><a id=__codelineno-1-8 name=__codelineno-1-8 href=#__codelineno-1-8></a><span class=w>  </span><span class=nt>startingDeadlineSeconds</span><span class=p>:</span><span class=w> </span><span class="l l-Scalar l-Scalar-Plain">30</span><span class=w>        </span><span class=c1># skip a run that could not start in time</span>
+</span><span id=__span-1-9><a id=__codelineno-1-9 name=__codelineno-1-9 href=#__codelineno-1-9></a><span class=w>  </span><span class=nt>successfulJobsHistoryLimit</span><span class=p>:</span><span class=w> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
+</span><span id=__span-1-10><a id=__codelineno-1-10 name=__codelineno-1-10 href=#__codelineno-1-10></a><span class=w>  </span><span class=nt>jobTemplate</span><span class=p>:</span>
+</span><span id=__span-1-11><a id=__codelineno-1-11 name=__codelineno-1-11 href=#__codelineno-1-11></a><span class=w>    </span><span class=nt>spec</span><span class=p>:</span>
+</span><span id=__span-1-12><a id=__codelineno-1-12 name=__codelineno-1-12 href=#__codelineno-1-12></a><span class=w>      </span><span class=nt>backoffLimit</span><span class=p>:</span><span class=w> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
+</span><span id=__span-1-13><a id=__codelineno-1-13 name=__codelineno-1-13 href=#__codelineno-1-13></a><span class=w>      </span><span class=nt>activeDeadlineSeconds</span><span class=p>:</span><span class=w> </span><span class="l l-Scalar l-Scalar-Plain">50</span><span class=w>      </span><span class=c1># kill a run that hangs</span>
+</span><span id=__span-1-14><a id=__codelineno-1-14 name=__codelineno-1-14 href=#__codelineno-1-14></a><span class=w>      </span><span class=nt>template</span><span class=p>:</span>
+</span><span id=__span-1-15><a id=__codelineno-1-15 name=__codelineno-1-15 href=#__codelineno-1-15></a><span class=w>        </span><span class=nt>spec</span><span class=p>:</span>
+</span><span id=__span-1-16><a id=__codelineno-1-16 name=__codelineno-1-16 href=#__codelineno-1-16></a><span class=w>          </span><span class=nt>restartPolicy</span><span class=p>:</span><span class=w> </span><span class="l l-Scalar l-Scalar-Plain">Never</span>
+</span><span id=__span-1-17><a id=__codelineno-1-17 name=__codelineno-1-17 href=#__codelineno-1-17></a><span class=w>          </span><span class=nt>containers</span><span class=p>:</span>
+</span><span id=__span-1-18><a id=__codelineno-1-18 name=__codelineno-1-18 href=#__codelineno-1-18></a><span class=w>            </span><span class="p p-Indicator">-</span><span class=w> </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class="l l-Scalar l-Scalar-Plain">sweeper</span>
+</span><span id=__span-1-19><a id=__codelineno-1-19 name=__codelineno-1-19 href=#__codelineno-1-19></a><span class=w>              </span><span class=nt>image</span><span class=p>:</span><span class=w> </span><span class="l l-Scalar l-Scalar-Plain">ghcr.io/boxoffice/inventory:1.8.2</span>
+</span><span id=__span-1-20><a id=__codelineno-1-20 name=__codelineno-1-20 href=#__codelineno-1-20></a><span class=w>              </span><span class=nt>args</span><span class=p>:</span><span class=w> </span><span class="p p-Indicator">[</span><span class=s>"--job=release-expired-holds"</span><span class="p p-Indicator">]</span>
+</span></code></pre></div> <p>Simples e visível (<code>kubectl get jobs</code>). A granularidade é de um minuto e iniciar um pod custa segundos, então serve para jobs que rodam a cada minuto ou com menos frequência.</p> </div> <div class=tabbed-block> <p>Toda réplica <em>tenta</em> rodar o job, mas só aquela que obtém um lock num armazenamento compartilhado (PostgreSQL, Redis) de fato o executa.</p> <div class="language-java highlight"><span class=filename>inventory: HoldSweeper.java</span><pre><span></span><code><span id=__span-2-1><a id=__codelineno-2-1 name=__codelineno-2-1 href=#__codelineno-2-1></a><span class=nd>@Component</span>
+</span><span id=__span-2-2><a id=__codelineno-2-2 name=__codelineno-2-2 href=#__codelineno-2-2></a><span class=kd>class</span> <span class=nc>HoldSweeper</span><span class=w> </span><span class=p>{</span>
+</span><span id=__span-2-3><a id=__codelineno-2-3 name=__codelineno-2-3 href=#__codelineno-2-3></a>
+</span><span id=__span-2-4><a id=__codelineno-2-4 name=__codelineno-2-4 href=#__codelineno-2-4></a><span class=w>    </span><span class=kd>private</span><span class=w> </span><span class=kd>static</span><span class=w> </span><span class=kd>final</span><span class=w> </span><span class=n>Logger</span><span class=w> </span><span class=n>log</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=n>LoggerFactory</span><span class=p>.</span><span class=na>getLogger</span><span class=p>(</span><span class=n>HoldSweeper</span><span class=p>.</span><span class=na>class</span><span class=p>);</span>
+</span><span id=__span-2-5><a id=__codelineno-2-5 name=__codelineno-2-5 href=#__codelineno-2-5></a><span class=w>    </span><span class=kd>private</span><span class=w> </span><span class=kd>final</span><span class=w> </span><span class=n>HoldRepository</span><span class=w> </span><span class=n>holds</span><span class=p>;</span>
+</span><span id=__span-2-6><a id=__codelineno-2-6 name=__codelineno-2-6 href=#__codelineno-2-6></a>
+</span><span id=__span-2-7><a id=__codelineno-2-7 name=__codelineno-2-7 href=#__codelineno-2-7></a><span class=w>    </span><span class=n>HoldSweeper</span><span class=p>(</span><span class=n>HoldRepository</span><span class=w> </span><span class=n>holds</span><span class=p>)</span><span class=w> </span><span class=p>{</span><span class=w> </span><span class=k>this</span><span class=p>.</span><span class=na>holds</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=n>holds</span><span class=p>;</span><span class=w> </span><span class=p>}</span>
+</span><span id=__span-2-8><a id=__codelineno-2-8 name=__codelineno-2-8 href=#__codelineno-2-8></a>
+</span><span id=__span-2-9><a id=__codelineno-2-9 name=__codelineno-2-9 href=#__codelineno-2-9></a><span class=w>    </span><span class=nd>@Scheduled</span><span class=p>(</span><span class=n>fixedRate</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=mi>30_000</span><span class=p>)</span>
+</span><span id=__span-2-10><a id=__codelineno-2-10 name=__codelineno-2-10 href=#__codelineno-2-10></a><span class=w>    </span><span class=nd>@SchedulerLock</span><span class=p>(</span><span class=n>name</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=s>"releaseExpiredHolds"</span><span class=p>,</span>
+</span><span id=__span-2-11><a id=__codelineno-2-11 name=__codelineno-2-11 href=#__codelineno-2-11></a><span class=w>                   </span><span class=n>lockAtMostFor</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=s>"PT25S"</span><span class=p>,</span><span class=w>   </span><span class=c1>// lock expires even if this replica dies</span>
+</span><span id=__span-2-12><a id=__codelineno-2-12 name=__codelineno-2-12 href=#__codelineno-2-12></a><span class=w>                   </span><span class=n>lockAtLeastFor</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=s>"PT5S"</span><span class=p>)</span><span class=w>   </span><span class=c1>// absorb small clock differences</span>
+</span><span id=__span-2-13><a id=__codelineno-2-13 name=__codelineno-2-13 href=#__codelineno-2-13></a><span class=w>    </span><span class=kt>void</span><span class=w> </span><span class=nf>releaseExpiredHolds</span><span class=p>()</span><span class=w> </span><span class=p>{</span>
+</span><span id=__span-2-14><a id=__codelineno-2-14 name=__codelineno-2-14 href=#__codelineno-2-14></a><span class=w>        </span><span class=kt>int</span><span class=w> </span><span class=n>released</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=n>holds</span><span class=p>.</span><span class=na>releaseExpired</span><span class=p>(</span><span class=n>Instant</span><span class=p>.</span><span class=na>now</span><span class=p>(),</span><span class=w> </span><span class=mi>5_000</span><span class=p>);</span><span class=w>   </span><span class=c1>// batch of 5,000</span>
+</span><span id=__span-2-15><a id=__codelineno-2-15 name=__codelineno-2-15 href=#__codelineno-2-15></a><span class=w>        </span><span class=n>log</span><span class=p>.</span><span class=na>info</span><span class=p>(</span><span class=s>"released {} expired holds"</span><span class=p>,</span><span class=w> </span><span class=n>released</span><span class=p>);</span>
+</span><span id=__span-2-16><a id=__codelineno-2-16 name=__codelineno-2-16 href=#__codelineno-2-16></a><span class=w>    </span><span class=p>}</span>
+</span><span id=__span-2-17><a id=__codelineno-2-17 name=__codelineno-2-17 href=#__codelineno-2-17></a><span class=p>}</span>
+</span></code></pre></div> <p>O ShedLock guarda o lock como uma linha (<code>name</code>, <code>lock_until</code>, <code>locked_by</code>) e o obtém com um <code>UPDATE</code> condicional, então não precisa de infraestrutura além do próprio banco de dados do serviço<sup id=fnref:2><a class=footnote-ref href=#fn:2>2</a></sup>.</p> </div> <div class=tabbed-block> <p>As réplicas elegem <strong>um líder</strong> que executa todo o trabalho agendado; se ele morrer, outro assume depois que o lease expira. O Kubernetes oferece objetos <code>Lease</code> para isso (o mesmo mecanismo que seus próprios controllers usam), e Spring Integration, etcd e ZooKeeper fornecem receitas de eleição.</p> <p>Serve para serviços com <em>muitas</em> tarefas periódicas, ou tarefas que precisam manter estado em execução (um líder que mantém uma conexão com o stream de um provedor).</p> </div> <div class=tabbed-block> <p>A nuvem chama você segundo um agendamento: AWS EventBridge Scheduler, Google Cloud Scheduler, timers do Azure Logic Apps / Functions. Ele invoca um endpoint HTTP, uma fila ou uma função — no máximo uma vez por agendamento <em>do ponto de vista do scheduler</em>, mas ainda pelo menos uma vez do ponto de vista do seu endpoint, se ele fizer retries.</p> <p>Zero infraestrutura; aceita agendamentos únicos ("em 2027-03-14T10:00:00-03:00"), que o cron não consegue expressar.</p> </div> </div> </div> <h3 id=locks-expiram-fencing-tokens>Locks expiram: fencing tokens</h3> <p>Um lock distribuído com expiração tem uma brecha sutil, descrita por Martin Kleppmann<sup id=fnref:1><a class=footnote-ref href=#fn:1>1</a></sup>: uma réplica obtém o lock e então <strong>pausa</strong> (uma coleta de lixo longa, uma migração de VM) além da expiração do lock. Outra réplica obtém o lock e inicia o job. A primeira acorda, ainda acreditando que detém o lock, e as duas escrevem.</p> <pre class=mermaid-sim><code>sequenceDiagram
+    participant A as Réplica A
+    participant L as Armazenamento de locks
+    participant B as Réplica B
+    participant DB as Banco de dados
+    A-&gt;&gt;L: obtém (token 33), expira em 25 s
+    Note over A: pausa de GC: 40 s
+    B-&gt;&gt;L: lock expirado → obtém (token 34)
+    B-&gt;&gt;DB: libera holds (token 34)
+    A-&gt;&gt;DB: libera holds (token 33) — ainda acha que tem o lock
+    DB--&gt;&gt;A: rejeitado: token 33 &lt; 34 já visto</code></pre> <p>A correção é um <strong>fencing token</strong>: o armazenamento de locks entrega um número crescente a cada aquisição, e o recurso protegido rejeita escritas com um token mais antigo. Quando o recurso não consegue verificar tokens, o próprio job precisa ser <strong>idempotente</strong> — o que você precisa de qualquer forma. Um lock é uma otimização que evita esforço duplicado; a correção tem de vir da idempotência ou do banco de dados (um <code>UPDATE ... WHERE status = 'ACTIVE' AND expires_at &lt; now()</code> condicional libera cada hold no máximo uma vez, não importa quantas varreduras rodem).</p> <h3 id=trabalho-atrasado-tres-formas-de-expirar-um-hold>Trabalho atrasado: três formas de expirar um hold</h3> <p>Liberar um hold 10 minutos depois de criado é um <strong>job atrasado</strong> (<em>delayed job</em>). Três designs, muitas vezes combinados:</p> <table> <thead> <tr> <th>Design</th> <th>Como</th> <th>Prós</th> <th>Contras</th> </tr> </thead> <tbody> <tr> <td><strong>Varredura</strong> (<em>sweeper</em>)</td> <td>um job agendado libera <code>WHERE expires_at &lt; now()</code> em lotes</td> <td>simples, pega tudo</td> <td>os assentos voltam com até um período de atraso; carga em lote no BD</td> </tr> <tr> <td><strong>Mensagem atrasada</strong></td> <td>ao criar o hold, enfileira "liberar H-7" com atraso de 10 min (delay do SQS, sorted set do Redis por horário de vencimento, delayed exchange do RabbitMQ)</td> <td>horário preciso, sem varredura</td> <td>uma mensagem por hold; ainda precisa ser idempotente (o hold pode ter sido confirmado)</td> </tr> <tr> <td><strong>Expiração preguiçosa</strong> (<em>lazy expiry</em>)</td> <td>trata um hold como livre quando <code>expires_at &lt; now()</code> no momento da leitura</td> <td><strong>correta imediatamente</strong>, nenhum job necessário para a correção</td> <td>linhas expiradas permanecem até a limpeza</td> </tr> </tbody> </table> <p>A BoxOffice usa <strong>expiração preguiçosa para a correção</strong> (a disponibilidade e os novos holds ignoram holds expirados) e uma <strong>varredura para a limpeza</strong>. Assim o scheduler não fica no caminho crítico: se ele ficar fora do ar por 5 minutos, nenhum assento é perdido.</p> <div class="admonition example"> <p class=admonition-title>Abrindo as vendas às 10:00</p> <p>Não faça "as vendas abrem" depender de um cron disparando exatamente às 10:00:00 — schedulers atrasam segundos, e uma execução perdida significaria nenhuma venda. Guarde <code>onSaleAt = 10:00:00</code> junto com o evento; o <code>inventory</code> simplesmente rejeita holds antes desse instante (uma verificação contra o relógio, com relógios sincronizados por NTP — <a href=../../distributed/>sistemas distribuídos</a>). O scheduler faz apenas a <em>preparação</em>: às 09:45 ele escala a frota e aquece os caches (<a href=../serverless-autoscaling/#scheduled-and-predictive-scaling>serverless e autoscaling</a>).</p> </div> <p>O cenário <code>notification-system</code> combina um scheduler, uma fila e os provedores de e-mail/push. Experimente aumentar o número de jobs do scheduler para simular a rajada de lembretes de 24 horas e observe onde o backlog se acumula.</p> <div class=sdp data-scenario=notification-system data-mode=compact data-height=520></div> <p><a href=../../../../playground/><span class=twemoji><svg xmlns=http://www.w3.org/2000/svg viewBox="0 0 24 24"><path d="M14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3m-2 16H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7h-2z"/></svg></span> Abrir o simulador completo</a></p> <hr> <h2 id=trade-offs-em-resumo>Trade-offs em resumo</h2> <table> <thead> <tr> <th></th> <th>Fazer na requisição</th> <th>Fazer num worker</th> </tr> </thead> <tbody> <tr> <td>Latência para o usuário</td> <td>soma de todas as etapas</td> <td>só as etapas essenciais</td> </tr> <tr> <td>Falha de uma etapa não essencial</td> <td>falha a requisição</td> <td>retry mais tarde; usuário não é afetado</td> </tr> <tr> <td>Consistência</td> <td>imediata</td> <td>eventual — mostre o status</td> </tr> <tr> <td>Picos de carga</td> <td>atingem todas as dependências ao mesmo tempo</td> <td>absorvidos pela fila</td> </tr> <tr> <td>Depuração</td> <td>um stack trace</td> <td>seguir um job pelas filas (tracing)</td> </tr> <tr> <td>Peças operacionais</td> <td>nenhuma</td> <td>broker, workers, DLQ, monitoramento do lag</td> </tr> </tbody> </table> <div class="admonition tip"> <p class=admonition-title>Na entrevista</p> <p>Sempre que um design tiver uma etapa lenta, sujeita a falhas ou em rajadas que não muda a resposta ao usuário, diga: <em>"Eu tiraria isso do caminho da requisição: a API grava o pedido e um evento numa única transação (outbox), e um pool de workers o consome — idempotente, com retries, backoff exponencial e uma DLQ. Eu escalaria os workers pelo consumer lag."</em> Para trabalho agendado, mencione que um cron em cada réplica roda N vezes e escolha <strong>CronJob, um lock ou eleição de líder</strong> — mais idempotência, porque locks expiram. Depois dê um número: "100 jobs/s × 0,8 s = 80 workers no pico".</p> </div> <div class="admonition warning"> <p class=admonition-title>Armadilhas comuns</p> <ul> <li><strong><code>@Async</code> tratado como fila</strong>: o trabalho desaparece a cada deploy ou queda.</li> <li><strong>Jobs não idempotentes</strong>: a entrega at-least-once transforma um retry num segundo e-mail ou numa segunda cobrança.</li> <li><strong>Sem limite de retries e sem DLQ</strong>: uma mensagem envenenada bloqueia uma partição para sempre.</li> <li><strong>Escalar workers pela CPU</strong>: workers limitados por I/O parecem ociosos enquanto o backlog cresce.</li> <li><strong>Mais workers do que o provedor permite</strong>: só produz <code>429</code>s.</li> <li><strong><code>@Scheduled</code> em toda réplica</strong>: o job roda N vezes.</li> <li><strong>Confiar num lock para a correção</strong>: locks expiram; use fencing tokens ou escritas idempotentes e condicionais.</li> <li><strong>O scheduler no caminho crítico</strong>: se "as vendas abrem" ou "o hold expira" exige que um job dispare na hora, um job atrasado vira uma indisponibilidade.</li> </ul> </div> <hr> <h2 id=how-it-connects>Como se conecta</h2> <pre class=mermaid><code>flowchart LR
+    RP["caminho da requisição: só o que&lt;br/&gt;a resposta precisa"] --&gt; Q["jobs numa fila&lt;br/&gt;→ Mensageria"]
+    Q --&gt; W["workers&lt;br/&gt;taxa × tempo por job"]
+    W --&gt; JOB["jobs idempotentes, ack após o trabalho,&lt;br/&gt;retries com backoff"]
+    JOB --&gt; DLQ["DLQ para mensagens venenosas"]
+    W --&gt; SCALE["escalar pelo atraso da fila&lt;br/&gt;→ Autoscaling"]
+    CRON["trabalho agendado&lt;br/&gt;em N réplicas"] --&gt; LOCK["CronJob, lock distribuído,&lt;br/&gt;eleição de líder"]
+    LOCK --&gt; FENCE["locks expiram: fencing tokens&lt;br/&gt;→ Consenso distribuído"]
+    CRON --&gt; LAZY["expiração preguiçosa + varredor&lt;br/&gt;reservas → Bancos de dados"]</code></pre> <p><strong>Componentes da paleta:</strong> <a href=../../../reference/components/messaging/#queue><code>queue</code></a> (jobs e mensagens atrasadas) · <a href=../../../reference/components/compute/#worker><code>worker</code></a> (consumidores dimensionados pela lei de Little) · <a href=../../../reference/components/compute/#scheduler><code>scheduler</code></a> (cron e trabalho atrasado, uma vez por cluster) · <a href=../../../reference/components/messaging/#kafka><code>kafka</code></a> (commit do offset após o trabalho) · <a href=../../../reference/components/storage/#sql><code>sql</code></a> (a linha do ShedLock, reservas que expiram preguiçosamente) · <a href=../../../reference/components/storage/#objstore><code>objstore</code></a> (PDFs dos ingressos) · <a href=../../../reference/components/compute/#notifications><code>notifications</code></a> · <a href=../../../reference/components/external/#email><code>email</code></a> (o e-mail do ingresso, fora do caminho da requisição). <strong>Cenários:</strong> <code>async-queue</code>, <code>notification-system</code>. <strong>Continua em:</strong> <a href=../serverless-autoscaling/#scaling-workers-on-queue-depth>Serverless e autoscaling — escalar pela profundidade da fila</a>, <a href=../../messaging/queues-pubsub/>Mensageria — filas e pub/sub</a>, <a href=../../messaging/semantics/>Mensageria — semântica de entrega</a>, <a href=../../distributed/consensus/>Distribuídos — consenso</a> (fencing), <a href=../../../hands-on/7/>Hands-on 7</a>.</p> <h2 id=principais-conclusoes>Principais conclusões</h2> <ul> <li>Mantenha na requisição só aquilo de que a resposta ao usuário depende; mova o resto para <strong>jobs numa fila</strong> processados por <strong>workers</strong>.</li> <li>Dimensione workers com a Lei de Little (<code>taxa × tempo por job</code>); uma fila transforma sobrecarga em <strong>atraso</strong>, e a dependência a jusante mais lenta define o limite real.</li> <li>A entrega é <strong>at-least-once</strong>: jobs idempotentes, ack depois do trabalho, retries com backoff, uma <strong>DLQ</strong> para mensagens envenenadas, prioridades por fila.</li> <li>Trabalho agendado em N réplicas roda N vezes: use um <strong>CronJob</strong>, um <strong>lock distribuído</strong> (ShedLock) ou <strong>eleição de líder</strong> — e mantenha a idempotência, porque locks expiram (<strong>fencing tokens</strong>).</li> <li>Projete regras baseadas em tempo de modo que a correção não dependa de um job disparar na hora (<strong>expiração preguiçosa</strong> + varredura).</li> </ul> <hr> <div class=footnote> <hr> <ol> <li id=fn:1> <p>KLEPPMANN, M. <a href=https://martin.kleppmann.com/2016/02/08/how-to-do-distributed-locking.html target=_blank>How to do distributed locking</a>. 2016. Veja também KLEPPMANN, M. <em>Designing Data-Intensive Applications</em>, capítulo 8 (fencing tokens). <a class=footnote-backref href=#fnref:1 title="Jump back to footnote 1 in the text">↩</a></p> </li> <li id=fn:2> <p><a href=https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/ target=_blank>Kubernetes — CronJob</a>; <a href=https://github.com/lukas-krecan/ShedLock target=_blank>ShedLock</a>. <a class=footnote-backref href=#fnref:2 title="Jump back to footnote 2 in the text">↩</a></p> </li> <li id=fn:3> <p><a href=https://docs.spring.io/spring-kafka/reference/retrytopic.html target=_blank>Spring for Apache Kafka — Non-blocking retries</a>. <a class=footnote-backref href=#fnref:3 title="Jump back to footnote 3 in the text">↩</a></p> </li> <li id=fn:4> <p><a href=https://docs.temporal.io/ target=_blank>Temporal documentation — Durable execution</a>. <a class=footnote-backref href=#fnref:4 title="Jump back to footnote 4 in the text">↩</a></p> </li> </ol> </div> </article> </div> <script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script> </div> <button type=button class="md-top md-icon" data-md-component=top hidden> <svg xmlns=http://www.w3.org/2000/svg fill=none stroke=currentColor stroke-linecap=round stroke-linejoin=round stroke-width=2 class="lucide lucide-circle-arrow-up" viewBox="0 0 24 24"><circle cx=12 cy=12 r=10 /><path d="m16 12-4-4-4 4M12 16V8"/></svg> Voltar para o topo </button> </main> <footer class=md-footer> <div class="md-footer-meta md-typeset"> <div class="md-footer-meta__inner md-grid"> <div class=md-copyright> Made with <a href=https://zensical.org/ target=_blank rel=noopener> Zensical </a> </div> </div> </div> </footer> </div> <div class=md-dialog data-md-component=dialog role=status aria-atomic=true> <div class="md-dialog__inner md-typeset"></div> </div> <div class=md-progress data-md-component=progress role=progressbar aria-label=Loading></div> <script id=__config type=application/json>{"annotate":null,"base":"../../../..","features":["content.code.copy","content.code.select","content.code.annotate","content.tooltips","navigation.instant","navigation.instant.progress","navigation.top","navigation.path","navigation.tracking","navigation.footer","search.highlight","toc.follow"],"redirect":null,"search":"../../../../assets/javascripts/workers/search.c47bb847.min.js","tags":null,"translations":{"clipboard.copied":"Copiado para área de transferência","clipboard.copy":"Copiar para área de transferência","clipboard.error":"Could not copy to clipboard","search.result.more.one":"mais 1 nesta página","search.result.more.other":"# mais nesta página","search.result.none":"Nenhum documento encontrado","search.result.one":"1 documento encontrado","search.result.other":"# documentos encontrados","search.result.placeholder":"Digite para iniciar a busca","search.result.term.missing":"Ausente","select.version":"Selecione a versão"},"version":null}</script> <script src=../../../../assets/javascripts/bundle.a2388154.min.js></script> <script src=../../../../assets/javascripts/mathjax.js></script> <script src=https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js></script> <script src=../../../../assets/javascripts/interview.js></script> <script src=../../../../assets/javascripts/termynal.js></script> <script src=../../../../assets/javascripts/termynal-init.js></script> <script src=../../../../assets/javascripts/mermaid-sim.js></script> <script src=../../../../assets/javascripts/calendar-today.js></script> <script src=../../../../assets/javascripts/playground/rng.js></script> <script src=../../../../assets/javascripts/playground/catalog.js></script> <script src=../../../../assets/javascripts/playground/engine.js></script> <script src=../../../../assets/javascripts/playground/scenarios.js></script> <script src=../../../../assets/javascripts/playground/ui.js></script> <script src=../../../../assets/javascripts/support/arq-lessons.js></script> <script src=../../../../assets/javascripts/support/dgm.js></script> <script src=../../../../assets/javascripts/support/dgm-mapa-arq.js></script> <script src=../../../../assets/javascripts/support/dgm-cartas-arq.js></script> </body> </html>
