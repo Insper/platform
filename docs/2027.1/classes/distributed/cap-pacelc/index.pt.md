@@ -6,7 +6,7 @@ O **teorema CAP**, conjecturado por Eric Brewer em 2000 e provado por Seth Gilbe
 
 ---
 
-## As três propriedades
+## As três propriedades { #the-three-properties }
 
 **Consistência (C)**
 : Toda leitura devolve a escrita mais recente, ou um erro. No CAP, "consistência" significa **linearizabilidade**: as réplicas se comportam como se houvesse uma única cópia (veja [Linearizabilidade](../consistency/index.md#linearizability)).
@@ -25,29 +25,14 @@ O **teorema CAP**, conjecturado por Eric Brewer em 2000 e provado por Seth Gilbe
 
 ---
 
-## Uma partição, passo a passo
+## Uma partição, passo a passo { #partition }
 
 A mesma requisição, tratada por um sistema que escolhe consistência (CP) e por um que escolhe disponibilidade (AP):
 
-``` mermaid-sim
-sequenceDiagram
-    participant FA as Fã em São Paulo
-    participant SP as sa-east (região 1)
-    participant EU as eu-west (região 2)
-    participant FB as Fã em Lisboa
-    Note over SP,EU: o enlace transatlântico caiu
-    FA->>SP: reservar assento A-12
-    SP-xEU: replicar (inacessível)
-    FB->>EU: reservar assento A-12
-    alt CP: escolhe consistência
-        SP-->>FA: 503: não é possível confirmar com a outra região
-        EU-->>FB: 503: não é possível confirmar com a outra região
-    else AP: escolhe disponibilidade
-        SP-->>FA: reservado!
-        EU-->>FB: reservado!
-        Note over SP,EU: o enlace volta: conflito, assento vendido duas vezes
-    end
-```
+<div class="csim" data-sim="cap" data-mode="CP" data-rtt="180"></div>
+
+!!! tip "Experimente"
+    Desligue o **tráfego aleatório** para ver uma requisição por vez. Em **CP · PC/EC**, reserve um assento em qualquer lado: São Paulo (a região de origem do evento, onde fica o líder) só responde depois que Lisboa gravou a reserva — **184 ms**, a ida e volta oceânica de 180 ms mais 4 ms de trabalho local, em toda escrita. Agora **particione o link**: Lisboa responde `503` a leituras e escritas (não tem como saber se sua cópia está atual), São Paulo continua vendendo; desfaça a partição e Lisboa só se atualiza — *reservas confirmadas perdidas* continua 0. Recomece em **AP · PA/EL**: toda reserva é confirmada em **4 ms**, mas uma leitura em Lisboa menos de 90 ms depois de uma reserva em São Paulo é velha. Particione, reserve duas vezes em São Paulo e depois uma em Lisboa, e desfaça a partição: o last-write-wins mantém nos dois lados o valor mais recente, de Lisboa, e **2 reservas confirmadas se perdem** — dois fãs ouviram "reservado" para assentos que podem ser vendidos de novo.
 
 Nenhuma das respostas é "errada" em abstrato: o sistema CP recusa em vez de arriscar uma venda em dobro; o sistema AP atende todo fã e precisa **reconciliar** depois. Qual das duas é aceitável depende dos **dados e do negócio** — não da marca do banco de dados.
 
@@ -57,13 +42,13 @@ Nenhuma das respostas é "errada" em abstrato: o sistema CP recusa em vez de arr
 
 ---
 
-## Sistemas CP e AP
+## Sistemas CP e AP { #cp-and-ap-systems }
 
-### CP — consistente e tolerante a partições
+### CP — consistente e tolerante a partições { #cp-consistent-and-partition-tolerant }
 
 Durante uma partição, os nós que não conseguem confirmar o estado mais recente (tipicamente o lado **minoritário**) recusam requisições. Quando a partição se resolve, eles se atualizam antes de voltar a atender.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     CA(["Fã A"]) -->|"1 · reservar A-12"| A[("Nó A (maioria)<br/>A-12 = HELD")]
     A -.-x|"2 · replicar ✗ partição"| B[("Nó B (minoria)<br/>A-12 = FREE")]
@@ -74,11 +59,11 @@ flowchart LR
 - **Exemplos:** etcd, ZooKeeper, Consul, Spanner, CockroachDB; PostgreSQL com replicação síncrona; MongoDB com leituras e escritas por maioria.
 - **Use quando:** uma resposta errada é pior do que nenhuma resposta — estoque, dinheiro, identidade, liderança, locks.
 
-### AP — disponível e tolerante a partições
+### AP — disponível e tolerante a partições { #ap-available-and-partition-tolerant }
 
 Durante uma partição, todo nó continua respondendo com os dados que tem. As réplicas divergem e **convergem** depois que a partição se resolve (consistência eventual), resolvendo conflitos com LWW, vetores de versão ou CRDTs ([Consistência eventual](../consistency/index.md#eventual)).
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     CA(["Fã A"]) -->|"1 · curtir evento 42"| A[("Nó A<br/>curtidas = 101")]
     A -.-x|"2 · replicar ✗ partição"| B[("Nó B<br/>curtidas = 100")]
@@ -114,7 +99,7 @@ O CAP só fala de **partições**, que são raras. O **PACELC** de Daniel Abadi 
 
 > Se há uma **P**artição, escolha entre disponibilidade (**A**) e **C**onsistência; **E**, senão (*else*, operação normal), escolha entre **L**atência e **C**onsistência.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     Q{"Há uma<br/>partição?"} -->|"sim · P"| PAC{"Disponibilidade<br/>ou Consistência?"}
     PAC -->|A| PA["PA: responde, talvez desatualizado"]
@@ -126,7 +111,7 @@ flowchart LR
 
 O ramo *else* existe por causa da própria replicação: para ser consistente, uma escrita precisa esperar outras réplicas confirmarem (uma ou mais idas e voltas pela rede, talvez até outro continente); para ser rápida, precisa responder antes delas e aceitar que uma réplica pode ficar brevemente para trás.
 
-### Quanta latência a consistência custa?
+### Quanta latência a consistência custa? { #how-much-latency-does-consistency-cost }
 
 A resposta é "uma ida e volta até onde estiverem as outras réplicas". Os tempos de ida e volta (RTT, *round-trip time*) abaixo são ordens de grandeza típicas, usadas aqui como **suposições ilustrativas**:
 
@@ -136,6 +121,8 @@ A resposta é "uma ida e volta até onde estiverem as outras réplicas". Os temp
 | Outra zona de disponibilidade, mesma região | ~1–2 ms | Pequeno: o padrão para bancos de produção |
 | Outra região, mesmo continente | ~10–40 ms | Perceptível em toda escrita |
 | Outro continente (por exemplo, São Paulo ↔ Europa) | ~150–200 ms | Domina a requisição; um checkout com 5 escritas custa um segundo |
+
+O [simulador acima](#partition) mostra a última linha sem partição nenhuma: no modo PC/EC cada escrita leva 184 ms, no modo PA/EL 4 ms — e o modo rápido paga com leituras velhas.
 
 Essa tabela explica por que a maioria dos sistemas escolhe **EC dentro de uma região** (replicação síncrona ou por quórum entre zonas custa um ou dois milissegundos) e **EL entre regiões** (replicação assíncrona, ou particionar os dados por região de origem).
 
@@ -177,6 +164,14 @@ Regiões falham — raramente, mas por inteiro — e o BoxOffice quer sobreviver
 !!! tip "Na entrevista"
     Nunca diga "vou escolher CP" (ou AP) **para o sistema inteiro**. Diga por dado, e diga o que o usuário vê: *"O estoque de assentos é CP: durante uma partição, o lado minoritário devolve 503 e o app diz 'tente novamente'; reserva em dobro é inaceitável. O catálogo é AP: pode estar segundos desatualizado."* Depois traga o **PACELC** — o entrevistador normalmente se importa mais com a latência do dia a dia do que com partições: *"dentro de uma região eu replico de forma síncrona entre zonas (~1–2 ms); entre regiões eu particiono por região de origem em vez de pagar 150 ms por escrita."* Mencionar que o C do CAP é linearizabilidade (e não o C do ACID) é um sinal forte e barato.
 
+!!! success "Boas práticas"
+
+    - **Escreva, por operação, o que acontece durante uma partição** — "reservas são recusadas (CP); o catálogo é servido defasado (AP)" — e faça o cliente tratar as duas respostas.
+    - **Dê a cada chave uma região de origem** — as escritas de um evento vão para um líder e as outras regiões as encaminham; não existe conflito entre regiões para uma chave que tem um único escritor.
+    - **Meça quanto a consistência custa nas suas escritas** — o p99 de uma escrita com e sem replicação síncrona, na sua topologia; o PACELC é um número, não um slogan. Experimente no cenário `db-failover` de [Consenso](../consensus/index.md).
+    - **Faça do "indisponível" uma resposta rápida e explícita** — uma operação CP que não alcança a maioria deve falhar em milissegundos com um erro que pode ser repetido, não ficar pendurada até um timeout.
+    - **Rotule respostas defasadas na API** — um cabeçalho ou campo com a idade do dado deixa o cliente decidir se uma resposta AP basta.
+
 !!! warning "Armadilhas"
     - **"Escolhemos CA."** Se os dados vivem em mais de uma máquina, partições vão acontecer; "CA" só significa que ninguém decidiu o que acontece nesse caso.
     - **Tratar o CAP como um rótulo permanente.** A escolha entre C e A só vale *durante* uma partição; o trade-off diário é a latência (PACELC).
@@ -186,7 +181,7 @@ Regiões falham — raramente, mas por inteiro — e o BoxOffice quer sobreviver
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     REP["Replicação<br/>(Replicação e Consistência)"] --> Q{"partição?"}
     Q -->|sim| CA{"C ou A"}
@@ -202,13 +197,15 @@ flowchart LR
 
 **Componentes da paleta em que a escolha entre C, A e L é feita:** [`sql`](../../../reference/components/storage/index.md#sql) (standby síncrono ou réplicas assíncronas) · [`nosql`](../../../reference/components/storage/index.md#nosql) (quóruns ajustáveis) · [`cache`](../../../reference/components/storage/index.md#cache) e [`cdn`](../../../reference/components/edge/index.md#cdn) (sempre EL) · [`dns`](../../../reference/components/edge/index.md#dns) (failover entre regiões, cenário `multi-region`). **Continua em:** [Consenso e Quóruns](../consensus/index.md), [Confiabilidade — recuperação de desastres](../../reliability/disaster-recovery/index.md), [Tráfego e Borda — DNS](../../edge/dns-cdn/index.md).
 
-## Pontos-chave
+## Pontos-chave { #key-takeaways }
 
-- **CAP**: durante uma **partição** de rede, um armazenamento replicado precisa escolher entre **consistência** (recusar) e **disponibilidade** (responder, talvez desatualizado). P não é opcional.
-- O C do CAP é **linearizabilidade**, não o C do ACID; "CA" não é uma opção para dados distribuídos.
-- **PACELC**: *senão* (sem partição), a escolha é **latência vs consistência** — e você a paga em toda requisição.
-- Escolha **por domínio de dados**: assentos, dinheiro e identidade CP/EC; catálogo e contadores AP/EL.
-- Em projetos multirregião, **particionar os dados por região de origem** mantém a consistência forte local e limita o raio de impacto de uma partição.
+!!! takeaways ""
+
+    - **CAP**: durante uma **partição** de rede, um armazenamento replicado precisa escolher entre **consistência** (recusar) e **disponibilidade** (responder, talvez desatualizado). P não é opcional.
+    - O C do CAP é **linearizabilidade**, não o C do ACID; "CA" não é uma opção para dados distribuídos.
+    - **PACELC**: *senão* (sem partição), a escolha é **latência vs consistência** — e você a paga em toda requisição.
+    - Escolha **por domínio de dados**: assentos, dinheiro e identidade CP/EC; catálogo e contadores AP/EL.
+    - Em projetos multirregião, **particionar os dados por região de origem** mantém a consistência forte local e limita o raio de impacto de uma partição.
 
 ---
 

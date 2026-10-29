@@ -2,6 +2,10 @@ BoxOffice started like most products: one service and one PostgreSQL database ho
 
 Nothing was "wrong" with PostgreSQL. The problem was that **different data has different shapes**, and one store was asked to be good at all of them at once. This class is about recognizing those shapes and choosing — and scaling — the right store for each.
 
+!!! quote "The story so far"
+
+    Chapter 6 of the [story of the course](../../index.md#story). [Class 5](../compute/index.md) made every replica stateless, so every hold, order and login now ends in the database, and the gateway of [lab 4](../../hands-on/4/index.md) can put as many replicas in front of it as we like. More replicas multiply the callers, not the database: at 10:00 about 33,000 holds/s arrive against the ~1,100 that one PostgreSQL serves ([class 2](../estimation/index.md)), and two fans click the same seat in the same millisecond. **This class** answers: which store for which data, how does the store guarantee "one seat, one hold", and how does it grow when one machine is not enough?
+
 !!! abstract "Learning objectives"
 
     By the end of this class you should be able to:
@@ -60,7 +64,7 @@ Applying them to BoxOffice gives a **data map**. The volumes below are illustrat
 
 Notice that the rows differ by **orders of magnitude** in every column. A store tuned for the first row (small, hot, transactional) is a poor fit for the sixth (huge, append-only, scanned in bulk), and vice versa.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     gw["gateway"] --> inv["inventory"]
     gw --> ord["order"]
@@ -155,7 +159,7 @@ The pragmatic path for BoxOffice: start with PostgreSQL per service (owned schem
 
 Each storage component is built for one family of access patterns; the system of record feeds the derived stores through change streams. The map links each **palette component** (green) to the **concepts** it relies on (blue):
 
-``` mermaid
+``` diagram
 flowchart LR
     cache["cache"]:::comp -->|"miss"| sql["sql"]:::comp
     sql -.- c1["transactions, isolation, indexes,<br/>replication, failover"]:::tech
@@ -188,6 +192,14 @@ flowchart LR
 
     Interviewers listen for *why* you chose a store, not for brand names. A strong pattern is: "**Seats and orders go to a relational database** because the invariant 'one seat, one ticket' needs transactions; the catalog is read-heavy, so a **cache** in front of it; search goes to an **inverted index** fed by CDC; posters in **object storage** behind the CDN; analytics in a **warehouse**, never on the OLTP database." Then estimate: "60 k seats per event is tiny — the problem is write contention, not size", which shows you know *which* dimension is hard.
 
+!!! success "Best practices"
+
+    - **Name the system of record of every entity in the design doc** — and mark every other copy as derived, with the way it is rebuilt (replay, re-index, re-embed).
+    - **Turn on query statistics from day one** — `pg_stat_statements` and a slow-query log: the first rung of the ladder (queries and indexes) needs data, and the top 10 statements by total time usually explain most of the load.
+    - **Change schemas only through versioned, backward-compatible migrations** — expand, migrate, contract: add the column, deploy code that writes both, backfill, then drop the old one; every step can be rolled back. In BoxOffice: Flyway in every service and `ddl-auto: validate` ([lab 1](../../hands-on/1/index.md)).
+    - **Test restores, not only backups** — restore into a scratch instance on a schedule and time it: that time is your real recovery time, and the restore is the only proof that the backup works.
+    - **Keep a written connection budget for each database** — `max_connections` against the sum of every pool of every replica. In BoxOffice: PgBouncer keeps `inventory` at 20 server connections ([lab 6](../../hands-on/6/replicas/index.md)).
+
 !!! warning "Common pitfalls"
 
     - **Sharding first.** Partitioning a 50 GB database adds months of complexity to solve a problem an index and a replica would have solved.
@@ -208,13 +220,19 @@ flowchart LR
 
 **Related:** [Hands-on 6 — Data at scale](../../hands-on/6/index.md) (seat holds, read replica, PgBouncer, `EXPLAIN`) · [Hands-on 1 — First service](../../hands-on/1/index.md) (catalog on PostgreSQL + Flyway) · [Exercise: cache + database](../../exercises/cache-db/index.md) · [Case study: BoxOffice ticketing](../case-studies/ticketing/index.md) · [Case study: URL shortener](../case-studies/url-shortener/index.md) · [Interview prep](../../support/interview/index.md) · Component catalog: [Storage](../../reference/components/storage/index.md).
 
-## Key takeaways
+## Key takeaways { #key-takeaways }
 
-- Describe data by **access pattern, volume, consistency need and query flexibility** before choosing a store.
-- Separate the **system of record** from **derived data** (cache, search index, warehouse, vectors) that can be rebuilt.
-- The relational database is the default for data with **invariants**; leave it for a measured reason.
-- Climb the **scaling ladder** in order: queries and indexes → pooling → scale up → cache → replicas → split by function → shard → specialized stores.
-- Polyglot persistence buys performance per access pattern at the price of operations and pipelines.
+!!! takeaways ""
+
+    - Describe data by **access pattern, volume, consistency need and query flexibility** before choosing a store.
+    - Separate the **system of record** from **derived data** (cache, search index, warehouse, vectors) that can be rebuilt.
+    - The relational database is the default for data with **invariants**; leave it for a measured reason.
+    - Climb the **scaling ladder** in order: queries and indexes → pooling → scale up → cache → replicas → split by function → shard → specialized stores.
+    - Polyglot persistence buys performance per access pattern at the price of operations and pipelines.
+
+## What breaks next { #what-breaks-next }
+
+The seat is now safe: a row lock or a conditional update decides, and lab 6 shows that only the naive version sells a seat twice. But the event pages are read about 100 times more than they change, and every one of those reads still reaches PostgreSQL or a read replica: two million fans refreshing at 09:59 ask the same question millions of times. A replica copies the whole database, lag included, to answer reads that could come from memory. Keeping a copy of the answer, and knowing what must never be answered from a copy, is [class 7 — Caching](../caching/index.md), the next rung of the [scaling ladder](#scaling-ladder).
 
 ---
 

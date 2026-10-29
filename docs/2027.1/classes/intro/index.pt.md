@@ -3,6 +3,10 @@ Sexta-feira, 10:00. A **BoxOffice**, uma pequena start-up de ingressos, abre a v
 
 Esta disciplina trata dessa camada — as decisões que ficam *acima* do código e decidem se o código sobrevive ao contato com a realidade. Ao final do semestre você será capaz de projetar a BoxOffice para que as 10:00 de sexta-feira sejam um não-evento, **medir** que funciona e **defender** cada decisão com números, numa revisão de design ou numa entrevista de system design.
 
+!!! quote "A história até aqui"
+
+    Capítulo 1 da [história da disciplina](../../index.md#story). A BoxOffice é, por enquanto, um serviço e um banco de dados — e ninguém escreveu o que "funcionar" significa: quantos fãs, com que rapidez, com que disponibilidade, e o que nunca pode acontecer. **Esta aula** responde: o que a BoxOffice precisa fazer, e quão bem — em números contra os quais um design possa ser conferido?
+
 !!! abstract "Objetivos de aprendizagem"
 
     Ao final desta aula, você deve ser capaz de:
@@ -13,7 +17,7 @@ Esta disciplina trata dessa camada — as decisões que ficam *acima* do código
     - **Aplicar** um método com tempo controlado (esclarecer → estimar → API e modelo de dados → design de alto nível → aprofundamentos → gargalos e trade-offs → fechamento) a um problema de design aberto em 45 minutos.
     - **Usar** o System Design Playground para montar uma arquitetura a partir da paleta de componentes, colocá-la sob carga e ler suas métricas.
 
-## Roteiro
+## Roteiro { #roadmap }
 
 1. **Esta visão geral** — o que é design de sistemas, a paleta de componentes que organiza a disciplina e como usar o playground.
 2. [Requisitos](requirements/index.md) — requisitos funcionais e não funcionais; os atributos de qualidade e como torná-los mensuráveis.
@@ -32,7 +36,7 @@ Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** a
 
 ---
 
-## O que é design de sistemas?
+## O que é design de sistemas? { #what-is-system-design }
 
 **Design de sistemas** (*system design*) é o processo de definir os **componentes** de um sistema, as **interfaces** entre eles e os **dados** que passam por eles e são armazenados por eles, de modo que o sistema satisfaça seus requisitos — tanto *o que* ele deve fazer quanto *quão bem* deve fazê-lo[^1]. Ele responde a perguntas como:
 
@@ -59,7 +63,7 @@ O salto do design de software para o design de sistemas é um salto de **um proc
 
     A pergunta "qual é o melhor banco de dados?" não tem resposta. "Qual banco de dados serve para um inventário de lugares que nunca pode vender em dobro, com 5.000 escritas por segundo no pico, uma equipe de duas pessoas e um orçamento de R$ 20 mil por mês?" tem algumas boas respostas e muitas ruins. Design de sistemas é a habilidade de transformar o primeiro tipo de pergunta no segundo, e então escolher — dizendo em voz alta do que você abriu mão.
 
-### Por que isso importa para você
+### Por que isso importa para você { #why-it-matters-to-you }
 
 - **No trabalho**, quase toda funcionalidade acaba levantando uma questão de sistema: *Esta consulta vai ser rápida com 50 milhões de linhas? Este e-mail deve ser enviado de forma síncrona? O que acontece se o provedor de pagamentos cair?* Engenheiros que respondem com números tomam decisões melhores e recebem decisões maiores.
 - **Em entrevistas**, system design é uma etapa padrão para vagas de engenharia de software na maioria das empresas de tecnologia. Ela é aberta de propósito: o entrevistador observa *como você pensa* — como esclarece, estima, estrutura e lida com trade-offs[^2].
@@ -67,7 +71,7 @@ O salto do design de software para o design de sistemas é um salto de **um proc
 
 ---
 
-## BoxOffice, o exemplo da disciplina
+## BoxOffice, o exemplo da disciplina { #boxoffice-the-running-example }
 
 Cada aula, laboratório, quiz e conjunto de slides usa o mesmo sistema fictício, para que cada conceito novo caia sobre um problema que você já conhece. A **BoxOffice** vende ingressos para shows, jogos e festivais. Ela foi escolhida porque tem, de propósito, *todas* as propriedades difíceis que um sistema real pode ter — e elas são intuitivas:
 
@@ -86,7 +90,7 @@ Seus serviços — que você vai construir, medir e quebrar nos laboratórios �
 
 É para cá que a BoxOffice caminha até o fim do semestre. Aperte play para acompanhar uma compra através dela:
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     fan([Fã]) --> cdn["CDN"]
     fan --> waf["WAF"]
@@ -110,7 +114,7 @@ Você **não** precisa entender cada caixa hoje. O objetivo da disciplina é que
 
 ---
 
-## A paleta de componentes
+## A paleta de componentes { #the-component-palette }
 
 Arquiteturas reais são montadas a partir de um conjunto surpreendentemente pequeno de blocos. A disciplina é organizada em torno de uma **paleta de componentes** — a mesma paleta que o simulador da disciplina usa. Cada aula teórica ensina um grupo de componentes: o que cada um faz, quando usá-lo, quando *não* usá-lo, os números que o descrevem e como ele falha.
 
@@ -119,17 +123,17 @@ Arquiteturas reais são montadas a partir de um conjunto surpreendentemente pequ
 | **Cliente** | Client, Mobile | [1. Introdução](index.md) |
 | **Tráfego e borda** | DNS, CDN, Load Balancer, WAF, API Gateway, Ingress | [4. Tráfego e Borda](../edge/index.md) |
 | **Computação** | App Server, Worker, Serverless, Auth Service, Search, Scheduler, Notifications, Analytics | [5. Computação e Serviços](../compute/index.md) |
-| **Contêineres** | Microservice, Container, Kubernetes Cluster, Service Registry | [12. Cloud-Native](../cloud-native/index.md), [5. Computação e Serviços](../compute/services/index.md) |
+| **Contêineres** | Microservice, Container, Kubernetes Cluster, Service Registry | [11. Cloud-Native](../cloud-native/index.md), [5. Computação e Serviços](../compute/services/index.md) |
 | **Armazenamento** | SQL Database, DB Cluster, NoSQL DB, Cache, Object Store, Data Warehouse, Vector DB | [6. Bancos de Dados](../databases/index.md), [7. Cache](../caching/index.md) |
 | **Mensageria** | Message Queue, Pub/Sub, Event Stream, Kafka | [8. Mensageria](../messaging/index.md) |
-| **Observabilidade** | Metrics, Logs, Tracing, Alerting, Health Check | [10. Observabilidade](../observability/index.md) |
-| **Rede** | VPC, Subnet, NAT Gateway, VPN, Service Mesh | [11. Rede e Segurança](../network-security/index.md) |
+| **Observabilidade** | Metrics, Logs, Tracing, Alerting, Health Check | [9. Observabilidade](../observability/index.md) |
+| **Rede** | VPC, Subnet, NAT Gateway, VPN, Service Mesh | [12. Rede e Segurança](../network-security/index.md) |
 | **IA e agentes** | LLM Gateway, Orchestrator, Tool Registry, Memory Fabric, Safety Mesh | [13. Sistemas de IA](../ai-systems/index.md) |
 | **Externo** | 3rd Party API, Payment, Email | [5. Computação e Serviços](../compute/index.md) |
 
 As demais aulas são **transversais**: não acrescentam caixas, mas dão as ferramentas para raciocinar sobre todas elas.
 
-``` mermaid
+``` diagram
 flowchart TB
     subgraph F["Fundamentos"]
         direction LR
@@ -158,7 +162,7 @@ Cada componente tem uma entrada no [catálogo de componentes](../../reference/co
 
 ---
 
-## O System Design Playground
+## O System Design Playground { #the-system-design-playground }
 
 Ler sobre um cache não é o mesmo que ver a latência p99 cair quando a taxa de acerto sobe. A disciplina vem com um simulador, o **[System Design Playground](../../../playground/index.md)**, em que cada componente da paleta é um bloco que você solta numa tela, conecta e coloca sob carga. Ele é um *modelo* — não executa código real —, mas reproduz o comportamento que importa para o design: filas que crescem quando um componente está saturado, latência que explode perto da utilização máxima, falhas que se propagam em cascata quando não há timeouts, custo que cresce a cada réplica.
 
@@ -196,7 +200,7 @@ O segundo cenário coloca um load balancer na frente de várias réplicas da apl
 
 Esta aula passa de leve por toda a paleta: cada **atributo de qualidade** (azul) é comprado com alguns **componentes da paleta** (verde), e a jornada de escala os adiciona um sintoma medido de cada vez. Use o mapa como índice para o resto do curso:
 
-``` mermaid
+``` diagram
 flowchart LR
     client["client · mobile"]:::comp --> req["requisitos:<br/>funcionais + atributos de qualidade"]:::tech
     req --> scal["escalabilidade"]:::tech
@@ -230,13 +234,21 @@ flowchart LR
 
 ---
 
-## Como estudar design de sistemas
+## Como estudar design de sistemas { #how-to-study-system-design }
 
 - **Desenhe.** Todo conceito desta disciplina tem uma figura. Se você não consegue desenhá-lo, ainda não o entendeu.
 - **Estime antes de projetar.** Um design para 100 requisições por segundo e outro para 100.000 são designs diferentes. A [aula 2](../estimation/index.md) dá os números e as fórmulas.
 - **Dê nome ao trade-off.** Para cada componente que você acrescenta, diga o que ele compra e quanto custa: "o cache reduz o p99 do catálogo de 80 ms para 5 ms, ao preço de mostrar um preço com até 60 s de atraso".
 - **Quebre coisas de propósito.** No playground e nos laboratórios, encontre o ponto de ruptura e depois corrija-o. Você aprende mais com uma saturação do que com dez diagramas.
 - **Pratique em voz alta.** Design de sistemas é uma conversa. Use o [método da entrevista](interview-framework/index.md) com um colega toda semana, a partir de agora.
+
+!!! success "Boas práticas"
+
+    - **Ligue cada componente a um requisito** — cada caixa de um design deve apontar para o número que atende (uma carga, uma meta de latência, uma disponibilidade); uma caixa que não atende número nenhum é custo sem motivo. Na BoxOffice: os [requisitos não funcionais](requirements/index.md) da primeira versão.
+    - **Guarde os números do documento de design com a fonte** — uma premissa marcada como premissa, uma medição com data e ambiente — para que um revisor confira qualquer um deles em minutos. Na BoxOffice: todo laboratório termina com um arquivo `results/labN.md` ([Hands-on 2](../../hands-on/2/index.md#measure-it)).
+    - **Mude uma coisa por experimento, e meça antes e depois** — duas mudanças de uma vez tornam o resultado impossível de explicar. Na BoxOffice: o lab 2 muda só o tamanho do pool e repete a mesma varredura.
+    - **Registre cada decisão com a alternativa rejeitada e o seu preço** — um registro curto (contexto, decisão, consequências) responde "por que Redis?" seis meses depois, quando quem decidiu já saiu.
+    - **Para cada caixa, escreva o que acontece quando ela fica lenta ou cai** — uma linha por componente, antes de construí-lo; falha parcial é o caso normal num sistema de muitas máquinas ([aula 3](../distributed/index.md)).
 
 !!! warning "Armadilhas comuns no começo"
 
@@ -247,20 +259,26 @@ flowchart LR
 
 ---
 
-## Relacionados
+## Relacionados { #related }
 
 - Laboratórios: [0. Ambiente](../../hands-on/0/index.md) (ferramentas e o repositório da disciplina) e [1. Primeiro serviço](../../hands-on/1/index.md) (a API `catalog`).
 - Exercício: [Design no playground](../../exercises/playground-design/index.md) — resolver desafios do playground com metas de SLO e custo.
 - Estudo de caso: [Venda de ingressos — a venda relâmpago da BoxOffice](../case-studies/ticketing/index.md), o design completo do sistema apresentado aqui.
 - Entrevista: [Método da entrevista](../../support/interview/framework/index.md) e [problemas para praticar](../../support/interview/problems/index.md).
 
-## Pontos-chave
+## Pontos-chave { #key-takeaways }
 
-- Design de sistemas decide **componentes, interfaces e dados** para que um sistema cumpra requisitos funcionais *e* não funcionais sob **carga** e **falha parcial**.
-- É uma **disciplina de trade-offs**: cada componente compra uma qualidade com outra; bons designs dizem qual.
-- A disciplina é organizada em torno de uma **paleta de componentes** com dez categorias; cada aula teórica ensina um grupo, e o [catálogo](../../reference/components/index.md) é o seu dicionário.
-- A **BoxOffice** — uma plataforma de ingressos com uma venda relâmpago às 10:00 — é o exemplo em toda parte.
-- O **playground** permite montar, carregar e quebrar arquiteturas em minutos; os laboratórios fazem o mesmo com código real e medições reais.
+!!! takeaways ""
+
+    - Design de sistemas decide **componentes, interfaces e dados** para que um sistema cumpra requisitos funcionais *e* não funcionais sob **carga** e **falha parcial**.
+    - É uma **disciplina de trade-offs**: cada componente compra uma qualidade com outra; bons designs dizem qual.
+    - A disciplina é organizada em torno de uma **paleta de componentes** com dez categorias; cada aula teórica ensina um grupo, e o [catálogo](../../reference/components/index.md) é o seu dicionário.
+    - A **BoxOffice** — uma plataforma de ingressos com uma venda relâmpago às 10:00 — é o exemplo em toda parte.
+    - O **playground** permite montar, carregar e quebrar arquiteturas em minutos; os laboratórios fazem o mesmo com código real e medições reais.
+
+## O que quebra em seguida { #what-breaks-next }
+
+Os requisitos agora têm números — 2 milhões de fãs no primeiro minuto, 60.000 lugares, p99 da reserva < 300 ms, checkout disponível 99,95% do tempo —, mas ninguém os conferiu contra o único PostgreSQL em que a BoxOffice roda. Se ele aguenta a abertura das 10:00 não é questão de opinião, é aritmética: requisições por segundo, o tempo que uma reserva ocupa o banco, quão cheio ele pode rodar antes de a latência explodir. Fazer essa conta, e encontrar ~33.000 tentativas de reserva/s contra ~1.100 que um banco sustenta, é a [aula 2 — Estimativas](../estimation/index.md).
 
 ---
 

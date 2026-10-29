@@ -32,7 +32,7 @@ What they cannot do is decide what is *correct*. Requirements, examples in the i
 
 Line coverage measures which lines **ran** during the tests. A test that calls every method and asserts nothing has full coverage and catches no bug. **Mutation testing** measures whether the tests **notice** a change: the tool creates *mutants* — small modifications such as `<` → `<=`, `+` → `-`, a removed method call, a constant return — and runs the tests against each one. A mutant is **killed** if some test fails; the **mutation score** is killed ÷ total. Surviving mutants point at behaviour no test checks. The idea is old (DeMillo, Lipton and Sayward, 1978); tools like [PIT](https://pitest.org){target="_blank"} make it practical on the JVM[^2].
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     cls["Changed class<br/>HoldService"] --> base["PIT, existing tests<br/>baseline 41 %"]
     base --> gen["Model writes tests<br/>(class + requirements + neighbours)"]
@@ -45,6 +45,14 @@ flowchart LR
 ```
 
 The loop above feeds the **surviving mutants** back to the model ("line 42: changed conditional boundary in `isExpired()` survived") — the approach Meta reported for generating tests that target specific classes of faults[^3]. It turns a vague request ("write more tests") into a precise one ("write a test that fails if this `<` becomes `<=`").
+
+!!! example "In the BoxOffice code: tests kept only if they kill mutants (lab 13)"
+
+    [Hands-on 13 — Tests](../../../hands-on/13/tests/index.md) builds this loop for `catalog`'s `CatalogService`, a smaller first target than `HoldService`. A generated test class is kept only if it compiles, passes **twice** in a row (a flaky test fails the second run), contains none of the forbidden constructs (`Thread.sleep`, `@Disabled`, a Spring context) and raises the PIT score by at least 5 percentage points; otherwise the errors or the surviving mutants go back to the model, at most 3 attempts, and an unproven test file is deleted. The lab's baseline: PIT made 18 mutants and the existing tests killed 4 (22%). A run with the local `qwen2.5-coder-16k` was **rejected** after three attempts — invented methods, tests that throw — and that is the generator working: nothing unproven was left behind.
+
+    ``` { .python title=".github/ai/gen_tests.py (limits, and the accept-or-retry loop)" }
+    --8<-- "docs/2027.1/hands-on/13/code/.github/ai/gen_tests.py:22:25,125:147"
+    ```
 
 !!! warning "Mutation testing is expensive"
 
@@ -176,11 +184,19 @@ Tests need data: venues with odd seat maps, events across time zones, names with
 
 !!! example "BoxOffice: tests where they matter"
 
-    The team runs the test generator on demand for `inventory` and `order`, accepts tests only with a mutation-score gain, and asks reviewers to check every assertion against the hold rules ("10 minutes", "one active hold per seat"). It adds a jqwik property for the seat map (no double booking under any sequence of operations), uses static test selection on PRs with the full suite on `main`, and lets an LLM label red builds with evidence — while quarantine stays a rule with an owner. See [hands-on 13, part 2](../../../hands-on/13/tests/index.md).
+    The team runs the test generator on demand for `inventory` and `order`, accepts tests only with a mutation-score gain, and asks reviewers to check every assertion against the hold rules ("10 minutes", "one active hold per seat"). It adds a jqwik property for the seat map (no double booking under any sequence of operations), uses static test selection on PRs with the full suite on `main`, and lets an LLM label red builds with evidence — while quarantine stays a rule with an owner. [Hands-on 13, part 2](../../../hands-on/13/tests/index.md) builds the generator on `catalog` first (box above); `inventory` is the next target.
 
 !!! tip "In the interview"
 
     If asked how AI changes testing, separate **generating inputs** (AI is strong) from **deciding correctness** (the oracle — needs requirements and humans). Name mutation testing as the way to judge generated tests, mention flaky-test triage with deterministic signals first and quarantine as a policy decision, and present test selection as a recall-vs-minutes trade-off with a full-suite safety net.
+
+!!! success "Best practices"
+
+    - **Run a generated test twice before accepting it** — a test that fails the second run is flaky from birth; lab 13's [`gen_tests.py`](../../../hands-on/13/tests/index.md) does it for every attempt.
+    - **Accept generated tests only with a measured mutation-score gain** — lab 13 requires +5 percentage points over the existing tests (22% for `CatalogService`).
+    - **Put the requirement in the generator's context** — with "a hold lasts 10 minutes" in the prompt, the oracle is the requirement, not the code under test.
+    - **Keep generated tests in their own class** — `CatalogServiceAiTest` next to the human `CatalogServiceTest` makes their value and their cost measurable apart.
+    - **Run generated code without secrets** — tests are untrusted code; lab 13 runs Maven without the `*KEY*`, `*TOKEN*` and `*SECRET*` variables.
 
 !!! warning "Common pitfalls"
 
@@ -194,7 +210,7 @@ Tests need data: venues with odd seat maps, events across time zones, names with
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     GEN["AI generates inputs:<br/>unit, property, contract tests"] --> ORA{"the oracle:<br/>who decides correct?"}
     ORA --> REQ["requirements<br/>and humans"]

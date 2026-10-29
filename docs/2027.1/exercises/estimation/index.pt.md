@@ -10,13 +10,13 @@
     - **Derivar** consequências de design a partir dos números ("isso obriga a ter uma CDN", "um único primário SQL basta").
     - **Verificar a sanidade** de uma estimativa comparando-a com um número de referência conhecido.
 
-## Contexto
+## Contexto { #context }
 
 A estimativa de guardanapo (*back-of-the-envelope*) é o segundo passo do [roteiro de entrevista](../../classes/intro/interview-framework/index.md) e a primeira coisa que um revisor procura em um design doc[^1]. O objetivo é **a ordem de grandeza certa**, não três algarismos significativos: 12 mil ou 15 mil requisições por segundo levam ao mesmo design; 1,2 mil ou 120 mil, não.
 
 As ferramentas vêm da [Aula 2 — Estimativas](../../classes/estimation/index.md): potências de dois e de dez, os [números de latência e vazão](../../reference/numbers/index.md)[^2], a Lei de Little, utilização, percentis e matemática de disponibilidade. No [Lab 2](../../hands-on/2/index.md) você vai conferir alguns desses números em um serviço real.
 
-### Fórmulas que você vai usar
+### Fórmulas que você vai usar { #formulas-you-will-use }
 
 | Grandeza | Fórmula | Premissa típica |
 |-|-|-|
@@ -31,7 +31,7 @@ As ferramentas vêm da [Aula 2 — Estimativas](../../classes/estimation/index.m
 | Disponibilidade em série | A = A₁ × A₂ × … | cada salto multiplica |
 | Disponibilidade em paralelo | A = 1 − (1 − Aᵢ)ⁿ | n réplicas independentes |
 
-## Tarefa
+## Tarefa { #task }
 
 Preencha uma **planilha de estimativas** para **cinco sistemas**:
 
@@ -40,7 +40,7 @@ Preencha uma **planilha de estimativas** para **cinco sistemas**:
 
 Para cada sistema, estime as grandezas do [template](#templates), mostre as contas e termine com **três consequências de design** derivadas dos seus números.
 
-### Fatos da BoxOffice
+### Fatos da BoxOffice { #boxoffice-facts }
 
 - A venda de um show em estádio começa às 10:00; **2 M de fãs** chegam nos primeiros **10 minutos**; há **60 mil lugares**, no máximo 4 por pedido.
 - Um fã navegando faz, em média, uma requisição a cada 3 segundos (catálogo, mapa de assentos, consulta de disponibilidade).
@@ -64,7 +64,7 @@ Todos os fatos abaixo são **premissas ilustrativas** para o exercício — use-
 | Autocompletar de busca | 100 M de DAU; 6 buscas por usuário por dia; uma requisição por caractere digitado a partir do 2º, consulta média de 10 caracteres |
 | Plataforma de métricas | 50 mil hosts; 500 séries temporais por host; uma amostra a cada 10 s; 16 bytes por amostra; dados brutos mantidos 15 dias, agregados de 1 minuto por 1 ano |
 
-## Requisitos
+## Requisitos { #requirements }
 
 - [ ] **(obrigatório)** Cinco planilhas completas: BoxOffice + quatro fichas (pelo menos uma com muita leitura e uma com muita escrita).
 - [ ] **(obrigatório)** Todo número tem **unidade** e todo número derivado mostra sua **fórmula** (nada de resultados soltos).
@@ -78,12 +78,12 @@ Todos os fatos abaixo são **premissas ilustrativas** para o exercício — use-
 - [ ] **Três consequências de design** por sistema, cada uma apontando para um número da planilha.
 - [ ] Seção *Uso de IA* (veja a [política](../index.md#use-of-ai-tools)).
 
-## Entregáveis
+## Entregáveis { #deliverables }
 
 - Uma página `estimation` no site da sua documentação com as cinco planilhas (tag `ex1`).
 - Opcional: a planilha eletrônica ou o script que você usou (versionado no repositório) — a página ainda precisa mostrar as fórmulas.
 
-## Passo a passo
+## Passo a passo { #step-by-step }
 
 1. **Leia os fatos e escreva a pergunta.** "Quantas reservas de assento por segundo no pico?" é uma pergunta; "estime a BoxOffice" não é.
 2. **Liste as premissas antes de calcular.** Escreva o que você supõe e por quê (por exemplo, "fator de pico 3, de uma curva diária típica").
@@ -95,7 +95,7 @@ Todos os fatos abaixo são **premissas ilustrativas** para o exercício — use-
 8. **Verifique a sanidade.** Compare com algo que você conhece (um número da aula, um blog de engenharia público, o cheat sheet).
 9. **Escreva as consequências.** Cada consequência é uma decisão justificada por um número.
 
-### Exemplo resolvido: encurtador de URL
+### Exemplo resolvido: encurtador de URL { #worked-example-url-shortener }
 
 **Fatos (ilustrativos):** 100 M de URLs curtas novas por mês; proporção leitura/escrita de 100:1; registros mantidos por 5 anos; 500 bytes por registro.
 
@@ -126,7 +126,7 @@ Todos os fatos abaixo são **premissas ilustrativas** para o exercício — use-
 
     Comece pelo evento, não pelo dia: 2 M de fãs em 10 minutos, uma requisição a cada 3 s cada um. Quantos fãs estão navegando ao mesmo tempo (Lei de Little de novo: taxa de chegada × tempo de permanência)? Isso dá o QPS do catálogo. Depois, a sala de espera: se a venda deve durar ~15 minutos para 60 mil lugares e um pedido tem em média 2,5 lugares, quantos compradores por minuto precisam ser admitidos? Esse número dimensiona o caminho da reserva de assentos — e mostra por que a sala de espera existe.
 
-### Um pequeno ajudante (opcional)
+### Um pequeno ajudante (opcional) { #a-tiny-helper-optional }
 
 Escrever as contas como código mantém as unidades honestas. Você pode adaptar este script; a página ainda precisa mostrar as fórmulas.
 
@@ -254,7 +254,7 @@ Copie uma planilha por sistema para a sua página.
     3. ...
     ~~~
 
-## Rubrica
+## Rubrica { #rubric }
 
 Níveis conforme definidos em [Como os exercícios são avaliados](../index.md#how-the-exercises-are-graded).
 

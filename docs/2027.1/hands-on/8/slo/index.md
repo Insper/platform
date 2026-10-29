@@ -4,7 +4,7 @@ A dashboard needs someone looking at it. An **alert** looks for you — and a ba
 3 a.m. for nothing, until you learn to ignore it. This step turns a user-facing promise into an alert
 that fires when, and only when, the promise is at risk. The theory is in the
 [alerting class](../../../classes/observability/alerting/index.md) and the
-[SLO class](../../../classes/reliability/slo/index.md).
+[SLO class](../../../classes/observability/slo/index.md).
 
 ## From promise to numbers
 

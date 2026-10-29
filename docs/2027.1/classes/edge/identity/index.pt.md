@@ -3,7 +3,7 @@ O BoxOffice lança o seu app mobile. Alguém propõe o projeto óbvio: uma tela 
 
 ---
 
-## Autenticação vs autorização
+## Autenticação vs autorização { #authentication-vs-authorization }
 
 Duas perguntas diferentes são feitas em toda requisição:
 
@@ -18,11 +18,11 @@ Vocabulário usado abaixo: um **principal** é a entidade autenticada (um usuár
 
 ---
 
-## Sessões vs tokens
+## Sessões vs tokens { #sessions-vs-tokens }
 
 Depois do login, o servidor precisa reconhecer o usuário na próxima requisição. Duas famílias de projeto:
 
-``` mermaid
+``` diagram
 flowchart LR
     subgraph s ["Sessão no servidor"]
         B1(["Navegador"]) -->|"Cookie: sid=9f2c…"| A1["app"]
@@ -75,7 +75,7 @@ O payload é **codificado, não criptografado** — qualquer um consegue lê-lo.
 
 Com algoritmos **assimétricos** (RS256, ES256, EdDSA), o provedor de identidade assina com uma chave privada que nunca sai dele, e qualquer um verifica com a chave pública, publicada como um **JWKS** (JSON Web Key Set) no `jwks_uri` do provedor. Com HMAC **simétrico** (HS256), todo verificador tem o mesmo segredo e, portanto, também consegue **forjar** tokens — aceitável só quando emissor e verificador são o mesmo serviço.
 
-### Checklist de validação
+### Checklist de validação { #validation-checklist }
 
 A RFC 8725 (JWT Best Current Practices) é a referência[^1]. Um resource server precisa verificar:
 
@@ -88,6 +88,14 @@ A RFC 8725 (JWT Best Current Practices) é a referência[^1]. Um resource server
 | `exp` e `nbf`, com uma pequena tolerância de relógio (≈ 30–60 s) | tokens expirados rejeitados |
 | `typ` é `at+jwt` para access tokens (RFC 9068) | um ID token não pode ser usado como access token |
 | **escopos / papéis** exigidos pelo endpoint | menor privilégio |
+
+!!! example "No código do BoxOffice: o `auth` assina os tokens (lab 4)"
+
+    No [Hands-on 4 — auth](../../../hands-on/4/auth/index.md), o BoxOffice ganha sua porta de entrada: o `auth` assina todo token com **RS256**, a chave privada nunca sai dele, e a chave pública é servida como JWKS em `/auth/.well-known/jwks.json`, para que o gateway verifique sem compartilhar um segredo que também permitiria forjar tokens. Compare as claims com a checklist: `iss`, `aud`, `sub`, `exp`, `jti` e o cabeçalho `kid` estão lá, e o papel vira uma claim `scope` (`user` ou `user admin`). Três atalhos, cada um com seu preço: `typ` é um `JWT` simples (ainda não há ID tokens com que confundi-lo); o par de chaves é gerado a cada inicialização, então reiniciar o `auth` rejeita todo token emitido antes (`kid` desconhecido) — o aviso do lab explica por que chaves reais vivem num KMS e giram com duas chaves no JWKS; e a validade é de 1 hora (`JWT_TTL`), sem refresh token, então um token roubado funciona por até uma hora, não 15 minutos.
+
+    ``` { .java title="services/auth/src/main/java/boxoffice/auth/TokenService.java (signing a token)" }
+    --8<-- "docs/2027.1/hands-on/4/code/services/auth/src/main/java/boxoffice/auth/TokenService.java:48:72"
+    ```
 
 ---
 
@@ -104,7 +112,7 @@ A RFC 8725 (JWT Best Current Practices) é a referência[^1]. Um resource server
 
 Clientes são **confidenciais** (rodam em um servidor, conseguem guardar um segredo: o BFF, um job em lote) ou **públicos** (rodam no dispositivo do usuário, não conseguem guardar segredo: o app mobile, uma single-page app — qualquer um pode descompilá-los ou lê-los).
 
-### O que o OAuth 2.1 muda
+### O que o OAuth 2.1 muda { #what-oauth-21-changes }
 
 O OAuth 2.0 (RFC 6749, 2012) acumulou uma década de lições de segurança em documentos separados. O **OAuth 2.1** — um draft do IETF que os consolida, junto com a Security Best Current Practice (RFC 9700) — é o que sistemas novos devem seguir[^3][^4]:
 
@@ -117,9 +125,9 @@ O OAuth 2.0 (RFC 6749, 2012) acumulou uma década de lições de segurança em d
 | bearer tokens em query strings | **nunca** na URL; só no cabeçalho ou no corpo |
 | refresh tokens de vida longa para clientes públicos | refresh tokens **vinculados ao remetente ou rotacionados** a cada uso |
 
-### Escolhendo o grant
+### Escolhendo o grant { #choosing-the-grant }
 
-``` mermaid-sim
+``` diagram-sim
 flowchart TD
     q1{"Há um usuário<br/>envolvido?"} -->|não| cc["Client Credentials<br/>(job de conciliação)"]
     q1 -->|sim| q2{"O dispositivo consegue<br/>abrir um navegador?"}
@@ -131,7 +139,7 @@ flowchart TD
 
 ---
 
-## Authorization Code + PKCE para o app mobile
+## Authorization Code + PKCE para o app mobile { #authorization-code-pkce-for-the-mobile-app }
 
 O app nunca vê a senha. Ele abre o **navegador do sistema** (não uma WebView embutida, onde o app poderia ler as teclas digitadas — RFC 8252[^5]) no authorization server, o usuário faz login lá (com MFA ou uma passkey), e o app recebe um **authorization code** de vida curta e uso único por meio de um redirecionamento. Depois o app troca o código por tokens em uma requisição direta, pelo back-channel.
 
@@ -143,7 +151,7 @@ O **PKCE** (Proof Key for Code Exchange, pronuncia-se "pixy", RFC 7636[^6]) amar
 
 Um app malicioso que registrou o mesmo esquema de redirecionamento e intercepta o código não tem o verifier, então o código é inútil.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     actor Ana
@@ -187,7 +195,7 @@ O parâmetro `state` impede que um atacante injete o código *dele* na sessão d
 
 ---
 
-## OpenID Connect: quem é o usuário?
+## OpenID Connect: quem é o usuário? { #openid-connect-who-is-the-user }
 
 O OAuth responde "este cliente pode chamar esta API?". De propósito, ele não diz ao *cliente* quem é o usuário — o access token é endereçado à API. O **OpenID Connect** (OIDC) acrescenta uma camada de identidade sobre o OAuth[^7]:
 
@@ -202,11 +210,11 @@ O OAuth responde "este cliente pode chamar esta API?". De propósito, ele não d
 | **Access token** | a API (resource server) | "este cliente pode `orders:write` para `acc-42`" | 5–60 minutos |
 | **Refresh token** | só o authorization server | obter novos access tokens sem novo login | de horas a semanas, rotacionado |
 
-### Checkout web: OIDC por meio de um Backend-for-Frontend
+### Checkout web: OIDC por meio de um Backend-for-Frontend { #web-checkout-oidc-through-a-backend-for-frontend }
 
 Para o navegador, a recomendação atual é **não deixar token nenhum no JavaScript**. Um **BFF** (Backend for Frontend) é um cliente confidencial no servidor: ele roda o fluxo OIDC, guarda os tokens e dá ao navegador só um cookie de sessão `HttpOnly`, `Secure`, `SameSite`[^8].
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     actor Ana
@@ -240,7 +248,7 @@ sequenceDiagram
 
 ## Máquinas e delegação { #delegation }
 
-### Client Credentials: o job de conciliação
+### Client Credentials: o job de conciliação { #client-credentials-the-reconciliation-job }
 
 Quando não há usuário envolvido, o cliente se autentica **como ele mesmo** e recebe um token que representa o *serviço*. O job de conciliação de `order` pede exatamente o escopo de que precisa:
 
@@ -252,13 +260,13 @@ curl -s -X POST https://auth.boxoffice.com/realms/boxoffice/protocol/openid-conn
   -d scope=inventory:read
 ```
 
-Melhor que um client secret: autenticar o cliente com um **JWT assinado** (`private_key_jwt`) ou com a sua **identidade de workload** (certificado mTLS ou o token da service account do Kubernetes) — nenhum segredo compartilhado para vazar ([Zero Trust](../zero-trust/index.md)).
+Melhor que um client secret: autenticar o cliente com um **JWT assinado** (`private_key_jwt`) ou com a sua **identidade de workload** (certificado mTLS ou o token da service account do Kubernetes) — nenhum segredo compartilhado para vazar ([Zero Trust](../../network-security/zero-trust/index.md)).
 
-### Token Exchange: o assistente agindo pelo usuário
+### Token Exchange: o assistente agindo pelo usuário { #token-exchange-the-assistant-acting-for-the-user }
 
 O `assistant` de IA precisa chamar `order` *em nome da Ana*, com menos poder que o próprio token da Ana. O **Token Exchange** (RFC 8693) permite que um serviço troque o token que recebeu por um novo, com outra audiência e escopo mais estreito (`aud=order`, `scope=orders:read`), mantendo `sub=acc-42` e registrando o ator (`act: assistant`). O log de auditoria então mostra "assistant, agindo por acc-42, leu o pedido 1042".
 
-### Tokens vinculados ao remetente
+### Tokens vinculados ao remetente { #sender-constrained-tokens }
 
 Um bearer token funciona para quem o roubar. Tokens **vinculados ao remetente** (*sender-constrained*) ficam amarrados a uma chave que o cliente legítimo possui: com **DPoP** (RFC 9449), o cliente assina uma pequena prova a cada requisição com uma chave privada no dispositivo; com **tokens vinculados a mTLS** (RFC 8705), o token fica amarrado ao certificado do cliente. Um token roubado sozinho fica inútil. APIs de nível financeiro os exigem; no BoxOffice, valem a pena nos endpoints de pagamento.
 
@@ -270,7 +278,7 @@ Um bearer token funciona para quem o roubar. Tokens **vinculados ao remetente** 
 
 ## Validando tokens no gateway { #gateway-validation }
 
-O gateway é o primeiro **ponto de aplicação** (*enforcement point*): ele rejeita requisições sem token válido e repassa uma identidade confiável para dentro (veja [Borda — API gateway](../../edge/api-gateway/index.md)).
+O gateway é o primeiro **ponto de aplicação** (*enforcement point*): ele rejeita requisições sem token válido e repassa uma identidade confiável para dentro (veja [Borda — API gateway](../api-gateway/index.md)).
 
 | | **Validação local (JWKS)** | **Validação remota (introspecção, RFC 7662)** |
 |---|---|---|
@@ -294,6 +302,18 @@ spring:
 
 !!! warning "Remova cabeçalhos de identidade na borda"
     Se o gateway repassa `X-Account-Id: acc-42` aos serviços, ele precisa **remover** qualquer `X-Account-Id` enviado pelo cliente, e os serviços devem ser inalcançáveis a não ser pelo gateway (ou devem verificar o token por conta própria). Caso contrário, qualquer um que alcance um serviço diretamente pode se passar por qualquer usuário.
+
+!!! example "No código do BoxOffice: o gateway confere o token uma vez (lab 4)"
+
+    O [Hands-on 4 — gateway](../../../hands-on/4/gateway/index.md) usa **validação local**: o decoder busca o JWKS do `auth` e então confere a assinatura, `exp`/`nbf`, `iss` e `aud` de cada requisição sem chamar o `auth`. Essa é a razão da escolha: um login é caro de propósito (BCrypt; o lab mede algo como 10–20 logins/s por CPU), então acontece uma vez por sessão, enquanto os 2 milhões de requisições da abertura de vendas custam só uma verificação de assinatura no gateway — a introspecção poria o `auth` no caminho de cada uma delas. O preço é a revogação só no `exp`. O `UserHeadersFilter` implementa o aviso acima: remove qualquer cabeçalho `X-User-*` enviado pelo cliente e então define a identidade tirada do token validado. A outra metade do aviso vale só pela implantação: as réplicas do `catalog` não publicam porta, então, de fora, o gateway é o único caminho — mas qualquer contêiner na mesma rede ainda pode enviar um `X-User-Id` forjado, a brecha que o [Zero Trust](../../network-security/zero-trust/index.md) fecha.
+
+    ``` { .java title="services/gateway/src/main/java/boxoffice/gateway/SecurityConfig.java (the JWT decoder)" }
+    --8<-- "docs/2027.1/hands-on/4/code/services/gateway/src/main/java/boxoffice/gateway/SecurityConfig.java:42:52"
+    ```
+
+    ``` { .java title="services/gateway/src/main/java/boxoffice/gateway/UserHeadersFilter.java (strip, then set)" }
+    --8<-- "docs/2027.1/hands-on/4/code/services/gateway/src/main/java/boxoffice/gateway/UserHeadersFilter.java:21:44"
+    ```
 
 ---
 
@@ -366,6 +386,14 @@ Motores de política (OPA, Cedar, OpenFGA) tiram as regras do código e as coloc
 !!! tip "Na entrevista"
     Sempre que o projeto tiver usuários, diga de uma vez: "os usuários fazem login por um **provedor OIDC**; o app mobile usa **Authorization Code com PKCE**; o gateway valida localmente **access tokens JWT de vida curta** contra o JWKS do provedor; os refresh tokens são rotacionados; chamadas entre serviços usam **client credentials** ou a identidade do mesh; e todo serviço verifica a **posse do objeto**." Se perguntarem sobre logout ou revogação, explique o trade-off entre validação local e introspecção — e a janela de exposição igual ao tempo de vida do token.
 
+!!! success "Boas práticas"
+
+    - **Emita access tokens que vivam 5–15 minutos, com refresh tokens rotativos** — a latência de revogação é igual à validade do token. No BoxOffice: o lab 4 emite tokens de 1 hora sem refresh token, um atalho nomeado no quadro do `auth`, acima.
+    - **Valide tokens localmente contra um JWKS em cache, buscando-o de novo quando chega um `kid` desconhecido** — nenhuma chamada ao provedor de identidade por requisição, e a rotação de chaves não exige indisponibilidade. No BoxOffice: o `NimbusReactiveJwtDecoder` do gateway ([quadro do gateway](#gateway-validation)).
+    - **Gire as chaves de assinatura com agenda e publique a chave antiga e a nova no JWKS durante a sobreposição** — tokens assinados antes da rotação continuam válidos até expirar. (O lab 4, em vez disso, cria uma chave nova a cada inicialização, e todo token morre com ela.)
+    - **Remova no gateway os cabeçalhos de identidade enviados pelo cliente antes de acrescentar os seus** — no BoxOffice: o `UserHeadersFilter` remove `X-User-*` primeiro ([quadro do gateway](#gateway-validation)).
+    - **Faça hash das senhas com uma função lenta e ajustável e limite a taxa de login** — BCrypt com custo ≥ 10 ou Argon2id; no [lab 4](../../../hands-on/4/auth/index.md), BCrypt com custo 10 limita o `auth` a algo como 10–20 logins/s por CPU, então os logins precisam acontecer antes das 10:00, não às 10:00.
+
 !!! warning "Armadilhas comuns"
     - **Grants Implicit ou de senha (ROPC)** em código novo — removidos no OAuth 2.1; use Authorization Code + PKCE.
     - **Pular o `aud`** — um token emitido para outra API é aceito pela sua.
@@ -379,7 +407,7 @@ Motores de política (OPA, Cedar, OpenFGA) tiram as regras do código e as coloc
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     AS["auth: provedor OIDC<br/>(servidor de autorização)"] --> PKCE["Authorization Code + PKCE<br/>app mobile, BFF web"]
     AS --> CC["Client Credentials<br/>job de reconciliação"]
@@ -393,15 +421,17 @@ flowchart LR
     TX --> AI["agentes agindo pelo usuário<br/>→ Sistemas de IA"]
 ```
 
-**Componentes da paleta:** [`auth`](../../../reference/components/compute/index.md#auth) · [`apigw`](../../../reference/components/edge/index.md#apigw) (o primeiro ponto de aplicação) · [`client`](../../../reference/components/client/index.md#client) · [`mobile`](../../../reference/components/client/index.md#mobile) · [`cache`](../../../reference/components/storage/index.md#cache) (sessões no servidor) · [`orchestrator`](../../../reference/components/ai/index.md#orchestrator) (o assistente agindo em nome do usuário). **Cenários:** `rate-limiter`, `flash-sale`, `ai-assistant`. **Continua em:** [Borda — API gateway](../../edge/api-gateway/index.md), [Zero Trust](../zero-trust/index.md#workload-identity), [Caching — Redis](../../caching/redis/index.md), [Sistemas de IA — agentes](../../ai-systems/agents/index.md), [Hands-on 4 — Gateway e identidade](../../../hands-on/4/index.md).
+**Componentes da paleta:** [`auth`](../../../reference/components/compute/index.md#auth) · [`apigw`](../../../reference/components/edge/index.md#apigw) (o primeiro ponto de aplicação) · [`client`](../../../reference/components/client/index.md#client) · [`mobile`](../../../reference/components/client/index.md#mobile) · [`cache`](../../../reference/components/storage/index.md#cache) (sessões no servidor) · [`orchestrator`](../../../reference/components/ai/index.md#orchestrator) (o assistente agindo em nome do usuário). **Cenários:** `rate-limiter`, `flash-sale`, `ai-assistant`. **Continua em:** [Borda — API gateway](../api-gateway/index.md), [Zero Trust](../../network-security/zero-trust/index.md#workload-identity), [Caching — Redis](../../caching/redis/index.md), [Sistemas de IA — agentes](../../ai-systems/agents/index.md), [Hands-on 4 — Gateway e identidade](../../../hands-on/4/index.md).
 
-## Principais conclusões
+## Pontos-chave { #key-takeaways }
 
-- **AuthN** (quem) ≠ **authZ** (o quê). O gateway autentica; cada serviço ainda autoriza o acesso aos seus próprios objetos.
-- **Sessões** revogam na hora, mas precisam de um store compartilhado; **JWTs** escalam sem estado, mas continuam válidos até `exp`. Combine access tokens curtos com refresh tokens revogáveis.
-- Valide JWTs direito: algoritmo de uma allow-list, `kid` do seu JWKS, `iss`, `aud`, `exp`, `typ`, escopos.
-- **OAuth 2.1**: Authorization Code + **PKCE** para todo cliente com usuário (navegador do sistema no mobile, BFF na web), **Client Credentials** para jobs, **Token Exchange** para delegação; nada de Implicit nem ROPC.
-- **OIDC** acrescenta o ID token, o UserInfo e o discovery. Escolha RBAC, ABAC ou ReBAC para autorização, e sempre verifique a posse (BOLA).
+!!! takeaways ""
+
+    - **AuthN** (quem) ≠ **authZ** (o quê). O gateway autentica; cada serviço ainda autoriza o acesso aos seus próprios objetos.
+    - **Sessões** revogam na hora, mas precisam de um store compartilhado; **JWTs** escalam sem estado, mas continuam válidos até `exp`. Combine access tokens curtos com refresh tokens revogáveis.
+    - Valide JWTs direito: algoritmo de uma allow-list, `kid` do seu JWKS, `iss`, `aud`, `exp`, `typ`, escopos.
+    - **OAuth 2.1**: Authorization Code + **PKCE** para todo cliente com usuário (navegador do sistema no mobile, BFF na web), **Client Credentials** para jobs, **Token Exchange** para delegação; nada de Implicit nem ROPC.
+    - **OIDC** acrescenta o ID token, o UserInfo e o discovery. Escolha RBAC, ABAC ou ReBAC para autorização, e sempre verifique a posse (BOLA).
 
 ---
 

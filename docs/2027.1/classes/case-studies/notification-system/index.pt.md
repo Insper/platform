@@ -26,11 +26,11 @@ O BoxOffice envia três tipos bem diferentes de notificação, e eles tornam os 
 
 ---
 
-## 1. Esclarecer os requisitos
+## 1. Esclarecer os requisitos { #1-clarify-the-requirements }
 
 ([roteiro de entrevista](../../intro/interview-framework/index.md))
 
-### Requisitos funcionais
+### Requisitos funcionais { #functional-requirements }
 
 1. Serviços internos **disparam** notificações por uma única API (`order`, `inventory`, `auth`…), por usuário e tipo, com os dados para o template.
 2. Canais: **push** (iOS via APNs, Android via FCM), **e-mail** e **SMS**.
@@ -39,7 +39,7 @@ O BoxOffice envia três tipos bem diferentes de notificação, e eles tornam os 
 5. **Preferências do usuário**: opt-out por categoria e canal, horário de silêncio, link de descadastro em todo e-mail de marketing.
 6. **Rastreamento**: enviada, entregue, aberta, devolvida, por notificação e por campanha.
 
-### Requisitos não funcionais
+### Requisitos não funcionais { #non-functional-requirements }
 
 | Qualidade | Meta |
 |---|---|
@@ -50,7 +50,7 @@ O BoxOffice envia três tipos bem diferentes de notificação, e eles tornam os 
 | **Isolamento** | Uma campanha nunca pode atrasar mensagens transacionais |
 | **Conformidade** | Respeitar opt-outs e descadastros na hora; regras de transacional e de marketing diferem |
 
-### Fora do escopo (diga explicitamente)
+### Fora do escopo (diga explicitamente) { #out-of-scope-say-it-explicitly }
 
 Construir nossa própria infraestrutura de push ou e-mail (usamos provedores), o editor de conteúdo do marketing, testes A/B de texto, a interface da caixa de entrada no app (citada como follow-up).
 
@@ -67,7 +67,7 @@ Construir nossa própria infraestrutura de push ou e-mail (usamos provedores), o
 
 ---
 
-## 2. Estimativas de guardanapo (back-of-the-envelope)
+## 2. Estimativas de guardanapo (back-of-the-envelope) { #2-back-of-the-envelope-estimates }
 
 ```python exec="1" source="tabbed-right"
 # Notification system: assumptions (illustrative)
@@ -145,7 +145,7 @@ GET  /v1/notifications/{notificationId}                  → 200 {channel status
 
 ---
 
-## 4. Modelo de dados
+## 4. Modelo de dados { #4-data-model }
 
 ```sql
 -- Preferences, templates, campaigns: small, relational, read-mostly (SQL)
@@ -195,9 +195,9 @@ INCR cap:42:marketing:2027-03-10  → 2      EXPIRE … 86400
 
 ---
 
-## 5. Design de alto nível
+## 5. Design de alto nível { #5-high-level-design }
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     ord["serviços order / inventory /<br/>auth"] --> api["API de notificações<br/>valida, idempotência"]
     camp["Serviço de campanhas"] --> sch["Scheduler<br/>sendAt, espalhamento, silêncio"]
@@ -221,7 +221,7 @@ flowchart LR
 
 Uma confirmação de pedido, de ponta a ponta:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     participant O as order (consumidor Kafka)
@@ -250,9 +250,9 @@ sequenceDiagram
 
 ---
 
-## 6. Aprofundamentos (deep dives)
+## 6. Aprofundamentos (deep dives) { #6-deep-dives }
 
-### 6.1 Canais, filas e prioridades
+### 6.1 Canais, filas e prioridades { #61-channels-queues-and-priorities }
 
 Cada canal tem seu próprio provedor, modos de falha e limites, então cada um ganha sua **própria fila e pool de workers** — um provedor de SMS lento não pode parar as notificações push (um [bulkhead](../../reliability/patterns/index.md)). Cada canal também tem (pelo menos) duas **prioridades**: transacional e em massa.
 
@@ -276,7 +276,7 @@ Cada canal tem seu próprio provedor, modos de falha e limites, então cada um g
 
 **Prioridades.** Duas filas separadas por canal (ou um sistema de filas com prioridade estrita) e **pools de workers separados ou capacidade reservada** para o transacional. Uma campanha de 2,5 M de e-mails escoa então no limite do provedor *menos* a fatia reservada ao transacional, e a confirmação do pedido continua saindo em segundos.
 
-### 6.2 Entregar uma vez: idempotência, retentativas, DLQ e failover
+### 6.2 Entregar uma vez: idempotência, retentativas, DLQ e failover { #62-delivering-once-idempotency-retries-dlq-and-failover }
 
 O pipeline é **pelo menos uma vez** de ponta a ponta — filas reentregam quando um worker cai, workers repetem quando um provedor dá timeout ([semântica de entrega](../../messaging/semantics/index.md)). Para o **efeito** ser "uma vez" para o usuário:
 
@@ -313,11 +313,23 @@ def handle(job):
 
 **Queda de provedor.** Um circuit breaker por provedor abre quando os erros se acumulam ([integrações](../../compute/integrations/index.md)). Para e-mail e SMS, mantenha um **segundo provedor** e faça failover do tráfego transacional para ele (o em massa pode simplesmente esperar). Para push não há alternativa ao APNs/FCM: enfileire e espere, e descarte pushes de marketing que ficaram velhos (um alerta de pré-venda depois que a pré-venda começou é ruído).
 
-### 6.3 Preferências, templates e limites
+!!! example "No código do BoxOffice: o consumidor idempotente e sua DLT (lab 7)"
+
+    O [Hands-on 7 — Consumidor idempotente e DLT](../../../hands-on/7/consumer/index.md) constrói o passo 2 e os tipos de falha desta seção para o e-mail do pedido. A deduplicação é uma linha no PostgreSQL em vez de um `SET NX` no Redis: `INSERT ... ON CONFLICT DO NOTHING` no id do evento, na **mesma transação** do registro de envio, então se o e-mail falha a linha de deduplicação também é desfeita e a retentativa pode reivindicá-la de novo — o `cache.delete(key)` do esboço acima, de graça. Erros transitórios recebem 3 retentativas (0,5 s, 1 s, 2 s); eventos malformados vão direto para `order-events-dlt`. No lab, rebobinar o grupo de consumidores reprocessa todos os eventos e a caixa de correio continua com **2** e-mails; com a deduplicação desligada, cada reprocessamento envia todos de novo.
+
+    ``` { .java title="services/notification/src/main/java/boxoffice/notification/NotificationService.java (dedupe and send)" }
+    --8<-- "docs/2027.1/hands-on/7/code/services/notification/src/main/java/boxoffice/notification/NotificationService.java:26:47"
+    ```
+
+    ``` { .java title="services/notification/src/main/java/boxoffice/notification/KafkaConfig.java (retries and DLT)" }
+    --8<-- "docs/2027.1/hands-on/7/code/services/notification/src/main/java/boxoffice/notification/KafkaConfig.java:16:28"
+    ```
+
+### 6.3 Preferências, templates e limites { #63-preferences-templates-and-limits }
 
 O roteador aplica uma sequência fixa de verificações antes de enfileirar qualquer coisa — filtros baratos primeiro:
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     t["Disparo<br/>usuário 42, presale.alert"] --> p{"Aceitou push<br/>de marketing?"}
     p -->|não| skip1["SKIPPED (log)"]
@@ -336,13 +348,13 @@ flowchart LR
 - **Limites de frequência** (`INCR` com TTL diário por usuário e categoria) protegem os usuários de cinco times enviando cada um "só um" push por dia.
 - **Rate limits dos provedores** são aplicados pelos workers com um **token bucket** compartilhado por provedor e conta ([caso do rate limiter](../rate-limiter/index.md)), então desaceleramos **antes** de o provedor começar a responder `429`.
 
-### 6.4 Envios agendados e campanhas
+### 6.4 Envios agendados e campanhas { #64-scheduled-sends-and-campaigns }
 
 **Notificações agendadas** ("os portões abrem em 2 h") são guardadas com um `send_at`; o [scheduler](../../compute/async-work/index.md) consulta um índice por faixa de tempo (`WHERE send_at <= now() AND status = 'PENDING'`, reivindicado com `FOR UPDATE SKIP LOCKED` para que várias instâncias do scheduler não enviem em dobro) ou usa uma fila com atraso. 60 000 lembretes exatamente às 18:00 já são uma mini-campanha: espalhe-os por alguns minutos.
 
 **Campanhas** são expandidas em lotes, nunca como um único job gigante:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     participant C as Serviço de campanhas
@@ -367,7 +379,7 @@ sequenceDiagram
 
 ---
 
-## 7. Gargalos, modos de falha e trade-offs
+## 7. Gargalos, modos de falha e trade-offs { #7-bottlenecks-failure-modes-and-trade-offs }
 
 | Onde | O que dá errado | Mitigação | Trade-off |
 |---|---|---|---|
@@ -384,7 +396,7 @@ Os trade-offs para **dizer em voz alta**: **duplicatas vs. perdas** (no transaci
 
 ---
 
-## 8. Experimente no playground
+## 8. Experimente no playground { #8-try-it-in-the-playground }
 
 O cenário `notification-system` tem um scheduler e produtores alimentando uma fila, workers por canal e provedores externos de e-mail/push.
 
@@ -401,7 +413,7 @@ O cenário `notification-system` tem um scheduler e produtores alimentando uma f
 
 ---
 
-## 9. Perguntas de follow-up que o entrevistador faz
+## 9. Perguntas de follow-up que o entrevistador faz { #9-follow-up-questions-an-interviewer-asks }
 
 ??? question "Como você garante que um usuário não receba a mesma notificação duas vezes?"
 
@@ -433,7 +445,7 @@ O cenário `notification-system` tem um scheduler e produtores alimentando uma f
 
 ---
 
-## 10. Rubrica de autoavaliação
+## 10. Rubrica de autoavaliação { #10-self-assessment-rubric }
 
 | Nível | O que a resposta contém |
 |---|---|
@@ -443,13 +455,21 @@ O cenário `notification-system` tem um scheduler e produtores alimentando uma f
 
 **Relacionados:** [Filas e pub/sub](../../messaging/queues-pubsub/index.md), [Semântica de entrega](../../messaging/semantics/index.md), [Trabalho assíncrono e schedulers](../../compute/async-work/index.md), [Integrações externas](../../compute/integrations/index.md), [Hands-on 7](../../../hands-on/7/index.md) (consumidor `notification` idempotente e DLQ), [Caso de ingressos](../ticketing/index.md).
 
+!!! success "Boas práticas"
+
+    - **Derive o id da notificação do evento de negócio** — `order-81f3-confirmed`, para que toda camada consiga deduplicar. No BoxOffice: o lab 7 deduplica pelo id do evento ([lab 7](../../../hands-on/7/consumer/index.md)).
+    - **Dê a cada canal e prioridade a sua própria fila** — uma confirmação de pedido nunca espera atrás de uma campanha de marketing.
+    - **Crie alerta para uma fila de mensagens mortas não vazia e tenha uma ferramenta de reprocessamento** — a `order-events-dlt` do lab 7 guarda o tópico original e a exceção nos cabeçalhos, pronta para reprocessar.
+    - **Aplique horários de silêncio e limites de frequência no pipeline, antes da chamada ao provedor** — uma preferência que o código não aplica é uma reclamação esperando para acontecer.
+    - **Acompanhe enviados, entregues e devolvidos por provedor** — um provedor que aceita e não entrega parece saudável em todas as outras métricas.
+
 ---
 
 ## Como se conecta { #how-it-connects }
 
 Quais aulas este caso testa? Cada ramo é uma aula cujas ideias o design usa (azul), com os componentes da paleta em que elas aparecem (verde):
 
-``` mermaid
+``` diagram
 flowchart LR
     CASE(["Notification system"]) --> EST["Estimation<br/>a provider limit sets campaign time"]:::tech
     CASE --> CMP["Compute<br/>scheduler, workers, provider adapters"]:::tech
@@ -468,7 +488,7 @@ flowchart LR
 
 ---
 
-## Referências
+## Referências { #references }
 
 - XU, A. *System Design Interview — An Insider's Guide*, vol. 1, cap. 10 "Design a Notification System"[^1].
 - Documentação do Apple Push Notification service (tokens, `apns-collapse-id`, respostas de erro)[^2].

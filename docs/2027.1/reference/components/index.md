@@ -4,7 +4,7 @@ Every box you can drop on the canvas of the [System Design Playground](../../../
 
 The palette has 49 components in 10 categories. They follow a request from left to right: a **client** reaches the **edge**, the edge forwards to **compute**, compute is packaged and scaled in **containers** (on a Kubernetes cluster), compute reads and writes **storage** and publishes to **messaging**, everything is watched by **observability**, laid out inside a **network**, and some requests go to **AI** components or to **external** providers.
 
-``` mermaid
+``` diagram
 flowchart LR
     CL[Client] --> ED[Traffic & Edge]
     ED --> CO[Compute]

@@ -16,7 +16,7 @@ During a BoxOffice on-sale, almost every request is a **read** of the same few t
 
 The read path you will build:
 
-```mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant C as Client
     participant A as catalog

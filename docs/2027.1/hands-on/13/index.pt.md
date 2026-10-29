@@ -6,6 +6,7 @@
     - **Medir**: precisão das revisões, custo por PR, minutos de CI e tempo até o merge ao longo de uma semana de pull requests.
 
 O lab 11 deu ao BoxOffice um pipeline que compila, testa, escaneia, assina e libera cada mudança por trás de um canary. O lab 12 colocou um modelo de linguagem *dentro* do produto. Este lab coloca modelos de linguagem **dentro do pipeline** — e os trata com a mesma disciplina de qualquer outra dependência: privilégio mínimo, orçamentos, validação de toda saída e números que digam se eles ajudam.
+Na [história da disciplina](../../index.md#story) ele constrói o capítulo 14: as decisões de [revisão de código](../../classes/ai-delivery/code-review/index.md), [testes gerados por IA](../../classes/ai-delivery/testing/index.md), [agentes no CI](../../classes/ai-delivery/agents-in-ci/index.md), [liberação e operação](../../classes/ai-delivery/release-operate/index.md) e [segurança e governança](../../classes/ai-delivery/security-governance/index.md).
 
 A regra do lab inteiro: **a IA propõe; regras e humanos decidem.** Nenhuma etapa deste lab consegue fazer merge, aprovar, fazer deploy ou rollback sozinha. O modelo escreve comentários, patches e explicações; verificações determinísticas (testes, score de mutação, limites da política) e pessoas decidem.
 
@@ -69,9 +70,9 @@ Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** a
 
     Este lab acompanha a aula [Entrega assistida por IA](../../classes/ai-delivery/index.md). Leia as páginas [Code review](../../classes/ai-delivery/code-review/index.md) e [Segurança e governança](../../classes/ai-delivery/security-governance/index.md) antes das partes 1 e 6. Ele se apoia na página [Entrega](../../classes/cloud-native/delivery/index.md) da aula de cloud native e no [LLM gateway](../../classes/ai-systems/llm-gateway/index.md) da aula de sistemas de IA.
 
-## O que você vai construir
+## O que você vai construir { #what-you-will-build }
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     dev([Desenvolvedor]) -->|"abre PR"| pr["Pull request"]
     pr --> rev["1 · Review por IA<br/>comentários inline + custo"]
@@ -101,7 +102,7 @@ Toda etapa de IA tem a mesma forma — um **gatilho**, a **coleta de contexto**,
 
 
 
-## 0. Setup: um cliente, três formas de chegar a um modelo
+## 0. Setup: um cliente, três formas de chegar a um modelo { #0-setup-one-client-three-ways-to-reach-a-model }
 
 Todos os scripts ficam em `.github/ai/` do seu repositório e importam um único módulo, `llm.py`. Ele esconde o provedor atrás de uma única função, `complete_json(system, user, schema)`, que devolve **JSON validado contra um schema** junto com o **uso de tokens e o seu custo**. O provedor é escolhido por variáveis de ambiente — os mesmos nomes localmente e no GitHub Actions (como *variables* do repositório):
 
@@ -179,7 +180,7 @@ Todos os scripts ficam em `.github/ai/` do seu repositório e importam um único
 
     Use a **sua própria** chave ou um modelo local, nunca a de um colega ou de uma empresa. Nunca cole segredos, dados reais de clientes ou dados pessoais em prompts. Todo commit que contém código gerado por IA leva o trailer `AI-assisted: <tool> (<model>)` e todo PR aberto por IA leva o label `ai-generated`.
 
-### 0.2 O cliente compartilhado
+### 0.2 O cliente compartilhado { #02-the-shared-client }
 
 Salve os arquivos abaixo nos caminhos dos seus títulos (a pasta `.github/ai/` é nova). Para não copiar vinte arquivos à mão, você também pode tirá-los de [`boxoffice-after-lab-13.zip`](boxoffice-after-lab-13.zip) — o estado do **fim** deste lab — e copiar só o que precisa:
 
@@ -233,7 +234,7 @@ provider=ollama model=qwen2.5-coder-16k
 
 `LLM error: APIConnectionError: Connection error.` significa que o Ollama não está rodando; `NotFoundError ... model 'qwen2.5-coder-16k' not found` significa que o passo 0.1 foi pulado. Veja [Solução de problemas](#troubleshooting).
 
-### 0.3 O contexto: convenções e decisões
+### 0.3 O contexto: convenções e decisões { #03-the-context-conventions-and-decisions }
 
 O revisor só é tão bom quanto o que ele sabe sobre o **seu** sistema. Um modelo genérico conhece Java; ele não sabe que `order` nunca deve escrever no schema `inventory`. Escreva esse conhecimento uma vez — para humanos, antes de tudo — em `CONVENTIONS.md`, na raiz do repositório:
 
@@ -265,7 +266,7 @@ gh api --method PUT "repos/{owner}/{repo}/actions/permissions/workflow" \
 {"default_workflow_permissions":"read","can_approve_pull_request_reviews":true}
 ```
 
-## Partes
+## Partes { #parts }
 
 1. [Review de pull request por IA](review/index.md) — achados estruturados como comentários inline, controle de ruído, custo no resumo do job.
 2. [Testes gerados por IA, avaliados por testes de mutação](tests/index.md) — manter um teste gerado só se o PIT disser que ele pega mais bugs.
@@ -294,7 +295,15 @@ Cada parte tem a sua própria lista para os erros específicos; estes podem apar
 | `GitHub Actions is not permitted to create or approve pull requests` | passo 0.4 pulado | rode o comando `gh api --method PUT ...` do passo 0.4 |
 | Um job de CI com Ollama estoura o timeout | runner só com CPU, prompt grande (num repositório privado o runner pode ter menos memória) | diffs menores; o modelo 3B (adicione `env: { OLLAMA_BASE_MODEL: "qwen2.5-coder:3b" }` ao passo que usa `./.github/actions/ollama`); ou um provedor pago para esse job |
 
-## Limpeza
+!!! success "Boas práticas neste lab"
+
+    - **A IA propõe, as regras decidem** — o `.github/ai/review.py` publica `event: COMMENT`, nunca uma aprovação, e sai com 0 quando o modelo falha; por quê: [Revisão de código](../../classes/ai-delivery/code-review/index.md).
+    - **Privilégio dividido por job** — o `ai-fix.yaml` roda o modelo com um token só de leitura e abre o PR rascunho num job sem modelo; por quê: [Agentes no CI](../../classes/ai-delivery/agents-in-ci/index.md).
+    - **Testes gerados provam o seu valor** — o `gen_tests.py` só mantém um teste se ele passa duas vezes e acrescenta 5 pp de mutation score; por quê: [Testes](../../classes/ai-delivery/testing/index.md).
+    - **O veredito é código; o modelo só explica** — o `canary_explain.py` devolve o exit code da política e descarta uma explicação que discorde; por quê: [Liberação e operação](../../classes/ai-delivery/release-operate/index.md).
+    - **As ferramentas de IA têm o seu próprio teste de regressão** — o `eval_review.py` e o `ai-eval.yaml` rodam o golden set quando o prompt, as convenções ou o modelo mudam; por quê: [Segurança e governança](../../classes/ai-delivery/security-governance/index.md).
+
+## Limpeza { #clean-up }
 
 ``` { .bash .copy }
 # stop the AI workflows from running on every PR (re-enable with `gh workflow enable`)
@@ -307,7 +316,7 @@ ollama stop qwen2.5-coder-16k          # frees the RAM now; `ollama rm qwen2.5-c
 
 Se você usou o Claude, **revogue a chave de API** no Claude Console (ou mantenha-a com o limite de gasto) e `gh secret delete ANTHROPIC_API_KEY`. Mantenha os arquivos: eles fazem parte do seu repositório e do projeto em equipe.
 
-## Entregável
+## Entrega { #deliverable }
 
 - [ ] `.github/ai/` com `llm.py`, `diffutil.py`, `review.py`, `gen_tests.py`, `fix_agent.py`, `release_notes.py`, `canary_explain.py`, `eval_review.py`, `metrics.py`, `ollama-model.sh`, `requirements.txt`, o golden set em `evals/` e os snapshots em `canary/`.
 - [ ] `CONVENTIONS.md` com pelo menos cinco regras específicas do **seu** BoxOffice, e pelo menos um ADR em `docs/adr/`.
@@ -323,7 +332,7 @@ Se você usou o Claude, **revogue a chave de API** no Claude Console (ou mantenh
 
 **Autoverificação antes de entregar:** `git status` limpo; `gh workflow list` mostra os cinco workflows de IA *active*; `gh run list --limit 20` mostra ao menos uma execução bem-sucedida de `AI review`, `AI tests`, `AI release notes` e `AI reviewer eval`; `git log -p | grep -c 'sk-ant-'` imprime `0` (nenhuma chave do Claude entrou num commit).
 
-## Estado final
+## Estado final { #end-state }
 
 ``` { .tree title="changed in lab 13" }
 boxoffice/

@@ -18,7 +18,7 @@ The tools of the trade, grouped by job. For each one: what it is in one line, wh
 | Local Kubernetes | kind or minikube | k3d, Docker Desktop Kubernetes | [Hands-on 10](../../hands-on/10/index.md) |
 | CI pipeline | GitHub Actions | GitLab CI, Jenkins | [Hands-on 11](../../hands-on/11/index.md) |
 | GitOps and progressive delivery | Argo CD (+ Argo Rollouts) | Flux, Flagger | [Hands-on 11](../../hands-on/11/index.md) |
-| Infrastructure as code | Terraform / OpenTofu | Pulumi, Crossplane, cloud-native templates | [Class 12](../../classes/cloud-native/index.md) |
+| Infrastructure as code | Terraform / OpenTofu | Pulumi, Crossplane, cloud-native templates | [Class 11](../../classes/cloud-native/index.md) |
 | Scan images and produce an SBOM | Trivy + Syft | Grype, Docker Scout | [Hands-on 11](../../hands-on/11/index.md) |
 | Draw an architecture | Excalidraw, Mermaid | diagrams.net, PlantUML, Structurizr | every class |
 | Call LLMs through one gateway | LiteLLM (+ Ollama locally) | Envoy AI Gateway, cloud gateways | [Hands-on 12](../../hands-on/12/index.md) |
@@ -68,8 +68,8 @@ The tools of the trade, grouped by job. For each one: what it is in one line, wh
 
 | Tool | What it is | Reach for it when | In the course | Site |
 |---|---|---|---|---|
-| **Terraform** | Declarative infrastructure as code with providers for every cloud (HCL language) | Creating cloud resources reproducibly, with plans and reviews | [Class 12](../../classes/cloud-native/index.md) | [terraform.io](https://www.terraform.io) |
-| **OpenTofu** | Open-source fork of Terraform (Linux Foundation), compatible with its language | Same as Terraform, with an open-source license | [Class 12](../../classes/cloud-native/index.md) | [opentofu.org](https://opentofu.org) |
+| **Terraform** | Declarative infrastructure as code with providers for every cloud (HCL language) | Creating cloud resources reproducibly, with plans and reviews | [Class 11](../../classes/cloud-native/index.md) | [terraform.io](https://www.terraform.io) |
+| **OpenTofu** | Open-source fork of Terraform (Linux Foundation), compatible with its language | Same as Terraform, with an open-source license | [Class 11](../../classes/cloud-native/index.md) | [opentofu.org](https://opentofu.org) |
 | **Pulumi** | Infrastructure as code in general-purpose languages (TypeScript, Python, Go, Java…) | Your team prefers real programming languages to HCL | Recognize it | [pulumi.com](https://www.pulumi.com) |
 | **Ansible** | Agentless configuration management over SSH with YAML playbooks | Configuring virtual machines and their software | Recognize it | [ansible.com](https://www.ansible.com) |
 | **Helm** | Package manager for Kubernetes (charts with templates and values) | Installing third-party software on Kubernetes, packaging your own | Optional in [Hands-on 10](../../hands-on/10/index.md) | [helm.sh](https://helm.sh) |

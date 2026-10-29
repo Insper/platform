@@ -2,7 +2,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Fundamentos do Kafka
+## Fundamentos do Kafka { #kafka-basics }
 
 **Q1.** O grupo de consumidores `notification` roda 8 instâncias no tópico `order-events`, de 6 partições. Quantas instâncias recebem mensagens?
 
@@ -46,7 +46,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Outbox e idempotência
+## Outbox e idempotência { #outbox-and-idempotency }
 
 **Q4.** Por que o serviço `order` não pode simplesmente salvar o pedido e depois chamar `kafkaTemplate.send(...)` no mesmo método?
 
@@ -118,7 +118,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Erros e a DLT
+## Erros e a DLT { #errors-and-the-dlt }
 
 **Q9.** Uma mensagem na partição 3 faz o listener lançar uma `MailSendException` transitória toda vez, e o *error handler* está configurado com 3 retentativas e *backoff* exponencial (0,5 s, 1 s, 2 s). O que acontece com as outras mensagens?
 
@@ -148,7 +148,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Sala de espera e capacidade
+## Sala de espera e capacidade { #waiting-room-and-capacity }
 
 **Q11.** A sala de espera admite 500 fãs por segundo. Um fã entra e fica na posição 45 000. Que ETA a página deve mostrar, e que lei o justifica?
 

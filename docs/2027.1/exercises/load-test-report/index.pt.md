@@ -10,7 +10,7 @@
     - **Diagnosticar** o gargalo com métricas de recursos, o método USE e a Lei de Little.
     - **Verificar** uma hipótese com uma única mudança e um novo teste.
 
-## Contexto
+## Contexto { #context }
 
 O [Lab 2](../../hands-on/2/index.md) apresentou o k6 e os percentis no serviço `catalog`; o [Lab 3](../../hands-on/3/index.md) o colocou atrás do Nginx com réplicas. A [Aula 2](../../classes/estimation/index.md) deu a teoria: utilização, filas, o joelho, latência de cauda e Lei de Little. A [Aula 15](../../classes/performance/index.md) aprofunda o tema mais adiante no semestre, e a [campanha de testes de carga](../project/load-test-campaign/index.md) do projeto reaproveita tudo o que você construir aqui.
 
@@ -19,7 +19,7 @@ Duas ideias separam um teste de carga de um número qualquer:
 - **Modelo aberto vs fechado.** Um modelo *fechado* (N usuários virtuais em loop) desacelera quando o servidor desacelera — ele educadamente para de enviar e esconde o problema (**coordinated omission**). Usuários reais chegam estando o servidor lento ou não. Use os executores de **taxa de chegada** do k6 (`constant-arrival-rate`, `ramping-arrival-rate`): eles iniciam iterações a uma taxa fixa, independentemente dos tempos de resposta[^1].
 - **Thresholds são SLOs.** `p(99)<500` e `rate<0.01` transformam "parecia bom" em passou/falhou.
 
-```mermaid
+``` diagram
 flowchart LR
     k6["k6 (modelo aberto)<br/>taxa de chegada λ"] --> nginx["nginx (lb)"]
     nginx --> c1["catalog #1"]
@@ -30,7 +30,7 @@ flowchart LR
     stats -.-> db
 ```
 
-## Tarefa
+## Tarefa { #task }
 
 Execute uma campanha de testes de carga contra **um endpoint HTTP (ou uma pequena mistura)** do seu próprio serviço — o `catalog` da BoxOffice dos labs (recomendado) ou outro serviço seu — e escreva um relatório que responda:
 
@@ -38,7 +38,7 @@ Execute uma campanha de testes de carga contra **um endpoint HTTP (ou uma pequen
 2. Onde está o **joelho**, e **qual recurso** o causa?
 3. Que **única mudança** desloca o joelho, e quanto?
 
-## Requisitos
+## Requisitos { #requirements }
 
 - [ ] **(obrigatório)** O serviço roda com **recursos fixos** (`cpus`/`mem_limit` no `compose.yaml`) e o ambiente está descrito (CPU, RAM, SO, versões, onde o k6 roda).
 - [ ] **(obrigatório)** **Resultados brutos** versionados: um resumo JSON do k6 por execução (e CSV se você plotar séries temporais).
@@ -53,13 +53,13 @@ Execute uma campanha de testes de carga contra **um endpoint HTTP (ou uma pequen
 - [ ] Uma **declaração de capacidade** de uma frase: "uma instância com 2 vCPU sustenta X req/s com p99 < Y ms".
 - [ ] Seção *Uso de IA* (veja a [política](../index.md#use-of-ai-tools)).
 
-## Entregáveis
+## Entregáveis { #deliverables }
 
 No seu repositório (tag `ex2`): os scripts k6 em `load/`, os resultados brutos em `load/results/`, o `compose.yaml` usado e eventuais scripts de gráficos; no site da sua documentação, uma página `load-test-report` seguindo o [template](#templates).
 
-## Passo a passo
+## Passo a passo { #step-by-step }
 
-### 1. Fixe o ambiente
+### 1. Fixe o ambiente { #1-pin-the-environment }
 
 Os resultados só são comparáveis se os recursos não mudarem. Limite o serviço e o banco no `compose.yaml` e carregue o banco com dados suficientes (por exemplo, 1.000 eventos) para que as consultas sejam realistas.
 
@@ -91,7 +91,7 @@ services:
 
     Se o k6 roda no mesmo notebook, ele compete com o serviço. Mantenha o serviço limitado (como acima), acompanhe a CPU do próprio k6 e diga no relatório onde o k6 rodou. Se o k6 avisar `dropped_iterations` ou `insufficient VUs`, o gerador de carga — e não o seu serviço — é o gargalo.
 
-### 2. Escreva um script, vários tipos de teste
+### 2. Escreva um script, vários tipos de teste { #2-write-one-script-several-test-types }
 
 Um único script, com o tipo de teste escolhido por uma variável de ambiente, mantém a mistura de requisições idêntica entre os testes.
 
@@ -162,7 +162,7 @@ export default function () {
 
 Ajuste os thresholds ao **seu** SLO e a URL ao seu endpoint. Espera-se que os testes de stress e spike *ultrapassem* os thresholds: o que você relata é *onde* e *como* eles falham.
 
-### 3. Execute e guarde tudo
+### 3. Execute e guarde tudo { #3-run-and-keep-everything }
 
 ```bash title="load/run.sh"
 #!/usr/bin/env bash
@@ -186,7 +186,7 @@ k6 run -e TEST_TYPE="$TYPE" -e RATE="$RATE" \
 
 Ordem sugerida: smoke → stress (para achar o joelho) → escolher a taxa do load em cerca de **70% do joelho** → load ×3 → spike. Reinicie o serviço entre as execuções (ou sempre faça o aquecimento) para que todas comecem do mesmo estado.
 
-### 4. Encontre o joelho
+### 4. Encontre o joelho { #4-find-the-knee }
 
 Cada degrau do teste de stress dá um ponto (vazão atingida, p99). Plote o p99 contra a vazão: a curva é plana enquanto a utilização é baixa e depois se dobra bruscamente quando a utilização se aproxima de 1 — o **joelho**. O gráfico abaixo é **ilustrativo** (uma fila M/M/1 com tempo de serviço de 1 ms), não uma medição; o seu virá das suas execuções.
 
@@ -249,7 +249,7 @@ plt.savefig("load/results/knee.png", dpi=150)
 
     Uma única execução de stress mistura todos os degraus em um só resumo. Ou execute um teste curto de **constant-arrival-rate** por degrau (por exemplo, 100, 200, 300… req/s por 2 minutos cada, um JSON por degrau), ou calcule o p99 de cada degrau a partir da saída CSV, filtrando pelos instantes de cada degrau.
 
-### 5. Encontre o gargalo
+### 5. Encontre o gargalo { #5-find-the-bottleneck }
 
 Use o **método USE** para cada recurso — **U**tilização, **S**aturação, **E**rros[^2]:
 
@@ -269,7 +269,7 @@ docker compose exec db psql -U catalog -c "select state, count(*) from pg_stat_a
 
 Depois confira com a **Lei de Little**. Se o teste de load atinge λ = 400 req/s com latência média W = 25 ms, há `L = 400 × 0,025 = 10` requisições em andamento. Se cada requisição segura uma conexão com o banco durante a maior parte do tempo e o pool tem 10 conexões, o pool está cheio: a próxima requisição espera — esse é o joelho. O `maximum-pool-size` padrão do Hikari é 10, e é por isso que esse é o gargalo clássico de um serviço Spring Boot.
 
-### 6. Mude uma coisa e teste de novo
+### 6. Mude uma coisa e teste de novo { #6-change-one-thing-and-re-test }
 
 Formule uma hipótese ("o pool é o gargalo; com 30 conexões o joelho vai de ~400 para ~1.000 req/s, até a CPU do banco saturar"), mude **só isso** e repita os mesmos testes de stress e load. Apresente antes/depois lado a lado. Uma hipótese refutada é um resultado válido se a evidência for clara — diga o que você aprendeu.
 
@@ -383,7 +383,7 @@ Formule uma hipótese ("o pool é o gargalo; com 30 conexões o joelho vai de ~4
     ## 8. Uso de IA
     ~~~
 
-## Rubrica
+## Rubrica { #rubric }
 
 Níveis conforme definidos em [Como os exercícios são avaliados](../index.md#how-the-exercises-are-graded).
 

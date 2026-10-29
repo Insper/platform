@@ -1,6 +1,6 @@
 The project is delivered in **nine milestones**. Each one adds a layer to the same system, in the order the classes teach it, so that you never build something you have not yet seen in class — and never leave everything to the last two weeks. Every milestone has **acceptance criteria you can check yourself** before the deadline, and a short **check-in** in class.
 
-```mermaid
+``` diagram
 flowchart LR
     m1["M1<br/>design doc<br/>estimates · SLOs"] --> m2["M2<br/>core path<br/>apigw · auth · 3 services · sql"]
     m2 --> m3["M3<br/>scale<br/>cache · replica/pool"]
@@ -124,7 +124,7 @@ Details, template and rubric: [load-test campaign](../load-test-campaign/index.m
 - [ ] At least three planned experiments plus one surprise fault injected by the instructor.
 - [ ] Report with observations, SLO impact, time to detect/mitigate and action items.
 
-Details, templates and rubric: [game day](../game-day/index.md). Related: [Class 9](../../../classes/reliability/index.md), [Lab 9](../../../hands-on/9/index.md).
+Details, templates and rubric: [game day](../game-day/index.md). Related: [Class 10](../../../classes/reliability/index.md), [Lab 9](../../../hands-on/9/index.md).
 
 **Check-in questions:** Which experiment surprised you? How did you detect the surprise fault — alert, dashboard or a user? Which action item matters most?
 
@@ -135,7 +135,7 @@ Details, templates and rubric: [game day](../game-day/index.md). Related: [Class
 - [ ] Monthly cost of the design target with a bill of materials, unit economics and sensitivity analysis.
 - [ ] Final update of the design doc (changelog complete).
 
-Details, template and rubric: [cost report](../cost-report/index.md). Related: [Class 12](../../../classes/cloud-native/index.md).
+Details, template and rubric: [cost report](../cost-report/index.md). Related: [Class 11](../../../classes/cloud-native/index.md).
 
 **Check-in questions:** What is the cost of one ticket sold (or message, ride, view, conversation)? What dominates the bill? What would you change to halve it?
 

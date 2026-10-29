@@ -1,0 +1,151 @@
+/* Diagrams (see assets/javascripts/diagram.js). Every color is a theme variable. */
+
+.md-typeset .dg {
+  --dg-ink: var(--md-typeset-a-color);
+  --dg-accent: var(--md-accent-fg-color);
+  --dg-fg: var(--md-default-fg-color);
+  --dg-fg2: var(--md-default-fg-color--light);
+  --dg-fg3: var(--md-default-fg-color--lighter);
+  --dg-line: var(--md-default-fg-color--lightest);
+  --dg-bg: var(--md-default-bg-color);
+  --dg-panel: var(--md-code-bg-color);
+  --dg-node: color-mix(in srgb, var(--dg-ink) 7%, var(--dg-bg));
+  --dg-node-stroke: color-mix(in srgb, var(--dg-ink) 55%, var(--dg-bg));
+  --dg-edge: color-mix(in srgb, var(--dg-fg) 55%, var(--dg-bg));
+  --dg-ok: #15803d;
+  --dg-bad: #b91c1c;
+  --dg-warn: #b45309;
+  margin: 1.2em 0;
+  border-radius: .5rem;
+  outline: none;
+}
+[data-md-color-scheme="slate"] .md-typeset .dg {
+  --dg-node: color-mix(in srgb, var(--dg-ink) 16%, var(--dg-bg));
+  --dg-node-stroke: color-mix(in srgb, var(--dg-ink) 70%, var(--dg-bg));
+  --dg-ok: #22c55e;
+  --dg-bad: #f87171;
+  --dg-warn: #f59e0b;
+}
+.md-typeset .dg-play { border: .05rem solid var(--dg-line); }
+.md-typeset .dg-play:focus-visible { border-color: var(--dg-accent); }
+
+.md-typeset .dg-canvas {
+  display: flex;
+  justify-content: safe center;   /* a diagram wider than the column scrolls from its left edge */
+  padding: .6rem .4rem;
+  overflow-x: auto;
+}
+.md-typeset .dg-play .dg-canvas { padding: 1rem .6rem .7rem; }
+.md-typeset .dg-canvas:empty { min-height: 6rem; }
+.md-typeset .dg-svg { height: auto; display: block; overflow: visible; }
+.md-typeset .dg-svg text { fill: var(--dg-fg); font-family: var(--md-text-font-family); }
+.md-typeset .dg-error { white-space: pre-wrap; }
+
+/* nodes */
+.md-typeset .dg-shape { fill: var(--dg-node); stroke: var(--dg-node-stroke); stroke-width: 1.3; }
+.md-typeset .dg-inner { fill: none; stroke: var(--dg-node-stroke); stroke-width: 1.1; }
+.md-typeset .dg-label { font-weight: 500; }
+.md-typeset .s-cylinder .dg-shape, .md-typeset .s-cylinder .dg-inner { stroke-width: 1.4; }
+.md-typeset .s-diamond .dg-shape, .md-typeset .s-choice .dg-shape {
+  fill: color-mix(in srgb, var(--dg-accent) 10%, var(--dg-bg));
+  stroke: color-mix(in srgb, var(--dg-accent) 70%, var(--dg-bg));
+}
+.md-typeset .dg-start { fill: var(--dg-fg); stroke: none; }
+.md-typeset .dg-endring { fill: none; stroke: var(--dg-fg); stroke-width: 1.5; }
+.md-typeset .dg-note { fill: color-mix(in srgb, var(--dg-warn) 9%, var(--dg-bg)); stroke: color-mix(in srgb, var(--dg-warn) 45%, var(--dg-bg)); stroke-width: 1; }
+.md-typeset .s-note text { font-size: 11.5px; }
+
+/* tones from :::class — comp (a component), tech (a technique), problem; any other class is neutral */
+.md-typeset .t-ok .dg-shape, .md-typeset .t-ok .dg-inner { fill: color-mix(in srgb, var(--dg-ok) 10%, var(--dg-bg)); stroke: var(--dg-ok); }
+.md-typeset .t-ok .dg-inner { fill: none; }
+.md-typeset .t-ink .dg-shape { fill: color-mix(in srgb, var(--dg-ink) 9%, var(--dg-bg)); stroke: var(--dg-ink); stroke-dasharray: 3 2; }
+.md-typeset .t-bad .dg-shape { fill: color-mix(in srgb, var(--dg-bad) 10%, var(--dg-bg)); stroke: var(--dg-bad); }
+.md-typeset .t-ok .dg-label { fill: color-mix(in srgb, var(--dg-ok) 55%, var(--dg-fg)); }
+.md-typeset .t-ink .dg-label { font-weight: 400; font-size: 12px; }
+
+/* groups (subgraph, composite state) */
+.md-typeset .dg-groupbox { fill: color-mix(in srgb, var(--dg-fg) 3%, var(--dg-bg)); stroke: var(--dg-line); stroke-width: 1.2; }
+.md-typeset .dg-grouptitle { font-weight: 700; fill: var(--dg-fg2) !important; letter-spacing: .02em; }
+
+/* edges */
+.md-typeset .dg-edge { fill: none; stroke: var(--dg-edge); stroke-width: 1.4; }
+.md-typeset .dg-edge.dashed { stroke-dasharray: 5 4; }
+.md-typeset .dg-edge.thick { stroke-width: 2.6; }
+.md-typeset .dg-edge.note { stroke: var(--dg-fg3); stroke-dasharray: 2 3; }
+.md-typeset .dg-mk path { fill: var(--dg-edge); stroke: none; }
+.md-typeset .dg-mk.open path { fill: none; stroke: var(--dg-edge); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.md-typeset .dg-mk.ring circle { fill: var(--dg-bg); stroke: var(--dg-edge); stroke-width: 1.5; }
+.md-typeset .dg-mk.on path { fill: var(--dg-accent); }
+.md-typeset .dg-mk.on.open path { fill: none; stroke: var(--dg-accent); }
+.md-typeset .dg-mk.done path { fill: var(--dg-ink); }
+.md-typeset .dg-mk.done.open path { fill: none; stroke: var(--dg-ink); }
+.md-typeset .dg-elabel rect { fill: var(--dg-bg); stroke: var(--dg-line); stroke-width: 1; }
+.md-typeset .dg-elabel text { fill: var(--dg-fg2); }
+
+/* sequence */
+.md-typeset .dg-life { stroke: var(--dg-line); stroke-width: 1.5; stroke-dasharray: 4 4; }
+.md-typeset .s-actorbox .dg-shape { fill: var(--dg-node); stroke: var(--dg-node-stroke); }
+.md-typeset .dg-person circle, .md-typeset .dg-person path { fill: none; stroke: var(--dg-ink); stroke-width: 1.5; }
+.md-typeset .dg-msgtext { fill: var(--dg-fg) !important; }
+.md-typeset .dg-act { fill: color-mix(in srgb, var(--dg-ink) 18%, var(--dg-bg)); stroke: var(--dg-node-stroke); stroke-width: 1; }
+.md-typeset .dg-num circle { fill: var(--dg-ink); }
+.md-typeset .dg-num text { fill: var(--dg-bg) !important; font-weight: 700; }
+.md-typeset .dg-snote .dg-note { stroke-width: 1; }
+.md-typeset .dg-snote text { fill: var(--dg-fg) !important; }
+.md-typeset .dg-framebox { fill: color-mix(in srgb, var(--dg-fg) 2.5%, transparent); stroke: var(--dg-fg3); stroke-width: 1; }
+.md-typeset .dg-frame.k-rect .dg-framebox { fill: color-mix(in srgb, var(--dg-ink) 5%, transparent); stroke: none; }
+.md-typeset .dg-frametag { fill: var(--dg-fg2); }
+.md-typeset .dg-frametagtext { fill: var(--dg-bg) !important; font-weight: 700; }
+.md-typeset .dg-framecond { fill: var(--dg-fg2) !important; font-style: italic; }
+.md-typeset .dg-framesplit { stroke: var(--dg-fg3); stroke-dasharray: 5 4; }
+
+/* playback */
+.md-typeset .dg-svg :is(.dg-node, .dg-elabel, path, text, .dg-num) { transition: opacity .3s; }
+.md-typeset .dg-running .dg-todo { opacity: .13; }
+.md-typeset .dg-edge.dg-done { stroke: var(--dg-ink); }
+.md-typeset .dg-edge.dg-active { stroke: var(--dg-accent); stroke-width: 2.6; }
+.md-typeset .dg-elabel.dg-active rect { stroke: var(--dg-accent); }
+.md-typeset .dg-elabel.dg-active text, .md-typeset .dg-msgtext.dg-active { fill: var(--dg-accent) !important; font-weight: 700; }
+.md-typeset .dg-num.dg-active circle { fill: var(--dg-accent); }
+.md-typeset .dg-node.dg-seen .dg-shape { stroke: var(--dg-ink); }
+.md-typeset .dg-node.dg-cur .dg-shape {
+  stroke: var(--dg-accent);
+  stroke-width: 2.4;
+  fill: color-mix(in srgb, var(--dg-accent) 16%, var(--dg-bg));
+}
+.md-typeset .dg-dot { fill: var(--dg-accent); stroke: var(--dg-bg); stroke-width: 2; pointer-events: none; }
+.md-typeset .dg-halo { fill: var(--dg-accent); opacity: .22; pointer-events: none; }
+
+.md-typeset .dg-bar {
+  display: flex; align-items: center; gap: .25rem; padding: .3rem .6rem;
+  border-top: .05rem solid var(--dg-line); background: var(--dg-panel); font-size: .64rem;
+}
+.md-typeset .dg-bar button {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 1.5rem; height: 1.5rem; padding: 0 .3rem;
+  border: none; border-radius: .25rem; background: none; color: var(--dg-fg2); font: inherit; cursor: pointer;
+}
+.md-typeset .dg-bar button:hover { background: var(--dg-line); color: var(--dg-fg); }
+.md-typeset .dg-bar .dg-playbtn { color: var(--dg-ink); }
+.md-typeset .dg-bar .dg-speed { font-family: var(--md-code-font-family); font-weight: 700; }
+.md-typeset .dg-count { margin-left: .3rem; color: var(--dg-fg2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.md-typeset .dg-progress { flex: 1; display: flex; align-items: center; gap: 2px; min-width: 4rem; margin: 0 .5rem; }
+.md-typeset .dg-bar .dg-progress button {
+  flex: 1 1 0; min-width: .3rem; height: .45rem; padding: 0; border-radius: .15rem; background: var(--dg-line); transition: background .2s, height .2s;
+}
+.md-typeset .dg-bar .dg-progress button.done { background: color-mix(in srgb, var(--dg-ink) 50%, var(--dg-bg)); }
+.md-typeset .dg-bar .dg-progress button.cur { height: .7rem; background: var(--dg-accent); }
+.md-typeset .dg-bar .dg-progress button:hover { background: var(--dg-fg3); }
+.md-typeset .dg-caption {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: .2rem .5rem; min-height: 1.9rem; padding: .4rem .8rem;
+  border-top: .05rem solid var(--dg-line); border-radius: 0 0 .5rem .5rem;
+  background: color-mix(in srgb, var(--dg-ink) 8%, var(--dg-bg)); font-size: .66rem;
+}
+.md-typeset .dg-n {
+  flex: none; align-self: center; display: inline-flex; align-items: center; justify-content: center; min-width: 1.15rem; height: 1.15rem;
+  padding: 0 .25rem; border-radius: 1rem; background: var(--dg-accent); color: var(--dg-bg); font-size: .58rem; font-weight: 700;
+}
+.md-typeset .dg-who { font-weight: 700; color: var(--dg-ink); }
+.md-typeset .dg-hint { color: var(--dg-fg2); }
+
+@media (max-width: 600px) { .md-typeset .dg-progress { display: none; } }
+@media (prefers-reduced-motion: reduce) { .md-typeset .dg-svg * { transition: none !important; } }

@@ -101,10 +101,11 @@ There is no right architecture — only **justified** ones. The skill is to turn
 | **Client** | Client, Mobile | 1 |
 | **Traffic & edge** | DNS, CDN, Load Balancer, WAF, API Gateway, Ingress | 4 |
 | **Compute** | App Server, Worker, Serverless, Auth, Search, Scheduler, Notifications, Analytics | 5 |
+| **Containers** | Microservice, Container, Kubernetes Cluster, Service Registry | 11 |
 | **Storage** | SQL, NoSQL, Cache, Object Store, Data Warehouse, Vector DB | 6, 7 |
 | **Messaging** | Message Queue, Pub/Sub, Event Stream, Kafka | 8 |
-| **Observability** | Metrics, Logs, Tracing, Alerting, Health Check | 10 |
-| **Network** | VPC, Subnet, NAT Gateway, VPN, Service Mesh | 11 |
+| **Observability** | Metrics, Logs, Tracing, Alerting, Health Check | 9 |
+| **Network** | VPC, Subnet, NAT Gateway, VPN, Service Mesh | 12 |
 | **AI & agents** | LLM Gateway, Orchestrator, Tool Registry, Memory Fabric, Safety Mesh | 13 |
 | **External** | 3rd Party API, Payment, Email | 5 |
 
@@ -117,12 +118,12 @@ There is no right architecture — only **justified** ones. The skill is to turn
 <div class="cols">
 <div>
 
-### Theory (15 classes)
+### Theory (16 classes)
 
 - **Foundations**: intro, estimation, distributed systems
 - **The palette**: edge, compute, databases, caching, messaging
-- **Production**: reliability, observability, network & security, cloud-native
-- **Together**: AI systems, performance, case studies
+- **Production**: observability, reliability, cloud-native, network & security
+- **Together**: AI systems, AI-assisted delivery, performance, case studies
 
 </div>
 <div>

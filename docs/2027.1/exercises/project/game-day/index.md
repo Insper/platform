@@ -10,7 +10,7 @@ Your system passed its load tests on a sunny day. Production is not sunny: the p
     - **Respond** to a surprise fault injected by the instructor, measuring time to detect and time to mitigate.
     - **Learn** from it: a blameless report with action items, owners and follow-up.
 
-This milestone builds on [Class 9 — Reliability](../../../classes/reliability/index.md), [Class 10 — Observability](../../../classes/observability/index.md) and [Lab 9](../../../hands-on/9/index.md) (Resilience4j, Toxiproxy, game day). The game day **runs in class in week 17**; weight **10%** of the project.
+This milestone builds on [Class 9 — Observability](../../../classes/observability/index.md), [Class 10 — Reliability](../../../classes/reliability/index.md) and [Lab 9](../../../hands-on/9/index.md) (Resilience4j, Toxiproxy, game day). The game day **runs in class in week 17**; weight **10%** of the project.
 
 ## What to deliver
 
@@ -42,7 +42,7 @@ Chaos engineering is an experiment, not vandalism[^1]:
 4. **Observe** and compare with steady state; **abort** if an abort condition is met.
 5. **Recover**, check correctness, and **learn**: confirmed hypotheses build confidence, refuted ones are the valuable ones.
 
-```mermaid-sim
+``` diagram-sim
 flowchart LR
     steady["Steady state<br/>SLIs at known load"] --> hyp["Hypothesis<br/>SLI stays within bounds"]
     hyp --> inject["Inject one fault<br/>small blast radius"]

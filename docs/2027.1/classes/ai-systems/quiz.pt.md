@@ -2,7 +2,7 @@ Clique em **"Resposta"** para ver a alternativa correta e a explicação.
 
 ---
 
-## Componentes e números
+## Componentes e números { #components-and-numbers }
 
 **Q1.** O primeiro protótipo do assistente da BoxOffice chama o provedor do modelo diretamente a partir do serviço `assistant`. Qual componente da paleta deve ser adicionado **primeiro** para que a queda de um provedor, um loop de retries descontrolado e a pergunta "quanto custa cada conversa?" sejam tratados em um só lugar?
 
@@ -104,7 +104,7 @@ Clique em **"Resposta"** para ver a alternativa correta e a explicação.
 
 ---
 
-## Agentes e ferramentas
+## Agentes e ferramentas { #agents-and-tools }
 
 **Q8.** Cada passo de um agente está correto com probabilidade 0,95, de forma independente. Qual é, aproximadamente, a probabilidade de uma tarefa de 10 passos dar certo, e qual é a principal lição de projeto?
 
@@ -162,7 +162,7 @@ Clique em **"Resposta"** para ver a alternativa correta e a explicação.
 
 ---
 
-## RAG, memória, segurança e avaliação
+## RAG, memória, segurança e avaliação { #rag-memory-safety-and-evaluation }
 
 **Q12.** Um fã pergunta: *"tem acesso sem degraus ao setor C?"*. A busca vetorial devolve chunks sobre "acessibilidade" em geral, mas perde aquele que cita "setor C" e "portão 5". Que mudança resolve isso mais diretamente?
 

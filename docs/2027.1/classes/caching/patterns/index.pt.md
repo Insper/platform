@@ -17,7 +17,7 @@ Ao longo da página o exemplo é o serviço `catalog` da BoxOffice: `GET /events
 
 **Cache-aside** (também chamado de *lazy loading*, carregamento preguiçoso) é o padrão default e o que você deve supor, a não ser que haja um motivo para outro. A aplicação conversa com o cache e com o banco; o cache é um armazenamento chave-valor passivo que não sabe nada sobre o banco[^1].
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant A as serviço catalog
     participant R as Redis
@@ -46,9 +46,9 @@ Seus custos:
 - **Janela de defasagem**: entre a escrita no banco e a remoção, e em algumas condições de corrida ([Invalidação](../invalidation/index.md#race)), leitores podem ver um valor antigo — limitado pelo TTL.
 - **A lógica de cache fica espalhada pelo código da aplicação** — a não ser que um framework a esconda.
 
-### Cache-aside no Spring Boot
+### Cache-aside no Spring Boot { #cache-aside-in-spring-boot }
 
-A abstração de cache do Spring implementa cache-aside com anotações: `@Cacheable` envolve o caminho de leitura, `@CacheEvict` a remoção na escrita. É a configuração usada no [Hands-on 5](../../../hands-on/5/index.md).
+A abstração de cache do Spring implementa cache-aside com anotações: `@Cacheable` envolve o caminho de leitura, `@CacheEvict` a remoção na escrita. É o jeito mais curto de escrever o padrão num serviço Spring; o [Hands-on 5](../../../hands-on/5/index.md) o escreve à mão, para que cada passo possa ser visto e medido (quadro abaixo).
 
 ```java title="catalog/src/main/java/boxoffice/catalog/EventService.java"
 @Service
@@ -105,7 +105,17 @@ public class CacheConfig {
 
     Por padrão o `@CacheEvict` executa **depois** que o método retorna — mas o `@Transactional` pode fazer o commit ainda mais tarde, quando a cadeia de proxies se desfaz. Se a remoção acontecer *antes* do commit, um leitor concorrente pode errar, ler a linha **antiga** (a mudança ainda não foi confirmada) e colocá-la de volta no cache. Garanta que a remoção aconteça depois do commit: ordene os proxies para que a transação confirme primeiro, use `TransactionAwareCacheManagerProxy` (ou `RedisCacheManager.builder(...).transactionAware()`), ou remova num `@TransactionalEventListener(phase = AFTER_COMMIT)`.
 
-### Cache-aside à mão (Python)
+!!! example "No código do BoxOffice: cache-aside no `catalog` (lab 5)"
+
+    O [Hands-on 5 — Cache-aside](../../../hands-on/5/cache-aside/index.md) implementa o padrão sem anotações, para que as decisões fiquem explícitas: lê o Redis primeiro; num miss, carrega do PostgreSQL e guarda o JSON exato devolvido ao cliente, com o TTL mais até 10% de jitter; se o Redis falha, registra no log e trata como miss — **o cache é uma otimização, não uma dependência**. Toda resposta traz o resultado (`HIT`, `MISS`, `BYPASS`) num cabeçalho `X-Cache` e num contador, que é como o lab mede a taxa de acerto.
+
+    ``` { .java title="services/catalog/src/main/java/boxoffice/catalog/EventCache.java (get and load)" }
+    --8<-- "docs/2027.1/hands-on/5/code/services/catalog/src/main/java/boxoffice/catalog/EventCache.java:54:61,86:87,99:117"
+    ```
+
+    O caminho de escrita está no `EventController.java`: `service.updateEvent(...)` faz o commit, e só então `cache.evict(eventKey(id))` remove a chave — *escreva primeiro, depois remova*, a ordem explicada em [Invalidação](../invalidation/index.md#delete-vs-update).
+
+### Cache-aside à mão (Python) { #cache-aside-by-hand-python }
 
 Sem framework, o padrão cabe numa dúzia de linhas. É o que o `@Cacheable` faz por trás:
 
@@ -139,7 +149,7 @@ def update_event(event_id: int, change: dict, db) -> None:
 
 No **read-through**, a aplicação só conversa com o cache. Numa falta, *o próprio cache* carrega o valor do banco, usando uma função *loader* que você registra. A lógica sai da aplicação e vai para a camada de cache.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant A as serviço catalog
     participant C as Cache com loader
@@ -171,7 +181,7 @@ Uma propriedade útil: um bom cache read-through **agrupa** (*coalesce*) faltas 
 
 No **write-through**, toda escrita vai para o cache *e* para o banco como parte da mesma operação, antes de o cliente receber a resposta. O cache fica sempre aquecido com o último valor de cada chave escrita.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant A as serviço catalog
     participant C as Cache
@@ -193,7 +203,7 @@ Write-through serve para dados lidos logo depois de escritos: o perfil do usuár
 
 O **write-behind** (ou *write-back*) confirma a escrita assim que o cache a recebe e persiste no banco **depois**, de forma assíncrona, muitas vezes em lotes.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant A as serviço
     participant C as Cache
@@ -232,7 +242,7 @@ No **write-around**, as escritas vão direto para o banco e o cache não é toca
 
 O **refresh-ahead** recarrega uma entrada quente **antes** de ela expirar, para que os leitores nunca vejam a falta. Uma tarefa em segundo plano (ou o primeiro leitor depois de um limiar, por exemplo quando 80% do TTL já passou) busca o valor novo enquanto o atual continua sendo servido.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant A as Leitor
     participant C as Cache
@@ -250,7 +260,7 @@ O Caffeine implementa isso com `refreshAfterWrite`; a versão probabilística, q
 
 ---
 
-## Comparando os padrões
+## Comparando os padrões { #comparing-the-patterns }
 
 | | Cache-aside | Read-through | Write-through | Write-behind | Write-around | Refresh-ahead |
 |---|---|---|---|---|---|---|
@@ -264,9 +274,14 @@ O Caffeine implementa isso com `refreshAfterWrite`; a versão probabilística, q
 
 Na prática, os sistemas **combinam** os padrões: cache-aside + write-around (remoção na escrita) é a base comum; refresh-ahead é acrescentado para as poucas chaves mais quentes; write-behind fica reservado para contadores.
 
+<div class="csim" data-sim="cache" data-size="500" data-strategy="aside"></div>
+
+!!! tip "Experimente"
+    O TTL começa em 60 s, o `CACHE_TTL_EVENT` do [Hands-on 5](../../../hands-on/5/cache-aside/index.md). Dê play e deixe o cache aquecer: depois de um minuto a taxa de acerto se estabiliza perto de 86% e o banco recebe cerca de 29 das 200 leituras/s, sem nenhuma leitura desatualizada, porque cada edição apaga sua chave. Mude para **só TTL**: células laranja aparecem nos eventos quentes, e cerca de 11% das leituras devolvem um evento mais velho que o banco (com TTL de 10 s, cerca de 2%, mas a taxa de acerto cai para 79%: o TTL troca frescor por carga). **Write-through** é tão atualizado quanto apagar a chave e evita a falta depois de cada edição. Reduza o cache para 100 chaves: o LRU despeja parte do conjunto quente, e a taxa de acerto cai para cerca de 58% (85 leituras/s no banco).
+
 ---
 
-## Desenhando chaves e valores do cache
+## Desenhando chaves e valores do cache { #designing-cache-keys-and-values }
 
 Os padrões dizem *quando* ler e escrever no cache; o desenho de chaves e valores decide se ele funciona em escala.
 
@@ -301,7 +316,7 @@ boxoffice:session:9f1c2e...                   # a session
 
 Cada réplica do serviço `catalog` pode manter um pequeno **cache em processo (L1)** na frente do **Redis compartilhado (L2)**:
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     REQ["requisição"] --> L1["L1: Caffeine<br/>na JVM, ~1 µs"]
     L1 -->|"falta"| L2[("L2: Redis<br/>compartilhado, ~0,5 ms")]
@@ -328,6 +343,14 @@ flowchart LR
 
     Diga o padrão e a invalidação de uma vez só: "cache-aside no Redis para os detalhes do evento, TTL de 5 minutos, remoção na escrita depois do commit, e um L1 em processo de 2 segundos para os eventos mais quentes durante a abertura de vendas". Depois mostre que conhece os custos: a penalidade da falta, a janela de defasagem e a corrida que o TTL limita. Se o entrevistador apertar na consistência, diga o que você **não** cacheia e por quê.
 
+!!! success "Boas práticas"
+
+    - **Comece com cache-aside**; troque de padrão só quando um requisito pedir (read-through para compartilhar o carregador, write-through quando as leituras precisam ver a última escrita, write-behind só para dados que você pode perder).
+    - **Cacheie o DTO ou a resposta exata**, não a entidade: um acerto então não custa consulta nem serialização. No BoxOffice: o `catalog` guarda o JSON que devolve ([quadro acima](#cache-aside)).
+    - **Projete as chaves de propósito**: um namespace, toda dimensão de que a resposta depende (idioma, moeda, página) e um sufixo de versão que você pode subir quando o formato muda (`boxoffice:catalog:event:42:v3`).
+    - **Faça o commit, depois remova a chave** — depois da transação, nunca dentro dela.
+    - **Cacheie respostas negativas por pouco tempo** (um id inexistente por alguns segundos), para que misses repetidos não cheguem ao banco.
+
 !!! warning "Armadilhas comuns"
 
     - **Atualizar o cache na escrita** em vez de remover: dois escritores concorrentes podem deixar o valor mais antigo no cache para sempre (veja [Invalidação](../invalidation/index.md#delete-vs-update)).
@@ -339,7 +362,7 @@ flowchart LR
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     CA["cache-aside<br/>a app preenche no miss"] --> INV["apagar após o commit<br/>→ Invalidação"]
     RT["read-through<br/>a biblioteca do cache carrega"] --> INV

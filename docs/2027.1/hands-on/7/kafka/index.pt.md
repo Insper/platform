@@ -1,4 +1,4 @@
-# 1. Kafka no Compose
+# 1. Kafka no Compose { #1-kafka-in-compose }
 
 Neste passo você substitui o seu `docker-compose.yaml` pelo arquivo completo deste lab, sobe os quatro
 novos contêineres de infraestrutura e conhece o Kafka pela linha de comando. Todos os comandos rodam na
@@ -11,7 +11,7 @@ novos contêineres de infraestrutura e conhece o Kafka pela linha de comando. To
 | `kafka-ui` | `kafbat/kafka-ui:v1.5.0` | 8089 | navegar por tópicos, mensagens, *headers* e *lag* dos consumidores |
 | `mailpit` | `axllent/mailpit:v1.31` | 8025 (web), 1025 (SMTP) | provedor de e-mail falso, com caixa de entrada e API |
 
-## Kafka em modo KRaft
+## Kafka em modo KRaft { #kafka-in-kraft-mode }
 
 O Kafka guarda os próprios metadados (tópicos, partições, líderes) em um quórum Raft de
 **controladores** — o **KRaft**. O ZooKeeper não existe mais desde o Kafka 4.0. Aqui um único nó faz
@@ -121,7 +121,7 @@ Três detalhes importam:
     número de partições muda para qual partição cada chave vai, quebrando a ordem por chave das
     mensagens em trânsito.
 
-## Suba e confira
+## Suba e confira { #start-and-check }
 
 <!-- termynal -->
 
@@ -150,7 +150,7 @@ o Kafka UI em `http://localhost:8089` (cluster *boxoffice* online, tópicos `ord
 máquina. Se o `kafka` ficar em `starting` por mais de um minuto, veja Solução de problemas na
 [visão geral](../index.md#troubleshooting).
 
-## Um passeio de cinco minutos pelo log
+## Um passeio de cinco minutos pelo log { #a-five-minute-tour-of-the-log }
 
 Antes que o Spring esconda tudo, sinta como um **log** difere de uma fila. Abra dois terminais.
 

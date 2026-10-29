@@ -2,7 +2,7 @@ The first AI step is the one with the best cost/benefit ratio: a reviewer that r
 
 ## 1.1 How it works
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     actor Dev as Developer

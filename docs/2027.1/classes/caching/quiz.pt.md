@@ -2,7 +2,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Por que o cache funciona e a matemática da taxa de acerto
+## Por que o cache funciona e a matemática da taxa de acerto { #why-caching-works-and-hit-ratio-math }
 
 **Q1.** A página do evento da BoxOffice recebe **40.000 leituras por segundo**. Com o cache atual, a taxa de acerto é **95%**. O time a melhora para **99%**. O que acontece com o número de leituras que chegam ao banco?
 
@@ -60,7 +60,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Padrões
+## Padrões { #patterns }
 
 **Q5.** Um organizador edita o evento 42. O serviço `catalog` usa cache-aside. Qual sequência de escrita é a escolha padrão e mais segura?
 
@@ -104,7 +104,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Invalidação e despejo
+## Invalidação e despejo { #invalidation-and-eviction }
 
 **Q8.** No cache-aside, o código já remove a chave depois de toda escrita. Por que os eventos cacheados **ainda** devem ter TTL?
 
@@ -148,7 +148,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Modos de falha
+## Modos de falha { #failure-modes }
 
 **Q11.** A página do evento cacheada do show de estádio é lida **20.000 vezes por segundo**. Recalculá-la leva **200 ms**. Quando a chave expira e nada a protege, cerca de quantas requisições chegam ao banco com a mesma consulta?
 

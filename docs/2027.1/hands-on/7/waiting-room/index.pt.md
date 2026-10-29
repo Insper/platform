@@ -1,4 +1,4 @@
-# 4. Sala de Espera
+# 4. Sala de Espera { #4-waiting-room }
 
 Às 10:00, 2 milhões de fãs apertam "Comprar" para 60 mil assentos. O Kafka protege `notification` da
 rajada, mas a rajada atinge primeiro o caminho **síncrono**: reservas de assentos e pedidos, apoiados
@@ -7,7 +7,7 @@ resposta usual de sites de ingressos e de lançamentos de tênis é uma **sala d
 fila *na frente* do sistema que deixa os fãs entrarem no ritmo que o sistema consegue atender, em
 ordem de chegada, e diz a todos os outros a sua posição com honestidade.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     fans["2 M de fãs"] -->|POST join| wr["sala de espera (FIFO no Redis)"]
     wr -->|"posição, ETA"| fans
@@ -26,7 +26,7 @@ $$
 \qquad \text{ex.: } \frac{30\,000}{500\ \text{fãs/s}} = 60\ \text{s}
 $$
 
-## Projeto
+## Projeto { #design }
 
 | Decisão | Escolha aqui | Por quê |
 |---|---|---|
@@ -43,7 +43,7 @@ $$
     ou um produto de sala de espera de CDN. Este lab a aplica em `order` para ficar pequeno; movê-la
     para o gateway é uma boa extensão.
 
-## Código (no serviço `order`)
+## Código (no serviço `order`) { #code-in-the-order-service }
 
 === "WaitingRoom.java"
 
@@ -85,7 +85,7 @@ boxoffice:
     admission-ttl: 5m
 ```
 
-## Experimente
+## Experimente { #try-it }
 
 <!-- termynal -->
 

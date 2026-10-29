@@ -16,7 +16,7 @@ On the second, everything is up. At 22:00 an engineer runs a cleanup script agai
 **RTO — Recovery Time Objective**
 : The maximum **time** from the disaster until service is restored. RTO = 1 hour means fans can buy tickets again at most one hour after the failure.
 
-``` mermaid
+``` diagram
 flowchart LR
     lb["last good<br/>recovery point"] -->|"RPO: data lost"| d(("disaster<br/>22:00"))
     d -->|"RTO: service down"| r["service<br/>restored"]
@@ -99,6 +99,17 @@ $$
 Synchronous replication across regions puts a cross-region round trip in every write: $\approx 30$–$100$ ms per commit is often unacceptable for the seat-hold path. So multi-region DR usually means **asynchronous** replication, and an RPO equal to the replication lag at the moment of the disaster. That is why "RPO = 0 across regions" is either very expensive (synchronous replication, or a globally consistent database such as Spanner or CockroachDB paying the latency) or a misunderstanding.
 
 Multi-region is also a **legal** question: personal data may be subject to residency rules (LGPD in Brazil, GDPR in the EU), which constrain which regions can hold the copy.
+
+!!! info "Try it in the playground: RPO and RTO of one failover"
+
+    The `db-failover` scenario is the flash-sale checkout — 1,500 req/s, half of them writes — on a primary with one follower replicated **asynchronously**. At t = 90 s the primary dies and the promotion takes 30 s. Press **Run** and read two numbers: about **1,600 lost writes** (orders acknowledged by the primary but still inside the replication lag: the RPO) and an availability of about **90.6%** (30 s in which every write fails: the RTO). Then select the cluster and change one knob at a time:
+
+    - **Replication: sync** — lost writes drop to **0**, availability stays at 90.6%: a better RPO, the same RTO, and every write now pays a round trip to the follower.
+    - **Failover time: 5 s** (back to async) — availability rises to about **98.1%**, but the ~1,600 orders are still lost.
+
+    The possible solution does both — quorum replication with 2 followers, a 5 s failover — and splits the keys over 2 shards, so a dead primary takes only half of the writes with it: 0 lost, about 99.2% available. RPO and RTO are separate knobs, and each one has its own price.
+
+<div class="sdp" data-scenario="db-failover" data-mode="compact" data-height="520"></div>
 
 ---
 
@@ -191,7 +202,7 @@ Active-active is easy for **read-mostly** data: the catalog can be read in any r
 
 A regional failover is a sequence of steps, each with a duration that adds to the RTO:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant M as external monitors
     participant OC as on-call
@@ -239,6 +250,8 @@ Points that decide whether it works:
 | **Tier 2** — derived | `search`, `notification` | **Pilot light**: rebuild the index from the catalog; replay unsent notifications from Kafka | Derived / replayable | 4 h |
 | **Tier 3** — internal | analytics, warehouse | **Backup and restore** | 24 h | 2 days |
 
+Why a **warm standby** for tier 0, and not something cheaper or something stronger: the 15-minute RTO rules out backup and restore (restoring the 2 TB `order` database alone takes about 2.8 hours) and makes pilot light risky (promoting and scaling from zero takes tens of minutes); active-active would let two regions sell seat B-12 at once. The price is a second region running at about a tenth of the scale all year, plus the drills that prove it can take over.
+
 And the practices that keep the plan honest:
 
 - **A runbook** per scenario (region loss, database corruption, compromised account) with the exact commands, owners and the decision criteria.
@@ -247,6 +260,14 @@ And the practices that keep the plan honest:
 
 !!! tip "In the interview"
     When asked "what if the region goes down?" or "what if someone deletes the table?", start with **RPO and RTO per data class** — then pick the cheapest strategy that meets them. Distinguish clearly: **replication** protects against infrastructure loss, **backups with PITR** against logical corruption. For a system with strong invariants (seats, balances), say why active-active is hard (conflicting writes) and propose a home region per entity with a warm standby. Quote the RTO as a sum of steps, including the DNS TTL.
+
+!!! success "Best practices"
+
+    - **Agree RPO and RTO per data class with the business, and write them in the runbook** — a single strict target for everything is the most expensive plan; the payment ledger and the analytics warehouse differ by a day.
+    - **Time every restore test and compare it with the RTO** — the arithmetic decides the design: 2 TB at 200 MB/s is 2.8 hours against a 15-minute RTO.
+    - **Alert on the WAL archiving lag** — it *is* the real RPO of point-in-time recovery; a lag of an hour means an hour of orders to rebuild by hand.
+    - **Keep the entry point's DNS TTL at 60 s or less, with health-checked records** — every second of TTL is a tail of fans still sent to the dead region.
+    - **Deploy the standby region from the same infrastructure code on every release** — images, secrets and configuration already in region B; a standby updated by hand drifts until the day it is needed.
 
 !!! warning "Common pitfalls"
 
@@ -259,7 +280,7 @@ And the practices that keep the plan honest:
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     BIZ["RPO and RTO<br/>per data class"] --> STRAT["backup and restore · pilot light ·<br/>warm standby · active-active"]
     INFRA["infrastructure loss<br/>(zone, region)"] --> REPL["replication, multi-AZ<br/>→ Databases — replication"]
@@ -273,7 +294,7 @@ flowchart LR
     FO --> DRILL["DR drills, restore tests<br/>→ Chaos engineering"]
 ```
 
-**Palette components:** [`sql`](../../../reference/components/storage/index.md#sql) (standby, replicas, PITR) · [`objstore`](../../../reference/components/storage/index.md#objstore) (base backups and the WAL archive) · [`dns`](../../../reference/components/edge/index.md#dns) (failover records and TTL) · [`cdn`](../../../reference/components/edge/index.md#cdn) (serves the catalog stale while the origin recovers) · [`kafka`](../../../reference/components/messaging/index.md#kafka) (replays unsent notifications) · [`app`](../../../reference/components/compute/index.md#app) (scaled from 2 to 12 replicas in the standby region). **Scenarios:** `multi-region`, `db-replicas`. **Continues in:** [Databases — replication](../../databases/replication/index.md), [Distributed — consistency](../../distributed/consistency/index.md), [Distributed — consensus](../../distributed/consensus/index.md), [Edge — DNS & CDN](../../edge/dns-cdn/index.md#dns-routing), [Cloud-native — delivery](../../cloud-native/delivery/index.md) (infrastructure as code), [Project — game day](../../../exercises/project/game-day/index.md).
+**Palette components:** [`sql`](../../../reference/components/storage/index.md#sql) (standby, replicas, PITR) · [`objstore`](../../../reference/components/storage/index.md#objstore) (base backups and the WAL archive) · [`dns`](../../../reference/components/edge/index.md#dns) (failover records and TTL) · [`cdn`](../../../reference/components/edge/index.md#cdn) (serves the catalog stale while the origin recovers) · [`kafka`](../../../reference/components/messaging/index.md#kafka) (replays unsent notifications) · [`app`](../../../reference/components/compute/index.md#app) (scaled from 2 to 12 replicas in the standby region). **Scenarios:** `db-failover`, `multi-region`, `db-replicas`. **Continues in:** [Databases — replication](../../databases/replication/index.md), [Distributed — consistency](../../distributed/consistency/index.md), [Distributed — consensus](../../distributed/consensus/index.md), [Edge — DNS & CDN](../../edge/dns-cdn/index.md#dns-routing), [Cloud-native — delivery](../../cloud-native/delivery/index.md) (infrastructure as code), [Project — game day](../../../exercises/project/game-day/index.md).
 
 ---
 

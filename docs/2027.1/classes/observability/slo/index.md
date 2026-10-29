@@ -7,7 +7,7 @@
 | **Error budget** | — | The failure the SLO allows: 1 − SLO | 0.1% of seat-hold requests may fail or be slow |
 | **SLA** | Service Level Agreement | A contract with customers, with penalties | Promised to partner venues: 99.5% monthly, or service credits |
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     tel["Telemetry<br/>(metrics, logs, traces)"] -->|"aggregated into"| sli["SLI<br/>good / valid events"]
     sli -->|"compared with"| slo["SLO<br/>internal target"]
@@ -65,12 +65,12 @@ Both words matter. **Good** defines success from the user's point of view — "s
 | **Synthetic probes** | A scripted journey from outside, even with no traffic | Real users' diversity |
 | **Client (browser / app) telemetry** | What users truly experience | Noisy; depends on users' networks |
 
-A common choice is to compute SLIs at the **gateway** (close to the user, but under your control) and complement them with synthetic probes of the purchase journey. With OpenTelemetry metrics exported to Prometheus (see [Observability](../../observability/index.md)), the availability SLI of the seat-hold route over 5 minutes is:
+A common choice is to compute SLIs at the **gateway** (close to the user, but under your control) and complement them with synthetic probes of the purchase journey. With OpenTelemetry metrics exported to Prometheus (see [Signals](../signals/index.md)), the availability SLI of the seat-hold route over 5 minutes is:
 
 ```promql
-sum(rate(http_server_request_duration_seconds_count{job="gateway", http_route="/holds", http_response_status_code!~"5.."}[5m]))
+sum(rate(http_server_request_duration_seconds_count{service_name="gateway", http_route="/holds", http_response_status_code!~"5.."}[5m]))
 /
-sum(rate(http_server_request_duration_seconds_count{job="gateway", http_route="/holds"}[5m]))
+sum(rate(http_server_request_duration_seconds_count{service_name="gateway", http_route="/holds"}[5m]))
 ```
 
 !!! example "A freshness SLI for asynchronous work"
@@ -97,7 +97,7 @@ Use a **rolling window** (the last 28 days, moving every minute) rather than a c
 How to choose the number:
 
 - **Measure first.** Look at the SLI over the last 30–90 days, then set the SLO slightly below what you already achieve. A target you already miss every week is noise.
-- **Respect the dependency math.** `order` cannot promise more than the product of what it calls synchronously ([overview](../index.md#composite-availability)). If the payment provider offers 99.9%, a purchase SLO of 99.99% is fiction.
+- **Respect the dependency math.** `order` cannot promise more than the product of what it calls synchronously ([Reliability — composite availability](../../reliability/index.md#composite-availability)). If the payment provider offers 99.9%, a purchase SLO of 99.99% is fiction.
 - **Ask what users notice.** Going from 99.9% to 99.99% costs a lot (see the nines table); if fans would not notice, the money is better spent on features.
 - **Never 100%.** It leaves no room for deploys, maintenance or the unavoidable, and every dependency you have is below it anyway.
 
@@ -201,7 +201,7 @@ The two incidents teach different lessons:
 - The **bad deploy** has a huge burn rate (50×) for a short time. It must **page** someone within minutes, and the budget shows what it cost: about a fifth of the month.
 - The **slow degradation** never looks dramatic — 0.2% errors would not alarm anyone on a dashboard — but at 2× it **exhausts the budget around day 26**. Only a slow-burn alert over a long window catches it.
 
-### Alerting on burn rate
+### Alerting on burn rate { #alerting-on-burn-rate }
 
 Alert on the budget, not on raw error rates or CPU. The SRE Workbook recommends **multi-window, multi-burn-rate** alerts[^2]: a long window to measure significance, a short window to stop the alert quickly once the problem is fixed.
 
@@ -211,18 +211,30 @@ Alert on the budget, not on raw error rates or CPU. The SRE Workbook recommends 
 | Page | 6× | 6 h | 30 min | 5% |
 | Ticket | 1× | 3 days | 6 h | 10% |
 
+<div class="csim" data-sim="slo-burn" data-slo="99.9"></div>
+
+!!! tip "Try it"
+    The window holds the two incidents of the plot above plus a few short blips. Press play (speed up with the `1×` button) and compare the four alert lanes.
+
+    - **Blips**: the naive rule (*errors > 0.1% over 5 min*) pages on almost every one — 10 times this month — although all 14 blips together cost only 1.6% of the budget. The burn-rate rules stay silent.
+    - **Bad deploy** (day 9, 5% for 3 h): the 14.4× rule pages 17 minutes in, when the incident has cost 2.2% of the budget; the 6× rule follows after 42 minutes (5.3%). The whole incident costs 22.3%.
+    - **Slow degradation** (2× from day 16): no page at all; the 3-day ticket fires 34 hours in (day 17.4) with 39% of the budget spent — more than 8 days before it runs out (day 25.9).
+    - Press **clear incidents**, play to day 2, pause and inject *0.7% for 3 days*: no fast page, but the 6× rule pages after about 5 hours. With *20% for 30 min* the page comes after 4 minutes, yet the incident still costs about 15%: an alert can only save the budget that is not burnt yet.
+
+    Lab 9 provisions the same 14.4× and 6× rules (as page and ticket) for `order`, with a 99.5% SLO.
+
 ```yaml
 # Prometheus alerting rule: purchase path, SLO 99.9% (budget = 0.001)
 - alert: PurchaseErrorBudgetFastBurn
   expr: |
     (
-      sum(rate(http_server_request_duration_seconds_count{job="gateway", http_route=~"/holds|/orders", http_response_status_code=~"5.."}[1h]))
-      / sum(rate(http_server_request_duration_seconds_count{job="gateway", http_route=~"/holds|/orders"}[1h]))
+      sum(rate(http_server_request_duration_seconds_count{service_name="gateway", http_route=~"/holds|/orders", http_response_status_code=~"5.."}[1h]))
+      / sum(rate(http_server_request_duration_seconds_count{service_name="gateway", http_route=~"/holds|/orders"}[1h]))
     ) > (14.4 * 0.001)
     and
     (
-      sum(rate(http_server_request_duration_seconds_count{job="gateway", http_route=~"/holds|/orders", http_response_status_code=~"5.."}[5m]))
-      / sum(rate(http_server_request_duration_seconds_count{job="gateway", http_route=~"/holds|/orders"}[5m]))
+      sum(rate(http_server_request_duration_seconds_count{service_name="gateway", http_route=~"/holds|/orders", http_response_status_code=~"5.."}[5m]))
+      / sum(rate(http_server_request_duration_seconds_count{service_name="gateway", http_route=~"/holds|/orders"}[5m]))
     ) > (14.4 * 0.001)
   labels:
     severity: page
@@ -230,7 +242,15 @@ Alert on the budget, not on raw error rates or CPU. The SRE Workbook recommends 
     summary: "Purchase path burning the 28-day error budget 14.4x faster than allowed"
 ```
 
-The details of alert design, routing and on-call are in [Observability — alerting](../../observability/alerting/index.md).
+The details of alert design, routing and on-call are in [Observability — alerting](../alerting/index.md).
+
+!!! example "In the BoxOffice code: the SLO as an alert rule (labs 8 and 9)"
+
+    [Hands-on 8 — SLO and burn-rate alert](../../../hands-on/8/slo/index.md) writes the promise for `catalog`: 99.5% of the requests, health checks excluded, answered without a 5xx over 28 days — at 100 req/s, a budget of about 1.21 million failed requests. It provisions the 14.4× rule as a page and the 6× rule as a ticket, as files Grafana loads at startup. [Hands-on 9 — Game day](../../../hands-on/9/game-day/index.md) copies the file for `order`, so that a hidden failure on the payment path pages the operators. Read the excerpt for the three parts of the rule: query A (error ratio over 1 h, divided by the budget 0.005, is the burn rate), query B (the same over 5 min; B repeats A with `[5m]`, cut here) and condition C, which needs both. `http_route!~"/actuator.*"` keeps the probes out of the SLI.
+
+    ``` { .yaml title="infra/grafana/alerting/slo-order.yaml (the fast-burn rule)" }
+    --8<-- "docs/2027.1/hands-on/9/code/infra/grafana/alerting/slo-order.yaml:12:26,38:52"
+    ```
 
 ### The error budget policy
 
@@ -242,7 +262,7 @@ An error budget is only a number on a dashboard unless product and engineering a
     - **Budget between 0 and 50%**: deploys need a rollback plan and a canary; a reliability item enters every sprint.
     - **Budget exhausted**: feature deploys to the purchase path are frozen until the 28-day SLI is back above the SLO; only fixes and reliability work ship.
     - **On-sale rule**: no deploys to the purchase path in the 24 hours before a major on-sale, whatever the budget.
-    - **Single incident > 20% of the budget**: mandatory blameless postmortem with action items (see [Incident response](../../observability/incident-response/index.md)).
+    - **Single incident > 20% of the budget**: mandatory blameless postmortem with action items (see [Incident response](../incident-response/index.md)).
 
     Signed by the product manager and the engineering lead of the purchase path; reviewed every quarter.
 
@@ -281,6 +301,14 @@ Keep the **SLO stricter than the SLA** (e.g. SLO 99.95%, SLA 99.9%): the gap is 
 !!! tip "In the interview"
     In the requirements step, turn vague "highly available" into SLOs per journey: "seat holds 99.9% under 500 ms; browsing 99.5%; ticket e-mail within 2 minutes for 99%". Then use them: they justify redundancy (dependency math), asynchrony (removing non-critical dependencies) and alerting (burn rate). Mention that 99.99% means about 4 minutes a month, so it implies automated failover. Interviewers value hearing *why* a number was chosen more than the number itself.
 
+!!! success "Best practices"
+
+    - **Keep SLOs and their alert rules as code, in the repository, reviewed like any change** — a target nobody can diff or reproduce drifts. In BoxOffice: `slo-catalog.yaml` and `slo-order.yaml`, loaded by Grafana at startup (labs 8 and 9, [box above](#alerting-on-burn-rate)).
+    - **Filter probes and synthetic traffic out of the SLI with an explicit label** — health checks every few seconds inflate the success ratio with requests no fan made. In BoxOffice: `http_route!~"/actuator.*"` in the rules.
+    - **Start each SLO slightly below 30–90 days of measured SLI, and review it every quarter** — a target you already miss every week is noise, one you always beat is a budget nobody spends.
+    - **Show the remaining error budget wherever releases are planned** — the ship-or-freeze decision becomes routine instead of a debate: 28,000 failed purchases per 28 days at 99.9%.
+    - **Add an event-scoped SLO for every major on-sale** — one bad hour barely moves a 28-day budget, but it is the hour that matters; the waiting room promises 99.95% during each on-sale.
+
 !!! warning "Common pitfalls"
 
     - **Measuring the wrong thing**: an SLI from the health-check endpoint says nothing about `POST /holds`.
@@ -292,7 +320,7 @@ Keep the **SLO stricter than the SLA** (e.g. SLO 99.95%, SLA 99.9%): the gap is 
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     CUJ["critical user journeys"] --> SLI["SLI = good / valid events"]
     TEL["telemetry at the gateway<br/>→ Observability"] --> SLI
@@ -306,7 +334,7 @@ flowchart LR
     POL --> PM["postmortem over 20% of budget<br/>→ Incident response"]
 ```
 
-**Palette components:** [`metrics`](../../../reference/components/observability/index.md#metrics) (the SLI is a ratio of request counters) · [`alerting`](../../../reference/components/observability/index.md#alerting) (multi-window burn-rate rules) · [`apigw`](../../../reference/components/edge/index.md#apigw) (where BoxOffice measures the purchase SLI) · [`kafka`](../../../reference/components/messaging/index.md#kafka) (consumer lag, the early warning of the ticket-delivery freshness SLI) · [`payment`](../../../reference/components/external/index.md#payment) (its 99.9% caps the purchase SLO). **Scenarios:** `observability-stack`, `flash-sale` (the event-scoped on-sale SLO). **Continues in:** [Observability — alerting](../../observability/alerting/index.md), [Observability — incident response](../../observability/incident-response/index.md), [Estimation — availability math](../../estimation/availability-math/index.md), [Cloud-native — delivery](../../cloud-native/delivery/index.md), [Hands-on 8 — SLO and burn-rate alert](../../../hands-on/8/slo/index.md).
+**Palette components:** [`metrics`](../../../reference/components/observability/index.md#metrics) (the SLI is a ratio of request counters) · [`alerting`](../../../reference/components/observability/index.md#alerting) (multi-window burn-rate rules) · [`apigw`](../../../reference/components/edge/index.md#apigw) (where BoxOffice measures the purchase SLI) · [`kafka`](../../../reference/components/messaging/index.md#kafka) (consumer lag, the early warning of the ticket-delivery freshness SLI) · [`payment`](../../../reference/components/external/index.md#payment) (its 99.9% caps the purchase SLO). **Scenarios:** `observability-stack`, `flash-sale` (the event-scoped on-sale SLO). **Continues in:** [Observability — alerting](../alerting/index.md), [Observability — incident response](../incident-response/index.md), [Estimation — availability math](../../estimation/availability-math/index.md), [Cloud-native — delivery](../../cloud-native/delivery/index.md), [Hands-on 8 — SLO and burn-rate alert](../../../hands-on/8/slo/index.md).
 
 ---
 

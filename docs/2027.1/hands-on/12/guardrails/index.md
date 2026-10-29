@@ -6,7 +6,7 @@ card numbers, and will sometimes invent an event. The **safety mesh** of the
 of the model, and **metrics** make the cost and the latency of every answer visible next to the rest
 of BoxOffice in Grafana (lab 8).
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     q[question] --> in{"input guard"}
     in -->|"too long / injection"| block[422 blocked]

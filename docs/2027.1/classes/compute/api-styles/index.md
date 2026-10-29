@@ -269,7 +269,15 @@ class EventController {
 }
 ```
 
-[Hands-on 1](../../../hands-on/1/index.md) builds this service, serves the document at `/v3/api-docs` and the Swagger UI at `/swagger-ui.html`.
+[Hands-on 1](../../../hands-on/1/index.md) builds a simpler version of this controller (box below).
+
+!!! example "In the BoxOffice code: the `catalog` contract (lab 1)"
+
+    [Hands-on 1 — API](../../../hands-on/1/api/index.md) is code-first: springdoc reads the controller and publishes the OpenAPI document under the service's own prefix, `/catalog/openapi` (Swagger UI at `/swagger-ui.html`), so the document travels through the edge and the gateway with the API it describes. `POST` answers `201` with a `Location`, and every error is `application/problem+json`. Compare it with the ideal above: there is no `/v1` yet (add it before an external consumer depends on these paths), pagination is offset (`page`, `size` ≤ 50) over 200,000 seeded events, cheap for the first pages and slow for deep ones, and there is no `ETag`: the lab makes reads cheap with Redis instead ([lab 5](../../../hands-on/5/cache-aside/index.md)).
+
+    ``` { .java title="services/catalog/src/main/java/boxoffice/catalog/EventController.java (the contract, code-first)" }
+    --8<-- "docs/2027.1/hands-on/1/code/services/catalog/src/main/java/boxoffice/catalog/EventController.java:20:47"
+    ```
 
 ---
 
@@ -340,7 +348,7 @@ The contract still matters: event schemas need the same discipline as REST paylo
 | Coupling | request/response, temporal | request/response, temporal, codegen | request/response, temporal | **none in time**: consumers can be down |
 | Best for | public & partner APIs, CRUD, cacheable reads | internal high-QPS calls, polyglot services, streaming | front-ends composing many services (BFF) | side effects, fan-out, work that can wait |
 
-``` mermaid
+``` diagram
 flowchart TD
     q1{"Does the caller need<br/>the result to continue?"} -->|no| async["Async: event or queue<br/>(or a webhook to a partner)"]
     q1 -->|yes| q2{"Who is the consumer?"}
@@ -398,6 +406,14 @@ Then **expand and contract** (parallel change): ship v2 next to v1, migrate cons
 
     Mention **pagination** (cursor), **idempotency** for writes, **rate limits**, and say *why* you picked the style ("REST at the edge for cacheability and partners; gRPC internally between order and inventory"). Interviewers notice when you know which calls are retried and which must not duplicate.
 
+!!! success "Best practices"
+
+    - **Publish the contract from the build and fail CI on breaking changes** — generate the OpenAPI document on every build and diff it against the last release (oasdiff, openapi-diff): a removed field breaks the pipeline, not a consumer. In BoxOffice: springdoc publishes it at `/catalog/openapi` ([lab 1](../../../hands-on/1/api/index.md), box above).
+    - **Bound every collection** — a default and a maximum page size, rejected with `400` above the maximum. In BoxOffice: `size` ≤ 50 on `GET /catalog/events` (lab 1).
+    - **Return one error shape everywhere** — RFC 9457 Problem Details with a stable `type` URI that clients can switch on, never a free-text message they must parse. In BoxOffice: `spring.mvc.problemdetails.enabled: true` in every service.
+    - **Prefer opaque, non-sequential ids for private resources** — a sequential id leaks volume and invites enumeration of other users' objects. In BoxOffice: holds use UUIDs ([lab 6](../../../hands-on/6/holds/index.md)); public events keep database ids.
+    - **Deprecate with a date and a metric** — announce it with the `Sunset` header (RFC 8594), count calls per version, and remove the old version when its traffic reaches zero, not when the calendar says so.
+
 !!! warning "Common pitfalls"
 
     - **Leaking the implementation**: returning entities, database ids or internal enum names that you will never be able to change.
@@ -412,7 +428,7 @@ Then **expand and contract** (parallel change): ship v2 next to v1, migrate cons
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     CON["API = contract<br/>OpenAPI, proto, schema"] --> REST["REST<br/>public, cacheable"]
     CON --> GRPC["gRPC<br/>internal, high volume"]
@@ -428,12 +444,14 @@ flowchart LR
 
 **Palette components:** [`app`](../../../reference/components/compute/index.md#app) (every service publishes a contract) · [`client`](../../../reference/components/client/index.md#client) · [`mobile`](../../../reference/components/client/index.md#mobile) (consumers of the REST API and the GraphQL BFF) · [`cdn`](../../../reference/components/edge/index.md#cdn) (caches the cacheable `GET`s) · [`queue`](../../../reference/components/messaging/index.md#queue) (commands) · [`kafka`](../../../reference/components/messaging/index.md#kafka) (events such as `OrderConfirmed`) · [`payment`](../../../reference/components/external/index.md#payment) (calls BoxOffice back by webhook). **Scenarios:** `event-fanout`, `payment-system`, `chat` (server push). **Continues in:** [Edge — protocols](../../edge/protocols/index.md), [Edge — API gateway](../../edge/api-gateway/index.md), [Messaging — schema evolution](../../messaging/semantics/index.md#schema-evolution), [Integrations — idempotency keys](../integrations/index.md#idempotency-keys), [Hands-on 1](../../../hands-on/1/index.md).
 
-## Key takeaways
+## Key takeaways { #key-takeaways }
 
-- An API is a **contract**; describe it in a machine-readable form (OpenAPI, `.proto`, GraphQL schema, AsyncAPI) and expose DTOs, not entities.
-- **REST** for public and cacheable APIs, **gRPC** for internal high-volume calls, **GraphQL** for front-ends composing many services, **async** when the caller does not need to wait — real systems mix them.
-- Design REST with correct methods and status codes, **Problem Details** errors, **cursor pagination**, caching headers, `202` for long operations and **idempotency keys** for unsafe writes.
-- Evolve compatibly (tolerant readers, optional fields, never reuse protobuf tags, `@deprecated`); version only for breaking changes, then expand and contract; catch breaks with **contract tests**.
+!!! takeaways ""
+
+    - An API is a **contract**; describe it in a machine-readable form (OpenAPI, `.proto`, GraphQL schema, AsyncAPI) and expose DTOs, not entities.
+    - **REST** for public and cacheable APIs, **gRPC** for internal high-volume calls, **GraphQL** for front-ends composing many services, **async** when the caller does not need to wait — real systems mix them.
+    - Design REST with correct methods and status codes, **Problem Details** errors, **cursor pagination**, caching headers, `202` for long operations and **idempotency keys** for unsafe writes.
+    - Evolve compatibly (tolerant readers, optional fields, never reuse protobuf tags, `@deprecated`); version only for breaking changes, then expand and contract; catch breaks with **contract tests**.
 
 ---
 

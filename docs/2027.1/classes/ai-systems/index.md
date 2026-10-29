@@ -6,6 +6,10 @@ The first prototype was one line of code: send the message to a large language m
 
 None of these are machine-learning problems. They are **system design** problems — latency, capacity, cost, consistency, security, observability — around a new kind of dependency. This class treats the LLM the way the course treats every other component: as a box with numbers, failure modes and trade-offs[^1], surrounded by the five components of the **AI & AGENTS** palette.
 
+!!! quote "The story so far"
+
+    Chapter 13 of the [story of the course](../../index.md#story). BoxOffice now survives its on-sale: the edge, the caches and the waiting room carry the 2 M fans ([class 4](../edge/index.md) to [class 8](../messaging/index.md)), Kubernetes heals, scales and rolls it back ([class 11](../cloud-native/index.md)), and every call between services is authenticated ([class 12](../network-security/index.md)). What arrives next is not more traffic but a new kind of dependency: a model that answers in seconds, is billed per token, can be wrong in fluent prose and — given tools — can act on the inventory. **This class** answers: how do we put that box into the design without it becoming the weakest one?
+
 !!! abstract "Learning objectives"
 
     By the end of this class you should be able to:
@@ -109,7 +113,7 @@ Classic systems keep code and data apart; an LLM reads both as text. Anything th
 
 ### How they connect to the rest of the system
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     fan([Fan]) --> apigw["API Gateway<br/>auth, rate limit"]
     apigw --> orch["Orchestrator<br/>assistant service"]
@@ -137,7 +141,7 @@ Read the diagram as "the five new boxes reuse the old ones": the gateway is an A
 
 Follow the fan's message through the system. The model decides **which** tools to call; the orchestrator decides **whether** they run.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     actor F as Fan
@@ -254,6 +258,14 @@ What the numbers say:
 
     When the problem says "add an AI assistant", do not draw a single box called *LLM*. Draw the five components, then **estimate tokens**: prefix size, steps per request, tokens per step, requests per second at peak → tokens per minute and US$ per request. Say early which actions the assistant may take on its own and which need the user's confirmation. Mention one number for latency (TTFT and tokens per second) and one for cost (US$ per 1,000 requests) — it shows you treat the model as a dependency with a capacity, not as magic.
 
+!!! success "Best practices"
+
+    - **Write a token budget next to the latency SLO of every AI feature** — for example p95 TTFT < 1.5 s and ≤ 20,000 input tokens per request; with the [numbers above](#numbers), four model calls already use ~17,000, so a fifth step is a design change, not a tweak.
+    - **Decide the degraded mode before the launch** — the 10:00 peak asks ~34 M tokens per minute of the gateway; when the quota or the provider runs out, the fan gets the static FAQ link, never a `500`.
+    - **Return the model, the tokens and the cost with every answer** — a quality drop can then be tied to a model or prompt change in minutes. In BoxOffice: the `done` event of [lab 12's agent loop](../../hands-on/12/tools/index.md) carries `model`, `usage` and `ttft_ms`.
+    - **Make every answer show its sources** — a citation the fan can open is checkable by the fan and by code. In BoxOffice: the [output guard of lab 12](../../hands-on/12/guardrails/index.md) marks answers without valid `[event:id]` citations as `grounded: false`.
+    - **Give each AI feature an owner, a golden set and a kill switch** — a feature flag that turns the assistant off without a deploy is the fastest mitigation when it misbehaves at 10:00.
+
 !!! warning "Common pitfalls"
 
     - **Calling the provider directly from every service**: keys scattered across repositories, no global quota, no fallback, no single bill. Put an LLM gateway in front from day one.
@@ -268,7 +280,7 @@ What the numbers say:
 
 The five AI & AGENTS components wrap the model the way the rest of the course wraps a database: one entry point, one place for policy, one place for state. The map links each **palette component** (green) to the **concepts** of this class (blue); the table says which question each component answers and where it is taught:
 
-``` mermaid
+``` diagram
 flowchart LR
     apigw["apigw"]:::comp --> orch["orchestrator"]:::comp
     orch --> safety["safety"]:::comp
@@ -306,15 +318,21 @@ flowchart LR
 - [Case study — AI assistant](../case-studies/ai-assistant/index.md): the whole design following the interview framework.
 - [Project](../../exercises/project/index.md): the AI assistant is one of the systems a team may pick.
 - [Component catalog — AI & AGENTS](../../reference/components/ai/index.md): one card per component, with real products.
-- Earlier classes this one builds on: [API Gateway](../edge/api-gateway/index.md), [Caching](../caching/index.md), [Vector databases](../databases/specialized/index.md), [Messaging patterns](../messaging/patterns/index.md), [Resilience patterns](../reliability/patterns/index.md), [OpenTelemetry](../observability/opentelemetry/index.md), [Identity](../network-security/identity/index.md).
+- Earlier classes this one builds on: [API Gateway](../edge/api-gateway/index.md), [Caching](../caching/index.md), [Vector databases](../databases/specialized/index.md), [Messaging patterns](../messaging/patterns/index.md), [Resilience patterns](../reliability/patterns/index.md), [OpenTelemetry](../observability/opentelemetry/index.md), [Identity](../edge/identity/index.md).
 
-## Key takeaways
+## Key takeaways { #key-takeaways }
 
-- An LLM is a **slow, token-priced, rate-limited, probabilistic** dependency whose input channel mixes instructions with data.
-- The five AI & AGENTS components are classic components specialized for models: **gateway** (API gateway), **orchestrator** (workflow engine), **tool registry** (service catalog, MCP), **memory fabric** (cache + databases + vector search), **safety mesh** (policy around every input, output and action).
-- The model chooses tools; the **orchestrator decides** whether they run, with the user's permissions and budgets.
-- Cost and latency are driven by **the number of model calls** and the **tokens per call**; context grows at every step, so input tokens grow about quadratically.
-- Live structured data goes through **tools**; unstructured knowledge goes through **RAG**; irreversible actions go through the **user**.
+!!! takeaways ""
+
+    - An LLM is a **slow, token-priced, rate-limited, probabilistic** dependency whose input channel mixes instructions with data.
+    - The five AI & AGENTS components are classic components specialized for models: **gateway** (API gateway), **orchestrator** (workflow engine), **tool registry** (service catalog, MCP), **memory fabric** (cache + databases + vector search), **safety mesh** (policy around every input, output and action).
+    - The model chooses tools; the **orchestrator decides** whether they run, with the user's permissions and budgets.
+    - Cost and latency are driven by **the number of model calls** and the **tokens per call**; context grows at every step, so input tokens grow about quadratically.
+    - Live structured data goes through **tools**; unstructured knowledge goes through **RAG**; irreversible actions go through the **user**.
+
+## What breaks next { #what-breaks-next }
+
+The assistant is now designed like any other service, with a gateway, budgets, guardrails and evals. But look at what changes it: a prompt, a tool description, a model version, the `k` of the retrieval — each one alters behavior without a line of Java, and each one is a deploy that must pass the [eval gate](safety-evals/index.md#evaluation). At the same time the same models write code for the team, so pull requests arrive faster than people can review, test and release them, and the safety net of [lab 11](../../hands-on/11/index.md) (tests, scans, a canary) was sized for human speed. Using AI inside the delivery pipeline without letting it approve its own work is [class 14 — AI-Assisted Delivery](../ai-delivery/index.md).
 
 ---
 

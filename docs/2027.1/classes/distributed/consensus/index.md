@@ -8,7 +8,7 @@ Deciding "who is the primary now" is an instance of the **consensus** problem: g
 
 The most useful form of consensus is agreeing on a **log**: an ordered sequence of commands. If every node starts in the same state and applies the same commands in the same order, every node ends in the same state — a **replicated state machine**:
 
-``` mermaid
+``` diagram
 flowchart LR
     C([clients]) --> L
     subgraph L["leader"]
@@ -95,7 +95,7 @@ With nodes at 99% each, one node gives 2 nines, **two nodes give less** (98.01% 
 
 A partition splits a 5-node cluster 3/2. Only the side with 3 nodes can form a majority, elect a leader and commit writes; the side with 2 knows it is a minority and stops accepting writes:
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     subgraph maj ["Majority side (3 of 5)"]
         n1[node 1: leader] --- n2[node 2]
@@ -125,7 +125,7 @@ Raft (Ongaro and Ousterhout, 2014)[^2] was designed to be **understandable**, an
 
 Each node is a **follower**, a **candidate** or the **leader**. Time is divided into **terms** numbered 1, 2, 3…, each starting with an election; a term has **at most one leader**. Terms act as a logical clock ([Time & Clocks](../time-clocks/index.md#lamport)): any node that sees a message with a higher term than its own updates its term and steps down to follower — which is how a stale leader that wakes up after a pause discovers it has been replaced.
 
-``` mermaid-sim
+``` diagram-sim
 stateDiagram-v2
   [*] --> Follower
   Follower --> Candidate : election timeout (no heartbeat)
@@ -139,7 +139,7 @@ stateDiagram-v2
 
 The leader sends periodic **heartbeats** (empty `AppendEntries` messages). A follower that hears nothing for an **election timeout** assumes the leader is dead, increments the term, votes for itself and asks the others for votes:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
   participant N1 as node 1 (follower)
   participant N2 as node 2 (follower)
@@ -165,7 +165,7 @@ How long are writes unavailable when a leader dies? Roughly **election timeout +
 
 ### Log replication { #log-replication }
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
   participant C as inventory
   participant L as leader
@@ -185,6 +185,13 @@ sequenceDiagram
 - The leader answers the client only after a **majority** (counting itself) has **durably** written the entry: committed entries survive the loss of any minority.
 - Each `AppendEntries` carries the index and term of the previous entry; a follower rejects it if its log does not match there, and the leader walks back until the logs agree, then overwrites the follower's uncommitted divergent suffix. This **log matching** keeps all logs identical up to the commit index.
 - Followers learn the **commit index** from later messages and apply entries to their own state machine.
+
+The whole protocol, live — election, replication, a crashed leader and a partition:
+
+<div class="csim" data-sim="raft" data-seed="3"></div>
+
+!!! tip "Try it"
+    The cluster starts with S2 leading term 1 and two holds committed on every log (solid cells, green bar). **Crash the leader** right away: the follower rings keep shrinking until one runs out — here S1, which wins term 2 about 310 ms later (one 150–300 ms timeout plus a round of votes) and still holds both committed entries. Restart S2 (click it) and watch it come back as a follower. Then press restart, turn on **partition 2 | 3** (S2 and S3 on the small side) and **write on the small side**: S2 appends `hold A-14` at index 3 but reaches only 2 of 5 nodes, so the cell stays dashed forever; meanwhile the big side elects a new leader in term 2. **Write on the big side**: that entry commits on 3 of 5. Heal the partition: S2 sees term 2, steps down, and its uncommitted `hold A-14` is overwritten by the term-2 entry on S2 and S3 — the write the client was never told had succeeded.
 
 !!! info "Reads in Raft are not free either"
     A leader that answers reads from its local state might be a **stale** leader that has not yet noticed a newer term. Linearizable reads must confirm leadership — by a round of heartbeats to a majority (etcd's *ReadIndex*) or by a time-based **leader lease**, which depends on bounded clock drift. Serving reads from followers is faster but only eventually consistent, unless the follower first asks the leader for the current commit index.
@@ -230,7 +237,7 @@ Three mechanisms make leaderless replicas converge: **read repair** (a read that
 
 A common use of consensus is a **distributed lock** or **lease**: "only one `scheduler` replica sends the 09:55 *on-sale starts soon* push". You take a lease from etcd/ZooKeeper/Consul with a time-to-live and renew it while you are alive. But a lock holder can **pause** — a long garbage collection, a VM migration — and keep working after its lease expired and someone else took it[^6]:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant A as worker A
     participant LK as lock service (etcd)
@@ -274,8 +281,24 @@ UPDATE scheduled_jobs
 !!! example "BoxOffice: who is the primary?"
     The `inventory` PostgreSQL runs under **Patroni**, with a 3-node **etcd** cluster spread across 3 availability zones. The primary holds a **leader key** in etcd with a TTL of ~30 s (Patroni's default), renewed every ~10 s. If it stops renewing — crash, freeze, network loss — the key expires, the healthiest synchronous standby takes it (an atomic compare-and-set in etcd: only one can win), promotes itself, and clients follow the new leader through the service endpoint. An old primary that wakes up finds it no longer holds the key and **demotes itself** (Patroni can also use a watchdog to reset the machine). The seat decision itself stays a plain `UPDATE … WHERE status = 'FREE'` on the single primary — consensus is used **only** to decide which node that is.
 
+**Try it.** The `db-failover` scenario is the opening story, measured: checkout at 1,500 req/s, half of them writes, on a cluster with one primary and one follower replicated **asynchronously**. At t = 90 s the primary dies, and promoting the follower takes 30 s — about Patroni's leader-key TTL above. Press **Run** and read *lost writes* and *availability* in the goals bar. Then click `orders-db` and change one knob at a time: **Replication** `sync` (or `quorum` with 2 followers per shard), **Failover time** 5 s, **Shards** 2.
+
+<div class="sdp" data-scenario="db-failover" data-mode="compact" data-height="520"></div>
+
+??? question "What should you have observed?"
+
+    As drawn, about **1,570 writes are lost** (with the default seed; between ~700 and ~1,800 with others) — orders the old primary acknowledged but had not yet shipped to the follower — and availability is about **90.6%**: every write fails during the 30 s of promotion. `sync` or `quorum` replication brings lost writes to **0** but does not move availability: they fix the RPO, not the RTO. A 5 s failover lifts availability to about **98%** while still losing writes. Only the combination — quorum with 2 followers, 5 s failover and 2 shards, so a dead primary takes only half of the writes — meets every goal: 0 lost, about 99.2%, write p99 ≈ 34 ms, at twice the monthly cost. Consensus decides **safely who** the primary is; how fast it decides and what the new primary already has are separate knobs, each with its price.
+
 !!! tip "In the interview"
     Use consensus as a **component**, not a topic to re-derive. Say: *"leader election and the cluster metadata go in etcd/ZooKeeper (Raft, 3 or 5 nodes across 3 zones); the data path stays on a single leader per shard."* Know the numbers: N nodes tolerate ⌊(N−1)/2⌋ failures; a leader failover costs about an election timeout (~1 s in etcd defaults); every committed write pays a majority round trip. If you mention locks, mention **fencing tokens** — it is the follow-up question that separates candidates.
+
+!!! success "Best practices"
+
+    - **Prefer the database's own guarantee to a distributed lock** — a unique constraint, a conditional `UPDATE` or `SELECT … FOR UPDATE SKIP LOCKED` needs no lease and no fencing. In BoxOffice: the hold sweeper runs on every `inventory` replica with `SKIP LOCKED` instead of electing a leader ([lab 6](../../../hands-on/6/holds/index.md)).
+    - **Run the coordination service with 3 or 5 members, one per zone, on fast dedicated disks** — every commit is an fsync on a majority, so disk latency is write latency.
+    - **Drill failover end to end and measure RTO and RPO** — kill the primary, time until writes succeed again, count the writes lost; the scenario above shows why both numbers are needed.
+    - **Watch leader changes and fsync latency of the consensus store** — a few elections per hour are an early warning of slow disks or a flaky network.
+    - **Use the database's failover tool and its defaults before tuning them** — Patroni's TTLs encode trade-offs between false failovers and slow ones; change them only with a measurement.
 
 !!! warning "Pitfalls"
     - **Implementing Paxos or Raft yourself** for an application. Use etcd, ZooKeeper, Consul, or the database's own guarantees (a unique constraint, `SELECT … FOR UPDATE`, an advisory lock).
@@ -286,7 +309,7 @@ UPDATE scheduled_jobs
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     MAJ["majority quorums<br/>no split brain"] --> RAFT["Raft / Paxos<br/>replicated log"]
     RAFT --> ETCD["etcd · ZooKeeper · KRaft"]
@@ -302,14 +325,16 @@ flowchart LR
 
 **Palette components that rely on consensus:** [`kafka`](../../../reference/components/messaging/index.md#kafka) (KRaft controller, partition leaders) · [`sql`](../../../reference/components/storage/index.md#sql) (Patroni + etcd failover) · [`nosql`](../../../reference/components/storage/index.md#nosql) (quorums) · [`scheduler`](../../../reference/components/compute/index.md#scheduler) (one leader runs the jobs). **Continues in:** [Distributed Transactions](../transactions/index.md), [Cloud-native — Kubernetes](../../cloud-native/kubernetes/index.md) (etcd), [Compute — async work](../../compute/async-work/index.md) (scheduler leader election).
 
-## Key takeaways
+## Key takeaways { #key-takeaways }
 
-- **Consensus** makes nodes agree on one value — in practice, one **log** — despite failures; it underlies leader election, locks, configuration and strongly consistent databases.
-- **FLP**: no deterministic algorithm always terminates in an asynchronous system; Paxos and Raft are always **safe** and use timeouts for **liveness**.
-- **Majorities overlap**: N nodes tolerate ⌊(N−1)/2⌋ crashes; use 3 or 5, spread so no zone holds a majority; the minority side of a partition stops (no split brain).
-- **Raft**: terms, randomised election timeouts, one vote per term, election restriction, commit after a majority writes.
-- **Leaderless quorums** need **R + W > N** for overlap, but give tunable consistency, not linearizability.
-- Leases need **fencing tokens**; and above all: **use** a proven coordination service, don't build one.
+!!! takeaways ""
+
+    - **Consensus** makes nodes agree on one value — in practice, one **log** — despite failures; it underlies leader election, locks, configuration and strongly consistent databases.
+    - **FLP**: no deterministic algorithm always terminates in an asynchronous system; Paxos and Raft are always **safe** and use timeouts for **liveness**.
+    - **Majorities overlap**: N nodes tolerate ⌊(N−1)/2⌋ crashes; use 3 or 5, spread so no zone holds a majority; the minority side of a partition stops (no split brain).
+    - **Raft**: terms, randomised election timeouts, one vote per term, election restriction, commit after a majority writes.
+    - **Leaderless quorums** need **R + W > N** for overlap, but give tunable consistency, not linearizability.
+    - Leases need **fencing tokens**; and above all: **use** a proven coordination service, don't build one.
 
 ---
 

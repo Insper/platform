@@ -2,7 +2,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Números e estimativas
+## Números e estimativas { #numbers-and-estimation }
 
 **Q1.** A BoxOffice tem 2 M de fãs ativos por dia, cada um vendo cerca de 20 páginas por dia. Qual é a taxa **média** de leituras, e para o que você deve dimensionar?
 
@@ -74,7 +74,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Filas e escalabilidade
+## Filas e escalabilidade { #queueing-and-scalability }
 
 **Q6.** O serviço de inventário recebe 1.000 reservas/s e cada reserva passa 40 ms dentro do serviço. Em média, quantas reservas estão em andamento?
 
@@ -160,7 +160,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Percentis e disponibilidade
+## Percentis e disponibilidade { #percentiles-and-availability }
 
 **Q12.** O servidor A reporta p99 = 100 ms e o servidor B reporta p99 = 1.000 ms; eles atenderam o mesmo número de requisições. Qual é o p99 dos dois servidores juntos?
 

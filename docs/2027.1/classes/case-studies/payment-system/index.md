@@ -185,7 +185,7 @@ CREATE TABLE outbox (id BIGSERIAL PRIMARY KEY, topic TEXT, payload JSONB, create
 
 ## 5. High-level design
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     fan([Fan browser]) -->|"card data"| psp[["PSP<br/>hosted fields, 3-D Secure"]]
     fan --> gw["API gateway"]
@@ -209,7 +209,7 @@ flowchart LR
 
 A card payment with 3-D Secure, end to end:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     participant F as Fan
@@ -242,7 +242,7 @@ There is no exactly-once **delivery** over a network: a request whose response w
 
 The server-side algorithm for `POST /v1/payments` with `Idempotency-Key: K`:
 
-``` mermaid-sim
+``` diagram-sim
 flowchart TD
     r["Request with key K"] --> ins{"INSERT key K<br/>IN_PROGRESS<br/>(unique)"}
     ins -->|"inserted"| run["Execute: create payment,<br/>call PSP"]
@@ -272,11 +272,19 @@ Idempotency-Key: <random per HTTP call> ✘ every retry looks new → double cha
 Idempotency-Key: user-42                ✘ blocks every future purchase of that user
 ```
 
+!!! example "In the BoxOffice code: the payment adapter (lab 9)"
+
+    [Hands-on 9 — Payment, provider and Toxiproxy](../../../hands-on/9/payment/index.md) builds a smaller version of this algorithm. The same key travels `order → payment → PSP`: `order` sends `Idempotency-Key: order-<id>`, `payment` looks it up, calls the PSP **outside** any database transaction (never hold a connection while waiting) and stores the result under a `UNIQUE` key. What it leaves out is the `IN_PROGRESS` row: two concurrent duplicates can both reach the PSP, and only the provider's own idempotency, with the same key, stops the second charge — the table above closes that gap. In the lab, the same request sent twice returns `201` and then `200` with the same `id` and `providerRef`. The [outbox of lab 7](../../../hands-on/7/outbox/index.md) is the pattern of section 6.4.
+
+    ``` { .java title="services/payment/src/main/java/boxoffice/payment/PaymentService.java (charge once per key)" }
+    --8<-- "docs/2027.1/hands-on/9/code/services/payment/src/main/java/boxoffice/payment/PaymentService.java:22:38"
+    ```
+
 ### 6.2 The unknown outcome
 
 The adapter calls the PSP and gets a **timeout**. Was the card charged? You do not know — and this is the single most important sentence of the interview.
 
-``` mermaid-sim
+``` diagram-sim
 stateDiagram-v2
     [*] --> CREATED
     CREATED --> PROCESSING: call PSP
@@ -452,13 +460,21 @@ The `payment-system` scenario models the payment service, its database and an ex
 
 **Related:** [Integrations (webhooks, idempotency)](../../compute/integrations/index.md), [Messaging patterns (outbox, saga)](../../messaging/patterns/index.md), [Ticketing case](../ticketing/index.md), [Hands-on 7](../../../hands-on/7/index.md) (outbox), [Hands-on 9](../../../hands-on/9/index.md) (resilience between `order` and `payment`).
 
+!!! success "Best practices"
+
+    - **Never hold a database transaction open across the provider call** — lab 9's `PaymentService` calls the PSP outside any transaction, so a slow provider does not drain the connection pool ([lab 9](../../../hands-on/9/payment/index.md)).
+    - **Store money as integer minor units or `NUMERIC`, never as floating point** — lab 9's table uses `NUMERIC(10,2)`; a float cannot represent R$ 0.10 exactly.
+    - **Give each hop a timeout shorter than its caller's** — otherwise the caller gives up while the callee is still working, and its retry runs next to the first attempt. Check it in lab 9: `order` waits 1 s for `payment`, which waits 2 s for the PSP; with a slow provider, only the idempotency key stops the retry from charging twice.
+    - **Reconcile every day against the provider's settlement report** — every difference becomes a ticket with an owner; the ledger is right only if someone checks it.
+    - **Keep card data out of your systems** — tokenization by the provider keeps BoxOffice out of most of the PCI DSS scope.
+
 ---
 
 ## How it connects { #how-it-connects }
 
 Which classes does this case test? Each branch is a class whose ideas the design relies on (blue), with the palette components where they show up (green):
 
-``` mermaid
+``` diagram
 flowchart LR
     CASE(["Payment system"]) --> DIS["Distributed<br/>exactly-once effect, unknown outcome"]:::tech
     CASE --> CMP["Compute<br/>PSP integration, webhooks, reconciliation"]:::tech

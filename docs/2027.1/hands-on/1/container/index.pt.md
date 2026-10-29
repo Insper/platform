@@ -1,6 +1,6 @@
 O último passo empacota o `catalog` como uma **imagem** e o roda ao lado do PostgreSQL com o **Docker Compose**. De agora em diante, "rodar o BoxOffice" sempre significa um comando: `docker compose up`.
 
-``` mermaid
+``` diagram
 flowchart LR
     term(["seu terminal<br/>curl · k6"]) -->|localhost:8082| catalog
     subgraph compose["projeto docker compose: boxoffice"]
@@ -44,7 +44,7 @@ Crie-o na **raiz** do repositório:
 | `deploy.resources.limits` | **1 CPU e 768 MB** por `catalog`: um "servidor" fixo e pequeno, para que as medições sejam comparáveis e a escala horizontal do lab 3 seja visível |
 | `catalog.healthcheck` | o Compose marca o container como `healthy` só quando `/actuator/health/readiness` responde (a imagem JRE tem `wget`, não `curl`) |
 
-## 3. Rode
+## 3. Rode { #3-run-it }
 
 ``` { .bash .copy }
 docker compose up --build -d
@@ -102,7 +102,7 @@ curl -s -X POST localhost:8082/catalog/events -H 'Content-Type: application/json
 curl -s "localhost:8082/catalog/events?size=500" | jq
 ```
 
-## 4. Olhe por dentro
+## 4. Olhe por dentro { #4-look-inside }
 
 ``` { .bash .copy }
 # the tables and the Flyway history, from inside the db container
@@ -120,7 +120,7 @@ curl -s localhost:8082/catalog/openapi | jq '.paths | keys'
 
 Abra [http://localhost:8082/swagger-ui.html](http://localhost:8082/swagger-ui.html){target="_blank"} para ver a documentação interativa gerada a partir dos seus controllers — o mesmo documento OpenAPI pode gerar clientes em outras linguagens.
 
-## 5. Comandos do dia a dia
+## 5. Comandos do dia a dia { #5-everyday-commands }
 
 | Comando | Efeito |
 |---|---|

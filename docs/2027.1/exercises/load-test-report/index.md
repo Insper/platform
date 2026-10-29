@@ -19,7 +19,7 @@ Two ideas make the difference between a load test and a number:
 - **Open vs closed model.** A *closed* model (N virtual users in a loop) slows down when the server slows down — it politely stops sending, and hides the problem (**coordinated omission**). Real users arrive whether or not the server is slow. Use k6's **arrival-rate** executors (`constant-arrival-rate`, `ramping-arrival-rate`): they start iterations at a fixed rate, independent of response times[^1].
 - **Thresholds are SLOs.** `p(99)<500` and `rate<0.01` turn "it seemed fine" into pass/fail.
 
-```mermaid
+``` diagram
 flowchart LR
     k6["k6 (open model)<br/>arrival rate λ"] --> nginx["nginx (lb)"]
     nginx --> c1["catalog #1"]

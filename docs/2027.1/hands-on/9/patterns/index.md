@@ -7,7 +7,7 @@ one at a time — **timeout, retry, circuit breaker, bulkhead** — measuring af
 
 ## The failure we are defending against
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant F as fans (20/s)
     participant O as order (50 threads)

@@ -5,13 +5,13 @@ Esta página trata da arquitetura que remove essa confiança — **Zero Trust** 
 
 ---
 
-## Do perímetro ao Zero Trust
+## Do perímetro ao Zero Trust { #from-perimeter-to-zero-trust }
 
 O **modelo de perímetro** ("castelo e fosso") protege a borda — firewall, VPN — e confia em tudo o que está dentro. Quando um atacante entra, por um laptop roubado, uma senha capturada por phishing ou uma dependência vulnerável, ele passa de máquina em máquina: **movimento lateral**.
 
 O **Zero Trust** remove a ideia de rede confiável. O lema é **"nunca confie, sempre verifique"**: toda requisição — da Internet, do escritório, do pod ao lado — é autenticada, autorizada e criptografada por si só[^1]. O Google construiu a sua rede corporativa assim no projeto BeyondCorp, a partir de 2011[^2]; o NIST padronizou a arquitetura na SP 800-207[^1].
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     subgraph perimeter ["Modelo de perímetro"]
         fw["Firewall / VPN"] -->|"dentro = confiável"| int["search, order, payment, banco<br/>(confiam uns nos outros)"]
@@ -26,7 +26,7 @@ flowchart LR
 
 O NIST dá nome às peças: um **Policy Enforcement Point (PEP)** fica no caminho de toda requisição e a bloqueia ou encaminha; um **Policy Decision Point (PDP)** decide a partir da identidade e do contexto. No BoxOffice, o **API gateway** é o PEP para usuários, e o **proxy do mesh** ao lado de cada serviço é o PEP para workloads ([Service mesh](../service-mesh/index.md)).
 
-### Princípios
+### Princípios { #principles }
 
 | Princípio | O que significa | Mecanismos no BoxOffice |
 |---|---|---|
@@ -35,11 +35,11 @@ O NIST dá nome às peças: um **Policy Enforcement Point (PEP)** fica no caminh
 | **Assumir a violação** | projetar como se o atacante já estivesse dentro; limitar o raio de impacto | NetworkPolicy com negação padrão, sub-redes isoladas, segredos por serviço, logs de auditoria |
 | **Avaliação contínua** | a confiança é reavaliada, não concedida uma vez | tokens de vida curta, reautenticação para ações sensíveis, alertas de anomalia |
 
-### O pod `search` comprometido, de novo
+### O pod `search` comprometido, de novo { #the-compromised-search-pod-again }
 
 | Passo do atacante | Modelo de perímetro | Controle Zero Trust | Onde |
 |---|---|---|---|
-| Chamar `order` com um `X-Account-Id` forjado | aceito — "só chamadores internos" | `order` aceita chamadas só da identidade de mesh do gateway; cabeçalho removido na borda | [Service mesh](../service-mesh/index.md), [Identidade](../identity/index.md) |
+| Chamar `order` com um `X-Account-Id` forjado | aceito — "só chamadores internos" | `order` aceita chamadas só da identidade de mesh do gateway; cabeçalho removido na borda | [Service mesh](../service-mesh/index.md), [Identidade](../../edge/identity/index.md) |
 | Conectar ao PostgreSQL com a senha compartilhada | funciona | `search` não tem rota/SG/NetworkPolicy até o banco, nem credencial de banco alguma | [Redes em nuvem](../cloud-network/index.md) |
 | Ler `PSP_API_KEY` do ambiente | está lá | a chave só existe nos pods de `payment`, buscada em um gerenciador de segredos | [Segredos](#secrets-management) |
 | Exfiltrar para a Internet | rota pelo NAT, sem regras de saída | saída negada por padrão; só `payment` alcança o provedor | [Service mesh](../service-mesh/index.md) |
@@ -96,7 +96,7 @@ Um **segredo** é qualquer valor que concede acesso: a chave de API do provedor 
 
     Por padrão, eles também ficam sem criptografia no etcd. Higiene mínima: **criptografia em repouso** para o etcd (com um provedor KMS), **RBAC** restrito sobre Secrets e **nunca** versionar manifestos de Secret no Git sem criptografia[^4].
 
-### Onde os segredos devem morar
+### Onde os segredos devem morar { #where-secrets-should-live }
 
 | Abordagem | Prós | Contras |
 |---|---|---|
@@ -126,11 +126,11 @@ spec:
         key: prod/boxoffice/payment/psp-api-key
 ```
 
-### A vida da chave da API de pagamentos
+### A vida da chave da API de pagamentos { #the-life-of-the-payment-api-key }
 
 O provedor de pagamentos permite que um lojista tenha **duas chaves ativas** ao mesmo tempo — o truque padrão para rotacionar sem indisponibilidade. O ciclo de vida do segredo mais valioso do BoxOffice:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     actor Ops as Plantão de pagamentos
@@ -159,7 +159,7 @@ Repare no que o projeto oferece: só a service account de `payment` pode ler ess
     3. Descubra como vazou (histórico do Git, logs, um laptop) e feche esse caminho.
     4. Escreva um postmortem sem culpados ([Observabilidade — resposta a incidentes](../../observability/incident-response/index.md)).
 
-### Segredos dinâmicos
+### Segredos dinâmicos { #dynamic-secrets }
 
 Melhor ainda que rotacionar um segredo compartilhado é não ter um. **Segredos dinâmicos** (o database engine do Vault, autenticação IAM em bancos da nuvem) criam uma **credencial única e de vida curta para cada solicitante**:
 
@@ -174,11 +174,11 @@ password           A1a-4kd0s8f7GQpz
 
 Cada pod de `order` recebe o seu próprio usuário de banco, que expira em uma hora. Uma credencial roubada de um pod para de funcionar sozinha, e os logs do banco mostram exatamente qual pod fez o quê.
 
-### Criptografia em repouso com envelope encryption
+### Criptografia em repouso com envelope encryption { #encryption-at-rest-with-envelope-encryption }
 
 Bancos de dados, object storage e backups são criptografados em repouso com **envelope encryption**: cada objeto é criptografado com uma **chave de dados**; a chave de dados, por sua vez, é criptografada com uma **chave de criptografia de chaves** que nunca sai de um **KMS** (Key Management Service) ou HSM (hardware security module).
 
-``` mermaid
+``` diagram
 flowchart LR
     D["dados de order"] -->|"AES-256-GCM com a chave de dados"| E["texto cifrado"]
     DK["chave de dados (em claro, só em memória)"] -->|"cifrada pela API do KMS"| EDK["chave de dados cifrada<br/>(guardada ao lado do texto cifrado)"]
@@ -187,7 +187,7 @@ flowchart LR
 
 Rotacionar ou revogar a chave-mestra no KMS controla o acesso a todos os dados sem recriptografar terabytes; toda chamada de decriptação é autorizada pelo IAM e registrada.
 
-### Mantenha segredos fora do Git
+### Mantenha segredos fora do Git { #keep-secrets-out-of-git }
 
 Faça a varredura antes que eles cheguem: um **hook de pre-commit** e um job de CI com um scanner de segredos (gitleaks, trufflehog, GitHub secret scanning com push protection) bloqueiam commits que parecem chaves. Se um segredo for versionado alguma vez, **rotacione-o** — apagar o commit não apaga clones, forks nem caches.
 
@@ -197,7 +197,7 @@ Faça a varredura antes que eles cheguem: um **hook de pre-commit** e um job de 
 
 A imagem de `order` do BoxOffice contém algumas centenas de bibliotecas escritas por desconhecidos, construídas por um sistema de CI, guardadas em um registry e baixadas pelo cluster. Cada passo é um caminho de ataque: uma dependência maliciosa ou comprometida (o backdoor do `xz-utils`, em 2024), uma vulnerável (Log4Shell, 2021), um sistema de build comprometido (SolarWinds, 2020), **typosquatting** (`spring-boot-strater`) e **dependency confusion** (um pacote público com o nome do seu pacote interno). A segurança da cadeia de suprimentos responde a três perguntas: *o que tem dentro?*, *está vulnerável?*, *veio do nosso pipeline, sem alterações?*
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     src["Código<br/>(PR revisado)"] --> build["Build no CI<br/>(runner isolado)"]
     build --> sbom["SBOM<br/>(syft → CycloneDX)"]
@@ -210,15 +210,15 @@ flowchart LR
     adm -->|"sem assinatura / assinante errado"| deny["Rejeitado"]
 ```
 
-### O que tem dentro: o SBOM
+### O que tem dentro: o SBOM { #what-is-inside-the-sbom }
 
 Um **SBOM** (Software Bill of Materials) é a lista de ingredientes de um artefato: cada pacote, versão e licença, em um formato padrão — **CycloneDX** (OWASP) ou **SPDX** (Linux Foundation, ISO/IEC 5962)[^5]. Quando o próximo Log4Shell for anunciado, a pergunta "quais das nossas imagens contêm esta versão?" vira uma consulta, e não uma semana de pânico.
 
-### Está vulnerável: varredura
+### Está vulnerável: varredura { #is-it-vulnerable-scanning }
 
 Scanners (Trivy, Grype, Dependabot/Renovate para atualizações) cruzam o SBOM com bases de vulnerabilidades (identificadores CVE, advisories do GitHub). Bloqueie o pipeline com base em uma política — por exemplo, "nenhuma vulnerabilidade *crítica* com correção disponível" — e não em zero achados, o que nunca acontece.
 
-### Veio de nós: assinatura e proveniência
+### Veio de nós: assinatura e proveniência { #did-it-come-from-us-signing-and-provenance }
 
 O **cosign**, do Sigstore, assina imagens de container. No modo **keyless**, o job de CI prova a sua identidade com o seu token OIDC, um certificado de vida curta é emitido pela CA do Sigstore (Fulcio) e a assinatura é registrada em um log público de transparência (Rekor) — nenhuma chave de assinatura de vida longa para proteger[^6]. O **SLSA** (Supply-chain Levels for Software Artifacts) define níveis de integridade do build; a sua atestação de *proveniência* registra qual código, workflow e builder produziram o artefato[^7].
 
@@ -256,6 +256,14 @@ jobs:
           cosign attest --yes --type cyclonedx --predicate sbom.cdx.json "$IMAGE"
 ```
 
+!!! example "No código do BoxOffice: o job de imagem do pipeline (lab 11)"
+
+    O [Hands-on 11 — Imagem e cadeia de suprimentos](../../../hands-on/11/supply-chain/index.md) responde às três perguntas para a imagem do `catalog`, com uma melhoria em relação ao job acima: constrói a imagem localmente (`load: true`), faz a varredura e só a envia ao registry **se** o portão do Trivy passa — uma imagem vulnerável nunca é publicada. O portão é estreito de propósito, só *crítica e corrigível*: falhar em todo `HIGH` sem correção bloquearia todo o trabalho, e um portão sempre vermelho passa a ser ignorado. O SBOM é SPDX (Syft) e, em vez de chamar o `cosign`, o job usa as actions de atestação do GitHub, que assinam a proveniência e o SBOM sem chave com o Sigstore (`id-token: write`) e os ligam ao **digest** da imagem. Toda action está fixada num SHA de commit, e o [Dependabot](../../../hands-on/11/supply-chain/index.md#keep-dependencies-moving) propõe toda semana, como pull requests que o pipeline testa, atualizações de actions, dependências Maven e imagens base. O que o lab **não** faz é o último elo, abaixo: a proveniência é conferida à mão (`gh attestation verify`), não por um admission controller.
+
+    ``` { .yaml title=".github/workflows/ci.yaml (image job: permissions, scan gate, attestations)" }
+    --8<-- "docs/2027.1/hands-on/11/code/.github/workflows/ci.yaml:73:78,119:126,142:154"
+    ```
+
 O último elo é a **verificação no momento do deploy**. Um admission controller (Kyverno, Sigstore policy-controller, OPA Gatekeeper) rejeita qualquer pod cuja imagem não tenha sido assinada pelo *nosso* workflow de release:
 
 ```yaml
@@ -290,7 +298,7 @@ Outros hábitos que fecham lacunas comuns: **fixar por digest** (`image@sha256:�
 
 ---
 
-## Uma checklist de defesa para o BoxOffice
+## Uma checklist de defesa para o BoxOffice { #a-defense-checklist-for-boxoffice }
 
 | Área | Controle | Pronto quando… |
 |---|---|---|
@@ -306,6 +314,15 @@ Outros hábitos que fecham lacunas comuns: **fixar por digest** (`image@sha256:�
 !!! tip "Na entrevista"
     "Zero Trust" é jargão, a menos que você o torne concreto. Diga três coisas: **toda chamada carrega uma identidade** (tokens para usuários, mTLS para serviços), **todo recurso verifica uma política** (menor privilégio, negação padrão, inclusive na saída) e **as credenciais são de vida curta** (identidade de workload, segredos dinâmicos, nenhuma chave estática no CI). Se o projeto tiver um provedor de pagamentos, acrescente: "a chave de API fica em um gerenciador de segredos, só o serviço de pagamento consegue lê-la, e rotacionamos com duas chaves ativas." Para a cadeia de suprimentos, uma linha basta: "o CI gera um SBOM, faz a varredura e assina as imagens; o cluster só roda imagens assinadas."
 
+!!! success "Boas práticas"
+
+    - **Dê a cada workload sua própria identidade e um papel de menor privilégio** — só o `payment` pode ler a `PSP_API_KEY`; um vazamento então aponta para um serviço e a rotação mexe em um serviço.
+    - **Gire todo segredo com agenda e ensaie o runbook de vazamento** — rotação com duas chaves (por exemplo, a cada 90 dias) e um exercício por trimestre, cronometrado: quantos minutos de "chave vazou" até "chave antiga revogada"?
+    - **Prefira credenciais dinâmicas e de vida curta** — usuários de banco emitidos por pod com TTL de 1 hora por um motor de segredos, em vez de uma senha que vive por anos.
+    - **Procure segredos em todo push** — um scanner de segredos com proteção de push (no repositório e no CI) bloqueia o commit antes de a chave ficar pública.
+    - **Fixe actions de terceiros e imagens base num SHA de commit ou digest, e deixe um bot propor as atualizações** — no BoxOffice: o `ci.yaml` do lab 11 fixa toda action, e o `dependabot.yml` abre pull requests semanais ([quadro da cadeia de suprimentos](#supply-chain-security)).
+    - **Dê aos jobs de CI as permissões mínimas de token** — `contents: read` por padrão, `id-token: write` só no job que assina. No BoxOffice: o job `image` do [lab 11](../../../hands-on/11/supply-chain/index.md).
+
 !!! warning "Armadilhas comuns"
     - **"É interno, então é seguro"** — a definição do modelo de perímetro.
     - **Uma credencial compartilhada por todos os serviços** — quando vaza, não dá para saber quem a usou, e a rotação quebra todo mundo ao mesmo tempo.
@@ -318,7 +335,7 @@ Outros hábitos que fecham lacunas comuns: **fixar por digest** (`image@sha256:�
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     PER["modelo de perímetro:<br/>dentro = confiável"] -->|"substituído por"| ZT["Zero Trust:<br/>nunca confie, sempre verifique"]
     ZT --> PEP["PEP: gateway para usuários,<br/>proxy do mesh para workloads"]
@@ -332,15 +349,17 @@ flowchart LR
     DET --> IR["runbook de chave vazada<br/>→ resposta a incidentes"]
 ```
 
-**Componentes da paleta:** [`apigw`](../../../reference/components/edge/index.md#apigw) e [`mesh`](../../../reference/components/network/index.md#mesh) (os pontos de aplicação) · [`payment`](../../../reference/components/external/index.md#payment) (a chave que só o `payment` pode ler) · [`logs`](../../../reference/components/observability/index.md#logs) · [`alerting`](../../../reference/components/observability/index.md#alerting) (auditoria e alertas de chamadas negadas) · [`llmgw`](../../../reference/components/ai/index.md#llmgw) · [`toolreg`](../../../reference/components/ai/index.md#toolreg) (identidades nas chamadas de ferramentas de um agente). **Cenários:** `ai-assistant`, `payment-system`. **Continua em:** [Service mesh](../service-mesh/index.md#mtls), [Identidade](../identity/index.md#delegation), [Cloud-native — entrega](../../cloud-native/delivery/index.md), [Observabilidade — resposta a incidentes](../../observability/incident-response/index.md), [Sistemas de IA — segurança e avaliações](../../ai-systems/safety-evals/index.md), [Hands-on 13 — segurança](../../../hands-on/13/security/index.md).
+**Componentes da paleta:** [`apigw`](../../../reference/components/edge/index.md#apigw) e [`mesh`](../../../reference/components/network/index.md#mesh) (os pontos de aplicação) · [`payment`](../../../reference/components/external/index.md#payment) (a chave que só o `payment` pode ler) · [`logs`](../../../reference/components/observability/index.md#logs) · [`alerting`](../../../reference/components/observability/index.md#alerting) (auditoria e alertas de chamadas negadas) · [`llmgw`](../../../reference/components/ai/index.md#llmgw) · [`toolreg`](../../../reference/components/ai/index.md#toolreg) (identidades nas chamadas de ferramentas de um agente). **Cenários:** `ai-assistant`, `payment-system`. **Continua em:** [Service mesh](../service-mesh/index.md#mtls), [Identidade](../../edge/identity/index.md#delegation), [Cloud-native — entrega](../../cloud-native/delivery/index.md), [Observabilidade — resposta a incidentes](../../observability/incident-response/index.md), [Sistemas de IA — segurança e avaliações](../../ai-systems/safety-evals/index.md), [Hands-on 11 — cadeia de suprimentos](../../../hands-on/11/supply-chain/index.md), [Hands-on 13 — segurança](../../../hands-on/13/security/index.md).
 
-## Principais conclusões
+## Pontos-chave { #key-takeaways }
 
-- **Zero Trust**: não há rede confiável; toda requisição é autenticada, autorizada e criptografada em um **PEP**, usando a decisão de um **PDP**. Isso faz do pod comprometido um beco sem saída.
-- **Identidade de workload** (SPIFFE/mTLS, papéis de nuvem para service accounts, OIDC no CI) substitui chaves estáticas por credenciais verificáveis de vida curta.
-- **Segredos** pertencem a um gerenciador de segredos ou ao Vault, escopados por serviço, auditados, rotacionados (duas chaves) — de preferência **dinâmicos**; Secrets do Kubernetes são base64, não criptografia.
-- **Envelope encryption** com um KMS protege dados em repouso; a varredura de segredos mantém chaves fora do Git.
-- **Cadeia de suprimentos**: SBOM (o que tem dentro), varredura (está vulnerável), assinatura + proveniência + verificação na admissão (veio de nós, sem alterações).
+!!! takeaways ""
+
+    - **Zero Trust**: não há rede confiável; toda requisição é autenticada, autorizada e criptografada em um **PEP**, usando a decisão de um **PDP**. Isso faz do pod comprometido um beco sem saída.
+    - **Identidade de workload** (SPIFFE/mTLS, papéis de nuvem para service accounts, OIDC no CI) substitui chaves estáticas por credenciais verificáveis de vida curta.
+    - **Segredos** pertencem a um gerenciador de segredos ou ao Vault, escopados por serviço, auditados, rotacionados (duas chaves) — de preferência **dinâmicos**; Secrets do Kubernetes são base64, não criptografia.
+    - **Envelope encryption** com um KMS protege dados em repouso; a varredura de segredos mantém chaves fora do Git.
+    - **Cadeia de suprimentos**: SBOM (o que tem dentro), varredura (está vulnerável), assinatura + proveniência + verificação na admissão (veio de nós, sem alterações).
 
 ---
 

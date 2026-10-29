@@ -177,7 +177,7 @@ thumbs/{video_id}/{n}.jpg
 
 ## 5. High-level design
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     cr([Creator]) --> api["Video API"]
     api --> meta[("Metadata<br/>SQL")]
@@ -194,7 +194,7 @@ flowchart LR
 
 Upload to first playback:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     participant C as Creator app
@@ -232,7 +232,7 @@ sequenceDiagram
 
 Encoding a 2-hour video on one machine takes too long. Split it, encode the pieces in parallel, put them back together:
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     src["source.mp4"] --> split["Split into<br/>~10 s chunks<br/>(at keyframes)"]
     split --> e1["encode 240p…1080p<br/>chunk 1"]
@@ -367,13 +367,21 @@ The `video-streaming` scenario has the object store, a CDN in front of it, and a
 
 **Related:** [DNS and CDN](../../edge/dns-cdn/index.md), [Specialized storage (object stores)](../../databases/specialized/index.md), [Async work](../../compute/async-work/index.md), [FinOps](../../cloud-native/finops/index.md), [Hands-on 7](../../../hands-on/7/index.md) (queues and workers).
 
+!!! success "Best practices"
+
+    - **Upload straight to object storage with pre-signed URLs** — application servers never proxy gigabytes, and an upload survives a deploy.
+    - **Make each transcoding job idempotent per (video, rendition)** — a retried job overwrites the same output instead of producing a second copy.
+    - **Give segments immutable, versioned names and long cache headers** — the CDN can then keep them forever, and the hit ratio stays near the top.
+    - **Track egress cost per GB and the CDN hit ratio** — egress dominates the bill; a 1-point drop in hit ratio can be a large share of the origin's traffic.
+    - **Encode the long tail in fewer renditions** — most videos are rarely watched; transcode them on demand or in fewer qualities.
+
 ---
 
 ## How it connects { #how-it-connects }
 
 Which classes does this case test? Each branch is a class whose ideas the design relies on (blue), with the palette components where they show up (green):
 
-``` mermaid
+``` diagram
 flowchart LR
     CASE(["Video streaming"]) --> EST["Estimation<br/>egress bandwidth dominates"]:::tech
     CASE --> DB["Databases<br/>object store, pre-signed uploads"]:::tech

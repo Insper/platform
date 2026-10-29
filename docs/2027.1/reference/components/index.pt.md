@@ -1,10 +1,10 @@
-# Catálogo de componentes
+# Catálogo de componentes { #component-catalog }
 
 Toda caixa que você pode colocar no canvas do [System Design Playground](../../../playground/index.md) tem uma entrada neste catálogo: **o que é**, **quando usar e quando não usar**, **números-chave**, **modos de falha**, **como se comporta no playground**, **produtos reais** na AWS, no GCP, no Azure e em código aberto, e uma frase que você pode dizer **na entrevista**. Os links "saiba mais" do simulador apontam para essas entradas.
 
 A paleta tem 49 componentes em 10 categorias. Elas seguem uma requisição da esquerda para a direita: um **cliente** chega à **borda**, a borda encaminha para a **computação**, a computação é empacotada e escalada em **contêineres** (num cluster Kubernetes), a computação lê e escreve no **armazenamento** e publica na **mensageria**, tudo é acompanhado pela **observabilidade**, disposto dentro de uma **rede**, e algumas requisições vão para componentes de **IA** ou para provedores **externos**.
 
-``` mermaid
+``` diagram
 flowchart LR
     CL[Cliente] --> ED[Tráfego e borda]
     ED --> CO[Computação]
@@ -20,7 +20,7 @@ flowchart LR
     NW[Rede: VPC, sub-redes, NAT, VPN, mesh] -.contém.-> CO
 ```
 
-## Categorias
+## Categorias { #categories }
 
 | Categoria | O que responde | Componentes | Aulas principais |
 |---|---|---|---|
@@ -35,7 +35,7 @@ flowchart LR
 | [IA e agentes](ai/index.md) | Como colocar um LLM em produção com segurança? | 5 | [Sistemas de IA](../../classes/ai-systems/index.md) |
 | [Externos](external/index.md) | Como depender de serviços que não operamos? | 3 | [Computação › Integrações](../../classes/compute/integrations/index.md) |
 
-## Todos os componentes
+## Todos os componentes { #all-components }
 
 | Id | Componente | Categoria | Em uma linha |
 |---|---|---|---|
@@ -89,7 +89,7 @@ flowchart LR
 | `payment` | [Payment](external/index.md#payment) | Externos | Provedor de pagamento: idempotência, webhooks, conciliação |
 | `email` | [Email](external/index.md#email) | Externos | Provedor de entrega de e-mail, sempre atrás de uma fila |
 
-## Como ler uma entrada
+## Como ler uma entrada { #how-to-read-an-entry }
 
 !!! tip "Use o catálogo de três jeitos"
     - **Enquanto projeta no playground**: clique num nó e depois em "saiba mais" para ver seus parâmetros e modos de falha.

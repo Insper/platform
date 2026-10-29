@@ -8,7 +8,7 @@ The first real invoice of BoxOffice's production environment arrives, and it is 
 
 The FinOps Foundation organizes the practice in three phases that repeat continuously[^1]:
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     inform["Inform<br/>visibility: tags, allocation,<br/>showback, unit costs"] --> optimize["Optimize<br/>rightsizing, commitments,<br/>spot, architecture changes"]
     optimize --> operate["Operate<br/>budgets, anomaly alerts,<br/>policies, reviews"]
@@ -236,6 +236,14 @@ Interviewers rarely want dollars, but cost-awareness is a strong signal. A three
 
     Cost questions often come disguised: "Do we really need Kafka here?", "Why three replicas?", "Could this be serverless?". Answer with **utilization and peak-to-average ratio**: always-on capacity is cheapest when it is busy; per-request pricing is cheapest when traffic is low or very spiky. Mention that **data transfer** and **managed data stores** usually dominate before compute does.
 
+!!! success "Best practices"
+
+    - **Allocate the cluster bill by resource requests, per namespace and label** — nodes are shared, so requests are the fair key, and they are what the scheduler reserves.
+    - **Set a budget with alerts at 50%, 80% and 100%, plus an anomaly alert on daily spend** — a forgotten load-test cluster shows up in a day, not on the invoice.
+    - **Put the cost of a design change in its design document, in dollars per month** — "Multi-AZ PostgreSQL: +$187/month, a zone failure becomes a one-minute failover" lets the reviewer judge the trade-off. In BoxOffice: [optimization levers](#optimization-levers).
+    - **Commit only up to the lowest usage of the last months** — commitments are paid whether used or not; the floor is the only safe part. In BoxOffice: the 6 always-on nodes, not the 24 on-sale nodes ([cost model](#cost-model)).
+    - **Give each telemetry signal its own retention** — error traces and SLO metrics for months, debug logs for days; ingestion and retention are among the largest lines of the bill.
+
 !!! warning "Pitfalls"
 
     - **No tags**: costs that cannot be attributed cannot be owned or optimized.
@@ -247,7 +255,7 @@ Interviewers rarely want dollars, but cost-awareness is a strong signal. A three
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     BILL["the bill: compute, managed services,<br/>storage, transfer, fixed items"] --> INF["Inform: tags,<br/>cost by pod requests"]
     INF --> OPT["Optimize: rightsizing,<br/>commitments, spot, ARM"]

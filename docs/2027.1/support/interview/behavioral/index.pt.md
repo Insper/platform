@@ -1,8 +1,8 @@
-# Perguntas comportamentais
+# Perguntas comportamentais { #behavioral-questions }
 
 A maioria dos processos com entrevista de system design inclui uma conversa sobre **o que você já fez**: "conte sobre uma decisão técnica que você tomou", "conte sobre algo que deu errado". Para um estágio ou primeiro emprego, os projetos deste curso são exatamente o material que essas perguntas pedem. Esta página mostra como transformá-los em histórias curtas e honestas que mostram discernimento — o mesmo discernimento que a entrevista de design procura.
 
-## Por que aparecem num processo de system design
+## Por que aparecem num processo de system design { #why-they-appear-in-a-system-design-loop }
 
 Uma entrevista de design mostra como você raciocina sobre um sistema hipotético em 45 minutos. Uma pergunta comportamental verifica se você já raciocinou assim **de verdade**: escolheu entre opções, conviveu com as consequências, mediu, errou e aprendeu. O entrevistador procura os mesmos sinais nas duas: trade-offs declarados explicitamente, números, responsabilidade e a capacidade de mudar de ideia diante de evidências.
 
@@ -14,7 +14,7 @@ Uma entrevista de design mostra como você raciocina sobre um sistema hipotétic
 | Aprendizado | "Da próxima vez eu mediria antes de escolher" |
 | Colaboração | Como você lidou com uma discordância ou ajudou um colega |
 
-## O formato STAR(L)
+## O formato STAR(L) { #the-starl-format }
 
 Responda em **dois minutos ou menos**, com esta estrutura:
 
@@ -27,7 +27,7 @@ Responda em **dois minutos ou menos**, com esta estrutura:
 !!! tip "Falando de trade-offs"
     Use a mesma frase da entrevista de design: **"Escolhemos X em vez de Y porque [requisito ou número]. O custo foi [do que abrimos mão]. Revisaríamos se [condição]."** Por exemplo: "Escolhemos um Redis com cache-aside em vez de réplicas de leitura para o catálogo porque 95% do tráfego eram leituras dos mesmos 200 eventos. O custo foi até 60 segundos de preços desatualizados. Revisaríamos se os preços passassem a mudar durante a venda."
 
-## Transformando o trabalho do curso em histórias
+## Transformando o trabalho do curso em histórias { #turning-course-work-into-stories }
 
 Você já tem a matéria-prima. Escreva uma história de cada uma destas atividades antes de uma temporada de entrevistas:
 
@@ -39,7 +39,7 @@ Você já tem a matéria-prima. Escreva uma história de cada uma destas ativida
 | [Documento de design e ADRs](../../../exercises/design-doc/index.md) | Registrar alternativas, defender uma escolha, aceitar feedback | "Conte sobre uma vez em que você mudou de ideia" |
 | Laboratórios (por exemplo o [Hands-on 9](../../../hands-on/9/index.md)) | Acrescentar resiliência a uma dependência | "Como você lida com dependências pouco confiáveis?" |
 
-## Dez perguntas comuns
+## Dez perguntas comuns { #ten-common-questions }
 
 | # | Pergunta | O que está sendo avaliado | Roteiro de uma boa resposta |
 |---|---|---|---|
@@ -65,7 +65,7 @@ Você já tem a matéria-prima. Escreva uma história de cada uma destas ativida
 
     **Lição.** "Medir antes de escolher nos poupou de acrescentar réplicas de que não precisávamos. Desde então começo todo problema de desempenho com um trace e uma hipótese por escrito."
 
-## Armadilhas
+## Armadilhas { #pitfalls }
 
 !!! warning "O que faz uma boa história soar mal"
     - **"Nós" o tempo todo.** O entrevistador está contratando você: diga o que *você* fez.
@@ -75,7 +75,7 @@ Você já tem a matéria-prima. Escreva uma história de cada uma destas ativida
     - **Longa demais.** Dois minutos. O entrevistador pede mais detalhes se quiser.
     - **Histórias inventadas.** As perguntas de acompanhamento as desmontam rápido. Uma história pequena e verdadeira vale mais que uma grande e falsa.
 
-## Seu banco de histórias
+## Seu banco de histórias { #your-story-bank }
 
 Preencha uma linha por história; mire em seis a oito histórias que, juntas, cubram as dez perguntas.
 

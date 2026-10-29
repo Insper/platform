@@ -2,7 +2,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Falhas, redes e idempotência
+## Falhas, redes e idempotência { #failures-networks-and-idempotency }
 
 **Q1.** O `inventory` do BoxOffice chama o `payment` e não recebe resposta em 2 s. O que o `inventory` pode concluir?
 
@@ -74,7 +74,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Replicação e consistência
+## Replicação e consistência { #replication-and-consistency }
 
 **Q6.** Uma fã paga e é redirecionada para *Meus ingressos*, que lê de uma réplica de leitura assíncrona. A lista está vazia. Que garantia foi violada, e qual é a correção mais barata?
 
@@ -118,7 +118,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## CAP e PACELC
+## CAP e PACELC { #cap-and-pacelc }
 
 **Q9.** O estoque de assentos do BoxOffice está replicado em duas regiões, e o enlace entre elas cai. Um fã na região 2 pede para reservar um assento cujo estado mais recente está na região 1. Uma configuração **CP** vai:
 
@@ -148,7 +148,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Consenso e quóruns
+## Consenso e quóruns { #consensus-and-quorums }
 
 **Q11.** Um cluster etcd precisa continuar aceitando escritas se **dois** nós quaisquer falharem ao mesmo tempo. Qual é o tamanho mínimo do cluster?
 
@@ -192,7 +192,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Transações distribuídas
+## Transações distribuídas { #distributed-transactions }
 
 **Q14.** No two-phase commit, o coordenador cai depois que todos os participantes votaram **sim**, mas antes de enviar a decisão. O que acontece com os participantes?
 
@@ -222,7 +222,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Tempo e relógios
+## Tempo e relógios { #time-and-clocks }
 
 **Q16.** Dois nós do `inventory` resolvem escritas conflitantes no mesmo assento com last-write-wins usando os próprios relógios de parede. O relógio do nó 1 está 50 ms adiantado. O que acontece com duas escritas conflitantes feitas com 20 ms de diferença, a mais recente no nó 2?
 

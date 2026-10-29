@@ -108,12 +108,57 @@ console.log(`  levels warm-up/practice/challenge: ${levels[1]}/${levels[2]}/${le
 console.log('  stages: ' + STAGE_KEYS.map(k => k + ' ' + (stages[k] || 0)).join(', '));
 console.log('  per class: ' + Object.entries(perClass).map(([k, v]) => k + ' ' + v).join(', '));
 
+/* the Portuguese texts: complete, and nothing that the English data no longer has */
+console.log('Portuguese texts');
+for (const [file, name] of [['mapa-arq-dados-pt.js', 'MAPA_ARQ_PT'], ['cartas-arq-dados-pt.js', 'CARTAS_ARQ_PT']]) {
+  const f = path.join(JS, file);
+  if (!fs.existsSync(f)) { err(file + ' does not exist'); continue; }
+  vm.runInContext(fs.readFileSync(f, 'utf8'), ctx, { filename: file });
+  if (!ctx.window[name]) err(file + ' does not define window.' + name);
+}
+const MPT = ctx.window.MAPA_ARQ_PT, CPT = ctx.window.CARTAS_ARQ_PT;
+if (MPT) {
+  const ids = new Set(MAP.nodes.map(n => n.id));
+  MAP.nodes.forEach(n => { const o = (MPT.nodes || {})[n.id]; if (!o || !o.n || !o.d) err(`map pt: node ${n.id} has no Portuguese name and definition`); });
+  Object.keys(MPT.nodes || {}).forEach(id => { if (!ids.has(id)) err(`map pt: node ${id} is not in the English data`); });
+  const keys = new Set(MAP.edges.map(([a, b]) => a + '>' + b));
+  keys.forEach(k => { if (!(MPT.edges || {})[k]) err(`map pt: edge ${k} has no Portuguese sentence`); });
+  Object.keys(MPT.edges || {}).forEach(k => { if (!keys.has(k)) err(`map pt: edge ${k} is not in the English data`); });
+  if ((MPT.trails || []).length !== MAP.trails.length) err(`map pt: ${(MPT.trails || []).length} trails, English has ${MAP.trails.length}`);
+  MAP.trails.forEach((tr, i) => { const o = (MPT.trails || [])[i]; if (!o || !o.n || !o.p || o.p.length !== tr.p.length || o.p.some(x => !x)) err(`map pt: trail ${i + 1} ("${tr.n}") does not match the English steps`); });
+  console.log(`  map: ${Object.keys(MPT.nodes || {}).length} nodes, ${Object.keys(MPT.edges || {}).length} edges, ${(MPT.trails || []).length} trails`);
+}
+if (CPT) {
+  const keys = new Set(CARDS.map(c => c.l + '|' + c.name));
+  CARDS.forEach(c => {
+    const o = CPT[c.l + '|' + c.name];
+    if (!o || !o.name || !o.q || !o.a) err(`cards pt: ${c.l} "${c.name}" has no Portuguese name, question and answer`);
+    else if (!!c.c !== !!o.c) err(`cards pt: ${c.l} "${c.name}": the challenge situation is ${c.c ? 'missing' : 'extra'}`);
+  });
+  Object.keys(CPT).forEach(k => { if (!keys.has(k)) err(`cards pt: ${k} is not in the English data (renamed?)`); });
+  const names = {};
+  CARDS.forEach(c => { const o = CPT[c.l + '|' + c.name]; if (o) { const k = c.l + '|' + o.name; if (names[k]) err(`cards pt: two cards of ${c.l} are named "${o.name}"`); names[k] = 1; } });
+  console.log(`  cards: ${Object.keys(CPT).length} translated`);
+}
+
 /* the two pages */
 console.log('Pages');
 for (const p of ['concept-map/index.md', 'flashcards/index.md']) {
   const f = path.join(ROOT, 'docs/2027.1/support', p);
   if (!fs.existsSync(f)) { err(p + ' does not exist'); continue; }
   const md = fs.readFileSync(f, 'utf8');
+  /* the counts the pages state (en and pt) follow the data */
+  const counts = p.startsWith('concept-map')
+    ? [[MAP.nodes.length, /(\d+) (?:concepts|conceitos)/], [MAP.edges.length, /(\d+) (?:connections|ligações)/]]
+    : [[CARDS.length, /(\d+) (?:cards|cartas)/]];
+  for (const file of [f, f.replace(/\.md$/, '.pt.md')]) {
+    if (!fs.existsSync(file)) continue;
+    const text = fs.readFileSync(file, 'utf8');
+    for (const [n, re] of counts) {
+      const m = text.match(re);
+      if (m && +m[1] !== n) err(`${path.relative(ROOT, file)} says ${m[0]}, the data have ${n}`);
+    }
+  }
   for (const m of md.matchAll(/\]\(([^)#\s]+\.md)(#[^)]*)?\)/g)) {
     const target = path.resolve(path.dirname(f), m[1]);
     if (!fs.existsSync(target)) err(`${p}: link ${m[1]} → missing file`);

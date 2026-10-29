@@ -3,7 +3,7 @@ A primeira pergunta durante um incidente nunca é "por quê?" — é "*há* algo
 
 ---
 
-## Quatro sinais, um espectro
+## Quatro sinais, um espectro { #four-signals-one-spectrum }
 
 | Sinal | Unidade de dado | Responde | Volume / custo | Retenção típica | Backends |
 |---|---|---|---|---|---|
@@ -14,7 +14,7 @@ A primeira pergunta durante um incidente nunca é "por quê?" — é "*há* algo
 
 Pense nisso como um espectro que vai do **agregado e barato** ao **detalhado e caro**. Métricas comprimem um milhão de requisições em alguns números por intervalo — você pode guardá-las por meses, mas não consegue perguntar sobre uma requisição. Logs e traces guardam cada requisição — você pode perguntar qualquer coisa sobre ela, mas precisa amostrar, filtrar ou expirar esses dados.
 
-``` mermaid
+``` diagram
 flowchart LR
     M["Métricas<br/>agregadas · baratas · retenção longa"] --> T["Traces<br/>por requisição · amostrados"]
     T --> L["Logs<br/>por evento · verbosos"]
@@ -23,13 +23,13 @@ flowchart LR
 
 !!! note "Nomes usados nesta aula"
 
-    O BoxOffice é instrumentado com o **agente Java do OpenTelemetry** ([Hands-on 8](../../../hands-on/8/index.md)), que segue as *semantic conventions* do OpenTelemetry[^1]. Sua métrica de servidor HTTP `http.server.request.duration` (um histograma, em segundos) chega ao Prometheus como `http_server_request_duration_seconds_bucket`, `_count` e `_sum`, com os labels `http_route`, `http_request_method` e `http_response_status_code`; o nome do serviço vira o label `job`. As métricas do próprio Micrometer do Spring Boot usam outros nomes (`http_server_requests_seconds` com `uri`, `status`, `application`). As consultas seguem a mesma ideia — confira quais nomes a sua stack emite antes de copiar uma consulta.
+    O BoxOffice é instrumentado com o **agente Java do OpenTelemetry** ([Hands-on 8](../../../hands-on/8/index.md)), que segue as *semantic conventions* do OpenTelemetry[^1]. Sua métrica de servidor HTTP `http.server.request.duration` (um histograma, em segundos) chega ao Prometheus como `http_server_request_duration_seconds_bucket`, `_count` e `_sum`, com os labels `http_route`, `http_request_method` e `http_response_status_code`. O atributo de recurso `service.name` chega como o label `service_name` (o que o dashboard e os alertas do lab 8 filtram), e o Prometheus monta o `job` a partir de `service.namespace` e `service.name` — `boxoffice/order` no lab 8; uma configuração clássica de scrape dá ao `job` o nome do alvo coletado. As consultas desta página usam `job="order"` por brevidade. As métricas do próprio Micrometer do Spring Boot usam outros nomes (`http_server_requests_seconds` com `uri`, `status`, `application`). As consultas seguem a mesma ideia — confira quais nomes a sua stack emite antes de copiar uma consulta.
 
 ---
 
 ## Métricas { #metrics }
 
-### O modelo de dados
+### O modelo de dados { #the-data-model }
 
 Uma métrica é uma **série temporal**: um nome, um conjunto de **labels** chave-valor (também chamados de atributos ou dimensões) e uma sequência de amostras `(timestamp, valor)`.
 
@@ -60,7 +60,7 @@ Os histogramas são os importantes. Cada bucket é um contador "quantas observa�
 
 Os dois funcionam; stacks modernas misturam ambos. Com OpenTelemetry, o padrão é **push via OTLP** para um Collector, que também pode fazer **scrape** de endpoints Prometheus existentes ([OpenTelemetry](../opentelemetry/index.md)).
 
-### RED, USE e os quatro golden signals
+### RED, USE e os quatro golden signals { #red-use-and-the-four-golden-signals }
 
 Você não precisa de centenas de métricas por serviço. Três checklists conhecidos dizem quais poucas importam:
 
@@ -84,7 +84,7 @@ Os golden signals são essencialmente RED + saturação. A **saturação** é o 
 
     Durante a venda relâmpago, as **aquisições pendentes** do pool de pagamentos (saturação) subiram dois minutos antes de o alerta de p99 do checkout disparar. A saturação é o indicador antecedente; RED é o que os usuários sentem.
 
-### RED em PromQL
+### RED em PromQL { #red-in-promql }
 
 PromQL é a linguagem de consulta do Prometheus (e do Mimir, do Thanos e da maioria dos backends compatíveis). Duas regras evitam a maioria das consultas erradas: aplique `rate()` a um counter **antes** de somá-lo (ele trata os resets do contador quando um pod reinicia), e mantenha o label `le` ao somar buckets de histograma.
 
@@ -112,7 +112,15 @@ sum(rate(http_server_request_duration_seconds_bucket{job="order", http_route="/c
 sum(rate(http_server_request_duration_seconds_count{job="order", http_route="/checkout"}[5m]))
 ```
 
-### Percentis, não médias — e nunca a média de percentis
+!!! example "No código do BoxOffice: o dashboard RED (lab 8)"
+
+    O [Hands-on 8 — dashboard RED](../../../hands-on/8/dashboard/index.md) provisiona um dashboard para todos os serviços a partir de um arquivo JSON no repositório, revisado e versionado como qualquer outro código. A linha de cima são as três consultas acima, uma linha por `service_name`: a taxa é a `sum by (service_name)` do `rate()` do contador; os erros são uma **fração** de `5xx`, não uma contagem (50 erros/s é um desastre a 60 req/s e ruído a 60.000); o p95 vem do `histogram_quantile` sobre buckets somados **por `le`** — nunca uma média de percentis por réplica, o que importa porque o `catalog` roda três réplicas como um só serviço. A linha de baixo é USE: JVMs e pools de conexão.
+
+    ``` { .json title="infra/grafana/dashboards/boxoffice-red.json (titles and queries of the RED row)" }
+    --8<-- "docs/2027.1/hands-on/8/code/infra/grafana/dashboards/boxoffice-red.json:56:56,81:81,89:89,114:114,122:122,147:147"
+    ```
+
+### Percentis, não médias — e nunca a média de percentis { #percentiles-not-averages-and-never-average-percentiles }
 
 Uma latência média esconde a cauda: se 99 checkouts levam 100 ms e um leva 10 s, a média é ~200 ms e parece ótima, mas um fã em cada cem espera dez segundos — e uma página que faz 20 chamadas encontra essa cauda na maioria dos carregamentos (veja [Percentis](../../estimation/percentiles/index.md)).
 
@@ -197,7 +205,7 @@ Os cinco primeiros labels são **limitados**: o número de valores é pequeno e 
 
 Um log é um registro com timestamp de um evento discreto. Logs são o sinal mais familiar e o mais fácil de abusar: escrevê-los é de graça e guardá-los é caro.
 
-### Logs estruturados
+### Logs estruturados { #structured-logs }
 
 Escreva logs como registros **estruturados** (JSON, ou o modelo de dados de log do OpenTelemetry) com nomes de campo fixos, não como texto livre.
 
@@ -225,7 +233,7 @@ Escreva logs como registros **estruturados** (JSON, ou o modelo de dados de log 
 
 Os campos `trace_id` e `span_id` são o que transforma uma linha de log em parte de uma investigação: de um span lento você salta exatamente para as linhas de log dele, e de uma linha de erro você salta para o trace completo. Com o agente Java do OpenTelemetry, eles são adicionados ao contexto de logging automaticamente ([OpenTelemetry](../opentelemetry/index.md)).
 
-### O que (não) registrar
+### O que (não) registrar { #what-not-to-log }
 
 | Nível | Uso | Em produção? |
 |---|---|---|
@@ -239,7 +247,7 @@ Os campos `trace_id` e `span_id` são o que transforma uma linha de log em parte
 - **Registre a decisão, não só o resultado**: "fallback para o provedor B porque o breaker está aberto" explica a próxima hora de gráficos.
 - **Erros uma vez só**: registre uma exceção onde ela é tratada, não em cada camada que ela atravessa.
 
-### Consultando logs
+### Consultando logs { #querying-logs }
 
 Com o Loki (o "L" da stack Grafana LGTM), os labels selecionam os *streams* e o resto da linha é interpretado na hora da consulta, o que mantém a indexação barata:
 
@@ -317,7 +325,7 @@ O profiling virou o quarto sinal do OpenTelemetry (ainda amadurecendo em 2026), 
 
 Um dashboard é um conjunto de consultas salvas, organizadas para responder rapidamente a uma pergunta. A maioria dos dashboards falha porque tenta mostrar *tudo*; os úteis são projetados de cima para baixo, do que os usuários sentem ao que os recursos fazem.
 
-``` mermaid
+``` diagram
 flowchart TB
     L1["1 · Jornadas do usuário e SLOs<br/>busca, reserva de assento, checkout: SLI, budget restante"]
     L2["2 · Serviços — RED<br/>por serviço e rota: taxa, erros, p50/p99"]
@@ -349,6 +357,14 @@ flowchart TB
 
     Ao adicionar um componente a um design, cite sua **métrica-chave** na mesma frase — isso mostra que você já operou sistemas: cache → **hit ratio**; fila → **consumer lag / idade da mensagem mais antiga**; réplica de banco → **replication lag**; pool de conexões → **aquisições pendentes**; API → **RED**. Se perguntarem "como você depura uma requisição lenta entre serviços?", a resposta é **tracing distribuído com contexto propagado**, depois os logs do span lento. E se você propuser uma métrica com `user_id` como label, espere a pergunta seguinte sobre **cardinalidade**.
 
+!!! success "Boas práticas"
+
+    - **Dê a todo serviço a mesma linha RED, com as mesmas três consultas** — taxa, fração de erros e p95 por `service_name`, para que qualquer pessoa de plantão leia qualquer serviço em dez segundos. No BoxOffice: `boxoffice-red.json` ([Hands-on 8 — dashboard RED](../../../hands-on/8/dashboard/index.md)).
+    - **Mostre erros como fração e desenhe o limite do SLO no painel de latência** — 50 erros/s é um desastre a 60 req/s e ruído a 60.000; uma linha no limite transforma "o p99 está ruim?" numa olhada.
+    - **Exponha a saturação de todo pool e fila que é seu** — aquisições de conexão pendentes, profundidade de fila, lag de consumidor: na venda relâmpago elas subiram dois minutos antes do alerta do checkout. No BoxOffice: o painel *DB connections* (`db_client_connections_pending_requests`) do dashboard do lab 8.
+    - **Defina um orçamento de séries por serviço e confira-o a cada release** — conte as séries que cada serviço cria (`count by (service_name) ({service_namespace="boxoffice"})`); um label novo pode multiplicá-las por 1.000. No BoxOffice: o experimento C do [Hands-on 8 — meça](../../../hands-on/8/measure/index.md).
+    - **Emita um evento de log estruturado por resultado, com `trace_id` e a decisão tomada** — "fallback para o provedor B, breaker aberto" explica a próxima hora de gráficos; dez linhas "entrando no método" não explicam nada. No BoxOffice: o `LOGGING_PATTERN_CORRELATION` da âncora `x-otel` põe o trace id em toda linha.
+
 !!! warning "Armadilhas comuns"
 
     - **Labels ilimitados** (`user_id`, `order_id`, URLs cruas): o backend de métricas fica sem memória ou a fatura explode.
@@ -360,7 +376,7 @@ flowchart TB
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     REQ["one checkout:<br/>gateway → order → payment"] --> MET["metrics: RED per route,<br/>USE per pool and topic"]
     REQ --> TR["trace: spans,<br/>critical path"]
@@ -378,14 +394,16 @@ flowchart LR
 
 ---
 
-## Principais conclusões
+## Pontos-chave { #key-takeaways }
 
-- Quatro sinais num espectro custo–detalhe: **métricas** (baratas, agregadas), **traces** (por requisição, amostrados), **logs** (por evento), **profiles** (por caminho de código).
-- **RED** para serviços, **USE** para recursos, os **golden signals** para tudo que é voltado ao usuário; a **saturação** (espera) é o indicador antecedente.
-- Use **histogramas**, agregue buckets com `sum by (le)` e só então calcule percentis; nunca tire a média de percentis.
-- **Cardinalidade** é o produto dos valores dos labels; mantenha os labels de métrica limitados e coloque o detalhe de alta cardinalidade em traces e logs.
-- Logs precisam ser **estruturados** e carregar o `trace_id`; traces mostram o **caminho crítico**, incluindo o tempo gasto esperando; profiles mostram a **função**.
-- Projete dashboards de cima para baixo: jornadas/SLOs → RED → dependências → USE.
+!!! takeaways ""
+
+    - Quatro sinais num espectro custo–detalhe: **métricas** (baratas, agregadas), **traces** (por requisição, amostrados), **logs** (por evento), **profiles** (por caminho de código).
+    - **RED** para serviços, **USE** para recursos, os **golden signals** para tudo que é voltado ao usuário; a **saturação** (espera) é o indicador antecedente.
+    - Use **histogramas**, agregue buckets com `sum by (le)` e só então calcule percentis; nunca tire a média de percentis.
+    - **Cardinalidade** é o produto dos valores dos labels; mantenha os labels de métrica limitados e coloque o detalhe de alta cardinalidade em traces e logs.
+    - Logs precisam ser **estruturados** e carregar o `trace_id`; traces mostram o **caminho crítico**, incluindo o tempo gasto esperando; profiles mostram a **função**.
+    - Projete dashboards de cima para baixo: jornadas/SLOs → RED → dependências → USE.
 
 ---
 

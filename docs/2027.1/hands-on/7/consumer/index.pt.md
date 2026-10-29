@@ -1,4 +1,4 @@
-# 3. Consumidor Idempotente e DLT
+# 3. Consumidor Idempotente e DLT { #3-idempotent-consumer-and-dlt }
 
 O Kafka e o outbox entregam **pelo menos uma vez**: um relay que cai depois do *ack* republica um
 lote; um consumidor que cai depois de enviar o e-mail, mas antes de confirmar o offset, recebe a
@@ -12,7 +12,7 @@ mensagem ruim parar a partição inteira.
 | uma falha transitória (soluço do SMTP) | **retentativa com *backoff* exponencial**, no lugar | `KafkaConfig` |
 | uma mensagem que nunca vai dar certo (malformada, endereço inválido) | **tópico de mensagens mortas** (DLT): estacioná-la e manter a partição andando | `KafkaConfig`, `DeadLetterListener` |
 
-## O serviço `notification`
+## O serviço `notification` { #the-notification-service }
 
 Um serviço Spring Boot em `services/notification/`, porta **8086**. Ele também mantém o endpoint
 legado `POST /notifications` que `order` chama em `NOTIFY_MODE=sync`, para que as duas arquiteturas
@@ -39,7 +39,7 @@ services/notification/
         └── db/migration/V1__create_notification.sql
 ```
 
-### Arquivos de build e esquema
+### Arquivos de build e esquema { #build-files-and-schema }
 
 === "pom.xml"
 
@@ -74,7 +74,7 @@ services/notification/
 `sent_at` usa `clock_timestamp()` (a hora real do INSERT), não `now()` (a hora em que a *transação*
 começou): com o e-mail enviado dentro da transação, `now()` esconderia a latência dele.
 
-### O evento, o e-mail e as propriedades
+### O evento, o e-mail e as propriedades { #the-event-the-e-mail-and-the-properties }
 
 === "OrderEvent.java"
 
@@ -100,7 +100,7 @@ começou): com o e-mail enviado dentro da transação, `now()` esconderia a lat�
     --8<-- "docs/2027.1/hands-on/7/code/services/notification/src/main/java/boxoffice/notification/NotificationApplication.java"
     ```
 
-## Idempotência: deduplicar na mesma transação do efeito
+## Idempotência: deduplicar na mesma transação do efeito { #idempotency-dedupe-in-the-same-transaction-as-the-effect }
 
 ``` java title="services/notification/src/main/java/boxoffice/notification/NotificationService.java"
 --8<-- "docs/2027.1/hands-on/7/code/services/notification/src/main/java/boxoffice/notification/NotificationService.java"
@@ -128,7 +128,7 @@ para Kafka, não e-mails.
     de idempotência para os provedores externos." Essa frase responde à maioria das perguntas de
     acompanhamento do tipo "e as duplicatas?".
 
-## Listeners, retentativas e o tópico de mensagens mortas
+## Listeners, retentativas e o tópico de mensagens mortas { #listeners-retries-and-the-dead-letter-topic }
 
 === "OrderEventListener.java"
 
@@ -156,7 +156,7 @@ para Kafka, não e-mails.
 
 Como flui um registro que falha:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant K as order-events (partição 3)
     participant L as listener
@@ -188,7 +188,7 @@ sequenceDiagram
     mesma chave. Para e-mails, bloquear alguns segundos é aceitável; para fluxos de alto volume,
     retentativas não bloqueantes são comuns.
 
-## Adicione `notification` ao Compose e teste
+## Adicione `notification` ao Compose e teste { #add-notification-to-compose-and-test }
 
 ``` yaml title="docker-compose.yaml (excerpt)"
   notification:
@@ -246,7 +246,7 @@ O que aconteceu, em ordem:
 2. Os dois eventos `OrderPlaced` reais (reservas `0001` e `0002`) produzem **dois e-mails** no Mailpit
    (`http://localhost:8025`).
 
-### Experimento: reprocessar sem duplicatas
+### Experimento: reprocessar sem duplicatas { #experiment-replay-without-duplicates }
 
 Volte o grupo inteiro e deixe-o consumir tudo de novo:
 
@@ -263,7 +263,7 @@ Os logs mostram `duplicate event ... ignored` para cada pedido e o Mailpit conti
 Repita com `NOTIFY_IDEMPOTENT=false docker compose up -d notification` e conte de novo: cada
 reprocessamento envia todos os e-mails outra vez.
 
-### Experimento: um pedido envenenado
+### Experimento: um pedido envenenado { #experiment-a-poison-order }
 
 ``` shell
 curl -s -X POST localhost:8084/orders -H 'Content-Type: application/json' \

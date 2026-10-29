@@ -214,4 +214,4 @@ Click **"Answer"** to reveal the correct answer and explanation.
 ??? success "Answer"
     **B — Questions from the interviewer are hints about what they want to evaluate.**
 
-    A slow dependency without timeouts exhausts the caller's threads and cascades (class 9). Naming the mitigation *and its cost* shows both depth and trade-off reasoning.
+    A slow dependency without timeouts exhausts the caller's threads and cascades (class 10). Naming the mitigation *and its cost* shows both depth and trade-off reasoning.

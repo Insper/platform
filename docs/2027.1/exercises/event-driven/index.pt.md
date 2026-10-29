@@ -9,11 +9,11 @@ Um fã paga por dois lugares, o serviço `order` da BoxOffice grava o pedido… 
     - **Raciocinar** sobre semânticas de entrega: entrega at-least-once + processamento idempotente = efeitos colaterais effectively-once.
     - **Verificar** a correção sob falhas com uma consulta de reconciliação, e **medir** a latência fim a fim e o atraso do consumidor.
 
-## Contexto
+## Contexto { #context }
 
 A [Aula 8](../../classes/messaging/index.md) tratou de filas, pub/sub e do log de eventos, das partições e grupos de consumidores do Kafka, das semânticas de entrega e dos padrões outbox/saga[^1]. O [Lab 7](../../hands-on/7/index.md) montou o Kafka (KRaft) com os serviços `order` e `notification` da BoxOffice. Aqui você torna esse fluxo **correto sob falhas** e prova isso.
 
-```mermaid-sim
+``` diagram-sim
 flowchart LR
     client([k6]) -->|POST /orders| order[order]
     order -->|"1 · uma transação: pedido + linha no outbox"| odb[("order_svc<br/>orders · outbox")]
@@ -34,7 +34,7 @@ Por que cada peça existe:
 | Retentativas com backoff, depois **DLT** | Erros transitórios são repetidos; uma mensagem envenenada não trava a partição para sempre |
 | Chave do Kafka = `orderId` | Todos os eventos de um pedido vão para a mesma partição, em ordem |
 
-## Tarefa
+## Tarefa { #task }
 
 Implemente e verifique o fluxo **pedido confirmado → e-mail com o ingresso** da BoxOffice (ou o fluxo equivalente dos seus serviços):
 
@@ -44,7 +44,7 @@ Implemente e verifique o fluxo **pedido confirmado → e-mail com o ingresso** d
 4. Execute uma **carga de 10 minutos** injetando falhas (queda do relay, queda do broker, queda do consumidor, evento duplicado, mensagem envenenada) e prove com uma **consulta de reconciliação** que há **zero e-mails perdidos e zero duplicados**.
 5. Meça a **latência fim a fim** e o **atraso do consumidor**, com e sem falhas.
 
-## Requisitos
+## Requisitos { #requirements }
 
 - [ ] **(obrigatório)** Linha do outbox gravada na **mesma transação** da mudança de negócio (mostre o código).
 - [ ] **(obrigatório)** Consumidor idempotente: deduplicação pelo id do evento **na mesma transação** do efeito colateral.
@@ -57,13 +57,13 @@ Implemente e verifique o fluxo **pedido confirmado → e-mail com o ingresso** d
 - [ ] Uma discussão sobre ordem (o que a chave garante e o que não garante) e sobre o e-mail real (um efeito colateral externo, fora do seu banco).
 - [ ] Seção *Uso de IA* (veja a [política](../index.md#use-of-ai-tools)).
 
-## Entregáveis
+## Entregáveis { #deliverables }
 
 No seu repositório (tag `ex4`): o código dos dois serviços, as migrações, o `compose.yaml`, o script k6, o script de falhas, as consultas de reconciliação e de latência e suas saídas; uma página `event-driven` no site da sua documentação seguindo o [template](#templates).
 
-## Passo a passo
+## Passo a passo { #step-by-step }
 
-### 1. Kafka (KRaft) e os schemas
+### 1. Kafka (KRaft) e os schemas { #1-kafka-kraft-and-the-schemas }
 
 Reaproveite o Kafka do Lab 7. Como referência, um broker KRaft de nó único com a imagem oficial:
 
@@ -120,7 +120,7 @@ CREATE TABLE ticket_emails (
 
     É tentador acrescentar uma — e em produção talvez você acrescente. Aqui, deixe de fora: a ideia é mostrar que **a lógica do consumidor** evita duplicatas. Uma restrição de unicidade esconderia um consumidor com defeito.
 
-### 2. Grave o pedido e o evento juntos
+### 2. Grave o pedido e o evento juntos { #2-write-the-order-and-the-event-together }
 
 ```java title="order/src/main/java/boxoffice/order/OrderService.java"
 package boxoffice.order;
@@ -173,7 +173,7 @@ public class OrderService {
 
 Neste exercício um pedido é confirmado quando é criado (o pagamento está fora do escopo); se o seu serviço tem uma etapa de confirmação separada, grave a linha do outbox nela.
 
-### 3. O relay
+### 3. O relay { #3-the-relay }
 
 Um publicador por polling lê as linhas não publicadas, publica cada uma e espera a confirmação do broker antes de marcá-la. `FOR UPDATE SKIP LOCKED` permite rodar um segundo relay sem que os dois publiquem a mesma linha ao mesmo tempo.
 
@@ -235,7 +235,7 @@ spring:
 
 Se o relay cair depois do `send` e antes do commit da transação, a linha é publicada **de novo** no próximo polling. Tudo bem — o consumidor é idempotente. Change Data Capture com Debezium (lendo o outbox a partir do WAL do PostgreSQL) é um relay alternativo; é uma boa extensão nível A.
 
-### 4. O consumidor idempotente, as retentativas e a DLT
+### 4. O consumidor idempotente, as retentativas e a DLT { #4-the-idempotent-consumer-retries-and-the-dlt }
 
 ```java title="notification/src/main/java/boxoffice/notification/TicketEmailService.java"
 package boxoffice.notification;
@@ -349,7 +349,7 @@ public class KafkaConfig {
 
 `InvalidEventException` é uma `RuntimeException` simples. O consumidor só confirma o offset depois que `handle` retorna (os modos de ack padrão do Spring Kafka, `BATCH`/`RECORD`, confirmam depois do listener)[^2], então uma queda no meio significa **reentrega** — que a tabela `processed_events` absorve.
 
-### 5. Carga e falhas
+### 5. Carga e falhas { #5-load-and-failures }
 
 ```javascript title="load/orders.js"
 import http from 'k6/http';
@@ -406,7 +406,7 @@ k6 run load/orders.js & ./chaos/failures.sh; wait
 
 As requisições para o `order` falham enquanto ele está fora — isso é esperado (os erros do k6 não são o foco aqui). O que precisa valer é: **todo pedido aceito recebe exatamente um e-mail com o ingresso**.
 
-### 6. Verifique e meça
+### 6. Verifique e meça { #6-verify-and-measure }
 
 ```sql title="verify.sql"
 -- lost: confirmed orders without exactly one ticket e-mail
@@ -525,7 +525,7 @@ Amostre o atraso do consumidor a cada poucos segundos durante a execução (um l
     ## 7. Uso de IA
     ~~~
 
-## Rubrica
+## Rubrica { #rubric }
 
 Níveis conforme definidos em [Como os exercícios são avaliados](../index.md#how-the-exercises-are-graded).
 

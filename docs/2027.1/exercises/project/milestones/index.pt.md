@@ -1,6 +1,6 @@
 O projeto é entregue em **nove marcos**. Cada um acrescenta uma camada ao mesmo sistema, na ordem em que as aulas a ensinam, para que vocês nunca construam algo que ainda não viram em aula — e nunca deixem tudo para as duas últimas semanas. Cada marco tem **critérios de aceitação que vocês mesmos podem conferir** antes do prazo, e um **check-in** curto em aula.
 
-```mermaid
+``` diagram
 flowchart LR
     m1["M1<br/>design doc<br/>estimativas · SLOs"] --> m2["M2<br/>caminho principal<br/>apigw · auth · 3 serviços · sql"]
     m2 --> m3["M3<br/>escala<br/>cache · réplica/pool"]
@@ -124,7 +124,7 @@ Detalhes, template e rubrica: [campanha de testes de carga](../load-test-campaig
 - [ ] Pelo menos três experimentos planejados mais uma falha surpresa injetada pelo professor.
 - [ ] Relatório com observações, impacto nos SLOs, tempo para detectar/mitigar e ações.
 
-Detalhes, templates e rubrica: [game day](../game-day/index.md). Relacionados: [Aula 9](../../../classes/reliability/index.md), [Lab 9](../../../hands-on/9/index.md).
+Detalhes, templates e rubrica: [game day](../game-day/index.md). Relacionados: [Aula 10](../../../classes/reliability/index.md), [Lab 9](../../../hands-on/9/index.md).
 
 **Perguntas do check-in:** Qual experimento surpreendeu vocês? Como detectaram a falha surpresa — alerta, dashboard ou um usuário? Qual ação é a mais importante?
 
@@ -135,7 +135,7 @@ Detalhes, templates e rubrica: [game day](../game-day/index.md). Relacionados: [
 - [ ] Custo mensal da escala de projeto com lista de componentes, economia unitária e análise de sensibilidade.
 - [ ] Atualização final do design doc (changelog completo).
 
-Detalhes, template e rubrica: [relatório de custos](../cost-report/index.md). Relacionados: [Aula 12](../../../classes/cloud-native/index.md).
+Detalhes, template e rubrica: [relatório de custos](../cost-report/index.md). Relacionados: [Aula 11](../../../classes/cloud-native/index.md).
 
 **Perguntas do check-in:** Qual é o custo de um ingresso vendido (ou mensagem, corrida, visualização, conversa)? O que domina a conta? O que vocês mudariam para cortá-la pela metade?
 

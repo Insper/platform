@@ -41,7 +41,7 @@ Correções:
 
 Um ***stampede* de cache** (também *thundering herd* ou *dog-piling*) acontece quando uma chave **quente** expira ou é removida. Toda requisição que chega antes de alguém recolocar o valor erra — e cada uma vai ao banco recalcular o *mesmo* valor.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant A as 4.000 requisições
     participant R as Redis
@@ -59,7 +59,7 @@ A conta é a lei de Little. Se o evento 42 é lido **20.000 vezes por segundo** 
 
 Há quatro correções padrão. Elas se complementam.
 
-### 1. Lock (ou lease): só um recalcula
+### 1. Lock (ou lease): só um recalcula { #1-lock-or-lease-only-one-recomputes }
 
 Numa falta, a requisição tenta adquirir um lock curto para a chave. A vencedora recalcula; as outras esperam alguns milissegundos e leem o cache de novo (ou servem uma cópia velha).
 
@@ -99,7 +99,15 @@ def get_event(event_id: int, db, r) -> dict:
 - A liberação confere o token, para que uma vencedora lenta cujo lock já expirou não apague o lock de outra.
 - Custo: as perdedoras esperam (latência) e consultam o cache repetidamente. Os **leases** do memcache do Facebook são uma versão refinada disso, embutida no servidor de cache[^2].
 
-### 2. Agrupamento de requisições (single-flight)
+!!! example "No código do BoxOffice: o lock contra stampede no `catalog` (lab 5)"
+
+    O [Hands-on 5 — Stampede](../../../hands-on/5/stampede/index.md) primeiro *reproduz* o stampede (uma listagem quente com TTL de 3 s, martelada por 200 usuários) e depois liga `CACHE_STAMPEDE_PROTECTION=true`, que executa este código: numa execução de teste, os misses caíram de **800 para 10**, uma consulta ao banco por expiração em vez de oitenta. Mesma ideia do Python acima, em Java: `SET lock NX PX 2000`, relê depois de vencer (outra requisição pode ter preenchido a chave), as perdedoras consultam por no máximo 20 × 25 ms e então carregam assim mesmo. Note o comentário honesto em `unlock`: *get + delete* não é atômico, o script Lua acima é.
+
+    ``` { .java title="services/catalog/src/main/java/boxoffice/catalog/EventCache.java (the lock)" }
+    --8<-- "docs/2027.1/hands-on/5/code/services/catalog/src/main/java/boxoffice/catalog/EventCache.java:62:85,119:138"
+    ```
+
+### 2. Agrupamento de requisições (single-flight) { #2-request-coalescing-single-flight }
 
 Dentro de um processo, faltas concorrentes na mesma chave podem compartilhar **um único** cálculo em andamento: a primeira chamada o inicia, as outras esperam o mesmo *future*. O `LoadingCache` e o `AsyncLoadingCache` do Caffeine fazem isso automaticamente; o Go tem o `singleflight`; em Java você pode usar um `ConcurrentHashMap<Key, CompletableFuture<V>>`.
 
@@ -196,6 +204,11 @@ def xfetch(r, key: str, recompute, ttl: int = 300, beta: float = 1.0):
 | Stale-while-revalidate | não | 1 | média | dados que toleram segundos de defasagem |
 | XFetch | não | ~1 | baixa | chaves quentes com custo de recálculo conhecido |
 
+<div class="csim" data-sim="stampede" data-rate="500"></div>
+
+!!! tip "Experimente"
+    A execução segue o teste de stampede do lab 5: um aquecimento põe no cache a página do evento quente (500 leituras/s) e outras 40 com o mesmo TTL de 3 s, e o banco executa 20 consultas de 200 ms por vez (100/s). Dê play com todas as chaves desligadas: em t = 3 s as consultas saltam para cerca de 1.060/s, centenas esperam na fila, e o p99 chega a cerca de 5 s, com 1.229 consultas em 10 s para 41 páginas. Ligue o **agrupamento de requisições** (o `CACHE_STAMPEDE_PROTECTION=true` do lab 5): 122 consultas, p99 de 200 ms, e 543 requisições esperam a carga de outra requisição. O pico de 280/s que sobra são as 40 páginas expirando juntas, a [avalanche](#avalanche) abaixo: acrescente o **jitter no TTL** (os 10% do lab 5) e ele cai para 120/s. O **XFetch** sozinho dispensa o lock e ninguém espera: a página quente é renovada antes de expirar (314 consultas, pico de 230/s, porque vários leitores a renovam ao mesmo tempo). Com as três, o pico fica abaixo da capacidade, em 90/s.
+
 ---
 
 ## Avalanche de cache { #avalanche }
@@ -207,6 +220,14 @@ Uma **avalanche de cache** é um *stampede* em muitas chaves ao mesmo tempo: um 
     Para preparar a abertura das 10h00, um job aquece o cache às **9h50** com as 5.000 páginas mais quentes, todas com `TTL = 600 s`. Todas expiram às **10:00:00** — o exato instante em que 2 milhões de fãs apertam F5. O aquecimento deixou as coisas piores do que nenhum aquecimento.
 
 A correção é o **jitter**: acrescente um componente aleatório a cada TTL, por exemplo `ttl = 600 + random(0, 120)`, para que as expirações se espalhem por dois minutos. Combine com refresh-ahead ou XFetch para as chaves mais quentes, e com proteção contra *stampede* para cada chave individual.
+
+!!! example "No código do BoxOffice: jitter em todo TTL (lab 5)"
+
+    Toda chave que o `catalog` grava no [Hands-on 5](../../../hands-on/5/cache-aside/index.md) ganha até 10% de TTL extra aleatório, para que chaves gravadas pelo mesmo aquecimento não expirem no mesmo segundo:
+
+    ``` { .java title="services/catalog/src/main/java/boxoffice/catalog/EventCache.java (TTL with jitter)" }
+    --8<-- "docs/2027.1/hands-on/5/code/services/catalog/src/main/java/boxoffice/catalog/EventCache.java:140:144"
+    ```
 
 ---
 
@@ -258,7 +279,7 @@ Uma **chave grande** é um valor de megabytes, ou uma coleção (hash, lista, se
 
 Mais cedo ou mais tarde, o primário do Redis falha, a rede se particiona ou um failover leva de 10 a 30 segundos. O que acontece depois depende de decisões tomadas muito antes:
 
-``` mermaid-sim
+``` diagram-sim
 flowchart TD
     F["Redis indisponível"] --> T{"As chamadas ao cache têm<br/>timeout curto?"}
     T -->|"não"| X1["threads bloqueiam no Redis<br/>o serviço inteiro trava"]
@@ -288,7 +309,7 @@ A verdade incômoda: **depois que o banco é dimensionado para as faltas, o cach
 
 ---
 
-## Veja no playground
+## Veja no playground { #see-it-in-the-playground }
 
 Experimente: este cenário roda o desenho `read-heavy-cache` sob um **pico** (*spike*). Primeiro observe o estado estável: taxa de acerto, QPS do banco e p99. Depois (1) esvazie o cache no pico e veja a carga do banco saltar para a taxa total de requisições — um cache frio sob carga; (2) encurte o TTL das chaves quentes e procure picos de *stampede* no QPS do banco a cada expiração; (3) ative o caos e veja o que acontece com o p99 enquanto o cache está indisponível.
 
@@ -312,6 +333,14 @@ O [playground completo](../../../../playground/index.md) permite acrescentar uma
 
     Depois que você desenha um cache, o entrevistador muitas vezes pergunta "o que acontece quando uma chave quente expira?" ou "e se o Redis cair?". Dê nome à falha (*stampede*, avalanche, chave quente, penetração), o número que a torna perigosa (lei de Little: leituras/s × tempo de recálculo) e a correção (agrupamento ou lock, jitter no TTL, cache L1, cache negativo / filtro de Bloom). Para "o Redis caiu", diga que o banco está dimensionado para as faltas, então você precisa de timeouts, circuit breaker e descarte de carga — não de um fallback ingênuo.
 
+!!! success "Boas práticas"
+
+    - **Ponha um timeout curto em toda chamada ao cache** (milissegundos, não os segundos padrão do cliente) e trate um erro como miss. No BoxOffice: `timeout: 200ms` e `connect-timeout: 200ms` no `application.yaml` do `catalog`, e o `read()` do `EventCache.java` devolve `null` em qualquer erro do Redis.
+    - **Acrescente jitter a todo TTL** e proteja cada chave quente com um lock ou com agrupamento de requisições ([quadros acima](#stampede)).
+    - **Ensaie o cache frio**: esvazie o Redis num teste de carga no pico esperado e verifique que o banco sobrevive; se não sobreviver, mantenha um plano de aquecimento e um limite de taxa no caminho do miss.
+    - **Observe o cache como um banco**: taxa de acerto, despejos, memória, latência por comando e as chaves mais quentes (`redis-cli --hotkeys`, que exige uma política LFU; chaves grandes com `--bigkeys`).
+    - **Responda barato a chaves desconhecidas** (cache negativo ou filtro de Bloom) quando os ids vêm de fora.
+
 !!! warning "Armadilhas comuns"
 
     - **Aquecimentos com TTLs idênticos** — eles agendam uma avalanche.
@@ -324,7 +353,7 @@ O [playground completo](../../../../playground/index.md) permite acrescentar uma
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     COLD["cache frio<br/>aquecer antes do tráfego"] --> DB["o banco recebe os misses"]
     STAMP["stampede: uma chave quente expira<br/>leituras/s × tempo de recálculo"] --> FIX["lock, coalescing,<br/>stale-while-revalidate, XFetch"]

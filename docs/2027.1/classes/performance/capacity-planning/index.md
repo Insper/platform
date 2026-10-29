@@ -251,11 +251,31 @@ Two gates protect the budget: the **absolute** thresholds in `budget.js` (derive
 - **Fight noise**: fixed arrival rate, warm-up step, the same runner type, and repeat once automatically before failing; a dedicated self-hosted runner reduces variance further.
 - **Prefer deterministic budgets** where possible: a query-count assertion in an integration test never flakes, and catches the most common regression (N+1).
 - **Make failures actionable**: upload the summary, link the trace of the slowest request, and say which endpoint regressed by how much.
-- **Run the full campaign elsewhere**: the PR gate is a smoke alarm; the load, spike and breakpoint tests run nightly or before big events in the performance environment. [Hands-on 11](../../../hands-on/11/index.md) wires this gate into the BoxOffice pipeline.
+- **Run the full campaign elsewhere**: the PR gate is a smoke alarm; the load, spike and breakpoint tests run nightly or before big events in the performance environment.
+
+!!! example "In the BoxOffice code: the performance budget gate (lab 11)"
+
+    [Hands-on 11 — Performance gate](../../../hands-on/11/performance-gate/index.md) builds a smaller version of this gate, on purpose: one endpoint (`GET /catalog/events/{id}`), a 20 s warm-up scenario that the thresholds ignore, then 40 s at 50 req/s in the open model, with **absolute** thresholds only — p95 < 300 ms, p99 < 800 ms, failed < 1 %, checks > 99 %. No baseline comparison yet: the budget is generous (the lab measured p95 ≈ 7 ms on a laptop) so that only real regressions fail, because a gate that fails randomly trains people to re-run until green. It runs as the `performance budget` job of `ci.yaml`, and the image job `needs` it: a change that breaks the budget is never built, scanned or deployed. The lab proves it by adding a 400 ms `Thread.sleep` to the event endpoint and watching `p(95)<300` turn red.
+
+    ``` { .javascript title="load/budget.js (warm-up, budget, thresholds)" }
+    --8<-- "docs/2027.1/hands-on/11/code/load/budget.js:9:34"
+    ```
+
+    ``` { .yaml title=".github/workflows/ci.yaml (the performance budget job)" }
+    --8<-- "docs/2027.1/hands-on/11/code/.github/workflows/ci.yaml:45:62"
+    ```
 
 !!! tip "In the interview"
 
     Close the capacity part of a design with an explicit calculation: "Peak 4 500 holds/s; one pod sustains ~275 within the SLO; at 75 % of the knee that is 22 pods, 33 to survive a zone loss; connections by Little's Law are 4 500 × 6 ms ≈ 27 active, so PgBouncer in front of the primary; autoscaling takes minutes, so we pre-scale at 09:45 and the waiting room admits at most what the database can take." Few candidates connect **measured knee → replicas → headroom → admission control**; doing it in one breath is a strong signal.
+
+!!! success "Best practices"
+
+    - **Keep the capacity model as code and re-run it at every capacity review** — demand, knee per replica and headroom as inputs; a spreadsheet nobody re-runs becomes last quarter's plan.
+    - **Set the waiting room's admission rate from the knee of the narrowest component, and alert when the admitted rate approaches it** — admission is the one limit you choose; every other limit is discovered.
+    - **Track cost per unit of demand next to utilization** — USD per thousand tickets sold shows whether a capacity change was worth it. See [Cloud-native — FinOps](../../cloud-native/finops/index.md).
+    - **Set a budget from measured numbers with a wide margin, and tighten it only after watching its trend** — a gate must fail on regressions, not on runner noise. In BoxOffice: p95 < 300 ms against ~7 ms measured, in `load/budget.js` of [lab 11](../../../hands-on/11/performance-gate/index.md).
+    - **Make the budget a required step before the image is built** — a change that breaks it is never scanned, published or deployed. In BoxOffice: the image job `needs: [test, performance]` in `ci.yaml` ([lab 11](../../../hands-on/11/performance-gate/index.md)).
 
 !!! warning "Pitfalls"
 
@@ -270,7 +290,7 @@ Two gates protect the budget: the **absolute** thresholds in `budget.js` (derive
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     KNEE["measured knee per pod<br/>← Load testing"] --> REP["replicas = peak ÷<br/>(knee × target utilization)"]
     LL["Little's Law<br/>N = X × R"] --> CONN["threads, connections,<br/>PgBouncer"]

@@ -2,7 +2,7 @@ During the sale, for every fan who holds a seat, dozens look at the seat map. Th
 
 ## 1. Streaming replication
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     participant I as inventory

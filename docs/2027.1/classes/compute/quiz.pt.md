@@ -2,7 +2,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Servidores stateless e escala
+## Servidores stateless e escala { #stateless-servers-and-scaling }
 
 **Q1.** A primeira versão do `inventory` da BoxOffice guarda as reservas de assento (holds) em um `ConcurrentHashMap` dentro de cada réplica. Tudo funciona no notebook do desenvolvedor. O que acontece com três réplicas atrás de um load balancer round-robin?
 
@@ -46,7 +46,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Serviços e fronteiras
+## Serviços e fronteiras { #services-and-boundaries }
 
 **Q4.** A BoxOffice tem três times e uma única base de código Spring Boot. Qual situação é o motivo **mais forte** para extrair o `inventory` como serviço próprio?
 
@@ -90,7 +90,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Estilos de API
+## Estilos de API { #api-styles }
 
 **Q7.** O serviço interno `order` chama o `inventory` milhares de vezes por segundo durante a abertura de vendas; os dois pertencem à BoxOffice. Qual estilo se encaixa melhor, e qual é o principal cuidado operacional?
 
@@ -134,7 +134,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Trabalho assíncrono
+## Trabalho assíncrono { #async-work }
 
 **Q10.** Depois que a venda abre, chegam 100 pedidos/s para renderização de ingressos; cada job leva 0,8 s de um worker. Há 40 workers. Depois de 10 minutos de pico, qual é aproximadamente o tamanho do backlog?
 
@@ -164,7 +164,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Serverless e autoscaling
+## Serverless e autoscaling { #serverless-and-autoscaling }
 
 **Q12.** Uma função atende 1.500 requisições/s com duração média de 200 ms no AWS Lambda (uma requisição por ambiente de execução). Quantos ambientes simultâneos ela precisa, e que risco isso cria para um banco PostgreSQL atrás dela?
 
@@ -194,7 +194,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Integrações externas
+## Integrações externas { #external-integrations }
 
 **Q14.** O `payment` chama o provedor para criar uma cobrança; a chamada dá **timeout**. O que o serviço deve fazer?
 

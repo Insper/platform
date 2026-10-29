@@ -2,7 +2,7 @@ O time atualiza o Spring Boot em toda a BoxOffice numa segunda-feira de manhã. 
 
 ---
 
-## O que os agentes fazem em um pipeline
+## O que os agentes fazem em um pipeline { #what-agents-do-in-a-pipeline }
 
 O [loop do agente](../../ai-systems/agents/index.md) — o modelo escolhe uma ferramenta, o harness a executa, o resultado volta para o contexto, repete — vira, no CI, um loop sobre o repositório e o build:
 
@@ -18,9 +18,9 @@ Todas as linhas terminam no mesmo lugar: uma **proposta** (uma branch, um PR em 
 
 ---
 
-## Anatomia de um agente que conserta o build
+## Anatomia de um agente que conserta o build { #anatomy-of-a-fix-the-build-agent }
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     participant CI as Execução de CI
@@ -46,7 +46,7 @@ Leia como dois programas. O **agente** é não determinístico e não confiável
 
 ---
 
-## Rodando agentes headless
+## Rodando agentes headless { #running-agents-headless }
 
 Agentes no CI rodam **headless**: sem terminal, sem um humano para responder "posso rodar este comando?". Toda decisão que uma pessoa tomaria interativamente precisa ser tomada **de antemão**, como configuração.
 
@@ -135,7 +135,7 @@ Nenhuma camada é perfeita. Uma lista de ferramentas permitidas com `Bash(mvn *)
 
 ---
 
-## Permissões: o token é o raio de impacto
+## Permissões: o token é o raio de impacto { #permissions-the-token-is-the-blast-radius }
 
 O que quer que o modelo decida, ele nunca pode fazer mais do que suas credenciais permitem. Projete as credenciais primeiro:
 
@@ -146,9 +146,17 @@ O que quer que o modelo decida, ele nunca pode fazer mais do que suas credenciai
 - **Proteção de branch e rulesets**: a `main` exige PRs, CI e uma aprovação humana; bots não podem contornar; mudanças em `.github/workflows/` exigem um code owner.
 - **A aprovação humana é estrutural**, não uma instrução no prompt: o agente *não consegue* fazer merge porque seu token não consegue.
 
+!!! example "No código do BoxOffice: dois jobs, dois privilégios (lab 13)"
+
+    O [Hands-on 13 — O agente de correção](../../../hands-on/13/fix-agent/index.md) divide o workflow exatamente assim. O job `fix` roda o modelo **e** o build não confiável com `contents: read` e `actions: read` (para buscar o log da falha), e só roda para execuções de CI que falharam em branches do próprio repositório, nunca nas suas próprias branches `ai-fix/`. O job `open-pr` tem `contents: write` e `pull-requests: write`, não roda modelo nem build, e só aplica o patch como um PR **rascunho** — depois que um passo independente rodou de novo o `mvn verify` e rejeitou `@Test` apagados e arquivos fora de `services/<name>/src/`.
+
+    ``` { .yaml title=".github/workflows/ai-fix.yaml (the two jobs)" }
+    --8<-- "docs/2027.1/hands-on/13/code/.github/workflows/ai-fix.yaml:15:29,119:126"
+    ```
+
 ---
 
-## Orçamentos: turnos, tokens, dólares, minutos
+## Orçamentos: turnos, tokens, dólares, minutos { #budgets-turns-tokens-dollars-minutes }
 
 Cada turno do agente reenvia o contexto inteiro — instruções, definições de ferramentas, o log, cada arquivo lido, cada resultado de ferramenta até ali. O contexto cresce a cada passo, então o **total de tokens de entrada cresce aproximadamente de forma quadrática** com o número de passos ([Sistemas de IA — os números](../../ai-systems/index.md#numbers)). O prompt caching lê o prefixo repetido por uma fração do preço, o que muda drasticamente a inclinação. Premissas ilustrativas: contexto inicial de 20.000 tokens (instruções, definições de ferramentas, log), 2.500 tokens adicionados por passo (resultado da ferramenta mais a saída do modelo), 400 tokens de saída por passo, preços de tabela de um modelo grande na data em que este texto foi escrito (US$ 4 de entrada, US$ 20 de saída, US$ 0,20 de leitura em cache por milhão de tokens):
 
@@ -217,9 +225,17 @@ Sem cache, 40 turnos custam mais de oito vezes o que custam 10 turnos (cerca de 
 
 A razão que importa é **dólares por correção mergeada**, e não por execução: um agente que custa US$ 0,80 por execução, mas produz uma correção mergeável uma vez a cada quatro, custa US$ 3,20 por correção útil — compare isso com o tempo de engenheiro que ele economiza.
 
+!!! example "No código do BoxOffice: os orçamentos e a área de escrita do agente de correção (lab 13)"
+
+    O agente do [hands-on 13](../../../hands-on/13/fix-agent/index.md) para em 20 passos, 400.000 tokens ou US$ 1,50, o que vier primeiro; pode ler arquivos do repositório, mas só escreve sob `src/`, nunca em `.git/` ou `.github/`, e toda chamada de ferramenta vai para um log de auditoria. Uma execução com o `qwen2.5-coder-16k` local mostra por que o orçamento não é opcional: o modelo nunca abriu o `CatalogService.java`, reescreveu o *teste* seis vezes e parou depois dos seus 20 passos, 8½ minutos e 165.075 tokens de entrada com `"fixed": false`. Nada perigoso aconteceu — toda escrita ficou sob `services/catalog/src/`, e o `mvn verify` independente falhou, então nenhum PR foi aberto. As proteções tornam um agente ruim inofensivo, não bom.
+
+    ``` { .python title=".github/ai/fix_agent.py (budgets, write area, budget stop)" }
+    --8<-- "docs/2027.1/hands-on/13/code/.github/ai/fix_agent.py:23:27,70:76,178:182"
+    ```
+
 ---
 
-## Idempotência, retries e loops
+## Idempotência, retries e loops { #idempotency-retries-and-loops }
 
 Agentes são disparados por eventos, e eventos se repetem: uma execução de CI é reexecutada, dois pushes chegam no mesmo minuto, a própria branch do agente falha no CI. Os padrões de mensageria do curso se aplicam diretamente ([Mensageria — semântica de entrega](../../messaging/semantics/index.md)):
 
@@ -230,7 +246,7 @@ Agentes são disparados por eventos, e eventos se repetem: uma execução de CI 
 
 ---
 
-## Auditoria: quem mudou o quê, e por quê
+## Auditoria: quem mudou o quê, e por quê { #audit-who-changed-what-and-why }
 
 A mudança de um agente precisa ser explicável meses depois. Guarde:
 
@@ -246,7 +262,7 @@ A mudança de um agente precisa ser explicável meses depois. Guarde:
 
 ---
 
-## Agentes de dependências e de migração
+## Agentes de dependências e de migração { #dependency-and-migration-agents }
 
 **Upgrades de dependências** são, na prática, o workflow agêntico mais comum. Bots como o Renovate ou o Dependabot abrem o PR de upgrade de forma determinística; o trabalho do agente começa quando esse PR fica **vermelho**: ler o changelog e a falha, adaptar o código, manter a mudança mínima. Agrupe atualizações relacionadas (todos os artefatos do Spring juntos), deixe as atualizações de patch com CI verde fazerem merge automático sem IA e mande as versões major para um agente que propõe e um humano que aprova.
 
@@ -262,6 +278,14 @@ A mudança de um agente precisa ser explicável meses depois. Guarde:
 
     Para "projete um agente que conserta builds quebrados", desenhe o **orquestrador** em volta do agente, e não só o loop: gatilho e dedup, sandbox e lista de ferramentas permitidas, orçamentos impostos pelo harness, verificação fora do agente, um passo privilegiado separado que abre um PR em **rascunho**, e a trilha de auditoria. Quantifique o custo por execução (quadrático nos turnos, atenuado pelo cache) e por correção *mergeada*. Diga quais falhas ele *não* deve tocar (testes flaky, infraestrutura, achados de segurança) e como o sistema as detecta.
 
+!!! success "Boas práticas"
+
+    - **Use o SHA do commit que falhou como chave de idempotência** — uma proposta por SHA: o [`ai-fix.yaml`](../../../hands-on/13/fix-agent/index.md) do lab 13 usa um grupo de `concurrency` no SHA e a branch `ai-fix/<sha8>`.
+    - **Guarde a transcrição e o log de auditoria como artefatos do CI** — a execução pode ser explicada depois; o lab 13 envia `agent-transcript.jsonl` e `agent-audit.jsonl`.
+    - **Tire os segredos do build que o agente roda** — o lab 13 roda `mvn verify` sem as variáveis `*KEY*`, `*TOKEN*` e `*SECRET*`.
+    - **Acompanhe dólares por correção mergeada, não por execução** — uma correção útil a cada quatro execuções de US$ 0,80 dá US$ 3,20 por correção; compare com o tempo de engenheiro que ela economiza.
+    - **Abra rascunhos, nunca PRs prontos para revisão** — um rascunho não sofre merge por acidente e diz que uma pessoa precisa assumir; o lab 13 usa `gh pr create --draft`.
+
 !!! warning "Armadilhas comuns"
 
     - **Um único job com o agente e um token de escrita**: toda prompt injection vira um push.
@@ -274,7 +298,7 @@ A mudança de um agente precisa ser explicável meses depois. Guarde:
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     TRIG["red build event<br/>trigger + dedupe"] --> HARN["harness = orchestrator"]
     HARN --> SB["sandbox, tool allow-list,<br/>no write token"]

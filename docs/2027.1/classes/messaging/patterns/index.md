@@ -16,7 +16,7 @@ This page collects the patterns that replace the distributed transaction in even
 
 The simplest way to publish `OrderConfirmed` is to save the order and then send the event. That is two writes to two different systems — a **dual write** — and no transaction covers both:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant O as order
     participant DB as order DB
@@ -41,7 +41,7 @@ Swapping the order of the writes does not help:
 
 The **transactional outbox**[^1] removes the dual write by writing the event **into the same database, in the same local transaction**, as the business change. A separate **relay** later reads the outbox table and publishes to the broker.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant O as order
     participant DB as order DB
@@ -151,13 +151,25 @@ The relay has two common implementations:
 
     Lower latency and no polling, at the price of running Kafka Connect and Debezium. Rows can be deleted right after insertion: the log already captured them.
 
+!!! example "In the BoxOffice code: the outbox in `order` (lab 7)"
+
+    [Hands-on 7 — Transactional outbox](../../../hands-on/7/outbox/index.md) builds the polling publisher. `place()` inserts the order and, in the same `@Transactional` method, appends `OrderPlaced` to the outbox (`Outbox.append` is `Propagation.MANDATORY`: it fails if anyone calls it outside a transaction). `NOTIFY_MODE=sync` keeps the "before" version, which calls `notification` over HTTP, so you can measure both. The relay sends a batch of up to 100 rows, waits for **every** Kafka ack and only then marks the rows: a crash in between republishes them (at least once), never loses them. Note one difference from the advice above: several `order` replicas may relay in parallel (`SKIP LOCKED`), which is safe here because each order produces a single event so far; with more events per order, per-order ordering would need a single relay or partitioning by aggregate. In a test run on a busy laptop, `POST /orders` p50 went from **4.12 s** (sync) to **47 ms** (outbox), and stopping `notification` for 20 s failed about a third of the orders in sync mode and none with the outbox ([Measure it](../../../hands-on/7/measure/index.md)).
+
+    ``` { .java title="services/order/src/main/java/boxoffice/order/OrderService.java (order + event, one transaction)" }
+    --8<-- "docs/2027.1/hands-on/7/code/services/order/src/main/java/boxoffice/order/OrderService.java:35:62"
+    ```
+
+    ``` { .java title="services/order/src/main/java/boxoffice/order/outbox/OutboxRelay.java (the polling publisher)" }
+    --8<-- "docs/2027.1/hands-on/7/code/services/order/src/main/java/boxoffice/order/outbox/OutboxRelay.java:42:74"
+    ```
+
 ---
 
 ## Change data capture { #cdc }
 
 Every relational database keeps a **replication log** — PostgreSQL's write-ahead log (WAL), MySQL's binlog — that records every committed change in commit order; that is how replicas stay in sync (see [Replication](../../databases/replication/index.md)). **Change data capture** (CDC) reads that log and turns each change into an event[^2]. The outbox relay above is one use of CDC; there are many others.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     cat["catalog"] -->|"INSERT / UPDATE events"| db[("catalog DB<br/>PostgreSQL")]
     db -->|"WAL (logical decoding)"| dbz["Debezium"]
@@ -252,7 +264,7 @@ There are two ways to coordinate the steps.
 
 The order's status *is* the saga's state, so the saga is a state machine:
 
-``` mermaid-sim
+``` diagram-sim
 stateDiagram-v2
     [*] --> PENDING
     PENDING --> SEATS_HELD : SeatsHeld
@@ -326,7 +338,7 @@ A saga is **ACD without I**: it is atomic (eventually all steps or all compensat
 
 **Command Query Responsibility Segregation** (CQRS) separates the model that handles **writes** (commands) from the models that serve **reads** (queries)[^4]. The write model is optimized for correctness and invariants (normalized tables, transactions, locks); each read model is a denormalized **projection** shaped for one screen or query, built from the write side's events.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     fan["fan"] -->|"POST /orders (command)"| order["order<br/>write model"]
     order --> odb[("order DB<br/>normalized")]
@@ -414,6 +426,15 @@ To change an order, the service loads its events, rebuilds the state, checks the
 !!! tip "In the interview"
     For any flow that crosses services and moves money or inventory, interviewers expect you to say "saga" *and* to make it concrete: list the steps with their compensations, name the pivot (the payment), explain what the user sees in the intermediate state (seats held, payment processing) and how timeouts are handled (reconcile with the provider before compensating). Publishing events? Say "transactional outbox" before they ask about the crash between the commit and the publish. Mention CQRS or event sourcing only when a requirement calls for them (audit, very different read shapes), and say what they cost.
 
+!!! success "Best practices"
+
+    - **Make the outbox write impossible outside the business transaction** — a helper that requires an existing transaction fails in tests instead of losing events in production. In BoxOffice: `Outbox.append` is `@Transactional(propagation = MANDATORY)` ([outbox box](#transactional-outbox)).
+    - **Alert on the age of the oldest unpublished outbox row** — the relay runs every 200 ms, so a row older than about 30 s means the relay or the broker is stuck, long before a fan complains.
+    - **Purge published outbox rows on a schedule and index the unpublished ones** — otherwise the table grows by one row per event forever and the relay's query slows down. In BoxOffice: `OutboxRelay.purge` deletes rows published more than 1 day ago, every hour.
+    - **Persist the saga's state and move it only with conditional updates** — `UPDATE orders SET status = 'CONFIRMED' WHERE id = ? AND status = 'PENDING_PAYMENT'`: a late or duplicated event cannot move a finished order back.
+    - **Order saga steps so the irreversible one comes last** — what can be undone (the seat hold) before the pivot (the charge), what cannot be undone (issuing the ticket) after it.
+    - **Keep CQRS read models rebuildable, and rehearse the rebuild** — keep the events (or the CDC stream) long enough to replay a projection from scratch, and time how long it takes.
+
 !!! warning "Common pitfalls"
 
     - **Dual writes** "because the crash window is tiny" — at BoxOffice's volume, tiny windows happen every day.
@@ -425,7 +446,7 @@ To change an order, the service loads its events, rebuilds the state, checks the
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     DW["dual write:<br/>database + broker"] --> OUT["transactional outbox<br/>one local transaction"]
     OUT --> RELAY["relay: polling or<br/>Debezium"]

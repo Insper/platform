@@ -90,7 +90,7 @@ Resources are not only hardware. In a Java service, the **software resources** �
 
 During a pre-sale test at 1 500 holds/s, the p99 of `POST /holds` is 2.1 s (SLO: 300 ms). Following USE, top to bottom:
 
-``` mermaid-sim
+``` diagram-sim
 flowchart TD
     s["Symptom: p99 of POST /holds = 2.1 s at 1 500 req/s"] --> cpu{"inventory CPU?"}
     cpu -->|"U 45 %, run queue low,<br/>no throttling"| mem{"Memory / GC?"}
@@ -115,6 +115,14 @@ WHERE datname = 'boxoffice'
 GROUP BY 1, 2, 3
 ORDER BY count(*) DESC;
 ```
+
+!!! example "In the BoxOffice code: USE on two software resources (lab 2)"
+
+    [Hands-on 2 — Measure first](../../../hands-on/2/index.md) watches `catalog` from the inside with three Actuator gauges, one line per second, next to k6 and `docker stats`: busy Tomcat threads (utilization of the thread pool), active connections and **pending** requests (utilization and saturation of the HikariCP pool). In the lab's run at 600 req/s the line reads 200 busy threads, 9 active connections and **190 pending**: the same chain as the walk-through above — the threads are saturated because they wait for the 10 connections, so more threads would only add waiters.
+
+    ``` { .bash title="scripts/watch-metrics.sh (USE from the inside, once per second)" }
+    --8<-- "docs/2027.1/hands-on/2/code/scripts/watch-metrics.sh"
+    ```
 
 ---
 
@@ -145,6 +153,14 @@ A load test measures *the environment it runs in*. Every difference from product
 | Observability agents | Yes | The OpenTelemetry agent has a cost; measure with it on |
 
 Because infrastructure is code ([Delivery](../../cloud-native/delivery/index.md)), the most reliable option is an **ephemeral performance environment**: created from the same Terraform/OpenTofu modules and manifests as production for the duration of the test campaign, loaded with a production-sized synthetic data set, and destroyed afterwards.
+
+!!! example "In the BoxOffice code: a small environment, identical on every run (lab 11)"
+
+    The performance gate of [Hands-on 11](../../../hands-on/11/performance-gate/index.md) cannot have production parity — it runs on a shared CI runner — so it chooses **run-to-run parity** instead: its own Compose file starts PostgreSQL, Redis and `catalog` with the same CPU limit (1 CPU) as `docker-compose.yaml`, because budgets are per replica; and the readiness healthcheck plus `docker compose … up --wait` make sure k6 never measures a JVM that is still starting. The price: its numbers say whether *this change* made `catalog` slower, not how many fans production can take.
+
+    ``` { .yaml title=".github/ci/compose.perf.yaml (the service under test)" }
+    --8<-- "docs/2027.1/hands-on/11/code/.github/ci/compose.perf.yaml:27:54"
+    ```
 
 ---
 
@@ -228,6 +244,14 @@ Cloud environments are noisy: neighbours share hosts, networks vary, autoscalers
 
     "Find the bottleneck" questions reward structure. Name the method out loud: "I would start from the user-facing RED metrics to find the slow service, then apply USE to its resources — including the software ones: thread pool, connection pool, locks — and only change the resource that is saturated." Mentioning that **CPU at 45 % plus a saturated connection pool means more pods will not help** is exactly the kind of insight interviewers look for.
 
+!!! success "Best practices"
+
+    - **Write a one-page test plan before the first run, and review it like a design doc** — objective, workload, model, environment, observation and exit criteria agreed in advance stop the campaign from becoming a search for a green run (example above).
+    - **Derive the endpoint mix from production logs, and refresh it after every big event** — mixes drift with each feature; a model from last year's on-sale tests last year's product.
+    - **Script the USE checklist and run it next to the load generator** — one line per second of thread-pool and connection-pool gauges turns "what is saturated?" into a reading, not a guess. In BoxOffice: `scripts/watch-metrics.sh` of [lab 2](../../../hands-on/2/index.md).
+    - **Define the test environment as code, with the production limits per replica** — same CPU and memory limits, same pool sizes and timeouts, so that a number per replica means the same in test and in production. In BoxOffice: `.github/ci/compose.perf.yaml` of [lab 11](../../../hands-on/11/performance-gate/index.md).
+    - **Repeat each configuration at least three times and report median and spread** — a difference smaller than the run-to-run spread is noise, not an improvement.
+
 !!! warning "Pitfalls"
 
     - **Stopping at the first saturated resource**: thread pools are usually saturated *because* something downstream is slow; keep following the wait.
@@ -240,7 +264,7 @@ Cloud environments are noisy: neighbours share hosts, networks vary, autoscalers
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     SYM["symptom:<br/>POST /holds is slow"] --> RED["RED per service<br/>→ Observability signals"]
     RED --> USE["USE per resource: CPU,<br/>thread pool, connection pool, locks"]

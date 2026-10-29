@@ -138,4 +138,4 @@ Click **"Answer"** to reveal the correct answer and explanation.
 ??? success "Answer"
     **C — Secrets stay out of Git.**
 
-    Anything pushed to Git should be considered public forever (history keeps it even after deletion). The lab defaults (`boxoffice`/`boxoffice`) are throwaway local values; real secrets go to a secrets manager, a topic of class 11.
+    Anything pushed to Git should be considered public forever (history keeps it even after deletion). The lab defaults (`boxoffice`/`boxoffice`) are throwaway local values; real secrets go to a secrets manager, a topic of class 12.

@@ -1,0 +1,117 @@
+/* Network simulators (see assets/javascripts/netsim.js) */
+
+.md-typeset .netsim {
+  --ns-accent: var(--md-accent-fg-color, #526cfe);
+  /* theme colors; ok / drop / public follow the status colors of the other simulators */
+  --ns-net: var(--md-typeset-a-color);
+  --ns-host: var(--md-default-fg-color--lighter);
+  --ns-ok: #15803d;
+  --ns-drop: #b91c1c;
+  --ns-pub: #b45309;
+  --ns-line: var(--md-default-fg-color--lightest);
+  margin: 1em 0;
+  padding: .7rem .8rem;
+  border: .05rem solid var(--ns-line);
+  border-radius: .4rem;
+  font-size: .72rem;
+  outline: none;
+}
+[data-md-color-scheme="slate"] .md-typeset .netsim {
+  --ns-ok: #22c55e;
+  --ns-drop: #f87171;
+  --ns-pub: #f59e0b;
+}
+.md-typeset .netsim:focus-visible { border-color: var(--ns-accent); }
+.md-typeset .netsim code { font-size: .92em; padding: 0 .2em; }
+.md-typeset .netsim table.ns-t { display: table; font-size: .68rem; margin: 0; border: .05rem solid var(--ns-line); border-collapse: collapse; border-radius: 0; }
+.md-typeset .netsim table.ns-t th, .md-typeset .netsim table.ns-t td { padding: .15em .55em; border-top: .05rem solid var(--ns-line); vertical-align: top; }
+.md-typeset .netsim table.ns-t thead th { background: var(--md-code-bg-color); }
+
+.md-typeset .ns-row { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .9rem; margin: .3rem 0; }
+.md-typeset .ns-label { display: inline-flex; align-items: center; gap: .35rem; font-weight: 600; }
+.md-typeset .netsim input[type="text"], .md-typeset .netsim select {
+  font: inherit; font-weight: 400; padding: .15rem .35rem; border: .05rem solid var(--ns-line);
+  border-radius: .2rem; background: var(--md-default-bg-color); color: var(--md-default-fg-color);
+}
+.md-typeset .netsim input[type="text"] { font-family: var(--md-code-font-family); width: 11rem; }
+.md-typeset .netsim select { max-width: 100%; }
+.md-typeset .ns-try span { color: var(--md-default-fg-color--light); }
+.md-typeset .ns-chip, .md-typeset .ns-btn {
+  font: inherit; font-family: var(--md-code-font-family); cursor: pointer; padding: .05rem .4rem;
+  border: .05rem solid var(--ns-line); border-radius: 1rem; background: var(--md-code-bg-color); color: var(--md-default-fg-color);
+}
+.md-typeset .ns-chip:hover, .md-typeset .ns-btn:hover { border-color: var(--ns-accent); color: var(--ns-accent); }
+
+/* CIDR explorer */
+.md-typeset .ns-bits { display: flex; flex-wrap: wrap; gap: .35rem; align-items: flex-end; margin: .6rem 0 .3rem; }
+.md-typeset .ns-octet { text-align: center; }
+.md-typeset .ns-dec { font-family: var(--md-code-font-family); font-weight: 700; }
+.md-typeset .ns-bitrow { display: flex; gap: 1px; }
+.md-typeset .ns-bitrow span {
+  display: inline-block; width: .9rem; line-height: 1.3rem; font-size: .66rem; text-align: center;
+  font-family: var(--md-code-font-family); border-radius: .15rem; color: var(--md-default-bg-color);
+}
+.md-typeset .ns-bitrow .ns-net { background: var(--ns-net); }
+.md-typeset .ns-bitrow .ns-host { background: var(--ns-host); }
+.md-typeset .ns-legend { flex-basis: 100%; color: var(--md-default-fg-color--light); }
+.md-typeset .ns-legend .ns-net { color: var(--ns-net); }
+.md-typeset .ns-legend .ns-host { color: var(--ns-host); }
+.md-typeset .ns-facts th { text-align: left; font-weight: 600; white-space: nowrap; }
+.md-typeset .ns-kind { font-weight: 600; }
+.md-typeset .ns-k-private { color: var(--ns-ok); }
+.md-typeset .ns-k-public, .md-typeset .ns-k-doc { color: var(--ns-pub); }
+.md-typeset .ns-note { margin: .2rem 0; color: var(--ns-pub); }
+.md-typeset .ns-bad { color: var(--ns-drop); }
+.md-typeset .ns-split ol { columns: 2; margin: .2rem 0 0 1.4rem; }
+.md-typeset .ns-split li { margin: 0; }
+.md-typeset .ns-test { min-height: 1.2rem; }
+.md-typeset .ns-ok { color: var(--ns-ok); font-weight: 600; }
+.md-typeset .ns-out { color: var(--ns-pub); font-weight: 600; }
+
+/* Packet walk: topology */
+.md-typeset .ns-switches { color: var(--md-default-fg-color--light); }
+.md-typeset .ns-switch { color: var(--md-default-fg-color); cursor: pointer; }
+.md-typeset .ns-topo { display: flex; flex-direction: column; gap: .35rem; margin: .5rem 0; }
+.md-typeset .ns-zone { border: .05rem dashed var(--ns-line); border-radius: .4rem; padding: .35rem; display: flex; flex-wrap: wrap; gap: .3rem; }
+.md-typeset .ns-vpc { border-style: solid; border-color: var(--ns-net); align-items: stretch; }
+.md-typeset .ns-zt { flex-basis: 100%; font-weight: 700; font-size: .66rem; color: var(--md-default-fg-color--light); text-transform: uppercase; letter-spacing: .03em; }
+.md-typeset .ns-igwcol { display: flex; justify-content: center; position: relative; }
+.md-typeset .ns-igwcol::before { content: ""; position: absolute; left: 50%; top: -.35rem; bottom: -.35rem; border-left: .1rem solid var(--ns-line); z-index: 0; }
+.md-typeset .ns-subnet { flex: 1 1 10rem; border: .05rem solid var(--ns-line); border-radius: .3rem; padding: .3rem; display: flex; flex-direction: column; gap: .3rem; }
+.md-typeset .ns-st { font-size: .62rem; font-weight: 600; color: var(--md-default-fg-color--light); }
+.md-typeset .ns-s-pub { background: color-mix(in srgb, var(--ns-pub) 7%, transparent); }
+.md-typeset .ns-s-app { background: color-mix(in srgb, var(--ns-net) 7%, transparent); }
+.md-typeset .ns-s-data { background: color-mix(in srgb, var(--md-default-fg-color) 5%, transparent); }
+.md-typeset .ns-node {
+  border: .05rem solid var(--ns-line); border-radius: .3rem; padding: .15rem .35rem; background: var(--md-default-bg-color);
+  display: flex; flex-wrap: wrap; gap: 0 .35rem; align-items: baseline; transition: box-shadow .2s, border-color .2s; position: relative; z-index: 1;
+}
+.md-typeset .ns-inet .ns-node { flex: 1 1 8.5rem; }
+.md-typeset .ns-node b { flex-basis: 100%; font-size: .66rem; }
+.md-typeset .ns-node code { font-size: .62rem; }
+.md-typeset .ns-node code.ns-pub { color: var(--ns-pub); }
+.md-typeset .ns-node.ns-seen { border-color: var(--ns-accent); }
+.md-typeset .ns-node.ns-cur { border-color: var(--ns-accent); box-shadow: 0 0 0 .12rem var(--ns-accent); }
+.md-typeset .ns-node.ns-ok { border-color: var(--ns-ok); box-shadow: 0 0 0 .12rem var(--ns-ok); }
+.md-typeset .ns-node.ns-drop { border-color: var(--ns-drop); box-shadow: 0 0 0 .12rem var(--ns-drop); }
+.md-typeset .ns-igwcol .ns-node { width: 9rem; justify-content: center; text-align: center; }
+.md-typeset .ns-igwcol .ns-node b { text-align: center; }
+
+/* Packet walk: the step panel */
+.md-typeset .ns-panel { border-top: .05rem solid var(--ns-line); padding-top: .4rem; min-height: 9rem; }
+.md-typeset .ns-panel p { margin: .3rem 0; }
+.md-typeset .ns-sh { color: var(--md-default-fg-color--light); }
+.md-typeset .ns-badge { color: var(--md-default-bg-color); border-radius: .2rem; padding: 0 .35rem; font-weight: 700; }
+.md-typeset .ns-b-ok { background: var(--ns-ok); }
+.md-typeset .ns-b-drop { background: var(--ns-drop); }
+.md-typeset .ns-pkt { display: flex; flex-wrap: wrap; gap: .3rem .6rem; align-items: center; margin: .3rem 0; }
+.md-typeset .ns-pl { font-weight: 700; }
+.md-typeset .ns-pkt small { color: var(--md-default-fg-color--light); }
+.md-typeset .ns-chg code { background: color-mix(in srgb, var(--ns-pub) 22%, transparent); outline: .05rem solid var(--ns-pub); }
+.md-typeset .ns-side { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: .3rem; }
+.md-typeset .ns-tt { font-weight: 600; font-size: .66rem; margin-bottom: .1rem; }
+.md-typeset .ns-tbl tr.ns-match td { background: color-mix(in srgb, var(--ns-accent) 18%, transparent); font-weight: 700; }
+.md-typeset .ns-bar { display: flex; align-items: center; gap: .3rem; border-top: .05rem solid var(--ns-line); padding-top: .4rem; margin-top: .4rem; }
+.md-typeset .ns-btn { border-radius: .2rem; min-width: 1.8rem; font-size: .8rem; }
+.md-typeset .ns-count { margin-left: auto; color: var(--md-default-fg-color--light); }
+

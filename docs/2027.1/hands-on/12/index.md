@@ -14,6 +14,11 @@ my order?* An assistant can answer them in seconds, at 3 a.m., in Portuguese and
 not invent shows, leak data or cost more than the tickets. This lab builds one with the architecture
 of the [AI systems class](../../classes/ai-systems/index.md), running **entirely on your machine**
 with a local open model (Ollama), and optionally on Claude for comparison.
+In the [story of the course](../../index.md#story), this lab builds chapter 13: it implements the
+decisions of [the LLM gateway](../../classes/ai-systems/llm-gateway/index.md) (routes and a fallback),
+[the agent loop](../../classes/ai-systems/agents/index.md#loop) and its [read-only tools](../../classes/ai-systems/agents/index.md#side-effects),
+[retrieval with pgvector](../../classes/ai-systems/rag-memory/index.md#embeddings) and the
+[safety mesh](../../classes/ai-systems/safety-evals/index.md#guardrail-code).
 
 ## Slides
 
@@ -55,7 +60,7 @@ Every file of this lab is shown in full on these pages and published under
 
 ## Architecture
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     fan[fan / chat UI] -->|"POST /assistant/chat/stream"| api[assistant: FastAPI]
     api --> gin{input guard}
@@ -141,6 +146,14 @@ The [Measure it](measure/index.md) step has the scripts and the results table to
 | no `assistant_*` metrics in Grafana | `OTEL_EXPORTER_OTLP_ENDPOINT` not set, or no question answered yet | check the variables of `assistant`; metrics are exported every 10 s |
 | `Bind for 0.0.0.0:11434 failed: port is already allocated` | Ollama already runs natively on your machine, and `docker compose up -d` started the `ollama` container too | keep the native one: `docker compose stop ollama ollama-init`, and start services by name (`docker compose up -d assistant`) with `OLLAMA_URL` exported |
 | `422 blocked` for a normal question | a false positive of the injection patterns | rephrase, and note it: false positives are part of the guardrail's measured quality |
+
+!!! success "Best practices in this lab"
+
+    - **Routes instead of model names, with a fallback** — `app/llm.py` asks for `local` or `claude`, and `claude` falls back to `local`; why: [LLM Gateway](../../classes/ai-systems/llm-gateway/index.md).
+    - **A bounded loop that always ends with an answer** — `app/agent.py` stops at `MAX_STEPS` = 4 and makes the last call without tools; why: [the agent loop](../../classes/ai-systems/agents/index.md#loop).
+    - **Read-only tools, identity from the platform** — `app/tools.py` takes the fan from `X-User-Email` and never writes; why: [tools are side effects](../../classes/ai-systems/agents/index.md#side-effects).
+    - **Retrieval measured on its own** — `scripts/eval_retrieval.py` scores hit@k and MRR before any model answers; why: [RAG & Memory](../../classes/ai-systems/rag-memory/index.md#hybrid).
+    - **Redact before the model, check citations after it, measure TTFT in seconds** — `app/guardrails.py` and `app/metrics.py`; why: [Safety, Evals & Observability](../../classes/ai-systems/safety-evals/index.md#guardrail-code).
 
 ## Clean up
 

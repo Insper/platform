@@ -8,7 +8,7 @@ All three requests ask for the same thing: keep the messages, in order, and let 
 
 A **log** here is not a text file of debug messages. It is the simplest storage abstraction there is: an **append-only, totally ordered sequence of records**. Writers can only add at the end; each record gets the next sequential number, its **offset**. Readers never remove anything — each reader just remembers the offset it has reached.
 
-``` mermaid
+``` diagram
 flowchart LR
     subgraph log ["order-events (one partition)"]
         direction LR
@@ -32,7 +32,7 @@ This tiny change — reading does not delete — has big consequences:
 
 A single log on a single machine would limit throughput to one disk and one machine. Kafka splits each **topic** into **partitions**: each partition is an independent log, stored on a different broker, with its own offsets. The topic is just the name of a set of partitions.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     p1["order (replica 1)"] -->|"key o-7731"| P1
     p2["order (replica 2)"] -->|"key o-1002"| P0
@@ -131,7 +131,7 @@ Keyed by `orderId` (left), each partition gets about 1/12 of the traffic. Keyed 
 
 A **consumer group** is a set of consumer instances that share the work of reading a topic. Kafka assigns each partition to **exactly one** consumer of the group, so each record is processed by one member — competing consumers, but with ordering preserved per partition. Different groups are completely independent: each has its own committed offsets, so each group receives **every** record — that is the fan-out.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     subgraph topic ["order-events · 6 partitions"]
         P0["P0"]
@@ -169,6 +169,16 @@ Rules that follow from "one partition, one consumer per group":
 - **Order per key is kept** as long as a consumer processes a partition's records sequentially. If it hands records to a thread pool, it breaks ordering again (unless it parallelizes *by key*).
 - When a consumer joins, leaves or stops polling for too long (`max.poll.interval.ms`), the group **rebalances**: partitions are reassigned. Classic rebalances paused the whole group; the newer protocol (KIP-848, generally available in Kafka 4.0) and cooperative assignment move only the partitions that need to move.
 
+<div class="csim" data-sim="kafka" data-key="order"></div>
+
+!!! tip "Try it"
+    The defaults are lab 7's: `order-events` has 6 partitions and `notification` runs 3 consumers (`NOTIFY_CONCURRENCY`). Press play and the lag stays near zero. Then:
+
+    - Raise **Consumers** to 8: 2 of them get no partition and sit idle.
+    - Switch **Key** to *none*: OrderPlaced and OrderConfirmed of the same order land in different partitions, and some orders are read confirmed-before-placed (22 in 200 ticks with 3 consumers, 107 with 2). Back to *orderId*: never.
+    - Switch **Key** to *show*: the stadium show `ev-1` hashes to P5, which falls behind (183 records after 200 ticks) while the other partitions stay near zero — and with 6 consumers it is still 142 behind.
+    - **Kill a consumer**: the whole group stops for the rebalance, lag grows on *every* partition, then the 2 survivors take 3 partitions each and resume from the committed offsets.
+
 ### Offsets and consumer lag
 
 A consumer **commits** the offset of the next record it will read, per partition; Kafka stores commits in an internal compacted topic (`__consumer_offsets`). After a restart or a rebalance, the new owner of the partition resumes from the last committed offset. *When* you commit — before or after processing — decides whether a crash loses or duplicates records ([Delivery semantics](../semantics/index.md)).
@@ -198,7 +208,7 @@ Partition 2 is 64,767 records behind while the others are near zero: a hot key, 
 
 Each partition is **replicated** on several brokers — the **replication factor** (RF), typically 3, with the replicas in different availability zones. One replica is the **leader**: it receives all writes (and, by default, serves reads). The **followers** continuously fetch from the leader. Followers that are caught up form the **in-sync replica set** (ISR). If the leader's broker fails, the controller elects a new leader from the ISR.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant P as producer (order)
     participant L as leader P1 (broker 2, AZ-b)
@@ -226,7 +236,7 @@ The producer setting `acks` chooses how much of this the producer waits for:
 `acks=all` alone is not enough: if the ISR shrinks to just the leader, "all in-sync replicas" is one replica. **`min.insync.replicas=2`** makes the broker refuse writes when fewer than 2 replicas are in sync. With RF = 3 and min ISR = 2, the topic keeps accepting writes with one broker down and never acknowledges a write that exists on only one machine. Keep `unclean.leader.election.enable=false` (the default) so an out-of-date replica is never elected leader. Since Kafka 3.0, producers default to `acks=all` with idempotence enabled.
 
 !!! info "KRaft: Kafka's own consensus"
-    Cluster metadata — which topics exist, which broker leads each partition, the ISR — is kept by a small quorum of **controllers** using KRaft, a Raft-based protocol (see [Consensus](../../distributed/consensus/index.md)). Older clusters used ZooKeeper; Kafka 4.0 (2025) removed ZooKeeper entirely. The course labs run Kafka in KRaft mode.
+    Cluster metadata — which topics exist, which broker leads each partition, the ISR — is kept by a small quorum of **controllers** using KRaft, a Raft-based protocol (see [Consensus](../../distributed/consensus/index.md)). Older clusters used ZooKeeper; Kafka 4.0 (2025) removed ZooKeeper entirely. The course labs run Kafka in KRaft mode: in [lab 7](../../../hands-on/7/kafka/index.md) a single node is both broker and controller.
 
 ---
 
@@ -331,6 +341,14 @@ And the Spring Boot services configure their clients accordingly:
           concurrency: 3               # 3 consumer threads in this instance
     ```
 
+!!! example "In the BoxOffice code: Kafka in Compose (lab 7)"
+
+    [Hands-on 7 — Kafka in Compose](../../../hands-on/7/kafka/index.md) runs **one** node that is broker and KRaft controller at once, with auto-creation off and both topics created by a one-shot container: `order-events` and `order-events-dlt` with **6 partitions** and **replication factor 1**. One laptop cannot hold three brokers in three zones, so this is the place where the lab is *not* production: `acks: all` in `order` waits for "all in-sync replicas", and with RF = 1 that is one replica — exactly the trap described in [Replication and durability](#replication-and-durability). The 6 partitions bound the consumer side: `notification` runs 3 threads (`NOTIFY_CONCURRENCY`), and more than 6 would sit idle. The lab's [burst-and-drain experiment](../../../hands-on/7/measure/index.md) applies this page's arithmetic: one thread at 50 ms per e-mail handles 20/s, so 100 orders/s for 60 s leave about 4,800 messages of lag that take about 240 s to drain; six threads keep the lag near zero.
+
+    ``` { .yaml title="docker-compose.yaml (one KRaft node, topics created explicitly)" }
+    --8<-- "docs/2027.1/hands-on/7/code/docker-compose.yaml:216:234,242:254"
+    ```
+
 ---
 
 ## Kafka and its alternatives
@@ -348,6 +366,15 @@ Redpanda and Azure Event Hubs expose the **Kafka protocol**, so Kafka clients wo
 !!! tip "In the interview"
     When you put Kafka on the board, the interviewer expects four decisions, said out loud: **(1) the topic and the key** ("`order-events`, keyed by `orderId`, because we need per-order ordering and an even spread"); **(2) partitions** from a throughput estimate with the consumer as the usual bottleneck; **(3) durability** (RF 3 across zones, `acks=all`, `min.insync.replicas=2`); **(4) retention** (7 days to allow replay, or compaction for state). Mention consumer lag as the metric you alert on. Be ready for "what happens if a broker dies?" (leader election from the ISR, producers retry, no acknowledged data lost) and "how do you scale consumers?" (up to the number of partitions).
 
+!!! success "Best practices"
+
+    - **Create every topic explicitly, with partitions, replication and retention reviewed like code** — auto-creation makes topics with broker defaults nobody chose. In BoxOffice: `KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"` and a `kafka-init` container ([Compose box](#sizing-partitions)).
+    - **Place the three replicas of each partition in three availability zones** (`broker.rack`) — losing one zone leaves 2 replicas in sync, so `min.insync.replicas=2` keeps accepting writes.
+    - **Set retention by the replay you need, then size the disk** — at least the longest consumer outage you plan to recover from, plus a margin (7 days for `order-events`); disk ≈ daily volume × retention days × replication factor.
+    - **Watch lag per partition, not only per group** — one hot key (60% of the purchases are for `ev-1`) hides inside a healthy group total. In BoxOffice: lab 7's `kafka-lag.sh` prints the group total; `kafka-consumer-groups.sh --describe` shows each partition ([lab 7 — measure](../../../hands-on/7/measure/index.md)).
+    - **Batch and compress on the producer** — `linger.ms` of a few milliseconds and `compression.type=zstd` cut requests and bytes; 5 ms is invisible next to a 300 ms SLO. In BoxOffice: `order` sets `linger.ms: 5`, `acks: all` and `enable.idempotence: true`.
+    - **Use incremental (cooperative) rebalancing for consumer groups** — with eager rebalancing, a rolling deploy of 6 consumers stops the whole group at every restart.
+
 !!! warning "Common pitfalls"
 
     - **A low-cardinality key** (country, show, `true`/`false`) creates hot partitions that no number of consumers can fix.
@@ -359,7 +386,7 @@ Redpanda and Azure Event Hubs expose the **Kafka protocol**, so Kafka clients wo
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     LOG["append-only log<br/>offsets"] --> PART["partitions<br/>unit of parallelism"]
     KEY["key = orderId<br/>murmur2 mod N"] --> PART

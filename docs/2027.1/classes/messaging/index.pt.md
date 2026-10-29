@@ -2,6 +2,10 @@ São 09:59:58 e um show em estádio está prestes a abrir as vendas no BoxOffice
 
 Esta aula é sobre a outra forma de ligar os serviços: **mensagens**. Em vez de chamar cada serviço e esperar, um serviço escreve uma mensagem em um broker e segue em frente; quem precisa dela a lê quando puder. Bem feita, a mensageria absorve picos, desacopla times e tira serviços lentos ou com falha do caminho crítico. Feita sem cuidado, perde pedidos, duplica e-mails e esconde falhas em uma fila que ninguém observa. Vamos aprender os dois lados.
 
+!!! quote "A história até aqui"
+
+    Capítulo 8 da [história da disciplina](../../index.md#story). A borda espalha os fãs por réplicas sem estado ([aula 4](../edge/index.md), [aula 5](../compute/index.md)), o PostgreSQL vende cada assento uma vez só ([aula 6](../databases/index.md)) e o Redis responde as páginas de evento ([aula 7](../caching/index.md)). O caminho de **escrita** ainda é uma única cadeia síncrona, e a multidão ainda é 30 vezes grande demais: chegam cerca de 33.000 reservas/s para as ~1.100 que um banco aguenta. **Esta aula** responde: o que pode sair da requisição e esperar numa fila, como nunca perder nem duplicar um evento no caminho, e como dar a 2 milhões de fãs uma fila justa?
+
 !!! abstract "Objetivos de aprendizagem"
 
     Ao final desta aula você deve ser capaz de:
@@ -14,7 +18,7 @@ Esta aula é sobre a outra forma de ligar os serviços: **mensagens**. Em vez de
     - **Aplicar** transactional outbox, change data capture, sagas (coreografia e orquestração), CQRS e event sourcing para manter serviços consistentes sem transações distribuídas.
     - **Evoluir** o schema de um evento sem quebrar os consumidores.
 
-## Roteiro
+## Roteiro { #roadmap }
 
 1. **Esta visão geral** — síncrono vs assíncrono, o que um broker oferece (e quanto custa), nivelamento de carga em números, o vocabulário e os quatro componentes de mensageria da paleta.
 2. [Filas e pub/sub](queues-pubsub/index.md) — filas ponto a ponto, consumidores concorrentes, confirmações, backpressure, a sala de espera da flash sale e o fan-out do pub/sub.
@@ -118,7 +122,7 @@ A diferença não é só velocidade. Ela aparece em três números que você já
 
 ---
 
-## O que um broker oferece
+## O que um broker oferece { #what-a-broker-buys-you }
 
 Um **message broker** é um servidor que recebe mensagens de **produtores**, as armazena de forma durável e as entrega a **consumidores**[^1]. Colocar um broker entre dois serviços traz quatro propriedades que uma chamada direta não traz:
 
@@ -134,7 +138,7 @@ Nada é de graça. O preço da assincronia:
 - **Depuração mais difícil.** Uma compra agora é uma cadeia de eventos entre tópicos; sem tracing distribuído e métricas de consumer lag, as falhas se escondem em um backlog (veja [Observabilidade](../observability/index.md)).
 - **Mais um sistema crítico.** O broker precisa ser replicado, monitorado, atualizado e ter sua capacidade planejada.
 
-### Nivelamento de carga em números
+### Nivelamento de carga em números { #load-leveling-in-numbers }
 
 A flash sale é o caso clássico de nivelamento de carga. As requisições de compra dos fãs chegam muito mais rápido do que o `inventory` consegue processar reservas, mas só por alguns minutos. Se o `order` chamasse o `inventory` diretamente, o excesso viraria timeouts e erros. Com uma fila no meio, o excesso vira **backlog** — mensagens esperando — e o único custo é tempo de espera.
 
@@ -200,7 +204,7 @@ Três coisas para ler no gráfico:
 
 ---
 
-## O vocabulário
+## O vocabulário { #the-vocabulary }
 
 Mensageria tem muitas palavras para coisas parecidas. Estas são as que usamos no curso.
 
@@ -220,7 +224,7 @@ Mensageria tem muitas palavras para coisas parecidas. Estas são as que usamos n
 !!! tip "Nomeie eventos no passado"
     Um evento é um fato: `OrderConfirmed`, `SeatsReleased`, `PaymentFailed`. Um nome no imperativo — `SendConfirmationEmail` — é um comando disfarçado: acopla o produtor a um consumidor e a uma ação. Publique o que aconteceu e deixe cada consumidor decidir o que fazer com isso.
 
-### O que vai dentro de um evento
+### O que vai dentro de um evento { #what-goes-inside-an-event }
 
 Martin Fowler distingue várias coisas que as pessoas querem dizer com "orientado a eventos"[^3]. Duas delas mudam a forma de projetar o payload:
 
@@ -254,7 +258,7 @@ Os outros dois significados — **event sourcing** e **CQRS** — são padrões 
 
 ---
 
-## A paleta de mensageria
+## A paleta de mensageria { #the-messaging-palette }
 
 O [System Design Playground](../../../playground/index.md) tem quatro componentes de mensageria. Não são quatro marcas; são quatro *formas* de comunicação. O [catálogo de componentes](../../reference/components/messaging/index.md) tem os detalhes de cada um.
 
@@ -270,7 +274,7 @@ A pergunta decisiva é o que acontece com uma mensagem **depois que ela é lida*
 - Em uma **fila**, ler é *tirar*: a mensagem some quando confirmada. Ótimo para distribuir trabalho.
 - Em um **log**, ler é *olhar*: a mensagem fica, e cada leitor guarda um marcador. Ótimo para muitos leitores independentes, replay e histórico.
 
-``` mermaid
+``` diagram
 flowchart TD
     q1{"Quem chama precisa da<br/>resposta para continuar?"}
     q1 -->|sim| sync["Chamada síncrona<br/>(REST / gRPC) + timeout"]
@@ -281,7 +285,7 @@ flowchart TD
     q3 -->|sim| log["stream / kafka<br/>log particionado"]
 ```
 
-### Quando *não* usar assincronia
+### Quando *não* usar assincronia { #when-not-to-go-asynchronous }
 
 | Interação no BoxOffice | Melhor escolha | Por quê |
 |---|---|---|
@@ -298,7 +302,7 @@ flowchart TD
 
 Toda mensagem percorre o mesmo caminho: um produtor a entrega a um dos quatro componentes de mensageria, e um consumidor a processa depois. O mapa liga cada **componente da paleta** (verde) aos **conceitos** desta aula (azul) e às aulas que os continuam:
 
-``` mermaid
+``` diagram
 flowchart LR
     order["app (order)<br/>produtor"]:::comp --> queue["queue"]:::comp
     order --> pubsub["pubsub"]:::comp
@@ -312,8 +316,8 @@ flowchart LR
     log -.- c3["partições, chaves, offsets,<br/>consumer groups, retenção"]:::tech
     worker -.- c4["pelo menos uma vez, consumidor idempotente,<br/>ordenação, DLQ, schemas"]:::tech
     c3 -.- d1["consenso, KRaft<br/>(aula 3)"]
-    c4 -.- d2["retries, SLO de atualidade<br/>(aula 9)"]
-    c4 -.- d3["consumer lag, tracing<br/>(aula 10)"]
+    c4 -.- d2["retries, SLO de atualidade<br/>(aulas 9 e 10)"]
+    c4 -.- d3["consumer lag, tracing<br/>(aula 9)"]
     classDef comp fill:#1e9e5a22,stroke:#1e9e5a
     classDef tech fill:#2f6fed22,stroke:#2f6fed
 ```
@@ -330,6 +334,14 @@ flowchart LR
 !!! tip "Na entrevista"
     Entrevistadores prestam atenção no *porquê* de você adicionar uma fila. "Vou colocar Kafka aqui", sozinho, é um sinal ruim; "o e-mail não precisa bloquear a compra, então o `order` publica `OrderConfirmed` e o `notification` consome — isso tira o provedor de e-mail da cadeia de disponibilidade da compra e absorve o pico das 10:00 como backlog" é um sinal forte. Sempre continue com as consequências que você vai tratar: duplicatas (consumidor idempotente), ordenação (chave por `orderId`), falhas (retries + DLQ) e monitoramento (consumer lag)[^4].
 
+!!! success "Boas práticas"
+
+    - **Decida síncrono ou assíncrono por chamada perguntando "o usuário precisa desta resposta agora?"** — a reserva do assento e a autorização do pagamento ficam na requisição; o e-mail, o PDF do ingresso, a busca e o analytics viram eventos. No BoxOffice: o `POST /orders` responde depois de dois inserts e um commit ([lab 7 — outbox](../../hands-on/7/outbox/index.md)).
+    - **Publique fatos do seu domínio, não comandos para um serviço conhecido** — `OrderPlaced`, não `SendEmail`: busca ou analytics assinam com seu próprio grupo de consumidores e o `order` não muda. No BoxOffice: o `notification` lê `order-events` como grupo `notification`.
+    - **Dê a toda mensagem um envelope: um `eventId` único criado uma vez, um `eventType`, o momento em que aconteceu e uma versão de schema** — consumidores deduplicam pelo id e roteiam pelo tipo. No BoxOffice: o relay copia `eventId` e `eventType` para cabeçalhos do Kafka ([quadro do outbox](patterns/index.md#transactional-outbox)).
+    - **Use como chave de cada mensagem a entidade cuja ordem importa** — todos os eventos de um pedido caem numa partição, em ordem, enquanto pedidos diferentes se espalham por todas as partições. No BoxOffice: o relay usa o id do pedido como chave no Kafka.
+    - **Dimensione consumidores por taxa de chegada × tempo de serviço, com folga, e calcule o tempo de escoamento antes da abertura de vendas** — 100 pedidos/s a 50 ms cada exigem pelo menos 5 threads; com uma thread, um pico de 60 s deixa ~4.800 mensagens e ~240 s de atraso ([lab 7 — pico e escoamento](../../hands-on/7/measure/index.md)).
+
 !!! warning "Armadilhas comuns"
 
     - **Assincronia para tudo.** Transformar uma pergunta que precisa de resposta ("este lugar está livre?") em mensagem adiciona latência, complexidade e um loop de polling, e não ganha nada.
@@ -340,12 +352,16 @@ flowchart LR
 
 ---
 
-## Relacionados
+## Relacionados { #related }
 
 - **Hands-on:** [Hands-on 7 — Assíncrono](../../hands-on/7/index.md): Kafka, transactional outbox no `order`, consumidor idempotente no `notification`, DLQ e a fila da sala de espera.
 - **Exercício:** [Exercício orientado a eventos](../../exercises/event-driven/index.md) — outbox + consumidor idempotente.
 - **Estudos de caso:** [Venda de ingressos (flash sale do BoxOffice)](../case-studies/ticketing/index.md), [Sistema de notificações](../case-studies/notification-system/index.md), [Sistema de pagamentos](../case-studies/payment-system/index.md), [Chat](../case-studies/chat/index.md).
-- **Aulas:** [Computação — trabalho assíncrono](../compute/async-work/index.md) (workers e schedulers), [Confiabilidade](../reliability/index.md) (retries, backoff, idempotência), [Observabilidade](../observability/index.md) (consumer lag e tracing entre tópicos).
+- **Aulas:** [Computação — trabalho assíncrono](../compute/async-work/index.md) (workers e schedulers), [Observabilidade](../observability/index.md) (consumer lag e tracing entre tópicos), [Confiabilidade](../reliability/index.md) (retries, backoff, idempotência).
+
+## O que quebra em seguida { #what-breaks-next }
+
+O e-mail saiu da requisição: no lab 7, uma falha no e-mail não derruba mais nenhum pedido, e a sala de espera só deixa entrar o que o `inventory` consegue atender. O preço é a visibilidade. Uma compra agora é uma requisição, uma linha no banco, um relay do outbox, um registro no Kafka e um consumidor, em quatro processos e em quatro momentos diferentes: quando um fã diz "paguei e não recebi o e-mail", ninguém consegue dizer onde o pedido parou. E quando o provedor de pagamento fica lento, as médias nos dashboards continuam verdes enquanto os fãs falham no checkout. Seguir um pedido entre serviços, e medir o que os fãs de fato sentem, é a [aula 9 — Observabilidade](../observability/index.md).
 
 ---
 

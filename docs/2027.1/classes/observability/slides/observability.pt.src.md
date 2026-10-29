@@ -256,6 +256,76 @@ gateway    SERVER POST /checkout          |████████████�
 
 ---
 
+## SLI → SLO → error budget → SLA
+
+| Termo | Exemplo no BoxOffice |
+|---|---|
+| **SLI** — o que o usuário sente | % de `POST /holds` não-5xx em < 500 ms |
+| **SLO** — meta interna | ≥ 99,9% em 28 dias |
+| **Error budget** — 1 − SLO | 0,1% das reservas podem falhar ou ser lentas |
+| **SLA** — contrato, multas | casas parceiras: 99,5% ao mês, ou créditos |
+
+- SLI = **eventos bons / eventos válidos**, medido perto do usuário (gateway, probes sintéticos).
+- CPU, heap, número de pods **não** são SLIs. Mantenha o SLO **mais rígido** que o SLA.
+
+---
+
+## Comece pelas jornadas do usuário
+
+| Jornada | SLO (28 dias) |
+|---|---|
+| Reservar lugares | 99,9% com sucesso em < 500 ms |
+| Navegar no catálogo | 99,5% em < 300 ms |
+| Receber ingressos por e-mail | 99% em até **2 min** da confirmação (**atualidade**) |
+| Sala de espera durante uma abertura | 99,95% das atualizações de posição |
+
+- Meça primeiro, depois defina o SLO um pouco abaixo do que você alcança.
+- Respeite a matemática das dependências: um provedor com 99,9% limita o SLO de compra. **Nunca 100%.**
+
+<!--
+O SLI de atualidade é o que pega falhas assíncronas: APIs verdes, e-mails atrasados.
+-->
+
+---
+
+<!-- _class: tight -->
+
+## Error budget e burn rate
+
+1 M de requisições/dia × 28 dias × 0,1% = **28.000** requisições com falha permitidas.
+
+> burn rate = taxa de erros ÷ (1 − SLO) — 1,44% de erros a 99,9% = 14,4× → orçamento acaba em ~1,9 dia
+
+| Severidade | Burn rate | Janela longa | Janela curta | Orçamento gasto |
+|---|---|---|---|---|
+| acionar | 14,4× | 1 h | 5 min | 2% |
+| acionar | 6× | 6 h | 30 min | 5% |
+| chamado | 1× | 3 dias | 6 h | 10% |
+
+<div class="warn">
+
+Um deploy ruim (5% de erros por 3 h) custa ~22% do orçamento; uma degradação discreta de 0,2% (2×) **o esvazia até o dia 26**. Alerte pelo orçamento, não pela CPU.
+
+</div>
+
+---
+
+## A política de error budget
+
+- **> 50% restante**: deploy em qualquer dia útil; experimentos permitidos.
+- **0–50%**: canary + plano de rollback; um item de confiabilidade em toda sprint.
+- **Esgotado**: congelar deploys de funcionalidades no caminho de compra até o SLI se recuperar.
+- **Regra de abertura de vendas**: nenhum deploy nas 24 h antes de uma grande abertura.
+- **Um incidente > 20%**: postmortem sem culpados com ações com responsável.
+
+<div class="ok">
+
+Assinada por produto **e** engenharia, de antemão. Sem política, um SLO é decoração.
+
+</div>
+
+---
+
 ## OpenTelemetry
 
 | Peça | Papel |
@@ -425,7 +495,7 @@ Os usuários sentem o tempo até a **mitigação**. A causa raiz pode esperar at
 | `alerting` | um humano precisa agir *agora*? | burn rate do SLO (janela de 28 dias), multijanela, runbooks |
 | `healthcheck` | tráfego ou restart para esta instância? | startup, liveness, readiness, raso vs profundo |
 
-<p class="small">O contexto compartilhado os une: métrica → <b>exemplar</b> → trace → <b>trace_id</b> → logs. Alertas levam à resposta a incidentes; os SLOs vêm da aula 9.</p>
+<p class="small">O contexto compartilhado os une: métrica → <b>exemplar</b> → trace → <b>trace_id</b> → logs. Alertas levam à resposta a incidentes; os SLOs que eles fazem cumprir são definidos antes, nesta mesma aula.</p>
 
 ---
 

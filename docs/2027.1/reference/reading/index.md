@@ -8,7 +8,7 @@ The books, papers, blogs and courses behind this course. You don't need to read 
 2. **System Design Interview, vol. 1** (Alex Xu) — read one chapter per week alongside the [case studies](../../classes/case-studies/index.md) to see the interview format end to end.
 3. **"The Tail at Scale"** (Dean & Barroso, 2013) — six pages that explain why p99 matters more than the average. Read it with [Class 2 · Percentiles](../../classes/estimation/percentiles/index.md).
 4. **Site Reliability Engineering**, chapters on SLOs, monitoring and handling overload (free online) — the "running it in production" half of system design.
-5. **The Amazon Builders' Library** articles on timeouts, retries, backoff and jitter — short, practical, and exactly what [Class 9](../../classes/reliability/patterns/index.md) and [Hands-on 9](../../hands-on/9/index.md) put into code.
+5. **The Amazon Builders' Library** articles on timeouts, retries, backoff and jitter — short, practical, and exactly what [Class 10](../../classes/reliability/patterns/index.md) and [Hands-on 9](../../hands-on/9/index.md) put into code.
 
 ## Books
 

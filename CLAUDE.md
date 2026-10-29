@@ -57,7 +57,8 @@ No git-based revision dates/authors: Zensical does not support the `git-*` plugi
 Built by [zensical-i18n](https://github.com/hsandmann/zensical-i18n) (`[project.plugins.i18n]` in
 `zensical.toml`, suffix structure, as mkdocs-static-i18n). Every page `X.md` (English) may have a
 translation `X.pt.md` next to it — any file works the same way: `slides/x.pt.html` is the Portuguese
-version of `slides/x.html`. English is built to the site root and Portuguese to `/pt/`, sharing paths
+version of `slides/x.html`. So never name a support file `x.pt.js` (or any `*.pt.*`) unless it *replaces*
+`x.js` in `/pt/`: data that only adds Portuguese texts uses `-pt` (`mapa-arq-dados-pt.js`). English is built to the site root and Portuguese to `/pt/`, sharing paths
 (`/platform/<page>` ↔ `/platform/pt/<page>`); the plugin adds the language selector (it keeps the page),
 hreflang sitemaps, translated default admonition titles, and a notice on pages that fall back to English.
 
@@ -121,6 +122,54 @@ uv run scripts/handouts/snapshots.py           # build boxoffice-after-lab-<n>.z
 uv run scripts/handouts/snapshots.py --check   # includes exist, YAML/JSON of the overlays parse
 ```
 
+### Classes (2027.1): one story, linked to the code
+
+The classes are chapters of one story (`2027.1/index.md#story`: problem → class → lab → code → scenario).
+Each overview has `!!! quote "The story so far"` before the learning objectives and
+`## What breaks next { #what-breaks-next }` after the key takeaways; each subpage has
+`## How it connects { #how-it-connects }` and a `!!! success "Best practices"` box right before its pitfalls
+(labs: `"Best practices in this lab"`, naming the file and the class section). Where a lab implements a concept, the class page shows the real
+file in `!!! example "In the BoxOffice code: … (lab N)"`, included from the overlay with a line range
+(`--8<-- "docs/2027.1/hands-on/<n>/code/<path>:start:end"`). **When you change lab code, run
+`snapshots.py --check`**: it fails when a class page's range no longer fits the file or starts on a blank
+line, but it cannot tell that the range moved to other code — check the excerpts of the file you changed
+(`grep -rn "<file name>" docs/2027.1/classes`). It also checks the lab values the concept simulators copy (below): a failure names
+the simulator, the pages and the tip to update.
+
+Network simulators (class 12): `<div class="netsim" data-tool="cidr" data-cidr="…">` (address explorer) and
+`<div class="netsim" data-tool="packet" data-scenario="…">` (packet walk through the BoxOffice VPC: route tables,
+NAT, security groups), in `docs/assets/javascripts/netsim.js` + `assets/stylesheets/netsim.css`; the engine is
+pure and tested with `node scripts/playground/test_netsim.mjs`. Support data (concept map, study cards):
+`node scripts/support/validate.mjs`; their Portuguese texts are in `mapa-arq-dados-pt.js` and `cartas-arq-dados-pt.js`
+(overlaid on a copy of the English data; the validator fails when a concept, connection, trail or card has no
+translation, or when a support page states counts that the data no longer have).
+
+Concept simulators (2027.1): `<div class="csim" data-sim="<name>" data-…="…"></div>`, followed by a
+`!!! tip "Try it"` (pt `"Experimente"`) whose numbers come from the model. `docs/assets/javascripts/csim/core.js`
+is the only one listed in `zensical.toml`: it loads `csim/<name>.js` on demand and gives the modules the shared
+controls (player, sliders, choices, switches, stat tiles, log, live chart). Each module keeps a pure, seeded
+model exported with `module.exports` (tests: `node scripts/csim/test.mjs [names]`, one `<name>.test.mjs` each)
+and adds its own rules with `CSim.style`. **Colors only from the theme**: classes and `--c-*` tokens of
+`assets/stylesheets/csim.css` (Material's variables; status colors shared with the Playground and netsim),
+never a literal color in a module. `hash-ring.js` is the reference module.
+
+**Lab values in simulators: one source, checked.** A simulator never copies a lab setting silently. Every value it
+takes from a lab (a TTL, partitions, breaker thresholds, the HPA…) is registered in `scripts/csim/lab-values.mjs`
+(the value, the lab file the tip cites, and how to read it there) and lives in the module only as `LAB.<key>`
+(exported; defaults and model read it from there, no second literal). A fact the tip merely quotes (`ack-mode: record`)
+is registered with `module: false`. The tests take those inputs from `M.LAB` and assert every model number the tip
+prints with `tipHas(sim, lang => […])` (lib.mjs, both languages). `lab-values.test.mjs` fails when a lab file no
+longer gives the registered value, when a module's `LAB` or a page's `data-*` differs, when a quoted fact leaves
+the tip, or when `LAB` holds an unregistered key. So: **when you change a lab setting** that a simulator uses,
+update the registry entry and `LAB`, run `node scripts/csim/test.mjs <sim>`, and rewrite the tip numbers it
+reports (en and pt); **when you write a simulator that uses a lab value**, register it the same way.
+
+Quiz pages (`classes/*/quiz.md`) keep plain Markdown (**Qn.** question, `- A.` … options, `??? success "Answer"` / `"Resposta"`
+whose first bold starts with the letter); `assets/javascripts/quiz.js` turns them into compact cards with clickable options and a score.
+
+Every class page closes with `## Key takeaways { #key-takeaways }` (pt `## Pontos-chave`) followed by the list
+inside `!!! takeaways ""` (a highlighted box, styled in `extra.css`).
+
 **`site/`** is generated output — never edit manually; it's rebuilt on deploy.
 
 ## CI/CD
@@ -133,7 +182,7 @@ Markdown files use pymdownx extensions heavily:
 
 - **Tabs**: `=== "Tab Name"` blocks
 - **Admonitions**: `!!! tip "Title"` / `??? note "Collapsible"` (types: note, tip, info, warning, danger, example, etc.)
-- **Diagrams**: ` ```mermaid ``` ` fenced blocks (Mermaid v11). In 2026.2 use ` ``` mermaid-sim ` instead: same Mermaid source, rendered by `assets/javascripts/mermaid-sim.js` as a step-by-step simulator (flowchart edges, sequence messages and state transitions play in source order; class diagrams stay static)
+- **Diagrams**: ` ```mermaid ``` ` fenced blocks (Mermaid v11). In 2026.2 and 2027.1 use ` ``` mermaid-sim ` instead: same Mermaid source, rendered by `assets/javascripts/mermaid-sim.js` as a step-by-step simulator (flowchart edges, sequence messages and state transitions play in source order, with a clickable progress bar, speed and a caption; class diagrams stay static). It draws with Mermaid's `base` theme fed from the page palette, so do not add `classDef`/`style` colors that fight the theme. **In 2027.1 use ` ``` diagram ` (static) and ` ``` diagram-sim ` (step by step) instead**: the same Mermaid syntax (flowchart, sequence, state) drawn by our own renderer `assets/javascripts/diagram.js` + `assets/stylesheets/diagram.css` — ELK layout loaded on demand, sequence layout of its own, theme colors only, `:::comp` / `:::tech` / `:::problem` as tones; a diagram that would shrink below a readable size is laid out narrower or in the other direction. Other diagram types (ER, Gantt, class) stay ` ```mermaid `. `node scripts/diagram/test.mjs` parses every 2027.1 diagram (fails on a line it does not understand)
 - **Card grids**: `<div class="grid cards" markdown>` with `-   __Title__` list items
 
 Embed Python and produce output (matplotlib, seaborn, numpy, pandas) directly in Markdown via `markdown-exec`:

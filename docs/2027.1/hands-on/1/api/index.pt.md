@@ -1,6 +1,6 @@
 O primeiro passo desenha o **contrato** do `catalog`: quais recursos ele expõe, quais requisições aceita e o que responde. Em uma entrevista, este é o passo 3 do framework (*API e modelo de dados*); em um time de verdade, é aquilo contra o que os outros times programam, então merece cuidado antes de existir qualquer SQL.
 
-## 1. Crie o projeto
+## 1. Crie o projeto { #1-create-the-project }
 
 Crie a pasta `services/catalog` no seu repositório com a estrutura padrão do Maven:
 
@@ -35,7 +35,7 @@ O ponto de entrada é a linha de sempre:
 --8<-- "docs/2027.1/hands-on/1/code/services/catalog/src/main/java/boxoffice/catalog/CatalogApplication.java"
 ```
 
-## 2. Desenhe os recursos
+## 2. Desenhe os recursos { #2-design-the-resources }
 
 Dois **recursos**, cada um um substantivo com uma URL de coleção e uma URL de item, todos sob o prefixo do serviço `/catalog` (veja as [convenções do lab 0](../../0/index.md#boxoffice-services-and-ports)):
 
@@ -75,7 +75,7 @@ classDiagram
 | Erros | RFC 9457 `application/problem+json` | um formato de erro legível por máquina para todo serviço |
 | Criação | `201 Created` + `Location: /catalog/events/{id}` | o cliente descobre onde o novo recurso vive |
 
-## 3. Records de requisição e resposta
+## 3. Records de requisição e resposta { #3-request-and-response-records }
 
 A API nunca devolve entidades JPA. **Records** são imutáveis, não têm anotações de persistência e deixam o formato do JSON explícito — quando a tabela muda, a API não muda por acidente.
 

@@ -3,7 +3,7 @@
 
 ---
 
-## O que conta como incidente
+## O que conta como incidente { #what-counts-as-an-incident }
 
 Um **incidente** é um evento não planejado que degrada ou ameaça um serviço do qual os usuários dependem, e que precisa de uma resposta **coordenada**. Nem todo alerta é um incidente; um incidente é declarado quando a resposta precisa de mais de uma pessoa trabalhando do jeito normal. **Níveis de severidade** tornam essa decisão rápida e consistente — ninguém deveria discutir a definição às 3 da manhã.
 
@@ -32,9 +32,9 @@ Um **incidente** é um evento não planejado que degrada ou ameaça um serviço 
 
 ---
 
-## O ciclo de vida do incidente
+## O ciclo de vida do incidente { #the-incident-lifecycle }
 
-``` mermaid-sim
+``` diagram-sim
 stateDiagram-v2
     [*] --> Detectado : alerta, relato de cliente ou um engenheiro percebe
     Detectado --> Triado : on-call confirma, avalia o impacto
@@ -62,7 +62,7 @@ Os usuários só sentem o **impacto**: o tempo até a **mitigação** é o núme
 
 ---
 
-## Papéis
+## Papéis { #roles }
 
 O jeito mais comum de um incidente dar errado não é a falta de uma ferramenta — são cinco engenheiros depurando a mesma coisa em paralelo, ninguém decidindo e ninguém contando aos clientes o que está acontecendo. O **Incident Command System** (ICS), criado para o combate a incêndios florestais nos anos 1970, resolveu isso com papéis explícitos; Google, PagerDuty e outros o adaptaram para software[^1][^3].
 
@@ -78,7 +78,7 @@ Num time pequeno, uma pessoa pode acumular vários papéis; o IC e o líder de o
 
 Execute os primeiros quinze minutos do incidente da venda relâmpago:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     participant AM as Alertmanager
@@ -104,7 +104,7 @@ sequenceDiagram
 
 ---
 
-## Mitigar primeiro
+## Mitigar primeiro { #mitigate-first }
 
 Durante um incidente, o objetivo é **parar o impacto**, não entendê-lo. O entendimento vem depois, com o postmortem — e é muito mais fácil quando a pressão passou. As melhores mitigações são **genéricas**: funcionam qualquer que seja a causa exata, e são ensaiadas com antecedência.
 
@@ -122,7 +122,7 @@ Durante um incidente, o objetivo é **parar o impacto**, não entendê-lo. O ent
 
     "Deixa eu adicionar uma linha de log e fazer redeploy para entender" transforma um incidente de 15 minutos num de 2 horas. Se houver uma mitigação disponível, aplique-a; se não houver, investigue com a telemetria que você já tem. Toda mudança durante um incidente passa pelo líder de operações e entra na linha do tempo.
 
-### Comunicação
+### Comunicação { #communication }
 
 Silêncio durante um incidente é lido como incompetência ou indiferença. As atualizações têm uma **cadência fixa** (para um SEV1, a cada 15–30 minutos), mesmo quando não há nada novo, e um formato fixo:
 
@@ -139,7 +139,7 @@ Para fora da empresa, a página de status informa **impacto e progresso**, nunca
 
 ---
 
-## O incidente do BoxOffice, em números
+## O incidente do BoxOffice, em números { #the-boxoffice-incident-by-the-numbers }
 
 | Horário | Evento | Métrica |
 |---|---|---|
@@ -152,13 +152,15 @@ Para fora da empresa, a página de status informa **impacto e progresso**, nunca
 | 10h14 | provedor secundário ativo, sala de espera estrangulada; erros de volta ao normal | **MTTM ≈ 12 min** |
 | 10h40 | estável, incidente resolvido | **MTTR ≈ 38 min** |
 
+O page chegou um minuto depois do início do impacto só porque a abertura das vendas tem **seu próprio SLO**, com alertas em janelas de 5 minutos e de 1 minuto ([Alertas](../alerting/index.md)). Com 12% de falhas, a regra geral de 28 dias — 14,4× numa janela de 1 hora — levaria cerca de 60 min × 1,44% / 12% ≈ 7 minutos para disparar: mais da metade do tempo até a mitigação, perdido antes de alguém olhar.
+
 Quanto isso custou em termos de SLO? Com números ilustrativos — 200 tentativas de checkout por segundo durante a abertura e uma média de 12% de falhas nos 12 minutos de impacto:
 
 $$
 200 \times 720\ \text{s} \times 0{,}12 \approx 17\,300 \text{ checkouts com falha}
 $$
 
-Se o BoxOffice processa cerca de 2 milhões de checkouts numa janela normal de 28 dias (a janela de SLO usada em [Confiabilidade](../../reliability/slo/index.md)), um SLO de 99,9% permite **2.000** falhas. Este único incidente gastou mais de oito budgets de 28 dias — mais de sete meses — em doze minutos. A [política de error budget](../../reliability/slo/index.md) agora se aplica: o trabalho em funcionalidades do checkout pausa até que as ações de confiabilidade sejam feitas. Esse é o error budget cumprindo seu papel — transformar uma manhã ruim numa prioridade de engenharia com recursos garantidos.
+Se o BoxOffice processa cerca de 2 milhões de checkouts numa janela normal de 28 dias (a janela de SLO usada em [Confiabilidade](../slo/index.md)), um SLO de 99,9% permite **2.000** falhas. Este único incidente gastou mais de oito budgets de 28 dias — mais de sete meses — em doze minutos. A [política de error budget](../slo/index.md) agora se aplica: o trabalho em funcionalidades do checkout pausa até que as ações de confiabilidade sejam feitas. Esse é o error budget cumprindo seu papel — transformar uma manhã ruim numa prioridade de engenharia com recursos garantidos.
 
 ---
 
@@ -170,7 +172,7 @@ Um **postmortem** (também chamado de *incident review* ou retrospectiva) é uma
 
 Um postmortem é **blameless** (sem culpados)[^4]: ele assume que todos agiram de forma razoável com o que sabiam no momento, e pergunta *como o sistema tornou o erro fácil*, não *quem errou*. Não se trata de ser gentil. Se as pessoas são punidas por relatos honestos, elas param de fazê-los, e a organização perde a única fonte precisa de informação sobre como seus sistemas realmente falham. "O engenheiro rodou o comando errado" vira "a ferramenta permitiu um comando destrutivo contra a produção sem confirmação, e o runbook o mostrava ao lado de um comando inofensivo".
 
-### Causa raiz — ou fatores contribuintes?
+### Causa raiz — ou fatores contribuintes? { #root-cause-or-contributing-factors }
 
 Sistemas complexos raramente falham por **um** motivo; incidentes precisam que vários fatores se alinhem[^5]. No incidente do BoxOffice:
 
@@ -182,7 +184,7 @@ Sistemas complexos raramente falham por **um** motivo; incidentes precisam que v
 
 Perguntar "cinco porquês" ao longo de uma única cadeia teria parado em "o provedor estava lento" — o único fator que o BoxOffice não consegue corrigir. Procurar **todos** os fatores contribuintes encontra quatro que ele consegue.
 
-### Modelo
+### Modelo { #template }
 
 ```markdown
 # Postmortem: checkout errors during the 13 March on-sale (SEV1)
@@ -214,13 +216,21 @@ Technical, process and organisational factors — no names, no blame.
 
 As ações são a única parte de um postmortem que muda alguma coisa. Cada uma é **específica**, tem **um dono** e uma **data**, e é acompanhada como qualquer outro trabalho. Um postmortem cujas ações nunca são feitas é uma história, não uma correção.
 
-### Fechando o ciclo
+### Fechando o ciclo { #closing-the-loop }
 
 - **Reunião de revisão**: os autores apresentam o documento ao time; as perguntas são sobre o sistema, não sobre as pessoas.
 - **Compartilhe amplamente**: outros times têm o mesmo pool, o mesmo timeout faltando.
 - **Procure tendências**: muitos incidentes vindos de deploys → invista em canaries e rollbacks ([Entrega](../../cloud-native/delivery/index.md)); muitos vindos de uma dependência → bulkheads e fallbacks.
 - **Pratique**: transforme o incidente num cenário de **game day** — injete latência no provedor com o Toxiproxy e verifique se o novo timeout, o breaker e o alerta se comportam ([Hands-on 9](../../../hands-on/9/index.md)).
 - **Meça a saúde da entrega**: as métricas DORA *change failure rate* e *failed deployment recovery time*[^6] mostram se os incidentes causados por mudanças estão ficando mais raros e mais curtos.
+
+!!! example "No código do BoxOffice: um incidente ensaiado (lab 9)"
+
+    O [Hands-on 9 — game day](../../../hands-on/9/game-day/index.md) roda esta página em miniatura. Um mestre do jogo injeta uma de seis falhas sem contar a ninguém qual; os operadores a detectam com o dashboard do lab 8 e os alertas de burn rate (copiados para o `order` em `slo-order.yaml`); um escriba mantém a linha do tempo; e cada rodada termina com uma revisão sem culpados em `results/lab9-gameday.md` — tempo para detectar, tempo para mitigar, itens de ação com um dono. O script abaixo é toda a caixa de ferramentas do mestre do jogo, e o seu `reset` é o botão de abortar, testado antes da primeira injeção.
+
+    ``` { .sh title="scripts/game-day.sh (the hidden failures)" }
+    --8<-- "docs/2027.1/hands-on/9/code/scripts/game-day.sh:7:16"
+    ```
 
 !!! note "Assistentes de IA na resposta a incidentes"
 
@@ -242,6 +252,14 @@ As ações são a única parte de um postmortem que muda alguma coisa. Cada uma 
 
     Entrevistas raramente perguntam diretamente "como você conduz um incidente?", mas frequentemente perguntam "**o que acontece quando X falha?**". Uma resposta forte cobre três camadas: *como o sistema se degrada* (timeouts, fallbacks, sala de espera), *como você fica sabendo* (alerta de burn rate do SLO, antes de os clientes avisarem) e *como você se recupera* (uma mitigação genérica — failover, rollback, flag — documentada e testada). Em entrevistas comportamentais, uma história de incidente bem contada — seu papel, como você mitigou, o que o postmortem mudou — é um dos sinais mais fortes de experiência real (veja [Preparação para entrevistas](../../../support/interview/index.md)).
 
+!!! success "Boas práticas"
+
+    - **Publique a tabela de severidades e a escala de IC antes da abertura das vendas** — ninguém deveria debater o que é um SEV1, ou quem comanda, às 10h03.
+    - **Registre com horário toda observação, decisão e mudança num único canal** — MTTD, MTTA e MTTM saem desses horários, e o postmortem é escrito a partir deles. No BoxOffice: a linha do tempo do escriba no [Hands-on 9 — game day](../../../hands-on/9/game-day/index.md).
+    - **Mantenha cada mitigação genérica como um comando documentado, ensaiado antes de ser necessário** — rollback, desligar uma flag, trocar de provedor, frear a sala de espera; uma mitigação testada pela primeira vez durante o incidente costuma falhar. No BoxOffice: `scripts/game-day.sh reset`, o botão de abortar testado antes da primeira injeção.
+    - **Expresse o impacto como error budget gasto** — "17.300 checkouts com falha, oito orçamentos de 28 dias" transforma uma manhã ruim numa prioridade financiada pela política de error budget. No BoxOffice: a linha *SLO budget spent* do modelo de revisão do lab 9.
+    - **Publique o postmortem em até uma semana, com a memória fresca** — os relatos se apagam e os logs expiram; uma revisão escrita um mês depois é reconstruída, não lembrada.
+
 !!! warning "Armadilhas comuns"
 
     - **Sem incident commander**: todo mundo depura, ninguém decide, ninguém comunica.
@@ -253,7 +271,7 @@ As ações são a única parte de um postmortem que muda alguma coisa. Cada uma 
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     AL["burn-rate page<br/>→ Alerting"] --> TRI["triage: severity<br/>SEV1 to SEV4"]
     TRI --> ROLES["IC, ops lead,<br/>comms lead, scribe"]
@@ -267,18 +285,20 @@ flowchart LR
     PM --> GD["game day<br/>→ Chaos engineering"]
 ```
 
-**Componentes da paleta:** [`alerting`](../../../reference/components/observability/index.md#alerting) (o page que o inicia) · [`tracing`](../../../reference/components/observability/index.md#tracing) (o trace do exemplar que achou o `pool.acquire`) · [`payment`](../../../reference/components/external/index.md#payment) (failover para o provedor secundário) · [`queue`](../../../reference/components/messaging/index.md#queue) (a sala de espera, estrangulada para descartar carga) · [`waf`](../../../reference/components/edge/index.md#waf) (bloqueio de tráfego abusivo) · [`app`](../../../reference/components/compute/index.md#app) (rollback ou scale-out de um serviço). **Cenários:** `flash-sale` (o incidente da abertura de vendas), `cascading-failure` (um provedor lento sem timeouts). **Continua em:** [Confiabilidade](../../reliability/index.md) (disponibilidade = MTTF / (MTTF + MTTR)), [Confiabilidade — SLOs](../../reliability/slo/index.md), [Confiabilidade — engenharia do caos](../../reliability/chaos/index.md), [Cloud-native — entrega](../../cloud-native/delivery/index.md) (rollbacks, canaries, DORA), [Projeto — game day](../../../exercises/project/game-day/index.md), [Preparação para entrevistas](../../../support/interview/index.md).
+**Componentes da paleta:** [`alerting`](../../../reference/components/observability/index.md#alerting) (o page que o inicia) · [`tracing`](../../../reference/components/observability/index.md#tracing) (o trace do exemplar que achou o `pool.acquire`) · [`payment`](../../../reference/components/external/index.md#payment) (failover para o provedor secundário) · [`queue`](../../../reference/components/messaging/index.md#queue) (a sala de espera, estrangulada para descartar carga) · [`waf`](../../../reference/components/edge/index.md#waf) (bloqueio de tráfego abusivo) · [`app`](../../../reference/components/compute/index.md#app) (rollback ou scale-out de um serviço). **Cenários:** `flash-sale` (o incidente da abertura de vendas), `cascading-failure` (um provedor lento sem timeouts). **Continua em:** [Confiabilidade](../../reliability/index.md) (disponibilidade = MTTF / (MTTF + MTTR)), [SLIs, SLOs e error budgets](../slo/index.md), [Confiabilidade — engenharia do caos](../../reliability/chaos/index.md), [Cloud-native — entrega](../../cloud-native/delivery/index.md) (rollbacks, canaries, DORA), [Projeto — game day](../../../exercises/project/game-day/index.md), [Preparação para entrevistas](../../../support/interview/index.md).
 
 ---
 
-## Principais conclusões
+## Pontos-chave { #key-takeaways }
 
-- Um **incidente** exige coordenação; **níveis de severidade** com critérios claros tornam a declaração rápida — declare cedo, rebaixe à vontade.
-- O on-call precisa ser **sustentável**: primário/secundário, passagens de turno, runbooks e uma carga de pages que deixe tempo para engenharia.
-- Meça **MTTD, MTTA, MTTM, MTTR**; os usuários sentem o tempo até a **mitigação**.
-- Papéis — **incident commander**, líder de operações, líder de comunicação, escriba — evitam o caos; o IC coordena e não depura.
-- **Mitigue primeiro** com mitigações genéricas e ensaiadas (rollback, flag, failover, descarte de carga); comunique numa cadência fixa.
-- **Postmortems blameless** buscam todos os **fatores contribuintes** e produzem **ações** com dono e data; o ciclo se fecha com game days.
+!!! takeaways ""
+
+    - Um **incidente** exige coordenação; **níveis de severidade** com critérios claros tornam a declaração rápida — declare cedo, rebaixe à vontade.
+    - O on-call precisa ser **sustentável**: primário/secundário, passagens de turno, runbooks e uma carga de pages que deixe tempo para engenharia.
+    - Meça **MTTD, MTTA, MTTM, MTTR**; os usuários sentem o tempo até a **mitigação**.
+    - Papéis — **incident commander**, líder de operações, líder de comunicação, escriba — evitam o caos; o IC coordena e não depura.
+    - **Mitigue primeiro** com mitigações genéricas e ensaiadas (rollback, flag, failover, descarte de carga); comunique numa cadência fixa.
+    - **Postmortems blameless** buscam todos os **fatores contribuintes** e produzem **ações** com dono e data; o ciclo se fecha com game days.
 
 ---
 

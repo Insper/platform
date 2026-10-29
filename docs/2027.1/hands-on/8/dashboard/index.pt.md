@@ -1,4 +1,4 @@
-# 2. Dashboard RED
+# 2. Dashboard RED { #2-red-dashboard }
 
 Dados que você não consegue ler em dez segundos durante um incidente não são observabilidade, são
 armazenamento. Este passo constrói **um** dashboard para todos os serviços do BoxOffice, provisionado
@@ -13,7 +13,7 @@ como código, organizado em torno de dois métodos da
 O RED diz *que* algo está errado para os usuários; o USE diz *onde* a capacidade acabou. A linha de
 cima do dashboard é RED por serviço; a de baixo é USE para as JVMs e seus pools de conexão.
 
-## Dashboards como código
+## Dashboards como código { #dashboards-as-code }
 
 O Grafana carrega dashboards de arquivos listados por um **provedor**. Os dois arquivos ficam no seu
 repositório, então o dashboard é revisado, versionado e idêntico em todos os notebooks:
@@ -33,7 +33,7 @@ aparece em **Dashboards → BoxOffice → BoxOffice — RED**.
     --8<-- "docs/2027.1/hands-on/8/code/infra/grafana/dashboards/boxoffice-red.json"
     ```
 
-## Lendo os painéis
+## Lendo os painéis { #reading-the-panels }
 
 Cada painel é uma consulta PromQL sobre o histograma que o agente exporta. Aprenda as quatro formas;
 todo dashboard RED que você vai ver na vida é uma variação delas.
@@ -63,7 +63,7 @@ Três hábitos fazem a diferença:
     são requisições reais, e clicar em um abre o seu trace no Tempo. É o caminho mais curto de "o p99
     subiu" para "este comando SQL está lento".
 
-## Exercício: veja um gargalo aparecer
+## Exercício: veja um gargalo aparecer { #exercise-watch-a-bottleneck-appear }
 
 1. Rode o teste de estresse em escada do [lab 2](../../2/index.md) contra a borda — ele sobe a taxa de
    chegada em degraus até `PEAK` e depois desce:

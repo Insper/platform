@@ -70,7 +70,7 @@ A useful sanity check: at 99.99% you cannot afford **one** 5-minute incident per
 
 !!! warning "Request-based numbers are big numbers"
 
-    At 2,000 requests per second, "99.9% of requests succeed" still means **2 failed requests every second**, ~170,000 per day. Availability targets are about **rates**, never about "no errors" — 100% is neither achievable nor a sensible goal. The gap to 100% is the **error budget** ([class 9](../../reliability/index.md)).
+    At 2,000 requests per second, "99.9% of requests succeed" still means **2 failed requests every second**, ~170,000 per day. Availability targets are about **rates**, never about "no errors" — 100% is neither achievable nor a sensible goal. The gap to 100% is the **error budget** ([class 9](../../observability/slo/index.md)).
 
 ---
 
@@ -147,7 +147,7 @@ With a = 99%: 0.970299 + 0.029403 = **99.97%** — better than one node, worse t
 
 The checkout path, as described at the top of the page (availabilities are illustrative assumptions):
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     fan([Fan]) --> edge["Edge + gateway<br/>99.99%"]
     edge --> auth["auth<br/>99.95%"]
@@ -173,7 +173,7 @@ Three lessons, in decreasing order of cost-effectiveness:
 
 !!! tip "Soft dependencies are not in the chain"
 
-    A dependency whose failure the service can **tolerate** — by serving a cached value, a default, or a partial page — does not multiply into the availability of the critical path. Recommendations, view counters and the AI assistant should all be *soft* dependencies of checkout: if they fail, checkout still works. Turning hard dependencies into soft ones (fallbacks, caches, async) is a design skill you will practise in [class 9](../../reliability/index.md).
+    A dependency whose failure the service can **tolerate** — by serving a cached value, a default, or a partial page — does not multiply into the availability of the critical path. Recommendations, view counters and the AI assistant should all be *soft* dependencies of checkout: if they fail, checkout still works. Turning hard dependencies into soft ones (fallbacks, caches, async) is a design skill you will practise in [class 10](../../reliability/index.md).
 
 ---
 
@@ -205,15 +205,39 @@ $$
 
 Ten failovers a year at 30 s + 30 s each is 10 minutes: fine for 99.99% (52 minutes per year), but it consumes a fifth of the budget. Faster health checks, client-side retries to another replica, and connection draining reduce it.
 
+**Try it.** In the `scale-out` scenario one `catalog` replica crashes at t = 80 s, and nothing tells the load balancer: it keeps sending that replica its share of the traffic for ~30 s. First give the design enough capacity to survive the loss — click `catalog` and raise its replicas to **5** — and press **Run**: watch the error rate from t = 80 s on. Then open it in the full playground (↗), add a **Health Check**, connect it to the load balancer, and run again.
+
+<div class="sdp" data-scenario="scale-out" data-mode="compact" data-height="520"></div>
+
+??? question "What should you have observed?"
+
+    With 5 replicas and no health check, one request in five goes to the dead replica: about **20% of the requests fail from t ≈ 81 s to t ≈ 110 s**, about 4% of the whole 3-minute run. With the health check, the replica is out in 3 s: errors last from t ≈ 81 s to 83 s and the run ends at about **0.4%** — the same failure, a tenth of the damage, exactly as *downtime ≈ failures × detection time* predicts. With the 2 replicas as drawn, detection is not the first problem: the two replicas are overloaded before the crash (ρ > 1), and losing one halves the capacity again.
+
+!!! example "In the BoxOffice code: passive health checks and a retry (lab 3)"
+
+    The Nginx edge of [Hands-on 3](../../../hands-on/3/index.md) detects failures **passively**, from real requests: 3 failures within 10 s take a replica out of rotation for 10 s, and `proxy_next_upstream` retries the failed request once on another replica, so the fan does not see the error. The lab measured both kinds of failure under 150 req/s: a **stopped** replica cost almost nothing (the connection is refused at once and retried elsewhere); a **frozen** one cost the read timeout — no errors in 14,990 requests, but p99 = 1 s and max = 5.05 s, the `proxy_read_timeout`. Detection time is paid in errors when nobody retries, and in latency when someone does.
+
+    ``` { .nginx title="infra/nginx/nginx.conf (detection and retry)" }
+    --8<-- "docs/2027.1/hands-on/3/code/infra/nginx/nginx.conf:19:26,56:60"
+    ```
+
 ??? question "Think first: is a second region worth it?"
 
     BoxOffice runs in one region with three availability zones. The provider's documentation suggests that a full-region outage is rare, but when it happens it can last hours. A second region (active-passive, with DNS failover) would roughly double infrastructure cost. How would you decide?
 
-    **Answer sketch**: estimate the **expected cost of downtime** versus the cost of the second region. If a region outage of ~4 h happens about once every two years (an assumption to validate with your provider's history), the expected downtime is ~2 h/year — almost half of the ~4.4 h/year that a 99.95% target allows, before any other incident. Then consider *when* it happens: a region outage during a stadium on-sale costs the business far more than one at 4 a.m. on a Tuesday. If the SLA with organizers carries penalties, or one lost on-sale costs more than a year of a second region, it is worth it — and then the hard part is the data (class 3 and class 9), not the servers.
+    **Answer sketch**: estimate the **expected cost of downtime** versus the cost of the second region. If a region outage of ~4 h happens about once every two years (an assumption to validate with your provider's history), the expected downtime is ~2 h/year — almost half of the ~4.4 h/year that a 99.95% target allows, before any other incident. Then consider *when* it happens: a region outage during a stadium on-sale costs the business far more than one at 4 a.m. on a Tuesday. If the SLA with organizers carries penalties, or one lost on-sale costs more than a year of a second region, it is worth it — and then the hard part is the data (class 3 and class 10), not the servers.
 
 !!! tip "In the interview"
 
     When you draw a high-level design, do the series calculation **out loud** for the critical path: "the request crosses five components; at 99.9% each that is about 99.5%, so to promise 99.9% overall I need redundancy in each and I'd take the e-mail off the path." Then mention correlated failures — "replicas in different zones, canary deploys" — which shows you know where the formulas stop being true. Quote downtime with a window: "four nines is about four minutes a month".
+
+!!! success "Best practices"
+
+    - **Draw the critical path and compute its availability before promising an SLO** — multiply the links; if the product is below the promise, change the design, not the promise's wording. In BoxOffice: the checkout chain on this page.
+    - **Automate detection and recovery** — health checks every few seconds, automatic restarts, a retry on another replica; MTTR is the cheap lever. In BoxOffice: `max_fails` and `proxy_next_upstream` in lab 3's `nginx.conf` (box above), and the gateway's health check every 5 s in [lab 4](../../../hands-on/4/gateway/index.md).
+    - **Drill failover on a schedule and time it** — kill a replica or a primary in a test environment and measure detection + failover against the budget. In BoxOffice: step 5 of [Hands-on 3](../../../hands-on/3/index.md) (stop and pause a replica) and the game day of lab 9.
+    - **Track the error budget, not just uptime** — 99.95% of requests over 28 days is about 20 minutes of total failure; spend it on purpose (releases, experiments), not by accident.
+    - **Give every dependency a timeout and a fallback** — a timeout bounds how long a weak dependency can hurt; a fallback keeps it soft. In BoxOffice: the 1 s read timeout of `order → payment` in lab 9.
 
 !!! warning "Common pitfalls"
 
@@ -227,7 +251,7 @@ Ten failovers a year at 30 s + 30 s each is 10 minutes: fine for 99.99% (52 minu
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     MT["A = MTTF / (MTTF + MTTR)"] --> NINES["nines over a window<br/>→ Reliability SLOs"]
     SER["series: ∏ aᵢ"] --> CHAIN["critical path: edge, auth,<br/>order, inventory, provider"]
@@ -240,15 +264,17 @@ flowchart LR
     DET --> RED
 ```
 
-**Palette components:** [`lb`](../../../reference/components/edge/index.md#lb) · [`healthcheck`](../../../reference/components/observability/index.md#healthcheck) (detection time = interval × failures to mark down) · [`app`](../../../reference/components/compute/index.md#app) (replicas in parallel, if failures are independent) · [`sql`](../../../reference/components/storage/index.md#sql) (primary + standby with automatic failover) · [`payment`](../../../reference/components/external/index.md#payment) (a 99.9% dependency; a second provider) · [`email`](../../../reference/components/external/index.md#email) (moved off the critical path) · [`queue`](../../../reference/components/messaging/index.md#queue) · [`worker`](../../../reference/components/compute/index.md#worker) (the asynchronous path) · [`dns`](../../../reference/components/edge/index.md#dns) (multi-region failover). **Scenarios:** `scale-out`, `multi-region`, `payment-system`, `notification-system`. **Continues in:** [Distributed — consensus](../../distributed/consensus/index.md) (quorums), [Reliability — SLOs](../../reliability/slo/index.md), [Reliability — multi-AZ and multi-region](../../reliability/disaster-recovery/index.md#multi-region), [Compute — provider outages](../../compute/integrations/index.md#provider-outages), [Exercise: design doc](../../../exercises/design-doc/index.md).
+**Palette components:** [`lb`](../../../reference/components/edge/index.md#lb) · [`healthcheck`](../../../reference/components/observability/index.md#healthcheck) (detection time = interval × failures to mark down) · [`app`](../../../reference/components/compute/index.md#app) (replicas in parallel, if failures are independent) · [`sql`](../../../reference/components/storage/index.md#sql) (primary + standby with automatic failover) · [`payment`](../../../reference/components/external/index.md#payment) (a 99.9% dependency; a second provider) · [`email`](../../../reference/components/external/index.md#email) (moved off the critical path) · [`queue`](../../../reference/components/messaging/index.md#queue) · [`worker`](../../../reference/components/compute/index.md#worker) (the asynchronous path) · [`dns`](../../../reference/components/edge/index.md#dns) (multi-region failover). **Scenarios:** `scale-out`, `multi-region`, `payment-system`, `notification-system`. **Continues in:** [Distributed — consensus](../../distributed/consensus/index.md) (quorums), [Observability — SLOs](../../observability/slo/index.md), [Reliability — multi-AZ and multi-region](../../reliability/disaster-recovery/index.md#multi-region), [Compute — provider outages](../../compute/integrations/index.md#provider-outages), [Exercise: design doc](../../../exercises/design-doc/index.md).
 
-## Key takeaways
+## Key takeaways { #key-takeaways }
 
-- A = **MTTF / (MTTF + MTTR)**; reducing MTTR through automation is often the cheapest lever.
-- Each nine is **10× less downtime**; always state the **window**.
-- **Series** multiplies (worse than the weakest link); **parallel** gives 1 − ∏(1 − aᵢ); quorums lie in between.
-- Improve a chain by **removing hard dependencies** from the critical path, adding **redundancy** to weak links, and making each link ~**one nine better** than the target.
-- The formulas assume **independent** failures; correlated failures (same zone, same release, same config) are what actually take systems down.
+!!! takeaways ""
+
+    - A = **MTTF / (MTTF + MTTR)**; reducing MTTR through automation is often the cheapest lever.
+    - Each nine is **10× less downtime**; always state the **window**.
+    - **Series** multiplies (worse than the weakest link); **parallel** gives 1 − ∏(1 − aᵢ); quorums lie in between.
+    - Improve a chain by **removing hard dependencies** from the critical path, adding **redundancy** to weak links, and making each link ~**one nine better** than the target.
+    - The formulas assume **independent** failures; correlated failures (same zone, same release, same config) are what actually take systems down.
 
 ---
 

@@ -61,7 +61,7 @@ Click the slides and use ← → to move through them; **F** goes full screen an
 
 ## What you will build
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     actor Fan
@@ -194,6 +194,14 @@ Record in `results/lab5.md`:
 | `Bind for 0.0.0.0:6379 failed` | a local Redis is running | stop it or map `"16379:6379"` |
 | the stampede run shows the same misses with and without protection | the TTL is not short, or the variable did not reach the replicas | `docker compose exec catalog-1 env \| grep CACHE_` |
 | old data after an admin update on the listing page | listing keys are not evicted, by design | wait `CACHE_TTL_LIST` (10 s) — it is the bounded staleness of the design |
+
+!!! success "Best practices in this lab"
+
+    - **The cache is optional**: 200 ms client timeouts and every Redis error treated as a miss (`application.yaml`, `read()` in `EventCache.java`); the deliverable checks that stopping Redis does not break `catalog`. Why: [failure modes — the cache goes down](../../classes/caching/failure-modes/index.md#cache-down).
+    - **Commit, then delete**: `EventController.java` evicts the key after `updateEvent` returns. Why: [invalidation — delete, don't update](../../classes/caching/invalidation/index.md#delete-vs-update).
+    - **TTL with jitter on every key** (`withJitter` in `EventCache.java`), so a warm-up does not schedule an avalanche. Why: [avalanche](../../classes/caching/failure-modes/index.md#avalanche).
+    - **One rebuild per key** under load (`SET … NX PX 2000` lock): misses dropped from 800 to 10 in a test run. Why: [stampede](../../classes/caching/failure-modes/index.md#stampede).
+    - **Measure, don't assume**: `X-Cache` plus a counter per outcome, and the same load before and after. Why: [hit-ratio math](../../classes/caching/index.md#hit-ratio-math).
 
 ## Clean up
 

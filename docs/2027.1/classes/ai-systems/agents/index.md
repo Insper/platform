@@ -27,7 +27,7 @@ Start at the top of the table and move down **only when the simpler level measur
 
 An agent is a loop around a model call. In the **ReAct** formulation[^2] the model alternates *reasoning* (what do I know, what do I need), *acting* (requesting a tool call) and *observing* (reading the tool result), until it can answer.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart TD
     start(["user message"]) --> ctx["build context:<br/>system prompt + tools + memory + history"]
     ctx --> call["call the model (via LLM gateway)"]
@@ -81,6 +81,14 @@ Five details in those 25 lines carry most of the engineering:
 3. **Every loop has budgets**: steps, tokens and (in production) wall-clock time. Without them, a confused model loops until the quota or the invoice stops it.
 4. **The tools offered depend on the user** (`schemas_for(user)`): an anonymous visitor does not even see `hold_seats`. A tool the model cannot see is a tool it cannot misuse.
 5. **History grows at every step** — the quadratic token growth computed in the [overview](../index.md#numbers).
+
+!!! example "In the BoxOffice code: the bounded loop of the assistant (lab 12)"
+
+    [Hands-on 12 — Tools and the agent loop](../../../hands-on/12/tools/index.md) writes this loop with two decisions the sketch above leaves open. It **retrieves first**: the top-5 catalog events go into the prompt before the first model call, because small local models call tools unreliably and, with the context already there, the common questions need no tool at all. And the **last of the `MAX_STEPS` = 4 calls is made without tools**, so the model must answer: the step budget cannot end in silence. Every step is streamed to the fan, and tool results go back as `role: tool` messages — data, never instructions.
+
+    ``` { .python title="services/assistant/app/agent.py (the loop)" }
+    --8<-- "docs/2027.1/hands-on/12/code/services/assistant/app/agent.py:49:82"
+    ```
 
 ### Stopping and context management
 
@@ -136,6 +144,14 @@ A model call can be retried freely. A tool call **changes the world**. If `hold_
 | Irreversible / financial | `create_order`, `refund_order`, `charge` | **explicit user confirmation** in the UI, never by text alone |
 | External communication | `send_email`, `post_review` | confirmation, or not offered at all |
 
+!!! example "In the BoxOffice code: read-only tools, identity from the gateway (lab 12)"
+
+    The lab's registry takes the safest row of this table: its three tools — `search_events`, `get_event`, `get_order_status` — are **read-only**, so a confused or manipulated model can, at worst, read ([Hands-on 12 — Tools](../../../hands-on/12/tools/index.md)). The price is that the lab's assistant cannot hold seats; `hold_seats`, with an idempotency key and a limit, is the next tool to add, not one the lab builds. `get_order_status` takes the fan's identity from the `X-User-Email` header set by the gateway of [lab 4](../../../hands-on/4/gateway/index.md), never from an argument the model fills in, and answers "order not found" for another fan's order exactly as for a missing one, so nobody can probe which order ids exist.
+
+    ``` { .python title="services/assistant/app/tools.py (context and one tool)" }
+    --8<-- "docs/2027.1/hands-on/12/code/services/assistant/app/tools.py:17:21,53:64"
+    ```
+
 ### Durable execution
 
 A conversation that waits for the fan's confirmation, or a task that runs for minutes, cannot live only in a process's memory: pods restart. Persist the agent state after **every step** — messages, pending tool calls, idempotency keys — in a database, and resume from the last checkpoint. For long multi-step tasks, a **durable workflow engine** (Temporal-style: each step recorded, retried and resumable) gives you this for free; for short chats, a `conversation_state` row plus the session cache in the [Memory Fabric](../rag-memory/index.md) is enough.
@@ -188,7 +204,7 @@ A step that is right 95% of the time sounds good; a 10-step task built from it s
 
 Without a standard, every agent needs a custom integration with every tool: N agents × M tools. The **Model Context Protocol (MCP)**[^5] does for agents what the Language Server Protocol did for code editors: each tool provider writes **one MCP server**, each agent host embeds **MCP clients**, and any client can use any server — N + M integrations.
 
-``` mermaid
+``` diagram
 flowchart LR
     subgraph Host["Host: assistant service (orchestrator)"]
         c1["MCP client"]
@@ -278,7 +294,7 @@ On the wire, this is what the orchestrator's client sees when it discovers the t
             "isError": false}}
 ```
 
-Notice what is **not** an argument: the fan's identity. The MCP server takes the user from the **authenticated session** (the OAuth access token the host obtained on the fan's behalf, as in [Identity](../../network-security/identity/index.md)) — never from a field the model fills in, or a prompt injection could hold seats for someone else.
+Notice what is **not** an argument: the fan's identity. The MCP server takes the user from the **authenticated session** (the OAuth access token the host obtained on the fan's behalf, as in [Identity](../../edge/identity/index.md)) — never from a field the model fills in, or a prompt injection could hold seats for someone else.
 
 ### The registry around MCP
 
@@ -313,7 +329,7 @@ When one agent has too many tools, too long a prompt, or tasks that can run in p
 | **Evaluator-optimizer** | a generator and a critic iterate | a draft reply to an angry fan, checked against policy | quality on hard outputs |
 | **Hierarchical** | supervisors of supervisors | large back-office automation | very large tasks — rarely needed |
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     actor F as Fan
     participant S as Supervisor agent
@@ -368,6 +384,15 @@ Parallel tool calls saved one full round (≈ 2 s). Had the model asked for a 40
 
     Say **"workflow first, agent where needed"** and justify it with the compounding math ($0.95^{10} \approx 60\%$). Draw the loop with its **budgets** (steps, tokens, time) and show where tools are **authorized as the user** and **made idempotent**. Name MCP as the way teams expose tools, and add a registry for permissions, risk tiers and audit. If multi-agent comes up, give one concrete reason (tool separation or parallelism) and its cost (tokens, latency, debuggability).
 
+!!! success "Best practices"
+
+    - **Put in the prompt, before the first call, what you already know** — retrieved documents, the user's city, today's date; each tool round you avoid saves a whole model call (~2 s in the trace of one task above). In BoxOffice: lab 12 retrieves the top-5 events first ([agent loop](../../../hands-on/12/tools/index.md)).
+    - **Make the last allowed step tool-less** — the budget then ends with an answer, not with silence; lab 12's fourth call is made without tools.
+    - **Return tool errors as short, actionable data** — "event 42 does not exist" lets the model recover; lab 12's `tools.call()` turns invalid arguments and service failures into JSON and never raises.
+    - **Validate tool arguments against the schema before running the tool** — lab 12 validates every call with pydantic and counts `invalid_args` in `assistant_tool_calls_total`.
+    - **Stop on repetition** — the same tool with the same arguments twice is a loop: end the run and hand off instead of spending the rest of the budget.
+    - **Checkpoint the agent state after every step when a human must confirm** — a pod restart during the confirmation must resume the task, not repeat its side effects.
+
 !!! warning "Common pitfalls"
 
     - **Agents for deterministic flows** — slower, costlier and less reliable than ten lines of code.
@@ -382,7 +407,7 @@ Parallel tool calls saved one full round (≈ 2 s). Had the model asked for a 40
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     WF{"steps known<br/>in advance?"} -->|"yes"| FLOW["workflow<br/>(code decides)"]
     WF -->|"no"| LOOP["agent loop<br/>(model decides)"]
@@ -396,7 +421,7 @@ flowchart LR
     TOOLS --> HITL["confirmation for risky actions<br/>→ Safety mesh"]
 ```
 
-**Palette components:** [`orchestrator`](../../../reference/components/ai/index.md#orchestrator) (runs the loop and owns the budgets) · [`toolreg`](../../../reference/components/ai/index.md#toolreg) (MCP servers, permissions, risk tiers) · [`llmgw`](../../../reference/components/ai/index.md#llmgw) (every model call) · [`safety`](../../../reference/components/ai/index.md#safety) (approval of risky actions) · [`auth`](../../../reference/components/compute/index.md#auth) (the user's identity on each tool call) · [`app`](../../../reference/components/compute/index.md#app) (the same `catalog` and `inventory` services the web front end calls). **Scenarios:** `ai-assistant`. **Continues in:** [Messaging — patterns](../../messaging/patterns/index.md) (sagas and compensation), [Network & Security — identity](../../network-security/identity/index.md), [Estimation — availability math](../../estimation/availability-math/index.md), [Compute — integrations](../../compute/integrations/index.md) (idempotency keys), [RAG & Memory](../rag-memory/index.md), [Safety, Evals & Observability](../safety-evals/index.md).
+**Palette components:** [`orchestrator`](../../../reference/components/ai/index.md#orchestrator) (runs the loop and owns the budgets) · [`toolreg`](../../../reference/components/ai/index.md#toolreg) (MCP servers, permissions, risk tiers) · [`llmgw`](../../../reference/components/ai/index.md#llmgw) (every model call) · [`safety`](../../../reference/components/ai/index.md#safety) (approval of risky actions) · [`auth`](../../../reference/components/compute/index.md#auth) (the user's identity on each tool call) · [`app`](../../../reference/components/compute/index.md#app) (the same `catalog` and `inventory` services the web front end calls). **Scenarios:** `ai-assistant`. **Continues in:** [Messaging — patterns](../../messaging/patterns/index.md) (sagas and compensation), [Network & Security — identity](../../edge/identity/index.md), [Estimation — availability math](../../estimation/availability-math/index.md), [Compute — integrations](../../compute/integrations/index.md) (idempotency keys), [RAG & Memory](../rag-memory/index.md), [Safety, Evals & Observability](../safety-evals/index.md).
 
 ---
 

@@ -2,6 +2,10 @@ A BoxOffice tem doze engenheiros e faz merge de cerca de sessenta pull requests 
 
 Nada disso é problema dos modelos. As mesmas ferramentas, bem projetadas, reduzem a latência da revisão, encontram bugs reais, escrevem testes úteis e encurtam incidentes. A diferença está no **projeto do sistema**: onde a etapa de IA fica no ciclo de entrega, que contexto recebe, o que tem permissão para fazer, como sua saída é verificada, quanto custa e como o time sabe se ela ajuda. Esta aula aplica a caixa de ferramentas do curso — componentes, modos de falha, números, trade-offs — à **IA dentro do pipeline de entrega de software**.
 
+!!! quote "A história até aqui"
+
+    Capítulo 14 da [história da disciplina](../../index.md#story). Toda mudança na BoxOffice passa pelo pipeline do [lab 11](../../hands-on/11/index.md) — build, testes, varredura, assinatura, canary — e, desde a [aula 13](../ai-systems/index.md), um modelo roda dentro do produto. Agora os mesmos modelos escrevem o código, e as mudanças chegam mais rápido do que as pessoas que as revisam, testam e liberam. **Esta aula** responde: onde a IA pode acelerar a entrega sem virar quem aprova o próprio trabalho?
+
 !!! abstract "Objetivos de aprendizagem"
 
     Ao final desta aula, você deve ser capaz de:
@@ -14,7 +18,7 @@ Nada disso é problema dos modelos. As mesmas ferramentas, bem projetadas, reduz
     - **Modelar as ameaças** da IA no pipeline (prompt injection, exfiltração de segredos, slopsquatting, cadeia de suprimentos) e **definir** uma política de governança, incluindo a avaliação das próprias ferramentas de IA.
     - **Estimar** o custo em tokens, em runner e em atenção de uma etapa de IA e **prever** seu efeito nas métricas DORA.
 
-## Roteiro
+## Roteiro { #roadmap }
 
 1. **Esta visão geral** — IA ao longo do ciclo de entrega, o espectro de autonomia, o contrato de uma etapa de IA, métricas DORA e custo.
 2. [Revisão de código](code-review/index.md) — em que a revisão por IA é boa e ruim, engenharia de contexto, achados estruturados, controle de ruído, gates, precisão, conformidade com a arquitetura.
@@ -35,7 +39,7 @@ Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** a
 
 ---
 
-## Pré-requisitos de aulas anteriores
+## Pré-requisitos de aulas anteriores { #prerequisites-from-earlier-classes }
 
 Esta aula não repete dois fundamentos; leia-os antes, se necessário:
 
@@ -44,7 +48,7 @@ Esta aula não repete dois fundamentos; leia-os antes, se necessário:
 
 ---
 
-## IA ao longo do ciclo de entrega
+## IA ao longo do ciclo de entrega { #ai-across-the-delivery-lifecycle }
 
 O ciclo de entrega de software é uma sequência de etapas, cada uma com suas entradas, saídas e modos de falha. A IA pode ajudar em todas elas — mas o que "ajudar" significa, e o que pode dar errado, varia muito:
 
@@ -58,7 +62,7 @@ O ciclo de entrega de software é uma sequência de etapas, cada uma com suas en
 | **Liberar** | Notas de versão, changelogs, pontuação de risco de mudanças | Notas da `v1.8.0` com a nova migração do Flyway | Funcionalidades inventadas; estimativa de risco errada | Ancoragem nos commits; o risco só *direciona* revisões |
 | **Operar** | Explica canaries, resume incidentes, sugere runbooks, rascunha postmortems | "O canary de `inventory` falha porque o p99 dobrou após a mudança no pool" | Diagnóstico errado seguido sob estresse; rollbacks autônomos | A política decide; humanos agem; a IA explica |
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     plan["Planejar<br/>IA rascunha ADR"] --> code["Codificar<br/>assistente / agente"]
     code --> pr["Pull request"]
@@ -101,7 +105,7 @@ Subir na escala compra vazão e custa controle. O nível certo depende do **raio
 
 ---
 
-## O contrato de uma etapa de IA
+## O contrato de uma etapa de IA { #the-contract-of-an-ai-step }
 
 Toda etapa de IA em um pipeline — revisão, geração de testes, agente de correção, notas, explicação de canary — pode ser projetada com o mesmo contrato de cinco partes. Escrevê-lo para cada etapa é o jeito mais rápido de descobrir o que está faltando:
 
@@ -117,7 +121,7 @@ Duas propriedades decorrem do contrato. **Privilégio mínimo**: a permissão da
 
 ---
 
-## O que acontece com as métricas DORA
+## O que acontece com as métricas DORA { #what-happens-to-the-dora-metrics }
 
 As métricas DORA — frequência de deploy, lead time de mudanças, taxa de falha de mudanças e tempo de restauração — são definidas em [Entrega](../cloud-native/delivery/index.md#measuring-delivery-the-dora-metrics). A IA muda as entradas das quatro, nem sempre na direção esperada:
 
@@ -140,7 +144,7 @@ A resposta de engenharia não é evitar a IA, mas **medi-la como qualquer outra 
 
 ---
 
-## Os números: quanto custa uma etapa de IA
+## Os números: quanto custa uma etapa de IA { #the-numbers-what-an-ai-step-costs }
 
 Uma etapa de IA tem três custos: **tokens** (a conta do provedor), **minutos de runner** (tempo de CI) e **atenção** (cada comentário ou proposta que um humano precisa ler). Os dois primeiros são fáceis de estimar; o terceiro costuma ser o maior.
 
@@ -186,11 +190,11 @@ Agentes se comportam de outra forma: cada passo reenvia o contexto crescente, en
 
 ---
 
-## O LLM gateway é infraestrutura compartilhada
+## O LLM gateway é infraestrutura compartilhada { #the-llm-gateway-is-shared-infrastructure }
 
 Bots de CI são clientes do modelo assim como o assistente da BoxOffice. Na escala de uma organização, eles devem passar pelo mesmo [LLM gateway](../ai-systems/llm-gateway/index.md): um único lugar para chaves, **cotas e orçamentos por repositório**, roteamento de modelos ("modelo pequeno para notas de versão, modelo grande para revisão de segurança"), fallbacks quando um provedor cai e atribuição de custo por time. Sem ele, cada repositório guarda sua própria chave de API, e um loop descontrolado de agente em um repositório pode esgotar o rate limit da organização durante a abertura das vendas.
 
-Experimente: abra o cenário abaixo com o perfil `spike`. Imagine que o pico não são fãs, mas **uma atualização em massa de dependências** que dispara 300 revisões de PR e 300 agentes de correção ao mesmo tempo. Observe a fila e a taxa de erros do LLM gateway, depois reduza a cota por cliente e rode de novo: os bots ficam mais lentos, os fãs do assistente não.
+Experimente: abra o cenário abaixo com o perfil `spike` e imagine que o pico não são fãs, mas **uma atualização em massa de dependências** que dispara 300 revisões de PR e 300 agentes de correção ao mesmo tempo. O playground tem um só tipo de cliente, então mostra o que faz uma cota **compartilhada**: ao longo da execução cerca de 70% das perguntas falham, contra 37% na carga normal. Selecione o LLM Gateway e baixe a **Cota do provedor** de 10 para 5 chamadas/s: os erros passam de 90% — para todos. É por isso que o gateway precisa de uma cota **por cliente** (por repositório, por time) com prioridade para o tráfego interativo: os bots devem esperar, os fãs não. O playground não modela cotas por cliente; o seu botão **Modelo reserva** mostra a outra alavanca, capacidade comprada a um preço (os erros caem para cerca de 3%, o custo por mês dobra).
 
 <div class="sdp" data-scenario="ai-assistant" data-mode="compact" data-profile="spike" data-height="520"></div>
 
@@ -206,6 +210,14 @@ Experimente: abra o cenário abaixo com o perfil `spike`. Imagine que o pico nã
     4. **Implantação gradual**: modo sombra (achados registrados, não postados) em um golden set e em PRs reais → consultivo para times voluntários → medir a precisão por categoria → usar como gate só as categorias de alta precisão (por exemplo segredos, SQL injection, chamadas que cruzam fronteiras), como check obrigatório, nunca como aprovação.
     5. **Riscos**: prompt injection vinda do texto do PR, segredos em prompts, PRs de forks e `pull_request_target`, regressões do modelo — uma avaliação com golden set no CI a cada mudança de prompt ou de modelo, e dashboards de custo.
 
+!!! success "Boas práticas"
+
+    - **Escreva no repositório o contrato de toda etapa de IA** — gatilho, contexto, saída, ação, orçamento; uma etapa sem contrato não é ligada. No BoxOffice: todo workflow do [lab 13](../../hands-on/13/index.md) declara o seu gatilho, as suas `permissions:` e o seu `timeout-minutes`.
+    - **Meça uma baseline antes de ligar uma etapa** — tempo até a primeira revisão, defeitos que escaparam e minutos de CI por pelo menos uma semana; sem isso, "ajuda" é opinião. No BoxOffice: [lab 13 — Meça](../../hands-on/13/measure/index.md).
+    - **Escolha a direção à prova de falhas de cada etapa e teste-a** — desligue o modelo uma vez e confira que o pipeline ainda faz merge (consultiva) ou ainda bloqueia (portão). No BoxOffice: o `review.py` sai com 0 quando o modelo falha.
+    - **Marque as mudanças escritas por IA** — um trailer no commit e um rótulo tornam a autoria por IA consultável meses depois. No BoxOffice: o agente de correção faz commit com `AI-assisted: ai-fix workflow (<model>)` e rotula o PR com `ai-generated`.
+    - **Mande toda chamada de modelo do CI pelo gateway compartilhado, com cota por repositório** — uma atualização em massa não pode gastar a cota do assistente dos fãs (veja o Experimente acima).
+
 !!! warning "Armadilhas comuns"
 
     - **Adicionar IA a um pipeline fraco**: sem CI rápido, bons testes e PRs pequenos, a IA amplifica a fraqueza (o alerta do DORA). Conserte os fundamentos primeiro.
@@ -220,7 +232,7 @@ Experimente: abra o cenário abaixo com o perfil `spike`. Imagine que o pico nã
 
 Cada etapa de IA no pipeline é um pequeno sistema de IA: um orquestrador em volta de um modelo, ferramentas com permissões, uma camada de políticas e telemetria que diz se ela ajuda. O mapa liga os **componentes da paleta** (verde) que reaparecem aqui aos **conceitos** desta aula (azul):
 
-``` mermaid
+``` diagram
 flowchart LR
     ev["PR or pipeline event"] --> orch["orchestrator<br/>(reviewer, fix agent)"]:::comp
     orch --> llmgw["llmgw"]:::comp
@@ -250,20 +262,26 @@ flowchart LR
 
 ---
 
-## Relacionados
+## Relacionados { #related }
 
 - [Hands-on 13 — IA no CI/CD](../../hands-on/13/index.md): construa o revisor, o gerador de testes com PIT, o agente de correção, as notas de versão, o canary explicado, o hardening e a medição.
 - [Hands-on 11 — Entrega](../../hands-on/11/index.md) e [Hands-on 12 — Assistente de IA](../../hands-on/12/index.md): o pipeline e o LLM gateway sobre os quais esta aula se apoia.
 - [Projeto](../../exercises/project/index.md): o marco de K8s + CI/CD pode incluir uma etapa de IA, medida.
 - [Preparação para entrevistas](../../support/interview/index.md): a pergunta acima é um enunciado comum de "projete uma ferramenta para desenvolvedores".
 
-## Principais ideias
+## Pontos-chave { #key-takeaways }
 
-- A IA cabe em todas as etapas da entrega, mas **o que ela pode fazer** depende do raio de impacto e da verificabilidade da sua saída: assistente → copiloto → revisor → agente supervisionado → agente autônomo.
-- Projete cada etapa de IA com o **contrato**: gatilho, contexto (confiável vs. não confiável), saída validada, ação com privilégio mínimo, orçamento e direção segura de falha.
-- A IA muda as entradas do **DORA** nas duas direções; a pesquisa até agora mostra que a produtividade percebida e a medida podem discordar — **meça** com baselines e métricas por etapa.
-- Tokens são baratos; **atenção** e **decisões erradas** são caras. Precisão vale mais que recall para tudo o que fala com humanos.
-- **A IA propõe; regras e humanos decidem.**
+!!! takeaways ""
+
+    - A IA cabe em todas as etapas da entrega, mas **o que ela pode fazer** depende do raio de impacto e da verificabilidade da sua saída: assistente → copiloto → revisor → agente supervisionado → agente autônomo.
+    - Projete cada etapa de IA com o **contrato**: gatilho, contexto (confiável vs. não confiável), saída validada, ação com privilégio mínimo, orçamento e direção segura de falha.
+    - A IA muda as entradas do **DORA** nas duas direções; a pesquisa até agora mostra que a produtividade percebida e a medida podem discordar — **meça** com baselines e métricas por etapa.
+    - Tokens são baratos; **atenção** e **decisões erradas** são caras. Precisão vale mais que recall para tudo o que fala com humanos.
+    - **A IA propõe; regras e humanos decidem.**
+
+## O que quebra em seguida { #what-breaks-next }
+
+Toda etapa de IA desta aula julga **uma mudança**: um diff, uma classe de teste, um build vermelho, um canary contra a sua baseline no tráfego de hoje. Nenhuma responde à pergunta que a próxima abertura de vendas faz ao sistema **inteiro**: com a borda, os caches, a sala de espera, os breakers, o Kubernetes e um assistente no lugar, a BoxOffice mantém o p99 abaixo de 300 ms quando 2 M de fãs chegam às 10:00, qual componente quebra primeiro, e quanto custa operá-la? Catorze capítulos acrescentaram caixas; nenhum provou que elas aguentam juntas. Provar isso com carga, perfis e um modelo de custo — e corrigir o que a prova encontrar — é a [aula 15 — Engenharia de Desempenho](../performance/index.md).
 
 ---
 

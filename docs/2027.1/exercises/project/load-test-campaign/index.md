@@ -39,7 +39,7 @@ This milestone builds on the [load-test report](../../load-test-report/index.md)
 
 A plan forces the team to agree on what "success" means **before** the numbers tempt you to move the goalposts. Start from the SLO table of your option; turn each SLO into a k6 threshold; define the journeys and their share of the traffic from your M1 estimates; decide where the tests run (Docker Compose or Kubernetes, which machine, which resources) and what data is seeded.
 
-```mermaid
+``` diagram
 flowchart LR
     plan["Plan<br/>SLOs → thresholds<br/>journeys, mix, data"] --> smoke["Smoke<br/>script works"]
     smoke --> load["Load ×3<br/>target, ≥ 10 min"]

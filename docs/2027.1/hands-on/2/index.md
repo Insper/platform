@@ -49,6 +49,7 @@ Click the slides and use ← → to move through them; **F** goes full screen an
 
 !!! info "Theory connection"
 
+    - In the [story of the course](../../index.md#story), this lab closes chapter 2 and opens chapter 3: it replaces the *assumed* service time of the class's [capacity check](../../classes/estimation/index.md) with a *measured* knee, and shows that one instance leaves its latency target at a few hundred requests per second — far from the on-sale's demand, so BoxOffice needs [more machines](../../classes/distributed/index.md).
     - Class 2, [Estimation](../../classes/estimation/index.md): [queueing and Little's Law](../../classes/estimation/queueing/index.md), [percentiles and tail latency](../../classes/estimation/percentiles/index.md).
     - Class 15, [Performance engineering](../../classes/performance/index.md): [load-test types](../../classes/performance/load-testing/index.md), [finding bottlenecks](../../classes/performance/bottlenecks/index.md).
 
@@ -256,6 +257,14 @@ Setup: catalog 1 CPU / 768 MB, Hikari pool = 10, PostgreSQL 17, k6 open model (8
 | `uv: command not found` | uv not installed | lab 0, step 1 — or run `python3 scripts/summarize.py …` (it only uses the standard library) |
 | the first point of a sweep is worse than the next ones | cold JVM | `sweep.sh` already warms up; repeat the run if your machine was busy |
 | numbers vary a lot between two identical runs | background load (browser, IDE, other containers) | close what you can, stop unrelated containers (`docker ps`), run twice and keep the second |
+
+!!! success "Best practices in this lab"
+
+    - **Load-test with an open workload model** — `load/load.js` uses `constant-arrival-rate`, so a slow service cannot quietly lower the load it receives ([Percentiles — measuring honestly](../../classes/estimation/percentiles/index.md)).
+    - **Warm up, then sweep, with a pause between steps** — `scripts/sweep.sh` discards a 30 s warm-up and sleeps 10 s between rates, so a cold JVM or a leftover queue does not spoil a point ([Queueing — the knee](../../classes/estimation/queueing/index.md)).
+    - **Watch the inside while you load the outside** — `scripts/watch-metrics.sh` prints busy threads and pending connections, the evidence that names the bottleneck ([Little's Law](../../classes/estimation/queueing/index.md)).
+    - **Change one variable and measure again** — only `DB_POOL_SIZE` changes between the two sweeps ([Estimation — the method](../../classes/estimation/index.md)).
+    - **State capacity as the highest rate within the latency target** — not the highest throughput ever printed; `results/lab2.md` records the knee and the capacity ([Percentiles](../../classes/estimation/percentiles/index.md)).
 
 ## Clean up
 

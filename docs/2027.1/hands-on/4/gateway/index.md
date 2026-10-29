@@ -13,6 +13,16 @@ The gateway is the API's front door: every request that passes the edge goes thr
 
 Create `services/gateway` (same `Dockerfile` with `EXPOSE 8080`, same `.dockerignore`).
 
+??? example "`services/gateway/Dockerfile` and `.dockerignore` (same as `catalog`, only `EXPOSE 8080` changes)"
+
+    ``` { .dockerfile title="services/gateway/Dockerfile" .copy linenums="1" }
+    --8<-- "docs/2027.1/hands-on/4/code/services/gateway/Dockerfile"
+    ```
+
+    ``` { .text title="services/gateway/.dockerignore" .copy }
+    --8<-- "docs/2027.1/hands-on/4/code/services/gateway/.dockerignore"
+    ```
+
 ``` { .xml title="services/gateway/pom.xml" .copy linenums="1" }
 --8<-- "docs/2027.1/hands-on/4/code/services/gateway/pom.xml"
 ```

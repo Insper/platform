@@ -7,7 +7,7 @@ The BoxOffice inventory database is at 70% CPU during a normal on-sale and holds
 
 Every component that serves requests — a CPU core, a thread pool, a database connection, a payment API — can be seen as a **queue** in front of one or more **servers** (in queueing theory, a "server" is anything that serves a request):
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     arrivals(["Arrivals<br/>λ requests/s"]) --> queue["Queue<br/>(waiting: Wq)"]
     queue --> s1["Server 1<br/>(service: S)"]
@@ -57,7 +57,7 @@ Its three forms answer three different questions:
     - Requests in flight in the service: 1,000 × 0.040 = **40** → with one thread per request, the service needs at least 40 worker threads; with 4 replicas, ~10 each, plus headroom.
     - Connections in use: 1,000 × 0.010 = **10** → a connection pool of ~15 across all replicas suffices. A pool of 200 would not make anything faster — it would only let more transactions contend for the same rows.
 
-    Now the payment provider slows down from 300 ms to 3 s, and the order service calls it synchronously at 100 orders/s: in-flight payment calls go from 100 × 0.3 = **30** to 100 × 3 = **300**. If the order service has 200 threads, it is exhausted — and every other route of the order service fails with it. This is the arithmetic of a **cascading failure** ([class 9](../../reliability/index.md)), and it is why timeouts and bulkheads exist.
+    Now the payment provider slows down from 300 ms to 3 s, and the order service calls it synchronously at 100 orders/s: in-flight payment calls go from 100 × 0.3 = **30** to 100 × 3 = **300**. If the order service has 200 threads, it is exhausted — and every other route of the order service fails with it. This is the arithmetic of a **cascading failure** ([class 10](../../reliability/index.md)), and it is why timeouts and bulkheads exist.
 
 ### Little's Law as a lie detector for load tests
 
@@ -185,6 +185,14 @@ Redundancy pushes in the same direction: with **4 replicas at 60%**, losing one 
 
 **Try it:** run the breakpoint profile, then double the database's capacity (or add app replicas) and run again. Does the knee move? By how much? If adding app replicas does not move it, which component is the bottleneck?
 
+!!! example "In the BoxOffice code: the knee of `catalog`, measured (lab 2)"
+
+    [Hands-on 2](../../../hands-on/2/index.md) draws this curve for the real service. The sweep runs the open-model load test once per arrival rate, one minute each, after a warm-up (a cold JVM would spoil the first point) and with a pause between steps so the queues drain. In the lab's example run (1 CPU, a pool of 10 connections), p99 was 39 ms at 300 req/s, 224 ms at 400 and 2,056 ms at 500 req/s, where k6 also had to drop 410 iterations: flat, then a wall. Little's Law names the queue: at 600 req/s the lab saw all 200 Tomcat threads busy, 10 database connections active and **190 requests waiting for a connection** — the pool of 10 is the *c* servers of this page, and the knee is where it saturates. Step 6 of the lab raises the pool to 30 and watches the bottleneck move.
+
+    ``` { .bash title="scripts/sweep.sh" }
+    --8<-- "docs/2027.1/hands-on/2/code/scripts/sweep.sh"
+    ```
+
 ---
 
 ## When more servers stop helping
@@ -266,19 +274,27 @@ The practical use of the USL is to **fit** σ and κ to a few load-test measurem
 
     Use Little's Law whenever you size a pool, a queue or a fleet: "1,000 req/s × 40 ms = 40 concurrent requests, so 4 instances with 16 threads each leave headroom". When proposing capacity, say the **target utilization** and why: "I'd size for 60% at peak so we stay left of the knee and survive losing one node." If asked "what if we add more servers?", mention the bottleneck and Amdahl: "app servers scale linearly until the single primary saturates; after that, we need to cache, partition or queue."
 
+!!! success "Best practices"
+
+    - **Size every pool with Little's Law and leave the formula as a comment** — threads = λ × W, connections = λ × time holding one; a pool sized "to be safe" only moves the queue into the database.
+    - **Watch the queue in front of the bottleneck, not only its utilization** — pending connections and busy threads rise before the CPU graph looks alarming. In BoxOffice: `hikaricp.connections.pending` in lab 2's `scripts/watch-metrics.sh` ([Hands-on 2](../../../hands-on/2/index.md)).
+    - **Sweep the arrival rate with an open model, a warm-up and a pause between steps** — one point is not a curve, a cold JVM is not your service, and leftover queues spoil the next step. In BoxOffice: `scripts/sweep.sh` (box above).
+    - **Set autoscaling targets well left of the knee** — scaling takes minutes, and the burst arrives meanwhile. In BoxOffice: the HPA of lab 10 targets 60% CPU.
+    - **Reduce variability before adding servers** — admit at a steady rate and remove slow outliers; Kingman's formula shows both shrink the queue for free. In BoxOffice: the waiting room (lab 7) and the indexes of lab 6.
+
 !!! warning "Common pitfalls"
 
     - **Planning for 90–100% utilization** of latency-sensitive components: the p99 collapses long before the CPU graph looks alarming.
     - **Oversized pools**: a pool of 500 database connections does not add capacity; it moves the queue into the database, where contention makes everything slower.
     - **Ignoring Little's Law in load tests**: closed-loop tools with few VUs cannot generate the intended load against a slow system.
     - **Assuming linear scaling**: serial sections and coordination costs bend the curve; measure at several N.
-    - **Unbounded queues**: a queue that grows without limit turns overload into ever-growing latency; bound it and shed load early ([class 9](../../reliability/index.md)).
+    - **Unbounded queues**: a queue that grows without limit turns overload into ever-growing latency; bound it and shed load early ([class 10](../../reliability/index.md)).
 
 ---
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     LL["Little's Law<br/>L = λ × W"] --> POOL["thread and connection pools<br/>→ Compute, Databases"]
     LL --> WR["waiting-room wait<br/>W = L / λ → Messaging"]
@@ -293,13 +309,15 @@ flowchart LR
 
 **Palette components:** [`app`](../../../reference/components/compute/index.md#app) (worker threads = λ × W per replica) · [`sql`](../../../reference/components/storage/index.md#sql) (the connection pool, the primary that is "only" at 70%, row-lock contention) · [`queue`](../../../reference/components/messaging/index.md#queue) (the waiting room: how long the last fan waits) · [`worker`](../../../reference/components/compute/index.md#worker) (batch workers can run at 80–90%) · [`payment`](../../../reference/components/external/index.md#payment) (a slow provider multiplies the calls in flight) · [`nosql`](../../../reference/components/storage/index.md#nosql) (shared-nothing partitions scale where the USL says a shared primary cannot). **Scenarios:** `monolith` (with the `breakpoint` profile), `flash-sale`, `async-queue`. **Continues in:** [Percentiles](../percentiles/index.md), [Compute — autoscaling lag](../../compute/serverless-autoscaling/index.md#autoscaling-lag), [Reliability — load shedding](../../reliability/patterns/index.md#load-shedding), [Databases — contention](../../databases/transactions/index.md#contention), [Performance — capacity planning](../../performance/capacity-planning/index.md), [Hands-on 2](../../../hands-on/2/index.md).
 
-## Key takeaways
+## Key takeaways { #key-takeaways }
 
-- **Little's Law** L = λ × W gives concurrency, waiting time or throughput from the other two — for pools, services, queues and load tests.
-- **Utilization law** U = X × S; capacity ≈ c / S; the most loaded resource is the bottleneck.
-- Response time grows like **S / (1 − ρ)**: flat at low load, explosive past the **knee** (≈ 70–80% for one server); the tail explodes first.
-- Run latency-sensitive components at **~50–70%** at peak; pooling and lower variability push the knee right.
-- **Amdahl** (serial fraction σ) caps speedup at 1/σ; the **USL** (coherency κ) makes throughput *fall* past N*; shared-nothing partitioning is how you scale.
+!!! takeaways ""
+
+    - **Little's Law** L = λ × W gives concurrency, waiting time or throughput from the other two — for pools, services, queues and load tests.
+    - **Utilization law** U = X × S; capacity ≈ c / S; the most loaded resource is the bottleneck.
+    - Response time grows like **S / (1 − ρ)**: flat at low load, explosive past the **knee** (≈ 70–80% for one server); the tail explodes first.
+    - Run latency-sensitive components at **~50–70%** at peak; pooling and lower variability push the knee right.
+    - **Amdahl** (serial fraction σ) caps speedup at 1/σ; the **USL** (coherency κ) makes throughput *fall* past N*; shared-nothing partitioning is how you scale.
 
 ---
 

@@ -3,6 +3,10 @@ O BoxOffice sai do laptop e vai para produção na nuvem. Em um mês, quatro his
 
 Nenhum desses casos é um bug em uma linha de código. São problemas de **projeto**: onde ficam as fronteiras de rede, quem pode falar com quem, como as identidades são provadas, onde os segredos vivem e com que rapidez podem ser revogados. Esta aula trata segurança e redes do jeito que o resto do curso trata escalabilidade — como **decisões de arquitetura com trade-offs**, tomadas de propósito, desenhadas no diagrama e defendidas em uma entrevista.
 
+!!! quote "A história até aqui"
+
+    Capítulo 12 da [história da disciplina](../../index.md#story). O gateway já confere o token de cada fã uma única vez ([aula 4 — Identidade](../edge/identity/index.md), construída no [lab 4](../../hands-on/4/index.md)), e a [aula 11](../cloud-native/index.md) trocou o Compose por Kubernetes e um pipeline de entrega. Agora muitos serviços, construídos por muitas pessoas e por um pipeline, dividem uma plataforma — e as quatro histórias acima mostram o custo dessa confiança: bots na fila da abertura de vendas, uma chave vazada, um pod que alcança tudo, bibliotecas que ninguém revisou. **Esta aula** responde: onde ficam as fronteiras de confiança, quem pode falar com quem, como segredos são limitados e revogados, e como sabemos o que entregamos?
+
 !!! abstract "Objetivos de aprendizagem"
 
     Ao final desta aula, você deve ser capaz de:
@@ -13,12 +17,12 @@ Nenhum desses casos é um bug em uma linha de código. São problemas de **proje
     - **Escolher** o fluxo OAuth 2.1 / OpenID Connect certo para cada cliente (app mobile, aplicação web, job em lote) e **validar** um JWT corretamente no gateway.
     - **Aplicar** Zero Trust ao tráfego entre serviços, **projetar** o ciclo de vida de um segredo (a chave da API de pagamentos) e **proteger** a cadeia de suprimentos de software com SBOMs e imagens assinadas.
 
-## Roteiro
+## Roteiro { #roadmap }
 
-1. **Esta visão geral** — segurança como projeto: modelagem de ameaças com STRIDE, defesa em profundidade e o OWASP API Security Top 10 aplicado ao BoxOffice.
-2. [Redes em nuvem](cloud-network/index.md) — VPC, sub-redes, tabelas de rotas, Internet e NAT gateways, security groups vs NACLs, endpoints privados, VPN e links dedicados.
-3. [Service mesh](service-mesh/index.md) — plano de dados e plano de controle, sidecar vs ambient vs eBPF, mTLS, políticas de autorização e de tráfego.
-4. [Identidade: OAuth 2.1, OIDC e JWT](identity/index.md) — sessões vs tokens, Authorization Code + PKCE para o app mobile, OpenID Connect, validação de tokens, modelos de autorização.
+1. **Esta visão geral** — segurança como projeto: modelagem de ameaças com STRIDE, defesa em profundidade e o OWASP API Security Top 10 aplicado ao BoxOffice. A identidade — tokens, OAuth 2.1 e OIDC — foi ensinada onde o BoxOffice precisou dela primeiro, no gateway: [aula 4 — Identidade](../edge/identity/index.md).
+2. [Como a Internet funciona](internet/index.md) — camadas, roteamento salto a salto e BGP, endereços IP e CIDR, endereços públicos vs privados, NAT, sub-redes e o gateway padrão; dois simuladores (explorador de endereços, caminho do pacote na VPC do BoxOffice).
+3. [Redes em nuvem](cloud-network/index.md) — VPC, sub-redes, tabelas de rotas, Internet e NAT gateways, security groups vs NACLs, endpoints privados, VPN e links dedicados.
+4. [Service mesh](service-mesh/index.md) — plano de dados e plano de controle, sidecar vs ambient vs eBPF, mTLS, políticas de autorização e de tráfego.
 5. [Zero Trust, segredos e cadeia de suprimentos](zero-trust/index.md) — nunca confiar na rede, identidade de workloads, gestão de segredos, SBOM, assinatura de imagens e SLSA.
 6. [Quiz](quiz.md) — verifique seu entendimento.
 
@@ -33,7 +37,7 @@ Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** a
 
 ---
 
-## Segurança é uma propriedade do projeto
+## Segurança é uma propriedade do projeto { #security-is-a-design-property }
 
 Um erro comum é tratar segurança como uma checklist aplicada no fim ("coloca HTTPS e uma tela de login"). Nessa hora as decisões caras já foram tomadas: o banco de dados está numa sub-rede com rota para a Internet, todos os serviços compartilham uma senha de banco, o gateway é o único lugar que verifica alguma coisa. Mudar isso depois significa refazer a arquitetura.
 
@@ -61,11 +65,11 @@ Dois termos usados ao longo da aula:
 3. *O que vamos fazer a respeito?* — escolha um controle para cada ameaça (mitigar, aceitar, transferir, eliminar).
 4. *Fizemos um bom trabalho?* — revise, teste, repita quando o projeto mudar.
 
-### Passo 1 — o diagrama de fluxo de dados do checkout
+### Passo 1 — o diagrama de fluxo de dados do checkout { #step-1-the-checkout-data-flow-diagram }
 
 Uma **fronteira de confiança** (*trust boundary*) é uma linha onde os dados passam entre componentes com níveis diferentes de confiança: a Internet e a nossa borda, o nosso cluster e o provedor de pagamentos, um serviço e o seu banco. As ameaças se concentram nas fronteiras.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     subgraph internet ["Internet (não confiável)"]
         M(["App mobile"])
@@ -99,22 +103,22 @@ flowchart LR
 
 Cinco fronteiras de confiança são atravessadas em um único checkout: Internet → borda, borda → cluster, serviço → banco, cluster → provedor e provedor → cluster (o webhook). Cada seta é uma pergunta: *quem está chamando, como sabemos, e o que ele pode fazer?*
 
-### Passo 2 — STRIDE
+### Passo 2 — STRIDE { #step-2-stride }
 
 **STRIDE** é um mnemônico criado na Microsoft para seis categorias de ameaça, cada uma a violação de uma propriedade de segurança[^1]:
 
 | Ameaça | Propriedade violada | Exemplo no BoxOffice | Controle | Onde |
 |---|---|---|---|---|
-| **S**poofing (falsificação de identidade) | Autenticação | um atacante chama `payment` fingindo ser `order`; um webhook forjado diz "pagamento capturado" | tokens OAuth, mTLS entre serviços, assinatura do webhook (HMAC) | [Identidade](identity/index.md), [Service mesh](service-mesh/index.md) |
+| **S**poofing (falsificação de identidade) | Autenticação | um atacante chama `payment` fingindo ser `order`; um webhook forjado diz "pagamento capturado" | tokens OAuth, mTLS entre serviços, assinatura do webhook (HMAC) | [Identidade](../edge/identity/index.md), [Service mesh](service-mesh/index.md) |
 | **T**ampering (adulteração) | Integridade | o preço é alterado no corpo da requisição; uma imagem maliciosa é enviada ao registry | preço calculado no servidor, TLS, imagens assinadas | [Zero Trust](zero-trust/index.md#supply-chain-security) |
 | **R**epudiation (repúdio) | Não repúdio | um cliente diz "nunca comprei esses ingressos" e não conseguimos provar o contrário | log de auditoria com id do usuário + trace id, eventos assinados | [Observabilidade](../observability/index.md) |
-| **I**nformation disclosure (vazamento de informação) | Confidencialidade | `GET /orders/1042` devolve o pedido de outro usuário; a chave de API vaza em um log | autorização por objeto, gerenciador de segredos, mascaramento de logs | [Identidade](identity/index.md#authorization-models), [Zero Trust](zero-trust/index.md#secrets-management) |
+| **I**nformation disclosure (vazamento de informação) | Confidencialidade | `GET /orders/1042` devolve o pedido de outro usuário; a chave de API vaza em um log | autorização por objeto, gerenciador de segredos, mascaramento de logs | [Identidade](../edge/identity/index.md#authorization-models), [Zero Trust](zero-trust/index.md#secrets-management) |
 | **D**enial of service (negação de serviço) | Disponibilidade | bots abrem 100 000 reservas de assento e ninguém mais consegue comprar | WAF, rate limiting, sala de espera, TTL da reserva | [Borda](../edge/index.md) |
 | **E**levation of privilege (elevação de privilégio) | Autorização | um usuário comum chama `POST /admin/events`; o pod `search` comprometido alcança o banco | autorização por função, NetworkPolicy, menor privilégio | [Zero Trust](zero-trust/index.md), [Redes em nuvem](cloud-network/index.md) |
 
 STRIDE é aplicado **a cada elemento do DFD**: processos estão expostos às seis categorias; repositórios de dados, principalmente a adulteração, vazamento de informação e negação de serviço; fluxos de dados, a adulteração, vazamento e DoS; entidades externas, a falsificação e repúdio[^2].
 
-### Passo 3 — avaliar o risco e decidir
+### Passo 3 — avaliar o risco e decidir { #step-3-rate-the-risk-and-decide }
 
 Nem toda ameaça merece o mesmo esforço. Uma prática simples é estimar **probabilidade × impacto** (baixo / médio / alto) e agir a partir do topo da lista. O resultado de uma sessão de modelagem de ameaças é uma tabela curta de *ameaça → decisão → responsável*, guardada junto com o documento de projeto e revisitada quando o projeto muda.
 
@@ -136,7 +140,7 @@ Nem toda ameaça merece o mesmo esforço. Uma prática simples é estimar **prob
 
 Nenhum controle é perfeito: regras de WAF têm lacunas, tokens são roubados, uma biblioteca sai com um bug de execução remota de código. **Defesa em profundidade** empilha camadas independentes, de modo que um atacante que vence uma ainda enfrenta a próxima. As camadas do BoxOffice, de fora para dentro:
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     U(["Cliente"]) -->|"1 · TLS, WAF, rate limit"| GW["API gateway"]
     GW -->|"2 · valida token (OAuth/OIDC)"| O["order"]
@@ -149,8 +153,8 @@ flowchart LR
 | # | Camada | Principais ameaças | Controles | Subpágina |
 |---|---|---|---|---|
 | 1 | Borda | DDoS, bots, injeção, escuta | TLS, WAF, rate limiting, sala de espera | [Borda](../edge/index.md) |
-| 2 | Identidade | credenciais roubadas ou forjadas | OAuth 2.1 / OIDC, tokens de vida curta, MFA, passkeys | [Identidade](identity/index.md) |
-| 3 | Autorização da requisição | usuário lê dados de outra pessoa | dono, papéis e escopos verificados em cada serviço | [Identidade](identity/index.md#authorization-models) |
+| 2 | Identidade | credenciais roubadas ou forjadas | OAuth 2.1 / OIDC, tokens de vida curta, MFA, passkeys | [Identidade](../edge/identity/index.md) |
+| 3 | Autorização da requisição | usuário lê dados de outra pessoa | dono, papéis e escopos verificados em cada serviço | [Identidade](../edge/identity/index.md#authorization-models) |
 | 4 | Serviço a serviço | movimento lateral, chamadores falsificados | mTLS, política de autorização do mesh | [Service mesh](service-mesh/index.md) |
 | 5 | Rede | alcançar o que deveria ser inalcançável | sub-redes privadas, security groups, NetworkPolicy, banco nunca público | [Redes em nuvem](cloud-network/index.md) |
 | 6 | Dados e segredos | chaves e senhas vazadas | gerenciador de segredos, rotação, criptografia em repouso (KMS) | [Zero Trust](zero-trust/index.md#secrets-management) |
@@ -180,15 +184,15 @@ A **OWASP** (Open Worldwide Application Security Project) publica uma lista dos 
 !!! warning "BOLA é o número um por um motivo"
     O gateway consegue dizer "este é o usuário 42". Só o serviço `order` sabe se o pedido 1042 pertence ao usuário 42. A autorização por objeto **não pode** ser centralizada na borda; ela vive no código que é dono dos dados. Teste explicitamente: "o usuário A pede o pedido do usuário B → `404` ou `403`".
 
-**Experimente.** Abra o cenário `flash-sale` e rode o perfil `spike`: observe como a rajada das 10:00 atinge o banco de inventário. Agora imagine que 30% desse tráfego são bots (API6): qual componente você adicionaria primeiro, e onde — WAF na borda, rate limiting no gateway ou a fila da sala de espera? Use o [playground completo](../../../playground/index.md) para adicionar os componentes e comparar o p99 e as requisições rejeitadas.
+**Experimente.** Abra o cenário `flash-sale` e aperte **Run**: observe como a rajada da abertura da venda (t = 60 s, as nossas 10:00) satura o `app` e depois o `inventory-db`. Agora selecione `users`, ajuste o *tráfego de bots* para 0,45 — os bots passam a ser cerca de 30% das requisições (API6) — e rode de novo. Qual componente você adicionaria primeiro, e onde — WAF na borda, rate limiting no gateway ou a fila da sala de espera? Use o [playground completo](../../../playground/index.md) (↗) para adicionar os componentes e comparar o p99 e a taxa de erros (as metas contam só usuários reais).
 
-<div class="sdp" data-scenario="flash-sale" data-mode="compact" data-height="520" data-profile="spike"></div>
+<div class="sdp" data-scenario="flash-sale" data-mode="compact" data-height="520"></div>
 
 ## O mapa de conceitos de rede e segurança { #concept-map }
 
 Segurança não é uma caixa no diagrama: cada salto de uma requisição responde a uma **pergunta de confiança** diferente. O mapa liga cada **componente da paleta** (verde) aos **conceitos** que ele aplica (azul) e à subpágina que os ensina; os nós azuis são as camadas da [defesa em profundidade](#defense-in-depth):
 
-``` mermaid
+``` diagram
 flowchart LR
     client["client · mobile"]:::comp -->|"login"| auth["auth"]:::comp
     client --> waf["waf"]:::comp
@@ -211,8 +215,8 @@ flowchart LR
 | Componente da paleta | Pergunta que responde | Conceitos | Ensinado em | Cenários |
 |---|---|---|---|---|
 | [`waf`](../../reference/components/edge/index.md#waf) | Esta requisição é um ataque ou um bot? | OWASP API4/API6, regras contra bots, rate limits, sala de espera | [OWASP API Top 10](#owasp-api-top-10), [Borda — segurança](../edge/index.md#edge-security) | `flash-sale`, `rate-limiter` |
-| [`auth`](../../reference/components/compute/index.md#auth) | *Quem* é o usuário, e qual cliente pede? | OAuth 2.1, Authorization Code + PKCE, OIDC, Client Credentials, Token Exchange | [Identidade](identity/index.md#oauth) | `flash-sale` (estenda-o), `blank` |
-| [`apigw`](../../reference/components/edge/index.md#apigw) | A requisição traz um token válido? | validação de JWT (JWKS, `iss`, `aud`, `exp`), remoção de headers | [Identidade — gateway](identity/index.md#gateway-validation) | `rate-limiter`, `flash-sale` |
+| [`auth`](../../reference/components/compute/index.md#auth) | *Quem* é o usuário, e qual cliente pede? | OAuth 2.1, Authorization Code + PKCE, OIDC, Client Credentials, Token Exchange | [Identidade](../edge/identity/index.md#oauth) | `flash-sale` (estenda-o), `blank` |
+| [`apigw`](../../reference/components/edge/index.md#apigw) | A requisição traz um token válido? | validação de JWT (JWKS, `iss`, `aud`, `exp`), remoção de headers | [Identidade — gateway](../edge/identity/index.md#gateway-validation) | `rate-limiter`, `flash-sale` |
 | [`vpc`](../../reference/components/network/index.md#vpc) · [`subnet`](../../reference/components/network/index.md#subnet) | *Onde* vive cada componente, e o que o alcança? | plano de CIDR, sub-redes públicas/privadas/isoladas, tabelas de rotas, SGs/NACLs | [Redes na nuvem](cloud-network/index.md#subnets) | `multi-region`, `scale-out` |
 | [`nat`](../../reference/components/network/index.md#nat) | Como os serviços privados chamam *para fora*? | NAT por AZ, IP de saída estável, VPC endpoints | [Redes na nuvem](cloud-network/index.md#subnets) | `payment-system` |
 | [`vpn`](../../reference/components/network/index.md#vpn) | Como outras redes e pessoas *entram*? | peering, transit, PrivateLink, VPN, session manager | [Redes na nuvem](cloud-network/index.md#private-connectivity) | `multi-region` |
@@ -223,6 +227,15 @@ flowchart LR
 !!! tip "Na entrevista"
     Raramente vão pedir "faça uma modelagem de ameaças". Mas um candidato forte **traz segurança por conta própria, em uma ou duas frases, na hora certa**: "o banco fica numa sub-rede isolada, sem rota para a Internet; os serviços conversam por mTLS; o app mobile usa Authorization Code com PKCE; a chave de pagamento fica num gerenciador de segredos e é rotacionada; e, na borda, WAF mais rate limits por conta protegem o fluxo de abertura de vendas contra bots." Depois siga em frente — a não ser que o entrevistador queira aprofundar. Mencione **BOLA** sempre que projetar um endpoint com um id no caminho.
 
+!!! success "Boas práticas"
+
+    - **Desenhe as fronteiras de confiança no diagrama da arquitetura e registre cada decisão do STRIDE com um responsável** — mitigar, aceitar ou transferir, no design doc, para que um revisor veja quais ameaças ficaram abertas de propósito.
+    - **Negue por padrão** — uma rota é protegida a menos que esteja explicitamente listada como aberta, para que um endpoint novo não vá para produção desprotegido. No BoxOffice: o `SecurityConfig` do gateway termina com `.anyExchange().authenticated()` ([quadro do gateway](../edge/identity/index.md#gateway-validation)).
+    - **Escreva testes negativos de autorização para todo endpoint que recebe um id** — "o usuário A pede o pedido do usuário B → `404`" roda no CI; BOLA é o API1 porque ninguém o testa.
+    - **Limite a taxa por conta e por IP nos endpoints caros** — o login é lento de propósito (BCrypt, ~10–20 verificações/s por CPU no [lab 4](../../hands-on/4/index.md)) e as reservas são escassas; bots (API6) precisam bater num limite antes de bater no banco.
+    - **Registre eventos de segurança num armazenamento append-only e alerte sobre eles** — logins falhos, rajadas de `401`/`403`, ações de administração e chamadas negadas entre serviços, guardados por tempo suficiente para investigar (por exemplo, 1 ano).
+    - **Aplique correções com prazo imposto pelo pipeline** — uma vulnerabilidade crítica com correção bloqueia a release. No BoxOffice: o portão do Trivy do [lab 11](../../hands-on/11/supply-chain/index.md).
+
 !!! warning "Armadilhas comuns"
     - **Segurança só no gateway** — qualquer serviço alcançável sem passar por ele (um `NodePort`, uma porta de debug, um segundo Ingress) contorna tudo.
     - **Confiar na rede interna** — "está dentro da VPC, então é seguro" é como um pod comprometido vira um vazamento completo.
@@ -231,20 +244,26 @@ flowchart LR
 
 ---
 
-## Relacionados
+## Relacionados { #related }
 
 - Componentes no [catálogo](../../reference/components/network/index.md#vpc): VPC, Subnet, NAT Gateway, VPN, Service Mesh; além de [Auth Service](../../reference/components/compute/index.md#auth) e [WAF](../../reference/components/edge/index.md#waf).
 - Aulas: [Tráfego e borda](../edge/index.md) (WAF, API gateway, rate limiting), [Cloud-native](../cloud-native/index.md) (Kubernetes, CI/CD), [Observabilidade](../observability/index.md) (trilhas de auditoria, alertas de segurança).
-- Hands-on: [4 — Gateway e identidade](../../hands-on/4/index.md), [10 — Kubernetes](../../hands-on/10/index.md), [11 — Entrega](../../hands-on/11/index.md) (varredura de imagens, SBOM, assinatura).
+- Hands-on: [4 — Gateway e identidade](../../hands-on/4/index.md), [10 — Kubernetes](../../hands-on/10/index.md), [11 — Entrega](../../hands-on/11/supply-chain/index.md) (varredura de imagens, SBOM, proveniência assinada).
 - Estudo de caso: [Sistema de pagamentos](../case-studies/payment-system/index.md). Exercício: [Design doc](../../exercises/design-doc/index.md). Projeto: [projeto em equipe](../../exercises/project/index.md).
 
-## Principais conclusões
+## Pontos-chave { #key-takeaways }
 
-- Segurança é uma **propriedade do projeto**: decida fronteiras, identidades e privilégios enquanto desenha a arquitetura.
-- **Modelagem de ameaças** = desenhar o fluxo de dados, marcar as fronteiras de confiança, rodar **STRIDE** por elemento, decidir e registrar.
-- **Defesa em profundidade** empilha camadas independentes: borda, identidade, autorização da requisição, serviço a serviço, rede, segredos, cadeia de suprimentos.
-- O **OWASP API Top 10** é uma checklist de revisão de projeto; **BOLA** é o número um e só pode ser corrigido no serviço que é dono dos dados.
-- Na entrevista, mencione segurança de forma breve e concreta no momento certo — sub-redes privadas, mTLS, PKCE, gerenciador de segredos, rate limits.
+!!! takeaways ""
+
+    - Segurança é uma **propriedade do projeto**: decida fronteiras, identidades e privilégios enquanto desenha a arquitetura.
+    - **Modelagem de ameaças** = desenhar o fluxo de dados, marcar as fronteiras de confiança, rodar **STRIDE** por elemento, decidir e registrar.
+    - **Defesa em profundidade** empilha camadas independentes: borda, identidade, autorização da requisição, serviço a serviço, rede, segredos, cadeia de suprimentos.
+    - O **OWASP API Top 10** é uma checklist de revisão de projeto; **BOLA** é o número um e só pode ser corrigido no serviço que é dono dos dados.
+    - Na entrevista, mencione segurança de forma breve e concreta no momento certo — sub-redes privadas, mTLS, PKCE, gerenciador de segredos, rate limits.
+
+## O que quebra em seguida { #what-breaks-next }
+
+Todo chamador desta aula é uma pessoa ou um serviço que nós escrevemos: o fã com um token, o `order` com uma identidade de workload, o pipeline com uma proveniência assinada. O próximo chamador não é nenhum dos dois. Os fãs querem pedir "dois lugares abaixo de R$ 300 no sábado, reserve", e um assistente responde chamando `catalog` e `inventory` por eles: uma dependência lenta, cara e não determinística que pode **agir** sobre o estoque, em nome do fã, e que pode ser convencida a fazer a coisa errada pelo texto que lê. Projetar um sistema em torno de um modelo — e decidir o que ele pode tocar — é a [aula 13 — Sistemas de IA](../ai-systems/index.md).
 
 ---
 

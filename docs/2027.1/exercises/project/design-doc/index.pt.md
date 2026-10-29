@@ -10,7 +10,7 @@ Antes da primeira linha de código, a sua equipe combina **o que** vai construir
     - **Desenhado** a arquitetura com componentes da paleta e **atribuído** a propriedade dos dados por serviço.
     - **Registrado** as primeiras ADRs, um registro de riscos, um esboço do plano de testes e a tabela de responsabilidades.
 
-## O que entregar
+## O que entregar { #what-to-deliver }
 
 **Prazo: semana 5, tag `m1`, peso 10%.** Uma seção *Design doc* no site de documentação da equipe contendo o [template de design doc do exercício](../../design-doc/index.md#templates) — com todas as seções preenchidas — **mais** os complementos do projeto abaixo. As ADRs usam o [template de ADR](../../design-doc/index.md#templates), numeradas `ADR-001`, `ADR-002`, …
 
@@ -30,7 +30,7 @@ Os complementos do projeto:
 | Tabela de responsabilidades | Membro → serviços → área transversal |
 | Changelog | Vazio no M1; a cada marco, uma linha por mudança de design com link para a ADR |
 
-## Critérios de aceitação
+## Critérios de aceitação { #acceptance-criteria }
 
 - [ ] **(obrigatório)** Todas as seções do template de design doc estão preenchidas (ou marcadas "não se aplica — porque …").
 - [ ] **(obrigatório)** Pelo menos **três ADRs**; temas sugeridos: o broker (Kafka vs uma fila), a consistência da escrita crítica (por exemplo, reserva de assento com `SELECT … FOR UPDATE` vs lock otimista), a estratégia de cache.
@@ -43,7 +43,7 @@ Os complementos do projeto:
 - [ ] Tabela de responsabilidades: todo membro é dono de um serviço e de uma área transversal.
 - [ ] Seção *Uso de IA*.
 
-## Passo a passo
+## Passo a passo { #step-by-step }
 
 1. **Escolham a opção juntos** (semana 3) e leiam o seu estudo de caso e o seu cenário no playground.
 2. **Escrevam primeiro os requisitos e as escalas.** Combinem o que está fora do escopo — isso protege o cronograma.
@@ -61,7 +61,7 @@ Os complementos do projeto:
 
 <div class="sdp" data-scenario="blank" data-mode="compact" data-height="520"></div>
 
-### Uma linha de SLO resolvida (BoxOffice)
+### Uma linha de SLO resolvida (BoxOffice) { #a-worked-slo-row-boxoffice }
 
 | SLO | SLI | Medido em | Ferramenta | Janela |
 |-|-|-|-|-|
@@ -156,7 +156,7 @@ Os complementos do projeto, para acrescentar ao template de design doc do exerc�
     |-|-|-|
     ~~~
 
-## Rubrica
+## Rubrica { #rubric }
 
 Níveis conforme definidos em [Como os exercícios são avaliados](../../index.md#how-the-exercises-are-graded).
 

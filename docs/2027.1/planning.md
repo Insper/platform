@@ -16,10 +16,10 @@ Two meetings a week, about twenty weeks. As a rule, the **first meeting** of the
 | 6 | [6. Databases & Data Systems](classes/databases/index.md) | [7. Caching](classes/caching/index.md) | [Ex. 2 Load-test report](exercises/load-test-report/index.md) |
 | 7 | [Lab 5 — Caching (Redis)](hands-on/5/index.md) | [Lab 6 — Data at scale](hands-on/6/index.md) | [M2 Core path](exercises/project/milestones/index.md#m2-core-path-running) · **Quiz 1** |
 | 8 | [8. Messaging & Event-Driven](classes/messaging/index.md) | [Lab 7 — Async (Kafka, outbox)](hands-on/7/index.md) | [Ex. 3 Cache & database](exercises/cache-db/index.md) |
-| 9 | [10. Observability](classes/observability/index.md) | [Lab 8 — Observability (OTel)](hands-on/8/index.md) | [M3 Scale & cache](exercises/project/milestones/index.md#m3-scale-cache) |
+| 9 | [9. Observability](classes/observability/index.md) | [10. Reliability & Resilience](classes/reliability/index.md) | [M3 Scale & cache](exercises/project/milestones/index.md#m3-scale-cache) |
 | 10 | **Midterm exams** | | |
-| 11 | [9. Reliability & Resilience](classes/reliability/index.md) | [Lab 9 — Resilience & chaos](hands-on/9/index.md) | [Ex. 4 Event-driven](exercises/event-driven/index.md) |
-| 12 | [11. Network & Security](classes/network-security/index.md) | [12. Cloud-Native Platforms](classes/cloud-native/index.md) | [M4 Async & resilience](exercises/project/milestones/index.md#m4-async-resilience) · **Quiz 2** |
+| 11 | [Lab 8 — Observability (OTel)](hands-on/8/index.md) | [Lab 9 — Resilience & chaos](hands-on/9/index.md) | [Ex. 4 Event-driven](exercises/event-driven/index.md) |
+| 12 | [11. Cloud-Native Platforms](classes/cloud-native/index.md) | [12. Network & Security](classes/network-security/index.md) | [M4 Async & resilience](exercises/project/milestones/index.md#m4-async-resilience) · **Quiz 2** |
 | 13 | [Lab 10 — Kubernetes (HPA)](hands-on/10/index.md) | [Lab 11 — Delivery (CI/CD, GitOps)](hands-on/11/index.md) | |
 | 14 | [13. AI Systems & Agents](classes/ai-systems/index.md) | [Lab 12 — AI assistant](hands-on/12/index.md) | [Ex. 5 Kubernetes autoscaling](exercises/kubernetes-autoscaling/index.md) · [M5 K8s + CI/CD](exercises/project/milestones/index.md#m5-kubernetes-cicd) |
 | 15 | [14. AI-Assisted Delivery](classes/ai-delivery/index.md) | [Lab 13 — AI in CI/CD](hands-on/13/index.md) | [Ex. 6 Playground design](exercises/playground-design/index.md) |
@@ -29,13 +29,15 @@ Two meetings a week, about twenty weeks. As a rule, the **first meeting** of the
 | 19 | [Final presentations](exercises/project/presentation/index.md) | Final presentations | M9 Presentation |
 | 20 | **Final exams** | | |
 
-``` mermaid
+``` diagram
 flowchart LR
     F["Foundations<br/>weeks 1–3"] --> B["Building blocks<br/>weeks 4–9"]
     B --> O["Operating at scale<br/>weeks 11–13"]
     O --> A["AI<br/>weeks 14–15"]
     A --> P["Prove it<br/>weeks 16–19"]
 ```
+
+The order follows the [story of the course](index.md#story): each class starts from the problem the previous one left, and each lab builds, in BoxOffice, the answer of a class you have already seen. Some weeks pair two classes and the next week pairs their two labs, because the labs need both: caching (lab 5) and data at scale (lab 6) after classes 6 and 7; observability (lab 8) and resilience (lab 9) after classes 9 and 10; Kubernetes (lab 10) and delivery (lab 11) after classes 11 and 12. Observability comes before reliability on purpose: you cannot improve what you cannot see, the SLO is defined where it is measured, and in the labs you instrument BoxOffice (lab 8) before you break it on purpose (lab 9) — otherwise the chaos experiments have nothing to show.
 
 ## How a week works
 

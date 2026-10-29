@@ -6,7 +6,7 @@ service to run a function — and the service decides what the function may do. 
 **tool registry** in the shape of MCP (Model Context Protocol) and the **agent loop** that runs it,
 from the [agents class](../../../classes/ai-systems/agents/index.md).
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant F as fan
     participant A as assistant

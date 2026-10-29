@@ -1,11 +1,11 @@
 
 No laptop de um desenvolvedor, o BoxOffice vive em uma rede Docker: todo container alcança todos os outros, e só o Nginx publica uma porta. Na nuvem, a decisão equivalente é muito maior e muito mais difícil de mudar depois. Quais máquinas recebem um endereço público? O banco de dados consegue chegar à Internet — e a Internet consegue chegar ao banco? Como o serviço `payment` chama o provedor, que só aceita requisições de **endereços IP em uma lista de permissão** (*allow-list*)? Como um engenheiro depura um pod sem abrir SSH para o mundo? Esta página constrói a rede do BoxOffice em um provedor de nuvem, um componente de cada vez.
 
-Os exemplos usam os nomes da AWS, os mais comuns em descrições de vagas; as abas no fim mapeiam esses nomes para Google Cloud e Azure. As ideias são as mesmas em todo lugar[^1].
+Os exemplos usam os nomes da AWS, os mais comuns em descrições de vagas; as abas no fim mapeiam esses nomes para Google Cloud e Azure. As ideias são as mesmas em todo lugar[^1]. Esta página supõe que você sabe o que são um endereço IP, um bloco CIDR, um endereço privado e o NAT — se não, leia antes [Como a Internet funciona](../internet/index.md): ela tem a mesma rede do BoxOffice como um caminho de pacote interativo.
 
 ---
 
-## A VPC: a sua própria rede privada na nuvem
+## A VPC: a sua própria rede privada na nuvem { #the-vpc-your-own-private-network-in-the-cloud }
 
 Uma **VPC** (Virtual Private Cloud) é uma rede logicamente isolada dentro de uma região da nuvem. Você escolhe a faixa de endereços, a divide em sub-redes e decide cada rota de entrada e de saída. Nada entra nem sai de uma VPC a menos que você adicione um componente e uma rota que permitam isso.
 
@@ -17,7 +17,7 @@ Uma **VPC** (Virtual Private Cloud) é uma rede logicamente isolada dentro de um
 | **Sub-rede** (*subnet*) | uma fatia da faixa de endereços da VPC que vive em **uma** AZ |
 | **Tabela de rotas** | regras associadas às sub-redes: "tráfego para este destino vai para aquele alvo" |
 
-### Planejamento de CIDR
+### Planejamento de CIDR { #cidr-planning }
 
 Endereços são escritos em notação **CIDR** (Classless Inter-Domain Routing): `10.20.0.0/16` significa "os primeiros 16 bits são fixos", sobrando 32 − 16 = 16 bits para hosts, ou seja, 2¹⁶ = 65 536 endereços. Cada bit a mais no prefixo divide o bloco pela metade.
 
@@ -50,6 +50,10 @@ print("\n".join(rows))
 
     Cerca de metade do `/16` continua livre para uma quarta AZ ou uma nova camada. Os pods do Kubernetes são o motivo de as sub-redes de aplicação serem grandes: com o AWS VPC CNI, cada pod recebe um endereço real da VPC.
 
+Confira o plano no explorador de endereços: divida `10.20.0.0/16` em 8 sub-redes. As três sub-redes de aplicação são os blocos `/19` 2, 3 e 4; os `/24` públicos e os `/22` de dados cabem todos no primeiro `/19` (`10.20.0.0` a `10.20.31.255`); os blocos 5 a 8 — metade da VPC — estão livres. Teste `10.20.17.4`: qual camada seria a dona dele?
+
+<div class="netsim" data-tool="cidr" data-cidr="10.20.0.0/16"></div>
+
 ??? question "Pense antes: quantos pods cabem em uma sub-rede privada de aplicação?"
 
     Um `/19` tem 2¹³ = 8 192 endereços, menos 5 reservados = **8 187**. Os nós também ocupam endereços, e o CNI mantém alguns IPs "aquecidos" por nó, então o número real de pods é menor — mas na casa dos milhares por AZ. Um `/24` (251 utilizáveis) teria se esgotado no primeiro evento de autoscaling de uma venda relâmpago.
@@ -68,12 +72,16 @@ Uma sub-rede não é "pública" por causa de uma caixinha marcada. Ela é públi
 
 Toda tabela de rotas também tem uma **rota local** implícita (`10.20.0.0/16 → local`): todas as sub-redes da VPC se alcançam no nível de roteamento. **O isolamento entre camadas é, portanto, trabalho dos security groups e das NACLs**, não das rotas.
 
-### Internet Gateway e NAT gateway
+O simulador leva um pacote por essas três camadas. Ele começa com o `payment` chamando o provedor: siga a consulta à tabela de rotas (`0.0.0.0/0 → NAT`), as duas reescritas do endereço de origem e a resposta voltando pela tabela do NAT. Depois desmarque *rota 0.0.0.0/0 → NAT* — o erro de configuração por trás de muitos incidentes de "o provedor de pagamento caiu" — e rode de novo; e rode *O PostgreSQL tenta baixar uma atualização da Internet* para ver o que significa uma sub-rede isolada.
+
+<div class="netsim" data-tool="packet" data-scenario="pay-psp"></div>
+
+### Internet Gateway e NAT gateway { #internet-gateway-and-nat-gateway }
 
 - **Internet Gateway (IGW)** — associado à VPC; permite que recursos *com IP público* enviem e recebam tráfego da Internet. É escalado horizontalmente e altamente disponível por construção.
 - **NAT gateway** — vive em uma sub-rede pública, com um endereço público fixo (um *Elastic IP*). Recursos privados enviam o tráfego de saída para ele; ele reescreve o endereço de origem para o seu próprio e mantém uma tabela de tradução, para que as respostas encontrem o caminho de volta. **Conexões só podem ser iniciadas de dentro.**
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     actor U as Fã (mobile)
@@ -97,7 +105,7 @@ O provedor enxerga **um endereço de origem estável** — o Elastic IP do NAT g
 !!! warning "NAT gateways são por AZ"
     Um NAT gateway vive em **uma** AZ. Se todas as sub-redes privadas roteiam pelo NAT da AZ a e a AZ a falha, os pods das AZs b e c perdem acesso à Internet — `payment` não alcança o provedor e o checkout para. O projeto resiliente é **um NAT gateway por AZ**, com cada sub-rede privada roteando para o NAT da sua própria AZ. Isso custa três vezes o preço por hora e exige cadastrar três Elastic IPs no provedor. É um trade-off clássico entre disponibilidade e custo.
 
-### Custo: a linha-surpresa na fatura
+### Custo: a linha-surpresa na fatura { #cost-the-surprise-line-on-the-bill }
 
 NAT gateways cobram por hora **e por GB processado**. Tráfego que não precisa ir para a Internet — baixar imagens do registry, gravar no object storage, ler segredos — ainda passa pelo NAT se nada mais for configurado. A correção é um **VPC endpoint**:
 
@@ -124,7 +132,7 @@ Rotas decidem *para onde* os pacotes podem ir; firewalls decidem *se* eles são 
 
 Trate-os como camadas da mesma defesa em profundidade[^4]. O recurso mais útil são as **referências entre SGs**: "permitir a porta 5432 a partir *do security group dos nós de aplicação*" em vez de "a partir de `10.20.32.0/19`". A regra acompanha os workloads quando eles escalam, se movem ou trocam de IP.
 
-``` mermaid
+``` diagram
 flowchart LR
     subgraph sgalb ["sg-alb"]
         ALB["ALB :443"]
@@ -145,11 +153,11 @@ flowchart LR
 
 ---
 
-## A VPC do BoxOffice
+## A VPC do BoxOffice { #the-boxoffice-vpc }
 
 Juntando tudo (duas das três AZs desenhadas):
 
-``` mermaid
+``` diagram
 flowchart TB
     NET(["Internet"]) --- IGW["Internet Gateway"]
     subgraph vpc ["VPC 10.20.0.0/16 — sa-east-1"]
@@ -187,14 +195,13 @@ flowchart TB
     ALBb --> Kb
     Ka --> RDSa & Ra
     Kb --> RDSa
-    Ka -->|"0.0.0.0/0"| NATa
-    Kb -->|"0.0.0.0/0"| NATb
-    NATa & NATb --> IGW
+    NATa <-.-|"saída 0.0.0.0/0 → IGW"| Ka
+    NATb <-.-|"saída 0.0.0.0/0 → IGW"| Kb
     Ka & Kb -.-> EP
     RDSa -.->|"replicação síncrona"| RDSb
 ```
 
-### Como código
+### Como código { #as-code }
 
 Redes são declaradas com **infraestrutura como código** (IaC), para poderem ser revisadas, versionadas e recriadas. Um esboço resumido em Terraform/OpenTofu de uma AZ (o módulo real faz um laço sobre as AZs):
 
@@ -304,17 +311,17 @@ O BoxOffice logo precisa falar com redes que não são suas: o escritório, a VP
 | **VPN de cliente / WireGuard** | laptops individuais de engenheiros | a Internet, criptografada | acesso para pessoas | uma VPN coloca o laptop "dentro" — confiança de perímetro clássica |
 | **Link dedicado** (Direct Connect / Interconnect / ExpressRoute) | um data center até a nuvem | um circuito físico privado | latência estável, banda alta | semanas para provisionar, caro; normalmente com uma VPN de reserva |
 
-### Dando acesso aos engenheiros: bastion vs session manager
+### Dando acesso aos engenheiros: bastion vs session manager { #getting-engineers-in-bastion-vs-session-manager }
 
 A resposta antiga é um **bastion host**: uma VM pequena em uma sub-rede pública com SSH aberto, de onde os engenheiros saltam para a rede privada. Ele é superfície de ataque (porta 22 na Internet) e um problema de gestão de chaves. A resposta moderna é um **serviço de sessão baseado em agente** (AWS Systems Manager Session Manager, GCP IAP TCP forwarding, Azure Bastion): o engenheiro se autentica no provedor de identidade da empresa com MFA, a sessão é aberta por um agente de dentro, **nenhuma porta de entrada fica aberta** e todo comando é registrado. Para o Kubernetes, o `kubectl` pela API autenticada do cluster cumpre o mesmo papel. Isso é Zero Trust aplicado a pessoas ([Zero Trust](../zero-trust/index.md)).
 
-### DNS dentro da VPC
+### DNS dentro da VPC { #dns-inside-the-vpc }
 
 Serviços se encontram por nome. A VPC fornece um resolvedor (na AWS, no endereço base da VPC + 2); **zonas hospedadas privadas** dão nomes internos como `db.boxoffice.internal`, que só resolvem dentro da VPC. Dentro do Kubernetes, o CoreDNS resolve `payment.boxoffice.svc.cluster.local`. Os interface endpoints dependem do DNS privado para que `secretsmanager.sa-east-1.amazonaws.com` resolva para o IP privado do endpoint em vez do público.
 
 ---
 
-## As mesmas ideias em outras nuvens
+## As mesmas ideias em outras nuvens { #the-same-ideas-in-other-clouds }
 
 O vocabulário muda entre provedores; os blocos de construção, não[^3]. A maior diferença real: uma VPC do Google Cloud é **global**, enquanto as redes da AWS e do Azure são regionais.
 
@@ -336,7 +343,7 @@ O vocabulário muda entre provedores; os blocos de construção, não[^3]. A mai
 
 ---
 
-## Trade-offs em resumo
+## Trade-offs em resumo { #trade-offs-at-a-glance }
 
 | Decisão | Opção A | Opção B | Escolha B quando… |
 |---|---|---|---|
@@ -350,6 +357,15 @@ O vocabulário muda entre provedores; os blocos de construção, não[^3]. A mai
 !!! tip "Na entrevista"
     Quando desenhar o projeto de alto nível, coloque **uma caixa em volta com o rótulo VPC** e divida-a em sub-redes **públicas** (load balancer, NAT) e **privadas** (serviços, dados) em **pelo menos duas AZs**. Diga uma frase sobre o tráfego de saída: "as chamadas para o provedor de pagamentos saem por um NAT gateway por AZ, com um IP fixo que o provedor coloca na allow-list." Se o entrevistador perguntar sobre custo, mencione **VPC endpoints** para tirar o tráfego de object storage e de registry do NAT. Isso basta para mostrar que você já operou sistemas reais.
 
+!!! success "Boas práticas"
+
+    - **Espalhe cada camada por pelo menos duas, de preferência três, zonas de disponibilidade, com uma sub-rede por camada por zona** — perder uma zona então remove um terço da capacidade, não o serviço.
+    - **Alcance os serviços da nuvem por VPC endpoints** — gateway endpoints para object storage, interface endpoints para o registry, os logs e o gerenciador de segredos: o tráfego fica privado e escapa da tarifa de processamento do NAT.
+    - **Escreva regras de security group que referenciem outros grupos, não CIDRs** — o `db-sg` permite 5432 só a partir do `app-sg`, então a regra acompanha as instâncias enquanto elas escalam.
+    - **Não dê às sub-redes de dados nenhuma rota para a Internet** — nenhuma entrada `0.0.0.0/0` na tabela de rotas, para que um host de banco comprometido não consiga exfiltrar dados diretamente.
+    - **Ligue os VPC flow logs (pelo menos o tráfego rejeitado) e guarde-os por cerca de 90 dias** — é o único jeito de responder "com quem este host falou?" depois de um incidente.
+    - **Mude a rede só por revisão de código** — Terraform (ou similar) com o plano anexado ao pull request; nenhuma mudança pelo console em produção.
+
 !!! warning "Armadilhas comuns"
     - **SSH ou RDP abertos para `0.0.0.0/0`** — varridos em minutos; use um session manager.
     - **Banco de dados em sub-rede pública** "só para conectar do meu laptop" — a uma senha fraca de um vazamento.
@@ -362,7 +378,7 @@ O vocabulário muda entre provedores; os blocos de construção, não[^3]. A mai
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     VPC["VPC + plano de CIDR"] --> SUB["sub-redes públicas / privadas /<br/>isoladas, uma por AZ"]
     SUB --> RT["tabelas de rotas:<br/>IGW, NAT ou nenhuma"]
@@ -378,13 +394,15 @@ flowchart LR
 
 **Componentes da paleta:** [`vpc`](../../../reference/components/network/index.md#vpc) · [`subnet`](../../../reference/components/network/index.md#subnet) · [`nat`](../../../reference/components/network/index.md#nat) · [`vpn`](../../../reference/components/network/index.md#vpn) · [`lb`](../../../reference/components/edge/index.md#lb) (o ALB nas sub-redes públicas) · [`payment`](../../../reference/components/external/index.md#payment) (alcançado pelo NAT). **Cenários:** `payment-system`, `multi-region`, `scale-out`. **Continua em:** [Service mesh](../service-mesh/index.md), [Zero Trust](../zero-trust/index.md), [Compute — integrações](../../compute/integrations/index.md), [Confiabilidade — recuperação de desastres](../../reliability/disaster-recovery/index.md#multi-region), [Cloud-native — entrega](../../cloud-native/delivery/index.md) (infraestrutura como código).
 
-## Principais conclusões
+## Pontos-chave { #key-takeaways }
 
-- Uma **VPC** é a sua rede privada em uma região; **sub-redes** vivem em uma AZ; uma sub-rede é pública só porque a sua tabela de rotas aponta `0.0.0.0/0` para um **Internet Gateway**.
-- Sub-redes privadas alcançam a Internet **apenas na saída**, por um **NAT gateway**, que também dá um IP de saída estável para allow-lists; use um por AZ em caminhos críticos.
-- **Security groups** são stateful e podem referenciar uns aos outros; **NACLs** são proteções stateless no nível da sub-rede. Nenhum dos dois é identidade de workload.
-- Planeje **CIDRs** com folga e sem sobreposição; a AWS reserva 5 endereços por sub-rede; pods podem precisar de muitos IPs.
-- Use **VPC endpoints** para serviços da nuvem, **peering/transit/PrivateLink** entre redes, **VPN ou links dedicados** até o on-premises, e **session managers** em vez de bastions.
+!!! takeaways ""
+
+    - Uma **VPC** é a sua rede privada em uma região; **sub-redes** vivem em uma AZ; uma sub-rede é pública só porque a sua tabela de rotas aponta `0.0.0.0/0` para um **Internet Gateway**.
+    - Sub-redes privadas alcançam a Internet **apenas na saída**, por um **NAT gateway**, que também dá um IP de saída estável para allow-lists; use um por AZ em caminhos críticos.
+    - **Security groups** são stateful e podem referenciar uns aos outros; **NACLs** são proteções stateless no nível da sub-rede. Nenhum dos dois é identidade de workload.
+    - Planeje **CIDRs** com folga e sem sobreposição; a AWS reserva 5 endereços por sub-rede; pods podem precisar de muitos IPs.
+    - Use **VPC endpoints** para serviços da nuvem, **peering/transit/PrivateLink** entre redes, **VPN ou links dedicados** até o on-premises, e **session managers** em vez de bastions.
 
 ---
 

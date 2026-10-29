@@ -2,7 +2,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Síncrono vs assíncrono
+## Síncrono vs assíncrono { #synchronous-vs-asynchronous }
 
 **Q1.** A compra no BoxOffice chama o `order` (99,95%) e depois, de forma síncrona, `notification`, `search` e `analytics` (99,9% cada). O time troca as três chamadas seguintes por um evento publicado no Kafka (99,95%). O que acontece com a disponibilidade da compra?
 
@@ -46,7 +46,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Filas e pub/sub
+## Filas e pub/sub { #queues-and-pubsub }
 
 **Q4.** Um worker de PDF leva **45 s** para gerar um pacote grande de ingressos, e o **visibility timeout do SQS é de 30 s**. O que acontece?
 
@@ -148,7 +148,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Semântica de entrega
+## Semântica de entrega { #delivery-semantics }
 
 **Q11.** O `notification` faz o commit do offset **depois** de enviar o e-mail. O pod é derrubado durante um deploy logo depois de o e-mail ser enviado e antes do commit. O que acontece, e qual é a correção certa?
 
@@ -192,7 +192,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Padrões
+## Padrões { #patterns }
 
 **Q14.** O `order` confirma o pedido no PostgreSQL e depois publica `OrderConfirmed` no Kafka. De vez em quando, um pedido confirmado nunca gera um e-mail. Qual é a correção padrão?
 

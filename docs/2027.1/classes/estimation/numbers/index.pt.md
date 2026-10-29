@@ -3,7 +3,7 @@ Quanto tempo leva para ler um lugar da memória? De um SSD? De um banco no mesmo
 
 ---
 
-## Potências de dois (e de dez)
+## Potências de dois (e de dez) { #powers-of-two-and-ten }
 
 Tamanhos de dados são potências de dois; estimativas são mais fáceis em potências de dez. Como 2¹⁰ = 1.024 ≈ 10³, você pode alternar livremente entre as duas para estimar:
 
@@ -21,7 +21,7 @@ A rigor, 2¹⁰ bytes é um **kibibyte** (KiB) e 10³ bytes é um quilobyte (kB)
 
     Velocidades de rede são expressas em **bits** por segundo (uma interface de rede de "10 Gbit/s"); armazenamento e cargas úteis, em **bytes**. Divida por 8: um link de 10 Gbit/s carrega no máximo **1,25 GB/s**. Misturar os dois é o erro de estimativa mais comum.
 
-### Tempo
+### Tempo { #time }
 
 | Período | Segundos | Arredonde para |
 |---|---|---|
@@ -42,7 +42,7 @@ Uma tabela de conversão útil, usando 1 dia ≈ 10⁵ s (o fator exato é 86.40
 
 ---
 
-## Números de latência que todo engenheiro deveria saber
+## Números de latência que todo engenheiro deveria saber { #latency-numbers-every-engineer-should-know }
 
 Em 2009, Jeff Dean (Google) popularizou uma lista de "números que todos deveriam saber" — o custo de operações básicas num computador e numa rede[^1]. O hardware mudou desde então (SSDs substituíram discos giratórios no caminho quente, as redes ficaram mais rápidas), mas as **proporções** se mantiveram notavelmente estáveis, porque alguns limites — a velocidade da luz, a física da memória — não melhoram. A tabela usa ordens de grandeza dos anos 2020, compiladas da lista de Dean, de suas atualizações posteriores[^2] e do *Systems Performance* de Gregg[^3]; o seu hardware pode diferir por 2–3×, o que não tem problema para estimativas.
 
@@ -66,7 +66,7 @@ Em 2009, Jeff Dean (Google) popularizou uma lista de "números que todos deveria
 | Ida e volta atravessando o Atlântico / Pacífico | ~80–200 ms | 3–6 anos |
 | Handshake TCP + TLS com um servidor distante | 2–3 idas e voltas | — |
 
-### O que a tabela ensina
+### O que a tabela ensina { #what-the-table-teaches }
 
 1. **A memória é ~1.000× mais rápida que o SSD, e o SSD ~100× mais rápido que o HDD em leituras aleatórias.** É por isso que caches (o Redis mantém tudo em RAM) e índices em memória existem.
 2. **Dentro de um data centre, a rede custa mais que o trabalho.** Um `GET` no Redis consome microssegundos de CPU no servidor; o que você espera é a ida e volta. Uma página que faz 50 chamadas sequenciais ao Redis gasta ~10–25 ms só em idas e voltas — **agrupe-as** (`MGET`, pipelining) ou use cache no próprio processo.
@@ -86,7 +86,7 @@ Em 2009, Jeff Dean (Google) popularizou uma lista de "números que todos deveria
 
 ---
 
-## Regras práticas de throughput
+## Regras práticas de throughput { #throughput-rules-of-thumb }
 
 A latência diz quanto tempo *uma* operação leva; o planejamento de capacidade também precisa saber quantas operações *por segundo* um componente sustenta. Esses valores variam muito mais com hardware, configuração e carga do que as latências, então trate a tabela como **premissas iniciais ilustrativas** que você precisa substituir por medições (é para isso que serve o laboratório 2):
 
@@ -104,7 +104,7 @@ O padrão a lembrar: **leituras são mais baratas que escritas duráveis**, **me
 
 ---
 
-## Tamanhos típicos
+## Tamanhos típicos { #typical-sizes }
 
 | Item | Tamanho | Observação |
 |---|---|---|
@@ -125,7 +125,7 @@ Dois multiplicadores são fáceis de esquecer: **replicação** (um banco normal
 
 ---
 
-## Estimando requisições por segundo (QPS)
+## Estimando requisições por segundo (QPS) { #estimating-requests-per-second-qps }
 
 **QPS** (*queries per second*, usado de forma livre para requisições por segundo) é o ponto de partida de toda estimativa de capacidade:
 
@@ -156,7 +156,7 @@ $$
 
 ---
 
-## Estimando armazenamento
+## Estimando armazenamento { #estimating-storage }
 
 $$
 \text{armazenamento} = \text{itens por dia} \times \text{tamanho por item} \times \text{retenção (dias)} \times \text{fator de replicação} \;(\times \text{overhead de índices})
@@ -176,7 +176,7 @@ $$
 
 ---
 
-## Estimando banda
+## Estimando banda { #estimating-bandwidth }
 
 $$
 \text{banda} = \text{requisições por segundo} \times \text{bytes por resposta}
@@ -190,7 +190,7 @@ $$
 
 ---
 
-## Estimando servidores e memória
+## Estimando servidores e memória { #estimating-servers-and-memory }
 
 Quando você sabe a carga de pico e a capacidade por nó, o número de nós sai direto — com **folga** e **redundância**:
 
@@ -208,6 +208,14 @@ Para a **memória de cache**, uma regra prática comum é a regra 80/20: uma peq
     - *Uma instância do catálogo atende ~1.000 req/s a 100% de CPU (a medir).* Pico de 1.200 req/s com alvo de 60% → 1.200 / 600 = 2 → **2 + 1 reserva = 3 instâncias**.
     - Conjunto quente: *os ~2.000 eventos à venda neste mês × 5 KB* (JSON do evento) + resumos de mapas de lugares (~300 KB cada) ≈ 10 MB + 600 MB ≈ **~0,6 GB** — cabe numa instância pequena de Redis com uma réplica.
 
+!!! example "No código do BoxOffice: um nó, dimensionado e depois medido (labs 1 e 2)"
+
+    A estimativa acima *supõe* 1.000 req/s por instância do catálogo. Os laboratórios trocam a suposição por uma medição. O [Hands-on 1](../../../hands-on/1/container/index.md) fixa o tamanho de um nó — 1 CPU, 768 MB e um pool de 10 conexões com o banco — e o [Hands-on 2](../../../hands-on/2/index.md) mede o que ele atende: na execução de exemplo do laboratório, o p99 ficou abaixo de 40 ms até 300 req/s, chegou a 224 ms em 400 req/s e a 2 s em 500 req/s. A capacidade com p99 < 300 ms é, portanto, **~400 req/s**, não 1.000. Refaça a conta: 1.200 / (400 × 0,6) = 5 → **5 + 1 reserva = 6 instâncias**, o dobro da primeira resposta — e o [lab 3](../../../hands-on/3/index.md#measure-it) mostra que elas só ajudam enquanto o PostgreSQL compartilhado aguenta.
+
+    ``` { .yaml title="docker-compose.yaml (the size of one catalog node)" }
+    --8<-- "docs/2027.1/hands-on/1/code/docker-compose.yaml:21:39"
+    ```
+
 ??? question "Pense antes: estime um encurtador de URLs"
 
     100 M de novas URLs curtas por mês; leituras são 100× as escritas; cada registro tem ~500 B; manter por 5 anos.
@@ -222,6 +230,14 @@ Para a **memória de cache**, uma regra prática comum é a regra 80/20: uma peq
 
     Leve um pequeno "cartão de números" na cabeça: **1 dia ≈ 10⁵ s; 1 M/dia ≈ 12/s; RAM ~100 ns; SSD ~100 µs; ida e volta na mesma zona ~0,5 ms; entre continentes ~100+ ms; 1 Gbit/s ≈ 125 MB/s**. Escreva as premissas antes dos resultados, arredonde tudo para um algarismo significativo e termine cada linha com sua consequência. Se não tiver certeza de um número, diga isso e dê uma faixa: "uma busca por chave primária leva em torno de um milissegundo incluindo a rede — vamos dizer 1 ms."
 
+!!! success "Boas práticas"
+
+    - **Mantenha unidades em toda linha e um algarismo significativo em todo resultado** — "4 × 10⁷ leituras/dia ≈ 400 leituras/s"; as unidades pegam a maioria dos erros antes que cheguem a uma decisão.
+    - **Troque cada capacidade de regra de bolso por uma medida antes de dimensionar uma frota** — a medição é barata, a frota errada não. Na BoxOffice: os ~400 req/s do lab 2 substituíram os 1.000 supostos (quadro acima).
+    - **Fixe a CPU e a memória de todo contêiner** — limites fazem da "capacidade por nó" uma propriedade do deploy, não do laptop de quem rodou o teste. Na BoxOffice: `cpus: "1.0"` e `memory: 768M` no [compose do lab 1](../../../hands-on/1/container/index.md).
+    - **Ponha o egress ao lado da banda** — todo gigabyte que sai da nuvem é cobrado; a taxa de acerto da CDN e o preço do egress pertencem à mesma linha da planilha.
+    - **Mantenha uma folha de números da equipe com a fonte de cada número** — latências, vazões e preços mudam com o hardware e os provedores; uma fonte datada diz quando atualizá-la.
+
 !!! warning "Armadilhas comuns"
 
     - **Tratar números de latência como exatos**: são ordens de grandeza; o seu hardware e a sua nuvem serão diferentes.
@@ -234,7 +250,7 @@ Para a **memória de cache**, uma regra prática comum é a regra 80/20: uma peq
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     P2["potências de dois e de dez<br/>1 dia ≈ 10⁵ s"] --> QPS["QPS: média e pico<br/>o pico estimado à parte"]
     LAT["números de latência<br/>RAM, SSD, rede"] --> CACHE["cachear o conjunto quente<br/>→ Caching"]
@@ -249,13 +265,15 @@ flowchart LR
 
 **Componentes da paleta:** [`app`](../../../reference/components/compute/index.md#app) (instâncias = pico / capacidade por nó, mais reservas) · [`sql`](../../../reference/components/storage/index.md#sql) (pedidos e assentos ficam abaixo de um terabyte; o teto de escritas duráveis) · [`cache`](../../../reference/components/storage/index.md#cache) (o conjunto quente, ~0,6 GB para o catálogo) · [`cdn`](../../../reference/components/edge/index.md#cdn) (banda das imagens fora da origem) · [`objstore`](../../../reference/components/storage/index.md#objstore) (PDFs de ingressos, imagens, logs) · [`kafka`](../../../reference/components/messaging/index.md#kafka) (~10 MB/s por partição) · [`vectordb`](../../../reference/components/storage/index.md#vectordb) (~4 KB por embedding). **Cenários:** `monolith`, `read-heavy-cache`, `cdn-static`, `url-shortener`. **Continua em:** [Filas](../queueing/index.md), [Borda — DNS e CDN](../../edge/dns-cdn/index.md), [Caching](../../caching/index.md), [Bancos de dados — particionamento](../../databases/partitioning/index.md), [Estudo de caso: encurtador de URL](../../case-studies/url-shortener/index.md), [Exercício: estimativa](../../../exercises/estimation/index.md).
 
-## Pontos-chave
+## Pontos-chave { #key-takeaways }
 
-- 2¹⁰ ≈ 10³; 1 dia ≈ 10⁵ s; 1 M por dia ≈ 12 por segundo.
-- As latências cobrem oito ordens de grandeza: **RAM ~100 ns, SSD ~100 µs, rede na mesma zona ~0,5 ms, entre continentes ~100 ms**; a maioria das regras de design segue dessas proporções.
-- QPS = usuários × ações / 86.400 × fator de pico; **estime os picos repentinos separadamente**.
-- Armazenamento = itens × tamanho × retenção × replicação (× overhead); banda = QPS × tamanho.
-- Nós = pico / (capacidade × utilização-alvo) + reservas; coloque em cache o **conjunto quente**.
+!!! takeaways ""
+
+    - 2¹⁰ ≈ 10³; 1 dia ≈ 10⁵ s; 1 M por dia ≈ 12 por segundo.
+    - As latências cobrem oito ordens de grandeza: **RAM ~100 ns, SSD ~100 µs, rede na mesma zona ~0,5 ms, entre continentes ~100 ms**; a maioria das regras de design segue dessas proporções.
+    - QPS = usuários × ações / 86.400 × fator de pico; **estime os picos repentinos separadamente**.
+    - Armazenamento = itens × tamanho × retenção × replicação (× overhead); banda = QPS × tamanho.
+    - Nós = pico / (capacidade × utilização-alvo) + reservas; coloque em cache o **conjunto quente**.
 
 ---
 

@@ -11,7 +11,7 @@ three pieces the rest of the lab breaks on purpose:
 | `payment` | `services/payment` (Spring Boot) | 8085 | adapter: idempotent `POST /payments`, calls the PSP with timeouts |
 | `toxiproxy` | `ghcr.io/shopify/toxiproxy:2.13.0` | 8474 (API) | TCP proxy in front of `payment` and `psp`; injects latency, resets, outages |
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     order[order] -->|"PAYMENT_URL = toxiproxy:18085"| tp1["toxiproxy proxy: payment"]
     tp1 --> payment[payment :8085]

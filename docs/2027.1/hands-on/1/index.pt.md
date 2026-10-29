@@ -50,9 +50,9 @@ boxoffice/
 Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** abre a visão do apresentador, com as notas.
 [:material-presentation: Abrir os slides em uma nova aba](slides/catalog.html){:target="_blank"}
 
-## O que você vai construir
+## O que você vai construir { #what-you-will-build }
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     actor Fan as Fã
@@ -83,10 +83,11 @@ O banco começa com **50 locais em 10 cidades e 200.000 eventos** (um por hora a
 
 !!! info "Conexão com a teoria"
 
+    - Na [história da disciplina](../../index.md#story), o `catalog` é o "um serviço, um banco" dos capítulos 1 e 2: os estágios 0 e 1 da [jornada de escala](../../classes/intro/scaling-journey/index.md), e o sistema cuja capacidade a [aula 2](../../classes/estimation/index.md) estima e o lab 2 mede. Sua 1 CPU e suas 10 conexões com o banco são os números que o lab 2 transforma num joelho.
     - Aula 5, [Computação e serviços](../../classes/compute/index.md): servidores de aplicação sem estado, [estilos de API](../../classes/compute/api-styles/index.md) (REST, recursos, códigos de status, versionamento).
     - Aula 6, [Bancos de dados](../../classes/databases/index.md): [modelos de dados](../../classes/databases/models/index.md) relacionais, schemas e migrations.
 
-## Passos
+## Passos { #steps }
 
 <div class="grid cards" markdown>
 
@@ -202,7 +203,7 @@ Registre os resultados em `results/lab1.md`:
 
     Os valores absolutos dependem da sua CPU, da memória dada ao Docker e do que mais está rodando (feche abas e IDEs que não estiver usando). O que deve valer em qualquer máquina: todos os checks passam, o detalhe é várias vezes mais rápido que a listagem, e a segunda execução é mais rápida que a primeira. Se o p95 do detalhe passar de ~100 ms com um usuário, provavelmente falta CPU ou memória ao Docker (`docker stats`).
 
-## Solução de problemas
+## Solução de problemas { #troubleshooting }
 
 | Sintoma | Causa | Correção |
 |---|---|---|
@@ -215,7 +216,15 @@ Registre os resultados em `results/lab1.md`:
 | `?city=São Paulo` devolve 400 ou nada | o espaço e o `ã` precisam ser codificados na URL | use `?city=S%C3%A3o%20Paulo` (o k6 faz isso com `encodeURIComponent`) |
 | `exec format error` no Apple Silicon | uma imagem gerada para outra arquitetura | todas as imagens usadas aqui são multiarquitetura; remova qualquer linha `platform:` e recompile |
 
-## Limpeza
+!!! success "Boas práticas neste lab"
+
+    - **Configure por variáveis de ambiente com padrões seguros** — `DB_POOL_SIZE: ${DB_POOL_SIZE:-10}` no `docker-compose.yaml` e no `application.yaml` deixa o lab 2 mudar o pool sem rebuild; a fórmula por trás do número está em [Filas](../../classes/estimation/queueing/index.md).
+    - **Fixe os recursos de todo contêiner** — `cpus: "1.0"` e `memory: 768M` fazem da capacidade de uma réplica um número mensurável ([Números — servidores](../../classes/estimation/numbers/index.md)).
+    - **Versione o schema como migrations** — `V1__create_catalog.sql` e `V2__seed_catalog.sql` do Flyway reconstroem o mesmo banco em toda máquina; um schema mudado à mão se desencontra.
+    - **Exponha um endpoint de prontidão e deixe a plataforma usá-lo** — o `healthcheck` do Compose chama `/actuator/health/readiness`; os balanceadores de carga dependem do mesmo sinal ([Balanceamento — health checks](../../classes/edge/load-balancing/index.md#health-checks)).
+    - **Escreva o requisito de latência como threshold de teste** — `load/smoke.js` reprova quando um p95 passa do limite ([Requisitos](../../classes/intro/requirements/index.md)).
+
+## Limpeza { #clean-up }
 
 ``` { .bash .copy }
 docker compose down          # stop and remove the containers, keep the database volume
@@ -224,7 +233,7 @@ docker compose down          # stop and remove the containers, keep the database
 
 Mantenha o repositório como está: o lab 2 mede este mesmo serviço.
 
-## Entrega
+## Entrega { #deliverable }
 
 - [ ] `services/catalog` compila e roda com `docker compose up --build`; o Flyway aplica `V1` e `V2`.
 - [ ] Todo endpoint da tabela responde como descrito (teste também os casos `400` e `404` — o corpo deve ser `application/problem+json`[^2]).
@@ -232,7 +241,7 @@ Mantenha o repositório como está: o lab 2 mede este mesmo serviço.
 - [ ] `load/smoke.js` passa em todos os thresholds; `results/lab1.md` está preenchido.
 - [ ] Repositório com a tag `lab1`; [quiz](quiz.md) respondido.
 
-## Estado final
+## Estado final { #end-state }
 
 ``` { .tree title="added in lab 1" }
 boxoffice/

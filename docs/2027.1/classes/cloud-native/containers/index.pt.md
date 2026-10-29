@@ -2,11 +2,11 @@ O serviço `inventory` funciona no notebook da Ana com Java 21.0.4 e falha no do
 
 ---
 
-## Containers são processos, não VMs pequenas
+## Containers são processos, não VMs pequenas { #containers-are-processes-not-small-vms }
 
 Uma **máquina virtual (VM)** emula hardware: cada VM inicializa o próprio kernel sobre um hipervisor. Um **container** é um processo Linux comum que o kernel *isola* e *limita*. Todos os containers de um host compartilham o kernel do host.
 
-``` mermaid
+``` diagram
 flowchart TB
     subgraph VMs["Máquinas virtuais"]
         direction TB
@@ -45,7 +45,7 @@ Como o isolamento é mais fraco, provedores de nuvem que executam containers de 
 
 ---
 
-## O que é uma imagem
+## O que é uma imagem { #what-an-image-is }
 
 Uma **imagem** é um modelo somente leitura a partir do qual containers são iniciados. A **Open Container Initiative (OCI)** padroniza seu formato, de modo que uma imagem construída com Docker roda em containerd, CRI-O ou Podman[^1]. Uma imagem OCI é:
 
@@ -53,7 +53,7 @@ Uma **imagem** é um modelo somente leitura a partir do qual containers são ini
 - uma **config** — variáveis de ambiente, o comando padrão, o usuário, as portas expostas;
 - um **manifest** que lista a config e as camadas por seus **digests** (hashes SHA-256 do conteúdo).
 
-``` mermaid
+``` diagram
 flowchart LR
     m["Manifest<br/>sha256:9f2c…"] --> cfg["Config<br/>ENTRYPOINT, USER, ENV"]
     m --> l1["Camada 1: arquivos do SO base<br/>(distroless / Alpine)"]
@@ -64,13 +64,13 @@ flowchart LR
 
 As camadas são **endereçadas por conteúdo e compartilhadas**: dez serviços do BoxOffice construídos sobre a mesma imagem base armazenam e baixam as camadas base uma única vez. Quando um container inicia, o runtime empilha as camadas somente leitura com um sistema de arquivos overlay e adiciona por cima uma fina camada gravável — que desaparece com o container. Por isso o estado precisa viver em volumes ou em serviços de apoio.
 
-### Tags se movem, digests não
+### Tags se movem, digests não { #tags-move-digests-do-not }
 
 `boxoffice/inventory:1.8.3` é uma **tag**: um ponteiro amigável que qualquer pessoa com permissão de push pode mover para outra imagem. `boxoffice/inventory@sha256:9f2c…` é um **digest**: identifica exatamente um conteúdo. Deploys de produção devem referenciar digests (ou tags imutáveis garantidas pelo registry), para que "a imagem que testamos" seja comprovadamente "a imagem que executamos".
 
 ---
 
-## Um Dockerfile de produção para um serviço do BoxOffice
+## Um Dockerfile de produção para um serviço do BoxOffice { #a-production-dockerfile-for-a-boxoffice-service }
 
 O serviço `catalog` é uma aplicação Spring Boot 4 em Java 21. Um Dockerfile ingênuo copia o código-fonte e executa o Maven dentro da imagem final — produzindo uma imagem grande que contém o compilador, o cache do Maven e o código-fonte. Um **build multi-stage** compila em um estágio e copia apenas o resultado para um estágio de execução mínimo[^2]:
 
@@ -125,7 +125,15 @@ docker run --rm -p 8080:8080 --memory=512m --cpus=1 \
 
     Com a imagem ingênua de um único estágio (JDK + Maven + fontes) o time mediu uma imagem de cerca de 800 MB; a imagem distroless multi-stage ficou abaixo de 250 MB, e uma mudança típica de código enviava uma única camada pequena. Seus números serão diferentes — meça com `docker image ls` e `docker history` —, mas a ordem de grandeza é típica. Imagens menores importam para a **velocidade de escala**: quando o HPA adiciona 20 pods durante a venda, cada nó novo precisa baixar a imagem antes que o pod possa iniciar.
 
-### Encerramento gracioso: a outra metade da descartabilidade
+!!! example "No código do BoxOffice: a imagem do `catalog` (lab 1)"
+
+    O [Hands-on 1 — Container](../../../hands-on/1/container/index.md) escreve uma versão mais simples do Dockerfile acima, com os mesmos dois estágios, um usuário que não é root e `MaxRAMPercentage=75`. Duas escolhas diferem de propósito. As dependências ficam num cache do BuildKit (`--mount=type=cache`) em vez de uma camada separada de `dependency:go-offline`: mais curto de escrever, mas só ajuda na máquina que guarda o cache. E a imagem de execução é `eclipse-temurin:21-jre`, não distroless, porque o health check do Compose roda `wget` dentro do container — uma imagem distroless não tem shell nem ferramentas. O preço é uma imagem maior, com mais pacotes a escanear, e um único fat jar enviado de novo a cada mudança.
+
+    ``` { .dockerfile title="services/catalog/Dockerfile (lab 1)" }
+    --8<-- "docs/2027.1/hands-on/1/code/services/catalog/Dockerfile"
+    ```
+
+### Encerramento gracioso: a outra metade da descartabilidade { #graceful-shutdown-the-other-half-of-disposability }
 
 Quando o Kubernetes substitui um pod, ele envia `SIGTERM`, espera `terminationGracePeriodSeconds` (30 s por padrão) e então envia `SIGKILL`. Um serviço que morre instantaneamente derruba todas as requisições em andamento — inclusive o pagamento de alguém. O Spring Boot resolve isso com duas propriedades:
 
@@ -155,7 +163,7 @@ A [aula de Rede e segurança](../../network-security/zero-trust/index.md) discut
 
 ---
 
-## Docker Compose: o sistema inteiro em uma máquina
+## Docker Compose: o sistema inteiro em uma máquina { #docker-compose-the-whole-system-on-one-machine }
 
 O Compose descreve uma aplicação com vários containers em um único arquivo YAML. Para o BoxOffice, ele é o **ambiente local de desenvolvimento e testes**, não a plataforma de produção:
 
@@ -204,6 +212,14 @@ Os serviços se encontram pelo **nome do serviço** (`db`, `redis`) por meio do 
 
     Containers aparecem quando você fala de **deploy e velocidade de escala**. Dois pontos objetivos bastam: "Os serviços são empacotados como imagens OCI imutáveis, promovidas por digest de staging para produção" e "novas réplicas iniciam em segundos porque as imagens são pequenas e em camadas — o tempo de download importa quando escalamos para o pico". Se insistirem no isolamento, mencione que containers compartilham o kernel e que plataformas multi-inquilino acrescentam micro-VMs (Firecracker, gVisor).
 
+!!! success "Boas práticas"
+
+    - **Ordene o Dockerfile do que muda menos para o que muda mais, e guarde em cache o download das dependências** — uma mudança de código passa a ser reconstruída em segundos em vez de minutos. No BoxOffice: o cache do BuildKit no [Dockerfile do lab 1](../../../hands-on/1/container/index.md).
+    - **Dimensione o heap como fração do limite do container, deixando cerca de 25% para o resto da JVM** — metaspace, pilhas de threads e buffers vivem fora do heap. No BoxOffice: `MaxRAMPercentage=75` sob um limite de 768 MB ([lab 1](../../../hands-on/1/container/index.md)).
+    - **Exponha na imagem endpoints separados de liveness e readiness** — os mesmos endpoints servem ao health check do Compose e às probes do Kubernetes. No BoxOffice: `/actuator/health/readiness` no [lab 1](../../../hands-on/1/container/index.md) e no [lab 10](../../../hands-on/10/deploy/index.md).
+    - **Termine as requisições em andamento no `SIGTERM` em menos tempo que o período de graça** — 20 s de fase de encerramento contra os 30 s do Kubernetes deixam margem antes do `SIGKILL`. No BoxOffice: `SERVER_SHUTDOWN=graceful` no [lab 10](../../../hands-on/10/deploy/index.md).
+    - **Deixe um bot propor atualizações da imagem base e das bibliotecas toda semana, e escaneie toda imagem na CI** — correções chegam como pull requests pequenos e revisados, e uma CVE crítica com correção bloqueia a publicação. No BoxOffice: `dependabot.yml` e o gate do Trivy no [lab 11 — cadeia de suprimentos](../../../hands-on/11/supply-chain/index.md).
+
 !!! warning "Armadilhas"
 
     - **`latest` em produção**: você não sabe o que está rodando, e o rollback fica ambíguo.
@@ -215,7 +231,7 @@ Os serviços se encontram pelo **nome do serviço** (`db`, `redis`) por meio do 
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     NS["namespaces + cgroups"] --> CT["container =<br/>processo isolado"]
     IMG["imagem OCI: camadas,<br/>config, manifest"] --> CT

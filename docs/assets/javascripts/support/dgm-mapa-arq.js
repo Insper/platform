@@ -29,6 +29,24 @@
   const range = k => { const cs = THEME[k].cls; return cs.length > 1 ? cs[0] + '–' + cs[cs.length - 1] : cs[0]; };
   const STAGE = Object.fromEntries(A.STAGES.map(([k, name, icon]) => [k, { name, icon }]));
 
+  /* pt: the texts of mapa-arq-dados-pt.js over a copy of the data (the English data stay untouched: the
+     language can change without a page reload). Nodes by id, edges by "from>to", trails by position;
+     the search also keeps the English words (alt). */
+  function localize(data, pt) {
+    const N = pt.nodes || {}, E = pt.edges || {}, T = pt.trails || [];
+    return {
+      nodes: data.nodes.map(n => {
+        const o = N[n.id];
+        return o ? Object.assign({}, n, { n: o.n, d: o.d, alt: [n.n, n.alt, o.alt].filter(Boolean).join(' ') }) : n;
+      }),
+      edges: data.edges.map(([a, b, s]) => [a, b, E[a + '>' + b] || s]),
+      trails: data.trails.map((tr, i) => {
+        const o = T[i];
+        return o ? { n: o.n, p: tr.p.map(([id, s], j) => [id, o.p[j] || s]) } : tr;
+      }),
+    };
+  }
+
   function prepare(data) {
     const NODES = data.nodes.filter(n => n.a.every(([c]) => A.LESSON[c]));
     NODES.forEach(n => {
@@ -354,6 +372,7 @@
     root.classList.add('mp');
     root.textContent = t('Loading the map…', 'Carregando o mapa…');
     D.loadData('mapa-arq-dados.js', 'MAPA_ARQ')
+      .then(data => (D.isPT ? D.loadData('mapa-arq-dados-pt.js', 'MAPA_ARQ_PT').then(pt => localize(data, pt), () => data) : data))
       .then(data => mount(root, data))
       .catch(err => { console.error('[support] mapa-arq', err); root.textContent = t('The map could not be loaded. Reload the page.', 'Não foi possível carregar o mapa. Recarregue a página.'); });
   });

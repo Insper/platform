@@ -2,6 +2,10 @@ No ano passado, a maior venda do BoxOffice caiu às 10:02. O time *tinha* feito 
 
 Engenharia de desempenho é a disciplina que evita esse post-mortem. Não é "rodar uma ferramenta e olhar um gráfico": é um **método** — declarar o objetivo, modelar a carga de trabalho, gerar carga que se comporte como usuários reais, medir o que os usuários sentem, encontrar o único recurso que limita o sistema, corrigi-lo e medir de novo. Esta aula ensina o método e as ferramentas, usando a venda relâmpago do BoxOffice como caso de teste.
 
+!!! quote "A história até aqui"
+
+    Capítulo 15 da [história da disciplina](../../index.md#story). Cada capítulo acrescentou uma caixa ao BoxOffice porque um número pediu: uma borda e réplicas sem estado ([aula 4](../edge/index.md), [aula 5](../compute/index.md)), um banco que vende cada assento uma vez só ([aula 6](../databases/index.md)), um cache ([aula 7](../caching/index.md)), uma sala de espera ([aula 8](../messaging/index.md)), SLOs e disjuntores ([aula 9](../observability/index.md), [aula 10](../reliability/index.md)), Kubernetes ([aula 11](../cloud-native/index.md)) — e, desde a [aula 14](../ai-delivery/index.md), as mudanças chegam mais rápido do que alguém consegue reverificá-las à mão. Cada caixa foi medida sozinha, no seu próprio lab. **Esta aula** responde: o projeto *inteiro* aguenta a próxima venda — 2 M de fãs às 10:00, p99 abaixo de 300 ms —, como provar isso, e como manter a prova a cada mudança?
+
 !!! abstract "Objetivos de aprendizagem"
 
     Ao final desta aula você deverá ser capaz de:
@@ -14,7 +18,7 @@ Engenharia de desempenho é a disciplina que evita esse post-mortem. Não é "ro
     - **Diagnosticar** um gargalo com profiling (flame graphs do async-profiler e do py-spy), ferramentas de banco de dados (`EXPLAIN ANALYZE`, `pg_stat_statements`) e dimensionamento de pools.
     - **Planejar** capacidade com a Lei de Little e folga, e **impor** orçamentos de desempenho na CI.
 
-## Roteiro
+## Roteiro { #roadmap }
 
 1. **Esta visão geral** — o vocabulário, a curva vazão–latência e seu joelho, e o ciclo de engenharia de desempenho.
 2. [Metodologia](methodology/index.md) — anti-métodos, caracterização da carga, os métodos USE e RED, ambientes de teste, dados de teste e aquecimento.
@@ -34,7 +38,7 @@ Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** a
 
 ---
 
-## O vocabulário de desempenho
+## O vocabulário de desempenho { #the-vocabulary-of-performance }
 
 Palavras precisas evitam a maioria das discussões sobre desempenho. A [aula de Estimativas](../estimation/index.md) as apresentou; aqui elas viram alvos de medição.
 
@@ -62,7 +66,7 @@ Três relações valem para qualquer sistema estável e merecem ser memorizadas:
 
 ---
 
-## A curva vazão–latência e seu joelho
+## A curva vazão–latência e seu joelho { #the-throughputlatency-curve-and-its-knee }
 
 Todo sistema, de uma thread a um data center, mostra a mesma forma quando você aumenta a carga. O gráfico da esquerda modela um pod de `inventory` com 8 threads de trabalho e 20 ms de tempo médio de serviço — capacidade de 400 requisições por segundo — como uma fila M/M/8. O da direita usa a **Lei Universal de Escalabilidade** (USL, *Universal Scalability Law*), que adiciona *contenção* (σ, esperar por recursos compartilhados) e *coerência* (κ, o custo de manter o estado compartilhado consistente) à escala linear ideal[^2]:
 
@@ -153,6 +157,14 @@ Leia os dois gráficos juntos:
 
     Se um pod de `inventory` mantém o p99 abaixo de 300 ms até 275 req/s e colapsa em 360, o número de capacidade para o planejamento é **275**, não 360. Para uma venda que espera 4 500 requisições de reserva por segundo no pico, isso significa ⌈4 500 / 275⌉ = 17 pods *antes* da folga — 22 a 75 % do joelho, 33 para sobreviver à perda de uma de três zonas — e um banco que aguente as conexões de 33 pods. A página de [Planejamento de capacidade](capacity-planning/index.md) constrói esse modelo de ponta a ponta.
 
+!!! example "No código do BoxOffice: o joelho do `catalog`, medido (lab 2)"
+
+    O [Hands-on 2 — Medir primeiro](../../hands-on/2/index.md) encontra o joelho exatamente como esta seção descreve: o `sweep.sh` roda o `load.js` (modelo aberto) uma vez por taxa de chegada, um minuto cada, depois de um aquecimento de 30 s que não é registrado, e espera 10 s entre os passos para as filas esvaziarem. Na execução de exemplo do lab (`catalog` limitado a 1 CPU, pool de 10 conexões com o banco), o p99 é 38,6 ms a 300 req/s, 223,7 ms a 400 e 2.056 ms a 500 — onde o k6 também descartou 410 iterações. O joelho fica entre 300 e 400 req/s, e o recurso que saturou foi o pool de conexões, não a CPU.
+
+    ``` { .bash title="scripts/sweep.sh (one load test per arrival rate)" }
+    --8<-- "docs/2027.1/hands-on/2/code/scripts/sweep.sh"
+    ```
+
 Experimente: este cenário do playground é o sistema mais simples possível — cliente → servidor de aplicação → banco SQL — rodando o perfil **breakpoint**, que aumenta a taxa de chegada passo a passo até algo quebrar. Pressione **Run** e observe três números juntos: vazão, latência p99 e a utilização de cada componente. Anote a taxa em que o p99 começa a se curvar (o joelho) e qual componente chega a 100 % primeiro (o gargalo). Depois dê mais capacidade a esse componente e rode de novo: o joelho se move, e qual componente vira o novo gargalo?
 
 <div class="sdp" data-scenario="monolith" data-mode="compact" data-profile="breakpoint" data-height="520"></div>
@@ -161,11 +173,11 @@ Experimente: este cenário do playground é o sistema mais simples possível —
 
 ---
 
-## O ciclo de engenharia de desempenho
+## O ciclo de engenharia de desempenho { #the-performance-engineering-loop }
 
 Trabalho de desempenho é um ciclo científico, não um evento único antes do lançamento[^3]:
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     slo["1. Objetivos<br/>SLOs por endpoint,<br/>pico esperado"] --> model["2. Modelo de carga<br/>mix, padrão de chegada,<br/>dados"]
     model --> test["3. Teste<br/>cenário k6 em um<br/>ambiente parecido com produção"]
@@ -191,6 +203,14 @@ flowchart LR
 
     Quando um entrevistador perguntar "como você saberia que este design aguenta o pico?", não diga "faríamos um teste de carga". Diga **o que** você testaria e **como leria**: "Um teste k6 de modelo aberto na taxa de chegada de pico esperada, com o mix realista de endpoints, thresholds de p99 e taxa de erros por endpoint, longo o suficiente para atingir o regime permanente com caches aquecidos; depois um teste breakpoint para achar o joelho e calcular a folga; o método USE no banco e no pool de conexões para descobrir o que satura primeiro."
 
+!!! success "Boas práticas"
+
+    - **Mantenha os testes de carga no repositório do serviço, versionados com o código** — um script que se afasta da API mede um endpoint que já não existe. No BoxOffice: a pasta `load/` do repositório, do [lab 2](../../hands-on/2/index.md) ao [lab 11](../../hands-on/11/performance-gate/index.md).
+    - **Registre cada execução com suas condições** — commit, configuração (tamanho do pool, limite de CPU), snapshot dos dados e máquina ao lado dos números; um p99 sem as condições não pode ser comparado com o próximo. No BoxOffice: `results/lab2.md` e as pastas da varredura do [lab 2](../../hands-on/2/index.md).
+    - **Publique a capacidade como um número por réplica, com o seu SLO** — "`catalog`: 300 req/s com p99 < 300 ms em 1 CPU" é o número de que saem o planejamento de capacidade, o autoscaling e a taxa de admissão da sala de espera. No BoxOffice: o joelho medido no [lab 2](../../hands-on/2/index.md).
+    - **Leia o cliente e o servidor no mesmo eixo de tempo** — o k6 diz *que* o p99 quebrou, as métricas RED e USE dos serviços dizem *onde*; marque cada execução e coloque os dois no mesmo Grafana. No BoxOffice: a pilha `otel-lgtm` do [lab 8](../../hands-on/8/index.md).
+    - **Barre cada mudança com um orçamento curto; rode a campanha completa antes de cada grande evento** — um teste de 1 minuto em cada pull request pega o índice que falta; só os testes longos de load, spike e breakpoint provam a venda. No BoxOffice: o job `performance budget` do [lab 11](../../hands-on/11/performance-gate/index.md).
+
 !!! warning "Armadilhas comuns"
 
     - **Sem objetivo**: um teste sem critério de aprovação produz gráficos, não decisões.
@@ -206,7 +226,7 @@ flowchart LR
 
 A engenharia de desempenho não acrescenta caixas novas à paleta: ela **mede** as que você já tem. O mapa liga cada **componente da paleta** (verde) aos **conceitos** usados para carregá-lo, observá-lo e dimensioná-lo (azul):
 
-``` mermaid
+``` diagram
 flowchart LR
     client["client · mobile<br/>(k6 generates them)"]:::comp --> edge["apigw · lb"]:::comp
     edge --> app["app"]:::comp
@@ -237,19 +257,25 @@ flowchart LR
 
 ---
 
-## Relacionados
+## Relacionados { #related }
 
-- Hands-on: [2. Medir primeiro](../../hands-on/2/index.md) (k6 smoke/load/stress no `catalog`, encontrar o joelho, verificação da Lei de Little), [9. Resiliência e caos](../../hands-on/9/index.md) (Toxiproxy sob carga) e [11. Entrega](../../hands-on/11/index.md) (gate de orçamento de desempenho com k6 na CI).
+- Hands-on: [2. Medir primeiro](../../hands-on/2/index.md) (k6 smoke/load/stress no `catalog`, encontrar o joelho, verificação da Lei de Little), [6. Dados em escala](../../hands-on/6/index.md) (`EXPLAIN ANALYZE`, índices, PgBouncer), [9. Resiliência e caos](../../hands-on/9/index.md) (k6 sob falhas do Toxiproxy) e [11. Entrega](../../hands-on/11/index.md) (gate de orçamento de desempenho com k6 na CI).
 - Exercício: [Relatório de teste de carga](../../exercises/load-test-report/index.md); projeto: [Campanha de testes de carga](../../exercises/project/load-test-campaign/index.md) e [Game day](../../exercises/project/game-day/index.md).
 - Aulas: [Estimativas — filas](../estimation/queueing/index.md) e [percentis](../estimation/percentiles/index.md), [Observabilidade](../observability/index.md), [Confiabilidade — engenharia do caos](../reliability/chaos/index.md).
 - Estudo de caso: [Ticketing (venda relâmpago do BoxOffice)](../case-studies/ticketing/index.md); ferramentas: [Referência — ferramentas](../../reference/tools/index.md).
 
-## Pontos-chave
+## Pontos-chave { #key-takeaways }
 
-- Tempo de resposta = tempo de serviço + **espera**; perto da saturação, a espera domina. $N = X \times R$ e $U = X \times S$ conectam os números.
-- Todo sistema tem um **joelho**: planeje com a vazão em que o SLO de latência ainda vale, não com o máximo.
-- Depois do pico, mais concorrência pode significar **menos** vazão (USL) — controle de admissão é melhor que sobrecarga.
-- Engenharia de desempenho é um **ciclo**: objetivos → modelo de carga → teste → análise → mudar uma coisa → testar de novo → orçamento na CI.
+!!! takeaways ""
+
+    - Tempo de resposta = tempo de serviço + **espera**; perto da saturação, a espera domina. $N = X \times R$ e $U = X \times S$ conectam os números.
+    - Todo sistema tem um **joelho**: planeje com a vazão em que o SLO de latência ainda vale, não com o máximo.
+    - Depois do pico, mais concorrência pode significar **menos** vazão (USL) — controle de admissão é melhor que sobrecarga.
+    - Engenharia de desempenho é um **ciclo**: objetivos → modelo de carga → teste → análise → mudar uma coisa → testar de novo → orçamento na CI.
+
+## O que quebra em seguida { #what-breaks-next }
+
+A engenharia de desempenho prova *este* projeto para *esta* carga: um sistema de ingressos, uma venda, uma mistura de cerca de 80 % de leituras e 20 % de reservas e pedidos, um joelho medido nos próprios pods do BoxOffice. O método — modelo de carga, testes de modelo aberto, o joelho, a folga, um orçamento na CI — vale para qualquer sistema; os números e as caixas, não. Um feed de notícias espalha cada post para milhões de seguidores, um chat mantém milhões de conexões abertas por horas, um app de corridas grava a posição de cada motorista a cada poucos segundos: números diferentes pedem blocos diferentes. Reconhecer quais blocos dos quinze capítulos anteriores um sistema novo precisa, e qual número pede cada um, é a [aula 16 — Estudos de caso](../case-studies/index.md).
 
 ---
 

@@ -13,7 +13,7 @@ A fan pays for two seats, the BoxOffice `order` service saves the order… and c
 
 [Class 8](../../classes/messaging/index.md) covered queues, pub/sub and the event log, Kafka's partitions and consumer groups, delivery semantics and the outbox/saga patterns[^1]. [Lab 7](../../hands-on/7/index.md) set up Kafka (KRaft) with BoxOffice's `order` and `notification` services. Here you make that flow **correct under failure** and prove it.
 
-```mermaid-sim
+``` diagram-sim
 flowchart LR
     client([k6]) -->|POST /orders| order[order]
     order -->|"1 · one transaction: order + outbox row"| odb[("order_svc<br/>orders · outbox")]

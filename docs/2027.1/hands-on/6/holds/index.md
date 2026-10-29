@@ -4,7 +4,7 @@ A **hold** says "these seats are mine for 10 minutes, while I pay". The invarian
 
 The obvious code reads the seats, checks they are `AVAILABLE`, then updates them. Under concurrency, two transactions can interleave:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     participant A as Fan A (tx 1)
@@ -34,6 +34,16 @@ PostgreSQL's default isolation, **READ COMMITTED**, does not prevent this *lost 
 ## 2. The `inventory` service
 
 Create `services/inventory` (port **8083**, schema `inventory`, same `Dockerfile` pattern with `EXPOSE 8083`). It uses **JdbcClient** with plain SQL instead of JPA: every lock and every `WHERE` is visible in the code, which is the point of this lab.
+
+??? example "`services/inventory/Dockerfile` and `.dockerignore` (same as `catalog`, only `EXPOSE 8083` changes)"
+
+    ``` { .dockerfile title="services/inventory/Dockerfile" .copy linenums="1" }
+    --8<-- "docs/2027.1/hands-on/6/code/services/inventory/Dockerfile"
+    ```
+
+    ``` { .text title="services/inventory/.dockerignore" .copy }
+    --8<-- "docs/2027.1/hands-on/6/code/services/inventory/.dockerignore"
+    ```
 
 ``` { .xml title="services/inventory/pom.xml" .copy linenums="1" }
 --8<-- "docs/2027.1/hands-on/6/code/services/inventory/pom.xml"

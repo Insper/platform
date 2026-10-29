@@ -3,6 +3,10 @@ It is 10:00 and BoxOffice opens the sale of a stadium show: two million fans, si
 
 The twelve case studies below are the classic system-design interview problems. They are not twelve unrelated systems: they are **the same few ideas** — cache the hot reads, take slow work off the critical path, choose a partition key, make retries safe, protect the one resource that cannot scale — combined in different proportions. Studying them is how the vocabulary of the course becomes a reflex.
 
+!!! quote "The story so far"
+
+    Chapter 16, the last of the [story of the course](../../index.md#story). Every earlier chapter added one box to BoxOffice because a number asked for it, and [class 15](../performance/index.md) proved that the boxes hold together at 10:00. The next system will not be BoxOffice: it will be a feed, a chat, a ride app — the same blocks with other numbers. **This class** answers: can you rebuild that reasoning, number by number, for a system you have never seen, in 45 minutes?
+
 !!! abstract "Learning objectives"
 
     By the end of this class you should be able to:
@@ -71,7 +75,7 @@ The ten sections of each case page map onto these steps: requirements (1), estim
 
 Each case embeds the [System Design Playground](../../../playground/index.md) preloaded with its scenario. The playground is a simulator, not a benchmark: its numbers are illustrative, but the **shapes** (where the queue grows, when p99 bends, which component saturates first) are the ones you will see in real systems and in the labs.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     p["Predict<br/>what breaks first?"] --> r["Run<br/>load / spike profile"]
     r --> o["Observe<br/>utilization, p99,<br/>errors, backlog, cost"]
@@ -126,6 +130,14 @@ After a few cases you will notice that the deep dives are drawn from a short lis
 
     Every case page has a BoxOffice connection: short links in ticket SMS (URL shortener), "5 holds per minute" (rate limiter), the "Following" tab when an artist announces a tour (news feed), fan groups during a festival (chat), 60 000 fans leaving the stadium (ride sharing), trailers on event pages (video), "doors open in 2 h" (notifications), the payment adapter (payments), search-as-you-type for artists (autocomplete), the support assistant (AI) and, of course, the flash sale itself (ticketing).
 
+!!! success "Best practices"
+
+    - **Write, for every box of the design, the number that put it there and what it costs** — "waiting room: 33,000 holds/s against ~1,100; costs a queue and a fair-ordering rule". A box without a number is the first one a reviewer removes.
+    - **Name the one resource that cannot scale, and protect it first** — the hot seat row, the payment provider's quota, the LLM provider's tokens per minute; admission control goes in front of it before any other optimization.
+    - **Give every write that crosses the network an idempotency key** — holds, payments, notifications; retries happen at every layer. In BoxOffice: the same `Idempotency-Key` travels `order → payment → PSP` ([lab 9](../../hands-on/9/payment/index.md)).
+    - **Choose the consistency of each piece of data, and write it down** — seats and payments strong, counters and feeds eventual; the table is part of the design doc, not a hallway decision.
+    - **Load-test the predicted peak before the event, with the slow dependency stubbed** — the knee is measured, not assumed. In BoxOffice: [lab 2](../../hands-on/2/index.md) finds the knee and [lab 11's performance gate](../../hands-on/11/performance-gate/index.md) keeps it.
+
 !!! warning "Common pitfalls in design interviews"
 
     - **Jumping to the solution** ("we use Kafka and Cassandra") before requirements and numbers.
@@ -140,7 +152,7 @@ After a few cases you will notice that the deep dives are drawn from a short lis
 
 The twelve cases are combinations of the same patterns. The map groups the cases by the **pattern** they share (blue), the classes that teach it, and the **palette components** that implement it (green); the matrix below says which classes each case tests — ● a deep dive is built on it, ○ it is part of the design, — not central. Each case page ends with its own *How it connects* diagram.
 
-``` mermaid
+``` diagram
 flowchart LR
     g1["URL shortener · news feed<br/>autocomplete · video"] --> p1["cache the hot reads<br/>(Caching, Edge)"]:::tech
     g2["notifications · video<br/>news feed · payments"] --> p2["slow work off the critical path<br/>(Messaging, Compute)"]:::tech
@@ -170,6 +182,10 @@ flowchart LR
 | [Payment system](payment-system/index.md) | ● | ○ | ● | ● | — | ● | ● | Network & Security (PCI DSS scope) |
 | [Ticketing (BoxOffice)](ticketing/index.md) | ○ | ● | ○ | ● | ○ | ● | ● | Performance (Little's Law admission, spike test) |
 | [AI assistant](ai-assistant/index.md) | — | ○ | — | ○ | ○ | — | ○ | **AI systems ●** (gateway, agents, RAG, safety) |
+
+## What breaks next { #what-breaks-next }
+
+Nothing in the course breaks next — the next system is yours. Sixteen chapters turned one service and one database into a design where every box has a number that put it there and a price: the waiting room because 33,000 holds/s meet ~1,100, the cache because the event pages are read 100× more than they change, the circuit breaker because the provider answers in 4 s instead of 200 ms. Three places test whether that reasoning became yours. The [team project](../../exercises/project/index.md) builds and load-tests a system through its milestones and breaks it on purpose on the [game day](../../exercises/project/game-day/index.md). The [mock interviews](../../support/interview/mock/index.md) ask for it out loud, in 45 minutes, for a system you have not seen. The [design doc](../../exercises/design-doc/index.md) asks you to write it down so that someone else can disagree with a number. In all three, the question is the one every chapter asked: **which number puts this box here, and what does it cost?**
 
 ---
 

@@ -1,6 +1,6 @@
 A **cache stampede** (also *thundering herd* or *dog-piling*) happens when a **hot key** expires: every request that arrives before the value is rebuilt misses, and all of them run the same expensive query at the same time. The database, which the cache was protecting, receives a burst of identical work exactly when traffic is highest.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     participant F1 as Fan 1

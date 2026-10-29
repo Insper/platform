@@ -3,6 +3,10 @@ Friday, 10:00. **BoxOffice**, a small ticketing start-up, opens the sale for the
 
 This course is about that layer — the decisions that sit *above* the code and decide whether the code survives contact with reality. By the end of the semester you will be able to design BoxOffice so that 10:00 on Friday is a non-event, **measure** that it works, and **defend** every decision with numbers, in a design review or in a system-design interview.
 
+!!! quote "The story so far"
+
+    Chapter 1 of the [story of the course](../../index.md#story). BoxOffice is, for now, one service and one database — and nobody has written down what "works" means: how many fans, how fast, how available, and what must never happen. **This class** answers: what must BoxOffice do, and how well — stated as numbers that a design can be checked against?
+
 !!! abstract "Learning objectives"
 
     By the end of this class you should be able to:
@@ -86,7 +90,7 @@ Its services — which you will build, measure and break in the labs — are `ga
 
 This is where BoxOffice is heading by the end of the semester. Press play to follow a purchase through it:
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     fan([Fan]) --> cdn["CDN"]
     fan --> waf["WAF"]
@@ -119,17 +123,17 @@ Real architectures are assembled from a surprisingly small set of building block
 | **Client** | Client, Mobile | [1. Intro](index.md) |
 | **Traffic & edge** | DNS, CDN, Load Balancer, WAF, API Gateway, Ingress | [4. Traffic & Edge](../edge/index.md) |
 | **Compute** | App Server, Worker, Serverless, Auth Service, Search, Scheduler, Notifications, Analytics | [5. Compute & Services](../compute/index.md) |
-| **Containers** | Microservice, Container, Kubernetes Cluster, Service Registry | [12. Cloud-Native](../cloud-native/index.md), [5. Compute & Services](../compute/services/index.md) |
+| **Containers** | Microservice, Container, Kubernetes Cluster, Service Registry | [11. Cloud-Native](../cloud-native/index.md), [5. Compute & Services](../compute/services/index.md) |
 | **Storage** | SQL Database, DB Cluster, NoSQL DB, Cache, Object Store, Data Warehouse, Vector DB | [6. Databases](../databases/index.md), [7. Caching](../caching/index.md) |
 | **Messaging** | Message Queue, Pub/Sub, Event Stream, Kafka | [8. Messaging](../messaging/index.md) |
-| **Observability** | Metrics, Logs, Tracing, Alerting, Health Check | [10. Observability](../observability/index.md) |
-| **Network** | VPC, Subnet, NAT Gateway, VPN, Service Mesh | [11. Network & Security](../network-security/index.md) |
+| **Observability** | Metrics, Logs, Tracing, Alerting, Health Check | [9. Observability](../observability/index.md) |
+| **Network** | VPC, Subnet, NAT Gateway, VPN, Service Mesh | [12. Network & Security](../network-security/index.md) |
 | **AI & agents** | LLM Gateway, Orchestrator, Tool Registry, Memory Fabric, Safety Mesh | [13. AI Systems](../ai-systems/index.md) |
 | **External** | 3rd Party API, Payment, Email | [5. Compute & Services](../compute/index.md) |
 
 The other classes are **cross-cutting**: they do not add boxes, they give you the tools to reason about all of them.
 
-``` mermaid
+``` diagram
 flowchart TB
     subgraph F["Foundations"]
         direction LR
@@ -196,7 +200,7 @@ The second scenario puts a load balancer in front of several replicas of the app
 
 This class touches the whole palette lightly: every **quality attribute** (blue) is bought with some **palette components** (green), and the scaling journey adds them one measured symptom at a time. Use the map as an index to the rest of the course:
 
-``` mermaid
+``` diagram
 flowchart LR
     client["client · mobile"]:::comp --> req["requirements:<br/>functional + quality attributes"]:::tech
     req --> scal["scalability"]:::tech
@@ -238,6 +242,14 @@ flowchart LR
 - **Break things on purpose.** In the playground and in the labs, find the breaking point, then fix it. You learn more from one saturation than from ten diagrams.
 - **Practise out loud.** System design is a conversation. Use the [interview framework](interview-framework/index.md) with a classmate every week, starting now.
 
+!!! success "Best practices"
+
+    - **Tie every component to a requirement** — each box of a design should point to the number it serves (a load, a latency target, an availability); a box that serves no number is cost without a reason. In BoxOffice: the [non-functional requirements](requirements/index.md) of the first release.
+    - **Keep the design doc's numbers with their source** — an assumption marked as such, a measurement with its date and setup — so a reviewer can check any of them in minutes. In BoxOffice: every lab ends with a `results/labN.md` file ([Hands-on 2](../../hands-on/2/index.md#measure-it)).
+    - **Change one thing per experiment, and measure before and after** — two changes at once make the result impossible to explain. In BoxOffice: lab 2 changes only the pool size and repeats the same sweep.
+    - **Record each decision with the alternative you rejected and its price** — a short decision record (context, decision, consequences) answers "why Redis?" six months later, when the people who decided are gone.
+    - **For every box, write what happens when it is slow or down** — one line per component, before it is built; partial failure is the normal case in a system of many machines ([class 3](../distributed/index.md)).
+
 !!! warning "Common pitfalls when starting"
 
     - **Jumping to technology names** ("Kafka! Kubernetes! microservices!") before understanding the problem and its numbers.
@@ -254,13 +266,19 @@ flowchart LR
 - Case study: [Ticketing — the BoxOffice flash sale](../case-studies/ticketing/index.md), the full design of the system introduced here.
 - Interview: [Interview framework](../../support/interview/framework/index.md) and [practice problems](../../support/interview/problems/index.md).
 
-## Key takeaways
+## Key takeaways { #key-takeaways }
 
-- System design decides **components, interfaces and data** so that a system meets functional *and* non-functional requirements under **load** and **partial failure**.
-- It is a **trade-off discipline**: every component buys one quality with another; good designs say which.
-- The course is organized around a **component palette** of ten categories; each theory class teaches one group, and the [catalog](../../reference/components/index.md) is your dictionary.
-- **BoxOffice** — a ticketing platform with a 10:00 flash sale — is the example everywhere.
-- The **playground** lets you build, load and break architectures in minutes; the labs do the same with real code and real measurements.
+!!! takeaways ""
+
+    - System design decides **components, interfaces and data** so that a system meets functional *and* non-functional requirements under **load** and **partial failure**.
+    - It is a **trade-off discipline**: every component buys one quality with another; good designs say which.
+    - The course is organized around a **component palette** of ten categories; each theory class teaches one group, and the [catalog](../../reference/components/index.md) is your dictionary.
+    - **BoxOffice** — a ticketing platform with a 10:00 flash sale — is the example everywhere.
+    - The **playground** lets you build, load and break architectures in minutes; the labs do the same with real code and real measurements.
+
+## What breaks next { #what-breaks-next }
+
+The requirements now have numbers — 2 million fans in the first minute, 60,000 seats, hold p99 < 300 ms, checkout available 99.95% of the time — but nobody has checked them against the single PostgreSQL that BoxOffice runs on. Whether it takes the 10:00 on-sale is not a matter of opinion, it is arithmetic: requests per second, the time one hold keeps the database busy, how full it can run before latency explodes. Doing that arithmetic, and finding ~33,000 hold attempts/s against ~1,100 that one database sustains, is [class 2 — Estimation](../estimation/index.md).
 
 ---
 

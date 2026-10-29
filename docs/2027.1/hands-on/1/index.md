@@ -52,7 +52,7 @@ Click the slides and use ← → to move through them; **F** goes full screen an
 
 ## What you will build
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     actor Fan
@@ -83,6 +83,7 @@ The database starts with **50 venues in 10 cities and 200,000 events** (one per 
 
 !!! info "Theory connection"
 
+    - In the [story of the course](../../index.md#story), `catalog` is the "one service, one database" of chapters 1 and 2: stages 0 and 1 of the [scaling journey](../../classes/intro/scaling-journey/index.md), and the system whose capacity [class 2](../../classes/estimation/index.md) estimates and lab 2 measures. Its 1 CPU and 10 database connections are the numbers that lab 2 turns into a knee.
     - Class 5, [Compute & services](../../classes/compute/index.md): stateless app servers, [API styles](../../classes/compute/api-styles/index.md) (REST, resources, status codes, versioning).
     - Class 6, [Databases](../../classes/databases/index.md): relational [data models](../../classes/databases/models/index.md), schemas and migrations.
 
@@ -214,6 +215,14 @@ Record the results in `results/lab1.md`:
 | `curl: (7) Failed to connect to localhost port 8082` | the container is not up yet, or port not published | `docker compose ps`; wait for `healthy` |
 | `?city=São Paulo` returns 400 or nothing | the space and the `ã` must be URL-encoded | use `?city=S%C3%A3o%20Paulo` (k6 does it with `encodeURIComponent`) |
 | `exec format error` on Apple Silicon | an image built for another architecture | all images used here are multi-arch; remove any `platform:` line and rebuild |
+
+!!! success "Best practices in this lab"
+
+    - **Configure through environment variables with safe defaults** — `DB_POOL_SIZE: ${DB_POOL_SIZE:-10}` in `docker-compose.yaml` and `application.yaml` lets lab 2 change the pool without a rebuild; the formula behind the number is in [Queueing](../../classes/estimation/queueing/index.md).
+    - **Fix the resources of every container** — `cpus: "1.0"` and `memory: 768M` make one replica's capacity a measurable number ([Numbers — servers](../../classes/estimation/numbers/index.md)).
+    - **Version the schema as migrations** — Flyway's `V1__create_catalog.sql` and `V2__seed_catalog.sql` rebuild the same database on every machine; a schema changed by hand drifts.
+    - **Expose a readiness endpoint and let the platform use it** — the Compose `healthcheck` calls `/actuator/health/readiness`; load balancers rely on the same signal ([Load balancing — health checks](../../classes/edge/load-balancing/index.md#health-checks)).
+    - **Write the latency requirement as a test threshold** — `load/smoke.js` fails when a p95 passes its limit ([Requirements](../../classes/intro/requirements/index.md)).
 
 ## Clean up
 

@@ -27,7 +27,7 @@ The numbers are orders of magnitude for a read-heavy web product, not thresholds
 
 The first version of BoxOffice is a single Spring Boot application and a PostgreSQL database **on the same virtual machine**. DNS points the domain to its IP address.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     fan([Fan]) --> dns["DNS"]
     dns -.->|IP address| fan
@@ -50,7 +50,7 @@ This is the **right** architecture for the first users: one thing to deploy, mon
 
 **Change**: put a **load balancer** in front of two or more identical **app server** replicas. The load balancer spreads requests, runs **health checks**, and stops sending traffic to a replica that fails them. Deploys become rolling: update one replica at a time.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     fan([Fan]) --> lb["Load Balancer<br/>+ health checks"]
     lb --> a1["App #1"]
@@ -65,13 +65,21 @@ flowchart LR
 
 You explored this stage in the overview with the `scale-out` scenario: replicas multiply app capacity, but **the single database stays a single database**.
 
+!!! example "In the BoxOffice code: stage 2, built (lab 3)"
+
+    [Hands-on 3](../../../hands-on/3/index.md) builds this stage with Docker Compose: three identical `catalog` replicas started from one definition, **no published port** on any of them, and Nginx as the only door. The only code change is a filter that stamps the replica's name on each response — a stateless service scales out without touching its logic. The lab then measures the warning above: with cheap requests, three replicas bring three cores; with the lab 2 mix, PostgreSQL is the bottleneck — in a test run, `db` sat at ~670% CPU while each replica used ~20% — and the extra replicas only send more concurrent queries to the same database. That is the symptom that opens stage 3 (and labs 5 and 6).
+
+    ``` { .yaml title="docker-compose.yaml (three replicas, one door)" }
+    --8<-- "docs/2027.1/hands-on/3/code/docker-compose.yaml:47:67"
+    ```
+
 ## Stage 3 — read replicas
 
 **Symptom**: the database CPU is at 70% at the peak hour. Looking at the query log, **~95% of the queries are reads** — event pages, venue info, seat maps.
 
 **Change**: add **read replicas**. The primary receives all writes and streams its changes to the replicas; reads go to the replicas. Read capacity grows with each replica; write capacity does not change.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     app["App servers"] -->|writes| primary[("Primary")]
     primary -->|replication| r1[("Replica 1")]
@@ -122,7 +130,7 @@ The arithmetic is what makes caches the most powerful tool in the palette. With 
 
 **Change**: a **waiting room** — itself a queue. Fans get a place in line and are admitted at the rate the inventory can sustain (say, 1,000 per second). The spike becomes a long, flat, predictable load. [Class 2](../../estimation/queueing/index.md) computes how long the line is with Little's Law.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     fan([Fans]) --> wr["Waiting room<br/>(queue)"]
     wr -->|"admit 1,000/s"| inv["inventory"]
@@ -145,7 +153,7 @@ flowchart LR
 
 **Change**: extract **services** along business boundaries — first the ones with clearly different needs: `inventory` (hot, strongly consistent, scaled for on-sales), `notification` (asynchronous), `search` (a different database). An **API Gateway** becomes the single entry point (routing, authentication, rate limiting). Services communicate through APIs and through an **event stream** (Kafka) for facts like `OrderPaid`, which several consumers (notification, analytics, search) react to.
 
-**New problems**: what used to be a function call is now a network call that can be slow or fail; a transaction across services is no longer a database transaction (sagas, outbox — class 8); a request touches several services, so you need distributed tracing to debug it (class 10).
+**New problems**: what used to be a function call is now a network call that can be slow or fail; a transaction across services is no longer a database transaction (sagas, outbox — class 8); a request touches several services, so you need distributed tracing to debug it (class 9).
 
 !!! warning "Monolith first"
 
@@ -171,7 +179,7 @@ flowchart LR
 
 **New problem**: data now lives far apart. Replicating the seat inventory across regions synchronously costs tens of milliseconds per write (the speed of light is a hard limit); asynchronously, it risks selling a seat twice during a failover. The usual compromise: each event's inventory has **one home region**, and other regions forward holds to it. Class 3 explains why there is no free lunch here (CAP and PACELC).
 
-**Try it:** the final scenario puts several of these components together for the 10:00 on-sale — waiting room, inventory in SQL, payment. Run the `spike` profile and find the first bottleneck.
+**Try it:** the final scenario is a flash sale (our 10:00 on-sale) on a design that has none of these components yet: `users → lb → app → inventory-db`, plus the `payment provider`. Press **Run**: when the sale opens (t = 60 s) the traffic jumps 20×. Find the first bottleneck, raise its capacity and find the next one. Then open it in the full playground (↗) and press **Show a possible solution** to see the components of this journey working together — CDN, cache, API gateway and a waiting-room queue.
 
 <div class="sdp" data-scenario="flash-sale" data-mode="compact" data-height="540"></div>
 
@@ -196,6 +204,14 @@ Some things do not belong to any single stage — they must be there from **day 
 
     Interviewers often ask *"how would this evolve?"* or *"what changes at 10× the traffic?"*. Use the journey as a mental checklist, but always **tie each step to a symptom and a number**: "At ~1,000 catalog reads/s the primary's CPU would be the bottleneck; with a 95% cache hit ratio only 50 reads/s reach it, so I'd add Redis before adding replicas." Start the high-level design **simple** (one service, one database, a cache) and add complexity only where the requirements or your estimates demand it — an interviewer is more impressed by a justified simple design than by an unjustified complex one.
 
+!!! success "Best practices"
+
+    - **Find the saturated resource with gauges from inside before adding a component** — busy threads, pool usage, CPU per container; the new component goes where the queue grows. In BoxOffice: `scripts/watch-metrics.sh` in [lab 2](../../../hands-on/2/index.md).
+    - **Keep the "before" switchable when you add a component** — a configuration flag lets you measure with and without it, and roll back without a deploy. In BoxOffice: `NOTIFY_MODE=sync|outbox` (lab 7) and `CACHE_STAMPEDE_PROTECTION` (lab 5).
+    - **Carry the partition key in every hot table from the start** — `event_id` on seats and holds makes stage 8 a migration, not a rewrite. In BoxOffice: every query of `inventory.seats` filters by `event_id` ([lab 6](../../../hands-on/6/holds/index.md)).
+    - **Prefer a managed service for each stateful tier until a number says otherwise** — a managed PostgreSQL brings backups, patches and failover that a team of two would otherwise operate at 3 a.m.
+    - **Load-test each stage at the expected peak before the traffic arrives** — and keep the result. In BoxOffice: lab 3 measures 1 versus 3 replicas with two workloads ([Hands-on 3](../../../hands-on/3/index.md#measure-it)).
+
 !!! warning "Common pitfalls"
 
     - **Résumé-driven architecture**: Kafka, Kubernetes and twelve microservices for a system with 100 users.
@@ -208,7 +224,7 @@ Some things do not belong to any single stage — they must be there from **day 
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     S0["one box<br/>app + database"] --> S1["separate sql"]
     S1 --> S2["lb + stateless app<br/>+ healthcheck"]
@@ -226,13 +242,15 @@ flowchart LR
 
 **Palette components**, in order of arrival: [`app`](../../../reference/components/compute/index.md#app) · [`sql`](../../../reference/components/storage/index.md#sql) · [`lb`](../../../reference/components/edge/index.md#lb) · [`healthcheck`](../../../reference/components/observability/index.md#healthcheck) · [`cache`](../../../reference/components/storage/index.md#cache) · [`cdn`](../../../reference/components/edge/index.md#cdn) · [`objstore`](../../../reference/components/storage/index.md#objstore) · [`queue`](../../../reference/components/messaging/index.md#queue) (also the waiting room) · [`worker`](../../../reference/components/compute/index.md#worker) · [`apigw`](../../../reference/components/edge/index.md#apigw) · [`stream`](../../../reference/components/messaging/index.md#stream) · [`nosql`](../../../reference/components/storage/index.md#nosql) (partitions) · [`search`](../../../reference/components/compute/index.md#search) · [`dwh`](../../../reference/components/storage/index.md#dwh) · [`waf`](../../../reference/components/edge/index.md#waf) · [`dns`](../../../reference/components/edge/index.md#dns) (failover). **Scenarios:** `monolith`, `scale-out`, `db-replicas`, `read-heavy-cache`, `cdn-static`, `async-queue`, `flash-sale`, `multi-region`. **Continues in:** [Compute — services](../../compute/services/index.md) (monolith first), [Databases — replication](../../databases/replication/index.md), [Caching — patterns](../../caching/patterns/index.md), [Messaging — queues and pub/sub](../../messaging/queues-pubsub/index.md), [Databases — partitioning](../../databases/partitioning/index.md), [Traffic & Edge](../../edge/index.md), [Hands-on 3](../../../hands-on/3/index.md).
 
-## Key takeaways
+## Key takeaways { #key-takeaways }
 
-- Architectures **evolve**: start with the simplest thing (one app, one database) and add components **only when a measured symptom requires it**.
-- Each component solves one symptom and **creates a new problem** — replicas → lag, cache → invalidation, queue → duplicates, services → network failures, shards → hot partitions.
-- **Stateless** app servers are the precondition for horizontal scaling.
-- Caching, CDN and replicas scale **reads**; queues, partitioning and waiting rooms tame **writes and spikes**.
-- **Monolith first**; extract services when organizational or scaling symptoms justify the cost of distribution.
+!!! takeaways ""
+
+    - Architectures **evolve**: start with the simplest thing (one app, one database) and add components **only when a measured symptom requires it**.
+    - Each component solves one symptom and **creates a new problem** — replicas → lag, cache → invalidation, queue → duplicates, services → network failures, shards → hot partitions.
+    - **Stateless** app servers are the precondition for horizontal scaling.
+    - Caching, CDN and replicas scale **reads**; queues, partitioning and waiting rooms tame **writes and spikes**.
+    - **Monolith first**; extract services when organizational or scaling symptoms justify the cost of distribution.
 
 ---
 

@@ -6,7 +6,7 @@ lives in Git, and an agent **inside** the cluster — **Argo CD** — pulls it a
 to it, forever. CI never touches the cluster; it only writes to Git. The theory is in the
 [delivery class](../../../classes/cloud-native/delivery/index.md).
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     dev[git push] --> ci[CI: test, scan, image]
     ci -->|image sha-…| ghcr[(ghcr.io)]

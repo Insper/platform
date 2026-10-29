@@ -12,7 +12,7 @@ At 10:00 the BoxOffice catalog goes from a quiet morning to ten times its normal
 
 ## Context
 
-[Class 12](../../classes/cloud-native/index.md) covered containers, Kubernetes objects, probes and autoscaling; [Class 5](../../classes/compute/index.md) the theory of autoscaling (target tracking, warm-up, predictive). [Lab 10](../../hands-on/10/index.md) deployed BoxOffice to kind or minikube with an Ingress. This exercise turns that deployment into an **experiment**.
+[Class 11](../../classes/cloud-native/index.md) covered containers, Kubernetes objects, probes and autoscaling; [Class 5](../../classes/compute/index.md) the theory of autoscaling (target tracking, warm-up, predictive). [Lab 10](../../hands-on/10/index.md) deployed BoxOffice to kind or minikube with an Ingress. This exercise turns that deployment into an **experiment**.
 
 The HPA controller computes, every sync period (15 s by default)[^1]:
 
@@ -22,7 +22,7 @@ $$
 
 For CPU, the metric is the **average utilization relative to the pod's CPU request**. If 2 pods run at 150% of their request and the target is 60%, the HPA asks for `⌈2 × 150 / 60⌉ = 5` pods.
 
-```mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant K as k6 (load ramp)
     participant P as catalog pods

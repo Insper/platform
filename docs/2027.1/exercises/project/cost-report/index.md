@@ -10,7 +10,7 @@ Every design decision has a price tag. A cache that saves 90% of database reads,
     - **Analyse** sensitivity (×10 traffic, peak vs average, commitments and spot) and compare **service models** (IaaS, PaaS, SaaS, serverless) for at least one component.
     - **Propose** saving levers backed by your own measurements.
 
-This milestone builds on the FinOps part of [Class 12 — Cloud-native](../../../classes/cloud-native/index.md), on your M1 estimates and on the [load-test campaign](../load-test-campaign/index.md). Due in **week 18**, weight **10%** of the project.
+This milestone builds on the FinOps part of [Class 11 — Cloud-native](../../../classes/cloud-native/index.md), on your M1 estimates and on the [load-test campaign](../load-test-campaign/index.md). Due in **week 18**, weight **10%** of the project.
 
 ## What to deliver
 

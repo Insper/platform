@@ -169,7 +169,7 @@ CREATE TABLE id_range (
 
 ## 5. High-level design
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     u([Browser / app]) --> dns["DNS"]
     dns --> lb["Load balancer"]
@@ -184,7 +184,7 @@ flowchart LR
 
 The **write path** asks the ID allocator for a code (from a range already leased in memory — no network call most of the time), stores the row, and returns the short URL. The **read path** is shown below; notice that the click event is fired after the response and never waits.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     participant B as Browser
@@ -286,7 +286,7 @@ Caching the lookup ([cache-aside](../../caching/patterns/index.md)):
 
 Counting clicks synchronously (`UPDATE stats SET clicks = clicks + 1`) would turn every read into a write on a hot row. Instead:
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     app["Shortener app"] -->|"fire-and-forget<br/>click event"| k[["Kafka topic clicks<br/>partitioned by code"]]
     k --> s["Stream aggregation<br/>1-min windows"]
@@ -376,13 +376,21 @@ The `url-shortener` scenario has the read path of this page: load balancer, app 
 
 **Related:** [Caching](../../caching/index.md), [Hands-on 5](../../../hands-on/5/index.md) (cache-aside and hit ratio), [Messaging](../../messaging/index.md), [interview practice problems](../../../support/interview/problems/index.md).
 
+!!! success "Best practices"
+
+    - **Put a `UNIQUE` constraint on the short code** — whatever generates the codes, the database turns a collision into an error you retry, never into a silent overwrite of someone else's link.
+    - **Choose the redirect status on purpose** — `302` keeps every click visible to you; `301` lets browsers cache the redirect, and from then on the analytics never see those clicks.
+    - **Send click events to a queue, never write them in the redirect path** — the redirect's p99 must not depend on the analytics store being up.
+    - **Cache unknown codes too, for a short time** — a scan of random codes must not reach the database (cache penetration).
+    - **Rate-limit link creation per account** — the abuse (spam and phishing links) comes in through creation, not through redirects.
+
 ---
 
 ## How it connects { #how-it-connects }
 
 Which classes does this case test? Each branch is a class whose ideas the design relies on (blue), with the palette components where they show up (green):
 
-``` mermaid
+``` diagram
 flowchart LR
     CASE(["URL shortener"]) --> EST["Estimation<br/>reads ≫ writes, hot set"]:::tech
     CASE --> DIS["Distributed<br/>unique IDs: ranges, Snowflake"]:::tech

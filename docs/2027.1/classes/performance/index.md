@@ -2,6 +2,10 @@ Last year BoxOffice's biggest on-sale went down at 10:02. The team *had* load-te
 
 Performance engineering is the discipline that prevents that post-mortem. It is not "run a tool and look at a graph": it is a **method** — state the objective, model the workload, generate load that behaves like real users, measure what users feel, find the one resource that limits the system, fix it, and measure again. This class teaches the method and the tools, using BoxOffice's flash sale as the running test case.
 
+!!! quote "The story so far"
+
+    Chapter 15 of the [story of the course](../../index.md#story). Every chapter added a box to BoxOffice because a number asked for it: an edge and stateless replicas ([class 4](../edge/index.md), [class 5](../compute/index.md)), a database that sells each seat once ([class 6](../databases/index.md)), a cache ([class 7](../caching/index.md)), a waiting room ([class 8](../messaging/index.md)), SLOs and breakers ([class 9](../observability/index.md), [class 10](../reliability/index.md)), Kubernetes ([class 11](../cloud-native/index.md)) — and, since [class 14](../ai-delivery/index.md), changes arrive faster than anyone can re-check them by hand. Each box was measured alone, in its own lab. **This class** answers: does the *whole* design hold the next on-sale — 2 M fans at 10:00, p99 under 300 ms — how do we prove it, and how do we keep it proven on every change?
+
 !!! abstract "Learning objectives"
 
     By the end of this class you should be able to:
@@ -153,6 +157,14 @@ Read the two plots together:
 
     If one `inventory` pod keeps p99 under 300 ms up to 275 req/s and collapses at 360, the capacity number for planning is **275**, not 360. For an on-sale expecting 4 500 hold requests per second at peak, that means ⌈4 500 / 275⌉ = 17 pods *before* headroom — 22 at 75 % of the knee, 33 to survive the loss of one of three zones — and a database that can take 33 pods' worth of connections. The [Capacity planning](capacity-planning/index.md) page builds this model end to end.
 
+!!! example "In the BoxOffice code: the knee of `catalog`, measured (lab 2)"
+
+    [Hands-on 2 — Measure first](../../hands-on/2/index.md) finds the knee exactly as this section describes it: `sweep.sh` runs the open-model `load.js` once per arrival rate, one minute each, after a 30 s warm-up that is not recorded, and waits 10 s between steps so that queues drain. In the lab's example run (`catalog` limited to 1 CPU, a pool of 10 database connections), p99 is 38.6 ms at 300 req/s, 223.7 ms at 400 and 2,056 ms at 500 — where k6 also dropped 410 iterations. The knee is between 300 and 400 req/s, and the resource that saturated was the connection pool, not the CPU.
+
+    ``` { .bash title="scripts/sweep.sh (one load test per arrival rate)" }
+    --8<-- "docs/2027.1/hands-on/2/code/scripts/sweep.sh"
+    ```
+
 Try it: this playground scenario is the simplest possible system — client → app server → SQL database — running the **breakpoint** profile, which increases the arrival rate step by step until something breaks. Press **Run** and watch three numbers together: throughput, p99 latency and the utilization of each component. Note the rate at which p99 starts to bend (the knee) and which component reaches 100 % first (the bottleneck). Then give that component more capacity and run again: does the knee move, and which component becomes the new bottleneck?
 
 <div class="sdp" data-scenario="monolith" data-mode="compact" data-profile="breakpoint" data-height="520"></div>
@@ -165,7 +177,7 @@ Try it: this playground scenario is the simplest possible system — client → 
 
 Performance work is a scientific loop, not a one-off event before launch[^3]:
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     slo["1. Objectives<br/>SLOs per endpoint,<br/>expected peak"] --> model["2. Workload model<br/>mix, arrival pattern,<br/>data"]
     model --> test["3. Test<br/>k6 scenario in a<br/>production-like env"]
@@ -191,6 +203,14 @@ flowchart LR
 
     When an interviewer asks "how would you know this design handles the peak?", do not say "we would load-test it". Say **what** you would test and **how you would read it**: "An open-model k6 test at the expected peak arrival rate with the realistic endpoint mix, thresholds on p99 and error rate per endpoint, run long enough to reach steady state on warm caches; then a breakpoint test to find the knee and compute the headroom; the USE method on the database and the connection pool to find what saturates first."
 
+!!! success "Best practices"
+
+    - **Keep the load tests in the service repository, versioned with the code** — a script that drifts from the API measures an endpoint that no longer exists. In BoxOffice: the `load/` folder of the repository, from [lab 2](../../hands-on/2/index.md) to [lab 11](../../hands-on/11/performance-gate/index.md).
+    - **Record every run with its conditions** — commit, configuration (pool size, CPU limit), data snapshot and machine next to the numbers; a p99 without its conditions cannot be compared with the next one. In BoxOffice: `results/lab2.md` and the sweep folders of [lab 2](../../hands-on/2/index.md).
+    - **Publish capacity as a number per replica, with its SLO** — "`catalog`: 300 req/s at p99 < 300 ms on 1 CPU" is what capacity planning, autoscaling and the waiting room's admission rate are computed from. In BoxOffice: the knee measured in [lab 2](../../hands-on/2/index.md).
+    - **Read the client and the server on one time axis** — k6 says *that* the p99 broke, the services' RED and USE metrics say *where*; tag each run and put both in the same Grafana. In BoxOffice: the `otel-lgtm` stack of [lab 8](../../hands-on/8/index.md).
+    - **Gate every change on a short budget; run the full campaign before each big event** — a 1-minute test on every pull request catches the missing index; only the long load, spike and breakpoint tests prove the on-sale. In BoxOffice: the `performance budget` job of [lab 11](../../hands-on/11/performance-gate/index.md).
+
 !!! warning "Common pitfalls"
 
     - **No objective**: a test without pass/fail criteria produces graphs, not decisions.
@@ -206,7 +226,7 @@ flowchart LR
 
 Performance engineering does not add new boxes to the palette: it **measures** the ones you already have. The map links each **palette component** (green) to the **concepts** used to load it, observe it and size it (blue):
 
-``` mermaid
+``` diagram
 flowchart LR
     client["client · mobile<br/>(k6 generates them)"]:::comp --> edge["apigw · lb"]:::comp
     edge --> app["app"]:::comp
@@ -239,17 +259,23 @@ flowchart LR
 
 ## Related
 
-- Hands-on: [2. Measure first](../../hands-on/2/index.md) (k6 smoke/load/stress on `catalog`, finding the knee, Little's Law check), [9. Resilience & chaos](../../hands-on/9/index.md) (Toxiproxy under load) and [11. Delivery](../../hands-on/11/index.md) (k6 performance budget gate in CI).
+- Hands-on: [2. Measure first](../../hands-on/2/index.md) (k6 smoke/load/stress on `catalog`, finding the knee, Little's Law check), [6. Data at scale](../../hands-on/6/index.md) (`EXPLAIN ANALYZE`, indexes, PgBouncer), [9. Resilience & chaos](../../hands-on/9/index.md) (k6 under Toxiproxy faults) and [11. Delivery](../../hands-on/11/index.md) (k6 performance budget gate in CI).
 - Exercise: [Load-test report](../../exercises/load-test-report/index.md); project: [Load-test campaign](../../exercises/project/load-test-campaign/index.md) and [Game day](../../exercises/project/game-day/index.md).
 - Classes: [Estimation — queueing](../estimation/queueing/index.md) and [percentiles](../estimation/percentiles/index.md), [Observability](../observability/index.md), [Reliability — chaos engineering](../reliability/chaos/index.md).
 - Case study: [Ticketing (BoxOffice flash sale)](../case-studies/ticketing/index.md); tools: [Reference — tools](../../reference/tools/index.md).
 
-## Key takeaways
+## Key takeaways { #key-takeaways }
 
-- Response time = service time + **waiting**; near saturation, waiting dominates. $N = X \times R$ and $U = X \times S$ connect the numbers.
-- Every system has a **knee**: plan with the throughput at which the latency SLO still holds, not with the maximum.
-- Past the peak, more concurrency can mean **less** throughput (USL) — admission control beats overload.
-- Performance engineering is a **loop**: objectives → workload model → test → analyze → change one thing → re-test → budget in CI.
+!!! takeaways ""
+
+    - Response time = service time + **waiting**; near saturation, waiting dominates. $N = X \times R$ and $U = X \times S$ connect the numbers.
+    - Every system has a **knee**: plan with the throughput at which the latency SLO still holds, not with the maximum.
+    - Past the peak, more concurrency can mean **less** throughput (USL) — admission control beats overload.
+    - Performance engineering is a **loop**: objectives → workload model → test → analyze → change one thing → re-test → budget in CI.
+
+## What breaks next { #what-breaks-next }
+
+Performance engineering proves *this* design for *this* workload: one ticketing system, one on-sale, a mix of about 80 % reads and 20 % holds and orders, a knee measured on BoxOffice's own pods. The method — workload model, open-model tests, the knee, headroom, a budget in CI — transfers to any system; the numbers and the boxes do not. A news feed fans each post out to millions of followers, a chat keeps millions of connections open for hours, a ride app writes every driver's location every few seconds: different numbers ask for different blocks. Recognizing which blocks of the previous fifteen chapters a new system needs, and which number asks for each, is [class 16 — Case studies](../case-studies/index.md).
 
 ---
 

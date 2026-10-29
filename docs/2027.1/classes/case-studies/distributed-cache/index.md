@@ -149,7 +149,7 @@ slots 10923–16383 → node-c (primary), node-f (replica)
 
 ## 5. High-level design
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     app1["App server #1<br/>cluster-aware client"] --> a["node-a<br/>slots 0–5460"]
     app1 --> b["node-b<br/>slots 5461–10922"]
@@ -165,7 +165,7 @@ flowchart LR
 
 A read with cache-aside, including a slot that moved:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     participant A as App (client lib)
@@ -262,7 +262,7 @@ When memory is full, something must go. The policy decides the hit ratio you get
 
 ### 6.3 Replication and failover
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     participant A as App
@@ -300,6 +300,14 @@ def should_refresh_early(expires_at: float, recompute_s: float, beta: float = 1.
     """XFetch: refresh before expiry with a probability that grows near the deadline."""
     return time.time() - recompute_s * beta * math.log(random.random()) >= expires_at
 ```
+
+!!! example "In the BoxOffice code: a lease against the stampede (lab 5)"
+
+    BoxOffice runs one Redis, not a cluster, so the labs do not build the partitioning of this case — but [Hands-on 5 — Stampede](../../../hands-on/5/stampede/index.md) builds its lease: the first miss takes `lock` with `SET NX` and reloads, re-reads after winning, and the others poll the key for at most 20 × 25 ms. In the lab's test (100 virtual users, TTL 3 s), the misses dropped from **800 to 10** — one database query per expiration. The full walk-through is in [Caching — failure modes](../../caching/failure-modes/index.md).
+
+    ``` { .java title="services/catalog/src/main/java/boxoffice/catalog/EventCache.java (the lease)" }
+    --8<-- "docs/2027.1/hands-on/5/code/services/catalog/src/main/java/boxoffice/catalog/EventCache.java:62:85"
+    ```
 
 ### 6.5 Routing: who knows where a key lives?
 
@@ -393,13 +401,21 @@ Two scenarios cover the two halves of this case: the cache in front of a databas
 
 **Related:** [Caching](../../caching/index.md), [Redis](../../caching/redis/index.md), [Caching failure modes](../../caching/failure-modes/index.md), [Partitioning](../../databases/partitioning/index.md), [Hands-on 5](../../../hands-on/5/index.md) (Redis cache-aside, hit ratio and stampede).
 
+!!! success "Best practices"
+
+    - **Set `maxmemory` and the eviction policy explicitly** — `allkeys-lru` for a cache; with `noeviction`, a full cache turns into write errors.
+    - **Add jitter to every TTL** — keys written together must not expire together; lab 5 adds up to 10% ([Caching — failure modes](../../caching/failure-modes/index.md)).
+    - **Watch hit ratio, evictions and memory per node together** — evictions climbing while the hit ratio holds means the working set is growing toward the edge.
+    - **Keep the cache optional in the code path** — on a cache error, read from the source; lab 5 logs it and counts a `BYPASS` ([lab 5](../../../hands-on/5/cache-aside/index.md)).
+    - **Warm the hot keys before a known peak** — the event page is loaded at 09:55, not by the first of 2 M fans at 10:00.
+
 ---
 
 ## How it connects { #how-it-connects }
 
 Which classes does this case test? Each branch is a class whose ideas the design relies on (blue), with the palette components where they show up (green):
 
-``` mermaid
+``` diagram
 flowchart LR
     CASE(["Distributed cache"]) --> EST["Estimation<br/>size by memory and ops/s"]:::tech
     CASE --> PART["Databases<br/>consistent hashing, virtual nodes"]:::tech

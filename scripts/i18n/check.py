@@ -32,7 +32,7 @@ def blocks(text: str) -> list[tuple[str, str]]:
                 body.append(lines[i].strip())
                 i += 1
             info = info.strip()
-            out.append((info, "" if "mermaid" in info else "\n".join(body)))
+            out.append((info, "" if "mermaid" in info or "diagram" in info else "\n".join(body)))
         i += 1
     return out
 

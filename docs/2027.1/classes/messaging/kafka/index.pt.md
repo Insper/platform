@@ -4,11 +4,11 @@ Os três pedidos pedem a mesma coisa: guardar as mensagens, em ordem, e deixar c
 
 ---
 
-## O log
+## O log { #the-log }
 
 Um **log** aqui não é um arquivo de texto com mensagens de depuração. É a abstração de armazenamento mais simples que existe: uma **sequência de registros só de acréscimo (append-only) e totalmente ordenada**. Quem escreve só pode adicionar no fim; cada registro recebe o próximo número sequencial, o seu **offset**. Quem lê nunca remove nada — cada leitor só lembra o offset até onde chegou.
 
-``` mermaid
+``` diagram
 flowchart LR
     subgraph log ["order-events (uma partição)"]
         direction LR
@@ -28,11 +28,11 @@ Essa mudança minúscula — ler não apaga — tem consequências grandes:
 
 ---
 
-## Tópicos, partições e offsets
+## Tópicos, partições e offsets { #topics-partitions-and-offsets }
 
 Um único log em uma única máquina limitaria o throughput a um disco e a uma máquina. O Kafka divide cada **tópico** em **partições**: cada partição é um log independente, guardado em um broker diferente, com seus próprios offsets. O tópico é apenas o nome de um conjunto de partições.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     p1["order (réplica 1)"] -->|"chave o-7731"| P1
     p2["order (réplica 2)"] -->|"chave o-1002"| P0
@@ -49,7 +49,7 @@ flowchart LR
 - As partições são a **unidade de paralelismo**: partições diferentes são escritas por brokers diferentes e lidas por consumidores diferentes ao mesmo tempo.
 - Em disco, uma partição é uma sequência de arquivos de **segmento** (por exemplo, 1 GB cada). O Kafka só acrescenta no segmento ativo e apaga ou compacta segmentos antigos inteiros — é isso que torna as escritas sequenciais e baratas.
 
-### A chave decide a partição
+### A chave decide a partição { #keys-decide-the-partition }
 
 Cada registro pode ter uma **chave**. O particionador padrão calcula o hash da chave (murmur2) e toma o resultado módulo o número de partições:
 
@@ -131,7 +131,7 @@ Com chave `orderId` (à esquerda), cada partição recebe cerca de 1/12 do tráf
 
 Um **consumer group** é um conjunto de instâncias consumidoras que dividem o trabalho de ler um tópico. O Kafka atribui cada partição a **exatamente um** consumidor do grupo, então cada registro é processado por um membro — consumidores concorrentes, mas com a ordem preservada por partição. Grupos diferentes são totalmente independentes: cada um tem seus próprios offsets confirmados, então cada grupo recebe **todos** os registros — esse é o fan-out.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     subgraph topic ["order-events · 6 partições"]
         P0["P0"]
@@ -169,7 +169,17 @@ Regras que decorrem de "uma partição, um consumidor por grupo":
 - **A ordem por chave se mantém** enquanto o consumidor processa os registros de uma partição em sequência. Se ele entrega os registros a um pool de threads, quebra a ordem de novo (a não ser que paralelize *por chave*).
 - Quando um consumidor entra, sai ou fica tempo demais sem fazer poll (`max.poll.interval.ms`), o grupo faz um **rebalance**: as partições são redistribuídas. Rebalances clássicos pausavam o grupo inteiro; o protocolo novo (KIP-848, disponível de forma geral no Kafka 4.0) e a atribuição cooperativa movem só as partições que precisam mudar.
 
-### Offsets e consumer lag
+<div class="csim" data-sim="kafka" data-key="order"></div>
+
+!!! tip "Experimente"
+    Os valores iniciais são os do lab 7: `order-events` tem 6 partições e `notification` roda 3 consumidores (`NOTIFY_CONCURRENCY`). Dê play e o lag fica perto de zero. Depois:
+
+    - Suba **Consumidores** para 8: 2 deles não recebem partição e ficam ociosos.
+    - Troque a **Chave** para *nenhuma*: OrderPlaced e OrderConfirmed do mesmo pedido caem em partições diferentes, e alguns pedidos são lidos confirmados antes de criados (22 em 200 ticks com 3 consumidores, 107 com 2). De volta a *orderId*: nunca.
+    - Troque a **Chave** para *show*: o show do estádio `ev-1` cai em P5, que fica para trás (183 registros depois de 200 ticks) enquanto as outras partições ficam perto de zero — e com 6 consumidores ainda são 142 atrás.
+    - **Derrube um consumidor**: o grupo inteiro para durante o rebalance, o lag cresce em *todas* as partições, e então os 2 sobreviventes assumem 3 partições cada e retomam dos offsets confirmados.
+
+### Offsets e consumer lag { #offsets-and-consumer-lag }
 
 Um consumidor **confirma (commit)** o offset do próximo registro que vai ler, por partição; o Kafka guarda os commits em um tópico interno compactado (`__consumer_offsets`). Depois de um restart ou de um rebalance, o novo dono da partição continua a partir do último offset confirmado. *Quando* você confirma — antes ou depois de processar — decide se um crash perde ou duplica registros ([Semântica de entrega](../semantics/index.md)).
 
@@ -198,7 +208,7 @@ A partição 2 está 64.767 registros atrás enquanto as outras estão perto de 
 
 Cada partição é **replicada** em vários brokers — o **fator de replicação** (RF), tipicamente 3, com as réplicas em zonas de disponibilidade diferentes. Uma réplica é a **líder**: ela recebe todas as escritas (e, por padrão, atende as leituras). As **seguidoras** buscam continuamente da líder. As seguidoras em dia formam o **conjunto de réplicas sincronizadas** (ISR, *in-sync replicas*). Se o broker da líder falha, o controller elege uma nova líder dentro do ISR.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant P as produtor (order)
     participant L as líder P1 (broker 2, AZ-b)
@@ -226,11 +236,11 @@ A configuração `acks` do produtor escolhe quanto disso o produtor espera:
 `acks=all` sozinho não basta: se o ISR encolhe até só a líder, "todas as réplicas sincronizadas" é uma réplica. **`min.insync.replicas=2`** faz o broker recusar escritas quando há menos de 2 réplicas sincronizadas. Com RF = 3 e min ISR = 2, o tópico continua aceitando escritas com um broker fora do ar e nunca confirma uma escrita que existe em uma só máquina. Mantenha `unclean.leader.election.enable=false` (o padrão) para que uma réplica desatualizada nunca seja eleita líder. Desde o Kafka 3.0, os produtores usam por padrão `acks=all` com idempotência habilitada.
 
 !!! info "KRaft: o consenso do próprio Kafka"
-    Os metadados do cluster — quais tópicos existem, qual broker lidera cada partição, o ISR — são mantidos por um pequeno quórum de **controllers** usando o KRaft, um protocolo baseado em Raft (veja [Consenso](../../distributed/consensus/index.md)). Clusters antigos usavam ZooKeeper; o Kafka 4.0 (2025) removeu o ZooKeeper por completo. Os labs do curso rodam o Kafka em modo KRaft.
+    Os metadados do cluster — quais tópicos existem, qual broker lidera cada partição, o ISR — são mantidos por um pequeno quórum de **controllers** usando o KRaft, um protocolo baseado em Raft (veja [Consenso](../../distributed/consensus/index.md)). Clusters antigos usavam ZooKeeper; o Kafka 4.0 (2025) removeu o ZooKeeper por completo. Os labs do curso rodam o Kafka em modo KRaft: no [lab 7](../../../hands-on/7/kafka/index.md), um único nó é broker e controller ao mesmo tempo.
 
 ---
 
-## Retenção, compactação e armazenamento em camadas
+## Retenção, compactação e armazenamento em camadas { #retention-compaction-and-tiered-storage }
 
 Um log não pode crescer para sempre. Cada tópico tem uma **política de limpeza**:
 
@@ -247,7 +257,7 @@ O **armazenamento em camadas** (*tiered storage*, pronto para produção desde o
 
 ---
 
-## Por que o Kafka é rápido
+## Por que o Kafka é rápido { #why-kafka-is-fast }
 
 Um broker Kafka movimenta com frequência centenas de megabytes por segundo em hardware comum. Vale conhecer os motivos, porque eles reaparecem em muitos sistemas[^3]:
 
@@ -331,9 +341,17 @@ E os serviços Spring Boot configuram seus clientes de acordo:
           concurrency: 3               # 3 consumer threads in this instance
     ```
 
+!!! example "No código do BoxOffice: o Kafka no Compose (lab 7)"
+
+    O [Hands-on 7 — Kafka no Compose](../../../hands-on/7/kafka/index.md) roda **um** nó que é broker e controller KRaft ao mesmo tempo, com a criação automática desligada e os dois tópicos criados por um contêiner de execução única: `order-events` e `order-events-dlt` com **6 partições** e **fator de replicação 1**. Um laptop não comporta três brokers em três zonas, então este é o ponto em que o lab *não* é produção: `acks: all` no `order` espera "todas as réplicas em sincronia", e com RF = 1 isso é uma réplica — exatamente a armadilha descrita em [Replicação e durabilidade](#replication-and-durability). As 6 partições limitam o lado do consumidor: o `notification` roda 3 threads (`NOTIFY_CONCURRENCY`), e mais de 6 ficariam ociosas. O [experimento de pico e escoamento](../../../hands-on/7/measure/index.md) do lab aplica a aritmética desta página: uma thread a 50 ms por e-mail trata 20/s, então 100 pedidos/s por 60 s deixam cerca de 4.800 mensagens de lag, que levam cerca de 240 s para escoar; seis threads mantêm o lag perto de zero.
+
+    ``` { .yaml title="docker-compose.yaml (one KRaft node, topics created explicitly)" }
+    --8<-- "docs/2027.1/hands-on/7/code/docker-compose.yaml:216:234,242:254"
+    ```
+
 ---
 
-## O Kafka e suas alternativas
+## O Kafka e suas alternativas { #kafka-and-its-alternatives }
 
 | | Apache Kafka | Amazon Kinesis Data Streams | Google Cloud Pub/Sub | Apache Pulsar |
 |---|---|---|---|---|
@@ -348,6 +366,15 @@ O Redpanda e o Azure Event Hubs expõem o **protocolo do Kafka**, então cliente
 !!! tip "Na entrevista"
     Quando você coloca Kafka no quadro, o entrevistador espera quatro decisões, ditas em voz alta: **(1) o tópico e a chave** ("`order-events`, com chave `orderId`, porque precisamos de ordem por pedido e de distribuição uniforme"); **(2) as partições**, a partir de uma estimativa de throughput, com o consumidor como gargalo mais comum; **(3) a durabilidade** (RF 3 entre zonas, `acks=all`, `min.insync.replicas=2`); **(4) a retenção** (7 dias para permitir replay, ou compactação para estado). Cite o consumer lag como a métrica sobre a qual você alerta. Esteja pronto para "o que acontece se um broker morrer?" (eleição de líder no ISR, produtores fazem retry, nenhum dado confirmado se perde) e "como você escala os consumidores?" (até o número de partições).
 
+!!! success "Boas práticas"
+
+    - **Crie todo tópico explicitamente, com partições, replicação e retenção revisadas como código** — a criação automática cria tópicos com padrões do broker que ninguém escolheu. No BoxOffice: `KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"` e um contêiner `kafka-init` ([quadro do Compose](#sizing-partitions)).
+    - **Ponha as três réplicas de cada partição em três zonas de disponibilidade** (`broker.rack`) — perder uma zona deixa 2 réplicas em sincronia, então `min.insync.replicas=2` continua aceitando escritas.
+    - **Defina a retenção pelo replay de que você precisa e então dimensione o disco** — no mínimo a maior indisponibilidade de consumidor da qual você planeja se recuperar, mais uma margem (7 dias para `order-events`); disco ≈ volume diário × dias de retenção × fator de replicação.
+    - **Acompanhe o lag por partição, não só por grupo** — uma chave quente (60% das compras são para `ev-1`) se esconde num total saudável do grupo. No BoxOffice: o `kafka-lag.sh` do lab 7 imprime o total do grupo; `kafka-consumer-groups.sh --describe` mostra cada partição ([lab 7 — meça](../../../hands-on/7/measure/index.md)).
+    - **Agrupe e comprima no produtor** — `linger.ms` de poucos milissegundos e `compression.type=zstd` cortam requisições e bytes; 5 ms são invisíveis perto de um SLO de 300 ms. No BoxOffice: o `order` define `linger.ms: 5`, `acks: all` e `enable.idempotence: true`.
+    - **Use rebalanceamento incremental (cooperativo) nos grupos de consumidores** — com rebalanceamento *eager*, um deploy gradual de 6 consumidores para o grupo inteiro a cada reinício.
+
 !!! warning "Armadilhas comuns"
 
     - **Uma chave de baixa cardinalidade** (país, show, `true`/`false`) cria partições quentes que nenhuma quantidade de consumidores resolve.
@@ -359,7 +386,7 @@ O Redpanda e o Azure Event Hubs expõem o **protocolo do Kafka**, então cliente
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     LOG["log só de append<br/>offsets"] --> PART["partições<br/>unidade de paralelismo"]
     KEY["chave = orderId<br/>murmur2 mod N"] --> PART

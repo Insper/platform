@@ -207,7 +207,7 @@ backend: order-service  POST /v1/orders/{order_id}/transfer
 
 ## 5. High-level design
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     fan([Fan app / web]) --> gw["API gateway<br/>auth, rate limit"]
     gw --> orch["Orchestrator<br/>agent loop"]
@@ -227,7 +227,7 @@ flowchart LR
 
 One turn — "can I move my order to Saturday?" — through the agent loop:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     participant F as Fan
@@ -265,7 +265,7 @@ sequenceDiagram
 
 The model does not know BoxOffice's refund policy or that tonight's show moved to another venue. **Retrieval-augmented generation (RAG)** fetches relevant passages and puts them in the prompt, so answers are grounded and citable ([RAG and memory](../../ai-systems/rag-memory/index.md)).
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     src["Sources<br/>policies, FAQs,<br/>event & venue data"] --> chg["Change events<br/>(CDC / Kafka)"]
     chg --> chunk["Chunk<br/>~500 tokens,<br/>by heading"]
@@ -305,7 +305,7 @@ All model calls go through one internal service (LiteLLM or similar), never dire
 
 The orchestrator runs a loop: give the model the conversation, retrieved context and the **tool schemas**; if the model returns a tool call, validate it, execute it, append the result and loop; stop when the model returns a final answer ([agents](../../ai-systems/agents/index.md)). This *reason → act → observe* pattern is known as ReAct.
 
-``` mermaid-sim
+``` diagram-sim
 stateDiagram-v2
     [*] --> Think: user message
     Think --> Act: tool call proposed
@@ -327,6 +327,14 @@ Engineering rules that make the loop safe:
 - **Side effects need confirmation**, rendered by the UI from the validated arguments (not from the model's prose), executed with the `actionId` as **idempotency key**.
 - **Bounds**: max steps per turn (e.g. 5), timeout per tool, total token budget per turn. A loop that does not converge ends in a polite handoff, not in a 2-minute spinner.
 - **Validate arguments** against the schema and business rules before calling anything; the model can produce well-formed nonsense.
+
+!!! example "In the BoxOffice code: the tool boundary in miniature (lab 12)"
+
+    [Hands-on 12 — Tools and the agent loop](../../../hands-on/12/tools/index.md) builds these rules for a smaller assistant. The registry holds three tools with schemas generated from pydantic models; `call()` validates the arguments and turns every error into data, so the loop never crashes; the fan's identity is injected from the gateway's `X-User-Email` header, never from the model; and the loop stops after 4 model calls. Its tools are all **read-only** — there is no `transfer_order` yet, so the `Confirm` state of the diagram is the next step, not something the lab builds.
+
+    ``` { .python title="services/assistant/app/tools.py (the registry and the call)" }
+    --8<-- "docs/2027.1/hands-on/12/code/services/assistant/app/tools.py:81:104"
+    ```
 
 ### 6.4 Safety mesh and evaluation
 
@@ -425,13 +433,21 @@ The `ai-assistant` scenario wires an LLM gateway, an orchestrator, a tool regist
 
 **Related:** [LLM gateway](../../ai-systems/llm-gateway/index.md), [Agents](../../ai-systems/agents/index.md), [RAG and memory](../../ai-systems/rag-memory/index.md), [Safety and evals](../../ai-systems/safety-evals/index.md), [Hands-on 12](../../../hands-on/12/index.md) (the BoxOffice assistant), [Rate limiter case](../rate-limiter/index.md) (token-based limits).
 
+!!! success "Best practices"
+
+    - **Stream the answer and measure TTFT apart from the total time** — the fan reads from the first token; lab 12's `assistant_load.py` stops the TTFT clock at the first token event ([lab 12 — Measure it](../../../hands-on/12/measure/index.md)).
+    - **Keep tool results compact** — the top 5 options with the fields needed to decide; every token of a tool result is re-sent on every later step.
+    - **Cite sources by id and check the citations in code** — lab 12's output guard replaces citations of documents the model never received ([guardrails](../../../hands-on/12/guardrails/index.md)).
+    - **Give every conversation a token budget and every user a quota** — the worst case of one request and of one account must be a number you chose.
+    - **Record model, tokens, cost and TTFT for every turn** — lab 12 exports them as metrics next to the rest of BoxOffice in Grafana.
+
 ---
 
 ## How it connects { #how-it-connects }
 
 Which classes does this case test? Each branch is a class whose ideas the design relies on (blue), with the palette components where they show up (green):
 
-``` mermaid
+``` diagram
 flowchart LR
     CASE(["AI assistant"]) --> EST["Estimation<br/>tokens/s, concurrent streams"]:::tech
     CASE --> GW["AI systems<br/>LLM gateway: routing, quotas"]:::tech

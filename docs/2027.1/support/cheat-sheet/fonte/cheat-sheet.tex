@@ -51,6 +51,7 @@
 \definecolor{catclient}{HTML}{2563EB}
 \definecolor{catedge}{HTML}{7C3AED}
 \definecolor{catcompute}{HTML}{16A34A}
+\definecolor{catcontainers}{HTML}{0284C7}
 \definecolor{catstorage}{HTML}{EA580C}
 \definecolor{catmessaging}{HTML}{D97706}
 \definecolor{catobservability}{HTML}{0D9488}
@@ -98,12 +99,15 @@
 % component cards (pages 4 to 6): \begin{card}{category}{Label}{id · class}
 \newcommand{\chip}[1]{\tikz[baseline=-.75ex]\fill[cat#1,draw=white,line width=.4pt] (0,0) rectangle (.24,.24);}
 \newtcolorbox{card}[3]{enhanced,colback=white,colframe=stC,boxrule=.5pt,arc=2pt,left=2.5pt,right=2.5pt,top=1pt,bottom=1pt,
-  before skip=1pt,after skip=2.5pt,fonttitle=\scriptsize\sffamily\bfseries,coltitle=white,colbacktitle=stC,toptitle=.3pt,bottomtitle=.3pt,
-  title={\chip{#1}\ #2\hfill{\mdseries\tiny #3}},fontupper=\fontsize{6.6}{7.7}\selectfont\RaggedRight}
+  before={\par\vspace{1pt}\vbox\bgroup\pendingcat\global\let\pendingcat\relax},after={\egroup\par\vspace{2.5pt}},
+fonttitle=\scriptsize\sffamily\bfseries,coltitle=white,colbacktitle=stC,toptitle=.3pt,bottomtitle=.3pt,
+  title={\chip{#1}\ #2\hfill{\mdseries\tiny #3}},fontupper=\fontsize{6.6}{7.5}\selectfont\RaggedRight}
 \newcommand{\f}[2]{\par\noindent\hangindent=1.07cm\hangafter=1\makebox[1.07cm][l]{\color{stC}\bfseries #1}#2\par}
 \newcommand{\ff}[2]{\par\noindent\hangindent=1.07cm\hangafter=1\makebox[1.07cm][l]{\color{wrong}\bfseries #1}#2\par}
-% category header on pages 4 to 6
-\newcommand{\cat}[3]{\par\vspace{.25em}\noindent{\chip{#1}\ \small\bfseries\color{stC}#2}\hfill{\scriptsize\color{soft}#3}\par\vspace{-.1em}{\color{stC}\rule{\linewidth}{.5pt}}\par\vspace{.05em}}
+% category header on pages 4 to 6: stored, then printed by the next card inside the same box,
+% so a header never ends a column without its first card
+\newcommand{\pendingcat}{}
+\newcommand{\cat}[3]{\par\gdef\pendingcat{\vspace{.25em}\noindent{\chip{#1}\ \small\bfseries\color{stC}#2}\hfill{\scriptsize\color{soft}#3}\par\vspace{-.1em}{\color{stC}\rule{\linewidth}{.5pt}}\par\vspace{.05em}}}
 % class cards (pages 7 and 8)
 \newtcolorbox{klass}[3]{enhanced,colback=white,colframe=insper,boxrule=.5pt,arc=2pt,left=3.5pt,right=3.5pt,top=1.5pt,bottom=1.5pt,
   before skip=1.5pt,after skip=3.5pt,fonttitle=\footnotesize\sffamily\bfseries,coltitle=white,colbacktitle=insper,toptitle=.6pt,bottomtitle=.6pt,
@@ -123,7 +127,7 @@
 % ================================================================= title
 {\color{insper}\rule{\linewidth}{1.6pt}}\par\vspace{-.1em}
 {\Large\bfseries System Design: cheat sheet}\par
-{\footnotesize\color{soft}The 16 classes on eight pages. Pages 1 to 3: the method, step by step, with its formulas and numbers. Pages 4 to 6: the 44 components of the palette and the patterns. Pages 7 and 8: class by class.}\par
+{\footnotesize\color{soft}The 16 classes on eight pages. Pages 1 to 3: the method, step by step, with its formulas and numbers, and the patterns that combine the components. Pages 4 to 6: the 49 components of the palette. Pages 7 and 8: class by class.}\par
 
 \vspace{.3em}
 {\scriptsize\bfseries\color{soft}The method (a 45-minute interview, minutes in grey)\par}\vspace{.15em}
@@ -253,7 +257,7 @@
   {\footnotesize $4\,000 / (500 \times 0.65) \to 13$, $+1 = 14$. Plan with the knee, not the maximum, and add zone-loss replicas. Check shared resources: 500 DB connections $\div$ 20 per replica $=$ 25 replicas at most.}
 \end{formula}
 
-\sect{stB}{\faChartLine}{Percentiles and the tail}{classes 2 and 10}
+\sect{stB}{\faChartLine}{Percentiles and the tail}{classes 2 and 9}
 \begin{formula}{stB}
   $P(\text{slow}) = 1 - (1 - q)^N$\quad {\footnotesize ($N$ calls in fan-out, each slow with probability $q$)}\\[.1em]
   {\footnotesize $q = 1\%$: $N = 5 \to 4.9\%$; $20 \to 18\%$; $100 \to 63\%$; $500 \to 99\%$.}
@@ -415,7 +419,7 @@
 \end{bul}
 \trap{defending every decision as perfect: name the weakness before the interviewer does.}
 
-\sect{stD}{\faLock}{Security and network in one breath}{class 11}
+\sect{stD}{\faLock}{Security and network in one breath}{classes 4 and 12}
 \begin{bul}
   \item VPC per region; subnets in $\ge$ 2 AZs: public (LB, NAT), private (apps), isolated (data). /16 $=$ 65\,536 addresses, /24 $=$ 256 (AWS reserves 5).
   \item \term{STRIDE} at every trust boundary: spoofing, tampering, repudiation, information disclosure, denial of service, elevation of privilege.
@@ -424,7 +428,7 @@
 \end{bul}
 \trap{``the gateway validated the JWT, so we are safe'': authentication is not authorization.}
 
-\sect{stC}{\faCloud}{Delivery and cost}{classes 12 and 14}
+\sect{stC}{\faCloud}{Delivery and cost}{classes 11 and 14}
 \begin{bul}
   \item Images small, immutable, by digest; probes local; requests sized; HPA: $\lceil \text{replicas} \times \text{current}/\text{target} \rceil$ ($\lceil 4 \times 90/60 \rceil = 6$). Autoscaling lags (pods 15 s steps, nodes minutes): pre-scale before 10:00.
   \item GitOps; canary 5\% $\to$ 25\% $\to$ 50\% $\to$ 100\% gated on error rate and p99 against the baseline; feature flags.
@@ -500,32 +504,38 @@
 \end{tikzpicture}
 \end{center}
 {\scriptsize\color{soft}Read path: CDN, cache, replicas (eventual, seconds stale). Purchase: waiting room at the speed of the database and the provider; seats by conditional update in one primary (strong); payment with an idempotency key. Everything else is an event.\par}
-\vspace{.4em}
 \vspace{.3em}
 \begin{alert}
   \textbf{Before you trust a design}: is every number tied to a decision? Is the peak (not the average) sized, with headroom for a lost node? Is every retry idempotent? Does every call have a timeout? Is strong consistency only where money and seats need it? What does the user see when each box fails?
 \end{alert}
 
-%%P3C3%%
+\sect{stC}{\faPuzzlePiece}{Patterns that combine the components}{classes 7, 8, 10, 13}
+\begin{bul}
+  \item \term{Caching} (7): cache-aside (miss: read DB, fill; write: commit, then \emph{delete}; TTL $+$ jitter); write-behind may lose data; L1 $+$ Redis L2. Cache what you display, not what you decide on.
+  \item \term{Messaging} (8): waiting room admitting at the bottleneck's rate; outbox, never dual writes; idempotent consumer (dedupe in the same tx, retries, DLQ); saga with compensations.
+  \item \term{Resilience} (10): timeout $\to$ one jittered retry with an idempotency key $\to$ breaker on slow calls $\to$ bulkhead by Little $\to$ honest fallback; shed load by priority.
+  \item \term{AI} (13): workflow first, capped agent; gateway with fallbacks and token quotas; RAG with hybrid search and rerank; live data through tools; least privilege, confirm irreversible actions.
+\end{bul}
+
 \end{multicols*}
 
 
 % ================================================================= pages 4 to 6: the palette
 \newpage
-\pagetitle{The palette, component by component}{The 44 components of the simulator: what, when, key numbers (``sim'': the playground default per replica), how it fails, products.}
+\pagetitle{The palette, component by component}{The 49 components of the simulator in 10 categories: what, when, key numbers (``sim'': the playground default per replica), how it fails, products.}
 \begin{multicols*}{3}
 \cat{client}{Client}{who sends the traffic? · classes 1 and 4}
 \begin{card}{client}{Client}{client}
 \f{Is}{a browser, partner backend or load tester: you can neither patch nor trust it.}
 \f{Use}{as the workload; what the user feels is DNS $+$ TLS $+$ round trips.}
 \f{Numbers}{RTT São Paulo--US East $\approx$ 110--130 ms; nearby edge 5--20 ms; TLS 1.3 adds 1 RTT; ``instant'' $\approx$ 100 ms; 2 M fans in $\approx$ 1 min $\approx$ 33 k sessions/s.}
-\ff{Fails}{retry storms (backoff + jitter, Retry-After); double submits (client idempotency key).}
+\ff{Fails}{retry storms (backoff + jitter, Retry-After); double submits (idempotency key).}
 \f{Products}{k6, Locust, Gatling; AWS/GCP/Azure SDKs; synthetic checks.}
 \end{card}
 \begin{card}{client}{Mobile}{mobile}
-\f{Is}{a native or mobile-web app: flaky networks, battery, old versions, offline storage and push.}
+\f{Is}{a native or mobile-web app: flaky network, battery, old versions, offline, push.}
 \f{Use}{push, offline survival (QR ticket at the gate), a second traffic mix.}
-\f{Numbers}{RTT 4G 30--100 ms, 3G 100--500 ms, 5G 10--30 ms; push in seconds, best effort.}
+\f{Numbers}{RTT 4G 30--100, 3G 100--500, 5G 10--30 ms; push in seconds, best effort.}
 \ff{Fails}{drop mid-purchase (idempotency key + status endpoint); reconnect storms (jitter).}
 \f{Products}{Firebase/FCM, APNs, Amplify, Notification Hubs.}
 \end{card}
@@ -533,35 +543,35 @@
 \cat{edge}{Traffic \& edge}{how does a request get in? · class 4}
 \begin{card}{edge}{DNS}{dns}
 \f{Is}{name $\to$ IP, cached for the TTL; managed DNS adds geo, weighted and failover routing; anycast.}
-\f{Use}{always; the decision is the policy: region failover, latency/geo, weighted canary.}
-\f{Numbers}{lookup cached 1--10 ms, full 20--120 ms; TTL 60--300 s for failover records. Failover $\approx$ interval $\times$ threshold $+$ TTL $= 3 \times 10 + 60$ s $\approx$ 1.5 min. Sim TTL 60 s.}
+\f{Use}{always; the decision is the policy: failover, latency/geo, weighted canary.}
+\f{Numbers}{lookup cached 1--10 ms, full 20--120 ms; TTL 60--300 s. Failover $\approx$ interval $\times$ threshold $+$ TTL $= 3 \times 10 + 60$ s $\approx$ 1.5 min. Sim TTL 60 s.}
 \ff{Fails}{provider outage (second provider); slow failover from cached answers.}
 \f{Products}{Route 53 · Cloud DNS · Azure DNS · CoreDNS, BIND.}
 \end{card}
 \begin{card}{edge}{CDN}{cdn}
 \f{Is}{edge caches (PoPs) near users; origin only on a miss; TLS and DDoS shield.}
-\f{Use}{static assets and media, public read-heavy pages (event page with a TTL of seconds), video.}
-\f{Numbers}{edge hit 5--30 ms vs 100+ ms to a far origin; static hit $>$ 90\%; origin $= (1-h) \times$ requests (95\% $\Rightarrow$ 1/20); egress 0.02--0.09 USD/GB. Sim $h = 0.9$.}
-\ff{Fails}{cold cache or purge storm (versioned URLs, origin shield); caching private data.}
+\f{Use}{static assets, media, video, public read-heavy pages (TTL of seconds).}
+\f{Numbers}{edge hit 5--30 ms vs 100+ ms to a far origin; static hit $>$ 90\%; origin $= (1-h) \times$ requests; egress 0.02--0.09 USD/GB. Sim $h = 0.9$.}
+\ff{Fails}{cold cache, purge storm (versioned URLs, origin shield); caching private data.}
 \f{Products}{CloudFront · Cloud CDN · Front Door · Cloudflare, Fastly, Varnish.}
 \end{card}
 \begin{card}{edge}{Load Balancer}{lb}
-\f{Is}{spreads requests over healthy replicas; L4 (TCP) or L7 (HTTP: paths, TLS, retries).}
+\f{Is}{spreads requests over healthy replicas; L4 (TCP) or L7 (HTTP: paths, TLS).}
 \f{Use}{as soon as there are two replicas: scale-out and zero-downtime deploys.}
 \f{Numbers}{adds $<$ 1 ms; health check every 5--30 s, 2--3 failures to remove. Sim: detection 30 s without a Health Check, 3 s with one.}
 \ff{Fails}{traffic to a dead replica until detected; a health check that lies (split liveness/readiness).}
-\f{Products}{ALB/NLB · Cloud Load Balancing · Azure LB/App Gateway · HAProxy, Nginx, Envoy.}
+\f{Products}{ALB/NLB · Cloud Load Balancing · Azure LB · HAProxy, Nginx, Envoy.}
 \end{card}
 \begin{card}{edge}{WAF}{waf}
-\f{Is}{HTTP firewall: blocks SQLi, XSS and bots with managed + custom rules, at the edge.}
+\f{Is}{HTTP firewall at the edge: blocks SQLi, XSS, bots (managed + custom rules).}
 \f{Use}{in front of login, search and checkout; scalper bots; virtual patch; L7 DDoS.}
-\f{Numbers}{adds $<$ 1 to a few ms; blocked requests never reach the origin. Sim blocks 95\% of bots.}
+\f{Numbers}{adds 1--3 ms; blocked requests never reach the origin. Sim blocks 95\% of bots.}
 \ff{Fails}{false positives on real purchases; bypass by calling the origin directly.}
 \f{Products}{AWS WAF · Cloud Armor · Azure WAF · ModSecurity + OWASP CRS.}
 \end{card}
 \begin{card}{edge}{API Gateway}{apigw}
-\f{Is}{the API's front door: routing, JWT validation, rate limits, quotas. BFF: one per client type.}
-\f{Use}{several services behind one API; per-user limits (429 + Retry-After); partner APIs.}
+\f{Is}{the API's front door: routing, JWT checks, rate limits, quotas; a BFF per client.}
+\f{Use}{several services behind one API; per-user limits (429 + Retry-After); partners.}
 \f{Numbers}{adds 1--10 ms; Redis rate-limit check 0.5--1 ms. 429 = you are throttled, 503 = I am overloaded. Sim 10 k req/s.}
 \ff{Fails}{the gateway is the bottleneck; no per-route timeouts; limiter store down (fail open or closed?).}
 \f{Products}{API Gateway · Apigee · API Management · Spring Cloud Gateway, Kong.}
@@ -569,7 +579,7 @@
 \begin{card}{edge}{Ingress}{ingress}
 \f{Is}{Kubernetes rules for external HTTP(S) into Services, run by a controller; successor: Gateway API.}
 \f{Use}{host/path routing, TLS with cert-manager, canary splits, GitOps routes.}
-\f{Numbers}{adds $\le$ 1 ms; $\ge$ 2 controller replicas across zones; certificates 90 days, renewed.}
+\f{Numbers}{adds $\le$ 1 ms; $\ge$ 2 controller replicas across zones; certificates 90 days.}
 \ff{Fails}{under-provisioned controller; expired certificate; a rule shadowing a route.}
 \f{Products}{AWS LB Controller · GKE Gateway · AGC · Traefik, Envoy Gateway.}
 \end{card}
@@ -577,50 +587,50 @@
 \cat{compute}{Compute}{where does the code run? · class 5}
 \begin{card}{compute}{App Server}{app}
 \f{Is}{stateless replicas running the business logic for requests a user waits on.}
-\f{Use}{every synchronous API; modular monolith first; scale out behind an LB, autoscale at 50--70\% CPU.}
+\f{Use}{every synchronous API; modular monolith first; LB $+$ autoscale at 50--70\% CPU.}
 \f{Numbers}{limit $=$ threads $\div$ time per request: $200 \div 0.1$ s $=$ 2\,000 req/s. Sim 500 req/s, 10 ms, 120 USD/mo.}
 \ff{Fails}{threads exhausted by a slow dependency (timeouts, breakers, bulkheads); past the knee as $\rho \to 1$.}
-\f{Products}{EC2, ECS, EKS · Cloud Run, GKE · App Service, AKS · Spring Boot, FastAPI.}
+\f{Products}{EC2, ECS, EKS · Cloud Run, GKE · App Service, AKS · Spring Boot.}
 \end{card}
 \begin{card}{compute}{Worker}{worker}
-\f{Is}{background processes pulling jobs from a queue or stream; the producer returns at once.}
-\f{Use}{slow or unreliable work the user does not wait for (e-mail, PDF, transcoding); spike absorption.}
+\f{Is}{processes pulling jobs from a queue or stream; the producer returns at once.}
+\f{Use}{slow or unreliable work nobody waits for (e-mail, PDF, transcoding); spikes.}
 \f{Numbers}{workers $= \lambda \times$ job time: $500/\text{s} \times 0.2$ s $=$ 100; drain $=$ backlog $\div$ (consume $-$ produce): $600\text{k} \div 1\,000/\text{s} =$ 10 min. Sim 100 jobs/s, 50 ms.}
 \ff{Fails}{poison message (max receives + DLQ); duplicates (dedupe table); hidden lag (alert on it).}
-\f{Products}{Lambda + SQS · Cloud Run jobs · Functions + Service Bus · Celery, KEDA, Temporal.}
+\f{Products}{Lambda + SQS · Cloud Run jobs · Functions + Service Bus · Celery, KEDA.}
 \end{card}
 \begin{card}{compute}{Serverless}{serverless}
 \f{Is}{functions run per event, scale from zero, billed per call and per GB-second.}
 \f{Use}{spiky, short, event-driven work: webhooks, thumbnails, nightly jobs, glue.}
 \f{Numbers}{cold start 0.1--1 s (JVM: seconds); Lambda 15 min max, 1\,000 concurrent per region (default). Instances $= \lambda \times W$. Sim cold start 600 ms.}
-\ff{Fails}{throttling at the concurrency limit (429); connection storm on the DB (proxy/pooler).}
+\ff{Fails}{throttling at the concurrency limit (429); DB connection storm (proxy).}
 \f{Products}{Lambda · Cloud Run functions · Azure Functions · Knative, OpenFaaS.}
 \end{card}
 \begin{card}{compute}{Auth Service}{auth}
-\f{Is}{authenticates users and issues short-lived JWT access tokens + refresh tokens (OAuth 2.1/OIDC).}
+\f{Is}{authenticates users; issues short-lived JWTs and refresh tokens (OIDC).}
 \f{Use}{any system with accounts; validate at the gateway, authorize in the services.}
-\f{Numbers}{local JWT check $\approx$ µs; password hash $\ge$ 100 ms on purpose; access token 5--15 min.}
+\f{Numbers}{local JWT check $\approx$ µs; password hash $\ge$ 100 ms; access token 5--15 min.}
 \ff{Fails}{auth down $=$ logged-in features down; login storm amplified by slow hashing.}
 \f{Products}{Cognito · Identity Platform · Entra ID · Keycloak, ZITADEL.}
 \end{card}
 \begin{card}{compute}{Search}{search}
 \f{Is}{ranked full-text, fuzzy and faceted queries over an inverted index; a secondary copy of the DB.}
 \f{Use}{event search, autocomplete, facets; hybrid keyword + vector.}
-\f{Numbers}{query 10--100 ms; refresh 1 s (near real time); autocomplete $<$ 100 ms end to end.}
+\f{Numbers}{query 10--100 ms; refresh 1 s (near real time); autocomplete $<$ 100 ms.}
 \ff{Fails}{index out of sync (CDC/outbox + reconciliation); expensive queries; hot shards.}
-\f{Products}{OpenSearch Service · Vertex AI Search · Azure AI Search · OpenSearch, Meilisearch.}
+\f{Products}{OpenSearch Service · Vertex AI Search · Azure AI Search · OpenSearch.}
 \end{card}
 \begin{card}{compute}{Scheduler}{scheduler}
 \f{Is}{triggers work by time (cron, delays) with one run guaranteed by a lock or leader.}
 \f{Use}{release expired holds, reminders, opening the sale at 10:00, batch pipelines.}
 \f{Numbers}{cron granularity 1 min; lock lease a few $\times$ job time. Sim: all jobs at once $=$ thundering herd.}
 \ff{Fails}{double run (fencing token, idempotent jobs); missed run (dead-man's switch); herd at round hours (jitter).}
-\f{Products}{EventBridge Scheduler · Cloud Scheduler · timer triggers · K8s CronJob, Quartz.}
+\f{Products}{EventBridge Scheduler · Cloud Scheduler · timer triggers · K8s CronJob.}
 \end{card}
 \begin{card}{compute}{Notifications}{notifications}
-\f{Is}{turns ``tell user X'' into push, e-mail or SMS: preferences, templates, dedupe, retries.}
+\f{Is}{turns ``tell user X'' into push, e-mail or SMS: preferences, templates, dedupe.}
 \f{Use}{many services reaching users; isolation from provider quirks.}
-\f{Numbers}{push in seconds; e-mail seconds to minutes; provider quotas per second and per day.}
+\f{Numbers}{push in seconds; e-mail seconds to minutes; provider quotas per second/day.}
 \ff{Fails}{provider throttling (queue + backoff, second provider); duplicates; storms (kill switch).}
 \f{Products}{SNS/SES · FCM · Notification Hubs · Novu.}
 \end{card}
@@ -632,6 +642,59 @@
 \f{Products}{Firehose, Redshift · BigQuery, Dataflow · Event Hubs · Kafka + Flink, ClickHouse.}
 \end{card}
 
+\cat{external}{External}{services we don't run · class 5}
+\begin{card}{external}{3rd Party API}{thirdparty}
+\f{Is}{someone else's API: a contract, a rate limit, a price, no access to their metrics.}
+\f{Use}{buy, don't build, what is not your differentiator.}
+\f{Numbers}{50--500 ms with a long tail; timeout a bit above p99 (p99 800 ms $\Rightarrow$ 1 s).}
+\ff{Fails}{slow calls exhaust threads (timeout, breaker, bulkhead); 429 (backoff with Retry-After).}
+\f{Products}{Resilience4j, Toxiproxy, WireMock; API Management as a proxy.}
+\end{card}
+\begin{card}{external}{Payment}{payment}
+\f{Is}{a PSP: synchronous create/confirm (maybe ``pending'') $+$ a signed asynchronous webhook.}
+\f{Use}{always for real money, behind an adapter (authorize, capture, refund, webhook).}
+\f{Numbers}{authorization 0.5--3 s; webhooks late, twice or out of order; idempotency keys kept $\ge$ 24 h; seat hold 10 min.}
+\ff{Fails}{double charge (one idempotency key per attempt); lost webhook (reconciliation).}
+\f{Products}{Stripe, Adyen, Mercado Pago, PagBank, Pix PSPs; Hyperswitch.}
+\end{card}
+\begin{card}{external}{Email}{email}
+\f{Is}{delivery provider with reputation-managed infrastructure and bounce webhooks.}
+\f{Use}{transactional mail (ticket, receipt, reset), always via a queue.}
+\f{Numbers}{60\,000 orders in 15 min $\approx$ 67 e-mails/s; $\approx$ 0.10 USD per 1\,000; bounces $<$ 2--5\%, complaints $<$ 0.1\%.}
+\ff{Fails}{throttling (queue absorbs it); duplicates (key: order id $+$ template); spam folder.}
+\f{Products}{SES · Communication Services · SendGrid, Postmark · Mailpit (dev).}
+\end{card}
+
+\cat{containers}{Containers}{how is it packaged and placed? · class 11}
+\begin{card}{containers}{Microservice}{microservice}
+\f{Is}{one bounded context, deployed and scaled on its own, with its own database.}
+\f{Use}{when teams or scaling diverge, after a modular monolith shows the seams.}
+\f{Numbers}{a hop 0.5--2 ms; in a sync chain latencies add and availabilities multiply ($0.995^5 \approx 97.5\%$). Sim 400 req/s, 8 ms, warm-up 20 s.}
+\ff{Fails}{distributed monolith (shared DB); cascades along sync chains; chatty calls.}
+\f{Products}{EKS, ECS · Cloud Run, GKE · Container Apps, AKS · Spring Boot, gRPC, Dapr.}
+\end{card}
+\begin{card}{containers}{Container}{container}
+\f{Is}{a process from an OCI image, isolated by namespaces and limited by cgroups; no guest kernel.}
+\f{Use}{every service: the same image from laptop to production; replaced in seconds.}
+\f{Numbers}{start 0.1--1 s with the image cached, pull 1--10 s, Spring Boot ready 5--30 s. Capacity $\times$ CPU limit: 0.5 $\Rightarrow$ half the req/s, 2$\times$ slower. Sim 300 req/s, start-up 20 s, limit 1.}
+\ff{Fails}{CPU throttling (p99 up, no errors); OOMKilled loop; big images scale slowly.}
+\f{Products}{ECR, Fargate · Artifact Registry · ACR, ACI · Docker, containerd, Podman.}
+\end{card}
+\begin{card}{containers}{Kubernetes Cluster}{k8s}
+\f{Is}{nodes running pods; the HPA adds pods, the cluster autoscaler adds nodes.}
+\f{Use}{many services on one platform: self-healing, rolling updates, autoscaling, GitOps.}
+\f{Numbers}{room $=$ nodes $\times$ pods per node, the rest Pending; node NotReady after 40 s; new pod 5--30 s, new node 1--3 min. Sim 3 nodes $\times$ 10 pods, node start 90 s, 140 USD/node-month.}
+\ff{Fails}{Pending pods (no room); a lost node takes its pods (N$+$1 nodes); slow node scale-up.}
+\f{Products}{EKS · GKE · AKS · Kubernetes, Karpenter, k3s, kind.}
+\end{card}
+\begin{card}{containers}{Service Registry}{registry}
+\f{Is}{service discovery: instances register and heartbeat; callers get the healthy ones.}
+\f{Use}{services calling each other while replicas come and go.}
+\f{Numbers}{heartbeat/TTL 1--10 s; CoreDNS TTL 5 s; 3 or 5 servers (Raft). Sim: callers drop a dead replica in 3 s (not 30 s, or 40 s on a lost node).}
+\ff{Fails}{stale entries (DNS caching); registry outage (replicate, cache the list).}
+\f{Products}{Cloud Map · Service Directory · K8s Services $+$ CoreDNS, Consul, Eureka, etcd.}
+\end{card}
+
 \cat{storage}{Storage}{where does the data live? · classes 6 and 7}
 \begin{card}{storage}{SQL Database}{sql}
 \f{Is}{tables, SQL and ACID transactions: the default system of record.}
@@ -639,6 +702,13 @@
 \f{Numbers}{point read 0.1--1 ms (+ RTT); $10^3$--$10^4$ write tx/s; \texttt{max\_connections} 100; failover 30 s--min. Sim 3\,000 req/s.}
 \ff{Fails}{connection exhaustion (PgBouncer); hot row in a flash sale (short tx, \texttt{SKIP LOCKED}, waiting room).}
 \f{Products}{RDS, Aurora · Cloud SQL, AlloyDB, Spanner · Azure SQL · PostgreSQL, MySQL.}
+\end{card}
+\begin{card}{storage}{DB Cluster}{dbcluster}
+\f{Is}{shards, each a primary plus followers copying its log; failover promotes one.}
+\f{Use}{a system of record that must survive a node or an AZ; shards for writes.}
+\f{Numbers}{async: lost writes $\approx$ write rate $\times$ lag (RPO); sync/quorum: RPO 0, $+$1--2 ms per write; failover $\approx$ 30 s (RTO). Sim 1 shard, 2 followers, async, write $=$ 3 reads, 450 USD/node.}
+\ff{Fails}{lost writes on failover; stale reads; hot shard; split brain.}
+\f{Products}{Aurora · Spanner, AlloyDB · Cosmos DB · Patroni, Vitess, CockroachDB.}
 \end{card}
 \begin{card}{storage}{NoSQL DB}{nosql}
 \f{Is}{key-value, document, wide-column or graph; partitioned by key and replicated.}
@@ -707,8 +777,7 @@
 \f{Products}{MSK · Managed Kafka · Event Hubs · Kafka, Strimzi, Confluent.}
 \end{card}
 
-\columnbreak
-\cat{observability}{Observability}{how do we know? (side channels) · class 10}
+\cat{observability}{Observability}{how do we know? (side channels) · class 9}
 \begin{card}{observability}{Metrics}{metrics}
 \f{Is}{numeric time series with labels: counters, gauges, histograms. RED, USE, golden signals.}
 \f{Use}{always: SLIs, SLOs, dashboards, alerts, autoscaling.}
@@ -745,8 +814,7 @@
 \f{Products}{ELB/Route 53 checks · GCLB checks · Azure probes · K8s probes, Actuator.}
 \end{card}
 
-\columnbreak
-\cat{network}{Network}{who can talk to whom? · class 11}
+\cat{network}{Network}{who can talk to whom? · class 12}
 \begin{card}{network}{VPC}{vpc}
 \f{Is}{your isolated private network in one region; nothing in or out without gateways and routes.}
 \f{Use}{always; one per environment; one per region for multi-region.}
@@ -819,55 +887,6 @@
 \ff{Fails}{indirect prompt injection; PII leak; hallucination; guardrail outage (fail open or closed?).}
 \f{Products}{Bedrock Guardrails · Model Armor · Content Safety · NeMo Guardrails, Llama Guard.}
 \end{card}
-
-\cat{external}{External}{services we don't run · class 5}
-\begin{card}{external}{3rd Party API}{thirdparty}
-\f{Is}{someone else's API: a contract, a rate limit, a price, no access to their metrics.}
-\f{Use}{buy, don't build, what is not your differentiator.}
-\f{Numbers}{50--500 ms with a long tail; timeout a bit above p99 (p99 800 ms $\Rightarrow$ 1 s).}
-\ff{Fails}{slow calls exhaust threads (timeout, breaker, bulkhead); 429 (backoff with Retry-After).}
-\f{Products}{Resilience4j, Toxiproxy, WireMock; API Management as a proxy.}
-\end{card}
-\begin{card}{external}{Payment}{payment}
-\f{Is}{a PSP: synchronous create/confirm (maybe ``pending'') $+$ a signed asynchronous webhook.}
-\f{Use}{always for real money, behind an adapter (authorize, capture, refund, webhook).}
-\f{Numbers}{authorization 0.5--3 s; webhooks late, twice or out of order; idempotency keys kept $\ge$ 24 h; seat hold 10 min.}
-\ff{Fails}{double charge (one idempotency key per attempt); lost webhook (reconciliation).}
-\f{Products}{Stripe, Adyen, Mercado Pago, PagBank, Pix PSPs; Hyperswitch.}
-\end{card}
-\begin{card}{external}{Email}{email}
-\f{Is}{delivery provider with reputation-managed infrastructure and bounce webhooks.}
-\f{Use}{transactional mail (ticket, receipt, reset), always via a queue.}
-\f{Numbers}{60\,000 orders in 15 min $\approx$ 67 e-mails/s; $\approx$ 0.10 USD per 1\,000; bounces $<$ 2--5\%, complaints $<$ 0.1\%.}
-\ff{Fails}{throttling (queue absorbs it); duplicates (key: order id $+$ template); spam folder.}
-\f{Products}{SES · Communication Services · SendGrid, Postmark · Mailpit (dev).}
-\end{card}
-
-\cat{external}{Patterns that combine them}{classes 7 to 9, 13}
-{\footnotesize
-\renewcommand{\arraystretch}{1.06}
-\sub{stC}{Caching (class 7)}
-\begin{bul}
-  \item \term{Cache-aside}: read cache, on a miss read DB and fill; on write, commit then \emph{delete} the key; TTL $+$ jitter as a safety net. Default.
-  \item \term{Read-through} (a loader fills), \term{write-through} (cache and DB together), \term{write-behind} (DB later: may lose data), \term{refresh-ahead} (reload before expiry, e.g. at 80\% of the TTL).
-  \item L1 in-process (1--5 s) $+$ Redis L2. Cache what you display, never what you decide on.
-\end{bul}
-\sub{stC}{Messaging (class 8)}
-\begin{bul}
-  \item \term{Load levelling}: a queue turns a spike into backlog (not a fix for a permanent shortage). \term{Waiting room}: admit at the measured rate of the bottleneck.
-  \item \term{Transactional outbox}: write the event in the same transaction, relay later (or CDC); never dual writes.
-  \item \term{Idempotent consumer}: dedupe table in the same transaction; bounded retries, then DLQ.
-  \item \term{Saga}: local steps with compensations; the pivot (payment) is reconciled before compensating. Choreography for 2--3 steps, orchestration for 4$+$. \term{CQRS} and \term{event sourcing} only when a requirement asks.
-\end{bul}
-\sub{stD}{Resilience (class 9)}
-\begin{bul}
-  \item Timeout $\to$ one retry with backoff, jitter and an idempotency key $\to$ circuit breaker counting slow calls $\to$ bulkhead sized by Little $\to$ honest fallback (``seats held, payment pending'').
-  \item \term{Load shedding} by priority protects the system; \term{rate limiting} protects it from one client (token bucket: capacity $=$ burst, rate $=$ sustained; 429 $+$ Retry-After).
-\end{bul}
-\sub{stC}{AI (class 13)}
-\begin{bul}
-  \item Workflow first, agent where needed (capped steps); gateway with fallbacks, token quotas, prefix caching; RAG with hybrid search, rerank, citations; live data through tools; least privilege and UI confirmation for irreversible actions.
-\end{bul}}
 
 \end{multicols*}
 
@@ -972,19 +991,7 @@
 \pit{dividing the backlog by the arrival rate; trusting exactly-once; dual writes.}
 \end{klass}
 
-\begin{klass}{}{9 · Reliability \& Resilience}{reliability · deep dive}
-\question{The payment provider goes from 200 ms to 4 s and nothing is broken: how do we stop it taking down \texttt{order}, the gateway and browsing, and how much failure is acceptable?}
-\begin{light}
-  \item Availability is arithmetic: lower MTTR beats higher MTTF; series multiplies; the unreplicated part dominates.
-  \item SLO $\to$ error budget $\to$ burn rate turns ``reliable enough?'' into decisions: ship or freeze, page or ticket.
-  \item Slow is worse than dead: timeout, one jittered retry, breaker on slow calls, bulkhead by Little, honest fallback.
-\end{light}
-\nums{720 h / 2 h $\to$ 99.72\%; burn 14.4 over 1 h $\approx$ 2\% of the budget; breaker 50\% of 20 calls, open 30 s; bulkhead 50.}
-\say{Payment gets a 2 s timeout, one jittered retry with an idempotency key, a breaker and a bulkhead.}
-\pit{retries at every layer (27$\times$) and replicas as backups (they copy the \texttt{DELETE}).}
-\end{klass}
-
-\begin{klass}{}{10 · Observability}{observability · deep dive}
+\begin{klass}{}{9 · Observability}{observability · deep dive}
 \question{Every pod is green, CPU 45\%, errors 0.3\%, yet the median fan waits 9 s to pay. What would have found the slow hop in minutes?}
 \begin{light}
   \item Measure what users feel per journey: percentiles and SLIs; multiwindow burn-rate alerts (14.4$\times$ 1 h/5 min).
@@ -996,19 +1003,19 @@
 \pit{green dashboards of causes and averages; averaging per-pod p99s (450 vs 756 ms).}
 \end{klass}
 
-\begin{klass}{}{11 · Network \& Security}{network-security · design}
-\question{Who can talk to whom, and how does each call prove who it is and what it may do, from the fan's phone to \texttt{payment}?}
+\begin{klass}{}{10 · Reliability \& Resilience}{reliability · deep dive}
+\question{The payment provider goes from 200 ms to 4 s and nothing is broken: how do we stop it taking down \texttt{order}, the gateway and browsing, and how much failure is acceptable?}
 \begin{light}
-  \item Security is a design decision: STRIDE at every trust boundary, independent layers.
-  \item Isolation from routes, security groups and NetworkPolicy; a NAT per AZ; endpoints for cloud services; plan CIDRs.
-  \item Identity everywhere, short-lived: Authorization Code $+$ PKCE, 15-min JWTs, mTLS $+$ authorization policy, rotated secrets, verified signatures.
+  \item Availability is arithmetic: lower MTTR beats higher MTTF; series multiplies; the unreplicated part dominates.
+  \item SLO $\to$ error budget $\to$ burn rate turns ``reliable enough?'' into decisions: ship or freeze, page or ticket.
+  \item Slow is worse than dead: timeout, one jittered retry, breaker on slow calls, bulkhead by Little, honest fallback.
 \end{light}
-\nums{/16 $=$ 65\,536, /24 $=$ 256 (5 reserved); access token 15 min; NAT $\approx$ 0.045 USD/h $+$ 0.045 USD/GB.}
-\say{Only the load balancer is public; the database subnet has no route to the internet.}
-\pit{authentication taken for authorization (BOLA); STRICT mTLS without an authorization policy.}
+\nums{720 h / 2 h $\to$ 99.72\%; burn 14.4 over 1 h $\approx$ 2\% of the budget; breaker 50\% of 20 calls, open 30 s; bulkhead 50.}
+\say{Payment gets a 2 s timeout, one jittered retry with an idempotency key, a breaker and a bulkhead.}
+\pit{retries at every layer (27$\times$) and replicas as backups (they copy the \texttt{DELETE}).}
 \end{klass}
 
-\begin{klass}{}{12 · Cloud-Native Platforms}{cloud-native · design, estimate}
+\begin{klass}{}{11 · Cloud-Native Platforms}{cloud-native · design, estimate}
 \question{From one \texttt{docker compose up} to 20$\times$ traffic for 30 minutes, a fix at 09:55 without downtime, and the cost known before the invoice.}
 \begin{light}
   \item Stateless, disposable apps in small immutable images; graceful shutdown.
@@ -1018,6 +1025,18 @@
 \nums{HPA $\lceil 4 \times 90/60 \rceil = 6$; canary 5 $\to$ 25 $\to$ 50\%, gate errors $<$ 0.5\%, p99 $<$ 300 ms; $\approx$ 0.013 USD per ticket.}
 \say{We pre-scale at 09:45: the autoscaler reacts in minutes, the on-sale in seconds.}
 \pit{the database in readiness or liveness probes; ``the HPA will save the on-sale''.}
+\end{klass}
+
+\begin{klass}{}{12 · Network \& Security}{network-security · design}
+\question{Who can talk to whom, and how does each call prove who it is and what it may do, from the fan's phone to \texttt{payment}?}
+\begin{light}
+  \item Security is a design decision: STRIDE at every trust boundary, independent layers.
+  \item Isolation from routes, security groups and NetworkPolicy; a NAT per AZ; endpoints for cloud services; plan CIDRs.
+  \item Identity everywhere, short-lived: Authorization Code $+$ PKCE, 15-min JWTs, mTLS $+$ authorization policy, rotated secrets, verified signatures.
+\end{light}
+\nums{/16 $=$ 65\,536, /24 $=$ 256 (5 reserved); access token 15 min; NAT $\approx$ 0.045 USD/h $+$ 0.045 USD/GB.}
+\say{Only the load balancer is public; the database subnet has no route to the internet.}
+\pit{authentication taken for authorization (BOLA); STRICT mTLS without an authorization policy.}
 \end{klass}
 
 \begin{klass}{}{13 · AI Systems \& Agents}{ai-systems · design, estimate}
@@ -1068,7 +1087,7 @@
 \pit{rate limiting or autoscaling a resource that cannot scale (hot row, primary, PSP limit): it needs admission control.}
 \end{klass}
 \vspace{.2em}
-\sub{sim}{\faMousePointer\ The 25 playground scenarios}
+\sub{sim}{\faMousePointer\ The 28 playground scenarios}
 {\scriptsize\renewcommand{\arraystretch}{1.0}
 \begin{tabularx}{\linewidth}{@{}>{\ttfamily}l X@{}}
 monolith & the first box to saturate sets the breaking point \\
@@ -1095,6 +1114,9 @@ payment-system & retries need idempotency keys \\
 search-autocomplete & a latency budget met by a cache \\
 ai-assistant & LLM calls set latency and cost \\
 observability-stack & you can't fix what you don't measure \\
+microservices & the HPA adds pods; only nodes add room \\
+k8s-node-failure & N$+$1 nodes; discovery drops dead pods \\
+db-failover & RTO $=$ failover; RPO $=$ writes in the lag \\
 blank & an empty canvas for your own design \\
 \end{tabularx}}
 {\scriptsize\color{soft}insper.github.io/platform/playground/scenarios/\#\textless id\textgreater\par}

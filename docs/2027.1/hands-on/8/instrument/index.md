@@ -151,7 +151,7 @@ scheduled job and continues through Kafka to `notification`. The agent propagate
 HTTP calls and Kafka messages automatically, but the outbox is a **database row** read later by a
 different thread: the context of the request is not in the row, so it is lost.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant O as order (HTTP thread)
     participant DB as outbox table

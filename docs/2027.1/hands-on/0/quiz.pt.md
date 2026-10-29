@@ -138,4 +138,4 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **C — Segredos ficam fora do Git.**
 
-    Tudo que vai para o Git deve ser considerado público para sempre (o histórico guarda mesmo depois de apagar). Os padrões dos labs (`boxoffice`/`boxoffice`) são valores locais descartáveis; segredos reais vão para um gerenciador de segredos, tema da aula 11.
+    Tudo que vai para o Git deve ser considerado público para sempre (o histórico guarda mesmo depois de apagar). Os padrões dos labs (`boxoffice`/`boxoffice`) são valores locais descartáveis; segredos reais vão para um gerenciador de segredos, tema da aula 12.

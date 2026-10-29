@@ -8,6 +8,8 @@
 
 The flash sale is the moment BoxOffice exists for: at 10:00, 60,000 seats and two million fans. The catalog could be cached because a few seconds of staleness is harmless. **Seats are the opposite**: selling the same seat twice is the one bug a ticketing company cannot afford. This lab is about the data layer under pressure[^1] — correctness first (transactions and locks), then scale (replicas, pooling, indexes) — and about the trade-offs between them.
 
+This lab builds chapter 6 of the [story of the course](../../index.md#story), the database that every stateless service now depends on. It implements the decisions of class 6: [one seat, one hold](../../classes/databases/transactions/index.md#double-booking) with locks or a version check, a [read replica and its lag](../../classes/databases/replication/index.md#lag), [connection pooling](../../classes/databases/replication/index.md) with PgBouncer, and [indexes read with `EXPLAIN`](../../classes/databases/models/index.md).
+
 ## Before you start { #before-you-start }
 
 | | |
@@ -66,7 +68,7 @@ Then look at the whole sale in `flash-sale`: the waiting room, inventory in SQL,
 
 ## What you will build
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     k6([k6 fans]) --> edge[edge] --> gw[gateway]
     gw -->|"/catalog/**"| cat["catalog ×3"]
@@ -176,6 +178,14 @@ PgBouncer SHOW POOLS: cl_active ____ , sv_active ____ , cl_waiting ____
 | `503`/`404` on `/inventory/**` through the edge | the gateway was not rebuilt with the new route | `docker compose up --build -d gateway`, then `curl -s localhost:8080/actuator/gateway/routes \| jq -r '.[].route_id'` must list `inventory` |
 | holds return `401` | no token (holds are protected) | log in and pass `-H "Authorization: Bearer $TOKEN"` |
 | containers killed (`exit 137`), very slow startup | not enough memory for eleven containers | give Docker 8 GB, close other programs, or stop `catalog-2`/`catalog-3` during the inventory experiments |
+
+!!! success "Best practices in this lab"
+
+    - **Decide in the database, not in the application** — `SELECT … FOR UPDATE` in `ORDER BY id`, or a version compare-and-set, in `HoldService.java`; see [Transactions — the double-booking bug](../../classes/databases/transactions/index.md#double-booking).
+    - **Send reads that may be stale to the replica, and everything else to the primary** — `@Transactional(readOnly = true)` routed by `DataSourceConfig.java`; see [Replication — lag and its anomalies](../../classes/databases/replication/index.md#lag).
+    - **Pool connections in front of PostgreSQL, and migrate around the pooler** — `pgbouncer.ini` in transaction mode, `DB_MIGRATION_HOST` for Flyway in `inventory`'s `application.yaml`; see [Replication](../../classes/databases/replication/index.md) (connection pooling).
+    - **Add an index for a measured query, checked with `EXPLAIN ANALYZE`** — `V3__index_events.sql`; see [Data models & storage engines](../../classes/databases/models/index.md) (reading `EXPLAIN`).
+    - **Audit the invariant after every test** — `SeatQueries.doubleBookedSeats` behind `/inventory/audit/double-bookings`; see [Transactions — seat holds](../../classes/databases/transactions/index.md#seat-holds).
 
 ## Clean up
 

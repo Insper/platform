@@ -2,7 +2,7 @@ O **Redis** (*REmote DIctionary Server*) é a resposta padrão para "qual cache 
 
 ---
 
-## O que torna o Redis rápido
+## O que torna o Redis rápido { #what-makes-redis-fast }
 
 - **Tudo está em RAM.** Uma leitura é uma consulta a uma tabela hash mais uma cópia de memória; o disco só é usado para persistência, em segundo plano.
 - **Uma thread executa os comandos.** Os comandos rodam um de cada vez numa única thread principal (desde o Redis 6, threads de I/O separadas podem cuidar da leitura e escrita na rede). Não há locks dentro do servidor, e **todo comando é atômico**: nenhum outro comando roda no meio de um `INCR`.
@@ -10,7 +10,7 @@ O **Redis** (*REmote DIctionary Server*) é a resposta padrão para "qual cache 
 
 A thread única também é a principal limitação do Redis: um comando lento (uma varredura O(n) de uma chave grande, um script Lua demorado) **bloqueia todos os clientes**. A vazão por nó é alta — da ordem de 100.000 comandos simples por segundo ou mais em hardware típico, um número ilustrativo que você deve verificar com o `redis-benchmark` no seu ambiente — e escalar além de um nó significa usar o [Redis Cluster](#cluster).
 
-### Redis, Valkey e as alternativas (2026)
+### Redis, Valkey e as alternativas (2026) { #redis-valkey-and-the-alternatives-2026 }
 
 Em 2024 o Redis trocou a licença open source BSD por licenças *source-available* (RSALv2/SSPLv1). Em resposta, a Linux Foundation iniciou o **Valkey**, um fork do Redis 7.2 apoiado por vários provedores de nuvem, que continua com licença BSD e compatível no protocolo. Em 2025, o Redis 8 acrescentou a AGPLv3, open source, como opção de licença. Neste curso — e na maioria das entrevistas — "Redis" significa o protocolo e o modelo de dados, que Redis e Valkey compartilham[^1][^2].
 
@@ -24,7 +24,7 @@ Em 2024 o Redis trocou a licença open source BSD por licenças *source-availabl
 
 ---
 
-## Estruturas de dados e o que a BoxOffice faz com elas
+## Estruturas de dados e o que a BoxOffice faz com elas { #data-structures-and-what-boxoffice-does-with-them }
 
 | Tipo | Comandos principais | Complexidade | Uso na BoxOffice |
 |---|---|---|---|
@@ -62,7 +62,7 @@ OK
 
 A sala de espera é um bom exemplo de escolha de estrutura: um sorted set com a hora de chegada (em milissegundos) como *score* dá a cada fã sua posição em O(log n) (`ZRANK`), e permite ao job de admissão pegar os próximos 500 fãs num só comando (`ZPOPMIN waitingroom:42 500`).
 
-### Idas e voltas: pipelining e comandos multichave
+### Idas e voltas: pipelining e comandos multichave { #round-trips-pipelining-and-multi-key-commands }
 
 A 0,5 ms por ida e volta, ler 100 chaves uma a uma custa 50 ms. O `MGET` (ou o **pipelining** — enviar muitos comandos sem esperar cada resposta) faz isso em cerca de uma ida e volta. Uma página que precisa de muitos objetos cacheados deve buscá-los juntos.
 
@@ -89,7 +89,7 @@ Um **rate limiter** de janela fixa para o API gateway em dois comandos:
 
 Se o contador devolvido pelo `INCR` passar de 100, a requisição é rejeitada. (`EXPIRE ... NX` define a expiração só na primeira vez. Algoritmos mais refinados — token bucket, janela deslizante — estão em [Tráfego e Borda](../../edge/api-gateway/index.md).)
 
-### Uma pré-reserva de assento no Redis — e por que o SQL ainda decide
+### Uma pré-reserva de assento no Redis — e por que o SQL ainda decide { #a-seat-pre-hold-in-redis-and-why-sql-still-decides }
 
 Durante a venda relâmpago, milhares de fãs clicam nos mesmos bons lugares. Uma **pré-reserva** no Redis consegue rejeitar a maioria dos perdedores em microssegundos, antes de chegarem ao banco:
 
@@ -131,7 +131,7 @@ Para um cache, **RDB ou nada** costuma bastar. Se você se pegar ajustando `appe
 
 Um primário Redis pode ter várias **réplicas** que recebem um fluxo das suas escritas. As réplicas servem leituras (um pouco defasadas) e são candidatas à promoção se o primário falhar.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     APP["serviço catalog"] -->|"escritas e leituras"| P[("Redis primário")]
     P -->|"replicação assíncrona"| R1[("réplica 1")]
@@ -159,7 +159,7 @@ Quando um nó não basta — em memória ou em vazão — o **Redis Cluster** pa
 - Os clientes são **cluster-aware**: guardam o mapa slot → nó e mandam cada comando direto ao nó certo. Se o mapa estiver desatualizado, o nó responde `MOVED <slot> <endereço>` e o cliente atualiza o mapa; durante a migração de um slot, o `ASK` redireciona uma única requisição.
 - Acrescentar um nó = **mover alguns slots** para ele, com o sistema no ar, sem refazer o hash de todas as chaves.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     C["cliente cluster-aware<br/>mapa de slots em cache"] -->|"event:42 → slot 16271"| N3
     C -->|"prices:42 → slot 9049"| N2
@@ -185,7 +185,7 @@ flowchart LR
 
     Tudo com a mesma tag mora num nó só. Use como tag algo com muitos valores (um evento, um usuário), nunca algo com poucos (`{boxoffice}` colocaria a aplicação inteira num nó — uma [chave quente](../failure-modes/index.md#hot-keys) feita por você mesmo).
 
-### Hash slots vs. hashing consistente
+### Hash slots vs. hashing consistente { #hash-slots-vs-consistent-hashing }
 
 O Memcached segue outro caminho: os servidores não se conhecem, e **o cliente** decide qual servidor guarda uma chave, normalmente com **hashing consistente** (o algoritmo *ketama*), de modo que acrescentar um servidor remapeie só ~1/N das chaves ([Bancos de dados — hashing consistente](../../databases/partitioning/index.md#consistent-hashing)). O Redis Cluster usa um número fixo de slots: o mapeamento chave → slot nunca muda, só o slot → nó, e os próprios nós coordenam o failover e os redirecionamentos.
 
@@ -198,7 +198,7 @@ O Memcached segue outro caminho: os servidores não se conhecem, e **o cliente**
 
 ---
 
-## Redis gerenciado
+## Redis gerenciado { #managed-redis }
 
 === "AWS"
 
@@ -223,7 +223,7 @@ Serviços gerenciados cuidam de failover, atualizações e backups; continuam se
 
 ---
 
-## Dimensionando uma implantação Redis
+## Dimensionando uma implantação Redis { #sizing-a-redis-deployment }
 
 !!! example "Exemplo resolvido — o cluster de cache da BoxOffice"
 
@@ -239,7 +239,7 @@ Serviços gerenciados cuidam de failover, atualizações e backups; continuam se
 
 ---
 
-## Conectando a partir do Spring Boot
+## Conectando a partir do Spring Boot { #connecting-from-spring-boot }
 
 A configuração usada no [Hands-on 5](../../../hands-on/5/index.md):
 
@@ -274,6 +274,14 @@ services:
 
     Quando você disser "Redis", prepare-se para três perguntas seguintes. **Modelo de dados**: escolha a estrutura que combina com o padrão de acesso ("um sorted set para a sala de espera, um hash para as sessões"). **Escala**: Redis Cluster com 16.384 hash slots, hash tags para operações multichave e réplicas para failover — e por que uma chave quente não se resolve acrescentando nós. **Durabilidade**: a replicação é assíncrona, então o Redis é um cache ou um armazenamento para dados que você pode perder; a reserva do assento e o pagamento vivem no banco.
 
+!!! success "Boas práticas"
+
+    - **Separe um cache de um armazenamento**: um cache puro roda com `maxmemory`, uma política de despejo `allkeys-*` e sem persistência; sessões ou filas precisam de uma instância própria com `noeviction` e persistência. No BoxOffice: o Redis do lab 5 é um cache puro (`--save "" --appendonly no`).
+    - **Escolha a estrutura de dados que responde à pergunta num único comando** (um hash para um objeto, um sorted set para um ranking, `INCR` para um contador) em vez de ler-modificar-escrever na aplicação.
+    - **Agrupe as idas e voltas** (`MGET`, pipelines) quando uma página precisa de muitas chaves: o custo é a rede, não o Redis.
+    - **Use `SCAN`, `UNLINK` e réplicas** na manutenção, nunca `KEYS *` ou um `DEL` bloqueante no primário.
+    - **Planeje a memória com folga** (conjunto de trabalho × 1,5) e alerte em memória, despejos e atraso de replicação.
+
 !!! warning "Armadilhas comuns"
 
     - **`KEYS *` em produção** — O(n) sobre todo o espaço de chaves, bloqueia o servidor. Use `SCAN`.
@@ -286,7 +294,7 @@ services:
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     FAST["em memória,<br/>um comando por vez"] --> DS["estruturas de dados: strings,<br/>hashes, sorted sets, streams"]
     DS --> WR["sorted set =<br/>sala de espera → Mensageria"]

@@ -93,7 +93,7 @@ Os servidores sincronizados ficam a poucos milissegundos uns dos outros (um dent
 
 A história de abertura, passo a passo. Cada nó carimba sua escrita com o próprio relógio de parede; a replicação entrega as duas escritas aos dois nós; o **last-write-wins** (LWW) fica com o maior timestamp:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant B as Bruno
     participant I1 as inventory-1 (relógio +50 ms)
@@ -130,7 +130,7 @@ Um **relógio de Lamport** é um contador por processo com três regras:
 2. Ao enviar uma mensagem, anexe o contador.
 3. Ao receber uma mensagem com *t*, faça o contador valer `max(local, t) + 1`.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant O as order
     participant K as consumidor Kafka (inventory)
@@ -166,7 +166,7 @@ Três réplicas do carrinho da Carla (contadores `[SP, LIS, NYC]`):
 
 O armazenamento guarda as duas versões (*irmãos*, *siblings*) e pede à aplicação que as mescle — exatamente o que o Dynamo, da Amazon, fazia com o carrinho de compras (merge por união, e é por isso que itens apagados às vezes voltavam)[^4]. O Riak expunha o mesmo modelo.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant SP as réplica SP
     participant LIS as réplica LIS
@@ -179,6 +179,13 @@ sequenceDiagram
     LIS->>NYC: replica [1,1,0]
     Note over NYC: [1,1,0] vs [1,0,1]: concorrentes<br/>guarda os dois, mescla na aplicação
 ```
+
+Os dois relógios lado a lado, em três serviços do BoxOffice:
+
+<div class="csim" data-sim="clocks"></div>
+
+!!! tip "Experimente"
+    O cenário abre com dois eventos selecionados: `i2` (inventory libera o assento A-12, L=2, `[0,0,2]`) e `p1` (payment recebe `OrderPlaced`, L=3, `[2,1,0]`). Lamport diz 2 < 3, mas os vetores são incomparáveis — os eventos são **concorrentes**, e nada nos números de Lamport poderia ter mostrado isso. Agora clique em `o1` e depois em `i3`: `[1,0,0]` ≤ `[2,2,3]`, então `o1` → `i3` por meio de duas mensagens, e os números de Lamport concordam (1 < 5), como precisam. Clique num único evento para ver seu passado causal (anéis verdes) e seu futuro (azuis). Por fim, adicione um evento local em order (`o3`, `[3,0,0]`) e compare-o com `i3`: concorrentes. Envie uma mensagem de order para inventory e receba-a: o recebimento tem `o3` no seu passado.
 
 O custo é o tamanho: o vetor cresce com o número de nós (ou clientes) que escrevem. Sistemas práticos usam **vetores de versão** com uma posição por *réplica* (não por cliente) e podam posições antigas.
 
@@ -231,7 +238,7 @@ O **Spanner** do Google[^1] seguiu o caminho oposto: em vez de evitar o tempo f�
 
 Para tornar as transações **externamente consistentes** (se T1 confirma antes de T2 começar, o timestamp de T2 é maior), o Spanner usa a **espera de commit** (*commit wait*): escolhe o timestamp de commit *s* = `TT.now().latest` e então **espera até que `TT.now().earliest > s`** antes de tornar o commit visível — isto é, até que *s* esteja garantidamente no passado em todo lugar.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant C as cliente
     participant S as líder do Spanner
@@ -302,8 +309,24 @@ final class Snowflake {
     - **Durações e timeouts** — medidos com o relógio monotônico (`System.nanoTime()`), nunca com diferenças de relógio de parede.
     - **Monitoramento** — um alerta sobre o offset do NTP por nó (por exemplo, > 50 ms), porque uma máquina que perdeu o NTP fica em silêncio caso contrário.
 
+!!! example "No código do BoxOffice: quem decide quando uma reserva expira (lab 6)"
+
+    O [Hands-on 6 — Reservas](../../../hands-on/6/holds/index.md) segue a regra da autoridade única onde ela mais importa: quem ficou com o assento é decidido por um `UPDATE` condicional no primário, e o varredor que libera reservas expiradas compara `expires_at` com o `now()` **do banco**, usando `FOR UPDATE SKIP LOCKED` para que várias réplicas do `inventory` o rodem ao mesmo tempo sem liberar a mesma reserva duas vezes. Olhe com atenção para o `expires_at`, porém: ele é calculado **em Java**, com o relógio da réplica do `inventory`, e conferido contra o relógio do banco — a armadilha abaixo, em miniatura. Num laptop todos os contêineres compartilham um relógio, então nada aparece; em produção a diferença entre uma réplica e o banco (milissegundos com NTP, muito mais sem ele) desloca o fim de cada reserva na mesma medida. Calculá-lo em SQL, `expires_at = now() + :ttl`, como diz o quadro acima, elimina o segundo relógio.
+
+    ``` { .java title="services/inventory/src/main/java/boxoffice/inventory/HoldService.java (two clocks)" }
+    --8<-- "docs/2027.1/hands-on/6/code/services/inventory/src/main/java/boxoffice/inventory/HoldService.java:52:53,189:208"
+    ```
+
 !!! tip "Na entrevista"
     Quando um projeto compara timestamps de máquinas diferentes ("a última atualização vence", "ordene as mensagens do chat por `created_at`"), diga em voz alta: *"relógios derivam, então timestamps de servidores diferentes não ordenam eventos mais próximos do que a defasagem."* Depois ofereça a solução que se encaixa: uma **autoridade única** (sequence ou escrita condicional em um líder), um **log ordenado por chave** (partição do Kafka por chave), um **contador lógico/de versão** (concorrência otimista com uma coluna `version`) ou um **banco baseado em HLC** se precisar de ordem global. Para "projete um gerador de IDs únicos", Snowflake / UUIDv7 com seus layouts de bits é a resposta esperada (Alex Xu, vol. 1, cap. 7)[^8].
+
+!!! success "Boas práticas"
+
+    - **Guarde e troque timestamps em UTC com offset explícito** — colunas `timestamptz`, ISO 8601 nas APIs; o horário local repete uma hora por ano onde há horário de verão. Na BoxOffice: `created_at TIMESTAMPTZ` na tabela `payments` do lab 9.
+    - **Particione os eventos pela entidade cuja ordem importa** — uma chave, uma partição, uma ordem para todo consumidor. Na BoxOffice: o relay do lab 7 publica `order-events` com chave = id do pedido ([Hands-on 7 — Outbox](../../../hands-on/7/outbox/index.md)).
+    - **Decida "quem mudou por último" com um contador de versão, não com um timestamp** — `version = version + 1` em toda escrita é imune à diferença entre relógios. Na BoxOffice: `inventory.seats.version` (lab 6).
+    - **Rode o chrony com várias fontes de tempo e deixe-o ajustar devagar (slew), sem saltos, em produção** — um relógio ajustado devagar nunca volta para trás debaixo de um processo em execução.
+    - **Use ids ordenados no tempo (UUIDv7) em novas chaves primárias** — as inserções ficam no fim do índice B-tree; chaves UUIDv4 aleatórias espalham as escritas por ele.
 
 !!! warning "Armadilhas"
     - **Medir durações com o relógio de parede** — latências negativas ou enormes quando o NTP ajusta o relógio; use o relógio monotônico.
@@ -314,7 +337,7 @@ final class Snowflake {
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     DRIFT["deriva do relógio<br/>NTP, PTP"] --> LWW["LWW perde escritas"]
     LWW --> VV["vetores de versão, CRDTs<br/>→ Replicação e Consistência"]
@@ -332,13 +355,15 @@ flowchart LR
 
 **Componentes da paleta que fornecem ordem ou tempo:** [`sql`](../../../reference/components/storage/index.md#sql) (sequences, `now()` no primário) · [`kafka`](../../../reference/components/messaging/index.md#kafka) (offsets por partição) · [`scheduler`](../../../reference/components/compute/index.md#scheduler) (gatilhos por relógio de parede — cuidado com a defasagem) · [`cache`](../../../reference/components/storage/index.md#cache) (expiração por TTL). **Continua em:** [Mensageria — Kafka](../../messaging/kafka/index.md) (ordenação por chave), [Estudo de caso: encurtador de URL](../../case-studies/url-shortener/index.md) (ids únicos), [Observabilidade](../../observability/index.md) (defasagem de relógio em traces).
 
-## Pontos-chave
+## Pontos-chave { #key-takeaways }
 
-- **Não há relógio global**: relógios de quartzo derivam (ppm), o NTP os mantém a milissegundos uns dos outros — não idênticos, e não se ele parar.
-- Use o relógio **monotônico** para durações e timeouts, e o relógio **de parede** só para timestamps voltados a pessoas.
-- **Timestamps de máquinas diferentes não ordenam eventos** mais próximos do que a defasagem; o **LWW** perde escritas.
-- **Relógios de Lamport**: *a* → *b* ⇒ L(*a*) < L(*b*); **relógios vetoriais** também detectam concorrência; o **HLC** dá causalidade perto do tempo real em 64 bits; o **TrueTime** limita a incerteza e espera ela passar.
-- Na prática, obtenha ordem de uma **autoridade única**, de um **log particionado** por entidade ou de uma coluna de **versão** — e use Snowflake/UUIDv7 para ids únicos e ordenáveis, não para decidir quem chegou primeiro.
+!!! takeaways ""
+
+    - **Não há relógio global**: relógios de quartzo derivam (ppm), o NTP os mantém a milissegundos uns dos outros — não idênticos, e não se ele parar.
+    - Use o relógio **monotônico** para durações e timeouts, e o relógio **de parede** só para timestamps voltados a pessoas.
+    - **Timestamps de máquinas diferentes não ordenam eventos** mais próximos do que a defasagem; o **LWW** perde escritas.
+    - **Relógios de Lamport**: *a* → *b* ⇒ L(*a*) < L(*b*); **relógios vetoriais** também detectam concorrência; o **HLC** dá causalidade perto do tempo real em 64 bits; o **TrueTime** limita a incerteza e espera ela passar.
+    - Na prática, obtenha ordem de uma **autoridade única**, de um **log particionado** por entidade ou de uma coluna de **versão** — e use Snowflake/UUIDv7 para ids únicos e ordenáveis, não para decidir quem chegou primeiro.
 
 ---
 

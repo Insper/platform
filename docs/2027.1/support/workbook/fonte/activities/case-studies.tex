@@ -68,7 +68,7 @@ A limit of 10 requests per second per user. A client sends 10 requests at $t = 0
 \lines{5}
 \end{ex}
 
-\simulator{Reject early, protect the backend}{rate-limiter}{Set a rate limit on the API Gateway below the app capacity: bots are cut first with 429, real fans keep a low p99 and the app stays below saturation.}
+\simulator{Reject early, protect the backend}{rate-limiter}{Set a rate limit on the API Gateway below the app capacity: bots are cut first with 429, real users keep a low p99 and the app stays below saturation.}
 
 \begin{ex}{2}{A distributed cache for 2 M ops/s}
 1 B items of 1\,000 B, plus 50 B of key and 50 B of overhead each; nodes with 64 GB of RAM serving 80\,000 ops/s; 2 M ops/s; one replica per primary.
@@ -123,4 +123,4 @@ BoxOffice: 300\,000 payments a day, peaks of 300/s, the provider (PSP) answers i
 \lines{4}
 \end{ex}
 
-\simulator{The flash sale, end to end}{flash-sale}{Bypass the waiting room and watch the SQL utilization; restore it and tune the order workers to find the admission rate. Add chaos on the payment provider.}
+\simulator{The flash sale, end to end}{flash-sale}{Load the possible solution, bypass the waiting room and watch inventory-db when the sale opens at t = 60 s; restore it and tune the order workers to find the admission rate. Then inject a latency degradation on the payment provider (\faBolt): the consumer lag grows, not the buyers' p99.}

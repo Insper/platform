@@ -19,7 +19,7 @@ Ask one question about every step: **does the user's answer depend on it?**
 
 Everything below the first row becomes a **job** (a unit of work described by a small message) placed on a **queue** and executed by **workers** (processes that pull jobs and run them).
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant F as Fan
     participant O as order
@@ -50,6 +50,14 @@ What you pay: the result is **eventually** there, not immediately; you need to s
 
 !!! info "Publishing reliably"
     "Commit the order, *then* publish the event" has a gap: if the process dies between the two, the order exists and no ticket is ever issued. The **transactional outbox** closes it — write the event to an `outbox` table in the *same* transaction as the order, and let a relay publish it. Class 8 ([messaging](../../messaging/index.md)) covers it; [hands-on 7](../../../hands-on/7/index.md) builds it.
+
+!!! example "In the BoxOffice code: the e-mail leaves the request (lab 7)"
+
+    [Hands-on 7 — Outbox](../../../hands-on/7/outbox/index.md) keeps both versions of `POST /orders` behind one switch, `NOTIFY_MODE`, so you can measure the difference. In `sync` the fan waits while `order` calls `notification`; in `outbox` the order and its `OrderPlaced` event are two inserts in one transaction, and the e-mail happens later. In a test run on a busy laptop at 50 orders/s, p50 went from **4.12 s** (`sync`) to **47 ms** (`outbox`); with `notification` stopped for 20 s, about a third of the `sync` orders failed and none of the `outbox` ones did ([measurements](../../../hands-on/7/measure/index.md)). Note also `ON CONFLICT (hold_id) DO NOTHING`: a retried order for the same hold creates nothing new and emits no second event.
+
+    ``` { .java title="services/order/src/main/java/boxoffice/order/OrderService.java (place an order)" }
+    --8<-- "docs/2027.1/hands-on/7/code/services/order/src/main/java/boxoffice/order/OrderService.java:35:62"
+    ```
 
 ---
 
@@ -196,7 +204,7 @@ Some work is triggered by **time**, not by a request or an event:
 - 24 h before each show, **send a reminder** to every ticket holder;
 - every night, **reconcile** payments with the provider's report ([integrations](../integrations/index.md#reconciliation)).
 
-### The duplicate-cron problem
+### The duplicate-cron problem { #the-duplicate-cron-problem }
 
 The obvious implementation is a `@Scheduled` method in the service. It works on one replica. With 10 replicas, **the job runs 10 times**: 10 reminder e-mails per fan, 10 concurrent sweeps fighting over the same rows. The same happens with a cron entry copied to every VM. There are four standard fixes:
 
@@ -271,7 +279,7 @@ The obvious implementation is a `@Scheduled` method in the service. It works on 
 
 A distributed lock with an expiry has a subtle hole, described by Martin Kleppmann[^1]: a replica takes the lock, then **pauses** (a long garbage collection, a VM migration) beyond the lock's expiry. Another replica takes the lock and starts the job. The first one wakes up, still believing it holds the lock, and both write.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant A as Replica A
     participant L as Lock store
@@ -297,7 +305,15 @@ Releasing a hold 10 minutes after it was created is a **delayed job**. Three des
 | **Delayed message** | on hold, enqueue "release H-7" with a 10-min delay (SQS delay, Redis sorted set by due time, RabbitMQ delayed exchange) | precise timing, no scanning | one message per hold; must still be idempotent (hold may be confirmed) |
 | **Lazy expiry** | treat a hold as free when `expires_at < now()` at read time | **correct immediately**, no job needed for correctness | expired rows remain until cleaned |
 
-BoxOffice uses **lazy expiry for correctness** (availability and new holds ignore expired holds) and a **sweeper for cleanup**. The scheduler is then not on the critical path: if it is down for 5 minutes, no seat is lost.
+BoxOffice's rule: **correctness never waits for the scheduler**. A hold whose `expires_at` has passed cannot be confirmed, whether the sweeper has run or not (lazy expiry), and a **sweeper** returns its seats to sale. If the scheduler is down for 5 minutes, no seat is sold twice; the seats of expired holds only come back later. (A fully lazy design goes further: new holds may take the seats of an expired hold at once, without waiting for the sweeper.)
+
+!!! example "In the BoxOffice code: lazy check and sweeper in `inventory` (lab 6)"
+
+    In [Hands-on 6 — Holds](../../../hands-on/6/holds/index.md), `confirm` is a conditional `UPDATE` that includes `expires_at > now()`, so an expired hold answers `409` even if no job has touched it. `expireHolds` is the sweeper: every 5 s it expires at most 500 holds and frees their seats in one statement. It runs on every `inventory` replica, with no lock and no leader: `FOR UPDATE SKIP LOCKED` makes each replica skip the rows another one is already processing, which solves the [duplicate-cron problem](#the-duplicate-cron-problem) inside the database. The price is the one in the table: a seat comes back up to 5 s after its hold expired.
+
+    ``` { .java title="services/inventory/src/main/java/boxoffice/inventory/HoldService.java (confirm, sweeper)" }
+    --8<-- "docs/2027.1/hands-on/6/code/services/inventory/src/main/java/boxoffice/inventory/HoldService.java:149:163,189:208"
+    ```
 
 !!! example "Opening the sale at 10:00"
     Do not make "the sale opens" depend on a cron firing exactly at 10:00:00 — schedulers are late by seconds, and a missed run would mean no sale. Store `onSaleAt = 10:00:00` with the event; `inventory` simply rejects holds before that instant (a check against the clock, with clocks synchronized by NTP — [distributed](../../distributed/index.md)). The scheduler only does the *preparation*: at 09:45 it scales the fleet up and warms the caches ([serverless & autoscaling](../serverless-autoscaling/index.md#scheduled-and-predictive-scaling)).
@@ -325,6 +341,14 @@ The `notification-system` scenario combines a scheduler, a queue and the e-mail/
 
     Whenever a design has a slow, failure-prone or bursty step that does not change the user's answer, say: *"I'd move it off the request path: the API writes the order and an event in one transaction (outbox), and a worker pool consumes it — idempotent, with retries, exponential backoff and a DLQ. I'd scale the workers on consumer lag."* For scheduled work, mention that cron on every replica runs N times, and pick **CronJob, a lock or leader election** — plus idempotency because locks expire. Then give a number: "100 jobs/s × 0.8 s = 80 workers at peak".
 
+!!! success "Best practices"
+
+    - **Alert on the age of the oldest job, not only on the queue size** — 10 jobs that are 3 hours old are an incident; 10,000 jobs that drain in 30 s are not.
+    - **Derive the worker count and write the arithmetic next to the setting** — workers = jobs/s × time per job ÷ target utilization: 100 e-mails/s × 50 ms = 5 busy threads, so 6 or 7. In BoxOffice: `NOTIFY_CONCURRENCY` 1 vs 6 in [lab 7](../../../hands-on/7/measure/index.md).
+    - **Use the database as a small job queue before adding a broker** — `FOR UPDATE SKIP LOCKED` lets several workers share a table safely, inside the transactions you already have. In BoxOffice: the hold sweeper of [lab 6](../../../hands-on/6/holds/index.md) (box above).
+    - **Record every scheduled run** — start, end, items processed and outcome, as a log line and a metric; a sweeper that freed 0 seats for an hour during a sale is a signal. In BoxOffice: `expireHolds` logs how many seats it freed.
+    - **Keep schedules in UTC and store the next due time** — local time zones skip or repeat runs at daylight-saving changes, and a stored due time lets you detect a missed run.
+
 !!! warning "Common pitfalls"
 
     - **`@Async` treated as a queue**: work disappears on every deploy or crash.
@@ -340,7 +364,7 @@ The `notification-system` scenario combines a scheduler, a queue and the e-mail/
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     RP["request path: only what<br/>the answer depends on"] --> Q["jobs on a queue<br/>→ Messaging"]
     Q --> W["workers<br/>rate × time per job"]
@@ -354,13 +378,15 @@ flowchart LR
 
 **Palette components:** [`queue`](../../../reference/components/messaging/index.md#queue) (jobs and delayed messages) · [`worker`](../../../reference/components/compute/index.md#worker) (consumers sized by Little's law) · [`scheduler`](../../../reference/components/compute/index.md#scheduler) (cron and delayed work, once per cluster) · [`kafka`](../../../reference/components/messaging/index.md#kafka) (commit the offset after the work) · [`sql`](../../../reference/components/storage/index.md#sql) (ShedLock row, holds that expire lazily) · [`objstore`](../../../reference/components/storage/index.md#objstore) (ticket PDFs) · [`notifications`](../../../reference/components/compute/index.md#notifications) · [`email`](../../../reference/components/external/index.md#email) (the ticket e-mail, off the request path). **Scenarios:** `async-queue`, `notification-system`. **Continues in:** [Serverless & Autoscaling — scaling on queue depth](../serverless-autoscaling/index.md#scaling-workers-on-queue-depth), [Messaging — queues and pub/sub](../../messaging/queues-pubsub/index.md), [Messaging — delivery semantics](../../messaging/semantics/index.md), [Distributed — consensus](../../distributed/consensus/index.md) (fencing), [Hands-on 7](../../../hands-on/7/index.md).
 
-## Key takeaways
+## Key takeaways { #key-takeaways }
 
-- Keep only what the user's answer depends on in the request; move the rest to **jobs on a queue** processed by **workers**.
-- Size workers with Little's law (`rate × time per job`); a queue turns overload into **delay**, and the slowest downstream sets the real limit.
-- Delivery is **at least once**: idempotent jobs, ack after work, retries with backoff, a **DLQ** for poison messages, priorities by queue.
-- Scheduled work on N replicas runs N times: use a **CronJob**, a **distributed lock** (ShedLock) or **leader election** — and stay idempotent, because locks expire (**fencing tokens**).
-- Design time-based rules so that correctness does not depend on a job firing on time (**lazy expiry** + sweeper).
+!!! takeaways ""
+
+    - Keep only what the user's answer depends on in the request; move the rest to **jobs on a queue** processed by **workers**.
+    - Size workers with Little's law (`rate × time per job`); a queue turns overload into **delay**, and the slowest downstream sets the real limit.
+    - Delivery is **at least once**: idempotent jobs, ack after work, retries with backoff, a **DLQ** for poison messages, priorities by queue.
+    - Scheduled work on N replicas runs N times: use a **CronJob**, a **distributed lock** (ShedLock) or **leader election** — and stay idempotent, because locks expire (**fencing tokens**).
+    - Design time-based rules so that correctness does not depend on a job firing on time (**lazy expiry** + sweeper).
 
 ---
 

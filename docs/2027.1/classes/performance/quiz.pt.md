@@ -2,7 +2,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Vocabulário e a curva
+## Vocabulário e a curva { #vocabulary-and-the-curve }
 
 **Q1.** O `inventory` conclui 2 000 reservas por segundo e cada reserva passa em média 150 ms no serviço. Quantas reservas estão em andamento a cada momento, em média?
 
@@ -46,7 +46,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Metodologia
+## Metodologia { #methodology }
 
 **Q4.** Durante um teste, o `inventory` está com 45 % de CPU, todas as 200 threads do Tomcat ocupadas, o pool Hikari com 10/10 ativas e 180 threads pendentes, e o PostgreSQL a 35 % de CPU com a maioria das sessões em `wait_event = Lock: tuple`. Qual é o gargalo?
 
@@ -90,7 +90,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Testes de carga
+## Testes de carga { #load-testing }
 
 **Q7.** Um teste de modelo fechado tem 200 VUs com 1 s de think time. Quando o tempo de resposta do sistema vai de 0,1 s para 2 s, o que acontece com a carga que o teste gera?
 
@@ -176,7 +176,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Gargalos e capacidade
+## Gargalos e capacidade { #bottlenecks-and-capacity }
 
 **Q13.** O `inventory` tem CPU baixa mas latência alta sob carga. Qual perfil é mais útil?
 

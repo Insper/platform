@@ -1,4 +1,4 @@
-Saber o que *é* um cache, uma fila ou um circuit breaker não é o mesmo que saber **de quais um sistema precisa, onde e quantos**. Neste exercício você recebe três designs que falham sob carga no [System Design Playground](../../../playground/index.md) — uma venda relâmpago da BoxOffice, uma cascata causada por uma dependência lenta e um assistente de IA lento e caro demais — e precisa fazer cada um **atingir suas metas dentro do orçamento**, explicar por que o seu design funciona com as fórmulas do curso e mostrar que ele continua funcionando quando os dados são lançados de novo.
+Saber o que *é* um cache, uma fila ou um circuit breaker não é o mesmo que saber **de quais um sistema precisa, onde e quantos**. Neste exercício você recebe três designs que falham sob carga no [System Design Playground](../../../playground/index.md) — uma venda relâmpago, uma cascata causada por uma dependência lenta e um assistente de IA lento e caro demais — e precisa fazer cada um **atingir suas metas dentro do orçamento**, explicar por que o seu design funciona com as fórmulas do curso e mostrar que ele continua funcionando quando os dados são lançados de novo.
 
 !!! abstract "Objetivos de aprendizagem"
 
@@ -10,7 +10,7 @@ Saber o que *é* um cache, uma fila ou um circuit breaker não é o mesmo que sa
     - **Avaliar** robustez: distinguir um design que passa por sorte de um que passa sob falhas aleatórias.
     - **Comparar** alternativas e defender um trade-off entre custo e confiabilidade.
 
-## Contexto
+## Contexto { #context }
 
 O playground simula um design sob um perfil de carga (o mesmo vocabulário do k6: `smoke`, `load`, `stress`, `spike`, `soak`, `breakpoint`, `chaos`). O que você precisa para este exercício (o manual completo está na [página do playground](../../../playground/index.md), e as lições de cada cenário no [guia de cenários](../../../playground/scenarios/index.md)):
 
@@ -22,23 +22,23 @@ O playground simula um design sob um perfil de carga (o mesmo vocabulário do k6
 
 Projete no **playground completo** (paleta + inspetor). As incorporações desta página são *compactas*: mostram o cenário e o executam, mas não permitem acrescentar componentes.
 
-## Tarefa
+## Tarefa { #task }
 
-### Parte A — Três desafios
+### Parte A — Três desafios { #part-a-three-challenges }
 
 Para cada cenário abaixo, parta do cenário como ele é carregado (**não** mude o perfil, a carga-alvo, a proporção de leituras nem as metas) e mude o **design** até que **todas as metas passem** com a seed padrão do cenário e o caos definido pelo cenário.
 
-#### Desafio 1 — `flash-sale`
+#### Desafio 1 — `flash-sale` { #challenge-1-flash-sale }
 
-A venda da BoxOffice às 10:00: um pico de fãs atinge o catálogo e o inventário de assentos, e os pagamentos vão para um provedor externo.
+Uma venda relâmpago com estoque limitado (a abertura das 10:00 do BoxOffice em forma genérica): um pico de usuários atinge o catálogo e o inventário, e os pagamentos vão para um provedor externo.
 
-**Experimente:** aperte ▶ e observe qual nó fica vermelho primeiro, e quando. Veja o relatório: qual meta falha, e o que diz a explicação do gargalo? Depois pergunte: quantas requisições por segundo o banco do inventário realmente aceita, e quem decide quantos fãs chegam até ele?
+**Experimente:** aperte ▶ e observe qual nó fica vermelho primeiro, e quando. Veja o relatório: qual meta falha, e o que diz a explicação do gargalo? Depois pergunte: quantas requisições por segundo o banco do inventário realmente aceita, e quem decide quantos usuários chegam até ele?
 
 <div class="sdp" data-scenario="flash-sale" data-mode="compact" data-height="520"></div>
 
-Pontos para pensar (não é uma receita): o que pode ser servido sem tocar no inventário (conteúdo estático, o catálogo, a disponibilidade de assentos que pode estar alguns segundos desatualizada); que taxa de admissão o inventário sustenta (utilização abaixo de ~0,7); o que acontece com os fãs ainda não admitidos (uma sala de espera é uma fila, e uma fila tem backlog); onde vai parar a latência do provedor de pagamento.
+Pontos para pensar (não é uma receita): o que pode ser servido sem tocar no inventário (conteúdo estático, o catálogo, a disponibilidade de estoque que pode estar alguns segundos desatualizada); que taxa de admissão o inventário sustenta (utilização abaixo de ~0,7); o que acontece com os usuários ainda não admitidos (uma sala de espera é uma fila, e uma fila tem backlog); onde vai parar a latência do provedor de pagamento.
 
-#### Desafio 2 — `cascading-failure`
+#### Desafio 2 — `cascading-failure` { #challenge-2-cascading-failure }
 
 Uma dependência de terceiros fica lenta; sem timeouts, as threads se acumulam e um serviço saudável cai.
 
@@ -48,7 +48,7 @@ Uma dependência de terceiros fica lenta; sem timeouts, as threads se acumulam e
 
 Pontos para pensar: um valor de timeout derivado do p99 normal da dependência (não um chute); o que um circuit breaker traz e quanto custa; se um fallback (resposta degradada) é aceitável para essa chamada; se retentativas ajudam ou pioram (veja [`retry-storm`](../../../playground/scenarios/index.md)).
 
-#### Desafio 3 — `ai-assistant`
+#### Desafio 3 — `ai-assistant` { #challenge-3-ai-assistant }
 
 O assistente de suporte da BoxOffice: um orquestrador chama um LLM através de um gateway, recupera contexto de uma memória (RAG) e chama ferramentas. Ele é lento e caro.
 
@@ -58,7 +58,7 @@ O assistente de suporte da BoxOffice: um orquestrador chama um LLM através de u
 
 Pontos para pensar: o número de passos do agente (cada passo é uma chamada sequencial ao LLM); um cache semântico no gateway de LLM (que taxa de acerto é realista para perguntas de suporte?); rotear perguntas simples para um modelo mais barato; onde fica a safety mesh no caminho; tokens × preço = custo por requisição.
 
-### Parte B — Robustez com aleatoriedade
+### Parte B — Robustez com aleatoriedade { #part-b-randomized-robustness }
 
 Um design que passa com uma seed pode passar por sorte. Execute o seu design **final** de cada desafio com **5 seeds** e nível de caos **`medium`**, mantendo todo o resto como na Parte A:
 
@@ -70,7 +70,7 @@ A incorporação abaixo mostra o mesmo cenário com uma seed fixa e caos médio 
 
 <div class="sdp" data-scenario="flash-sale" data-mode="compact" data-height="520" data-seed="12345" data-chaos="medium"></div>
 
-### A física não muda
+### A física não muda { #the-physics-stays-fixed }
 
 Você muda a **arquitetura**, não as leis da natureza. A menos que você justifique no texto (e a justificativa seja aceita), **não** edite:
 
@@ -84,7 +84,7 @@ Taxas de acerto de cache e CDN acima de **0,95**, e de cache semântico acima de
 
     Cada cenário tem uma solução de referência. Você pode carregá-la e estudá-la. Uma entrega **idêntica (ou quase idêntica) à solução de referência fica limitada a C**. Para chegar a B ou A, o design precisa ser seu e ser **mais barato** que a referência com as mesmas metas ou **mais robusto** (passa em mais seeds em `medium`, ou passa em `high`), e você precisa explicar por quê.
 
-## Requisitos
+## Requisitos { #requirements }
 
 - [ ] **(obrigatório)** Para cada um dos três desafios, o JSON exportado é importado no playground e, com a seed padrão, **todas as metas passam** (inclusive a de custo).
 - [ ] **(obrigatório)** As regras da física acima são respeitadas (ou cada exceção é justificada).
@@ -95,7 +95,7 @@ Taxas de acerto de cache e CDN acima de **0,95**, e de cache semântico acima de
 - [ ] Uma comparação com a solução de referência (custo, robustez, estrutura).
 - [ ] Seção *Uso de IA* (veja a [política](../index.md#use-of-ai-tools)).
 
-## Entregáveis
+## Entregáveis { #deliverables }
 
 No seu repositório (tag `ex6`):
 
@@ -113,7 +113,7 @@ playground/
 
 Os relatórios podem ser capturas de tela (`.png`) ou o texto do relatório copiado para um arquivo `.txt` — o que importa é que **a seed, o perfil, o nível de caos e os resultados das metas estejam visíveis**. No site da sua documentação, uma página `playground-design` com uma seção por desafio e a tabela da Parte B. Links de compartilhamento (`#sdp=…`) ao lado de cada design são um extra bem-vindo.
 
-## Passo a passo
+## Passo a passo { #step-by-step }
 
 1. **Leia o enunciado e as metas.** Anote-os na sua página: meta, limite e o orçamento.
 2. **Execute o cenário como ele está** e guarde o relatório inicial. Anote a primeira meta que falha e o gargalo apontado.
@@ -204,7 +204,7 @@ Os relatórios podem ser capturas de tela (`.png`) ou o texto do relatório copi
     Custo: ... vs ... · Robustez: ... vs ... · Principal diferença estrutural: ...
     ~~~
 
-## Rubrica
+## Rubrica { #rubric }
 
 Níveis conforme definidos em [Como os exercícios são avaliados](../index.md#how-the-exercises-are-graded). O professor reimporta seus arquivos JSON e os executa de novo com as seeds que você informar.
 

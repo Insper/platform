@@ -22,11 +22,11 @@ Este é o serviço `assistant` do BoxOffice (o [Hands-on 12](../../../hands-on/1
 
 ---
 
-## 1. Esclarecer os requisitos
+## 1. Esclarecer os requisitos { #1-clarify-the-requirements }
 
 ([roteiro de entrevista](../../intro/interview-framework/index.md))
 
-### Requisitos funcionais
+### Requisitos funcionais { #functional-requirements }
 
 1. Chat no app e no site do BoxOffice, em português e inglês, com respostas em **streaming**.
 2. Responder a perguntas sobre **eventos, locais e políticas** (reembolso, acessibilidade, itens permitidos) com **citações** do documento de origem.
@@ -34,7 +34,7 @@ Este é o serviço `assistant` do BoxOffice (o [Hands-on 12](../../../hands-on/1
 4. Executar um pequeno conjunto de **ações** — reenviar ingressos, transferir um pedido para outra data, abrir um pedido de reembolso — só depois de mostrar um resumo e obter a **confirmação** explícita do fã.
 5. **Transferir** para um atendente humano quando estiver em dúvida, quando o fã pedir ou em temas sensíveis, com o resumo da conversa.
 
-### Requisitos não funcionais
+### Requisitos não funcionais { #non-functional-requirements }
 
 | Qualidade | Meta |
 |---|---|
@@ -45,7 +45,7 @@ Este é o serviço `assistant` do BoxOffice (o [Hands-on 12](../../../hands-on/1
 | **Disponibilidade** | 99,9%; se o provedor do modelo cair, fallback para outro modelo ou para uma fila humana |
 | **Escala** | ~200 mil conversas/dia, picos de 5× em dias de abertura de vendas |
 
-### Fora do escopo (diga explicitamente)
+### Fora do escopo (diga explicitamente) { #out-of-scope-say-it-explicitly }
 
 Treinar ou fazer fine-tuning de um modelo próprio, voz, recomendação ("a que show eu deveria ir?"), o console dos atendentes humanos em si.
 
@@ -62,7 +62,7 @@ Treinar ou fazer fine-tuning de um modelo próprio, voz, recomendação ("a que 
 
 ---
 
-## 2. Estimativas de guardanapo (back-of-the-envelope)
+## 2. Estimativas de guardanapo (back-of-the-envelope) { #2-back-of-the-envelope-estimates }
 
 Preços e velocidades de tokens mudam a cada poucos meses e variam por provedor, então o bloco abaixo usa **preços unitários ilustrativos** (unidades de custo por milhão de tokens), não reais. A estrutura do cálculo é o que importa.
 
@@ -148,7 +148,7 @@ POST /v1/assistant/messages/{messageId}/feedback         → 204 {"rating": "up|
 
 ---
 
-## 4. Modelo de dados
+## 4. Modelo de dados { #4-data-model }
 
 ```sql
 -- Knowledge base for retrieval (PostgreSQL + pgvector)
@@ -205,9 +205,9 @@ backend: order-service  POST /v1/orders/{order_id}/transfer
 
 ---
 
-## 5. Design de alto nível
+## 5. Design de alto nível { #5-high-level-design }
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     fan([App / web do fã]) --> gw["API gateway<br/>auth, rate limit"]
     gw --> orch["Orquestrador<br/>loop de agente"]
@@ -227,7 +227,7 @@ flowchart LR
 
 Um turno — "posso passar meu pedido para sábado?" — pelo loop de agente:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     participant F as Fã
@@ -259,13 +259,13 @@ sequenceDiagram
 
 ---
 
-## 6. Aprofundamentos (deep dives)
+## 6. Aprofundamentos (deep dives) { #6-deep-dives }
 
-### 6.1 Recuperação: colocando o conhecimento certo no prompt
+### 6.1 Recuperação: colocando o conhecimento certo no prompt { #61-retrieval-getting-the-right-knowledge-into-the-prompt }
 
 O modelo não conhece a política de reembolso do BoxOffice nem sabe que o show de hoje mudou de local. A **geração aumentada por recuperação (RAG)** busca trechos relevantes e os coloca no prompt, para que as respostas sejam fundamentadas e citáveis ([RAG e memória](../../ai-systems/rag-memory/index.md)).
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     src["Fontes<br/>políticas, FAQs,<br/>dados de eventos e locais"] --> chg["Eventos de mudança<br/>(CDC / Kafka)"]
     chg --> chunk["Chunking<br/>~500 tokens,<br/>por título"]
@@ -283,7 +283,7 @@ flowchart LR
 - **Atualidade**: dados de eventos mudam (datas, locais, esgotado). Indexe-os a partir de **eventos de mudança** (CDC/Kafka) em minutos; para fatos que mudam a cada segundo (disponibilidade de lugares, status do pedido), **não** use RAG — chame uma **ferramenta** que lê o sistema ao vivo.
 - **Controle de acesso**: filtre por ACL na consulta; nunca recupere documentos internos para um fã, e nunca coloque dados de outro fã no índice.
 
-### 6.2 O LLM gateway
+### 6.2 O LLM gateway { #62-the-llm-gateway }
 
 Todas as chamadas a modelos passam por um único serviço interno (LiteLLM ou similar), nunca diretamente do código da aplicação ([LLM gateway](../../ai-systems/llm-gateway/index.md)).
 
@@ -301,11 +301,11 @@ Todas as chamadas a modelos passam por um único serviço interno (LiteLLM ou si
 
     Um único "timeout de requisição" não serve para chamadas de LLM: uma boa resposta pode levar 15 s. Use dois: um **timeout de TTFT** (sem primeiro token em, digamos, 3 s → fallback) e um **timeout de ociosidade entre tokens** (nenhum token por 5 s → abortar). Repetir um stream depois que tokens já foram mostrados ao usuário exige cuidado: recomece a mensagem, não acrescente uma segunda resposta.
 
-### 6.3 O loop de agente e as ferramentas
+### 6.3 O loop de agente e as ferramentas { #63-the-agent-loop-and-tools }
 
 O orquestrador roda um loop: entrega ao modelo a conversa, o contexto recuperado e os **schemas das ferramentas**; se o modelo devolve uma chamada de ferramenta, valida, executa, acrescenta o resultado e repete; para quando o modelo devolve uma resposta final ([agentes](../../ai-systems/agents/index.md)). Esse padrão *raciocinar → agir → observar* é conhecido como ReAct.
 
-``` mermaid-sim
+``` diagram-sim
 stateDiagram-v2
     [*] --> Pensa: mensagem do usuário
     Pensa --> Age: ferramenta proposta
@@ -328,7 +328,15 @@ Regras de engenharia que tornam o loop seguro:
 - **Limites**: máximo de passos por turno (ex.: 5), timeout por ferramenta, orçamento total de tokens por turno. Um loop que não converge termina numa transferência educada, não num spinner de 2 minutos.
 - **Valide os argumentos** contra o schema e as regras de negócio antes de chamar qualquer coisa; o modelo pode produzir absurdos bem formatados.
 
-### 6.4 Safety mesh e avaliação
+!!! example "No código do BoxOffice: a fronteira das ferramentas em miniatura (lab 12)"
+
+    O [Hands-on 12 — Ferramentas e o laço do agente](../../../hands-on/12/tools/index.md) constrói estas regras para um assistente menor. O registro tem três ferramentas com schemas gerados a partir de modelos pydantic; `call()` valida os argumentos e transforma todo erro em dado, para que o laço nunca quebre; a identidade do fã é injetada a partir do cabeçalho `X-User-Email` do gateway, nunca do modelo; e o laço para depois de 4 chamadas ao modelo. Suas ferramentas são todas **só de leitura** — ainda não há `transfer_order`, então o estado `Confirm` do diagrama é o próximo passo, não algo que o lab constrói.
+
+    ``` { .python title="services/assistant/app/tools.py (the registry and the call)" }
+    --8<-- "docs/2027.1/hands-on/12/code/services/assistant/app/tools.py:81:104"
+    ```
+
+### 6.4 Safety mesh e avaliação { #64-safety-mesh-and-evaluation }
 
 As ameaças são específicas de LLMs ([segurança e avaliações](../../ai-systems/safety-evals/index.md); OWASP Top 10 para aplicações com LLM):
 
@@ -349,7 +357,7 @@ A **avaliação** substitui os testes unitários para o comportamento do modelo:
 
 ---
 
-## 7. Gargalos, modos de falha e trade-offs
+## 7. Gargalos, modos de falha e trade-offs { #7-bottlenecks-failure-modes-and-trade-offs }
 
 | Onde | O que dá errado | Mitigação | Trade-off |
 |---|---|---|---|
@@ -366,7 +374,7 @@ Os trade-offs para **dizer em voz alta**: **qualidade vs. custo e latência** (m
 
 ---
 
-## 8. Experimente no playground
+## 8. Experimente no playground { #8-try-it-in-the-playground }
 
 O cenário `ai-assistant` liga um LLM gateway, um orquestrador, um registro de ferramentas, um memory fabric (banco vetorial) e um safety mesh atrás do API gateway.
 
@@ -383,7 +391,7 @@ O cenário `ai-assistant` liga um LLM gateway, um orquestrador, um registro de f
 
 ---
 
-## 9. Perguntas de follow-up que o entrevistador faz
+## 9. Perguntas de follow-up que o entrevistador faz { #9-follow-up-questions-an-interviewer-asks }
 
 ??? question "Por que não fazer fine-tuning de um modelo com as políticas do BoxOffice em vez de usar RAG?"
 
@@ -415,7 +423,7 @@ O cenário `ai-assistant` liga um LLM gateway, um orquestrador, um registro de f
 
 ---
 
-## 10. Rubrica de autoavaliação
+## 10. Rubrica de autoavaliação { #10-self-assessment-rubric }
 
 | Nível | O que a resposta contém |
 |---|---|
@@ -425,13 +433,21 @@ O cenário `ai-assistant` liga um LLM gateway, um orquestrador, um registro de f
 
 **Relacionados:** [LLM gateway](../../ai-systems/llm-gateway/index.md), [Agentes](../../ai-systems/agents/index.md), [RAG e memória](../../ai-systems/rag-memory/index.md), [Segurança e avaliações](../../ai-systems/safety-evals/index.md), [Hands-on 12](../../../hands-on/12/index.md) (o assistente do BoxOffice), [Caso do rate limiter](../rate-limiter/index.md) (limites por tokens).
 
+!!! success "Boas práticas"
+
+    - **Faça streaming da resposta e meça o TTFT separado do tempo total** — o fã lê a partir do primeiro token; o `assistant_load.py` do lab 12 para o relógio do TTFT no primeiro evento de token ([lab 12 — Meça](../../../hands-on/12/measure/index.md)).
+    - **Mantenha compactos os resultados das ferramentas** — as 5 melhores opções com os campos necessários para decidir; todo token de um resultado de ferramenta é reenviado em cada passo seguinte.
+    - **Cite as fontes por id e verifique as citações no código** — a verificação de saída do lab 12 substitui citações de documentos que o modelo nunca recebeu ([guardrails](../../../hands-on/12/guardrails/index.md)).
+    - **Dê a toda conversa um orçamento de tokens e a todo usuário uma cota** — o pior caso de uma requisição e de uma conta precisa ser um número que você escolheu.
+    - **Registre modelo, tokens, custo e TTFT de cada turno** — o lab 12 os exporta como métricas ao lado do resto do BoxOffice no Grafana.
+
 ---
 
 ## Como se conecta { #how-it-connects }
 
 Quais aulas este caso testa? Cada ramo é uma aula cujas ideias o design usa (azul), com os componentes da paleta em que elas aparecem (verde):
 
-``` mermaid
+``` diagram
 flowchart LR
     CASE(["AI assistant"]) --> EST["Estimation<br/>tokens/s, concurrent streams"]:::tech
     CASE --> GW["AI systems<br/>LLM gateway: routing, quotas"]:::tech
@@ -452,7 +468,7 @@ flowchart LR
 
 ---
 
-## Referências
+## Referências { #references }
 
 - LEWIS, P. et al. *Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks*[^1].
 - YAO, S. et al. *ReAct: Synergizing Reasoning and Acting in Language Models*[^2].

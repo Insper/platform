@@ -131,7 +131,7 @@ For a cache, **RDB or nothing** is usually enough. If you find yourself tuning `
 
 A Redis primary can have several **replicas** that receive a stream of its writes. Replicas serve reads (slightly stale) and are candidates for promotion if the primary fails.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     APP["catalog service"] -->|"writes and reads"| P[("Redis primary")]
     P -->|"async replication"| R1[("replica 1")]
@@ -159,7 +159,7 @@ When one node is not enough — memory or throughput — **Redis Cluster** shard
 - Clients are **cluster-aware**: they cache the slot → node map and send each command directly to the right node. If the map is outdated, the node answers `MOVED <slot> <address>` and the client updates its map; during a slot migration, `ASK` redirects a single request.
 - Adding a node = **moving some slots** to it, live, without rehashing every key.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     C["cluster-aware client<br/>slot map cached"] -->|"event:42 → slot 16271"| N3
     C -->|"prices:42 → slot 9049"| N2
@@ -274,6 +274,14 @@ services:
 
     When you say "Redis", be ready for three follow-ups. **Data model**: pick the structure that matches the access pattern ("a sorted set for the waiting room, a hash for sessions"). **Scaling**: Redis Cluster with 16,384 hash slots, hash tags for multi-key operations, and replicas for failover — and why a hot key is not fixed by adding nodes. **Durability**: replication is asynchronous, so Redis is a cache or a store for data you can afford to lose; the seat hold and the payment live in the database.
 
+!!! success "Best practices"
+
+    - **Separate a cache from a store**: a pure cache runs with `maxmemory`, an `allkeys-*` eviction policy and no persistence; sessions or queues need their own instance with `noeviction` and persistence. In BoxOffice: lab 5's Redis is a pure cache (`--save "" --appendonly no`).
+    - **Pick the data structure that answers the question in one command** (a hash for an object, a sorted set for a ranking, `INCR` for a counter) instead of read-modify-write in the application.
+    - **Pipeline or batch round trips** (`MGET`, pipelines) when a page needs many keys: the network, not Redis, is the cost.
+    - **Use `SCAN`, `UNLINK` and replicas** for maintenance, never `KEYS *` or a blocking `DEL` on the primary.
+    - **Plan memory with headroom** (working set × 1.5) and alert on memory, evictions and replication lag.
+
 !!! warning "Common pitfalls"
 
     - **`KEYS *` in production** — O(n) over the whole keyspace, blocks the server. Use `SCAN`.
@@ -286,7 +294,7 @@ services:
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     FAST["in memory,<br/>one command at a time"] --> DS["data structures: strings,<br/>hashes, sorted sets, streams"]
     DS --> WR["sorted set =<br/>waiting room → Messaging"]

@@ -1,4 +1,4 @@
-# Rede
+# Rede { #network }
 
 Os componentes de **rede** decidem *quem pode falar com quem*. Na nuvem você não liga cabos; você desenha uma rede privada (VPC), divide-a em sub-redes, decide quais sub-redes podem ser alcançadas a partir da internet, dá às máquinas privadas uma saída controlada (NAT gateway), conecta outras redes (VPN) e, dentro de um cluster, coloca uma camada programável entre os serviços (service mesh). Um bom design de rede é sobretudo **isolamento**: o banco de dados do BoxOffice deve ser inalcançável a partir da internet, qualquer que seja o bug da aplicação.
 
@@ -12,7 +12,7 @@ No playground, `vpc` e `subnet` são **molduras de grupo** (retângulos que voc�
 | [VPN](#vpn) | Um túnel criptografado entre redes (escritório, data center, outra nuvem) | `vpn` |
 | [Service Mesh](#mesh) | Proxies ao lado de cada serviço: mTLS, retries, timeouts, divisão de tráfego, telemetria | `mesh` |
 
-``` mermaid
+``` diagram
 flowchart LR
     U[Usuários na internet] --> IGW[Internet gateway]
     subgraph VPC["VPC 10.0.0.0/16 (uma região)"]

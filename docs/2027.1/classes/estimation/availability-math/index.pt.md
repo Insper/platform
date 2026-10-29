@@ -3,7 +3,7 @@ A BoxOffice promete aos organizadores que o checkout estará disponível **99,95
 
 ---
 
-## Disponibilidade, MTTF e MTTR
+## Disponibilidade, MTTF e MTTR { #availability-mttf-and-mttr }
 
 **Disponibilidade** é a fração do tempo — ou das requisições — em que um sistema faz o seu trabalho. Duas formas de medi-la são comuns:
 
@@ -33,7 +33,7 @@ $$
 
     **Recuperar mais rápido costuma ser a alavanca mais barata.** A automação (health checks, reinícios automáticos, failover) ataca o MTTR; testes e redundância atacam o MTTF.
 
-## Os noves
+## Os noves { #the-nines }
 
 Metas de disponibilidade são expressas como um número de "noves". A tabela é calculada para várias **janelas** — a mesma porcentagem permite indisponibilidades diferentes dependendo do período em que é medida:
 
@@ -70,11 +70,11 @@ Uma conferência de sanidade útil: a 99,99% você não pode se dar ao luxo de *
 
 !!! warning "Números baseados em requisições são números grandes"
 
-    A 2.000 requisições por segundo, "99,9% das requisições têm sucesso" ainda significa **2 requisições falhando a cada segundo**, ~170.000 por dia. Metas de disponibilidade tratam de **taxas**, nunca de "nenhum erro" — 100% não é alcançável nem um objetivo sensato. A diferença até 100% é o **error budget** ([aula 9](../../reliability/index.md)).
+    A 2.000 requisições por segundo, "99,9% das requisições têm sucesso" ainda significa **2 requisições falhando a cada segundo**, ~170.000 por dia. Metas de disponibilidade tratam de **taxas**, nunca de "nenhum erro" — 100% não é alcançável nem um objetivo sensato. A diferença até 100% é o **error budget** ([aula 9](../../observability/slo/index.md)).
 
 ---
 
-## Componentes em série
+## Componentes em série { #components-in-series }
 
 Quando uma requisição precisa que **todos** os componentes de uma cadeia funcionem (uma cadeia de dependências síncronas), o sistema só funciona se todos funcionarem. Se as falhas forem independentes, as disponibilidades se **multiplicam**:
 
@@ -116,7 +116,7 @@ plt.close()
 
 Dez componentes a 99,9% dão 99,0%; trinta dão 97,0%. Uma arquitetura de microsserviços em que uma requisição atravessa dez serviços de forma síncrona precisa que cada um deles seja **muito** melhor que a meta do todo.
 
-## Componentes em paralelo
+## Componentes em paralelo { #components-in-parallel }
 
 Quando **qualquer um** de n componentes redundantes e independentes basta (réplicas atrás de um load balancer, um primário com um standby, dois provedores de pagamento), o sistema só falha se **todos** falharem ao mesmo tempo:
 
@@ -131,7 +131,7 @@ $$
 
 A redundância transforma componentes medíocres em sistemas muito disponíveis — **se as falhas forem independentes** (veja abaixo) e **se o failover realmente funcionar** (o load balancer percebe a falha e para de enviar tráfego, o standby de fato assume).
 
-### k-de-n: quóruns
+### k-de-n: quóruns { #k-of-n-quorums }
 
 Alguns sistemas precisam de **uma maioria** das réplicas, não de apenas uma — protocolos de consenso e bancos replicados por quórum ([aula 3](../../distributed/index.md)). Com 3 réplicas de disponibilidade a, um quórum de 2-de-3 está disponível quando as 3, ou exatamente 2, estão no ar:
 
@@ -143,11 +143,11 @@ Com a = 99%: 0,970299 + 0,029403 = **99,97%** — melhor que um nó, pior que "q
 
 ---
 
-## O checkout da BoxOffice, calculado
+## O checkout da BoxOffice, calculado { #boxoffice-checkout-computed }
 
 O caminho do checkout, como descrito no início da página (as disponibilidades são premissas ilustrativas):
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     fan([Fã]) --> edge["Borda + gateway<br/>99,99%"]
     edge --> auth["auth<br/>99,95%"]
@@ -173,11 +173,11 @@ Três lições, em ordem decrescente de custo-benefício:
 
 !!! tip "Dependências suaves não entram na cadeia"
 
-    Uma dependência cuja falha o serviço consegue **tolerar** — servindo um valor em cache, um padrão ou uma página parcial — não se multiplica na disponibilidade do caminho crítico. Recomendações, contadores de visualização e o assistente de IA devem ser todos dependências *suaves* do checkout: se falharem, o checkout continua funcionando. Transformar dependências rígidas em suaves (fallbacks, caches, assíncrono) é uma habilidade de design que você vai praticar na [aula 9](../../reliability/index.md).
+    Uma dependência cuja falha o serviço consegue **tolerar** — servindo um valor em cache, um padrão ou uma página parcial — não se multiplica na disponibilidade do caminho crítico. Recomendações, contadores de visualização e o assistente de IA devem ser todos dependências *suaves* do checkout: se falharem, o checkout continua funcionando. Transformar dependências rígidas em suaves (fallbacks, caches, assíncrono) é uma habilidade de design que você vai praticar na [aula 10](../../reliability/index.md).
 
 ---
 
-## A premissa da independência
+## A premissa da independência { #the-independence-assumption }
 
 Todas as fórmulas acima supõem que os componentes falham de forma **independente**. Falhas reais costumam ser **correlacionadas**, e a correlação destrói a fórmula do paralelo:
 
@@ -195,7 +195,7 @@ Projetar para a independência — domínios de falha separados (zonas, regiões
 
 ---
 
-## Tempo de detecção e de failover
+## Tempo de detecção e de failover { #detection-and-failover-time }
 
 A redundância só ajuda depois que a falha é **detectada** e o tráfego é **movido**. Se um load balancer verifica a saúde a cada 10 s e precisa de 3 falhas seguidas para marcar uma réplica como fora, os usuários atingem a réplica com falha por até ~30 s a cada vez. Com falhas pequenas e frequentes, isso importa:
 
@@ -205,15 +205,39 @@ $$
 
 Dez failovers por ano a 30 s + 30 s cada dão 10 minutos: tudo bem para 99,99% (52 minutos por ano), mas consome um quinto do orçamento. Health checks mais rápidos, novas tentativas do lado do cliente para outra réplica e drenagem de conexões reduzem esse tempo.
 
+**Experimente.** No cenário `scale-out` uma réplica do `catalog` cai em t = 80 s, e nada avisa o load balancer: ele continua mandando a essa réplica sua parte do tráfego por ~30 s. Primeiro dê ao design capacidade para sobreviver à perda — clique em `catalog` e aumente as réplicas para **5** — e aperte **Run**: observe a taxa de erros a partir de t = 80 s. Depois abra no playground completo (↗), acrescente um **Health Check**, ligue-o ao load balancer e rode de novo.
+
+<div class="sdp" data-scenario="scale-out" data-mode="compact" data-height="520"></div>
+
+??? question "O que você deveria ter observado?"
+
+    Com 5 réplicas e sem health check, uma requisição em cada cinco vai para a réplica morta: cerca de **20% das requisições falham de t ≈ 81 s a t ≈ 110 s**, cerca de 4% da execução inteira de 3 minutos. Com o health check, a réplica sai em 3 s: os erros vão de t ≈ 81 s a 83 s e a execução termina com cerca de **0,4%** — a mesma falha, um décimo do estrago, exatamente como *indisponibilidade ≈ falhas × tempo de detecção* prevê. Com as 2 réplicas do desenho original, a detecção não é o primeiro problema: as duas réplicas estão sobrecarregadas antes da queda (ρ > 1), e perder uma corta a capacidade pela metade de novo.
+
+!!! example "No código do BoxOffice: health checks passivos e uma nova tentativa (lab 3)"
+
+    A borda Nginx do [Hands-on 3](../../../hands-on/3/index.md) detecta falhas **passivamente**, pelas requisições reais: 3 falhas em 10 s tiram uma réplica de rotação por 10 s, e o `proxy_next_upstream` repete a requisição que falhou uma vez em outra réplica, então o fã não vê o erro. O laboratório mediu os dois tipos de falha sob 150 req/s: uma réplica **parada** custou quase nada (a conexão é recusada na hora e repetida em outra); uma **congelada** custou o timeout de leitura — nenhum erro em 14.990 requisições, mas p99 = 1 s e máximo = 5,05 s, o `proxy_read_timeout`. O tempo de detecção é pago em erros quando ninguém repete a requisição, e em latência quando alguém repete.
+
+    ``` { .nginx title="infra/nginx/nginx.conf (detection and retry)" }
+    --8<-- "docs/2027.1/hands-on/3/code/infra/nginx/nginx.conf:19:26,56:60"
+    ```
+
 ??? question "Pense antes: uma segunda região vale a pena?"
 
     A BoxOffice roda em uma região com três zonas de disponibilidade. A documentação do provedor sugere que a queda de uma região inteira é rara, mas, quando acontece, pode durar horas. Uma segunda região (ativo-passivo, com failover por DNS) dobraria aproximadamente o custo de infraestrutura. Como você decidiria?
 
-    **Esboço de resposta**: estime o **custo esperado da indisponibilidade** contra o custo da segunda região. Se uma queda regional de ~4 h acontece mais ou menos uma vez a cada dois anos (uma premissa a validar com o histórico do seu provedor), a indisponibilidade esperada é de ~2 h/ano — quase metade das ~4,4 h/ano que uma meta de 99,95% permite, antes de qualquer outro incidente. Depois considere *quando* ela acontece: uma queda regional durante a abertura de vendas de um estádio custa ao negócio muito mais que uma às 4 da manhã de uma terça-feira. Se o SLA com os organizadores prevê multas, ou se uma abertura de vendas perdida custa mais que um ano de uma segunda região, vale a pena — e aí a parte difícil são os dados (aula 3 e aula 9), não os servidores.
+    **Esboço de resposta**: estime o **custo esperado da indisponibilidade** contra o custo da segunda região. Se uma queda regional de ~4 h acontece mais ou menos uma vez a cada dois anos (uma premissa a validar com o histórico do seu provedor), a indisponibilidade esperada é de ~2 h/ano — quase metade das ~4,4 h/ano que uma meta de 99,95% permite, antes de qualquer outro incidente. Depois considere *quando* ela acontece: uma queda regional durante a abertura de vendas de um estádio custa ao negócio muito mais que uma às 4 da manhã de uma terça-feira. Se o SLA com os organizadores prevê multas, ou se uma abertura de vendas perdida custa mais que um ano de uma segunda região, vale a pena — e aí a parte difícil são os dados (aula 3 e aula 10), não os servidores.
 
 !!! tip "Na entrevista"
 
     Ao desenhar um design de alto nível, faça o cálculo em série **em voz alta** para o caminho crítico: "a requisição atravessa cinco componentes; a 99,9% cada, isso dá cerca de 99,5%, então, para prometer 99,9% no todo, preciso de redundância em cada um e tiraria o e-mail do caminho." Depois mencione falhas correlacionadas — "réplicas em zonas diferentes, deploys canário" —, o que mostra que você sabe onde as fórmulas deixam de valer. Fale de indisponibilidade com uma janela: "quatro noves são cerca de quatro minutos por mês".
+
+!!! success "Boas práticas"
+
+    - **Desenhe o caminho crítico e calcule sua disponibilidade antes de prometer um SLO** — multiplique os elos; se o produto ficar abaixo da promessa, mude o design, não a redação da promessa. Na BoxOffice: a cadeia do checkout nesta página.
+    - **Automatize detecção e recuperação** — health checks a cada poucos segundos, reinício automático, uma nova tentativa em outra réplica; o MTTR é a alavanca barata. Na BoxOffice: `max_fails` e `proxy_next_upstream` no `nginx.conf` do lab 3 (quadro acima), e o health check do gateway a cada 5 s no [lab 4](../../../hands-on/4/gateway/index.md).
+    - **Treine o failover com agenda e cronometre** — derrube uma réplica ou um primário num ambiente de teste e meça detecção + failover contra o orçamento. Na BoxOffice: o passo 5 do [Hands-on 3](../../../hands-on/3/index.md) (parar e congelar uma réplica) e o game day do lab 9.
+    - **Acompanhe o orçamento de erro, não só o uptime** — 99,95% das requisições em 28 dias são cerca de 20 minutos de falha total; gaste-o de propósito (versões, experimentos), não por acidente.
+    - **Dê a toda dependência um timeout e um fallback** — o timeout limita quanto tempo uma dependência fraca pode machucar; o fallback a mantém branda. Na BoxOffice: o timeout de leitura de 1 s de `order → payment` no lab 9.
 
 !!! warning "Armadilhas comuns"
 
@@ -227,7 +251,7 @@ Dez failovers por ano a 30 s + 30 s cada dão 10 minutos: tudo bem para 99,99% (
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     MT["A = MTTF / (MTTF + MTTR)"] --> NINES["noves numa janela<br/>→ SLOs de Confiabilidade"]
     SER["série: ∏ aᵢ"] --> CHAIN["caminho crítico: borda, auth,<br/>order, inventory, provedor"]
@@ -240,15 +264,17 @@ flowchart LR
     DET --> RED
 ```
 
-**Componentes da paleta:** [`lb`](../../../reference/components/edge/index.md#lb) · [`healthcheck`](../../../reference/components/observability/index.md#healthcheck) (tempo de detecção = intervalo × falhas para marcar como fora) · [`app`](../../../reference/components/compute/index.md#app) (réplicas em paralelo, se as falhas forem independentes) · [`sql`](../../../reference/components/storage/index.md#sql) (primário + standby com failover automático) · [`payment`](../../../reference/components/external/index.md#payment) (uma dependência de 99,9%; um segundo provedor) · [`email`](../../../reference/components/external/index.md#email) (retirado do caminho crítico) · [`queue`](../../../reference/components/messaging/index.md#queue) · [`worker`](../../../reference/components/compute/index.md#worker) (o caminho assíncrono) · [`dns`](../../../reference/components/edge/index.md#dns) (failover multirregião). **Cenários:** `scale-out`, `multi-region`, `payment-system`, `notification-system`. **Continua em:** [Distribuídos — consenso](../../distributed/consensus/index.md) (quóruns), [Confiabilidade — SLOs](../../reliability/slo/index.md), [Confiabilidade — multi-AZ e multirregião](../../reliability/disaster-recovery/index.md#multi-region), [Compute — quedas do provedor](../../compute/integrations/index.md#provider-outages), [Exercício: design doc](../../../exercises/design-doc/index.md).
+**Componentes da paleta:** [`lb`](../../../reference/components/edge/index.md#lb) · [`healthcheck`](../../../reference/components/observability/index.md#healthcheck) (tempo de detecção = intervalo × falhas para marcar como fora) · [`app`](../../../reference/components/compute/index.md#app) (réplicas em paralelo, se as falhas forem independentes) · [`sql`](../../../reference/components/storage/index.md#sql) (primário + standby com failover automático) · [`payment`](../../../reference/components/external/index.md#payment) (uma dependência de 99,9%; um segundo provedor) · [`email`](../../../reference/components/external/index.md#email) (retirado do caminho crítico) · [`queue`](../../../reference/components/messaging/index.md#queue) · [`worker`](../../../reference/components/compute/index.md#worker) (o caminho assíncrono) · [`dns`](../../../reference/components/edge/index.md#dns) (failover multirregião). **Cenários:** `scale-out`, `multi-region`, `payment-system`, `notification-system`. **Continua em:** [Distribuídos — consenso](../../distributed/consensus/index.md) (quóruns), [Observabilidade — SLOs](../../observability/slo/index.md), [Confiabilidade — multi-AZ e multirregião](../../reliability/disaster-recovery/index.md#multi-region), [Compute — quedas do provedor](../../compute/integrations/index.md#provider-outages), [Exercício: design doc](../../../exercises/design-doc/index.md).
 
-## Pontos-chave
+## Pontos-chave { #key-takeaways }
 
-- A = **MTTF / (MTTF + MTTR)**; reduzir o MTTR com automação costuma ser a alavanca mais barata.
-- Cada nove é **10× menos indisponibilidade**; sempre diga a **janela**.
-- Em **série**, multiplica (pior que o elo mais fraco); em **paralelo**, dá 1 − ∏(1 − aᵢ); quóruns ficam no meio.
-- Melhore uma cadeia **tirando dependências rígidas** do caminho crítico, acrescentando **redundância** aos elos fracos e fazendo cada elo ter ~**um nove a mais** que a meta.
-- As fórmulas supõem falhas **independentes**; falhas correlacionadas (mesma zona, mesma versão, mesma configuração) são o que de fato derruba sistemas.
+!!! takeaways ""
+
+    - A = **MTTF / (MTTF + MTTR)**; reduzir o MTTR com automação costuma ser a alavanca mais barata.
+    - Cada nove é **10× menos indisponibilidade**; sempre diga a **janela**.
+    - Em **série**, multiplica (pior que o elo mais fraco); em **paralelo**, dá 1 − ∏(1 − aᵢ); quóruns ficam no meio.
+    - Melhore uma cadeia **tirando dependências rígidas** do caminho crítico, acrescentando **redundância** aos elos fracos e fazendo cada elo ter ~**um nove a mais** que a meta.
+    - As fórmulas supõem falhas **independentes**; falhas correlacionadas (mesma zona, mesma versão, mesma configuração) são o que de fato derruba sistemas.
 
 ---
 

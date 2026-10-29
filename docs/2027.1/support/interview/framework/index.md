@@ -7,7 +7,7 @@ Throughout the page, the running example is the question from the [landing page]
 !!! note "Copy the templates"
     Each step ends with a template in a text block. Copy it to your notes or to the board and fill it in: after a few practice problems the headings become a habit, and you stop forgetting a whole category (durability, cost, failure) under pressure.
 
-``` mermaid
+``` diagram
 flowchart LR
     A[1. Clarify<br/>~5 min] --> B[2. Estimate<br/>~5 min]
     B --> C[3. API & data model<br/>~5 min]
@@ -331,7 +331,7 @@ Next with more time: multi-region / cost / abuse & security / analytics / evolut
 
 ### The final architecture
 
-``` mermaid
+``` diagram
 flowchart LR
     F[Fans: web & mobile] --> DNS --> CDN[CDN: event page, assets]
     CDN --> WAF[WAF + bot protection]
@@ -357,10 +357,10 @@ flowchart LR
 
 ## Rehearse in the playground
 
-Reading the framework is not the same as running it under pressure. The playground has the BoxOffice flash sale preloaded: the initial design fails at 10:00 in an instructive way.
+Reading the framework is not the same as running it under pressure. The playground has a flash sale preloaded — a limited-stock product launch, BoxOffice's 10:00 on-sale in generic form: when the sale opens, traffic jumps 20× and the initial design (`users` → load balancer → `app` → `inventory-db`, plus the `payment provider`) fails in an instructive way.
 
 !!! question "Try it"
-    Run the scenario with the default spike profile and watch which node turns red first. Then apply the moves from step 5 one at a time — put the catalog behind the CDN and a cache, add a waiting-room queue in front of `inventory`, protect the payment edge with a timeout and a circuit breaker — and run again after each change. Say out loud, as in an interview, which number each change improved (p99, error rate, cost).
+    Run the scenario as loaded (the sale opens at t = 60 s) and watch which node turns red first. Then apply the moves from step 5 one at a time — serve the reads from a CDN and a cache in front of `inventory-db`, send the writes through an API gateway into a waiting-room queue drained by workers below the payment provider's quota (500 req/s), protect the payment edge with a timeout and a circuit breaker — and run again after each change. Say out loud, as in an interview, which number each change improved (p99, error rate, consumer lag, cost).
 
 <div class="sdp" data-scenario="flash-sale" data-mode="compact" data-height="520"></div>
 

@@ -1,6 +1,6 @@
 `auth` owns the users of BoxOffice. It does three things: **register** a user (storing a BCrypt hash, never the password), **log in** (check the password and issue a signed token) and **publish the public key** that lets anybody verify those tokens. It is a regular Spring Boot service on port **8081**, with its own schema `auth`.
 
-``` mermaid
+``` diagram
 flowchart LR
     subgraph auth["auth :8081"]
         ctl[AuthController] --> svc[AuthService]
@@ -46,6 +46,16 @@ A token looks like `header.payload.signature`, each part Base64URL-encoded:
 ## 2. Project and configuration
 
 Create `services/auth` like `catalog` (same `Dockerfile` with `EXPOSE 8081`, same `.dockerignore`).
+
+??? example "`services/auth/Dockerfile` and `.dockerignore` (same as `catalog`, only `EXPOSE 8081` changes)"
+
+    ``` { .dockerfile title="services/auth/Dockerfile" .copy linenums="1" }
+    --8<-- "docs/2027.1/hands-on/4/code/services/auth/Dockerfile"
+    ```
+
+    ``` { .text title="services/auth/.dockerignore" .copy }
+    --8<-- "docs/2027.1/hands-on/4/code/services/auth/.dockerignore"
+    ```
 
 ``` { .xml title="services/auth/pom.xml" .copy linenums="1" }
 --8<-- "docs/2027.1/hands-on/4/code/services/auth/pom.xml"

@@ -23,11 +23,11 @@ Os números são ordens de grandeza para um produto web dominado por leituras, n
 
 ---
 
-## Etapa 0 — uma caixa só
+## Etapa 0 — uma caixa só { #stage-0-one-box }
 
 A primeira versão da BoxOffice é uma única aplicação Spring Boot e um banco PostgreSQL **na mesma máquina virtual**. O DNS aponta o domínio para o endereço IP dela.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     fan([Fã]) --> dns["DNS"]
     dns -.->|endereço IP| fan
@@ -36,7 +36,7 @@ flowchart LR
 
 Esta é a arquitetura **certa** para os primeiros usuários: uma coisa só para publicar, monitorar e fazer backup; as transações são locais; não há rede entre o código e os dados. Ela também é frágil: a máquina é um **ponto único de falha** (*SPOF*, *single point of failure*), e a aplicação e o banco disputam a mesma CPU, memória e disco.
 
-## Etapa 1 — separar o banco de dados
+## Etapa 1 — separar o banco de dados { #stage-1-separate-the-database }
 
 **Sintoma**: sob carga, o buffer cache do banco e a JVM brigam por memória; um relatório pesado deixa todas as páginas lentas; reiniciar a aplicação para um deploy também coloca o banco em risco.
 
@@ -44,13 +44,13 @@ Esta é a arquitetura **certa** para os primeiros usuários: uma coisa só para 
 
 **Problema novo**: toda consulta agora atravessa a rede (cerca de 0,5 ms de ida e volta dentro de um data centre — veja a [aula 2](../../estimation/numbers/index.md)). Um código que roda 200 consultas por página (o clássico problema N+1) de repente leva 100 ms a mais.
 
-## Etapa 2 — load balancer e réplicas sem estado
+## Etapa 2 — load balancer e réplicas sem estado { #stage-2-load-balancer-and-stateless-replicas }
 
 **Sintoma**: a BoxOffice agora é um negócio de verdade. Um único servidor de aplicação é um SPOF: uma queda, ou simplesmente um deploy, significa indisponibilidade. No horário de pico, a CPU fica em 85% e a latência p99 sobe.
 
 **Mudança**: colocar um **load balancer** na frente de duas ou mais réplicas idênticas do **servidor de aplicação**. O load balancer distribui as requisições, executa **health checks** e para de enviar tráfego a uma réplica que falha neles. Os deploys passam a ser graduais (*rolling*): uma réplica de cada vez.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     fan([Fã]) --> lb["Load Balancer<br/>+ health checks"]
     lb --> a1["App #1"]
@@ -65,13 +65,21 @@ flowchart LR
 
 Você explorou esta etapa na visão geral com o cenário `scale-out`: as réplicas multiplicam a capacidade da aplicação, mas **o banco único continua sendo um banco único**.
 
-## Etapa 3 — réplicas de leitura
+!!! example "No código do BoxOffice: o estágio 2, construído (lab 3)"
+
+    O [Hands-on 3](../../../hands-on/3/index.md) constrói este estágio com Docker Compose: três réplicas idênticas do `catalog` iniciadas a partir de uma única definição, **nenhuma porta publicada** em nenhuma delas, e o Nginx como única porta de entrada. A única mudança de código é um filtro que carimba o nome da réplica em cada resposta — um serviço sem estado escala horizontalmente sem tocar na sua lógica. O laboratório então mede o alerta acima: com requisições baratas, três réplicas trazem três núcleos; com a mistura do lab 2, o PostgreSQL é o gargalo — numa execução de teste, o `db` ficou em ~670% de CPU enquanto cada réplica usava ~20% — e as réplicas a mais só mandam mais consultas concorrentes ao mesmo banco. Esse é o sintoma que abre o estágio 3 (e os labs 5 e 6).
+
+    ``` { .yaml title="docker-compose.yaml (three replicas, one door)" }
+    --8<-- "docs/2027.1/hands-on/3/code/docker-compose.yaml:47:67"
+    ```
+
+## Etapa 3 — réplicas de leitura { #stage-3-read-replicas }
 
 **Sintoma**: a CPU do banco está em 70% no horário de pico. Olhando o log de consultas, **~95% delas são leituras** — páginas de eventos, informações dos locais, mapas de lugares.
 
 **Mudança**: acrescentar **réplicas de leitura**. O primário recebe todas as escritas e transmite suas alterações para as réplicas; as leituras vão para as réplicas. A capacidade de leitura cresce a cada réplica; a capacidade de escrita não muda.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     app["Servidores de aplicação"] -->|escritas| primary[("Primário")]
     primary -->|replicação| r1[("Réplica 1")]
@@ -86,7 +94,7 @@ flowchart LR
 
 <div class="sdp" data-scenario="db-replicas" data-mode="compact" data-height="500"></div>
 
-## Etapa 4 — um cache
+## Etapa 4 — um cache { #stage-4-a-cache }
 
 **Sintoma**: mesmo com réplicas, toda página de evento roda as mesmas cinco consultas — para dados que mudam algumas vezes por dia. O p99 do catálogo cresce com o tráfego, e cada nova réplica custa uma máquina de banco inteira.
 
@@ -100,7 +108,7 @@ A aritmética é o que faz dos caches a ferramenta mais poderosa da paleta. Com 
 
 <div class="sdp" data-scenario="read-heavy-cache" data-mode="compact" data-height="500"></div>
 
-## Etapa 5 — CDN e armazenamento de objetos
+## Etapa 5 — CDN e armazenamento de objetos { #stage-5-cdn-and-object-storage }
 
 **Sintoma**: as páginas de eventos carregam pôsteres e fotos dos locais — cerca de 1 MB por visualização de página. A 1.000 visualizações por segundo, isso dá **1 GB/s (8 Gbit/s)** saindo dos servidores da BoxOffice, quase tudo bytes idênticos enviados de novo e de novo. Fãs longe do data centre esperam por cada imagem.
 
@@ -112,7 +120,7 @@ A aritmética é o que faz dos caches a ferramenta mais poderosa da paleta. Com 
 
 <div class="sdp" data-scenario="cdn-static" data-mode="compact" data-height="500"></div>
 
-## Etapa 6 — trabalho assíncrono e a primeira abertura de vendas
+## Etapa 6 — trabalho assíncrono e a primeira abertura de vendas { #stage-6-asynchronous-work-and-the-first-on-sale }
 
 **Sintoma 1**: o checkout leva 2–3 s, e a maior parte não é o pagamento — é gerar o PDF do ingresso e enviar o e-mail *enquanto o fã espera*. Quando o provedor de e-mail está lento, o checkout fica lento; quando ele cai, **o checkout falha**.
 
@@ -122,7 +130,7 @@ A aritmética é o que faz dos caches a ferramenta mais poderosa da paleta. Com 
 
 **Mudança**: uma **sala de espera** (*waiting room*) — ela mesma uma fila. Os fãs ganham um lugar na fila e são admitidos no ritmo que o inventário aguenta (digamos, 1.000 por segundo). O pico vira uma carga longa, plana e previsível. A [aula 2](../../estimation/queueing/index.md) calcula o tamanho da fila com a Lei de Little.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     fan([Fãs]) --> wr["Sala de espera<br/>(fila)"]
     wr -->|"admite 1.000/s"| inv["inventory"]
@@ -139,19 +147,19 @@ flowchart LR
 
 <div class="sdp" data-scenario="async-queue" data-mode="compact" data-height="500"></div>
 
-## Etapa 7 — serviços onde eles compensam
+## Etapa 7 — serviços onde eles compensam { #stage-7-services-where-they-pay-off }
 
 **Sintoma**: a BoxOffice agora tem cinco equipes trabalhando numa base de código só. Um vazamento de memória no código de recomendações derruba o checkout. Todo deploy exige coordenação entre equipes. O tráfego da abertura de vendas castiga o código do inventário, mas escalá-lo significa escalar a aplicação inteira.
 
 **Mudança**: extrair **serviços** seguindo as fronteiras do negócio — primeiro os que têm necessidades claramente diferentes: `inventory` (quente, com consistência forte, escalado para as aberturas de vendas), `notification` (assíncrono), `search` (outro banco de dados). Um **API Gateway** vira o ponto único de entrada (roteamento, autenticação, rate limiting). Os serviços se comunicam por APIs e por um **event stream** (Kafka) para fatos como `OrderPaid`, aos quais vários consumidores (notification, analytics, search) reagem.
 
-**Problemas novos**: o que era uma chamada de função agora é uma chamada de rede que pode ser lenta ou falhar; uma transação entre serviços não é mais uma transação de banco (sagas, outbox — aula 8); uma requisição passa por vários serviços, então você precisa de tracing distribuído para depurá-la (aula 10).
+**Problemas novos**: o que era uma chamada de função agora é uma chamada de rede que pode ser lenta ou falhar; uma transação entre serviços não é mais uma transação de banco (sagas, outbox — aula 8); uma requisição passa por vários serviços, então você precisa de tracing distribuído para depurá-la (aula 9).
 
 !!! warning "Primeiro o monólito"
 
     Dividir em serviços é uma **resposta a sintomas organizacionais e de escala**, não um ponto de partida. Equipes que começam com microsserviços pagam o custo inteiro da distribuição — falhas de rede, dados distribuídos, muitos artefatos para publicar, uma plataforma para rodá-los — antes de saber onde estão as fronteiras reais do domínio[^2]. Um **monólito modular** bem estruturado (módulos claros com interfaces explícitas dentro de um único artefato) obtém a maior parte dos benefícios e mantém a opção de extrair um módulo depois, quando um sintoma justificar. A [aula 5](../../compute/index.md) discute isso em profundidade.
 
-## Etapa 8 — particionar os dados e especializar o armazenamento
+## Etapa 8 — particionar os dados e especializar o armazenamento { #stage-8-partition-the-data-and-specialize-storage }
 
 **Sintoma**: a tabela de pedidos tem bilhões de linhas e o disco e o throughput de escrita do primário estão perto do limite; a busca textual com `LIKE '%rock%'` varre milhões de linhas; os painéis de vendas dos organizadores rodam agregações pesadas no banco de produção.
 
@@ -163,7 +171,7 @@ flowchart LR
 
 **Problemas novos**: uma **partição quente** (*hot partition*: a abertura de vendas de um estádio concentra todas as escritas num shard), consultas entre shards, rebalanceamento ao acrescentar nós. [Aula 6](../../databases/index.md).
 
-## Etapa 9 — a borda e múltiplas regiões
+## Etapa 9 — a borda e múltiplas regiões { #stage-9-the-edge-and-multiple-regions }
 
 **Sintoma**: robôs compram 30% dos ingressos dos shows populares no primeiro segundo; um ataque DDoS acerta a semana de uma grande abertura de vendas; a queda de uma região da nuvem deixa a BoxOffice fora do ar por quatro horas.
 
@@ -171,13 +179,13 @@ flowchart LR
 
 **Problema novo**: os dados agora ficam longe uns dos outros. Replicar o inventário de lugares entre regiões de forma síncrona custa dezenas de milissegundos por escrita (a velocidade da luz é um limite rígido); de forma assíncrona, arrisca vender um lugar duas vezes durante um failover. O meio-termo usual: o inventário de cada evento tem **uma região-sede**, e as outras regiões encaminham as reservas para ela. A aula 3 explica por que não existe almoço grátis aqui (CAP e PACELC).
 
-**Experimente:** o cenário final junta vários desses componentes para a abertura de vendas das 10:00 — sala de espera, inventário em SQL, pagamento. Rode o perfil `spike` e encontre o primeiro gargalo.
+**Experimente:** o cenário final é uma venda relâmpago (a nossa abertura de vendas das 10:00) num desenho que ainda não tem nenhum desses componentes: `users → lb → app → inventory-db`, mais o `payment provider`. Aperte **Run**: quando a venda abre (t = 60 s) o tráfego salta 20×. Encontre o primeiro gargalo, aumente a capacidade dele e encontre o próximo. Depois abra no playground completo (↗) e aperte **Mostrar uma solução possível** para ver os componentes desta jornada trabalhando juntos — CDN, cache, API gateway e uma fila de sala de espera.
 
 <div class="sdp" data-scenario="flash-sale" data-mode="compact" data-height="540"></div>
 
 ---
 
-## O que é constante ao longo da jornada
+## O que é constante ao longo da jornada { #what-is-constant-along-the-journey }
 
 Algumas coisas não pertencem a nenhuma etapa — elas precisam estar lá **desde o primeiro dia** e crescer com o sistema:
 
@@ -196,6 +204,14 @@ Algumas coisas não pertencem a nenhuma etapa — elas precisam estar lá **desd
 
     Os entrevistadores costumam perguntar *"como isso evoluiria?"* ou *"o que muda com 10× o tráfego?"*. Use a jornada como lista de verificação mental, mas sempre **ligue cada passo a um sintoma e a um número**: "Com ~1.000 leituras/s no catálogo, a CPU do primário seria o gargalo; com 95% de acerto no cache, só 50 leituras/s chegam a ele, então eu acrescentaria o Redis antes das réplicas." Comece o design de alto nível **simples** (um serviço, um banco, um cache) e acrescente complexidade só onde os requisitos ou as suas estimativas exigirem — um entrevistador se impressiona mais com um design simples e justificado do que com um complexo e injustificado.
 
+!!! success "Boas práticas"
+
+    - **Encontre o recurso saturado com medidores internos antes de acrescentar um componente** — threads ocupadas, uso do pool, CPU por contêiner; o novo componente vai onde a fila cresce. Na BoxOffice: `scripts/watch-metrics.sh` no [lab 2](../../../hands-on/2/index.md).
+    - **Mantenha o "antes" ligável quando acrescentar um componente** — uma flag de configuração permite medir com e sem ele, e voltar atrás sem deploy. Na BoxOffice: `NOTIFY_MODE=sync|outbox` (lab 7) e `CACHE_STAMPEDE_PROTECTION` (lab 5).
+    - **Leve a chave de particionamento em toda tabela quente desde o início** — `event_id` em assentos e reservas faz do estágio 8 uma migração, não uma reescrita. Na BoxOffice: toda consulta a `inventory.seats` filtra por `event_id` ([lab 6](../../../hands-on/6/holds/index.md)).
+    - **Prefira um serviço gerenciado para cada camada com estado até que um número diga o contrário** — um PostgreSQL gerenciado traz backups, patches e failover que uma equipe de duas pessoas teria de operar às 3 da manhã.
+    - **Faça teste de carga de cada estágio no pico esperado antes de o tráfego chegar** — e guarde o resultado. Na BoxOffice: o lab 3 mede 1 contra 3 réplicas com duas cargas ([Hands-on 3](../../../hands-on/3/index.md#measure-it)).
+
 !!! warning "Armadilhas comuns"
 
     - **Arquitetura orientada a currículo**: Kafka, Kubernetes e doze microsserviços para um sistema com 100 usuários.
@@ -208,7 +224,7 @@ Algumas coisas não pertencem a nenhuma etapa — elas precisam estar lá **desd
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     S0["uma máquina<br/>app + banco"] --> S1["sql separado"]
     S1 --> S2["lb + app stateless<br/>+ healthcheck"]
@@ -226,13 +242,15 @@ flowchart LR
 
 **Componentes da paleta**, em ordem de chegada: [`app`](../../../reference/components/compute/index.md#app) · [`sql`](../../../reference/components/storage/index.md#sql) · [`lb`](../../../reference/components/edge/index.md#lb) · [`healthcheck`](../../../reference/components/observability/index.md#healthcheck) · [`cache`](../../../reference/components/storage/index.md#cache) · [`cdn`](../../../reference/components/edge/index.md#cdn) · [`objstore`](../../../reference/components/storage/index.md#objstore) · [`queue`](../../../reference/components/messaging/index.md#queue) (também a sala de espera) · [`worker`](../../../reference/components/compute/index.md#worker) · [`apigw`](../../../reference/components/edge/index.md#apigw) · [`stream`](../../../reference/components/messaging/index.md#stream) · [`nosql`](../../../reference/components/storage/index.md#nosql) (partições) · [`search`](../../../reference/components/compute/index.md#search) · [`dwh`](../../../reference/components/storage/index.md#dwh) · [`waf`](../../../reference/components/edge/index.md#waf) · [`dns`](../../../reference/components/edge/index.md#dns) (failover). **Cenários:** `monolith`, `scale-out`, `db-replicas`, `read-heavy-cache`, `cdn-static`, `async-queue`, `flash-sale`, `multi-region`. **Continua em:** [Compute — serviços](../../compute/services/index.md) (monólito primeiro), [Bancos de dados — replicação](../../databases/replication/index.md), [Caching — padrões](../../caching/patterns/index.md), [Mensageria — filas e pub/sub](../../messaging/queues-pubsub/index.md), [Bancos de dados — particionamento](../../databases/partitioning/index.md), [Tráfego e Borda](../../edge/index.md), [Hands-on 3](../../../hands-on/3/index.md).
 
-## Pontos-chave
+## Pontos-chave { #key-takeaways }
 
-- Arquiteturas **evoluem**: comece pela coisa mais simples (uma aplicação, um banco) e acrescente componentes **só quando um sintoma medido exigir**.
-- Cada componente resolve um sintoma e **cria um problema novo** — réplicas → atraso, cache → invalidação, fila → duplicatas, serviços → falhas de rede, shards → partições quentes.
-- Servidores de aplicação **sem estado** são a pré-condição da escala horizontal.
-- Cache, CDN e réplicas escalam **leituras**; filas, particionamento e salas de espera domam **escritas e picos**.
-- **Primeiro o monólito**; extraia serviços quando sintomas organizacionais ou de escala justificarem o custo da distribuição.
+!!! takeaways ""
+
+    - Arquiteturas **evoluem**: comece pela coisa mais simples (uma aplicação, um banco) e acrescente componentes **só quando um sintoma medido exigir**.
+    - Cada componente resolve um sintoma e **cria um problema novo** — réplicas → atraso, cache → invalidação, fila → duplicatas, serviços → falhas de rede, shards → partições quentes.
+    - Servidores de aplicação **sem estado** são a pré-condição da escala horizontal.
+    - Cache, CDN e réplicas escalam **leituras**; filas, particionamento e salas de espera domam **escritas e picos**.
+    - **Primeiro o monólito**; extraia serviços quando sintomas organizacionais ou de escala justificarem o custo da distribuição.
 
 ---
 

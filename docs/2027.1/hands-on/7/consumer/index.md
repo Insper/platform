@@ -153,7 +153,7 @@ effect exactly-once on its own; the complete fix is an **idempotency key** accep
 
 How a failing record flows:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant K as order-events (partition 3)
     participant L as listener
@@ -259,7 +259,7 @@ The logs show `duplicate event ... ignored` for each order and Mailpit still has
 with `NOTIFY_IDEMPOTENT=false docker compose up -d notification` and count again: every
 replay sends every e-mail again.
 
-### Experiment: a poison order
+### Experiment: a poison order { #experiment-a-poison-order }
 
 ``` shell
 curl -s -X POST localhost:8084/orders -H 'Content-Type: application/json' \

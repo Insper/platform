@@ -2,7 +2,7 @@ Seis meses depois do lançamento do assistente, a BoxOffice tem cinco funcionali
 
 A solução é a mesma que a disciplina aplicou ao tráfego HTTP em [Tráfego e borda](../../edge/api-gateway/index.md): colocar **um gateway** na frente de todos os modelos e mover para ele as preocupações transversais.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     subgraph Before["Antes: todo serviço fala com todo provedor"]
         a1["assistant"] --> p1["provedor A"]
@@ -22,7 +22,7 @@ flowchart LR
     end
 ```
 
-## O que o gateway faz
+## O que o gateway faz { #what-the-gateway-does }
 
 Um **gateway de LLM** (LLM Gateway) é um proxy reverso especializado em APIs de modelos. Os clientes enviam requisições num formato único para um **alias de modelo** (`assistant-default`, não o nome do modelo de um fornecedor); o gateway decide qual implantação (deployment) real atende a requisição e registra o que aconteceu.
 
@@ -41,7 +41,7 @@ O gateway está no caminho crítico de toda funcionalidade de IA, então ele pr�
 
 ---
 
-## Roteamento
+## Roteamento { #routing }
 
 O mesmo prompt pode ser atendido por modelos que diferem em uma ordem de grandeza em preço e velocidade. O **roteamento** escolhe, por requisição, a implantação mais barata que seja boa o suficiente.
 
@@ -54,7 +54,7 @@ O mesmo prompt pode ser atendido por modelos que diferem em uma ordem de grandez
 | **Ciente de latência/custo** | envia para a implantação com o menor TTFT ou preço no momento | múltiplos provedores, múltiplas regiões | oscilação; mantenha alguma aderência (stickiness) |
 | **Conformidade** | dados pessoais ficam em implantações de uma região aprovada, ou auto-hospedadas | LGPD, restrições contratuais | menos fallbacks disponíveis |
 
-``` mermaid-sim
+``` diagram-sim
 flowchart TD
     req["requisição: alias assistant-default"] --> pii{"contém dados pessoais?"}
     pii -- sim --> region["só implantações em região aprovada"]
@@ -73,7 +73,7 @@ flowchart TD
 
 ---
 
-## Fallbacks e retentativas
+## Fallbacks e retentativas { #fallbacks-and-retries }
 
 Uma chamada ao modelo **não tem efeitos colaterais**: repeti-la é sempre *seguro* (chamadas de ferramenta são outra história — veja [Agentes e ferramentas](../agents/index.md#side-effects)). Mas nem todo erro merece uma retentativa, e alguns merecem outro modelo.
 
@@ -128,9 +128,17 @@ Duas armadilhas específicas de modelos:
 - **Um modelo de fallback é outro programa.** Prompts ajustados para um modelo, seu formato de chamada de ferramenta e seu estilo de recusa podem não se transferir. Rode a [suíte de avaliação](../safety-evals/index.md#evaluation) contra todos os modelos da cadeia, não só o principal — senão o fallback derruba a qualidade em silêncio justamente durante um incidente.
 - **Retentativas multiplicam o gasto de tokens.** A [tempestade de retentativas](../../reliability/patterns/index.md) da aula de confiabilidade agora tem preço: limite as tentativas, use um orçamento de retentativas (por exemplo, retentativas ≤ 10% das chamadas) e desconte os tokens repetidos da cota de quem chamou.
 
+!!! example "No código do BoxOffice: o gateway do assistente (lab 12)"
+
+    O [Hands-on 12 — O serviço e o LLM gateway](../../../hands-on/12/service/index.md) usa o `Router` do LiteLLM, dentro do processo, como gateway. O assistente pede uma **rota** (um alias), nunca o nome de um modelo: `local`, um modelo aberto pequeno no Ollama, sempre existe; `claude` só existe quando há uma chave de API. O fallback `claude → local` mantém o assistente respondendo quando o provedor falha ou a cota acaba — e é a primeira armadilha acima na prática: o fallback é um modelo muito menor, então as avaliações precisam rodar contra ele também. Uma retentativa e timeout de 120 s, porque uma chamada a LLM é a dependência mais lenta que a BoxOffice tem. Um serviço só não precisa do proxy separado do LiteLLM; com vários serviços de IA, o proxy vira o gateway compartilhado desta página. O lab estima uma pergunta em cerca de 1.000 tokens de entrada e 100 de saída, ≈ US$ 0,006 na rota do Claude.
+
+    ``` { .python title="services/assistant/app/llm.py" }
+    --8<-- "docs/2027.1/hands-on/12/code/services/assistant/app/llm.py"
+    ```
+
 !!! tip "Experimente"
 
-    Carregue o cenário do assistente de IA com o perfil **spike** e o caos em **medium**. Observe o LLM Gateway quando um provedor começar a falhar: sem fallback, os erros se propagam para o orquestrador e para o fã; com um segundo provedor ligado ao gateway, a taxa de erro fica baixa, mas o custo e a latência por requisição mudam. Compare a taxa de tokens que o gateway reporta com o limite do provedor. Abra no [playground completo](../../../../playground/index.md) para adicionar o segundo provedor você mesmo.
+    Carregue o cenário do assistente de IA com o perfil **spike** e o caos em **medium**. Observe o LLM Gateway quando o provedor limita e falha: sem fallback, a maioria das perguntas termina em erro. Selecione o LLM Gateway e ligue **Modelo reserva**: a taxa de erro cai pela metade ou mais, mas o custo por mês mais que dobra e o p99 cresce vários segundos — o modelo reserva responde o que a cota rejeitou, mais devagar. Compare a taxa de tokens que o gateway reporta com o limite do provedor. Abra no [playground completo](../../../../playground/index.md) para combinar o fallback com menos passos do agente e um cache semântico.
 
 <div class="sdp" data-scenario="ai-assistant" data-mode="compact" data-height="520" data-profile="spike" data-chaos="medium"></div>
 
@@ -176,13 +184,13 @@ O gateway impõe os próprios limites, mais finos:
 | Risco de corretude | nenhum (mesma entrada) | **nenhum** — a resposta é calculada normalmente | **falsos acertos**: uma pergunta parecida que precisa de outra resposta |
 | Taxa de acerto num chat | baixa (perguntas raramente se repetem byte a byte) | alta (system prompt + ferramentas + histórico se repetem a cada chamada) | média para tráfego tipo FAQ; ~0 para requisições pessoais, que usam ferramentas |
 
-### Cache de prompt
+### Cache de prompt { #prompt-caching }
 
 Processar a entrada (o *prefill*, abaixo) produz tensores internos de chave/valor para cada token. Quando a próxima requisição começa com os **mesmos tokens**, o servidor pode reaproveitá-los em vez de recalcular. A maioria dos grandes provedores e dos servidores open source (por exemplo, o automatic prefix caching do vLLM) oferece isso; os provedores cobram os tokens de entrada em cache por uma fração do preço normal, exigem um tamanho mínimo de prefixo e mantêm as entradas por alguns minutos de inatividade. Os detalhes — automático ou com marcadores explícitos de cache, desconto, tempo de vida — variam por provedor: leia a documentação de cada um.
 
 Como a correspondência é por **prefixo exato**, a ordem do prompt importa:
 
-``` mermaid
+``` diagram
 flowchart LR
     s["1. system prompt<br/>(estático)"] --> t["2. definições de ferramentas<br/>(estáticas)"] --> k["3. documentos recuperados<br/>(por conversa)"] --> h["4. histórico da conversa<br/>(cresce)"] --> u["5. nova mensagem do usuário<br/>(muda a cada chamada)"]
 ```
@@ -191,7 +199,7 @@ flowchart LR
 
     Um timestamp, um ID de requisição ou o nome do usuário no **topo** do system prompt muda o prefixo a cada chamada e derruba silenciosamente a taxa de acerto a zero. O mesmo acontece ao reordenar as definições de ferramentas ou ao reserializar JSON com ordem de chaves instável. Coloque tudo o que varia **no final** e monitore a proporção de tokens em cache por funcionalidade.
 
-### Cache semântico
+### Cache semântico { #semantic-caching }
 
 Um cache semântico gera o embedding da pergunta do usuário (veja [RAG e memória](../rag-memory/index.md#embeddings)) e procura uma pergunta anterior cujo embedding esteja próximo o suficiente. "Que horas abrem os portões da Arena Paulista?" e "quando abrem as portas da Arena Paulista?" devem dar acerto. O perigo é o caso inverso: *"posso ter reembolso do show de sábado?"* e *"posso ter reembolso do show de domingo?"* são quase idênticas como vetores e podem precisar de respostas diferentes.
 
@@ -204,7 +212,7 @@ Regras que mantêm um cache semântico seguro:
 
 ---
 
-## Desempenho de inferência: TTFT, TPOT e vazão
+## Desempenho de inferência: TTFT, TPOT e vazão { #inference-performance-ttft-tpot-and-throughput }
 
 Gerar uma resposta tem duas fases com perfis opostos:
 
@@ -272,7 +280,7 @@ O streaming tem consequências arquiteturais:
 - **Chamadas de ferramenta e JSON só podem ser usados quando completos.** Só a resposta final em linguagem natural se beneficia do streaming.
 - **Guardrails de saída e streaming entram em conflito.** Verificar a resposta inteira antes de mostrá-la elimina o ganho de TTFT; verificar pedaço por pedaço pode mostrar uma frase problemática antes de ela ser barrada. Meio-termo comum: fazer streaming, verificar em janelas de algumas frases e retirar o trecho se necessário — e nunca fazer streaming do conteúdo de ações de alto risco antes da validação.
 
-### Batching e o KV cache
+### Batching e o KV cache { #batching-and-the-kv-cache }
 
 Se você hospeda um modelo por conta própria (ou só quer entender os limites dos provedores), um número explica a maior parte do comportamento: **o decode é limitado pela largura de banda de memória, não pela computação**. Cada passo de decode lê todos os pesos. Um modelo de 8 bilhões de parâmetros em precisão de 16 bits tem ~16 GB; uma GPU com ~3 TB/s de largura de banda de memória precisa de pelo menos ~5 ms para lê-lo — então uma única sequência não passa de ~200 tokens/s, por mais potente que seja a GPU.
 
@@ -298,7 +306,7 @@ Outras técnicas de serving que você vai encontrar em 2026 (todas trocam algo p
 | Prefill em blocos (chunked prefill) | divide prefills longos para que não travem os decodes em andamento | TTFT um pouco maior para prompts longos |
 | Desagregação prefill/decode[^7] | executa as duas fases em pools de GPU diferentes | o KV cache precisa ser movido entre pools; mais peças móveis |
 
-### Auto-hospedado ou API?
+### Auto-hospedado ou API? { #self-hosted-or-api }
 
 | Critério | API de provedor | Auto-hospedado (vLLM, SGLang, Ollama para desenvolvimento) |
 |---|---|---|
@@ -312,17 +320,17 @@ Uma conta de guardanapo: uma GPU que custa US$ *c* por hora e sustenta *T* token
 
 ---
 
-## Observabilidade no gateway
+## Observabilidade no gateway { #observability-at-the-gateway }
 
 Como toda chamada passa por ele, o gateway é o lugar natural para emitir a telemetria de LLM descrita em [Segurança, avaliações e observabilidade](../safety-evals/index.md#observability): um span por chamada com modelo, tokens (entrada, em cache, saída), custo, TTFT e motivo de término, além de métricas agregadas por alias, funcionalidade e categoria de usuário. Os painéis respondem diretamente à pergunta do CFO: **US$ por conversa**, por funcionalidade, por dia.
 
-## Produtos
+## Produtos { #products }
 
 O gateway é um padrão, não um produto. Exemplos para explorar — consulte a documentação atual de cada produto para conferir os recursos:
 
 === "Open source"
 
-    - **LiteLLM** (servidor proxy): API unificada, roteamento, fallbacks, orçamentos, controle de gastos — usado no [Hands-on 12](../../../hands-on/12/index.md).
+    - **LiteLLM**: API unificada, roteamento, fallbacks, orçamentos, controle de gastos, como servidor proxy ou como SDK dentro do processo — o `Router` do seu SDK é o gateway do [Hands-on 12](../../../hands-on/12/service/index.md).
     - **Envoy AI Gateway**: gerenciamento de tráfego de LLM construído sobre o Envoy Gateway.
     - Motores de serving atrás do gateway: **vLLM**, **SGLang**, **Ollama** (desenvolvimento local).
 
@@ -334,6 +342,14 @@ O gateway é um padrão, não um produto. Exemplos para explorar — consulte a 
 !!! tip "Na entrevista"
 
     Coloque um gateway de LLM entre todos os serviços e os modelos e cite quatro de suas funções: **roteamento por alias, fallbacks com circuit breakers, cotas de tokens com prioridades e telemetria de custo/latência**. Separe o **TTFT** (SLO interativo, com streaming) do **TPOT** (velocidade) na sua estimativa de latência, e diferencie o **cache de prompt** (seguro, reduz o custo de entrada e o TTFT) do **cache semântico** (arriscado, só para respostas genéricas). Se o entrevistador perguntar sobre hospedar por conta própria, responda com os argumentos de memória do KV cache e de utilização.
+
+!!! success "Boas práticas"
+
+    - **Defina um prazo de TTFT por alias e faça failover por ele** — para um fã olhando uma bolha vazia, um provedor que enfileira é tão ruim quanto um que caiu; por exemplo 3 s no p95 para o alias interativo.
+    - **Reserve tokens com prioridades, não só com limites** — o tráfego interativo fica com ~70% do TPM da conta às 10:00 e os jobs em lote param primeiro ([cotas](#quotas)).
+    - **Rode a suíte de avaliação em todo modelo da cadeia de fallback** — no BoxOffice o fallback do `claude` é um modelo local de 1,5 bilhão de parâmetros ([lab 12 — `llm.py`](../../../hands-on/12/service/index.md)): ele precisa passar no mesmo golden set, senão o fallback é uma queda de qualidade silenciosa durante um incidente.
+    - **Crie alerta para a fração de tokens em cache por funcionalidade** — a entrada em cache é cobrada a uma fração do preço (10% no [exemplo da visão geral](../index.md#numbers)); uma edição de prompt que leva uma variável para o topo multiplica o custo de entrada da noite para o dia.
+    - **Atribua o custo por funcionalidade e por tipo de usuário no gateway** — "US$ por conversa" deve ser um painel, não uma investigação. No BoxOffice: `metrics.price()` transforma os tokens de toda resposta em dólares ([lab 12 — Guardrails e métricas](../../../hands-on/12/guardrails/index.md)).
 
 !!! warning "Armadilhas comuns"
 
@@ -349,7 +365,7 @@ O gateway é um padrão, não um produto. Exemplos para explorar — consulte a 
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     SVC["assistant, summarizer,<br/>translator, embed job"] --> GW["LLM gateway<br/>routing by alias"]
     GW --> FB["fallbacks + circuit breaker<br/>→ Reliability"]

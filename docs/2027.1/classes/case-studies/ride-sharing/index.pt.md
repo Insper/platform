@@ -22,11 +22,11 @@ O BoxOffice encontra os mesmos problemas duas vezes. Sua busca "eventos perto de
 
 ---
 
-## 1. Esclarecer os requisitos
+## 1. Esclarecer os requisitos { #1-clarify-the-requirements }
 
 ([roteiro de entrevista](../../intro/interview-framework/index.md))
 
-### Requisitos funcionais
+### Requisitos funcionais { #functional-requirements }
 
 1. Motoristas ficam **online/offline** e, enquanto online, enviam sua **localização** a cada poucos segundos.
 2. O passageiro vê **motoristas próximos** no mapa, uma **estimativa de chegada (ETA)** e uma **estimativa de preço**.
@@ -34,7 +34,7 @@ O BoxOffice encontra os mesmos problemas duas vezes. Sua busca "eventos perto de
 4. Durante a corrida, os dois apps mostram a **localização ao vivo**; a corrida termina com **pagamento** e avaliação.
 5. **Histórico** de corridas para passageiros, motoristas e suporte.
 
-### Requisitos não funcionais
+### Requisitos não funcionais { #non-functional-requirements }
 
 | Qualidade | Meta |
 |---|---|
@@ -45,7 +45,7 @@ O BoxOffice encontra os mesmos problemas duas vezes. Sua busca "eventos perto de
 | **Disponibilidade** | 99,99% para pedir e fazer o matching; uma cidade precisa continuar funcionando se outra região cair |
 | **Durabilidade** | Corridas e pagamentos nunca se perdem; o histórico bruto de localização pode ser amostrado |
 
-### Fora do escopo (diga explicitamente)
+### Fora do escopo (diga explicitamente) { #out-of-scope-say-it-explicitly }
 
 Motor de rotas/mapas (chamamos um), cadastro de motoristas e documentos, detecção de fraude, corridas compartilhadas (*pooling*) — cite o pooling como extensão.
 
@@ -62,7 +62,7 @@ Motor de rotas/mapas (chamamos um), cadastro de motoristas e documentos, detecç
 
 ---
 
-## 2. Estimativas de guardanapo (back-of-the-envelope)
+## 2. Estimativas de guardanapo (back-of-the-envelope) { #2-back-of-the-envelope-estimates }
 
 ```python exec="1" source="tabbed-right"
 # Ride sharing: assumptions (illustrative)
@@ -131,7 +131,7 @@ POST /v1/rides/{rideId}/cancel                                                  
 
 ---
 
-## 4. Modelo de dados
+## 4. Modelo de dados { #4-data-model }
 
 ```text
 # Latest positions, one geo set per city (Redis GEO = sorted set of geohash-encoded scores)
@@ -173,9 +173,9 @@ CREATE UNIQUE INDEX one_active_ride_per_driver ON ride (driver_id)
 
 ---
 
-## 5. Design de alto nível
+## 5. Design de alto nível { #5-high-level-design }
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     d([App do motorista]) --> gw["Gateway<br/>conexões persistentes"]
     r([App do passageiro]) --> gw
@@ -196,7 +196,7 @@ flowchart LR
 
 Um pedido de corrida, do toque à oferta aceita:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     participant R as App do passageiro
@@ -221,9 +221,9 @@ sequenceDiagram
 
 ---
 
-## 6. Aprofundamentos (deep dives)
+## 6. Aprofundamentos (deep dives) { #6-deep-dives }
 
-### 6.1 Ingerindo localizações: guarde só o que importa
+### 6.1 Ingerindo localizações: guarde só o que importa { #61-ingesting-locations-keep-only-what-matters }
 
 - **A última posição é o produto; o rastro é analytics.** O serviço de localização valida o ponto (velocidade plausível, fora do oceano), grava o último valor no índice geográfico e o acrescenta ao stream. Nada no caminho quente lê o histórico.
 - **Agrupe e aglutine.** O gateway pode aglutinar atualizações por motorista (se duas chegam na mesma janela de 100 ms, fica a mais nova) e gravar no índice geográfico em lotes com pipelining.
@@ -231,7 +231,7 @@ sequenceDiagram
 - **Desatualização.** Cada estado de motorista tem um TTL renovado pelas atualizações; um celular que fica em silêncio por 30 s sai do conjunto de candidatos automaticamente, sem job de limpeza.
 - **Particione por cidade.** O tópico do stream, o índice geográfico e o banco de corridas são todos particionados por cidade (ou região), então uma consulta em São Paulo nunca toca os shards de Lisboa ([particionamento](../../databases/partitioning/index.md)).
 
-### 6.2 O índice espacial: geohash, quadtree ou H3
+### 6.2 O índice espacial: geohash, quadtree ou H3 { #62-the-spatial-index-geohash-quadtree-or-h3 }
 
 Uma B-tree em `(lat, lon)` não responde "dentro de 2 km" de forma eficiente: ela ordena por uma dimensão de cada vez. Índices espaciais mapeiam o espaço 2-D em células ([bancos especializados](../../databases/specialized/index.md)).
 
@@ -272,7 +272,7 @@ for p in range(4, 9):
 
 A precisão 6 (~1,1 × 0,6 km) é um bom balde para "motoristas a uns dois km". **Problema da borda:** um passageiro na beirada de uma célula pode estar a 50 m de um motorista na célula vizinha — sempre busque a célula **mais suas 8 vizinhas** (ou um anel `k` do H3) e depois filtre pela distância real. Se poucos motoristas forem encontrados, **amplie o anel** (precisão 5, ou `k + 1`) até aparecerem candidatos suficientes ou atingir um raio máximo.
 
-### 6.3 Matching sem atribuição dupla
+### 6.3 Matching sem atribuição dupla { #63-matching-without-double-assignment }
 
 O momento perigoso: os matchers de dois passageiros escolhem o mesmo motorista mais próximo ao mesmo tempo. A regra **um motorista, uma corrida** precisa de uma guarda atômica ([consenso e locks](../../distributed/consensus/index.md)):
 
@@ -283,9 +283,9 @@ O momento perigoso: os matchers de dois passageiros escolhem o mesmo motorista m
 
 **Matching guloso vs. em lote.** O guloso (cada pedido pega seu motorista disponível mais próximo) é simples e rápido. O matching em lote junta pedidos por 1–2 segundos e resolve um problema de atribuição sobre todos (minimizando o tempo total até o embarque), o que é globalmente melhor em áreas densas — um trade-off clássico de latência por eficiência.
 
-### 6.4 A corrida como máquina de estados
+### 6.4 A corrida como máquina de estados { #64-the-trip-as-a-state-machine }
 
-``` mermaid-sim
+``` diagram-sim
 stateDiagram-v2
     [*] --> MATCHING: passageiro pede
     MATCHING --> ACCEPTED: motorista aceita a oferta
@@ -306,7 +306,7 @@ O **preço dinâmico** cabe no mesmo pipeline: um job de stream conta os pedidos
 
 ---
 
-## 7. Gargalos, modos de falha e trade-offs
+## 7. Gargalos, modos de falha e trade-offs { #7-bottlenecks-failure-modes-and-trade-offs }
 
 | Onde | O que dá errado | Mitigação | Trade-off |
 |---|---|---|---|
@@ -323,7 +323,7 @@ Os trade-offs para **dizer em voz alta**: **atualidade vs. custo de escrita** (p
 
 ---
 
-## 8. Experimente no playground
+## 8. Experimente no playground { #8-try-it-in-the-playground }
 
 O cenário `ride-sharing` modela atualizações de localização com muita escrita passando por um stream até um índice geográfico, e um caminho de matching que o lê.
 
@@ -340,7 +340,7 @@ O cenário `ride-sharing` modela atualizações de localização com muita escri
 
 ---
 
-## 9. Perguntas de follow-up que o entrevistador faz
+## 9. Perguntas de follow-up que o entrevistador faz { #9-follow-up-questions-an-interviewer-asks }
 
 ??? question "Um show do BoxOffice no estádio termina: 60 000 pessoas saem de uma vez. O que acontece com o seu sistema?"
 
@@ -368,7 +368,7 @@ O cenário `ride-sharing` modela atualizações de localização com muita escri
 
 ---
 
-## 10. Rubrica de autoavaliação
+## 10. Rubrica de autoavaliação { #10-self-assessment-rubric }
 
 | Nível | O que a resposta contém |
 |---|---|
@@ -378,13 +378,21 @@ O cenário `ride-sharing` modela atualizações de localização com muita escri
 
 **Relacionados:** [Particionamento](../../databases/partitioning/index.md), [Bancos especializados](../../databases/specialized/index.md), [Caso do chat](../chat/index.md) (conexões persistentes), [Caso do sistema de pagamentos](../payment-system/index.md), [Hands-on 6](../../../hands-on/6/index.md) (transações e locks).
 
+!!! success "Boas práticas"
+
+    - **Limite as atualizações de posição pelo estado** — alguns segundos entre pings dirigindo, muito menos quando parado; os pings são a maior parte da carga de escrita.
+    - **Atribua um motorista com uma atualização condicional** — `UPDATE ... WHERE status = 'AVAILABLE'` (ou um lease com TTL) faz de "um motorista, uma corrida" um fato do banco, como as reservas de assento do [lab 6](../../../hands-on/6/holds/index.md).
+    - **Mantenha as posições ao vivo em memória com TTL, e persista as corridas** — posições são telemetria; a corrida e o seu preço são o registro.
+    - **Dê timeout às ofertas e ofereça de novo** — um motorista que não responde em segundos volta para o grupo, e o passageiro recebe o próximo.
+    - **Particione o índice geográfico por região** — o horário de pico de uma cidade fica na partição dessa cidade.
+
 ---
 
 ## Como se conecta { #how-it-connects }
 
 Quais aulas este caso testa? Cada ramo é uma aula cujas ideias o design usa (azul), com os componentes da paleta em que elas aparecem (verde):
 
-``` mermaid
+``` diagram
 flowchart LR
     CASE(["Ride sharing"]) --> EST["Estimation<br/>location writes, latest position fits in memory"]:::tech
     CASE --> DB["Databases<br/>geohash, quadtree, H3, partition by city"]:::tech
@@ -404,7 +412,7 @@ flowchart LR
 
 ---
 
-## Referências
+## Referências { #references }
 
 - XU, A.; LAM, S. *System Design Interview — An Insider's Guide*, vol. 2, cap. 1 "Proximity Service" e cap. 2 "Nearby Friends"[^1].
 - O índice espacial hierárquico hexagonal do Uber[^2].

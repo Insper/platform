@@ -2,6 +2,10 @@ It is 09:59 on the day a stadium show goes on sale. BoxOffice has 60,000 seats t
 
 The fix is not a bigger database. It is to stop asking the database the same question two million times. That is **caching**: keeping a copy of the answer to an expensive question in a place that is faster and cheaper to read, and serving the copy for as long as it is good enough.
 
+!!! quote "The story so far"
+
+    Chapter 7 of the [story of the course](../../index.md#story). The edge spreads the fans over stateless replicas ([class 4](../edge/index.md), [class 5](../compute/index.md)), and PostgreSQL guarantees that a seat is sold once ([class 6](../databases/index.md)). Being stateless has a price: **every** read now lands on the database, and the event pages are read about 100 times more than they change. **This class** answers: how do we stop asking the database the same question — and what must never be answered from a copy?
+
 !!! abstract "Learning objectives"
 
     By the end of this class you should be able to:
@@ -68,7 +72,7 @@ A cache does not only make a read faster. It also **removes work from the system
 
 A single BoxOffice request can be answered by six different caches before it reaches the database. Each layer is closer to the user (faster, cheaper per hit) but holds less, and is harder to invalidate.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     U["Browser / app<br/>HTTP cache"] -->|"miss"| CDN["CDN edge<br/>static + public pages"]
     CDN -->|"miss"| GW["API gateway<br/>response cache"]
@@ -96,7 +100,7 @@ The deeper the layer, the more consistent it is: the database buffer pool can ne
 
 ---
 
-## Hit-ratio math
+## Hit-ratio math { #hit-ratio-math }
 
 The **hit ratio** $h$ is the fraction of reads answered by the cache. Two formulas carry almost every caching decision.
 
@@ -244,7 +248,7 @@ Open the [full playground](../../../playground/index.md) to add an in-process ca
 
 A cache is not one component but a layer at every hop: each palette component on the read path can answer from a copy before the request reaches the source of truth. The map links each **palette component** (green) to the **caching concepts** it uses (blue):
 
-``` mermaid
+``` diagram
 flowchart LR
     client["client · mobile"]:::comp -->|"miss"| cdn["cdn"]:::comp
     cdn -->|"miss"| apigw["apigw"]:::comp
@@ -278,6 +282,14 @@ flowchart LR
 
     Do not add a cache by reflex. Justify it with the read/write ratio and the skew ("reads outnumber writes 100:1 and the top 1% of events take most of the traffic"), state the hit ratio you expect and **what it does to the database load** ("at 95%, the DB sees 2,500 QPS instead of 50,000"), then say how you keep it fresh (TTL + delete on write) and what happens when it fails. Interviewers reward the follow-up questions you answer before they ask.
 
+!!! success "Best practices"
+
+    - **Justify the cache with numbers before adding it**: read/write ratio, skew, expected hit ratio and the database load it removes ("95% → the DB sees 1 read in 20"). In BoxOffice: [lab 5 measures](../../hands-on/5/index.md#measure-it) the hit ratio, p99 and capacity before and after.
+    - **Make every response say what happened** (`HIT`, `MISS`, `BYPASS` in a header and a counter): a hit ratio you cannot see is a hit ratio you cannot defend. In BoxOffice: `X-Cache` in `EventCache.java`.
+    - **Give every key a TTL**, even the ones you invalidate explicitly, and size the TTL by the staleness each kind of data tolerates ([staleness budget](invalidation/index.md)).
+    - **Treat the cache as optional**: short client timeouts and a fallback to the source of truth, and a database sized to survive a cold cache at the expected load.
+    - **Keep decisions on the source of truth**: seat holds, payments and balances never come from a copy.
+
 !!! warning "Common pitfalls"
 
     - **Caching to hide a slow query** that an index would fix. Fix the query first; the cache then protects capacity, not a bug.
@@ -296,13 +308,19 @@ flowchart LR
 - Case studies: [distributed cache](../case-studies/distributed-cache/index.md), [URL shortener](../case-studies/url-shortener/index.md), [search autocomplete](../case-studies/search-autocomplete/index.md).
 - [Playground](../../../playground/index.md) — scenario `read-heavy-cache`.
 
-## Key takeaways
+## Key takeaways { #key-takeaways }
 
-- Caches work because of **locality and skew**: a cache holding 1% of a Zipf-distributed catalog can absorb most reads.
-- A request crosses many cache layers (client, CDN, gateway, in-process, distributed, database); closer to the user is faster but harder to invalidate.
-- $t_{\text{eff}} = h \cdot t_{\text{hit}} + (1-h) \cdot t_{\text{miss}}$ and $\text{QPS}_{\text{DB}} = (1-h) \cdot \text{QPS}$: think in **miss ratio** — each extra nine is 10× less database load.
-- Size for the **working set**, measure item sizes, watch evictions, and keep headroom.
-- **Cache what you display, not what you decide on**: seat holds, payments and balances go to the source of truth.
+!!! takeaways ""
+
+    - Caches work because of **locality and skew**: a cache holding 1% of a Zipf-distributed catalog can absorb most reads.
+    - A request crosses many cache layers (client, CDN, gateway, in-process, distributed, database); closer to the user is faster but harder to invalidate.
+    - $t_{\text{eff}} = h \cdot t_{\text{hit}} + (1-h) \cdot t_{\text{miss}}$ and $\text{QPS}_{\text{DB}} = (1-h) \cdot \text{QPS}$: think in **miss ratio** — each extra nine is 10× less database load.
+    - Size for the **working set**, measure item sizes, watch evictions, and keep headroom.
+    - **Cache what you display, not what you decide on**: seat holds, payments and balances go to the source of truth.
+
+## What breaks next { #what-breaks-next }
+
+The read path is now cheap: at a 95% hit ratio the database sees one read in twenty, and lab 5 measures it. The **write** path did not change. `POST /orders` still holds the seat, calls the payment provider and sends the confirmation e-mail inside the same request, so the fan waits for the slowest of them, and an e-mail outage becomes an ordering outage. And no cache helps when 2 million fans want to *buy*, not read: the database takes about 1,100 holds/s and 33,000 arrive. Taking slow work out of the request, and putting the crowd in a fair line, is [class 8 — Messaging](../messaging/index.md).
 
 ---
 

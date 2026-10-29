@@ -8,7 +8,7 @@ O primeiro é um problema de **segurança**, o segundo de **privacidade**, o ter
 
 ---
 
-## Modelo de ameaças
+## Modelo de ameaças { #threat-model }
 
 O OWASP Top 10 para aplicações com LLM[^1] é a lista de verificação padrão. Cada item, nos termos da BoxOffice:
 
@@ -27,14 +27,14 @@ O OWASP Top 10 para aplicações com LLM[^1] é a lista de verificação padrão
 
 ---
 
-## Injeção de prompt
+## Injeção de prompt { #prompt-injection }
 
 Em uma aplicação clássica, código e dados viajam por canais separados: um prepared statement não consegue transformar o nome de um usuário em SQL. Em uma aplicação com LLM, **instruções e dados dividem o mesmo canal** — o prompt — e o modelo não tem um jeito confiável de distingui-los. Qualquer texto que chega ao contexto pode tentar agir como instrução.
 
 - **Injeção direta** (*jailbreak*): o próprio usuário escreve a instrução maliciosa. O atacante é o usuário, então o dano se limita ao que *aquele usuário* pode fazer — **se** as ferramentas aplicarem as permissões do usuário.
 - **Injeção indireta**[^2]: a instrução chega por um conteúdo que o modelo lê em nome do usuário — um documento recuperado, a descrição de um evento, o resultado de uma ferramenta, uma página web, um e-mail, até a descrição de uma ferramenta MCP. O atacante é um **terceiro**, e a vítima é o usuário que fez uma pergunta inocente.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     actor A as Atacante (conta de promotor)
     participant C as catalog
@@ -52,7 +52,7 @@ sequenceDiagram
 
 **Não existe filtro que resolva a injeção de prompt**: detectores também são modelos, e atacantes iteram contra eles. A abordagem robusta é arquitetural — assuma que qualquer modelo que lê texto não confiável **pode estar comprometido**, e limite o que um modelo comprometido consegue fazer.
 
-### A trifeta letal
+### A trifeta letal { #the-lethal-trifecta }
 
 Uma regra prática útil[^3]: um agente fica perigoso quando combina **(1) acesso a dados privados**, **(2) exposição a conteúdo não confiável** e **(3) um meio de se comunicar com o exterior** (enviar um e-mail, chamar uma URL, renderizar uma imagem de uma URL arbitrária). Com as três, uma instrução injetada consegue ler dados privados e enviá-los para fora. **Remova pelo menos uma perna** de todo agente que processa conteúdo não confiável:
 
@@ -62,7 +62,7 @@ Uma regra prática útil[^3]: um agente fica perigoso quando combina **(1) acess
 | Conteúdo não confiável | descrições de eventos e avaliações entram como **dados**, marcadas e isoladas, nunca como instruções; o texto dos promotores passa por moderação |
 | Comunicação externa | nenhuma ferramenta de `send_email` ou de busca na web; links nas respostas só para domínios da BoxOffice em allowlist; nada de imagens Markdown de URLs arbitrárias |
 
-### Defesas em camadas
+### Defesas em camadas { #defenses-in-layers }
 
 | Camada | Defesa | O que barra |
 |---|---|---|
@@ -75,11 +75,11 @@ Uma regra prática útil[^3]: um agente fica perigoso quando combina **(1) acess
 
 ---
 
-## A Safety Mesh
+## A Safety Mesh { #the-safety-mesh }
 
 O componente **Safety Mesh** é onde essas verificações vivem. Como uma service mesh, ele aplica a política **de forma uniforme ao redor** dos outros componentes, em vez de confiar que cada um a implemente. As verificações rodam em seis pontos:
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     u(["entrada do usuário"]) --> c1{"1. entrada:<br/>mascaramento de PII,<br/>score de injeção"}
     c1 --> orch["Orchestrator"]
@@ -105,11 +105,21 @@ flowchart LR
 
 Prefira **verificações determinísticas** sempre que possível: são rápidas, testáveis e ninguém consegue convencê-las a mudar de decisão.
 
-### Mascaramento de PII
+!!! tip "Experimente"
+
+    O cenário `ai-assistant` abaixo não tem Safety Mesh, e o simulador envia 2% das perguntas como tentativas de prompt injection. Aperte **Run** e leia **respostas inseguras**: 2% — todo ataque chega ao modelo. Arraste um **Safety Mesh** da paleta para o caminho (apague a aresta `gateway → assistant`, ligue `gateway → Safety Mesh → assistant`) e rode de novo: as respostas inseguras caem para **0,04%**, ou seja, 2% × (1 − 0,98), a sua taxa de captura padrão, por cerca de US$ 200 a mais por mês e um p99 que quase não se mexe. Depois selecione o mesh e baixe a **Taxa de captura de ataques** para 0,90: 0,2%, e a meta (< 0,1%) falha.
+
+    ??? question "O que você deveria ter observado?"
+
+        Um classificador é uma probabilidade, não um muro. No pico das 10:00 da [visão geral](../index.md#numbers) (20.000 perguntas em dez minutos), 0,04% ainda são cerca de **8 ataques que chegam ao modelo**, e 0,2% são 40. O mesh reduz a taxa; só o projeto limita o estrago dos que passam: ferramentas só de leitura ou com o escopo do usuário, texto não confiável mantido como dado, confirmação para ações irreversíveis. Note também o que o mesh *não* resolveu — os erros, o p99 e o custo vêm dos seis passos do agente contra a cota do provedor, que as dicas do cenário resolvem com menos passos, um cache semântico e um modelo reserva ([Agentes e ferramentas](../agents/index.md), [LLM Gateway](../llm-gateway/index.md)).
+
+<div class="sdp" data-scenario="ai-assistant" data-mode="full" data-height="640"></div>
+
+### Mascaramento de PII { #pii-redaction }
 
 Dados pessoais só devem chegar a um provedor de modelo, a uma linha de log ou a um span de trace **quando necessário**. Mascare antes de enviar e, quando o modelo precisar se referir ao valor (para dizer "seu cartão final 1111"), troque-o por um marcador e restaure depois da geração (**pseudonimização reversível**, com o mapeamento guardado nos seus próprios sistemas). Padrões com dígito verificador (os dígitos do CPF, o algoritmo de Luhn para cartões) reduzem falsos positivos; modelos de reconhecimento de entidades nomeadas (NER) pegam nomes e endereços. Pela LGPD, minimizar o que se envia a terceiros não é só boa prática — faz parte da base legal do tratamento.
 
-### Validação da saída
+### Validação da saída { #output-validation }
 
 Nunca execute nem exiba a saída do modelo sem verificá-la, assim como você não confiaria em um campo de formulário:
 
@@ -186,6 +196,14 @@ def check_tool_call(name: str, args: dict, user, confirmed: bool = False) -> str
 
 Tudo nela é determinístico e testável por testes unitários: `redact("cartão 4111 1111 1111 1111")` devolve `"cartão [CARD]"`; uma reserva de 40 assentos devolve `deny: invalid arguments: List should have at most 6 items after validation, not 40`, que volta ao modelo como resultado de ferramenta para que ele explique o limite ao fã.
 
+!!! example "No código do BoxOffice: as verificações de entrada e de saída (lab 12)"
+
+    O [Hands-on 12 — Guardrails e métricas](../../../hands-on/12/guardrails/index.md) coloca duas verificações determinísticas em volta do modelo. Na **entrada**: um limite de tamanho, uma lista de padrões para as injeções óbvias (rejeitadas com HTTP 422, antes de qualquer chamada ao modelo) e a redação de CPFs, números de cartão e e-mails. Na **saída**: a verificação de citações — uma resposta só é *grounded* se cita documentos que de fato recebeu, e ids inventados viram `[unverified]`. Não há verificação de chamada de ferramenta porque as ferramentas do lab são só de leitura: ali, a defesa mais forte é a arquitetura. Numa execução de teste, o `qwen2.5:1.5b` deu os fatos certos mas ignorou a regra de citá-los, e a verificação marcou a resposta `grounded: false`.
+
+    ``` { .python title="services/assistant/app/guardrails.py (redaction, input and output checks)" }
+    --8<-- "docs/2027.1/hands-on/12/code/services/assistant/app/guardrails.py:11:15,25:51"
+    ```
+
 ---
 
 ## Avaliação { #evaluation }
@@ -194,7 +212,7 @@ O incidente 3 — o prompt mais simpático que quebrou as reservas — é uma **
 
 **Toda mudança em um prompt, um modelo, uma descrição de ferramenta, nas configurações de recuperação ou no roteamento do gateway é um deploy** e precisa passar pela avaliação antes de ir para produção.
 
-### A pirâmide de avaliação
+### A pirâmide de avaliação { #the-evaluation-pyramid }
 
 | Nível | O que verifica | Como | Custo | Quando |
 |---|---|---|---|---|
@@ -226,7 +244,7 @@ graders: [state_check, rules_check, judge_helpfulness]
 
 Para agentes, avalie mais o **resultado** (o estado final: existe uma reserva nos assentos certos?) do que a **trajetória** exata (a sequência de chamadas de ferramenta): vários caminhos podem estar corretos. Benchmarks como o τ-bench[^5] usam exatamente esse arranjo — um usuário simulado, ferramentas sobre um banco de dados e uma verificação do estado final do banco.
 
-### Não determinismo: pass@k e pass^k
+### Não determinismo: pass@k e pass^k { #non-determinism-passk-and-passk }
 
 Rode cada caso **várias vezes**. Dois resumos respondem a perguntas diferentes:
 
@@ -248,7 +266,7 @@ print("</tbody></table>")
 
 Um agente que resolve um caso 90% das vezes parece perfeito pelo pass@4 e falha em um terço das vezes pelo pass^4. **Reporte pass^k (ou a taxa de sucesso por tentativa, com sua variância) para agentes voltados ao cliente.**
 
-### LLM como juiz
+### LLM como juiz { #llm-as-judge }
 
 Para qualidades que código não verifica — *a resposta foi útil? educada? fiel às fontes?* — um modelo pode avaliar a saída segundo uma rubrica. Isso escala, mas é um instrumento de medida com vieses conhecidos[^6]:
 
@@ -262,7 +280,7 @@ Para qualidades que código não verifica — *a resposta foi útil? educada? fi
 
 Trate o juiz como um componente com versão e avaliação próprias: quando mudar o prompt ou o modelo do juiz, verifique de novo a concordância com os rótulos humanos.
 
-### Avaliações no CI e online
+### Avaliações no CI e online { #evals-in-ci-and-online }
 
 No CI, o golden set roda como o orçamento de desempenho com k6 do [Hands-on 11](../../../hands-on/11/index.md): um pull request que muda um prompt, uma ferramenta ou um alias de modelo **falha** se alguma categoria cair abaixo do seu limiar (por exemplo, verificação de estado de reservas ≥ 95%, fidelidade ≥ 90%, zero vazamentos de PII, zero ações irreversíveis sem confirmação). Online, meça o que importa para o negócio e o que a operação precisa:
 
@@ -294,7 +312,7 @@ invoke_agent boxoffice-assistant                                   10.1 s
 └── chat assistant-default         in 5,300  out 212  TTFT 0.4 s    4.9 s
 ```
 
-### Convenções semânticas GenAI do OpenTelemetry
+### Convenções semânticas GenAI do OpenTelemetry { #opentelemetry-genai-semantic-conventions }
 
 O OpenTelemetry define **convenções semânticas para IA generativa**[^7] para que toda biblioteca, gateway e backend use os mesmos nomes. Uma seleção (as convenções ainda estão marcadas como *Development*, então confira a versão atual):
 
@@ -331,11 +349,23 @@ def traced_chat(llm, alias, messages, tools):
         return reply
 ```
 
-### Prompts na telemetria: úteis e perigosos
+!!! example "No código do BoxOffice: tokens, custo e TTFT como métricas (lab 12)"
+
+    O assistente do lab exporta sete métricas OpenTelemetry para o Grafana do lab 8 ([Hands-on 12 — Guardrails e métricas](../../../hands-on/12/guardrails/index.md)): tokens por modelo e tipo, custo estimado em US$, histogramas do TTFT e da resposta completa, chamadas de ferramenta por resultado, bloqueios dos guardrails e requisições. Dois detalhes. Os histogramas de latência ganham faixas **em segundos**, de 0,1 a 64 s, porque as faixas padrão são feitas para milissegundos. E os nomes são do próprio lab (`assistant.*`), ainda não as convenções `gen_ai.*` acima — renomeá-los é o passo a dar quando surgir um segundo serviço de IA. O TTFT sob carga é medido pelo [`assistant_load.py`](../../../hands-on/12/measure/index.md), que lê os Server-Sent Events: o k6 para no primeiro byte, que um servidor em streaming envia antes do primeiro token. Na CPU de um notebook ocupado, o lab mediu TTFT p50 de 5,05 s e p95 de 13,17 s com uma requisição por vez.
+
+    ``` { .python title="services/assistant/app/metrics.py (buckets and instruments)" }
+    --8<-- "docs/2027.1/hands-on/12/code/services/assistant/app/metrics.py:15:16,33:39"
+    ```
+
+    ``` { .python title="services/assistant/app/agent.py (accounting at the end of each answer)" }
+    --8<-- "docs/2027.1/hands-on/12/code/services/assistant/app/agent.py:84:97"
+    ```
+
+### Prompts na telemetria: úteis e perigosos { #prompts-in-telemetry-useful-and-dangerous }
 
 O prompt e a resposta são os dados de depuração mais úteis — e os mais sensíveis. As convenções tratam a **captura de conteúdo como opt-in**. Uma política razoável: nenhum conteúdo por padrão; conteúdo para uma pequena amostra, **mascarado** com as mesmas funções da Safety Mesh, com retenção curta e acesso restrito; conteúdo completo apenas para conversas que o fã reportou explicitamente. Lembre-se do incidente 2: a telemetria é um repositório de dados sujeito à LGPD.
 
-### Dashboards e alertas
+### Dashboards e alertas { #dashboards-and-alerts }
 
 - **RED por alias e funcionalidade**: taxa, erros (incluindo `429` e fallbacks), duração (percentis de TTFT e de ponta a ponta).
 - **Tokens por minuto vs cota**, por classe de prioridade — a visão de capacidade.
@@ -351,6 +381,14 @@ O prompt e a resposta são os dados de depuração mais úteis — e os mais sen
 
     Diga **"defesa em profundidade, assumindo que o modelo pode ser comprometido"**: menor privilégio e ferramentas no escopo do usuário, conteúdo não confiável tratado como dado, validação determinística de toda chamada de ferramenta e de toda saída, e confirmação humana para ações irreversíveis. Cite a **trifeta letal** e remova uma perna. Para qualidade, descreva um **golden set no CI** avaliado pelo estado final mais um **juiz LLM validado**, reportado como pass^k, e implantações **canário** atrás do alias do gateway. Para operação, um trace por requisição com **atributos GenAI** (modelo, tokens, custo, TTFT) e um alerta de **taxa de queima do custo**.
 
+!!! success "Boas práticas"
+
+    - **Faça a redação antes do primeiro salto** — dados pessoais são substituídos antes de o texto chegar ao provedor, aos logs ou aos traces. No BoxOffice: o `check_input()` do [lab 12](../../../hands-on/12/guardrails/index.md) reescreve CPFs, cartões e e-mails antes de qualquer outra coisa rodar.
+    - **Transforme todo incidente e todo sucesso de red-team num caso do golden set na mesma semana** — o conjunto passa a descrever os seus ataques e falhas reais, não uma lista genérica.
+    - **Reporte pass^k com k ≥ 4 para fluxos voltados ao cliente** — um agente de 90% é um agente de 66% pelo pass^4 ([tabela acima](#evaluation)).
+    - **Crie alertas para mudanças nos disparos dos guardrails por tipo** — um salto em `assistant_guardrail_blocks_total` (lab 12) é um ataque ou um prompt quebrado; os dois precisam de uma pessoa no mesmo dia.
+    - **Versione o prompt, o juiz e o golden set junto com o código** — mudar qualquer um deles é um pull request que roda a avaliação.
+
 !!! warning "Armadilhas comuns"
 
     - **Confiar que um classificador barra a injeção de prompt** — ele sobe a barra; só a arquitetura limita o dano.
@@ -365,7 +403,7 @@ O prompt e a resposta são os dados de depuração mais úteis — e os mais sen
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     UN["untrusted text: user,<br/>documents, tool results"] --> MESH["Safety Mesh"]
     MESH --> INJ["prompt injection,<br/>break the lethal trifecta"]

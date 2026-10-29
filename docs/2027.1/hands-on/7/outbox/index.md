@@ -6,7 +6,7 @@ shows why the obvious code is wrong and builds the standard fix, the **transacti
 
 ## The dual-write problem
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant F as Fan
     participant O as order
@@ -33,7 +33,7 @@ an `outbox` table **in the same local transaction** as the order. Either both ro
 A separate **relay** reads unpublished rows and publishes them, marking them as published only after
 Kafka acknowledges.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant F as Fan
     participant O as order

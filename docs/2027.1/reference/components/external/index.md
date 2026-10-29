@@ -10,7 +10,7 @@ In BoxOffice, `payment` is an adapter around an external payment provider, `noti
 | [Payment](#payment) | A payment provider (card, Pix, wallets): idempotency, webhooks, reconciliation | `payment` |
 | [Email](#email) | An email delivery provider: async, behind a queue, with deliverability rules | `email` |
 
-``` mermaid
+``` diagram
 flowchart LR
     O[order service] -->|timeout + circuit breaker + idempotency key| PAY[Payment provider]
     PAY -.webhook: payment confirmed.-> WH[webhook endpoint] --> O
@@ -119,7 +119,7 @@ flowchart LR
 - **Inconsistent states** — paid at the provider but the order was cancelled locally (or the reverse) → a saga with compensations (refund, release seat) and reconciliation as the safety net.
 - **Fraud and chargebacks** → the provider's fraud tools, velocity limits per user and card, 3-D Secure.
 
-**In the playground.** `payment` is an external **call** node with high latency variance (median 400 ms), a provider `quota` (default 500 req/s) and random outages; the `payment-system` scenario shows retries without idempotency creating duplicate charges, and the `flash-sale` scenario shows it becoming the bottleneck at 10:00. Use `timeoutMs`, `retries` with `exp+jitter`, `circuitBreaker` and a `fallback` ("payment pending") on the edge from `order`. Scenarios: [`payment-system`](../../../../playground/scenarios/index.md#payment-system), [`flash-sale`](../../../../playground/scenarios/index.md#flash-sale), [`cascading-failure`](../../../../playground/scenarios/index.md#cascading-failure).
+**In the playground.** `payment` is an external **call** node with high latency variance (median 400 ms), a provider `quota` (default 500 req/s) and random outages; the `payment-system` scenario shows retries without idempotency creating duplicate charges, and the `flash-sale` scenario shows it becoming the bottleneck when the sale opens. Use `timeoutMs`, `retries` with `exp+jitter`, `circuitBreaker` and a `fallback` ("payment pending") on the edge from `order`. Scenarios: [`payment-system`](../../../../playground/scenarios/index.md#payment-system), [`flash-sale`](../../../../playground/scenarios/index.md#flash-sale), [`cascading-failure`](../../../../playground/scenarios/index.md#cascading-failure).
 
 **Real products.**
 

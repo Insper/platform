@@ -1,11 +1,11 @@
-# 1. Instrumente Tudo
+# 1. Instrumente Tudo { #1-instrument-everything }
 
 Neste passo cada serviço Java passa a enviar **traces, métricas e logs** para um único contêiner, o
 `otel-lgtm`, sem nenhuma mudança no código de negócio. Depois você corrige o único lugar onde a
 instrumentação automática não enxerga a requisição: o salto pelo outbox do [lab 7](../../7/index.md).
 Todos os comandos rodam na **raiz do seu repositório `boxoffice`**.
 
-## O backend: `otel-lgtm`
+## O backend: `otel-lgtm` { #the-backend-otel-lgtm }
 
 O `grafana/otel-lgtm` reúne um backend de observabilidade inteiro em uma imagem, para desenvolvimento
 e ensino: um **OpenTelemetry Collector** recebe OTLP (o *OpenTelemetry Protocol*) e encaminha cada
@@ -30,7 +30,7 @@ serviços falam — o OTLP — continua o mesmo.
 Os três volumes carregam o *seu* dashboard e as suas regras de alerta na inicialização; os arquivos
 são criados no [passo 2](../dashboard/index.md) e no [passo 3](../slo/index.md).
 
-## O agente: um jar, nenhum código
+## O agente: um jar, nenhum código { #the-agent-one-jar-no-code }
 
 O **agente Java do OpenTelemetry** é conectado à JVM com `-javaagent`. No carregamento das classes ele
 reescreve o bytecode das bibliotecas que conhece — Spring MVC e WebFlux, os clientes HTTP, JDBC e
@@ -142,7 +142,7 @@ Abra o Grafana em `http://localhost:3000` (sem login nesta imagem) → **Explore
     viram labels (`service_name`) e o `job` vira `boxoffice/catalog` (namespace/nome). Todos os
     dashboards e alertas deste lab dependem desses nomes.
 
-## O salto que o agente não enxerga: o outbox
+## O salto que o agente não enxerga: o outbox { #the-hop-the-agent-cannot-see-the-outbox }
 
 Faça um pedido e procure o trace dele no Tempo. Com o código do lab 7 você encontra **dois traces sem
 relação**: um para o `POST /orders` (order → INSERTs) e outro que começa na tarefa agendada do relay do
@@ -150,7 +150,7 @@ outbox e continua pelo Kafka até o `notification`. O agente propaga o contexto 
 mensagens Kafka automaticamente, mas o outbox é uma **linha do banco** lida depois por outra thread: o
 contexto da requisição não está na linha, então se perde.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant O as order (thread HTTP)
     participant DB as tabela outbox

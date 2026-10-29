@@ -256,6 +256,76 @@ gateway    SERVER POST /checkout          |████████████�
 
 ---
 
+## SLI → SLO → error budget → SLA
+
+| Term | BoxOffice example |
+|---|---|
+| **SLI** — what users feel | % of `POST /holds` non-5xx in < 500 ms |
+| **SLO** — internal target | ≥ 99.9% over 28 days |
+| **Error budget** — 1 − SLO | 0.1% of holds may fail or be slow |
+| **SLA** — contract, penalties | partner venues: 99.5% monthly, or credits |
+
+- SLI = **good events / valid events**, measured near the user (gateway, synthetic probes).
+- CPU, heap, pod count are **not** SLIs. Keep the SLO **stricter** than the SLA.
+
+---
+
+## Start from user journeys
+
+| Journey | SLO (28 days) |
+|---|---|
+| Hold seats | 99.9% succeed in < 500 ms |
+| Browse the catalog | 99.5% in < 300 ms |
+| Receive tickets by e-mail | 99% within **2 min** of confirmation (**freshness**) |
+| Waiting room during an on-sale | 99.95% of position updates |
+
+- Measure first, then set the SLO slightly below what you achieve.
+- Respect dependency math: a 99.9% provider caps the purchase SLO. **Never 100%.**
+
+<!--
+The freshness SLI is the one that catches asynchronous failures: green APIs, late e-mails.
+-->
+
+---
+
+<!-- _class: tight -->
+
+## Error budget and burn rate
+
+1 M requests/day × 28 days × 0.1% = **28,000** failed requests allowed.
+
+> burn rate = error rate ÷ (1 − SLO) — 1.44% errors at 99.9% = 14.4× → budget gone in ~1.9 days
+
+| Severity | Burn rate | Long window | Short window | Budget used |
+|---|---|---|---|---|
+| page | 14.4× | 1 h | 5 min | 2% |
+| page | 6× | 6 h | 30 min | 5% |
+| ticket | 1× | 3 days | 6 h | 10% |
+
+<div class="warn">
+
+A bad deploy (5% errors for 3 h) costs ~22% of the budget; a quiet 0.2% degradation (2×) **empties it by day 26**. Alert on the budget, not on CPU.
+
+</div>
+
+---
+
+## The error budget policy
+
+- **> 50% left**: deploy any working day; experiments allowed.
+- **0–50%**: canary + rollback plan; a reliability item every sprint.
+- **Exhausted**: freeze feature deploys on the purchase path until the SLI recovers.
+- **On-sale rule**: no deploys in the 24 h before a major on-sale.
+- **One incident > 20%**: blameless postmortem with owned actions.
+
+<div class="ok">
+
+Signed by product **and** engineering, in advance. Without a policy, an SLO is decoration.
+
+</div>
+
+---
+
 ## OpenTelemetry
 
 | Piece | Role |
@@ -425,7 +495,7 @@ Users feel the time to **mitigation**. The root cause can wait until Monday.
 | `alerting` | must a human act *now*? | SLO burn rate (28-day window), multiwindow, runbooks |
 | `healthcheck` | traffic or restart for this instance? | startup, liveness, readiness, shallow vs deep |
 
-<p class="small">Shared context glues them: metric → <b>exemplar</b> → trace → <b>trace_id</b> → logs. Alerts lead to incident response; SLOs come from class 9.</p>
+<p class="small">Shared context glues them: metric → <b>exemplar</b> → trace → <b>trace_id</b> → logs. Alerts lead to incident response; the SLOs they enforce are defined earlier in this class.</p>
 
 ---
 

@@ -7,7 +7,7 @@
 | **Error budget** | — | A falha que o SLO permite: 1 − SLO | 0,1% das reservas podem falhar ou ser lentas |
 | **SLA** | Service Level Agreement | Um contrato com clientes, com penalidades | Prometido às casas de show parceiras: 99,5% ao mês, ou créditos |
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     tel["Telemetria<br/>(métricas, logs, traces)"] -->|"agregada em"| sli["SLI<br/>eventos bons / válidos"]
     sli -->|"comparado com"| slo["SLO<br/>meta interna"]
@@ -18,7 +18,7 @@ flowchart LR
 
 ---
 
-## Comece pelas jornadas do usuário
+## Comece pelas jornadas do usuário { #start-from-user-journeys }
 
 Um SLO só é útil se mede o que importa para os usuários. Comece listando as **jornadas críticas de usuário** (CUJs, *critical user journeys*) do BoxOffice — as poucas interações que precisam funcionar — e depois decida como medir cada uma.
 
@@ -35,7 +35,7 @@ Nem toda jornada precisa da mesma meta. A navegação tolera uma página lenta d
 
 ---
 
-## SLI — medindo o que os usuários sentem
+## SLI — medindo o que os usuários sentem { #sli-measuring-what-users-feel }
 
 Um SLI é melhor escrito como uma **razão de eventos**, para ficar sempre entre 0% e 100%[^2]:
 
@@ -56,7 +56,7 @@ As duas palavras importam. **Bom** define sucesso do ponto de vista do usuário 
 !!! warning "Evite métricas de vaidade"
     Uso de CPU, heap da JVM ou número de pods **não** são SLIs. Um serviço pode estar a 95% de CPU e atender todos bem, ou a 5% de CPU e estar completamente fora (em deadlock, mal roteado). Elas são úteis para *diagnosticar*; SLIs precisam refletir o que os usuários vivenciam.
 
-### Onde medir
+### Onde medir { #where-to-measure }
 
 | Ponto de medição | Vê | Não vê |
 |---|---|---|
@@ -65,12 +65,12 @@ As duas palavras importam. **Bom** define sucesso do ponto de vista do usuário 
 | **Probes sintéticos** | Uma jornada roteirizada de fora, mesmo sem tráfego | A diversidade dos usuários reais |
 | **Telemetria do cliente (navegador / app)** | O que os usuários realmente vivenciam | Ruidosa; depende da rede dos usuários |
 
-Uma escolha comum é calcular os SLIs no **gateway** (perto do usuário, mas sob seu controle) e complementá-los com probes sintéticos da jornada de compra. Com métricas OpenTelemetry exportadas para o Prometheus (veja [Observabilidade](../../observability/index.md)), o SLI de disponibilidade da rota de reserva em 5 minutos é:
+Uma escolha comum é calcular os SLIs no **gateway** (perto do usuário, mas sob seu controle) e complementá-los com probes sintéticos da jornada de compra. Com métricas OpenTelemetry exportadas para o Prometheus (veja [Sinais](../signals/index.md)), o SLI de disponibilidade da rota de reserva em 5 minutos é:
 
 ```promql
-sum(rate(http_server_request_duration_seconds_count{job="gateway", http_route="/holds", http_response_status_code!~"5.."}[5m]))
+sum(rate(http_server_request_duration_seconds_count{service_name="gateway", http_route="/holds", http_response_status_code!~"5.."}[5m]))
 /
-sum(rate(http_server_request_duration_seconds_count{job="gateway", http_route="/holds"}[5m]))
+sum(rate(http_server_request_duration_seconds_count{service_name="gateway", http_route="/holds"}[5m]))
 ```
 
 !!! example "Um SLI de atualidade para trabalho assíncrono"
@@ -79,7 +79,7 @@ sum(rate(http_server_request_duration_seconds_count{job="gateway", http_route="/
 
 ---
 
-## SLO — a meta
+## SLO — a meta { #slo-the-target }
 
 Um SLO é uma meta para um SLI em uma janela:
 
@@ -97,7 +97,7 @@ Use uma **janela móvel** (os últimos 28 dias, avançando a cada minuto) em vez
 Como escolher o número:
 
 - **Meça primeiro.** Olhe o SLI dos últimos 30–90 dias e defina o SLO um pouco abaixo do que você já alcança. Uma meta que você já perde toda semana é ruído.
-- **Respeite a matemática das dependências.** O `order` não pode prometer mais que o produto do que ele chama de forma síncrona ([visão geral](../index.md#composite-availability)). Se o provedor de pagamento oferece 99,9%, um SLO de compra de 99,99% é ficção.
+- **Respeite a matemática das dependências.** O `order` não pode prometer mais que o produto do que ele chama de forma síncrona ([Confiabilidade — disponibilidade composta](../../reliability/index.md#composite-availability)). Se o provedor de pagamento oferece 99,9%, um SLO de compra de 99,99% é ficção.
 - **Pergunte o que os usuários percebem.** Ir de 99,9% para 99,99% custa muito (veja a tabela de noves); se os fãs não perceberiam, o dinheiro rende mais em funcionalidades.
 - **Nunca 100%.** Não deixa espaço para deploys, manutenção ou o inevitável, e todas as suas dependências estão abaixo disso de qualquer forma.
 
@@ -201,7 +201,7 @@ Os dois incidentes ensinam lições diferentes:
 - O **deploy ruim** tem um burn rate enorme (50×) por pouco tempo. Ele precisa **acionar** alguém em minutos, e o orçamento mostra quanto custou: cerca de um quinto do mês.
 - A **degradação lenta** nunca parece dramática — 0,2% de erros não assustaria ninguém num dashboard — mas a 2× ela **esgota o orçamento por volta do dia 26**. Só um alerta de queima lenta, em uma janela longa, a pega.
 
-### Alertando pelo burn rate
+### Alertando pelo burn rate { #alerting-on-burn-rate }
 
 Alerte pelo orçamento, não por taxas de erro brutas ou CPU. O SRE Workbook recomenda alertas **multijanela e multi-burn-rate**[^2]: uma janela longa para medir a relevância e uma janela curta para encerrar o alerta logo que o problema for corrigido.
 
@@ -211,18 +211,30 @@ Alerte pelo orçamento, não por taxas de erro brutas ou CPU. O SRE Workbook rec
 | Acionar (page) | 6× | 6 h | 30 min | 5% |
 | Chamado (ticket) | 1× | 3 dias | 6 h | 10% |
 
+<div class="csim" data-sim="slo-burn" data-slo="99.9"></div>
+
+!!! tip "Experimente"
+    A janela tem os dois incidentes do gráfico acima e alguns soluços curtos. Dê play (acelere com o botão `1×`) e compare as quatro faixas de alerta.
+
+    - **Soluços**: a regra ingênua (*erros > 0,1% em 5 min*) aciona alguém em quase todos — 10 vezes neste mês —, embora os 14 soluços juntos custem só 1,6% do orçamento. As regras de burn rate ficam quietas.
+    - **Deploy ruim** (dia 9, 5% por 3 h): a regra de 14,4× aciona 17 minutos depois do início, quando o incidente custou 2,2% do orçamento; a de 6× vem após 42 minutos (5,3%). O incidente inteiro custa 22,3%.
+    - **Degradação lenta** (2× a partir do dia 16): nenhum page; o ticket de 3 dias dispara 34 horas depois (dia 17,4), com 39% do orçamento gasto — mais de 8 dias antes de ele acabar (dia 25,9).
+    - Aperte **limpar incidentes**, avance até o dia 2, pause e injete *0,7% por 3 dias*: nenhum page rápido, mas a regra de 6× aciona após cerca de 5 horas. Com *20% por 30 min* o page chega após 4 minutos, e mesmo assim o incidente custa cerca de 15%: um alerta só salva o orçamento que ainda não foi queimado.
+
+    O lab 9 provisiona as mesmas regras de 14,4× e 6× (como page e ticket) para o `order`, com um SLO de 99,5%.
+
 ```yaml
 # Prometheus alerting rule: purchase path, SLO 99.9% (budget = 0.001)
 - alert: PurchaseErrorBudgetFastBurn
   expr: |
     (
-      sum(rate(http_server_request_duration_seconds_count{job="gateway", http_route=~"/holds|/orders", http_response_status_code=~"5.."}[1h]))
-      / sum(rate(http_server_request_duration_seconds_count{job="gateway", http_route=~"/holds|/orders"}[1h]))
+      sum(rate(http_server_request_duration_seconds_count{service_name="gateway", http_route=~"/holds|/orders", http_response_status_code=~"5.."}[1h]))
+      / sum(rate(http_server_request_duration_seconds_count{service_name="gateway", http_route=~"/holds|/orders"}[1h]))
     ) > (14.4 * 0.001)
     and
     (
-      sum(rate(http_server_request_duration_seconds_count{job="gateway", http_route=~"/holds|/orders", http_response_status_code=~"5.."}[5m]))
-      / sum(rate(http_server_request_duration_seconds_count{job="gateway", http_route=~"/holds|/orders"}[5m]))
+      sum(rate(http_server_request_duration_seconds_count{service_name="gateway", http_route=~"/holds|/orders", http_response_status_code=~"5.."}[5m]))
+      / sum(rate(http_server_request_duration_seconds_count{service_name="gateway", http_route=~"/holds|/orders"}[5m]))
     ) > (14.4 * 0.001)
   labels:
     severity: page
@@ -230,9 +242,17 @@ Alerte pelo orçamento, não por taxas de erro brutas ou CPU. O SRE Workbook rec
     summary: "Purchase path burning the 28-day error budget 14.4x faster than allowed"
 ```
 
-Os detalhes do projeto de alertas, do roteamento e do plantão estão em [Observabilidade — alertas](../../observability/alerting/index.md).
+Os detalhes do projeto de alertas, do roteamento e do plantão estão em [Observabilidade — alertas](../alerting/index.md).
 
-### A política de error budget
+!!! example "No código do BoxOffice: o SLO como regra de alerta (labs 8 e 9)"
+
+    O [Hands-on 8 — SLO e alerta de burn rate](../../../hands-on/8/slo/index.md) escreve a promessa do `catalog`: 99,5% das requisições, sem contar os health checks, respondidas sem 5xx em 28 dias — a 100 req/s, um orçamento de cerca de 1,21 milhão de requisições com falha. Ele provisiona a regra de 14,4× como page e a de 6× como ticket, em arquivos que o Grafana carrega na inicialização. O [Hands-on 9 — Game day](../../../hands-on/9/game-day/index.md) copia o arquivo para o `order`, para que uma falha escondida no caminho do pagamento acione os operadores. Leia o trecho buscando as três partes da regra: a consulta A (a razão de erros em 1 h, dividida pelo orçamento 0,005, é o burn rate), a consulta B (a mesma em 5 min; B repete A com `[5m]`, cortada aqui) e a condição C, que exige as duas. `http_route!~"/actuator.*"` deixa as probes fora do SLI.
+
+    ``` { .yaml title="infra/grafana/alerting/slo-order.yaml (the fast-burn rule)" }
+    --8<-- "docs/2027.1/hands-on/9/code/infra/grafana/alerting/slo-order.yaml:12:26,38:52"
+    ```
+
+### A política de error budget { #the-error-budget-policy }
 
 Um error budget é só um número num dashboard, a menos que produto e engenharia combinem **de antemão** o que acontece à medida que ele é gasto. Esse acordo é a **política de error budget**:
 
@@ -242,7 +262,7 @@ Um error budget é só um número num dashboard, a menos que produto e engenhari
     - **Orçamento entre 0 e 50%**: deploys precisam de plano de rollback e canary; um item de confiabilidade entra em toda sprint.
     - **Orçamento esgotado**: deploys de funcionalidades no caminho de compra ficam congelados até o SLI de 28 dias voltar acima do SLO; só correções e trabalho de confiabilidade são lançados.
     - **Regra de abertura de vendas**: nenhum deploy no caminho de compra nas 24 horas anteriores a uma grande abertura, qualquer que seja o orçamento.
-    - **Um único incidente > 20% do orçamento**: postmortem sem culpados obrigatório, com itens de ação (veja [Resposta a incidentes](../../observability/incident-response/index.md)).
+    - **Um único incidente > 20% do orçamento**: postmortem sem culpados obrigatório, com itens de ação (veja [Resposta a incidentes](../incident-response/index.md)).
 
     Assinada pelo gerente de produto e pela liderança de engenharia do caminho de compra; revisada a cada trimestre.
 
@@ -251,7 +271,7 @@ Um error budget é só um número num dashboard, a menos que produto e engenhari
 
 ---
 
-## SLA — o contrato
+## SLA — o contrato { #sla-the-contract }
 
 Um **SLA** é um acordo formal com clientes que define o serviço esperado e as **compensações** (em geral créditos) se ele não for cumprido. É um documento jurídico: descumpri-lo custa dinheiro.
 
@@ -281,6 +301,14 @@ Mantenha o **SLO mais rígido que o SLA** (por exemplo, SLO de 99,95%, SLA de 99
 !!! tip "Na entrevista"
     Na etapa de requisitos, transforme o vago "altamente disponível" em SLOs por jornada: "reservas 99,9% abaixo de 500 ms; navegação 99,5%; e-mail de ingressos em até 2 minutos para 99%". Depois use-os: eles justificam a redundância (matemática das dependências), a assincronia (remover dependências não críticas) e os alertas (burn rate). Diga que 99,99% significa cerca de 4 minutos por mês, então exige failover automatizado. Entrevistadores valorizam mais ouvir *por que* um número foi escolhido do que o número em si.
 
+!!! success "Boas práticas"
+
+    - **Mantenha SLOs e suas regras de alerta como código, no repositório, revisados como qualquer mudança** — uma meta que ninguém consegue comparar ou reproduzir se desvia. No BoxOffice: `slo-catalog.yaml` e `slo-order.yaml`, carregados pelo Grafana na inicialização (labs 8 e 9, [quadro acima](#alerting-on-burn-rate)).
+    - **Tire do SLI as probes e o tráfego sintético com um filtro de label explícito** — health checks a cada poucos segundos inflam a taxa de sucesso com requisições que nenhum fã fez. No BoxOffice: `http_route!~"/actuator.*"` nas regras.
+    - **Comece cada SLO um pouco abaixo de 30–90 dias de SLI medido e revise-o a cada trimestre** — uma meta que você já perde toda semana é ruído; uma que você sempre supera é um orçamento que ninguém gasta.
+    - **Mostre o error budget restante onde as entregas são planejadas** — a decisão de lançar ou congelar vira rotina em vez de debate: 28.000 compras com falha a cada 28 dias a 99,9%.
+    - **Acrescente um SLO com escopo de evento para cada grande abertura de vendas** — uma hora ruim quase não mexe num orçamento de 28 dias, mas é a hora que importa; a sala de espera promete 99,95% durante cada abertura.
+
 !!! warning "Armadilhas comuns"
 
     - **Medir a coisa errada**: um SLI do endpoint de health check não diz nada sobre `POST /holds`.
@@ -292,7 +320,7 @@ Mantenha o **SLO mais rígido que o SLA** (por exemplo, SLO de 99,95%, SLA de 99
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     CUJ["jornadas críticas do usuário"] --> SLI["SLI = eventos bons / válidos"]
     TEL["telemetria no gateway<br/>→ Observabilidade"] --> SLI
@@ -306,7 +334,7 @@ flowchart LR
     POL --> PM["postmortem acima de 20% do orçamento<br/>→ Resposta a incidentes"]
 ```
 
-**Componentes da paleta:** [`metrics`](../../../reference/components/observability/index.md#metrics) (o SLI é uma razão de contadores de requisições) · [`alerting`](../../../reference/components/observability/index.md#alerting) (regras de burn rate multijanela) · [`apigw`](../../../reference/components/edge/index.md#apigw) (onde o BoxOffice mede o SLI da compra) · [`kafka`](../../../reference/components/messaging/index.md#kafka) (o consumer lag, alerta antecipado do SLI de frescor da entrega de ingressos) · [`payment`](../../../reference/components/external/index.md#payment) (seus 99,9% limitam o SLO da compra). **Cenários:** `observability-stack`, `flash-sale` (o SLO por evento de abertura de vendas). **Continua em:** [Observabilidade — alertas](../../observability/alerting/index.md), [Observabilidade — resposta a incidentes](../../observability/incident-response/index.md), [Estimativas — matemática da disponibilidade](../../estimation/availability-math/index.md), [Cloud-native — entrega](../../cloud-native/delivery/index.md), [Hands-on 8 — SLO e alerta de burn rate](../../../hands-on/8/slo/index.md).
+**Componentes da paleta:** [`metrics`](../../../reference/components/observability/index.md#metrics) (o SLI é uma razão de contadores de requisições) · [`alerting`](../../../reference/components/observability/index.md#alerting) (regras de burn rate multijanela) · [`apigw`](../../../reference/components/edge/index.md#apigw) (onde o BoxOffice mede o SLI da compra) · [`kafka`](../../../reference/components/messaging/index.md#kafka) (o consumer lag, alerta antecipado do SLI de frescor da entrega de ingressos) · [`payment`](../../../reference/components/external/index.md#payment) (seus 99,9% limitam o SLO da compra). **Cenários:** `observability-stack`, `flash-sale` (o SLO por evento de abertura de vendas). **Continua em:** [Observabilidade — alertas](../alerting/index.md), [Observabilidade — resposta a incidentes](../incident-response/index.md), [Estimativas — matemática da disponibilidade](../../estimation/availability-math/index.md), [Cloud-native — entrega](../../cloud-native/delivery/index.md), [Hands-on 8 — SLO e alerta de burn rate](../../../hands-on/8/slo/index.md).
 
 ---
 

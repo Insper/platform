@@ -34,7 +34,7 @@ The exception is a **leading indicator** that will certainly become a symptom an
 
 ## From the SLO to the alert
 
-The [SLO](../../reliability/slo/index.md) already says how much failure is acceptable: with **99.9% of checkouts succeeding over a rolling 28-day window** (the window used throughout [Reliability](../../reliability/slo/index.md)), the error budget is 0.1% of checkouts. The question an alert must answer is therefore not "are there errors?" — there always are — but "**are we spending the budget fast enough to be in trouble?**".
+The [SLO](../slo/index.md) already says how much failure is acceptable: with **99.9% of checkouts succeeding over a rolling 28-day window** (the window used throughout [Reliability](../slo/index.md)), the error budget is 0.1% of checkouts. The question an alert must answer is therefore not "are there errors?" — there always are — but "**are we spending the budget fast enough to be in trouble?**".
 
 The natural measure is the **burn rate**:
 
@@ -184,6 +184,14 @@ A **latency SLO** works the same way: the "bad events" are the requests slower t
 )
 ```
 
+!!! example "In the BoxOffice code: the `catalog` burn-rate alerts (lab 8)"
+
+    [Hands-on 8 — SLO and burn-rate alert](../../../hands-on/8/slo/index.md) writes the first two rules of the table above as Grafana alert rules, provisioned from a file: an SLO of 99.5% over 28 days for `catalog` (a budget of 0.5%), with the health checks excluded from the SLI because no fan made those requests. Query A is the burn rate over 1 h, query B (not shown) the same expression over 5 min, and C fires only when both exceed 14.4. Two choices differ from the table: the 6× rule is a **ticket**, not a page (a cheaper signal for a small team), and `for: 1m` adds a minute of confirmation. In the lab's test run, stopping the database fired the page after **288 s**, with burn rates of 18.2 (1 h) and 74.4 (5 min).
+
+    ``` { .yaml title="infra/grafana/alerting/slo-catalog.yaml (the fast-burn page)" }
+    --8<-- "docs/2027.1/hands-on/8/code/infra/grafana/alerting/slo-catalog.yaml:11:25,37:48"
+    ```
+
 !!! example "BoxOffice — the 10:00 on-sale, through the alert's eyes"
 
     At 10:02 the payment provider slows down; at 10:03 the checkout error ratio (timeouts returned as `504`) reaches 4%. That is a burn rate of 40×: the fast rule's 1-hour average crosses 1.44% after about 60 × 1.44 / 4 ≈ 22 minutes of a constant 4%… far too slow for an on-sale that is over in 30 minutes. The team therefore adds a **dedicated on-sale SLO** with a shorter window (for example 99% of checkouts under 2 s during the on-sale hour, alerting on 5-minute and 1-minute windows) — the general rules are tuned for a 28-day budget and cannot react to an event that lasts half an hour. Different journeys, different SLOs.
@@ -194,7 +202,7 @@ A **latency SLO** works the same way: the "bad events" are the requests slower t
 
 An alert rule only produces a *firing alert*. Something must decide **who** hears about it, **how**, and **how often**. In the Prometheus ecosystem this is **Alertmanager**[^3] (Grafana Alerting has the same concepts): it **groups** related alerts into one notification, **deduplicates** them, applies **inhibitions** and **silences**, and **routes** them by labels to receivers.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     R["Rule evaluation<br/>Prometheus / Mimir ruler"] --> F["Firing alert<br/>severity=page, team=checkout"]
     F --> G["Alertmanager<br/>group · dedupe"]
@@ -289,6 +297,18 @@ at this pace the 28-day budget is gone in about 2 days.
 **Escalate to**: payments team (secondary on-call), then the incident commander rotation.
 ```
 
+### Machines detect, people repair { #machines-detect-people-repair }
+
+An alert does not take a broken replica out of the load balancer: a health check does that in seconds, and wakes nobody. The page is for what a machine cannot do on its own — restore what was lost before the next failure finds BoxOffice with less redundancy than it was designed for. That is why the runbook above shortens MTTR, and why a replica that restarts and recovers by itself is not worth a page.
+
+**Try it.** In `observability-stack`, one of the three `catalog` replicas dies at t = 50 s and stays dead for 80 s. Add **Metrics** (connected to the load balancer, the app and the database) and a **Health Check** connected to the load balancer, and run: errors last 3 s, and availability is 99.4%. Now add **Alerting** connected to Metrics and run again.
+
+<div class="sdp" data-scenario="observability-stack" data-mode="compact" data-height="520"></div>
+
+??? question "What should you have observed?"
+
+    The error curve does not change: availability stays at 99.4%, because the health check had already removed the dead replica from rotation after 3 s. What changes is the repair: with someone paged, the replica is back at t = 90 s instead of t = 130 s, so BoxOffice runs on two of its three replicas for 40 s instead of 80 s. Without the health check, Alerting alone does not help the fans either — the load balancer still sends a third of the requests to the dead replica for 30 s (93.8% availability). Machines route around a failure in seconds; people repair it in minutes, and the alert is what starts the minutes.
+
 ---
 
 ## Trade-offs
@@ -305,6 +325,14 @@ at this pace the 28-day budget is gone in about 2 days.
 
     When the interviewer asks "how would you know if this is broken?", answer with an **SLO and its burn-rate alert**, not with a list of metrics: *"Checkout SLO 99.9% over 28 days; page when the 1-hour burn rate exceeds 14.4× confirmed by the 5-minute window, ticket for slow burns; every alert links a runbook."* Mention that you alert on **symptoms** and use dashboards and traces for causes, and that a dead man's switch protects the alerting pipeline itself. That is a senior-level answer in four sentences.
 
+!!! success "Best practices"
+
+    - **Derive every page from an SLO, and keep the rules as code** — the threshold then follows a business target, and every change is reviewed. In BoxOffice: `infra/grafana/alerting/slo-catalog.yaml`, provisioned at startup (box above).
+    - **Exclude health checks and your own synthetic load from the SLI** — orchestrators call `/actuator/health` every few seconds and it almost never fails, inflating the success ratio with requests no fan made. In BoxOffice: `http_route!~"/actuator.*"` in every query of the lab 8 rules.
+    - **Put the burn rate, the windows and the runbook link in the notification** — the on-call engineer judges severity before opening a laptop. In BoxOffice: the description *"Burn rate 18.2 (1 h) and 74.4 (5 min)"* of the lab 8 alert.
+    - **Test every alert by causing its failure** — an alert never seen firing is a hypothesis; time it from fault to page. In BoxOffice: lab 8 stops `db` and records *Pending* and *Firing* (288 s in a test run).
+    - **Pair each ratio-based SLO alert with a "no traffic" check** — with zero requests the ratio is undefined, so `noDataState: OK` keeps quiet nights quiet but also hides an edge that sends nothing; add a synthetic probe or an alert on traffic dropping to zero.
+
 !!! warning "Common pitfalls"
 
     - **Paging on causes**: CPU, memory and restarts wake people up for nothing and train them to ignore the pager.
@@ -316,9 +344,9 @@ at this pace the 28-day budget is gone in about 2 days.
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
-    SLO["SLO 99.9% over 28 days<br/>→ Reliability: SLOs"] --> BUD["error budget 0.1%"]
+    SLO["SLO 99.9% over 28 days<br/>→ SLIs, SLOs & error budgets"] --> BUD["error budget 0.1%"]
     SLI["SLI from metrics<br/>(RED, histograms)"] --> BR["burn rate =<br/>error ratio ÷ budget"]
     BUD --> BR
     BR --> MW["multiwindow rules:<br/>14.4× and 6× page, 1× ticket"]
@@ -330,18 +358,20 @@ flowchart LR
     MW -.-> ONS["on-sale SLO,<br/>short windows"]
 ```
 
-**Palette components:** [`alerting`](../../../reference/components/observability/index.md#alerting) · [`metrics`](../../../reference/components/observability/index.md#metrics) (the SLI and the recording rules) · [`payment`](../../../reference/components/external/index.md#payment) (the slow provider that burns the on-sale budget) · [`kafka`](../../../reference/components/messaging/index.md#kafka) (a broker disk filling up: a ticket, not a page). **Scenarios:** `observability-stack`, `flash-sale` (a 30-minute on-sale needs its own SLO). **Continues in:** [Reliability — SLOs](../../reliability/slo/index.md) (SLI, SLO, error budget policy), [Incident Response](../incident-response/index.md), [Cloud-native — delivery](../../cloud-native/delivery/index.md) (rollbacks named in the runbook), [Hands-on 8 — SLO and burn-rate alert](../../../hands-on/8/slo/index.md).
+**Palette components:** [`alerting`](../../../reference/components/observability/index.md#alerting) · [`metrics`](../../../reference/components/observability/index.md#metrics) (the SLI and the recording rules) · [`payment`](../../../reference/components/external/index.md#payment) (the slow provider that burns the on-sale budget) · [`kafka`](../../../reference/components/messaging/index.md#kafka) (a broker disk filling up: a ticket, not a page). **Scenarios:** `observability-stack`, `flash-sale` (a 30-minute on-sale needs its own SLO). **Continues in:** [SLIs, SLOs & error budgets](../slo/index.md) (SLI, SLO, error budget policy), [Incident Response](../incident-response/index.md), [Cloud-native — delivery](../../cloud-native/delivery/index.md) (rollbacks named in the runbook), [Hands-on 8 — SLO and burn-rate alert](../../../hands-on/8/slo/index.md).
 
 ---
 
-## Key takeaways
+## Key takeaways { #key-takeaways }
 
-- A page must be **urgent, actionable and user-visible**; everything else is a ticket, a dashboard, or nothing.
-- Alert on **symptoms** derived from the **SLO**; causes are for diagnosis.
-- **Burn rate** = observed error ratio ÷ error budget; with a 28-day window, 14.4× spends about 2% of the budget in an hour (14.4 ÷ 672 h).
-- Use **multiwindow, multi-burn-rate** rules: 14.4× (1 h + 5 min) and 6× (6 h + 30 min) page, 1× (3 d + 6 h) opens a ticket.
-- **Alertmanager** groups, deduplicates, inhibits, silences and routes; a **dead man's switch** and **absent()** alerts watch the watcher.
-- Every alert has an **owner** and a **runbook**.
+!!! takeaways ""
+
+    - A page must be **urgent, actionable and user-visible**; everything else is a ticket, a dashboard, or nothing.
+    - Alert on **symptoms** derived from the **SLO**; causes are for diagnosis.
+    - **Burn rate** = observed error ratio ÷ error budget; with a 28-day window, 14.4× spends about 2% of the budget in an hour (14.4 ÷ 672 h).
+    - Use **multiwindow, multi-burn-rate** rules: 14.4× (1 h + 5 min) and 6× (6 h + 30 min) page, 1× (3 d + 6 h) opens a ticket.
+    - **Alertmanager** groups, deduplicates, inhibits, silences and routes; a **dead man's switch** and **absent()** alerts watch the watcher.
+    - Every alert has an **owner** and a **runbook**.
 
 ---
 

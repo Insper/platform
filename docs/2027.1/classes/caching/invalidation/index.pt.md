@@ -9,7 +9,7 @@ E como a memória é finita, vem uma terceira pergunta: **quando o cache enche, 
 
 ---
 
-## O orçamento de defasagem
+## O orçamento de defasagem { #the-staleness-budget }
 
 Antes de escolher um mecanismo, decida — com o time de produto, não sozinho — quão errado cada tipo de dado pode estar, e por quanto tempo. A resposta é diferente para cada entidade.
 
@@ -30,7 +30,7 @@ Escrever essa tabela é metade do desenho: quando cada linha tem um orçamento, 
 
 ---
 
-## TTL: a rede de segurança
+## TTL: a rede de segurança { #ttl-the-safety-net }
 
 Um **TTL** (*time to live*, tempo de vida) faz cada entrada expirar depois de um tempo fixo. É o mecanismo mais simples e o que você deve ter **sempre**, mesmo quando também invalida explicitamente — porque a invalidação explícita, em algum momento, vai deixar algo passar (um bug, uma correção manual em SQL, um processo que caiu entre o commit e a remoção), e o TTL limita quanto tempo o erro vive.
 
@@ -47,7 +47,7 @@ Regras práticas:
 
 ---
 
-## Invalidação explícita
+## Invalidação explícita { #explicit-invalidation }
 
 Para ter atualidade melhor que o TTL, o código que escreve no banco também avisa o cache de que o valor mudou. Duas decisões importam: **remover ou atualizar**, e **em que ordem**.
 
@@ -55,7 +55,7 @@ Para ter atualidade melhor que o TTL, o código que escreve no banco também avi
 
 Quando o evento muda, o escritor pode **atualizar** o cache com o valor novo ou **remover** a chave e deixar a próxima leitura preenchê-la. Remover é mais seguro. Considere dois organizadores editando o evento 42 ao mesmo tempo:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant W1 as Escritor 1
     participant W2 as Escritor 2
@@ -70,7 +70,7 @@ sequenceDiagram
 
 As escritas chegaram ao banco numa ordem e ao cache na outra. Com **remoção**, os dois escritores enviam `DEL event:42`: as operações são idempotentes e a ordem não importa; o próximo leitor carrega 120 do banco. Atualizar o cache também é desperdício quando o valor é escrito mais vezes do que é lido.
 
-### Escreva primeiro, depois remova
+### Escreva primeiro, depois remova { #write-first-then-delete }
 
 | Ordem | O que pode dar errado |
 |---|---|
@@ -83,7 +83,7 @@ As escritas chegaram ao banco numa ordem e ao cache na outra. Com **remoção**,
 
 Mesmo "escrever no banco e remover depois do commit" deixa uma corrida. Ela precisa de um leitor lento:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant Rd as Leitor
     participant R as Redis
@@ -128,7 +128,7 @@ A invalidação no código da aplicação tem uma fraqueza estrutural: só cobre
 
 A **captura de mudanças de dados** (*change data capture*, CDC) leva a invalidação para a fonte: um conector lê o log de replicação do banco (o *write-ahead log*, WAL, do PostgreSQL) e publica cada mudança confirmada como um evento. Um invalidador consome os eventos e remove as chaves afetadas.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     APP["serviço catalog"] -->|"UPDATE events"| DB[("PostgreSQL")]
     ADM["script de admin"] -->|"UPDATE events"| DB
@@ -146,7 +146,7 @@ flowchart LR
 
 CDC e o padrão outbox são tratados em [Mensageria](../../messaging/patterns/index.md).
 
-### Invalidando muitas cópias
+### Invalidando muitas cópias { #invalidating-many-copies }
 
 Um valor pode estar cacheado em vários lugares ao mesmo tempo. Cada um precisa do seu mecanismo:
 
@@ -161,7 +161,7 @@ A **invalidação por tag** ajuda quando uma mudança afeta muitas chaves: marqu
 
 ---
 
-## Políticas de despejo
+## Políticas de despejo { #eviction-policies }
 
 Um cache tem um limite de memória. Quando está cheio e chega um valor novo, a **política de despejo** (*eviction*) escolhe uma vítima. Uma boa política mantém os itens que serão lidos de novo mais cedo — o que ninguém sabe, então toda política é um palpite baseado no passado.
 
@@ -281,7 +281,7 @@ Como ler o gráfico:
 - O **LFU** despejou os itens varridos entre si (cada um tinha frequência 1) e manteve o conjunto quente: ele se recupera na hora e tem taxa de acerto maior no geral, porque com uma carga Zipf estável a frequência prevê melhor que a recência.
 - A fraqueza do LFU puro não aparece aqui: se a popularidade *muda* (o show esgotado de ontem), ele mantém os antigos favoritos por tempo demais. É por isso que implementações reais de LFU **envelhecem** seus contadores — e por isso existe o W-TinyLFU.
 
-### Despejo no Redis
+### Despejo no Redis { #eviction-in-redis }
 
 O Redis só aplica uma política quando a memória chega a `maxmemory`. Seus LRU e LFU são **aproximados**: em vez de uma lista ordenada global, o Redis amostra algumas chaves (`maxmemory-samples`, padrão 5) e despeja a melhor candidata entre elas; o LFU usa um pequeno contador logarítmico por chave que decai com o tempo[^4].
 
@@ -302,7 +302,7 @@ O Redis só aplica uma política quando a memória chega a `maxmemory`. Seus LRU
 
 ---
 
-## Que consistência um cache consegue oferecer?
+## Que consistência um cache consegue oferecer? { #what-consistency-can-a-cache-offer }
 
 Um cache-aside na frente de um banco é **eventualmente consistente**: depois de uma escrita, leitores podem ver o valor antigo até a invalidação chegar ou o TTL expirar. Dá para reforçar garantias específicas, com um custo:
 
@@ -325,6 +325,14 @@ São os mesmos modelos de consistência vistos em [Sistemas Distribuídos](../..
 
     Quando você adiciona um cache, a pergunta seguinte é sempre "como você o mantém consistente?". Uma resposta forte tem três camadas: (1) o orçamento de defasagem para esse dado ("preços: alguns segundos; descrições: um minuto"); (2) o mecanismo — TTL como rede de segurança, remoção depois do commit, CDC se houver muitos escritores; (3) a saída para as decisões — "o checkout lê o preço do banco". Mencione a corrida do cache-aside e como o TTL (ou versões, ou leases) a limita, e você estará à frente da maioria dos candidatos.
 
+!!! success "Boas práticas"
+
+    - **Escreva um orçamento de defasagem por tipo de dado** antes de escolher TTLs: segundos para preços durante a abertura das vendas, minutos para descrições, nunca para a disponibilidade de assentos.
+    - **TTL mais remoção explícita**: a remoção dá frescor, o TTL limita o estrago da remoção que um dia vai faltar.
+    - **Versione o que você não consegue purgar** (assets na CDN, caches do cliente): mude a URL ou a chave em vez de invalidar cada cópia.
+    - **Invalide a partir do log do banco (CDC) quando vários serviços escrevem o mesmo dado**, para que nenhum caminho de escrita esqueça a remoção.
+    - **Escolha a política de despejo pelo padrão de acesso** (`allkeys-lru` ou `allkeys-lfu` para um cache puro) e acompanhe `evicted_keys`: despejos constantes indicam que o conjunto de trabalho não cabe. No BoxOffice: o lab 5 roda o Redis com `--maxmemory 256mb --maxmemory-policy allkeys-lru`.
+
 !!! warning "Armadilhas comuns"
 
     - **Sem TTL "porque invalidamos explicitamente"** — a primeira remoção perdida vira permanente.
@@ -336,7 +344,7 @@ São os mesmos modelos de consistência vistos em [Sistemas Distribuídos](../..
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     BUD["orçamento de defasagem<br/>por dado"] --> TTL["TTL: a rede de segurança"]
     BUD --> EXP["invalidação explícita<br/>apague, não atualize"]

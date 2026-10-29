@@ -1,4 +1,4 @@
-# Observabilidade
+# Observabilidade { #observability }
 
 **Observabilidade** é a capacidade de entender o que um sistema está fazendo — e por quê — a partir de fora, usando os sinais que ele emite. Ela nunca fica no caminho da requisição: estes componentes são **canais laterais** que observam os serviços. Mas sem eles você voa às cegas: não vê qual caixa está saturada, não distingue uma dependência lenta de um banco lento e descobre as quedas pelos usuários irritados. A regra do curso é simples: *não dá para consertar o que você não mede*.
 
@@ -12,7 +12,7 @@ A paleta tem três **sinais** e duas **ações**. Sinais: **métricas** (número
 | [Alerting](#alerting) | Regras sobre os sinais que notificam um humano quando os usuários são afetados | `alerting` |
 | [Health Check](#healthcheck) | Sondas em endpoints que dizem a LBs/orquestradores se uma instância pode atender | `healthcheck` |
 
-``` mermaid
+``` diagram
 flowchart LR
     S1[gateway] -.->|OTLP| COL[OpenTelemetry Collector]
     S2[order] -.->|OTLP| COL
@@ -298,7 +298,7 @@ flowchart LR
 !!! tip "Na entrevista"
     "Aciono por sintomas, não por causas: alertas de burn rate em múltiplas janelas sobre o SLO do checkout — consumo de 14× em uma hora aciona o plantonista, consumos lentos abrem um ticket. Todo alerta tem um dono e um runbook, e um alerta de batimento avisa se o próprio monitoramento caiu."
 
-**Saiba mais:** [Observabilidade › Alertas](../../../classes/observability/alerting/index.md) · [Confiabilidade › SLOs](../../../classes/reliability/slo/index.md) · [Observabilidade › Resposta a incidentes](../../../classes/observability/incident-response/index.md) · [Estimativas › Matemática da disponibilidade](../../../classes/estimation/availability-math/index.md) · [Hands-on 8](../../../hands-on/8/index.md)
+**Saiba mais:** [Observabilidade › Alertas](../../../classes/observability/alerting/index.md) · [Observabilidade › SLOs](../../../classes/observability/slo/index.md) · [Observabilidade › Resposta a incidentes](../../../classes/observability/incident-response/index.md) · [Estimativas › Matemática da disponibilidade](../../../classes/estimation/availability-math/index.md) · [Hands-on 8](../../../hands-on/8/index.md)
 
 ---
 

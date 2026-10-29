@@ -2,7 +2,7 @@ Release notes are the kind of text nobody likes to write and everybody needs at 
 
 ## 4.1 The flow
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     tag["git tag v1.4.0<br/>git push --tags"] --> job["ai-release-notes job"]
     job --> ctx["commits since v1.3.0<br/>diffstat · new Flyway migrations"]

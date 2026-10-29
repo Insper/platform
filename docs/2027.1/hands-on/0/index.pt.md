@@ -31,11 +31,11 @@ Este primeiro lab é curto, mas importante: um ambiente quebrado custa horas dep
 Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** abre a visão do apresentador, com as notas.
 [:material-presentation: Abrir os slides em uma nova aba](slides/environment.html){:target="_blank"}
 
-## Aonde vamos chegar
+## Aonde vamos chegar { #where-we-are-going }
 
 O diagrama mostra o BoxOffice no fim do semestre. Não se preocupe com os detalhes: cada caixa tem o seu lab, e o número em cada rótulo diz qual.
 
-``` mermaid
+``` diagram
 flowchart LR
     user([Fã / k6]) --> edge["edge<br/>Nginx · lab 3"]
     edge --> gw["gateway<br/>lab 4"]
@@ -54,6 +54,8 @@ flowchart LR
 ```
 
 !!! info "Conexão com a teoria"
+
+    Na [história da disciplina](../../index.md#story), este lab abre o capítulo 1: antes de qualquer design, um número — quantas requisições por segundo a *sua* máquina atende, o primeiro dos [requisitos mensuráveis](../../classes/intro/requirements/index.md) que todo lab seguinte confere.
 
     Este lab acompanha a aula 1, [O que é projeto de sistemas](../../classes/intro/index.md): a jornada de escala do BoxOffice, de um servidor a milhões de usuários, é exatamente o caminho que os labs seguem. A etapa "Meça" no fim se conecta com a aula 2, [Estimativas](../../classes/estimation/index.md).
 
@@ -134,7 +136,7 @@ Todos os labs — e todos os projetos em equipe — usam os nomes abaixo. **Não
 
     Se algo na sua máquina já usa a porta 80, 5432 ou 6379 (um PostgreSQL local, por exemplo), pare-o, ou mude **apenas o lado do host** do mapeamento no `docker-compose.yaml` (`"15432:5432"`). Nunca mude a porta dentro do container: os outros serviços dependem dela.
 
-## 1. Instale as ferramentas
+## 1. Instale as ferramentas { #1-install-the-tools }
 
 A tabela lista para que serve cada ferramenta; as abas abaixo mostram como instalá-las em cada sistema. O k6 é um único binário[^1]; o Docker Compose vem com o Docker Desktop ou como plugin do Docker Engine[^2].
 
@@ -214,7 +216,7 @@ A tabela lista para que serve cada ferramenta; as abas abaixo mostram como insta
 
     Dentro de um container, `localhost` é o próprio container; `host.docker.internal` chega à sua máquina (no Linux, acrescente `--add-host=host.docker.internal:host-gateway`).
 
-## 2. Verifique o seu ambiente
+## 2. Verifique o seu ambiente { #2-check-your-environment }
 
 Salve o script abaixo como `scripts/check-env.sh` no seu repositório (próximo passo) e execute-o. Toda linha deve dizer `ok`.
 
@@ -255,7 +257,7 @@ As suas versões serão diferentes; o que importa é que nada diga `MISS` ou `FA
     - `permission denied … docker.sock` no Linux: você pulou o `usermod -aG docker`; saia da sessão e entre de novo.
     - `MISS Python 3.12 or newer`: rode `uv python install 3.12`. Nunca use `pip install` no Python do sistema: todo passo Python da disciplina passa pelo `uv` (`uv run`, `uv add`, `uvx`).
 
-## 3. Crie o seu repositório
+## 3. Crie o seu repositório { #3-create-your-repository }
 
 Todo o seu trabalho dos labs fica em **um repositório**, chamado `boxoffice`, criado por você no GitHub (privado; você adicionará os colegas de projeto depois). O repositório da disciplina tem o esqueleto de referência e é onde as atualizações do código dos labs são publicadas; o seu repositório é onde vivem o *seu* código e as *suas* medições.
 
@@ -382,7 +384,7 @@ Little's Law check (VUs ≈ throughput × average latency):
 
     O k6 e o servidor dividem os mesmos núcleos de CPU, então, acima de algumas dezenas de milhares de requisições por segundo, você mede o k6 tanto quanto o Nginx. Para uma referência, tudo bem; no lab 2 o alvo será muito mais lento que o k6, e o problema desaparece.
 
-## 5. Primeiro contato com o playground
+## 5. Primeiro contato com o playground { #5-first-look-at-the-playground }
 
 O [System Design Playground](../../../playground/index.md) simula, sob carga e em segundos, os mesmos componentes que você vai construir. Cada lab incorpora o cenário que está prestes a medir de verdade, para você formar uma hipótese *antes* de rodar o k6.
 
@@ -390,7 +392,7 @@ O [System Design Playground](../../../playground/index.md) simula, sob carga e e
 
 <div class="sdp" data-scenario="monolith" data-mode="compact" data-height="460"></div>
 
-## Solução de problemas
+## Solução de problemas { #troubleshooting }
 
 | Sintoma | Causa | Correção |
 |---|---|---|
@@ -402,7 +404,14 @@ O [System Design Playground](../../../playground/index.md) simula, sob carga e e
 | tudo muito lento no Windows | o repositório está em `/mnt/c/...` | mova para `~/boxoffice` dentro do WSL |
 | `check-env.sh: line 1: #!/usr/bin/env: No such file` no WSL | o arquivo foi salvo com finais de linha do Windows | `sed -i 's/\r$//' scripts/check-env.sh` (e configure o editor para LF) |
 
-## Limpeza
+!!! success "Boas práticas neste lab"
+
+    - **Confira o ferramental com um script, não de memória** — `scripts/check-env.sh` mostra cada ferramenta e versão, então um ambiente quebrado aparece em segundos, não no meio de um teste de carga. Por que importa: toda medição da disciplina supõe o mesmo ambiente ([Como estudar projeto de sistemas](../../classes/intro/index.md)).
+    - **Mantenha segredos e saídas volumosas fora do Git** — o `.gitignore` exclui `.env` e os relatórios HTML do k6, e mantém os resumos JSON e as tabelas em `results/*.md`. Segurança é um atributo de qualidade desde o primeiro dia ([Requisitos](../../classes/intro/requirements/index.md)).
+    - **Meça uma referência antes de mudar qualquer coisa** — `load/hello.js` diz o que a *sua* máquina atende, a referência de todo número seguinte ([Estimativas](../../classes/estimation/index.md)).
+    - **Anote cada medição com o seu ambiente** — `results/lab0.md` registra máquina, taxa e latência; um número sem o ambiente não pode ser comparado ([Tornando requisitos mensuráveis](../../classes/intro/requirements/index.md)).
+
+## Limpeza { #clean-up }
 
 ``` { .bash .copy }
 docker rm -f hello 2>/dev/null || true     # the baseline target, if still running
@@ -411,7 +420,7 @@ docker image prune -f                      # optional: remove dangling images
 
 Mantenha tudo em `boxoffice/`: o lab 1 começa dele.
 
-## Entrega
+## Entrega { #deliverable }
 
 - [ ] `bash scripts/check-env.sh` imprime `All set.` (cole a saída em `results/lab0.md`).
 - [ ] O seu repositório `boxoffice` existe no GitHub com a estrutura de pastas, o `.gitignore`, o `scripts/check-env.sh` e o `load/hello.js`, com a tag `lab0`.
@@ -419,7 +428,7 @@ Mantenha tudo em `boxoffice/`: o lab 1 começa dele.
 - [ ] Você rodou o cenário `monolith` no playground e anotou qual componente satura primeiro.
 - [ ] [Quiz](quiz.md) respondido.
 
-## Estado final
+## Estado final { #end-state }
 
 Ao fim deste lab o seu repositório contém (o overlay [`code/`](code/scripts/check-env.sh) do lab mais os seus resultados):
 

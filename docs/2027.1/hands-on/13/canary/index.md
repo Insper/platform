@@ -6,7 +6,7 @@ A model must never be the one that says "promote": it can be talked into it (pro
 
 ## 5.1 Design
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     prom[("Prometheus<br/>stable vs canary")] --> rules["Policy in code<br/>MIN_RPS · error ceiling<br/>error delta · p99 ratio"]
     rules --> verdict{"verdict"}

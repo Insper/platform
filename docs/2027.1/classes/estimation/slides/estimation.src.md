@@ -307,7 +307,7 @@ Shared-nothing scales: BoxOffice partitions inventory **by event**, so holds for
 
 | BoxOffice checkout | Availability |
 |---|---|
-| naive: 6 sync deps incl. e-mail at 99.5% | **99.19%** (~5.8 h/month) |
+| naive: 7 sync links in series, incl. e-mail at 99.5% | **99.19%** (~5.8 h/month) |
 | e-mail async | 99.69% |
 | + second payment provider | 99.79% |
 | + internal links at 99.99% | **99.95%** |

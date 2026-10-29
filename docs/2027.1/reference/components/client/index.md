@@ -9,7 +9,7 @@ Thinking about the client is not a formality. Where the client is (latency to yo
 | [Client](#client) | A browser or any program calling your API over the internet | `client` |
 | [Mobile](#mobile) | A native app on a phone: flaky networks, offline mode, push notifications, slow release cycle | `mobile` |
 
-``` mermaid
+``` diagram
 flowchart LR
     B[Client<br/>browser / SDK] --> DNS
     M[Mobile<br/>iOS / Android] --> DNS
@@ -149,4 +149,4 @@ flowchart LR
 !!! tip "In the interview"
     "Mobile clients are on unreliable networks and run old versions, so I keep the API backward compatible, make every write idempotent so the app can safely retry, and use push only as a best-effort nudge — the source of truth is always the server."
 
-**Learn more:** [Edge › Protocols](../../../classes/edge/protocols/index.md) · [Compute › API styles](../../../classes/compute/api-styles/index.md) · [Network & security › Identity](../../../classes/network-security/identity/index.md) · [Case study: chat](../../../classes/case-studies/chat/index.md) · [Case study: notification system](../../../classes/case-studies/notification-system/index.md)
+**Learn more:** [Edge › Protocols](../../../classes/edge/protocols/index.md) · [Compute › API styles](../../../classes/compute/api-styles/index.md) · [Network & security › Identity](../../../classes/edge/identity/index.md) · [Case study: chat](../../../classes/case-studies/chat/index.md) · [Case study: notification system](../../../classes/case-studies/notification-system/index.md)

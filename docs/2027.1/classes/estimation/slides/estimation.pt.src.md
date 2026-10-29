@@ -307,7 +307,7 @@ Shared-nothing escala: a BoxOffice particiona o inventário **por evento**, ent�
 
 | Checkout da BoxOffice | Disponibilidade |
 |---|---|
-| ingênuo: 6 dependências síncronas, incl. e-mail a 99,5% | **99,19%** (~5,8 h/mês) |
+| ingênuo: 7 elos síncronos em série, incl. e-mail a 99,5% | **99,19%** (~5,8 h/mês) |
 | e-mail assíncrono | 99,69% |
 | + segundo provedor de pagamento | 99,79% |
 | + elos internos a 99,99% | **99,95%** |

@@ -10,11 +10,12 @@
   --sdp-accent: var(--md-accent-fg-color, #526cfe);
   --sdp-primary: var(--md-primary-fg-color, #4051b5);
   --sdp-panel: var(--md-code-bg-color, #f5f5f5);
-  --sdp-canvas: #f3f7fc;
-  --sdp-grid-minor: rgba(37, 99, 170, .08);
-  --sdp-grid-major: rgba(37, 99, 170, .17);
-  --sdp-node-bg: #ffffff;
-  --sdp-edge: #5b6b80;
+  /* canvas, grid, nodes and wires: derived from the theme (both palettes) */
+  --sdp-canvas: color-mix(in srgb, var(--md-typeset-a-color) 4%, var(--sdp-bg));
+  --sdp-grid-minor: color-mix(in srgb, var(--md-typeset-a-color) 8%, transparent);
+  --sdp-grid-major: color-mix(in srgb, var(--md-typeset-a-color) 17%, transparent);
+  --sdp-node-bg: color-mix(in srgb, var(--sdp-fg) 3%, var(--sdp-bg));
+  --sdp-edge: var(--sdp-fg-light);
   --sdp-ok: #15803d;      /* ≥ 4.5:1 on white: also used for small text (goal chips, report) */
   --sdp-warm: #b45309;
   --sdp-hot: #b91c1c;
@@ -47,11 +48,6 @@
 }
 
 [data-md-color-scheme="slate"] .sdp {
-  --sdp-canvas: #0e1726;
-  --sdp-grid-minor: rgba(125, 175, 235, .07);
-  --sdp-grid-major: rgba(125, 175, 235, .16);
-  --sdp-node-bg: #172133;
-  --sdp-edge: #8fa3bd;
   --sdp-ok: #22c55e;
   --sdp-warm: #f59e0b;
   --sdp-hot: #f87171;
@@ -139,8 +135,8 @@
 }
 .sdp .sdp-btn:hover { background: var(--sdp-line); color: var(--sdp-fg); }
 .sdp .sdp-btn[aria-pressed="true"] { color: var(--sdp-accent); background: var(--sdp-line); }
-.sdp .sdp-play { background: var(--sdp-accent); color: #fff; }
-.sdp .sdp-play:hover { background: var(--sdp-accent); color: #fff; filter: brightness(1.1); }
+.sdp .sdp-play { background: var(--sdp-accent); color: var(--md-accent-bg-color); }
+.sdp .sdp-play:hover { background: var(--sdp-accent); color: var(--md-accent-bg-color); filter: brightness(1.1); }
 .sdp .sdp-play.is-on { background: var(--sdp-fg-light); }
 
 .sdp .sdp-btn-text {
@@ -154,7 +150,7 @@
   cursor: pointer;
 }
 .sdp .sdp-btn-text:hover { border-color: var(--sdp-accent); color: var(--sdp-accent); }
-.sdp .sdp-btn-text.is-primary { background: var(--sdp-accent); border-color: var(--sdp-accent); color: #fff; }
+.sdp .sdp-btn-text.is-primary { background: var(--sdp-accent); border-color: var(--sdp-accent); color: var(--md-accent-bg-color); }
 .sdp .sdp-btn-text.is-danger:hover { border-color: var(--sdp-hot); color: var(--sdp-hot); }
 
 .sdp-inject {

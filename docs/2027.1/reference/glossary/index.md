@@ -73,7 +73,7 @@ The vocabulary of system design, A to Z: distributed systems, data, caching, mes
 
 - **Edge computing** — Running code at CDN locations close to users, for redirects, authentication checks, personalization or A/B tests. → [Edge › DNS & CDN](../../classes/edge/dns-cdn/index.md)
 - **Embedding** — A vector of numbers representing the meaning of a text, image or item, so that similar things have nearby vectors. → [Catalog › Vector DB](../components/storage/index.md#vectordb)
-- **Error budget** — The amount of unreliability an SLO allows (100% − SLO), spent on releases and experiments; when it runs out, reliability work comes first. → [Reliability › SLOs](../../classes/reliability/slo/index.md)
+- **Error budget** — The amount of unreliability an SLO allows (100% − SLO), spent on releases and experiments; when it runs out, reliability work comes first. → [Observability › SLOs](../../classes/observability/slo/index.md)
 - **ETL / ELT** — Extract-Transform-Load (transform before loading) or Extract-Load-Transform (load raw data, transform inside the warehouse). → [Databases › Specialized stores](../../classes/databases/specialized/index.md)
 - **Event-driven architecture** — Services communicate by publishing and reacting to events instead of calling each other directly, which decouples them in time. → [Messaging](../../classes/messaging/index.md)
 - **Event sourcing** — Storing the sequence of events that changed an entity as the source of truth, and deriving the current state by replaying them. → [Messaging › Patterns](../../classes/messaging/patterns/index.md)
@@ -124,7 +124,7 @@ The vocabulary of system design, A to Z: distributed systems, data, caching, mes
 ## J
 
 - **Jitter** — Randomness added to retry delays or timers so that many clients do not act in sync and overload a service together. → [Reliability › Patterns](../../classes/reliability/patterns/index.md)
-- **JWT (JSON Web Token)** — A signed token carrying claims (user, scopes, expiry) that services can verify locally without calling the issuer. → [Network & security › Identity](../../classes/network-security/identity/index.md)
+- **JWT (JSON Web Token)** — A signed token carrying claims (user, scopes, expiry) that services can verify locally without calling the issuer. → [Network & security › Identity](../../classes/edge/identity/index.md)
 
 ## K
 
@@ -174,7 +174,7 @@ The vocabulary of system design, A to Z: distributed systems, data, caching, mes
 
 ## O
 
-- **OAuth 2 / OIDC** — OAuth 2 delegates authorization with access tokens; OpenID Connect adds authentication (who the user is) on top of it. → [Network & security › Identity](../../classes/network-security/identity/index.md)
+- **OAuth 2 / OIDC** — OAuth 2 delegates authorization with access tokens; OpenID Connect adds authentication (who the user is) on top of it. → [Network & security › Identity](../../classes/edge/identity/index.md)
 - **Object storage** — Storage of immutable blobs by key over HTTP (S3 and similar), cheap and extremely durable; the origin for media. → [Catalog › Object Store](../components/storage/index.md#objstore)
 - **Observability** — The ability to understand a system's internal state from the signals it emits: metrics, logs, traces and profiles. → [Observability](../../classes/observability/index.md)
 - **OLTP / OLAP** — Online transaction processing (many small reads and writes on current data) vs online analytical processing (large scans and aggregates over history). → [Databases › Specialized stores](../../classes/databases/specialized/index.md)
@@ -230,7 +230,7 @@ The vocabulary of system design, A to Z: distributed systems, data, caching, mes
 - **Service discovery** — How a service finds the current addresses of another (DNS, a registry, Kubernetes Services). → [Cloud-native › Kubernetes](../../classes/cloud-native/kubernetes/index.md)
 - **Service mesh** — A layer of proxies beside every service providing mTLS, retries, timeouts, traffic splitting and telemetry without code changes. → [Catalog › Service Mesh](../components/network/index.md#mesh)
 - **Single point of failure (SPOF)** — A component whose failure stops the whole system; removed by redundancy. → [Estimation › Availability math](../../classes/estimation/availability-math/index.md)
-- **SLI / SLO / SLA** — Indicator (what you measure), objective (the target, e.g. 99.9% over 28 days) and agreement (a contract with penalties). → [Reliability › SLOs](../../classes/reliability/slo/index.md)
+- **SLI / SLO / SLA** — Indicator (what you measure), objective (the target, e.g. 99.9% over 28 days) and agreement (a contract with penalties). → [Observability › SLOs](../../classes/observability/slo/index.md)
 - **Snapshot isolation** — Each transaction reads from a consistent snapshot of the database; prevents most anomalies but allows write skew. → [Databases › Transactions](../../classes/databases/transactions/index.md)
 - **Soak / spike / stress test** — Load tests that hold load for hours (soak), jump suddenly (spike) or increase until the system breaks (stress). → [Performance › Load testing](../../classes/performance/load-testing/index.md)
 - **SSE (Server-Sent Events)** — A one-way stream of events from server to client over a long-lived HTTP response; used for live updates and LLM tokens. → [Edge › Protocols](../../classes/edge/protocols/index.md)

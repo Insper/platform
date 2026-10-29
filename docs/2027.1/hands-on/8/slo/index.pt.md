@@ -1,12 +1,12 @@
-# 3. SLO e Alerta de *Burn Rate*
+# 3. SLO e Alerta de *Burn Rate* { #3-slo-and-burn-rate-alert }
 
 Um dashboard precisa de alguém olhando para ele. Um **alerta** olha por você — e um alerta ruim te
 acorda às 3 da manhã por nada, até você aprender a ignorá-lo. Este passo transforma uma promessa ao
 usuário em um alerta que dispara quando, e somente quando, a promessa está em risco. A teoria está na
 [aula de alertas](../../../classes/observability/alerting/index.md) e na
-[aula de SLO](../../../classes/reliability/slo/index.md).
+[aula de SLO](../../../classes/observability/slo/index.md).
 
-## Da promessa aos números
+## Da promessa aos números { #from-promise-to-numbers }
 
 | Termo | `catalog` do BoxOffice |
 |---|---|
@@ -27,7 +27,7 @@ com 28 dias eles significam 2,1% e 5,4% — perto o bastante para manter os núm
     fez — o SLI precisa medir o que os **fãs** vivem. O mesmo raciocínio exclui dos SLIs de produção a
     carga sintética que você mesmo gera, a menos que ela seja marcada e filtrada.
 
-## Por que "taxa de erros > 1%" é um alerta ruim
+## Por que "taxa de erros > 1%" é um alerta ruim { #why-error-rate-1-is-a-bad-alert }
 
 | Alerta | Problema |
 |---|---|
@@ -49,7 +49,7 @@ recuperação).
 Este lab provisiona a primeira regra como **página** e a segunda como **ticket** (um sinal mais lento
 e mais barato para uma equipe menor); a terceira fica como exercício.
 
-## As regras, como código
+## As regras, como código { #the-rules-as-code }
 
 O Grafana carrega regras de alerta de arquivos YAML na sua pasta de provisionamento (montada no
 [passo 1](../instrument/index.md) a partir de `infra/grafana/alerting/`). Cada regra roda as
@@ -63,7 +63,7 @@ condição.
 Reinicie o `otel-lgtm` e abra **Alerting → Alert rules**: as duas regras aparecem na pasta
 *BoxOffice* como *Normal*.
 
-## Dispare-o
+## Dispare-o { #fire-it }
 
 Gere tráfego constante e então quebre o banco de que o `catalog` depende:
 
@@ -107,7 +107,7 @@ Registre nos seus resultados a hora em que parou o `db`, a hora em que a regra f
     - **Toda página precisa de um link de *runbook*** (um `annotations.runbook_url`) dizendo o que
       checar primeiro — veja a [aula de resposta a incidentes](../../../classes/observability/incident-response/index.md).
 
-## Exercício: um SLO de latência
+## Exercício: um SLO de latência { #exercise-a-latency-slo }
 
 Escreva uma terceira regra para a promessa "95% dos `GET /catalog/events/{id}` terminam em menos de
 250 ms". Dica: o SLI é a razão entre a taxa do bucket `le="0.25"` e a taxa de `_count` dessa rota; o

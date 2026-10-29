@@ -18,7 +18,7 @@ OpenTelemetry is a CNCF project that defines **how telemetry is produced and tra
 
 The signals have matured at different speeds: **traces** and **metrics** are stable, **logs** became stable later (OTel mostly *bridges* existing logging libraries, adding the trace context), and **profiles** were added as the fourth signal and are still maturing.
 
-``` mermaid
+``` diagram
 flowchart LR
     subgraph services ["BoxOffice services"]
         J["Java services<br/>OTel Java agent"]
@@ -60,7 +60,7 @@ On every outgoing call, a service keeps the `trace-id` and the flags and **repla
 
 Play the diagram and watch the parent-id change at each hop while the trace-id stays the same — including across Kafka, where the context travels in a **message header**:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     participant GW as gateway
@@ -98,6 +98,18 @@ Three details matter in practice:
     | Messaging without headers (old clients, custom envelopes) | consumers start new traces | use headers; or carry the context in the message envelope |
     | A homemade HTTP client | the call has no `CLIENT` span and the callee starts a new trace | use an instrumented client or inject the context manually |
 
+!!! example "In the BoxOffice code: the trace through the outbox (lab 8)"
+
+    The agent propagates the context over HTTP and in Kafka headers by itself, but BoxOffice's events do not go straight to Kafka: since lab 7, `order` writes them to an **outbox** table in the same transaction as the order, and a relay publishes them later, on a scheduler thread — a hop the agent cannot see, which split every order into two unrelated traces. [Hands-on 8 — Instrument everything](../../../hands-on/8/instrument/index.md) carries the `traceparent` with the data: one new column (`V2__outbox_traceparent.sql`), `inject` when the row is written, then `extract` and `makeCurrent()` before the relay sends, so the agent's producer span becomes a child of the original request. In the lab's test run the result is **one** trace: the request took 9 ms, the relay published 22 ms after it started, and `notification` spent 67 ms.
+
+    ``` { .java title="services/order/src/main/java/boxoffice/order/outbox/Outbox.java (write the event and its traceparent)" }
+    --8<-- "docs/2027.1/hands-on/8/code/services/order/src/main/java/boxoffice/order/outbox/Outbox.java:26:39"
+    ```
+
+    ``` { .java title="services/order/src/main/java/boxoffice/order/outbox/OutboxRelay.java (publish inside the original context)" }
+    --8<-- "docs/2027.1/hands-on/8/code/services/order/src/main/java/boxoffice/order/outbox/OutboxRelay.java:77:87"
+    ```
+
 ---
 
 ## Instrumenting BoxOffice
@@ -123,6 +135,14 @@ environment:
 ```
 
 `service.name` is the most important attribute in OpenTelemetry: without it, every service appears as `unknown_service:java` and no dashboard can tell them apart. `service.version` and `deployment.environment.name` let you compare a canary with the stable version, or staging with production.
+
+!!! example "In the BoxOffice code: one agent for every Java service (lab 8)"
+
+    [Hands-on 8 — Instrument everything](../../../hands-on/8/instrument/index.md) does not bake the agent into the images, as the Dockerfile above does: `scripts/get-otel-agent.sh` downloads a pinned version (2.32.0) once into `infra/otel/`, and every Java service mounts it read-only and loads it through `JAVA_TOOL_OPTIONS`. The settings live in one YAML anchor merged into each service, so the services cannot drift apart; only `OTEL_SERVICE_NAME` changes — three `catalog` replicas, **one** service. `OTEL_ON=false` runs the same image without the agent, which is how the lab measures what the agent costs; metrics are exported every 10 s instead of 60 s, so the dashboards react within a short experiment.
+
+    ``` { .yaml title="docker-compose.yaml (the x-otel anchor and the catalog replicas)" }
+    --8<-- "docs/2027.1/hands-on/8/code/docker-compose.yaml:3:12,15:22"
+    ```
 
 ### Zero-code: the Python `assistant`
 
@@ -341,6 +361,15 @@ services:
 
     "How do you trace a request across microservices?" — *"Every service is instrumented with OpenTelemetry; the W3C `traceparent` header (and Kafka message headers for async hops) propagates the trace ID; spans go over OTLP to a Collector that applies tail sampling — keep all errors and slow traces, a few percent of the rest — and exports to a tracing backend. Logs carry the trace ID, and the latency histograms carry exemplars, so I can jump from a dashboard to a trace to its logs."* Then add the cost angle: metrics are computed from 100% of the traffic; traces are sampled.
 
+!!! success "Best practices"
+
+    - **Pin the agent and SDK versions, and upgrade on purpose** — a new instrumentation release can rename metrics and attributes (semantic conventions evolve), silently breaking dashboards and alerts. In BoxOffice: `scripts/get-otel-agent.sh` pins 2.32.0.
+    - **Configure OpenTelemetry once, through environment variables shared by every service** — exporter, sampler, resource attributes; only `OTEL_SERVICE_NAME` differs per service. In BoxOffice: the `x-otel` anchor (box above).
+    - **Use a parent-based sampler at the head** — the root decides once and every hop follows it, so a trace is kept or dropped whole, never in fragments. In BoxOffice: `OTEL_TRACES_SAMPLER=parentbased_always_on`, and `parentbased_traceidratio` at 10% in experiment B of [Hands-on 8 — Measure it](../../../hands-on/8/measure/index.md).
+    - **Carry `traceparent` across every asynchronous hop you own** — outbox rows, job tables, custom envelopes; each hop without it splits every trace in two. In BoxOffice: the `traceparent` column of the outbox (box above).
+    - **Strip `traceparent` and `baggage` at the egress to third parties** — internal ids and business context should not leak to a payment provider that will never send you its spans.
+    - **Monitor the Collector itself** — its own metrics (refused and failed exports, queue size, memory) are the only sign that telemetry is being dropped; a silent Collector looks exactly like a quiet system.
+
 !!! warning "Common pitfalls"
 
     - **Protocol and port mismatch**: the Java agent 2.x defaults to OTLP over HTTP (4318); pointing it at 4317 without `OTEL_EXPORTER_OTLP_PROTOCOL=grpc` silently produces no data.
@@ -352,7 +381,7 @@ services:
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     KH["Kafka message headers,<br/>span links → Messaging"] --> CTX["context propagation:<br/>traceparent, baggage"]
     CTX --> SVC["services: Java agent,<br/>Python SDK, Nginx"]
@@ -370,13 +399,15 @@ flowchart LR
 
 ---
 
-## Key takeaways
+## Key takeaways { #key-takeaways }
 
-- OpenTelemetry standardises the **API, SDK, semantic conventions, protocol (OTLP) and Collector** — not the backend; change backends without re-instrumenting.
-- **Context propagation** with W3C `traceparent` (and message headers for Kafka) is what makes a trace; one hop that drops it splits every trace.
-- Start with **zero-code instrumentation**, then add manual spans for business steps and for **time spent waiting** inside services.
-- The **Collector** pipelines (receivers → processors → exporters) centralise redaction, enrichment, sampling and routing; treat it as production infrastructure.
-- **Tail sampling** keeps every error and slow trace at a fraction of the storage; compute metrics from all traffic before sampling, and use **exemplars** to jump from metrics to traces.
+!!! takeaways ""
+
+    - OpenTelemetry standardises the **API, SDK, semantic conventions, protocol (OTLP) and Collector** — not the backend; change backends without re-instrumenting.
+    - **Context propagation** with W3C `traceparent` (and message headers for Kafka) is what makes a trace; one hop that drops it splits every trace.
+    - Start with **zero-code instrumentation**, then add manual spans for business steps and for **time spent waiting** inside services.
+    - The **Collector** pipelines (receivers → processors → exporters) centralise redaction, enrichment, sampling and routing; treat it as production infrastructure.
+    - **Tail sampling** keeps every error and slow trace at a fraction of the storage; compute metrics from all traffic before sampling, and use **exemplars** to jump from metrics to traces.
 
 ---
 

@@ -7,6 +7,8 @@
 
 Until now anyone could create or delete events in the catalog. BoxOffice needs to know **who** is calling (authentication) and **what they may do** (authorization) — and it should not ask every service to solve that problem again. The standard answer is an **API gateway**[^1]: the single front door for the API, where tokens are validated once and requests are routed to the right service. Behind it, services trust the identity the gateway passes along.
 
+This lab builds chapter 5 of the [story of the course](../../index.md#story): the front door that [stateless replicas](../../classes/compute/index.md#stateless-app-servers) need, where the token is checked once for every service and no replica keeps a session. It implements the [API gateway](../../classes/edge/api-gateway/index.md) of class 4, the [service map](../../classes/compute/services/index.md) of class 5 and the [token validation at the gateway](../../classes/edge/identity/index.md#gateway-validation) of the identity page.
+
 ## Before you start { #before-you-start }
 
 | | |
@@ -51,12 +53,12 @@ Click the slides and use ← → to move through them; **F** goes full screen an
 !!! info "Theory connection"
 
     - Class 4, [API gateway](../../classes/edge/api-gateway/index.md): routing, authentication at the edge, rate limiting, BFF.
-    - Class 11, [Identity](../../classes/network-security/identity/index.md): OAuth 2.1/OIDC, JWT, sessions; [Zero trust](../../classes/network-security/zero-trust/index.md): why "trust the gateway's headers" is only acceptable inside a protected network.
+    - Class 4, [Identity](../../classes/edge/identity/index.md): OAuth 2.1/OIDC, JWT, sessions; [Zero trust](../../classes/network-security/zero-trust/index.md): why "trust the gateway's headers" is only acceptable inside a protected network.
     - Component catalog: [API Gateway](../../reference/components/edge/index.md#apigw), [Auth Service](../../reference/components/compute/index.md#auth).
 
 ## What you will build
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     actor Fan
@@ -143,7 +145,7 @@ echo "$ADMIN" | cut -d. -f2 | tr '_-' '/+' | base64 -d 2>/dev/null; echo
 
 ??? question "Think first: a client sends `X-User-Id: <the admin's id>` itself. What happens?"
 
-    Nothing useful for the attacker: the gateway's `UserHeadersFilter` **removes** any `X-User-*` header coming from outside before setting its own from the validated token. Without that line, any client could impersonate any user, because the services trust those headers blindly. That trust is acceptable only because the services are not reachable except through the gateway — zero-trust networks (class 11) go further and authenticate every hop (mTLS, or re-validating the JWT in each service).
+    Nothing useful for the attacker: the gateway's `UserHeadersFilter` **removes** any `X-User-*` header coming from outside before setting its own from the validated token. Without that line, any client could impersonate any user, because the services trust those headers blindly. That trust is acceptable only because the services are not reachable except through the gateway — zero-trust networks (class 12) go further and authenticate every hop (mTLS, or re-validating the JWT in each service).
 
 Try the other failure cases too: an expired token (start `auth` with `JWT_TTL=PT30S`, wait a minute), a token with one character changed (signature check fails), and restarting `auth` (new key pair: old tokens are rejected because their `kid` no longer exists in the JWKS — see the warning in [step 1](auth/index.md)).
 
@@ -211,6 +213,14 @@ How to read it:
 | `Bind for 0.0.0.0:8080 failed` | another program uses 8080 | change only the host side: `"18080:8080"` |
 | the gateway logs `Unable to resolve the Configuration with the provided Issuer` or JWKS errors | `AUTH_JWKS_URI`/`JWT_ISSUER` differ between `auth` and `gateway` | use the `docker-compose.yaml` of this lab unchanged |
 | containers restart or get killed (`exit 137`) | Docker is out of memory | give Docker ≥ 6 GB (Docker Desktop → Settings → Resources) |
+
+!!! success "Best practices in this lab"
+
+    - **Validate every claim of the token, in one place** — signature against the JWKS of `auth`, plus `exp`, `iss` and `aud`, in `SecurityConfig.java`; see [Identity — validating tokens at the gateway](../../classes/edge/identity/index.md#gateway-validation).
+    - **Deny by default** — `.anyExchange().authenticated()` in `SecurityConfig.java` protects every route nobody has listed yet, including future ones; see [API gateway](../../classes/edge/api-gateway/index.md).
+    - **Never trust identity headers from the client** — `UserHeadersFilter.java` removes `X-User-*` before setting them from the token; see [Zero Trust](../../classes/network-security/zero-trust/index.md).
+    - **Put a timeout on every hop and retry only idempotent requests** — `connect-timeout: 1000`, `response-timeout: 5s` and a single retry of `GET` in the gateway's `application.yaml`; see [Reliability — retry with backoff and jitter](../../classes/reliability/patterns/index.md#retry-with-backoff-and-jitter).
+    - **Hash passwords with a slow, salted function** — BCrypt with cost 10 in `AuthService.java`, measured at 10–20 logins/s per core, which is why clients reuse tokens; see [Stateless app servers](../../classes/compute/index.md#stateless-app-servers).
 
 ## Clean up
 

@@ -1,4 +1,4 @@
-# 5. Meça
+# 5. Meça { #5-measure-it }
 
 Cinco experimentos, uma tabela de resultados. Rode cada experimento pelo menos duas vezes e relate a
 segunda execução (a primeira aquece as JVMs e os pools de conexão). Os números das caixas "forma
@@ -12,7 +12,7 @@ esperada" são **ilustrativos** — o que importa é você conseguir explicar os
 | D | reprocessamento | `NOTIFY_IDEMPOTENT` | e-mails por pedido depois de um *reset* de offsets |
 | E | pico da venda relâmpago | sala de espera aberta, `ADMIT_PER_SECOND=10` | admitidos/s, espera p95, erro do ETA, p95 dos pedidos |
 
-## Os scripts do k6
+## Os scripts do k6 { #the-k6-scripts }
 
 === "orders-load.js"
 
@@ -38,7 +38,7 @@ Rode todo teste do k6 com os percentis no resumo:
 k6 run --summary-trend-stats="avg,p(50),p(95),p(99),max" load/orders-load.js
 ```
 
-## A. Síncrono vs outbox
+## A. Síncrono vs outbox { #a-sync-vs-outbox }
 
 ``` shell
 NOTIFY_MODE=sync docker compose up -d order        # "before"
@@ -66,7 +66,7 @@ As variáveis chegam aos contêineres porque o `docker-compose.yaml` as interpol
     requisição, todo pedido espera por ele e o serviço satura muito antes. Se até a versão com outbox
     estiver lenta para você, feche outros contêineres (`docker ps`) e rode de novo.
 
-## B. Queda do `notification`
+## B. Queda do `notification` { #b-notification-outage }
 
 Rode a carga por 60 s e, em outro terminal, derrube o `notification` por 20 s no meio:
 
@@ -79,7 +79,7 @@ modo `sync`, cerca de um terço dos pedidos falha — uma queda do e-mail virou 
 modo `outbox`, nenhum pedido falha; o *lag* sobe enquanto `notification` está fora e drena depois que
 ele volta.
 
-## C. Rajada e drenagem
+## C. Rajada e drenagem { #c-burst-and-drain }
 
 ``` shell
 NOTIFY_CONCURRENCY=1 docker compose up -d notification
@@ -106,7 +106,7 @@ WHERE sent_at > now() - interval '10 minutes';
     *lag*, e ele drena a 20/s → **≈ 240 s** para esvaziar. Com seis threads (capacidade 120/s > 100/s)
     o *lag* fica perto de zero. Mais de seis threads não ajudariam: o tópico tem seis partições.
 
-## D. Reprocessamento
+## D. Reprocessamento { #d-replay }
 
 ``` shell
 docker compose stop notification
@@ -124,7 +124,7 @@ SELECT count(*) AS emails, count(DISTINCT order_id) AS orders FROM notification.
 Faça com `NOTIFY_IDEMPOTENT=true` e com `NOTIFY_IDEMPOTENT=false` (reinicie o `notification` com a
 variável definida, como em C).
 
-## E. Pico da venda relâmpago pela sala de espera
+## E. Pico da venda relâmpago pela sala de espera { #e-flash-sale-spike-through-the-waiting-room }
 
 ``` shell
 ADMIT_PER_SECOND=10 docker compose up -d order
@@ -137,7 +137,7 @@ robô recebe `403`, e `wr_eta_error_seconds` — a espera real menos o ETA prome
 dentro de um ou dois segundos: a Lei de Little, `espera = posição / taxa`, é uma promessa honesta
 quando a taxa é constante.
 
-## Resultados
+## Resultados { #results }
 
 Copie esta tabela para o seu repositório (`results/lab7.md`) e preencha.
 

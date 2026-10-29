@@ -6,7 +6,7 @@ hide:
 
 # Concept Map: System Design
 
-Each class of System Architecture teaches a handful of ideas; the project, the exams and a system-design interview ask you to use them together. This map shows how they connect: 151 concepts from the 16 classes and 252 connections between them, each explained in one sentence.
+Each class of System Architecture teaches a handful of ideas; the project, the exams and a system-design interview ask you to use them together. This map shows how they connect: 158 concepts from the 16 classes and 266 connections between them, each explained in one sentence.
 
 **How it is organized.** Each concept sits in the **row** of the theme of the class where it first appears, in course order: Foundations (C1–C2), Distributed systems (C3), Edge & compute (C4–C5), Storage (C6–C7), Messaging (C8), Operations (C9–C12), AI (C13–C14), Performance & cases (C15–C16). Its **column** is the stage of a design it belongs to, the same order in which you build and defend a design, at work or in an interview:
 

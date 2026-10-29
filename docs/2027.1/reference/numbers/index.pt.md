@@ -1,4 +1,4 @@
-# Números para saber
+# Números para saber { #numbers-to-know }
 
 Uma folha de consulta com os números por trás de toda estimativa de guardanapo: tamanhos, latências, vazão de componentes comuns, disponibilidade, custos e o punhado de fórmulas que os transformam em decisões. O objetivo não é precisão — é a **ordem de grandeza certa, rápido**, com as suposições ditas em voz alta.
 
@@ -9,7 +9,7 @@ A teoria por trás destes números está em [Estimativas › Números](../../cla
 
 ---
 
-## Potências de dois e unidades
+## Potências de dois e unidades { #powers-of-two-and-units }
 
 | Potência | Exato | ≈ Potência de dez | Nome | Exemplo |
 |---|---|---|---|---|
@@ -25,7 +25,7 @@ A teoria por trás destes números está em [Estimativas › Números](../../cla
 
 ---
 
-## Tempo
+## Tempo { #time }
 
 | Grandeza | Exato | Arredondado para estimativas |
 |---|---|---|
@@ -35,7 +35,7 @@ A teoria por trás destes números está em [Estimativas › Números](../../cla
 | Segundos num mês (30 dias) | 2.592.000 | ≈ 2,5 × 10^6 |
 | Segundos num ano | ≈ 31.557.600 | ≈ 3 × 10^7 (π × 10^7) |
 
-### Requisições por dia → requisições por segundo
+### Requisições por dia → requisições por segundo { #requests-per-day-requests-per-second }
 
 | Por dia | Média por segundo (÷ 86.400) | Regra prática (÷ 10^5) | Pico de 3× | Pico de 10× |
 |---|---|---|---|---|
@@ -49,9 +49,9 @@ A teoria por trás destes números está em [Estimativas › Números](../../cla
 
 ---
 
-## Latência
+## Latência { #latency }
 
-### A tabela clássica
+### A tabela clássica { #the-classic-table }
 
 A tabela popularizada por Jeff Dean e Peter Norvig[^1][^2]. O hardware mudou (veja a próxima tabela), mas são as **proporções** que você precisa lembrar: a memória é cerca de 1.000× mais rápida que uma leitura de SSD, e uma ida e volta dentro de um data center é cerca de 1.000× mais rápida que uma ida e volta atravessando um oceano.
 
@@ -72,7 +72,7 @@ A tabela popularizada por Jeff Dean e Peter Norvig[^1][^2]. O hardware mudou (ve
 | Ler 1 MB sequencial de um HDD | 20 ms | |
 | Enviar um pacote Califórnia → Holanda → Califórnia | 150 ms | |
 
-### Aproximações dos anos 2020
+### Aproximações dos anos 2020 { #2020s-approximations }
 
 Aproximado (2026), para hardware típico de nuvem[^3]. Meça o seu ambiente antes de confiar em qualquer um destes com mais precisão que um fator de 2–3.
 
@@ -97,7 +97,7 @@ Aproximado (2026), para hardware típico de nuvem[^3]. Meça o seu ambiente ante
 
 ---
 
-## Vazão de componentes comuns
+## Vazão de componentes comuns { #throughput-of-common-components }
 
 !!! warning "Ordem de grandeza, ilustrativo, depende do hardware e da carga"
     São números aproximados por instância para operações **simples** numa máquina de tamanho razoável. Tamanho do payload, complexidade da consulta, configurações de durabilidade (fsync), TLS, número de conexões e o próprio cliente os movem em 10× para qualquer lado. Use-os para saber se você precisa de 1 máquina ou de 100, nunca como promessa. Valores tirados de limites documentados pelos fornecedores estão marcados como *documentado*.
@@ -122,7 +122,7 @@ Aproximado (2026), para hardware típico de nuvem[^3]. Meça o seu ambiente ante
 
 ---
 
-## Tamanhos de armazenamento
+## Tamanhos de armazenamento { #storage-sizes }
 
 | Item | ≈ Tamanho | Observações |
 |---|---|---|
@@ -147,7 +147,7 @@ Aproximado (2026), para hardware típico de nuvem[^3]. Meça o seu ambiente ante
 
 ---
 
-## Disponibilidade
+## Disponibilidade { #availability }
 
 | Disponibilidade | Fora do ar por ano | por mês (30,4 dias) | por semana | por dia |
 |---|---|---|---|---|
@@ -189,7 +189,7 @@ As fórmulas de filas e de percentis são deduzidas (e plotadas) em [Estimativas
 
 ---
 
-## Custos de nuvem (ilustrativos)
+## Custos de nuvem (ilustrativos) { #cloud-costs-illustrative }
 
 !!! warning "Aproximado, 2026, confira as calculadoras dos provedores"
     Preços de tabela típicos sob demanda numa região dos EUA, arredondados, para comparar **ordens de grandeza** entre opções de design. Os preços reais variam por provedor, região (São Paulo costuma ser mais cara que o leste dos EUA), família de instância, compromissos e descontos, e mudam com o tempo. Use as calculadoras oficiais (AWS Pricing Calculator, Google Cloud Pricing Calculator, Azure Pricing Calculator) para qualquer coisa que importe.
@@ -214,7 +214,7 @@ As fórmulas de filas e de percentis são deduzidas (e plotadas) em [Estimativas
 
 ---
 
-## Exemplo resolvido: a venda relâmpago do BoxOffice
+## Exemplo resolvido: a venda relâmpago do BoxOffice { #worked-example-the-boxoffice-flash-sale }
 
 Um show num estádio abre as vendas às 10:00: **2 milhões de fãs, 60.000 assentos**. As suposições são ditas em voz alta e arredondadas; cada uma pode ser contestada pelo entrevistador.
 

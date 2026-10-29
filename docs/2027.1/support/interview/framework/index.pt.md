@@ -1,4 +1,4 @@
-# O framework da entrevista
+# O framework da entrevista { #the-interview-framework }
 
 Uma entrevista de system design é um problema aberto com um relógio. Sem estrutura, é fácil gastar vinte minutos no esquema do banco e nunca chegar à parte que interessava ao entrevistador. O framework abaixo é uma sequência de sete passos, cada um com um objetivo, um tempo, frases para dizer e um modelo que você pode esboçar no quadro. É o mesmo framework ensinado na [Aula 1 · Framework de entrevista](../../../classes/intro/interview-framework/index.md) e seguido por todos os [estudos de caso](../../../classes/case-studies/ticketing/index.md); aqui ele está escrito como um checklist para ensaiar.
 
@@ -7,7 +7,7 @@ Ao longo da página, o exemplo é a pergunta da [página inicial](../index.md): 
 !!! note "Os modelos ficam em inglês"
     Os modelos dos blocos de texto estão em inglês de propósito: é a língua em que a maioria das entrevistas de system design acontece, e o vocabulário (QPS, p99, idempotency key) é o mesmo em português. Copie-os assim e preencha em qualquer língua.
 
-``` mermaid
+``` diagram
 flowchart LR
     A[1. Esclarecer<br/>~5 min] --> B[2. Estimar<br/>~5 min]
     B --> C[3. API e modelo de dados<br/>~5 min]
@@ -18,7 +18,7 @@ flowchart LR
     E -.novo requisito ou preocupação.-> A
 ```
 
-## Tempos
+## Tempos { #timing }
 
 | Passo | Entrevista de 45 minutos | Entrevista de 60 minutos | Resultado no quadro |
 |---|---|---|---|
@@ -35,7 +35,7 @@ flowchart LR
 
 ---
 
-## 1. Esclarecer os requisitos
+## 1. Esclarecer os requisitos { #1-clarify-the-requirements }
 
 **Objetivo.** Transformar um enunciado de uma linha num problema com fronteiras: quem usa, para quê, em que escala, e o que nunca pode dar errado. Tudo o que vem depois deste passo se justifica por algo escrito aqui.
 
@@ -85,7 +85,7 @@ The hard part (one sentence): ...
 
 ---
 
-## 2. Estimar
+## 2. Estimar { #2-estimate }
 
 **Objetivo.** Pôr ordens de grandeza nos requisitos para que cada escolha posterior tenha um número por trás. Você não está fazendo um orçamento; está encontrando **o número, ou os dois números, que decidem o design**.
 
@@ -132,7 +132,7 @@ Deciding number(s): ...  =>  implication: ...
 
 ---
 
-## 3. API e modelo de dados
+## 3. API e modelo de dados { #3-api-and-data-model }
 
 **Objetivo.** Tornar o design concreto: as principais operações que os clientes chamam (ou os eventos que os serviços trocam) e as entidades com suas chaves e padrões de acesso. Os padrões de acesso escolhem o banco; as operações que mexem com dinheiro ou estoque ganham **chaves de idempotência**.
 
@@ -176,7 +176,7 @@ order       order_id            by id; by user_id            SQL, strong
 
 ---
 
-## 4. Design de alto nível
+## 4. Design de alto nível { #4-high-level-design }
 
 **Objetivo.** Um diagrama que atenda a todos os requisitos funcionais de ponta a ponta, com o fluxo de dados rotulado. Mantenha-o simples; você vai melhorá-lo nos aprofundamentos. Percorra **uma leitura e uma escrita** em voz alta.
 
@@ -215,7 +215,7 @@ HIGH-LEVEL CHECKLIST
 
 ---
 
-## 5. Aprofundamentos
+## 5. Aprofundamentos { #5-deep-dives }
 
 **Objetivo.** Mostrar profundidade onde o problema é difícil. Escolha um ou dois componentes (ou deixe o entrevistador escolher) e entre em algoritmos, organização dos dados, consistência, tratamento de falhas e números. É aqui que acontece a maior parte da avaliação.
 
@@ -255,7 +255,7 @@ DEEP-DIVE CHECKLIST (for the chosen component)
 
 ---
 
-## 6. Gargalos e trade-offs
+## 6. Gargalos e trade-offs { #6-bottlenecks-and-trade-offs }
 
 **Objetivo.** Dar um passo atrás e estressar o design: o que quebra primeiro com 10× a carga, onde estão os pontos únicos de falha, o que você trocou e como observaria e testaria. É aqui que você mostra julgamento.
 
@@ -302,7 +302,7 @@ How we'd test it: load profile ... / chaos experiment ...
 
 ---
 
-## 7. Fechamento
+## 7. Fechamento { #7-wrap-up }
 
 **Objetivo.** Deixar uma imagem clara: um resumo curto, os trade-offs principais e o que você faria com mais tempo. Terminar no horário.
 
@@ -329,9 +329,9 @@ Next with more time: multi-region / cost / abuse & security / analytics / evolut
 !!! example "Venda relâmpago do BoxOffice — passo 7"
     "Construímos um fluxo de venda de ingressos para um show num estádio em que 2 milhões de fãs disputam 60.000 assentos às 10:00. A CDN e os caches absorvem o pico de leitura, uma sala de espera transforma a multidão num fluxo constante, e as reservas de assento são updates condicionais atômicos no PostgreSQL, então um assento nunca é vendido duas vezes. O pagamento passa por um adaptador idempotente com timeouts e circuit breaker, e a confirmação segue de forma assíncrona por um outbox e o Kafka até o e-mail e o analytics. O principal risco é o provedor de pagamento no pico; com mais tempo, eu acrescentaria um segundo provedor, uma segunda região para o caminho de leitura e um modelo de pontuação de bots no WAF."
 
-### A arquitetura final
+### A arquitetura final { #the-final-architecture }
 
-``` mermaid
+``` diagram
 flowchart LR
     F[Fãs: web e mobile] --> DNS --> CDN[CDN: página do evento, assets]
     CDN --> WAF[WAF + proteção contra bots]
@@ -355,16 +355,16 @@ flowchart LR
 
 ---
 
-## Ensaie no playground
+## Ensaie no playground { #rehearse-in-the-playground }
 
-Ler o framework não é o mesmo que executá-lo sob pressão. O playground tem a venda relâmpago do BoxOffice pré-carregada: o design inicial falha às 10:00 de um jeito instrutivo.
+Ler o framework não é o mesmo que executá-lo sob pressão. O playground tem uma venda relâmpago pré-carregada — um lançamento com estoque limitado, a abertura das 10:00 do BoxOffice em forma genérica: quando a venda abre, o tráfego salta 20× e o design inicial (`users` → balanceador → `app` → `inventory-db`, mais o `payment provider`) falha de um jeito instrutivo.
 
 !!! question "Experimente"
-    Rode o cenário com o perfil de spike padrão e veja qual nó fica vermelho primeiro. Depois aplique os movimentos do passo 5, um de cada vez — coloque o catálogo atrás da CDN e de um cache, acrescente uma fila de sala de espera na frente de `inventory`, proteja a aresta do pagamento com timeout e circuit breaker — e rode de novo após cada mudança. Diga em voz alta, como numa entrevista, qual número cada mudança melhorou (p99, taxa de erros, custo).
+    Rode o cenário como ele vem (a venda abre em t = 60 s) e veja qual nó fica vermelho primeiro. Depois aplique os movimentos do passo 5, um de cada vez — sirva as leituras de uma CDN e de um cache na frente de `inventory-db`, mande as escritas por um API gateway para uma fila de sala de espera drenada por workers abaixo da cota do provedor de pagamento (500 req/s), proteja a aresta do pagamento com timeout e circuit breaker — e rode de novo após cada mudança. Diga em voz alta, como numa entrevista, qual número cada mudança melhorou (p99, taxa de erros, atraso do consumidor, custo).
 
 <div class="sdp" data-scenario="flash-sale" data-mode="compact" data-height="520"></div>
 
-## Para onde ir agora
+## Para onde ir agora { #where-to-go-next }
 
 - Pratique o framework nos [problemas para praticar](../problems/index.md), do aquecimento ao avançado.
 - Execute-o com um colega usando o [protocolo de entrevista simulada](../mock/index.md) e a sua rubrica.

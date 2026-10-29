@@ -34,7 +34,7 @@ An **incident** is an unplanned event that degrades or threatens a service users
 
 ## The incident lifecycle
 
-``` mermaid-sim
+``` diagram-sim
 stateDiagram-v2
     [*] --> Detected : alert, customer report, or engineer notices
     Detected --> Triaged : on-call acknowledges, assesses impact
@@ -78,7 +78,7 @@ In a small team, one person can hold several roles; the IC and the operations le
 
 Play the first fifteen minutes of the flash-sale incident:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     participant AM as Alertmanager
@@ -152,13 +152,15 @@ Outside the company, the status page states **impact and progress**, never inter
 | 10:14 | secondary provider active, waiting room throttled; errors back to normal | **MTTM ≈ 12 min** |
 | 10:40 | stable, incident resolved | **MTTR ≈ 38 min** |
 
+The page came one minute after the impact started only because the on-sale has **its own SLO**, alerting on 5-minute and 1-minute windows ([Alerting](../alerting/index.md)). At 12% failures, the general 28-day rule — 14.4× over a 1-hour window — would have needed about 60 min × 1.44% / 12% ≈ 7 minutes to fire: more than half of the time to mitigation, gone before anyone looked.
+
 What did it cost in SLO terms? With illustrative numbers — 200 checkout attempts per second during the on-sale and an average of 12% failures for the 12 minutes of impact:
 
 $$
 200 \times 720\ \text{s} \times 0.12 \approx 17\,300 \text{ failed checkouts}
 $$
 
-If BoxOffice handles about 2 million checkouts in a normal 28-day window (the SLO window used in [Reliability](../../reliability/slo/index.md)), a 99.9% SLO allows **2,000** failures. This one incident spent more than eight 28-day budgets — over seven months' worth — in twelve minutes. The [error budget policy](../../reliability/slo/index.md) now applies: feature work on checkout pauses until the reliability action items are done. That is the error budget doing its job — turning one bad morning into a funded engineering priority.
+If BoxOffice handles about 2 million checkouts in a normal 28-day window (the SLO window used in [Reliability](../slo/index.md)), a 99.9% SLO allows **2,000** failures. This one incident spent more than eight 28-day budgets — over seven months' worth — in twelve minutes. The [error budget policy](../slo/index.md) now applies: feature work on checkout pauses until the reliability action items are done. That is the error budget doing its job — turning one bad morning into a funded engineering priority.
 
 ---
 
@@ -222,6 +224,14 @@ Action items are the only part of a postmortem that changes anything. Each one i
 - **Practice**: turn the incident into a **game day** scenario — inject provider latency with Toxiproxy and check that the new timeout, breaker and alert behave ([Hands-on 9](../../../hands-on/9/index.md)).
 - **Measure delivery health**: the DORA metrics *change failure rate* and *failed deployment recovery time*[^6] show whether incidents caused by changes are becoming rarer and shorter.
 
+!!! example "In the BoxOffice code: a rehearsed incident (lab 9)"
+
+    [Hands-on 9 — Game day](../../../hands-on/9/game-day/index.md) runs this page in miniature. A game master injects one of six failures without telling anyone which; the operators detect it with the lab 8 dashboard and the burn-rate alerts (copied for `order` in `slo-order.yaml`); a scribe keeps the timeline; and each round ends with a blameless review in `results/lab9-gameday.md` — time to detect, time to mitigate, action items with an owner. The script below is the game master's whole toolbox, and its `reset` is the abort button, tested before the first injection.
+
+    ``` { .sh title="scripts/game-day.sh (the hidden failures)" }
+    --8<-- "docs/2027.1/hands-on/9/code/scripts/game-day.sh:7:16"
+    ```
+
 !!! note "AI assistants in incident response"
 
     In 2026 many teams use LLM-based assistants to summarise the incident channel into a draft timeline, suggest queries, or search past postmortems for similar incidents. They are useful scribes and search tools. They are not incident commanders: an assistant can produce a confident but wrong root cause, so every claim must be checked against the telemetry, and decisions stay with the humans in the roles above.
@@ -242,6 +252,14 @@ Action items are the only part of a postmortem that changes anything. Each one i
 
     Interviews rarely ask "how do you run an incident?" directly, but they often ask "**what happens when X fails?**" A strong answer covers three layers: *how the system degrades* (timeouts, fallbacks, waiting room), *how you find out* (SLO burn-rate alert, before customers tell you), and *how you recover* (a generic mitigation — failover, rollback, flag — that is documented and tested). In behavioural interviews, a well-told incident story — your role, how you mitigated, what the postmortem changed — is one of the strongest signals of real experience (see [Interview preparation](../../../support/interview/index.md)).
 
+!!! success "Best practices"
+
+    - **Publish the severity table and the IC rotation before the on-sale** — nobody should debate what a SEV1 is, or who commands, at 10:03.
+    - **Timestamp every observation, decision and change in one channel** — MTTD, MTTA and MTTM come from those timestamps, and the postmortem is written from them. In BoxOffice: the scribe's timeline in [Hands-on 9 — Game day](../../../hands-on/9/game-day/index.md).
+    - **Keep each generic mitigation a documented one-liner, rehearsed before it is needed** — rollback, flag flip, provider switch, waiting-room throttle; a mitigation first tried during the incident usually fails. In BoxOffice: `scripts/game-day.sh reset`, the abort button tested before the first injection.
+    - **State the impact as error budget spent** — "17,300 failed checkouts, eight 28-day budgets" turns one bad morning into a funded priority under the error budget policy. In BoxOffice: the *SLO budget spent* line of the lab 9 review template.
+    - **Publish the postmortem within a week, while memory is fresh** — accounts fade and logs expire; a review written a month later is reconstructed, not remembered.
+
 !!! warning "Common pitfalls"
 
     - **No incident commander**: everyone debugs, nobody decides, nobody communicates.
@@ -253,7 +271,7 @@ Action items are the only part of a postmortem that changes anything. Each one i
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     AL["burn-rate page<br/>→ Alerting"] --> TRI["triage: severity<br/>SEV1 to SEV4"]
     TRI --> ROLES["IC, ops lead,<br/>comms lead, scribe"]
@@ -267,18 +285,20 @@ flowchart LR
     PM --> GD["game day<br/>→ Chaos engineering"]
 ```
 
-**Palette components:** [`alerting`](../../../reference/components/observability/index.md#alerting) (the page that starts it) · [`tracing`](../../../reference/components/observability/index.md#tracing) (the exemplar trace that found `pool.acquire`) · [`payment`](../../../reference/components/external/index.md#payment) (failover to the secondary provider) · [`queue`](../../../reference/components/messaging/index.md#queue) (the waiting room, throttled to shed load) · [`waf`](../../../reference/components/edge/index.md#waf) (blocking abusive traffic) · [`app`](../../../reference/components/compute/index.md#app) (rollback or scale-out of a service). **Scenarios:** `flash-sale` (the on-sale incident), `cascading-failure` (a slow provider without timeouts). **Continues in:** [Reliability](../../reliability/index.md) (availability = MTTF / (MTTF + MTTR)), [Reliability — SLOs](../../reliability/slo/index.md), [Reliability — chaos engineering](../../reliability/chaos/index.md), [Cloud-native — delivery](../../cloud-native/delivery/index.md) (rollbacks, canaries, DORA), [Project — game day](../../../exercises/project/game-day/index.md), [Interview preparation](../../../support/interview/index.md).
+**Palette components:** [`alerting`](../../../reference/components/observability/index.md#alerting) (the page that starts it) · [`tracing`](../../../reference/components/observability/index.md#tracing) (the exemplar trace that found `pool.acquire`) · [`payment`](../../../reference/components/external/index.md#payment) (failover to the secondary provider) · [`queue`](../../../reference/components/messaging/index.md#queue) (the waiting room, throttled to shed load) · [`waf`](../../../reference/components/edge/index.md#waf) (blocking abusive traffic) · [`app`](../../../reference/components/compute/index.md#app) (rollback or scale-out of a service). **Scenarios:** `flash-sale` (the on-sale incident), `cascading-failure` (a slow provider without timeouts). **Continues in:** [Reliability](../../reliability/index.md) (availability = MTTF / (MTTF + MTTR)), [SLIs, SLOs & error budgets](../slo/index.md), [Reliability — chaos engineering](../../reliability/chaos/index.md), [Cloud-native — delivery](../../cloud-native/delivery/index.md) (rollbacks, canaries, DORA), [Project — game day](../../../exercises/project/game-day/index.md), [Interview preparation](../../../support/interview/index.md).
 
 ---
 
-## Key takeaways
+## Key takeaways { #key-takeaways }
 
-- An **incident** needs coordination; **severity levels** with clear criteria make declaring fast — declare early, downgrade freely.
-- On-call must be **sustainable**: primary/secondary, handoffs, runbooks, and a page load that leaves time for engineering.
-- Measure **MTTD, MTTA, MTTM, MTTR**; users feel the time to **mitigation**.
-- Roles — **incident commander**, ops lead, comms lead, scribe — prevent chaos; the IC coordinates and does not debug.
-- **Mitigate first** with generic, rehearsed mitigations (rollback, flag, failover, shed load); communicate on a fixed cadence.
-- **Blameless postmortems** look for all **contributing factors** and produce owned, dated **action items**; the loop closes with game days.
+!!! takeaways ""
+
+    - An **incident** needs coordination; **severity levels** with clear criteria make declaring fast — declare early, downgrade freely.
+    - On-call must be **sustainable**: primary/secondary, handoffs, runbooks, and a page load that leaves time for engineering.
+    - Measure **MTTD, MTTA, MTTM, MTTR**; users feel the time to **mitigation**.
+    - Roles — **incident commander**, ops lead, comms lead, scribe — prevent chaos; the IC coordinates and does not debug.
+    - **Mitigate first** with generic, rehearsed mitigations (rollback, flag, failover, shed load); communicate on a fixed cadence.
+    - **Blameless postmortems** look for all **contributing factors** and produce owned, dated **action items**; the loop closes with game days.
 
 ---
 

@@ -208,6 +208,14 @@ For **cache memory**, a common rule of thumb is the 80/20 rule: a small fraction
     - *One catalog instance handles ~1,000 req/s at 100% CPU (to be measured).* Peak 1,200 req/s at 60% target → 1,200 / 600 = 2 → **2 + 1 spare = 3 instances**.
     - Hot set: *the ~2,000 events on sale this month × 5 KB* (event JSON) + seat-map summaries (~300 KB each) ≈ 10 MB + 600 MB ≈ **~0.6 GB** — fits in a small Redis instance with a replica.
 
+!!! example "In the BoxOffice code: one node, sized and then measured (labs 1 and 2)"
+
+    The estimate above *assumes* 1,000 req/s per catalog instance. The labs replace the assumption with a measurement. [Hands-on 1](../../../hands-on/1/container/index.md) fixes the size of one node — 1 CPU, 768 MB and a pool of 10 database connections — and [Hands-on 2](../../../hands-on/2/index.md) measures what it serves: in the lab's example run, p99 stayed under 40 ms up to 300 req/s, reached 224 ms at 400 req/s and 2 s at 500 req/s. Capacity with p99 < 300 ms is therefore **~400 req/s**, not 1,000. Redo the line: 1,200 / (400 × 0.6) = 5 → **5 + 1 spare = 6 instances**, twice the first answer — and [lab 3](../../../hands-on/3/index.md#measure-it) shows they help only while the shared PostgreSQL keeps up.
+
+    ``` { .yaml title="docker-compose.yaml (the size of one catalog node)" }
+    --8<-- "docs/2027.1/hands-on/1/code/docker-compose.yaml:21:39"
+    ```
+
 ??? question "Think first: estimate a URL shortener"
 
     100 M new short URLs per month; reads are 100× writes; each record ~500 B; keep for 5 years.
@@ -222,6 +230,14 @@ For **cache memory**, a common rule of thumb is the 80/20 rule: a small fraction
 
     Carry a small "numbers card" in your head: **1 day ≈ 10⁵ s; 1 M/day ≈ 12/s; RAM ~100 ns; SSD ~100 µs; same-zone round trip ~0.5 ms; cross-continent ~100+ ms; 1 Gbit/s ≈ 125 MB/s**. Write assumptions before results, round everything to one significant digit, and finish every line with its consequence. If you are unsure of a number, say so and give a range: "a primary-key lookup is around a millisecond including the network — let's say 1 ms."
 
+!!! success "Best practices"
+
+    - **Keep units on every line and one significant digit in every result** — "4 × 10⁷ reads/day ≈ 400 reads/s"; units catch most mistakes before they reach a decision.
+    - **Replace each rule-of-thumb capacity with a measured one before you size a fleet** — the measurement is cheap, the wrong fleet is not. In BoxOffice: lab 2's ~400 req/s replaced the assumed 1,000 (box above).
+    - **Fix the CPU and memory of every container** — limits make "capacity per node" a property of the deployment, not of whoever's laptop ran the test. In BoxOffice: `cpus: "1.0"` and `memory: 768M` in [lab 1's compose](../../../hands-on/1/container/index.md).
+    - **Put egress next to bandwidth** — every gigabyte that leaves the cloud is billed; the CDN's hit ratio and the egress price belong in the same row of the sheet.
+    - **Keep a team numbers card with the source of each number** — latencies, throughputs and prices change with hardware and providers; a dated source tells you when to refresh it.
+
 !!! warning "Common pitfalls"
 
     - **Treating latency numbers as exact**: they are orders of magnitude; your hardware and your cloud will differ.
@@ -234,7 +250,7 @@ For **cache memory**, a common rule of thumb is the 80/20 rule: a small fraction
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     P2["powers of two and ten<br/>1 day ≈ 10⁵ s"] --> QPS["QPS: average and peak<br/>the spike estimated apart"]
     LAT["latency numbers<br/>RAM, SSD, network"] --> CACHE["cache the hot set<br/>→ Caching"]
@@ -249,13 +265,15 @@ flowchart LR
 
 **Palette components:** [`app`](../../../reference/components/compute/index.md#app) (instances = peak / capacity per node, plus spares) · [`sql`](../../../reference/components/storage/index.md#sql) (orders and seats stay under a terabyte; the durable-write ceiling) · [`cache`](../../../reference/components/storage/index.md#cache) (the hot set, ~0.6 GB for the catalog) · [`cdn`](../../../reference/components/edge/index.md#cdn) (image bandwidth off the origin) · [`objstore`](../../../reference/components/storage/index.md#objstore) (ticket PDFs, images, logs) · [`kafka`](../../../reference/components/messaging/index.md#kafka) (~10 MB/s per partition) · [`vectordb`](../../../reference/components/storage/index.md#vectordb) (~4 KB per embedding). **Scenarios:** `monolith`, `read-heavy-cache`, `cdn-static`, `url-shortener`. **Continues in:** [Queueing](../queueing/index.md), [Edge — DNS & CDN](../../edge/dns-cdn/index.md), [Caching](../../caching/index.md), [Databases — partitioning](../../databases/partitioning/index.md), [Case study: URL shortener](../../case-studies/url-shortener/index.md), [Exercise: estimation](../../../exercises/estimation/index.md).
 
-## Key takeaways
+## Key takeaways { #key-takeaways }
 
-- 2¹⁰ ≈ 10³; 1 day ≈ 10⁵ s; 1 M per day ≈ 12 per second.
-- Latencies span eight orders of magnitude: **RAM ~100 ns, SSD ~100 µs, same-zone network ~0.5 ms, cross-continent ~100 ms**; most design rules follow from these ratios.
-- QPS = users × actions / 86,400 × peak factor; **estimate spikes separately**.
-- Storage = items × size × retention × replication (× overhead); bandwidth = QPS × size.
-- Nodes = peak / (capacity × target utilization) + spares; cache the **hot set**.
+!!! takeaways ""
+
+    - 2¹⁰ ≈ 10³; 1 day ≈ 10⁵ s; 1 M per day ≈ 12 per second.
+    - Latencies span eight orders of magnitude: **RAM ~100 ns, SSD ~100 µs, same-zone network ~0.5 ms, cross-continent ~100 ms**; most design rules follow from these ratios.
+    - QPS = users × actions / 86,400 × peak factor; **estimate spikes separately**.
+    - Storage = items × size × retention × replication (× overhead); bandwidth = QPS × size.
+    - Nodes = peak / (capacity × target utilization) + spares; cache the **hot set**.
 
 ---
 

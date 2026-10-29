@@ -521,7 +521,7 @@ During an on-sale, fans look at the stadium's seat map (60,000 seats, colored fr
 
 **Watch for.** Querying 60,000 seat rows for each of 200,000 fans every few seconds is ~10⁹ rows per second. The map is a cached, compact snapshot (a bitmap); the hold itself is checked against the database, so a stale map can only cause a polite "seat just taken".
 
-**Practice.** Case study: [Ticketing (BoxOffice flash sale)](../../../classes/case-studies/ticketing/index.md) · Playground scenario: [`flash-sale`](../../../../playground/scenarios/index.md#flash-sale) (BoxOffice on-sale at 10:00)
+**Practice.** Case study: [Ticketing (BoxOffice flash sale)](../../../classes/case-studies/ticketing/index.md) · Playground scenario: [`flash-sale`](../../../../playground/scenarios/index.md#flash-sale) (limited-stock flash sale)
 
 ??? tip "Hints"
 
@@ -868,7 +868,7 @@ Design the API gateway in front of BoxOffice's 40 microservices: routing by path
 **Key concepts.**
 
 - [API gateway and rate-limiting algorithms](../../../classes/edge/api-gateway/index.md)
-- [OAuth 2 / OIDC and JWT](../../../classes/network-security/identity/index.md)
+- [OAuth 2 / OIDC and JWT](../../../classes/edge/identity/index.md)
 - [Load balancing and consistent hashing](../../../classes/edge/load-balancing/index.md)
 - [Canary releases and feature flags](../../../classes/cloud-native/delivery/index.md)
 - Catalog: [API Gateway](../../../reference/components/edge/index.md#apigw) · [Load Balancer](../../../reference/components/edge/index.md#lb) · [Auth Service](../../../reference/components/compute/index.md#auth) · [Cache](../../../reference/components/storage/index.md#cache) · [Logs](../../../reference/components/observability/index.md#logs)
@@ -942,7 +942,7 @@ The course's running example. A stadium show goes on sale Saturday at 10:00: 2 m
 
 **Watch for.** Treating it as a scale problem only ("add servers") misses the point: the hard parts are contention on 60,000 rows, a correct hold, and an external payment provider that becomes the bottleneck at 10:00.
 
-**Practice.** Case study: [Ticketing (BoxOffice flash sale)](../../../classes/case-studies/ticketing/index.md) · Playground scenario: [`flash-sale`](../../../../playground/scenarios/index.md#flash-sale) (BoxOffice on-sale at 10:00)
+**Practice.** Case study: [Ticketing (BoxOffice flash sale)](../../../classes/case-studies/ticketing/index.md) · Playground scenario: [`flash-sale`](../../../../playground/scenarios/index.md#flash-sale) (limited-stock flash sale)
 
 ??? tip "Hints"
 
@@ -995,12 +995,12 @@ Design only the waiting room for BoxOffice's biggest on-sales: up to 3 million f
 - [Queues vs pub/sub vs event logs](../../../classes/messaging/queues-pubsub/index.md)
 - [API gateway and rate-limiting algorithms](../../../classes/edge/api-gateway/index.md)
 - [Little's Law and queueing](../../../classes/estimation/queueing/index.md)
-- [OAuth 2 / OIDC and JWT](../../../classes/network-security/identity/index.md)
+- [OAuth 2 / OIDC and JWT](../../../classes/edge/identity/index.md)
 - Catalog: [CDN](../../../reference/components/edge/index.md#cdn) · [WAF](../../../reference/components/edge/index.md#waf) · [API Gateway](../../../reference/components/edge/index.md#apigw) · [Cache](../../../reference/components/storage/index.md#cache) · [Message Queue](../../../reference/components/messaging/index.md#queue)
 
 **Watch for.** If the waiting room itself depends on the backend it protects, it falls over with it. Keep it at the edge (CDN, gateway, a small fast store) and make admission tokens verifiable without a database call.
 
-**Practice.** Case study: [Ticketing (BoxOffice flash sale)](../../../classes/case-studies/ticketing/index.md) · Playground scenario: [`flash-sale`](../../../../playground/scenarios/index.md#flash-sale) (BoxOffice on-sale at 10:00)
+**Practice.** Case study: [Ticketing (BoxOffice flash sale)](../../../classes/case-studies/ticketing/index.md) · Playground scenario: [`flash-sale`](../../../../playground/scenarios/index.md#flash-sale) (limited-stock flash sale)
 
 ??? tip "Hints"
 
@@ -1029,7 +1029,7 @@ Design a hotel reservation system (like Booking.com) for 1 million hotels: users
 
 **Watch for.** Availability must be modeled per (hotel, room type, date): a 3-night reservation updates 3 rows in one transaction. Searches can be served from a stale cache; the reservation itself cannot.
 
-**Practice.** Case study: no case study yet — compare with [Ticketing (BoxOffice flash sale)](../../../classes/case-studies/ticketing/index.md) · Playground scenario: [`flash-sale`](../../../../playground/scenarios/index.md#flash-sale) (BoxOffice on-sale at 10:00)
+**Practice.** Case study: no case study yet — compare with [Ticketing (BoxOffice flash sale)](../../../classes/case-studies/ticketing/index.md) · Playground scenario: [`flash-sale`](../../../../playground/scenarios/index.md#flash-sale) (limited-stock flash sale)
 
 ??? tip "Hints"
 
@@ -1535,7 +1535,7 @@ Design an internal platform where BoxOffice teams build AI agents (support, prom
 - [Agents and tool use](../../../classes/ai-systems/agents/index.md)
 - [LLM gateway: routing, fallbacks, caching](../../../classes/ai-systems/llm-gateway/index.md)
 - [Guardrails and evaluations](../../../classes/ai-systems/safety-evals/index.md)
-- [OAuth 2 / OIDC and JWT](../../../classes/network-security/identity/index.md)
+- [OAuth 2 / OIDC and JWT](../../../classes/edge/identity/index.md)
 - [OpenTelemetry](../../../classes/observability/opentelemetry/index.md)
 - Catalog: [Orchestrator](../../../reference/components/ai/index.md#orchestrator) · [Tool Registry](../../../reference/components/ai/index.md#toolreg) · [LLM Gateway](../../../reference/components/ai/index.md#llmgw) · [Safety Mesh](../../../reference/components/ai/index.md#safety) · [Memory Fabric](../../../reference/components/ai/index.md#memory) · [Tracing](../../../reference/components/observability/index.md#tracing)
 

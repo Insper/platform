@@ -16,7 +16,7 @@ Computers talk to IP addresses (`203.0.113.10`, `2001:db8::10`); people type nam
 
 When the fan's phone needs `api.boxoffice.com`, it does not walk the hierarchy itself. A tiny **stub resolver** in the operating system asks a **recursive resolver** (the one from the mobile carrier, or a public one such as `1.1.1.1` or `8.8.8.8`), which does the work and caches the results:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant P as Phone (stub resolver)
     participant R as Recursive resolver
@@ -83,7 +83,7 @@ Because the authoritative server chooses the answer, it can give **different ans
 
 **DNS failover** is the simplest form of multi-region disaster recovery: the DNS provider probes `https://sa.boxoffice.com/health` every 10–30 s from several locations; after a few failures it stops returning the primary's address and returns the secondary's.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant HC as DNS health checker
     participant P as Region SP (primary)
@@ -114,7 +114,7 @@ sequenceDiagram
 
 With ordinary (**unicast**) addressing, one IP address belongs to one place. With **anycast**, the *same* IP address is announced over BGP (the Border Gateway Protocol that glues the Internet's networks together) from many locations at once, and each packet is delivered by the network to the **nearest** one, in routing terms.
 
-``` mermaid
+``` diagram
 flowchart LR
     f1([Fan in São Paulo]) --> sp["Edge São Paulo<br/>announces 198.51.100.1"]
     f2([Fan in Lisbon]) --> li["Edge Lisbon<br/>announces 198.51.100.1"]
@@ -141,7 +141,7 @@ A CDN does three jobs at once[^5]:
 2. **Offload**: every cache hit is a request the **origin** (your servers) never sees. This is often the main reason for a CDN in a system design.
 3. **Protection**: the CDN's capacity and anycast network absorb traffic spikes and attacks before they reach you.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant F1 as Fan 1 (Recife)
     participant E as CDN PoP Recife
@@ -218,7 +218,7 @@ Prefer versioned URLs for every static asset and keep purges for the exceptional
 
 With 300 PoPs, a new file can cause **300 misses** — one per PoP — that all hit the origin. A **tiered cache** (or **origin shield**) adds a middle layer: PoPs ask a regional cache, and only the regional cache asks the origin. The origin sees one request per object instead of one per PoP, and request collapsing at the shield merges simultaneous misses for the same object into a single origin fetch.
 
-``` mermaid
+``` diagram
 flowchart LR
     p1[PoP Recife] --> sh[Origin shield<br/>São Paulo]
     p2[PoP Porto Alegre] --> sh
@@ -340,6 +340,14 @@ Bad uses: anything that needs your database on every request (the function is fa
     - Mention **DNS** in one sentence — "latency-based DNS to the nearest region, with health-checked failover" — and know its limit: failover takes about **detection + TTL**, minutes, not seconds.
     - For a global, read-heavy system (news feed, video streaming, URL shortener redirects), the CDN is often *the* most important component of the design.
 
+!!! success "Best practices"
+
+    - **Set `Cache-Control` explicitly on every origin response** — including `private` or `no-store` on personal data; never let a CDN's default decide what is shared.
+    - **Lower the DNS TTL days before a planned migration or sale, and raise it afterwards** — resolvers keep the old TTL until it expires, so the change must be made a TTL ahead.
+    - **Monitor the hit ratio per path and alert when it drops** — from 95% to 80% quadruples the origin's load (5% → 20% of requests).
+    - **Serve `stale-if-error` and `stale-while-revalidate`** — the CDN keeps answering with the last good copy when the origin fails or is refreshing.
+    - **Keep the static fallback pages on the CDN** — "sold out", the waiting room, the maintenance page; they must load when every service behind them is down.
+
 !!! warning "Pitfalls"
     - **Caching personalised responses** in a shared cache because a cookie or `Authorization` header is not in the cache key: one user sees another's data. Mark them `private` or `no-store`.
     - **Purging as a deploy strategy**: purges are slow, can fail and do not reach browsers. Use versioned file names.
@@ -352,7 +360,7 @@ Bad uses: anything that needs your database on every request (the function is fa
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     TTL["DNS TTL"] --> FO["failover speed<br/>→ multi-region (class 3)"]
     ANY["anycast"] --> DDOS["DDoS absorption<br/>→ edge security"]
@@ -365,15 +373,17 @@ flowchart LR
 
 **Palette components:** [`dns`](../../../reference/components/edge/index.md#dns) · [`cdn`](../../../reference/components/edge/index.md#cdn) · [`objstore`](../../../reference/components/storage/index.md#objstore) (the usual CDN origin for images and video) · [`cache`](../../../reference/components/storage/index.md#cache) (the next cache layer behind the CDN). **Scenarios:** `cdn-static`, `multi-region`, `video-streaming`. **Continues in:** [Caching — patterns](../../caching/patterns/index.md), [Distributed Systems — CAP & PACELC](../../distributed/cap-pacelc/index.md#multi-region), [Case study: video streaming](../../case-studies/video-streaming/index.md).
 
-## Key takeaways
+## Key takeaways { #key-takeaways }
 
-- DNS is a **hierarchical, delegated, cached** database; caching by recursive resolvers means the authoritative servers see one query per resolver per TTL.
-- The **TTL** trades change propagation against lookup load; lower it *before* a planned change.
-- DNS can route by **geography, latency, weight or health**; DNS failover takes about **detection + TTL**, and some clients ignore TTLs.
-- **Anycast** announces the same IP from many locations: low latency, fast failover and DDoS absorption.
-- A **CDN** cuts latency, offloads the origin and absorbs attacks; most CDNs **pull** from the origin and cache by a **cache key** you must design.
-- The origin controls caching with **`Cache-Control`**; prefer **versioned URLs** to purges; **micro-caching** makes hot dynamic endpoints cheap.
-- Every extra nine of **hit ratio** divides the origin load by ten.
+!!! takeaways ""
+
+    - DNS is a **hierarchical, delegated, cached** database; caching by recursive resolvers means the authoritative servers see one query per resolver per TTL.
+    - The **TTL** trades change propagation against lookup load; lower it *before* a planned change.
+    - DNS can route by **geography, latency, weight or health**; DNS failover takes about **detection + TTL**, and some clients ignore TTLs.
+    - **Anycast** announces the same IP from many locations: low latency, fast failover and DDoS absorption.
+    - A **CDN** cuts latency, offloads the origin and absorbs attacks; most CDNs **pull** from the origin and cache by a **cache key** you must design.
+    - The origin controls caching with **`Cache-Control`**; prefer **versioned URLs** to purges; **micro-caching** makes hot dynamic endpoints cheap.
+    - Every extra nine of **hit ratio** divides the origin load by ten.
 
 ---
 

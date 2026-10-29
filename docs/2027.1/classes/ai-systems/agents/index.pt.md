@@ -6,7 +6,7 @@ O segundo escreve um **agente**: entrega ao modelo as ferramentas e o objetivo, 
 
 Os dois projetos estão corretos — para pedidos diferentes. Esta página trata da maquinaria do segundo e de como saber quando escolher o primeiro.
 
-## Workflows e agentes
+## Workflows e agentes { #workflows-and-agents }
 
 A diferença está em **quem decide o próximo passo**: o seu código ou o modelo[^1].
 
@@ -27,7 +27,7 @@ Comece pelo topo da tabela e desça **apenas quando o nível mais simples falhar
 
 Um agente é um loop em torno de uma chamada ao modelo. Na formulação **ReAct**[^2], o modelo alterna entre *raciocinar* (o que eu sei, do que eu preciso), *agir* (pedir uma chamada de ferramenta) e *observar* (ler o resultado da ferramenta), até conseguir responder.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart TD
     start(["mensagem do usuário"]) --> ctx["montar o contexto:<br/>system prompt + ferramentas + memória + histórico"]
     ctx --> call["chamar o modelo (via gateway de LLM)"]
@@ -82,7 +82,15 @@ Cinco detalhes nessas 25 linhas concentram a maior parte da engenharia:
 4. **As ferramentas oferecidas dependem do usuário** (`schemas_for(user)`): um visitante anônimo nem sequer vê `hold_seats`. Uma ferramenta que o modelo não enxerga é uma ferramenta que ele não pode usar indevidamente.
 5. **O histórico cresce a cada passo** — o crescimento quadrático de tokens calculado na [visão geral](../index.md#numbers).
 
-### Parada e gerenciamento de contexto
+!!! example "No código do BoxOffice: o laço limitado do assistente (lab 12)"
+
+    O [Hands-on 12 — Ferramentas e o laço do agente](../../../hands-on/12/tools/index.md) escreve este laço com duas decisões que o esboço acima deixa em aberto. Ele **recupera primeiro**: os 5 eventos do catálogo mais próximos entram no prompt antes da primeira chamada ao modelo, porque modelos locais pequenos chamam ferramentas de forma pouco confiável e, com o contexto já presente, as perguntas comuns não precisam de ferramenta nenhuma. E a **última das `MAX_STEPS` = 4 chamadas é feita sem ferramentas**, então o modelo precisa responder: o orçamento de passos não pode terminar em silêncio. Cada passo é transmitido ao fã em streaming, e os resultados das ferramentas voltam como mensagens `role: tool` — dados, nunca instruções.
+
+    ``` { .python title="services/assistant/app/agent.py (the loop)" }
+    --8<-- "docs/2027.1/hands-on/12/code/services/assistant/app/agent.py:49:82"
+    ```
+
+### Parada e gerenciamento de contexto { #stopping-and-context-management }
 
 | Condição de parada | Por quê |
 |---|---|
@@ -97,7 +105,7 @@ Cinco detalhes nessas 25 linhas concentram a maior parte da engenharia:
 
 ---
 
-## Chamada de ferramentas
+## Chamada de ferramentas { #tool-calling }
 
 A chamada de ferramentas (tool calling, também conhecida como *function calling*) é o contrato entre o modelo e o seu código:
 
@@ -136,13 +144,21 @@ Uma chamada ao modelo pode ser repetida à vontade. Uma chamada de ferramenta **
 | Irreversível / financeira | `create_order`, `refund_order`, `charge` | **confirmação explícita do usuário** na interface, nunca apenas por texto |
 | Comunicação externa | `send_email`, `post_review` | confirmação, ou nem é oferecida |
 
-### Execução durável
+!!! example "No código do BoxOffice: ferramentas só de leitura, identidade vinda do gateway (lab 12)"
+
+    O registro do lab fica com a linha mais segura desta tabela: suas três ferramentas — `search_events`, `get_event`, `get_order_status` — são **só de leitura**, então um modelo confuso ou manipulado pode, no máximo, ler ([Hands-on 12 — Ferramentas](../../../hands-on/12/tools/index.md)). O preço é que o assistente do lab não consegue reservar assentos; `hold_seats`, com chave de idempotência e um limite, é a próxima ferramenta a acrescentar, não uma que o lab constrói. `get_order_status` pega a identidade do fã do cabeçalho `X-User-Email` definido pelo gateway do [lab 4](../../../hands-on/4/gateway/index.md), nunca de um argumento que o modelo preenche, e responde "order not found" para o pedido de outro fã exatamente como para um pedido inexistente, para que ninguém consiga sondar quais ids de pedido existem.
+
+    ``` { .python title="services/assistant/app/tools.py (context and one tool)" }
+    --8<-- "docs/2027.1/hands-on/12/code/services/assistant/app/tools.py:17:21,53:64"
+    ```
+
+### Execução durável { #durable-execution }
 
 Uma conversa que aguarda a confirmação do fã, ou uma tarefa que roda por minutos, não pode viver só na memória de um processo: pods reiniciam. Persista o estado do agente depois de **cada passo** — mensagens, chamadas de ferramenta pendentes, chaves de idempotência — em um banco de dados, e retome a partir do último checkpoint. Para tarefas longas de vários passos, um **motor de workflow durável** (no estilo do Temporal: cada passo registrado, repetido e retomável) entrega isso de graça; para chats curtos, uma linha `conversation_state` mais o cache de sessão do [Memory Fabric](../rag-memory/index.md) bastam.
 
 ---
 
-## Planejamento
+## Planejamento { #planning }
 
 O loop do agente planeja **um passo de cada vez**. Para tarefas mais longas, o planejamento explícito ajuda:
 
@@ -164,7 +180,7 @@ O loop do agente planeja **um passo de cada vez**. Para tarefas mais longas, o p
 
     Mostrar o plano custa uma chamada, mas permite que o fã corrija um mal-entendido *antes* de qualquer ação, e dá ao time de avaliação uma trajetória para comparar com a esperada.
 
-### Por que cada passo precisa ser verificado
+### Por que cada passo precisa ser verificado { #why-every-step-must-be-checked }
 
 Se cada passo está certo com probabilidade $p$, de forma independente, uma tarefa de $n$ passos tem sucesso com probabilidade $p^n$:
 
@@ -188,7 +204,7 @@ Um passo que acerta 95% das vezes parece bom; uma tarefa de 10 passos construíd
 
 Sem um padrão, cada agente precisa de uma integração sob medida com cada ferramenta: N agentes × M ferramentas. O **Model Context Protocol (MCP)**[^5] faz pelos agentes o que o Language Server Protocol fez pelos editores de código: cada provedor de ferramentas escreve **um servidor MCP**, cada host de agente embute **clientes MCP**, e qualquer cliente pode usar qualquer servidor — N + M integrações.
 
-``` mermaid
+``` diagram
 flowchart LR
     subgraph Host["Host: serviço do assistente (orquestrador)"]
         c1["cliente MCP"]
@@ -278,9 +294,9 @@ Na rede, é isto que o cliente do orquestrador vê quando descobre a ferramenta 
             "isError": false}}
 ```
 
-Repare no que **não** é argumento: a identidade do fã. O servidor MCP obtém o usuário da **sessão autenticada** (o access token OAuth que o host obteve em nome do fã, como em [Identidade](../../network-security/identity/index.md)) — nunca de um campo preenchido pelo modelo, ou uma injeção de prompt poderia reservar assentos para outra pessoa.
+Repare no que **não** é argumento: a identidade do fã. O servidor MCP obtém o usuário da **sessão autenticada** (o access token OAuth que o host obteve em nome do fã, como em [Identidade](../../edge/identity/index.md)) — nunca de um campo preenchido pelo modelo, ou uma injeção de prompt poderia reservar assentos para outra pessoa.
 
-### O registro em torno do MCP
+### O registro em torno do MCP { #the-registry-around-mcp }
 
 O MCP padroniza o *protocolo de rede*; o componente **Tool Registry** é a governança em torno dele:
 
@@ -301,7 +317,7 @@ Para a comunicação **entre agentes** de times ou empresas diferentes, estão s
 
 ---
 
-## Orquestração multiagente
+## Orquestração multiagente { #multi-agent-orchestration }
 
 Quando um agente tem ferramentas demais, um prompt longo demais ou tarefas que podem rodar em paralelo, o trabalho é dividido entre vários agentes.
 
@@ -313,7 +329,7 @@ Quando um agente tem ferramentas demais, um prompt longo demais ou tarefas que p
 | **Avaliador-otimizador** | um gerador e um crítico iteram | um rascunho de resposta a um fã irritado, verificado contra a política | qualidade em saídas difíceis |
 | **Hierárquico** | supervisores de supervisores | grande automação de back-office | tarefas muito grandes — raramente necessário |
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     actor F as Fã
     participant S as Agente supervisor
@@ -333,7 +349,7 @@ Sistemas multiagente trocam dinheiro e latência por modularidade. Cada agente t
 
 ---
 
-## Quando NÃO usar agentes
+## Quando NÃO usar agentes { #when-not-to-use-agents }
 
 | Se… | …então prefira | BoxOffice |
 |---|---|---|
@@ -353,7 +369,7 @@ Sistemas multiagente trocam dinheiro e latência por modularidade. Cada agente t
 
 ---
 
-## BoxOffice: o rastro de uma tarefa
+## BoxOffice: o rastro de uma tarefa { #boxoffice-the-trace-of-one-task }
 
 | Passo | Saída do modelo | Ação do orquestrador | Contexto depois do passo |
 |---|---|---|---|
@@ -367,6 +383,15 @@ As chamadas de ferramenta em paralelo economizaram uma rodada inteira (≈ 2 s).
 !!! tip "Na entrevista"
 
     Diga **"workflow primeiro, agente onde for preciso"** e justifique com a matemática da composição ($0.95^{10} \approx 60\%$). Desenhe o loop com seus **orçamentos** (passos, tokens, tempo) e mostre onde as ferramentas são **autorizadas como o usuário** e **tornadas idempotentes**. Cite o MCP como a forma de os times exporem ferramentas, e acrescente um registro para permissões, níveis de risco e auditoria. Se o assunto multiagente aparecer, dê um motivo concreto (separação de ferramentas ou paralelismo) e o seu custo (tokens, latência, dificuldade de depuração).
+
+!!! success "Boas práticas"
+
+    - **Coloque no prompt, antes da primeira chamada, o que você já sabe** — documentos recuperados, a cidade do usuário, a data de hoje; cada rodada de ferramenta evitada economiza uma chamada inteira ao modelo (~2 s no rastro de uma tarefa acima). No BoxOffice: o lab 12 recupera os 5 eventos mais próximos primeiro ([laço do agente](../../../hands-on/12/tools/index.md)).
+    - **Faça o último passo permitido sem ferramentas** — o orçamento então termina com uma resposta, não com silêncio; a quarta chamada do lab 12 é feita sem ferramentas.
+    - **Devolva erros de ferramenta como dados curtos e acionáveis** — "event 42 does not exist" deixa o modelo se recuperar; o `tools.call()` do lab 12 transforma argumentos inválidos e falhas de serviço em JSON e nunca lança exceção.
+    - **Valide os argumentos contra o schema antes de executar a ferramenta** — o lab 12 valida toda chamada com pydantic e conta `invalid_args` em `assistant_tool_calls_total`.
+    - **Pare na repetição** — a mesma ferramenta com os mesmos argumentos duas vezes é um laço: encerre a execução e passe adiante em vez de gastar o resto do orçamento.
+    - **Salve o estado do agente a cada passo quando um humano precisa confirmar** — um restart do pod durante a confirmação precisa retomar a tarefa, não repetir seus efeitos colaterais.
 
 !!! warning "Armadilhas comuns"
 
@@ -382,7 +407,7 @@ As chamadas de ferramenta em paralelo economizaram uma rodada inteira (≈ 2 s).
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     WF{"steps known<br/>in advance?"} -->|"yes"| FLOW["workflow<br/>(code decides)"]
     WF -->|"no"| LOOP["agent loop<br/>(model decides)"]
@@ -396,7 +421,7 @@ flowchart LR
     TOOLS --> HITL["confirmation for risky actions<br/>→ Safety mesh"]
 ```
 
-**Componentes da paleta:** [`orchestrator`](../../../reference/components/ai/index.md#orchestrator) (executa o loop e controla os orçamentos) · [`toolreg`](../../../reference/components/ai/index.md#toolreg) (servidores MCP, permissões, níveis de risco) · [`llmgw`](../../../reference/components/ai/index.md#llmgw) (toda chamada ao modelo) · [`safety`](../../../reference/components/ai/index.md#safety) (aprovação de ações arriscadas) · [`auth`](../../../reference/components/compute/index.md#auth) (a identidade do usuário em cada chamada de ferramenta) · [`app`](../../../reference/components/compute/index.md#app) (os mesmos serviços `catalog` e `inventory` que o front end web chama). **Cenários:** `ai-assistant`. **Continua em:** [Mensageria — padrões](../../messaging/patterns/index.md) (sagas e compensação), [Rede e Segurança — identidade](../../network-security/identity/index.md), [Estimativas — matemática da disponibilidade](../../estimation/availability-math/index.md), [Compute — integrações](../../compute/integrations/index.md) (chaves de idempotência), [RAG e memória](../rag-memory/index.md), [Segurança, avaliações e observabilidade](../safety-evals/index.md).
+**Componentes da paleta:** [`orchestrator`](../../../reference/components/ai/index.md#orchestrator) (executa o loop e controla os orçamentos) · [`toolreg`](../../../reference/components/ai/index.md#toolreg) (servidores MCP, permissões, níveis de risco) · [`llmgw`](../../../reference/components/ai/index.md#llmgw) (toda chamada ao modelo) · [`safety`](../../../reference/components/ai/index.md#safety) (aprovação de ações arriscadas) · [`auth`](../../../reference/components/compute/index.md#auth) (a identidade do usuário em cada chamada de ferramenta) · [`app`](../../../reference/components/compute/index.md#app) (os mesmos serviços `catalog` e `inventory` que o front end web chama). **Cenários:** `ai-assistant`. **Continua em:** [Mensageria — padrões](../../messaging/patterns/index.md) (sagas e compensação), [Rede e Segurança — identidade](../../edge/identity/index.md), [Estimativas — matemática da disponibilidade](../../estimation/availability-math/index.md), [Compute — integrações](../../compute/integrations/index.md) (chaves de idempotência), [RAG e memória](../rag-memory/index.md), [Segurança, avaliações e observabilidade](../safety-evals/index.md).
 
 ---
 

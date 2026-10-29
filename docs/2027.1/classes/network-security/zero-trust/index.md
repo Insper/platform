@@ -11,7 +11,7 @@ The **perimeter model** ("castle and moat") protects the edge — firewall, VPN 
 
 **Zero Trust** removes the idea of a trusted network. Its motto is **"never trust, always verify"**: every request — from the Internet, from the office, from the pod next door — is authenticated, authorized and encrypted on its own merits[^1]. Google built its corporate network this way in the BeyondCorp project after 2011[^2]; NIST standardized the architecture in SP 800-207[^1].
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     subgraph perimeter ["Perimeter model"]
         fw["Firewall / VPN"] -->|"inside = trusted"| int["search, order, payment, DB<br/>(trust each other)"]
@@ -39,7 +39,7 @@ NIST names the moving parts: a **Policy Enforcement Point (PEP)** sits in the pa
 
 | Attacker step | Perimeter model | Zero Trust control | Where |
 |---|---|---|---|
-| Call `order` with a forged `X-Account-Id` | accepted — "only internal callers" | `order` accepts calls only from the gateway's mesh identity; header stripped at the edge | [Service mesh](../service-mesh/index.md), [Identity](../identity/index.md) |
+| Call `order` with a forged `X-Account-Id` | accepted — "only internal callers" | `order` accepts calls only from the gateway's mesh identity; header stripped at the edge | [Service mesh](../service-mesh/index.md), [Identity](../../edge/identity/index.md) |
 | Connect to PostgreSQL with the shared password | works | `search` has no route/SG/NetworkPolicy to the DB, and no DB credential at all | [Cloud networking](../cloud-network/index.md) |
 | Read `PSP_API_KEY` from the environment | it is there | the key exists only in `payment` pods, fetched from a secrets manager | [Secrets](#secrets-management) |
 | Exfiltrate to the Internet | NAT route, no egress rules | egress default-deny; only `payment` may reach the provider | [Service mesh](../service-mesh/index.md) |
@@ -130,7 +130,7 @@ spec:
 
 The payment provider lets a merchant hold **two active keys** at once — the standard trick for rotation without downtime. The lifecycle of BoxOffice's most valuable secret:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     actor Ops as Payments on-call
@@ -178,7 +178,7 @@ Each `order` pod gets its own database user that expires in an hour. A credentia
 
 Databases, object storage and backups are encrypted at rest with **envelope encryption**: each object is encrypted with a **data key**; the data key is itself encrypted with a **key-encryption key** that never leaves a **KMS** (Key Management Service) or HSM (hardware security module).
 
-``` mermaid
+``` diagram
 flowchart LR
     D["order data"] -->|"AES-256-GCM with data key"| E["ciphertext"]
     DK["data key (plaintext, in memory only)"] -->|"encrypt via KMS API"| EDK["encrypted data key<br/>(stored next to the ciphertext)"]
@@ -197,7 +197,7 @@ Scan before they land: a **pre-commit hook** and a CI job with a secret scanner 
 
 BoxOffice's `order` image contains a few hundred libraries written by strangers, built by a CI system, stored in a registry, and pulled by the cluster. Each step is an attack path: a malicious or compromised dependency (the 2024 `xz-utils` backdoor), a vulnerable one (Log4Shell, 2021), a compromised build system (SolarWinds, 2020), **typosquatting** (`spring-boot-strater`) and **dependency confusion** (a public package with the name of your internal one). Supply-chain security answers three questions: *what is inside?*, *is it vulnerable?*, *did it come from our pipeline, unmodified?*
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     src["Source<br/>(reviewed PR)"] --> build["CI build<br/>(isolated runner)"]
     build --> sbom["SBOM<br/>(syft → CycloneDX)"]
@@ -256,6 +256,14 @@ jobs:
           cosign attest --yes --type cyclonedx --predicate sbom.cdx.json "$IMAGE"
 ```
 
+!!! example "In the BoxOffice code: the image job of the pipeline (lab 11)"
+
+    [Hands-on 11 — Image and supply chain](../../../hands-on/11/supply-chain/index.md) answers the three questions for the `catalog` image, with one improvement over the job above: it builds the image locally (`load: true`), scans it, and pushes it **only if** the Trivy gate passes — a vulnerable image is never published. The gate is deliberately narrow, *critical and fixable* only: failing on every `HIGH` without a fix would block all work, and a gate that is always red gets ignored. The SBOM is SPDX (Syft), and instead of calling `cosign` the job uses GitHub's attestation actions, which sign the provenance and the SBOM keylessly with Sigstore (`id-token: write`) and bind them to the image **digest**. Every action is pinned to a commit SHA, and [Dependabot](../../../hands-on/11/supply-chain/index.md#keep-dependencies-moving) proposes weekly upgrades of actions, Maven dependencies and base images as pull requests that the pipeline tests. What the lab does **not** do is the last link below: the provenance is checked by hand (`gh attestation verify`), not by an admission controller.
+
+    ``` { .yaml title=".github/workflows/ci.yaml (image job: permissions, scan gate, attestations)" }
+    --8<-- "docs/2027.1/hands-on/11/code/.github/workflows/ci.yaml:73:78,119:126,142:154"
+    ```
+
 The last link is **verification at deploy time**. An admission controller (Kyverno, Sigstore policy-controller, OPA Gatekeeper) rejects any pod whose image was not signed by *our* release workflow:
 
 ```yaml
@@ -306,6 +314,15 @@ Other habits that close common gaps: **pin by digest** (`image@sha256:…`, acti
 !!! tip "In the interview"
     "Zero Trust" is a buzzword unless you make it concrete. Say three things: **every call carries an identity** (tokens for users, mTLS for services), **every resource checks a policy** (least privilege, default deny, including egress), and **credentials are short-lived** (workload identity, dynamic secrets, no static keys in CI). If the design has a payment provider, add: "the API key lives in a secrets manager, only the payment service can read it, and we rotate with two active keys." For supply chain, one line is enough: "CI produces an SBOM, scans, and signs images; the cluster only runs signed images."
 
+!!! success "Best practices"
+
+    - **Give every workload its own identity and a least-privilege role** — `payment` alone may read `PSP_API_KEY`; a leak then points at one service and rotation touches one service.
+    - **Rotate every secret on a schedule and rehearse the leak runbook** — dual-key rotation (e.g. every 90 days) and a drill each quarter, timed: how many minutes from "key leaked" to "old key revoked"?
+    - **Prefer dynamic, short-lived credentials** — database users issued per pod with a 1-hour TTL by a secrets engine instead of one password that lives for years.
+    - **Scan every push for secrets** — a secret scanner with push protection (in the repository and in CI) blocks the commit before the key is public.
+    - **Pin third-party actions and base images to a commit SHA or digest, and let a bot propose the updates** — in BoxOffice: lab 11's `ci.yaml` pins every action, and `dependabot.yml` opens weekly pull requests ([supply-chain box](#supply-chain-security)).
+    - **Give CI jobs the minimum token permissions** — `contents: read` by default, `id-token: write` only in the job that signs. In BoxOffice: the `image` job of [lab 11](../../../hands-on/11/supply-chain/index.md).
+
 !!! warning "Common pitfalls"
     - **"It's internal, so it's safe"** — the definition of the perimeter model.
     - **One shared credential for all services** — when it leaks, you cannot tell who used it, and rotation breaks everyone at once.
@@ -318,7 +335,7 @@ Other habits that close common gaps: **pin by digest** (`image@sha256:…`, acti
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     PER["perimeter model:<br/>inside = trusted"] -->|"replaced by"| ZT["Zero Trust:<br/>never trust, always verify"]
     ZT --> PEP["PEP: gateway for users,<br/>mesh proxy for workloads"]
@@ -332,15 +349,17 @@ flowchart LR
     DET --> IR["leaked-key runbook<br/>→ incident response"]
 ```
 
-**Palette components:** [`apigw`](../../../reference/components/edge/index.md#apigw) and [`mesh`](../../../reference/components/network/index.md#mesh) (the enforcement points) · [`payment`](../../../reference/components/external/index.md#payment) (the key only `payment` may read) · [`logs`](../../../reference/components/observability/index.md#logs) · [`alerting`](../../../reference/components/observability/index.md#alerting) (audit and denied-call alerts) · [`llmgw`](../../../reference/components/ai/index.md#llmgw) · [`toolreg`](../../../reference/components/ai/index.md#toolreg) (identities in an agent's tool calls). **Scenarios:** `ai-assistant`, `payment-system`. **Continues in:** [Service mesh](../service-mesh/index.md#mtls), [Identity](../identity/index.md#delegation), [Cloud-native — delivery](../../cloud-native/delivery/index.md), [Observability — incident response](../../observability/incident-response/index.md), [AI systems — safety & evals](../../ai-systems/safety-evals/index.md), [Hands-on 13 — security](../../../hands-on/13/security/index.md).
+**Palette components:** [`apigw`](../../../reference/components/edge/index.md#apigw) and [`mesh`](../../../reference/components/network/index.md#mesh) (the enforcement points) · [`payment`](../../../reference/components/external/index.md#payment) (the key only `payment` may read) · [`logs`](../../../reference/components/observability/index.md#logs) · [`alerting`](../../../reference/components/observability/index.md#alerting) (audit and denied-call alerts) · [`llmgw`](../../../reference/components/ai/index.md#llmgw) · [`toolreg`](../../../reference/components/ai/index.md#toolreg) (identities in an agent's tool calls). **Scenarios:** `ai-assistant`, `payment-system`. **Continues in:** [Service mesh](../service-mesh/index.md#mtls), [Identity](../../edge/identity/index.md#delegation), [Cloud-native — delivery](../../cloud-native/delivery/index.md), [Observability — incident response](../../observability/incident-response/index.md), [AI systems — safety & evals](../../ai-systems/safety-evals/index.md), [Hands-on 11 — supply chain](../../../hands-on/11/supply-chain/index.md), [Hands-on 13 — security](../../../hands-on/13/security/index.md).
 
-## Key takeaways
+## Key takeaways { #key-takeaways }
 
-- **Zero Trust**: no trusted network; every request is authenticated, authorized and encrypted at a **PEP** using a **PDP**'s decision. It turns a compromised pod into a dead end.
-- **Workload identity** (SPIFFE/mTLS, cloud roles for service accounts, CI OIDC) replaces static keys with short-lived, verifiable credentials.
-- **Secrets** belong in a secrets manager or Vault, scoped per service, audited, rotated (dual keys) — ideally **dynamic**; Kubernetes Secrets are base64, not encryption.
-- **Envelope encryption** with a KMS protects data at rest; secret scanning keeps keys out of Git.
-- **Supply chain**: SBOM (what is inside), scanning (is it vulnerable), signing + provenance + admission verification (did it come from us, unmodified).
+!!! takeaways ""
+
+    - **Zero Trust**: no trusted network; every request is authenticated, authorized and encrypted at a **PEP** using a **PDP**'s decision. It turns a compromised pod into a dead end.
+    - **Workload identity** (SPIFFE/mTLS, cloud roles for service accounts, CI OIDC) replaces static keys with short-lived, verifiable credentials.
+    - **Secrets** belong in a secrets manager or Vault, scoped per service, audited, rotated (dual keys) — ideally **dynamic**; Kubernetes Secrets are base64, not encryption.
+    - **Envelope encryption** with a KMS protects data at rest; secret scanning keeps keys out of Git.
+    - **Supply chain**: SBOM (what is inside), scanning (is it vulnerable), signing + provenance + admission verification (did it come from us, unmodified).
 
 ---
 

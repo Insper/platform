@@ -1,4 +1,4 @@
-# Armazenamento
+# Armazenamento { #storage }
 
 O **armazenamento** é onde vive o estado do sistema — e o estado é o que torna sistemas difíceis. A computação pode ser trocada, reiniciada e multiplicada à vontade; os dados precisam sobreviver a quedas, ser lidos de volta corretamente e permanecer consistentes quando muitas requisições mexem neles ao mesmo tempo. Cada componente de armazenamento da paleta responde a uma pergunta diferente: *onde está a verdade?* (SQL Database), *como sobreviver a um primário morto, e quanto se pode perder?* (DB Cluster), *como guardar volumes enormes com acesso simples?* (NoSQL DB), *como evitar perguntar de novo ao banco?* (Cache), *para onde vão os arquivos grandes?* (Object Store), *como analisar o histórico?* (Data Warehouse), *como encontrar coisas pelo significado?* (Vector DB).
 
@@ -14,7 +14,7 @@ No BoxOffice, o inventário de assentos e os pedidos vivem no PostgreSQL (a verd
 | [Data Warehouse](#dwh) | Banco analítico colunar para grandes varreduras e agregações (OLAP) | `dwh` |
 | [Vector DB](#vectordb) | Guarda embeddings e encontra os mais próximos (busca por similaridade) | `vectordb` |
 
-``` mermaid
+``` diagram
 flowchart LR
     APP[App Server] -->|leituras quentes| CACHE[Cache]
     APP -->|verdade: assentos, pedidos| SQL[SQL Database]

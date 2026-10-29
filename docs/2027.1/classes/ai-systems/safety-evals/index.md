@@ -34,7 +34,7 @@ In a classic application, code and data travel in separate channels: a prepared 
 - **Direct injection** (*jailbreaking*): the user writes the malicious instruction. The attacker is the user, so the damage is limited to what *that user* may do — **if** the tools enforce the user's permissions.
 - **Indirect injection**[^2]: the instruction arrives through content the model reads on the user's behalf — a retrieved document, an event description, a tool result, a web page, an e-mail, even an MCP tool description. The attacker is a **third party**, and the victim is the user who innocently asked a question.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     actor A as Attacker (promoter account)
     participant C as catalog
@@ -79,7 +79,7 @@ A useful rule of thumb[^3]: an agent becomes dangerous when it combines **(1) ac
 
 The **Safety Mesh** component is where these checks live. Like a service mesh, it applies policy **uniformly around** the other components instead of trusting each to implement it. Checks run at six points:
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     u(["user input"]) --> c1{"1. input:<br/>PII redaction,<br/>injection score"}
     c1 --> orch["Orchestrator"]
@@ -104,6 +104,16 @@ flowchart LR
 | Grounding / citation check | deterministic or model | 1–500 ms | citations must refer to retrieved chunks; claims supported by sources |
 
 Prefer **deterministic checks** wherever possible: they are fast, testable and cannot be talked out of their decision.
+
+!!! tip "Try it"
+
+    The `ai-assistant` scenario below has no Safety Mesh, and the simulator sends 2% of the questions as prompt-injection attempts. Press **Run** and read **unsafe answers**: 2% — every attack reaches the model. Drag a **Safety Mesh** from the palette into the path (delete the edge `gateway → assistant`, connect `gateway → Safety Mesh → assistant`) and run again: unsafe answers fall to **0.04%**, that is 2% × (1 − 0.98), its default catch rate, for about US$ 200 more per month and a p99 that barely moves. Then select the mesh and lower **Attack catch rate** to 0.90: 0.2%, and the goal (< 0.1%) fails.
+
+    ??? question "What should you have observed?"
+
+        A classifier is a probability, not a wall. At the 10:00 peak of the [overview](../index.md#numbers) (20,000 questions in ten minutes), 0.04% is still about **8 attacks that reach the model**, and 0.2% is 40. The mesh lowers the rate; only the design limits the damage of the ones that pass: read-only or user-scoped tools, untrusted text kept as data, confirmation for irreversible actions. Notice also what the mesh did *not* fix — the errors, p99 and cost come from the agent's six steps against the provider quota, which the scenario's hints fix with fewer steps, a semantic cache and a fallback model ([Agents & Tools](../agents/index.md), [LLM Gateway](../llm-gateway/index.md)).
+
+<div class="sdp" data-scenario="ai-assistant" data-mode="full" data-height="640"></div>
 
 ### PII redaction
 
@@ -185,6 +195,14 @@ def check_tool_call(name: str, args: dict, user, confirmed: bool = False) -> str
 ```
 
 Everything in it is deterministic and unit-testable: `redact("cartão 4111 1111 1111 1111")` returns `"cartão [CARD]"`; a 40-seat hold returns `deny: invalid arguments: List should have at most 6 items after validation, not 40`, which goes back to the model as a tool result so it can explain the limit to the fan.
+
+!!! example "In the BoxOffice code: the input and output guards (lab 12)"
+
+    [Hands-on 12 — Guardrails and metrics](../../../hands-on/12/guardrails/index.md) puts two deterministic checks around the model. On the way **in**: a length limit, a pattern list for the obvious injections (rejected with HTTP 422, before any model call) and the redaction of CPFs, card numbers and e-mails. On the way **out**: the citation check — an answer is *grounded* only if it cites documents it actually received, and invented ids become `[unverified]`. There is no tool-call check because the lab's tools are read-only: there, the strongest defense is the architecture. In a test run, `qwen2.5:1.5b` gave the right facts but ignored the rule to cite them, and the guard marked the answer `grounded: false`.
+
+    ``` { .python title="services/assistant/app/guardrails.py (redaction, input and output checks)" }
+    --8<-- "docs/2027.1/hands-on/12/code/services/assistant/app/guardrails.py:11:15,25:51"
+    ```
 
 ---
 
@@ -331,6 +349,18 @@ def traced_chat(llm, alias, messages, tools):
         return reply
 ```
 
+!!! example "In the BoxOffice code: tokens, cost and TTFT as metrics (lab 12)"
+
+    The lab's assistant exports seven OpenTelemetry metrics to the Grafana of lab 8 ([Hands-on 12 — Guardrails and metrics](../../../hands-on/12/guardrails/index.md)): tokens by model and type, estimated cost in US$, histograms of TTFT and of the full answer, tool calls by outcome, guardrail blocks and requests. Two details. The latency histograms get buckets **in seconds**, from 0.1 to 64 s, because the defaults are made for milliseconds. And the names are the lab's own (`assistant.*`), not yet the `gen_ai.*` conventions above — renaming them is the step to take when a second AI service appears. TTFT under load is measured by [`assistant_load.py`](../../../hands-on/12/measure/index.md), which reads the Server-Sent Events: k6 stops at the first byte, which a streaming server sends before the first token. On a busy laptop CPU, the lab measured TTFT p50 5.05 s and p95 13.17 s with one request at a time.
+
+    ``` { .python title="services/assistant/app/metrics.py (buckets and instruments)" }
+    --8<-- "docs/2027.1/hands-on/12/code/services/assistant/app/metrics.py:15:16,33:39"
+    ```
+
+    ``` { .python title="services/assistant/app/agent.py (accounting at the end of each answer)" }
+    --8<-- "docs/2027.1/hands-on/12/code/services/assistant/app/agent.py:84:97"
+    ```
+
 ### Prompts in telemetry: useful and dangerous
 
 The prompt and the completion are the most useful debugging data — and the most sensitive. The conventions treat **content capture as opt-in**. A reasonable policy: no content by default; content for a small sample, **redacted** with the same functions as the Safety Mesh, with short retention and restricted access; full content only for conversations the fan explicitly reported. Remember incident 2: telemetry is a data store subject to the LGPD.
@@ -351,6 +381,14 @@ The prompt and the completion are the most useful debugging data — and the mos
 
     Say **"defense in depth, assume the model can be compromised"**: least privilege and user-scoped tools, untrusted content treated as data, deterministic validation of every tool call and output, and human confirmation for irreversible actions. Mention the **lethal trifecta** and remove one leg. For quality, describe a **golden set in CI** graded by final state plus a **validated LLM judge**, reported as pass^k, and **canary** rollouts behind the gateway alias. For operations, one trace per request with **GenAI attributes** (model, tokens, cost, TTFT) and a **cost burn-rate** alert.
 
+!!! success "Best practices"
+
+    - **Redact before the first hop** — personal data is replaced before the text reaches the provider, the logs or the traces. In BoxOffice: `check_input()` of [lab 12](../../../hands-on/12/guardrails/index.md) rewrites CPFs, cards and e-mails before anything else runs.
+    - **Turn every incident and every red-team success into a golden-set case the same week** — the set then describes your real attacks and failures, not a generic list.
+    - **Report pass^k with k ≥ 4 for customer-facing flows** — a 90% agent is a 66% agent by pass^4 ([table above](#evaluation)).
+    - **Alert on changes in guardrail triggers per type** — a jump in `assistant_guardrail_blocks_total` (lab 12) is an attack or a broken prompt; both need a person that day.
+    - **Version the prompt, the judge and the golden set with the code** — a change to any of them is a pull request that runs the eval.
+
 !!! warning "Common pitfalls"
 
     - **Trusting a classifier to stop prompt injection** — it raises the bar; only architecture limits the damage.
@@ -365,7 +403,7 @@ The prompt and the completion are the most useful debugging data — and the mos
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     UN["untrusted text: user,<br/>documents, tool results"] --> MESH["Safety Mesh"]
     MESH --> INJ["prompt injection,<br/>break the lethal trifecta"]

@@ -278,3 +278,44 @@
     font-weight: 700;
     line-height: 1;
 }
+
+/* Key takeaways at the end of each 2027.1 page: !!! takeaways "" (no title: the h2 above names it).
+   Theme colors only: the palette's readable primary (--md-typeset-a-color) and its tint. */
+.md-typeset .admonition.takeaways {
+    --tk: var(--md-typeset-a-color);
+    position: relative;
+    border: .05rem solid color-mix(in srgb, var(--tk) 35%, transparent);
+    border-left: .3rem solid var(--tk);
+    border-radius: .4rem;
+    background: color-mix(in srgb, var(--tk) 7%, var(--md-default-bg-color));
+    box-shadow: none;
+    padding: .2rem 2.6rem .2rem .9rem;
+    font-size: .74rem;
+}
+.md-typeset .admonition.takeaways::after {
+    content: "";
+    position: absolute;
+    top: .7rem;
+    right: .8rem;
+    width: 1.2rem;
+    height: 1.2rem;
+    background-color: var(--tk);
+    opacity: .8;
+    -webkit-mask: var(--tk-icon) center / contain no-repeat;
+    mask: var(--tk-icon) center / contain no-repeat;
+    --tk-icon: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4"/><path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/></svg>');
+}
+.md-typeset .admonition.takeaways > ul,
+.md-typeset .admonition.takeaways > ol {
+    margin: .6rem 0;
+}
+.md-typeset .admonition.takeaways li {
+    margin-bottom: .45em;
+}
+.md-typeset .admonition.takeaways li::marker {
+    color: var(--tk);
+    font-weight: 700;
+}
+.md-typeset .admonition.takeaways strong {
+    color: var(--tk);
+}

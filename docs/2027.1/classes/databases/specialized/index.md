@@ -8,7 +8,7 @@ A relational database *can* do a weak version of each of these, and that is ofte
 
 The system of record stays in the services' relational databases. Changes flow out to the specialized stores through **change data capture** (CDC): a connector reads the database's log (the PostgreSQL WAL, the MySQL binlog) and publishes every insert, update and delete as an event.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     DB[("catalog + order<br/>PostgreSQL")] -->|"WAL"| CDC["CDC connector<br/>(Debezium)"]
     CDC --> K[["event stream<br/>(Kafka)"]]
@@ -129,7 +129,7 @@ Since 2020, Amazon S3 offers strong read-after-write consistency for all operati
 
 The pattern that keeps blobs off your servers is the **presigned URL**: the service authorizes the upload, but the bytes go straight from the browser to the bucket.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant V as Venue admin (browser)
     participant C as catalog service
@@ -291,7 +291,7 @@ $$
 
 This powers **semantic search** and the retrieval step of **RAG** (retrieval-augmented generation), where the BoxOffice assistant fetches the most relevant policy chunks and gives them to the language model (see [AI Systems — RAG & memory](../../ai-systems/rag-memory/index.md)).
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     Q["fan question"] --> E["embed<br/>(embedding model)"]
     E --> V[("vector DB<br/>top-k nearest")]
@@ -407,6 +407,14 @@ LIMIT 5;
 
 Sizing, as a worked example: 100 k chunks × 1,024 dimensions × 4 bytes (float32) ≈ **400 MB** of raw vectors, plus the HNSW graph (with `m = 16`, roughly a few hundred bytes per vector) — it fits comfortably in the catalog database. At 100 M vectors (≈ 400 GB raw) quantization or a dedicated cluster becomes worth discussing.
 
+!!! example "In the BoxOffice code: pgvector in the PostgreSQL we already run (lab 12)"
+
+    The assistant of [Hands-on 12 — RAG](../../../hands-on/12/rag/index.md) takes the first row of the table: its vectors live in the same PostgreSQL as everything else (the lab's image is PostgreSQL 17 with pgvector), in its own schema `assistant`, with an HNSW index on cosine distance. The numbers explain why no dedicated vector database is needed: the lab embeds 300 events with 768 dimensions (about 1 MB of floats), and even all 200,000 events of the catalog would be about 600 MB. One less system to run and keep in sync is the reason; the price is that index builds and vector queries share the primary with the holds.
+
+    ``` { .python title="services/assistant/app/db.py (table and HNSW index)" }
+    --8<-- "docs/2027.1/hands-on/12/code/services/assistant/app/db.py:8:22"
+    ```
+
 ---
 
 ## Choosing among them
@@ -432,6 +440,14 @@ Sizing, as a worked example: 100 k chunks × 1,024 dimensions × 4 bytes (float3
     - "Analytics" or "reports" → **OLAP in a warehouse**, column storage, fed by CDC/ELT — "never on the OLTP primary".
     - Semantic search or RAG → **embeddings + ANN index (HNSW)**, and mention **recall vs latency** and the option of pgvector before a dedicated product.
 
+!!! success "Best practices"
+
+    - **Version the search index and switch with an alias** — build `events_v2`, backfill it, swap the alias atomically; rolling back is swapping it back.
+    - **Measure the lag of every derived store** — seconds behind the source of truth as a metric with an alert, so "search shows sold-out events" is caught by a graph, not by fans.
+    - **Give blobs immutable, versioned keys** — `posters/9f3a….jpg` with `Cache-Control: immutable`; a changed image gets a new key, so no cache ever has to be purged.
+    - **Set lifecycle rules on object storage** — move ticket PDFs to a cheaper class after the show and delete abandoned uploads after a day; storage that only grows is a bill that only grows.
+    - **Evaluate retrieval with a fixed question set before changing the model or the index** — the same questions, the same metric, before and after. In BoxOffice: `scripts/eval_retrieval.py` in [lab 12](../../../hands-on/12/rag/index.md).
+
 !!! warning "Common pitfalls"
 
     - **Dual writes** from the application to the database and the index: they drift apart; use CDC or an outbox.
@@ -442,7 +458,7 @@ Sizing, as a worked example: 100 k chunks × 1,024 dimensions × 4 bytes (float3
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     SOR["system of record<br/>sql"] -->|"CDC, outbox"| IDX["inverted index<br/>search"]
     SOR -->|"CDC, ELT"| DWH["warehouse, lakehouse<br/>OLAP, columns"]

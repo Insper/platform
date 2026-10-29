@@ -41,7 +41,7 @@ Expectations grow with seniority. A rough guide:
 
 The times are a budget, not a law: if the interviewer wants to spend 15 minutes on one deep dive, follow them. But check the clock at each transition — running out of time before drawing a complete high-level design is the most common way to fail.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant C as Candidate
     participant I as Interviewer
@@ -121,7 +121,7 @@ Mention the access pattern next to each entity: the seat map is read by `event_i
 
 **Goal**: a diagram that serves **every functional requirement** end to end. Start simple, then add what the estimates demand. Walk through one request at a time as you draw ("the fan opens the event page: CDN, gateway, catalog, cache…").
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     fan([Fan]) --> cdn["CDN<br/>static + images"]
     fan --> gw["API Gateway<br/>auth, rate limit"]
@@ -218,6 +218,14 @@ The structure above is necessary but not sufficient. These habits make the diffe
 
 The [playground](../../../../playground/index.md) is a good sparring partner for steps 4–6. After designing a problem on paper, rebuild your high-level design from the palette, run the load profile that matches your estimates (`spike` for an on-sale, `soak` for a steady service), and look for the first saturated component. If it is not the one you named in step 6, find out why. The [practice problems](../../../support/interview/problems/index.md) and [mock interview guide](../../../support/interview/mock/index.md) are organized to be used in pairs: one candidate, one interviewer, then swap.
 
+!!! success "Best practices"
+
+    - **Keep the requirements and the numbers in one corner of the board, visible to the end** — every later decision is checked against them, out loud.
+    - **Practise with a timer and a partner every week, and swap roles** — playing the interviewer teaches what a clear, time-boxed answer sounds like.
+    - **Rehearse three reference designs until each fits in 10 minutes** — a read-heavy feed, a ticketing system with a spike, a chat; most problems reuse their blocks. In BoxOffice: the [ticketing case study](../../case-studies/ticketing/index.md).
+    - **Check a design you drew in the playground** — put your numbers in a scenario and see whether the goals pass; a failed goal is the deep dive you missed. Try the `flash-sale` scenario.
+    - **After each mock, write down one decision you could not justify with a number** — then look the number up; that list is your study plan.
+
 !!! warning "Common pitfalls"
 
     - **Jumping into the design** without clarifying — solving a problem the interviewer did not ask.
@@ -232,7 +240,7 @@ The [playground](../../../../playground/index.md) is a good sparring partner for
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     S1["1. Clarify<br/>→ Requirements"] --> S2["2. Estimate<br/>→ Estimation"]
     S2 --> S3["3. API & data model<br/>→ Compute, Databases"]
@@ -248,13 +256,15 @@ flowchart LR
 
 **Palette components** of the BoxOffice high-level design: [`cdn`](../../../reference/components/edge/index.md#cdn) (static files and images) · [`apigw`](../../../reference/components/edge/index.md#apigw) (auth, rate limit) · [`app`](../../../reference/components/compute/index.md#app) (`catalog`, `inventory`, `order`) · [`cache`](../../../reference/components/storage/index.md#cache) (catalog) · [`sql`](../../../reference/components/storage/index.md#sql) (inventory primary, catalog replicas) · [`queue`](../../../reference/components/messaging/index.md#queue) (waiting room) · [`payment`](../../../reference/components/external/index.md#payment) (provider and webhook) · [`stream`](../../../reference/components/messaging/index.md#stream) (events to `notification` and `search`) · [`waf`](../../../reference/components/edge/index.md#waf) (bots). **Scenarios:** `flash-sale`, `payment-system`, `url-shortener` (a first practice problem). **Continues in:** [Case studies](../../case-studies/index.md), [Ticketing — the BoxOffice flash sale](../../case-studies/ticketing/index.md), [Databases — the double-booking bug](../../databases/transactions/index.md#double-booking), [Compute — idempotency keys](../../compute/integrations/index.md#idempotency-keys), [Interview prep — framework](../../../support/interview/framework/index.md).
 
-## Key takeaways
+## Key takeaways { #key-takeaways }
 
-- The system-design interview evaluates **process**: navigation, design, depth, trade-offs and communication.
-- Use seven steps with a time budget: **clarify → estimate → API & data model → high-level design → deep dives → bottlenecks & trade-offs → wrap-up**.
-- Clarifying should end with **what is hard about this problem** — that is where your deep dives go.
-- Estimates exist to **change decisions** (cache? shard? queue?).
-- Deep dives compare **alternatives** and choose; the wrap-up summarizes and points to next steps.
+!!! takeaways ""
+
+    - The system-design interview evaluates **process**: navigation, design, depth, trade-offs and communication.
+    - Use seven steps with a time budget: **clarify → estimate → API & data model → high-level design → deep dives → bottlenecks & trade-offs → wrap-up**.
+    - Clarifying should end with **what is hard about this problem** — that is where your deep dives go.
+    - Estimates exist to **change decisions** (cache? shard? queue?).
+    - Deep dives compare **alternatives** and choose; the wrap-up summarizes and points to next steps.
 
 ---
 

@@ -6,6 +6,10 @@ O primeiro protótipo era uma linha de código: enviar a mensagem para a API de 
 
 Nenhum desses é um problema de aprendizado de máquina. São problemas de **projeto de sistemas** — latência, capacidade, custo, consistência, segurança, observabilidade — em torno de um novo tipo de dependência. Esta aula trata o LLM do jeito que a disciplina trata qualquer outro componente: como uma caixa com números, modos de falha e trade-offs[^1], cercada pelos cinco componentes da paleta **AI & AGENTS**.
 
+!!! quote "A história até aqui"
+
+    Capítulo 13 da [história da disciplina](../../index.md#story). A BoxOffice agora sobrevive à sua abertura de vendas: a borda, os caches e a sala de espera aguentam os 2 M de fãs (da [aula 4](../edge/index.md) à [aula 8](../messaging/index.md)), o Kubernetes a recupera, escala e reverte ([aula 11](../cloud-native/index.md)), e toda chamada entre serviços é autenticada ([aula 12](../network-security/index.md)). O que chega agora não é mais tráfego, e sim um novo tipo de dependência: um modelo que responde em segundos, é cobrado por token, pode errar com uma prosa fluente e — com ferramentas — pode agir sobre o estoque. **Esta aula** responde: como colocar essa caixa no projeto sem que ela vire a mais fraca?
+
 !!! abstract "Objetivos de aprendizagem"
 
     Ao final desta aula, você deve ser capaz de:
@@ -17,7 +21,7 @@ Nenhum desses é um problema de aprendizado de máquina. São problemas de **pro
     - **Construir** um pipeline de geração aumentada por recuperação (RAG) — chunking, embeddings, busca híbrida, reranking, citações — e **escolher** o tipo de memória certo para cada parte do estado.
     - **Defender** uma funcionalidade de IA contra prompt injection (direta e indireta), vazamento de dados pessoais (PII) e ações arriscadas, e **avaliá-la** com conjuntos de referência (golden sets), LLM como juiz (ciente de seus vieses) e métricas online, observando tudo por traces GenAI do OpenTelemetry.
 
-## Roteiro
+## Roteiro { #roadmap }
 
 1. **Esta visão geral** — o LLM como dependência, os cinco componentes de AI & AGENTS, a anatomia de uma requisição ao assistente, e seu custo e latência.
 2. [LLM Gateway](llm-gateway/index.md) — roteamento e fallbacks, cotas e orçamentos de tokens, cache de prompt vs. cache semântico, streaming, TTFT/TPOT/vazão, batching.
@@ -37,7 +41,7 @@ Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** a
 
 ---
 
-## O LLM é uma dependência, não uma funcionalidade
+## O LLM é uma dependência, não uma funcionalidade { #the-llm-is-a-dependency-not-a-feature }
 
 Um **modelo de linguagem de grande porte** é uma rede neural treinada para prever o próximo **token** (um pedaço de palavra) de um texto. Dado um prompt, ele gera a resposta um token por vez, cada novo token condicionado a tudo o que veio antes. Para quem projeta a arquitetura, três fatos importam mais do que a forma como ele foi treinado:
 
@@ -59,7 +63,7 @@ Lado a lado com os serviços que você projetou até aqui, as diferenças saltam
 
 A última linha é a raiz da seção de segurança ([Segurança, avaliações e observabilidade](safety-evals/index.md)); as três primeiras são a razão de existir do [LLM Gateway](llm-gateway/index.md).
 
-### Tokens: a unidade de tudo
+### Tokens: a unidade de tudo { #tokens-the-unit-of-everything }
 
 Um **token** é a unidade que o modelo lê e escreve: uma palavra frequente é um token; uma palavra rara é dividida em vários. Uma regra prática comum para o inglês é **~4 caracteres ou ~¾ de palavra por token**; textos em português costumam precisar de um pouco mais de tokens por palavra, porque os tokenizadores são treinados principalmente com inglês. Meça sempre com o tokenizador do modelo que você usa.
 
@@ -75,7 +79,7 @@ Todo número de um sistema com LLM é contado em tokens:
 
 ---
 
-## A paleta AI & AGENTS
+## A paleta AI & AGENTS { #the-ai-agents-palette }
 
 O playground agrupa os componentes de uma aplicação com LLM em cinco caixas. Nenhuma delas é mágica: cada uma é um componente clássico **especializado em tokens, prompts e ferramentas**.
 
@@ -107,9 +111,9 @@ Como o modelo não tem estado, *tudo* o que ele deve saber precisa ser colocado 
 
 Sistemas clássicos mantêm código e dados separados; um LLM lê os dois como texto. Qualquer coisa que chegue ao prompt — a mensagem do usuário, um documento recuperado, o resultado de uma ferramenta — pode carregar instruções (**prompt injection**). O Safety Mesh (malha de segurança) é um conjunto de verificações em todos os caminhos de entrada e saída do modelo: filtros de entrada, mascaramento de PII, **validação do schema da saída**, autorização por ferramenta com a identidade *do usuário*, limites, e aprovação com **humano no loop** (human-in-the-loop) para ações arriscadas. Como um service mesh, é política aplicada de forma uniforme em torno dos componentes, e não dentro de cada um. Aprofundamento: [Segurança, avaliações e observabilidade](safety-evals/index.md).
 
-### Como eles se conectam ao resto do sistema
+### Como eles se conectam ao resto do sistema { #how-they-connect-to-the-rest-of-the-system }
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     fan([Fã]) --> apigw["API Gateway<br/>autenticação, limite de taxa"]
     apigw --> orch["Orchestrator<br/>serviço do assistente"]
@@ -133,11 +137,11 @@ Leia o diagrama como "as cinco caixas novas reutilizam as antigas": o gateway é
 
 ---
 
-## Anatomia de uma requisição
+## Anatomia de uma requisição { #anatomy-of-one-request }
 
 Acompanhe a mensagem do fã pelo sistema. O modelo decide **quais** ferramentas chamar; o orquestrador decide **se** elas são executadas.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     actor F as Fã
@@ -254,6 +258,14 @@ O que os números dizem:
 
     Quando o enunciado disser "adicione um assistente de IA", não desenhe uma única caixa chamada *LLM*. Desenhe os cinco componentes e então **estime os tokens**: tamanho do prefixo, passos por requisição, tokens por passo, requisições por segundo no pico → tokens por minuto e US$ por requisição. Diga logo no início quais ações o assistente pode executar sozinho e quais precisam de confirmação do usuário. Cite um número para latência (TTFT e tokens por segundo) e um para custo (US$ por 1.000 requisições) — isso mostra que você trata o modelo como uma dependência com capacidade, não como mágica.
 
+!!! success "Boas práticas"
+
+    - **Escreva um orçamento de tokens ao lado do SLO de latência de toda funcionalidade de IA** — por exemplo p95 de TTFT < 1,5 s e ≤ 20.000 tokens de entrada por requisição; com os [números acima](#numbers), quatro chamadas ao modelo já usam ~17.000, então um quinto passo é uma mudança de projeto, não um ajuste.
+    - **Decida o modo degradado antes do lançamento** — o pico das 10:00 pede ~34 M de tokens por minuto ao gateway; quando a cota ou o provedor acabam, o fã recebe o link do FAQ estático, nunca um `500`.
+    - **Devolva o modelo, os tokens e o custo com toda resposta** — assim uma queda de qualidade pode ser ligada a uma mudança de modelo ou de prompt em minutos. No BoxOffice: o evento `done` do [laço do agente do lab 12](../../hands-on/12/tools/index.md) traz `model`, `usage` e `ttft_ms`.
+    - **Faça toda resposta mostrar as suas fontes** — uma citação que o fã consegue abrir é verificável pelo fã e pelo código. No BoxOffice: a [verificação de saída do lab 12](../../hands-on/12/guardrails/index.md) marca respostas sem citações `[event:id]` válidas como `grounded: false`.
+    - **Dê a cada funcionalidade de IA um dono, um golden set e um botão de desligar** — uma feature flag que desliga o assistente sem deploy é a mitigação mais rápida quando ele se comporta mal às 10:00.
+
 !!! warning "Armadilhas comuns"
 
     - **Chamar o provedor diretamente de cada serviço**: chaves espalhadas por repositórios, nenhuma cota global, nenhum fallback, nenhuma fatura única. Coloque um gateway de LLM na frente desde o primeiro dia.
@@ -268,7 +280,7 @@ O que os números dizem:
 
 Os cinco componentes de AI & AGENTS envolvem o modelo do mesmo jeito que o resto do curso envolve um banco de dados: uma porta de entrada, um lugar para as políticas, um lugar para o estado. O mapa liga cada **componente da paleta** (verde) aos **conceitos** desta aula (azul); a tabela diz que pergunta cada componente responde e onde ele é ensinado:
 
-``` mermaid
+``` diagram
 flowchart LR
     apigw["apigw"]:::comp --> orch["orchestrator"]:::comp
     orch --> safety["safety"]:::comp
@@ -300,21 +312,27 @@ flowchart LR
 
 ---
 
-## Relacionados
+## Relacionados { #related }
 
 - [Hands-on 12 — assistente de IA](../../hands-on/12/index.md): construa o serviço `assistant` com FastAPI, LiteLLM, pgvector, ferramentas no estilo MCP, guardrails e métricas de tokens; faça teste de carga do TTFT.
 - [Estudo de caso — assistente de IA](../case-studies/ai-assistant/index.md): o projeto completo seguindo o roteiro de entrevista.
 - [Projeto](../../exercises/project/index.md): o assistente de IA é um dos sistemas que um time pode escolher.
 - [Catálogo de componentes — AI & AGENTS](../../reference/components/ai/index.md): um cartão por componente, com produtos reais.
-- Aulas anteriores em que esta se apoia: [API Gateway](../edge/api-gateway/index.md), [Cache](../caching/index.md), [Bancos de dados vetoriais](../databases/specialized/index.md), [Padrões de mensageria](../messaging/patterns/index.md), [Padrões de resiliência](../reliability/patterns/index.md), [OpenTelemetry](../observability/opentelemetry/index.md), [Identidade](../network-security/identity/index.md).
+- Aulas anteriores em que esta se apoia: [API Gateway](../edge/api-gateway/index.md), [Cache](../caching/index.md), [Bancos de dados vetoriais](../databases/specialized/index.md), [Padrões de mensageria](../messaging/patterns/index.md), [Padrões de resiliência](../reliability/patterns/index.md), [OpenTelemetry](../observability/opentelemetry/index.md), [Identidade](../edge/identity/index.md).
 
-## Principais ideias
+## Pontos-chave { #key-takeaways }
 
-- Um LLM é uma dependência **lenta, cobrada por token, com limite de taxa e probabilística**, cujo canal de entrada mistura instruções com dados.
-- Os cinco componentes de AI & AGENTS são componentes clássicos especializados para modelos: **gateway** (API gateway), **orquestrador** (motor de workflow), **registro de ferramentas** (catálogo de serviços, MCP), **Memory Fabric** (cache + bancos de dados + busca vetorial), **Safety Mesh** (política em torno de toda entrada, saída e ação).
-- O modelo escolhe as ferramentas; o **orquestrador decide** se elas são executadas, com as permissões do usuário e os orçamentos.
-- Custo e latência são determinados pelo **número de chamadas ao modelo** e pelos **tokens por chamada**; o contexto cresce a cada passo, então os tokens de entrada crescem de forma aproximadamente quadrática.
-- Dados estruturados e vivos passam por **ferramentas**; conhecimento não estruturado passa por **RAG**; ações irreversíveis passam pelo **usuário**.
+!!! takeaways ""
+
+    - Um LLM é uma dependência **lenta, cobrada por token, com limite de taxa e probabilística**, cujo canal de entrada mistura instruções com dados.
+    - Os cinco componentes de AI & AGENTS são componentes clássicos especializados para modelos: **gateway** (API gateway), **orquestrador** (motor de workflow), **registro de ferramentas** (catálogo de serviços, MCP), **Memory Fabric** (cache + bancos de dados + busca vetorial), **Safety Mesh** (política em torno de toda entrada, saída e ação).
+    - O modelo escolhe as ferramentas; o **orquestrador decide** se elas são executadas, com as permissões do usuário e os orçamentos.
+    - Custo e latência são determinados pelo **número de chamadas ao modelo** e pelos **tokens por chamada**; o contexto cresce a cada passo, então os tokens de entrada crescem de forma aproximadamente quadrática.
+    - Dados estruturados e vivos passam por **ferramentas**; conhecimento não estruturado passa por **RAG**; ações irreversíveis passam pelo **usuário**.
+
+## O que quebra em seguida { #what-breaks-next }
+
+O assistente agora é projetado como qualquer outro serviço, com gateway, orçamentos, guardrails e avaliações. Mas veja o que o muda: um prompt, a descrição de uma ferramenta, a versão de um modelo, o `k` da recuperação — cada um altera o comportamento sem uma linha de Java, e cada um é um deploy que precisa passar pelo [portão de avaliação](safety-evals/index.md#evaluation). Ao mesmo tempo, os mesmos modelos escrevem código para o time, então os pull requests chegam mais rápido do que as pessoas conseguem revisar, testar e liberar, e a rede de proteção do [lab 11](../../hands-on/11/index.md) (testes, varreduras, um canary) foi dimensionada para a velocidade humana. Usar IA dentro do pipeline de entrega sem deixá-la aprovar o próprio trabalho é a [aula 14 — Entrega Assistida por IA](../ai-delivery/index.md).
 
 ---
 

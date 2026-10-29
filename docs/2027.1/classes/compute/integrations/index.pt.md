@@ -4,7 +4,7 @@ A BoxOffice compra de propósito seus **subdomínios genéricos** ([serviços](.
 
 ---
 
-## O que você não controla
+## O que você não controla { #what-you-do-not-control }
 
 | Propriedade | Serviço interno | Provedor externo |
 |---|---|---|
@@ -27,11 +27,11 @@ Cada linha corresponde a uma regra de design:
 
 ---
 
-## Anatomia de um pagamento
+## Anatomia de um pagamento { #anatomy-of-a-payment }
 
 Pagamentos com cartão são a integração mais difícil da BoxOffice, então os usamos como guia. O número do cartão nunca toca a BoxOffice: o app o coleta com os campos hospedados (hosted fields) do provedor e recebe um **token**, o que mantém a BoxOffice fora da maior parte do escopo do PCI DSS[^7]. O serviço `payment` então cria um pagamento com esse token.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant F as Fã (app)
     participant O as order
@@ -53,7 +53,7 @@ sequenceDiagram
 
 Repare no que *não* está na figura: uma resposta síncrona "cobrança aprovada" da qual o checkout dependa. O provedor pode responder `processing`, pode pedir que o fã se autentique no banco (`requires_action`, 3-D Secure) ou pode simplesmente dar timeout. O resultado definitivo muitas vezes chega depois, por webhook. Por isso a BoxOffice modela o pagamento como uma **máquina de estados** explícita:
 
-``` mermaid-sim
+``` diagram-sim
 stateDiagram-v2
     [*] --> CREATED
     CREATED --> PENDING : provedor aceitou a requisição
@@ -79,7 +79,7 @@ A BoxOffice precisa de chaves nas **duas direções**:
 - **Na entrada** — fãs e apps repetem requisições: um clique duplo, um app móvel repetindo numa conexão instável, o gateway repetindo um `503`. O `POST /v1/orders` e o `POST /v1/events/{id}/holds` da BoxOffice exigem um header `Idempotency-Key`, gerado pelo cliente uma vez por ação lógica (um UUID criado quando o fã aperta *Pagar*, reusado em todo retry desse clique).
 - **Na saída** — a BoxOffice repete chamadas ao provedor. Toda chamada que cria uma cobrança ou um estorno leva uma chave **derivada do id da própria BoxOffice** (`ord_9`, ou `ord_9:refund:1`), então um retry após um timeout a reusa e o provedor devolve o pagamento original em vez de criar um segundo.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant P as payment
     participant X as Provedor de pagamentos
@@ -91,7 +91,7 @@ sequenceDiagram
     X-->>P: pay_77 succeeded (resultado guardado, sem nova cobrança)
 ```
 
-### Implementando na sua própria API
+### Implementando na sua própria API { #implementing-it-on-your-own-api }
 
 O provedor faz isso por você do lado dele; do lado da BoxOffice, você implementa. O núcleo é uma tabela cuja chave primária torna "o primeiro vence" uma garantia do banco de dados:
 
@@ -181,9 +181,21 @@ Quando a operação **também chama o provedor**, o passo 3 não é puramente lo
 !!! warning "As chaves precisam identificar a operação *lógica*"
     Uma chave gerada a cada tentativa HTTP (um UUID novo a cada retry) não protege nada. Uma chave derivada do *conteúdo* ("fã 42 compra o assento C-14") bloqueia um fã que legitimamente compra duas vezes. Gere a chave quando o usuário **decide** agir, e reuse-a em todo retry dessa decisão.
 
+!!! example "No código do BoxOffice: uma chave do `order` até o provedor (lab 9)"
+
+    No [Hands-on 9 — Payment](../../../hands-on/9/payment/index.md) a chave é derivada do próprio id da BoxOffice, `order-<orderId>`, então todo retry do mesmo pedido (o Resilience4j no `order`, o gateway, um clique duplo) leva a mesma chave. O `payment` é o adaptador: responde a uma chave conhecida a partir da sua tabela, chama o provedor **fora** de qualquer transação de banco (nenhuma conexão fica presa enquanto o provedor pensa), repassa a mesma chave e grava o resultado sob uma constraint `UNIQUE`. É mais simples que o executor acima: não há o estado `IN_PROGRESS`, então duas tentativas concorrentes com a mesma chave podem chegar ambas ao provedor, e é a deduplicação do próprio provedor por essa chave que garante uma única cobrança. Isso só é aceitável porque provedores reais deduplicam; na sua própria API, use o passo de reivindicação (*claim*).
+
+    ``` { .java title="services/order/src/main/java/boxoffice/order/payment/PaymentClient.java (the key)" }
+    --8<-- "docs/2027.1/hands-on/9/code/services/order/src/main/java/boxoffice/order/payment/PaymentClient.java:25:32"
+    ```
+
+    ``` { .java title="services/payment/src/main/java/boxoffice/payment/PaymentService.java (one charge per key)" }
+    --8<-- "docs/2027.1/hands-on/9/code/services/payment/src/main/java/boxoffice/payment/PaymentService.java:22:38"
+    ```
+
 ---
 
-## Retries e resultados desconhecidos
+## Retries e resultados desconhecidos { #retries-and-unknown-outcomes }
 
 Nem toda falha é igual. O que você pode fazer em seguida depende de **a requisição poder ou não ter tido efeito**:
 
@@ -212,7 +224,7 @@ Um **webhook** é uma requisição HTTP que o provedor envia para a *sua* URL qu
 | Um handler lento causa timeouts e retries do provedor | **confirmar rápido**, processar de forma assíncrona |
 | Entregas podem se perder depois que o provedor desiste | **reconciliar** (próxima seção) |
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant X as Provedor de pagamentos
     participant H as Receptor de webhooks
@@ -231,7 +243,7 @@ sequenceDiagram
     W->>W: PENDING → SUCCEEDED (update condicional)
 ```
 
-### Verificando assinaturas
+### Verificando assinaturas { #verifying-signatures }
 
 Os provedores assinam cada entrega com um segredo compartilhado só com você, normalmente um **HMAC-SHA256** sobre o corpo bruto mais um timestamp e um id de mensagem. A especificação *Standard Webhooks*, adotada por vários provedores, define os headers `webhook-id`, `webhook-timestamp` e `webhook-signature`, e assina a string `id.timestamp.body`[^4]; outros provedores usam a mesma ideia com seus próprios nomes de header (o `Stripe-Signature` da Stripe, por exemplo[^5]). Um receptor em Python com FastAPI:
 
@@ -281,7 +293,7 @@ async def payment_webhook(
 
 Detalhes que importam: verifique sobre os **bytes brutos** (fazer o parse e serializar o JSON de novo muda espaços e a ordem das chaves); compare com uma função de **tempo constante** (`hmac.compare_digest`) para que o tempo da comparação não vaze a assinatura; aceite **várias assinaturas** durante a rotação do segredo; mantenha o handler mínimo para que ele sempre responda dentro do timeout do provedor.
 
-### Eventos fora de ordem e obsoletos
+### Eventos fora de ordem e obsoletos { #out-of-order-and-stale-events }
 
 O worker aplica cada evento como uma **transição de estado condicional**, para que um evento atrasado ou duplicado não faça um pagamento andar para trás:
 
@@ -296,7 +308,7 @@ UPDATE payments
 
 Muitos times também tratam o webhook **apenas como notificação** ("algo mudou em `pay_77`") e buscam o objeto atual na API do provedor antes de agir. Custa uma chamada, mas o estado sobre o qual você age é sempre o mais recente e o oficial.
 
-### Webhooks ou polling?
+### Webhooks ou polling? { #webhooks-or-polling }
 
 | | Webhooks (push) | Polling (pull) |
 |---|---|---|
@@ -319,7 +331,7 @@ Idempotência e webhooks tornam cada interação segura. Eles não garantem que,
 
 A **reconciliação** é o job periódico que compara os dois lados e resolve as diferenças — prática padrão em qualquer sistema que movimenta dinheiro[^6].
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     report["Relatório do provedor<br/>ou API de listagem desde T"] --> load["Carregar em<br/>provider_payments"]
     ours[("payments<br/>(BoxOffice)")] --> match{"Casar pelo<br/>id do provedor"}
@@ -369,7 +381,7 @@ Provedores falham como tudo o mais — e a indisponibilidade deles chega no seu 
 | **Degradar a funcionalidade** | esconder a parte opcional | mapas do local, recomendações, score de fraude (cair para regras) | experiência reduzida |
 | **Proteger o estado do usuário** | estender os holds enquanto o provedor de pagamentos está fora | checkout da BoxOffice | assentos indisponíveis para outros por mais tempo |
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     n["worker de notification"] --> cb{"circuit breaker<br/>ESP primário"}
     cb -->|"fechado"| p["Provedor de e-mail primário"]
@@ -388,7 +400,7 @@ As decisões da BoxOffice:
 !!! example "E-mail é uma integração com regras próprias"
     Enviar e-mail de forma confiável é mais do que uma chamada de API. Os provedores impõem **rate limits** por conta; eles informam **bounces** (endereço inexistente) e **reclamações** (marcado como spam) por webhook, e a BoxOffice precisa parar de enviar para esses endereços (uma **lista de supressão**), ou o provedor suspende a conta. A autenticação do domínio com **SPF, DKIM e DMARC** decide se as mensagens chegam à caixa de entrada. E o e-mail **transacional** (ingressos, redefinição de senha) deve usar um fluxo ou subdomínio separado do e-mail de **marketing**, para que uma campanha ruim não prejudique a entrega de ingressos.
 
-### Experimente no playground
+### Experimente no playground { #try-it-in-the-playground }
 
 Abra o cenário `payment-system`: o checkout chama um serviço de pagamento que chama um provedor externo, com retries e idempotência.
 
@@ -402,7 +414,7 @@ Abra o cenário `payment-system`: o checkout chama um serviço de pagamento que 
 
 ---
 
-## Segurança das integrações
+## Segurança das integrações { #security-of-integrations }
 
 - **Segredos** (chaves de API, segredos de webhook) ficam num gerenciador de segredos, nunca no repositório; faça rotação, e use **chaves restritas** só com as permissões de que cada serviço precisa ([redes e segurança](../../network-security/index.md)).
 - **Minimize o escopo do PCI DSS**: tokenize com os campos hospedados ou a página de pagamento do provedor, para que números de cartão nunca atravessem a rede da BoxOffice.
@@ -411,7 +423,7 @@ Abra o cenário `payment-system`: o checkout chama um serviço de pagamento que 
 
 ---
 
-## Trade-offs em resumo
+## Trade-offs em resumo { #trade-offs-at-a-glance }
 
 | Decisão | Opção A | Opção B |
 |---|---|---|
@@ -430,6 +442,14 @@ Abra o cenário `payment-system`: o checkout chama um serviço de pagamento que 
     - *"E se o webhook nunca chegar?"* → **reconciliação** contra a API e os relatórios de liquidação do provedor, em duas velocidades.
     - *"O provedor está fora do ar."* → circuit breaker, falhar rápido, estender os holds, enfileirar o que pode esperar; um segundo provedor se o negócio justificar.
 
+!!! success "Boas práticas"
+
+    - **Dê a cada camada um timeout menor que o de quem a chama** — quem chama precisa desistir por último, ou espera por um trabalho que ninguém vai entregar. Na BoxOffice: o gateway espera 5 s ([lab 4](../../../hands-on/4/gateway/index.md)), o `order` espera 1 s pelo `payment` ([lab 9](../../../hands-on/9/payment/index.md)).
+    - **Guarde o id do provedor em todo estado de pagamento** — suporte, estornos e conciliação começam todos por ele. Na BoxOffice: a coluna `provider_ref` de `payments` (lab 9).
+    - **Teste contra um provedor falso que pode ser lento, falhar e responder duas vezes** — um stub atrás de um proxy de falhas transforma "e se o provedor levar 3 s?" num teste que você repete. Na BoxOffice: o stub `psp` atrás do Toxiproxy no [lab 9](../../../hands-on/9/index.md).
+    - **Acompanhe cada provedor como um dos seus serviços** — latência, taxa de erro e folga do limite de taxa por provedor num dashboard, mais a página de status dele; um alerta sobre o p99 do provedor dispara antes de o checkout falhar.
+    - **Restrinja cada credencial de provedor a um serviço** — só o `payment` pode ler a chave de pagamento, e rotacioná-la é uma operação rotineira e ensaiada ([zero trust](../../network-security/zero-trust/index.md)).
+
 !!! warning "Armadilhas comuns"
 
     - **Sem timeout** nas chamadas ao provedor: o dia ruim do provedor vira a sua indisponibilidade (`cascading-failure`).
@@ -446,7 +466,7 @@ Abra o cenário `payment-system`: o checkout chama um serviço de pagamento que 
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     ADP["um adapter por provedor<br/>portas e adaptadores"] --> RES["timeouts, circuit breaker,<br/>bulkhead → Confiabilidade"]
     IK["idempotency keys<br/>de entrada e de saída"] --> RETRY["retries seguros"]
@@ -462,14 +482,16 @@ flowchart LR
 
 **Componentes da paleta:** [`payment`](../../../reference/components/external/index.md#payment) (o provedor por trás do adapter `payment`) · [`email`](../../../reference/components/external/index.md#email) (rate limits, bounces, um provedor secundário) · [`thirdparty`](../../../reference/components/external/index.md#thirdparty) (a API do mapa do local: degradar sem ela) · [`app`](../../../reference/components/compute/index.md#app) (o serviço adapter) · [`sql`](../../../reference/components/storage/index.md#sql) (idempotency keys sob uma restrição de unicidade, estados do pagamento) · [`queue`](../../../reference/components/messaging/index.md#queue) (entregar depois; processar webhooks de forma assíncrona) · [`scheduler`](../../../reference/components/compute/index.md#scheduler) (varredores e jobs de reconciliação) · [`serverless`](../../../reference/components/compute/index.md#serverless) (um receptor de webhooks barato). **Cenários:** `payment-system`, `cascading-failure`, `retry-storm`, `notification-system`. **Continua em:** [Confiabilidade — circuit breaker](../../reliability/patterns/index.md#circuit-breaker), [Distribuídos — idempotência](../../distributed/index.md#idempotency), [Distribuídos — transações](../../distributed/transactions/index.md), [Estudo de caso: sistema de pagamentos](../../case-studies/payment-system/index.md), [Hands-on 9](../../../hands-on/9/index.md).
 
-## Principais conclusões
+## Pontos-chave { #key-takeaways }
 
-- Provedores externos trazem latência, limites, mudanças e **resultados assíncronos** que você não controla; isole cada um atrás de um **adapter** com timeouts, circuit breaker e bulkhead.
-- **Chaves de idempotência** — na entrada, vindas dos clientes, e na saída, para os provedores, derivadas da operação lógica — tornam os retries seguros; implemente-as com chave única, respostas guardadas e tratamento de requisições em andamento e divergentes.
-- Timeout significa **UNKNOWN**, não falha: modele o pagamento como máquina de estados e resolva a incerteza por consulta, webhook ou sweeper.
-- **Webhooks**: verifique a assinatura sobre os bytes brutos com timestamp, deduplique pelo id do evento, confirme rápido, processe de forma assíncrona, aplique transições monotônicas.
-- **Reconcilie** periodicamente com os registros do provedor; webhooks e retries não bastam sozinhos.
-- Planeje cada **indisponibilidade de provedor** com antecedência: falhar rápido, enfileirar, fazer failover, degradar — e proteger o estado do usuário (estender os holds).
+!!! takeaways ""
+
+    - Provedores externos trazem latência, limites, mudanças e **resultados assíncronos** que você não controla; isole cada um atrás de um **adapter** com timeouts, circuit breaker e bulkhead.
+    - **Chaves de idempotência** — na entrada, vindas dos clientes, e na saída, para os provedores, derivadas da operação lógica — tornam os retries seguros; implemente-as com chave única, respostas guardadas e tratamento de requisições em andamento e divergentes.
+    - Timeout significa **UNKNOWN**, não falha: modele o pagamento como máquina de estados e resolva a incerteza por consulta, webhook ou sweeper.
+    - **Webhooks**: verifique a assinatura sobre os bytes brutos com timestamp, deduplique pelo id do evento, confirme rápido, processe de forma assíncrona, aplique transições monotônicas.
+    - **Reconcilie** periodicamente com os registros do provedor; webhooks e retries não bastam sozinhos.
+    - Planeje cada **indisponibilidade de provedor** com antecedência: falhar rápido, enfileirar, fazer failover, degradar — e proteger o estado do usuário (estender os holds).
 
 ---
 

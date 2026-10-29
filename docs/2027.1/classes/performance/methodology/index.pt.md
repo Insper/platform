@@ -2,7 +2,7 @@
 
 ---
 
-## Anti-métodos: como não fazer
+## Anti-métodos: como não fazer { #anti-methods-how-not-to-do-it }
 
 Brendan Gregg cataloga as abordagens que parecem produtivas e não são[^1]:
 
@@ -17,7 +17,7 @@ A alternativa é o **método científico**[^5]: fazer uma pergunta ("por que o p
 
 ---
 
-## Caracterização da carga: que carga, exatamente?
+## Caracterização da carga: que carga, exatamente? { #workload-characterization-what-load-exactly }
 
 Um teste é tão bom quanto seu modelo da carga. A caracterização da carga responde a quatro perguntas[^1]:
 
@@ -65,7 +65,7 @@ Três propriedades das cargas reais são perdidas rotineiramente nos testes e pr
 
 ---
 
-## O método USE: um checklist para cada recurso
+## O método USE: um checklist para cada recurso { #the-use-method-a-checklist-for-every-resource }
 
 O **método USE** diz: *para cada recurso, verifique Utilização, Saturação e Erros*[^2]. Sua força é a completude — ele faz você olhar recursos que esqueceria — e a rapidez: alguns minutos de verificação estreitam a busca para um recurso.
 
@@ -86,11 +86,11 @@ Recursos não são só hardware. Em um serviço Java, os **recursos de software*
 | **Banco de dados** | CPU, I/O do host do banco | Sessões esperando (`wait_event`), esperas por lock | Deadlocks, timeouts de statement | `pg_stat_activity`, `pg_locks`, `pg_stat_statements` |
 | **Partição Kafka / fila** | Tempo ocupado do consumidor | **Atraso do consumidor** (*lag*) | Mensagens na DLQ | Exporter de consumer lag, métricas do broker |
 
-### Um passo a passo: por que `POST /holds` está lento?
+### Um passo a passo: por que `POST /holds` está lento? { #a-walk-through-why-is-post-holds-slow }
 
 Durante um teste de pré-venda a 1 500 reservas/s, o p99 de `POST /holds` é 2,1 s (SLO: 300 ms). Seguindo o USE, de cima para baixo:
 
-``` mermaid-sim
+``` diagram-sim
 flowchart TD
     s["Sintoma: p99 de POST /holds = 2,1 s a 1 500 req/s"] --> cpu{"CPU do inventory?"}
     cpu -->|"U 45 %, fila de execução baixa,<br/>sem throttling"| mem{"Memória / GC?"}
@@ -116,9 +116,17 @@ GROUP BY 1, 2, 3
 ORDER BY count(*) DESC;
 ```
 
+!!! example "No código do BoxOffice: USE em dois recursos de software (lab 2)"
+
+    O [Hands-on 2 — Medir primeiro](../../../hands-on/2/index.md) observa o `catalog` por dentro com três medidores do Actuator, uma linha por segundo, ao lado do k6 e do `docker stats`: threads ocupadas do Tomcat (utilização do pool de threads), conexões ativas e requisições **pendentes** (utilização e saturação do pool HikariCP). Na execução do lab a 600 req/s a linha mostra 200 threads ocupadas, 9 conexões ativas e **190 pendentes**: a mesma cadeia do passo a passo acima — as threads estão saturadas porque esperam pelas 10 conexões, então mais threads só acrescentariam gente esperando.
+
+    ``` { .bash title="scripts/watch-metrics.sh (USE from the inside, once per second)" }
+    --8<-- "docs/2027.1/hands-on/2/code/scripts/watch-metrics.sh"
+    ```
+
 ---
 
-## RED e os sinais de ouro: a visão do serviço
+## RED e os sinais de ouro: a visão do serviço { #red-and-the-golden-signals-the-service-view }
 
 O USE olha os **recursos** por dentro. O **método RED** olha cada **serviço** por fora, do jeito que os usuários o experimentam[^3]:
 
@@ -130,7 +138,7 @@ Os quatro **sinais de ouro** do Google — latência, tráfego, erros, saturaç�
 
 ---
 
-## Paridade do ambiente de teste
+## Paridade do ambiente de teste { #test-environment-parity }
 
 Um teste de carga mede *o ambiente em que roda*. Cada diferença em relação à produção é um motivo para o resultado não se transferir:
 
@@ -146,9 +154,17 @@ Um teste de carga mede *o ambiente em que roda*. Cada diferença em relação à
 
 Como a infraestrutura é código ([Entrega](../../cloud-native/delivery/index.md)), a opção mais confiável é um **ambiente de desempenho efêmero**: criado a partir dos mesmos módulos Terraform/OpenTofu e manifests da produção durante a campanha de testes, carregado com um conjunto de dados sintéticos do tamanho da produção e destruído depois.
 
+!!! example "No código do BoxOffice: um ambiente pequeno, idêntico em toda execução (lab 11)"
+
+    O gate de desempenho do [Hands-on 11](../../../hands-on/11/performance-gate/index.md) não pode ter paridade com a produção — roda num runner compartilhado da CI —, então escolhe **paridade entre execuções**: seu próprio arquivo Compose sobe PostgreSQL, Redis e `catalog` com o mesmo limite de CPU (1 CPU) do `docker-compose.yaml`, porque os orçamentos são por réplica; e o healthcheck de prontidão mais o `docker compose … up --wait` garantem que o k6 nunca meça uma JVM que ainda está subindo. O preço: os números dizem se *esta mudança* deixou o `catalog` mais lento, não quantos fãs a produção aguenta.
+
+    ``` { .yaml title=".github/ci/compose.perf.yaml (the service under test)" }
+    --8<-- "docs/2027.1/hands-on/11/code/.github/ci/compose.perf.yaml:27:54"
+    ```
+
 ---
 
-## Dados de teste
+## Dados de teste { #test-data }
 
 - **Volume**: mesma ordem de grandeza da produção — os tamanhos das tabelas determinam a profundidade dos índices, a escolha dos planos e se o conjunto de trabalho cabe na memória.
 - **Distribuição**: reproduza a assimetria (um evento quente, setores populares) — senão você perde a contenção de locks e as partições quentes, e superestima os misses de cache na cauda longa.
@@ -205,7 +221,7 @@ export const options = {
 
 ---
 
-## Ruído e repetibilidade
+## Ruído e repetibilidade { #noise-and-repeatability }
 
 Ambientes de nuvem são ruidosos: vizinhos compartilham hosts, redes variam, autoscalers tomam caminhos diferentes. Uma execução é uma anedota.
 
@@ -228,6 +244,14 @@ Ambientes de nuvem são ruidosos: vizinhos compartilham hosts, redes variam, aut
 
     Perguntas do tipo "encontre o gargalo" recompensam estrutura. Diga o método em voz alta: "Eu começaria pelas métricas RED, voltadas ao usuário, para achar o serviço lento, depois aplicaria o USE aos seus recursos — incluindo os de software: pool de threads, pool de conexões, locks — e só mudaria o recurso que está saturado." Mencionar que **CPU a 45 % com um pool de conexões saturado significa que mais pods não vão ajudar** é exatamente o tipo de insight que os entrevistadores procuram.
 
+!!! success "Boas práticas"
+
+    - **Escreva um plano de teste de uma página antes da primeira execução, e revise-o como um design doc** — objetivo, carga, modelo, ambiente, observação e critérios de saída combinados antes impedem a campanha de virar uma busca por uma execução verde (exemplo acima).
+    - **Tire a mistura de endpoints dos logs de produção, e atualize-a depois de cada grande evento** — a mistura muda a cada funcionalidade; um modelo da venda do ano passado testa o produto do ano passado.
+    - **Transforme o checklist USE num script e rode-o ao lado do gerador de carga** — uma linha por segundo com os medidores do pool de threads e do pool de conexões transforma "o que está saturado?" numa leitura, não num palpite. No BoxOffice: o `scripts/watch-metrics.sh` do [lab 2](../../../hands-on/2/index.md).
+    - **Defina o ambiente de teste como código, com os limites de produção por réplica** — mesmos limites de CPU e memória, mesmos tamanhos de pool e timeouts, para que um número por réplica signifique o mesmo no teste e na produção. No BoxOffice: o `.github/ci/compose.perf.yaml` do [lab 11](../../../hands-on/11/performance-gate/index.md).
+    - **Repita cada configuração pelo menos três vezes e relate a mediana e a dispersão** — uma diferença menor que a dispersão entre execuções é ruído, não melhoria.
+
 !!! warning "Armadilhas"
 
     - **Parar no primeiro recurso saturado**: pools de threads geralmente estão saturados *porque* algo mais adiante está lento; siga a espera.
@@ -240,7 +264,7 @@ Ambientes de nuvem são ruidosos: vizinhos compartilham hosts, redes variam, aut
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     SYM["symptom:<br/>POST /holds is slow"] --> RED["RED per service<br/>→ Observability signals"]
     RED --> USE["USE per resource: CPU,<br/>thread pool, connection pool, locks"]

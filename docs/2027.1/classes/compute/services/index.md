@@ -8,7 +8,7 @@ Nothing was wrong with the code. The **shape** of the system no longer fitted th
 
 "Monolith or microservices" is not a binary choice; it is a spectrum of how many independently deployable units the system has, and how strongly their boundaries are enforced.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     subgraph mono ["Monolith"]
         direction TB
@@ -113,7 +113,7 @@ The **ubiquitous language** is the vocabulary shared by developers and domain ex
 
 But the same word often means different things in different parts of the business. A **bounded context** is the boundary inside which one model, and one meaning of each word, applies:
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     subgraph cat ["Catalog context"]
         e1["Event<br/>artist · date · venue · description · images"]
@@ -144,7 +144,7 @@ Contexts exchange data, and the relationship between each pair is a design decis
 | **Anti-Corruption Layer (ACL)** | the downstream translates the upstream model at the border | a third-party or legacy model you do not want leaking in |
 | **Shared Kernel** | two contexts share a small piece of model and code | rarely; it couples the two teams |
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     catalog["Catalog"] -->|"Open Host: REST + OpenAPI"| order["Order"]
     catalog -->|"Published Language:<br/>EventPublished events"| search["Search"]
@@ -254,7 +254,7 @@ Two practical consequences:
 
 **Database per service** means no service reads or writes another service's tables. It does not require one database *server* per service: one PostgreSQL cluster can host several schemas, as long as each schema has exactly one owner.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     order["order"] -->|"POST /holds/{id}/confirm"| inventory["inventory"]
     inventory --> inv[("inventory schema")]
@@ -266,6 +266,14 @@ When `order` needs to confirm a hold, it calls the `inventory` **API**, never th
 
 - **Queries across services** become API calls — or a local, read-only copy of the other service's data kept up to date by events (CQRS, [messaging](../../messaging/index.md)). `search` keeps its own index of events this way.
 - **Business transactions across services** become a sequence of local transactions coordinated by events or an orchestrator, with compensations when a step fails: the **saga** pattern. "Payment failed → release the hold" is a compensation.
+
+!!! example "In the BoxOffice code: one PostgreSQL, one schema per owner (labs 1–9)"
+
+    In the labs every service runs against the same PostgreSQL server, each in its own schema that its own Flyway creates and migrates: `catalog` (lab 1), `auth` (lab 4), `inventory` (lab 6), `orders` and `notification` ([lab 7](../../../hands-on/7/index.md)), `payment` (lab 9). One server keeps the laptop light; one schema per service keeps the boundary visible. Notice the shortcut: all of them log in as the same user, `boxoffice`, so "no direct SQL" is a convention here, not a permission. In production each service gets its own database role with rights only on its schema, and the database enforces the boundary.
+
+    ``` { .yaml title="services/order/src/main/resources/application.yaml (its own schema)" }
+    --8<-- "docs/2027.1/hands-on/7/code/services/order/src/main/resources/application.yaml:10:15"
+    ```
 
 ### Talking to each other
 
@@ -306,6 +314,10 @@ When `order` needs to confirm a hold, it calls the `inventory` **API**, never th
 
 Class 8 ([messaging](../../messaging/index.md)) goes deep on events; the [API styles](../api-styles/index.md) page covers the request/response options.
 
+**Try it.** The `microservices` scenario splits the app into `catalog`, `inventory`, `order` and `notify`, each with its own database, behind a gateway, and buying is a synchronous chain: `order` calls `inventory`, `catalog` and `notify` before it answers. Press **Run**: at 2,000 req/s the catalog cannot get the pods it needs and about 25% of the requests fail (pods and nodes are [class 11](../../cloud-native/index.md)'s story). Open it in the full playground (↗) and press **Show a possible solution**: more room in the cluster, and a queue between `order` and `notify`; p99 falls to about 60 ms. Now delete the queue and connect `order` straight to `notify` again: with the same capacity, p99 climbs back to about 360 ms, because every buyer now waits for the confirmation (120 ms on average, with a long tail) before getting an answer.
+
+<div class="sdp" data-scenario="microservices" data-mode="compact" data-height="520"></div>
+
 ---
 
 ## Inside one service: internal architecture
@@ -328,7 +340,7 @@ The five SOLID principles[^8] are class-level rules that make that protection po
 
 Most Spring Boot services start **layered**: controller → service → repository → database. It separates HTTP from business logic, but the business layer still *depends on* the persistence layer. **Clean Architecture** (Robert C. Martin) and **Hexagonal Architecture**, a.k.a. *ports and adapters* (Alistair Cockburn), invert that one arrow: the core defines interfaces (**ports**) in business terms, and infrastructure (**adapters**) implements them[^9][^10].
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     rest["REST controller<br/>(driving adapter)"] --> uc["PayForOrder<br/>use case"]
     kafka["Kafka listener<br/>(driving adapter)"] --> uc
@@ -410,9 +422,25 @@ Two patterns repeat: these services are mostly **fed by events** rather than cal
 | `search` | full-text search | derived index | gateway | read-heavy |
 | `assistant` | AI support (Python) | conversations, embeddings | gateway | GPU/LLM-bound, isolated |
 
+!!! example "In the BoxOffice code: one front door, one route per service (labs 4 and 6)"
+
+    The `gateway` of [Hands-on 4](../../../hands-on/4/gateway/index.md) is the only service the edge talks to. Each service gets one route by path prefix, so a client never learns where `auth` or `inventory` runs, and lab 6 adds `inventory` with three lines. `lb://catalog` is the scaling-profile split made concrete: only the read-heavy `catalog` runs three replicas, picked per request among the healthy ones; `auth` and `inventory` run one each.
+
+    ``` { .yaml title="services/gateway/src/main/resources/application.yaml (one route per service)" }
+    --8<-- "docs/2027.1/hands-on/6/code/services/gateway/src/main/resources/application.yaml:22:34"
+    ```
+
 !!! tip "In the interview"
 
     You rarely need to draw twenty microservices. Draw the **few services whose boundaries matter for the problem** and justify each split with a force: *"I'd keep catalog and inventory separate because catalog is read-heavy and cacheable while inventory is write-hot and must be strongly consistent — different scaling and consistency needs."* If asked "monolith or microservices?", answer with the trade-off, not a slogan: team size, independent scaling needs, and operational maturity. Saying *"I'd start as a modular monolith and extract inventory first"* is a strong, defensible answer.
+
+!!! success "Best practices"
+
+    - **Write down the force behind each service boundary** — scaling profile, team, failure isolation, compliance or technology, in the design doc; a boundary with no force left is a candidate for merging. In BoxOffice: `catalog` (read-heavy, three replicas) and `inventory` (write-hot, correctness first) are split by scaling profile.
+    - **Give each service its own database role, with rights only on its schema** — the boundary is then enforced by the database, not by code review. In BoxOffice the labs share the user `boxoffice` (box above): this is the step to take before production.
+    - **Name one owning team per service in a service catalog** — owner, on-call rotation, runbook and SLO; when `inventory` pages at 10:01, nobody should have to ask who answers.
+    - **Send all external traffic through one gateway, and keep service-to-service calls off it** — one place for authentication and rate limits, without adding a hop to every internal call. In BoxOffice: the edge talks only to `gateway` ([lab 4](../../../hands-on/4/gateway/index.md)).
+    - **Enforce module boundaries in the build before extracting services** — package visibility and an architecture test (ArchUnit) in CI keep a modular monolith modular; extracting a module whose boundary already holds is a deploy, not a rewrite.
 
 !!! warning "Common pitfalls"
 
@@ -427,7 +455,7 @@ Two patterns repeat: these services are mostly **fed by events** rather than cal
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     MONO["monolith"] --> MOD["modular monolith"]
     MOD --> MS["microservices<br/>when a force is real"]
@@ -441,16 +469,18 @@ flowchart LR
     MS --> SHARED["shared capabilities:<br/>auth, search, notifications"]
 ```
 
-**Palette components:** [`app`](../../../reference/components/compute/index.md#app) (each service is its own stateless tier) · [`apigw`](../../../reference/components/edge/index.md#apigw) (`gateway`, the single entry point) · [`auth`](../../../reference/components/compute/index.md#auth) · [`search`](../../../reference/components/compute/index.md#search) · [`notifications`](../../../reference/components/compute/index.md#notifications) · [`analytics`](../../../reference/components/compute/index.md#analytics) · [`scheduler`](../../../reference/components/compute/index.md#scheduler) (shared capabilities, often bought) · [`sql`](../../../reference/components/storage/index.md#sql) (one database per service, never shared tables) · [`stream`](../../../reference/components/messaging/index.md#stream) (events feed the derived services). **Scenarios:** `monolith`, `event-fanout`. **Continues in:** [API Styles](../api-styles/index.md), [Databases](../../databases/index.md) (one database per service), [Messaging — patterns](../../messaging/patterns/index.md) (outbox, saga), [Distributed — transactions](../../distributed/transactions/index.md), [Hands-on 1](../../../hands-on/1/index.md).
+**Palette components:** [`app`](../../../reference/components/compute/index.md#app) (each service is its own stateless tier) · [`apigw`](../../../reference/components/edge/index.md#apigw) (`gateway`, the single entry point) · [`auth`](../../../reference/components/compute/index.md#auth) · [`search`](../../../reference/components/compute/index.md#search) · [`notifications`](../../../reference/components/compute/index.md#notifications) · [`analytics`](../../../reference/components/compute/index.md#analytics) · [`scheduler`](../../../reference/components/compute/index.md#scheduler) (shared capabilities, often bought) · [`sql`](../../../reference/components/storage/index.md#sql) (one database per service, never shared tables) · [`stream`](../../../reference/components/messaging/index.md#stream) (events feed the derived services). **Scenarios:** `monolith`, `event-fanout`, `microservices`. **Continues in:** [API Styles](../api-styles/index.md), [Databases](../../databases/index.md) (one database per service), [Messaging — patterns](../../messaging/patterns/index.md) (outbox, saga), [Distributed — transactions](../../distributed/transactions/index.md), [Hands-on 1](../../../hands-on/1/index.md).
 
-## Key takeaways
+## Key takeaways { #key-takeaways }
 
-- Monolith → modular monolith → microservices is a spectrum; **start modular** and split when a force (scaling profile, team autonomy, failure isolation, compliance, technology) is real.
-- Find boundaries with **DDD**: subdomains tell you what to build or buy, **bounded contexts** tell you where one model ends; aggregates reference each other **by id**.
-- **Conway's law**: services take the shape of the teams — design both together.
-- Each service **owns its data**; others use its API or its events, never its tables.
-- Inside a service, **ports and adapters** keep business rules independent of frameworks and providers — essential for integrations, optional for CRUD.
-- Auth, search, notifications, analytics and scheduling are shared capabilities, usually **event-fed** and often **bought**.
+!!! takeaways ""
+
+    - Monolith → modular monolith → microservices is a spectrum; **start modular** and split when a force (scaling profile, team autonomy, failure isolation, compliance, technology) is real.
+    - Find boundaries with **DDD**: subdomains tell you what to build or buy, **bounded contexts** tell you where one model ends; aggregates reference each other **by id**.
+    - **Conway's law**: services take the shape of the teams — design both together.
+    - Each service **owns its data**; others use its API or its events, never its tables.
+    - Inside a service, **ports and adapters** keep business rules independent of frameworks and providers — essential for integrations, optional for CRUD.
+    - Auth, search, notifications, analytics and scheduling are shared capabilities, usually **event-fed** and often **bought**.
 
 ---
 

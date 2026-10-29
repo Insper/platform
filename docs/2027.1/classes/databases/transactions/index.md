@@ -40,7 +40,7 @@ COMMIT;
 
 Now interleave two requests:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant A as Alice (T1)
     participant DB as PostgreSQL
@@ -234,13 +234,21 @@ ON CONFLICT (event_id, seat_id) DO UPDATE
 | Unique constraint / upsert | loser gets a constraint violation or 0 rows | good | 1 | "at most one" invariants; last line of defense |
 | Serializable + retry | database aborts one transaction | aborts grow with contention | n + retries | complex invariants across many rows |
 
+!!! example "In the BoxOffice code: three strategies behind one switch (lab 6)"
+
+    [Hands-on 6 — Holds](../../../hands-on/6/holds/index.md) puts three of these behind one setting, `INVENTORY_LOCKING`, and runs the same flash-sale test against each (100 seats, thousands of attempts). `naive` is the [bug above](#double-booking), check-then-act; `pessimistic` is fix 2, locking the seats in `ORDER BY id` so that two overlapping holds cannot deadlock; `optimistic` is fix 3, a version compare-and-set per seat. In one run on a busy laptop the audit found **9 double-booked seats** with `naive` and **0** with the other two, and `optimistic` had the lowest hold p99 (1.03 s against 1.77 s for `pessimistic`). That does not contradict the table: when a seat is gone, the conflict *is* the answer (`409`, "taken"), so nobody retries and nobody waits for a lock. Optimistic locking degrades only when the losers retry the same rows.
+
+    ``` { .java title="services/inventory/src/main/java/boxoffice/inventory/HoldService.java (three strategies)" }
+    --8<-- "docs/2027.1/hands-on/6/code/services/inventory/src/main/java/boxoffice/inventory/HoldService.java:76:84,87:95,98:113"
+    ```
+
 ---
 
 ## Seat holds, end to end { #seat-holds }
 
 A hold is a **lease**: a temporary, expiring claim. The seat's life cycle:
 
-``` mermaid-sim
+``` diagram-sim
 stateDiagram-v2
     [*] --> AVAILABLE
     AVAILABLE --> HELD: hold (conditional UPDATE)
@@ -330,7 +338,7 @@ The lessons:
 - **Keep transactions short.** A transaction that calls the payment provider (hundreds of milliseconds to seconds) while holding a seat lock multiplies lock time by 100. Hold the seat, **commit**, call the provider *outside* any transaction, then confirm in a new short transaction.
 - **Fine-grained rows spread contention.** One row per seat means fans only collide when they want the *same* seat.
 
-**Try it.** The `flash-sale` scenario puts a waiting room (queue) in front of the inventory database. Run it, then remove the queue or raise the arrival rate and watch the SQL node's utilization and p99 latency: the queue exists precisely to keep the number of concurrent hold transactions below what the database can serve.
+**Try it.** The `flash-sale` scenario starts **without** a waiting room: `app` writes straight to `inventory-db`. Run it, then raise the `app` replicas until the app is no longer the bottleneck: when the sale opens (t = 60 s) `inventory-db` saturates on writes (a write costs 3 reads' worth of capacity) and p99 explodes. Then open it in the full playground (↗) and press **Show a possible solution**: a waiting-room queue drained by `order` workers keeps the writes reaching `inventory-db` — the concurrent hold transactions — below what the database can serve. (The simulator models capacity, not locks: the row contention above is the part you reason about by hand.)
 
 <div class="sdp" data-scenario="flash-sale" data-mode="compact" data-height="520"></div>
 
@@ -362,6 +370,14 @@ The hold lives in the `inventory` database, the order in the `order` database, a
     - For flows across services, say **saga + outbox + idempotency keys**, not distributed transactions.
     - Mention contention: "a single counter row would cap the on-sale at 1 / lock-time — I avoid it".
 
+!!! success "Best practices"
+
+    - **Set `lock_timeout` and `statement_timeout`** — a hold should wait for a lock at most a second or two and fail with a clear error, instead of piling up behind a slow transaction; set them per role or with `SET LOCAL` per transaction.
+    - **Answer a lost race with `409`, not `500`** — the loser of a conflict is a normal outcome the client can act on (pick other seats). In BoxOffice: `requireAvailable` and the optimistic `UPDATE` throw `CONFLICT` ([lab 6](../../../hands-on/6/holds/index.md)).
+    - **Bound the size of every transaction** — a maximum number of rows per transaction bounds its lock time. In BoxOffice: at most 6 seats per hold (`max-seats-per-hold`), at most 500 holds per sweep (`LIMIT 500`).
+    - **Audit the invariant continuously** — a query that counts violations (seats in two live holds), run after every load test and on a schedule in production. In BoxOffice: `GET /inventory/audit/double-bookings` (lab 6).
+    - **Alert on old transactions** — any transaction open for more than about 30 s (`now() - xact_start` in `pg_stat_activity`) holds locks and keeps vacuum from cleaning old row versions.
+
 !!! warning "Common pitfalls"
 
     - **Check in the application, act in the database** — the double booking. Move the check into the `WHERE` clause or a constraint.
@@ -373,7 +389,7 @@ The hold lives in the `inventory` database, the order in the `order` database, a
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     ACID["ACID"] --> ISO["isolation levels<br/>MVCC snapshots"]
     ISO --> ANOM["anomalies: lost update,<br/>write skew"]

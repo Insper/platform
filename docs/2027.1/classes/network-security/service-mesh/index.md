@@ -10,7 +10,7 @@ A service mesh is a dedicated infrastructure layer that handles **service-to-ser
 - **Data plane** — proxies that sit in the path of every request between services. They terminate and originate TLS, enforce policies, retry, time out, balance load and emit metrics and traces.
 - **Control plane** — the brain that configures the proxies: it distributes routing rules and policies, and acts as a **certificate authority** that issues each workload its identity.
 
-``` mermaid
+``` diagram
 flowchart TB
     subgraph cp ["Control plane (istiod / linkerd-control-plane)"]
         CFG["config + policy"]
@@ -98,7 +98,7 @@ How does `payment` know that a call really comes from `order`? IP addresses prov
 - **SPIFFE** (Secure Production Identity Framework For Everyone)[^4] — a standard name for workload identities, `spiffe://<trust-domain>/<path>`. Istio uses `spiffe://cluster.local/ns/<namespace>/sa/<service-account>`: **the identity is the Kubernetes service account**.
 - **SVID** (SPIFFE Verifiable Identity Document) — the short-lived X.509 certificate that carries that identity, rotated automatically (Istio's default lifetime is 24 hours; SPIRE's default is one hour).
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     participant O as order (proxy)
@@ -370,6 +370,15 @@ A mesh is powerful and expensive to run. It adds a control plane to operate and 
 !!! tip "In the interview"
     Bring up a mesh when the design has **many services** and someone asks about service-to-service security or resilience: "inside the cluster, a service mesh gives every service an identity and mutual TLS; authorization policies say only `order` can call `payment`; timeouts, retries and outlier detection are configured per route." Then show you know the cost: "it adds a proxy hop and operational complexity — ambient or eBPF data planes reduce the per-pod overhead; for a handful of services I'd skip it."
 
+!!! success "Best practices"
+
+    - **Roll out mTLS in steps with a deadline** — permissive mode, watch the plaintext-connection metric fall to zero, then STRICT per namespace on a date written in the plan.
+    - **Derive authorization policies from the call graph** — deny by default per namespace, then allow each edge (`order → payment`) by service identity; the graph doubles as documentation.
+    - **Put retries in one layer only, with a retry budget** — e.g. at most 20% extra requests, and only for idempotent methods; the other layer gets timeouts.
+    - **Make each hop's timeout shorter than its caller's** — the gateway waits 5 s ([lab 4](../../../hands-on/4/gateway/index.md) sets `response-timeout: 5s`), so `order → payment` must give up well before that.
+    - **Budget the data plane** — set CPU and memory requests for the proxies, and count about 1 ms per hop in the latency budget of a path with 4–5 hops.
+    - **Keep workload certificates short-lived and rotated by the mesh** — hours, not years (Istio issues 24-hour certificates by default), so a stolen certificate expires on its own.
+
 !!! warning "Common pitfalls"
     - **Leaving mTLS in permissive mode forever** — plain text is still accepted, so the mesh encrypts nothing an attacker cares about.
     - **mTLS without authorization policies** — every workload in the mesh can still call `payment`; you only encrypted the attack.
@@ -382,7 +391,7 @@ A mesh is powerful and expensive to run. It adds a control plane to operate and 
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     CP["control plane<br/>config + CA"] --> DP["data plane:<br/>sidecar, ambient, eBPF"]
     CP --> SVID["SPIFFE identity (SVID)<br/>from the service account"]
@@ -398,13 +407,15 @@ flowchart LR
 
 **Palette components:** [`mesh`](../../../reference/components/network/index.md#mesh) · [`app`](../../../reference/components/compute/index.md#app) (the services behind each proxy) · [`ingress`](../../../reference/components/edge/index.md#ingress) (Gateway API, north–south) · [`metrics`](../../../reference/components/observability/index.md#metrics) · [`tracing`](../../../reference/components/observability/index.md#tracing) (telemetry of every hop). **Scenarios:** `cascading-failure`, `retry-storm`. **Continues in:** [Zero Trust](../zero-trust/index.md), [Reliability — patterns](../../reliability/patterns/index.md#circuit-breaker), [Observability — signals](../../observability/signals/index.md), [Edge — load balancing in Kubernetes](../../edge/load-balancing/index.md#kubernetes), [Cloud-native — delivery](../../cloud-native/delivery/index.md) (canary).
 
-## Key takeaways
+## Key takeaways { #key-takeaways }
 
-- A service mesh = **data plane** (proxies on every call) + **control plane** (config + certificate authority); it moves mTLS, policy, resilience and telemetry out of the code.
-- **Sidecar** gives full L7 everywhere at a per-pod cost; **ambient** splits L4 (ztunnel per node) from optional L7 (waypoints); **eBPF** does L3/L4 in the kernel.
-- **mTLS** authenticates workloads with SPIFFE identities derived from service accounts; an **authorization policy** decides who may call what.
-- Traffic policy — **timeouts, retries, outlier detection, canary weights** — is declared per route; retry in only one layer, and only idempotent calls.
-- **NetworkPolicy** (L3/L4, default deny, ingress *and* egress) and mesh policy (L7, identity) are complementary layers. For a handful of services, a mesh may not be worth it.
+!!! takeaways ""
+
+    - A service mesh = **data plane** (proxies on every call) + **control plane** (config + certificate authority); it moves mTLS, policy, resilience and telemetry out of the code.
+    - **Sidecar** gives full L7 everywhere at a per-pod cost; **ambient** splits L4 (ztunnel per node) from optional L7 (waypoints); **eBPF** does L3/L4 in the kernel.
+    - **mTLS** authenticates workloads with SPIFFE identities derived from service accounts; an **authorization policy** decides who may call what.
+    - Traffic policy — **timeouts, retries, outlier detection, canary weights** — is declared per route; retry in only one layer, and only idempotent calls.
+    - **NetworkPolicy** (L3/L4, default deny, ingress *and* egress) and mesh policy (L7, identity) are complementary layers. For a handful of services, a mesh may not be worth it.
 
 ---
 

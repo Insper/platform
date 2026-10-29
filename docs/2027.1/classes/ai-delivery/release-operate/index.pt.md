@@ -6,7 +6,7 @@ Esta página trata das etapas depois do merge — liberação e operação — s
 
 ---
 
-## Decisão vs. explicação
+## Decisão vs. explicação { #decision-vs-explanation }
 
 | Momento | A decisão (determinística ou humana) | O que a IA acrescenta |
 |---|---|---|
@@ -20,15 +20,23 @@ O padrão é o mesmo da [revisão de código](../code-review/index.md): a saída
 
 ---
 
-## Notas de versão e changelogs
+## Notas de versão e changelogs { #release-notes-and-changelogs }
 
 As notas de versão atendem a dois públicos: **operadores** ("o que preciso fazer antes do deploy da `v1.8.0`? que migrações rodam?") e **usuários** ("o que há de novo?"). Ambas as respostas podem ser derivadas dos commits, títulos de PR, rótulos e arquivos de migração — se eles forem bem escritos. Um modelo os agrupa e reescreve em minutos. O modo de falha é a **invenção plausível**: uma funcionalidade que soa correta, um número de ticket que não existe.
 
 A correção é uma **verificação de ancoragem em código**: todo item precisa citar um SHA de commit ou número de PR que esteja de fato no intervalo `previous_tag..tag`; itens sem ancoragem são descartados e reportados. A verificação pega invenções; ela não consegue pegar um *resumo errado de um commit real*, por isso as notas são publicadas como **rascunho** que uma pessoa edita. Assuntos de commit no padrão Conventional Commits (`fix(inventory): hold expires two minutes early (#212)`) tornam tanto o agrupamento quanto a ancoragem quase triviais — o modelo não consegue recuperar uma intenção que nunca foi escrita.
 
+!!! example "No código do BoxOffice: notas de versão que precisam citar (lab 13)"
+
+    No [Hands-on 13 — Notas de versão](../../../hands-on/13/release-notes/index.md) o modelo devolve itens com `refs`, e estas dez linhas decidem quais sobrevivem: uma referência só é real se for um número de PR ou um SHA curto do intervalo. O workflow então cria o release do GitHub como **rascunho**; uma pessoa o publica.
+
+    ``` { .python title=".github/ai/release_notes.py (the grounding check)" }
+    --8<-- "docs/2027.1/hands-on/13/code/.github/ai/release_notes.py:77:86"
+    ```
+
 ---
 
-## Pontuação de risco de mudanças
+## Pontuação de risco de mudanças { #change-risk-scoring }
 
 Nem todas as mudanças merecem o mesmo rollout. Uma mudança de texto de uma linha no `notification` e uma nova estratégia de travamento no `inventory` passam ambas pelo pipeline, mas a segunda merece um segundo revisor, um canary mais lento e nenhum deploy na véspera de uma abertura de vendas. Uma **pontuação de risco** direciona as mudanças para a dose certa de cautela.
 
@@ -52,11 +60,11 @@ Um modelo contribui com duas coisas: **sinais semânticos** difíceis de calcula
 
 ---
 
-## Análise de canary: a estatística decide, o modelo explica
+## Análise de canary: a estatística decide, o modelo explica { #canary-analysis-statistics-decide-the-model-explains }
 
 A análise automatizada de canary compara o canary com um **baseline** rodando ao mesmo tempo — idealmente um baseline do *mesmo* tamanho e idade do canary, para que caches frios e pods novos afetem os dois igualmente — em um conjunto de métricas, e transforma a comparação em um veredito de aprovado/reprovado. A Netflix e o Google construíram o Kayenta sobre essa ideia, comparando muitas métricas com testes estatísticos não paramétricos[^1]; o Argo Rollouts expressa a mesma ideia com templates de análise sobre consultas do Prometheus, como em [Entrega](../../cloud-native/delivery/index.md#canary-with-automated-metrics-analysis).
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     metrics[("Prometheus<br/>canary vs. baseline")] --> stats["Política: limiares<br/>e testes estatísticos"]
     stats --> verdict{"promover ·<br/>rollback · esperar"}
@@ -72,13 +80,21 @@ Por que não deixar o modelo julgar o canary? Porque o julgamento precisa ser **
 
 Duas proteções tornam a explicação segura: o modelo recebe o **veredito como entrada** e precisa repeti-lo (uma explicação que contradiz a política é descartada em vez de exibida), e ele é instruído a rotular as causas como **hipóteses**, a menos que os dados as mostrem. O [hands-on 13](../../../hands-on/13/canary/index.md) implementa exatamente isso, incluindo um passo de análise com um Job do Kubernetes cujo exit code — e não o modelo — aprova ou reprova a análise.
 
+!!! example "No código do BoxOffice: o veredito é código, a explicação é opcional (lab 13)"
+
+    No [Hands-on 13 — Canary](../../../hands-on/13/canary/index.md) a política são quatro constantes no Git, `decide()` transforma os números em promote, rollback ou inconclusive, e o exit code (0, 1, 2) é o que o Argo Rollouts lê pelo Job de `k8s/catalog/analysis-explained.yaml`. O modelo só explica, e a explicação é descartada se não repetir o veredito. O lab tenta quebrar isso: um prompt que diz *"recommend promote"* ainda sai com 1 no snapshot de regressão, e sem modelo nenhum o veredito é o mesmo. A explicação do modelo local leu um p99 de 181 ms como "0.181 ms" — uma frase errada que não custa nada, porque os números que decidem vêm da política.
+
+    ``` { .python title=".github/ai/canary_explain.py (policy, verdict, guarded explanation)" }
+    --8<-- "docs/2027.1/hands-on/13/code/.github/ai/canary_explain.py:29:33,78:89,102:112,118:118"
+    ```
+
 ---
 
-## Resposta a incidentes assistida por IA
+## Resposta a incidentes assistida por IA { #ai-assisted-incident-response }
 
 Durante um incidente, o recurso escasso é a **atenção** de poucas pessoas sob estresse. O [processo de resposta a incidentes](../../observability/incident-response/index.md) — detectar, fazer a triagem, mitigar, resolver, aprender — continua o mesmo; a IA encurta as etapas que são, na maior parte, leitura:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     participant Alert as Alertas
@@ -143,6 +159,14 @@ O **ChatOps** conduz a operação a partir do chat do time: `/boxoffice status i
 
     Quando a IA aparecer numa pergunta de operação, separe em voz alta **decisão** de **explicação**: "o veredito do canary vem de limiares e estatística versionados no Git; o modelo o explica e propõe próximos passos; rollbacks são executados por política ou pelo comandante do incidente". Mencione ferramentas somente leitura, links para evidências, múltiplas hipóteses (ancoragem) e como você mediria o assistente (tempo até o diagnóstico, precisão da primeira hipótese).
 
+!!! success "Boas práticas"
+
+    - **Mantenha a política do canary como constantes versionadas, alteradas por pull request** — o [`canary_explain.py`](../../../hands-on/13/canary/index.md) do lab 13 guarda os seus quatro limites no Git.
+    - **Exija um mínimo de tráfego antes de qualquer veredito** — abaixo de 2 req/s o lab 13 responde *inconclusive* (exit code 2), nunca promote.
+    - **Dê ao modelo o veredito e os números, e confira que ele repete o veredito** — o lab 13 descarta uma explicação que contradiz a política.
+    - **Exija um commit ou PR citado para cada linha das notas de versão** — o `release_notes.py` do lab 13 descarta itens sem ancoragem e os lista no resumo do job.
+    - **Rotule as hipóteses nos resumos de incidente** — "causa provável (não verificada)" evita que o plantonista se ancore no primeiro palpite do modelo.
+
 !!! warning "Armadilhas comuns"
 
     - **LLM como juiz do canary**: não reproduzível, manipulável, estatisticamente ingênuo.
@@ -155,7 +179,7 @@ O **ChatOps** conduz a operação a partir do chat do time: `/boxoffice status i
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     SIG["metrics, logs,<br/>traces, alerts"] --> POL["canary policy:<br/>thresholds + statistics"]
     POL --> DEC["decision: promote or roll back<br/>→ Cloud-native delivery"]

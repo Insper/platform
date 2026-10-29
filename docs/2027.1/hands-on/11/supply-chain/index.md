@@ -6,7 +6,7 @@ before it runs: *what is inside it?* (an SBOM), *does it contain known vulnerabi
 and *was it really built by our pipeline, from this commit?* (provenance). The `image` job of
 `ci.yaml` answers the three, in this order:
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     build["build (load locally)"] --> sarif["Trivy report -> Security tab"]
     sarif --> gate{"Trivy gate: fixable CRITICAL?"}

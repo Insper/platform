@@ -3,7 +3,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Observabilidade e health checks
+## Observabilidade e health checks { #observability-and-health-checks }
 
 **Q1.** Durante a abertura de vendas do BoxOffice, todos os pods estão verdes, a CPU está em 45% e a taxa de erros geral é de 0,3%, mas os fãs esperam nove segundos para pagar. Qual afirmação explica melhor por que os dashboards não mostraram o problema?
 
@@ -47,7 +47,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Sinais
+## Sinais { #signals }
 
 **Q4.** Um time adiciona o label `customer_id` (cerca de 1 milhão de valores) ao histograma de latência do checkout, que já tem 204.000 séries. Qual é a consequência mais provável?
 
@@ -149,7 +149,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Alertas
+## Alertas { #alerting }
 
 **Q11.** O SLO do checkout é 99,9% numa janela móvel de 28 dias. A razão de erros observada na última hora é 1,44%. Qual é o burn rate, e quanto do budget essa hora consumiu?
 
@@ -193,7 +193,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Resposta a incidentes
+## Resposta a incidentes { #incident-response }
 
 **Q14.** Doze minutos depois de um SEV1 começar, o líder de operações tem uma hipótese mas nenhuma prova; a troca para o provedor de pagamentos secundário está documentada e testada. O que o incident commander deve decidir?
 

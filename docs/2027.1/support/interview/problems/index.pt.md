@@ -1,4 +1,4 @@
-# Problemas para praticar
+# Problemas para praticar { #practice-problems }
 
 50 problemas de system design para praticar para entrevistas, do aquecimento a perguntas de nível sênior. Cada um traz o enunciado como um entrevistador o diria, as perguntas que você deve fazer primeiro, os conceitos-chave (com links para a aula em que cada um é ensinado e para o catálogo de componentes), a armadilha a evitar, o estudo de caso correspondente quando existe, um cenário do playground para quebrar seu design sob carga e dicas que você só abre depois de tentar.
 
@@ -84,7 +84,7 @@
 
 Uma ideia central e um design pequeno. Bons primeiros problemas para estágio e recém-formados: tente cumprir os sete passos do framework em 30–35 minutos.
 
-### Muitas leituras e cache
+### Muitas leituras e cache { #read-heavy-caching }
 
 #### 1. Encurtador de URLs { #url-shortener }
 
@@ -201,7 +201,7 @@ Projete o catálogo de eventos do BoxOffice: páginas de shows, jogos e festivai
     - Cache-aside no Redis para a API; réplicas de leitura para o banco.
     - A disponibilidade ("últimos assentos") vem de um endpoint separado e de vida curta, nunca embutida na página.
 
-### Infraestrutura e plataforma
+### Infraestrutura e plataforma { #infrastructure-platform }
 
 #### 5. Rate limiter distribuído { #rate-limiter }
 
@@ -287,7 +287,7 @@ Projete um serviço de feature flags para os 40 serviços do BoxOffice: engenhei
     - Porcentagens estáveis: `hash(flag, user_id) mod 100 < rollout%`.
     - Padrões seguros compilados no código; log de auditoria e um interruptor de emergência para cada flag.
 
-### Muitas escritas e pipelines de dados
+### Muitas escritas e pipelines de dados { #write-heavy-data-pipelines }
 
 #### 8. Contador de curtidas { #likes-counter }
 
@@ -317,7 +317,7 @@ Projete o contador de "tenho interesse" exibido em cada evento do BoxOffice (com
     - Ou acumule os cliques numa fila e deixe workers aplicarem incrementos em lote a cada segundo.
     - Mostre um número aproximado e cacheado; a exatidão pode vir depois.
 
-### Assíncrono e workflows
+### Assíncrono e workflows { #async-workflows }
 
 #### 9. Sistema de notificações { #notification-system }
 
@@ -383,7 +383,7 @@ Os parceiros do BoxOffice (produtores, locais) querem ser avisados por callbacks
 
 Dois ou três componentes que interagem, um número de escala de verdade e pelo menos um aprofundamento. A entrevista típica de 45 minutos.
 
-### Muitas leituras e cache
+### Muitas leituras e cache { #read-heavy-caching_1 }
 
 #### 11. Feed de notícias { #news-feed }
 
@@ -521,7 +521,7 @@ Durante uma abertura de vendas, os fãs olham o mapa de assentos do estádio (60
 
 **Cuidado com.** Consultar 60.000 linhas de assentos para cada um de 200.000 fãs a cada poucos segundos dá ~10⁹ linhas por segundo. O mapa é um retrato compacto em cache (um bitmap); a reserva em si é verificada no banco, então um mapa desatualizado só pode causar um educado "assento acabou de ser pego".
 
-**Pratique.** Estudo de caso: [Ingressos (venda relâmpago do BoxOffice)](../../../classes/case-studies/ticketing/index.md) · Cenário do playground: [`flash-sale`](../../../../playground/scenarios/index.md#flash-sale) (abertura de vendas do BoxOffice às 10:00)
+**Pratique.** Estudo de caso: [Ingressos (venda relâmpago do BoxOffice)](../../../classes/case-studies/ticketing/index.md) · Cenário do playground: [`flash-sale`](../../../../playground/scenarios/index.md#flash-sale) (venda relâmpago com estoque limitado)
 
 ??? tip "Dicas"
 
@@ -530,7 +530,7 @@ Durante uma abertura de vendas, os fãs olham o mapa de assentos do estádio (60
     - Ofereça "melhor disponível no setor" para reduzir a disputa pelos assentos mais procurados.
     - A verificação oficial é o update condicional na hora da reserva.
 
-### Muitas escritas e pipelines de dados
+### Muitas escritas e pipelines de dados { #write-heavy-data-pipelines_1 }
 
 #### 16. Contador de visualizações de vídeos { #view-counter }
 
@@ -676,7 +676,7 @@ Projete uma plataforma de métricas (como um Prometheus + Grafana simplificado o
     - Regras de alerta avaliadas perto dos dados; agrupamento e roteamento no estilo do Alertmanager.
     - Limites de cardinalidade por cliente; rode a pilha de monitoramento fora do domínio de falha monitorado.
 
-### Tempo real e geolocalização
+### Tempo real e geolocalização { #real-time-geo }
 
 #### 21. Chat (WhatsApp / Slack) { #chat }
 
@@ -764,7 +764,7 @@ Projete o "o que há perto de mim": dada a localização de um fã, liste bares,
     - Cacheie resultados por (célula, filtros) nas áreas populares em volta dos locais de evento.
     - Edições de lugares vão para o índice de busca de forma assíncrona; minutos de atraso são aceitáveis.
 
-### Assíncrono e workflows
+### Assíncrono e workflows { #async-workflows_1 }
 
 #### 24. Agendador de jobs distribuído { #job-scheduler }
 
@@ -853,7 +853,7 @@ Um show num estádio com 60.000 ingressos vendidos é cancelado. O BoxOffice pre
     - Chave de idempotência = id do reembolso; confirmação pelo webhook do provedor; retries com backoff; DLQ para tratamento manual.
     - Progresso = contagem por estado; as notificações saem na confirmação, não no pedido.
 
-### Infraestrutura e plataforma
+### Infraestrutura e plataforma { #infrastructure-platform_1 }
 
 #### 27. API gateway { #api-gateway }
 
@@ -868,7 +868,7 @@ Projete o API gateway na frente dos 40 microsserviços do BoxOffice: roteamento 
 **Conceitos-chave.**
 
 - [API gateway e algoritmos de rate limiting](../../../classes/edge/api-gateway/index.md)
-- [OAuth 2 / OIDC e JWT](../../../classes/network-security/identity/index.md)
+- [OAuth 2 / OIDC e JWT](../../../classes/edge/identity/index.md)
 - [Balanceamento de carga e hashing consistente](../../../classes/edge/load-balancing/index.md)
 - [Canary releases e feature flags](../../../classes/cloud-native/delivery/index.md)
 - Catálogo: [API Gateway](../../../reference/components/edge/index.md#apigw) · [Load Balancer](../../../reference/components/edge/index.md#lb) · [Auth Service](../../../reference/components/compute/index.md#auth) · [Cache](../../../reference/components/storage/index.md#cache) · [Logs](../../../reference/components/observability/index.md#logs)
@@ -919,7 +919,7 @@ Projete uma CDN para as imagens, scripts e páginas de eventos do BoxOffice: 100
 
 Disputa, dinheiro, tempo real ou mídia em escala: o design ingênuo falha, e é no aprofundamento que a entrevista se decide.
 
-### Dinheiro e consistência
+### Dinheiro e consistência { #money-consistency }
 
 #### 29. Venda relâmpago do BoxOffice (ingressos) { #flash-sale-ticketing }
 
@@ -942,7 +942,7 @@ O exemplo que acompanha o curso. Um show num estádio abre as vendas sábado às
 
 **Cuidado com.** Tratar como um problema só de escala ("acrescente servidores") erra o alvo: as partes difíceis são a disputa por 60.000 linhas, uma reserva correta e um provedor de pagamento externo que vira o gargalo às 10:00.
 
-**Pratique.** Estudo de caso: [Ingressos (venda relâmpago do BoxOffice)](../../../classes/case-studies/ticketing/index.md) · Cenário do playground: [`flash-sale`](../../../../playground/scenarios/index.md#flash-sale) (abertura de vendas do BoxOffice às 10:00)
+**Pratique.** Estudo de caso: [Ingressos (venda relâmpago do BoxOffice)](../../../classes/case-studies/ticketing/index.md) · Cenário do playground: [`flash-sale`](../../../../playground/scenarios/index.md#flash-sale) (venda relâmpago com estoque limitado)
 
 ??? tip "Dicas"
 
@@ -995,12 +995,12 @@ Projete só a sala de espera das maiores aberturas de vendas do BoxOffice: até 
 - [Filas vs pub/sub vs logs de eventos](../../../classes/messaging/queues-pubsub/index.md)
 - [API gateway e algoritmos de rate limiting](../../../classes/edge/api-gateway/index.md)
 - [Lei de Little e filas](../../../classes/estimation/queueing/index.md)
-- [OAuth 2 / OIDC e JWT](../../../classes/network-security/identity/index.md)
+- [OAuth 2 / OIDC e JWT](../../../classes/edge/identity/index.md)
 - Catálogo: [CDN](../../../reference/components/edge/index.md#cdn) · [WAF](../../../reference/components/edge/index.md#waf) · [API Gateway](../../../reference/components/edge/index.md#apigw) · [Cache](../../../reference/components/storage/index.md#cache) · [Message Queue](../../../reference/components/messaging/index.md#queue)
 
 **Cuidado com.** Se a sala de espera depende do backend que ela protege, ela cai junto. Mantenha-a na borda (CDN, gateway, um armazenamento pequeno e rápido) e faça tokens de admissão verificáveis sem chamar o banco.
 
-**Pratique.** Estudo de caso: [Ingressos (venda relâmpago do BoxOffice)](../../../classes/case-studies/ticketing/index.md) · Cenário do playground: [`flash-sale`](../../../../playground/scenarios/index.md#flash-sale) (abertura de vendas do BoxOffice às 10:00)
+**Pratique.** Estudo de caso: [Ingressos (venda relâmpago do BoxOffice)](../../../classes/case-studies/ticketing/index.md) · Cenário do playground: [`flash-sale`](../../../../playground/scenarios/index.md#flash-sale) (venda relâmpago com estoque limitado)
 
 ??? tip "Dicas"
 
@@ -1029,7 +1029,7 @@ Projete um sistema de reservas de hotéis (como o Booking.com) para 1 milhão de
 
 **Cuidado com.** A disponibilidade precisa ser modelada por (hotel, tipo de quarto, data): uma reserva de 3 noites atualiza 3 linhas numa transação. As buscas podem vir de um cache desatualizado; a reserva em si, não.
 
-**Pratique.** Estudo de caso: ainda sem estudo de caso — compare com [Ingressos (venda relâmpago do BoxOffice)](../../../classes/case-studies/ticketing/index.md) · Cenário do playground: [`flash-sale`](../../../../playground/scenarios/index.md#flash-sale) (abertura de vendas do BoxOffice às 10:00)
+**Pratique.** Estudo de caso: ainda sem estudo de caso — compare com [Ingressos (venda relâmpago do BoxOffice)](../../../classes/case-studies/ticketing/index.md) · Cenário do playground: [`flash-sale`](../../../../playground/scenarios/index.md#flash-sale) (venda relâmpago com estoque limitado)
 
 ??? tip "Dicas"
 
@@ -1096,7 +1096,7 @@ O BoxOffice lança uma carteira: os fãs mantêm um saldo (créditos de reembols
     - Verificação de saldo com `SELECT … FOR UPDATE` ou update condicional; lock otimista por versão.
     - Visão de event sourcing: o saldo é a soma dos lançamentos; jobs de conciliação periódicos o verificam.
 
-### Tempo real e geolocalização
+### Tempo real e geolocalização { #real-time-geo_1 }
 
 #### 35. Transporte por aplicativo (Uber / 99) { #ride-sharing }
 
@@ -1185,7 +1185,7 @@ Projete o backend de um jogo multijogador online: o matchmaking coloca 10 jogado
     - Um alocador atribui um servidor de jogo (por exemplo, Agones no Kubernetes) e devolve o endereço aos jogadores.
     - UDP para o estado; resultados, rankings e inventário gravados no banco por um serviço normal.
 
-### Busca e mídia
+### Busca e mídia { #search-media }
 
 #### 38. Streaming de vídeo (YouTube / Netflix) { #video-streaming }
 
@@ -1274,7 +1274,7 @@ Projete a busca de texto completo nos posts de uma rede social: 500 milhões de 
     - Scatter-gather entre os shards com top-K por shard e uma mescla; a amplificação de cauda do fan-out é o risco de latência.
     - Exclusões como tombstones filtrados na consulta; cacheie as consultas populares por alguns segundos.
 
-### Sistemas de IA
+### Sistemas de IA { #ai-systems }
 
 #### 41. Assistente de suporte com IA do BoxOffice { #ai-assistant }
 
@@ -1369,7 +1369,7 @@ O BoxOffice quer busca por significado: "noite de jazz tranquila em São Paulo n
 
 Internals de sistemas distribuídos e plataformas: consenso, replicação, ordenação, multi-região, plataformas de IA. Profundidade de nível sênior; ótimo treino depois do curso.
 
-### Fundamentos distribuídos
+### Fundamentos distribuídos { #distributed-foundations }
 
 #### 44. Armazenamento chave-valor distribuído { #key-value-store }
 
@@ -1518,7 +1518,7 @@ O BoxOffice se expande para a Europa e a América do Norte e promete 99,99% de d
     - Réplica standby de cada região de origem em outro lugar; promova na falha da região (RPO de segundos), failover por DNS/anycast.
     - Ou um banco globalmente consistente (estilo Spanner), aceitando escritas mais lentas; game days para provar o RTO.
 
-### Sistemas de IA
+### Sistemas de IA { #ai-systems_1 }
 
 #### 49. Plataforma de agentes com ferramentas { #agent-platform }
 
@@ -1535,7 +1535,7 @@ Projete uma plataforma interna em que os times do BoxOffice constroem agentes de
 - [Agentes e uso de ferramentas](../../../classes/ai-systems/agents/index.md)
 - [LLM gateway: roteamento, fallbacks, cache](../../../classes/ai-systems/llm-gateway/index.md)
 - [Guardrails e avaliações](../../../classes/ai-systems/safety-evals/index.md)
-- [OAuth 2 / OIDC e JWT](../../../classes/network-security/identity/index.md)
+- [OAuth 2 / OIDC e JWT](../../../classes/edge/identity/index.md)
 - [OpenTelemetry](../../../classes/observability/opentelemetry/index.md)
 - Catálogo: [Orchestrator](../../../reference/components/ai/index.md#orchestrator) · [Tool Registry](../../../reference/components/ai/index.md#toolreg) · [LLM Gateway](../../../reference/components/ai/index.md#llmgw) · [Safety Mesh](../../../reference/components/ai/index.md#safety) · [Memory Fabric](../../../reference/components/ai/index.md#memory) · [Tracing](../../../reference/components/observability/index.md#tracing)
 

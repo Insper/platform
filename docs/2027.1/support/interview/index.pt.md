@@ -148,7 +148,7 @@ hide:
     </div></div>
     <div class="step-item"><div class="step-num green">4</div><div class="step-body">
       <strong>Desenhe e narre</strong>
-      <span>Caixas com nome, setas com o que passa por elas ("POST /holds", "evento OrderPlaced"). Narre uma requisição percorrendo o diagrama. Ensaie com o <a href="../../playground/">playground</a>: mesma paleta, mesmo vocabulário.</span>
+      <span>Caixas com nome, setas com o que passa por elas ("POST /holds", "evento OrderPlaced"). Narre uma requisição percorrendo o diagrama. Ensaie com o <a href="../../../playground/">playground</a>: mesma paleta, mesmo vocabulário.</span>
     </div></div>
     <div class="step-item"><div class="step-num green">5</div><div class="step-body">
       <strong>Nomeie o trade-off</strong>
@@ -160,7 +160,7 @@ hide:
     </div></div>
     <div class="step-item"><div class="step-num green">7</div><div class="step-body">
       <strong>Projete para a falha</strong>
-      <span>Para cada seta, pergunte: e se ficar lenta? e se falhar? e se a requisição chegar duas vezes? Timeouts, retries com backoff e jitter, circuit breakers, chaves de idempotência e uma dead-letter queue são as respostas padrão. <a href="../../classes/reliability/patterns/">Aula 9 · Padrões de resiliência →</a></span>
+      <span>Para cada seta, pergunte: e se ficar lenta? e se falhar? e se a requisição chegar duas vezes? Timeouts, retries com backoff e jitter, circuit breakers, chaves de idempotência e uma dead-letter queue são as respostas padrão. <a href="../../classes/reliability/patterns/">Aula 10 · Padrões de resiliência →</a></span>
     </div></div>
     <div class="step-item"><div class="step-num green">8</div><div class="step-body">
       <strong>Conduza, e confira</strong>
@@ -263,7 +263,7 @@ hide:
     <div class="card border-purple">
       <div class="card-label purple">Ferramentas por sintoma</div>
       <h3>O que usar quando</h3>
-      <p><strong>Dashboard RED</strong> (taxa, erros, duração): o serviço está saudável para os usuários?<br><br><strong>Método USE</strong> (utilização, saturação, erros): qual recurso é o gargalo?<br><br><strong>Trace distribuído:</strong> onde uma requisição lenta gasta seu tempo?<br><br><strong>Logs:</strong> o que exatamente aconteceu com esta requisição?<br><br><strong>Profiler / flame graph:</strong> para onde vai a CPU?<br><br><strong><code>EXPLAIN</code>:</strong> por que esta consulta é lenta?<br><br><strong>Teste de carga</strong> (k6) e <strong>injeção de falhas</strong> (Toxiproxy): reproduza antes de corrigir. <a href="../../classes/observability/signals/">Aula 10 →</a></p>
+      <p><strong>Dashboard RED</strong> (taxa, erros, duração): o serviço está saudável para os usuários?<br><br><strong>Método USE</strong> (utilização, saturação, erros): qual recurso é o gargalo?<br><br><strong>Trace distribuído:</strong> onde uma requisição lenta gasta seu tempo?<br><br><strong>Logs:</strong> o que exatamente aconteceu com esta requisição?<br><br><strong>Profiler / flame graph:</strong> para onde vai a CPU?<br><br><strong><code>EXPLAIN</code>:</strong> por que esta consulta é lenta?<br><br><strong>Teste de carga</strong> (k6) e <strong>injeção de falhas</strong> (Toxiproxy): reproduza antes de corrigir. <a href="../../classes/observability/signals/">Aula 9 →</a></p>
     </div>
   </div>
 </section>
@@ -415,13 +415,13 @@ hide:
       </button>
       <div class="acc-body">
         <ul class="qa-list">
-          <li><strong>[46] SLI, SLO, SLA e orçamento de erros?</strong>SLI: uma medida (fração de requisições abaixo de 300 ms). SLO: a meta (99,9% em 28 dias). SLA: um contrato com multas. Orçamento de erros: 100% − SLO, a falta de confiabilidade que você pode gastar com lançamentos e experimentos. <a class="cls" href="../../classes/reliability/slo/">Aula 9</a></li>
-          <li><strong>[47] Timeout, retry, circuit breaker, bulkhead?</strong>O timeout limita a espera; o retry (com backoff e jitter) trata erros transitórios; o circuit breaker para de chamar uma dependência que continua falhando; o bulkhead isola recursos para que uma dependência lenta não consuma todos. <a class="cls" href="../../classes/reliability/patterns/">Aula 9</a></li>
-          <li><strong>[48] RPO vs RTO?</strong>RPO: quanto dado você pode perder (tempo desde a última cópia boa). RTO: quanto tempo até voltar. Backups dão horas; replicação dá segundos; multi-região ativo-ativo chega perto de zero, a um custo alto. <a class="cls" href="../../classes/reliability/disaster-recovery/">Aula 9</a></li>
-          <li><strong>[49] Por que engenharia do caos?</strong>Para achar fraquezas num experimento controlado, e não num incidente: declare uma hipótese sobre o estado estável, injete uma falha (latência, um crash, a queda de uma zona), observe, corrija. Comece pequeno, em homologação, com um botão de parada. <a class="cls" href="../../classes/reliability/chaos/">Aula 9</a></li>
-          <li><strong>[50] Métricas, logs e traces?</strong>Métricas: agregados baratos ao longo do tempo (algo está errado?). Logs: eventos detalhados (o que exatamente aconteceu?). Traces: uma requisição atravessando serviços (para onde vai o tempo?). O OpenTelemetry padroniza os três. <a class="cls" href="../../classes/observability/signals/">Aula 10</a></li>
-          <li><strong>[51] RED, USE e os sinais de ouro?</strong>RED para serviços: taxa, erros, duração. USE para recursos: utilização, saturação, erros. Os quatro sinais de ouro do Google: latência, tráfego, erros, saturação. <a class="cls" href="../../classes/observability/signals/">Aula 10</a></li>
-          <li><strong>[52] O que deve acordar alguém às 3 da manhã?</strong>Sintomas que os usuários sentem, não causas: um SLO consumindo rápido o orçamento de erros (alertas de burn rate em duas janelas). CPU alta, sozinha, não deve acordar ninguém. <a class="cls" href="../../classes/observability/alerting/">Aula 10</a></li>
+          <li><strong>[46] SLI, SLO, SLA e orçamento de erros?</strong>SLI: uma medida (fração de requisições abaixo de 300 ms). SLO: a meta (99,9% em 28 dias). SLA: um contrato com multas. Orçamento de erros: 100% − SLO, a falta de confiabilidade que você pode gastar com lançamentos e experimentos. <a class="cls" href="../../classes/observability/slo/">Aula 9</a></li>
+          <li><strong>[47] Timeout, retry, circuit breaker, bulkhead?</strong>O timeout limita a espera; o retry (com backoff e jitter) trata erros transitórios; o circuit breaker para de chamar uma dependência que continua falhando; o bulkhead isola recursos para que uma dependência lenta não consuma todos. <a class="cls" href="../../classes/reliability/patterns/">Aula 10</a></li>
+          <li><strong>[48] RPO vs RTO?</strong>RPO: quanto dado você pode perder (tempo desde a última cópia boa). RTO: quanto tempo até voltar. Backups dão horas; replicação dá segundos; multi-região ativo-ativo chega perto de zero, a um custo alto. <a class="cls" href="../../classes/reliability/disaster-recovery/">Aula 10</a></li>
+          <li><strong>[49] Por que engenharia do caos?</strong>Para achar fraquezas num experimento controlado, e não num incidente: declare uma hipótese sobre o estado estável, injete uma falha (latência, um crash, a queda de uma zona), observe, corrija. Comece pequeno, em homologação, com um botão de parada. <a class="cls" href="../../classes/reliability/chaos/">Aula 10</a></li>
+          <li><strong>[50] Métricas, logs e traces?</strong>Métricas: agregados baratos ao longo do tempo (algo está errado?). Logs: eventos detalhados (o que exatamente aconteceu?). Traces: uma requisição atravessando serviços (para onde vai o tempo?). O OpenTelemetry padroniza os três. <a class="cls" href="../../classes/observability/signals/">Aula 9</a></li>
+          <li><strong>[51] RED, USE e os sinais de ouro?</strong>RED para serviços: taxa, erros, duração. USE para recursos: utilização, saturação, erros. Os quatro sinais de ouro do Google: latência, tráfego, erros, saturação. <a class="cls" href="../../classes/observability/signals/">Aula 9</a></li>
+          <li><strong>[52] O que deve acordar alguém às 3 da manhã?</strong>Sintomas que os usuários sentem, não causas: um SLO consumindo rápido o orçamento de erros (alertas de burn rate em duas janelas). CPU alta, sozinha, não deve acordar ninguém. <a class="cls" href="../../classes/observability/alerting/">Aula 9</a></li>
         </ul>
         <div class="acc-link">Nas aulas: <a href="../../classes/reliability/">9 · Confiabilidade</a> · <a href="../../classes/observability/">10 · Observabilidade</a> · Catálogo: <a href="../../reference/components/observability/">componentes de observabilidade</a></div>
       </div>
@@ -434,11 +434,11 @@ hide:
       </button>
       <div class="acc-body">
         <ul class="qa-list">
-          <li><strong>[53] Sub-redes públicas vs privadas, e um NAT gateway?</strong>Só o load balancer fica em sub-redes públicas; serviços e bancos ficam nas privadas, sem rota de entrada a partir da internet. Um NAT gateway permite que serviços privados chamem para fora (uma API de pagamento) sem ficarem acessíveis. <a class="cls" href="../../classes/network-security/cloud-network/">Aula 11</a></li>
-          <li><strong>[54] OAuth 2 / OIDC e JWT num fôlego só?</strong>O OIDC autentica o usuário e o servidor de autorização emite um token assinado (muitas vezes um JWT); os serviços verificam a assinatura e as claims localmente, sem chamar o servidor de autorização. Expiração curta mais refresh tokens; a revogação é a parte difícil. <a class="cls" href="../../classes/network-security/identity/">Aula 11</a></li>
-          <li><strong>[55] O que um service mesh acrescenta?</strong>Uma camada de proxies (sidecar ou ambient) que dá a todo serviço mTLS, retries, timeouts, divisão de tráfego e telemetria sem mudar o código, ao custo de latência por salto e complexidade operacional. <a class="cls" href="../../classes/network-security/service-mesh/">Aula 11</a></li>
-          <li><strong>[56] Probes de liveness vs readiness?</strong>Liveness: o processo travou? (reinicie). Readiness: pode receber tráfego agora? (tire do load balancer). Verificar uma dependência na liveness causa tempestades de restarts. <a class="cls" href="../../classes/cloud-native/kubernetes/">Aula 12</a></li>
-          <li><strong>[57] Rolling, blue/green ou canary?</strong>Rolling troca os pods aos poucos; blue/green alterna todo o tráfego entre dois ambientes completos (rollback rápido, custo dobrado); canary envia uma pequena fração para a versão nova e observa as métricas antes de avançar. <a class="cls" href="../../classes/cloud-native/delivery/">Aula 12</a></li>
+          <li><strong>[53] Sub-redes públicas vs privadas, e um NAT gateway?</strong>Só o load balancer fica em sub-redes públicas; serviços e bancos ficam nas privadas, sem rota de entrada a partir da internet. Um NAT gateway permite que serviços privados chamem para fora (uma API de pagamento) sem ficarem acessíveis. <a class="cls" href="../../classes/network-security/cloud-network/">Aula 12</a></li>
+          <li><strong>[54] OAuth 2 / OIDC e JWT num fôlego só?</strong>O OIDC autentica o usuário e o servidor de autorização emite um token assinado (muitas vezes um JWT); os serviços verificam a assinatura e as claims localmente, sem chamar o servidor de autorização. Expiração curta mais refresh tokens; a revogação é a parte difícil. <a class="cls" href="../../classes/edge/identity/">Aula 4</a></li>
+          <li><strong>[55] O que um service mesh acrescenta?</strong>Uma camada de proxies (sidecar ou ambient) que dá a todo serviço mTLS, retries, timeouts, divisão de tráfego e telemetria sem mudar o código, ao custo de latência por salto e complexidade operacional. <a class="cls" href="../../classes/network-security/service-mesh/">Aula 12</a></li>
+          <li><strong>[56] Probes de liveness vs readiness?</strong>Liveness: o processo travou? (reinicie). Readiness: pode receber tráfego agora? (tire do load balancer). Verificar uma dependência na liveness causa tempestades de restarts. <a class="cls" href="../../classes/cloud-native/kubernetes/">Aula 11</a></li>
+          <li><strong>[57] Rolling, blue/green ou canary?</strong>Rolling troca os pods aos poucos; blue/green alterna todo o tráfego entre dois ambientes completos (rollback rápido, custo dobrado); canary envia uma pequena fração para a versão nova e observa as métricas antes de avançar. <a class="cls" href="../../classes/cloud-native/delivery/">Aula 11</a></li>
           <li><strong>[58] Qual teste de carga responde a qual pergunta?</strong>Smoke: funciona? Load: cumpre o SLO no pico esperado? Stress: onde quebra? Spike: sobrevive às 10:00? Soak: degrada ao longo de horas? Breakpoint: qual é o máximo? <a class="cls" href="../../classes/performance/load-testing/">Aula 15</a></li>
         </ul>
         <div class="acc-link">Nas aulas: <a href="../../classes/network-security/">11 · Rede e segurança</a> · <a href="../../classes/cloud-native/">12 · Cloud-native</a> · <a href="../../classes/performance/">14 · Desempenho</a></div>
@@ -512,7 +512,7 @@ hide:
     <div class="card border-amber">
       <div class="card-label amber">Sob carga</div>
       <h3>Quebre no playground</h3>
-      <p>Para cada design que praticar, monte-o no <a href="../../playground/">playground</a>, rode um perfil de spike ou de stress e veja qual caixa fica vermelha primeiro. Depois corrija e rode de novo. Ver o joelho uma vez vale mais que ler sobre ele dez vezes.</p>
+      <p>Para cada design que praticar, monte-o no <a href="../../../playground/">playground</a>, rode um perfil de spike ou de stress e veja qual caixa fica vermelha primeiro. Depois corrija e rode de novo. Ver o joelho uma vez vale mais que ler sobre ele dez vezes.</p>
     </div>
     <div class="card border-purple">
       <div class="card-label purple">Com honestidade</div>
@@ -593,7 +593,7 @@ hide:
   </div>
 
   <div class="callout">
-    <p>Sete passos, uma dúzia dos conceitos acima, e cada caixa justificada por um número ou um requisito. Era isso que a entrevistadora queria ver: <strong>não as caixas que você conhece, mas por que cada uma está ali</strong>. Experimente você mesmo no <a href="../../playground/">playground</a> com o cenário <code>flash-sale</code> e compare com o <a href="../../classes/case-studies/ticketing/">estudo de caso de ingressos</a>.</p>
+    <p>Sete passos, uma dúzia dos conceitos acima, e cada caixa justificada por um número ou um requisito. Era isso que a entrevistadora queria ver: <strong>não as caixas que você conhece, mas por que cada uma está ali</strong>. Experimente você mesmo no <a href="../../../playground/">playground</a> com o cenário <code>flash-sale</code> e compare com o <a href="../../classes/case-studies/ticketing/">estudo de caso de ingressos</a>.</p>
   </div>
 </section>
 

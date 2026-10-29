@@ -22,7 +22,7 @@ Vocabulary used below: a **principal** is the authenticated entity (a user or a 
 
 After login, the server must remember the user on the next request. Two families of designs:
 
-``` mermaid
+``` diagram
 flowchart LR
     subgraph s ["Server-side session"]
         B1(["Browser"]) -->|"Cookie: sid=9f2c…"| A1["app"]
@@ -89,6 +89,14 @@ RFC 8725 (JWT Best Current Practices) is the reference[^1]. A resource server mu
 | `typ` is `at+jwt` for access tokens (RFC 9068) | an ID token cannot be used as an access token |
 | required **scopes / roles** for the endpoint | least privilege |
 
+!!! example "In the BoxOffice code: `auth` signs the tokens (lab 4)"
+
+    In [Hands-on 4 — auth](../../../hands-on/4/auth/index.md), BoxOffice gets its front door: `auth` signs every token with **RS256**, the private key never leaves it, and the public key is served as a JWKS at `/auth/.well-known/jwks.json`, so the gateway can verify without sharing a secret that could also forge tokens. Compare the claims with the checklist: `iss`, `aud`, `sub`, `exp`, `jti` and the `kid` header are there, and the role becomes a `scope` claim (`user` or `user admin`). Three shortcuts, each with its price: `typ` is plain `JWT` (there are no ID tokens to confuse it with yet); the key pair is generated at every start, so restarting `auth` rejects every token issued before (unknown `kid`) — the lab's warning explains why real keys live in a KMS and rotate with two keys in the JWKS; and the lifetime is 1 hour (`JWT_TTL`) with no refresh token, so a stolen token works for up to an hour, not 15 minutes.
+
+    ``` { .java title="services/auth/src/main/java/boxoffice/auth/TokenService.java (signing a token)" }
+    --8<-- "docs/2027.1/hands-on/4/code/services/auth/src/main/java/boxoffice/auth/TokenService.java:48:72"
+    ```
+
 ---
 
 ## OAuth 2.1 { #oauth }
@@ -119,7 +127,7 @@ OAuth 2.0 (RFC 6749, 2012) accumulated a decade of security lessons in separate 
 
 ### Choosing the grant
 
-``` mermaid-sim
+``` diagram-sim
 flowchart TD
     q1{"Is a user<br/>involved?"} -->|no| cc["Client Credentials<br/>(reconciliation job)"]
     q1 -->|yes| q2{"Can the device<br/>open a browser?"}
@@ -143,7 +151,7 @@ The app never sees the password. It opens the **system browser** (not an embedde
 
 A malicious app that registered the same redirect scheme and intercepts the code does not have the verifier, so the code is useless.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     actor Ana
@@ -206,7 +214,7 @@ OAuth answers "may this client call this API?". It deliberately does not tell th
 
 For the browser, the current recommendation is to keep **no tokens in JavaScript** at all. A **BFF** (Backend for Frontend) is a confidential client on the server: it runs the OIDC flow, keeps the tokens, and gives the browser only an `HttpOnly`, `Secure`, `SameSite` session cookie[^8].
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     actor Ana
@@ -252,7 +260,7 @@ curl -s -X POST https://auth.boxoffice.com/realms/boxoffice/protocol/openid-conn
   -d scope=inventory:read
 ```
 
-Better than a client secret: authenticate the client with a **signed JWT** (`private_key_jwt`) or with its **workload identity** (mTLS certificate or the Kubernetes service-account token) — no shared secret to leak ([Zero Trust](../zero-trust/index.md)).
+Better than a client secret: authenticate the client with a **signed JWT** (`private_key_jwt`) or with its **workload identity** (mTLS certificate or the Kubernetes service-account token) — no shared secret to leak ([Zero Trust](../../network-security/zero-trust/index.md)).
 
 ### Token Exchange: the assistant acting for the user
 
@@ -270,7 +278,7 @@ A bearer token works for anyone who steals it. **Sender-constrained** tokens are
 
 ## Validating tokens at the gateway { #gateway-validation }
 
-The gateway is the first **enforcement point**: it rejects requests without a valid token and forwards a trusted identity downstream (see [Edge — API gateway](../../edge/api-gateway/index.md)).
+The gateway is the first **enforcement point**: it rejects requests without a valid token and forwards a trusted identity downstream (see [Edge — API gateway](../api-gateway/index.md)).
 
 | | **Local validation (JWKS)** | **Remote validation (introspection, RFC 7662)** |
 |---|---|---|
@@ -294,6 +302,18 @@ spring:
 
 !!! warning "Strip identity headers at the edge"
     If the gateway forwards `X-Account-Id: acc-42` to services, it must **remove** any `X-Account-Id` sent by the client, and services must be unreachable except through the gateway (or must verify the token themselves). Otherwise anyone who reaches a service directly can become any user.
+
+!!! example "In the BoxOffice code: the gateway checks the token once (lab 4)"
+
+    [Hands-on 4 — gateway](../../../hands-on/4/gateway/index.md) uses **local validation**: the decoder fetches the JWKS of `auth` and then checks the signature, `exp`/`nbf`, `iss` and `aud` of every request without calling `auth`. That is the reason for the choice: a login is expensive on purpose (BCrypt; the lab measures roughly 10–20 logins/s per CPU), so it happens once per session, while the 2 million requests of the on-sale cost only a signature check at the gateway — introspection would put `auth` in the path of every one of them. The price is revocation only at `exp`. `UserHeadersFilter` implements the warning above: it removes any `X-User-*` header sent by the client, then sets the identity taken from the validated token. The other half of the warning holds only by deployment: the `catalog` replicas publish no port, so from outside the gateway is the only way in — but any container on the same network can still send a forged `X-User-Id`, the gap that [Zero Trust](../../network-security/zero-trust/index.md) closes.
+
+    ``` { .java title="services/gateway/src/main/java/boxoffice/gateway/SecurityConfig.java (the JWT decoder)" }
+    --8<-- "docs/2027.1/hands-on/4/code/services/gateway/src/main/java/boxoffice/gateway/SecurityConfig.java:42:52"
+    ```
+
+    ``` { .java title="services/gateway/src/main/java/boxoffice/gateway/UserHeadersFilter.java (strip, then set)" }
+    --8<-- "docs/2027.1/hands-on/4/code/services/gateway/src/main/java/boxoffice/gateway/UserHeadersFilter.java:21:44"
+    ```
 
 ---
 
@@ -366,6 +386,14 @@ Policy engines (OPA, Cedar, OpenFGA) move the rules out of the code into a revie
 !!! tip "In the interview"
     Whenever the design has users, say in one breath: "users log in through an **OIDC provider**; the mobile app uses **Authorization Code with PKCE**; the gateway validates **short-lived JWT access tokens** locally against the provider's JWKS; refresh tokens rotate; service-to-service calls use **client credentials** or the mesh identity; and every service checks **object ownership**." If they ask about logout or revocation, explain the trade-off between local validation and introspection — and the exposure window equal to the token lifetime.
 
+!!! success "Best practices"
+
+    - **Issue access tokens that live 5–15 minutes, with rotating refresh tokens** — revocation latency equals the token lifetime. In BoxOffice: lab 4 issues 1-hour tokens with no refresh token, a shortcut named in the `auth` box above.
+    - **Validate tokens locally against a cached JWKS, refetching it when an unknown `kid` arrives** — no call to the identity provider per request, and key rotation needs no downtime. In BoxOffice: the gateway's `NimbusReactiveJwtDecoder` ([gateway box](#gateway-validation)).
+    - **Rotate signing keys on a schedule and publish the old and the new key in the JWKS during the overlap** — tokens signed before the rotation stay valid until they expire. (Lab 4 makes a new key at every start instead, and every token dies with it.)
+    - **Strip client-supplied identity headers at the gateway before adding your own** — in BoxOffice: `UserHeadersFilter` removes `X-User-*` first ([gateway box](#gateway-validation)).
+    - **Hash passwords with a slow, tunable function and rate-limit login** — BCrypt with cost ≥ 10 or Argon2id; in [lab 4](../../../hands-on/4/auth/index.md), BCrypt cost 10 limits `auth` to roughly 10–20 logins/s per CPU, so logins must happen before 10:00, not at it.
+
 !!! warning "Common pitfalls"
     - **Implicit or password (ROPC) grants** in new code — removed in OAuth 2.1; use Authorization Code + PKCE.
     - **Skipping `aud`** — a token issued for another API is accepted by yours.
@@ -379,7 +407,7 @@ Policy engines (OPA, Cedar, OpenFGA) move the rules out of the code into a revie
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     AS["auth: OIDC provider<br/>(authorization server)"] --> PKCE["Authorization Code + PKCE<br/>mobile app, web BFF"]
     AS --> CC["Client Credentials<br/>reconciliation job"]
@@ -393,15 +421,17 @@ flowchart LR
     TX --> AI["agents acting for users<br/>→ AI systems"]
 ```
 
-**Palette components:** [`auth`](../../../reference/components/compute/index.md#auth) · [`apigw`](../../../reference/components/edge/index.md#apigw) (the first enforcement point) · [`client`](../../../reference/components/client/index.md#client) · [`mobile`](../../../reference/components/client/index.md#mobile) · [`cache`](../../../reference/components/storage/index.md#cache) (server-side sessions) · [`orchestrator`](../../../reference/components/ai/index.md#orchestrator) (the assistant acting on the user's behalf). **Scenarios:** `rate-limiter`, `flash-sale`, `ai-assistant`. **Continues in:** [Edge — API gateway](../../edge/api-gateway/index.md), [Zero Trust](../zero-trust/index.md#workload-identity), [Caching — Redis](../../caching/redis/index.md), [AI systems — agents](../../ai-systems/agents/index.md), [Hands-on 4 — Gateway & identity](../../../hands-on/4/index.md).
+**Palette components:** [`auth`](../../../reference/components/compute/index.md#auth) · [`apigw`](../../../reference/components/edge/index.md#apigw) (the first enforcement point) · [`client`](../../../reference/components/client/index.md#client) · [`mobile`](../../../reference/components/client/index.md#mobile) · [`cache`](../../../reference/components/storage/index.md#cache) (server-side sessions) · [`orchestrator`](../../../reference/components/ai/index.md#orchestrator) (the assistant acting on the user's behalf). **Scenarios:** `rate-limiter`, `flash-sale`, `ai-assistant`. **Continues in:** [Edge — API gateway](../api-gateway/index.md), [Zero Trust](../../network-security/zero-trust/index.md#workload-identity), [Caching — Redis](../../caching/redis/index.md), [AI systems — agents](../../ai-systems/agents/index.md), [Hands-on 4 — Gateway & identity](../../../hands-on/4/index.md).
 
-## Key takeaways
+## Key takeaways { #key-takeaways }
 
-- **AuthN** (who) ≠ **authZ** (what). The gateway authenticates; each service still authorizes access to its own objects.
-- **Sessions** revoke instantly but need a shared store; **JWTs** scale statelessly but stay valid until `exp`. Combine short access tokens with revocable refresh tokens.
-- Validate JWTs properly: allow-listed algorithm, `kid` from your JWKS, `iss`, `aud`, `exp`, `typ`, scopes.
-- **OAuth 2.1**: Authorization Code + **PKCE** for every user-facing client (system browser for mobile, BFF for web), **Client Credentials** for jobs, **Token Exchange** for delegation; no Implicit, no ROPC.
-- **OIDC** adds the ID token, UserInfo and discovery. Choose RBAC, ABAC or ReBAC for authorization, and always check ownership (BOLA).
+!!! takeaways ""
+
+    - **AuthN** (who) ≠ **authZ** (what). The gateway authenticates; each service still authorizes access to its own objects.
+    - **Sessions** revoke instantly but need a shared store; **JWTs** scale statelessly but stay valid until `exp`. Combine short access tokens with revocable refresh tokens.
+    - Validate JWTs properly: allow-listed algorithm, `kid` from your JWKS, `iss`, `aud`, `exp`, `typ`, scopes.
+    - **OAuth 2.1**: Authorization Code + **PKCE** for every user-facing client (system browser for mobile, BFF for web), **Client Credentials** for jobs, **Token Exchange** for delegation; no Implicit, no ROPC.
+    - **OIDC** adds the ID token, UserInfo and discovery. Choose RBAC, ABAC or ReBAC for authorization, and always check ownership (BOLA).
 
 ---
 

@@ -1,8 +1,8 @@
 O revisor da parte 1 faz **uma** chamada ao modelo e posta texto. Um **agente** é diferente: ele roda um loop — lê um arquivo, edita, roda o build, lê o erro, edita de novo — escolhendo o próprio próximo passo até a tarefa terminar ou um orçamento se esgotar (veja [Agentes e ferramentas](../../../classes/ai-systems/agents/index.md)). Isso o torna muito mais capaz, e muito mais perigoso: ele executa comandos, escreve código e custa mais a cada passo. Esta parte constrói um agente que reage a uma **execução de CI com falha** propondo uma correção como um **pull request em rascunho** — e gasta a maior parte das suas linhas mantendo esse agente dentro de uma caixa.
 
-## 3.1 O fluxo e suas fronteiras de confiança
+## 3.1 O fluxo e suas fronteiras de confiança { #31-the-flow-and-its-trust-boundaries }
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     participant CI as Workflow de CI (lab 11)
@@ -34,7 +34,7 @@ Três separações fazem o trabalho de segurança:
 E um humano faz o merge. Nada neste workflow chega à `main` sem um review exigido pela proteção de branch.
 
 
-## 3.2 Caminho A — Claude Code, headless (pago)
+## 3.2 Caminho A — Claude Code, headless (pago) { #32-path-a-claude-code-headless-paid }
 
 O [Claude Code](https://code.claude.com/docs/en/headless){target="_blank"} pode rodar de forma não interativa com `claude -p`. As flags usadas aqui, da sua referência de CLI:
 
@@ -58,7 +58,7 @@ O caminho A só roda quando a variável de repositório `LLM_PROVIDER` é `anthr
     A Anthropic também publica a [`anthropics/claude-code-action@v1`](https://github.com/anthropics/claude-code-action){target="_blank"}, que empacota o mesmo motor para o GitHub: menções `@claude` em PRs e issues, ou automação com um input `prompt`, e flags de CLI por meio de `claude_args` (por exemplo `--max-turns 5 --model ...`). É o jeito mais rápido de ter um assistente sob demanda nos PRs. Este lab chama a CLI diretamente porque queremos a **separação por artefato de patch** acima, em que o job que roda o agente não tem token de escrita; consulte a [documentação de segurança](https://github.com/anthropics/claude-code-action/blob/main/docs/security.md){target="_blank"} da action se você a usar para escritas.
 
 
-## 3.3 Caminho B — um agente neutro em relação ao provedor em menos de 200 linhas (gratuito com Ollama)
+## 3.3 Caminho B — um agente neutro em relação ao provedor em menos de 200 linhas (gratuito com Ollama) { #33-path-b-a-provider-neutral-agent-in-under-200-lines-free-with-ollama }
 
 Para ver que um agente é "só um loop", o `fix_agent.py` implementa um sobre qualquer endpoint compatível com OpenAI com chamada de ferramentas (LiteLLM, ou Ollama com um modelo que suporte ferramentas). Ele tem cinco ferramentas — `list_files`, `read_file`, `write_file`, `run_build`, `finish` — e **nenhum shell**.
 
@@ -77,7 +77,7 @@ Para ver que um agente é "só um loop", o `fix_agent.py` implementa um sobre qu
 | Uma chamada de ferramenta escrita como **texto** JSON (modelos locais pequenos fazem isso) é aceita como chamada, nunca executada como código | `text_tool_call()` |
 | `run_build("catalog")` é lido como `services/catalog`; um `pom.xml` ausente vira mensagem de erro, não um crash | `run_build()` |
 
-## 3.4 O workflow
+## 3.4 O workflow { #34-the-workflow }
 
 ``` { .yaml title=".github/workflows/ai-fix.yaml" .copy linenums="1" }
 --8<-- "docs/2027.1/hands-on/13/code/.github/workflows/ai-fix.yaml"
@@ -99,7 +99,7 @@ Para ver que um agente é "só um loop", o `fix_agent.py` implementa um sobre qu
     1. O `GITHUB_TOKEN` só pode criar pull requests se **Allow GitHub Actions to create and approve pull requests** estiver habilitado — o passo 0.4 do [setup](../index.md#repository-settings) fez isso. Este lab nunca aprova.
     2. Eventos causados pelo `GITHUB_TOKEN` (o push de `ai-fix/...`, o PR que ele abre) **não disparam outros workflows**, então o CI não roda sozinho no PR em rascunho. É uma proteção do GitHub contra loops. Para rodar o CI nele, faça push de um commit vazio da sua máquina: `gh pr checkout <número do PR em rascunho>`, depois `git commit --allow-empty -m "ci: run CI on the AI fix" && git push` (ou use um token de GitHub App se o seu time automatizar isso).
 
-## 3.5 Quebre o build de propósito
+## 3.5 Quebre o build de propósito { #35-break-the-build-on-purpose }
 
 Faça commit do agente e do seu workflow na `main` antes (workflows `workflow_run` só rodam a partir do branch padrão):
 
@@ -185,7 +185,7 @@ Quando terminar, feche o PR `break-catalog` sem merge (`gh pr close break-catalo
     Falhas mecânicas com um sinal claro no log: erros de compilação depois de atualizar uma dependência, um método renomeado, um import quebrado, uma verificação de formatação, um teste que falha porque uma mensagem esperada mudou. Eles compensam menos em testes instáveis e problemas de infraestrutura — classifique esses primeiro (a página da aula sobre [testes](../../../classes/ai-delivery/testing/index.md) trata da triagem de testes instáveis).
 
 
-## Solução de problemas
+## Solução de problemas { #troubleshooting }
 
 | Sintoma | Causa | Correção |
 |---|---|---|

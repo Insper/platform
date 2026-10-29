@@ -1,4 +1,4 @@
-\activity{12}{Cloud-Native Platforms}{cloud-native}{BoxOffice runs on a laptop: nine services, PostgreSQL, Redis and Kafka, started with one \texttt{docker compose up}. On a normal Tuesday the platform serves a few hundred requests per second; on the morning of a stadium on-sale it must absorb twenty times that for thirty minutes and shrink back afterwards, so nobody pays for idle machines. The team wants to ship a fix to \texttt{inventory} without taking the site down at 10:00, and to know the monthly bill before the invoice arrives. Which platform, packaging, scaling and delivery make that possible?}
+\activity{11}{Cloud-Native Platforms}{cloud-native}{BoxOffice runs on a laptop: nine services, PostgreSQL, Redis and Kafka, started with one \texttt{docker compose up}. On a normal Tuesday the platform serves a few hundred requests per second; on the morning of a stadium on-sale it must absorb twenty times that for thirty minutes and shrink back afterwards, so nobody pays for idle machines. The team wants to ship a fix to \texttt{inventory} without taking the site down at 10:00, and to know the monthly bill before the invoice arrives. Which platform, packaging, scaling and delivery make that possible?}
 \stages{\stEstimate\ \stDesign\ \stDeep}
 
 \begin{know}
@@ -32,6 +32,8 @@ The \texttt{catalog} Deployment: 4 replicas; rolling update with \texttt{maxSurg
 \end{enumerate}
 \lines{5}
 \end{ex}
+
+\simulator{Losing a node}{k8s-node-failure}{Catalog and pricing fill 3 nodes $\times$ 4 pods; at t = 60 s a node dies and its pods have nowhere to go. Leave room for one node's pods (N+1 for nodes), add a Service Registry and run again.}
 
 \begin{ex}{2}{The autoscaler and the on-sale}
 The HPA of \texttt{catalog} has min 4, max 40 replicas, a CPU target of 60\% (of the request) and may double the replicas every 15 s.
@@ -77,6 +79,8 @@ Prices (illustrative, USD, 730 h per month): Kubernetes control plane 0.10/h; no
 \end{enumerate}
 \lines{7}
 \end{ex}
+
+\simulator{Pods are not nodes}{microservices}{At 2\,000 req/s the catalog's HPA asks for more pods than 2 nodes $\times$ 6 pods can hold: they stay Pending and the catalog drowns. Add nodes or turn on the cluster autoscaler (a node takes about 90 s), then read the cost lines: is it the nodes that dominate the bill?}
 
 \begin{ex}{3}{Functions or containers?}
 A function costs US\$ 0.20 per million calls, US\$ 0.0000166667 per GB-second and US\$ 1.00 per million calls of the HTTP front door. A container task (0.5 vCPU, 1 GB) costs US\$ 18.02 per month and serves 50 req/s; there are at least 2 tasks behind a load balancer of US\$ 22.27 per month. A month has 2\,628\,000 s.

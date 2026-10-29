@@ -1,4 +1,4 @@
-\activity{11}{Network \& Security}{network-security}{BoxOffice goes to production in the cloud and, within a month, four stories land on the team's desk: a stolen laptop with the payment provider's API key in a \texttt{.env} file; a proposal to keep the user's password in the mobile app; bots that grab 30\% of the seat holds in the first minute of an on-sale; and a vulnerable library that lets an attacker run code in one \texttt{search} pod, from where every service, the database and the Internet are one connection away. Where do you draw the network boundaries, the identities and the secret lifecycles so that each story stays small?}
+\activity{12}{Network \& Security}{network-security}{BoxOffice goes to production in the cloud and, within a month, four stories land on the team's desk: a stolen laptop with the payment provider's API key in a \texttt{.env} file; a proposal to keep the user's password in the mobile app; bots that grab 30\% of the seat holds in the first minute of an on-sale; and a vulnerable library that lets an attacker run code in one \texttt{search} pod, from where every service, the database and the Internet are one connection away. Where do you draw the network boundaries, the identities and the secret lifecycles so that each story stays small?}
 \stages{\stDesign\ \stDeep}
 
 \begin{know}
@@ -22,7 +22,7 @@
 \lines{5}
 \end{ex}
 
-\simulator{Rate limiting protects the backend}{rate-limiter}{Real fans plus scraper bots melt the catalog. Set a rate limit on the API Gateway below the app capacity (or add a WAF in front) and watch the bots being cut first while real users keep a low p99.}
+\simulator{Rate limiting protects the backend}{rate-limiter}{Real users plus scraper bots sending twice their traffic melt the catalog. Set a rate limit on the API Gateway below the app capacity (or add a WAF in front) and watch the bots being cut first while real users keep a low p99.}
 
 \begin{ex}{1}{Counting addresses}
 \items

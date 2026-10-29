@@ -2,7 +2,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Modelos e motores de armazenamento
+## Modelos e motores de armazenamento { #models-and-storage-engines }
 
 **Q1.** A BoxOffice precisa garantir que um assento nunca seja vendido duas vezes, e os analistas vivem inventando perguntas novas sobre os pedidos. Qual escolha de armazenamento serve melhor aos **pedidos e ao inventário de assentos**?
 
@@ -60,7 +60,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Transações e isolamento
+## Transações e isolamento { #transactions-and-isolation }
 
 **Q5.** Duas requisições rodam isto no PostgreSQL (read committed) para o assento `A-12`: `SELECT status …` → `AVAILABLE`, depois `UPDATE seats SET status = 'HELD', held_by = :me WHERE event_id = 42 AND seat_id = 'A-12'`. As duas reportam sucesso. Qual é a anomalia, e qual mudança única a corrige?
 
@@ -118,7 +118,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Replicação
+## Replicação { #replication }
 
 **Q9.** Depois de adicionar réplicas de leitura assíncronas, os fãs às vezes veem a página *Meus ingressos* vazia logo após pagar. Qual correção oferece consistência **read-your-writes** (ler as próprias escritas)?
 
@@ -162,7 +162,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Particionamento e armazenamentos especializados
+## Particionamento e armazenamentos especializados { #partitioning-and-specialized-stores }
 
 **Q12.** Um cache distribuído com 9 nós usa `node = hash(key) mod N`. Um nó é adicionado. Aproximadamente que fração das chaves passa a ser mapeada para outro nó, e o que o hashing consistente daria?
 

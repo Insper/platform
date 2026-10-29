@@ -55,7 +55,7 @@ To get freshness better than the TTL, the code that writes to the database also 
 
 When the event changes, the writer can either **update** the cache with the new value or **delete** the key and let the next read fill it. Deleting is safer. Consider two organizers editing event 42 at the same time:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant W1 as Writer 1
     participant W2 as Writer 2
@@ -83,7 +83,7 @@ The writes reached the database in one order and the cache in the other. With **
 
 Even "write DB, then delete after commit" leaves one race. It needs a slow reader:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant Rd as Reader
     participant R as Redis
@@ -128,7 +128,7 @@ Invalidation in application code has a structural weakness: it only covers write
 
 **Change data capture (CDC)** moves invalidation to the source: a connector reads the database's replication log (the PostgreSQL write-ahead log, WAL) and publishes every committed change as an event. An invalidator consumes the events and deletes the affected keys.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     APP["catalog service"] -->|"UPDATE events"| DB[("PostgreSQL")]
     ADM["admin script"] -->|"UPDATE events"| DB
@@ -325,6 +325,14 @@ These are the same consistency models seen in [Distributed Systems](../../distri
 
     When you add a cache, the follow-up question is always "how do you keep it consistent?". A strong answer has three layers: (1) the staleness budget for this data ("prices: a few seconds; descriptions: a minute"); (2) the mechanism — TTL as the safety net, delete after commit, CDC if many writers; (3) the escape hatch for decisions — "the checkout reads the price from the database". Mention the cache-aside race and how the TTL (or versions, or leases) bounds it, and you are ahead of most candidates.
 
+!!! success "Best practices"
+
+    - **Write a staleness budget per kind of data** before choosing TTLs: seconds for prices during the on-sale, minutes for descriptions, never for seat availability.
+    - **TTL plus explicit delete**: the delete gives freshness, the TTL bounds the damage of the delete you will one day miss.
+    - **Version what you cannot purge** (CDN assets, client caches): change the URL or the key instead of invalidating every copy.
+    - **Invalidate from the database log (CDC) when many services write the same data**, so no write path can forget the delete.
+    - **Choose the eviction policy by the access pattern** (`allkeys-lru` or `allkeys-lfu` for a pure cache) and watch `evicted_keys`: steady evictions mean the working set does not fit. In BoxOffice: lab 5 runs Redis with `--maxmemory 256mb --maxmemory-policy allkeys-lru`.
+
 !!! warning "Common pitfalls"
 
     - **No TTL "because we invalidate explicitly"** — the first missed delete becomes permanent.
@@ -336,7 +344,7 @@ These are the same consistency models seen in [Distributed Systems](../../distri
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     BUD["staleness budget<br/>per data item"] --> TTL["TTL: the safety net"]
     BUD --> EXP["explicit invalidation<br/>delete, don't update"]

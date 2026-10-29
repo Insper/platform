@@ -14,6 +14,10 @@ extra_css = [
   "assets/stylesheets/mermaid-sim.css",
   "assets/stylesheets/playground.css",
   "assets/stylesheets/support.css",
+  "assets/stylesheets/netsim.css",
+  "assets/stylesheets/csim.css",
+  "assets/stylesheets/quiz.css",
+  "assets/stylesheets/diagram.css",
 ]
 extra_javascript = [
   "assets/javascripts/mathjax.js",
@@ -22,6 +26,14 @@ extra_javascript = [
   "assets/javascripts/termynal.js",
   "assets/javascripts/termynal-init.js",
   "assets/javascripts/mermaid-sim.js",
+  # network simulators (2027.1, class 12): CIDR explorer and packet walk
+  "assets/javascripts/netsim.js",
+  # diagrams (2027.1): ``` diagram and ``` diagram-sim, our own renderer (ELK loaded on demand)
+  "assets/javascripts/diagram.js",
+  # quizzes (2027.1): compact question cards built from the Markdown
+  "assets/javascripts/quiz.js",
+  # concept simulators (2027.1): the core loads each page's modules (csim/<name>.js) on demand
+  "assets/javascripts/csim/core.js",
   # circles today in the edition calendars (.calendar-wrap)
   "assets/javascripts/calendar-today.js",
   # System Design Playground (2027.1): order matters
@@ -40,11 +52,10 @@ extra_javascript = [
 nav = [
   { "Overview" = "index.md" },
   # System Design Playground: edition-independent (docs/playground/)
-  # published at /playground/ but not listed yet: uncomment to show it in the nav
-#~   { "Playground" = [
-#~     { "Simulator" = "playground/index.md" },
-#~     { "Scenarios" = "playground/scenarios/index.md" },
-#~   ] },
+  { "Playground" = [
+    { "Simulator" = "playground/index.md" },
+    { "Scenarios" = "playground/scenarios/index.md" },
+  ] },
   # 2027.1 is published but not listed yet: uncomment the block below to show it in the nav
   # >>> 2027.1 nav (generated)
 #~   { "2027.1" = [
@@ -80,6 +91,7 @@ nav = [
 #~         { "DNS & CDN" = "2027.1/classes/edge/dns-cdn/index.md" },
 #~         { "Load Balancing" = "2027.1/classes/edge/load-balancing/index.md" },
 #~         { "API Gateway & Rate Limiting" = "2027.1/classes/edge/api-gateway/index.md" },
+#~         { "Identity: OAuth 2.1, OIDC & JWT" = "2027.1/classes/edge/identity/index.md" },
 #~         { "Protocols" = "2027.1/classes/edge/protocols/index.md" },
 #~         { "Quiz" = "2027.1/classes/edge/quiz.md" },
 #~       ] },
@@ -117,37 +129,37 @@ nav = [
 #~         { "Outbox, Sagas & CQRS" = "2027.1/classes/messaging/patterns/index.md" },
 #~         { "Quiz" = "2027.1/classes/messaging/quiz.md" },
 #~       ] },
-#~       { "9. Reliability & Resilience" = [
-#~         { "Overview" = "2027.1/classes/reliability/index.md" },
-#~         { "SLIs, SLOs & Error Budgets" = "2027.1/classes/reliability/slo/index.md" },
-#~         { "Resilience Patterns" = "2027.1/classes/reliability/patterns/index.md" },
-#~         { "Disaster Recovery" = "2027.1/classes/reliability/disaster-recovery/index.md" },
-#~         { "Chaos Engineering" = "2027.1/classes/reliability/chaos/index.md" },
-#~         { "Quiz" = "2027.1/classes/reliability/quiz.md" },
-#~       ] },
-#~       { "10. Observability" = [
+#~       { "9. Observability" = [
 #~         { "Overview" = "2027.1/classes/observability/index.md" },
 #~         { "Signals" = "2027.1/classes/observability/signals/index.md" },
+#~         { "SLIs, SLOs & Error Budgets" = "2027.1/classes/observability/slo/index.md" },
 #~         { "OpenTelemetry" = "2027.1/classes/observability/opentelemetry/index.md" },
 #~         { "Alerting" = "2027.1/classes/observability/alerting/index.md" },
 #~         { "Incident Response" = "2027.1/classes/observability/incident-response/index.md" },
 #~         { "Quiz" = "2027.1/classes/observability/quiz.md" },
 #~       ] },
-#~       { "11. Network & Security" = [
-#~         { "Overview" = "2027.1/classes/network-security/index.md" },
-#~         { "Cloud Networking" = "2027.1/classes/network-security/cloud-network/index.md" },
-#~         { "Service Mesh" = "2027.1/classes/network-security/service-mesh/index.md" },
-#~         { "Identity: OAuth 2.1, OIDC & JWT" = "2027.1/classes/network-security/identity/index.md" },
-#~         { "Zero Trust, Secrets & Supply Chain" = "2027.1/classes/network-security/zero-trust/index.md" },
-#~         { "Quiz" = "2027.1/classes/network-security/quiz.md" },
+#~       { "10. Reliability & Resilience" = [
+#~         { "Overview" = "2027.1/classes/reliability/index.md" },
+#~         { "Resilience Patterns" = "2027.1/classes/reliability/patterns/index.md" },
+#~         { "Disaster Recovery" = "2027.1/classes/reliability/disaster-recovery/index.md" },
+#~         { "Chaos Engineering" = "2027.1/classes/reliability/chaos/index.md" },
+#~         { "Quiz" = "2027.1/classes/reliability/quiz.md" },
 #~       ] },
-#~       { "12. Cloud-Native Platforms" = [
+#~       { "11. Cloud-Native Platforms" = [
 #~         { "Overview" = "2027.1/classes/cloud-native/index.md" },
 #~         { "Containers" = "2027.1/classes/cloud-native/containers/index.md" },
 #~         { "Kubernetes" = "2027.1/classes/cloud-native/kubernetes/index.md" },
 #~         { "Delivery" = "2027.1/classes/cloud-native/delivery/index.md" },
 #~         { "FinOps" = "2027.1/classes/cloud-native/finops/index.md" },
 #~         { "Quiz" = "2027.1/classes/cloud-native/quiz.md" },
+#~       ] },
+#~       { "12. Network & Security" = [
+#~         { "Overview" = "2027.1/classes/network-security/index.md" },
+#~         { "How the Internet Works" = "2027.1/classes/network-security/internet/index.md" },
+#~         { "Cloud Networking" = "2027.1/classes/network-security/cloud-network/index.md" },
+#~         { "Service Mesh" = "2027.1/classes/network-security/service-mesh/index.md" },
+#~         { "Zero Trust, Secrets & Supply Chain" = "2027.1/classes/network-security/zero-trust/index.md" },
+#~         { "Quiz" = "2027.1/classes/network-security/quiz.md" },
 #~       ] },
 #~       { "13. AI Systems & Agents" = [
 #~         { "Overview" = "2027.1/classes/ai-systems/index.md" },
@@ -709,10 +721,14 @@ pymdownx.emoji.emoji_index = "zensical.extensions.emoji.twemoji"
 pymdownx.emoji.emoji_generator = "zensical.extensions.emoji.to_svg"
 pymdownx.inlinehilite = {}
 pymdownx.snippets.url_download = true
+pymdownx.snippets.dedent_subsections = true   # line-range includes ("In the BoxOffice code") start at column 0
 pymdownx.superfences.custom_fences = [
   { name = "mermaid", class = "mermaid", format = "pymdownx.superfences.fence_code_format" },
   # Step-by-step diagram simulator (assets/javascripts/mermaid-sim.js)
   { name = "mermaid-sim", class = "mermaid-sim", format = "pymdownx.superfences.fence_code_format" },
+  # 2027.1 diagrams, Mermaid syntax drawn by assets/javascripts/diagram.js (static / step by step)
+  { name = "diagram", class = "diagram", format = "pymdownx.superfences.fence_code_format" },
+  { name = "diagram-sim", class = "diagram-sim", format = "pymdownx.superfences.fence_code_format" },
 ]
 pymdownx.tabbed.alternate_style = true
 pymdownx.tasklist.custom_checkbox = true
@@ -830,11 +846,10 @@ language = "pt-BR"
 "1. Estimation" = "1. Estimativas"
 "1. First Service" = "1. Primeiro Serviço"
 "1. What is System Design" = "1. O que é Design de Sistemas"
-"10. Observability" = "10. Observabilidade"
 "11. Delivery" = "11. Entrega"
-"11. Network & Security" = "11. Redes e Segurança"
+"12. Network & Security" = "12. Redes e Segurança"
 "12. AI Assistant" = "12. Assistente de IA"
-"12. Cloud-Native Platforms" = "12. Plataformas Cloud-Native"
+"11. Cloud-Native Platforms" = "11. Plataformas Cloud-Native"
 "13. AI Systems & Agents" = "13. Sistemas de IA e Agentes"
 "13. AI in CI/CD" = "13. IA no CI/CD"
 "14. AI-Assisted Delivery" = "14. Entrega Assistida por IA"
@@ -859,7 +874,7 @@ language = "pt-BR"
 "7. Caching" = "7. Cache"
 "8. Messaging & Event-Driven" = "8. Mensageria e Eventos"
 "8. Observability" = "8. Observabilidade"
-"9. Reliability & Resilience" = "9. Confiabilidade e Resiliência"
+"10. Reliability & Resilience" = "10. Confiabilidade e Resiliência"
 "9. Resilience & Chaos" = "9. Resiliência e Caos"
 "AI & Agents" = "IA e Agentes"
 "AI Assistant" = "Assistente de IA"
@@ -877,6 +892,7 @@ language = "pt-BR"
 "Cheat Sheet" = "Folha de Consulta"
 "Client" = "Cliente"
 "Cloud Networking" = "Redes em Nuvem"
+"How the Internet Works" = "Como a Internet Funciona"
 "Code Review" = "Revisão de Código"
 "Components" = "Componentes"
 "Compute" = "Computação"
@@ -934,6 +950,8 @@ language = "pt-BR"
 "Safety, Evals & Observability" = "Segurança, Avaliação e Observabilidade"
 "Scenarios" = "Cenários"
 "Search Autocomplete" = "Autocompletar de Busca"
+"News Feed" = "Feed de Notícias"
+"Rate Limiter" = "Limitador de Taxa"
 "Security & Governance" = "Segurança e Governança"
 "Serverless & Autoscaling" = "Serverless e Autoscaling"
 "Services" = "Serviços"

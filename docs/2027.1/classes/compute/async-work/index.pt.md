@@ -4,7 +4,7 @@ Nada desse trabalho muda a resposta que o fã está esperando — "seu pedido es
 
 ---
 
-## O que pertence ao caminho da requisição?
+## O que pertence ao caminho da requisição? { #what-belongs-in-the-request-path }
 
 Faça uma pergunta sobre cada etapa: **a resposta ao usuário depende dela?**
 
@@ -19,7 +19,7 @@ Faça uma pergunta sobre cada etapa: **a resposta ao usuário depende dela?**
 
 Tudo abaixo da primeira linha vira um **job** (uma unidade de trabalho descrita por uma mensagem pequena) colocado numa **fila** e executado por **workers** (processos que puxam jobs e os executam).
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant F as Fã
     participant O as order
@@ -51,9 +51,17 @@ O que você paga: o resultado chega **eventualmente**, não imediatamente; é pr
 !!! info "Publicando com confiabilidade"
     "Fazer commit do pedido e *depois* publicar o evento" tem uma brecha: se o processo morrer entre os dois, o pedido existe e nenhum ingresso é emitido. O **transactional outbox** fecha essa brecha — grave o evento numa tabela `outbox` na *mesma* transação do pedido e deixe um relay publicá-lo. A aula 8 ([mensageria](../../messaging/index.md)) trata disso; o [hands-on 7](../../../hands-on/7/index.md) o implementa.
 
+!!! example "No código do BoxOffice: o e-mail sai da requisição (lab 7)"
+
+    O [Hands-on 7 — Outbox](../../../hands-on/7/outbox/index.md) mantém as duas versões do `POST /orders` atrás de uma chave, `NOTIFY_MODE`, para que você meça a diferença. Em `sync` o fã espera enquanto o `order` chama o `notification`; em `outbox` o pedido e seu evento `OrderPlaced` são dois inserts numa mesma transação, e o e-mail acontece depois. Numa execução de teste num notebook ocupado, a 50 pedidos/s, o p50 foi de **4,12 s** (`sync`) para **47 ms** (`outbox`); com o `notification` parado por 20 s, cerca de um terço dos pedidos `sync` falhou e nenhum dos `outbox` ([medições](../../../hands-on/7/measure/index.md)). Note também o `ON CONFLICT (hold_id) DO NOTHING`: um pedido repetido para o mesmo hold não cria nada novo nem emite um segundo evento.
+
+    ``` { .java title="services/order/src/main/java/boxoffice/order/OrderService.java (place an order)" }
+    --8<-- "docs/2027.1/hands-on/7/code/services/order/src/main/java/boxoffice/order/OrderService.java:35:62"
+    ```
+
 ---
 
-## Quantos workers?
+## Quantos workers? { #how-many-workers }
 
 Workers são dimensionados como qualquer servidor, com a **Lei de Little**: o número de jobs em andamento é igual à taxa de chegada vezes o tempo que cada job leva.
 
@@ -115,7 +123,7 @@ O gráfico traz duas lições. Primeiro, uma fila **converte um problema de capa
 
 Escale workers pela **profundidade da fila ou pelo consumer lag**, não pela CPU: um worker esperando um provedor lento não usa CPU, mas também não está livre. [Serverless e autoscaling](../serverless-autoscaling/index.md#scaling-workers-on-queue-depth) mostra como (KEDA).
 
-### Experimente no playground
+### Experimente no playground { #try-it-in-the-playground }
 
 Abra o cenário `async-queue`: produtores escrevem numa fila esvaziada por um pool de workers.
 
@@ -127,7 +135,7 @@ Abra o cenário `async-queue`: produtores escrevem numa fila esvaziada por um po
 
 ---
 
-## Projetando jobs que sobrevivem ao mundo real
+## Projetando jobs que sobrevivem ao mundo real { #designing-jobs-that-survive-the-real-world }
 
 Uma fila não é mágica: workers caem no meio de jobs, brokers reentregam, provedores estouram o timeout. A maioria dos brokers oferece entrega **at-least-once** (pelo menos uma vez): um job só é removido (confirmado, *ack*) depois que o worker avisa que terminou, então uma queda antes do ack significa que o job será entregue *de novo*. Todas as regras abaixo decorrem disso.
 
@@ -173,7 +181,7 @@ class TicketJobListener {
 }
 ```
 
-### Onde os jobs vivem
+### Onde os jobs vivem { #where-jobs-live }
 
 | Opção | Durável? | Bom para | Cuidado com |
 |---|---|---|---|
@@ -196,7 +204,7 @@ Parte do trabalho é disparada pelo **tempo**, não por uma requisição ou um e
 - 24 h antes de cada show, **enviar um lembrete** a cada portador de ingresso;
 - toda noite, **conciliar** os pagamentos com o relatório do provedor ([integrações](../integrations/index.md#reconciliation)).
 
-### O problema do cron duplicado
+### O problema do cron duplicado { #the-duplicate-cron-problem }
 
 A implementação óbvia é um método `@Scheduled` no serviço. Funciona com uma réplica. Com 10 réplicas, **o job roda 10 vezes**: 10 e-mails de lembrete por fã, 10 varreduras concorrentes brigando pelas mesmas linhas. O mesmo acontece com uma entrada de cron copiada em cada VM. Há quatro soluções padrão:
 
@@ -267,11 +275,11 @@ A implementação óbvia é um método `@Scheduled` no serviço. Funciona com um
 
     Zero infraestrutura; aceita agendamentos únicos ("em 2027-03-14T10:00:00-03:00"), que o cron não consegue expressar.
 
-### Locks expiram: fencing tokens
+### Locks expiram: fencing tokens { #locks-expire-fencing-tokens }
 
 Um lock distribuído com expiração tem uma brecha sutil, descrita por Martin Kleppmann[^1]: uma réplica obtém o lock e então **pausa** (uma coleta de lixo longa, uma migração de VM) além da expiração do lock. Outra réplica obtém o lock e inicia o job. A primeira acorda, ainda acreditando que detém o lock, e as duas escrevem.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant A as Réplica A
     participant L as Armazenamento de locks
@@ -287,7 +295,7 @@ sequenceDiagram
 
 A correção é um **fencing token**: o armazenamento de locks entrega um número crescente a cada aquisição, e o recurso protegido rejeita escritas com um token mais antigo. Quando o recurso não consegue verificar tokens, o próprio job precisa ser **idempotente** — o que você precisa de qualquer forma. Um lock é uma otimização que evita esforço duplicado; a correção tem de vir da idempotência ou do banco de dados (um `UPDATE ... WHERE status = 'ACTIVE' AND expires_at < now()` condicional libera cada hold no máximo uma vez, não importa quantas varreduras rodem).
 
-### Trabalho atrasado: três formas de expirar um hold
+### Trabalho atrasado: três formas de expirar um hold { #delayed-work-three-ways-to-expire-a-hold }
 
 Liberar um hold 10 minutos depois de criado é um **job atrasado** (*delayed job*). Três designs, muitas vezes combinados:
 
@@ -297,7 +305,15 @@ Liberar um hold 10 minutos depois de criado é um **job atrasado** (*delayed job
 | **Mensagem atrasada** | ao criar o hold, enfileira "liberar H-7" com atraso de 10 min (delay do SQS, sorted set do Redis por horário de vencimento, delayed exchange do RabbitMQ) | horário preciso, sem varredura | uma mensagem por hold; ainda precisa ser idempotente (o hold pode ter sido confirmado) |
 | **Expiração preguiçosa** (*lazy expiry*) | trata um hold como livre quando `expires_at < now()` no momento da leitura | **correta imediatamente**, nenhum job necessário para a correção | linhas expiradas permanecem até a limpeza |
 
-A BoxOffice usa **expiração preguiçosa para a correção** (a disponibilidade e os novos holds ignoram holds expirados) e uma **varredura para a limpeza**. Assim o scheduler não fica no caminho crítico: se ele ficar fora do ar por 5 minutos, nenhum assento é perdido.
+A regra da BoxOffice: **a correção nunca espera pelo scheduler**. Um hold cujo `expires_at` já passou não pode ser confirmado, tenha a varredura rodado ou não (expiração preguiçosa), e uma **varredura** devolve seus assentos à venda. Se o scheduler ficar fora do ar por 5 minutos, nenhum assento é vendido duas vezes; os assentos dos holds expirados só voltam mais tarde. (Um desenho totalmente preguiçoso vai além: novos holds podem pegar os assentos de um hold expirado na hora, sem esperar a varredura.)
+
+!!! example "No código do BoxOffice: verificação preguiçosa e varredura no `inventory` (lab 6)"
+
+    No [Hands-on 6 — Holds](../../../hands-on/6/holds/index.md), o `confirm` é um `UPDATE` condicional que inclui `expires_at > now()`, então um hold expirado responde `409` mesmo que nenhum job o tenha tocado. O `expireHolds` é a varredura: a cada 5 s ele expira no máximo 500 holds e libera seus assentos num único comando. Ele roda em toda réplica do `inventory`, sem lock e sem líder: o `FOR UPDATE SKIP LOCKED` faz cada réplica pular as linhas que outra já está processando, o que resolve o [problema do cron duplicado](#the-duplicate-cron-problem) dentro do banco. O preço é o da tabela: um assento volta até 5 s depois de seu hold expirar.
+
+    ``` { .java title="services/inventory/src/main/java/boxoffice/inventory/HoldService.java (confirm, sweeper)" }
+    --8<-- "docs/2027.1/hands-on/6/code/services/inventory/src/main/java/boxoffice/inventory/HoldService.java:149:163,189:208"
+    ```
 
 !!! example "Abrindo as vendas às 10:00"
     Não faça "as vendas abrem" depender de um cron disparando exatamente às 10:00:00 — schedulers atrasam segundos, e uma execução perdida significaria nenhuma venda. Guarde `onSaleAt = 10:00:00` junto com o evento; o `inventory` simplesmente rejeita holds antes desse instante (uma verificação contra o relógio, com relógios sincronizados por NTP — [sistemas distribuídos](../../distributed/index.md)). O scheduler faz apenas a *preparação*: às 09:45 ele escala a frota e aquece os caches ([serverless e autoscaling](../serverless-autoscaling/index.md#scheduled-and-predictive-scaling)).
@@ -310,7 +326,7 @@ O cenário `notification-system` combina um scheduler, uma fila e os provedores 
 
 ---
 
-## Trade-offs em resumo
+## Trade-offs em resumo { #trade-offs-at-a-glance }
 
 | | Fazer na requisição | Fazer num worker |
 |---|---|---|
@@ -324,6 +340,14 @@ O cenário `notification-system` combina um scheduler, uma fila e os provedores 
 !!! tip "Na entrevista"
 
     Sempre que um design tiver uma etapa lenta, sujeita a falhas ou em rajadas que não muda a resposta ao usuário, diga: *"Eu tiraria isso do caminho da requisição: a API grava o pedido e um evento numa única transação (outbox), e um pool de workers o consome — idempotente, com retries, backoff exponencial e uma DLQ. Eu escalaria os workers pelo consumer lag."* Para trabalho agendado, mencione que um cron em cada réplica roda N vezes e escolha **CronJob, um lock ou eleição de líder** — mais idempotência, porque locks expiram. Depois dê um número: "100 jobs/s × 0,8 s = 80 workers no pico".
+
+!!! success "Boas práticas"
+
+    - **Alerte sobre a idade do job mais antigo, não só sobre o tamanho da fila** — 10 jobs com 3 horas de idade são um incidente; 10.000 jobs que drenam em 30 s não são.
+    - **Derive o número de workers e escreva a conta ao lado da configuração** — workers = jobs/s × tempo por job ÷ utilização-alvo: 100 e-mails/s × 50 ms = 5 threads ocupadas, então 6 ou 7. Na BoxOffice: `NOTIFY_CONCURRENCY` 1 vs 6 no [lab 7](../../../hands-on/7/measure/index.md).
+    - **Use o banco como uma fila de jobs pequena antes de acrescentar um broker** — o `FOR UPDATE SKIP LOCKED` deixa vários workers dividirem uma tabela com segurança, dentro das transações que você já tem. Na BoxOffice: a varredura de reservas do [lab 6](../../../hands-on/6/holds/index.md) (quadro acima).
+    - **Registre cada execução agendada** — início, fim, itens processados e resultado, como linha de log e métrica; uma varredura que liberou 0 assentos por uma hora durante uma venda é um sinal. Na BoxOffice: o `expireHolds` registra quantos assentos liberou.
+    - **Mantenha os agendamentos em UTC e guarde o próximo horário devido** — fusos locais pulam ou repetem execuções na mudança do horário de verão, e um horário devido guardado permite detectar uma execução perdida.
 
 !!! warning "Armadilhas comuns"
 
@@ -340,7 +364,7 @@ O cenário `notification-system` combina um scheduler, uma fila e os provedores 
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     RP["caminho da requisição: só o que<br/>a resposta precisa"] --> Q["jobs numa fila<br/>→ Mensageria"]
     Q --> W["workers<br/>taxa × tempo por job"]
@@ -354,13 +378,15 @@ flowchart LR
 
 **Componentes da paleta:** [`queue`](../../../reference/components/messaging/index.md#queue) (jobs e mensagens atrasadas) · [`worker`](../../../reference/components/compute/index.md#worker) (consumidores dimensionados pela lei de Little) · [`scheduler`](../../../reference/components/compute/index.md#scheduler) (cron e trabalho atrasado, uma vez por cluster) · [`kafka`](../../../reference/components/messaging/index.md#kafka) (commit do offset após o trabalho) · [`sql`](../../../reference/components/storage/index.md#sql) (a linha do ShedLock, reservas que expiram preguiçosamente) · [`objstore`](../../../reference/components/storage/index.md#objstore) (PDFs dos ingressos) · [`notifications`](../../../reference/components/compute/index.md#notifications) · [`email`](../../../reference/components/external/index.md#email) (o e-mail do ingresso, fora do caminho da requisição). **Cenários:** `async-queue`, `notification-system`. **Continua em:** [Serverless e autoscaling — escalar pela profundidade da fila](../serverless-autoscaling/index.md#scaling-workers-on-queue-depth), [Mensageria — filas e pub/sub](../../messaging/queues-pubsub/index.md), [Mensageria — semântica de entrega](../../messaging/semantics/index.md), [Distribuídos — consenso](../../distributed/consensus/index.md) (fencing), [Hands-on 7](../../../hands-on/7/index.md).
 
-## Principais conclusões
+## Pontos-chave { #key-takeaways }
 
-- Mantenha na requisição só aquilo de que a resposta ao usuário depende; mova o resto para **jobs numa fila** processados por **workers**.
-- Dimensione workers com a Lei de Little (`taxa × tempo por job`); uma fila transforma sobrecarga em **atraso**, e a dependência a jusante mais lenta define o limite real.
-- A entrega é **at-least-once**: jobs idempotentes, ack depois do trabalho, retries com backoff, uma **DLQ** para mensagens envenenadas, prioridades por fila.
-- Trabalho agendado em N réplicas roda N vezes: use um **CronJob**, um **lock distribuído** (ShedLock) ou **eleição de líder** — e mantenha a idempotência, porque locks expiram (**fencing tokens**).
-- Projete regras baseadas em tempo de modo que a correção não dependa de um job disparar na hora (**expiração preguiçosa** + varredura).
+!!! takeaways ""
+
+    - Mantenha na requisição só aquilo de que a resposta ao usuário depende; mova o resto para **jobs numa fila** processados por **workers**.
+    - Dimensione workers com a Lei de Little (`taxa × tempo por job`); uma fila transforma sobrecarga em **atraso**, e a dependência a jusante mais lenta define o limite real.
+    - A entrega é **at-least-once**: jobs idempotentes, ack depois do trabalho, retries com backoff, uma **DLQ** para mensagens envenenadas, prioridades por fila.
+    - Trabalho agendado em N réplicas roda N vezes: use um **CronJob**, um **lock distribuído** (ShedLock) ou **eleição de líder** — e mantenha a idempotência, porque locks expiram (**fencing tokens**).
+    - Projete regras baseadas em tempo de modo que a correção não dependa de um job disparar na hora (**expiração preguiçosa** + varredura).
 
 ---
 

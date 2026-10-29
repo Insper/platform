@@ -22,18 +22,18 @@ No BoxOffice, o cache guarda páginas de eventos, retratos da disponibilidade de
 
 ---
 
-## 1. Esclarecer os requisitos
+## 1. Esclarecer os requisitos { #1-clarify-the-requirements }
 
 ([roteiro de entrevista](../../intro/interview-framework/index.md))
 
-### Requisitos funcionais
+### Requisitos funcionais { #functional-requirements }
 
 1. `get(key)`, `set(key, value, ttl)`, `delete(key)`; operações atômicas opcionais (`incr`, compare-and-set).
 2. As chaves expiram depois do **TTL**; quando a memória enche, o cache **despeja** algumas chaves.
 3. O conjunto de dados é maior que uma máquina: as chaves são **particionadas** entre muitos nós.
 4. Nós podem ser **acrescentados ou removidos** (escalonamento, falhas) sem reiniciar os clientes.
 
-### Requisitos não funcionais
+### Requisitos não funcionais { #non-functional-requirements }
 
 | Qualidade | Meta |
 |---|---|
@@ -44,7 +44,7 @@ No BoxOffice, o cache guarda páginas de eventos, retratos da disponibilidade de
 | **Consistência** | Eventual; algumas leituras desatualizadas após uma escrita são aceitáveis (a fonte da verdade é o banco) |
 | **Durabilidade** | Não exigida — perder os dados de um nó custa faltas no cache, não corretude |
 
-### Fora do escopo (diga explicitamente)
+### Fora do escopo (diga explicitamente) { #out-of-scope-say-it-explicitly }
 
 Persistência em disco (snapshots/AOF), replicação entre regiões, estruturas de dados complexas além de strings e contadores, autenticação — cite que o Redis oferece várias delas.
 
@@ -61,7 +61,7 @@ Persistência em disco (snapshots/AOF), replicação entre regiões, estruturas 
 
 ---
 
-## 2. Estimativas de guardanapo (back-of-the-envelope)
+## 2. Estimativas de guardanapo (back-of-the-envelope) { #2-back-of-the-envelope-estimates }
 
 ```python exec="1" source="tabbed-right"
 # Distributed cache: assumptions (illustrative)
@@ -124,7 +124,7 @@ slot = CRC16(key) mod 16384        → node owning that slot (Redis Cluster)
 
 ---
 
-## 4. Modelo de dados
+## 4. Modelo de dados { #4-data-model }
 
 ```text
 # On each node: a hash table of entries + an eviction structure
@@ -147,9 +147,9 @@ slots 10923–16383 → node-c (primary), node-f (replica)
 
 ---
 
-## 5. Design de alto nível
+## 5. Design de alto nível { #5-high-level-design }
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     app1["Servidor de app #1<br/>cliente que conhece o cluster"] --> a["node-a<br/>slots 0–5460"]
     app1 --> b["node-b<br/>slots 5461–10922"]
@@ -165,7 +165,7 @@ flowchart LR
 
 Uma leitura com cache-aside, incluindo um slot que mudou de nó:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     participant A as App (biblioteca cliente)
@@ -185,9 +185,9 @@ sequenceDiagram
 
 ---
 
-## 6. Aprofundamentos (deep dives)
+## 6. Aprofundamentos (deep dives) { #6-deep-dives }
 
-### 6.1 Particionamento: por que `hash % N` quebra, e o hash consistente
+### 6.1 Particionamento: por que `hash % N` quebra, e o hash consistente { #61-partitioning-why-hash-n-breaks-and-consistent-hashing }
 
 Com `nó = hash(chave) % N`, passar de 4 para 5 nós muda o dono de quase todas as chaves — um cache com 80% das chaves de repente no lugar errado é, para o banco, o mesmo que um cache vazio. O **hash consistente** coloca nós e chaves no mesmo anel de valores de hash; uma chave pertence ao primeiro nó no sentido horário. Acrescentar um nó só toma chaves dos vizinhos — cerca de `1/N` delas. Cada nó físico recebe muitos **nós virtuais** (pontos no anel) para a carga ficar equilibrada e as chaves de um nó que falhou se espalharem por todos os outros, não só por um vizinho ([particionamento](../../databases/partitioning/index.md)).
 
@@ -244,7 +244,7 @@ Leia a tabela em duas colunas. **Chaves movidas** ao passar de 4 para 5 nós: `h
 
     Para cada chave, calcule `hash(chave, nó)` para todos os nós e escolha o maior. Sem anel, movimento perfeito de `1/N`, mas O(N) por consulta — bom para dezenas de nós.
 
-### 6.2 Despejo, TTL e memória
+### 6.2 Despejo, TTL e memória { #62-eviction-ttl-and-memory }
 
 Quando a memória enche, algo precisa sair. A política decide a taxa de acerto que você obtém com a mesma RAM ([modos de falha de cache](../../caching/failure-modes/index.md)):
 
@@ -260,9 +260,9 @@ Quando a memória enche, algo precisa sair. A política decide a taxa de acerto 
 - **TTL é ferramenta de consistência, despejo é ferramenta de memória.** Sempre defina um TTL (para o dado desatualizado ter um limite) e acrescente **jitter** aos TTLs gravados em massa (ex.: 300 s ± 10%) para não expirarem no mesmo segundo.
 - **Deixe folga**: planeje ~70–80% da RAM para dados. Fragmentação, buffers de replicação e o fork para snapshots precisam do resto; um nó que faz swap para o disco é mais lento do que nenhum cache.
 
-### 6.3 Replicação e failover
+### 6.3 Replicação e failover { #63-replication-and-failover }
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     participant A as App
@@ -284,7 +284,7 @@ sequenceDiagram
 - **Split brain**: depois de uma partição, o primário antigo ainda pode aceitar escritas de clientes do lado dele. Mitigue fazendo o primário parar de aceitar escritas quando não enxerga réplicas/pares suficientes (`min-replicas-to-write`), e com épocas/termos para clientes e nós rejeitarem o primário velho.
 - **Réplicas aquecidas** também atendem leituras (se leituras desatualizadas forem aceitáveis) e evitam o estouro de manada do nó frio depois do failover.
 
-### 6.4 Chaves quentes, chaves grandes e estouros de manada
+### 6.4 Chaves quentes, chaves grandes e estouros de manada { #64-hot-keys-big-keys-and-stampedes }
 
 - **Chave quente** — uma chave (a página do evento durante uma abertura de vendas, o perfil de uma celebridade) recebe tantas requisições que seu nó satura enquanto os outros ficam ociosos. O hash consistente não ajuda: uma chave mora num nó só. Soluções: um pequeno **cache L1 em processo** com TTL de segundos em cada servidor de aplicação; **replicar a chave** com vários nomes (`event:42#1 … #8`) e ler uma cópia aleatória; atendê-la pelas réplicas.
 - **Chave grande** — um valor de 5 MB lido 1 000 vezes por segundo são 5 GB/s num nó. Divida-o (pagine, comprima), ou guarde em cache os fragmentos renderizados em vez do objeto inteiro.
@@ -301,7 +301,15 @@ def should_refresh_early(expires_at: float, recompute_s: float, beta: float = 1.
     return time.time() - recompute_s * beta * math.log(random.random()) >= expires_at
 ```
 
-### 6.5 Roteamento: quem sabe onde mora uma chave?
+!!! example "No código do BoxOffice: um lease contra o stampede (lab 5)"
+
+    O BoxOffice roda um Redis só, não um cluster, então os labs não constroem o particionamento deste caso — mas o [Hands-on 5 — Stampede](../../../hands-on/5/stampede/index.md) constrói o seu lease: a primeira falta pega o `lock` com `SET NX` e recarrega, relê depois de vencer, e as outras consultam a chave por no máximo 20 × 25 ms. No teste do lab (100 usuários virtuais, TTL de 3 s), as faltas caíram de **800 para 10** — uma consulta ao banco por expiração. O passo a passo completo está em [Cache — modos de falha](../../caching/failure-modes/index.md).
+
+    ``` { .java title="services/catalog/src/main/java/boxoffice/catalog/EventCache.java (the lease)" }
+    --8<-- "docs/2027.1/hands-on/5/code/services/catalog/src/main/java/boxoffice/catalog/EventCache.java:62:85"
+    ```
+
+### 6.5 Roteamento: quem sabe onde mora uma chave? { #65-routing-who-knows-where-a-key-lives }
 
 | | Roteamento no cliente (cliente esperto) | Proxy (twemproxy, mcrouter, Envoy) | Redirecionamentos do servidor (Redis Cluster) |
 |---|---|---|---|
@@ -314,7 +322,7 @@ A implantação de memcache do Facebook, por exemplo, colocou o roteamento num p
 
 ---
 
-## 7. Gargalos, modos de falha e trade-offs
+## 7. Gargalos, modos de falha e trade-offs { #7-bottlenecks-failure-modes-and-trade-offs }
 
 | Onde | O que dá errado | Mitigação | Trade-off |
 |---|---|---|---|
@@ -331,7 +339,7 @@ Os trade-offs para **dizer em voz alta**: **disponibilidade e velocidade acima d
 
 ---
 
-## 8. Experimente no playground
+## 8. Experimente no playground { #8-try-it-in-the-playground }
 
 Dois cenários cobrem as duas metades deste caso: o cache na frente de um banco, e o particionamento dos dados entre nós.
 
@@ -355,7 +363,7 @@ Dois cenários cobrem as duas metades deste caso: o cache na frente de um banco,
 
 ---
 
-## 9. Perguntas de follow-up que o entrevistador faz
+## 9. Perguntas de follow-up que o entrevistador faz { #9-follow-up-questions-an-interviewer-asks }
 
 ??? question "Por que não usar simplesmente `hash(chave) % N`? É mais simples."
 
@@ -383,7 +391,7 @@ Dois cenários cobrem as duas metades deste caso: o cache na frente de um banco,
 
 ---
 
-## 10. Rubrica de autoavaliação
+## 10. Rubrica de autoavaliação { #10-self-assessment-rubric }
 
 | Nível | O que a resposta contém |
 |---|---|
@@ -393,13 +401,21 @@ Dois cenários cobrem as duas metades deste caso: o cache na frente de um banco,
 
 **Relacionados:** [Cache](../../caching/index.md), [Redis](../../caching/redis/index.md), [Modos de falha de cache](../../caching/failure-modes/index.md), [Particionamento](../../databases/partitioning/index.md), [Hands-on 5](../../../hands-on/5/index.md) (cache-aside com Redis, taxa de acerto e estouro de manada).
 
+!!! success "Boas práticas"
+
+    - **Defina `maxmemory` e a política de despejo explicitamente** — `allkeys-lru` para um cache; com `noeviction`, um cache cheio vira erros de escrita.
+    - **Acrescente jitter a todo TTL** — chaves gravadas juntas não podem expirar juntas; o lab 5 acrescenta até 10% ([Cache — modos de falha](../../caching/failure-modes/index.md)).
+    - **Acompanhe juntos a taxa de acerto, os despejos e a memória por nó** — despejos subindo com a taxa de acerto estável significam que o conjunto de trabalho está crescendo até o limite.
+    - **Mantenha o cache opcional no caminho do código** — num erro do cache, leia da fonte; o lab 5 registra e conta um `BYPASS` ([lab 5](../../../hands-on/5/cache-aside/index.md)).
+    - **Aqueça as chaves quentes antes de um pico conhecido** — a página do evento é carregada às 9h55, não pelo primeiro de 2 M de fãs às 10:00.
+
 ---
 
 ## Como se conecta { #how-it-connects }
 
 Quais aulas este caso testa? Cada ramo é uma aula cujas ideias o design usa (azul), com os componentes da paleta em que elas aparecem (verde):
 
-``` mermaid
+``` diagram
 flowchart LR
     CASE(["Distributed cache"]) --> EST["Estimation<br/>size by memory and ops/s"]:::tech
     CASE --> PART["Databases<br/>consistent hashing, virtual nodes"]:::tech
@@ -419,7 +435,7 @@ flowchart LR
 
 ---
 
-## Referências
+## Referências { #references }
 
 - KARGER, D. et al. *Consistent Hashing and Random Trees*[^1].
 - DECANDIA, G. et al. *Dynamo: Amazon's Highly Available Key-value Store*[^2].

@@ -1,8 +1,8 @@
 A primeira etapa de IA é a de melhor relação custo/benefício: um revisor que lê cada pull request **antes** de um humano e deixa alguns comentários inline precisos — ou nada. Revisores humanos são escassos e lentos (um PR muitas vezes espera horas pela primeira olhada); um modelo é rápido, barato por PR e nunca se cansa da centésima verificação de nulo. Ele também erra com frequência, é prolixo e crédulo. Esta parte constrói um revisor que é útil *apesar* dessas fraquezas.
 
-## 1.1 Como funciona
+## 1.1 Como funciona { #11-how-it-works }
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     actor Dev as Desenvolvedor
@@ -28,7 +28,7 @@ Quatro ideias sustentam o projeto; a página [Code review](../../../classes/ai-d
 3. **Controle de ruído.** Cada comentário custa a atenção de um desenvolvedor. Comentários fora das linhas alteradas, abaixo de `minor`, com confiança baixa, já postados ou acima do limite são **descartados** (e listados no resumo do job, para que você possa ajustar os limites).
 4. **Consultivo, não um portão.** O bot posta `event: COMMENT` — nunca `APPROVE` nem `REQUEST_CHANGES`. Existe um modo de portão opcional, mas você só o liga depois de medir a precisão na parte 7.
 
-## 1.2 Os utilitários de diff
+## 1.2 Os utilitários de diff { #12-the-diff-helpers }
 
 Modelos são ruins em contar linhas. Em vez de pedir ao modelo que calcule números de linha a partir dos cabeçalhos `@@ -16,4 +16,9 @@`, o `diffutil.py` imprime **cada linha do lado novo com o seu número** (`L21 + ...`) e depois verifica que cada achado aponta para uma linha que o PR realmente **adicionou**. O GitHub rejeita um comentário de review numa linha que não faz parte do diff, então essa verificação também evita uma chamada de API com falha.
 
@@ -52,7 +52,7 @@ L23   +     }
 L24      }
 ```
 
-## 1.3 O revisor
+## 1.3 O revisor { #13-the-reviewer }
 
 ``` { .python title=".github/ai/review.py" .copy linenums="1" }
 --8<-- "docs/2027.1/hands-on/13/code/.github/ai/review.py"
@@ -71,7 +71,7 @@ Leia o código com estas perguntas em mente:
 | `GATE` | Sai com 1 num blocker de confiança alta se `AI_REVIEW_GATE=true` | O portão existe, mas fica desligado por padrão |
 
 
-## 1.4 O workflow
+## 1.4 O workflow { #14-the-workflow }
 
 ``` { .yaml title=".github/workflows/ai-review.yaml" .copy linenums="1" }
 --8<-- "docs/2027.1/hands-on/13/code/.github/workflows/ai-review.yaml"
@@ -98,7 +98,7 @@ git commit -m "ci(ai): AI pull-request reviewer (lab 13)"
 git push
 ```
 
-## 1.5 Experimente: localmente primeiro, depois num pull request
+## 1.5 Experimente: localmente primeiro, depois num pull request { #15-try-it-locally-first-then-on-a-pull-request }
 
 Crie um branch com um problema **proposital** — uma busca que monta SQL concatenando a entrada do usuário (uma SQL injection, proibida pelo `CONVENTIONS.md`). Ele compila e os testes passam, então só um review pega:
 
@@ -170,7 +170,7 @@ gh pr create --fill --base main
 gh pr checks --watch              # waits for "AI review" (5-15 min on the free runner model)
 ```
 
-## 1.6 O que você deve ver
+## 1.6 O que você deve ver { #16-what-you-should-see }
 
 No PR, quando o check `AI review` terminar (cerca de um minuto com o Claude; 5–15 minutos com o modelo gratuito no runner, a maior parte instalando o Ollama e baixando o modelo): **um review** com comentários inline nas linhas exatas e **um comentário fixo** `AI review summary` com o custo de cada execução. Um comentário inline tem esta forma (o texto que o modelo local escreveu na execução acima):
 
@@ -206,7 +206,7 @@ O revisor roda de novo, encontra o mesmo problema, reconhece o fingerprint e **n
 
 Mantenha este PR aberto: a parte 7 conta com ele. Não faça merge de `EventSearch.java` — feche o PR quando terminar o lab.
 
-## 1.7 Ajuste
+## 1.7 Ajuste { #17-tune-it }
 
 Mude um botão por vez, no mesmo PR, e compare os resumos dos jobs:
 
@@ -227,7 +227,7 @@ Mude um botão por vez, no mesmo PR, e compare os resumos dos jobs:
     - **Colocar as convenções no arquivo do workflow**: elas pertencem ao repositório, versionadas, revisadas e lidas também por humanos.
 
 
-## Solução de problemas
+## Solução de problemas { #troubleshooting }
 
 | Sintoma | Causa | Correção |
 |---|---|---|

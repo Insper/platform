@@ -14,7 +14,7 @@ A load balancer gives you three things at once:
 
 This only works if the replicas are **interchangeable** — any one of them can serve any request. That is why application servers should be **stateless**: session data, carts and seat holds live in a shared store (Redis, PostgreSQL), not in the memory of one replica. Statelessness is the precondition for everything on this page.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     f([Fans]) --> lb{{Load balancer}}
     lb --> a1[inventory-1]
@@ -75,13 +75,24 @@ Two of these deserve more attention.
 
 Choosing the least-loaded backend among *all* of them sounds ideal, but with many load balancer instances (each with a slightly stale view) they all pick the same "least loaded" server at once and overload it — a **herd**. Picking a backend at random avoids the herd but leaves some servers much busier than others by chance. Mitzenmacher showed that a tiny compromise gets almost the best of both: **sample two backends at random and pick the less loaded one**[^2]. The maximum load drops exponentially compared with pure random choice, and there is no herd, because different LB instances sample different pairs. Envoy, Nginx (`random two least_conn`), HAProxy and the gRPC libraries implement it; it is the default choice of many modern proxies.
 
+<div class="csim" data-sim="lb" data-algo="rr" data-rate="100" data-factor="5"></div>
+
+!!! tip "Try it"
+    The four algorithms route the **same** 100 requests/s to four `catalog` replicas of about 40 requests/s each; the chart draws the p99 of each one.
+
+    1. Play for 10 s with healthy replicas: all p99s stay low (about 100 ms; random about 200 ms, its short-term imbalance).
+    2. Switch on **catalog-3 slows down**. Round robin keeps sending it **25%** of the requests, more than its 8/s: after 10 s its queue holds about 180 requests and the p99 reaches about **23 s** — while the p50 stays near 30 ms, because only one request in four waits.
+    3. Pick **least connections** and then **P2C**: catalog-3's open requests pile up, so it gets only about 7% and 10% of the traffic and the p99 stays around 0.5 s and 0.6 s. That is the "adapts to slow servers" column of the table.
+    4. Nginx's default in [lab 3](../../../hands-on/3/index.md) is round robin; `least_conn` is the commented line in `nginx.conf`.
+
+
 ### Consistent hashing { #consistent-hashing }
 
 Sometimes you *want* the same key to go to the same backend: a cache server that holds a user's data, a WebSocket server that holds a chat room, a shard of a key-value store. The naive way is `server = hash(key) mod N`. It works until N changes: going from 5 to 6 servers changes the result of `mod` for **most** keys, so almost every key moves — every cache misses at once.
 
 **Consistent hashing** (Karger et al., 1997)[^3] places both servers and keys on a circle of hash values (the **ring**). A key belongs to the first server found walking clockwise from its position.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     A["node A<br/>position 10"] -->|clockwise| B["node B<br/>position 40"]
     B -->|clockwise| D["new node D<br/>position 55"]
@@ -172,7 +183,7 @@ Consistent hashing appears all over system design: Nginx `hash $key consistent`,
 
 Replicas come and go — autoscaling adds them at 09:58, a deploy replaces them, a crash removes one — and their IP addresses change every time. Before a load balancer can pick a healthy replica, something must tell it **which replicas exist right now**. That is **service discovery**, and it has two shapes:
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     subgraph server ["Server-side discovery"]
         C1([gateway]) -->|"inventory.svc"| LB1["load balancer / kube-proxy"]
@@ -242,7 +253,7 @@ A single load balancer in front of ten replicas is a **single point of failure**
 
 There is also a hierarchy of scopes: a **global** load balancer (anycast or DNS-based) chooses the **region**; a **regional** load balancer chooses the **zone and instance**; inside Kubernetes, the Service and ingress choose the **pod**.
 
-``` mermaid
+``` diagram
 flowchart TB
     u([Fans worldwide]) --> g["Global LB / DNS<br/>chooses the region"]
     g --> r1["Regional LB São Paulo<br/>across 3 zones"]
@@ -262,33 +273,17 @@ flowchart TB
 
 ## A load balancer in practice: Nginx { #nginx }
 
-[Hands-on 3](../../../hands-on/3/index.md) puts Nginx in front of three replicas of `catalog`. The core of the configuration is an `upstream` block:
+[Hands-on 3](../../../hands-on/3/index.md) puts Nginx in front of three replicas of `catalog`. The core of the configuration is an `upstream` block — the pool of replicas and the algorithm: round robin by default, or one line such as `least_conn;`, `random two least_conn;` (power of two choices) or `hash $arg_event consistent;` — and a `location` that proxies to it.
 
-```nginx title="nginx.conf"
-upstream catalog {
-    least_conn;                                    # or: random two least_conn;  hash $arg_event consistent;
-    server catalog-1:8080 max_fails=3 fail_timeout=10s;   # passive health check
-    server catalog-2:8080 max_fails=3 fail_timeout=10s;
-    server catalog-3:8080 max_fails=3 fail_timeout=10s;
-    keepalive 32;                                  # reuse connections to the backends
-}
+!!! example "In the BoxOffice code: the edge's load balancer (lab 3)"
 
-server {
-    listen 80;
+    This is the configuration of [Hands-on 3](../../../hands-on/3/index.md), unchanged. Besides the pool, look at what protects the fans from a bad replica: `max_fails=3 fail_timeout=10s` is a **passive** health check (3 failed requests take a replica out for 10 s); `proxy_connect_timeout 1s` and `proxy_read_timeout 5s` bound how long a dead or frozen replica can hold a request; `proxy_next_upstream` retries a failed request **once more** (`tries 2`) on another replica; `keepalive 64` reuses connections to the replicas. `least_conn` is commented out on purpose: the lab asks you to switch it on and compare the tail. In the lab's failure experiment at 150 req/s, a stopped replica cost almost nothing, while a frozen one produced no errors but a p99 of 1 s and a max of 5.05 s — the read timeout.
 
-    location /api/events/ {
-        proxy_pass http://catalog;
-        proxy_http_version 1.1;
-        proxy_set_header Connection "";
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_connect_timeout 1s;
-        proxy_read_timeout 5s;
-        proxy_next_upstream error timeout http_502 http_503;  # retry another replica (not POST/PATCH by default)
-    }
-}
-```
+    ``` { .nginx title="infra/nginx/nginx.conf (pool, timeouts, retry)" }
+    --8<-- "docs/2027.1/hands-on/3/code/infra/nginx/nginx.conf:19:26,43:61"
+    ```
 
-Note what is configured besides the algorithm: **timeouts** toward the backends, **keep-alive** connections to them, and **`proxy_next_upstream`**, which retries a failed request on another replica. Nginx does not retry non-idempotent requests (such as `POST`) by default — retrying a `POST /holds` on another replica could create two holds.
+Note what is configured besides the algorithm: **timeouts** toward the backends, **keep-alive** connections to them, and **`proxy_next_upstream`**, which retries a failed request on another replica. Nginx does not retry non-idempotent requests (such as `POST`) by default — retrying a `POST /holds` on another replica could create two holds. The timeouts come from measurement, not taste: a read timeout shorter than the healthy p99 turns slow answers into retries, and the lab sets 5 s for a service whose listings take hundreds of milliseconds under load.
 
 ---
 
@@ -413,6 +408,14 @@ In [hands-on 10](../../../hands-on/10/index.md) you deploy BoxOffice on a local 
     - Mention **health checks** and **draining** when asked about failures or deploys.
     - If asked "isn't the LB a single point of failure?": managed LBs are replicated across zones; self-hosted ones run as an active-passive pair with a floating IP, or behind anycast/DNS.
 
+!!! success "Best practices"
+
+    - **Set backend timeouts from measured latency, slightly above the healthy p99.9** — shorter turns slow answers into retries, longer lets a frozen replica hold requests. In BoxOffice: `proxy_read_timeout 5s` in [lab 3](../../../hands-on/3/index.md) (box above).
+    - **Warm up a new replica before it gets its full share** — slow start or a readiness check that waits for warm-up; a cold JVM marked failed under load can cascade into `502 no live upstreams` (lab 3, step 7).
+    - **Use least connections or power of two choices when request costs vary** — round robin ignores a replica stuck with slow requests. In BoxOffice: try `least_conn;` in lab 3's upstream.
+    - **Reuse connections to the backends** — keep-alive avoids a TCP (and TLS) handshake per request. In BoxOffice: `keepalive 64` with `proxy_http_version 1.1` in lab 3.
+    - **Log the chosen backend and its time for every request** — `upstream=$upstream_addr ut=$upstream_response_time` in lab 3's log format shows which replica is slow, and how much the hop costs.
+
 !!! warning "Pitfalls"
     - **Stateful replicas behind a round-robin LB**: logins "randomly" disappear because the session lives in another replica. Externalise state.
     - **Readiness that checks shared dependencies**: a database blip ejects every replica at once.
@@ -425,7 +428,7 @@ In [hands-on 10](../../../hands-on/10/index.md) you deploy BoxOffice on a local 
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     SD["service discovery"] --> LB["load balancer"]
     HC["health checks<br/>(readiness)"] --> LB
@@ -440,14 +443,16 @@ flowchart LR
 
 **Palette components:** [`lb`](../../../reference/components/edge/index.md#lb) · [`ingress`](../../../reference/components/edge/index.md#ingress) · [`app`](../../../reference/components/compute/index.md#app) (the replicas behind it) · [`healthcheck`](../../../reference/components/observability/index.md#healthcheck) · [`mesh`](../../../reference/components/network/index.md#mesh) (client-side balancing in a sidecar). **Scenarios:** `scale-out`, `chat` (long-lived connections). **Continues in:** [Compute — services](../../compute/services/index.md), [Databases — partitioning](../../databases/partitioning/index.md) (consistent hashing for data), [Cloud-native — Kubernetes](../../cloud-native/kubernetes/index.md), [Hands-on 3](../../../hands-on/3/index.md).
 
-## Key takeaways
+## Key takeaways { #key-takeaways }
 
-- A load balancer turns a pool of **stateless**, interchangeable replicas into one scalable, highly available service.
-- **L4** balances connections (fast, protocol-agnostic); **L7** balances requests (routing, TLS, retries, per-request decisions).
-- Round robin for uniform work; **least connections / power of two choices** for uneven work; **consistent hashing with virtual nodes** when a key must stick to a server — adding a node moves only about **1/(N+1)** of the keys.
-- **Active and passive health checks** remove failed replicas; **draining** makes deploys invisible.
-- Avoid sticky sessions; keep state in a shared store.
-- In Kubernetes: **Service** (L4, ready pods), **Ingress** (basic L7) and **Gateway API** (role-based, portable L7 routing with weights and timeouts).
+!!! takeaways ""
+
+    - A load balancer turns a pool of **stateless**, interchangeable replicas into one scalable, highly available service.
+    - **L4** balances connections (fast, protocol-agnostic); **L7** balances requests (routing, TLS, retries, per-request decisions).
+    - Round robin for uniform work; **least connections / power of two choices** for uneven work; **consistent hashing with virtual nodes** when a key must stick to a server — adding a node moves only about **1/(N+1)** of the keys.
+    - **Active and passive health checks** remove failed replicas; **draining** makes deploys invisible.
+    - Avoid sticky sessions; keep state in a shared store.
+    - In Kubernetes: **Service** (L4, ready pods), **Ingress** (basic L7) and **Gateway API** (role-based, portable L7 routing with weights and timeouts).
 
 ---
 

@@ -148,7 +148,7 @@ hide:
     </div></div>
     <div class="step-item"><div class="step-num green">4</div><div class="step-body">
       <strong>Draw and narrate</strong>
-      <span>Boxes with names, arrows with what flows on them ("POST /holds", "OrderPlaced event"). Narrate a request as it travels through the diagram. Rehearse with the <a href="../../playground/">playground</a>: same palette, same vocabulary.</span>
+      <span>Boxes with names, arrows with what flows on them ("POST /holds", "OrderPlaced event"). Narrate a request as it travels through the diagram. Rehearse with the <a href="../../../playground/">playground</a>: same palette, same vocabulary.</span>
     </div></div>
     <div class="step-item"><div class="step-num green">5</div><div class="step-body">
       <strong>Name the trade-off</strong>
@@ -160,7 +160,7 @@ hide:
     </div></div>
     <div class="step-item"><div class="step-num green">7</div><div class="step-body">
       <strong>Design for failure</strong>
-      <span>For each arrow, ask: what if it is slow? what if it fails? what if the request arrives twice? Timeouts, retries with backoff and jitter, circuit breakers, idempotency keys and a dead-letter queue are the standard answers. <a href="../../classes/reliability/patterns/">Class 9 · Resilience patterns →</a></span>
+      <span>For each arrow, ask: what if it is slow? what if it fails? what if the request arrives twice? Timeouts, retries with backoff and jitter, circuit breakers, idempotency keys and a dead-letter queue are the standard answers. <a href="../../classes/reliability/patterns/">Class 10 · Resilience patterns →</a></span>
     </div></div>
     <div class="step-item"><div class="step-num green">8</div><div class="step-body">
       <strong>Drive, and check in</strong>
@@ -263,7 +263,7 @@ hide:
     <div class="card border-purple">
       <div class="card-label purple">Tools by symptom</div>
       <h3>What to use when</h3>
-      <p><strong>RED dashboard</strong> (rate, errors, duration): is the service healthy for its users?<br><br><strong>USE method</strong> (utilization, saturation, errors): which resource is the bottleneck?<br><br><strong>Distributed trace:</strong> where does one slow request spend its time?<br><br><strong>Logs:</strong> what exactly happened to this request?<br><br><strong>Profiler / flame graph:</strong> where does the CPU go?<br><br><strong><code>EXPLAIN</code>:</strong> why is this query slow?<br><br><strong>Load test</strong> (k6) and <strong>fault injection</strong> (Toxiproxy): reproduce it before you fix it. <a href="../../classes/observability/signals/">Class 10 →</a></p>
+      <p><strong>RED dashboard</strong> (rate, errors, duration): is the service healthy for its users?<br><br><strong>USE method</strong> (utilization, saturation, errors): which resource is the bottleneck?<br><br><strong>Distributed trace:</strong> where does one slow request spend its time?<br><br><strong>Logs:</strong> what exactly happened to this request?<br><br><strong>Profiler / flame graph:</strong> where does the CPU go?<br><br><strong><code>EXPLAIN</code>:</strong> why is this query slow?<br><br><strong>Load test</strong> (k6) and <strong>fault injection</strong> (Toxiproxy): reproduce it before you fix it. <a href="../../classes/observability/signals/">Class 9 →</a></p>
     </div>
   </div>
 </section>
@@ -415,13 +415,13 @@ hide:
       </button>
       <div class="acc-body">
         <ul class="qa-list">
-          <li><strong>[46] SLI, SLO, SLA and error budget?</strong>SLI: a measurement (share of requests under 300 ms). SLO: the target (99.9% over 28 days). SLA: a contract with penalties. Error budget: 100% − SLO, the unreliability you may spend on releases and experiments. <a class="cls" href="../../classes/reliability/slo/">Class 9</a></li>
-          <li><strong>[47] Timeout, retry, circuit breaker, bulkhead?</strong>Timeout bounds the wait; retry (with backoff and jitter) handles transient errors; a circuit breaker stops calling a dependency that keeps failing; a bulkhead isolates resources so one slow dependency can't take them all. <a class="cls" href="../../classes/reliability/patterns/">Class 9</a></li>
-          <li><strong>[48] RPO vs RTO?</strong>RPO: how much data you can lose (time since the last good copy). RTO: how long until you are back. Backups give hours; replication gives seconds; multi-region active-active gets close to zero, at a high cost. <a class="cls" href="../../classes/reliability/disaster-recovery/">Class 9</a></li>
-          <li><strong>[49] Why chaos engineering?</strong>To find weaknesses in a controlled experiment rather than in an incident: state a hypothesis about steady state, inject a failure (latency, a crash, a zone outage), observe, fix. Start small, in staging, with a stop button. <a class="cls" href="../../classes/reliability/chaos/">Class 9</a></li>
-          <li><strong>[50] Metrics, logs and traces?</strong>Metrics: cheap aggregates over time (is something wrong?). Logs: detailed events (what exactly happened?). Traces: one request across services (where is the time going?). OpenTelemetry standardizes all three. <a class="cls" href="../../classes/observability/signals/">Class 10</a></li>
-          <li><strong>[51] RED, USE and the golden signals?</strong>RED for services: rate, errors, duration. USE for resources: utilization, saturation, errors. Google's four golden signals: latency, traffic, errors, saturation. <a class="cls" href="../../classes/observability/signals/">Class 10</a></li>
-          <li><strong>[52] What should page someone at 3 a.m.?</strong>Symptoms users feel, not causes: an SLO burning its error budget fast (burn-rate alerts over two windows). High CPU alone should not page anyone. <a class="cls" href="../../classes/observability/alerting/">Class 10</a></li>
+          <li><strong>[46] SLI, SLO, SLA and error budget?</strong>SLI: a measurement (share of requests under 300 ms). SLO: the target (99.9% over 28 days). SLA: a contract with penalties. Error budget: 100% − SLO, the unreliability you may spend on releases and experiments. <a class="cls" href="../../classes/observability/slo/">Class 9</a></li>
+          <li><strong>[47] Timeout, retry, circuit breaker, bulkhead?</strong>Timeout bounds the wait; retry (with backoff and jitter) handles transient errors; a circuit breaker stops calling a dependency that keeps failing; a bulkhead isolates resources so one slow dependency can't take them all. <a class="cls" href="../../classes/reliability/patterns/">Class 10</a></li>
+          <li><strong>[48] RPO vs RTO?</strong>RPO: how much data you can lose (time since the last good copy). RTO: how long until you are back. Backups give hours; replication gives seconds; multi-region active-active gets close to zero, at a high cost. <a class="cls" href="../../classes/reliability/disaster-recovery/">Class 10</a></li>
+          <li><strong>[49] Why chaos engineering?</strong>To find weaknesses in a controlled experiment rather than in an incident: state a hypothesis about steady state, inject a failure (latency, a crash, a zone outage), observe, fix. Start small, in staging, with a stop button. <a class="cls" href="../../classes/reliability/chaos/">Class 10</a></li>
+          <li><strong>[50] Metrics, logs and traces?</strong>Metrics: cheap aggregates over time (is something wrong?). Logs: detailed events (what exactly happened?). Traces: one request across services (where is the time going?). OpenTelemetry standardizes all three. <a class="cls" href="../../classes/observability/signals/">Class 9</a></li>
+          <li><strong>[51] RED, USE and the golden signals?</strong>RED for services: rate, errors, duration. USE for resources: utilization, saturation, errors. Google's four golden signals: latency, traffic, errors, saturation. <a class="cls" href="../../classes/observability/signals/">Class 9</a></li>
+          <li><strong>[52] What should page someone at 3 a.m.?</strong>Symptoms users feel, not causes: an SLO burning its error budget fast (burn-rate alerts over two windows). High CPU alone should not page anyone. <a class="cls" href="../../classes/observability/alerting/">Class 9</a></li>
         </ul>
         <div class="acc-link">In class: <a href="../../classes/reliability/">9 · Reliability</a> · <a href="../../classes/observability/">10 · Observability</a> · Catalog: <a href="../../reference/components/observability/">observability components</a></div>
       </div>
@@ -434,11 +434,11 @@ hide:
       </button>
       <div class="acc-body">
         <ul class="qa-list">
-          <li><strong>[53] Public vs private subnets, and a NAT gateway?</strong>Only the load balancer lives in public subnets; services and databases live in private ones, with no inbound route from the internet. A NAT gateway lets private services call out (to a payment API) without being reachable. <a class="cls" href="../../classes/network-security/cloud-network/">Class 11</a></li>
-          <li><strong>[54] OAuth 2 / OIDC and JWT in one breath?</strong>OIDC authenticates the user and the auth server issues a signed token (often a JWT); services verify the signature and claims locally without calling the auth server. Short expiry plus refresh tokens; revocation is the hard part. <a class="cls" href="../../classes/network-security/identity/">Class 11</a></li>
-          <li><strong>[55] What does a service mesh add?</strong>A proxy layer (sidecar or ambient) that gives every service mTLS, retries, timeouts, traffic splitting and telemetry without code changes, at the cost of latency per hop and operational complexity. <a class="cls" href="../../classes/network-security/service-mesh/">Class 11</a></li>
-          <li><strong>[56] Liveness vs readiness probes?</strong>Liveness: is the process stuck? (restart it). Readiness: can it take traffic now? (remove it from the load balancer). Checking a dependency in liveness causes restart storms. <a class="cls" href="../../classes/cloud-native/kubernetes/">Class 12</a></li>
-          <li><strong>[57] Rolling, blue/green or canary?</strong>Rolling replaces pods gradually; blue/green switches all traffic between two full environments (fast rollback, double cost); canary sends a small share to the new version and watches the metrics before going further. <a class="cls" href="../../classes/cloud-native/delivery/">Class 12</a></li>
+          <li><strong>[53] Public vs private subnets, and a NAT gateway?</strong>Only the load balancer lives in public subnets; services and databases live in private ones, with no inbound route from the internet. A NAT gateway lets private services call out (to a payment API) without being reachable. <a class="cls" href="../../classes/network-security/cloud-network/">Class 12</a></li>
+          <li><strong>[54] OAuth 2 / OIDC and JWT in one breath?</strong>OIDC authenticates the user and the auth server issues a signed token (often a JWT); services verify the signature and claims locally without calling the auth server. Short expiry plus refresh tokens; revocation is the hard part. <a class="cls" href="../../classes/edge/identity/">Class 4</a></li>
+          <li><strong>[55] What does a service mesh add?</strong>A proxy layer (sidecar or ambient) that gives every service mTLS, retries, timeouts, traffic splitting and telemetry without code changes, at the cost of latency per hop and operational complexity. <a class="cls" href="../../classes/network-security/service-mesh/">Class 12</a></li>
+          <li><strong>[56] Liveness vs readiness probes?</strong>Liveness: is the process stuck? (restart it). Readiness: can it take traffic now? (remove it from the load balancer). Checking a dependency in liveness causes restart storms. <a class="cls" href="../../classes/cloud-native/kubernetes/">Class 11</a></li>
+          <li><strong>[57] Rolling, blue/green or canary?</strong>Rolling replaces pods gradually; blue/green switches all traffic between two full environments (fast rollback, double cost); canary sends a small share to the new version and watches the metrics before going further. <a class="cls" href="../../classes/cloud-native/delivery/">Class 11</a></li>
           <li><strong>[58] Which load test answers which question?</strong>Smoke: does it work? Load: does it meet the SLO at expected peak? Stress: where does it break? Spike: does it survive 10:00? Soak: does it degrade over hours? Breakpoint: what is the maximum? <a class="cls" href="../../classes/performance/load-testing/">Class 15</a></li>
         </ul>
         <div class="acc-link">In class: <a href="../../classes/network-security/">11 · Network &amp; security</a> · <a href="../../classes/cloud-native/">12 · Cloud-native</a> · <a href="../../classes/performance/">14 · Performance</a></div>
@@ -512,7 +512,7 @@ hide:
     <div class="card border-amber">
       <div class="card-label amber">Under load</div>
       <h3>Break it in the playground</h3>
-      <p>For every design you practice, build it in the <a href="../../playground/">playground</a>, run a spike or stress profile, and see which box turns red first. Then fix it and run again. Seeing the knee once is worth reading about it ten times.</p>
+      <p>For every design you practice, build it in the <a href="../../../playground/">playground</a>, run a spike or stress profile, and see which box turns red first. Then fix it and run again. Seeing the knee once is worth reading about it ten times.</p>
     </div>
     <div class="card border-purple">
       <div class="card-label purple">Honestly</div>
@@ -593,7 +593,7 @@ hide:
   </div>
 
   <div class="callout">
-    <p>Seven steps, a dozen of the concepts above, and every box justified by a number or a requirement. That is what the interviewer wanted to see: <strong>not the boxes you know, but why each one is there</strong>. Try it yourself in the <a href="../../playground/">playground</a> with the <code>flash-sale</code> scenario, and compare with the <a href="../../classes/case-studies/ticketing/">ticketing case study</a>.</p>
+    <p>Seven steps, a dozen of the concepts above, and every box justified by a number or a requirement. That is what the interviewer wanted to see: <strong>not the boxes you know, but why each one is there</strong>. Try it yourself in the <a href="../../../playground/">playground</a> with the <code>flash-sale</code> scenario, and compare with the <a href="../../classes/case-studies/ticketing/">ticketing case study</a>.</p>
   </div>
 </section>
 

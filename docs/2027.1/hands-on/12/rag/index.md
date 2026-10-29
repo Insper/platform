@@ -6,7 +6,7 @@ reduces the second: before the model answers, the service *retrieves* the docume
 the question and puts them in the prompt, with instructions to answer only from them and to cite them.
 The theory is in the [RAG and memory class](../../../classes/ai-systems/rag-memory/index.md).
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     subgraph ingest [ingest: once, and when the catalog changes]
         cat[catalog API] --> txt[event -> text]

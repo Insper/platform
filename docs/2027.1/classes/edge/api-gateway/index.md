@@ -6,7 +6,7 @@ An **API gateway** is an L7 reverse proxy specialised for APIs: it is the single
 
 ## What a gateway does { #responsibilities }
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     app([Mobile app]) --> gw
     web([Web app]) --> gw
@@ -38,6 +38,14 @@ flowchart LR
 
 The key word is **cross-cutting**: concerns that are the same for every service. Anything that depends on the business — prices, seat allocation, refund rules — belongs in a service, not in gateway configuration.
 
+!!! example "In the BoxOffice code: the gateway's routes, timeouts and retry (lab 4)"
+
+    [Hands-on 4 — Gateway](../../../hands-on/4/gateway/index.md) puts a Spring Cloud Gateway behind the lab 3 edge. Its configuration is almost the whole table above in a few lines: **routing** by path (`/auth/**`, `/catalog/**`); `lb://catalog`, which balances over the three replicas and skips any whose health check is not `UP` (checked every 5 s); a 1 s connect and 5 s response **timeout** toward every service; and a `Retry` filter limited to `GET`, so a retry can never repeat a purchase. Authentication — validating the JWT that `auth` signs — is in `SecurityConfig.java`, on the same page.
+
+    ``` { .yaml title="services/gateway/src/main/resources/application.yaml (routes and resilience)" }
+    --8<-- "docs/2027.1/hands-on/4/code/services/gateway/src/main/resources/application.yaml:7:30,40:43"
+    ```
+
 ---
 
 ## Gateway, load balancer, ingress or service mesh? { #comparison }
@@ -61,7 +69,7 @@ The mobile app and the web app need different things: the app shows a compact ev
 
 The **Backend for Frontend** pattern gives each client type its **own** thin gateway layer, owned by the team that builds that frontend[^2]:
 
-``` mermaid
+``` diagram
 flowchart LR
     m([Mobile app]) --> bm[Mobile BFF]
     w([Web app]) --> bw[Web BFF]
@@ -101,7 +109,7 @@ Every rate limiter has to decide three things:
 
 The most widely used algorithm[^3]. Each key has a bucket that holds at most **capacity** tokens (the burst size) and is refilled at a constant **rate** (the sustained limit). Each request takes a token; if the bucket is empty, the request is rejected.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     req([Request from fan 7]) --> chk{"Token in<br/>fan 7's bucket?"}
     refill(["Refill: +10 tokens/s<br/>up to capacity 20"]) -.-> chk
@@ -253,7 +261,7 @@ Design points worth saying out loud:
 | **Service** | business entity | business abuse the gateway cannot see | max 6 seats per hold, 1 active hold per event per user |
 | **Outbound (client side)** | the provider's quota | exceeding a 3rd-party limit (payment, e-mail) | 100 req/s to the payment provider |
 
-Use several layers: coarse and cheap at the edge, identity-aware at the gateway, business rules in the services. Rate limiting is also one of the resilience patterns of [class 9](../../reliability/patterns/index.md) — there, the point of view is protecting a service from overload (load shedding).
+Use several layers: coarse and cheap at the edge, identity-aware at the gateway, business rules in the services. Rate limiting is also one of the resilience patterns of [class 10](../../reliability/patterns/index.md) — there, the point of view is protecting a service from overload (load shedding).
 
 ### Telling the client { #headers }
 
@@ -275,7 +283,7 @@ Content-Type: application/problem+json
 
 === "Spring Cloud Gateway"
 
-    Spring Cloud Gateway ships a Redis-backed token bucket (`RequestRateLimiter`), used in [hands-on 4](../../../hands-on/4/index.md):
+    Spring Cloud Gateway ships a Redis-backed token bucket (`RequestRateLimiter`). The gateway of [hands-on 4](../../../hands-on/4/gateway/index.md) does not turn it on — BoxOffice limits at the Nginx edge (box below) — but this is how you would add it:
 
     ```yaml title="application.yaml"
     spring:
@@ -313,7 +321,7 @@ Content-Type: application/problem+json
 
 === "Nginx"
 
-    Nginx limits per key with a leaky bucket, used in [hands-on 3](../../../hands-on/3/index.md):
+    Nginx limits per key with a leaky bucket. Keyed by client IP, it looks like this; [hands-on 3](../../../hands-on/3/index.md) keys it by API key instead (box below):
 
     ```nginx title="nginx.conf"
     # 10 MB of shared memory holds about 160 000 IP states
@@ -334,6 +342,14 @@ Content-Type: application/problem+json
     - **GCP**: Apigee quotas and spike arrest; Cloud Armor rate-limiting rules.
     - **Azure API Management**: `rate-limit-by-key` and `quota-by-key` policies.
     - **Cloudflare**: rate-limiting rules at the edge (sliding window).
+
+!!! example "In the BoxOffice code: a rate limit at the edge (lab 3)"
+
+    The Nginx edge of [Hands-on 3](../../../hands-on/3/index.md) gives each **API key** 20 req/s with a burst of 40 and answers `429` above that, without touching the replicas. The lab's k6 script sends a greedy client (50 req/s) and a polite one (10 req/s) for 30 s: in its run, the greedy client got 640 `200`s and 843 `429`s — about the 20/s it is entitled to — and the polite one 299 `200`s and **no** `429`. Note the comment in the configuration: a request without the header has an empty key and is not limited, and the key is chosen by the client. Production keys an authenticated identity (lab 4's JWT) and adds a generous per-IP limit for anonymous traffic.
+
+    ``` { .nginx title="infra/nginx/nginx.conf (the limit)" }
+    --8<-- "docs/2027.1/hands-on/3/code/infra/nginx/nginx.conf:28:32,43:44"
+    ```
 
 **Try it.** Load the rate-limiter scenario and run the **spike** profile without limits: the backend saturates and p99 explodes for *everyone*. Turn on the gateway rate limit and tune its rate and burst: watch the 429s absorb the excess while p99 for accepted requests stays flat. What happens if the limit is set higher than the backend's capacity?
 
@@ -373,6 +389,14 @@ The full design of a distributed rate limiter, as an interview problem, is in th
     - Know the **fixed window boundary problem** (2× burst) — it is a classic follow-up question.
     - Mention **BFF** when the question has very different clients (mobile, web, TV, partners).
 
+!!! success "Best practices"
+
+    - **Answer `429` with `Retry-After` (and the `RateLimit` headers)** — well-behaved clients back off exactly as long as needed instead of guessing.
+    - **Run a new limit in count (log-only) mode before enforcing it** — measure who would have been limited, then switch it on.
+    - **Give each route its own timeout and retry policy, with retries only on idempotent methods** — In BoxOffice: the gateway's 1 s connect / 5 s response timeouts and a `Retry` filter limited to `GET` in [lab 4](../../../hands-on/4/gateway/index.md) (box above).
+    - **Validate JWTs locally with cached public keys** — a JWKS fetched and cached by the gateway costs no call to `auth` per request. In BoxOffice: `jwk-set-uri` in lab 4's `application.yaml`.
+    - **Measure the gateway's own overhead and capacity** — p50 through the gateway versus direct, and its breaking point, so it is sized like any other tier.
+
 !!! warning "Pitfalls"
     - **Gateway as a single point of failure or bottleneck**: it is on the path of every request. Run several replicas across zones, size it in load tests, and keep its per-request work small.
     - **Business logic in the gateway**: scripts and plugins that compute prices or allocate seats create a second, hidden monolith that nobody tests. Keep the gateway dumb and the services smart.
@@ -385,7 +409,7 @@ The full design of a distributed rate limiter, as an interview problem, is in th
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     GW["API gateway"] --> AUTH["JWT validation<br/>→ Network & Security"]
     GW --> RL["rate limiting"]
@@ -398,15 +422,17 @@ flowchart LR
     GW --> WR["waiting room<br/>→ Messaging (queue)"]
 ```
 
-**Palette components:** [`apigw`](../../../reference/components/edge/index.md#apigw) · [`auth`](../../../reference/components/compute/index.md#auth) (issues the tokens the gateway validates) · [`cache`](../../../reference/components/storage/index.md#cache) (shared rate-limit counters) · [`queue`](../../../reference/components/messaging/index.md#queue) (the waiting room) · [`waf`](../../../reference/components/edge/index.md#waf) (coarse limits per IP, before the gateway). **Scenarios:** `rate-limiter`, `retry-storm`, `flash-sale`. **Continues in:** [Case study: rate limiter](../../case-studies/rate-limiter/index.md), [Reliability — patterns](../../reliability/patterns/index.md), [Network & Security — identity](../../network-security/identity/index.md), [Hands-on 4](../../../hands-on/4/index.md).
+**Palette components:** [`apigw`](../../../reference/components/edge/index.md#apigw) · [`auth`](../../../reference/components/compute/index.md#auth) (issues the tokens the gateway validates) · [`cache`](../../../reference/components/storage/index.md#cache) (shared rate-limit counters) · [`queue`](../../../reference/components/messaging/index.md#queue) (the waiting room) · [`waf`](../../../reference/components/edge/index.md#waf) (coarse limits per IP, before the gateway). **Scenarios:** `rate-limiter`, `retry-storm`, `flash-sale`. **Continues in:** [Case study: rate limiter](../../case-studies/rate-limiter/index.md), [Reliability — patterns](../../reliability/patterns/index.md), [Network & Security — identity](../identity/index.md), [Hands-on 4](../../../hands-on/4/index.md).
 
-## Key takeaways
+## Key takeaways { #key-takeaways }
 
-- An API gateway is the **single entry point** for APIs: routing, authentication offload, rate limits, transformations, aggregation and observability — **cross-cutting concerns only**.
-- The **BFF** pattern gives each client type its own tailored layer.
-- **Token bucket** (capacity = burst, refill = sustained rate) is the default rate-limiting algorithm; **leaky bucket** smooths output; **fixed window** allows 2× bursts at boundaries; **sliding window log** is exact but memory-heavy; **sliding window counter** is a cheap, accurate approximation.
-- Across replicas, keep counters in **Redis** and update them **atomically** (Lua); decide whether to **fail open or closed**.
-- Limit in **layers** (edge, gateway, service), answer **429 with Retry-After**, and make clients back off with jitter.
+!!! takeaways ""
+
+    - An API gateway is the **single entry point** for APIs: routing, authentication offload, rate limits, transformations, aggregation and observability — **cross-cutting concerns only**.
+    - The **BFF** pattern gives each client type its own tailored layer.
+    - **Token bucket** (capacity = burst, refill = sustained rate) is the default rate-limiting algorithm; **leaky bucket** smooths output; **fixed window** allows 2× bursts at boundaries; **sliding window log** is exact but memory-heavy; **sliding window counter** is a cheap, accurate approximation.
+    - Across replicas, keep counters in **Redis** and update them **atomically** (Lua); decide whether to **fail open or closed**.
+    - Limit in **layers** (edge, gateway, service), answer **429 with Retry-After**, and make clients back off with jitter.
 
 ---
 

@@ -4,11 +4,11 @@ Um banco de dados relacional *consegue* fazer uma versão fraca de cada uma dess
 
 ---
 
-## Como os dados derivados fluem
+## Como os dados derivados fluem { #how-derived-data-flows }
 
 O sistema de registro continua nos bancos relacionais dos serviços. As mudanças saem para os armazenamentos especializados por **captura de dados de mudança** (*change data capture*, CDC): um conector lê o log do banco (o WAL do PostgreSQL, o binlog do MySQL) e publica cada insert, update e delete como um evento.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     DB[("catalog + order<br/>PostgreSQL")] -->|"WAL"| CDC["conector CDC<br/>(Debezium)"]
     CDC --> K[["stream de eventos<br/>(Kafka)"]]
@@ -24,7 +24,7 @@ Por que não fazer o serviço escrever no banco *e* no índice de busca diretame
 
 ## Mecanismos de busca { #search-engines }
 
-### Por que `LIKE '%taylor%'` não é busca
+### Por que `LIKE '%taylor%'` não é busca { #why-like-taylor-is-not-search }
 
 ```sql title="The naive search"
 SELECT id, title FROM events
@@ -33,7 +33,7 @@ WHERE title ILIKE '%tayler%' AND title ILIKE '%dezembro%';
 
 Ela varre a tabela inteira (um `%` no início anula os índices B-tree), não encontra nada para o erro de digitação "tayler", não sabe que "SP" significa "São Paulo", ignora acentos e plurais e devolve os resultados em ordem arbitrária. Os usuários esperam **tolerância a erros de digitação, ranking por relevância, autocomplete por prefixo e facetas** ("filtrar por cidade, data, gênero") em dezenas de milissegundos.
 
-### O índice invertido
+### O índice invertido { #the-inverted-index }
 
 Um mecanismo de busca constrói um **índice invertido** (*inverted index*): para cada termo, a lista (**lista de postings**) dos documentos que o contêm — o índice remissivo no fim de um livro[^1].
 
@@ -98,7 +98,7 @@ Os documentos que casam recebem uma pontuação de **relevância**. O padrão no
     -- unaccent_immutable: an IMMUTABLE wrapper around unaccent(), required in generated columns
     ```
 
-### Operando um cluster de busca
+### Operando um cluster de busca { #running-a-search-cluster }
 
 - Um índice é dividido em **shards** (fixados na criação, veja [Particionamento](../partitioning/index.md#consistent-hashing)) com **réplicas** para disponibilidade e vazão de leitura. Uma consulta se espalha para uma cópia de cada shard e combina os melhores resultados — scatter/gather.
 - A busca é **quase em tempo real**: documentos novos ficam pesquisáveis após um *refresh* (1 segundo por padrão no Elasticsearch), e o pipeline de CDC acrescenta seu próprio atraso. O evento que a casa de shows acabou de criar pode levar alguns segundos para aparecer — aceitável para busca, não para inventário.
@@ -129,7 +129,7 @@ Desde 2020, o Amazon S3 oferece consistência forte de leitura após escrita par
 
 O padrão que mantém os blobs longe dos seus servidores é a **URL pré-assinada** (*presigned URL*): o serviço autoriza o upload, mas os bytes vão direto do navegador para o bucket.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant V as Admin da casa de shows (navegador)
     participant C as serviço catalog
@@ -196,7 +196,7 @@ Os serviços rodam **OLTP** (*online transaction processing*): muitas leituras e
 | Layout | orientado a linhas | **orientado a colunas** |
 | Dados | estado atual | histórico, muitas vezes só de inserção |
 
-### Por que colunas
+### Por que colunas { #why-columns }
 
 Um **armazenamento colunar** (*column store*) guarda cada coluna em seus próprios arquivos. Uma consulta que lê 3 de 30 colunas lê cerca de um décimo dos bytes, e uma coluna de valores parecidos (`city`, `status`) comprime extremamente bem (codificação por dicionário e *run-length*)[^5]. Com números ilustrativos para o clickstream da BoxOffice — 20 GB/dia por dois anos ≈ 15 TB brutos:
 
@@ -209,7 +209,7 @@ Um **armazenamento colunar** (*column store*) guarda cada coluna em seus própri
 
 Essa diferença — somada à varredura em paralelo em muitas máquinas — é o motivo pelo qual um warehouse responde em segundos o que levaria horas no banco OLTP (enquanto prejudica o checkout).
 
-### Modelagem: o esquema estrela
+### Modelagem: o esquema estrela { #modelling-the-star-schema }
 
 Warehouses costumam ser modelados como um **esquema estrela** (*star schema*): uma **tabela fato** central de eventos (uma linha por ingresso vendido) com chaves estrangeiras para **tabelas dimensão** que os descrevem.
 
@@ -249,7 +249,7 @@ GROUP BY 1, 2
 ORDER BY 2, 1;
 ```
 
-### Colocando dados dentro: ETL, ELT, streaming
+### Colocando dados dentro: ETL, ELT, streaming { #getting-data-in-etl-elt-streaming }
 
 | Abordagem | Como | Atualidade | Ferramentas típicas |
 |---|---|---|---|
@@ -257,7 +257,7 @@ ORDER BY 2, 1;
 | **ELT** (*extract, load, transform*) | carrega os dados brutos e transforma *dentro* do warehouse com SQL | de horas a minutos | Fivetran / Airbyte + dbt |
 | **CDC em streaming** | eventos de mudança anexados continuamente | de segundos a minutos | Debezium + Kafka, ingestão em streaming das nuvens |
 
-### Lakes e lakehouses
+### Lakes e lakehouses { #lakes-and-lakehouses }
 
 Um **data lake** guarda arquivos brutos — geralmente **Parquet**, um formato de arquivo colunar — no armazenamento de objetos, de forma barata e em qualquer formato. A fraqueza de um lake simples é que os arquivos não têm transações nem esquema. **Formatos de tabela abertos** — Apache **Iceberg**, **Delta Lake**, Apache Hudi — acrescentam um log de transações, evolução de esquema e *time travel* sobre esses arquivos, de modo que vários motores (Spark, Trino, Flink, DuckDB, warehouses das nuvens) consultam as mesmas tabelas. Essa combinação é o **lakehouse**[^6].
 
@@ -281,7 +281,7 @@ Um **data lake** guarda arquivos brutos — geralmente **Parquet**, um formato d
 
 ## Bancos de dados vetoriais { #vector-databases }
 
-### Embeddings: significado como geometria
+### Embeddings: significado como geometria { #embeddings-meaning-as-geometry }
 
 Um **modelo de embeddings** transforma um trecho de texto (ou uma imagem) em um vetor de números — tipicamente de centenas a alguns milhares de dimensões — de modo que textos com **significado** parecido fiquem **próximos** uns dos outros. "Posso ter meu dinheiro de volta se o show mudar de data?" e "Reembolso de eventos remarcados" compartilham poucas palavras, mas têm embeddings vizinhos. A proximidade costuma ser medida pela **similaridade de cosseno**:
 
@@ -291,7 +291,7 @@ $$
 
 Isso viabiliza a **busca semântica** e a etapa de recuperação do **RAG** (*retrieval-augmented generation*, geração aumentada por recuperação), em que o assistente da BoxOffice busca os trechos de política mais relevantes e os entrega ao modelo de linguagem (veja [Sistemas de IA — RAG e memória](../../ai-systems/rag-memory/index.md)).
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     Q["pergunta do fã"] --> E["gera o embedding<br/>(modelo de embeddings)"]
     E --> V[("vector DB<br/>top-k mais próximos")]
@@ -300,7 +300,7 @@ flowchart LR
     L --> A["resposta com fontes"]
 ```
 
-### Busca exata vs aproximada
+### Busca exata vs aproximada { #exact-vs-approximate-search }
 
 A resposta exata compara a consulta com **todos** os vetores: para 10 milhões de vetores de 1.024 dimensões, são cerca de 10 bilhões de multiplicações-e-somas por consulta — aceitável offline, lento demais para tráfego interativo. Bancos de dados vetoriais usam índices de **vizinho mais próximo aproximado** (*approximate nearest neighbour*, ANN) que olham uma pequena fração dos vetores e aceitam perder alguns vizinhos verdadeiros. A medida de qualidade é o **recall@k**: dos k vizinhos verdadeiros mais próximos, quantos o índice devolveu?
 
@@ -375,7 +375,7 @@ plt.close()
 
 Comparar cerca de 8% dos vetores já devolve aproximadamente 9 dos 10 vizinhos verdadeiros; cada ponto extra de recall custa mais trabalho. Embeddings reais e o HNSW se comportam de forma diferente nos detalhes, mas o formato — uma curva ajustável de recall versus custo — é o mesmo, e é uma decisão de produto: no RAG, um reranker depois da etapa ANN perdoa um recall um pouco menor.
 
-### Onde guardar os vetores
+### Onde guardar os vetores { #where-to-keep-vectors }
 
 ```sql title="pgvector: vectors next to the data they describe"
 CREATE EXTENSION IF NOT EXISTS vector;
@@ -407,9 +407,17 @@ LIMIT 5;
 
 Dimensionamento, como exemplo resolvido: 100 mil trechos × 1.024 dimensões × 4 bytes (float32) ≈ **400 MB** de vetores brutos, mais o grafo HNSW (com `m = 16`, algumas centenas de bytes por vetor) — cabe com folga no banco do catalog. Com 100 milhões de vetores (≈ 400 GB brutos), quantização ou um cluster dedicado passam a valer a discussão.
 
+!!! example "No código do BoxOffice: pgvector no PostgreSQL que já temos (lab 12)"
+
+    O assistente do [Hands-on 12 — RAG](../../../hands-on/12/rag/index.md) fica com a primeira linha da tabela: seus vetores moram no mesmo PostgreSQL que todo o resto (a imagem do lab é o PostgreSQL 17 com pgvector), no seu próprio schema `assistant`, com um índice HNSW por distância de cosseno. Os números explicam por que não é preciso um banco vetorial dedicado: o lab gera embeddings de 300 eventos com 768 dimensões (cerca de 1 MB de floats), e mesmo os 200.000 eventos do catálogo dariam cerca de 600 MB. Um sistema a menos para operar e manter sincronizado é o motivo; o preço é que a construção do índice e as consultas vetoriais dividem o primário com as reservas.
+
+    ``` { .python title="services/assistant/app/db.py (table and HNSW index)" }
+    --8<-- "docs/2027.1/hands-on/12/code/services/assistant/app/db.py:8:22"
+    ```
+
 ---
 
-## Escolhendo entre eles
+## Escolhendo entre eles { #choosing-among-them }
 
 | Armazenamento | Responde | Alimentado por | Atualidade | Não serve para |
 |---|---|---|---|---|
@@ -432,6 +440,14 @@ Dimensionamento, como exemplo resolvido: 100 mil trechos × 1.024 dimensões × 
     - "Analytics" ou "relatórios" → **OLAP em um warehouse**, armazenamento colunar, alimentado por CDC/ELT — "nunca no primário OLTP".
     - Busca semântica ou RAG → **embeddings + índice ANN (HNSW)**, e mencione **recall vs latência** e a opção do pgvector antes de um produto dedicado.
 
+!!! success "Boas práticas"
+
+    - **Versione o índice de busca e troque com um alias** — construa `events_v2`, preencha-o e troque o alias de forma atômica; reverter é trocar de volta.
+    - **Meça o atraso de cada armazenamento derivado** — segundos atrás da fonte da verdade, como métrica com alerta, para que "a busca mostra eventos esgotados" seja pego por um gráfico, não pelos fãs.
+    - **Dê aos blobs chaves imutáveis e versionadas** — `posters/9f3a….jpg` com `Cache-Control: immutable`; uma imagem alterada ganha uma chave nova, então nenhum cache precisa ser expurgado.
+    - **Defina regras de ciclo de vida no armazenamento de objetos** — mova os PDFs de ingressos para uma classe mais barata depois do show e apague uploads abandonados depois de um dia; um armazenamento que só cresce é uma conta que só cresce.
+    - **Avalie a recuperação com um conjunto fixo de perguntas antes de trocar o modelo ou o índice** — as mesmas perguntas, a mesma métrica, antes e depois. Na BoxOffice: `scripts/eval_retrieval.py` no [lab 12](../../../hands-on/12/rag/index.md).
+
 !!! warning "Armadilhas comuns"
 
     - **Escritas duplas** da aplicação no banco e no índice: eles se desalinham; use CDC ou um outbox.
@@ -442,7 +458,7 @@ Dimensionamento, como exemplo resolvido: 100 mil trechos × 1.024 dimensões × 
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     SOR["sistema de registro<br/>sql"] -->|"CDC, outbox"| IDX["índice invertido<br/>search"]
     SOR -->|"CDC, ELT"| DWH["warehouse, lakehouse<br/>OLAP, colunas"]

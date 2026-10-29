@@ -4,9 +4,9 @@ No [lab 11](../../11/index.md), o Argo Rollouts promove ou aborta um canary comp
 
 Um modelo nunca deve ser quem diz "promova": ele pode ser convencido disso (prompt injection por uma linha de log), pode errar números com toda a confiança e dá uma resposta diferente em outro dia. Um limite num arquivo versionado não faz nada disso.
 
-## 5.1 Projeto
+## 5.1 Projeto { #51-design }
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     prom[("Prometheus<br/>stable vs canary")] --> rules["Política no código<br/>MIN_RPS · teto de erros<br/>delta de erros · razão do p99"]
     rules --> verdict{"veredito"}
@@ -26,7 +26,7 @@ flowchart LR
 
 Por que comparar com o **stable no mesmo momento** em vez de um número fixo? Porque às 10:00 de um dia de abertura de vendas tudo fica mais lento; um limite fixo faria rollback de toda release daquele dia. A [página de entrega](../../../classes/cloud-native/delivery/index.md#how-long-must-a-canary-run) mostra quanto tempo um canary precisa rodar para detectar uma regressão de um dado tamanho.
 
-## 5.2 O script
+## 5.2 O script { #52-the-script }
 
 ``` { .python title=".github/ai/canary_explain.py" .copy linenums="1" }
 --8<-- "docs/2027.1/hands-on/13/code/.github/ai/canary_explain.py"
@@ -34,7 +34,7 @@ Por que comparar com o **stable no mesmo momento** em vez de um número fixo? Po
 
 As consultas PromQL usam a métrica do Micrometer `http_server_requests_seconds` e um label `service` que separa o canary dos pods stable, como na página de entrega. **Adapte `METRIC`, `STATUS_LABEL`, `CANARY_SELECTOR` e `STABLE_SELECTOR` aos nomes que o seu setup do lab 11 expõe** — abra o Prometheus (ou o Explore do Grafana) e confira-os antes de confiar em qualquer veredito. Com o agente OpenTelemetry do lab 8, a métrica é `http_server_request_duration_seconds` e o label de status é `http_response_status_code`.
 
-## 5.3 Reproduza três cenários
+## 5.3 Reproduza três cenários { #53-replay-three-scenarios }
 
 Comece sem cluster: três snapshots de métricas salvos bastam para ver os três vereditos. Salve-os em `.github/ai/canary/`.
 
@@ -106,7 +106,7 @@ env -u ANTHROPIC_API_KEY LLM_PROVIDER=anthropic uv run --no-project --python 3.1
 
 Você recebe `_(no explanation: TypeError: "Could not resolve authentication method. ...")_` e **o mesmo código de saída 1** — sem modelo, mesma decisão.
 
-## 5.4 Ao vivo: conecte ao rollout (opcional)
+## 5.4 Ao vivo: conecte ao rollout (opcional) { #54-live-wire-it-into-the-rollout-optional }
 
 Este passo precisa do cluster kind do [lab 10](../../10/index.md) (chamado `boxoffice`) com o Prometheus e o canary do Argo Rollouts do lab 11. Sem eles, as três reproduções da 5.3 são o entregável; pule para a 5.5.
 
@@ -163,7 +163,7 @@ Este passo precisa do cluster kind do [lab 10](../../10/index.md) (chamado `boxo
 
     Com um Job, *inconclusivo* (saída 2) conta como falha — a escolha conservadora. A explicação fica nos logs do Job do próximo canary — uma nova imagem vinda do CI (`kubectl -n boxoffice logs -l job-name --tail=50`, ou `kubectl -n boxoffice get jobs` e `kubectl -n boxoffice logs job/<nome>`). O template aponta o modelo para o Ollama da sua máquina via `host.docker.internal` (Docker Desktop no macOS e no Windows; no Linux, use o IP do host na rede `kind` ou deixe-o inalcançável); para o Claude, crie o Secret com `kubectl -n boxoffice create secret generic llm --from-literal=anthropic-api-key="$ANTHROPIC_API_KEY"` e defina `LLM_PROVIDER` como `anthropic` no template (e rode o `kubectl apply` de novo). O passo funciona sem modelo nenhum: sem explicação, mesmo veredito.
 
-## 5.5 Meça
+## 5.5 Meça { #55-measure-it }
 
 Rode os três cenários e, se você tiver o cluster, um canary ao vivo com uma versão deliberadamente lenta (por exemplo, um `Thread.sleep(150)` num endpoint, atrás de uma flag). Registre em `results/lab13.md`:
 
@@ -177,7 +177,7 @@ Rode os três cenários e, se você tiver o cluster, um canary ao vivo com uma v
 Depois responda: a explicação teria encurtado o *seu* diagnóstico? Qual próximo passo foi o mais útil, e qual foi genérico?
 
 
-## Solução de problemas
+## Solução de problemas { #troubleshooting }
 
 | Sintoma | Causa | Correção |
 |---|---|---|

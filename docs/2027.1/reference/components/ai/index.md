@@ -12,7 +12,7 @@ In BoxOffice, the `assistant` service answers fans' questions ("can I get a refu
 | [Memory Fabric](#memory) | Retrieval of your data for the prompt (RAG) plus short- and long-term memory | `memory` |
 | [Safety Mesh](#safety) | Guardrails on inputs, outputs and tool calls: injection, PII, policy, validation | `safety` |
 
-``` mermaid
+``` diagram
 flowchart LR
     U[Fan] --> GW[API Gateway] --> S1[Safety Mesh: input checks]
     S1 --> O[Orchestrator / agent loop]
@@ -219,7 +219,7 @@ flowchart LR
 !!! tip "In the interview"
     "Tools are just APIs with a description the model reads. I'd expose them through MCP servers in front of catalog and order, keep a reviewed allow-list per agent, and authorize every call with the end user's identity inside the tool — the model never decides what the user is allowed to do."
 
-**Learn more:** [AI systems › Agents](../../../classes/ai-systems/agents/index.md) · [AI systems › Safety & evals](../../../classes/ai-systems/safety-evals/index.md) · [Network & security › Identity](../../../classes/network-security/identity/index.md) · [Hands-on 12](../../../hands-on/12/index.md)
+**Learn more:** [AI systems › Agents](../../../classes/ai-systems/agents/index.md) · [AI systems › Safety & evals](../../../classes/ai-systems/safety-evals/index.md) · [Network & security › Identity](../../../classes/edge/identity/index.md) · [Hands-on 12](../../../hands-on/12/index.md)
 
 ---
 

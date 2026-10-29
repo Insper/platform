@@ -63,7 +63,7 @@ The **p-th percentile** (written pXX) of a set of latencies is the value below w
 | **p99.9** | 1 in 1,000 is slower | "three nines" tail | rare but real; dominates when requests fan out |
 | **max** | the slowest one seen | p100 | outliers; noisy, but worth a look |
 
-To compute a percentile exactly, sort the values and take the one at position ⌈p × n⌉ (the *nearest-rank* method): with 1,000 requests, p99 is the 990th fastest. In production, systems do not store every latency; they record **histograms** — counts of requests per latency bucket (0–5 ms, 5–10 ms, …) — and estimate percentiles from the buckets. Prometheus histograms, HdrHistogram and OpenTelemetry exponential histograms all work this way ([class 10](../../observability/index.md)).
+To compute a percentile exactly, sort the values and take the one at position ⌈p × n⌉ (the *nearest-rank* method): with 1,000 requests, p99 is the 990th fastest. In production, systems do not store every latency; they record **histograms** — counts of requests per latency bucket (0–5 ms, 5–10 ms, …) — and estimate percentiles from the buckets. Prometheus histograms, HdrHistogram and OpenTelemetry exponential histograms all work this way ([class 9](../../observability/index.md)).
 
 !!! warning "You cannot average percentiles"
 
@@ -194,6 +194,14 @@ Two traps make tail latency look better than it is:
 - **Coordinated omission**: a load generator that sends the next request only after the previous one returns *stops sending* when the server stalls — so it never records the requests that *would* have arrived during the stall, and the tail disappears from the results. Use tools that keep a constant arrival rate (open model: k6's `constant-arrival-rate`, wrk2) and compare intended vs actual send times[^4]. [Class 15](../../performance/index.md) covers it in depth.
 - **Measuring at the wrong place**: the server's own timer misses the time spent in the accept queue, the load balancer and the network. Measure where the user is (client-side, or at the edge), and compare with server-side numbers.
 
+!!! example "In the BoxOffice code: percentiles in the load test (lab 2)"
+
+    The load test of [Hands-on 2](../../../hands-on/2/index.md) avoids both traps. It uses k6's `constant-arrival-rate` executor (an **open** model: new requests keep arriving at `RATE` per second however slow the service gets), measures at the client, and states its pass criteria as **percentiles per endpoint**, because a fast detail page and a slow city listing averaged together describe neither. The lab's example run shows why the tail is the number to watch: at 400 req/s the median was 1.5 ms while p99 was 224 ms — the average would have hidden that one fan in a hundred waited 150 times longer than the typical one.
+
+    ``` { .javascript title="load/load.js (open model, percentile thresholds)" }
+    --8<-- "docs/2027.1/hands-on/2/code/load/load.js:14:31"
+    ```
+
 **Try it:** in the scale-out scenario, run the `load` profile and note the p50 and p99. Then use `chaos` at `low` to make one replica occasionally slow. Which percentile moves first? By how much does the p99 move compared with the p50?
 
 <div class="sdp" data-scenario="scale-out" data-mode="compact" data-profile="load" data-chaos="low" data-height="500"></div>
@@ -202,11 +210,19 @@ Two traps make tail latency look better than it is:
 
     BoxOffice wants an SLO for the seat-map endpoint. Option A: "average latency < 100 ms". Option B: "99% of requests < 300 ms, measured at the gateway over 28 days". Which one, and why?
 
-    **Answer**: **B**. It is stated as a percentile (it constrains the tail, which users feel), it has a threshold that matters to users, a measurement point (the gateway, closer to the user than the service) and a window. Option A can be met while 3% of requests take more than a second — exactly the complaint on social media. SLOs are developed in [class 9](../../reliability/index.md).
+    **Answer**: **B**. It is stated as a percentile (it constrains the tail, which users feel), it has a threshold that matters to users, a measurement point (the gateway, closer to the user than the service) and a window. Option A can be met while 3% of requests take more than a second — exactly the complaint on social media. SLOs are developed in [class 9](../../observability/slo/index.md).
 
 !!! tip "In the interview"
 
     Always state latency targets as **percentiles** ("p99 < 200 ms for reads"), and when your design fans out (sharded search, a page aggregating several services, scatter-gather), mention **tail amplification** and one mitigation: "with 20 shards, the slowest shard dominates, so I'd add hedged requests after the p95 and return partial results after a deadline." It shows you understand how distributed systems behave, not just how they are drawn.
+
+!!! success "Best practices"
+
+    - **Export latency as a histogram with bucket boundaries at your SLO thresholds** — with a bucket edge at 300 ms, "p99 < 300 ms" is computed exactly instead of interpolated.
+    - **Tag latency per route, never one number per service** — a fast detail page and a slow listing need separate percentiles. In BoxOffice: the `name:detail` and `name:list` tags in lab 2's `load/load.js` (box above).
+    - **Report p50, p99 and p99.9 together with the request count** — a p99 over 200 requests is the second-slowest request; it needs thousands to mean anything.
+    - **Derive every timeout from a latency budget, and propagate the remaining deadline** — a call gets at most its share of the caller's budget, so the caller never times out first and retries work still in progress.
+    - **Hedge only idempotent reads, after the p95, with a cap on extra load** (a few percent) — hedging buys tail latency with load, and the load must stay bounded.
 
 !!! warning "Common pitfalls"
 
@@ -220,7 +236,7 @@ Two traps make tail latency look better than it is:
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     DIST["long-tailed latency"] --> PCT["p50, p99, p99.9<br/>from histograms"]
     PCT --> SLO["latency SLOs<br/>→ Reliability"]
@@ -233,15 +249,17 @@ flowchart LR
     PCT --> CO["measure at the client,<br/>coordinated omission → Performance"]
 ```
 
-**Palette components:** [`search`](../../../reference/components/compute/index.md#search) (20 shards: the fan-out tail) · [`app`](../../../reference/components/compute/index.md#app) (a page that aggregates several services; hedging to another replica) · [`cache`](../../../reference/components/storage/index.md#cache) (misses are a tail source) · [`serverless`](../../../reference/components/compute/index.md#serverless) (cold starts) · [`apigw`](../../../reference/components/edge/index.md#apigw) (where the SLO is measured) · [`payment`](../../../reference/components/external/index.md#payment) (the provider dominates the checkout budget) · [`metrics`](../../../reference/components/observability/index.md#metrics) (histograms, never averaged percentiles). **Scenarios:** `scale-out` (with `chaos`), `search-autocomplete`. **Continues in:** [Availability Math](../availability-math/index.md), [Reliability — SLOs](../../reliability/slo/index.md), [Reliability — timeouts](../../reliability/patterns/index.md#timeout), [Observability — signals](../../observability/signals/index.md), [Performance — load testing](../../performance/load-testing/index.md), [Hands-on 2](../../../hands-on/2/index.md).
+**Palette components:** [`search`](../../../reference/components/compute/index.md#search) (20 shards: the fan-out tail) · [`app`](../../../reference/components/compute/index.md#app) (a page that aggregates several services; hedging to another replica) · [`cache`](../../../reference/components/storage/index.md#cache) (misses are a tail source) · [`serverless`](../../../reference/components/compute/index.md#serverless) (cold starts) · [`apigw`](../../../reference/components/edge/index.md#apigw) (where the SLO is measured) · [`payment`](../../../reference/components/external/index.md#payment) (the provider dominates the checkout budget) · [`metrics`](../../../reference/components/observability/index.md#metrics) (histograms, never averaged percentiles). **Scenarios:** `scale-out` (with `chaos`), `search-autocomplete`. **Continues in:** [Availability Math](../availability-math/index.md), [Observability — SLOs](../../observability/slo/index.md), [Reliability — timeouts](../../reliability/patterns/index.md#timeout), [Observability — signals](../../observability/signals/index.md), [Performance — load testing](../../performance/load-testing/index.md), [Hands-on 2](../../../hands-on/2/index.md).
 
-## Key takeaways
+## Key takeaways { #key-takeaways }
 
-- Latency distributions have **long tails**; the mean hides them — use **p50, p99, p99.9**.
-- Percentiles come from **histograms**; aggregate by merging histograms, **never by averaging** percentiles.
-- Users and heavy customers make many requests, so the "1% tail" touches a large share of **visits**.
-- Under fan-out N, P(slow) = **1 − (1 − q)ᴺ**: with 20 calls the backend's p99 hits 18 % of user requests; from ~70 calls on, it is the user's median.
-- Fight the tail with **hedging, partial results, less fan-out, headroom and async work**; split end-to-end targets into **latency budgets** and matching timeouts.
+!!! takeaways ""
+
+    - Latency distributions have **long tails**; the mean hides them — use **p50, p99, p99.9**.
+    - Percentiles come from **histograms**; aggregate by merging histograms, **never by averaging** percentiles.
+    - Users and heavy customers make many requests, so the "1% tail" touches a large share of **visits**.
+    - Under fan-out N, P(slow) = **1 − (1 − q)ᴺ**: with 20 calls the backend's p99 hits 18 % of user requests; from ~70 calls on, it is the user's median.
+    - Fight the tail with **hedging, partial results, less fan-out, headroom and async work**; split end-to-end targets into **latency budgets** and matching timeouts.
 
 ---
 

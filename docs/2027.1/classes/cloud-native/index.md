@@ -2,6 +2,10 @@ BoxOffice runs on a laptop: nine services, PostgreSQL, Redis and Kafka, all star
 
 None of these is an application problem. They are **platform** problems: where the code runs, how it gets there, how it scales, and who pays for it. This class is about the set of practices and tools — containers, Kubernetes, infrastructure as code, continuous delivery, GitOps, progressive delivery and FinOps — that the industry calls **cloud-native**.
 
+!!! quote "The story so far"
+
+    Chapter 11 of the [story of the course](../../index.md#story). BoxOffice has all its building blocks: an edge, stateless services, a database that sells each seat once, caches, a fair queue, telemetry and resilience patterns ([class 4](../edge/index.md) to [class 10](../reliability/index.md)). The patterns work, but all of it still runs on one laptop with `docker compose up`, and Compose does not restart a dead replica on another node, add `catalog` replicas at 09:45 or roll a bad release back. **This class** answers: where does the code run, how does it get there, how does it scale — and what does it cost?
+
 !!! abstract "Learning objectives"
 
     By the end of this class you should be able to:
@@ -118,7 +122,7 @@ Try it: open the scenario below and press **Run** with the `spike` profile. Watc
 
 With fifteen services, three environments and five teams, every team rediscovering how to write a Dockerfile, a Helm chart, a pipeline and an alert is wasteful. **Platform engineering** answers with an **internal developer platform (IDP)**: a product, built by a platform team for the other engineering teams, that offers **golden paths** — paved, supported ways of doing common things[^5].
 
-``` mermaid
+``` diagram
 flowchart LR
     dev["Product team<br/>(order, inventory…)"] -->|"uses"| portal["Developer portal<br/>(e.g. Backstage)"]
     portal --> tmpl["Service template<br/>Dockerfile · manifests · pipeline"]
@@ -141,7 +145,7 @@ A good golden path is **optional but attractive**: a new BoxOffice service creat
 
 Cloud-native is not a palette component of its own: it is *how* every component is packaged, run, delivered and paid for. The map links the **palette components** (green) to the **platform concepts** of this class (blue):
 
-``` mermaid
+``` diagram
 flowchart LR
     app["app · worker"]:::comp --> c1["OCI images, layers, digests,<br/>graceful shutdown"]:::tech
     app --> c2["Deployment, Service, probes,<br/>requests and limits, HPA, KEDA"]:::tech
@@ -173,6 +177,14 @@ flowchart LR
 
     Cloud-native details rarely drive a system-design interview, but they show maturity in the wrap-up. Spend one or two sentences on them: "Services are stateless containers on managed Kubernetes with an HPA on CPU and requests per second; the database is managed PostgreSQL Multi-AZ; we deploy through GitOps with canaries gated on the p99 and error-rate SLOs; at peak the cost is dominated by X." If asked "why not serverless?", answer with **connection pools, cold starts at the peak and steady-load cost**, not with taste.
 
+!!! success "Best practices"
+
+    - **Choose the service model per component and write the reason in the design document** — the data tier and the purchase path have different needs (failover vs fine scaling control), so one model for everything is wrong for some of them. In BoxOffice: [component by component](#service-models).
+    - **Prove disposability before production: kill a pod under steady load and count the failed requests** — with readiness and a `preStop` pause the target is zero. In BoxOffice: [lab 10 — Measure it](../../hands-on/10/measure/index.md), rolling update and self-healing.
+    - **Change production only through a reviewed commit** — images, manifests and infrastructure; then `git log` is the audit trail and `git revert` is the rollback. In BoxOffice: [lab 11 — GitOps](../../hands-on/11/gitops/index.md).
+    - **Pre-scale for known peaks; leave autoscaling for the unknown ones** — in lab 10 the eighth pod was ready more than 5 minutes after the HPA asked for it, so `minReplicas` goes up at 09:45, not at 10:00. In BoxOffice: [lab 10 — Autoscaling](../../hands-on/10/autoscaling/index.md).
+    - **Review a unit cost next to the SLOs every month** — cost per ticket sold turns the bill into a number the business can judge. In BoxOffice: [FinOps — a cost model](finops/index.md#cost-model).
+
 !!! warning "Common pitfalls"
 
     - **Lift-and-shift and call it cloud-native**: moving a stateful VM image into a container changes nothing about disposability or elasticity.
@@ -190,12 +202,18 @@ flowchart LR
 - Classes: [Compute — serverless and autoscaling](../compute/serverless-autoscaling/index.md), [Network & security](../network-security/index.md), [AI-Assisted Delivery](../ai-delivery/index.md) (AI in the CI/CD pipeline), [Performance engineering](../performance/index.md).
 - Case study: [Ticketing (BoxOffice flash sale)](../case-studies/ticketing/index.md).
 
-## Key takeaways
+## Key takeaways { #key-takeaways }
 
-- Cloud-native = **immutable artifacts + declarative desired state + elasticity + automation**; the application must be **stateless and disposable** for the platform to help.
-- Service models trade **control for operational effort**; choose per component, not per system.
-- Whatever the model, **data, identity and configuration stay yours**.
-- Platform engineering turns repeated operational work into **self-service golden paths**.
+!!! takeaways ""
+
+    - Cloud-native = **immutable artifacts + declarative desired state + elasticity + automation**; the application must be **stateless and disposable** for the platform to help.
+    - Service models trade **control for operational effort**; choose per component, not per system.
+    - Whatever the model, **data, identity and configuration stay yours**.
+    - Platform engineering turns repeated operational work into **self-service golden paths**.
+
+## What breaks next { #what-breaks-next }
+
+The platform now restarts, scales and releases BoxOffice without anyone touching a server: in lab 10 the HPA asked for more `catalog` pods 35 s into a load ramp, and in lab 11 a canary that failed 30% of its requests was rolled back by itself in about a minute. But a shared platform is also a shared attack surface. Every pod can open a connection to every other pod and to the database; a token stolen from one service is accepted by all of them; bots buy the best seats as fast as the HPA adds capacity; and every image the pipeline ships carries hundreds of third-party libraries. Deciding who may talk to whom, checking identity on every call and trusting only what the pipeline built is [class 12 — Network & Security](../network-security/index.md).
 
 ---
 

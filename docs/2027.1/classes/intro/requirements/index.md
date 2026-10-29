@@ -1,7 +1,7 @@
 
 Two BoxOffice engineers receive the same request from the product team: *"We need a ticketing platform that is fast, scalable and reliable."* The first one starts drawing boxes. The second one asks: *How many events per month? How many fans at the peak of an on-sale? What does "fast" mean — for browsing or for paying? Can we ever sell the same seat twice? What happens if the payment provider is down?* Three months later the first engineer has a beautiful architecture for the wrong problem. The second has a less impressive diagram that survives 10:00 on Friday.
 
-Requirements are the input of every design. A design can only be judged against them: "is this a good architecture?" is unanswerable; "does this architecture keep checkout p99 under 1 s with 60,000 seats and 2 million fans, without double booking, for less than R$ 40k per month?" is a question you can test.
+Requirements are the input of every design. A design can only be judged against them: "is this a good architecture?" is unanswerable; "does this architecture keep checkout p99 under 1.5 s with 60,000 seats and 2 million fans, without double booking, for less than R$ 40k per month?" is a question you can test.
 
 ---
 
@@ -92,7 +92,7 @@ Each one scales with a different technique: caching and CDN for the first, parti
 
 ### Availability
 
-**Availability** is the fraction of time (or of requests) in which the system serves users correctly. It is quoted in "nines" and **always over a window**: 99.9% per rolling 28 days allows about 40 minutes of downtime; 99.99% allows about 4 minutes. Each extra nine costs much more than the previous one — [class 2](../../estimation/availability-math/index.md) gives you the math, and [class 9](../../reliability/index.md) the engineering.
+**Availability** is the fraction of time (or of requests) in which the system serves users correctly. It is quoted in "nines" and **always over a window**: 99.9% per rolling 28 days allows about 40 minutes of downtime; 99.99% allows about 4 minutes. Each extra nine costs much more than the previous one — [class 2](../../estimation/availability-math/index.md) gives you the math, and [class 10](../../reliability/index.md) the engineering.
 
 Availability is not uniform either: BoxOffice can live with the recommendation widget down for an hour, but not with checkout down during an on-sale.
 
@@ -125,7 +125,7 @@ Do not confuse durability with availability: a database can be **down** (unavail
 
 ### Cost
 
-Every component has a price: machines, managed services, storage, network egress, third-party fees, and the people to operate it. Cost is a first-class requirement — an architecture that meets every other target at ten times the budget is a failed architecture. Good cost requirements are tied to the business: **cost per ticket sold**, cost per active user, or a monthly ceiling. Note also that BoxOffice traffic is **spiky**: paying all month for the capacity of a 10-minute on-sale is wasteful, which is why autoscaling, queues and serverless matter ([class 12](../../cloud-native/index.md) covers FinOps).
+Every component has a price: machines, managed services, storage, network egress, third-party fees, and the people to operate it. Cost is a first-class requirement — an architecture that meets every other target at ten times the budget is a failed architecture. Good cost requirements are tied to the business: **cost per ticket sold**, cost per active user, or a monthly ceiling. Note also that BoxOffice traffic is **spiky**: paying all month for the capacity of a 10-minute on-sale is wasteful, which is why autoscaling, queues and serverless matter ([class 11](../../cloud-native/index.md) covers FinOps).
 
 ### Security
 
@@ -141,7 +141,7 @@ Every component has a price: machines, managed services, storage, network egress
 
 "The system must be fast" cannot be tested, so it cannot be designed for. A practical template from software architecture is the **quality attribute scenario**[^1], which forces six parts into one sentence:
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     source["Source<br/>who/what"] --> stimulus["Stimulus<br/>what happens"]
     stimulus --> artifact["Artifact<br/>which part, in which<br/>environment"]
@@ -172,6 +172,14 @@ Written as requirements, a measurable set for BoxOffice looks like this:
     - **Operability**: zero-downtime deploys; on-call alerted within 5 min of an SLO burn; MTTR < 30 min.
 
 Each line is testable — with a load test, a chaos experiment or a monthly bill — and each line will drive a design decision in the coming classes.
+
+!!! example "In the BoxOffice code: a latency requirement written as a test (lab 1)"
+
+    The first BoxOffice service already carries its requirement in code. The smoke test of [Hands-on 1](../../../hands-on/1/index.md) states "the catalog is fast" as **thresholds per endpoint** — p95 under 200 ms for an event's details, under 500 ms for a city listing, no failed request — and k6 fails the run when one is crossed. In the lab's example run, with one user, the details answered at p95 = 11 ms and the listing at p95 = 42 ms. One user proves little about 2 million; lab 2 asks the same questions under load, and lab 11 turns the same kind of thresholds into a performance budget that blocks a release.
+
+    ``` { .javascript title="load/smoke.js (the requirement)" }
+    --8<-- "docs/2027.1/hands-on/1/code/load/smoke.js:10:20"
+    ```
 
 ??? question "Think first: rewrite these requirements so they are measurable"
 
@@ -225,6 +233,14 @@ Requirements come with **constraints** — decisions already made for you — an
 
     Good clarifying questions for almost any problem: *Who are the users and how many? What is the read/write ratio? What must be strongly consistent? What is the latency the user tolerates? Is the load steady or spiky? What is out of scope?* If the interviewer says "you decide", state an assumption and move on: "I'll assume 10 M daily users and a read/write ratio of 100:1."
 
+!!! success "Best practices"
+
+    - **Give every latency target a percentile, a measurement point and a window** — "checkout p99 < 1.5 s, measured at the gateway, over 28 days" can be alerted on and reported; a target without the window cannot be computed.
+    - **Turn each target into an automated check** — a k6 threshold, an SLO alert, a budget that fails the build; a requirement nobody checks drifts with every release. In BoxOffice: the thresholds of `load/smoke.js` ([lab 1](../../../hands-on/1/index.md)), and the performance budget of lab 11.
+    - **Put a query behind every "never"** — "no seat sold twice" becomes an audit that must return 0 after every test. In BoxOffice: the `double-bookings` audit endpoint of [Hands-on 6 — Holds](../../../hands-on/6/holds/index.md).
+    - **Version the requirements next to the code** — a `requirements.md` changed in the same pull request as the design it justifies, so reviewers see both.
+    - **Give each target an owner and a review date** — first-release targets are assumptions; revisit them with the data of the first real on-sale.
+
 !!! warning "Common pitfalls"
 
     - **Unmeasurable adjectives**: "fast", "scalable", "highly available" without numbers and windows.
@@ -237,7 +253,7 @@ Requirements come with **constraints** — decisions already made for you — an
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     FR["functional requirements<br/>actors, core path"] --> API["API & data model<br/>→ Compute, Databases"]
     NFR["quality attributes"] --> QAS["quality attribute scenario<br/>a measurable target"]
@@ -252,15 +268,17 @@ flowchart LR
     LAT --> TO
 ```
 
-**Palette components:** [`client`](../../../reference/components/client/index.md#client) · [`mobile`](../../../reference/components/client/index.md#mobile) (the actors' entry points) · [`sql`](../../../reference/components/storage/index.md#sql) (strong consistency for seats, durability of orders) · [`cache`](../../../reference/components/storage/index.md#cache) · [`cdn`](../../../reference/components/edge/index.md#cdn) (latency bought with freshness) · [`lb`](../../../reference/components/edge/index.md#lb) (scalability and availability through replicas) · [`waf`](../../../reference/components/edge/index.md#waf) · [`auth`](../../../reference/components/compute/index.md#auth) (security) · [`payment`](../../../reference/components/external/index.md#payment) (an external constraint: no card data stored) · [`metrics`](../../../reference/components/observability/index.md#metrics) (operability). **Scenarios:** `monolith`, `flash-sale`. **Continues in:** [Estimation — numbers](../../estimation/numbers/index.md), [Estimation — percentiles](../../estimation/percentiles/index.md), [Estimation — availability math](../../estimation/availability-math/index.md), [Distributed — CAP and PACELC](../../distributed/cap-pacelc/index.md), [Reliability — SLOs](../../reliability/slo/index.md), [Exercise: design doc](../../../exercises/design-doc/index.md).
+**Palette components:** [`client`](../../../reference/components/client/index.md#client) · [`mobile`](../../../reference/components/client/index.md#mobile) (the actors' entry points) · [`sql`](../../../reference/components/storage/index.md#sql) (strong consistency for seats, durability of orders) · [`cache`](../../../reference/components/storage/index.md#cache) · [`cdn`](../../../reference/components/edge/index.md#cdn) (latency bought with freshness) · [`lb`](../../../reference/components/edge/index.md#lb) (scalability and availability through replicas) · [`waf`](../../../reference/components/edge/index.md#waf) · [`auth`](../../../reference/components/compute/index.md#auth) (security) · [`payment`](../../../reference/components/external/index.md#payment) (an external constraint: no card data stored) · [`metrics`](../../../reference/components/observability/index.md#metrics) (operability). **Scenarios:** `monolith`, `flash-sale`. **Continues in:** [Estimation — numbers](../../estimation/numbers/index.md), [Estimation — percentiles](../../estimation/percentiles/index.md), [Estimation — availability math](../../estimation/availability-math/index.md), [Distributed — CAP and PACELC](../../distributed/cap-pacelc/index.md), [Observability — SLOs](../../observability/slo/index.md), [Exercise: design doc](../../../exercises/design-doc/index.md).
 
-## Key takeaways
+## Key takeaways { #key-takeaways }
 
-- **Functional** requirements define *what* (APIs, data); **non-functional** requirements define *how well* — and drive the architecture.
-- Eight quality attributes carry most design decisions: **scalability, availability, latency, consistency, durability, cost, security, operability**.
-- Make each requirement **measurable**: a number, a percentile, a window, a load level — the quality attribute scenario helps.
-- Different parts of the system need **different** qualities: strong consistency for seats, freshness traded for speed in the catalog.
-- Every improvement costs something; name the **trade-off** before choosing the component.
+!!! takeaways ""
+
+    - **Functional** requirements define *what* (APIs, data); **non-functional** requirements define *how well* — and drive the architecture.
+    - Eight quality attributes carry most design decisions: **scalability, availability, latency, consistency, durability, cost, security, operability**.
+    - Make each requirement **measurable**: a number, a percentile, a window, a load level — the quality attribute scenario helps.
+    - Different parts of the system need **different** qualities: strong consistency for seats, freshness traded for speed in the catalog.
+    - Every improvement costs something; name the **trade-off** before choosing the component.
 
 ---
 
@@ -268,5 +286,5 @@ flowchart LR
 [^2]: ISO/IEC 25010:2023. *Systems and software engineering — Systems and software Quality Requirements and Evaluation (SQuaRE) — Product quality model*.
 [^3]: KLEPPMANN, M.; RICCOMINI, C. *Designing Data-Intensive Applications*, 2nd ed. O'Reilly. Chapter 2 (defining nonfunctional requirements: describing load and performance).
 [^4]: NIELSEN, J. *Usability Engineering*. Morgan Kaufmann, 1993. Chapter 5 (response time limits: 0.1 s, 1 s, 10 s).
-[^5]: PCI SECURITY STANDARDS COUNCIL. *Payment Card Industry Data Security Standard (PCI DSS)*, v4.0, 2022.
+[^5]: PCI SECURITY STANDARDS COUNCIL. *Payment Card Industry Data Security Standard (PCI DSS)*, v4.0.1, 2024.
 [^6]: BRASIL. Lei nº 13.709, de 14 de agosto de 2018 — Lei Geral de Proteção de Dados Pessoais (LGPD).

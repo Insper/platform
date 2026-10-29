@@ -2,7 +2,7 @@ Six months after the assistant launched, BoxOffice has five features that call m
 
 The fix is the same one the course applied to HTTP traffic in [Traffic & Edge](../../edge/api-gateway/index.md): put **one gateway** in front of every model, and move the cross-cutting concerns into it.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     subgraph Before["Before: every service talks to every provider"]
         a1["assistant"] --> p1["provider A"]
@@ -54,7 +54,7 @@ The same prompt can be served by models that differ by an order of magnitude in 
 | **Latency/cost aware** | send to the deployment with the lowest current TTFT or price | multi-provider, multi-region | oscillation; keep some stickiness |
 | **Compliance** | personal data stays in deployments in an approved region, or self-hosted | LGPD, contractual constraints | fewer fallbacks available |
 
-``` mermaid-sim
+``` diagram-sim
 flowchart TD
     req["request: alias assistant-default"] --> pii{"contains personal data?"}
     pii -- yes --> region["only approved-region deployments"]
@@ -128,9 +128,17 @@ Two traps specific to models:
 - **A fallback model is a different program.** Prompts tuned for one model, its tool-calling format and its refusal style may not transfer. Run the [eval suite](../safety-evals/index.md#evaluation) against every model in the chain, not only the primary — otherwise the fallback silently lowers quality exactly during an incident.
 - **Retries multiply token spend.** The [retry storm](../../reliability/patterns/index.md) of the reliability class now has a price tag: cap attempts, use a retry budget (e.g. retries ≤ 10% of calls), and count retried tokens against the caller's quota.
 
+!!! example "In the BoxOffice code: the gateway of the assistant (lab 12)"
+
+    [Hands-on 12 — The service and the LLM gateway](../../../hands-on/12/service/index.md) uses LiteLLM's in-process `Router` as the gateway. The assistant asks for a **route** (an alias), never a model name: `local`, a small open model on Ollama, always exists; `claude` exists only when an API key does. The fallback `claude → local` keeps the assistant answering when the provider fails or the quota runs out — and it is the first trap above in practice: the fallback is a much smaller model, so the evaluations must run against it too. One retry and a 120 s timeout, because an LLM call is the slowest dependency BoxOffice has. One service does not need the separate LiteLLM proxy; with several AI services, the proxy becomes the shared gateway of this page. The lab estimates one question at about 1,000 input and 100 output tokens, ≈ US$ 0.006 on the Claude route.
+
+    ``` { .python title="services/assistant/app/llm.py" }
+    --8<-- "docs/2027.1/hands-on/12/code/services/assistant/app/llm.py"
+    ```
+
 !!! tip "Try it"
 
-    Load the AI assistant scenario with the **spike** profile and chaos set to **medium**. Watch the LLM Gateway when a provider starts failing: without a fallback, errors propagate to the orchestrator and the fan; with a second provider wired to the gateway, the error rate stays low but cost and latency per request change. Compare the token rate the gateway reports with the provider's limit. Open it in the [full playground](../../../../playground/index.md) to add the second provider yourself.
+    Load the AI assistant scenario with the **spike** profile and chaos set to **medium**. Watch the LLM Gateway when the provider throttles and fails: without a fallback, most questions end in errors. Select the LLM Gateway and turn on **Fallback model**: the error rate falls by half or more, but the cost per month more than doubles and p99 grows by several seconds — the fallback answers what the quota rejected, slower. Compare the token rate the gateway reports with the provider's limit. Open it in the [full playground](../../../../playground/index.md) to combine the fallback with fewer agent steps and a semantic cache.
 
 <div class="sdp" data-scenario="ai-assistant" data-mode="compact" data-height="520" data-profile="spike" data-chaos="medium"></div>
 
@@ -182,7 +190,7 @@ Processing the input (the *prefill*, below) produces internal key/value tensors 
 
 Because the match is on an **exact prefix**, the order of the prompt matters:
 
-``` mermaid
+``` diagram
 flowchart LR
     s["1. system prompt<br/>(static)"] --> t["2. tool definitions<br/>(static)"] --> k["3. retrieved documents<br/>(per conversation)"] --> h["4. conversation history<br/>(grows)"] --> u["5. new user message<br/>(changes every call)"]
 ```
@@ -322,7 +330,7 @@ The gateway is a pattern, not a product. Examples, to explore — check each pro
 
 === "Open source"
 
-    - **LiteLLM** (proxy server): unified API, routing, fallbacks, budgets, spend tracking — used in [Hands-on 12](../../../hands-on/12/index.md).
+    - **LiteLLM**: unified API, routing, fallbacks, budgets, spend tracking, as a proxy server or as an in-process SDK — its SDK `Router` is the gateway of [Hands-on 12](../../../hands-on/12/service/index.md).
     - **Envoy AI Gateway**: LLM traffic management built on Envoy Gateway.
     - Serving engines behind the gateway: **vLLM**, **SGLang**, **Ollama** (local development).
 
@@ -334,6 +342,14 @@ The gateway is a pattern, not a product. Examples, to explore — check each pro
 !!! tip "In the interview"
 
     Put an LLM gateway between every service and the models, and name four of its jobs: **routing by alias, fallbacks with circuit breakers, token quotas with priorities, and cost/latency telemetry**. Separate **TTFT** (interactive SLO, streamed) from **TPOT** (speed) in your latency estimate, and distinguish **prompt caching** (safe, cuts input cost and TTFT) from **semantic caching** (risky, only for generic answers). If the interviewer asks about self-hosting, answer with the KV-cache memory and utilization arguments.
+
+!!! success "Best practices"
+
+    - **Set a TTFT deadline per alias and fail over on it** — for a fan staring at an empty bubble, a provider that queues is as bad as one that is down; for example 3 s at p95 for the interactive alias.
+    - **Reserve tokens with priorities, not only limits** — interactive traffic keeps ~70% of the account's TPM at 10:00 and batch jobs pause first ([quotas](#quotas)).
+    - **Run the eval suite on every model of the fallback chain** — in BoxOffice the fallback of `claude` is a 1.5-billion-parameter local model ([lab 12 — `llm.py`](../../../hands-on/12/service/index.md)): it must pass the same golden set, or the fallback is a silent quality drop during an incident.
+    - **Alert on the cached-token ratio per feature** — cached input is billed at a fraction of the price (10% in the [overview's example](../index.md#numbers)); a prompt edit that moves a variable to the top multiplies the input cost overnight.
+    - **Attribute cost per feature and per user tier at the gateway** — "US$ per conversation" should be a dashboard panel, not an investigation. In BoxOffice: `metrics.price()` turns the tokens of every answer into dollars ([lab 12 — Guardrails and metrics](../../../hands-on/12/guardrails/index.md)).
 
 !!! warning "Common pitfalls"
 
@@ -349,7 +365,7 @@ The gateway is a pattern, not a product. Examples, to explore — check each pro
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     SVC["assistant, summarizer,<br/>translator, embed job"] --> GW["LLM gateway<br/>routing by alias"]
     GW --> FB["fallbacks + circuit breaker<br/>→ Reliability"]

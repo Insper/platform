@@ -3,11 +3,11 @@ O banco de inventário da BoxOffice está a 70% de CPU durante uma abertura de v
 
 ---
 
-## O vocabulário de uma fila
+## O vocabulário de uma fila { #the-vocabulary-of-a-queue }
 
 Todo componente que atende requisições — um núcleo de CPU, um pool de threads, uma conexão de banco, uma API de pagamentos — pode ser visto como uma **fila** diante de um ou mais **servidores** (em teoria de filas, "servidor" é qualquer coisa que atende uma requisição):
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     arrivals(["Chegadas<br/>λ requisições/s"]) --> queue["Fila<br/>(espera: Wq)"]
     queue --> s1["Servidor 1<br/>(serviço: S)"]
@@ -32,7 +32,7 @@ flowchart LR
 
 ---
 
-## A Lei de Little
+## A Lei de Little { #littles-law }
 
 A fórmula mais útil do planejamento de capacidade é também a mais simples[^1]:
 
@@ -57,9 +57,9 @@ Suas três formas respondem a três perguntas diferentes:
     - Requisições em andamento no serviço: 1.000 × 0,040 = **40** → com uma thread por requisição, o serviço precisa de pelo menos 40 threads de trabalho; com 4 réplicas, ~10 em cada, mais folga.
     - Conexões em uso: 1.000 × 0,010 = **10** → um pool de ~15 conexões somando todas as réplicas basta. Um pool de 200 não deixaria nada mais rápido — só permitiria que mais transações disputassem as mesmas linhas.
 
-    Agora o provedor de pagamentos fica lento, de 300 ms para 3 s, e o serviço de pedidos o chama de forma síncrona a 100 pedidos/s: as chamadas de pagamento em andamento vão de 100 × 0,3 = **30** para 100 × 3 = **300**. Se o serviço de pedidos tem 200 threads, ele se esgota — e todas as outras rotas do serviço de pedidos falham junto. Essa é a aritmética de uma **falha em cascata** ([aula 9](../../reliability/index.md)), e é por isso que timeouts e bulkheads existem.
+    Agora o provedor de pagamentos fica lento, de 300 ms para 3 s, e o serviço de pedidos o chama de forma síncrona a 100 pedidos/s: as chamadas de pagamento em andamento vão de 100 × 0,3 = **30** para 100 × 3 = **300**. Se o serviço de pedidos tem 200 threads, ele se esgota — e todas as outras rotas do serviço de pedidos falham junto. Essa é a aritmética de uma **falha em cascata** ([aula 10](../../reliability/index.md)), e é por isso que timeouts e bulkheads existem.
 
-### A Lei de Little como detector de mentiras para testes de carga
+### A Lei de Little como detector de mentiras para testes de carga { #littles-law-as-a-lie-detector-for-load-tests }
 
 Uma ferramenta de teste de carga com um número fixo de usuários virtuais (VUs), em que cada um envia uma requisição, espera a resposta, "pensa" por Z segundos e repete, é um **sistema fechado**. A Lei de Little aplicada a ela diz:
 
@@ -71,7 +71,7 @@ Com 100 VUs, sem tempo de pensar (Z = 0) e R = 50 ms, o teste **não consegue** 
 
 ---
 
-## A lei da utilização
+## A lei da utilização { #the-utilization-law }
 
 Uma segunda lei, igualmente simples, liga throughput e utilização:
 
@@ -89,7 +89,7 @@ Essa é a regra "vagas paralelas divididas pelo tempo de serviço" usada na [vis
 
 ---
 
-## Por que a latência explode antes de 100%: o joelho
+## Por que a latência explode antes de 100%: o joelho { #why-latency-explodes-before-100-the-knee }
 
 Se as requisições chegassem em intervalos perfeitamente regulares e cada uma levasse exatamente S, um servidor poderia rodar a 99% de utilização sem nenhuma espera. O tráfego real é **aleatório**: as requisições chegam em rajadas, e algumas demoram mais que outras. Durante uma rajada, as requisições fazem fila; a fila esvazia nos momentos tranquilos. Quanto mais ocupado o servidor, menos momentos tranquilos ele tem para se recuperar — e mais as filas crescem.
 
@@ -167,7 +167,7 @@ $$
 
 em que $C_a$ e $C_s$ são os coeficientes de variação (desvio padrão / média) dos intervalos entre chegadas e dos tempos de serviço. O primeiro fator é o efeito da utilização; o segundo, o efeito da **variabilidade**. Uma sala de espera que admite fãs a uma taxa constante reduz $C_a$; cortar os casos lentos (uma consulta pesada que leva 50× o tempo normal) reduz $C_s$. Os dois reduzem as filas sem acrescentar um único servidor.
 
-### Com que utilização você deve rodar?
+### Com que utilização você deve rodar? { #what-utilization-should-you-run-at }
 
 | Componente | Meta sustentada típica | Por quê |
 |---|---|---|
@@ -185,13 +185,21 @@ A redundância empurra na mesma direção: com **4 réplicas a 60%**, perder uma
 
 **Experimente:** rode o perfil breakpoint, depois dobre a capacidade do banco (ou acrescente réplicas da aplicação) e rode de novo. O joelho se move? Quanto? Se acrescentar réplicas da aplicação não o move, qual componente é o gargalo?
 
+!!! example "No código do BoxOffice: o joelho do `catalog`, medido (lab 2)"
+
+    O [Hands-on 2](../../../hands-on/2/index.md) desenha esta curva para o serviço real. A varredura roda o teste de carga de modelo aberto uma vez por taxa de chegada, um minuto cada, depois de um aquecimento (uma JVM fria estragaria o primeiro ponto) e com uma pausa entre os passos para as filas esvaziarem. Na execução de exemplo do laboratório (1 CPU, um pool de 10 conexões), o p99 foi 39 ms em 300 req/s, 224 ms em 400 e 2.056 ms em 500 req/s, onde o k6 ainda teve de descartar 410 iterações: plano, depois um muro. A Lei de Little dá nome à fila: em 600 req/s o laboratório viu as 200 threads do Tomcat ocupadas, 10 conexões com o banco ativas e **190 requisições esperando por uma conexão** — o pool de 10 são os *c* servidores desta página, e o joelho é onde ele satura. O passo 6 do laboratório aumenta o pool para 30 e observa o gargalo se mover.
+
+    ``` { .bash title="scripts/sweep.sh" }
+    --8<-- "docs/2027.1/hands-on/2/code/scripts/sweep.sh"
+    ```
+
 ---
 
-## Quando mais servidores deixam de ajudar
+## Quando mais servidores deixam de ajudar { #when-more-servers-stop-helping }
 
 A Lei de Little e a lei da utilização sugerem que a capacidade cresce linearmente com o número de servidores: X_max = c / S. Na prática não cresce, porque os servidores **se coordenam**. Dois modelos clássicos descrevem como a escala se curva.
 
-### A lei de Amdahl
+### A lei de Amdahl { #amdahls-law }
 
 Se uma fração **σ** do trabalho é inerentemente **serial** (não pode ser paralelizada — um lock global, um único primário, uma etapa sequencial), então com N workers paralelos o ganho de velocidade (*speedup*) é limitado[^4]:
 
@@ -201,7 +209,7 @@ $$
 
 Com 5% de trabalho serial, nenhum número de nós dá mais que 20× de ganho; com 1%, 100×. Na BoxOffice: se toda reserva precisa passar pelo mesmo lock na mesma linha de "contador do setor" durante apenas 5% do seu tempo, acrescentar réplicas do inventário deixa de compensar muito antes de 20 réplicas.
 
-### A Universal Scalability Law
+### A Universal Scalability Law { #the-universal-scalability-law }
 
 A **Universal Scalability Law** (USL) de Neil Gunther acrescenta um segundo termo, **κ** (*coerência*), para o custo de manter os nós consistentes entre si — mensagens de invalidação de cache, locks distribuídos, conversa de pertencimento ao cluster, replicação —, que cresce com o número de **pares** de nós, aproximadamente N²[^5]:
 
@@ -266,19 +274,27 @@ O uso prático da USL é **ajustar** σ e κ a algumas medições de teste de ca
 
     Use a Lei de Little sempre que dimensionar um pool, uma fila ou uma frota: "1.000 req/s × 40 ms = 40 requisições concorrentes, então 4 instâncias com 16 threads cada deixam folga". Ao propor capacidade, diga a **utilização-alvo** e o porquê: "eu dimensionaria para 60% no pico, para ficarmos à esquerda do joelho e sobrevivermos à perda de um nó." Se perguntarem "e se acrescentarmos mais servidores?", mencione o gargalo e Amdahl: "os servidores de aplicação escalam linearmente até o primário único saturar; depois disso, precisamos de cache, particionamento ou fila."
 
+!!! success "Boas práticas"
+
+    - **Dimensione todo pool com a Lei de Little e deixe a fórmula num comentário** — threads = λ × W, conexões = λ × tempo segurando uma; um pool dimensionado "por segurança" só move a fila para dentro do banco.
+    - **Observe a fila na frente do gargalo, não só a sua utilização** — conexões pendentes e threads ocupadas sobem antes de o gráfico de CPU parecer alarmante. Na BoxOffice: `hikaricp.connections.pending` no `scripts/watch-metrics.sh` do lab 2 ([Hands-on 2](../../../hands-on/2/index.md)).
+    - **Varra a taxa de chegada com modelo aberto, aquecimento e uma pausa entre os passos** — um ponto não é uma curva, uma JVM fria não é o seu serviço, e filas que sobraram estragam o passo seguinte. Na BoxOffice: `scripts/sweep.sh` (quadro acima).
+    - **Ponha as metas de autoscaling bem à esquerda do joelho** — escalar leva minutos, e o pico chega nesse meio-tempo. Na BoxOffice: o HPA do lab 10 mira 60% de CPU.
+    - **Reduza a variabilidade antes de acrescentar servidores** — admita num ritmo constante e elimine os lentos fora da curva; a fórmula de Kingman mostra que os dois encolhem a fila de graça. Na BoxOffice: a sala de espera (lab 7) e os índices do lab 6.
+
 !!! warning "Armadilhas comuns"
 
     - **Planejar 90–100% de utilização** para componentes sensíveis à latência: o p99 desaba muito antes de o gráfico de CPU parecer alarmante.
     - **Pools superdimensionados**: um pool de 500 conexões de banco não acrescenta capacidade; ele leva a fila para dentro do banco, onde a contenção deixa tudo mais lento.
     - **Ignorar a Lei de Little nos testes de carga**: ferramentas de laço fechado com poucos VUs não conseguem gerar a carga pretendida contra um sistema lento.
     - **Supor escala linear**: seções seriais e custos de coordenação curvam a curva; meça com vários N.
-    - **Filas sem limite**: uma fila que cresce sem limite transforma sobrecarga em latência sempre crescente; limite-a e descarte carga cedo ([aula 9](../../reliability/index.md)).
+    - **Filas sem limite**: uma fila que cresce sem limite transforma sobrecarga em latência sempre crescente; limite-a e descarte carga cedo ([aula 10](../../reliability/index.md)).
 
 ---
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     LL["Lei de Little<br/>L = λ × W"] --> POOL["pools de threads e conexões<br/>→ Compute, Bancos de dados"]
     LL --> WR["espera na sala de espera<br/>W = L / λ → Mensageria"]
@@ -293,13 +309,15 @@ flowchart LR
 
 **Componentes da paleta:** [`app`](../../../reference/components/compute/index.md#app) (threads de trabalho = λ × W por réplica) · [`sql`](../../../reference/components/storage/index.md#sql) (o pool de conexões, o primário que está "só" a 70%, contenção por locks de linha) · [`queue`](../../../reference/components/messaging/index.md#queue) (a sala de espera: quanto o último fã espera) · [`worker`](../../../reference/components/compute/index.md#worker) (workers de lote podem operar a 80–90%) · [`payment`](../../../reference/components/external/index.md#payment) (um provedor lento multiplica as chamadas em andamento) · [`nosql`](../../../reference/components/storage/index.md#nosql) (partições shared-nothing escalam onde a USL diz que um primário compartilhado não escala). **Cenários:** `monolith` (com o perfil `breakpoint`), `flash-sale`, `async-queue`. **Continua em:** [Percentis](../percentiles/index.md), [Compute — atraso do autoscaling](../../compute/serverless-autoscaling/index.md#autoscaling-lag), [Confiabilidade — descarte de carga](../../reliability/patterns/index.md#load-shedding), [Bancos de dados — contenção](../../databases/transactions/index.md#contention), [Performance — planejamento de capacidade](../../performance/capacity-planning/index.md), [Hands-on 2](../../../hands-on/2/index.md).
 
-## Pontos-chave
+## Pontos-chave { #key-takeaways }
 
-- A **Lei de Little** L = λ × W dá a concorrência, o tempo de espera ou o throughput a partir dos outros dois — para pools, serviços, filas e testes de carga.
-- **Lei da utilização** U = X × S; capacidade ≈ c / S; o recurso mais carregado é o gargalo.
-- O tempo de resposta cresce como **S / (1 − ρ)**: plano em carga baixa, explosivo depois do **joelho** (≈ 70–80% para um servidor); a cauda explode primeiro.
-- Rode componentes sensíveis à latência a **~50–70%** no pico; compartilhar a fila e reduzir a variabilidade empurram o joelho para a direita.
-- **Amdahl** (fração serial σ) limita o ganho a 1/σ; a **USL** (coerência κ) faz o throughput *cair* depois de N*; particionamento shared-nothing é como se escala.
+!!! takeaways ""
+
+    - A **Lei de Little** L = λ × W dá a concorrência, o tempo de espera ou o throughput a partir dos outros dois — para pools, serviços, filas e testes de carga.
+    - **Lei da utilização** U = X × S; capacidade ≈ c / S; o recurso mais carregado é o gargalo.
+    - O tempo de resposta cresce como **S / (1 − ρ)**: plano em carga baixa, explosivo depois do **joelho** (≈ 70–80% para um servidor); a cauda explode primeiro.
+    - Rode componentes sensíveis à latência a **~50–70%** no pico; compartilhar a fila e reduzir a variabilidade empurram o joelho para a direita.
+    - **Amdahl** (fração serial σ) limita o ganho a 1/σ; a **USL** (coerência κ) faz o throughput *cair* depois de N*; particionamento shared-nothing é como se escala.
 
 ---
 

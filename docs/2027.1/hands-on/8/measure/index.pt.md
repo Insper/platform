@@ -1,4 +1,4 @@
-# 4. Meça
+# 4. Meça { #4-measure-it }
 
 Observabilidade não é de graça: cada span é alocado, cada ponto de métrica agregado, cada lote enviado
 pela rede. Este passo põe um número nesse custo e no benefício — quanto tempo leva para saber que os
@@ -12,13 +12,13 @@ números das caixas "forma esperada" são **ilustrativos**.
 | C | cardinalidade | — | número de séries por serviço |
 | D | tempo de detecção | parar o `db` | horários de parada → *Pending* → *Firing* |
 
-## O script do k6
+## O script do k6 { #the-k6-script }
 
 ``` javascript title="load/catalog-otel.js"
 --8<-- "docs/2027.1/hands-on/8/code/load/catalog-otel.js"
 ```
 
-## A. Custo do agente
+## A. Custo do agente { #a-agent-overhead }
 
 Mesma imagem, mesma carga, agente ligado e desligado:
 
@@ -46,7 +46,7 @@ desligado.
     lenta. Se o seu p99 crescer muito mais que o p50, olhe a coleta de lixo: mais alocação significa
     pausas mais frequentes.
 
-## B. Amostragem
+## B. Amostragem { #b-sampling }
 
 Guardar 100% dos traces é certo para um lab e errado para 2 milhões de fãs. Amostre 10% **na raiz** e
 deixe cada serviço seguinte seguir a decisão da raiz (`parentbased_…`), para que um trace esteja
@@ -67,7 +67,7 @@ Conte os traces guardados por minuto no Tempo (Explore → Tempo → Search, ser
 amostradas**: o dashboard RED continua contando todas as requisições — por isso taxas e percentis vêm
 das métricas, e os exemplos (o *porquê*) dos traces.
 
-## C. Cardinalidade
+## C. Cardinalidade { #c-cardinality }
 
 Cada combinação distinta de valores de labels é uma série temporal separada, guardada e consultada
 separadamente. No Explore do Grafana (Prometheus), rode:
@@ -82,11 +82,11 @@ adicionar um label `user_id` ao histograma HTTP: com 2 milhões de fãs e 14 buc
 `catalog` criaria? (Responda nos seus resultados: é por isso que o agente registra `http_route`, o
 template, e nunca a URL crua.)
 
-## D. Tempo de detecção
+## D. Tempo de detecção { #d-time-to-detect }
 
 Siga o "Dispare-o" do [passo 3](../slo/index.md) e registre os três horários.
 
-## Resultados
+## Resultados { #results }
 
 Copie esta tabela para `results/lab8.md` e preencha.
 

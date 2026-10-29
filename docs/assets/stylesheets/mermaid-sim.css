@@ -1,10 +1,14 @@
-/* Mermaid simulator (see assets/javascripts/mermaid-sim.js) */
+/* Mermaid simulator (see assets/javascripts/mermaid-sim.js). Colors: the page theme only. */
 
 .md-typeset .msim {
-  --msim-accent: var(--md-accent-fg-color, #526cfe);
-  margin: 1em 0;
-  border: .05rem solid var(--md-default-fg-color--lightest);
-  border-radius: .4rem;
+  --msim-ink: var(--md-typeset-a-color);
+  --msim-accent: var(--md-accent-fg-color);
+  --msim-line: var(--md-default-fg-color--lightest);
+  --msim-tint: color-mix(in srgb, var(--md-typeset-a-color) 8%, var(--md-default-bg-color));
+  margin: 1.2em 0;
+  border: .05rem solid var(--msim-line);
+  border-radius: .5rem;
+  background: var(--md-default-bg-color);
   outline: none;
 }
 
@@ -15,7 +19,7 @@
 .md-typeset .msim-canvas {
   display: flex;
   justify-content: center;
-  padding: 1rem .8rem;
+  padding: 1rem .8rem .7rem;
   overflow-x: auto;
 }
 
@@ -32,11 +36,10 @@
 .md-typeset .msim-bar {
   display: flex;
   align-items: center;
-  gap: .3rem;
-  padding: .35rem .6rem;
-  border-top: .05rem solid var(--md-default-fg-color--lightest);
+  gap: .25rem;
+  padding: .3rem .6rem;
+  border-top: .05rem solid var(--msim-line);
   background: var(--md-code-bg-color);
-  border-radius: 0 0 .4rem .4rem;
   font-size: .64rem;
 }
 
@@ -44,22 +47,29 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.5rem;
+  min-width: 1.5rem;
   height: 1.5rem;
+  padding: 0 .3rem;
   border: none;
   border-radius: .25rem;
   background: none;
   color: var(--md-default-fg-color--light);
+  font: inherit;
   cursor: pointer;
 }
 
 .md-typeset .msim-bar button:hover {
-  background: var(--md-default-fg-color--lightest);
+  background: var(--msim-line);
   color: var(--md-default-fg-color);
 }
 
 .md-typeset .msim-bar .msim-play {
-  color: var(--msim-accent);
+  color: var(--msim-ink);
+}
+
+.md-typeset .msim-bar .msim-speed {
+  font-family: var(--md-code-font-family);
+  font-weight: 700;
 }
 
 .md-typeset .msim-step {
@@ -69,26 +79,94 @@
   white-space: nowrap;
 }
 
-.md-typeset .msim-caption {
+/* one segment per step: done, current, to do; click to jump */
+.md-typeset .msim-progress {
   flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 4rem;
+  margin: 0 .5rem;
+}
+
+.md-typeset .msim-bar .msim-progress button {
+  flex: 1 1 0;
+  min-width: .3rem;
+  height: .45rem;
+  padding: 0;
+  border-radius: .15rem;
+  background: var(--md-default-fg-color--lightest);
+  transition: background .2s, height .2s;
+}
+
+.md-typeset .msim-bar .msim-progress button.done {
+  background: color-mix(in srgb, var(--msim-ink) 50%, var(--md-default-bg-color));
+}
+
+.md-typeset .msim-bar .msim-progress button.cur {
+  height: .7rem;
+  background: var(--msim-accent);
+}
+
+.md-typeset .msim-bar .msim-progress button:hover {
+  background: var(--md-default-fg-color--lighter);
+}
+
+/* Caption: step number, who → whom, and the message */
+.md-typeset .msim-caption {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: .2rem .5rem;
+  min-height: 1.9rem;
+  padding: .4rem .8rem;
+  border-top: .05rem solid var(--msim-line);
+  border-radius: 0 0 .5rem .5rem;
+  background: var(--msim-tint);
+  font-size: .66rem;
+}
+
+.md-typeset .msim-num {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  padding: 0 .25rem;
+  border-radius: 1rem;
+  background: var(--msim-accent);
+  color: var(--md-default-bg-color);
+  font-size: .58rem;
+  font-weight: 700;
+  align-self: center;
+}
+
+.md-typeset .msim-who {
+  font-weight: 700;
+  color: var(--msim-ink);
+}
+
+.md-typeset .msim-what {
   color: var(--md-default-fg-color);
+}
+
+.md-typeset .msim-hint {
+  color: var(--md-default-fg-color--light);
 }
 
 /* Simulation states */
 .md-typeset .msim svg .msim-todo {
-  opacity: .15;
+  opacity: .13;
 }
 
-.md-typeset .msim svg .msim-done,
-.md-typeset .msim svg .msim-active,
-.md-typeset .msim svg .node,
-.md-typeset .msim svg .edgeLabel,
-.md-typeset .msim svg .messageText {
+.md-typeset .msim svg :is(.node, .edgeLabel, .messageText, path, line) {
   transition: opacity .3s;
+}
+
+.md-typeset .msim svg path.msim-done,
+.md-typeset .msim svg line.msim-done {
+  stroke: var(--msim-ink) !important;
 }
 
 .md-typeset .msim svg path.msim-active,
@@ -97,18 +175,37 @@
   stroke-width: 3px !important;
 }
 
-.md-typeset .msim svg .edgeLabel.msim-active,
-.md-typeset .msim svg .messageText.msim-active {
+.md-typeset .msim svg .edgeLabel.msim-active {
   font-weight: 700;
+}
+
+.md-typeset .msim svg .edgeLabel.msim-active :is(span, p, div) {
+  color: var(--msim-accent) !important;
 }
 
 .md-typeset .msim svg text.messageText.msim-active {
   fill: var(--msim-accent) !important;
+  font-weight: 700;
+}
+
+.md-typeset .msim svg .node.msim-seen :is(rect, circle, polygon, path, ellipse) {
+  stroke: var(--msim-ink) !important;
 }
 
 .md-typeset .msim svg .node.msim-current :is(rect, circle, polygon, path, ellipse) {
   stroke: var(--msim-accent) !important;
   stroke-width: 2.5px !important;
+  fill: color-mix(in srgb, var(--msim-accent) 18%, var(--md-default-bg-color)) !important;
+}
+
+.md-typeset .msim svg rect.actor.msim-seen {
+  stroke: var(--msim-ink) !important;
+}
+
+.md-typeset .msim svg rect.actor.msim-current {
+  stroke: var(--msim-accent) !important;
+  stroke-width: 2.5px !important;
+  fill: color-mix(in srgb, var(--msim-accent) 18%, var(--md-default-bg-color)) !important;
 }
 
 .md-typeset .msim svg .msim-dot {
@@ -118,12 +215,24 @@
   pointer-events: none;
 }
 
+.md-typeset .msim svg .msim-halo {
+  fill: var(--msim-accent);
+  opacity: .22;
+  pointer-events: none;
+}
+
 .md-typeset .msim-error {
   white-space: pre-wrap;
 }
 
 @media (max-width: 600px) {
-  .md-typeset .msim-caption {
+  .md-typeset .msim-progress {
     display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .md-typeset .msim svg *, .md-typeset .msim-progress button {
+    transition: none !important;
   }
 }

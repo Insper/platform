@@ -1,11 +1,11 @@
 Um modelo consegue escrever cinquenta testes unitários em um minuto. A pergunta difícil não é *ele consegue escrever testes?*, mas **vale a pena manter esses testes?** A cobertura não responde a isso: um teste que chama todos os métodos e não verifica nada chega a 100% de cobertura de linhas e não pega nenhum bug. Esta parte usa **testes de mutação** como juiz: um teste gerado só é mantido se pegar bugs que os testes existentes deixam passar.
 
-## 2.1 Testes de mutação em um parágrafo
+## 2.1 Testes de mutação em um parágrafo { #21-mutation-testing-in-one-paragraph }
 
 Uma ferramenta de testes de mutação faz pequenas alterações no código de produção — cada uma é um **mutante**: `>` vira `>=`, `a * b` vira `a / b`, um `return price` vira `return 0`, uma chamada de método é removida — e roda os testes contra cada mutante. Se algum teste falha, o mutante é **morto** (os testes perceberam o bug); se todos os testes continuam passando, ele **sobreviveu** (um bug que os testes não enxergam). O **score de mutação** é mortos ÷ total. O [PIT](https://pitest.org){target="_blank"} é a ferramenta padrão para a JVM[^1].
 
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     pr["PR altera<br/>CatalogService.java"] --> base["PIT com os testes existentes<br/>score de referência"]
     base --> gen["Modelo escreve<br/>CatalogServiceAiTest"]
@@ -19,7 +19,7 @@ flowchart LR
 
 O loop dá ao modelo **três tipos de feedback**, nesta ordem: erros de compilação, testes falhando e a lista de **mutantes sobreviventes** ("linha 42: limite da condicional alterado em `isExpired()`"). Este último é a parte interessante: ele diz ao modelo exatamente qual comportamento não está testado, a mesma ideia por trás da geração de testes guiada por mutação relatada na Meta[^2].
 
-## 2.2 Adicione testes unitários e o PIT ao `catalog`
+## 2.2 Adicione testes unitários e o PIT ao `catalog` { #22-add-unit-tests-and-pit-to-catalog }
 
 O gerador precisa de um serviço com **bibliotecas de teste** e **PIT**. O [Lab 11](../../11/ci/index.md) já deu ao `catalog` as dependências de teste (os starters de teste do Spring Boot, que trazem JUnit Jupiter, Mockito e AssertJ, e o Testcontainers do teste de integração). O lab 13 acrescenta um bloco, marcado `lab 13` no arquivo: o plugin do PIT com o adaptador JUnit 5, que também roda os testes JUnit 6 do Spring Boot 4. O PIT só roda quando você chama o goal dele, nunca num `mvn verify` comum. Substitua o arquivo — é o `pom.xml` do lab 11 mais esse bloco:
 
@@ -80,7 +80,7 @@ Leia: o PIT fez **18 mutantes** de `CatalogService`; os três testes do `Catalog
 
     Testes de mutação são caros: cada mutante roda (parte da) suíte de testes. Num serviço inteiro, isso pode levar muitos minutos. Sempre mire nas classes que o PR alterou (`-DtargetClasses`) — é exatamente o que o script faz.
 
-## 2.3 O gerador
+## 2.3 O gerador { #23-the-generator }
 
 ``` { .python title=".github/ai/gen_tests.py" .copy linenums="1" }
 --8<-- "docs/2027.1/hands-on/13/code/.github/ai/gen_tests.py"
@@ -98,7 +98,7 @@ Leia: o PIT fez **18 mutantes** de `CatalogService`; os três testes do `Catalog
 | Apaga o arquivo se for rejeitado | Nada que não foi comprovado fica na árvore de trabalho |
 | Uma linha por tentativa no resumo | Você vê *por que* uma tentativa foi rejeitada: erro de compilação, teste falhando ou poucos mutantes mortos |
 
-## 2.4 Teste localmente
+## 2.4 Teste localmente { #24-try-it-locally }
 
 Faça commit da parte 2 na `main` antes (o workflow da 2.5 faz parte dela — salve-o agora), para o gerador partir de uma árvore limpa:
 
@@ -142,7 +142,7 @@ Attempts: 3 · accepted: **False**
 
 Registre os seus números — modelo, tentativas, score inicial e final, minutos — para a parte 7.
 
-## 2.5 O workflow
+## 2.5 O workflow { #25-the-workflow }
 
 Gerar testes para todo PR seria lento e caro. O workflow roda **sob demanda**: adicione o label `ai-tests` a um PR. Ele tem **dois jobs**: `generate` roda o modelo e o build com um token somente leitura, e `publish` — o único job que pode escrever — aplica o patch e abre um PR em rascunho. O job que executa código não confiável (o código do PR e o código do modelo) nunca tem um token de escrita.
 
@@ -190,7 +190,7 @@ Faça o merge de um PR `AI tests` no seu branch só depois de ler cada teste.
     - **Rodar o PIT em tudo, em todo PR**: minutos e dólares. Mire nas classes alteradas, sob demanda.
 
 
-## Solução de problemas
+## Solução de problemas { #troubleshooting }
 
 | Sintoma | Causa | Correção |
 |---|---|---|

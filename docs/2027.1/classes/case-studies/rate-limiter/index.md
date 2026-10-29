@@ -174,7 +174,7 @@ rl:log:user:42         → { 1767261600123, 1767261600201, ... }
 
 ## 5. High-level design
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     c([Clients]) --> waf["WAF / CDN<br/>coarse per-IP limits"]
     waf --> lb["Load balancer"]
@@ -191,7 +191,7 @@ flowchart LR
 
 One request through the filter:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     participant C as Client
@@ -279,6 +279,17 @@ for f in (fixed_window, sliding_log, sliding_counter, token_bucket):
 
 The fixed window lets **20 requests through in 20 ms** — twice the limit — because they fall in two different windows. The log and the token bucket allow exactly 10. The sliding window counter allows 11: it assumes the previous window's requests were spread evenly, while here they all came at its very end — a small, bounded error in exchange for two numbers of state. This is why production limiters use a **token bucket** or a **sliding window counter**.
 
+<div class="csim" data-sim="rate-limiter" data-limit="20" data-burst="40" data-pattern="boundary" data-algo="fixed"></div>
+
+!!! tip "Try it"
+    The defaults are the limits of lab 3's Nginx: **20 requests/s** per API key and a **burst of 40**. The traffic starts with a burst straddling the 1 s boundary (20 requests just before it, 20 just after) and repeats it at 3 s.
+
+    1. Play with the **fixed window**: 40 requests reach the backend in about 0.2 s, **2× the limit**, and it happens again at 3 s.
+    2. Switch to the **sliding log**: the backend never sees more than 20 in any second; the second half of each burst gets `429`.
+    3. Switch to the **token bucket**: it starts full, so it lets the whole burst through — 46 requests in the busiest second. Drag the capacity down to 20 and the busiest second drops to 29: the capacity *is* the burst you allow.
+    4. Pick **bursts** and the **leaky bucket**: the backend receives a steady 20 per second, but a queued request waits up to 1.95 s — smoothing costs latency.
+
+
 ### 6.2 Making it atomic across replicas
 
 The naive implementation has a race:
@@ -325,7 +336,7 @@ Details that show seniority:
 
 ### 6.3 Where to enforce, and local vs. global
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     cl["Client SDK<br/>courtesy limit"] --> edge["Edge / WAF<br/>per IP, coarse"]
     edge --> gw["API gateway<br/>per user / key / plan"]
@@ -345,6 +356,14 @@ flowchart LR
 - **Local buckets with `limit / N`**: no network, but wrong when traffic is unevenly spread; acceptable with consistent-hash routing of each client to one gateway.
 - **Local + periodic sync**: each gateway counts locally and pushes deltas to the shared store every 100 ms, reading back the global total — approximate (overshoots by at most one sync interval of traffic), very fast. This is roughly how large CDNs do it.
 - **Per-region limits**: limit per region and accept that a client using two regions gets up to 2× — usually fine.
+
+!!! example "In the BoxOffice code: a local limiter at the edge (lab 3)"
+
+    [Hands-on 3](../../../hands-on/3/index.md) puts the simplest version of this design at the edge: Nginx gives each API key 20 req/s with a burst of 40 and answers `429` above that, without touching the replicas. It is a **local** limiter — the counters live in one Nginx — which is exact while there is one edge; with N edges each would allow 20 req/s, the `limit / N` problem above. In the lab's test, the polite client (10 req/s) gets only `200`s and the greedy one (50 req/s) about 20 `200`s per second and `429` for the rest. Nginx implements a leaky bucket: `rate` is the drain, `burst` the size of the bucket.
+
+    ``` { .nginx title="infra/nginx/nginx.conf (the limit)" }
+    --8<-- "docs/2027.1/hands-on/3/code/infra/nginx/nginx.conf:28:32,43:44"
+    ```
 
 ### 6.4 When the limiter itself fails
 
@@ -434,13 +453,21 @@ The `rate-limiter` scenario places an API gateway with rate limiting in front of
 
 **Related:** [API gateway](../../edge/api-gateway/index.md), [Hands-on 3](../../../hands-on/3/index.md) (Nginx rate limiting), [Hands-on 4](../../../hands-on/4/index.md) (gateway and identity), [Redis](../../caching/redis/index.md), [Reliability patterns](../../reliability/patterns/index.md).
 
+!!! success "Best practices"
+
+    - **Answer `429` with `Retry-After`** — well-behaved clients slow down by themselves, and the retry storm never starts.
+    - **Make check-and-count one atomic operation** — a Lua script in Redis; two round trips let two replicas both let the same request through.
+    - **Decide fail-open or fail-closed per route, and alert on limiter errors** — browsing fails open, login fails closed; either way someone must know the limiter is down.
+    - **Roll out a new limit in dry-run first** — log what would have been blocked for a day before enforcing it; a wrong limit is an outage you caused.
+    - **Key by identity where you have it, by IP only at the edge** — lab 3 keys on the API key, and its `nginx.conf` notes that requests without a key should also be limited per IP in production ([lab 3](../../../hands-on/3/index.md)).
+
 ---
 
 ## How it connects { #how-it-connects }
 
 Which classes does this case test? Each branch is a class whose ideas the design relies on (blue), with the palette components where they show up (green):
 
-``` mermaid
+``` diagram
 flowchart LR
     CASE(["Rate limiter"]) --> EDG["Edge<br/>where limits live: WAF, gateway"]:::tech
     CASE --> CAC["Caching<br/>Redis counters, Lua atomicity"]:::tech

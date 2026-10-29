@@ -2,7 +2,7 @@ The reviewer of part 1 makes **one** model call and posts text. An **agent** is 
 
 ## 3.1 The flow and its trust boundaries
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     participant CI as CI workflow (lab 11)

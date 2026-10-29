@@ -5,9 +5,9 @@ PostgreSQL e **anunciá-lo** no Kafka. Dois sistemas diferentes, nenhuma transa�
 passo mostra por que o código óbvio está errado e constrói a correção padrão, o **transactional
 outbox**.
 
-## O problema da escrita dupla
+## O problema da escrita dupla { #the-dual-write-problem }
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant F as Fã
     participant O as order
@@ -34,7 +34,7 @@ tabela `outbox` **na mesma transação local** do pedido. Ou as duas linhas exis
 **relay** separado lê as linhas não publicadas e as publica, marcando-as como publicadas só depois que
 o Kafka confirma.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant F as Fã
     participant O as order
@@ -64,7 +64,7 @@ próxima execução: o outbox dá publicação ***at-least-once***. Tudo bem, po
     outbox, com menos atraso e sem a carga do polling, ao custo de rodar e operar o Kafka Connect. Veja
     a [página de padrões](../../../classes/messaging/patterns/index.md) da aula de mensageria.
 
-## O serviço `order`
+## O serviço `order` { #the-order-service }
 
 Um novo serviço Spring Boot em `services/order/`, na porta **8084**, servindo tudo sob `/orders`. Ele
 usa JDBC puro (`JdbcClient`) em vez de JPA para que cada comando da transação fique visível.
@@ -92,7 +92,7 @@ services/order/
         └── db/migration/V1__create_orders.sql
 ```
 
-### Arquivos de build
+### Arquivos de build { #build-files }
 
 === "pom.xml"
 
@@ -123,7 +123,7 @@ evento como texto JSON, então o relay o publica byte a byte. `acks: all` mais
 `enable.idempotence: true` fazem o broker deduplicar as próprias retentativas do produtor e manter a
 ordem delas dentro de uma partição.
 
-### Esquema
+### Esquema { #schema }
 
 ``` sql title="services/order/src/main/resources/db/migration/V1__create_orders.sql"
 --8<-- "docs/2027.1/hands-on/7/code/services/order/src/main/resources/db/migration/V1__create_orders.sql"
@@ -133,7 +133,7 @@ ordem delas dentro de uma partição.
 Essa restrição é o que torna o `POST /orders` **idempotente** — um fã que clica duas vezes, ou um
 gateway que tenta de novo depois de um timeout, recebe o mesmo pedido de volta em vez de um segundo.
 
-### Records de domínio
+### Records de domínio { #domain-records }
 
 === "OrderRequest.java"
 
@@ -165,7 +165,7 @@ gateway que tenta de novo depois de um timeout, recebe o mesmo pedido de volta e
     --8<-- "docs/2027.1/hands-on/7/code/services/order/src/main/java/boxoffice/order/OrderApplication.java"
     ```
 
-### A transação: pedido + outbox
+### A transação: pedido + outbox { #the-transaction-order-outbox }
 
 A chave `NOTIFY_MODE` mantém a versão **"antes"** no código para que você possa medir as duas no
 [passo 5](../measure/index.md): `sync` chama `notification` por HTTP dentro da requisição, `outbox`
@@ -231,7 +231,7 @@ grava a linha do evento.
 devolve o pedido existente com `200 OK` e **não grava evento**. Sob concorrência, o PostgreSQL faz o
 segundo INSERT esperar a primeira transação e então pular — sem corrida, sem duplicata.
 
-### O outbox e seu relay
+### O outbox e seu relay { #the-outbox-and-its-relay }
 
 === "Outbox.java"
 
@@ -255,7 +255,7 @@ Leia o relay com calma; cada linha responde a uma pergunta sobre falhas:
 | `UPDATE ... published_at` depois dos acks | uma queda antes dele republica o lote (*at-least-once*) — nunca o perde |
 | `purge()` | a tabela não cresce para sempre; linhas publicadas ficam um dia para depuração |
 
-## Adicione `order` ao Compose e teste
+## Adicione `order` ao Compose e teste { #add-order-to-compose-and-test }
 
 ``` yaml title="docker-compose.yaml (excerpt)"
   order:

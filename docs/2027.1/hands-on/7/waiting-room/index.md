@@ -7,7 +7,7 @@ ticketing and sneaker-drop sites is a **virtual waiting room**: a queue *in fron
 lets fans in at the rate the system can serve, in arrival order, and tells everyone else their
 position honestly.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     fans["2 M fans"] -->|POST join| wr["waiting room (Redis FIFO)"]
     wr -->|"position, ETA"| fans
