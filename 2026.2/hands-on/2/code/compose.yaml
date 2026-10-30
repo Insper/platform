@@ -1,0 +1,36 @@
+name: store
+
+services:
+
+  db:
+    image: postgres:17
+    volumes:
+      - ${VOLUME_DB}:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: ${DB_USER:-store}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-store}
+      POSTGRES_DB: ${DB_NAME:-store}
+
+  account:
+    build:
+      context: ./account-service
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_HOST: db
+      DATABASE_PORT: 5432
+      DATABASE_DB: ${DB_NAME:-store}
+      DATABASE_USERNAME: ${DB_USER:-store}
+      DATABASE_PASSWORD: ${DB_PASSWORD:-store}
+    deploy:
+      replicas: 1
+    depends_on:
+      - db
+
+  gateway:
+    build:
+      context: ./gateway-service
+      dockerfile: Dockerfile
+    ports:
+      - 8080:8080
+    deploy:
+      replicas: 1

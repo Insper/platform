@@ -1,0 +1,1200 @@
+ <!doctype html><html lang="en" class=no-js> <head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><meta name=author content="Sandmann, H."><link rel=canonical href=https://insper.github.io/platform/2027.1/classes/edge/load-balancing/><link rel=icon href=../../../../assets/images/favicon.png><meta name=generator content=zensical-0.0.70><title>Index - Platforms, Microservices, DevOps and APIs</title><link rel=stylesheet href=../../../../assets/stylesheets/modern/main.e442bf79.min.css><link rel=stylesheet href=../../../../assets/stylesheets/modern/palette.b60ce83d.min.css><style>:root{--md-admonition-icon--abstract:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20448%20512%22%3E%3C%21--%21%20Font%20Awesome%20Free%207.3.1%20by%20%40fontawesome%20-%20https%3A//fontawesome.com%20License%20-%20https%3A//fontawesome.com/license/free%20%28Icons%3A%20CC%20BY%204.0%2C%20Fonts%3A%20SIL%20OFL%201.1%2C%20Code%3A%20MIT%20License%29%20Copyright%202026%20Fonticons%2C%20Inc.--%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M384%20512H96c-53%200-96-43-96-96V96C0%2043%2043%200%2096%200h304c26.5%200%2048%2021.5%2048%2048v288c0%2020.9-13.4%2038.7-32%2045.3V448c17.7%200%2032%2014.3%2032%2032s-14.3%2032-32%2032zM96%20384c-17.7%200-32%2014.3-32%2032s14.3%2032%2032%2032h256v-64zm32-232c0%2013.3%2010.7%2024%2024%2024h176c13.3%200%2024-10.7%2024-24s-10.7-24-24-24H152c-13.3%200-24%2010.7-24%2024m24%2072c-13.3%200-24%2010.7-24%2024s10.7%2024%2024%2024h176c13.3%200%2024-10.7%2024-24s-10.7-24-24-24z%22/%3E%3C/svg%3E');--md-admonition-icon--bug:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20640%20512%22%3E%3C%21--%21%20Font%20Awesome%20Free%207.3.1%20by%20%40fontawesome%20-%20https%3A//fontawesome.com%20License%20-%20https%3A//fontawesome.com/license/free%20%28Icons%3A%20CC%20BY%204.0%2C%20Fonts%3A%20SIL%20OFL%201.1%2C%20Code%3A%20MIT%20License%29%20Copyright%202026%20Fonticons%2C%20Inc.--%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M352%200c0-17.7-14.3-32-32-32s-32%2014.3-32%2032v64h-96c-53%200-96%2043-96%2096v224c0%2053%2043%2096%2096%2096h256c53%200%2096-43%2096-96V160c0-53-43-96-96-96h-96zM160%20368c0-13.3%2010.7-24%2024-24h32c13.3%200%2024%2010.7%2024%2024s-10.7%2024-24%2024h-32c-13.3%200-24-10.7-24-24m120%200c0-13.3%2010.7-24%2024-24h32c13.3%200%2024%2010.7%2024%2024s-10.7%2024-24%2024h-32c-13.3%200-24-10.7-24-24m120%200c0-13.3%2010.7-24%2024-24h32c13.3%200%2024%2010.7%2024%2024s-10.7%2024-24%2024h-32c-13.3%200-24-10.7-24-24M224%20176a48%2048%200%201%201%200%2096%2048%2048%200%201%201%200-96m144%2048a48%2048%200%201%201%2096%200%2048%2048%200%201%201-96%200m-304%200c0-17.7-14.3-32-32-32S0%20206.3%200%20224v96c0%2017.7%2014.3%2032%2032%2032s32-14.3%2032-32zm544-32c-17.7%200-32%2014.3-32%2032v96c0%2017.7%2014.3%2032%2032%2032s32-14.3%2032-32v-96c0-17.7-14.3-32-32-32%22/%3E%3C/svg%3E');--md-admonition-icon--danger:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20512%20512%22%3E%3C%21--%21%20Font%20Awesome%20Free%207.3.1%20by%20%40fontawesome%20-%20https%3A//fontawesome.com%20License%20-%20https%3A//fontawesome.com/license/free%20%28Icons%3A%20CC%20BY%204.0%2C%20Fonts%3A%20SIL%20OFL%201.1%2C%20Code%3A%20MIT%20License%29%20Copyright%202026%20Fonticons%2C%20Inc.--%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M416%20427.4c58.5-44%2096-111.6%2096-187.4C512%20107.5%20397.4%200%20256%200S0%20107.5%200%20240c0%2075.8%2037.5%20143.4%2096%20187.4V464c0%2026.5%2021.5%2048%2048%2048h32v-40c0-13.3%2010.7-24%2024-24s24%2010.7%2024%2024v40h64v-40c0-13.3%2010.7-24%2024-24s24%2010.7%2024%2024v40h32c26.5%200%2048-21.5%2048-48zM96%20256a64%2064%200%201%201%20128%200%2064%2064%200%201%201-128%200m256-64a64%2064%200%201%201%200%20128%2064%2064%200%201%201%200-128%22/%3E%3C/svg%3E');--md-admonition-icon--example:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20448%20512%22%3E%3C%21--%21%20Font%20Awesome%20Free%207.3.1%20by%20%40fontawesome%20-%20https%3A//fontawesome.com%20License%20-%20https%3A//fontawesome.com/license/free%20%28Icons%3A%20CC%20BY%204.0%2C%20Fonts%3A%20SIL%20OFL%201.1%2C%20Code%3A%20MIT%20License%29%20Copyright%202026%20Fonticons%2C%20Inc.--%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M288%200H128c-17.7%200-32%2014.3-32%2032s14.3%2032%2032%2032v151.5L7.5%20426.3C2.6%20435%200%20444.7%200%20454.7%200%20486.4%2025.6%20512%2057.3%20512h333.4c31.6%200%2057.3-25.6%2057.3-57.3%200-10-2.6-19.8-7.5-28.4L320%20215.5V64c17.7%200%2032-14.3%2032-32S337.7%200%20320%200zm-96%20215.5V64h64v151.5c0%2011.1%202.9%2022.1%208.4%2031.8L306%20320H142l41.6-72.7c5.5-9.7%208.4-20.6%208.4-31.8%22/%3E%3C/svg%3E');--md-admonition-icon--failure:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20576%20512%22%3E%3C%21--%21%20Font%20Awesome%20Free%207.3.1%20by%20%40fontawesome%20-%20https%3A//fontawesome.com%20License%20-%20https%3A//fontawesome.com/license/free%20%28Icons%3A%20CC%20BY%204.0%2C%20Fonts%3A%20SIL%20OFL%201.1%2C%20Code%3A%20MIT%20License%29%20Copyright%202026%20Fonticons%2C%20Inc.--%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M480-16c6.9%200%2013%204.4%2015.2%2010.9l13.5%2040.4%2040.4%2013.5C555.6%2051%20560%2057.1%20560%2064s-4.4%2013-10.9%2015.2l-40.4%2013.5-13.5%2040.4c-2.2%206.5-8.3%2010.9-15.2%2010.9s-13-4.4-15.2-10.9l-13.5-40.4-40.4-13.5C404.4%2077%20400%2070.9%20400%2064s4.4-13%2010.9-15.2l40.4-13.5%2013.5-40.4C467-11.6%20473.1-16%20480-16M321.4%2097.4c12.5-12.5%2032.8-12.5%2045.3%200l80%2080c12.5%2012.5%2012.5%2032.8%200%2045.3l-10.9%2010.9c7.9%2022%2012.2%2045.7%2012.2%2070.5%200%20114.9-93.1%20208-208%20208S32%20418.9%2032%20304%20125.1%2096%20240%2096c24.7%200%2048.5%204.3%2070.5%2012.3zM144%20304c0-53%2043-96%2096-96%2013.3%200%2024-10.7%2024-24s-10.7-24-24-24c-79.5%200-144%2064.5-144%20144%200%2013.3%2010.7%2024%2024%2024s24-10.7%2024-24%22/%3E%3C/svg%3E');--md-admonition-icon--info:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20512%20512%22%3E%3C%21--%21%20Font%20Awesome%20Free%207.3.1%20by%20%40fontawesome%20-%20https%3A//fontawesome.com%20License%20-%20https%3A//fontawesome.com/license/free%20%28Icons%3A%20CC%20BY%204.0%2C%20Fonts%3A%20SIL%20OFL%201.1%2C%20Code%3A%20MIT%20License%29%20Copyright%202026%20Fonticons%2C%20Inc.--%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M256%20512a256%20256%200%201%200%200-512%20256%20256%200%201%200%200%20512m-32-352a32%2032%200%201%201%2064%200%2032%2032%200%201%201-64%200m-8%2064h48c13.3%200%2024%2010.7%2024%2024v88h8c13.3%200%2024%2010.7%2024%2024s-10.7%2024-24%2024h-80c-13.3%200-24-10.7-24-24s10.7-24%2024-24h24v-64h-24c-13.3%200-24-10.7-24-24s10.7-24%2024-24%22/%3E%3C/svg%3E');--md-admonition-icon--note:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20448%20512%22%3E%3C%21--%21%20Font%20Awesome%20Free%207.3.1%20by%20%40fontawesome%20-%20https%3A//fontawesome.com%20License%20-%20https%3A//fontawesome.com/license/free%20%28Icons%3A%20CC%20BY%204.0%2C%20Fonts%3A%20SIL%20OFL%201.1%2C%20Code%3A%20MIT%20License%29%20Copyright%202026%20Fonticons%2C%20Inc.--%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M64%20480c-35.3%200-64-28.7-64-64V96c0-35.3%2028.7-64%2064-64h320c35.3%200%2064%2028.7%2064%2064v213.5c0%2017-6.7%2033.3-18.7%2045.3L322.7%20461.3c-12%2012-28.3%2018.7-45.3%2018.7zm325.5-176H296c-13.3%200-24%2010.7-24%2024v93.5z%22/%3E%3C/svg%3E');--md-admonition-icon--question:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20512%20512%22%3E%3C%21--%21%20Font%20Awesome%20Free%207.3.1%20by%20%40fontawesome%20-%20https%3A//fontawesome.com%20License%20-%20https%3A//fontawesome.com/license/free%20%28Icons%3A%20CC%20BY%204.0%2C%20Fonts%3A%20SIL%20OFL%201.1%2C%20Code%3A%20MIT%20License%29%20Copyright%202026%20Fonticons%2C%20Inc.--%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M256%20512a256%20256%200%201%200%200-512%20256%20256%200%201%200%200%20512m0-336c-17.7%200-32%2014.3-32%2032%200%2013.3-10.7%2024-24%2024s-24-10.7-24-24c0-44.2%2035.8-80%2080-80s80%2035.8%2080%2080c0%2047.2-36%2067.2-56%2074.5v3.8c0%2013.3-10.7%2024-24%2024s-24-10.7-24-24v-8.1c0-20.5%2014.8-35.2%2030.1-40.2%206.4-2.1%2013.2-5.5%2018.2-10.3%204.3-4.2%207.7-10%207.7-19.6%200-17.7-14.3-32-32-32zm-32%20192a32%2032%200%201%201%2064%200%2032%2032%200%201%201-64%200%22/%3E%3C/svg%3E');--md-admonition-icon--quote:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20448%20512%22%3E%3C%21--%21%20Font%20Awesome%20Free%207.3.1%20by%20%40fontawesome%20-%20https%3A//fontawesome.com%20License%20-%20https%3A//fontawesome.com/license/free%20%28Icons%3A%20CC%20BY%204.0%2C%20Fonts%3A%20SIL%20OFL%201.1%2C%20Code%3A%20MIT%20License%29%20Copyright%202026%20Fonticons%2C%20Inc.--%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M0%20216C0%20149.7%2053.7%2096%20120%2096h8c17.7%200%2032%2014.3%2032%2032s-14.3%2032-32%2032h-8c-30.9%200-56%2025.1-56%2056v8h64c35.3%200%2064%2028.7%2064%2064v64c0%2035.3-28.7%2064-64%2064H64c-35.3%200-64-28.7-64-64zm256%200c0-66.3%2053.7-120%20120-120h8c17.7%200%2032%2014.3%2032%2032s-14.3%2032-32%2032h-8c-30.9%200-56%2025.1-56%2056v8h64c35.3%200%2064%2028.7%2064%2064v64c0%2035.3-28.7%2064-64%2064h-64c-35.3%200-64-28.7-64-64z%22/%3E%3C/svg%3E');--md-admonition-icon--success:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20448%20512%22%3E%3C%21--%21%20Font%20Awesome%20Free%207.3.1%20by%20%40fontawesome%20-%20https%3A//fontawesome.com%20License%20-%20https%3A//fontawesome.com/license/free%20%28Icons%3A%20CC%20BY%204.0%2C%20Fonts%3A%20SIL%20OFL%201.1%2C%20Code%3A%20MIT%20License%29%20Copyright%202026%20Fonticons%2C%20Inc.--%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M434.8%2070.1c14.3%2010.4%2017.5%2030.4%207.1%2044.7l-256%20352c-5.5%207.6-14%2012.3-23.4%2013.1s-18.5-2.7-25.1-9.3l-128-128c-12.5-12.5-12.5-32.8%200-45.3s32.8-12.5%2045.3%200l101.5%20101.5%20234-321.7c10.4-14.3%2030.4-17.5%2044.7-7.1z%22/%3E%3C/svg%3E');--md-admonition-icon--tip:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20512%20512%22%3E%3C%21--%21%20Font%20Awesome%20Free%207.3.1%20by%20%40fontawesome%20-%20https%3A//fontawesome.com%20License%20-%20https%3A//fontawesome.com/license/free%20%28Icons%3A%20CC%20BY%204.0%2C%20Fonts%3A%20SIL%20OFL%201.1%2C%20Code%3A%20MIT%20License%29%20Copyright%202026%20Fonticons%2C%20Inc.--%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M461.2%2018.9C472.7%2024%20480%2035.4%20480%2048v416c0%2012.6-7.3%2024-18.8%2029.1s-24.8%203.2-34.3-5.1l-46.6-40.7c-43.6-38.1-98.7-60.3-156.4-63V480c0%2017.7-14.3%2032-32%2032h-32c-17.7%200-32-14.3-32-32v-96C57.3%20384%200%20326.7%200%20256s57.3-128%20128-128h84.5c61.8-.2%20121.4-22.7%20167.9-63.3L427%2024c9.4-8.3%2022.9-10.2%2034.3-5.1zM224%20320v.2c70.3%202.7%20137.8%2028.5%20192%2073.4V118.3c-54.2%2044.9-121.7%2070.7-192%2073.4z%22/%3E%3C/svg%3E');--md-admonition-icon--warning:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20512%20512%22%3E%3C%21--%21%20Font%20Awesome%20Free%207.3.1%20by%20%40fontawesome%20-%20https%3A//fontawesome.com%20License%20-%20https%3A//fontawesome.com/license/free%20%28Icons%3A%20CC%20BY%204.0%2C%20Fonts%3A%20SIL%20OFL%201.1%2C%20Code%3A%20MIT%20License%29%20Copyright%202026%20Fonticons%2C%20Inc.--%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M256%200c14.7%200%2028.2%208.1%2035.2%2021l216%20400c6.7%2012.4%206.4%2027.4-.8%2039.5S486.1%20480%20472%20480H40c-14.1%200-27.2-7.4-34.4-19.5s-7.5-27.1-.8-39.5l216-400c7-12.9%2020.5-21%2035.2-21m0%20352a32%2032%200%201%200%200%2064%2032%2032%200%201%200%200-64m0-192c-18.2%200-32.7%2015.5-31.4%2033.7l7.4%20104c.9%2012.5%2011.4%2022.3%2023.9%2022.3%2012.6%200%2023-9.7%2023.9-22.3l7.4-104c1.3-18.2-13.1-33.7-31.4-33.7z%22/%3E%3C/svg%3E');}</style><link rel=preconnect href=https://fonts.gstatic.com crossorigin><link rel=stylesheet href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&amp;display=fallback"><style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style><link rel=stylesheet href=../../../../assets/stylesheets/extra.css><link rel=stylesheet href=../../../../assets/stylesheets/interview.css><link rel=stylesheet href=../../../../assets/stylesheets/termynal.css><link rel=stylesheet href=../../../../assets/stylesheets/mermaid-sim.css><link rel=stylesheet href=../../../../assets/stylesheets/playground.css><link rel=stylesheet href=../../../../assets/stylesheets/support.css><link rel=stylesheet href=../../../../assets/stylesheets/netsim.css><link rel=stylesheet href=../../../../assets/stylesheets/csim.css><link rel=stylesheet href=../../../../assets/stylesheets/quiz.css><link rel=stylesheet href=../../../../assets/stylesheets/diagram.css><script>__md_scope=new URL("../../../..",location),__md_scope.pathname.endsWith("/")||(__md_scope=new URL(__md_scope.pathname+"/",location)),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,_=__md_scope)=>JSON.parse(t.getItem(_.pathname+"."+e)),__md_set=(e,t,_=localStorage,a=__md_scope)=>{try{_.setItem(a.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script></head> <body dir=ltr data-md-color-scheme=default data-md-color-primary=indigo data-md-color-accent=indigo> <input class=md-toggle data-md-toggle=drawer type=checkbox id=__drawer autocomplete=off> <input class=md-toggle data-md-toggle=search type=checkbox id=__search autocomplete=off> <label class=md-overlay for=__drawer aria-hidden=true></label> <div data-md-component=skip> <a href=#__skip class=md-skip> Skip to content </a> </div> <div data-md-component=announce> </div> <header class="md-header md-header--shadow" data-md-component=header> <nav class="md-header__inner md-grid" aria-label=Header> <a href=../../../.. title="Platforms, Microservices, DevOps and APIs" class="md-header__button md-logo" aria-label="Platforms, Microservices, DevOps and APIs" data-md-component=logo> <img src=../../../../assets/images/logo.png alt="Platforms, Microservices, DevOps and APIs"> </a> <label class="md-header__button md-icon" for=__drawer aria-label=Navigation> <svg xmlns=http://www.w3.org/2000/svg fill=none stroke=currentColor stroke-linecap=round stroke-linejoin=round stroke-width=2 class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg> </label> <div class=md-header__title data-md-component=header-title> <div class=md-header__ellipsis> <div class=md-header__topic> <span class=md-ellipsis> Platforms, Microservices, DevOps and APIs </span> </div> <div class=md-header__topic data-md-component=header-topic> <span class=md-ellipsis> Index </span> </div> </div> </div> <form class=md-header__option data-md-component=palette> <input class=md-option data-md-color-media=(prefers-color-scheme) data-md-color-scheme=default data-md-color-primary=indigo data-md-color-accent=indigo aria-label="Switch to light mode" type=radio name=__palette id=__palette_0> <label class="md-header__button md-icon" title="Switch to light mode" for=__palette_1 hidden> <svg xmlns=http://www.w3.org/2000/svg fill=none stroke=currentColor stroke-linecap=round stroke-linejoin=round stroke-width=2 class="lucide lucide-sun-moon" viewBox="0 0 24 24"><path d="M12 2v2M14.837 16.385a6 6 0 1 1-7.223-7.222c.624-.147.97.66.715 1.248a4 4 0 0 0 5.26 5.259c.589-.255 1.396.09 1.248.715M16 12a4 4 0 0 0-4-4M19 5l-1.256 1.256M20 12h2"/></svg> </label> <input class=md-option data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme=default data-md-color-primary=indigo data-md-color-accent=indigo aria-label="Switch to dark mode" type=radio name=__palette id=__palette_1> <label class="md-header__button md-icon" title="Switch to dark mode" for=__palette_2 hidden> <svg xmlns=http://www.w3.org/2000/svg fill=none stroke=currentColor stroke-linecap=round stroke-linejoin=round stroke-width=2 class="lucide lucide-sun" viewBox="0 0 24 24"><circle cx=12 cy=12 r=4 /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg> </label> <input class=md-option data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme=slate data-md-color-primary=indigo data-md-color-accent=indigo aria-label="Switch to system preference" type=radio name=__palette id=__palette_2> <label class="md-header__button md-icon" title="Switch to system preference" for=__palette_0 hidden> <svg xmlns=http://www.w3.org/2000/svg fill=none stroke=currentColor stroke-linecap=round stroke-linejoin=round stroke-width=2 class="lucide lucide-moon" viewBox="0 0 24 24"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/></svg> </label> </form> <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script> <div class="md-header__option md-i18n" data-md-i18n data-md-i18n-base=../../../../ data-md-i18n-manifest=../../../../zensical-i18n.json> <div class=md-select> <button class="md-header__button md-i18n__button" aria-label="Select language (en)"> <span class=md-icon> <svg xmlns=http://www.w3.org/2000/svg fill=none stroke=currentColor stroke-linecap=round stroke-linejoin=round stroke-width=2 class="lucide lucide-languages" viewBox="0 0 24 24"><path d="m5 8 6 6M4 14l6-6 2-3M2 5h12M7 2h1M22 22l-5-10-5 10M14 18h6"/></svg> </span> <span class=md-i18n__code>en</span> <span class="md-i18n__chevron md-icon"> <svg xmlns=http://www.w3.org/2000/svg fill=none stroke=currentColor stroke-linecap=round stroke-linejoin=round stroke-width=2 class="lucide lucide-chevron-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg> </span> </button> <div class="md-select__inner md-i18n__inner"> <ul class="md-select__list md-i18n__list"> <li class=md-select__item> <a href=././ hreflang=en class="md-select__link md-i18n__link" target=_self data-md-i18n-locale=en data-md-i18n-root=./ aria-current=true> <span class=md-i18n__name>🇺🇸 English</span> <span class=md-i18n__locale>en</span> <span class="md-i18n__check md-icon"> <svg xmlns=http://www.w3.org/2000/svg fill=none stroke=currentColor stroke-linecap=round stroke-linejoin=round stroke-width=2 class="lucide lucide-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg> </span> </a> </li> <li class=md-select__item> <a href=../../../../pt/2027.1/classes/edge/load-balancing/ hreflang=pt lang=pt class="md-select__link md-i18n__link" target=_self data-md-i18n-locale=pt data-md-i18n-root=pt/> <span class=md-i18n__name>🇧🇷 Português</span> <span class=md-i18n__locale>pt</span> <span class="md-i18n__check md-icon"> <svg xmlns=http://www.w3.org/2000/svg fill=none stroke=currentColor stroke-linecap=round stroke-linejoin=round stroke-width=2 class="lucide lucide-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg> </span> </a> </li> </ul> </div> </div> <style>
+  .md-i18n .md-i18n__button:not([hidden]) {
+    display: inline-flex;
+    gap: .3rem;
+    align-items: center;
+    padding-inline: .5rem .4rem;
+    border-radius: 1rem;
+    transition: background-color .25s, opacity .25s;
+  }
+  .md-i18n__button:hover,
+  .md-i18n .md-select:focus-within .md-i18n__button {
+    background-color: color-mix(in srgb, currentcolor 8%, transparent);
+  }
+  .md-i18n__code {
+    font-size: .6rem;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+  .md-i18n .md-i18n__chevron svg {
+    width: .7rem;
+    height: .7rem;
+    opacity: .7;
+    transition: transform .25s cubic-bezier(.1, .7, .1, 1);
+  }
+  .md-i18n .md-select:hover .md-i18n__chevron svg,
+  .md-i18n .md-select:focus-within .md-i18n__chevron svg {
+    transform: rotate(180deg);
+  }
+  .md-i18n__inner {
+    min-width: 11rem;
+  }
+  .md-i18n__list {
+    padding: .3rem;
+  }
+  .md-i18n .md-i18n__link {
+    display: flex;
+    gap: .6rem;
+    align-items: center;
+    padding: .2rem .5rem;
+    border-radius: .3rem;
+    line-height: 1.6rem;
+  }
+  .md-i18n .md-i18n__link:is(:hover, :focus) {
+    background-color: var(--md-default-fg-color--lightest);
+  }
+  .md-i18n__name {
+    flex-grow: 1;
+    font-size: .7rem;
+    white-space: nowrap;
+  }
+  .md-i18n__locale {
+    font-size: .55rem;
+    font-weight: 700;
+    color: var(--md-default-fg-color--light);
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+  .md-i18n .md-i18n__check svg {
+    width: .8rem;
+    height: .8rem;
+    color: var(--md-accent-fg-color);
+    visibility: hidden;
+  }
+  .md-i18n__link[aria-current] .md-i18n__name {
+    font-weight: 700;
+  }
+  .md-i18n__link[aria-current] .md-i18n__check svg {
+    visibility: visible;
+  }
+  .md-i18n__link[data-md-i18n-missing] .md-i18n__name {
+    color: var(--md-default-fg-color--light);
+  }
+  .md-typeset .md-i18n-notice {
+    display: flex;
+    gap: .6rem;
+    align-items: flex-start;
+    padding: .6rem .8rem;
+    margin: 0 0 1.5em;
+    font-size: .7rem;
+    color: var(--md-default-fg-color--light);
+    background-color: color-mix(in srgb, var(--md-accent-fg-color) 6%, transparent);
+    border: .05rem solid color-mix(in srgb, var(--md-accent-fg-color) 25%, transparent);
+    border-radius: .4rem;
+  }
+  .md-typeset .md-i18n-notice p {
+    margin: 0;
+  }
+  .md-i18n-notice .md-icon svg {
+    width: 1rem;
+    height: 1rem;
+    margin-top: .1rem;
+    color: var(--md-accent-fg-color);
+  }
+  @media screen and (max-width: 59.984375em) {
+    [dir=rtl] .md-i18n .md-select__inner {
+      left: 0;
+      transform: translate3d(0, .3rem, 0);
+    }
+    [dir=rtl] .md-i18n .md-select:is(:hover, :focus-within) .md-select__inner {
+      transform: translate3d(0, 0, 0);
+    }
+    [dir=rtl] .md-i18n .md-select__inner::after {
+      right: auto;
+      left: 1rem;
+    }
+  }
+  @media print {
+    .md-typeset .md-i18n-notice {
+      display: none;
+    }
+  }
+</style> <script>
+  (function () {
+    var root = document.currentScript.parentElement
+    var base = new URL(root.dataset.mdI18nBase, location.href)
+    var links = root.querySelectorAll("[data-md-i18n-locale]")
+    var pages = null
+
+    /* Decode a path segment by segment, so encoded slashes and hashes are
+       compared correctly with the paths in the manifest */
+    function decode(path) {
+      return path.split("/").map(function (segment) {
+        try {
+          return decodeURIComponent(segment)
+        } catch (err) {
+          return segment
+        }
+      }).join("/")
+    }
+
+    /* Compute encoded path of current page, relative to the language root */
+    function current() {
+      var path = location.pathname
+      return path.startsWith(base.pathname)
+        ? path.slice(base.pathname.length)
+        : ""
+    }
+
+    /* Link languages to the current page, or their home pages */
+    function update() {
+      if (!pages) return
+      var path = current()
+      var page = decode(path)
+
+      /* Index pages are listed as folders or index.html, depending on the
+         use_directory_urls setting, while either form can be visited */
+      var alias = /(^|\/)$/.test(page)
+        ? page + "index.html"
+        : page.replace(/index\.html$/, "")
+      links.forEach(function (link) {
+        var locale = link.dataset.mdI18nLocale
+        var home = new URL(link.dataset.mdI18nRoot, base)
+
+        /* Leave links to other sites and other protocols untouched */
+        if (home.origin !== base.origin || !/^https?:$/.test(home.protocol))
+          return
+
+        /* Link to the current page, if the language has it */
+        var known = Object.hasOwn(pages, locale) ? pages[locale] : []
+        var exists = known.includes(page) || known.includes(alias)
+        link.href = exists
+          ? new URL(path, home).href + location.hash
+          : home.href
+        link.toggleAttribute("data-md-i18n-missing", !exists)
+      })
+    }
+
+    /* Load manifest, and update links on interaction */
+    fetch(root.dataset.mdI18nManifest)
+      .then(function (res) { return res.ok ? res.json() : {} })
+      .then(function (data) {
+        pages = data.pages && typeof data.pages === "object" ? data.pages : null
+        update()
+      })
+      .catch(function () {})
+    root.addEventListener("pointerenter", update)
+    root.addEventListener("focusin", update)
+
+    /* Update links on instant navigation, once the theme is loaded */
+    function observe() {
+      if (window.document$)
+        window.document$.subscribe(update)
+    }
+    if (document.readyState === "loading")
+      document.addEventListener("DOMContentLoaded", observe)
+    else
+      observe()
+
+    /* Close selector on escape */
+    root.addEventListener("keydown", function (ev) {
+      if (ev.key === "Escape" && root.contains(document.activeElement))
+        document.activeElement.blur()
+    })
+  })()
+</script> </div> <label class="md-header__button md-icon" for=__search aria-label=Search> <svg xmlns=http://www.w3.org/2000/svg fill=none stroke=currentColor stroke-linecap=round stroke-linejoin=round stroke-width=2 class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx=11 cy=11 r=8 /></svg> </label> <div class=md-search data-md-component=search role=dialog aria-label=Search> <button type=button class=md-search__button> Search </button> </div> <div class=md-header__source> <a href=https://github.com/insper/platform title="Go to repository" class=md-source data-md-component=source> <div class="md-source__icon md-icon"> <svg xmlns=http://www.w3.org/2000/svg viewBox="0 0 448 512"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill=currentColor d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg> </div> <div class=md-source__repository> insper/platform </div> </a> </div> </nav> </header> <div class=md-container data-md-component=container> <main class=md-main data-md-component=main> <div class="md-main__inner md-grid"> <div class="md-sidebar md-sidebar--primary" data-md-component=sidebar data-md-type=navigation> <div class=md-sidebar__scrollwrap> <div class=md-sidebar__inner> <nav class="md-nav md-nav--primary" aria-label=Navigation data-md-level=0> <label class=md-nav__title for=__drawer> <a href=../../../.. title="Platforms, Microservices, DevOps and APIs" class="md-nav__button md-logo" aria-label="Platforms, Microservices, DevOps and APIs" data-md-component=logo> <img src=../../../../assets/images/logo.png alt="Platforms, Microservices, DevOps and APIs"> </a> Platforms, Microservices, DevOps and APIs </label> <div class=md-nav__source> <a href=https://github.com/insper/platform title="Go to repository" class=md-source data-md-component=source> <div class="md-source__icon md-icon"> <svg xmlns=http://www.w3.org/2000/svg viewBox="0 0 448 512"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill=currentColor d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg> </div> <div class=md-source__repository> insper/platform </div> </a> </div> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../.. class=md-nav__link> <span class=md-ellipsis> Overview </span> </a> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_2> <label class=md-nav__link for=__nav_2 id=__nav_2_label tabindex=0> <span class=md-ellipsis> Playground </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=1 aria-labelledby=__nav_2_label aria-expanded=false> <label class=md-nav__title for=__nav_2> <span class="md-nav__icon md-icon"></span> Playground </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../playground/ class=md-nav__link> <span class=md-ellipsis> Simulator </span> </a> </li> <li class=md-nav__item> <a href=../../../../playground/scenarios/ class=md-nav__link> <span class=md-ellipsis> Scenarios </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3> <label class=md-nav__link for=__nav_3 id=__nav_3_label tabindex=0> <span class=md-ellipsis> 2026.2 </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=1 aria-labelledby=__nav_3_label aria-expanded=false> <label class=md-nav__title for=__nav_3> <span class="md-nav__icon md-icon"></span> 2026.2 </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/ class=md-nav__link> <span class=md-ellipsis> Overview </span> </a> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_2> <label class=md-nav__link for=__nav_3_2 id=__nav_3_2_label tabindex=0> <span class=md-ellipsis> Classes </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=2 aria-labelledby=__nav_3_2_label aria-expanded=false> <label class=md-nav__title for=__nav_3_2> <span class="md-nav__icon md-icon"></span> Classes </label> <ul class=md-nav__list data-md-scrollfix> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_2_1> <label class=md-nav__link for=__nav_3_2_1 id=__nav_3_2_1_label tabindex=0> <span class=md-ellipsis> 1. Distributed Systems </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_2_1_label aria-expanded=false> <label class=md-nav__title for=__nav_3_2_1> <span class="md-nav__icon md-icon"></span> 1. Distributed Systems </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/classes/distributed_systems/ class=md-nav__link> <span class=md-ellipsis> Overview </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/distributed_systems/cap/ class=md-nav__link> <span class=md-ellipsis> CAP Theorem </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/distributed_systems/consensus/ class=md-nav__link> <span class=md-ellipsis> Consensus &amp; Algorithms </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/distributed_systems/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_2_2> <label class=md-nav__link for=__nav_3_2_2 id=__nav_3_2_2_label tabindex=0> <span class=md-ellipsis> 2. Containerization </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_2_2_label aria-expanded=false> <label class=md-nav__title for=__nav_3_2_2> <span class="md-nav__icon md-icon"></span> 2. Containerization </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/classes/containerization/ class=md-nav__link> <span class=md-ellipsis> Overview </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/containerization/docker/ class=md-nav__link> <span class=md-ellipsis> Docker </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/containerization/compose/ class=md-nav__link> <span class=md-ellipsis> Docker Compose </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/containerization/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_2_3> <label class=md-nav__link for=__nav_3_2_3 id=__nav_3_2_3_label tabindex=0> <span class=md-ellipsis> 3. API </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_2_3_label aria-expanded=false> <label class=md-nav__title for=__nav_3_2_3> <span class="md-nav__icon md-icon"></span> 3. API </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/classes/api/ class=md-nav__link> <span class=md-ellipsis> Overview </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/api/rest/ class=md-nav__link> <span class=md-ellipsis> REST API Design </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/api/swagger/ class=md-nav__link> <span class=md-ellipsis> OpenAPI &amp; Swagger </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/api/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_2_4> <label class=md-nav__link for=__nav_3_2_4 id=__nav_3_2_4_label tabindex=0> <span class=md-ellipsis> 4. Microservices </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_2_4_label aria-expanded=false> <label class=md-nav__title for=__nav_3_2_4> <span class="md-nav__icon md-icon"></span> 4. Microservices </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/classes/microservices/ class=md-nav__link> <span class=md-ellipsis> Overview </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/microservices/ddd/ class=md-nav__link> <span class=md-ellipsis> Domain-Driven Design </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/microservices/architecture/ class=md-nav__link> <span class=md-ellipsis> Architecture &amp; Components </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/microservices/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_2_5> <label class=md-nav__link for=__nav_3_2_5 id=__nav_3_2_5_label tabindex=0> <span class=md-ellipsis> 5. Security — OAuth2 &amp; Zero Trust </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_2_5_label aria-expanded=false> <label class=md-nav__title for=__nav_3_2_5> <span class="md-nav__icon md-icon"></span> 5. Security — OAuth2 &amp; Zero Trust </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/classes/security/ class=md-nav__link> <span class=md-ellipsis> Overview </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/security/oauth/ class=md-nav__link> <span class=md-ellipsis> OAuth 2.0 &amp; OpenID Connect </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/security/zero-trust/ class=md-nav__link> <span class=md-ellipsis> Zero Trust, mTLS &amp; Secrets </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/security/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_2_6> <label class=md-nav__link for=__nav_3_2_6 id=__nav_3_2_6_label tabindex=0> <span class=md-ellipsis> 6. Architectures </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_2_6_label aria-expanded=false> <label class=md-nav__title for=__nav_3_2_6> <span class="md-nav__icon md-icon"></span> 6. Architectures </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/classes/architectures/ class=md-nav__link> <span class=md-ellipsis> Overview </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/architectures/solid/ class=md-nav__link> <span class=md-ellipsis> SOLID Principles </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/architectures/clean/ class=md-nav__link> <span class=md-ellipsis> Clean Architecture </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/architectures/hexagonal/ class=md-nav__link> <span class=md-ellipsis> Hexagonal Architecture </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/architectures/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_2_7> <label class=md-nav__link for=__nav_3_2_7 id=__nav_3_2_7_label tabindex=0> <span class=md-ellipsis> 7. Event-Driven Architecture </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_2_7_label aria-expanded=false> <label class=md-nav__title for=__nav_3_2_7> <span class="md-nav__icon md-icon"></span> 7. Event-Driven Architecture </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/classes/event_driven/ class=md-nav__link> <span class=md-ellipsis> Overview </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/event_driven/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_2_8> <label class=md-nav__link for=__nav_3_2_8 id=__nav_3_2_8_label tabindex=0> <span class=md-ellipsis> 8. Reliability </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_2_8_label aria-expanded=false> <label class=md-nav__title for=__nav_3_2_8> <span class="md-nav__icon md-icon"></span> 8. Reliability </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/classes/reliability/ class=md-nav__link> <span class=md-ellipsis> Overview </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/reliability/sli-slo-sla/ class=md-nav__link> <span class=md-ellipsis> SLI / SLO / SLA </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/reliability/patterns/ class=md-nav__link> <span class=md-ellipsis> Resilience Patterns </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/reliability/chaos/ class=md-nav__link> <span class=md-ellipsis> Chaos Engineering </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/reliability/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_2_9> <label class=md-nav__link for=__nav_3_2_9 id=__nav_3_2_9_label tabindex=0> <span class=md-ellipsis> 9. Observability </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_2_9_label aria-expanded=false> <label class=md-nav__title for=__nav_3_2_9> <span class="md-nav__icon md-icon"></span> 9. Observability </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/classes/observability/ class=md-nav__link> <span class=md-ellipsis> Overview </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/observability/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_2_10> <label class=md-nav__link for=__nav_3_2_10 id=__nav_3_2_10_label tabindex=0> <span class=md-ellipsis> 10. Service Models </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_2_10_label aria-expanded=false> <label class=md-nav__title for=__nav_3_2_10> <span class="md-nav__icon md-icon"></span> 10. Service Models </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/classes/service_models/ class=md-nav__link> <span class=md-ellipsis> Overview </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/service_models/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_2_11> <label class=md-nav__link for=__nav_3_2_11 id=__nav_3_2_11_label tabindex=0> <span class=md-ellipsis> 11. Cloud Deployment Roadmap </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_2_11_label aria-expanded=false> <label class=md-nav__title for=__nav_3_2_11> <span class="md-nav__icon md-icon"></span> 11. Cloud Deployment Roadmap </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/classes/deployment/ class=md-nav__link> <span class=md-ellipsis> Overview </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/classes/deployment/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_3> <label class=md-nav__link for=__nav_3_3 id=__nav_3_3_label tabindex=0> <span class=md-ellipsis> Hands-on </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=2 aria-labelledby=__nav_3_3_label aria-expanded=false> <label class=md-nav__title for=__nav_3_3> <span class="md-nav__icon md-icon"></span> Hands-on </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/0/ class=md-nav__link> <span class=md-ellipsis> 0. Prerequisites </span> </a> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_3_2> <label class=md-nav__link for=__nav_3_3_2 id=__nav_3_3_2_label tabindex=0> <span class=md-ellipsis> 1. CRUD </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_3_2_label aria-expanded=false> <label class=md-nav__title for=__nav_3_3_2> <span class="md-nav__icon md-icon"></span> 1. CRUD </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/1/ class=md-nav__link> <span class=md-ellipsis> a. Overview </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/1/controller/ class=md-nav__link> <span class=md-ellipsis> b. Controller </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/1/service/ class=md-nav__link> <span class=md-ellipsis> c. Service </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/1/containerization/ class=md-nav__link> <span class=md-ellipsis> d. Containerization </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/1/repository/ class=md-nav__link> <span class=md-ellipsis> e. Repository </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/1/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_3_3> <label class=md-nav__link for=__nav_3_3_3 id=__nav_3_3_3_label tabindex=0> <span class=md-ellipsis> 2. Gateway </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_3_3_label aria-expanded=false> <label class=md-nav__title for=__nav_3_3_3> <span class="md-nav__icon md-icon"></span> 2. Gateway </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/2/ class=md-nav__link> <span class=md-ellipsis> a. Overview </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/2/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_3_4> <label class=md-nav__link for=__nav_3_3_4 id=__nav_3_3_4_label tabindex=0> <span class=md-ellipsis> 3. Security </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_3_4_label aria-expanded=false> <label class=md-nav__title for=__nav_3_3_4> <span class="md-nav__icon md-icon"></span> 3. Security </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/3/ class=md-nav__link> <span class=md-ellipsis> a. Overview </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/3/jwt/ class=md-nav__link> <span class=md-ellipsis> b. JWT </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/3/open-routes/ class=md-nav__link> <span class=md-ellipsis> c. Open Routes </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/3/authorization/ class=md-nav__link> <span class=md-ellipsis> d. Authorization </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/3/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_3_5> <label class=md-nav__link for=__nav_3_3_5 id=__nav_3_3_5_label tabindex=0> <span class=md-ellipsis> 4. DevOps </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_3_5_label aria-expanded=false> <label class=md-nav__title for=__nav_3_3_5> <span class="md-nav__icon md-icon"></span> 4. DevOps </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/4/ class=md-nav__link> <span class=md-ellipsis> a. Overview </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/4/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_3_6> <label class=md-nav__link for=__nav_3_3_6 id=__nav_3_3_6_label tabindex=0> <span class=md-ellipsis> 5. Orchestration </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_3_6_label aria-expanded=false> <label class=md-nav__title for=__nav_3_3_6> <span class="md-nav__icon md-icon"></span> 5. Orchestration </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/5/ class=md-nav__link> <span class=md-ellipsis> a. Overview </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/5/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_3_7> <label class=md-nav__link for=__nav_3_3_7 id=__nav_3_3_7_label tabindex=0> <span class=md-ellipsis> 6. Observability </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_3_7_label aria-expanded=false> <label class=md-nav__title for=__nav_3_3_7> <span class="md-nav__icon md-icon"></span> 6. Observability </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/6/ class=md-nav__link> <span class=md-ellipsis> a. Overview </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/6/microservices/ class=md-nav__link> <span class=md-ellipsis> b. Microservices </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/6/docker/ class=md-nav__link> <span class=md-ellipsis> c. Docker Compose </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/6/prometheus/ class=md-nav__link> <span class=md-ellipsis> d. Prometheus </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/6/grafana/ class=md-nav__link> <span class=md-ellipsis> e. Grafana </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/6/run/ class=md-nav__link> <span class=md-ellipsis> f. Run </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/6/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_3_8> <label class=md-nav__link for=__nav_3_3_8 id=__nav_3_3_8_label tabindex=0> <span class=md-ellipsis> 7. Load Balancer </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_3_8_label aria-expanded=false> <label class=md-nav__title for=__nav_3_3_8> <span class="md-nav__icon md-icon"></span> 7. Load Balancer </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/7/ class=md-nav__link> <span class=md-ellipsis> a. Overview </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/7/nginx/ class=md-nav__link> <span class=md-ellipsis> b. Nginx </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/7/docker/ class=md-nav__link> <span class=md-ellipsis> c. Docker Compose </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/7/run/ class=md-nav__link> <span class=md-ellipsis> d. Run </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/7/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_3_9> <label class=md-nav__link for=__nav_3_3_9 id=__nav_3_3_9_label tabindex=0> <span class=md-ellipsis> 8. In-Memory Cache </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_3_9_label aria-expanded=false> <label class=md-nav__title for=__nav_3_3_9> <span class="md-nav__icon md-icon"></span> 8. In-Memory Cache </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/8/ class=md-nav__link> <span class=md-ellipsis> a. Overview </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/8/docker/ class=md-nav__link> <span class=md-ellipsis> b. Docker Compose </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/8/spring/ class=md-nav__link> <span class=md-ellipsis> c. Spring Boot </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/8/run/ class=md-nav__link> <span class=md-ellipsis> d. Run </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/8/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_3_10> <label class=md-nav__link for=__nav_3_3_10 id=__nav_3_3_10_label tabindex=0> <span class=md-ellipsis> 9. Kafka Messaging </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_3_10_label aria-expanded=false> <label class=md-nav__title for=__nav_3_3_10> <span class="md-nav__icon md-icon"></span> 9. Kafka Messaging </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/9/ class=md-nav__link> <span class=md-ellipsis> a. Overview </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/9/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_3_11> <label class=md-nav__link for=__nav_3_3_11 id=__nav_3_3_11_label tabindex=0> <span class=md-ellipsis> 10. Distributed Tracing </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_3_11_label aria-expanded=false> <label class=md-nav__title for=__nav_3_3_11> <span class="md-nav__icon md-icon"></span> 10. Distributed Tracing </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/10/ class=md-nav__link> <span class=md-ellipsis> a. Overview </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/10/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_3_12> <label class=md-nav__link for=__nav_3_3_12 id=__nav_3_3_12_label tabindex=0> <span class=md-ellipsis> 11. AI in CI/CD </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_3_12_label aria-expanded=false> <label class=md-nav__title for=__nav_3_3_12> <span class="md-nav__icon md-icon"></span> 11. AI in CI/CD </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/11/ class=md-nav__link> <span class=md-ellipsis> a. Overview </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/hands-on/11/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_4> <label class=md-nav__link for=__nav_3_4 id=__nav_3_4_label tabindex=0> <span class=md-ellipsis> Exercises </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=2 aria-labelledby=__nav_3_4_label aria-expanded=false> <label class=md-nav__title for=__nav_3_4> <span class="md-nav__icon md-icon"></span> Exercises </label> <ul class=md-nav__list data-md-scrollfix> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_4_1> <label class=md-nav__link for=__nav_3_4_1 id=__nav_3_4_1_label tabindex=0> <span class=md-ellipsis> Project </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_4_1_label aria-expanded=false> <label class=md-nav__title for=__nav_3_4_1> <span class="md-nav__icon md-icon"></span> Project </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/exercises/project/ class=md-nav__link> <span class=md-ellipsis> Overview </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/exercises/project/aws/ class=md-nav__link> <span class=md-ellipsis> AWS </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/exercises/project/eks/ class=md-nav__link> <span class=md-ellipsis> EKS </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/exercises/project/ci-cd/ class=md-nav__link> <span class=md-ellipsis> CI/CD </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/exercises/project/load-testing/ class=md-nav__link> <span class=md-ellipsis> Load Testing </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/exercises/project/costs/ class=md-nav__link> <span class=md-ellipsis> Costs &amp; PaaS </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/exercises/project/presentation/ class=md-nav__link> <span class=md-ellipsis> Presentation </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_3_4_2> <label class=md-nav__link for=__nav_3_4_2 id=__nav_3_4_2_label tabindex=0> <span class=md-ellipsis> Individual </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_3_4_2_label aria-expanded=false> <label class=md-nav__title for=__nav_3_4_2> <span class="md-nav__icon md-icon"></span> Individual </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.2/exercises/product/ class=md-nav__link> <span class=md-ellipsis> Product API </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/exercises/order/ class=md-nav__link> <span class=md-ellipsis> Order API </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/exercises/exchange/ class=md-nav__link> <span class=md-ellipsis> Exchange API </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/exercises/jenkins/ class=md-nav__link> <span class=md-ellipsis> Jenkins </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/exercises/minikube/ class=md-nav__link> <span class=md-ellipsis> MiniKube </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.2/exercises/bottlenecks/ class=md-nav__link> <span class=md-ellipsis> Bottlenecks </span> </a> </li> </ul> </nav> </li> </ul> </nav> </li> <li class=md-nav__item> <a href=../../../../2026.2/interview/ class=md-nav__link> <span class=md-ellipsis> Interview Material </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_4> <label class=md-nav__link for=__nav_4 id=__nav_4_label tabindex=0> <span class=md-ellipsis> 2026.1 </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=1 aria-labelledby=__nav_4_label aria-expanded=false> <label class=md-nav__title for=__nav_4> <span class="md-nav__icon md-icon"></span> 2026.1 </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/ class=md-nav__link> <span class=md-ellipsis> Overview </span> </a> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_4_2> <label class=md-nav__link for=__nav_4_2 id=__nav_4_2_label tabindex=0> <span class=md-ellipsis> Classes </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=2 aria-labelledby=__nav_4_2_label aria-expanded=false> <label class=md-nav__title for=__nav_4_2> <span class="md-nav__icon md-icon"></span> Classes </label> <ul class=md-nav__list data-md-scrollfix> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_4_2_1> <label class=md-nav__link for=__nav_4_2_1 id=__nav_4_2_1_label tabindex=0> <span class=md-ellipsis> 1. Distributed Systems </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_4_2_1_label aria-expanded=false> <label class=md-nav__title for=__nav_4_2_1> <span class="md-nav__icon md-icon"></span> 1. Distributed Systems </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/classes/distributed_systems/ class=md-nav__link> <span class=md-ellipsis> Overview </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/distributed_systems/cap/ class=md-nav__link> <span class=md-ellipsis> CAP Theorem </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/distributed_systems/consensus/ class=md-nav__link> <span class=md-ellipsis> Consensus &amp; Algorithms </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/distributed_systems/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_4_2_2> <label class=md-nav__link for=__nav_4_2_2 id=__nav_4_2_2_label tabindex=0> <span class=md-ellipsis> 2. Containerization </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_4_2_2_label aria-expanded=false> <label class=md-nav__title for=__nav_4_2_2> <span class="md-nav__icon md-icon"></span> 2. Containerization </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/classes/containerization/ class=md-nav__link> <span class=md-ellipsis> Overview </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/containerization/docker/ class=md-nav__link> <span class=md-ellipsis> Docker </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/containerization/compose/ class=md-nav__link> <span class=md-ellipsis> Docker Compose </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/containerization/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_4_2_3> <label class=md-nav__link for=__nav_4_2_3 id=__nav_4_2_3_label tabindex=0> <span class=md-ellipsis> 3. Microservices </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_4_2_3_label aria-expanded=false> <label class=md-nav__title for=__nav_4_2_3> <span class="md-nav__icon md-icon"></span> 3. Microservices </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/classes/microservices/ class=md-nav__link> <span class=md-ellipsis> Overview </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/microservices/ddd/ class=md-nav__link> <span class=md-ellipsis> Domain-Driven Design </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/microservices/architecture/ class=md-nav__link> <span class=md-ellipsis> Architecture &amp; Components </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/microservices/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_4_2_4> <label class=md-nav__link for=__nav_4_2_4 id=__nav_4_2_4_label tabindex=0> <span class=md-ellipsis> 4. Architectures </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_4_2_4_label aria-expanded=false> <label class=md-nav__title for=__nav_4_2_4> <span class="md-nav__icon md-icon"></span> 4. Architectures </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/classes/architectures/ class=md-nav__link> <span class=md-ellipsis> Overview </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/architectures/solid/ class=md-nav__link> <span class=md-ellipsis> SOLID Principles </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/architectures/clean/ class=md-nav__link> <span class=md-ellipsis> Clean Architecture </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/architectures/hexagonal/ class=md-nav__link> <span class=md-ellipsis> Hexagonal Architecture </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/architectures/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_4_2_5> <label class=md-nav__link for=__nav_4_2_5 id=__nav_4_2_5_label tabindex=0> <span class=md-ellipsis> 5. API </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_4_2_5_label aria-expanded=false> <label class=md-nav__title for=__nav_4_2_5> <span class="md-nav__icon md-icon"></span> 5. API </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/classes/api/ class=md-nav__link> <span class=md-ellipsis> Overview </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/api/rest/ class=md-nav__link> <span class=md-ellipsis> REST API Design </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/api/swagger/ class=md-nav__link> <span class=md-ellipsis> OpenAPI &amp; Swagger </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/api/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_4_2_6> <label class=md-nav__link for=__nav_4_2_6 id=__nav_4_2_6_label tabindex=0> <span class=md-ellipsis> 6. Service Models </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_4_2_6_label aria-expanded=false> <label class=md-nav__title for=__nav_4_2_6> <span class="md-nav__icon md-icon"></span> 6. Service Models </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/classes/service_models/ class=md-nav__link> <span class=md-ellipsis> Overview </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/service_models/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_4_2_7> <label class=md-nav__link for=__nav_4_2_7 id=__nav_4_2_7_label tabindex=0> <span class=md-ellipsis> 7. Reliability </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_4_2_7_label aria-expanded=false> <label class=md-nav__title for=__nav_4_2_7> <span class="md-nav__icon md-icon"></span> 7. Reliability </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/classes/reliability/ class=md-nav__link> <span class=md-ellipsis> Overview </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/reliability/sli-slo-sla/ class=md-nav__link> <span class=md-ellipsis> SLI / SLO / SLA </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/reliability/patterns/ class=md-nav__link> <span class=md-ellipsis> Resilience Patterns </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/reliability/chaos/ class=md-nav__link> <span class=md-ellipsis> Chaos Engineering </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/classes/reliability/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_4_3> <label class=md-nav__link for=__nav_4_3 id=__nav_4_3_label tabindex=0> <span class=md-ellipsis> Hands-on </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=2 aria-labelledby=__nav_4_3_label aria-expanded=false> <label class=md-nav__title for=__nav_4_3> <span class="md-nav__icon md-icon"></span> Hands-on </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/0/ class=md-nav__link> <span class=md-ellipsis> 0. Prerequisites </span> </a> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_4_3_2> <label class=md-nav__link for=__nav_4_3_2 id=__nav_4_3_2_label tabindex=0> <span class=md-ellipsis> 1. CRUD </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_4_3_2_label aria-expanded=false> <label class=md-nav__title for=__nav_4_3_2> <span class="md-nav__icon md-icon"></span> 1. CRUD </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/1/ class=md-nav__link> <span class=md-ellipsis> a. Overview </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/1/controller/ class=md-nav__link> <span class=md-ellipsis> b. Controller </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/1/service/ class=md-nav__link> <span class=md-ellipsis> c. Service </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/1/containerization/ class=md-nav__link> <span class=md-ellipsis> d. Containerization </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/1/repository/ class=md-nav__link> <span class=md-ellipsis> e. Repository </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/1/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_4_3_3> <label class=md-nav__link for=__nav_4_3_3 id=__nav_4_3_3_label tabindex=0> <span class=md-ellipsis> 2. Gateway </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_4_3_3_label aria-expanded=false> <label class=md-nav__title for=__nav_4_3_3> <span class="md-nav__icon md-icon"></span> 2. Gateway </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/2/ class=md-nav__link> <span class=md-ellipsis> a. Overview </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/2/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_4_3_4> <label class=md-nav__link for=__nav_4_3_4 id=__nav_4_3_4_label tabindex=0> <span class=md-ellipsis> 3. Security </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_4_3_4_label aria-expanded=false> <label class=md-nav__title for=__nav_4_3_4> <span class="md-nav__icon md-icon"></span> 3. Security </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/3/ class=md-nav__link> <span class=md-ellipsis> a. Overview </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/3/jwt/ class=md-nav__link> <span class=md-ellipsis> b. JWT </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/3/open-routes/ class=md-nav__link> <span class=md-ellipsis> c. Open Routes </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/3/authorization/ class=md-nav__link> <span class=md-ellipsis> d. Authorization </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/3/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_4_3_5> <label class=md-nav__link for=__nav_4_3_5 id=__nav_4_3_5_label tabindex=0> <span class=md-ellipsis> 4. DevOps </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_4_3_5_label aria-expanded=false> <label class=md-nav__title for=__nav_4_3_5> <span class="md-nav__icon md-icon"></span> 4. DevOps </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/4/ class=md-nav__link> <span class=md-ellipsis> a. Overview </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/4/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_4_3_6> <label class=md-nav__link for=__nav_4_3_6 id=__nav_4_3_6_label tabindex=0> <span class=md-ellipsis> 5. Orchestration </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_4_3_6_label aria-expanded=false> <label class=md-nav__title for=__nav_4_3_6> <span class="md-nav__icon md-icon"></span> 5. Orchestration </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/5/ class=md-nav__link> <span class=md-ellipsis> a. Overview </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/5/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_4_3_7> <label class=md-nav__link for=__nav_4_3_7 id=__nav_4_3_7_label tabindex=0> <span class=md-ellipsis> 6. Observability </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_4_3_7_label aria-expanded=false> <label class=md-nav__title for=__nav_4_3_7> <span class="md-nav__icon md-icon"></span> 6. Observability </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/6/ class=md-nav__link> <span class=md-ellipsis> a. Overview </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/6/microservices/ class=md-nav__link> <span class=md-ellipsis> b. Microservices </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/6/docker/ class=md-nav__link> <span class=md-ellipsis> c. Docker Compose </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/6/prometheus/ class=md-nav__link> <span class=md-ellipsis> d. Prometheus </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/6/grafana/ class=md-nav__link> <span class=md-ellipsis> e. Grafana </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/6/run/ class=md-nav__link> <span class=md-ellipsis> f. Run </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/6/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_4_3_8> <label class=md-nav__link for=__nav_4_3_8 id=__nav_4_3_8_label tabindex=0> <span class=md-ellipsis> 7. Load Balancer </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_4_3_8_label aria-expanded=false> <label class=md-nav__title for=__nav_4_3_8> <span class="md-nav__icon md-icon"></span> 7. Load Balancer </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/7/ class=md-nav__link> <span class=md-ellipsis> a. Overview </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/7/nginx/ class=md-nav__link> <span class=md-ellipsis> b. Nginx </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/7/docker/ class=md-nav__link> <span class=md-ellipsis> c. Docker Compose </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/7/run/ class=md-nav__link> <span class=md-ellipsis> d. Run </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/7/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_4_3_9> <label class=md-nav__link for=__nav_4_3_9 id=__nav_4_3_9_label tabindex=0> <span class=md-ellipsis> 8. In-Memory Cache </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_4_3_9_label aria-expanded=false> <label class=md-nav__title for=__nav_4_3_9> <span class="md-nav__icon md-icon"></span> 8. In-Memory Cache </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/8/ class=md-nav__link> <span class=md-ellipsis> a. Overview </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/8/docker/ class=md-nav__link> <span class=md-ellipsis> b. Docker Compose </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/8/spring/ class=md-nav__link> <span class=md-ellipsis> c. Spring Boot </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/8/run/ class=md-nav__link> <span class=md-ellipsis> d. Run </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/hands-on/8/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_4_4> <label class=md-nav__link for=__nav_4_4 id=__nav_4_4_label tabindex=0> <span class=md-ellipsis> Exercises </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=2 aria-labelledby=__nav_4_4_label aria-expanded=false> <label class=md-nav__title for=__nav_4_4> <span class="md-nav__icon md-icon"></span> Exercises </label> <ul class=md-nav__list data-md-scrollfix> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_4_4_1> <label class=md-nav__link for=__nav_4_4_1 id=__nav_4_4_1_label tabindex=0> <span class=md-ellipsis> Project </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_4_4_1_label aria-expanded=false> <label class=md-nav__title for=__nav_4_4_1> <span class="md-nav__icon md-icon"></span> Project </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/exercises/project/ class=md-nav__link> <span class=md-ellipsis> Overview </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/exercises/project/aws/ class=md-nav__link> <span class=md-ellipsis> AWS </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/exercises/project/eks/ class=md-nav__link> <span class=md-ellipsis> EKS </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/exercises/project/ci-cd/ class=md-nav__link> <span class=md-ellipsis> CI/CD </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/exercises/project/load-testing/ class=md-nav__link> <span class=md-ellipsis> Load Testing </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/exercises/project/costs/ class=md-nav__link> <span class=md-ellipsis> Costs &amp; PaaS </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/exercises/project/presentation/ class=md-nav__link> <span class=md-ellipsis> Presentation </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_4_4_2> <label class=md-nav__link for=__nav_4_4_2 id=__nav_4_4_2_label tabindex=0> <span class=md-ellipsis> Individual </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=3 aria-labelledby=__nav_4_4_2_label aria-expanded=false> <label class=md-nav__title for=__nav_4_4_2> <span class="md-nav__icon md-icon"></span> Individual </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../2026.1/exercises/product/ class=md-nav__link> <span class=md-ellipsis> Product API </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/exercises/order/ class=md-nav__link> <span class=md-ellipsis> Order API </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/exercises/exchange/ class=md-nav__link> <span class=md-ellipsis> Exchange API </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/exercises/jenkins/ class=md-nav__link> <span class=md-ellipsis> Jenkins </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/exercises/minikube/ class=md-nav__link> <span class=md-ellipsis> MiniKube </span> </a> </li> <li class=md-nav__item> <a href=../../../../2026.1/exercises/bottlenecks/ class=md-nav__link> <span class=md-ellipsis> Bottlenecks </span> </a> </li> </ul> </nav> </li> </ul> </nav> </li> </ul> </nav> </li> <li class=md-nav__item> <a href=../../../../2025.2/ class=md-nav__link> <span class=md-ellipsis> 2025.2 </span> </a> </li> <li class=md-nav__item> <a href=../../../../2025.1/ class=md-nav__link> <span class=md-ellipsis> 2025.1 </span> </a> </li> <li class=md-nav__item> <a href=../../../../2024.1/ class=md-nav__link> <span class=md-ellipsis> 2024.1 </span> </a> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_8> <label class=md-nav__link for=__nav_8 id=__nav_8_label tabindex=0> <span class=md-ellipsis> Appendix </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=1 aria-labelledby=__nav_8_label aria-expanded=false> <label class=md-nav__title for=__nav_8> <span class="md-nav__icon md-icon"></span> Appendix </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../appendix/ class=md-nav__link> <span class=md-ellipsis> Overview </span> </a> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_8_2> <label class=md-nav__link for=__nav_8_2 id=__nav_8_2_label tabindex=0> <span class=md-ellipsis> Networking </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=2 aria-labelledby=__nav_8_2_label aria-expanded=false> <label class=md-nav__title for=__nav_8_2> <span class="md-nav__icon md-icon"></span> Networking </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../appendix/network/ class=md-nav__link> <span class=md-ellipsis> Overview </span> </a> </li> <li class=md-nav__item> <a href=../../../../appendix/network/addressing/ class=md-nav__link> <span class=md-ellipsis> Addressing &amp; NAT </span> </a> </li> <li class=md-nav__item> <a href=../../../../appendix/network/transport/ class=md-nav__link> <span class=md-ellipsis> Ports, TCP &amp; UDP </span> </a> </li> <li class=md-nav__item> <a href=../../../../appendix/network/dns/ class=md-nav__link> <span class=md-ellipsis> DNS </span> </a> </li> <li class=md-nav__item> <a href=../../../../appendix/network/quiz/ class=md-nav__link> <span class=md-ellipsis> Quiz </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_8_3> <label class=md-nav__link for=__nav_8_3 id=__nav_8_3_label tabindex=0> <span class=md-ellipsis> Security </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=2 aria-labelledby=__nav_8_3_label aria-expanded=false> <label class=md-nav__title for=__nav_8_3> <span class="md-nav__icon md-icon"></span> Security </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../appendix/rsa/ class=md-nav__link> <span class=md-ellipsis> RSA &amp; Ed25519 </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_8_4> <label class=md-nav__link for=__nav_8_4 id=__nav_8_4_label tabindex=0> <span class=md-ellipsis> APIs </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=2 aria-labelledby=__nav_8_4_label aria-expanded=false> <label class=md-nav__title for=__nav_8_4> <span class="md-nav__icon md-icon"></span> APIs </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../appendix/rest-vs-graphql/ class=md-nav__link> <span class=md-ellipsis> REST vs GraphQL </span> </a> </li> <li class=md-nav__item> <a href=../../../../appendix/versioning-rest-apis/ class=md-nav__link> <span class=md-ellipsis> Versioning REST APIs </span> </a> </li> </ul> </nav> </li> <li class="md-nav__item md-nav__item--nested"> <input class="md-nav__toggle md-toggle " type=checkbox id=__nav_8_5> <label class=md-nav__link for=__nav_8_5 id=__nav_8_5_label tabindex=0> <span class=md-ellipsis> Tooling </span> <span class="md-nav__icon md-icon"></span> </label> <nav class=md-nav data-md-level=2 aria-labelledby=__nav_8_5_label aria-expanded=false> <label class=md-nav__title for=__nav_8_5> <span class="md-nav__icon md-icon"></span> Tooling </label> <ul class=md-nav__list data-md-scrollfix> <li class=md-nav__item> <a href=../../../../appendix/development-setup/ class=md-nav__link> <span class=md-ellipsis> Development Setup </span> </a> </li> <li class=md-nav__item> <a href=../../../../appendix/ohmyzsh/ class=md-nav__link> <span class=md-ellipsis> Oh My Zsh </span> </a> </li> <li class=md-nav__item> <a href=../../../../appendix/git-submodules/ class=md-nav__link> <span class=md-ellipsis> Git Submodules </span> </a> </li> <li class=md-nav__item> <a href=../../../../appendix/gitactions/ class=md-nav__link> <span class=md-ellipsis> GitHub Actions </span> </a> </li> </ul> </nav> </li> <li class=md-nav__item> <a href=../../../../appendix/others/ class=md-nav__link> <span class=md-ellipsis> Further Reading </span> </a> </li> </ul> </nav> </li> <li class=md-nav__item> <a href=../../../../terms-and-conditions/ class=md-nav__link> <span class=md-ellipsis> Terms and Conditions </span> </a> </li> <li class=md-nav__item> <a href=../../../../disclaimer/ class=md-nav__link> <span class=md-ellipsis> Disclaimer </span> </a> </li> </ul> </nav> </div> </div> </div> <div class="md-sidebar md-sidebar--secondary" data-md-component=sidebar data-md-type=toc> <div class=md-sidebar__scrollwrap> <input class="md-nav__toggle md-toggle" type=checkbox id=__toc> <div class=md-sidebar-button__wrapper> <label class=md-sidebar-button for=__toc></label> </div> <div class=md-sidebar__inner> <nav class="md-nav md-nav--secondary" aria-label="On this page"> <label class=md-nav__title for=__toc> <span class="md-nav__icon md-icon"></span> On this page </label> <ul class=md-nav__list data-md-component=toc data-md-scrollfix> <li class=md-nav__item> <a href=#why class=md-nav__link> <span class=md-ellipsis> <span class=md-typeset> Why load balance? </span> </span> </a> </li> <li class=md-nav__item> <a href=#l4-l7 class=md-nav__link> <span class=md-ellipsis> <span class=md-typeset> L4 versus L7 </span> </span> </a> </li> <li class=md-nav__item> <a href=#algorithms class=md-nav__link> <span class=md-ellipsis> <span class=md-typeset> Balancing algorithms </span> </span> </a> <nav class=md-nav aria-label="Balancing algorithms"> <ul class=md-nav__list> <li class=md-nav__item> <a href=#p2c class=md-nav__link> <span class=md-ellipsis> <span class=md-typeset> Power of two choices </span> </span> </a> </li> <li class=md-nav__item> <a href=#consistent-hashing class=md-nav__link> <span class=md-ellipsis> <span class=md-typeset> Consistent hashing </span> </span> </a> </li> </ul> </nav> </li> <li class=md-nav__item> <a href=#service-discovery class=md-nav__link> <span class=md-ellipsis> <span class=md-typeset> Service discovery: how the LB knows the replicas </span> </span> </a> </li> <li class=md-nav__item> <a href=#health-checks class=md-nav__link> <span class=md-ellipsis> <span class=md-typeset> Health checks </span> </span> </a> <nav class=md-nav aria-label="Health checks"> <ul class=md-nav__list> <li class=md-nav__item> <a href=#draining class=md-nav__link> <span class=md-ellipsis> <span class=md-typeset> Connection draining </span> </span> </a> </li> </ul> </nav> </li> <li class=md-nav__item> <a href=#sticky-sessions class=md-nav__link> <span class=md-ellipsis> <span class=md-typeset> Sticky sessions </span> </span> </a> </li> <li class=md-nav__item> <a href=#lb-ha class=md-nav__link> <span class=md-ellipsis> <span class=md-typeset> The load balancer must not be the weak point </span> </span> </a> </li> <li class=md-nav__item> <a href=#nginx class=md-nav__link> <span class=md-ellipsis> <span class=md-typeset> A load balancer in practice: Nginx </span> </span> </a> </li> <li class=md-nav__item> <a href=#kubernetes class=md-nav__link> <span class=md-ellipsis> <span class=md-typeset> Load balancing in Kubernetes </span> </span> </a> </li> <li class=md-nav__item> <a href=#trade-offs class=md-nav__link> <span class=md-ellipsis> <span class=md-typeset> Trade-offs at a glance </span> </span> </a> </li> <li class=md-nav__item> <a href=#how-it-connects class=md-nav__link> <span class=md-ellipsis> <span class=md-typeset> How it connects </span> </span> </a> </li> <li class=md-nav__item> <a href=#key-takeaways class=md-nav__link> <span class=md-ellipsis> <span class=md-typeset> Key takeaways </span> </span> </a> </li> </ul> </nav> </div> </div> </div> <div class=md-content data-md-component=content> <article class="md-content__inner md-typeset"> <a id=__skip tabindex=-1></a> <h1>Index</h1> <p>One <code>inventory</code> replica handles, say, 800 holds per second before its latency climbs (an illustrative number — in <a href=../../../hands-on/2/>hands-on 2</a> you measure the real one for <code>catalog</code>). The stadium sale needs 5 000. The answer is obvious — run seven or eight replicas — but it immediately raises the questions this page answers: <strong>who decides which replica gets each request? What happens when one replica dies, or is slow, or is being redeployed? And what if the request needs to land on a specific replica?</strong></p> <p>A <strong>load balancer</strong> (LB) is the component that spreads work across a pool of interchangeable servers — the <strong>backends</strong>, <strong>targets</strong> or <strong>upstreams</strong> — so that the pool behaves like a single, larger and more reliable server<sup id=fnref:1><a class=footnote-ref href=#fn:1>1</a></sup>. It is the <code>lb</code> component of the palette, and, in Kubernetes, the <code>ingress</code> component plays the same role for HTTP traffic entering the cluster.</p> <hr> <h2 id=why>Why load balance?</h2> <p>A load balancer gives you three things at once:</p> <ul> <li><strong>Scalability</strong>: add replicas to handle more traffic (<em>horizontal scaling</em>, or <em>scale-out</em>), instead of buying a bigger machine (<em>vertical scaling</em>, or <em>scale-up</em>).</li> <li><strong>Availability</strong>: when a replica fails its health checks, the LB stops sending it traffic; users do not notice.</li> <li><strong>Operability</strong>: you can drain, replace and upgrade replicas one at a time (rolling deploys), with no downtime.</li> </ul> <p>This only works if the replicas are <strong>interchangeable</strong> — any one of them can serve any request. That is why application servers should be <strong>stateless</strong>: session data, carts and seat holds live in a shared store (Redis, PostgreSQL), not in the memory of one replica. Statelessness is the precondition for everything on this page.</p> <pre class=diagram-sim><code>flowchart LR
+    f([Fans]) --&gt; lb{{Load balancer}}
+    lb --&gt; a1[inventory-1]
+    lb --&gt; a2[inventory-2]
+    lb --&gt; a3[inventory-3]
+    lb -.-&gt;|"health check fails: skipped"| a4["inventory-4 ✗"]
+    a1 --&gt; db[(PostgreSQL)]
+    a2 --&gt; db
+    a3 --&gt; db</code></pre> <hr> <h2 id=l4-l7>L4 versus L7</h2> <p>Load balancers differ in <strong>how much of the traffic they understand</strong>.</p> <p>A <strong>layer-4 (L4)</strong> load balancer works with TCP connections or UDP datagrams. It sees IP addresses and ports, picks a backend when a connection opens, and forwards the bytes of that connection to it. It does not read HTTP: it cannot route by path, it cannot see that one connection carries 1 000 requests, and it does not need to decrypt TLS.</p> <p>A <strong>layer-7 (L7)</strong> load balancer speaks HTTP. It terminates the client's connection, reads each <strong>request</strong> (method, path, headers, cookies), picks a backend per request, and opens (or reuses) its own connection to it. It is a full reverse proxy.</p> <table> <thead> <tr> <th></th> <th>L4 (transport)</th> <th>L7 (application)</th> </tr> </thead> <tbody> <tr> <td>Unit of balancing</td> <td>connection (or packet flow)</td> <td>request</td> </tr> <tr> <td>Sees</td> <td>IPs, ports, TCP/UDP</td> <td>method, path, host, headers, cookies, body</td> </tr> <tr> <td>TLS</td> <td>usually passes through encrypted</td> <td>usually terminates (decrypts)</td> </tr> <tr> <td>Routing by path or host</td> <td>no</td> <td>yes: <code>/api/holds → inventory</code>, <code>/api/orders → order</code></td> </tr> <tr> <td>Retries, header rewrites, caching, compression</td> <td>no</td> <td>yes</td> </tr> <tr> <td>Performance</td> <td>very high (millions of connections, microseconds)</td> <td>high, but more CPU per request</td> </tr> <tr> <td>Long-lived connections (gRPC, HTTP/2, WebSockets)</td> <td>balanced once, at connect time</td> <td>can balance each request/stream</td> </tr> <tr> <td>Examples</td> <td>AWS NLB, GCP passthrough Network LB, Azure Load Balancer, Linux IPVS, HAProxy in TCP mode</td> <td>AWS ALB, GCP Application LB, Azure Application Gateway, Nginx, HAProxy, Envoy, Traefik</td> </tr> </tbody> </table> <p>A common production layout uses <strong>both</strong>: an L4 load balancer (or anycast) at the front for raw capacity and DDoS resilience, spreading connections over a fleet of L7 proxies (Envoy, Nginx) that do TLS, routing and per-request balancing. This is how Google's and Cloudflare's front ends are built.</p> <details class=question> <summary>Think first: the <code>order</code> service calls <code>inventory</code> over gRPC through an L4 load balancer. There are 4 <code>inventory</code> replicas, but one of them receives almost all the traffic. Why?</summary> <p>gRPC runs over HTTP/2, which multiplexes many requests over <strong>one long-lived TCP connection</strong>. An L4 load balancer chooses a backend once per connection, so if <code>order</code> opened one connection (or a few) and keeps it for hours, all its requests go to the same replica. Fixes: an L7 load balancer that balances per request (Envoy, a service mesh), client-side load balancing in the gRPC library, or limiting connection age (<code>max_connection_age</code>) so clients reconnect periodically. More in <a href=../protocols/>Protocols</a>.</p> </details> <hr> <h2 id=algorithms>Balancing algorithms</h2> <p>Once the LB has a list of healthy backends, it needs a rule to pick one. The rule matters most when requests have <strong>different costs</strong> or backends have <strong>different speeds</strong>.</p> <table> <thead> <tr> <th>Algorithm</th> <th>How it picks</th> <th>Strength</th> <th>Weakness</th> </tr> </thead> <tbody> <tr> <td><strong>Round robin</strong></td> <td>next backend in a fixed cycle</td> <td>simple, fair when requests and servers are uniform</td> <td>ignores load: a slow server gets as many requests as a fast one</td> </tr> <tr> <td><strong>Weighted round robin</strong></td> <td>cycle proportional to weights (e.g. 2:1)</td> <td>mixes machine sizes; canaries (5% weight)</td> <td>weights are static</td> </tr> <tr> <td><strong>Random</strong></td> <td>uniform random choice</td> <td>stateless, works across many LB instances</td> <td>short-term imbalance</td> </tr> <tr> <td><strong>Least connections</strong></td> <td>backend with the fewest active connections/requests</td> <td>adapts to slow requests and slow servers</td> <td>needs shared state; misleading with long-lived idle connections</td> </tr> <tr> <td><strong>Least response time / EWMA</strong></td> <td>lowest recent latency (exponentially weighted moving average) × load</td> <td>routes around degraded servers</td> <td>can herd onto a server that just became fast</td> </tr> <tr> <td><strong>Power of two choices (P2C)</strong></td> <td>pick <strong>two</strong> backends at random, send to the less loaded</td> <td>near-optimal balance with almost no coordination</td> <td>needs a load signal (in-flight requests)</td> </tr> <tr> <td><strong>IP hash / source hash</strong></td> <td><code>hash(client IP) mod N</code></td> <td>same client → same backend, no cookie</td> <td>uneven with NATs and proxies; reshuffles when N changes</td> </tr> <tr> <td><strong>Consistent hashing</strong></td> <td><code>hash(key)</code> placed on a ring of backends</td> <td>same key → same backend; adding a node moves only ~1/N keys</td> <td>needs virtual nodes for balance; hot keys stay hot</td> </tr> </tbody> </table> <p>Two of these deserve more attention.</p> <h3 id=p2c>Power of two choices</h3> <p>Choosing the least-loaded backend among <em>all</em> of them sounds ideal, but with many load balancer instances (each with a slightly stale view) they all pick the same "least loaded" server at once and overload it — a <strong>herd</strong>. Picking a backend at random avoids the herd but leaves some servers much busier than others by chance. Mitzenmacher showed that a tiny compromise gets almost the best of both: <strong>sample two backends at random and pick the less loaded one</strong><sup id=fnref:2><a class=footnote-ref href=#fn:2>2</a></sup>. The maximum load drops exponentially compared with pure random choice, and there is no herd, because different LB instances sample different pairs. Envoy, Nginx (<code>random two least_conn</code>), HAProxy and the gRPC libraries implement it; it is the default choice of many modern proxies.</p> <div class=csim data-sim=lb data-algo=rr data-rate=100 data-factor=5></div> <div class="admonition tip"> <p class=admonition-title>Try it</p> <p>The four algorithms route the <strong>same</strong> 100 requests/s to four <code>catalog</code> replicas of about 40 requests/s each; the chart draws the p99 of each one.</p> <ol> <li>Play for 10 s with healthy replicas: all p99s stay low (about 100 ms; random about 200 ms, its short-term imbalance).</li> <li>Switch on <strong>catalog-3 slows down</strong>. Round robin keeps sending it <strong>25%</strong> of the requests, more than its 8/s: after 10 s its queue holds about 180 requests and the p99 reaches about <strong>23 s</strong> — while the p50 stays near 30 ms, because only one request in four waits.</li> <li>Pick <strong>least connections</strong> and then <strong>P2C</strong>: catalog-3's open requests pile up, so it gets only about 7% and 10% of the traffic and the p99 stays around 0.5 s and 0.6 s. That is the "adapts to slow servers" column of the table.</li> <li>Nginx's default in <a href=../../../hands-on/3/>lab 3</a> is round robin; <code>least_conn</code> is the commented line in <code>nginx.conf</code>.</li> </ol> </div> <h3 id=consistent-hashing>Consistent hashing</h3> <p>Sometimes you <em>want</em> the same key to go to the same backend: a cache server that holds a user's data, a WebSocket server that holds a chat room, a shard of a key-value store. The naive way is <code>server = hash(key) mod N</code>. It works until N changes: going from 5 to 6 servers changes the result of <code>mod</code> for <strong>most</strong> keys, so almost every key moves — every cache misses at once.</p> <p><strong>Consistent hashing</strong> (Karger et al., 1997)<sup id=fnref:3><a class=footnote-ref href=#fn:3>3</a></sup> places both servers and keys on a circle of hash values (the <strong>ring</strong>). A key belongs to the first server found walking clockwise from its position.</p> <pre class=diagram-sim><code>flowchart LR
+    A["node A&lt;br/&gt;position 10"] --&gt;|clockwise| B["node B&lt;br/&gt;position 40"]
+    B --&gt;|clockwise| D["new node D&lt;br/&gt;position 55"]
+    D --&gt;|clockwise| C["node C&lt;br/&gt;position 75"]
+    C --&gt;|"clockwise (wraps to 0)"| A
+    k1(["hold:42 → 30"]) -.-&gt;|owner| B
+    k2(["hold:77 → 50"]) -.-&gt;|"owner: was C, now D"| D
+    k3(["hold:91 → 90"]) -.-&gt;|"owner (wraps)"| A</code></pre> <p>In the diagram, positions go from 0 to 99: <code>hold:42</code> hashes to 30 and belongs to B (the first node at or after 30); <code>hold:91</code> hashes to 90 and wraps around to A. When node D joins at position 55, only the keys between 40 and 55 — such as <code>hold:77</code> — move from C to D; nothing else changes. In general, when a server is added, it only takes over the keys between itself and its predecessor — about <strong>1/(N+1)</strong> of them; when one is removed, only its keys move, to its successor.</p> <p>With one point per server, the arcs of the ring have very different lengths, so some servers own much more than their share. The fix is <strong>virtual nodes</strong><sup id=fnref:5><a class=footnote-ref href=#fn:5>5</a></sup>: each physical server is placed on the ring many times (100–200 points, for example), so the arcs average out. Virtual nodes also make it easy to give a bigger machine more points (weights) and, when a server leaves, spread its keys over <em>all</em> the others instead of dumping them on one neighbour.</p> <p>The simulation below hashes 40 000 seat-hold keys onto 5 nodes. On the left, one point per node versus 200 virtual nodes per node; on the right, the fraction of keys that change owner when a 6th node joins:</p> <!--?xml version="1.0" encoding="utf-8" standalone="no"?--> <!doctype svg public "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg xmlns:xlink=http://www.w3.org/1999/xlink width=784.243437pt height=279.915pt viewBox="0 0 784.243437 279.915" xmlns=http://www.w3.org/2000/svg version=1.1> <metadata> <rdf:RDF xmlns:dc=http://purl.org/dc/elements/1.1/ xmlns:cc=http://creativecommons.org/ns# xmlns:rdf=http://www.w3.org/1999/02/22-rdf-syntax-ns#> <cc:Work> <dc:type rdf:resource=http://purl.org/dc/dcmitype/StillImage /> <dc:date>2026-10-30T15:47:40.292190</dc:date> <dc:format>image/svg+xml</dc:format> <dc:creator> <cc:Agent> <dc:title>Matplotlib v3.11.2, https://matplotlib.org/</dc:title> </cc:Agent> </dc:creator> </cc:Work> </rdf:RDF> </metadata> <defs> <style type=text/css>*{stroke-linejoin: round; stroke-linecap: butt}</style> </defs> <g id=figure_1> <g id=patch_1> <path d="M 0 279.915 
+L 784.243437 279.915 
+L 784.243437 0 
+L 0 0 
+L 0 279.915 
+z
+" style="fill: none"/> </g> <g id=axes_1> <g id=patch_2> <path d="M 40.925781 241.709531 
+L 383.203438 241.709531 
+L 383.203438 22.318125 
+L 40.925781 22.318125 
+L 40.925781 241.709531 
+z
+" style="fill: none"/> </g> <g id=patch_3> <path d="M 56.483857 241.709531 
+L 82.413982 241.709531 
+L 82.413982 172.265661 
+L 56.483857 172.265661 
+z
+" clip-path=url(#p6e9b9beca4) style="fill: #e5484d"/> </g> <g id=patch_4> <path d="M 121.30917 241.709531 
+L 147.239296 241.709531 
+L 147.239296 228.369971 
+L 121.30917 228.369971 
+z
+" clip-path=url(#p6e9b9beca4) style="fill: #e5484d"/> </g> <g id=patch_5> <path d="M 186.134484 241.709531 
+L 212.064609 241.709531 
+L 212.064609 32.765335 
+L 186.134484 32.765335 
+z
+" clip-path=url(#p6e9b9beca4) style="fill: #e5484d"/> </g> <g id=patch_6> <path d="M 250.959798 241.709531 
+L 276.889923 241.709531 
+L 276.889923 154.078232 
+L 250.959798 154.078232 
+z
+" clip-path=url(#p6e9b9beca4) style="fill: #e5484d"/> </g> <g id=patch_7> <path d="M 315.785111 241.709531 
+L 341.715237 241.709531 
+L 341.715237 198.596242 
+L 315.785111 198.596242 
+z
+" clip-path=url(#p6e9b9beca4) style="fill: #e5484d"/> </g> <g id=patch_8> <path d="M 82.413982 241.709531 
+L 108.344107 241.709531 
+L 108.344107 164.935768 
+L 82.413982 164.935768 
+z
+" clip-path=url(#p6e9b9beca4) style="fill: #1e9e5a"/> </g> <g id=patch_9> <path d="M 147.239296 241.709531 
+L 173.169421 241.709531 
+L 173.169421 143.484741 
+L 147.239296 143.484741 
+z
+" clip-path=url(#p6e9b9beca4) style="fill: #1e9e5a"/> </g> <g id=patch_10> <path d="M 212.064609 241.709531 
+L 237.994735 241.709531 
+L 237.994735 156.528571 
+L 212.064609 156.528571 
+z
+" clip-path=url(#p6e9b9beca4) style="fill: #1e9e5a"/> </g> <g id=patch_11> <path d="M 276.889923 241.709531 
+L 302.820049 241.709531 
+L 302.820049 166.266555 
+L 276.889923 166.266555 
+z
+" clip-path=url(#p6e9b9beca4) style="fill: #1e9e5a"/> </g> <g id=patch_12> <path d="M 341.715237 241.709531 
+L 367.645362 241.709531 
+L 367.645362 154.859805 
+L 341.715237 154.859805 
+z
+" clip-path=url(#p6e9b9beca4) style="fill: #1e9e5a"/> </g> <g id=matplotlib.axis_1> <g id=xtick_1> <g id=line2d_1> <defs> <path id=m13b9276ad1 d="M 0 0 
+L 0 3.5 
+" style="stroke: #888888; stroke-width: 0.8"/> </defs> <g> <use xlink:href=#m13b9276ad1 x=82.413982 y=241.709531 style="fill: #888888; stroke: #888888; stroke-width: 0.8"/> </g> </g> <g id=text_1> <!-- node1 --> <g style="fill: #888888" transform="translate(66.753826 256.307969) scale(0.1 -0.1)"> <defs> <path id=DejaVuSans-51 d="M 3513 2113 
+L 3513 0 
+L 2938 0 
+L 2938 2094 
+Q 2938 2591 2744 2837 
+Q 2550 3084 2163 3084 
+Q 1697 3084 1428 2787 
+Q 1159 2491 1159 1978 
+L 1159 0 
+L 581 0 
+L 581 3500 
+L 1159 3500 
+L 1159 2956 
+Q 1366 3272 1645 3428 
+Q 1925 3584 2291 3584 
+Q 2894 3584 3203 3211 
+Q 3513 2838 3513 2113 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-52 d="M 1959 3097 
+Q 1497 3097 1228 2736 
+Q 959 2375 959 1747 
+Q 959 1119 1226 758 
+Q 1494 397 1959 397 
+Q 2419 397 2687 759 
+Q 2956 1122 2956 1747 
+Q 2956 2369 2687 2733 
+Q 2419 3097 1959 3097 
+z
+M 1959 3584 
+Q 2709 3584 3137 3096 
+Q 3566 2609 3566 1747 
+Q 3566 888 3137 398 
+Q 2709 -91 1959 -91 
+Q 1206 -91 779 398 
+Q 353 888 353 1747 
+Q 353 2609 779 3096 
+Q 1206 3584 1959 3584 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-47 d="M 2906 2969 
+L 2906 4863 
+L 3481 4863 
+L 3481 0 
+L 2906 0 
+L 2906 525 
+Q 2725 213 2448 61 
+Q 2172 -91 1784 -91 
+Q 1150 -91 751 415 
+Q 353 922 353 1747 
+Q 353 2572 751 3078 
+Q 1150 3584 1784 3584 
+Q 2172 3584 2448 3432 
+Q 2725 3281 2906 2969 
+z
+M 947 1747 
+Q 947 1113 1208 752 
+Q 1469 391 1925 391 
+Q 2381 391 2643 752 
+Q 2906 1113 2906 1747 
+Q 2906 2381 2643 2742 
+Q 2381 3103 1925 3103 
+Q 1469 3103 1208 2742 
+Q 947 2381 947 1747 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-48 d="M 3597 1894 
+L 3597 1613 
+L 953 1613 
+Q 991 1019 1311 708 
+Q 1631 397 2203 397 
+Q 2534 397 2845 478 
+Q 3156 559 3463 722 
+L 3463 178 
+Q 3153 47 2828 -22 
+Q 2503 -91 2169 -91 
+Q 1331 -91 842 396 
+Q 353 884 353 1716 
+Q 353 2575 817 3079 
+Q 1281 3584 2069 3584 
+Q 2775 3584 3186 3129 
+Q 3597 2675 3597 1894 
+z
+M 3022 2063 
+Q 3016 2534 2758 2815 
+Q 2500 3097 2075 3097 
+Q 1594 3097 1305 2825 
+Q 1016 2553 972 2059 
+L 3022 2063 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-14 d="M 794 531 
+L 1825 531 
+L 1825 4091 
+L 703 3866 
+L 703 4441 
+L 1819 4666 
+L 2450 4666 
+L 2450 531 
+L 3481 531 
+L 3481 0 
+L 794 0 
+L 794 531 
+z
+" transform=scale(0.015625) /> </defs> <use xlink:href=#DejaVuSans-51 /> <use xlink:href=#DejaVuSans-52 transform="translate(63.375 0)"/> <use xlink:href=#DejaVuSans-47 transform="translate(124.5625 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(188.046875 0)"/> <use xlink:href=#DejaVuSans-14 transform="translate(249.578125 0)"/> </g> </g> </g> <g id=xtick_2> <g id=line2d_2> <g> <use xlink:href=#m13b9276ad1 x=147.239296 y=241.709531 style="fill: #888888; stroke: #888888; stroke-width: 0.8"/> </g> </g> <g id=text_2> <!-- node2 --> <g style="fill: #888888" transform="translate(131.579139 256.307969) scale(0.1 -0.1)"> <defs> <path id=DejaVuSans-15 d="M 1228 531 
+L 3431 531 
+L 3431 0 
+L 469 0 
+L 469 531 
+Q 828 903 1448 1529 
+Q 2069 2156 2228 2338 
+Q 2531 2678 2651 2914 
+Q 2772 3150 2772 3378 
+Q 2772 3750 2511 3984 
+Q 2250 4219 1831 4219 
+Q 1534 4219 1204 4116 
+Q 875 4013 500 3803 
+L 500 4441 
+Q 881 4594 1212 4672 
+Q 1544 4750 1819 4750 
+Q 2544 4750 2975 4387 
+Q 3406 4025 3406 3419 
+Q 3406 3131 3298 2873 
+Q 3191 2616 2906 2266 
+Q 2828 2175 2409 1742 
+Q 1991 1309 1228 531 
+z
+" transform=scale(0.015625) /> </defs> <use xlink:href=#DejaVuSans-51 /> <use xlink:href=#DejaVuSans-52 transform="translate(63.375 0)"/> <use xlink:href=#DejaVuSans-47 transform="translate(124.5625 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(188.046875 0)"/> <use xlink:href=#DejaVuSans-15 transform="translate(249.578125 0)"/> </g> </g> </g> <g id=xtick_3> <g id=line2d_3> <g> <use xlink:href=#m13b9276ad1 x=212.064609 y=241.709531 style="fill: #888888; stroke: #888888; stroke-width: 0.8"/> </g> </g> <g id=text_3> <!-- node3 --> <g style="fill: #888888" transform="translate(196.404453 256.307969) scale(0.1 -0.1)"> <defs> <path id=DejaVuSans-16 d="M 2597 2516 
+Q 3050 2419 3304 2112 
+Q 3559 1806 3559 1356 
+Q 3559 666 3084 287 
+Q 2609 -91 1734 -91 
+Q 1441 -91 1130 -33 
+Q 819 25 488 141 
+L 488 750 
+Q 750 597 1062 519 
+Q 1375 441 1716 441 
+Q 2309 441 2620 675 
+Q 2931 909 2931 1356 
+Q 2931 1769 2642 2001 
+Q 2353 2234 1838 2234 
+L 1294 2234 
+L 1294 2753 
+L 1863 2753 
+Q 2328 2753 2575 2939 
+Q 2822 3125 2822 3475 
+Q 2822 3834 2567 4026 
+Q 2313 4219 1838 4219 
+Q 1578 4219 1281 4162 
+Q 984 4106 628 3988 
+L 628 4550 
+Q 988 4650 1302 4700 
+Q 1616 4750 1894 4750 
+Q 2613 4750 3031 4423 
+Q 3450 4097 3450 3541 
+Q 3450 3153 3228 2886 
+Q 3006 2619 2597 2516 
+z
+" transform=scale(0.015625) /> </defs> <use xlink:href=#DejaVuSans-51 /> <use xlink:href=#DejaVuSans-52 transform="translate(63.375 0)"/> <use xlink:href=#DejaVuSans-47 transform="translate(124.5625 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(188.046875 0)"/> <use xlink:href=#DejaVuSans-16 transform="translate(249.578125 0)"/> </g> </g> </g> <g id=xtick_4> <g id=line2d_4> <g> <use xlink:href=#m13b9276ad1 x=276.889923 y=241.709531 style="fill: #888888; stroke: #888888; stroke-width: 0.8"/> </g> </g> <g id=text_4> <!-- node4 --> <g style="fill: #888888" transform="translate(261.229767 256.307969) scale(0.1 -0.1)"> <defs> <path id=DejaVuSans-17 d="M 2419 4116 
+L 825 1625 
+L 2419 1625 
+L 2419 4116 
+z
+M 2253 4666 
+L 3047 4666 
+L 3047 1625 
+L 3713 1625 
+L 3713 1100 
+L 3047 1100 
+L 3047 0 
+L 2419 0 
+L 2419 1100 
+L 313 1100 
+L 313 1709 
+L 2253 4666 
+z
+" transform=scale(0.015625) /> </defs> <use xlink:href=#DejaVuSans-51 /> <use xlink:href=#DejaVuSans-52 transform="translate(63.375 0)"/> <use xlink:href=#DejaVuSans-47 transform="translate(124.5625 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(188.046875 0)"/> <use xlink:href=#DejaVuSans-17 transform="translate(249.578125 0)"/> </g> </g> </g> <g id=xtick_5> <g id=line2d_5> <g> <use xlink:href=#m13b9276ad1 x=341.715237 y=241.709531 style="fill: #888888; stroke: #888888; stroke-width: 0.8"/> </g> </g> <g id=text_5> <!-- node5 --> <g style="fill: #888888" transform="translate(326.05508 256.307969) scale(0.1 -0.1)"> <defs> <path id=DejaVuSans-18 d="M 691 4666 
+L 3169 4666 
+L 3169 4134 
+L 1269 4134 
+L 1269 2991 
+Q 1406 3038 1543 3061 
+Q 1681 3084 1819 3084 
+Q 2600 3084 3056 2656 
+Q 3513 2228 3513 1497 
+Q 3513 744 3044 326 
+Q 2575 -91 1722 -91 
+Q 1428 -91 1123 -41 
+Q 819 9 494 109 
+L 494 744 
+Q 775 591 1075 516 
+Q 1375 441 1709 441 
+Q 2250 441 2565 725 
+Q 2881 1009 2881 1497 
+Q 2881 1984 2565 2268 
+Q 2250 2553 1709 2553 
+Q 1456 2553 1204 2497 
+Q 953 2441 691 2322 
+L 691 4666 
+z
+" transform=scale(0.015625) /> </defs> <use xlink:href=#DejaVuSans-51 /> <use xlink:href=#DejaVuSans-52 transform="translate(63.375 0)"/> <use xlink:href=#DejaVuSans-47 transform="translate(124.5625 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(188.046875 0)"/> <use xlink:href=#DejaVuSans-18 transform="translate(249.578125 0)"/> </g> </g> </g> </g> <g id=matplotlib.axis_2> <g id=ytick_1> <g id=line2d_6> <defs> <path id=m8bc543fed8 d="M 0 0 
+L -3.5 0 
+" style="stroke: #888888; stroke-width: 0.8"/> </defs> <g> <use xlink:href=#m8bc543fed8 x=40.925781 y=241.709531 style="fill: #888888; stroke: #888888; stroke-width: 0.8"/> </g> </g> <g id=text_6> <!-- 0 --> <g style="fill: #888888" transform="translate(27.563281 245.508359) scale(0.1 -0.1)"> <defs> <path id=DejaVuSans-13 d="M 2034 4250 
+Q 1547 4250 1301 3770 
+Q 1056 3291 1056 2328 
+Q 1056 1369 1301 889 
+Q 1547 409 2034 409 
+Q 2525 409 2770 889 
+Q 3016 1369 3016 2328 
+Q 3016 3291 2770 3770 
+Q 2525 4250 2034 4250 
+z
+M 2034 4750 
+Q 2819 4750 3233 4129 
+Q 3647 3509 3647 2328 
+Q 3647 1150 3233 529 
+Q 2819 -91 2034 -91 
+Q 1250 -91 836 529 
+Q 422 1150 422 2328 
+Q 422 3509 836 4129 
+Q 1250 4750 2034 4750 
+z
+" transform=scale(0.015625) /> </defs> <use xlink:href=#DejaVuSans-13 /> </g> </g> </g> <g id=ytick_2> <g id=line2d_7> <g> <use xlink:href=#m8bc543fed8 x=40.925781 y=199.46231 style="fill: #888888; stroke: #888888; stroke-width: 0.8"/> </g> </g> <g id=text_7> <!-- 10 --> <g style="fill: #888888" transform="translate(21.200781 203.261138) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-14 /> <use xlink:href=#DejaVuSans-13 transform="translate(63.625 0)"/> </g> </g> </g> <g id=ytick_3> <g id=line2d_8> <g> <use xlink:href=#m8bc543fed8 x=40.925781 y=157.215088 style="fill: #888888; stroke: #888888; stroke-width: 0.8"/> </g> </g> <g id=text_8> <!-- 20 --> <g style="fill: #888888" transform="translate(21.200781 161.013916) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-15 /> <use xlink:href=#DejaVuSans-13 transform="translate(63.625 0)"/> </g> </g> </g> <g id=ytick_4> <g id=line2d_9> <g> <use xlink:href=#m8bc543fed8 x=40.925781 y=114.967866 style="fill: #888888; stroke: #888888; stroke-width: 0.8"/> </g> </g> <g id=text_9> <!-- 30 --> <g style="fill: #888888" transform="translate(21.200781 118.766694) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-16 /> <use xlink:href=#DejaVuSans-13 transform="translate(63.625 0)"/> </g> </g> </g> <g id=ytick_5> <g id=line2d_10> <g> <use xlink:href=#m8bc543fed8 x=40.925781 y=72.720645 style="fill: #888888; stroke: #888888; stroke-width: 0.8"/> </g> </g> <g id=text_10> <!-- 40 --> <g style="fill: #888888" transform="translate(21.200781 76.519473) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-17 /> <use xlink:href=#DejaVuSans-13 transform="translate(63.625 0)"/> </g> </g> </g> <g id=ytick_6> <g id=line2d_11> <g> <use xlink:href=#m8bc543fed8 x=40.925781 y=30.473423 style="fill: #888888; stroke: #888888; stroke-width: 0.8"/> </g> </g> <g id=text_11> <!-- 50 --> <g style="fill: #888888" transform="translate(21.200781 34.272251) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-18 /> <use xlink:href=#DejaVuSans-13 transform="translate(63.625 0)"/> </g> </g> </g> <g id=text_12> <!-- share of keys (%) --> <g style="fill: #888888" transform="translate(14.798438 175.470078) rotate(-90) scale(0.1 -0.1)"> <defs> <path id=DejaVuSans-56 d="M 2834 3397 
+L 2834 2853 
+Q 2591 2978 2328 3040 
+Q 2066 3103 1784 3103 
+Q 1356 3103 1142 2972 
+Q 928 2841 928 2578 
+Q 928 2378 1081 2264 
+Q 1234 2150 1697 2047 
+L 1894 2003 
+Q 2506 1872 2764 1633 
+Q 3022 1394 3022 966 
+Q 3022 478 2636 193 
+Q 2250 -91 1575 -91 
+Q 1294 -91 989 -36 
+Q 684 19 347 128 
+L 347 722 
+Q 666 556 975 473 
+Q 1284 391 1588 391 
+Q 1994 391 2212 530 
+Q 2431 669 2431 922 
+Q 2431 1156 2273 1281 
+Q 2116 1406 1581 1522 
+L 1381 1569 
+Q 847 1681 609 1914 
+Q 372 2147 372 2553 
+Q 372 3047 722 3315 
+Q 1072 3584 1716 3584 
+Q 2034 3584 2315 3537 
+Q 2597 3491 2834 3397 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-4b d="M 3513 2113 
+L 3513 0 
+L 2938 0 
+L 2938 2094 
+Q 2938 2591 2744 2837 
+Q 2550 3084 2163 3084 
+Q 1697 3084 1428 2787 
+Q 1159 2491 1159 1978 
+L 1159 0 
+L 581 0 
+L 581 4863 
+L 1159 4863 
+L 1159 2956 
+Q 1366 3272 1645 3428 
+Q 1925 3584 2291 3584 
+Q 2894 3584 3203 3211 
+Q 3513 2838 3513 2113 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-44 d="M 2194 1759 
+Q 1497 1759 1228 1600 
+Q 959 1441 959 1056 
+Q 959 750 1161 570 
+Q 1363 391 1709 391 
+Q 2188 391 2477 730 
+Q 2766 1069 2766 1631 
+L 2766 1759 
+L 2194 1759 
+z
+M 3341 1997 
+L 3341 0 
+L 2766 0 
+L 2766 531 
+Q 2569 213 2275 61 
+Q 1981 -91 1556 -91 
+Q 1019 -91 701 211 
+Q 384 513 384 1019 
+Q 384 1609 779 1909 
+Q 1175 2209 1959 2209 
+L 2766 2209 
+L 2766 2266 
+Q 2766 2663 2505 2880 
+Q 2244 3097 1772 3097 
+Q 1472 3097 1187 3025 
+Q 903 2953 641 2809 
+L 641 3341 
+Q 956 3463 1253 3523 
+Q 1550 3584 1831 3584 
+Q 2591 3584 2966 3190 
+Q 3341 2797 3341 1997 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-55 d="M 2631 2963 
+Q 2534 3019 2420 3045 
+Q 2306 3072 2169 3072 
+Q 1681 3072 1420 2755 
+Q 1159 2438 1159 1844 
+L 1159 0 
+L 581 0 
+L 581 3500 
+L 1159 3500 
+L 1159 2956 
+Q 1341 3275 1631 3429 
+Q 1922 3584 2338 3584 
+Q 2397 3584 2469 3576 
+Q 2541 3569 2628 3553 
+L 2631 2963 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-3 transform=scale(0.015625) /> <path id=DejaVuSans-49 d="M 2375 4863 
+L 2375 4384 
+L 1825 4384 
+Q 1516 4384 1395 4259 
+Q 1275 4134 1275 3809 
+L 1275 3500 
+L 2222 3500 
+L 2222 3053 
+L 1275 3053 
+L 1275 0 
+L 697 0 
+L 697 3053 
+L 147 3053 
+L 147 3500 
+L 697 3500 
+L 697 3744 
+Q 697 4328 969 4595 
+Q 1241 4863 1831 4863 
+L 2375 4863 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-4e d="M 581 4863 
+L 1159 4863 
+L 1159 1991 
+L 2875 3500 
+L 3609 3500 
+L 1753 1863 
+L 3688 0 
+L 2938 0 
+L 1159 1709 
+L 1159 0 
+L 581 0 
+L 581 4863 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-5c d="M 2059 -325 
+Q 1816 -950 1584 -1140 
+Q 1353 -1331 966 -1331 
+L 506 -1331 
+L 506 -850 
+L 844 -850 
+Q 1081 -850 1212 -737 
+Q 1344 -625 1503 -206 
+L 1606 56 
+L 191 3500 
+L 800 3500 
+L 1894 763 
+L 2988 3500 
+L 3597 3500 
+L 2059 -325 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-b d="M 1984 4856 
+Q 1566 4138 1362 3434 
+Q 1159 2731 1159 2009 
+Q 1159 1288 1364 580 
+Q 1569 -128 1984 -844 
+L 1484 -844 
+Q 1016 -109 783 600 
+Q 550 1309 550 2009 
+Q 550 2706 781 3412 
+Q 1013 4119 1484 4856 
+L 1984 4856 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-8 d="M 4653 2053 
+Q 4381 2053 4226 1822 
+Q 4072 1591 4072 1178 
+Q 4072 772 4226 539 
+Q 4381 306 4653 306 
+Q 4919 306 5073 539 
+Q 5228 772 5228 1178 
+Q 5228 1588 5073 1820 
+Q 4919 2053 4653 2053 
+z
+M 4653 2450 
+Q 5147 2450 5437 2106 
+Q 5728 1763 5728 1178 
+Q 5728 594 5436 251 
+Q 5144 -91 4653 -91 
+Q 4153 -91 3862 251 
+Q 3572 594 3572 1178 
+Q 3572 1766 3864 2108 
+Q 4156 2450 4653 2450 
+z
+M 1428 4353 
+Q 1159 4353 1004 4120 
+Q 850 3888 850 3481 
+Q 850 3069 1003 2837 
+Q 1156 2606 1428 2606 
+Q 1700 2606 1854 2837 
+Q 2009 3069 2009 3481 
+Q 2009 3884 1853 4118 
+Q 1697 4353 1428 4353 
+z
+M 4250 4750 
+L 4750 4750 
+L 1831 -91 
+L 1331 -91 
+L 4250 4750 
+z
+M 1428 4750 
+Q 1922 4750 2215 4408 
+Q 2509 4066 2509 3481 
+Q 2509 2891 2217 2550 
+Q 1925 2209 1428 2209 
+Q 931 2209 642 2551 
+Q 353 2894 353 3481 
+Q 353 4063 643 4406 
+Q 934 4750 1428 4750 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-c d="M 513 4856 
+L 1013 4856 
+Q 1481 4119 1714 3412 
+Q 1947 2706 1947 2009 
+Q 1947 1309 1714 600 
+Q 1481 -109 1013 -844 
+L 513 -844 
+Q 928 -128 1133 580 
+Q 1338 1288 1338 2009 
+Q 1338 2731 1133 3434 
+Q 928 4138 513 4856 
+z
+" transform=scale(0.015625) /> </defs> <use xlink:href=#DejaVuSans-56 /> <use xlink:href=#DejaVuSans-4b transform="translate(52.09375 0)"/> <use xlink:href=#DejaVuSans-44 transform="translate(115.46875 0)"/> <use xlink:href=#DejaVuSans-55 transform="translate(176.75 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(215.65625 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(277.1875 0)"/> <use xlink:href=#DejaVuSans-52 transform="translate(308.96875 0)"/> <use xlink:href=#DejaVuSans-49 transform="translate(370.15625 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(405.359375 0)"/> <use xlink:href=#DejaVuSans-4e transform="translate(437.140625 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(491.484375 0)"/> <use xlink:href=#DejaVuSans-5c transform="translate(553.015625 0)"/> <use xlink:href=#DejaVuSans-56 transform="translate(612.203125 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(664.296875 0)"/> <use xlink:href=#DejaVuSans-b transform="translate(696.078125 0)"/> <use xlink:href=#DejaVuSans-8 transform="translate(735.09375 0)"/> <use xlink:href=#DejaVuSans-c transform="translate(830.109375 0)"/> </g> </g> </g> <g id=line2d_12> <path d="M 40.925781 157.215088 
+L 383.203438 157.215088 
+" clip-path=url(#p6e9b9beca4) style="fill: none; stroke-dasharray: 3.7,1.6; stroke-dashoffset: 0; stroke: #888888"/> </g> <g id=patch_13> <path d="M 40.925781 241.709531 
+L 40.925781 22.318125 
+" style="fill: none; stroke: #888888; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/> </g> <g id=patch_14> <path d="M 383.203438 241.709531 
+L 383.203438 22.318125 
+" style="fill: none; stroke: #888888; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/> </g> <g id=patch_15> <path d="M 40.925781 241.709531 
+L 383.203438 241.709531 
+" style="fill: none; stroke: #888888; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/> </g> <g id=patch_16> <path d="M 40.925781 22.318125 
+L 383.203438 22.318125 
+" style="fill: none; stroke: #888888; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/> </g> <g id=text_13> <!-- 5 nodes: ideal share is 20% --> <g style="fill: #888888" transform="translate(129.319922 16.318125) scale(0.12 -0.12)"> <defs> <path id=DejaVuSans-1d d="M 750 794 
+L 1409 794 
+L 1409 0 
+L 750 0 
+L 750 794 
+z
+M 750 3309 
+L 1409 3309 
+L 1409 2516 
+L 750 2516 
+L 750 3309 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-4c d="M 603 3500 
+L 1178 3500 
+L 1178 0 
+L 603 0 
+L 603 3500 
+z
+M 603 4863 
+L 1178 4863 
+L 1178 4134 
+L 603 4134 
+L 603 4863 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-4f d="M 603 4863 
+L 1178 4863 
+L 1178 0 
+L 603 0 
+L 603 4863 
+z
+" transform=scale(0.015625) /> </defs> <use xlink:href=#DejaVuSans-18 /> <use xlink:href=#DejaVuSans-3 transform="translate(63.625 0)"/> <use xlink:href=#DejaVuSans-51 transform="translate(95.40625 0)"/> <use xlink:href=#DejaVuSans-52 transform="translate(158.78125 0)"/> <use xlink:href=#DejaVuSans-47 transform="translate(219.96875 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(283.453125 0)"/> <use xlink:href=#DejaVuSans-56 transform="translate(344.984375 0)"/> <use xlink:href=#DejaVuSans-1d transform="translate(397.078125 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(430.765625 0)"/> <use xlink:href=#DejaVuSans-4c transform="translate(462.546875 0)"/> <use xlink:href=#DejaVuSans-47 transform="translate(490.328125 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(553.8125 0)"/> <use xlink:href=#DejaVuSans-44 transform="translate(615.34375 0)"/> <use xlink:href=#DejaVuSans-4f transform="translate(676.625 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(704.40625 0)"/> <use xlink:href=#DejaVuSans-56 transform="translate(736.1875 0)"/> <use xlink:href=#DejaVuSans-4b transform="translate(788.28125 0)"/> <use xlink:href=#DejaVuSans-44 transform="translate(851.65625 0)"/> <use xlink:href=#DejaVuSans-55 transform="translate(912.9375 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(951.84375 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(1013.375 0)"/> <use xlink:href=#DejaVuSans-4c transform="translate(1045.15625 0)"/> <use xlink:href=#DejaVuSans-56 transform="translate(1072.9375 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(1125.03125 0)"/> <use xlink:href=#DejaVuSans-15 transform="translate(1156.8125 0)"/> <use xlink:href=#DejaVuSans-13 transform="translate(1220.4375 0)"/> <use xlink:href=#DejaVuSans-8 transform="translate(1284.0625 0)"/> </g> </g> <g id=legend_1> <g id=patch_17> <path d="M 220.098438 35.596875 
+L 236.098438 35.596875 
+L 236.098438 29.996875 
+L 220.098438 29.996875 
+z
+" style="fill: #e5484d"/> </g> <g id=text_14> <!-- 1 point(s) per node (max 49%) --> <g style="fill: #888888" transform="translate(242.498438 35.596875) scale(0.08 -0.08)"> <defs> <path id=DejaVuSans-53 d="M 1159 525 
+L 1159 -1331 
+L 581 -1331 
+L 581 3500 
+L 1159 3500 
+L 1159 2969 
+Q 1341 3281 1617 3432 
+Q 1894 3584 2278 3584 
+Q 2916 3584 3314 3078 
+Q 3713 2572 3713 1747 
+Q 3713 922 3314 415 
+Q 2916 -91 2278 -91 
+Q 1894 -91 1617 61 
+Q 1341 213 1159 525 
+z
+M 3116 1747 
+Q 3116 2381 2855 2742 
+Q 2594 3103 2138 3103 
+Q 1681 3103 1420 2742 
+Q 1159 2381 1159 1747 
+Q 1159 1113 1420 752 
+Q 1681 391 2138 391 
+Q 2594 391 2855 752 
+Q 3116 1113 3116 1747 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-57 d="M 1172 4494 
+L 1172 3500 
+L 2356 3500 
+L 2356 3053 
+L 1172 3053 
+L 1172 1153 
+Q 1172 725 1289 603 
+Q 1406 481 1766 481 
+L 2356 481 
+L 2356 0 
+L 1766 0 
+Q 1100 0 847 248 
+Q 594 497 594 1153 
+L 594 3053 
+L 172 3053 
+L 172 3500 
+L 594 3500 
+L 594 4494 
+L 1172 4494 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-50 d="M 3328 2828 
+Q 3544 3216 3844 3400 
+Q 4144 3584 4550 3584 
+Q 5097 3584 5394 3201 
+Q 5691 2819 5691 2113 
+L 5691 0 
+L 5113 0 
+L 5113 2094 
+Q 5113 2597 4934 2840 
+Q 4756 3084 4391 3084 
+Q 3944 3084 3684 2787 
+Q 3425 2491 3425 1978 
+L 3425 0 
+L 2847 0 
+L 2847 2094 
+Q 2847 2600 2669 2842 
+Q 2491 3084 2119 3084 
+Q 1678 3084 1418 2786 
+Q 1159 2488 1159 1978 
+L 1159 0 
+L 581 0 
+L 581 3500 
+L 1159 3500 
+L 1159 2956 
+Q 1356 3278 1631 3431 
+Q 1906 3584 2284 3584 
+Q 2666 3584 2933 3390 
+Q 3200 3197 3328 2828 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-5b d="M 3513 3500 
+L 2247 1797 
+L 3578 0 
+L 2900 0 
+L 1881 1375 
+L 863 0 
+L 184 0 
+L 1544 1831 
+L 300 3500 
+L 978 3500 
+L 1906 2253 
+L 2834 3500 
+L 3513 3500 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-1c d="M 703 97 
+L 703 672 
+Q 941 559 1184 500 
+Q 1428 441 1663 441 
+Q 2288 441 2617 861 
+Q 2947 1281 2994 2138 
+Q 2813 1869 2534 1725 
+Q 2256 1581 1919 1581 
+Q 1219 1581 811 2004 
+Q 403 2428 403 3163 
+Q 403 3881 828 4315 
+Q 1253 4750 1959 4750 
+Q 2769 4750 3195 4129 
+Q 3622 3509 3622 2328 
+Q 3622 1225 3098 567 
+Q 2575 -91 1691 -91 
+Q 1453 -91 1209 -44 
+Q 966 3 703 97 
+z
+M 1959 2075 
+Q 2384 2075 2632 2365 
+Q 2881 2656 2881 3163 
+Q 2881 3666 2632 3958 
+Q 2384 4250 1959 4250 
+Q 1534 4250 1286 3958 
+Q 1038 3666 1038 3163 
+Q 1038 2656 1286 2365 
+Q 1534 2075 1959 2075 
+z
+" transform=scale(0.015625) /> </defs> <use xlink:href=#DejaVuSans-14 /> <use xlink:href=#DejaVuSans-3 transform="translate(63.625 0)"/> <use xlink:href=#DejaVuSans-53 transform="translate(95.40625 0)"/> <use xlink:href=#DejaVuSans-52 transform="translate(158.890625 0)"/> <use xlink:href=#DejaVuSans-4c transform="translate(220.078125 0)"/> <use xlink:href=#DejaVuSans-51 transform="translate(247.859375 0)"/> <use xlink:href=#DejaVuSans-57 transform="translate(311.234375 0)"/> <use xlink:href=#DejaVuSans-b transform="translate(350.4375 0)"/> <use xlink:href=#DejaVuSans-56 transform="translate(389.453125 0)"/> <use xlink:href=#DejaVuSans-c transform="translate(441.546875 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(480.5625 0)"/> <use xlink:href=#DejaVuSans-53 transform="translate(512.34375 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(575.828125 0)"/> <use xlink:href=#DejaVuSans-55 transform="translate(637.359375 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(678.46875 0)"/> <use xlink:href=#DejaVuSans-51 transform="translate(710.25 0)"/> <use xlink:href=#DejaVuSans-52 transform="translate(773.625 0)"/> <use xlink:href=#DejaVuSans-47 transform="translate(834.8125 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(898.296875 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(959.828125 0)"/> <use xlink:href=#DejaVuSans-b transform="translate(991.609375 0)"/> <use xlink:href=#DejaVuSans-50 transform="translate(1030.625 0)"/> <use xlink:href=#DejaVuSans-44 transform="translate(1128.03125 0)"/> <use xlink:href=#DejaVuSans-5b transform="translate(1189.3125 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(1248.5 0)"/> <use xlink:href=#DejaVuSans-17 transform="translate(1280.28125 0)"/> <use xlink:href=#DejaVuSans-1c transform="translate(1343.90625 0)"/> <use xlink:href=#DejaVuSans-8 transform="translate(1407.53125 0)"/> <use xlink:href=#DejaVuSans-c transform="translate(1502.546875 0)"/> </g> </g> <g id=patch_18> <path d="M 220.098438 47.5975 
+L 236.098438 47.5975 
+L 236.098438 41.9975 
+L 220.098438 41.9975 
+z
+" style="fill: #1e9e5a"/> </g> <g id=text_15> <!-- 200 point(s) per node (max 23%) --> <g style="fill: #888888" transform="translate(242.498438 47.5975) scale(0.08 -0.08)"> <use xlink:href=#DejaVuSans-15 /> <use xlink:href=#DejaVuSans-13 transform="translate(63.625 0)"/> <use xlink:href=#DejaVuSans-13 transform="translate(127.25 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(190.875 0)"/> <use xlink:href=#DejaVuSans-53 transform="translate(222.65625 0)"/> <use xlink:href=#DejaVuSans-52 transform="translate(286.140625 0)"/> <use xlink:href=#DejaVuSans-4c transform="translate(347.328125 0)"/> <use xlink:href=#DejaVuSans-51 transform="translate(375.109375 0)"/> <use xlink:href=#DejaVuSans-57 transform="translate(438.484375 0)"/> <use xlink:href=#DejaVuSans-b transform="translate(477.6875 0)"/> <use xlink:href=#DejaVuSans-56 transform="translate(516.703125 0)"/> <use xlink:href=#DejaVuSans-c transform="translate(568.796875 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(607.8125 0)"/> <use xlink:href=#DejaVuSans-53 transform="translate(639.59375 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(703.078125 0)"/> <use xlink:href=#DejaVuSans-55 transform="translate(764.609375 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(805.71875 0)"/> <use xlink:href=#DejaVuSans-51 transform="translate(837.5 0)"/> <use xlink:href=#DejaVuSans-52 transform="translate(900.875 0)"/> <use xlink:href=#DejaVuSans-47 transform="translate(962.0625 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(1025.546875 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(1087.078125 0)"/> <use xlink:href=#DejaVuSans-b transform="translate(1118.859375 0)"/> <use xlink:href=#DejaVuSans-50 transform="translate(1157.875 0)"/> <use xlink:href=#DejaVuSans-44 transform="translate(1255.28125 0)"/> <use xlink:href=#DejaVuSans-5b transform="translate(1316.5625 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(1375.75 0)"/> <use xlink:href=#DejaVuSans-15 transform="translate(1407.53125 0)"/> <use xlink:href=#DejaVuSans-16 transform="translate(1471.15625 0)"/> <use xlink:href=#DejaVuSans-8 transform="translate(1534.78125 0)"/> <use xlink:href=#DejaVuSans-c transform="translate(1629.796875 0)"/> </g> </g> </g> </g> <g id=axes_2> <g id=patch_19> <path d="M 434.765781 241.709531 
+L 777.043437 241.709531 
+L 777.043437 22.318125 
+L 434.765781 22.318125 
+L 434.765781 241.709531 
+z
+" style="fill: none"/> </g> <g id=patch_20> <path d="M 450.323857 241.709531 
+L 539.227144 241.709531 
+L 539.227144 58.912612 
+L 450.323857 58.912612 
+z
+" clip-path=url(#pd71131abda) style="fill: #e5484d"/> </g> <g id=patch_21> <path d="M 561.452966 241.709531 
+L 650.356253 241.709531 
+L 650.356253 204.818866 
+L 561.452966 204.818866 
+z
+" clip-path=url(#pd71131abda) style="fill: #2f6fed"/> </g> <g id=patch_22> <path d="M 672.582075 241.709531 
+L 761.485362 241.709531 
+L 761.485362 205.144297 
+L 672.582075 205.144297 
+z
+" clip-path=url(#pd71131abda) style="fill: #888888"/> </g> <g id=matplotlib.axis_3> <g id=xtick_6> <g id=line2d_13> <g> <use xlink:href=#m13b9276ad1 x=494.7755 y=241.709531 style="fill: #888888; stroke: #888888; stroke-width: 0.8"/> </g> </g> <g id=text_16> <!-- hash mod N --> <g style="fill: #888888" transform="translate(464.746594 256.307969) scale(0.1 -0.1)"> <defs> <path id=DejaVuSans-31 d="M 628 4666 
+L 1478 4666 
+L 3547 763 
+L 3547 4666 
+L 4159 4666 
+L 4159 0 
+L 3309 0 
+L 1241 3903 
+L 1241 0 
+L 628 0 
+L 628 4666 
+z
+" transform=scale(0.015625) /> </defs> <use xlink:href=#DejaVuSans-4b /> <use xlink:href=#DejaVuSans-44 transform="translate(63.375 0)"/> <use xlink:href=#DejaVuSans-56 transform="translate(124.65625 0)"/> <use xlink:href=#DejaVuSans-4b transform="translate(176.75 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(240.125 0)"/> <use xlink:href=#DejaVuSans-50 transform="translate(271.90625 0)"/> <use xlink:href=#DejaVuSans-52 transform="translate(369.3125 0)"/> <use xlink:href=#DejaVuSans-47 transform="translate(430.5 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(493.984375 0)"/> <use xlink:href=#DejaVuSans-31 transform="translate(525.765625 0)"/> </g> </g> </g> <g id=xtick_7> <g id=line2d_14> <g> <use xlink:href=#m13b9276ad1 x=605.904609 y=241.709531 style="fill: #888888; stroke: #888888; stroke-width: 0.8"/> </g> </g> <g id=text_17> <!-- consistent --> <g style="fill: #888888" transform="translate(580.163203 257.308945) scale(0.1 -0.1)"> <defs> <path id=DejaVuSans-46 d="M 3122 3366 
+L 3122 2828 
+Q 2878 2963 2633 3030 
+Q 2388 3097 2138 3097 
+Q 1578 3097 1268 2742 
+Q 959 2388 959 1747 
+Q 959 1106 1268 751 
+Q 1578 397 2138 397 
+Q 2388 397 2633 464 
+Q 2878 531 3122 666 
+L 3122 134 
+Q 2881 22 2623 -34 
+Q 2366 -91 2075 -91 
+Q 1284 -91 818 406 
+Q 353 903 353 1747 
+Q 353 2603 823 3093 
+Q 1294 3584 2113 3584 
+Q 2378 3584 2631 3529 
+Q 2884 3475 3122 3366 
+z
+" transform=scale(0.015625) /> </defs> <use xlink:href=#DejaVuSans-46 /> <use xlink:href=#DejaVuSans-52 transform="translate(54.984375 0)"/> <use xlink:href=#DejaVuSans-51 transform="translate(116.171875 0)"/> <use xlink:href=#DejaVuSans-56 transform="translate(179.546875 0)"/> <use xlink:href=#DejaVuSans-4c transform="translate(231.640625 0)"/> <use xlink:href=#DejaVuSans-56 transform="translate(259.421875 0)"/> <use xlink:href=#DejaVuSans-57 transform="translate(311.515625 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(350.71875 0)"/> <use xlink:href=#DejaVuSans-51 transform="translate(412.25 0)"/> <use xlink:href=#DejaVuSans-57 transform="translate(475.625 0)"/> </g> <!-- hashing --> <g style="fill: #888888" transform="translate(586.166328 269.31168) scale(0.1 -0.1)"> <defs> <path id=DejaVuSans-4a d="M 2906 1791 
+Q 2906 2416 2648 2759 
+Q 2391 3103 1925 3103 
+Q 1463 3103 1205 2759 
+Q 947 2416 947 1791 
+Q 947 1169 1205 825 
+Q 1463 481 1925 481 
+Q 2391 481 2648 825 
+Q 2906 1169 2906 1791 
+z
+M 3481 434 
+Q 3481 -459 3084 -895 
+Q 2688 -1331 1869 -1331 
+Q 1566 -1331 1297 -1286 
+Q 1028 -1241 775 -1147 
+L 775 -588 
+Q 1028 -725 1275 -790 
+Q 1522 -856 1778 -856 
+Q 2344 -856 2625 -561 
+Q 2906 -266 2906 331 
+L 2906 616 
+Q 2728 306 2450 153 
+Q 2172 0 1784 0 
+Q 1141 0 747 490 
+Q 353 981 353 1791 
+Q 353 2603 747 3093 
+Q 1141 3584 1784 3584 
+Q 2172 3584 2450 3431 
+Q 2728 3278 2906 2969 
+L 2906 3500 
+L 3481 3500 
+L 3481 434 
+z
+" transform=scale(0.015625) /> </defs> <use xlink:href=#DejaVuSans-4b /> <use xlink:href=#DejaVuSans-44 transform="translate(63.375 0)"/> <use xlink:href=#DejaVuSans-56 transform="translate(124.65625 0)"/> <use xlink:href=#DejaVuSans-4b transform="translate(176.75 0)"/> <use xlink:href=#DejaVuSans-4c transform="translate(240.125 0)"/> <use xlink:href=#DejaVuSans-51 transform="translate(267.90625 0)"/> <use xlink:href=#DejaVuSans-4a transform="translate(331.28125 0)"/> </g> </g> </g> <g id=xtick_8> <g id=line2d_15> <g> <use xlink:href=#m13b9276ad1 x=717.033719 y=241.709531 style="fill: #888888; stroke: #888888; stroke-width: 0.8"/> </g> </g> <g id=text_18> <!-- ideal --> <g style="fill: #888888" transform="translate(704.94075 257.308945) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-4c /> <use xlink:href=#DejaVuSans-47 transform="translate(27.78125 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(91.265625 0)"/> <use xlink:href=#DejaVuSans-44 transform="translate(152.796875 0)"/> <use xlink:href=#DejaVuSans-4f transform="translate(214.078125 0)"/> </g> <!-- 1/(N+1) --> <g style="fill: #888888" transform="translate(697.154812 269.310898) scale(0.1 -0.1)"> <defs> <path id=DejaVuSans-12 d="M 1625 4666 
+L 2156 4666 
+L 531 -594 
+L 0 -594 
+L 1625 4666 
+z
+" transform=scale(0.015625) /> <path id=DejaVuSans-e d="M 2944 4013 
+L 2944 2272 
+L 4684 2272 
+L 4684 1741 
+L 2944 1741 
+L 2944 0 
+L 2419 0 
+L 2419 1741 
+L 678 1741 
+L 678 2272 
+L 2419 2272 
+L 2419 4013 
+L 2944 4013 
+z
+" transform=scale(0.015625) /> </defs> <use xlink:href=#DejaVuSans-14 /> <use xlink:href=#DejaVuSans-12 transform="translate(63.625 0)"/> <use xlink:href=#DejaVuSans-b transform="translate(97.3125 0)"/> <use xlink:href=#DejaVuSans-31 transform="translate(136.328125 0)"/> <use xlink:href=#DejaVuSans-e transform="translate(211.140625 0)"/> <use xlink:href=#DejaVuSans-14 transform="translate(294.9375 0)"/> <use xlink:href=#DejaVuSans-c transform="translate(358.5625 0)"/> </g> </g> </g> </g> <g id=matplotlib.axis_4> <g id=ytick_7> <g id=line2d_16> <g> <use xlink:href=#m8bc543fed8 x=434.765781 y=241.709531 style="fill: #888888; stroke: #888888; stroke-width: 0.8"/> </g> </g> <g id=text_19> <!-- 0 --> <g style="fill: #888888" transform="translate(421.403281 245.508359) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-13 /> </g> </g> </g> <g id=ytick_8> <g id=line2d_17> <g> <use xlink:href=#m8bc543fed8 x=434.765781 y=197.83125 style="fill: #888888; stroke: #888888; stroke-width: 0.8"/> </g> </g> <g id=text_20> <!-- 20 --> <g style="fill: #888888" transform="translate(415.040781 201.630078) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-15 /> <use xlink:href=#DejaVuSans-13 transform="translate(63.625 0)"/> </g> </g> </g> <g id=ytick_9> <g id=line2d_18> <g> <use xlink:href=#m8bc543fed8 x=434.765781 y=153.952969 style="fill: #888888; stroke: #888888; stroke-width: 0.8"/> </g> </g> <g id=text_21> <!-- 40 --> <g style="fill: #888888" transform="translate(415.040781 157.751797) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-17 /> <use xlink:href=#DejaVuSans-13 transform="translate(63.625 0)"/> </g> </g> </g> <g id=ytick_10> <g id=line2d_19> <g> <use xlink:href=#m8bc543fed8 x=434.765781 y=110.074688 style="fill: #888888; stroke: #888888; stroke-width: 0.8"/> </g> </g> <g id=text_22> <!-- 60 --> <g style="fill: #888888" transform="translate(415.040781 113.873516) scale(0.1 -0.1)"> <defs> <path id=DejaVuSans-19 d="M 2113 2584 
+Q 1688 2584 1439 2293 
+Q 1191 2003 1191 1497 
+Q 1191 994 1439 701 
+Q 1688 409 2113 409 
+Q 2538 409 2786 701 
+Q 3034 994 3034 1497 
+Q 3034 2003 2786 2293 
+Q 2538 2584 2113 2584 
+z
+M 3366 4563 
+L 3366 3988 
+Q 3128 4100 2886 4159 
+Q 2644 4219 2406 4219 
+Q 1781 4219 1451 3797 
+Q 1122 3375 1075 2522 
+Q 1259 2794 1537 2939 
+Q 1816 3084 2150 3084 
+Q 2853 3084 3261 2657 
+Q 3669 2231 3669 1497 
+Q 3669 778 3244 343 
+Q 2819 -91 2113 -91 
+Q 1303 -91 875 529 
+Q 447 1150 447 2328 
+Q 447 3434 972 4092 
+Q 1497 4750 2381 4750 
+Q 2619 4750 2861 4703 
+Q 3103 4656 3366 4563 
+z
+" transform=scale(0.015625) /> </defs> <use xlink:href=#DejaVuSans-19 /> <use xlink:href=#DejaVuSans-13 transform="translate(63.625 0)"/> </g> </g> </g> <g id=ytick_11> <g id=line2d_20> <g> <use xlink:href=#m8bc543fed8 x=434.765781 y=66.196406 style="fill: #888888; stroke: #888888; stroke-width: 0.8"/> </g> </g> <g id=text_23> <!-- 80 --> <g style="fill: #888888" transform="translate(415.040781 69.995234) scale(0.1 -0.1)"> <defs> <path id=DejaVuSans-1b d="M 2034 2216 
+Q 1584 2216 1326 1975 
+Q 1069 1734 1069 1313 
+Q 1069 891 1326 650 
+Q 1584 409 2034 409 
+Q 2484 409 2743 651 
+Q 3003 894 3003 1313 
+Q 3003 1734 2745 1975 
+Q 2488 2216 2034 2216 
+z
+M 1403 2484 
+Q 997 2584 770 2862 
+Q 544 3141 544 3541 
+Q 544 4100 942 4425 
+Q 1341 4750 2034 4750 
+Q 2731 4750 3128 4425 
+Q 3525 4100 3525 3541 
+Q 3525 3141 3298 2862 
+Q 3072 2584 2669 2484 
+Q 3125 2378 3379 2068 
+Q 3634 1759 3634 1313 
+Q 3634 634 3220 271 
+Q 2806 -91 2034 -91 
+Q 1263 -91 848 271 
+Q 434 634 434 1313 
+Q 434 1759 690 2068 
+Q 947 2378 1403 2484 
+z
+M 1172 3481 
+Q 1172 3119 1398 2916 
+Q 1625 2713 2034 2713 
+Q 2441 2713 2670 2916 
+Q 2900 3119 2900 3481 
+Q 2900 3844 2670 4047 
+Q 2441 4250 2034 4250 
+Q 1625 4250 1398 4047 
+Q 1172 3844 1172 3481 
+z
+" transform=scale(0.015625) /> </defs> <use xlink:href=#DejaVuSans-1b /> <use xlink:href=#DejaVuSans-13 transform="translate(63.625 0)"/> </g> </g> </g> <g id=ytick_12> <g id=line2d_21> <g> <use xlink:href=#m8bc543fed8 x=434.765781 y=22.318125 style="fill: #888888; stroke: #888888; stroke-width: 0.8"/> </g> </g> <g id=text_24> <!-- 100 --> <g style="fill: #888888" transform="translate(408.678281 26.116953) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-14 /> <use xlink:href=#DejaVuSans-13 transform="translate(63.625 0)"/> <use xlink:href=#DejaVuSans-13 transform="translate(127.25 0)"/> </g> </g> </g> <g id=text_25> <!-- keys remapped (%) --> <g style="fill: #888888" transform="translate(402.275938 180.757578) rotate(-90) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-4e /> <use xlink:href=#DejaVuSans-48 transform="translate(54.34375 0)"/> <use xlink:href=#DejaVuSans-5c transform="translate(115.875 0)"/> <use xlink:href=#DejaVuSans-56 transform="translate(175.0625 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(227.15625 0)"/> <use xlink:href=#DejaVuSans-55 transform="translate(258.9375 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(297.84375 0)"/> <use xlink:href=#DejaVuSans-50 transform="translate(359.375 0)"/> <use xlink:href=#DejaVuSans-44 transform="translate(456.78125 0)"/> <use xlink:href=#DejaVuSans-53 transform="translate(518.0625 0)"/> <use xlink:href=#DejaVuSans-53 transform="translate(581.546875 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(645.03125 0)"/> <use xlink:href=#DejaVuSans-47 transform="translate(706.5625 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(770.046875 0)"/> <use xlink:href=#DejaVuSans-b transform="translate(801.828125 0)"/> <use xlink:href=#DejaVuSans-8 transform="translate(840.84375 0)"/> <use xlink:href=#DejaVuSans-c transform="translate(935.859375 0)"/> </g> </g> </g> <g id=patch_23> <path d="M 434.765781 241.709531 
+L 434.765781 22.318125 
+" style="fill: none; stroke: #888888; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/> </g> <g id=patch_24> <path d="M 777.043437 241.709531 
+L 777.043437 22.318125 
+" style="fill: none; stroke: #888888; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/> </g> <g id=patch_25> <path d="M 434.765781 241.709531 
+L 777.043437 241.709531 
+" style="fill: none; stroke: #888888; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/> </g> <g id=patch_26> <path d="M 434.765781 22.318125 
+L 777.043437 22.318125 
+" style="fill: none; stroke: #888888; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/> </g> <g id=text_26> <!-- 83% --> <g style="fill: #888888" transform="translate(483.662219 55.62174) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-1b /> <use xlink:href=#DejaVuSans-16 transform="translate(63.625 0)"/> <use xlink:href=#DejaVuSans-8 transform="translate(127.25 0)"/> </g> </g> <g id=text_27> <!-- 17% --> <g style="fill: #888888" transform="translate(594.791328 201.527995) scale(0.1 -0.1)"> <defs> <path id=DejaVuSans-1a d="M 525 4666 
+L 3525 4666 
+L 3525 4397 
+L 1831 0 
+L 1172 0 
+L 2766 4134 
+L 525 4134 
+L 525 4666 
+z
+" transform=scale(0.015625) /> </defs> <use xlink:href=#DejaVuSans-14 /> <use xlink:href=#DejaVuSans-1a transform="translate(63.625 0)"/> <use xlink:href=#DejaVuSans-8 transform="translate(127.25 0)"/> </g> </g> <g id=text_28> <!-- 17% --> <g style="fill: #888888" transform="translate(705.920437 201.853426) scale(0.1 -0.1)"> <use xlink:href=#DejaVuSans-14 /> <use xlink:href=#DejaVuSans-1a transform="translate(63.625 0)"/> <use xlink:href=#DejaVuSans-8 transform="translate(127.25 0)"/> </g> </g> <g id=text_29> <!-- Adding a 6th node --> <g style="fill: #888888" transform="translate(550.664297 16.318125) scale(0.12 -0.12)"> <defs> <path id=DejaVuSans-24 d="M 2188 4044 
+L 1331 1722 
+L 3047 1722 
+L 2188 4044 
+z
+M 1831 4666 
+L 2547 4666 
+L 4325 0 
+L 3669 0 
+L 3244 1197 
+L 1141 1197 
+L 716 0 
+L 50 0 
+L 1831 4666 
+z
+" transform=scale(0.015625) /> </defs> <use xlink:href=#DejaVuSans-24 /> <use xlink:href=#DejaVuSans-47 transform="translate(66.65625 0)"/> <use xlink:href=#DejaVuSans-47 transform="translate(130.140625 0)"/> <use xlink:href=#DejaVuSans-4c transform="translate(193.625 0)"/> <use xlink:href=#DejaVuSans-51 transform="translate(221.40625 0)"/> <use xlink:href=#DejaVuSans-4a transform="translate(284.78125 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(348.265625 0)"/> <use xlink:href=#DejaVuSans-44 transform="translate(380.046875 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(441.328125 0)"/> <use xlink:href=#DejaVuSans-19 transform="translate(473.109375 0)"/> <use xlink:href=#DejaVuSans-57 transform="translate(536.734375 0)"/> <use xlink:href=#DejaVuSans-4b transform="translate(575.9375 0)"/> <use xlink:href=#DejaVuSans-3 transform="translate(639.3125 0)"/> <use xlink:href=#DejaVuSans-51 transform="translate(671.09375 0)"/> <use xlink:href=#DejaVuSans-52 transform="translate(734.46875 0)"/> <use xlink:href=#DejaVuSans-47 transform="translate(795.65625 0)"/> <use xlink:href=#DejaVuSans-48 transform="translate(859.140625 0)"/> </g> </g> </g> </g> <defs> <clipPath id=p6e9b9beca4> <rect x=40.925781 y=22.318125 width=342.277656 height=219.391406 /> </clipPath> <clipPath id=pd71131abda> <rect x=434.765781 y=22.318125 width=342.277656 height=219.391406 /> </clipPath> </defs> </svg> <p>Two lessons from the figure. With a single point per node, one node owns about <strong>half</strong> of all keys and another almost none — the ring is badly unbalanced. With 200 virtual nodes, every node is close to the ideal 20%. And when the 6th node arrives, <code>hash mod N</code> remaps about <strong>83%</strong> of the keys (5/6 of them, as theory predicts), while the ring remaps about <strong>17%</strong> — the 1/6 that the new node must own anyway.</p> <p>Consistent hashing appears all over system design: Nginx <code>hash $key consistent</code>, Envoy's ring hash and Maglev balancers, memcached clients, Amazon's Dynamo and Cassandra for data partitioning (studied in <a href=../../databases/partitioning/>Databases — partitioning</a>), and Discord-style chat servers that pin a channel to a node.</p> <div class="admonition warning"> <p class=admonition-title>Consistent hashing does not fix hot keys</p> <p>It balances <em>many</em> keys. If one key is very popular — the stadium show's seat map — all its requests still go to one node. Hot keys need other tools: caching, replicating the hot key, or splitting it.</p> </div> <hr> <h2 id=service-discovery>Service discovery: how the LB knows the replicas</h2> <p>Replicas come and go — autoscaling adds them at 09:58, a deploy replaces them, a crash removes one — and their IP addresses change every time. Before a load balancer can pick a healthy replica, something must tell it <strong>which replicas exist right now</strong>. That is <strong>service discovery</strong>, and it has two shapes:</p> <pre class=diagram-sim><code>flowchart LR
+    subgraph server ["Server-side discovery"]
+        C1([gateway]) --&gt;|"inventory.svc"| LB1["load balancer / kube-proxy"]
+        LB1 --&gt; R1[inventory-1]
+        LB1 --&gt; R2[inventory-2]
+        REG1[("registry&lt;br/&gt;(K8s endpoints)")] -.-&gt;|"watch"| LB1
+    end
+    subgraph client ["Client-side discovery"]
+        C2([gateway]) --&gt;|"1 · who serves inventory?"| REG2[("registry&lt;br/&gt;(Consul, Eureka)")]
+        REG2 --&gt;|"2 · [10.0.1.7, 10.0.2.9]"| C2
+        C2 --&gt;|"3 · picks one itself"| R3[inventory-3]
+    end</code></pre> <table> <thead> <tr> <th></th> <th>Server-side discovery</th> <th>Client-side discovery</th> </tr> </thead> <tbody> <tr> <td><strong>Who chooses the replica</strong></td> <td>a load balancer or proxy in the path</td> <td>the calling service, with a client library</td> </tr> <tr> <td><strong>Registry</strong></td> <td>the platform (Kubernetes endpoints, cloud target groups)</td> <td>Consul, Eureka, etcd, DNS SRV records</td> </tr> <tr> <td><strong>Extra hop</strong></td> <td>yes (the proxy)</td> <td>no</td> </tr> <tr> <td><strong>Language coupling</strong></td> <td>none: any client just calls a name</td> <td>every language needs the library (or a sidecar does it — the service mesh)</td> </tr> <tr> <td><strong>Typical today</strong></td> <td>Kubernetes <code>Service</code> + DNS, cloud LBs</td> <td>gRPC clients with xDS, service meshes, older Spring Cloud Netflix stacks</td> </tr> </tbody> </table> <p>Registration happens either by the platform (Kubernetes adds a pod's IP to the Service's endpoints when its <strong>readiness</strong> probe passes) or by the instance itself (it registers on start and sends heartbeats; a missed heartbeat removes it). Either way, discovery and <strong>health checks</strong> are two halves of the same question — <em>which replicas can serve now?</em> — and the registry is a small, strongly consistent store (etcd, Consul's Raft) for the reasons in <a href=../../distributed/consensus/>Distributed Systems — consensus</a>.</p> <hr> <h2 id=health-checks>Health checks</h2> <p>A load balancer is only as good as its knowledge of which backends are healthy. There are two complementary ways to find out:</p> <table> <thead> <tr> <th>Type</th> <th>How</th> <th>Reacts to</th> <th>Example</th> </tr> </thead> <tbody> <tr> <td><strong>Active</strong></td> <td>the LB probes each backend periodically (<code>GET /actuator/health/readiness</code> every 5 s; 2 failures → unhealthy; 3 successes → healthy again)</td> <td>crashed, hung or not-ready backends, even with no traffic</td> <td>AWS target groups, Nginx Plus <code>health_check</code>, HAProxy <code>check</code>, Kubernetes readiness probes</td> </tr> <tr> <td><strong>Passive</strong> (outlier detection)</td> <td>the LB watches real responses; a backend that returns many 5xx or timeouts is ejected for a while</td> <td>backends that pass the probe but fail real requests</td> <td>Envoy outlier detection, Nginx <code>max_fails</code> / <code>fail_timeout</code></td> </tr> </tbody> </table> <p>Design the health endpoint carefully. <strong>Readiness</strong> ("can I serve traffic now?") should check what the instance needs to answer requests — but if it checks a <em>shared</em> dependency such as the database, a database blip marks <strong>every</strong> replica unhealthy at once and the LB has nothing left to route to. The usual compromise: readiness reflects the instance's own state (started, warmed up, not overloaded, not shutting down); dependency failures are handled by timeouts and circuit breakers (<a href=../../reliability/patterns/>Reliability — patterns</a>).</p> <h3 id=draining>Connection draining</h3> <p>When a replica is removed — scaled in, or replaced by a deploy — cutting it off abruptly fails every request in flight. <strong>Connection draining</strong> (deregistration delay) fixes this: the LB stops sending <em>new</em> requests to the replica, waits for the in-flight ones to finish (up to, say, 30 s), and only then removes it. In Kubernetes, the pod becomes <em>not ready</em>, is removed from the Service endpoints, and receives <code>SIGTERM</code>; the application should finish its current requests before exiting (Spring Boot: <code>server.shutdown=graceful</code>).</p> <hr> <h2 id=sticky-sessions>Sticky sessions</h2> <p><strong>Session affinity</strong> ("sticky sessions") makes the LB send every request from the same client to the same backend, using a cookie set by the LB or a hash of the client IP. It exists for applications that keep state in memory — a server-side session, an in-process cache, a WebSocket.</p> <table> <thead> <tr> <th></th> <th>Sticky sessions</th> <th>Stateless replicas + shared store</th> </tr> </thead> <tbody> <tr> <td>Where state lives</td> <td>in one replica's memory</td> <td>Redis / database / client token (JWT)</td> </tr> <tr> <td>A replica dies</td> <td>its users lose their session</td> <td>nothing is lost</td> </tr> <tr> <td>Balance</td> <td>uneven: heavy users stick to one replica</td> <td>any replica takes any request</td> </tr> <tr> <td>Scaling in / deploys</td> <td>must wait for sessions to end or lose them</td> <td>drain in seconds</td> </tr> <tr> <td>Extra cost</td> <td>none</td> <td>one network call to the shared store</td> </tr> </tbody> </table> <p>Prefer <strong>stateless replicas</strong>. Use affinity only where the state is inherently local and cheap to rebuild — a WebSocket connection, a local cache that only improves hit ratio — and prefer <strong>consistent hashing</strong> on a meaningful key (user id, room id) to cookie stickiness, because it survives LB restarts and scales smoothly.</p> <hr> <h2 id=lb-ha>The load balancer must not be the weak point</h2> <p>A single load balancer in front of ten replicas is a <strong>single point of failure</strong>. How the LB itself stays up depends on who runs it:</p> <ul> <li><strong>Managed cloud load balancers</strong> (ALB/NLB, Google Cloud Load Balancing, Azure Load Balancer) are distributed systems run by the provider across several availability zones; you get a DNS name or an IP, and the provider scales and replaces the underlying machines.</li> <li><strong>Self-hosted</strong> (Nginx, HAProxy, Envoy on VMs): run at least two, in an <strong>active-passive pair</strong> sharing a <strong>virtual IP</strong> (VIP) moved by VRRP (keepalived) when the active one fails, or <strong>active-active</strong> behind DNS or an L4 tier.</li> <li><strong>Anycast</strong> at the edge: the same IP announced from many locations (<a href=../dns-cdn/#anycast>DNS &amp; CDN</a>).</li> </ul> <p>There is also a hierarchy of scopes: a <strong>global</strong> load balancer (anycast or DNS-based) chooses the <strong>region</strong>; a <strong>regional</strong> load balancer chooses the <strong>zone and instance</strong>; inside Kubernetes, the Service and ingress choose the <strong>pod</strong>.</p> <pre class=diagram><code>flowchart TB
+    u([Fans worldwide]) --&gt; g["Global LB / DNS&lt;br/&gt;chooses the region"]
+    g --&gt; r1["Regional LB São Paulo&lt;br/&gt;across 3 zones"]
+    g --&gt; r2["Regional LB Virginia"]
+    r1 --&gt; i1["Ingress / Gateway&lt;br/&gt;in the cluster"]
+    i1 --&gt; p1[inventory pods]
+    i1 --&gt; p2[order pods]</code></pre> <p><strong>Try it.</strong> Load the scale-out scenario and run the <strong>load</strong> profile with 2 replicas; note p99 latency and errors. Increase the replica count until p99 stabilises. Then kill one replica while the test runs (chaos <strong>medium</strong>, or stop it in the panel): watch the health checks remove it, the error spike that lasts until they do, and the remaining replicas absorb the load. Try a different balancing algorithm and compare p99.</p> <div class=sdp data-scenario=scale-out data-mode=compact data-height=520 data-profile=load></div> <p><a href=../../../../playground/><span class=twemoji><svg xmlns=http://www.w3.org/2000/svg viewBox="0 0 24 24"><path d="M14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3m-2 16H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7h-2z"/></svg></span> Open the full playground</a></p> <hr> <h2 id=nginx>A load balancer in practice: Nginx</h2> <p><a href=../../../hands-on/3/>Hands-on 3</a> puts Nginx in front of three replicas of <code>catalog</code>. The core of the configuration is an <code>upstream</code> block — the pool of replicas and the algorithm: round robin by default, or one line such as <code>least_conn;</code>, <code>random two least_conn;</code> (power of two choices) or <code>hash $arg_event consistent;</code> — and a <code>location</code> that proxies to it.</p> <div class="admonition example"> <p class=admonition-title>In the BoxOffice code: the edge's load balancer (lab 3)</p> <p>This is the configuration of <a href=../../../hands-on/3/>Hands-on 3</a>, unchanged. Besides the pool, look at what protects the fans from a bad replica: <code>max_fails=3 fail_timeout=10s</code> is a <strong>passive</strong> health check (3 failed requests take a replica out for 10 s); <code>proxy_connect_timeout 1s</code> and <code>proxy_read_timeout 5s</code> bound how long a dead or frozen replica can hold a request; <code>proxy_next_upstream</code> retries a failed request <strong>once more</strong> (<code>tries 2</code>) on another replica; <code>keepalive 64</code> reuses connections to the replicas. <code>least_conn</code> is commented out on purpose: the lab asks you to switch it on and compare the tail. In the lab's failure experiment at 150 req/s, a stopped replica cost almost nothing, while a frozen one produced no errors but a p99 of 1 s and a max of 5.05 s — the read timeout.</p> <div class="language-nginx highlight"><span class=filename>infra/nginx/nginx.conf (pool, timeouts, retry)</span><pre><span></span><code><span id=__span-0-1><a id=__codelineno-0-1 name=__codelineno-0-1 href=#__codelineno-0-1></a><span class=k>upstream</span><span class=w> </span><span class=s>catalog</span><span class=w> </span><span class=p>{</span>
+</span><span id=__span-0-2><a id=__codelineno-0-2 name=__codelineno-0-2 href=#__codelineno-0-2></a><span class=w>    </span><span class=kn>zone</span><span class=w> </span><span class=s>catalog</span><span class=w> </span><span class=mi>64k</span><span class=p>;</span><span class=w>                 </span><span class=c1># shared memory, required by "resolve"</span>
+</span><span id=__span-0-3><a id=__codelineno-0-3 name=__codelineno-0-3 href=#__codelineno-0-3></a><span class=w>    </span><span class=c1># least_conn;                     # try it: pick the replica with fewest active requests</span>
+</span><span id=__span-0-4><a id=__codelineno-0-4 name=__codelineno-0-4 href=#__codelineno-0-4></a><span class=w>    </span><span class=kn>server</span><span class=w> </span><span class=n>catalog-1</span><span class=p>:</span><span class=mi>8082</span><span class=w> </span><span class=s>resolve</span><span class=w> </span><span class=s>max_fails=3</span><span class=w> </span><span class=s>fail_timeout=10s</span><span class=p>;</span>
+</span><span id=__span-0-5><a id=__codelineno-0-5 name=__codelineno-0-5 href=#__codelineno-0-5></a><span class=w>    </span><span class=kn>server</span><span class=w> </span><span class=n>catalog-2</span><span class=p>:</span><span class=mi>8082</span><span class=w> </span><span class=s>resolve</span><span class=w> </span><span class=s>max_fails=3</span><span class=w> </span><span class=s>fail_timeout=10s</span><span class=p>;</span>
+</span><span id=__span-0-6><a id=__codelineno-0-6 name=__codelineno-0-6 href=#__codelineno-0-6></a><span class=w>    </span><span class=kn>server</span><span class=w> </span><span class=n>catalog-3</span><span class=p>:</span><span class=mi>8082</span><span class=w> </span><span class=s>resolve</span><span class=w> </span><span class=s>max_fails=3</span><span class=w> </span><span class=s>fail_timeout=10s</span><span class=p>;</span>
+</span><span id=__span-0-7><a id=__codelineno-0-7 name=__codelineno-0-7 href=#__codelineno-0-7></a><span class=w>    </span><span class=kn>keepalive</span><span class=w> </span><span class=mi>64</span><span class=p>;</span><span class=w>                     </span><span class=c1># reuse TCP connections to the replicas</span>
+</span><span id=__span-0-8><a id=__codelineno-0-8 name=__codelineno-0-8 href=#__codelineno-0-8></a><span class=p>}</span>
+</span><span id=__span-0-9><a id=__codelineno-0-9 name=__codelineno-0-9 href=#__codelineno-0-9></a><span class=w>    </span><span class=k>location</span><span class=w> </span><span class=s>/catalog/</span><span class=w> </span><span class=p>{</span>
+</span><span id=__span-0-10><a id=__codelineno-0-10 name=__codelineno-0-10 href=#__codelineno-0-10></a><span class=w>        </span><span class=kn>limit_req</span><span class=w>  </span><span class=s>zone=per_key</span><span class=w>  </span><span class=s>burst=40</span><span class=w>  </span><span class=s>nodelay</span><span class=p>;</span>
+</span><span id=__span-0-11><a id=__codelineno-0-11 name=__codelineno-0-11 href=#__codelineno-0-11></a>
+</span><span id=__span-0-12><a id=__codelineno-0-12 name=__codelineno-0-12 href=#__codelineno-0-12></a><span class=w>        </span><span class=kn>proxy_pass</span><span class=w>  </span><span class=s>http://catalog</span><span class=p>;</span>
+</span><span id=__span-0-13><a id=__codelineno-0-13 name=__codelineno-0-13 href=#__codelineno-0-13></a><span class=w>        </span><span class=kn>proxy_http_version</span><span class=w>  </span><span class=mi>1</span><span class=s>.1</span><span class=p>;</span>
+</span><span id=__span-0-14><a id=__codelineno-0-14 name=__codelineno-0-14 href=#__codelineno-0-14></a><span class=w>        </span><span class=kn>proxy_set_header</span><span class=w>  </span><span class=s>Connection</span><span class=w>         </span><span class=s>""</span><span class=p>;</span><span class=w>      </span><span class=c1># keep upstream connections alive</span>
+</span><span id=__span-0-15><a id=__codelineno-0-15 name=__codelineno-0-15 href=#__codelineno-0-15></a><span class=w>        </span><span class=kn>proxy_set_header</span><span class=w>  </span><span class=s>Host</span><span class=w>               </span><span class=nv>$host</span><span class=p>;</span>
+</span><span id=__span-0-16><a id=__codelineno-0-16 name=__codelineno-0-16 href=#__codelineno-0-16></a><span class=w>        </span><span class=kn>proxy_set_header</span><span class=w>  </span><span class=s>X-Real-IP</span><span class=w>          </span><span class=nv>$remote_addr</span><span class=p>;</span>
+</span><span id=__span-0-17><a id=__codelineno-0-17 name=__codelineno-0-17 href=#__codelineno-0-17></a><span class=w>        </span><span class=kn>proxy_set_header</span><span class=w>  </span><span class=s>X-Forwarded-For</span><span class=w>    </span><span class=nv>$proxy_add_x_forwarded_for</span><span class=p>;</span>
+</span><span id=__span-0-18><a id=__codelineno-0-18 name=__codelineno-0-18 href=#__codelineno-0-18></a><span class=w>        </span><span class=kn>proxy_set_header</span><span class=w>  </span><span class=s>X-Forwarded-Proto</span><span class=w>  </span><span class=nv>$scheme</span><span class=p>;</span>
+</span><span id=__span-0-19><a id=__codelineno-0-19 name=__codelineno-0-19 href=#__codelineno-0-19></a><span class=w>        </span><span class=kn>proxy_set_header</span><span class=w>  </span><span class=s>X-Request-Id</span><span class=w>       </span><span class=nv>$request_id</span><span class=p>;</span>
+</span><span id=__span-0-20><a id=__codelineno-0-20 name=__codelineno-0-20 href=#__codelineno-0-20></a><span class=w>        </span><span class=kn>add_header</span><span class=w>        </span><span class=s>X-Request-Id</span><span class=w>       </span><span class=nv>$request_id</span><span class=w> </span><span class=s>always</span><span class=p>;</span>
+</span><span id=__span-0-21><a id=__codelineno-0-21 name=__codelineno-0-21 href=#__codelineno-0-21></a>
+</span><span id=__span-0-22><a id=__codelineno-0-22 name=__codelineno-0-22 href=#__codelineno-0-22></a><span class=w>        </span><span class=c1># passive health checking: a failed attempt is retried on another replica</span>
+</span><span id=__span-0-23><a id=__codelineno-0-23 name=__codelineno-0-23 href=#__codelineno-0-23></a><span class=w>        </span><span class=kn>proxy_connect_timeout</span><span class=w>  </span><span class=s>1s</span><span class=p>;</span>
+</span><span id=__span-0-24><a id=__codelineno-0-24 name=__codelineno-0-24 href=#__codelineno-0-24></a><span class=w>        </span><span class=kn>proxy_read_timeout</span><span class=w>     </span><span class=s>5s</span><span class=p>;</span>
+</span><span id=__span-0-25><a id=__codelineno-0-25 name=__codelineno-0-25 href=#__codelineno-0-25></a><span class=w>        </span><span class=kn>proxy_next_upstream</span><span class=w>    </span><span class=s>error</span><span class=w> </span><span class=s>timeout</span><span class=w> </span><span class=s>http_502</span><span class=w> </span><span class=s>http_503</span><span class=w> </span><span class=s>http_504</span><span class=p>;</span>
+</span><span id=__span-0-26><a id=__codelineno-0-26 name=__codelineno-0-26 href=#__codelineno-0-26></a><span class=w>        </span><span class=kn>proxy_next_upstream_tries</span><span class=w>  </span><span class=mi>2</span><span class=p>;</span>
+</span><span id=__span-0-27><a id=__codelineno-0-27 name=__codelineno-0-27 href=#__codelineno-0-27></a><span class=w>    </span><span class=p>}</span>
+</span></code></pre></div> </div> <p>Note what is configured besides the algorithm: <strong>timeouts</strong> toward the backends, <strong>keep-alive</strong> connections to them, and <strong><code>proxy_next_upstream</code></strong>, which retries a failed request on another replica. Nginx does not retry non-idempotent requests (such as <code>POST</code>) by default — retrying a <code>POST /holds</code> on another replica could create two holds. The timeouts come from measurement, not taste: a read timeout shorter than the healthy p99 turns slow answers into retries, and the lab sets 5 s for a service whose listings take hundreds of milliseconds under load.</p> <hr> <h2 id=kubernetes>Load balancing in Kubernetes</h2> <p>In Kubernetes, three objects share the load-balancing work.</p> <p><strong>Service</strong> — a stable virtual IP and DNS name (<code>inventory.boxoffice.svc.cluster.local</code>) in front of the pods that match a label selector. Only <strong>ready</strong> pods are listed as endpoints. Traffic to the Service IP is spread across them at L4, by <code>kube-proxy</code> (iptables/IPVS rules) or by an eBPF data plane such as Cilium. A Service of type <code>LoadBalancer</code> also asks the cloud provider for an external L4 load balancer.</p> <div class="language-yaml highlight"><span class=filename>inventory-service.yaml</span><pre><span></span><code><span id=__span-1-1><a id=__codelineno-1-1 name=__codelineno-1-1 href=#__codelineno-1-1></a><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class="l l-Scalar l-Scalar-Plain">v1</span>
+</span><span id=__span-1-2><a id=__codelineno-1-2 name=__codelineno-1-2 href=#__codelineno-1-2></a><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class="l l-Scalar l-Scalar-Plain">Service</span>
+</span><span id=__span-1-3><a id=__codelineno-1-3 name=__codelineno-1-3 href=#__codelineno-1-3></a><span class=nt>metadata</span><span class=p>:</span>
+</span><span id=__span-1-4><a id=__codelineno-1-4 name=__codelineno-1-4 href=#__codelineno-1-4></a><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class="l l-Scalar l-Scalar-Plain">inventory</span>
+</span><span id=__span-1-5><a id=__codelineno-1-5 name=__codelineno-1-5 href=#__codelineno-1-5></a><span class=nt>spec</span><span class=p>:</span>
+</span><span id=__span-1-6><a id=__codelineno-1-6 name=__codelineno-1-6 href=#__codelineno-1-6></a><span class=w>  </span><span class=nt>selector</span><span class=p>:</span>
+</span><span id=__span-1-7><a id=__codelineno-1-7 name=__codelineno-1-7 href=#__codelineno-1-7></a><span class=w>    </span><span class=nt>app</span><span class=p>:</span><span class=w> </span><span class="l l-Scalar l-Scalar-Plain">inventory</span>
+</span><span id=__span-1-8><a id=__codelineno-1-8 name=__codelineno-1-8 href=#__codelineno-1-8></a><span class=w>  </span><span class=nt>ports</span><span class=p>:</span>
+</span><span id=__span-1-9><a id=__codelineno-1-9 name=__codelineno-1-9 href=#__codelineno-1-9></a><span class=w>    </span><span class="p p-Indicator">-</span><span class=w> </span><span class=nt>port</span><span class=p>:</span><span class=w> </span><span class="l l-Scalar l-Scalar-Plain">80</span>
+</span><span id=__span-1-10><a id=__codelineno-1-10 name=__codelineno-1-10 href=#__codelineno-1-10></a><span class=w>      </span><span class=nt>targetPort</span><span class=p>:</span><span class=w> </span><span class="l l-Scalar l-Scalar-Plain">8080</span>
+</span></code></pre></div> <p><strong>Ingress</strong> — the original API for <strong>L7 HTTP routing</strong> into the cluster: rules by host and path, TLS termination, all implemented by an <strong>ingress controller</strong> (Traefik, HAProxy, cloud controllers; the community <code>ingress-nginx</code> controller was very popular but has been retired by the Kubernetes project). The Ingress API is simple but limited: anything beyond host/path routing (header matching, traffic splitting, timeouts) requires controller-specific annotations, which are not portable.</p> <div class="language-yaml highlight"><span class=filename>ingress.yaml</span><pre><span></span><code><span id=__span-2-1><a id=__codelineno-2-1 name=__codelineno-2-1 href=#__codelineno-2-1></a><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class="l l-Scalar l-Scalar-Plain">networking.k8s.io/v1</span>
+</span><span id=__span-2-2><a id=__codelineno-2-2 name=__codelineno-2-2 href=#__codelineno-2-2></a><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class="l l-Scalar l-Scalar-Plain">Ingress</span>
+</span><span id=__span-2-3><a id=__codelineno-2-3 name=__codelineno-2-3 href=#__codelineno-2-3></a><span class=nt>metadata</span><span class=p>:</span>
+</span><span id=__span-2-4><a id=__codelineno-2-4 name=__codelineno-2-4 href=#__codelineno-2-4></a><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class="l l-Scalar l-Scalar-Plain">boxoffice</span>
+</span><span id=__span-2-5><a id=__codelineno-2-5 name=__codelineno-2-5 href=#__codelineno-2-5></a><span class=nt>spec</span><span class=p>:</span>
+</span><span id=__span-2-6><a id=__codelineno-2-6 name=__codelineno-2-6 href=#__codelineno-2-6></a><span class=w>  </span><span class=nt>ingressClassName</span><span class=p>:</span><span class=w> </span><span class="l l-Scalar l-Scalar-Plain">traefik</span>
+</span><span id=__span-2-7><a id=__codelineno-2-7 name=__codelineno-2-7 href=#__codelineno-2-7></a><span class=w>  </span><span class=nt>tls</span><span class=p>:</span>
+</span><span id=__span-2-8><a id=__codelineno-2-8 name=__codelineno-2-8 href=#__codelineno-2-8></a><span class=w>    </span><span class="p p-Indicator">-</span><span class=w> </span><span class=nt>hosts</span><span class=p>:</span><span class=w> </span><span class="p p-Indicator">[</span><span class=nv>api.boxoffice.com</span><span class="p p-Indicator">]</span>
+</span><span id=__span-2-9><a id=__codelineno-2-9 name=__codelineno-2-9 href=#__codelineno-2-9></a><span class=w>      </span><span class=nt>secretName</span><span class=p>:</span><span class=w> </span><span class="l l-Scalar l-Scalar-Plain">boxoffice-tls</span>
+</span><span id=__span-2-10><a id=__codelineno-2-10 name=__codelineno-2-10 href=#__codelineno-2-10></a><span class=w>  </span><span class=nt>rules</span><span class=p>:</span>
+</span><span id=__span-2-11><a id=__codelineno-2-11 name=__codelineno-2-11 href=#__codelineno-2-11></a><span class=w>    </span><span class="p p-Indicator">-</span><span class=w> </span><span class=nt>host</span><span class=p>:</span><span class=w> </span><span class="l l-Scalar l-Scalar-Plain">api.boxoffice.com</span>
+</span><span id=__span-2-12><a id=__codelineno-2-12 name=__codelineno-2-12 href=#__codelineno-2-12></a><span class=w>      </span><span class=nt>http</span><span class=p>:</span>
+</span><span id=__span-2-13><a id=__codelineno-2-13 name=__codelineno-2-13 href=#__codelineno-2-13></a><span class=w>        </span><span class=nt>paths</span><span class=p>:</span>
+</span><span id=__span-2-14><a id=__codelineno-2-14 name=__codelineno-2-14 href=#__codelineno-2-14></a><span class=w>          </span><span class="p p-Indicator">-</span><span class=w> </span><span class=nt>path</span><span class=p>:</span><span class=w> </span><span class="l l-Scalar l-Scalar-Plain">/api/holds</span>
+</span><span id=__span-2-15><a id=__codelineno-2-15 name=__codelineno-2-15 href=#__codelineno-2-15></a><span class=w>            </span><span class=nt>pathType</span><span class=p>:</span><span class=w> </span><span class="l l-Scalar l-Scalar-Plain">Prefix</span>
+</span><span id=__span-2-16><a id=__codelineno-2-16 name=__codelineno-2-16 href=#__codelineno-2-16></a><span class=w>            </span><span class=nt>backend</span><span class=p>:</span>
+</span><span id=__span-2-17><a id=__codelineno-2-17 name=__codelineno-2-17 href=#__codelineno-2-17></a><span class=w>              </span><span class=nt>service</span><span class=p>:</span>
+</span><span id=__span-2-18><a id=__codelineno-2-18 name=__codelineno-2-18 href=#__codelineno-2-18></a><span class=w>                </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class="l l-Scalar l-Scalar-Plain">inventory</span>
+</span><span id=__span-2-19><a id=__codelineno-2-19 name=__codelineno-2-19 href=#__codelineno-2-19></a><span class=w>                </span><span class=nt>port</span><span class=p>:</span>
+</span><span id=__span-2-20><a id=__codelineno-2-20 name=__codelineno-2-20 href=#__codelineno-2-20></a><span class=w>                  </span><span class=nt>number</span><span class=p>:</span><span class=w> </span><span class="l l-Scalar l-Scalar-Plain">80</span>
+</span></code></pre></div> <p><strong>Gateway API</strong> — the successor of Ingress, generally available since 2023<sup id=fnref:4><a class=footnote-ref href=#fn:4>4</a></sup>. It splits the configuration by <strong>role</strong>, so that each team owns its part:</p> <table> <thead> <tr> <th>Resource</th> <th>Owned by</th> <th>Defines</th> </tr> </thead> <tbody> <tr> <td><code>GatewayClass</code></td> <td>infrastructure provider</td> <td>which implementation (Envoy Gateway, Istio, Cilium, NGINX Gateway Fabric, cloud gateways)</td> </tr> <tr> <td><code>Gateway</code></td> <td>platform / cluster operators</td> <td>listeners: ports, protocols, hostnames, TLS certificates</td> </tr> <tr> <td><code>HTTPRoute</code> (and <code>GRPCRoute</code>, <code>TLSRoute</code>, …)</td> <td>application teams</td> <td>routing rules: path, header and method matching, weights, filters, timeouts</td> </tr> </tbody> </table> <p>Features that needed annotations in Ingress are part of the standard: <strong>weighted traffic splitting</strong> (canaries), header-based routing, request mirroring, timeouts and gRPC routing.</p> <div class="language-yaml highlight"><span class=filename>gateway.yaml</span><pre><span></span><code><span id=__span-3-1><a id=__codelineno-3-1 name=__codelineno-3-1 href=#__codelineno-3-1></a><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class="l l-Scalar l-Scalar-Plain">gateway.networking.k8s.io/v1</span>
+</span><span id=__span-3-2><a id=__codelineno-3-2 name=__codelineno-3-2 href=#__codelineno-3-2></a><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class="l l-Scalar l-Scalar-Plain">Gateway</span>
+</span><span id=__span-3-3><a id=__codelineno-3-3 name=__codelineno-3-3 href=#__codelineno-3-3></a><span class=nt>metadata</span><span class=p>:</span>
+</span><span id=__span-3-4><a id=__codelineno-3-4 name=__codelineno-3-4 href=#__codelineno-3-4></a><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class="l l-Scalar l-Scalar-Plain">public</span>
+</span><span id=__span-3-5><a id=__codelineno-3-5 name=__codelineno-3-5 href=#__codelineno-3-5></a><span class=nt>spec</span><span class=p>:</span>
+</span><span id=__span-3-6><a id=__codelineno-3-6 name=__codelineno-3-6 href=#__codelineno-3-6></a><span class=w>  </span><span class=nt>gatewayClassName</span><span class=p>:</span><span class=w> </span><span class="l l-Scalar l-Scalar-Plain">envoy</span>
+</span><span id=__span-3-7><a id=__codelineno-3-7 name=__codelineno-3-7 href=#__codelineno-3-7></a><span class=w>  </span><span class=nt>listeners</span><span class=p>:</span>
+</span><span id=__span-3-8><a id=__codelineno-3-8 name=__codelineno-3-8 href=#__codelineno-3-8></a><span class=w>    </span><span class="p p-Indicator">-</span><span class=w> </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class="l l-Scalar l-Scalar-Plain">https</span>
+</span><span id=__span-3-9><a id=__codelineno-3-9 name=__codelineno-3-9 href=#__codelineno-3-9></a><span class=w>      </span><span class=nt>protocol</span><span class=p>:</span><span class=w> </span><span class="l l-Scalar l-Scalar-Plain">HTTPS</span>
+</span><span id=__span-3-10><a id=__codelineno-3-10 name=__codelineno-3-10 href=#__codelineno-3-10></a><span class=w>      </span><span class=nt>port</span><span class=p>:</span><span class=w> </span><span class="l l-Scalar l-Scalar-Plain">443</span>
+</span><span id=__span-3-11><a id=__codelineno-3-11 name=__codelineno-3-11 href=#__codelineno-3-11></a><span class=w>      </span><span class=nt>hostname</span><span class=p>:</span><span class=w> </span><span class="l l-Scalar l-Scalar-Plain">api.boxoffice.com</span>
+</span><span id=__span-3-12><a id=__codelineno-3-12 name=__codelineno-3-12 href=#__codelineno-3-12></a><span class=w>      </span><span class=nt>tls</span><span class=p>:</span>
+</span><span id=__span-3-13><a id=__codelineno-3-13 name=__codelineno-3-13 href=#__codelineno-3-13></a><span class=w>        </span><span class=nt>certificateRefs</span><span class=p>:</span>
+</span><span id=__span-3-14><a id=__codelineno-3-14 name=__codelineno-3-14 href=#__codelineno-3-14></a><span class=w>          </span><span class="p p-Indicator">-</span><span class=w> </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class="l l-Scalar l-Scalar-Plain">boxoffice-tls</span>
+</span><span id=__span-3-15><a id=__codelineno-3-15 name=__codelineno-3-15 href=#__codelineno-3-15></a><span class=nn>---</span>
+</span><span id=__span-3-16><a id=__codelineno-3-16 name=__codelineno-3-16 href=#__codelineno-3-16></a><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class="l l-Scalar l-Scalar-Plain">gateway.networking.k8s.io/v1</span>
+</span><span id=__span-3-17><a id=__codelineno-3-17 name=__codelineno-3-17 href=#__codelineno-3-17></a><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class="l l-Scalar l-Scalar-Plain">HTTPRoute</span>
+</span><span id=__span-3-18><a id=__codelineno-3-18 name=__codelineno-3-18 href=#__codelineno-3-18></a><span class=nt>metadata</span><span class=p>:</span>
+</span><span id=__span-3-19><a id=__codelineno-3-19 name=__codelineno-3-19 href=#__codelineno-3-19></a><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class="l l-Scalar l-Scalar-Plain">inventory</span>
+</span><span id=__span-3-20><a id=__codelineno-3-20 name=__codelineno-3-20 href=#__codelineno-3-20></a><span class=nt>spec</span><span class=p>:</span>
+</span><span id=__span-3-21><a id=__codelineno-3-21 name=__codelineno-3-21 href=#__codelineno-3-21></a><span class=w>  </span><span class=nt>parentRefs</span><span class=p>:</span>
+</span><span id=__span-3-22><a id=__codelineno-3-22 name=__codelineno-3-22 href=#__codelineno-3-22></a><span class=w>    </span><span class="p p-Indicator">-</span><span class=w> </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class="l l-Scalar l-Scalar-Plain">public</span>
+</span><span id=__span-3-23><a id=__codelineno-3-23 name=__codelineno-3-23 href=#__codelineno-3-23></a><span class=w>  </span><span class=nt>rules</span><span class=p>:</span>
+</span><span id=__span-3-24><a id=__codelineno-3-24 name=__codelineno-3-24 href=#__codelineno-3-24></a><span class=w>    </span><span class="p p-Indicator">-</span><span class=w> </span><span class=nt>matches</span><span class=p>:</span>
+</span><span id=__span-3-25><a id=__codelineno-3-25 name=__codelineno-3-25 href=#__codelineno-3-25></a><span class=w>        </span><span class="p p-Indicator">-</span><span class=w> </span><span class=nt>path</span><span class=p>:</span>
+</span><span id=__span-3-26><a id=__codelineno-3-26 name=__codelineno-3-26 href=#__codelineno-3-26></a><span class=w>            </span><span class=nt>type</span><span class=p>:</span><span class=w> </span><span class="l l-Scalar l-Scalar-Plain">PathPrefix</span>
+</span><span id=__span-3-27><a id=__codelineno-3-27 name=__codelineno-3-27 href=#__codelineno-3-27></a><span class=w>            </span><span class=nt>value</span><span class=p>:</span><span class=w> </span><span class="l l-Scalar l-Scalar-Plain">/api/holds</span>
+</span><span id=__span-3-28><a id=__codelineno-3-28 name=__codelineno-3-28 href=#__codelineno-3-28></a><span class=w>      </span><span class=nt>timeouts</span><span class=p>:</span>
+</span><span id=__span-3-29><a id=__codelineno-3-29 name=__codelineno-3-29 href=#__codelineno-3-29></a><span class=w>        </span><span class=nt>request</span><span class=p>:</span><span class=w> </span><span class="l l-Scalar l-Scalar-Plain">2s</span>
+</span><span id=__span-3-30><a id=__codelineno-3-30 name=__codelineno-3-30 href=#__codelineno-3-30></a><span class=w>      </span><span class=nt>backendRefs</span><span class=p>:</span>
+</span><span id=__span-3-31><a id=__codelineno-3-31 name=__codelineno-3-31 href=#__codelineno-3-31></a><span class=w>        </span><span class="p p-Indicator">-</span><span class=w> </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class="l l-Scalar l-Scalar-Plain">inventory</span><span class=w>        </span><span class=c1># stable version: 95% of requests</span>
+</span><span id=__span-3-32><a id=__codelineno-3-32 name=__codelineno-3-32 href=#__codelineno-3-32></a><span class=w>          </span><span class=nt>port</span><span class=p>:</span><span class=w> </span><span class="l l-Scalar l-Scalar-Plain">80</span>
+</span><span id=__span-3-33><a id=__codelineno-3-33 name=__codelineno-3-33 href=#__codelineno-3-33></a><span class=w>          </span><span class=nt>weight</span><span class=p>:</span><span class=w> </span><span class="l l-Scalar l-Scalar-Plain">95</span>
+</span><span id=__span-3-34><a id=__codelineno-3-34 name=__codelineno-3-34 href=#__codelineno-3-34></a><span class=w>        </span><span class="p p-Indicator">-</span><span class=w> </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class="l l-Scalar l-Scalar-Plain">inventory-canary</span><span class=w> </span><span class=c1># new version: 5% of requests</span>
+</span><span id=__span-3-35><a id=__codelineno-3-35 name=__codelineno-3-35 href=#__codelineno-3-35></a><span class=w>          </span><span class=nt>port</span><span class=p>:</span><span class=w> </span><span class="l l-Scalar l-Scalar-Plain">80</span>
+</span><span id=__span-3-36><a id=__codelineno-3-36 name=__codelineno-3-36 href=#__codelineno-3-36></a><span class=w>          </span><span class=nt>weight</span><span class=p>:</span><span class=w> </span><span class="l l-Scalar l-Scalar-Plain">5</span>
+</span></code></pre></div> <p>In <a href=../../../hands-on/10/>hands-on 10</a> you deploy BoxOffice on a local cluster and expose it through an ingress; canary releases come back in the <a href=../../cloud-native/>cloud-native class</a>.</p> <hr> <h2 id=trade-offs>Trade-offs at a glance</h2> <table> <thead> <tr> <th>Decision</th> <th>Option A</th> <th>Option B</th> <th>Choose A when…</th> </tr> </thead> <tbody> <tr> <td>Layer</td> <td>L4</td> <td>L7</td> <td>you need raw throughput, non-HTTP protocols or TLS pass-through</td> </tr> <tr> <td>Algorithm</td> <td>round robin</td> <td>least connections / P2C</td> <td>requests and servers are uniform</td> </tr> <tr> <td>Affinity</td> <td>consistent hashing on a key</td> <td>none (stateless)</td> <td>a backend holds useful per-key state (cache, room, shard)</td> </tr> <tr> <td>Health checks</td> <td>active only</td> <td>active + passive (outlier detection)</td> <td>traffic is low and failures are clean crashes</td> </tr> <tr> <td>Operation</td> <td>managed cloud LB</td> <td>self-hosted Nginx / HAProxy / Envoy</td> <td>you are on a cloud and want HA and scaling solved for you</td> </tr> <tr> <td>Kubernetes</td> <td>Ingress</td> <td>Gateway API</td> <td>a simple, existing setup; new designs should prefer Gateway API</td> </tr> </tbody> </table> <div class="admonition example"> <p class=admonition-title>BoxOffice: load balancing the core</p> <ul> <li>A <strong>regional managed L7 load balancer</strong> terminates TLS for <code>api.boxoffice.com</code>, spreads requests across three availability zones and forwards them to the Kubernetes <strong>Gateway</strong> (Envoy Gateway), which routes by path: <code>/api/events/**</code> → <code>catalog</code>, <code>/api/holds/**</code> → <code>inventory</code>, <code>/api/orders/**</code> → <code>order</code>.</li> <li>Algorithm: <strong>P2C on in-flight requests</strong> (least-request, the Envoy Gateway default), because hold requests vary in cost when there is lock contention on popular sections.</li> <li>Health: readiness probes on <code>/actuator/health/readiness</code> (instance state only) plus <strong>outlier detection</strong> that ejects a pod returning 5 consecutive 5xx for 30 s.</li> <li>Stateless services: holds live in PostgreSQL, sessions are JWTs; <strong>no sticky sessions</strong>. The one exception is the waiting-room WebSocket/SSE service, where connections are long-lived and balanced at connection time.</li> <li>Deploys: graceful shutdown (30 s) and a 5% weighted <strong>canary</strong> route before the sale day.</li> </ul> </div> <div class="admonition tip"> <p class=admonition-title>In the interview</p> <ul> <li>Draw the load balancer <strong>in front of every stateless tier</strong>, and say "the app servers are stateless, so the LB can send any request anywhere" — this justifies horizontal scaling.</li> <li>Name the <strong>algorithm</strong> only when it matters: least connections / P2C for uneven request costs; <strong>consistent hashing</strong> when requests should reach the server that holds their data (cache nodes, chat rooms, shards). Know the 1/(N+1) property and why virtual nodes exist.</li> <li>Mention <strong>health checks</strong> and <strong>draining</strong> when asked about failures or deploys.</li> <li>If asked "isn't the LB a single point of failure?": managed LBs are replicated across zones; self-hosted ones run as an active-passive pair with a floating IP, or behind anycast/DNS.</li> </ul> </div> <div class="admonition success"> <p class=admonition-title>Best practices</p> <ul> <li><strong>Set backend timeouts from measured latency, slightly above the healthy p99.9</strong> — shorter turns slow answers into retries, longer lets a frozen replica hold requests. In BoxOffice: <code>proxy_read_timeout 5s</code> in <a href=../../../hands-on/3/>lab 3</a> (box above).</li> <li><strong>Warm up a new replica before it gets its full share</strong> — slow start or a readiness check that waits for warm-up; a cold JVM marked failed under load can cascade into <code>502 no live upstreams</code> (lab 3, step 7).</li> <li><strong>Use least connections or power of two choices when request costs vary</strong> — round robin ignores a replica stuck with slow requests. In BoxOffice: try <code>least_conn;</code> in lab 3's upstream.</li> <li><strong>Reuse connections to the backends</strong> — keep-alive avoids a TCP (and TLS) handshake per request. In BoxOffice: <code>keepalive 64</code> with <code>proxy_http_version 1.1</code> in lab 3.</li> <li><strong>Log the chosen backend and its time for every request</strong> — <code>upstream=$upstream_addr ut=$upstream_response_time</code> in lab 3's log format shows which replica is slow, and how much the hop costs.</li> </ul> </div> <div class="admonition warning"> <p class=admonition-title>Pitfalls</p> <ul> <li><strong>Stateful replicas behind a round-robin LB</strong>: logins "randomly" disappear because the session lives in another replica. Externalise state.</li> <li><strong>Readiness that checks shared dependencies</strong>: a database blip ejects every replica at once.</li> <li><strong>L4 balancing of long-lived HTTP/2 or gRPC connections</strong>: all traffic sticks to the first replicas; new replicas receive nothing after a scale-out.</li> <li><strong>Retrying non-idempotent requests at the LB</strong>: duplicated holds or orders.</li> <li><strong>No draining</strong>: every deploy causes a burst of 502s.</li> <li><strong>Forgetting the LB's own limits</strong>: connection tables, TLS handshakes per second and bandwidth are finite; managed LBs may also need pre-warming before a known spike — ask the provider before the sale.</li> </ul> </div> <hr> <h2 id=how-it-connects>How it connects</h2> <pre class=diagram><code>flowchart LR
+    SD["service discovery"] --&gt; LB["load balancer"]
+    HC["health checks&lt;br/&gt;(readiness)"] --&gt; LB
+    LB --&gt; ALG["algorithm: RR, least conn,&lt;br/&gt;P2C, consistent hashing"]
+    ALG --&gt; STATELESS["stateless replicas&lt;br/&gt;→ Compute"]
+    ALG --&gt; CH["consistent hashing&lt;br/&gt;→ sharding (class 6)"]
+    LB --&gt; HA["LB redundancy, anycast&lt;br/&gt;→ Reliability"]
+    LB --&gt; K8S["Service, Ingress, Gateway API&lt;br/&gt;→ Cloud-native"]
+    STATELESS --&gt; AS["autoscaling&lt;br/&gt;→ Compute"]
+    HC --&gt; OBS["health endpoints&lt;br/&gt;→ Observability"]</code></pre> <p><strong>Palette components:</strong> <a href=../../../reference/components/edge/#lb><code>lb</code></a> · <a href=../../../reference/components/edge/#ingress><code>ingress</code></a> · <a href=../../../reference/components/compute/#app><code>app</code></a> (the replicas behind it) · <a href=../../../reference/components/observability/#healthcheck><code>healthcheck</code></a> · <a href=../../../reference/components/network/#mesh><code>mesh</code></a> (client-side balancing in a sidecar). <strong>Scenarios:</strong> <code>scale-out</code>, <code>chat</code> (long-lived connections). <strong>Continues in:</strong> <a href=../../compute/services/>Compute — services</a>, <a href=../../databases/partitioning/>Databases — partitioning</a> (consistent hashing for data), <a href=../../cloud-native/kubernetes/>Cloud-native — Kubernetes</a>, <a href=../../../hands-on/3/>Hands-on 3</a>.</p> <h2 id=key-takeaways>Key takeaways</h2> <div class="admonition takeaways"> <ul> <li>A load balancer turns a pool of <strong>stateless</strong>, interchangeable replicas into one scalable, highly available service.</li> <li><strong>L4</strong> balances connections (fast, protocol-agnostic); <strong>L7</strong> balances requests (routing, TLS, retries, per-request decisions).</li> <li>Round robin for uniform work; <strong>least connections / power of two choices</strong> for uneven work; <strong>consistent hashing with virtual nodes</strong> when a key must stick to a server — adding a node moves only about <strong>1/(N+1)</strong> of the keys.</li> <li><strong>Active and passive health checks</strong> remove failed replicas; <strong>draining</strong> makes deploys invisible.</li> <li>Avoid sticky sessions; keep state in a shared store.</li> <li>In Kubernetes: <strong>Service</strong> (L4, ready pods), <strong>Ingress</strong> (basic L7) and <strong>Gateway API</strong> (role-based, portable L7 routing with weights and timeouts).</li> </ul> </div> <hr> <div class=footnote> <hr> <ol> <li id=fn:1> <p>BEYER, B. et al. <a href=https://sre.google/sre-book/load-balancing-frontend/ target=_blank>Site Reliability Engineering</a>, ch. 19 "Load Balancing at the Frontend" and ch. 20 "Load Balancing in the Datacenter". O'Reilly, 2016. <a class=footnote-backref href=#fnref:1 title="Jump back to footnote 1 in the text">↩</a></p> </li> <li id=fn:2> <p>MITZENMACHER, M. <a href=https://www.eecs.harvard.edu/~michaelm/postscripts/tpds2001.pdf target=_blank>The Power of Two Choices in Randomized Load Balancing</a>. IEEE Transactions on Parallel and Distributed Systems, 2001. <a class=footnote-backref href=#fnref:2 title="Jump back to footnote 2 in the text">↩</a></p> </li> <li id=fn:3> <p>KARGER, D. et al. <a href=https://dl.acm.org/doi/10.1145/258533.258660 target=_blank>Consistent Hashing and Random Trees</a>. ACM STOC, 1997. <a class=footnote-backref href=#fnref:3 title="Jump back to footnote 3 in the text">↩</a></p> </li> <li id=fn:4> <p>KUBERNETES SIG NETWORK. <a href=https://gateway-api.sigs.k8s.io/ target=_blank>Gateway API</a>. Kubernetes documentation. <a class=footnote-backref href=#fnref:4 title="Jump back to footnote 4 in the text">↩</a></p> </li> <li id=fn:5> <p>XU, A. <em>System Design Interview — An Insider's Guide</em>, vol. 1, ch. 5 "Design consistent hashing". Byte Code LLC, 2020. <a class=footnote-backref href=#fnref:5 title="Jump back to footnote 5 in the text">↩</a></p> </li> </ol> </div> </article> </div> <script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script> </div> <button type=button class="md-top md-icon" data-md-component=top hidden> <svg xmlns=http://www.w3.org/2000/svg fill=none stroke=currentColor stroke-linecap=round stroke-linejoin=round stroke-width=2 class="lucide lucide-circle-arrow-up" viewBox="0 0 24 24"><circle cx=12 cy=12 r=10 /><path d="m16 12-4-4-4 4M12 16V8"/></svg> Back to top </button> </main> <footer class=md-footer> <div class="md-footer-meta md-typeset"> <div class="md-footer-meta__inner md-grid"> <div class=md-copyright> Made with <a href=https://zensical.org/ target=_blank rel=noopener> Zensical </a> </div> </div> </div> </footer> </div> <div class=md-dialog data-md-component=dialog role=status aria-atomic=true> <div class="md-dialog__inner md-typeset"></div> </div> <div class=md-progress data-md-component=progress role=progressbar aria-label=Loading></div> <script id=__config type=application/json>{"annotate":null,"base":"../../../..","features":["content.code.copy","content.code.select","content.code.annotate","content.tooltips","navigation.instant","navigation.instant.progress","navigation.top","navigation.path","navigation.tracking","navigation.footer","search.highlight","toc.follow"],"redirect":null,"search":"../../../../assets/javascripts/workers/search.c47bb847.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","clipboard.error":"Could not copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":null}</script> <script src=../../../../assets/javascripts/bundle.a2388154.min.js></script> <script src=../../../../assets/javascripts/mathjax.js></script> <script src=https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js></script> <script src=../../../../assets/javascripts/interview.js></script> <script src=../../../../assets/javascripts/termynal.js></script> <script src=../../../../assets/javascripts/termynal-init.js></script> <script src=../../../../assets/javascripts/mermaid-sim.js></script> <script src=../../../../assets/javascripts/netsim.js></script> <script src=../../../../assets/javascripts/diagram.js></script> <script src=../../../../assets/javascripts/quiz.js></script> <script src=../../../../assets/javascripts/csim/core.js></script> <script src=../../../../assets/javascripts/calendar-today.js></script> <script src=../../../../assets/javascripts/playground/rng.js></script> <script src=../../../../assets/javascripts/playground/catalog.js></script> <script src=../../../../assets/javascripts/playground/engine.js></script> <script src=../../../../assets/javascripts/playground/scenarios.js></script> <script src=../../../../assets/javascripts/playground/ui.js></script> <script src=../../../../assets/javascripts/support/arq-lessons.js></script> <script src=../../../../assets/javascripts/support/dgm.js></script> <script src=../../../../assets/javascripts/support/dgm-mapa-arq.js></script> <script src=../../../../assets/javascripts/support/dgm-cartas-arq.js></script> </body> </html>

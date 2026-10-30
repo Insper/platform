@@ -1,0 +1,66 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: gateway
+  cloud:
+    gateway:
+      server:
+        webflux:
+          httpclient:
+            connect-timeout: 1000          # ms to open a connection to a service
+            response-timeout: 5s           # never wait forever for a service
+          default-filters:
+            # retry idempotent GETs once on another instance when a connection fails
+            - name: Retry
+              args:
+                retries: 1
+                methods: GET
+                series: SERVER_ERROR
+                exceptions: java.io.IOException, java.util.concurrent.TimeoutException
+          routes:
+            - id: auth
+              uri: ${AUTH_URL:http://auth:8081}
+              predicates:
+                - Path=/auth/**
+            - id: catalog
+              uri: lb://catalog              # "lb": pick one instance of "catalog" per request
+              predicates:
+                - Path=/catalog/**
+    # the instances behind lb://catalog (a static list; Kubernetes replaces it in lab 10)
+    discovery:
+      client:
+        simple:
+          instances:
+            catalog:
+              - uri: http://catalog-1:8082
+              - uri: http://catalog-2:8082
+              - uri: http://catalog-3:8082
+    loadbalancer:
+      configurations: health-check         # skip instances that are not ready
+      health-check:
+        interval: 5s
+        path:
+          default: /actuator/health/readiness   # this instance, not db/redis that every replica shares
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${AUTH_JWKS_URI:http://auth:8081/auth/.well-known/jwks.json}
+
+jwt:
+  issuer: ${JWT_ISSUER:boxoffice-auth}
+  audience: boxoffice
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, metrics, gateway
+  endpoint:
+    health:
+      probes:
+        enabled: true
+    gateway:
+      access: read-only      # GET /actuator/gateway/routes lists the routes

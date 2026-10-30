@@ -1,0 +1,200 @@
+/*
+ * Concept simulators (assets/javascripts/csim/*.js). Every color comes from the page theme (Material's
+ * CSS variables), so both palettes and a palette switch need nothing from the scripts.
+ * The three status colors are the ones of the Playground and the network simulators
+ * (contrast ≥ 4.5:1 on the light background, so they also work for small text).
+ */
+
+.md-typeset .csim {
+  --c-primary: var(--md-primary-fg-color);
+  --c-ink: var(--md-typeset-a-color);          /* the theme's readable primary, per palette */
+  --c-accent: var(--md-accent-fg-color);
+  --c-fg: var(--md-default-fg-color);
+  --c-fg2: var(--md-default-fg-color--light);
+  --c-fg3: var(--md-default-fg-color--lighter);
+  --c-line: var(--md-default-fg-color--lightest);
+  --c-bg: var(--md-default-bg-color);
+  --c-panel: var(--md-code-bg-color);
+  --c-ok: #15803d;
+  --c-warn: #b45309;
+  --c-bad: #b91c1c;
+  --c-tint: color-mix(in srgb, var(--c-ink) 10%, var(--c-bg));
+  --c-tint2: color-mix(in srgb, var(--c-ink) 22%, var(--c-bg));
+  margin: 1.2em 0;
+  border: .05rem solid var(--c-line);
+  border-radius: .5rem;
+  background: var(--c-bg);
+  font-size: .68rem;
+  outline: none;
+}
+[data-md-color-scheme="slate"] .md-typeset .csim {
+  --c-ok: #22c55e;
+  --c-warn: #f59e0b;
+  --c-bad: #f87171;
+}
+.md-typeset .csim:focus-visible { border-color: var(--c-accent); }
+
+/* ------------------------------------------------------------ concept simulators */
+
+.md-typeset .csim { padding: .7rem .8rem .5rem; }
+.md-typeset .csim-title { font-weight: 700; font-size: .74rem; margin: 0 0 .1rem; }
+.md-typeset .csim-sub { color: var(--c-fg2); margin: 0 0 .5rem; }
+.md-typeset .csim-row { display: flex; flex-wrap: wrap; align-items: center; gap: .45rem 1rem; margin: .35rem 0; }
+.md-typeset .csim-cols { display: flex; flex-wrap: wrap; gap: .8rem; align-items: flex-start; }
+.md-typeset .csim-cols > * { flex: 1 1 15rem; min-width: 0; }
+.md-typeset .csim-stage { flex: 1.6 1 18rem; }
+.md-typeset .csim-stage svg { display: block; width: 100%; height: auto; max-height: 26rem; overflow: visible; }
+.md-typeset .csim svg text { fill: var(--c-fg); font-family: var(--md-text-font-family); }
+
+/* controls */
+.md-typeset .csim-ctl { display: inline-flex; align-items: center; gap: .4rem; }
+.md-typeset .csim-lbl { font-weight: 600; white-space: nowrap; }
+.md-typeset .csim-val { font-family: var(--md-code-font-family); min-width: 2.6rem; color: var(--c-ink); font-weight: 700; }
+.md-typeset .csim input[type="range"] { accent-color: var(--c-ink); width: 7.5rem; }
+.md-typeset .csim-seg { display: inline-flex; border: .05rem solid var(--c-line); border-radius: .3rem; overflow: hidden; }
+.md-typeset .csim-seg-b, .md-typeset .csim-btn {
+  font: inherit; cursor: pointer; padding: .15rem .55rem; border: 0; background: var(--c-bg); color: var(--c-fg);
+}
+.md-typeset .csim-seg-b + .csim-seg-b { border-left: .05rem solid var(--c-line); }
+.md-typeset .csim-seg-b[aria-pressed="true"] { background: var(--c-ink); color: var(--c-bg); font-weight: 700; }
+.md-typeset .csim-btn { border: .05rem solid var(--c-line); border-radius: .3rem; background: var(--c-panel); }
+.md-typeset .csim-btn:hover, .md-typeset .csim-seg-b:hover:not([aria-pressed="true"]) { color: var(--c-accent); border-color: var(--c-accent); }
+.md-typeset .csim-btn-bad { color: var(--c-bad); }
+.md-typeset .csim-btn-ok { color: var(--c-ok); }
+.md-typeset .csim-switch { cursor: pointer; user-select: none; }
+.md-typeset .csim-switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.md-typeset .csim-knob {
+  width: 1.6rem; height: .9rem; border-radius: 1rem; background: var(--c-line); position: relative; transition: background .2s; flex: none;
+}
+.md-typeset .csim-knob::after {
+  content: ""; position: absolute; top: .1rem; left: .1rem; width: .7rem; height: .7rem; border-radius: 50%;
+  background: var(--c-bg); transition: transform .2s; box-shadow: 0 0 .1rem rgba(0, 0, 0, .3);
+}
+.md-typeset .csim-switch input:checked + .csim-knob { background: var(--c-ink); }
+.md-typeset .csim-switch input:checked + .csim-knob::after { transform: translateX(.7rem); }
+.md-typeset .csim-switch input:focus-visible + .csim-knob { outline: .1rem solid var(--c-accent); }
+
+/* stat tiles */
+.md-typeset .csim-stats { display: flex; flex-wrap: wrap; gap: .4rem; margin: .4rem 0; }
+.md-typeset .csim-stat {
+  flex: 1 1 5.5rem; padding: .3rem .5rem; border-radius: .35rem; background: var(--c-panel); border-left: .2rem solid var(--c-line);
+  display: flex; flex-direction: column; min-width: 0;
+}
+.md-typeset .csim-stat b { font-size: .9rem; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.md-typeset .csim-stat span { color: var(--c-fg2); font-size: .62rem; }
+.md-typeset .csim-stat.csim-ok { border-left-color: var(--c-ok); }
+.md-typeset .csim-stat.csim-ok b { color: var(--c-ok); }
+.md-typeset .csim-stat.csim-warn { border-left-color: var(--c-warn); }
+.md-typeset .csim-stat.csim-warn b { color: var(--c-warn); }
+.md-typeset .csim-stat.csim-bad { border-left-color: var(--c-bad); }
+.md-typeset .csim-stat.csim-bad b { color: var(--c-bad); }
+.md-typeset .csim-stat.csim-info { border-left-color: var(--c-ink); }
+
+/* event log */
+.md-typeset .csim-log {
+  list-style: none; margin: .3rem 0 0; padding: 0; max-height: 9.5rem; overflow-y: auto;
+  font-family: var(--md-code-font-family); font-size: .6rem;
+}
+.md-typeset .csim-log li { margin: 0; padding: .12rem .4rem; border-left: .15rem solid var(--c-line); }
+.md-typeset .csim-log li:first-child { background: var(--c-tint); }
+.md-typeset .csim-log li.csim-ok { border-left-color: var(--c-ok); }
+.md-typeset .csim-log li.csim-warn { border-left-color: var(--c-warn); }
+.md-typeset .csim-log li.csim-bad { border-left-color: var(--c-bad); }
+.md-typeset .csim-log li.csim-info { border-left-color: var(--c-ink); }
+
+/* narration under the stage */
+.md-typeset .csim-note {
+  margin: .4rem 0 0; padding: .35rem .55rem; border-radius: .35rem; background: var(--c-tint); min-height: 1.6rem;
+}
+.md-typeset .csim-note.csim-bad { background: color-mix(in srgb, var(--c-bad) 12%, var(--c-bg)); }
+.md-typeset .csim-note.csim-ok { background: color-mix(in srgb, var(--c-ok) 12%, var(--c-bg)); }
+.md-typeset .csim-note.csim-warn { background: color-mix(in srgb, var(--c-warn) 12%, var(--c-bg)); }
+
+/* live chart */
+.md-typeset .csim-fig { margin: .3rem 0 0; }
+.md-typeset .csim-fig figcaption { font-weight: 600; text-align: left; margin: 0 0 .1rem; font-size: .64rem; }
+.md-typeset .csim-chart { width: 100%; height: auto; display: block; }
+.md-typeset .csim-chart .csim-grid line { stroke: var(--c-line); stroke-width: 1; }
+.md-typeset .csim-chart .csim-grid text { fill: var(--c-fg3); font-size: 8px; }
+.md-typeset .csim-line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke: var(--c-ink); }
+.md-typeset .csim-legend { display: flex; flex-wrap: wrap; gap: .2rem .8rem; color: var(--c-fg2); font-size: .6rem; }
+.md-typeset .csim-legend i { display: inline-block; width: .7rem; height: .18rem; border-radius: .1rem; margin-right: .3rem; vertical-align: middle; background: var(--c-ink); }
+
+/* series and shape tones, shared by charts and stages */
+.md-typeset .csim .tone-ink { stroke: var(--c-ink); --tone: var(--c-ink); }
+.md-typeset .csim .tone-accent { stroke: var(--c-accent); --tone: var(--c-accent); }
+.md-typeset .csim .tone-ok { stroke: var(--c-ok); --tone: var(--c-ok); }
+.md-typeset .csim .tone-warn { stroke: var(--c-warn); --tone: var(--c-warn); }
+.md-typeset .csim .tone-bad { stroke: var(--c-bad); --tone: var(--c-bad); }
+.md-typeset .csim .tone-mute { stroke: var(--c-fg3); --tone: var(--c-fg3); }
+.md-typeset .csim-legend .tone-ink i, .md-typeset .csim-legend .tone-accent i, .md-typeset .csim-legend .tone-ok i,
+.md-typeset .csim-legend .tone-warn i, .md-typeset .csim-legend .tone-bad i, .md-typeset .csim-legend .tone-mute i { background: var(--tone); }
+.md-typeset .csim .dashed { stroke-dasharray: 4 3; }
+
+/* generic stage shapes: a box (node, server, partition) and a message dot */
+.md-typeset .csim .c-box { fill: var(--c-bg); stroke: var(--c-fg3); stroke-width: 1.2; }
+.md-typeset .csim .c-box.on { fill: var(--c-tint); stroke: var(--c-ink); stroke-width: 2; }
+.md-typeset .csim .c-box.hot { fill: color-mix(in srgb, var(--c-accent) 18%, var(--c-bg)); stroke: var(--c-accent); stroke-width: 2.4; }
+.md-typeset .csim .c-box.ok { fill: color-mix(in srgb, var(--c-ok) 14%, var(--c-bg)); stroke: var(--c-ok); }
+.md-typeset .csim .c-box.warn { fill: color-mix(in srgb, var(--c-warn) 14%, var(--c-bg)); stroke: var(--c-warn); }
+.md-typeset .csim .c-box.bad { fill: color-mix(in srgb, var(--c-bad) 14%, var(--c-bg)); stroke: var(--c-bad); }
+.md-typeset .csim .c-box.down { fill: var(--c-panel); stroke: var(--c-fg3); stroke-dasharray: 4 3; }
+.md-typeset .csim .c-wire { stroke: var(--c-line); stroke-width: 1.5; fill: none; }
+.md-typeset .csim .c-wire.on { stroke: var(--c-ink); }
+.md-typeset .csim .c-wire.cut { stroke: var(--c-bad); stroke-dasharray: 5 4; }
+.md-typeset .csim .c-dot { fill: var(--c-accent); stroke: var(--c-bg); stroke-width: 1.5; }
+.md-typeset .csim .c-dot.ok { fill: var(--c-ok); }
+.md-typeset .csim .c-dot.bad { fill: var(--c-bad); }
+.md-typeset .csim .c-dot.ink { fill: var(--c-ink); }
+.md-typeset .csim .c-dot.mute { fill: var(--c-fg3); }
+.md-typeset .csim text.c-small { font-size: 9px; fill: var(--c-fg2); }
+.md-typeset .csim text.c-label { font-size: 11px; font-weight: 600; }
+.md-typeset .csim text.c-mono { font-family: var(--md-code-font-family); font-size: 10px; }
+.md-typeset .csim text.c-ink { fill: var(--c-ink); }
+.md-typeset .csim text.c-bad { fill: var(--c-bad); }
+.md-typeset .csim text.c-ok { fill: var(--c-ok); }
+.md-typeset .csim text.c-warn { fill: var(--c-warn); }
+.md-typeset .csim .c-fill-ink { fill: var(--c-ink); }
+.md-typeset .csim .c-fill-accent { fill: var(--c-accent); }
+.md-typeset .csim .c-fill-ok { fill: var(--c-ok); }
+.md-typeset .csim .c-fill-warn { fill: var(--c-warn); }
+.md-typeset .csim .c-fill-bad { fill: var(--c-bad); }
+.md-typeset .csim .c-fill-mute { fill: var(--c-line); }
+.md-typeset .csim .c-fill-tint { fill: var(--c-tint2); }
+.md-typeset .csim .c-anim { transition: all .35s ease; }
+
+/* player bar (same look as the step-by-step diagrams, mermaid-sim.css) */
+.md-typeset .csim-bar {
+  display: flex; align-items: center; gap: .25rem; margin: .5rem -.8rem -.5rem; padding: .3rem .6rem;
+  border-top: .05rem solid var(--c-line); background: var(--c-panel); border-radius: 0 0 .5rem .5rem; font-size: .64rem;
+}
+.md-typeset .csim-bar button {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 1.5rem; height: 1.5rem; padding: 0 .3rem;
+  border: none; border-radius: .25rem; background: none; color: var(--c-fg2); cursor: pointer; font: inherit;
+}
+.md-typeset .csim-bar button:hover { background: var(--c-line); color: var(--c-fg); }
+.md-typeset .csim-bar .csim-play { color: var(--c-ink); }
+.md-typeset .csim-count { margin-left: .3rem; color: var(--c-fg2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.md-typeset .csim-fill { flex: 1; }
+.md-typeset .csim-speed { font-family: var(--md-code-font-family); font-weight: 700; }
+
+@media (max-width: 600px) {
+  .md-typeset .csim-cols > * { flex-basis: 100%; }
+}
+
+/* categorical colors (one per node or partition), built from the theme's colors */
+.md-typeset .csim .cat-0 { --cat: var(--c-ink); }
+.md-typeset .csim .cat-1 { --cat: var(--c-ok); }
+.md-typeset .csim .cat-2 { --cat: var(--c-warn); }
+.md-typeset .csim .cat-3 { --cat: color-mix(in srgb, var(--c-bad) 45%, var(--c-ink)); }
+.md-typeset .csim .cat-4 { --cat: var(--c-bad); }
+.md-typeset .csim .cat-5 { --cat: color-mix(in srgb, var(--c-ink) 50%, var(--c-ok)); }
+.md-typeset .csim .cat-6 { --cat: var(--c-accent); }
+.md-typeset .csim .cat-7 { --cat: var(--c-fg2); }
+
+.md-typeset .csim-btn:disabled { opacity: .4; cursor: default; }
+
+@keyframes csim-pulse { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) {
+  .md-typeset .csim *, .md-typeset .msim * { animation: none !important; transition: none !important; }
+}

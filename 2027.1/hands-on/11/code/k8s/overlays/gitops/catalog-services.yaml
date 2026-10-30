@@ -1,0 +1,30 @@
+# Argo Rollouts points these two Services at the stable and the canary pods (it adds the
+# rollouts-pod-template-hash to their selectors). Prometheus scrapes them, so every series
+# carries service="catalog-stable" or service="catalog-canary".
+apiVersion: v1
+kind: Service
+metadata:
+  name: catalog-stable
+  annotations:
+    prometheus.io/scrape: "true"
+spec:
+  selector:
+    app: catalog
+  ports:
+    - name: http
+      port: 8082
+      targetPort: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: catalog-canary
+  annotations:
+    prometheus.io/scrape: "true"
+spec:
+  selector:
+    app: catalog
+  ports:
+    - name: http
+      port: 8082
+      targetPort: http

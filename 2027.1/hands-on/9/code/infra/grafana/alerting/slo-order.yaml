@@ -1,0 +1,94 @@
+# Lab 9: slo-catalog.yaml of lab 8 with "catalog" replaced by "order", so the game day can page.
+# Multiwindow, multi-burn-rate alerts for the order availability SLO (Google SRE workbook, ch. 5).
+# SLI: share of order requests (health checks excluded) NOT answered with 5xx. SLO: 99.5% / 28 days.
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: order-slo
+    folder: BoxOffice
+    interval: 30s
+    rules:
+      - uid: order-availability-fast-burn
+        title: "order availability SLO: fast burn"
+        condition: C
+        data:
+          - refId: A          # burn rate over the long window (1 h)
+            relativeTimeRange: { from: 3600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              expr: |
+                (
+                  sum(rate(http_server_request_duration_seconds_count{service_name="order", http_route!~"/actuator.*", http_response_status_code=~"5.."}[1h]))
+                  / sum(rate(http_server_request_duration_seconds_count{service_name="order", http_route!~"/actuator.*"}[1h]))
+                ) / 0.005
+          - refId: B          # burn rate over the short window (5 min): stops paging soon after recovery
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: B
+              instant: true
+              expr: |
+                (
+                  sum(rate(http_server_request_duration_seconds_count{service_name="order", http_route!~"/actuator.*", http_response_status_code=~"5.."}[5m]))
+                  / sum(rate(http_server_request_duration_seconds_count{service_name="order", http_route!~"/actuator.*"}[5m]))
+                ) / 0.005
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: math
+              expression: "$A > 14.4 && $B > 14.4"
+        for: 1m
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: page
+          slo: order-availability
+        annotations:
+          summary: "order is burning its 28-day error budget 14.4x too fast"
+          description: 'Burn rate {{ printf "%.1f" $values.A.Value }} (1 h) and {{ printf "%.1f" $values.B.Value }} (5 min): at this pace about 2% of the 28-day budget is gone in one hour.'
+
+      - uid: order-availability-slow-burn
+        title: "order availability SLO: slow burn"
+        condition: C
+        data:
+          - refId: A          # 6 h window
+            relativeTimeRange: { from: 21600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              expr: |
+                (
+                  sum(rate(http_server_request_duration_seconds_count{service_name="order", http_route!~"/actuator.*", http_response_status_code=~"5.."}[6h]))
+                  / sum(rate(http_server_request_duration_seconds_count{service_name="order", http_route!~"/actuator.*"}[6h]))
+                ) / 0.005
+          - refId: B          # 30 min window
+            relativeTimeRange: { from: 1800, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: B
+              instant: true
+              expr: |
+                (
+                  sum(rate(http_server_request_duration_seconds_count{service_name="order", http_route!~"/actuator.*", http_response_status_code=~"5.."}[30m]))
+                  / sum(rate(http_server_request_duration_seconds_count{service_name="order", http_route!~"/actuator.*"}[30m]))
+                ) / 0.005
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: math
+              expression: "$A > 6 && $B > 6"
+        for: 5m
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: ticket
+          slo: order-availability
+        annotations:
+          summary: "order is burning its error budget 6x too fast"
+          description: 'Burn rate {{ printf "%.1f" $values.A.Value }} (6 h) and {{ printf "%.1f" $values.B.Value }} (30 min): about 5% of the 28-day budget in six hours.'
