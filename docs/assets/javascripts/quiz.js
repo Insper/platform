@@ -1,5 +1,5 @@
 /*
- * Quizzes (2027.1): turns the quiz pages' Markdown into compact question cards.
+ * Quizzes (2027.1 and the appendix): turns the quiz pages' Markdown into compact question cards.
  *
  * The source stays plain Markdown, readable without JavaScript:
  *
@@ -191,7 +191,7 @@
   }
 
   function init() {
-    if (location.pathname.indexOf("/2027.1/") < 0) return;
+    if (!/\/(2027\.1|appendix)\//.test(location.pathname)) return;
     var article = document.querySelector(".md-content article.md-typeset, .md-content .md-typeset");
     if (article && !article.classList.contains("qz-page")) build(article);
   }

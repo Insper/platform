@@ -36,16 +36,20 @@ export function near(a, b, tol, msg) {
 
 export const ROOT = path.join(here, "../..");
 
+/* the folders whose pages embed concept simulators */
+export const SIM_DIRS = ["docs/2027.1", "docs/appendix"];
+
 /* every page (en and pt) that embeds <div class="csim" data-sim="<sim>"> */
 export function pagesOf(sim) {
   const out = [];
-  (function walk(dir) {
+  function walk(dir) {
     for (const f of readdirSync(dir)) {
       const p = path.join(dir, f);
       if (statSync(p).isDirectory()) { if (f !== "slides") walk(p); }
       else if (f.endsWith(".md") && readFileSync(p, "utf8").includes(`data-sim="${sim}"`)) out.push(p);
     }
-  })(path.join(ROOT, "docs/2027.1"));
+  }
+  SIM_DIRS.forEach(d => walk(path.join(ROOT, d)));
   return out.sort();
 }
 

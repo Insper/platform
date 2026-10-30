@@ -640,16 +640,28 @@ nav = [
   { "2025.1" = "2025.1/index.md" },
   { "2024.1" = "2024.1/index.md" },
   { "Appendix" = [
-    { "Network" = [
+    { "Overview" = "appendix/index.md" },
+    { "Networking" = [
       { "Overview" = "appendix/network/index.md" },
+      { "Addressing & NAT" = "appendix/network/addressing/index.md" },
+      { "Ports, TCP & UDP" = "appendix/network/transport/index.md" },
+      { "DNS" = "appendix/network/dns/index.md" },
       { "Quiz" = "appendix/network/quiz.md" },
     ] },
-    { "Development Setup" = "appendix/development-setup.md" },
-    { "Git Submodules" = "appendix/git-submodules.md" },
-    { "RSA Algorithm" = "appendix/rsa.md" },
-    { "Oh My Zsh" = "appendix/ohmyzsh.md" },
-    { "Git Actions" = "appendix/gitactions.md" },
-    { "Others" = "appendix/others.md" },
+    { "Security" = [
+      { "RSA & Ed25519" = "appendix/rsa.md" },
+    ] },
+    { "APIs" = [
+      { "REST vs GraphQL" = "appendix/rest-vs-graphql.md" },
+      { "Versioning REST APIs" = "appendix/versioning-rest-apis.md" },
+    ] },
+    { "Tooling" = [
+      { "Development Setup" = "appendix/development-setup.md" },
+      { "Oh My Zsh" = "appendix/ohmyzsh.md" },
+      { "Git Submodules" = "appendix/git-submodules.md" },
+      { "GitHub Actions" = "appendix/gitactions.md" },
+    ] },
+    { "Further Reading" = "appendix/others.md" },
   ] },
 
   { "Terms and Conditions" = "terms-and-conditions/index.md" },
@@ -788,6 +800,15 @@ language = "pt-BR"
 "Exercises" = "Exercícios"
 "Project" = "Projeto"
 "Appendix" = "Apêndice"
+"Networking" = "Redes"
+"Addressing & NAT" = "Endereçamento e NAT"
+"Ports, TCP & UDP" = "Portas, TCP e UDP"
+"Security" = "Segurança"
+"RSA & Ed25519" = "RSA e Ed25519"
+"Versioning REST APIs" = "Versionamento de APIs REST"
+"Tooling" = "Ferramentas"
+"Git Submodules" = "Submódulos Git"
+"Further Reading" = "Leituras Complementares"
 "Interview Material" = "Material para Entrevistas"
 "Terms and Conditions" = "Termos e Condições"
 "Disclaimer" = "Aviso Legal"

@@ -41,7 +41,7 @@ This is a documentation repository — no application code, no tests.
 - `docs/hands-on/` — 7 numbered lab modules (0–6): prerequisites → CRUD → gateway → security → DevOps → orchestration → observability
 - `docs/exercises/` — graded student assignments (product, order, exchange, jenkins, minikube, bottlenecks, team project)
 - `docs/versions/` — versioned course editions (2024.1–2026.1) with grading rubrics and schedules
-- `docs/appendix/` — supporting topics (git, networking, dev setup, RSA, etc.)
+- `docs/appendix/` — edition-independent reference (overview `appendix/index.md`; networking, security, APIs, tooling), with the 2027.1 simulators and `diagram` blocks
 
 **`zensical.toml`** is the central config (everything under `[project]`). TOML has no `!!python/name` tags: functions are referenced as strings (e.g. `"zensical.extensions.emoji.twemoji"`). It defines navigation, plugins, and Markdown extensions. Key capabilities enabled:
 - Mermaid diagram rendering (via superfences)
@@ -144,7 +144,7 @@ pure and tested with `node scripts/playground/test_netsim.mjs`. Support data (co
 (overlaid on a copy of the English data; the validator fails when a concept, connection, trail or card has no
 translation, or when a support page states counts that the data no longer have).
 
-Concept simulators (2027.1): `<div class="csim" data-sim="<name>" data-…="…"></div>`, followed by a
+Concept simulators (2027.1 and the appendix): `<div class="csim" data-sim="<name>" data-…="…"></div>`, followed by a
 `!!! tip "Try it"` (pt `"Experimente"`) whose numbers come from the model. `docs/assets/javascripts/csim/core.js`
 is the only one listed in `zensical.toml`: it loads `csim/<name>.js` on demand and gives the modules the shared
 controls (player, sliders, choices, switches, stat tiles, log, live chart). Each module keeps a pure, seeded
@@ -164,7 +164,7 @@ the tip, or when `LAB` holds an unregistered key. So: **when you change a lab se
 update the registry entry and `LAB`, run `node scripts/csim/test.mjs <sim>`, and rewrite the tip numbers it
 reports (en and pt); **when you write a simulator that uses a lab value**, register it the same way.
 
-Quiz pages (`classes/*/quiz.md`) keep plain Markdown (**Qn.** question, `- A.` … options, `??? success "Answer"` / `"Resposta"`
+Quiz pages (`classes/*/quiz.md`, `appendix/network/quiz.md`) keep plain Markdown (**Qn.** question, `- A.` … options, `??? success "Answer"` / `"Resposta"`
 whose first bold starts with the letter); `assets/javascripts/quiz.js` turns them into compact cards with clickable options and a score.
 
 Every class page closes with `## Key takeaways { #key-takeaways }` (pt `## Pontos-chave`) followed by the list

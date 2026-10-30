@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /*
- * Checks the diagram parsers (docs/assets/javascripts/diagram.js) against every 2027.1 diagram:
+ * Checks the diagram parsers (docs/assets/javascripts/diagram.js) against every 2027.1 and appendix diagram:
  *
- *     node scripts/diagram/test.mjs          # all ``` diagram / diagram-sim (and mermaid) blocks of docs/2027.1
+ *     node scripts/diagram/test.mjs          # all ``` diagram / diagram-sim (and mermaid) blocks of docs/2027.1 and docs/appendix
  *     node scripts/diagram/test.mjs -v       # also list each diagram's size
  *
  * Fails when a line is not understood, an edge points to nothing, or a playable diagram has no steps.
@@ -29,7 +29,7 @@ function* walk(dir) {
 
 let blocks = 0, failed = 0;
 const kinds = {};
-for (const file of walk(path.join(root, "docs/2027.1"))) {
+for (const file of ["docs/2027.1", "docs/appendix"].flatMap(d => [...walk(path.join(root, d))])) {
   const text = readFileSync(file, "utf8");
   const re = /^``` *(diagram-sim|diagram|mermaid-sim|mermaid)\s*\n([\s\S]*?)\n```/gm;
   let m;
