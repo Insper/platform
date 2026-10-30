@@ -114,7 +114,7 @@ k6 sees the service from the outside. To find *why* latency grows you need gauge
 
 Keep three terminals open during every test: k6, `bash scripts/watch-metrics.sh`, and `docker stats` (CPU of `catalog` and `db`).
 
-You should see one line per second. At rest `busy_threads` is 1 (the request that reads the metric); under load it follows Little's Law, and at overload the pool fills up (lines from a run for this lab, at 50, 400 and 600 req/s):
+You should see one line per second (at overload, one every few seconds: the request that reads the metrics waits for a free Tomcat thread too). At rest `busy_threads` is 1 (the request that reads the metric); under load it follows Little's Law, and at overload the pool fills up (lines from a run for this lab, at 50, 400 and 600 req/s):
 
 ``` { .text }
 time      busy_threads  db_active  db_pending
@@ -141,7 +141,7 @@ bash scripts/sweep.sh 50 100 200 300 400 500 600
 uv run scripts/summarize.py results/lab2/rate-*.json
 ```
 
-`sweep.sh` prints one line per step (`>>> warm-up: 30 s at RATE=50 (not recorded)`, then `>>> RATE=50 req/s for 1m`, …) and takes about 10 minutes for seven rates. `summarize.py` then prints a Markdown table like the one below — paste it into `results/lab2.md`.
+`sweep.sh` prints one line per step (`>>> warm-up: 30 s at RATE=50 (not recorded)`, then `>>> RATE=50 req/s for 1m`, …) and takes about 10 minutes for seven rates. Steps past the knee also print `level=error msg="thresholds on metrics ... have been crossed"`: the latency thresholds of `load.js` failed, which is expected there — the summary is saved anyway. `summarize.py` then prints a Markdown table like the one below — paste it into `results/lab2.md`.
 
 An example run on a laptop (catalog limited to 1 CPU, pool of 10 connections):
 
@@ -198,6 +198,7 @@ Compare the two tables. Typically the knee moves **up**, but not forever: with 3
 ## 7. Stress: past the knee and back
 
 ``` { .bash .copy }
+docker compose up -d catalog       # back to the default pool (10): PEAK=600 is past its knee
 K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_EXPORT=results/lab2-stress.html \
   k6 run -e PEAK=600 load/stress.js
 ```
@@ -251,7 +252,7 @@ Setup: catalog 1 CPU / 768 MB, Hikari pool = 10, PostgreSQL 17, k6 open model (8
 | Symptom | Cause | Fix |
 |---|---|---|
 | every request fails with `connection refused` | the stack is not running, or `BASE_URL` points elsewhere | `docker compose ps`; in lab 2 the target is `http://localhost:8082` (the default) |
-| `WARN Insufficient VUs, reached 200 active VUs` | the arrival rate needs more concurrent requests than `maxVUs` | expected past the knee; the run is still valid — note `dropped_iterations` |
+| `level=warning msg="Insufficient VUs, reached 2000 active VUs and cannot initialize more"` | the arrival rate needs more concurrent requests than `maxVUs` | expected past the knee; the run is still valid — note `dropped_iterations` |
 | `summarize.py` prints only the header | no JSON matched the glob (wrong `OUT` folder) | `ls results/lab2/`; pass the same folder you gave to `sweep.sh` |
 | `watch-metrics.sh` prints `?` | `jq` missing, or `catalog` not reachable on 8082 | install `jq`; `curl localhost:8082/actuator/metrics` must list `tomcat.threads.busy` |
 | `uv: command not found` | uv not installed | lab 0, step 1 — or run `python3 scripts/summarize.py …` (it only uses the standard library) |

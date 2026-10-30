@@ -420,7 +420,7 @@ The patterns are layered. For the `order` → `payment` call, BoxOffice uses all
     [Hands-on 9 — Resilience patterns](../../../hands-on/9/patterns/index.md) configures the stack with laptop-sized numbers: 50 Tomcat threads instead of 200, a 1 s read timeout, 3 attempts with 200 ms of backoff ± 50% jitter, a breaker that also opens when half of the last 20 calls took over 800 ms and stays open 10 s, and a bulkhead of **10** concurrent calls that never queues (`max-wait-duration: 0`). Every knob reads an environment variable, so each experiment switches one pattern off without a rebuild. `PaymentGateway` stacks the annotations in Resilience4j's default order — Retry ( CircuitBreaker ( Bulkhead ( call ) ) ) — with the fallback on the outer layer, and the retry ignores `CallNotPermittedException` and `BulkheadFullException`: an open breaker or a full bulkhead fails fast instead of being retried. The fallback answers `503` and the order stays `PENDING_PAYMENT`, the honest "try again" of [Fallback](#fallback-and-graceful-degradation). With the provider 3 s slow, the lab measured `GET /orders/{id}` — which never calls `payment` — at a median of **9.04 s** unprotected and **6.5 ms** with the patterns.
 
     ``` { .yaml title="services/order/src/main/resources/application.yaml (resilience4j)" }
-    --8<-- "docs/2027.1/hands-on/9/code/services/order/src/main/resources/application.yaml:47:82"
+    --8<-- "docs/2027.1/hands-on/9/code/services/order/src/main/resources/application.yaml:47:84"
     ```
 
     ``` { .java title="services/order/src/main/java/boxoffice/order/payment/PaymentGateway.java (the stack)" }

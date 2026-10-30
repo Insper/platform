@@ -87,7 +87,7 @@ X-Cache: HIT
 (integer) 62
 ```
 
-A segunda requisição foi atendida por **outra réplica** e ainda assim foi um hit: o cache é **compartilhado** (distribuído), não local a cada JVM. Com um cache local (Caffeine, um `HashMap`), cada uma das três réplicas aqueceria separadamente e poderia guardar uma versão diferente do mesmo evento.
+A segunda requisição foi atendida por **outra réplica** (se as duas caíram na mesma, rode de novo: o gateway alterna as réplicas) e ainda assim foi um hit: o cache é **compartilhado** (distribuído), não local a cada JVM. Com um cache local (Caffeine, um `HashMap`), cada uma das três réplicas aqueceria separadamente e poderia guardar uma versão diferente do mesmo evento.
 
 Agora quebre de propósito:
 

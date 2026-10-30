@@ -142,10 +142,11 @@ O passo [Meça](measure/index.md) tem os scripts e a tabela de resultados para g
 | `litellm.APIConnectionError … Connection refused` nos logs | o Ollama não está rodando ou `OLLAMA_URL` está errada | `docker compose ps ollama` / `ollama list`; confira a variável no `docker-compose.yaml` |
 | `model "qwen2.5:1.5b" not found` | o modelo não foi baixado | `docker compose up ollama-init` (ou `ollama pull qwen2.5:1.5b` nativamente) |
 | a inicialização falha com `type "vector" does not exist` | o `db` ainda roda a imagem `postgres:17` simples | `docker compose up -d db` depois de atualizar o arquivo compose; `docker compose exec db psql -U boxoffice -c "\dx"` lista `vector` |
-| `/assistant/ingest` retorna `{"ingested":0}` | o catálogo não está acessível em `http://gateway:8080` | `docker compose ps gateway catalog-1`; `docker compose exec assistant python -c "import urllib.request;print(urllib.request.urlopen('http://gateway:8080/catalog/events/1').status)"` |
+| `/assistant/ingest` retorna `Internal Server Error` ou `{"ingested":0}` | o gateway não está rodando (`Name or service not known` em `docker compose logs assistant`), ou o catálogo atrás dele caiu | `docker compose up -d --wait gateway`; `docker compose ps gateway catalog-1`; `docker compose exec assistant python -c "import urllib.request;print(urllib.request.urlopen('http://gateway:8080/catalog/events/1').status)"` |
 | `uv sync --frozen` falha no build | o `uv.lock` não corresponde ao `pyproject.toml` | rode `uv lock` em `services/assistant` (na sua máquina) e refaça o build |
 | nenhuma métrica `assistant_*` no Grafana | `OTEL_EXPORTER_OTLP_ENDPOINT` não definida, ou nenhuma pergunta respondida ainda | confira as variáveis do `assistant`; as métricas são exportadas a cada 10 s |
 | `Bind for 0.0.0.0:11434 failed: port is already allocated` | o Ollama já roda nativamente na sua máquina, e o `docker compose up -d` também subiu o contêiner `ollama` | mantenha o nativo: `docker compose stop ollama ollama-init`, e suba os serviços pelo nome (`docker compose up -d assistant`) com `OLLAMA_URL` exportada |
+| `litellm.Timeout … Timeout passed=120.0` nos logs; `errors` no teste de carga | o modelo roda numa CPU e as requisições ficam na fila diante dele por mais que os 120 s do gateway | diminua a concorrência (`--concurrency 1 2 --requests 2`), ou rode o Ollama nativamente; o `timeout=120` está em `app/llm.py` |
 | `422 blocked` para uma pergunta normal | um falso positivo dos padrões de injection | reformule, e anote: falsos positivos fazem parte da qualidade medida do guardrail |
 
 !!! success "Boas práticas neste lab"
@@ -164,12 +165,15 @@ docker compose down -v                      # or remove everything (including th
 ```
 
 O `docker compose down -v` também apaga o volume `ollama-models`: a próxima execução baixa os modelos de
-novo. Mantenha-o se for continuar para o lab 13, que pode usar o mesmo modelo local.
+novo. Mantenha-o se for continuar para o lab 13, que pode usar o mesmo modelo local. Com o Ollama nativo,
+`ollama stop qwen2.5:1.5b` libera a memória do modelo na hora (ele também sai da memória após 5 minutos
+ocioso), e `ollama rm qwen2.5:1.5b nomic-embed-text` apaga os modelos quando você não precisar mais deles.
 
 ## Estado final { #end-state }
 
 ``` text title="End state (what this lab added or changed)"
 boxoffice/
+├── .gitignore              # + __pycache__/, .venv/
 ├── docker-compose.yaml     # db/db-replica -> pgvector image; + ollama, ollama-init, assistant
 ├── scripts/
 │   ├── assistant_load.py   # TTFT load test (uv inline script)

@@ -39,6 +39,21 @@ stacks** (2 requests per level, to keep it short):
 |           2 |        2 |      0 |     3.37 |   127.23 |    126.89 |    213.07 |       2.8 |    0.56 |   0.000000 |
 ```
 
+With **native Ollama on an Apple Silicon laptop** (GPU through Metal, the full stack running), a test
+run with 8 requests per level, after one warm-up question (the first call loads the model: about 20 s):
+
+``` text
+| concurrency | requests | errors | TTFT p50 | TTFT p95 | total p50 | total p95 | tokens/s | req/min | USD/request |
+|---|---|---|---|---|---|---|---|---|---|
+|           1 |        8 |      0 |     0.19 |     0.32 |      3.52 |      4.53 |      64.0 |   19.27 |   0.000000 |
+|           2 |        8 |      0 |     1.42 |     3.74 |      3.24 |      5.11 |      64.1 |   34.40 |   0.000000 |
+|           4 |        8 |      0 |     4.64 |    10.62 |      8.30 |     11.15 |      64.0 |   24.65 |   0.000000 |
+```
+
+Tens of times faster, and with a different shape: each answer still decodes at about 64 tokens/s, but
+the requests queue in front of the one model, so TTFT grows with concurrency and requests per minute stop
+growing after 2.
+
 Read it as a capacity problem, with the formulas of the
 [AI systems class](../../../classes/ai-systems/index.md):
 
@@ -54,7 +69,9 @@ Read it as a capacity problem, with the formulas of the
 
     That is the lesson, not a bug — but you can do better on the same laptop: run Ollama natively
     (macOS), close other containers, ask short questions, and lower `RETRIEVE_K` (fewer context
-    tokens, faster prefill; check that hit@k does not drop).
+    tokens, faster prefill; check that hit@k does not drop). On a CPU, measure `--concurrency 1 2
+    --requests 2`, as the test run did: at concurrency 4 the requests queue behind one another past the
+    gateway's 120 s timeout (`litellm.Timeout` in `docker compose logs assistant`, counted in `errors`).
 
 ## B. Retrieval quality
 
@@ -73,13 +90,14 @@ curl -s -X POST localhost:8088/assistant/chat -H 'Content-Type: application/json
 
 In the test run, `qwen2.5:1.5b` answered with correct facts from the context but **without citations**
 in both questions tried, so both were `grounded: false` — the guard did its job, and the model is the
-weak link. Grounding rate is a property of the *model + prompt*; measure it before you trust any
+weak link. Over ten questions, another test run counted 1 of 10 grounded with `qwen2.5:1.5b` and 5 of 10
+with `qwen2.5:3b`. Grounding rate is a property of the *model + prompt*; measure it before you trust any
 assistant.
 
 ## D. Model choice (optional)
 
-Repeat A and C with a larger local model (`docker compose exec ollama ollama pull qwen2.5:3b`, then
-`LOCAL_MODEL_TAG=qwen2.5:3b docker compose up -d assistant`) or with the Claude route (step 1, costs
+Repeat A and C with a larger local model (`docker compose exec ollama ollama pull qwen2.5:3b`, or
+`ollama pull qwen2.5:3b` with native Ollama, then `LOCAL_MODEL_TAG=qwen2.5:3b docker compose up -d --wait assistant`) or with the Claude route (step 1, costs
 money: the `USD/request` column shows how much). Compare TTFT, grounding rate and cost per answer.
 
 ## Results

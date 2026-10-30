@@ -102,7 +102,7 @@ This is factor VI of the *Twelve-Factor App*: "execute the app as one or more st
     [Hands-on 4 — Gateway](../../hands-on/4/gateway/index.md) keeps no login session anywhere. The fan's JWT travels on every request, and the gateway checks its signature with the public key of `auth`, fetched once from its JWKS endpoint: no replica remembers the fan, so the gateway can send each request to any of the three `catalog` replicas (`lb://catalog`), and losing one loses nothing. The price is revocation: a token stays valid until it expires (one hour here, `jwt.ttl`), as [Identity](../edge/identity/index.md#gateway-validation) explains.
 
     ``` { .java title="services/gateway/src/main/java/boxoffice/gateway/SecurityConfig.java (stateless security)" }
-    --8<-- "docs/2027.1/hands-on/4/code/services/gateway/src/main/java/boxoffice/gateway/SecurityConfig.java:22:40"
+    --8<-- "docs/2027.1/hands-on/4/code/services/gateway/src/main/java/boxoffice/gateway/SecurityConfig.java:22:41"
     ```
 
 ---

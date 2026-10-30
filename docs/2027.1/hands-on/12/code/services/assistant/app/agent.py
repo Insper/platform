@@ -66,7 +66,7 @@ async def run(question: str, user_email: str | None, route: str | None = None) -
                     first_token_at = time.monotonic()
                 answer += text
                 yield "token", text
-        message = litellm.stream_chunk_builder(chunks, messages=messages)
+        message = litellm.stream_chunk_builder(split_tool_calls(chunks), messages=messages)
         if message.usage:
             usage["prompt_tokens"] += message.usage.prompt_tokens or 0
             usage["completion_tokens"] += message.usage.completion_tokens or 0
@@ -110,3 +110,15 @@ async def run(question: str, user_email: str | None, route: str | None = None) -
 
 def sse(event: str, data: object) -> str:
     return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+
+def split_tool_calls(chunks: list) -> list:
+    """Ollama streams each tool call whole, all with index 0: give every new call id its own index,
+    or stream_chunk_builder glues two calls into one with invalid JSON arguments."""
+    index_of: dict[str, int] = {}
+    for chunk in chunks:
+        delta = chunk.choices[0].delta if chunk.choices else None
+        for call in getattr(delta, "tool_calls", None) or []:
+            if call.id:
+                call.index = index_of.setdefault(call.id, len(index_of))
+    return chunks

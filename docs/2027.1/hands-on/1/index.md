@@ -11,7 +11,7 @@ Every ticketing site starts with the same page: *what is on, where, and when?* I
 | | |
 |---|---|
 | **Time** | 3–4 hours |
-| **You need** | the tools of [lab 0](../0/index.md); Docker with at least **4 GB** of memory; the first build downloads ~300 MB of Maven dependencies |
+| **You need** | the tools of [lab 0](../0/index.md); Docker with at least **4 GB** of memory; the first build downloads ~100 MB of Maven dependencies |
 | **Directory** | every command on these pages runs from the root of your `boxoffice/` repository unless it starts with `cd` (Windows: inside WSL 2) |
 
 Check the tools:
@@ -62,8 +62,8 @@ sequenceDiagram
     C->>DB: SELECT events JOIN venues WHERE city = ? ORDER BY starts_at LIMIT 20
     DB-->>C: 20 rows
     C->>DB: SELECT count(*) ... (total for the page links)
-    DB-->>C: 20001
-    C-->>Fan: 200 {items: [...], page: 0, totalItems: 20001}
+    DB-->>C: 20000
+    C-->>Fan: 200 {items: [...], page: 0, totalItems: 20000}
 ```
 
 The service follows a classic three-layer structure — **controller** (HTTP, validation, DTOs) → **service** (business rules, transactions) → **repository** (SQL through JPA) — with one rule that matters for everything that follows: the API never exposes the database entities, only **records** (`EventOut`, `VenueOut`) that you control.
@@ -177,7 +177,7 @@ With the stack running ([step 3](container/index.md)):
     http_reqs.............................: 112    3.678382/s
 ```
 
-The numbers above come from a run on a laptop; yours will differ. Two things should stand out anyway: the **listing is several times slower than the detail** (it joins two tables, sorts and counts thousands of rows; the detail is a primary-key lookup), and **p99 is far from the median** even with a single user (JIT compilation, garbage collection, the first connections of the pool).
+The numbers above come from a run on a laptop; yours will differ. Two things should stand out anyway: the **listing is clearly slower than the detail**, about 2 to 6 times (it joins two tables, sorts and counts thousands of rows; the detail is a primary-key lookup), and **p99 is far from the median** even with a single user (JIT compilation, garbage collection, the first connections of the pool).
 
 Record the results in `results/lab1.md`:
 
@@ -201,7 +201,7 @@ Record the results in `results/lab1.md`:
 
 !!! note "If your numbers differ"
 
-    Absolute values depend on your CPU, on the memory given to Docker and on what else is running (close the browser tabs and IDEs you do not need). What must hold everywhere: every check passes, the detail is several times faster than the listing, and the second run is faster than the first. If the detail p95 is above ~100 ms with one user, Docker is probably short of CPU or memory (`docker stats`).
+    Absolute values depend on your CPU, on the memory given to Docker and on what else is running (close the browser tabs and IDEs you do not need). What must hold everywhere: every check passes, the detail is clearly faster than the listing (about 2× or more), and the second run is faster than the first. If the detail p95 is above ~100 ms with one user, Docker is probably short of CPU or memory (`docker stats`).
 
 ## Troubleshooting
 
@@ -250,7 +250,7 @@ boxoffice/
     results/lab1.md                          # your measurements
     services/catalog/                        # new: the whole service
         Dockerfile  .dockerignore  pom.xml
-        src/main/java/boxoffice/catalog/*.java   (15 classes)
+        src/main/java/boxoffice/catalog/*.java   (14 classes)
         src/main/resources/application.yaml
         src/main/resources/db/migration/V1__create_catalog.sql, V2__seed_catalog.sql
 ```

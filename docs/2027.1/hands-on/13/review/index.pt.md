@@ -41,15 +41,15 @@ Isto é o que o modelo vê para um PR pequeno — repare que as linhas removidas
 ```text
 ### services/catalog/src/main/java/boxoffice/catalog/EventRepository.java
 @@ -16,4 +16,9 @@ public class EventRepository {
-L16        public List<Event> findAll() {
-L17            return jdbc.query("select id, name, starts_at from catalog.event", Event.MAPPER);
-L18        }
+L16         public List<Event> findAll() {
+L17             return jdbc.query("select id, name, starts_at from catalog.event", Event.MAPPER);
+L18         }
 L19   +
 L20   +     public List<Event> search(String text) {
 L21   +         return jdbc.query("select id, name, starts_at from catalog.event where name ilike '%"
 L22   +                 + text + "%'", Event.MAPPER);
 L23   +     }
-L24      }
+L24     }
 ```
 
 ## 1.3 O revisor { #13-the-reviewer }

@@ -141,10 +141,11 @@ The [Measure it](measure/index.md) step has the scripts and the results table to
 | `litellm.APIConnectionError … Connection refused` in the logs | Ollama is not running or `OLLAMA_URL` is wrong | `docker compose ps ollama` / `ollama list`; check the variable in `docker-compose.yaml` |
 | `model "qwen2.5:1.5b" not found` | the model was not pulled | `docker compose up ollama-init` (or `ollama pull qwen2.5:1.5b` natively) |
 | startup fails with `type "vector" does not exist` | `db` still runs the plain `postgres:17` image | `docker compose up -d db` after updating the compose file; `docker compose exec db psql -U boxoffice -c "\dx"` lists `vector` |
-| `/assistant/ingest` returns `{"ingested":0}` | the catalog is not reachable at `http://gateway:8080` | `docker compose ps gateway catalog-1`; `docker compose exec assistant python -c "import urllib.request;print(urllib.request.urlopen('http://gateway:8080/catalog/events/1').status)"` |
+| `/assistant/ingest` returns `Internal Server Error` or `{"ingested":0}` | the gateway is not running (`Name or service not known` in `docker compose logs assistant`), or the catalog behind it is down | `docker compose up -d --wait gateway`; `docker compose ps gateway catalog-1`; `docker compose exec assistant python -c "import urllib.request;print(urllib.request.urlopen('http://gateway:8080/catalog/events/1').status)"` |
 | `uv sync --frozen` fails in the build | `uv.lock` does not match `pyproject.toml` | run `uv lock` in `services/assistant` (on your machine) and rebuild |
 | no `assistant_*` metrics in Grafana | `OTEL_EXPORTER_OTLP_ENDPOINT` not set, or no question answered yet | check the variables of `assistant`; metrics are exported every 10 s |
 | `Bind for 0.0.0.0:11434 failed: port is already allocated` | Ollama already runs natively on your machine, and `docker compose up -d` started the `ollama` container too | keep the native one: `docker compose stop ollama ollama-init`, and start services by name (`docker compose up -d assistant`) with `OLLAMA_URL` exported |
+| `litellm.Timeout … Timeout passed=120.0` in the logs; `errors` in the load test | the model runs on a CPU and the requests queue in front of it for more than the gateway's 120 s | lower the concurrency (`--concurrency 1 2 --requests 2`), or run Ollama natively; `timeout=120` is in `app/llm.py` |
 | `422 blocked` for a normal question | a false positive of the injection patterns | rephrase, and note it: false positives are part of the guardrail's measured quality |
 
 !!! success "Best practices in this lab"
@@ -163,12 +164,15 @@ docker compose down -v                      # or remove everything (including th
 ```
 
 `docker compose down -v` also deletes the `ollama-models` volume: the next run downloads the models
-again. Keep it if you continue to lab 13, which can use the same local model.
+again. Keep it if you continue to lab 13, which can use the same local model. With native Ollama,
+`ollama stop qwen2.5:1.5b` frees the model's memory at once (it also unloads after 5 idle minutes), and
+`ollama rm qwen2.5:1.5b nomic-embed-text` deletes the models when you no longer need them.
 
 ## End state
 
 ``` text title="End state (what this lab added or changed)"
 boxoffice/
+├── .gitignore              # + __pycache__/, .venv/
 ├── docker-compose.yaml     # db/db-replica -> pgvector image; + ollama, ollama-init, assistant
 ├── scripts/
 │   ├── assistant_load.py   # TTFT load test (uv inline script)

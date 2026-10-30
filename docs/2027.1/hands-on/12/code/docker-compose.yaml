@@ -46,7 +46,7 @@ x-catalog: &catalog
     test: ["CMD-SHELL", "wget -qO- http://localhost:8082/actuator/health/readiness || exit 1"]
     interval: 10s
     timeout: 3s
-    start_period: 40s
+    start_period: 120s       # lab 8: with the agent, JVMs starting together need up to ~90 s
     retries: 3
 
 services:
@@ -164,7 +164,7 @@ services:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8083/actuator/health/readiness || exit 1"]
       interval: 10s
       timeout: 3s
-      start_period: 40s
+      start_period: 120s
       retries: 3
 
   auth:
@@ -195,7 +195,7 @@ services:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8081/actuator/health/readiness || exit 1"]
       interval: 10s
       timeout: 3s
-      start_period: 40s
+      start_period: 120s
       retries: 3
 
   gateway:
@@ -226,7 +226,7 @@ services:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health/readiness || exit 1"]
       interval: 10s
       timeout: 3s
-      start_period: 40s
+      start_period: 120s
       retries: 3
 
   edge:
@@ -337,7 +337,7 @@ services:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8084/actuator/health/readiness || exit 1"]
       interval: 10s
       timeout: 3s
-      start_period: 40s
+      start_period: 120s
       retries: 3
 
   notification:
@@ -375,7 +375,7 @@ services:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8086/actuator/health/readiness || exit 1"]
       interval: 10s
       timeout: 3s
-      start_period: 40s
+      start_period: 120s
       retries: 3
 
   # ---- lab 8: observability backend (Grafana, Prometheus, Tempo, Loki, OTel Collector) ----
@@ -437,7 +437,7 @@ services:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8085/actuator/health/readiness || exit 1"]
       interval: 10s
       timeout: 3s
-      start_period: 40s
+      start_period: 120s
       retries: 3
 
   # ---- lab 12: AI assistant (FastAPI + LiteLLM + pgvector) and a local LLM ----
@@ -448,6 +448,11 @@ services:
       - "11434:11434"
     volumes:
       - ollama-models:/root/.ollama      # models survive restarts (about 1.3 GB)
+    healthcheck:                         # ollama-init must wait for the server, not just the container
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
 
   # one-shot: download the chat model and the embedding model, then exit
   ollama-init:
@@ -459,7 +464,8 @@ services:
       - |
         ollama pull ${LOCAL_MODEL_TAG:-qwen2.5:1.5b} && ollama pull nomic-embed-text
     depends_on:
-      - ollama
+      ollama:
+        condition: service_healthy
     restart: "no"
 
   assistant:

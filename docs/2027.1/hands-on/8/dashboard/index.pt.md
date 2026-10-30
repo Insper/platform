@@ -22,8 +22,8 @@ repositório, então o dashboard é revisado, versionado e idêntico em todos os
 --8<-- "docs/2027.1/hands-on/8/code/infra/grafana/dashboards.yaml"
 ```
 
-Os volumes do [passo 1](../instrument/index.md) montam esse provedor na pasta de provisionamento do
-Grafana e `infra/grafana/dashboards/` no caminho para o qual ele aponta. Salve o dashboard abaixo como
+Você salvou esse provedor no [passo 1](../instrument/index.md); os volumes dele o montam na pasta de
+provisionamento do Grafana e `infra/grafana/dashboards/` no caminho para o qual ele aponta. Salve o dashboard abaixo como
 `infra/grafana/dashboards/boxoffice-red.json` e reinicie: `docker compose restart otel-lgtm`. Ele
 aparece em **Dashboards → BoxOffice → BoxOffice — RED**.
 
@@ -68,11 +68,16 @@ Três hábitos fazem a diferença:
 1. Rode o teste de estresse em escada do [lab 2](../../2/index.md) contra a borda — ele sobe a taxa de
    chegada em degraus até `PEAK` e depois desce:
    `k6 run -e BASE_URL=http://localhost -e PEAK=600 load/stress.js`.
-2. Observe **Duration p95** e **DB connections** lado a lado. Quando `waiting` sai do zero, a curva de
-   latência dobra: as requisições agora fazem fila por uma conexão (Lei de Little: com o pool cheio,
-   concorrência extra vira tempo de espera).
-3. Abra um exemplar no topo da curva: o trace mostra um grande intervalo *antes* do span SQL — tempo
-   esperando uma conexão, não executando SQL.
+2. Observe **Duration p95**, **CPU utilization** e **DB connections** lado a lado. A curva de latência
+   dobra onde o primeiro recurso satura. Quando `waiting` sai do zero, as requisições fazem fila por
+   uma conexão (Lei de Little: com o pool cheio, concorrência extra vira tempo de espera); quando a
+   CPU de um serviço chega perto de 100% da CPU do seu contêiner, elas fazem fila pelo processador.
+   Numa execução de teste deste lab o `gateway` (limitado a uma CPU) saturou primeiro: cerca de 95% de
+   CPU a cerca de 320 req/s, p95 acima de 2 s e `504` depois do seu timeout de 5 s, enquanto o pool do
+   `catalog` nunca teve uma requisição esperando.
+3. Abra um exemplar no topo da curva: o trace mostra para onde foi o tempo — um grande intervalo
+   *antes* do span SQL é tempo esperando uma conexão, não executando SQL; um span longo do `gateway`
+   em volta de um span curto do `catalog` é tempo na fila do gateway.
 
 Escreva nos seus resultados qual recurso saturou primeiro e a taxa de requisições em que isso
 aconteceu.

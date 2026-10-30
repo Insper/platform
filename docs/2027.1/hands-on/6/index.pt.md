@@ -170,7 +170,7 @@ PgBouncer SHOW POOLS: cl_active ____ , sv_active ____ , cl_waiting ____
 
 | Sintoma | Causa | Correção |
 |---|---|---|
-| `db-replica` reinicia com `permission denied` no `replica-entrypoint.sh` | o script não é executável | `chmod +x infra/postgres/*.sh` e `docker compose up -d db-replica` |
+| `db-replica` termina com `permission denied` no `replica-entrypoint.sh` | o script não é executável | `chmod +x infra/postgres/*.sh` e `docker compose up -d db-replica` |
 | `db-replica` registra `no pg_hba.conf entry for replication connection` | o volume do primário é anterior a este lab, então o `10-replication.sh` nunca rodou | `docker compose down -v` e `docker compose up --build -d` (o Flyway popula tudo de novo) |
 | `db-replica` sai: `max_connections ... must be at least the primary's value` | `DB_MAX_CONNECTIONS` no primário está acima de 100 | mantenha ≤ 100, ou aumente também na réplica |
 | o inventory registra `password authentication failed` via PgBouncer | `userlist.txt` não bate com `DB_PASSWORD` | mantenha os dois como `boxoffice` (ou atualize os dois) |

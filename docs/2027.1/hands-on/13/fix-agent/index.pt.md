@@ -139,7 +139,7 @@ git diff                                   # the agent's change, if any
 jq -c '{step, tool, args}' /tmp/agent-audit.jsonl   # what it did, step by step (or: cat the file)
 ```
 
-O `grep` precisa mostrar a falha que o CI vai ver (o Maven 3.9 imprime `[INFO] BUILD FAILURE`):
+O `grep` precisa mostrar a falha que o CI vai ver (o Maven 3.10 imprime `[ERROR] BUILD FAILURE`; o Maven 3.9, `[INFO] BUILD FAILURE`):
 
 ```text
 [ERROR] Tests run: 3, Failures: 1, Errors: 1, Skipped: 0, Time elapsed: 0.618 s <<< FAILURE! -- in boxoffice.catalog.CatalogServiceTest
@@ -147,23 +147,23 @@ O `grep` precisa mostrar a falha que o CI vai ver (o Maven 3.9 imprime `[INFO] B
 [ERROR] BUILD FAILURE
 ```
 
-O agente imprime uma linha JSON no final: `fixed`, a sua `explanation`, os tokens, os passos e o tempo. Uma execução com o `qwen2.5-coder-16k` local enquanto este lab era escrito:
+O agente imprime uma linha JSON no final: `fixed`, a sua `explanation`, os tokens, os passos e o tempo. Duas execuções com o `qwen2.5-coder-16k` local durante a revisão deste lab deram o mesmo resultado (a explicação está abreviada):
 
 ```text
-{"fixed": false, "explanation": "```json\n{\"name\": \"write_file\", ... (abridged)", "model": "qwen2.5-coder-16k", "calls": 20, "in": 165075, "cache_read": 0, "cache_write": 0, "out": 5596, "seconds": 517.1, "usd": 0.0, "steps": 20}
+{"fixed": true, "explanation": "The root cause of the issue was that the `deleteEvent` method in `CatalogService` was incorrectly checking if the event exists before deleting it, ... (abridged)", "model": "qwen2.5-coder-16k", "calls": 4, "in": 32012, "cache_read": 0, "cache_write": 0, "out": 954, "seconds": 169.2, "usd": 0.0, "steps": 4}
 ```
 
-Leia o log de auditoria ao lado do `git diff`: o modelo gratuito de 7B **nunca abriu o `CatalogService.java`**. Ele reescreveu o *teste* seis vezes — acrescentando, entre outros, um teste que espera um `404` quando o evento **existe**, o que transforma o bug em especificação (o problema do oráculo da parte 2) — depois quebrou a compilação com um método duplicado e esgotou os seus 20 passos depois de 8 minutos e meio e 165.075 tokens de entrada, terminando com `"fixed": false`. Nada perigoso aconteceu: toda escrita ficou em `services/catalog/src/`, e no CI o `mvn verify` independente do passo de verificação falha com este patch, então nenhum PR é aberto. Esse é o objetivo das proteções — elas tornam um agente ruim inofensivo, não bom. Rode de novo com um modelo mais forte, se tiver um, e compare.
+Leia o log de auditoria ao lado do `git diff`: o modelo abriu o `CatalogService.java`, reescreveu-o com o `!` de volta (o diff é essa única linha), rodou o build e terminou — quatro passos, cerca de três minutos num notebook:
 
 ```text
 $ jq -c '{step, tool, args}' /tmp/agent-audit.jsonl
-{"step":1,"tool":"read_file","args":{"path":"services/catalog/src/test/java/boxoffice/catalog/CatalogServiceTest.java"}}
-{"step":2,"tool":"write_file","args":{"path":"services/catalog/src/test/java/boxoffice/catalog/CatalogServiceTest.java","content":"<2431 chars>"}}
+{"step":1,"tool":"read_file","args":{"path":"services/catalog/src/main/java/boxoffice/catalog/CatalogService.java"}}
+{"step":2,"tool":"write_file","args":{"path":"services/catalog/src/main/java/boxoffice/catalog/CatalogService.java","content":"<3168 chars>"}}
 {"step":3,"tool":"run_build","args":{"service":"catalog"}}
-...
-{"step":18,"tool":"run_build","args":{"service":"catalog"}}
-{"step":19,"tool":"read_file","args":{"path":"services/catalog/src/test/java/boxoffice/catalog/CatalogServiceTest.java"}}
+{"step":4,"tool":"finish","args":{"fixed":true,"explanation":"<325 chars>"}}
 ```
+
+Não conte com isso. Uma execução anterior do mesmo modelo **nunca abriu o `CatalogService.java`**: reescreveu o *teste* seis vezes — acrescentando, entre outros, um teste que espera um `404` quando o evento **existe**, o que transforma o bug em especificação (o problema do oráculo da parte 2) — depois quebrou a compilação com um método duplicado e esgotou os seus 20 passos depois de 8 minutos e meio e 165.075 tokens de entrada, terminando com `"fixed": false`. Nem então algo perigoso aconteceu: toda escrita ficou em `services/catalog/src/`, e no CI o `mvn verify` independente do passo de verificação falha com um patch assim, então nenhum PR é aberto. Esse é o objetivo das proteções — elas tornam um agente ruim inofensivo, não bom. Rode de novo (e com um modelo mais forte, se tiver um) e compare.
 
 Seja o que for que ele fez, **verifique como o workflow faz**: `git diff --stat` só pode listar arquivos em `services/catalog/src/`, nenhum `@Test` pode sumir, e `mvn -B -f services/catalog/pom.xml verify` precisa passar. Depois desfaça a mudança do agente (`git checkout -- services`) — a execução de CI abaixo deve partir do commit quebrado.
 

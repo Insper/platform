@@ -55,7 +55,8 @@ boxoffice/
     descompacte, `cd boxoffice`, faça push para o seu repositório no GitHub e continue daqui.
 
 Todo arquivo deste lab aparece completo nestas páginas e é publicado em
-`https://insper.github.io/platform/2027.1/hands-on/11/code/<caminho>`.
+`https://insper.github.io/platform/2027.1/hands-on/11/code/<caminho>`, exceto os de `.github/` (o
+site pula pastas cujo nome começa com ponto): copie esses das páginas.
 
 ## Arquitetura { #architecture }
 

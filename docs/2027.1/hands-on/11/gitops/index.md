@@ -45,6 +45,19 @@ kubectl -n argocd rollout status deployment/argocd-server --timeout=300s
 You should see `deployment "argocd-server" successfully rolled out`, and `kubectl get pods -n
 argo-rollouts` and `kubectl get pods -n monitoring` should show one running pod each.
 
+Argo CD reports an `Ingress` as `Healthy` only when the controller has written an address into its
+status, and a Traefik exposed as a NodePort writes none: the Application would stay `Progressing`
+forever. Make Traefik publish `127.0.0.1`:
+
+``` shell
+helm upgrade traefik traefik/traefik --version 42.0.0 --namespace traefik --reuse-values \
+  --set providers.kubernetesIngress.publishedService.enabled=false \
+  --set providers.kubernetesIngress.ingressEndpoint.ip=127.0.0.1
+```
+
+After a minute, `kubectl -n boxoffice get ingress` shows `127.0.0.1` under `ADDRESS` (once the
+Application has created the Ingress, below).
+
 Open the Argo CD UI in a second terminal and log in as `admin`:
 
 ``` shell
@@ -119,7 +132,8 @@ must print the manifests without errors.
 
 It runs when `CI` completes on `main`, edits the `images` entry of the overlay with
 `kustomize edit set image` (Kustomize is preinstalled on GitHub's Ubuntu runners) and pushes the
-commit. A commit pushed with the workflow's `GITHUB_TOKEN` does not start new workflow runs, and `CI`
+commit. Kustomize rewrites the whole file when it edits it: the comments disappear and the lists are
+re-indented, which is expected. A commit pushed with the workflow's `GITHUB_TOKEN` does not start new workflow runs, and `CI`
 ignores changes to `k8s/**` anyway, so there is no loop. Because `Deploy` commits to `main`, your local
 `main` falls behind after every deploy: from now on run `git pull --rebase` before each `git push`.
 

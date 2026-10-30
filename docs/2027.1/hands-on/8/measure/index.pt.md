@@ -25,18 +25,19 @@ Mesma imagem, mesma carga, agente ligado e desligado:
 <!-- termynal -->
 
 ``` shell
-> OTEL_ON=false docker compose up -d catalog-1 catalog-2 catalog-3
+> OTEL_ON=false docker compose up -d --wait catalog-1 catalog-2 catalog-3
 > k6 run load/catalog-otel.js
 > docker stats --no-stream --format '{{.Name}} {{.CPUPerc}} {{.MemUsage}}' | grep catalog
-> OTEL_ON=true docker compose up -d catalog-1 catalog-2 catalog-3
+> docker compose logs catalog-1 | grep "Started CatalogApplication"
+> OTEL_ON=true docker compose up -d --wait catalog-1 catalog-2 catalog-3
 > k6 run load/catalog-otel.js
 > docker stats --no-stream --format '{{.Name}} {{.CPUPerc}} {{.MemUsage}}' | grep catalog
 > docker compose logs catalog-1 | grep "Started CatalogApplication"
 ```
 
 Rode o `docker stats` em um segundo terminal *enquanto* o k6 roda (os números depois do teste são de
-ociosidade). O último comando mostra o tempo de inicialização; compare com o agente ligado e
-desligado.
+ociosidade). As linhas de `docker compose logs` mostram o tempo de inicialização com o agente
+desligado e ligado (os logs de um contêiner somem quando ele é recriado, então leia-os antes de trocar).
 
 !!! example "Forma esperada (ilustrativa)"
 
@@ -57,9 +58,9 @@ A âncora `x-otel` já lê as duas configurações do ambiente
 duas variáveis definidas e rode a mesma carga.
 
 ``` shell
-OTEL_TRACES_SAMPLER=parentbased_traceidratio OTEL_TRACES_SAMPLER_ARG=0.1 docker compose up -d
+OTEL_TRACES_SAMPLER=parentbased_traceidratio OTEL_TRACES_SAMPLER_ARG=0.1 docker compose up -d --wait
 k6 run load/catalog-otel.js
-docker compose up -d        # afterwards: back to 100% (the defaults of the anchor)
+docker compose up -d --wait # afterwards: back to 100% (the defaults of the anchor)
 ```
 
 Conte os traces guardados por minuto no Tempo (Explore → Tempo → Search, serviço

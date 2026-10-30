@@ -144,7 +144,7 @@ Com a stack completa do [passo 2](../replicas/index.md#3-compose) rodando, faça
 
 ``` { .bash .copy }
 curl -s -X POST localhost/auth/register -H 'Content-Type: application/json' \
-  -d '{"name":"Ana","email":"ana@example.com","password":"secret-123"}'
+  -d '{"name":"Ana","email":"ana@example.com","password":"secret-123"}'; echo
 export TOKEN=$(curl -s -X POST localhost/auth/login -H 'Content-Type: application/json' \
   -d '{"email":"ana@example.com","password":"secret-123"}' | jq -r .accessToken)
 export ADMIN=$(curl -s -X POST localhost/auth/login -H 'Content-Type: application/json' \
@@ -172,6 +172,7 @@ curl -s localhost/inventory/audit/double-bookings -H "Authorization: Bearer $TOK
 Você deve ver (de uma execução deste lab; ids e horários diferem):
 
 ``` { .text }
+{"id":"0b9d8a6e-…","name":"Ana","email":"ana@example.com","role":"USER"}
 {"section":"S01","available":2000,"held":0,"sold":0}
 {"id":"c869f791-701d-41dd-b82f-d5a6ba48093e","eventId":1,"status":"ACTIVE","expiresAt":"2026-10-18T17:51:50.567788219Z","seatIds":[1,2]}
 409
@@ -201,28 +202,29 @@ Você deve ver (de uma execução deste lab; ids e horários diferem):
 Rode-o uma vez por estratégia, reiniciando os assentos a cada vez:
 
 ``` { .bash .copy }
+mkdir -p results
 for mode in naive pessimistic optimistic; do
   INVENTORY_LOCKING=$mode docker compose up -d inventory
   sleep 25                                   # wait until inventory is healthy again
   bash scripts/reset-inventory.sh
-  k6 run load/flash-sale.js 2>&1 | tee results/lab6-flash-$mode.txt | grep -E "AUDIT|holds_|name:hold"
+  k6 run load/flash-sale.js 2>&1 | tee results/lab6-flash-$mode.txt | grep -E "AUDIT|holds_.*:|\{ name:hold"
 done
 ```
 
 <!-- termynal -->
 ``` shell
 > INVENTORY_LOCKING=naive ... k6 run load/flash-sale.js
-INFO AUDIT double-booked seats: 9                          source=console
+time="…" level=info msg="AUDIT double-booked seats: 9" source=console
     holds_conflict.................: 11582  263.28/s
     holds_created..................: 162    3.68/s
       { name:hold }................: avg=312.03ms med=208.6ms  p(95)=808.96ms p(99)=1.88s
 > INVENTORY_LOCKING=pessimistic ... k6 run load/flash-sale.js
-INFO AUDIT double-booked seats: 0                          source=console
+time="…" level=info msg="AUDIT double-booked seats: 0" source=console
     holds_conflict.................: 16184  402.17/s
     holds_created..................: 141    3.50/s
       { name:hold }................: avg=171.94ms med=78.37ms  p(95)=665.17ms p(99)=1.77s
 > INVENTORY_LOCKING=optimistic ... k6 run load/flash-sale.js
-INFO AUDIT double-booked seats: 0                          source=console
+time="…" level=info msg="AUDIT double-booked seats: 0" source=console
     holds_conflict.................: 20028  512.57/s
     holds_created..................: 141    3.61/s
       { name:hold }................: avg=93.62ms  med=31.02ms  p(95)=354.94ms p(99)=1.03s

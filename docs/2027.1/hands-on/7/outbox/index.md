@@ -295,7 +295,7 @@ Read the relay slowly; each line answers a failure question:
 <!-- termynal -->
 
 ``` shell
-> docker compose up -d --build order
+> docker compose up -d --build --wait order
 > curl -s -X POST localhost:8084/orders -H 'Content-Type: application/json' \
     -d '{"showId":"show-42","holdId":"hold-0001","customerEmail":"ana@example.com","amount":350.00}'
 {"id":"28cb9305-e1ce-4b49-aba7-665bb1b244b5","showId":"show-42","holdId":"hold-0001","customerEmail":"ana@example.com","amount":350.00,"status":"PENDING_PAYMENT","createdAt":"2026-10-18T17:55:45.063089Z"}
@@ -322,7 +322,7 @@ Now prove the two guarantees:
     ```
 
     You should see `201` for the order and, in the first query, the new row with an empty
-    `published_at`. Wait until `docker compose ps kafka` says `healthy` again (about a minute) and run
+    `published_at`. Wait until `docker compose ps kafka` says `healthy` again (10 s to a minute) and run
     the query once more: `published_at` is now filled. In a test run:
 
     ``` text
@@ -333,7 +333,7 @@ Now prove the two guarantees:
     ```
 
     The order was accepted while Kafka was down and published 71 s later, when Kafka was back; the
-    fan never saw the outage. Meanwhile `docker compose logs order` shows `ERROR … Unexpected error
+    fan never saw the outage. While Kafka is down for more than 5 s, `docker compose logs order` shows `ERROR … Unexpected error
     occurred in scheduled task` every few seconds: each relay run fails after `max.block.ms` (5 s)
     and the next one retries — expected.
 

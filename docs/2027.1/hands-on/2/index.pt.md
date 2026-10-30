@@ -114,7 +114,7 @@ O k6 vê o serviço de fora. Para descobrir *por que* a latência cresce, você 
 
 Mantenha três terminais abertos durante todo teste: o k6, `bash scripts/watch-metrics.sh` e `docker stats` (CPU do `catalog` e do `db`).
 
-Você deve ver uma linha por segundo. Em repouso, `busy_threads` vale 1 (a requisição que lê a métrica); sob carga ela segue a Lei de Little, e na sobrecarga o pool enche (linhas de uma execução deste lab, a 50, 400 e 600 req/s):
+Você deve ver uma linha por segundo (na sobrecarga, uma a cada poucos segundos: a requisição que lê as métricas também espera uma thread livre do Tomcat). Em repouso, `busy_threads` vale 1 (a requisição que lê a métrica); sob carga ela segue a Lei de Little, e na sobrecarga o pool enche (linhas de uma execução deste lab, a 50, 400 e 600 req/s):
 
 ``` { .text }
 time      busy_threads  db_active  db_pending
@@ -141,7 +141,7 @@ bash scripts/sweep.sh 50 100 200 300 400 500 600
 uv run scripts/summarize.py results/lab2/rate-*.json
 ```
 
-O `sweep.sh` imprime uma linha por etapa (`>>> warm-up: 30 s at RATE=50 (not recorded)`, depois `>>> RATE=50 req/s for 1m`, …) e leva cerca de 10 minutos para sete taxas. Em seguida, o `summarize.py` imprime uma tabela Markdown como a de baixo — cole-a em `results/lab2.md`.
+O `sweep.sh` imprime uma linha por etapa (`>>> warm-up: 30 s at RATE=50 (not recorded)`, depois `>>> RATE=50 req/s for 1m`, …) e leva cerca de 10 minutos para sete taxas. As etapas além do joelho também imprimem `level=error msg="thresholds on metrics ... have been crossed"`: os limites de latência do `load.js` falharam, o que é esperado ali — o resumo é salvo mesmo assim. Em seguida, o `summarize.py` imprime uma tabela Markdown como a de baixo — cole-a em `results/lab2.md`.
 
 Uma execução de exemplo num notebook (catalog limitado a 1 CPU, pool de 10 conexões):
 
@@ -198,6 +198,7 @@ Compare as duas tabelas. Em geral o joelho **sobe**, mas não para sempre: com 3
 ## 7. Estresse: além do joelho e de volta { #7-stress-past-the-knee-and-back }
 
 ``` { .bash .copy }
+docker compose up -d catalog       # back to the default pool (10): PEAK=600 is past its knee
 K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_EXPORT=results/lab2-stress.html \
   k6 run -e PEAK=600 load/stress.js
 ```
@@ -251,7 +252,7 @@ Setup: catalog 1 CPU / 768 MB, Hikari pool = 10, PostgreSQL 17, k6 open model (8
 | Sintoma | Causa | Correção |
 |---|---|---|
 | toda requisição falha com `connection refused` | a stack não está rodando, ou `BASE_URL` aponta para outro lugar | `docker compose ps`; no lab 2 o alvo é `http://localhost:8082` (o padrão) |
-| `WARN Insufficient VUs, reached 200 active VUs` | a taxa de chegada precisa de mais requisições simultâneas que `maxVUs` | esperado além do joelho; a execução continua válida — anote `dropped_iterations` |
+| `level=warning msg="Insufficient VUs, reached 2000 active VUs and cannot initialize more"` | a taxa de chegada precisa de mais requisições simultâneas que `maxVUs` | esperado além do joelho; a execução continua válida — anote `dropped_iterations` |
 | `summarize.py` imprime só o cabeçalho | nenhum JSON casou com o glob (pasta `OUT` errada) | `ls results/lab2/`; passe a mesma pasta que você deu ao `sweep.sh` |
 | `watch-metrics.sh` imprime `?` | falta o `jq`, ou o `catalog` não responde na 8082 | instale o `jq`; `curl localhost:8082/actuator/metrics` precisa listar `tomcat.threads.busy` |
 | `uv: command not found` | uv não instalado | lab 0, passo 1 — ou rode `python3 scripts/summarize.py …` (ele só usa a biblioteca padrão) |

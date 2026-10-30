@@ -303,7 +303,7 @@ def should_refresh_early(expires_at: float, recompute_s: float, beta: float = 1.
 
 !!! example "In the BoxOffice code: a lease against the stampede (lab 5)"
 
-    BoxOffice runs one Redis, not a cluster, so the labs do not build the partitioning of this case — but [Hands-on 5 — Stampede](../../../hands-on/5/stampede/index.md) builds its lease: the first miss takes `lock` with `SET NX` and reloads, re-reads after winning, and the others poll the key for at most 20 × 25 ms. In the lab's test (100 virtual users, TTL 3 s), the misses dropped from **800 to 10** — one database query per expiration. The full walk-through is in [Caching — failure modes](../../caching/failure-modes/index.md).
+    BoxOffice runs one Redis, not a cluster, so the labs do not build the partitioning of this case — but [Hands-on 5 — Stampede](../../../hands-on/5/stampede/index.md) builds its lease: the first miss takes `lock` with `SET NX` and reloads, re-reads after winning, and the others poll the key for at most 20 × 25 ms. In the lab's test (200 virtual users for 60 s, TTL 3 s), the misses dropped from **2,238 to 19** — one database query per expiration. The full walk-through is in [Caching — failure modes](../../caching/failure-modes/index.md).
 
     ``` { .java title="services/catalog/src/main/java/boxoffice/catalog/EventCache.java (the lease)" }
     --8<-- "docs/2027.1/hands-on/5/code/services/catalog/src/main/java/boxoffice/catalog/EventCache.java:62:85"

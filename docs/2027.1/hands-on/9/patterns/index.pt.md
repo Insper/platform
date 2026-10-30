@@ -94,7 +94,7 @@ enquanto se espera 3 s por uma dependência levaria a cascata para o pool de con
 Reconstrua o `order` e pague um pedido de ponta a ponta (na raiz do repositório):
 
 ``` shell
-docker compose up -d --build order
+docker compose up -d --build --wait order
 ID=$(curl -s -X POST localhost:8084/orders -H 'Content-Type: application/json' \
   -d '{"showId":"show-9","holdId":"hold-pay-1","customerEmail":"bia@example.com","amount":350.00}' | jq -r .id)
 curl -s -X POST localhost:8084/orders/$ID/pay
@@ -124,12 +124,12 @@ ambiente permitem desligá-los um a um nos experimentos, sem reconstruir.
 
 Cada experimento usa o script do k6 do [passo 4](../measure/index.md) (`load/pay-under-chaos.js`):
 20 pagamentos por segundo mais 20 `GET /orders/{id}` por segundo, por 2 minutos. Reconstrua o `order`
-uma vez (`docker compose up -d --build order`) e depois mude só variáveis de ambiente.
+uma vez (`docker compose up -d --build --wait order`) e depois mude só variáveis de ambiente.
 
 ### 0. Sem proteção { #0-unprotected }
 
 ``` shell
-PAYMENT_RESILIENCE=false PAYMENT_READ_TIMEOUT=0 docker compose up -d order
+PAYMENT_RESILIENCE=false PAYMENT_READ_TIMEOUT=0 docker compose up -d --wait order
 curl -s -X POST localhost:8474/proxies/payment/toxics \
   -d '{"name":"slow","type":"latency","stream":"downstream","attributes":{"latency":3000}}'
 k6 run load/pay-under-chaos.js
@@ -141,7 +141,7 @@ Observe o cenário `browse`: o `GET /orders/{id}` — que não chama o `payment`
 ### 1. Timeout
 
 ``` shell
-PAYMENT_RESILIENCE=false PAYMENT_READ_TIMEOUT=1s docker compose up -d order
+PAYMENT_RESILIENCE=false PAYMENT_READ_TIMEOUT=1s docker compose up -d --wait order
 k6 run load/pay-under-chaos.js
 ```
 
@@ -164,15 +164,21 @@ Troque a latência por uma rede instável — 30% das conexões são resetadas:
 curl -s -X DELETE localhost:8474/proxies/payment/toxics/slow
 curl -s -X POST localhost:8474/proxies/payment/toxics \
   -d '{"name":"flaky","type":"reset_peer","toxicity":0.3,"attributes":{"timeout":0}}'
-PAYMENT_RETRY_ATTEMPTS=1 docker compose up -d order    # resilience on, retry off
+PAYMENT_RETRY_ATTEMPTS=1 docker compose up -d --wait order    # resilience on, retry off
 k6 run load/pay-under-chaos.js
-PAYMENT_RETRY_ATTEMPTS=3 docker compose up -d order
+PAYMENT_RETRY_ATTEMPTS=3 docker compose up -d --wait order
 k6 run load/pay-under-chaos.js
 ```
 
 Com uma tentativa, uma parte dos pagamentos falha (não exatamente 30%: a toxicity se aplica por conexão
 TCP, e as conexões saudáveis são reutilizadas). Com três tentativas, um pagamento só falha se as três
-falharem: se uma tentativa falha com probabilidade *p*, três falham com *p*³ — 30% vira 2,7%. Retries
+falharem: se uma tentativa falha com probabilidade *p*, três falham com *p*³ — 30% vira 2,7%. Numa
+execução de teste deste lab (segundas rodadas, já que a primeira depois de recriar também mostra as
+rejeições do bulkhead com a JVM fria), cerca de 0,5% dos pagamentos falharam com uma tentativa e 0,1%
+com três: o tóxico só atinge conexões novas. Um reset pode chegar enquanto o `order` lê a resposta, o
+que o `RestClient` informa como uma `RestClientException` simples — por isso o `application.yaml` a
+lista entre as `retry-exceptions`, ao lado da `ResourceAccessException`, enquanto a
+`HttpClientErrorException` (4xx) é ignorada. Retries
 corrigem erros **transitórios** — ao preço de carga extra na dependência (até 3×) e latência extra (o
 backoff). Eles só são seguros porque a requisição carrega uma chave de idempotência.
 
@@ -207,16 +213,16 @@ falhar, e o `payment` ganha fôlego para se recuperar em vez de uma enxurrada de
 ### 4. Bulkhead
 
 De volta à latência, mas desta vez com chamadas que **dão certo** devagar — 700 ms: abaixo do timeout
-de leitura (1 s) e abaixo do limite de chamada lenta do circuit breaker (800 ms), então nenhum dos dois
-reage — e em maior número: 70 pagamentos por segundo.
+de leitura (1 s) e, sozinhas, abaixo do limite de chamada lenta do circuit breaker (800 ms) — e em
+maior número: 70 pagamentos por segundo.
 
 ``` shell
 curl -s -X POST localhost:8474/proxies/payment -d '{"enabled": true}'
 curl -s -X POST localhost:8474/proxies/payment/toxics \
   -d '{"name":"slow","type":"latency","stream":"downstream","attributes":{"latency":700}}'
-PAYMENT_BULKHEAD=1000 docker compose up -d order   # effectively no bulkhead
+PAYMENT_BULKHEAD=1000 docker compose up -d --wait order   # effectively no bulkhead
 k6 run -e PAY_RATE=70 load/pay-under-chaos.js
-PAYMENT_BULKHEAD=10 docker compose up -d order
+PAYMENT_BULKHEAD=10 docker compose up -d --wait order
 k6 run -e PAY_RATE=70 load/pay-under-chaos.js
 curl -s -X POST localhost:8474/reset                # remove every toxic
 ```
@@ -224,8 +230,14 @@ curl -s -X POST localhost:8474/reset                # remove every toxic
 Sem bulkhead, 70/s × 0,7 s ≈ 49 threads esperam o `payment`: o pool de 50 fica praticamente cheio e o
 `GET /orders/{id}` entra na fila atrás dos pagamentos. Com `max-concurrent-calls: 10`, no máximo 10
 threads esperam o `payment`; os pagamentos concorrentes excedentes são rejeitados na hora (`503`), e as
-outras 40 threads continuam servindo o `GET /orders/{id}` com latência normal. Um bulkhead é um
-**orçamento de concorrência por dependência** — o nome vem dos compartimentos estanques de um navio.
+outras 40 threads continuam servindo o `GET /orders/{id}` com latência normal.
+
+Numa execução de teste deste lab (segundas rodadas), as chamadas que passaram sem o bulkhead levaram
+750–1000 ms — 700 ms mais o tempo do próprio `payment` sob essa carga —, então a regra de chamada lenta
+do breaker o abriu em parte da execução e cerca de metade dos pagamentos falhou rápido; mesmo assim, o
+p95 do `browse` ficou em cerca de 0,75 s. Com o bulkhead, cerca de 85% dos pagamentos foram rejeitados
+(10 chamadas / 0,7 s ≈ 14 dos 70 por segundo cabem) e o p95 do `browse` ficou em cerca de 25 ms. Um
+bulkhead é um **orçamento de concorrência por dependência** — o nome vem dos compartimentos estanques de um navio.
 
 | Padrão | Protege contra | Custo |
 |---|---|---|

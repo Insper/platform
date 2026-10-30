@@ -28,8 +28,8 @@ watch -n 1 "curl -s localhost:8084/actuator/circuitbreakers | jq '.circuitBreake
     junto** — a cascata. Com um timeout: o `pay` falha em cerca de um segundo, o `browse` volta aos
     milissegundos. Com o circuit breaker durante uma queda: o `pay` responde `503` em milissegundos na
     maior parte do tempo (`pay_fast_fail` perto de 1) e as chamadas ao `payment` caem para um fio de
-    sondas half-open. Com o bulkhead sob chamadas lentas, mas bem-sucedidas: alguns pagamentos recebem
-    `503`, mas o `browse` continua rápido.
+    sondas half-open. Com o bulkhead sob chamadas lentas, mas bem-sucedidas: a maioria dos pagamentos
+    recebe `503` (só 10 cabem por vez), mas o `browse` continua rápido.
 
     Uma execução de teste num laptop ocupado (a stack inteira do lab 9, 45 s por execução, `payment` +
     3 s de latência):

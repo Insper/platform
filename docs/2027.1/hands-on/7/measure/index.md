@@ -41,9 +41,9 @@ k6 run --summary-trend-stats="avg,p(50),p(95),p(99),max" load/orders-load.js
 ## A. Sync vs outbox
 
 ``` shell
-NOTIFY_MODE=sync docker compose up -d order        # "before"
+NOTIFY_MODE=sync docker compose up -d --wait order        # "before"
 k6 run --summary-trend-stats="avg,p(50),p(95),p(99),max" load/orders-load.js
-NOTIFY_MODE=outbox docker compose up -d order      # "after"
+NOTIFY_MODE=outbox docker compose up -d --wait order      # "after"
 k6 run --summary-trend-stats="avg,p(50),p(95),p(99),max" load/orders-load.js
 ```
 
@@ -52,18 +52,23 @@ The variables reach the containers because `docker-compose.yaml` interpolates th
 
 !!! example "Expected shape (illustrative)"
 
-    With `EMAIL_LATENCY=50ms` on an idle machine, the synchronous p50 sits a little above 50 ms — the
-    fan pays for the e-mail on every order — while the outbox version answers in a few milliseconds
-    (two inserts and a commit). On a **busy** laptop (the whole lab 7 stack plus other containers, load
-    average above 10 on 8 cores) one test run gave:
+    With `EMAIL_LATENCY=50ms`, the synchronous p50 sits a little above 50 ms — the fan pays for the
+    e-mail on every order — while the outbox version answers in a few milliseconds (two inserts and a
+    commit). At 50 orders/s both keep the rate, and on a busy machine the tails mostly measure the
+    machine: compare the p50. Push the rate (`RATE=200 DURATION=30s`) and the difference becomes a
+    cliff. One test run for this lab (other programs running, load average about 10 on 8 cores) gave:
 
-    | 50 orders/s for 30 s | p50 | p95 | p99 | throughput |
-    |---|---|---|---|---|
-    | `NOTIFY_MODE=sync` | 4.12 s | 8.14 s | 11.51 s | 38.7/s (k6 could not keep the rate) |
-    | `NOTIFY_MODE=outbox` | 47 ms | 658 ms | 1.29 s | 49.5/s |
+    | Load | Mode | p50 | p95 | p99 | throughput |
+    |---|---|---|---|---|---|
+    | 50/s for 60 s | `sync` | 58 ms | 132 ms | 352 ms | 50/s |
+    | 50/s for 60 s | `outbox` | 3.3 ms | 426 ms | 1.7 s | 49/s |
+    | 200/s for 30 s | `sync` | 2.7 s | 7.5 s | 9.3 s | 113/s (k6 dropped a third of the arrivals) |
+    | 200/s for 30 s | `outbox` | 1.8 ms | 32 ms | 95 ms | 200/s |
 
     The absolute numbers depend on your machine; the **ratio** is the lesson: when the e-mail is in the
-    request path, every order waits for it and the service saturates far earlier. If even the outbox
+    request path, every order waits for it and the service saturates far earlier. Here the HTTP call
+    runs inside the order's transaction, so each order holds one of the pool's 10 database connections
+    for the whole e-mail: at most 10 / 0.055 s ≈ 180 orders/s even in theory. If even the outbox
     version is slow for you, close other containers (`docker ps`) and run again.
 
 ## B. `notification` outage
@@ -74,36 +79,46 @@ Run the load for 60 s and, in another terminal, kill `notification` for 20 s in 
 sleep 20; docker compose stop notification; sleep 20; docker compose start notification
 ```
 
-Do it once per mode, with `sh scripts/kafka-lag.sh` running in a third terminal. In `sync` mode, about a third
-of the orders fail — an e-mail outage became an ordering outage. In `outbox` mode no order fails; the
+Do it once per mode, with `sh scripts/kafka-lag.sh` running in a third terminal. In `sync` mode, at least a third
+of the orders fail — an e-mail outage became an ordering outage. Often far more: in a test run for this
+lab 54 % of the requests failed and k6 dropped more than half of the arrivals, because each order
+waiting on the dead `notification` holds a database connection, the pool of 10 runs dry, and the next
+orders wait 30 s for a connection (`Connection is not available, request timed out after 30000ms` in
+`docker compose logs order`). In `outbox` mode no order fails; the
 lag climbs while `notification` is down and drains after it comes back.
 
 ## C. Burst and drain
 
 ``` shell
-NOTIFY_CONCURRENCY=1 docker compose up -d notification
+NOTIFY_CONCURRENCY=1 docker compose up -d --wait notification
+START=$(date -u +%FT%TZ)                      # when this run starts (UTC)
 RATE=100 k6 run load/orders-load.js           # kafka-lag.sh in another terminal
-NOTIFY_CONCURRENCY=6 docker compose up -d notification
-RATE=100 k6 run load/orders-load.js
 ```
 
-Then measure how late the e-mails were:
+When `kafka-lag.sh` is back to 0 (with concurrency 1 that takes several minutes), measure how late
+the e-mails **of this run** were:
 
-``` sql
--- docker compose exec db psql -U boxoffice -d boxoffice
+``` shell
+docker compose exec db psql -U boxoffice -d boxoffice -c "
 SELECT count(*) AS emails,
        percentile_cont(0.50) WITHIN GROUP (ORDER BY extract(epoch FROM sent_at - occurred_at)) AS p50_s,
        percentile_cont(0.95) WITHIN GROUP (ORDER BY extract(epoch FROM sent_at - occurred_at)) AS p95_s
 FROM notification.notifications
-WHERE sent_at > now() - interval '10 minutes';
+WHERE occurred_at >= '$START';"
 ```
+
+Then repeat both blocks with `NOTIFY_CONCURRENCY=6`. `START` keeps each query to its own run: the
+e-mails of the other run, and of experiment B, would distort the percentiles.
 
 ??? question "Predict before you run: what lag will concurrency 1 reach?"
 
     Each consumer thread handles at most 1 / 50 ms = **20 e-mails/s**. With one thread and 100 orders/s,
     the backlog grows at 100 − 20 = 80 messages/s: after 60 s, **≈ 4 800** messages of lag, and it
     drains at 20/s → **≈ 240 s** to empty. With six threads (capacity 120/s > 100/s) the lag stays near
-    zero. More than six threads would not help: the topic has six partitions.
+    zero. More than six threads would not help: the topic has six partitions. A test run for this lab
+    peaked at about 4 900 messages and took about 320 s to drain: each e-mail costs a little more than
+    the 50 ms of simulated latency (SMTP, the database transaction). With six threads the lag stayed
+    below about 200.
 
 ## D. Replay
 
@@ -121,12 +136,14 @@ SELECT count(*) AS emails, count(DISTINCT order_id) AS orders FROM notification.
 ```
 
 Do it with `NOTIFY_IDEMPOTENT=true` and with `NOTIFY_IDEMPOTENT=false` (restart `notification` with
-the variable set, as in C).
+the variable set, as in C). With dedupe off, the replay re-sends every e-mail in the topic: tens of
+thousands at the consumer's rate take several minutes. Orders placed in `sync` mode (A, B) never went
+through Kafka, so the replay does not repeat them.
 
 ## E. Flash-sale spike through the waiting room
 
 ``` shell
-ADMIT_PER_SECOND=10 docker compose up -d order
+ADMIT_PER_SECOND=10 docker compose up -d --wait order
 k6 run --summary-trend-stats="avg,p(50),p(95),p(99),max" load/waiting-room-spike.js
 ```
 

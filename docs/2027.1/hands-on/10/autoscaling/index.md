@@ -52,22 +52,35 @@ down. The watcher logs what the HPA sees and decides every 5 seconds.
     --8<-- "docs/2027.1/hands-on/10/code/scripts/watch-hpa.sh"
     ```
 
+Start from **warm** pods. A JVM that has just started burns CPU compiling code, and the HPA scales on
+that CPU too: in a test run started right after a rollout, `PEAK=250` took `catalog` to 8 replicas,
+liveness probes timed out on the busy CPUs, pods restarted, and k6 saw 26% errors. The same run with
+warm pods never left 2 replicas. Warm them up, then wait until the HPA is back at 2 replicas:
+
+``` shell
+k6 run -q -e RATE=200 -e DURATION=1m load/catalog-otel.js > /dev/null   # lab 8's script
+kubectl -n boxoffice get hpa catalog -w                    # wait for REPLICAS 2 and a low cpu, then Ctrl+C
+```
+
 Three terminals:
 
 ``` shell
 mkdir -p results && sh scripts/watch-hpa.sh | tee results/lab10-hpa.csv   # 1: the control loop
 kubectl -n boxoffice get pods -l app=catalog -w            # 2: pods appearing
-k6 run -e PEAK=250 load/catalog-hpa.js                     # 3: the load (≈ 11 min)
+k6 run -e PEAK=1000 load/catalog-hpa.js                    # 3: the load (≈ 11 min)
 ```
 
-Adjust `PEAK` to your machine: it should be clearly above what two pods can serve (lab 2 gave you
-that number) but below what the whole laptop can serve.
+Adjust `PEAK` to your machine. The HPA reacts to CPU, not to latency: `PEAK` must push two warm pods
+clearly above 60% of their CPU request (150m each, `kubectl -n boxoffice top pods`), but stay below
+what your laptop can generate. On a test laptop (8 CPUs for Docker), two warm pods were at about 40%
+with 250 req/s and crossed 60% at about 600 req/s, hence `PEAK=1000`.
 
 !!! example "Expected shape (illustrative)"
 
     CPU climbs during the ramp; the HPA adds pods in steps (2 → 4 → 6 …) as fast as the
     `scaleUp` policy allows; **each new pod needs tens of seconds before it is ready** (JVM start +
-    probes), so p95 rises during the ramp and comes back down during the hold. After the load drops,
+    probes), so p95 rises during the ramp and comes back down only when the new pods are ready — on a
+    laptop, possibly not before the hold ends. After the load drops,
     replicas stay up for the 2-minute stabilization window and then leave one by one.
 
     The lag between "load arrives" and "capacity is ready" is the price of reactive autoscaling. For a

@@ -107,7 +107,7 @@ Three details matter in practice:
     ```
 
     ``` { .java title="services/order/src/main/java/boxoffice/order/outbox/OutboxRelay.java (publish inside the original context)" }
-    --8<-- "docs/2027.1/hands-on/8/code/services/order/src/main/java/boxoffice/order/outbox/OutboxRelay.java:77:87"
+    --8<-- "docs/2027.1/hands-on/8/code/services/order/src/main/java/boxoffice/order/outbox/OutboxRelay.java:78:88"
     ```
 
 ---

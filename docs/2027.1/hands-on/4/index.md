@@ -140,18 +140,18 @@ curl -s -X PUT localhost/catalog/events/2 -H "Authorization: Bearer $ADMIN" -H '
   -d '{"title":"Match #2 (rescheduled)","category":"SPORTS","venueId":15,"startsAt":"2027-03-02T21:00:00-03:00","priceFrom":100}' | jq .title
 
 # look inside the token: header and claims are only Base64URL, NOT encrypted
-echo "$ADMIN" | cut -d. -f2 | tr '_-' '/+' | base64 -d 2>/dev/null; echo
+echo "$ADMIN" | jq -R 'split(".")[1] | gsub("-";"+") | gsub("_";"/") | @base64d | fromjson'
 ```
 
 ??? question "Think first: a client sends `X-User-Id: <the admin's id>` itself. What happens?"
 
     Nothing useful for the attacker: the gateway's `UserHeadersFilter` **removes** any `X-User-*` header coming from outside before setting its own from the validated token. Without that line, any client could impersonate any user, because the services trust those headers blindly. That trust is acceptable only because the services are not reachable except through the gateway — zero-trust networks (class 12) go further and authenticate every hop (mTLS, or re-validating the JWT in each service).
 
-Try the other failure cases too: an expired token (start `auth` with `JWT_TTL=PT30S`, wait a minute), a token with one character changed (signature check fails), and restarting `auth` (new key pair: old tokens are rejected because their `kid` no longer exists in the JWKS — see the warning in [step 1](auth/index.md)).
+Try the other failure cases too: an expired token (`JWT_TTL=PT30S docker compose up -d auth`, log in again, wait two minutes — the gateway tolerates 60 s of clock skew past `exp` — then `docker compose up -d auth` to go back to one hour), a token with one character changed (signature check fails), and restarting `auth` (new key pair: old tokens are rejected because their `kid` no longer exists in the JWKS — see the warning in [step 1](auth/index.md)).
 
 ## Measure it: the price of a front door { #measure-it }
 
-Every hop and every check costs something. Measure three request types at the same rate — open route through the edge, protected route (JWT validation) through the edge, and the open route straight to the gateway port — plus the throughput of `auth` itself.
+Every hop and every check costs something. Send the same request, `GET /catalog/events/{id}`, at the same rate along four paths — straight to one catalog replica, to the gateway port, through the edge, and through the edge with a token the gateway validates — so that each difference isolates one cost; then measure the throughput of `auth` itself.
 
 ``` { .javascript title="load/gateway.js" .copy linenums="1" }
 --8<-- "docs/2027.1/hands-on/4/code/load/gateway.js"
@@ -162,10 +162,13 @@ Every hop and every check costs something. Measure three request types at the sa
 ```
 
 ``` { .bash .copy }
-k6 run -e RATE=50 load/gateway.js        # 3 scenarios × 50 req/s
+# k6 inside the compose network: the catalog replicas publish no port
+k6net() { docker run --rm -i --network boxoffice_default -v "$PWD":/w -w /w grafana/k6 "$@"; }
+k6net run -q -e RATE=50 load/gateway.js > /dev/null   # warm-up: right after a build the JVMs are cold
+k6net run -e RATE=50 load/gateway.js                  # 4 paths × 50 req/s
 mkdir -p results/lab4
-for r in 5 10 20 40; do k6 run -q -e RATE=$r --summary-export results/lab4/login-$r.json load/login.js; done
-uv run scripts/summarize.py results/lab4/login-*.json
+for r in 5 10 20 40; do k6 run -q -e RATE=$r --summary-export results/lab4/rate-$r.json load/login.js; done
+uv run scripts/summarize.py results/lab4/rate-*.json
 ```
 
 Record in `results/lab4.md`:
@@ -176,12 +179,12 @@ Record in `results/lab4.md`:
 ## Hops (50 req/s each, 1 min)
 | Path | p50 (ms) | p95 (ms) | p99 (ms) |
 |---|---:|---:|---:|
-| edge → catalog (lab 3, same rate) | | | |
+| catalog alone (service) | | | |
 | gateway → catalog (direct) | | | |
 | edge → gateway → catalog (open) | | | |
-| edge → gateway → auth, JWT validated (protected) | | | |
+| edge → gateway (JWT validated) → catalog (jwt) | | | |
 
-Cost of the gateway hop ≈ ____ ms at p50; cost of JWT validation ≈ ____ ms.
+At p50: gateway hop = direct − service ≈ ____ ms; edge hop = open − direct ≈ ____ ms; JWT validation = jwt − open ≈ ____ ms.
 
 ## Login capacity
 <table from summarize.py: rate, p50, p99, errors>
@@ -195,12 +198,12 @@ Cost of the gateway hop ≈ ____ ms at p50; cost of JWT validation ≈ ____ ms.
 
 How to read it:
 
-- The **gateway hop** adds a fraction of a millisecond to a few milliseconds at p50 (an extra network hop and a non-blocking proxy). Signature checking with RS256 is microseconds of CPU: JWT validation is cheap **because it is local** — the gateway fetched the public key once and never calls `auth` per request.
-- **Login is expensive on purpose.** BCrypt with cost 10 burns tens of milliseconds of CPU per attempt, so `auth` with 1 CPU tops out at roughly **ten to twenty logins per second** (in a test run for this lab, 10 logins/s already pushed p99 into seconds). That is exactly what makes password guessing slow — and why clients must **reuse tokens** instead of logging in per request. During a flash sale, logins should happen *before* 10:00.
+- Each scenario is named after its path in k6's summary (`http_req_duration{scenario:service}` …). Every path adds one piece to the previous one, so the differences are the costs: the **gateway hop** and the **edge hop** each add a fraction of a millisecond to a few milliseconds at p50 (an extra network hop and a proxy). Signature checking with RS256 is microseconds of CPU: JWT validation is cheap **because it is local** — the gateway fetched the public key once and never calls `auth` per request — so `jwt` and `open` are within noise of each other. The catalog route is open, but a request that *carries* a token still has it validated: a tampered one gets `401` there too.
+- **Login is expensive on purpose.** BCrypt with cost 10 burns tens of milliseconds of CPU per attempt, so `auth` with 1 CPU tops out at roughly **ten to twenty logins per second** (in a run for this lab, 10 logins/s kept p99 under 200 ms with `auth` at ~80% CPU, and 20 logins/s overloaded it). Past the ceiling it does not degrade gently: the logins share the CPU, all of them slow down, and once they exceed the gateway's 5 s `response-timeout` they fail with `504` — most of them, at 20 logins/s. That is exactly what makes password guessing slow — and why clients must **reuse tokens** instead of logging in per request. During a flash sale, logins should happen *before* 10:00.
 
 !!! note "If your numbers differ"
 
-    On a laptop, the gateway (1 CPU) shares the machine with five other JVMs and PostgreSQL, so the hop can cost more than in production — in a run for this lab on a busy machine, p50 reached hundreds of milliseconds at 150 req/s. Compare **relative** costs on the same machine and the same run: direct to the gateway vs through the edge vs with JWT. For logins, the ceiling scales with CPU: one core gives roughly 10–20 BCrypt checks per second.
+    On a laptop, the gateway (1 CPU) shares the machine with five other JVMs and PostgreSQL, so the hop can cost more than in production — in a run for this lab on a busy machine, p50 reached hundreds of milliseconds at 150 req/s. Compare **relative** costs on the same machine and the same run: service vs direct to the gateway vs through the edge vs with JWT. k6 runs in a container so that every path starts inside the same network; on Docker Desktop, k6 on the host would add the VM's port forwarding to every path. Right after a build the tail still pays JIT compilation even after the warm-up: if the p99 thresholds fail, run the measurement once more and record the second run. For logins, the ceiling scales with CPU: one core gives roughly 10–20 BCrypt checks per second.
 
 ## Troubleshooting
 

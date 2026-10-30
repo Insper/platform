@@ -53,23 +53,37 @@ volta. O observador registra o que o HPA vê e decide a cada 5 segundos.
     --8<-- "docs/2027.1/hands-on/10/code/scripts/watch-hpa.sh"
     ```
 
+Comece com pods **aquecidos**. Uma JVM que acabou de iniciar queima CPU compilando código, e o HPA
+escala com essa CPU também: numa execução de teste iniciada logo depois de um rollout, `PEAK=250` levou
+o `catalog` a 8 réplicas, as liveness probes estouraram o timeout com as CPUs ocupadas, pods
+reiniciaram e o k6 viu 26% de erros. A mesma execução com pods aquecidos nunca saiu de 2 réplicas.
+Aqueça-os e espere o HPA voltar a 2 réplicas:
+
+``` shell
+k6 run -q -e RATE=200 -e DURATION=1m load/catalog-otel.js > /dev/null   # lab 8's script
+kubectl -n boxoffice get hpa catalog -w                    # wait for REPLICAS 2 and a low cpu, then Ctrl+C
+```
+
 Três terminais:
 
 ``` shell
 mkdir -p results && sh scripts/watch-hpa.sh | tee results/lab10-hpa.csv   # 1: the control loop
 kubectl -n boxoffice get pods -l app=catalog -w            # 2: pods appearing
-k6 run -e PEAK=250 load/catalog-hpa.js                     # 3: the load (≈ 11 min)
+k6 run -e PEAK=1000 load/catalog-hpa.js                    # 3: the load (≈ 11 min)
 ```
 
-Ajuste o `PEAK` à sua máquina: ele deve ficar claramente acima do que dois pods conseguem servir (o
-lab 2 deu esse número a você), mas abaixo do que o laptop inteiro consegue servir.
+Ajuste o `PEAK` à sua máquina. O HPA reage à CPU, não à latência: o `PEAK` deve levar dois pods
+aquecidos claramente acima de 60% do request de CPU (150m cada, `kubectl -n boxoffice top pods`), mas
+ficar abaixo do que o seu laptop consegue gerar. Num laptop de teste (8 CPUs para o Docker), dois pods
+aquecidos ficaram em cerca de 40% com 250 req/s e passaram de 60% por volta de 600 req/s; daí o
+`PEAK=1000`.
 
 !!! example "Forma esperada (ilustrativa)"
 
     A CPU sobe durante a rampa; o HPA adiciona pods em degraus (2 → 4 → 6 …) tão rápido quanto a
     política de `scaleUp` permite; **cada pod novo precisa de dezenas de segundos antes de ficar
-    pronto** (inicialização da JVM + probes), então o p95 sobe durante a rampa e volta a cair durante o
-    patamar. Depois que a carga cai, as réplicas ficam de pé durante a janela de estabilização de 2
+    pronto** (inicialização da JVM + probes), então o p95 sobe durante a rampa e só volta a cair quando os pods
+    novos ficam prontos — num laptop, talvez só depois do fim do patamar. Depois que a carga cai, as réplicas ficam de pé durante a janela de estabilização de 2
     minutos e então saem uma a uma.
 
     O atraso entre "a carga chega" e "a capacidade está pronta" é o preço do autoscaling reativo. Para

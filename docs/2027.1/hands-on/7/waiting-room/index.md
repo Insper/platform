@@ -89,7 +89,7 @@ boxoffice:
 <!-- termynal -->
 
 ``` shell
-> docker compose up -d --build order
+> docker compose up -d --build --wait order
 > curl -s -X POST localhost:8084/orders/waiting-room/show-42/open -o /dev/null -w '%{http_code}\n'
 204
 > curl -s -X POST localhost:8084/orders/waiting-room/show-42/join

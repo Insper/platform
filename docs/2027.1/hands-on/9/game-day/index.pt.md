@@ -30,9 +30,12 @@ Troque os papéis entre as rodadas, para que todos operem uma vez.
    `curl -s -X POST localhost:8474/reset` (remove todo toxic e reativa todo proxy).
 4. **Detecção.** O alerta de burn rate do [lab 8](../../8/slo/index.md) observa só o `catalog`.
    Adicione as mesmas duas regras para o `order` (o arquivo do lab 8 com `catalog` trocado por
-   `order`, mostrado abaixo) e rode `docker compose restart otel-lgtm`: **Alerting → Alert rules**
-   agora lista quatro regras na pasta *BoxOffice*, todas *Normal*, para que os operadores possam ser
-   acionados.
+   `order`, mostrado abaixo) e recrie o `otel-lgtm` com
+   `docker compose up -d --force-recreate --wait otel-lgtm`: **Alerting → Alert rules** agora lista
+   quatro regras na pasta *BoxOffice*, todas *Normal*, para que os operadores possam ser acionados.
+   Recriar (e não só reiniciar) também esvazia as métricas: senão os erros dos experimentos do passo 2,
+   ainda dentro das janelas de 1 hora e de 6 horas, fazem as regras do `order` dispararem na hora. O
+   dashboard e as regras são arquivos, então voltam.
 
 ??? example "infra/grafana/alerting/slo-order.yaml — o arquivo completo"
 
@@ -43,7 +46,9 @@ Troque os papéis entre as rodadas, para que todos operem uma vez.
 ## Os experimentos { #the-experiments }
 
 O mestre do jogo escolhe três destes, em qualquer ordem, de 5 a 8 minutos cada, com tempo de
-recuperação entre eles:
+recuperação entre eles (pelo menos 5 minutos, até a regra de queima rápida voltar a *Normal*: a sua
+janela de 5 minutos precisa esquecer o experimento anterior, ou o próximo é "detectado" por um alerta
+que nunca parou de disparar):
 
 | # | Injeção (mestre do jogo) | O que um bom sistema faz | O que um bom operador faz |
 |---|---|---|---|
@@ -52,7 +57,7 @@ recuperação entre eles:
 | 3 | 40% de `reset_peer` no `payment` | os retries escondem a maioria dos erros; a taxa de erros sobe só um pouco | percebe os retries nas métricas, não entra em pânico |
 | 4 | proxy do `payment` desativado | breaker aberto, `503` rápido, os pedidos ficam em `PENDING_PAYMENT` | comunica "pagamentos fora do ar, pedidos a salvo" |
 | 5 | `db` pausado (`docker compose pause db`) | tudo fica lento; o alerta de SLO dispara | identifica a dependência compartilhada, não o sintoma |
-| 6 | `bandwidth` de 1 KB/s no `payment` | respostas lentas batem no timeout de leitura | distingue "lento" de "fora do ar" |
+| 6 | `bandwidth` de 1 KB/s no `payment` | `pay` cerca de 0,5 s mais lento (algumas centenas de bytes a 1 KB/s), abaixo do timeout de leitura: sem erros, só latência | distingue "lento" de "fora do ar" |
 
 Comandos de injeção:
 

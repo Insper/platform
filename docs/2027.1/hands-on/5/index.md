@@ -117,11 +117,13 @@ Run the same load **without** and **with** the cache — the switch is an enviro
 
 ``` { .bash .copy }
 # 1. no cache (every request goes to PostgreSQL)
-CACHE_ENABLED=false docker compose up -d
+CACHE_ENABLED=false docker compose up -d --wait     # --wait: until the recreated replicas are healthy
+k6 run -q -e RATE=300 -e DURATION=30s load/cache.js > /dev/null   # warm-up: new replicas are cold JVMs
 k6 run -e RATE=300 load/cache.js
 
-# 2. cache on, cold: flush Redis right before the test
-CACHE_ENABLED=true docker compose up -d
+# 2. cache on, cold: warm up the new replicas, then flush Redis right before the test
+CACHE_ENABLED=true docker compose up -d --wait
+k6 run -q -e RATE=300 -e DURATION=30s load/cache.js > /dev/null
 docker compose exec redis redis-cli FLUSHALL
 k6 run -e RATE=300 load/cache.js
 
@@ -175,13 +177,13 @@ Record in `results/lab5.md`:
 3. An admin changes the price of event 42. For how long can a fan see the old price on the listing page? On the event page?
 ```
 
-??? question "Think first: why is the warm-cache run much better than the cold one, if both use the same code?"
+??? question "Think first: why can a warm-cache run be much better than a cold one, if both use the same code?"
 
-    In the cold run, every first request for a key is a miss — and with 2,000 hot events plus thousands of cold ones, the first seconds look exactly like the no-cache run. A cache is only as good as its **hit ratio**, and the hit ratio depends on the **key space**, the **popularity distribution** and the **TTL**, not on Redis's speed. That is why deploys that flush caches, or new nodes with empty caches, cause latency spikes in production — and why some systems *warm* caches before taking traffic.
+    In the cold run, every first request for a key is a miss — and with 2,000 hot events plus thousands of cold ones, the first seconds look exactly like the no-cache run. A cache is only as good as its **hit ratio**, and the hit ratio depends on the **key space**, the **popularity distribution** and the **TTL**, not on Redis's speed. That is why deploys that flush caches, or new nodes with empty caches, cause latency spikes in production — and why some systems *warm* caches before taking traffic. (In this lab the gap only shows when the TTL outlives the test: see the note below.)
 
 !!! note "If your numbers differ"
 
-    The hit ratio after one minute depends on the TTLs and on how many distinct keys k6 touched: a first run with a cold cache stays around 50% (47–53% in runs for this lab at 150–200 req/s), a second run right after is much higher. Hits should be an order of magnitude faster than misses at p50; if they are not, Redis or the network is the bottleneck (`docker stats`). Your capacity gain depends on how much of the original load was the listing.
+    The hit ratio after one minute depends on the TTLs and on how many distinct keys k6 touched: at 300 req/s, a one-minute run with a cold cache reaches about 70% (72% in a run for this lab). With the default 60 s `CACHE_TTL_EVENT`, a second run right after is **not** much higher (72% again in that run): the keys written in the first seconds of the cold run expire in the first seconds of the next one, so each hot key misses about once per minute in both. Start the stack with `CACHE_TTL_EVENT=5m` (longer than a run) to see a warm cache win: 83% warm against 71% cold in a run for this lab. Hits should be faster than misses (about twice as fast at p50 in that run: with most reads absorbed by the cache, PostgreSQL answers the remaining misses quickly too); if they are not, Redis or the network is the bottleneck (`docker stats`). Your capacity gain depends on how much of the original load was the listing.
 
 ## Troubleshooting
 
@@ -200,7 +202,7 @@ Record in `results/lab5.md`:
     - **The cache is optional**: 200 ms client timeouts and every Redis error treated as a miss (`application.yaml`, `read()` in `EventCache.java`); the deliverable checks that stopping Redis does not break `catalog`. Why: [failure modes — the cache goes down](../../classes/caching/failure-modes/index.md#cache-down).
     - **Commit, then delete**: `EventController.java` evicts the key after `updateEvent` returns. Why: [invalidation — delete, don't update](../../classes/caching/invalidation/index.md#delete-vs-update).
     - **TTL with jitter on every key** (`withJitter` in `EventCache.java`), so a warm-up does not schedule an avalanche. Why: [avalanche](../../classes/caching/failure-modes/index.md#avalanche).
-    - **One rebuild per key** under load (`SET … NX PX 2000` lock): misses dropped from 800 to 10 in a test run. Why: [stampede](../../classes/caching/failure-modes/index.md#stampede).
+    - **One rebuild per key** under load (`SET … NX PX 2000` lock): misses dropped from 2,238 to 19 in a test run (200 VUs, 60 s). Why: [stampede](../../classes/caching/failure-modes/index.md#stampede).
     - **Measure, don't assume**: `X-Cache` plus a counter per outcome, and the same load before and after. Why: [hit-ratio math](../../classes/caching/index.md#hit-ratio-math).
 
 ## Clean up

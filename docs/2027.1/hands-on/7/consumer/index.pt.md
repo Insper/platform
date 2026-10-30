@@ -229,7 +229,7 @@ sequenceDiagram
 <!-- termynal -->
 
 ``` shell
-> docker compose up -d --build notification
+> docker compose up -d --build --wait notification
 > docker compose logs notification | grep -i "dead letter"
 notification-1  | ... b.notification.DeadLetterListener        : dead letter at order-events-dlt-4@0: java.lang.IllegalArgumentException
 notification-1  | ... b.notification.DeadLetterListener        : dead letter at order-events-dlt-3@0: java.lang.IllegalArgumentException
@@ -254,14 +254,16 @@ Volte o grupo inteiro e deixe-o consumir tudo de novo:
 docker compose stop notification
 docker compose exec kafka /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server kafka:9092 \
   --group notification --topic order-events --reset-offsets --to-earliest --execute
-docker compose start notification
+docker compose start --wait notification
 docker compose logs notification | grep duplicate
 curl -s localhost:8025/api/v1/messages | jq '.total'
 ```
 
 Os logs mostram `duplicate event ... ignored` para cada pedido e o Mailpit continua com **2** e-mails.
-Repita com `NOTIFY_IDEMPOTENT=false docker compose up -d notification` e conte de novo: cada
-reprocessamento envia todos os e-mails outra vez.
+Rode
+`NOTIFY_IDEMPOTENT=false docker compose up -d --wait notification`, repita os três primeiros comandos e
+conte de novo: cada reprocessamento envia todos os e-mails outra vez. Religue a deduplicação com
+`docker compose up -d --wait notification` antes de seguir.
 
 ### Experimento: um pedido envenenado { #experiment-a-poison-order }
 
@@ -273,8 +275,9 @@ docker compose exec db psql -U boxoffice -d boxoffice \
 ```
 
 O pedido dá certo (o fã não é afetado), o e-mail falha de forma permanente e o registro cai em
-`order-events-dlt`; abra-o no Kafka UI e veja os *headers* `kafka_dlt-*` (tópico, partição e offset
-originais, exceção).
+`order-events-dlt`: depois de um ou dois segundos, a última linha da consulta é o pedido envenenado (as
+linhas antes dela são as mensagens do passeio, uma vez por passagem do grupo pelo tópico); abra-o no
+Kafka UI e veja os *headers* `kafka_dlt-*` (tópico, partição e offset originais, exceção).
 
 !!! warning "Uma DLT que ninguém lê é perda de dados silenciosa"
 

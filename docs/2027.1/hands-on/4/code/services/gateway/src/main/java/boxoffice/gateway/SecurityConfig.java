@@ -27,8 +27,9 @@ public class SecurityConfig {
                 .authorizeExchange(ex -> ex
                         // open: getting a token, and the public keys to check one
                         .pathMatchers("/auth/register", "/auth/login", "/auth/.well-known/**").permitAll()
-                        // open: browsing the catalog
+                        // open: browsing the catalog (HEAD is a GET without the body)
                         .pathMatchers(HttpMethod.GET, "/catalog/**").permitAll()
+                        .pathMatchers(HttpMethod.HEAD, "/catalog/**").permitAll()
                         // admin only: changing the catalog (scope claim "user admin")
                         .pathMatchers("/catalog/**").hasAuthority("SCOPE_admin")
                         // health, metrics, routes: the edge never forwards /actuator from outside

@@ -30,8 +30,11 @@ Rotate roles between rounds, so that everyone operates once.
    `curl -s -X POST localhost:8474/reset` (removes every toxic and re-enables every proxy).
 4. **Detection.** The burn-rate alert from [lab 8](../../8/slo/index.md) watches only `catalog`.
    Add the same two rules for `order` (the lab 8 file with `catalog` replaced by `order`, shown
-   below), then `docker compose restart otel-lgtm`: **Alerting → Alert rules** now lists four rules
-   in the folder *BoxOffice*, all *Normal*, so that the operators can be paged.
+   below), then recreate `otel-lgtm` with `docker compose up -d --force-recreate --wait otel-lgtm`:
+   **Alerting → Alert rules** now lists four rules in the folder *BoxOffice*, all *Normal*, so that the
+   operators can be paged. Recreating (not just restarting) also empties the metrics: otherwise the
+   errors of the step 2 experiments, still inside the 1-hour and 6-hour windows, make the `order` rules
+   fire at once. The dashboard and the rules are files, so they come back.
 
 ??? example "infra/grafana/alerting/slo-order.yaml — the complete file"
 
@@ -41,7 +44,9 @@ Rotate roles between rounds, so that everyone operates once.
 
 ## The experiments
 
-The game master picks three of these, in any order, 5–8 minutes each with recovery time in between:
+The game master picks three of these, in any order, 5–8 minutes each with recovery time in between
+(at least 5 minutes, until the fast-burn rule is back to *Normal*: its 5-minute window must forget the
+previous experiment, or the next one is "detected" by an alert that never stopped firing):
 
 | # | Injection (game master) | What a good system does | What a good operator does |
 |---|---|---|---|
@@ -50,7 +55,7 @@ The game master picks three of these, in any order, 5–8 minutes each with reco
 | 3 | 40% `reset_peer` on `payment` | retries hide most errors; error rate rises only a little | notices retries in the metrics, does not panic |
 | 4 | `payment` proxy disabled | breaker open, fast `503`, orders stay `PENDING_PAYMENT` | communicates "payments down, orders safe" |
 | 5 | `db` paused (`docker compose pause db`) | everything slows; the SLO alert fires | identifies the shared dependency, not the symptom |
-| 6 | 1 KB/s `bandwidth` on `payment` | slow responses hit the read timeout | distinguishes "slow" from "down" |
+| 6 | 1 KB/s `bandwidth` on `payment` | `pay` about 0.5 s slower (a few hundred bytes at 1 KB/s), under the read timeout: no errors, only latency | distinguishes "slow" from "down" |
 
 Injection commands:
 

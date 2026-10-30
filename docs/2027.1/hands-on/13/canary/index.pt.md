@@ -157,11 +157,11 @@ Este passo precisa do cluster kind do [lab 10](../../10/index.md) (chamado `boxo
     ```
 
     ``` { .bash .copy }
-    git add k8s/overlays/gitops/catalog-rollout.yaml
+    git add Dockerfile.ai-tools k8s/catalog/analysis-explained.yaml k8s/overlays/gitops/catalog-rollout.yaml
     git commit -m "k8s(catalog): explained canary verdict (lab 13)" && git push
     ```
 
-    Com um Job, *inconclusivo* (saída 2) conta como falha — a escolha conservadora. A explicação fica nos logs do Job do próximo canary — uma nova imagem vinda do CI (`kubectl -n boxoffice logs -l job-name --tail=50`, ou `kubectl -n boxoffice get jobs` e `kubectl -n boxoffice logs job/<nome>`). O template aponta o modelo para o Ollama da sua máquina via `host.docker.internal` (Docker Desktop no macOS e no Windows; no Linux, use o IP do host na rede `kind` ou deixe-o inalcançável); para o Claude, crie o Secret com `kubectl -n boxoffice create secret generic llm --from-literal=anthropic-api-key="$ANTHROPIC_API_KEY"` e defina `LLM_PROVIDER` como `anthropic` no template (e rode o `kubectl apply` de novo). O passo funciona sem modelo nenhum: sem explicação, mesmo veredito.
+    Com um Job, *inconclusivo* (saída 2) conta como falha — a escolha conservadora. O Job roda uma vez, `initialDelay: 90s` depois do início da análise, e olha só o último minuto (`WINDOW=1m`): o Prometheus rotula cada série com o Service que a coletou, então uma janela de 5 minutos ainda contaria, como `catalog-canary`, os pods **antigos** que respondiam atrás desse Service antes de o canary começar — o veredito compararia a versão estável com ela mesma. A explicação fica nos logs do Job do próximo canary — uma nova imagem vinda do CI (`kubectl -n boxoffice logs -l job-name --tail=50`, ou `kubectl -n boxoffice get jobs` e `kubectl -n boxoffice logs job/<nome>`). O template aponta o modelo para o Ollama da sua máquina via `host.docker.internal` (Docker Desktop no macOS e no Windows; no Linux, use o IP do host na rede `kind` ou deixe-o inalcançável); para o Claude, crie o Secret com `kubectl -n boxoffice create secret generic llm --from-literal=anthropic-api-key="$ANTHROPIC_API_KEY"` e defina `LLM_PROVIDER` como `anthropic` no template (e rode o `kubectl apply` de novo). O passo funciona sem modelo nenhum: sem explicação, mesmo veredito.
 
 ## 5.5 Meça { #55-measure-it }
 

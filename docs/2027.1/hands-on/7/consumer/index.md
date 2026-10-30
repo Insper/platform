@@ -225,7 +225,7 @@ sequenceDiagram
 <!-- termynal -->
 
 ``` shell
-> docker compose up -d --build notification
+> docker compose up -d --build --wait notification
 > docker compose logs notification | grep -i "dead letter"
 notification-1  | ... b.notification.DeadLetterListener        : dead letter at order-events-dlt-4@0: java.lang.IllegalArgumentException
 notification-1  | ... b.notification.DeadLetterListener        : dead letter at order-events-dlt-3@0: java.lang.IllegalArgumentException
@@ -250,14 +250,15 @@ Rewind the whole group and let it consume everything again:
 docker compose stop notification
 docker compose exec kafka /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server kafka:9092 \
   --group notification --topic order-events --reset-offsets --to-earliest --execute
-docker compose start notification
+docker compose start --wait notification
 docker compose logs notification | grep duplicate
 curl -s localhost:8025/api/v1/messages | jq '.total'
 ```
 
-The logs show `duplicate event ... ignored` for each order and Mailpit still has **2** e-mails. Repeat
-with `NOTIFY_IDEMPOTENT=false docker compose up -d notification` and count again: every
-replay sends every e-mail again.
+The logs show `duplicate event ... ignored` for each order and Mailpit still has **2** e-mails. Run
+`NOTIFY_IDEMPOTENT=false docker compose up -d --wait notification`, repeat the first three commands and
+count again: every replay sends every e-mail again. Turn the dedupe back on with
+`docker compose up -d --wait notification` before you go on.
 
 ### Experiment: a poison order { #experiment-a-poison-order }
 
@@ -269,8 +270,9 @@ docker compose exec db psql -U boxoffice -d boxoffice \
 ```
 
 The order succeeds (the fan is not affected), the e-mail fails permanently, and the record lands in
-`order-events-dlt`; open it in Kafka UI and look at the `kafka_dlt-*` headers (original topic,
-partition, offset, exception).
+`order-events-dlt`: after a second or two, the query's last row is the poison order (the rows before
+it are the tour messages, once per pass of the group over the topic); open it in Kafka UI and look
+at the `kafka_dlt-*` headers (original topic, partition, offset, exception).
 
 !!! warning "A DLT nobody reads is a silent data loss"
 

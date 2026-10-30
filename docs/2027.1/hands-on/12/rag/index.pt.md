@@ -72,9 +72,9 @@ gatilho natural).
 {"ingested":300}
 > curl -s -X POST localhost:8088/assistant/search -H 'Content-Type: application/json' \
     -d '{"query":"festival at the stadium in São Paulo","k":3}' | jq -r '.[] | "\(.id) \(.score)"'
-event:150 0.828
-event:50 0.828
-event:250 0.82
+event:50 0.8523837787745167
+event:150 0.8472402642106125
+event:250 0.8454701076817256
 ```
 
 A ingestão levou 3 minutos e meio numa execução de teste num notebook ocupado, com o Ollama na CPU

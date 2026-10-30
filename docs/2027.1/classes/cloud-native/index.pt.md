@@ -213,7 +213,7 @@ flowchart LR
 
 ## O que quebra em seguida { #what-breaks-next }
 
-A plataforma agora reinicia, escala e publica o BoxOffice sem ninguém tocar num servidor: no lab 10 o HPA pediu mais pods de `catalog` 35 s depois do início de uma rampa de carga, e no lab 11 um canary que falhava 30% das requisições foi desfeito sozinho em cerca de um minuto. Mas uma plataforma compartilhada é também uma superfície de ataque compartilhada. Todo pod pode abrir uma conexão com qualquer outro pod e com o banco; um token roubado de um serviço é aceito por todos; bots compram os melhores lugares tão rápido quanto o HPA acrescenta capacidade; e cada imagem que o pipeline publica carrega centenas de bibliotecas de terceiros. Decidir quem pode falar com quem, verificar a identidade em cada chamada e confiar só no que o pipeline construiu é a [aula 12 — Rede e Segurança](../network-security/index.md).
+A plataforma agora reinicia, escala e publica o BoxOffice sem ninguém tocar num servidor: no lab 10 o HPA pediu mais pods de `catalog` cerca de dois minutos depois do início de uma rampa de carga, e no lab 11 um canary que falhava 30% das requisições foi desfeito sozinho em cerca de um minuto. Mas uma plataforma compartilhada é também uma superfície de ataque compartilhada. Todo pod pode abrir uma conexão com qualquer outro pod e com o banco; um token roubado de um serviço é aceito por todos; bots compram os melhores lugares tão rápido quanto o HPA acrescenta capacidade; e cada imagem que o pipeline publica carrega centenas de bibliotecas de terceiros. Decidir quem pode falar com quem, verificar a identidade em cada chamada e confiar só no que o pipeline construiu é a [aula 12 — Rede e Segurança](../network-security/index.md).
 
 ---
 

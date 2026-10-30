@@ -186,7 +186,7 @@ A **latency SLO** works the same way: the "bad events" are the requests slower t
 
 !!! example "In the BoxOffice code: the `catalog` burn-rate alerts (lab 8)"
 
-    [Hands-on 8 — SLO and burn-rate alert](../../../hands-on/8/slo/index.md) writes the first two rules of the table above as Grafana alert rules, provisioned from a file: an SLO of 99.5% over 28 days for `catalog` (a budget of 0.5%), with the health checks excluded from the SLI because no fan made those requests. Query A is the burn rate over 1 h, query B (not shown) the same expression over 5 min, and C fires only when both exceed 14.4. Two choices differ from the table: the 6× rule is a **ticket**, not a page (a cheaper signal for a small team), and `for: 1m` adds a minute of confirmation. In the lab's test run, stopping the database fired the page after **288 s**, with burn rates of 18.2 (1 h) and 74.4 (5 min).
+    [Hands-on 8 — SLO and burn-rate alert](../../../hands-on/8/slo/index.md) writes the first two rules of the table above as Grafana alert rules, provisioned from a file: an SLO of 99.5% over 28 days for `catalog` (a budget of 0.5%), with the health checks excluded from the SLI because no fan made those requests. Query A is the burn rate over 1 h, query B (not shown) the same expression over 5 min, and C fires only when both exceed 14.4. Two choices differ from the table: the 6× rule is a **ticket**, not a page (a cheaper signal for a small team), and `for: 1m` adds a minute of confirmation. In the lab's test run, stopping the database fired the page after **about 440 s**, with burn rates of 17.0 (1 h) and 200.0 (5 min).
 
     ``` { .yaml title="infra/grafana/alerting/slo-catalog.yaml (the fast-burn page)" }
     --8<-- "docs/2027.1/hands-on/8/code/infra/grafana/alerting/slo-catalog.yaml:11:25,37:48"
@@ -329,8 +329,8 @@ An alert does not take a broken replica out of the load balancer: a health check
 
     - **Derive every page from an SLO, and keep the rules as code** — the threshold then follows a business target, and every change is reviewed. In BoxOffice: `infra/grafana/alerting/slo-catalog.yaml`, provisioned at startup (box above).
     - **Exclude health checks and your own synthetic load from the SLI** — orchestrators call `/actuator/health` every few seconds and it almost never fails, inflating the success ratio with requests no fan made. In BoxOffice: `http_route!~"/actuator.*"` in every query of the lab 8 rules.
-    - **Put the burn rate, the windows and the runbook link in the notification** — the on-call engineer judges severity before opening a laptop. In BoxOffice: the description *"Burn rate 18.2 (1 h) and 74.4 (5 min)"* of the lab 8 alert.
-    - **Test every alert by causing its failure** — an alert never seen firing is a hypothesis; time it from fault to page. In BoxOffice: lab 8 stops `db` and records *Pending* and *Firing* (288 s in a test run).
+    - **Put the burn rate, the windows and the runbook link in the notification** — the on-call engineer judges severity before opening a laptop. In BoxOffice: the description *"Burn rate 17.0 (1 h) and 200.0 (5 min)"* of the lab 8 alert.
+    - **Test every alert by causing its failure** — an alert never seen firing is a hypothesis; time it from fault to page. In BoxOffice: lab 8 stops `db` and records *Pending* and *Firing* (about 440 s in a test run).
     - **Pair each ratio-based SLO alert with a "no traffic" check** — with zero requests the ratio is undefined, so `noDataState: OK` keeps quiet nights quiet but also hides an edge that sends nothing; add a synthetic probe or an alert on traffic dropping to zero.
 
 !!! warning "Common pitfalls"

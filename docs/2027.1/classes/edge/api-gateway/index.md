@@ -40,10 +40,10 @@ The key word is **cross-cutting**: concerns that are the same for every service.
 
 !!! example "In the BoxOffice code: the gateway's routes, timeouts and retry (lab 4)"
 
-    [Hands-on 4 — Gateway](../../../hands-on/4/gateway/index.md) puts a Spring Cloud Gateway behind the lab 3 edge. Its configuration is almost the whole table above in a few lines: **routing** by path (`/auth/**`, `/catalog/**`); `lb://catalog`, which balances over the three replicas and skips any whose health check is not `UP` (checked every 5 s); a 1 s connect and 5 s response **timeout** toward every service; and a `Retry` filter limited to `GET`, so a retry can never repeat a purchase. Authentication — validating the JWT that `auth` signs — is in `SecurityConfig.java`, on the same page.
+    [Hands-on 4 — Gateway](../../../hands-on/4/gateway/index.md) puts a Spring Cloud Gateway behind the lab 3 edge. Its configuration is almost the whole table above in a few lines: **routing** by path (`/auth/**`, `/catalog/**`); `lb://catalog`, which balances over the three replicas and skips any whose readiness check is not `UP` (checked every 5 s); a 1 s connect and 5 s response **timeout** toward every service; and a `Retry` filter limited to `GET`, so a retry can never repeat a purchase. Authentication — validating the JWT that `auth` signs — is in `SecurityConfig.java`, on the same page.
 
     ``` { .yaml title="services/gateway/src/main/resources/application.yaml (routes and resilience)" }
-    --8<-- "docs/2027.1/hands-on/4/code/services/gateway/src/main/resources/application.yaml:7:30,40:43"
+    --8<-- "docs/2027.1/hands-on/4/code/services/gateway/src/main/resources/application.yaml:7:30,40:45"
     ```
 
 ---

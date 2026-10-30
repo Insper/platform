@@ -183,7 +183,7 @@ Commit and tag: `git add -A && git commit -m "lab 9: resilience" && git tag lab9
 - [ ] the unprotected run shows the cascade (`browse` degraded); each pattern's run shows its effect, in numbers
 - [ ] one game day with at least three hidden experiments, a timeline and a blameless review per round
 - [ ] results table filled in `results/lab9.md` and explained
-- [ ] self-check: `curl -s -X POST localhost:8474/reset`, then `PAYMENT_RESILIENCE=true docker compose up -d order` and one `pay` call returns `CONFIRMED`; pushed with the tag `lab9`
+- [ ] self-check: `curl -s -X POST localhost:8474/reset`, then `PAYMENT_RESILIENCE=true docker compose up -d --wait order` and one `pay` call returns `CONFIRMED`; pushed with the tag `lab9`
 
 ## Related
 

@@ -59,7 +59,9 @@ Read `run()` top to bottom:
    the model must answer. An agent without a step limit is a cost and latency incident waiting to
    happen.
 3. **Stream every step.** Text deltas go to the client as they arrive (`yield "token", text`);
-   `stream_chunk_builder` rebuilds the full message to see whether the model asked for tools.
+   `stream_chunk_builder` rebuilds the full message to see whether the model asked for tools. Ollama
+   streams every tool call with index 0; `split_tool_calls` (end of the file) gives each call its own
+   index, or two calls in one reply would be glued into one with invalid JSON arguments.
 4. **Tool results go back as `role: tool` messages** — data, never instructions (the system prompt
    says so, and the guardrails of step 4 check the output).
 5. **Account for everything**: tokens, cost, time to first token, duration — the inputs of step 5.
@@ -108,14 +110,20 @@ curl -N -s -X POST localhost:8088/assistant/chat/stream -H 'Content-Type: applic
 
 You should see `event: token` lines arrive one by one (`data: {"text": "..."}`) and, at the end, one
 `event: done` with the same JSON as above. To exercise `get_order_status`, place an order as in lab 7
-and ask about it with the header the gateway would set:
+(the first command prints its id) and ask about it with the header the gateway would set:
 
 ``` shell
+curl -s -X POST localhost:8084/orders -H 'Content-Type: application/json' \
+  -d '{"showId":"show-7","holdId":"hold-lab12-1","customerEmail":"ana@example.com","amount":350.0}' | jq -r .id
 curl -s -X POST localhost:8088/assistant/chat -H 'Content-Type: application/json' \
   -H 'X-User-Email: ana@example.com' \
   -d '{"message":"What is the status of my order <order id>?"}' | jq '.answer, .tools'
 ```
 
-With another e-mail in the header, the tool answers `order not found`.
+You should see `["get_order_status"]` and an answer with the status (`PENDING_PAYMENT` for an unpaid
+order). With another e-mail in the header, the tool answers `order not found`. The 1.5 B model does not
+always call the tool: in a test run it did in 6 of 9 tries, and otherwise asked for the order id it had
+just received (`.tools` is `[]`). Ask again — and note it: unreliable tool calling is why `run()`
+retrieves first.
 
 [Next: Guardrails](../guardrails/index.md){ .md-button .md-button--primary }

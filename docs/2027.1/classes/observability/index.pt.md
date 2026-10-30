@@ -301,7 +301,7 @@ flowchart LR
 
 ## O que quebra em seguida { #what-breaks-next }
 
-O BoxOffice agora se enxerga: um SLO com alerta de burn rate, um dashboard RED e um trace por pedido, da borda ao e-mail passando pelo Kafka — no lab 8, parar o banco aciona alguém em cerca de cinco minutos (288 s numa execução de teste). Enxergar não é sobreviver. Às 10h02 o provedor de pagamentos responde em 4 s em vez de 200 ms: o dashboard mostra o p95 do `order` subindo, o trace põe o tempo na chamada de pagamento, o alerta dispara — e o checkout morre mesmo assim, porque toda thread do `order` está esperando o provedor e não sobra nenhuma nem para as requisições que nunca o tocam. A observabilidade encurta o tempo para *entender* uma falha; impedir que uma dependência lenta derrube tudo — timeouts, circuit breakers, bulkheads e experimentos de caos que os comprovem — é a [aula 10 — Confiabilidade](../reliability/index.md).
+O BoxOffice agora se enxerga: um SLO com alerta de burn rate, um dashboard RED e um trace por pedido, da borda ao e-mail passando pelo Kafka — no lab 8, parar o banco aciona alguém em cerca de cinco a sete minutos (cerca de 440 s numa execução de teste). Enxergar não é sobreviver. Às 10h02 o provedor de pagamentos responde em 4 s em vez de 200 ms: o dashboard mostra o p95 do `order` subindo, o trace põe o tempo na chamada de pagamento, o alerta dispara — e o checkout morre mesmo assim, porque toda thread do `order` está esperando o provedor e não sobra nenhuma nem para as requisições que nunca o tocam. A observabilidade encurta o tempo para *entender* uma falha; impedir que uma dependência lenta derrube tudo — timeouts, circuit breakers, bulkheads e experimentos de caos que os comprovem — é a [aula 10 — Confiabilidade](../reliability/index.md).
 
 ---
 

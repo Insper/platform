@@ -353,6 +353,8 @@ docker stop hello
     vus............................: 10     min=10          max=10
 ```
 
+Your numbers depend on the machine. With Docker Desktop (macOS, Windows) every request also crosses the VM's port forwarding, so expect a few times less than on native Linux — about 15,000 req/s at 10 VUs on an 8-core Apple Silicon laptop.
+
 Read the summary like this:
 
 - `http_reqs … /s` is the **throughput** (requests per second, RPS).

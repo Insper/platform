@@ -1,0 +1,17 @@
+# build output
+target/
+*.class
+# IDEs and OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+# local secrets: never commit them
+.env
+# k6 HTML reports are big; commit the JSON summaries and the tables in results/*.md
+results/*.html
+# the OpenTelemetry Java agent is downloaded by scripts/get-otel-agent.sh (lab 8)
+infra/otel/*.jar
+# Python (lab 12): bytecode caches and local environments
+__pycache__/
+.venv/

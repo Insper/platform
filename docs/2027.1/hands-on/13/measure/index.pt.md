@@ -61,7 +61,7 @@ Você precisa de **pelo menos 10 PRs**. Trabalhe em dupla (ou com o seu time de 
     OLLAMA_BASE_MODEL=qwen2.5-coder:3b OLLAMA_MODEL_NAME=qwen2.5-coder-3b-16k bash .github/ai/ollama-model.sh
     for m in qwen2.5-coder-16k qwen2.5-coder-3b-16k; do
       LLM_MODEL=$m uv run --no-project --python 3.12 --with-requirements .github/ai/requirements.txt \
-        python .github/ai/eval_review.py .github/ai/evals 2>&1 | tail -n 6
+        python .github/ai/eval_review.py .github/ai/evals 2>&1 | tail -n 8
     done
     ```
 
@@ -70,7 +70,7 @@ Você precisa de **pelo menos 10 PRs**. Trabalhe em dupla (ou com o seu time de 
     ``` { .bash .copy }
     for m in claude-opus-5-5 claude-sonnet-5-5 claude-haiku-4-5; do
       LLM_PROVIDER=anthropic LLM_MODEL=$m uv run --no-project --python 3.12 --with-requirements .github/ai/requirements.txt \
-        python .github/ai/eval_review.py .github/ai/evals 2>&1 | tail -n 6
+        python .github/ai/eval_review.py .github/ai/evals 2>&1 | tail -n 8
     done
     ```
 

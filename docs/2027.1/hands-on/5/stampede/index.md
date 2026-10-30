@@ -29,7 +29,8 @@ Make the problem frequent: a hot listing with a **3 s TTL**, hammered by 200 clo
 ```
 
 ``` { .bash .copy }
-CACHE_TTL_LIST=3s CACHE_STAMPEDE_PROTECTION=false docker compose up -d
+CACHE_TTL_LIST=3s CACHE_STAMPEDE_PROTECTION=false docker compose up -d --wait
+k6 run -q -e DURATION=20s load/stampede.js > /dev/null    # warm-up: the replicas were recreated
 k6 run load/stampede.js
 ```
 
@@ -72,11 +73,12 @@ if (stampedeProtection) {
 ```
 
 ``` { .bash .copy }
-CACHE_TTL_LIST=3s CACHE_STAMPEDE_PROTECTION=true docker compose up -d
+CACHE_TTL_LIST=3s CACHE_STAMPEDE_PROTECTION=true docker compose up -d --wait
+k6 run -q -e DURATION=20s load/stampede.js > /dev/null    # warm-up: the replicas were recreated
 k6 run load/stampede.js
 ```
 
-Now `cache_misses` should be close to the number of expirations (~20 per minute). In a test run for this lab (100 VUs, 30 s, TTL 3 s), the misses dropped from **800 to 10** — one database query per expiration instead of eighty. The latency gain on a laptop can be modest (Redis, the edge and the gateway dominate each request), but the database load during each expiration drops by almost two orders of magnitude, and that is what protects it during a real spike. Fill in the stampede table of `results/lab5.md`.
+Now `cache_misses` should be close to the number of expirations (~20 per minute). In a test run of this script as it is (200 VUs, 60 s, TTL 3 s), the misses dropped from **2,238 to 19** — one database query per expiration instead of about a hundred and ten. In the same run p99 fell from about 1 s to about 0.3 s and the average CPU of `db` from 234% to 4%. The latency gain varies from machine to machine (Redis, the edge and the gateway also weigh on each request), but the database load during each expiration drops by about two orders of magnitude, and that is what protects it during a real spike. Fill in the stampede table of `results/lab5.md`.
 
 ## 3. Other cures, and their trade-offs
 

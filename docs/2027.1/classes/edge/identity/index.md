@@ -308,7 +308,7 @@ spring:
     [Hands-on 4 — gateway](../../../hands-on/4/gateway/index.md) uses **local validation**: the decoder fetches the JWKS of `auth` and then checks the signature, `exp`/`nbf`, `iss` and `aud` of every request without calling `auth`. That is the reason for the choice: a login is expensive on purpose (BCrypt; the lab measures roughly 10–20 logins/s per CPU), so it happens once per session, while the 2 million requests of the on-sale cost only a signature check at the gateway — introspection would put `auth` in the path of every one of them. The price is revocation only at `exp`. `UserHeadersFilter` implements the warning above: it removes any `X-User-*` header sent by the client, then sets the identity taken from the validated token. The other half of the warning holds only by deployment: the `catalog` replicas publish no port, so from outside the gateway is the only way in — but any container on the same network can still send a forged `X-User-Id`, the gap that [Zero Trust](../../network-security/zero-trust/index.md) closes.
 
     ``` { .java title="services/gateway/src/main/java/boxoffice/gateway/SecurityConfig.java (the JWT decoder)" }
-    --8<-- "docs/2027.1/hands-on/4/code/services/gateway/src/main/java/boxoffice/gateway/SecurityConfig.java:42:52"
+    --8<-- "docs/2027.1/hands-on/4/code/services/gateway/src/main/java/boxoffice/gateway/SecurityConfig.java:43:53"
     ```
 
     ``` { .java title="services/gateway/src/main/java/boxoffice/gateway/UserHeadersFilter.java (strip, then set)" }

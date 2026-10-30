@@ -129,7 +129,7 @@ def main(path: str) -> int:
             ok, out = run(cmd)                      # second run: catch flaky tests
         if not ok:
             errors = [l.replace(f"{Path.cwd()}/", "") for l in out.splitlines()
-                      if "ERROR" in l or "FAIL" in l][:2]
+                      if "ERROR" in l or "FAIL" in l][:2] or out.strip().splitlines()[-2:]
             history.append(f"{attempt}. does not compile or fails: " + " / ".join(errors)[:300])
             feedback = f"<previous_attempt_failed>\n{out}\n</previous_attempt_failed>"
             continue

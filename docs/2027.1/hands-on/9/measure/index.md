@@ -28,7 +28,7 @@ watch -n 1 "curl -s localhost:8084/actuator/circuitbreakers | jq '.circuitBreake
     cascade. With a timeout: `pay` fails in about a second, `browse` is back to milliseconds. With the
     circuit breaker during an outage: `pay` answers `503` in milliseconds most of the time
     (`pay_fast_fail` close to 1) and calls to `payment` drop to a trickle of half-open probes. With the
-    bulkhead under slow-but-successful calls: some payments get `503`, but `browse` stays fast.
+    bulkhead under slow-but-successful calls: most payments get `503` (only 10 fit at a time), but `browse` stays fast.
 
     A test run on a busy laptop (the whole lab 9 stack, 45 s per run, `payment` + 3 s latency):
 

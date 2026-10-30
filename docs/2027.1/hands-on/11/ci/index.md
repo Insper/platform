@@ -31,6 +31,10 @@ Prometheus registry). The complete file:
 | `testcontainers-postgresql`, `testcontainers-junit-jupiter` | the PostgreSQL module and the `@Testcontainers`/`@Container` lifecycle (Testcontainers 2) |
 | `micrometer-registry-prometheus` | `/actuator/prometheus`, used by the canary analysis of step 5 |
 
+The `tomcat.version` property replaces the Tomcat that Spring Boot 4.1.1 brings (11.0.24): the Trivy
+gate of [step 2](../supply-chain/index.md) rejects it for fixable CRITICAL vulnerabilities. Remove the
+property when Dependabot updates the parent to a version with a newer Tomcat.
+
 Run it locally (needs Docker running, and JDK 21 + Maven from [lab 0](../../0/index.md)):
 
 <!-- termynal -->
@@ -80,12 +84,13 @@ as you go — the matrix already includes them.
 ## Push and watch
 
 The `performance` job of this workflow runs two files that [step 3](../performance-gate/index.md)
-explains: `.github/ci/compose.perf.yaml` and `load/budget.js`. Create them now (copy them from step 3,
-or download them), otherwise that job fails with `open .github/ci/compose.perf.yaml: no such file`:
+explains: `.github/ci/compose.perf.yaml` and `load/budget.js`. Create them now, otherwise that job
+fails with `open .github/ci/compose.perf.yaml: no such file`. Copy `.github/ci/compose.perf.yaml` from
+step 3 into a new `.github/ci/` folder (the site does not publish folders whose name starts with a dot,
+so it cannot be downloaded), and download `load/budget.js` (or copy it from step 3 too):
 
 ``` shell
-mkdir -p .github/ci
-curl -fsSL -o .github/ci/compose.perf.yaml https://insper.github.io/platform/2027.1/hands-on/11/code/.github/ci/compose.perf.yaml
+mkdir -p .github/ci          # then paste compose.perf.yaml from step 3 into it
 curl -fsSL -o load/budget.js https://insper.github.io/platform/2027.1/hands-on/11/code/load/budget.js
 ```
 

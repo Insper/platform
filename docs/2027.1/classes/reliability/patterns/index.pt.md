@@ -423,7 +423,7 @@ Os padrões trabalham em camadas. Para a chamada `order` → `payment`, o BoxOff
     O [Hands-on 9 — Padrões de resiliência](../../../hands-on/9/patterns/index.md) configura a pilha com números de laptop: 50 threads do Tomcat em vez de 200, timeout de leitura de 1 s, 3 tentativas com 200 ms de backoff ± 50% de jitter, um breaker que também abre quando metade das últimas 20 chamadas levou mais de 800 ms e fica aberto 10 s, e um bulkhead de **10** chamadas simultâneas que nunca enfileira (`max-wait-duration: 0`). Cada parâmetro lê uma variável de ambiente, então cada experimento desliga um padrão sem rebuild. O `PaymentGateway` empilha as anotações na ordem padrão do Resilience4j — Retry ( CircuitBreaker ( Bulkhead ( call ) ) ) — com o fallback na camada externa, e o retry ignora `CallNotPermittedException` e `BulkheadFullException`: um breaker aberto ou um bulkhead cheio falha rápido em vez de ser repetido. O fallback responde `503` e o pedido fica `PENDING_PAYMENT`, o "tente de novo" honesto do [Fallback](#fallback-and-graceful-degradation). Com o provedor 3 s lento, o lab mediu o `GET /orders/{id}` — que nunca chama o `payment` — com mediana de **9,04 s** sem proteção e **6,5 ms** com os padrões.
 
     ``` { .yaml title="services/order/src/main/resources/application.yaml (resilience4j)" }
-    --8<-- "docs/2027.1/hands-on/9/code/services/order/src/main/resources/application.yaml:47:82"
+    --8<-- "docs/2027.1/hands-on/9/code/services/order/src/main/resources/application.yaml:47:84"
     ```
 
     ``` { .java title="services/order/src/main/java/boxoffice/order/payment/PaymentGateway.java (the stack)" }

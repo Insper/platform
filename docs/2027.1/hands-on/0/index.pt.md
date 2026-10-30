@@ -353,6 +353,8 @@ docker stop hello
     vus............................: 10     min=10          max=10
 ```
 
+Seus números dependem da máquina. Com o Docker Desktop (macOS, Windows) cada requisição também atravessa o encaminhamento de portas da VM, então espere algumas vezes menos do que no Linux nativo — cerca de 15.000 req/s com 10 VUs em um notebook Apple Silicon de 8 núcleos.
+
 Leia o resumo assim:
 
 - `http_reqs … /s` é a **vazão** (throughput, em requisições por segundo, RPS).

@@ -101,7 +101,7 @@ def get_event(event_id: int, db, r) -> dict:
 
 !!! example "In the BoxOffice code: the stampede lock in `catalog` (lab 5)"
 
-    [Hands-on 5 — Stampede](../../../hands-on/5/stampede/index.md) first *reproduces* the stampede (a hot listing with a 3 s TTL, hammered by 200 users) and then sets `CACHE_STAMPEDE_PROTECTION=true`, which runs this code: in a test run, the misses dropped from **800 to 10**, one database query per expiration instead of eighty. Same idea as the Python above, in Java: `SET lock NX PX 2000`, re-read after winning (another request may have filled the key), losers poll for at most 20 × 25 ms and then load anyway. Note the honest comment in `unlock`: *get + delete* is not atomic, the Lua script above is.
+    [Hands-on 5 — Stampede](../../../hands-on/5/stampede/index.md) first *reproduces* the stampede (a hot listing with a 3 s TTL, hammered by 200 users) and then sets `CACHE_STAMPEDE_PROTECTION=true`, which runs this code: in a test run (60 s), the misses dropped from **2,238 to 19**, one database query per expiration instead of about a hundred and ten. Same idea as the Python above, in Java: `SET lock NX PX 2000`, re-read after winning (another request may have filled the key), losers poll for at most 20 × 25 ms and then load anyway. Note the honest comment in `unlock`: *get + delete* is not atomic, the Lua script above is.
 
     ``` { .java title="services/catalog/src/main/java/boxoffice/catalog/EventCache.java (the lock)" }
     --8<-- "docs/2027.1/hands-on/5/code/services/catalog/src/main/java/boxoffice/catalog/EventCache.java:62:85,119:138"

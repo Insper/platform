@@ -186,7 +186,7 @@ Um **SLO de latência** funciona do mesmo jeito: os "eventos ruins" são as requ
 
 !!! example "No código do BoxOffice: os alertas de burn rate do `catalog` (lab 8)"
 
-    O [Hands-on 8 — SLO e alerta de burn rate](../../../hands-on/8/slo/index.md) escreve as duas primeiras regras da tabela acima como regras de alerta do Grafana, provisionadas a partir de um arquivo: um SLO de 99,5% em 28 dias para o `catalog` (um orçamento de 0,5%), com os health checks fora do SLI porque nenhum fã fez essas requisições. A consulta A é o burn rate em 1 h, a consulta B (não mostrada) a mesma expressão em 5 min, e C dispara só quando as duas passam de 14,4. Duas escolhas diferem da tabela: a regra de 6× é um **ticket**, não um page (um sinal mais barato para um time pequeno), e o `for: 1m` acrescenta um minuto de confirmação. Na execução de teste do lab, parar o banco disparou o page após **288 s**, com burn rates de 18,2 (1 h) e 74,4 (5 min).
+    O [Hands-on 8 — SLO e alerta de burn rate](../../../hands-on/8/slo/index.md) escreve as duas primeiras regras da tabela acima como regras de alerta do Grafana, provisionadas a partir de um arquivo: um SLO de 99,5% em 28 dias para o `catalog` (um orçamento de 0,5%), com os health checks fora do SLI porque nenhum fã fez essas requisições. A consulta A é o burn rate em 1 h, a consulta B (não mostrada) a mesma expressão em 5 min, e C dispara só quando as duas passam de 14,4. Duas escolhas diferem da tabela: a regra de 6× é um **ticket**, não um page (um sinal mais barato para um time pequeno), e o `for: 1m` acrescenta um minuto de confirmação. Na execução de teste do lab, parar o banco disparou o page após **cerca de 440 s**, com burn rates de 17,0 (1 h) e 200,0 (5 min).
 
     ``` { .yaml title="infra/grafana/alerting/slo-catalog.yaml (the fast-burn page)" }
     --8<-- "docs/2027.1/hands-on/8/code/infra/grafana/alerting/slo-catalog.yaml:11:25,37:48"
@@ -329,8 +329,8 @@ Um alerta não tira uma réplica quebrada do balanceador: um health check faz is
 
     - **Derive todo page de um SLO, e mantenha as regras como código** — o limite passa a seguir uma meta de negócio, e toda mudança é revisada. No BoxOffice: `infra/grafana/alerting/slo-catalog.yaml`, provisionado na inicialização (caixa acima).
     - **Tire do SLI os health checks e a sua própria carga sintética** — os orquestradores chamam `/actuator/health` a cada poucos segundos e ele quase nunca falha, inflando a taxa de sucesso com requisições que nenhum fã fez. No BoxOffice: `http_route!~"/actuator.*"` em toda consulta das regras do lab 8.
-    - **Ponha o burn rate, as janelas e o link do runbook na notificação** — quem está de plantão julga a gravidade antes de abrir o notebook. No BoxOffice: a descrição *"Burn rate 18.2 (1 h) and 74.4 (5 min)"* do alerta do lab 8.
-    - **Teste todo alerta causando a sua falha** — um alerta nunca visto disparando é uma hipótese; cronometre da falha ao page. No BoxOffice: o lab 8 para o `db` e registra *Pending* e *Firing* (288 s numa execução de teste).
+    - **Ponha o burn rate, as janelas e o link do runbook na notificação** — quem está de plantão julga a gravidade antes de abrir o notebook. No BoxOffice: a descrição *"Burn rate 17.0 (1 h) and 200.0 (5 min)"* do alerta do lab 8.
+    - **Teste todo alerta causando a sua falha** — um alerta nunca visto disparando é uma hipótese; cronometre da falha ao page. No BoxOffice: o lab 8 para o `db` e registra *Pending* e *Firing* (cerca de 440 s numa execução de teste).
     - **Combine cada alerta de SLO baseado em razão com uma verificação de "sem tráfego"** — com zero requisições a razão fica indefinida, então `noDataState: OK` mantém as noites silenciosas mas também esconde uma borda que não envia nada; acrescente um probe sintético ou um alerta de tráfego caindo a zero.
 
 !!! warning "Armadilhas comuns"

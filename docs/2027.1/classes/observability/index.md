@@ -301,7 +301,7 @@ flowchart LR
 
 ## What breaks next { #what-breaks-next }
 
-BoxOffice can now see itself: an SLO with a burn-rate alert, a RED dashboard, and one trace per order, from the edge through Kafka to the e-mail — in lab 8, stopping the database pages someone in about five minutes (288 s in a test run). Seeing is not surviving. At 10:02 the payment provider answers in 4 s instead of 200 ms: the dashboard shows the `order` p95 climbing, the trace puts the time in the payment call, the alert fires — and checkout still dies, because every `order` thread is waiting on the provider and none is left even for requests that never touch it. Observability shortens the time to *understand* a failure; keeping one slow dependency from taking everything down — timeouts, circuit breakers, bulkheads, and chaos experiments that prove them — is [class 10 — Reliability](../reliability/index.md).
+BoxOffice can now see itself: an SLO with a burn-rate alert, a RED dashboard, and one trace per order, from the edge through Kafka to the e-mail — in lab 8, stopping the database pages someone in about five to seven minutes (about 440 s in a test run). Seeing is not surviving. At 10:02 the payment provider answers in 4 s instead of 200 ms: the dashboard shows the `order` p95 climbing, the trace puts the time in the payment call, the alert fires — and checkout still dies, because every `order` thread is waiting on the provider and none is left even for requests that never touch it. Observability shortens the time to *understand* a failure; keeping one slow dependency from taking everything down — timeouts, circuit breakers, bulkheads, and chaos experiments that prove them — is [class 10 — Reliability](../reliability/index.md).
 
 ---
 

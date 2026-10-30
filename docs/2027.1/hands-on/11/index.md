@@ -55,7 +55,8 @@ boxoffice/
     unzip it, `cd boxoffice`, push it to your GitHub repository, and continue from here.
 
 Every file of this lab is shown in full on these pages and published under
-`https://insper.github.io/platform/2027.1/hands-on/11/code/<path>`.
+`https://insper.github.io/platform/2027.1/hands-on/11/code/<path>`, except those under `.github/`
+(the site skips folders whose name starts with a dot): copy those from the pages.
 
 ## Architecture
 

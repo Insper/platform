@@ -40,10 +40,10 @@ A palavra-chave é **transversal**: preocupações que são as mesmas para todos
 
 !!! example "No código do BoxOffice: as rotas, os timeouts e o retry do gateway (lab 4)"
 
-    O [Hands-on 4 — Gateway](../../../hands-on/4/gateway/index.md) coloca um Spring Cloud Gateway atrás da borda do lab 3. A configuração dele é quase a tabela acima inteira em poucas linhas: **roteamento** por path (`/auth/**`, `/catalog/**`); `lb://catalog`, que balanceia entre as três réplicas e pula qualquer uma cujo health check não esteja `UP` (verificado a cada 5 s); um **timeout** de conexão de 1 s e de resposta de 5 s para todos os serviços; e um filtro `Retry` limitado a `GET`, para que um retry nunca repita uma compra. A autenticação — validar o JWT que `auth` assina — está em `SecurityConfig.java`, na mesma página.
+    O [Hands-on 4 — Gateway](../../../hands-on/4/gateway/index.md) coloca um Spring Cloud Gateway atrás da borda do lab 3. A configuração dele é quase a tabela acima inteira em poucas linhas: **roteamento** por path (`/auth/**`, `/catalog/**`); `lb://catalog`, que balanceia entre as três réplicas e pula qualquer uma cuja readiness não esteja `UP` (verificada a cada 5 s); um **timeout** de conexão de 1 s e de resposta de 5 s para todos os serviços; e um filtro `Retry` limitado a `GET`, para que um retry nunca repita uma compra. A autenticação — validar o JWT que `auth` assina — está em `SecurityConfig.java`, na mesma página.
 
     ``` { .yaml title="services/gateway/src/main/resources/application.yaml (routes and resilience)" }
-    --8<-- "docs/2027.1/hands-on/4/code/services/gateway/src/main/resources/application.yaml:7:30,40:43"
+    --8<-- "docs/2027.1/hands-on/4/code/services/gateway/src/main/resources/application.yaml:7:30,40:45"
     ```
 
 ---

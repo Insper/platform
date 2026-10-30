@@ -303,7 +303,7 @@ def should_refresh_early(expires_at: float, recompute_s: float, beta: float = 1.
 
 !!! example "No código do BoxOffice: um lease contra o stampede (lab 5)"
 
-    O BoxOffice roda um Redis só, não um cluster, então os labs não constroem o particionamento deste caso — mas o [Hands-on 5 — Stampede](../../../hands-on/5/stampede/index.md) constrói o seu lease: a primeira falta pega o `lock` com `SET NX` e recarrega, relê depois de vencer, e as outras consultam a chave por no máximo 20 × 25 ms. No teste do lab (100 usuários virtuais, TTL de 3 s), as faltas caíram de **800 para 10** — uma consulta ao banco por expiração. O passo a passo completo está em [Cache — modos de falha](../../caching/failure-modes/index.md).
+    O BoxOffice roda um Redis só, não um cluster, então os labs não constroem o particionamento deste caso — mas o [Hands-on 5 — Stampede](../../../hands-on/5/stampede/index.md) constrói o seu lease: a primeira falta pega o `lock` com `SET NX` e recarrega, relê depois de vencer, e as outras consultam a chave por no máximo 20 × 25 ms. No teste do lab (200 usuários virtuais por 60 s, TTL de 3 s), as faltas caíram de **2.238 para 19** — uma consulta ao banco por expiração. O passo a passo completo está em [Cache — modos de falha](../../caching/failure-modes/index.md).
 
     ``` { .java title="services/catalog/src/main/java/boxoffice/catalog/EventCache.java (the lease)" }
     --8<-- "docs/2027.1/hands-on/5/code/services/catalog/src/main/java/boxoffice/catalog/EventCache.java:62:85"

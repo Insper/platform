@@ -70,12 +70,15 @@ comentário em `ChaosFilter.java`. Você deve ver as etapas avançarem (`SetWeig
 
 Agora entregue uma release que quebra 30% das requisições, *pelo Git*. Em
 `k8s/overlays/gitops/kustomization.yaml`, adicione mais uma operação ao patch do Deployment (depois da
-`MANAGEMENT_METRICS_DISTRIBUTION_PERCENTILESHISTOGRAM_HTTP_SERVER_REQUESTS`):
+`MANAGEMENT_METRICS_DISTRIBUTION_PERCENTILESHISTOGRAM_HTTP_SERVER_REQUESTS`), com o seu `- op:`
+exatamente embaixo das outras linhas `- op:` desse patch. Os commits do `Deploy` reformataram o
+arquivo (4 espaços, como abaixo); outra indentação quebra o patch, e o Argo CD reporta um
+`ComparisonError` em vez de iniciar um canary:
 
 ``` yaml
-      - op: add                      # lab 11 experiment: a bad release (remove it afterwards)
-        path: /spec/template/spec/containers/0/env/-
-        value: { name: CHAOS_ERROR_RATE, value: "0.3" }
+    - op: add                      # lab 11 experiment: a bad release (remove it afterwards)
+      path: /spec/template/spec/containers/0/env/-
+      value: { name: CHAOS_ERROR_RATE, value: "0.3" }
 ```
 
 `CHAOS_ERROR_RATE` é lida pelo `ChaosFilter`, que existe só para este experimento:

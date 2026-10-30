@@ -248,7 +248,7 @@ With 4 `catalog` pods at 90 % CPU (of request) and a 60 % target: ⌈4 × 90/60�
 
 !!! example "In the BoxOffice code: the `catalog` HPA (lab 10)"
 
-    [Hands-on 10 — Autoscaling](../../../hands-on/10/autoscaling/index.md) scales `catalog` from 2 to 8 pods at 60% of its 250m CPU request — the formula above, with a scale-up of "double or +2 pods every 15 s" and a slow scale-down (2-minute window, 1 pod every 30 s) so that a short dip does not remove capacity that is needed again a minute later. The lab measures the lag this section warns about: "The HPA asked for more pods 35 s into the ramp, but the eighth pod was ready only after more than five minutes", with a p95 of about 7.8 s in that window ([Measure it](../../../hands-on/10/measure/index.md)).
+    [Hands-on 10 — Autoscaling](../../../hands-on/10/autoscaling/index.md) scales `catalog` from 2 to 8 pods at 60% of its 250m CPU request — the formula above, with a scale-up of "double or +2 pods every 15 s" and a slow scale-down (2-minute window, 1 pod every 30 s) so that a short dip does not remove capacity that is needed again a minute later. The lab measures the lag this section warns about: the HPA asked for more pods about two minutes into the ramp, but "the eighth pod was ready only at 7:31, when the hold was already over", with a p95 of 5–7 s for the run ([Measure it](../../../hands-on/10/measure/index.md)).
 
     ``` { .yaml title="k8s/base/catalog-hpa.yaml (lab 10)" }
     --8<-- "docs/2027.1/hands-on/10/code/k8s/base/catalog-hpa.yaml"

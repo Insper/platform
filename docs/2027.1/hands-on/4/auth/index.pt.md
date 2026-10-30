@@ -41,7 +41,7 @@ Um token tem a forma `header.payload.signature`, cada parte codificada em Base64
 
 !!! warning "Assinado não é criptografado"
 
-    Qualquer um consegue decodificar o payload (experimente o `jwt.io` ou `base64 -d`). Nunca coloque em um JWT segredos ou dados pessoais que você não mostraria ao próprio usuário.
+    Qualquer um consegue decodificar o payload (experimente o `jwt.io`, ou o comando `jq` no fim da sessão de curl da [página do lab](../index.md)). Nunca coloque em um JWT segredos ou dados pessoais que você não mostraria ao próprio usuário.
 
 ## 2. Projeto e configuração { #2-project-and-configuration }
 
@@ -135,7 +135,7 @@ Os records trocados com os clientes:
 | `aud` | para quem é (`boxoffice`) | sim: um token de outra API é recusado |
 | `sub` | o id do usuário | vira `X-User-Id` |
 | `scope` | `user` ou `user admin` | vira as authorities `SCOPE_user`, `SCOPE_admin` |
-| `exp` | expiração | sim (com uma pequena tolerância de diferença de relógio) |
+| `exp` | expiração | sim (com 60 s de tolerância de diferença de relógio) |
 | `kid` (header) | qual chave assinou | usado para escolher a chave certa no JWKS |
 
 !!! warning "Uma chave nova a cada reinício"

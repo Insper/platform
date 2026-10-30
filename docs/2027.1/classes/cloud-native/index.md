@@ -213,7 +213,7 @@ flowchart LR
 
 ## What breaks next { #what-breaks-next }
 
-The platform now restarts, scales and releases BoxOffice without anyone touching a server: in lab 10 the HPA asked for more `catalog` pods 35 s into a load ramp, and in lab 11 a canary that failed 30% of its requests was rolled back by itself in about a minute. But a shared platform is also a shared attack surface. Every pod can open a connection to every other pod and to the database; a token stolen from one service is accepted by all of them; bots buy the best seats as fast as the HPA adds capacity; and every image the pipeline ships carries hundreds of third-party libraries. Deciding who may talk to whom, checking identity on every call and trusting only what the pipeline built is [class 12 — Network & Security](../network-security/index.md).
+The platform now restarts, scales and releases BoxOffice without anyone touching a server: in lab 10 the HPA asked for more `catalog` pods about two minutes into a load ramp, and in lab 11 a canary that failed 30% of its requests was rolled back by itself in about a minute. But a shared platform is also a shared attack surface. Every pod can open a connection to every other pod and to the database; a token stolen from one service is accepted by all of them; bots buy the best seats as fast as the HPA adds capacity; and every image the pipeline ships carries hundreds of third-party libraries. Deciding who may talk to whom, checking identity on every call and trusting only what the pipeline built is [class 12 — Network & Security](../network-security/index.md).
 
 ---
 

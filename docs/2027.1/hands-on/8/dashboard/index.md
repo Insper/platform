@@ -21,8 +21,8 @@ the dashboard is reviewed, versioned and identical on every laptop:
 --8<-- "docs/2027.1/hands-on/8/code/infra/grafana/dashboards.yaml"
 ```
 
-The volumes of [step 1](../instrument/index.md) mount this provider into Grafana's provisioning
-folder and `infra/grafana/dashboards/` at the path it points to. Save the dashboard below as
+You saved this provider in [step 1](../instrument/index.md); its volumes mount it into Grafana's
+provisioning folder and `infra/grafana/dashboards/` at the path it points to. Save the dashboard below as
 `infra/grafana/dashboards/boxoffice-red.json` and restart: `docker compose restart otel-lgtm`. It
 appears under **Dashboards → BoxOffice → BoxOffice — RED**.
 
@@ -67,11 +67,15 @@ Three habits make the difference:
 1. Run the staircase stress test of [lab 2](../../2/index.md) against the edge — it raises the arrival
    rate in steps up to `PEAK` and comes back down:
    `k6 run -e BASE_URL=http://localhost -e PEAK=600 load/stress.js`.
-2. Watch **Duration p95** and **DB connections** side by side. When `waiting` leaves zero, the
-   latency curve bends: requests now queue for a connection (Little's Law: with the pool full,
-   extra concurrency becomes waiting time).
-3. Open an exemplar at the top of the curve: the trace shows a long gap *before* the SQL span — time
-   spent waiting for a connection, not running SQL.
+2. Watch **Duration p95**, **CPU utilization** and **DB connections** side by side. The latency curve
+   bends where the first resource saturates. When `waiting` leaves zero, requests queue for a
+   connection (Little's Law: with the pool full, extra concurrency becomes waiting time); when a
+   service's CPU nears 100% of its container's CPU, they queue for the processor. In a test run of
+   this lab the `gateway` (limited to one CPU) saturated first: about 95% CPU at about 320 req/s, its
+   p95 above 2 s and `504`s after its 5 s timeout, while the `catalog` pool never had a request waiting.
+3. Open an exemplar at the top of the curve: the trace shows where the time went — a long gap
+   *before* the SQL span is time spent waiting for a connection, not running SQL; a long `gateway`
+   span around a short `catalog` span is time spent queued in the gateway.
 
 Write in your results which resource saturated first and the request rate at which it happened.
 

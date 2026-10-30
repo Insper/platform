@@ -61,7 +61,9 @@ Leia o `run()` de cima para baixo:
    custo e de latência esperando para acontecer.
 3. **Faça streaming de todo passo.** Os deltas de texto vão para o cliente à medida que chegam
    (`yield "token", text`); o `stream_chunk_builder` reconstrói a mensagem completa para ver se o modelo
-   pediu ferramentas.
+   pediu ferramentas. O Ollama transmite toda chamada de ferramenta com índice 0; o `split_tool_calls` (no
+   fim do arquivo) dá a cada chamada o seu índice, senão duas chamadas numa resposta seriam coladas numa
+   só, com argumentos JSON inválidos.
 4. **Os resultados das ferramentas voltam como mensagens `role: tool`** — dados, nunca instruções (o
    prompt de sistema diz isso, e os guardrails do passo 4 conferem a saída).
 5. **Contabilize tudo**: tokens, custo, tempo até o primeiro token, duração — as entradas do passo 5.
@@ -111,14 +113,20 @@ curl -N -s -X POST localhost:8088/assistant/chat/stream -H 'Content-Type: applic
 
 Você deve ver linhas `event: token` chegando uma a uma (`data: {"text": "..."}`) e, no fim, um
 `event: done` com o mesmo JSON de acima. Para exercitar o `get_order_status`, faça um pedido como no lab
-7 e pergunte sobre ele com o header que o gateway definiria:
+7 (o primeiro comando imprime o id dele) e pergunte sobre ele com o header que o gateway definiria:
 
 ``` shell
+curl -s -X POST localhost:8084/orders -H 'Content-Type: application/json' \
+  -d '{"showId":"show-7","holdId":"hold-lab12-1","customerEmail":"ana@example.com","amount":350.0}' | jq -r .id
 curl -s -X POST localhost:8088/assistant/chat -H 'Content-Type: application/json' \
   -H 'X-User-Email: ana@example.com' \
   -d '{"message":"What is the status of my order <order id>?"}' | jq '.answer, .tools'
 ```
 
-Com outro e-mail no header, a ferramenta responde `order not found`.
+Você deve ver `["get_order_status"]` e uma resposta com o status (`PENDING_PAYMENT` para um pedido não
+pago). Com outro e-mail no header, a ferramenta responde `order not found`. O modelo de 1,5 B nem sempre
+chama a ferramenta: numa execução de teste, chamou em 6 de 9 tentativas e, nas outras, pediu o id do
+pedido que acabara de receber (`.tools` é `[]`). Pergunte de novo — e anote: chamadas de ferramenta pouco
+confiáveis são o motivo de o `run()` recuperar antes.
 
 [Próximo: Guardrails](../guardrails/index.md){ .md-button .md-button--primary }

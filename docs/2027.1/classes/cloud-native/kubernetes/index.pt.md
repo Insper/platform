@@ -248,7 +248,7 @@ Com 4 pods de `catalog` a 90 % de CPU (do request) e meta de 60 %: ⌈4 × 90/60
 
 !!! example "No código do BoxOffice: o HPA do `catalog` (lab 10)"
 
-    O [Hands-on 10 — Autoscaling](../../../hands-on/10/autoscaling/index.md) escala o `catalog` de 2 a 8 pods a 60% do seu request de 250m de CPU — a fórmula acima, com uma subida de "dobrar ou +2 pods a cada 15 s" e uma descida lenta (janela de 2 minutos, 1 pod a cada 30 s), para que uma queda curta não remova capacidade que será necessária de novo um minuto depois. O lab mede o atraso sobre o qual esta seção alerta: o HPA pediu mais pods 35 s depois do início da rampa, mas o oitavo pod só ficou pronto depois de mais de cinco minutos, com um p95 de cerca de 7,8 s nessa janela ([Meça](../../../hands-on/10/measure/index.md)).
+    O [Hands-on 10 — Autoscaling](../../../hands-on/10/autoscaling/index.md) escala o `catalog` de 2 a 8 pods a 60% do seu request de 250m de CPU — a fórmula acima, com uma subida de "dobrar ou +2 pods a cada 15 s" e uma descida lenta (janela de 2 minutos, 1 pod a cada 30 s), para que uma queda curta não remova capacidade que será necessária de novo um minuto depois. O lab mede o atraso sobre o qual esta seção alerta: o HPA pediu mais pods cerca de dois minutos depois do início da rampa, mas o oitavo pod só ficou pronto em 7:31, quando o patamar já tinha acabado, com um p95 de 5–7 s na execução ([Meça](../../../hands-on/10/measure/index.md)).
 
     ``` { .yaml title="k8s/base/catalog-hpa.yaml (lab 10)" }
     --8<-- "docs/2027.1/hands-on/10/code/k8s/base/catalog-hpa.yaml"

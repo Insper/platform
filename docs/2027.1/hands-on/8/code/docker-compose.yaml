@@ -46,7 +46,7 @@ x-catalog: &catalog
     test: ["CMD-SHELL", "wget -qO- http://localhost:8082/actuator/health/readiness || exit 1"]
     interval: 10s
     timeout: 3s
-    start_period: 40s
+    start_period: 120s       # lab 8: with the agent, JVMs starting together need up to ~90 s
     retries: 3
 
 services:
@@ -164,7 +164,7 @@ services:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8083/actuator/health/readiness || exit 1"]
       interval: 10s
       timeout: 3s
-      start_period: 40s
+      start_period: 120s
       retries: 3
 
   auth:
@@ -195,7 +195,7 @@ services:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8081/actuator/health/readiness || exit 1"]
       interval: 10s
       timeout: 3s
-      start_period: 40s
+      start_period: 120s
       retries: 3
 
   gateway:
@@ -226,7 +226,7 @@ services:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health/readiness || exit 1"]
       interval: 10s
       timeout: 3s
-      start_period: 40s
+      start_period: 120s
       retries: 3
 
   edge:
@@ -332,7 +332,7 @@ services:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8084/actuator/health/readiness || exit 1"]
       interval: 10s
       timeout: 3s
-      start_period: 40s
+      start_period: 120s
       retries: 3
 
   notification:
@@ -370,7 +370,7 @@ services:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8086/actuator/health/readiness || exit 1"]
       interval: 10s
       timeout: 3s
-      start_period: 40s
+      start_period: 120s
       retries: 3
 
   # ---- lab 8: observability backend (Grafana, Prometheus, Tempo, Loki, OTel Collector) ----

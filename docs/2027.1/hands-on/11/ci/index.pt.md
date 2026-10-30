@@ -31,6 +31,10 @@ registry do Prometheus). O arquivo completo:
 | `testcontainers-postgresql`, `testcontainers-junit-jupiter` | o módulo PostgreSQL e o ciclo de vida `@Testcontainers`/`@Container` (Testcontainers 2) |
 | `micrometer-registry-prometheus` | `/actuator/prometheus`, usado pela análise do canary do passo 5 |
 
+A propriedade `tomcat.version` substitui o Tomcat que o Spring Boot 4.1.1 traz (11.0.24): o gate do
+Trivy do [passo 2](../supply-chain/index.md) o rejeita por vulnerabilidades CRITICAL com correção.
+Remova a propriedade quando o Dependabot atualizar o parent para uma versão com um Tomcat mais novo.
+
 Rode-o localmente (precisa do Docker rodando, e de JDK 21 + Maven do [lab 0](../../0/index.md)):
 
 <!-- termynal -->
@@ -80,12 +84,13 @@ eles conforme avança — a matriz já os inclui.
 ## Push e acompanhe { #push-and-watch }
 
 O job `performance` deste workflow roda dois arquivos que o [passo 3](../performance-gate/index.md)
-explica: `.github/ci/compose.perf.yaml` e `load/budget.js`. Crie-os agora (copie-os do passo 3, ou
-baixe-os); caso contrário, esse job falha com `open .github/ci/compose.perf.yaml: no such file`:
+explica: `.github/ci/compose.perf.yaml` e `load/budget.js`. Crie-os agora; caso contrário, esse job
+falha com `open .github/ci/compose.perf.yaml: no such file`. Copie o `.github/ci/compose.perf.yaml` do
+passo 3 para uma nova pasta `.github/ci/` (o site não publica pastas cujo nome começa com ponto, então
+ele não pode ser baixado) e baixe o `load/budget.js` (ou copie-o também do passo 3):
 
 ``` shell
-mkdir -p .github/ci
-curl -fsSL -o .github/ci/compose.perf.yaml https://insper.github.io/platform/2027.1/hands-on/11/code/.github/ci/compose.perf.yaml
+mkdir -p .github/ci          # then paste compose.perf.yaml from step 3 into it
 curl -fsSL -o load/budget.js https://insper.github.io/platform/2027.1/hands-on/11/code/load/budget.js
 ```
 

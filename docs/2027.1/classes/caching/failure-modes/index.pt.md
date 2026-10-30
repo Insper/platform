@@ -101,7 +101,7 @@ def get_event(event_id: int, db, r) -> dict:
 
 !!! example "No código do BoxOffice: o lock contra stampede no `catalog` (lab 5)"
 
-    O [Hands-on 5 — Stampede](../../../hands-on/5/stampede/index.md) primeiro *reproduz* o stampede (uma listagem quente com TTL de 3 s, martelada por 200 usuários) e depois liga `CACHE_STAMPEDE_PROTECTION=true`, que executa este código: numa execução de teste, os misses caíram de **800 para 10**, uma consulta ao banco por expiração em vez de oitenta. Mesma ideia do Python acima, em Java: `SET lock NX PX 2000`, relê depois de vencer (outra requisição pode ter preenchido a chave), as perdedoras consultam por no máximo 20 × 25 ms e então carregam assim mesmo. Note o comentário honesto em `unlock`: *get + delete* não é atômico, o script Lua acima é.
+    O [Hands-on 5 — Stampede](../../../hands-on/5/stampede/index.md) primeiro *reproduz* o stampede (uma listagem quente com TTL de 3 s, martelada por 200 usuários) e depois liga `CACHE_STAMPEDE_PROTECTION=true`, que executa este código: numa execução de teste (60 s), os misses caíram de **2.238 para 19**, uma consulta ao banco por expiração em vez de cerca de cento e dez. Mesma ideia do Python acima, em Java: `SET lock NX PX 2000`, relê depois de vencer (outra requisição pode ter preenchido a chave), as perdedoras consultam por no máximo 20 × 25 ms e então carregam assim mesmo. Note o comentário honesto em `unlock`: *get + delete* não é atômico, o script Lua acima é.
 
     ``` { .java title="services/catalog/src/main/java/boxoffice/catalog/EventCache.java (the lock)" }
     --8<-- "docs/2027.1/hands-on/5/code/services/catalog/src/main/java/boxoffice/catalog/EventCache.java:62:85,119:138"

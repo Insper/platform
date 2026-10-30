@@ -183,7 +183,7 @@ Faça commit e tag: `git add -A && git commit -m "lab 9: resilience" && git tag 
 - [ ] a execução sem proteção mostra a cascata (`browse` degradado); a execução de cada padrão mostra o seu efeito, em números
 - [ ] um game day com pelo menos três experimentos escondidos, uma linha do tempo e uma revisão sem culpados por rodada
 - [ ] tabela de resultados preenchida em `results/lab9.md` e explicada
-- [ ] autoverificação: `curl -s -X POST localhost:8474/reset`, depois `PAYMENT_RESILIENCE=true docker compose up -d order`, e uma chamada `pay` devolve `CONFIRMED`; push com a tag `lab9`
+- [ ] autoverificação: `curl -s -X POST localhost:8474/reset`, depois `PAYMENT_RESILIENCE=true docker compose up -d --wait order`, e uma chamada `pay` devolve `CONFIRMED`; push com a tag `lab9`
 
 ## Relacionados { #related }
 

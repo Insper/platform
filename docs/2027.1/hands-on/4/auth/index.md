@@ -41,7 +41,7 @@ A token looks like `header.payload.signature`, each part Base64URL-encoded:
 
 !!! warning "Signed is not encrypted"
 
-    Anybody can decode the payload (try `jwt.io` or `base64 -d`). Never put secrets or personal data you would not show the user in a JWT.
+    Anybody can decode the payload (try `jwt.io`, or the `jq` command at the end of the curl session on the [lab page](../index.md)). Never put secrets or personal data you would not show the user in a JWT.
 
 ## 2. Project and configuration
 
@@ -135,7 +135,7 @@ The records exchanged with clients:
 | `aud` | who it is for (`boxoffice`) | yes: a token for another API is refused |
 | `sub` | the user id | becomes `X-User-Id` |
 | `scope` | `user` or `user admin` | becomes the authorities `SCOPE_user`, `SCOPE_admin` |
-| `exp` | expiry | yes (with a small clock-skew allowance) |
+| `exp` | expiry | yes (with a 60 s clock-skew allowance) |
 | `kid` (header) | which key signed it | used to pick the right key from the JWKS |
 
 !!! warning "A new key at every restart"

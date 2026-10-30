@@ -29,7 +29,8 @@ Torne o problema frequente: uma listagem quente com **TTL de 3 s**, martelada po
 ```
 
 ``` { .bash .copy }
-CACHE_TTL_LIST=3s CACHE_STAMPEDE_PROTECTION=false docker compose up -d
+CACHE_TTL_LIST=3s CACHE_STAMPEDE_PROTECTION=false docker compose up -d --wait
+k6 run -q -e DURATION=20s load/stampede.js > /dev/null    # warm-up: the replicas were recreated
 k6 run load/stampede.js
 ```
 
@@ -72,11 +73,12 @@ if (stampedeProtection) {
 ```
 
 ``` { .bash .copy }
-CACHE_TTL_LIST=3s CACHE_STAMPEDE_PROTECTION=true docker compose up -d
+CACHE_TTL_LIST=3s CACHE_STAMPEDE_PROTECTION=true docker compose up -d --wait
+k6 run -q -e DURATION=20s load/stampede.js > /dev/null    # warm-up: the replicas were recreated
 k6 run load/stampede.js
 ```
 
-Agora `cache_misses` deve ficar perto do número de expirações (~20 por minuto). Numa execução de teste deste lab (100 VUs, 30 s, TTL de 3 s), os misses caíram de **800 para 10** — uma consulta ao banco por expiração em vez de oitenta. O ganho de latência num notebook pode ser modesto (o Redis, o edge e o gateway dominam cada requisição), mas a carga no banco durante cada expiração cai quase duas ordens de grandeza, e é isso que o protege durante um pico real. Preencha a tabela do stampede em `results/lab5.md`.
+Agora `cache_misses` deve ficar perto do número de expirações (~20 por minuto). Numa execução de teste deste script como está (200 VUs, 60 s, TTL de 3 s), os misses caíram de **2.238 para 19** — uma consulta ao banco por expiração em vez de cerca de cento e dez. Na mesma execução o p99 caiu de cerca de 1 s para cerca de 0,3 s e a CPU média do `db`, de 234% para 4%. O ganho de latência varia de máquina para máquina (o Redis, o edge e o gateway também pesam em cada requisição), mas a carga no banco durante cada expiração cai cerca de duas ordens de grandeza, e é isso que o protege durante um pico real. Preencha a tabela do stampede em `results/lab5.md`.
 
 ## 3. Outras curas, e os seus trade-offs { #3-other-cures-and-their-trade-offs }
 

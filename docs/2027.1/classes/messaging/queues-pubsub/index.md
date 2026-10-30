@@ -171,10 +171,10 @@ Design decisions worth discussing:
 
 !!! example "In the BoxOffice code: the waiting room in `order` (lab 7)"
 
-    [Hands-on 7 — Waiting room](../../../hands-on/7/waiting-room/index.md) builds a smaller version of this design. The queue is the same Redis sorted set, but the score comes from `INCR`, not from a timestamp: the server decides the order, because clients' clocks lie. Every second `admit()` pops `admit-per-second` fans (20 by default) and gives each an *admitted* key with a 5-minute TTL — a Redis key, not a signed token — and `mayEnter` is checked by `POST /orders`, not by the gateway: the lab says so, and calls moving the gate to the edge a good extension. Look at the comment on `admit()`: with three `order` replicas, three schedulers would admit three times the rate. In the lab's spike (about 700 fans in 40 s, 10 admitted per second), the order latency stays flat and the actual wait stays within a couple of seconds of the ETA promised at join — Little's law is an honest promise when the rate is constant.
+    [Hands-on 7 — Waiting room](../../../hands-on/7/waiting-room/index.md) builds a smaller version of this design. The queue is the same Redis sorted set, but the score comes from `INCR`, not from a timestamp: the server decides the order, because clients' clocks lie. Every second `admit()` pops `admit-per-second` fans (20 by default) and gives each an *admitted* key with a 5-minute TTL, in one Lua script so a polling fan never sees a ticket that is neither queued nor admitted — a Redis key, not a signed token — and `mayEnter` is checked by `POST /orders`, not by the gateway: the lab says so, and calls moving the gate to the edge a good extension. Look at the comment on `admit()`: with three `order` replicas, three schedulers would admit three times the rate. In the lab's spike (about 700 fans in 40 s, 10 admitted per second), the order latency stays flat and the actual wait stays within a couple of seconds of the ETA promised at join — Little's law is an honest promise when the rate is constant.
 
     ``` { .java title="services/order/src/main/java/boxoffice/order/waitingroom/WaitingRoom.java (join, admit, gate)" }
-    --8<-- "docs/2027.1/hands-on/7/code/services/order/src/main/java/boxoffice/order/waitingroom/WaitingRoom.java:36:41,57:80"
+    --8<-- "docs/2027.1/hands-on/7/code/services/order/src/main/java/boxoffice/order/waitingroom/WaitingRoom.java:37:42,59:86"
     ```
 
 !!! info "Try it in the playground"

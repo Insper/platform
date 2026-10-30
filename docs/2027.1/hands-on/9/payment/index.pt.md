@@ -190,7 +190,7 @@ O Toxiproxy lê os seus proxies de um arquivo JSON na inicialização:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8085/actuator/health/readiness || exit 1"]
       interval: 10s
       timeout: 3s
-      start_period: 40s
+      start_period: 120s
       retries: 3
 ```
 
@@ -217,14 +217,13 @@ curl -fsSL -o docker-compose.yaml https://insper.github.io/platform/2027.1/hands
     --8<-- "docs/2027.1/hands-on/9/code/docker-compose.yaml"
     ```
 
-Suba os três contêineres novos e espere até o `docker compose ps payment` mostrar `(healthy)` (o
-primeiro build leva alguns minutos, a inicialização cerca de 30 s); depois liste os proxies e faça uma
-cobrança:
+Suba os três contêineres novos; o `--wait` retorna quando o `payment` está saudável (o primeiro build
+leva alguns minutos, a inicialização cerca de 30 s). Depois liste os proxies e faça uma cobrança:
 
 <!-- termynal -->
 
 ``` shell
-> docker compose up -d --build psp toxiproxy payment
+> docker compose up -d --build --wait psp toxiproxy payment
 > curl -s localhost:8474/proxies | jq 'keys'
 [
   "payment",

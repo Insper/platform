@@ -147,13 +147,15 @@ fans ─► edge (Nginx) ─► gateway (×N) ─► lb://catalog ─► catalog
 
 | Path | What it adds |
 |---|---|
-| edge → catalog (lab 3) | baseline |
-| gateway → catalog | the gateway hop |
-| edge → gateway → catalog | full open path |
-| edge → gateway → auth (JWT) | token validation |
+| catalog alone | baseline |
+| gateway → catalog | + the gateway hop |
+| edge → gateway → catalog | + the edge hop |
+| same, with a token | + JWT validation |
 
 ```bash
-k6 run -e RATE=50 load/gateway.js
+# k6 inside the compose network: catalog replicas publish no port
+docker run --rm -i --network boxoffice_default -v "$PWD":/w -w /w \
+  grafana/k6 run -e RATE=50 load/gateway.js
 ```
 
 ---
@@ -165,7 +167,7 @@ k6 run -e RATE=50 load/gateway.js
 - Consequences: **reuse tokens**, rate-limit `/auth/login`, log in **before** 10:00.
 
 ```bash
-for r in 5 10 20 40; do k6 run -q -e RATE=$r --summary-export results/lab4/login-$r.json load/login.js; done
+for r in 5 10 20 40; do k6 run -q -e RATE=$r --summary-export results/lab4/rate-$r.json load/login.js; done
 ```
 
 ---

@@ -296,7 +296,7 @@ Leia o relay com calma; cada linha responde a uma pergunta sobre falhas:
 <!-- termynal -->
 
 ``` shell
-> docker compose up -d --build order
+> docker compose up -d --build --wait order
 > curl -s -X POST localhost:8084/orders -H 'Content-Type: application/json' \
     -d '{"showId":"show-42","holdId":"hold-0001","customerEmail":"ana@example.com","amount":350.00}'
 {"id":"28cb9305-e1ce-4b49-aba7-665bb1b244b5","showId":"show-42","holdId":"hold-0001","customerEmail":"ana@example.com","amount":350.00,"status":"PENDING_PAYMENT","createdAt":"2026-10-18T17:55:45.063089Z"}
@@ -323,7 +323,7 @@ Agora prove as duas garantias:
     ```
 
     Você deve ver `201` no pedido e, na primeira consulta, a nova linha com `published_at` vazio.
-    Espere o `docker compose ps kafka` voltar a `healthy` (cerca de um minuto) e rode a consulta de
+    Espere o `docker compose ps kafka` voltar a `healthy` (de 10 s a um minuto) e rode a consulta de
     novo: `published_at` agora está preenchido. Em uma execução de teste:
 
     ``` text
@@ -334,7 +334,7 @@ Agora prove as duas garantias:
     ```
 
     O pedido foi aceito com o Kafka fora e publicado 71 s depois, quando o Kafka voltou; o fã nunca
-    viu a queda. Enquanto isso, `docker compose logs order` mostra `ERROR … Unexpected error occurred
+    viu a queda. Enquanto o Kafka fica fora por mais de 5 s, `docker compose logs order` mostra `ERROR … Unexpected error occurred
     in scheduled task` a cada poucos segundos: cada execução do relay falha depois de `max.block.ms`
     (5 s) e a próxima tenta de novo — esperado.
 

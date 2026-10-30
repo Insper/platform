@@ -56,7 +56,7 @@ Add a new migration to `catalog` — never edit `V1`/`V2`:
 
 ``` { .bash .copy }
 docker compose up --build -d catalog-1 catalog-2 catalog-3      # Flyway applies V3 on startup
-docker compose logs catalog-1 | grep "V3\|version \"3"
+docker compose logs catalog-1 catalog-2 catalog-3 | grep "V3\|version \"3"   # one replica applies it
 ```
 
 Run the two `EXPLAIN ANALYZE` again:

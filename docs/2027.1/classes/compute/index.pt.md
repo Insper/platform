@@ -102,7 +102,7 @@ Este é o fator VI do *Twelve-Factor App*: "execute a aplicação como um ou mai
     O [Hands-on 4 — Gateway](../../hands-on/4/gateway/index.md) não guarda sessão de login em lugar nenhum. O JWT do fã viaja em toda requisição, e o gateway confere a assinatura com a chave pública do `auth`, buscada uma vez no seu endpoint JWKS: nenhuma réplica se lembra do fã, então o gateway pode mandar cada requisição para qualquer uma das três réplicas do `catalog` (`lb://catalog`), e perder uma não perde nada. O preço é a revogação: um token continua válido até expirar (uma hora aqui, `jwt.ttl`), como explica [Identidade](../edge/identity/index.md#gateway-validation).
 
     ``` { .java title="services/gateway/src/main/java/boxoffice/gateway/SecurityConfig.java (stateless security)" }
-    --8<-- "docs/2027.1/hands-on/4/code/services/gateway/src/main/java/boxoffice/gateway/SecurityConfig.java:22:40"
+    --8<-- "docs/2027.1/hands-on/4/code/services/gateway/src/main/java/boxoffice/gateway/SecurityConfig.java:22:41"
     ```
 
 ---

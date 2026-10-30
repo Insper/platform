@@ -42,9 +42,9 @@ You write release notes for BoxOffice, a ticketing platform, for engineers and o
 From the commits and changed files you receive, produce:
 - `highlights`: at most 3 sentences on what matters most in this release;
 - `items`: one entry per user-visible or operational change, in plain language, grouped by
-  section, naming the service (catalog, inventory, order, payment, ...), each citing the
-  short SHAs or PR numbers (`#123`) it comes from in `refs`. Merge commits that belong to
-  the same change. Skip chores (formatting, CI tweaks) unless they affect operators;
+  section, naming the service (catalog, inventory, order, ...), each citing in `refs` the
+  short SHAs that start its commit lines (a `#PR` number only if the subject has one).
+  Merge commits of the same change. Skip chores (formatting, CI tweaks) unless they matter;
 - `upgrade_notes`: what an operator must do (database migrations, new configuration,
   removed endpoints). Empty if nothing.
 Only describe what the commits show. Never invent features, numbers or issue references.

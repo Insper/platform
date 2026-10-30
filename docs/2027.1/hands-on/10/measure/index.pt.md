@@ -16,43 +16,52 @@ experimento duas vezes e reporte a segunda execução; os números nas caixas de
 # before: two fixed replicas
 kubectl -n boxoffice delete hpa catalog
 kubectl -n boxoffice scale deployment catalog --replicas=2
-k6 run -e PEAK=250 load/catalog-hpa.js
+k6 run -e PEAK=1000 load/catalog-hpa.js
 
 # after: the HPA
 kubectl apply -k k8s/overlays/local
 mkdir -p results && sh scripts/watch-hpa.sh > results/lab10-hpa.csv &
-k6 run -e PEAK=250 load/catalog-hpa.js
+k6 run -e PEAK=1000 load/catalog-hpa.js
+kubectl -n boxoffice get hpa catalog -w  # until REPLICAS is 2 again (minutes after k6 ends), then Ctrl+C
 kill %1                                  # stop the watcher
 ```
 
 Do `results/lab10-hpa.csv`, leia: o momento em que a CPU passou de 60% pela primeira vez, o momento em
 que o `desired` aumentou pela primeira vez (tempo de reação), o momento em que o `ready` chegou ao
-máximo (tempo até a capacidade) e o número máximo de réplicas. Faça um gráfico de `cpu`, `desired` e
+máximo (tempo até a capacidade), o número máximo de réplicas e o momento em que o `desired` voltou
+a 2 (scale-down). Faça um gráfico de `cpu`, `desired` e
 `ready` ao longo do tempo — uma planilha basta — e adicione-o aos seus resultados.
 
 !!! example "Forma esperada (ilustrativa)"
 
-    Uma execução com `PEAK=250` num laptop (kind, 3 nós dividindo 8 CPUs), amostrada do CSV:
+    Uma execução com `PEAK=1000` num laptop (kind, 3 nós dividindo 8 CPUs), começando com pods
+    aquecidos, amostrada do CSV:
 
     | t (min:s) | CPU (% do request) | desired | current | ready |
     |---|---|---|---|---|
-    | 0:00 | 8 | 2 | 2 | 2 |
-    | 0:35 | 105 | 4 | 2 | 2 |
-    | 0:54 | 153 | 6 | 4 | 2 |
-    | 1:30 | 137 | 6 | 6 | 4 |
-    | 3:40 | 197 | 8 | 6 | 4 |
-    | 5:21 | 115 | 8 | 8 | 8 |
-    | 8:43 | 6 | 7 | 8 | 7 |
-    | 11:01 | 5 | 4 | 4 | 4 |
+    | 0:00 | 3 | 2 | 2 | 2 |
+    | 1:48 | 63 | 2 | 2 | 2 |
+    | 2:03 | 79 | 3 | 2 | 2 |
+    | 2:34 | 123 | 5 | 3 | 3 |
+    | 3:33 | 247 | 8 | 6 | 4 |
+    | 4:05 | 109 | 8 | 8 | 3 |
+    | 5:37 | 131 | 8 | 8 | 5 |
+    | 7:31 | 220 | 8 | 8 | 8 |
+    | 10:26 | 13 | 7 | 8 | 7 |
+    | 13:00 | 4 | 2 | 3 | 2 |
 
-    O HPA pediu mais pods 35 s depois do início da rampa, mas o oitavo pod só ficou pronto depois de
-    mais de cinco minutos: num laptop, as JVMs novas disputam as mesmas CPUs que os pods já
-    sobrecarregados, então subir capacidade é lento justamente quando ela é necessária. O k6 reportou
-    p95 ≈ 7,8 s e iterações descartadas nessa janela; depois a latência se recuperou com 8 réplicas.
-    Depois da descida da rampa, os pods saíram um de cada vez, após a janela de estabilização de 2
-    minutos. Num cluster real os nós não são compartilhados com o gerador de carga, mas a forma — um
-    atraso entre a demanda e a capacidade pronta — é a mesma; esse atraso é o que o pré-escalonamento
-    elimina.
+    Os dois pods aquecidos passaram de 60% 1:48 depois do início da rampa (cerca de 600 req/s); o HPA
+    pediu um terceiro pod 15 s depois e oito em 3:33, mas o oitavo pod só ficou pronto em 7:31, quando
+    o patamar já tinha acabado. Num laptop, as JVMs novas sobem nas mesmas CPUs que servem a carga e
+    rodam o k6: cada uma levou mais de um minuto para iniciar e, ainda fria, falhou a readiness probe de
+    vez em quando por um tempo (o `ready` desce além de subir). O k6 reportou p95 de 5–7 s, p99 ≈ 19 s,
+    0,3% de erros e descartou mais de 40% das chegadas. A mesma rampa com duas réplicas fixas deu p95 ≈
+    34 ms, p99 ≈ 180 ms e nenhum erro: os dois pods aquecidos usaram cerca de 300m cada, muito abaixo do
+    limite de 1 CPU, então neste laptop o scale-out custou mais CPU do que acrescentou. Depois que a
+    carga caiu (8:00), os pods saíram um de cada vez, após a janela de estabilização de 2 minutos, e
+    voltaram a 2 réplicas em 13:00. Num cluster real os nós não são compartilhados com o gerador de
+    carga e nós novos trazem as próprias CPUs, mas a forma — um atraso entre a demanda e a capacidade
+    pronta — é a mesma; esse atraso é o que o pré-escalonamento elimina.
 
 ## B. Rolling update sob carga { #b-rolling-update-under-load }
 
@@ -78,9 +87,11 @@ wait                                     # until k6 ends; note http_req_failed
 kubectl apply -k k8s/overlays/local      # restore the probes and the preStop pause
 ```
 
-Sem readiness, um pod novo recebe tráfego assim que o seu contêiner sobe — segundos antes de o Spring
-Boot escutar —, e os pods antigos são mortos ainda nas listas de endpoints. Conte as requisições com
-falha (`http_req_failed`) nas duas execuções.
+A startup probe continua mantendo um pod novo fora do Service até a JVM responder; o que muda é a outra
+ponta: sem a pausa do `preStop`, os pods antigos param de aceitar conexões enquanto ainda estão nas
+listas de endpoints do Traefik. Conte as requisições com falha (`http_req_failed`) nas duas execuções.
+Numa execução de teste: 0 requisições com falha com as probes, cerca de 140 de 11.900 (1,2%, `502` e
+`504` do Traefik) sem elas.
 
 ## C. Autocura { #c-self-healing }
 

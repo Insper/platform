@@ -127,7 +127,7 @@ Três detalhes importam:
 
 ``` shell
 > docker compose up -d kafka kafka-init kafka-ui mailpit
- ✔ Container boxoffice-mailpit-1     Healthy
+ ✔ Container boxoffice-mailpit-1     Started
  ✔ Container boxoffice-kafka-1       Healthy
  ✔ Container boxoffice-kafka-init-1  Started
  ✔ Container boxoffice-kafka-ui-1    Started
@@ -144,7 +144,8 @@ Topic: order-events	TopicId: hwjrAir1Q8m_ZV4fyhnctw	PartitionCount: 6	Replicatio
 	Topic: order-events	Partition: 5	Leader: 1	Replicas: 1	Isr: 1	Elr: 	LastKnownElr:
 ```
 
-Você deve ver os quatro contêineres rodando (`docker compose ps`), seis partições em `order-events`,
+Você deve ver `kafka`, `kafka-ui` e `mailpit` rodando e o `kafka-init` encerrado com código 0
+(`docker compose ps -a`), seis partições em `order-events`,
 o Kafka UI em `http://localhost:8089` (cluster *boxoffice* online, tópicos `order-events` e
 `order-events-dlt`) e a caixa vazia do Mailpit em `http://localhost:8025`. O `TopicId` muda em cada
 máquina. Se o `kafka` ficar em `starting` por mais de um minuto, veja Solução de problemas na

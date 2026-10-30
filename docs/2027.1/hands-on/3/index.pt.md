@@ -149,7 +149,7 @@ Round robin: cada réplica recebe uma de cada três requisições. Compare `rt` 
 
 !!! tip "Round robin ou least connections?"
 
-    O round robin ignora o quanto cada réplica está ocupada. Descomente `least_conn;` no upstream, rode `docker compose exec edge nginx -s reload` e repita a medição do passo 7: com uma mistura de requisições rápidas (detalhe) e lentas (listagem), o `least_conn` costuma aparar a cauda, porque uma réplica presa a requisições lentas recebe menos requisições novas.
+    O round robin ignora o quanto cada réplica está ocupada. Descomente `least_conn;` no upstream, rode `docker compose restart edge` (um `nginx -s reload` pode não ver a edição: muitos editores salvam substituindo o arquivo, e um bind mount de arquivo único continua mostrando o antigo) e repita a medição do passo 7: com uma mistura de requisições rápidas (detalhe) e lentas (listagem), o `least_conn` costuma aparar a cauda, porque uma réplica presa a requisições lentas recebe menos requisições novas.
 
 ## 5. Falhas: parar, congelar, recuperar { #5-failures-stop-freeze-recover }
 
@@ -173,11 +173,11 @@ O que procurar no resumo do k6 e em `docker compose logs edge`:
 
 | Falha | O que o Nginx vê | O que o cliente vê |
 |---|---|---|
-| **stop** (processo morto) | `connect() failed (111: Connection refused)` → retry imediato em outra réplica | quase nada: alguns milissegundos a mais |
-| **pause** (processo congelado) | a conexão abre mas não há resposta: ele espera `proxy_read_timeout` (5 s) e então faz retry | uma rajada de requisições que levam **~5 s** — o p99 explode, mas sem erros |
+| **stop** (processo morto) | as requisições em andamento terminam com `upstream prematurely closed connection` e são refeitas em outra réplica; depois o nome deixa de resolver (`catalog-2 could not be resolved`) e o Nginx o ignora; enquanto ela sobe de novo, `connect() failed (111: Connection refused)` → retry imediato | quase nada: alguns milissegundos a mais |
+| **pause** (processo congelado) | nenhuma resposta: numa conexão mantida aberta ele espera `proxy_read_timeout` (5 s), numa nova `proxy_connect_timeout` (1 s) — `upstream timed out (110: Operation timed out)` — e então faz retry | uma rajada de requisições que levam **~1 s ou ~5 s** — o p99 explode, mas sem erros |
 | **depois de 3 falhas** | `max_fails` atingido → réplica fora do rodízio por `fail_timeout` (10 s) | a latência volta ao normal |
 
-Você deve ver algo assim no fim da execução do k6 (uma execução deste lab: nenhum erro, mas a pausa aparece na cauda):
+Você deve ver algo assim no fim da execução do k6 (uma execução deste lab: nenhum erro, mas a pausa aparece na cauda; o p99 pode ficar entre ~1 s e ~5 s, conforme quantas requisições o congelamento pegou):
 
 ``` { .text }
     http_req_duration..............: avg=48.31ms med=1.33ms p(95)=25.56ms p(99)=1s       max=5.05s
@@ -232,7 +232,7 @@ Primeiro com **uma** réplica (pare as outras duas; o Nginx as remove), depois c
 
 ``` { .bash .copy }
 # 1 replica behind the edge
-docker compose stop catalog-2 catalog-3
+docker compose stop catalog-2 catalog-3 && sleep 15   # Nginx re-resolves the names every 10 s (resolver valid=10s)
 LIST_SHARE=0 BASE_URL=http://localhost OUT=results/lab3-1replica-detail bash scripts/sweep.sh 300 600 900 1200 1500
 BASE_URL=http://localhost OUT=results/lab3-1replica-mix bash scripts/sweep.sh 100 200 300 400 500
 
@@ -302,6 +302,7 @@ Scaling efficiency = capacity(3) / (3 × capacity(1)):
 | `Found orphan containers ([boxoffice-catalog-1])` | o serviço `catalog` único do lab 1 ainda existe | `docker compose up -d --remove-orphans` |
 | todas as requisições devolvem `502 Bad Gateway` logo depois do `up` | as réplicas ainda estão subindo (≈20–40 s) | espere até `docker compose ps` mostrar as três réplicas `healthy` |
 | `no live upstreams` em `docker compose logs edge`, 502 sob carga | todas as réplicas foram marcadas como falhas (timeouts na sobrecarga, muitas vezes JVMs frias) | baixe a carga, aqueça, confira `max_fails`/`proxy_read_timeout`; veja o aviso do passo 7 |
+| `nginx: [emerg] open() "/etc/nginx/nginx.conf" failed (2: No such file or directory)` depois de um reload | o seu editor substituiu o `nginx.conf` (arquivo novo), e o bind mount de arquivo único do container ainda aponta para o antigo | `docker compose restart edge` (monta o arquivo de novo) |
 | `nginx: [emerg] ... in /etc/nginx/nginx.conf:NN` | erro de digitação na configuração | `docker compose exec edge nginx -t` mostra a linha; corrija e rode `docker compose exec edge nginx -s reload` (ou `docker compose restart edge`) |
 | falta o `X-Instance` | a imagem do catalog não foi reconstruída com o novo filtro | `docker compose up --build -d` |
 | o teste de rate limit não mostra nenhum `429` | o k6 não mandou `X-Api-Key`, ou o `nginx.conf` antigo está montado | confira o conteúdo do arquivo dentro do container: `docker compose exec edge cat /etc/nginx/nginx.conf` |

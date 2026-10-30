@@ -171,10 +171,10 @@ Decisões de projeto que vale discutir:
 
 !!! example "No código do BoxOffice: a sala de espera no `order` (lab 7)"
 
-    O [Hands-on 7 — Sala de espera](../../../hands-on/7/waiting-room/index.md) constrói uma versão menor deste projeto. A fila é o mesmo sorted set do Redis, mas o score vem de `INCR`, não de um timestamp: o servidor decide a ordem, porque o relógio dos clientes mente. A cada segundo, `admit()` retira `admit-per-second` fãs (20 por padrão) e dá a cada um uma chave de *admitido* com TTL de 5 minutos — uma chave no Redis, não um token assinado — e quem confere `mayEnter` é o `POST /orders`, não o gateway: o lab diz isso e chama de boa extensão levar o portão para a borda. Veja o comentário em `admit()`: com três réplicas do `order`, três schedulers admitiriam o triplo da taxa. No pico do lab (cerca de 700 fãs em 40 s, 10 admitidos por segundo), a latência dos pedidos fica estável e a espera real fica a poucos segundos do ETA prometido na entrada — a lei de Little é uma promessa honesta quando a taxa é constante.
+    O [Hands-on 7 — Sala de espera](../../../hands-on/7/waiting-room/index.md) constrói uma versão menor deste projeto. A fila é o mesmo sorted set do Redis, mas o score vem de `INCR`, não de um timestamp: o servidor decide a ordem, porque o relógio dos clientes mente. A cada segundo, `admit()` retira `admit-per-second` fãs (20 por padrão) e dá a cada um uma chave de *admitido* com TTL de 5 minutos, num único script Lua para que um fã que consulta nunca veja um ticket que não está nem na fila nem admitido — uma chave no Redis, não um token assinado — e quem confere `mayEnter` é o `POST /orders`, não o gateway: o lab diz isso e chama de boa extensão levar o portão para a borda. Veja o comentário em `admit()`: com três réplicas do `order`, três schedulers admitiriam o triplo da taxa. No pico do lab (cerca de 700 fãs em 40 s, 10 admitidos por segundo), a latência dos pedidos fica estável e a espera real fica a poucos segundos do ETA prometido na entrada — a lei de Little é uma promessa honesta quando a taxa é constante.
 
     ``` { .java title="services/order/src/main/java/boxoffice/order/waitingroom/WaitingRoom.java (join, admit, gate)" }
-    --8<-- "docs/2027.1/hands-on/7/code/services/order/src/main/java/boxoffice/order/waitingroom/WaitingRoom.java:36:41,57:80"
+    --8<-- "docs/2027.1/hands-on/7/code/services/order/src/main/java/boxoffice/order/waitingroom/WaitingRoom.java:37:42,59:86"
     ```
 
 !!! info "Experimente no playground"

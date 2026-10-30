@@ -117,11 +117,13 @@ Rode a mesma carga **sem** e **com** o cache — a chave é uma variável de amb
 
 ``` { .bash .copy }
 # 1. no cache (every request goes to PostgreSQL)
-CACHE_ENABLED=false docker compose up -d
+CACHE_ENABLED=false docker compose up -d --wait     # --wait: until the recreated replicas are healthy
+k6 run -q -e RATE=300 -e DURATION=30s load/cache.js > /dev/null   # warm-up: new replicas are cold JVMs
 k6 run -e RATE=300 load/cache.js
 
-# 2. cache on, cold: flush Redis right before the test
-CACHE_ENABLED=true docker compose up -d
+# 2. cache on, cold: warm up the new replicas, then flush Redis right before the test
+CACHE_ENABLED=true docker compose up -d --wait
+k6 run -q -e RATE=300 -e DURATION=30s load/cache.js > /dev/null
 docker compose exec redis redis-cli FLUSHALL
 k6 run -e RATE=300 load/cache.js
 
@@ -175,13 +177,13 @@ Registre em `results/lab5.md`:
 3. An admin changes the price of event 42. For how long can a fan see the old price on the listing page? On the event page?
 ```
 
-??? question "Pense primeiro: por que a execução com cache quente é muito melhor do que a com cache frio, se as duas usam o mesmo código?"
+??? question "Pense primeiro: por que uma execução com cache quente pode ser muito melhor do que uma com cache frio, se as duas usam o mesmo código?"
 
-    Na execução fria, a primeira requisição de cada chave é um miss — e com 2.000 eventos quentes mais milhares de frios, os primeiros segundos parecem exatamente a execução sem cache. Um cache só é tão bom quanto o seu **hit ratio**, e o hit ratio depende do **espaço de chaves**, da **distribuição de popularidade** e do **TTL**, não da velocidade do Redis. É por isso que deploys que esvaziam caches, ou nós novos com caches vazios, causam picos de latência em produção — e por isso alguns sistemas *aquecem* os caches antes de receber tráfego.
+    Na execução fria, a primeira requisição de cada chave é um miss — e com 2.000 eventos quentes mais milhares de frios, os primeiros segundos parecem exatamente a execução sem cache. Um cache só é tão bom quanto o seu **hit ratio**, e o hit ratio depende do **espaço de chaves**, da **distribuição de popularidade** e do **TTL**, não da velocidade do Redis. É por isso que deploys que esvaziam caches, ou nós novos com caches vazios, causam picos de latência em produção — e por isso alguns sistemas *aquecem* os caches antes de receber tráfego. (Neste lab a diferença só aparece quando o TTL dura mais que o teste: veja a nota abaixo.)
 
 !!! note "Se os seus números forem diferentes"
 
-    O hit ratio depois de um minuto depende dos TTLs e de quantas chaves distintas o k6 tocou: uma primeira execução com cache frio fica em torno de 50% (47–53% em execuções deste lab a 150–200 req/s), uma segunda execução logo em seguida fica bem mais alta. Os hits devem ser uma ordem de grandeza mais rápidos que os misses no p50; se não forem, o Redis ou a rede é o gargalo (`docker stats`). O seu ganho de capacidade depende de quanto da carga original era a listagem.
+    O hit ratio depois de um minuto depende dos TTLs e de quantas chaves distintas o k6 tocou: a 300 req/s, uma execução de um minuto com cache frio chega a cerca de 70% (72% numa execução deste lab). Com o `CACHE_TTL_EVENT` padrão de 60 s, uma segunda execução logo em seguida **não** fica muito mais alta (72% de novo naquela execução): as chaves gravadas nos primeiros segundos da execução fria expiram nos primeiros segundos da seguinte, então cada chave quente dá miss cerca de uma vez por minuto nas duas. Suba a pilha com `CACHE_TTL_EVENT=5m` (mais longo que uma execução) para ver o cache quente vencer: 83% quente contra 71% frio numa execução deste lab. Os hits devem ser mais rápidos que os misses (cerca de duas vezes no p50 naquela execução: com a maior parte das leituras absorvida pelo cache, o PostgreSQL também responde rápido aos misses restantes); se não forem, o Redis ou a rede é o gargalo (`docker stats`). O seu ganho de capacidade depende de quanto da carga original era a listagem.
 
 ## Solução de problemas { #troubleshooting }
 
@@ -200,7 +202,7 @@ Registre em `results/lab5.md`:
     - **O cache é opcional**: timeouts de cliente de 200 ms e todo erro do Redis tratado como miss (`application.yaml`, `read()` no `EventCache.java`); a entrega verifica que parar o Redis não quebra o `catalog`. Por quê: [modos de falha — o cache cai](../../classes/caching/failure-modes/index.md#cache-down).
     - **Commit, depois delete**: o `EventController.java` remove a chave depois que `updateEvent` retorna. Por quê: [invalidação — apague, não atualize](../../classes/caching/invalidation/index.md#delete-vs-update).
     - **TTL com jitter em toda chave** (`withJitter` no `EventCache.java`), para que um aquecimento não agende uma avalanche. Por quê: [avalanche](../../classes/caching/failure-modes/index.md#avalanche).
-    - **Uma reconstrução por chave** sob carga (lock `SET … NX PX 2000`): os misses caíram de 800 para 10 numa execução de teste. Por quê: [stampede](../../classes/caching/failure-modes/index.md#stampede).
+    - **Uma reconstrução por chave** sob carga (lock `SET … NX PX 2000`): os misses caíram de 2.238 para 19 numa execução de teste (200 VUs, 60 s). Por quê: [stampede](../../classes/caching/failure-modes/index.md#stampede).
     - **Meça, não suponha**: `X-Cache` mais um contador por resultado, e a mesma carga antes e depois. Por quê: [a conta do hit ratio](../../classes/caching/index.md#hit-ratio-math).
 
 ## Limpeza { #clean-up }

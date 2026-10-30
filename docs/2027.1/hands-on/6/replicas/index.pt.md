@@ -106,10 +106,12 @@ Os dois pools publicam métricas (`hikaricp.connections.active{pool=primary|repl
 ```
 
 ``` { .bash .copy }
+k6 run -q -e RATE=200 -e DURATION=30s load/availability.js > /dev/null   # warm-up: the seat-map queries are still cold
 k6 run -e RATE=200 load/availability.js                     # reads on db-replica
-DB_REPLICA_HOST=db docker compose up -d inventory && sleep 25
+DB_REPLICA_HOST=db docker compose up -d --wait inventory    # --wait: until the recreated inventory is healthy
+k6 run -q -e RATE=200 -e DURATION=30s load/availability.js > /dev/null   # warm-up: a new JVM
 k6 run -e RATE=200 load/availability.js                     # reads on the primary
-docker compose up -d inventory                              # back to the replica
+docker compose up -d --wait inventory                       # back to the replica
 ```
 
 Deixe o `docker stats` aberto: a CPU passa do `db` para o `db-replica`. A latência do mapa de assentos quase não muda — uma réplica não deixa uma consulta mais rápida, ela **acrescenta capacidade** e impede que as leituras disputem recursos com as escritas da venda.
@@ -144,7 +146,7 @@ INVENTORY_DB_HOST=db INVENTORY_DB_PORT=5432 docker compose up -d inventory
 
 Numa execução de teste deste lab, o `pg_stat_activity` mostrou cerca de 60 conexões da aplicação: 30 das três réplicas do catalog, 10 do `auth` e 20 do PgBouncer — que atendeu todas as conexões de cliente do `inventory`. O `SHOW POOLS` mostrou `cl_active` 20 contra `sv_active` + `sv_idle` + `sv_used` ≤ 20.
 
-Force a barra: reinicie com `DB_MAX_CONNECTIONS=80 INVENTORY_POOL_SIZE=40 docker compose up -d`. Pelo PgBouncer tudo funciona (o PostgreSQL continua vendo no máximo 20 conexões vindas dele). Direto contra o `db` (`INVENTORY_DB_HOST=db INVENTORY_DB_PORT=5432`), 30 + 10 + 40 conexões mais os slots reservados ao superusuário passam de 80, e o `inventory` falha com `FATAL: sorry, too many clients already`. Um pooler transforma "clientes demais" em **fila** (`cl_waiting`).
+Force a barra: reinicie com `DB_MAX_CONNECTIONS=80 INVENTORY_POOL_SIZE=40 docker compose up -d`. Pelo PgBouncer tudo funciona (o PostgreSQL continua vendo no máximo 20 conexões vindas dele). Direto contra o `db` (acrescente `INVENTORY_DB_HOST=db INVENTORY_DB_PORT=5432` a esse mesmo comando), 30 + 10 + 40 conexões, mais as ociosas que o PgBouncer ainda mantém abertas, passam de 80 (`boxoffice` é superusuário, então os slots reservados ao superusuário não ajudam): o PostgreSQL recusa toda conexão nova com `FATAL: sorry, too many clients already` (`docker compose logs db`). O pool do `inventory` para de crescer antes de 40 (31 numa execução de teste deste lab), e todo outro cliente novo também é recusado — inclusive o `psql` e o `scripts/reset-inventory.sh`. Um pooler transforma "clientes demais" em **fila** (`cl_waiting`). Depois, volte ao padrão: `docker compose up -d --wait`.
 
 !!! tip "Na entrevista"
 

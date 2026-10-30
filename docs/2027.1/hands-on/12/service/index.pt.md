@@ -23,6 +23,11 @@ A parte nova do `docker-compose.yaml`:
       - "11434:11434"
     volumes:
       - ollama-models:/root/.ollama      # models survive restarts (about 1.3 GB)
+    healthcheck:                         # ollama-init must wait for the server, not just the container
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
 
   # one-shot: download the chat model and the embedding model, then exit
   ollama-init:
@@ -34,7 +39,8 @@ A parte nova do `docker-compose.yaml`:
       - |
         ollama pull ${LOCAL_MODEL_TAG:-qwen2.5:1.5b} && ollama pull nomic-embed-text
     depends_on:
-      - ollama
+      ollama:
+        condition: service_healthy
     restart: "no"
 ```
 
@@ -86,16 +92,17 @@ Suba a infraestrutura (a imagem do `db` muda, então o `db` reinicia uma vez):
 
 ``` shell
 > docker compose up -d db db-replica ollama ollama-init
-> docker compose logs -f ollama-init
-ollama-init-1  | pulling manifest
-ollama-init-1  | success
+> docker compose wait ollama-init
+container "c8d93485…" exited with status code 0
 > docker compose exec ollama ollama list
 NAME                       ID              SIZE      MODIFIED
-qwen2.5:1.5b               65ec06548149    986 MB    2 seconds ago
-nomic-embed-text:latest    0a109f422b47    274 MB    About a minute ago
+nomic-embed-text:latest    0a109f422b47    274 MB    7 seconds ago
+qwen2.5:1.5b               65ec06548149    986 MB    29 seconds ago
 ```
 
-Você deve ver os dois modelos na lista (`ollama list` na sua máquina, se o Ollama roda nativamente). Com
+O `docker compose wait` bloqueia até o `ollama-init` (one-shot) baixar os dois modelos (um ou dois
+minutos na primeira vez) e imprime o código de saída: 0. (O `docker compose logs -f ollama-init` não
+retornaria se o contêiner já tivesse terminado.) Você deve ver os dois modelos na lista (`ollama list` na sua máquina, se o Ollama roda nativamente). Com
 o Ollama nativo (macOS), suba só `docker compose up -d db db-replica`: um contêiner `ollama` falharia com
 `port is already allocated` na 11434, que o servidor nativo já usa.
 
@@ -116,9 +123,12 @@ uv add "fastapi>=0.146" "uvicorn[standard]>=0.54" "litellm>=1.106" "psycopg[bina
 cd ../..
 ```
 
-O `uv add` edita o `pyproject.toml` e grava o `uv.lock` (≈ 2.700 linhas: faça commit dele, nunca o edite
+O `uv add` edita o `pyproject.toml` e grava o `uv.lock` (≈ 3.000 linhas: faça commit dele, nunca o edite
 à mão; baixe-o de `https://insper.github.io/platform/2027.1/hands-on/12/code/services/assistant/uv.lock`
-se preferir as versões exatas deste roteiro).
+se preferir as versões exatas deste roteiro). O uv não escreve o `Dockerfile` nem o `.dockerignore`:
+crie-os a partir das abas abaixo. Se você pular o `uv init`, baixe também o `pyproject.toml` do mesmo
+endereço e crie o `.python-version` a partir da aba dele (o site não serve arquivos cujo nome começa
+com ponto).
 
 === "pyproject.toml"
 
@@ -147,6 +157,13 @@ se preferir as versões exatas deste roteiro).
 O `uv sync --frozen` falha se o `uv.lock` não corresponde ao `pyproject.toml` — o build nunca resolve
 versões por conta própria. (O `mcp` está na lista porque o LiteLLM o importa quando uma requisição leva
 ferramentas.)
+
+Rodar Python localmente (o passo 4 roda) grava pastas `__pycache__/` ao lado do código; acrescente duas
+linhas ao `.gitignore` da raiz para que o `git add -A` as deixe de fora, e também qualquer `.venv/`:
+
+``` text title=".gitignore"
+--8<-- "docs/2027.1/hands-on/12/code/.gitignore"
+```
 
 ## A configuração e o gateway { #configuration-and-the-gateway }
 
@@ -211,11 +228,20 @@ for f in __init__ config llm db rag tools guardrails agent metrics main; do
   curl -fsSL -o services/assistant/app/$f.py \
     https://insper.github.io/platform/2027.1/hands-on/12/code/services/assistant/app/$f.py
 done
-docker compose up -d --build assistant
+docker compose up -d --wait gateway order otel-lgtm      # what the assistant calls, with their dependencies
+docker compose up -d --build --wait assistant
 curl -s localhost:8088/assistant/health
 ```
 
 Você deve ver `{"status":"UP","documents":0,"route":"local"}` (`"route":"claude"` se você exportou uma
-chave). `documents` é 0: a base de conhecimento fica vazia até o passo 2.
+chave). `documents` é 0: a base de conhecimento fica vazia até o passo 2. Suba os serviços pelo nome, como
+acima: um `docker compose up -d` sem nomes também sobe o contêiner `ollama`, que falha ao lado de um Ollama
+nativo.
+
+!!! warning "Rota `claude` sem querer?"
+
+    Então a `ANTHROPIC_API_KEY` já está definida no seu shell (outras ferramentas usam a mesma variável), e
+    toda pergunta vai para a API paga. Rode `unset ANTHROPIC_API_KEY` e `docker compose up -d --wait assistant`
+    de novo: o health check deve mostrar `"route":"local"`.
 
 [Próximo: RAG com pgvector](../rag/index.md){ .md-button .md-button--primary }

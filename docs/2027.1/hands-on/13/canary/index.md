@@ -156,11 +156,11 @@ This step needs the kind cluster of [lab 10](../../10/index.md) (named `boxoffic
     ```
 
     ``` { .bash .copy }
-    git add k8s/overlays/gitops/catalog-rollout.yaml
+    git add Dockerfile.ai-tools k8s/catalog/analysis-explained.yaml k8s/overlays/gitops/catalog-rollout.yaml
     git commit -m "k8s(catalog): explained canary verdict (lab 13)" && git push
     ```
 
-    With a Job, *inconclusive* (exit 2) counts as a failure — the conservative choice. The explanation is in the Job's logs of the next canary — a new image from CI (`kubectl -n boxoffice logs -l job-name --tail=50`, or `kubectl -n boxoffice get jobs` and `kubectl -n boxoffice logs job/<name>`). The template points the model at Ollama on your machine through `host.docker.internal` (Docker Desktop on macOS and Windows; on Linux, use the host IP of the `kind` network or leave it unreachable); for Claude, create the Secret with `kubectl -n boxoffice create secret generic llm --from-literal=anthropic-api-key="$ANTHROPIC_API_KEY"` and set `LLM_PROVIDER` to `anthropic` in the template (then `kubectl apply` it again). The step works without any model: no explanation, same verdict.
+    With a Job, *inconclusive* (exit 2) counts as a failure — the conservative choice. The Job runs once, `initialDelay: 90s` after the analysis starts, and looks at the last minute only (`WINDOW=1m`): Prometheus labels each series with the Service that scraped it, so a 5-minute window would still count, as `catalog-canary`, the **old** pods that served behind that Service before the canary began — the verdict would compare the stable version with itself. The explanation is in the Job's logs of the next canary — a new image from CI (`kubectl -n boxoffice logs -l job-name --tail=50`, or `kubectl -n boxoffice get jobs` and `kubectl -n boxoffice logs job/<name>`). The template points the model at Ollama on your machine through `host.docker.internal` (Docker Desktop on macOS and Windows; on Linux, use the host IP of the `kind` network or leave it unreachable); for Claude, create the Secret with `kubectl -n boxoffice create secret generic llm --from-literal=anthropic-api-key="$ANTHROPIC_API_KEY"` and set `LLM_PROVIDER` to `anthropic` in the template (then `kubectl apply` it again). The step works without any model: no explanation, same verdict.
 
 ## 5.5 Measure it
 

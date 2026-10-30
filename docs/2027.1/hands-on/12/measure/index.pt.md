@@ -39,6 +39,22 @@ stacks** (2 requisições por nível, para ser curta):
 |           2 |        2 |      0 |     3.37 |   127.23 |    126.89 |    213.07 |       2.8 |    0.56 |   0.000000 |
 ```
 
+Com o **Ollama nativo num notebook Apple Silicon** (GPU via Metal, com a pilha toda rodando), uma
+execução de teste com 8 requisições por nível, depois de uma pergunta de aquecimento (a primeira chamada
+carrega o modelo: cerca de 20 s):
+
+``` text
+| concurrency | requests | errors | TTFT p50 | TTFT p95 | total p50 | total p95 | tokens/s | req/min | USD/request |
+|---|---|---|---|---|---|---|---|---|---|
+|           1 |        8 |      0 |     0.19 |     0.32 |      3.52 |      4.53 |      64.0 |   19.27 |   0.000000 |
+|           2 |        8 |      0 |     1.42 |     3.74 |      3.24 |      5.11 |      64.1 |   34.40 |   0.000000 |
+|           4 |        8 |      0 |     4.64 |    10.62 |      8.30 |     11.15 |      64.0 |   24.65 |   0.000000 |
+```
+
+Dezenas de vezes mais rápido, e com outra forma: cada resposta ainda decodifica a cerca de 64 tokens/s,
+mas as requisições fazem fila diante do único modelo, então o TTFT cresce com a concorrência e as
+requisições por minuto param de crescer depois de 2.
+
 Leia isso como um problema de capacidade, com as fórmulas da
 [aula de sistemas de IA](../../../classes/ai-systems/index.md):
 
@@ -54,7 +70,10 @@ Leia isso como um problema de capacidade, com as fórmulas da
 
     Essa é a lição, não um bug — mas dá para melhorar no mesmo notebook: rode o Ollama nativamente
     (macOS), feche outros contêineres, faça perguntas curtas e diminua o `RETRIEVE_K` (menos tokens de
-    contexto, prefill mais rápido; confira que o hit@k não cai).
+    contexto, prefill mais rápido; confira que o hit@k não cai). Numa CPU, meça `--concurrency 1 2
+    --requests 2`, como a execução de teste: com concorrência 4, as requisições fazem fila umas atrás das
+    outras além do timeout de 120 s do gateway (`litellm.Timeout` em `docker compose logs assistant`,
+    contado em `errors`).
 
 ## B. Qualidade da recuperação { #b-retrieval-quality }
 
@@ -73,13 +92,14 @@ curl -s -X POST localhost:8088/assistant/chat -H 'Content-Type: application/json
 
 Na execução de teste, o `qwen2.5:1.5b` respondeu com fatos corretos do contexto, mas **sem citações**,
 nas duas perguntas testadas, então as duas ficaram `grounded: false` — o guarda fez o seu trabalho, e o
-modelo é o elo fraco. A taxa de ancoragem é uma propriedade do *modelo + prompt*; meça-a antes de confiar
+modelo é o elo fraco. Em dez perguntas, outra execução de teste contou 1 de 10 ancoradas com o `qwen2.5:1.5b`
+e 5 de 10 com o `qwen2.5:3b`. A taxa de ancoragem é uma propriedade do *modelo + prompt*; meça-a antes de confiar
 em qualquer assistente.
 
 ## D. Escolha do modelo (opcional) { #d-model-choice-optional }
 
-Repita A e C com um modelo local maior (`docker compose exec ollama ollama pull qwen2.5:3b`, depois
-`LOCAL_MODEL_TAG=qwen2.5:3b docker compose up -d assistant`) ou com a rota do Claude (passo 1, custa
+Repita A e C com um modelo local maior (`docker compose exec ollama ollama pull qwen2.5:3b`, ou
+`ollama pull qwen2.5:3b` com o Ollama nativo, depois `LOCAL_MODEL_TAG=qwen2.5:3b docker compose up -d --wait assistant`) ou com a rota do Claude (passo 1, custa
 dinheiro: a coluna `USD/request` mostra quanto). Compare TTFT, taxa de ancoragem e custo por resposta.
 
 ## Resultados { #results }

@@ -150,6 +150,7 @@ em `results/lab8.md`.
 |---|---|---|
 | um serviço termina com `Error opening zip file or JAR manifest missing : /otel/opentelemetry-javaagent.jar` | o agente não foi baixado, ou o caminho do volume está errado | `sh scripts/get-otel-agent.sh` na raiz do repositório; `ls infra/otel` |
 | os serviços ficam `starting` por minutos | JVMs com o agente sobem mais devagar; falta CPU/memória ao Docker | espere; dê 8 GB ao Docker; pare outras stacks (`docker ps`) |
+| o `otel-lgtm` termina: `Error: Grafana exited before becoming ready` | `infra/grafana/dashboards.yaml` não existia no primeiro `up`, então o Docker criou um *diretório* com esse nome | `rm -r infra/grafana/dashboards.yaml`, salve o arquivo do [passo 1](instrument/index.md), `docker compose up -d --force-recreate otel-lgtm` |
 | o Grafana mostra **No data** | as métricas são exportadas a cada 10 s e os painéis usam janelas de taxa | gere tráfego, espere um minuto, confira o intervalo (últimos 15 min) |
 | nenhum `service_name` no Prometheus | o serviço não tem `OTEL_SERVICE_NAME` / `<<: *otel` | compare o `environment` dele com o do serviço `order` |
 | faltam o dashboard ou as regras de alerta | arquivos de provisionamento não montados ou inválidos | `docker compose logs otel-lgtm | grep -i provision`; confira os caminhos dos três volumes |
