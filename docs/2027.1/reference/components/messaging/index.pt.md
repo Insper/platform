@@ -1,4 +1,4 @@
-# Mensageria
+# Mensageria { #messaging }
 
 Os componentes de **mensageria** colocam uma **fronteira assíncrona** entre a parte do sistema que produz trabalho e a parte que o executa. Em vez de chamar um serviço e esperar, o produtor grava uma mensagem num broker e segue em frente; os consumidores a leem quando puderem. Essa única mudança desacopla os dois lados no **tempo** (o consumidor pode estar fora do ar ou lento), na **taxa** (um pico vira um backlog que é drenado no ritmo dos consumidores) e no **conhecimento** (o produtor não precisa saber quem consome). O preço: o resultado deixa de ser imediato, mensagens podem chegar duas vezes ou fora de ordem, e agora é preciso vigiar backlogs e atrasos.
 
@@ -11,7 +11,7 @@ No BoxOffice, a sala de espera da venda relâmpago é uma fila; o `order` public
 | [Event Stream](#stream) | Um log ordenado, retido e particionado, que os consumidores leem cada um na sua posição | `stream` |
 | [Kafka](#kafka) | A plataforma de streaming de eventos mais usada (tópicos, partições, consumer groups) | `kafka` |
 
-``` mermaid
+``` diagram
 flowchart LR
     P1[order] -->|OrderConfirmed| K[(Tópico Kafka)]
     K --> N[notification]

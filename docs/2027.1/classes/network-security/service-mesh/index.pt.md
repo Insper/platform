@@ -3,14 +3,14 @@ O BoxOffice agora roda nove serviços no Kubernetes. Cada time reimplementou as 
 
 ---
 
-## O que é um service mesh
+## O que é um service mesh { #what-a-service-mesh-is }
 
 Um service mesh é uma camada de infraestrutura dedicada à **comunicação entre serviços**[^1]. Ele tem duas partes:
 
 - **Plano de dados** (*data plane*) — proxies que ficam no caminho de toda requisição entre serviços. Eles terminam e originam TLS, aplicam políticas, fazem retry, timeout, balanceamento de carga e emitem métricas e traces.
 - **Plano de controle** (*control plane*) — o cérebro que configura os proxies: distribui regras de roteamento e políticas, e atua como **autoridade certificadora** que emite a identidade de cada workload.
 
-``` mermaid
+``` diagram
 flowchart TB
     subgraph cp ["Plano de controle (istiod / linkerd-control-plane)"]
         CFG["configuração + política"]
@@ -31,7 +31,7 @@ flowchart TB
 
 A aplicação continua chamando `http://payment:8080/charges` em HTTP puro. O proxy na saída promove a chamada para **TLS mútuo**, o proxy na entrada verifica a identidade de quem chama, confere a política e entrega HTTP puro a `payment`. Nenhuma das aplicações mudou uma linha.
 
-### O que você ganha
+### O que você ganha { #what-you-get }
 
 | Capacidade | Sem mesh | Com mesh |
 |---|---|---|
@@ -46,7 +46,7 @@ O mesh é a casa natural de três temas do curso: **padrões de confiabilidade**
 
 ---
 
-## Arquiteturas de plano de dados: sidecar, ambient, eBPF
+## Arquiteturas de plano de dados: sidecar, ambient, eBPF { #data-plane-architectures-sidecar-ambient-ebpf }
 
 Onde o proxy roda? Três projetos estão em produção hoje[^2][^3].
 
@@ -98,7 +98,7 @@ Como `payment` sabe que uma chamada vem mesmo de `order`? Endereços IP não pro
 - **SPIFFE** (Secure Production Identity Framework For Everyone)[^4] — um padrão de nomes para identidades de workloads, `spiffe://<trust-domain>/<path>`. O Istio usa `spiffe://cluster.local/ns/<namespace>/sa/<service-account>`: **a identidade é a service account do Kubernetes**.
 - **SVID** (SPIFFE Verifiable Identity Document) — o certificado X.509 de vida curta que carrega essa identidade, rotacionado automaticamente (o tempo de vida padrão do Istio é 24 horas; o do SPIRE, uma hora).
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     participant O as order (proxy)
@@ -117,7 +117,7 @@ sequenceDiagram
     Note over O,P: canal criptografado, as duas identidades provadas, política aplicada
 ```
 
-### Ligue o mTLS estrito
+### Ligue o mTLS estrito { #turn-on-strict-mtls }
 
 Por padrão, o Istio aceita tanto texto puro quanto mTLS (modo *permissive*), para que os serviços migrem aos poucos. Quando todo workload tiver um proxy, torne-o estrito:
 
@@ -132,7 +132,7 @@ spec:
     mode: STRICT        # reject any plain-text connection to pods in this namespace
 ```
 
-### mTLS autentica; uma política autoriza
+### mTLS autentica; uma política autoriza { #mtls-authenticates-a-policy-authorizes }
 
 Um certificado válido diz *quem* está chamando — não se ele *pode*. Isso é uma **política de autorização**, avaliada pelo proxy em toda requisição. Só `order` pode cobrar cartões:
 
@@ -214,7 +214,7 @@ Um certificado válido diz *quem* está chamando — não se ele *pode*. Isso é
 
 O segundo grande trabalho de um mesh é moldar o tráfego: timeouts, retries, circuit breaking e divisão.
 
-### Timeouts e retries por rota
+### Timeouts e retries por rota { #timeouts-and-retries-per-route }
 
 ```yaml
 apiVersion: networking.istio.io/v1
@@ -243,7 +243,7 @@ spec:
 
 Três decisões estão codificadas aqui: um **canary** manda 10% das chamadas para `v2`; a chamada inteira tem um **orçamento de 3 segundos**; e os retries só acontecem em falhas nas quais a requisição certamente não chegou à aplicação (`connect-failure`, `refused-stream`, `unavailable`). Repetir um `POST /charges` depois de um timeout poderia cobrar o cliente duas vezes — é para isso que existem as **chaves de idempotência** (veja [Computação — integrações](../../compute/integrations/index.md)).
 
-### Circuit breaking com detecção de outliers
+### Circuit breaking com detecção de outliers { #circuit-breaking-with-outlier-detection }
 
 ```yaml
 apiVersion: networking.istio.io/v1
@@ -279,7 +279,7 @@ A **detecção de outliers** tira uma *réplica* problemática do pool de balanc
 !!! warning "Retries em dois lugares se multiplicam"
     Se `order` usa Resilience4j com 3 tentativas e o mesh acrescenta mais 2 por tentativa, um clique do usuário pode virar 3 × 3 = 9 chamadas a um `payment` que já está sofrendo — uma tempestade de retries. Escolha **uma camada** que faz retry (normalmente o mesh, ou a biblioteca cliente, não os dois) e mantenha um orçamento de retries.
 
-### Gateway API para o mesh (GAMMA)
+### Gateway API para o mesh (GAMMA) { #gateway-api-for-the-mesh-gamma }
 
 A **Gateway API** do Kubernetes nasceu como sucessora do Ingress para o tráfego norte–sul (veja [Borda](../../edge/index.md)). A iniciativa GAMMA estende o mesmo recurso `HTTPRoute` ao tráfego leste–oeste dentro do mesh, de modo que um canary fica igual no Istio, no Linkerd ou no Cilium:
 
@@ -355,7 +355,7 @@ spec:
 
 ---
 
-## Custos e quando não usar um mesh
+## Custos e quando não usar um mesh { #costs-and-when-not-to-use-a-mesh }
 
 Um mesh é poderoso e caro de operar. Ele acrescenta um plano de controle para operar e atualizar, proxies que consomem CPU e memória, alguns milissegundos por salto, uma nova classe de falhas ("o proxy rejeitou") e uma curva de aprendizado íngreme para depurar.
 
@@ -370,6 +370,15 @@ Um mesh é poderoso e caro de operar. Ele acrescenta um plano de controle para o
 !!! tip "Na entrevista"
     Traga o mesh quando o projeto tiver **muitos serviços** e alguém perguntar sobre segurança ou resiliência entre serviços: "dentro do cluster, um service mesh dá a cada serviço uma identidade e TLS mútuo; políticas de autorização dizem que só `order` pode chamar `payment`; timeouts, retries e detecção de outliers são configurados por rota." Depois mostre que conhece o custo: "ele acrescenta um salto de proxy e complexidade operacional — planos de dados ambient ou eBPF reduzem a sobrecarga por pod; para um punhado de serviços, eu não usaria."
 
+!!! success "Boas práticas"
+
+    - **Implante o mTLS em etapas, com prazo** — modo permissivo, acompanhe a métrica de conexões em texto puro cair a zero, e então STRICT por namespace numa data escrita no plano.
+    - **Derive as políticas de autorização do grafo de chamadas** — negar por padrão por namespace, e então permitir cada aresta (`order → payment`) pela identidade do serviço; o grafo serve também de documentação.
+    - **Ponha retries em uma camada só, com orçamento de retries** — por exemplo, no máximo 20% de requisições extras, e só para métodos idempotentes; a outra camada fica com os timeouts.
+    - **Faça o timeout de cada salto menor que o de quem chama** — o gateway espera 5 s (o [lab 4](../../../hands-on/4/gateway/index.md) define `response-timeout: 5s`), então `order → payment` precisa desistir bem antes disso.
+    - **Orce o data plane** — defina requests de CPU e memória para os proxies e conte cerca de 1 ms por salto no orçamento de latência de um caminho com 4–5 saltos.
+    - **Mantenha os certificados dos workloads curtos e renovados pela malha** — horas, não anos (o Istio emite certificados de 24 horas por padrão), para que um certificado roubado expire sozinho.
+
 !!! warning "Armadilhas comuns"
     - **Deixar o mTLS em modo permissive para sempre** — texto puro continua aceito, então o mesh não criptografa nada que interesse a um atacante.
     - **mTLS sem políticas de autorização** — todo workload do mesh ainda pode chamar `payment`; você só criptografou o ataque.
@@ -382,7 +391,7 @@ Um mesh é poderoso e caro de operar. Ele acrescenta um plano de controle para o
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     CP["plano de controle<br/>config + CA"] --> DP["plano de dados:<br/>sidecar, ambient, eBPF"]
     CP --> SVID["identidade SPIFFE (SVID)<br/>da service account"]
@@ -398,13 +407,15 @@ flowchart LR
 
 **Componentes da paleta:** [`mesh`](../../../reference/components/network/index.md#mesh) · [`app`](../../../reference/components/compute/index.md#app) (os serviços atrás de cada proxy) · [`ingress`](../../../reference/components/edge/index.md#ingress) (Gateway API, norte–sul) · [`metrics`](../../../reference/components/observability/index.md#metrics) · [`tracing`](../../../reference/components/observability/index.md#tracing) (telemetria de cada salto). **Cenários:** `cascading-failure`, `retry-storm`. **Continua em:** [Zero Trust](../zero-trust/index.md), [Confiabilidade — padrões](../../reliability/patterns/index.md#circuit-breaker), [Observabilidade — sinais](../../observability/signals/index.md), [Borda — balanceamento no Kubernetes](../../edge/load-balancing/index.md#kubernetes), [Cloud-native — entrega](../../cloud-native/delivery/index.md) (canary).
 
-## Principais conclusões
+## Pontos-chave { #key-takeaways }
 
-- Um service mesh = **plano de dados** (proxies em toda chamada) + **plano de controle** (configuração + autoridade certificadora); ele tira mTLS, política, resiliência e telemetria do código.
-- **Sidecar** dá L7 completo em todo lugar a um custo por pod; **ambient** separa o L4 (ztunnel por nó) do L7 opcional (waypoints); **eBPF** faz L3/L4 no kernel.
-- **mTLS** autentica workloads com identidades SPIFFE derivadas das service accounts; uma **política de autorização** decide quem pode chamar o quê.
-- Políticas de tráfego — **timeouts, retries, detecção de outliers, pesos de canary** — são declaradas por rota; faça retry em uma só camada, e só de chamadas idempotentes.
-- **NetworkPolicy** (L3/L4, negar por padrão, entrada *e* saída) e política do mesh (L7, identidade) são camadas complementares. Para um punhado de serviços, um mesh pode não valer a pena.
+!!! takeaways ""
+
+    - Um service mesh = **plano de dados** (proxies em toda chamada) + **plano de controle** (configuração + autoridade certificadora); ele tira mTLS, política, resiliência e telemetria do código.
+    - **Sidecar** dá L7 completo em todo lugar a um custo por pod; **ambient** separa o L4 (ztunnel por nó) do L7 opcional (waypoints); **eBPF** faz L3/L4 no kernel.
+    - **mTLS** autentica workloads com identidades SPIFFE derivadas das service accounts; uma **política de autorização** decide quem pode chamar o quê.
+    - Políticas de tráfego — **timeouts, retries, detecção de outliers, pesos de canary** — são declaradas por rota; faça retry em uma só camada, e só de chamadas idempotentes.
+    - **NetworkPolicy** (L3/L4, negar por padrão, entrada *e* saída) e política do mesh (L7, identidade) são camadas complementares. Para um punhado de serviços, um mesh pode não valer a pena.
 
 ---
 

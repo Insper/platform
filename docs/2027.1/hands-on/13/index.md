@@ -6,6 +6,7 @@
     - **Measure it**: review precision, cost per PR, CI minutes and time to merge over a week of pull requests.
 
 Lab 11 gave BoxOffice a pipeline that builds, tests, scans, signs and rolls out each change behind a canary. Lab 12 put a language model *inside* the product. This lab puts language models **inside the pipeline** — and treats them with the same discipline as any other dependency: least privilege, budgets, validation of every output, and numbers that say whether they help.
+In the [story of the course](../../index.md#story) it builds chapter 14: the decisions of [code review](../../classes/ai-delivery/code-review/index.md), [AI-generated tests](../../classes/ai-delivery/testing/index.md), [agents in CI](../../classes/ai-delivery/agents-in-ci/index.md), [release and operate](../../classes/ai-delivery/release-operate/index.md) and [security & governance](../../classes/ai-delivery/security-governance/index.md).
 
 The rule for the whole lab: **AI proposes, rules and humans dispose.** No step in this lab can merge, approve, deploy or roll back on its own. The model writes comments, patches and explanations; deterministic checks (tests, mutation score, policy thresholds) and people decide.
 
@@ -71,7 +72,7 @@ Click the slides and use ← → to move through them; **F** goes full screen an
 
 ## What you will build
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     dev([Developer]) -->|"opens PR"| pr["Pull request"]
     pr --> rev["1 · AI review<br/>inline comments + cost"]
@@ -289,6 +290,14 @@ Each part has its own list for its specific errors; these are the ones that can 
 | `HTTP 403: Resource not accessible by integration` | the job lacks a permission, or the repository default is read-only and the workflow did not declare it | keep the `permissions:` blocks of the files on these pages; run step 0.4 |
 | `GitHub Actions is not permitted to create or approve pull requests` | step 0.4 skipped | run the `gh api --method PUT ...` command of step 0.4 |
 | A CI job with Ollama hits its timeout | CPU-only runner, large prompt (in a private repository the runner may also have less memory) | smaller diffs; the 3B model (add `env: { OLLAMA_BASE_MODEL: "qwen2.5-coder:3b" }` to the step that uses `./.github/actions/ollama`); or a paid provider for that job |
+
+!!! success "Best practices in this lab"
+
+    - **AI proposes, rules decide** — `.github/ai/review.py` posts `event: COMMENT`, never an approval, and exits 0 when the model fails; why: [Code review](../../classes/ai-delivery/code-review/index.md).
+    - **Privilege split by job** — `ai-fix.yaml` runs the model with a read-only token and opens the draft PR from a job with no model; why: [Agents in CI](../../classes/ai-delivery/agents-in-ci/index.md).
+    - **Generated tests prove their value** — `gen_tests.py` keeps a test only if it passes twice and adds 5 pp of mutation score; why: [Testing](../../classes/ai-delivery/testing/index.md).
+    - **The verdict is code; the model only explains** — `canary_explain.py` returns the exit code of the policy and discards an explanation that disagrees; why: [Release & operate](../../classes/ai-delivery/release-operate/index.md).
+    - **The AI tools have their own regression test** — `eval_review.py` and `ai-eval.yaml` run the golden set when the prompt, conventions or model change; why: [Security & governance](../../classes/ai-delivery/security-governance/index.md).
 
 ## Clean up
 

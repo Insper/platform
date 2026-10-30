@@ -5,7 +5,7 @@ Sem um método, 45 minutos somem rápido: 20 minutos no esquema do banco e depoi
 
 ---
 
-## O que o entrevistador procura
+## O que o entrevistador procura { #what-the-interviewer-is-looking-for }
 
 Os entrevistadores normalmente pontuam algumas dimensões, com nomes diferentes em cada empresa, mas conteúdo parecido[^1][^2]:
 
@@ -27,7 +27,7 @@ As expectativas crescem com a senioridade. Um guia aproximado:
 
 ---
 
-## O método num relance
+## O método num relance { #the-framework-at-a-glance }
 
 | # | Passo | Tempo (45 min) | Resultado no quadro |
 |---|---|---|---|
@@ -41,7 +41,7 @@ As expectativas crescem com a senioridade. Um guia aproximado:
 
 Os tempos são um orçamento, não uma lei: se o entrevistador quiser passar 15 minutos num aprofundamento, acompanhe-o. Mas confira o relógio em cada transição — acabar o tempo antes de desenhar um design de alto nível completo é a forma mais comum de ser reprovado.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant C as Candidato
     participant I as Entrevistador
@@ -62,7 +62,7 @@ Repare nas setas que vêm do entrevistador: aprofundamentos e gargalos muitas ve
 
 ---
 
-## Passo 1 — Esclarecer os requisitos (≈ 5 min)
+## Passo 1 — Esclarecer os requisitos (≈ 5 min) { #step-1-clarify-requirements-5-min }
 
 **Objetivo**: transformar o enunciado de uma frase num problema com limites. Pergunte e **escreva as respostas no quadro**.
 
@@ -82,7 +82,7 @@ Repare nas setas que vêm do entrevistador: aprofundamentos e gargalos muitas ve
 
 Essa última frase importa: dizer **o que é difícil neste problema** demonstra navegação do problema e avisa o entrevistador onde você vai gastar o tempo de aprofundamento.
 
-## Passo 2 — Estimar (≈ 5 min)
+## Passo 2 — Estimar (≈ 5 min) { #step-2-estimate-5-min }
 
 **Objetivo**: obter ordens de grandeza que **mudem decisões**. Arredonde sem dó e diga a conclusão, não só a aritmética. A [aula 2](../../estimation/index.md) ensina o método; numa entrevista, soa assim:
 
@@ -94,7 +94,7 @@ Essa última frase importa: dizer **o que é difícil neste problema** demonstra
 
 Duas decisões saíram de quatro linhas de aritmética: um cache para o catálogo e uma sala de espera para o inventário. É para isso que se estima.
 
-## Passo 3 — API e modelo de dados (≈ 5 min)
+## Passo 3 — API e modelo de dados (≈ 5 min) { #step-3-api-and-data-model-5-min }
 
 **Objetivo**: tornar os requisitos funcionais concretos. Liste os principais endpoints (ou mensagens) e as principais entidades com suas chaves. Não escreva todos os campos — só o suficiente para raciocinar sobre padrões de acesso e consistência.
 
@@ -117,11 +117,11 @@ GET  /orders/{orderId}                status and tickets
 
 Mencione o padrão de acesso ao lado de cada entidade: o mapa de lugares é lido por `event_id`; reservas alteram alguns lugares de um evento; pedidos são lidos por `fan_id`. Esses padrões definem os índices e, mais tarde, as chaves de partição.
 
-## Passo 4 — Design de alto nível (≈ 10 min)
+## Passo 4 — Design de alto nível (≈ 10 min) { #step-4-high-level-design-10-min }
 
 **Objetivo**: um diagrama que atenda **todo requisito funcional** de ponta a ponta. Comece simples e acrescente o que as estimativas pedirem. Percorra uma requisição de cada vez enquanto desenha ("o fã abre a página do evento: CDN, gateway, catalog, cache…").
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     fan([Fã]) --> cdn["CDN<br/>estáticos + imagens"]
     fan --> gw["API Gateway<br/>auth, rate limit"]
@@ -143,7 +143,7 @@ flowchart LR
 
     Desenhe os componentes necessários ao fluxo principal, rotule as setas (chamada síncrona, mensagem assíncrona, replicação) e só depois decore (réplicas, caches, monitoramento). Um entrevistador não consegue avaliar um aprofundamento num design que ele ainda não viu por inteiro.
 
-## Passo 5 — Aprofundamentos (≈ 12 min)
+## Passo 5 — Aprofundamentos (≈ 12 min) { #step-5-deep-dives-12-min }
 
 **Objetivo**: mostrar profundidade técnica nas **1–3 partes mais difíceis**. Escolha-as você mesmo (as que nomeou no passo 1) ou siga o entrevistador. Para cada uma: enuncie o problema, apresente **duas ou três alternativas**, compare-as, escolha.
 
@@ -178,7 +178,7 @@ flowchart LR
 
     O fã clica em "pagar" duas vezes, ou a rede perde a resposta e o cliente tenta de novo. Cada `POST /orders` leva uma **chave de idempotência**; o serviço de pedidos a guarda com uma restrição de unicidade e devolve o pedido já existente para uma chave repetida. O webhook do provedor de pagamentos também pode chegar duas vezes — o tratador é idempotente pelo id da transação do provedor.
 
-## Passo 6 — Gargalos e trade-offs (≈ 5 min)
+## Passo 6 — Gargalos e trade-offs (≈ 5 min) { #step-6-bottlenecks-and-trade-offs-5-min }
 
 **Objetivo**: criticar o próprio design antes que o entrevistador o faça. Percorra o diagrama e pergunte, para cada componente: *o que quebra primeiro? qual é o ponto único de falha? o que acontece se ele ficar lento?*
 
@@ -192,13 +192,13 @@ flowchart LR
 
 Depois, nomeie os principais trade-offs **explicitamente**: *"Escolhi consistência forte para os lugares em vez de disponibilidade: se o primário do inventário estiver inacessível, as reservas falham em vez de arriscar uma venda duplicada. O catálogo é o oposto: aceito 60 s de atraso em troca de velocidade."*
 
-## Passo 7 — Fechamento (≈ 3 min)
+## Passo 7 — Fechamento (≈ 3 min) { #step-7-wrap-up-3-min }
 
 **Objetivo**: deixar uma imagem final clara. Em três ou quatro frases: o que você projetou, como cumpre os requisitos principais, o que faria a seguir com mais tempo (monitoramento e alertas de SLO, multi-região, o assistente de IA…) e quaisquer perguntas em aberto. Não introduza componentes novos agora.
 
 ---
 
-## Como se comunicar
+## Como se comunicar { #how-to-communicate }
 
 A estrutura acima é necessária, mas não suficiente. Estes hábitos fazem a diferença[^3]:
 
@@ -214,9 +214,17 @@ A estrutura acima é necessária, mas não suficiente. Estes hábitos fazem a di
 
     Memorize os sete passos e seu orçamento de tempo, e **diga-os em voz alta no começo**: "Vou esclarecer os requisitos, fazer algumas estimativas rápidas, esboçar a API e os dados, desenhar um design de alto nível, depois me aprofundar nas partes mais difíceis e discutir gargalos." O entrevistador sabe na hora que você tem um plano — e você tem uma lista de verificação para quando o nervosismo bater.
 
-### Praticando com o playground
+### Praticando com o playground { #practising-with-the-playground }
 
 O [playground](../../../../playground/index.md) é um bom parceiro de treino para os passos 4–6. Depois de projetar um problema no papel, remonte seu design de alto nível a partir da paleta, rode o perfil de carga que corresponde às suas estimativas (`spike` para uma abertura de vendas, `soak` para um serviço estável) e procure o primeiro componente saturado. Se não for o que você nomeou no passo 6, descubra por quê. Os [problemas para praticar](../../../support/interview/problems/index.md) e o [guia de entrevista simulada](../../../support/interview/mock/index.md) foram organizados para uso em duplas: um candidato, um entrevistador, depois troquem.
+
+!!! success "Boas práticas"
+
+    - **Mantenha os requisitos e os números num canto do quadro, visíveis até o fim** — toda decisão seguinte é conferida contra eles, em voz alta.
+    - **Pratique com cronômetro e um colega toda semana, e troquem de papel** — fazer o entrevistador ensina como soa uma resposta clara e dentro do tempo.
+    - **Ensaie três designs de referência até cada um caber em 10 minutos** — um feed com muita leitura, um sistema de ingressos com pico, um chat; a maioria dos problemas reusa os seus blocos. Na BoxOffice: o [estudo de caso de venda de ingressos](../../case-studies/ticketing/index.md).
+    - **Confira no playground um design que você desenhou** — ponha seus números num cenário e veja se as metas passam; uma meta reprovada é o aprofundamento que faltou. Experimente o cenário `flash-sale`.
+    - **Depois de cada simulado, anote uma decisão que você não conseguiu justificar com um número** — e vá atrás do número; essa lista é o seu plano de estudo.
 
 !!! warning "Armadilhas comuns"
 
@@ -232,7 +240,7 @@ O [playground](../../../../playground/index.md) é um bom parceiro de treino par
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     S1["1. Esclarecer<br/>→ Requisitos"] --> S2["2. Estimar<br/>→ Estimativa"]
     S2 --> S3["3. API e modelo de dados<br/>→ Compute, Bancos de dados"]
@@ -248,13 +256,15 @@ flowchart LR
 
 **Componentes da paleta** do design de alto nível da BoxOffice: [`cdn`](../../../reference/components/edge/index.md#cdn) (arquivos estáticos e imagens) · [`apigw`](../../../reference/components/edge/index.md#apigw) (autenticação, rate limit) · [`app`](../../../reference/components/compute/index.md#app) (`catalog`, `inventory`, `order`) · [`cache`](../../../reference/components/storage/index.md#cache) (catálogo) · [`sql`](../../../reference/components/storage/index.md#sql) (primário do inventário, réplicas do catálogo) · [`queue`](../../../reference/components/messaging/index.md#queue) (sala de espera) · [`payment`](../../../reference/components/external/index.md#payment) (provedor e webhook) · [`stream`](../../../reference/components/messaging/index.md#stream) (eventos para `notification` e `search`) · [`waf`](../../../reference/components/edge/index.md#waf) (bots). **Cenários:** `flash-sale`, `payment-system`, `url-shortener` (um primeiro problema de prática). **Continua em:** [Estudos de caso](../../case-studies/index.md), [Ingressos — a venda relâmpago da BoxOffice](../../case-studies/ticketing/index.md), [Bancos de dados — o bug da venda duplicada](../../databases/transactions/index.md#double-booking), [Compute — idempotency keys](../../compute/integrations/index.md#idempotency-keys), [Preparação para entrevista — método](../../../support/interview/framework/index.md).
 
-## Pontos-chave
+## Pontos-chave { #key-takeaways }
 
-- A entrevista de system design avalia o **processo**: navegação, design, profundidade, trade-offs e comunicação.
-- Use sete passos com orçamento de tempo: **esclarecer → estimar → API e modelo de dados → design de alto nível → aprofundamentos → gargalos e trade-offs → fechamento**.
-- O esclarecimento deve terminar com **o que é difícil neste problema** — é para lá que vão seus aprofundamentos.
-- Estimativas existem para **mudar decisões** (cache? shard? fila?).
-- Aprofundamentos comparam **alternativas** e escolhem; o fechamento resume e aponta os próximos passos.
+!!! takeaways ""
+
+    - A entrevista de system design avalia o **processo**: navegação, design, profundidade, trade-offs e comunicação.
+    - Use sete passos com orçamento de tempo: **esclarecer → estimar → API e modelo de dados → design de alto nível → aprofundamentos → gargalos e trade-offs → fechamento**.
+    - O esclarecimento deve terminar com **o que é difícil neste problema** — é para lá que vão seus aprofundamentos.
+    - Estimativas existem para **mudar decisões** (cache? shard? fila?).
+    - Aprofundamentos comparam **alternativas** e escolhem; o fechamento resume e aponta os próximos passos.
 
 ---
 

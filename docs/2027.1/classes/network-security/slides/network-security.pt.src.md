@@ -120,6 +120,63 @@ As camadas são **independentes**: quando uma falha, a próxima ainda segura.
 
 ---
 
+## Como um pacote atravessa a Internet
+
+- Uma requisição é um **pacote IP**: roteadores leem só o **IP de destino**, nunca a URL.
+- Dezenas de milhares de redes (**AS**) anunciam seus blocos com **BGP**.
+- Cada roteador: **maior prefixo** → próximo salto; 10–20 saltos; o tempo é **distância**.
+- O núcleo **não tem rota padrão**: um endereço que ninguém anuncia é descartado.
+
+<div class="q">
+
+Por que um fã não alcança o pod `payment` em `10.20.40.17`, mesmo com todos os firewalls abertos?
+
+</div>
+
+* `10.20.40.17` é **privado**: ninguém o anuncia, então o primeiro roteador do núcleo não tem rota e o descarta.
+
+<!-- A página "Como a Internet funciona" tem o simulador do caminho do pacote: rode "Um fã tenta acessar um pod diretamente". -->
+
+---
+
+<!-- _class: tight -->
+
+## Público, privado e a conta do CIDR
+
+| Bloco | Tipo | Roteado na Internet? | Onde |
+|---|---|---|---|
+| `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16` | privado (RFC 1918) | não | VPC `10.20.0.0/16`, Docker, Wi-Fi de casa |
+| `100.64.0.0/10` | NAT da operadora (CGNAT) | não | o seu celular no 4G |
+| `169.254.0.0/16` | link-local | não | serviço de metadados: credenciais! |
+| todo o resto | **público** | **sim** | o load balancer e o NAT gateway |
+
+- `/n` fixa os primeiros *n* bits: o bloco tem **2³²⁻ⁿ** endereços; cada bit a mais o **divide ao meio**.
+- `10.20.32.0/19` = 8 192 endereços: `10.20.32.0` – `10.20.63.255`.
+
+<div class="warn">
+
+Privado é sobre **alcance**, não confiança: qualquer coisa dentro da rede ainda o alcança.
+
+</div>
+
+---
+
+## NAT: muitos hosts privados, um endereço público
+
+- O NAT de origem reescreve `10.20.40.17:51000` → `203.0.113.20:62001` e anota numa **tabela**.
+- Respostas casam com a tabela; uma **conexão nova de fora** não casa com nada → descartada.
+- O servidor vê o **IP do NAT**: milhares de fãs atrás de um IP de operadora.
+- Um NAT dá um **IP de saída fixo** → a lista de permissões do provedor de pagamento.
+- O NAT de destino publica um serviço privado: load balancer, IGW da nuvem, `ports:` do Docker.
+
+<div class="ok">
+
+Limite a taxa **por chave de API ou usuário**, não por IP: atrás do CGNAT um IP é um bairro inteiro.
+
+</div>
+
+---
+
 ## A VPC: a sua rede na nuvem
 
 - **Região** → várias **AZs** (data centers independentes).
@@ -269,92 +326,6 @@ spec:
 Retries na biblioteca (3) × retries no mesh (3) = **9 chamadas** por clique em um `payment` que já sofre. Faça retry em **uma** camada, e só de chamadas idempotentes.
 
 </div>
-
----
-
-## Sessões vs tokens
-
-| | Sessão no servidor | Access token JWT |
-|---|---|---|
-| Cliente guarda | id aleatório | claims assinadas |
-| Validação | consulta (Redis) | assinatura, localmente |
-| Revogação | imediata | só em `exp` |
-| Escala | store compartilhado | sem estado |
-
-<div class="q">
-
-Tokens vivem 15 min, validados localmente. Refresh revogado às 14:05, último token emitido às 13:58. Até quando um ladrão consegue chamar?
-
-</div>
-
-* **14:13** — a janela de exposição é um tempo de vida de token. Tokens mais curtos, introspecção ou DPoP a reduzem.
-
----
-
-## OAuth 2.1 em um slide
-
-- **Autorização delegada**: o cliente recebe um token limitado e de vida curta; **nunca vê a senha**.
-- Papéis: resource owner · client (público / confidencial) · authorization server · resource server.
-- **PKCE para todo** cliente de authorization code; **Implicit e ROPC removidos**.
-- Redirect URIs comparadas **exatamente**; nada de tokens em URLs; refresh tokens **rotacionados** ou vinculados ao remetente.
-- Grants: **Auth Code + PKCE** (usuários) · **Client Credentials** (jobs) · **Device** (TVs) · **Token Exchange** (delegação).
-
----
-
-## O app mobile: Authorization Code + PKCE
-
-1. O app cria o `code_verifier`; envia `code_challenge = S256(verifier)` + `state` + `nonce`.
-2. O **navegador do sistema** abre `/authorize`; o usuário faz login no `auth` (MFA / passkey).
-3. O redirecionamento traz um **código** de uso único; o app confere o `state`.
-4. O app envia `code` + `code_verifier` para `/token`; o servidor compara os hashes.
-5. Recebe **access** (15 min) + **refresh** (rotativo) + **ID** token.
-6. O gateway verifica o JWT **localmente** (JWKS): assinatura, `iss`, `aud`, `exp`, escopo.
-
-<div class="ok">
-
-Um código roubado é inútil sem o verifier. A senha nunca passa pelo código do BoxOffice.
-
-</div>
-
----
-
-## OIDC e a validação de um JWT
-
-<div class="cols">
-<div>
-
-**O OIDC acrescenta**
-- escopo `openid`
-- **ID token** para o *cliente*
-- endpoint UserInfo
-- discovery: `/.well-known/openid-configuration`
-- web: um **BFF** guarda os tokens, o navegador recebe um cookie `HttpOnly`
-
-</div>
-<div>
-
-**Validar (RFC 8725)**
-- `alg` de uma allow-list, chave pelo `kid`
-- `iss` = o nosso provedor
-- `aud` = **esta** API
-- `exp` / `nbf`, pequena tolerância
-- `typ` = `at+jwt`, escopos
-
-</div>
-</div>
-
----
-
-## Modelos de autorização
-
-| Modelo | Decide por | BoxOffice |
-|---|---|---|
-| **RBAC** | papéis | `organizer` cria eventos |
-| **ABAC** | atributos + contexto | estorno só > 48 h antes do show |
-| **ReBAC** | relacionamentos | Bruno vê o ingresso que Ana compartilhou |
-
-- Escopos limitam o **cliente**; a posse limita o **usuário** → verificação de BOLA em `order`.
-- Política como código: **OPA / Rego**, **Cedar**, OpenFGA.
 
 ---
 

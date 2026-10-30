@@ -3,7 +3,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Roteiro e estimativas
+## Roteiro e estimativas { #framework-and-estimation }
 
 **Q1.** O entrevistador diz: *"Projete um encurtador de URLs."* Você já esclareceu os requisitos funcionais e não funcionais. Qual o próximo passo mais útil?
 
@@ -47,7 +47,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Sistemas de leitura intensa e cache
+## Sistemas de leitura intensa e cache { #read-heavy-systems-and-caching }
 
 **Q4.** Um rate limiter permite **10 requisições por segundo** usando uma **janela fixa**. Um cliente envia 10 requisições em t = 0,99 s e mais 10 em t = 1,01 s. Quantas são permitidas?
 
@@ -105,7 +105,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Sistemas em tempo real e assíncronos
+## Sistemas em tempo real e assíncronos { #real-time-and-asynchronous-systems }
 
 **Q8.** Num sistema de chat, como as mensagens de uma conversa devem ser ordenadas para que todos os membros vejam a mesma ordem?
 
@@ -163,7 +163,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Corretude: lugares, dinheiro e agentes
+## Corretude: lugares, dinheiro e agentes { #correctness-seats-money-and-agents }
 
 **Q12.** O pagamento de um fã do BoxOffice é aprovado no provedor **depois** que a reserva de 10 minutos do lugar expirou. O que o sistema deve fazer?
 

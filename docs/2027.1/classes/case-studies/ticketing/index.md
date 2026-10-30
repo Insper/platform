@@ -199,7 +199,7 @@ CREATE TABLE outbox (                               -- transactional outbox → 
 
 Read the diagram as two paths. The **cheap path** (catalog, waiting page, availability) is served by the CDN and caches and never touches the hot rows. The **expensive path** (hold → order → payment) is protected by the waiting room, which lets in only what the database and the payment provider can take.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     fan([Fan / mobile]) --> cdn["CDN<br/>event pages, waiting page"]
     cdn --> waf["WAF<br/>bots, DDoS"]
@@ -223,7 +223,7 @@ flowchart LR
 
 The happy path of one fan, step by step:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     participant F as Fan
@@ -247,6 +247,25 @@ sequenceDiagram
     O-)N: OrderConfirmed (Kafka)
     N-->>F: e-mail + push with tickets
 ```
+
+!!! example "In the BoxOffice code: where each box of this design lives"
+
+    This case is BoxOffice, and the labs built most of its boxes. The labs build a simpler checkout than section 6.3 — payment is a synchronous call with a timeout and a circuit breaker, not a webhook state machine — but every other row is the real mechanism. Read the files in this order and you have read the design:
+
+    | Component | Lab | File to read first |
+    |---|---|---|
+    | Edge: load balancing, rate limit per key | [Lab 3](../../../hands-on/3/index.md) | `infra/nginx/nginx.conf` |
+    | API gateway: the token is checked once | [Lab 4](../../../hands-on/4/gateway/index.md) | `SecurityConfig.java` (gateway) |
+    | Catalog read path: cache-aside, stampede lock | [Lab 5](../../../hands-on/5/cache-aside/index.md) | `EventCache.java` |
+    | Seat holds without double booking | [Lab 6](../../../hands-on/6/holds/index.md) | `HoldService.java` |
+    | Order event in the same transaction (outbox) | [Lab 7](../../../hands-on/7/outbox/index.md) | `Outbox.java`, `OutboxRelay.java` |
+    | Waiting room | [Lab 7](../../../hands-on/7/waiting-room/index.md) | `WaitingRoom.java` |
+    | Idempotent notification consumer, DLT | [Lab 7](../../../hands-on/7/consumer/index.md) | `NotificationService.java`, `KafkaConfig.java` |
+    | SLOs and burn-rate alerts | [Lab 8](../../../hands-on/8/slo/index.md) | `slo-catalog.yaml` |
+    | Payment: timeout, retry, circuit breaker, idempotency | [Lab 9](../../../hands-on/9/patterns/index.md) | `PaymentClient.java`, `PaymentService.java` |
+    | Scale before 10:00 | [Lab 10](../../../hands-on/10/autoscaling/index.md) | `catalog-hpa.yaml` |
+    | Canary and the performance gate | [Lab 11](../../../hands-on/11/canary/index.md) | `catalog-rollout.yaml`, `load/budget.js` |
+    | Support assistant | [Lab 12](../../../hands-on/12/tools/index.md) | `agent.py`, `tools.py` |
 
 ---
 
@@ -323,7 +342,7 @@ Two fans click seat A-12-07 in the same millisecond. Exactly one must win. There
 
 The waiting room is **load shedding with good manners**: instead of letting 2 M requests hit the inventory and fail randomly, it turns the burst into a **steady, measured flow** and tells each fan where they stand.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     j["Fans join<br/>~17 k/s"] --> rq[("Queue<br/>sorted by<br/>random or arrival")]
     rq --> d{"Admitter<br/>every second"}
@@ -349,7 +368,7 @@ Design points:
 
 A payment provider answers in seconds, times out, and sometimes calls you back **before** your HTTP request returns. Model the order as a state machine whose transitions are idempotent ([integrations](../../compute/integrations/index.md), [payment system case](../payment-system/index.md)).
 
-``` mermaid-sim
+``` diagram-sim
 stateDiagram-v2
     [*] --> HELD: POST /holds
     HELD --> PENDING_PAYMENT: POST /orders (extend hold)
@@ -399,16 +418,16 @@ The two trade-offs to **say out loud**: **consistency over availability for the 
 
 ## 8. Try it in the playground
 
-The `flash-sale` scenario wires a waiting room (queue) in front of the inventory (SQL) and the payment provider, and replays a 10:00 spike.
+The `flash-sale` scenario replays the spike when the sale opens (our 10:00) on a design that starts **without** a waiting room: `users → lb → app → inventory-db`, with buyers calling the `payment provider` (quota 500 req/s). Its `load` profile already contains the spike — a scripted event multiplies the traffic by 20 at t = 60 s for 90 s.
 
 !!! tip "Try it"
 
-    1. Run the scenario with the **spike** profile and look at the SQL utilization, the queue backlog and the p99 of the checkout path.
-    2. Bypass the queue (connect the gateway straight to the inventory app) and run again: watch the database saturate and errors climb — this is the "no waiting room" number from section 2.
-    3. Restore the queue and change the number of workers/replicas behind it: find the admission rate where p99 stays under the SLO and the backlog still drains.
-    4. Turn chaos to **medium** to slow down the payment provider: what happens to in-flight requests (Little's Law), and what should the admitter do?
+    1. Run it as drawn and look at the utilization of `app` and `inventory-db` and at the error rate. Raise the `app` replicas: the database and the payment quota saturate next — this is the "no waiting room" case of section 2: no amount of app servers fixes it.
+    2. Follow the hints (or **Show a possible solution**): a CDN, a cache for the catalog reads, and an API Gateway that sends writes to a Message Queue — the waiting room — drained by `order` workers. Run again and compare p99, errors and the consumer lag (how long a buyer waits in line).
+    3. Change the number of `order` workers: find the admission rate where the consumer lag stays under the 300 s goal without pushing the payment provider past its quota.
+    4. Inject a latency degradation on the payment provider (⚡) or turn chaos to **medium**: what happens to the workers' in-flight requests (Little's Law) and to the line, and what should the admitter do?
 
-<div class="sdp" data-scenario="flash-sale" data-mode="full" data-height="640" data-profile="spike"></div>
+<div class="sdp" data-scenario="flash-sale" data-mode="full" data-height="640"></div>
 
 [Open the full playground](../../../../playground/index.md){ .md-button }
 
@@ -456,13 +475,21 @@ The `flash-sale` scenario wires a waiting room (queue) in front of the inventory
 
 **Related:** [Hands-on 6](../../../hands-on/6/index.md) (seat holds and transactions), [Hands-on 7](../../../hands-on/7/index.md) (outbox and waiting-room queue), [Hands-on 9](../../../hands-on/9/index.md) (resilience around payment), [team project](../../../exercises/project/index.md).
 
+!!! success "Best practices"
+
+    - **Make "one seat, one buyer" a database fact** — a conditional `UPDATE ... WHERE status = 'AVAILABLE'` or a lock, never a check in code followed by a write. In BoxOffice: [`HoldService.java`](../../../hands-on/6/holds/index.md) compares three strategies.
+    - **Expire holds with a job, not when someone reads them** — seats must return to sale even if nobody looks; lab 6 frees expired holds every 5 s with `FOR UPDATE SKIP LOCKED`, so several replicas can run it.
+    - **Set the admission rate from the measured knee, with margin** — admit below the throughput where p99 starts to climb, and lower it when the provider slows down.
+    - **Rehearse the on-sale before the on-sale** — a spike load test with the provider stubbed and a game day with faults ([lab 9](../../../hands-on/9/index.md), [lab 11](../../../hands-on/11/performance-gate/index.md)).
+    - **Cache the seat map for about a second, never the hold decision** — reads stay cheap; every decision goes to the source of truth.
+
 ---
 
 ## How it connects { #how-it-connects }
 
 Which classes does this case test? Each branch is a class whose ideas the design relies on (blue), with the palette components where they show up (green):
 
-``` mermaid
+``` diagram
 flowchart LR
     CASE(["Ticketing (BoxOffice)"]) --> PERF["Performance<br/>Little's Law admission, spike test"]:::tech
     CASE --> EDG["Edge<br/>CDN, WAF, waiting room"]:::tech

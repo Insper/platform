@@ -9,7 +9,7 @@ Um único estilo de API não serve aos quatro. Esta página compara as quatro fa
 
 ---
 
-## Uma API é um contrato
+## Uma API é um contrato { #an-api-is-a-contract }
 
 Uma **API** (Application Programming Interface) é o contrato entre um **provedor** (o serviço que a implementa) e seus **consumidores** (o código que a chama): quais operações existem, o que elas aceitam e o que devolvem — e nada sobre como são implementadas. Um contrato estável é o que permite ao time do `catalog` reescrever sua camada de persistência sem avisar ninguém, e o que permite ao time mobile publicar sem esperar o backend.
 
@@ -21,7 +21,7 @@ Três consequências orientam tudo o que vem a seguir:
 
 ---
 
-## Um recurso, quatro estilos
+## Um recurso, quatro estilos { #one-resource-four-styles }
 
 O recurso: um **evento** com sua **disponibilidade** (lugares restantes por setor). Veja como cada estilo expressa "me dê o evento `evt_42` com a disponibilidade".
 
@@ -180,11 +180,11 @@ O recurso: um **evento** com sua **disponibilidade** (lugares restantes por seto
 
 ---
 
-## REST na prática
+## REST na prática { #rest-in-practice }
 
 REST (Representational State Transfer) foi definido por Roy Fielding como um estilo arquitetural sobre a semântica do HTTP[^1][^2]. Na prática, "API REST" significa o **nível 2 de maturidade de Richardson**: recursos com URLs próprias, métodos HTTP e status codes corretos[^3].
 
-### Recursos e métodos do BoxOffice
+### Recursos e métodos do BoxOffice { #resources-and-methods-for-boxoffice }
 
 | Método + caminho | Significado | Seguro | Idempotente | Sucesso |
 |---|---|---|---|---|
@@ -198,7 +198,7 @@ REST (Representational State Transfer) foi definido por Roy Fielding como um est
 
 **Seguro** significa que a requisição não altera o estado do servidor (caches e crawlers podem chamá-la à vontade). **Idempotente** significa que executá-la duas vezes tem o mesmo *efeito* que executá-la uma vez, então é seguro repeti-la. `POST` não é nenhum dos dois — e é por isso que todo `POST` que cria estado envolvendo dinheiro no BoxOffice exige uma **chave de idempotência** ([integrações](../integrations/index.md#idempotency-keys)).
 
-### Status codes que carregam significado
+### Status codes que carregam significado { #status-codes-that-carry-meaning }
 
 | Código | Significado no BoxOffice | O cliente deve… |
 |---|---|---|
@@ -224,7 +224,7 @@ Erros merecem um **corpo uniforme**. A RFC 9457, *Problem Details for HTTP APIs*
 }
 ```
 
-### Paginação: offset vs cursor
+### Paginação: offset vs cursor { #pagination-offset-vs-cursor }
 
 | | Offset (`?page=3&size=20`) | Cursor / keyset (`?after=eyJpZCI6...&limit=20`) |
 |---|---|---|
@@ -236,12 +236,12 @@ Erros merecem um **corpo uniforme**. A RFC 9457, *Problem Details for HTTP APIs*
 
 O cursor é uma string opaca (muitas vezes o base64 da chave de ordenação da última linha) que o cliente devolve sem alterar.
 
-### Cache e operações longas
+### Cache e operações longas { #caching-and-long-running-operations }
 
 - **Requisições condicionais**: o `catalog` devolve `ETag: "v17"` e `Cache-Control: public, max-age=30`; um cliente que repete a requisição com `If-None-Match: "v17"` recebe `304 Not Modified` sem corpo. A CDN ([edge](../../edge/dns-cdn/index.md#cache-control)) faz o mesmo em escala — mais um motivo para manter as leituras como `GET`s cacheáveis.
 - **Operações longas**: nunca segure uma conexão por 30 s. Responda `202 Accepted` com um recurso de status em `Location: /v1/orders/ord_9`, e deixe o cliente consultá-lo ou receber um push. O checkout usa exatamente isso enquanto o provedor de pagamentos decide.
 
-### O contrato no código
+### O contrato no código { #the-contract-in-code }
 
 Com o **springdoc-openapi**, o documento OpenAPI é gerado a partir do controller anotado (*code-first*); alternativamente, o YAML é escrito primeiro e a interface do controller é gerada a partir dele (*contract-first*, por exemplo com o `openapi-generator`). Contract-first combina com APIs consumidas por parceiros; code-first é mais rápido para as internas.
 
@@ -269,11 +269,19 @@ class EventController {
 }
 ```
 
-O [hands-on 1](../../../hands-on/1/index.md) constrói este serviço e serve o documento em `/v3/api-docs` e a Swagger UI em `/swagger-ui.html`.
+O [hands-on 1](../../../hands-on/1/index.md) constrói uma versão mais simples deste controller (quadro abaixo).
+
+!!! example "No código do BoxOffice: o contrato do `catalog` (lab 1)"
+
+    O [Hands-on 1 — API](../../../hands-on/1/api/index.md) é code-first: o springdoc lê o controller e publica o documento OpenAPI sob o prefixo do próprio serviço, `/catalog/openapi` (Swagger UI em `/swagger-ui.html`), para que o documento passe pela borda e pelo gateway junto com a API que descreve. O `POST` responde `201` com um `Location`, e todo erro é `application/problem+json`. Compare com o ideal acima: ainda não há `/v1` (acrescente antes que um consumidor externo dependa desses caminhos), a paginação é por offset (`page`, `size` ≤ 50) sobre 200.000 eventos semeados, barata nas primeiras páginas e lenta nas profundas, e não há `ETag`: o lab barateia as leituras com o Redis ([lab 5](../../../hands-on/5/cache-aside/index.md)).
+
+    ``` { .java title="services/catalog/src/main/java/boxoffice/catalog/EventController.java (the contract, code-first)" }
+    --8<-- "docs/2027.1/hands-on/1/code/services/catalog/src/main/java/boxoffice/catalog/EventController.java:20:47"
+    ```
 
 ---
 
-## gRPC na prática
+## gRPC na prática { #grpc-in-practice }
 
 gRPC é um framework de RPC criado pelo Google, construído sobre **HTTP/2** e **Protocol Buffers**[^5]. O que você ganha:
 
@@ -293,7 +301,7 @@ E o que custa:
 
 ---
 
-## GraphQL na prática
+## GraphQL na prática { #graphql-in-practice }
 
 GraphQL é uma linguagem de consulta e um runtime para APIs[^6]. O cliente envia uma query descrevendo o formato dos dados que quer; os **resolvers** do servidor buscam cada campo, possivelmente em serviços diferentes.
 
@@ -312,7 +320,7 @@ Os problemas para os quais é preciso se planejar:
 
 ---
 
-## APIs assíncronas
+## APIs assíncronas { #asynchronous-apis }
 
 Nem toda interação é uma pergunta que precisa de resposta imediata. Os estilos assíncronos eliminam a espera de quem chama:
 
@@ -327,7 +335,7 @@ O contrato continua importando: schemas de eventos precisam da mesma disciplina 
 
 ---
 
-## Escolhendo um estilo
+## Escolhendo um estilo { #choosing-a-style }
 
 | | REST | gRPC | GraphQL | Assíncrono (eventos/filas) |
 |---|---|---|---|---|
@@ -340,7 +348,7 @@ O contrato continua importando: schemas de eventos precisam da mesma disciplina 
 | Acoplamento | requisição/resposta, temporal | requisição/resposta, temporal, geração de código | requisição/resposta, temporal | **nenhum no tempo**: consumidores podem estar fora do ar |
 | Melhor para | APIs públicas e de parceiros, CRUD, leituras cacheáveis | chamadas internas de alto QPS, serviços poliglotas, streaming | front-ends que compõem muitos serviços (BFF) | efeitos colaterais, fan-out, trabalho que pode esperar |
 
-``` mermaid
+``` diagram
 flowchart TD
     q1{"Quem chama precisa<br/>do resultado para continuar?"} -->|não| async["Assíncrono: evento ou fila<br/>(ou um webhook para um parceiro)"]
     q1 -->|sim| q2{"Quem é o consumidor?"}
@@ -355,7 +363,7 @@ Sistemas reais misturam todos eles. No BoxOffice: **REST** na borda pública e p
 
 ---
 
-## Evoluindo um contrato
+## Evoluindo um contrato { #evolving-a-contract }
 
 APIs mudam. A primeira pergunta diante de qualquer mudança é se ela é **incompatível** (*breaking*) — se um consumidor existente, sem alteração, deixaria de funcionar:
 
@@ -398,6 +406,14 @@ Depois, **expanda e contraia** (*parallel change*): publique a v2 ao lado da v1,
 
     Mencione **paginação** (cursor), **idempotência** nas escritas, **rate limits**, e diga *por que* escolheu o estilo ("REST na borda pela cacheabilidade e pelos parceiros; gRPC internamente entre order e inventory"). Entrevistadores percebem quando você sabe quais chamadas são repetidas e quais não podem duplicar.
 
+!!! success "Boas práticas"
+
+    - **Publique o contrato a partir do build e faça o CI falhar em mudanças incompatíveis** — gere o documento OpenAPI em todo build e compare com a última versão publicada (oasdiff, openapi-diff): um campo removido quebra o pipeline, não um consumidor. Na BoxOffice: o springdoc publica o documento em `/catalog/openapi` ([lab 1](../../../hands-on/1/api/index.md), quadro acima).
+    - **Limite toda coleção** — um tamanho de página padrão e um máximo, recusado com `400` acima do máximo. Na BoxOffice: `size` ≤ 50 no `GET /catalog/events` (lab 1).
+    - **Devolva um único formato de erro em todo lugar** — Problem Details da RFC 9457, com uma URI `type` estável na qual os clientes possam decidir, nunca uma mensagem de texto livre que eles precisem interpretar. Na BoxOffice: `spring.mvc.problemdetails.enabled: true` em todo serviço.
+    - **Prefira ids opacos e não sequenciais para recursos privados** — um id sequencial revela volume e convida à enumeração dos objetos de outros usuários. Na BoxOffice: as reservas usam UUIDs ([lab 6](../../../hands-on/6/holds/index.md)); os eventos públicos mantêm os ids do banco.
+    - **Descontinue com uma data e uma métrica** — anuncie com o cabeçalho `Sunset` (RFC 8594), conte as chamadas por versão e remova a versão antiga quando o tráfego dela chegar a zero, não quando o calendário mandar.
+
 !!! warning "Armadilhas comuns"
 
     - **Vazar a implementação**: devolver entidades, ids do banco ou nomes internos de enums que você nunca mais vai conseguir mudar.
@@ -412,7 +428,7 @@ Depois, **expanda e contraia** (*parallel change*): publique a v2 ao lado da v1,
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     CON["API = contrato<br/>OpenAPI, proto, schema"] --> REST["REST<br/>público, cacheável"]
     CON --> GRPC["gRPC<br/>interno, alto volume"]
@@ -428,12 +444,14 @@ flowchart LR
 
 **Componentes da paleta:** [`app`](../../../reference/components/compute/index.md#app) (todo serviço publica um contrato) · [`client`](../../../reference/components/client/index.md#client) · [`mobile`](../../../reference/components/client/index.md#mobile) (consumidores da API REST e do BFF GraphQL) · [`cdn`](../../../reference/components/edge/index.md#cdn) (cacheia os `GET`s cacheáveis) · [`queue`](../../../reference/components/messaging/index.md#queue) (comandos) · [`kafka`](../../../reference/components/messaging/index.md#kafka) (eventos como `OrderConfirmed`) · [`payment`](../../../reference/components/external/index.md#payment) (chama a BoxOffice de volta por webhook). **Cenários:** `event-fanout`, `payment-system`, `chat` (push do servidor). **Continua em:** [Borda — protocolos](../../edge/protocols/index.md), [Borda — API gateway](../../edge/api-gateway/index.md), [Mensageria — evolução de schema](../../messaging/semantics/index.md#schema-evolution), [Integrações — idempotency keys](../integrations/index.md#idempotency-keys), [Hands-on 1](../../../hands-on/1/index.md).
 
-## Principais conclusões
+## Pontos-chave { #key-takeaways }
 
-- Uma API é um **contrato**; descreva-o de forma legível por máquina (OpenAPI, `.proto`, schema GraphQL, AsyncAPI) e exponha DTOs, não entidades.
-- **REST** para APIs públicas e cacheáveis, **gRPC** para chamadas internas de alto volume, **GraphQL** para front-ends que compõem muitos serviços, **assíncrono** quando quem chama não precisa esperar — sistemas reais misturam todos.
-- Projete REST com métodos e status codes corretos, erros em **Problem Details**, **paginação por cursor**, headers de cache, `202` para operações longas e **chaves de idempotência** para escritas não seguras.
-- Evolua de forma compatível (leitores tolerantes, campos opcionais, nunca reutilizar tags protobuf, `@deprecated`); versione só para mudanças incompatíveis, depois expanda e contraia; pegue as quebras com **testes de contrato**.
+!!! takeaways ""
+
+    - Uma API é um **contrato**; descreva-o de forma legível por máquina (OpenAPI, `.proto`, schema GraphQL, AsyncAPI) e exponha DTOs, não entidades.
+    - **REST** para APIs públicas e cacheáveis, **gRPC** para chamadas internas de alto volume, **GraphQL** para front-ends que compõem muitos serviços, **assíncrono** quando quem chama não precisa esperar — sistemas reais misturam todos.
+    - Projete REST com métodos e status codes corretos, erros em **Problem Details**, **paginação por cursor**, headers de cache, `202` para operações longas e **chaves de idempotência** para escritas não seguras.
+    - Evolua de forma compatível (leitores tolerantes, campos opcionais, nunca reutilizar tags protobuf, `@deprecated`); versione só para mudanças incompatíveis, depois expanda e contraia; pegue as quebras com **testes de contrato**.
 
 ---
 

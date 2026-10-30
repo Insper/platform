@@ -10,7 +10,7 @@ As aulas e os labs mostram como as coisas funcionam; os exercícios fazem você 
     - **Mudar** uma arquitetura (cache, réplica, fila, autoscaler) e **provar** o efeito com um experimento de antes/depois.
     - **Comunicar** um design como um design doc com ADRs e defendê-lo oralmente.
 
-## Visão geral
+## Visão geral { #overview }
 
 | # | Exercício | O que treina | Aula / lab relacionados | Prazo | Peso | Entrega |
 |:-:|-|-|-|:-:|:-:|-|
@@ -18,7 +18,7 @@ As aulas e os labs mostram como as coisas funcionam; os exercícios fazem você 
 | 2 | [Relatório de teste de carga](load-test-report/index.md) | Campanha k6, percentis, o joelho, análise do gargalo | [Aula 2](../classes/estimation/index.md) · [Labs 2–3](../hands-on/2/index.md) | Semana 6 | 15% | Página + scripts k6 + resultados brutos |
 | 3 | [Cache e banco de dados](cache-db/index.md) | Cache-aside + réplica de leitura, antes/depois | [Aulas 6–7](../classes/caching/index.md) · [Labs 5–6](../hands-on/5/index.md) | Semana 8 | 15% | Página + código + medições |
 | 4 | [Orientado a eventos](event-driven/index.md) | Outbox transacional + consumidor idempotente + DLQ | [Aula 8](../classes/messaging/index.md) · [Lab 7](../hands-on/7/index.md) | Semana 10 | 15% | Página + código + demonstração de falhas |
-| 5 | [Autoscaling no Kubernetes](kubernetes-autoscaling/index.md) | Probes, requests/limits, HPA sob carga k6 | [Aula 12](../classes/cloud-native/index.md) · [Lab 10](../hands-on/10/index.md) | Semana 14 | 10% | Página + manifestos + vídeo |
+| 5 | [Autoscaling no Kubernetes](kubernetes-autoscaling/index.md) | Probes, requests/limits, HPA sob carga k6 | [Aula 11](../classes/cloud-native/index.md) · [Lab 10](../hands-on/10/index.md) | Semana 14 | 10% | Página + manifestos + vídeo |
 | 6 | [Design no playground](playground-design/index.md) | Compor componentes para atingir metas de SLO + custo, com aleatoriedade | [Playground](../../playground/index.md) · Aulas 4–13 | Semana 15 | 15% | JSON exportado + justificativa + relatórios das execuções |
 | 7 | [Design doc](design-doc/index.md) | Design escrito + ADRs para um problema de entrevista, defesa oral | [Aula 16](../classes/case-studies/index.md) · [Entrevista](../support/interview/index.md) | Semana 17 | 20% | Página do design doc + ADRs + defesa oral |
 | | [Projeto em equipe](project/index.md) | Construir, medir, quebrar e defender um sistema inteiro | Todas | Semanas 3–20 | — | Repositório + documentação + apresentação |
@@ -55,9 +55,9 @@ O conceito final de uma entrega é o nível que melhor descreve **a maioria** do
 
     Todo exercício lista os seus **requisitos** como uma checklist. Antes de entregar, marque cada item na sua própria cópia. Uma checklist com um item obrigatório desmarcado é o motivo mais comum de um D.
 
-## Regras gerais
+## Regras gerais { #general-rules }
 
-### Repositório e documentação
+### Repositório e documentação { #repository-and-documentation }
 
 - [ ] **Um repositório GitHub por aluno** para os exercícios individuais (público, ou privado com o professor e o assistente adicionados como colaboradores). Nome sugerido: `sysdesign-<seu-usuario-github>`.
 - [ ] **Documentação publicada no GitHub Pages**, feita com MkDocs Material ou Zensical — você pode partir do [template de documentação](https://hsandmann.github.io/documentation.template/){target="_blank"}. Uma página por exercício, com link a partir da página inicial, e o seu nome e usuário GitHub na página inicial.
@@ -78,17 +78,17 @@ Ferramentas de IA (assistentes de chat, assistentes de código, agentes) **são 
 
     **Qualquer** nota de exercício ou do projeto pode ser validada em uma verificação oral curta (5–10 minutos): explicar uma decisão, reexecutar um experimento, mudar um parâmetro e prever o resultado, ou percorrer um trecho de código. Se a verificação mostrar que você não consegue explicar a sua própria entrega, aquela nota vira **I**. O [design doc](design-doc/index.md) sempre tem defesa oral.
 
-### Política de atraso
+### Política de atraso { #late-policy }
 
 !!! warning "Política de atraso — a ser definida pelo professor"
 
     *Espaço reservado.* As regras para entregas atrasadas (período de tolerância, penalidade por dia, atraso máximo, verificações orais perdidas) serão anunciadas pelo professor no início do semestre e publicadas aqui.
 
-### Colaboração
+### Colaboração { #collaboration }
 
 Discutir ideias com colegas é incentivado; **compartilhar código, resultados ou texto dos exercícios individuais não é**. Se um colega te ajudou, diga isso na página (como faz com a IA). O trabalho em equipe acontece no [projeto](project/index.md), onde estão as regras das equipes.
 
-## Estrutura sugerida da página
+## Estrutura sugerida da página { #suggested-page-structure }
 
 Cada página de exercício na sua documentação deve ser fácil de avaliar. Use este esqueleto (cada exercício acrescenta o seu próprio template a ele):
 

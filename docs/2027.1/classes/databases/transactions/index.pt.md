@@ -4,7 +4,7 @@ Esta página explica por quê, usando o vocabulário que todo engenheiro de banc
 
 ---
 
-## ACID, na prática
+## ACID, na prática { #acid-concretely }
 
 Uma **transação** agrupa várias leituras e escritas numa única unidade lógica. As garantias clássicas são resumidas como **ACID**[^1]:
 
@@ -40,7 +40,7 @@ COMMIT;
 
 Agora intercale duas requisições:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant A as Alice (T1)
     participant DB as PostgreSQL
@@ -70,7 +70,7 @@ Se a tabela `tickets` tiver `PRIMARY KEY (event_id, seat_id)` (veja [Modelos de 
 
 ---
 
-## Níveis de isolamento e suas anomalias
+## Níveis de isolamento e suas anomalias { #isolation-levels-and-their-anomalies }
 
 Uma **anomalia** é um resultado que jamais aconteceria se as transações rodassem uma de cada vez (**serialmente**). Cada nível de isolamento mais fraco permite algumas delas em troca de mais concorrência[^2].
 
@@ -91,7 +91,7 @@ Os níveis, como implementados pelo **PostgreSQL** (outros bancos diferem — co
 | **Repeatable read** (snapshot isolation) | não | não | não | detectado → erro, nova tentativa | **possível** |
 | **Serializable** (serializable snapshot isolation) | não | não | não | não | não — aborta com o erro `40001`, nova tentativa |
 
-### Como os snapshots funcionam: MVCC
+### Como os snapshots funcionam: MVCC { #how-snapshots-work-mvcc }
 
 PostgreSQL, MySQL InnoDB, Oracle e a maioria dos motores modernos usam **controle de concorrência multiversão** (*multi-version concurrency control*, MVCC): um update grava uma *nova versão* da linha em vez de sobrescrevê-la, marcada com a transação que a criou. Cada transação lê de um **snapshot** — as versões confirmadas antes de ela começar (repeatable read) ou antes de cada comando começar (read committed).
 
@@ -102,7 +102,7 @@ PostgreSQL, MySQL InnoDB, Oracle e a maioria dos motores modernos usam **control
 
 A vantagem: **leitores nunca bloqueiam escritores, e escritores nunca bloqueiam leitores**. O custo: versões antigas se acumulam e precisam ser limpas (`VACUUM` no PostgreSQL), e dois escritores na *mesma linha* continuam serializados por um lock de linha.
 
-### Write skew: o limite de ingressos
+### Write skew: o limite de ingressos { #write-skew-the-ticket-limit }
 
 A BoxOffice permite no máximo 6 ingressos por cliente por evento. Alice já tem 4 reservados e abre duas abas do navegador, cada uma tentando reservar mais 2 assentos:
 
@@ -136,11 +136,11 @@ COMMIT;
 
 ---
 
-## Quatro maneiras de corrigir a venda dupla
+## Quatro maneiras de corrigir a venda dupla { #four-ways-to-fix-the-double-booking }
 
 As quatro funcionam em qualquer banco relacional de mercado em read committed, e é por isso que são preferidas a "basta subir o nível de isolamento".
 
-### 1. Update condicional atômico (compare-and-set)
+### 1. Update condicional atômico (compare-and-set) { #1-atomic-conditional-update-compare-and-set }
 
 Coloque a verificação *dentro* da escrita, para que verificar e agir sejam um único comando atômico:
 
@@ -155,7 +155,7 @@ WHERE event_id = 42 AND seat_id = 'A-12'
 
 Quando o `UPDATE` de Bob espera o lock de Alice e então executa, o PostgreSQL **reavalia a cláusula `WHERE` contra a nova versão da linha**: `status` agora é `HELD`, então 0 linhas são atualizadas. Uma ida e volta ao banco, nenhum lock explícito, nenhum laço de novas tentativas. Este é o padrão da BoxOffice.
 
-### 2. Lock pessimista: `SELECT … FOR UPDATE`
+### 2. Lock pessimista: `SELECT … FOR UPDATE` { #2-pessimistic-locking-select-for-update }
 
 Trave a linha ao lê-la, para que ninguém possa alterá-la até o seu commit:
 
@@ -186,7 +186,7 @@ FOR UPDATE SKIP LOCKED;
 
 Quando uma transação trava **várias** linhas (um grupo de 4 assentos), trave-as sempre **na mesma ordem** (por exemplo, `ORDER BY seat_id`). Caso contrário, T1 trava A-1 e espera A-2 enquanto T2 trava A-2 e espera A-1 — um **deadlock**; o banco mata uma delas.
 
-### 3. Lock otimista com coluna de versão
+### 3. Lock otimista com coluna de versão { #3-optimistic-locking-with-a-version-column }
 
 Não trave nada; detecte conflitos no momento da escrita com um contador `version`:
 
@@ -203,7 +203,7 @@ WHERE event_id = 42 AND seat_id = 'A-12' AND version = 7;
 
 O JPA/Hibernate faz isso automaticamente com um campo `@Version` e lança `OptimisticLockException`. Brilha quando os conflitos são **raros** (editar a descrição de um evento) e não segura nenhum lock durante o tempo em que o usuário pensa. É uma escolha ruim para uma flash sale, em que milhares de fãs colidem nas mesmas poucas linhas e a maioria das tentativas falha e é refeita.
 
-### 4. Deixe uma constraint decidir
+### 4. Deixe uma constraint decidir { #4-let-a-constraint-decide }
 
 Transforme a invariante numa **constraint de unicidade** e deixe o banco rejeitar o perdedor. Com uma tabela separada de reservas, uma reserva expirada pode até ser tomada atomicamente:
 
@@ -224,7 +224,7 @@ ON CONFLICT (event_id, seat_id) DO UPDATE
 -- 1 row → hold acquired; 0 rows → a live hold exists
 ```
 
-### Comparando as correções
+### Comparando as correções { #comparing-the-fixes }
 
 | Abordagem | Como os conflitos são resolvidos | Sob muita contenção | Idas e voltas | Melhor para |
 |---|---|---|---|---|
@@ -234,13 +234,21 @@ ON CONFLICT (event_id, seat_id) DO UPDATE
 | Constraint de unicidade / upsert | o perdedor recebe uma violação de constraint ou 0 linhas | bom | 1 | invariantes do tipo "no máximo um"; última linha de defesa |
 | Serializable + nova tentativa | o banco aborta uma das transações | os abortos crescem com a contenção | n + novas tentativas | invariantes complexas sobre muitas linhas |
 
+!!! example "No código do BoxOffice: três estratégias atrás de uma chave (lab 6)"
+
+    O [Hands-on 6 — Holds](../../../hands-on/6/holds/index.md) coloca três delas atrás de uma configuração, `INVENTORY_LOCKING`, e roda o mesmo teste de venda relâmpago contra cada uma (100 assentos, milhares de tentativas). `naive` é o [bug acima](#double-booking), verificar-e-agir; `pessimistic` é a correção 2, travando os assentos em `ORDER BY id` para que duas reservas sobrepostas não entrem em deadlock; `optimistic` é a correção 3, um compare-and-set de versão por assento. Numa execução num notebook ocupado, a auditoria encontrou **9 assentos vendidos em dobro** com `naive` e **0** com as outras duas, e `optimistic` teve o menor p99 de reserva (1,03 s contra 1,77 s do `pessimistic`). Isso não contradiz a tabela: quando o assento já foi, o conflito *é* a resposta (`409`, "ocupado"), então ninguém tenta de novo e ninguém espera por um lock. O lock otimista só degrada quando os perdedores tentam de novo as mesmas linhas.
+
+    ``` { .java title="services/inventory/src/main/java/boxoffice/inventory/HoldService.java (three strategies)" }
+    --8<-- "docs/2027.1/hands-on/6/code/services/inventory/src/main/java/boxoffice/inventory/HoldService.java:76:84,87:95,98:113"
+    ```
+
 ---
 
 ## Reservas de assento, de ponta a ponta { #seat-holds }
 
 Uma reserva é um **lease** (arrendamento): uma reivindicação temporária, que expira. O ciclo de vida do assento:
 
-``` mermaid-sim
+``` diagram-sim
 stateDiagram-v2
     [*] --> AVAILABLE
     AVAILABLE --> HELD: reserva (UPDATE condicional)
@@ -330,7 +338,7 @@ As lições:
 - **Mantenha as transações curtas.** Uma transação que chama o provedor de pagamento (de centenas de milissegundos a segundos) enquanto segura o lock de um assento multiplica o tempo de lock por 100. Reserve o assento, **faça commit**, chame o provedor *fora* de qualquer transação e depois confirme numa nova transação curta.
 - **Linhas de granularidade fina espalham a contenção.** Uma linha por assento significa que os fãs só colidem quando querem o *mesmo* assento.
 
-**Experimente.** O cenário `flash-sale` coloca uma sala de espera (fila) na frente do banco de inventário. Execute-o, depois remova a fila ou aumente a taxa de chegada e observe a utilização e a latência p99 do nó SQL: a fila existe justamente para manter o número de transações de reserva concorrentes abaixo do que o banco consegue atender.
+**Experimente.** O cenário `flash-sale` começa **sem** sala de espera: o `app` escreve direto no `inventory-db`. Execute-o e aumente as réplicas do `app` até ele deixar de ser o gargalo: quando a venda abre (t = 60 s) o `inventory-db` satura nas escritas (uma escrita custa a capacidade de 3 leituras) e o p99 explode. Depois abra no playground completo (↗) e aperte **Mostrar uma solução possível**: uma fila de sala de espera drenada por workers `order` mantém as escritas que chegam ao `inventory-db` — as transações de reserva concorrentes — abaixo do que o banco consegue atender. (O simulador modela capacidade, não locks: a contenção de linhas acima é a parte que você raciocina à mão.)
 
 <div class="sdp" data-scenario="flash-sale" data-mode="compact" data-height="520"></div>
 
@@ -362,6 +370,14 @@ A reserva vive no banco do `inventory`, o pedido no banco do `order` e o pagamen
     - Para fluxos entre serviços, diga **saga + outbox + chaves de idempotência**, não transações distribuídas.
     - Mencione a contenção: "uma única linha de contador limitaria a abertura das vendas a 1 / tempo-de-lock — eu evito isso".
 
+!!! success "Boas práticas"
+
+    - **Defina `lock_timeout` e `statement_timeout`** — uma reserva deve esperar por um lock no máximo um ou dois segundos e falhar com um erro claro, em vez de se acumular atrás de uma transação lenta; defina-os por papel (*role*) ou com `SET LOCAL` por transação.
+    - **Responda a uma corrida perdida com `409`, não `500`** — o perdedor de um conflito é um resultado normal, sobre o qual o cliente pode agir (escolher outros assentos). Na BoxOffice: o `requireAvailable` e o `UPDATE` otimista lançam `CONFLICT` ([lab 6](../../../hands-on/6/holds/index.md)).
+    - **Limite o tamanho de toda transação** — um número máximo de linhas por transação limita o tempo de lock. Na BoxOffice: no máximo 6 assentos por reserva (`max-seats-per-hold`), no máximo 500 reservas por varredura (`LIMIT 500`).
+    - **Audite a invariante continuamente** — uma consulta que conta as violações (assentos em duas reservas vivas), rodada depois de todo teste de carga e periodicamente em produção. Na BoxOffice: `GET /inventory/audit/double-bookings` (lab 6).
+    - **Alerte sobre transações velhas** — qualquer transação aberta há mais de uns 30 s (`now() - xact_start` no `pg_stat_activity`) segura locks e impede o vacuum de limpar versões antigas das linhas.
+
 !!! warning "Armadilhas comuns"
 
     - **Verificar na aplicação, agir no banco** — a venda dupla. Leve a verificação para a cláusula `WHERE` ou para uma constraint.
@@ -373,7 +389,7 @@ A reserva vive no banco do `inventory`, o pedido no banco do `order` e o pagamen
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     ACID["ACID"] --> ISO["níveis de isolamento<br/>snapshots MVCC"]
     ISO --> ANOM["anomalias: atualização perdida,<br/>write skew"]

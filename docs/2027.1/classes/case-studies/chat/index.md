@@ -186,7 +186,7 @@ seq:g-42           → 1043
 
 ## 5. High-level design
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     a([Alice phone]) --> lb["L4 load balancer<br/>long-lived TCP"]
     b([Bob desktop]) --> lb
@@ -205,7 +205,7 @@ flowchart LR
 
 Alice sends a message to Bob, who is online on another gateway:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     participant A as Alice (gw-031)
@@ -260,7 +260,7 @@ Timestamps from devices cannot order messages: clocks drift and two phones can d
 - **At-least-once + idempotency = exactly-once effect.** The device retries `send` until it gets an `ack` (the network may have lost either the request or the ack). The server deduplicates on `(conversation_id, client_msg_id)` and returns the same `seq` again ([delivery semantics](../../messaging/semantics/index.md)).
 - **The device displays by `seq`** and deduplicates by `msgId`; a gap (`seq 90` arrives before `89`) triggers a short wait or a `sync` for the missing range.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     participant A as Alice phone
@@ -372,13 +372,21 @@ The `chat` scenario has gateways holding WebSocket connections, a pub/sub layer 
 
 **Related:** [Protocols (WebSockets, SSE)](../../edge/protocols/index.md), [Messaging semantics](../../messaging/semantics/index.md), [Partitioning](../../databases/partitioning/index.md), [Notification system case](../notification-system/index.md), [Hands-on 7](../../../hands-on/7/index.md).
 
+!!! success "Best practices"
+
+    - **Order messages per conversation, with a sequence assigned by the server** — a global order is neither needed nor affordable; per-conversation order is what users see.
+    - **Deduplicate by a client message id** — a client that retries after a reconnect must not post the same message twice.
+    - **Drain gateways gradually on deploy** — ask clients to reconnect over a window of minutes; closing every socket at once is a reconnect storm.
+    - **Expire presence with heartbeats and a TTL** — a dropped connection never sends "goodbye"; without a TTL, users stay online forever.
+    - **Scale gateways on open connections, not on CPU** — connections are the resource that runs out first in an idle chat.
+
 ---
 
 ## How it connects { #how-it-connects }
 
 Which classes does this case test? Each branch is a class whose ideas the design relies on (blue), with the palette components where they show up (green):
 
-``` mermaid
+``` diagram
 flowchart LR
     CASE(["Chat"]) --> EDG["Edge<br/>WebSockets, L4 LB, stateful gateways"]:::tech
     CASE --> MSG["Messaging<br/>pub/sub per gateway, at-least-once"]:::tech

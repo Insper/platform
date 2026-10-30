@@ -1,4 +1,4 @@
-# Glossário
+# Glossário { #glossary }
 
 O vocabulário de system design, de A a Z: sistemas distribuídos, dados, cache, mensageria, confiabilidade, observabilidade, redes, segurança, plataformas cloud-native e sistemas de IA. Cada entrada traz o termo em inglês (como ele aparece na documentação, nos artigos e nas entrevistas), o equivalente em português usado no Brasil, uma definição de uma ou duas frases e, quando existe, um link para a aula ou para a entrada do [catálogo de componentes](../components/index.md) em que a ideia é ensinada a fundo.
 
@@ -73,7 +73,7 @@ O vocabulário de system design, de A a Z: sistemas distribuídos, dados, cache,
 
 - **Edge computing** (*computação na borda*) — Rodar código nos pontos da CDN, perto dos usuários, para redirecionamentos, verificação de autenticação, personalização ou testes A/B. → [Borda › DNS e CDN](../../classes/edge/dns-cdn/index.md)
 - **Embedding** (*mesmo termo*) — Um vetor de números que representa o significado de um texto, imagem ou item, de modo que coisas parecidas tenham vetores próximos. → [Catálogo › Vector DB](../components/storage/index.md#vectordb)
-- **Error budget** (*orçamento de erros*) — A quantidade de falta de confiabilidade que um SLO permite (100% − SLO), gasta com lançamentos e experimentos; quando acaba, o trabalho de confiabilidade vem primeiro. → [Confiabilidade › SLOs](../../classes/reliability/slo/index.md)
+- **Error budget** (*orçamento de erros*) — A quantidade de falta de confiabilidade que um SLO permite (100% − SLO), gasta com lançamentos e experimentos; quando acaba, o trabalho de confiabilidade vem primeiro. → [Observabilidade › SLOs](../../classes/observability/slo/index.md)
 - **ETL / ELT** (*mesmo termo*) — Extrair-Transformar-Carregar (transformar antes de carregar) ou Extrair-Carregar-Transformar (carregar os dados brutos e transformar dentro do warehouse). → [Bancos de dados › Armazenamentos especializados](../../classes/databases/specialized/index.md)
 - **Event-driven architecture** (*arquitetura orientada a eventos*) — Serviços se comunicam publicando e reagindo a eventos em vez de chamar uns aos outros diretamente, o que os desacopla no tempo. → [Mensageria](../../classes/messaging/index.md)
 - **Event sourcing** (*mesmo termo*) — Guardar a sequência de eventos que mudaram uma entidade como fonte da verdade e derivar o estado atual reproduzindo-os. → [Mensageria › Padrões](../../classes/messaging/patterns/index.md)
@@ -124,7 +124,7 @@ O vocabulário de system design, de A a Z: sistemas distribuídos, dados, cache,
 ## J
 
 - **Jitter** (*mesmo termo*) — Aleatoriedade acrescentada aos atrasos de retry ou a temporizadores para que muitos clientes não ajam em sincronia e sobrecarreguem um serviço juntos. → [Confiabilidade › Padrões](../../classes/reliability/patterns/index.md)
-- **JWT (JSON Web Token)** (*mesmo termo*) — Um token assinado com claims (usuário, escopos, expiração) que os serviços podem verificar localmente, sem chamar o emissor. → [Rede e segurança › Identidade](../../classes/network-security/identity/index.md)
+- **JWT (JSON Web Token)** (*mesmo termo*) — Um token assinado com claims (usuário, escopos, expiração) que os serviços podem verificar localmente, sem chamar o emissor. → [Rede e segurança › Identidade](../../classes/edge/identity/index.md)
 
 ## K
 
@@ -174,7 +174,7 @@ O vocabulário de system design, de A a Z: sistemas distribuídos, dados, cache,
 
 ## O
 
-- **OAuth 2 / OIDC** (*mesmo termo*) — O OAuth 2 delega autorização com tokens de acesso; o OpenID Connect acrescenta autenticação (quem é o usuário) por cima dele. → [Rede e segurança › Identidade](../../classes/network-security/identity/index.md)
+- **OAuth 2 / OIDC** (*mesmo termo*) — O OAuth 2 delega autorização com tokens de acesso; o OpenID Connect acrescenta autenticação (quem é o usuário) por cima dele. → [Rede e segurança › Identidade](../../classes/edge/identity/index.md)
 - **Object storage** (*armazenamento de objetos*) — Armazenamento de blobs imutáveis por chave via HTTP (S3 e similares), barato e extremamente durável; a origem para mídia. → [Catálogo › Object Store](../components/storage/index.md#objstore)
 - **Observability** (*observabilidade*) — A capacidade de entender o estado interno de um sistema a partir dos sinais que ele emite: métricas, logs, traces e perfis. → [Observabilidade](../../classes/observability/index.md)
 - **OLTP / OLAP** (*mesmo termo*) — Processamento de transações online (muitas leituras e escritas pequenas sobre dados atuais) vs processamento analítico online (grandes varreduras e agregações sobre o histórico). → [Bancos de dados › Armazenamentos especializados](../../classes/databases/specialized/index.md)
@@ -230,7 +230,7 @@ O vocabulário de system design, de A a Z: sistemas distribuídos, dados, cache,
 - **Service discovery** (*descoberta de serviços*) — Como um serviço encontra os endereços atuais de outro (DNS, um registro, Services do Kubernetes). → [Cloud-native › Kubernetes](../../classes/cloud-native/kubernetes/index.md)
 - **Service mesh** (*mesmo termo*) — Uma camada de proxies ao lado de cada serviço que oferece mTLS, retries, timeouts, divisão de tráfego e telemetria sem mudar o código. → [Catálogo › Service Mesh](../components/network/index.md#mesh)
 - **Single point of failure (SPOF)** (*ponto único de falha*) — Um componente cuja falha para o sistema inteiro; eliminado com redundância. → [Estimativas › Matemática da disponibilidade](../../classes/estimation/availability-math/index.md)
-- **SLI / SLO / SLA** (*mesmo termo*) — Indicador (o que se mede), objetivo (a meta, por exemplo 99,9% em 28 dias) e acordo (um contrato com multas). → [Confiabilidade › SLOs](../../classes/reliability/slo/index.md)
+- **SLI / SLO / SLA** (*mesmo termo*) — Indicador (o que se mede), objetivo (a meta, por exemplo 99,9% em 28 dias) e acordo (um contrato com multas). → [Observabilidade › SLOs](../../classes/observability/slo/index.md)
 - **Snapshot isolation** (*isolamento por snapshot*) — Cada transação lê de um retrato consistente do banco; evita a maioria das anomalias, mas permite write skew. → [Bancos de dados › Transações](../../classes/databases/transactions/index.md)
 - **Soak / spike / stress test** (*testes de soak / spike / stress*) — Testes de carga que mantêm a carga por horas (soak), saltam de repente (spike) ou aumentam até o sistema quebrar (stress). → [Desempenho › Testes de carga](../../classes/performance/load-testing/index.md)
 - **SSE (Server-Sent Events)** (*mesmo termo*) — Um fluxo unidirecional de eventos do servidor para o cliente sobre uma resposta HTTP de longa duração; usado para atualizações ao vivo e tokens de LLM. → [Borda › Protocolos](../../classes/edge/protocols/index.md)

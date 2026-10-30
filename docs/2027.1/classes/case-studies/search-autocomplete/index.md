@@ -168,7 +168,7 @@ CREATE TABLE query_counts_daily (
 
 ## 5. High-level design
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     u([Browser / app]) --> cdn["CDN<br/>short prefixes, 60 s"]
     cdn --> gw["API gateway"]
@@ -186,7 +186,7 @@ flowchart LR
 
 One keystroke, from typing to suggestions:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     participant U as Browser
@@ -280,7 +280,7 @@ The price is memory (k entries per node, most of them repeated along a path) and
 
 ### 6.2 The data pipeline: from logs to snapshots
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     logs[["Search events<br/>stream"]] --> raw[("Raw logs<br/>object store")]
     raw --> agg["Daily aggregation<br/>count per normalized query"]
@@ -387,13 +387,21 @@ The `search-autocomplete` scenario puts a search service behind a cache, with a 
 
 **Related:** [Specialized data stores](../../databases/specialized/index.md), [Caching patterns](../../caching/patterns/index.md), [DNS & CDN](../../edge/dns-cdn/index.md), [Kafka and streams](../../messaging/kafka/index.md), [Hands-on 5](../../../hands-on/5/index.md) (caching).
 
+!!! success "Best practices"
+
+    - **Debounce on the client and cancel stale requests** — about 100 ms of debounce removes most keystroke requests, and a cancelled request is one the server never serves.
+    - **Build the index offline and swap it atomically** — the serving nodes only read; a bad build is rolled back by pointing to the previous version.
+    - **Cache short prefixes at the CDN with a short TTL** — one- and two-letter prefixes are the same for everyone and the most requested.
+    - **Filter suggestions through a blocklist before they are published** — an offensive or legally sensitive suggestion is an incident even if a million users typed it.
+    - **Keep a latency budget per keystroke, e.g. p99 < 100 ms** — a suggestion that arrives after the next letter is useless.
+
 ---
 
 ## How it connects { #how-it-connects }
 
 Which classes does this case test? Each branch is a class whose ideas the design relies on (blue), with the palette components where they show up (green):
 
-``` mermaid
+``` diagram
 flowchart LR
     CASE(["Search autocomplete"]) --> EST["Estimation<br/>keystrokes, debouncing"]:::tech
     CASE --> EDG["Edge<br/>CDN for short prefixes"]:::tech

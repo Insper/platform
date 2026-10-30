@@ -12,7 +12,7 @@ In the playground, `vpc` and `subnet` are **group frames** (rectangles you draw 
 | [VPN](#vpn) | An encrypted tunnel between networks (office, data center, another cloud) | `vpn` |
 | [Service Mesh](#mesh) | Proxies next to every service: mTLS, retries, timeouts, traffic split, telemetry | `mesh` |
 
-``` mermaid
+``` diagram
 flowchart LR
     U[Internet users] --> IGW[Internet gateway]
     subgraph VPC["VPC 10.0.0.0/16 (one region)"]

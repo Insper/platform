@@ -17,7 +17,7 @@ Throughout the page the example is the BoxOffice `catalog` service: `GET /events
 
 **Cache-aside** (also called *lazy loading*) is the default pattern and the one you should assume unless there is a reason not to. The application talks to both the cache and the database; the cache is a passive key-value store that knows nothing about the database[^1].
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant A as catalog service
     participant R as Redis
@@ -48,7 +48,7 @@ Its costs:
 
 ### Cache-aside in Spring Boot
 
-Spring's cache abstraction implements cache-aside with annotations: `@Cacheable` wraps the read path, `@CacheEvict` the delete on write. This is the setup used in [Hands-on 5](../../../hands-on/5/index.md).
+Spring's cache abstraction implements cache-aside with annotations: `@Cacheable` wraps the read path, `@CacheEvict` the delete on write. It is the shortest way to write the pattern in a Spring service; [Hands-on 5](../../../hands-on/5/index.md) writes it by hand instead, so that each step can be seen and measured (box below).
 
 ```java title="catalog/src/main/java/boxoffice/catalog/EventService.java"
 @Service
@@ -105,6 +105,16 @@ public class CacheConfig {
 
     By default `@CacheEvict` runs **after** the method returns — but `@Transactional` may commit even later, when the proxy chain unwinds. If the eviction happens *before* the commit, a concurrent reader can miss, read the **old** row (still uncommitted change), and put it back in the cache. Make sure the delete happens after the commit: order the proxies so the transaction commits first, use `TransactionAwareCacheManagerProxy` (or `RedisCacheManager.builder(...).transactionAware()`), or evict in an `@TransactionalEventListener(phase = AFTER_COMMIT)`.
 
+!!! example "In the BoxOffice code: cache-aside in `catalog` (lab 5)"
+
+    [Hands-on 5 — Cache-aside](../../../hands-on/5/cache-aside/index.md) implements the pattern without annotations, so the decisions are explicit: read Redis first; on a miss, load from PostgreSQL and store the exact JSON returned to the client, with the TTL plus up to 10% of jitter; if Redis fails, log and treat it as a miss — **the cache is an optimization, not a dependency**. Every response carries the outcome (`HIT`, `MISS`, `BYPASS`) in an `X-Cache` header and a counter, which is how the lab measures the hit ratio.
+
+    ``` { .java title="services/catalog/src/main/java/boxoffice/catalog/EventCache.java (get and load)" }
+    --8<-- "docs/2027.1/hands-on/5/code/services/catalog/src/main/java/boxoffice/catalog/EventCache.java:54:61,86:87,99:117"
+    ```
+
+    The write path is in `EventController.java`: `service.updateEvent(...)` commits, and only then `cache.evict(eventKey(id))` deletes the key — *write first, then delete*, the order explained in [Invalidation](../invalidation/index.md#delete-vs-update).
+
 ### Cache-aside by hand (Python)
 
 Without a framework, the pattern is a dozen lines. This is what `@Cacheable` does behind the scenes:
@@ -139,7 +149,7 @@ def update_event(event_id: int, change: dict, db) -> None:
 
 In **read-through**, the application only talks to the cache. On a miss, *the cache itself* loads the value from the database, using a loader function you register. The logic moves from the application into the cache layer.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant A as catalog service
     participant C as Cache with loader
@@ -171,7 +181,7 @@ A useful property: a good read-through cache **coalesces** concurrent misses on 
 
 In **write-through**, every write goes to the cache *and* to the database as part of the same operation, before the client gets an answer. The cache is always warm with the latest value for every key written.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant A as catalog service
     participant C as Cache
@@ -193,7 +203,7 @@ Write-through fits data that is read soon after it is written: a user's profile 
 
 **Write-behind** (or *write-back*) acknowledges the write as soon as the cache has it and persists to the database **later**, asynchronously, often in batches.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant A as service
     participant C as Cache
@@ -232,7 +242,7 @@ This is what cache-aside does on the write path, and it is the right choice when
 
 **Refresh-ahead** reloads a hot entry **before** it expires, so readers never see the miss. A background task (or the first reader after a threshold, e.g. when 80% of the TTL has passed) fetches the fresh value while the current one is still served.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant A as Reader
     participant C as Cache
@@ -263,6 +273,11 @@ Caffeine implements it with `refreshAfterWrite`; the probabilistic version, whic
 | **BoxOffice use** | event details, search results | venue geometry (Caffeine) | organizer's own dashboard | view counters, "N people viewing" | tickets, order history | today's on-sale events |
 
 In practice, systems **combine** them: cache-aside + write-around (delete on write) is the common baseline; refresh-ahead is added for the few hottest keys; write-behind is reserved for counters.
+
+<div class="csim" data-sim="cache" data-size="500" data-strategy="aside"></div>
+
+!!! tip "Try it"
+    The TTL starts at 60 s, the `CACHE_TTL_EVENT` of [Hands-on 5](../../../hands-on/5/cache-aside/index.md). Press play and let the cache warm up: after a minute the hit ratio settles around 86% and the database takes about 29 of the 200 reads/s, with no stale read, because each edit deletes its key. Switch to **TTL only**: orange cells appear on the hot events, and about 11% of the reads return an event older than the database (with a 10 s TTL, about 2%, but the hit ratio drops to 79%: the TTL trades freshness for load). **Write-through** is as fresh as deleting the key and skips the miss after each edit. Shrink the cache to 100 keys: LRU evicts part of the hot set, and the hit ratio falls to about 58% (85 database reads/s).
 
 ---
 
@@ -301,7 +316,7 @@ boxoffice:session:9f1c2e...                   # a session
 
 Each replica of the `catalog` service can keep a small **in-process cache (L1)** in front of the shared **Redis (L2)**:
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     REQ["request"] --> L1["L1: Caffeine<br/>in the JVM, ~1 µs"]
     L1 -->|"miss"| L2[("L2: Redis<br/>shared, ~0.5 ms")]
@@ -328,6 +343,14 @@ flowchart LR
 
     Name the pattern and the invalidation in one breath: "cache-aside on Redis for event details, TTL 5 minutes, delete on write after commit, and a 2-second in-process L1 for the hottest events during an on-sale". Then show that you know the costs: the miss penalty, the staleness window and the race that TTL bounds. If the interviewer pushes on consistency, say what you do **not** cache and why.
 
+!!! success "Best practices"
+
+    - **Start with cache-aside**; move to another pattern only when a requirement asks for it (read-through to share the loader, write-through when reads must see the last write, write-behind only for data you can lose).
+    - **Cache the DTO or the exact response**, not the entity: a hit then costs no query and no serialization. In BoxOffice: `catalog` stores the JSON it returns ([box above](#cache-aside)).
+    - **Design keys on purpose**: a namespace, every dimension the answer depends on (language, currency, page), and a version suffix you can bump on a format change (`boxoffice:catalog:event:42:v3`).
+    - **Commit, then delete the key** — after the transaction, never inside it.
+    - **Cache negative answers briefly** (a missing id for a few seconds), so repeated misses do not reach the database.
+
 !!! warning "Common pitfalls"
 
     - **Updating the cache on write** instead of deleting: two concurrent writers can leave the older value in the cache forever (see [Invalidation](../invalidation/index.md#delete-vs-update)).
@@ -339,7 +362,7 @@ flowchart LR
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     CA["cache-aside<br/>the app fills on a miss"] --> INV["delete after commit<br/>→ Invalidation"]
     RT["read-through<br/>the cache library loads"] --> INV

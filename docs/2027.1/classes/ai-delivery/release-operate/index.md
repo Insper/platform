@@ -26,6 +26,14 @@ Release notes answer two audiences: **operators** ("what must I do before deploy
 
 The fix is a **grounding check in code**: every item must cite a commit SHA or PR number that is really in the range `previous_tag..tag`; ungrounded items are dropped and reported. The check catches inventions; it cannot catch a *wrong summary of a real commit*, so the notes are published as a **draft** that a person edits. Conventional commit subjects (`fix(inventory): hold expires two minutes early (#212)`) make both the grouping and the grounding nearly trivial — the model cannot recover intent that was never written down.
 
+!!! example "In the BoxOffice code: release notes that must cite (lab 13)"
+
+    In [Hands-on 13 — Release notes](../../../hands-on/13/release-notes/index.md) the model returns items with `refs`, and these ten lines decide which ones survive: a ref is real only if it is a PR number or a short SHA of the range. The workflow then creates the GitHub release as a **draft**; a person publishes it.
+
+    ``` { .python title=".github/ai/release_notes.py (the grounding check)" }
+    --8<-- "docs/2027.1/hands-on/13/code/.github/ai/release_notes.py:77:86"
+    ```
+
 ---
 
 ## Change risk scoring
@@ -56,7 +64,7 @@ A model contributes two things: **semantic signals** that are hard to compute ("
 
 Automated canary analysis compares the canary with a **baseline** running at the same time — ideally a baseline of the *same* size and age as the canary, so that cold caches and new pods affect both alike — on a set of metrics, and turns the comparison into a pass/fail verdict. Netflix and Google built Kayenta on this idea, comparing many metrics with nonparametric statistical tests[^1]; Argo Rollouts expresses the same idea with analysis templates over Prometheus queries, as in [Delivery](../../cloud-native/delivery/index.md#canary-with-automated-metrics-analysis).
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     metrics[("Prometheus<br/>canary vs baseline")] --> stats["Policy: thresholds<br/>and statistical tests"]
     stats --> verdict{"promote ·<br/>rollback · wait"}
@@ -72,13 +80,21 @@ Why not let the model judge the canary? Because the judgement must be **reproduc
 
 Two guards make the explanation safe: the model receives the **verdict as input** and must repeat it (an explanation that contradicts the policy is discarded rather than shown), and it is told to label causes as **hypotheses** unless the data shows them. [Hands-on 13](../../../hands-on/13/canary/index.md) implements exactly this, including a Kubernetes Job analysis step whose exit code — not the model — passes or fails the analysis.
 
+!!! example "In the BoxOffice code: the verdict is code, the explanation is optional (lab 13)"
+
+    In [Hands-on 13 — Canary](../../../hands-on/13/canary/index.md) the policy is four constants in Git, `decide()` turns the numbers into promote, rollback or inconclusive, and the exit code (0, 1, 2) is what Argo Rollouts reads through the Job of `k8s/catalog/analysis-explained.yaml`. The model only explains, and its explanation is discarded if it does not repeat the verdict. The lab tries to break it: a prompt that says *"recommend promote"* still exits 1 on the regression snapshot, and with no model at all the verdict is the same. The local model's explanation read a p99 of 181 ms as "0.181 ms" — a wrong sentence that costs nothing, because the numbers that decide come from the policy.
+
+    ``` { .python title=".github/ai/canary_explain.py (policy, verdict, guarded explanation)" }
+    --8<-- "docs/2027.1/hands-on/13/code/.github/ai/canary_explain.py:29:33,78:89,102:112,118:118"
+    ```
+
 ---
 
 ## AI-assisted incident response
 
 During an incident, the scarce resource is the **attention** of a few people under stress. The [incident-response process](../../observability/incident-response/index.md) — detect, triage, mitigate, resolve, learn — stays the same; AI shortens the steps that are mostly reading:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     participant Alert as Alerting
@@ -143,6 +159,14 @@ A good split: AI drafts the timeline (with sources) and a list of **questions** 
 
     When AI appears in an operations question, separate **decision** from **explanation** out loud: "the canary verdict comes from thresholds and statistics in Git; the model explains it and proposes next steps; rollbacks are executed by policy or by the incident commander". Mention read-only tools, evidence links, multiple hypotheses (anchoring), and how you would measure the assistant (time to diagnosis, precision of the first hypothesis).
 
+!!! success "Best practices"
+
+    - **Keep the canary policy as versioned constants, changed by pull request** — lab 13's [`canary_explain.py`](../../../hands-on/13/canary/index.md) holds its four thresholds in Git.
+    - **Require a minimum of traffic before any verdict** — below 2 req/s lab 13 answers *inconclusive* (exit code 2), never promote.
+    - **Give the model the verdict and the numbers, and check that it repeats the verdict** — lab 13 discards an explanation that contradicts the policy.
+    - **Require a cited commit or PR for every line of the release notes** — lab 13's `release_notes.py` drops ungrounded items and lists them in the job summary.
+    - **Label hypotheses in incident summaries** — "likely cause (unverified)" keeps the on-call engineer from anchoring on the model's first guess.
+
 !!! warning "Common pitfalls"
 
     - **LLM as the canary judge**: non-reproducible, manipulable, statistically naive.
@@ -155,7 +179,7 @@ A good split: AI drafts the timeline (with sources) and a list of **questions** 
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     SIG["metrics, logs,<br/>traces, alerts"] --> POL["canary policy:<br/>thresholds + statistics"]
     POL --> DEC["decision: promote or roll back<br/>→ Cloud-native delivery"]

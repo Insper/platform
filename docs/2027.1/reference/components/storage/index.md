@@ -14,7 +14,7 @@ In BoxOffice, the seat inventory and the orders live in PostgreSQL (the truth, w
 | [Data Warehouse](#dwh) | Columnar analytical store for large scans and aggregations (OLAP) | `dwh` |
 | [Vector DB](#vectordb) | Stores embeddings and finds the nearest ones (similarity search) | `vectordb` |
 
-``` mermaid
+``` diagram
 flowchart LR
     APP[App Server] -->|hot reads| CACHE[Cache]
     APP -->|truth: seats, orders| SQL[SQL Database]

@@ -49,6 +49,7 @@ Click the slides and use ← → to move through them; **F** goes full screen an
 
 !!! info "Theory connection"
 
+    - In the [story of the course](../../index.md#story), this lab closes chapter 2 and opens chapter 3: it replaces the *assumed* service time of the class's [capacity check](../../classes/estimation/index.md) with a *measured* knee, and shows that one instance leaves its latency target at a few hundred requests per second — far from the on-sale's demand, so BoxOffice needs [more machines](../../classes/distributed/index.md).
     - Class 2, [Estimation](../../classes/estimation/index.md): [queueing and Little's Law](../../classes/estimation/queueing/index.md), [percentiles and tail latency](../../classes/estimation/percentiles/index.md).
     - Class 15, [Performance engineering](../../classes/performance/index.md): [load-test types](../../classes/performance/load-testing/index.md), [finding bottlenecks](../../classes/performance/bottlenecks/index.md).
 
@@ -113,7 +114,7 @@ k6 sees the service from the outside. To find *why* latency grows you need gauge
 
 Keep three terminals open during every test: k6, `bash scripts/watch-metrics.sh`, and `docker stats` (CPU of `catalog` and `db`).
 
-You should see one line per second. At rest `busy_threads` is 1 (the request that reads the metric); under load it follows Little's Law, and at overload the pool fills up (lines from a run for this lab, at 50, 400 and 600 req/s):
+You should see one line per second (at overload, one every few seconds: the request that reads the metrics waits for a free Tomcat thread too). At rest `busy_threads` is 1 (the request that reads the metric); under load it follows Little's Law, and at overload the pool fills up (lines from a run for this lab, at 50, 400 and 600 req/s):
 
 ``` { .text }
 time      busy_threads  db_active  db_pending
@@ -140,7 +141,7 @@ bash scripts/sweep.sh 50 100 200 300 400 500 600
 uv run scripts/summarize.py results/lab2/rate-*.json
 ```
 
-`sweep.sh` prints one line per step (`>>> warm-up: 30 s at RATE=50 (not recorded)`, then `>>> RATE=50 req/s for 1m`, …) and takes about 10 minutes for seven rates. `summarize.py` then prints a Markdown table like the one below — paste it into `results/lab2.md`.
+`sweep.sh` prints one line per step (`>>> warm-up: 30 s at RATE=50 (not recorded)`, then `>>> RATE=50 req/s for 1m`, …) and takes about 10 minutes for seven rates. Steps past the knee also print `level=error msg="thresholds on metrics ... have been crossed"`: the latency thresholds of `load.js` failed, which is expected there — the summary is saved anyway. `summarize.py` then prints a Markdown table like the one below — paste it into `results/lab2.md`.
 
 An example run on a laptop (catalog limited to 1 CPU, pool of 10 connections):
 
@@ -197,6 +198,7 @@ Compare the two tables. Typically the knee moves **up**, but not forever: with 3
 ## 7. Stress: past the knee and back
 
 ``` { .bash .copy }
+docker compose up -d catalog       # back to the default pool (10): PEAK=600 is past its knee
 K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_EXPORT=results/lab2-stress.html \
   k6 run -e PEAK=600 load/stress.js
 ```
@@ -250,12 +252,20 @@ Setup: catalog 1 CPU / 768 MB, Hikari pool = 10, PostgreSQL 17, k6 open model (8
 | Symptom | Cause | Fix |
 |---|---|---|
 | every request fails with `connection refused` | the stack is not running, or `BASE_URL` points elsewhere | `docker compose ps`; in lab 2 the target is `http://localhost:8082` (the default) |
-| `WARN Insufficient VUs, reached 200 active VUs` | the arrival rate needs more concurrent requests than `maxVUs` | expected past the knee; the run is still valid — note `dropped_iterations` |
+| `level=warning msg="Insufficient VUs, reached 2000 active VUs and cannot initialize more"` | the arrival rate needs more concurrent requests than `maxVUs` | expected past the knee; the run is still valid — note `dropped_iterations` |
 | `summarize.py` prints only the header | no JSON matched the glob (wrong `OUT` folder) | `ls results/lab2/`; pass the same folder you gave to `sweep.sh` |
 | `watch-metrics.sh` prints `?` | `jq` missing, or `catalog` not reachable on 8082 | install `jq`; `curl localhost:8082/actuator/metrics` must list `tomcat.threads.busy` |
 | `uv: command not found` | uv not installed | lab 0, step 1 — or run `python3 scripts/summarize.py …` (it only uses the standard library) |
 | the first point of a sweep is worse than the next ones | cold JVM | `sweep.sh` already warms up; repeat the run if your machine was busy |
 | numbers vary a lot between two identical runs | background load (browser, IDE, other containers) | close what you can, stop unrelated containers (`docker ps`), run twice and keep the second |
+
+!!! success "Best practices in this lab"
+
+    - **Load-test with an open workload model** — `load/load.js` uses `constant-arrival-rate`, so a slow service cannot quietly lower the load it receives ([Percentiles — measuring honestly](../../classes/estimation/percentiles/index.md)).
+    - **Warm up, then sweep, with a pause between steps** — `scripts/sweep.sh` discards a 30 s warm-up and sleeps 10 s between rates, so a cold JVM or a leftover queue does not spoil a point ([Queueing — the knee](../../classes/estimation/queueing/index.md)).
+    - **Watch the inside while you load the outside** — `scripts/watch-metrics.sh` prints busy threads and pending connections, the evidence that names the bottleneck ([Little's Law](../../classes/estimation/queueing/index.md)).
+    - **Change one variable and measure again** — only `DB_POOL_SIZE` changes between the two sweeps ([Estimation — the method](../../classes/estimation/index.md)).
+    - **State capacity as the highest rate within the latency target** — not the highest throughput ever printed; `results/lab2.md` records the knee and the capacity ([Percentiles](../../classes/estimation/percentiles/index.md)).
 
 ## Clean up
 

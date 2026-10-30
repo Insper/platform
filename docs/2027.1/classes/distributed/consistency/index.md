@@ -26,7 +26,7 @@ There are three families, distinguished by **who accepts writes**[^1].
 
 One node, the **leader** (primary), accepts all writes and streams a log of changes to the **followers** (replicas). Reads can go to the leader or to followers. This is the default in PostgreSQL, MySQL, MongoDB, Redis and Kafka (one leader per partition).
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     w([order: write]) -->|"INSERT order 981"| L[("leader<br/>(primary)")]
     L -->|"WAL stream"| F1[("follower 1")]
@@ -57,7 +57,7 @@ Any replica accepts reads and writes. The client (or a coordinator) sends each w
 
 Independently of who leads, the leader must decide **when to tell the client "OK"**:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant C as order
     participant L as leader
@@ -128,7 +128,7 @@ With an (assumed) exponential lag, the same screen that is almost never stale on
 
 A **consistency model** is a contract between a data store and its programmers: *if you follow these rules, the results of reads will be predictable in this way*[^3]. Stronger models are easier to program against and cost more coordination (latency, availability); weaker models are cheaper and push the complexity into the application.
 
-``` mermaid
+``` diagram
 flowchart TD
     LIN["Linearizable<br/>(strong consistency)"] --> SEQ["Sequential"]
     SEQ --> CAU["Causal"]
@@ -140,13 +140,13 @@ flowchart TD
     CP --> EV
 ```
 
-An arrow from A to B means "A guarantees everything B guarantees, and more". The three middle-row models are **session guarantees**: they hold for one client's session, not for everyone.
+An arrow from A to B means "A guarantees everything B guarantees, and more". Read-your-writes and monotonic reads are **session guarantees**: they hold for one client's session, not for everyone; consistent prefix promises that no reader sees writes out of the order in which they happened.
 
 ### Linearizability (strong consistency) { #linearizability }
 
 **Linearizability** makes a replicated system behave **as if there were a single copy of the data**, and every operation took effect atomically at one instant between its start and its end[^4]. Once any read has returned a new value, every later read (by anyone, on any replica) must return that value or a newer one.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant A as Fan A
     participant N1 as replica 1
@@ -196,7 +196,7 @@ Most "my data disappeared" bugs are violations of one of these four guarantees, 
 | **Monotonic writes** | Your writes are applied in the order you made them | "Change e-mail" then "send ticket" — the ticket goes to the old address |
 | **Writes-follow-reads** (causal) | A write you make after reading X is ordered after X | You reply to a support message that other replicas have not received yet |
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant F as Fan's app
     participant R1 as replica 1 (lag 10 ms)
@@ -213,6 +213,14 @@ How to provide them on top of asynchronous replicas:
 - **Read from the leader after a write**: for a short window (e.g. 1–5 s) after the fan writes, route *her* reads to the primary — or always read data the user owns (*My tickets*) from the primary.
 - **Version tokens**: the write returns the leader's log position (in PostgreSQL, the WAL LSN — Log Sequence Number); the client sends it with the next read, and a replica only answers once it has applied at least that position (otherwise it waits or forwards to the leader). Many databases expose this as *causal sessions* or *read-after-write tokens* (MongoDB causal consistency sessions, Cosmos DB session consistency).
 - **Sticky replica**: pin each session to one replica (hash of the session id) — gives monotonic reads, not read-your-writes.
+
+!!! example "In the BoxOffice code: read-your-writes by routing (lab 6)"
+
+    [Hands-on 6 — Replicas](../../../hands-on/6/replicas/index.md) adds a streaming replica to the `inventory` database and uses the first technique above. One `DataSource` wraps two pools; a transaction marked `@Transactional(readOnly = true)` — the seat map, availability per section — gets a replica connection, every other one gets the primary. `HoldService.find` is deliberately *not* read-only: the fan just created that hold, so it is read from the primary. The lab measured why: a fan who holds a seat and immediately reloads the seat map from the replica did not see her own hold in **about 6%** of the attempts with the replica on the same machine, and in **98%** with 1 s of artificial lag.
+
+    ``` { .java title="services/inventory/src/main/java/boxoffice/inventory/DataSourceConfig.java (the routing)" }
+    --8<-- "docs/2027.1/hands-on/6/code/services/inventory/src/main/java/boxoffice/inventory/DataSourceConfig.java:11:38"
+    ```
 
 ### Eventual consistency { #eventual }
 
@@ -278,6 +286,14 @@ If São Paulo counted `[3, 0, 0]` and Lisbon `[0, 2, 0]`, both merge to `[3, 2, 
 !!! tip "In the interview"
     When the interviewer says "and the user should see their update immediately", translate it into a model: *"that's read-your-writes, not global strong consistency — I'll read the user's own data from the leader, or pass the write's log position as a token."* Then name the one place that **does** need linearizability (inventory, balances, uniqueness) and explain how you get it (single leader + consensus-based failover, conditional writes). Interviewers reward precise vocabulary and a per-domain choice; they penalise "everything is strongly consistent" (slow, expensive) and "everything is eventually consistent" (double bookings).
 
+!!! success "Best practices"
+
+    - **Write the consistency model of each data domain in the design doc** — one row per domain (seats, payments, *My tickets*, catalogue), with the mechanism that provides it; reviewers check code against it.
+    - **Default to the primary and opt in to replicas per transaction** — a read goes to a replica only when someone marked it as tolerant of staleness. In BoxOffice: `@Transactional(readOnly = true)` routes to the replica in [lab 6](../../../hands-on/6/replicas/index.md) (box above).
+    - **Measure stale reads with a write-then-read test** — write, read back immediately from the replica, count the misses; under load the number is never zero. In BoxOffice: `load/read-your-writes.js` of lab 6 (6% at no delay, 98% at 1 s).
+    - **Use a `version` column for read-modify-write edits** — a conditional `UPDATE … WHERE version = :v` turns a lost update into a visible conflict. In BoxOffice: `inventory.seats.version` (lab 6).
+    - **Show freshness where staleness is allowed** — "updated 3 s ago" on a counter served from a replica or a cache sets the fan's expectation and saves a support ticket.
+
 !!! warning "Pitfalls"
     - **Read/write split by default**: sending *all* reads to replicas breaks read-your-writes on the first screen after a write.
     - **Caches are replicas too**: putting Redis or a CDN in front of a linearizable store makes those reads eventually consistent ([Caching](../../caching/index.md)).
@@ -287,7 +303,7 @@ If São Paulo counted `[3, 0, 0]` and Lisbon `[0, 2, 0]`, both merge to `[3, 2, 
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     W["write on the leader"] --> REPL{"replication<br/>sync or async?"}
     REPL -->|"sync / quorum"| LIN["linearizable reads"]
@@ -301,13 +317,15 @@ flowchart LR
 
 **Palette components that are replicas (and therefore have a consistency model):** [`sql`](../../../reference/components/storage/index.md#sql) (primary + read replicas, scenario `db-replicas`) · [`nosql`](../../../reference/components/storage/index.md#nosql) (leaderless, scenario `sharding`) · [`cache`](../../../reference/components/storage/index.md#cache) (scenario `read-heavy-cache`) · [`cdn`](../../../reference/components/edge/index.md#cdn) (scenario `cdn-static`) · [`stream`](../../../reference/components/messaging/index.md#stream) (replicated partitions). **Builds on:** [failure models](../index.md#failure-models). **Continues in:** [CAP & PACELC](../cap-pacelc/index.md), [Databases — replication](../../databases/replication/index.md), [Caching — invalidation](../../caching/invalidation/index.md).
 
-## Key takeaways
+## Key takeaways { #key-takeaways }
 
-- **Replication** serves availability, read throughput and latency; all the difficulty is in propagating **writes**.
-- **Single-leader** avoids write conflicts; **multi-leader** and **leaderless** accept writes everywhere and must resolve conflicts (LWW, version vectors, CRDTs, or avoid them with a home leader).
-- **Synchronous vs asynchronous** replication trades write latency and availability for durability on failover; semi-synchronous or quorum is the usual compromise.
-- **Consistency models** range from **linearizable** (single-copy illusion) through **causal** and **session guarantees** (read-your-writes, monotonic reads) to **eventual**.
-- Choose **per data domain**: linearizable for seats and money, read-your-writes for a user's own data, eventual for the catalogue and counters.
+!!! takeaways ""
+
+    - **Replication** serves availability, read throughput and latency; all the difficulty is in propagating **writes**.
+    - **Single-leader** avoids write conflicts; **multi-leader** and **leaderless** accept writes everywhere and must resolve conflicts (LWW, version vectors, CRDTs, or avoid them with a home leader).
+    - **Synchronous vs asynchronous** replication trades write latency and availability for durability on failover; semi-synchronous or quorum is the usual compromise.
+    - **Consistency models** range from **linearizable** (single-copy illusion) through **causal** and **session guarantees** (read-your-writes, monotonic reads) to **eventual**.
+    - Choose **per data domain**: linearizable for seats and money, read-your-writes for a user's own data, eventual for the catalogue and counters.
 
 ---
 

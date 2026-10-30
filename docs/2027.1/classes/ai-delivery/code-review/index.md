@@ -30,7 +30,7 @@ Two systematic weaknesses deserve names. **Gullibility**: the model reads text w
 
 ## Anatomy of an AI reviewer
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     participant GH as Git host
@@ -150,6 +150,14 @@ for name, emitted, real in buckets:
 
 Posting everything finds the most problems and is ignored by everybody (3 comments per PR, 4 out of 10 useful). Posting only high confidence is trusted and misses two thirds of the problems. Most teams start at **high + medium for severities ≥ minor**, measure, and move per category: secrets and SQL injection can stay at medium; style never gets posted.
 
+!!! example "In the BoxOffice code: the reviewer's filter (lab 13)"
+
+    [Hands-on 13 — The reviewer](../../../hands-on/13/review/index.md) builds the anatomy above in one script. The PR title, description and diff go to the model wrapped as **untrusted** data; the model answers JSON against a schema; and the code — not the model — keeps only findings on **added** lines, at severity ≥ `minor`, not low confidence, at most 6 per PR, the most severe first. A fingerprint of each finding stops it from being posted again on the next push, and an error of the model ends the job with exit code 0: **fail open**, because an advisory step must never block merges. A test run with the local model posted one finding, the SQL injection planted in `EventSearch.java`; with Claude, one review of the lab's golden set cost about US$ 0.012.
+
+    ``` { .python title=".github/ai/review.py (the review and the fail-open)" }
+    --8<-- "docs/2027.1/hands-on/13/code/.github/ai/review.py:103:130,207:211"
+    ```
+
 ---
 
 ## Advisory or gate?
@@ -211,13 +219,21 @@ The best design combines both: deterministic rules **block**, because they are e
 
 !!! example "BoxOffice: the reviewer catches the shortcut"
 
-    With `CONVENTIONS.md` in its context, the reviewer of [hands-on 13](../../../hands-on/13/review/index.md) flags the `UPDATE inventory.hold` in `OrderService` as a high-confidence architecture blocker, citing the rule and explaining the consequence (a hold confirmed after expiry, coupling to another service's table). The team then adds the deterministic check: a separate PostgreSQL role per service, so the same mistake fails in the integration tests even if every reviewer misses it.
+    The `UPDATE inventory.hold` in `OrderService` — the finding of the JSON above — is case `02-cross-schema` of the reviewer's [golden set in hands-on 13](../../../hands-on/13/security/index.md). With `CONVENTIONS.md` in its context, the reviewer found it in the runs the lab shows, with the local model and with Claude; but a later run of the small local model missed it. A reviewer is a probability, so the team adds the deterministic check: a separate PostgreSQL role per service, so the same mistake fails in the integration tests even if every reviewer misses it.
 
 ---
 
 !!! tip "In the interview"
 
     When asked to design an AI code reviewer, say early that **precision beats recall** for anything that talks to humans, and show how you will *measure* it (golden set for recall, accepted/rated for precision). Describe the context (diff + conventions + ADRs + related code by symbol search), structured findings, the filter (changed lines, severity, confidence, dedup, cap) and the rollout (shadow → advisory → gate per category). Mention that architecture rules should be **deterministic checks first**, with AI as the explainer.
+
+!!! success "Best practices"
+
+    - **Start in shadow mode** — log the findings for two weeks and compare them with the human reviews before posting anything.
+    - **Version the reviewer's context with the code** — `CONVENTIONS.md` and the ADRs live in the repository and change by pull request; the [reviewer of lab 13](../../../hands-on/13/review/index.md) loads them as its stable, cacheable prefix.
+    - **Collect a reaction on every comment** — a 👍/👎 per finding gives precision per category at no cost; every comment of lab 13 asks for one.
+    - **Cap the comments per PR and post the most severe first** — lab 13 posts at most 6 (`AI_REVIEW_MAX_COMMENTS`).
+    - **Deduplicate findings across pushes** — the same problem must not be posted again on every push; lab 13 keeps a fingerprint of each finding in the comment.
 
 !!! warning "Common pitfalls"
 
@@ -231,7 +247,7 @@ The best design combines both: deterministic rules **block**, because they are e
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     PR["pull request event"] --> CTX["context: diff, conventions,<br/>ADRs, symbol search"]
     CTX --> RET["retrieval<br/>→ AI systems RAG & Memory"]

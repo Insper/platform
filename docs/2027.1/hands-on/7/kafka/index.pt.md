@@ -1,4 +1,4 @@
-# 1. Kafka no Compose
+# 1. Kafka no Compose { #1-kafka-in-compose }
 
 Neste passo você substitui o seu `docker-compose.yaml` pelo arquivo completo deste lab, sobe os quatro
 novos contêineres de infraestrutura e conhece o Kafka pela linha de comando. Todos os comandos rodam na
@@ -11,7 +11,7 @@ novos contêineres de infraestrutura e conhece o Kafka pela linha de comando. To
 | `kafka-ui` | `kafbat/kafka-ui:v1.5.0` | 8089 | navegar por tópicos, mensagens, *headers* e *lag* dos consumidores |
 | `mailpit` | `axllent/mailpit:v1.31` | 8025 (web), 1025 (SMTP) | provedor de e-mail falso, com caixa de entrada e API |
 
-## Kafka em modo KRaft
+## Kafka em modo KRaft { #kafka-in-kraft-mode }
 
 O Kafka guarda os próprios metadados (tópicos, partições, líderes) em um quórum Raft de
 **controladores** — o **KRaft**. O ZooKeeper não existe mais desde o Kafka 4.0. Aqui um único nó faz
@@ -121,13 +121,13 @@ Três detalhes importam:
     número de partições muda para qual partição cada chave vai, quebrando a ordem por chave das
     mensagens em trânsito.
 
-## Suba e confira
+## Suba e confira { #start-and-check }
 
 <!-- termynal -->
 
 ``` shell
 > docker compose up -d kafka kafka-init kafka-ui mailpit
- ✔ Container boxoffice-mailpit-1     Healthy
+ ✔ Container boxoffice-mailpit-1     Started
  ✔ Container boxoffice-kafka-1       Healthy
  ✔ Container boxoffice-kafka-init-1  Started
  ✔ Container boxoffice-kafka-ui-1    Started
@@ -144,13 +144,14 @@ Topic: order-events	TopicId: hwjrAir1Q8m_ZV4fyhnctw	PartitionCount: 6	Replicatio
 	Topic: order-events	Partition: 5	Leader: 1	Replicas: 1	Isr: 1	Elr: 	LastKnownElr:
 ```
 
-Você deve ver os quatro contêineres rodando (`docker compose ps`), seis partições em `order-events`,
+Você deve ver `kafka`, `kafka-ui` e `mailpit` rodando e o `kafka-init` encerrado com código 0
+(`docker compose ps -a`), seis partições em `order-events`,
 o Kafka UI em `http://localhost:8089` (cluster *boxoffice* online, tópicos `order-events` e
 `order-events-dlt`) e a caixa vazia do Mailpit em `http://localhost:8025`. O `TopicId` muda em cada
 máquina. Se o `kafka` ficar em `starting` por mais de um minuto, veja Solução de problemas na
 [visão geral](../index.md#troubleshooting).
 
-## Um passeio de cinco minutos pelo log
+## Um passeio de cinco minutos pelo log { #a-five-minute-tour-of-the-log }
 
 Antes que o Spring esconda tudo, sinta como um **log** difere de uma fila. Abra dois terminais.
 

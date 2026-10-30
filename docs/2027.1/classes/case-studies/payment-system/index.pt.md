@@ -22,11 +22,11 @@ Este é o serviço `payment` do BoxOffice — o adaptador por trás do fluxo de 
 
 ---
 
-## 1. Esclarecer os requisitos
+## 1. Esclarecer os requisitos { #1-clarify-the-requirements }
 
 Pagamentos têm mais requisitos escondidos do que qualquer outro caso. Pergunte ([roteiro de entrevista](../../intro/interview-framework/index.md)).
 
-### Requisitos funcionais
+### Requisitos funcionais { #functional-requirements }
 
 1. **Recebimento** (*pay-in*): cobrar o fã por um pedido (cartão, Pix, carteira) via um PSP externo; suportar desafios de 3-D Secure.
 2. **Reembolsos**: totais ou parciais, por exemplo quando um show é cancelado.
@@ -35,7 +35,7 @@ Pagamentos têm mais requisitos escondidos do que qualquer outro caso. Pergunte 
 5. **Conciliação**: todo dia, casar o relatório de liquidação do provedor com o livro-razão e apontar diferenças.
 6. Avisar o serviço de pedidos sobre os resultados (confirmar, falhar) para os ingressos serem emitidos.
 
-### Requisitos não funcionais
+### Requisitos não funcionais { #non-functional-requirements }
 
 | Qualidade | Meta |
 |---|---|
@@ -47,7 +47,7 @@ Pagamentos têm mais requisitos escondidos do que qualquer outro caso. Pergunte 
 | **Segurança / conformidade** | Números de cartão nunca tocam nossos servidores (escopo do PCI DSS minimizado); segredos num cofre; webhooks autenticados |
 | **Escala** | ~300 mil pagamentos/dia, picos de ~300 pagamentos/s durante várias aberturas de vendas simultâneas |
 
-### Fora do escopo (diga explicitamente)
+### Fora do escopo (diga explicitamente) { #out-of-scope-say-it-explicitly }
 
 Processar cartões por conta própria (não somos adquirente), modelos antifraude (cite um gancho de verificação de fraude), câmbio entre moedas, notas fiscais e impostos, disputas de chargeback em detalhe.
 
@@ -64,7 +64,7 @@ Processar cartões por conta própria (não somos adquirente), modelos antifraud
 
 ---
 
-## 2. Estimativas de guardanapo (back-of-the-envelope)
+## 2. Estimativas de guardanapo (back-of-the-envelope) { #2-back-of-the-envelope-estimates }
 
 ```python exec="1" source="tabbed-right"
 # BoxOffice payments: assumptions (illustrative)
@@ -134,7 +134,7 @@ POST /v1/webhooks/psp                               ← provider → us, HMAC-si
 
 ---
 
-## 4. Modelo de dados
+## 4. Modelo de dados { #4-data-model }
 
 ```sql
 CREATE TABLE payment (
@@ -183,9 +183,9 @@ CREATE TABLE outbox (id BIGSERIAL PRIMARY KEY, topic TEXT, payload JSONB, create
 
 ---
 
-## 5. Design de alto nível
+## 5. Design de alto nível { #5-high-level-design }
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     fan([Navegador do fã]) -->|"dados do cartão"| psp[["PSP<br/>campos hospedados, 3-D Secure"]]
     fan --> gw["API gateway"]
@@ -209,7 +209,7 @@ flowchart LR
 
 Um pagamento com cartão e 3-D Secure, de ponta a ponta:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     participant F as Fã
@@ -234,15 +234,15 @@ sequenceDiagram
 
 ---
 
-## 6. Aprofundamentos (deep dives)
+## 6. Aprofundamentos (deep dives) { #6-deep-dives }
 
-### 6.1 Efeito de exatamente uma vez: chaves de idempotência
+### 6.1 Efeito de exatamente uma vez: chaves de idempotência { #61-exactly-once-effect-idempotency-keys }
 
 Não existe **entrega** exatamente uma vez numa rede: uma requisição cuja resposta se perdeu pode ou não ter sido executada. O que dá para construir é um **efeito** de exatamente uma vez: o cliente repete até obter uma resposta (pelo menos uma vez), e o servidor torna a operação **idempotente** — executá-la duas vezes tem o mesmo efeito que uma ([semântica de entrega](../../messaging/semantics/index.md)).
 
 O algoritmo no servidor para `POST /v1/payments` com `Idempotency-Key: K`:
 
-``` mermaid-sim
+``` diagram-sim
 flowchart TD
     r["Requisição com chave K"] --> ins{"INSERT chave K<br/>IN_PROGRESS<br/>(única)"}
     ins -->|"inserida"| run["Executa: cria pagamento,<br/>chama o PSP"]
@@ -272,11 +272,19 @@ Idempotency-Key: <random per HTTP call> ✘ every retry looks new → double cha
 Idempotency-Key: user-42                ✘ blocks every future purchase of that user
 ```
 
-### 6.2 O resultado desconhecido
+!!! example "No código do BoxOffice: o adaptador de pagamento (lab 9)"
+
+    O [Hands-on 9 — Pagamento, provedor e Toxiproxy](../../../hands-on/9/payment/index.md) constrói uma versão menor deste algoritmo. A mesma chave percorre `order → payment → PSP`: o `order` envia `Idempotency-Key: order-<id>`, o `payment` a procura, chama o PSP **fora** de qualquer transação do banco (nunca segure uma conexão esperando) e grava o resultado sob uma chave `UNIQUE`. O que fica de fora é a linha `IN_PROGRESS`: duas duplicatas concorrentes podem chegar ambas ao PSP, e só a idempotência do próprio provedor, com a mesma chave, impede a segunda cobrança — a tabela acima fecha essa brecha. No lab, a mesma requisição enviada duas vezes devolve `201` e depois `200` com o mesmo `id` e o mesmo `providerRef`. O [outbox do lab 7](../../../hands-on/7/outbox/index.md) é o padrão da seção 6.4.
+
+    ``` { .java title="services/payment/src/main/java/boxoffice/payment/PaymentService.java (charge once per key)" }
+    --8<-- "docs/2027.1/hands-on/9/code/services/payment/src/main/java/boxoffice/payment/PaymentService.java:22:38"
+    ```
+
+### 6.2 O resultado desconhecido { #62-the-unknown-outcome }
 
 O adaptador chama o PSP e recebe um **timeout**. O cartão foi cobrado? Você não sabe — e esta é a frase mais importante da entrevista.
 
-``` mermaid-sim
+``` diagram-sim
 stateDiagram-v2
     [*] --> CREATED
     CREATED --> PROCESSING: chama o PSP
@@ -297,7 +305,7 @@ stateDiagram-v2
 - Enquanto isso, o pedido fica em `PENDING_PAYMENT` e a reserva do lugar é **estendida** (veja a [máquina de estados do caso de ingressos](../ticketing/index.md)); o fã vê "confirmando seu pagamento…".
 - Os timeouts da chamada ao PSP são **longos o suficiente** para o p99 normal do provedor (segundos), envoltos num circuit breaker e num bulkhead para que um provedor lento não esgote o serviço de pagamentos ([padrões de confiabilidade](../../reliability/patterns/index.md)).
 
-### 6.3 O livro-razão de partidas dobradas
+### 6.3 O livro-razão de partidas dobradas { #63-the-double-entry-ledger }
 
 Uma coluna `balance` que você atualiza com `UPDATE` perde o histórico, não consegue se explicar a um auditor e quebra em silêncio sob atualizações concorrentes. A contabilidade resolveu isso há séculos: **partidas dobradas**. Toda transação é um conjunto de linhas, cada uma movendo dinheiro para dentro (débito) ou para fora (crédito) de uma conta, e **as linhas de toda transação somam zero**. Os saldos são **derivados** somando as linhas; nada é atualizado ou apagado — um erro é corrigido por uma nova transação de estorno.
 
@@ -348,7 +356,7 @@ Regras de engenharia para o livro-razão:
 - **Unidades menores inteiras** (centavos) e moeda explícita — nunca ponto flutuante para dinheiro.
 - Conta **por contraparte** quando necessário (`promoter_payable:88`), para o job de repasse saber quanto cada produtor tem a receber.
 
-### 6.4 Webhooks, outbox e conciliação
+### 6.4 Webhooks, outbox e conciliação { #64-webhooks-outbox-and-reconciliation }
 
 **Webhooks** são como meios assíncronos (Pix, 3-D Secure, transferências) informam resultados. O handler precisa:
 
@@ -376,7 +384,7 @@ Retentativas em direção ao provedor (reembolsos, repasses, consultas de status
 
 ---
 
-## 7. Gargalos, modos de falha e trade-offs
+## 7. Gargalos, modos de falha e trade-offs { #7-bottlenecks-failure-modes-and-trade-offs }
 
 | Onde | O que dá errado | Mitigação | Trade-off |
 |---|---|---|---|
@@ -393,7 +401,7 @@ Os trade-offs para **dizer em voz alta**: **consistência acima de disponibilida
 
 ---
 
-## 8. Experimente no playground
+## 8. Experimente no playground { #8-try-it-in-the-playground }
 
 O cenário `payment-system` modela o serviço de pagamentos, seu banco e um provedor de pagamento externo com retentativas e idempotência.
 
@@ -410,7 +418,7 @@ O cenário `payment-system` modela o serviço de pagamentos, seu banco e um prov
 
 ---
 
-## 9. Perguntas de follow-up que o entrevistador faz
+## 9. Perguntas de follow-up que o entrevistador faz { #9-follow-up-questions-an-interviewer-asks }
 
 ??? question "Por que não usar uma transação de banco que inclua a chamada ao PSP?"
 
@@ -442,7 +450,7 @@ O cenário `payment-system` modela o serviço de pagamentos, seu banco e um prov
 
 ---
 
-## 10. Rubrica de autoavaliação
+## 10. Rubrica de autoavaliação { #10-self-assessment-rubric }
 
 | Nível | O que a resposta contém |
 |---|---|
@@ -452,13 +460,21 @@ O cenário `payment-system` modela o serviço de pagamentos, seu banco e um prov
 
 **Relacionados:** [Integrações (webhooks, idempotência)](../../compute/integrations/index.md), [Padrões de mensageria (outbox, saga)](../../messaging/patterns/index.md), [Caso de ingressos](../ticketing/index.md), [Hands-on 7](../../../hands-on/7/index.md) (outbox), [Hands-on 9](../../../hands-on/9/index.md) (resiliência entre `order` e `payment`).
 
+!!! success "Boas práticas"
+
+    - **Nunca mantenha uma transação do banco aberta durante a chamada ao provedor** — o `PaymentService` do lab 9 chama o PSP fora de qualquer transação, para que um provedor lento não esgote o pool de conexões ([lab 9](../../../hands-on/9/payment/index.md)).
+    - **Guarde dinheiro em unidades inteiras (centavos) ou `NUMERIC`, nunca em ponto flutuante** — a tabela do lab 9 usa `NUMERIC(10,2)`; um float não representa R$ 0,10 exatamente.
+    - **Dê a cada salto um timeout menor que o de quem o chama** — senão quem chama desiste enquanto o chamado ainda trabalha, e a sua retentativa roda ao lado da primeira tentativa. Confira no lab 9: o `order` espera 1 s pelo `payment`, que espera 2 s pelo PSP; com um provedor lento, só a chave de idempotência impede a retentativa de cobrar duas vezes.
+    - **Concilie todo dia com o relatório de liquidação do provedor** — toda diferença vira um chamado com dono; o razão só está certo se alguém o confere.
+    - **Mantenha os dados de cartão fora dos seus sistemas** — a tokenização pelo provedor deixa o BoxOffice fora da maior parte do escopo do PCI DSS.
+
 ---
 
 ## Como se conecta { #how-it-connects }
 
 Quais aulas este caso testa? Cada ramo é uma aula cujas ideias o design usa (azul), com os componentes da paleta em que elas aparecem (verde):
 
-``` mermaid
+``` diagram
 flowchart LR
     CASE(["Payment system"]) --> DIS["Distributed<br/>exactly-once effect, unknown outcome"]:::tech
     CASE --> CMP["Compute<br/>PSP integration, webhooks, reconciliation"]:::tech
@@ -478,7 +494,7 @@ flowchart LR
 
 ---
 
-## Referências
+## Referências { #references }
 
 - XU, A.; LAM, S. *System Design Interview — An Insider's Guide*, vol. 2, cap. 11 "Payment System" e cap. 12 "Digital Wallet"[^1].
 - Chaves de idempotência como projetadas na Stripe[^2].

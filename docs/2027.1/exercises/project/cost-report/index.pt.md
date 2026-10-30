@@ -10,9 +10,9 @@ Toda decisão de design tem uma etiqueta de preço. Um cache que economiza 90% d
     - **Analisar** a sensibilidade (×10 de tráfego, pico vs média, compromissos e spot) e comparar **modelos de serviço** (IaaS, PaaS, SaaS, serverless) para pelo menos um componente.
     - **Propor** alavancas de economia apoiadas nas suas próprias medições.
 
-Este marco se apoia na parte de FinOps da [Aula 12 — Cloud-native](../../../classes/cloud-native/index.md), nas suas estimativas do M1 e na [campanha de testes de carga](../load-test-campaign/index.md). Entrega na **semana 18**, peso de **10%** do projeto.
+Este marco se apoia na parte de FinOps da [Aula 11 — Cloud-native](../../../classes/cloud-native/index.md), nas suas estimativas do M1 e na [campanha de testes de carga](../load-test-campaign/index.md). Entrega na **semana 18**, peso de **10%** do projeto.
 
-## O que entregar
+## O que entregar { #what-to-deliver }
 
 - Uma página de **relatório de custos** na documentação, seguindo o [template](#templates).
 - A **exportação da calculadora** (link compartilhável, PDF ou CSV) com a **data** e a **região** usadas — preços mudam, então a exportação é a evidência.
@@ -20,7 +20,7 @@ Este marco se apoia na parte de FinOps da [Aula 12 — Cloud-native](../../../cl
 - A **atualização final do design doc** (com um registro de mudanças do que mudou desde o M1).
 - A tag `m8`.
 
-## Critérios de aceitação
+## Critérios de aceitação { #acceptance-criteria }
 
 - [ ] **(obrigatório)** Uma **lista de materiais** cobrindo todos os componentes do seu design doc (computação, bancos, cache, broker, balanceador, NAT, tráfego de saída/CDN, armazenamento, observabilidade e tokens de LLM na opção de IA), cada um com quantidade, tamanho, horas e o preço usado.
 - [ ] **(obrigatório)** Todo preço vem de uma **calculadora ou página de preços oficial**, com data e região; nenhum preço é inventado. As premissas (horas por mês, GB transferidos, utilização, retenção) estão listadas.
@@ -31,9 +31,9 @@ Este marco se apoia na parte de FinOps da [Aula 12 — Cloud-native](../../../cl
 - [ ] **≥ 3 alavancas de economia**, cada uma ligada a uma **medição** do M6 (por exemplo, "taxa de acerto de 95% → o banco pode ser um tamanho menor") com a economia estimada.
 - [ ] Seção *Uso de IA* (veja a [política](../../index.md#use-of-ai-tools)).
 
-## Passo a passo
+## Passo a passo { #step-by-step }
 
-### 1. Escolha uma nuvem e a sua calculadora
+### 1. Escolha uma nuvem e a sua calculadora { #1-pick-one-cloud-and-its-calculator }
 
 Use **um** provedor para toda a estimativa (você pode comparar um único componente entre provedores como extra). Mapeie cada componente da paleta do seu design para um serviço concreto:
 
@@ -88,7 +88,7 @@ Use **um** provedor para toda a estimativa (você pode comparar um único compon
     | `metrics`, `logs`, `tracing` | Azure Monitor / Application Insights |
     | modelo do `llmgw` | Azure OpenAI |
 
-### 2. Dimensione cada componente a partir dos seus números
+### 2. Dimensione cada componente a partir dos seus números { #2-size-each-component-from-your-numbers }
 
 Parta das estimativas do M1 e das medições do M6, não de chutes: a **capacidade por réplica** que você mediu, o **pico** da meta de design, uma **utilização-alvo** (≈ 0,6–0,7), a **taxa de acerto** do cache, os **GB** que saem da nuvem (o tráfego de saída costuma ser a surpresa), a retenção de logs e métricas e — na opção de IA — tokens por requisição × requisições.
 
@@ -102,7 +102,7 @@ Parta das estimativas do M1 e das medições do M6, não de chutes: a **capacida
 | Custo por 1.000 requisições | custo mensal ÷ (requisições no mês ÷ 1.000) |
 | Custo por unidade de negócio | custo mensal ÷ unidades por mês (ingressos, mensagens, corridas, visualizações, conversas) |
 
-### 3. Visualize para onde vai o dinheiro
+### 3. Visualize para onde vai o dinheiro { #3-visualize-where-the-money-goes }
 
 Um gráfico empilhado da fatura por categoria deixa os custos dominantes evidentes. O gráfico abaixo usa **preços fictícios ilustrativos** — não cotações reais — apenas para mostrar a forma da análise; o seu relatório precisa usar os preços da exportação da sua calculadora.
 
@@ -143,7 +143,7 @@ print(buffer.getvalue())
 plt.close()
 ```
 
-### 4. Economia unitária
+### 4. Economia unitária { #4-unit-economics }
 
 Divida pela unidade que importa para o negócio. Na BoxOffice, **custo por ingresso vendido** é o número que um gerente de produto entende; no chat, custo por 1.000 mensagens; no vídeo, custo por hora assistida; no assistente, custo por conversa (com os tokens como principal fator). Compare com o quanto a unidade vale (uma taxa de conveniência, uma impressão de anúncio) — uma arquitetura que custa mais por ingresso do que a taxa cobrada não é um negócio.
 
@@ -151,7 +151,7 @@ Divida pela unidade que importa para o negócio. Na BoxOffice, **custo por ingre
 
     Uma venda relâmpago dura minutos, mas a capacidade provisionada para ela é paga o mês inteiro. Compare: (a) provisionado para o pico da venda 730 h/mês; (b) uma base mais autoscaling durante as vendas; (c) (b) mais uma sala de espera que limita o caminho do inventário. A sala de espera não é só um recurso de justiça — é um recurso de **custo**: ela permite dimensionar o caminho caro e fortemente consistente pela taxa de admissão, e não pela multidão.
 
-### 5. Modelos de serviço
+### 5. Modelos de serviço { #5-service-models }
 
 Escolha pelo menos um componente e compare como você o operaria:
 
@@ -164,7 +164,7 @@ Escolha pelo menos um componente e compare como você o operaria:
 
 Coloque o esforço em horas por mês ao lado da fatura: o tempo de um engenheiro é o maior custo escondido de componentes autogerenciados.
 
-### 6. Alavancas de economia apoiadas em medições
+### 6. Alavancas de economia apoiadas em medições { #6-saving-levers-backed-by-measurements }
 
 Toda alavanca precisa apontar para uma medição: *"o M6 mostra o cache do catálogo com 95% de acerto, então o banco pode cair um tamanho de instância (−US$ …)"*, *"a CPU do `notification` fica em 8% em média — leve-o para serverless ou para um node pool menor"*, *"o cache semântico respondeu 30% das perguntas — tokens de LLM −30%"*, *"logs são 60% do custo de observabilidade — amostre os logs de debug e reduza a retenção"*. Considere também compromissos (capacidade reservada de 1 ano ou savings plans), nós spot/preemptíveis para workers sem estado e o tráfego de saída economizado pela CDN.
 
@@ -258,7 +258,7 @@ Toda alavanca precisa apontar para uma medição: *"o M6 mostra o cache do catá
     ## 8. Uso de IA
     ~~~
 
-## Rubrica
+## Rubrica { #rubric }
 
 Níveis conforme definidos em [Como os exercícios são avaliados](../../index.md#how-the-exercises-are-graded).
 

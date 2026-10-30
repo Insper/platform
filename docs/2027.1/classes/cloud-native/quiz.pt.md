@@ -2,7 +2,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Cloud-native e modelos de serviço
+## Cloud-native e modelos de serviço { #cloud-native-and-service-models }
 
 **Q1.** Uma versão antiga do `inventory` do BoxOffice guardava as reservas de assentos em um mapa dentro da JVM. Qual propriedade twelve-factor ela violava, e qual era o sintoma visível com três réplicas?
 
@@ -148,7 +148,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Entrega e FinOps
+## Entrega e FinOps { #delivery-and-finops }
 
 **Q11.** Qual propriedade distingue o **GitOps por pull** (Argo CD) de um job de CI que executa `kubectl apply`?
 

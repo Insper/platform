@@ -1,4 +1,4 @@
-# Entrevistas simuladas
+# Entrevistas simuladas { #mock-interviews }
 
 System design é uma prova oral, e o único jeito de ficar bom numa prova oral é falar. Esta página é um protocolo de **entrevistas simuladas em dupla**: um estudante é o candidato, o outro o entrevistador, e vocês trocam de papel. Ser o entrevistador não é um favor ao colega: ouvir um design com a rubrica na mão é o jeito mais rápido de aprender como soa uma resposta forte.
 
@@ -8,7 +8,7 @@ System design é uma prova oral, e o único jeito de ficar bom numa prova oral �
     - Um quadro, papel ou um canvas online ([Excalidraw](https://excalidraw.com) ou o [playground](../../../../playground/index.md) no modo completo).
     - Um cronômetro e uma [ficha de avaliação](#score-sheet) impressa ou copiada.
 
-## Papéis
+## Papéis { #roles }
 
 | Papel | Função | Não pode |
 |---|---|---|
@@ -19,14 +19,14 @@ System design é uma prova oral, e o único jeito de ficar bom numa prova oral �
 !!! tip "Entrevistador: você pode dizer 'não sei, você decide'"
     Entrevistadores reais muitas vezes deixam escolhas para o candidato. Se perguntarem algo que o problema não define, responda "o que você suporia?" — e avalie se a suposição é razoável e foi dita em voz alta.
 
-## Antes da sessão
+## Antes da sessão { #before-the-session }
 
 1. **Escolha um problema** do nível certo na [lista de problemas](../problems/index.md): aquecimento nas primeiras sessões, médio depois da primeira metade do curso, difícil e avançado perto do fim. Não conte ao candidato com antecedência.
 2. **O entrevistador se prepara** (10 minutos): lê o estudo de caso correspondente (por exemplo, o [estudo de caso de ingressos](../../../classes/case-studies/ticketing/index.md) para a venda relâmpago do BoxOffice), decide os números que vai dar quando perguntado (usuários, pico, proporção leitura/escrita, tamanho dos dados) e escolhe **dois aprofundamentos** e **três perguntas de acompanhamento** nas listas abaixo.
 3. **Combinem o meio**: quadro, papel ou canvas online. Se usarem o playground, comecem pelo cenário `blank`.
 4. **Programem o cronômetro** com as marcas de fase do roteiro abaixo.
 
-## O roteiro de 45 minutos
+## O roteiro de 45 minutos { #the-45-minute-script }
 
 | Fase | Minutos | Relógio |
 |---|---|---|
@@ -40,7 +40,7 @@ System design é uma prova oral, e o único jeito de ficar bom numa prova oral �
 
 As fases seguem o [framework](../framework/index.md). O entrevistador controla o relógio: se o candidato ainda estiver esclarecendo no minuto 8, avise ("vamos para o design em um minuto").
 
-### 1. Esclarecer os requisitos (0–5 min)
+### 1. Esclarecer os requisitos (0–5 min) { #1-clarify-the-requirements-05-min }
 
 **O entrevistador diz:** o enunciado numa frase, mais nada. "Projete um site de ingressos para um show num estádio. A venda abre sábado às 10:00."
 
@@ -54,7 +54,7 @@ As fases seguem o [framework](../framework/index.md). O entrevistador controla o
 | Pergunta sobre escala, pico, consistência e o que nunca pode dar errado | Pergunta só sobre funcionalidades |
 | Escreve uma lista curta no quadro e diz o que fica fora do escopo | Tenta cobrir todas as funcionalidades possíveis |
 
-### 2. Estimar (5–10 min)
+### 2. Estimar (5–10 min) { #2-estimate-510-min }
 
 **O entrevistador diz:** "De que carga estamos falando, mais ou menos?" (só se o candidato não começar sozinho).
 
@@ -66,7 +66,7 @@ As fases seguem o [framework](../framework/index.md). O entrevistador controla o
 | Acha o número que importa (33 fãs por assento; disputa em poucas linhas) | Números que nunca mais são usados |
 | Arredonda sem medo e diz as suposições em voz alta | Recusa-se a estimar ("depende") |
 
-### 3. API e modelo de dados (10–15 min)
+### 3. API e modelo de dados (10–15 min) { #3-api-and-data-model-1015-min }
 
 **O entrevistador diz:** "Como é a API do fluxo principal?"
 
@@ -77,7 +77,7 @@ As fases seguem o [framework](../framework/index.md). O entrevistador controla o
 | Poucos endpoints ou eventos para o fluxo central, com chave de idempotência onde há dinheiro ou estoque | Uma lista longa de endpoints CRUD para cada entidade |
 | Entidades com chaves guiadas pelos padrões de acesso | Escolher o banco pela marca antes de conhecer as consultas |
 
-### 4. Design de alto nível (15–25 min)
+### 4. Design de alto nível (15–25 min) { #4-high-level-design-1525-min }
 
 **O entrevistador diz:** "Me mostre o design."
 
@@ -89,7 +89,7 @@ As fases seguem o [framework](../framework/index.md). O entrevistador controla o
 | Percorre uma leitura e uma escrita no diagrama | Microsserviços para tudo, sem motivo |
 | Cada caixa justificada por um requisito ou um número | Caixas que aparecem porque "todo mundo tem" |
 
-### 5. Aprofundamentos (25–37 min)
+### 5. Aprofundamentos (25–37 min) { #5-deep-dives-2537-min }
 
 **O entrevistador diz:** "Vamos aprofundar em…" — escolha a parte mais difícil do problema, ou pergunte ao candidato "qual parte é a mais arriscada?" (um candidato forte a identifica).
 
@@ -108,7 +108,7 @@ As fases seguem o [framework](../framework/index.md). O entrevistador controla o
 | Menciona os casos de falha do mecanismo | Defende a primeira ideia depois de uma objeção válida |
 | Usa números para dimensionar o componente | Aprofunda numa parte fácil (interface, CRUD) |
 
-### 6. Gargalos e trade-offs (37–42 min)
+### 6. Gargalos e trade-offs (37–42 min) { #6-bottlenecks-and-trade-offs-3742-min }
 
 **O entrevistador diz:** "O que quebra primeiro se o tráfego for 10× maior?" ou "Do que você abriu mão?"
 
@@ -126,7 +126,7 @@ As fases seguem o [framework](../framework/index.md). O entrevistador controla o
 | Nomeia os trade-offs explicitamente: "X em vez de Y porque…, o custo é…" | Afirma que o design não tem fraquezas |
 | Fala de timeouts, retries, idempotência, observabilidade | Nunca menciona falhas |
 
-### 7. Fechamento (42–45 min)
+### 7. Fechamento (42–45 min) { #7-wrap-up-4245-min }
 
 **O entrevistador diz:** "Estamos quase sem tempo. Resuma o seu design."
 
@@ -152,7 +152,7 @@ O feedback logo depois da entrevista, enquanto os dois lembram dos detalhes, é 
     Vago: "Sua estimativa foi fraca."
     Específico: "Você estimou 2 M de usuários, mas nunca transformou isso em requisições por segundo às 10:00; então, quando escolheu um único primário PostgreSQL, não deu para saber se ele aguentaria. Da próxima vez, escreva o QPS de pico no quadro e aponte para ele ao dimensionar cada caixa."
 
-## Rubrica de avaliação
+## Rubrica de avaliação { #scoring-rubric }
 
 Dê uma nota de 1 a 4 em cada dimensão; os sinais descrevem o que você deve observar.
 
@@ -167,7 +167,7 @@ Dê uma nota de 1 a 4 em cada dimensão; os sinais descrevem o que você deve ob
 | **Confiabilidade e operação** | Nunca menciona falhas | Menciona falhas vagamente | Timeouts, retries, idempotência, redundância onde precisa | Projeta para a falha de ponta a ponta: degradação, observabilidade, SLOs, testes (carga, caos) |
 | **Comunicação e condução** | Calado ou desorganizado | Precisa ser conduzido passo a passo | Pensa em voz alta, segue uma estrutura, confere | Conduz a sessão, administra o tempo, se adapta bem a dicas e objeções |
 
-### Expectativas por nível
+### Expectativas por nível { #expectations-by-level }
 
 | Nível | Um "tende a contratar" costuma ser |
 |---|---|
@@ -203,24 +203,24 @@ Two improvements: 1) _____________________________________________
 Practice before next session: ____________________________________
 ```
 
-## Variações
+## Variações { #variants }
 
-### Versão de 30 minutos
+### Versão de 30 minutos { #30-minute-version }
 
 Para aulas ou quando o tempo é curto: esclarecer 3, estimar 3, design de alto nível 9, um aprofundamento 10, trade-offs e fechamento 5. Pule a fase de API, a menos que o problema seja sobre uma API (rate limiter, API gateway).
 
-### Online, com um canvas ou o playground
+### Online, com um canvas ou o playground { #online-with-a-canvas-or-the-playground }
 
 Use o [Excalidraw](https://excalidraw.com) para um diagrama livre, ou o [playground](../../../../playground/index.md) no modo completo, começando do `blank`: o candidato monta o design com a paleta do curso enquanto fala. O playground tem um bônus: no fim, rode um perfil `load` ou `spike` e veja se o design sobrevive — depois discutam o que o relatório diz.
 
-### Pergunta de caos
+### Pergunta de caos { #chaos-follow-up }
 
 Depois do fechamento (ou no lugar da fase de gargalos), o entrevistador injeta uma falha no design do candidato no playground — um provedor de pagamento lento, a queda de uma AZ, um cache esvaziado, uma chave quente — e pede que o candidato a diagnostique pelas métricas e a corrija em cinco minutos. Isso treina exatamente as perguntas de diagnóstico da [tabela de diagnóstico rápido](../index.md#sec-diagnosis).
 
 !!! tip "Grave-se"
     Com o consentimento do colega, grave o áudio de uma sessão. Ouvir a si mesmo é desconfortável e muito eficaz: você vai ouvir os silêncios longos, os "basicamente" e os momentos em que disse "escala" em vez de um número.
 
-## Uma aula em três rodadas
+## Uma aula em três rodadas { #a-class-session-in-three-rounds }
 
 Para uma aula de 2 horas com grupos de três (A, B, C):
 

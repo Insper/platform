@@ -26,10 +26,15 @@
   const slug = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9.]+/g, '-').replace(/^-|-$/g, '');
 
   let CARDS = [];
-  function prepare() {
-    CARDS = (window.CARTAS_ARQ || []).filter(c => A.LESSON[c.l] && STAGE[c.e] && c.q && c.a && c.name);
-    // the id comes from the lesson and the name: renaming a card resets its progress
-    CARDS.forEach(c => { c.id = c.l + '-' + slug(c.name); c.theme = A.theme(c.l); });
+  /* pt: the texts of cartas-arq-dados-pt.js, keyed by lesson|English name, over a copy of each card
+     (the English data stay untouched: the language can change without a page reload) */
+  function prepare(pt) {
+    CARDS = (window.CARTAS_ARQ || []).filter(c => A.LESSON[c.l] && STAGE[c.e] && c.q && c.a && c.name).map(c => {
+      const o = pt && pt[c.l + '|' + c.name];
+      return Object.assign({}, c, o ? { name: o.name, q: o.q, a: o.a, c: o.c === undefined ? c.c : o.c } : {}, { key: c.name });
+    });
+    // the id comes from the lesson and the English name: renaming a card resets its progress (in both languages)
+    CARDS.forEach(c => { c.id = c.l + '-' + slug(c.key); c.theme = A.theme(c.l); });
   }
 
   /* ─── state saved in the browser (a convenience only) ─── */
@@ -401,7 +406,8 @@
     root.classList.add('cx');
     root.textContent = t('Loading the cards…', 'Carregando as cartas…');
     D.loadData('cartas-arq-dados.js', 'CARTAS_ARQ')
-      .then(() => { prepare(); mount(root); })
+      .then(() => (D.isPT ? D.loadData('cartas-arq-dados-pt.js', 'CARTAS_ARQ_PT').catch(() => null) : null))
+      .then(pt => { prepare(pt); mount(root); })
       .catch(err => { console.error('[support] cartas-arq', err); root.textContent = t('The cards could not be loaded. Reload the page.', 'Não foi possível carregar as cartas. Recarregue a página.'); });
   });
 })();

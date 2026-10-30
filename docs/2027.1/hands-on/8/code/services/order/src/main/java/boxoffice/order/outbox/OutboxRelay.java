@@ -59,6 +59,7 @@ public class OutboxRelay {
     @Scheduled(fixedDelayString = "${boxoffice.order.relay-interval-ms:200}")
     @Transactional
     public void relay() throws Exception {
+        // SKIP LOCKED: several order replicas can relay in parallel without taking the same rows
         List<Pending> batch = jdbc.sql("""
                 SELECT id, aggregate_id, event_type, payload::text AS payload, traceparent
                 FROM outbox
@@ -85,6 +86,7 @@ public class OutboxRelay {
                 acks.add(kafka.send(record)); // the agent's producer span is a child of the request
             }
         }
+        // wait for every ack; on failure the transaction rolls back and the rows are retried
         CompletableFuture.allOf(acks.toArray(new CompletableFuture<?>[0])).get(10, TimeUnit.SECONDS);
 
         jdbcTemplate.batchUpdate("UPDATE outbox SET published_at = clock_timestamp() WHERE id = ?",

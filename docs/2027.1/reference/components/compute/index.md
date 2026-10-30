@@ -15,7 +15,7 @@ In BoxOffice, `catalog`, `inventory` and `order` are app servers; e-mails and PD
 | [Notifications](#notifications) | Sends push, e-mail and SMS with preferences, templates and retries | `notifications` |
 | [Analytics](#analytics) | Collects events and turns them into metrics and reports | `analytics` |
 
-``` mermaid
+``` diagram
 flowchart LR
     GW[API Gateway] --> AUTH[Auth Service]
     GW --> APP[App Server<br/>catalog / order]
@@ -294,7 +294,7 @@ flowchart LR
 !!! tip "In the interview"
     "A dedicated auth service (OIDC) issues short-lived signed JWTs; the gateway and services validate them locally with cached public keys, so auth is not on the hot path of every request. Login itself is rate-limited and protected against credential stuffing."
 
-**Learn more:** [Network & security › Identity](../../../classes/network-security/identity/index.md) · [Network & security › Zero trust](../../../classes/network-security/zero-trust/index.md) · [Compute › Services](../../../classes/compute/services/index.md) · [Hands-on 4](../../../hands-on/4/index.md)
+**Learn more:** [Network & security › Identity](../../../classes/edge/identity/index.md) · [Network & security › Zero trust](../../../classes/network-security/zero-trust/index.md) · [Compute › Services](../../../classes/compute/services/index.md) · [Hands-on 4](../../../hands-on/4/index.md)
 
 ---
 

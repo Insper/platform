@@ -1,4 +1,4 @@
-# 8. Observabilidade
+# 8. Observabilidade { #8-observability }
 
 !!! info "Objetivo"
 
@@ -15,6 +15,14 @@ visão de dentro — os três sinais da [aula de observabilidade](../../classes/
 **métricas** dizem *que* algo está errado e quanto, **traces** dizem *onde* na requisição o tempo foi
 gasto, **logs** dizem *por quê*.
 
+Este lab constrói no BoxOffice o capítulo 9 da [história do curso](../../index.md#story): o
+dashboard RED de [sinais](../../classes/observability/signals/index.md), o contexto de trace
+carregado pelo outbox e pelo Kafka de [OpenTelemetry](../../classes/observability/opentelemetry/index.md),
+e o [SLO](../../classes/observability/slo/index.md) com o alerta de burn rate multijanela de
+[alertas](../../classes/observability/alerting/index.md). Ele vem logo antes do [lab 9](../9/index.md)
+por um motivo: você instrumenta o BoxOffice antes de quebrá-lo de propósito, senão os experimentos de
+caos do lab 9 não têm nada para mostrar.
+
 ## Slides
 
 <div class="slides-embed">
@@ -24,7 +32,7 @@ gasto, **logs** dizem *por quê*.
 Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** abre a visão do apresentador, com as notas.
 [:material-presentation: Abrir os slides em uma nova aba](slides/observability.html){:target="_blank"}
 
-## Antes de começar
+## Antes de começar { #before-you-start }
 
 | | |
 |---|---|
@@ -56,9 +64,9 @@ boxoffice/
 Todo arquivo deste lab aparece completo nestas páginas e é publicado em
 `https://insper.github.io/platform/2027.1/hands-on/8/code/<caminho>`.
 
-## Arquitetura
+## Arquitetura { #architecture }
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     k6[k6 / fãs] --> edge[edge]
     edge --> gw[gateway]
@@ -94,7 +102,7 @@ latência abre o seu trace, um span abre os logs que ele escreveu.
     | [Alerting](../../reference/components/observability/index.md#alerting) | regras de alerta do Grafana: *burn rate* com múltiplas janelas no SLO do `catalog` |
     | [Health Check](../../reference/components/observability/index.md#healthcheck) | as *probes* do actuator, excluídas do SLI |
 
-## O que você vai medir
+## O que você vai medir { #what-you-will-measure }
 
 | Pergunta | Métrica | Ferramenta |
 |---|---|---|
@@ -103,7 +111,7 @@ latência abre o seu trace, um span abre os logs que ele escreveu.
 | Quantas séries temporais um serviço cria? | séries por serviço e por métrica | PromQL |
 | Quanto tempo até um banco quebrado acionar alguém? | parada → *Pending* → *Firing* | alertas do Grafana |
 
-## Pré-requisitos
+## Pré-requisitos { #prerequisites }
 
 - Labs [1](../1/index.md) a [7](../7/index.md) concluídos: o BoxOffice roda com a borda, o gateway,
   as réplicas do `catalog`, `inventory`, `order`, `notification` e o Kafka.
@@ -113,14 +121,14 @@ latência abre o seu trace, um span abre os logs que ele escreveu.
   [OpenTelemetry](../../classes/observability/opentelemetry/index.md) e
   [alertas](../../classes/observability/alerting/index.md).
 
-## Passos
+## Passos { #steps }
 
 1. [Instrumente tudo](instrument/index.md) — o `otel-lgtm`, o agente Java em todos os serviços, logs com trace id e o contexto do trace levado através do outbox.
 2. [Dashboard RED](dashboard/index.md) — um dashboard provisionado: Rate, Errors, Duration por serviço, mais USE para as JVMs e os pools de conexão.
 3. [SLO e alerta de *burn rate*](slo/index.md) — SLI, SLO e orçamento de erros do `catalog`; regras de queima rápida e lenta como código; dispare uma.
 4. [Meça](measure/index.md) — custo do agente, amostragem, cardinalidade e tempo de detecção.
 
-## Experimente no playground
+## Experimente no playground { #try-it-in-the-playground }
 
 **Experimente:** rode o cenário `observability-stack` com o perfil `chaos`. Primeiro deixe o nó de
 métricas desconectado de um serviço: a utilização dele aparece como "?" — você não conserta o que não
@@ -131,7 +139,7 @@ erros, os percentis de latência ou o *health check*.
 
 O simulador completo está no [playground](../../../playground/index.md).
 
-## Meça
+## Meça { #measure-it }
 
 O passo [Meça](measure/index.md) tem o script do k6 e a tabela de resultados para preencher e guardar
 em `results/lab8.md`.
@@ -142,13 +150,24 @@ em `results/lab8.md`.
 |---|---|---|
 | um serviço termina com `Error opening zip file or JAR manifest missing : /otel/opentelemetry-javaagent.jar` | o agente não foi baixado, ou o caminho do volume está errado | `sh scripts/get-otel-agent.sh` na raiz do repositório; `ls infra/otel` |
 | os serviços ficam `starting` por minutos | JVMs com o agente sobem mais devagar; falta CPU/memória ao Docker | espere; dê 8 GB ao Docker; pare outras stacks (`docker ps`) |
+| o `otel-lgtm` termina: `Error: Grafana exited before becoming ready` | `infra/grafana/dashboards.yaml` não existia no primeiro `up`, então o Docker criou um *diretório* com esse nome | `rm -r infra/grafana/dashboards.yaml`, salve o arquivo do [passo 1](instrument/index.md), `docker compose up -d --force-recreate otel-lgtm` |
 | o Grafana mostra **No data** | as métricas são exportadas a cada 10 s e os painéis usam janelas de taxa | gere tráfego, espere um minuto, confira o intervalo (últimos 15 min) |
 | nenhum `service_name` no Prometheus | o serviço não tem `OTEL_SERVICE_NAME` / `<<: *otel` | compare o `environment` dele com o do serviço `order` |
 | faltam o dashboard ou as regras de alerta | arquivos de provisionamento não montados ou inválidos | `docker compose logs otel-lgtm | grep -i provision`; confira os caminhos dos três volumes |
 | ainda dois traces por pedido | o `order` não foi reconstruído, ou o `V2__outbox_traceparent.sql` não rodou | `docker compose up -d --build order`; `docker compose logs order | grep -i flyway` |
 | porta 3000 ocupada | outro Grafana ou um servidor de desenvolvimento | pare-o, ou mapeie `"3001:3000"` e use `http://localhost:3001` |
 
-## Limpeza
+## Boas práticas { #best-practices }
+
+!!! success "Boas práticas neste lab"
+
+    - **Telemetria configurada uma vez, para todo serviço** — a âncora `x-otel` no `docker-compose.yaml`, com um `OTEL_SERVICE_NAME` por serviço ([OpenTelemetry](../../classes/observability/opentelemetry/index.md)).
+    - **Contexto de trace carregado pelo salto assíncrono** — `Outbox.java`, `OutboxRelay.java` e `V2__outbox_traceparent.sql` guardam e restauram o `traceparent` ([OpenTelemetry — propagação de contexto](../../classes/observability/opentelemetry/index.md)).
+    - **Dashboards e alertas como código** — `infra/grafana/dashboards/boxoffice-red.json` e `infra/grafana/alerting/slo-catalog.yaml`, provisionados na inicialização ([Sinais — dashboards](../../classes/observability/signals/index.md)).
+    - **Um SLI que conta só fãs** — `http_route!~"/actuator.*"` em toda consulta de `slo-catalog.yaml` ([SLOs](../../classes/observability/slo/index.md)).
+    - **Um page só para queima rápida multijanela, testado quebrando o `db`** — 14,4× em 1 h e 5 min no `slo-catalog.yaml`; a regra de 6× é um ticket ([Alertas](../../classes/observability/alerting/index.md)).
+
+## Limpeza { #clean-up }
 
 ``` shell
 docker compose stop                 # keep everything for lab 9
@@ -157,7 +176,7 @@ docker compose down -v              # or remove containers and volumes (all data
 
 O lab 9 usa este dashboard no seu *game day*: mantenha `infra/grafana/` e `infra/otel/`.
 
-## Estado final
+## Estado final { #end-state }
 
 ``` text title="End state (what this lab added or changed)"
 boxoffice/
@@ -190,14 +209,14 @@ Faça commit e tag: `git add -A && git commit -m "lab 8: observability" && git t
 - [ ] tabela de resultados do passo [Meça](measure/index.md) preenchida em `results/lab8.md` e explicada
 - [ ] autoverificação: depois de `docker compose down -v && sh scripts/get-otel-agent.sh && docker compose up -d`, o dashboard e as duas regras de alerta aparecem sem passos manuais; push com a tag `lab8`
 
-## Relacionados
+## Relacionados { #related }
 
 - Teoria: [Observabilidade](../../classes/observability/index.md) ·
   [Sinais: RED, USE, golden signals](../../classes/observability/signals/index.md) ·
   [OpenTelemetry](../../classes/observability/opentelemetry/index.md) ·
   [Alertas e *burn rate*](../../classes/observability/alerting/index.md) ·
   [Resposta a incidentes](../../classes/observability/incident-response/index.md) ·
-  [SLOs e orçamentos de erro](../../classes/reliability/slo/index.md)
+  [SLOs e orçamentos de erro](../../classes/observability/slo/index.md)
 - Lab anterior: [7. Mensageria assíncrona](../7/index.md) — o fluxo rastreado aqui.
 - Próximo lab: [9. Resiliência e caos](../9/index.md) usa este dashboard durante um *game day*.
 

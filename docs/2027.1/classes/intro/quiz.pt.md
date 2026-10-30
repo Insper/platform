@@ -2,7 +2,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Design de sistemas e requisitos
+## Design de sistemas e requisitos { #system-design-and-requirements }
 
 **Q1.** Qual pergunta é de **design de sistemas**, e não de design de software (no nível do código)?
 
@@ -88,7 +88,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## A jornada de escala
+## A jornada de escala { #the-scaling-journey }
 
 **Q7.** A BoxOffice roda três réplicas do servidor de aplicação atrás de um load balancer. Depois do login, os fãs são "deslogados" aleatoriamente na página seguinte. Qual é a causa mais provável?
 
@@ -160,7 +160,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## O método da entrevista
+## O método da entrevista { #the-interview-framework }
 
 **Q12.** Numa entrevista de system design de 45 minutos, qual é o principal objetivo do passo de estimativa?
 
@@ -214,4 +214,4 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — As perguntas do entrevistador são dicas sobre o que ele quer avaliar.**
 
-    Uma dependência lenta sem timeouts esgota as threads de quem chama e se propaga em cascata (aula 9). Nomear a mitigação *e o seu custo* mostra profundidade e raciocínio sobre trade-offs.
+    Uma dependência lenta sem timeouts esgota as threads de quem chama e se propaga em cascata (aula 10). Nomear a mitigação *e o seu custo* mostra profundidade e raciocínio sobre trade-offs.

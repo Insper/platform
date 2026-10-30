@@ -57,7 +57,9 @@ resilience4j:
         retry-exceptions:
           - org.springframework.web.client.ResourceAccessException   # timeouts, connection refused/reset
           - org.springframework.web.client.HttpServerErrorException  # 5xx
+          - org.springframework.web.client.RestClientException       # connection reset while reading the response
         ignore-exceptions:
+          - org.springframework.web.client.HttpClientErrorException  # 4xx: the same request fails again
           - io.github.resilience4j.circuitbreaker.CallNotPermittedException  # circuit open: fail fast
           - io.github.resilience4j.bulkhead.BulkheadFullException           # bulkhead full: fail fast
   circuitbreaker:

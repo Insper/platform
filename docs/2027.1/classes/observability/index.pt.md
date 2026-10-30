@@ -3,6 +3,10 @@ Sábado, 9h59. Um show de estádio abre as vendas às 10h00 no BoxOffice: 2 milh
 
 É para esse momento que a observabilidade existe. O sistema não está *fora do ar* — está *lento de um jeito que ninguém previu*, e a única saída é fazer perguntas novas ao sistema em execução e obter respostas em minutos, não em dias. Esta aula trata de projetar um sistema para que essas perguntas possam ser respondidas: quais sinais emitir, como carregar o contexto entre serviços, quando acordar um humano e como conduzir o incidente depois que alguém acordou.
 
+!!! quote "A história até aqui"
+
+    Capítulo 9 da [história do curso](../../index.md#story). A [aula 8](../messaging/index.md) tirou o trabalho lento da requisição: o pedido vai para um outbox, passa pelo Kafka e chega ao `notification`, e uma sala de espera deixa a multidão entrar no ritmo que o `inventory` consegue atender. A assincronia tem um preço: as falhas deixam de aparecer nas requisições. Um pedido confirmado às 10h01 cujo e-mail nunca chega não gerou nenhum `5xx` nem endpoint lento — sumiu em algum ponto entre o outbox, o Kafka e o consumidor —, e dashboards de causas (pods, CPU, médias) continuam verdes enquanto os fãs falham, como na manhã acima. **Esta aula** responde: o que o BoxOffice precisa emitir para seguir um pedido entre serviços e pelo Kafka, contra qual promessa o medimos (o [SLO](slo/index.md)) e quem é acordado quando a promessa quebra?
+
 !!! abstract "Objetivos de aprendizagem"
 
     Ao final desta aula, você deve ser capaz de:
@@ -10,18 +14,20 @@ Sábado, 9h59. Um show de estádio abre as vendas às 10h00 no BoxOffice: 2 milh
     - **Distinguir** monitoramento de observabilidade e **mapear** os cinco componentes de observabilidade da paleta (métricas, logs, tracing, alertas, health checks) para as perguntas que eles respondem.
     - **Instrumentar** um serviço com o sinal certo para cada pergunta, aplicando **RED**, **USE** e os **golden signals**, e **estimar** o custo e a cardinalidade da telemetria que ele produz.
     - **Explicar** como o OpenTelemetry propaga o contexto de trace por HTTP e Kafka, e **configurar** um pipeline do Collector com amostragem.
+    - **Definir** SLIs e SLOs para as jornadas de usuário do BoxOffice e **calcular** error budgets e burn rates.
     - **Projetar** alertas baseados em SLO com regras *multiwindow, multi-burn-rate* e **roteá-los** para as pessoas certas.
     - **Configurar** probes de liveness, readiness e startup sem causar reinícios em cascata.
     - **Conduzir** um incidente com papéis claros e **escrever** um postmortem *blameless* com ações concretas.
 
-## Roteiro
+## Roteiro { #roadmap }
 
 1. **Esta visão geral** — monitoramento vs observabilidade, a paleta de observabilidade, o ciclo de investigação, health checks e quanto custa a telemetria.
 2. [Sinais](signals/index.md) — métricas, logs, traces e profiles; RED, USE e golden signals; cardinalidade; dashboards.
-3. [OpenTelemetry](opentelemetry/index.md) — o padrão neutro de fornecedor: propagação de contexto, instrumentação, o Collector, amostragem e backends.
-4. [Alertas](alerting/index.md) — alertas baseados em sintomas, burn rate do SLO, regras multiwindow, roteamento e runbooks.
-5. [Resposta a Incidentes](incident-response/index.md) — on-call, severidades, papéis no incidente, mitigar primeiro, postmortems.
-6. [Quiz](quiz.md) — verifique seu entendimento.
+3. [SLIs, SLOs e error budgets](slo/index.md) — a confiabilidade do ponto de vista do usuário: o que medir, que meta prometer e como gastar o orçamento.
+4. [OpenTelemetry](opentelemetry/index.md) — o padrão neutro de fornecedor: propagação de contexto, instrumentação, o Collector, amostragem e backends.
+5. [Alertas](alerting/index.md) — alertas baseados em sintomas, burn rate do SLO, regras multiwindow, roteamento e runbooks.
+6. [Resposta a Incidentes](incident-response/index.md) — on-call, severidades, papéis no incidente, mitigar primeiro, postmortems.
+7. [Quiz](quiz.md) — verifique seu entendimento.
 
 ## Slides
 
@@ -34,7 +40,7 @@ Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** a
 
 ---
 
-## Monitoramento vs observabilidade
+## Monitoramento vs observabilidade { #monitoring-vs-observability }
 
 As duas palavras costumam ser usadas como sinônimos, mas descrevem capacidades diferentes.
 
@@ -58,7 +64,7 @@ O monitoramento não está obsoleto — ele é um *subconjunto*. Você ainda pre
 
 ---
 
-## A paleta de observabilidade
+## A paleta de observabilidade { #the-observability-palette }
 
 No [System Design Playground](../../../playground/index.md), a categoria OBSERVABILITY tem cinco componentes. Cada um responde a uma pergunta diferente, e cada um é consumido por alguém diferente — um humano investigando, um humano sendo acordado, ou uma máquina tomando uma decisão de roteamento.
 
@@ -82,11 +88,11 @@ A cola entre eles é o **contexto**: o mesmo `trace_id` na linha de log, no trac
 
 ---
 
-## O ciclo de investigação
+## O ciclo de investigação { #the-investigation-loop }
 
 A observabilidade se paga como um ciclo repetível que vai de sinais baratos e agregados para sinais caros e detalhados — estreitando a busca a cada passo. Execute o diagrama:
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     A["Alerta<br/>SLO do checkout queimando 14×"] --> D["Dashboard RED<br/>qual serviço? qual rota?"]
     D --> E["Exemplar<br/>trace_id de uma requisição lenta"]
@@ -109,9 +115,9 @@ flowchart LR
 
     O checkout da venda relâmpago atravessa cinco serviços do BoxOffice e uma dependência externa: `gateway` → `order` → `inventory` (confirma a reserva do assento, PostgreSQL) → `payment` (adaptador) → **provedor de pagamentos externo**, e então o `order` publica `OrderConfirmed` no Kafka, consumido pelo `notification` (e-mail/push). Cada seta é um lugar onde o tempo pode sumir, e o provedor externo é o único lugar onde o BoxOffice não consegue adicionar instrumentação — só medir as chamadas que faz.
 
-### Veja no simulador
+### Veja no simulador { #see-it-in-the-simulator }
 
-**Experimente.** Aperte *Run* com o perfil `load` e observe o painel de métricas: requisições por segundo, taxa de erros e p99 por componente. Depois ajuste o caos para `medium` e veja qual sinal reage primeiro — os health checks, os percentis de latência ou a taxa de erros. Repare que um componente lento pode continuar passando num health check raso enquanto o p99 explode.
+**Experimente.** Em t = 50 s uma das três réplicas do `catalog` morre. Aperte *Run* sem mudar nada: todo serviço mostra a utilização como "?" (nada é medido), e por 30 s o balanceador continua mandando um terço das requisições para a réplica morta — cerca de 33% de erros de t = 51 s a 80 s, 93,8% de disponibilidade na execução. Adicione **Metrics** e conecte ao balanceador, à aplicação e ao banco: os números aparecem, mas os fãs veem exatamente os mesmos erros — medir não conserta nada sozinho. Depois adicione um **Health Check** conectado ao balanceador: a réplica morta sai da rotação em 3 s em vez de 30 s, e a disponibilidade sobe para 99,4%. O que o último componente, **Alerting**, muda está em [Alertas](alerting/index.md#machines-detect-people-repair).
 
 <div class="sdp" data-scenario="observability-stack" data-mode="compact" data-height="520"></div>
 
@@ -131,7 +137,7 @@ O Kubernetes distingue três probes[^3], e a distinção é o ponto principal:
 | **Liveness** | O processo travou sem conserto? | **reinicia** o container | só o próprio processo: o event loop / pool de threads responde |
 | **Readiness** | Esta instância consegue atender requisições *agora*? | **remove do load balancer** (sem reiniciar) | consegue fazer trabalho útil: caches aquecidos, recursos locais necessários |
 
-``` mermaid-sim
+``` diagram-sim
 stateDiagram-v2
     [*] --> Iniciando : container criado
     Iniciando --> Pronto : startup ok, readiness ok
@@ -175,7 +181,7 @@ readinessProbe:
   failureThreshold: 2
 ```
 
-### Checks rasos vs profundos
+### Checks rasos vs profundos { #shallow-vs-deep-checks }
 
 Um check **raso** (*shallow*) responde "meu processo está vivo?". Um check **profundo** (*deep*) também chama as dependências — o banco de dados, o Redis, o provedor de pagamentos. Checks profundos parecem mais honestos, e essa é justamente a armadilha.
 
@@ -223,7 +229,7 @@ Com 100% de amostragem de traces, são mais de 5 TB de traces por mês — antes
 
 Os cinco componentes de observabilidade descrevem as mesmas requisições por ângulos diferentes, e o contexto compartilhado (exemplars, `trace_id`) os transforma numa única investigação. O mapa liga cada **componente da paleta** (verde) aos **conceitos** de que ele depende (azul) e às aulas que os continuam:
 
-``` mermaid
+``` diagram
 flowchart LR
     svc["app · worker<br/>(BoxOffice services)"]:::comp --> metrics["metrics"]:::comp
     svc --> tracing["tracing"]:::comp
@@ -239,7 +245,7 @@ flowchart LR
     hc -.- c5["liveness, readiness, startup,<br/>shallow vs deep"]:::tech
     c4 --> c6["incident roles, mitigate first,<br/>postmortems"]:::tech
     c4 -.- d1["SLI, SLO, error budget<br/>(class 9)"]
-    c5 -.- d2["Kubernetes probes, LB checks<br/>(classes 4 and 12)"]
+    c5 -.- d2["Kubernetes probes, LB checks<br/>(classes 4 and 11)"]
     classDef comp fill:#1e9e5a22,stroke:#1e9e5a
     classDef tech fill:#2f6fed22,stroke:#2f6fed
 ```
@@ -256,6 +262,14 @@ flowchart LR
 
     Observabilidade é a resposta padrão para "como você saberia que funciona?" e pertence ao **fechamento** de todo design. Diga de forma concreta, num fôlego só: *"Eu definiria um SLO para o checkout — 99,9% dos checkouts com sucesso em menos de 2 s em 28 dias — e alertaria sobre o burn rate dele; dashboards RED por serviço; traces OpenTelemetry com tail sampling que guarda todo erro e todo trace lento; logs estruturados com o trace ID; e probes de readiness que não dependem do banco."* Depois mencione uma coisa específica do problema que você acompanharia: consumer lag para uma fila, hit ratio para um cache, replication lag para réplicas.
 
+!!! success "Boas práticas"
+
+    - **Escreva o SLO antes do primeiro dashboard** — o SLI e sua meta decidem quais métricas, buckets de histograma e alertas você precisa; todo o resto é apoio ao diagnóstico. No BoxOffice: [Hands-on 8 — SLO e alerta de burn rate](../../hands-on/8/slo/index.md) (99,5% das requisições do `catalog` em 28 dias).
+    - **Marque todo sinal com `service.name`, versão e ambiente** — é o que permite comparar um canary com a versão estável, ou os erros de um serviço com os de outro, em métricas, traces e logs. No BoxOffice: a âncora `x-otel` de [OpenTelemetry](opentelemetry/index.md).
+    - **Mantenha dashboards e regras de alerta no repositório, provisionados na inicialização** — revisados como código, idênticos em todo ambiente e recriados depois de um `down -v` sem cliques. No BoxOffice: `infra/grafana/` no [Hands-on 8](../../hands-on/8/index.md).
+    - **Orce a telemetria como qualquer outra carga de trabalho** — estime-a antes de ligá-la (2 MB/s de spans a 500 req/s, [acima](#what-telemetry-costs)) e defina amostragem e retenção por sinal.
+    - **Rode o monitoramento fora do domínio de falha que ele observa** — uma stack de monitoramento no mesmo cluster ou zona morre junto com o incidente que deveria relatar; pelo menos a entrega de alertas e um heartbeat precisam viver em outro lugar ([Alertas](alerting/index.md)).
+
 !!! warning "Armadilhas comuns"
 
     - **Dashboards de causas, alertas sobre causas**: CPU, memória e contagem de pods verdes enquanto os usuários sofrem. Meça o que os usuários sentem.
@@ -266,22 +280,28 @@ flowchart LR
 
 ---
 
-## Relacionados
+## Relacionados { #related }
 
 - [Hands-on 8 — Observabilidade](../../hands-on/8/index.md): auto-instrumentação com OpenTelemetry e `grafana/otel-lgtm` no BoxOffice; dashboard RED, traces e um alerta de burn rate.
 - [Hands-on 9 — Resiliência e caos](../../hands-on/9/index.md) e [Hands-on 10 — Kubernetes](../../hands-on/10/index.md): probes, falhas com Toxiproxy, e como observá-las na telemetria.
-- [Confiabilidade](../reliability/index.md) e [SLOs](../reliability/slo/index.md): SLIs, SLOs e error budgets — o que os alertas desta aula fazem cumprir.
+- [Confiabilidade](../reliability/index.md) e [SLOs](slo/index.md): SLIs, SLOs e error budgets — o que os alertas desta aula fazem cumprir.
 - [Engenharia de desempenho](../performance/index.md): testes de carga só são úteis se você conseguir ver *por que* o sistema entorta.
 - [Exercício: relatório de teste de carga](../../exercises/load-test-report/index.md) e o [game day](../../exercises/project/game-day/index.md) do projeto.
 - Estudo de caso: [Ticketing (venda relâmpago do BoxOffice)](../case-studies/ticketing/index.md).
 
-## Principais conclusões
+## Pontos-chave { #key-takeaways }
 
-- **Monitoramento** responde perguntas conhecidas; **observabilidade** permite investigar perguntas novas a partir da telemetria que o sistema já emite.
-- Os cinco componentes da paleta respondem perguntas diferentes: **métricas** (há algo errado?), **logs** (o que aconteceu?), **traces** (onde?), **alertas** (um humano precisa agir agora?), **health checks** (esta instância deve receber tráfego?).
-- O **ciclo de investigação** vai de agregados baratos a detalhes caros: alerta → dashboard → exemplar → trace → logs → profile → mitigar → postmortem. O **contexto** compartilhado (`trace_id`) faz disso uma só investigação.
-- **A liveness nunca verifica dependências**; checks profundos transformam uma oscilação de dependência numa indisponibilidade total ou numa tempestade de reinícios.
-- Telemetria é uma carga de trabalho: estime seu volume e controle-o com **amostragem**, **cardinalidade limitada** e **camadas de retenção**.
+!!! takeaways ""
+
+    - **Monitoramento** responde perguntas conhecidas; **observabilidade** permite investigar perguntas novas a partir da telemetria que o sistema já emite.
+    - Os cinco componentes da paleta respondem perguntas diferentes: **métricas** (há algo errado?), **logs** (o que aconteceu?), **traces** (onde?), **alertas** (um humano precisa agir agora?), **health checks** (esta instância deve receber tráfego?).
+    - O **ciclo de investigação** vai de agregados baratos a detalhes caros: alerta → dashboard → exemplar → trace → logs → profile → mitigar → postmortem. O **contexto** compartilhado (`trace_id`) faz disso uma só investigação.
+    - **A liveness nunca verifica dependências**; checks profundos transformam uma oscilação de dependência numa indisponibilidade total ou numa tempestade de reinícios.
+    - Telemetria é uma carga de trabalho: estime seu volume e controle-o com **amostragem**, **cardinalidade limitada** e **camadas de retenção**.
+
+## O que quebra em seguida { #what-breaks-next }
+
+O BoxOffice agora se enxerga: um SLO com alerta de burn rate, um dashboard RED e um trace por pedido, da borda ao e-mail passando pelo Kafka — no lab 8, parar o banco aciona alguém em cerca de cinco a sete minutos (cerca de 440 s numa execução de teste). Enxergar não é sobreviver. Às 10h02 o provedor de pagamentos responde em 4 s em vez de 200 ms: o dashboard mostra o p95 do `order` subindo, o trace põe o tempo na chamada de pagamento, o alerta dispara — e o checkout morre mesmo assim, porque toda thread do `order` está esperando o provedor e não sobra nenhuma nem para as requisições que nunca o tocam. A observabilidade encurta o tempo para *entender* uma falha; impedir que uma dependência lenta derrube tudo — timeouts, circuit breakers, bulkheads e experimentos de caos que os comprovem — é a [aula 10 — Confiabilidade](../reliability/index.md).
 
 ---
 

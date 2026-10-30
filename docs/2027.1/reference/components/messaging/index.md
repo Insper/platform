@@ -11,7 +11,7 @@ In BoxOffice, the waiting room of the flash sale is a queue; `order` publishes `
 | [Event Stream](#stream) | An ordered, retained, partitioned log that consumers read at their own position | `stream` |
 | [Kafka](#kafka) | The most widely used event-streaming platform (topics, partitions, consumer groups) | `kafka` |
 
-``` mermaid
+``` diagram
 flowchart LR
     P1[order] -->|OrderConfirmed| K[(Kafka topic)]
     K --> N[notification]

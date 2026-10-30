@@ -1,7 +1,11 @@
 
 The BoxOffice team is arguing about the stadium on-sale. *"One PostgreSQL can't take that, we need a distributed database."* — *"Of course it can, Postgres is fast."* Both engineers are guessing. Neither has said how many requests per second the on-sale generates, how long one seat hold keeps the database busy, how full the database can run before latency explodes, or what happens to the fans' experience when one of the ten calls behind a page is slow.
 
-This class gives you the tools to settle that argument in five minutes on a whiteboard: the **numbers** every engineer should carry in their head, the **formulas** that connect load, latency and capacity, and the **methods** to turn a fuzzy question ("will it hold?") into an order-of-magnitude answer that drives a design decision. These are the same tools that you will use to read load tests (lab 2 and [class 15](../performance/index.md)), size clusters (class 12), set SLOs (class 9) and pass the estimation step of a system-design interview.
+This class gives you the tools to settle that argument in five minutes on a whiteboard: the **numbers** every engineer should carry in their head, the **formulas** that connect load, latency and capacity, and the **methods** to turn a fuzzy question ("will it hold?") into an order-of-magnitude answer that drives a design decision. These are the same tools that you will use to read load tests (lab 2 and [class 15](../performance/index.md)), size clusters (class 11), set SLOs (class 9) and pass the estimation step of a system-design interview.
+
+!!! quote "The story so far"
+
+    Chapter 2 of the [story of the course](../../index.md#story). [Class 1](../intro/index.md) wrote down what BoxOffice must do and how well: 2 million fans in the first minute, 60,000 seats, hold p99 < 300 ms. BoxOffice still runs on one service and one PostgreSQL. **This class** answers: can that database take the 10:00 on-sale — and how do we know before building anything?
 
 !!! abstract "Learning objectives"
 
@@ -128,7 +132,7 @@ The `monolith` scenario is a single app server and a single SQL database. The `b
 
 Estimation adds no box to the palette — it puts **numbers** on every box. The map links each tool of this class (blue) to the **palette components** (green) whose capacity, latency or availability it computes:
 
-``` mermaid
+``` diagram
 flowchart LR
     qps["QPS, storage, bandwidth<br/>peak factor"]:::tech --> bytes["cdn · objstore"]:::comp
     qps --> sql["sql"]:::comp
@@ -160,6 +164,14 @@ flowchart LR
 
     Spend **3–5 minutes** on estimates, right after clarifying requirements, and do them **out loud on the board**: assumptions in one column, results in another. Always finish each line with its consequence — "≈ 400 reads/s average, 1,200 at peak: one database could serve it, but a cache makes it trivial" — and move on. If the interviewer gives you numbers, use them; if not, propose round ones and ask "does that sound right?". Precision is not the goal; **orders of magnitude that drive decisions** are.
 
+!!! success "Best practices"
+
+    - **Keep the estimate in a versioned sheet next to the code** — assumptions in one column, results in another, each with a date; when a lab or production measures a number, replace the assumption and recompute. In BoxOffice: `results/lab2.md` ([Hands-on 2](../../hands-on/2/index.md#measure-it)).
+    - **Measure first the number the conclusion is most sensitive to** — here, the 5 ms a hold keeps the database busy; a 2× error there doubles the number of machines.
+    - **Size latency-sensitive tiers for ~60–70% utilization at peak, plus one spare (N+1)** — the knee and the loss of one node both need the headroom. In BoxOffice: the HPA of lab 10 scales `catalog` at 60% CPU.
+    - **Write the formula next to every capacity setting** — `maximum-pool-size: 10  # 1,000 holds/s × 10 ms = 10`; the next engineer can recheck it when the load changes. In BoxOffice: `DB_POOL_SIZE` in lab 1's compose, varied in lab 2.
+    - **Compare the estimate with reality after every big event** — predicted versus observed requests/s, p99 and utilization; the gap tells you which assumption to fix before the next on-sale.
+
 !!! warning "Common pitfalls"
 
     - **Estimating the average and designing for it**: systems fail at the peak. Always apply a peak factor, and for event-driven businesses like BoxOffice, estimate the spike separately.
@@ -174,16 +186,22 @@ flowchart LR
 
 - Hands-on: [2. Measure first](../../hands-on/2/index.md) — k6 smoke, load and stress tests on `catalog`; find the knee and check Little's Law.
 - Exercise: [Estimation](../../exercises/estimation/index.md) — an estimation sheet for five systems.
-- Class: [14. Performance engineering](../performance/index.md) — load testing and capacity planning with the same math.
+- Class: [15. Performance engineering](../performance/index.md) — load testing and capacity planning with the same math.
 - Reference: [Numbers cheat sheet](../../reference/numbers/index.md) and the [interview quick reference](../../support/interview/quick-reference/index.md).
 
-## Key takeaways
+## Key takeaways { #key-takeaways }
 
-- Design decisions change by **orders of magnitude**; estimation tells you which side of a threshold you are on.
-- Five steps: **decision → assumptions → powers of ten → sanity check → conclusion**.
-- Capacity is roughly **parallel slots / service time**, and you run well **below** it (≈ 60–75%) because latency explodes near saturation.
-- The most important output of an estimate is often **which number to measure** next.
-- Percentiles and availability math tell you what the **users** experience, not just what the servers do.
+!!! takeaways ""
+
+    - Design decisions change by **orders of magnitude**; estimation tells you which side of a threshold you are on.
+    - Five steps: **decision → assumptions → powers of ten → sanity check → conclusion**.
+    - Capacity is roughly **parallel slots / service time**, and you run well **below** it (≈ 60–75%) because latency explodes near saturation.
+    - The most important output of an estimate is often **which number to measure** next.
+    - Percentiles and availability math tell you what the **users** experience, not just what the servers do.
+
+## What breaks next { #what-breaks-next }
+
+The verdict is a **30× gap**: ~33,000 hold attempts/s against ~1,100 that one database sustains at a sane utilization, and lab 2 shows that a single `catalog` instance leaves its latency target at a few hundred requests per second. A waiting room shapes the demand, but it, the app replicas in front of the database and a standby for the primary (one machine cannot promise 99.95%) all mean **more than one machine**. Between machines there is a network that loses, delays and duplicates messages: a fan whose "hold" times out and is retried may end up with two holds, or two charges. What changes when BoxOffice becomes machines that cooperate only by messages is [class 3 — Distributed Systems](../distributed/index.md).
 
 ---
 

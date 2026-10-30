@@ -1,6 +1,6 @@
 The last step packages `catalog` as an **image** and runs it next to PostgreSQL with **Docker Compose**. From now on, "running BoxOffice" always means one command: `docker compose up`.
 
-``` mermaid
+``` diagram
 flowchart LR
     term(["your terminal<br/>curl · k6"]) -->|localhost:8082| catalog
     subgraph compose["docker compose project: boxoffice"]

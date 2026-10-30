@@ -1,4 +1,4 @@
-# IA e agentes
+# IA e agentes { #ai-agents }
 
 Os componentes de **IA e agentes** são os blocos de construção de aplicações que usam grandes modelos de linguagem (LLMs). O modelo em si é uma dependência externa, lenta (de centenas de milissegundos a segundos), cara (cobrada por token) e não determinística. Esses componentes existem para torná-lo utilizável num sistema em produção: um gateway na frente dos provedores, um orquestrador que roda o loop do agente, um registro das ferramentas que o modelo pode chamar, uma camada de memória que recupera os seus dados (RAG) e uma camada de segurança que verifica o que entra e o que sai.
 
@@ -12,7 +12,7 @@ No BoxOffice, o serviço `assistant` responde às perguntas dos fãs ("posso ped
 | [Memory Fabric](#memory) | Recuperação dos seus dados para o prompt (RAG) mais memória de curto e de longo prazo | `memory` |
 | [Safety Mesh](#safety) | Guardrails nas entradas, nas saídas e nas chamadas de ferramentas: injeção, dados pessoais, políticas, validação | `safety` |
 
-``` mermaid
+``` diagram
 flowchart LR
     U[Fã] --> GW[API Gateway] --> S1[Safety Mesh: checagem da entrada]
     S1 --> O[Orchestrator / loop do agente]
@@ -219,7 +219,7 @@ flowchart LR
 !!! tip "Na entrevista"
     "Ferramentas são só APIs com uma descrição que o modelo lê. Eu as exporia por servidores MCP na frente de catalog e order, manteria uma lista de permissões revisada por agente e autorizaria cada chamada com a identidade do usuário final dentro da ferramenta — o modelo nunca decide o que o usuário pode fazer."
 
-**Saiba mais:** [Sistemas de IA › Agentes](../../../classes/ai-systems/agents/index.md) · [Sistemas de IA › Segurança e avaliações](../../../classes/ai-systems/safety-evals/index.md) · [Rede e segurança › Identidade](../../../classes/network-security/identity/index.md) · [Hands-on 12](../../../hands-on/12/index.md)
+**Saiba mais:** [Sistemas de IA › Agentes](../../../classes/ai-systems/agents/index.md) · [Sistemas de IA › Segurança e avaliações](../../../classes/ai-systems/safety-evals/index.md) · [Rede e segurança › Identidade](../../../classes/edge/identity/index.md) · [Hands-on 12](../../../hands-on/12/index.md)
 
 ---
 

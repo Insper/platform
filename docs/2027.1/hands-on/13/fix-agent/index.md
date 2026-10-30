@@ -2,7 +2,7 @@ The reviewer of part 1 makes **one** model call and posts text. An **agent** is 
 
 ## 3.1 The flow and its trust boundaries
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     participant CI as CI workflow (lab 11)
@@ -135,7 +135,7 @@ git diff                                   # the agent's change, if any
 jq -c '{step, tool, args}' /tmp/agent-audit.jsonl   # what it did, step by step (or: cat the file)
 ```
 
-The `grep` must show the failure CI will see (Maven 3.9 prints `[INFO] BUILD FAILURE`):
+The `grep` must show the failure CI will see (Maven 3.10 prints `[ERROR] BUILD FAILURE`, Maven 3.9 `[INFO] BUILD FAILURE`):
 
 ```text
 [ERROR] Tests run: 3, Failures: 1, Errors: 1, Skipped: 0, Time elapsed: 0.618 s <<< FAILURE! -- in boxoffice.catalog.CatalogServiceTest
@@ -143,23 +143,23 @@ The `grep` must show the failure CI will see (Maven 3.9 prints `[INFO] BUILD FAI
 [ERROR] BUILD FAILURE
 ```
 
-The agent prints one JSON line at the end: `fixed`, its `explanation`, the tokens, the steps and the time. A run with the local `qwen2.5-coder-16k` while this lab was written:
+The agent prints one JSON line at the end: `fixed`, its `explanation`, the tokens, the steps and the time. Two runs with the local `qwen2.5-coder-16k` while this lab was revised gave the same result (the explanation is abridged):
 
 ```text
-{"fixed": false, "explanation": "```json\n{\"name\": \"write_file\", ... (abridged)", "model": "qwen2.5-coder-16k", "calls": 20, "in": 165075, "cache_read": 0, "cache_write": 0, "out": 5596, "seconds": 517.1, "usd": 0.0, "steps": 20}
+{"fixed": true, "explanation": "The root cause of the issue was that the `deleteEvent` method in `CatalogService` was incorrectly checking if the event exists before deleting it, ... (abridged)", "model": "qwen2.5-coder-16k", "calls": 4, "in": 32012, "cache_read": 0, "cache_write": 0, "out": 954, "seconds": 169.2, "usd": 0.0, "steps": 4}
 ```
 
-Read the audit log next to `git diff`: the free 7B model **never opened `CatalogService.java`**. It rewrote the *test* six times — adding, among others, a test that expects a `404` when the event **exists**, which encodes the bug as the specification (the oracle problem of part 2) — then broke compilation with a duplicated method and ran out of its 20 steps after 8½ minutes and 165,075 input tokens, ending with `"fixed": false`. Nothing dangerous happened: every write stayed under `services/catalog/src/`, and in CI the independent `mvn verify` of the verification step fails on this patch, so no PR is opened. That is the whole point of the guards — they make a bad agent harmless, not good. Run it once more with a stronger model if you have one, and compare.
+Read the audit log next to `git diff`: the model opened `CatalogService.java`, wrote it back with the `!` restored (the diff is that one line), ran the build and finished — four steps, about three minutes on a laptop:
 
 ```text
 $ jq -c '{step, tool, args}' /tmp/agent-audit.jsonl
-{"step":1,"tool":"read_file","args":{"path":"services/catalog/src/test/java/boxoffice/catalog/CatalogServiceTest.java"}}
-{"step":2,"tool":"write_file","args":{"path":"services/catalog/src/test/java/boxoffice/catalog/CatalogServiceTest.java","content":"<2431 chars>"}}
+{"step":1,"tool":"read_file","args":{"path":"services/catalog/src/main/java/boxoffice/catalog/CatalogService.java"}}
+{"step":2,"tool":"write_file","args":{"path":"services/catalog/src/main/java/boxoffice/catalog/CatalogService.java","content":"<3168 chars>"}}
 {"step":3,"tool":"run_build","args":{"service":"catalog"}}
-...
-{"step":18,"tool":"run_build","args":{"service":"catalog"}}
-{"step":19,"tool":"read_file","args":{"path":"services/catalog/src/test/java/boxoffice/catalog/CatalogServiceTest.java"}}
+{"step":4,"tool":"finish","args":{"fixed":true,"explanation":"<325 chars>"}}
 ```
+
+Do not take that for granted. An earlier run of the same model **never opened `CatalogService.java`**: it rewrote the *test* six times — adding, among others, a test that expects a `404` when the event **exists**, which encodes the bug as the specification (the oracle problem of part 2) — then broke compilation with a duplicated method and ran out of its 20 steps after 8½ minutes and 165,075 input tokens, ending with `"fixed": false`. Nothing dangerous happened even then: every write stayed under `services/catalog/src/`, and in CI the independent `mvn verify` of the verification step fails on such a patch, so no PR is opened. That is the whole point of the guards — they make a bad agent harmless, not good. Run it once more (and with a stronger model if you have one), and compare.
 
 Whatever it did, **verify like the workflow does**: `git diff --stat` must list only files under `services/catalog/src/`, no `@Test` may disappear, and `mvn -B -f services/catalog/pom.xml verify` must pass. Then undo the agent's change (`git checkout -- services`) — the CI run below should start from the broken commit.
 

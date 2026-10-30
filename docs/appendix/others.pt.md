@@ -1,9 +1,20 @@
+# Leituras Complementares
+
+Artigos, padrões e projetos que vão além do curso. Cada link abre em uma nova aba.
 
 ## Arquiteturas
 
 :fontawesome-brands-github:{ .github } [Clojure and Datomic Studies with Docker and Kafka](https://github.com/pelichero/code4nimbus){:target='_blank'} por [Pelichero, F.](https://github.com/pelichero){:target='_blank'}
 
 [System Design & Scalability Interviews](https://claude.ai/public/artifacts/ee1bf6d8-4842-487f-b9ee-c5d09014ab78){:target='_blank'}: material de apoio para entrevistas de arquitetura de sistemas e escalabilidade gerado pelo [Claude](https://claude.ai/){:target='_blank'} com base no curso de [Coding Interview](https://coding-interviews.insper-comp.com.br/){:target='_blank'}.
+
+## Redes
+
+[High Performance Browser Networking](https://hpbn.co/){:target='_blank'} por Grigorik, I.: TCP, TLS, HTTP/2 e a latência por trás de cada requisição, de leitura gratuita online.
+
+## Git
+
+[Learn Git Branching](https://learngitbranching.js.org/){:target='_blank'}: um visualizador interativo de branches, merges e rebases.
 
 ## Spring Boot
 

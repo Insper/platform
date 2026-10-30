@@ -2,7 +2,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Sinais e instrumentação
+## Sinais e instrumentação { #signals-and-instrumentation }
 
 **Q1.** O suporte diz "o checkout está lento". Que sinal responde *qual serviço e qual etapa* deixou lenta uma requisição específica?
 
@@ -60,7 +60,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Métricas e dashboards
+## Métricas e dashboards { #metrics-and-dashboards }
 
 **Q5.** Três réplicas do `catalog` reportam p95 de 80 ms, 90 ms e 400 ms. Qual é o p95 do serviço?
 
@@ -104,7 +104,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## SLOs e alertas
+## SLOs e alertas { #slos-and-alerts }
 
 **Q8.** O SLO do `catalog` é 99,5% em 28 dias. A fração de erros atual é 1%. Qual é a taxa de queima, e quanto tempo o orçamento inteiro duraria nesse ritmo?
 

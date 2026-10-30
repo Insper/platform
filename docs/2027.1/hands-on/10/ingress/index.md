@@ -7,7 +7,7 @@ the Nginx `edge` of [lab 3](../../3/index.md).
 
 ## The path of a request
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     curl["curl localhost/catalog/events/1"] -->|"host :80 → node :30080 (kind.yaml)"| node[control-plane node]
     node -->|NodePort Service| traefik[Traefik pod]

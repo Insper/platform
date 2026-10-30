@@ -19,11 +19,11 @@ Este é o caso principal da disciplina porque é o próprio **BoxOffice**, e por
 
 ---
 
-## 1. Esclarecer os requisitos
+## 1. Esclarecer os requisitos { #1-clarify-the-requirements }
 
 Gaste os primeiros cinco minutos aqui (veja o [roteiro de entrevista](../../intro/interview-framework/index.md)). Um sistema de ingressos pode ser "a bilheteria de um teatro de 300 lugares" ou "a abertura de vendas da Eras Tour": as respostas abaixo mudam o design por completo.
 
-### Requisitos funcionais
+### Requisitos funcionais { #functional-requirements }
 
 1. Fãs navegam por eventos e locais (catálogo) e veem o **mapa de lugares** com disponibilidade ao vivo.
 2. O fã escolhe lugares e recebe uma **reserva** (*hold*): os lugares ficam guardados para ele por alguns minutos (ex.: 10 min) enquanto paga.
@@ -31,7 +31,7 @@ Gaste os primeiros cinco minutos aqui (veja o [roteiro de entrevista](../../intr
 4. Reservas não pagas **expiram** e os lugares voltam à venda.
 5. Em aberturas de alta demanda, os fãs aguardam numa **sala de espera** e são admitidos em ordem.
 
-### Requisitos não funcionais
+### Requisitos não funcionais { #non-functional-requirements }
 
 | Qualidade | Meta (declare; o entrevistador vai pressionar) |
 |---|---|
@@ -42,7 +42,7 @@ Gaste os primeiros cinco minutos aqui (veja o [roteiro de entrevista](../../intr
 | **Justiça** | Ordem de chegada (ou um sorteio declarado), com limites por conta; bots não podem ganhar. |
 | **Durabilidade** | Um pedido confirmado nunca se perde (pagamento cobrado ⇒ ingresso existe). |
 
-### Fora do escopo (diga explicitamente)
+### Fora do escopo (diga explicitamente) { #out-of-scope-say-it-explicitly }
 
 Cadastro de eventos pelos produtores, preço dinâmico, marketplace de revenda, leitura física dos ingressos no portão, reembolsos. Cite-os numa frase e siga em frente.
 
@@ -59,7 +59,7 @@ Cadastro de eventos pelos produtores, preço dinâmico, marketplace de revenda, 
 
 ---
 
-## 2. Estimativas de guardanapo (back-of-the-envelope)
+## 2. Estimativas de guardanapo (back-of-the-envelope) { #2-back-of-the-envelope-estimates }
 
 Os números é que tornam este problema interessante: o trabalho **total** é minúsculo (60 mil lugares cabem em poucos megabytes), mas o **pico** é brutal. Declare as premissas e depois calcule. O bloco abaixo é a estimativa em código — abra a aba *Source*, mude uma premissa e refaça no papel.
 
@@ -144,7 +144,7 @@ POST /v1/webhooks/payments                           ← provider callback, sign
 
 ---
 
-## 4. Modelo de dados
+## 4. Modelo de dados { #4-data-model }
 
 O estoque é pequeno, relacional e precisa de transações ⇒ **SQL** ([PostgreSQL](../../databases/transactions/index.md)), particionado por `event_id` se houver muitos eventos. O catálogo é quase só leitura e pode morar no mesmo banco atrás de um cache, ou num banco de documentos.
 
@@ -195,11 +195,11 @@ CREATE TABLE outbox (                               -- transactional outbox → 
 
 ---
 
-## 5. Design de alto nível
+## 5. Design de alto nível { #5-high-level-design }
 
 Leia o diagrama como dois caminhos. O **caminho barato** (catálogo, página de espera, disponibilidade) é servido pela CDN e pelos caches e nunca toca as linhas quentes. O **caminho caro** (reserva → pedido → pagamento) é protegido pela sala de espera, que deixa entrar só o que o banco e o provedor de pagamento aguentam.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     fan([Fã / mobile]) --> cdn["CDN<br/>páginas de evento, página de espera"]
     cdn --> waf["WAF<br/>bots, DDoS"]
@@ -223,7 +223,7 @@ flowchart LR
 
 O caminho feliz de um fã, passo a passo:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     participant F as Fã
@@ -248,13 +248,32 @@ sequenceDiagram
     N-->>F: e-mail + push com os ingressos
 ```
 
+!!! example "No código do BoxOffice: onde mora cada caixa deste projeto"
+
+    Este caso é o BoxOffice, e os labs construíram a maior parte das suas caixas. Os labs constroem um checkout mais simples que o da seção 6.3 — o pagamento é uma chamada síncrona com timeout e circuit breaker, não uma máquina de estados com webhooks —, mas todas as outras linhas são o mecanismo real. Leia os arquivos nesta ordem e você terá lido o projeto:
+
+    | Componente | Lab | Arquivo para ler primeiro |
+    |---|---|---|
+    | Borda: balanceamento de carga, limite de taxa por chave | [Lab 3](../../../hands-on/3/index.md) | `infra/nginx/nginx.conf` |
+    | API gateway: o token é verificado uma vez | [Lab 4](../../../hands-on/4/gateway/index.md) | `SecurityConfig.java` (gateway) |
+    | Caminho de leitura do catálogo: cache-aside, lock contra stampede | [Lab 5](../../../hands-on/5/cache-aside/index.md) | `EventCache.java` |
+    | Reservas de assento sem venda dupla | [Lab 6](../../../hands-on/6/holds/index.md) | `HoldService.java` |
+    | Evento do pedido na mesma transação (outbox) | [Lab 7](../../../hands-on/7/outbox/index.md) | `Outbox.java`, `OutboxRelay.java` |
+    | Sala de espera | [Lab 7](../../../hands-on/7/waiting-room/index.md) | `WaitingRoom.java` |
+    | Consumidor de notificações idempotente, DLT | [Lab 7](../../../hands-on/7/consumer/index.md) | `NotificationService.java`, `KafkaConfig.java` |
+    | SLOs e alertas de burn rate | [Lab 8](../../../hands-on/8/slo/index.md) | `slo-catalog.yaml` |
+    | Pagamento: timeout, retry, circuit breaker, idempotência | [Lab 9](../../../hands-on/9/patterns/index.md) | `PaymentClient.java`, `PaymentService.java` |
+    | Escalar antes das 10:00 | [Lab 10](../../../hands-on/10/autoscaling/index.md) | `catalog-hpa.yaml` |
+    | Canary e o portão de desempenho | [Lab 11](../../../hands-on/11/canary/index.md) | `catalog-rollout.yaml`, `load/budget.js` |
+    | Assistente de atendimento | [Lab 12](../../../hands-on/12/tools/index.md) | `agent.py`, `tools.py` |
+
 ---
 
-## 6. Aprofundamentos (deep dives)
+## 6. Aprofundamentos (deep dives) { #6-deep-dives }
 
 O entrevistador vai escolher um ou dois destes. Comece pelo que protege a **corretude** (reservas), depois o que protege a **disponibilidade** (a sala de espera).
 
-### 6.1 Reservas de lugar sem venda duplicada
+### 6.1 Reservas de lugar sem venda duplicada { #61-seat-holds-without-double-booking }
 
 Dois fãs clicam no lugar A-12-07 no mesmo milissegundo. Exatamente um deve ganhar. Há quatro formas clássicas de garantir isso ([transações e isolamento](../../databases/transactions/index.md)):
 
@@ -319,11 +338,11 @@ Dois fãs clicam no lugar A-12-07 no mesmo milissegundo. Exatamente um deve ganh
 
     Com ingressos de pista não há linhas por lugar, só `remaining = 60 000`. `UPDATE pool SET remaining = remaining - 2 WHERE remaining >= 2` é correto, mas **serializa todos os compradores numa linha só**. Soluções: dividir o estoque em N **subcontadores** (shards) e escolher um ao acaso; ou manter o contador no Redis (`DECRBY` num script Lua) e gravar os pedidos no SQL de forma assíncrona; ou **pré-alocar** o estoque nos tokens da sala de espera (cada fã admitido carrega o direito de comprar até 4).
 
-### 6.2 A sala de espera (fila virtual)
+### 6.2 A sala de espera (fila virtual) { #62-the-waiting-room-virtual-queue }
 
 A sala de espera é **descarte de carga com boas maneiras**: em vez de deixar 2 M de requisições baterem no estoque e falharem ao acaso, ela transforma a rajada num **fluxo constante e medido** e diz a cada fã onde ele está.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     j["Fãs entram<br/>~17 mil/s"] --> rq[("Fila<br/>por sorteio<br/>ou chegada")]
     rq --> d{"Admissor<br/>a cada segundo"}
@@ -345,11 +364,11 @@ Pontos de design:
 
     Servidores de aplicação escalam em um ou dois minutos; as **linhas de lugar** não escalam nada — há uma linha por lugar e todo mundo quer os melhores lugares. O primário do banco, o pool de conexões e o rate limit do provedor de pagamento estão fixos pelos próximos 30 minutos. O autoscaling ajuda o caminho barato (catálogo, sala de espera); o caminho caro precisa de **controle de admissão**.
 
-### 6.3 Checkout e pagamento: uma máquina de estados, não uma chamada de função
+### 6.3 Checkout e pagamento: uma máquina de estados, não uma chamada de função { #63-checkout-and-payment-a-state-machine-not-a-function-call }
 
 Um provedor de pagamento responde em segundos, dá timeout e às vezes chama você de volta **antes** de sua requisição HTTP retornar. Modele o pedido como uma máquina de estados cujas transições são idempotentes ([integrações](../../compute/integrations/index.md), [caso do sistema de pagamentos](../payment-system/index.md)).
 
-``` mermaid-sim
+``` diagram-sim
 stateDiagram-v2
     [*] --> HELD: POST /holds
     HELD --> PENDING_PAYMENT: POST /orders (estende a reserva)
@@ -368,7 +387,7 @@ stateDiagram-v2
 - **Conciliação.** Um job do scheduler lista pedidos `PENDING_PAYMENT` com mais de N minutos e pergunta o status ao provedor. Isso resolve webhooks perdidos — e o caso traiçoeiro "o pagamento foi aprovado **depois** que a reserva expirou": ou os lugares ainda estão livres (confirma) ou foram revendidos (estorna automaticamente e pede desculpas).
 - **Resiliência.** Timeout + circuit breaker + bulkhead em volta do provedor ([padrões de confiabilidade](../../reliability/patterns/index.md)); se o breaker estiver aberto, **pare de admitir** novos fãs em vez de deixá-los reservar lugares que não vão conseguir pagar.
 
-### 6.4 O caminho de leitura: mapa de lugares e catálogo
+### 6.4 O caminho de leitura: mapa de lugares e catálogo { #64-the-read-path-seat-map-and-catalog }
 
 Os fãs martelam o mapa de lugares. Servi-lo a partir da tabela `seat` colocaria as leituras nas mesmas linhas quentes das reservas.
 
@@ -379,7 +398,7 @@ Os fãs martelam o mapa de lugares. Servi-lo a partir da tabela `seat` colocaria
 
 ---
 
-## 7. Gargalos, modos de falha e trade-offs
+## 7. Gargalos, modos de falha e trade-offs { #7-bottlenecks-failure-modes-and-trade-offs }
 
 | Onde | O que dá errado às 10:00 | Mitigação | Trade-off |
 |---|---|---|---|
@@ -397,24 +416,24 @@ Os dois trade-offs para **dizer em voz alta**: **consistência acima de disponib
 
 ---
 
-## 8. Experimente no playground
+## 8. Experimente no playground { #8-try-it-in-the-playground }
 
-O cenário `flash-sale` liga uma sala de espera (fila) na frente do estoque (SQL) e do provedor de pagamento, e reproduz um pico às 10:00.
+O cenário `flash-sale` reproduz o pico da abertura da venda (as nossas 10:00) num desenho que começa **sem** sala de espera: `users → lb → app → inventory-db`, com os compradores chamando o `payment provider` (cota de 500 req/s). O perfil `load` dele já contém o pico — um evento roteirizado multiplica o tráfego por 20 em t = 60 s, por 90 s.
 
 !!! tip "Experimente"
 
-    1. Rode o cenário com o perfil **spike** e observe a utilização do SQL, o backlog da fila e o p99 do caminho de checkout.
-    2. Contorne a fila (ligue o gateway direto no app de estoque) e rode de novo: veja o banco saturar e os erros subirem — é o número "sem sala de espera" da seção 2.
-    3. Restaure a fila e mude o número de workers/réplicas atrás dela: encontre a taxa de admissão em que o p99 fica abaixo do SLO e o backlog ainda escoa.
-    4. Coloque o caos em **medium** para deixar o provedor de pagamento lento: o que acontece com as requisições em andamento (Lei de Little), e o que o admissor deveria fazer?
+    1. Rode o desenho inicial e observe a utilização do `app` e do `inventory-db` e a taxa de erros. Aumente as réplicas do `app`: o banco e a cota do pagamento saturam em seguida — é o caso "sem sala de espera" da seção 2: nenhuma quantidade de servidores de aplicação resolve.
+    2. Siga as dicas (ou **Mostrar uma solução possível**): uma CDN, um cache para as leituras do catálogo e um API Gateway que manda as escritas para uma Message Queue — a sala de espera — drenada por workers `order`. Rode de novo e compare o p99, os erros e o atraso do consumidor (quanto o comprador espera na fila).
+    3. Mude o número de workers `order`: encontre a taxa de admissão em que o atraso do consumidor fica abaixo da meta de 300 s sem passar da cota do provedor de pagamento.
+    4. Injete uma degradação de latência no provedor de pagamento (⚡) ou coloque o caos em **medium**: o que acontece com as requisições em andamento dos workers (Lei de Little) e com a fila, e o que o admissor deveria fazer?
 
-<div class="sdp" data-scenario="flash-sale" data-mode="full" data-height="640" data-profile="spike"></div>
+<div class="sdp" data-scenario="flash-sale" data-mode="full" data-height="640"></div>
 
 [Abrir o playground completo](../../../../playground/index.md){ .md-button }
 
 ---
 
-## 9. Perguntas de follow-up que o entrevistador faz
+## 9. Perguntas de follow-up que o entrevistador faz { #9-follow-up-questions-an-interviewer-asks }
 
 ??? question "O provedor de pagamento cai às 10:05. O que acontece?"
 
@@ -446,7 +465,7 @@ O cenário `flash-sale` liga uma sala de espera (fila) na frente do estoque (SQL
 
 ---
 
-## 10. Rubrica de autoavaliação
+## 10. Rubrica de autoavaliação { #10-self-assessment-rubric }
 
 | Nível | O que a resposta contém |
 |---|---|
@@ -456,13 +475,21 @@ O cenário `flash-sale` liga uma sala de espera (fila) na frente do estoque (SQL
 
 **Relacionados:** [Hands-on 6](../../../hands-on/6/index.md) (reservas de lugar e transações), [Hands-on 7](../../../hands-on/7/index.md) (outbox e fila da sala de espera), [Hands-on 9](../../../hands-on/9/index.md) (resiliência em volta do pagamento), [projeto em equipe](../../../exercises/project/index.md).
 
+!!! success "Boas práticas"
+
+    - **Faça de "um assento, um comprador" um fato do banco** — um `UPDATE ... WHERE status = 'AVAILABLE'` condicional ou um lock, nunca uma verificação no código seguida de uma escrita. No BoxOffice: o [`HoldService.java`](../../../hands-on/6/holds/index.md) compara três estratégias.
+    - **Expire as reservas com um job, não quando alguém as lê** — os assentos precisam voltar à venda mesmo que ninguém olhe; o lab 6 libera as reservas expiradas a cada 5 s com `FOR UPDATE SKIP LOCKED`, para que várias réplicas possam rodá-lo.
+    - **Defina a taxa de admissão a partir do joelho medido, com margem** — admita abaixo da vazão em que o p99 começa a subir, e reduza-a quando o provedor ficar lento.
+    - **Ensaie a abertura de vendas antes da abertura de vendas** — um teste de carga de pico com o provedor substituído por um stub e um game day com falhas ([lab 9](../../../hands-on/9/index.md), [lab 11](../../../hands-on/11/performance-gate/index.md)).
+    - **Guarde o mapa de assentos em cache por cerca de um segundo, nunca a decisão da reserva** — as leituras continuam baratas; toda decisão vai à fonte da verdade.
+
 ---
 
 ## Como se conecta { #how-it-connects }
 
 Quais aulas este caso testa? Cada ramo é uma aula cujas ideias o design usa (azul), com os componentes da paleta em que elas aparecem (verde):
 
-``` mermaid
+``` diagram
 flowchart LR
     CASE(["Ticketing (BoxOffice)"]) --> PERF["Performance<br/>Little's Law admission, spike test"]:::tech
     CASE --> EDG["Edge<br/>CDN, WAF, waiting room"]:::tech
@@ -484,7 +511,7 @@ flowchart LR
 
 ---
 
-## Referências
+## Referências { #references }
 
 - XU, A.; LAM, S. *System Design Interview — An Insider's Guide*, vol. 2, cap. 7 "Hotel Reservation System" (reservas, concorrência, idempotência)[^1].
 - KLEPPMANN, M.; RICCOMINI, C. *Designing Data-Intensive Applications*, 2ª ed., capítulo sobre transações (atualizações perdidas, *write skew*, `SELECT … FOR UPDATE`)[^2].

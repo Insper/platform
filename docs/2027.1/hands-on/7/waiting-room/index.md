@@ -7,7 +7,7 @@ ticketing and sneaker-drop sites is a **virtual waiting room**: a queue *in fron
 lets fans in at the rate the system can serve, in arrival order, and tells everyone else their
 position honestly.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     fans["2 M fans"] -->|POST join| wr["waiting room (Redis FIFO)"]
     wr -->|"position, ETA"| fans
@@ -89,7 +89,7 @@ boxoffice:
 <!-- termynal -->
 
 ``` shell
-> docker compose up -d --build order
+> docker compose up -d --build --wait order
 > curl -s -X POST localhost:8084/orders/waiting-room/show-42/open -o /dev/null -w '%{http_code}\n'
 204
 > curl -s -X POST localhost:8084/orders/waiting-room/show-42/join

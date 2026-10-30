@@ -1,6 +1,6 @@
 Todo lab deste curso termina com uma medição, e esta importa mais do que a maioria: ferramentas de IA são adotadas por **sensação**. Num ensaio clínico randomizado de 2025 feito pela METR, desenvolvedores experientes de código aberto usando ferramentas de IA levaram cerca de **19% mais tempo** para concluir as tarefas — enquanto acreditavam ter sido cerca de **20% mais rápidos**[^1]. Um estudo não encerra a questão para o seu time, mas encerra uma coisa: **você precisa medir**. Esta parte mede o revisor da parte 1 (e as outras etapas) ao longo de uma semana de pull requests reais.
 
-## 7.1 O que medir
+## 7.1 O que medir { #71-what-to-measure }
 
 | Métrica | Definição | Fonte | Direção saudável |
 |---|---|---|---|
@@ -14,7 +14,7 @@ Todo lab deste curso termina com uma medição, e esta importa mais do que a mai
 
 A precisão por reações precisa que **as pessoas reajam**. Combine isso com o seu time para esta semana: todo comentário da IA recebe um 👍 (útil: mudei algo ou aprendi algo) ou um 👎 (errado, irrelevante ou óbvio). Comentários sem avaliação são reportados à parte.
 
-## 7.2 O coletor
+## 7.2 O coletor { #72-the-collector }
 
 ``` { .python title=".github/ai/metrics.py" .copy linenums="1" }
 --8<-- "docs/2027.1/hands-on/13/code/.github/ai/metrics.py"
@@ -48,7 +48,7 @@ Você deve ver uma linha por PR do período e os totais. O formato, de uma execu
 
 Com o modelo gratuito, `US$` fica em 0 — o seu custo está na coluna `CI min`. Rode-o no fim da semana, e uma vez no meio para conferir que os comentários estão sendo avaliados.
 
-## 7.3 A semana
+## 7.3 A semana { #73-the-week }
 
 Você precisa de **pelo menos 10 PRs**. Trabalhe em dupla (ou com o seu time de projeto) e revise os PRs uns dos outros como faria normalmente; o revisor de IA é mais uma voz. **Trabalhando sozinho?** Abra você mesmo os PRs — mudanças pequenas e reais (um teste, um rename, uma linha de log, uma seção do README, uma correção vinda dos próprios comentários do revisor) —, avalie cada comentário da IA com honestidade antes de ler o próximo e diga no relatório que uma pessoa avaliou tudo.
 
@@ -61,7 +61,7 @@ Você precisa de **pelo menos 10 PRs**. Trabalhe em dupla (ou com o seu time de 
     OLLAMA_BASE_MODEL=qwen2.5-coder:3b OLLAMA_MODEL_NAME=qwen2.5-coder-3b-16k bash .github/ai/ollama-model.sh
     for m in qwen2.5-coder-16k qwen2.5-coder-3b-16k; do
       LLM_MODEL=$m uv run --no-project --python 3.12 --with-requirements .github/ai/requirements.txt \
-        python .github/ai/eval_review.py .github/ai/evals 2>&1 | tail -n 6
+        python .github/ai/eval_review.py .github/ai/evals 2>&1 | tail -n 8
     done
     ```
 
@@ -70,13 +70,13 @@ Você precisa de **pelo menos 10 PRs**. Trabalhe em dupla (ou com o seu time de 
     ``` { .bash .copy }
     for m in claude-opus-5-5 claude-sonnet-5-5 claude-haiku-4-5; do
       LLM_PROVIDER=anthropic LLM_MODEL=$m uv run --no-project --python 3.12 --with-requirements .github/ai/requirements.txt \
-        python .github/ai/eval_review.py .github/ai/evals 2>&1 | tail -n 6
+        python .github/ai/eval_review.py .github/ai/evals 2>&1 | tail -n 8
     done
     ```
 
     Cada execução termina com a linha de recall e a tabela de custo; copie-as para a tabela de modelos abaixo.
 
-## 7.4 Modelo de resultados
+## 7.4 Modelo de resultados { #74-results-template }
 
 Copie para `results/lab13.md` e preencha:
 
@@ -112,7 +112,7 @@ Copie para `results/lab13.md` e preencha:
 For each step: keep, tune (which knob?), or remove — and why, with the numbers above.
 ```
 
-## 7.5 Lendo os números
+## 7.5 Lendo os números { #75-reading-the-numbers }
 
 - **Precisão abaixo de ~50%** — o revisor é ruído; as pessoas vão aprender a ignorá-lo, inclusive quando ele estiver certo. Aumente `AI_REVIEW_MIN_SEVERITY`, diminua `AI_REVIEW_MAX_COMMENTS`, adicione os falsos positivos ao `CONVENTIONS.md` ("usamos `double` para coordenadas de propósito") e ao golden set.
 - **Precisão alta, poucos comentários** — candidato ao modo portão para `blocker` + confiança `high`, como check *obrigatório*. Ainda assim, não é uma aprovação.
@@ -127,7 +127,7 @@ For each step: keep, tune (which knob?), or remove — and why, with the numbers
     *"Como você saberia se o code review por IA vale a pena?"* — Defina precisão (comentários aceitos ÷ avaliados) e recall num golden set, acompanhe o custo por PR e o tempo até o merge, faça um período de linha de base e decida por etapa, com números. Mencione que a produtividade percebida e a produtividade medida podem divergir, então autoavaliações não bastam.
 
 
-## Solução de problemas
+## Solução de problemas { #troubleshooting }
 
 | Sintoma | Causa | Correção |
 |---|---|---|

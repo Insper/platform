@@ -278,6 +278,92 @@ C = 20, r = 10/s. An idle fan sends 50 requests at once.
 
 ---
 
+## Sessions vs tokens
+
+| | Server-side session | JWT access token |
+|---|---|---|
+| Client holds | random id | signed claims |
+| Validation | lookup (Redis) | signature, locally |
+| Revocation | immediate | only at `exp` |
+| Scaling | shared store | stateless |
+
+<div class="q">
+
+Tokens live 15 min, validated locally. Refresh revoked at 14:05, last token issued 13:58. Until when can a thief call?
+
+</div>
+
+* **14:13** — the exposure window is one token lifetime. Shorter tokens, introspection or DPoP shrink it.
+
+---
+
+## OAuth 2.1 in one slide
+
+- **Delegated authorization**: the client gets a limited, short-lived token; it **never sees the password**.
+- Roles: resource owner · client (public / confidential) · authorization server · resource server.
+- **PKCE for every** authorization-code client; **Implicit and ROPC removed**.
+- **Exact** redirect-URI matching; no tokens in URLs; refresh tokens **rotated** or sender-constrained.
+- Grants: **Auth Code + PKCE** (users) · **Client Credentials** (jobs) · **Device** (TVs) · **Token Exchange** (delegation).
+
+---
+
+## The mobile app: Authorization Code + PKCE
+
+1. App creates `code_verifier`; sends `code_challenge = S256(verifier)` + `state` + `nonce`.
+2. **System browser** opens `/authorize`; user logs in at `auth` (MFA / passkey).
+3. Redirect brings back a one-time **code**; app checks `state`.
+4. App posts `code` + `code_verifier` to `/token`; server compares hashes.
+5. Gets **access** (15 min) + **refresh** (rotating) + **ID** token.
+6. Gateway verifies the JWT **locally** (JWKS): signature, `iss`, `aud`, `exp`, scope.
+
+<div class="ok">
+
+A stolen code is useless without the verifier. The password never touches BoxOffice code.
+
+</div>
+
+---
+
+## OIDC and validating a JWT
+
+<div class="cols">
+<div>
+
+**OIDC adds**
+- `openid` scope
+- **ID token** for the *client*
+- UserInfo endpoint
+- discovery: `/.well-known/openid-configuration`
+- web: a **BFF** keeps tokens, browser gets an `HttpOnly` cookie
+
+</div>
+<div>
+
+**Validate (RFC 8725)**
+- allow-listed `alg`, key by `kid`
+- `iss` = our provider
+- `aud` = **this** API
+- `exp` / `nbf`, small skew
+- `typ` = `at+jwt`, scopes
+
+</div>
+</div>
+
+---
+
+## Authorization models
+
+| Model | Decides by | BoxOffice |
+|---|---|---|
+| **RBAC** | roles | `organizer` creates events |
+| **ABAC** | attributes + context | refund only > 48 h before the show |
+| **ReBAC** | relationships | Bruno sees the ticket Ana shared |
+
+- Scopes limit the **client**; ownership limits the **user** → BOLA check in `order`.
+- Policy as code: **OPA / Rego**, **Cedar**, OpenFGA.
+
+---
+
 ## HTTP/1.1 → HTTP/2 → HTTP/3
 
 | | HTTP/1.1 | HTTP/2 | HTTP/3 |
@@ -285,7 +371,7 @@ C = 20, r = 10/s. An idle fan sends 50 requests at once.
 | Transport | TCP | TCP | QUIC (UDP) |
 | Per connection | 1 request at a time | multiplexed streams | independent streams |
 | Head-of-line blocking | HTTP + TCP | TCP | none across streams |
-| Handshake to first byte (new) | TLS 1.2: 4 RTT | TLS 1.3: 3 RTT | 2 RTT · 0-RTT: 1 |
+| Handshake to first byte (new) | TLS 1.2: 4 RTT · 1.3: 3 | TLS 1.2: 4 RTT · 1.3: 3 | 2 RTT · 0-RTT: 1 |
 | Survives Wi-Fi → 4G | no | no | **yes** (connection ID) |
 
 <p class="small">At 150 ms RTT: 600 ms vs 300 ms before the first byte. Best handshake: the one you do not repeat (keep-alive, pooling, edge near the user).</p>

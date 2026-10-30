@@ -3,6 +3,10 @@ BoxOffice leaves the laptop and goes to production in the cloud. Within a month,
 
 None of these is a bug in a single line of code. They are **design** problems: where the network boundaries are, who is allowed to talk to whom, how identities are proven, where secrets live and how fast they can be revoked. This class treats security and networking the way the rest of the course treats scalability — as **architecture decisions with trade-offs**, made on purpose, drawn on the diagram, and defended in an interview.
 
+!!! quote "The story so far"
+
+    Chapter 12 of the [story of the course](../../index.md#story). The gateway already checks every fan's token once ([class 4 — Identity](../edge/identity/index.md), built in [lab 4](../../hands-on/4/index.md)), and [class 11](../cloud-native/index.md) replaced Compose with Kubernetes and a delivery pipeline. Now many services, built by many people and by a pipeline, share one platform — and the four stories above show what that trust costs: bots in the on-sale line, a leaked key, a pod that can reach everything, libraries nobody reviewed. **This class** answers: where are the trust boundaries, who may talk to whom, how are secrets limited and revoked, and how do we know what we ship?
+
 !!! abstract "Learning objectives"
 
     By the end of this class you should be able to:
@@ -15,10 +19,10 @@ None of these is a bug in a single line of code. They are **design** problems: w
 
 ## Roadmap
 
-1. **This overview** — security as design: threat modeling with STRIDE, defense in depth, and the OWASP API Security Top 10 mapped to BoxOffice.
-2. [Cloud networking](cloud-network/index.md) — VPC, subnets, route tables, Internet and NAT gateways, security groups vs NACLs, private endpoints, VPN and dedicated links.
-3. [Service mesh](service-mesh/index.md) — data plane and control plane, sidecar vs ambient vs eBPF, mTLS, authorization and traffic policies.
-4. [Identity: OAuth 2.1, OIDC & JWT](identity/index.md) — sessions vs tokens, Authorization Code + PKCE for the mobile app, OpenID Connect, token validation, authorization models.
+1. **This overview** — security as design: threat modeling with STRIDE, defense in depth, and the OWASP API Security Top 10 mapped to BoxOffice. Identity — tokens, OAuth 2.1 and OIDC — was taught where BoxOffice first needed it, at the gateway: [class 4 — Identity](../edge/identity/index.md).
+2. [How the Internet works](internet/index.md) — layers, routing hop by hop and BGP, IP addresses and CIDR, public vs private addresses, NAT, subnets and the default gateway; two simulators (address explorer, packet walk through the BoxOffice VPC).
+3. [Cloud networking](cloud-network/index.md) — VPC, subnets, route tables, Internet and NAT gateways, security groups vs NACLs, private endpoints, VPN and dedicated links.
+4. [Service mesh](service-mesh/index.md) — data plane and control plane, sidecar vs ambient vs eBPF, mTLS, authorization and traffic policies.
 5. [Zero Trust, secrets & supply chain](zero-trust/index.md) — never trust the network, workload identity, secrets management, SBOM, image signing and SLSA.
 6. [Quiz](quiz.md) — check your understanding.
 
@@ -65,7 +69,7 @@ Two words used throughout:
 
 A **trust boundary** is a line where data moves between components with different levels of trust: the Internet and our edge, our cluster and the payment provider, a service and its database. Threats concentrate on the boundaries.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     subgraph internet ["Internet (untrusted)"]
         M(["Mobile app"])
@@ -105,10 +109,10 @@ Five trust boundaries are crossed in a single checkout: Internet → edge, edge 
 
 | Threat | Violated property | BoxOffice example | Control | Where |
 |---|---|---|---|---|
-| **S**poofing | Authentication | an attacker calls `payment` pretending to be `order`; a forged webhook says "payment captured" | OAuth tokens, mTLS between services, webhook signature (HMAC) | [Identity](identity/index.md), [Service mesh](service-mesh/index.md) |
+| **S**poofing | Authentication | an attacker calls `payment` pretending to be `order`; a forged webhook says "payment captured" | OAuth tokens, mTLS between services, webhook signature (HMAC) | [Identity](../edge/identity/index.md), [Service mesh](service-mesh/index.md) |
 | **T**ampering | Integrity | the price is changed in the request body; a malicious image is pushed to the registry | server-side pricing, TLS, signed images | [Zero Trust](zero-trust/index.md#supply-chain-security) |
 | **R**epudiation | Non-repudiation | a customer says "I never bought these tickets" and we cannot prove otherwise | audit log with user id + trace id, signed events | [Observability](../observability/index.md) |
-| **I**nformation disclosure | Confidentiality | `GET /orders/1042` returns another user's order; the API key leaks in a log | object-level authorization, secrets manager, log masking | [Identity](identity/index.md#authorization-models), [Zero Trust](zero-trust/index.md#secrets-management) |
+| **I**nformation disclosure | Confidentiality | `GET /orders/1042` returns another user's order; the API key leaks in a log | object-level authorization, secrets manager, log masking | [Identity](../edge/identity/index.md#authorization-models), [Zero Trust](zero-trust/index.md#secrets-management) |
 | **D**enial of service | Availability | bots open 100 000 seat holds and nobody else can buy | WAF, rate limiting, waiting room, hold TTL | [Edge](../edge/index.md) |
 | **E**levation of privilege | Authorization | a normal user calls `POST /admin/events`; the compromised `search` pod reaches the database | function-level authorization, NetworkPolicy, least privilege | [Zero Trust](zero-trust/index.md), [Cloud networking](cloud-network/index.md) |
 
@@ -136,7 +140,7 @@ Not every threat deserves the same effort. A simple practice is to estimate **li
 
 No single control is perfect: WAF rules have gaps, tokens get stolen, a library ships with a remote-code-execution bug. **Defense in depth** stacks independent layers, so that an attacker who defeats one still faces the next. The layers of BoxOffice, from the outside in:
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     U(["Client"]) -->|"1 · TLS, WAF, rate limit"| GW["API gateway"]
     GW -->|"2 · validate token (OAuth/OIDC)"| O["order"]
@@ -149,8 +153,8 @@ flowchart LR
 | # | Layer | Main threats | Controls | Subpage |
 |---|---|---|---|---|
 | 1 | Edge | DDoS, bots, injection, eavesdropping | TLS, WAF, rate limiting, waiting room | [Edge](../edge/index.md) |
-| 2 | Identity | stolen or forged credentials | OAuth 2.1 / OIDC, short-lived tokens, MFA, passkeys | [Identity](identity/index.md) |
-| 3 | Request authorization | user reads someone else's data | ownership, roles, scopes checked in each service | [Identity](identity/index.md#authorization-models) |
+| 2 | Identity | stolen or forged credentials | OAuth 2.1 / OIDC, short-lived tokens, MFA, passkeys | [Identity](../edge/identity/index.md) |
+| 3 | Request authorization | user reads someone else's data | ownership, roles, scopes checked in each service | [Identity](../edge/identity/index.md#authorization-models) |
 | 4 | Service to service | lateral movement, spoofed callers | mTLS, mesh authorization policy | [Service mesh](service-mesh/index.md) |
 | 5 | Network | reaching what should be unreachable | private subnets, security groups, NetworkPolicy, no public DB | [Cloud networking](cloud-network/index.md) |
 | 6 | Data and secrets | leaked keys and passwords | secrets manager, rotation, encryption at rest (KMS) | [Zero Trust](zero-trust/index.md#secrets-management) |
@@ -180,15 +184,15 @@ The **OWASP** (Open Worldwide Application Security Project) publishes a list of 
 !!! warning "BOLA is number one for a reason"
     The gateway can say "this is user 42". Only the `order` service knows whether order 1042 belongs to user 42. Object-level authorization **cannot** be centralized at the edge; it lives in the code that owns the data. Test it explicitly: "user A requests user B's order → `404` or `403`".
 
-**Try it.** Open the `flash-sale` scenario and run the `spike` profile: watch how the 10:00 burst hits the inventory database. Then imagine 30% of that traffic being bots (API6): which component would you add first, and where — WAF at the edge, rate limiting at the gateway, or the waiting-room queue? Use the [full playground](../../../playground/index.md) to add the components and compare p99 and rejected requests.
+**Try it.** Open the `flash-sale` scenario and press **Run**: watch how the burst when the sale opens (t = 60 s, our 10:00) saturates `app` and then `inventory-db`. Now select `users` and set its *bot traffic* to 0.45 — bots become about 30% of the requests (API6) — and run again. Which component would you add first, and where — WAF at the edge, rate limiting at the gateway, or the waiting-room queue? Use the [full playground](../../../playground/index.md) (↗) to add the components and compare p99 and the error rate (goals count only real users).
 
-<div class="sdp" data-scenario="flash-sale" data-mode="compact" data-height="520" data-profile="spike"></div>
+<div class="sdp" data-scenario="flash-sale" data-mode="compact" data-height="520"></div>
 
 ## The network & security concept map { #concept-map }
 
 Security is not one box on the diagram: every hop of a request answers a different **trust question**. The map links each **palette component** (green) to the **concepts** it enforces (blue) and to the subpage that teaches them; the blue nodes are the layers of [defense in depth](#defense-in-depth):
 
-``` mermaid
+``` diagram
 flowchart LR
     client["client · mobile"]:::comp -->|"login"| auth["auth"]:::comp
     client --> waf["waf"]:::comp
@@ -211,8 +215,8 @@ flowchart LR
 | Palette component | Question it answers | Concepts | Taught in | Scenarios |
 |---|---|---|---|---|
 | [`waf`](../../reference/components/edge/index.md#waf) | Is this request an attack or a bot? | OWASP API4/API6, bot rules, rate limits, waiting room | [OWASP API Top 10](#owasp-api-top-10), [Edge — security](../edge/index.md#edge-security) | `flash-sale`, `rate-limiter` |
-| [`auth`](../../reference/components/compute/index.md#auth) | *Who* is the user, and which client asks? | OAuth 2.1, Authorization Code + PKCE, OIDC, Client Credentials, Token Exchange | [Identity](identity/index.md#oauth) | `flash-sale` (extend it), `blank` |
-| [`apigw`](../../reference/components/edge/index.md#apigw) | Does the request carry a valid token? | JWT validation (JWKS, `iss`, `aud`, `exp`), header stripping | [Identity — gateway](identity/index.md#gateway-validation) | `rate-limiter`, `flash-sale` |
+| [`auth`](../../reference/components/compute/index.md#auth) | *Who* is the user, and which client asks? | OAuth 2.1, Authorization Code + PKCE, OIDC, Client Credentials, Token Exchange | [Identity](../edge/identity/index.md#oauth) | `flash-sale` (extend it), `blank` |
+| [`apigw`](../../reference/components/edge/index.md#apigw) | Does the request carry a valid token? | JWT validation (JWKS, `iss`, `aud`, `exp`), header stripping | [Identity — gateway](../edge/identity/index.md#gateway-validation) | `rate-limiter`, `flash-sale` |
 | [`vpc`](../../reference/components/network/index.md#vpc) · [`subnet`](../../reference/components/network/index.md#subnet) | *Where* does each component live, and what can reach it? | CIDR plan, public/private/isolated subnets, route tables, SGs/NACLs | [Cloud networking](cloud-network/index.md#subnets) | `multi-region`, `scale-out` |
 | [`nat`](../../reference/components/network/index.md#nat) | How do private services call *out*? | NAT per AZ, stable egress IP, VPC endpoints | [Cloud networking](cloud-network/index.md#subnets) | `payment-system` |
 | [`vpn`](../../reference/components/network/index.md#vpn) | How do other networks and people get *in*? | peering, transit, PrivateLink, VPN, session manager | [Cloud networking](cloud-network/index.md#private-connectivity) | `multi-region` |
@@ -222,6 +226,15 @@ flowchart LR
 
 !!! tip "In the interview"
     You will rarely be asked "do threat modeling". But a strong candidate **volunteers security in one or two sentences at the right time**: "the database lives in an isolated subnet with no Internet route; services talk over mTLS; the mobile app uses Authorization Code with PKCE; the payment key is in a secrets manager and rotated; and at the edge, WAF plus per-account rate limits protect the on-sale flow from bots." Then move on — unless the interviewer digs in. Mention **BOLA** whenever you design an endpoint with an id in the path.
+
+!!! success "Best practices"
+
+    - **Draw the trust boundaries on the architecture diagram and record each STRIDE decision with an owner** — mitigate, accept or transfer, in the design doc, so a reviewer can see which threats were left open on purpose.
+    - **Deny by default** — a route is protected unless it is explicitly listed as open, so a new endpoint cannot ship unprotected. In BoxOffice: the gateway's `SecurityConfig` ends with `.anyExchange().authenticated()` ([gateway box](../edge/identity/index.md#gateway-validation)).
+    - **Write negative authorization tests for every endpoint that takes an id** — "user A requests user B's order → `404`" runs in CI; BOLA is API1 because nobody tests it.
+    - **Rate-limit per account and per IP on expensive endpoints** — login is slow on purpose (BCrypt, ~10–20 checks/s per CPU in [lab 4](../../hands-on/4/index.md)) and holds are scarce; bots (API6) must hit a limit before they hit the database.
+    - **Log security events to an append-only store and alert on them** — failed logins, `401`/`403` bursts, admin actions and denied service-to-service calls, kept long enough to investigate (e.g. 1 year).
+    - **Patch on a clock enforced by the pipeline** — a fixable critical vulnerability blocks the release. In BoxOffice: the Trivy gate of [lab 11](../../hands-on/11/supply-chain/index.md).
 
 !!! warning "Common pitfalls"
     - **Security only at the gateway** — any service reachable without passing through it (a `NodePort`, a debug port, a second Ingress) bypasses everything.
@@ -235,16 +248,22 @@ flowchart LR
 
 - Components in the [catalog](../../reference/components/network/index.md#vpc): VPC, Subnet, NAT Gateway, VPN, Service Mesh; plus [Auth Service](../../reference/components/compute/index.md#auth) and [WAF](../../reference/components/edge/index.md#waf).
 - Classes: [Traffic & edge](../edge/index.md) (WAF, API gateway, rate limiting), [Cloud-native](../cloud-native/index.md) (Kubernetes, CI/CD), [Observability](../observability/index.md) (audit trails, security alerts).
-- Hands-on: [4 — Gateway & identity](../../hands-on/4/index.md), [10 — Kubernetes](../../hands-on/10/index.md), [11 — Delivery](../../hands-on/11/index.md) (image scan, SBOM, signing).
+- Hands-on: [4 — Gateway & identity](../../hands-on/4/index.md), [10 — Kubernetes](../../hands-on/10/index.md), [11 — Delivery](../../hands-on/11/supply-chain/index.md) (image scan, SBOM, signed provenance).
 - Case study: [Payment system](../case-studies/payment-system/index.md). Exercise: [Design doc](../../exercises/design-doc/index.md). Project: [team project](../../exercises/project/index.md).
 
-## Key takeaways
+## Key takeaways { #key-takeaways }
 
-- Security is a **design property**: decide boundaries, identities and privileges while drawing the architecture.
-- **Threat modeling** = draw the data flow, mark the trust boundaries, run **STRIDE** per element, decide and record.
-- **Defense in depth** stacks independent layers: edge, identity, request authorization, service-to-service, network, secrets, supply chain.
-- The **OWASP API Top 10** is a design-review checklist; **BOLA** is number one and can only be fixed in the service that owns the data.
-- In an interview, mention security briefly and concretely at the right moment — private subnets, mTLS, PKCE, secrets manager, rate limits.
+!!! takeaways ""
+
+    - Security is a **design property**: decide boundaries, identities and privileges while drawing the architecture.
+    - **Threat modeling** = draw the data flow, mark the trust boundaries, run **STRIDE** per element, decide and record.
+    - **Defense in depth** stacks independent layers: edge, identity, request authorization, service-to-service, network, secrets, supply chain.
+    - The **OWASP API Top 10** is a design-review checklist; **BOLA** is number one and can only be fixed in the service that owns the data.
+    - In an interview, mention security briefly and concretely at the right moment — private subnets, mTLS, PKCE, secrets manager, rate limits.
+
+## What breaks next { #what-breaks-next }
+
+Every caller in this class is a person or a service we wrote: the fan with a token, `order` with a workload identity, the pipeline with a signed provenance. The next caller is neither. Fans want to ask "two seats under R$ 300 on Saturday, hold them", and an assistant answers by calling `catalog` and `inventory` for them: a slow, expensive, non-deterministic dependency that can **act** on the inventory, on the fan's behalf, and can be talked into doing the wrong thing by the text it reads. Designing a system around a model — and deciding what it may touch — is [class 13 — AI Systems](../ai-systems/index.md).
 
 ---
 

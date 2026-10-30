@@ -15,6 +15,14 @@ adds the inside view — the three signals of the
 [observability class](../../classes/observability/index.md): **metrics** say *that* something is
 wrong and how much, **traces** say *where* in the request the time went, **logs** say *why*.
 
+This lab builds chapter 9 of the [story of the course](../../index.md#story) in BoxOffice: the RED
+dashboard of [signals](../../classes/observability/signals/index.md), the trace context carried
+through the outbox and Kafka of [OpenTelemetry](../../classes/observability/opentelemetry/index.md),
+and the [SLO](../../classes/observability/slo/index.md) with the multiwindow burn-rate alert of
+[alerting](../../classes/observability/alerting/index.md). It comes right before
+[lab 9](../9/index.md) for a reason: you instrument BoxOffice before you break it on purpose,
+otherwise the chaos experiments of lab 9 have nothing to show.
+
 ## Slides
 
 <div class="slides-embed">
@@ -58,7 +66,7 @@ Every file of this lab is shown in full on these pages and published under
 
 ## Architecture
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     k6[k6 / fans] --> edge[edge]
     edge --> gw[gateway]
@@ -142,11 +150,22 @@ in `results/lab8.md`.
 |---|---|---|
 | a service exits with `Error opening zip file or JAR manifest missing : /otel/opentelemetry-javaagent.jar` | the agent was not downloaded, or the volume path is wrong | `sh scripts/get-otel-agent.sh` from the repository root; `ls infra/otel` |
 | services stay `starting` for minutes | JVMs with the agent start slower; Docker is short of CPU/memory | wait; give Docker 8 GB; stop other stacks (`docker ps`) |
+| `otel-lgtm` exits: `Error: Grafana exited before becoming ready` | `infra/grafana/dashboards.yaml` did not exist at the first `up`, so Docker created a *directory* with that name | `rm -r infra/grafana/dashboards.yaml`, save the file of [step 1](instrument/index.md), `docker compose up -d --force-recreate otel-lgtm` |
 | Grafana shows **No data** | metrics are exported every 10 s and the panels use rate windows | send traffic, wait one minute, check the time range (last 15 min) |
 | no `service_name` in Prometheus | the service has no `OTEL_SERVICE_NAME` / `<<: *otel` | compare its `environment` with the `order` service |
 | the dashboard or the alert rules are missing | provisioning files not mounted or invalid | `docker compose logs otel-lgtm | grep -i provision`; check the paths of the three volumes |
 | still two traces per order | `order` was not rebuilt, or `V2__outbox_traceparent.sql` did not run | `docker compose up -d --build order`; `docker compose logs order | grep -i flyway` |
 | port 3000 in use | another Grafana or a dev server | stop it, or map `"3001:3000"` and use `http://localhost:3001` |
+
+## Best practices { #best-practices }
+
+!!! success "Best practices in this lab"
+
+    - **Telemetry configured once, for every service** — the `x-otel` anchor in `docker-compose.yaml`, with one `OTEL_SERVICE_NAME` per service ([OpenTelemetry](../../classes/observability/opentelemetry/index.md)).
+    - **Trace context carried across the asynchronous hop** — `Outbox.java`, `OutboxRelay.java` and `V2__outbox_traceparent.sql` store and restore the `traceparent` ([OpenTelemetry — context propagation](../../classes/observability/opentelemetry/index.md)).
+    - **Dashboards and alerts as code** — `infra/grafana/dashboards/boxoffice-red.json` and `infra/grafana/alerting/slo-catalog.yaml`, provisioned at startup ([Signals — dashboards](../../classes/observability/signals/index.md)).
+    - **An SLI that counts only fans** — `http_route!~"/actuator.*"` in every query of `slo-catalog.yaml` ([SLOs](../../classes/observability/slo/index.md)).
+    - **A page only on a fast multiwindow burn, tested by breaking `db`** — 14.4× over 1 h and 5 min in `slo-catalog.yaml`; the 6× rule is a ticket ([Alerting](../../classes/observability/alerting/index.md)).
 
 ## Clean up
 
@@ -197,7 +216,7 @@ Commit and tag: `git add -A && git commit -m "lab 8: observability" && git tag l
   [OpenTelemetry](../../classes/observability/opentelemetry/index.md) ·
   [Alerting and burn rate](../../classes/observability/alerting/index.md) ·
   [Incident response](../../classes/observability/incident-response/index.md) ·
-  [SLOs and error budgets](../../classes/reliability/slo/index.md)
+  [SLOs and error budgets](../../classes/observability/slo/index.md)
 - Previous lab: [7. Async messaging](../7/index.md) — the flow traced here.
 - Next lab: [9. Resilience & chaos](../9/index.md) uses this dashboard during a game day.
 

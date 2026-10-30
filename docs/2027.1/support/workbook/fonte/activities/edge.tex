@@ -81,7 +81,7 @@ The gateway gives each fan a bucket of capacity 20, refilled at 10 tokens/s; eac
 \lines{5}
 \end{ex}
 
-\simulator{Reject the excess fast}{rate-limiter}{Set a rate limit on the API Gateway below the app capacity: bots are cut by per-client token buckets, real fans keep a low p99 and the app stays below saturation.}
+\simulator{Reject the excess fast}{rate-limiter}{Set a rate limit on the API Gateway below the app capacity: bots are cut by per-client token buckets, real users keep a low p99 and the app stays below saturation.}
 
 \begin{ex}{2}{Windows and replicas}
 \items

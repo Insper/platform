@@ -2,7 +2,7 @@ Release notes are the kind of text nobody likes to write and everybody needs at 
 
 ## 4.1 The flow
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     tag["git tag v1.4.0<br/>git push --tags"] --> job["ai-release-notes job"]
     job --> ctx["commits since v1.3.0<br/>diffstat · new Flyway migrations"]
@@ -58,31 +58,35 @@ uv run --no-project --python 3.12 --with-requirements .github/ai/requirements.tx
   python .github/ai/release_notes.py v0.13.0
 ```
 
-You should see something like this (a run with the local `qwen2.5-coder-16k`, on a test repository with one commit, `ci(ai): ... (#14)`, since `lab12`):
+You should see something like this (a run with the local `qwen2.5-coder-16k` on the four commits of this lab, from the catch-up zip with the tag `v0.12.0` on its first commit; the hashes are yours):
 
 ```text
 ### Release notes for v0.13.0
 
-3 items kept, 0 dropped as ungrounded.
+6 items kept, 0 dropped as ungrounded.
 
 | Model | Calls | Input | Cache read | Cache write | Output | Time | Cost |
 |---|---|---|---|---|---|---|---|
-| `qwen2.5-coder-16k` | 1 | 1,251 | 0 | 0 | 236 | 19.1 s | n/a (local or unknown model) |
+| `qwen2.5-coder-16k` | 1 | 1,177 | 0 | 0 | 383 | 28.6 s | n/a (local or unknown model) |
 
 ## BoxOffice v0.13.0
 
-> BoxOffice now includes an AI-driven review and test generation system to enhance code quality and efficiency.
+> BoxOffice now includes an AI-driven test generation and review system to enhance code quality and security.
 ...
 ### Features
-- **AI**: AI reviewer, test generator, and fix agent have been added to improve code quality and efficiency. (#14)
-...
-### Fixes
-- **Catalog**: New tests and improved analysis capabilities have been added to the catalog service. (#14)
+- **catalog**: Added AI-generated unit tests for the catalog service. (e17f4ce)
+- **inventory**: Implemented an AI-driven test generation and review system for code quality and security. (e17f4ce, 933df2f)
 
-<sub>Drafted by AI (qwen2.5-coder-16k) from 1 commits since lab12; reviewed and published by a human.</sub>
+### Fixes
+- **inventory**: Fixed issues in the CI agent for failed runs. (ca225b1)
+
+### Performance
+- **inventory**: Optimized the AI test generation process for better performance. (e17f4ce)
+...
+<sub>Drafted by AI (qwen2.5-coder-16k) from 4 commits since v0.12.0; reviewed and published by a human.</sub>
 ```
 
-Look closely: the *Fixes* item is **wrong although it cites a real reference** — the tests came in another commit and fixed nothing. The grounding check cannot catch that, and it does not check the `highlights` at all; in another run the same model wrote a highlight about "bug fixes and performance improvements" that no commit mentioned, and an item citing a reference that does not exist, which the check **dropped**. Then push the tag — the workflow drafts the same notes as a release:
+Look closely: every item cites a real commit, so the grounding check keeps them all — and several are **wrong although they cite a real reference**. Nothing touched `inventory`, the fix agent is a new feature (not a fix), and nothing was made faster. The grounding check cannot catch that, and it does not check the `highlights` at all. What it does catch: with the earlier prompt, which showed `#123` as the example reference, the same model cited `#123`, `#124`, ... — PR numbers that do not exist in commits pushed straight to `main` — and the check **dropped** every item (`0 items kept, 5 dropped as ungrounded`). Then push the tag — the workflow drafts the same notes as a release:
 
 ``` { .bash .copy }
 git push origin v0.13.0

@@ -22,11 +22,11 @@ O BoxOffice também usa um: o SMS "seus ingressos para sábado" traz um link cur
 
 ---
 
-## 1. Esclarecer os requisitos
+## 1. Esclarecer os requisitos { #1-clarify-the-requirements }
 
 Mesmo num problema "simples", gaste 3–5 minutos aqui ([roteiro de entrevista](../../intro/interview-framework/index.md)). Os requisitos decidem se os códigos podem ser previsíveis, se o analytics precisa ser exato e se a mesma URL longa sempre recebe o mesmo código.
 
-### Requisitos funcionais
+### Requisitos funcionais { #functional-requirements }
 
 1. **Encurtar**: dada uma URL longa, devolver uma URL curta com um código único (ex.: 7 caracteres).
 2. **Redirecionar**: `GET /{code}` manda o navegador para a URL longa.
@@ -34,7 +34,7 @@ Mesmo num problema "simples", gaste 3–5 minutos aqui ([roteiro de entrevista](
 4. **Expiração** (opcional): links podem expirar numa data.
 5. **Estatísticas de cliques**: número de cliques por link, por dia, por país.
 
-### Requisitos não funcionais
+### Requisitos não funcionais { #non-functional-requirements }
 
 | Qualidade | Meta |
 |---|---|
@@ -45,7 +45,7 @@ Mesmo num problema "simples", gaste 3–5 minutos aqui ([roteiro de entrevista](
 | **Segurança** | Códigos não devem ser fáceis de adivinhar (sem enumeração de links privados); bloquear destinos maliciosos |
 | **Analytics** | Eventualmente consistente; minutos de atraso são aceitáveis; pequenas perdas também |
 
-### Fora do escopo (diga explicitamente)
+### Fora do escopo (diga explicitamente) { #out-of-scope-say-it-explicitly }
 
 Contas de usuário e interface de edição de links, cobrança, geração de QR code, testes A/B de destinos. São funcionalidades em cima do mesmo núcleo.
 
@@ -62,7 +62,7 @@ Contas de usuário e interface de edição de links, cobrança, geração de QR 
 
 ---
 
-## 2. Estimativas de guardanapo (back-of-the-envelope)
+## 2. Estimativas de guardanapo (back-of-the-envelope) { #2-back-of-the-envelope-estimates }
 
 Declare as premissas e depois calcule. Todos os números são ilustrativos — abra a aba *Source*, mude um e recalcule.
 
@@ -133,7 +133,7 @@ DELETE /v1/urls/{code}                 → 204   (owner only)
 
 ---
 
-## 4. Modelo de dados
+## 4. Modelo de dados { #4-data-model }
 
 O padrão de acesso central é `code → longUrl`, uma consulta pontual pela chave primária, milhares de vezes por segundo, sobre bilhões de linhas. Sem joins, sem varreduras por faixa.
 
@@ -167,9 +167,9 @@ CREATE TABLE id_range (
 
 ---
 
-## 5. Design de alto nível
+## 5. Design de alto nível { #5-high-level-design }
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     u([Navegador / app]) --> dns["DNS"]
     dns --> lb["Balanceador de carga"]
@@ -184,7 +184,7 @@ flowchart LR
 
 O **caminho de escrita** pede um código ao alocador de IDs (de uma faixa já reservada em memória — na maioria das vezes sem chamada de rede), grava a linha e devolve a URL curta. O **caminho de leitura** está abaixo; repare que o evento de clique é disparado depois da resposta e nunca espera.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     participant B as Navegador
@@ -208,9 +208,9 @@ sequenceDiagram
 
 ---
 
-## 6. Aprofundamentos (deep dives)
+## 6. Aprofundamentos (deep dives) { #6-deep-dives }
 
-### 6.1 Gerando o código
+### 6.1 Gerando o código { #61-generating-the-code }
 
 Este é o aprofundamento que todo entrevistador espera. Quatro famílias, cada uma com um trade-off diferente:
 
@@ -264,7 +264,7 @@ def base62(n: int) -> str:
 
 **Recomendação para a entrevista:** contador com alocação por faixas + embaralhamento para códigos gerados; uma inserção condicional (`IF NOT EXISTS`) para aliases personalizados. Cite o hash e por que você não o escolheu (colisões, estatísticas compartilhadas).
 
-### 6.2 O redirecionamento: 301 ou 302, e o cache
+### 6.2 O redirecionamento: 301 ou 302, e o cache { #62-the-redirect-301-or-302-and-caching }
 
 | | 301 Moved Permanently | 302 Found (ou 307) |
 |---|---|---|
@@ -282,11 +282,11 @@ Cache da consulta ([cache-aside](../../caching/patterns/index.md)):
 - **Popularidade Zipf**: um link viral pode receber milhares de cliques por segundo — uma **chave quente** num shard do cache. Mitigue com um pequeno cache em processo (L1, alguns segundos) em cada servidor de aplicação, na frente do cache compartilhado.
 - **Expiração**: verifique `expires_at` em toda leitura (guardado no cache junto com a URL) e responda `410 Gone`; um job em segundo plano apaga as linhas expiradas depois.
 
-### 6.3 Analytics de cliques fora do caminho crítico
+### 6.3 Analytics de cliques fora do caminho crítico { #63-click-analytics-off-the-critical-path }
 
 Contar cliques de forma síncrona (`UPDATE stats SET clicks = clicks + 1`) transformaria cada leitura numa escrita sobre uma linha quente. Em vez disso:
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     app["App encurtador"] -->|"dispara e esquece<br/>evento de clique"| k[["Tópico Kafka clicks<br/>particionado por code"]]
     k --> s["Agregação em stream<br/>janelas de 1 min"]
@@ -301,7 +301,7 @@ flowchart LR
 
 ---
 
-## 7. Gargalos, modos de falha e trade-offs
+## 7. Gargalos, modos de falha e trade-offs { #7-bottlenecks-failure-modes-and-trade-offs }
 
 | Onde | O que dá errado | Mitigação | Trade-off |
 |---|---|---|---|
@@ -317,7 +317,7 @@ Os trade-offs para **dizer em voz alta**: **disponibilidade e latência acima de
 
 ---
 
-## 8. Experimente no playground
+## 8. Experimente no playground { #8-try-it-in-the-playground }
 
 O cenário `url-shortener` tem o caminho de leitura desta página: balanceador de carga, réplicas do app, um cache na frente do armazenamento e um stream de eventos para os cliques.
 
@@ -334,7 +334,7 @@ O cenário `url-shortener` tem o caminho de leitura desta página: balanceador d
 
 ---
 
-## 9. Perguntas de follow-up que o entrevistador faz
+## 9. Perguntas de follow-up que o entrevistador faz { #9-follow-up-questions-an-interviewer-asks }
 
 ??? question "Como você suporta aliases personalizados sem conflitar com os códigos gerados?"
 
@@ -366,7 +366,7 @@ O cenário `url-shortener` tem o caminho de leitura desta página: balanceador d
 
 ---
 
-## 10. Rubrica de autoavaliação
+## 10. Rubrica de autoavaliação { #10-self-assessment-rubric }
 
 | Nível | O que a resposta contém |
 |---|---|
@@ -376,13 +376,21 @@ O cenário `url-shortener` tem o caminho de leitura desta página: balanceador d
 
 **Relacionados:** [Caching](../../caching/index.md), [Hands-on 5](../../../hands-on/5/index.md) (cache-aside e taxa de acerto), [Mensageria](../../messaging/index.md), [problemas de prática para entrevista](../../../support/interview/problems/index.md).
 
+!!! success "Boas práticas"
+
+    - **Coloque uma restrição `UNIQUE` no código curto** — seja qual for o gerador dos códigos, o banco transforma uma colisão num erro que você repete, nunca numa sobrescrita silenciosa do link de outra pessoa.
+    - **Escolha o status do redirecionamento de propósito** — `302` mantém todo clique visível para você; `301` deixa o navegador guardar o redirecionamento, e a partir daí a análise nunca mais vê esses cliques.
+    - **Mande os eventos de clique para uma fila, nunca os grave no caminho do redirecionamento** — o p99 do redirecionamento não pode depender de o armazenamento de análise estar no ar.
+    - **Guarde em cache também os códigos desconhecidos, por pouco tempo** — uma varredura de códigos aleatórios não pode chegar ao banco (penetração de cache).
+    - **Limite a criação de links por conta** — o abuso (links de spam e phishing) entra pela criação, não pelos redirecionamentos.
+
 ---
 
 ## Como se conecta { #how-it-connects }
 
 Quais aulas este caso testa? Cada ramo é uma aula cujas ideias o design usa (azul), com os componentes da paleta em que elas aparecem (verde):
 
-``` mermaid
+``` diagram
 flowchart LR
     CASE(["URL shortener"]) --> EST["Estimation<br/>reads ≫ writes, hot set"]:::tech
     CASE --> DIS["Distributed<br/>unique IDs: ranges, Snowflake"]:::tech
@@ -402,7 +410,7 @@ flowchart LR
 
 ---
 
-## Referências
+## Referências { #references }
 
 - XU, A. *System Design Interview — An Insider's Guide*, vol. 1, cap. 7 "Design a Unique ID Generator in Distributed Systems" e cap. 8 "Design a URL Shortener"[^1].
 - O anúncio e o código do Snowflake do Twitter[^2].

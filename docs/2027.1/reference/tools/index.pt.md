@@ -1,11 +1,11 @@
-# Ferramentas
+# Ferramentas { #tools }
 
 As ferramentas do ofício, agrupadas por função. Para cada uma: o que é em uma linha, quando recorrer a ela, o laboratório em que a usamos neste curso e o site oficial. A pilha do curso é pequena de propósito: **Docker Compose** para rodar tudo localmente, **k6** para testes de carga, **OpenTelemetry + `grafana/otel-lgtm`** para observar, **Toxiproxy** para injetar falhas, **kind ou minikube** para Kubernetes, **GitHub Actions** e **Argo CD** para entregar, e **LiteLLM + Ollama + pgvector** para o serviço de IA. As alternativas estão listadas para que você as reconheça em vagas de emprego e em blogs de engenharia.
 
 !!! note "Sobre os links"
     Os links levam ao site oficial ou ao repositório oficial de cada projeto. As ferramentas mudam rápido: confira a documentação atual antes de copiar um comando de um post de blog, e fixe as versões no seu `docker-compose.yaml` e nos arquivos de CI.
 
-## Qual ferramenta para qual trabalho
+## Qual ferramenta para qual trabalho { #which-tool-for-which-job }
 
 | Trabalho | Neste curso | Alternativas comuns | Laboratório |
 |---|---|---|---|
@@ -18,13 +18,13 @@ As ferramentas do ofício, agrupadas por função. Para cada uma: o que é em um
 | Kubernetes local | kind ou minikube | k3d, Kubernetes do Docker Desktop | [Hands-on 10](../../hands-on/10/index.md) |
 | Pipeline de CI | GitHub Actions | GitLab CI, Jenkins | [Hands-on 11](../../hands-on/11/index.md) |
 | GitOps e entrega progressiva | Argo CD (+ Argo Rollouts) | Flux, Flagger | [Hands-on 11](../../hands-on/11/index.md) |
-| Infraestrutura como código | Terraform / OpenTofu | Pulumi, Crossplane, templates nativos das nuvens | [Aula 12](../../classes/cloud-native/index.md) |
+| Infraestrutura como código | Terraform / OpenTofu | Pulumi, Crossplane, templates nativos das nuvens | [Aula 11](../../classes/cloud-native/index.md) |
 | Varrer imagens e gerar um SBOM | Trivy + Syft | Grype, Docker Scout | [Hands-on 11](../../hands-on/11/index.md) |
 | Desenhar uma arquitetura | Excalidraw, Mermaid | diagrams.net, PlantUML, Structurizr | todas as aulas |
 | Chamar LLMs por um gateway único | LiteLLM (+ Ollama localmente) | Envoy AI Gateway, gateways das nuvens | [Hands-on 12](../../hands-on/12/index.md) |
 | Testar prompts e guardrails | promptfoo | scripts de avaliação próprios | [Hands-on 12](../../hands-on/12/index.md) |
 
-## Teste de carga
+## Teste de carga { #load-testing }
 
 | Ferramenta | O que é | Use quando | No curso | Site |
 |---|---|---|---|---|
@@ -39,7 +39,7 @@ As ferramentas do ofício, agrupadas por função. Para cada uma: o que é em um
 !!! tip "Carga aberta vs fechada"
     A maioria das ferramentas usa por padrão um modelo **fechado** (N usuários virtuais, cada um esperando sua resposta antes de enviar a próxima). O tráfego real da internet se parece mais com um modelo **aberto** (as requisições chegam a uma taxa, quer o servidor acompanhe, quer não). Os executores `constant-arrival-rate` e `ramping-arrival-rate` do k6, o wrk2 e o vegeta geram carga aberta; use-os quando quiser ver as filas se formarem. Veja a [Aula 15 · Testes de carga](../../classes/performance/load-testing/index.md).
 
-## Caos e injeção de falhas
+## Caos e injeção de falhas { #chaos-and-fault-injection }
 
 | Ferramenta | O que é | Use quando | No curso | Site |
 |---|---|---|---|---|
@@ -50,7 +50,7 @@ As ferramentas do ofício, agrupadas por função. Para cada uma: o que é em um
 | **Gremlin** | Plataforma comercial de engenharia do caos | Organizações que querem uma prática de caos gerenciada e auditada | Reconheça | [gremlin.com](https://www.gremlin.com) |
 | **Pumba** | Caos para contêineres Docker (matar, pausar, emulação de rede com `tc`) | Quebrar contêineres num ambiente Compose | Opcional no [game day](../../exercises/project/game-day/index.md) | [github.com/alexei-led/pumba](https://github.com/alexei-led/pumba) |
 
-## Observabilidade
+## Observabilidade { #observability }
 
 | Ferramenta | O que é | Use quando | No curso | Site |
 |---|---|---|---|---|
@@ -64,19 +64,19 @@ As ferramentas do ofício, agrupadas por função. Para cada uma: o que é em um
 | **Grafana Pyroscope** | Profiling contínuo | Ver flame graphs ao longo do tempo em produção | Opcional | [grafana.com/oss/pyroscope](https://grafana.com/oss/pyroscope/) |
 | **async-profiler** | Profiler por amostragem de baixo overhead para a JVM, que gera flame graphs | Descobrir onde um serviço Java gasta CPU ou aloca memória | [Aula 15](../../classes/performance/bottlenecks/index.md) | [github.com/async-profiler/async-profiler](https://github.com/async-profiler/async-profiler) |
 
-## Infraestrutura como código e configuração
+## Infraestrutura como código e configuração { #infrastructure-as-code-and-configuration }
 
 | Ferramenta | O que é | Use quando | No curso | Site |
 |---|---|---|---|---|
-| **Terraform** | Infraestrutura como código declarativa, com providers para todas as nuvens (linguagem HCL) | Criar recursos de nuvem de forma reproduzível, com planos e revisões | [Aula 12](../../classes/cloud-native/index.md) | [terraform.io](https://www.terraform.io) |
-| **OpenTofu** | Fork de código aberto do Terraform (Linux Foundation), compatível com a sua linguagem | O mesmo que o Terraform, com licença de código aberto | [Aula 12](../../classes/cloud-native/index.md) | [opentofu.org](https://opentofu.org) |
+| **Terraform** | Infraestrutura como código declarativa, com providers para todas as nuvens (linguagem HCL) | Criar recursos de nuvem de forma reproduzível, com planos e revisões | [Aula 11](../../classes/cloud-native/index.md) | [terraform.io](https://www.terraform.io) |
+| **OpenTofu** | Fork de código aberto do Terraform (Linux Foundation), compatível com a sua linguagem | O mesmo que o Terraform, com licença de código aberto | [Aula 11](../../classes/cloud-native/index.md) | [opentofu.org](https://opentofu.org) |
 | **Pulumi** | Infraestrutura como código em linguagens de uso geral (TypeScript, Python, Go, Java…) | O time prefere linguagens de programação de verdade a HCL | Reconheça | [pulumi.com](https://www.pulumi.com) |
 | **Ansible** | Gestão de configuração sem agente, via SSH, com playbooks em YAML | Configurar máquinas virtuais e o software delas | Reconheça | [ansible.com](https://www.ansible.com) |
 | **Helm** | Gerenciador de pacotes do Kubernetes (charts com templates e valores) | Instalar software de terceiros no Kubernetes, empacotar o seu | Opcional no [Hands-on 10](../../hands-on/10/index.md) | [helm.sh](https://helm.sh) |
 | **Kustomize** | Customização de YAML do Kubernetes sem templates, com overlays (embutido no `kubectl`) | Um manifesto base, pequenas diferenças por ambiente | [Hands-on 10](../../hands-on/10/index.md), [Hands-on 11](../../hands-on/11/index.md) | [kustomize.io](https://kustomize.io) |
 | **Crossplane** | Gerencia recursos de nuvem como recursos customizados do Kubernetes | Times de plataforma construindo APIs de autoatendimento sobre o Kubernetes | Reconheça | [crossplane.io](https://www.crossplane.io) |
 
-## CI/CD e GitOps
+## CI/CD e GitOps { #cicd-and-gitops }
 
 | Ferramenta | O que é | Use quando | No curso | Site |
 |---|---|---|---|---|
@@ -85,7 +85,7 @@ As ferramentas do ofício, agrupadas por função. Para cada uma: o que é em um
 | **Argo Rollouts** | Entrega progressiva para Kubernetes: canary e blue/green com análise automática | Releases canary que voltam atrás quando as métricas pioram | [Hands-on 11](../../hands-on/11/index.md) | [argoproj.github.io](https://argoproj.github.io) |
 | **Flux** | Kit de ferramentas GitOps para Kubernetes (CNCF) | Alternativa ao Argo CD | Reconheça | [fluxcd.io](https://fluxcd.io) |
 
-## Contêineres e clusters locais
+## Contêineres e clusters locais { #containers-and-local-clusters }
 
 | Ferramenta | O que é | Use quando | No curso | Site |
 |---|---|---|---|---|
@@ -98,7 +98,7 @@ As ferramentas do ofício, agrupadas por função. Para cada uma: o que é em um
 | **kubectl** | O cliente de linha de comando do Kubernetes | Tudo num cluster | [Hands-on 10](../../hands-on/10/index.md) | [kubernetes.io/docs/reference/kubectl](https://kubernetes.io/docs/reference/kubectl/) |
 | **k9s** | Interface de terminal para o Kubernetes | Acompanhar pods, logs e eventos enquanto um teste de carga roda | Opcional | [k9scli.io](https://k9scli.io) |
 
-## Diagramas
+## Diagramas { #diagramming }
 
 | Ferramenta | O que é | Use quando | No curso | Site |
 |---|---|---|---|---|
@@ -109,7 +109,7 @@ As ferramentas do ofício, agrupadas por função. Para cada uma: o que é em um
 | **Structurizr** / **modelo C4** | O modelo C4 (contexto, contêineres, componentes, código) e uma ferramenta para manter diagramas como código | Documentos de design com vários níveis de zoom consistentes | [Documento de design](../../exercises/design-doc/index.md) | [c4model.com](https://c4model.com) · [structurizr.com](https://structurizr.com) |
 | **System Design Playground** | O simulador do curso: projete com a paleta e rode sob carga | Testar se um design sobrevive, e não só desenhá-lo | [Playground](../../../playground/index.md) | — |
 
-## Bancos de dados e cache
+## Bancos de dados e cache { #databases-and-caching }
 
 | Ferramenta | O que é | Use quando | No curso | Site |
 |---|---|---|---|---|
@@ -120,7 +120,7 @@ As ferramentas do ofício, agrupadas por função. Para cada uma: o que é em um
 | **redis-cli** / **redis-benchmark** | Cliente de linha de comando e benchmark do Redis | Inspecionar chaves e TTLs, `MONITOR`, medir o Redis sozinho | [Hands-on 5](../../hands-on/5/index.md) | [redis.io](https://redis.io) |
 | **kcat** | Produtor e consumidor Kafka de linha de comando (antigo kafkacat) | Espiar tópicos, produzir eventos de teste | [Hands-on 7](../../hands-on/7/index.md) | [github.com/edenhill/kcat](https://github.com/edenhill/kcat) |
 
-## Segurança e cadeia de suprimentos
+## Segurança e cadeia de suprimentos { #security-and-supply-chain }
 
 | Ferramenta | O que é | Use quando | No curso | Site |
 |---|---|---|---|---|
@@ -131,7 +131,7 @@ As ferramentas do ofício, agrupadas por função. Para cada uma: o que é em um
 | **OWASP ZAP** | Scanner dinâmico de segurança de aplicações (proxy e varreduras automáticas) | Verificar vulnerabilidades comuns numa API em execução | Opcional no [Hands-on 4](../../hands-on/4/index.md) | [zaproxy.org](https://www.zaproxy.org) |
 | **Keycloak** | Provedor de identidade de código aberto (OIDC, OAuth 2) | Um servidor de autorização de verdade para desenvolvimento local | [Hands-on 4](../../hands-on/4/index.md) | [keycloak.org](https://www.keycloak.org) |
 
-## Ferramentas de API
+## Ferramentas de API { #api-tools }
 
 | Ferramenta | O que é | Use quando | No curso | Site |
 |---|---|---|---|---|
@@ -141,7 +141,7 @@ As ferramentas do ofício, agrupadas por função. Para cada uma: o que é em um
 | **Postman** | Plataforma de API popular para requisições, coleções e testes | Times que já a usam | Reconheça | [postman.com](https://www.postman.com) |
 | **grpcurl** | O curl dos servidores gRPC | Chamar serviços gRPC à mão | [Aula 5](../../classes/compute/api-styles/index.md) | [github.com/fullstorydev/grpcurl](https://github.com/fullstorydev/grpcurl) |
 
-## Sistemas de IA
+## Sistemas de IA { #ai-systems }
 
 | Ferramenta | O que é | Use quando | No curso | Site |
 |---|---|---|---|---|

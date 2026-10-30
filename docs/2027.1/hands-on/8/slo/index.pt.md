@@ -1,12 +1,12 @@
-# 3. SLO e Alerta de *Burn Rate*
+# 3. SLO e Alerta de *Burn Rate* { #3-slo-and-burn-rate-alert }
 
 Um dashboard precisa de alguém olhando para ele. Um **alerta** olha por você — e um alerta ruim te
 acorda às 3 da manhã por nada, até você aprender a ignorá-lo. Este passo transforma uma promessa ao
 usuário em um alerta que dispara quando, e somente quando, a promessa está em risco. A teoria está na
 [aula de alertas](../../../classes/observability/alerting/index.md) e na
-[aula de SLO](../../../classes/reliability/slo/index.md).
+[aula de SLO](../../../classes/observability/slo/index.md).
 
-## Da promessa aos números
+## Da promessa aos números { #from-promise-to-numbers }
 
 | Termo | `catalog` do BoxOffice |
 |---|---|
@@ -27,7 +27,7 @@ com 28 dias eles significam 2,1% e 5,4% — perto o bastante para manter os núm
     fez — o SLI precisa medir o que os **fãs** vivem. O mesmo raciocínio exclui dos SLIs de produção a
     carga sintética que você mesmo gera, a menos que ela seja marcada e filtrada.
 
-## Por que "taxa de erros > 1%" é um alerta ruim
+## Por que "taxa de erros > 1%" é um alerta ruim { #why-error-rate-1-is-a-bad-alert }
 
 | Alerta | Problema |
 |---|---|
@@ -49,7 +49,7 @@ recuperação).
 Este lab provisiona a primeira regra como **página** e a segunda como **ticket** (um sinal mais lento
 e mais barato para uma equipe menor); a terceira fica como exercício.
 
-## As regras, como código
+## As regras, como código { #the-rules-as-code }
 
 O Grafana carrega regras de alerta de arquivos YAML na sua pasta de provisionamento (montada no
 [passo 1](../instrument/index.md) a partir de `infra/grafana/alerting/`). Cada regra roda as
@@ -63,19 +63,33 @@ condição.
 Reinicie o `otel-lgtm` e abra **Alerting → Alert rules**: as duas regras aparecem na pasta
 *BoxOffice* como *Normal*.
 
-## Dispare-o
+## Dispare-o { #fire-it }
 
 Gere tráfego constante e então quebre o banco de que o `catalog` depende:
 
 <!-- termynal -->
 
 ``` shell
-> k6 run -e RATE=50 -e DURATION=10m load/catalog-otel.js &
+> k6 run -e RATE=50 -e DURATION=15m load/catalog-otel.js &
 > sleep 60 && docker compose stop db && date +%T
 10:12:31
 > # watch Alerting → Alert rules: Normal → Pending → Firing
 > docker compose start db
 ```
+
+Inicie o `db` assim que a regra disparar e deixe o k6 rodando: com tráfego, a taxa de queima de
+5 minutos cai abaixo de 14,4 em um ou dois minutos e a página volta a *Normal*. Sem tráfego, a fração
+é 0 / 0 (`NaN`) e o Grafana mantém o alerta no último estado.
+
+!!! note "Por que o gateway sonda `/actuator/health/readiness`"
+
+    O SLI é medido pelo próprio `catalog`, então o `catalog` precisa continuar recebendo as
+    requisições enquanto o `db` está fora. Isso vale porque o balanceador do gateway (lab 4) sonda
+    `/actuator/health/readiness`, não `/actuator/health`: a saúde completa inclui o `db` e o `redis`,
+    então, com o `db` parado, ele marcaria todas as réplicas como *down* em poucos segundos e
+    responderia `503` ele mesmo — os fãs receberiam erros, o `catalog` não veria nenhuma requisição e o
+    alerta nunca dispararia. A readiness diz se *esta instância* pode receber tráfego: tirar todas as
+    réplicas por causa de uma dependência que todas compartilham não ajuda ninguém.
 
 ??? question "Preveja: quanto tempo até a regra de queima rápida disparar?"
 
@@ -84,15 +98,18 @@ Gere tráfego constante e então quebre o banco de que o `catalog` depende:
     hora precisa passar de 14,4 × 0,5% = **7,2%**. Com tráfego constante e uma hora de histórico
     saudável, isso leva 0,072 × 60 min ≈ **4,3 minutos** de queda; some o `for: 1m` e até 30 s de
     intervalo de avaliação: **≈ 5–6 minutos** até a página. (Se a stack está de pé há menos de uma
-    hora, a janela tem menos histórico saudável e o alerta dispara antes.)
+    hora, a janela tem menos histórico saudável e o alerta dispara antes; o teste de estresse do
+    [passo 2](../dashboard/index.md) há menos de uma hora soma histórico saudável e o atrasa.)
 
     Esse é o compromisso dos alertas de taxa de queima: uma queda total leva minutos para acionar;
     uma taxa de erros persistente de 4% (taxa de queima 8) é pega pela regra de 6 horas quando a fração
     de 6 horas passa de 6 × 0,5% = 3%, depois de cerca de 6 h × 3/4 = 4,5 horas; e um soluço de 30
     segundos nunca aciona ninguém.
 
-Numa execução de teste deste lab (com menos de uma hora de histórico), a regra ficou *Firing*
-**288 s** depois de o `db` parar, com a descrição *"burn rate 18.2 (1 h) and 74.4 (5 min)"*.
+Numa execução de teste deste lab (com o teste de estresse do passo 2 ainda na janela de 1 hora), a
+regra ficou *Pending* cerca de 6,5 minutos e *Firing* **cerca de 440 s** depois de o `db` parar, com a
+descrição *"Burn rate 17.0 (1 h) and 200.0 (5 min)"*. O ticket de queima lenta também disparou,
+cerca de um minuto depois.
 
 Registre nos seus resultados a hora em que parou o `db`, a hora em que a regra ficou *Pending* e
 *Firing*, e as taxas de queima mostradas na descrição do alerta.
@@ -107,7 +124,7 @@ Registre nos seus resultados a hora em que parou o `db`, a hora em que a regra f
     - **Toda página precisa de um link de *runbook*** (um `annotations.runbook_url`) dizendo o que
       checar primeiro — veja a [aula de resposta a incidentes](../../../classes/observability/incident-response/index.md).
 
-## Exercício: um SLO de latência
+## Exercício: um SLO de latência { #exercise-a-latency-slo }
 
 Escreva uma terceira regra para a promessa "95% dos `GET /catalog/events/{id}` terminam em menos de
 250 ms". Dica: o SLI é a razão entre a taxa do bucket `le="0.25"` e a taxa de `_count` dessa rota; o

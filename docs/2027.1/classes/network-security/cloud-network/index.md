@@ -1,7 +1,7 @@
 
 On a developer laptop, BoxOffice lives in one Docker network: every container can reach every other container, and only Nginx publishes a port. In the cloud, the equivalent decision is far bigger and much harder to change later. Which machines get a public address? Can the database reach the Internet — and can the Internet reach the database? How does the `payment` service call the provider, which only accepts requests from **allow-listed IP addresses**? How does an engineer debug a pod without opening SSH to the world? This page builds the BoxOffice network in a cloud provider, one component at a time.
 
-The examples use AWS names, the most common in job descriptions; the tabs at the end map them to Google Cloud and Azure. The ideas are the same everywhere[^1].
+The examples use AWS names, the most common in job descriptions; the tabs at the end map them to Google Cloud and Azure. The ideas are the same everywhere[^1]. This page assumes you know what an IP address, a CIDR block, a private address and NAT are — if not, read [How the Internet works](../internet/index.md) first: it has the same BoxOffice network as an interactive packet walk.
 
 ---
 
@@ -50,6 +50,10 @@ print("\n".join(rows))
 
     About half of the `/16` is still free for a fourth AZ or a new tier. Kubernetes pods are the reason the app subnets are big: with the AWS VPC CNI every pod gets a real VPC address.
 
+Check the plan in the address explorer: split `10.20.0.0/16` into 8 subnets. The three app subnets are the `/19` blocks 2, 3 and 4; the public `/24`s and the data `/22`s all fit in the first `/19` (`10.20.0.0` to `10.20.31.255`); blocks 5 to 8 — half of the VPC — are free. Test `10.20.17.4`: which tier would own it?
+
+<div class="netsim" data-tool="cidr" data-cidr="10.20.0.0/16"></div>
+
 ??? question "Think first: how many pods fit in one private app subnet?"
 
     A `/19` has 2¹³ = 8 192 addresses, minus 5 reserved = **8 187**. Nodes also take addresses, and the CNI keeps some warm IPs per node, so the real number of pods is lower — but in the thousands per AZ. A `/24` (251 usable) would have run out at the first autoscaling event of a flash sale.
@@ -68,12 +72,16 @@ A subnet is not "public" because of a checkbox. It is public **because of its ro
 
 Every route table also has an implicit **local route** (`10.20.0.0/16 → local`): all subnets of the VPC can reach each other at the routing level. **Isolation between tiers is therefore the job of security groups and NACLs**, not of routes.
 
+The simulator walks one packet through these three tiers. It starts with `payment` calling the provider: follow the route-table lookup (`0.0.0.0/0 → NAT`), the two rewrites of the source address and the reply coming back through the NAT table. Then untick *route 0.0.0.0/0 → NAT* — the misconfiguration behind many "the payment provider is down" incidents — and run it again; and run *PostgreSQL tries to download an update* to see what an isolated subnet means.
+
+<div class="netsim" data-tool="packet" data-scenario="pay-psp"></div>
+
 ### Internet Gateway and NAT gateway
 
 - **Internet Gateway (IGW)** — attached to the VPC; lets resources *with public IPs* send and receive Internet traffic. It is horizontally scaled and highly available by design.
 - **NAT gateway** — lives in a public subnet with a fixed public address (an *Elastic IP*). Private resources send outbound traffic to it; it rewrites the source address to its own and keeps a translation table, so the replies find their way back. **Connections can only be started from inside.**
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     actor U as Fan (mobile)
@@ -124,7 +132,7 @@ Routes decide *where* packets can go; firewalls decide *whether* they are allowe
 
 Treat them as layers of the same defense in depth[^4]. The most useful feature is **SG references**: "allow port 5432 from *the security group of the app nodes*" instead of "from `10.20.32.0/19`". The rule follows the workloads as they scale, move or change IP.
 
-``` mermaid
+``` diagram
 flowchart LR
     subgraph sgalb ["sg-alb"]
         ALB["ALB :443"]
@@ -149,7 +157,7 @@ flowchart LR
 
 Putting it together (two of the three AZs drawn):
 
-``` mermaid
+``` diagram
 flowchart TB
     NET(["Internet"]) --- IGW["Internet Gateway"]
     subgraph vpc ["VPC 10.20.0.0/16 — sa-east-1"]
@@ -187,9 +195,8 @@ flowchart TB
     ALBb --> Kb
     Ka --> RDSa & Ra
     Kb --> RDSa
-    Ka -->|"0.0.0.0/0"| NATa
-    Kb -->|"0.0.0.0/0"| NATb
-    NATa & NATb --> IGW
+    NATa <-.-|"egress 0.0.0.0/0 → IGW"| Ka
+    NATb <-.-|"egress 0.0.0.0/0 → IGW"| Kb
     Ka & Kb -.-> EP
     RDSa -.->|"sync replication"| RDSb
 ```
@@ -350,6 +357,15 @@ The vocabulary changes between providers, the building blocks do not[^3]. The bi
 !!! tip "In the interview"
     When you draw the high-level design, put a **box around it labeled VPC** and split it into **public** (load balancer, NAT) and **private** (services, data) subnets across **at least two AZs**. Say one sentence about egress: "outbound calls to the payment provider go through a NAT gateway per AZ with a fixed IP the provider allow-lists." If the interviewer asks about cost, mention **VPC endpoints** to keep object-storage and registry traffic off the NAT. That is enough to signal you have run real systems.
 
+!!! success "Best practices"
+
+    - **Spread every tier over at least two, preferably three, availability zones, with one subnet per tier per zone** — losing a zone then removes a third of the capacity, not the service.
+    - **Reach cloud services through VPC endpoints** — gateway endpoints for object storage, interface endpoints for the registry, logs and the secrets manager: the traffic stays private and skips the NAT data-processing charge.
+    - **Write security-group rules that reference other groups, not CIDRs** — `db-sg` allows 5432 only from `app-sg`, so the rule follows the instances as they scale in and out.
+    - **Give data subnets no route to the Internet at all** — no `0.0.0.0/0` entry in their route table, so a compromised database host cannot exfiltrate directly.
+    - **Turn on VPC flow logs (at least rejected traffic) and keep them about 90 days** — the only way to answer "what did this host talk to?" after an incident.
+    - **Change the network only through code review** — Terraform (or similar) with the plan attached to the pull request; no console changes in production.
+
 !!! warning "Common pitfalls"
     - **SSH or RDP open to `0.0.0.0/0`** — scanned within minutes; use a session manager instead.
     - **Database in a public subnet** "just to connect from my laptop" — one weak password away from a breach.
@@ -362,7 +378,7 @@ The vocabulary changes between providers, the building blocks do not[^3]. The bi
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     VPC["VPC + CIDR plan"] --> SUB["public / private / isolated<br/>subnets, one per AZ"]
     SUB --> RT["route tables:<br/>IGW, NAT or none"]
@@ -378,13 +394,15 @@ flowchart LR
 
 **Palette components:** [`vpc`](../../../reference/components/network/index.md#vpc) · [`subnet`](../../../reference/components/network/index.md#subnet) · [`nat`](../../../reference/components/network/index.md#nat) · [`vpn`](../../../reference/components/network/index.md#vpn) · [`lb`](../../../reference/components/edge/index.md#lb) (the ALB in the public subnets) · [`payment`](../../../reference/components/external/index.md#payment) (reached through the NAT). **Scenarios:** `payment-system`, `multi-region`, `scale-out`. **Continues in:** [Service mesh](../service-mesh/index.md), [Zero Trust](../zero-trust/index.md), [Compute — integrations](../../compute/integrations/index.md), [Reliability — disaster recovery](../../reliability/disaster-recovery/index.md#multi-region), [Cloud-native — delivery](../../cloud-native/delivery/index.md) (infrastructure as code).
 
-## Key takeaways
+## Key takeaways { #key-takeaways }
 
-- A **VPC** is your private network in a region; **subnets** live in one AZ; a subnet is public only because its route table points `0.0.0.0/0` to an **Internet Gateway**.
-- Private subnets reach the Internet **outbound only** through a **NAT gateway**, which also gives a stable egress IP for allow-lists; use one per AZ for critical paths.
-- **Security groups** are stateful and can reference each other; **NACLs** are stateless subnet-level guard rails. Neither is a workload identity.
-- Plan **CIDRs** with room and without overlaps; AWS reserves 5 addresses per subnet; pods may need many IPs.
-- Use **VPC endpoints** for cloud services, **peering/transit/PrivateLink** between networks, **VPN or dedicated links** to on-prem, and **session managers** instead of bastions.
+!!! takeaways ""
+
+    - A **VPC** is your private network in a region; **subnets** live in one AZ; a subnet is public only because its route table points `0.0.0.0/0` to an **Internet Gateway**.
+    - Private subnets reach the Internet **outbound only** through a **NAT gateway**, which also gives a stable egress IP for allow-lists; use one per AZ for critical paths.
+    - **Security groups** are stateful and can reference each other; **NACLs** are stateless subnet-level guard rails. Neither is a workload identity.
+    - Plan **CIDRs** with room and without overlaps; AWS reserves 5 addresses per subnet; pods may need many IPs.
+    - Use **VPC endpoints** for cloud services, **peering/transit/PrivateLink** between networks, **VPN or dedicated links** to on-prem, and **session managers** instead of bastions.
 
 ---
 

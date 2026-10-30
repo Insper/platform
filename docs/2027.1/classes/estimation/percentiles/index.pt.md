@@ -3,7 +3,7 @@ O painel da BoxOffice diz que o endpoint do mapa de lugares tem **latência méd
 
 ---
 
-## Por que médias mentem
+## Por que médias mentem { #why-averages-lie }
 
 Distribuições de latência não são curvas de sino. A maioria das requisições é rápida e parecida; uma minoria — que pega um cache miss, uma pausa de coleta de lixo, um lock, uma nova tentativa, uma conexão fria — é muito mais lenta. O resultado é uma **cauda longa** à direita. O gráfico mostra uma distribuição sintética, mas realista, para 100.000 requisições: 97% são "normais" (em torno de 40 ms) e 3% pegam um caminho lento (em torno de 400 ms):
 
@@ -51,7 +51,7 @@ A **média** (cerca de 55 ms) não descreve nenhuma requisição real: ela é pu
 
 ---
 
-## Percentis
+## Percentis { #percentiles }
 
 O **p-ésimo percentil** (escrito pXX) de um conjunto de latências é o valor abaixo do qual ficam XX% delas[^1]:
 
@@ -63,13 +63,13 @@ O **p-ésimo percentil** (escrito pXX) de um conjunto de latências é o valor a
 | **p99.9** | 1 em 1.000 é mais lenta | cauda de "três noves" | rara, mas real; domina quando as requisições fazem fan-out |
 | **max** | a mais lenta observada | p100 | casos extremos; ruidoso, mas vale uma olhada |
 
-Para calcular um percentil exatamente, ordene os valores e pegue o da posição ⌈p × n⌉ (o método do *posto mais próximo*): com 1.000 requisições, o p99 é a 990ª mais rápida. Em produção, os sistemas não guardam cada latência; eles registram **histogramas** — contagens de requisições por faixa de latência (0–5 ms, 5–10 ms, …) — e estimam os percentis a partir das faixas. Histogramas do Prometheus, o HdrHistogram e os histogramas exponenciais do OpenTelemetry funcionam assim ([aula 10](../../observability/index.md)).
+Para calcular um percentil exatamente, ordene os valores e pegue o da posição ⌈p × n⌉ (o método do *posto mais próximo*): com 1.000 requisições, o p99 é a 990ª mais rápida. Em produção, os sistemas não guardam cada latência; eles registram **histogramas** — contagens de requisições por faixa de latência (0–5 ms, 5–10 ms, …) — e estimam os percentis a partir das faixas. Histogramas do Prometheus, o HdrHistogram e os histogramas exponenciais do OpenTelemetry funcionam assim ([aula 9](../../observability/index.md)).
 
 !!! warning "Não se tira média de percentis"
 
     Se o servidor A tem p99 = 100 ms e o servidor B tem p99 = 1.000 ms, o p99 do conjunto **não** é 550 ms; ele depende de quantas requisições cada um atendeu e da forma das duas distribuições. O mesmo vale ao longo do tempo: a média de 60 valores de p99 por minuto não é o p99 da hora. Para agregar, **some os histogramas** (some as contagens das faixas) e calcule o percentil a partir do histograma combinado. Painéis que tiram média de percentis estão entre os erros mais comuns — e mais enganosos — de monitoramento.
 
-### Por que a cauda importa mais do que "1%" sugere
+### Por que a cauda importa mais do que "1%" sugere { #why-the-tail-matters-more-than-1-suggests }
 
 1. **Usuários fazem muitas requisições.** Uma visita de um fã durante uma abertura de vendas (página do evento, mapa de lugares, atualizações, reservas, pagamento, confirmação) envolve facilmente **50 requisições**. A probabilidade de que *pelo menos uma* seja mais lenta que o p99 é $1 - 0.99^{50} \approx 39\%$. A "cauda de 1%" é sentida por **quatro em cada dez visitas**.
 2. **Os usuários mais lentos costumam ser os melhores clientes.** Fãs com muitos pedidos, organizadores com eventos grandes, contas com muitos dados — suas requisições fazem mais trabalho e caem na cauda. A Amazon ficou famosa por definir suas metas internas de latência no **p99.9** por esse motivo[^2].
@@ -77,7 +77,7 @@ Para calcular um percentil exatamente, ordene os valores e pegue o da posição 
 
 ---
 
-## Amplificação da cauda sob fan-out
+## Amplificação da cauda sob fan-out { #tail-amplification-under-fan-out }
 
 Backends modernos raramente respondem a uma requisição com uma única chamada. A página do mapa de lugares da BoxOffice chama `inventory` (disponibilidade), `catalog` (layout do local e preços), `order` (os ingressos que o fã já tem) e um serviço de recomendações, em paralelo; o serviço de busca consulta **20 shards de índice** em paralelo e combina os resultados. Uma requisição que faz **fan-out** para N backends em paralelo é tão lenta quanto o **mais lento** deles.
 
@@ -141,7 +141,7 @@ Essa é a observação central de *The Tail at Scale*, de Dean e Barroso[^3]: co
 
 ---
 
-## De onde vem a cauda
+## De onde vem a cauda { #where-the-tail-comes-from }
 
 A latência de cauda raramente é causada pelo caminho "normal" do código. Causas típicas[^3]:
 
@@ -158,7 +158,7 @@ A latência de cauda raramente é causada pelo caminho "normal" do código. Caus
 
 ---
 
-## Domando a cauda
+## Domando a cauda { #taming-the-tail }
 
 Você não consegue eliminar a variabilidade; consegue projetar para que ela não chegue ao usuário.
 
@@ -169,7 +169,7 @@ Você não consegue eliminar a variabilidade; consegue projetar para que ela nã
 - **Tire trabalho do caminho crítico**: o que não precisa terminar antes da resposta (e-mails, analytics, indexação de busca) vai para uma fila.
 - **Mantenha a utilização baixa** nos componentes críticos em latência e **isole-os** do trabalho em lote.
 
-### Orçamentos de latência
+### Orçamentos de latência { #latency-budgets }
 
 Uma meta voltada ao usuário precisa ser dividida entre os componentes do caminho. Para o checkout da BoxOffice (p99 < 1,5 s):
 
@@ -187,12 +187,20 @@ Somar p99s é pessimista (raramente todos acontecem na mesma requisição), e é
 
 ---
 
-## Medindo percentis com honestidade
+## Medindo percentis com honestidade { #measuring-percentiles-honestly }
 
 Duas armadilhas fazem a latência de cauda parecer melhor do que é:
 
 - **Omissão coordenada** (*coordinated omission*): um gerador de carga que só envia a próxima requisição depois que a anterior volta *para de enviar* quando o servidor trava — então ele nunca registra as requisições que *teriam* chegado durante a trava, e a cauda some dos resultados. Use ferramentas que mantêm uma taxa de chegada constante (modelo aberto: o `constant-arrival-rate` do k6, wrk2) e compare os horários de envio pretendidos e reais[^4]. A [aula 15](../../performance/index.md) aprofunda o tema.
 - **Medir no lugar errado**: o próprio cronômetro do servidor não vê o tempo na fila de aceitação, no load balancer e na rede. Meça onde o usuário está (no cliente, ou na borda) e compare com os números do lado do servidor.
+
+!!! example "No código do BoxOffice: percentis no teste de carga (lab 2)"
+
+    O teste de carga do [Hands-on 2](../../../hands-on/2/index.md) evita as duas armadilhas. Ele usa o executor `constant-arrival-rate` do k6 (um modelo **aberto**: novas requisições continuam chegando a `RATE` por segundo, por mais lento que o serviço fique), mede no cliente e escreve seus critérios de aprovação como **percentis por endpoint**, porque uma página de detalhes rápida e uma listagem por cidade lenta, juntas numa média, não descrevem nenhuma das duas. A execução de exemplo do laboratório mostra por que a cauda é o número a observar: em 400 req/s a mediana foi 1,5 ms enquanto o p99 foi 224 ms — a média teria escondido que um fã em cada cem esperou 150 vezes mais que o típico.
+
+    ``` { .javascript title="load/load.js (open model, percentile thresholds)" }
+    --8<-- "docs/2027.1/hands-on/2/code/load/load.js:14:31"
+    ```
 
 **Experimente:** no cenário scale-out, rode o perfil `load` e anote o p50 e o p99. Depois use `chaos` em `low` para deixar uma réplica lenta de vez em quando. Qual percentil se move primeiro? Quanto o p99 se move em comparação com o p50?
 
@@ -202,11 +210,19 @@ Duas armadilhas fazem a latência de cauda parecer melhor do que é:
 
     A BoxOffice quer um SLO para o endpoint do mapa de lugares. Opção A: "latência média < 100 ms". Opção B: "99% das requisições < 300 ms, medido no gateway ao longo de 28 dias". Qual, e por quê?
 
-    **Resposta**: **B**. Ela é expressa como percentil (restringe a cauda, que os usuários sentem), tem um limiar que importa para os usuários, um ponto de medição (o gateway, mais perto do usuário que o serviço) e uma janela. A opção A pode ser cumprida enquanto 3% das requisições levam mais de um segundo — exatamente a reclamação nas redes sociais. SLOs são desenvolvidos na [aula 9](../../reliability/index.md).
+    **Resposta**: **B**. Ela é expressa como percentil (restringe a cauda, que os usuários sentem), tem um limiar que importa para os usuários, um ponto de medição (o gateway, mais perto do usuário que o serviço) e uma janela. A opção A pode ser cumprida enquanto 3% das requisições levam mais de um segundo — exatamente a reclamação nas redes sociais. SLOs são desenvolvidos na [aula 9](../../observability/slo/index.md).
 
 !!! tip "Na entrevista"
 
     Sempre expresse metas de latência como **percentis** ("p99 < 200 ms para leituras") e, quando o seu design fizer fan-out (busca particionada, uma página que agrega vários serviços, scatter-gather), mencione a **amplificação da cauda** e uma mitigação: "com 20 shards, o shard mais lento domina, então eu acrescentaria hedged requests depois do p95 e devolveria resultados parciais depois de um prazo." Isso mostra que você entende como sistemas distribuídos se comportam, não só como são desenhados.
+
+!!! success "Boas práticas"
+
+    - **Exporte a latência como histograma com limites de faixa nos thresholds do SLO** — com uma borda de faixa em 300 ms, "p99 < 300 ms" é calculado com exatidão em vez de interpolado.
+    - **Rotule a latência por rota, nunca um número por serviço** — uma página de detalhes rápida e uma listagem lenta precisam de percentis separados. Na BoxOffice: os rótulos `name:detail` e `name:list` no `load/load.js` do lab 2 (quadro acima).
+    - **Informe p50, p99 e p99,9 junto com o número de requisições** — um p99 sobre 200 requisições é a segunda mais lenta; ele precisa de milhares para significar algo.
+    - **Derive todo timeout de um orçamento de latência, e propague o prazo restante** — uma chamada recebe no máximo sua parte do orçamento de quem chama, para que quem chama nunca estoure antes e repita um trabalho ainda em andamento.
+    - **Faça hedging só de leituras idempotentes, depois do p95, com um teto de carga extra** (alguns por cento) — o hedging compra latência de cauda com carga, e a carga precisa ficar limitada.
 
 !!! warning "Armadilhas comuns"
 
@@ -220,7 +236,7 @@ Duas armadilhas fazem a latência de cauda parecer melhor do que é:
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     DIST["latência de cauda longa"] --> PCT["p50, p99, p99.9<br/>a partir de histogramas"]
     PCT --> SLO["SLOs de latência<br/>→ Confiabilidade"]
@@ -233,15 +249,17 @@ flowchart LR
     PCT --> CO["medir no cliente,<br/>omissão coordenada → Performance"]
 ```
 
-**Componentes da paleta:** [`search`](../../../reference/components/compute/index.md#search) (20 shards: a cauda do fan-out) · [`app`](../../../reference/components/compute/index.md#app) (uma página que agrega vários serviços; hedging para outra réplica) · [`cache`](../../../reference/components/storage/index.md#cache) (misses são uma fonte de cauda) · [`serverless`](../../../reference/components/compute/index.md#serverless) (cold starts) · [`apigw`](../../../reference/components/edge/index.md#apigw) (onde o SLO é medido) · [`payment`](../../../reference/components/external/index.md#payment) (o provedor domina o orçamento do checkout) · [`metrics`](../../../reference/components/observability/index.md#metrics) (histogramas, nunca média de percentis). **Cenários:** `scale-out` (com `chaos`), `search-autocomplete`. **Continua em:** [Matemática da Disponibilidade](../availability-math/index.md), [Confiabilidade — SLOs](../../reliability/slo/index.md), [Confiabilidade — timeouts](../../reliability/patterns/index.md#timeout), [Observabilidade — sinais](../../observability/signals/index.md), [Performance — testes de carga](../../performance/load-testing/index.md), [Hands-on 2](../../../hands-on/2/index.md).
+**Componentes da paleta:** [`search`](../../../reference/components/compute/index.md#search) (20 shards: a cauda do fan-out) · [`app`](../../../reference/components/compute/index.md#app) (uma página que agrega vários serviços; hedging para outra réplica) · [`cache`](../../../reference/components/storage/index.md#cache) (misses são uma fonte de cauda) · [`serverless`](../../../reference/components/compute/index.md#serverless) (cold starts) · [`apigw`](../../../reference/components/edge/index.md#apigw) (onde o SLO é medido) · [`payment`](../../../reference/components/external/index.md#payment) (o provedor domina o orçamento do checkout) · [`metrics`](../../../reference/components/observability/index.md#metrics) (histogramas, nunca média de percentis). **Cenários:** `scale-out` (com `chaos`), `search-autocomplete`. **Continua em:** [Matemática da Disponibilidade](../availability-math/index.md), [Observabilidade — SLOs](../../observability/slo/index.md), [Confiabilidade — timeouts](../../reliability/patterns/index.md#timeout), [Observabilidade — sinais](../../observability/signals/index.md), [Performance — testes de carga](../../performance/load-testing/index.md), [Hands-on 2](../../../hands-on/2/index.md).
 
-## Pontos-chave
+## Pontos-chave { #key-takeaways }
 
-- Distribuições de latência têm **caudas longas**; a média as esconde — use **p50, p99, p99.9**.
-- Percentis vêm de **histogramas**; agregue somando histogramas, **nunca tirando média** de percentis.
-- Usuários e clientes intensos fazem muitas requisições, então a "cauda de 1%" atinge uma grande parte das **visitas**.
-- Sob fan-out N, P(lenta) = **1 − (1 − q)ᴺ**: com 20 chamadas o p99 do backend atinge 18 % das requisições do usuário; a partir de ~70 chamadas, vira a mediana do usuário.
-- Combata a cauda com **hedging, resultados parciais, menos fan-out, folga e trabalho assíncrono**; divida metas ponta a ponta em **orçamentos de latência** com timeouts correspondentes.
+!!! takeaways ""
+
+    - Distribuições de latência têm **caudas longas**; a média as esconde — use **p50, p99, p99.9**.
+    - Percentis vêm de **histogramas**; agregue somando histogramas, **nunca tirando média** de percentis.
+    - Usuários e clientes intensos fazem muitas requisições, então a "cauda de 1%" atinge uma grande parte das **visitas**.
+    - Sob fan-out N, P(lenta) = **1 − (1 − q)ᴺ**: com 20 chamadas o p99 do backend atinge 18 % das requisições do usuário; a partir de ~70 chamadas, vira a mediana do usuário.
+    - Combata a cauda com **hedging, resultados parciais, menos fan-out, folga e trabalho assíncrono**; divida metas ponta a ponta em **orçamentos de latência** com timeouts correspondentes.
 
 ---
 

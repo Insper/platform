@@ -96,7 +96,7 @@ A fix-the-build agent starts with 20\,000 tokens of context (instructions, tools
 \lines{6}
 \end{ex}
 
-\simulator{300 reviews and 300 agents at once}{ai-assistant}{Use the spike profile and imagine the spike is a mass dependency upgrade that triggers hundreds of AI reviews and fix agents. Watch the LLM Gateway queue and errors, then lower the per-client quota: the bots slow down, the fans do not.}
+\simulator{300 reviews and 300 agents at once}{ai-assistant}{Use the spike profile and imagine the spike is a mass dependency upgrade that triggers hundreds of AI reviews and fix agents. Watch the LLM Gateway queue and errors, then set a rate limit on the API Gateway: the excess gets a fast 429 instead of queueing for the provider quota.}
 
 \begin{ex}{3}{Design the fix-the-build pipeline}
 Design the CI pipeline around the fix-the-build agent so that it can propose fixes for 14 red services without being able to harm the repository.

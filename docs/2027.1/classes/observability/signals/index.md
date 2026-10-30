@@ -14,7 +14,7 @@ The first question during an incident is never "why?" — it is "*is* something 
 
 Think of it as a spectrum from **aggregated and cheap** to **detailed and expensive**. Metrics compress a million requests into a few numbers per interval — you can keep them for months, but you cannot ask about one request. Logs and traces keep each request — you can ask anything about it, but you must sample, filter or expire them.
 
-``` mermaid
+``` diagram
 flowchart LR
     M["Metrics<br/>aggregate · cheap · long retention"] --> T["Traces<br/>per request · sampled"]
     T --> L["Logs<br/>per event · verbose"]
@@ -23,7 +23,7 @@ flowchart LR
 
 !!! note "Names used in this class"
 
-    BoxOffice is instrumented with the **OpenTelemetry Java agent** ([Hands-on 8](../../../hands-on/8/index.md)), which follows the OpenTelemetry *semantic conventions*[^1]. Its HTTP server metric `http.server.request.duration` (a histogram, in seconds) arrives in Prometheus as `http_server_request_duration_seconds_bucket`, `_count` and `_sum`, with the labels `http_route`, `http_request_method` and `http_response_status_code`; the service name becomes the `job` label. Spring Boot's own Micrometer metrics use other names (`http_server_requests_seconds` with `uri`, `status`, `application`). The queries are the same idea — check which names your stack emits before copying a query.
+    BoxOffice is instrumented with the **OpenTelemetry Java agent** ([Hands-on 8](../../../hands-on/8/index.md)), which follows the OpenTelemetry *semantic conventions*[^1]. Its HTTP server metric `http.server.request.duration` (a histogram, in seconds) arrives in Prometheus as `http_server_request_duration_seconds_bucket`, `_count` and `_sum`, with the labels `http_route`, `http_request_method` and `http_response_status_code`. The resource attribute `service.name` arrives as the label `service_name` (the one lab 8's dashboard and alerts filter on), and Prometheus builds `job` from `service.namespace` and `service.name` — `boxoffice/order` in lab 8; a classic scrape configuration names `job` after the scrape target instead. The queries on this page use `job="order"` for brevity. Spring Boot's own Micrometer metrics use other names (`http_server_requests_seconds` with `uri`, `status`, `application`). The queries are the same idea — check which names your stack emits before copying a query.
 
 ---
 
@@ -111,6 +111,14 @@ sum(rate(http_server_request_duration_seconds_bucket{job="order", http_route="/c
 /
 sum(rate(http_server_request_duration_seconds_count{job="order", http_route="/checkout"}[5m]))
 ```
+
+!!! example "In the BoxOffice code: the RED dashboard (lab 8)"
+
+    [Hands-on 8 — RED dashboard](../../../hands-on/8/dashboard/index.md) provisions one dashboard for every service from a JSON file in the repository, reviewed and versioned like any other code. Its top row is the three queries above, one line per `service_name`: the rate is `sum by (service_name)` of the counter's `rate()`; the errors are a **share** of `5xx`, not a count (50 errors/s is a disaster at 60 req/s and noise at 60,000); the p95 comes from `histogram_quantile` over buckets summed **by `le`** — never an average of per-replica percentiles, which matters because `catalog` runs three replicas as one service. The bottom row is USE: JVMs and connection pools.
+
+    ``` { .json title="infra/grafana/dashboards/boxoffice-red.json (titles and queries of the RED row)" }
+    --8<-- "docs/2027.1/hands-on/8/code/infra/grafana/dashboards/boxoffice-red.json:56:56,81:81,89:89,114:114,122:122,147:147"
+    ```
 
 ### Percentiles, not averages — and never average percentiles
 
@@ -317,7 +325,7 @@ Profiling became the fourth OpenTelemetry signal (still maturing in 2026), and e
 
 A dashboard is a set of saved queries arranged to answer a question quickly. Most dashboards fail because they try to show *everything*; the useful ones are designed top-down, from what users feel to what resources do.
 
-``` mermaid
+``` diagram
 flowchart TB
     L1["1 · User journeys and SLOs<br/>search, seat hold, checkout: SLI, budget left"]
     L2["2 · Services — RED<br/>per service and route: rate, errors, p50/p99"]
@@ -349,6 +357,14 @@ flowchart TB
 
     When you add a component to a design, name its **one key metric** in the same sentence — it shows you have operated systems: cache → **hit ratio**; queue → **consumer lag / age of oldest message**; database replica → **replication lag**; connection pool → **pending acquisitions**; API → **RED**. If asked "how do you debug a slow request across services?", the answer is **distributed tracing with propagated context**, then the logs of the slow span. And if you propose a metric with `user_id` as a label, expect the follow-up question about **cardinality**.
 
+!!! success "Best practices"
+
+    - **Give every service the same RED row, from the same three queries** — rate, error share and p95 per `service_name`, so anyone on call can read any service in ten seconds. In BoxOffice: `boxoffice-red.json` ([Hands-on 8 — RED dashboard](../../../hands-on/8/dashboard/index.md)).
+    - **Plot errors as a ratio, and draw the SLO threshold on the latency panel** — 50 errors/s is a disaster at 60 req/s and noise at 60,000; a line at the threshold turns "is p99 bad?" into a glance.
+    - **Expose saturation for every pool and queue you own** — pending connection acquisitions, queue depth, consumer lag: in the flash sale they rose two minutes before the checkout alert. In BoxOffice: the *DB connections* panel (`db_client_connections_pending_requests`) of the lab 8 dashboard.
+    - **Set a series budget per service and check it after every release** — count the series each service creates (`count by (service_name) ({service_namespace="boxoffice"})`); one new label can multiply them by 1,000. In BoxOffice: experiment C of [Hands-on 8 — Measure it](../../../hands-on/8/measure/index.md).
+    - **Emit one structured log event per outcome, with `trace_id` and the decision taken** — "fallback to provider B, breaker open" explains the next hour of graphs; ten "entering method" lines explain nothing. In BoxOffice: `LOGGING_PATTERN_CORRELATION` in the `x-otel` anchor puts the trace id on every line.
+
 !!! warning "Common pitfalls"
 
     - **Unbounded labels** (`user_id`, `order_id`, raw URLs): the metrics backend runs out of memory or the bill explodes.
@@ -360,7 +376,7 @@ flowchart TB
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     REQ["one checkout:<br/>gateway → order → payment"] --> MET["metrics: RED per route,<br/>USE per pool and topic"]
     REQ --> TR["trace: spans,<br/>critical path"]
@@ -378,14 +394,16 @@ flowchart LR
 
 ---
 
-## Key takeaways
+## Key takeaways { #key-takeaways }
 
-- Four signals on a cost–detail spectrum: **metrics** (cheap, aggregate), **traces** (per request, sampled), **logs** (per event), **profiles** (per code path).
-- **RED** for services, **USE** for resources, the **golden signals** for anything user-facing; **saturation** (waiting) is the leading indicator.
-- Use **histograms**, aggregate buckets with `sum by (le)`, then compute percentiles; never average percentiles.
-- **Cardinality** is the product of label values; keep metric labels bounded and put high-cardinality detail in traces and logs.
-- Logs must be **structured** and carry the `trace_id`; traces show the **critical path**, including time spent waiting; profiles show the **function**.
-- Design dashboards top-down: journeys/SLOs → RED → dependencies → USE.
+!!! takeaways ""
+
+    - Four signals on a cost–detail spectrum: **metrics** (cheap, aggregate), **traces** (per request, sampled), **logs** (per event), **profiles** (per code path).
+    - **RED** for services, **USE** for resources, the **golden signals** for anything user-facing; **saturation** (waiting) is the leading indicator.
+    - Use **histograms**, aggregate buckets with `sum by (le)`, then compute percentiles; never average percentiles.
+    - **Cardinality** is the product of label values; keep metric labels bounded and put high-cardinality detail in traces and logs.
+    - Logs must be **structured** and carry the `trace_id`; traces show the **critical path**, including time spent waiting; profiles show the **function**.
+    - Design dashboards top-down: journeys/SLOs → RED → dependencies → USE.
 
 ---
 

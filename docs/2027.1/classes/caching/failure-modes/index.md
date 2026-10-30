@@ -41,7 +41,7 @@ Fixes:
 
 A **cache stampede** (also *thundering herd* or *dog-piling*) happens when a **hot** key expires or is deleted. Every request that arrives before someone puts the value back misses — and each one goes to the database to recompute the *same* value.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant A as 4,000 requests
     participant R as Redis
@@ -98,6 +98,14 @@ def get_event(event_id: int, db, r) -> dict:
 - `SET ... NX PX 5000` is atomic: set only if absent, with a 5 s expiry so a crashed winner does not block the key forever.
 - The release checks the token, so a slow winner whose lock already expired does not delete someone else's lock.
 - Cost: losers wait (latency) and poll the cache. Facebook's memcache **leases** are a refined version of this, built into the cache server[^2].
+
+!!! example "In the BoxOffice code: the stampede lock in `catalog` (lab 5)"
+
+    [Hands-on 5 — Stampede](../../../hands-on/5/stampede/index.md) first *reproduces* the stampede (a hot listing with a 3 s TTL, hammered by 200 users) and then sets `CACHE_STAMPEDE_PROTECTION=true`, which runs this code: in a test run (60 s), the misses dropped from **2,238 to 19**, one database query per expiration instead of about a hundred and ten. Same idea as the Python above, in Java: `SET lock NX PX 2000`, re-read after winning (another request may have filled the key), losers poll for at most 20 × 25 ms and then load anyway. Note the honest comment in `unlock`: *get + delete* is not atomic, the Lua script above is.
+
+    ``` { .java title="services/catalog/src/main/java/boxoffice/catalog/EventCache.java (the lock)" }
+    --8<-- "docs/2027.1/hands-on/5/code/services/catalog/src/main/java/boxoffice/catalog/EventCache.java:62:85,119:138"
+    ```
 
 ### 2. Request coalescing (single-flight)
 
@@ -196,6 +204,11 @@ def xfetch(r, key: str, recompute, ttl: int = 300, beta: float = 1.0):
 | Stale-while-revalidate | no | 1 | medium | data that tolerates seconds of staleness |
 | XFetch | no | ~1 | low | hot keys with a known recompute cost |
 
+<div class="csim" data-sim="stampede" data-rate="500"></div>
+
+!!! tip "Try it"
+    The run follows lab 5's stampede test: a warm-up caches the hot event page (500 reads/s) and 40 others with the same 3 s TTL, and the database runs 20 queries of 200 ms at a time (100/s). Press play with every switch off: at t = 3 s the queries jump to about 1,060/s, hundreds wait in line, and p99 reaches about 5 s, with 1,229 queries in 10 s for 41 pages. Turn on **request coalescing** (lab 5's `CACHE_STAMPEDE_PROTECTION=true`): 122 queries, p99 200 ms, and 543 requests wait for another request's load instead. The 280/s peak that remains is the 40 pages expiring together, the [avalanche](#avalanche) below: add **TTL jitter** (lab 5's 10%) and it falls to 120/s. **XFetch** alone needs no lock and nobody waits: the hot page is refreshed before it expires (314 queries, peak 230/s, since several readers refresh it at once). With all three, the peak stays under capacity, at 90/s.
+
 ---
 
 ## Cache avalanche { #avalanche }
@@ -207,6 +220,14 @@ A **cache avalanche** is a stampede on many keys at once: a large set of keys ex
     To prepare for the 10:00 on-sale, a job warms the cache at **09:50** with the 5,000 hottest pages, all with `TTL = 600 s`. Every one of them expires at **10:00:00** — the exact moment 2 million fans press F5. The warm-up made things worse than no warm-up at all.
 
 The fix is **jitter**: add a random component to every TTL, e.g. `ttl = 600 + random(0, 120)`, so expirations spread over two minutes. Combine with refresh-ahead or XFetch for the very hottest keys, and with stampede protection for each individual key.
+
+!!! example "In the BoxOffice code: jitter on every TTL (lab 5)"
+
+    Every key that `catalog` writes in [Hands-on 5](../../../hands-on/5/cache-aside/index.md) gets up to 10% of random extra TTL, so keys written by the same warm-up do not expire in the same second:
+
+    ``` { .java title="services/catalog/src/main/java/boxoffice/catalog/EventCache.java (TTL with jitter)" }
+    --8<-- "docs/2027.1/hands-on/5/code/services/catalog/src/main/java/boxoffice/catalog/EventCache.java:140:144"
+    ```
 
 ---
 
@@ -258,7 +279,7 @@ A **big key** is a value of megabytes, or a collection (hash, list, set, sorted 
 
 Sooner or later, the Redis primary fails, the network partitions, or a failover takes 10–30 seconds. What happens next depends on decisions made long before:
 
-``` mermaid-sim
+``` diagram-sim
 flowchart TD
     F["Redis unavailable"] --> T{"Cache calls have<br/>a short timeout?"}
     T -->|"no"| X1["threads block on Redis<br/>whole service stalls"]
@@ -312,6 +333,14 @@ The [full playground](../../../../playground/index.md) lets you add a second cac
 
     After you draw a cache, the interviewer will often ask "what happens when a hot key expires?" or "what if Redis goes down?". Name the failure (stampede, avalanche, hot key, penetration), give the number that makes it dangerous (Little's law: reads/s × recompute time), and the fix (coalescing or a lock, TTL jitter, L1 cache, negative caching / Bloom filter). For "Redis goes down", say that the database is sized for the misses, so you need timeouts, a circuit breaker and load shedding — not a naive fallback.
 
+!!! success "Best practices"
+
+    - **Put a short timeout on every cache call** (milliseconds, not the client's default seconds) and treat an error as a miss. In BoxOffice: `timeout: 200ms` and `connect-timeout: 200ms` in `catalog`'s `application.yaml`, and `read()` in `EventCache.java` returns `null` on any Redis error.
+    - **Add jitter to every TTL** and protect each hot key with a lock or request coalescing ([boxes above](#stampede)).
+    - **Rehearse the cold cache**: flush Redis in a load test at the expected peak and check the database survives; if it does not, keep a warm-up plan and a rate limit on the miss path.
+    - **Watch the cache like a database**: hit ratio, evictions, memory, latency per command, and the hottest keys (`redis-cli --hotkeys`, which needs an LFU policy; big keys with `--bigkeys`).
+    - **Answer unknown keys cheaply** (negative caching or a Bloom filter) when ids come from the outside.
+
 !!! warning "Common pitfalls"
 
     - **Warm-ups with identical TTLs** — they schedule an avalanche.
@@ -324,7 +353,7 @@ The [full playground](../../../../playground/index.md) lets you add a second cac
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     COLD["cold cache<br/>warm before traffic"] --> DB["the database takes the misses"]
     STAMP["stampede: a hot key expires<br/>reads/s × recompute time"] --> FIX["lock, coalescing,<br/>stale-while-revalidate, XFetch"]

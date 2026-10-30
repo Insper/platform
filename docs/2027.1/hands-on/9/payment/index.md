@@ -11,7 +11,7 @@ three pieces the rest of the lab breaks on purpose:
 | `payment` | `services/payment` (Spring Boot) | 8085 | adapter: idempotent `POST /payments`, calls the PSP with timeouts |
 | `toxiproxy` | `ghcr.io/shopify/toxiproxy:2.13.0` | 8474 (API) | TCP proxy in front of `payment` and `psp`; injects latency, resets, outages |
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     order[order] -->|"PAYMENT_URL = toxiproxy:18085"| tp1["toxiproxy proxy: payment"]
     tp1 --> payment[payment :8085]
@@ -189,7 +189,7 @@ Toxiproxy reads its proxies from a JSON file at startup:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8085/actuator/health/readiness || exit 1"]
       interval: 10s
       timeout: 3s
-      start_period: 40s
+      start_period: 120s
       retries: 3
 ```
 
@@ -216,13 +216,13 @@ curl -fsSL -o docker-compose.yaml https://insper.github.io/platform/2027.1/hands
     --8<-- "docs/2027.1/hands-on/9/code/docker-compose.yaml"
     ```
 
-Start the three new containers and wait until `docker compose ps payment` shows `(healthy)` (the
-first build takes a few minutes, the start about 30 s); then list the proxies and charge once:
+Start the three new containers; `--wait` returns when `payment` is healthy (the first build takes a
+few minutes, the start about 30 s). Then list the proxies and charge once:
 
 <!-- termynal -->
 
 ``` shell
-> docker compose up -d --build psp toxiproxy payment
+> docker compose up -d --build --wait psp toxiproxy payment
 > curl -s localhost:8474/proxies | jq 'keys'
 [
   "payment",

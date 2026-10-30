@@ -13,7 +13,13 @@ The flash sale is next week and the team ships ten changes a day. Each of them c
 a slow query, a vulnerable library, a version that fails 30% of the requests. Nobody can review every
 change by hand at that pace — the pipeline must answer *"is this change safe to give to 2 million
 fans?"* automatically, and limit the damage when the answer was wrong. This lab is the hands-on side
-of the [delivery page](../../classes/cloud-native/delivery/index.md) of the cloud-native class.
+of the [delivery page](../../classes/cloud-native/delivery/index.md) of the cloud-native class and
+closes chapter 11 of the [story of the course](../../index.md#story) — rolling a bad release back
+without a human: it implements
+[continuous integration](../../classes/cloud-native/delivery/index.md#continuous-integration) with a
+[performance budget](../../classes/performance/capacity-planning/index.md#performance-budgets),
+[GitOps](../../classes/cloud-native/delivery/index.md#gitops) and a
+[canary judged by metrics](../../classes/cloud-native/delivery/index.md#canary-with-automated-metrics-analysis).
 
 ## Slides
 
@@ -49,11 +55,12 @@ boxoffice/
     unzip it, `cd boxoffice`, push it to your GitHub repository, and continue from here.
 
 Every file of this lab is shown in full on these pages and published under
-`https://insper.github.io/platform/2027.1/hands-on/11/code/<path>`.
+`https://insper.github.io/platform/2027.1/hands-on/11/code/<path>`, except those under `.github/`
+(the site skips folders whose name starts with a dot): copy those from the pages.
 
 ## Architecture
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     dev[git push / PR] --> test["CI: test (matrix, Testcontainers)"]
     test --> perf["CI: performance budget (k6)"]
@@ -117,6 +124,14 @@ The [Measure it](measure/index.md) step has the results table to keep in `result
 | Argo CD shows `ComparisonError … authentication required` | the repository secret is missing or the token expired | recreate `boxoffice-repo` (step 4) |
 | pods in `ImagePullBackOff` with `ghcr.io/...` | private package and no pull secret, or wrong owner in the image | create `ghcr-pull` (step 4) or make the package public; check `newName` |
 | the Rollout stays `Paused`/`Progressing` and the analysis is `Inconclusive` | no traffic reaches the canary, or Prometheus has no data | keep k6 running; `kubectl -n monitoring port-forward svc/prometheus 9090` and query `http_server_requests_seconds_count` |
+
+!!! success "Best practices in this lab"
+
+    - **No image unless tests and the performance budget pass** — `needs: [test, performance]` in `.github/workflows/ci.yaml`; why: [continuous integration](../../classes/cloud-native/delivery/index.md#continuous-integration).
+    - **Supply chain under control**: actions pinned by SHA, a Trivy gate on fixable critical CVEs, an SBOM and provenance attestations, weekly Dependabot updates — `ci.yaml`, `.github/dependabot.yml`; why: [containers — supply chain](../../classes/cloud-native/containers/index.md#supply-chain).
+    - **Least privilege**: `contents: read` by default, write permissions only in the jobs that need them — `ci.yaml`, `deploy.yaml`; why: [GitOps — credentials](../../classes/cloud-native/delivery/index.md#gitops).
+    - **CI never touches the cluster**: `Deploy` only commits a tag, Argo CD pulls it, one deploy at a time — `deploy.yaml`, `k8s/argocd/application.yaml`; why: [GitOps](../../classes/cloud-native/delivery/index.md#gitops).
+    - **Releases judged by user-facing SLIs, with automatic abort** — error ratio and p99 of the canary in `k8s/overlays/gitops/catalog-analysis.yaml`; why: [canary with metrics analysis](../../classes/cloud-native/delivery/index.md#canary-with-automated-metrics-analysis).
 
 ## Clean up
 

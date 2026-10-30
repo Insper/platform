@@ -16,7 +16,7 @@ Na segunda, tudo está no ar. Às 22:00, um engenheiro roda um script de limpeza
 **RTO — Recovery Time Objective**
 : O **tempo** máximo desde o desastre até o serviço ser restaurado. RTO = 1 hora significa que os fãs podem voltar a comprar ingressos no máximo uma hora depois da falha.
 
-``` mermaid
+``` diagram
 flowchart LR
     lb["último ponto de<br/>recuperação bom"] -->|"RPO: dados perdidos"| d(("desastre<br/>22:00"))
     d -->|"RTO: serviço fora"| r["serviço<br/>restaurado"]
@@ -72,7 +72,7 @@ $$
 
     O banco do `order` tem 2 TB. Restaurar de object storage a 200 MB/s leva $2\,000\,000 / 200 = 10\,000$ s ≈ **2,8 horas**, antes de reaplicar um dia de WAL. Isso estoura o RTO de 15 minutos. Opções: restaurar num banco já provisionado e próximo do alvo (backups base diários menores, armazenamento mais rápido), manter uma **réplica atrasada** (um standby que aplica o WAL com 1 hora de atraso, para que um erro possa ser pego antes de chegar a ela), ou dividir os dados para que a parte crítica (pedidos em aberto, o livro-razão de pagamentos) seja pequena. O número decide o projeto.
 
-### Regras para backups que funcionam de verdade
+### Regras para backups que funcionam de verdade { #rules-for-backups-that-actually-work }
 
 - **3-2-1**: pelo menos **3** cópias dos dados, em **2** tipos diferentes de armazenamento, **1** delas fora do local (outra região ou conta). A prática moderna acrescenta uma cópia **imutável** (object lock / WORM — escreva uma vez, leia muitas) que nem um atacante com credenciais de administrador consegue apagar, contra ransomware.
 - **Separe o raio de impacto.** Backups na mesma conta, com as mesmas credenciais da produção, podem ser apagados pelo mesmo erro ou pelo mesmo atacante.
@@ -99,6 +99,17 @@ $$
 A replicação síncrona entre regiões coloca uma ida e volta entre regiões em cada escrita: $\approx 30$–$100$ ms por commit costuma ser inaceitável no caminho de reserva de lugares. Por isso, DR multi-região em geral significa replicação **assíncrona**, e um RPO igual ao atraso da replicação no momento do desastre. É por isso que "RPO = 0 entre regiões" ou é muito caro (replicação síncrona, ou um banco globalmente consistente como Spanner ou CockroachDB pagando a latência) ou é um mal-entendido.
 
 Multi-região também é uma questão **jurídica**: dados pessoais podem estar sujeitos a regras de residência (LGPD no Brasil, GDPR na União Europeia), que restringem quais regiões podem guardar a cópia.
+
+!!! info "Experimente no playground: RPO e RTO de um failover"
+
+    O cenário `db-failover` é o checkout da venda relâmpago — 1.500 req/s, metade escritas — num primário com um seguidor replicado de forma **assíncrona**. Em t = 90 s o primário morre e a promoção leva 30 s. Aperte **Run** e leia dois números: cerca de **1.600 escritas perdidas** (pedidos confirmados pelo primário mas ainda dentro do atraso de replicação: o RPO) e uma disponibilidade de cerca de **90,6%** (30 s em que toda escrita falha: o RTO). Depois selecione o cluster e mude um parâmetro por vez:
+
+    - **Replicação: sync** — as escritas perdidas caem para **0**, a disponibilidade fica em 90,6%: um RPO melhor, o mesmo RTO, e toda escrita agora paga uma ida e volta ao seguidor.
+    - **Tempo de failover: 5 s** (de volta ao async) — a disponibilidade sobe para cerca de **98,1%**, mas os ~1.600 pedidos continuam perdidos.
+
+    A solução possível faz as duas coisas — replicação por quorum com 2 seguidores, failover de 5 s — e divide as chaves em 2 shards, para que um primário morto leve só metade das escritas: 0 perdidas, cerca de 99,2% de disponibilidade. RPO e RTO são parâmetros separados, e cada um tem seu preço.
+
+<div class="sdp" data-scenario="db-failover" data-mode="compact" data-height="520"></div>
 
 ---
 
@@ -177,7 +188,7 @@ O whitepaper de recuperação de desastres da AWS descreve um espectro de quatro
 
     As duas regiões atendem usuários o tempo todo; perder uma significa mandar o tráfego dela para a outra (que precisa ter capacidade). A parte difícil são os dados: duas regiões aceitando escritas nos mesmos registros precisam de resolução de conflitos ou de um banco globalmente consistente.
 
-### Ativo-ativo e o inventário de lugares
+### Ativo-ativo e o inventário de lugares { #active-active-and-the-seat-inventory }
 
 Ativo-ativo é fácil para dados **de leitura predominante**: o catálogo pode ser lido em qualquer região a partir de réplicas locais e da CDN. É difícil para dados com **invariantes fortes**: se São Paulo e Virgínia aceitam reservas do lugar B-12 e replicam de forma assíncrona, dois fãs podem comprar o mesmo lugar — exatamente o que o BoxOffice nunca pode fazer (veja [Consistência](../../distributed/consistency/index.md)). As opções:
 
@@ -187,11 +198,11 @@ Ativo-ativo é fácil para dados **de leitura predominante**: o catálogo pode s
 
 ---
 
-## Failover entre regiões
+## Failover entre regiões { #failover-between-regions }
 
 Um failover regional é uma sequência de passos, cada um com uma duração que se soma ao RTO:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant M as monitores externos
     participant OC as plantão
@@ -230,7 +241,7 @@ Pontos que decidem se funciona:
 
 ---
 
-## O plano de DR do BoxOffice
+## O plano de DR do BoxOffice { #the-boxoffice-dr-plan }
 
 | Camada | Serviços | Estratégia | RPO | RTO |
 |---|---|---|---|---|
@@ -238,6 +249,8 @@ Pontos que decidem se funciona:
 | **Camada 1** — navegação | `catalog`, `gateway`, `auth`, sala de espera | Leituras ativo-ativo (CDN + réplicas nas duas regiões); escritas do catálogo só na primária | 1 h para edições do catálogo | 5 min (principalmente DNS) |
 | **Camada 2** — derivados | `search`, `notification` | **Pilot light**: reconstruir o índice a partir do catálogo; reenviar notificações pendentes a partir do Kafka | Derivado / reprocessável | 4 h |
 | **Camada 3** — interno | analytics, warehouse | **Backup e restore** | 24 h | 2 dias |
+
+Por que um **warm standby** para a camada 0, e não algo mais barato ou mais forte: o RTO de 15 minutos descarta backup e restore (só restaurar os 2 TB do banco do `order` leva cerca de 2,8 horas) e torna o pilot light arriscado (promover e escalar do zero leva dezenas de minutos); o ativo-ativo deixaria duas regiões venderem o assento B-12 ao mesmo tempo. O preço é uma segunda região rodando a cerca de um décimo da escala o ano todo, mais os exercícios que provam que ela consegue assumir.
 
 E as práticas que mantêm o plano honesto:
 
@@ -247,6 +260,14 @@ E as práticas que mantêm o plano honesto:
 
 !!! tip "Na entrevista"
     Quando perguntarem "e se a região cair?" ou "e se alguém apagar a tabela?", comece pelo **RPO e RTO por classe de dados** — e escolha a estratégia mais barata que os atende. Diferencie com clareza: **replicação** protege contra perda de infraestrutura, **backups com PITR** contra corrupção lógica. Para um sistema com invariantes fortes (lugares, saldos), explique por que ativo-ativo é difícil (escritas conflitantes) e proponha uma região de origem por entidade com warm standby. Apresente o RTO como uma soma de passos, incluindo o TTL do DNS.
+
+!!! success "Boas práticas"
+
+    - **Combine RPO e RTO por classe de dados com o negócio e escreva-os no runbook** — uma meta única e rígida para tudo é o plano mais caro; o livro-razão de pagamentos e o data warehouse de analytics diferem em um dia.
+    - **Cronometre todo teste de restore e compare com o RTO** — a aritmética decide o projeto: 2 TB a 200 MB/s são 2,8 horas contra um RTO de 15 minutos.
+    - **Alerte sobre o atraso de arquivamento do WAL** — ele *é* o RPO real da recuperação point-in-time; um atraso de uma hora é uma hora de pedidos a reconstruir à mão.
+    - **Mantenha o TTL de DNS do ponto de entrada em 60 s ou menos, com registros verificados por health check** — cada segundo de TTL é uma cauda de fãs ainda mandados para a região morta.
+    - **Implante a região standby a partir do mesmo código de infraestrutura a cada release** — imagens, segredos e configuração já na região B; um standby atualizado à mão se desvia até o dia em que é necessário.
 
 !!! warning "Armadilhas comuns"
 
@@ -259,7 +280,7 @@ E as práticas que mantêm o plano honesto:
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     BIZ["RPO e RTO<br/>por classe de dado"] --> STRAT["backup e restauração · pilot light ·<br/>warm standby · ativo-ativo"]
     INFRA["perda de infraestrutura<br/>(zona, região)"] --> REPL["replicação, multi-AZ<br/>→ Bancos de dados — replicação"]
@@ -273,7 +294,7 @@ flowchart LR
     FO --> DRILL["simulações de DR, testes de restauração<br/>→ Engenharia do caos"]
 ```
 
-**Componentes da paleta:** [`sql`](../../../reference/components/storage/index.md#sql) (standby, réplicas, PITR) · [`objstore`](../../../reference/components/storage/index.md#objstore) (backups base e o arquivo de WAL) · [`dns`](../../../reference/components/edge/index.md#dns) (registros de failover e TTL) · [`cdn`](../../../reference/components/edge/index.md#cdn) (serve o catálogo desatualizado enquanto a origem se recupera) · [`kafka`](../../../reference/components/messaging/index.md#kafka) (reprocessa notificações não enviadas) · [`app`](../../../reference/components/compute/index.md#app) (escalado de 2 para 12 réplicas na região standby). **Cenários:** `multi-region`, `db-replicas`. **Continua em:** [Bancos de dados — replicação](../../databases/replication/index.md), [Distribuídos — consistência](../../distributed/consistency/index.md), [Distribuídos — consenso](../../distributed/consensus/index.md), [Borda — DNS e CDN](../../edge/dns-cdn/index.md#dns-routing), [Cloud-native — entrega](../../cloud-native/delivery/index.md) (infraestrutura como código), [Projeto — game day](../../../exercises/project/game-day/index.md).
+**Componentes da paleta:** [`sql`](../../../reference/components/storage/index.md#sql) (standby, réplicas, PITR) · [`objstore`](../../../reference/components/storage/index.md#objstore) (backups base e o arquivo de WAL) · [`dns`](../../../reference/components/edge/index.md#dns) (registros de failover e TTL) · [`cdn`](../../../reference/components/edge/index.md#cdn) (serve o catálogo desatualizado enquanto a origem se recupera) · [`kafka`](../../../reference/components/messaging/index.md#kafka) (reprocessa notificações não enviadas) · [`app`](../../../reference/components/compute/index.md#app) (escalado de 2 para 12 réplicas na região standby). **Cenários:** `db-failover`, `multi-region`, `db-replicas`. **Continua em:** [Bancos de dados — replicação](../../databases/replication/index.md), [Distribuídos — consistência](../../distributed/consistency/index.md), [Distribuídos — consenso](../../distributed/consensus/index.md), [Borda — DNS e CDN](../../edge/dns-cdn/index.md#dns-routing), [Cloud-native — entrega](../../cloud-native/delivery/index.md) (infraestrutura como código), [Projeto — game day](../../../exercises/project/game-day/index.md).
 
 ---
 

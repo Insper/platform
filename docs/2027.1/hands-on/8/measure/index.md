@@ -25,17 +25,19 @@ Same image, same load, agent on and off:
 <!-- termynal -->
 
 ``` shell
-> OTEL_ON=false docker compose up -d catalog-1 catalog-2 catalog-3
+> OTEL_ON=false docker compose up -d --wait catalog-1 catalog-2 catalog-3
 > k6 run load/catalog-otel.js
 > docker stats --no-stream --format '{{.Name}} {{.CPUPerc}} {{.MemUsage}}' | grep catalog
-> OTEL_ON=true docker compose up -d catalog-1 catalog-2 catalog-3
+> docker compose logs catalog-1 | grep "Started CatalogApplication"
+> OTEL_ON=true docker compose up -d --wait catalog-1 catalog-2 catalog-3
 > k6 run load/catalog-otel.js
 > docker stats --no-stream --format '{{.Name}} {{.CPUPerc}} {{.MemUsage}}' | grep catalog
 > docker compose logs catalog-1 | grep "Started CatalogApplication"
 ```
 
 Run `docker stats` in a second terminal *while* k6 runs (the numbers after the test are idle
-numbers). The last command shows the startup time; compare it with the agent on and off.
+numbers). The `docker compose logs` lines show the startup time with the agent off and on (the
+logs of a container are gone once it is recreated, so read them before switching).
 
 !!! example "Expected shape (illustrative)"
 
@@ -55,9 +57,9 @@ The `x-otel` anchor already reads both settings from the environment
 two variables set and run the same load.
 
 ``` shell
-OTEL_TRACES_SAMPLER=parentbased_traceidratio OTEL_TRACES_SAMPLER_ARG=0.1 docker compose up -d
+OTEL_TRACES_SAMPLER=parentbased_traceidratio OTEL_TRACES_SAMPLER_ARG=0.1 docker compose up -d --wait
 k6 run load/catalog-otel.js
-docker compose up -d        # afterwards: back to 100% (the defaults of the anchor)
+docker compose up -d --wait # afterwards: back to 100% (the defaults of the anchor)
 ```
 
 Count the traces stored per minute in Tempo (Explore → Tempo → Search, service

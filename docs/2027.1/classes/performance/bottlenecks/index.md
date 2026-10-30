@@ -298,6 +298,14 @@ Execution Time: 0.079 ms
 
 From 412 ms to 0.08 ms and from ~62 000 pages to 5. `CONCURRENTLY` builds the index without blocking writes — essential on a live table. (Indexes are not free: each one slows down writes and uses memory; index what the workload model says is hot.)
 
+!!! example "In the BoxOffice code: an index instead of a cache (lab 6)"
+
+    [Hands-on 6 — Indexes](../../../hands-on/6/indexes/index.md) does this on the slow endpoint since lab 1, the catalog listing "upcoming events in a city, soonest first". `EXPLAIN ANALYZE` showed a `Parallel Seq Scan` and a sort of 200,000 rows to return 20. An index in `starts_at` order lets PostgreSQL walk the events already sorted and stop after one page (189 index entries read): in the lab's run the page query went from ~37 ms to 0.62 ms, and the count from ~14 ms to ~4 ms through an *Index Only Scan*. The migration is a new file — `V1` and `V2` are never edited — and the lab measures it with the cache turned off, so the index is judged on its own.
+
+    ``` { .sql title="services/catalog/src/main/resources/db/migration/V3__index_events.sql" }
+    --8<-- "docs/2027.1/hands-on/6/code/services/catalog/src/main/resources/db/migration/V3__index_events.sql"
+    ```
+
 ### Lock contention and hot rows
 
 When everyone wants the same seats, transactions queue for **row locks**. Find who waits for whom:
@@ -352,6 +360,14 @@ spring:
       connection-timeout: 2000    # wait at most 2 s for a connection (the default is 30 s)
 ```
 
+!!! example "In the BoxOffice code: a pool that moves the knee, and a pooler (labs 2 and 6)"
+
+    In [Hands-on 2](../../../hands-on/2/index.md) the pool of `catalog` (10 connections, `DB_POOL_SIZE`) is the first resource to saturate, and raising it to 30 moves the knee up — until the single CPU of `catalog` or PostgreSQL saturates next. [Hands-on 6 — Replicas and PgBouncer](../../../hands-on/6/replicas/index.md) then counts what bigger pools cost: every replica of every service opens its own. In transaction pooling, PgBouncer lends one of 20 real connections for one transaction at a time: in the lab's run PostgreSQL saw about 60 application connections, 20 of them from PgBouncer serving all of `inventory`. Without it, `INVENTORY_POOL_SIZE=40` against `max_connections=80` fails with `too many clients already`; with it, the same demand becomes **queueing** (`cl_waiting`). The price: session features (Flyway's locks) must bypass the pooler.
+
+    ``` { .ini title="infra/pgbouncer/pgbouncer.ini" }
+    --8<-- "docs/2027.1/hands-on/6/code/infra/pgbouncer/pgbouncer.ini"
+    ```
+
 ---
 
 ## One change at a time: an optimization log
@@ -369,9 +385,21 @@ Keep a log of every run: what changed, the new knee, and what saturated next. A 
 
 After run 6 the bottleneck is deliberate: the waiting room's admission rate, set below the database's knee. Scaling further would require partitioning inventory by event or venue ([Databases — partitioning](../../databases/partitioning/index.md)) — a much bigger change, now justified by numbers.
 
+Try it: the `monolith` scenario (one app server and one PostgreSQL, the **breakpoint** profile) produces the first two lines of such a log in a few minutes. Run it as it is and open the Report: the bottleneck is `app`, already 86 % busy at about 430 req/s, and the system breaks at about **590 req/s**. Change one thing — select `app` and raise its replicas to 6 — and run again: the breaking point jumps to about **2,520 req/s**, and the bottleneck moves to `db`, 87 % busy at about 2,180 req/s. Now change the *wrong* thing: 12 replicas instead of 6. The breaking point stays at about 2,520 req/s while the monthly cost goes from about 1,170 to 1,890 USD — adding capacity to a component that is not the bottleneck buys nothing.
+
+<div class="sdp" data-scenario="monolith" data-mode="full" data-profile="breakpoint" data-height="620"></div>
+
 !!! tip "In the interview"
 
     In the "bottlenecks and trade-offs" step, walk the request path and name the **first resource to saturate** with a number: "At 4 500 holds/s the primary database is the bottleneck — every hold is a locking write. I would keep transactions short, use `SKIP LOCKED` so fans do not queue on the same row, size pools with Little's Law behind PgBouncer, and put a waiting room in front so admission never exceeds what the database can take." Mentioning **wall-clock vs CPU profiling** and **`EXPLAIN ANALYZE`** shows you have actually found bottlenecks, not just drawn boxes.
+
+!!! success "Best practices"
+
+    - **Turn on `pg_stat_statements` and slow-query logging in every environment from day one** — for example `log_min_duration_statement = 200ms`; the question "which query?" is asked during an incident, about data that must already exist.
+    - **Ship every index as a new versioned migration, and build it `CONCURRENTLY` on large live tables** — the schema change is reviewed, repeatable in every environment and does not block writes. In BoxOffice: `V3__index_events.sql` of [lab 6](../../../hands-on/6/indexes/index.md).
+    - **Put a pooler in front of PostgreSQL once several services and replicas connect, and fail fast on connection waits** — transaction pooling keeps the server connections near what Little's Law needs; a 2 s `connection-timeout` instead of 30 s turns a queue into a clear error. In BoxOffice: `infra/pgbouncer/pgbouncer.ini` of [lab 6](../../../hands-on/6/replicas/index.md).
+    - **Keep the optimization log in the repository** — one row per run: the change, the new knee, what saturated next; it is the evidence behind every capacity number. In BoxOffice: the pool 10 vs pool 30 sweeps of [lab 2](../../../hands-on/2/index.md).
+    - **Run continuous profiling in production at a low sampling rate** — a few percent of overhead buys the flame graph of the incident before anyone asks for it.
 
 !!! warning "Pitfalls"
 
@@ -386,7 +414,7 @@ After run 6 the bottleneck is deliberate: the waiting room's admission rate, set
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     CURVE["stepped curve<br/>and symptoms"] --> RES["which resource?<br/>USE → Methodology"]
     RES --> PROF["which code? flame graphs,<br/>async-profiler, py-spy"]

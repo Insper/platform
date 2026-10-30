@@ -8,7 +8,7 @@ This page covers both shapes, how they behave under load, and the most famous qu
 
 A **message queue** holds messages until a consumer takes them. Each message is delivered to **one** consumer; many consumers can read the same queue, and they *compete* for messages — the **competing consumers** pattern[^1]. Adding consumers increases throughput without any change to the producer.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     order["order"] -->|"GenerateTicketPdf"| q[["queue: ticket-pdf"]]
     q -->|"msg 1"| w1["worker 1"]
@@ -27,7 +27,7 @@ A queue cannot simply delete a message when a consumer receives it: the consumer
 2. The consumer processes it and sends an **acknowledgement** (ack). Only now is the message deleted.
 3. If the consumer crashes, or the visibility timeout expires before the ack, the message becomes visible again and **another consumer receives it**.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant Q as queue ticket-pdf
     participant W1 as worker 1
@@ -80,6 +80,16 @@ $$
 
     Which one is right? It depends on the **freshness objective**: if the product promises "your tickets arrive by e-mail within 15 minutes", 20 workers are enough and cost a fifth. Async work is sized against a *delay* target, not a request latency target.
 
+<div class="csim" data-sim="queue" data-lambda="167" data-workers="95" data-service="0.4"></div>
+
+!!! tip "Try it"
+    The simulator starts with the example's numbers: 167 PDFs/s, 0.4 s each, 95 workers (ρ = 0.70). Press play.
+
+    - Read the **Little** line: about 67 PDFs in the system = 166/s × 0.40 s. Little's law holds whatever the distribution of arrivals and service times.
+    - Lower **Workers K** to 70 (ρ = 0.95), then 68 (ρ = 0.98): W goes from 0.40 s to 0.48 s and 0.68 s, and the queue starts to flicker. Below 67 there is no steady state: with 60 workers (ρ = 1.11) 2,006 jobs wait after 2 minutes and 4,151 after 4 — the backlog only grows. A pool this large has a sharp knee close to ρ = 1; the 70% target is headroom for bursts.
+    - Back at 95, press **on-sale spike** (3× for 20 s): the backlog peaks at about 5,300 jobs, the oldest waits 22 s, and the queue is empty only about 100 s after the spike began — it drains at the spare 71 jobs/s.
+    - Turn on **scale workers on backlog** and spike again: new workers need 15 s to start, so the peak barely changes (about 4,500), but the oldest job waits 9 s and the queue is empty after about 27 s.
+
 ---
 
 ## Backpressure { #backpressure }
@@ -98,13 +108,13 @@ A queue that is allowed to grow without limit is a lie: memory or disk runs out 
 | **Shed by priority** | Keep critical messages, drop or delay the rest | Purchase confirmations before marketing e-mails | Requires separate queues or priorities |
 
 !!! tip "Monitor age, not only depth"
-    Queue depth alone is ambiguous: 50,000 messages is fine for a pool that does 10,000/s and a disaster for one that does 10/s. The **age of the oldest message** (SQS `ApproximateAgeOfOldestMessage`, Kafka consumer lag in time) is what the user feels. Write the freshness SLO on it — "99% of confirmation e-mails sent within 2 minutes" — and alert when it is at risk (see [SLOs](../../reliability/slo/index.md)).
+    Queue depth alone is ambiguous: 50,000 messages is fine for a pool that does 10,000/s and a disaster for one that does 10/s. The **age of the oldest message** (SQS `ApproximateAgeOfOldestMessage`, Kafka consumer lag in time) is what the user feels. Write the freshness SLO on it — "99% of confirmation e-mails sent within 2 minutes" — and alert when it is at risk (see [SLOs](../../observability/slo/index.md)).
 
 ---
 
 ## The flash-sale waiting room { #the-flash-sale-waiting-room }
 
-At 10:00, two million fans arrive for 60,000 seats. `inventory` can hold seats safely (with row locks, see [Transactions](../../databases/transactions/index.md)) at maybe 2,000 holds per second — an illustrative number; you would measure it with a load test. Letting everybody hit the purchase path at once does not sell tickets faster; it makes the database thrash and the whole site fail.
+At 10:00, two million fans arrive for 60,000 seats. `inventory` can hold seats safely (with row locks, see [Transactions](../../databases/transactions/index.md)) at about 1,100 holds per second — the order of magnitude of [class 2](../../estimation/index.md)'s estimate, against 33,000 that arrive; you would measure it with a load test. Letting everybody hit the purchase path at once does not sell tickets faster; it makes the database thrash and the whole site fail.
 
 The **virtual waiting room** is a queue placed *in front of* the purchase flow, at the edge:
 
@@ -113,7 +123,7 @@ The **virtual waiting room** is a queue placed *in front of* the purchase flow, 
 3. An admitted fan receives a short-lived, signed **admission token**; the gateway rejects purchase calls without one.
 4. When the inventory reaches zero, the waiting room tells everybody still waiting "sold out" — cheaply, from the edge, without touching the database.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant F as Fan
     participant W as waiting room (edge)
@@ -122,13 +132,13 @@ sequenceDiagram
     participant I as inventory
     F->>W: GET /events/ev-88/buy (10:00:01)
     W->>R: ZADD room:ev-88 score=arrival fan-123
-    W-->>F: position 512,384 (about 9 min)
+    W-->>F: position 512,384 (about 17 min)
     loop every 15 s
         F->>W: GET /room/status
         W->>R: ZRANK room:ev-88 fan-123
         W-->>F: position 30,112
     end
-    Note over R: admission job: 1,000 fans/s
+    Note over R: admission job: 500 fans/s
     W-->>F: admitted + token (valid 10 min)
     F->>G: POST /holds (Authorization: admission token)
     G->>I: hold seats B-12, B-13
@@ -144,8 +154,8 @@ ZADD room:ev-88 NX 1804406400123 fan-123
 # where am I? (0-based rank)
 ZRANK room:ev-88 fan-123
 
-# admission job, once per second: let the next 1,000 fans in
-ZPOPMIN room:ev-88 1000
+# admission job, once per second: let the next 500 fans in
+ZPOPMIN room:ev-88 500
 
 # how many are still waiting?
 ZCARD room:ev-88
@@ -153,17 +163,25 @@ ZCARD room:ev-88
 
 Design decisions worth discussing:
 
-- **Admission rate.** It is a capacity number, not a guess: measured `inventory` throughput × a safety factor (say 50%). It can adapt: slow admissions down when `inventory` p99 or error rate rises — a feedback loop.
+- **Admission rate.** It is a capacity number, not a guess: measured `inventory` throughput × a safety factor (say 50%): about 1,100 × 0.5 ≈ 500 fans/s, the rate used above. It can adapt: slow admissions down when `inventory` p99 or error rate rises — a feedback loop.
 - **Fairness.** Strict FIFO rewards whoever has the lowest latency to the data center (and bots). Many ticketing sites give fans who arrived *before* the on-sale time a **random** position at 10:00, and FIFO only after that.
 - **Bots.** The waiting room is the place to require a challenge and apply bot detection and per-account limits (see [Traffic & edge](../../edge/index.md)).
 - **Hold expiry.** Admission gives a fan a time-boxed right to buy; the seat hold expires (here, after 10 minutes) and the seats go back to the pool. That is a timer — another asynchronous job.
 - **Where it runs.** Positions are served from the edge (CDN functions or a small, horizontally scaled service with Redis), so polling by two million browsers never reaches the core services.
 
+!!! example "In the BoxOffice code: the waiting room in `order` (lab 7)"
+
+    [Hands-on 7 — Waiting room](../../../hands-on/7/waiting-room/index.md) builds a smaller version of this design. The queue is the same Redis sorted set, but the score comes from `INCR`, not from a timestamp: the server decides the order, because clients' clocks lie. Every second `admit()` pops `admit-per-second` fans (20 by default) and gives each an *admitted* key with a 5-minute TTL, in one Lua script so a polling fan never sees a ticket that is neither queued nor admitted — a Redis key, not a signed token — and `mayEnter` is checked by `POST /orders`, not by the gateway: the lab says so, and calls moving the gate to the edge a good extension. Look at the comment on `admit()`: with three `order` replicas, three schedulers would admit three times the rate. In the lab's spike (about 700 fans in 40 s, 10 admitted per second), the order latency stays flat and the actual wait stays within a couple of seconds of the ETA promised at join — Little's law is an honest promise when the rate is constant.
+
+    ``` { .java title="services/order/src/main/java/boxoffice/order/waitingroom/WaitingRoom.java (join, admit, gate)" }
+    --8<-- "docs/2027.1/hands-on/7/code/services/order/src/main/java/boxoffice/order/waitingroom/WaitingRoom.java:37:42,59:86"
+    ```
+
 !!! info "Try it in the playground"
 
-    The `flash-sale` scenario is BoxOffice at 10:00: a queue (the waiting room) in front of `inventory` on SQL and an external `payment` provider. Run it with the **spike** profile and look at the SQL utilization and p99 latency. Then remove the queue (connect the app directly to SQL) and run again: the database saturates and errors appear. Finally, put the queue back and change the admission rate until SQL stays below about 70% utilization.
+    The `flash-sale` scenario is a generic version of BoxOffice at 10:00, and it starts **without** a waiting room: `users → lb → app → inventory-db`, with buyers also calling the `payment provider` (quota 500 req/s). Press **Run**: when the sale opens (t = 60 s) the traffic jumps 20×, `app` saturates and errors appear; raise its replicas and `inventory-db` and the payment provider saturate instead. Then open it in the full playground (↗) and build the waiting room — an API Gateway that sends writes to a Message Queue drained by `order` workers (the hints, or **Show a possible solution**). The number of workers is the admission rate: with too few, the consumer lag (how long a buyer waits in line) passes the 300 s goal; with too many, `inventory-db` and the payment quota are under pressure again. Find the count that keeps both within their goals.
 
-<div class="sdp" data-scenario="flash-sale" data-mode="compact" data-profile="spike" data-height="560"></div>
+<div class="sdp" data-scenario="flash-sale" data-mode="compact" data-height="560"></div>
 
 ---
 
@@ -171,7 +189,7 @@ Design decisions worth discussing:
 
 In **publish/subscribe** (pub/sub) the producer publishes to a **topic**, and each **subscription** to that topic receives its own copy of every message[^3]. Inside one subscription, consumers compete as in a queue; *across* subscriptions, every subscription sees everything. In effect, each subscription is a queue that the broker fills automatically.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     order["order"] -->|"OrderConfirmed"| t{{"topic: order-events"}}
     t --> s1[["sub: notification"]]
@@ -254,6 +272,15 @@ The next page introduces the third shape, the **log** (Kafka, Kinesis). The tabl
 !!! tip "In the interview"
     When you draw a queue, say three things about it: **who consumes** (one worker pool, or one subscription per service), **what happens on failure** (visibility timeout → redelivery → DLQ after N attempts, so consumers are idempotent) and **what happens when it fills up** (bounded, autoscaled on age of oldest message, or rejecting at the edge). For a flash sale, propose the waiting room before the interviewer asks "what happens at 10:00?" — and size the admission rate from the inventory's measured throughput.
 
+!!! success "Best practices"
+
+    - **Attach a dead-letter queue with a maximum receive count to every work queue** — e.g. 5 attempts: a poison job leaves the queue instead of running forever.
+    - **Make the admission rate a configuration value derived from measured capacity** — about 50% of what `inventory` sustains, changed without a deploy. In BoxOffice: `ADMIT_PER_SECOND` feeds `WaitingRoomProperties` ([waiting-room box](#the-flash-sale-waiting-room)).
+    - **Run singleton jobs once per cluster** — leader election or a distributed lock for the admitter: three replicas running it admit three times the rate. In BoxOffice: the comment on `WaitingRoom.admit()`, and the lab's pitfalls ([lab 7 — waiting room](../../../hands-on/7/waiting-room/index.md)).
+    - **Promise an ETA computed from the queue, not a spinner** — Little's law, `wait = position / admission rate`; in lab 7 the actual wait stayed within a couple of seconds of the promised ETA.
+    - **Give each subscriber its own durable queue in a fan-out** (SNS → one SQS queue per service) — each one retries, scales and dead-letters on its own, so a slow analytics consumer never delays confirmations.
+    - **Use long polling for pull consumers** (SQS `WaitTimeSeconds=20`) — idle workers stop making empty receives, which cuts cost and API calls.
+
 !!! warning "Common pitfalls"
 
     - **Unbounded queues.** "The queue will absorb it" until the backlog is three hours old and every message is stale. Set limits, TTLs and alerts on age.
@@ -265,7 +292,7 @@ The next page introduces the third shape, the **log** (Kafka, Kinesis). The tabl
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     P["producer: order"] --> Q["queue<br/>competing consumers"]
     Q --> ACK["receive, then ack<br/>visibility timeout"]
@@ -280,7 +307,7 @@ flowchart LR
     T --> LOG["need replay or order per key?<br/>→ Kafka"]
 ```
 
-**Palette components:** [`queue`](../../../reference/components/messaging/index.md#queue) · [`pubsub`](../../../reference/components/messaging/index.md#pubsub) · [`worker`](../../../reference/components/compute/index.md#worker) · [`objstore`](../../../reference/components/storage/index.md#objstore) (the PDFs) · [`cache`](../../../reference/components/storage/index.md#cache) (Redis waiting room) · [`apigw`](../../../reference/components/edge/index.md#apigw) (rejects calls without an admission token) · [`waf`](../../../reference/components/edge/index.md#waf) (bots at the waiting room) · [`sql`](../../../reference/components/storage/index.md#sql) (`inventory`) · [`notifications`](../../../reference/components/compute/index.md#notifications) (one subscription). **Scenarios:** `async-queue`, `flash-sale`, `notification-system`, `chat` (ephemeral pub/sub). **Continues in:** [Kafka and event logs](../kafka/index.md), [Delivery semantics](../semantics/index.md), [Compute — async work](../../compute/async-work/index.md), [Estimation — queueing](../../estimation/queueing/index.md), [Reliability — SLOs](../../reliability/slo/index.md), [Traffic & edge — WAF and bots](../../edge/index.md#edge-security), [Hands-on 7 — waiting room](../../../hands-on/7/waiting-room/index.md).
+**Palette components:** [`queue`](../../../reference/components/messaging/index.md#queue) · [`pubsub`](../../../reference/components/messaging/index.md#pubsub) · [`worker`](../../../reference/components/compute/index.md#worker) · [`objstore`](../../../reference/components/storage/index.md#objstore) (the PDFs) · [`cache`](../../../reference/components/storage/index.md#cache) (Redis waiting room) · [`apigw`](../../../reference/components/edge/index.md#apigw) (rejects calls without an admission token) · [`waf`](../../../reference/components/edge/index.md#waf) (bots at the waiting room) · [`sql`](../../../reference/components/storage/index.md#sql) (`inventory`) · [`notifications`](../../../reference/components/compute/index.md#notifications) (one subscription). **Scenarios:** `async-queue`, `flash-sale`, `notification-system`, `chat` (ephemeral pub/sub). **Continues in:** [Kafka and event logs](../kafka/index.md), [Delivery semantics](../semantics/index.md), [Compute — async work](../../compute/async-work/index.md), [Estimation — queueing](../../estimation/queueing/index.md), [Observability — SLOs](../../observability/slo/index.md), [Traffic & edge — WAF and bots](../../edge/index.md#edge-security), [Hands-on 7 — waiting room](../../../hands-on/7/waiting-room/index.md).
 
 ---
 

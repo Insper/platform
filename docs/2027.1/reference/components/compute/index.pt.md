@@ -1,4 +1,4 @@
-# Computação
+# Computação { #compute }
 
 **Computação** é onde o seu código roda: os serviços que recebem uma requisição, aplicam as regras de negócio e chamam armazenamento, mensageria e provedores externos. As perguntas de projeto são sempre as mesmas — *quanto estado ele guarda, como ele escala, quanto tempo uma requisição pode levar e o que acontece quando uma dependência fica lenta?* Tratadores de requisição sem estado escalam adicionando réplicas; trabalho longo ou pesado vai para workers em segundo plano; trabalho curto e com picos pode ir para serverless; e algumas capacidades (identidade, busca, notificações, analytics) são tão comuns que viram serviços dedicados.
 
@@ -15,7 +15,7 @@ No BoxOffice, `catalog`, `inventory` e `order` são app servers; e-mails e ingre
 | [Notifications](#notifications) | Envia push, e-mail e SMS com preferências, templates e retries | `notifications` |
 | [Analytics](#analytics) | Coleta eventos e os transforma em métricas e relatórios | `analytics` |
 
-``` mermaid
+``` diagram
 flowchart LR
     GW[API Gateway] --> AUTH[Auth Service]
     GW --> APP[App Server<br/>catalog / order]
@@ -294,7 +294,7 @@ flowchart LR
 !!! tip "Na entrevista"
     "Um serviço de autenticação dedicado (OIDC) emite JWTs assinados de vida curta; o gateway e os serviços os validam localmente com chaves públicas em cache, então a autenticação não fica no caminho quente de toda requisição. O login em si tem rate limit e proteção contra credential stuffing."
 
-**Saiba mais:** [Rede e segurança › Identidade](../../../classes/network-security/identity/index.md) · [Rede e segurança › Zero trust](../../../classes/network-security/zero-trust/index.md) · [Computação › Serviços](../../../classes/compute/services/index.md) · [Hands-on 4](../../../hands-on/4/index.md)
+**Saiba mais:** [Rede e segurança › Identidade](../../../classes/edge/identity/index.md) · [Rede e segurança › Zero trust](../../../classes/network-security/zero-trust/index.md) · [Computação › Serviços](../../../classes/compute/services/index.md) · [Hands-on 4](../../../hands-on/4/index.md)
 
 ---
 

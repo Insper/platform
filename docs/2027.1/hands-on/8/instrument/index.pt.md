@@ -1,11 +1,11 @@
-# 1. Instrumente Tudo
+# 1. Instrumente Tudo { #1-instrument-everything }
 
 Neste passo cada serviço Java passa a enviar **traces, métricas e logs** para um único contêiner, o
 `otel-lgtm`, sem nenhuma mudança no código de negócio. Depois você corrige o único lugar onde a
 instrumentação automática não enxerga a requisição: o salto pelo outbox do [lab 7](../../7/index.md).
 Todos os comandos rodam na **raiz do seu repositório `boxoffice`**.
 
-## O backend: `otel-lgtm`
+## O backend: `otel-lgtm` { #the-backend-otel-lgtm }
 
 O `grafana/otel-lgtm` reúne um backend de observabilidade inteiro em uma imagem, para desenvolvimento
 e ensino: um **OpenTelemetry Collector** recebe OTLP (o *OpenTelemetry Protocol*) e encaminha cada
@@ -30,7 +30,7 @@ serviços falam — o OTLP — continua o mesmo.
 Os três volumes carregam o *seu* dashboard e as suas regras de alerta na inicialização; os arquivos
 são criados no [passo 2](../dashboard/index.md) e no [passo 3](../slo/index.md).
 
-## O agente: um jar, nenhum código
+## O agente: um jar, nenhum código { #the-agent-one-jar-no-code }
 
 O **agente Java do OpenTelemetry** é conectado à JVM com `-javaagent`. No carregamento das classes ele
 reescreve o bytecode das bibliotecas que conhece — Spring MVC e WebFlux, os clientes HTTP, JDBC e
@@ -92,7 +92,8 @@ x-otel: &otel
 | `OTEL_TRACES_SAMPLER` | quais requisições são rastreadas; todas por padrão (o experimento B do [Meça](../measure/index.md) muda isso) |
 | `LOGGING_PATTERN_CORRELATION` | o `logging.pattern.correlation` do Spring Boot: imprime `[trace id,span id]` em toda linha do console |
 
-Pegue o arquivo completo deste lab (é o arquivo do lab 7 mais a âncora, os volumes e o `otel-lgtm`):
+Pegue o arquivo completo deste lab (é o arquivo do lab 7 mais a âncora, os volumes, o `otel-lgtm`, um
+e um `start_period` maior nos health checks dos serviços Java):
 
 ``` shell
 curl -fsSL -o docker-compose.yaml https://insper.github.io/platform/2027.1/hands-on/8/code/docker-compose.yaml
@@ -104,22 +105,34 @@ curl -fsSL -o docker-compose.yaml https://insper.github.io/platform/2027.1/hands
     --8<-- "docs/2027.1/hands-on/8/code/docker-compose.yaml"
     ```
 
-Crie as pastas de provisionamento (o passo 2 as preenche) e reinicie tudo — os serviços Java
-reiniciam para pegar o agente:
+Crie as pastas de provisionamento (os passos 2 e 3 as preenchem) e salve o provider de dashboards,
+explicado no [passo 2](../dashboard/index.md), **antes** do primeiro `up`: o Compose monta
+`infra/grafana/dashboards.yaml` como arquivo e, quando ele não existe, o Docker cria um *diretório*
+vazio com esse nome — o Grafana então não consegue lê-lo e o `otel-lgtm` termina.
+
+``` yaml title="infra/grafana/dashboards.yaml"
+--8<-- "docs/2027.1/hands-on/8/code/infra/grafana/dashboards.yaml"
+```
+
+Depois reinicie tudo — os serviços Java reiniciam para pegar o agente, e o `--wait` retorna quando
+todos os serviços estão saudáveis:
 
 <!-- termynal -->
 
 ``` shell
 > mkdir -p infra/grafana/dashboards infra/grafana/alerting
-> docker compose up -d
-> docker compose logs catalog-1 | grep -m1 javaagent
+> docker compose up -d --wait
+> docker compose logs catalog-1 | grep -m1 'javaagent - version'
 catalog-1-1  | [otel.javaagent 2026-10-18 18:08:22:121 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 2.32.0
 > curl -s -o /dev/null -w '%{http_code}\n' localhost/catalog/events/1
 200
 ```
 
 Com o agente, cada JVM sobe visivelmente mais devagar (a instrumentação acontece no carregamento das
-classes): espere até o `docker compose ps` mostrar todos os serviços `healthy`.
+classes): com todas subindo juntas, o `catalog` levou cerca de 75–90 s numa execução de teste, e por
+isso os health checks dos serviços Java agora dão um `start_period` de 120 s. A primeira requisição
+pela borda também aquece o balanceador do gateway e as conexões do `catalog` com o Redis e o banco:
+numa stack fria ela pode passar do timeout de 5 s do gateway e voltar `504` — repita-a.
 
 Abra o Grafana em `http://localhost:3000` (sem login nesta imagem) → **Explore**. Você deve ver:
 
@@ -129,7 +142,7 @@ Abra o Grafana em `http://localhost:3000` (sem login nesta imagem) → **Explore
   `http_response_status_code="200"` — a rota é o *template*, nunca a URL crua, o que mantém o número de
   séries limitado.
 - **Tempo**: busque pelo serviço `gateway`. Uma requisição pela borda mostra spans do `gateway` e do
-  `catalog`, e dentro do `catalog` um span por comando SQL.
+  `catalog`, e dentro do `catalog`, quando o evento não está no cache Redis, um span por comando SQL.
 - **Loki**: `{service_name="order"}`. Cada linha tem `trace_id` e `span_id`, e um botão que leva ao
   trace. O console também: `docker compose logs order` imprime linhas como
   `[14263dc50b861be8bcf0bc1f4dbad3c5,a1c96ae57fb41b45] o.s.web.servlet.DispatcherServlet …`.
@@ -142,7 +155,7 @@ Abra o Grafana em `http://localhost:3000` (sem login nesta imagem) → **Explore
     viram labels (`service_name`) e o `job` vira `boxoffice/catalog` (namespace/nome). Todos os
     dashboards e alertas deste lab dependem desses nomes.
 
-## O salto que o agente não enxerga: o outbox
+## O salto que o agente não enxerga: o outbox { #the-hop-the-agent-cannot-see-the-outbox }
 
 Faça um pedido e procure o trace dele no Tempo. Com o código do lab 7 você encontra **dois traces sem
 relação**: um para o `POST /orders` (order → INSERTs) e outro que começa na tarefa agendada do relay do
@@ -150,7 +163,7 @@ outbox e continua pelo Kafka até o `notification`. O agente propaga o contexto 
 mensagens Kafka automaticamente, mas o outbox é uma **linha do banco** lida depois por outra thread: o
 contexto da requisição não está na linha, então se perde.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant O as order (thread HTTP)
     participant DB as tabela outbox
@@ -198,13 +211,14 @@ agente, toda chamada da API é uma operação vazia, então o serviço continua 
 Reconstrua o `order`, faça um pedido e encontre o seu trace:
 
 ``` shell
-docker compose up -d --build order
+docker compose up -d --build --wait order
 curl -s -X POST localhost:8084/orders -H 'Content-Type: application/json' \
   -d '{"showId":"show-7","holdId":"trace-1","customerEmail":"t@example.com","amount":10}'
 ```
 
 No Grafana → Explore → Tempo, rode a consulta TraceQL `{resource.service.name="order" && name="POST /orders"}`
-e abra o trace mais recente. Você deve ver **um** trace com spans dos dois serviços, como este de uma
+e abra o trace mais recente (um trace novo pode levar até meio minuto para aparecer na busca).
+Você deve ver **um** trace com spans dos dois serviços, como este de uma
 execução de teste (início relativo, serviço, span, duração):
 
 ``` text

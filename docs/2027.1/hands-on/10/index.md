@@ -13,7 +13,12 @@ service fall over and had to restart it by hand. At 10:00 on sale day nobody sho
 or restarting containers. Kubernetes turns both into **control loops**: you declare the desired
 state — "at least two ready replicas, more when CPU passes 60%" — and controllers keep reality there,
 every few seconds, forever. This lab is the hands-on side of the
-[cloud-native class](../../classes/cloud-native/index.md).
+[cloud-native class](../../classes/cloud-native/index.md) and builds chapter 11 of the
+[story of the course](../../index.md#story): it implements the class's decisions on
+[probes](../../classes/cloud-native/kubernetes/index.md#probes),
+[requests and limits](../../classes/cloud-native/kubernetes/index.md#requests-limits),
+[autoscaling](../../classes/cloud-native/kubernetes/index.md#autoscaling) and
+[losing a node](../../classes/cloud-native/kubernetes/index.md#losing-a-node).
 
 ## Slides
 
@@ -53,7 +58,7 @@ Every file of this lab is shown in full on these pages and published under
 
 ## Architecture
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     k6[k6] -->|"localhost:80"| traefik["Traefik (Ingress)"]
     subgraph cluster [kind cluster: 1 control plane + 2 workers]
@@ -131,6 +136,14 @@ The [Measure it](measure/index.md) step has the commands and the results table t
 | pods stay `Pending` | not enough CPU/memory for the requested resources | `kubectl -n boxoffice describe pod <name>`; lower `PEAK`/`maxReplicas` or give Docker more resources |
 | `curl localhost/catalog/...` returns `404` | the Ingress is missing or has the wrong `ingressClassName` | `kubectl -n boxoffice get ingress`; `kubectl -n traefik get pods` |
 | `kubectl` talks to the wrong cluster | another context is active | `kubectl config use-context kind-boxoffice` |
+
+!!! success "Best practices in this lab"
+
+    - **One probe per question**: startup sized for the slowest start (5 min, with migrations), liveness local to the JVM, readiness for traffic — `k8s/base/catalog.yaml`; why: [Kubernetes — probes](../../classes/cloud-native/kubernetes/index.md#probes).
+    - **Requests set on purpose, because they are the base of the HPA percentage** (60% of 250m) — `catalog.yaml` and `catalog-hpa.yaml`; why: [requests and limits](../../classes/cloud-native/kubernetes/index.md#requests-limits).
+    - **No request lost in a rollout**: `maxUnavailable: 0`, a 5 s `preStop` pause and graceful shutdown — `catalog.yaml`; why: [graceful shutdown](../../classes/cloud-native/containers/index.md#graceful-shutdown-the-other-half-of-disposability).
+    - **Scale up fast, down slowly**: double or +2 pods every 15 s, one pod every 30 s after a 2-minute window — `catalog-hpa.yaml`; why: [autoscaling](../../classes/cloud-native/kubernetes/index.md#autoscaling).
+    - **One base, thin overlays**: what differs per environment lives in `k8s/overlays/`, so lab 11 reuses `k8s/base/` unchanged; why: [GitOps](../../classes/cloud-native/delivery/index.md#gitops).
 
 ## Clean up
 

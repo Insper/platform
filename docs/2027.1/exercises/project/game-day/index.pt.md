@@ -10,9 +10,9 @@ O seu sistema passou nos testes de carga num dia de sol. Produção não é enso
     - **Responder** a uma falha surpresa injetada pelo professor, medindo o tempo para detectar e o tempo para mitigar.
     - **Aprender** com isso: um relatório sem culpados, com itens de ação, responsáveis e acompanhamento.
 
-Este marco se apoia na [Aula 9 — Confiabilidade](../../../classes/reliability/index.md), na [Aula 10 — Observabilidade](../../../classes/observability/index.md) e no [Lab 9](../../../hands-on/9/index.md) (Resilience4j, Toxiproxy, game day). O game day **acontece em aula na semana 17**; peso de **10%** do projeto.
+Este marco se apoia na [Aula 9 — Observabilidade](../../../classes/observability/index.md), na [Aula 10 — Confiabilidade](../../../classes/reliability/index.md) e no [Lab 9](../../../hands-on/9/index.md) (Resilience4j, Toxiproxy, game day). O game day **acontece em aula na semana 17**; peso de **10%** do projeto.
 
-## O que entregar
+## O que entregar { #what-to-deliver }
 
 - Um **plano de experimentos** com pelo menos três experimentos, versionado **antes** do game day, seguindo o [template](#templates).
 - A **folha de execução** preenchida durante o game day (linha do tempo com horários).
@@ -20,7 +20,7 @@ Este marco se apoia na [Aula 9 — Confiabilidade](../../../classes/reliability/
 - Capturas dos dashboards e resumos do k6 das execuções; os scripts usados para injetar falhas (`chaos/`).
 - A tag `m7`.
 
-## Critérios de aceitação
+## Critérios de aceitação { #acceptance-criteria }
 
 - [ ] **(obrigatório)** Plano versionado antes do game day com **≥ 3 experimentos**, cada um com hipótese, estado estável, raio de impacto, condições de aborto e reversão.
 - [ ] **(obrigatório)** Experimentos executados **sob carga** (k6 a 50–70% da meta de teste) com dashboard ao vivo; a folha de execução registra cada ação com horário.
@@ -30,9 +30,9 @@ Este marco se apoia na [Aula 9 — Confiabilidade](../../../classes/reliability/
 - [ ] Um relatório **sem culpados** com pelo menos **três itens de ação**, cada um com responsável e marco de entrega.
 - [ ] Seção *Uso de IA* (veja a [política](../../index.md#use-of-ai-tools)).
 
-## Passo a passo
+## Passo a passo { #step-by-step }
 
-### 1. Princípios
+### 1. Princípios { #1-principles }
 
 Engenharia do caos é um experimento, não vandalismo[^1]:
 
@@ -42,7 +42,7 @@ Engenharia do caos é um experimento, não vandalismo[^1]:
 4. **Observe** e compare com o estado estável; **aborte** se uma condição de aborto for atingida.
 5. **Recupere**, verifique a correção e **aprenda**: hipóteses confirmadas dão confiança, as refutadas são as valiosas.
 
-```mermaid-sim
+``` diagram-sim
 flowchart LR
     steady["Estado estável<br/>SLIs a carga conhecida"] --> hyp["Hipótese<br/>SLI fica dentro dos limites"]
     hyp --> inject["Injetar uma falha<br/>pequeno raio de impacto"]
@@ -53,7 +53,7 @@ flowchart LR
     recover --> learn["Aprender<br/>confirmada ou refutada<br/>itens de ação"]
 ```
 
-### 2. Papéis
+### 2. Papéis { #2-roles }
 
 | Papel | Responsabilidade |
 |-|-|
@@ -64,7 +64,7 @@ flowchart LR
 
 Com 2–3 pessoas, acumule papéis (game master + escriba), mas nunca deixe o operador ser também o único respondedor. Na **falha surpresa**, o professor faz o papel de game master e operador; o time inteiro responde.
 
-### 3. Prepare as ferramentas
+### 3. Prepare as ferramentas { #3-prepare-the-tools }
 
 O **Toxiproxy** fica entre um serviço e uma dependência e injeta latência, timeouts ou quedas sob demanda[^2]. Coloque-o entre o adaptador `payment` e o simulador do provedor de pagamento (ou entre o `assistant` e o LLM):
 
@@ -98,7 +98,7 @@ esac
 
 No Kubernetes, rode o Toxiproxy como um Deployment com um Service e acesse a API de controle com `kubectl port-forward svc/toxiproxy 8474` (serve para comandos de controle, não para carga).
 
-### 4. Biblioteca de falhas
+### 4. Biblioteca de falhas { #4-fault-library }
 
 ```bash title="chaos/k8s-faults.sh"
 #!/usr/bin/env bash
@@ -143,7 +143,7 @@ spec:
 
     Versões recentes do kind aplicam NetworkPolicies com o plugin de rede padrão; o minikube precisa de um CNI como o Calico (`minikube start --cni=calico`). Teste a policy **antes** do game day: um experimento que silenciosamente não faz nada não ensina nada. Chaos Mesh ou LitmusChaos são alternativas opcionais com falhas mais ricas (estresse de CPU, desvio de relógio, erros de DNS).
 
-### 5. Exemplos de experimentos
+### 5. Exemplos de experimentos { #5-example-experiments }
 
 | # | Falha | Hipótese (exemplo) | Abortar se |
 |-|-|-|-|
@@ -154,14 +154,14 @@ spec:
 
 Adapte a tabela à sua opção de sistema (por exemplo, queda do gateway de LLM com fallback de modelo no assistente de IA, perda do Redis no cache de timeline do feed, perda de um nó de WebSocket no chat).
 
-### 6. Execute o game day
+### 6. Execute o game day { #6-run-the-game-day }
 
 1. **T−15 min:** ambiente saudável, dados carregados, dashboards abertos, alertas armados, k6 rodando a 50–70% da meta de teste, estado estável registrado por 5 minutos.
 2. **Por experimento:** o game master anuncia; o operador injeta; o escriba registra; os respondedores observam e falam em voz alta; no fim planejado (ou no aborto), o operador reverte; aguarde a recuperação; rode a verificação de correção; o escriba registra o fim da recuperação.
 3. **Falha surpresa:** o professor injeta uma falha que o time não conhece (escolhida de uma lista segura anunciada antes: uma toxic do Toxiproxy, um deployment escalado para zero, um pod consumindo CPU, um valor de configuração errado). O relógio começa na injeção. Registre **quando o primeiro alerta dispara (TTD)** e **quando os SLIs voltam ao SLO (TTM)**, e o que o time fez nesse intervalo.
 4. **Conversa a quente (10 min):** o que surpreendeu, o que funcionou, o que mudar.
 
-### 7. Escreva o relatório
+### 7. Escreva o relatório { #7-write-the-report }
 
 Escreva **sem culpados**: descreva o que o sistema e as pessoas fizeram e por que aquilo fazia sentido no momento, e não quem errou[^3]. Toda descoberta vira um **item de ação** com responsável e marco (por exemplo, "acrescentar um alerta de backlog do outbox — Ana — M8").
 
@@ -245,7 +245,7 @@ Escreva **sem culpados**: descreva o que o sistema e as pessoas fizeram e por qu
     ## Uso de IA
     ~~~
 
-## Rubrica
+## Rubrica { #rubric }
 
 Níveis conforme definidos em [Como os exercícios são avaliados](../../index.md#how-the-exercises-are-graded).
 

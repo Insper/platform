@@ -4,6 +4,10 @@ Em uma única máquina essa pergunta não existiria: a função retornou ou lan�
 
 Um sistema distribuído é um conjunto de computadores independentes (**nós**) que cooperam **apenas trocando mensagens** por uma rede, **sem memória compartilhada e sem relógio compartilhado**, e que aparecem para seus usuários como um único sistema coerente[^1]. A definição meio em tom de brincadeira de Leslie Lamport é a mais útil para um engenheiro: *"um sistema distribuído é aquele em que a falha de um computador que você nem sabia que existia pode tornar o seu próprio computador inutilizável"*[^2].
 
+!!! quote "A história até aqui"
+
+    Capítulo 3 da [história da disciplina](../../index.md#story). A [aula 2](../estimation/index.md) encontrou uma diferença de 30× entre a demanda da abertura de vendas (~33.000 reservas/s) e o que um banco sustenta (~1.100): o BoxOffice precisa de várias máquinas — réplicas da aplicação, um banco standby, uma sala de espera. **Esta aula** responde: o que muda quando a única ligação entre essas máquinas é uma rede que perde, atrasa e duplica mensagens — e como impedir que um clique repetido reserve ou cobre duas vezes?
+
 !!! abstract "Objetivos de aprendizagem"
 
     Ao final desta aula, você deve ser capaz de:
@@ -17,7 +21,7 @@ Um sistema distribuído é um conjunto de computadores independentes (**nós**) 
     - **Escolher** entre two-phase commit e uma saga (com compensações, reservas e um outbox) para uma operação que abrange vários serviços.
     - **Ordenar** eventos entre máquinas sem confiar em relógios de parede (relógios de Lamport, vetoriais e híbridos, TrueTime).
 
-## Roteiro
+## Roteiro { #roadmap }
 
 1. **Esta visão geral** — por que distribuir, o que isso custa, modelos de falha, a rede não confiável (8 falácias), timeouts, semânticas de entrega e **idempotência**.
 2. [Replicação e Consistência](consistency/index.md) — replicação com um líder, com vários líderes e sem líder; o espectro de consistência, de linearizável a eventual; garantias de sessão como read-your-writes.
@@ -56,7 +60,7 @@ Escalar verticalmente — uma máquina maior — é a primeira resposta e, por u
 
     Provavelmente ele aguentaria o dia **médio**. Mas (1) o pico da abertura das vendas às 10:00 está ordens de grandeza acima da média, e a máquina ficaria ociosa (e paga) no resto do tempo; (2) qualquer falha — hardware, sistema operacional, um deploy ruim — derruba a empresa **inteira**, o que viola qualquer meta razoável de disponibilidade; (3) fãs longe dessa máquina pagam o tempo de ida e volta em toda requisição. Você ainda usa escala vertical para componentes difíceis de dividir (um banco de dados primário), mas acrescenta réplicas e espalha o trabalho sem estado por muitas máquinas.
 
-### Em escala, falhar é a regra
+### Em escala, falhar é a regra { #at-scale-failure-is-the-norm }
 
 O segundo argumento esconde um paradoxo: distribuir para tolerar falhas significa usar **mais** máquinas, e mais máquinas significam **mais falhas**. Se cada máquina falha em um dado dia com uma pequena probabilidade $p$, de forma independente, a probabilidade de que **pelo menos uma** de $N$ máquinas falhe nesse dia é $1 - (1-p)^N$:
 
@@ -89,7 +93,7 @@ plt.close()
 
 Com uma chance (ilustrativa) de 0,1% de falha por máquina por dia, três máquinas veem uma falha em cerca de 0,3% dos dias, mas uma frota de 3.000 máquinas vê **pelo menos uma falha em cerca de 95% dos dias**. Os primeiros relatos do Google descrevem exatamente essa experiência: na escala de uma frota, falhas de hardware são rotina diária, não exceção[^3]. A conclusão molda o resto do curso: **um sistema distribuído precisa tratar a falha como um evento normal e continuar funcionando apesar dela** — não dá para esperar evitá-la.
 
-### O que a distribuição custa
+### O que a distribuição custa { #what-distribution-costs }
 
 | Custo | Por quê | Onde volta no curso |
 |---|---|---|
@@ -102,11 +106,11 @@ Com uma chance (ilustrativa) de 0,1% de falha por máquina por dia, três máqui
 
 ---
 
-## O BoxOffice é um sistema distribuído
+## O BoxOffice é um sistema distribuído { #boxoffice-is-a-distributed-system }
 
 Acompanhe um clique em **"Reservar assento A-12"** pelo BoxOffice. Cada seta é uma mensagem pela rede; cada caixa é um processo que pode falhar, pausar ou ficar lento por conta própria:
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     fan([Celular do fã]) -->|"POST /holds"| gw[gateway]
     gw -->|"valida o token"| auth[auth]
@@ -147,7 +151,7 @@ Mais duas ideias completam o vocabulário:
 
 ## A rede não é confiável { #network }
 
-### As 8 falácias da computação distribuída
+### As 8 falácias da computação distribuída { #the-8-fallacies-of-distributed-computing }
 
 Nos anos 1990, L. Peter Deutsch e colegas da Sun Microsystems listaram as suposições que iniciantes em sistemas distribuídos fazem — todas falsas[^5]:
 
@@ -168,7 +172,7 @@ Cada uma delas aparece em aulas posteriores: a falácia 1 em [Confiabilidade](..
 
 Quando o `inventory` envia uma requisição ao `payment` e nenhuma resposta chega, ele **não tem como saber** qual destes casos aconteceu:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant I as inventory
     participant P as payment
@@ -189,7 +193,7 @@ Do lado de quem chama, uma requisição perdida, um servidor que caiu, uma respo
 
 ## Semânticas de entrega e idempotência { #idempotency }
 
-### No máximo uma vez, pelo menos uma vez, exatamente uma vez
+### No máximo uma vez, pelo menos uma vez, exatamente uma vez { #at-most-once-at-least-once-exactly-once }
 
 Sempre que uma mensagem atravessa uma rede não confiável, o remetente escolhe uma **semântica de entrega**:
 
@@ -201,7 +205,7 @@ Sempre que uma mensagem atravessa uma rede não confiável, o remetente escolhe 
 
 "Entrega exatamente uma vez" por uma rede não confiável é impossível em geral — o remetente nunca pode ter certeza de que o destinatário não processou uma mensagem cuja confirmação se perdeu. O que sistemas como o Kafka chamam de *exactly-once* é **processamento** exatamente uma vez: duplicatas podem chegar, mas seu **efeito** é aplicado uma vez, por deduplicação ou transações[^8]. A aula de [Mensageria](../messaging/index.md) aprofunda o tema.
 
-### Operações idempotentes
+### Operações idempotentes { #idempotent-operations }
 
 Uma operação é **idempotente** se aplicá-la várias vezes tem o mesmo efeito que aplicá-la uma vez: $f(f(x)) = f(x)$.
 
@@ -219,7 +223,7 @@ Duas técnicas tornam seguras para retry as operações não idempotentes:
 1. **Reescrever como uma transição de estado com condição** (*compare-and-set*): "marque o assento como HELD **se** ele estiver FREE", "grave a versão 8 **se** a versão atual for 7". Uma duplicata não satisfaz a condição e não muda nada.
 2. **Chaves de idempotência**: o cliente gera uma chave única por operação *pretendida* e a envia em todas as tentativas; o servidor guarda a chave junto com o resultado e, diante de uma duplicata, devolve o resultado guardado em vez de executar de novo. A API pública do Stripe popularizou o cabeçalho `Idempotency-Key`[^9], e há um rascunho do IETF padronizando-o.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant F as App do fã
     participant O as order
@@ -257,6 +261,20 @@ COMMIT;
 !!! example "BoxOffice: reservando um assento com segurança"
     O app gera um UUID quando o fã toca em **Reservar assento** e o reutiliza em todo retry desse toque. O `inventory` executa `UPDATE seats SET status = 'HELD', fan_id = :fan, hold_key = :key WHERE id = :seat AND (status = 'FREE' OR hold_key = :key)`. A primeira tentativa reserva o assento; um retry com a mesma chave encontra a linha de novo e não muda nada; a requisição de um fã **diferente** não encontra nenhuma linha e recebe `409 Conflict`. O adaptador `payment` repassa a mesma chave ao provedor externo, então uma cobrança refeita não é cobrada duas vezes ([Integrações](../compute/integrations/index.md)).
 
+!!! example "No código do BoxOffice: uma escrita condicional e uma chave de idempotência (labs 6 e 9)"
+
+    As duas técnicas estão nos laboratórios. O [Hands-on 6 — Reservas](../../hands-on/6/holds/index.md) pega um assento com uma **escrita condicional**: o `UPDATE` só encontra a linha se o assento ainda está `AVAILABLE` e ainda na `version` que foi lida, então uma segunda transação muda 0 linhas e recebe `409`. Numa execução de teste desse laboratório, a versão ingênua (verifica e depois age) vendeu **9 assentos** duas vezes; esta, **0**. Note o que o laboratório *não* faz: uma reserva repetida gera um novo id de reserva, então o fã recebe `409` pelo próprio assento em vez de receber a primeira reserva de volta — a `hold_key` do quadro acima é o passo que torna a própria reserva idempotente.
+
+    ``` { .java title="services/inventory/src/main/java/boxoffice/inventory/HoldService.java (compare-and-set)" }
+    --8<-- "docs/2027.1/hands-on/6/code/services/inventory/src/main/java/boxoffice/inventory/HoldService.java:97:113"
+    ```
+
+    O [Hands-on 9 — Pagamento](../../hands-on/9/payment/index.md) usa uma **chave de idempotência**: o `order` manda `Idempotency-Key: order-<id>` em toda tentativa, o `payment` devolve o resultado guardado quando já viu a chave, e repassa a mesma chave ao provedor. A chamada ao provedor não pode ficar dentro de uma transação do banco (ela pode levar segundos), então a chave é conferida antes e gravada depois dela, sob uma restrição `UNIQUE`; a janela entre as duas fica coberta porque o provedor deduplica pela mesma chave.
+
+    ``` { .java title="services/payment/src/main/java/boxoffice/payment/PaymentService.java (the key)" }
+    --8<-- "docs/2027.1/hands-on/9/code/services/payment/src/main/java/boxoffice/payment/PaymentService.java:22:38"
+    ```
+
 ??? question "Pense antes: o retry do fã chega a uma réplica de `order` diferente da primeira tentativa. A chave de idempotência ainda funciona?"
 
     Só se o estado de deduplicação for **compartilhado** — gravado no banco de dados (como acima) ou em um armazenamento compartilhado como o Redis, e não na memória de uma réplica. Um conjunto em memória de "chaves já vistas" por réplica quebra assim que o load balancer manda o retry para outra réplica, o que é o caso normal. As chaves também precisam de um período de retenção (o Stripe as guarda por 24 horas) longo o bastante para cobrir todos os retries que o cliente pode fazer.
@@ -267,7 +285,7 @@ COMMIT;
 
 Os três problemas de raiz — **falha parcial**, uma **rede não confiável** e **nenhum relógio global** — explicam quase todas as decisões de projeto do resto do curso. O mapa abaixo liga cada problema às técnicas desta aula (azul), à subpágina que as ensina e aos **componentes da paleta** em que você as encontrará no playground (verde):
 
-``` mermaid
+``` diagram
 flowchart LR
     PF["Falha parcial"]:::problem --> REP["Replicação<br/>(manter cópias)"]
     NET["Rede não confiável"]:::problem --> IDEM["Timeouts, retries,<br/>idempotência"]
@@ -302,6 +320,14 @@ flowchart LR
 !!! tip "Na entrevista"
     Raramente perguntarão "o que é um sistema distribuído?". Vão perguntar "o cliente tomou timeout — o que acontece?" ou "como evitar cobrar duas vezes?". Respostas fortes: (1) nomeie a ambiguidade (*"um timeout não me diz se a cobrança aconteceu"*); (2) torne a operação **idempotente** com uma chave de idempotência gravada atomicamente com o resultado; (3) faça retry com backoff e jitter em uma única camada; (4) explicite a semântica de entrega (*"entrega pelo menos uma vez, processamento efetivamente uma vez"*). Falar em "entrega exatamente uma vez" sem ressalvas é um sinal de alerta para o entrevistador.
 
+!!! success "Boas práticas"
+
+    - **Ponha um timeout em toda chamada remota, menor que o prazo de quem chama** — para que quem chama ainda possa responder, ou tentar em outro lugar, antes que o próprio cliente desista. Na BoxOffice: o `order` espera no máximo 1 s pelo `payment` (lab 9); a borda espera no máximo 5 s por uma réplica (lab 3).
+    - **Mande uma chave de idempotência em toda escrita que pode ser repetida, e guarde-a sob uma restrição `UNIQUE`** — o banco, não a memória de uma réplica, decide o que é duplicata. Na BoxOffice: `payments.idempotency_key` ([Hands-on 9 — Pagamento](../../hands-on/9/payment/index.md)).
+    - **Repita em uma camada só, com backoff exponencial, jitter e um limite** — retries em três camadas transformam uma chamada lenta em 27, justamente quando quem é chamado está sofrendo.
+    - **Dê a cada requisição um id na borda e registre-o em todo salto** — o único jeito de seguir um clique por máquinas que não compartilham memória. Na BoxOffice: o `X-Request-Id` posto pelo Nginx no [lab 3](../../hands-on/3/index.md).
+    - **Teste todo consumidor entregando cada mensagem duas vezes** — a entrega pelo menos uma vez vai fazer isso em produção; o teste garante que o efeito seja aplicado uma vez.
+
 !!! warning "Armadilhas"
     - **Tratar uma chamada remota como uma chamada de função local** — sem timeout, sem política de retry, sem pensar em falha parcial.
     - **Fazer retry de operações não idempotentes** (`POST`, incrementos) sem chave: duplicatas, cobranças em dobro, assentos vendidos duas vezes.
@@ -309,15 +335,21 @@ flowchart LR
     - **Health checks que mentem**: `/health` responde `200` porque o processo está vivo, enquanto toda requisição falha (falha cinza).
     - **Supor que as falhas são independentes**: réplicas no mesmo rack, na mesma zona ou com a mesma configuração errada falham juntas.
 
-## Pontos-chave
+## Pontos-chave { #key-takeaways }
 
-- Distribua por **escala, tolerância a falhas, latência, isolamento ou residência de dados** — e só então: você paga com falhas parciais, uma rede não confiável e nenhum relógio global.
-- Em escala, **falhar é o caso normal**: $1-(1-p)^N$ se aproxima de 1 rapidamente.
-- Conheça os **modelos de falha**; os perigosos na prática são as falhas **lentas**, **parciais** e **cinza**, não crashes limpos.
-- Quem chama não consegue distinguir **lento de morto**: use timeouts e aceite que uma operação que deu timeout pode ter acontecido.
-- **Entrega** exatamente uma vez é impossível; construa **entrega pelo menos uma vez + processamento idempotente** com escritas condicionais ou chaves de idempotência gravadas atomicamente.
+!!! takeaways ""
 
-## Relacionados
+    - Distribua por **escala, tolerância a falhas, latência, isolamento ou residência de dados** — e só então: você paga com falhas parciais, uma rede não confiável e nenhum relógio global.
+    - Em escala, **falhar é o caso normal**: $1-(1-p)^N$ se aproxima de 1 rapidamente.
+    - Conheça os **modelos de falha**; os perigosos na prática são as falhas **lentas**, **parciais** e **cinza**, não crashes limpos.
+    - Quem chama não consegue distinguir **lento de morto**: use timeouts e aceite que uma operação que deu timeout pode ter acontecido.
+    - **Entrega** exatamente uma vez é impossível; construa **entrega pelo menos uma vez + processamento idempotente** com escritas condicionais ou chaves de idempotência gravadas atomicamente.
+
+## O que quebra em seguida { #what-breaks-next }
+
+O BoxOffice agora tem o vocabulário para sobreviver à rede entre suas máquinas — timeouts, retentativas idempotentes, um modelo de consistência por domínio de dados, consenso para escolher o primário. Ainda não decidiu **quem recebe o tráfego**. Às 10:00:00 dois milhões de celulares mandam uma requisição no mesmo segundo: cerca de **100.000 requisições/s** na borda ([a estimativa](../estimation/numbers/index.md)), enquanto uma instância do `catalog` medida no laboratório 2 mantém a meta de p99 só até algumas centenas de requisições por segundo. A maioria dessas requisições precisa terminar antes de qualquer serviço, o resto precisa chegar a uma réplica saudável, e os bots não podem chegar primeiro: [aula 4 — Tráfego e Borda](../edge/index.md).
+
+## Relacionados { #related }
 
 - **Playground:** [System Design Playground](../../../playground/index.md) — todo componente deste curso pode falhar; ligue o caos (`data-chaos`) em qualquer cenário.
 - **Hands-on:** [Hands-on 7 — Assíncrono](../../hands-on/7/index.md) (consumidor idempotente, outbox), [Hands-on 9 — Resiliência e caos](../../hands-on/9/index.md) (timeouts, retries, injeção de falhas com Toxiproxy).

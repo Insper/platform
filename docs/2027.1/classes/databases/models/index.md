@@ -182,7 +182,7 @@ In SQL the same query is a self-join of `orders` with itself; it works for one h
 
 The guide below encodes the questions from the [overview](../index.md#five-questions). Read it as "the default is relational; each arrow out of it needs a reason".
 
-``` mermaid
+``` diagram
 flowchart TD
     A["New data to store"] --> B{"Invariants across rows?<br/>money, stock, uniqueness"}
     B -->|yes| SQL["Relational database<br/>PostgreSQL / MySQL"]
@@ -226,7 +226,7 @@ A database is, at its core, two operations: *store this key and value* and *give
 
 A **B-tree** keeps keys sorted in fixed-size **pages** (8 KiB in PostgreSQL, 16 KiB in MySQL InnoDB). Each internal page holds hundreds of keys and pointers to child pages; leaves hold the rows or pointers to them. Lookups walk from the root to a leaf[^3].
 
-``` mermaid-sim
+``` diagram-sim
 flowchart TD
     R["root page<br/>… | 30 | 60 | …"] -->|"key 42"| I["internal page<br/>31 … 40 | 41 … 50 | …"]
     I -->|"key 42"| L["leaf page<br/>41, 42, 43 … → rows"]
@@ -248,7 +248,7 @@ A billion-row table is **4 levels deep**, and the top levels stay cached in memo
 
 A **log-structured merge-tree** (LSM-tree) never updates in place[^4]. Writes go to the WAL and to an in-memory sorted table (the **memtable**); when it fills, it is flushed to disk as an immutable sorted file (an **SSTable**). Background **compaction** merges SSTables into larger, sorted levels and drops overwritten and deleted values.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     W["write key=42"] --> WAL["WAL<br/>append"]
     W --> M["memtable<br/>in memory, sorted"]
@@ -371,7 +371,15 @@ CREATE INDEX CONCURRENTLY seats_event_section_status_idx
 -- Execution Time: 0.430 ms
 ```
 
-Reading guide: **Seq Scan** with a large "Rows Removed by Filter" means a missing index; **Index Scan** walks the index and fetches rows from the table; **Index Only Scan** answers from the index alone; `cost` is the planner's estimate in arbitrary units, `actual time` is what happened. `CONCURRENTLY` builds the index without blocking writes — essential on a live table. You will do this in [Hands-on 6](../../../hands-on/6/index.md).
+Reading guide: **Seq Scan** with a large "Rows Removed by Filter" means a missing index; **Index Scan** walks the index and fetches rows from the table; **Index Only Scan** answers from the index alone; `cost` is the planner's estimate in arbitrary units, `actual time` is what happened. `CONCURRENTLY` builds the index without blocking writes — essential on a live table. [Hands-on 6](../../../hands-on/6/index.md) does the same diagnosis on the catalog (box below).
+
+!!! example "In the BoxOffice code: the index that fixes the listing (lab 6)"
+
+    In [Hands-on 6 — Indexes](../../../hands-on/6/indexes/index.md), `EXPLAIN ANALYZE` of "upcoming events in Recife, soonest first" shows a `Seq Scan` that reads and sorts 200,000 events to return 20 (~37 ms). With `(starts_at, id)`, PostgreSQL walks the events already in date order and stops after 20 from Recife: 189 index entries instead of 200,000 rows, and under 1 ms. The count goes through the smaller `(venue_id, starts_at)` index without touching the table (*Index Only Scan*): ~14 ms → ~4 ms. Note the shortcut: the migration uses a plain `CREATE INDEX`, which blocks writes on `events` while it builds — fine on a lab database, not on a live one, where you use `CONCURRENTLY` (it cannot run inside a transaction, so the migration must be told to run without one).
+
+    ``` { .sql title="services/catalog/src/main/resources/db/migration/V3__index_events.sql" }
+    --8<-- "docs/2027.1/hands-on/6/code/services/catalog/src/main/resources/db/migration/V3__index_events.sql"
+    ```
 
 !!! example "BoxOffice: the index budget of the `seats` table"
 
@@ -392,6 +400,14 @@ Reading guide: **Seq Scan** with a large "Rows Removed by Filter" means a missin
     - Mention indexes with their cost: "a composite index on `(event_id, section, status)`; I keep the index count low on `seats` because it is write-hot".
     - If asked about storage engines: B-tree = read-optimized, in-place; LSM = write-optimized, append + compaction, Bloom filters for reads.
 
+!!! success "Best practices"
+
+    - **Put the rules in the schema, not only in the code** — `NOT NULL`, `CHECK`, `UNIQUE` and foreign keys inside a service catch the bug that the code review missed. In BoxOffice: `CHECK (status IN (...))` and `UNIQUE (event_id, section, seat_row, seat_number)` in `V1__create_inventory.sql` ([lab 6](../../../hands-on/6/holds/index.md)).
+    - **Use exact types for money and time** — `NUMERIC(10,2)` for prices and `TIMESTAMPTZ` for instants; never floating point for money, never a time without its zone. In BoxOffice: the decisions table of [lab 1](../../../hands-on/1/api/index.md).
+    - **Read plans on production-sized data** — `EXPLAIN (ANALYZE, BUFFERS)` on 100 rows says nothing about 200,000; seed realistic volumes before you judge a query. In BoxOffice: lab 6 indexes the 200,000 seeded events (box above).
+    - **Give every index a query that justifies it, and review usage** — check `pg_stat_user_indexes.idx_scan` periodically and drop the indexes nobody scans; on a write-hot table each one costs every insert.
+    - **Refresh statistics after bulk loads** — run `ANALYZE` after a seed or a large import; the planner chooses by estimates, and estimated rows far from actual rows are the sign of stale statistics.
+
 !!! warning "Common pitfalls"
 
     - **An index per column** "just in case": slower writes, more memory, and the planner still cannot combine them as well as one good composite index.
@@ -402,7 +418,7 @@ Reading guide: **Seq Scan** with a large "Rows Removed by Filter" means a missin
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     REL["relational model<br/>tables, joins, constraints"] --> GUIDE["SQL or NoSQL?<br/>access pattern first"]
     DOC["document"] --> GUIDE

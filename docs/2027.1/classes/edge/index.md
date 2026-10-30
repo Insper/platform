@@ -4,6 +4,10 @@ Everything that happens between the fan's phone and the first BoxOffice service 
 
 In this course, **the edge** means the set of components that receive, filter, route and distribute traffic *before* it reaches the application services. In the course simulator they form the **TRAFFIC & EDGE** category of the palette: `dns`, `cdn`, `waf`, `lb`, `apigw` and `ingress`[^1].
 
+!!! quote "The story so far"
+
+    Chapter 4 of the [story of the course](../../index.md#story). BoxOffice has numbers ([class 2](../estimation/index.md)) and knows that the network between its machines lies ([class 3](../distributed/index.md)). Now 2 million phones send a request in the same second — about 100,000 requests/s at the edge — while one `catalog` replica keeps its latency target only up to a few hundred. **This class** answers: which requests can end before reaching any service, and how does the rest reach a healthy replica — from an identified caller, fairly and at a rate the core can take?
+
 !!! abstract "Learning objectives"
 
     By the end of this class you should be able to:
@@ -21,8 +25,9 @@ In this course, **the edge** means the set of components that receive, filter, r
 2. [DNS & CDN](dns-cdn/index.md) — name resolution, TTLs, GeoDNS and anycast; content delivery networks, cache keys, invalidation and edge compute.
 3. [Load Balancing](load-balancing/index.md) — L4 vs L7, algorithms, consistent hashing, service discovery, health checks, and Kubernetes Ingress / Gateway API.
 4. [API Gateway & Rate Limiting](api-gateway/index.md) — what a gateway centralises, the BFF pattern, and the rate-limiting algorithms.
-5. [Protocols](protocols/index.md) — HTTP/1.1, HTTP/2, HTTP/3 and QUIC, TLS 1.3, WebSockets, SSE and gRPC.
-6. [Quiz](quiz.md) — check your understanding.
+5. [Identity: OAuth 2.1, OIDC & JWT](identity/index.md) — who the caller is: tokens issued by `auth` and validated once, at the gateway.
+6. [Protocols](protocols/index.md) — HTTP/1.1, HTTP/2, HTTP/3 and QUIC, TLS 1.3, WebSockets, SSE and gRPC.
+7. [Quiz](quiz.md) — check your understanding.
 
 ## Slides
 
@@ -39,7 +44,7 @@ Click the slides and use ← → to move through them; **F** goes full screen an
 
 A fan opens `https://boxoffice.com/events/stadium-show` and taps **"Choose seats"**. Before any Java code runs, the request crosses several components, each one with a precise job. Press play and follow it:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant F as Fan's phone
     participant D as DNS
@@ -93,7 +98,7 @@ Real deployments merge some of these boxes. Cloudflare or CloudFront combine DNS
 
 Almost every box on the edge is a **reverse proxy**: a server that receives requests on behalf of other servers, forwards them, and returns the answer as if it were its own. The client only knows the proxy's address; the backends stay hidden in a private network.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     c1([Fan 1]) --> rp["Reverse proxy<br/>boxoffice.com:443"]
     c2([Fan 2]) --> rp
@@ -183,7 +188,7 @@ Bots are not all bad (search engine crawlers, uptime monitors), and the bad ones
 | **Virtual waiting room** | admit users to the sale at a controlled rate, in random or arrival order | the "first second" advantage of bots | users wait; must be fair and transparent |
 | Business rules | max 6 tickets per account, verified phone, identity checks | scalping at scale | product decision, not only technical |
 
-The **waiting room** deserves a special mention for BoxOffice: when 2 million fans arrive for 60 thousand seats, letting all of them into the seat map at once guarantees an outage *and* rewards whoever is fastest — usually a bot. A waiting room at the edge hands each visitor a signed token with a position, and admits, say, 2 000 users per minute to the purchase flow. The core sees a steady, sized load; the rest of the fans see a progress bar served from the CDN. You will model it with a queue in the [messaging class](../messaging/index.md) and the [ticketing case study](../case-studies/ticketing/index.md).
+The **waiting room** deserves a special mention for BoxOffice: when 2 million fans arrive for 60 thousand seats, letting all of them into the seat map at once guarantees an outage *and* rewards whoever is fastest — usually a bot. A waiting room at the edge hands each visitor a signed token with a position, and admits, say, 1 000 users per second to the purchase flow — the rate `inventory` sustains in the [estimation class](../estimation/index.md). The core sees a steady, sized load; the rest of the fans see a progress bar served from the CDN. You will model it with a queue in the [messaging class](../messaging/index.md) and the [ticketing case study](../case-studies/ticketing/index.md).
 
 ### DDoS { #ddos }
 
@@ -209,9 +214,9 @@ The key idea is **asymmetry**: you cannot out-provision an attacker with your ow
 
     The result: the core services see thousands of requests per second instead of millions, and they see them in the order the waiting room decided — not in the order the fastest bot decided.
 
-**Try it.** Load the flash-sale scenario and run the **spike** profile. First observe what happens to `inventory` without the waiting room (remove the queue between the gateway and the services): latency and errors explode at the start of the sale. Then put the queue back and compare p99 latency, error rate and the number of seats sold per minute.
+**Try it.** Load the flash-sale scenario and press **Run**. The design as drawn has no CDN, gateway or waiting room — only `users → lb → app → inventory-db`, with buyers also calling the `payment provider` (500 req/s quota). When the sale opens (t = 60 s) the traffic jumps 20×: `app` saturates and errors and p99 explode; raise its replicas and the bottleneck only moves to `inventory-db` and the payment provider. Then open it in the full playground (↗) and follow the hints — a CDN in front, a cache for the catalog reads, and an API gateway that sends buyers to a waiting-room queue drained by `order` workers — or press **Show a possible solution**. Compare p99 latency, error rate and served req/s, and read the consumer lag: it is how long a buyer waits in the line.
 
-<div class="sdp" data-scenario="flash-sale" data-mode="compact" data-height="520" data-profile="spike"></div>
+<div class="sdp" data-scenario="flash-sale" data-mode="compact" data-height="520"></div>
 
 [:material-open-in-new: Open the full playground](../../../playground/index.md)
 
@@ -219,7 +224,7 @@ The key idea is **asymmetry**: you cannot out-provision an attacker with your ow
 
 Each edge component answers one question and hands the request to the next. The map links each **palette component** (green) to the **concepts** it relies on (blue) and to the subpage or class that teaches them:
 
-``` mermaid
+``` diagram
 flowchart LR
     client["client · mobile"]:::comp --> dns["dns"]:::comp
     dns --> cdn["cdn"]:::comp
@@ -237,7 +242,7 @@ flowchart LR
     c1 -.- d1["eventual consistency<br/>(class 3)"]
     c2 -.- d2["caching patterns<br/>(class 7)"]
     c4 -.- d3["stateless services,<br/>autoscaling (class 5)"]
-    c5 -.- d4["identity, JWT<br/>(class 11)"]
+    c5 -.- d4["identity, JWT<br/>(Identity, this class)"]
     classDef comp fill:#1e9e5a22,stroke:#1e9e5a
     classDef tech fill:#2f6fed22,stroke:#2f6fed
 ```
@@ -255,6 +260,14 @@ flowchart LR
 !!! tip "In the interview"
     When you draw the high-level design, put the edge in **one line**: "client → DNS → CDN → load balancer → API gateway → services". Then spend words only where the problem needs them: a read-heavy system (news feed, catalogue) deserves a sentence on **CDN caching and hit ratio**; a public API deserves **rate limiting**; a flash sale or ticketing problem deserves **WAF, bots and a waiting room**. Always say *what each hop removes* from the core — that is the signal interviewers look for.
 
+!!! success "Best practices"
+
+    - **Expose one public door and nothing else** — replicas without published ports, internal endpoints unreachable from the internet. In BoxOffice: no `ports:` on the `catalog` replicas and `location / { return 404; }` in [lab 3](../../hands-on/3/index.md).
+    - **Stamp a request id at the first hop and return it to the client** — support can then find one fan's request in every log. In BoxOffice: `X-Request-Id $request_id` in lab 3's `nginx.conf`.
+    - **Keep the edge configuration in the repository and validate it before every reload** — `nginx -t` in CI; a typo at the edge is a total outage.
+    - **Load-test through the edge, not around it** — the edge adds a hop and has limits of its own. In BoxOffice: lab 3 runs every sweep with `BASE_URL=http://localhost` ([Hands-on 3](../../hands-on/3/index.md#measure-it)).
+    - **Prepare sale day as a runbook** — pre-scale the edge (ask the provider to pre-warm managed load balancers), run new WAF rules in count mode the week before, and know who switches the waiting room on.
+
 !!! warning "Pitfalls"
     - **Treating the edge as a single box.** "We put a load balancer in front" does not answer "how do you survive 2 million users at 10:00?" Say what is cached, what is filtered and what is limited.
     - **Forgetting that every edge component can fail.** A load balancer, a gateway or a WAF in a single instance is a single point of failure. Managed edge services are replicated for you; self-hosted ones must run in pairs or clusters.
@@ -263,13 +276,19 @@ flowchart LR
 
 ---
 
-## Key takeaways
+## Key takeaways { #key-takeaways }
 
-- The **edge** is everything between the client and the first service: `dns`, `cdn`, `waf`, `lb`, `apigw`, `ingress`. Each hop makes a decision and should remove work from the next one.
-- Most edge components are **reverse proxies**, the natural place for TLS termination, load balancing, caching, security and observability.
-- Latency on the edge is dominated by **round trips and distance**; caching, connection reuse and modern protocols attack exactly that.
-- **WAF** rules filter malicious requests, **bot mitigation** combines rates, fingerprints, challenges and a **waiting room**, and **DDoS** defence relies on anycast capacity for volumetric attacks and on design (caching, limits) for L7 attacks.
-- In an interview, draw the edge quickly, then go deep only where the problem demands it — and say what each component **removes** from the core.
+!!! takeaways ""
+
+    - The **edge** is everything between the client and the first service: `dns`, `cdn`, `waf`, `lb`, `apigw`, `ingress`. Each hop makes a decision and should remove work from the next one.
+    - Most edge components are **reverse proxies**, the natural place for TLS termination, load balancing, caching, security and observability.
+    - Latency on the edge is dominated by **round trips and distance**; caching, connection reuse and modern protocols attack exactly that.
+    - **WAF** rules filter malicious requests, **bot mitigation** combines rates, fingerprints, challenges and a **waiting room**, and **DDoS** defence relies on anycast capacity for volumetric attacks and on design (caching, limits) for L7 attacks.
+    - In an interview, draw the edge quickly, then go deep only where the problem demands it — and say what each component **removes** from the core.
+
+## What breaks next { #what-breaks-next }
+
+The edge decides which replica serves each request, and the gateway checks the caller's token once for every service — but both assume something they cannot enforce: that **any** replica can serve **any** request. A replica that keeps the fan's session or a seat hold in its own memory loses it when it dies, or when the next request lands on another replica. Lab 3 shows the other limit: three `catalog` replicas behind Nginx multiply the cheap requests, but not the mixed workload, where PostgreSQL is the bottleneck (in a test run, `db` at ~670% CPU and each replica at ~20%). What a replica must be (stateless), how services are cut, and the gateway that lab 4 builds with `auth` behind this edge are [class 5 — Compute & Services](../compute/index.md).
 
 ## Related
 
@@ -279,7 +298,7 @@ flowchart LR
 - Case studies: [Rate limiter](../case-studies/rate-limiter/index.md) and [Ticketing (BoxOffice flash sale)](../case-studies/ticketing/index.md).
 - [System Design Playground](../../../playground/index.md) and the [component catalog — Traffic & Edge](../../reference/components/edge/index.md).
 - [Interview preparation](../../support/interview/index.md).
-- Previous class: [Distributed Systems](../distributed/index.md). Next steps: [Caching](../caching/index.md), [Reliability](../reliability/index.md) and [Network & Security](../network-security/index.md).
+- Previous class: [Distributed Systems](../distributed/index.md). Next class: [Compute & Services](../compute/index.md). The edge comes back in [Caching](../caching/index.md), [Reliability](../reliability/index.md) and [Network & Security](../network-security/index.md).
 
 ---
 

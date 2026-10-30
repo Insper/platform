@@ -1,6 +1,6 @@
 `auth` owns the users of BoxOffice. It does three things: **register** a user (storing a BCrypt hash, never the password), **log in** (check the password and issue a signed token) and **publish the public key** that lets anybody verify those tokens. It is a regular Spring Boot service on port **8081**, with its own schema `auth`.
 
-``` mermaid
+``` diagram
 flowchart LR
     subgraph auth["auth :8081"]
         ctl[AuthController] --> svc[AuthService]
@@ -41,11 +41,21 @@ A token looks like `header.payload.signature`, each part Base64URL-encoded:
 
 !!! warning "Signed is not encrypted"
 
-    Anybody can decode the payload (try `jwt.io` or `base64 -d`). Never put secrets or personal data you would not show the user in a JWT.
+    Anybody can decode the payload (try `jwt.io`, or the `jq` command at the end of the curl session on the [lab page](../index.md)). Never put secrets or personal data you would not show the user in a JWT.
 
 ## 2. Project and configuration
 
 Create `services/auth` like `catalog` (same `Dockerfile` with `EXPOSE 8081`, same `.dockerignore`).
+
+??? example "`services/auth/Dockerfile` and `.dockerignore` (same as `catalog`, only `EXPOSE 8081` changes)"
+
+    ``` { .dockerfile title="services/auth/Dockerfile" .copy linenums="1" }
+    --8<-- "docs/2027.1/hands-on/4/code/services/auth/Dockerfile"
+    ```
+
+    ``` { .text title="services/auth/.dockerignore" .copy }
+    --8<-- "docs/2027.1/hands-on/4/code/services/auth/.dockerignore"
+    ```
 
 ``` { .xml title="services/auth/pom.xml" .copy linenums="1" }
 --8<-- "docs/2027.1/hands-on/4/code/services/auth/pom.xml"
@@ -125,7 +135,7 @@ The records exchanged with clients:
 | `aud` | who it is for (`boxoffice`) | yes: a token for another API is refused |
 | `sub` | the user id | becomes `X-User-Id` |
 | `scope` | `user` or `user admin` | becomes the authorities `SCOPE_user`, `SCOPE_admin` |
-| `exp` | expiry | yes (with a small clock-skew allowance) |
+| `exp` | expiry | yes (with a 60 s clock-skew allowance) |
 | `kid` (header) | which key signed it | used to pick the right key from the JWKS |
 
 !!! warning "A new key at every restart"

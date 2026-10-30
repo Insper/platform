@@ -197,7 +197,7 @@ INCR cap:42:marketing:2027-03-10  → 2      EXPIRE … 86400
 
 ## 5. High-level design
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     ord["order / inventory /<br/>auth services"] --> api["Notification API<br/>validate, idempotency"]
     camp["Campaign service"] --> sch["Scheduler<br/>sendAt, spread, quiet hours"]
@@ -221,7 +221,7 @@ flowchart LR
 
 One order confirmation, end to end:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     participant O as order (Kafka consumer)
@@ -313,11 +313,23 @@ def handle(job):
 
 **Provider outage.** A circuit breaker per provider opens when errors pile up ([integrations](../../compute/integrations/index.md)). For e-mail and SMS, keep a **second provider** and fail over transactional traffic to it (bulk can simply wait). For push there is no alternative to APNs/FCM: queue and wait, and drop marketing pushes that become stale (a presale alert after the presale is noise).
 
+!!! example "In the BoxOffice code: the idempotent consumer and its DLT (lab 7)"
+
+    [Hands-on 7 — Idempotent consumer and DLT](../../../hands-on/7/consumer/index.md) builds step 2 and the failure types of this section for the order e-mail. The dedupe is a row in PostgreSQL instead of a Redis `SET NX`: `INSERT ... ON CONFLICT DO NOTHING` on the event id, in the **same transaction** as the send record, so if the e-mail fails the dedupe row rolls back too and the retry may claim it again — the `cache.delete(key)` of the sketch above, for free. Transient errors get 3 retries (0.5 s, 1 s, 2 s); malformed events go straight to `order-events-dlt`. In the lab, rewinding the consumer group replays every event and the mailbox still has **2** e-mails; with the dedupe off, every replay sends them all again.
+
+    ``` { .java title="services/notification/src/main/java/boxoffice/notification/NotificationService.java (dedupe and send)" }
+    --8<-- "docs/2027.1/hands-on/7/code/services/notification/src/main/java/boxoffice/notification/NotificationService.java:26:47"
+    ```
+
+    ``` { .java title="services/notification/src/main/java/boxoffice/notification/KafkaConfig.java (retries and DLT)" }
+    --8<-- "docs/2027.1/hands-on/7/code/services/notification/src/main/java/boxoffice/notification/KafkaConfig.java:16:28"
+    ```
+
 ### 6.3 Preferences, templates and limits
 
 The router applies a fixed sequence of checks before anything is queued — cheap filters first:
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     t["Trigger<br/>user 42, presale.alert"] --> p{"Opted in for<br/>marketing push?"}
     p -->|no| skip1["SKIPPED (log)"]
@@ -342,7 +354,7 @@ flowchart LR
 
 **Campaigns** are expanded in batches, never as one giant job:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     participant C as Campaign service
@@ -443,13 +455,21 @@ The `notification-system` scenario has a scheduler and producers feeding a queue
 
 **Related:** [Queues and pub/sub](../../messaging/queues-pubsub/index.md), [Delivery semantics](../../messaging/semantics/index.md), [Asynchronous work and schedulers](../../compute/async-work/index.md), [External integrations](../../compute/integrations/index.md), [Hands-on 7](../../../hands-on/7/index.md) (idempotent `notification` consumer and DLQ), [Ticketing case](../ticketing/index.md).
 
+!!! success "Best practices"
+
+    - **Derive the notification id from the business event** — `order-81f3-confirmed`, so every layer can deduplicate. In BoxOffice: lab 7 deduplicates on the event id ([lab 7](../../../hands-on/7/consumer/index.md)).
+    - **Give each channel and priority its own queue** — an order confirmation never waits behind a marketing campaign.
+    - **Alert on a non-empty dead-letter queue and keep a replay tool** — lab 7's `order-events-dlt` keeps the original topic and the exception in headers, ready for a replay.
+    - **Enforce quiet hours and frequency caps in the pipeline, before the provider call** — a preference the code does not enforce is a complaint waiting to happen.
+    - **Track sent, delivered and bounced per provider** — a provider that accepts and does not deliver looks healthy on every other metric.
+
 ---
 
 ## How it connects { #how-it-connects }
 
 Which classes does this case test? Each branch is a class whose ideas the design relies on (blue), with the palette components where they show up (green):
 
-``` mermaid
+``` diagram
 flowchart LR
     CASE(["Notification system"]) --> EST["Estimation<br/>a provider limit sets campaign time"]:::tech
     CASE --> CMP["Compute<br/>scheduler, workers, provider adapters"]:::tech

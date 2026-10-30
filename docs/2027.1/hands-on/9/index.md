@@ -15,6 +15,16 @@ to the provider — because every one of its threads is waiting on `payment`. Th
 failure on your laptop and applies the patterns of the
 [reliability class](../../classes/reliability/index.md), with a number for each.
 
+This lab builds chapter 10 of the [story of the course](../../index.md#story): the
+[cascading failure](../../classes/reliability/index.md#cascading-failures) and its defences —
+[timeout](../../classes/reliability/patterns/index.md#timeout),
+[retry with jitter](../../classes/reliability/patterns/index.md#retry-with-backoff-and-jitter),
+[circuit breaker](../../classes/reliability/patterns/index.md#circuit-breaker) and
+[bulkhead](../../classes/reliability/patterns/index.md#bulkhead) — then a
+[game day](../../classes/reliability/chaos/index.md#game-days). It comes right after lab 8 on purpose:
+chaos needs observability first, so every experiment is watched on the lab 8 dashboard and paged by
+its burn-rate alert.
+
 ## Slides
 
 <div class="slides-embed">
@@ -55,7 +65,7 @@ Every file of this lab is shown in full on these pages and published under
 
 ## Architecture
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     k6[k6: pay + browse] --> order["order (Resilience4j)"]
     order -->|"timeout · retry · breaker · bulkhead"| tp1["toxiproxy: payment"]
@@ -129,6 +139,14 @@ in `results/lab9.md`; the game-day reviews go to `results/lab9-gameday.md`.
 | `PAYMENT_*` variables seem ignored | they only reach the container through `docker-compose.yaml` and a recreate | `PAYMENT_BULKHEAD=10 docker compose up -d order` (not `restart`) |
 | results vary a lot between runs | the laptop runs k6 and 20 containers | close other apps, run each experiment twice, compare **ratios** |
 
+!!! success "Best practices in this lab"
+
+    - **A timeout on every outbound call, shorter than the caller's** — `PaymentClient.java` (500 ms connect, 1 s read). Why: [Timeout](../../classes/reliability/patterns/index.md#timeout).
+    - **Retries only with an idempotency key, with exponential backoff and jitter** — `PaymentClient.java` sends `Idempotency-Key: order-<id>`; `application.yaml` allows 3 attempts, 200 ms ± 50%. Why: [Retry with backoff and jitter](../../classes/reliability/patterns/index.md#retry-with-backoff-and-jitter).
+    - **A bulkhead smaller than the thread pool, and fail fast when it is full** — `application.yaml`: 10 of the 50 threads, `max-wait-duration: 0`. Why: [Bulkhead](../../classes/reliability/patterns/index.md#bulkhead).
+    - **No database transaction open while waiting on a remote call** — `OrderService.java` calls `payment` first and updates the status in a short transaction. Why: [Cascading failures](../../classes/reliability/index.md#cascading-failures) (the wait would exhaust the connection pool instead).
+    - **Chaos as code, with a one-command abort** — `scripts/game-day.sh` and `infra/toxiproxy/toxiproxy.json`; `reset` removes every toxic. Why: [Game days](../../classes/reliability/chaos/index.md#game-days).
+
 ## Clean up
 
 ``` shell
@@ -165,12 +183,12 @@ Commit and tag: `git add -A && git commit -m "lab 9: resilience" && git tag lab9
 - [ ] the unprotected run shows the cascade (`browse` degraded); each pattern's run shows its effect, in numbers
 - [ ] one game day with at least three hidden experiments, a timeline and a blameless review per round
 - [ ] results table filled in `results/lab9.md` and explained
-- [ ] self-check: `curl -s -X POST localhost:8474/reset`, then `PAYMENT_RESILIENCE=true docker compose up -d order` and one `pay` call returns `CONFIRMED`; pushed with the tag `lab9`
+- [ ] self-check: `curl -s -X POST localhost:8474/reset`, then `PAYMENT_RESILIENCE=true docker compose up -d --wait order` and one `pay` call returns `CONFIRMED`; pushed with the tag `lab9`
 
 ## Related
 
 - Theory: [Reliability](../../classes/reliability/index.md) ·
-  [SLOs and error budgets](../../classes/reliability/slo/index.md) ·
+  [SLOs and error budgets](../../classes/observability/slo/index.md) ·
   [Resilience patterns](../../classes/reliability/patterns/index.md) ·
   [Chaos engineering](../../classes/reliability/chaos/index.md) ·
   [External integrations](../../classes/compute/integrations/index.md)

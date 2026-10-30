@@ -49,6 +49,7 @@ Click the slides and use ← → to move through them; **F** goes full screen an
 
 !!! info "Theory connection"
 
+    - In the [story of the course](../../index.md#story), this lab builds chapter 4: the first hops of [the request's journey](../../classes/edge/index.md#the-request-journey), with the decisions of [Nginx as a load balancer](../../classes/edge/load-balancing/index.md#nginx), [health checks](../../classes/edge/load-balancing/index.md#health-checks) and [rate limiting](../../classes/edge/api-gateway/index.md#rate-limiting).
     - Class 4, [Traffic & edge](../../classes/edge/index.md): [load balancing](../../classes/edge/load-balancing/index.md) (L4 vs L7, algorithms, health checks) and [API gateway](../../classes/edge/api-gateway/index.md) (rate-limiting algorithms).
     - Class 5, [Compute](../../classes/compute/services/index.md): why only **stateless** services scale out this easily.
     - Component catalog: [Load Balancer](../../reference/components/edge/index.md#lb).
@@ -61,7 +62,7 @@ Click the slides and use ← → to move through them; **F** goes full screen an
 
 ## What you will build
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     k6([k6 / fans]) -->|":80"| edge["edge<br/>Nginx 1.30"]
     edge -->|round robin| c1["catalog-1<br/>1 CPU"]
@@ -72,7 +73,7 @@ flowchart LR
     c3 --> db
 ```
 
-Only the edge publishes a port (80). The replicas are reachable only inside the Compose network — the same shape as a public load balancer in front of private instances in a cloud VPC (class 11).
+Only the edge publishes a port (80). The replicas are reachable only inside the Compose network — the same shape as a public load balancer in front of private instances in a cloud VPC (class 12).
 
 ## 1. Make the replicas visible
 
@@ -148,7 +149,7 @@ Round robin: each replica gets one request in three. Compare `rt` (total time at
 
 !!! tip "Round robin or least connections?"
 
-    Round robin ignores how busy each replica is. Uncomment `least_conn;` in the upstream, run `docker compose exec edge nginx -s reload`, and repeat the measurement of step 7: with a mix of fast (detail) and slow (list) requests, `least_conn` usually trims the tail because a replica stuck with slow requests receives fewer new ones.
+    Round robin ignores how busy each replica is. Uncomment `least_conn;` in the upstream, run `docker compose restart edge` (a `nginx -s reload` may not see the edit: many editors save by replacing the file, and a single-file bind mount keeps showing the old one), and repeat the measurement of step 7: with a mix of fast (detail) and slow (list) requests, `least_conn` usually trims the tail because a replica stuck with slow requests receives fewer new ones.
 
 ## 5. Failures: stop, freeze, recover
 
@@ -172,11 +173,11 @@ What to look for in the k6 summary and in `docker compose logs edge`:
 
 | Failure | What Nginx sees | What the client sees |
 |---|---|---|
-| **stop** (process dead) | `connect() failed (111: Connection refused)` → immediate retry on another replica | almost nothing: a few extra milliseconds |
-| **pause** (process frozen) | the connection opens but no answer: it waits `proxy_read_timeout` (5 s), then retries | a burst of requests that take **~5 s** — p99 explodes, but no errors |
+| **stop** (process dead) | requests in flight end with `upstream prematurely closed connection` and are retried on another replica; then the name stops resolving (`catalog-2 could not be resolved`) and Nginx skips it; while it starts again, `connect() failed (111: Connection refused)` → immediate retry | almost nothing: a few extra milliseconds |
+| **pause** (process frozen) | no answer: on a kept-alive connection it waits `proxy_read_timeout` (5 s), on a new one `proxy_connect_timeout` (1 s) — `upstream timed out (110: Operation timed out)` — then retries | a burst of requests that take **~1 s or ~5 s** — p99 explodes, but no errors |
 | **after 3 failures** | `max_fails` reached → replica out of rotation for `fail_timeout` (10 s) | latency back to normal |
 
-You should see something like this at the end of the k6 run (a run for this lab: not a single error, but the pause shows up in the tail):
+You should see something like this at the end of the k6 run (a run for this lab: not a single error, but the pause shows up in the tail; p99 can be anywhere from ~1 s to ~5 s, depending on how many requests the freeze caught):
 
 ``` { .text }
     http_req_duration..............: avg=48.31ms med=1.33ms p(95)=25.56ms p(99)=1s       max=5.05s
@@ -187,7 +188,7 @@ The lesson: a **dead** replica is easy; a **slow** one is dangerous. Timeouts de
 
 ??? question "Think first: why not set `proxy_read_timeout 100ms`, so frozen replicas are detected immediately?"
 
-    Because some legitimate requests are slow: a listing under load takes hundreds of milliseconds. A timeout shorter than the real p99 turns slow responses into failures and *retries* — which add load exactly when the system is struggling (a retry storm, class 9). Timeouts must be set from **measured** latency: a bit above the p99.9 of the healthy service.
+    Because some legitimate requests are slow: a listing under load takes hundreds of milliseconds. A timeout shorter than the real p99 turns slow responses into failures and *retries* — which add load exactly when the system is struggling (a retry storm, class 10). Timeouts must be set from **measured** latency: a bit above the p99.9 of the healthy service.
 
 ## 6. Rate limiting
 
@@ -231,7 +232,7 @@ First with **one** replica (stop the other two; Nginx removes them), then with *
 
 ``` { .bash .copy }
 # 1 replica behind the edge
-docker compose stop catalog-2 catalog-3
+docker compose stop catalog-2 catalog-3 && sleep 15   # Nginx re-resolves the names every 10 s (resolver valid=10s)
 LIST_SHARE=0 BASE_URL=http://localhost OUT=results/lab3-1replica-detail bash scripts/sweep.sh 300 600 900 1200 1500
 BASE_URL=http://localhost OUT=results/lab3-1replica-mix bash scripts/sweep.sh 100 200 300 400 500
 
@@ -301,9 +302,18 @@ Scaling efficiency = capacity(3) / (3 × capacity(1)):
 | `Found orphan containers ([boxoffice-catalog-1])` | the single `catalog` service of lab 1 still exists | `docker compose up -d --remove-orphans` |
 | all requests return `502 Bad Gateway` right after `up` | the replicas are still starting (≈20–40 s) | wait until `docker compose ps` shows the three replicas `healthy` |
 | `no live upstreams` in `docker compose logs edge`, 502 under load | every replica was marked failed (timeouts under overload, often cold JVMs) | lower the load, warm up, check `max_fails`/`proxy_read_timeout`; see the warning in step 7 |
+| `nginx: [emerg] open() "/etc/nginx/nginx.conf" failed (2: No such file or directory)` after a reload | your editor replaced `nginx.conf` (new file), and the container's single-file bind mount still points to the old one | `docker compose restart edge` (it mounts the file again) |
 | `nginx: [emerg] ... in /etc/nginx/nginx.conf:NN` | typo in the configuration | `docker compose exec edge nginx -t` shows the line; fix it and `docker compose exec edge nginx -s reload` (or `docker compose restart edge`) |
 | `X-Instance` is missing | the catalog image was not rebuilt with the new filter | `docker compose up --build -d` |
 | the rate-limit test shows no `429` | k6 did not send `X-Api-Key`, or the old `nginx.conf` is mounted | check the file content inside the container: `docker compose exec edge cat /etc/nginx/nginx.conf` |
+
+!!! success "Best practices in this lab"
+
+    - **Publish one door and keep the replicas private** — no `ports:` on `catalog-1..3` in `docker-compose.yaml`, and `location / { return 404; }` in `nginx.conf` ([Traffic & edge — reverse proxies](../../classes/edge/index.md#reverse-proxies)).
+    - **Detect failures and retry only what is safe** — `max_fails=3 fail_timeout=10s` and `proxy_next_upstream` in `nginx.conf`; Nginx does not retry a `POST` ([Load balancing — health checks](../../classes/edge/load-balancing/index.md#health-checks)).
+    - **Set timeouts from measured latency** — `proxy_connect_timeout 1s`, `proxy_read_timeout 5s`, above the healthy p99.9 measured in lab 2 ([Load balancing — Nginx](../../classes/edge/load-balancing/index.md#nginx)).
+    - **Tag every request at the edge** — `X-Request-Id $request_id` goes to the replica and back to the client, and into the access log next to the upstream and its time ([Traffic & edge](../../classes/edge/index.md)).
+    - **Limit greedy clients with an explicit `429`** — `limit_req_zone … rate=20r/s` with `limit_req_status 429` protects the replicas from one client ([API gateway — rate limiting](../../classes/edge/api-gateway/index.md#rate-limiting)).
 
 ## Clean up
 

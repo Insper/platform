@@ -165,7 +165,7 @@ likes:{post_id}  →  1532
 
 ## 5. High-level design
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     u([App]) --> lb["Load balancer"]
     lb --> ps["Post service"]
@@ -186,7 +186,7 @@ flowchart LR
 
 **Read path:**
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     participant A as App
@@ -267,7 +267,7 @@ Pulling the posts of a fraction of a percent of the authors removes most of the 
 
 A chronological feed is "sort by time". A ranked feed is a small pipeline that must fit in the latency budget:
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     cand["Candidates<br/>~500 IDs<br/>(pushed + pulled)"] --> feat["Features<br/>author affinity, age,<br/>engagement, media type"]
     feat --> score["Scoring model<br/>(lightweight)"]
@@ -363,13 +363,21 @@ The `news-feed` scenario contains the post service, a fan-out path through a que
 
 **Related:** [Messaging](../../messaging/kafka/index.md), [Caching patterns](../../caching/patterns/index.md), [Partitioning](../../databases/partitioning/index.md), [Hands-on 7](../../../hands-on/7/index.md) (asynchronous processing with Kafka), [Hands-on 5](../../../hands-on/5/index.md) (caching).
 
+!!! success "Best practices"
+
+    - **Store post ids in timelines, not post bodies** — a timeline of 800 ids is a few kilobytes; bodies come from their own cache and are edited in one place.
+    - **Cap the length of each cached timeline** — a few hundred entries cover almost every session and keep the memory per user bounded.
+    - **Switch to fan-out on read above a follower threshold** — one celebrity post must not become millions of writes; mix the two at read time.
+    - **Make fan-out workers idempotent and resumable** — a worker that crashes halfway must not insert the same post twice in a timeline.
+    - **Version the ranking model and log what was shown** — "why did I see this?" needs the model version and the candidates, not only the result.
+
 ---
 
 ## How it connects { #how-it-connects }
 
 Which classes does this case test? Each branch is a class whose ideas the design relies on (blue), with the palette components where they show up (green):
 
-``` mermaid
+``` diagram
 flowchart LR
     CASE(["News feed"]) --> EST["Estimation<br/>fan-out write amplification"]:::tech
     CASE --> MSG["Messaging<br/>post events, fan-out workers"]:::tech

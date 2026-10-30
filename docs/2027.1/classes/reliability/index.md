@@ -4,13 +4,16 @@ This class is about building those defences, and about deciding **with numbers**
 
 A reliable system is not one that never fails. It is one that **fails gracefully, recovers quickly and limits the blast radius** of any single failure — the **blast radius** being the set of users and components affected by one failure.
 
+!!! quote "The story so far"
+
+    Chapter 10 of the [story of the course](../../index.md#story). BoxOffice spreads the 10:00 crowd over stateless replicas ([class 4](../edge/index.md), [class 5](../compute/index.md)), sells each seat once ([class 6](../databases/index.md)), answers reads from a cache ([class 7](../caching/index.md)) and admits fans through a waiting room ([class 8](../messaging/index.md)); [class 9](../observability/index.md) made it visible, with an SLO per journey and one trace per checkout. Now the trace shows the problem: the payment provider answers in seconds instead of milliseconds, and nothing in BoxOffice is broken. **This class** answers: how do we keep one slow dependency from taking everything down, and how much redundancy does the SLO ask us to buy?
+
 !!! abstract "Learning objectives"
 
     By the end of this class you should be able to:
 
     - **Calculate** availability from MTTF and MTTR, the downtime allowed by a number of "nines", and the end-to-end availability of components in series and in parallel.
     - **Explain** how a slow dependency causes a cascading failure, and **estimate** the resources it exhausts with Little's Law.
-    - **Define** SLIs and SLOs for BoxOffice's user journeys, and **compute** error budgets and burn rates.
     - **Choose and configure** resilience patterns — timeouts, retries with backoff and jitter, circuit breakers, bulkheads, load shedding and rate limiting — for a call between two services, and **predict** what each one does under failure.
     - **Design** a disaster-recovery strategy from RPO and RTO targets, choosing between backup and restore, pilot light, warm standby and active-active.
     - **Plan** a chaos experiment and a game day with a steady-state hypothesis and a controlled blast radius.
@@ -18,11 +21,10 @@ A reliable system is not one that never fails. It is one that **fails gracefully
 ## Roadmap
 
 1. **This overview** — availability, MTTF/MTTR, the "nines", composite availability, redundancy and failover, failure modes and cascading failures.
-2. [SLIs, SLOs and error budgets](slo/index.md) — how to measure reliability from the user's point of view, set targets, and spend the budget.
-3. [Resilience patterns](patterns/index.md) — timeout, retry with backoff and jitter, circuit breaker, bulkhead, load shedding, rate limiting, health checks, with Resilience4j.
-4. [Disaster recovery](disaster-recovery/index.md) — RPO and RTO, backups, multi-AZ and multi-region, and the four DR strategies.
-5. [Chaos engineering](chaos/index.md) — injecting failures on purpose to prove that the defences work; game days.
-6. [Quiz](quiz.md) — check your understanding.
+2. [Resilience patterns](patterns/index.md) — timeout, retry with backoff and jitter, circuit breaker, bulkhead, load shedding, rate limiting, health checks, with Resilience4j.
+3. [Disaster recovery](disaster-recovery/index.md) — RPO and RTO, backups, multi-AZ and multi-region, and the four DR strategies.
+4. [Chaos engineering](chaos/index.md) — injecting failures on purpose to prove that the defences work; game days.
+5. [Quiz](quiz.md) — check your understanding.
 
 ## Slides
 
@@ -77,7 +79,7 @@ Availability targets are quoted as a number of "nines". The table shows the down
 Each additional nine is **10× less downtime**, and it is not an incremental improvement: it changes how you operate. At three nines, a human can be paged, open a laptop and roll back. At four nines, the whole monthly budget is shorter than it takes to wake up; detection and recovery must be automatic. At five nines, even automatic failover must complete in seconds, and a single bad deploy can spend a year's budget.
 
 !!! warning "Always state the window"
-    "99.9%" alone is ambiguous: 43.8 minutes in a calendar month, 40.3 minutes in a 28-day window. Whenever you quote availability, say over which window — and whether it counts time or requests (see [SLOs](slo/index.md)).
+    "99.9%" alone is ambiguous: 43.8 minutes in a calendar month, 40.3 minutes in a 28-day window. Whenever you quote availability, say over which window — and whether it counts time or requests (see [SLOs](../observability/slo/index.md)).
 
 ---
 
@@ -163,7 +165,7 @@ Reading the chart from top to bottom:
 - **Three replicas** of the stateless services make them practically perfect, and the bottleneck moves to the components that are *not* replicated: the database and the external payment provider.
 - **Automatic database failover** (a standby in another zone) and a **second payment provider** attack those. Each step removes the current weakest link — and the next weakest becomes visible.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     fan(["fan"]) --> lb["load balancer<br/>99.99%"]
     lb --> g1["gateway #1"]
@@ -179,7 +181,7 @@ flowchart LR
 ```
 
 !!! tip "Redundancy has a price tag"
-    Each step in the chart costs money (three times the instances, a standby database, a second provider contract) and complexity (failover logic, testing the fallback). Reliability is bought, not free: the [error budget](slo/index.md) is how you decide how much to buy.
+    Each step in the chart costs money (three times the instances, a standby database, a second provider contract) and complexity (failover logic, testing the fallback). Reliability is bought, not free: the [error budget](../observability/slo/index.md) is how you decide how much to buy.
 
 ---
 
@@ -222,7 +224,7 @@ The most dangerous of these is not the crash but the **slow** component. A crash
 
 A slow dependency exhausts a resource in its caller — threads, connections, memory — and the exhausted caller becomes slow for *its* callers. The exhaustion climbs the call graph until unrelated features fail. This is the most common way microservice systems go down[^3].
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant F as Fans
     participant G as gateway
@@ -276,7 +278,7 @@ Cascades are one example of a broader family: failures that **feed themselves**.
 
 Reliability is not one component: it is a property you buy, piece by piece, across the whole palette. The map links each **palette component** (green) to the **reliability concepts** it carries (blue); the arrows show how the class builds up — redundancy and probes keep instances serving, patterns contain slow dependencies, DR covers what redundancy cannot, SLOs say how much is enough, and chaos proves it all works:
 
-``` mermaid
+``` diagram
 flowchart LR
     lbapp["lb · app"]:::comp -.- red["MTTF/MTTR, nines, series vs parallel,<br/>redundancy, N+1, multi-AZ"]:::tech
     tp["thirdparty · payment"]:::comp -.- casc["cascading failures<br/>(Little's Law)"]:::tech
@@ -301,13 +303,22 @@ flowchart LR
 | [`thirdparty`](../../reference/components/external/index.md#thirdparty), [`payment`](../../reference/components/external/index.md#payment) | What if a dependency gets *slow*? | cascading failures, timeout, retry + backoff + jitter, circuit breaker, bulkhead, fallback | [this overview](#cascading-failures), [Resilience patterns](patterns/index.md) | `cascading-failure`, `retry-storm`, `payment-system` |
 | [`apigw`](../../reference/components/edge/index.md#apigw) | Which work do we refuse under overload? | rate limiting per client, load shedding by priority, waiting room | [Resilience patterns](patterns/index.md#load-shedding) | `rate-limiter`, `flash-sale` |
 | [`healthcheck`](../../reference/components/observability/index.md#healthcheck) | Should traffic reach this instance? | liveness, readiness, startup; no dependencies in liveness | [Resilience patterns](patterns/index.md#health-checks) | `scale-out` |
-| [`metrics`](../../reference/components/observability/index.md#metrics), [`alerting`](../../reference/components/observability/index.md#alerting) | Are we reliable *enough*? | SLI, SLO, error budget, burn rate, error budget policy | [SLIs, SLOs and error budgets](slo/index.md) | `observability-stack` |
-| [`sql`](../../reference/components/storage/index.md#sql), [`objstore`](../../reference/components/storage/index.md#objstore) | How much data and time can we lose? | RPO/RTO, PITR, 3-2-1 backups, delayed replica | [Disaster recovery](disaster-recovery/index.md#rpo-rto) | `db-replicas` |
+| [`metrics`](../../reference/components/observability/index.md#metrics), [`alerting`](../../reference/components/observability/index.md#alerting) | Are we reliable *enough*? | SLI, SLO, error budget, burn rate, error budget policy — the target every defence here is judged by | [Observability — SLIs, SLOs and error budgets](../observability/slo/index.md) (class 9) | `observability-stack` |
+| [`sql`](../../reference/components/storage/index.md#sql), [`objstore`](../../reference/components/storage/index.md#objstore) | How much data and time can we lose? | RPO/RTO, PITR, 3-2-1 backups, delayed replica | [Disaster recovery](disaster-recovery/index.md#rpo-rto) | `db-failover`, `db-replicas` |
 | [`dns`](../../reference/components/edge/index.md#dns) | How do fans reach the surviving region? | multi-region, the four DR strategies, fencing, DNS TTL | [Disaster recovery](disaster-recovery/index.md#dr-strategies) | `multi-region` |
 | *(all of them)* | Do the defences actually work? | steady-state hypothesis, fault injection, blast radius, game days | [Chaos engineering](chaos/index.md) | `flash-sale` (chaos) |
 
 !!! tip "In the interview"
     When you finish a design, interviewers often ask "what happens if X fails?" or "what if X becomes slow?". Answer with a chain: *who calls X*, *what resource they hold while waiting*, *what the timeout is*, *what the fallback is*, and *what the user sees*. For BoxOffice: "payment is called by `order` with a 2 s timeout, a circuit breaker and its own bulkhead of 50 concurrent calls; when it opens, the fan sees 'payment temporarily unavailable, your seats stay held for 10 minutes' — and the catalog is unaffected." Also quote availability math: "two dependencies at three nines in series cap us at 99.8%".
+
+!!! success "Best practices"
+
+    - **Write the availability ceiling of each user journey before choosing components** — multiply what the path calls synchronously: two dependencies at 99.9% already cap the purchase at 99.8%. In BoxOffice: the [purchase-path chart](#composite-availability).
+    - **Run N+1 replicas spread over at least two zones** — after losing one replica, or a whole zone, the rest must still carry the 10:00 peak; a call between zones costs about 1 ms.
+    - **Automate recovery before chasing a higher MTTF** — restarting in 1 minute instead of 2 hours took `inventory` from 99.72% to 99.998%. In BoxOffice: probes and restarts in [Hands-on 10](../../hands-on/10/index.md).
+    - **Give every dependency a written failure plan: its timeout, its fallback and what the fan sees** — decided at design time, not at 10:02. In BoxOffice: `payment` fails fast with `503` and the order stays `PENDING_PAYMENT` ([Hands-on 9](../../hands-on/9/patterns/index.md)).
+    - **Move off the request path everything the fan does not wait for** — each synchronous dependency lowers the ceiling of the journey. In BoxOffice: the e-mail goes through the outbox and Kafka ([Hands-on 7](../../hands-on/7/index.md)).
+    - **Track MTTR as three numbers: time to detect, to diagnose and to fix** — each one is cut by a different practice (alerts, traces, rollback). In BoxOffice: the game-day timeline of [Hands-on 9](../../hands-on/9/game-day/index.md).
 
 !!! warning "Common pitfalls"
 
@@ -321,10 +332,14 @@ flowchart LR
 
 ## Related
 
-- **Hands-on:** [Hands-on 9 — Resilience & chaos](../../hands-on/9/index.md): Resilience4j between `order` and `payment`, Toxiproxy latency and faults, a game day. [Hands-on 8 — Observability](../../hands-on/8/index.md): SLO burn-rate alerts. [Hands-on 10 — Kubernetes](../../hands-on/10/index.md): probes and self-healing.
+- **Hands-on** (the week after this class and class 9): [Hands-on 8 — Observability](../../hands-on/8/index.md) first — OpenTelemetry, a RED dashboard and SLO burn-rate alerts, so that the experiments have something to show; then [Hands-on 9 — Resilience & chaos](../../hands-on/9/index.md): Resilience4j between `order` and `payment`, Toxiproxy latency and faults, a game day. [Hands-on 10 — Kubernetes](../../hands-on/10/index.md): probes and self-healing.
 - **Project:** [Chaos game day](../../exercises/project/game-day/index.md).
 - **Case studies:** [Payment system](../case-studies/payment-system/index.md), [Ticketing (BoxOffice flash sale)](../case-studies/ticketing/index.md).
-- **Classes:** [Estimation — availability math](../estimation/availability-math/index.md), [Messaging](../messaging/index.md) (asynchrony removes dependencies from the critical path), [Observability](../observability/index.md) (SLIs, alerts, incident response).
+- **Classes:** [Estimation — availability math](../estimation/availability-math/index.md), [Observability](../observability/index.md) (previous class, the same week: the SLOs, dashboards and alerts these defences are judged by), [Messaging](../messaging/index.md) (asynchrony removes dependencies from the critical path), [Cloud-Native](../cloud-native/index.md) (next class: probes, self-healing, autoscaling).
+
+## What breaks next { #what-breaks-next }
+
+The patterns contain a slow provider, redundancy and the DR plan cover lost machines and regions, and chaos experiments prove both. But every defence on this page assumes that *something* restarts a dead replica, adds replicas before 10:00 and rolls a bad release back — and on one laptop with Compose, that something is you. The `inventory` example above improved from 99.72% to 99.998% only because the restart took 1 minute instead of 2 hours; that minute exists only if a machine does the restart. Healing, scaling at 09:45 and rolling back without a human is [class 11 — Cloud-Native](../cloud-native/index.md).
 
 ---
 

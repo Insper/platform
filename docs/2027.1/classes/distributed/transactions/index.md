@@ -8,7 +8,7 @@ A **distributed transaction** is a unit of work that changes data on several nod
 
 On one node, atomicity is provided by the database's log: a transaction's changes become durable and visible at a single point, the commit record. Across nodes there is no single log, and each participant can fail independently — so a naïve "commit everywhere, one after the other" leaves a window where some participants committed and others did not:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant O as order (checkout)
     participant I as inventory DB
@@ -36,7 +36,7 @@ Two families of solutions exist:
 1. **Prepare (voting)**: the coordinator asks every participant "can you commit?". A participant that answers **yes** must first write all the changes and a *prepared* record durably to disk and keep the locks: from that moment it has **promised** to commit if asked — it can no longer abort on its own.
 2. **Commit (decision)**: if **all** voted yes, the coordinator writes **commit** to its own log and tells everyone to commit; if anyone voted no (or timed out), it decides **abort**.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant C as coordinator
     participant I as inventory DB
@@ -58,7 +58,7 @@ PostgreSQL exposes the participant side as `PREPARE TRANSACTION 'id'` followed l
 
 The weak point is the moment **after a participant voted yes and before it hears the decision**. If the coordinator crashes there, the participant is **in doubt**: it cannot commit (maybe someone voted no) and cannot abort (maybe the coordinator decided commit and others already committed). It must **wait**, holding its locks, until the coordinator recovers:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant C as coordinator
     participant I as inventory DB
@@ -71,6 +71,8 @@ sequenceDiagram
     Note over I: in doubt: cannot commit, cannot abort
     Note over I,R: seat A-12 stays locked until<br/>the coordinator comes back
 ```
+
+You can cause it yourself in the simulator under [Sagas](#sagas): choose **2PC** and **coordinator crash**.
 
 During the 10:00 on-sale, a locked seat row blocks every other fan trying to hold it, and a crashed coordinator can freeze a whole block of seats. **Three-phase commit (3PC)** tries to remove the blocking but assumes bounded network delays, which real networks do not guarantee; production systems instead make the **coordinator itself fault-tolerant** by replicating its decision with **consensus** — exactly what Google Spanner (2PC over Paxos groups) and CockroachDB (over Raft) do[^2].
 
@@ -128,23 +130,11 @@ The BoxOffice checkout as a saga:
 | 3 | Charge the card (`payment` → provider) | Refund the charge |
 | 4 | Seat → `SOLD`, order → `CONFIRMED`, issue ticket | *(last step: no compensation; it must succeed — retried until it does)* |
 
-``` mermaid-sim
-sequenceDiagram
-    participant O as order (orchestrator)
-    participant I as inventory
-    participant P as payment
-    participant N as notification
-    O->>O: T1: order 981 PENDING
-    O->>I: T2: reserve seat A-12 for payment
-    I-->>O: reserved
-    O->>P: T3: charge R$ 450 (idempotency key)
-    P-->>O: declined
-    Note over O: T3 failed: compensate in reverse order
-    O->>I: C2: release seat A-12
-    I-->>O: seat FREE
-    O->>O: C1: order 981 CANCELLED
-    O->>N: tell the fan "payment declined"
-```
+<div class="csim" data-sim="saga" data-mode="saga" data-fail="declined"></div>
+
+!!! tip "Try it"
+    Play the default run, **charge declined**: T1 and T2 commit, T3 fails, and the orchestrator runs C2 (release A-12) and then C1 (cancel order 981) — the saga log lists them in reverse order of the steps they undo, and *time holding DB locks* stays at 0 ms. Choose **charge timeout**: the card *was* charged but the reply was lost, so the orchestrator adds C3, a refund with the same idempotency key, before releasing the seat. Choose **ticket down**: the failure comes after the pivot (the successful charge), so nothing is compensated — the ticket step fails twice, succeeds on the third try, and the order ends `CONFIRMED`. Then switch to **2PC**: with no failure the seat row is locked for 145 ms; with **coordinator crash** every participant has voted YES and waits in doubt — the lock time grows by a second per step and fans queue behind seat A-12 until you restart the coordinator, which finds no decision in its log and aborts.
+
 
 Two ways to coordinate the steps:
 
@@ -165,6 +155,14 @@ Between steps, other transactions see intermediate states: an order `PENDING`, a
 - **Order the steps by risk**: do the cheap, invisible, easily reversed steps first, and the steps that are hard or impossible to compensate (a charge, an e-mail) last, so that a failure late in the saga has little to undo. A refund is a compensation the fan *sees*; releasing a seat is invisible.
 - **Pivot step**: the step after which the saga can only go forward (here, the successful charge) — after it, the remaining steps must be retried until they succeed, never compensated.
 
+!!! example "In the BoxOffice code: one saga step around the charge (lab 9)"
+
+    The labs build a shortened version of this saga in `order`: [lab 7](../../../hands-on/7/outbox/index.md) creates the order `PENDING_PAYMENT`, and [Hands-on 9 — Patterns](../../../hands-on/9/patterns/index.md) adds the payment step. Look at three choices. The charge happens **outside** any database transaction (a connection is never held while waiting for the provider). The result is applied with a **conditional** `UPDATE … WHERE status = 'PENDING_PAYMENT'`, so two concurrent `pay` calls — both deduplicated by `payment` through the same idempotency key — change the status once and emit one event. And the outcome (`OrderConfirmed` or `OrderCancelled`, the compensation's trigger) leaves through the **outbox**, in the same local transaction as the status change.
+
+    ``` { .java title="services/order/src/main/java/boxoffice/order/OrderService.java (pay)" }
+    --8<-- "docs/2027.1/hands-on/9/code/services/order/src/main/java/boxoffice/order/OrderService.java:77:100"
+    ```
+
 ### Reservation: try, confirm, cancel { #tcc }
 
 The **TCC** pattern (try–confirm–cancel) makes each participant offer a *tentative* operation with a timeout. BoxOffice already works this way: the **hold** is the *try* (the seat is reserved for 10 minutes), the **sale** is the *confirm*, and **expiry or release** is the *cancel*. Payment providers offer the same shape: **authorise** (reserve funds) → **capture** (take them) or **void** (release them). Because every tentative state expires by itself, a crash anywhere leaves the system converging to a safe state instead of blocking.
@@ -175,7 +173,7 @@ The **TCC** pattern (try–confirm–cancel) makes each participant offer a *ten
 
 Every saga step does two things: change its own database **and** tell the next step (send an event or a command). Doing them as two separate writes is the **dual-write problem** — if the service crashes between them, the database says "seat reserved" but no event is ever sent, and the saga stalls:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant I as inventory
     participant DB as inventory DB
@@ -189,6 +187,14 @@ sequenceDiagram
 ```
 
 The **transactional outbox** writes the event into an `outbox` table **in the same local transaction** as the business change; a separate relay publishes outbox rows to the broker and marks them sent. Publishing is at-least-once, so consumers must be idempotent. The details (polling vs change data capture, ordering, cleanup) are in [Messaging — patterns](../../messaging/patterns/index.md) and [Hands-on 7](../../../hands-on/7/index.md).
+
+!!! example "In the BoxOffice code: order + outbox in one transaction (lab 7)"
+
+    [Hands-on 7 — Outbox](../../../hands-on/7/outbox/index.md) writes the order and its `OrderPlaced` event in **one** `@Transactional` method; `Outbox.append` is declared `Propagation.MANDATORY`, so it fails if anyone calls it outside the business transaction. The same method is idempotent: `ON CONFLICT (hold_id) DO NOTHING` turns a retried request for the same hold into a replay that returns the existing order and appends no second event. The lab proves the guarantee by stopping Kafka: the order was accepted while the broker was down, and its event was published **71 s later**, when Kafka came back — the fan never saw the outage.
+
+    ``` { .java title="services/order/src/main/java/boxoffice/order/OrderService.java (place)" }
+    --8<-- "docs/2027.1/hands-on/7/code/services/order/src/main/java/boxoffice/order/OrderService.java:35:62"
+    ```
 
 ---
 
@@ -213,6 +219,14 @@ The **transactional outbox** writes the event into an `outbox` table **in the sa
 !!! tip "In the interview"
     When a design touches several services' data "atomically", say: *"I won't use 2PC across services — it blocks if the coordinator fails, couples availability of every participant, and the payment provider can't participate. I'll use an orchestrated saga with compensations, idempotent steps, a semantic lock on the seat, and a transactional outbox to publish each step's event."* Then name the **pivot step** and what happens on a timeout with the provider. If the data can live in one database, say so — the best distributed transaction is the one you avoid.
 
+!!! success "Best practices"
+
+    - **Keep remote calls outside database transactions** — a connection held while the provider takes 3 s is a pool of 10 exhausted by 4 orders per second. In BoxOffice: `OrderService.pay` charges first, then opens a short transaction ([lab 9](../../../hands-on/9/patterns/index.md), box above).
+    - **Model each saga as explicit states with conditional transitions** — `UPDATE … WHERE status = 'PENDING_PAYMENT'` makes every step safe to repeat and every illegal jump impossible.
+    - **Make the outbox impossible to call outside the transaction** — `@Transactional(propagation = MANDATORY)` on `Outbox.append` turns a forgotten transaction into an error at the first test ([lab 7](../../../hands-on/7/outbox/index.md)).
+    - **Give every tentative state an expiry and a sweeper** — a hold that nobody confirms frees itself. In BoxOffice: 10-minute holds and a sweeper every 5 s in lab 6.
+    - **Alert on sagas stuck past their timeout, and reconcile with the provider daily** — an order `PENDING_PAYMENT` for an hour, or a charge without an order, is a bug or a lost message; find it before the fan does.
+
 !!! warning "Pitfalls"
     - **Dual writes** (database, then broker) without an outbox: a crash between them silently stalls the saga.
     - **Non-idempotent steps or compensations**: retries double-charge or double-refund.
@@ -222,7 +236,7 @@ The **transactional outbox** writes the event into an `outbox` table **in the sa
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     IDEM["idempotency keys<br/>(overview)"] --> SAGA["saga steps<br/>retried safely"]
     OUT["transactional outbox"] --> SAGA
@@ -236,13 +250,15 @@ flowchart LR
 
 **Palette components involved:** [`stream`](../../../reference/components/messaging/index.md#stream) / [`kafka`](../../../reference/components/messaging/index.md#kafka) (saga events, outbox relay) · [`queue`](../../../reference/components/messaging/index.md#queue) (commands to participants) · [`payment`](../../../reference/components/external/index.md#payment) (authorise / capture / void) · [`sql`](../../../reference/components/storage/index.md#sql) (local transactions + outbox table) · [`worker`](../../../reference/components/compute/index.md#worker) (orchestrator, relay). Try the `payment-system` and `flash-sale` scenarios in the [playground](../../../../playground/index.md). **Continues in:** [Messaging — patterns](../../messaging/patterns/index.md), [Compute — integrations](../../compute/integrations/index.md), [Case study: ticketing](../../case-studies/ticketing/index.md).
 
-## Key takeaways
+## Key takeaways { #key-takeaways }
 
-- A distributed transaction must be **atomic across nodes**; there is no single log to make it so.
-- **2PC** (prepare, then commit) gives ACID across participants but **blocks** when the coordinator fails, holds locks for two round trips, and needs every participant up at once — use it **inside** distributed databases, not across microservices.
-- **Sagas** chain local transactions with **compensations**; they trade isolation for availability — use semantic locks, idempotent steps and a pivot step.
-- **TCC / reservations** (hold → sell / expire; authorise → capture / void) make tentative states expire safely.
-- The **transactional outbox** solves the dual-write problem between a database and a broker.
+!!! takeaways ""
+
+    - A distributed transaction must be **atomic across nodes**; there is no single log to make it so.
+    - **2PC** (prepare, then commit) gives ACID across participants but **blocks** when the coordinator fails, holds locks for two round trips, and needs every participant up at once — use it **inside** distributed databases, not across microservices.
+    - **Sagas** chain local transactions with **compensations**; they trade isolation for availability — use semantic locks, idempotent steps and a pivot step.
+    - **TCC / reservations** (hold → sell / expire; authorise → capture / void) make tentative states expire safely.
+    - The **transactional outbox** solves the dual-write problem between a database and a broker.
 
 ---
 

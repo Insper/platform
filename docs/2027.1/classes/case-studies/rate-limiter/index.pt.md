@@ -22,11 +22,11 @@ No BoxOffice, o rate limiter é a segunda linha de defesa da venda relâmpago: o
 
 ---
 
-## 1. Esclarecer os requisitos
+## 1. Esclarecer os requisitos { #1-clarify-the-requirements }
 
 A expressão "rate limiter" esconde vários produtos diferentes. Pergunte antes de desenhar ([roteiro de entrevista](../../intro/interview-framework/index.md)).
 
-### Requisitos funcionais
+### Requisitos funcionais { #functional-requirements }
 
 1. Limitar o número de requisições que um **cliente** pode fazer numa janela de tempo; o cliente pode ser um ID de usuário, uma chave de API, um endereço IP ou uma combinação.
 2. Várias **regras** por requisição, ex.: `10 req/s por usuário` **e** `1 000 req/min por chave de API` **e** `100 req/s por IP` em `/login`.
@@ -34,7 +34,7 @@ A expressão "rate limiter" esconde vários produtos diferentes. Pergunte antes 
 4. Regras **configuráveis** sem novo deploy (por endpoint, por plano: gratuito, parceiro, interno).
 5. Expor métricas: permitidas vs. rejeitadas por regra e cliente.
 
-### Requisitos não funcionais
+### Requisitos não funcionais { #non-functional-requirements }
 
 | Qualidade | Meta |
 |---|---|
@@ -44,7 +44,7 @@ A expressão "rate limiter" esconde vários produtos diferentes. Pergunte antes 
 | **Disponibilidade** | Uma falha do limitador não pode derrubar a API |
 | **Memória** | O estado de ~1 M de clientes ativos precisa caber com folga em RAM |
 
-### Fora do escopo (diga explicitamente)
+### Fora do escopo (diga explicitamente) { #out-of-scope-say-it-explicitly }
 
 Proteção contra DDoS na camada de rede (é trabalho do WAF/CDN), cobrança por uso, detecção de abuso com aprendizado de máquina. Mencione que existem nas camadas em volta do limitador.
 
@@ -61,7 +61,7 @@ Proteção contra DDoS na camada de rede (é trabalho do WAF/CDN), cobrança por
 
 ---
 
-## 2. Estimativas de guardanapo (back-of-the-envelope)
+## 2. Estimativas de guardanapo (back-of-the-envelope) { #2-back-of-the-envelope-estimates }
 
 ```python exec="1" source="tabbed-right"
 # Rate limiter: assumptions (illustrative)
@@ -145,7 +145,7 @@ rules:
 
 ---
 
-## 4. Modelo de dados
+## 4. Modelo de dados { #4-data-model }
 
 O estado é minúsculo e de vida curta: por (regra, cliente) um contador ou uma quantidade de tokens com um timestamp, expirando automaticamente.
 
@@ -172,9 +172,9 @@ rl:log:user:42         → { 1767261600123, 1767261600201, ... }
 
 ---
 
-## 5. Design de alto nível
+## 5. Design de alto nível { #5-high-level-design }
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     c([Clientes]) --> waf["WAF / CDN<br/>limites grossos por IP"]
     waf --> lb["Balanceador de carga"]
@@ -191,7 +191,7 @@ flowchart LR
 
 Uma requisição passando pelo filtro:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     participant C as Cliente
@@ -213,9 +213,9 @@ sequenceDiagram
 
 ---
 
-## 6. Aprofundamentos (deep dives)
+## 6. Aprofundamentos (deep dives) { #6-deep-dives }
 
-### 6.1 Os algoritmos
+### 6.1 Os algoritmos { #61-the-algorithms }
 
 | Algoritmo | Como funciona | Rajadas | Memória por cliente | Precisão | Uso típico |
 |---|---|---|---|---|---|
@@ -279,7 +279,18 @@ for f in (fixed_window, sliding_log, sliding_counter, token_bucket):
 
 A janela fixa deixa passar **20 requisições em 20 ms** — o dobro do limite — porque elas caem em duas janelas diferentes. O log e o token bucket permitem exatamente 10. O contador de janela deslizante permite 11: ele supõe que as requisições da janela anterior foram distribuídas de forma uniforme, enquanto aqui todas chegaram bem no final dela — um erro pequeno e limitado em troca de dois números de estado. Por isso limitadores de produção usam **token bucket** ou **contador de janela deslizante**.
 
-### 6.2 Tornando atômico entre réplicas
+<div class="csim" data-sim="rate-limiter" data-limit="20" data-burst="40" data-pattern="boundary" data-algo="fixed"></div>
+
+!!! tip "Experimente"
+    Os valores iniciais são os limites do Nginx do lab 3: **20 requisições/s** por chave de API e **burst de 40**. O tráfego começa com uma rajada sobre a fronteira de 1 s (20 requisições logo antes, 20 logo depois) e a repete em 3 s.
+
+    1. Rode com a **janela fixa**: 40 requisições chegam ao backend em cerca de 0,2 s, **2× o limite**, e isso se repete em 3 s.
+    2. Mude para o **log deslizante**: o backend nunca vê mais que 20 em um segundo qualquer; a segunda metade de cada rajada recebe `429`.
+    3. Mude para o **token bucket**: ele começa cheio, então deixa passar a rajada inteira — 46 requisições no segundo mais movimentado. Arraste a capacidade para 20 e o segundo mais movimentado cai para 29: a capacidade *é* a rajada que você permite.
+    4. Escolha **rajadas** e o **leaky bucket**: o backend recebe 20 por segundo constantes, mas uma requisição na fila espera até 1,95 s — suavizar custa latência.
+
+
+### 6.2 Tornando atômico entre réplicas { #62-making-it-atomic-across-replicas }
 
 A implementação ingênua tem uma condição de corrida:
 
@@ -323,9 +334,9 @@ Detalhes que mostram senioridade:
 - **TTL em toda chave**: clientes ociosos somem sozinhos; a memória fica proporcional aos clientes *ativos*.
 - Carregue o script uma vez (`SCRIPT LOAD`) e chame-o com `EVALSHA` para não enviar o código-fonte a cada requisição.
 
-### 6.3 Onde aplicar, e local vs. global
+### 6.3 Onde aplicar, e local vs. global { #63-where-to-enforce-and-local-vs-global }
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     cl["SDK do cliente<br/>limite de cortesia"] --> edge["Borda / WAF<br/>por IP, grosso"]
     edge --> gw["API gateway<br/>por usuário / chave / plano"]
@@ -346,7 +357,15 @@ flowchart LR
 - **Local + sincronização periódica**: cada gateway conta localmente e envia os deltas ao armazenamento compartilhado a cada 100 ms, lendo de volta o total global — aproximado (passa do limite em no máximo um intervalo de sincronização de tráfego), muito rápido. É mais ou menos assim que grandes CDNs fazem.
 - **Limites por região**: limite por região e aceite que um cliente usando duas regiões obtenha até 2× — normalmente tudo bem.
 
-### 6.4 Quando o próprio limitador falha
+!!! example "No código do BoxOffice: um limitador local na borda (lab 3)"
+
+    O [Hands-on 3](../../../hands-on/3/index.md) coloca a versão mais simples deste projeto na borda: o Nginx dá a cada chave de API 20 req/s com rajada de 40 e responde `429` acima disso, sem tocar as réplicas. É um limitador **local** — os contadores vivem num só Nginx —, exato enquanto há uma borda só; com N bordas cada uma permitiria 20 req/s, o problema do `limite / N` acima. No teste do lab, o cliente educado (10 req/s) recebe só `200` e o guloso (50 req/s) cerca de 20 `200` por segundo e `429` no resto. O Nginx implementa um leaky bucket: `rate` é o escoamento, `burst` o tamanho do balde.
+
+    ``` { .nginx title="infra/nginx/nginx.conf (the limit)" }
+    --8<-- "docs/2027.1/hands-on/3/code/infra/nginx/nginx.conf:28:32,43:44"
+    ```
+
+### 6.4 Quando o próprio limitador falha { #64-when-the-limiter-itself-fails }
 
 - **Fail-open** (permitir quando o Redis está inacessível) mantém a API disponível — o padrão certo para limites comuns, porque o limitador existe para proteger o backend, e um curto período sem limites raramente é pior do que uma queda total. Combine com um **bucket local de reserva** para a proteção degradar em vez de sumir.
 - **Fail-closed** (rejeitar) para limites que guardam segurança: tentativas de login, redefinição de senha, verificação de OTP — senão um atacante capaz de sobrecarregar o Redis também desliga a proteção contra força bruta.
@@ -358,7 +377,7 @@ flowchart LR
 
 ---
 
-## 7. Gargalos, modos de falha e trade-offs
+## 7. Gargalos, modos de falha e trade-offs { #7-bottlenecks-failure-modes-and-trade-offs }
 
 | Onde | O que dá errado | Mitigação | Trade-off |
 |---|---|---|---|
@@ -375,7 +394,7 @@ Os trade-offs para **dizer em voz alta**: **precisão vs. latência** (contadore
 
 ---
 
-## 8. Experimente no playground
+## 8. Experimente no playground { #8-try-it-in-the-playground }
 
 O cenário `rate-limiter` coloca um API gateway com rate limiting na frente de um backend de capacidade fixa.
 
@@ -392,7 +411,7 @@ O cenário `rate-limiter` coloca um API gateway com rate limiting na frente de u
 
 ---
 
-## 9. Perguntas de follow-up que o entrevistador faz
+## 9. Perguntas de follow-up que o entrevistador faz { #9-follow-up-questions-an-interviewer-asks }
 
 ??? question "Token bucket ou janela deslizante — qual você escolheria e por quê?"
 
@@ -424,7 +443,7 @@ O cenário `rate-limiter` coloca um API gateway com rate limiting na frente de u
 
 ---
 
-## 10. Rubrica de autoavaliação
+## 10. Rubrica de autoavaliação { #10-self-assessment-rubric }
 
 | Nível | O que a resposta contém |
 |---|---|
@@ -434,13 +453,21 @@ O cenário `rate-limiter` coloca um API gateway com rate limiting na frente de u
 
 **Relacionados:** [API gateway](../../edge/api-gateway/index.md), [Hands-on 3](../../../hands-on/3/index.md) (rate limiting no Nginx), [Hands-on 4](../../../hands-on/4/index.md) (gateway e identidade), [Redis](../../caching/redis/index.md), [Padrões de confiabilidade](../../reliability/patterns/index.md).
 
+!!! success "Boas práticas"
+
+    - **Responda `429` com `Retry-After`** — clientes bem-comportados desaceleram sozinhos, e a tempestade de retentativas nem começa.
+    - **Faça verificar-e-contar uma operação atômica** — um script Lua no Redis; duas idas e voltas deixam duas réplicas aceitarem a mesma requisição.
+    - **Decida fail-open ou fail-closed por rota, e crie alertas para erros do limitador** — navegação falha aberta, login falha fechado; nos dois casos alguém precisa saber que o limitador caiu.
+    - **Lance um limite novo primeiro em modo de simulação** — registre por um dia o que teria sido bloqueado antes de aplicá-lo; um limite errado é uma indisponibilidade causada por você.
+    - **Use a identidade como chave onde a tiver, e o IP só na borda** — o lab 3 usa a chave de API, e o seu `nginx.conf` observa que requisições sem chave também deveriam ser limitadas por IP em produção ([lab 3](../../../hands-on/3/index.md)).
+
 ---
 
 ## Como se conecta { #how-it-connects }
 
 Quais aulas este caso testa? Cada ramo é uma aula cujas ideias o design usa (azul), com os componentes da paleta em que elas aparecem (verde):
 
-``` mermaid
+``` diagram
 flowchart LR
     CASE(["Rate limiter"]) --> EDG["Edge<br/>where limits live: WAF, gateway"]:::tech
     CASE --> CAC["Caching<br/>Redis counters, Lua atomicity"]:::tech
@@ -458,7 +485,7 @@ flowchart LR
 
 ---
 
-## Referências
+## Referências { #references }
 
 - XU, A. *System Design Interview — An Insider's Guide*, vol. 1, cap. 4 "Design a Rate Limiter"[^1].
 - Os quatro tipos de limitadores da Stripe (taxa de requisições, concorrência, descarte de carga da frota, utilização de workers)[^2].

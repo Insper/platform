@@ -21,7 +21,7 @@ The insight: **failure is not a special case to avoid; it is the environment pro
 The [Principles of Chaos Engineering](https://principlesofchaos.org){target="_blank"}[^1] define the discipline with five ideas:
 
 **1. Build a hypothesis around steady-state behaviour**
-: Describe "normal" with measurable outputs users care about — the SLIs ([SLOs](../slo/index.md)): purchase success rate, seat-hold p99, e-mail freshness. The hypothesis: *"the steady state continues even when X happens."*
+: Describe "normal" with measurable outputs users care about — the SLIs ([SLOs](../../observability/slo/index.md)): purchase success rate, seat-hold p99, e-mail freshness. The hypothesis: *"the steady state continues even when X happens."*
 
 **2. Vary real-world events**
 : Inject failures that actually happen: instance and zone loss, latency, packet loss, a dependency returning errors, a full disk, clock skew, a traffic spike, an expired certificate.
@@ -37,11 +37,11 @@ The [Principles of Chaos Engineering](https://principlesofchaos.org){target="_bl
 
 ---
 
-## The experiment lifecycle
+## The experiment lifecycle { #the-experiment-lifecycle }
 
 Each experiment follows the scientific method: predict, change one variable, measure, compare[^5].
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     H["1. Hypothesis<br/>steady state + expected behaviour"] --> D["2. Design<br/>fault, scope, abort conditions"]
     D --> I["3. Inject<br/>the controlled fault"]
@@ -57,12 +57,20 @@ An experiment that **confirms** the hypothesis is evidence that a defence works.
 
     | Step | Content |
     |---|---|
-    | **Steady state** | Purchase success ≥ 99.9% and seat-hold p99 < 500 ms; catalog p99 < 300 ms (gateway dashboard of [Hands-on 8](../../../hands-on/8/index.md)). |
+    | **Steady state** | Purchase success ≥ 99.9% and seat-hold p99 < 500 ms; catalog p99 < 300 ms (the RED dashboard of [Hands-on 8](../../../hands-on/8/index.md)). |
     | **Hypothesis** | "If the payment provider answers in 3 s instead of 200 ms, the `payment` circuit breaker opens within 30 s, purchases fail fast with 'payment temporarily unavailable, seats held', the bulkhead caps payment calls at 50, and catalog and seat holds keep their latency." |
     | **Injection** | Toxiproxy between `payment` and the provider stub: a `latency` toxic of 3 s ± 0.5 s, under a k6 load of 100 purchases/s. |
     | **Scope and abort** | Compose environment first; later one canary pod. Abort if catalog p99 > 1 s or the purchase error budget burns faster than 10×. |
     | **Observe** | `resilience4j_circuitbreaker_state`, bulkhead available permits, error rate and p99 per route, `order` busy threads, traces of slow purchases. |
     | **Possible findings** | The read timeout was never set, so slow calls are not counted until 60 s; the retry at the gateway multiplies calls; the fallback message is a raw 500; the bulkhead is shared with `inventory` calls. |
+
+!!! example "In the BoxOffice code: the steady state as k6 thresholds (lab 9)"
+
+    [Hands-on 9 — Measure it](../../../hands-on/9/measure/index.md) writes the hypothesis as code. Two open-model scenarios run at the same time: `pay` (20/s, calls `payment`) and `browse` (20/s, `GET /orders/{id}`, never calls `payment`). The thresholds on `browse` — p95 under 200 ms, under 1% errors — are the hypothesis "the failure does not reach what does not use the provider"; a run that breaks them is a finding. With `payment` 3 s slow, the lab measured a `browse` p95 of 13.17 s unprotected and 805 ms with every pattern on (only the first seconds, before the breaker opened, were slow).
+
+    ``` { .javascript title="load/pay-under-chaos.js (two scenarios and the thresholds)" }
+    --8<-- "docs/2027.1/hands-on/9/code/load/pay-under-chaos.js:13:40"
+    ```
 
 ---
 
@@ -77,7 +85,7 @@ An experiment that **confirms** the hypothesis is evidence that a defence works.
 | **State and time** | Clock skew, expired certificate, corrupted cache entry, failover of the database | Chaos Mesh `TimeChaos`, managed DB "reboot with failover" |
 | **Infrastructure** | Lose an availability zone or a region | AWS FIS, Azure Chaos Studio, routing changes, the DR drill |
 
-### Toxiproxy: chaos on your laptop
+### Toxiproxy: chaos on your laptop { #toxiproxy }
 
 [Toxiproxy](https://github.com/Shopify/toxiproxy){target="_blank"} is a TCP proxy with an API to add "toxics" — latency, timeouts, bandwidth limits, connection resets — to a connection. Put it between `payment` and the provider stub in Docker Compose, and point `payment` at the proxy:
 
@@ -107,6 +115,18 @@ toxiproxy-cli toxic add -t timeout -a timeout=0 provider
 toxiproxy-cli toxic remove -n latency_downstream provider
 toxiproxy-cli toxic remove -n timeout_downstream provider
 ```
+
+!!! example "In the BoxOffice code: Toxiproxy and the game master's script (lab 9)"
+
+    [Hands-on 9 — Payment, provider and Toxiproxy](../../../hands-on/9/payment/index.md) loads the proxies from a file at startup instead of creating them with the CLI: one in front of `payment` (`order` calls `toxiproxy:18085`) and one in front of `psp`, the fake provider (`payment` calls `toxiproxy:18095`). Two proxies give two places to break, so an operator must find *which* hop is slow — our adapter or the provider. Toxics go in through the HTTP API on port 8474; the [game day](../../../hands-on/9/game-day/index.md) wraps six of them in a script for the game master, and `reset` (remove every toxic, re-enable every proxy) is the abort button.
+
+    ``` { .json title="infra/toxiproxy/toxiproxy.json" }
+    --8<-- "docs/2027.1/hands-on/9/code/infra/toxiproxy/toxiproxy.json"
+    ```
+
+    ``` { .shell title="scripts/game-day.sh (the game master's injections)" }
+    --8<-- "docs/2027.1/hands-on/9/code/scripts/game-day.sh:4:17"
+    ```
 
 Run k6 before, during and after each toxic and compare the numbers — that is the "Measure it" step of [Hands-on 9](../../../hands-on/9/index.md).
 
@@ -139,7 +159,7 @@ spec:
 
 The blast radius of an experiment is the set of users and systems it can affect. Controlling it is what separates engineering from recklessness.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     S1["1. Local / Compose<br/>no users"] -->|"hypothesis holds"| S2["2. Staging under k6 load<br/>internal users"]
     S2 -->|"no findings"| S3["3. One canary pod in production<br/>a few % of traffic"]
@@ -174,7 +194,7 @@ A **game day** is a planned, team-wide exercise in which failures are injected a
 
 !!! info "Try it in the playground"
 
-    Load the `flash-sale` scenario with **chaos** set to *medium*: the simulator injects random latency spikes and instance failures while the on-sale traffic runs. Press **Run** and watch which component degrades first and whether the SLO panel stays green. Then make your design more resilient (more replicas, a cache, a lower admission rate) and run the same seed again to compare.
+    Load the `flash-sale` scenario with the **chaos** profile (300 s, chaos at least *medium*): the simulator injects random failures — crashes, latency degradations, provider outages — while the on-sale traffic runs. Press **Run**: the design as drawn fails when the sale opens (t = 60 s) whatever chaos does, because it has no waiting room — a chaos experiment needs a steady state that passes first. So open it in the full playground (↗), press **Show a possible solution** (the settings, seed 42 included, come along) and run it: the waiting room absorbs the sale, and the **Events** tab lists each injected failure. Which ones does the design survive, and which single component still turns a goal red — and how would you make it redundant in production? Finally switch the profile to `load` to confirm the steady state passes without chaos.
 
 <div class="sdp" data-scenario="flash-sale" data-mode="compact" data-profile="chaos" data-chaos="medium" data-seed="42" data-height="560"></div>
 
@@ -204,6 +224,8 @@ Chaos without observability is just breaking things. Before injecting anything y
 
 > Observability first, then resilience patterns, then chaos experiments to prove the patterns work.
 
+It is also the order of the labs: [lab 8](../../../hands-on/8/index.md) instruments BoxOffice before [lab 9](../../../hands-on/9/index.md) breaks it on purpose, and the game-day operators work from the lab 8 dashboard and alerts.
+
 | Tool | Maintained by | Strengths |
 |---|---|---|
 | [Toxiproxy](https://github.com/Shopify/toxiproxy){target="_blank"} | Shopify (open source) | Simple TCP proxy; ideal for local and CI tests |
@@ -217,6 +239,15 @@ Chaos without observability is just breaking things. Before injecting anything y
 !!! tip "In the interview"
     After proposing resilience mechanisms, add how you would **verify** them: "I'd run a chaos experiment with a steady-state hypothesis on the purchase SLO — inject 3 s of latency on the payment provider for one canary pod, expect the breaker to open within 30 s and catalog latency to stay flat, with an automatic abort if the burn rate exceeds 10×". It shows you know that untested failover and untested fallbacks are the most common reason resilient-looking designs fail.
 
+!!! success "Best practices"
+
+    - **Write the steady state as thresholds a tool checks** — pass or fail is then a fact, not an opinion. In BoxOffice: the `browse` thresholds of `pay-under-chaos.js` ([box above](#the-experiment-lifecycle)).
+    - **Test the abort command before the first injection** — the abort must work when the system does not. In BoxOffice: `curl -s -X POST localhost:8474/reset` removes every toxic ([Hands-on 9 — Game day](../../../hands-on/9/game-day/index.md)).
+    - **Keep experiments as versioned code with a built-in end** — a script or a manifest with a `duration` can be reviewed, repeated and cannot be forgotten running. In BoxOffice: `scripts/game-day.sh`.
+    - **Inject faults below the client library, at the network** — a TCP proxy exercises the real timeouts and connection pools; a mock in the code tests only the mock. In BoxOffice: one Toxiproxy proxy per hop ([box above](#toxiproxy)).
+    - **Time detection and mitigation in every game day, and compare across rounds** — the trend of those two numbers is the evidence that the team, not only the code, got better. In BoxOffice: the results table of [Hands-on 9](../../../hands-on/9/measure/index.md).
+    - **Turn each finding into a regression experiment in CI** — a weakness fixed today returns with next week's deploy; Testcontainers' Toxiproxy module makes the check cheap.
+
 !!! warning "Common pitfalls"
 
     - **Chaos without a hypothesis**: if you did not say what should happen, you cannot learn from what did.
@@ -228,7 +259,7 @@ Chaos without observability is just breaking things. Before injecting anything y
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     SS["steady state = SLIs<br/>→ SLOs"] --> HYP["hypothesis"]
     HYP --> INJ["inject: Toxiproxy,<br/>Chaos Mesh, AWS FIS"]

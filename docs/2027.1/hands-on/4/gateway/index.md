@@ -13,6 +13,16 @@ The gateway is the API's front door: every request that passes the edge goes thr
 
 Create `services/gateway` (same `Dockerfile` with `EXPOSE 8080`, same `.dockerignore`).
 
+??? example "`services/gateway/Dockerfile` and `.dockerignore` (same as `catalog`, only `EXPOSE 8080` changes)"
+
+    ``` { .dockerfile title="services/gateway/Dockerfile" .copy linenums="1" }
+    --8<-- "docs/2027.1/hands-on/4/code/services/gateway/Dockerfile"
+    ```
+
+    ``` { .text title="services/gateway/.dockerignore" .copy }
+    --8<-- "docs/2027.1/hands-on/4/code/services/gateway/.dockerignore"
+    ```
+
 ``` { .xml title="services/gateway/pom.xml" .copy linenums="1" }
 --8<-- "docs/2027.1/hands-on/4/code/services/gateway/pom.xml"
 ```
@@ -29,7 +39,7 @@ Create `services/gateway` (same `Dockerfile` with `EXPOSE 8080`, same `.dockerig
 
 - A **route** = id + predicates (when it matches) + URI (where it goes) + filters.
 - `uri: lb://catalog` asks Spring Cloud LoadBalancer for an instance of `catalog` on each request (round robin). The instance list here is static (`discovery.client.simple`); with Kubernetes in lab 10 a `Service` takes over this job.
-- `configurations: health-check` makes the balancer poll each instance's `/actuator/health` every 5 s and skip those that are not `UP` — an **active** health check, the thing open-source Nginx could not do in lab 3. It uses a `WebClient` to probe, which in Spring Boot 4 lives in its own starter: that is why the pom has `spring-boot-starter-webclient`. Until the first round of probes completes (a few seconds after startup) the balancer knows no healthy instance and the gateway answers `503`.
+- `configurations: health-check` makes the balancer poll each instance's `/actuator/health/readiness` every 5 s and skip those that are not `UP` — an **active** health check, the thing open-source Nginx could not do in lab 3. It uses a `WebClient` to probe, which in Spring Boot 4 lives in its own starter: that is why the pom has `spring-boot-starter-webclient`. Until the first round of probes completes (a few seconds after startup) the balancer knows no healthy instance and the gateway answers `503`. It probes *readiness*, not `/actuator/health`: the full health includes `db` and `redis`, which every replica shares, so one stopped dependency would mark all three *down* at once and the gateway would answer `503` for everything — even for requests that the cache, or a fallback, could serve.
 - `Retry` re-sends a failed GET once (to another instance); never POSTs, which might not be idempotent.
 
 !!! note "Two load balancers?"

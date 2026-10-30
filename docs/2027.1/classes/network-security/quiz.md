@@ -47,9 +47,53 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ---
 
+## How the Internet works
+
+**Q4.** A fan's browser sends a request to `10.20.40.17`, the private address of the `payment` pod, from home. Every security group in the VPC allows the fan's IP. What happens?
+
+- A. The request reaches the pod, because the security groups allow it
+- B. The request is dropped on the Internet: `10.20.40.17` is a private (RFC 1918) address that nobody announces, and the Internet core has no default route
+- C. The request reaches the VPC but the NAT gateway drops it
+- D. The request reaches the pod only over IPv6
+
+??? success "Answer"
+    **B — Private addresses are not routed on the Internet.**
+
+    Routers forward by the longest prefix that contains the destination, and only blocks announced with BGP appear in the core's tables. `10.0.0.0/8` is reused in millions of networks, so no one announces it: the packet finds no route at the first core router, long before any security group could see it. This is reachability, not authorization — anything *inside* the network can still reach the pod.
+
+---
+
+**Q5.** How many addresses does the subnet `10.20.32.0/19` contain, and is `10.20.64.5` one of them?
+
+- A. 2 048 addresses; yes
+- B. 8 192 addresses (`10.20.32.0`–`10.20.63.255`); no, it is in the next `/19` block
+- C. 8 192 addresses (`10.20.32.0`–`10.20.95.255`); yes
+- D. 524 288 addresses; yes
+
+??? success "Answer"
+    **B — 2³²⁻¹⁹ = 8 192.**
+
+    A `/19` leaves 13 host bits, so the blocks start every 32 values of the third octet: `10.20.0.0`, `10.20.32.0`, `10.20.64.0`… `10.20.64.5` is in `10.20.64.0/19`, so a host in `10.20.32.0/19` sends packets for it to its default gateway instead of delivering them directly. (In AWS, 5 of the 8 192 addresses are reserved.)
+
+---
+
+**Q6.** At 10:00, every fan on one mobile carrier gets HTTP 429 from BoxOffice, while fans on other carriers buy normally. The edge has a limit of 20 requests per second **per client IP**. What is the most likely cause?
+
+- A. The carrier blocks BoxOffice's IP
+- B. Carrier-grade NAT: thousands of phones share one public IP, so the per-IP limit treats them as one client; limit per API key or user instead
+- C. The load balancer has no public IP
+- D. The NAT gateway of BoxOffice ran out of ports
+
+??? success "Answer"
+    **B — Behind CGNAT, one IP is a neighbourhood.**
+
+    Mobile carriers give phones addresses from `100.64.0.0/10` and translate them to a few public addresses. The server sees the NAT, not the phone, so a per-IP limit adds up the whole carrier's traffic. Use per-key or per-user limits for fairness and keep per-IP limits only as a coarse shield against floods. BoxOffice's own NAT gateway handles *outbound* calls; it plays no part in inbound fan traffic.
+
+---
+
 ## Cloud networking
 
-**Q4.** BoxOffice plans private app subnets of `/24` in each AZ, and Kubernetes gives every pod a VPC IP. How many addresses can pods and nodes actually use in one such AWS subnet?
+**Q7.** BoxOffice plans private app subnets of `/24` in each AZ, and Kubernetes gives every pod a VPC IP. How many addresses can pods and nodes actually use in one such AWS subnet?
 
 - A. 256
 - B. 254
@@ -63,7 +107,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ---
 
-**Q5.** What makes a subnet **public** in AWS?
+**Q8.** What makes a subnet **public** in AWS?
 
 - A. Its route table has a route `0.0.0.0/0` to an Internet Gateway
 - B. A checkbox "public" on the subnet
@@ -77,7 +121,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ---
 
-**Q6.** The payment provider only accepts calls from allow-listed IPs. BoxOffice runs in three AZs with **one** NAT gateway in AZ a for all private subnets. AZ a goes down. What happens?
+**Q9.** The payment provider only accepts calls from allow-listed IPs. BoxOffice runs in three AZs with **one** NAT gateway in AZ a for all private subnets. AZ a goes down. What happens?
 
 - A. Nothing: NAT gateways replicate automatically across AZs
 - B. Pods in AZ b and c lose outbound Internet access, so `payment` cannot reach the provider and checkout fails, even though the app is healthy in two AZs
@@ -91,7 +135,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ---
 
-**Q7.** Which statement about **security groups** and **network ACLs** is correct?
+**Q10.** Which statement about **security groups** and **network ACLs** is correct?
 
 - A. Both are stateless and must allow return traffic explicitly
 - B. Security groups apply to subnets; NACLs to network interfaces
@@ -105,7 +149,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ---
 
-**Q8.** Each of 30 nodes pulls about 2 GB of images per day through the NAT gateway, plus 50 GB/day of logs shipped to object storage. Assume (illustratively) NAT data processing costs US$ 0.045 per GB. Roughly how much per 30-day month could a gateway endpoint for object storage plus an interface endpoint for the registry remove from the NAT bill (data processing only)?
+**Q11.** Each of 30 nodes pulls about 2 GB of images per day through the NAT gateway, plus 50 GB/day of logs shipped to object storage. Assume (illustratively) NAT data processing costs US$ 0.045 per GB. Roughly how much per 30-day month could a gateway endpoint for object storage plus an interface endpoint for the registry remove from the NAT bill (data processing only)?
 
 - A. About US$ 15
 - B. About US$ 150
@@ -121,7 +165,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ## Service mesh
 
-**Q9.** Istio is installed with mTLS in **STRICT** mode, but no `AuthorizationPolicy` exists. The compromised `search` pod calls `POST /charges` on `payment`. What happens?
+**Q12.** Istio is installed with mTLS in **STRICT** mode, but no `AuthorizationPolicy` exists. The compromised `search` pod calls `POST /charges` on `payment`. What happens?
 
 - A. The call is accepted: `search` has a valid mesh identity, and without an authorization policy every authenticated workload is allowed
 - B. The call is rejected, because mTLS only allows known services
@@ -135,7 +179,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ---
 
-**Q10.** Which statement best compares **sidecar** and **ambient** service-mesh data planes?
+**Q13.** Which statement best compares **sidecar** and **ambient** service-mesh data planes?
 
 - A. Ambient injects two proxies into every pod instead of one
 - B. Sidecar runs in the kernel with eBPF; ambient uses Envoy
@@ -149,7 +193,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ---
 
-**Q11.** `order` uses Resilience4j with 3 attempts on calls to `payment`, and the mesh `VirtualService` adds `retries.attempts: 2` (i.e. up to 3 tries per call). During a `payment` slowdown, how many requests can one user click generate on `payment`, and what is the lesson?
+**Q14.** `order` uses Resilience4j with 3 attempts on calls to `payment`, and the mesh `VirtualService` adds `retries.attempts: 2` (i.e. up to 3 tries per call). During a `payment` slowdown, how many requests can one user click generate on `payment`, and what is the lesson?
 
 - A. 3 — the mesh ignores application retries
 - B. 5 — retries add up
@@ -165,7 +209,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ## Identity
 
-**Q12.** Which OAuth 2.1 flow should the BoxOffice **mobile app** use to log users in?
+**Q15.** Which OAuth 2.1 flow should the BoxOffice **mobile app** use to log users in?
 
 - A. Resource Owner Password Credentials: the app collects e-mail and password and sends them to `/token`
 - B. Implicit: the token comes back in the redirect URL
@@ -179,7 +223,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ---
 
-**Q13.** Access tokens live 15 minutes and are validated **locally** at the gateway with the JWKS. A refresh token is revoked at 14:05; the last access token was issued at 13:58. Until when can a thief holding that access token call the API, and how could you shorten the window?
+**Q16.** Access tokens live 15 minutes and are validated **locally** at the gateway with the JWKS. A refresh token is revoked at 14:05; the last access token was issued at 13:58. Until when can a thief holding that access token call the API, and how could you shorten the window?
 
 - A. Until 14:05 — revoking the refresh token invalidates the access tokens
 - B. Until 14:13 — local validation accepts the token until `exp`; shorten access-token lifetime, or use introspection / a `jti` denylist for sensitive calls
@@ -195,7 +239,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ## Zero Trust, secrets and supply chain
 
-**Q14.** The payment API key is stored in a Kubernetes Secret created from a manifest committed to the Git repository. Which statement is correct?
+**Q17.** The payment API key is stored in a Kubernetes Secret created from a manifest committed to the Git repository. Which statement is correct?
 
 - A. It is safe, because Kubernetes Secrets are encrypted with AES
 - B. It is safe if the repository is private
@@ -209,7 +253,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ---
 
-**Q15.** The CI pipeline signs every image with cosign, but the cluster has no admission policy that verifies signatures. An attacker with registry push access replaces the `order:1.4.2` tag with a malicious image. What happens?
+**Q18.** The CI pipeline signs every image with cosign, but the cluster has no admission policy that verifies signatures. An attacker with registry push access replaces the `order:1.4.2` tag with a malicious image. What happens?
 
 - A. The malicious image runs: signing protects nothing unless something verifies the signature (and the expected signer) at deploy time; also pin images by digest
 - B. The pod fails to start, because cosign signatures are checked by the container runtime

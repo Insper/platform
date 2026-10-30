@@ -4,25 +4,27 @@ Esta aula é sobre construir essas defesas e sobre decidir **com números** quan
 
 Um sistema confiável não é aquele que nunca falha. É aquele que **falha de forma controlada, se recupera rápido e limita o raio de impacto (blast radius)** de qualquer falha isolada — sendo o **raio de impacto** o conjunto de usuários e componentes afetados por uma falha.
 
+!!! quote "A história até aqui"
+
+    Capítulo 10 da [história do curso](../../index.md#story). O BoxOffice espalha a multidão das 10:00 por réplicas stateless ([aula 4](../edge/index.md), [aula 5](../compute/index.md)), vende cada assento uma única vez ([aula 6](../databases/index.md)), responde leituras de um cache ([aula 7](../caching/index.md)) e admite fãs por uma sala de espera ([aula 8](../messaging/index.md)); a [aula 9](../observability/index.md) o tornou visível, com um SLO por jornada e um trace por checkout. Agora o trace mostra o problema: o provedor de pagamento responde em segundos em vez de milissegundos, e nada no BoxOffice está quebrado. **Esta aula** responde: como impedir que uma dependência lenta derrube tudo, e quanta redundância o SLO nos pede para comprar?
+
 !!! abstract "Objetivos de aprendizagem"
 
     Ao final desta aula você deve ser capaz de:
 
     - **Calcular** a disponibilidade a partir de MTTF e MTTR, a indisponibilidade permitida por um número de "noves" e a disponibilidade de ponta a ponta de componentes em série e em paralelo.
     - **Explicar** como uma dependência lenta causa uma falha em cascata e **estimar** com a Lei de Little os recursos que ela esgota.
-    - **Definir** SLIs e SLOs para as jornadas de usuário do BoxOffice e **calcular** error budgets e burn rates.
     - **Escolher e configurar** padrões de resiliência — timeouts, retries com backoff e jitter, circuit breakers, bulkheads, load shedding e rate limiting — para uma chamada entre dois serviços, e **prever** o que cada um faz sob falha.
     - **Projetar** uma estratégia de recuperação de desastres a partir de metas de RPO e RTO, escolhendo entre backup e restore, pilot light, warm standby e ativo-ativo.
     - **Planejar** um experimento de caos e um game day com uma hipótese de estado estável e um raio de impacto controlado.
 
-## Roteiro
+## Roteiro { #roadmap }
 
 1. **Esta visão geral** — disponibilidade, MTTF/MTTR, os "noves", disponibilidade composta, redundância e failover, modos de falha e falhas em cascata.
-2. [SLIs, SLOs e error budgets](slo/index.md) — como medir a confiabilidade do ponto de vista do usuário, definir metas e gastar o orçamento.
-3. [Padrões de resiliência](patterns/index.md) — timeout, retry com backoff e jitter, circuit breaker, bulkhead, load shedding, rate limiting, health checks, com Resilience4j.
-4. [Recuperação de desastres](disaster-recovery/index.md) — RPO e RTO, backups, multi-AZ e multi-região, e as quatro estratégias de DR.
-5. [Engenharia do caos](chaos/index.md) — injetar falhas de propósito para provar que as defesas funcionam; game days.
-6. [Quiz](quiz.md) — teste seu entendimento.
+2. [Padrões de resiliência](patterns/index.md) — timeout, retry com backoff e jitter, circuit breaker, bulkhead, load shedding, rate limiting, health checks, com Resilience4j.
+3. [Recuperação de desastres](disaster-recovery/index.md) — RPO e RTO, backups, multi-AZ e multi-região, e as quatro estratégias de DR.
+4. [Engenharia do caos](chaos/index.md) — injetar falhas de propósito para provar que as defesas funcionam; game days.
+5. [Quiz](quiz.md) — teste seu entendimento.
 
 ## Slides
 
@@ -35,7 +37,7 @@ Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** a
 
 ---
 
-## Disponibilidade
+## Disponibilidade { #availability }
 
 A face mais visível da confiabilidade é a **disponibilidade**: a fração do tempo (ou das requisições) em que o sistema funciona. Confiabilidade e disponibilidade são relacionadas, mas não são a mesma coisa. Um serviço que cai por um segundo a cada minuto falha *com frequência* (confiabilidade ruim), mas ainda tem cerca de 98% de disponibilidade; um serviço que falha uma vez por ano mas leva uma semana para ser reparado é muito confiável e pouco disponível. A disponibilidade vem de duas grandezas mensuráveis:
 
@@ -62,7 +64,7 @@ $$
 
 O trabalho de confiabilidade puxa uma de duas alavancas. **Aumentar o MTTF** (menos falhas): testes, revisão de código, redundância, projeto tolerante a falhas, deploys cuidadosos. **Reduzir o MTTR** (recuperação mais rápida): bons alertas, dashboards e traces, runbooks, reinícios e failover automáticos, rollbacks rápidos. Em sistemas modernos o MTTR costuma ser a alavanca mais barata, e o próprio MTTR é uma soma — **tempo para detectar + tempo para diagnosticar + tempo para corrigir** — cada parcela atacada por uma prática diferente (veja [Observabilidade](../observability/index.md)).
 
-### Os "noves"
+### Os "noves" { #the-nines }
 
 Metas de disponibilidade são expressas em número de "noves". A tabela mostra a indisponibilidade que cada meta permite (ano = 365,25 dias, mês = 1/12 de ano ≈ 30,44 dias):
 
@@ -77,7 +79,7 @@ Metas de disponibilidade são expressas em número de "noves". A tabela mostra a
 Cada nove a mais é **10× menos indisponibilidade**, e não é uma melhoria incremental: muda a forma de operar. Com três noves, uma pessoa pode ser acionada, abrir o notebook e fazer rollback. Com quatro noves, o orçamento do mês inteiro é menor que o tempo de acordar; detecção e recuperação precisam ser automáticas. Com cinco noves, até o failover automático precisa terminar em segundos, e um único deploy ruim pode gastar o orçamento do ano.
 
 !!! warning "Sempre diga a janela"
-    "99,9%" sozinho é ambíguo: 43,8 minutos em um mês de calendário, 40,3 minutos em uma janela de 28 dias. Sempre que citar disponibilidade, diga em qual janela — e se ela conta tempo ou requisições (veja [SLOs](slo/index.md)).
+    "99,9%" sozinho é ambíguo: 43,8 minutos em um mês de calendário, 40,3 minutos em uma janela de 28 dias. Sempre que citar disponibilidade, diga em qual janela — e se ela conta tempo ou requisições (veja [SLOs](../observability/slo/index.md)).
 
 ---
 
@@ -163,7 +165,7 @@ Lendo o gráfico de cima para baixo:
 - **Três réplicas** dos serviços sem estado os tornam praticamente perfeitos, e o gargalo passa para os componentes que *não* são replicados: o banco de dados e o provedor externo de pagamento.
 - **Failover automático do banco** (um standby em outra zona) e um **segundo provedor de pagamento** atacam esses dois. Cada passo remove o elo mais fraco do momento — e o próximo mais fraco fica visível.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     fan(["fã"]) --> lb["load balancer<br/>99,99%"]
     lb --> g1["gateway #1"]
@@ -179,11 +181,11 @@ flowchart LR
 ```
 
 !!! tip "Redundância tem preço"
-    Cada passo do gráfico custa dinheiro (três vezes mais instâncias, um banco em standby, o contrato com um segundo provedor) e complexidade (lógica de failover, testar o fallback). Confiabilidade se compra, não é de graça: o [error budget](slo/index.md) é como você decide quanto comprar.
+    Cada passo do gráfico custa dinheiro (três vezes mais instâncias, um banco em standby, o contrato com um segundo provedor) e complexidade (lógica de failover, testar o fallback). Confiabilidade se compra, não é de graça: o [error budget](../observability/slo/index.md) é como você decide quanto comprar.
 
 ---
 
-## Redundância e failover
+## Redundância e failover { #redundancy-and-failover }
 
 Redundância só ajuda se o tráfego realmente sair do componente que falhou — isso é o **failover** — e se a cópia redundante estiver pronta para recebê-lo.
 
@@ -203,7 +205,7 @@ Duas regras fazem a redundância funcionar:
 
 ---
 
-## Modos de falha
+## Modos de falha { #failure-modes }
 
 Sistemas distribuídos falham de formas que uma máquina sozinha não falha. **Falhas parciais** — alguns componentes funcionam e outros não — são muito mais comuns que indisponibilidades totais, e mais difíceis de tratar.
 
@@ -222,7 +224,7 @@ A mais perigosa delas não é o crash, e sim o componente **lento**. Uma depend�
 
 Uma dependência lenta esgota um recurso de quem a chama — threads, conexões, memória — e quem chama, esgotado, fica lento para os *seus* chamadores. O esgotamento sobe pelo grafo de chamadas até funcionalidades sem relação falharem. Esse é o jeito mais comum de sistemas de microsserviços caírem[^3].
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant F as Fãs
     participant G as gateway
@@ -276,7 +278,7 @@ Cascatas são um exemplo de uma família maior: falhas que **se alimentam**.
 
 Confiabilidade não é um componente: é uma propriedade que se compra, peça por peça, em toda a paleta. O mapa liga cada **componente da paleta** (verde) aos **conceitos de confiabilidade** que ele carrega (azul); as setas mostram como a aula se constrói — redundância e probes mantêm as instâncias servindo, os padrões contêm dependências lentas, o DR cobre o que a redundância não cobre, os SLOs dizem quanto basta e o caos prova que tudo funciona:
 
-``` mermaid
+``` diagram
 flowchart LR
     lbapp["lb · app"]:::comp -.- red["MTTF/MTTR, noves, série vs paralelo,<br/>redundância, N+1, multi-AZ"]:::tech
     tp["thirdparty · payment"]:::comp -.- casc["falhas em cascata<br/>(Lei de Little)"]:::tech
@@ -301,13 +303,22 @@ flowchart LR
 | [`thirdparty`](../../reference/components/external/index.md#thirdparty), [`payment`](../../reference/components/external/index.md#payment) | E se uma dependência ficar *lenta*? | falhas em cascata, timeout, retry + backoff + jitter, circuit breaker, bulkhead, fallback | [esta visão geral](#cascading-failures), [Padrões de resiliência](patterns/index.md) | `cascading-failure`, `retry-storm`, `payment-system` |
 | [`apigw`](../../reference/components/edge/index.md#apigw) | Que trabalho recusamos em sobrecarga? | rate limiting por cliente, descarte de carga por prioridade, sala de espera | [Padrões de resiliência](patterns/index.md#load-shedding) | `rate-limiter`, `flash-sale` |
 | [`healthcheck`](../../reference/components/observability/index.md#healthcheck) | O tráfego deve chegar a esta instância? | liveness, readiness, startup; nenhuma dependência no liveness | [Padrões de resiliência](patterns/index.md#health-checks) | `scale-out` |
-| [`metrics`](../../reference/components/observability/index.md#metrics), [`alerting`](../../reference/components/observability/index.md#alerting) | Somos confiáveis o *suficiente*? | SLI, SLO, orçamento de erros, burn rate, política de orçamento | [SLIs, SLOs e orçamento de erros](slo/index.md) | `observability-stack` |
-| [`sql`](../../reference/components/storage/index.md#sql), [`objstore`](../../reference/components/storage/index.md#objstore) | Quantos dados e quanto tempo podemos perder? | RPO/RTO, PITR, backups 3-2-1, réplica atrasada | [Recuperação de desastres](disaster-recovery/index.md#rpo-rto) | `db-replicas` |
+| [`metrics`](../../reference/components/observability/index.md#metrics), [`alerting`](../../reference/components/observability/index.md#alerting) | Somos confiáveis o *suficiente*? | SLI, SLO, orçamento de erros, burn rate, política de orçamento — a meta pela qual cada defesa aqui é julgada | [Observabilidade — SLIs, SLOs e orçamento de erros](../observability/slo/index.md) (aula 9) | `observability-stack` |
+| [`sql`](../../reference/components/storage/index.md#sql), [`objstore`](../../reference/components/storage/index.md#objstore) | Quantos dados e quanto tempo podemos perder? | RPO/RTO, PITR, backups 3-2-1, réplica atrasada | [Recuperação de desastres](disaster-recovery/index.md#rpo-rto) | `db-failover`, `db-replicas` |
 | [`dns`](../../reference/components/edge/index.md#dns) | Como os fãs chegam à região sobrevivente? | multirregião, as quatro estratégias de DR, fencing, TTL do DNS | [Recuperação de desastres](disaster-recovery/index.md#dr-strategies) | `multi-region` |
 | *(todos eles)* | As defesas funcionam de verdade? | hipótese de estado estável, injeção de falhas, raio de impacto, game days | [Engenharia do caos](chaos/index.md) | `flash-sale` (caos) |
 
 !!! tip "Na entrevista"
     Quando você termina um projeto, entrevistadores costumam perguntar "e se X falhar?" ou "e se X ficar lento?". Responda com uma cadeia: *quem chama X*, *que recurso segura enquanto espera*, *qual é o timeout*, *qual é o fallback* e *o que o usuário vê*. Para o BoxOffice: "o pagamento é chamado pelo `order` com timeout de 2 s, um circuit breaker e um bulkhead próprio de 50 chamadas concorrentes; quando o breaker abre, o fã vê 'pagamento temporariamente indisponível, seus lugares continuam reservados por 10 minutos' — e o catálogo não é afetado." Cite também a matemática da disponibilidade: "duas dependências com três noves em série nos limitam a 99,8%".
+
+!!! success "Boas práticas"
+
+    - **Escreva o teto de disponibilidade de cada jornada antes de escolher componentes** — multiplique o que o caminho chama de forma síncrona: duas dependências a 99,9% já limitam a compra a 99,8%. No BoxOffice: o [gráfico do caminho de compra](#composite-availability).
+    - **Rode N+1 réplicas espalhadas por pelo menos duas zonas** — depois de perder uma réplica, ou uma zona inteira, as restantes ainda precisam carregar o pico das 10:00; uma chamada entre zonas custa cerca de 1 ms.
+    - **Automatize a recuperação antes de buscar um MTTF maior** — reiniciar em 1 minuto em vez de 2 horas levou o `inventory` de 99,72% a 99,998%. No BoxOffice: probes e reinícios no [Hands-on 10](../../hands-on/10/index.md).
+    - **Dê a toda dependência um plano de falha escrito: seu timeout, seu fallback e o que o fã vê** — decidido no projeto, não às 10:02. No BoxOffice: o `payment` falha rápido com `503` e o pedido fica `PENDING_PAYMENT` ([Hands-on 9](../../hands-on/9/patterns/index.md)).
+    - **Tire da requisição tudo o que o fã não espera** — cada dependência síncrona baixa o teto da jornada. No BoxOffice: o e-mail sai pelo outbox e pelo Kafka ([Hands-on 7](../../hands-on/7/index.md)).
+    - **Acompanhe o MTTR como três números: tempo para detectar, diagnosticar e corrigir** — cada um é reduzido por uma prática diferente (alertas, traces, rollback). No BoxOffice: a linha do tempo do game day do [Hands-on 9](../../hands-on/9/game-day/index.md).
 
 !!! warning "Armadilhas comuns"
 
@@ -319,12 +330,16 @@ flowchart LR
 
 ---
 
-## Relacionados
+## Relacionados { #related }
 
-- **Hands-on:** [Hands-on 9 — Resiliência e caos](../../hands-on/9/index.md): Resilience4j entre `order` e `payment`, latência e falhas com Toxiproxy, um game day. [Hands-on 8 — Observabilidade](../../hands-on/8/index.md): alertas de burn rate de SLO. [Hands-on 10 — Kubernetes](../../hands-on/10/index.md): probes e autorrecuperação.
+- **Hands-on** (na semana seguinte a esta aula e à aula 9): primeiro o [Hands-on 8 — Observabilidade](../../hands-on/8/index.md) — OpenTelemetry, um dashboard RED e alertas de burn rate de SLO, para que os experimentos tenham o que mostrar; depois o [Hands-on 9 — Resiliência e caos](../../hands-on/9/index.md): Resilience4j entre `order` e `payment`, latência e falhas com Toxiproxy, um game day. [Hands-on 10 — Kubernetes](../../hands-on/10/index.md): probes e autorrecuperação.
 - **Projeto:** [Game day de caos](../../exercises/project/game-day/index.md).
 - **Estudos de caso:** [Sistema de pagamentos](../case-studies/payment-system/index.md), [Venda de ingressos (flash sale do BoxOffice)](../case-studies/ticketing/index.md).
-- **Aulas:** [Estimativas — matemática da disponibilidade](../estimation/availability-math/index.md), [Mensageria](../messaging/index.md) (a assincronia tira dependências do caminho crítico), [Observabilidade](../observability/index.md) (SLIs, alertas, resposta a incidentes).
+- **Aulas:** [Estimativas — matemática da disponibilidade](../estimation/availability-math/index.md), [Observabilidade](../observability/index.md) (aula anterior, na mesma semana: os SLOs, dashboards e alertas pelos quais estas defesas são julgadas), [Mensageria](../messaging/index.md) (a assincronia tira dependências do caminho crítico), [Cloud-Native](../cloud-native/index.md) (próxima aula: probes, autorrecuperação, autoescala).
+
+## O que quebra em seguida { #what-breaks-next }
+
+Os padrões contêm um provedor lento, a redundância e o plano de DR cobrem máquinas e regiões perdidas, e os experimentos de caos provam os dois. Mas toda defesa desta página supõe que *algo* reinicia uma réplica morta, adiciona réplicas antes das 10:00 e desfaz uma versão ruim — e num laptop com Compose, esse algo é você. O exemplo do `inventory` acima passou de 99,72% para 99,998% só porque o reinício levou 1 minuto em vez de 2 horas; esse minuto só existe se uma máquina fizer o reinício. Curar, escalar às 09:45 e voltar atrás sem um humano é a [aula 11 — Cloud-Native](../cloud-native/index.md).
 
 ---
 

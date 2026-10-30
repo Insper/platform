@@ -77,7 +77,7 @@ Os custos: linhas que andam juntas (um evento, suas atrações e seus preços) f
 
 ---
 
-## Bancos de documentos
+## Bancos de documentos { #document-databases }
 
 Um **banco de documentos** guarda documentos autocontidos e aninhados — normalmente JSON ou uma forma binária dele — endereçados por uma chave. Tudo o que é preciso para renderizar a página de um evento pode morar num único documento:
 
@@ -104,7 +104,7 @@ Produtos: MongoDB, Couchbase, Google Firestore, Azure Cosmos DB, Amazon Document
 
 ---
 
-## Armazenamentos chave-valor
+## Armazenamentos chave-valor { #key-value-stores }
 
 O modelo mais simples: um **valor** opaco buscado por uma **chave** — `GET`, `PUT`, `DELETE`, às vezes com TTL. Sem consultas por valor, sem joins; por isso o armazenamento pode ser extremamente rápido e fácil de particionar por chave.
 
@@ -125,7 +125,7 @@ O projeto começa pela lista de consultas; uma consulta nova que não se encaixa
 
 ---
 
-## Armazenamentos wide-column
+## Armazenamentos wide-column { #wide-column-stores }
 
 Armazenamentos **wide-column** (Apache Cassandra, ScyllaDB, Google Bigtable, Apache HBase) organizam as linhas em **partições** por uma partition key e ordenam as linhas *dentro* de uma partição por **clustering columns**. Foram feitos para vazão de escrita altíssima em muitos nós, com consistência ajustável (veja [Replicação](../replication/index.md#leaderless)).
 
@@ -149,7 +149,7 @@ A sintaxe parece SQL, mas as regras são outras: só se pode filtrar pela partit
 
 ---
 
-## Bancos de grafos
+## Bancos de grafos { #graph-databases }
 
 Quando as perguntas são sobre **relacionamentos** — caminhos, vizinhos, comunidades —, um **banco de grafos** guarda nós e arestas como cidadãos de primeira classe. Neo4j (linguagem de consulta Cypher), Amazon Neptune e a linguagem de consulta padrão ISO GQL (2024) são exemplos.
 
@@ -165,7 +165,7 @@ Em SQL, a mesma consulta é um self-join de `orders` com ela mesma; funciona par
 
 ---
 
-## Comparando os modelos
+## Comparando os modelos { #comparing-the-models }
 
 | Modelo | Unidade de dado | Melhor em | Fraco em | Exemplos |
 |---|---|---|---|---|
@@ -182,7 +182,7 @@ Em SQL, a mesma consulta é um self-join de `orders` com ela mesma; funciona par
 
 O guia abaixo codifica as perguntas da [visão geral](../index.md#five-questions). Leia-o como "o padrão é relacional; cada seta que sai dele precisa de um motivo".
 
-``` mermaid
+``` diagram
 flowchart TD
     A["Novo dado a guardar"] --> B{"Invariantes entre linhas?<br/>dinheiro, estoque, unicidade"}
     B -->|sim| SQL["Banco relacional<br/>PostgreSQL / MySQL"]
@@ -218,7 +218,7 @@ Alguns mitos para aposentar antes de uma entrevista:
 
 ---
 
-## Motores de armazenamento: como os bytes chegam ao disco
+## Motores de armazenamento: como os bytes chegam ao disco { #storage-engines-how-bytes-reach-the-disk }
 
 Um banco de dados, no fundo, são duas operações: *guarde esta chave e este valor* e *me dê o valor desta chave* (ou desta faixa de chaves). A forma como ele dispõe os dados no disco determina o custo de cada uma. Duas famílias dominam: **B-trees** (atualizam páginas no lugar) e **LSM-trees** (acrescentam no fim e depois mesclam)[^2].
 
@@ -226,7 +226,7 @@ Um banco de dados, no fundo, são duas operações: *guarde esta chave e este va
 
 Uma **B-tree** mantém as chaves ordenadas em **páginas** de tamanho fixo (8 KiB no PostgreSQL, 16 KiB no MySQL InnoDB). Cada página interna guarda centenas de chaves e ponteiros para páginas filhas; as folhas guardam as linhas ou ponteiros para elas. Uma busca desce da raiz até uma folha[^3].
 
-``` mermaid-sim
+``` diagram-sim
 flowchart TD
     R["página raiz<br/>… | 30 | 60 | …"] -->|"chave 42"| I["página interna<br/>31 … 40 | 41 … 50 | …"]
     I -->|"chave 42"| L["página folha<br/>41, 42, 43 … → linhas"]
@@ -248,7 +248,7 @@ Uma tabela de um bilhão de linhas tem **4 níveis de profundidade**, e os níve
 
 Uma **log-structured merge-tree** (LSM-tree) nunca atualiza no lugar[^4]. As escritas vão para o WAL e para uma tabela ordenada em memória (a **memtable**); quando ela enche, é descarregada no disco como um arquivo ordenado e imutável (uma **SSTable**). A **compactação** (*compaction*) em segundo plano mescla SSTables em níveis maiores e ordenados e descarta valores sobrescritos e apagados.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     W["escrita chave=42"] --> WAL["WAL<br/>acrescenta no fim"]
     W --> M["memtable<br/>em memória, ordenada"]
@@ -261,7 +261,7 @@ flowchart LR
 
 As escritas são acréscimos sequenciais — muito rápidos, mesmo em discos lentos. As leituras podem ter de consultar a memtable e vários níveis; **Bloom filters** (um conjunto probabilístico compacto por SSTable que responde "com certeza não está aqui" ou "talvez esteja aqui") pulam a maioria deles. Usada por RocksDB (dentro de muitos sistemas), Cassandra, ScyllaDB, HBase, Bigtable, LevelDB e o Pebble do CockroachDB.
 
-### Amplificação de escrita
+### Amplificação de escrita { #write-amplification }
 
 A **amplificação de escrita** (*write amplification*) é o número de bytes que o motor grava no disco para cada byte que a aplicação escreve. Ela determina o desgaste do SSD, o custo de I/O e a vazão máxima de escrita. O modelo abaixo é uma intuição de guardanapo, não um benchmark: uma B-tree que reescreve uma página inteira de 8 KiB a cada pequena atualização aleatória (mais o WAL), e uma LSM-tree com compactação por níveis e razão de tamanho 10, em que cada registro é reescrito cerca de 5 vezes por nível durante a compactação (mais o WAL e o flush).
 
@@ -328,7 +328,7 @@ Leia o gráfico como intuição:
 
 ---
 
-## Índices
+## Índices { #indexes }
 
 Um **índice** é uma estrutura de dados adicional — normalmente uma B-tree — que mapeia valores de colunas para as linhas que os contêm, para que o banco encontre as linhas sem varrer a tabela inteira. A chave primária é sempre indexada; todos os outros índices são decisão sua, e cada um **acelera as leituras e desacelera as escritas** (todo `INSERT`/`UPDATE` precisa atualizar todos os índices da tabela).
 
@@ -344,7 +344,7 @@ Um **índice** é uma estrutura de dados adicional — normalmente uma B-tree �
 
 Um índice composto segue a **regra do prefixo mais à esquerda** (*leftmost prefix*): um índice em `(event_id, section, status)` ajuda consultas que filtram por `event_id`, por `event_id AND section` ou pelas três — mas não por `section` sozinha, assim como uma lista telefônica ordenada por sobrenome e depois por nome não ajuda a achar todo mundo chamado "Ana".
 
-### Lendo o `EXPLAIN`
+### Lendo o `EXPLAIN` { #reading-explain }
 
 O `EXPLAIN` mostra o plano escolhido pelo banco; o `EXPLAIN ANALYZE` também executa a consulta e reporta os tempos reais. A saída abaixo é ilustrativa, para uma tabela `seats` com 3 milhões de linhas (50 eventos de 60 mil assentos):
 
@@ -371,7 +371,15 @@ CREATE INDEX CONCURRENTLY seats_event_section_status_idx
 -- Execution Time: 0.430 ms
 ```
 
-Guia de leitura: **Seq Scan** com um "Rows Removed by Filter" grande indica um índice faltando; **Index Scan** percorre o índice e busca as linhas na tabela; **Index Only Scan** responde só com o índice; `cost` é a estimativa do planejador em unidades arbitrárias, `actual time` é o que aconteceu de fato. `CONCURRENTLY` cria o índice sem bloquear as escritas — essencial numa tabela em produção. Você vai fazer isso no [Hands-on 6](../../../hands-on/6/index.md).
+Guia de leitura: **Seq Scan** com um "Rows Removed by Filter" grande indica um índice faltando; **Index Scan** percorre o índice e busca as linhas na tabela; **Index Only Scan** responde só com o índice; `cost` é a estimativa do planejador em unidades arbitrárias, `actual time` é o que aconteceu de fato. `CONCURRENTLY` cria o índice sem bloquear as escritas — essencial numa tabela em produção. O [Hands-on 6](../../../hands-on/6/index.md) faz o mesmo diagnóstico no catálogo (quadro abaixo).
+
+!!! example "No código do BoxOffice: o índice que conserta a listagem (lab 6)"
+
+    No [Hands-on 6 — Índices](../../../hands-on/6/indexes/index.md), o `EXPLAIN ANALYZE` de "próximos eventos em Recife, os mais próximos primeiro" mostra um `Seq Scan` que lê e ordena 200.000 eventos para devolver 20 (~37 ms). Com `(starts_at, id)`, o PostgreSQL percorre os eventos já em ordem de data e para depois de 20 de Recife: 189 entradas do índice em vez de 200.000 linhas, e menos de 1 ms. A contagem passa pelo índice menor `(venue_id, starts_at)` sem tocar a tabela (*Index Only Scan*): ~14 ms → ~4 ms. Repare no atalho: a migração usa um `CREATE INDEX` simples, que bloqueia as escritas em `events` enquanto o índice é construído — aceitável num banco de laboratório, não num banco em produção, onde se usa `CONCURRENTLY` (que não pode rodar dentro de uma transação, então a migração precisa ser marcada para rodar sem uma).
+
+    ``` { .sql title="services/catalog/src/main/resources/db/migration/V3__index_events.sql" }
+    --8<-- "docs/2027.1/hands-on/6/code/services/catalog/src/main/resources/db/migration/V3__index_events.sql"
+    ```
 
 !!! example "BoxOffice: o orçamento de índices da tabela `seats`"
 
@@ -392,6 +400,14 @@ Guia de leitura: **Seq Scan** com um "Rows Removed by Filter" grande indica um �
     - Mencione os índices com o seu custo: "um índice composto em `(event_id, section, status)`; mantenho poucos índices em `seats` porque ela é quente em escrita".
     - Se perguntarem sobre motores de armazenamento: B-tree = otimizada para leitura, no lugar; LSM = otimizada para escrita, acréscimo + compactação, Bloom filters para as leituras.
 
+!!! success "Boas práticas"
+
+    - **Coloque as regras no schema, não só no código** — `NOT NULL`, `CHECK`, `UNIQUE` e chaves estrangeiras dentro de um serviço pegam o bug que a revisão de código deixou passar. Na BoxOffice: `CHECK (status IN (...))` e `UNIQUE (event_id, section, seat_row, seat_number)` no `V1__create_inventory.sql` ([lab 6](../../../hands-on/6/holds/index.md)).
+    - **Use tipos exatos para dinheiro e tempo** — `NUMERIC(10,2)` para preços e `TIMESTAMPTZ` para instantes; nunca ponto flutuante para dinheiro, nunca um horário sem o seu fuso. Na BoxOffice: a tabela de decisões do [lab 1](../../../hands-on/1/api/index.md).
+    - **Leia planos sobre dados do tamanho da produção** — um `EXPLAIN (ANALYZE, BUFFERS)` sobre 100 linhas não diz nada sobre 200.000; semeie volumes realistas antes de julgar uma consulta. Na BoxOffice: o lab 6 indexa os 200.000 eventos semeados (quadro acima).
+    - **Dê a cada índice uma consulta que o justifique, e revise o uso** — confira `pg_stat_user_indexes.idx_scan` periodicamente e remova os índices que ninguém percorre; numa tabela de escrita quente cada um custa a todo insert.
+    - **Atualize as estatísticas depois de cargas em massa** — rode `ANALYZE` depois de uma semeadura ou de uma importação grande; o planejador escolhe por estimativas, e linhas estimadas muito longe das reais são o sinal de estatísticas velhas.
+
 !!! warning "Armadilhas comuns"
 
     - **Um índice por coluna** "por via das dúvidas": escritas mais lentas, mais memória, e o planejador ainda não consegue combiná-los tão bem quanto um bom índice composto.
@@ -402,7 +418,7 @@ Guia de leitura: **Seq Scan** com um "Rows Removed by Filter" grande indica um �
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     REL["modelo relacional<br/>tabelas, joins, restrições"] --> GUIDE["SQL ou NoSQL?<br/>padrão de acesso primeiro"]
     DOC["documento"] --> GUIDE

@@ -96,7 +96,7 @@ The on-sale peak is 4\,500 holds/s; one \texttt{inventory} pod has a knee of 275
 \lines{6}
 \end{ex}
 
-\simulator{The waiting room under a spike}{flash-sale}{Run the spike profile, then bypass the queue (or raise the admission rate) and run again. Compare the holds p99, the database utilization and the error rate: where does the excess load go?}
+\simulator{The waiting room under a spike}{flash-sale}{Load the possible solution and run: the sale opens at t = 60 s and traffic jumps 20$\times$. Then bypass the queue (or add order workers) and run again. Compare the p99, the utilization of inventory-db and the error rate: where does the excess load go?}
 
 \begin{ex}{3}{A test plan you can defend}
 Write the one-page plan for the on-sale test and draw the test environment. The expected total peak is 30\,000 req/s.

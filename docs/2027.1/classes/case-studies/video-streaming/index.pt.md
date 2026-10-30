@@ -22,18 +22,18 @@ O BoxOffice usa vídeo em toda página de evento — trailers de artistas, tours
 
 ---
 
-## 1. Esclarecer os requisitos
+## 1. Esclarecer os requisitos { #1-clarify-the-requirements }
 
 ([roteiro de entrevista](../../intro/interview-framework/index.md))
 
-### Requisitos funcionais
+### Requisitos funcionais { #functional-requirements }
 
 1. Criadores **enviam** vídeos (até alguns GB) pela web e pelo celular, e acompanham o progresso do processamento.
 2. A plataforma **transcodifica** cada upload em várias resoluções e formatos, com miniaturas.
 3. Espectadores **assistem** com reprodução suave que se adapta à conexão; podem avançar e voltar.
 4. **Metadados** básicos: título, descrição, dono; **contagem de visualizações**.
 
-### Requisitos não funcionais
+### Requisitos não funcionais { #non-functional-requirements }
 
 | Qualidade | Meta |
 |---|---|
@@ -44,7 +44,7 @@ O BoxOffice usa vídeo em toda página de evento — trailers de artistas, tours
 | **Durabilidade** | Originais nunca se perdem (object storage da classe de 11 noves) |
 | **Custo** | A banda é a maior conta: projete para taxa de acerto do cache e codificação eficiente |
 
-### Fora do escopo (diga explicitamente)
+### Fora do escopo (diga explicitamente) { #out-of-scope-say-it-explicitly }
 
 Recomendações, comentários, monetização/anúncios, transmissão ao vivo (um follow-up), detecção de direitos autorais (cite como etapa assíncrona), detalhes de DRM.
 
@@ -61,7 +61,7 @@ Recomendações, comentários, monetização/anúncios, transmissão ao vivo (um
 
 ---
 
-## 2. Estimativas de guardanapo (back-of-the-envelope)
+## 2. Estimativas de guardanapo (back-of-the-envelope) { #2-back-of-the-envelope-estimates }
 
 ```python exec="1" source="tabbed-right"
 # Video streaming: assumptions (illustrative; prices are placeholders, not quotes)
@@ -132,7 +132,7 @@ POST /v1/events/playback   [{"videoId": "…", "type": "start|heartbeat|rebuffer
 
 ---
 
-## 4. Modelo de dados
+## 4. Modelo de dados { #4-data-model }
 
 ```sql
 CREATE TABLE video (
@@ -175,9 +175,9 @@ thumbs/{video_id}/{n}.jpg
 
 ---
 
-## 5. Design de alto nível
+## 5. Design de alto nível { #5-high-level-design }
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     cr([Criador]) --> api["API de vídeo"]
     api --> meta[("Metadados<br/>SQL")]
@@ -194,7 +194,7 @@ flowchart LR
 
 Do upload à primeira reprodução:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     participant C as App do criador
@@ -219,20 +219,20 @@ sequenceDiagram
 
 ---
 
-## 6. Aprofundamentos (deep dives)
+## 6. Aprofundamentos (deep dives) { #6-deep-dives }
 
-### 6.1 Uploads que contornam a aplicação
+### 6.1 Uploads que contornam a aplicação { #61-uploads-that-bypass-the-application }
 
 - **URLs pré-assinadas**: a API autoriza o upload e devolve URLs que permitem ao cliente fazer `PUT` direto no object store por alguns minutos. Os servidores de aplicação lidam com kilobytes de JSON, nunca com gigabytes de vídeo ([object storage](../../databases/specialized/index.md)).
 - **Multipart e retomável**: as partes sobem em paralelo e são repetidas individualmente; o cliente guarda o `uploadId` para retomar depois de o app ser fechado. Uploads incompletos são limpos por uma regra de ciclo de vida.
 - **Integridade e segurança**: um checksum por parte; depois do `complete`, uma etapa assíncrona valida o contêiner, procura malware e roda verificações de conteúdo antes de publicar.
 - **Upload perto do usuário**: object stores oferecem ingestão acelerada/na borda; para um público global, envie para a região mais próxima e replique.
 
-### 6.2 Transcodificação como um DAG de tarefas
+### 6.2 Transcodificação como um DAG de tarefas { #62-transcoding-as-a-dag-of-tasks }
 
 Codificar um vídeo de 2 horas numa máquina só leva tempo demais. Divida, codifique os pedaços em paralelo e junte de volta:
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     src["source.mp4"] --> split["Divide em<br/>pedaços de ~10 s<br/>(nos keyframes)"]
     split --> e1["codifica 240p…1080p<br/>pedaço 1"]
@@ -253,7 +253,7 @@ flowchart LR
 - **Priorize**: codifique as resoluções baixas primeiro e publique assim que existirem; os degraus mais altos e os codecs caros (AV1) vêm depois. Criadores populares ou os trailers oficiais do BoxOffice podem ir para uma fila de alta prioridade.
 - **Elástico e barato**: codificar é limitado por CPU/GPU e pode ser reiniciado — rode em instâncias preemptíveis com autoscaling; uma tarefa interrompida é simplesmente repetida.
 
-### 6.3 Streaming com bitrate adaptativo
+### 6.3 Streaming com bitrate adaptativo { #63-adaptive-bitrate-streaming }
 
 Cada vídeo é codificado numa **escada** de renditions, cada uma cortada em segmentos curtos (2–6 s). O player baixa um **manifesto** que lista as renditions, mede sua vazão e seu buffer e escolhe a rendition do **próximo** segmento — subindo ou descendo sem parar ([HLS](https://www.rfc-editor.org/rfc/rfc8216){target="_blank"}, MPEG-DASH).
 
@@ -281,7 +281,7 @@ Cada vídeo é codificado numa **escada** de renditions, cada uma cortada em seg
 - **Codificação por título**: um desenho animado precisa de bem menos bits do que um show com confete e luzes estroboscópicas para a mesma qualidade visual. Analisar cada vídeo e escolher sua própria escada (a "per-title encode optimization" da Netflix) economiza uma boa parte da banda em conteúdo simples.
 - **Codecs**: H.264 toca em todo lugar; HEVC e AV1 entregam a mesma qualidade com bem menos bits, mas custam muito mais CPU para codificar e não são suportados em todo dispositivo. Codifique os codecs caros só para vídeos com visualizações suficientes para pagar o custo.
 
-### 6.4 Entrega: CDN, shield e a cauda longa
+### 6.4 Entrega: CDN, shield e a cauda longa { #64-delivery-cdn-shield-and-the-long-tail }
 
 - As **bordas da CDN** guardam manifestos e segmentos perto dos espectadores. Os segmentos são **imutáveis** (conteúdo novo = chave nova), então podem ficar em cache por muito tempo sem invalidação ([DNS e CDN](../../edge/dns-cdn/index.md)).
 - **Origin shield**: uma camada de cache regional na frente do object store; todas as bordas buscam no shield, que busca na origem no máximo uma vez por objeto — essencial para um vídeo que viraliza minutos após o upload.
@@ -295,7 +295,7 @@ Cada vídeo é codificado numa **escada** de renditions, cada uma cortada em seg
 
 ---
 
-## 7. Gargalos, modos de falha e trade-offs
+## 7. Gargalos, modos de falha e trade-offs { #7-bottlenecks-failure-modes-and-trade-offs }
 
 | Onde | O que dá errado | Mitigação | Trade-off |
 |---|---|---|---|
@@ -312,7 +312,7 @@ Os trade-offs para **dizer em voz alta**: **custo de codificação vs. custo de 
 
 ---
 
-## 8. Experimente no playground
+## 8. Experimente no playground { #8-try-it-in-the-playground }
 
 O cenário `video-streaming` tem o object store, uma CDN na frente dele e uma fila de workers de transcodificação alimentada pelos uploads.
 
@@ -329,7 +329,7 @@ O cenário `video-streaming` tem o object store, uma CDN na frente dele e uma fi
 
 ---
 
-## 9. Perguntas de follow-up que o entrevistador faz
+## 9. Perguntas de follow-up que o entrevistador faz { #9-follow-up-questions-an-interviewer-asks }
 
 ??? question "O que muda para transmissão ao vivo (ex.: um show do BoxOffice transmitido ao vivo)?"
 
@@ -357,7 +357,7 @@ O cenário `video-streaming` tem o object store, uma CDN na frente dele e uma fi
 
 ---
 
-## 10. Rubrica de autoavaliação
+## 10. Rubrica de autoavaliação { #10-self-assessment-rubric }
 
 | Nível | O que a resposta contém |
 |---|---|
@@ -367,13 +367,21 @@ O cenário `video-streaming` tem o object store, uma CDN na frente dele e uma fi
 
 **Relacionados:** [DNS e CDN](../../edge/dns-cdn/index.md), [Armazenamento especializado (object stores)](../../databases/specialized/index.md), [Trabalho assíncrono](../../compute/async-work/index.md), [FinOps](../../cloud-native/finops/index.md), [Hands-on 7](../../../hands-on/7/index.md) (filas e workers).
 
+!!! success "Boas práticas"
+
+    - **Envie os uploads direto ao armazenamento de objetos com URLs pré-assinadas** — servidores de aplicação nunca repassam gigabytes, e um upload sobrevive a um deploy.
+    - **Torne cada job de transcodificação idempotente por (vídeo, versão)** — um job repetido sobrescreve a mesma saída em vez de produzir uma segunda cópia.
+    - **Dê aos segmentos nomes imutáveis e versionados, e cabeçalhos de cache longos** — a CDN pode então guardá-los para sempre, e a taxa de acerto fica perto do máximo.
+    - **Acompanhe o custo de egress por GB e a taxa de acerto da CDN** — o egress domina a conta; uma queda de 1 ponto na taxa de acerto pode ser uma parte grande do tráfego da origem.
+    - **Codifique a cauda longa em menos versões** — a maioria dos vídeos é pouco assistida; transcodifique-os sob demanda ou em menos qualidades.
+
 ---
 
 ## Como se conecta { #how-it-connects }
 
 Quais aulas este caso testa? Cada ramo é uma aula cujas ideias o design usa (azul), com os componentes da paleta em que elas aparecem (verde):
 
-``` mermaid
+``` diagram
 flowchart LR
     CASE(["Video streaming"]) --> EST["Estimation<br/>egress bandwidth dominates"]:::tech
     CASE --> DB["Databases<br/>object store, pre-signed uploads"]:::tech
@@ -393,7 +401,7 @@ flowchart LR
 
 ---
 
-## Referências
+## Referências { #references }
 
 - XU, A. *System Design Interview — An Insider's Guide*, vol. 1, cap. 14 "Design YouTube"[^1].
 - A especificação do HTTP Live Streaming (HLS)[^2] e o MPEG-DASH[^3].

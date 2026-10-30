@@ -35,7 +35,7 @@ Click the slides and use ← → to move through them; **F** goes full screen an
 
 The diagram shows BoxOffice at the end of the semester. Do not worry about the details: every box has its own lab, and the number in each label says which one.
 
-``` mermaid
+``` diagram
 flowchart LR
     user([Fan / k6]) --> edge["edge<br/>Nginx · lab 3"]
     edge --> gw["gateway<br/>lab 4"]
@@ -54,6 +54,8 @@ flowchart LR
 ```
 
 !!! info "Theory connection"
+
+    In the [story of the course](../../index.md#story), this lab opens chapter 1: before any design, a number — how many requests per second *your* machine serves, the first of the [measurable requirements](../../classes/intro/requirements/index.md) every later lab checks.
 
     This lab pairs with class 1, [What is system design](../../classes/intro/index.md): the scaling journey of BoxOffice from one server to millions of users is exactly the path the labs follow. The "Measure it" step at the end connects with class 2, [Estimation](../../classes/estimation/index.md).
 
@@ -351,6 +353,8 @@ docker stop hello
     vus............................: 10     min=10          max=10
 ```
 
+Your numbers depend on the machine. With Docker Desktop (macOS, Windows) every request also crosses the VM's port forwarding, so expect a few times less than on native Linux — about 15,000 req/s at 10 VUs on an 8-core Apple Silicon laptop.
+
 Read the summary like this:
 
 - `http_reqs … /s` is the **throughput** (requests per second, RPS).
@@ -401,6 +405,13 @@ The [System Design Playground](../../../playground/index.md) simulates the same 
 | `FAIL maven … JAVA_HOME` | `JAVA_HOME` points to nothing or to an old JDK | set `JAVA_HOME` to the JDK 21 folder (see "Common failures") |
 | everything is very slow on Windows | the repository lives under `/mnt/c/...` | move it to `~/boxoffice` inside WSL |
 | `check-env.sh: line 1: #!/usr/bin/env: No such file` on WSL | the file was saved with Windows line endings | `sed -i 's/\r$//' scripts/check-env.sh` (and configure your editor to use LF) |
+
+!!! success "Best practices in this lab"
+
+    - **Check the toolchain with a script, not from memory** — `scripts/check-env.sh` prints every tool and version, so a broken environment is found in seconds, not in the middle of a load test. Why it matters: every measurement of the course assumes the same setup ([How to study system design](../../classes/intro/index.md)).
+    - **Keep secrets and bulky outputs out of Git** — `.gitignore` excludes `.env` and the k6 HTML reports, and keeps the JSON summaries and the tables in `results/*.md`. Security is a quality attribute from day one ([Requirements](../../classes/intro/requirements/index.md)).
+    - **Measure a baseline before changing anything** — `load/hello.js` tells you what *your* machine serves, the reference for every later number ([Estimation](../../classes/estimation/index.md)).
+    - **Write each measurement down with its setup** — `results/lab0.md` records machine, rate and latency; a number without its setup cannot be compared ([Making requirements measurable](../../classes/intro/requirements/index.md)).
 
 ## Clean up
 

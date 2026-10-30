@@ -6,7 +6,7 @@ The morning after a big on-sale, two support tickets arrive. Ana received **thre
 
 Follow one `OrderConfirmed` from `order` to `notification`. It crosses three hops, and each hop has its own failure:
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     O["order<br/>(producer)"] -->|"1 · send"| B[("Kafka<br/>broker")]
     B -->|"2 · replicate"| R[("replicas")]
@@ -37,35 +37,16 @@ A **delivery guarantee** says how many times each message is *processed* in the 
 | **At-least-once** | 1 or more times | commit the offset **after** processing | the message is **processed again** | almost always — with idempotent consumers |
 | **Exactly-once** | exactly 1 time (in effect) | at-least-once + deduplication, or Kafka transactions within Kafka | neither | money, inventory, anything counted |
 
-=== "At-most-once"
+<div class="csim" data-sim="delivery" data-commit="after" data-crash="charge" data-at="2"></div>
 
-    ``` mermaid-sim
-    sequenceDiagram
-        participant K as Kafka
-        participant N as notification
-        participant M as e-mail provider
-        K->>N: OrderConfirmed o-7731 (offset 42)
-        N->>K: commit offset 43
-        Note over N: crashes before sending
-        N->>K: (restart) fetch from 43
-        Note over M: Bruno never gets the e-mail
-    ```
+!!! tip "Try it"
+    The `payment` consumer starts as at-least-once (*charge → commit*) and will crash right after charging `o-1003`. Press play.
 
-=== "At-least-once"
+    - Watch the restart read `o-1003` again: **7 charges for 6 orders**, one customer pays twice.
+    - Switch to *commit → charge* and crash *after the commit*: the offset moves past `o-1003` before the charge, and the order is **lost** (5 charges). Crashing at the other point is harmless for each strategy — the danger is the gap between the two steps.
+    - Turn on the **idempotency key**: with *charge → commit* the redelivery is skipped (6 charges, nobody twice) — effectively-once; with *commit → charge* the order is still lost, because deduplication removes repeats, not losses.
 
-    ``` mermaid-sim
-    sequenceDiagram
-        participant K as Kafka
-        participant N as notification
-        participant M as e-mail provider
-        K->>N: OrderConfirmed o-7731 (offset 42)
-        N->>M: send e-mail
-        Note over N: crashes before commit
-        N->>K: (restart) fetch from 42
-        K->>N: OrderConfirmed o-7731 (offset 42) again
-        N->>M: send e-mail (Ana's duplicate)
-        N->>K: commit offset 43
-    ```
+    Lab 7's `notification` consumer uses the combination that works: it commits after each record (`ack-mode: record`) and deduplicates on `processed_events` (`NOTIFY_IDEMPOTENT=true`).
 
 ### Exactly-once, honestly
 
@@ -133,6 +114,14 @@ Two details make this correct:
 
 Keep the dedup table bounded: delete rows older than the topic retention plus a margin (a redelivery older than the retention cannot happen).
 
+!!! example "In the BoxOffice code: the idempotent `notification` consumer (lab 7)"
+
+    [Hands-on 7 — Idempotent consumer and DLT](../../../hands-on/7/consumer/index.md) uses the deduplication table: `INSERT … ON CONFLICT DO NOTHING` on `processed_events` (only `event_id`: there is one consumer per database), in the same transaction as the `notifications` row. The `eventId` is created once by `order` and travels in the outbox row, so a relay retry carries the same id. One honest shortcut: the e-mail is **sent** inside the transaction instead of being scheduled (detail 2 above), so a crash after the send and before the commit sends it again — at least once for the e-mail, at most once for everything inside the database. The lab proves the dedupe by rewinding the consumer group to the beginning: the logs show `duplicate event ... ignored` and Mailpit still has **2** e-mails; with `NOTIFY_IDEMPOTENT=false`, every replay sends every e-mail again.
+
+    ``` { .java title="services/notification/src/main/java/boxoffice/notification/NotificationService.java (dedupe + effect)" }
+    --8<-- "docs/2027.1/hands-on/7/code/services/notification/src/main/java/boxoffice/notification/NotificationService.java:26:47"
+    ```
+
 ---
 
 ## Ordering { #ordering }
@@ -171,7 +160,7 @@ A consumer will meet messages it cannot process. Two very different reasons:
 
 A poison message at the head of a partition blocks everything behind it: the consumer retries it forever and lag grows for every other order in that partition. The solution is a **dead letter queue** (DLQ, in Kafka usually a *dead letter topic*, DLT): after a bounded number of attempts, the message is moved aside, with the error, and the consumer moves on.
 
-``` mermaid-sim
+``` diagram-sim
 stateDiagram-v2
     [*] --> Delivered
     Delivered --> Processed : success
@@ -208,6 +197,18 @@ Operating a DLQ:
 - **Keep context.** Store the original topic, partition, offset, exception and attempt count as headers (Spring does this).
 - **Redrive.** After fixing the bug, replay the DLQ into the main topic. This is only safe because consumers are idempotent.
 - **Mind the order.** Non-blocking retries let later events of the same order overtake a retried one. If per-key order is essential (an `OrderCancelled` must not be applied before its `OrderConfirmed`), use **blocking** retries for transient errors (retry in place, with backoff, pausing the partition) or version-guarded consumers.
+
+!!! example "In the BoxOffice code: retries and the dead-letter topic (lab 7)"
+
+    The lab does not use `@RetryableTopic`: it uses **blocking** retries — 3 retries in place, 0.5 s, 1 s, 2 s — and then `DeadLetterPublishingRecoverer` writes the record to `order-events-dlt`, same partition, with the exception in the headers. Blocking keeps the order of each partition (the last bullet above) at the price of pausing it for at most 3.5 s per bad record. Parse errors and `IllegalArgumentException` are **not retryable**: they go straight to the DLT, because retrying a malformed record can only fail again. A second listener stores each dead letter in a `dead_letters` table with the cause, for inspection and replay. In [the lab](../../../hands-on/7/consumer/index.md#experiment-a-poison-order), the non-BoxOffice messages of the Kafka tour and a poison order land there without blocking the real events behind them.
+
+    ``` { .java title="services/notification/src/main/java/boxoffice/notification/KafkaConfig.java (retries, then the DLT)" }
+    --8<-- "docs/2027.1/hands-on/7/code/services/notification/src/main/java/boxoffice/notification/KafkaConfig.java:15:29"
+    ```
+
+    ``` { .java title="services/notification/src/main/java/boxoffice/notification/DeadLetterListener.java (keep the context)" }
+    --8<-- "docs/2027.1/hands-on/7/code/services/notification/src/main/java/boxoffice/notification/DeadLetterListener.java:24:36"
+    ```
 
 ### Backpressure in the consumer
 
@@ -286,6 +287,15 @@ For a truly **breaking** change, publish the new version to a new topic (`order-
 !!! tip "In the interview"
     Never claim "Kafka gives exactly-once" and stop there — interviewers use it to test depth. Say: "delivery is at-least-once; the consumer is idempotent by recording the event id in the same transaction as its write; calls to the e-mail provider carry an idempotency key". Then mention where the message could be lost on the producer side and how the outbox closes it. If the problem involves money (payments, wallets, ticket inventory), lead with idempotency before anything else.
 
+!!! success "Best practices"
+
+    - **Classify errors and bound the retries** — transient ones get a few retries with exponential backoff, permanent ones (parse errors, invalid data) go straight to the DLQ. In BoxOffice: 3 retries at 0.5 s, 1 s, 2 s; `JacksonException` and `IllegalArgumentException` are not retryable ([DLT box](#dlq)).
+    - **Store each dead letter with its context and give the DLQ an owner and a replay command** — topic, partition, offset, key, payload and cause. In BoxOffice: `DeadLetterListener` writes them to the `dead_letters` table.
+    - **Prove idempotency with a replay test** — rewind the consumer group to the earliest offset and check that e-mails sent = distinct orders. In BoxOffice: experiment D of [lab 7 — measure](../../../hands-on/7/measure/index.md).
+    - **Register event schemas and check compatibility in CI** — the registry rejects a producer change that breaks the consumers still running (backward or full compatibility).
+    - **Carry a per-entity version in events that update derived state, and apply only newer versions** — reordering and duplicates become harmless for "seats left" in search.
+    - **Pace the consumer to the downstream's limit** — `max.poll.records` and a rate limiter at about 80% of the e-mail provider's quota; pause partitions while its circuit breaker is open.
+
 !!! warning "Common pitfalls"
 
     - **Generating the event id on each send.** A retry with a new id defeats deduplication. The id belongs to the event, created once.
@@ -297,7 +307,7 @@ For a truly **breaking** change, publish the new version to a new topic (`order-
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     H1["hop 1: producer → broker"] --> IP["idempotent producer"]
     H1 --> OB["transactional outbox<br/>→ Patterns"]

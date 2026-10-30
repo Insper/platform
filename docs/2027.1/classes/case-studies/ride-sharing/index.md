@@ -175,7 +175,7 @@ CREATE UNIQUE INDEX one_active_ride_per_driver ON ride (driver_id)
 
 ## 5. High-level design
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     d([Driver app]) --> gw["Gateway<br/>persistent connections"]
     r([Rider app]) --> gw
@@ -196,7 +196,7 @@ flowchart LR
 
 A ride request, from tap to accepted offer:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     participant R as Rider app
@@ -285,7 +285,7 @@ The dangerous moment: two riders' matchers pick the same nearest driver at the s
 
 ### 6.4 The trip as a state machine
 
-``` mermaid-sim
+``` diagram-sim
 stateDiagram-v2
     [*] --> MATCHING: rider requests
     MATCHING --> ACCEPTED: driver accepts offer
@@ -378,13 +378,21 @@ The `ride-sharing` scenario models write-heavy location updates flowing through 
 
 **Related:** [Partitioning](../../databases/partitioning/index.md), [Specialized databases](../../databases/specialized/index.md), [Chat case](../chat/index.md) (persistent connections), [Payment system case](../payment-system/index.md), [Hands-on 6](../../../hands-on/6/index.md) (transactions and locking).
 
+!!! success "Best practices"
+
+    - **Throttle location updates by state** — a few seconds between pings while driving, much less often when idle; pings are most of the write load.
+    - **Assign a driver with a conditional update** — `UPDATE ... WHERE status = 'AVAILABLE'` (or a lease with a TTL) makes "one driver, one ride" a database fact, as the seat holds of [lab 6](../../../hands-on/6/holds/index.md).
+    - **Keep live positions in memory with a TTL, and persist trips** — positions are telemetry; the trip and its price are the record.
+    - **Time out offers and re-offer** — a driver who does not answer within seconds goes back to the pool, and the rider gets the next one.
+    - **Partition the geo index by region** — a city's rush hour stays in that city's partition.
+
 ---
 
 ## How it connects { #how-it-connects }
 
 Which classes does this case test? Each branch is a class whose ideas the design relies on (blue), with the palette components where they show up (green):
 
-``` mermaid
+``` diagram
 flowchart LR
     CASE(["Ride sharing"]) --> EST["Estimation<br/>location writes, latest position fits in memory"]:::tech
     CASE --> DB["Databases<br/>geohash, quadtree, H3, partition by city"]:::tech

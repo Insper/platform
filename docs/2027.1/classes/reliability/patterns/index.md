@@ -19,7 +19,7 @@ Throughout this page we follow one call of BoxOffice: **`order` calls `payment`*
 
 A **timeout** is a deadline on an outbound call: if the answer has not arrived in time, the caller abandons it and handles the error. Without a timeout, a hanging dependency holds a thread (and a connection, and memory) indefinitely; with one, the damage a single slow call can do is bounded.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant O as order
     participant P as payment adapter
@@ -53,6 +53,14 @@ Timeouts must shrink as a request goes deeper. A deadline set at the edge and **
 
 !!! warning "Timeouts are only the first step"
     A timeout converts a hang into a fast error. You still need to decide what to do with the error: retry it (if transient and safe), stop calling for a while (circuit breaker), or answer something else (fallback). And a timeout on a *non-idempotent* call leaves an unknown outcome — the charge may have succeeded — which is why `payment` calls carry an idempotency key (see [Integrations](../../compute/integrations/index.md)).
+
+!!! example "In the BoxOffice code: the timeouts of `order` → `payment` (lab 9)"
+
+    [Hands-on 9 — Resilience patterns](../../../hands-on/9/patterns/index.md) gives the client of `payment` its two timeouts: 500 ms to connect and 1 s to read (`PAYMENT_READ_TIMEOUT`; `0` waits forever, the "before" experiment). The idempotency key `order-<id>` is the same on every attempt, which is what makes the retry of the next section safe. The lab's arithmetic: 20 payments/s against a provider 3 s slow hold 20 × 3 = 60 threads, more than the pool of 50; with the 1 s timeout, 20 × 1 = 20.
+
+    ``` { .java title="services/order/src/main/java/boxoffice/order/payment/PaymentClient.java (timeouts and idempotency key)" }
+    --8<-- "docs/2027.1/hands-on/9/code/services/order/src/main/java/boxoffice/order/payment/PaymentClient.java:15:32"
+    ```
 
 ---
 
@@ -199,7 +207,7 @@ Three rules follow:
 
 A **circuit breaker** watches the outcomes of calls to a dependency. When the failure rate crosses a threshold, it **opens** and rejects calls immediately, without touching the network, for a while; then it lets a few probe calls through to test recovery[^3].
 
-``` mermaid-sim
+``` diagram-sim
 stateDiagram-v2
     [*] --> Closed
     Closed --> Open : failure or slow-call rate ≥ 50% (last 20 calls)
@@ -251,7 +259,7 @@ Failing fast is better than hanging, but an error is still an error. A **fallbac
 
 A **bulkhead** — named after the watertight compartments of a ship — gives each dependency its **own limited pool** of threads, connections or concurrent calls, so one slow dependency cannot consume the capacity of the others.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     req["order: 200 request threads"] --> bp["payment bulkhead<br/>max 50 concurrent"]
     req --> bi["inventory bulkhead<br/>max 40 concurrent"]
@@ -326,7 +334,7 @@ readinessProbe:
 
 ## Putting it together
 
-The patterns are layered. For the `order` → `payment` call, BoxOffice uses all of them, configured with Resilience4j[^5]:
+The patterns are layered. For the `order` → `payment` call, BoxOffice uses all of them, configured with Resilience4j[^5]. The values below are the design for the stadium on-sale (100 purchases/s, 200 `order` threads); lab 9 runs the same stack with smaller numbers, so that a laptop can show each effect (box below).
 
 === "application.yaml"
 
@@ -376,8 +384,8 @@ The patterns are layered. For the `order` → `payment` call, BoxOffice uses all
         private final RestClient payment;
 
         @Bulkhead(name = "payment")
-        @CircuitBreaker(name = "payment", fallbackMethod = "unavailable")
-        @Retry(name = "payment")
+        @CircuitBreaker(name = "payment")
+        @Retry(name = "payment", fallbackMethod = "unavailable")   // fallback on the outermost layer
         public PaymentResult charge(ChargeRequest req) {
             return payment.post().uri("/charges")
                 .header("Idempotency-Key", req.orderId())   // a retry never charges twice
@@ -386,7 +394,7 @@ The patterns are layered. For the `order` → `payment` call, BoxOffice uses all
                 .body(PaymentResult.class);
         }
 
-        // Called when the call fails, the breaker is open or the bulkhead is full.
+        // Called after the last retry fails, or when the breaker is open or the bulkhead is full.
         private PaymentResult unavailable(ChargeRequest req, Throwable t) {
             return PaymentResult.temporarilyUnavailable(req.orderId());  // seats stay held
         }
@@ -407,9 +415,31 @@ The patterns are layered. For the `order` → `payment` call, BoxOffice uses all
     }
     ```
 
+!!! example "In the BoxOffice code: the protection stack on `order` (lab 9)"
+
+    [Hands-on 9 — Resilience patterns](../../../hands-on/9/patterns/index.md) configures the stack with laptop-sized numbers: 50 Tomcat threads instead of 200, a 1 s read timeout, 3 attempts with 200 ms of backoff ± 50% jitter, a breaker that also opens when half of the last 20 calls took over 800 ms and stays open 10 s, and a bulkhead of **10** concurrent calls that never queues (`max-wait-duration: 0`). Every knob reads an environment variable, so each experiment switches one pattern off without a rebuild. `PaymentGateway` stacks the annotations in Resilience4j's default order — Retry ( CircuitBreaker ( Bulkhead ( call ) ) ) — with the fallback on the outer layer, and the retry ignores `CallNotPermittedException` and `BulkheadFullException`: an open breaker or a full bulkhead fails fast instead of being retried. The fallback answers `503` and the order stays `PENDING_PAYMENT`, the honest "try again" of [Fallback](#fallback-and-graceful-degradation). With the provider 3 s slow, the lab measured `GET /orders/{id}` — which never calls `payment` — at a median of **9.04 s** unprotected and **6.5 ms** with the patterns.
+
+    ``` { .yaml title="services/order/src/main/resources/application.yaml (resilience4j)" }
+    --8<-- "docs/2027.1/hands-on/9/code/services/order/src/main/resources/application.yaml:47:84"
+    ```
+
+    ``` { .java title="services/order/src/main/java/boxoffice/order/payment/PaymentGateway.java (the stack)" }
+    --8<-- "docs/2027.1/hands-on/9/code/services/order/src/main/java/boxoffice/order/payment/PaymentGateway.java:24:29"
+    ```
+
+<div class="csim" data-sim="resilience" data-latency="4000" data-errors="0" data-timeout="off" data-retries="off" data-breaker="off"></div>
+
+!!! tip "Try it"
+    It is 10:02 and the provider answers in 4 s instead of 200 ms. The switches use lab 9's values (a 1 s read timeout; 3 attempts with 200 ms × 2 backoff ± 50%; a breaker over the last 20 calls that opens at 50% failed or slower than 800 ms and waits 10 s), not the stadium design above. Turn them on one at a time, restarting each run:
+
+    1. **Nothing on**: 20 payments/s × 4 s needs 80 threads; all **50** are busy within seconds and, in 30 s, about 220 payments find no thread at all — nor would `GET /orders`.
+    2. **Timeout**: only about 20 threads are busy, but **0%** of the payments succeed. The timeout protects `order`, not the payment.
+    3. **+ retries**: the provider now receives about **2×** the payments (44 calls/s) exactly while it is struggling, and the 50 threads are full again — 3 attempts of 1 s plus backoff hold each thread for about 3.6 s.
+    4. **+ circuit breaker**: it opens 1.6 s into the run; payments fail fast, threads drop to about 1 and the provider gets no calls. Drag the latency back to 200 ms: 10 s after opening, the breaker goes half-open, 3 probes succeed and it closes. Red dots in its window are failures, orange ones slow calls.
+
 How the layers interact — check these before shipping:
 
-- **Order of the decorators.** Resilience4j's Spring Boot default is `Retry ( CircuitBreaker ( RateLimiter ( TimeLimiter ( Bulkhead ( call ) ) ) ) )`: the retry is outermost, so every attempt is counted by the breaker and an open breaker makes the retry fail immediately. Make sure retries never bypass the breaker.
+- **Order of the decorators.** Resilience4j's Spring Boot default is `Retry ( CircuitBreaker ( RateLimiter ( TimeLimiter ( Bulkhead ( call ) ) ) ) )`: the retry is outermost, so every attempt is counted by the breaker and an open breaker makes the retry fail immediately. Make sure retries never bypass the breaker. Put the **fallback on the outermost layer** (the retry): a fallback on the breaker turns every failure into a normal answer, so the retry never sees an error and never retries.
 - **Time budget.** 2 attempts × 2 s + one backoff of ~200–300 ms ≈ 4.3 s, inside `order`'s 5 s budget and the gateway's 6 s.
 - **Metrics.** Resilience4j exports breaker state, bulkhead saturation and retry counts through Micrometer; graph them next to the SLO dashboard ([Hands-on 8](../../../hands-on/8/index.md)), because a breaker that opens is an incident in progress.
 - **Proof.** None of this is trustworthy until you have injected the failure and watched it work — [chaos engineering](../chaos/index.md) and [Hands-on 9](../../../hands-on/9/index.md).
@@ -433,6 +463,15 @@ How the layers interact — check these before shipping:
 !!! tip "In the interview"
     When a design has a call to a third party or a critical dependency, volunteer the protection stack in one breath: "timeout at roughly the p99.9, one retry with jittered backoff and an idempotency key, a circuit breaker that also counts slow calls, a bulkhead sized with Little's Law, and a fallback that tells the user the truth". Then justify one number (the bulkhead or the timeout) with arithmetic. If asked about overload, distinguish **rate limiting** (per client) from **load shedding** (whole system, by priority), and mention retry amplification across layers.
 
+!!! success "Best practices"
+
+    - **Derive each timeout from the dependency's measured p99.9, and keep it below the caller's remaining budget** — the budget shrinks at every hop (gateway 6 s > `order` 5 s > one attempt 2 s). In BoxOffice: a 1 s read timeout on `payment` ([box above](#timeout)).
+    - **Size each bulkhead with Little's Law and recompute it when latency or traffic changes** — 100 purchases/s × 0.2 s = 20 calls in flight, so a bulkhead of 50. In BoxOffice: 10 of the 50 threads of `order` ([Hands-on 9](../../../hands-on/9/patterns/index.md)).
+    - **Make every resilience parameter configuration, not code** — during an incident you raise a timeout or shrink a bulkhead with a redeploy of config, not a build. In BoxOffice: `PAYMENT_READ_TIMEOUT`, `PAYMENT_RETRY_ATTEMPTS`, `PAYMENT_BULKHEAD` in `application.yaml`.
+    - **Cap retries with a budget, not only with a count** — retries adding at most 10% to the normal traffic let the provider recover in the simulation above, where 3 retries per call kept it down.
+    - **Publish breaker state, bulkhead permits and retry counts as metrics and alert on an open breaker** — an open breaker is an incident in progress. In BoxOffice: `/actuator/circuitbreakers` and the breaker in `/actuator/health` (lab 9).
+    - **Return the fallback as an explicit state the client can act on** — "payment unavailable, seats held" lets the fan retry; a generic 500 does not. In BoxOffice: `503` with the order kept in `PENDING_PAYMENT`.
+
 !!! warning "Common pitfalls"
 
     - **Default timeouts** of minutes (or none) in HTTP and database clients.
@@ -445,7 +484,7 @@ How the layers interact — check these before shipping:
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     SLOW["slow dependency<br/>(payment provider)"] --> TO["timeout ≈ p99.9<br/>+ deadline propagation"]
     TO --> RT["retry: backoff, jitter,<br/>retry budget, one layer"]

@@ -4,7 +4,7 @@ A dashboard needs someone looking at it. An **alert** looks for you — and a ba
 3 a.m. for nothing, until you learn to ignore it. This step turns a user-facing promise into an alert
 that fires when, and only when, the promise is at risk. The theory is in the
 [alerting class](../../../classes/observability/alerting/index.md) and the
-[SLO class](../../../classes/reliability/slo/index.md).
+[SLO class](../../../classes/observability/slo/index.md).
 
 ## From promise to numbers
 
@@ -68,12 +68,26 @@ Produce steady traffic, then break the database that `catalog` depends on:
 <!-- termynal -->
 
 ``` shell
-> k6 run -e RATE=50 -e DURATION=10m load/catalog-otel.js &
+> k6 run -e RATE=50 -e DURATION=15m load/catalog-otel.js &
 > sleep 60 && docker compose stop db && date +%T
 10:12:31
 > # watch Alerting → Alert rules: Normal → Pending → Firing
 > docker compose start db
 ```
+
+Start `db` once the rule fires, and leave k6 running: with traffic, the 5-minute burn rate falls
+below 14.4 within a minute or two and the page returns to *Normal*. Without traffic, the ratio is
+0 / 0 (`NaN`) and Grafana keeps the alert in its last state.
+
+!!! note "Why the gateway probes `/actuator/health/readiness`"
+
+    The SLI is measured by `catalog` itself, so `catalog` must keep receiving the requests while `db`
+    is down. That holds because the gateway's balancer (lab 4) probes `/actuator/health/readiness`,
+    not `/actuator/health`: the full health includes `db` and `redis`, so with `db` stopped it would
+    mark every replica *down* after a few seconds and answer `503` itself — fans would get errors,
+    `catalog` would see no requests, and the alert would never fire. Readiness says whether *this
+    instance* can take traffic: removing every replica because of a dependency they all share helps
+    nobody.
 
 ??? question "Predict: how long until the fast-burn rule fires?"
 
@@ -82,14 +96,16 @@ Produce steady traffic, then break the database that `catalog` depends on:
     14.4 × 0.5% = **7.2%**. With steady traffic and an hour of healthy history, that takes
     0.072 × 60 min ≈ **4.3 minutes** of outage; add the `for: 1m` and up to 30 s of evaluation
     interval: **≈ 5–6 minutes** to page. (If the stack has been up for less than an hour, the window
-    holds less healthy history and the alert fires sooner.)
+    holds less healthy history and the alert fires sooner; the stress test of
+    [step 2](../dashboard/index.md) less than an hour ago adds healthy history and delays it.)
 
     That is the trade-off of burn-rate alerts: a total outage takes minutes to page; a persistent 4%
     error rate (burn rate 8) is caught by the 6-hour rule once the 6-hour ratio passes 6 × 0.5% = 3%,
     after about 6 h × 3/4 = 4.5 hours; and a 30-second blip never pages.
 
-In a test run of this lab (with less than an hour of history), the rule became *Firing* **288 s**
-after `db` was stopped, with the description *"burn rate 18.2 (1 h) and 74.4 (5 min)"*.
+In a test run of this lab (with the stress test of step 2 still in the 1-hour window), the rule became
+*Pending* about 6.5 minutes and *Firing* **about 440 s** after `db` was stopped, with the description
+*"Burn rate 17.0 (1 h) and 200.0 (5 min)"*. The slow-burn ticket fired too, about a minute later.
 
 Record in your results the time you stopped `db`, the time the rule became *Pending* and *Firing*,
 and the burn rates shown in the alert's description.

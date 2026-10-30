@@ -22,11 +22,11 @@ O BoxOffice precisa exatamente disso: fãs digitam `col…` e esperam *Coldplay*
 
 ---
 
-## 1. Esclarecer os requisitos
+## 1. Esclarecer os requisitos { #1-clarify-the-requirements }
 
 ([roteiro de entrevista](../../intro/interview-framework/index.md))
 
-### Requisitos funcionais
+### Requisitos funcionais { #functional-requirements }
 
 1. Enquanto o usuário digita, devolver até **k = 8** sugestões que **começam** com o prefixo digitado, ordenadas por popularidade.
 2. As sugestões podem ser entidades **tipadas** (artista, local, cidade, evento) com um ID, para a interface mostrar um ícone e ir direto à página.
@@ -34,7 +34,7 @@ O BoxOffice precisa exatamente disso: fãs digitam `col…` e esperam *Coldplay*
 4. Termos ofensivos, ilegais ou bloqueados **nunca** aparecem.
 5. Os resultados podem depender do **idioma** (pt-BR vs. en) e, opcionalmente, da cidade do usuário.
 
-### Requisitos não funcionais
+### Requisitos não funcionais { #non-functional-requirements }
 
 | Qualidade | Meta |
 |---|---|
@@ -44,7 +44,7 @@ O BoxOffice precisa exatamente disso: fãs digitam `col…` e esperam *Coldplay*
 | **Atualidade** | Popularidade atualizada diariamente; buscas em alta visíveis em ~15 minutos |
 | **Consistência** | Não exigida: dois usuários podem ver sugestões um pouco diferentes por alguns minutos |
 
-### Fora do escopo (diga explicitamente)
+### Fora do escopo (diga explicitamente) { #out-of-scope-say-it-explicitly }
 
 A página completa de resultados de busca (ranqueamento, índice invertido — veja o [componente de busca](../../../reference/components/compute/index.md#search)), correção ortográfica além de uma tolerância simples a erros de digitação, busca por voz, anúncios nas sugestões.
 
@@ -61,7 +61,7 @@ A página completa de resultados de busca (ranqueamento, índice invertido — v
 
 ---
 
-## 2. Estimativas de guardanapo (back-of-the-envelope)
+## 2. Estimativas de guardanapo (back-of-the-envelope) { #2-back-of-the-envelope-estimates }
 
 ```python exec="1" source="tabbed-right"
 # Search autocomplete: assumptions (illustrative)
@@ -131,7 +131,7 @@ POST /v1/search/events      (batched, asynchronous; or simply the access logs)
 
 ---
 
-## 4. Modelo de dados
+## 4. Modelo de dados { #4-data-model }
 
 ```text
 # Serving: an immutable in-memory index per locale, loaded from a snapshot file
@@ -166,9 +166,9 @@ CREATE TABLE query_counts_daily (
 
 ---
 
-## 5. Design de alto nível
+## 5. Design de alto nível { #5-high-level-design }
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     u([Navegador / app]) --> cdn["CDN<br/>prefixos curtos, 60 s"]
     cdn --> gw["API gateway"]
@@ -186,7 +186,7 @@ flowchart LR
 
 Uma tecla, da digitação às sugestões:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     participant U as Navegador
@@ -210,9 +210,9 @@ sequenceDiagram
 
 ---
 
-## 6. Aprofundamentos (deep dives)
+## 6. Aprofundamentos (deep dives) { #6-deep-dives }
 
-### 6.1 A estrutura de dados: trie com top-k por nó
+### 6.1 A estrutura de dados: trie com top-k por nó { #61-the-data-structure-trie-with-top-k-per-node }
 
 Uma **trie** guarda strings caractere por caractere; todo caminho a partir da raiz é um prefixo. Achar as melhores complementações de `col` de forma ingênua significa andar até o nó `col` e depois visitar **toda a sua subárvore** para ranquear cada busca abaixo dele — lento demais para `c`, cuja subárvore é uma grande parte do índice.
 
@@ -278,9 +278,9 @@ O preço é memória (k entradas por nó, a maioria repetida ao longo de um cami
 | Construção | Job próprio | Job próprio | Indexação do motor |
 | Tolerância a erros | Própria | Difícil | Nativa (fuzzy) |
 
-### 6.2 O pipeline de dados: dos logs aos snapshots
+### 6.2 O pipeline de dados: dos logs aos snapshots { #62-the-data-pipeline-from-logs-to-snapshots }
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     logs[["Eventos de busca<br/>stream"]] --> raw[("Logs brutos<br/>object store")]
     raw --> agg["Agregação diária<br/>contagem por busca normalizada"]
@@ -297,7 +297,7 @@ flowchart LR
 - **Construa** o índice por idioma num **snapshot** imutável no object storage, com checksum e um manifesto. Os nós de atendimento o baixam, montam a estrutura em memória **ao lado** da atual e trocam um ponteiro — uma **troca atômica**, sem lock no caminho de leitura e com **rollback** instantâneo para a versão anterior se as métricas caírem.
 - **Valide antes de publicar**: tamanho dentro de ±10% da última construção, sugestões principais presentes para um conjunto fixo de prefixos, nenhum termo bloqueado — primeiro num nó canário ([trabalho assíncrono](../../compute/async-work/index.md)).
 
-### 6.3 Atendendo em escala: replicar, cachear, fazer debounce
+### 6.3 Atendendo em escala: replicar, cachear, fazer debounce { #63-serving-at-scale-replicate-cache-debounce }
 
 - **Replique primeiro.** Com ~6 GB por idioma, cada nó guarda o índice inteiro; acrescentar nós aumenta a vazão linearmente, e qualquer nó responde qualquer prefixo — sem roteamento, sem shards quentes.
 - **Fragmente quando não couber mais**, por **faixa de prefixo** — mas pelo tráfego, não pelo alfabeto: `s` e `c` recebem muito mais tráfego que `x` e `q`, então divida faixas como `ca–ce`, `cf–cz` até cada shard ter carga parecida. Como alternativa, fragmente primeiro por idioma/região, que é uma divisão natural.
@@ -305,7 +305,7 @@ flowchart LR
 - **Disciplina no cliente**: debounce (~100–150 ms), começar só depois de 1–2 caracteres, cancelar requisições em andamento quando o prefixo muda e descartar respostas de prefixos velhos (respostas podem chegar fora de ordem).
 - **Orçamento de latência**: de um p99 de 100 ms percebido pelo usuário, a ida e volta pela rede leva a maior parte; o serviço precisa responder em poucos milissegundos — o que uma estrutura em memória e só de leitura faz com facilidade, e uma consulta ao banco por tecla não.
 
-### 6.4 Atualidade, filtragem e personalização
+### 6.4 Atualidade, filtragem e personalização { #64-freshness-filtering-and-personalization }
 
 - **Camada de tendências.** Um índice diário não sabe de uma turnê anunciada há uma hora. Um **job de stream** conta as buscas numa janela deslizante (digamos 15 minutos) e marca as que crescem muito mais rápido que sua linha de base; os nós de atendimento mesclam essa lista pequena (centenas de entradas) com o top-k estático na hora da requisição ([Kafka e streams](../../messaging/kafka/index.md)).
 - **A filtragem** acontece duas vezes: na construção (lista de bloqueio, contagem mínima) e **na hora de atender** (uma pequena lista de bloqueio enviada a todos os nós em minutos), porque remover uma sugestão ofensiva não pode esperar a construção de amanhã.
@@ -315,7 +315,7 @@ flowchart LR
 
 ---
 
-## 7. Gargalos, modos de falha e trade-offs
+## 7. Gargalos, modos de falha e trade-offs { #7-bottlenecks-failure-modes-and-trade-offs }
 
 | Onde | O que dá errado | Mitigação | Trade-off |
 |---|---|---|---|
@@ -332,7 +332,7 @@ Os trade-offs para **dizer em voz alta**: **atualidade vs. simplicidade** (snaps
 
 ---
 
-## 8. Experimente no playground
+## 8. Experimente no playground { #8-try-it-in-the-playground }
 
 O cenário `search-autocomplete` coloca um serviço de busca atrás de um cache, com uma carga de teclas de muita leitura e com picos.
 
@@ -349,7 +349,7 @@ O cenário `search-autocomplete` coloca um serviço de busca atrás de um cache,
 
 ---
 
-## 9. Perguntas de follow-up que o entrevistador faz
+## 9. Perguntas de follow-up que o entrevistador faz { #9-follow-up-questions-an-interviewer-asks }
 
 ??? question "Por que não rodar `SELECT … WHERE query LIKE 'col%' ORDER BY count DESC LIMIT 8` no banco?"
 
@@ -377,7 +377,7 @@ O cenário `search-autocomplete` coloca um serviço de busca atrás de um cache,
 
 ---
 
-## 10. Rubrica de autoavaliação
+## 10. Rubrica de autoavaliação { #10-self-assessment-rubric }
 
 | Nível | O que a resposta contém |
 |---|---|
@@ -387,13 +387,21 @@ O cenário `search-autocomplete` coloca um serviço de busca atrás de um cache,
 
 **Relacionados:** [Armazenamentos especializados](../../databases/specialized/index.md), [Padrões de cache](../../caching/patterns/index.md), [DNS e CDN](../../edge/dns-cdn/index.md), [Kafka e streams](../../messaging/kafka/index.md), [Hands-on 5](../../../hands-on/5/index.md) (cache).
 
+!!! success "Boas práticas"
+
+    - **Faça debounce no cliente e cancele requisições obsoletas** — cerca de 100 ms de debounce eliminam a maior parte das requisições por tecla, e uma requisição cancelada é uma que o servidor nunca atende.
+    - **Construa o índice offline e troque-o de forma atômica** — os nós que servem só leem; um build ruim é revertido apontando para a versão anterior.
+    - **Guarde prefixos curtos em cache na CDN com TTL curto** — prefixos de uma e duas letras são iguais para todos e os mais pedidos.
+    - **Filtre as sugestões por uma lista de bloqueio antes de publicá-las** — uma sugestão ofensiva ou juridicamente sensível é um incidente mesmo que um milhão de usuários a tenha digitado.
+    - **Mantenha um orçamento de latência por tecla, por exemplo p99 < 100 ms** — uma sugestão que chega depois da próxima letra é inútil.
+
 ---
 
 ## Como se conecta { #how-it-connects }
 
 Quais aulas este caso testa? Cada ramo é uma aula cujas ideias o design usa (azul), com os componentes da paleta em que elas aparecem (verde):
 
-``` mermaid
+``` diagram
 flowchart LR
     CASE(["Search autocomplete"]) --> EST["Estimation<br/>keystrokes, debouncing"]:::tech
     CASE --> EDG["Edge<br/>CDN for short prefixes"]:::tech
@@ -414,7 +422,7 @@ flowchart LR
 
 ---
 
-## Referências
+## Referências { #references }
 
 - XU, A. *System Design Interview — An Insider's Guide*, vol. 1, cap. 13 "Design a Search Autocomplete System"[^1].
 - KLEPPMANN, M.; RICCOMINI, C. *Designing Data-Intensive Applications*, 2ª ed., capítulos sobre processamento em batch e dados derivados[^2].

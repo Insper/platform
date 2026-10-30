@@ -1,6 +1,6 @@
 Este passo conecta a API ao PostgreSQL: **entidades** mapeiam as tabelas, **repositórios** guardam as consultas, o **serviço** define as transações e o **Flyway** cria e popula o schema. Cada serviço é dono de um schema — aqui, `catalog` — e nada mais mexe nele.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     ctl["EventController<br/>VenueController"] --> svc["CatalogService<br/>@Transactional"]
     svc --> repo["EventRepository<br/>VenueRepository"]
@@ -12,7 +12,7 @@ flowchart LR
 
 Guarde o **pool de conexões** na cabeça: toda requisição que toca o banco pega emprestada uma das suas 10 conexões durante a sua transação. No lab 2 esse número vira o teto do serviço inteiro.
 
-## 1. Entidades
+## 1. Entidades { #1-entities }
 
 Uma entidade é uma classe Java mapeada para uma tabela. Estas duas não têm setters públicos: `Event` só muda por `update(...)`, então toda mudança passa por um único método.
 
@@ -35,7 +35,7 @@ Uma entidade é uma classe Java mapeada para uma tabela. Estas duas não têm se
 | `@Enumerated(EnumType.STRING)` | grava `CONCERT`, não `0`: reordenar o enum não corrompe dados |
 | `@ManyToOne(fetch = LAZY)` | o local só é carregado quando preciso — ou de imediato com `join fetch` em uma consulta |
 
-## 2. Repositórios
+## 2. Repositórios { #2-repositories }
 
 O Spring Data gera a implementação destas interfaces. As consultas próprias são escritas em JPQL (consultas sobre entidades, não tabelas):
 
@@ -53,7 +53,7 @@ O Spring Data gera a implementação destas interfaces. As consultas próprias s
 
 Um resultado `Page<Event>` custa **duas** consultas: a página em si (`... ORDER BY starts_at LIMIT 20 OFFSET ?`) e um `count(*)` sobre todas as linhas que casam, para o cliente mostrar "página 1 de 1.001". Em 200.000 eventos sem índice, as duas são varreduras completas — a listagem que você vai medir no lab 2, colocar em cache no lab 5 e indexar no lab 6.
 
-## 3. A camada de serviço
+## 3. A camada de serviço { #3-the-service-layer }
 
 O `CatalogService` é onde as transações começam e terminam. Métodos de leitura usam `@Transactional(readOnly = true)`: o Hibernate pula o dirty checking e, no lab 6, a mesma marcação encaminha as leituras para uma réplica.
 
@@ -67,7 +67,7 @@ Regras de negócio que vivem aqui:
 - criar ou atualizar um evento com um local que não existe → `400 Bad Request`;
 - `updateEvent` não chama `save`: a entidade está *gerenciada* dentro da transação e o Hibernate escreve o `UPDATE` no commit (*dirty checking*).
 
-## 4. Migrations com Flyway
+## 4. Migrations com Flyway { #4-migrations-with-flyway }
 
 O schema é código: arquivos SQL versionados em `src/main/resources/db/migration`, aplicados **em ordem, uma vez**, na inicialização. O Flyway registra o que executou em `catalog.flyway_schema_history`, então todo ambiente — o seu notebook, a CI, o Kubernetes — converge para o mesmo schema.
 
@@ -90,7 +90,7 @@ Regras do jogo:
 - `ddl-auto: validate` faz o Hibernate *verificar* que as entidades batem com as tabelas, mas nunca alterá-las: um único dono para o schema.
 - A carga inicial usa `generate_series`: 200.000 linhas em cerca de um segundo, idênticas em toda máquina — então as medições de todos são comparáveis.
 
-## 5. Configuração
+## 5. Configuração { #5-configuration }
 
 ``` { .yaml title="services/catalog/src/main/resources/application.yaml" .copy linenums="1" }
 --8<-- "docs/2027.1/hands-on/1/code/services/catalog/src/main/resources/application.yaml"
@@ -113,7 +113,7 @@ Regras do jogo:
 
     Nomeie os **padrões de acesso** antes das tabelas: "a página inicial lista os próximos eventos por cidade, ordenados por data, 20 por vez; a página do evento lê um evento pelo id". O schema e, depois, os índices decorrem dessas consultas — não o contrário.
 
-## 6. Ponto de controle: compila?
+## 6. Ponto de controle: compila? { #6-checkpoint-does-it-compile }
 
 Se você tem o JDK 21 e o Maven instalados (lab 0), compile o serviço agora, antes de o Docker entrar em cena:
 

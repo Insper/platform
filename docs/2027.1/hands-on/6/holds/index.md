@@ -4,7 +4,7 @@ A **hold** says "these seats are mine for 10 minutes, while I pay". The invarian
 
 The obvious code reads the seats, checks they are `AVAILABLE`, then updates them. Under concurrency, two transactions can interleave:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     participant A as Fan A (tx 1)
@@ -34,6 +34,16 @@ PostgreSQL's default isolation, **READ COMMITTED**, does not prevent this *lost 
 ## 2. The `inventory` service
 
 Create `services/inventory` (port **8083**, schema `inventory`, same `Dockerfile` pattern with `EXPOSE 8083`). It uses **JdbcClient** with plain SQL instead of JPA: every lock and every `WHERE` is visible in the code, which is the point of this lab.
+
+??? example "`services/inventory/Dockerfile` and `.dockerignore` (same as `catalog`, only `EXPOSE 8083` changes)"
+
+    ``` { .dockerfile title="services/inventory/Dockerfile" .copy linenums="1" }
+    --8<-- "docs/2027.1/hands-on/6/code/services/inventory/Dockerfile"
+    ```
+
+    ``` { .text title="services/inventory/.dockerignore" .copy }
+    --8<-- "docs/2027.1/hands-on/6/code/services/inventory/.dockerignore"
+    ```
 
 ``` { .xml title="services/inventory/pom.xml" .copy linenums="1" }
 --8<-- "docs/2027.1/hands-on/6/code/services/inventory/pom.xml"
@@ -134,7 +144,7 @@ With the full stack of [step 2](../replicas/index.md#3-compose) running, log in 
 
 ``` { .bash .copy }
 curl -s -X POST localhost/auth/register -H 'Content-Type: application/json' \
-  -d '{"name":"Ana","email":"ana@example.com","password":"secret-123"}'
+  -d '{"name":"Ana","email":"ana@example.com","password":"secret-123"}'; echo
 export TOKEN=$(curl -s -X POST localhost/auth/login -H 'Content-Type: application/json' \
   -d '{"email":"ana@example.com","password":"secret-123"}' | jq -r .accessToken)
 export ADMIN=$(curl -s -X POST localhost/auth/login -H 'Content-Type: application/json' \
@@ -162,6 +172,7 @@ curl -s localhost/inventory/audit/double-bookings -H "Authorization: Bearer $TOK
 You should see (from a run for this lab; ids and times differ):
 
 ``` { .text }
+{"id":"0b9d8a6e-…","name":"Ana","email":"ana@example.com","role":"USER"}
 {"section":"S01","available":2000,"held":0,"sold":0}
 {"id":"c869f791-701d-41dd-b82f-d5a6ba48093e","eventId":1,"status":"ACTIVE","expiresAt":"2026-10-18T17:51:50.567788219Z","seatIds":[1,2]}
 409
@@ -191,28 +202,29 @@ You should see (from a run for this lab; ids and times differ):
 Run it once per strategy, resetting the seats each time:
 
 ``` { .bash .copy }
+mkdir -p results
 for mode in naive pessimistic optimistic; do
   INVENTORY_LOCKING=$mode docker compose up -d inventory
   sleep 25                                   # wait until inventory is healthy again
   bash scripts/reset-inventory.sh
-  k6 run load/flash-sale.js 2>&1 | tee results/lab6-flash-$mode.txt | grep -E "AUDIT|holds_|name:hold"
+  k6 run load/flash-sale.js 2>&1 | tee results/lab6-flash-$mode.txt | grep -E "AUDIT|holds_.*:|\{ name:hold"
 done
 ```
 
 <!-- termynal -->
 ``` shell
 > INVENTORY_LOCKING=naive ... k6 run load/flash-sale.js
-INFO AUDIT double-booked seats: 9                          source=console
+time="…" level=info msg="AUDIT double-booked seats: 9" source=console
     holds_conflict.................: 11582  263.28/s
     holds_created..................: 162    3.68/s
       { name:hold }................: avg=312.03ms med=208.6ms  p(95)=808.96ms p(99)=1.88s
 > INVENTORY_LOCKING=pessimistic ... k6 run load/flash-sale.js
-INFO AUDIT double-booked seats: 0                          source=console
+time="…" level=info msg="AUDIT double-booked seats: 0" source=console
     holds_conflict.................: 16184  402.17/s
     holds_created..................: 141    3.50/s
       { name:hold }................: avg=171.94ms med=78.37ms  p(95)=665.17ms p(99)=1.77s
 > INVENTORY_LOCKING=optimistic ... k6 run load/flash-sale.js
-INFO AUDIT double-booked seats: 0                          source=console
+time="…" level=info msg="AUDIT double-booked seats: 0" source=console
     holds_conflict.................: 20028  512.57/s
     holds_created..................: 141    3.61/s
       { name:hold }................: avg=93.62ms  med=31.02ms  p(95)=354.94ms p(99)=1.03s

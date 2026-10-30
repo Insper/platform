@@ -15,7 +15,7 @@ The idea has been described as "cloud programming simplified"[^1]: no servers to
 
 ### How a function runs
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant E as Event source
     participant P as Platform
@@ -214,7 +214,15 @@ spec:
           periodSeconds: 60
 ```
 
-CPU utilization is measured relative to the pod's CPU **request**, so the HPA only works if requests are set (and realistic). [Hands-on 10](../../../hands-on/10/index.md) runs this HPA under a k6 load.
+CPU utilization is measured relative to the pod's CPU **request**, so the HPA only works if requests are set (and realistic). [Hands-on 10](../../../hands-on/10/index.md) runs a laptop-sized version of this HPA under a k6 load (box below).
+
+!!! example "In the BoxOffice code: the `catalog` HPA (lab 10)"
+
+    [Hands-on 10 — Autoscaling](../../../hands-on/10/autoscaling/index.md) keeps the 60% target and the "double every 15 s" scale-up, and changes the numbers to fit a laptop: 2 to 8 pods instead of 4 to 40, a second scale-up policy of `+2 pods` (whichever adds more), and a 2-minute scale-down window instead of 5 so you can watch the pods leave within the lab. The 60% is relative to the pod's request of `250m`, so the HPA adds pods when they average more than 150 millicores. What the lab shows is the [lag](#autoscaling-lag): each new pod needs tens of seconds before it is ready, and p95 rises during the ramp before it comes back down. The upper bound is the database: 8 pods × 10 connections = 80 connections to one PostgreSQL.
+
+    ``` { .yaml title="k8s/base/catalog-hpa.yaml (lab 10)" }
+    --8<-- "docs/2027.1/hands-on/10/code/k8s/base/catalog-hpa.yaml"
+    ```
 
 ### Choosing the metric
 
@@ -373,6 +381,14 @@ Scaling down causes incidents too:
 
     When the problem has spikes, say explicitly that **autoscaling is not instantaneous**: *"Reactive scaling takes one to a few minutes — metrics, decision, node, image, JVM warm-up — so for a known on-sale I'd pre-scale on a schedule at 09:45, and for unknown spikes rely on headroom, a waiting room and load shedding while the HPA catches up."* Name the metric (*"CPU for catalog, consumer lag for the ticket workers via KEDA"*), the bounds (*"max replicas limited by the database's connections"*) and, if you propose serverless, its limits (*"cold starts, concurrency quotas, connections to the database — I'd put RDS Proxy in front"*).
 
+!!! success "Best practices"
+
+    - **Pre-scale for known events** — raise `minReplicas` (or schedule the change) about 15 minutes before 10:00; reactive scaling is for the load you did not expect. In BoxOffice: the conclusion of [lab 10](../../../hands-on/10/autoscaling/index.md).
+    - **Set CPU requests from a load test** — the request is the CPU one pod uses at its target throughput; the HPA's 60% is a fraction of that number, so a guessed request means a guessed trigger. In BoxOffice: `250m` for `catalog` (lab 10).
+    - **Scale up fast and down slowly** — double every 15 s on the way up, remove a few pods per minute after a window of minutes on the way down, so a dip between two waves of fans does not remove capacity needed a minute later. In BoxOffice: `catalog-hpa.yaml` (box above).
+    - **Load-test the scaling, not only the service** — a ramp that logs desired vs ready replicas measures the lag that your headroom must cover. In BoxOffice: `load/catalog-hpa.js` and `scripts/watch-hpa.sh` (lab 10).
+    - **Cap function concurrency and set a budget alarm** — reserved concurrency protects the database behind the functions, and a billing alarm catches a runaway loop in hours instead of at the end of the month.
+
 !!! warning "Common pitfalls"
 
     - **Assuming instant elasticity**: the first minutes of a spike are served by whatever was already running.
@@ -387,7 +403,7 @@ Scaling down causes incidents too:
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     FAAS["functions per event"] --> COLD["cold starts,<br/>provisioned concurrency"]
     FAAS --> CONC["concurrency = rate × duration<br/>quotas, throttling"]
@@ -404,13 +420,15 @@ flowchart LR
 
 **Palette components:** [`serverless`](../../../reference/components/compute/index.md#serverless) (webhooks, image resizing, bursty glue) · [`app`](../../../reference/components/compute/index.md#app) (the containers the HPA scales) · [`worker`](../../../reference/components/compute/index.md#worker) (KEDA on queue lag) · [`queue`](../../../reference/components/messaging/index.md#queue) (the lag signal) · [`sql`](../../../reference/components/storage/index.md#sql) (the connection budget that caps `maxReplicas`) · [`apigw`](../../../reference/components/edge/index.md#apigw) (rate limiting while capacity catches up) · [`metrics`](../../../reference/components/observability/index.md#metrics) (what the autoscaler reads). **Scenarios:** `serverless-burst`, `scale-out`, `async-queue`, `flash-sale`. **Continues in:** [Cloud-native — Kubernetes](../../cloud-native/kubernetes/index.md), [Cloud-native — FinOps](../../cloud-native/finops/index.md), [Reliability — load shedding](../../reliability/patterns/index.md#load-shedding), [Estimation — queueing](../../estimation/queueing/index.md), [Exercise: Kubernetes autoscaling](../../../exercises/kubernetes-autoscaling/index.md).
 
-## Key takeaways
+## Key takeaways { #key-takeaways }
 
-- **Serverless** scales per request and bills per use; mind **cold starts**, **concurrency = rate × duration**, account quotas and the **downstream** that does not scale with it.
-- It is cheapest for spiky, mostly idle work; always-on containers win for steady, busy services.
-- **Autoscaling** works on replicas (HPA, KEDA), replica size (VPA) and nodes (Cluster Autoscaler, Karpenter); pick the metric that reflects saturation — CPU, RPS, concurrency or **queue lag**.
-- Reactive scaling lags by **minutes**; for known peaks, **scale on a schedule** and pre-warm; for unknown ones, keep headroom and protect the system with waiting rooms, rate limiting and load shedding.
-- Bound the autoscaler by what the shared stores can take.
+!!! takeaways ""
+
+    - **Serverless** scales per request and bills per use; mind **cold starts**, **concurrency = rate × duration**, account quotas and the **downstream** that does not scale with it.
+    - It is cheapest for spiky, mostly idle work; always-on containers win for steady, busy services.
+    - **Autoscaling** works on replicas (HPA, KEDA), replica size (VPA) and nodes (Cluster Autoscaler, Karpenter); pick the metric that reflects saturation — CPU, RPS, concurrency or **queue lag**.
+    - Reactive scaling lags by **minutes**; for known peaks, **scale on a schedule** and pre-warm; for unknown ones, keep headroom and protect the system with waiting rooms, rate limiting and load shedding.
+    - Bound the autoscaler by what the shared stores can take.
 
 ---
 

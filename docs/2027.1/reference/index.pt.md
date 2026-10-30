@@ -1,4 +1,4 @@
-# Referência
+# Referência { #reference }
 
 A seção de referência é a parte do curso que você deixa aberta em outra aba: enquanto projeta no playground, enquanto faz um laboratório, enquanto se prepara para uma entrevista. Nada aqui precisa ser lido em ordem. Cada página responde rapidamente a um tipo de pergunta e aponta de volta para a aula em que o assunto é explicado em profundidade.
 
@@ -36,7 +36,7 @@ A seção de referência é a parte do curso que você deixa aberta em outra aba
 
 </div>
 
-## Qual página responde à minha pergunta?
+## Qual página responde à minha pergunta? { #which-page-answers-my-question }
 
 | Eu quero… | Vá para |
 |---|---|

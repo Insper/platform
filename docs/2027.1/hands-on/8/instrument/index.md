@@ -92,8 +92,8 @@ x-otel: &otel
 | `OTEL_TRACES_SAMPLER` | which requests are traced; all of them by default (experiment B of [Measure it](../measure/index.md) changes it) |
 | `LOGGING_PATTERN_CORRELATION` | Spring Boot's `logging.pattern.correlation`: prints `[trace id,span id]` in every console line |
 
-Get the complete file of this lab (it is the lab 7 file plus the anchor, the volumes and
-`otel-lgtm`):
+Get the complete file of this lab (it is the lab 7 file plus the anchor, the volumes, `otel-lgtm`,
+and a longer health-check `start_period` for the Java services):
 
 ``` shell
 curl -fsSL -o docker-compose.yaml https://insper.github.io/platform/2027.1/hands-on/8/code/docker-compose.yaml
@@ -105,22 +105,34 @@ curl -fsSL -o docker-compose.yaml https://insper.github.io/platform/2027.1/hands
     --8<-- "docs/2027.1/hands-on/8/code/docker-compose.yaml"
     ```
 
-Create the provisioning folders (step 2 fills them) and restart everything — the Java services
-restart to pick up the agent:
+Create the provisioning folders (steps 2 and 3 fill them) and save the dashboard provider, explained
+in [step 2](../dashboard/index.md), **before** the first `up`: Compose mounts
+`infra/grafana/dashboards.yaml` as a file, and when it does not exist Docker creates an empty
+*directory* with that name — Grafana then fails to read it and `otel-lgtm` exits.
+
+``` yaml title="infra/grafana/dashboards.yaml"
+--8<-- "docs/2027.1/hands-on/8/code/infra/grafana/dashboards.yaml"
+```
+
+Then restart everything — the Java services restart to pick up the agent, and `--wait` returns when
+every service is healthy:
 
 <!-- termynal -->
 
 ``` shell
 > mkdir -p infra/grafana/dashboards infra/grafana/alerting
-> docker compose up -d
-> docker compose logs catalog-1 | grep -m1 javaagent
+> docker compose up -d --wait
+> docker compose logs catalog-1 | grep -m1 'javaagent - version'
 catalog-1-1  | [otel.javaagent 2026-10-18 18:08:22:121 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 2.32.0
 > curl -s -o /dev/null -w '%{http_code}\n' localhost/catalog/events/1
 200
 ```
 
-With the agent, each JVM starts noticeably slower (instrumentation happens at class loading): wait
-until `docker compose ps` shows every service `healthy`.
+With the agent, each JVM starts noticeably slower (instrumentation happens at class loading): with all
+of them starting together, `catalog` took about 75–90 s in a test run, which is why the Java services'
+health checks now allow a `start_period` of 120 s. The first request through the edge also warms up
+the gateway's balancer and `catalog`'s connections to Redis and the database: on a cold stack it can
+take longer than the gateway's 5 s timeout and come back `504` — repeat it.
 
 Open Grafana at `http://localhost:3000` (no login in this image) → **Explore**. You should see:
 
@@ -130,7 +142,7 @@ Open Grafana at `http://localhost:3000` (no login in this image) → **Explore**
   `http_response_status_code="200"` — the route is the *template*, never the raw URL, which keeps the
   number of series bounded.
 - **Tempo**: search by service `gateway`. A request through the edge shows spans from `gateway` and
-  `catalog`, and inside `catalog` one span per SQL statement.
+  `catalog`, and inside `catalog`, when the event is not in the Redis cache, one span per SQL statement.
 - **Loki**: `{service_name="order"}`. Each line has `trace_id` and `span_id`, and a button that jumps
   to the trace. The console has them too: `docker compose logs order` prints lines like
   `[14263dc50b861be8bcf0bc1f4dbad3c5,a1c96ae57fb41b45] o.s.web.servlet.DispatcherServlet …`.
@@ -151,7 +163,7 @@ scheduled job and continues through Kafka to `notification`. The agent propagate
 HTTP calls and Kafka messages automatically, but the outbox is a **database row** read later by a
 different thread: the context of the request is not in the row, so it is lost.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant O as order (HTTP thread)
     participant DB as outbox table
@@ -199,13 +211,14 @@ without the agent, every call of the API is a no-op, so the service still runs w
 Rebuild `order`, place an order and find its trace:
 
 ``` shell
-docker compose up -d --build order
+docker compose up -d --build --wait order
 curl -s -X POST localhost:8084/orders -H 'Content-Type: application/json' \
   -d '{"showId":"show-7","holdId":"trace-1","customerEmail":"t@example.com","amount":10}'
 ```
 
 In Grafana → Explore → Tempo, run the TraceQL query `{resource.service.name="order" && name="POST /orders"}`
-and open the most recent trace. You should see **one** trace with spans of both services, like this
+and open the most recent trace (a new trace can take up to half a minute to appear in the search).
+You should see **one** trace with spans of both services, like this
 one from a test run (start offset, service, span, duration):
 
 ``` text

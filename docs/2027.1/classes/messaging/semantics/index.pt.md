@@ -2,11 +2,11 @@ Na manhã seguinte a uma grande abertura de vendas, chegam dois chamados ao supo
 
 ---
 
-## Onde mensagens se perdem ou se duplicam
+## Onde mensagens se perdem ou se duplicam { #where-messages-get-lost-or-duplicated }
 
 Siga um `OrderConfirmed` do `order` até o `notification`. Ele atravessa três trechos, e cada trecho tem a sua falha:
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     O["order<br/>(produtor)"] -->|"1 · envia"| B[("broker<br/>Kafka")]
     B -->|"2 · replica"| R[("réplicas")]
@@ -27,7 +27,7 @@ Os três e-mails da Ana são o trecho 3–5: o `notification` enviou o e-mail e 
 
 ---
 
-## As três garantias de entrega
+## As três garantias de entrega { #the-three-delivery-guarantees }
 
 Uma **garantia de entrega** diz quantas vezes cada mensagem é *processada* na presença de falhas[^1]:
 
@@ -37,37 +37,18 @@ Uma **garantia de entrega** diz quantas vezes cada mensagem é *processada* na p
 | **At-least-once** | 1 ou mais vezes | commit do offset **depois** de processar | a mensagem é **processada de novo** | quase sempre — com consumidores idempotentes |
 | **Exactly-once** | exatamente 1 vez (no efeito) | at-least-once + deduplicação, ou transações do Kafka dentro do Kafka | nenhum dos dois | dinheiro, inventário, qualquer coisa que se conte |
 
-=== "At-most-once"
+<div class="csim" data-sim="delivery" data-commit="after" data-crash="charge" data-at="2"></div>
 
-    ``` mermaid-sim
-    sequenceDiagram
-        participant K as Kafka
-        participant N as notification
-        participant M as provedor de e-mail
-        K->>N: OrderConfirmed o-7731 (offset 42)
-        N->>K: commit do offset 43
-        Note over N: cai antes de enviar
-        N->>K: (restart) fetch a partir de 43
-        Note over M: o Bruno nunca recebe o e-mail
-    ```
+!!! tip "Experimente"
+    O consumidor `payment` começa at-least-once (*cobra → commit*) e vai cair logo depois de cobrar o `o-1003`. Dê play.
 
-=== "At-least-once"
+    - Veja o reinício ler o `o-1003` de novo: **7 cobranças para 6 pedidos**, um cliente paga duas vezes.
+    - Troque para *commit → cobra* e derrube *após o commit*: o offset passa do `o-1003` antes da cobrança, e o pedido é **perdido** (5 cobranças). Cair no outro ponto é inofensivo para cada estratégia — o perigo é o intervalo entre os dois passos.
+    - Ligue a **chave de idempotência**: com *cobra → commit* a reentrega é pulada (6 cobranças, ninguém duas vezes) — efetivamente uma vez; com *commit → cobra* o pedido continua perdido, porque a deduplicação elimina repetições, não perdas.
 
-    ``` mermaid-sim
-    sequenceDiagram
-        participant K as Kafka
-        participant N as notification
-        participant M as provedor de e-mail
-        K->>N: OrderConfirmed o-7731 (offset 42)
-        N->>M: envia e-mail
-        Note over N: cai antes do commit
-        N->>K: (restart) fetch a partir de 42
-        K->>N: OrderConfirmed o-7731 (offset 42) de novo
-        N->>M: envia e-mail (a duplicata da Ana)
-        N->>K: commit do offset 43
-    ```
+    O consumidor `notification` do lab 7 usa a combinação que funciona: ele faz commit depois de cada registro (`ack-mode: record`) e deduplica em `processed_events` (`NOTIFY_IDEMPOTENT=true`).
 
-### Exactly-once, com honestidade
+### Exactly-once, com honestidade { #exactly-once-honestly }
 
 "Entrega exactly-once" no sentido estrito é impossível sobre uma rede não confiável: o receptor nunca pode ter certeza de que o remetente viu a sua confirmação (o problema dos Dois Generais; veja [Sistemas distribuídos](../../distributed/index.md)). O que os sistemas realmente oferecem é **processamento exactly-once *dentro de uma fronteira***:
 
@@ -133,6 +114,14 @@ Dois detalhes tornam isso correto:
 
 Mantenha a tabela de deduplicação limitada: apague linhas mais antigas que a retenção do tópico mais uma margem (uma reentrega mais antiga que a retenção não pode acontecer).
 
+!!! example "No código do BoxOffice: o consumidor idempotente do `notification` (lab 7)"
+
+    O [Hands-on 7 — Consumidor idempotente e DLT](../../../hands-on/7/consumer/index.md) usa a tabela de deduplicação: `INSERT … ON CONFLICT DO NOTHING` em `processed_events` (só `event_id`: há um consumidor por banco), na mesma transação que a linha de `notifications`. O `eventId` é criado uma vez pelo `order` e viaja na linha do outbox, então um retry do relay carrega o mesmo id. Um atalho honesto: o e-mail é **enviado** dentro da transação em vez de agendado (detalhe 2 acima), então um crash depois do envio e antes do commit o envia de novo — pelo menos uma vez para o e-mail, no máximo uma vez para tudo o que está dentro do banco. O lab prova a deduplicação rebobinando o grupo de consumidores até o início: os logs mostram `duplicate event ... ignored` e o Mailpit continua com **2** e-mails; com `NOTIFY_IDEMPOTENT=false`, cada replay envia cada e-mail de novo.
+
+    ``` { .java title="services/notification/src/main/java/boxoffice/notification/NotificationService.java (dedupe + effect)" }
+    --8<-- "docs/2027.1/hands-on/7/code/services/notification/src/main/java/boxoffice/notification/NotificationService.java:26:47"
+    ```
+
 ---
 
 ## Ordenação { #ordering }
@@ -171,7 +160,7 @@ Um consumidor vai encontrar mensagens que não consegue processar. Por dois moti
 
 Uma mensagem venenosa no início de uma partição bloqueia tudo o que vem atrás: o consumidor tenta de novo para sempre e o lag cresce para todos os outros pedidos daquela partição. A solução é uma **dead letter queue** (DLQ, no Kafka normalmente um *dead letter topic*, DLT): depois de um número limitado de tentativas, a mensagem é colocada de lado, junto com o erro, e o consumidor segue em frente.
 
-``` mermaid-sim
+``` diagram-sim
 stateDiagram-v2
     state "Entregue" as Delivered
     state "Processada" as Processed
@@ -213,7 +202,19 @@ Operando uma DLQ:
 - **Reenvie (redrive).** Depois de corrigir o bug, reenvie a DLQ para o tópico principal. Isso só é seguro porque os consumidores são idempotentes.
 - **Cuidado com a ordem.** Retries não bloqueantes deixam eventos posteriores do mesmo pedido passarem na frente de um que está em retry. Se a ordem por chave é essencial (um `OrderCancelled` não pode ser aplicado antes do seu `OrderConfirmed`), use retries **bloqueantes** para erros transitórios (tentar no lugar, com backoff, pausando a partição) ou consumidores protegidos por versão.
 
-### Backpressure no consumidor
+!!! example "No código do BoxOffice: retries e o tópico de mensagens mortas (lab 7)"
+
+    O lab não usa `@RetryableTopic`: usa retries **bloqueantes** — 3 novas tentativas no lugar, 0,5 s, 1 s, 2 s — e então o `DeadLetterPublishingRecoverer` escreve o registro em `order-events-dlt`, na mesma partição, com a exceção nos cabeçalhos. Bloquear preserva a ordem de cada partição (o último item acima) ao preço de pausá-la por no máximo 3,5 s a cada registro ruim. Erros de parse e `IllegalArgumentException` **não são retentáveis**: vão direto para o DLT, porque tentar de novo um registro malformado só pode falhar de novo. Um segundo listener guarda cada mensagem morta numa tabela `dead_letters` com a causa, para inspeção e replay. No [lab](../../../hands-on/7/consumer/index.md#experiment-a-poison-order), as mensagens não BoxOffice do tour pelo Kafka e um pedido envenenado chegam lá sem bloquear os eventos reais atrás deles.
+
+    ``` { .java title="services/notification/src/main/java/boxoffice/notification/KafkaConfig.java (retries, then the DLT)" }
+    --8<-- "docs/2027.1/hands-on/7/code/services/notification/src/main/java/boxoffice/notification/KafkaConfig.java:15:29"
+    ```
+
+    ``` { .java title="services/notification/src/main/java/boxoffice/notification/DeadLetterListener.java (keep the context)" }
+    --8<-- "docs/2027.1/hands-on/7/code/services/notification/src/main/java/boxoffice/notification/DeadLetterListener.java:24:36"
+    ```
+
+### Backpressure no consumidor { #backpressure-in-the-consumer }
 
 Um consumidor Kafka *puxa* as mensagens, então nunca é inundado pelo broker — mas ele pode inundar quem ele chama. O serviço `notification` não deve exceder o limite de taxa do provedor de e-mail só porque há um backlog de 100.000 mensagens esperando. Controle o ritmo com `max.poll.records` e um rate limiter no cliente, **pause** as partições enquanto um circuit breaker mais adiante estiver aberto (veja [Padrões de resiliência](../../reliability/patterns/index.md)), e deixe o lag crescer: um backlog que escoa no ritmo do provedor é melhor que ser banido pelo provedor.
 
@@ -274,7 +275,7 @@ Para uma mudança realmente **incompatível**, publique a nova versão em um tó
 
 ---
 
-## Juntando tudo
+## Juntando tudo { #putting-it-together }
 
 | Preocupação | Decisão no BoxOffice |
 |---|---|
@@ -290,6 +291,15 @@ Para uma mudança realmente **incompatível**, publique a nova versão em um tó
 !!! tip "Na entrevista"
     Nunca diga "o Kafka dá exactly-once" e pare aí — entrevistadores usam isso para testar profundidade. Diga: "a entrega é at-least-once; o consumidor é idempotente porque registra o id do evento na mesma transação da sua escrita; as chamadas ao provedor de e-mail levam uma chave de idempotência". Depois mencione onde a mensagem poderia se perder do lado do produtor e como o outbox fecha essa brecha. Se o problema envolve dinheiro (pagamentos, carteiras, inventário de ingressos), comece pela idempotência antes de qualquer outra coisa.
 
+!!! success "Boas práticas"
+
+    - **Classifique os erros e limite os retries** — os transitórios ganham alguns retries com backoff exponencial, os permanentes (erros de parse, dados inválidos) vão direto para a DLQ. No BoxOffice: 3 retries a 0,5 s, 1 s, 2 s; `JacksonException` e `IllegalArgumentException` não são retentáveis ([quadro do DLT](#dlq)).
+    - **Guarde cada mensagem morta com seu contexto e dê à DLQ um dono e um comando de replay** — tópico, partição, offset, chave, payload e causa. No BoxOffice: o `DeadLetterListener` as grava na tabela `dead_letters`.
+    - **Prove a idempotência com um teste de replay** — rebobine o grupo de consumidores até o offset mais antigo e confira que e-mails enviados = pedidos distintos. No BoxOffice: o experimento D de [lab 7 — meça](../../../hands-on/7/measure/index.md).
+    - **Registre os schemas dos eventos e verifique a compatibilidade no CI** — o registry rejeita uma mudança no produtor que quebra os consumidores ainda em execução (compatibilidade backward ou full).
+    - **Leve uma versão por entidade nos eventos que atualizam estado derivado e aplique só versões mais novas** — reordenação e duplicatas ficam inofensivas para os "lugares restantes" na busca.
+    - **Ajuste o ritmo do consumidor ao limite do sistema a jusante** — `max.poll.records` e um rate limiter em cerca de 80% da cota do provedor de e-mail; pause partições enquanto o circuit breaker dele estiver aberto.
+
 !!! warning "Armadilhas comuns"
 
     - **Gerar o id do evento a cada envio.** Um retry com um id novo anula a deduplicação. O id pertence ao evento e é criado uma vez.
@@ -301,7 +311,7 @@ Para uma mudança realmente **incompatível**, publique a nova versão em um tó
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     H1["salto 1: produtor → broker"] --> IP["produtor idempotente"]
     H1 --> OB["transactional outbox<br/>→ Padrões"]

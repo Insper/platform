@@ -16,7 +16,7 @@ loop:
         act to reduce the difference (create, delete, update)
 ```
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant U as kubectl / Argo CD
     participant API as API server (+ etcd)
@@ -67,7 +67,7 @@ With a managed service (EKS, GKE, AKS) the provider runs and upgrades the contro
 
 ### BoxOffice's `catalog` on Kubernetes
 
-The manifests below are the heart of [Hands-on 10](../../../hands-on/10/index.md). Read them top to bottom; each block answers one operational question.
+The manifests below show what a production `catalog` needs. Read them top to bottom; each block answers one operational question. [Hands-on 10](../../../hands-on/10/index.md) writes a smaller version for a three-node cluster on a laptop (box after the manifests).
 
 ```yaml title="k8s/catalog/deployment.yaml"
 apiVersion: apps/v1
@@ -166,6 +166,14 @@ spec:
 
 The **Gateway API** (`Gateway` + `HTTPRoute`) is the successor of the older `Ingress` object: it separates the infrastructure owner (who runs the Gateway) from the application teams (who own routes), and supports weighted backends natively[^3] — which is how canaries split traffic (see [Delivery](../delivery/index.md)). The [Edge class](../../edge/load-balancing/index.md) covers the [Ingress](../../../reference/components/edge/index.md#ingress) component.
 
+!!! example "In the BoxOffice code: `catalog` on a kind cluster (lab 10)"
+
+    [Hands-on 10 — Deploy BoxOffice](../../../hands-on/10/deploy/index.md) runs the same pieces with laptop-sized numbers: 2 replicas (the HPA takes over), a request of 250m CPU and 512 Mi, and a Traefik `Ingress` (the Gateway API `HTTPRoute` is in `catalog-route.yaml`, as an alternative). Look at three choices. The startup probe allows up to **5 minutes**, because the first start also runs the Flyway migrations, and Kubernetes has no `depends_on`: `catalog` restarts until PostgreSQL answers. Liveness checks only the JVM, so a database blip does not restart every pod. And the lab keeps a **1-CPU limit**, the same "server" as Compose in lab 1, so the numbers stay comparable with the earlier labs — at the price of the throttling described [below](#requests-limits).
+
+    ``` { .yaml title="k8s/base/catalog.yaml (lab 10: resources, probes, graceful shutdown)" }
+    --8<-- "docs/2027.1/hands-on/10/code/k8s/base/catalog.yaml:45:70"
+    ```
+
 ---
 
 ## Probes: three different questions { #probes }
@@ -180,7 +188,7 @@ Keep liveness **local** (is the JVM responsive?) and make readiness reflect only
 
 ---
 
-## Requests, limits and quality of service
+## Requests, limits and quality of service { #requests-limits }
 
 - **Request** — what the scheduler *reserves* on a node. It decides where a pod fits and is the base of the HPA's utilization percentage.
 - **Limit** — the ceiling. Above the **memory** limit the container is killed (`OOMKilled`); above the **CPU** limit it is **throttled** — it simply waits, which shows up as latency, not as errors.
@@ -197,9 +205,27 @@ Keep liveness **local** (is the JVM responsive?) and make readiness reflect only
 
 ---
 
+## Losing a node { #losing-a-node }
+
+The control loop replaces lost pods, but self-healing needs two things the loop does not provide. The replacement pods need **room**: the scheduler places a pod only on a node whose free capacity covers its requests, so in a cluster packed to 100% the pods of a dead node stay `Pending`. And callers must **stop sending to the dead pods**: until the node is declared `NotReady` (tens of seconds by default) and the Service endpoints are updated, part of the traffic still goes to pods that no longer exist. These are the two rules of redundancy and failover from the [Reliability class](../../reliability/index.md), at the level of nodes: N + 1 capacity, and fast failure detection.
+
+**Try it:** in `k8s-node-failure`, `catalog` and `pricing` run 6 pods each on 3 nodes × 4 pods — a full cluster — and at t = 60 s one node dies.
+
+1. Run it as it is. For about 40 s, around 90% of the requests fail: callers still send to the dead pods. Errors then fall, and come back at 7–10% from t ≈ 150 s: the 2 lost pods of each service have nowhere to go, and 4 survivors carry the load of 6. Over the run: errors ≈ 27%, p99 ≈ 4.6 s.
+2. Give the cluster room: set `podsPerNode` to 8 on the cluster frame. The late errors disappear (the lost pods are rescheduled), but the 40-s window stays: errors ≈ 25%.
+3. Connect a **Service Registry** to `catalog` and `pricing` — the playground's stand-in for fast endpoint updates. Callers drop the dead pods in 3 s instead of 30–40 s: errors ≈ 4%.
+
+<div class="sdp" data-scenario="k8s-node-failure" data-mode="compact" data-height="520"></div>
+
+??? question "What should you have observed, and what is still missing?"
+
+    After step 3, the remaining errors (5–9%) come from the survivors: 4 pods carry the load of 6 until the replacements are ready. Raise both services to **8 replicas**, so that losing a third still leaves enough capacity: errors ≈ 1.7%. Then add a **300 ms timeout with 2 retries** on `catalog → pricing`: errors ≈ 0.8%, p99 ≈ 43 ms, for about 1,370 USD/month instead of 1,330. The order matters: the same timeout and retries with only 6 replicas push the errors to ≈ 48% — retries against overloaded survivors are a [retry storm](../../reliability/patterns/index.md#retry-with-backoff-and-jitter).
+
+---
+
 ## Autoscaling at three levels { #autoscaling }
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     load["k6 / fans<br/>requests per second ↑"] --> hpa["HPA<br/>more pods"]
     hpa --> pend["Pods Pending<br/>(no room on nodes)"]
@@ -220,9 +246,26 @@ With 4 `catalog` pods at 90 % CPU (of request) and a 60 % target: ⌈4 × 90/60�
 
 **3. Events — KEDA.** The Kubernetes Event-Driven Autoscaler scales on external sources (Kafka consumer lag, queue length, cron windows) and can scale to zero — natural for the `notification` workers[^4].
 
+!!! example "In the BoxOffice code: the `catalog` HPA (lab 10)"
+
+    [Hands-on 10 — Autoscaling](../../../hands-on/10/autoscaling/index.md) scales `catalog` from 2 to 8 pods at 60% of its 250m CPU request — the formula above, with a scale-up of "double or +2 pods every 15 s" and a slow scale-down (2-minute window, 1 pod every 30 s) so that a short dip does not remove capacity that is needed again a minute later. The lab measures the lag this section warns about: the HPA asked for more pods about two minutes into the ramp, but "the eighth pod was ready only at 7:31, when the hold was already over", with a p95 of 5–7 s for the run ([Measure it](../../../hands-on/10/measure/index.md)).
+
+    ``` { .yaml title="k8s/base/catalog-hpa.yaml (lab 10)" }
+    --8<-- "docs/2027.1/hands-on/10/code/k8s/base/catalog-hpa.yaml"
+    ```
+
 !!! example "BoxOffice: why the HPA alone does not save the on-sale"
 
     The HPA reacts *after* CPU rises; the node autoscaler needs minutes; each JVM needs ~20–40 s to start and warm up. A flash sale goes from 5 % to 100 % of peak in seconds. So the team **pre-scales** before 10:00 — a CronJob or KEDA's cron scaler sets `minReplicas` to the expected peak at 09:45 — keeps a buffer of spare nodes (low-priority "balloon" pods that are evicted when real pods need room), and puts a [waiting room](../../messaging/queues-pubsub/index.md) in front so that admission, not autoscaling, controls the rate. The capacity numbers come from the [Capacity planning](../../performance/capacity-planning/index.md) page.
+
+<div class="csim" data-sim="autoscale" data-traffic="flash" data-target="60" data-min="2" data-max="8" data-startup="40" data-stabilization="120"></div>
+
+!!! tip "Try it"
+    The HPA starts with lab 10's `catalog-hpa.yaml`: target 60% CPU, 2 to 8 pods, scale up by double or +2 pods every 15 s, scale down 1 pod per 30 s after a 120 s window. Each pod requests 250m and may burst to its 1-CPU limit, so 2 pods absorb up to 400 requests/s. The start-up time (40 s) is the JVM's, from the box above; the lab measured much longer on a laptop.
+
+    1. Play the **on-sale at 10:00**: the HPA wants 8 pods within 30 s, but they are ready only 40 s later — about **8,900 requests** (1.7%) dropped or slow in 45 s over capacity. Raise the start-up to 120 s: about 25,000 (4.9%).
+    2. **Pre-scale**: set *Min pods* to 4 and nothing is lost, for 193 replica-minutes instead of 181; min 8 costs 241.
+    3. Pick the **daily ramp** and watch the dip at 10:10: with the 120 s window the HPA still has 8 pods at 10:11:30 and 6 when the traffic returns at 10:13 (CPU peaks at 76%); set the window to 0 and it is down to 4, and CPU peaks at 113% — 167 replica-minutes instead of 185, paid with that spike.
 
 Try it: in the scenario below, run the `spike` profile with 2 replicas, then with 6. Watch p99 latency and errors while the replicas are busy; then enable autoscaling (if offered) and observe the **lag** between the start of the spike and the moment new replicas are healthy.
 
@@ -264,6 +307,15 @@ Try it: in the scenario below, run the `spike` profile with 2 replicas, then wit
 
     You rarely draw Kubernetes in a system-design interview — you draw *stateless service replicas behind a load balancer with autoscaling*. Kubernetes is the implementation detail you mention when asked "how do you deploy and scale this?". Good signals: distinguishing **readiness from liveness**, knowing that **autoscaling has lag** (and pre-scaling for known peaks), keeping **databases out of the cluster** or on operators with care, and spreading replicas **across availability zones**.
 
+!!! success "Best practices"
+
+    - **Give the startup probe the worst-case start, not the typical one** — `periodSeconds × failureThreshold` must cover a cold start with migrations. In BoxOffice: 5 s × 60 = 5 min in [lab 10](../../../hands-on/10/deploy/index.md).
+    - **Roll out with `maxUnavailable: 0` and a small surge** — capacity never drops below the desired count during a deploy, at the price of one extra pod. In BoxOffice: `maxSurge: 1` in `k8s/base/catalog.yaml` ([lab 10](../../../hands-on/10/deploy/index.md)).
+    - **Pause a few seconds in `preStop` before the process stops accepting** — endpoint removal reaches every node with a delay, and requests keep arriving meanwhile. In BoxOffice: a 5 s `preStop` sleep, measured in [lab 10 — Measure it](../../../hands-on/10/measure/index.md).
+    - **Scale up fast and down slowly** — no stabilization window going up, minutes going down, so a short dip does not remove capacity needed again a minute later. In BoxOffice: 0 s up, 120 s down in `catalog-hpa.yaml` ([lab 10](../../../hands-on/10/autoscaling/index.md)).
+    - **Keep room for the pods of one node (N + 1 nodes)** — otherwise the replacements of a dead node stay `Pending`. In BoxOffice: [Losing a node](#losing-a-node).
+    - **Set a PodDisruptionBudget on every service with more than one replica** — node upgrades then drain one pod at a time. In BoxOffice: `minAvailable: 3` in the `catalog` manifests above.
+
 !!! warning "Pitfalls"
 
     - **No requests/limits**: the scheduler packs pods blindly and one noisy pod starves its neighbours.
@@ -275,7 +327,7 @@ Try it: in the scenario below, run the `spike` profile with 2 replicas, then wit
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     ETCD["etcd: Raft<br/>→ Consensus (class 3)"] --> DS["desired state<br/>in the API server"]
     DS --> CL["control loop:<br/>actual → desired"]
@@ -290,7 +342,7 @@ flowchart LR
     DEP --> PDB["PDB, zone spread<br/>→ redundancy"]
 ```
 
-**Palette components:** [`app`](../../../reference/components/compute/index.md#app) · [`worker`](../../../reference/components/compute/index.md#worker) (KEDA scales `notification` on lag) · [`scheduler`](../../../reference/components/compute/index.md#scheduler) (CronJob releases expired holds) · [`lb`](../../../reference/components/edge/index.md#lb) (a Service is an L4 balancer) · [`ingress`](../../../reference/components/edge/index.md#ingress) · [`healthcheck`](../../../reference/components/observability/index.md#healthcheck) · [`metrics`](../../../reference/components/observability/index.md#metrics) (what the HPA reads). **Scenarios:** `scale-out`, `flash-sale` (pre-scaling). **Continues in:** [Traffic & edge — load balancing in Kubernetes](../../edge/load-balancing/index.md#kubernetes), [Distributed — consensus](../../distributed/consensus/index.md) (etcd), [Compute — autoscaling lag](../../compute/serverless-autoscaling/index.md#autoscaling-lag), [Reliability — health checks](../../reliability/patterns/index.md#health-checks), [FinOps](../finops/index.md), [Exercise — Kubernetes autoscaling](../../../exercises/kubernetes-autoscaling/index.md).
+**Palette components:** [`app`](../../../reference/components/compute/index.md#app) · [`worker`](../../../reference/components/compute/index.md#worker) (KEDA scales `notification` on lag) · [`scheduler`](../../../reference/components/compute/index.md#scheduler) (CronJob releases expired holds) · [`lb`](../../../reference/components/edge/index.md#lb) (a Service is an L4 balancer) · [`ingress`](../../../reference/components/edge/index.md#ingress) · [`healthcheck`](../../../reference/components/observability/index.md#healthcheck) · [`metrics`](../../../reference/components/observability/index.md#metrics) (what the HPA reads). **Scenarios:** `scale-out`, `k8s-node-failure` (N + 1 nodes), `flash-sale` (pre-scaling). **Continues in:** [Traffic & edge — load balancing in Kubernetes](../../edge/load-balancing/index.md#kubernetes), [Distributed — consensus](../../distributed/consensus/index.md) (etcd), [Compute — autoscaling lag](../../compute/serverless-autoscaling/index.md#autoscaling-lag), [Reliability — health checks](../../reliability/patterns/index.md#health-checks), [FinOps](../finops/index.md), [Exercise — Kubernetes autoscaling](../../../exercises/kubernetes-autoscaling/index.md).
 
 ---
 

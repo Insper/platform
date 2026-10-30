@@ -2,7 +2,7 @@ São 09:40 do dia da venda. Um bug no `inventory` faz uma reserva de assento exp
 
 Esta página constrói esse pipeline em quatro camadas: a infraestrutura é **código**, cada mudança é **integrada e testada continuamente**, o cluster **puxa** seu estado desejado do Git, e cada release é **exposta gradualmente** e julgada por métricas.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     pr["Pull request<br/>correção do inventory"] --> ci["CI: build · teste · varredura<br/>SBOM · assinatura · push da imagem"]
     ci --> cfg["Repo de config:<br/>digest da imagem atualizado"]
@@ -96,7 +96,7 @@ A ferramenta mantém um **arquivo de estado** que mapeia cada recurso do código
 
 ---
 
-## Integração contínua
+## Integração contínua { #continuous-integration }
 
 **Integração contínua (CI)** significa que toda mudança é integrada à branch principal com frequência e verificada automaticamente por build e testes. **Entrega contínua (CD)** significa que toda mudança verificada pode ser *liberada* a qualquer momento; **deploy contínuo** vai um passo além e libera cada mudança automaticamente[^2].
 
@@ -160,7 +160,20 @@ jobs:
           git commit -am "inventory: ${{ github.sha }}" && git push
 ```
 
-Repare no que o pipeline **não** faz: ele nunca executa `kubectl apply` contra a produção e não guarda credenciais do cluster. Ele só escreve no Git. O cluster puxa. O [Hands-on 11](../../../hands-on/11/index.md) constrói esse workflow passo a passo e adiciona um **gate de orçamento de desempenho com k6** (veja [Planejamento de capacidade — orçamentos de desempenho](../../performance/capacity-planning/index.md#performance-budgets)).
+Repare no que o pipeline **não** faz: ele nunca executa `kubectl apply` contra a produção e não guarda credenciais do cluster. Ele só escreve no Git. O cluster puxa.
+
+!!! example "No código do BoxOffice: `CI` e `Deploy` (lab 11)"
+
+    O [Hands-on 11 — CI](../../../hands-on/11/ci/index.md) constrói uma versão menor desse pipeline para um único repositório: um workflow `CI` testa todos os serviços numa matriz, roda um **orçamento de desempenho com k6** contra o `catalog` (veja [Planejamento de capacidade — orçamentos de desempenho](../../performance/capacity-planning/index.md#performance-budgets)) e só então — na `main` — constrói, escaneia, atesta e publica a imagem. Leia a linha `needs:`: nenhuma imagem existe se os testes *e* o orçamento não passaram. O scan bloqueia só **vulnerabilidades críticas que têm correção** (um gate que falha por tudo acaba desligado), e a assinatura usa as atestações de build do GitHub em vez do `cosign`. Um workflow separado, `Deploy`, escreve a nova tag (`sha-…`, não um digest) em `k8s/overlays/gitops` no mesmo repositório — o "repositório de configuração" é uma pasta.
+
+    ``` { .yaml title=".github/workflows/ci.yaml (image job: order of the jobs, the vulnerability gate, provenance)" }
+    --8<-- "docs/2027.1/hands-on/11/code/.github/workflows/ci.yaml:67:70,119:126,142:147"
+    ```
+
+    ``` { .yaml title=".github/workflows/deploy.yaml (the only thing CD does: a commit)" }
+    --8<-- "docs/2027.1/hands-on/11/code/.github/workflows/deploy.yaml:28:45"
+    ```
+
 
 !!! tip "Mantenha a CI rápida"
 
@@ -172,7 +185,7 @@ Repare no que o pipeline **não** faz: ele nunca executa `kubectl apply` contra 
 
 O **GitOps** aplica o laço de controle do Kubernetes à própria entrega. Os princípios OpenGitOps são: o estado desejado é **declarativo**, **versionado e imutável** (no Git), **puxado automaticamente** por um agente no cluster e **continuamente reconciliado**[^4].
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant Dev as Engenheira
     participant Git as Repo de config (Git)
@@ -217,6 +230,15 @@ spec:
 | Vários clusters | Um passo de pipeline por cluster | Cada cluster puxa o próprio caminho |
 
 A **promoção** entre ambientes vira um pull request que copia o digest de `overlays/staging` para `overlays/prod` — revisado, auditável e trivialmente reversível.
+
+!!! example "No código do BoxOffice: uma Application do Argo CD (lab 11)"
+
+    O [Hands-on 11 — GitOps](../../../hands-on/11/gitops/index.md) tem um só ambiente, portanto uma só `Application`, que segue `k8s/overlays/gitops` na `main`, com `prune` e `selfHeal` ligados. O lab testa o segundo de propósito: escale o `redis` para 0 com `kubectl` e, em segundos, o Argo CD acusa `OutOfSync` e restaura 1 réplica. O preço de puxar é latência: o Argo CD consulta o Git a cada 3 minutos, o que o lab conta no seu lead time (cerca de 10–20 minutos do push até o rollout completo).
+
+    ``` { .yaml title="k8s/argocd/application.yaml (lab 11)" }
+    --8<-- "docs/2027.1/hands-on/11/code/k8s/argocd/application.yaml"
+    ```
+
 
 ---
 
@@ -306,6 +328,18 @@ spec:
               rate(http_server_requests_seconds_bucket{service="inventory-canary"}[2m])))
 ```
 
+!!! example "No código do BoxOffice: o canary do `catalog` (lab 11)"
+
+    O [Hands-on 11 — Canary](../../../hands-on/11/canary/index.md) usa os mesmos dois objetos com números menores: 25% → 2 min → 50% → 2 min e, a cada 30 s, uma taxa de erro abaixo de 1% e um p99 abaixo de 500 ms; `failureLimit: 1` significa que a segunda medição ruim aborta. Sem um roteador de tráfego, os pesos são obtidos por **número de réplicas**, então são aproximados. A guarda `len(result) == 0 || isNaN(...)` conta "ainda sem tráfego no canary" como aprovação. Na versão ruim do lab (30% das requisições falham), as medições foram `[]`, `0.068` e `0.285`, e o rollout foi abortado: os fãs que caíram no canary viram erros por cerca de um minuto; ninguém mais percebeu.
+
+    ``` { .yaml title="k8s/overlays/gitops/catalog-rollout.yaml (the steps)" }
+    --8<-- "docs/2027.1/hands-on/11/code/k8s/overlays/gitops/catalog-rollout.yaml:16:29"
+    ```
+
+    ``` { .yaml title="k8s/overlays/gitops/catalog-analysis.yaml (the error-rate check)" }
+    --8<-- "docs/2027.1/hands-on/11/code/k8s/overlays/gitops/catalog-analysis.yaml:6:17"
+    ```
+
 ### Quanto tempo um canary precisa rodar? { #how-long-must-a-canary-run }
 
 Um canary a 5 % vê poucas requisições, e erros raros precisam de muitas requisições para aparecer. Antes de escolher a duração das pausas, estime quantas requisições do canary você precisa para distinguir uma regressão real de ruído. A tabela usa o tamanho de amostra padrão por aproximação normal para comparar duas proporções (α unilateral = 5 %, poder de 80 %), com uma taxa de erros de base ilustrativa de 0,1 % e 400 requisições por segundo chegando ao `inventory`:
@@ -335,7 +369,7 @@ Regressões grandes aparecem em um ou dois minutos; dobrar uma taxa de erros peq
 
 !!! example "BoxOffice: nada de canary durante a venda"
 
-    Mesmo com análise automática, o BoxOffice declara um **congelamento de mudanças** no caminho de compra de 30 minutos antes de uma venda até o fim dela: o tráfego é incomum demais para a linha de base significar algo, e o custo de um rollout ruim é máximo. A correção das 09:40 da introdução é, portanto, publicada por um canary *expresso* (5 % → 100 % com 5 minutos de análise) às 09:42 — ou espera. Escrever essa regra com antecedência faz parte da engenharia de entrega.
+    Mesmo com análise automática, o BoxOffice declara um **congelamento de mudanças** no caminho de compra de 30 minutos antes de uma venda até o fim dela: o tráfego é incomum demais para a linha de base significar algo, e o custo de um rollout ruim é máximo. A correção das 09:40 da introdução, portanto, espera — a menos que o responsável pela venda autorize uma exceção, por um caminho também escrito com antecedência: um canary *expresso* (5 % → 100 % com 5 minutos de análise) às 09:42. Escrever essa regra com antecedência faz parte da engenharia de entrega.
 
 ---
 
@@ -354,7 +388,7 @@ A descoberta principal — velocidade e estabilidade **não** são um trade-off 
 
 ---
 
-## IA no pipeline
+## IA no pipeline { #ai-in-the-pipeline }
 
 Os pipelines cada vez mais incluem etapas de IA: revisão automática de pull requests, testes gerados, agentes que propõem correções para builds quebrados, análise de canary assistida por IA, notas de release e resumos de incidentes — e as questões de segurança e governança que elas levantam. Esses temas têm aula própria: **[Entrega assistida por IA](../../ai-delivery/index.md)**. As bases desta página — builds reproduzíveis, GitOps, rollouts controlados por métricas — são o que torna seguro adotar essas etapas de IA.
 
@@ -373,6 +407,14 @@ Os pipelines cada vez mais incluem etapas de IA: revisão automática de pull re
 
     Quando o entrevistador perguntar "como você publica isso com segurança?", responda em camadas: **imagens imutáveis construídas uma vez**, **GitOps** para que a produção seja igual ao Git, **canary** no caminho crítico com **rollback automático por métricas de SLO** (taxa de erros e p99 comparados com a linha de base), **feature flags** para mudanças de produto e migrações **expand/contract** para que duas versões rodem lado a lado. Mencione que a duração do canary depende do volume de tráfego — isso mostra que você entende a estatística, não só a ferramenta.
 
+!!! success "Boas práticas"
+
+    - **Faça o job da imagem depender dos testes e do orçamento de desempenho** — um artefato que falhou numa verificação nunca existe, então não pode ser implantado por engano. No BoxOffice: `needs: [test, performance]` em `ci.yaml` ([lab 11 — CI](../../../hands-on/11/ci/index.md)).
+    - **Fixe as actions de terceiros por SHA do commit, com a versão num comentário** — uma tag pode ser movida para código malicioso; um SHA não. No BoxOffice: todo `uses:` de `ci.yaml` e `deploy.yaml`, mantido atualizado pelo Dependabot ([lab 11 — cadeia de suprimentos](../../../hands-on/11/supply-chain/index.md)).
+    - **Dê a cada job as menores permissões de que ele precisa** — `contents: read` por padrão; só o job da imagem pode escrever pacotes e atestações. No BoxOffice: os blocos `permissions:` de `ci.yaml`.
+    - **Rode os deploys um de cada vez** — dois deploys simultâneos podem gravar as tags na ordem errada. No BoxOffice: `concurrency: deploy` com `cancel-in-progress: false` em `deploy.yaml` ([lab 11 — GitOps](../../../hands-on/11/gitops/index.md)).
+    - **Decida o que "sem dados" significa numa análise de canary** — no início, o canary ainda não tem tráfego; uma análise que falha com resultado vazio aborta todo rollout, uma que o ignora para sempre promove às cegas. No BoxOffice: a guarda `len(result) == 0` de `catalog-analysis.yaml` ([lab 11 — Canary](../../../hands-on/11/canary/index.md)).
+
 !!! warning "Armadilhas"
 
     - **Construir um artefato diferente por ambiente**: o que você testou não é o que você publica. Construa uma vez, promova por digest.
@@ -384,7 +426,7 @@ Os pipelines cada vez mais incluem etapas de IA: revisão automática de pull re
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     IAC["IaC: Terraform / OpenTofu<br/>plan, apply, state remoto"] --> INFRA["VPC, cluster,<br/>serviços de dados gerenciados"]
     INFRA --> DR["recriar após perder uma região<br/>→ Recuperação de desastres"]
@@ -400,7 +442,7 @@ flowchart LR
     CI --> AI["passos de IA no pipeline<br/>→ Entrega assistida por IA"]
 ```
 
-**Componentes da paleta:** [`vpc`](../../../reference/components/network/index.md#vpc) (criada por IaC) · [`sql`](../../../reference/components/storage/index.md#sql) · [`cache`](../../../reference/components/storage/index.md#cache) · [`kafka`](../../../reference/components/messaging/index.md#kafka) (gerenciados, declarados em Terraform) · [`ingress`](../../../reference/components/edge/index.md#ingress) (o Gateway API divide o tráfego do canary) · [`metrics`](../../../reference/components/observability/index.md#metrics) (consultadas pela análise do canary) · [`app`](../../../reference/components/compute/index.md#app) (`inventory`, `order`, `payment` com canary). **Cenários:** — a entrega acontece fora do simulador; as métricas que julgam um canary são as do `observability-stack`. **Continua em:** [Confiabilidade — SLOs](../../reliability/slo/index.md), [Confiabilidade — recuperação de desastres](../../reliability/disaster-recovery/index.md), [Performance — budgets no CI](../../performance/capacity-planning/index.md#performance-budgets), [Entrega assistida por IA](../../ai-delivery/index.md), [Hands-on 13 — canary](../../../hands-on/13/canary/index.md), [Marcos do projeto](../../../exercises/project/milestones/index.md).
+**Componentes da paleta:** [`vpc`](../../../reference/components/network/index.md#vpc) (criada por IaC) · [`sql`](../../../reference/components/storage/index.md#sql) · [`cache`](../../../reference/components/storage/index.md#cache) · [`kafka`](../../../reference/components/messaging/index.md#kafka) (gerenciados, declarados em Terraform) · [`ingress`](../../../reference/components/edge/index.md#ingress) (o Gateway API divide o tráfego do canary) · [`metrics`](../../../reference/components/observability/index.md#metrics) (consultadas pela análise do canary) · [`app`](../../../reference/components/compute/index.md#app) (`inventory`, `order`, `payment` com canary). **Cenários:** — a entrega acontece fora do simulador; as métricas que julgam um canary são as do `observability-stack`. **Continua em:** [Observabilidade — SLOs](../../observability/slo/index.md), [Confiabilidade — recuperação de desastres](../../reliability/disaster-recovery/index.md), [Performance — budgets no CI](../../performance/capacity-planning/index.md#performance-budgets), [Entrega assistida por IA](../../ai-delivery/index.md), [Hands-on 13 — canary](../../../hands-on/13/canary/index.md), [Marcos do projeto](../../../exercises/project/milestones/index.md).
 
 ---
 

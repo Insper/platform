@@ -1,8 +1,13 @@
 /*
  * Mermaid simulator: renders ``` mermaid-sim blocks and plays them step by
  * step (flowchart edges, sequence messages, state transitions) with
- * play / pause / previous / next controls. Diagrams without a flow (e.g.
+ * play / pause / previous / next / speed controls, a clickable progress bar
+ * and a caption that names who talks to whom. Diagrams without a flow (e.g.
  * class diagrams) are rendered statically.
+ *
+ * Colors follow the page theme: Mermaid's "base" theme gets its variables
+ * from Material's CSS variables (resolved to hex, which Mermaid requires),
+ * and the diagram is re-rendered when the palette changes.
  *
  * Zensical renders ``` mermaid into a closed shadow root, which page scripts
  * cannot reach, so these blocks use their own fence and are rendered here.
@@ -21,12 +26,13 @@
   var T = (document.documentElement.lang || "").indexOf("pt") === 0 ? {
     steps: "passos", step: "Passo", hint: "Aperte play para simular",
     reset: "Recomeçar", prev: "Passo anterior (←)", play: "Reproduzir / pausar (espaço)",
-    next: "Próximo passo (→)", all: "Ver o diagrama inteiro"
+    next: "Próximo passo (→)", all: "Ver o diagrama inteiro", speed: "Velocidade", goto: "Ir para o passo "
   } : {
     steps: "steps", step: "Step", hint: "Press play to simulate",
     reset: "Restart", prev: "Previous step (←)", play: "Play / pause (space)",
-    next: "Next step (→)", all: "Show the whole diagram"
+    next: "Next step (→)", all: "Show the whole diagram", speed: "Speed", goto: "Go to step "
   };
+  var SPEEDS = [1, 2, 0.5];
 
   var ICONS = {
     reset: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>',
@@ -59,6 +65,61 @@
 
   function isDark() {
     return document.body.getAttribute("data-md-color-scheme") === "slate";
+  }
+
+  /* ─── Theme ─── */
+
+  /* A CSS color (any syntax, maybe translucent) as [r, g, b, a], via the browser. */
+  var probe = null;
+  function rgba(css, scope) {
+    if (!probe) { probe = document.createElement("span"); probe.style.display = "none"; }
+    (scope || document.body).appendChild(probe);
+    probe.style.color = "";
+    probe.style.color = css;
+    var m = getComputedStyle(probe).color.match(/[\d.]+/g) || [0, 0, 0];
+    probe.remove();
+    return [+m[0], +m[1], +m[2], m[3] === undefined ? 1 : +m[3]];
+  }
+  /* c over bg (both [r, g, b, a]) mixed at weight w of c, as #rrggbb */
+  function mix(c, bg, w) {
+    var a = c[3] * (w === undefined ? 1 : w);
+    return "#" + [0, 1, 2].map(function (i) {
+      var v = Math.round(c[i] * a + bg[i] * (1 - a));
+      return ("0" + v.toString(16)).slice(-2);
+    }).join("");
+  }
+
+  /* Mermaid "base" theme variables from the page palette. */
+  function themeVars() {
+    var scope = document.querySelector(".md-typeset") || document.body;
+    var v = function (name) { return rgba("var(" + name + ")", scope); };
+    var bg = v("--md-default-bg-color");
+    bg[3] = 1;
+    var ink = v("--md-typeset-a-color"), accent = v("--md-accent-fg-color");
+    var fg = v("--md-default-fg-color"), fg2 = v("--md-default-fg-color--light");
+    var code = v("--md-code-bg-color");
+    var c = {
+      bg: mix(bg, bg), fg: mix(fg, bg), fg2: mix(fg2, bg), line: mix(fg, bg, 0.3), faint: mix(fg, bg, 0.12),
+      ink: mix(ink, bg), node: mix(ink, bg, isDark() ? 0.2 : 0.09), accent: mix(accent, bg),
+      note: mix(accent, bg, isDark() ? 0.22 : 0.1), act: mix(ink, bg, isDark() ? 0.35 : 0.18), code: mix(code, bg)
+    };
+    return {
+      darkMode: isDark(), fontSize: "14px", background: c.bg,
+      primaryColor: c.node, primaryBorderColor: c.ink, primaryTextColor: c.fg,
+      secondaryColor: c.note, secondaryBorderColor: c.accent, secondaryTextColor: c.fg,
+      tertiaryColor: c.code, tertiaryBorderColor: c.line, tertiaryTextColor: c.fg,
+      mainBkg: c.node, nodeBorder: c.ink, nodeTextColor: c.fg, textColor: c.fg, titleColor: c.fg,
+      lineColor: c.fg2, defaultLinkColor: c.fg2, edgeLabelBackground: c.bg,
+      clusterBkg: c.code, clusterBorder: c.line,
+      actorBkg: c.node, actorBorder: c.ink, actorTextColor: c.fg, actorLineColor: c.line,
+      signalColor: c.fg2, signalTextColor: c.fg, labelBoxBkgColor: c.code, labelBoxBorderColor: c.line,
+      labelTextColor: c.fg, loopTextColor: c.fg, noteBkgColor: c.note, noteBorderColor: c.accent, noteTextColor: c.fg,
+      activationBkgColor: c.act, activationBorderColor: c.ink, sequenceNumberColor: c.bg,
+      labelBackgroundColor: c.bg, compositeBackground: c.code, altBackground: c.faint, compositeTitleBackground: c.code,
+      stateLabelColor: c.fg, stateBkg: c.node, transitionColor: c.fg2, transitionLabelColor: c.fg, specialStateColor: c.fg,
+      innerEndBackground: c.fg, errorBkgColor: c.note, errorTextColor: c.fg,
+      classText: c.fg
+    };
   }
 
   /* mermaid.render is not re-entrant: run renders one at a time. */
@@ -100,7 +161,7 @@
         els: [path, labels[e.id]].filter(Boolean),
         path: path,
         nodes: [nodes[e.start], nodes[e.end]].filter(Boolean),
-        caption: name(e.start) + " → " + name(e.end) + (label ? ": " + label : "")
+        who: name(e.start) + " → " + name(e.end), what: label
       };
     }).filter(Boolean);
   }
@@ -114,14 +175,23 @@
     var useDb = msgs.length === lines.length;
     return Array.prototype.map.call(lines, function (line, i) {
       var t = texts[i];
-      var caption = useDb
-        ? plain(actor(msgs[i].from)) + " → " + plain(actor(msgs[i].to)) + (msgs[i].message ? ": " + plain(msgs[i].message) : "")
-        : text(t);
-      return { els: [line, t].filter(Boolean), path: line, nodes: [], caption: caption };
+      var who = useDb ? plain(actor(msgs[i].from)) + " → " + plain(actor(msgs[i].to)) : "";
+      var what = useDb ? plain(msgs[i].message) : text(t);
+      var boxes = useDb ? [msgs[i].from, msgs[i].to].reduce(function (acc, a) {
+        return acc.concat(Array.prototype.slice.call(svg.querySelectorAll('rect.actor[name="' + cssq(a) + '"]')));
+      }, []) : [];
+      return { els: [line, t].filter(Boolean), path: line, nodes: boxes, who: who, what: what };
     });
   }
 
-  function stateSteps(svg, source) {
+  function cssq(s) { return String(s).replace(/["\\]/g, "\\$&"); }
+
+  function stateSteps(svg, source, id) {
+    var nodes = {};
+    svg.querySelectorAll("g.node").forEach(function (n) {
+      var m = n.id.match(new RegExp("^" + id + "-state-(.+)-\\d+$"));
+      if (m) nodes[m[1]] = n;
+    });
     var pairs = [];
     source.split("\n").forEach(function (line) {
       var m = line.match(/^\s*([^\s:]+)\s*-->\s*([^\s:]+)\s*(?::\s*(.*))?$/);
@@ -133,8 +203,11 @@
       var id = path.getAttribute("data-id");
       var label = id && svg.querySelector('g.edgeLabel [data-id="' + id + '"]');
       var p = pairs.length === paths.length ? pairs[i] : null;
-      var caption = p ? nice(p[1]) + " → " + nice(p[2]) + (p[3] ? ": " + p[3] : "") : text(label);
-      return { els: [path, label && label.closest("g.edgeLabel")].filter(Boolean), path: path, nodes: [], caption: caption };
+      return {
+        els: [path, label && label.closest("g.edgeLabel")].filter(Boolean), path: path,
+        nodes: p ? [nodes[p[1]], nodes[p[2]]].filter(Boolean) : [],
+        who: p ? nice(p[1]) + " → " + nice(p[2]) : "", what: p ? plain(p[3] || "") : text(label)
+      };
     });
   }
 
@@ -153,6 +226,7 @@
     this.idx = -1;      // -1: whole diagram, no simulation
     this.timer = null;
     this.raf = null;
+    this.speed = 1;
     this.rendered = false;
   }
 
@@ -162,7 +236,7 @@
     return serial(function () {
       return loadMermaid().then(function (mermaid) {
         var font = getComputedStyle(document.body).fontFamily;
-        mermaid.initialize({ startOnLoad: false, securityLevel: "strict", theme: isDark() ? "dark" : "default", fontFamily: font });
+        mermaid.initialize({ startOnLoad: false, securityLevel: "strict", theme: "base", themeVariables: themeVars(), fontFamily: font });
         var id = "msim-" + (++counter);
         return mermaid.render(id, self.source).then(function (out) {
           self.canvas.innerHTML = out.svg;
@@ -171,7 +245,7 @@
             var type = diagram.type || "";
             if (/flowchart|graph/.test(type)) self.steps = flowSteps(svg, diagram.db, id);
             else if (/sequence/.test(type)) self.steps = sequenceSteps(svg, diagram.db);
-            else if (/state/.test(type)) self.steps = stateSteps(svg, self.source);
+            else if (/state/.test(type)) self.steps = stateSteps(svg, self.source, id);
             else self.steps = [];
           });
         });
@@ -179,8 +253,9 @@
     }).then(function () {
       self.rendered = true;
       self.svg = self.canvas.querySelector("svg");
+      var keep = self.idx;
       self.buildBar();
-      self.idx = -1;
+      self.idx = Math.min(keep === undefined ? -1 : keep, self.steps.length - 1);
       self.apply();
     }).catch(function (err) {
       self.canvas.innerHTML = '<pre class="msim-error"></pre>';
@@ -190,22 +265,39 @@
   };
 
   Sim.prototype.buildBar = function () {
-    var old = this.root.querySelector(".msim-bar");
-    if (old) old.remove();
+    var self = this;
+    ["msim-bar", "msim-caption"].forEach(function (c) {
+      var old = self.root.querySelector("." + c);
+      if (old) old.remove();
+    });
+    this.bar = null;
     if (this.steps.length < 2) return;
     var bar = document.createElement("div");
     bar.className = "msim-bar";
+    var dots = this.steps.map(function (st, i) {
+      return '<button type="button" data-msim-go="' + i + '" title="' + T.goto + (i + 1) + (st.what ? ": " + esc(st.what) : "") + '"></button>';
+    }).join("");
     bar.innerHTML =
       '<button type="button" data-msim="reset" title="' + T.reset + '">' + icon("reset") + "</button>" +
       '<button type="button" data-msim="prev" title="' + T.prev + '">' + icon("prev") + "</button>" +
       '<button type="button" data-msim="play" class="msim-play" title="' + T.play + '">' + icon("play") + "</button>" +
       '<button type="button" data-msim="next" title="' + T.next + '">' + icon("next") + "</button>" +
       '<span class="msim-step"></span>' +
-      '<span class="msim-caption"></span>' +
+      '<span class="msim-progress">' + dots + "</span>" +
+      '<button type="button" data-msim="speed" class="msim-speed" title="' + T.speed + '">' + this.speed + "×</button>" +
       '<button type="button" data-msim="all" title="' + T.all + '">' + icon("all") + "</button>";
+    var cap = document.createElement("div");
+    cap.className = "msim-caption";
+    cap.setAttribute("aria-live", "polite");
     this.root.appendChild(bar);
+    this.root.appendChild(cap);
     this.bar = bar;
+    this.cap = cap;
   };
+
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; });
+  }
 
   Sim.prototype.apply = function () {
     var self = this;
@@ -221,32 +313,46 @@
     });
     self.steps.forEach(function (s) {
       s.nodes.forEach(function (n) {
-        n.classList.toggle("msim-todo", idx >= 0 && !touched.has(n));
-        n.classList.toggle("msim-current", idx >= 0 && self.steps[idx].nodes.indexOf(n) >= 0);
+        var current = idx >= 0 && self.steps[idx].nodes.indexOf(n) >= 0;
+        n.classList.toggle("msim-todo", idx >= 0 && !touched.has(n) && !n.classList.contains("actor"));
+        n.classList.toggle("msim-seen", idx >= 0 && touched.has(n) && !current);
+        n.classList.toggle("msim-current", current);
       });
     });
     if (self.svg) self.svg.classList.toggle("msim-running", idx >= 0);
     self.dot(idx >= 0 ? self.steps[idx] : null);
     if (!self.bar) return;
     self.bar.querySelector(".msim-step").textContent =
-      idx < 0 ? self.steps.length + " " + T.steps : T.step + " " + (idx + 1) + "/" + self.steps.length;
-    self.bar.querySelector(".msim-caption").textContent = idx < 0 ? T.hint : self.steps[idx].caption;
+      idx < 0 ? self.steps.length + " " + T.steps : (idx + 1) + "/" + self.steps.length;
+    self.bar.querySelectorAll("[data-msim-go]").forEach(function (b, i) {
+      b.className = idx < 0 ? "" : i < idx ? "done" : i === idx ? "cur" : "";
+    });
     self.bar.querySelector(".msim-play").innerHTML = icon(self.timer ? "pause" : "play");
+    var st = idx >= 0 ? self.steps[idx] : null;
+    self.cap.innerHTML = st
+      ? '<span class="msim-num">' + (idx + 1) + "</span>" +
+        (st.who ? '<span class="msim-who">' + esc(st.who) + "</span>" : "") +
+        (st.what ? '<span class="msim-what">' + esc(st.what) + "</span>" : "")
+      : '<span class="msim-hint">' + T.hint + " ▶</span>";
   };
 
-  /* Moves a dot along the active edge or message. */
+  /* Moves a dot (with a halo) along the active edge or message. */
   Sim.prototype.dot = function (step) {
     var self = this;
     if (self.raf) cancelAnimationFrame(self.raf);
-    if (self.marker) self.marker.remove();
+    (self.marker || []).forEach(function (m) { m.remove(); });
     self.marker = null;
     if (!step || !step.path) return;
     var el = step.path;
-    var circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-    circle.setAttribute("r", "5");
-    circle.setAttribute("class", "msim-dot");
-    el.parentNode.appendChild(circle);
-    self.marker = circle;
+    var mk = function (r, cls) {
+      var c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      c.setAttribute("r", r);
+      c.setAttribute("class", cls);
+      el.parentNode.appendChild(c);
+      return c;
+    };
+    var halo = mk(11, "msim-halo"), circle = mk(5, "msim-dot");
+    self.marker = [halo, circle];
     var point;
     if (el.tagName.toLowerCase() === "line") {
       var x1 = +el.getAttribute("x1"), y1 = +el.getAttribute("y1");
@@ -256,12 +362,13 @@
       var len = el.getTotalLength();
       point = function (t) { return el.getPointAtLength(len * t); };
     }
+    var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    var ms = DOT_MS / self.speed;
     var start = performance.now();
     var frame = function (now) {
-      var t = Math.min(1, (now - start) / DOT_MS);
+      var t = reduce ? 1 : Math.min(1, (now - start) / ms);
       var p = point(1 - Math.pow(1 - t, 2));
-      circle.setAttribute("cx", p.x);
-      circle.setAttribute("cy", p.y);
+      [halo, circle].forEach(function (c) { c.setAttribute("cx", p.x); c.setAttribute("cy", p.y); });
       if (t < 1) self.raf = requestAnimationFrame(frame);
     };
     self.raf = requestAnimationFrame(frame);
@@ -277,10 +384,10 @@
     if (self.timer) return self.stop();
     if (self.idx < 0 || self.idx >= self.steps.length - 1) self.idx = -1;
     var tick = function () {
-      if (self.idx >= self.steps.length - 1) return self.stop();
+      if (!document.contains(self.root) || self.idx >= self.steps.length - 1) return self.stop();
       self.go(self.idx + 1);
     };
-    self.timer = setInterval(tick, STEP_MS);
+    self.timer = setInterval(tick, STEP_MS / self.speed);
     tick();
   };
 
@@ -292,6 +399,12 @@
 
   Sim.prototype.action = function (name) {
     if (name === "play") return this.play();
+    if (name === "speed") {
+      this.speed = SPEEDS[(SPEEDS.indexOf(this.speed) + 1) % SPEEDS.length];
+      this.bar.querySelector(".msim-speed").textContent = this.speed + "×";
+      if (this.timer) { this.stop(); this.play(); }
+      return;
+    }
     this.stop();
     if (name === "next") this.go(this.idx + 1);
     else if (name === "prev") this.go(this.idx - 1);
@@ -307,6 +420,12 @@
   /* ─── Wiring ─── */
 
   document.addEventListener("click", function (ev) {
+    var go = ev.target.closest && ev.target.closest(".msim [data-msim-go]");
+    if (go) {
+      var s = find(go.closest(".msim"));
+      if (s) { s.stop(); s.go(+go.getAttribute("data-msim-go")); }
+      return;
+    }
     var btn = ev.target.closest && ev.target.closest(".msim [data-msim]");
     if (!btn) return;
     var sim = find(btn.closest(".msim"));

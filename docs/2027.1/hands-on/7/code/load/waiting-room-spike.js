@@ -20,7 +20,7 @@ export const options = {
       exec: 'fan',
       startRate: 0,
       timeUnit: '1s',
-      preAllocatedVUs: 200,
+      preAllocatedVUs: 300,
       maxVUs: 1500,
       stages: [
         { target: 20, duration: '5s' },  // the on-sale opens
@@ -52,7 +52,7 @@ export function setup() {
 export function fan() {
   const t0 = Date.now();
   let ticket = http.post(`${BASE_URL}/orders/waiting-room/${SHOW}/join`, null, { tags: { name: 'join' } }).json();
-  const promisedEta = ticket.etaSeconds;
+  const promisedEta = ticket.etaSeconds ?? 0; // admitted right away: no wait was promised
   for (let i = 0; i < 300 && ticket.status === 'WAITING'; i++) {
     sleep(1);
     ticket = http

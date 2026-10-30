@@ -5,7 +5,7 @@ hide:
 
 # Study Cards: System Design
 
-One deck for all 16 classes, from C1 (what system design is) to C16 (the case studies), subpages included: 446 cards, each a section of a class, with that class's own numbers and the BoxOffice example. There are two modes.
+One deck for all 16 classes, from C1 (what system design is) to C16 (the case studies), subpages included: 460 cards, each a section of a class, with that class's own numbers and the BoxOffice example. There are two modes.
 
 - **Study.** Read the question, answer it in your head and flip the card. Then say how it went: *missed*, *almost* or *got it*. Cards you missed come back first; the ones you got right wait until the end. Your progress is saved in this browser.
 - **Challenge.** A ten-round game: each round shows a situation from production or from a design interview ("the payment provider is slow and every checkout thread is waiting…") and three concept cards. Pick the card that explains or solves the situation. Right answers in a row multiply your points; each miss costs a life and sends the card to the *missed* box of the Study mode. There are 272 situations.

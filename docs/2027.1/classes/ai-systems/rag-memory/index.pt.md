@@ -15,11 +15,11 @@ O RAG[^1] transforma um problema de conhecimento em um **problema de busca** —
 
 ---
 
-## Os dois pipelines
+## Os dois pipelines { #the-two-pipelines }
 
 Um sistema de RAG são dois pipelines que se encontram em um índice: um pipeline de **ingestão** (assíncrono, orientado a vazão) e um pipeline de **consulta** (síncrono, orientado a latência).
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     subgraph Ingestion["Ingestão (assíncrona)"]
         src["PDFs dos locais, FAQ,<br/>descrições de eventos"] --> parse["extrair + limpar"]
@@ -39,9 +39,9 @@ flowchart LR
 
 ---
 
-## Ingestão
+## Ingestão { #ingestion }
 
-### Fontes, extração e atualização
+### Fontes, extração e atualização { #sources-parsing-and-freshness }
 
 A ingestão começa como um pipeline de dados comum: ler os documentos de onde eles estão (object store, CMS, o banco de dados do `catalog`), extrair texto limpo (a extração de PDFs costuma ser a parte mais difícil: tabelas, colunas, cabeçalhos repetidos em toda página) e anexar **metadados** — `doc_id`, `venue_id`, idioma, versão, data de vigência, nível de acesso. São os metadados que permitem filtrar (*só este local*), citar (*regras da Arena Paulista, §4*) e apagar (*as regras de 2026 estão obsoletas*).
 
@@ -108,7 +108,7 @@ Os 4.000 documentos do BoxOffice viram ~60.000 chunks: bem menos de 1 GB, cabend
 
 ---
 
-## Busca vetorial
+## Busca vetorial { #vector-search }
 
 Encontrar os vizinhos mais próximos exatos significa comparar a consulta com **todos** os vetores — tudo bem para 60.000 chunks, lento demais para 100 milhões. Índices de **vizinhos mais próximos aproximados (ANN)** trocam um pouco de recall (revocação) por ordens de grandeza de velocidade (veja [Bancos de dados — especializados](../../databases/specialized/index.md)):
 
@@ -136,9 +136,9 @@ O botão de ajuste é o **trade-off entre recall e latência**: o `ef_search` do
 
 ---
 
-## O pipeline de consulta
+## O pipeline de consulta { #the-query-pipeline }
 
-### 1. Reescrever a pergunta
+### 1. Reescrever a pergunta { #1-rewrite-the-question }
 
 *"E o setor C?"* não significa nada sozinho. Antes de buscar, uma chamada barata ao modelo (ou o próprio agente) reescreve o turno como uma **consulta autônoma** usando a conversa — *"acesso sem degraus ao setor C na Arena Paulista"* — e extrai filtros (`venue_id`). Alguns sistemas também geram várias variantes da consulta ou uma resposta hipotética para usar na busca.
 
@@ -152,15 +152,15 @@ $$
 
 Um chunk em 1º lugar pelas palavras-chave e em 3º pelos vetores pontua $1/61 + 1/63 ≈ 0.0323$; um em 1º só pelos vetores pontua $1/61 ≈ 0.0164$. A concordância entre os dois recuperadores vence.
 
-### 3. Reranquear
+### 3. Reranquear { #3-rerank }
 
 O primeiro estágio é rápido, mas grosseiro: cada chunk teve seu embedding gerado **sem ver a pergunta**. Um **reranqueador** (um cross-encoder) lê a pergunta e cada candidato **juntos** e produz um score de relevância[^7] — muito mais preciso, muito mais lento (uma passada do modelo por par). Por isso ele roda só sobre os 20–50 melhores candidatos e mantém os 3–8 melhores. Custo típico: de dezenas a algumas centenas de milissegundos.
 
-### 4. Montar o contexto e citar
+### 4. Montar o contexto e citar { #4-assemble-the-context-and-cite }
 
 Coloque os chunks selecionados no prompt com seus IDs e títulos, o melhor primeiro (os modelos aproveitam melhor o começo e o fim de um contexto longo do que o meio[^6]), dentro de um orçamento de tokens. Instrua o modelo a responder **apenas a partir das fontes**, a citá-las como `[doc_id]` e a dizer *"não sei"* quando as fontes não respondem. Depois, **verifique**: todo ID citado precisa ser um dos chunks fornecidos (uma verificação barata e determinística no [Safety Mesh](../safety-evals/index.md)).
 
-### O schema e a consulta no PostgreSQL
+### O schema e a consulta no PostgreSQL { #the-schema-and-the-query-in-postgresql }
 
 ``` sql title="kb_schema.sql"
 CREATE EXTENSION IF NOT EXISTS vector;
@@ -216,7 +216,19 @@ LIMIT 20;  -- candidates for the reranker, which keeps the best 5
 
 O `ts_rank_cd` do PostgreSQL não é exatamente BM25, mas, para a fusão, só a **ordem do ranking** importa; motores como o OpenSearch oferecem BM25 nativamente.
 
-### Orçamento de latência de uma recuperação
+!!! example "No código do BoxOffice: pgvector no banco que a BoxOffice já opera (lab 12)"
+
+    O [Hands-on 12 — RAG com pgvector](../../../hands-on/12/rag/index.md) constrói a menor versão deste pipeline. Cada evento é curto o bastante para ser o seu próprio chunk: uma linha por evento, com embedding do `nomic-embed-text` (768 dimensões), num schema `assistant` do mesmo PostgreSQL, com um índice HNSW sobre a distância de cosseno. A consulta é **busca vetorial pura**: top-k por `<=>`. Escolher o pgvector em vez de um banco vetorial dedicado não custa quase nada para operar com algumas centenas de eventos — é mais um schema num banco que o time já protege e já inclui nos backups; o preço é o que esta versão simplificada deixa de fora (sem a metade por palavras-chave, sem reranker), e a avaliação abaixo mostra onde isso dói.
+
+    ``` { .python title="services/assistant/app/db.py (the table and the index)" }
+    --8<-- "docs/2027.1/hands-on/12/code/services/assistant/app/db.py:11:21"
+    ```
+
+    ``` { .python title="services/assistant/app/rag.py (the search)" }
+    --8<-- "docs/2027.1/hands-on/12/code/services/assistant/app/rag.py:65:77"
+    ```
+
+### Orçamento de latência de uma recuperação { #latency-budget-of-one-retrieval }
 
 | Estágio | Latência típica |
 |---|---|
@@ -228,7 +240,7 @@ O `ts_rank_cd` do PostgreSQL não é exatamente BM25, mas, para a fusão, só a 
 
 A recuperação em si é barata; o que você paga são os **tokens extras que ela acrescenta a cada chamada ao modelo**. Recupere menos chunks, e melhores.
 
-### Medindo a recuperação
+### Medindo a recuperação { #measuring-retrieval }
 
 Avalie as duas metades separadamente (mais em [Segurança, avaliações e observabilidade](../safety-evals/index.md#evaluation)):
 
@@ -237,7 +249,15 @@ Avalie as duas metades separadamente (mais em [Segurança, avaliações e observ
 
 Se a resposta está errada, essas métricas dizem *onde*: a recuperação não trouxe o documento (corrija o chunking, a busca híbrida, os filtros) ou o modelo o ignorou (corrija o prompt, a ordem, o modelo).
 
-### Variantes que você vai encontrar
+!!! example "No código do BoxOffice: hit@k e MRR num conjunto rotulado (lab 12)"
+
+    O seed do catálogo do lab 1 é gerado por uma fórmula, então o `eval_retrieval.py` sabe quais são os eventos certos para cada pergunta e mede só a recuperação, antes de qualquer modelo entrar. Uma execução de teste no [Hands-on 12 — RAG](../../../hands-on/12/rag/index.md) deu **hit@5 = 1,00 e MRR = 0,94** em 11 perguntas. A única posição imperfeita é "the big festival night at the stadium in São Paulo": o evento certo veio em 3º, atrás de festivais genéricos no mesmo estádio — nomes exatos são onde a busca vetorial pura é mais fraca, e onde a [busca híbrida](#hybrid) ajuda.
+
+    ``` { .python title="scripts/eval_retrieval.py (labels and scores)" }
+    --8<-- "docs/2027.1/hands-on/12/code/scripts/eval_retrieval.py:30:43,52:62"
+    ```
+
+### Variantes que você vai encontrar { #variants-you-will-meet }
 
 | Variante | Ideia | Use quando |
 |---|---|---|
@@ -260,7 +280,7 @@ O RAG responde *"o que o mundo sabe?"*. A **memória** responde *"o que o assist
 | **De longo prazo — episódica** | interações passadas, recuperáveis por similaridade | "no mês passado a transferência do fã falhou; foi reembolsada" | índice vetorial sobre resumos de conversas passadas | política de retenção |
 | **Procedural** | como o assistente se comporta: instruções, regras de uso de ferramentas, exemplos | o system prompt, as regras de reembolso | Git, versionada e avaliada como código | a cada release |
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     orch["Orchestrator"] -->|"1. carregar a sessão"| redis[("Cache<br/>sessão, TTL 2 h")]
     orch -->|"2. carregar o perfil"| sql[("SQL<br/>preferências")]
@@ -272,7 +292,7 @@ flowchart LR
     worker -.-> epi
 ```
 
-### Escrevendo memórias
+### Escrevendo memórias { #writing-memories }
 
 Ler a memória é recuperação; **escrevê-la** é onde estão os riscos:
 
@@ -281,7 +301,7 @@ Ler a memória é recuperação; **escrevê-la** é onde estão os riscos:
 - **A memória de curto prazo transborda** o contexto em sessões longas: mantenha os últimos turnos na íntegra e **compacte** os mais antigos em um resumo contínuo.
 - **Consistência**: memórias escritas de forma assíncrona não ficam visíveis no turno seguinte — read-your-writes de novo ([Consistência distribuída](../../distributed/consistency/index.md)). Escreva a sessão de forma síncrona; extraia as memórias de longo prazo de forma assíncrona.
 
-### Privacidade é uma restrição de projeto
+### Privacidade é uma restrição de projeto { #privacy-is-a-design-constraint }
 
 A memória transforma o assistente em um repositório de dados pessoais. Pela Lei Geral de Proteção de Dados (LGPD), informações de saúde, como uma deficiência, são **dados pessoais sensíveis** e exigem consentimento específico. As implicações para o projeto são concretas:
 
@@ -297,6 +317,14 @@ A memória transforma o assistente em um repositório de dados pessoais. Pela Le
 
     Desenhe os **dois pipelines** (ingestão assíncrona, consulta online) e nomeie os estágios: chunking, embedding, indexação; reescrita, **busca híbrida com RRF**, **reranqueamento**, citação. Estime o tamanho do índice ($N \times d \times 4$ bytes) e diga onde ele fica (pgvector até dezenas de milhões de vetores). Diga explicitamente que **dados estruturados ao vivo passam por ferramentas, não por RAG**, que o índice é mantido atualizado com **eventos de mudança** e que a memória tem **tipos com repositórios e tempos de vida diferentes** — além da exclusão, por privacidade.
 
+!!! success "Boas práticas"
+
+    - **Meça a recuperação num conjunto rotulado antes de ajustar o prompt** — hit@k e MRR dizem se a resposta sequer estava no contexto. No BoxOffice: o `eval_retrieval.py` mediu hit@5 = 1,00 e MRR = 0,94 ([lab 12 — RAG](../../../hands-on/12/rag/index.md)).
+    - **Registre o modelo de embedding e a dimensão junto com o índice** — trocar o modelo vira então um re-embedding planejado, como uma migração de schema. No BoxOffice: `EMBED_MODEL` e `EMBED_DIM` (768) são configuração, e a tabela declara `vector(768)`.
+    - **Faça upsert por um id estável do documento** — a reingestão precisa substituir um documento, não duplicá-lo. No BoxOffice: `ON CONFLICT (id) DO UPDATE` em `event:<id>` no `rag.py`.
+    - **Dê ao índice um SLO de atualização e meça o seu atraso** — por exemplo, uma regra de local alterada fica pesquisável em até 5 minutos; acompanhe o atraso da ingestão como o atraso de um consumidor.
+    - **Dê às memórias um TTL e um caminho de exclusão por usuário** — o direito ao esquecimento da LGPD precisa chegar ao cache de sessão, ao armazenamento de longo prazo e ao índice vetorial.
+
 !!! warning "Armadilhas comuns"
 
     - **Busca só vetorial** — não acha códigos de setor, nomes e siglas; acrescente busca por palavras-chave.
@@ -311,7 +339,7 @@ A memória transforma o assistente em um repositório de dados pessoais. Pela Le
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     SRC["venue PDFs, FAQ,<br/>event descriptions"] --> ING["ingestion: parse,<br/>chunk, embed (batch)"]
     CDC["change events<br/>→ Messaging outbox / CDC"] --> ING

@@ -3,7 +3,7 @@ Um alerta é um pedido de atenção de um humano, muitas vezes às 3 da manhã. 
 
 ---
 
-## O que merece um page
+## O que merece um page { #what-deserves-a-page }
 
 Um bom *page* (o acionamento do on-call) é **urgente**, **acionável** e sobre um problema **visível para o usuário**[^1]. Se faltar qualquer um dos três, ele deveria ser outra coisa:
 
@@ -16,7 +16,7 @@ Um bom *page* (o acionamento do on-call) é **urgente**, **acionável** e sobre 
 | CPU em 85% enquanto todos os SLIs estão bem | não | não | não | nada — ou uma revisão de capacidade |
 | O próprio pipeline de alertas está quebrado | sim | sim | indiretamente | page (via um *dead man's switch*, abaixo) |
 
-### Sintomas, não causas
+### Sintomas, não causas { #symptoms-not-causes }
 
 Alerte sobre **sintomas** — o que os usuários vivenciam: erros, latência, atualidade dos dados, corretude. Use **causas** — CPU, memória, um reinício de pod, uma fila cheia — para dashboards e diagnóstico, não para pages.
 
@@ -32,9 +32,9 @@ A exceção é um **indicador antecedente** que certamente vai virar sintoma e d
 
 ---
 
-## Do SLO ao alerta
+## Do SLO ao alerta { #from-the-slo-to-the-alert }
 
-O [SLO](../../reliability/slo/index.md) já diz quanta falha é aceitável: com **99,9% dos checkouts com sucesso numa janela móvel de 28 dias** (a janela usada em toda a aula de [Confiabilidade](../../reliability/slo/index.md)), o error budget é 0,1% dos checkouts. A pergunta que um alerta precisa responder, portanto, não é "há erros?" — sempre há — mas "**estamos gastando o budget rápido o bastante para ter problemas?**".
+O [SLO](../slo/index.md) já diz quanta falha é aceitável: com **99,9% dos checkouts com sucesso numa janela móvel de 28 dias** (a janela usada em toda a aula de [Confiabilidade](../slo/index.md)), o error budget é 0,1% dos checkouts. A pergunta que um alerta precisa responder, portanto, não é "há erros?" — sempre há — mas "**estamos gastando o budget rápido o bastante para ter problemas?**".
 
 A medida natural é o **burn rate**:
 
@@ -62,7 +62,7 @@ for b in [1, 2, 3, 6, 14.4, 36, 1000]:
 
 Um burn rate de 1000× é uma indisponibilidade total (100% de erros contra um budget de 0,1%): o budget inteiro de 28 dias acaba em cerca de 40 minutos. É por isso que os alertas rápidos precisam disparar em minutos — e por isso que queimas lentas podem esperar o horário comercial.
 
-### Seis jeitos de escrever o alerta
+### Seis jeitos de escrever o alerta { #six-ways-to-write-the-alert }
 
 O SRE Workbook[^2] compara seis desenhos progressivamente melhores para um alerta de SLO. Sua qualidade é medida por quatro propriedades: **precisão** (fração dos alertas que eram problemas reais), **recall** (fração dos problemas reais que geraram alerta), **tempo de detecção** e **tempo de reset** (quanto tempo o alerta continua disparando depois que o problema acaba).
 
@@ -121,7 +121,7 @@ plt.close(fig)
 
 Uma indisponibilidade total (100% de erros) dispara a regra rápida em menos de um minuto; um incidente que faz falhar 2% dos checkouts leva cerca de 43 minutos para disparar a regra rápida, e um que faz falhar 0,7% nunca a dispara, mas dispara a regra de 6 horas depois de cerca de 5 horas. Abaixo de 0,6% — um burn rate menor que 6× — só a regra de ticket o pega.
 
-### As regras em PromQL
+### As regras em PromQL { #the-rules-in-promql }
 
 Regras de gravação (*recording rules*) pré-calculam a razão de erros da jornada de checkout em cada janela; as regras de alerta as comparam com os limiares. (Ferramentas como Sloth, Pyrra ou a especificação OpenSLO geram essas regras a partir de uma definição curta de SLO, o que evita erros de copiar e colar.)
 
@@ -184,17 +184,25 @@ Um **SLO de latência** funciona do mesmo jeito: os "eventos ruins" são as requ
 )
 ```
 
+!!! example "No código do BoxOffice: os alertas de burn rate do `catalog` (lab 8)"
+
+    O [Hands-on 8 — SLO e alerta de burn rate](../../../hands-on/8/slo/index.md) escreve as duas primeiras regras da tabela acima como regras de alerta do Grafana, provisionadas a partir de um arquivo: um SLO de 99,5% em 28 dias para o `catalog` (um orçamento de 0,5%), com os health checks fora do SLI porque nenhum fã fez essas requisições. A consulta A é o burn rate em 1 h, a consulta B (não mostrada) a mesma expressão em 5 min, e C dispara só quando as duas passam de 14,4. Duas escolhas diferem da tabela: a regra de 6× é um **ticket**, não um page (um sinal mais barato para um time pequeno), e o `for: 1m` acrescenta um minuto de confirmação. Na execução de teste do lab, parar o banco disparou o page após **cerca de 440 s**, com burn rates de 17,0 (1 h) e 200,0 (5 min).
+
+    ``` { .yaml title="infra/grafana/alerting/slo-catalog.yaml (the fast-burn page)" }
+    --8<-- "docs/2027.1/hands-on/8/code/infra/grafana/alerting/slo-catalog.yaml:11:25,37:48"
+    ```
+
 !!! example "BoxOffice — a abertura das 10h00, pelos olhos do alerta"
 
     Às 10h02 o provedor de pagamentos fica lento; às 10h03 a razão de erros do checkout (timeouts devolvidos como `504`) chega a 4%. Isso é um burn rate de 40×: a média de 1 hora da regra rápida cruza 1,44% depois de cerca de 60 × 1,44 / 4 ≈ 22 minutos com 4% constantes… lento demais para uma abertura de vendas que acaba em 30 minutos. Por isso o time adiciona um **SLO dedicado à abertura de vendas** com uma janela mais curta (por exemplo, 99% dos checkouts abaixo de 2 s durante a hora da abertura, alertando sobre janelas de 5 minutos e de 1 minuto) — as regras gerais são calibradas para um budget de 28 dias e não conseguem reagir a um evento que dura meia hora. Jornadas diferentes, SLOs diferentes.
 
 ---
 
-## Roteamento: de uma regra disparada até uma pessoa
+## Roteamento: de uma regra disparada até uma pessoa { #routing-from-a-firing-rule-to-a-person }
 
 Uma regra de alerta só produz um *alerta disparado*. Algo precisa decidir **quem** fica sabendo, **como** e **com que frequência**. No ecossistema Prometheus, isso é o **Alertmanager**[^3] (o Grafana Alerting tem os mesmos conceitos): ele **agrupa** alertas relacionados numa só notificação, **deduplica**, aplica **inibições** e **silêncios**, e **roteia** pelos labels até os receivers.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     R["Avaliação da regra<br/>Prometheus / ruler do Mimir"] --> F["Alerta disparado<br/>severity=page, team=checkout"]
     F --> G["Alertmanager<br/>agrupa · deduplica"]
@@ -253,7 +261,7 @@ receivers:
 | **Silêncio** | cala alertas correspondentes por um período, com autor e motivo | manutenção planejada do banco na terça, 02h00–03h00 |
 | **Escalonamento** (na ferramenta de paging) | se ninguém confirmar em N minutos, aciona o secundário, depois o gestor | primário dormindo ou sem sinal |
 
-### Quem vigia o vigia?
+### Quem vigia o vigia? { #who-watches-the-watcher }
 
 Se o Prometheus ou o Alertmanager cair, nada alerta — e o silêncio se parece exatamente com saúde. Duas proteções padrão:
 
@@ -289,6 +297,18 @@ at this pace the 28-day budget is gone in about 2 days.
 **Escalate to**: payments team (secondary on-call), then the incident commander rotation.
 ```
 
+### Máquinas detectam, pessoas reparam { #machines-detect-people-repair }
+
+Um alerta não tira uma réplica quebrada do balanceador: um health check faz isso em segundos, e não acorda ninguém. O page é para o que uma máquina não consegue fazer sozinha — restaurar o que foi perdido antes que a próxima falha encontre o BoxOffice com menos redundância do que foi projetado para ter. É por isso que o runbook acima reduz o MTTR, e por isso que uma réplica que reinicia e se recupera sozinha não vale um page.
+
+**Experimente.** No `observability-stack`, uma das três réplicas do `catalog` morre em t = 50 s e fica morta por 80 s. Adicione **Metrics** (conectado ao balanceador, à aplicação e ao banco) e um **Health Check** conectado ao balanceador, e rode: os erros duram 3 s, e a disponibilidade é de 99,4%. Agora adicione **Alerting** conectado ao Metrics e rode de novo.
+
+<div class="sdp" data-scenario="observability-stack" data-mode="compact" data-height="520"></div>
+
+??? question "O que você deveria ter observado?"
+
+    A curva de erros não muda: a disponibilidade continua em 99,4%, porque o health check já tinha tirado a réplica morta da rotação após 3 s. O que muda é o reparo: com alguém acionado, a réplica volta em t = 90 s em vez de t = 130 s, e o BoxOffice roda com duas de suas três réplicas por 40 s em vez de 80 s. Sem o health check, o Alerting sozinho também não ajuda os fãs — o balanceador continua mandando um terço das requisições para a réplica morta por 30 s (93,8% de disponibilidade). Máquinas contornam uma falha em segundos; pessoas a reparam em minutos, e o alerta é o que dá início aos minutos.
+
 ---
 
 ## Trade-offs
@@ -305,6 +325,14 @@ at this pace the 28-day budget is gone in about 2 days.
 
     Quando o entrevistador perguntar "como você saberia se isso quebrou?", responda com um **SLO e o alerta de burn rate dele**, não com uma lista de métricas: *"SLO de checkout de 99,9% em 28 dias; page quando o burn rate de 1 hora passar de 14,4×, confirmado pela janela de 5 minutos, ticket para queimas lentas; todo alerta aponta para um runbook."* Mencione que você alerta sobre **sintomas** e usa dashboards e traces para as causas, e que um dead man's switch protege o próprio pipeline de alertas. É uma resposta de nível sênior em quatro frases.
 
+!!! success "Boas práticas"
+
+    - **Derive todo page de um SLO, e mantenha as regras como código** — o limite passa a seguir uma meta de negócio, e toda mudança é revisada. No BoxOffice: `infra/grafana/alerting/slo-catalog.yaml`, provisionado na inicialização (caixa acima).
+    - **Tire do SLI os health checks e a sua própria carga sintética** — os orquestradores chamam `/actuator/health` a cada poucos segundos e ele quase nunca falha, inflando a taxa de sucesso com requisições que nenhum fã fez. No BoxOffice: `http_route!~"/actuator.*"` em toda consulta das regras do lab 8.
+    - **Ponha o burn rate, as janelas e o link do runbook na notificação** — quem está de plantão julga a gravidade antes de abrir o notebook. No BoxOffice: a descrição *"Burn rate 17.0 (1 h) and 200.0 (5 min)"* do alerta do lab 8.
+    - **Teste todo alerta causando a sua falha** — um alerta nunca visto disparando é uma hipótese; cronometre da falha ao page. No BoxOffice: o lab 8 para o `db` e registra *Pending* e *Firing* (cerca de 440 s numa execução de teste).
+    - **Combine cada alerta de SLO baseado em razão com uma verificação de "sem tráfego"** — com zero requisições a razão fica indefinida, então `noDataState: OK` mantém as noites silenciosas mas também esconde uma borda que não envia nada; acrescente um probe sintético ou um alerta de tráfego caindo a zero.
+
 !!! warning "Armadilhas comuns"
 
     - **Acionar pages por causas**: CPU, memória e reinícios acordam pessoas à toa e as treinam a ignorar o pager.
@@ -316,9 +344,9 @@ at this pace the 28-day budget is gone in about 2 days.
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
-    SLO["SLO 99.9% over 28 days<br/>→ Reliability: SLOs"] --> BUD["error budget 0.1%"]
+    SLO["SLO 99.9% over 28 days<br/>→ SLIs, SLOs e error budgets"] --> BUD["error budget 0.1%"]
     SLI["SLI from metrics<br/>(RED, histograms)"] --> BR["burn rate =<br/>error ratio ÷ budget"]
     BUD --> BR
     BR --> MW["multiwindow rules:<br/>14.4× and 6× page, 1× ticket"]
@@ -330,18 +358,20 @@ flowchart LR
     MW -.-> ONS["on-sale SLO,<br/>short windows"]
 ```
 
-**Componentes da paleta:** [`alerting`](../../../reference/components/observability/index.md#alerting) · [`metrics`](../../../reference/components/observability/index.md#metrics) (o SLI e as recording rules) · [`payment`](../../../reference/components/external/index.md#payment) (o provedor lento que queima o budget da abertura de vendas) · [`kafka`](../../../reference/components/messaging/index.md#kafka) (um disco de broker enchendo: ticket, não page). **Cenários:** `observability-stack`, `flash-sale` (uma abertura de vendas de 30 minutos precisa do próprio SLO). **Continua em:** [Confiabilidade — SLOs](../../reliability/slo/index.md) (SLI, SLO, política de error budget), [Resposta a Incidentes](../incident-response/index.md), [Cloud-native — entrega](../../cloud-native/delivery/index.md) (rollbacks citados no runbook), [Hands-on 8 — SLO e alerta de burn rate](../../../hands-on/8/slo/index.md).
+**Componentes da paleta:** [`alerting`](../../../reference/components/observability/index.md#alerting) · [`metrics`](../../../reference/components/observability/index.md#metrics) (o SLI e as recording rules) · [`payment`](../../../reference/components/external/index.md#payment) (o provedor lento que queima o budget da abertura de vendas) · [`kafka`](../../../reference/components/messaging/index.md#kafka) (um disco de broker enchendo: ticket, não page). **Cenários:** `observability-stack`, `flash-sale` (uma abertura de vendas de 30 minutos precisa do próprio SLO). **Continua em:** [SLIs, SLOs e error budgets](../slo/index.md) (SLI, SLO, política de error budget), [Resposta a Incidentes](../incident-response/index.md), [Cloud-native — entrega](../../cloud-native/delivery/index.md) (rollbacks citados no runbook), [Hands-on 8 — SLO e alerta de burn rate](../../../hands-on/8/slo/index.md).
 
 ---
 
-## Principais conclusões
+## Pontos-chave { #key-takeaways }
 
-- Um page precisa ser **urgente, acionável e visível para o usuário**; todo o resto é ticket, dashboard ou nada.
-- Alerte sobre **sintomas** derivados do **SLO**; as causas servem ao diagnóstico.
-- **Burn rate** = razão de erros observada ÷ error budget; com uma janela de 28 dias, 14,4× gasta cerca de 2% do budget numa hora (14,4 ÷ 672 h).
-- Use regras **multiwindow, multi-burn-rate**: 14,4× (1 h + 5 min) e 6× (6 h + 30 min) acionam page, 1× (3 d + 6 h) abre um ticket.
-- O **Alertmanager** agrupa, deduplica, inibe, silencia e roteia; um **dead man's switch** e alertas de **absent()** vigiam o vigia.
-- Todo alerta tem um **dono** e um **runbook**.
+!!! takeaways ""
+
+    - Um page precisa ser **urgente, acionável e visível para o usuário**; todo o resto é ticket, dashboard ou nada.
+    - Alerte sobre **sintomas** derivados do **SLO**; as causas servem ao diagnóstico.
+    - **Burn rate** = razão de erros observada ÷ error budget; com uma janela de 28 dias, 14,4× gasta cerca de 2% do budget numa hora (14,4 ÷ 672 h).
+    - Use regras **multiwindow, multi-burn-rate**: 14,4× (1 h + 5 min) e 6× (6 h + 30 min) acionam page, 1× (3 d + 6 h) abre um ticket.
+    - O **Alertmanager** agrupa, deduplica, inibe, silencia e roteia; um **dead man's switch** e alertas de **absent()** vigiam o vigia.
+    - Todo alerta tem um **dono** e um **runbook**.
 
 ---
 

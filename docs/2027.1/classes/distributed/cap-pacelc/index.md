@@ -25,29 +25,14 @@ The **CAP theorem**, conjectured by Eric Brewer in 2000 and proven by Seth Gilbe
 
 ---
 
-## A partition, step by step
+## A partition, step by step { #partition }
 
 The same request, handled by a system that chooses consistency (CP) and by one that chooses availability (AP):
 
-``` mermaid-sim
-sequenceDiagram
-    participant FA as Fan in São Paulo
-    participant SP as sa-east (region 1)
-    participant EU as eu-west (region 2)
-    participant FB as Fan in Lisbon
-    Note over SP,EU: transatlantic link is down
-    FA->>SP: hold seat A-12
-    SP-xEU: replicate (cannot reach)
-    FB->>EU: hold seat A-12
-    alt CP: choose consistency
-        SP-->>FA: 503: cannot confirm with the other region
-        EU-->>FB: 503: cannot confirm with the other region
-    else AP: choose availability
-        SP-->>FA: held!
-        EU-->>FB: held!
-        Note over SP,EU: link returns: conflict, seat sold twice
-    end
-```
+<div class="csim" data-sim="cap" data-mode="CP" data-rtt="180"></div>
+
+!!! tip "Try it"
+    Turn **random traffic** off to see one request at a time. In **CP · PC/EC**, hold a seat on either side: São Paulo (the event's home region, where the leader lives) answers only after Lisbon has stored the hold — **184 ms**, the 180 ms ocean round trip plus 4 ms of local work, on every write. Now **partition the link**: Lisbon answers `503` to reads and writes (it cannot know whether its copy is current), São Paulo keeps selling; heal it and Lisbon just catches up — *confirmed holds lost* stays 0. Restart in **AP · PA/EL**: every hold is confirmed in **4 ms**, but a read in Lisbon less than 90 ms after a São Paulo hold is stale. Partition, hold twice in São Paulo and then once in Lisbon, and heal: last-write-wins keeps Lisbon's later value on both sides and **2 confirmed holds are lost** — two fans were told "held" for seats that can be sold again.
 
 Neither answer is "wrong" in the abstract: the CP system refuses rather than risk a double sale; the AP system serves every fan and must **reconcile** later. Which one is acceptable depends on the **data and the business** — not on the database brand.
 
@@ -63,7 +48,7 @@ Neither answer is "wrong" in the abstract: the CP system refuses rather than ris
 
 During a partition, the nodes that cannot confirm the latest state (typically the **minority** side) refuse requests. After the partition heals, they catch up before serving again.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     CA(["Fan A"]) -->|"1 · hold A-12"| A[("Node A (majority)<br/>A-12 = HELD")]
     A -.-x|"2 · replicate ✗ partition"| B[("Node B (minority)<br/>A-12 = FREE")]
@@ -78,7 +63,7 @@ flowchart LR
 
 During a partition, every node keeps answering with the data it has. Replicas diverge and **converge** after the partition heals (eventual consistency), resolving conflicts with LWW, version vectors or CRDTs ([Eventual consistency](../consistency/index.md#eventual)).
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     CA(["Fan A"]) -->|"1 · like event 42"| A[("Node A<br/>likes = 101")]
     A -.-x|"2 · replicate ✗ partition"| B[("Node B<br/>likes = 100")]
@@ -114,7 +99,7 @@ CAP only talks about **partitions**, which are rare. Daniel Abadi's **PACELC** (
 
 > If there is a **P**artition, choose between **A**vailability and **C**onsistency; **E**lse (normal operation), choose between **L**atency and **C**onsistency.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     Q{"Is there a<br/>partition?"} -->|"yes · P"| PAC{"Availability<br/>or Consistency?"}
     PAC -->|A| PA["PA: answer, maybe stale"]
@@ -136,6 +121,8 @@ The answer is "a round trip to wherever the other replicas are". Round-trip time
 | Another availability zone, same region | ~1–2 ms | Small: the standard for production databases |
 | Another region, same continent | ~10–40 ms | Noticeable on every write |
 | Another continent (e.g. São Paulo ↔ Europe) | ~150–200 ms | Dominates the request; a 5-write checkout costs a second |
+
+The [simulator above](#partition) shows the last row with no partition at all: in PC/EC mode each write takes 184 ms, in PA/EL mode 4 ms — and the fast mode pays with stale reads.
 
 This table is why most systems choose **EC inside a region** (synchronous or quorum replication across zones costs a millisecond or two) and **EL across regions** (asynchronous replication, or partitioning data by home region).
 
@@ -177,6 +164,14 @@ Regions fail — rarely, but entirely — and BoxOffice wants to survive that. T
 !!! tip "In the interview"
     Never say "I'll pick CP" (or AP) **for the whole system**. Say it per data, and say what the user sees: *"Seat inventory is CP: during a partition, the minority side returns 503 and the app says 'try again'; double booking is unacceptable. The catalogue is AP: it may be seconds stale."* Then bring up **PACELC** — the interviewer usually cares more about everyday latency than about partitions: *"inside a region I replicate synchronously across zones (~1–2 ms); across regions I partition by home region instead of paying 150 ms per write."* Mentioning that CAP's C is linearizability (not ACID's C) is a cheap, strong signal.
 
+!!! success "Best practices"
+
+    - **Write, per operation, what happens during a partition** — "holds are refused (CP); the catalogue is served stale (AP)" — and make the client handle both answers.
+    - **Give each key one home region** — writes for one event go to one leader and other regions forward them; no cross-region conflict can exist for a key that has one writer.
+    - **Measure what consistency costs on your writes** — the p99 of a write with and without synchronous replication, in your topology; PACELC is a number, not a slogan. Try it in the `db-failover` scenario of [Consensus](../consensus/index.md).
+    - **Make "unavailable" a fast, explicit answer** — a CP operation that cannot reach a majority should fail in milliseconds with a retryable error, not hang until a timeout.
+    - **Label stale answers in the API** — a header or field with the data's age lets clients decide whether an AP answer is good enough.
+
 !!! warning "Pitfalls"
     - **"We chose CA."** If data lives on more than one machine, partitions will happen; "CA" only means nobody decided what happens then.
     - **Treating CAP as a permanent label.** The C/A choice only applies *during* a partition; the daily trade-off is latency (PACELC).
@@ -186,7 +181,7 @@ Regions fail — rarely, but entirely — and BoxOffice wants to survive that. T
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     REP["Replication<br/>(Replication & Consistency)"] --> Q{"partition?"}
     Q -->|yes| CA{"C or A"}
@@ -202,13 +197,15 @@ flowchart LR
 
 **Palette components where the C/A/L choice is made:** [`sql`](../../../reference/components/storage/index.md#sql) (sync standby or async replicas) · [`nosql`](../../../reference/components/storage/index.md#nosql) (tunable quorums) · [`cache`](../../../reference/components/storage/index.md#cache) and [`cdn`](../../../reference/components/edge/index.md#cdn) (always EL) · [`dns`](../../../reference/components/edge/index.md#dns) (failover between regions, scenario `multi-region`). **Continues in:** [Consensus & Quorums](../consensus/index.md), [Reliability — disaster recovery](../../reliability/disaster-recovery/index.md), [Traffic & Edge — DNS](../../edge/dns-cdn/index.md).
 
-## Key takeaways
+## Key takeaways { #key-takeaways }
 
-- **CAP**: during a network **partition**, a replicated store must choose between **consistency** (refuse) and **availability** (answer, maybe stale). P is not optional.
-- CAP's C is **linearizability**, not ACID's C; "CA" is not an option for distributed data.
-- **PACELC**: *else* (no partition) the choice is **latency vs consistency** — and you pay it on every request.
-- Choose **per data domain**: seats, money and identity CP/EC; catalogue and counters AP/EL.
-- In multi-region designs, **partitioning data by home region** keeps strong consistency local and limits the blast radius of a partition.
+!!! takeaways ""
+
+    - **CAP**: during a network **partition**, a replicated store must choose between **consistency** (refuse) and **availability** (answer, maybe stale). P is not optional.
+    - CAP's C is **linearizability**, not ACID's C; "CA" is not an option for distributed data.
+    - **PACELC**: *else* (no partition) the choice is **latency vs consistency** — and you pay it on every request.
+    - Choose **per data domain**: seats, money and identity CP/EC; catalogue and counters AP/EL.
+    - In multi-region designs, **partitioning data by home region** keeps strong consistency local and limits the blast radius of a partition.
 
 ---
 

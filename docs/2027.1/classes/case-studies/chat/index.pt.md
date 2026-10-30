@@ -22,11 +22,11 @@ O BoxOffice também tem chat: cada evento tem um grupo de fãs onde quem tem ing
 
 ---
 
-## 1. Esclarecer os requisitos
+## 1. Esclarecer os requisitos { #1-clarify-the-requirements }
 
 ([roteiro de entrevista](../../intro/interview-framework/index.md))
 
-### Requisitos funcionais
+### Requisitos funcionais { #functional-requirements }
 
 1. Conversas **individuais e em grupo** (grupos de até, digamos, 500 membros).
 2. Enviar e receber mensagens de **texto** em tempo real; mídia (imagens, áudio) como anexos.
@@ -35,7 +35,7 @@ O BoxOffice também tem chat: cada evento tem um grupo de fãs onde quem tem ing
 5. **Entrega offline**: mensagens para um usuário offline chegam quando ele reconecta, mais uma **notificação push**.
 6. **Vários dispositivos** por usuário (celular + desktop), todos sincronizados; o histórico persiste.
 
-### Requisitos não funcionais
+### Requisitos não funcionais { #non-functional-requirements }
 
 | Qualidade | Meta |
 |---|---|
@@ -46,7 +46,7 @@ O BoxOffice também tem chat: cada evento tem um grupo de fãs onde quem tem ing
 | **Disponibilidade** | 99,99% para envio; a queda de um gateway reconecta seus usuários em segundos |
 | **Durabilidade** | Histórico mantido por anos |
 
-### Fora do escopo (diga explicitamente)
+### Fora do escopo (diga explicitamente) { #out-of-scope-say-it-explicitly }
 
 Detalhes do protocolo de criptografia de ponta a ponta (cite que ele muda busca e moderação), chamadas de voz/vídeo, busca de mensagens, bots. Canais de transmissão gigantes ficam para um follow-up.
 
@@ -63,7 +63,7 @@ Detalhes do protocolo de criptografia de ponta a ponta (cite que ele muda busca 
 
 ---
 
-## 2. Estimativas de guardanapo (back-of-the-envelope)
+## 2. Estimativas de guardanapo (back-of-the-envelope) { #2-back-of-the-envelope-estimates }
 
 ```python exec="1" source="tabbed-right"
 # Chat: assumptions (illustrative)
@@ -137,7 +137,7 @@ POST /v1/media                                           → 201 {mediaId, uploa
 
 ---
 
-## 4. Modelo de dados
+## 4. Modelo de dados { #4-data-model }
 
 ```sql
 -- Messages: partitioned by conversation and time bucket, ordered by seq (wide-column)
@@ -184,9 +184,9 @@ seq:g-42           → 1043
 
 ---
 
-## 5. Design de alto nível
+## 5. Design de alto nível { #5-high-level-design }
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     a([Celular da Alice]) --> lb["Balanceador L4<br/>TCP de longa duração"]
     b([Desktop do Bob]) --> lb
@@ -205,7 +205,7 @@ flowchart LR
 
 A Alice envia uma mensagem ao Bob, que está online em outro gateway:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     participant A as Alice (gw-031)
@@ -229,9 +229,9 @@ Se o Bob não tem sessão, o serviço de chat guarda a mensagem (ela já está n
 
 ---
 
-## 6. Aprofundamentos (deep dives)
+## 6. Aprofundamentos (deep dives) { #6-deep-dives }
 
-### 6.1 Segurando milhões de conexões
+### 6.1 Segurando milhões de conexões { #61-holding-millions-of-connections }
 
 === "WebSocket"
 
@@ -252,7 +252,7 @@ Operando a frota de gateways:
 - **Deploys e quedas desconectam usuários.** Drene aos poucos (pare de aceitar, peça aos clientes que reconectem ao longo de minutos) e faça os clientes reconectarem com **backoff exponencial e jitter** — senão 50 000 celulares reconectando no mesmo segundo formam uma **tempestade de reconexão** que derruba o próximo gateway ([padrões de confiabilidade](../../reliability/patterns/index.md)).
 - **Apps móveis em segundo plano** não conseguem manter um socket aberto; é para isso que servem as notificações push.
 
-### 6.2 Ordem e exibição exatamente uma vez
+### 6.2 Ordem e exibição exatamente uma vez { #62-ordering-and-exactly-once-display }
 
 Timestamps dos dispositivos não ordenam mensagens: relógios derivam e dois celulares podem discordar em segundos ([tempo e relógios](../../distributed/time-clocks/index.md)). Ordem global é desnecessária e cara. O que os usuários precisam é de **uma ordem por conversa**, a mesma para todos os membros.
 
@@ -260,7 +260,7 @@ Timestamps dos dispositivos não ordenam mensagens: relógios derivam e dois cel
 - **Pelo menos uma vez + idempotência = efeito de exatamente uma vez.** O dispositivo repete o `send` até receber um `ack` (a rede pode ter perdido a requisição ou o ack). O servidor deduplica por `(conversation_id, client_msg_id)` e devolve o mesmo `seq` de novo ([semântica de entrega](../../messaging/semantics/index.md)).
 - **O dispositivo exibe por `seq`** e deduplica por `msgId`; um buraco (`seq 90` chega antes do `89`) dispara uma espera curta ou um `sync` do intervalo que falta.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     participant A as Celular da Alice
@@ -274,14 +274,14 @@ sequenceDiagram
     Note over A,C: guardada uma vez, exibida uma vez
 ```
 
-### 6.3 Entrega offline e sincronização entre dispositivos
+### 6.3 Entrega offline e sincronização entre dispositivos { #63-offline-delivery-and-multi-device-sync }
 
 - **Guarde primeiro, entregue depois.** Uma mensagem é durável assim que confirmada, esteja o destinatário online ou não; a entrega é uma tentativa de empurrá-la para sockets ativos.
 - **Cursor por dispositivo.** Cada dispositivo lembra o último `seq` que tem em cada conversa. Ao reconectar, envia `sync {conversa: últimoSeq}` e recebe tudo o que veio depois — a tabela de inbox diz quais conversas mudaram (`last_seq > cursor`).
 - **Notificações push** acordam o dispositivo (APNs no iOS, FCM no Android). Elas levam uma prévia curta ou só "nova mensagem" (sempre a segunda com criptografia de ponta a ponta); o conteúdo é buscado pelo `sync`.
 - **O estado de leitura** é por usuário (sincronizado entre dispositivos): ler no desktop limpa o contador no celular por meio de um evento de confirmação.
 
-### 6.4 Presença sem derreter o sistema
+### 6.4 Presença sem derreter o sistema { #64-presence-without-melting-the-system }
 
 Presença parece barata e não é: toda mudança de status de um usuário interessa a todos os seus contatos.
 
@@ -296,7 +296,7 @@ Presença parece barata e não é: toda mudança de status de um usuário intere
 
 ---
 
-## 7. Gargalos, modos de falha e trade-offs
+## 7. Gargalos, modos de falha e trade-offs { #7-bottlenecks-failure-modes-and-trade-offs }
 
 | Onde | O que dá errado | Mitigação | Trade-off |
 |---|---|---|---|
@@ -313,7 +313,7 @@ Os trade-offs para **dizer em voz alta**: **ordem por conversa, não global** (b
 
 ---
 
-## 8. Experimente no playground
+## 8. Experimente no playground { #8-try-it-in-the-playground }
 
 O cenário `chat` tem gateways segurando conexões WebSocket, uma camada de pub/sub entre eles e armazenamento para as mensagens.
 
@@ -330,7 +330,7 @@ O cenário `chat` tem gateways segurando conexões WebSocket, uma camada de pub/
 
 ---
 
-## 9. Perguntas de follow-up que o entrevistador faz
+## 9. Perguntas de follow-up que o entrevistador faz { #9-follow-up-questions-an-interviewer-asks }
 
 ??? question "Como você suportaria um canal de evento com 100 000 fãs online durante um festival?"
 
@@ -362,7 +362,7 @@ O cenário `chat` tem gateways segurando conexões WebSocket, uma camada de pub/
 
 ---
 
-## 10. Rubrica de autoavaliação
+## 10. Rubrica de autoavaliação { #10-self-assessment-rubric }
 
 | Nível | O que a resposta contém |
 |---|---|
@@ -372,13 +372,21 @@ O cenário `chat` tem gateways segurando conexões WebSocket, uma camada de pub/
 
 **Relacionados:** [Protocolos (WebSockets, SSE)](../../edge/protocols/index.md), [Semântica de mensageria](../../messaging/semantics/index.md), [Particionamento](../../databases/partitioning/index.md), [Caso do sistema de notificações](../notification-system/index.md), [Hands-on 7](../../../hands-on/7/index.md).
 
+!!! success "Boas práticas"
+
+    - **Ordene as mensagens por conversa, com uma sequência atribuída pelo servidor** — uma ordem global não é necessária nem viável; a ordem por conversa é a que os usuários veem.
+    - **Deduplique por um id de mensagem gerado no cliente** — um cliente que repete depois de reconectar não pode postar a mesma mensagem duas vezes.
+    - **Esvazie os gateways aos poucos num deploy** — peça aos clientes que reconectem ao longo de alguns minutos; fechar todos os sockets de uma vez é uma tempestade de reconexões.
+    - **Expire a presença com heartbeats e um TTL** — uma conexão que cai nunca envia "tchau"; sem TTL, os usuários ficam online para sempre.
+    - **Escale os gateways por conexões abertas, não por CPU** — conexões são o recurso que acaba primeiro num chat ocioso.
+
 ---
 
 ## Como se conecta { #how-it-connects }
 
 Quais aulas este caso testa? Cada ramo é uma aula cujas ideias o design usa (azul), com os componentes da paleta em que elas aparecem (verde):
 
-``` mermaid
+``` diagram
 flowchart LR
     CASE(["Chat"]) --> EDG["Edge<br/>WebSockets, L4 LB, stateful gateways"]:::tech
     CASE --> MSG["Messaging<br/>pub/sub per gateway, at-least-once"]:::tech
@@ -398,7 +406,7 @@ flowchart LR
 
 ---
 
-## Referências
+## Referências { #references }
 
 - XU, A. *System Design Interview — An Insider's Guide*, vol. 1, cap. 12 "Design a Chat System"[^1].
 - O protocolo WebSocket[^2].

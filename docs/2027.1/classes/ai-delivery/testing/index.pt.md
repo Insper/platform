@@ -2,7 +2,7 @@ A suíte de testes da BoxOffice cresceu para cerca de 4.000 testes. Uma execuç�
 
 ---
 
-## Onde a IA ajuda nos testes
+## Onde a IA ajuda nos testes { #where-ai-helps-in-testing }
 
 | Tarefa | O que a IA faz | Como você sabe que funcionou | Armadilha |
 |---|---|---|---|
@@ -16,7 +16,7 @@ A suíte de testes da BoxOffice cresceu para cerca de 4.000 testes. Uma execuç�
 
 ---
 
-## Testes unitários gerados e o problema do oráculo
+## Testes unitários gerados e o problema do oráculo { #generated-unit-tests-and-the-oracle-problem }
 
 Um teste tem duas partes: as **entradas** (arrange, act) e o **oráculo** — o resultado esperado que decide entre passar e falhar. Os modelos são excelentes na primeira parte: enumeram casos de borda (lista vazia, null, datas-limite, o 61º minuto) mais rápido que as pessoas. A segunda parte é o problema. Para saber que uma reserva de assento deve durar **10** minutos, o modelo precisa do *requisito*; tendo apenas o código, ele lê `plusMinutes(8)` e escreve `isEqualTo(now.plusMinutes(8))`. O teste passa e agora protege o bug. Esse é o **problema do oráculo de testes**, um tema antigo da pesquisa em testes de software[^1], e os testes gerados o tornam agudo.
 
@@ -28,11 +28,11 @@ Para que os testes gerados servem de forma confiável:
 
 O que eles não conseguem fazer é decidir o que é *correto*. Requisitos, exemplos na issue ou um ADR precisam estar no contexto — e um humano precisa ler as asserções.
 
-### A cobertura mente; o teste de mutação não (tanto)
+### A cobertura mente; o teste de mutação não (tanto) { #coverage-lies-mutation-testing-does-not-as-much }
 
 A cobertura de linhas mede quais linhas **executaram** durante os testes. Um teste que chama todos os métodos e não afirma nada tem cobertura total e não pega bug algum. O **teste de mutação** mede se os testes **percebem** uma mudança: a ferramenta cria *mutantes* — pequenas modificações como `<` → `<=`, `+` → `-`, uma chamada de método removida, um retorno constante — e roda os testes contra cada um. Um mutante é **morto** se algum teste falhar; o **mutation score** é mortos ÷ total. Mutantes sobreviventes apontam para comportamentos que nenhum teste verifica. A ideia é antiga (DeMillo, Lipton e Sayward, 1978); ferramentas como o [PIT](https://pitest.org){target="_blank"} a tornam prática na JVM[^2].
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     cls["Classe alterada<br/>HoldService"] --> base["PIT, testes existentes<br/>baseline 41 %"]
     base --> gen["Modelo escreve testes<br/>(classe + requisitos + vizinhos)"]
@@ -46,13 +46,21 @@ flowchart LR
 
 O loop acima devolve ao modelo os **mutantes sobreviventes** ("linha 42: a fronteira condicional alterada em `isExpired()` sobreviveu") — a abordagem que a Meta relatou para gerar testes voltados a classes específicas de falhas[^3]. Ele transforma um pedido vago ("escreva mais testes") em um pedido preciso ("escreva um teste que falhe se este `<` virar `<=`").
 
+!!! example "No código do BoxOffice: testes mantidos só se matam mutantes (lab 13)"
+
+    O [Hands-on 13 — Testes](../../../hands-on/13/tests/index.md) constrói este loop para o `CatalogService` do `catalog`, um primeiro alvo menor que o `HoldService`. Uma classe de teste gerada só é mantida se compila, passa **duas vezes** seguidas (um teste instável falha na segunda execução), não contém nenhuma das construções proibidas (`Thread.sleep`, `@Disabled`, um contexto Spring) e aumenta o score do PIT em pelo menos 5 pontos percentuais; senão, os erros ou os mutantes sobreviventes voltam ao modelo, em no máximo 3 tentativas, e um arquivo de teste não comprovado é apagado. A baseline do lab: o PIT gerou 18 mutantes e os testes existentes mataram 4 (22%). Uma execução com o `qwen2.5-coder-16k` local foi **rejeitada** depois de três tentativas — métodos inventados, testes que lançam exceção — e isso é o gerador funcionando: nada sem comprovação ficou para trás.
+
+    ``` { .python title=".github/ai/gen_tests.py (limits, and the accept-or-retry loop)" }
+    --8<-- "docs/2027.1/hands-on/13/code/.github/ai/gen_tests.py:22:25,125:147"
+    ```
+
 !!! warning "Teste de mutação é caro"
 
     Cada mutante executa de novo (parte da) suíte de testes. Em um serviço inteiro, uma execução de mutação pode levar muito mais tempo que o build normal. Mire nas **classes alteradas** de um PR, rode **sob demanda** ou à noite e use análise incremental quando a ferramenta suportar.
 
 ---
 
-## Testes de contrato
+## Testes de contrato { #contract-tests }
 
 Em um sistema de microsserviços, as falhas de teste mais caras acontecem **entre** serviços: o `order` espera que o `inventory` retorne `409 Conflict` para uma reserva expirada; o `inventory` muda para `410 Gone`. **Testes de contrato orientados ao consumidor** (Pact, Spring Cloud Contract) capturam o que cada consumidor realmente usa, e o build do provedor verifica que ele ainda satisfaz todos os contratos.
 
@@ -60,7 +68,7 @@ A IA ajuda a rascunhá-los: com o código de cliente do consumidor e o documento
 
 ---
 
-## Testes baseados em propriedades
+## Testes baseados em propriedades { #property-based-tests }
 
 Testes baseados em exemplos verificam poucas entradas; **testes baseados em propriedades** enunciam um invariante e deixam um gerador tentar centenas de entradas, reduzindo qualquer falha a um exemplo mínimo. Eles se encaixam naturalmente nas partes da BoxOffice em que bugs são caros:
 
@@ -86,7 +94,7 @@ O exemplo usa o [jqwik](https://jqwik.net){target="_blank"} para JUnit 5. Os mod
 
 ---
 
-## Scripts de teste de carga a partir do OpenAPI
+## Scripts de teste de carga a partir do OpenAPI { #load-test-scripts-from-openapi }
 
 Todo serviço da BoxOffice publica um documento OpenAPI. Um modelo consegue transformá-lo — junto com uma amostra de logs de acesso reais — em um script k6 com endpoints, payloads e verificações realistas em segundos. O que ele não consegue saber é o **modelo de carga**: o mix de requisições (95% de leituras do catálogo durante uma abertura de vendas), o processo de chegada (modelo aberto com rampa, e não um número fixo de usuários em loop), o think time e a distribuição dos dados (todo mundo quer os mesmos 500 assentos da primeira fila). Essas decisões vêm da [aula de desempenho](../../performance/index.md) e das suas medições, e um script gerado que usa silenciosamente um modelo fechado sem think time mede o sistema errado.
 
@@ -94,7 +102,7 @@ Um fluxo seguro: gere o script, **revise o bloco de cenário** (executor, taxas,
 
 ---
 
-## Triagem de testes flaky
+## Triagem de testes flaky { #flaky-test-triage }
 
 Um **teste flaky** passa e falha com o mesmo código. A instabilidade de testes é um problema grande e bem documentado no CI da indústria: o Google relatou que uma fração significativa de seus testes já havia apresentado comportamento flaky, e que isso era um custo importante do seu sistema de CI[^4]. Quando um build fica vermelho, alguém precisa decidir: regressão real, teste quebrado, problema de infraestrutura ou flake?
 
@@ -125,7 +133,7 @@ O trabalho do LLM é a parte difícil de fazer com regras: ler um log de 2.000 l
 
 ---
 
-## Seleção de testes
+## Seleção de testes { #test-selection }
 
 Rodar todos os 4.000 testes a cada push custa 25 minutos; a maioria deles não pode ser afetada por uma mudança de uma linha no `notification`. A **análise de impacto de testes** seleciona os testes que podem ser afetados:
 
@@ -154,7 +162,7 @@ Com recall de 95%, o time economiza cerca de doze horas de runner de CI por dia 
 
 ---
 
-## Dados sintéticos de teste
+## Dados sintéticos de teste { #synthetic-test-data }
 
 Testes precisam de dados: locais com mapas de assentos estranhos, eventos em vários fusos horários, nomes com acentos, endereços de e-mail no limite de tamanho. Os modelos geram rapidamente dados **falsos** ricos e realistas. Três regras:
 
@@ -176,11 +184,19 @@ Testes precisam de dados: locais com mapas de assentos estranhos, eventos em vá
 
 !!! example "BoxOffice: testes onde eles importam"
 
-    O time roda o gerador de testes sob demanda para o `inventory` e o `order`, aceita testes só com ganho de mutation score e pede aos revisores que confiram cada asserção contra as regras de reserva ("10 minutos", "uma reserva ativa por assento"). Ele adiciona uma propriedade jqwik para o mapa de assentos (nenhuma venda dupla sob qualquer sequência de operações), usa seleção estática de testes nos PRs com a suíte completa na `main` e deixa um LLM rotular builds vermelhos com evidências — enquanto a quarentena continua sendo uma regra com um responsável. Veja o [hands-on 13, parte 2](../../../hands-on/13/tests/index.md).
+    O time roda o gerador de testes sob demanda para o `inventory` e o `order`, aceita testes só com ganho de mutation score e pede aos revisores que confiram cada asserção contra as regras de reserva ("10 minutos", "uma reserva ativa por assento"). Ele adiciona uma propriedade jqwik para o mapa de assentos (nenhuma venda dupla sob qualquer sequência de operações), usa seleção estática de testes nos PRs com a suíte completa na `main` e deixa um LLM rotular builds vermelhos com evidências — enquanto a quarentena continua sendo uma regra com um responsável. O [hands-on 13, parte 2](../../../hands-on/13/tests/index.md) constrói o gerador primeiro no `catalog` (quadro acima); o `inventory` é o próximo alvo.
 
 !!! tip "Na entrevista"
 
     Se perguntarem como a IA muda os testes, separe **gerar entradas** (a IA é forte) de **decidir a correção** (o oráculo — exige requisitos e humanos). Cite o teste de mutação como a forma de julgar testes gerados, mencione a triagem de testes flaky com sinais determinísticos primeiro e a quarentena como decisão de política, e apresente a seleção de testes como um trade-off entre recall e minutos, com a suíte completa como rede de segurança.
+
+!!! success "Boas práticas"
+
+    - **Rode um teste gerado duas vezes antes de aceitá-lo** — um teste que falha na segunda execução já nasce instável; o [`gen_tests.py`](../../../hands-on/13/tests/index.md) do lab 13 faz isso em toda tentativa.
+    - **Aceite testes gerados só com ganho medido de mutation score** — o lab 13 exige +5 pontos percentuais sobre os testes existentes (22% para o `CatalogService`).
+    - **Coloque o requisito no contexto do gerador** — com "uma reserva dura 10 minutos" no prompt, o oráculo é o requisito, não o código sob teste.
+    - **Mantenha os testes gerados numa classe própria** — `CatalogServiceAiTest` ao lado do `CatalogServiceTest` humano permite medir o valor e o custo de cada um separadamente.
+    - **Rode código gerado sem segredos** — testes são código não confiável; o lab 13 roda o Maven sem as variáveis `*KEY*`, `*TOKEN*` e `*SECRET*`.
 
 !!! warning "Armadilhas comuns"
 
@@ -194,7 +210,7 @@ Testes precisam de dados: locais com mapas de assentos estranhos, eventos em vá
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     GEN["AI generates inputs:<br/>unit, property, contract tests"] --> ORA{"the oracle:<br/>who decides correct?"}
     ORA --> REQ["requirements<br/>and humans"]

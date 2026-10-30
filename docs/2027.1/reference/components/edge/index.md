@@ -13,7 +13,7 @@ In BoxOffice, the edge is what keeps the 10:00 flash sale alive: the event page 
 | [API Gateway](#apigw) | Single front door of the API: auth, rate limiting, routing, BFF | `apigw` |
 | [Ingress](#ingress) | The Kubernetes way to route external HTTP traffic to services | `ingress` |
 
-``` mermaid
+``` diagram
 flowchart LR
     C[Client] -->|1 resolve name| DNS
     C -->|2 static & media| CDN
@@ -346,7 +346,7 @@ flowchart LR
 !!! tip "In the interview"
     "One API gateway in front of the services validates the JWT once, routes by path and enforces a token-bucket rate limit per user backed by Redis, answering 429 with Retry-After. Business logic stays in the services; the gateway stays thin, redundant and fast."
 
-**Learn more:** [Edge › API gateway](../../../classes/edge/api-gateway/index.md) · [Case study: rate limiter](../../../classes/case-studies/rate-limiter/index.md) · [Network & security › Identity](../../../classes/network-security/identity/index.md) · [Hands-on 4](../../../hands-on/4/index.md)
+**Learn more:** [Edge › API gateway](../../../classes/edge/api-gateway/index.md) · [Case study: rate limiter](../../../classes/case-studies/rate-limiter/index.md) · [Network & security › Identity](../../../classes/edge/identity/index.md) · [Hands-on 4](../../../hands-on/4/index.md)
 
 ---
 

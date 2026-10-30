@@ -124,7 +124,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 ??? success "Answer"
     **B — A trust boundary trade-off.**
 
-    The pattern is common and cheap, but it rests on network isolation. If an attacker reaches a service directly, they can set any header. Class 11 discusses mTLS, service meshes and forwarding the token itself.
+    The pattern is common and cheap, but it rests on network isolation. If an attacker reaches a service directly, they can set any header. Class 12 discusses mTLS, service meshes and forwarding the token itself.
 
 ---
 

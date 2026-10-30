@@ -12,11 +12,11 @@ Esta página reúne os padrões que substituem a transação distribuída em sis
 
 ---
 
-## O problema da escrita dupla
+## O problema da escrita dupla { #the-dual-write-problem }
 
 O jeito mais simples de publicar `OrderConfirmed` é salvar o pedido e depois enviar o evento. São duas escritas em dois sistemas diferentes — uma **escrita dupla** (*dual write*) — e nenhuma transação cobre as duas:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant O as order
     participant DB as banco do order
@@ -41,7 +41,7 @@ Inverter a ordem das escritas não ajuda:
 
 O **transactional outbox**[^1] elimina a escrita dupla gravando o evento **no mesmo banco de dados, na mesma transação local**, que a mudança de negócio. Um **relay** separado lê depois a tabela de outbox e publica no broker.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant O as order
     participant DB as banco do order
@@ -151,13 +151,25 @@ O relay tem duas implementações comuns:
 
     Menor latência e nenhum polling, ao preço de operar o Kafka Connect e o Debezium. As linhas podem ser apagadas logo depois de inseridas: o log já as capturou.
 
+!!! example "No código do BoxOffice: o outbox no `order` (lab 7)"
+
+    O [Hands-on 7 — Transactional outbox](../../../hands-on/7/outbox/index.md) constrói o publicador por polling. `place()` insere o pedido e, no mesmo método `@Transactional`, acrescenta `OrderPlaced` ao outbox (`Outbox.append` é `Propagation.MANDATORY`: falha se alguém o chamar fora de uma transação). `NOTIFY_MODE=sync` mantém a versão "antes", que chama o `notification` por HTTP, para que você possa medir as duas. O relay envia um lote de até 100 linhas, espera o ack do Kafka para **todas** e só então marca as linhas: um crash no meio as republica (pelo menos uma vez), nunca as perde. Note uma diferença em relação ao conselho acima: várias réplicas do `order` podem fazer o relay em paralelo (`SKIP LOCKED`), o que é seguro aqui porque, por enquanto, cada pedido produz um único evento; com mais eventos por pedido, a ordem por pedido exigiria um único relay ou o particionamento por agregado. Numa execução de teste num laptop ocupado, o p50 do `POST /orders` caiu de **4,12 s** (sync) para **47 ms** (outbox), e parar o `notification` por 20 s derrubou cerca de um terço dos pedidos no modo sync e nenhum com o outbox ([Meça](../../../hands-on/7/measure/index.md)).
+
+    ``` { .java title="services/order/src/main/java/boxoffice/order/OrderService.java (order + event, one transaction)" }
+    --8<-- "docs/2027.1/hands-on/7/code/services/order/src/main/java/boxoffice/order/OrderService.java:35:62"
+    ```
+
+    ``` { .java title="services/order/src/main/java/boxoffice/order/outbox/OutboxRelay.java (the polling publisher)" }
+    --8<-- "docs/2027.1/hands-on/7/code/services/order/src/main/java/boxoffice/order/outbox/OutboxRelay.java:42:74"
+    ```
+
 ---
 
 ## Change data capture { #cdc }
 
 Todo banco relacional mantém um **log de replicação** — o write-ahead log (WAL) do PostgreSQL, o binlog do MySQL — que registra cada mudança confirmada na ordem dos commits; é assim que as réplicas ficam sincronizadas (veja [Replicação](../../databases/replication/index.md)). O **change data capture** (CDC) lê esse log e transforma cada mudança em um evento[^2]. O relay do outbox acima é um uso do CDC; há muitos outros.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     cat["catalog"] -->|"INSERT / UPDATE de eventos"| db[("banco do catalog<br/>PostgreSQL")]
     db -->|"WAL (logical decoding)"| dbz["Debezium"]
@@ -185,7 +197,7 @@ No BoxOffice, o CDC sobre o banco do `catalog` mantém três sistemas derivados 
 
 Uma **saga** é uma transação de negócio implementada como uma **sequência de transações locais**, uma por serviço; cada passo publica um evento ou uma resposta que dispara o próximo. Se um passo falha, a saga executa **transações de compensação** que desfazem semanticamente os passos já concluídos[^3][^1]. A ideia vem de um artigo de bancos de dados de 1987 sobre transações de longa duração — décadas mais velha que os microsserviços.
 
-### A saga de compra do BoxOffice
+### A saga de compra do BoxOffice { #the-boxoffice-purchase-saga }
 
 | Passo | Serviço | Transação local | Compensação | Tipo |
 |---|---|---|---|---|
@@ -252,7 +264,7 @@ Há duas formas de coordenar os passos.
 
 O status do pedido *é* o estado da saga, então a saga é uma máquina de estados:
 
-``` mermaid-sim
+``` diagram-sim
 stateDiagram-v2
     [*] --> PENDING
     PENDING --> SEATS_HELD : SeatsHeld
@@ -307,7 +319,7 @@ public class PurchaseSaga {
 
 Em produção, sagas orquestradas costumam ser escritas sobre um **motor de execução durável / workflow** — Temporal, AWS Step Functions, Azure Durable Functions, Camunda — que persiste o estado depois de cada passo, cuida de timers ("libere a reserva se não houver pagamento em 10 minutos") e de retries, e sobrevive a reinícios do processo que o executa.
 
-### Sagas não são transações
+### Sagas não são transações { #sagas-are-not-transactions }
 
 Uma saga é **ACD sem o I**: ela é atômica (no fim, todos os passos ou todas as compensações), consistente e durável, mas **não é isolada**. Outras requisições veem estados intermediários — lugares reservados mas não vendidos, um pedido pago mas ainda não confirmado. Projete para isso:
 
@@ -326,7 +338,7 @@ Uma saga é **ACD sem o I**: ela é atômica (no fim, todos os passos ou todas a
 
 **Command Query Responsibility Segregation** (CQRS) separa o modelo que trata as **escritas** (comandos) dos modelos que atendem as **leituras** (consultas)[^4]. O modelo de escrita é otimizado para correção e invariantes (tabelas normalizadas, transações, locks); cada modelo de leitura é uma **projeção** desnormalizada, no formato de uma tela ou consulta, construída a partir dos eventos do lado de escrita.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     fan["fã"] -->|"POST /orders (comando)"| order["order<br/>modelo de escrita"]
     order --> odb[("banco do order<br/>normalizado")]
@@ -401,7 +413,7 @@ Para mudar um pedido, o serviço carrega seus eventos, reconstrói o estado, ver
 
 ---
 
-## Escolhendo os padrões
+## Escolhendo os padrões { #choosing-the-patterns }
 
 | Padrão | Resolve | Custos | Uso no BoxOffice |
 |---|---|---|---|
@@ -414,6 +426,15 @@ Para mudar um pedido, o serviço carrega seus eventos, reconstrói o estado, ver
 !!! tip "Na entrevista"
     Para qualquer fluxo que atravessa serviços e movimenta dinheiro ou inventário, os entrevistadores esperam que você diga "saga" *e* a torne concreta: liste os passos com suas compensações, nomeie o pivô (o pagamento), explique o que o usuário vê no estado intermediário (lugares reservados, pagamento em processamento) e como os timeouts são tratados (reconciliar com o provedor antes de compensar). Vai publicar eventos? Diga "transactional outbox" antes de perguntarem sobre o crash entre o commit e a publicação. Mencione CQRS ou event sourcing só quando um requisito pedir (auditoria, formatos de leitura muito diferentes), e diga quanto custam.
 
+!!! success "Boas práticas"
+
+    - **Torne impossível escrever no outbox fora da transação de negócio** — um helper que exige uma transação existente falha nos testes em vez de perder eventos em produção. No BoxOffice: `Outbox.append` é `@Transactional(propagation = MANDATORY)` ([quadro do outbox](#transactional-outbox)).
+    - **Alerte sobre a idade da linha não publicada mais antiga do outbox** — o relay roda a cada 200 ms, então uma linha com mais de cerca de 30 s indica relay ou broker travado, bem antes de um fã reclamar.
+    - **Apague periodicamente as linhas já publicadas do outbox e indexe as não publicadas** — senão a tabela cresce uma linha por evento para sempre e a consulta do relay fica lenta. No BoxOffice: `OutboxRelay.purge` apaga, a cada hora, as linhas publicadas há mais de 1 dia.
+    - **Persista o estado da saga e altere-o só com updates condicionais** — `UPDATE orders SET status = 'CONFIRMED' WHERE id = ? AND status = 'PENDING_PAYMENT'`: um evento atrasado ou duplicado não consegue fazer um pedido concluído voltar.
+    - **Ordene os passos da saga para que o irreversível venha por último** — o que pode ser desfeito (a reserva do assento) antes do pivô (a cobrança), o que não pode ser desfeito (emitir o ingresso) depois dele.
+    - **Mantenha os modelos de leitura do CQRS reconstruíveis e ensaie a reconstrução** — guarde os eventos (ou o stream de CDC) por tempo suficiente para refazer uma projeção do zero, e cronometre quanto ela leva.
+
 !!! warning "Armadilhas comuns"
 
     - **Escritas duplas** "porque a janela de crash é minúscula" — no volume do BoxOffice, janelas minúsculas acontecem todo dia.
@@ -425,7 +446,7 @@ Para mudar um pedido, o serviço carrega seus eventos, reconstrói o estado, ver
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     DW["escrita dupla:<br/>banco + broker"] --> OUT["transactional outbox<br/>uma transação local"]
     OUT --> RELAY["relay: polling ou<br/>Debezium"]

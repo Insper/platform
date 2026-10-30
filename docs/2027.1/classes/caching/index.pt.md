@@ -2,6 +2,10 @@ São 9h59 do dia em que um show de estádio abre as vendas. A BoxOffice tem 60.0
 
 A solução não é um banco maior. É parar de fazer ao banco a mesma pergunta dois milhões de vezes. Isso é **cache**: guardar uma cópia da resposta a uma pergunta cara em um lugar mais rápido e mais barato de ler, e servir a cópia enquanto ela for boa o suficiente.
 
+!!! quote "A história até aqui"
+
+    Capítulo 7 da [história da disciplina](../../index.md#story). A borda espalha os fãs por réplicas sem estado ([aula 4](../edge/index.md), [aula 5](../compute/index.md)), e o PostgreSQL garante que um assento seja vendido uma vez só ([aula 6](../databases/index.md)). Não guardar estado tem um preço: **toda** leitura agora chega ao banco, e as páginas de evento são lidas cerca de 100 vezes mais do que mudam. **Esta aula** responde: como parar de fazer ao banco a mesma pergunta — e o que nunca pode ser respondido por uma cópia?
+
 !!! abstract "Objetivos de aprendizagem"
 
     Ao final desta aula, você deve ser capaz de:
@@ -13,7 +17,7 @@ A solução não é um banco maior. É parar de fazer ao banco a mesma pergunta 
     - **Diagnosticar** modos de falha de cache — *stampede*, avalanche, penetração, chaves quentes, queda do cache — e **aplicar** a correção adequada.
     - **Usar** as estruturas de dados do Redis e **raciocinar** sobre persistência, replicação e os hash slots do Redis Cluster.
 
-## Roteiro
+## Roteiro { #roadmap }
 
 1. **Esta visão geral** — por que o cache funciona, onde os caches ficam, a matemática da taxa de acerto, dimensionamento e o que nunca cachear.
 2. [Padrões de Cache](patterns/index.md) — cache-aside, read-through, write-through, write-behind, write-around, refresh-ahead; desenho de chaves.
@@ -33,7 +37,7 @@ Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** a
 
 ---
 
-## Por que o cache funciona
+## Por que o cache funciona { #why-caching-works }
 
 Um cache é uma aposta: *o dado que eu li agora será lido de novo em breve*. Duas propriedades das cargas reais fazem essa aposta valer a pena.
 
@@ -64,11 +68,11 @@ Um cache não só torna a leitura mais rápida. Ele também **tira trabalho do s
 
 ---
 
-## Onde os caches ficam
+## Onde os caches ficam { #where-caches-live }
 
 Uma única requisição da BoxOffice pode ser respondida por seis caches diferentes antes de chegar ao banco. Cada camada está mais perto do usuário (mais rápida, mais barata por acerto), mas guarda menos e é mais difícil de invalidar.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     U["Navegador / app<br/>cache HTTP"] -->|"miss"| CDN["Borda da CDN<br/>estáticos + páginas públicas"]
     CDN -->|"miss"| GW["API gateway<br/>cache de respostas"]
@@ -96,7 +100,7 @@ Quanto mais profunda a camada, mais consistente ela é: o buffer pool do banco n
 
 ---
 
-## A matemática da taxa de acerto
+## A matemática da taxa de acerto { #hit-ratio-math }
 
 A **taxa de acerto** (*hit ratio*) $h$ é a fração de leituras respondidas pelo cache. Duas fórmulas sustentam quase todas as decisões de cache.
 
@@ -194,7 +198,7 @@ Duas lições do painel da esquerda:
 
 ---
 
-## Dimensionando um cache
+## Dimensionando um cache { #sizing-a-cache }
 
 O cache precisa guardar o **conjunto de trabalho** (*working set*) — os itens lidos de novo enquanto ainda estão no cache — e não o conjunto de dados inteiro.
 
@@ -217,7 +221,7 @@ Regras práticas de dimensionamento:
 
 ---
 
-## O que não cachear
+## O que não cachear { #what-not-to-cache }
 
 Um cache responde *"qual era o valor um instante atrás?"*. Algumas perguntas precisam de *"qual é o valor agora?"*.
 
@@ -232,7 +236,7 @@ Outras coisas que não devem ir para um cache compartilhado: dados lidos uma ún
 
 ---
 
-## Veja no playground
+## Veja no playground { #see-it-in-the-playground }
 
 Experimente: o cenário abaixo coloca um Redis em cache-aside na frente do banco do catálogo. Inicie a execução com as configurações padrão e observe a **taxa de acerto**, o **QPS do banco** e a **latência p99**. Depois (1) ajuste o TTL do cache para um valor bem curto e veja a taxa de acerto e a carga no banco se moverem juntas; (2) esvazie o cache no meio da execução (cache frio) e veja quanto tempo o p99 leva para se recuperar; (3) aumente a carga até o banco saturar só com as faltas.
 
@@ -244,7 +248,7 @@ Abra o [playground completo](../../../playground/index.md) para adicionar um cac
 
 Um cache não é um componente, e sim uma camada em cada salto: cada componente da paleta no caminho de leitura pode responder a partir de uma cópia antes que a requisição chegue à fonte da verdade. O mapa liga cada **componente da paleta** (verde) aos **conceitos de cache** que ele usa (azul):
 
-``` mermaid
+``` diagram
 flowchart LR
     client["client · mobile"]:::comp -->|"miss"| cdn["cdn"]:::comp
     cdn -->|"miss"| apigw["apigw"]:::comp
@@ -278,6 +282,14 @@ flowchart LR
 
     Não adicione um cache por reflexo. Justifique com a proporção de leituras e escritas e com a concentração ("as leituras superam as escritas 100:1 e o 1% de eventos mais populares leva a maior parte do tráfego"), diga a taxa de acerto esperada e **o que ela faz com a carga do banco** ("com 95%, o banco vê 2.500 QPS em vez de 50.000"), e então diga como mantém o cache atualizado (TTL + remoção na escrita) e o que acontece quando ele falha. Os entrevistadores valorizam as perguntas que você responde antes de eles fazerem.
 
+!!! success "Boas práticas"
+
+    - **Justifique o cache com números antes de adicioná-lo**: razão leitura/escrita, concentração, taxa de acerto esperada e a carga que ele tira do banco ("95% → o banco vê 1 leitura em 20"). No BoxOffice: o [lab 5 mede](../../hands-on/5/index.md#measure-it) a taxa de acerto, o p99 e a capacidade antes e depois.
+    - **Faça cada resposta dizer o que aconteceu** (`HIT`, `MISS`, `BYPASS` num cabeçalho e num contador): uma taxa de acerto que você não vê é uma taxa de acerto que você não consegue defender. No BoxOffice: `X-Cache` no `EventCache.java`.
+    - **Dê um TTL a toda chave**, mesmo às que você invalida explicitamente, e dimensione o TTL pela defasagem que cada tipo de dado tolera ([orçamento de defasagem](invalidation/index.md)).
+    - **Trate o cache como opcional**: timeouts curtos no cliente, fallback para a fonte da verdade, e um banco dimensionado para sobreviver a um cache frio na carga esperada.
+    - **Mantenha as decisões na fonte da verdade**: reservas de assento, pagamentos e saldos nunca vêm de uma cópia.
+
 !!! warning "Armadilhas comuns"
 
     - **Cachear para esconder uma consulta lenta** que um índice resolveria. Corrija a consulta primeiro; o cache então protege capacidade, não um bug.
@@ -287,7 +299,7 @@ flowchart LR
 
 ---
 
-## Conexões
+## Conexões { #connections }
 
 - [Bancos de dados](../databases/index.md) — a fonte da verdade que o cache protege; réplicas de leitura são a outra forma de escalar leituras.
 - [Tráfego e Borda — DNS e CDN](../edge/dns-cdn/index.md) — cache HTTP e CDNs, as camadas de cache mais externas.
@@ -296,13 +308,19 @@ flowchart LR
 - Estudos de caso: [cache distribuído](../case-studies/distributed-cache/index.md), [encurtador de URLs](../case-studies/url-shortener/index.md), [autocompletar de busca](../case-studies/search-autocomplete/index.md).
 - [Playground](../../../playground/index.md) — cenário `read-heavy-cache`.
 
-## Pontos-chave
+## Pontos-chave { #key-takeaways }
 
-- Caches funcionam por causa de **localidade e concentração**: um cache com 1% de um catálogo com distribuição Zipf pode absorver a maioria das leituras.
-- Uma requisição atravessa várias camadas de cache (cliente, CDN, gateway, em processo, distribuído, banco); mais perto do usuário é mais rápido, porém mais difícil de invalidar.
-- $t_{\text{eff}} = h \cdot t_{\text{hit}} + (1-h) \cdot t_{\text{miss}}$ e $\text{QPS}_{\text{DB}} = (1-h) \cdot \text{QPS}$: pense na **taxa de falta** — cada nove a mais é 10× menos carga no banco.
-- Dimensione para o **conjunto de trabalho**, meça o tamanho dos itens, acompanhe os despejos e mantenha folga.
-- **Cacheie o que você exibe, não aquilo sobre o que você decide**: reservas de assento, pagamentos e saldos vão à fonte da verdade.
+!!! takeaways ""
+
+    - Caches funcionam por causa de **localidade e concentração**: um cache com 1% de um catálogo com distribuição Zipf pode absorver a maioria das leituras.
+    - Uma requisição atravessa várias camadas de cache (cliente, CDN, gateway, em processo, distribuído, banco); mais perto do usuário é mais rápido, porém mais difícil de invalidar.
+    - $t_{\text{eff}} = h \cdot t_{\text{hit}} + (1-h) \cdot t_{\text{miss}}$ e $\text{QPS}_{\text{DB}} = (1-h) \cdot \text{QPS}$: pense na **taxa de falta** — cada nove a mais é 10× menos carga no banco.
+    - Dimensione para o **conjunto de trabalho**, meça o tamanho dos itens, acompanhe os despejos e mantenha folga.
+    - **Cacheie o que você exibe, não aquilo sobre o que você decide**: reservas de assento, pagamentos e saldos vão à fonte da verdade.
+
+## O que quebra em seguida { #what-breaks-next }
+
+O caminho de leitura agora é barato: com 95% de acerto o banco vê uma leitura em cada vinte, e o lab 5 mede isso. O caminho de **escrita** não mudou. O `POST /orders` ainda reserva o assento, chama o provedor de pagamento e envia o e-mail de confirmação dentro da mesma requisição, então o fã espera o mais lento deles, e uma falha no e-mail vira uma falha nas compras. E nenhum cache ajuda quando 2 milhões de fãs querem *comprar*, não ler: o banco aguenta cerca de 1.100 reservas/s e chegam 33.000. Tirar o trabalho lento da requisição, e colocar a multidão numa fila justa, é a [aula 8 — Mensageria](../messaging/index.md).
 
 ---
 

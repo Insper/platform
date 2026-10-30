@@ -3,6 +3,10 @@ São 10:00 e o BoxOffice abre a venda de um show de estádio: dois milhões de f
 
 Os doze estudos de caso abaixo são os problemas clássicos das entrevistas de system design. Não são doze sistemas sem relação: são **as mesmas poucas ideias** — guardar em cache as leituras quentes, tirar o trabalho lento do caminho crítico, escolher uma chave de partição, tornar as retentativas seguras, proteger o único recurso que não escala — combinadas em proporções diferentes. Estudá-los é como o vocabulário da disciplina vira reflexo.
 
+!!! quote "A história até aqui"
+
+    Capítulo 16, o último da [história da disciplina](../../index.md#story). Cada capítulo anterior acrescentou uma caixa ao BoxOffice porque um número pediu, e a [aula 15](../performance/index.md) provou que as caixas aguentam juntas às 10:00. O próximo sistema não será o BoxOffice: será um feed, um chat, um app de corridas — os mesmos blocos com outros números. **Esta aula** responde: você consegue reconstruir esse raciocínio, número a número, para um sistema que nunca viu, em 45 minutos?
+
 !!! abstract "Objetivos de aprendizagem"
 
     Ao final desta aula você deve ser capaz de:
@@ -14,7 +18,7 @@ Os doze estudos de caso abaixo são os problemas clássicos das entrevistas de s
     - **Validar** um design sob carga no System Design Playground e **explicar** o que as métricas mostram.
     - **Avaliar** a própria resposta com uma rubrica júnior / pleno / sênior.
 
-## Roteiro
+## Roteiro { #roadmap }
 
 1. **Esta visão geral** — como estudar um caso, como usar o playground, os casos num relance e os padrões que se repetem.
 2. [Encurtador de URLs](url-shortener/index.md) — geração de IDs, base62, cache de links quentes, analytics fora do caminho crítico.
@@ -42,7 +46,7 @@ Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** a
 
 ---
 
-## Como estudar um caso
+## Como estudar um caso { #how-to-study-a-case }
 
 Toda página de caso segue o **roteiro de entrevista** da [aula 1](../intro/interview-framework/index.md), seção por seção, para você ensaiar a ordem até ela ficar automática. O tempo abaixo é para uma entrevista de 45 minutos; as páginas dos casos usam a mesma numeração.
 
@@ -67,11 +71,11 @@ As dez seções de cada página de caso correspondem a essas etapas: requisitos 
     5. **Dê sua nota** com a rubrica e **repita uma semana depois** sem olhar. Repetição espaçada vence a releitura.
     6. **Pratique em duplas** com o [roteiro de entrevista simulada](../../support/interview/mock/index.md): um faz o papel de entrevistador, usando os follow-ups como sondagens.
 
-## Como usar o playground com um caso
+## Como usar o playground com um caso { #how-to-use-the-playground-with-a-case }
 
 Cada caso incorpora o [System Design Playground](../../../playground/index.md) já carregado com seu cenário. O playground é um simulador, não um benchmark: seus números são ilustrativos, mas as **formas** (onde a fila cresce, quando o p99 se curva, qual componente satura primeiro) são as que você vai ver em sistemas reais e nos laboratórios.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     p["Preveja<br/>o que quebra primeiro?"] --> r["Rode<br/>perfil load / spike"]
     r --> o["Observe<br/>utilização, p99,<br/>erros, backlog, custo"]
@@ -86,7 +90,7 @@ flowchart LR
 - **Ligue aos números das estimativas.** Se a página diz que o cache precisa absorver 95% das leituras, olhe a taxa de acerto; se a Lei de Little diz que há 40 chamadas em andamento, olhe a concorrência da dependência.
 - **Exporte seu design** (JSON) quando gostar dele: é o formato do [exercício do playground](../../exercises/playground-design/index.md).
 
-## Os casos num relance
+## Os casos num relance { #the-cases-at-a-glance }
 
 Ordem sugerida: dos aquecimentos fáceis ao caso principal. A dificuldade é o nível em que o problema costuma ser pedido; todo caso tem uma versão sênior.
 
@@ -107,7 +111,7 @@ Ordem sugerida: dos aquecimentos fáceis ao caso principal. A dificuldade é o n
 
 Os ids dos componentes são os da paleta do playground; cada um está descrito no [catálogo de componentes](../../reference/components/index.md).
 
-## Padrões que se repetem
+## Padrões que se repetem { #patterns-that-repeat }
 
 Depois de alguns casos você vai notar que os aprofundamentos saem de uma lista curta. Reconhecer o padrão num problema novo é a maior parte do trabalho.
 
@@ -126,6 +130,14 @@ Depois de alguns casos você vai notar que os aprofundamentos saem de uma lista 
 
     Toda página de caso tem uma conexão com o BoxOffice: links curtos no SMS dos ingressos (encurtador), "5 reservas por minuto" (rate limiter), a aba "Seguindo" quando um artista anuncia uma turnê (news feed), grupos de fãs durante um festival (chat), 60 000 fãs saindo do estádio (corridas), trailers nas páginas de evento (vídeo), "portões abrem em 2 h" (notificações), o adaptador de pagamento (pagamentos), busca enquanto digita por artistas (autocompletar), o assistente de suporte (IA) e, claro, a própria venda relâmpago (ingressos).
 
+!!! success "Boas práticas"
+
+    - **Escreva, para cada caixa do projeto, o número que a colocou ali e quanto ela custa** — "sala de espera: 33.000 reservas/s contra ~1.100; custa uma fila e uma regra de ordem justa". Uma caixa sem número é a primeira que um revisor remove.
+    - **Nomeie o único recurso que não escala e proteja-o primeiro** — a linha quente do assento, a cota do provedor de pagamento, os tokens por minuto do provedor de LLM; o controle de admissão vai na frente dele antes de qualquer outra otimização.
+    - **Dê a toda escrita que atravessa a rede uma chave de idempotência** — reservas, pagamentos, notificações; retentativas acontecem em todas as camadas. No BoxOffice: a mesma `Idempotency-Key` percorre `order → payment → PSP` ([lab 9](../../hands-on/9/payment/index.md)).
+    - **Escolha a consistência de cada dado, e escreva-a** — assentos e pagamentos fortes, contadores e feeds eventuais; a tabela faz parte do design doc, não é uma decisão de corredor.
+    - **Teste sob carga o pico previsto antes do evento, com a dependência lenta substituída por um stub** — o joelho é medido, não suposto. No BoxOffice: o [lab 2](../../hands-on/2/index.md) encontra o joelho e o [portão de desempenho do lab 11](../../hands-on/11/performance-gate/index.md) o mantém.
+
 !!! warning "Armadilhas comuns em entrevistas de design"
 
     - **Pular para a solução** ("usamos Kafka e Cassandra") antes dos requisitos e dos números.
@@ -140,7 +152,7 @@ Depois de alguns casos você vai notar que os aprofundamentos saem de uma lista 
 
 Os doze casos são combinações dos mesmos padrões. O mapa agrupa os casos pelo **padrão** que compartilham (azul), as aulas que o ensinam e os **componentes da paleta** que o implementam (verde); a matriz abaixo diz quais aulas cada caso testa — ● um aprofundamento é construído sobre ela, ○ ela faz parte do design, — não é central. Cada página de caso termina com seu próprio diagrama *Como se conecta*.
 
-``` mermaid
+``` diagram
 flowchart LR
     g1["URL shortener · news feed<br/>autocomplete · video"] --> p1["cache the hot reads<br/>(Caching, Edge)"]:::tech
     g2["notifications · video<br/>news feed · payments"] --> p2["slow work off the critical path<br/>(Messaging, Compute)"]:::tech
@@ -171,13 +183,17 @@ flowchart LR
 | [Ingressos (BoxOffice)](ticketing/index.md) | ○ | ● | ○ | ● | ○ | ● | ● | Desempenho (admissão pela Lei de Little, teste de pico) |
 | [Assistente de IA](ai-assistant/index.md) | — | ○ | — | ○ | ○ | — | ○ | **Sistemas de IA ●** (gateway, agentes, RAG, segurança) |
 
+## O que quebra em seguida { #what-breaks-next }
+
+Nada na disciplina quebra em seguida — o próximo sistema é seu. Dezesseis capítulos transformaram um serviço e um banco num projeto em que cada caixa tem um número que a colocou ali e um preço: a sala de espera porque 33.000 reservas/s encontram ~1.100, o cache porque as páginas de evento são lidas 100× mais do que mudam, o circuit breaker porque o provedor responde em 4 s em vez de 200 ms. Três lugares testam se esse raciocínio virou seu. O [projeto em equipe](../../exercises/project/index.md) constrói e testa sob carga um sistema ao longo dos seus marcos e o quebra de propósito no [game day](../../exercises/project/game-day/index.md). As [entrevistas simuladas](../../support/interview/mock/index.md) pedem isso em voz alta, em 45 minutos, para um sistema que você não viu. O [design doc](../../exercises/design-doc/index.md) pede que você o escreva para que outra pessoa possa discordar de um número. Nos três, a pergunta é a mesma que todo capítulo fez: **qual número coloca esta caixa aqui, e quanto ela custa?**
+
 ---
 
-## Relacionados
+## Relacionados { #related }
 
 [Aula 1 — roteiro de entrevista](../intro/interview-framework/index.md) · [Aula 2 — estimativas](../estimation/index.md) · [Preparação para entrevistas](../../support/interview/index.md) e seus [problemas de prática](../../support/interview/problems/index.md) · [Exercício de design doc](../../exercises/design-doc/index.md) · [Projeto em equipe](../../exercises/project/index.md) · [Playground](../../../playground/index.md).
 
-## Referências
+## Referências { #references }
 
 As páginas dos casos citam suas próprias fontes; os livros abaixo cobrem a maioria delas[^1][^2][^3].
 

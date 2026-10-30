@@ -4,7 +4,7 @@ A model can write fifty unit tests in a minute. The hard question is not *can it
 
 A mutation-testing tool makes small changes to the production code — each one a **mutant**: `>` becomes `>=`, `a * b` becomes `a / b`, a `return price` becomes `return 0`, a method call is removed — and runs the tests against each mutant. If some test fails, the mutant is **killed** (the tests noticed the bug); if all tests still pass, it **survived** (a bug the tests cannot see). The **mutation score** is killed ÷ total. [PIT](https://pitest.org){target="_blank"} is the standard tool for the JVM[^1].
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     pr["PR changes<br/>CatalogService.java"] --> base["PIT with existing tests<br/>baseline score"]
     base --> gen["Model writes<br/>CatalogServiceAiTest"]

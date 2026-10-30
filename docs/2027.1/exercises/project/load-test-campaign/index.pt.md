@@ -12,7 +12,7 @@ Até aqui o seu sistema "funciona". O Marco 6 faz uma pergunta mais difícil: **
 
 Este marco se apoia no exercício [relatório de teste de carga](../../load-test-report/index.md), na [Aula 15 — Performance](../../../classes/performance/index.md) e na stack de observabilidade do [Lab 8](../../../hands-on/8/index.md). Entrega na **semana 16**, peso de **15%** do projeto.
 
-## O que entregar
+## O que entregar { #what-to-deliver }
 
 - Um **plano da campanha** (antes de executar qualquer coisa) na documentação, seguindo o [template](#templates).
 - Scripts k6 em `load/`, o script de carga de dados, os resultados brutos (`load/results/`, um resumo JSON por execução), capturas de tela dos dashboards.
@@ -20,7 +20,7 @@ Este marco se apoia no exercício [relatório de teste de carga](../../load-test
 - Um job de **portão de desempenho** no workflow de CI ([Lab 11](../../../hands-on/11/index.md)).
 - A tag `m6` no commit com tudo isso.
 
-## Critérios de aceitação
+## Critérios de aceitação { #acceptance-criteria }
 
 - [ ] **(obrigatório)** Plano escrito e versionado **antes** da primeira execução de carga (o histórico de commits mostra isso).
 - [ ] **(obrigatório)** Na **meta de teste** da sua opção, todos os SLOs se mantêm por **≥ 10 minutos** de regime em **3 repetições** (ou, se ela não for alcançável, o gargalo está provado e uma nova meta foi combinada com o professor antes da semana 14).
@@ -33,13 +33,13 @@ Este marco se apoia no exercício [relatório de teste de carga](../../load-test
 - [ ] Um **portão de desempenho** no CI: uma execução smoke do k6 com thresholds que reprova o pipeline em caso de regressão.
 - [ ] Seção *Uso de IA* (veja a [política](../../index.md#use-of-ai-tools)).
 
-## Passo a passo
+## Passo a passo { #step-by-step }
 
-### 1. Escreva o plano primeiro
+### 1. Escreva o plano primeiro { #1-write-the-plan-first }
 
 Um plano obriga o time a combinar o que é "sucesso" **antes** que os números tentem você a mudar a meta. Parta da tabela de SLOs da sua opção; transforme cada SLO em um threshold do k6; defina as jornadas e a parcela de tráfego de cada uma a partir das estimativas do M1; decida onde os testes rodam (Docker Compose ou Kubernetes, qual máquina, quais recursos) e quais dados são carregados.
 
-```mermaid
+``` diagram
 flowchart LR
     plan["Plano<br/>SLOs → thresholds<br/>jornadas, mistura, dados"] --> smoke["Smoke<br/>o script funciona"]
     smoke --> load["Load ×3<br/>meta, ≥ 10 min"]
@@ -51,7 +51,7 @@ flowchart LR
     analyse -->|"hipótese → mudança"| load
 ```
 
-### 2. Modele a carga
+### 2. Modele a carga { #2-model-the-workload }
 
 Usuários reais não batem em um único endpoint: um fã da BoxOffice navega, entra na sala de espera, reserva assentos e (às vezes) paga. Um cenário k6 por jornada, cada um com sua própria taxa de chegada, mantém a mistura exata e permite um threshold por jornada[^1].
 
@@ -176,11 +176,11 @@ Adapte URLs, corpos e autenticação à sua API (obtenha um token no `setup()` o
 
     Meça o modelo real separadamente, a uma taxa baixa (por exemplo, 1 requisição/s), e informe os dois.
 
-### 3. Carregue os dados e fixe o ambiente
+### 3. Carregue os dados e fixe o ambiente { #3-seed-the-data-and-fix-the-environment }
 
 Toda execução começa do **mesmo estado**: os mesmos eventos, assentos e usuários, uma sala de espera vazia (ou conhecida), caches esvaziados ou aquecidos do mesmo jeito. Escreva isso como um script (`load/seed.sh`) e execute-o antes de cada teste. Fixe os recursos (`cpus`/`mem_limit` no Compose, requests/limits no Kubernetes, mín/máx do HPA) e registre-os no plano.
 
-### 4. Execute a sequência
+### 4. Execute a sequência { #4-run-the-sequence }
 
 ```bash title="load/campaign.sh"
 #!/usr/bin/env bash
@@ -208,7 +208,7 @@ Enquanto cada teste roda, acompanhe o dashboard RED (taxa, erros, duração por 
 | Soak (≥ 30 min) | Vazamentos, crescimento lento (memória, conexões, atraso, disco)? | Nenhuma tendência de alta em latência ou recursos |
 | Breakpoint | Qual é o máximo antes de falhar? | Taxa de ruptura informada |
 
-### 5. Verifique a correção depois de cada execução
+### 5. Verifique a correção depois de cada execução { #5-check-correctness-after-every-run }
 
 Um sistema rápido que vende o mesmo assento duas vezes falhou. Depois de **toda** execução, rode uma consulta de correção e guarde a saída.
 
@@ -238,11 +238,11 @@ HAVING count(s.seat_id) <> o.quantity;
 | Plataforma de vídeo | Todo upload confirmado tem todas as resoluções ou um job com falha e motivo |
 | Assistente de suporte com IA | 0 ações inseguras de ferramentas; toda chamada de ferramenta registrada com a identidade do usuário |
 
-### 6. Itere: hipótese → mudança → resultado
+### 6. Itere: hipótese → mudança → resultado { #6-iterate-hypothesis-change-result }
 
 Quando um teste falhar (ou para deslocar o joelho), escreva a **hipótese primeiro**, com um número: "o pool do inventário (10 conexões) se esgota em ~400 reservas/s porque L = λ × W = 400 × 0,025 = 10". Mude **uma** coisa, repita o mesmo teste e registre o resultado — confirmada ou refutada. No mínimo duas iterações documentadas; cada uma é uma pequena história com evidências.
 
-### 7. Coloque um portão de desempenho no CI
+### 7. Coloque um portão de desempenho no CI { #7-gate-performance-in-ci }
 
 Um teste smoke com thresholds no pipeline pega regressões (um índice que sumiu, uma consulta N+1) antes que elas cheguem à campanha. Acrescente um job ao workflow do [Lab 11](../../../hands-on/11/index.md):
 
@@ -359,7 +359,7 @@ O runner é pequeno e compartilhado, então o portão usa **taxas de smoke** e t
     ## 7. Uso de IA
     ~~~
 
-## Rubrica
+## Rubrica { #rubric }
 
 Níveis conforme definidos em [Como os exercícios são avaliados](../../index.md#how-the-exercises-are-graded).
 

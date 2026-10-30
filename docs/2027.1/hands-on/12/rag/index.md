@@ -6,7 +6,7 @@ reduces the second: before the model answers, the service *retrieves* the docume
 the question and puts them in the prompt, with instructions to answer only from them and to cite them.
 The theory is in the [RAG and memory class](../../../classes/ai-systems/rag-memory/index.md).
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     subgraph ingest [ingest: once, and when the catalog changes]
         cat[catalog API] --> txt[event -> text]
@@ -71,9 +71,9 @@ events are created or changed (an outbox event of lab 7 is the natural trigger).
 {"ingested":300}
 > curl -s -X POST localhost:8088/assistant/search -H 'Content-Type: application/json' \
     -d '{"query":"festival at the stadium in São Paulo","k":3}' | jq -r '.[] | "\(.id) \(.score)"'
-event:150 0.828
-event:50 0.828
-event:250 0.82
+event:50 0.8523837787745167
+event:150 0.8472402642106125
+event:250 0.8454701076817256
 ```
 
 The ingestion took 3½ minutes in a test run on a busy laptop with Ollama on the CPU (≈ 1.4 events/s);

@@ -1,4 +1,4 @@
-# 7. Mensageria Assíncrona
+# 7. Mensageria Assíncrona { #7-async-messaging }
 
 !!! info "Objetivo"
 
@@ -16,6 +16,13 @@ mesmo segundo atingem todos os serviços de uma vez. Este lab troca esse acoplam
 [aula de mensageria](../../classes/messaging/index.md): **eventos em um log**, **entrega
 *at-least-once* tratada com idempotência** e **filas que absorvem um pico**.
 
+Ele constrói o capítulo 8 da [história da disciplina](../../index.md#story). As decisões que você implementa
+são justificadas na aula: [síncrono vs assíncrono](../../classes/messaging/index.md#sync-vs-async),
+o [transactional outbox](../../classes/messaging/patterns/index.md#transactional-outbox),
+[consumidores idempotentes](../../classes/messaging/semantics/index.md#idempotent-consumers),
+[retries e mensagens mortas](../../classes/messaging/semantics/index.md#dlq) e a
+[sala de espera da venda relâmpago](../../classes/messaging/queues-pubsub/index.md#the-flash-sale-waiting-room).
+
 ## Slides
 
 <div class="slides-embed">
@@ -25,7 +32,7 @@ mesmo segundo atingem todos os serviços de uma vez. Este lab troca esse acoplam
 Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** abre a visão do apresentador, com as notas.
 [:material-presentation: Abrir os slides em uma nova aba](slides/async.html){:target="_blank"}
 
-## Antes de começar
+## Antes de começar { #before-you-start }
 
 | | |
 |---|---|
@@ -59,7 +66,7 @@ Todo arquivo deste lab aparece **completo** nestas páginas, com o caminho no t�
 publicado em `https://insper.github.io/platform/2027.1/hands-on/7/code/<caminho>` — por exemplo
 `curl -fsSL -o docker-compose.yaml https://insper.github.io/platform/2027.1/hands-on/7/code/docker-compose.yaml`.
 
-## Arquitetura
+## Arquitetura { #architecture }
 
 === "Antes (síncrono)"
 
@@ -105,7 +112,7 @@ que o fã perceba.
     | [Notifications](../../reference/components/compute/index.md#notifications) | `notification` (consumidor idempotente, DLT) |
     | [Email](../../reference/components/external/index.md#email) | Mailpit, um servidor SMTP local com caixa de entrada web |
 
-## O que você vai medir
+## O que você vai medir { #what-you-will-measure }
 
 | Pergunta | Métrica | Ferramenta |
 |---|---|---|
@@ -115,7 +122,7 @@ que o fã perceba.
 | A reentrega envia e-mails duplicados? | e-mails por pedido | API do Mailpit |
 | A sala de espera mantém a taxa de admissão durante um pico? | admitidos/s, posição na fila, p95 dos pedidos | k6 |
 
-## Pré-requisitos
+## Pré-requisitos { #prerequisites }
 
 - Labs [1](../1/index.md) a [6](../6/index.md) concluídos: seu repositório `boxoffice` roda `db` (PostgreSQL), `redis`,
   `catalog`, `inventory` e o `gateway` com `docker compose`.
@@ -124,7 +131,7 @@ que o fã perceba.
   [Kafka](../../classes/messaging/kafka/index.md), [semânticas de entrega](../../classes/messaging/semantics/index.md)
   e o [padrão outbox](../../classes/messaging/patterns/index.md).
 
-## Passos
+## Passos { #steps }
 
 1. [Kafka no Compose](kafka/index.md) — um broker KRaft, o tópico `order-events`, o Kafka UI e o Mailpit; um passeio pela CLI.
 2. [Transactional outbox](outbox/index.md) — o serviço `order` grava o pedido e o evento em uma transação; um relay o publica.
@@ -132,7 +139,7 @@ que o fã perceba.
 4. [Sala de espera](waiting-room/index.md) — uma FIFO no Redis que admite fãs a uma taxa fixa durante a abertura das vendas.
 5. [Meça](measure/index.md) — latência síncrona vs assíncrona, comportamento na queda, *lag* e drenagem, duplicatas, taxa de admissão.
 
-## Experimente no playground
+## Experimente no playground { #try-it-in-the-playground }
 
 Antes de escrever código, veja as duas formas que este lab constrói. **Experimente:** no primeiro
 simulador, rode o perfil `load` e observe cada serviço consumidor receber sua própria cópia de cada
@@ -146,7 +153,7 @@ continua rápido. No segundo, rode `spike` e observe o *backlog* da fila crescer
 
 O simulador completo está no [playground](../../../playground/index.md).
 
-## Meça
+## Meça { #measure-it }
 
 O passo [Meça](measure/index.md) tem os scripts k6 e a tabela de resultados. Preencha-a e guarde-a no
 seu repositório: ela faz parte da entrega.
@@ -164,7 +171,15 @@ seu repositório: ela faz parte da entrega.
 | O build falha com `Could not resolve dependencies` | sem Internet durante o `docker compose build` | tente de novo com rede; o Maven baixa uma vez e guarda em cache (`--mount=type=cache`) |
 | Apple Silicon: `no matching manifest for linux/arm64` | imagem sem variante arm64 | todas as imagens deste lab são multiarquitetura; confira se digitou as tags exatamente |
 
-## Limpeza
+!!! success "Boas práticas neste lab"
+
+    - **Escreva o evento na mesma transação que a mudança de negócio** — o `OrderService.java` chama `Outbox.append` (que se recusa a rodar fora de uma transação) e o `OutboxRelay.java` publica depois do commit. Por quê: [transactional outbox](../../classes/messaging/patterns/index.md#transactional-outbox).
+    - **Torne o consumidor idempotente no seu próprio banco** — o `NotificationService.java` insere o `eventId` em `processed_events` (`V1__create_notification.sql`) na mesma transação que a linha do e-mail. Por quê: [consumidores idempotentes](../../classes/messaging/semantics/index.md#idempotent-consumers).
+    - **Limite os retries e guarde as mensagens envenenadas para inspeção** — `KafkaConfig.java` (3 retries, depois `order-events-dlt`; erros de parse sem retry) e `DeadLetterListener.java` (a tabela `dead_letters`). Por quê: [retries e filas de mensagens mortas](../../classes/messaging/semantics/index.md#dlq).
+    - **Crie os tópicos explicitamente e produza de forma durável** — `docker-compose.yaml` (`kafka-init`, criação automática desligada) e `services/order/src/main/resources/application.yaml` (`acks: all`, `enable.idempotence: true`). Por quê: [replicação e durabilidade](../../classes/messaging/kafka/index.md#replication-and-durability).
+    - **Admita a multidão a uma taxa configurada e medida, numa ordem decidida pelo servidor** — `WaitingRoom.java` (sequência por `INCR`, `ADMIT_PER_SECOND`). Por quê: [a sala de espera da venda relâmpago](../../classes/messaging/queues-pubsub/index.md#the-flash-sale-waiting-room).
+
+## Limpeza { #clean-up }
 
 Ao terminar (ou antes do lab 8), pare a stack e mantenha os dados, ou remova tudo:
 
@@ -175,7 +190,7 @@ docker compose down -v              # or: remove containers, networks and volume
 
 O lab 8 começa deste estado; não é preciso guardar nada além do seu repositório.
 
-## Estado final
+## Estado final { #end-state }
 
 ``` text title="End state (what this lab added)"
 boxoffice/
@@ -203,7 +218,7 @@ Faça commit e tag: `git add -A && git commit -m "lab 7: async messaging" && git
 - [ ] tabela de resultados do passo [Meça](measure/index.md) preenchida em `results/lab7.md`, com uma explicação curta de cada número
 - [ ] autoverificação: `docker compose down -v && docker compose up -d --build` a partir de um clone limpo sobe tudo saudável; depois, push para o GitHub com a tag `lab7`
 
-## Relacionados
+## Relacionados { #related }
 
 - Teoria: [Mensageria e eventos](../../classes/messaging/index.md) ·
   [Filas e pub/sub](../../classes/messaging/queues-pubsub/index.md) ·

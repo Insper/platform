@@ -77,7 +77,7 @@ This is the single most important design decision in a load test[^2].
 - In a **closed model**, a fixed population of N users loops: send a request, **wait for the response**, think for Z seconds, repeat. A new request is only sent when a previous one finished. Throughput is a *consequence*: by the interactive response-time law, $X = N / (R + Z)$.
 - In an **open model**, requests arrive at a rate λ **independent of how fast the system answers** — like fans on the internet, who do not coordinate with each other or wait for strangers' requests to finish. If the system slows down, requests keep arriving and the queue grows.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant C as Closed: 1 virtual user
     participant S as BoxOffice (slow phase)
@@ -119,6 +119,14 @@ The closed test **reduced the load by 63 % at the moment the system struggled** 
 | `externally-controlled` | Either | controlled through the k6 REST API | Interactive exploration |
 
 In arrival-rate executors, VUs are just the *workers* that execute iterations. k6 needs enough of them to keep the schedule — Little's Law again: **VUs needed ≈ arrival rate × iteration duration**. A `hold()` iteration takes about 3 s (two requests plus think time); at 500 iterations/s you need ~1 500 VUs. If k6 runs out, it cannot start iterations on time and counts them in the **`dropped_iterations`** metric — which must be zero, or your "open" test silently became a closed one.
+
+!!! example "In the BoxOffice code: an open-model load test (lab 2)"
+
+    The scripts on this page model the full on-sale campaign; [Hands-on 2 — Measure first](../../../hands-on/2/index.md) starts with one service. Its `load.js` sends `RATE` requests per second to `catalog` with `constant-arrival-rate`, whatever the latency, with an 80/20 mix of event pages and city listings. Note the VU sizing: `preAllocatedVUs` covers the rate when requests are fast, and `maxVUs` lets k6 add workers when they slow down — when even those run out, `dropped_iterations` appears, which the lab reads as the sign that the knee was passed. The thresholds are per endpoint (`name:detail`, `name:list`), as in the table below.
+
+    ``` { .javascript title="load/load.js (the open-model options)" }
+    --8<-- "docs/2027.1/hands-on/2/code/load/load.js:14:31"
+    ```
 
 ---
 
@@ -300,6 +308,14 @@ export const options = {
 };
 ```
 
+!!! example "In the BoxOffice code: a stress test that comes back down (lab 2)"
+
+    [Hands-on 2](../../../hands-on/2/index.md) runs the same shape on `catalog`: steps of 25 %, 50 %, 75 % and 100 % of `PEAK`, the peak held for one minute, then a drop to 25 % for another minute. The last two stages are the point of the test: the lab asks how many seconds p95 takes to return to normal after the drop. A service that recovers by itself is stable; one that stays slow needs load shedding (labs 3 and 9). The 2 s threshold on p99 does not judge the peak — it only flags a run that never recovered.
+
+    ``` { .javascript title="load/stress.js (the staircase and back down)" }
+    --8<-- "docs/2027.1/hands-on/2/code/load/stress.js:13:38"
+    ```
+
 ### Spike test
 
 The spike test reproduces 10:00:00: from a quiet baseline to above the peak within seconds. It exercises exactly what the load test cannot — autoscaling lag, cold caches, connection storms against the database, and the waiting room.
@@ -333,9 +349,9 @@ export const options = {
 
 Run it twice — with the autoscaler at its normal minimum and with **pre-scaling** — and compare the first two minutes. The difference is the case for pre-scaling (see [Kubernetes — autoscaling](../../cloud-native/kubernetes/index.md)).
 
-Try it: the scenario below is BoxOffice's on-sale — a waiting room (queue) in front of `inventory`, seats in SQL, payment through an external provider — preloaded with the **spike** profile. Run it once as is, then remove or bypass the queue (or raise its admission rate) and run again. Compare the p99 of holds, the database utilization and the error rate. Where does the excess load go in each case?
+Try it: the scenario below is a flash sale like BoxOffice's on-sale, and its `load` profile already contains the spike: a scripted event at t = 60 s (*the sale opens*) multiplies the traffic by 20 for 90 s (do not pick the `spike` profile on top of it — that would multiply it by 5 again). The design as drawn has no waiting room: `users → lb → app → inventory-db`, with buyers calling the `payment provider`. Run it and see where the excess load goes: `app` saturates and rejects it (errors), and p99 explodes. Then open it in the full playground (↗), press **Show a possible solution** (CDN, catalog cache, and a waiting-room queue drained by `order` workers) and run again. Compare p99, the error rate and the utilization of `inventory-db`: the excess now waits in the queue — the consumer lag — instead of failing.
 
-<div class="sdp" data-scenario="flash-sale" data-mode="compact" data-profile="spike" data-height="560"></div>
+<div class="sdp" data-scenario="flash-sale" data-mode="compact" data-height="560"></div>
 
 ### Soak test { #soak-test }
 
@@ -556,6 +572,14 @@ export function disrupt() {
 }
 ```
 
+!!! example "In the BoxOffice code: load and a slow provider together (lab 9)"
+
+    [Hands-on 9 — Resilience patterns](../../../hands-on/9/patterns/index.md) runs the first row of the table: Toxiproxy adds 3 s to every call from `order` to `payment` while `pay-under-chaos.js` keeps two open-model scenarios running — 20 payments/s and 20 `GET /orders/{id}`/s. The second scenario never calls `payment`; its threshold (`browse` p95 < 200 ms) is the hypothesis that the failure stays contained. In the lab's test run, unprotected, `browse` p50 was **9.04 s**; with timeout, retry, circuit breaker and bulkhead it was **6.5 ms** ([Measure it](../../../hands-on/9/measure/index.md)).
+
+    ``` { .javascript title="load/pay-under-chaos.js (two scenarios, two verdicts)" }
+    --8<-- "docs/2027.1/hands-on/9/code/load/pay-under-chaos.js:13:40"
+    ```
+
 Try it: the scenario below has a slow third-party dependency and callers **without timeouts**, running with the **chaos** profile. Run it and watch threads (or concurrency) pile up in the callers until unrelated requests fail too — a cascading failure. Then enable the timeout and the circuit breaker on the call to the dependency and run again: the failure should stay contained to the feature that needs the dependency.
 
 <div class="sdp" data-scenario="cascading-failure" data-mode="compact" data-profile="chaos" data-chaos="medium" data-height="520"></div>
@@ -662,6 +686,14 @@ All the tools below can express the six test types; they differ in scripting lan
 
     Two sentences signal real experience: "I would use an **open-model** test — arrival rate, not virtual users — because fans do not wait for each other; a closed model backs off when the system slows down and hides the queue (**coordinated omission**)." and "Thresholds are the **SLOs per endpoint**, and I would run load, spike and breakpoint tests: the load test for the verdict, the spike for autoscaling lag and the waiting room, the breakpoint for the knee and the headroom."
 
+!!! success "Best practices"
+
+    - **Share one module of user flows and vary only the load shape** — smoke, load, stress, spike and breakpoint then differ only in *how much* and *when*, so their results can be compared.
+    - **Size the VUs with Little's Law before the run** — `preAllocatedVUs` ≈ rate × iteration time, `maxVUs` a few times that, so that a slowdown is absorbed instead of turning into a closed test. In BoxOffice: `load/load.js` of [lab 2](../../../hands-on/2/index.md).
+    - **Give every test above the peak a recovery phase, and measure the time to recover** — the drop back to normal load is where you learn whether the system is stable. In BoxOffice: the last two stages of `load/stress.js` ([lab 2](../../../hands-on/2/index.md)).
+    - **Write the hypothesis of a chaos run as a threshold on the traffic that should *not* suffer** — the failure is contained when the unaffected route keeps its SLO. In BoxOffice: `browse` p95 < 200 ms in `load/pay-under-chaos.js` ([lab 9](../../../hands-on/9/patterns/index.md)).
+    - **Tag every run and stream k6 to the services' metrics backend** — `--tag testid=…` lets you find, compare and annotate a run on the same dashboards as the services months later.
+
 !!! warning "Pitfalls"
 
     - **Closed model for internet traffic**: throughput falls exactly when latency rises; the test is kinder than reality.
@@ -676,7 +708,7 @@ All the tools below can express the six test types; they differ in scripting lan
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     SLO["SLOs per endpoint"] --> THR["k6 thresholds:<br/>pass or fail"]
     WM{"workload model"} -->|"open: arrival rate"| OPEN["fans do not wait<br/>for each other"]

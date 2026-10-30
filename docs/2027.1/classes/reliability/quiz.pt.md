@@ -2,7 +2,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Disponibilidade e falhas
+## Disponibilidade e falhas { #availability-and-failure }
 
 **Q1.** O serviço `catalog` falha em média a cada **500 horas** e leva **30 minutos** para se recuperar. Qual é a sua disponibilidade?
 
@@ -60,7 +60,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## SLIs, SLOs e error budgets
+## SLIs, SLOs e error budgets { #slis-slos-and-error-budgets }
 
 **Q5.** Qual destes é o melhor **SLI** para a jornada de reserva de lugares?
 
@@ -104,7 +104,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Padrões de resiliência
+## Padrões de resiliência { #resilience-patterns }
 
 **Q8.** O gateway, o `order` e o adaptador `payment` **cada um** repetem chamadas que falharam, com até **3 tentativas** por camada. O provedor está fora do ar. Quantas chamadas ao provedor um clique de um fã pode gerar?
 
@@ -176,7 +176,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Recuperação de desastres e caos
+## Recuperação de desastres e caos { #disaster-recovery-and-chaos }
 
 **Q13.** Às 22:00 um script apaga todas as linhas de `orders` em produção. O standby síncrono em outra zona replicou o delete. O que restaura os dados, e qual objetivo o tempo de restauração afeta?
 

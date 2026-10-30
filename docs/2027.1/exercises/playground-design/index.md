@@ -1,4 +1,4 @@
-Knowing what a cache, a queue or a circuit breaker *is* is not the same as knowing **which ones a system needs, where, and how many**. In this exercise you get three designs that fail under load in the [System Design Playground](../../../playground/index.md) — a BoxOffice flash sale, a cascade caused by a slow dependency and an AI assistant that is too slow and too expensive — and you must make each one **meet its goals within its budget**, explain why your design works with the formulas of the course, and show that it still works when the dice are rolled again.
+Knowing what a cache, a queue or a circuit breaker *is* is not the same as knowing **which ones a system needs, where, and how many**. In this exercise you get three designs that fail under load in the [System Design Playground](../../../playground/index.md) — a flash sale, a cascade caused by a slow dependency and an AI assistant that is too slow and too expensive — and you must make each one **meet its goals within its budget**, explain why your design works with the formulas of the course, and show that it still works when the dice are rolled again.
 
 !!! abstract "Learning objectives"
 
@@ -30,13 +30,13 @@ For each scenario below, start from the scenario as loaded (do **not** change it
 
 #### Challenge 1 — `flash-sale`
 
-The BoxOffice on-sale at 10:00: a spike of fans hits the catalog and the seat inventory, and payments go to an external provider.
+A limited-stock flash sale (BoxOffice's 10:00 on-sale in generic form): a spike of users hits the catalog and the inventory, and payments go to an external provider.
 
-**Try it:** press ▶ and watch which node turns red first and when. Look at the report: which goal fails, and what does the bottleneck explanation say? Then ask: how many requests per second can the inventory database really accept, and who decides how many fans get there?
+**Try it:** press ▶ and watch which node turns red first and when. Look at the report: which goal fails, and what does the bottleneck explanation say? Then ask: how many requests per second can the inventory database really accept, and who decides how many users get there?
 
 <div class="sdp" data-scenario="flash-sale" data-mode="compact" data-height="520"></div>
 
-Things to reason about (not a recipe): what can be served without touching the inventory at all (static content, the catalog, seat availability that may be a few seconds old); what admission rate the inventory sustains (utilization below ~0.7); what happens to fans who are not admitted yet (a waiting room is a queue, and a queue has a backlog); where the payment provider's latency ends up.
+Things to reason about (not a recipe): what can be served without touching the inventory at all (static content, the catalog, stock availability that may be a few seconds old); what admission rate the inventory sustains (utilization below ~0.7); what happens to users who are not admitted yet (a waiting room is a queue, and a queue has a backlog); where the payment provider's latency ends up.
 
 #### Challenge 2 — `cascading-failure`
 

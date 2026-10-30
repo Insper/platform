@@ -45,7 +45,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ---
 
-**Q4.** Which of the following are **private IPv4 address ranges** reserved by RFC 1918? Select all that apply.
+**Q4.** Which of the following is **not** a private IPv4 range reserved by RFC 1918?
 
 - A. `10.0.0.0/8`
 - B. `172.16.0.0/12`
@@ -53,9 +53,9 @@ Click **"Answer"** to reveal the correct answer and explanation.
 - D. `8.8.8.0/24`
 
 ??? success "Answer"
-    **A, B, and C — `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`.**
+    **D — `8.8.8.0/24` is public.**
 
-    These three ranges are defined by RFC 1918 as private — they are not routable on the public internet and can be freely reused inside any private network. `8.8.8.8` is Google's public DNS server — a public IP address, not private.
+    RFC 1918 defines exactly three private ranges — `10.0.0.0/8`, `172.16.0.0/12` and `192.168.0.0/16` — which are not routable on the public internet and can be freely reused inside any private network. `8.8.8.8` is Google's public DNS resolver: a public address.
 
 ---
 
@@ -139,4 +139,88 @@ Click **"Answer"** to reveal the correct answer and explanation.
 ??? success "Answer"
     **C — Host NAT translates private IP → public IP on egress, reverses on ingress.**
 
-    Docker uses Linux's `iptables` NAT rules on the host. When the container at `172.18.0.3` sends a packet outbound, `iptables` replaces the source IP with the host's public IP and records the mapping. When the response arrives at the host's public IP, `iptables` reverses the translation and delivers the packet to `172.18.0.3` inside the container. The public server never sees the private address.
+    On Linux, Docker sets up NAT rules (iptables) on the host. When the container at `172.18.0.3` sends a packet outbound, the host replaces the source IP with its own address (masquerading) and records the mapping. When the response arrives, the host reverses the translation and delivers the packet to `172.18.0.3`. The public server never sees the private address — the same translation table as a home router.
+
+---
+
+**Q11.** A laptop at `192.168.1.10` opened a connection to a web server, and the NAT router wrote the row `192.168.1.10:52241 ⇄ 203.0.113.7:40001`. A host on the internet that the laptop never contacted now sends a packet to `203.0.113.7:22`. What happens?
+
+- A. The router forwards it to the laptop, the only device with an open connection
+- B. The router drops it: no row has public port 22, so it cannot know which private host should get it
+- C. The router broadcasts it to every device on the private network
+- D. The router answers it itself on behalf of the laptop
+
+??? success "Answer"
+    **B — Dropped: no row matches.**
+
+    A NAT only knows where to deliver inbound packets that match a row created by an outbound connection (or a static port-forward rule). Port 22 has neither, so the packet is dropped. Many routers are stricter still: even a packet to port 40001 is dropped unless it comes from the remote end that row was created for. This is why hosts behind a NAT can start connections but cannot receive them.
+
+---
+
+**Q12.** In a `compose.yaml`, the service `gateway` has `ports: - "8080:8080"` and the service `db` has no `ports:`. Which statement is correct?
+
+- A. Both are reachable from outside the host, because they are on the same network
+- B. `gateway` is reachable from outside the host on port 8080 (the host forwards it, like a port-forward rule); `db` is reachable only by other containers on the network, as `db:5432`
+- C. `db` is unreachable even from `gateway`, because it publishes no port
+- D. `gateway` must call `localhost:5432` to reach the database
+
+??? success "Answer"
+    **B — Published port for `gateway`, network-only for `db`.**
+
+    `ports:` makes the host forward its port 8080 to the container — destination NAT, the same idea as a port-forward rule on a home router. Without it, a service is still reachable on the Compose network, by name, through Docker's embedded DNS. Inside a container `localhost` is the container itself, so `localhost:5432` would not reach the database.
+
+---
+
+**Q13.** A NAT row for an idle connection was deleted after its timeout. What is the consequence, and what do long-lived connections do about it?
+
+- A. Nothing changes: the server's next packet recreates the row
+- B. The next packet from the server is dropped, because the router no longer knows which private host it belongs to; long-lived idle connections send keep-alives so the row never times out
+- C. The router assigns the connection a permanent public IP
+- D. The private host's IP address changes
+
+??? success "Answer"
+    **B — Late packets are dropped; keep-alives keep the row alive.**
+
+    Rows exist only while traffic refreshes them. The standards set minimum idle timeouts (2 minutes for UDP, 2 hours 4 minutes for established TCP), but many devices use shorter ones. A database connection pool or a WebSocket that stays silent longer than that breaks silently, which is why they send periodic keep-alive packets.
+
+---
+
+**Q14.** Over a link that loses 10% of the packets, a sender transfers 20 segments with TCP and with UDP. Segment 4 is lost. Why does the TCP receiver's application get segments 5 to 20 later than the UDP receiver's, even though they arrived on time?
+
+- A. TCP sends segments more slowly than UDP
+- B. TCP delivers bytes in order: segments 5 to 20 wait in the receive buffer until segment 4 is retransmitted after the timer runs out (head-of-line blocking)
+- C. UDP compresses the segments
+- D. TCP discards segments 5 to 20 and asks for all of them again
+
+??? success "Answer"
+    **B — In-order delivery causes head-of-line blocking.**
+
+    TCP guarantees that the application reads the bytes in order. The segments after a loss are kept in the receive buffer until the missing one arrives, which takes at least one retransmission timeout. UDP hands each datagram to the application as soon as it arrives and never fills the gap. QUIC (HTTP/3) reduces the problem by retransmitting per stream.
+
+---
+
+**Q15.** Why does DNS usually run over UDP instead of TCP?
+
+- A. UDP is encrypted and TCP is not
+- B. A DNS lookup is one small question and one small answer; TCP's handshake would add a full round trip before the question could be sent, and if a reply is lost the client simply asks again
+- C. TCP cannot carry text
+- D. Port 53 is not allowed for TCP
+
+??? success "Answer"
+    **B — One small exchange, no handshake needed.**
+
+    The three-way handshake costs one round trip before any data flows. For a single small request and response that would double the latency, while retrying a lost query is easy. DNS still falls back to TCP (also on port 53) for answers too large for a UDP datagram.
+
+---
+
+**Q16.** A team plans to move `api.example.com` to a new IP address. The record's TTL is 86,400 s (one day). What should they expect, and what is the usual practice?
+
+- A. All clients switch to the new address within seconds
+- B. Resolvers that cached the old answer keep serving it until their copy expires — up to a day — so the team lowers the TTL (to, say, 60 s) at least a day before the change and raises it again afterwards
+- C. The authoritative servers push the new address to every resolver
+- D. Clients get an error until the TTL expires
+
+??? success "Answer"
+    **B — Stale answers for up to one TTL; lower the TTL ahead of time.**
+
+    Each resolver keeps a record for its TTL and does not hear about changes. A long TTL means few queries to the authoritative servers but slow changes; a short one spreads changes fast at the cost of more queries. Lowering the TTL a full (old) TTL before a migration means that, at switch time, no cache holds the record for long.

@@ -6,7 +6,7 @@ The `inventory` service works on Ana's laptop with Java 21.0.4 and fails on Brun
 
 A **virtual machine (VM)** emulates hardware: each VM boots its own kernel on top of a hypervisor. A **container** is an ordinary Linux process that the kernel *isolates* and *limits*. All containers on a host share the host's kernel.
 
-``` mermaid
+``` diagram
 flowchart TB
     subgraph VMs["Virtual machines"]
         direction TB
@@ -53,7 +53,7 @@ An **image** is a read-only template from which containers are started. The **Op
 - a **config** — environment variables, the default command, the user, exposed ports;
 - a **manifest** that lists the config and the layers by their **digests** (SHA-256 hashes of the content).
 
-``` mermaid
+``` diagram
 flowchart LR
     m["Manifest<br/>sha256:9f2c…"] --> cfg["Config<br/>ENTRYPOINT, USER, ENV"]
     m --> l1["Layer 1: base OS files<br/>(distroless / Alpine)"]
@@ -125,7 +125,15 @@ docker run --rm -p 8080:8080 --memory=512m --cpus=1 \
 
     With the naive single-stage image (JDK + Maven + sources) the team measured an image of roughly 800 MB; the multi-stage distroless image was under 250 MB, and a typical code change pushed a single small layer. Your numbers will differ — measure them with `docker image ls` and `docker history` — but the order of magnitude is typical. Smaller images matter for **scaling speed**: when the HPA adds 20 pods during the flash sale, each new node must pull the image before the pod can start.
 
-### Graceful shutdown: the other half of disposability
+!!! example "In the BoxOffice code: the `catalog` image (lab 1)"
+
+    [Hands-on 1 — Container](../../../hands-on/1/container/index.md) writes a simpler version of the Dockerfile above, with the same two stages, a non-root user and `MaxRAMPercentage=75`. Two choices differ on purpose. Dependencies are cached with a BuildKit cache mount (`--mount=type=cache`) instead of a separate `dependency:go-offline` layer: shorter to write, but it only helps on the machine that keeps the cache. And the runtime image is `eclipse-temurin:21-jre`, not distroless, because the Compose health check runs `wget` inside the container — a distroless image has no shell and no tools. The price is a bigger image with more packages to scan, and a single fat jar that is pushed again on every change.
+
+    ``` { .dockerfile title="services/catalog/Dockerfile (lab 1)" }
+    --8<-- "docs/2027.1/hands-on/1/code/services/catalog/Dockerfile"
+    ```
+
+### Graceful shutdown: the other half of disposability { #graceful-shutdown-the-other-half-of-disposability }
 
 When Kubernetes replaces a pod it sends `SIGTERM`, waits `terminationGracePeriodSeconds` (30 s by default), then sends `SIGKILL`. A service that dies instantly drops every in-flight request — including someone's payment. Spring Boot handles it with two properties:
 
@@ -204,6 +212,14 @@ Services find each other by **service name** (`db`, `redis`) through Compose's i
 
     Containers come up when you talk about **deployment and scaling speed**. Two crisp points are enough: "Services are packaged as immutable OCI images, promoted by digest from staging to production" and "new replicas start in seconds because images are small and layered — pull time matters when we scale out for the spike". If pressed on isolation, mention that containers share the kernel and that multi-tenant platforms add micro-VMs (Firecracker, gVisor).
 
+!!! success "Best practices"
+
+    - **Order the Dockerfile from what changes least to what changes most, and cache dependency downloads** — a code change then rebuilds in seconds instead of minutes. In BoxOffice: the BuildKit cache mount in [lab 1's Dockerfile](../../../hands-on/1/container/index.md).
+    - **Size the heap as a share of the container limit, with about 25% left for the rest of the JVM** — metaspace, thread stacks and buffers live outside the heap. In BoxOffice: `MaxRAMPercentage=75` under a 768 MB limit ([lab 1](../../../hands-on/1/container/index.md)).
+    - **Expose separate liveness and readiness endpoints from the image** — the same endpoints serve Compose's health check and Kubernetes' probes. In BoxOffice: `/actuator/health/readiness` in [lab 1](../../../hands-on/1/container/index.md) and [lab 10](../../../hands-on/10/deploy/index.md).
+    - **Finish in-flight requests on `SIGTERM` within less than the grace period** — 20 s of shutdown phase against Kubernetes' 30 s leaves margin before `SIGKILL`. In BoxOffice: `SERVER_SHUTDOWN=graceful` in [lab 10](../../../hands-on/10/deploy/index.md).
+    - **Let a bot propose base-image and library updates every week, and scan every image in CI** — patches arrive as small reviewed pull requests, and a critical CVE with a fix blocks the push. In BoxOffice: `dependabot.yml` and the Trivy gate of [lab 11 — supply chain](../../../hands-on/11/supply-chain/index.md).
+
 !!! warning "Pitfalls"
 
     - **`latest` in production**: you do not know what is running, and rollback is ambiguous.
@@ -215,7 +231,7 @@ Services find each other by **service name** (`db`, `redis`) through Compose's i
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     NS["namespaces + cgroups"] --> CT["container =<br/>isolated process"]
     IMG["OCI image: layers,<br/>config, manifest"] --> CT

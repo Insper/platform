@@ -13,9 +13,9 @@ Há duas opções ruins: dimensionar a frota para o pico e pagar por máquinas o
 
 A ideia já foi descrita como "programação em nuvem simplificada"[^1]: nenhum servidor para atualizar, nenhuma capacidade para planejar, pague apenas pelo que executa. As restrições são o preço.
 
-### Como uma função executa
+### Como uma função executa { #how-a-function-runs }
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant E as Fonte de eventos
     participant P as Plataforma
@@ -38,7 +38,7 @@ Cada **ambiente de execução** (uma VM leve ou sandbox) atende **uma requisiç�
 - **Concorrência = taxa × duração** (a lei de Little de novo): 2.000 requisições/s × 0,2 s = **400 ambientes concorrentes**. Reduzir a duração pela metade reduz a concorrência pela metade — e a conta também.
 - **O estado morre com o ambiente**: qualquer coisa mantida em memória ou no disco local pode sumir entre requisições; é a regra do stateless da [visão geral](../index.md#stateless-app-servers), imposta pela plataforma.
 
-### Cold starts e como reduzi-los
+### Cold starts e como reduzi-los { #cold-starts-and-how-to-reduce-them }
 
 | Técnica | O que faz | Custo |
 |---|---|---|
@@ -51,7 +51,7 @@ Cada **ambiente de execução** (uma VM leve ou sandbox) atende **uma requisiç�
 
 Cold starts importam em caminhos **sensíveis à latência e voltados ao usuário**, com tráfego em picos. Não importam para um consumidor de fila que gera PDFs de ingressos, onde um segundo a mais é invisível.
 
-### Limites de concorrência protegem — e estrangulam
+### Limites de concorrência protegem — e estrangulam { #concurrency-limits-protect-and-throttle }
 
 Serverless escala rápido, mas não infinitamente:
 
@@ -62,7 +62,7 @@ Serverless escala rápido, mas não infinitamente:
 !!! warning "O serverless escala; seu banco de dados não"
     1.000 funções concorrentes, cada uma abrindo uma conexão, significam 1.000 conexões em um servidor PostgreSQL que atende confortavelmente algumas centenas. A camada de funções escalou perfeitamente e derrubou o banco. Coloque um **pool de conexões** (RDS Proxy, PgBouncer) ou uma **fila** entre eles, e configure a reserved concurrency de acordo com o que o downstream aguenta.
 
-### Custo: por uso vs sempre ligado
+### Custo: por uso vs sempre ligado { #cost-per-use-vs-always-on }
 
 FaaS cobra por invocação mais **GB-segundos** (memória × duração). Containers cobram pela capacidade provisionada, usada ou não. Qual sai mais barato depende de quão *ocupado* o serviço é. O gráfico usa preços de tabela ilustrativos (AWS Lambda x86 em us-east-1 no momento em que este texto foi escrito: US$ 0,20 por milhão de requisições e US$ 0,0000166667 por GB-segundo; uma réplica de container a um custo assumido de US$ 60/mês, cada uma atendendo até 300 requisições/s, no mínimo duas para disponibilidade) — confira os preços atuais antes de usá-los em uma decisão real.
 
@@ -104,7 +104,7 @@ plt.close()
 
 Com essas premissas, cada invocação custa cerca de US$ 1 por milhão; assim, funções são muito mais baratas abaixo de aproximadamente cem milhões de requisições por mês (algumas dezenas de requisições por segundo, em média), e containers vencem para serviços estáveis e ocupados. Cargas com picos e majoritariamente ociosas favorecem o serverless; cargas estáveis e de alto volume favorecem a capacidade provisionada. O FinOps ([cloud-native](../../cloud-native/index.md)) parte desse cálculo.
 
-### O panorama
+### O panorama { #the-landscape }
 
 === "AWS"
 
@@ -134,7 +134,7 @@ Com essas premissas, cada invocação custa cerca de US$ 1 por milhão; assim, f
     - **Processamento de imagens** quando o time de marketing faz upload de fotos dos artistas: disparado pelo object store, com minutos de ociosidade entre as rajadas.
     - **Não** para o `inventory`: ele mantém conexões quentes com o banco de dados, precisa de um p99 previsível durante a abertura de vendas e roda o dia todo — containers com autoscaling se encaixam melhor.
 
-### Experimente no playground
+### Experimente no playground { #try-it-in-the-playground }
 
 Abra o cenário `serverless-burst`: uma função serverless atrás de uma API recebe uma rajada.
 
@@ -160,7 +160,7 @@ O **autoscaling** ajusta a capacidade automaticamente. Ele opera em três nívei
 
 O HPA adiciona pods, mas, se nenhum nó tiver espaço, os pods ficam `Pending` até o cluster autoscaler adicionar um nó — o que demora bem mais. Os dois laços importam para o tempo de resposta.
 
-### Políticas
+### Políticas { #policies }
 
 | Política | Como decide | Boa para | Fraqueza |
 |---|---|---|---|
@@ -170,7 +170,7 @@ O HPA adiciona pods, mas, se nenhum nó tiver espaço, os pods ficam `Pending` a
 | **Preditiva** | prevê a partir do histórico (p. ex., ciclos diários) e escala antes | padrões diários ou semanais fortes e regulares | inútil para eventos pontuais |
 | **Baseada em fila** | réplicas proporcionais ao backlog ou ao lag | workers ([trabalho assíncrono](../async-work/index.md)) | o paralelismo máximo pode ser limitado (partições do Kafka) |
 
-### O HPA do Kubernetes
+### O HPA do Kubernetes { #the-kubernetes-hpa }
 
 A cada 15 segundos (por padrão), o HPA calcula[^4]:
 
@@ -214,9 +214,17 @@ spec:
           periodSeconds: 60
 ```
 
-A utilização de CPU é medida em relação ao **request** de CPU do pod; portanto, o HPA só funciona se os requests estiverem definidos (e forem realistas). O [Hands-on 10](../../../hands-on/10/index.md) executa este HPA sob uma carga do k6.
+A utilização de CPU é medida em relação ao **request** de CPU do pod; portanto, o HPA só funciona se os requests estiverem definidos (e forem realistas). O [Hands-on 10](../../../hands-on/10/index.md) executa uma versão deste HPA do tamanho de um notebook, sob uma carga do k6 (quadro abaixo).
 
-### Escolhendo a métrica
+!!! example "No código do BoxOffice: o HPA do `catalog` (lab 10)"
+
+    O [Hands-on 10 — Autoscaling](../../../hands-on/10/autoscaling/index.md) mantém o alvo de 60% e o scale-up que "no máximo dobra a cada 15 s", e muda os números para caber num notebook: de 2 a 8 pods em vez de 4 a 40, uma segunda política de scale-up de `+2 pods` (vale a que acrescentar mais) e uma janela de scale-down de 2 minutos em vez de 5, para que você veja os pods saírem dentro do lab. Os 60% são relativos ao request de `250m` do pod, então o HPA acrescenta pods quando eles passam de 150 milicores em média. O que o lab mostra é o [atraso](#autoscaling-lag): cada pod novo precisa de dezenas de segundos até ficar pronto, e o p95 sobe durante a rampa antes de voltar a cair. O limite superior é o banco: 8 pods × 10 conexões = 80 conexões a um PostgreSQL.
+
+    ``` { .yaml title="k8s/base/catalog-hpa.yaml (lab 10)" }
+    --8<-- "docs/2027.1/hands-on/10/code/k8s/base/catalog-hpa.yaml"
+    ```
+
+### Escolhendo a métrica { #choosing-the-metric }
 
 | Métrica | Use quando | Ressalva |
 |---|---|---|
@@ -342,7 +350,7 @@ Quando você sabe que o pico vai chegar, **não espere pelas métricas**:
 
 E quando nem isso basta — dois milhões de fãs para 60 mil lugares —, capacidade não é a resposta: uma **sala de espera** admite fãs na taxa que o sistema consegue atender, o **rate limiting** barra os bots, e o **load shedding** rejeita o excesso cedo e a baixo custo ([edge](../../edge/index.md), [confiabilidade](../../reliability/index.md)). O cenário `flash-sale` do [playground](../../../../playground/index.md) combina todos eles.
 
-### Reduzindo com segurança
+### Reduzindo com segurança { #scaling-in-safely }
 
 Reduzir a escala também causa incidentes:
 
@@ -355,7 +363,7 @@ Reduzir a escala também causa incidentes:
 
 ---
 
-## Containers ou serverless?
+## Containers ou serverless? { #containers-or-serverless }
 
 | | Containers + HPA (Kubernetes) | Containers serverless (Cloud Run, Fargate) | Funções (Lambda) |
 |---|---|---|---|
@@ -373,6 +381,14 @@ Reduzir a escala também causa incidentes:
 
     Quando o problema tiver picos, diga explicitamente que **o autoscaling não é instantâneo**: *"O escalonamento reativo leva de um a alguns minutos — métricas, decisão, nó, imagem, aquecimento da JVM —, então para uma abertura de vendas conhecida eu pré-escalaria por agendamento às 09:45, e para picos inesperados contaria com folga, uma sala de espera e load shedding enquanto o HPA alcança a demanda."* Nomeie a métrica (*"CPU para o catalog, lag do consumidor para os workers de ingressos via KEDA"*), os limites (*"máximo de réplicas limitado pelas conexões do banco"*) e, se propuser serverless, as limitações dele (*"cold starts, cotas de concorrência, conexões com o banco — eu colocaria um RDS Proxy na frente"*).
 
+!!! success "Boas práticas"
+
+    - **Pré-escale para eventos conhecidos** — aumente o `minReplicas` (ou agende a mudança) uns 15 minutos antes das 10:00; o escalonamento reativo é para a carga que você não esperava. Na BoxOffice: a conclusão do [lab 10](../../../hands-on/10/autoscaling/index.md).
+    - **Defina os requests de CPU a partir de um teste de carga** — o request é a CPU que um pod usa na sua vazão-alvo; os 60% do HPA são uma fração desse número, então um request chutado é um gatilho chutado. Na BoxOffice: `250m` para o `catalog` (lab 10).
+    - **Escale para cima rápido e para baixo devagar** — dobre a cada 15 s na subida, remova poucos pods por minuto depois de uma janela de minutos na descida, para que uma pausa entre duas ondas de fãs não remova a capacidade necessária um minuto depois. Na BoxOffice: `catalog-hpa.yaml` (quadro acima).
+    - **Teste a carga do escalonamento, não só do serviço** — uma rampa que registra réplicas desejadas vs prontas mede o atraso que a sua folga precisa cobrir. Na BoxOffice: `load/catalog-hpa.js` e `scripts/watch-hpa.sh` (lab 10).
+    - **Limite a concorrência das funções e crie um alarme de orçamento** — a concorrência reservada protege o banco atrás das funções, e um alarme de cobrança pega um laço descontrolado em horas, não no fim do mês.
+
 !!! warning "Armadilhas comuns"
 
     - **Supor elasticidade instantânea**: os primeiros minutos de um pico são atendidos pelo que já estava rodando.
@@ -387,7 +403,7 @@ Reduzir a escala também causa incidentes:
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     FAAS["funções por evento"] --> COLD["cold starts,<br/>concorrência provisionada"]
     FAAS --> CONC["concorrência = taxa × duração<br/>cotas, throttling"]
@@ -404,13 +420,15 @@ flowchart LR
 
 **Componentes da paleta:** [`serverless`](../../../reference/components/compute/index.md#serverless) (webhooks, redimensionamento de imagens, cola para rajadas) · [`app`](../../../reference/components/compute/index.md#app) (os containers que o HPA escala) · [`worker`](../../../reference/components/compute/index.md#worker) (KEDA pelo atraso da fila) · [`queue`](../../../reference/components/messaging/index.md#queue) (o sinal de atraso) · [`sql`](../../../reference/components/storage/index.md#sql) (o orçamento de conexões que limita `maxReplicas`) · [`apigw`](../../../reference/components/edge/index.md#apigw) (rate limiting enquanto a capacidade alcança a demanda) · [`metrics`](../../../reference/components/observability/index.md#metrics) (o que o autoscaler lê). **Cenários:** `serverless-burst`, `scale-out`, `async-queue`, `flash-sale`. **Continua em:** [Cloud-native — Kubernetes](../../cloud-native/kubernetes/index.md), [Cloud-native — FinOps](../../cloud-native/finops/index.md), [Confiabilidade — descarte de carga](../../reliability/patterns/index.md#load-shedding), [Estimativa — filas](../../estimation/queueing/index.md), [Exercício: autoscaling no Kubernetes](../../../exercises/kubernetes-autoscaling/index.md).
 
-## Principais conclusões
+## Pontos-chave { #key-takeaways }
 
-- O **serverless** escala por requisição e cobra por uso; atenção aos **cold starts**, à **concorrência = taxa × duração**, às cotas da conta e ao **downstream** que não escala junto.
-- Ele é mais barato para cargas com picos e majoritariamente ociosas; containers sempre ligados vencem para serviços estáveis e ocupados.
-- O **autoscaling** atua sobre réplicas (HPA, KEDA), tamanho da réplica (VPA) e nós (Cluster Autoscaler, Karpenter); escolha a métrica que reflete a saturação — CPU, RPS, concorrência ou **lag da fila**.
-- O escalonamento reativo atrasa **minutos**; para picos conhecidos, **escale por agendamento** e pré-aqueça; para os desconhecidos, mantenha folga e proteja o sistema com salas de espera, rate limiting e load shedding.
-- Limite o autoscaler pelo que os armazenamentos compartilhados aguentam.
+!!! takeaways ""
+
+    - O **serverless** escala por requisição e cobra por uso; atenção aos **cold starts**, à **concorrência = taxa × duração**, às cotas da conta e ao **downstream** que não escala junto.
+    - Ele é mais barato para cargas com picos e majoritariamente ociosas; containers sempre ligados vencem para serviços estáveis e ocupados.
+    - O **autoscaling** atua sobre réplicas (HPA, KEDA), tamanho da réplica (VPA) e nós (Cluster Autoscaler, Karpenter); escolha a métrica que reflete a saturação — CPU, RPS, concorrência ou **lag da fila**.
+    - O escalonamento reativo atrasa **minutos**; para picos conhecidos, **escale por agendamento** e pré-aqueça; para os desconhecidos, mantenha folga e proteja o sistema com salas de espera, rate limiting e load shedding.
+    - Limite o autoscaler pelo que os armazenamentos compartilhados aguentam.
 
 ---
 

@@ -4,7 +4,7 @@ A replicação — manter uma cópia dos mesmos dados em várias máquinas — �
 
 ---
 
-## Por que replicar
+## Por que replicar { #why-replicate }
 
 | Objetivo | Como a replicação ajuda | Exemplo na BoxOffice |
 |---|---|---|
@@ -17,11 +17,11 @@ A replicação **não** escala escritas: toda cópia precisa aplicar todas as es
 
 ---
 
-## Replicação com líder único
+## Replicação com líder único { #single-leader-replication }
 
 Um nó, o **líder** (primário), aceita todas as escritas. Ele registra cada mudança no seu log — o **write-ahead log** (WAL) no PostgreSQL, o binlog no MySQL — e envia o log para os **seguidores** (réplicas, standbys), que o reaplicam na mesma ordem. As leituras podem ir para qualquer nó[^1].
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     app["serviço catalog"] -->|"escritas"| P[("primário")]
     P -->|"fluxo de WAL"| R1[("réplica 1")]
@@ -33,11 +33,11 @@ flowchart LR
 
 Esse é o modelo da streaming replication do PostgreSQL, da replicação do MySQL, do SQL Server Always On, dos replica sets do MongoDB e da maioria dos serviços gerenciados (réplicas de leitura do Amazon RDS, Cloud SQL, Azure Database). É simples de raciocinar porque existe exatamente uma ordem de escritas — a do líder.
 
-### Síncrona, assíncrona, semissíncrona
+### Síncrona, assíncrona, semissíncrona { #synchronous-asynchronous-semi-synchronous }
 
 A decisão-chave é **quando o líder diz ao cliente "confirmado"**:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant C as Cliente
     participant P as Primário
@@ -73,7 +73,7 @@ Uma réplica assíncrona fica atrás do líder pelo **atraso de replicação** (
 | **O tempo anda para trás** | atualiza a página: o ingresso aparece; atualiza de novo: sumiu (a segunda leitura caiu numa réplica mais atrasada) | **leituras monotônicas** (*monotonic reads*) |
 | **Efeito antes da causa** | vê a resposta "estorno aprovado" antes do pedido de estorno numa conversa | **leituras de prefixo consistente** (*consistent prefix reads*) |
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant F as Fã
     participant O as serviço order
@@ -133,7 +133,7 @@ plt.close()
 
 Num dia tranquilo o bug é invisível; durante a abertura das vendas — justamente quando há mais fãs olhando — a maioria deles esbarra nele. É por isso que bugs de atraso sobrevivem aos testes.
 
-### Corrigindo o read-your-writes
+### Corrigindo o read-your-writes { #fixing-read-your-writes }
 
 | Técnica | Como | Trade-off |
 |---|---|---|
@@ -143,7 +143,20 @@ Num dia tranquilo o bug é invisível; durante a abertura das vendas — justame
 | **Réplica fixa por usuário** | faça hash do usuário para uma réplica | garante **leituras monotônicas**, não read-your-writes |
 | **Réplica síncrona para leituras** | leia de um standby síncrono | sem atraso, mas as escritas pagam a latência |
 
+<div class="csim" data-sim="replication" data-mode="async"></div>
+
+!!! tip "Experimente"
+    O simulador começa onde começa o chamado do suporte: o fã segurou A-12 há 300 ms, e o atraso é de 1 s (o `REPLICA_DELAY=1s` do [Hands-on 6](../../../hands-on/6/index.md)). Aperte **ler minhas reservas**: db-2 responde sem A-12, uma leitura desatualizada. Dê play até os pontos chegarem (1 s para db-2, 1,5 s para db-3) e leia de novo: atualizada. Recomece com **ler as próprias escritas** ligado: a leitura vai ao líder e vem atualizada na hora. Depois segure um assento novo em cada modo: *async* confirma em 2 ms, *semi-sync* em 1.003 ms, *sync* em 1.503 ms (espera db-3, o mais lento). Por fim, recomece em *async* e **derrube o líder** com A-12 em trânsito: db-2 é promovido sem ela e a reserva se perde; em *semi-sync* ou *sync* nada se perde (veja a seção de failover abaixo).
+
 Monitore o atraso como métrica de primeira classe — `pg_stat_replication.replay_lag` no PostgreSQL, `ReplicaLag` no Amazon RDS — e crie alertas sobre ele (veja [Observabilidade](../../observability/index.md)). Uma réplica minutos atrás é pior do que nenhuma réplica.
+
+!!! example "No código do BoxOffice: leituras roteadas pelo tipo de transação (lab 6)"
+
+    O [Hands-on 6 — Réplica e pooling](../../../hands-on/6/replicas/index.md) dá ao `inventory` dois pools atrás de um único `DataSource`: uma transação marcada `@Transactional(readOnly = true)` (o mapa de assentos) recebe uma conexão da réplica, todas as outras recebem o primário. É a linha "ler do líder os dados do próprio usuário" da tabela: o `find` lê a reserva do próprio fã com um `@Transactional` comum, no primário, porque o fã acabou de criá-la. O lab então mede o bug que isso evita: lendo o mapa de assentos logo depois de uma reserva, cerca de **6%** dos fãs não viram a própria reserva com a réplica na mesma máquina, e **98%** com `REPLICA_DELAY=1s`.
+
+    ``` { .java title="services/inventory/src/main/java/boxoffice/inventory/DataSourceConfig.java (two pools, one DataSource)" }
+    --8<-- "docs/2027.1/hands-on/6/code/services/inventory/src/main/java/boxoffice/inventory/DataSourceConfig.java:11:38"
+    ```
 
 **Experimente.** No cenário `db-replicas`, um primário recebe as escritas e as réplicas atendem as leituras. Adicione réplicas e veja a vazão de leitura subir enquanto a carga do primário fica estável; depois aumente a taxa de escrita e veja o atraso de replicação crescer — e, com ele, a fração de leituras desatualizadas.
 
@@ -151,7 +164,7 @@ Monitore o atraso como métrica de primeira classe — `pg_stat_replication.repl
 
 ---
 
-## Pool de conexões
+## Pool de conexões { #connection-pooling }
 
 As réplicas multiplicam *para onde* as consultas podem ir; os pools de conexões decidem *quantas* podem rodar ao mesmo tempo. No PostgreSQL, cada conexão é um processo separado do sistema operacional, com memória própria; milhares de conexões ociosas custam RAM e CPU de verdade — e o banco não fica mais rápido além de algumas poucas consultas concorrentes por núcleo de CPU.
 
@@ -159,13 +172,21 @@ Dimensione os pools com a Lei de Little, não no chute: conexões ocupadas = con
 
 O problema nos microsserviços: 20 pods × um pool de 50 = **1.000 conexões** num único primário. Um pooler de conexões como o **PgBouncer** (ou o RDS Proxy, ou o Cloud SQL Auth Proxy com pooling) fica entre eles, multiplexando milhares de conexões de clientes em poucas dezenas de conexões com o servidor. No modo *transaction pooling*, uma conexão com o servidor é emprestada por transação, então o estado de sessão (`SET`, tabelas temporárias, alguns usos de prepared statements) não pode vazar de uma transação para outra. Você vai medir isso no [Hands-on 6](../../../hands-on/6/index.md).
 
+!!! example "No código do BoxOffice: o PgBouncer na frente do PostgreSQL (lab 6)"
+
+    No [Hands-on 6](../../../hands-on/6/replicas/index.md) o `inventory` se conecta pelo PgBouncer em modo transação, e o PostgreSQL vê no máximo 20 conexões de servidor vindas dele, não importa quantas conexões de cliente cheguem. Numa execução de teste durante a venda relâmpago, o `pg_stat_activity` mostrou cerca de 60 conexões da aplicação (30 das três réplicas do `catalog`, 10 do `auth`, 20 do PgBouncer). Com `max_connections` reduzido a 80 e um pool de 40 no `inventory`, a mesma pilha falha com `too many clients already` quando o `inventory` se conecta direto, e continua funcionando pelo pooler, que transforma "clientes demais" em fila. As migrações continuam indo direto ao primário: o Flyway usa locks de sessão, que o pooling por transação não mantém.
+
+    ``` { .ini title="infra/pgbouncer/pgbouncer.ini (transaction pooling)" }
+    --8<-- "docs/2027.1/hands-on/6/code/infra/pgbouncer/pgbouncer.ini:12:17"
+    ```
+
 ---
 
-## Failover: quando o líder morre
+## Failover: quando o líder morre { #failover-when-the-leader-dies }
 
 Se um seguidor morre, ele se reconecta e alcança o líder a partir do log. Se o **líder** morre, o sistema precisa fazer **failover**:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant M as Gerenciador de failover (ex.: Patroni + etcd)
     participant P as Primário antigo
@@ -189,9 +210,13 @@ Cada passo esconde um problema difícil:
 
 Os serviços gerenciados empacotam tudo isso — Amazon RDS Multi-AZ com standby síncrono, Aurora com armazenamento em quorum, alta disponibilidade do Cloud SQL, HA com redundância de zona no Azure — com failovers que costumam levar de dezenas de segundos a alguns minutos; a pergunta de design para você é o que a aplicação faz enquanto isso (novas tentativas com backoff, veja [Confiabilidade](../../reliability/patterns/index.md)).
 
+**Experimente.** O cenário `db-failover` é um checkout de venda relâmpago num cluster com um primário e um seguidor **assíncrono**: 1.500 req/s, metade escritas. Em t = 90 s o primário morre. Execute-o e leia o relatório: com a semente padrão cerca de **1.600 escritas se perdem** (confirmadas pelo primário antigo, nunca enviadas ao seguidor) e a disponibilidade cai para cerca de **90,6%**, porque toda escrita falha durante os 30 s de failover. Selecione `orders-db` e mude *Replicação* para `sync`: as escritas perdidas caem para **0**, mas a disponibilidade não se mexe. Volte para `async` e ponha o *Tempo de failover* em 5 s: a disponibilidade sobe para cerca de **98%**, e as escritas voltam a se perder. Os dois controles respondem a perguntas diferentes: o modo de replicação define quanto você perde (o RPO), a detecção e a promoção definem quanto tempo você fica fora (o RTO). A solução possível (abra no playground completo ↗) combina replicação por quórum com 2 seguidores, 2 shards e failover de 5 s: 0 escritas perdidas, cerca de 99,2% de disponibilidade.
+
+<div class="sdp" data-scenario="db-failover" data-mode="compact" data-height="520"></div>
+
 ---
 
-## Replicação multilíder
+## Replicação multilíder { #multi-leader-replication }
 
 Na replicação **multilíder** (*multi-leader*, multi-primary, ativo-ativo), vários nós aceitam escritas e replicam entre si de forma assíncrona. Motivos típicos: um líder por região, para que as escritas sejam locais; clientes offline-first (um app móvel ou um editor colaborativo é, na prática, um líder); um segundo data center que precisa aceitar escritas durante uma partição.
 
@@ -216,15 +241,10 @@ O preço são os **conflitos de escrita**: dois líderes aceitam escritas difere
 
 O artigo do **Dynamo** da Amazon (2007)[^3] popularizou um terceiro design, usado por Cassandra, ScyllaDB e Riak: **nenhum líder**. O cliente (ou um nó coordenador) envia cada escrita para todas as **N** réplicas de uma chave e a considera bem-sucedida quando **W** delas confirmam; lê de **R** réplicas e fica com a versão mais nova.
 
-``` mermaid-sim
-flowchart LR
-    C["coordenador<br/>N = 3, W = 2, R = 2"] -->|"escreve v2"| A[("réplica A ✓")]
-    C -->|"escreve v2"| B[("réplica B ✓")]
-    C -.->|"escreve v2 (nó fora do ar)"| X[("réplica C ✗")]
-    C -->|"lê"| B
-    C -->|"lê"| X
-    B -->|"v2 é mais nova"| C
-```
+<div class="csim" data-sim="quorum" data-n="3" data-w="2" data-r="2" data-down="C"></div>
+
+!!! tip "Experimente"
+    O simulador começa na configuração usual: N = 3, W = 2, R = 2, réplica C fora do ar. Dê play: toda escrita cai em A e B, toda leitura consulta A e B, e nenhuma leitura vem desatualizada. Ponha W = 1 e R = 1: agora cerca de metade das leituras perde a última escrita (o quadro calcula C(U − W, R) / C(U, R): 50% com 2 réplicas vivas, 67% quando C volta). Volte a W = 2, R = 2 e clique em C para religá-la: ela volta com uma versão antiga, e mesmo assim as leituras por quórum continuam atualizadas; ligue o **read repair** e veja C se atualizar. Por fim, derrube também B: com uma réplica viva, escritas e leituras falham, porque o coordenador não consegue juntar 2 respostas.
 
 Se **R + W > N**, todo conjunto de leitura se sobrepõe a todo conjunto de escrita em pelo menos uma réplica, então uma leitura vê a última escrita confirmada (com ressalvas sob escritas concorrentes e falhas — quoruns sozinhos não são linearizáveis). Com N = 3:
 
@@ -239,7 +259,7 @@ As escritas perdidas são reparadas por **read repair** (uma leitura que vê uma
 
 ---
 
-## Comparando os designs
+## Comparando os designs { #comparing-the-designs }
 
 | | Líder único | Multilíder | Sem líder |
 |---|---|---|---|
@@ -264,6 +284,14 @@ As escritas perdidas são reparadas por **read repair** (uma leitura que vê uma
     - Para bancos sem líder, escreva **R + W > N** e diga o que isso garante e o que não garante (não é uma transação).
     - Mencione o tempo de failover e o que os clientes fazem enquanto isso: novas tentativas com backoff, escritas idempotentes.
 
+!!! success "Boas práticas"
+
+    - **Deixe o destino da leitura explícito no código, por transação** — quem lê o código precisa ver quais consultas podem estar desatualizadas. Na BoxOffice: `@Transactional(readOnly = true)` vai para a réplica pelo `DataSourceConfig` ([lab 6](../../../hands-on/6/replicas/index.md), quadro acima).
+    - **Dê ao driver todos os hosts e deixe-o encontrar o primário** — com `jdbc:postgresql://db1,db2/boxoffice?targetServerType=primary` a aplicação se reconecta ao novo primário depois de um failover, sem novo deploy.
+    - **Rode as migrações direto no primário** — mudanças de schema precisam de uma sessão de verdade, não de uma transação emprestada pelo pool. Na BoxOffice: `DB_MIGRATION_HOST=db` enquanto a aplicação passa pelo PgBouncer (lab 6).
+    - **Ensaie o failover periodicamente** — uma troca planejada a cada trimestre mede o seu RTO real e prova que todo cliente segue o novo primário.
+    - **Mantenha relatórios longos fora do standby de failover** — uma consulta longa num hot standby conflita com o replay e o atrasa, então o standby com que você conta para o failover fica para trás; dê aos relatórios sua própria réplica.
+
 !!! warning "Armadilhas comuns"
 
     - **Ler as próprias escritas de uma réplica** — a página *Meus ingressos* vazia.
@@ -275,7 +303,7 @@ As escritas perdidas são reparadas por **read repair** (uma leitura que vê uma
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     WHY["por que replicar: disponibilidade,<br/>escala de leitura, latência"] --> SL["líder único"]
     SL --> SYNC["síncrona vs assíncrona<br/>durabilidade vs latência do commit"]
@@ -289,7 +317,7 @@ flowchart LR
     LL --> PART["armazenamentos particionados<br/>→ Particionamento"]
 ```
 
-**Componentes da paleta:** [`sql`](../../../reference/components/storage/index.md#sql) (um primário com réplicas de leitura; um standby síncrono para assentos e dinheiro) · [`nosql`](../../../reference/components/storage/index.md#nosql) (quóruns sem líder: Cassandra, DynamoDB) · [`app`](../../../reference/components/compute/index.md#app) (roteia leituras e escritas, faz retry com backoff durante um failover) · [`cache`](../../../reference/components/storage/index.md#cache) (fica na frente das réplicas do catálogo) · [`dns`](../../../reference/components/edge/index.md#dns) (um jeito de os clientes seguirem o novo líder). **Cenários:** `db-replicas`, `multi-region`. **Continua em:** [Particionamento](../partitioning/index.md), [Distribuídos — consistência](../../distributed/consistency/index.md), [Distribuídos — consenso](../../distributed/consensus/index.md), [Confiabilidade — recuperação de desastres](../../reliability/disaster-recovery/index.md#rpo-rto), [Hands-on 6](../../../hands-on/6/index.md) (réplica de leitura, PgBouncer), [Exercício: cache + banco](../../../exercises/cache-db/index.md).
+**Componentes da paleta:** [`sql`](../../../reference/components/storage/index.md#sql) (um primário com réplicas de leitura; um standby síncrono para assentos e dinheiro) · [`nosql`](../../../reference/components/storage/index.md#nosql) (quóruns sem líder: Cassandra, DynamoDB) · [`app`](../../../reference/components/compute/index.md#app) (roteia leituras e escritas, faz retry com backoff durante um failover) · [`cache`](../../../reference/components/storage/index.md#cache) (fica na frente das réplicas do catálogo) · [`dns`](../../../reference/components/edge/index.md#dns) (um jeito de os clientes seguirem o novo líder). **Cenários:** `db-replicas`, `db-failover`, `multi-region`. **Continua em:** [Particionamento](../partitioning/index.md), [Distribuídos — consistência](../../distributed/consistency/index.md), [Distribuídos — consenso](../../distributed/consensus/index.md), [Confiabilidade — recuperação de desastres](../../reliability/disaster-recovery/index.md#rpo-rto), [Hands-on 6](../../../hands-on/6/index.md) (réplica de leitura, PgBouncer), [Exercício: cache + banco](../../../exercises/cache-db/index.md).
 
 ---
 

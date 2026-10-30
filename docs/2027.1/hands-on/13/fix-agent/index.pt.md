@@ -1,8 +1,8 @@
 O revisor da parte 1 faz **uma** chamada ao modelo e posta texto. Um **agente** é diferente: ele roda um loop — lê um arquivo, edita, roda o build, lê o erro, edita de novo — escolhendo o próprio próximo passo até a tarefa terminar ou um orçamento se esgotar (veja [Agentes e ferramentas](../../../classes/ai-systems/agents/index.md)). Isso o torna muito mais capaz, e muito mais perigoso: ele executa comandos, escreve código e custa mais a cada passo. Esta parte constrói um agente que reage a uma **execução de CI com falha** propondo uma correção como um **pull request em rascunho** — e gasta a maior parte das suas linhas mantendo esse agente dentro de uma caixa.
 
-## 3.1 O fluxo e suas fronteiras de confiança
+## 3.1 O fluxo e suas fronteiras de confiança { #31-the-flow-and-its-trust-boundaries }
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     participant CI as Workflow de CI (lab 11)
@@ -34,7 +34,7 @@ Três separações fazem o trabalho de segurança:
 E um humano faz o merge. Nada neste workflow chega à `main` sem um review exigido pela proteção de branch.
 
 
-## 3.2 Caminho A — Claude Code, headless (pago)
+## 3.2 Caminho A — Claude Code, headless (pago) { #32-path-a-claude-code-headless-paid }
 
 O [Claude Code](https://code.claude.com/docs/en/headless){target="_blank"} pode rodar de forma não interativa com `claude -p`. As flags usadas aqui, da sua referência de CLI:
 
@@ -58,7 +58,7 @@ O caminho A só roda quando a variável de repositório `LLM_PROVIDER` é `anthr
     A Anthropic também publica a [`anthropics/claude-code-action@v1`](https://github.com/anthropics/claude-code-action){target="_blank"}, que empacota o mesmo motor para o GitHub: menções `@claude` em PRs e issues, ou automação com um input `prompt`, e flags de CLI por meio de `claude_args` (por exemplo `--max-turns 5 --model ...`). É o jeito mais rápido de ter um assistente sob demanda nos PRs. Este lab chama a CLI diretamente porque queremos a **separação por artefato de patch** acima, em que o job que roda o agente não tem token de escrita; consulte a [documentação de segurança](https://github.com/anthropics/claude-code-action/blob/main/docs/security.md){target="_blank"} da action se você a usar para escritas.
 
 
-## 3.3 Caminho B — um agente neutro em relação ao provedor em menos de 200 linhas (gratuito com Ollama)
+## 3.3 Caminho B — um agente neutro em relação ao provedor em menos de 200 linhas (gratuito com Ollama) { #33-path-b-a-provider-neutral-agent-in-under-200-lines-free-with-ollama }
 
 Para ver que um agente é "só um loop", o `fix_agent.py` implementa um sobre qualquer endpoint compatível com OpenAI com chamada de ferramentas (LiteLLM, ou Ollama com um modelo que suporte ferramentas). Ele tem cinco ferramentas — `list_files`, `read_file`, `write_file`, `run_build`, `finish` — e **nenhum shell**.
 
@@ -77,7 +77,7 @@ Para ver que um agente é "só um loop", o `fix_agent.py` implementa um sobre qu
 | Uma chamada de ferramenta escrita como **texto** JSON (modelos locais pequenos fazem isso) é aceita como chamada, nunca executada como código | `text_tool_call()` |
 | `run_build("catalog")` é lido como `services/catalog`; um `pom.xml` ausente vira mensagem de erro, não um crash | `run_build()` |
 
-## 3.4 O workflow
+## 3.4 O workflow { #34-the-workflow }
 
 ``` { .yaml title=".github/workflows/ai-fix.yaml" .copy linenums="1" }
 --8<-- "docs/2027.1/hands-on/13/code/.github/workflows/ai-fix.yaml"
@@ -99,7 +99,7 @@ Para ver que um agente é "só um loop", o `fix_agent.py` implementa um sobre qu
     1. O `GITHUB_TOKEN` só pode criar pull requests se **Allow GitHub Actions to create and approve pull requests** estiver habilitado — o passo 0.4 do [setup](../index.md#repository-settings) fez isso. Este lab nunca aprova.
     2. Eventos causados pelo `GITHUB_TOKEN` (o push de `ai-fix/...`, o PR que ele abre) **não disparam outros workflows**, então o CI não roda sozinho no PR em rascunho. É uma proteção do GitHub contra loops. Para rodar o CI nele, faça push de um commit vazio da sua máquina: `gh pr checkout <número do PR em rascunho>`, depois `git commit --allow-empty -m "ci: run CI on the AI fix" && git push` (ou use um token de GitHub App se o seu time automatizar isso).
 
-## 3.5 Quebre o build de propósito
+## 3.5 Quebre o build de propósito { #35-break-the-build-on-purpose }
 
 Faça commit do agente e do seu workflow na `main` antes (workflows `workflow_run` só rodam a partir do branch padrão):
 
@@ -139,7 +139,7 @@ git diff                                   # the agent's change, if any
 jq -c '{step, tool, args}' /tmp/agent-audit.jsonl   # what it did, step by step (or: cat the file)
 ```
 
-O `grep` precisa mostrar a falha que o CI vai ver (o Maven 3.9 imprime `[INFO] BUILD FAILURE`):
+O `grep` precisa mostrar a falha que o CI vai ver (o Maven 3.10 imprime `[ERROR] BUILD FAILURE`; o Maven 3.9, `[INFO] BUILD FAILURE`):
 
 ```text
 [ERROR] Tests run: 3, Failures: 1, Errors: 1, Skipped: 0, Time elapsed: 0.618 s <<< FAILURE! -- in boxoffice.catalog.CatalogServiceTest
@@ -147,23 +147,23 @@ O `grep` precisa mostrar a falha que o CI vai ver (o Maven 3.9 imprime `[INFO] B
 [ERROR] BUILD FAILURE
 ```
 
-O agente imprime uma linha JSON no final: `fixed`, a sua `explanation`, os tokens, os passos e o tempo. Uma execução com o `qwen2.5-coder-16k` local enquanto este lab era escrito:
+O agente imprime uma linha JSON no final: `fixed`, a sua `explanation`, os tokens, os passos e o tempo. Duas execuções com o `qwen2.5-coder-16k` local durante a revisão deste lab deram o mesmo resultado (a explicação está abreviada):
 
 ```text
-{"fixed": false, "explanation": "```json\n{\"name\": \"write_file\", ... (abridged)", "model": "qwen2.5-coder-16k", "calls": 20, "in": 165075, "cache_read": 0, "cache_write": 0, "out": 5596, "seconds": 517.1, "usd": 0.0, "steps": 20}
+{"fixed": true, "explanation": "The root cause of the issue was that the `deleteEvent` method in `CatalogService` was incorrectly checking if the event exists before deleting it, ... (abridged)", "model": "qwen2.5-coder-16k", "calls": 4, "in": 32012, "cache_read": 0, "cache_write": 0, "out": 954, "seconds": 169.2, "usd": 0.0, "steps": 4}
 ```
 
-Leia o log de auditoria ao lado do `git diff`: o modelo gratuito de 7B **nunca abriu o `CatalogService.java`**. Ele reescreveu o *teste* seis vezes — acrescentando, entre outros, um teste que espera um `404` quando o evento **existe**, o que transforma o bug em especificação (o problema do oráculo da parte 2) — depois quebrou a compilação com um método duplicado e esgotou os seus 20 passos depois de 8 minutos e meio e 165.075 tokens de entrada, terminando com `"fixed": false`. Nada perigoso aconteceu: toda escrita ficou em `services/catalog/src/`, e no CI o `mvn verify` independente do passo de verificação falha com este patch, então nenhum PR é aberto. Esse é o objetivo das proteções — elas tornam um agente ruim inofensivo, não bom. Rode de novo com um modelo mais forte, se tiver um, e compare.
+Leia o log de auditoria ao lado do `git diff`: o modelo abriu o `CatalogService.java`, reescreveu-o com o `!` de volta (o diff é essa única linha), rodou o build e terminou — quatro passos, cerca de três minutos num notebook:
 
 ```text
 $ jq -c '{step, tool, args}' /tmp/agent-audit.jsonl
-{"step":1,"tool":"read_file","args":{"path":"services/catalog/src/test/java/boxoffice/catalog/CatalogServiceTest.java"}}
-{"step":2,"tool":"write_file","args":{"path":"services/catalog/src/test/java/boxoffice/catalog/CatalogServiceTest.java","content":"<2431 chars>"}}
+{"step":1,"tool":"read_file","args":{"path":"services/catalog/src/main/java/boxoffice/catalog/CatalogService.java"}}
+{"step":2,"tool":"write_file","args":{"path":"services/catalog/src/main/java/boxoffice/catalog/CatalogService.java","content":"<3168 chars>"}}
 {"step":3,"tool":"run_build","args":{"service":"catalog"}}
-...
-{"step":18,"tool":"run_build","args":{"service":"catalog"}}
-{"step":19,"tool":"read_file","args":{"path":"services/catalog/src/test/java/boxoffice/catalog/CatalogServiceTest.java"}}
+{"step":4,"tool":"finish","args":{"fixed":true,"explanation":"<325 chars>"}}
 ```
+
+Não conte com isso. Uma execução anterior do mesmo modelo **nunca abriu o `CatalogService.java`**: reescreveu o *teste* seis vezes — acrescentando, entre outros, um teste que espera um `404` quando o evento **existe**, o que transforma o bug em especificação (o problema do oráculo da parte 2) — depois quebrou a compilação com um método duplicado e esgotou os seus 20 passos depois de 8 minutos e meio e 165.075 tokens de entrada, terminando com `"fixed": false`. Nem então algo perigoso aconteceu: toda escrita ficou em `services/catalog/src/`, e no CI o `mvn verify` independente do passo de verificação falha com um patch assim, então nenhum PR é aberto. Esse é o objetivo das proteções — elas tornam um agente ruim inofensivo, não bom. Rode de novo (e com um modelo mais forte, se tiver um) e compare.
 
 Seja o que for que ele fez, **verifique como o workflow faz**: `git diff --stat` só pode listar arquivos em `services/catalog/src/`, nenhum `@Test` pode sumir, e `mvn -B -f services/catalog/pom.xml verify` precisa passar. Depois desfaça a mudança do agente (`git checkout -- services`) — a execução de CI abaixo deve partir do commit quebrado.
 
@@ -185,7 +185,7 @@ Quando terminar, feche o PR `break-catalog` sem merge (`gh pr close break-catalo
     Falhas mecânicas com um sinal claro no log: erros de compilação depois de atualizar uma dependência, um método renomeado, um import quebrado, uma verificação de formatação, um teste que falha porque uma mensagem esperada mudou. Eles compensam menos em testes instáveis e problemas de infraestrutura — classifique esses primeiro (a página da aula sobre [testes](../../../classes/ai-delivery/testing/index.md) trata da triagem de testes instáveis).
 
 
-## Solução de problemas
+## Solução de problemas { #troubleshooting }
 
 | Sintoma | Causa | Correção |
 |---|---|---|

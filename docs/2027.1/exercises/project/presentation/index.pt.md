@@ -12,14 +12,14 @@ Quinze minutos para mostrar um semestre de trabalho. A apresentação final não
 
 As apresentações acontecem nas **semanas 19–20** (agenda publicada pelo professor); peso de **10%** do projeto. A [qualidade da documentação](../index.md#documentation-quality-rubric) do site inteiro é avaliada no mesmo momento.
 
-## O que entregar
+## O que entregar { #what-to-deliver }
 
 - **Slides** (PDF ou um link na documentação), seguindo o [roteiro](#templates).
 - Uma **demo ao vivo** durante a apresentação, mais uma **gravação reserva** da mesma demo.
 - Um **vídeo de 3 minutos** do projeto (link na documentação).
 - A **documentação final** no GitHub Pages e a tag final `final`.
 
-## Critérios de aceitação
+## Critérios de aceitação { #acceptance-criteria }
 
 - [ ] **(obrigatório)** **Todos os membros apresentam** uma parte da fala e respondem perguntas individuais.
 - [ ] **(obrigatório)** Fala dentro de **15 minutos** (corte rígido), seguida de **10 minutos** de perguntas.
@@ -31,9 +31,9 @@ As apresentações acontecem nas **semanas 19–20** (agenda publicada pelo prof
 - [ ] Checklist da documentação final completo e tag `final` enviada antes do dia da apresentação.
 - [ ] Seção *Uso de IA* na documentação final (veja a [política](../../index.md#use-of-ai-tools)).
 
-## Passo a passo
+## Passo a passo { #step-by-step }
 
-### 1. Estruture os 15 minutos
+### 1. Estruture os 15 minutos { #1-structure-the-15-minutes }
 
 | Min | Seção | O que o público precisa levar |
 |:-:|-|-|
@@ -47,7 +47,7 @@ As apresentações acontecem nas **semanas 19–20** (agenda publicada pelo prof
 
 Divida as seções para que **cada membro** apresente algo substancial (não só o slide de título). Ensaiem com cronômetro; o corte em 15:00 é real.
 
-### 2. Prepare a demo — e o seu plano B
+### 2. Prepare a demo — e o seu plano B { #2-prepare-the-demo-and-its-fallback }
 
 Demos ao vivo falham por motivos banais: Wi-Fi, um cluster que não subiu, um token expirado. Prepare-se como um operador:
 
@@ -69,11 +69,11 @@ nohup k6 run -e TEST_TYPE=load -e BASE_URL="${BASE_URL:-http://localhost:8080}" 
 echo "background load started (pid $!) — open the RED dashboard now"
 ```
 
-### 3. Grave o vídeo de 3 minutos
+### 3. Grave o vídeo de 3 minutos { #3-record-the-3-minute-video }
 
 O vídeo é para quem nunca viu o curso: um recrutador, um futuro colega de time. Corte sugerido: problema e SLOs (20 s), arquitetura (40 s), o sistema sob carga com dashboards (60 s), um resultado da campanha e um do game day (40 s), custo e lições (20 s). Mantenha abaixo de **3 minutos**; legendas ou áudio claro; mostre o time.
 
-### 4. Prepare-se para as perguntas
+### 4. Prepare-se para as perguntas { #4-prepare-for-the-qa }
 
 As perguntas vão para **indivíduos**, e qualquer membro pode ser questionado sobre qualquer parte do sistema. Espere perguntas como:
 
@@ -84,7 +84,7 @@ As perguntas vão para **indivíduos**, e qualquer membro pode ser questionado s
 - "Mostre o alerta que disparou no game day. Qual é a janela de burn rate, e por quê?"
 - "Esta parte foi escrita com ajuda de IA. Explique-a e mude este parâmetro: o que acontece?"
 
-### 5. Finalize a documentação
+### 5. Finalize a documentação { #5-finish-the-documentation }
 
 - [ ] Página inicial: time, tabela de responsabilidades, opção de sistema, resumo de um parágrafo, diagrama de arquitetura, links para todos os marcos.
 - [ ] Design doc final e ADRs (com o registro de mudanças desde o M1).
@@ -136,7 +136,7 @@ As perguntas vão para **indivíduos**, e qualquer membro pode ser questionado s
     13. Obrigado — links: documentação, repositório, vídeo
     ~~~
 
-## Rubrica
+## Rubrica { #rubric }
 
 Níveis conforme definidos em [Como os exercícios são avaliados](../../index.md#how-the-exercises-are-graded). As perguntas individuais podem ajustar a nota de um membro (veja as [regras do time](../index.md#team-rules)).
 

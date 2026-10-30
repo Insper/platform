@@ -2,6 +2,10 @@ O BoxOffice começou como a maioria dos produtos: um serviço e um banco Postgre
 
 Não havia nada "errado" com o PostgreSQL. O problema era que **dados diferentes têm formas diferentes**, e pediu-se a um único armazenamento que fosse bom em todas elas ao mesmo tempo. Esta aula trata de reconhecer essas formas e de escolher — e escalar — o armazenamento certo para cada uma.
 
+!!! quote "A história até aqui"
+
+    Capítulo 6 da [história da disciplina](../../index.md#story). A [aula 5](../compute/index.md) deixou toda réplica sem estado, então toda reserva, todo pedido e todo login agora terminam no banco, e o gateway do [lab 4](../../hands-on/4/index.md) pode colocar quantas réplicas quisermos na frente dele. Mais réplicas multiplicam quem chama, não o banco: às 10:00 chegam cerca de 33.000 reservas/s contra as ~1.100 que um PostgreSQL atende ([aula 2](../estimation/index.md)), e dois fãs clicam no mesmo assento no mesmo milissegundo. **Esta aula** responde: qual armazenamento para qual dado, como o armazenamento garante "um assento, uma reserva", e como ele cresce quando uma máquina não basta?
+
 !!! abstract "Objetivos de aprendizagem"
 
     Ao final desta aula, você deve ser capaz de:
@@ -13,7 +17,7 @@ Não havia nada "errado" com o PostgreSQL. O problema era que **dados diferentes
     - **Projetar** replicação (líder-seguidor, multi-líder, sem líder) e particionamento (por faixa, por hash, hashing consistente) para uma carga, e **antecipar** o atraso de replicação, as partições quentes e o resharding.
     - **Decidir** quando um motor de busca, um object storage, um data warehouse ou um banco vetorial pertence à arquitetura, e como os dados chegam até ele (CDC, ETL/ELT, embeddings).
 
-## Roteiro
+## Roteiro { #roadmap }
 
 1. **Esta visão geral** — o mapa de dados do BoxOffice, as perguntas que escolhem um armazenamento, persistência poliglota e a escada de escalabilidade do banco de dados.
 2. [Modelos de Dados e Motores de Armazenamento](models/index.md) — relacional, chave-valor, documento, wide-column, grafo; o guia de decisão SQL vs NoSQL; B-trees vs LSM-trees; índices e `EXPLAIN`.
@@ -34,7 +38,7 @@ Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** a
 
 ---
 
-## Dados têm forma
+## Dados têm forma { #data-has-a-shape }
 
 Antes de escolher um banco de dados, descreva os dados. Quatro propriedades decidem quase tudo:
 
@@ -60,7 +64,7 @@ Aplicá-las ao BoxOffice produz um **mapa de dados**. Os volumes abaixo são sup
 
 Repare que as linhas diferem em **ordens de grandeza** em todas as colunas. Um armazenamento ajustado para a primeira linha (pequena, quente, transacional) é uma escolha ruim para a sexta (enorme, só de inserção, varrida em massa), e vice-versa.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     gw["gateway"] --> inv["inventory"]
     gw --> ord["order"]
@@ -133,7 +137,7 @@ O simulador completo, com todos os componentes de armazenamento da paleta, está
 
 ---
 
-## Um banco por serviço, ou um banco para tudo?
+## Um banco por serviço, ou um banco para tudo? { #one-database-per-service-or-one-database-for-everything }
 
 Dois conselhos opostos coexistem, e ambos estão certos no seu contexto.
 
@@ -155,7 +159,7 @@ O caminho pragmático para o BoxOffice: começar com PostgreSQL por serviço (es
 
 Cada componente de armazenamento é feito para uma família de padrões de acesso; o sistema de registro alimenta os armazenamentos derivados por streams de mudanças. O mapa liga cada **componente da paleta** (verde) aos **conceitos** em que ele se apoia (azul):
 
-``` mermaid
+``` diagram
 flowchart LR
     cache["cache"]:::comp -->|"miss"| sql["sql"]:::comp
     sql -.- c1["transações, isolamento, índices,<br/>replicação, failover"]:::tech
@@ -188,6 +192,14 @@ flowchart LR
 
     Entrevistadores prestam atenção ao *porquê* da sua escolha, não a nomes de marcas. Um padrão forte é: "**Assentos e pedidos vão para um banco relacional** porque o invariante 'um assento, um ingresso' precisa de transações; o catálogo é de leitura intensa, então um **cache** na frente dele; a busca vai para um **índice invertido** alimentado por CDC; os pôsteres em **object storage** atrás da CDN; a análise num **warehouse**, nunca no banco OLTP." Depois estime: "60 mil assentos por evento é minúsculo — o problema é a contenção de escrita, não o tamanho", o que mostra que você sabe *qual* dimensão é difícil.
 
+!!! success "Boas práticas"
+
+    - **Nomeie no design doc o sistema de registro de cada entidade** — e marque toda outra cópia como derivada, com o jeito de reconstruí-la (replay, reindexação, novos embeddings).
+    - **Ligue as estatísticas de consultas desde o primeiro dia** — `pg_stat_statements` e um log de consultas lentas: o primeiro degrau da escada (consultas e índices) precisa de dados, e os 10 comandos com maior tempo total costumam explicar a maior parte da carga.
+    - **Mude schemas só por migrações versionadas e compatíveis com a versão anterior** — expandir, migrar, contrair: acrescente a coluna, publique código que escreve nas duas, preencha os dados, e só então remova a antiga; cada passo pode ser revertido. Na BoxOffice: Flyway em todo serviço e `ddl-auto: validate` ([lab 1](../../hands-on/1/index.md)).
+    - **Teste restaurações, não só backups** — restaure numa instância descartável periodicamente e meça o tempo: esse tempo é o seu tempo real de recuperação, e a restauração é a única prova de que o backup funciona.
+    - **Mantenha um orçamento de conexões escrito para cada banco** — `max_connections` contra a soma de todos os pools de todas as réplicas. Na BoxOffice: o PgBouncer mantém o `inventory` em 20 conexões de servidor ([lab 6](../../hands-on/6/replicas/index.md)).
+
 !!! warning "Armadilhas comuns"
 
     - **Sharding primeiro.** Particionar um banco de 50 GB adiciona meses de complexidade para resolver um problema que um índice e uma réplica teriam resolvido.
@@ -198,7 +210,7 @@ flowchart LR
 
 ---
 
-## Conexões
+## Conexões { #connections }
 
 - [Modelos de Dados e Motores de Armazenamento](models/index.md) continua esta página com o guia de decisão SQL vs NoSQL.
 - [Sistemas Distribuídos](../distributed/index.md) — replicação e particionamento dependem dos seus modelos de consistência, quóruns e consenso.
@@ -208,13 +220,19 @@ flowchart LR
 
 **Relacionados:** [Hands-on 6 — Dados em escala](../../hands-on/6/index.md) (reservas de assento, réplica de leitura, PgBouncer, `EXPLAIN`) · [Hands-on 1 — Primeiro serviço](../../hands-on/1/index.md) (catálogo em PostgreSQL + Flyway) · [Exercício: cache + banco de dados](../../exercises/cache-db/index.md) · [Estudo de caso: venda de ingressos do BoxOffice](../case-studies/ticketing/index.md) · [Estudo de caso: encurtador de URL](../case-studies/url-shortener/index.md) · [Preparação para entrevistas](../../support/interview/index.md) · Catálogo de componentes: [Armazenamento](../../reference/components/storage/index.md).
 
-## Principais conclusões
+## Pontos-chave { #key-takeaways }
 
-- Descreva os dados por **padrão de acesso, volume, necessidade de consistência e flexibilidade de consulta** antes de escolher um armazenamento.
-- Separe o **sistema de registro** dos **dados derivados** (cache, índice de busca, warehouse, vetores), que podem ser reconstruídos.
-- O banco relacional é o padrão para dados com **invariantes**; saia dele por um motivo medido.
-- Suba a **escada de escalabilidade** em ordem: consultas e índices → pool de conexões → escala vertical → cache → réplicas → divisão por função → sharding → armazenamentos especializados.
-- A persistência poliglota compra desempenho por padrão de acesso ao preço de operação e pipelines.
+!!! takeaways ""
+
+    - Descreva os dados por **padrão de acesso, volume, necessidade de consistência e flexibilidade de consulta** antes de escolher um armazenamento.
+    - Separe o **sistema de registro** dos **dados derivados** (cache, índice de busca, warehouse, vetores), que podem ser reconstruídos.
+    - O banco relacional é o padrão para dados com **invariantes**; saia dele por um motivo medido.
+    - Suba a **escada de escalabilidade** em ordem: consultas e índices → pool de conexões → escala vertical → cache → réplicas → divisão por função → sharding → armazenamentos especializados.
+    - A persistência poliglota compra desempenho por padrão de acesso ao preço de operação e pipelines.
+
+## O que quebra em seguida { #what-breaks-next }
+
+O assento agora está seguro: um lock de linha ou um update condicional decide, e o lab 6 mostra que só a versão ingênua vende um assento duas vezes. Mas as páginas de evento são lidas cerca de 100 vezes mais do que mudam, e cada uma dessas leituras ainda chega ao PostgreSQL ou a uma réplica de leitura: dois milhões de fãs atualizando a página às 9h59 fazem a mesma pergunta milhões de vezes. Uma réplica copia o banco inteiro, com atraso e tudo, para responder leituras que poderiam vir da memória. Guardar uma cópia da resposta, e saber o que nunca pode ser respondido por uma cópia, é a [aula 7 — Cache](../caching/index.md), o próximo degrau da [escada de escalabilidade](#scaling-ladder).
 
 ---
 

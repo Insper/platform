@@ -101,10 +101,11 @@ Não existe arquitetura certa — só arquiteturas **justificadas**. A habilidad
 | **Cliente** | Client, Mobile | 1 |
 | **Tráfego e borda** | DNS, CDN, Load Balancer, WAF, API Gateway, Ingress | 4 |
 | **Computação** | App Server, Worker, Serverless, Auth, Search, Scheduler, Notifications, Analytics | 5 |
+| **Contêineres** | Microservice, Container, Kubernetes Cluster, Service Registry | 11 |
 | **Armazenamento** | SQL, NoSQL, Cache, Object Store, Data Warehouse, Vector DB | 6, 7 |
 | **Mensageria** | Message Queue, Pub/Sub, Event Stream, Kafka | 8 |
-| **Observabilidade** | Metrics, Logs, Tracing, Alerting, Health Check | 10 |
-| **Rede** | VPC, Subnet, NAT Gateway, VPN, Service Mesh | 11 |
+| **Observabilidade** | Metrics, Logs, Tracing, Alerting, Health Check | 9 |
+| **Rede** | VPC, Subnet, NAT Gateway, VPN, Service Mesh | 12 |
 | **IA e agentes** | LLM Gateway, Orchestrator, Tool Registry, Memory Fabric, Safety Mesh | 13 |
 | **Externo** | 3rd Party API, Payment, Email | 5 |
 
@@ -117,12 +118,12 @@ Não existe arquitetura certa — só arquiteturas **justificadas**. A habilidad
 <div class="cols">
 <div>
 
-### Teoria (15 aulas)
+### Teoria (16 aulas)
 
 - **Fundamentos**: introdução, estimativas, sistemas distribuídos
 - **A paleta**: borda, computação, bancos de dados, cache, mensageria
-- **Produção**: confiabilidade, observabilidade, rede e segurança, cloud-native
-- **Juntando tudo**: sistemas de IA, desempenho, estudos de caso
+- **Produção**: observabilidade, confiabilidade, cloud-native, rede e segurança
+- **Juntando tudo**: sistemas de IA, entrega assistida por IA, desempenho, estudos de caso
 
 </div>
 <div>

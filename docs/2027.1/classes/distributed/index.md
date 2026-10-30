@@ -4,6 +4,10 @@ On a single machine that question would not exist: the function either returned 
 
 A distributed system is a set of independent computers (**nodes**) that cooperate **only by exchanging messages** over a network, with **no shared memory and no shared clock**, and that appear to their users as a single coherent system[^1]. Leslie Lamport's half-joking definition is the most useful one for an engineer: *"a distributed system is one in which the failure of a computer you didn't even know existed can render your own computer unusable"*[^2].
 
+!!! quote "The story so far"
+
+    Chapter 3 of the [story of the course](../../index.md#story). [Class 2](../estimation/index.md) found a 30× gap between the on-sale demand (~33,000 holds/s) and what one database sustains (~1,100): BoxOffice needs several machines — app replicas, a standby database, a waiting room. **This class** answers: what changes when the only link between those machines is a network that loses, delays and duplicates messages — and how do we keep a retried click from holding or charging twice?
+
 !!! abstract "Learning objectives"
 
     By the end of this class you should be able to:
@@ -106,7 +110,7 @@ With an (illustrative) 0.1% chance of failure per machine per day, three machine
 
 Follow one click on **"Hold seat A-12"** through BoxOffice. Every arrow is a message over the network; every box is a process that can fail, pause or slow down on its own:
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     fan([Fan's phone]) -->|"POST /holds"| gw[gateway]
     gw -->|"validate token"| auth[auth]
@@ -168,7 +172,7 @@ Every one of them shows up in later classes: fallacy 1 in [Reliability](../relia
 
 When `inventory` sends a request to `payment` and no reply arrives, it **cannot know** which of these happened:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant I as inventory
     participant P as payment
@@ -219,7 +223,7 @@ Two techniques make non-idempotent operations safe to retry:
 1. **Rewrite it as a state transition with a condition** (*compare-and-set*): "set the seat to HELD **if** it is FREE", "set version 8 **if** the current version is 7". A duplicate fails the condition and changes nothing.
 2. **Idempotency keys**: the client generates a unique key per *intended* operation and sends it with every attempt; the server stores the key with the result and, on a duplicate, returns the stored result instead of executing again. Stripe's public API popularised the `Idempotency-Key` header[^9], and there is an IETF draft standardising it.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant F as Fan's app
     participant O as order
@@ -257,6 +261,20 @@ COMMIT;
 !!! example "BoxOffice: holding a seat safely"
     The app generates a UUID when the fan taps **Hold seat** and reuses it for every retry of that tap. `inventory` executes `UPDATE seats SET status = 'HELD', fan_id = :fan, hold_key = :key WHERE id = :seat AND (status = 'FREE' OR hold_key = :key)`. The first attempt holds the seat; a retry with the same key matches the row again and changes nothing; a **different** fan's request matches no row and gets `409 Conflict`. The `payment` adapter forwards the same key to the external provider, so a retried charge is not charged twice ([Integrations](../compute/integrations/index.md)).
 
+!!! example "In the BoxOffice code: a conditional write and an idempotency key (labs 6 and 9)"
+
+    Both techniques are in the labs. [Hands-on 6 — Holds](../../hands-on/6/holds/index.md) takes a seat with a **conditional write**: the `UPDATE` matches only if the seat is still `AVAILABLE` and still at the `version` that was read, so a second transaction changes 0 rows and gets `409`. In a test run of that lab, the naive check-then-act version double-booked **9 seats**; this one, **0**. Note what the lab does *not* do: a retried hold generates a new hold id, so the fan gets `409` for her own seat instead of her first hold back — the `hold_key` of the box above is the step that makes the hold itself idempotent.
+
+    ``` { .java title="services/inventory/src/main/java/boxoffice/inventory/HoldService.java (compare-and-set)" }
+    --8<-- "docs/2027.1/hands-on/6/code/services/inventory/src/main/java/boxoffice/inventory/HoldService.java:97:113"
+    ```
+
+    [Hands-on 9 — Payment](../../hands-on/9/payment/index.md) uses an **idempotency key**: `order` sends `Idempotency-Key: order-<id>` on every attempt, `payment` returns the stored result when it has seen the key, and forwards the same key to the provider. The provider call cannot sit inside a database transaction (it may take seconds), so the key is checked before and stored after it, under a `UNIQUE` constraint; the window between the two is covered because the provider deduplicates by the same key.
+
+    ``` { .java title="services/payment/src/main/java/boxoffice/payment/PaymentService.java (the key)" }
+    --8<-- "docs/2027.1/hands-on/9/code/services/payment/src/main/java/boxoffice/payment/PaymentService.java:22:38"
+    ```
+
 ??? question "Think first: the fan's retry arrives at a different `order` replica than the first attempt. Does the idempotency key still work?"
 
     Only if the deduplication state is **shared** — stored in the database (as above) or in a shared store such as Redis, not in the memory of one replica. A per-replica in-memory set of "seen keys" breaks as soon as the load balancer sends the retry elsewhere, which is the normal case. Keys also need a retention period (Stripe keeps them for 24 hours) long enough to cover every retry the client can make.
@@ -267,7 +285,7 @@ COMMIT;
 
 The three root problems — **partial failure**, an **unreliable network**, and **no global clock** — explain almost every design decision in the rest of the course. The map below connects each problem to the techniques of this class (blue), to the subpage that teaches it, and to the **palette components** where you will meet it in the playground (green):
 
-``` mermaid
+``` diagram
 flowchart LR
     PF["Partial failure"]:::problem --> REP["Replication<br/>(keep copies)"]
     NET["Unreliable network"]:::problem --> IDEM["Timeouts, retries,<br/>idempotency"]
@@ -302,6 +320,14 @@ flowchart LR
 !!! tip "In the interview"
     You will rarely be asked "what is a distributed system?". You will be asked "the client times out — what happens?" or "how do you avoid charging twice?". Strong answers: (1) name the ambiguity (*"a timeout doesn't tell me whether the charge happened"*); (2) make the operation **idempotent** with an idempotency key stored atomically with the result; (3) retry with backoff and jitter only at one layer; (4) state the delivery semantics explicitly (*"at-least-once delivery, effectively-once processing"*). Saying "exactly-once delivery" without qualification is a red flag for interviewers.
 
+!!! success "Best practices"
+
+    - **Set a timeout on every remote call, shorter than the caller's own deadline** — so the caller can still answer, or try elsewhere, before its own client gives up. In BoxOffice: `order` waits at most 1 s for `payment` (lab 9); the edge waits at most 5 s for a replica (lab 3).
+    - **Send an idempotency key with every write that may be retried, and store it under a `UNIQUE` constraint** — the database, not the memory of one replica, decides what is a duplicate. In BoxOffice: `payments.idempotency_key` ([Hands-on 9 — Payment](../../hands-on/9/payment/index.md)).
+    - **Retry at one layer only, with exponential backoff, jitter and a cap** — retries at three layers turn one slow call into 27, exactly when the callee is struggling.
+    - **Give every request an id at the edge and log it at every hop** — the only way to follow one click across machines that share no memory. In BoxOffice: `X-Request-Id` set by Nginx in [lab 3](../../hands-on/3/index.md).
+    - **Test every consumer by delivering each message twice** — at-least-once delivery will do it in production; the test makes sure the effect is applied once.
+
 !!! warning "Pitfalls"
     - **Treating a remote call like a local function call** — no timeout, no retry policy, no thought about partial failure.
     - **Retrying non-idempotent operations** (`POST`, increments) without a key: duplicates, double charges, double-sold seats.
@@ -309,13 +335,19 @@ flowchart LR
     - **Health checks that lie**: `/health` returns `200` because the process is alive, while every request fails (gray failure).
     - **Assuming failures are independent**: replicas in the same rack, zone or with the same bad configuration fail together.
 
-## Key takeaways
+## Key takeaways { #key-takeaways }
 
-- Distribute for **scale, fault tolerance, latency, isolation or data residency** — and only then: you pay with partial failures, an unreliable network and no global clock.
-- At scale, **failure is the normal case**: $1-(1-p)^N$ approaches 1 quickly.
-- Know the **failure models**; the dangerous ones in practice are **slow**, **partial** and **gray** failures, not clean crashes.
-- A caller cannot distinguish **slow from dead**: use timeouts, and accept that a timed-out operation may have happened.
-- Exactly-once **delivery** is impossible; build **at-least-once delivery + idempotent processing** with conditional writes or idempotency keys stored atomically.
+!!! takeaways ""
+
+    - Distribute for **scale, fault tolerance, latency, isolation or data residency** — and only then: you pay with partial failures, an unreliable network and no global clock.
+    - At scale, **failure is the normal case**: $1-(1-p)^N$ approaches 1 quickly.
+    - Know the **failure models**; the dangerous ones in practice are **slow**, **partial** and **gray** failures, not clean crashes.
+    - A caller cannot distinguish **slow from dead**: use timeouts, and accept that a timed-out operation may have happened.
+    - Exactly-once **delivery** is impossible; build **at-least-once delivery + idempotent processing** with conditional writes or idempotency keys stored atomically.
+
+## What breaks next { #what-breaks-next }
+
+BoxOffice now has the vocabulary to survive the network between its machines — timeouts, idempotent retries, one consistency model per data domain, consensus to choose the primary. It has not yet decided **who receives the traffic**. At 10:00:00 two million phones send a request in the same second: about **100,000 requests/s** at the edge ([the estimate](../estimation/numbers/index.md)), while one `catalog` instance measured in lab 2 keeps its p99 target only up to a few hundred requests per second. Most of those requests must end before any service, the rest must reach a healthy replica, and bots must not get there first: [class 4 — Traffic & Edge](../edge/index.md).
 
 ## Related
 

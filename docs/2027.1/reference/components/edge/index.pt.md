@@ -1,4 +1,4 @@
-# Tráfego e borda
+# Tráfego e borda { #traffic-edge }
 
 A **borda** (*edge*) é tudo o que fica entre o cliente e o código da sua aplicação: ela encontra os seus servidores (DNS), entrega de perto do usuário o que pode ser entregue de perto (CDN), espalha o tráfego por muitas réplicas (load balancer), bloqueia o que nunca deveria chegar até você (WAF) e aplica as regras transversais da sua API — autenticação, limites de taxa, roteamento (API gateway, Ingress). Uma requisição respondida ou rejeitada na borda é a requisição mais barata que você vai servir.
 
@@ -13,7 +13,7 @@ No BoxOffice, é a borda que mantém viva a venda relâmpago das 10:00: a págin
 | [API Gateway](#apigw) | Porta de entrada única da API: autenticação, rate limiting, roteamento, BFF | `apigw` |
 | [Ingress](#ingress) | O jeito Kubernetes de rotear tráfego HTTP externo para os serviços | `ingress` |
 
-``` mermaid
+``` diagram
 flowchart LR
     C[Client] -->|1 resolve o nome| DNS
     C -->|2 estáticos e mídia| CDN
@@ -346,7 +346,7 @@ flowchart LR
 !!! tip "Na entrevista"
     "Um API gateway na frente dos serviços valida o JWT uma vez, roteia por caminho e aplica um rate limit de token bucket por usuário, apoiado no Redis, respondendo 429 com Retry-After. A lógica de negócio fica nos serviços; o gateway fica fino, redundante e rápido."
 
-**Saiba mais:** [Borda › API gateway](../../../classes/edge/api-gateway/index.md) · [Estudo de caso: rate limiter](../../../classes/case-studies/rate-limiter/index.md) · [Rede e segurança › Identidade](../../../classes/network-security/identity/index.md) · [Hands-on 4](../../../hands-on/4/index.md)
+**Saiba mais:** [Borda › API gateway](../../../classes/edge/api-gateway/index.md) · [Estudo de caso: rate limiter](../../../classes/case-studies/rate-limiter/index.md) · [Rede e segurança › Identidade](../../../classes/edge/identity/index.md) · [Hands-on 4](../../../hands-on/4/index.md)
 
 ---
 

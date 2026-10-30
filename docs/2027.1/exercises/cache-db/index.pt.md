@@ -10,13 +10,13 @@ Durante uma venda da BoxOffice, quase toda requisição é uma **leitura** das m
     - **Demonstrar** uma leitura desatualizada causada pelo atraso de replicação (e pelo cache) e **mitigá-la**.
     - **Reproduzir** um cache stampede e **corrigi-lo** com coalescência de requisições.
 
-## Contexto
+## Contexto { #context }
 
 A [Aula 6](../../classes/databases/index.md) tratou de replicação e de suas anomalias de consistência[^1]; a [Aula 7](../../classes/caching/index.md), de padrões de cache, invalidação e modos de falha. O [Lab 5](../../hands-on/5/index.md) construiu o cache-aside no `catalog` e o [Lab 6](../../hands-on/6/index.md), uma réplica de leitura. Aqui você combina os dois, no **seu** serviço, como um experimento com números. Parta do serviço e do script k6 do [relatório de teste de carga](../load-test-report/index.md) — aquele relatório é o seu **"antes"**.
 
 O caminho de leitura que você vai construir:
 
-```mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant C as Cliente
     participant A as catalog
@@ -35,7 +35,7 @@ sequenceDiagram
     A-->>C: 200 OK
 ```
 
-### A matemática que você vai conferir
+### A matemática que você vai conferir { #the-math-you-will-check }
 
 Com uma taxa de requisições λ e uma taxa de acerto *h*, o banco recebe apenas os misses:
 
@@ -47,7 +47,7 @@ $$
 
 A taxa de acerto depende da **popularidade das chaves**. Com uma distribuição de Zipf (expoente 1) sobre 1.000 eventos, os 200 eventos mais populares recebem cerca de `H₂₀₀ / H₁₀₀₀ ≈ 5,88 / 7,49 ≈ 78%` das leituras (Hₙ é o número harmônico, ≈ ln n + 0,577). Com TTL de 60 s, cada chave lida dá miss mais ou menos uma vez por TTL, então no máximo ~1.000 / 60 ≈ 17 misses/s — a 1.000 req/s, isso é uma taxa de acerto em torno de 98% depois que o cache aquece. **Escreva a sua própria previsão antes de medir.**
 
-## Tarefa
+## Tarefa { #task }
 
 A partir do seu serviço do relatório de teste de carga (o `catalog` da BoxOffice, recomendado):
 
@@ -57,7 +57,7 @@ A partir do seu serviço do relatório de teste de carga (o `catalog` da BoxOffi
 4. **Demonstre uma leitura desatualizada** (atraso da réplica e cache) e implemente ou argumente uma **mitigação**.
 5. **Reproduza um cache stampede** em uma chave quente e **corrija-o**.
 
-## Requisitos
+## Requisitos { #requirements }
 
 - [ ] **(obrigatório)** Cache-aside no endpoint de leitura com TTL **e** invalidação na escrita (depois do commit); um contador de hits e um de misses expostos como métricas.
 - [ ] **(obrigatório)** Uma réplica por streaming com separação leitura/escrita; evidência de que **≥ 90% das transações de leitura** vão para a réplica (`pg_stat_database` nos dois nós).
@@ -70,13 +70,13 @@ A partir do seu serviço do relatório de teste de carga (o `catalog` da BoxOffi
 - [ ] Uma breve discussão: o que **não** deve ir para o cache na BoxOffice (por exemplo, a disponibilidade de assentos no checkout) e por quê.
 - [ ] Seção *Uso de IA* (veja a [política](../index.md#use-of-ai-tools)).
 
-## Entregáveis
+## Entregáveis { #deliverables }
 
 No seu repositório (tag `ex3`): as mudanças no código, o `compose.yaml` com o Redis e a réplica, os scripts k6, os resultados brutos (`load/results/`) e uma página `cache-db` no site da sua documentação seguindo o [template](#templates).
 
-## Passo a passo
+## Passo a passo { #step-by-step }
 
-### 1. Acrescente o Redis e uma réplica ao Compose
+### 1. Acrescente o Redis e uma réplica ao Compose { #1-add-redis-and-a-replica-to-compose }
 
 A réplica é criada com `pg_basebackup` a partir do primário na primeira vez que sobe; `-R` grava as configurações que a tornam um standby por streaming.
 
@@ -136,7 +136,7 @@ docker compose exec db psql -U catalog -c "select client_addr, state, replay_lag
 docker compose exec db-replica psql -U catalog -d catalog -c "select pg_is_in_recovery();"
 ```
 
-### 2. Cache-aside no serviço
+### 2. Cache-aside no serviço { #2-cache-aside-in-the-service }
 
 Escreva o padrão à mão (em vez de `@Cacheable`) para controlar TTL, invalidação e métricas[^2].
 
@@ -242,7 +242,7 @@ public class EventCommandService {
 }
 ```
 
-### 3. Direcione as leituras para a réplica
+### 3. Direcione as leituras para a réplica { #3-route-reads-to-the-replica }
 
 Um `DataSource` de roteamento escolhe a réplica para transações somente leitura. O `LazyConnectionDataSourceProxy` adia a obtenção da conexão até que a marcação de somente leitura da transação seja conhecida.
 
@@ -323,7 +323,7 @@ for svc in db db-replica; do
 done
 ```
 
-### 4. A mesma carga, com chaves populares
+### 4. A mesma carga, com chaves populares { #4-the-same-workload-with-popular-keys }
 
 O tráfego real é concentrado: poucos eventos recebem a maior parte das visualizações. Troque os ids uniformes do script do ex2 por ids com distribuição de Zipf e acrescente uma pequena parcela de escritas (para que aconteçam invalidações).
 
@@ -396,7 +396,7 @@ export default function () {
 
 Adapte o `PUT` à sua API (e à sua autenticação). Execute o **antes** (cache desligado, sem réplica — por exemplo, um profile do Spring) e o **depois** com a mesma taxa, os mesmos dados iniciais e os mesmos recursos.
 
-### 5. Meça a taxa de acerto, a carga no banco e o atraso
+### 5. Meça a taxa de acerto, a carga no banco e o atraso { #5-measure-hit-ratio-database-load-and-lag }
 
 Leia cada contador no início e no fim da parte estável do teste e use a **diferença**:
 
@@ -409,7 +409,7 @@ docker compose exec db-replica psql -U catalog -d catalog -c "select now() - pg_
 
 `replica_delay` cresce quando o primário está ocioso (não há transações novas para aplicar), então leia-o **sob carga de escrita**; o `replay_lag` no primário é o número mais confiável.
 
-### 6. Provoque uma leitura desatualizada
+### 6. Provoque uma leitura desatualizada { #6-make-a-stale-read-happen }
 
 O atraso de replicação costuma ser de milissegundos — rápido demais para ver. Pause o replay na réplica para torná-lo visível e determinístico:
 
@@ -422,7 +422,7 @@ docker compose exec db-replica psql -U postgres -c "select pg_wal_replay_resume(
 
 Explique o que você observa, incluindo a **corrida cache + réplica**: a escrita remove `event:1`; a leitura seguinte dá miss, lê a linha *antiga* da réplica atrasada e coloca o valor antigo de volta no cache — onde ele fica por um TTL inteiro. Depois mitigue, por exemplo: ler do primário por alguns segundos depois de uma escrita do mesmo cliente (*read-your-writes*), recarregar o cache a partir do primário depois de uma escrita (write-through) ou manter o TTL curto para dados que mudam. Justifique a escolha para a BoxOffice.
 
-### 7. Reproduza e corrija um stampede
+### 7. Reproduza e corrija um stampede { #7-reproduce-and-fix-a-stampede }
 
 Quando uma chave quente expira, todas as requisições simultâneas dão miss de uma vez e vão ao banco — o *thundering herd*. Reproduza com 200 requisições simultâneas para o mesmo id logo depois de remover a chave:
 
@@ -566,7 +566,7 @@ Em `findById`, troque o ramo do miss (contador, leitura, `SET`) por `return load
     ## 8. Uso de IA
     ~~~
 
-## Rubrica
+## Rubrica { #rubric }
 
 Níveis conforme definidos em [Como os exercícios são avaliados](../index.md#how-the-exercises-are-graded).
 

@@ -2,6 +2,10 @@ It is 09:59 on the day a stadium tour goes on sale on **BoxOffice**. Two million
 
 The edge ([class 4](../edge/index.md)) decides *where* each request goes. This class is about what happens when it arrives: **where the code runs, how it is split into services, how those services talk, what runs outside the request, how the fleet grows and shrinks on its own, and how to depend safely on systems you do not control** — the payment provider, the e-mail provider, any third-party API.
 
+!!! quote "The story so far"
+
+    Chapter 5 of the [story of the course](../../index.md#story). The edge of [class 4](../edge/index.md) spreads the 2 million requests of 10:00 over three `catalog` replicas, and [lab 3](../../hands-on/3/index.md) measured the gain. But a replica can be added, killed or replaced only if it keeps nothing that another replica needs: a seat hold or a login session in a replica's memory dies with it. And BoxOffice now has more services than `catalog`: someone must check the fan's token once, for all of them. **This class** answers: what must a replica be, how is the code split into services, and how do those services depend on each other and on providers we do not control?
+
 !!! abstract "Learning objectives"
 
     By the end of this class you should be able to:
@@ -58,7 +62,7 @@ The rest of this page is about the most common of them — the **app server** �
 
 A server is **stateless** when it keeps nothing between requests that another replica would need: any replica can serve any request, because everything that must survive lives *outside* the process — in a database, a cache, an object store or the client itself. That one property is what lets a load balancer send each request anywhere, lets you add replicas in seconds, and lets you kill a replica without losing anything.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     fan([Fan]) --> lb["Load balancer"]
     lb --> a1["catalog #1"]
@@ -92,6 +96,14 @@ This is factor VI of the *Twelve-Factor App*: "execute the app as one or more st
 
 !!! warning "Sticky sessions are a crutch"
     A load balancer can pin each user to one replica (*session affinity*). It hides the problem without solving it: load becomes uneven (one replica gets the heavy users), and when that replica dies or is scaled in, its users lose their state. Use affinity only for connection-oriented traffic (WebSockets) or as a temporary step while moving state out.
+
+!!! example "In the BoxOffice code: no session in any replica (lab 4)"
+
+    [Hands-on 4 — Gateway](../../hands-on/4/gateway/index.md) keeps no login session anywhere. The fan's JWT travels on every request, and the gateway checks its signature with the public key of `auth`, fetched once from its JWKS endpoint: no replica remembers the fan, so the gateway can send each request to any of the three `catalog` replicas (`lb://catalog`), and losing one loses nothing. The price is revocation: a token stays valid until it expires (one hour here, `jwt.ttl`), as [Identity](../edge/identity/index.md#gateway-validation) explains.
+
+    ``` { .java title="services/gateway/src/main/java/boxoffice/gateway/SecurityConfig.java (stateless security)" }
+    --8<-- "docs/2027.1/hands-on/4/code/services/gateway/src/main/java/boxoffice/gateway/SecurityConfig.java:22:41"
+    ```
 
 ---
 
@@ -200,7 +212,7 @@ Open the `scale-out` scenario: a load balancer in front of N app replicas.
 
 Scaling out means replicas are created and destroyed all the time — by deploys, by the autoscaler, by node failures. A replica that behaves well during its life cycle is as important as a stateless one:
 
-``` mermaid-sim
+``` diagram-sim
 stateDiagram-v2
     [*] --> Starting : scheduled on a node
     Starting --> Ready : startup + readiness probe pass
@@ -228,13 +240,13 @@ The same stateless service can run on very different substrates. The choice chan
 | **Serverless containers** (Cloud Run, Fargate, Container Apps) | container image | seconds, to zero | the app | per request or per vCPU-second | APIs with idle periods |
 | **Functions (FaaS)** (Lambda, Cloud Functions) | a function | sub-second to seconds, to zero | a function | per invocation and duration | event glue, webhooks, bursty work |
 
-Class 12 ([cloud-native](../cloud-native/index.md)) covers containers and Kubernetes in depth; this class covers the decisions that depend on the *workload*: [serverless and autoscaling](serverless-autoscaling/index.md).
+Class 11 ([cloud-native](../cloud-native/index.md)) covers containers and Kubernetes in depth; this class covers the decisions that depend on the *workload*: [serverless and autoscaling](serverless-autoscaling/index.md).
 
 ## The compute concept map { #concept-map }
 
 Every compute component answers *where* a piece of logic runs and *how* it scales; the external components are the logic you call but do not run. The map links each **palette component** (green) to the **concepts** it relies on (blue):
 
-``` mermaid
+``` diagram
 flowchart LR
     app["app"]:::comp -.- c1["stateless, scale out,<br/>replica life cycle"]:::tech
     app -.- c2["REST, gRPC, GraphQL,<br/>async APIs"]:::tech
@@ -268,6 +280,14 @@ flowchart LR
 
     State the compute tier in one sentence and move on to the interesting parts: *"The API tier is stateless — sessions are JWTs, files go to the object store — so it sits behind a load balancer and autoscales on CPU and requests per second; I'd size it at about 65% target utilization, which is 13–14 replicas for our 4 k RPS peak."* Interviewers want to hear that you know **where the state went**, and a number. Spend the remaining time on the stateful parts (database, cache, queue), where the real trade-offs are.
 
+!!! success "Best practices"
+
+    - **Make every replica identifiable** — put the instance name in a response header and in every log line, so the one bad replica out of 14 can be found and drained. In BoxOffice: the `InstanceHeaderFilter` of [lab 3](../../hands-on/3/index.md).
+    - **Fix each container's CPU and memory, then measure capacity under those limits** — "RPS per replica" in the formula above is only a number when the replica's size is fixed. In BoxOffice: every service in `docker-compose.yaml` has `deploy.resources.limits` (1 CPU, 768 MB), and [lab 2](../../hands-on/2/index.md) measures under them.
+    - **Keep one replica (or one zone) of spare capacity above the target utilization** — with 13 replicas at 65%, losing one puts the other 12 at about 70%, still below the knee.
+    - **Expose separate liveness and readiness probes** — readiness fails when a dependency is unreachable (stop sending traffic), liveness only when the process is stuck (restart it); one probe for both restarts healthy replicas during a database blip. In BoxOffice: `management.endpoint.health.probes.enabled: true` in every service, from [lab 1](../../hands-on/1/index.md).
+    - **Write the connection budget down** — replicas × pool size per service must stay below what the database accepts (the 2,000-connection example above). In BoxOffice: `DB_POOL_SIZE` per service and PgBouncer in [lab 6](../../hands-on/6/replicas/index.md).
+
 !!! warning "Common pitfalls"
 
     - **Hidden state**: an in-memory map, a local file or an in-process `@Scheduled` job that silently assumes one replica.
@@ -280,17 +300,23 @@ flowchart LR
 
 ## Related
 
-- Hands-on: [hands-on 1 — first service](../../hands-on/1/index.md) (the `catalog` REST API and its OpenAPI contract), [hands-on 3 — edge](../../hands-on/3/index.md) (three replicas behind Nginx, scale-out measurement), [hands-on 7 — async](../../hands-on/7/index.md) (workers, outbox, idempotent consumer), [hands-on 9 — resilience](../../hands-on/9/index.md) (`order` → `payment` with timeouts and circuit breaker), [hands-on 10 — Kubernetes](../../hands-on/10/index.md) (HPA under a k6 load).
+- Hands-on: [hands-on 1 — first service](../../hands-on/1/index.md) (the `catalog` REST API and its OpenAPI contract), [hands-on 3 — edge](../../hands-on/3/index.md) (three replicas behind Nginx, scale-out measurement), [hands-on 4 — gateway & identity](../../hands-on/4/index.md) (one entry point for every service, the token checked once, no session in any replica), [hands-on 7 — async](../../hands-on/7/index.md) (workers, outbox, idempotent consumer), [hands-on 9 — resilience](../../hands-on/9/index.md) (`order` → `payment` with timeouts and circuit breaker), [hands-on 10 — Kubernetes](../../hands-on/10/index.md) (HPA under a k6 load).
 - Exercises: [Kubernetes autoscaling](../../exercises/kubernetes-autoscaling/index.md), [event-driven](../../exercises/event-driven/index.md).
 - Case studies: [ticketing (BoxOffice flash sale)](../case-studies/ticketing/index.md), [payment system](../case-studies/payment-system/index.md), [notification system](../case-studies/notification-system/index.md).
 - Component catalog: [compute](../../reference/components/compute/index.md) and [external](../../reference/components/external/index.md).
 
-## Key takeaways
+## Key takeaways { #key-takeaways }
 
-- The compute tier is easy to scale **because** it is stateless: sessions, files, caches, schedules and counters live in stores built for state.
-- App servers scale **out**; size them as `peak / (capacity per replica × target utilization)` plus spare, and keep utilization around 50–70% because latency explodes near 100%.
-- Replicas are disposable: fast start, readiness before traffic, graceful shutdown.
-- The next pages decide how to split the code into services, how they talk, what runs in the background, how the fleet scales itself, and how to depend on providers you do not control.
+!!! takeaways ""
+
+    - The compute tier is easy to scale **because** it is stateless: sessions, files, caches, schedules and counters live in stores built for state.
+    - App servers scale **out**; size them as `peak / (capacity per replica × target utilization)` plus spare, and keep utilization around 50–70% because latency explodes near 100%.
+    - Replicas are disposable: fast start, readiness before traffic, graceful shutdown.
+    - The next pages decide how to split the code into services, how they talk, what runs in the background, how the fleet scales itself, and how to depend on providers you do not control.
+
+## What breaks next { #what-breaks-next }
+
+Stateless replicas are cheap to add because they pushed every piece of state somewhere else, and for BoxOffice that somewhere is PostgreSQL: holds, orders and users now live in the one database that every replica shares. At 10:00 it receives about 33,000 hold attempts per second against the ~1,100 it can serve, and two fans who click seat `A-12` in the same millisecond reach two different replicas, so no lock in a replica's memory can protect the seat. Choosing, using and scaling the store that must say "one seat, one hold" is [class 6 — Databases](../databases/index.md).
 
 ---
 

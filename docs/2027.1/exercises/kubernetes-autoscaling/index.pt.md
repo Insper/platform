@@ -10,9 +10,9 @@
     - **Decompor** o atraso da escalada (janela de métricas, período de sincronização, subida do pod, aquecimento da JVM, readiness).
     - **Provar** uma atualização gradual sem indisponibilidade sob carga, e **encontrar** o próximo gargalo (conexões com o banco).
 
-## Contexto
+## Contexto { #context }
 
-A [Aula 12](../../classes/cloud-native/index.md) tratou de contêineres, objetos do Kubernetes, probes e autoscaling; a [Aula 5](../../classes/compute/index.md), da teoria de autoscaling (target tracking, aquecimento, preditivo). O [Lab 10](../../hands-on/10/index.md) implantou a BoxOffice no kind ou no minikube com um Ingress. Este exercício transforma essa implantação em um **experimento**.
+A [Aula 11](../../classes/cloud-native/index.md) tratou de contêineres, objetos do Kubernetes, probes e autoscaling; a [Aula 5](../../classes/compute/index.md), da teoria de autoscaling (target tracking, aquecimento, preditivo). O [Lab 10](../../hands-on/10/index.md) implantou a BoxOffice no kind ou no minikube com um Ingress. Este exercício transforma essa implantação em um **experimento**.
 
 O controlador do HPA calcula, a cada período de sincronização (15 s por padrão)[^1]:
 
@@ -22,7 +22,7 @@ $$
 
 Para CPU, a métrica é a **utilização média relativa ao request de CPU do pod**. Se 2 pods rodam a 150% do request e a meta é 60%, o HPA pede `⌈2 × 150 / 60⌉ = 5` pods.
 
-```mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant K as k6 (rampa de carga)
     participant P as pods do catalog
@@ -38,7 +38,7 @@ sequenceDiagram
     P-->>H: readiness OK: pods recebem tráfego, a utilização cai
 ```
 
-## Tarefa
+## Tarefa { #task }
 
 1. Implante o `catalog` da BoxOffice (ou o seu próprio serviço) e o PostgreSQL no **kind ou minikube** com os manifestos abaixo (adaptados): requests/limits, três probes, desligamento gracioso, Service, Ingress e um **HPA** (mín 2, máx 10, meta de CPU de 60%).
 2. **E1 — Linha do tempo da escalada:** execute uma rampa k6 de uma taxa baixa até uma taxa que exija ~3× as réplicas mínimas; registre réplicas, utilização de CPU, p99 e erros **ao longo do tempo**; depois observe a redução.
@@ -46,7 +46,7 @@ sequenceDiagram
 4. **E3 — Atualização gradual sob carga:** `kubectl rollout restart` durante uma carga estável, com **zero requisições com falha**.
 5. Calcule o **orçamento de conexões com o banco** na escala máxima e diga o que quebra primeiro.
 
-## Requisitos
+## Requisitos { #requirements }
 
 - [ ] **(obrigatório)** Deployment com **requests e limits** de CPU/memória, probes de **startup, readiness e liveness** e desligamento gracioso; Service; Ingress; HPA `autoscaling/v2` com `behavior`.
 - [ ] **(obrigatório)** Uma **série temporal** (CSV versionado) de réplicas desejadas/atuais/prontas e utilização de CPU, a cada ≤ 5 s, alinhada com a latência e os erros do k6.
@@ -60,13 +60,13 @@ sequenceDiagram
 - [ ] Um vídeo de **no máximo 3 minutos** mostrando o E1 (k6 rodando, `kubectl get hpa -w`, pods aparecendo).
 - [ ] Seção *Uso de IA* (veja a [política](../index.md#use-of-ai-tools)).
 
-## Entregáveis
+## Entregáveis { #deliverables }
 
 No seu repositório (tag `ex5`): manifestos em `k8s/`, scripts k6, o script de registro, CSVs e gráficos em `k8s/results/`, o vídeo (ou um link para ele); uma página `kubernetes-autoscaling` no site da sua documentação seguindo o [template](#templates).
 
-## Passo a passo
+## Passo a passo { #step-by-step }
 
-### 1. Cluster e metrics-server
+### 1. Cluster e metrics-server { #1-cluster-and-metrics-server }
 
 O HPA precisa de métricas de recursos, servidas pelo **metrics-server**.
 
@@ -92,7 +92,7 @@ O HPA precisa de métricas de recursos, servidas pelo **metrics-server**.
 
 Confira com `kubectl top pods -A` (leva cerca de um minuto depois de subir). O PostgreSQL vem do Lab 10 (Secret, PVC, Deployment e Service `postgres`).
 
-### 2. O Deployment
+### 2. O Deployment { #2-the-deployment }
 
 ```yaml title="k8s/catalog.yaml"
 apiVersion: v1
@@ -207,7 +207,7 @@ Por que cada bloco importa[^2]:
 | `readinessProbe` | Pods novos recebem tráfego antes de conseguir atendê-lo: erros justamente quando você escala |
 | `preStop` + desligamento gracioso + `maxUnavailable: 0` | Requisições em andamento falham a cada deploy e a cada redução |
 
-### 3. O HPA
+### 3. O HPA { #3-the-hpa }
 
 ```yaml title="k8s/catalog-hpa.yaml"
 apiVersion: autoscaling/v2
@@ -248,7 +248,7 @@ kubectl apply -f k8s/catalog.yaml -f k8s/catalog-hpa.yaml
 kubectl get hpa catalog -w
 ```
 
-### 4. Registre a linha do tempo
+### 4. Registre a linha do tempo { #4-record-the-timeline }
 
 ```bash title="k8s/record.sh"
 #!/usr/bin/env bash
@@ -265,7 +265,7 @@ while true; do
 done
 ```
 
-### 5. A carga
+### 5. A carga { #5-the-load }
 
 Meça primeiro o custo de CPU de uma requisição (uma taxa constante curta com 2 réplicas: CPU usada ÷ requisições por segundo) para conseguir **prever** as réplicas antes de executar o E1.
 
@@ -345,7 +345,7 @@ kill %1
 
     O k6 passa então a dividir a CPU do cluster com os seus pods — diga isso no relatório.
 
-### 6. Plote réplicas e latência juntas
+### 6. Plote réplicas e latência juntas { #6-plot-replicas-and-latency-together }
 
 ```python title="k8s/plot_hpa.py"
 import csv
@@ -391,7 +391,7 @@ fig.savefig(out, dpi=150)
 print("error rate per window:", {w - t0: round(e[0] / e[1], 4) for w, e in sorted(err.items()) if e[1]})
 ```
 
-### 7. Atualização gradual sob carga (E3)
+### 7. Atualização gradual sob carga (E3) { #7-rolling-update-under-load-e3 }
 
 Execute uma taxa constante de cerca de metade do que as réplicas mínimas sustentam e reinicie o Deployment no meio:
 
@@ -403,7 +403,7 @@ wait
 
 O resumo do k6 precisa mostrar `http_req_failed` = 0. Se não mostrar, descubra qual peça falta: readiness, `preStop`, desligamento gracioso, `maxUnavailable: 0`.
 
-### 8. O próximo gargalo
+### 8. O próximo gargalo { #8-the-next-bottleneck }
 
 Cada réplica tem o seu próprio pool de conexões. Com `maxReplicas: 10` e um pool de 10, são **100 conexões** — exatamente o `max_connections` padrão do PostgreSQL, sem sobrar nada para migrações, administração ou um segundo serviço. O autoscaler pode *piorar* as coisas ao escalar a camada sem estado contra um banco que não consegue acompanhar. Calcule o seu orçamento e proponha uma correção (pools menores, PgBouncer, um `maxReplicas` derivado do banco, réplicas de leitura, um cache).
 
@@ -487,7 +487,7 @@ Cada réplica tem o seu próprio pool de conexões. Com `maxReplicas: 10` e um p
     ## 8. Uso de IA
     ~~~
 
-## Rubrica
+## Rubrica { #rubric }
 
 Níveis conforme definidos em [Como os exercícios são avaliados](../index.md#how-the-exercises-are-graded).
 

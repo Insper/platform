@@ -2,6 +2,10 @@ BoxOffice has twelve engineers and merges about sixty pull requests a week. A PR
 
 None of that is a problem of the models. The same tools, designed well, cut review latency, find real bugs, write useful tests and shorten incidents. The difference is **system design**: where the AI step sits in the delivery lifecycle, what context it gets, what it is allowed to do, how its output is checked, what it costs, and how the team knows whether it helps. This class applies the course's toolbox — components, failure modes, numbers, trade-offs — to **AI inside the software delivery pipeline**.
 
+!!! quote "The story so far"
+
+    Chapter 14 of the [story of the course](../../index.md#story). Every change to BoxOffice goes through the pipeline of [lab 11](../../hands-on/11/index.md) — build, test, scan, sign, canary — and, since [class 13](../ai-systems/index.md), a model runs inside the product. Now the same models write the code, and changes arrive faster than the people who review, test and release them. **This class** answers: where can AI speed up delivery without becoming the one that approves its own work?
+
 !!! abstract "Learning objectives"
 
     By the end of this class you should be able to:
@@ -58,7 +62,7 @@ The software delivery lifecycle is a sequence of stages, each with its own input
 | **Release** | Release notes, changelogs, change risk scores | Notes for `v1.8.0` with the new Flyway migration | Invented features; wrong risk estimate | Grounding in commits; risk only *routes* reviews |
 | **Operate** | Explains canaries, summarises incidents, suggests runbooks, drafts postmortems | "The canary of `inventory` fails because p99 doubled after the pool change" | Wrong diagnosis followed under stress; autonomous rollbacks | Policy decides; humans act; AI explains |
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     plan["Plan<br/>AI drafts ADR"] --> code["Code<br/>assistant / agent"]
     code --> pr["Pull request"]
@@ -190,7 +194,7 @@ Agents behave differently: each step re-sends the growing context, so the cost g
 
 CI bots are clients of the model like the BoxOffice assistant is. At the scale of an organization they should go through the same [LLM gateway](../ai-systems/llm-gateway/index.md): one place for keys, **per-repository quotas and budgets**, model routing ("small model for release notes, large model for security review"), fallbacks when a provider is down, and cost attribution per team. Without it, every repository holds its own API key, and a runaway agent loop in one repository can exhaust the organization's rate limit during the on-sale.
 
-Try it: open the scenario below with the `spike` profile. Imagine the spike is not fans but **a mass dependency upgrade** that triggers 300 PR reviews and 300 fix agents at once. Watch the LLM gateway's queue and error rate, then lower the per-client quota and run again: the bots slow down, the assistant's fans do not.
+Try it: open the scenario below with the `spike` profile and imagine the spike is not fans but **a mass dependency upgrade** that triggers 300 PR reviews and 300 fix agents at once. The playground has one kind of client, so it shows what a **shared** quota does: over the run about 70% of the questions fail, against 37% at the normal load. Select the LLM Gateway and lower **Provider quota** from 10 to 5 calls/s: errors pass 90% — for everyone. That is why the gateway needs a quota **per client** (per repository, per team) with priority for interactive traffic: the bots should wait, the fans should not. The playground does not model per-client quotas; its **Fallback model** knob shows the other lever, capacity bought at a price (errors fall to about 3%, the cost per month doubles).
 
 <div class="sdp" data-scenario="ai-assistant" data-mode="compact" data-profile="spike" data-height="520"></div>
 
@@ -206,6 +210,14 @@ Try it: open the scenario below with the `spike` profile. Imagine the spike is n
     4. **Rollout**: shadow mode (findings logged, not posted) on a golden set and real PRs → advisory for volunteer teams → measure precision per category → gate only high-precision categories (for example secrets, SQL injection, cross-boundary calls), as a required check, never an approval.
     5. **Risks**: prompt injection from PR text, secrets in prompts, fork PRs and `pull_request_target`, model regressions — a golden-set eval in CI for every prompt or model change, and cost dashboards.
 
+!!! success "Best practices"
+
+    - **Write the contract of every AI step in the repository** — trigger, context, output, action, budget; a step without one is not enabled. In BoxOffice: every workflow of [lab 13](../../hands-on/13/index.md) declares its trigger, its `permissions:` and its `timeout-minutes`.
+    - **Measure a baseline before switching a step on** — time to first review, escaped defects and CI minutes over at least a week; without it, "it helps" is an opinion. In BoxOffice: [lab 13 — Measure it](../../hands-on/13/measure/index.md).
+    - **Choose the fail-safe direction of each step and test it** — switch the model off once and check that the pipeline still merges (advisory) or still blocks (gate). In BoxOffice: `review.py` exits 0 when the model fails.
+    - **Mark AI-authored changes** — a commit trailer and a label make AI authorship queryable months later. In BoxOffice: the fix agent commits with `AI-assisted: ai-fix workflow (<model>)` and labels the PR `ai-generated`.
+    - **Send every CI model call through the shared gateway with a per-repository quota** — a mass upgrade must not spend the quota of the fans' assistant (see the Try it above).
+
 !!! warning "Common pitfalls"
 
     - **Adding AI to a weak pipeline**: without fast CI, good tests and small PRs, AI amplifies the weakness (the DORA warning). Fix the fundamentals first.
@@ -220,7 +232,7 @@ Try it: open the scenario below with the `spike` profile. Imagine the spike is n
 
 Every AI step in the pipeline is a small AI system: an orchestrator around a model, tools with permissions, a policy layer, and telemetry that says whether it helps. The map links the **palette components** (green) that reappear here to the **concepts** of this class (blue):
 
-``` mermaid
+``` diagram
 flowchart LR
     ev["PR or pipeline event"] --> orch["orchestrator<br/>(reviewer, fix agent)"]:::comp
     orch --> llmgw["llmgw"]:::comp
@@ -257,13 +269,19 @@ flowchart LR
 - [Project](../../exercises/project/index.md): the K8s + CI/CD milestone may include one AI step, measured.
 - [Interview preparation](../../support/interview/index.md): the question above is a common "design a developer tool" prompt.
 
-## Key takeaways
+## Key takeaways { #key-takeaways }
 
-- AI fits every stage of delivery, but **what it may do** depends on the blast radius and the verifiability of its output: assistant → copilot → reviewer → supervised agent → autonomous agent.
-- Design each AI step with the **contract**: trigger, context (trusted vs untrusted), validated output, least-privilege action, budget and fail-safe direction.
-- AI changes the **DORA** inputs in both directions; research so far shows perceived and measured productivity can disagree — **measure** with baselines and per-step metrics.
-- Tokens are cheap; **attention** and **wrong decisions** are expensive. Precision beats recall for anything that talks to humans.
-- **AI proposes; rules and humans dispose.**
+!!! takeaways ""
+
+    - AI fits every stage of delivery, but **what it may do** depends on the blast radius and the verifiability of its output: assistant → copilot → reviewer → supervised agent → autonomous agent.
+    - Design each AI step with the **contract**: trigger, context (trusted vs untrusted), validated output, least-privilege action, budget and fail-safe direction.
+    - AI changes the **DORA** inputs in both directions; research so far shows perceived and measured productivity can disagree — **measure** with baselines and per-step metrics.
+    - Tokens are cheap; **attention** and **wrong decisions** are expensive. Precision beats recall for anything that talks to humans.
+    - **AI proposes; rules and humans dispose.**
+
+## What breaks next { #what-breaks-next }
+
+Every AI step of this class judges **one change**: one diff, one test class, one red build, one canary against its baseline at today's traffic. None of them answers the question the next on-sale asks of the **whole** system: with the edge, the caches, the waiting room, the breakers, Kubernetes and an assistant all in place, does BoxOffice keep p99 under 300 ms when 2 M fans arrive at 10:00, which component breaks first, and what does it cost to run? Fourteen chapters added boxes; none proved that they hold together. Proving it with load, profiles and a cost model — and fixing what the proof finds — is [class 15 — Performance Engineering](../performance/index.md).
 
 ---
 

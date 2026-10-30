@@ -7,7 +7,7 @@ Same design as the instructor's Machine Learning workbook (`ML/docs/2026.2/suppo
 - `workbook.tex`: the master (cover, contents, the order of the classes and the answers section).
 - `preamble.tex`: packages, colours and macros (`\activity`, `\stages` with `\stClarify`, `\stEstimate`, `\stDesign`, `\stDeep`, `know`, `ex`, `\items`, `\lines`, `\frameblank`, `\palette` with `\comp{category}{Label}`, `\simulator`, `\ansclass`, `\ans`, `\final`, `\careful`).
 - `how-to-use.tex`: the introduction "How to use this workbook".
-- `activities/<slug>.tex` and `answers/<slug>.tex`: the activity and the worked answers of each class (`<slug>` is the class folder: `intro`, `estimation`, `distributed`, `edge`, `compute`, `databases`, `caching`, `messaging`, `reliability`, `observability`, `network-security`, `cloud-native`, `ai-systems`, `ai-delivery`, `performance`, `case-studies`).
+- `activities/<slug>.tex` and `answers/<slug>.tex`: the activity and the worked answers of each class (`<slug>` is the class folder: `intro`, `estimation`, `distributed`, `edge`, `compute`, `databases`, `caching`, `messaging`, `observability`, `reliability`, `cloud-native`, `network-security`, `ai-systems`, `ai-delivery`, `performance`, `case-studies`).
 - `verify/<slug>.py`: recomputes every number of the activity and of its answers (Python 3, standard library only; each prints `<slug> OK`).
 - `test.tex`: compiles one activity and its answers alone, to check the layout while writing.
 - `insper-logo.png`: the logo on the cover.

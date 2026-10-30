@@ -2,6 +2,10 @@ O BoxOffice roda em um notebook: nove serviços, PostgreSQL, Redis e Kafka, tudo
 
 Nenhum desses é um problema da aplicação. São problemas de **plataforma**: onde o código roda, como ele chega lá, como escala e quem paga por isso. Esta aula trata do conjunto de práticas e ferramentas — containers, Kubernetes, infraestrutura como código, entrega contínua, GitOps, entrega progressiva e FinOps — que a indústria chama de **cloud-native**.
 
+!!! quote "A história até aqui"
+
+    Capítulo 11 da [história do curso](../../index.md#story). O BoxOffice tem todos os seus blocos: uma borda, serviços sem estado, um banco que vende cada assento uma única vez, caches, uma fila justa, telemetria e padrões de resiliência ([aula 4](../edge/index.md) a [aula 10](../reliability/index.md)). Os padrões funcionam, mas tudo isso ainda roda num único notebook com `docker compose up`, e o Compose não reinicia uma réplica morta em outro nó, não acrescenta réplicas de `catalog` às 09:45 nem desfaz uma versão ruim. **Esta aula** responde: onde o código roda, como ele chega lá, como escala — e quanto custa?
+
 !!! abstract "Objetivos de aprendizagem"
 
     Ao final desta aula você deverá ser capaz de:
@@ -13,7 +17,7 @@ Nenhum desses é um problema da aplicação. São problemas de **plataforma**: o
     - **Projetar** um pipeline de entrega — infraestrutura como código, CI, GitOps e um rollout canary controlado por métricas — e **escolher** uma estratégia de deploy para um dado risco.
     - **Estimar** o custo mensal da arquitetura do BoxOffice, **identificar** seus custos fixos e variáveis e **propor** otimizações apoiadas em números.
 
-## Roteiro
+## Roteiro { #roadmap }
 
 1. **Esta visão geral** — o que significa cloud-native, as propriedades twelve-factor, modelos de serviço e engenharia de plataforma.
 2. [Containers](containers/index.md) — namespaces e cgroups, imagens OCI e camadas, um Dockerfile de produção para um serviço Spring Boot, higiene da cadeia de suprimentos.
@@ -33,7 +37,7 @@ Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** a
 
 ---
 
-## O que "cloud-native" significa
+## O que "cloud-native" significa { #what-cloud-native-means }
 
 A Cloud Native Computing Foundation (CNCF) define tecnologias cloud-native como aquelas que "capacitam organizações a construir e executar aplicações escaláveis em ambientes modernos e dinâmicos, como nuvens públicas, privadas e híbridas", citando containers, service meshes, microsserviços, infraestrutura imutável e APIs declarativas como os blocos típicos[^1]. Sem o marketing, a definição se apoia em quatro ideias:
 
@@ -46,7 +50,7 @@ A Cloud Native Computing Foundation (CNCF) define tecnologias cloud-native como 
 
 O oposto é um **servidor de estimação** (*pet*): uma máquina com nome, configurada à mão ao longo de anos, que ninguém tem coragem de reiniciar. Sistemas cloud-native tratam instâncias como **gado** (*cattle*) — numeradas, idênticas e substituíveis. A expressão é uma velha piada de operações, mas captura a mudança: a falha de uma instância vira um evento rotineiro tratado por software, não um incidente tratado por pessoas.
 
-### A aplicação precisa cooperar
+### A aplicação precisa cooperar { #the-application-has-to-cooperate }
 
 Uma plataforma só consegue reiniciar, mover e multiplicar um processo que permita isso. A metodologia **Twelve-Factor App**, escrita por engenheiros do Heroku em 2011, lista as propriedades que tornam uma aplicação portável entre plataformas[^2]. Seis dos doze fatores são os que mais importam para esta aula:
 
@@ -87,7 +91,7 @@ Cada componente do BoxOffice precisa rodar *em algum lugar*, e para cada um o ti
 
 A regra que nunca muda, em qualquer coluna: **seus dados, suas identidades e regras de acesso e sua configuração continuam sendo responsabilidade sua**[^4]. Um bucket S3 público é um erro do cliente, não uma falha do provedor.
 
-### BoxOffice, componente por componente
+### BoxOffice, componente por componente { #boxoffice-component-by-component }
 
 Não existe um único modelo "certo" para um sistema inteiro. Cada componente recebe o modelo que minimiza o esforço total para o controle de que precisa:
 
@@ -118,7 +122,7 @@ Experimente: abra o cenário abaixo e pressione **Run** com o perfil `spike`. Ob
 
 Com quinze serviços, três ambientes e cinco times, cada time redescobrir como escrever um Dockerfile, um chart Helm, um pipeline e um alerta é desperdício. A **engenharia de plataforma** responde com uma **plataforma interna de desenvolvimento (IDP, *internal developer platform*)**: um produto, construído por um time de plataforma para os demais times de engenharia, que oferece **caminhos dourados** (*golden paths*) — formas pavimentadas e suportadas de fazer as coisas comuns[^5].
 
-``` mermaid
+``` diagram
 flowchart LR
     dev["Time de produto<br/>(order, inventory…)"] -->|"usa"| portal["Portal do desenvolvedor<br/>(ex.: Backstage)"]
     portal --> tmpl["Template de serviço<br/>Dockerfile · manifests · pipeline"]
@@ -141,7 +145,7 @@ Um bom caminho dourado é **opcional, mas atraente**: um novo serviço do BoxOff
 
 Cloud-native não é um componente da paleta: é *como* cada componente é empacotado, executado, entregue e pago. O mapa liga os **componentes da paleta** (verde) aos **conceitos de plataforma** desta aula (azul):
 
-``` mermaid
+``` diagram
 flowchart LR
     app["app · worker"]:::comp --> c1["imagens OCI, camadas, digests,<br/>desligamento gracioso"]:::tech
     app --> c2["Deployment, Service, probes,<br/>requests e limits, HPA, KEDA"]:::tech
@@ -173,6 +177,14 @@ flowchart LR
 
     Detalhes de cloud-native raramente conduzem uma entrevista de system design, mas mostram maturidade no fechamento. Gaste uma ou duas frases com eles: "Os serviços são containers sem estado em Kubernetes gerenciado, com HPA por CPU e requisições por segundo; o banco é PostgreSQL gerenciado Multi-AZ; fazemos deploy via GitOps com canaries controlados pelos SLOs de p99 e de taxa de erros; no pico, o custo é dominado por X." Se perguntarem "por que não serverless?", responda com **pools de conexão, cold starts no pico e custo com carga constante**, não com gosto pessoal.
 
+!!! success "Boas práticas"
+
+    - **Escolha o modelo de serviço por componente e escreva o motivo no documento de projeto** — a camada de dados e o caminho de compra têm necessidades diferentes (failover vs controle fino de escala), então um modelo único está errado para algum deles. No BoxOffice: [componente por componente](#service-models).
+    - **Prove a descartabilidade antes da produção: mate um pod sob carga constante e conte as requisições que falharam** — com readiness e uma pausa de `preStop`, a meta é zero. No BoxOffice: [lab 10 — Measure it](../../hands-on/10/measure/index.md), rolling update e autocura.
+    - **Mude a produção só por um commit revisado** — imagens, manifests e infraestrutura; assim o `git log` é a trilha de auditoria e o `git revert` é o rollback. No BoxOffice: [lab 11 — GitOps](../../hands-on/11/gitops/index.md).
+    - **Pré-escale para picos conhecidos; deixe o autoscaling para os desconhecidos** — no lab 10, o oitavo pod ficou pronto mais de 5 minutos depois de o HPA pedi-lo, então o `minReplicas` sobe às 09:45, não às 10:00. No BoxOffice: [lab 10 — Autoscaling](../../hands-on/10/autoscaling/index.md).
+    - **Revise um custo unitário ao lado dos SLOs todo mês** — o custo por ingresso vendido transforma a fatura num número que o negócio consegue julgar. No BoxOffice: [FinOps — um modelo de custos](finops/index.md#cost-model).
+
 !!! warning "Armadilhas comuns"
 
     - **Lift-and-shift e chamar de cloud-native**: colocar uma imagem de VM com estado dentro de um container não muda nada em descartabilidade ou elasticidade.
@@ -183,19 +195,25 @@ flowchart LR
 
 ---
 
-## Relacionados
+## Relacionados { #related }
 
 - Hands-on: [10. Kubernetes](../../hands-on/10/index.md) (BoxOffice em kind/minikube, probes, HPA sob carga do k6) e [11. Entrega](../../hands-on/11/index.md) (GitHub Actions, Argo CD, canary, gate de orçamento de desempenho).
 - Exercício: [Autoscaling no Kubernetes](../../exercises/kubernetes-autoscaling/index.md); marcos do projeto [K8s + CI/CD e relatório de custos](../../exercises/project/milestones/index.md).
 - Aulas: [Computação — serverless e autoscaling](../compute/serverless-autoscaling/index.md), [Rede e segurança](../network-security/index.md), [Entrega assistida por IA](../ai-delivery/index.md) (IA no pipeline de CI/CD), [Engenharia de desempenho](../performance/index.md).
 - Estudo de caso: [Ticketing (venda relâmpago do BoxOffice)](../case-studies/ticketing/index.md).
 
-## Pontos-chave
+## Pontos-chave { #key-takeaways }
 
-- Cloud-native = **artefatos imutáveis + estado desejado declarativo + elasticidade + automação**; a aplicação precisa ser **sem estado e descartável** para a plataforma ajudar.
-- Modelos de serviço trocam **controle por esforço operacional**; escolha por componente, não por sistema.
-- Seja qual for o modelo, **dados, identidade e configuração continuam sendo seus**.
-- A engenharia de plataforma transforma trabalho operacional repetido em **caminhos dourados self-service**.
+!!! takeaways ""
+
+    - Cloud-native = **artefatos imutáveis + estado desejado declarativo + elasticidade + automação**; a aplicação precisa ser **sem estado e descartável** para a plataforma ajudar.
+    - Modelos de serviço trocam **controle por esforço operacional**; escolha por componente, não por sistema.
+    - Seja qual for o modelo, **dados, identidade e configuração continuam sendo seus**.
+    - A engenharia de plataforma transforma trabalho operacional repetido em **caminhos dourados self-service**.
+
+## O que quebra em seguida { #what-breaks-next }
+
+A plataforma agora reinicia, escala e publica o BoxOffice sem ninguém tocar num servidor: no lab 10 o HPA pediu mais pods de `catalog` cerca de dois minutos depois do início de uma rampa de carga, e no lab 11 um canary que falhava 30% das requisições foi desfeito sozinho em cerca de um minuto. Mas uma plataforma compartilhada é também uma superfície de ataque compartilhada. Todo pod pode abrir uma conexão com qualquer outro pod e com o banco; um token roubado de um serviço é aceito por todos; bots compram os melhores lugares tão rápido quanto o HPA acrescenta capacidade; e cada imagem que o pipeline publica carrega centenas de bibliotecas de terceiros. Decidir quem pode falar com quem, verificar a identidade em cada chamada e confiar só no que o pipeline construiu é a [aula 12 — Rede e Segurança](../network-security/index.md).
 
 ---
 

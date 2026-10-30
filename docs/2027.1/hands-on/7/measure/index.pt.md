@@ -1,4 +1,4 @@
-# 5. Meça
+# 5. Meça { #5-measure-it }
 
 Cinco experimentos, uma tabela de resultados. Rode cada experimento pelo menos duas vezes e relate a
 segunda execução (a primeira aquece as JVMs e os pools de conexão). Os números das caixas "forma
@@ -12,7 +12,7 @@ esperada" são **ilustrativos** — o que importa é você conseguir explicar os
 | D | reprocessamento | `NOTIFY_IDEMPOTENT` | e-mails por pedido depois de um *reset* de offsets |
 | E | pico da venda relâmpago | sala de espera aberta, `ADMIT_PER_SECOND=10` | admitidos/s, espera p95, erro do ETA, p95 dos pedidos |
 
-## Os scripts do k6
+## Os scripts do k6 { #the-k6-scripts }
 
 === "orders-load.js"
 
@@ -38,12 +38,12 @@ Rode todo teste do k6 com os percentis no resumo:
 k6 run --summary-trend-stats="avg,p(50),p(95),p(99),max" load/orders-load.js
 ```
 
-## A. Síncrono vs outbox
+## A. Síncrono vs outbox { #a-sync-vs-outbox }
 
 ``` shell
-NOTIFY_MODE=sync docker compose up -d order        # "before"
+NOTIFY_MODE=sync docker compose up -d --wait order        # "before"
 k6 run --summary-trend-stats="avg,p(50),p(95),p(99),max" load/orders-load.js
-NOTIFY_MODE=outbox docker compose up -d order      # "after"
+NOTIFY_MODE=outbox docker compose up -d --wait order      # "after"
 k6 run --summary-trend-stats="avg,p(50),p(95),p(99),max" load/orders-load.js
 ```
 
@@ -52,21 +52,27 @@ As variáveis chegam aos contêineres porque o `docker-compose.yaml` as interpol
 
 !!! example "Forma esperada (ilustrativa)"
 
-    Com `EMAIL_LATENCY=50ms` numa máquina ociosa, o p50 síncrono fica um pouco acima de 50 ms — o fã
-    paga pelo e-mail em todo pedido — enquanto a versão com outbox responde em poucos milissegundos (dois
-    INSERTs e um commit). Num notebook **ocupado** (toda a stack do lab 7 mais outros contêineres, *load
-    average* acima de 10 em 8 núcleos) uma execução de teste deu:
+    Com `EMAIL_LATENCY=50ms`, o p50 síncrono fica um pouco acima de 50 ms — o fã paga pelo e-mail em
+    todo pedido — enquanto a versão com outbox responde em poucos milissegundos (dois INSERTs e um
+    commit). A 50 pedidos/s as duas mantêm a taxa, e numa máquina ocupada as caudas medem sobretudo a
+    máquina: compare o p50. Aumente a taxa (`RATE=200 DURATION=30s`) e a diferença vira um precipício.
+    Uma execução de teste deste lab (outros programas rodando, *load average* perto de 10 em 8 núcleos)
+    deu:
 
-    | 50 pedidos/s por 30 s | p50 | p95 | p99 | vazão |
-    |---|---|---|---|---|
-    | `NOTIFY_MODE=sync` | 4,12 s | 8,14 s | 11,51 s | 38,7/s (o k6 não conseguiu manter a taxa) |
-    | `NOTIFY_MODE=outbox` | 47 ms | 658 ms | 1,29 s | 49,5/s |
+    | Carga | Modo | p50 | p95 | p99 | vazão |
+    |---|---|---|---|---|---|
+    | 50/s por 60 s | `sync` | 58 ms | 132 ms | 352 ms | 50/s |
+    | 50/s por 60 s | `outbox` | 3,3 ms | 426 ms | 1,7 s | 49/s |
+    | 200/s por 30 s | `sync` | 2,7 s | 7,5 s | 9,3 s | 113/s (o k6 descartou um terço das chegadas) |
+    | 200/s por 30 s | `outbox` | 1,8 ms | 32 ms | 95 ms | 200/s |
 
     Os números absolutos dependem da sua máquina; a **razão** é a lição: com o e-mail no caminho da
-    requisição, todo pedido espera por ele e o serviço satura muito antes. Se até a versão com outbox
+    requisição, todo pedido espera por ele e o serviço satura muito antes. Aqui a chamada HTTP roda
+    dentro da transação do pedido, então cada pedido segura uma das 10 conexões do pool do banco durante
+    todo o e-mail: no máximo 10 / 0,055 s ≈ 180 pedidos/s, mesmo na teoria. Se até a versão com outbox
     estiver lenta para você, feche outros contêineres (`docker ps`) e rode de novo.
 
-## B. Queda do `notification`
+## B. Queda do `notification` { #b-notification-outage }
 
 Rode a carga por 60 s e, em outro terminal, derrube o `notification` por 20 s no meio:
 
@@ -75,38 +81,48 @@ sleep 20; docker compose stop notification; sleep 20; docker compose start notif
 ```
 
 Faça isso uma vez em cada modo, com `sh scripts/kafka-lag.sh` rodando em um terceiro terminal. No
-modo `sync`, cerca de um terço dos pedidos falha — uma queda do e-mail virou uma queda de pedidos. No
+modo `sync`, pelo menos um terço dos pedidos falha — uma queda do e-mail virou uma queda de pedidos.
+Muitas vezes bem mais: numa execução de teste deste lab 54 % das requisições falharam e o k6 descartou
+mais da metade das chegadas, porque cada pedido esperando pelo `notification` caído segura uma conexão
+do banco, o pool de 10 se esgota e os pedidos seguintes esperam 30 s por uma conexão
+(`Connection is not available, request timed out after 30000ms` em `docker compose logs order`). No
 modo `outbox`, nenhum pedido falha; o *lag* sobe enquanto `notification` está fora e drena depois que
 ele volta.
 
-## C. Rajada e drenagem
+## C. Rajada e drenagem { #c-burst-and-drain }
 
 ``` shell
-NOTIFY_CONCURRENCY=1 docker compose up -d notification
+NOTIFY_CONCURRENCY=1 docker compose up -d --wait notification
+START=$(date -u +%FT%TZ)                      # when this run starts (UTC)
 RATE=100 k6 run load/orders-load.js           # kafka-lag.sh in another terminal
-NOTIFY_CONCURRENCY=6 docker compose up -d notification
-RATE=100 k6 run load/orders-load.js
 ```
 
-Depois meça quão atrasados chegaram os e-mails:
+Quando o `kafka-lag.sh` voltar a 0 (com concorrência 1 isso leva vários minutos), meça quão atrasados
+chegaram os e-mails **desta execução**:
 
-``` sql
--- docker compose exec db psql -U boxoffice -d boxoffice
+``` shell
+docker compose exec db psql -U boxoffice -d boxoffice -c "
 SELECT count(*) AS emails,
        percentile_cont(0.50) WITHIN GROUP (ORDER BY extract(epoch FROM sent_at - occurred_at)) AS p50_s,
        percentile_cont(0.95) WITHIN GROUP (ORDER BY extract(epoch FROM sent_at - occurred_at)) AS p95_s
 FROM notification.notifications
-WHERE sent_at > now() - interval '10 minutes';
+WHERE occurred_at >= '$START';"
 ```
+
+Depois repita os dois blocos com `NOTIFY_CONCURRENCY=6`. O `START` limita cada consulta à sua própria
+execução: os e-mails da outra execução, e do experimento B, distorceriam os percentis.
 
 ??? question "Preveja antes de rodar: que *lag* a concorrência 1 vai atingir?"
 
     Cada *thread* consumidora atende no máximo 1 / 50 ms = **20 e-mails/s**. Com uma thread e 100
     pedidos/s, o *backlog* cresce a 100 − 20 = 80 mensagens/s: depois de 60 s, **≈ 4 800** mensagens de
     *lag*, e ele drena a 20/s → **≈ 240 s** para esvaziar. Com seis threads (capacidade 120/s > 100/s)
-    o *lag* fica perto de zero. Mais de seis threads não ajudariam: o tópico tem seis partições.
+    o *lag* fica perto de zero. Mais de seis threads não ajudariam: o tópico tem seis partições. Uma
+    execução de teste deste lab chegou a cerca de 4 900 mensagens e levou cerca de 320 s para drenar:
+    cada e-mail custa um pouco mais que os 50 ms de latência simulada (SMTP, a transação no banco). Com
+    seis threads o *lag* ficou abaixo de cerca de 200.
 
-## D. Reprocessamento
+## D. Reprocessamento { #d-replay }
 
 ``` shell
 docker compose stop notification
@@ -122,12 +138,14 @@ SELECT count(*) AS emails, count(DISTINCT order_id) AS orders FROM notification.
 ```
 
 Faça com `NOTIFY_IDEMPOTENT=true` e com `NOTIFY_IDEMPOTENT=false` (reinicie o `notification` com a
-variável definida, como em C).
+variável definida, como em C). Sem deduplicação, o reprocessamento reenvia todos os e-mails do tópico:
+dezenas de milhares no ritmo do consumidor levam vários minutos. Pedidos feitos no modo `sync` (A, B)
+nunca passaram pelo Kafka, então o reprocessamento não os repete.
 
-## E. Pico da venda relâmpago pela sala de espera
+## E. Pico da venda relâmpago pela sala de espera { #e-flash-sale-spike-through-the-waiting-room }
 
 ``` shell
-ADMIT_PER_SECOND=10 docker compose up -d order
+ADMIT_PER_SECOND=10 docker compose up -d --wait order
 k6 run --summary-trend-stats="avg,p(50),p(95),p(99),max" load/waiting-room-spike.js
 ```
 
@@ -137,7 +155,7 @@ robô recebe `403`, e `wr_eta_error_seconds` — a espera real menos o ETA prome
 dentro de um ou dois segundos: a Lei de Little, `espera = posição / taxa`, é uma promessa honesta
 quando a taxa é constante.
 
-## Resultados
+## Resultados { #results }
 
 Copie esta tabela para o seu repositório (`results/lab7.md`) e preencha.
 

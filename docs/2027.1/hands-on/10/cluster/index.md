@@ -49,6 +49,10 @@ Ingress controller will listen — as port 80 of your machine.
      ✓ Starting control-plane 🕹️
      ✓ Joining worker nodes 🚜
     Set kubectl context to "kind-boxoffice"
+    > kubectl wait --for=condition=Ready nodes --all --timeout=120s
+    node/boxoffice-control-plane condition met
+    node/boxoffice-worker condition met
+    node/boxoffice-worker2 condition met
     > kubectl get nodes
     NAME                      STATUS   ROLES           AGE   VERSION
     boxoffice-control-plane   Ready    control-plane   60s   v1.37.0
@@ -64,7 +68,7 @@ Ingress controller will listen — as port 80 of your machine.
     ```
 
     With minikube, skip `k8s/kind.yaml`: after installing Traefik below, reach it with
-    `minikube service -n traefik traefik --url` (or `minikube tunnel` with `service.type=LoadBalancer`),
+    `minikube service -n traefik traefik --url` (or `minikube tunnel` with `service.spec.type=LoadBalancer`),
     and use that URL wherever this lab says `http://localhost`.
 
 ## The Ingress controller: Traefik
@@ -80,7 +84,7 @@ helm repo add traefik https://traefik.github.io/charts
 helm repo update
 helm install traefik traefik/traefik --version 42.0.0 \
   --namespace traefik --create-namespace \
-  --set service.type=NodePort \
+  --set service.spec.type=NodePort \
   --set ports.web.nodePort=30080
 ```
 

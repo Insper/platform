@@ -12,7 +12,7 @@ The palette has three **signals** and two **actions**. Signals: **metrics** (num
 | [Alerting](#alerting) | Rules on signals that notify a human when users are affected | `alerting` |
 | [Health Check](#healthcheck) | Endpoint probes that tell LBs/orchestrators if an instance can serve | `healthcheck` |
 
-``` mermaid
+``` diagram
 flowchart LR
     S1[gateway] -.->|OTLP| COL[OpenTelemetry Collector]
     S2[order] -.->|OTLP| COL
@@ -298,7 +298,7 @@ flowchart LR
 !!! tip "In the interview"
     "I page on symptoms, not causes: multi-window burn-rate alerts on the checkout SLO — 14× burn over an hour pages the on-call, slow burns open a ticket. Every alert has an owner and a runbook, and a heartbeat alert tells us if monitoring itself is down."
 
-**Learn more:** [Observability › Alerting](../../../classes/observability/alerting/index.md) · [Reliability › SLOs](../../../classes/reliability/slo/index.md) · [Observability › Incident response](../../../classes/observability/incident-response/index.md) · [Estimation › Availability math](../../../classes/estimation/availability-math/index.md) · [Hands-on 8](../../../hands-on/8/index.md)
+**Learn more:** [Observability › Alerting](../../../classes/observability/alerting/index.md) · [Observability › SLOs](../../../classes/observability/slo/index.md) · [Observability › Incident response](../../../classes/observability/incident-response/index.md) · [Estimation › Availability math](../../../classes/estimation/availability-math/index.md) · [Hands-on 8](../../../hands-on/8/index.md)
 
 ---
 

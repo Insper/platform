@@ -1,11 +1,11 @@
 
 Dois engenheiros da BoxOffice recebem o mesmo pedido da equipe de produto: *"Precisamos de uma plataforma de ingressos rápida, escalável e confiável."* O primeiro começa a desenhar caixas. O segundo pergunta: *Quantos eventos por mês? Quantos fãs no pico de uma abertura de vendas? O que significa "rápido" — para navegar ou para pagar? Podemos algum dia vender o mesmo lugar duas vezes? O que acontece se o provedor de pagamentos cair?* Três meses depois, o primeiro engenheiro tem uma bela arquitetura para o problema errado. O segundo tem um diagrama menos impressionante, que sobrevive às 10:00 de sexta-feira.
 
-Requisitos são a entrada de todo design. Um design só pode ser julgado em relação a eles: "esta é uma boa arquitetura?" é uma pergunta sem resposta; "esta arquitetura mantém o p99 do checkout abaixo de 1 s com 60.000 lugares e 2 milhões de fãs, sem venda duplicada, por menos de R$ 40 mil por mês?" é uma pergunta que você pode testar.
+Requisitos são a entrada de todo design. Um design só pode ser julgado em relação a eles: "esta é uma boa arquitetura?" é uma pergunta sem resposta; "esta arquitetura mantém o p99 do checkout abaixo de 1,5 s com 60.000 lugares e 2 milhões de fãs, sem venda duplicada, por menos de R$ 40 mil por mês?" é uma pergunta que você pode testar.
 
 ---
 
-## Dois tipos de requisito
+## Dois tipos de requisito { #two-kinds-of-requirements }
 
 | | Requisitos funcionais | Requisitos não funcionais |
 |---|---|---|
@@ -19,7 +19,7 @@ Os requisitos funcionais decidem **quais APIs e dados** existem. Os não funcion
 
 ---
 
-## Requisitos funcionais
+## Requisitos funcionais { #functional-requirements }
 
 Comece pelos **atores** (quem usa o sistema) e seus **objetivos**. Para a BoxOffice:
 
@@ -60,7 +60,7 @@ Você vai detalhar APIs e modelos de dados na [aula 5](../../compute/index.md) e
 
 ---
 
-## Requisitos não funcionais: os atributos de qualidade
+## Requisitos não funcionais: os atributos de qualidade { #non-functional-requirements-the-quality-attributes }
 
 Requisitos não funcionais descrevem **qualidades** do sistema. A literatura de arquitetura de software os chama de **atributos de qualidade**[^1] (a ISO/IEC 25010 padroniza uma longa lista deles[^2]). Para design de sistemas, oito carregam a maior parte do peso:
 
@@ -77,7 +77,7 @@ Requisitos não funcionais descrevem **qualidades** do sistema. A literatura de 
 
 O restante desta seção dá a cada atributo um significado preciso — "escalável" e "disponível" são usados de forma vaga no dia a dia, e palavras vagas geram requisitos ruins.
 
-### Escalabilidade
+### Escalabilidade { #scalability }
 
 **Escalabilidade** é a capacidade de lidar com **mais carga** acrescentando recursos, mantendo um desempenho aceitável. Não é uma propriedade sim/não: "é escalável?" não tem sentido até você dizer **qual parâmetro de carga** cresce e **quanto**[^3]. Na BoxOffice, os parâmetros de carga diferem de uma parte do sistema para outra:
 
@@ -90,19 +90,19 @@ Cada um escala com uma técnica diferente: cache e CDN para o primeiro, particio
 - **Escala vertical** (*scale up*): uma máquina maior. Simples, sem mudar o código, mas limitada pela maior máquina que você consegue comprar, e ainda um ponto único de falha.
 - **Escala horizontal** (*scale out*): mais máquinas. Praticamente ilimitada para componentes sem estado, mas exige um load balancer, servidores sem estado e — para os dados — particionamento e replicação.
 
-### Disponibilidade
+### Disponibilidade { #availability }
 
-**Disponibilidade** é a fração do tempo (ou das requisições) em que o sistema atende os usuários corretamente. Ela é expressa em "noves" e **sempre numa janela**: 99,9% em janela móvel de 28 dias permite cerca de 40 minutos de indisponibilidade; 99,99% permite cerca de 4 minutos. Cada nove a mais custa muito mais que o anterior — a [aula 2](../../estimation/availability-math/index.md) dá a matemática, e a [aula 9](../../reliability/index.md), a engenharia.
+**Disponibilidade** é a fração do tempo (ou das requisições) em que o sistema atende os usuários corretamente. Ela é expressa em "noves" e **sempre numa janela**: 99,9% em janela móvel de 28 dias permite cerca de 40 minutos de indisponibilidade; 99,99% permite cerca de 4 minutos. Cada nove a mais custa muito mais que o anterior — a [aula 2](../../estimation/availability-math/index.md) dá a matemática, e a [aula 10](../../reliability/index.md), a engenharia.
 
 A disponibilidade também não é uniforme: a BoxOffice convive com o widget de recomendações fora do ar por uma hora, mas não com o checkout fora do ar durante uma abertura de vendas.
 
-### Latência (e throughput)
+### Latência (e throughput) { #latency-and-throughput }
 
 **Latência** (tempo de resposta) é quanto tempo uma requisição leva, vista pelo cliente. **Throughput** é quantas requisições por segundo o sistema conclui. Os dois estão ligados — perto da saturação, a latência explode ([aula 2](../../estimation/queueing/index.md)) —, então uma meta de latência só faz sentido **para um dado throughput**.
 
 Sempre expresse a latência como um **percentil**, não como uma média: "p99 < 300 ms" significa que 99% das requisições terminam em menos de 300 ms. Médias escondem as requisições lentas de que os usuários se lembram ([percentis e latência de cauda](../../estimation/percentiles/index.md)). Pesquisas clássicas de usabilidade dão âncoras úteis para metas *voltadas ao usuário*: cerca de **0,1 s** parece instantâneo, cerca de **1 s** mantém o fluxo de pensamento do usuário e, além de cerca de **10 s**, os usuários perdem a atenção[^4].
 
-### Consistência
+### Consistência { #consistency }
 
 **Consistência** (no sentido de design de sistemas) diz respeito ao **que os leitores veem depois de uma escrita**. Com **consistência forte**, uma vez que uma escrita é confirmada, toda leitura seguinte a enxerga — o sistema se comporta como se houvesse uma única cópia do dado. Com **consistência eventual**, as réplicas podem discordar por um tempo, mas convergem se as escritas pararem.
 
@@ -117,31 +117,31 @@ A ideia-chave é que **nem todo dado precisa da mesma consistência**:
 
 Consistência forte custa latência e disponibilidade (você verá por quê com CAP e PACELC na [aula 3](../../distributed/index.md)), então você paga por ela **só onde o negócio precisa**.
 
-### Durabilidade
+### Durabilidade { #durability }
 
 **Durabilidade** significa que um dado, uma vez confirmado, não se perde — mesmo se discos, máquinas ou um data centre inteiro falharem. Ela é obtida com replicação (várias cópias, de preferência em domínios de falha diferentes), logs de escrita antecipada (*write-ahead logs*), backups e restaurações testadas. O requisito normalmente é expresso como um **RPO** (*Recovery Point Objective* — quanto dado recente você pode perder num desastre): para os pedidos da BoxOffice, RPO = 0; para eventos de analytics, alguns minutos são aceitáveis.
 
 Não confunda durabilidade com disponibilidade: um banco pode estar **fora do ar** (indisponível) sem **perder** nada (durável) e, ao contrário, um cache pode estar no ar sem guardar nada de forma durável.
 
-### Custo
+### Custo { #cost }
 
-Todo componente tem um preço: máquinas, serviços gerenciados, armazenamento, tráfego de saída da rede, taxas de terceiros e as pessoas para operá-lo. Custo é um requisito de primeira classe — uma arquitetura que cumpre todas as outras metas a dez vezes o orçamento é uma arquitetura fracassada. Bons requisitos de custo são ligados ao negócio: **custo por ingresso vendido**, custo por usuário ativo ou um teto mensal. Repare também que o tráfego da BoxOffice é **em picos**: pagar o mês inteiro pela capacidade de uma abertura de vendas de 10 minutos é desperdício, e é por isso que autoscaling, filas e serverless importam (a [aula 12](../../cloud-native/index.md) trata de FinOps).
+Todo componente tem um preço: máquinas, serviços gerenciados, armazenamento, tráfego de saída da rede, taxas de terceiros e as pessoas para operá-lo. Custo é um requisito de primeira classe — uma arquitetura que cumpre todas as outras metas a dez vezes o orçamento é uma arquitetura fracassada. Bons requisitos de custo são ligados ao negócio: **custo por ingresso vendido**, custo por usuário ativo ou um teto mensal. Repare também que o tráfego da BoxOffice é **em picos**: pagar o mês inteiro pela capacidade de uma abertura de vendas de 10 minutos é desperdício, e é por isso que autoscaling, filas e serverless importam (a [aula 11](../../cloud-native/index.md) trata de FinOps).
 
-### Segurança
+### Segurança { #security }
 
 **Segurança** protege a **confidencialidade** (só as pessoas certas leem os dados), a **integridade** (só as pessoas certas os alteram) e a **disponibilidade** (atacantes não conseguem derrubá-los) — a tríade CIA. Na BoxOffice, ela se traduz em requisitos concretos: fãs se autenticam antes de comprar; um organizador só vê os próprios eventos; robôs não conseguem comprar 500 ingressos em um segundo; números de cartão **nunca** passam pelos servidores da BoxOffice (o provedor de pagamentos os tokeniza, o que deixa a BoxOffice fora da maior parte do escopo do PCI DSS[^5]); dados pessoais seguem a lei brasileira de proteção de dados, a LGPD (*Lei Geral de Proteção de Dados*)[^6].
 
-### Operabilidade
+### Operabilidade { #operability }
 
 **Operabilidade** reúne as qualidades que tornam um sistema **operável por pessoas reais**: observabilidade (conseguimos dizer o que está errado?), facilidade de deploy (conseguimos publicar uma mudança com segurança, várias vezes por dia?), manutenibilidade (um engenheiro novo consegue entendê-lo e alterá-lo?) e recuperabilidade (com que rapidez restauramos o serviço — o MTTR, *Mean Time To Recovery*). É o atributo mais esquecido nos diagramas e mais culpado nos post-mortems.
 
 ---
 
-## Tornando os requisitos não funcionais mensuráveis
+## Tornando os requisitos não funcionais mensuráveis { #making-non-functional-requirements-measurable }
 
 "O sistema deve ser rápido" não pode ser testado, então não pode ser projetado. Um modelo prático da arquitetura de software é o **cenário de atributo de qualidade**[^1], que força seis partes numa só frase:
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     source["Fonte<br/>quem/o quê"] --> stimulus["Estímulo<br/>o que acontece"]
     stimulus --> artifact["Artefato<br/>qual parte, em qual<br/>ambiente"]
@@ -173,6 +173,14 @@ Escrito como requisitos, um conjunto mensurável para a BoxOffice fica assim:
 
 Cada linha é testável — com um teste de carga, um experimento de caos ou a fatura do mês — e cada linha vai guiar uma decisão de design nas próximas aulas.
 
+!!! example "No código do BoxOffice: um requisito de latência escrito como teste (lab 1)"
+
+    O primeiro serviço da BoxOffice já carrega seu requisito em código. O smoke test do [Hands-on 1](../../../hands-on/1/index.md) escreve "o catálogo é rápido" como **thresholds por endpoint** — p95 abaixo de 200 ms para os detalhes de um evento, abaixo de 500 ms para a listagem de uma cidade, nenhuma requisição com falha — e o k6 reprova a execução quando um deles é ultrapassado. Na execução de exemplo do laboratório, com um usuário, os detalhes responderam com p95 = 11 ms e a listagem com p95 = 42 ms. Um usuário prova pouco sobre 2 milhões; o lab 2 faz as mesmas perguntas sob carga, e o lab 11 transforma o mesmo tipo de threshold num orçamento de desempenho que bloqueia uma versão.
+
+    ``` { .javascript title="load/smoke.js (the requirement)" }
+    --8<-- "docs/2027.1/hands-on/1/code/load/smoke.js:10:20"
+    ```
+
 ??? question "Pense antes: reescreva estes requisitos para que sejam mensuráveis"
 
     1. "A busca deve ser rápida."
@@ -187,7 +195,7 @@ Cada linha é testável — com um teste de carga, um experimento de caos ou a f
 
 ---
 
-## Trade-offs entre atributos de qualidade
+## Trade-offs entre atributos de qualidade { #trade-offs-between-quality-attributes }
 
 Os atributos de qualidade puxam uns contra os outros. Reconhecer a tensão *antes* de escolher um componente é a essência do design de sistemas:
 
@@ -205,7 +213,7 @@ Os atributos de qualidade puxam uns contra os outros. Reconhecer a tensão *ante
 
 ---
 
-## Restrições e premissas
+## Restrições e premissas { #constraints-and-assumptions }
 
 Os requisitos vêm acompanhados de **restrições** — decisões já tomadas por você — e de **premissas** — coisas que você assume como verdadeiras para seguir em frente:
 
@@ -225,6 +233,14 @@ Os requisitos vêm acompanhados de **restrições** — decisões já tomadas po
 
     Boas perguntas de esclarecimento para quase qualquer problema: *Quem são os usuários e quantos são? Qual a proporção leitura/escrita? O que precisa ter consistência forte? Que latência o usuário tolera? A carga é constante ou em picos? O que está fora do escopo?* Se o entrevistador disser "você decide", declare uma premissa e siga em frente: "vou assumir 10 M de usuários diários e uma proporção leitura/escrita de 100:1."
 
+!!! success "Boas práticas"
+
+    - **Dê a cada meta de latência um percentil, um ponto de medição e uma janela** — "p99 do checkout < 1,5 s, medido no gateway, em 28 dias" pode virar alerta e relatório; uma meta sem janela não pode ser calculada.
+    - **Transforme cada meta numa verificação automática** — um threshold do k6, um alerta de SLO, um orçamento que reprova o build; um requisito que ninguém confere se perde a cada versão. Na BoxOffice: os thresholds de `load/smoke.js` ([lab 1](../../../hands-on/1/index.md)), e o orçamento de desempenho do lab 11.
+    - **Ponha uma consulta por trás de todo "nunca"** — "nenhum assento vendido duas vezes" vira uma auditoria que precisa devolver 0 depois de todo teste. Na BoxOffice: o endpoint de auditoria `double-bookings` do [Hands-on 6 — Reservas](../../../hands-on/6/holds/index.md).
+    - **Versione os requisitos junto com o código** — um `requirements.md` alterado no mesmo pull request do design que ele justifica, para que os revisores vejam os dois.
+    - **Dê a cada meta um responsável e uma data de revisão** — as metas da primeira versão são premissas; revise-as com os dados da primeira abertura de vendas real.
+
 !!! warning "Armadilhas comuns"
 
     - **Adjetivos não mensuráveis**: "rápido", "escalável", "altamente disponível" sem números nem janelas.
@@ -237,7 +253,7 @@ Os requisitos vêm acompanhados de **restrições** — decisões já tomadas po
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     FR["requisitos funcionais<br/>atores, caminho principal"] --> API["API e modelo de dados<br/>→ Compute, Bancos de dados"]
     NFR["atributos de qualidade"] --> QAS["cenário de atributo de qualidade<br/>uma meta mensurável"]
@@ -252,15 +268,17 @@ flowchart LR
     LAT --> TO
 ```
 
-**Componentes da paleta:** [`client`](../../../reference/components/client/index.md#client) · [`mobile`](../../../reference/components/client/index.md#mobile) (os pontos de entrada dos atores) · [`sql`](../../../reference/components/storage/index.md#sql) (consistência forte para assentos, durabilidade dos pedidos) · [`cache`](../../../reference/components/storage/index.md#cache) · [`cdn`](../../../reference/components/edge/index.md#cdn) (latência comprada com frescor) · [`lb`](../../../reference/components/edge/index.md#lb) (escalabilidade e disponibilidade por meio de réplicas) · [`waf`](../../../reference/components/edge/index.md#waf) · [`auth`](../../../reference/components/compute/index.md#auth) (segurança) · [`payment`](../../../reference/components/external/index.md#payment) (uma restrição externa: nenhum dado de cartão armazenado) · [`metrics`](../../../reference/components/observability/index.md#metrics) (operabilidade). **Cenários:** `monolith`, `flash-sale`. **Continua em:** [Estimativa — números](../../estimation/numbers/index.md), [Estimativa — percentis](../../estimation/percentiles/index.md), [Estimativa — matemática da disponibilidade](../../estimation/availability-math/index.md), [Distribuídos — CAP e PACELC](../../distributed/cap-pacelc/index.md), [Confiabilidade — SLOs](../../reliability/slo/index.md), [Exercício: design doc](../../../exercises/design-doc/index.md).
+**Componentes da paleta:** [`client`](../../../reference/components/client/index.md#client) · [`mobile`](../../../reference/components/client/index.md#mobile) (os pontos de entrada dos atores) · [`sql`](../../../reference/components/storage/index.md#sql) (consistência forte para assentos, durabilidade dos pedidos) · [`cache`](../../../reference/components/storage/index.md#cache) · [`cdn`](../../../reference/components/edge/index.md#cdn) (latência comprada com frescor) · [`lb`](../../../reference/components/edge/index.md#lb) (escalabilidade e disponibilidade por meio de réplicas) · [`waf`](../../../reference/components/edge/index.md#waf) · [`auth`](../../../reference/components/compute/index.md#auth) (segurança) · [`payment`](../../../reference/components/external/index.md#payment) (uma restrição externa: nenhum dado de cartão armazenado) · [`metrics`](../../../reference/components/observability/index.md#metrics) (operabilidade). **Cenários:** `monolith`, `flash-sale`. **Continua em:** [Estimativa — números](../../estimation/numbers/index.md), [Estimativa — percentis](../../estimation/percentiles/index.md), [Estimativa — matemática da disponibilidade](../../estimation/availability-math/index.md), [Distribuídos — CAP e PACELC](../../distributed/cap-pacelc/index.md), [Observabilidade — SLOs](../../observability/slo/index.md), [Exercício: design doc](../../../exercises/design-doc/index.md).
 
-## Pontos-chave
+## Pontos-chave { #key-takeaways }
 
-- Requisitos **funcionais** definem *o quê* (APIs, dados); requisitos **não funcionais** definem *quão bem* — e comandam a arquitetura.
-- Oito atributos de qualidade carregam a maioria das decisões de design: **escalabilidade, disponibilidade, latência, consistência, durabilidade, custo, segurança, operabilidade**.
-- Torne cada requisito **mensurável**: um número, um percentil, uma janela, um nível de carga — o cenário de atributo de qualidade ajuda.
-- Partes diferentes do sistema precisam de qualidades **diferentes**: consistência forte para os lugares, frescor trocado por velocidade no catálogo.
-- Toda melhoria custa algo; dê nome ao **trade-off** antes de escolher o componente.
+!!! takeaways ""
+
+    - Requisitos **funcionais** definem *o quê* (APIs, dados); requisitos **não funcionais** definem *quão bem* — e comandam a arquitetura.
+    - Oito atributos de qualidade carregam a maioria das decisões de design: **escalabilidade, disponibilidade, latência, consistência, durabilidade, custo, segurança, operabilidade**.
+    - Torne cada requisito **mensurável**: um número, um percentil, uma janela, um nível de carga — o cenário de atributo de qualidade ajuda.
+    - Partes diferentes do sistema precisam de qualidades **diferentes**: consistência forte para os lugares, frescor trocado por velocidade no catálogo.
+    - Toda melhoria custa algo; dê nome ao **trade-off** antes de escolher o componente.
 
 ---
 
@@ -268,5 +286,5 @@ flowchart LR
 [^2]: ISO/IEC 25010:2023. *Systems and software engineering — Systems and software Quality Requirements and Evaluation (SQuaRE) — Product quality model*.
 [^3]: KLEPPMANN, M.; RICCOMINI, C. *Designing Data-Intensive Applications*, 2nd ed. O'Reilly. Chapter 2 (defining nonfunctional requirements: describing load and performance).
 [^4]: NIELSEN, J. *Usability Engineering*. Morgan Kaufmann, 1993. Chapter 5 (response time limits: 0.1 s, 1 s, 10 s).
-[^5]: PCI SECURITY STANDARDS COUNCIL. *Payment Card Industry Data Security Standard (PCI DSS)*, v4.0, 2022.
+[^5]: PCI SECURITY STANDARDS COUNCIL. *Payment Card Industry Data Security Standard (PCI DSS)*, v4.0.1, 2024.
 [^6]: BRASIL. Lei nº 13.709, de 14 de agosto de 2018 — Lei Geral de Proteção de Dados Pessoais (LGPD).

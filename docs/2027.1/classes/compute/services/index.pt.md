@@ -4,11 +4,11 @@ Nada estava errado com o código. O **formato** do sistema já não combinava co
 
 ---
 
-## O espectro: do monolito aos microsserviços
+## O espectro: do monolito aos microsserviços { #the-spectrum-monolith-to-microservices }
 
 "Monolito ou microsserviços" não é uma escolha binária; é um espectro de quantas unidades com deploy independente o sistema tem e de quão fortemente suas fronteiras são impostas.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     subgraph mono ["Monolito"]
         direction TB
@@ -51,7 +51,7 @@ O **monolito modular** merece mais atenção do que costuma receber. Ele entrega
 !!! tip "Monolito primeiro"
     A maioria dos sistemas de microsserviços bem-sucedidos começou como monolito: raramente você conhece as fronteiras certas no primeiro dia, e mover uma fronteira dentro de uma base de código é uma refatoração, enquanto movê-la entre serviços é uma migração[^2]. Comece com um monolito (modular); divida quando uma das forças abaixo se tornar real.
 
-### Quando dividir compensa
+### Quando dividir compensa { #when-splitting-pays-off }
 
 Separe uma parte do sistema em um serviço próprio quando pelo menos uma destas forças for forte — e anote qual, porque ela diz *onde* cortar:
 
@@ -82,7 +82,7 @@ E os custos que você aceita ao dividir:
 
 ---
 
-## Encontrando fronteiras com Domain-Driven Design
+## Encontrando fronteiras com Domain-Driven Design { #finding-boundaries-with-domain-driven-design }
 
 Você decidiu dividir. Onde cortar? Por tabela do banco (`events`, `seats`, `orders`)? Por camada (um "serviço de UI", um "serviço de lógica")? Cada uma dessas opções produz serviços que precisam mudar juntos. O **Domain-Driven Design** (DDD)[^1] dá uma resposta melhor: corte onde o **próprio negócio** tem uma emenda.
 
@@ -107,13 +107,13 @@ Nem toda parte do negócio merece o mesmo esforço:
 
 Essa última linha é a razão de a BoxOffice ter um problema de [integrações externas](../integrations/index.md): ela deliberadamente *não* constrói seu próprio processamento de cartões nem seus servidores de e-mail.
 
-### Linguagem ubíqua e bounded contexts
+### Linguagem ubíqua e bounded contexts { #ubiquitous-language-and-bounded-contexts }
 
 A **linguagem ubíqua** é o vocabulário compartilhado por desenvolvedores e especialistas do domínio e usado literalmente no código: se a equipe da bilheteria fala *hold*, *on-sale*, *mapa de assentos* e *alocação*, o código diz `Hold`, `OnSale`, `SeatMap` e `Allocation` — não `TempReservation` nem `Lock`.
 
 Mas a mesma palavra muitas vezes significa coisas diferentes em partes diferentes do negócio. Um **bounded context** (contexto delimitado) é a fronteira dentro da qual vale um modelo, e um significado para cada palavra:
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     subgraph cat ["Contexto Catalog"]
         e1["Event<br/>artista · data · local · descrição · imagens"]
@@ -132,7 +132,7 @@ Tentar construir uma única classe `Event` que sirva aos três — com imagens, 
 
 **Um bounded context normalmente corresponde a um serviço** (ou a um pequeno grupo de serviços muito relacionados). Essa é a principal heurística para fronteiras de serviços.
 
-### Context maps: como os contextos se relacionam
+### Context maps: como os contextos se relacionam { #context-maps-how-contexts-relate }
 
 Os contextos trocam dados, e a relação entre cada par é uma decisão de design. Um **context map** (mapa de contextos) desenha essas relações[^3]:
 
@@ -144,7 +144,7 @@ Os contextos trocam dados, e a relação entre cada par é uma decisão de desig
 | **Anti-Corruption Layer (ACL)** | o downstream traduz o modelo do upstream na fronteira | um modelo de terceiros ou legado que você não quer que vaze para dentro |
 | **Shared Kernel** | dois contextos compartilham um pequeno pedaço de modelo e código | raramente; acopla os dois times |
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     catalog["Catalog"] -->|"Open Host: REST + OpenAPI"| order["Order"]
     catalog -->|"Published Language:<br/>eventos EventPublished"| search["Search"]
@@ -157,7 +157,7 @@ flowchart LR
 
 As duas **anti-corruption layers** são as que mais importam na prática: o modelo do provedor de pagamentos (seus "payment intents", seus nomes de status, seus códigos de erro) não pode se espalhar pela BoxOffice. O serviço `payment` o traduz para o modelo `Payment` da própria BoxOffice na fronteira — a página de [integrações](../integrations/index.md) mostra esse adaptador.
 
-### Agregados: a unidade de consistência
+### Agregados: a unidade de consistência { #aggregates-the-unit-of-consistency }
 
 Dentro de um contexto, um **agregado** é um conjunto de objetos alterados juntos como uma unidade, com uma **raiz** como único ponto de entrada. A raiz garante os **invariantes** — regras que precisam valer sempre. Duas regras fazem os agregados se encaixarem em microsserviços:
 
@@ -198,7 +198,7 @@ O invariante "um assento pertence a no máximo um hold ativo" abrange *todos* os
 
 ---
 
-## A lei de Conway
+## A lei de Conway { #conways-law }
 
 > *"Qualquer organização que projeta um sistema produzirá um projeto cuja estrutura é uma cópia da estrutura de comunicação da organização."*
 > — Melvin Conway, 1968[^4]
@@ -250,11 +250,11 @@ Duas consequências práticas:
 
 ---
 
-## Sendo dono dos dados
+## Sendo dono dos dados { #owning-the-data }
 
 **Banco de dados por serviço** (*database per service*) significa que nenhum serviço lê ou escreve as tabelas de outro. Isso não exige um *servidor* de banco por serviço: um cluster PostgreSQL pode hospedar vários schemas, desde que cada schema tenha exatamente um dono.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     order["order"] -->|"POST /holds/{id}/confirm"| inventory["inventory"]
     inventory --> inv[("schema inventory")]
@@ -267,7 +267,15 @@ Quando `order` precisa confirmar um hold, ele chama a **API** de `inventory`, nu
 - **Consultas entre serviços** viram chamadas de API — ou uma cópia local, somente leitura, dos dados do outro serviço, mantida atualizada por eventos (CQRS, [mensageria](../../messaging/index.md)). O `search` mantém seu próprio índice de eventos dessa forma.
 - **Transações de negócio entre serviços** viram uma sequência de transações locais coordenadas por eventos ou por um orquestrador, com compensações quando um passo falha: o padrão **saga**. "Pagamento falhou → liberar o hold" é uma compensação.
 
-### Conversando entre si
+!!! example "No código do BoxOffice: um PostgreSQL, um schema por dono (labs 1–9)"
+
+    Nos labs todo serviço roda contra o mesmo servidor PostgreSQL, cada um no seu schema, que o seu próprio Flyway cria e migra: `catalog` (lab 1), `auth` (lab 4), `inventory` (lab 6), `orders` e `notification` ([lab 7](../../../hands-on/7/index.md)), `payment` (lab 9). Um servidor só deixa o notebook leve; um schema por serviço deixa a fronteira visível. Repare no atalho: todos entram com o mesmo usuário, `boxoffice`, então "nada de SQL direto" aqui é uma convenção, não uma permissão. Em produção cada serviço ganha seu próprio papel (*role*) no banco, com direitos só sobre o seu schema, e o banco impõe a fronteira.
+
+    ``` { .yaml title="services/order/src/main/resources/application.yaml (its own schema)" }
+    --8<-- "docs/2027.1/hands-on/7/code/services/order/src/main/resources/application.yaml:10:15"
+    ```
+
+### Conversando entre si { #talking-to-each-other }
 
 === "Síncrono (requisição/resposta)"
 
@@ -306,13 +314,17 @@ Quando `order` precisa confirmar um hold, ele chama a **API** de `inventory`, nu
 
 A aula 8 ([mensageria](../../messaging/index.md)) aprofunda os eventos; a página de [estilos de API](../api-styles/index.md) cobre as opções de requisição/resposta.
 
+**Experimente.** O cenário `microservices` divide a aplicação em `catalog`, `inventory`, `order` e `notify`, cada um com seu banco, atrás de um gateway, e comprar é uma cadeia síncrona: `order` chama `inventory`, `catalog` e `notify` antes de responder. Execute-o: com 2.000 req/s o catálogo não consegue os pods de que precisa e cerca de 25% das requisições falham (pods e nós são a história da [aula 11](../../cloud-native/index.md)). Abra-o no playground completo (↗) e aperte **Mostrar uma solução possível**: mais espaço no cluster e uma fila entre `order` e `notify`; o p99 cai para cerca de 60 ms. Agora apague a fila e ligue `order` direto em `notify` de novo: com a mesma capacidade, o p99 volta a cerca de 360 ms, porque cada comprador agora espera a confirmação (120 ms em média, com uma cauda longa) antes de receber a resposta.
+
+<div class="sdp" data-scenario="microservices" data-mode="compact" data-height="520"></div>
+
 ---
 
-## Dentro de um serviço: arquitetura interna
+## Dentro de um serviço: arquitetura interna { #inside-one-service-internal-architecture }
 
 Dividir o sistema decide as fronteiras *entre* serviços. Cada serviço ainda precisa de uma estrutura *interna*, e o mesmo princípio vale em escala menor: **proteja as regras de negócio daquilo que muda com mais frequência** — frameworks, bancos de dados, protocolos, provedores.
 
-### SOLID em uma tabela
+### SOLID em uma tabela { #solid-in-one-table }
 
 Os cinco princípios SOLID[^8] são regras no nível de classe que tornam essa proteção possível:
 
@@ -328,7 +340,7 @@ Os cinco princípios SOLID[^8] são regras no nível de classe que tornam essa p
 
 A maioria dos serviços Spring Boot começa **em camadas**: controller → service → repository → banco de dados. Isso separa o HTTP da lógica de negócio, mas a camada de negócio ainda *depende* da camada de persistência. A **Clean Architecture** (Robert C. Martin) e a **Arquitetura Hexagonal**, também chamada de *ports and adapters* (Alistair Cockburn), invertem essa única seta: o núcleo define interfaces (**portas**) em termos de negócio, e a infraestrutura (**adaptadores**) as implementa[^9][^10].
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     rest["Controller REST<br/>(adaptador de entrada)"] --> uc["PayForOrder<br/>caso de uso"]
     kafka["Listener Kafka<br/>(adaptador de entrada)"] --> uc
@@ -382,7 +394,7 @@ O ganho: os testes dos casos de uso rodam em milissegundos com um `FakeGateway`;
 
 ---
 
-## Capacidades compartilhadas como serviços
+## Capacidades compartilhadas como serviços { #shared-capabilities-as-services }
 
 Algumas capacidades são necessárias para muitas partes do sistema e aparecem como componentes próprios na paleta. Costumam ser os primeiros serviços extraídos — e muitas vezes os primeiros *comprados*:
 
@@ -396,7 +408,7 @@ Algumas capacidades são necessárias para muitas partes do sistema e aparecem c
 
 Dois padrões se repetem: esses serviços são em sua maioria **alimentados por eventos** em vez de chamados de forma síncrona, e seus dados muitas vezes são **derivados** — busca e analytics podem ser reconstruídos a partir da fonte da verdade, o que os torna mais baratos de operar.
 
-### Mapa de serviços da BoxOffice
+### Mapa de serviços da BoxOffice { #boxoffice-service-map }
 
 | Serviço | Capacidade | Dono de | Chamado por | Perfil de escala |
 |---|---|---|---|---|
@@ -410,9 +422,25 @@ Dois padrões se repetem: esses serviços são em sua maioria **alimentados por 
 | `search` | busca textual | índice derivado | gateway | dominado por leituras |
 | `assistant` | suporte com IA (Python) | conversas, embeddings | gateway | limitado por GPU/LLM, isolado |
 
+!!! example "No código do BoxOffice: uma porta de entrada, uma rota por serviço (labs 4 e 6)"
+
+    O `gateway` do [Hands-on 4](../../../hands-on/4/gateway/index.md) é o único serviço com que a borda fala. Cada serviço ganha uma rota por prefixo de caminho, então o cliente nunca sabe onde roda o `auth` ou o `inventory`, e o lab 6 acrescenta o `inventory` com três linhas. O `lb://catalog` é a divisão por perfil de escala na prática: só o `catalog`, que é de leitura intensa, roda três réplicas, escolhidas a cada requisição entre as saudáveis; `auth` e `inventory` rodam uma cada.
+
+    ``` { .yaml title="services/gateway/src/main/resources/application.yaml (one route per service)" }
+    --8<-- "docs/2027.1/hands-on/6/code/services/gateway/src/main/resources/application.yaml:22:34"
+    ```
+
 !!! tip "Na entrevista"
 
     Raramente você precisa desenhar vinte microsserviços. Desenhe **os poucos serviços cujas fronteiras importam para o problema** e justifique cada divisão com uma força: *"Eu manteria catalog e inventory separados porque catalog é dominado por leituras e cacheável, enquanto inventory tem escrita intensa e precisa de consistência forte — necessidades diferentes de escala e de consistência."* Se perguntarem "monolito ou microsserviços?", responda com o trade-off, não com um slogan: tamanho do time, necessidade de escala independente e maturidade operacional. Dizer *"Eu começaria com um monolito modular e extrairia o inventory primeiro"* é uma resposta forte e defensável.
+
+!!! success "Boas práticas"
+
+    - **Escreva a força por trás de cada fronteira de serviço** — perfil de escala, time, isolamento de falhas, conformidade ou tecnologia, no design doc; uma fronteira sem força restante é candidata a ser fundida. Na BoxOffice: `catalog` (leitura intensa, três réplicas) e `inventory` (escrita quente, correção em primeiro lugar) são separados pelo perfil de escala.
+    - **Dê a cada serviço seu próprio papel no banco, com direitos só sobre o seu schema** — assim a fronteira é imposta pelo banco, não pela revisão de código. Na BoxOffice os labs compartilham o usuário `boxoffice` (quadro acima): este é o passo a dar antes da produção.
+    - **Nomeie um time dono por serviço num catálogo de serviços** — dono, escala de plantão, runbook e SLO; quando o `inventory` disparar um alerta às 10:01, ninguém deve precisar perguntar quem atende.
+    - **Passe todo o tráfego externo por um gateway, e deixe as chamadas entre serviços fora dele** — um lugar para autenticação e limites de taxa, sem acrescentar um salto a cada chamada interna. Na BoxOffice: a borda só fala com o `gateway` ([lab 4](../../../hands-on/4/gateway/index.md)).
+    - **Imponha as fronteiras dos módulos no build antes de extrair serviços** — visibilidade de pacotes e um teste de arquitetura (ArchUnit) no CI mantêm um monólito modular modular; extrair um módulo cuja fronteira já se sustenta é um deploy, não uma reescrita.
 
 !!! warning "Armadilhas comuns"
 
@@ -427,7 +455,7 @@ Dois padrões se repetem: esses serviços são em sua maioria **alimentados por 
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     MONO["monólito"] --> MOD["monólito modular"]
     MOD --> MS["microsserviços<br/>quando uma força é real"]
@@ -441,16 +469,18 @@ flowchart LR
     MS --> SHARED["capacidades compartilhadas:<br/>auth, busca, notificações"]
 ```
 
-**Componentes da paleta:** [`app`](../../../reference/components/compute/index.md#app) (cada serviço é a sua própria camada stateless) · [`apigw`](../../../reference/components/edge/index.md#apigw) (`gateway`, o ponto único de entrada) · [`auth`](../../../reference/components/compute/index.md#auth) · [`search`](../../../reference/components/compute/index.md#search) · [`notifications`](../../../reference/components/compute/index.md#notifications) · [`analytics`](../../../reference/components/compute/index.md#analytics) · [`scheduler`](../../../reference/components/compute/index.md#scheduler) (capacidades compartilhadas, muitas vezes compradas) · [`sql`](../../../reference/components/storage/index.md#sql) (um banco por serviço, nunca tabelas compartilhadas) · [`stream`](../../../reference/components/messaging/index.md#stream) (eventos alimentam os serviços derivados). **Cenários:** `monolith`, `event-fanout`. **Continua em:** [Estilos de API](../api-styles/index.md), [Bancos de dados](../../databases/index.md) (um banco por serviço), [Mensageria — padrões](../../messaging/patterns/index.md) (outbox, saga), [Distribuídos — transações](../../distributed/transactions/index.md), [Hands-on 1](../../../hands-on/1/index.md).
+**Componentes da paleta:** [`app`](../../../reference/components/compute/index.md#app) (cada serviço é a sua própria camada stateless) · [`apigw`](../../../reference/components/edge/index.md#apigw) (`gateway`, o ponto único de entrada) · [`auth`](../../../reference/components/compute/index.md#auth) · [`search`](../../../reference/components/compute/index.md#search) · [`notifications`](../../../reference/components/compute/index.md#notifications) · [`analytics`](../../../reference/components/compute/index.md#analytics) · [`scheduler`](../../../reference/components/compute/index.md#scheduler) (capacidades compartilhadas, muitas vezes compradas) · [`sql`](../../../reference/components/storage/index.md#sql) (um banco por serviço, nunca tabelas compartilhadas) · [`stream`](../../../reference/components/messaging/index.md#stream) (eventos alimentam os serviços derivados). **Cenários:** `monolith`, `event-fanout`, `microservices`. **Continua em:** [Estilos de API](../api-styles/index.md), [Bancos de dados](../../databases/index.md) (um banco por serviço), [Mensageria — padrões](../../messaging/patterns/index.md) (outbox, saga), [Distribuídos — transações](../../distributed/transactions/index.md), [Hands-on 1](../../../hands-on/1/index.md).
 
-## Principais conclusões
+## Pontos-chave { #key-takeaways }
 
-- Monolito → monolito modular → microsserviços é um espectro; **comece modular** e divida quando uma força (perfil de escala, autonomia dos times, isolamento de falhas, compliance, tecnologia) for real.
-- Encontre fronteiras com **DDD**: os subdomínios dizem o que construir ou comprar, os **bounded contexts** dizem onde um modelo termina; agregados se referenciam **pelo id**.
-- **Lei de Conway**: os serviços tomam a forma dos times — projete os dois juntos.
-- Cada serviço é **dono dos seus dados**; os outros usam sua API ou seus eventos, nunca suas tabelas.
-- Dentro de um serviço, **ports and adapters** mantêm as regras de negócio independentes de frameworks e provedores — essencial para integrações, opcional para CRUD.
-- Auth, busca, notificações, analytics e agendamento são capacidades compartilhadas, em geral **alimentadas por eventos** e muitas vezes **compradas**.
+!!! takeaways ""
+
+    - Monolito → monolito modular → microsserviços é um espectro; **comece modular** e divida quando uma força (perfil de escala, autonomia dos times, isolamento de falhas, compliance, tecnologia) for real.
+    - Encontre fronteiras com **DDD**: os subdomínios dizem o que construir ou comprar, os **bounded contexts** dizem onde um modelo termina; agregados se referenciam **pelo id**.
+    - **Lei de Conway**: os serviços tomam a forma dos times — projete os dois juntos.
+    - Cada serviço é **dono dos seus dados**; os outros usam sua API ou seus eventos, nunca suas tabelas.
+    - Dentro de um serviço, **ports and adapters** mantêm as regras de negócio independentes de frameworks e provedores — essencial para integrações, opcional para CRUD.
+    - Auth, busca, notificações, analytics e agendamento são capacidades compartilhadas, em geral **alimentadas por eventos** e muitas vezes **compradas**.
 
 ---
 

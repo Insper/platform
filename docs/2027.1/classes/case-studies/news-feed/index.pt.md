@@ -22,18 +22,18 @@ O BoxOffice tem o mesmo formato: fãs **seguem** artistas e locais, e a aba "Seg
 
 ---
 
-## 1. Esclarecer os requisitos
+## 1. Esclarecer os requisitos { #1-clarify-the-requirements }
 
 ([roteiro de entrevista](../../intro/interview-framework/index.md))
 
-### Requisitos funcionais
+### Requisitos funcionais { #functional-requirements }
 
 1. Um usuário **publica** um post (texto, imagens/vídeo opcionais).
 2. Um usuário **segue** / deixa de seguir outros usuários (assimétrico: seguir não é amizade).
 3. Um usuário abre o **feed inicial**: posts de quem ele segue, os mais novos primeiro (ou ranqueados), paginados com rolagem infinita.
 4. Os posts mostram autor, contadores (curtidas, comentários) e mídia.
 
-### Requisitos não funcionais
+### Requisitos não funcionais { #non-functional-requirements }
 
 | Qualidade | Meta |
 |---|---|
@@ -43,7 +43,7 @@ O BoxOffice tem o mesmo formato: fãs **seguem** artistas e locais, e a aba "Seg
 | **Disponibilidade** | 99,95%; um feed degradado (um pouco desatualizado, menos itens) é melhor que uma página de erro |
 | **Durabilidade** | Um post publicado nunca se perde; os feeds em si podem ser reconstruídos |
 
-### Fora do escopo (diga explicitamente)
+### Fora do escopo (diga explicitamente) { #out-of-scope-say-it-explicitly }
 
 Comentários e curtidas como funcionalidades (só mostramos os contadores), busca, notificações, ranqueamento de anúncios, mensagens diretas. Cada um é seu próprio problema de design.
 
@@ -60,7 +60,7 @@ Comentários e curtidas como funcionalidades (só mostramos os contadores), busc
 
 ---
 
-## 2. Estimativas de guardanapo (back-of-the-envelope)
+## 2. Estimativas de guardanapo (back-of-the-envelope) { #2-back-of-the-envelope-estimates }
 
 ```python exec="1" source="tabbed-right"
 # News feed: assumptions (illustrative)
@@ -125,7 +125,7 @@ DELETE /v1/users/{id}/followers/me           → 204   (unfollow)
 
 ---
 
-## 4. Modelo de dados
+## 4. Modelo de dados { #4-data-model }
 
 ```sql
 -- Posts: partitioned by author, newest first (wide-column, e.g. Cassandra)
@@ -163,9 +163,9 @@ likes:{post_id}  →  1532
 
 ---
 
-## 5. Design de alto nível
+## 5. Design de alto nível { #5-high-level-design }
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     u([App]) --> lb["Balanceador de carga"]
     lb --> ps["Serviço de posts"]
@@ -186,7 +186,7 @@ flowchart LR
 
 **Caminho de leitura:**
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     participant A as App
@@ -210,9 +210,9 @@ sequenceDiagram
 
 ---
 
-## 6. Aprofundamentos (deep dives)
+## 6. Aprofundamentos (deep dives) { #6-deep-dives }
 
-### 6.1 Fan-out na escrita, na leitura ou os dois
+### 6.1 Fan-out na escrita, na leitura ou os dois { #61-fan-out-on-write-on-read-or-both }
 
 === "Fan-out na escrita (push)"
 
@@ -255,7 +255,7 @@ for threshold in (10_000, 100_000, 1_000_000):
 
 Puxar os posts de uma fração de um por cento dos autores elimina a maior parte das escritas de fan-out. O limiar é um botão de ajuste: abaixe-o e as leituras ficam um pouco mais caras (mais celebridades para mesclar por usuário), suba-o e os posts de celebridades demoram mais para se espalhar.
 
-### 6.2 O cache de timelines e a hidratação
+### 6.2 O cache de timelines e a hidratação { #62-the-timeline-cache-and-hydration }
 
 - **Guarde IDs, não posts.** Um post pode ser editado, apagado ou ter os contadores alterados; copiá-lo em 200 timelines faria de cada mudança um fan-out. Uma timeline é uma lista de `(score, post_id)`; o conteúdo é **hidratado** na leitura com um único multi-get em lote no cache de posts.
 - **Apare** cada timeline para algumas centenas de entradas (`ZREMRANGEBYRANK`). Ninguém rola 5 000 posts para trás no feed inicial; o histórico mais antigo vem do caminho de pull.
@@ -263,11 +263,11 @@ Puxar os posts de uma fração de um por cento dos autores elimina a maior parte
 - **Filtre na leitura.** Posts apagados, autores bloqueados e posts que viraram privados são removidos durante a hidratação (o cache de posts diz `deleted`), então a timeline em si nunca precisa ser limpa de forma síncrona.
 - **Particione** o cache de timelines por `user_id` (hash consistente); o feed de um usuário mora num shard, então a leitura é uma única ida e volta.
 
-### 6.3 Ranqueamento
+### 6.3 Ranqueamento { #63-ranking }
 
 Um feed cronológico é "ordenar por tempo". Um feed ranqueado é um pequeno pipeline que precisa caber no orçamento de latência:
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     cand["Candidatos<br/>~500 IDs<br/>(empurrados + puxados)"] --> feat["Features<br/>afinidade com o autor, idade,<br/>engajamento, tipo de mídia"]
     feat --> score["Modelo de pontuação<br/>(leve)"]
@@ -279,7 +279,7 @@ flowchart LR
 - Pré-compute quando possível: ranqueie a primeira página **quando é provável que o usuário abra o app** (ou logo após o fan-out) e guarde em cache por alguns minutos.
 - Mantenha um **fallback**: se o serviço de ranqueamento estiver lento, devolva a ordem cronológica. Um feed menos esperto mas no prazo é melhor do que um spinner ([padrões de confiabilidade](../../reliability/patterns/index.md)).
 
-### 6.4 Paginação e atualidade
+### 6.4 Paginação e atualidade { #64-pagination-and-freshness }
 
 - **Paginação por cursor**: o cursor é `(score, post_id)` do último item; a próxima página é `ZREVRANGEBYSCORE feed:42 (score -inf LIMIT 0 20`. Posts novos chegando no topo não deslocam a próxima página, ao contrário do `OFFSET`.
 - **Posts novos durante a rolagem** aparecem num aviso "novos posts" que recarrega do topo (uma requisição separada com `since=`), e não são inseridos embaixo do dedo do usuário.
@@ -287,7 +287,7 @@ flowchart LR
 
 ---
 
-## 7. Gargalos, modos de falha e trade-offs
+## 7. Gargalos, modos de falha e trade-offs { #7-bottlenecks-failure-modes-and-trade-offs }
 
 | Onde | O que dá errado | Mitigação | Trade-off |
 |---|---|---|---|
@@ -304,7 +304,7 @@ Os trade-offs para **dizer em voz alta**: **amplificação de escrita vs. latên
 
 ---
 
-## 8. Experimente no playground
+## 8. Experimente no playground { #8-try-it-in-the-playground }
 
 O cenário `news-feed` contém o serviço de posts, um caminho de fan-out por uma fila e workers, um cache de timelines e o serviço de feed.
 
@@ -321,7 +321,7 @@ O cenário `news-feed` contém o serviço de posts, um caminho de fan-out por um
 
 ---
 
-## 9. Perguntas de follow-up que o entrevistador faz
+## 9. Perguntas de follow-up que o entrevistador faz { #9-follow-up-questions-an-interviewer-asks }
 
 ??? question "Um usuário segue 5 000 contas, 300 delas celebridades. O híbrido ainda funciona?"
 
@@ -353,7 +353,7 @@ O cenário `news-feed` contém o serviço de posts, um caminho de fan-out por um
 
 ---
 
-## 10. Rubrica de autoavaliação
+## 10. Rubrica de autoavaliação { #10-self-assessment-rubric }
 
 | Nível | O que a resposta contém |
 |---|---|
@@ -363,13 +363,21 @@ O cenário `news-feed` contém o serviço de posts, um caminho de fan-out por um
 
 **Relacionados:** [Mensageria](../../messaging/kafka/index.md), [Padrões de cache](../../caching/patterns/index.md), [Particionamento](../../databases/partitioning/index.md), [Hands-on 7](../../../hands-on/7/index.md) (processamento assíncrono com Kafka), [Hands-on 5](../../../hands-on/5/index.md) (cache).
 
+!!! success "Boas práticas"
+
+    - **Guarde ids de posts nas timelines, não o conteúdo** — uma timeline de 800 ids tem poucos kilobytes; o conteúdo vem do seu próprio cache e é editado num só lugar.
+    - **Limite o tamanho de cada timeline em cache** — algumas centenas de entradas cobrem quase toda sessão e mantêm limitada a memória por usuário.
+    - **Passe para fan-out na leitura acima de um limite de seguidores** — um post de celebridade não pode virar milhões de escritas; misture os dois na leitura.
+    - **Torne os workers de fan-out idempotentes e retomáveis** — um worker que cai no meio não pode inserir o mesmo post duas vezes numa timeline.
+    - **Versione o modelo de ranking e registre o que foi mostrado** — "por que eu vi isto?" precisa da versão do modelo e dos candidatos, não só do resultado.
+
 ---
 
 ## Como se conecta { #how-it-connects }
 
 Quais aulas este caso testa? Cada ramo é uma aula cujas ideias o design usa (azul), com os componentes da paleta em que elas aparecem (verde):
 
-``` mermaid
+``` diagram
 flowchart LR
     CASE(["News feed"]) --> EST["Estimation<br/>fan-out write amplification"]:::tech
     CASE --> MSG["Messaging<br/>post events, fan-out workers"]:::tech
@@ -389,7 +397,7 @@ flowchart LR
 
 ---
 
-## Referências
+## Referências { #references }
 
 - XU, A. *System Design Interview — An Insider's Guide*, vol. 1, cap. 11 "Design a News Feed System"[^1].
 - KLEPPMANN, M.; RICCOMINI, C. *Designing Data-Intensive Applications*, 2ª ed. — o exemplo da timeline inicial (fan-out na escrita vs. na leitura) no capítulo sobre descrever a carga[^2].

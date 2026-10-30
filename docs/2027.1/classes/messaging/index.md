@@ -2,6 +2,10 @@ It is 09:59:58 and a stadium show is about to go on sale on BoxOffice. At 10:00 
 
 This class is about the other wiring: **messages**. Instead of calling every service and waiting, a service writes a message to a broker and moves on; whoever needs it reads it when it can. Done right, messaging absorbs spikes, decouples teams and keeps slow or failing services out of the critical path. Done carelessly, it loses orders, duplicates e-mails and hides failures in a queue nobody watches. We will learn both sides.
 
+!!! quote "The story so far"
+
+    Chapter 8 of the [story of the course](../../index.md#story). The edge spreads the fans over stateless replicas ([class 4](../edge/index.md), [class 5](../compute/index.md)), PostgreSQL sells each seat once ([class 6](../databases/index.md)) and Redis answers the event pages ([class 7](../caching/index.md)). The **write** path is still one synchronous chain, and the crowd is still 30 times too big: about 33,000 holds/s arrive for the ~1,100 one database can take. **This class** answers: what can leave the request and wait in a queue, how do we never lose or double an event on the way, and how do we give 2 million fans a fair line?
+
 !!! abstract "Learning objectives"
 
     By the end of this class you should be able to:
@@ -270,7 +274,7 @@ The deciding question is what happens to a message **after it is read**:
 - In a **queue**, reading is *taking*: the message is gone once acknowledged. Great for distributing work.
 - In a **log**, reading is *looking*: the message stays, and each reader keeps a bookmark. Great for many independent readers, replay and history.
 
-``` mermaid
+``` diagram
 flowchart TD
     q1{"Does the caller need<br/>the answer to continue?"}
     q1 -->|yes| sync["Synchronous call<br/>(REST / gRPC) + timeout"]
@@ -298,7 +302,7 @@ flowchart TD
 
 Every message crosses the same path: a producer hands it to one of the four messaging components, and a consumer processes it later. The map links each **palette component** (green) to the **concepts** of this class (blue) and to the classes that continue them:
 
-``` mermaid
+``` diagram
 flowchart LR
     order["app (order)<br/>producer"]:::comp --> queue["queue"]:::comp
     order --> pubsub["pubsub"]:::comp
@@ -312,8 +316,8 @@ flowchart LR
     log -.- c3["partitions, keys, offsets,<br/>consumer groups, retention"]:::tech
     worker -.- c4["at-least-once, idempotent consumer,<br/>ordering, DLQ, schemas"]:::tech
     c3 -.- d1["consensus, KRaft<br/>(class 3)"]
-    c4 -.- d2["retries, freshness SLO<br/>(class 9)"]
-    c4 -.- d3["consumer lag, tracing<br/>(class 10)"]
+    c4 -.- d2["retries, freshness SLO<br/>(classes 9 and 10)"]
+    c4 -.- d3["consumer lag, tracing<br/>(class 9)"]
     classDef comp fill:#1e9e5a22,stroke:#1e9e5a
     classDef tech fill:#2f6fed22,stroke:#2f6fed
 ```
@@ -330,6 +334,14 @@ flowchart LR
 !!! tip "In the interview"
     Interviewers listen for *why* you add a queue. "I'll put Kafka here" is a red flag on its own; "the e-mail does not need to block the purchase, so `order` publishes `OrderConfirmed` and `notification` consumes it — that removes the e-mail provider from the purchase's availability chain and absorbs the 10:00 spike as backlog" is a strong signal. Always follow with the consequences you will handle: duplicates (idempotent consumer), ordering (key by `orderId`), failures (retries + DLQ) and monitoring (consumer lag)[^4].
 
+!!! success "Best practices"
+
+    - **Decide sync or async per call by asking "does the user need this answer now?"** — the seat hold and the payment authorization stay in the request; the e-mail, the ticket PDF, search and analytics become events. In BoxOffice: `POST /orders` answers after two inserts and a commit ([lab 7 — outbox](../../hands-on/7/outbox/index.md)).
+    - **Publish facts about your domain, not commands to a known service** — `OrderPlaced`, not `SendEmail`: search or analytics subscribe with their own consumer group and `order` does not change. In BoxOffice: `notification` reads `order-events` as group `notification`.
+    - **Give every message an envelope: a unique `eventId` created once, an `eventType`, the time it happened and a schema version** — consumers deduplicate on the id and route on the type. In BoxOffice: the relay copies `eventId` and `eventType` into Kafka headers ([outbox box](patterns/index.md#transactional-outbox)).
+    - **Key each message by the entity whose order matters** — all events of one order land on one partition, in order, while different orders spread over all partitions. In BoxOffice: the relay uses the order id as the Kafka key.
+    - **Size consumers from arrival rate × service time, with headroom, and compute the drain time before the on-sale** — 100 orders/s at 50 ms each need at least 5 threads; with one thread a 60 s burst leaves ~4,800 messages and ~240 s of delay ([lab 7 — burst and drain](../../hands-on/7/measure/index.md)).
+
 !!! warning "Common pitfalls"
 
     - **Async for everything.** Turning a question that needs an answer ("is this seat free?") into a message adds latency, complexity and a polling loop, and gains nothing.
@@ -345,7 +357,11 @@ flowchart LR
 - **Hands-on:** [Hands-on 7 — Async](../../hands-on/7/index.md): Kafka, transactional outbox in `order`, idempotent consumer in `notification`, DLQ and the waiting-room queue.
 - **Exercise:** [Event-driven exercise](../../exercises/event-driven/index.md) — outbox + idempotent consumer.
 - **Case studies:** [Ticketing (BoxOffice flash sale)](../case-studies/ticketing/index.md), [Notification system](../case-studies/notification-system/index.md), [Payment system](../case-studies/payment-system/index.md), [Chat](../case-studies/chat/index.md).
-- **Classes:** [Compute — async work](../compute/async-work/index.md) (workers and schedulers), [Reliability](../reliability/index.md) (retries, backoff, idempotency), [Observability](../observability/index.md) (consumer lag and tracing across topics).
+- **Classes:** [Compute — async work](../compute/async-work/index.md) (workers and schedulers), [Observability](../observability/index.md) (consumer lag and tracing across topics), [Reliability](../reliability/index.md) (retries, backoff, idempotency).
+
+## What breaks next { #what-breaks-next }
+
+The e-mail left the request: in lab 7, an e-mail outage no longer fails a single order, and the waiting room lets in only what `inventory` can serve. The price is visibility. A purchase is now a request, a database row, an outbox relay, a Kafka record and a consumer, in four processes and at four different times: when a fan says "I paid and got no e-mail", nobody can say where the order stopped. And when the payment provider slows down, the averages on the dashboards stay green while fans fail at checkout. Following one order across services, and measuring what fans actually feel, is [class 9 — Observability](../observability/index.md).
 
 ---
 

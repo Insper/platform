@@ -4,7 +4,7 @@ Essa é a promessa da **revisão de código por IA**: um revisor que lê cada di
 
 ---
 
-## Por que revisão de código, e para que ela serve
+## Por que revisão de código, e para que ela serve { #why-code-review-and-what-it-is-for }
 
 A revisão de código moderna — uma revisão leve, apoiada em ferramentas, de cada mudança antes do merge — é praticamente universal na indústria. Estudos na Microsoft e no Google concluíram que seus principais resultados não são apenas encontrar defeitos, mas **transferência de conhecimento, propriedade coletiva do código e consistência**; no Google, a latência mediana da revisão era menor que um dia, e a maioria das mudanças era pequena[^1][^2]. Duas consequências para a revisão por IA:
 
@@ -13,7 +13,7 @@ A revisão de código moderna — uma revisão leve, apoiada em ferramentas, de 
 
 ---
 
-## Em que a revisão por IA é boa e em que é ruim
+## Em que a revisão por IA é boa e em que é ruim { #what-ai-review-is-good-and-bad-at }
 
 | Boa em (alta precisão quando recebe contexto) | Ruim em (baixa precisão ou cega) |
 |---|---|
@@ -28,9 +28,9 @@ Duas fraquezas sistemáticas merecem nome. **Credulidade**: o modelo lê texto e
 
 ---
 
-## Anatomia de um revisor de IA
+## Anatomia de um revisor de IA { #anatomy-of-an-ai-reviewer }
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     participant GH as Host Git
@@ -54,7 +54,7 @@ O modelo é uma caixa entre oito. A maior parte da engenharia — e a maior part
 
 ---
 
-## Engenharia de contexto
+## Engenharia de contexto { #context-engineering }
 
 Um modelo só consegue revisar contra aquilo que recebe. **Engenharia de contexto** é decidir o que entra na janela de contexto, limitada e paga, e em que ordem.
 
@@ -82,7 +82,7 @@ Três regras práticas:
 
 ---
 
-## Saída estruturada, publicada como comentários de revisão
+## Saída estruturada, publicada como comentários de revisão { #structured-output-posted-as-review-comments }
 
 Texto livre é para humanos; o pipeline precisa de **dados**. Peça um JSON que seja validado contra um schema — no Claude, as structured outputs restringem a resposta ao schema; em outros provedores, modo JSON mais validação e uma tentativa de reparo:
 
@@ -117,7 +117,7 @@ No GitHub, todos os achados de uma execução vão para **uma revisão** (`POST 
 
 ---
 
-## Controle de ruído
+## Controle de ruído { #noise-control }
 
 Cada comentário gasta a atenção de um desenvolvedor. Um revisor é julgado pelos seus **piores** comentários: depois de alguns inúteis, as pessoas param de ler — inclusive os úteis. Os controles, na ordem em que atuam:
 
@@ -150,9 +150,17 @@ for name, emitted, real in buckets:
 
 Publicar tudo encontra a maior parte dos problemas e é ignorado por todo mundo (3 comentários por PR, 4 em cada 10 úteis). Publicar só os de confiança alta gera confiança e deixa passar dois terços dos problemas. A maioria dos times começa com **alta + média para severidades ≥ minor**, mede e ajusta por categoria: segredos e SQL injection podem ficar em média; estilo nunca é publicado.
 
+!!! example "No código do BoxOffice: o filtro do revisor (lab 13)"
+
+    O [Hands-on 13 — O revisor](../../../hands-on/13/review/index.md) constrói a anatomia acima num único script. O título, a descrição e o diff do PR vão ao modelo embrulhados como dados **não confiáveis**; o modelo responde JSON contra um schema; e o código — não o modelo — mantém só os achados em linhas **adicionadas**, com severidade ≥ `minor`, sem confiança baixa, no máximo 6 por PR, os mais graves primeiro. Uma impressão digital de cada achado impede que ele seja publicado de novo no próximo push, e um erro do modelo encerra o job com exit code 0: **fail open**, porque uma etapa consultiva nunca pode bloquear merges. Uma execução de teste com o modelo local publicou um achado, o SQL injection plantado em `EventSearch.java`; com o Claude, uma revisão do golden set do lab custou cerca de US$ 0,012.
+
+    ``` { .python title=".github/ai/review.py (the review and the fail-open)" }
+    --8<-- "docs/2027.1/hands-on/13/code/.github/ai/review.py:103:130,207:211"
+    ```
+
 ---
 
-## Consultivo ou gate?
+## Consultivo ou gate? { #advisory-or-gate }
 
 | | Consultivo | Gate (check obrigatório) |
 |---|---|---|
@@ -166,7 +174,7 @@ Uma implantação segura: **sombra** (achados registrados, não publicados; comp
 
 ---
 
-## Medindo o revisor
+## Medindo o revisor { #measuring-the-reviewer }
 
 Não dá para ajustar o que não se mede, e "o time gosta" não é uma medida.
 
@@ -183,7 +191,7 @@ Um LLM também pode *julgar* comentários ("este comentário estava correto?"), 
 
 ---
 
-## Conformidade com a arquitetura
+## Conformidade com a arquitetura { #architecture-conformance }
 
 A história do início — o `order` escrevendo no schema de `inventory` — é uma **regra de arquitetura**. Essas regras são o que de mais valioso um revisor automatizado pode verificar, porque humanos as esquecem e as violações custam caro depois. Mas muitas delas não precisam de modelo algum.
 
@@ -211,13 +219,21 @@ O melhor projeto combina os dois: regras determinísticas **bloqueiam**, porque 
 
 !!! example "BoxOffice: o revisor pega o atalho"
 
-    Com o `CONVENTIONS.md` no contexto, o revisor do [hands-on 13](../../../hands-on/13/review/index.md) aponta o `UPDATE inventory.hold` no `OrderService` como um bloqueador de arquitetura de alta confiança, citando a regra e explicando a consequência (uma reserva confirmada depois de expirada, acoplamento à tabela de outro serviço). O time então adiciona a verificação determinística: um papel (role) do PostgreSQL separado por serviço, para que o mesmo erro falhe nos testes de integração mesmo que todos os revisores deixem passar.
+    O `UPDATE inventory.hold` no `OrderService` — o achado do JSON acima — é o caso `02-cross-schema` do [golden set do revisor no hands-on 13](../../../hands-on/13/security/index.md). Com o `CONVENTIONS.md` no contexto, o revisor o encontrou nas execuções que o lab mostra, com o modelo local e com o Claude; mas uma execução posterior do pequeno modelo local o deixou passar. Um revisor é uma probabilidade, então o time adiciona a verificação determinística: um papel (role) do PostgreSQL separado por serviço, para que o mesmo erro falhe nos testes de integração mesmo que todos os revisores deixem passar.
 
 ---
 
 !!! tip "Na entrevista"
 
     Quando pedirem para você projetar um revisor de código com IA, diga cedo que **precisão vale mais que recall** para tudo o que fala com humanos, e mostre como você vai *medi-la* (golden set para o recall, aceitos/avaliados para a precisão). Descreva o contexto (diff + convenções + ADRs + código relacionado por busca de símbolos), os achados estruturados, o filtro (linhas alteradas, severidade, confiança, dedup, teto) e a implantação (sombra → consultivo → gate por categoria). Mencione que regras de arquitetura devem ser **verificações determinísticas primeiro**, com a IA como quem explica.
+
+!!! success "Boas práticas"
+
+    - **Comece em modo sombra** — registre os achados por duas semanas e compare-os com as revisões humanas antes de publicar qualquer coisa.
+    - **Versione o contexto do revisor junto com o código** — o `CONVENTIONS.md` e os ADRs vivem no repositório e mudam por pull request; o [revisor do lab 13](../../../hands-on/13/review/index.md) os carrega como o seu prefixo estável, que vai para o cache.
+    - **Colete uma reação em todo comentário** — um 👍/👎 por achado dá a precisão por categoria sem custo; todo comentário do lab 13 pede um.
+    - **Limite os comentários por PR e publique primeiro os mais graves** — o lab 13 publica no máximo 6 (`AI_REVIEW_MAX_COMMENTS`).
+    - **Elimine achados duplicados entre pushes** — o mesmo problema não pode ser publicado de novo a cada push; o lab 13 guarda uma impressão digital de cada achado no comentário.
 
 !!! warning "Armadilhas comuns"
 
@@ -231,7 +247,7 @@ O melhor projeto combina os dois: regras determinísticas **bloqueiam**, porque 
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     PR["pull request event"] --> CTX["context: diff, conventions,<br/>ADRs, symbol search"]
     CTX --> RET["retrieval<br/>→ AI systems RAG & Memory"]

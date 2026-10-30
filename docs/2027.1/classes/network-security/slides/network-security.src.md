@@ -120,6 +120,63 @@ Layers are **independent**: when one fails, the next still holds.
 
 ---
 
+## How a packet crosses the Internet
+
+- A request is an **IP packet**: routers read only the **destination IP**, never the URL.
+- Tens of thousands of networks (**AS**) announce their blocks with **BGP**.
+- Every router: **longest prefix match** → next hop; 10–20 hops; the time is **distance**.
+- The core has **no default route**: an address nobody announces is dropped.
+
+<div class="q">
+
+Why can't a fan reach the `payment` pod at `10.20.40.17`, even with every firewall open?
+
+</div>
+
+* `10.20.40.17` is **private**: nobody announces it, so the first core router has no route and drops it.
+
+<!-- The page "How the Internet works" has the packet-walk simulator: run "A fan tries a pod directly". -->
+
+---
+
+<!-- _class: tight -->
+
+## Public, private, and the CIDR math
+
+| Block | Kind | Routed on the Internet? | Where |
+|---|---|---|---|
+| `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16` | private (RFC 1918) | no | VPC `10.20.0.0/16`, Docker, home Wi-Fi |
+| `100.64.0.0/10` | carrier NAT (CGNAT) | no | your phone on 4G |
+| `169.254.0.0/16` | link-local | no | metadata service: credentials! |
+| everything else | **public** | **yes** | the load balancer and the NAT gateway |
+
+- `/n` fixes the first *n* bits: the block has **2³²⁻ⁿ** addresses; each extra bit **halves** it.
+- `10.20.32.0/19` = 8 192 addresses: `10.20.32.0` – `10.20.63.255`.
+
+<div class="warn">
+
+Private is about **reachability**, not trust: anything inside the network still reaches it.
+
+</div>
+
+---
+
+## NAT: many private hosts, one public address
+
+- Source NAT rewrites `10.20.40.17:51000` → `203.0.113.20:62001` and writes it in a **table**.
+- Replies match the table; a **new inbound connection** matches nothing → dropped.
+- The server sees the **NAT's IP**: thousands of fans behind one carrier IP.
+- A NAT gives a **fixed egress IP** → the payment provider's allow-list.
+- Destination NAT publishes a private service: load balancer, cloud IGW, Docker `ports:`.
+
+<div class="ok">
+
+Rate-limit **per API key or user**, not per IP: behind CGNAT one IP is a whole neighbourhood.
+
+</div>
+
+---
+
 ## The VPC: your network in the cloud
 
 - **Region** → several **AZs** (independent data centers).
@@ -269,92 +326,6 @@ spec:
 Retries in the library (3) × retries in the mesh (3) = **9 calls** per click on a struggling `payment`. Retry in **one** layer, and only idempotent calls.
 
 </div>
-
----
-
-## Sessions vs tokens
-
-| | Server-side session | JWT access token |
-|---|---|---|
-| Client holds | random id | signed claims |
-| Validation | lookup (Redis) | signature, locally |
-| Revocation | immediate | only at `exp` |
-| Scaling | shared store | stateless |
-
-<div class="q">
-
-Tokens live 15 min, validated locally. Refresh revoked at 14:05, last token issued 13:58. Until when can a thief call?
-
-</div>
-
-* **14:13** — the exposure window is one token lifetime. Shorter tokens, introspection or DPoP shrink it.
-
----
-
-## OAuth 2.1 in one slide
-
-- **Delegated authorization**: the client gets a limited, short-lived token; it **never sees the password**.
-- Roles: resource owner · client (public / confidential) · authorization server · resource server.
-- **PKCE for every** authorization-code client; **Implicit and ROPC removed**.
-- **Exact** redirect-URI matching; no tokens in URLs; refresh tokens **rotated** or sender-constrained.
-- Grants: **Auth Code + PKCE** (users) · **Client Credentials** (jobs) · **Device** (TVs) · **Token Exchange** (delegation).
-
----
-
-## The mobile app: Authorization Code + PKCE
-
-1. App creates `code_verifier`; sends `code_challenge = S256(verifier)` + `state` + `nonce`.
-2. **System browser** opens `/authorize`; user logs in at `auth` (MFA / passkey).
-3. Redirect brings back a one-time **code**; app checks `state`.
-4. App posts `code` + `code_verifier` to `/token`; server compares hashes.
-5. Gets **access** (15 min) + **refresh** (rotating) + **ID** token.
-6. Gateway verifies the JWT **locally** (JWKS): signature, `iss`, `aud`, `exp`, scope.
-
-<div class="ok">
-
-A stolen code is useless without the verifier. The password never touches BoxOffice code.
-
-</div>
-
----
-
-## OIDC and validating a JWT
-
-<div class="cols">
-<div>
-
-**OIDC adds**
-- `openid` scope
-- **ID token** for the *client*
-- UserInfo endpoint
-- discovery: `/.well-known/openid-configuration`
-- web: a **BFF** keeps tokens, browser gets an `HttpOnly` cookie
-
-</div>
-<div>
-
-**Validate (RFC 8725)**
-- allow-listed `alg`, key by `kid`
-- `iss` = our provider
-- `aud` = **this** API
-- `exp` / `nbf`, small skew
-- `typ` = `at+jwt`, scopes
-
-</div>
-</div>
-
----
-
-## Authorization models
-
-| Model | Decides by | BoxOffice |
-|---|---|---|
-| **RBAC** | roles | `organizer` creates events |
-| **ABAC** | attributes + context | refund only > 48 h before the show |
-| **ReBAC** | relationships | Bruno sees the ticket Ana shared |
-
-- Scopes limit the **client**; ownership limits the **user** → BOLA check in `order`.
-- Policy as code: **OPA / Rego**, **Cedar**, OpenFGA.
 
 ---
 

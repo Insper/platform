@@ -15,6 +15,13 @@ the same second hit every service at once. This lab replaces that coupling with 
 [messaging class](../../classes/messaging/index.md): **events on a log**, **at-least-once delivery
 handled with idempotency**, and **queues that absorb a spike**.
 
+It builds chapter 8 of the [story of the course](../../index.md#story). The decisions you implement are
+argued in the class: [synchronous vs asynchronous](../../classes/messaging/index.md#sync-vs-async),
+the [transactional outbox](../../classes/messaging/patterns/index.md#transactional-outbox),
+[idempotent consumers](../../classes/messaging/semantics/index.md#idempotent-consumers),
+[retries and dead letters](../../classes/messaging/semantics/index.md#dlq) and the
+[flash-sale waiting room](../../classes/messaging/queues-pubsub/index.md#the-flash-sale-waiting-room).
+
 ## Slides
 
 <div class="slides-embed">
@@ -161,6 +168,14 @@ it in your repository: it is part of the deliverable.
 | `docker compose exec kafka …` fails with `service "kafka" is not running` | the broker was stopped in an experiment | `docker compose start kafka` |
 | Build fails with `Could not resolve dependencies` | no Internet access during `docker compose build` | retry with network; Maven downloads once and caches (`--mount=type=cache`) |
 | Apple Silicon: `no matching manifest for linux/arm64` | an image without an arm64 variant | all images of this lab are multi-arch; check you typed the tags exactly |
+
+!!! success "Best practices in this lab"
+
+    - **Write the event in the same transaction as the business change** — `OrderService.java` calls `Outbox.append` (which refuses to run outside a transaction) and `OutboxRelay.java` publishes after the commit. Why: [transactional outbox](../../classes/messaging/patterns/index.md#transactional-outbox).
+    - **Make the consumer idempotent in its own database** — `NotificationService.java` inserts the `eventId` into `processed_events` (`V1__create_notification.sql`) in the same transaction as the e-mail row. Why: [idempotent consumers](../../classes/messaging/semantics/index.md#idempotent-consumers).
+    - **Bound the retries and keep poison messages for inspection** — `KafkaConfig.java` (3 retries, then `order-events-dlt`; parse errors not retried) and `DeadLetterListener.java` (the `dead_letters` table). Why: [retries and dead letter queues](../../classes/messaging/semantics/index.md#dlq).
+    - **Create topics explicitly and produce durably** — `docker-compose.yaml` (`kafka-init`, auto-creation off) and `services/order/src/main/resources/application.yaml` (`acks: all`, `enable.idempotence: true`). Why: [replication and durability](../../classes/messaging/kafka/index.md#replication-and-durability).
+    - **Admit the crowd at a configured, measured rate, in an order the server decides** — `WaitingRoom.java` (`INCR` sequence, `ADMIT_PER_SECOND`). Why: [the flash-sale waiting room](../../classes/messaging/queues-pubsub/index.md#the-flash-sale-waiting-room).
 
 ## Clean up
 

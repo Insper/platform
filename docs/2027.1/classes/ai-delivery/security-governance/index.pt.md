@@ -4,9 +4,9 @@ A IA no pipeline acrescenta um componente que **lê texto não confiável e segu
 
 ---
 
-## Modelo de ameaças
+## Modelo de ameaças { #threat-model }
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     att([Atacante]) -->|"título do PR · descrição · diff · comentário no código"| ctx["Contexto de uma etapa de IA"]
     att -->|"issue · mensagem de commit · linha de log do CI"| ctx
@@ -31,7 +31,7 @@ Cada seta é um ponto de corte. A **tríade letal (lethal trifecta)** de Simon W
 
 ---
 
-## Prompt injection no pipeline
+## Prompt injection no pipeline { #prompt-injection-in-the-pipeline }
 
 A prompt injection **direta** vem do usuário da IA; a injeção **indireta** chega dentro do conteúdo que a IA processa — e, em um pipeline, quase tudo é conteúdo escrito por outra pessoa[^3]:
 
@@ -44,7 +44,7 @@ A prompt injection **direta** vem do usuário da IA; a injeção **indireta** ch
 | Logs do CI | O que quer que o build e os testes imprimam | Agente de correção, triagem de flaky |
 | READMEs e changelogs de dependências, páginas web | Terceiros | Agentes de upgrade, qualquer coisa com acesso à web |
 
-Não existe filtro confiável que remova injeções de um texto: o atacante escreve em linguagem natural, em qualquer idioma, em comentários, base64 ou truques de Unicode. Delimitar os dados não confiáveis e instruir o modelo a ignorar as instruções contidas neles **ajuda** — o revisor do [hands-on 13](../../../hands-on/13/security/index.md) apontou as duas tentativas de injeção do seu golden set —, mas é uma mitigação medida numa amostra, não uma garantia. Os controles que se sustentam **mesmo quando o modelo é enganado** são arquiteturais:
+Não existe filtro confiável que remova injeções de um texto: o atacante escreve em linguagem natural, em qualquer idioma, em comentários, base64 ou truques de Unicode. Delimitar os dados não confiáveis e instruir o modelo a ignorar as instruções contidas neles **ajuda** — com o Claude, o revisor do [hands-on 13](../../../hands-on/13/security/index.md) apontou as duas tentativas de injeção do seu golden set; o pequeno modelo local não apontou nenhuma —, mas é uma mitigação medida numa amostra, não uma garantia. Os controles que se sustentam **mesmo quando o modelo é enganado** são arquiteturais:
 
 1. **Limites de capacidade**: o token, as ferramentas e a rede da etapa só podem fazer coisas inofensivas (postar um comentário, propor um patch).
 2. **Saídas estruturadas** consumidas por código que decide a ação (um evento `COMMENT`, nunca `APPROVE`).
@@ -56,7 +56,7 @@ O incidente de 2025 em que uma instrução maliciosa para apagar arquivos foi in
 
 ---
 
-## Segurança de workflows: os erros clássicos, amplificados
+## Segurança de workflows: os erros clássicos, amplificados { #workflow-security-the-classic-mistakes-amplified }
 
 Workflows de IA precisam de chaves de API e muitas vezes de acesso de escrita, o que torna as armadilhas conhecidas do GitHub Actions mais perigosas[^5]:
 
@@ -69,9 +69,17 @@ Workflows de IA precisam de chaves de API e muitas vezes de acesso de escrita, o
 | Segredos no nível do workflow | Todos os passos, inclusive o build de código não confiável, os enxergam | Segredos só no passo que precisa deles |
 | Chaves de nuvem de longa duração em segredos | Roubadas uma vez, válidas por meses | Federação OIDC para credenciais de curta duração |
 
+!!! example "No código do BoxOffice: o workflow do revisor, endurecido (lab 13)"
+
+    O workflow do [hands-on 13](../../../hands-on/13/security/index.md) aplica a tabela linha por linha: o gatilho `pull_request` (não `pull_request_target`), para que o código de um fork nunca rode com segredos — e o job é pulado para rascunhos e forks de qualquer forma; `permissions:` limitadas a ler o código e escrever a revisão; actions fixadas num SHA de commit; `persist-credentials: false`, para que nenhum token fique no `.git/config` ao alcance do código; e o título e a descrição do PR são lidos pelo `review.py` do arquivo do evento, nunca interpolados com `${{ }}` numa linha de shell.
+
+    ``` { .yaml title=".github/workflows/ai-review.yaml (trigger, permissions, job guard)" }
+    --8<-- "docs/2027.1/hands-on/13/code/.github/workflows/ai-review.yaml:3:29"
+    ```
+
 ---
 
-## Segredos e exfiltração
+## Segredos e exfiltração { #secrets-and-exfiltration }
 
 Suponha que tudo o que o agente consegue ler, ele pode ser induzido a escrever em algum lugar. Os canais de exfiltração no CI incluem: comentários em PRs e issues, conteúdo de commits, nomes de branches, upload de artefatos, logs (o mascaramento só cobre os valores exatos dos segredos, não codificações), consultas DNS e requisições HTTP feitas pelo build, e tags de imagens enviadas a um registry.
 
@@ -83,7 +91,7 @@ Suponha que tudo o que o agente consegue ler, ele pode ser induzido a escrever e
 
 ---
 
-## Slopsquatting: dependências que não existem
+## Slopsquatting: dependências que não existem { #slopsquatting-dependencies-that-do-not-exist }
 
 Modelos de código às vezes recomendam pacotes que **não existem**. Um estudo do USENIX Security 2025 com 16 modelos de geração de código e 576.000 amostras geradas encontrou nomes de pacotes alucinados em pelo menos 5,2% dos casos, em média, nos modelos comerciais e em 21,7% nos modelos de código aberto, com mais de 200.000 nomes inventados distintos — muitos deles repetidos entre execuções[^6]. Nomes repetidos são uma oportunidade para atacantes: publicar um pacote malicioso com um nome frequentemente alucinado e esperar. O ataque ganhou o apelido de **slopsquatting**.
 
@@ -96,7 +104,7 @@ Controles, todos determinísticos:
 
 ---
 
-## Cadeia de suprimentos: a proveniência do que você entrega — e de quem o escreveu
+## Cadeia de suprimentos: a proveniência do que você entrega — e de quem o escreveu { #supply-chain-provenance-of-what-you-ship-and-of-who-wrote-it }
 
 A [aula de Rede e segurança](../../network-security/index.md) apresenta a segurança da cadeia de suprimentos; a IA acrescenta perguntas sobre **quem escreveu** o código que você entrega. Os blocos de construção:
 
@@ -113,7 +121,7 @@ Rotular mudanças escritas por IA não é questão de culpa; é questão de **au
 
 ---
 
-## Política como código
+## Política como código { #policy-as-code }
 
 Regras que vivem numa wiki são sugestões; regras que rodam no CI são política. O **Open Policy Agent** (OPA) e sua CLI para arquivos de configuração, o **Conftest**, avaliam políticas escritas em Rego contra YAML, JSON, Dockerfiles ou manifestos do Kubernetes[^8]. A política abaixo verifica os workflows do GitHub do próprio repositório — as regras desta página, impostas em todo PR:
 
@@ -158,7 +166,7 @@ O mesmo mecanismo expressa regras de governança de IA: "PRs rotulados `ai-gener
 
 ---
 
-## Licenciamento, propriedade intelectual e privacidade
+## Licenciamento, propriedade intelectual e privacidade { #licensing-intellectual-property-and-privacy }
 
 **Licenciamento e PI.** Modelos treinados em código público podem ocasionalmente reproduzir fragmentos reconhecíveis de código licenciado. Alguns assistentes oferecem filtros que bloqueiam sugestões que coincidem com código público, e alguns provedores oferecem indenizações contratuais — os termos variam por fornecedor e por plano, então confira os seus. A possibilidade de proteger por direito autoral uma saída gerada puramente por IA também está indefinida em várias jurisdições (o relatório de 2025 do U.S. Copyright Office exige autoria humana significativa). Regras práticas: rode verificação de licenças nas dependências **e** no código gerado quando isso importar, mantenha humanos como autores responsáveis por meio da revisão e não use IA em código que você não tem permissão para compartilhar com o provedor.
 
@@ -166,7 +174,7 @@ O mesmo mecanismo expressa regras de governança de IA: "PRs rotulados `ai-gener
 
 ---
 
-## Governança de custos
+## Governança de custos { #cost-governance }
 
 O gasto com IA no pipeline é fácil de começar e fácil de perder de vista — especialmente com agentes, cujo custo cresce com o número de turnos. Trate-o como qualquer custo de nuvem ([FinOps](../../cloud-native/finops/index.md)):
 
@@ -193,9 +201,17 @@ As ferramentas de IA mudam sem você perceber: o provedor lança um novo modelo,
 
 O LLM como juiz pode escalar a avaliação, com seus vieses conhecidos ([Segurança, avaliações e observabilidade](../../ai-systems/safety-evals/index.md)); calibre-o contra rótulos humanos antes de confiar nele.
 
+!!! example "No código do BoxOffice: o eval de regressão do revisor (lab 13)"
+
+    O `eval_review.py` roda o revisor nos cinco casos do [hands-on 13](../../../hands-on/13/security/index.md) e falha abaixo de 80% de recall ou quando um caso de injeção não é apontado. Os dois modelos que o lab comparou mostram por que ele existe: o Claude passou nos cinco casos; o `qwen2.5-coder-16k` local teve recall de 50% e perdeu os dois casos de injeção — e uma execução posterior teve 25%. O eval não melhora o modelo pequeno; ele diz, com um número, que esse modelo **não pode servir de portão para nada**.
+
+    ``` { .python title=".github/ai/eval_review.py (matching and the gate)" }
+    --8<-- "docs/2027.1/hands-on/13/code/.github/ai/eval_review.py:28:29,40:58"
+    ```
+
 ---
 
-## Política organizacional: o que este curso permite
+## Política organizacional: o que este curso permite { #organizational-policy-what-this-course-allows }
 
 Um time precisa de uma política curta e escrita, para que cada pessoa não invente a sua. Esta é a deste curso — adapte-a para o time do seu projeto:
 
@@ -214,6 +230,14 @@ Um time precisa de uma política curta e escrita, para que cada pessoa não inve
 
     Para qualquer projeto com um componente de IA que lê texto externo, enuncie a **tríade letal** e mostre onde você a quebra. Separe as mitigações que dependem do modelo (delimitadores, instruções) dos controles que não dependem (permissões, saídas estruturadas, separação de privilégios, aprovação humana). Mencione a integridade da cadeia de suprimentos (SBOM, assinatura, proveniência), o slopsquatting e como você **avaliaria** a ferramenta de IA continuamente (golden set + avaliação de regressão + precisão online).
 
+!!! success "Boas práticas"
+
+    - **Declare `permissions:` em todo workflow e job, só leitura por padrão** — o [`ai-review.yaml`](../../../hands-on/13/security/index.md) do lab 13 pede `contents: read` e `pull-requests: write`, nada mais.
+    - **Fixe actions de terceiros num SHA de commit completo** — uma tag pode ser movida; toda action do lab 13 é fixada, com a versão num comentário.
+    - **Passe dados do evento por arquivos ou `env:`, nunca `${{ }}` dentro de `run:`** — o `review.py` lê o PR de `GITHUB_EVENT_PATH`.
+    - **Dê a toda chave de modelo um dono e um limite de gasto** — uma chave vazada custa então no máximo o seu limite, e alguém é acionado quando ele é atingido.
+    - **Rode o eval do revisor sempre que o prompt, as convenções ou o modelo mudarem** — o `ai-eval.yaml` do lab 13 roda em mudanças de `.github/ai/**`, `CONVENTIONS.md` e `docs/adr/**`.
+
 !!! warning "Armadilhas comuns"
 
     - **"O prompt manda não fazer"** como controle de segurança.
@@ -226,7 +250,7 @@ Um time precisa de uma política curta e escrita, para que cada pessoa não inve
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     UN["untrusted text: PR title,<br/>issues, diffs, packages"] --> STEP["AI step in CI"]
     SEC["secrets and<br/>write tokens"] --> STEP

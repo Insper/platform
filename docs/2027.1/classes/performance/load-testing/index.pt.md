@@ -4,7 +4,7 @@ Todos os exemplos usam o **k6** (Grafana Labs), a ferramenta de testes de carga 
 
 ---
 
-## Anatomia de um teste k6
+## Anatomia de um teste k6 { #anatomy-of-a-k6-test }
 
 Um script k6 tem uma parte de **init** (imports, dados, `options`), um `setup()` opcional que roda uma vez, o **código do VU** (a função default ou uma função nomeada por cenário) que roda muitas vezes, e um `teardown()` opcional. Os testes do BoxOffice compartilham um módulo com os fluxos de usuário, então cada tipo de teste abaixo é só uma *forma de carga* diferente sobre o mesmo comportamento:
 
@@ -70,14 +70,14 @@ Três detalhes deste módulo evitam os erros de relatório mais comuns:
 
 ---
 
-## Modelos de carga aberto vs fechado
+## Modelos de carga aberto vs fechado { #open-vs-closed-workload-models }
 
 Esta é a decisão de projeto mais importante de um teste de carga[^2].
 
 - Em um **modelo fechado**, uma população fixa de N usuários fica em laço: envia uma requisição, **espera a resposta**, pensa por Z segundos, repete. Uma nova requisição só é enviada quando uma anterior terminou. A vazão é uma *consequência*: pela lei do tempo de resposta interativo, $X = N / (R + Z)$.
 - Em um **modelo aberto**, as requisições chegam a uma taxa λ **independente de quão rápido o sistema responde** — como fãs na internet, que não se coordenam entre si nem esperam as requisições de estranhos terminarem. Se o sistema fica lento, as requisições continuam chegando e a fila cresce.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant C as Fechado: 1 usuário virtual
     participant S as BoxOffice (fase lenta)
@@ -107,7 +107,7 @@ O teste fechado **reduziu a carga em 63 % no momento em que o sistema sofria** �
 | O número de clientes é fixo e cada um espera sua resposta: um job batch de parceiro com 20 workers, atendentes de call center, um pool de consumidores de tamanho fixo | Os clientes são independentes e numerosos: usuários de internet, apps móveis, webhooks, outros serviços que te chamam no próprio ritmo |
 | Você quer saber "quantas sessões concorrentes conseguimos sustentar?" | Você quer saber "conseguimos sustentar esta taxa de chegada dentro do SLO?" |
 
-### Executors do k6
+### Executors do k6 { #k6-executors }
 
 | Executor | Modelo | Parâmetros | Uso típico |
 |---|---|---|---|
@@ -120,9 +120,17 @@ O teste fechado **reduziu a carga em 63 % no momento em que o sistema sofria** �
 
 Nos executors de taxa de chegada, os VUs são só os *trabalhadores* que executam as iterações. O k6 precisa de VUs suficientes para manter o cronograma — Lei de Little de novo: **VUs necessários ≈ taxa de chegada × duração da iteração**. Uma iteração de `hold()` leva cerca de 3 s (duas requisições mais o think time); a 500 iterações/s você precisa de ~1 500 VUs. Se o k6 ficar sem VUs, não consegue iniciar as iterações no horário e as conta na métrica **`dropped_iterations`** — que precisa ser zero, senão seu teste "aberto" virou silenciosamente um teste fechado.
 
+!!! example "No código do BoxOffice: um teste de carga de modelo aberto (lab 2)"
+
+    Os scripts desta página modelam a campanha completa da venda; o [Hands-on 2 — Medir primeiro](../../../hands-on/2/index.md) começa com um serviço. O `load.js` dele envia `RATE` requisições por segundo ao `catalog` com `constant-arrival-rate`, qualquer que seja a latência, com uma mistura 80/20 de páginas de evento e listagens por cidade. Repare no dimensionamento dos VUs: `preAllocatedVUs` cobre a taxa quando as requisições são rápidas, e `maxVUs` deixa o k6 acrescentar trabalhadores quando elas ficam lentas — quando até esses acabam, aparece `dropped_iterations`, que o lab lê como o sinal de que o joelho foi ultrapassado. Os thresholds são por endpoint (`name:detail`, `name:list`), como na tabela abaixo.
+
+    ``` { .javascript title="load/load.js (the open-model options)" }
+    --8<-- "docs/2027.1/hands-on/2/code/load/load.js:14:31"
+    ```
+
 ---
 
-## Thresholds: SLOs como critérios de aprovação
+## Thresholds: SLOs como critérios de aprovação { #thresholds-slos-as-passfail-criteria }
 
 Um threshold transforma uma métrica em um veredito; o k6 termina com código diferente de zero quando um falha, e é isso que permite a um pipeline usá-lo como gate. Escreva os SLOs do [modelo de carga](../methodology/index.md#workload-model) como thresholds, **por endpoint**:
 
@@ -139,7 +147,7 @@ Thresholds de percentis são avaliados sobre toda a execução do teste (ou sobr
 
 ---
 
-## Os seis tipos de teste
+## Os seis tipos de teste { #the-six-test-types }
 
 Cada tipo responde a uma pergunta diferente. Suas formas de carga, em relação ao pico esperado:
 
@@ -193,7 +201,7 @@ plt.close()
 | **Soak** (resistência) | Ele continua saudável por horas — vazamentos, crescimento, degradação lenta? | ~Carga média diária | 4–24 h | Tendências planas de memória, latência e erros |
 | **Breakpoint** | Onde está o joelho e onde está o ponto de ruptura? Qual recurso quebra primeiro? | Rampa contínua muito acima do pico | Até abortar | Não é aprovado/reprovado: o resultado é o número de capacidade |
 
-### Teste smoke
+### Teste smoke { #smoke-test }
 
 O teste smoke é a verificação "isso pelo menos roda?" — rode-o depois de cada mudança no script ou no sistema, e como primeiro passo na CI. Um modelo fechado com um ou dois VUs serve aqui.
 
@@ -216,7 +224,7 @@ export default function () {
 }
 ```
 
-### Teste load
+### Teste load { #load-test }
 
 O teste load é o veredito principal: o mix realista, na taxa de chegada do pico esperado, por tempo suficiente para atingir o regime permanente. Cada fluxo ganha o próprio cenário **aberto** com sua fatia da taxa, de modo que o mix continua certo mesmo quando um endpoint fica lento.
 
@@ -265,7 +273,7 @@ export const options = {
 
 As fatias são de *iterações*; como `hold()` faz duas requisições, calibre as fatias para que o mix de *requisições* resultante corresponda ao modelo de carga (o resumo do k6 ao fim do teste mostra as requisições por `name`).
 
-### Teste stress
+### Teste stress { #stress-test }
 
 O teste stress vai além do pico esperado em degraus, mantém cada degrau tempo suficiente para observar e depois volta, para ver se o sistema **se recupera sozinho**. O resultado interessante não é "aprovado/reprovado", e sim *como* ele falha:
 
@@ -300,7 +308,15 @@ export const options = {
 };
 ```
 
-### Teste spike
+!!! example "No código do BoxOffice: um teste de stress que volta a descer (lab 2)"
+
+    O [Hands-on 2](../../../hands-on/2/index.md) roda o mesmo formato no `catalog`: degraus de 25 %, 50 %, 75 % e 100 % do `PEAK`, o pico mantido por um minuto, e depois uma queda para 25 % por mais um minuto. Os dois últimos estágios são o objetivo do teste: o lab pergunta quantos segundos o p95 leva para voltar ao normal depois da queda. Um serviço que se recupera sozinho é estável; um que continua lento precisa de descarte de carga (labs 3 e 9). O threshold de 2 s no p99 não julga o pico — só sinaliza uma execução que nunca se recuperou.
+
+    ``` { .javascript title="load/stress.js (the staircase and back down)" }
+    --8<-- "docs/2027.1/hands-on/2/code/load/stress.js:13:38"
+    ```
+
+### Teste spike { #spike-test }
 
 O teste spike reproduz as 10:00:00: de uma base tranquila a acima do pico em segundos. Ele exercita exatamente o que o teste load não consegue — atraso do autoscaling, caches frios, tempestades de conexões contra o banco e a sala de espera.
 
@@ -333,9 +349,9 @@ export const options = {
 
 Rode-o duas vezes — com o autoscaler no mínimo normal e com **pré-escala** — e compare os dois primeiros minutos. A diferença é o argumento a favor da pré-escala (veja [Kubernetes — autoscaling](../../cloud-native/kubernetes/index.md)).
 
-Experimente: o cenário abaixo é a venda do BoxOffice — uma sala de espera (fila) na frente do `inventory`, assentos no SQL, pagamento por um provedor externo — pré-carregado com o perfil **spike**. Rode-o como está, depois remova ou contorne a fila (ou aumente sua taxa de admissão) e rode de novo. Compare o p99 das reservas, a utilização do banco e a taxa de erros. Para onde vai a carga excedente em cada caso?
+Experimente: o cenário abaixo é uma venda relâmpago como a do BoxOffice, e o perfil `load` dele já contém o pico: um evento roteirizado em t = 60 s (*abre a venda*) multiplica o tráfego por 20 por 90 s (não escolha o perfil `spike` por cima — ele multiplicaria por 5 de novo). O desenho inicial não tem sala de espera: `users → lb → app → inventory-db`, com os compradores chamando o `payment provider`. Rode e veja para onde vai a carga excedente: o `app` satura e a rejeita (erros), e o p99 explode. Depois abra no playground completo (↗), aperte **Mostrar uma solução possível** (CDN, cache do catálogo e uma fila de sala de espera drenada por workers `order`) e rode de novo. Compare o p99, a taxa de erros e a utilização do `inventory-db`: o excedente agora espera na fila — o atraso do consumidor — em vez de falhar.
 
-<div class="sdp" data-scenario="flash-sale" data-mode="compact" data-profile="spike" data-height="560"></div>
+<div class="sdp" data-scenario="flash-sale" data-mode="compact" data-height="560"></div>
 
 ### Teste soak { #soak-test }
 
@@ -369,7 +385,7 @@ Um teste soak é lido como **tendências**, não totais: o p99 na hora 8 vs na h
 deriv(jvm_memory_used_bytes{service="inventory", area="heap", id=~".*Old Gen"}[1h])
 ```
 
-### Teste breakpoint
+### Teste breakpoint { #breakpoint-test }
 
 O teste breakpoint (de capacidade) aumenta a taxa de chegada continuamente, muito além do pico esperado, e se interrompe sozinho quando o sistema claramente quebra. Seu resultado é um número: o **joelho** (a maior taxa em que o SLO ainda vale) e o **ponto de ruptura** — mais o nome do recurso que saturou primeiro.
 
@@ -398,7 +414,7 @@ Nunca rode um teste breakpoint contra a produção, e sempre observe o **gerador
 
 ---
 
-## Omissão coordenada
+## Omissão coordenada { #coordinated-omission }
 
 A omissão coordenada (*coordinated omission*) é o erro de medição que fez o teste do ano passado mentir[^3]. Ela acontece sempre que o gerador de carga **espera uma resposta antes de enviar a próxima requisição** e mede a latência **a partir do momento em que de fato enviou a requisição**. Quando o servidor trava, o testador para de enviar — então ele *omite* exatamente as requisições que teriam sofrido o travamento, em *coordenação* com o mau comportamento do servidor. As poucas amostras que ele registra durante o travamento se afogam entre milhares de rápidas.
 
@@ -484,7 +500,7 @@ Como evitar:
 
 ---
 
-## Think time e cadência
+## Think time e cadência { #think-time-and-pacing }
 
 Usuários reais fazem pausas entre ações. O **think time** (`sleep()` entre as requisições dentro de uma iteração) torna uma sessão realista; a **cadência** (*pacing*) controla com que frequência uma iteração inteira começa.
 
@@ -494,7 +510,7 @@ Usuários reais fazem pausas entre ações. O **think time** (`sleep()` entre as
 
 ---
 
-## Executando, observando e correlacionando
+## Executando, observando e correlacionando { #running-observing-and-correlating }
 
 Um teste de carga produz dois conjuntos de dados que precisam ser lidos **juntos**: os resultados do lado do cliente (k6) e a telemetria do lado do servidor (métricas, traces, logs, perfis). Coloque-os no mesmo eixo de tempo:
 
@@ -513,7 +529,7 @@ Com o k6 e as métricas OpenTelemetry dos serviços no mesmo Grafana (a stack `g
 
 ---
 
-## Carga e caos juntos
+## Carga e caos juntos { #load-and-chaos-together }
 
 Falhas raramente chegam em uma tarde tranquila; elas chegam no pico, quando retries, timeouts e pools estão todos sob pressão. Testar padrões de resiliência *sem* carga prova pouco: um circuit breaker que nunca viu 2 000 requisições concorrentes não foi testado. Combine um teste de carga com injeção de falhas[^4], cada uma com uma hipótese escrita com antecedência ([Engenharia do caos](../../reliability/chaos/index.md)):
 
@@ -556,13 +572,21 @@ export function disrupt() {
 }
 ```
 
+!!! example "No código do BoxOffice: carga e um provedor lento juntos (lab 9)"
+
+    O [Hands-on 9 — Padrões de resiliência](../../../hands-on/9/patterns/index.md) roda a primeira linha da tabela: o Toxiproxy acrescenta 3 s a toda chamada do `order` ao `payment` enquanto o `pay-under-chaos.js` mantém dois cenários de modelo aberto rodando — 20 pagamentos/s e 20 `GET /orders/{id}`/s. O segundo cenário nunca chama o `payment`; o threshold dele (`browse` p95 < 200 ms) é a hipótese de que a falha fica contida. Na execução de teste do lab, sem proteção, o p50 do `browse` foi **9,04 s**; com timeout, retry, circuit breaker e bulkhead, foi **6,5 ms** ([Meça](../../../hands-on/9/measure/index.md)).
+
+    ``` { .javascript title="load/pay-under-chaos.js (two scenarios, two verdicts)" }
+    --8<-- "docs/2027.1/hands-on/9/code/load/pay-under-chaos.js:13:40"
+    ```
+
 Experimente: o cenário abaixo tem uma dependência de terceiros lenta e chamadores **sem timeouts**, rodando com o perfil **chaos**. Rode-o e observe as threads (ou a concorrência) se acumularem nos chamadores até que requisições não relacionadas também falhem — uma falha em cascata. Depois ative o timeout e o circuit breaker na chamada à dependência e rode de novo: a falha deve ficar contida à funcionalidade que precisa da dependência.
 
 <div class="sdp" data-scenario="cascading-failure" data-mode="compact" data-profile="chaos" data-chaos="medium" data-height="520"></div>
 
 ---
 
-## Do playground às ferramentas reais
+## Do playground às ferramentas reais { #from-the-playground-to-real-tools }
 
 Os perfis de carga do playground são os mesmos seis tipos de teste (mais o caos), aplicados a uma simulação de filas. Use o playground para construir intuição e formular hipóteses rapidamente; confirme-as com ferramentas reais em serviços reais.
 
@@ -580,7 +604,7 @@ O que o playground **simplifica**: ele modela capacidade, tempos de serviço, fi
 
 ---
 
-## Outras ferramentas
+## Outras ferramentas { #other-tools }
 
 Todas as ferramentas abaixo conseguem expressar os seis tipos de teste; elas diferem na linguagem de script, no suporte ao modelo aberto, na distribuição e nos relatórios[^5].
 
@@ -662,6 +686,14 @@ Todas as ferramentas abaixo conseguem expressar os seis tipos de teste; elas dif
 
     Duas frases sinalizam experiência real: "Eu usaria um teste de **modelo aberto** — taxa de chegada, não usuários virtuais — porque fãs não esperam uns pelos outros; um modelo fechado recua quando o sistema fica lento e esconde a fila (**omissão coordenada**)." e "Os thresholds são os **SLOs por endpoint**, e eu rodaria testes load, spike e breakpoint: o load para o veredito, o spike para o atraso do autoscaling e a sala de espera, o breakpoint para o joelho e a folga."
 
+!!! success "Boas práticas"
+
+    - **Compartilhe um módulo de fluxos de usuário e varie só o formato da carga** — smoke, load, stress, spike e breakpoint passam a diferir só em *quanto* e *quando*, e os resultados ficam comparáveis.
+    - **Dimensione os VUs com a Lei de Little antes da execução** — `preAllocatedVUs` ≈ taxa × duração da iteração, `maxVUs` algumas vezes isso, para que uma lentidão seja absorvida em vez de virar um teste fechado. No BoxOffice: o `load/load.js` do [lab 2](../../../hands-on/2/index.md).
+    - **Dê a todo teste acima do pico uma fase de recuperação, e meça o tempo para recuperar** — a volta à carga normal é onde se descobre se o sistema é estável. No BoxOffice: os dois últimos estágios do `load/stress.js` ([lab 2](../../../hands-on/2/index.md)).
+    - **Escreva a hipótese de uma execução de caos como um threshold sobre o tráfego que *não* deveria sofrer** — a falha está contida quando a rota não afetada mantém seu SLO. No BoxOffice: `browse` p95 < 200 ms no `load/pay-under-chaos.js` ([lab 9](../../../hands-on/9/patterns/index.md)).
+    - **Marque cada execução e envie o k6 para o mesmo backend de métricas dos serviços** — `--tag testid=…` permite achar, comparar e anotar uma execução nos mesmos dashboards dos serviços meses depois.
+
 !!! warning "Armadilhas"
 
     - **Modelo fechado para tráfego de internet**: a vazão cai exatamente quando a latência sobe; o teste é mais gentil que a realidade.
@@ -676,7 +708,7 @@ Todas as ferramentas abaixo conseguem expressar os seis tipos de teste; elas dif
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     SLO["SLOs per endpoint"] --> THR["k6 thresholds:<br/>pass or fail"]
     WM{"workload model"} -->|"open: arrival rate"| OPEN["fans do not wait<br/>for each other"]

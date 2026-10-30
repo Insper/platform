@@ -2,7 +2,7 @@ O negócio faz uma pergunta simples: "Podemos abrir a venda do show no estádio 
 
 ---
 
-## De medições a réplicas
+## De medições a réplicas { #from-measurements-to-replicas }
 
 Planejamento de capacidade é aritmética sobre três entradas que você já sabe obter:
 
@@ -15,7 +15,7 @@ $$
 \quad\text{e depois some réplicas para sobreviver à perda de uma zona}
 $$
 
-### A Lei de Little dimensiona tudo o que segura uma requisição
+### A Lei de Little dimensiona tudo o que segura uma requisição { #littles-law-sizes-everything-that-holds-a-request }
 
 Réplicas não são o único recurso. Todo componente que *segura* uma requisição enquanto ela está em andamento — threads, conexões, sockets, VUs, posições de fila — precisa ser dimensionado para a concorrência, e a Lei de Little a dá diretamente: **concorrência = taxa de chegada × tempo em que é segurada**[^1].
 
@@ -26,7 +26,7 @@ Réplicas não são o único recurso. Todo componente que *segura* uma requisiç
 | VUs do k6 para o teste de carga | 1 000 iterações de `hold()`/s | 3,5 s por iteração | 3 500 VUs |
 | Sala de espera | 500 fãs admitidos/s | posição 600 000 na fila | 600 000 / 500 = 1 200 s: uma espera de 20 minutos para mostrar ao fã |
 
-### Um modelo de capacidade para a venda
+### Um modelo de capacidade para a venda { #a-capacity-model-for-the-on-sale }
 
 O modelo abaixo combina as taxas de pico do modelo de carga com os joelhos por pod medidos em testes breakpoint (todos os valores são premissas ilustrativas — troque-os pelas suas medições). Ele planeja operar no máximo a 75 % do joelho e espalha as réplicas por três zonas de disponibilidade, para que a perda de uma zona ainda deixe capacidade suficiente:
 
@@ -82,7 +82,7 @@ O que o modelo diz:
 
 ---
 
-## Folga: por que não operar a 100 % do joelho?
+## Folga: por que não operar a 100 % do joelho? { #headroom-why-not-run-at-100-of-the-knee }
 
 | Motivo para a folga | O que acontece sem ela |
 |---|---|
@@ -97,7 +97,7 @@ Metas típicas operam os serviços entre 50 e 75 % do joelho no pico esperado; o
 
 ---
 
-## Atraso do autoscaling: os minutos que importam
+## Atraso do autoscaling: os minutos que importam { #autoscaling-lag-the-minutes-that-matter }
 
 O autoscaling reage à demanda; ele não a antecipa. Uma linha do tempo aproximada para um serviço JVM no Kubernetes quando o pico começa:
 
@@ -124,7 +124,7 @@ Experimente: o cenário abaixo envia uma rajada a um componente serverless. Rode
 
 ---
 
-## Previsão e a revisão de capacidade
+## Previsão e a revisão de capacidade { #forecasting-and-the-capacity-review }
 
 Planejamento de capacidade não se faz uma vez só. Um processo simples e sustentável:
 
@@ -251,11 +251,31 @@ Dois gates protegem o orçamento: os thresholds **absolutos** em `budget.js` (de
 - **Combata o ruído**: taxa de chegada fixa, passo de aquecimento, o mesmo tipo de runner, e uma repetição automática antes de falhar; um runner self-hosted dedicado reduz ainda mais a variância.
 - **Prefira orçamentos determinísticos** quando possível: uma asserção de contagem de consultas em um teste de integração nunca é instável e pega a regressão mais comum (N+1).
 - **Torne as falhas acionáveis**: publique o resumo, aponte o trace da requisição mais lenta e diga qual endpoint regrediu e quanto.
-- **Rode a campanha completa em outro lugar**: o gate do PR é um alarme de fumaça; os testes load, spike e breakpoint rodam todas as noites ou antes de grandes eventos no ambiente de desempenho. O [Hands-on 11](../../../hands-on/11/index.md) conecta esse gate ao pipeline do BoxOffice.
+- **Rode a campanha completa em outro lugar**: o gate do PR é um alarme de fumaça; os testes load, spike e breakpoint rodam todas as noites ou antes de grandes eventos no ambiente de desempenho.
+
+!!! example "No código do BoxOffice: o gate de orçamento de desempenho (lab 11)"
+
+    O [Hands-on 11 — Gate de desempenho](../../../hands-on/11/performance-gate/index.md) monta uma versão menor deste gate, de propósito: um endpoint (`GET /catalog/events/{id}`), um cenário de aquecimento de 20 s que os thresholds ignoram, depois 40 s a 50 req/s no modelo aberto, só com thresholds **absolutos** — p95 < 300 ms, p99 < 800 ms, falhas < 1 %, checks > 99 %. Ainda sem comparação com uma linha de base: o orçamento é folgado (o lab mediu p95 ≈ 7 ms num laptop) para que só regressões reais falhem, porque um gate que falha ao acaso ensina as pessoas a rodar de novo até ficar verde. Ele roda como o job `performance budget` do `ci.yaml`, e o job da imagem depende dele (`needs`): uma mudança que estoura o orçamento nunca é construída, escaneada nem implantada. O lab prova isso acrescentando um `Thread.sleep` de 400 ms ao endpoint de evento e vendo o `p(95)<300` ficar vermelho.
+
+    ``` { .javascript title="load/budget.js (warm-up, budget, thresholds)" }
+    --8<-- "docs/2027.1/hands-on/11/code/load/budget.js:9:34"
+    ```
+
+    ``` { .yaml title=".github/workflows/ci.yaml (the performance budget job)" }
+    --8<-- "docs/2027.1/hands-on/11/code/.github/workflows/ci.yaml:45:62"
+    ```
 
 !!! tip "Na entrevista"
 
     Feche a parte de capacidade de um design com um cálculo explícito: "Pico de 4 500 reservas/s; um pod sustenta ~275 dentro do SLO; a 75 % do joelho são 22 pods, 33 para sobreviver à perda de uma zona; as conexões pela Lei de Little são 4 500 × 6 ms ≈ 27 ativas, então PgBouncer na frente do primário; o autoscaling leva minutos, então pré-escalamos às 09:45 e a sala de espera admite no máximo o que o banco aguenta." Poucos candidatos conectam **joelho medido → réplicas → folga → controle de admissão**; fazer isso de uma vez é um sinal forte.
+
+!!! success "Boas práticas"
+
+    - **Mantenha o modelo de capacidade como código e rode-o de novo a cada revisão de capacidade** — demanda, joelho por réplica e folga como entradas; uma planilha que ninguém roda de novo vira o plano do trimestre passado.
+    - **Defina a taxa de admissão da sala de espera a partir do joelho do componente mais estreito, e alerte quando a taxa admitida se aproximar dele** — a admissão é o único limite que você escolhe; todos os outros são descobertos.
+    - **Acompanhe o custo por unidade de demanda ao lado da utilização** — USD por mil ingressos vendidos mostra se uma mudança de capacidade valeu a pena. Veja [Cloud-native — FinOps](../../cloud-native/finops/index.md).
+    - **Defina um orçamento a partir de números medidos com margem larga, e aperte-o só depois de observar a tendência** — um gate precisa falhar em regressões, não no ruído do runner. No BoxOffice: p95 < 300 ms contra ~7 ms medidos, no `load/budget.js` do [lab 11](../../../hands-on/11/performance-gate/index.md).
+    - **Torne o orçamento um passo obrigatório antes de a imagem ser construída** — uma mudança que o estoura nunca é escaneada, publicada nem implantada. No BoxOffice: o job da imagem `needs: [test, performance]` no `ci.yaml` ([lab 11](../../../hands-on/11/performance-gate/index.md)).
 
 !!! warning "Armadilhas"
 
@@ -270,7 +290,7 @@ Dois gates protegem o orçamento: os thresholds **absolutos** em `budget.js` (de
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     KNEE["measured knee per pod<br/>← Load testing"] --> REP["replicas = peak ÷<br/>(knee × target utilization)"]
     LL["Little's Law<br/>N = X × R"] --> CONN["threads, connections,<br/>PgBouncer"]

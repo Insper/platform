@@ -21,7 +21,7 @@ Replication does **not** scale writes: every copy must apply every write. For th
 
 One node, the **leader** (primary), accepts all writes. It records each change in its log — the **write-ahead log** (WAL) in PostgreSQL, the binlog in MySQL — and ships the log to **followers** (replicas, standbys), which replay it in the same order. Reads can go to any node[^1].
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     app["catalog service"] -->|"writes"| P[("primary")]
     P -->|"WAL stream"| R1[("replica 1")]
@@ -37,7 +37,7 @@ This is the model of PostgreSQL streaming replication, MySQL replication, SQL Se
 
 The key decision is **when the leader tells the client "committed"**:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant C as Client
     participant P as Primary
@@ -73,7 +73,7 @@ An asynchronous replica is behind the leader by the **replication lag**: usually
 | **Time goes backwards** | refreshes the page: the ticket appears, refreshes again: gone (second read hit a more-lagged replica) | **monotonic reads** |
 | **Effect before cause** | sees the reply "refund approved" before the refund request in a chat thread | **consistent prefix reads** |
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant F as Fan
     participant O as order service
@@ -143,7 +143,20 @@ On a quiet day the bug is invisible; during the on-sale — exactly when the mos
 | **Sticky replica per user** | hash the user to one replica | gives **monotonic reads**, not read-your-writes |
 | **Synchronous replica for reads** | read from a sync standby | no lag, but writes pay the latency |
 
+<div class="csim" data-sim="replication" data-mode="async"></div>
+
+!!! tip "Try it"
+    The simulator starts where the support ticket starts: the fan held A-12 300 ms ago, and the lag is 1 s (the `REPLICA_DELAY=1s` of [Hands-on 6](../../../hands-on/6/index.md)). Press **read my holds**: db-2 answers without A-12, a stale read. Press play until the dots arrive (1 s for db-2, 1.5 s for db-3) and read again: fresh. Restart with **read your writes** on: the read goes to the leader and is fresh at once. Then hold a new seat in each mode: *async* commits in 2 ms, *semi-sync* in 1,003 ms, *sync* in 1,503 ms (it waits for db-3, the slowest). Finally, restart in *async* and **crash the leader** while A-12 is in flight: db-2 is promoted without it and the hold is lost; in *semi-sync* or *sync* nothing is lost (see the failover section below).
+
 Monitor lag as a first-class metric — `pg_stat_replication.replay_lag` in PostgreSQL, `ReplicaLag` in Amazon RDS — and alert on it (see [Observability](../../observability/index.md)). A replica that is minutes behind is worse than no replica.
+
+!!! example "In the BoxOffice code: reads routed by transaction type (lab 6)"
+
+    [Hands-on 6 — Replica and pooling](../../../hands-on/6/replicas/index.md) gives `inventory` two pools behind one `DataSource`: a transaction marked `@Transactional(readOnly = true)` (the seat map) gets a replica connection, every other one gets the primary. It is the "read from the leader for owned data" row of the table: `find` reads the fan's own hold with a plain `@Transactional`, on the primary, because the fan has just created it. The lab then measures the bug it avoids: reading the seat map right after a hold, about **6%** of the fans did not see their own hold with the replica on the same machine, and **98%** with `REPLICA_DELAY=1s`.
+
+    ``` { .java title="services/inventory/src/main/java/boxoffice/inventory/DataSourceConfig.java (two pools, one DataSource)" }
+    --8<-- "docs/2027.1/hands-on/6/code/services/inventory/src/main/java/boxoffice/inventory/DataSourceConfig.java:11:38"
+    ```
 
 **Try it.** In the `db-replicas` scenario, a primary takes the writes and replicas serve the reads. Add replicas and watch read throughput rise while the primary's load stays flat; then increase the write rate and watch the replication lag grow — and with it, the share of stale reads.
 
@@ -159,13 +172,21 @@ Size pools with Little's Law, not with guesses: busy connections = queries per s
 
 The catch in microservices: 20 pods × a pool of 50 = **1,000 connections** to one primary. A connection pooler such as **PgBouncer** (or RDS Proxy, or Cloud SQL Auth Proxy with pooling) sits between them, multiplexing thousands of client connections onto a few dozen server connections. In *transaction pooling* mode a server connection is lent per transaction, so session state (`SET`, temporary tables, some prepared-statement uses) must not leak across transactions. You will measure this in [Hands-on 6](../../../hands-on/6/index.md).
 
+!!! example "In the BoxOffice code: PgBouncer in front of PostgreSQL (lab 6)"
+
+    In [Hands-on 6](../../../hands-on/6/replicas/index.md) `inventory` connects through PgBouncer in transaction mode, and PostgreSQL sees at most 20 server connections from it, however many client connections arrive. In a test run during the flash sale, `pg_stat_activity` showed about 60 application connections (30 from the three `catalog` replicas, 10 from `auth`, 20 from PgBouncer). With `max_connections` lowered to 80 and an `inventory` pool of 40, the same stack fails with `too many clients already` when `inventory` connects directly, and keeps working through the pooler, which turns "too many clients" into queueing. The migrations still go straight to the primary: Flyway takes session-level locks, which transaction pooling does not keep.
+
+    ``` { .ini title="infra/pgbouncer/pgbouncer.ini (transaction pooling)" }
+    --8<-- "docs/2027.1/hands-on/6/code/infra/pgbouncer/pgbouncer.ini:12:17"
+    ```
+
 ---
 
 ## Failover: when the leader dies
 
 If a follower dies, it reconnects and catches up from the log. If the **leader** dies, the system must **fail over**:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant M as Failover manager (e.g. Patroni + etcd)
     participant P as Old primary
@@ -188,6 +209,10 @@ Each step hides a hard problem:
 - **Clients must follow.** Through DNS, a virtual IP, a proxy or a driver that knows the topology.
 
 Managed services package all of this — Amazon RDS Multi-AZ with a synchronous standby, Aurora with quorum storage, Cloud SQL high availability, Azure zone-redundant HA — with failovers that typically take from tens of seconds to a couple of minutes; the design question for you is what the application does meanwhile (retries with backoff, see [Reliability](../../reliability/patterns/index.md)).
+
+**Try it.** The `db-failover` scenario is a flash-sale checkout on a cluster with one primary and one **asynchronous** follower: 1,500 req/s, half of them writes. At t = 90 s the primary dies. Press **Run** and read the report: with the default seed about **1,600 writes are lost** (acknowledged by the old primary, never shipped to the follower) and availability falls to about **90.6%**, because every write fails during the 30 s failover. Select `orders-db` and set *Replication* to `sync`: lost writes drop to **0**, but availability does not move. Set it back to `async` and the *Failover time* to 5 s: availability rises to about **98%**, and the writes are lost again. The two knobs answer different questions: replication mode sets how much you lose (the RPO), detection and promotion set how long you are down (the RTO). The possible solution (open it in the full playground ↗) combines quorum replication with 2 followers, 2 shards and a 5 s failover: 0 lost writes, about 99.2% availability.
+
+<div class="sdp" data-scenario="db-failover" data-mode="compact" data-height="520"></div>
 
 ---
 
@@ -216,15 +241,10 @@ The price is **write conflicts**: two leaders accept different writes to the sam
 
 Amazon's **Dynamo** paper (2007)[^3] popularized a third design, used by Cassandra, ScyllaDB and Riak: **no leader at all**. The client (or a coordinator node) sends each write to all **N** replicas of a key and considers it successful when **W** of them acknowledge; it reads from **R** replicas and takes the newest version.
 
-``` mermaid-sim
-flowchart LR
-    C["coordinator<br/>N = 3, W = 2, R = 2"] -->|"write v2"| A[("replica A ✓")]
-    C -->|"write v2"| B[("replica B ✓")]
-    C -.->|"write v2 (node down)"| X[("replica C ✗")]
-    C -->|"read"| B
-    C -->|"read"| X
-    B -->|"v2 is newer"| C
-```
+<div class="csim" data-sim="quorum" data-n="3" data-w="2" data-r="2" data-down="C"></div>
+
+!!! tip "Try it"
+    The simulator starts with the usual setting: N = 3, W = 2, R = 2, replica C down. Press play: every write lands on A and B, every read asks A and B, and no read is stale. Set W = 1 and R = 1: now about half the reads miss the last write (the tile computes C(U − W, R) / C(U, R): 50% with 2 live replicas, 67% once C is back). Return to W = 2, R = 2 and click C to bring it back: it comes back at an old version, yet quorum reads stay fresh; switch on **read repair** and watch C catch up. Finally take B down as well: with one replica alive, writes and reads fail, because the coordinator cannot collect 2 answers.
 
 If **R + W > N**, every read set overlaps every write set in at least one replica, so a read sees the latest acknowledged write (with caveats under concurrent writes and failures — quorums alone are not linearizable). With N = 3:
 
@@ -264,6 +284,14 @@ Missed writes are repaired by **read repair** (a read that sees an old version w
     - For leaderless stores, write **R + W > N** and say what it buys and what it does not (it is not a transaction).
     - Mention failover time and what clients do meanwhile: retries with backoff, idempotent writes.
 
+!!! success "Best practices"
+
+    - **Make the read target explicit in the code, per transaction** — a reader of the code must see which queries may be stale. In BoxOffice: `@Transactional(readOnly = true)` goes to the replica through `DataSourceConfig` ([lab 6](../../../hands-on/6/replicas/index.md), box above).
+    - **Give the driver every host and let it find the primary** — with `jdbc:postgresql://db1,db2/boxoffice?targetServerType=primary` the application reconnects to the new primary after a failover without a redeploy.
+    - **Run migrations straight against the primary** — schema changes need a real session, not a pooled transaction. In BoxOffice: `DB_MIGRATION_HOST=db` while the application goes through PgBouncer (lab 6).
+    - **Rehearse failover on a schedule** — a planned switchover every quarter measures your real RTO and proves that every client follows the new primary.
+    - **Keep long reports off the failover standby** — a long query on a hot standby conflicts with replay and delays it, so the standby you count on for failover falls behind; give reports their own replica.
+
 !!! warning "Common pitfalls"
 
     - **Reading your own writes from a replica** — the empty *My tickets* page.
@@ -275,7 +303,7 @@ Missed writes are repaired by **read repair** (a read that sees an old version w
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     WHY["why replicate: availability,<br/>read scale, latency"] --> SL["single leader"]
     SL --> SYNC["sync vs async<br/>durability vs commit latency"]
@@ -289,7 +317,7 @@ flowchart LR
     LL --> PART["partitioned stores<br/>→ Partitioning"]
 ```
 
-**Palette components:** [`sql`](../../../reference/components/storage/index.md#sql) (a primary with read replicas; a synchronous standby for seats and money) · [`nosql`](../../../reference/components/storage/index.md#nosql) (leaderless quorums: Cassandra, DynamoDB) · [`app`](../../../reference/components/compute/index.md#app) (routes reads and writes, retries with backoff during a failover) · [`cache`](../../../reference/components/storage/index.md#cache) (sits in front of the catalog replicas) · [`dns`](../../../reference/components/edge/index.md#dns) (one way clients follow the new leader). **Scenarios:** `db-replicas`, `multi-region`. **Continues in:** [Partitioning](../partitioning/index.md), [Distributed — consistency](../../distributed/consistency/index.md), [Distributed — consensus](../../distributed/consensus/index.md), [Reliability — disaster recovery](../../reliability/disaster-recovery/index.md#rpo-rto), [Hands-on 6](../../../hands-on/6/index.md) (read replica, PgBouncer), [Exercise: cache + database](../../../exercises/cache-db/index.md).
+**Palette components:** [`sql`](../../../reference/components/storage/index.md#sql) (a primary with read replicas; a synchronous standby for seats and money) · [`nosql`](../../../reference/components/storage/index.md#nosql) (leaderless quorums: Cassandra, DynamoDB) · [`app`](../../../reference/components/compute/index.md#app) (routes reads and writes, retries with backoff during a failover) · [`cache`](../../../reference/components/storage/index.md#cache) (sits in front of the catalog replicas) · [`dns`](../../../reference/components/edge/index.md#dns) (one way clients follow the new leader). **Scenarios:** `db-replicas`, `db-failover`, `multi-region`. **Continues in:** [Partitioning](../partitioning/index.md), [Distributed — consistency](../../distributed/consistency/index.md), [Distributed — consensus](../../distributed/consensus/index.md), [Reliability — disaster recovery](../../reliability/disaster-recovery/index.md#rpo-rto), [Hands-on 6](../../../hands-on/6/index.md) (read replica, PgBouncer), [Exercise: cache + database](../../../exercises/cache-db/index.md).
 
 ---
 

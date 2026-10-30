@@ -66,7 +66,7 @@ A row lock serves one transaction at a time: a row held $t$ seconds per transact
 \lines{4}
 \end{ex}
 
-\simulator{A waiting room in front of the seats}{flash-sale}{Run it as is and then with the waiting-room queue: the inventory database has a fixed number of holds per second to give; the queue decides how fast fans reach it.}
+\simulator{A waiting room in front of the stock}{flash-sale}{Run it as is, then send purchases through an API Gateway to a waiting-room queue drained by order workers: inventory-db has a fixed number of purchases per second to give; the queue decides how fast buyers reach it.}
 
 \begin{ex}{2}{Replicas, lag and pools}
 The catalog database runs at 90\% CPU before the sale; two read replicas bring it to 30\%. Then ``My tickets'' shows up empty for some fans who just paid.

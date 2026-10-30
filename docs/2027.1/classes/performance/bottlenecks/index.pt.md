@@ -2,9 +2,9 @@ O teste breakpoint terminou: `POST /holds` mantém o p99 abaixo de 300 ms até c
 
 ---
 
-## Lendo os resultados
+## Lendo os resultados { #reading-the-results }
 
-### A curva em degraus
+### A curva em degraus { #the-stepped-curve }
 
 Um teste breakpoint que mantém cada taxa por alguns minutos produz um ponto por degrau: carga oferecida, vazão alcançada, p99 e erros. A tabela e o gráfico abaixo são típicos (dados sintéticos com ruído):
 
@@ -78,7 +78,7 @@ Três regiões são visíveis, e cada uma tem um nome que você deve usar nos re
 
 A capacidade que você reporta é o joelho: "um deployment de `inventory` com 4 pods sustenta **1 100 reservas/s dentro do SLO**; satura em ~1 250 e degrada além disso".
 
-### Sintomas e o que geralmente significam
+### Sintomas e o que geralmente significam { #symptoms-and-what-they-usually-mean }
 
 | O que você vê | Causa provável | Confirme com |
 |---|---|---|
@@ -94,7 +94,7 @@ A capacidade que você reporta é o joelho: "um deployment de `inventory` com 4 
 
 ---
 
-## Um catálogo de gargalos comuns
+## Um catálogo de gargalos comuns { #a-catalogue-of-common-bottlenecks }
 
 | Gargalo | Sinal típico | Correção típica |
 |---|---|---|
@@ -113,7 +113,7 @@ A capacidade que você reporta é o joelho: "um deployment de `inventory` com 4 
 
 ---
 
-## Profiling: de "qual recurso" para "qual código"
+## Profiling: de "qual recurso" para "qual código" { #profiling-from-which-resource-to-which-code }
 
 As métricas dizem que o `inventory` passa o tempo esperando ou queimando CPU; um **profiler** diz *qual código* faz isso. Profilers modernos são **por amostragem**: muitas vezes por segundo eles registram a pilha de chamadas de cada thread, e o código que aparece em muitas amostras é para onde vai o tempo. O overhead é baixo o suficiente (tipicamente alguns por cento) para fazer profiling sob carga, até em produção.
 
@@ -122,7 +122,7 @@ Dois tipos de perfil respondem a perguntas diferentes:
 - Perfis **on-CPU** amostram só threads que estão *executando*. Eles encontram código pesado em CPU — serialização, regexes, hashing, TLS.
 - Perfis **off-CPU / wall-clock** amostram as threads seja lá o que estiverem fazendo, *inclusive esperando* por locks, sockets e pools. Quando a CPU está baixa mas a latência está alta — o caso comum —, **só um perfil wall-clock mostra para onde vai o tempo.**
 
-### Lendo um flame graph
+### Lendo um flame graph { #reading-a-flame-graph }
 
 Um **flame graph** desenha as pilhas amostradas como caixas aninhadas[^1]:
 
@@ -189,7 +189,7 @@ plt.close()
 
 Lendo este perfil wall-clock de `POST /holds` de cima para baixo: quase todo o tempo está dentro de `TransactionTemplate.execute` — e, dentro dele, um terço das amostras espera em uma leitura de socket dentro de `SeatRepository.lockSeats` (o banco está nos fazendo esperar por **locks de linha**), mais de um quarto espera em uma leitura de socket dentro de `PricingClient.quote` (uma chamada HTTP **dentro da transação**, segurando a conexão e os locks), e quase um quarto espera em `HikariPool.getConnection` (**esgotamento do pool**, causado pelos dois itens anteriores). JSON e logs, os suspeitos de sempre, são fatias finas. Um flame graph de CPU do mesmo serviço teria mostrado principalmente JSON e logs, e apontado para a correção errada.
 
-### async-profiler para a JVM
+### async-profiler para a JVM { #async-profiler-for-the-jvm }
 
 O **async-profiler** é um profiler por amostragem de baixo overhead para Java que evita o *viés de safepoint* dos profilers de JVM mais antigos e produz flame graphs diretamente[^2]. Ele se acopla a uma JVM em execução:
 
@@ -206,7 +206,7 @@ asprof -d 30 -e alloc -f /tmp/alloc.html 1    # allocation hot spots (GC pressur
 
 Rode o profiler **enquanto o teste de carga está no platô** — o perfil de um serviço ocioso só mostra código ocioso. Se `perf_events` não for permitido no container, `-e itimer` (ou `ctimer`) é uma alternativa de amostragem de CPU. O **Java Flight Recorder**, embutido no JDK, é a alternativa sem ferramenta extra (`jcmd 1 JFR.start duration=60s filename=/tmp/inventory.jfr settings=profile`); abra a gravação no JDK Mission Control ou converta-a em flame graph com o conversor do async-profiler.
 
-### py-spy para Python
+### py-spy para Python { #py-spy-for-python }
 
 O serviço `assistant` é Python (FastAPI). O **py-spy** é um profiler por amostragem que lê a memória do interpretador de fora do processo — sem mudar código, sem reiniciar[^3]:
 
@@ -219,17 +219,17 @@ py-spy dump   --pid 1                                   # current stack of every
 
 Em um container o py-spy precisa da capability `SYS_PTRACE` (adicione-a ao container de debug, não à aplicação). Para código `asyncio`, lembre-se de que corrotinas esperando não são threads: uma visão wall-clock do event loop mostra *onde o loop está bloqueado* — o bug clássico sendo uma chamada síncrona (um cliente HTTP bloqueante, parsing pesado em CPU) dentro de um handler `async def`.
 
-### Profiling contínuo
+### Profiling contínuo { #continuous-profiling }
 
 Fazer profiling só durante incidentes significa que você não tem um "antes" para comparar. O **profiling contínuo** amostra todas as instâncias o tempo todo com baixa frequência e guarda os perfis como métricas (Grafana Pyroscope, profilers das nuvens; o OpenTelemetry está adicionando perfis como um quarto sinal). Ele permite **flame graphs diferenciais** — esta versão vs a anterior —, que tornam óbvias as regressões de desempenho em um canary.
 
 ---
 
-## Gargalos de banco de dados
+## Gargalos de banco de dados { #database-bottlenecks }
 
 O banco de dados é o gargalo mais comum de um sistema como o BoxOffice, porque é o único componente difícil de escalar horizontalmente e que toda escrita precisa alcançar.
 
-### Quais consultas?
+### Quais consultas? { #which-queries }
 
 Comece pelo agregado, não por um palpite. A extensão `pg_stat_statements` registra estatísticas de cada consulta normalizada:
 
@@ -246,7 +246,7 @@ LIMIT 10;
 
 Ordene pelo tempo **total**, não pela média: uma consulta de 2 ms chamada 3 000 vezes por segundo custa mais que um relatório de 2 s rodado uma vez por hora.
 
-### Por que está lenta? `EXPLAIN ANALYZE`
+### Por que está lenta? `EXPLAIN ANALYZE` { #why-is-it-slow-explain-analyze }
 
 O `EXPLAIN` mostra o plano escolhido pelo otimizador; o `EXPLAIN (ANALYZE, BUFFERS)` *executa* a consulta e reporta tempos reais, contagens reais de linhas e páginas lidas[^4]. A consulta do mapa de assentos da venda:
 
@@ -298,7 +298,15 @@ Execution Time: 0.079 ms
 
 De 412 ms para 0,08 ms e de ~62 000 páginas para 5. O `CONCURRENTLY` constrói o índice sem bloquear escritas — essencial em uma tabela em uso. (Índices não são de graça: cada um desacelera as escritas e usa memória; indexe o que o modelo de carga diz que é quente.)
 
-### Contenção de locks e linhas quentes
+!!! example "No código do BoxOffice: um índice em vez de um cache (lab 6)"
+
+    O [Hands-on 6 — Índices](../../../hands-on/6/indexes/index.md) faz isso no endpoint lento desde o lab 1, a listagem do catálogo "próximos eventos de uma cidade, os mais próximos primeiro". O `EXPLAIN ANALYZE` mostrou um `Parallel Seq Scan` e uma ordenação de 200.000 linhas para devolver 20. Um índice na ordem de `starts_at` deixa o PostgreSQL percorrer os eventos já ordenados e parar depois de uma página (189 entradas de índice lidas): na execução do lab, a consulta da página foi de ~37 ms para 0,62 ms, e a contagem de ~14 ms para ~4 ms com um *Index Only Scan*. A migração é um arquivo novo — `V1` e `V2` nunca são editados — e o lab mede com o cache desligado, para que o índice seja julgado sozinho.
+
+    ``` { .sql title="services/catalog/src/main/resources/db/migration/V3__index_events.sql" }
+    --8<-- "docs/2027.1/hands-on/6/code/services/catalog/src/main/resources/db/migration/V3__index_events.sql"
+    ```
+
+### Contenção de locks e linhas quentes { #lock-contention-and-hot-rows }
 
 Quando todos querem os mesmos assentos, as transações fazem fila por **locks de linha**. Descubra quem espera por quem:
 
@@ -332,7 +340,7 @@ Três mudanças reduzem a contenção, em ordem de esforço:
 
 3. **Controle a admissão.** Se 50 000 fãs tentam reservar assentos no mesmo segundo, nenhuma estratégia de lock deixa o PostgreSQL feliz. Uma sala de espera admite fãs na taxa que o inventário consegue absorver — transformando contenção em uma fila ordenada ([Mensageria — filas](../../messaging/queues-pubsub/index.md)).
 
-### Dimensionando o pool de conexões
+### Dimensionando o pool de conexões { #sizing-the-connection-pool }
 
 Um pool de conexões pode ser gargalo nos dois sentidos: pequeno demais e as requisições esperam uma conexão; grande demais e o banco passa o tempo alternando entre centenas de sessões, brigando por locks e memória. Dimensione-o com a Lei de Little — **conexões necessárias = vazão × tempo em que cada requisição segura uma conexão**:
 
@@ -352,9 +360,17 @@ spring:
       connection-timeout: 2000    # wait at most 2 s for a connection (the default is 30 s)
 ```
 
+!!! example "No código do BoxOffice: um pool que move o joelho, e um pooler (labs 2 e 6)"
+
+    No [Hands-on 2](../../../hands-on/2/index.md) o pool do `catalog` (10 conexões, `DB_POOL_SIZE`) é o primeiro recurso a saturar, e subi-lo para 30 move o joelho para cima — até a única CPU do `catalog` ou o PostgreSQL saturarem em seguida. O [Hands-on 6 — Réplicas e PgBouncer](../../../hands-on/6/replicas/index.md) então conta quanto custam pools maiores: cada réplica de cada serviço abre o seu. Em pooling por transação, o PgBouncer empresta uma de 20 conexões reais por uma transação de cada vez: na execução do lab o PostgreSQL viu cerca de 60 conexões da aplicação, 20 delas do PgBouncer servindo todo o `inventory`. Sem ele, `INVENTORY_POOL_SIZE=40` contra `max_connections=80` falha com `too many clients already`; com ele, a mesma demanda vira **fila** (`cl_waiting`). O preço: recursos de sessão (os locks do Flyway) precisam contornar o pooler.
+
+    ``` { .ini title="infra/pgbouncer/pgbouncer.ini" }
+    --8<-- "docs/2027.1/hands-on/6/code/infra/pgbouncer/pgbouncer.ini"
+    ```
+
 ---
 
-## Uma mudança por vez: um diário de otimização
+## Uma mudança por vez: um diário de otimização { #one-change-at-a-time-an-optimization-log }
 
 Mantenha um diário de cada execução: o que mudou, o novo joelho e o que saturou em seguida. Um gargalo removido revela o próximo; o objetivo não é "nenhum gargalo" (sempre há um), mas o gargalo **no lugar certo** com capacidade suficiente. O diário abaixo ilustra uma campanha típica em `POST /holds`:
 
@@ -369,9 +385,21 @@ Mantenha um diário de cada execução: o que mudou, o novo joelho e o que satur
 
 Depois da execução 6, o gargalo é deliberado: a taxa de admissão da sala de espera, definida abaixo do joelho do banco. Escalar além disso exigiria particionar o inventário por evento ou local ([Bancos de dados — particionamento](../../databases/partitioning/index.md)) — uma mudança muito maior, agora justificada por números.
 
+Experimente: o cenário `monolith` (um servidor de aplicação e um PostgreSQL, perfil **breakpoint**) produz as duas primeiras linhas de um registro desses em poucos minutos. Rode como está e abra o Relatório: o gargalo é o `app`, já 86 % ocupado a cerca de 430 req/s, e o sistema quebra a cerca de **590 req/s**. Mude uma coisa — selecione o `app` e suba as réplicas para 6 — e rode de novo: o ponto de ruptura salta para cerca de **2.520 req/s**, e o gargalo passa para o `db`, 87 % ocupado a cerca de 2.180 req/s. Agora mude a coisa *errada*: 12 réplicas em vez de 6. O ponto de ruptura continua em cerca de 2.520 req/s enquanto o custo mensal vai de cerca de 1.170 para 1.890 USD — acrescentar capacidade a um componente que não é o gargalo não compra nada.
+
+<div class="sdp" data-scenario="monolith" data-mode="full" data-profile="breakpoint" data-height="620"></div>
+
 !!! tip "Na entrevista"
 
     Na etapa de "gargalos e trade-offs", percorra o caminho da requisição e diga qual é o **primeiro recurso a saturar**, com um número: "A 4 500 reservas/s, o banco primário é o gargalo — toda reserva é uma escrita com lock. Eu manteria as transações curtas, usaria `SKIP LOCKED` para que os fãs não façam fila na mesma linha, dimensionaria os pools com a Lei de Little atrás do PgBouncer e colocaria uma sala de espera na frente, para que a admissão nunca passe do que o banco aguenta." Mencionar **profiling wall-clock vs de CPU** e **`EXPLAIN ANALYZE`** mostra que você já encontrou gargalos de verdade, não só desenhou caixas.
+
+!!! success "Boas práticas"
+
+    - **Ligue o `pg_stat_statements` e o log de consultas lentas em todo ambiente desde o primeiro dia** — por exemplo `log_min_duration_statement = 200ms`; a pergunta "qual consulta?" é feita durante um incidente, sobre dados que já precisam existir.
+    - **Entregue cada índice como uma nova migração versionada, e construa-o com `CONCURRENTLY` em tabelas grandes em uso** — a mudança de esquema é revisada, repetível em todo ambiente e não bloqueia escritas. No BoxOffice: o `V3__index_events.sql` do [lab 6](../../../hands-on/6/indexes/index.md).
+    - **Coloque um pooler na frente do PostgreSQL quando vários serviços e réplicas se conectam, e falhe rápido na espera por conexão** — o pooling por transação mantém as conexões no servidor perto do que a Lei de Little exige; um `connection-timeout` de 2 s em vez de 30 s transforma uma fila num erro claro. No BoxOffice: o `infra/pgbouncer/pgbouncer.ini` do [lab 6](../../../hands-on/6/replicas/index.md).
+    - **Mantenha o registro de otimizações no repositório** — uma linha por execução: a mudança, o novo joelho, o que saturou em seguida; é a evidência por trás de cada número de capacidade. No BoxOffice: as varreduras com pool 10 e pool 30 do [lab 2](../../../hands-on/2/index.md).
+    - **Rode profiling contínuo em produção com uma taxa de amostragem baixa** — alguns por cento de overhead compram o flame graph do incidente antes que alguém o peça.
 
 !!! warning "Armadilhas"
 
@@ -386,7 +414,7 @@ Depois da execução 6, o gargalo é deliberado: a taxa de admissão da sala de 
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     CURVE["stepped curve<br/>and symptoms"] --> RES["which resource?<br/>USE → Methodology"]
     RES --> PROF["which code? flame graphs,<br/>async-profiler, py-spy"]

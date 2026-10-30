@@ -6,7 +6,7 @@ AI in the pipeline adds a component that **reads untrusted text and follows inst
 
 ## Threat model
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     att([Attacker]) -->|"PR title · description · diff · code comment"| ctx["Context of an AI step"]
     att -->|"issue · commit message · CI log line"| ctx
@@ -44,7 +44,7 @@ Every arrow is a place to cut. Simon Willison's **lethal trifecta** names the da
 | CI logs | Whatever the build and tests print | Fix agent, flaky triage |
 | Dependency READMEs, changelogs, web pages | Third parties | Upgrade agents, anything with web access |
 
-There is no reliable filter that removes injections from text: the attacker writes in natural language, in any language, in comments, base64 or Unicode tricks. Delimiting untrusted data and instructing the model to ignore instructions inside it **helps** — the reviewer of [hands-on 13](../../../hands-on/13/security/index.md) flagged both injection attempts of its golden set — but it is a mitigation measured on a sample, not a guarantee. The controls that hold **even when the model is fooled** are architectural:
+There is no reliable filter that removes injections from text: the attacker writes in natural language, in any language, in comments, base64 or Unicode tricks. Delimiting untrusted data and instructing the model to ignore instructions inside it **helps** — with Claude, the reviewer of [hands-on 13](../../../hands-on/13/security/index.md) flagged both injection attempts of its golden set; the small local model flagged neither — but it is a mitigation measured on a sample, not a guarantee. The controls that hold **even when the model is fooled** are architectural:
 
 1. **Capability limits**: the step's token, tools and network can only do harmless things (post a comment, propose a patch).
 2. **Structured outputs** consumed by code that decides the action (a `COMMENT` event, never `APPROVE`).
@@ -68,6 +68,14 @@ AI workflows need API keys and often write access, which makes the well-known Gi
 | Third-party actions on movable tags (`@v4`) | The tag can be moved to malicious code (tj-actions/changed-files, March 2025) | Pin to a commit SHA; few, well-known actions |
 | Secrets at workflow level | Every step, including the build of untrusted code, sees them | Secrets only in the step that needs them |
 | Long-lived cloud keys in secrets | Stolen once, valid for months | OIDC federation to short-lived credentials |
+
+!!! example "In the BoxOffice code: the reviewer's workflow, hardened (lab 13)"
+
+    The workflow of [hands-on 13](../../../hands-on/13/security/index.md) applies the table row by row: the `pull_request` trigger (not `pull_request_target`), so a fork's code never runs with secrets — and the job is skipped for drafts and forks anyway; `permissions:` limited to reading the code and writing the review; actions pinned to a commit SHA; `persist-credentials: false`, so no token stays in `.git/config` for the code to find; and the PR title and description are read by `review.py` from the event file, never interpolated with `${{ }}` into a shell line.
+
+    ``` { .yaml title=".github/workflows/ai-review.yaml (trigger, permissions, job guard)" }
+    --8<-- "docs/2027.1/hands-on/13/code/.github/workflows/ai-review.yaml:3:29"
+    ```
 
 ---
 
@@ -193,6 +201,14 @@ AI tools change under you: the provider ships a new model, someone edits the pro
 
 LLM-as-judge can scale evaluation, with its known biases ([Safety, evals & observability](../../ai-systems/safety-evals/index.md)); calibrate it against human labels before trusting it.
 
+!!! example "In the BoxOffice code: the reviewer's regression eval (lab 13)"
+
+    `eval_review.py` runs the reviewer on the five cases of [hands-on 13](../../../hands-on/13/security/index.md) and fails below 80% recall or when an injection case is not flagged. The two models the lab compared show why it exists: Claude passed all five cases; the local `qwen2.5-coder-16k` scored a recall of 50% and lost both injection cases — and a later run scored 25%. The eval does not make the small model better; it says, with a number, that this model **must not gate anything**.
+
+    ``` { .python title=".github/ai/eval_review.py (matching and the gate)" }
+    --8<-- "docs/2027.1/hands-on/13/code/.github/ai/eval_review.py:28:29,40:58"
+    ```
+
 ---
 
 ## Organizational policy: what this course allows
@@ -214,6 +230,14 @@ A team needs a short, written policy so that individuals do not each invent thei
 
     For any design with an AI component that reads external text, state the **lethal trifecta** and show where you break it. Separate mitigations that depend on the model (delimiters, instructions) from controls that do not (permissions, structured outputs, privilege separation, human approval). Mention supply-chain integrity (SBOM, signing, provenance), slopsquatting, and how you would **evaluate** the AI tool continuously (golden set + regression eval + online precision).
 
+!!! success "Best practices"
+
+    - **Declare `permissions:` in every workflow and job, read-only by default** — lab 13's [`ai-review.yaml`](../../../hands-on/13/security/index.md) asks for `contents: read` and `pull-requests: write`, nothing else.
+    - **Pin third-party actions to a full commit SHA** — a tag can be moved; every action of lab 13 is pinned, with the version in a comment.
+    - **Pass event data through files or `env:`, never `${{ }}` inside `run:`** — `review.py` reads the PR from `GITHUB_EVENT_PATH`.
+    - **Give every model key an owner and a spend limit** — a leaked key then costs at most its limit, and someone is paged when it is reached.
+    - **Run the reviewer eval whenever its prompt, conventions or model change** — lab 13's `ai-eval.yaml` runs on changes to `.github/ai/**`, `CONVENTIONS.md` and `docs/adr/**`.
+
 !!! warning "Common pitfalls"
 
     - **"The prompt tells it not to"** as the security control.
@@ -226,7 +250,7 @@ A team needs a short, written policy so that individuals do not each invent thei
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     UN["untrusted text: PR title,<br/>issues, diffs, packages"] --> STEP["AI step in CI"]
     SEC["secrets and<br/>write tokens"] --> STEP

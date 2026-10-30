@@ -1,7 +1,11 @@
 
 A equipe da BoxOffice está discutindo a abertura de vendas do estádio. *"Um PostgreSQL não aguenta isso, precisamos de um banco distribuído."* — *"Claro que aguenta, o Postgres é rápido."* Os dois engenheiros estão chutando. Nenhum deles disse quantas requisições por segundo a abertura de vendas gera, por quanto tempo uma reserva de lugar mantém o banco ocupado, quão cheio o banco pode rodar antes de a latência explodir, ou o que acontece com a experiência dos fãs quando uma das dez chamadas por trás de uma página fica lenta.
 
-Esta aula dá as ferramentas para encerrar essa discussão em cinco minutos num quadro branco: os **números** que todo engenheiro deveria ter na cabeça, as **fórmulas** que ligam carga, latência e capacidade, e os **métodos** para transformar uma pergunta vaga ("vai aguentar?") numa resposta em ordem de grandeza que guia uma decisão de design. São as mesmas ferramentas que você vai usar para ler testes de carga (laboratório 2 e [aula 15](../performance/index.md)), dimensionar clusters (aula 12), definir SLOs (aula 9) e passar pela etapa de estimativas de uma entrevista de system design.
+Esta aula dá as ferramentas para encerrar essa discussão em cinco minutos num quadro branco: os **números** que todo engenheiro deveria ter na cabeça, as **fórmulas** que ligam carga, latência e capacidade, e os **métodos** para transformar uma pergunta vaga ("vai aguentar?") numa resposta em ordem de grandeza que guia uma decisão de design. São as mesmas ferramentas que você vai usar para ler testes de carga (laboratório 2 e [aula 15](../performance/index.md)), dimensionar clusters (aula 11), definir SLOs (aula 9) e passar pela etapa de estimativas de uma entrevista de system design.
+
+!!! quote "A história até aqui"
+
+    Capítulo 2 da [história da disciplina](../../index.md#story). A [aula 1](../intro/index.md) escreveu o que a BoxOffice precisa fazer e quão bem: 2 milhões de fãs no primeiro minuto, 60.000 lugares, p99 da reserva < 300 ms. A BoxOffice ainda roda num serviço e num PostgreSQL. **Esta aula** responde: esse banco aguenta a abertura das 10:00 — e como saber isso antes de construir qualquer coisa?
 
 !!! abstract "Objetivos de aprendizagem"
 
@@ -14,7 +18,7 @@ Esta aula dá as ferramentas para encerrar essa discussão em cinco minutos num 
     - **Interpretar** percentis de latência (p50, p99, p99.9), **calcular** a amplificação da cauda sob fan-out e **propor** técnicas tolerantes à cauda.
     - **Calcular** a disponibilidade de componentes em série e em paralelo e a indisponibilidade permitida por um número de noves; **raciocinar** sobre limites de escalabilidade com a lei de Amdahl e a Universal Scalability Law.
 
-## Roteiro
+## Roteiro { #roadmap }
 
 1. **Esta visão geral** — por que estimar, o método em cinco passos e uma verificação de capacidade completa, de guardanapo, para a abertura de vendas.
 2. [Números que Todo Engenheiro Deveria Saber](numbers/index.md) — potências de dois, números de latência, tamanhos e como estimar requisições por segundo, armazenamento e banda.
@@ -34,7 +38,7 @@ Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** a
 
 ---
 
-## Por que estimar?
+## Por que estimar? { #why-estimate }
 
 Decisões de arquitetura diferem em **ordens de grandeza**, não em porcentagens. Um design para 10 requisições por segundo e outro para 10.000 são designs diferentes; 40 GB e 40 TB de dados são problemas diferentes. Raramente você precisa do número exato — precisa saber **de que lado de um limiar** você está:
 
@@ -48,7 +52,7 @@ Decisões de arquitetura diferem em **ordens de grandeza**, não em porcentagens
 
 Estimar é também como você **confere** um design e uma medição. Se o seu teste de carga diz que um servidor atende 50.000 requisições por segundo enquanto cada requisição leva 20 ms numa única thread, há algo errado com o teste — e a Lei de Little vai lhe dizer isso em uma linha.
 
-## O método: cinco passos
+## O método: cinco passos { #the-method-five-steps }
 
 A estimativa de guardanapo (*back-of-the-envelope*) é uma forma de **estimativa de Fermi** (em homenagem ao físico Enrico Fermi, famoso por estimar quantidades como "quantos afinadores de piano existem em Chicago?" a partir de uma cadeia de palpites razoáveis). Os erros numa cadeia de palpites grosseiros tendem a se compensar em parte, e uma resposta dentro de um fator de 2–3 é boa o bastante para escolher entre designs que diferem por 10× ou mais[^1].
 
@@ -67,7 +71,7 @@ A estimativa de guardanapo (*back-of-the-envelope*) é uma forma de **estimativa
 
 ---
 
-## Uma verificação de capacidade completa: um banco aguenta a abertura de vendas?
+## Uma verificação de capacidade completa: um banco aguenta a abertura de vendas? { #a-complete-capacity-check-can-one-database-take-the-on-sale }
 
 Vamos encerrar a discussão do início da página. Cada passo usa uma ferramenta de uma das subpáginas — siga os links quando um passo ainda não for óbvio.
 
@@ -95,7 +99,7 @@ Vamos encerrar a discussão do início da página. Cada passo usa uma ferramenta
 
 Repare que o número mais importante — **5 ms por reserva** — é uma premissa. A estimativa diz *qual* número medir primeiro. O laboratório 2 o mede.
 
-### Veja no playground
+### Veja no playground { #see-it-in-the-playground }
 
 O cenário `monolith` é um único servidor de aplicação e um único banco SQL. O perfil `breakpoint` aumenta a carga continuamente até algo quebrar — a forma padrão de encontrar a capacidade de um sistema.
 
@@ -109,7 +113,7 @@ O cenário `monolith` é um único servidor de aplicação e um único banco SQL
 
 ---
 
-## A caixa de ferramentas num relance
+## A caixa de ferramentas num relance { #the-toolbox-at-a-glance }
 
 | Pergunta | Ferramenta | Fórmula / regra | Subpágina |
 |---|---|---|---|
@@ -127,7 +131,7 @@ O cenário `monolith` é um único servidor de aplicação e um único banco SQL
 
 A estimativa não adiciona nenhuma caixa à paleta — ela coloca **números** em todas as caixas. O mapa liga cada ferramenta desta aula (azul) aos **componentes da paleta** (verde) cuja capacidade, latência ou disponibilidade ela calcula:
 
-``` mermaid
+``` diagram
 flowchart LR
     qps["QPS, armazenamento, banda<br/>fator de pico"]:::tech --> bytes["cdn · objstore"]:::comp
     qps --> sql["sql"]:::comp
@@ -159,6 +163,14 @@ flowchart LR
 
     Gaste **3–5 minutos** com estimativas, logo depois de esclarecer os requisitos, e faça-as **em voz alta no quadro**: premissas numa coluna, resultados na outra. Termine sempre cada linha com sua consequência — "≈ 400 leituras/s em média, 1.200 no pico: um banco daria conta, mas um cache torna isso trivial" — e siga em frente. Se o entrevistador der números, use-os; se não, proponha números redondos e pergunte "faz sentido?". Precisão não é o objetivo; **ordens de grandeza que guiam decisões** são.
 
+!!! success "Boas práticas"
+
+    - **Mantenha a estimativa numa planilha versionada ao lado do código** — premissas numa coluna, resultados em outra, cada uma com data; quando um laboratório ou a produção mede um número, troque a premissa e recalcule. Na BoxOffice: `results/lab2.md` ([Hands-on 2](../../hands-on/2/index.md#measure-it)).
+    - **Meça primeiro o número ao qual a conclusão é mais sensível** — aqui, os 5 ms que uma reserva ocupa o banco; um erro de 2× ali dobra o número de máquinas.
+    - **Dimensione as camadas sensíveis a latência para ~60–70% de utilização no pico, mais uma de reserva (N+1)** — o joelho e a perda de um nó precisam, os dois, da folga. Na BoxOffice: o HPA do lab 10 escala o `catalog` em 60% de CPU.
+    - **Escreva a fórmula ao lado de cada configuração de capacidade** — `maximum-pool-size: 10  # 1.000 reservas/s × 10 ms = 10`; o próximo engenheiro pode reconferir quando a carga mudar. Na BoxOffice: `DB_POOL_SIZE` no compose do lab 1, variado no lab 2.
+    - **Compare a estimativa com a realidade depois de cada grande evento** — requisições/s, p99 e utilização previstos contra observados; a diferença diz qual premissa corrigir antes da próxima abertura de vendas.
+
 !!! warning "Armadilhas comuns"
 
     - **Estimar a média e projetar para ela**: sistemas falham no pico. Sempre aplique um fator de pico e, para negócios movidos a eventos como a BoxOffice, estime o pico repentino separadamente.
@@ -169,20 +181,26 @@ flowchart LR
 
 ---
 
-## Relacionados
+## Relacionados { #related }
 
 - Laboratório: [2. Meça primeiro](../../hands-on/2/index.md) — testes k6 de smoke, carga e estresse no `catalog`; encontre o joelho e confira a Lei de Little.
 - Exercício: [Estimativas](../../exercises/estimation/index.md) — uma planilha de estimativas para cinco sistemas.
-- Aula: [14. Engenharia de desempenho](../performance/index.md) — testes de carga e planejamento de capacidade com a mesma matemática.
+- Aula: [15. Engenharia de desempenho](../performance/index.md) — testes de carga e planejamento de capacidade com a mesma matemática.
 - Referência: [Folha de números](../../reference/numbers/index.md) e a [referência rápida para entrevistas](../../support/interview/quick-reference/index.md).
 
-## Pontos-chave
+## Pontos-chave { #key-takeaways }
 
-- Decisões de design mudam em **ordens de grandeza**; a estimativa diz de que lado de um limiar você está.
-- Cinco passos: **decisão → premissas → potências de dez → conferência de sanidade → conclusão**.
-- A capacidade é aproximadamente **vagas paralelas / tempo de serviço**, e você roda bem **abaixo** dela (≈ 60–75%) porque a latência explode perto da saturação.
-- O resultado mais importante de uma estimativa costuma ser **qual número medir** em seguida.
-- Percentis e matemática da disponibilidade dizem o que os **usuários** experimentam, não só o que os servidores fazem.
+!!! takeaways ""
+
+    - Decisões de design mudam em **ordens de grandeza**; a estimativa diz de que lado de um limiar você está.
+    - Cinco passos: **decisão → premissas → potências de dez → conferência de sanidade → conclusão**.
+    - A capacidade é aproximadamente **vagas paralelas / tempo de serviço**, e você roda bem **abaixo** dela (≈ 60–75%) porque a latência explode perto da saturação.
+    - O resultado mais importante de uma estimativa costuma ser **qual número medir** em seguida.
+    - Percentis e matemática da disponibilidade dizem o que os **usuários** experimentam, não só o que os servidores fazem.
+
+## O que quebra em seguida { #what-breaks-next }
+
+O veredito é uma **diferença de 30×**: ~33.000 tentativas de reserva/s contra ~1.100 que um banco sustenta com uma utilização sensata, e o laboratório 2 mostra que uma única instância do `catalog` sai da meta de latência com algumas centenas de requisições por segundo. Uma sala de espera molda a demanda, mas ela, as réplicas da aplicação na frente do banco e um standby para o primário (uma máquina não promete 99,95%) significam **mais de uma máquina**. Entre máquinas há uma rede que perde, atrasa e duplica mensagens: um fã cuja "reserva" estoura o timeout e é repetida pode acabar com duas reservas, ou duas cobranças. O que muda quando a BoxOffice vira máquinas que só cooperam por mensagens é a [aula 3 — Sistemas Distribuídos](../distributed/index.md).
 
 ---
 

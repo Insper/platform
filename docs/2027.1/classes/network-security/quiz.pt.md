@@ -3,7 +3,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Modelagem de ameaças e o OWASP API Top 10
+## Modelagem de ameaças e o OWASP API Top 10 { #threat-modeling-and-the-owasp-api-top-10 }
 
 **Q1.** Em uma sessão de STRIDE sobre o checkout do BoxOffice, o time anota: *"um atacante envia um webhook falso de `pagamento capturado` para o nosso endpoint, e emitimos ingressos que nunca foram pagos."* Qual categoria STRIDE é essa, e qual é o melhor controle?
 
@@ -47,9 +47,53 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Redes em nuvem
+## Como a Internet funciona { #how-the-internet-works }
 
-**Q4.** O BoxOffice planeja sub-redes privadas de aplicação `/24` em cada AZ, e o Kubernetes dá a cada pod um IP da VPC. Quantos endereços pods e nós conseguem de fato usar em uma sub-rede dessas na AWS?
+**Q4.** O navegador de um fã, em casa, envia uma requisição para `10.20.40.17`, o endereço privado do pod `payment`. Todos os security groups da VPC liberam o IP do fã. O que acontece?
+
+- A. A requisição chega ao pod, porque os security groups a liberam
+- B. A requisição é descartada na Internet: `10.20.40.17` é um endereço privado (RFC 1918) que ninguém anuncia, e o núcleo da Internet não tem rota padrão
+- C. A requisição chega à VPC, mas o NAT gateway a descarta
+- D. A requisição só chega ao pod por IPv6
+
+??? success "Resposta"
+    **B — Endereços privados não são roteados na Internet.**
+
+    Roteadores encaminham pelo maior prefixo que contém o destino, e só os blocos anunciados por BGP aparecem nas tabelas do núcleo. `10.0.0.0/8` é reutilizado em milhões de redes, então ninguém o anuncia: o pacote não encontra rota no primeiro roteador do núcleo, muito antes que algum security group pudesse vê-lo. Isso é alcance, não autorização — qualquer coisa *dentro* da rede ainda alcança o pod.
+
+---
+
+**Q5.** Quantos endereços tem a sub-rede `10.20.32.0/19`, e `10.20.64.5` é um deles?
+
+- A. 2 048 endereços; sim
+- B. 8 192 endereços (`10.20.32.0`–`10.20.63.255`); não, ele está no bloco `/19` seguinte
+- C. 8 192 endereços (`10.20.32.0`–`10.20.95.255`); sim
+- D. 524 288 endereços; sim
+
+??? success "Resposta"
+    **B — 2³²⁻¹⁹ = 8 192.**
+
+    Um `/19` deixa 13 bits de host, então os blocos começam a cada 32 valores do terceiro octeto: `10.20.0.0`, `10.20.32.0`, `10.20.64.0`… `10.20.64.5` está em `10.20.64.0/19`, então um host de `10.20.32.0/19` envia os pacotes para ele ao seu gateway padrão em vez de entregá-los diretamente. (Na AWS, 5 dos 8 192 endereços são reservados.)
+
+---
+
+**Q6.** Às 10h00, todos os fãs de uma operadora de celular recebem HTTP 429 do BoxOffice, enquanto os fãs de outras operadoras compram normalmente. A borda tem um limite de 20 requisições por segundo **por IP do cliente**. Qual é a causa mais provável?
+
+- A. A operadora bloqueia o IP do BoxOffice
+- B. NAT de operadora (CGNAT): milhares de celulares compartilham um IP público, então o limite por IP os trata como um único cliente; limite por chave de API ou por usuário
+- C. O load balancer não tem IP público
+- D. O NAT gateway do BoxOffice ficou sem portas
+
+??? success "Resposta"
+    **B — Atrás do CGNAT, um IP é um bairro.**
+
+    As operadoras dão aos celulares endereços de `100.64.0.0/10` e os traduzem para poucos endereços públicos. O servidor vê o NAT, não o celular, então um limite por IP soma o tráfego da operadora inteira. Use limites por chave ou por usuário para ser justo e mantenha limites por IP só como escudo grosseiro contra enxurradas. O NAT gateway do próprio BoxOffice cuida das chamadas de *saída*; não participa do tráfego de entrada dos fãs.
+
+---
+
+## Redes em nuvem { #cloud-networking }
+
+**Q7.** O BoxOffice planeja sub-redes privadas de aplicação `/24` em cada AZ, e o Kubernetes dá a cada pod um IP da VPC. Quantos endereços pods e nós conseguem de fato usar em uma sub-rede dessas na AWS?
 
 - A. 256
 - B. 254
@@ -63,7 +107,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q5.** O que torna uma sub-rede **pública** na AWS?
+**Q8.** O que torna uma sub-rede **pública** na AWS?
 
 - A. A sua tabela de rotas tem uma rota `0.0.0.0/0` para um Internet Gateway
 - B. Uma caixinha "pública" marcada na sub-rede
@@ -77,7 +121,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q6.** O provedor de pagamentos só aceita chamadas de IPs em uma allow-list. O BoxOffice roda em três AZs com **um único** NAT gateway, na AZ a, para todas as sub-redes privadas. A AZ a cai. O que acontece?
+**Q9.** O provedor de pagamentos só aceita chamadas de IPs em uma allow-list. O BoxOffice roda em três AZs com **um único** NAT gateway, na AZ a, para todas as sub-redes privadas. A AZ a cai. O que acontece?
 
 - A. Nada: NAT gateways se replicam automaticamente entre AZs
 - B. Os pods das AZs b e c perdem acesso de saída à Internet, então `payment` não alcança o provedor e o checkout falha, mesmo com a aplicação saudável em duas AZs
@@ -91,7 +135,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q7.** Qual afirmação sobre **security groups** e **network ACLs** está correta?
+**Q10.** Qual afirmação sobre **security groups** e **network ACLs** está correta?
 
 - A. Ambos são stateless e precisam permitir o tráfego de retorno explicitamente
 - B. Security groups se aplicam a sub-redes; NACLs a interfaces de rede
@@ -105,7 +149,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q8.** Cada um de 30 nós baixa cerca de 2 GB de imagens por dia pelo NAT gateway, mais 50 GB/dia de logs enviados ao object storage. Suponha (de forma ilustrativa) que o processamento de dados do NAT custe US$ 0,045 por GB. Aproximadamente quanto, por mês de 30 dias, um gateway endpoint para o object storage mais um interface endpoint para o registry poderiam tirar da conta do NAT (só processamento de dados)?
+**Q11.** Cada um de 30 nós baixa cerca de 2 GB de imagens por dia pelo NAT gateway, mais 50 GB/dia de logs enviados ao object storage. Suponha (de forma ilustrativa) que o processamento de dados do NAT custe US$ 0,045 por GB. Aproximadamente quanto, por mês de 30 dias, um gateway endpoint para o object storage mais um interface endpoint para o registry poderiam tirar da conta do NAT (só processamento de dados)?
 
 - A. Cerca de US$ 15
 - B. Cerca de US$ 150
@@ -121,7 +165,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ## Service mesh
 
-**Q9.** O Istio está instalado com mTLS em modo **STRICT**, mas não existe nenhuma `AuthorizationPolicy`. O pod `search` comprometido chama `POST /charges` em `payment`. O que acontece?
+**Q12.** O Istio está instalado com mTLS em modo **STRICT**, mas não existe nenhuma `AuthorizationPolicy`. O pod `search` comprometido chama `POST /charges` em `payment`. O que acontece?
 
 - A. A chamada é aceita: `search` tem uma identidade válida no mesh, e sem uma política de autorização todo workload autenticado é permitido
 - B. A chamada é rejeitada, porque o mTLS só permite serviços conhecidos
@@ -135,7 +179,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q10.** Qual afirmação compara melhor os planos de dados **sidecar** e **ambient** de um service mesh?
+**Q13.** Qual afirmação compara melhor os planos de dados **sidecar** e **ambient** de um service mesh?
 
 - A. O ambient injeta dois proxies em cada pod em vez de um
 - B. O sidecar roda no kernel com eBPF; o ambient usa Envoy
@@ -149,7 +193,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q11.** `order` usa Resilience4j com 3 tentativas nas chamadas a `payment`, e o `VirtualService` do mesh acrescenta `retries.attempts: 2` (ou seja, até 3 tentativas por chamada). Durante uma lentidão de `payment`, quantas requisições um clique do usuário pode gerar em `payment`, e qual é a lição?
+**Q14.** `order` usa Resilience4j com 3 tentativas nas chamadas a `payment`, e o `VirtualService` do mesh acrescenta `retries.attempts: 2` (ou seja, até 3 tentativas por chamada). Durante uma lentidão de `payment`, quantas requisições um clique do usuário pode gerar em `payment`, e qual é a lição?
 
 - A. 3 — o mesh ignora os retries da aplicação
 - B. 5 — os retries se somam
@@ -163,9 +207,9 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Identidade
+## Identidade { #identity }
 
-**Q12.** Qual fluxo do OAuth 2.1 o **app mobile** do BoxOffice deve usar para autenticar os usuários?
+**Q15.** Qual fluxo do OAuth 2.1 o **app mobile** do BoxOffice deve usar para autenticar os usuários?
 
 - A. Resource Owner Password Credentials: o app coleta e-mail e senha e os envia para `/token`
 - B. Implicit: o token volta na URL de redirecionamento
@@ -179,7 +223,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q13.** Access tokens vivem 15 minutos e são validados **localmente** no gateway com o JWKS. Um refresh token é revogado às 14:05; o último access token foi emitido às 13:58. Até quando um ladrão com esse access token consegue chamar a API, e como encurtar essa janela?
+**Q16.** Access tokens vivem 15 minutos e são validados **localmente** no gateway com o JWKS. Um refresh token é revogado às 14:05; o último access token foi emitido às 13:58. Até quando um ladrão com esse access token consegue chamar a API, e como encurtar essa janela?
 
 - A. Até as 14:05 — revogar o refresh token invalida os access tokens
 - B. Até as 14:13 — a validação local aceita o token até `exp`; encurte o tempo de vida do access token, ou use introspecção / uma denylist de `jti` para chamadas sensíveis
@@ -193,9 +237,9 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Zero Trust, segredos e cadeia de suprimentos
+## Zero Trust, segredos e cadeia de suprimentos { #zero-trust-secrets-and-supply-chain }
 
-**Q14.** A chave da API de pagamentos está em um Secret do Kubernetes criado a partir de um manifesto versionado no repositório Git. Qual afirmação está correta?
+**Q17.** A chave da API de pagamentos está em um Secret do Kubernetes criado a partir de um manifesto versionado no repositório Git. Qual afirmação está correta?
 
 - A. É seguro, porque Secrets do Kubernetes são criptografados com AES
 - B. É seguro se o repositório for privado
@@ -209,7 +253,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q15.** O pipeline de CI assina toda imagem com o cosign, mas o cluster não tem nenhuma política de admissão que verifique assinaturas. Um atacante com permissão de push no registry substitui a tag `order:1.4.2` por uma imagem maliciosa. O que acontece?
+**Q18.** O pipeline de CI assina toda imagem com o cosign, mas o cluster não tem nenhuma política de admissão que verifique assinaturas. Um atacante com permissão de push no registry substitui a tag `order:1.4.2` por uma imagem maliciosa. O que acontece?
 
 - A. A imagem maliciosa roda: assinar não protege nada se algo não verificar a assinatura (e o assinante esperado) no momento do deploy; além disso, fixe as imagens por digest
 - B. O pod não sobe, porque as assinaturas do cosign são verificadas pelo runtime de containers

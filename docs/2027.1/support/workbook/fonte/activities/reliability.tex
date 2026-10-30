@@ -1,4 +1,4 @@
-\activity{9}{Reliability \& Resilience}{reliability}{10:02, two minutes into the stadium on-sale: the waiting room admits fans at a steady pace and \texttt{inventory} is at 60\% of its capacity. Then the payment provider starts answering in 4 seconds instead of 200 ms. Within a minute \texttt{order} has no free threads, the gateway has none either, and fans who only wanted to browse the catalog get errors, although nothing is broken. How do you stop a slow dependency from taking everything down, and how do you decide, with numbers, how much failure BoxOffice can accept?}
+\activity{10}{Reliability \& Resilience}{reliability}{10:02, two minutes into the stadium on-sale: the waiting room admits fans at a steady pace and \texttt{inventory} is at 60\% of its capacity. Then the payment provider starts answering in 4 seconds instead of 200 ms. Within a minute \texttt{order} has no free threads, the gateway has none either, and fans who only wanted to browse the catalog get errors, although nothing is broken. How do you stop a slow dependency from taking everything down, and how do you decide, with numbers, how much failure BoxOffice can accept?}
 \stages{\stClarify\ \stEstimate\ \stDeep}
 
 \begin{know}
@@ -51,6 +51,8 @@ The purchase path: load balancer 99.99\%; gateway, \texttt{order} and \texttt{in
 \end{enumerate}
 \lines{5}
 \end{ex}
+
+\simulator{A failover costs time and data}{db-failover}{Checkout writes go to a DB Cluster with one asynchronous follower; at t = 90 s the primary dies. Writes fail for the 30 s of failover (the RTO) and those still inside the replication lag are lost (the RPO). Switch to sync or quorum replication, shorten the failover and add shards: compare lost writes, availability, write p99 and cost.}
 
 \begin{ex}{2}{The slow provider}
 \texttt{order} has 200 request threads and receives 100 purchases/s; each purchase calls the payment provider.

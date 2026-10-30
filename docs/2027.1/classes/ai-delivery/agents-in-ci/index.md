@@ -20,7 +20,7 @@ Every row ends in the same place: a **proposal** (a branch, a draft PR) that det
 
 ## Anatomy of a fix-the-build agent
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     autonumber
     participant CI as CI run
@@ -146,6 +146,14 @@ Whatever the model decides, it can never do more than its credentials allow. Des
 - **Branch protection and rulesets**: `main` requires PRs, CI and a human approval; bots cannot bypass; changes to `.github/workflows/` require a code owner.
 - **Human approval is structural**, not a prompt instruction: the agent *cannot* merge because its token cannot.
 
+!!! example "In the BoxOffice code: two jobs, two privileges (lab 13)"
+
+    [Hands-on 13 — The fix agent](../../../hands-on/13/fix-agent/index.md) splits the workflow exactly this way. The `fix` job runs the model **and** the untrusted build with `contents: read` and `actions: read` (to fetch the failed log), and it runs only for failed CI runs of this repository's own branches, never for its own `ai-fix/` branches. The `open-pr` job has `contents: write` and `pull-requests: write`, runs no model and no build, and only applies the patch as a **draft** PR — after an independent step re-ran `mvn verify` and rejected deleted `@Test`s and files outside `services/<name>/src/`.
+
+    ``` { .yaml title=".github/workflows/ai-fix.yaml (the two jobs)" }
+    --8<-- "docs/2027.1/hands-on/13/code/.github/workflows/ai-fix.yaml:15:29,119:126"
+    ```
+
 ---
 
 ## Budgets: turns, tokens, dollars, minutes
@@ -217,6 +225,14 @@ Without caching, 40 turns cost more than eight times what 10 turns cost (about U
 
 The ratio that matters is **dollars per merged fix**, not per run: an agent that costs US$ 0.80 per run but produces a mergeable fix one time in four costs US$ 3.20 per useful fix — compare that with the engineer-time it saves.
 
+!!! example "In the BoxOffice code: the budgets and the write area of the fix agent (lab 13)"
+
+    The agent of [hands-on 13](../../../hands-on/13/fix-agent/index.md) stops at 20 steps, 400,000 tokens or US$ 1.50, whichever comes first; it may read files of the repository but write only under `src/`, never `.git/` or `.github/`, and every tool call goes to an audit log. A run with the local `qwen2.5-coder-16k` shows why the budget is not optional: the model never opened `CatalogService.java`, rewrote the *test* six times, and stopped after its 20 steps, 8½ minutes and 165,075 input tokens with `"fixed": false`. Nothing dangerous happened — every write stayed under `services/catalog/src/`, and the independent `mvn verify` failed, so no PR was opened. The guards make a bad agent harmless, not good.
+
+    ``` { .python title=".github/ai/fix_agent.py (budgets, write area, budget stop)" }
+    --8<-- "docs/2027.1/hands-on/13/code/.github/ai/fix_agent.py:23:27,70:76,178:182"
+    ```
+
 ---
 
 ## Idempotency, retries and loops
@@ -262,6 +278,14 @@ This is the same discipline as for any production change, and it feeds the [supp
 
     For "design an agent that fixes broken builds", draw the **orchestrator** around the agent, not just the loop: trigger and dedupe, sandbox and tool allow-list, budgets enforced by the harness, verification outside the agent, a separate privileged step that opens a **draft** PR, and the audit trail. Quantify cost per run (quadratic in turns, mitigated by caching) and per *merged* fix. Say which failures it should *not* touch (flaky tests, infrastructure, security findings) and how the system detects them.
 
+!!! success "Best practices"
+
+    - **Use the failing commit SHA as the idempotency key** — one proposal per SHA: lab 13's [`ai-fix.yaml`](../../../hands-on/13/fix-agent/index.md) uses a `concurrency` group on the SHA and the branch `ai-fix/<sha8>`.
+    - **Keep the transcript and the audit log as CI artifacts** — the run can be explained later; lab 13 uploads `agent-transcript.jsonl` and `agent-audit.jsonl`.
+    - **Scrub secrets from the build the agent runs** — lab 13 runs `mvn verify` without the `*KEY*`, `*TOKEN*` and `*SECRET*` variables.
+    - **Track dollars per merged fix, not per run** — one useful fix in four runs at US$ 0.80 is US$ 3.20 per fix; compare it with the engineer time it saves.
+    - **Open drafts, never ready-for-review PRs** — a draft cannot be merged by accident and says that a person must take ownership; lab 13 opens `gh pr create --draft`.
+
 !!! warning "Common pitfalls"
 
     - **One job with the agent and a write token**: every prompt injection becomes a push.
@@ -274,7 +298,7 @@ This is the same discipline as for any production change, and it feeds the [supp
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     TRIG["red build event<br/>trigger + dedupe"] --> HARN["harness = orchestrator"]
     HARN --> SB["sandbox, tool allow-list,<br/>no write token"]

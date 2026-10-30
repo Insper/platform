@@ -13,7 +13,7 @@ In the playground, `microservice` and `container` are **call** nodes, `k8s` is a
 | [Kubernetes Cluster](#k8s) | Worker nodes that run services as pods; schedules, heals and autoscales them | `k8s` |
 | [Service Registry](#registry) | Which healthy instances of each service exist right now (service discovery) | `registry` |
 
-``` mermaid
+``` diagram
 flowchart LR
     CL[Client] --> GW[API Gateway]
     subgraph K8S["Kubernetes cluster (worker nodes)"]

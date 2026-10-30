@@ -42,9 +42,11 @@ spring:
               - uri: http://catalog-2:8082
               - uri: http://catalog-3:8082
     loadbalancer:
-      configurations: health-check         # skip instances whose /actuator/health is not UP
+      configurations: health-check         # skip instances that are not ready
       health-check:
         interval: 5s
+        path:
+          default: /actuator/health/readiness   # this instance, not db/redis that every replica shares
   security:
     oauth2:
       resourceserver:

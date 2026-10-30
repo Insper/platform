@@ -2,7 +2,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Visão geral
+## Visão geral { #overview }
 
 **Q1.** Um time quer que um agente reescreva a lógica de `SELECT … FOR UPDATE` que impede a venda dupla no `inventory`, e que outro atualize a versão de patch de uma biblioteca de logging em todos os serviços. Quais níveis de autonomia são adequados?
 
@@ -60,7 +60,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Revisão de código
+## Revisão de código { #code-review }
 
 **Q5.** Seu revisor de IA publica 3 comentários por PR, e só 4 em cada 10 são avaliados como úteis. Qual é a consequência mais provável, e a melhor primeira correção?
 
@@ -104,7 +104,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Testes
+## Testes { #testing }
 
 **Q8.** Uma suíte de testes gerada eleva a cobertura de linhas do `HoldService` de 45% para 95%, mas o mutation score continua em 41%. O que isso indica?
 
@@ -148,7 +148,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Agentes no CI
+## Agentes no CI { #agents-in-ci }
 
 **Q11.** Um agente de correção do build sem prompt caching começa com 20.000 tokens de contexto e acrescenta 2.500 tokens por turno. Aproximadamente, como o **total de tokens de entrada** cresce com o número de turnos *n*?
 
@@ -178,7 +178,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Liberação e operação
+## Liberação e operação { #release-operate }
 
 **Q13.** Por que um LLM não deve ser o juiz que promove ou aborta um canary?
 
@@ -194,7 +194,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Segurança e governança
+## Segurança e governança { #security-governance }
 
 **Q14.** O que é a "tríade letal (lethal trifecta)" para agentes de IA?
 

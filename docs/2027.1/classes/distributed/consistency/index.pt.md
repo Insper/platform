@@ -4,7 +4,7 @@ Esta página explica como os dados são copiados entre nós (**replicação**) e
 
 ---
 
-## Por que replicar?
+## Por que replicar? { #why-replicate }
 
 Manter uma cópia do mesmo dado em vários nós atende a três objetivos diferentes, e vale dizer qual deles você quer:
 
@@ -22,11 +22,11 @@ Os três são fáceis se o dado nunca muda. A dificuldade está inteira em **lid
 
 Há três famílias, que se distinguem por **quem aceita escritas**[^1].
 
-### Com um único líder (primário–réplica)
+### Com um único líder (primário–réplica) { #single-leader-primaryreplica }
 
 Um nó, o **líder** (primário), aceita todas as escritas e envia um log de mudanças aos **seguidores** (réplicas). As leituras podem ir ao líder ou aos seguidores. É o padrão no PostgreSQL, MySQL, MongoDB, Redis e Kafka (um líder por partição).
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     w([order: escrita]) -->|"INSERT pedido 981"| L[("líder<br/>(primário)")]
     L -->|"stream do WAL"| F1[("seguidor 1")]
@@ -35,11 +35,11 @@ flowchart LR
     r2([catálogo: leitura]) -->|"SELECT"| F2
 ```
 
-### Com vários líderes (multi-leader)
+### Com vários líderes (multi-leader) { #multi-leader }
 
 Vários nós aceitam escritas — tipicamente um líder por data center ou região — e replicam entre si de forma assíncrona. As escritas são rápidas e locais em todo lugar, mas dois líderes podem aceitar escritas **conflitantes** no mesmo registro, que precisam ser resolvidas depois. Usos típicos: implantações multirregião, apps offline-first (cada celular é um "líder"), edição colaborativa.
 
-### Sem líder (leaderless)
+### Sem líder (leaderless) { #leaderless }
 
 Qualquer réplica aceita leituras e escritas. O cliente (ou um coordenador) envia cada escrita a várias réplicas e cada leitura a várias réplicas, e **quóruns** decidem o que conta como sucesso (`R + W > N`, veja [Consenso e Quóruns](../consensus/index.md#quorums)). É o projeto do artigo Dynamo, da Amazon[^2], do Cassandra e do ScyllaDB.
 
@@ -53,11 +53,11 @@ Qualquer réplica aceita leituras e escritas. O cliente (ou um coordenador) envi
 | **Sistemas típicos** | PostgreSQL, MySQL, MongoDB, partições do Kafka | Montagens multirregião de MySQL/Postgres, CouchDB, Redis Active-Active | Cassandra, ScyllaDB, Riak, DynamoDB (internamente) |
 | **Uso no BoxOffice** | `inventory`, `order`, `payment` | — (evite para assentos!) | Atividade dos fãs, contadores de visualização |
 
-### Síncrona ou assíncrona?
+### Síncrona ou assíncrona? { #synchronous-or-asynchronous }
 
 Independentemente de quem lidera, o líder precisa decidir **quando dizer "OK" ao cliente**:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant C as order
     participant L as líder
@@ -81,7 +81,7 @@ sequenceDiagram
 
 O PostgreSQL expõe essa escolha em `synchronous_commit` e `synchronous_standby_names` (por exemplo `ANY 1 (replica_a, replica_b)` — semissíncrono com uma de duas). Na prática, "totalmente síncrono" é raro: um seguidor lento travaria toda escrita. Replicação semissíncrona ou por quórum é o meio-termo usual.
 
-### Atraso de replicação
+### Atraso de replicação { #replication-lag }
 
 Com seguidores assíncronos, a demora entre uma escrita no líder e sua visibilidade em um seguidor é o **atraso de replicação** (*replication lag*). Em um sistema saudável costuma ser de milissegundos; sob carga pesada de escrita, durante uma transação longa ou depois de um soluço na rede, pode chegar a segundos ou minutos. O tempo entre uma escrita e a leitura seguinte decide se essa leitura está desatualizada:
 
@@ -128,7 +128,7 @@ Com um atraso (suposto) exponencial, a mesma tela que quase nunca está desatual
 
 Um **modelo de consistência** é um contrato entre um armazenamento de dados e quem programa contra ele: *se você seguir estas regras, os resultados das leituras serão previsíveis desta forma*[^3]. Modelos mais fortes são mais fáceis de programar e custam mais coordenação (latência, disponibilidade); modelos mais fracos são mais baratos e empurram a complexidade para a aplicação.
 
-``` mermaid
+``` diagram
 flowchart TD
     LIN["Linearizável<br/>(consistência forte)"] --> SEQ["Sequencial"]
     SEQ --> CAU["Causal"]
@@ -140,13 +140,13 @@ flowchart TD
     CP --> EV
 ```
 
-Uma seta de A para B significa "A garante tudo o que B garante, e mais". Os três modelos da linha do meio são **garantias de sessão**: valem para a sessão de um cliente, não para todos.
+Uma seta de A para B significa "A garante tudo o que B garante, e mais". Read-your-writes e leituras monotônicas são **garantias de sessão**: valem para a sessão de um cliente, não para todos; o prefixo consistente (consistent prefix) promete que nenhum leitor vê escritas fora da ordem em que aconteceram.
 
 ### Linearizabilidade (consistência forte) { #linearizability }
 
 A **linearizabilidade** faz um sistema replicado se comportar **como se houvesse uma única cópia dos dados**, e cada operação tivesse efeito atômico em um instante entre seu início e seu fim[^4]. Uma vez que alguma leitura devolveu um valor novo, toda leitura posterior (de qualquer pessoa, em qualquer réplica) precisa devolver esse valor ou um mais novo.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant A as Fã A
     participant N1 as réplica 1
@@ -173,7 +173,7 @@ Ela é obtida roteando todas as leituras e escritas de uma chave por **um líder
 !!! info "Serializável não é linearizável"
     **Serializabilidade** é uma garantia de *isolamento* para transações sobre muitos objetos (o resultado equivale a alguma ordem serial das transações). **Linearizabilidade** é uma garantia de *atualidade* para objetos individuais (leituras veem a última escrita em tempo real). Um banco pode oferecer uma, as duas ("serializabilidade estrita", como no Spanner) ou nenhuma. Os níveis de isolamento estão em [Bancos de dados — transações](../../databases/transactions/index.md).
 
-### Consistência sequencial
+### Consistência sequencial { #sequential-consistency }
 
 Todos os nós veem todas as operações na **mesma ordem**, e as operações de cada nó aparecem na ordem do seu programa — mas essa ordem não precisa respeitar o tempo real. Uma leitura pode devolver um valor "antigo" em termos de relógio, desde que todos concordem com a sequência. É sobretudo um conceito de memória de hardware e de teoria; em system design raramente você o escolhe explicitamente.
 
@@ -196,7 +196,7 @@ A maioria dos bugs do tipo "meu dado sumiu" é a violação de uma destas quatro
 | **Escritas monotônicas** | Suas escritas são aplicadas na ordem em que você as fez | "Trocar e-mail" e depois "enviar ingresso" — o ingresso vai para o endereço antigo |
 | **Escritas seguem leituras** (causal) | Uma escrita que você faz depois de ler X é ordenada depois de X | Você responde a uma mensagem do suporte que outras réplicas ainda não receberam |
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant F as App do fã
     participant R1 as réplica 1 (atraso 10 ms)
@@ -213,6 +213,14 @@ Como oferecê-las em cima de réplicas assíncronas:
 - **Ler do líder depois de uma escrita**: por uma janela curta (por exemplo, 1–5 s) depois que a fã escreve, roteie as leituras *dela* para o primário — ou sempre leia do primário os dados que pertencem ao usuário (*Meus ingressos*).
 - **Tokens de versão**: a escrita devolve a posição no log do líder (no PostgreSQL, o LSN do WAL — *Log Sequence Number*); o cliente o envia na próxima leitura, e uma réplica só responde depois de ter aplicado pelo menos aquela posição (senão espera ou encaminha ao líder). Muitos bancos expõem isso como *sessões causais* ou *tokens de read-after-write* (sessões de consistência causal do MongoDB, consistência de sessão do Cosmos DB).
 - **Réplica fixa (sticky)**: prenda cada sessão a uma réplica (hash do id da sessão) — dá leituras monotônicas, não read-your-writes.
+
+!!! example "No código do BoxOffice: read-your-writes pelo roteamento (lab 6)"
+
+    O [Hands-on 6 — Réplicas](../../../hands-on/6/replicas/index.md) acrescenta uma réplica por streaming ao banco do `inventory` e usa a primeira técnica acima. Um `DataSource` envolve dois pools; uma transação marcada `@Transactional(readOnly = true)` — o mapa de assentos, a disponibilidade por setor — recebe uma conexão da réplica, todas as outras recebem o primário. O `HoldService.find` *não* é somente leitura de propósito: o fã acabou de criar aquela reserva, então ela é lida do primário. O laboratório mediu por quê: um fã que reserva um assento e recarrega o mapa de assentos na hora, a partir da réplica, não viu a própria reserva em **cerca de 6%** das tentativas com a réplica na mesma máquina, e em **98%** com 1 s de atraso artificial.
+
+    ``` { .java title="services/inventory/src/main/java/boxoffice/inventory/DataSourceConfig.java (the routing)" }
+    --8<-- "docs/2027.1/hands-on/6/code/services/inventory/src/main/java/boxoffice/inventory/DataSourceConfig.java:11:38"
+    ```
 
 ### Consistência eventual { #eventual }
 
@@ -253,7 +261,7 @@ Se São Paulo contou `[3, 0, 0]` e Lisboa `[0, 2, 0]`, ambas mesclam para `[3, 2
 
 ---
 
-## O espectro em um relance
+## O espectro em um relance { #the-spectrum-at-a-glance }
 
 | Modelo | Garantia | Custo de coordenação | Disponível durante uma partição? | Implementação típica |
 |---|---|---|---|---|
@@ -278,6 +286,14 @@ Se São Paulo contou `[3, 0, 0]` e Lisboa `[0, 2, 0]`, ambas mesclam para `[3, 2
 !!! tip "Na entrevista"
     Quando o entrevistador disser "e o usuário deve ver a atualização imediatamente", traduza para um modelo: *"isso é read-your-writes, não consistência forte global — vou ler os dados do próprio usuário no líder, ou passar a posição no log da escrita como token."* Depois aponte o único lugar que **precisa** de linearizabilidade (estoque, saldos, unicidade) e explique como obtê-la (um líder + failover baseado em consenso, escritas condicionais). Entrevistadores recompensam vocabulário preciso e escolhas por domínio; penalizam "tudo é fortemente consistente" (lento, caro) e "tudo é eventualmente consistente" (reservas em dobro).
 
+!!! success "Boas práticas"
+
+    - **Escreva o modelo de consistência de cada domínio de dados no documento de design** — uma linha por domínio (assentos, pagamentos, *Meus ingressos*, catálogo), com o mecanismo que o garante; os revisores conferem o código contra ela.
+    - **Use o primário por padrão e opte por réplicas por transação** — uma leitura só vai para uma réplica quando alguém a marcou como tolerante a defasagem. Na BoxOffice: `@Transactional(readOnly = true)` roteia para a réplica no [lab 6](../../../hands-on/6/replicas/index.md) (quadro acima).
+    - **Meça leituras defasadas com um teste de escrever-e-ler** — escreva, leia de volta na hora a partir da réplica, conte as falhas; sob carga o número nunca é zero. Na BoxOffice: `load/read-your-writes.js` do lab 6 (6% sem atraso, 98% com 1 s).
+    - **Use uma coluna `version` em edições de ler-modificar-escrever** — um `UPDATE … WHERE version = :v` condicional transforma uma atualização perdida num conflito visível. Na BoxOffice: `inventory.seats.version` (lab 6).
+    - **Mostre o frescor onde a defasagem é permitida** — "atualizado há 3 s" num contador servido por uma réplica ou um cache ajusta a expectativa do fã e poupa um chamado no suporte.
+
 !!! warning "Armadilhas"
     - **Separar leitura/escrita por padrão**: mandar *todas* as leituras para réplicas quebra read-your-writes na primeira tela depois de uma escrita.
     - **Caches também são réplicas**: colocar Redis ou uma CDN na frente de um armazenamento linearizável torna essas leituras eventualmente consistentes ([Caching](../../caching/index.md)).
@@ -287,7 +303,7 @@ Se São Paulo contou `[3, 0, 0]` e Lisboa `[0, 2, 0]`, ambas mesclam para `[3, 2
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     W["escrita no líder"] --> REPL{"replicação<br/>síncrona ou assíncrona?"}
     REPL -->|"síncrona / quórum"| LIN["leituras linearizáveis"]
@@ -301,13 +317,15 @@ flowchart LR
 
 **Componentes da paleta que são réplicas (e, portanto, têm um modelo de consistência):** [`sql`](../../../reference/components/storage/index.md#sql) (primário + réplicas de leitura, cenário `db-replicas`) · [`nosql`](../../../reference/components/storage/index.md#nosql) (sem líder, cenário `sharding`) · [`cache`](../../../reference/components/storage/index.md#cache) (cenário `read-heavy-cache`) · [`cdn`](../../../reference/components/edge/index.md#cdn) (cenário `cdn-static`) · [`stream`](../../../reference/components/messaging/index.md#stream) (partições replicadas). **Apoia-se em:** [modelos de falha](../index.md#failure-models). **Continua em:** [CAP e PACELC](../cap-pacelc/index.md), [Bancos de dados — replicação](../../databases/replication/index.md), [Caching — invalidação](../../caching/invalidation/index.md).
 
-## Pontos-chave
+## Pontos-chave { #key-takeaways }
 
-- A **replicação** serve a disponibilidade, a vazão de leitura e a latência; toda a dificuldade está em propagar as **escritas**.
-- **Um líder** evita conflitos de escrita; **vários líderes** e **sem líder** aceitam escritas em todo lugar e precisam resolver conflitos (LWW, vetores de versão, CRDTs, ou evitá-los com um líder de origem).
-- Replicação **síncrona vs assíncrona** troca latência e disponibilidade de escrita por durabilidade no failover; semissíncrona ou por quórum é o meio-termo usual.
-- Os **modelos de consistência** vão de **linearizável** (ilusão de cópia única), passando por **causal** e pelas **garantias de sessão** (read-your-writes, leituras monotônicas), até **eventual**.
-- Escolha **por domínio de dados**: linearizável para assentos e dinheiro, read-your-writes para os dados do próprio usuário, eventual para o catálogo e os contadores.
+!!! takeaways ""
+
+    - A **replicação** serve a disponibilidade, a vazão de leitura e a latência; toda a dificuldade está em propagar as **escritas**.
+    - **Um líder** evita conflitos de escrita; **vários líderes** e **sem líder** aceitam escritas em todo lugar e precisam resolver conflitos (LWW, vetores de versão, CRDTs, ou evitá-los com um líder de origem).
+    - Replicação **síncrona vs assíncrona** troca latência e disponibilidade de escrita por durabilidade no failover; semissíncrona ou por quórum é o meio-termo usual.
+    - Os **modelos de consistência** vão de **linearizável** (ilusão de cópia única), passando por **causal** e pelas **garantias de sessão** (read-your-writes, leituras monotônicas), até **eventual**.
+    - Escolha **por domínio de dados**: linearizável para assentos e dinheiro, read-your-writes para os dados do próprio usuário, eventual para o catálogo e os contadores.
 
 ---
 

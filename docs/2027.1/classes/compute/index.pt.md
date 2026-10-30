@@ -2,6 +2,10 @@ São 09:59 do dia em que a turnê de estádios entra à venda na **BoxOffice**. 
 
 A borda ([aula 4](../edge/index.md)) decide *para onde* vai cada requisição. Esta aula trata do que acontece quando ela chega: **onde o código roda, como ele é dividido em serviços, como esses serviços conversam, o que roda fora da requisição, como a frota cresce e encolhe sozinha e como depender com segurança de sistemas que você não controla** — o provedor de pagamentos, o provedor de e-mail, qualquer API de terceiros.
 
+!!! quote "A história até aqui"
+
+    Capítulo 5 da [história da disciplina](../../index.md#story). A borda da [aula 4](../edge/index.md) espalha os 2 milhões de requisições das 10:00 por três réplicas do `catalog`, e o [lab 3](../../hands-on/3/index.md) mediu o ganho. Mas uma réplica só pode ser adicionada, derrubada ou substituída se não guardar nada de que outra réplica precise: uma reserva de lugar ou uma sessão de login na memória de uma réplica morre com ela. E a BoxOffice agora tem mais serviços além do `catalog`: alguém precisa verificar o token do fã uma vez, por todos eles. **Esta aula** responde: o que uma réplica precisa ser, como o código é dividido em serviços, e como esses serviços dependem uns dos outros e de provedores que não controlamos?
+
 !!! abstract "Objetivos de aprendizagem"
 
     Ao final desta aula, você deve ser capaz de:
@@ -14,7 +18,7 @@ A borda ([aula 4](../edge/index.md)) decide *para onde* vai cada requisição. E
     - **Decidir** entre containers e serverless, e **configurar** autoscaling (target tracking, HPA, baseado em fila, agendado) para uma carga com picos.
     - **Integrar** um provedor externo com segurança: idempotency keys, webhooks verificados, retries com backoff, reconciliação e um plano para quedas do provedor.
 
-## Roteiro
+## Roteiro { #roadmap }
 
 1. **Esta visão geral** — a paleta de computação, servidores de aplicação stateless, escalabilidade horizontal e quantas réplicas você precisa.
 2. [Serviços](services/index.md) — monólito, monólito modular e microsserviços; bounded contexts de DDD; lei de Conway; a arquitetura *dentro* de um serviço; auth, busca, notificações e analytics como serviços.
@@ -35,7 +39,7 @@ Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** a
 
 ---
 
-## A paleta de computação
+## A paleta de computação { #the-compute-palette }
 
 No [System Design Playground](../../../playground/index.md), a categoria **COMPUTE** agrupa todos os componentes que *executam o seu código*. Cada um é uma resposta diferente à pergunta "onde esta parte da lógica executa, e como ela escala?":
 
@@ -58,7 +62,7 @@ O restante desta página trata do mais comum deles — o **app server** — e da
 
 Um servidor é **stateless** (sem estado) quando não guarda, entre uma requisição e outra, nada de que outra réplica precisaria: qualquer réplica pode atender qualquer requisição, porque tudo o que precisa sobreviver fica *fora* do processo — em um banco de dados, um cache, um object store ou no próprio cliente. É essa única propriedade que permite ao load balancer mandar cada requisição para qualquer lugar, permite adicionar réplicas em segundos e permite matar uma réplica sem perder nada.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     fan([Fã]) --> lb["Load balancer"]
     lb --> a1["catalog #1"]
@@ -93,9 +97,17 @@ Este é o fator VI do *Twelve-Factor App*: "execute a aplicação como um ou mai
 !!! warning "Sticky sessions são uma muleta"
     Um load balancer pode prender cada usuário a uma réplica (*session affinity*). Isso esconde o problema sem resolvê-lo: a carga fica desigual (uma réplica recebe os usuários mais pesados) e, quando essa réplica morre ou é removida no scale-in, seus usuários perdem o estado. Use afinidade apenas para tráfego orientado a conexão (WebSockets) ou como passo temporário enquanto o estado é movido para fora.
 
+!!! example "No código do BoxOffice: nenhuma sessão em nenhuma réplica (lab 4)"
+
+    O [Hands-on 4 — Gateway](../../hands-on/4/gateway/index.md) não guarda sessão de login em lugar nenhum. O JWT do fã viaja em toda requisição, e o gateway confere a assinatura com a chave pública do `auth`, buscada uma vez no seu endpoint JWKS: nenhuma réplica se lembra do fã, então o gateway pode mandar cada requisição para qualquer uma das três réplicas do `catalog` (`lb://catalog`), e perder uma não perde nada. O preço é a revogação: um token continua válido até expirar (uma hora aqui, `jwt.ttl`), como explica [Identidade](../edge/identity/index.md#gateway-validation).
+
+    ``` { .java title="services/gateway/src/main/java/boxoffice/gateway/SecurityConfig.java (stateless security)" }
+    --8<-- "docs/2027.1/hands-on/4/code/services/gateway/src/main/java/boxoffice/gateway/SecurityConfig.java:22:41"
+    ```
+
 ---
 
-## Escalar para cima ou para fora
+## Escalar para cima ou para fora { #scaling-up-or-out }
 
 Há duas formas de dar mais capacidade a um serviço:
 
@@ -110,7 +122,7 @@ Há duas formas de dar mais capacidade a um serviço:
 
 App servers são escalados **para fora** quase por padrão, porque ser stateless torna isso trivial. Bancos de dados normalmente são escalados **para cima** primeiro, depois com réplicas e partições — é por isso que a camada de dados, e não a de aplicação, é onde a maioria dos gargalos acaba aparecendo.
 
-### Quantas réplicas?
+### Quantas réplicas? { #how-many-replicas }
 
 A pergunta que todo design precisa responder com um número. Parta da capacidade de uma réplica, medida com um teste de carga ([hands-on 2](../../hands-on/2/index.md)), e da carga de pico da sua estimativa ([aula 2](../estimation/index.md)):
 
@@ -182,7 +194,7 @@ Com 8 réplicas a fila cresce sem limite (100% ocupado). Com 9 réplicas (89% oc
 
     Três motivos. **Custo**: você paga capacidade ociosa o dia inteiro para cobrir dez minutos de pico — a motivação para o [autoscaling](serverless-autoscaling/index.md). **Armazenamentos compartilhados**: 100 réplicas × um pool de 20 conexões com o banco = 2.000 conexões, mais do que um servidor PostgreSQL deveria aceitar (cada conexão é um processo com memória própria); o gargalo simplesmente migra para o banco. **Retornos decrescentes**: quando a fila desaparece, réplicas extras não deixam uma requisição mais rápida — os 20 ms de trabalho continuam lá.
 
-### Experimente no playground
+### Experimente no playground { #try-it-in-the-playground }
 
 Abra o cenário `scale-out`: um load balancer na frente de N réplicas da aplicação.
 
@@ -200,7 +212,7 @@ Abra o cenário `scale-out`: um load balancer na frente de N réplicas da aplica
 
 Escalar para fora significa que réplicas são criadas e destruídas o tempo todo — por deploys, pelo autoscaler, por falhas de nós. Uma réplica que se comporta bem durante seu ciclo de vida é tão importante quanto uma réplica stateless:
 
-``` mermaid-sim
+``` diagram-sim
 stateDiagram-v2
     [*] --> Starting : agendada em um nó
     Starting --> Ready : startup + readiness probe passam
@@ -217,7 +229,7 @@ stateDiagram-v2
 
 ---
 
-## Formatos de computação
+## Formatos de computação { #compute-shapes }
 
 O mesmo serviço stateless pode rodar sobre substratos muito diferentes. A escolha muda quem gerencia o quê, quão rápido você escala e como você paga:
 
@@ -228,13 +240,13 @@ O mesmo serviço stateless pode rodar sobre substratos muito diferentes. A escol
 | **Containers serverless** (Cloud Run, Fargate, Container Apps) | imagem de container | segundos, até zero | a aplicação | por requisição ou por vCPU-segundo | APIs com períodos ociosos |
 | **Funções (FaaS)** (Lambda, Cloud Functions) | uma função | de menos de um segundo a segundos, até zero | uma função | por invocação e duração | cola entre eventos, webhooks, trabalho em rajadas |
 
-A aula 12 ([cloud-native](../cloud-native/index.md)) cobre containers e Kubernetes em profundidade; esta aula cobre as decisões que dependem da *carga de trabalho*: [serverless e autoscaling](serverless-autoscaling/index.md).
+A aula 11 ([cloud-native](../cloud-native/index.md)) cobre containers e Kubernetes em profundidade; esta aula cobre as decisões que dependem da *carga de trabalho*: [serverless e autoscaling](serverless-autoscaling/index.md).
 
 ## O mapa de conceitos de compute { #concept-map }
 
 Cada componente de computação responde *onde* um pedaço de lógica roda e *como* ele escala; os componentes externos são a lógica que você chama mas não executa. O mapa liga cada **componente da paleta** (verde) aos **conceitos** em que ele se apoia (azul):
 
-``` mermaid
+``` diagram
 flowchart LR
     app["app"]:::comp -.- c1["stateless, escala horizontal,<br/>ciclo de vida da réplica"]:::tech
     app -.- c2["REST, gRPC, GraphQL,<br/>APIs assíncronas"]:::tech
@@ -268,6 +280,14 @@ flowchart LR
 
     Descreva a camada de computação em uma frase e siga para as partes interessantes: *"A camada de API é stateless — sessões são JWTs, arquivos vão para o object store — então ela fica atrás de um load balancer e faz autoscaling por CPU e requisições por segundo; eu a dimensionaria com cerca de 65% de utilização-alvo, o que dá 13–14 réplicas para o nosso pico de 4 mil RPS."* Entrevistadores querem ouvir que você sabe **para onde foi o estado**, e um número. Gaste o tempo restante nas partes com estado (banco de dados, cache, fila), onde estão os trade-offs de verdade.
 
+!!! success "Boas práticas"
+
+    - **Torne cada réplica identificável** — coloque o nome da instância num cabeçalho da resposta e em cada linha de log, para que a única réplica ruim entre 14 possa ser encontrada e retirada. Na BoxOffice: o `InstanceHeaderFilter` do [lab 3](../../hands-on/3/index.md).
+    - **Fixe a CPU e a memória de cada contêiner e meça a capacidade sob esses limites** — "RPS por réplica" na fórmula acima só é um número quando o tamanho da réplica é fixo. Na BoxOffice: todo serviço no `docker-compose.yaml` tem `deploy.resources.limits` (1 CPU, 768 MB), e o [lab 2](../../hands-on/2/index.md) mede sob eles.
+    - **Mantenha uma réplica (ou uma zona) de folga acima da utilização-alvo** — com 13 réplicas a 65%, perder uma deixa as outras 12 em cerca de 70%, ainda abaixo do joelho.
+    - **Exponha probes de liveness e readiness separadas** — a readiness falha quando uma dependência está inacessível (pare de mandar tráfego), a liveness só quando o processo travou (reinicie-o); uma probe só para as duas reinicia réplicas saudáveis durante um soluço do banco. Na BoxOffice: `management.endpoint.health.probes.enabled: true` em todo serviço, desde o [lab 1](../../hands-on/1/index.md).
+    - **Escreva o orçamento de conexões** — réplicas × tamanho do pool de cada serviço precisa ficar abaixo do que o banco aceita (o exemplo das 2.000 conexões acima). Na BoxOffice: `DB_POOL_SIZE` por serviço e o PgBouncer no [lab 6](../../hands-on/6/replicas/index.md).
+
 !!! warning "Armadilhas comuns"
 
     - **Estado escondido**: um mapa em memória, um arquivo local ou um job `@Scheduled` dentro do processo que silenciosamente assume uma única réplica.
@@ -278,19 +298,25 @@ flowchart LR
 
 ---
 
-## Relacionados
+## Relacionados { #related }
 
-- Hands-on: [hands-on 1 — primeiro serviço](../../hands-on/1/index.md) (a API REST do `catalog` e seu contrato OpenAPI), [hands-on 3 — borda](../../hands-on/3/index.md) (três réplicas atrás do Nginx, medição de scale-out), [hands-on 7 — assíncrono](../../hands-on/7/index.md) (workers, outbox, consumidor idempotente), [hands-on 9 — resiliência](../../hands-on/9/index.md) (`order` → `payment` com timeouts e circuit breaker), [hands-on 10 — Kubernetes](../../hands-on/10/index.md) (HPA sob carga do k6).
+- Hands-on: [hands-on 1 — primeiro serviço](../../hands-on/1/index.md) (a API REST do `catalog` e seu contrato OpenAPI), [hands-on 3 — borda](../../hands-on/3/index.md) (três réplicas atrás do Nginx, medição de scale-out), [hands-on 4 — gateway e identidade](../../hands-on/4/index.md) (uma porta de entrada para todos os serviços, o token verificado uma vez, nenhuma sessão nas réplicas), [hands-on 7 — assíncrono](../../hands-on/7/index.md) (workers, outbox, consumidor idempotente), [hands-on 9 — resiliência](../../hands-on/9/index.md) (`order` → `payment` com timeouts e circuit breaker), [hands-on 10 — Kubernetes](../../hands-on/10/index.md) (HPA sob carga do k6).
 - Exercícios: [autoscaling no Kubernetes](../../exercises/kubernetes-autoscaling/index.md), [orientado a eventos](../../exercises/event-driven/index.md).
 - Estudos de caso: [ticketing (venda relâmpago da BoxOffice)](../case-studies/ticketing/index.md), [sistema de pagamentos](../case-studies/payment-system/index.md), [sistema de notificações](../case-studies/notification-system/index.md).
 - Catálogo de componentes: [compute](../../reference/components/compute/index.md) e [external](../../reference/components/external/index.md).
 
-## Principais conclusões
+## Pontos-chave { #key-takeaways }
 
-- A camada de computação é fácil de escalar **porque** é stateless: sessões, arquivos, caches, agendamentos e contadores ficam em armazenamentos construídos para guardar estado.
-- App servers escalam **para fora**; dimensione-os como `pico / (capacidade por réplica × utilização-alvo)` mais folga, e mantenha a utilização em torno de 50–70%, porque a latência explode perto de 100%.
-- Réplicas são descartáveis: início rápido, readiness antes do tráfego, desligamento gracioso.
-- As próximas páginas decidem como dividir o código em serviços, como eles conversam, o que roda em segundo plano, como a frota escala sozinha e como depender de provedores que você não controla.
+!!! takeaways ""
+
+    - A camada de computação é fácil de escalar **porque** é stateless: sessões, arquivos, caches, agendamentos e contadores ficam em armazenamentos construídos para guardar estado.
+    - App servers escalam **para fora**; dimensione-os como `pico / (capacidade por réplica × utilização-alvo)` mais folga, e mantenha a utilização em torno de 50–70%, porque a latência explode perto de 100%.
+    - Réplicas são descartáveis: início rápido, readiness antes do tráfego, desligamento gracioso.
+    - As próximas páginas decidem como dividir o código em serviços, como eles conversam, o que roda em segundo plano, como a frota escala sozinha e como depender de provedores que você não controla.
+
+## O que quebra em seguida { #what-breaks-next }
+
+Réplicas stateless são baratas de adicionar porque empurraram todo o estado para outro lugar, e para a BoxOffice esse lugar é o PostgreSQL: reservas, pedidos e usuários agora moram no único banco que todas as réplicas compartilham. Às 10:00 ele recebe cerca de 33.000 tentativas de reserva por segundo contra as ~1.100 que consegue atender, e dois fãs que clicam no lugar `A-12` no mesmo milissegundo chegam a duas réplicas diferentes, então nenhum lock na memória de uma réplica protege o lugar. Escolher, usar e escalar o armazenamento que precisa dizer "um lugar, uma reserva" é a [aula 6 — Bancos de dados](../databases/index.md).
 
 ---
 

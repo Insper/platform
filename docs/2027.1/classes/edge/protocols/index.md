@@ -62,7 +62,7 @@ The costs: UDP is sometimes blocked or throttled by corporate networks (browsers
 
 Every connection on the edge is encrypted with **TLS**. Before any HTTP data, client and server must agree on keys and the client must verify the server's **certificate** (that it really is `boxoffice.com`). TLS 1.2 needed **two** round trips for that; **TLS 1.3** (2018, RFC 8446) needs **one**, by having the client guess the key-exchange parameters and send its key share immediately[^4].
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant C as Fan's phone
     participant S as CDN edge (boxoffice.com)
@@ -153,11 +153,19 @@ data: {"seat": "B-13", "status": "sold"}
 
 SSE is **one-way** (server → client), text-only, and runs over normal HTTP — so it passes through proxies, CDNs and load balancers, works over HTTP/2 multiplexing, and the browser's `EventSource` API **reconnects automatically**, sending the last received `id` in a `Last-Event-ID` header so the server can resume. It is the simplest good answer for "push updates to many clients": live scores, notifications, the waiting-room position, and the token-by-token stream of an LLM response.
 
+!!! example "In the BoxOffice code: the assistant streams with SSE (lab 12)"
+
+    The assistant of [Hands-on 12 — Tools](../../../hands-on/12/tools/index.md) answers token by token over SSE: the endpoint returns a `text/event-stream` response with `Cache-Control: no-cache` (no proxy may buffer or cache a live stream), and each event is two text lines and a blank one, written by a two-line helper in `agent.py`. No library, no protocol upgrade — an ordinary HTTP response that any HTTP proxy can pass along, as long as it does not buffer it. The waiting room of lab 7 chose the even simpler option: the fan **polls** `GET /orders/waiting-room/{show}/tickets/{id}`.
+
+    ``` { .python title="services/assistant/app/main.py (the stream)" }
+    --8<-- "docs/2027.1/hands-on/12/code/services/assistant/app/main.py:72:80"
+    ```
+
 ### WebSockets { #websockets }
 
 A **WebSocket** (RFC 6455) starts as an HTTP/1.1 request that asks to **upgrade** the connection; after the `101 Switching Protocols` answer, the TCP connection becomes a **full-duplex** channel of messages in both directions, with very low per-message overhead[^5]:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant C as Browser
     participant L as Load balancer (L7)
@@ -271,6 +279,14 @@ Remedies: L7 balancing per request (Envoy, service mesh) or client-side balancin
     - For internal calls, "REST between services" is fine; say "gRPC" when latency, volume or streaming matter, and mention **deadlines**.
     - If latency for distant users comes up, count **round trips**: "TLS 1.3 and HTTP/3 cut the handshake to 1 RTT, and an edge close to the user makes that RTT small."
 
+!!! success "Best practices"
+
+    - **Terminate HTTP/2 or HTTP/3 at the edge and keep HTTP/1.1 keep-alive towards the backends** — clients get multiplexing, backends get reused connections. In BoxOffice: `proxy_http_version 1.1` and `keepalive` in lab 3's `nginx.conf`.
+    - **Disable buffering and caching on streamed responses** — `Cache-Control: no-cache` and, behind Nginx, `X-Accel-Buffering: no`, or the fan sees the whole answer at once. In BoxOffice: the assistant's SSE endpoint ([lab 12](../../../hands-on/12/tools/index.md), box above).
+    - **Give every SSE event an `id` and resume from `Last-Event-ID`** — a reconnection then continues where it stopped instead of replaying or losing events.
+    - **Set a deadline on every gRPC call and propagate it** — the callee stops working on a request its caller has already abandoned.
+    - **Automate certificate renewal and alert well before expiry** — an expired certificate is a total outage that no amount of replicas prevents.
+
 !!! warning "Pitfalls"
     - **WebSockets by default**: choosing WebSockets for one-way updates buys stateful servers, custom reconnection and proxy configuration that SSE gives for free.
     - **Idle timeouts**: load balancers close idle connections (often after 60 s); SSE and WebSocket streams need heartbeats (comments or pings) to stay open.
@@ -283,14 +299,14 @@ Remedies: L7 balancing per request (Envoy, service mesh) or client-side balancin
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     RTT["round trips"] --> TLS["TLS 1.3, 0-RTT"]
     RTT --> QUIC["HTTP/3 over QUIC"]
     RTT --> LAT["latency budget<br/>→ Estimation"]
     H2["HTTP/2 streams"] --> GRPC["gRPC between services<br/>→ Compute: API styles"]
     RT["real-time push"] --> SSE["SSE: seat map, queue position"]
-    RT --> WS["WebSockets: chat, assistant"]
+    RT --> WS["WebSockets: chat, games"]
     WS --> PS["pub/sub fan-out<br/>→ Messaging"]
     WS --> LL["long-lived connections<br/>→ load balancing"]
     TLS --> MTLS["mTLS inside the cluster<br/>→ service mesh"]
@@ -298,13 +314,15 @@ flowchart LR
 
 **Palette components:** [`client`](../../../reference/components/client/index.md#client) and [`mobile`](../../../reference/components/client/index.md#mobile) (choose the protocol) · [`cdn`](../../../reference/components/edge/index.md#cdn) and [`lb`](../../../reference/components/edge/index.md#lb) (terminate TLS, speak HTTP/2 and HTTP/3) · [`pubsub`](../../../reference/components/messaging/index.md#pubsub) (fan-out behind WebSockets) · [`mesh`](../../../reference/components/network/index.md#mesh) (mTLS between services). **Scenarios:** `chat`, `video-streaming`, `ai-assistant` (streamed tokens). **Continues in:** [Compute — API styles](../../compute/api-styles/index.md), [Case study: chat](../../case-studies/chat/index.md), [Network & Security — service mesh](../../network-security/service-mesh/index.md).
 
-## Key takeaways
+## Key takeaways { #key-takeaways }
 
-- Latency on new connections is counted in **round trips**: TCP + TLS 1.2 costs 4 RTT to the first byte, TLS 1.3 costs 3, QUIC 2, and QUIC 0-RTT 1. Reuse connections and terminate them close to the user.
-- **HTTP/1.1**: one request at a time per connection. **HTTP/2**: multiplexed streams over one TCP connection, but TCP head-of-line blocking. **HTTP/3/QUIC**: independent streams over UDP, built-in TLS 1.3, connection migration.
-- For real-time updates: **polling** (simple, cacheable), **long polling**, **SSE** (one-way, plain HTTP, auto-reconnect), **WebSockets** (bidirectional, stateful).
-- **gRPC** (HTTP/2 + protobuf) suits internal service-to-service calls: contracts, streaming, deadlines.
-- Long-lived connections are balanced **at connect time**: watch for imbalance after scale-out and reconnection storms after deploys.
+!!! takeaways ""
+
+    - Latency on new connections is counted in **round trips**: TCP + TLS 1.2 costs 4 RTT to the first byte, TLS 1.3 costs 3, QUIC 2, and QUIC 0-RTT 1. Reuse connections and terminate them close to the user.
+    - **HTTP/1.1**: one request at a time per connection. **HTTP/2**: multiplexed streams over one TCP connection, but TCP head-of-line blocking. **HTTP/3/QUIC**: independent streams over UDP, built-in TLS 1.3, connection migration.
+    - For real-time updates: **polling** (simple, cacheable), **long polling**, **SSE** (one-way, plain HTTP, auto-reconnect), **WebSockets** (bidirectional, stateful).
+    - **gRPC** (HTTP/2 + protobuf) suits internal service-to-service calls: contracts, streaming, deadlines.
+    - Long-lived connections are balanced **at connect time**: watch for imbalance after scale-out and reconnection storms after deploys.
 
 ---
 

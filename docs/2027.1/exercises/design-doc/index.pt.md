@@ -10,11 +10,11 @@ A maioria das decisões de arquitetura nas empresas de verdade não é tomada na
     - **Identificar** gargalos, modos de falha, questões de segurança e de operação, e custo.
     - **Defender** um design oralmente e **adaptá-lo** a um requisito novo na hora.
 
-## Contexto
+## Contexto { #context }
 
 A estrutura de um bom design doc segue o [roteiro de entrevista](../../classes/intro/interview-framework/index.md) da Aula 1 — esclarecer → estimar → API e modelo de dados → design de alto nível → aprofundamentos → gargalos e trade-offs → fechamento — e o [guia de entrevista](../../support/interview/framework/index.md). Os [estudos de caso](../../classes/case-studies/index.md) da Aula 16 mostram exemplos completos resolvidos; o [catálogo de componentes](../../reference/components/index.md) dá o vocabulário (use os ids da paleta nos seus diagramas). Um design doc não é uma lista de tecnologias: cada componente precisa ser **justificado por um requisito ou um número**, e cada escolha importante precisa citar a **alternativa que você descartou**[^1].
 
-## Tarefa
+## Tarefa { #task }
 
 1. Você recebe **um problema** da [lista abaixo](#problems) por sorteio (no máximo dois alunos por problema).
 2. Escreva um **design doc** seguindo o [template](#templates), na escala indicada no problema.
@@ -22,7 +22,7 @@ A estrutura de um bom design doc segue o [roteiro de entrevista](../../classes/i
 4. Opcionalmente, faça um protótipo do design no [playground](../../../playground/index.md) (partindo de `blank`) e anexe o JSON exportado.
 5. **Defenda** o design em uma [defesa oral](#oral-defence) de 15 minutos.
 
-## Requisitos
+## Requisitos { #requirements }
 
 - [ ] **(obrigatório)** Design doc com todas as seções do template (uma seção pode dizer "não se aplica — porque …").
 - [ ] **(obrigatório)** Pelo menos **três ADRs**, cada uma com contexto, opções consideradas, decisão e consequências (positivas e negativas).
@@ -35,11 +35,11 @@ A estrutura de um bom design doc segue o [roteiro de entrevista](../../classes/i
 - [ ] Gargalos com 10× de escala, modos de falha com detecção e mitigação, segurança, observabilidade (SLIs/SLOs/alertas) e custo em ordem de grandeza.
 - [ ] Seção *Uso de IA* (veja a [política](../index.md#use-of-ai-tools)).
 
-## Entregáveis
+## Entregáveis { #deliverables }
 
 No site da sua documentação (tag `ex7`): uma página `design-doc` com o design doc e uma página (ou seção) por ADR, numeradas `ADR-001`, `ADR-002`, …; diagramas em Mermaid ou imagens com o seu código-fonte; JSON opcional do playground em `playground/design-doc.json`. Traga a página aberta para a defesa oral.
 
-## Passo a passo
+## Passo a passo { #step-by-step }
 
 1. **Esclareça (≈ 10% do esforço).** Anote as perguntas que você faria a um entrevistador e responda-as você mesmo como premissas: quem são os usuários, quais os casos de uso centrais, que escala, o que importa mais — latência, consistência, custo?
 2. **Estime.** Transforme a escala em QPS, armazenamento, banda e memória. Marque quais números **obrigam** uma decisão de design (por exemplo, "10 TB/dia de escritas → não cabe em um único primário SQL").
@@ -268,7 +268,7 @@ O que se avalia é o entendimento: você pode dizer "não considerei isso" e ent
     ## 17. Referências
     ~~~
 
-### Template de ADR
+### Template de ADR { #adr-template }
 
 Cada ADR é curta (uma página) e **imutável depois de aceita**: se a decisão mudar, escreva uma ADR nova que *substitui* a antiga[^2].
 
@@ -338,7 +338,7 @@ Cada ADR é curta (uma página) e **imutável depois de aceita**: se a decisão 
     Seção do design doc, ADRs relacionadas, referências.
     ~~~
 
-## Rubrica
+## Rubrica { #rubric }
 
 Níveis conforme definidos em [Como os exercícios são avaliados](../index.md#how-the-exercises-are-graded). O documento escrito e a defesa oral são avaliados juntos; a defesa pesa tanto quanto todos os critérios escritos somados.
 

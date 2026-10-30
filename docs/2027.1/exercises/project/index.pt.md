@@ -150,7 +150,7 @@ Seja qual for a opção, o sistema precisa ter os componentes abaixo (ids da pal
 
 Os labs dão uma versão funcionando de quase todas as linhas: reaproveitem-nos (e digam isso).
 
-## Entregáveis
+## Entregáveis { #deliverables }
 
 Todas as entregas ficam no repositório da equipe e no seu site do GitHub Pages:
 
@@ -161,7 +161,7 @@ Todas as entregas ficam no repositório da equipe e no seu site do GitHub Pages:
 5. **Relatório de custos** — custos da escala de projeto e reais, economia unitária ([relatório de custos](cost-report/index.md), M8).
 6. **Apresentação final** — slides, demonstração ao vivo, vídeo de 3 minutos ([apresentação](presentation/index.md), M9).
 
-## Avaliação
+## Avaliação { #grading }
 
 ```python exec="1" html="1"
 --8<-- "docs/2027.1/exercises/project/grade.py"
@@ -191,7 +191,7 @@ Cada entrega recebe um conceito (I, D, C, B, A, com +) usando a rubrica da sua p
 | Exatidão | Contradiz o código | Desatualizada em vários pontos | Bate com o código na tag final | Diagramas e números atualizados depois de cada marco | Changelog das mudanças de design ligado às ADRs |
 | Uso de IA | Não declarado | Vago | Declarado por entrega | Declarado com o que foi verificado | Inclui lições sobre onde a IA ajudou ou enganou |
 
-## Cronograma
+## Cronograma { #timeline }
 
 As semanas são relativas ao início do semestre; as datas estão na [página de planejamento](../../planning.md). Cada marco tem um **check-in de 10 minutos** em aula na sua semana (demonstração + perguntas a qualquer membro) e é avaliado pela tag enviada até o prazo.
 

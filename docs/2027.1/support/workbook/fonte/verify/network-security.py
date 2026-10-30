@@ -3,7 +3,7 @@
 Run from the fonte/ folder:  python3 verify/network-security.py
 Numbers "from the class" are on docs/2027.1/classes/network-security/ (index,
 cloud-network, service-mesh, identity, zero-trust, quiz); the NAT hourly price is the
-one used in class 12 (finops); the others were created for the workbook.
+one used in class 11 (finops); the others were created for the workbook.
 """
 from datetime import datetime, timedelta
 

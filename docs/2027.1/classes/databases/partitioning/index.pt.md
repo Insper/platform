@@ -2,7 +2,7 @@ Três anos depois do lançamento, a BoxOffice vende em 30 países. As tabelas `o
 
 O **particionamento** — também chamado de **sharding** — divide um conjunto de dados de forma que cada registro pertença a exatamente uma **partição** (shard), e partições diferentes vivam em nós diferentes. Cada nó cuida apenas da sua parte das leituras, das escritas e do armazenamento. Os nomes variam conforme o produto — *shard* no MongoDB e no Elasticsearch, *region* no HBase, *tablet* no Bigtable, *range* no CockroachDB, *vnode* no Cassandra —, mas as perguntas são sempre as mesmas: **por qual chave, como distribuir por igual, como encontrar e como mover quando os nós mudam**[^1].
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     R["roteador<br/>partição = f(chave)"] -->|"cliente 7"| S1[("shard 1<br/>+ réplicas")]
     R -->|"cliente 1042"| S2[("shard 2<br/>+ réplicas")]
@@ -13,7 +13,7 @@ O particionamento normalmente é **combinado** com replicação: cada partição
 
 ---
 
-## Particionamento por intervalo de chaves
+## Particionamento por intervalo de chaves { #partitioning-by-key-range }
 
 Atribua a cada partição um **intervalo contínuo** de chaves, como os volumes de uma enciclopédia: `A–F`, `G–M`, `N–S`, `T–Z`. Dentro de uma partição, as chaves ficam ordenadas.
 
@@ -21,7 +21,7 @@ Atribua a cada partição um **intervalo contínuo** de chaves, como os volumes 
 - **Os limites se adaptam** aos dados: quando um intervalo fica grande demais, ele é **dividido** em dois (tablets do Bigtable, regions do HBase e ranges do CockroachDB e do TiDB fazem isso automaticamente).
 - **Perigo — chaves sequenciais.** Se a chave é um timestamp ou um id autoincremental, *todas as novas escritas vão para o último intervalo*. O clickstream de hoje cai num único nó enquanto os outros ficam ociosos. Corrija prefixando a chave com outra coisa: `(event_id, timestamp)` em vez de `timestamp`.
 
-## Particionamento por hash
+## Particionamento por hash { #partitioning-by-hash }
 
 Aplique uma função de hash à chave e use o hash para escolher a partição. Um bom hash espalha uniformemente até chaves sequenciais.
 
@@ -37,13 +37,10 @@ A implementação ingênua, `partition = hash(key) mod N`, tem uma falha fatal: 
 
 O **hashing consistente** (*consistent hashing*)[^2] coloca nós e chaves no mesmo espaço circular de hash (um **anel**, por exemplo de 0 a 2^64 − 1). Cada chave pertence ao primeiro nó encontrado andando no sentido horário a partir da posição da chave.
 
-``` mermaid-sim
-flowchart LR
-    K1["chave seat:A-12<br/>hash = 0x1F…"] -->|"anda no sentido horário"| N1["nó B<br/>em 0x40…"]
-    K2["chave seat:C-07<br/>hash = 0x9A…"] -->|"anda no sentido horário"| N2["nó C<br/>em 0xB0…"]
-    K3["chave seat:Z-99<br/>hash = 0xF3…"] -->|"dá a volta no anel"| N0["nó A<br/>em 0x10…"]
-    NEW["novo nó D em 0x80…"] -.->|"assume só as chaves<br/>entre 0x40 e 0x80"| N2
-```
+<div class="csim" data-sim="hash-ring" data-nodes="4" data-vnodes="1"></div>
+
+!!! tip "Experimente"
+    Comece com 4 nós e 1 nó virtual: adicione um quinto nó e compare os dois primeiros quadros — o hashing consistente move só as chaves do arco do novo nó (aqui cerca de 8%, um arco de tamanho irregular), o `mod N` cerca de 80%. Depois mude para 64 nós virtuais e veja *mais carregado ÷ média* cair para perto de 1. Clicar num nó do anel o remove (uma queda): só as chaves dele se movem.
 
 Quando um nó entra, ele assume apenas as chaves entre ele e seu antecessor; quando um nó sai, só as chaves dele vão para o sucessor. Em média, **1/N das chaves se move**, o mínimo possível — contra quase todas com `mod N`.
 
@@ -126,7 +123,7 @@ Ir de 9 para 10 nós com `mod N` move cerca de 90% das chaves — num cache dist
 
 O hashing consistente é usado pelo Dynamo e pelo DynamoDB, Cassandra e ScyllaDB, Riak, sharding do Memcached no lado do cliente (o algoritmo *ketama*), upstreams `hash … consistent` do Nginx e muitos balanceadores de carga. Vale reconhecer dois parentes: o **rendezvous hashing** (*highest random weight*: cada chave escolhe o nó com o maior `hash(key, node)`)[^3] e o **jump consistent hash** (sem anel, balanceamento quase perfeito, mas nós só podem ser adicionados ou removidos no final)[^4].
 
-### Número fixo de partições
+### Número fixo de partições { #fixed-number-of-partitions }
 
 Uma alternativa mais simples que muitos sistemas usam: crie de antemão **muito mais partições do que nós** e atribua partições inteiras aos nós. Adicionar um nó significa mover para ele algumas *partições inteiras*; o mapeamento chave → partição nunca muda.
 
@@ -146,7 +143,7 @@ O porém: escolha bem a quantidade. Partições de menos limitam até onde você
 
 ---
 
-## Escolhendo a chave de partição
+## Escolhendo a chave de partição { #choosing-the-partition-key }
 
 A chave de partição é a decisão de maior consequência e a menos reversível de um design com sharding. Uma boa chave tem:
 
@@ -196,11 +193,11 @@ Mitigações, da menos à mais invasiva:
 
 ---
 
-## Índices secundários em dados particionados
+## Índices secundários em dados particionados { #secondary-indexes-on-partitioned-data }
 
 Particionar por `customer_id` deixa "pedidos do cliente 7" rápido. E "pedidos do evento 42"? É preciso um **índice secundário**, e em dados particionados ele vem em dois sabores:
 
-``` mermaid
+``` diagram
 flowchart TB
     subgraph local ["Índice local (particionado por documento)"]
         Q1["consulta: event_id = 42"] --> P1["shard 1<br/>+ seu próprio índice"]
@@ -224,7 +221,7 @@ O scatter/gather é mais perigoso do que parece: uma consulta a 20 shards é tã
 
 ---
 
-## Rebalanceamento e resharding
+## Rebalanceamento e resharding { #rebalancing-and-resharding }
 
 Nós são adicionados, removidos e falham; os dados crescem de forma desigual. O **rebalanceamento** move partições para manter a carga equilibrada, de preferência enquanto o banco continua atendendo tráfego e movendo apenas os dados que precisam se mover.
 
@@ -232,7 +229,7 @@ Nós são adicionados, removidos e falham; os dados crescem de forma desigual. O
 - O rebalanceamento disputa rede e disco com o tráfego real; limite sua velocidade e evite rebalanceamento totalmente automático disparado por um nó que está apenas lento (isso pode virar uma cascata).
 - **Trocar a chave de partição** (resharding) é um projeto de migração. A receita comum é online:
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     A["1. crie os novos shards<br/>com a nova chave"] --> B["2. escrita dupla:<br/>antigo + novo"]
     B --> C["3. backfill do histórico<br/>(cópia + CDC para alcançar)"]
@@ -243,7 +240,7 @@ flowchart LR
 
 Camadas de sharding automatizam boa parte disso para bancos relacionais existentes: o **Vitess** para MySQL (criado no YouTube) e o **Citus** para PostgreSQL cuidam de roteamento, resharding e consultas distribuídas.
 
-### Roteamento de requisições
+### Roteamento de requisições { #request-routing }
 
 Algum componente precisa saber qual nó guarda qual partição:
 
@@ -257,7 +254,7 @@ O próprio mapa é um metadado pequeno e crítico — guardado num armazenamento
 
 ---
 
-## Consultas e transações entre partições
+## Consultas e transações entre partições { #cross-partition-queries-and-transactions }
 
 O particionamento funciona lindamente até uma operação precisar de **várias partições ao mesmo tempo**:
 
@@ -277,7 +274,7 @@ E se você quiser particionamento *e* transações SQL entre partições, sem es
 - O **CockroachDB**[^7] (protocolo de rede do PostgreSQL) divide os dados em intervalos de algumas centenas de megabytes, replica cada um com **Raft** e usa relógios lógicos híbridos em vez de hardware especial; o isolamento serializable é o padrão.
 - O **YugabyteDB** (compatível com PostgreSQL) e o **TiDB** (compatível com MySQL) seguem designs parecidos; os provedores de nuvem também oferecem SQL distribuído gerenciado e serverless.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant C as Cliente
     participant G as Nó gateway
@@ -310,6 +307,14 @@ SQL distribuído não sai de graça: toda escrita é replicada por consenso, ent
     - Levante sempre a **partição quente** antes que o entrevistador o faça — a celebridade, a flash sale — e dê uma mitigação concreta (cache, chave mais fina, salting, fila).
     - Se as transações precisam abranger partições, mencione SQL distribuído (Spanner, CockroachDB) e seu custo: idas e voltas de consenso.
 
+!!! success "Boas práticas"
+
+    - **Crie muito mais partições lógicas do que nós** — por exemplo 1.024 partições em 4 nós: o rebalanceamento então move partições inteiras, e o número nunca precisa mudar.
+    - **Coloque a chave de partição em toda chave primária e em toda consulta quente** — o roteamento vira uma consulta a um mapa, nunca um broadcast a todos os shards.
+    - **Acompanhe a carga por partição, não só o total** — as 10 partições com mais requisições/s e maior tamanho revelam uma chave quente antes que ela sature o seu nó.
+    - **Ensaie uma divisão antes de precisar dela** — mova uma partição numa cópia de homologação com dados do tamanho da produção e meça o tempo; esse tempo decide quão cedo você precisa começar quando o crescimento chegar.
+    - **Mantenha uma camada de roteamento entre os serviços e os shards** — uma biblioteca ou um proxy (Vitess, um coordenador Citus) é dono do mapa de chave para shard, então a topologia pode mudar sem novo deploy de cada serviço.
+
 !!! warning "Armadilhas comuns"
 
     - **`hash mod N`** para qualquer coisa que um dia vá mudar de tamanho.
@@ -321,7 +326,7 @@ SQL distribuído não sai de graça: toda escrita é replicada por consenso, ent
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     RANGE["por faixa de chave"] --> KEY["escolher a chave de partição<br/>cardinalidade, distribuição, localidade"]
     HASH["por hash"] --> KEY

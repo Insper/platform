@@ -1,4 +1,4 @@
-# Cliente
+# Cliente { #client }
 
 Todo projeto começa e termina em um **cliente**: o programa que envia a primeira requisição e espera o último byte da resposta. No playground, os nós de cliente são onde o tráfego nasce — o perfil de carga (smoke, load, stress, spike, soak, breakpoint, chaos) decide quantas requisições por segundo saem deles. No BoxOffice, os clientes são os navegadores dos fãs e o aplicativo móvel: em um dia normal eles navegam pelo catálogo; às 10:00 de um dia de venda relâmpago, 2 M deles apertam "Comprar" no mesmo minuto.
 
@@ -9,7 +9,7 @@ Pensar no cliente não é formalidade. Onde o cliente está (latência até a su
 | [Client](#client) | Um navegador ou qualquer programa chamando a sua API pela internet | `client` |
 | [Mobile](#mobile) | Um app nativo no celular: rede instável, modo offline, notificações push, ciclo de release lento | `mobile` |
 
-``` mermaid
+``` diagram
 flowchart LR
     B[Client<br/>navegador / SDK] --> DNS
     M[Mobile<br/>iOS / Android] --> DNS
@@ -149,4 +149,4 @@ flowchart LR
 !!! tip "Na entrevista"
     "Clientes móveis estão em redes instáveis e rodam versões antigas, então mantenho a API retrocompatível, deixo toda escrita idempotente para que o app possa repetir com segurança e uso push só como um aviso de melhor esforço — a fonte da verdade é sempre o servidor."
 
-**Saiba mais:** [Borda › Protocolos](../../../classes/edge/protocols/index.md) · [Computação › Estilos de API](../../../classes/compute/api-styles/index.md) · [Rede e segurança › Identidade](../../../classes/network-security/identity/index.md) · [Estudo de caso: chat](../../../classes/case-studies/chat/index.md) · [Estudo de caso: sistema de notificações](../../../classes/case-studies/notification-system/index.md)
+**Saiba mais:** [Borda › Protocolos](../../../classes/edge/protocols/index.md) · [Computação › Estilos de API](../../../classes/compute/api-styles/index.md) · [Rede e segurança › Identidade](../../../classes/edge/identity/index.md) · [Estudo de caso: chat](../../../classes/case-studies/chat/index.md) · [Estudo de caso: sistema de notificações](../../../classes/case-studies/notification-system/index.md)

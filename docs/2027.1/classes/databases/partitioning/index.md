@@ -2,7 +2,7 @@ Three years after launch, BoxOffice sells in 30 countries. The `orders` and `tic
 
 **Partitioning** — also called **sharding** — divides a dataset so that each record belongs to exactly one **partition** (shard), and different partitions live on different nodes. Each node handles only its share of the reads, writes and storage. The words vary by product — *shard* in MongoDB and Elasticsearch, *region* in HBase, *tablet* in Bigtable, *range* in CockroachDB, *vnode* in Cassandra — but the questions are always the same: **by what key, how to spread it evenly, how to find it, and how to move it when nodes change**[^1].
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     R["router<br/>partition = f(key)"] -->|"customer 7"| S1[("shard 1<br/>+ replicas")]
     R -->|"customer 1042"| S2[("shard 2<br/>+ replicas")]
@@ -37,13 +37,10 @@ The naive implementation, `partition = hash(key) mod N`, has a fatal flaw: when 
 
 **Consistent hashing**[^2] places both nodes and keys on the same circular hash space (a **ring**, e.g. 0 to 2^64 − 1). Each key belongs to the first node found walking clockwise from the key's position.
 
-``` mermaid-sim
-flowchart LR
-    K1["key seat:A-12<br/>hash = 0x1F…"] -->|"walk clockwise"| N1["node B<br/>at 0x40…"]
-    K2["key seat:C-07<br/>hash = 0x9A…"] -->|"walk clockwise"| N2["node C<br/>at 0xB0…"]
-    K3["key seat:Z-99<br/>hash = 0xF3…"] -->|"wraps around"| N0["node A<br/>at 0x10…"]
-    NEW["new node D at 0x80…"] -.->|"takes only keys<br/>between 0x40 and 0x80"| N2
-```
+<div class="csim" data-sim="hash-ring" data-nodes="4" data-vnodes="1"></div>
+
+!!! tip "Try it"
+    Start with 4 nodes and 1 virtual node: add a fifth node and compare the two first tiles — consistent hashing moves only the keys on the new node's arc (here about 8%, one arc of uneven size), `mod N` about 80%. Then switch to 64 virtual nodes and watch *busiest ÷ average* fall towards 1. Clicking a node on the ring removes it (a crash): only its keys move.
 
 When a node joins, it takes over only the keys between itself and its predecessor; when a node leaves, only its keys move to its successor. On average **1/N of the keys move**, the minimum possible — compared with almost all of them under `mod N`.
 
@@ -200,7 +197,7 @@ Mitigations, from the least to the most invasive:
 
 Partitioning by `customer_id` makes "orders of customer 7" fast. What about "orders of event 42"? A **secondary index** is needed, and on partitioned data it comes in two flavours:
 
-``` mermaid
+``` diagram
 flowchart TB
     subgraph local ["Local (document-partitioned) index"]
         Q1["query: event_id = 42"] --> P1["shard 1<br/>+ its own index"]
@@ -232,7 +229,7 @@ Nodes are added, removed and fail; data grows unevenly. **Rebalancing** moves pa
 - Rebalancing competes with live traffic for network and disk; throttle it, and avoid fully automatic rebalancing triggered by a node that is merely slow (it can cascade).
 - **Changing the partition key** (resharding) is a migration project. The common recipe is online:
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     A["1. create new shards<br/>with the new key"] --> B["2. dual-write:<br/>old + new"]
     B --> C["3. backfill history<br/>(copy + CDC catch-up)"]
@@ -277,7 +274,7 @@ What if you want partitioning *and* SQL transactions across partitions, without 
 - **CockroachDB**[^7] (PostgreSQL wire protocol) splits data into ranges of a few hundred megabytes, replicates each with **Raft**, and uses hybrid logical clocks instead of special hardware; serializable isolation is the default.
 - **YugabyteDB** (PostgreSQL-compatible) and **TiDB** (MySQL-compatible) follow similar designs; cloud providers offer managed and serverless distributed SQL as well.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant C as Client
     participant G as Gateway node
@@ -310,6 +307,14 @@ Distributed SQL is not free: every write is replicated by consensus, so latency 
     - Always raise the **hot partition** before the interviewer does — the celebrity, the flash sale — and give a concrete mitigation (cache, finer key, salting, queue).
     - If transactions must span partitions, mention distributed SQL (Spanner, CockroachDB) and its cost: consensus round trips.
 
+!!! success "Best practices"
+
+    - **Create many more logical partitions than nodes** — e.g. 1,024 partitions on 4 nodes: rebalancing then moves whole partitions, and the count never has to change.
+    - **Put the partition key in every primary key and every hot query** — routing becomes a lookup, never a broadcast to all shards.
+    - **Watch per-partition load, not only totals** — the top 10 partitions by requests/s and by size reveal a hot key before it saturates its node.
+    - **Rehearse a split before you need it** — move one partition on a staging copy with production-sized data and time it; that time decides how early you must start when growth arrives.
+    - **Keep a routing layer between the services and the shards** — a library or a proxy (Vitess, a Citus coordinator) owns the map from key to shard, so the topology can change without redeploying every service.
+
 !!! warning "Common pitfalls"
 
     - **`hash mod N`** for anything that will ever resize.
@@ -321,7 +326,7 @@ Distributed SQL is not free: every write is replicated by consensus, so latency 
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     RANGE["by key range"] --> KEY["choosing the partition key<br/>cardinality, distribution, locality"]
     HASH["by hash"] --> KEY

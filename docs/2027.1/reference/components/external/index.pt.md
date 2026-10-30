@@ -1,4 +1,4 @@
-# Externos
+# Externos { #external }
 
 Componentes **externos** são serviços que você chama, mas não opera: uma API de terceiros, um provedor de pagamento, um provedor de e-mail. Muitas vezes são a parte mais lenta e menos previsível de uma requisição, têm seus próprios limites de taxa e suas quedas, e você não pode escalá-los nem consertá-los. Projetar em volta deles é sobretudo **contenção**: timeouts para que um provedor lento não segure suas threads, retries seguros porque são idempotentes, filas para que o usuário não espere por eles e conciliação, porque a visão deles sobre o mundo e a sua às vezes vão discordar.
 
@@ -10,7 +10,7 @@ No BoxOffice, `payment` é um adaptador em volta de um provedor de pagamento ext
 | [Payment](#payment) | Um provedor de pagamento (cartão, Pix, carteiras): idempotência, webhooks, conciliação | `payment` |
 | [Email](#email) | Um provedor de entrega de e-mail: assíncrono, atrás de uma fila, com regras de entregabilidade | `email` |
 
-``` mermaid
+``` diagram
 flowchart LR
     O[serviço order] -->|timeout + circuit breaker + chave de idempotência| PAY[Provedor de pagamento]
     PAY -.webhook: pagamento confirmado.-> WH[endpoint de webhook] --> O
@@ -119,7 +119,7 @@ flowchart LR
 - **Estados inconsistentes** — pago no provedor, mas o pedido foi cancelado localmente (ou o contrário) → uma saga com compensações (reembolsar, liberar o assento) e a conciliação como rede de segurança.
 - **Fraude e chargebacks** → as ferramentas antifraude do provedor, limites de velocidade por usuário e por cartão, 3-D Secure.
 
-**No playground.** `payment` é um nó externo de **chamada** com grande variância de latência (mediana de 400 ms), uma cota do provedor `quota` (padrão 500 req/s) e quedas aleatórias; o cenário `payment-system` mostra retries sem idempotência criando cobranças duplicadas, e o cenário `flash-sale` mostra o pagamento virando o gargalo às 10:00. Use `timeoutMs`, `retries` com `exp+jitter`, `circuitBreaker` e um `fallback` ("pagamento pendente") na aresta que vem de `order`. Cenários: [`payment-system`](../../../../playground/scenarios/index.md#payment-system), [`flash-sale`](../../../../playground/scenarios/index.md#flash-sale), [`cascading-failure`](../../../../playground/scenarios/index.md#cascading-failure).
+**No playground.** `payment` é um nó externo de **chamada** com grande variância de latência (mediana de 400 ms), uma cota do provedor `quota` (padrão 500 req/s) e quedas aleatórias; o cenário `payment-system` mostra retries sem idempotência criando cobranças duplicadas, e o cenário `flash-sale` mostra o pagamento virando o gargalo quando a venda abre. Use `timeoutMs`, `retries` com `exp+jitter`, `circuitBreaker` e um `fallback` ("pagamento pendente") na aresta que vem de `order`. Cenários: [`payment-system`](../../../../playground/scenarios/index.md#payment-system), [`flash-sale`](../../../../playground/scenarios/index.md#flash-sale), [`cascading-failure`](../../../../playground/scenarios/index.md#cascading-failure).
 
 **Produtos reais.**
 

@@ -87,7 +87,7 @@ X-Cache: HIT
 (integer) 62
 ```
 
-The second request was served by **another replica** and was still a hit: the cache is **shared** (distributed), not local to each JVM. With a local cache (Caffeine, a `HashMap`), each of the three replicas would warm up separately and could hold a different version of the same event.
+The second request was served by **another replica** (if both landed on the same one, run it again: the gateway alternates the replicas) and was still a hit: the cache is **shared** (distributed), not local to each JVM. With a local cache (Caffeine, a `HashMap`), each of the three replicas would warm up separately and could hold a different version of the same event.
 
 Now break it on purpose:
 

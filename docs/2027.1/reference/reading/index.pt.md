@@ -1,16 +1,16 @@
-# Lista de leitura
+# Lista de leitura { #reading-list }
 
 Os livros, artigos, blogs e cursos por trás deste curso. Você não precisa ler tudo: cada item tem uma linha sobre **por que** vale o seu tempo e a **aula** que ele apoia, para você escolher o que combina com o assunto que está estudando. Comece pelos cinco primeiros. A maior parte do material está em inglês, a língua de trabalho da área.
 
-## Comece aqui: os cinco primeiros
+## Comece aqui: os cinco primeiros { #start-here-the-first-five }
 
 1. **Designing Data-Intensive Applications** (Kleppmann e Riccomini) — os capítulos sobre replicação, particionamento, transações e consistência. A base das aulas 3, 6 e 8.
 2. **System Design Interview, vol. 1** (Alex Xu) — leia um capítulo por semana junto com os [estudos de caso](../../classes/case-studies/index.md) para ver o formato da entrevista de ponta a ponta.
 3. **"The Tail at Scale"** (Dean e Barroso, 2013) — seis páginas que explicam por que o p99 importa mais que a média. Leia com a [Aula 2 · Percentis](../../classes/estimation/percentiles/index.md).
 4. **Site Reliability Engineering**, capítulos sobre SLOs, monitoramento e sobrecarga (gratuito online) — a metade "rodando em produção" do system design.
-5. Os artigos da **Amazon Builders' Library** sobre timeouts, retries, backoff e jitter — curtos, práticos e exatamente o que a [Aula 9](../../classes/reliability/patterns/index.md) e o [Hands-on 9](../../hands-on/9/index.md) transformam em código.
+5. Os artigos da **Amazon Builders' Library** sobre timeouts, retries, backoff e jitter — curtos, práticos e exatamente o que a [Aula 10](../../classes/reliability/patterns/index.md) e o [Hands-on 9](../../hands-on/9/index.md) transformam em código.
 
-## Livros
+## Livros { #books }
 
 | Livro | Autores | Por que ler | Apoia |
 |---|---|---|---|
@@ -29,7 +29,7 @@ Os livros, artigos, blogs e cursos por trás deste curso. Você não precisa ler
 | AI Engineering | Chip Huyen | Construir aplicações sobre modelos de fundação: avaliação, RAG, agentes, latência e custo | [13](../../classes/ai-systems/index.md) |
 | [Cracking the Coding Interview](https://www.crackingthecodinginterview.com/), 6ª ed. | Gayle Laakmann McDowell | O processo de entrevistas em geral; seu capítulo sobre escalabilidade inspirou os princípios de "como responder" | [Apoio › Entrevista](../../support/interview/index.md) |
 
-## Artigos clássicos
+## Artigos clássicos { #classic-papers }
 
 Artigos são mais curtos que livros e muitas vezes mais claros: foram escritos para convencer especialistas céticos. Leia primeiro o resumo, a introdução e as figuras.
 
@@ -56,7 +56,7 @@ Artigos são mais curtos que livros e muitas vezes mais claros: foram escritos p
 | [Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks](https://arxiv.org/abs/2005.11401) | Lewis et al., NeurIPS 2020 | O artigo que deu nome ao RAG: combinar um recuperador com um gerador | [13 · RAG e memória](../../classes/ai-systems/rag-memory/index.md) |
 | [ReAct: Synergizing Reasoning and Acting in Language Models](https://arxiv.org/abs/2210.03629) | Yao et al., ICLR 2023 | O loop raciocinar-agir-observar que a maioria dos frameworks de agentes implementa | [13 · Agentes](../../classes/ai-systems/agents/index.md) |
 
-## Blogs de engenharia
+## Blogs de engenharia { #engineering-blogs }
 
 Sistemas reais, quedas reais, trade-offs reais. Procure neles o assunto da semana.
 
@@ -80,7 +80,7 @@ Sistemas reais, quedas reais, trade-offs reais. Procure neles o assunto da seman
 | [High Scalability](https://highscalability.com/) | Coleção antiga de estudos de caso de arquitetura | [15](../../classes/case-studies/index.md) |
 | [ByteByteGo](https://blog.bytebytego.com/) | Explicações visuais, voltadas a entrevistas, de temas de system design | [Apoio › Entrevista](../../support/interview/index.md) |
 
-## Cursos e recursos gratuitos
+## Cursos e recursos gratuitos { #courses-and-free-resources }
 
 | Recurso | Por que usar | Apoia |
 |---|---|---|

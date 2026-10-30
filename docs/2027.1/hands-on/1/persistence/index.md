@@ -1,6 +1,6 @@
 This step connects the API to PostgreSQL: **entities** map the tables, **repositories** hold the queries, the **service** defines the transactions and **Flyway** creates and seeds the schema. Each service owns one schema — `catalog` here — and nothing else touches it.
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     ctl["EventController<br/>VenueController"] --> svc["CatalogService<br/>@Transactional"]
     svc --> repo["EventRepository<br/>VenueRepository"]

@@ -1,10 +1,10 @@
-# Referência rápida
+# Referência rápida { #quick-reference }
 
 Uma página para revisar antes de uma entrevista: os números, as fórmulas, uma linha e um trade-off para cada componente da paleta, os movimentos padrão para cada formato de problema e as frases que ajudam ou atrapalham. Tudo aqui é explicado nas aulas; siga os links quando uma linha deixar de parecer óbvia. Para as tabelas completas e as fontes, veja a [folha de números](../../../reference/numbers/index.md) e o [catálogo de componentes](../../../reference/components/index.md).
 
-## Números para saber
+## Números para saber { #numbers-to-know }
 
-### Escada de latências
+### Escada de latências { #latency-ladder }
 
 Valores clássicos popularizados por Jeff Dean e Peter Norvig, arredondados; o hardware moderno é mais rápido em algumas linhas (SSDs NVMe, CPUs mais novas), mas é com as **proporções** que você raciocina[^1].
 
@@ -25,7 +25,7 @@ Valores clássicos popularizados por Jeff Dean e Peter Norvig, arredondados; o h
 
 Números típicos no nível de serviço (≈ ilustrativos): GET no Redis ≈ 0,2–1 ms pela rede; consulta SQL indexada ≈ 1–10 ms; requisição a um servidor de aplicação ≈ 10–50 ms; resposta de LLM ≈ 1–10 s (tempo até o primeiro token de 0,2–2 s).
 
-### Conversões de taxa
+### Conversões de taxa { #rate-conversions }
 
 | Por dia | Por segundo (média) | Lembre |
 |---|---|---|
@@ -36,7 +36,7 @@ Números típicos no nível de serviço (≈ ilustrativos): GET no Redis ≈ 0,2
 
 Pico = média × fator de pico (2–5× para tráfego com ciclo diário; 10–100× ou mais numa venda relâmpago ou num evento viral). Um mês ≈ 2,6 × 10⁶ s; um ano ≈ 3,2 × 10⁷ s.
 
-### Tamanhos
+### Tamanhos { #sizes }
 
 | Coisa | ≈ Tamanho |
 |---|---|
@@ -49,7 +49,7 @@ Pico = média × fator de pico (2–5× para tráfego com ciclo diário; 10–10
 | 1 minuto de vídeo 1080p a ~5 Mbps | ≈ 40 MB |
 | Um embedding de 1.536 float32 | ≈ 6 KB |
 
-### Disponibilidade (os noves)
+### Disponibilidade (os noves) { #availability-the-nines }
 
 | Disponibilidade | Fora do ar por ano | por mês de 30 dias | por dia |
 |---|---|---|---|
@@ -80,18 +80,18 @@ Pico = média × fator de pico (2–5× para tráfego com ciclo diário; 10–10
 
 Aulas: [Estimativas › Números](../../../classes/estimation/numbers/index.md) · [Filas](../../../classes/estimation/queueing/index.md) · [Percentis](../../../classes/estimation/percentiles/index.md) · [Matemática da disponibilidade](../../../classes/estimation/availability-math/index.md).
 
-## Componentes em uma linha
+## Componentes em uma linha { #components-in-one-line }
 
 A coluna de trade-off é o que transforma o nome de um componente num argumento.
 
-### Cliente
+### Cliente { #client }
 
 | Id | Componente | Em uma linha | Trade-off a mencionar |
 |---|---|---|---|
 | `client` | [Client](../../../reference/components/client/index.md#client) | Navegador ou programa que envia requisições | Retries e timeouts do cliente moldam a sua carga; nunca confie na entrada do cliente |
 | `mobile` | [Mobile](../../../reference/components/client/index.md#mobile) | App em redes instáveis, offline, lento para atualizar | Versões antigas do app vivem por meses: versione a API, mantenha a compatibilidade |
 
-### Tráfego e borda
+### Tráfego e borda { #traffic-edge }
 
 | Id | Componente | Em uma linha | Trade-off a mencionar |
 |---|---|---|---|
@@ -102,7 +102,7 @@ A coluna de trade-off é o que transforma o nome de um componente num argumento.
 | `apigw` | [API Gateway](../../../reference/components/edge/index.md#apigw) | Autenticação, rate limiting e roteamento na porta de entrada | Política central vs um salto a mais e uma dependência compartilhada |
 | `ingress` | [Ingress](../../../reference/components/edge/index.md#ingress) | Encaminha HTTP externo para dentro do Kubernetes | Configuração simples vs menos recursos que um gateway completo (Gateway API) |
 
-### Computação
+### Computação { #compute }
 
 | Id | Componente | Em uma linha | Trade-off a mencionar |
 |---|---|---|---|
@@ -115,7 +115,7 @@ A coluna de trade-off é o que transforma o nome de um componente num argumento.
 | `notifications` | [Notifications](../../../reference/components/compute/index.md#notifications) | E-mail/push/SMS por provedores, assíncrono | Confiabilidade com filas e retries vs duplicatas (deduplicar) |
 | `analytics` | [Analytics](../../../reference/components/compute/index.md#analytics) | Coleta e agrega eventos | Fora do caminho da requisição; atualidade vs custo |
 
-### Armazenamento
+### Armazenamento { #storage }
 
 | Id | Componente | Em uma linha | Trade-off a mencionar |
 |---|---|---|---|
@@ -126,7 +126,7 @@ A coluna de trade-off é o que transforma o nome de um componente num argumento.
 | `dwh` | [Data Warehouse](../../../reference/components/storage/index.md#dwh) | Análises colunares sobre o histórico | Varreduras e agregações rápidas vs não serve para transações; dados de minutos a horas atrás |
 | `vectordb` | [Vector DB](../../../reference/components/storage/index.md#vectordb) | Busca de vizinhos mais próximos em embeddings | Recuperação semântica vs resultados aproximados e memória do índice |
 
-### Mensageria
+### Mensageria { #messaging }
 
 | Id | Componente | Em uma linha | Trade-off a mencionar |
 |---|---|---|---|
@@ -135,7 +135,7 @@ A coluna de trade-off é o que transforma o nome de um componente num argumento.
 | `stream` | [Event Stream](../../../reference/components/messaging/index.md#stream) | Log ordenado, retido e particionado | Reprocessamento e ordem por chave vs planejar partições e lag do consumidor |
 | `kafka` | [Kafka](../../../reference/components/messaging/index.md#kafka) | A plataforma de referência de streaming de eventos | Vazão e retenção vs peso operacional; paralelismo ≤ partições |
 
-### Observabilidade
+### Observabilidade { #observability }
 
 | Id | Componente | Em uma linha | Trade-off a mencionar |
 |---|---|---|---|
@@ -145,7 +145,7 @@ A coluna de trade-off é o que transforma o nome de um componente num argumento.
 | `alerting` | [Alerting](../../../reference/components/observability/index.md#alerting) | Aciona humanos por sintomas | Detecção rápida vs fadiga de alertas; acione pelo consumo do SLO |
 | `healthcheck` | [Health Check](../../../reference/components/observability/index.md#healthcheck) | Sondas de liveness/readiness | Remoção rápida de réplicas ruins vs tempestade de restarts se a liveness checar dependências |
 
-### Rede
+### Rede { #network }
 
 | Id | Componente | Em uma linha | Trade-off a mencionar |
 |---|---|---|---|
@@ -155,7 +155,7 @@ A coluna de trade-off é o que transforma o nome de um componente num argumento.
 | `vpn` | [VPN](../../../reference/components/network/index.md#vpn) | Túnel criptografado entre redes | Conectividade privada vs latência da internet e banda limitada |
 | `mesh` | [Service Mesh](../../../reference/components/network/index.md#mesh) | mTLS, retries, telemetria entre serviços | Política uniforme sem código vs latência por salto e uma plataforma para operar |
 
-### IA e agentes
+### IA e agentes { #ai-agents }
 
 | Id | Componente | Em uma linha | Trade-off a mencionar |
 |---|---|---|---|
@@ -165,7 +165,7 @@ A coluna de trade-off é o que transforma o nome de um componente num argumento.
 | `memory` | [Memory Fabric](../../../reference/components/ai/index.md#memory) | Recuperação (RAG) e memória | Respostas ancoradas vs falhas de recuperação e índices desatualizados |
 | `safety` | [Safety Mesh](../../../reference/components/ai/index.md#safety) | Guardrails em entradas, saídas e ações | Reduz risco vs latência e falsos positivos; sozinho não é fronteira de segurança |
 
-### Externos
+### Externos { #external }
 
 | Id | Componente | Em uma linha | Trade-off a mencionar |
 |---|---|---|---|
@@ -173,7 +173,7 @@ A coluna de trade-off é o que transforma o nome de um componente num argumento.
 | `payment` | [Payment](../../../reference/components/external/index.md#payment) | Provedor de pagamento | Chaves de idempotência, webhooks e conciliação; timeout ≠ falha |
 | `email` | [Email](../../../reference/components/external/index.md#email) | Provedor de entrega de e-mail | Sempre assíncrono atrás de uma fila; regras de entregabilidade e cotas |
 
-## Movimentos padrão
+## Movimentos padrão { #default-moves }
 
 | Se o problema é… | O movimento padrão | Cuidado com |
 |---|---|---|
@@ -190,7 +190,7 @@ A coluna de trade-off é o que transforma o nome de um componente num argumento.
 | Gargalo desconhecido | Medir: RED/USE, traces, teste de carga até o joelho | Otimizar sem dados |
 | Funcionalidade com LLM | Gateway + RAG + poucos passos de agente + guardrails + cache semântico | Custo por requisição, prompt injection |
 
-## Consistência e CAP numa tabela
+## Consistência e CAP numa tabela { #consistency-and-cap-in-one-table }
 
 | Dado | Escolha | Por quê |
 |---|---|---|
@@ -203,7 +203,7 @@ A coluna de trade-off é o que transforma o nome de um componente num argumento.
 
 CAP: durante uma **partição**, escolha entre consistência e disponibilidade. PACELC: **senão**, escolha entre latência e consistência. A maioria dos sistemas escolhe por dado, não uma vez só. [Aula 3 · CAP e PACELC](../../../classes/distributed/cap-pacelc/index.md)
 
-## SQL ou NoSQL?
+## SQL ou NoSQL? { #sql-or-nosql }
 
 | Escolha SQL quando… | Escolha NoSQL quando… |
 |---|---|
@@ -215,7 +215,7 @@ CAP: durante uma **partição**, escolha entre consistência e disponibilidade. 
 
 NewSQL (Spanner, CockroachDB) oferece SQL e transações com escala horizontal, a um custo em latência e dinheiro. [Aula 6 · Modelos de dados](../../../classes/databases/models/index.md)
 
-## Síncrono vs assíncrono, push vs pull
+## Síncrono vs assíncrono, push vs pull { #sync-vs-async-push-vs-pull }
 
 | | Chamada síncrona | Assíncrono (fila / evento) |
 |---|---|---|
@@ -231,7 +231,7 @@ NewSQL (Spanner, CockroachDB) oferece SQL e transações com escala horizontal, 
 | Custo | amplificação de escrita | leituras mais lentas e pesadas |
 | Resposta usual | híbrido: push para a maioria, pull para celebridades | |
 
-## Frases que pontuam e frases que atrapalham
+## Frases que pontuam e frases que atrapalham { #phrases-that-score-and-phrases-that-hurt }
 
 | Frases que pontuam | Frases que atrapalham |
 |---|---|

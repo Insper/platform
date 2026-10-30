@@ -93,7 +93,7 @@ The synchronised servers stay within a couple of milliseconds of each other (a s
 
 The opening story, step by step. Each node stamps its write with its own wall clock; replication delivers both writes to both nodes; **last-write-wins** (LWW) keeps the higher timestamp:
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant B as Bruno
     participant I1 as inventory-1 (clock +50 ms)
@@ -130,7 +130,7 @@ A **Lamport clock** is a counter per process with three rules:
 2. When sending a message, attach the counter.
 3. When receiving a message carrying *t*, set the counter to `max(local, t) + 1`.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant O as order
     participant K as Kafka consumer (inventory)
@@ -166,7 +166,7 @@ Three replicas of Carla's cart (`[SP, LIS, NYC]` counters):
 
 The store keeps both versions (*siblings*) and asks the application to merge them — exactly what Amazon's Dynamo did for the shopping cart (merge by union, which is why deleted items occasionally came back)[^4]. Riak exposed the same model.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant SP as replica SP
     participant LIS as replica LIS
@@ -179,6 +179,13 @@ sequenceDiagram
     LIS->>NYC: replicate [1,1,0]
     Note over NYC: [1,1,0] vs [1,0,1]: concurrent<br/>keep both, merge in the application
 ```
+
+Both clocks side by side, on three BoxOffice services:
+
+<div class="csim" data-sim="clocks"></div>
+
+!!! tip "Try it"
+    The scenario opens with two events selected: `i2` (inventory releases seat A-12, L=2, `[0,0,2]`) and `p1` (payment receives `OrderPlaced`, L=3, `[2,1,0]`). Lamport says 2 < 3, yet the vectors are incomparable — the events are **concurrent**, and nothing in the Lamport numbers could have told you. Now click `o1` and then `i3`: `[1,0,0]` ≤ `[2,2,3]`, so `o1` → `i3` through two messages, and the Lamport numbers agree (1 < 5), as they must. Click a single event to see its causal past (green rings) and future (blue). Finally, add a local event on order (`o3`, `[3,0,0]`) and compare it with `i3`: concurrent. Send a message from order to inventory and receive it: the receipt has `o3` in its past.
 
 The cost is size: the vector grows with the number of nodes (or clients) that write. Practical systems use **version vectors** with one entry per *replica* (not per client) and prune old entries.
 
@@ -231,7 +238,7 @@ Google's **Spanner**[^1] took the opposite route: instead of avoiding physical t
 
 To make transactions **externally consistent** (if T1 commits before T2 starts, T2's timestamp is larger), Spanner uses **commit wait**: it picks the commit timestamp *s* = `TT.now().latest` and then **waits until `TT.now().earliest > s`** before making the commit visible — i.e. until *s* is guaranteed to be in the past everywhere.
 
-``` mermaid-sim
+``` diagram-sim
 sequenceDiagram
     participant C as client
     participant S as Spanner leader
@@ -302,8 +309,24 @@ final class Snowflake {
     - **Durations and timeouts** — measured with the monotonic clock (`System.nanoTime()`), never with wall-clock differences.
     - **Monitoring** — an alert on NTP offset per node (e.g. > 50 ms), because a machine that lost NTP is silent otherwise.
 
+!!! example "In the BoxOffice code: who decides when a hold expires (lab 6)"
+
+    [Hands-on 6 — Holds](../../../hands-on/6/holds/index.md) follows the single-authority rule where it matters most: who got the seat is decided by a conditional `UPDATE` on the primary, and the sweeper that frees expired holds compares `expires_at` with the **database's** `now()`, using `FOR UPDATE SKIP LOCKED` so that several `inventory` replicas can run it at once without freeing the same hold twice. Look closely at `expires_at`, though: it is computed **in Java**, with the clock of the `inventory` replica, and checked against the database's clock — the pitfall below, in miniature. On a laptop every container shares one clock, so nothing shows; in production the skew between a replica and the database (milliseconds with NTP, much more without) moves the end of every hold by that much. Computing it in SQL, `expires_at = now() + :ttl`, as the box above says, removes the second clock.
+
+    ``` { .java title="services/inventory/src/main/java/boxoffice/inventory/HoldService.java (two clocks)" }
+    --8<-- "docs/2027.1/hands-on/6/code/services/inventory/src/main/java/boxoffice/inventory/HoldService.java:52:53,189:208"
+    ```
+
 !!! tip "In the interview"
     When a design compares timestamps from different machines ("the latest update wins", "sort the chat messages by `created_at`"), say it out loud: *"clocks drift, so timestamps from different servers can't order events less than the skew apart."* Then offer the fix that fits: a **single authority** (sequence or conditional write on one leader), a **per-key ordered log** (Kafka partition by key), a **logical/version counter** (optimistic concurrency with a `version` column), or an **HLC-based database** if you need global order. For "design a unique ID generator", Snowflake / UUIDv7 with their bit layouts is the expected answer (Alex Xu, vol. 1, ch. 7)[^8].
+
+!!! success "Best practices"
+
+    - **Store and exchange timestamps in UTC with an explicit offset** — `timestamptz` columns, ISO 8601 in APIs; local time repeats an hour every year where daylight saving time applies. In BoxOffice: `created_at TIMESTAMPTZ` in the `payments` table of lab 9.
+    - **Partition events by the entity whose order matters** — one key, one partition, one order for every consumer. In BoxOffice: lab 7's relay publishes `order-events` with key = order id ([Hands-on 7 — Outbox](../../../hands-on/7/outbox/index.md)).
+    - **Decide "who changed it last" with a version counter, not a timestamp** — `version = version + 1` on every write is immune to clock skew. In BoxOffice: `inventory.seats.version` (lab 6).
+    - **Run chrony with several time sources and let it slew, not step, in production** — a slewed clock never jumps backwards under a running process.
+    - **Use time-ordered ids (UUIDv7) for new primary keys** — inserts stay at the end of the B-tree index; random UUIDv4 keys scatter writes across it.
 
 !!! warning "Pitfalls"
     - **Measuring durations with the wall clock** — negative or huge latencies when NTP steps the clock; use the monotonic clock.
@@ -314,7 +337,7 @@ final class Snowflake {
 
 ## How it connects { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     DRIFT["clock drift<br/>NTP, PTP"] --> LWW["LWW loses writes"]
     LWW --> VV["version vectors, CRDTs<br/>→ Replication & Consistency"]
@@ -332,13 +355,15 @@ flowchart LR
 
 **Palette components that provide order or time:** [`sql`](../../../reference/components/storage/index.md#sql) (sequences, `now()` on the primary) · [`kafka`](../../../reference/components/messaging/index.md#kafka) (offsets per partition) · [`scheduler`](../../../reference/components/compute/index.md#scheduler) (wall-clock triggers — beware skew) · [`cache`](../../../reference/components/storage/index.md#cache) (TTL expiry). **Continues in:** [Messaging — Kafka](../../messaging/kafka/index.md) (ordering by key), [Case study: URL shortener](../../case-studies/url-shortener/index.md) (unique ids), [Observability](../../observability/index.md) (clock skew in traces).
 
-## Key takeaways
+## Key takeaways { #key-takeaways }
 
-- There is **no global clock**: quartz clocks drift (ppm), NTP keeps them within ms of each other — not identical, and not if it stops.
-- Use the **monotonic** clock for durations and timeouts, the **wall** clock only for human-facing timestamps.
-- **Timestamps from different machines cannot order events** closer than the skew; **LWW** loses writes.
-- **Lamport clocks**: *a* → *b* ⇒ L(*a*) < L(*b*); **vector clocks** also detect concurrency; **HLC** gives causality close to real time in 64 bits; **TrueTime** bounds the uncertainty and waits it out.
-- In practice, get order from a **single authority**, a **partitioned log** keyed by entity, or a **version** column — and use Snowflake/UUIDv7 for unique, sortable ids, not for deciding who came first.
+!!! takeaways ""
+
+    - There is **no global clock**: quartz clocks drift (ppm), NTP keeps them within ms of each other — not identical, and not if it stops.
+    - Use the **monotonic** clock for durations and timeouts, the **wall** clock only for human-facing timestamps.
+    - **Timestamps from different machines cannot order events** closer than the skew; **LWW** loses writes.
+    - **Lamport clocks**: *a* → *b* ⇒ L(*a*) < L(*b*); **vector clocks** also detect concurrency; **HLC** gives causality close to real time in 64 bits; **TrueTime** bounds the uncertainty and waits it out.
+    - In practice, get order from a **single authority**, a **partitioned log** keyed by entity, or a **version** column — and use Snowflake/UUIDv7 for unique, sortable ids, not for deciding who came first.
 
 ---
 

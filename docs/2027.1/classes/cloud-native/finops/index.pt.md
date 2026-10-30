@@ -4,11 +4,11 @@ Chega a primeira fatura real do ambiente de produção do BoxOffice, e ela é tr
 
 ---
 
-## O ciclo de vida de FinOps
+## O ciclo de vida de FinOps { #the-finops-lifecycle }
 
 A FinOps Foundation organiza a prática em três fases que se repetem continuamente[^1]:
 
-``` mermaid-sim
+``` diagram-sim
 flowchart LR
     inform["Informar<br/>visibilidade: tags, alocação,<br/>showback, custos unitários"] --> optimize["Otimizar<br/>rightsizing, compromissos,<br/>spot, mudanças de arquitetura"]
     optimize --> operate["Operar<br/>orçamentos, alertas de anomalia,<br/>políticas, revisões"]
@@ -21,7 +21,7 @@ flowchart LR
 
 ---
 
-## Anatomia de uma fatura de nuvem
+## Anatomia de uma fatura de nuvem { #anatomy-of-a-cloud-bill }
 
 | Tipo de custo | Cobrado por | Exemplos no BoxOffice | Atenção a |
 |---|---|---|---|
@@ -33,7 +33,7 @@ flowchart LR
 | **Observabilidade** | GB ingerido, retido, consultado; séries ativas | Logs, métricas, traces | Métricas de alta cardinalidade e logs de debug em produção |
 | **SaaS de terceiros** | Por transação ou por assento | Taxas de pagamento (uma porcentagem do preço do ingresso), e-mail por milhar | Frequentemente maior que toda a infraestrutura — mas é um custo do negócio |
 
-### Modelos de preço
+### Modelos de preço { #pricing-models }
 
 | Modelo | Desconto vs on-demand | Compromisso | Bom para |
 |---|---|---|---|
@@ -146,14 +146,14 @@ print(buf.getvalue())
 plt.close()
 ```
 
-### Lendo o modelo
+### Lendo o modelo { #reading-the-model }
 
 - **O pico é barato; a base não.** A capacidade elástica para as vendas custa quase nada, porque existe por oito horas. Provisionar para o pico de forma permanente custaria mais que todo o resto da conta de computação. Esse é o argumento econômico para autoscaling, pré-escala e salas de espera ([Planejamento de capacidade](../../performance/capacity-planning/index.md)).
 - **Serviços de dados dominam a computação.** PostgreSQL, Redis e Kafka juntos custam mais que os nós que executam nove serviços. Antes de adicionar um quarto armazenamento de dados, pergunte se um dos existentes não resolve.
 - **Bytes custam mais que CPUs.** A saída da CDN e a ingestão de logs estão entre os maiores itens. Compressão de imagens, tempos de cache mais longos, amostragem de logs de debug e retenção menor mudam a conta mais do que otimizar Java.
 - **Economia unitária** transforma a fatura em uma métrica de negócio: *custo por ingresso vendido* (ou por 1 000 requisições, por usuário ativo). Uma conta que dobra enquanto os ingressos triplicam é uma boa notícia; uma conta que cresce com os ingressos estáveis é uma regressão — acompanhe-a como uma regressão de desempenho.
 
-### Pagar por requisição ou por hora?
+### Pagar por requisição ou por hora? { #pay-per-request-or-pay-per-hour }
 
 Quando FaaS é mais barato que containers sempre ligados? O gráfico compara uma função (100 ms por requisição com 512 MB, atrás de uma porta de entrada HTTP API) com um mínimo de duas pequenas tarefas de container atrás de um load balancer, cada uma atendendo 50 requisições por segundo:
 
@@ -224,7 +224,7 @@ As alavancas abaixo seguem as práticas de otimização de custo dos frameworks 
 
 ---
 
-## Estimando em uma entrevista de system design
+## Estimando em uma entrevista de system design { #estimating-in-a-system-design-interview }
 
 Entrevistadores raramente querem dólares, mas consciência de custo é um sinal forte. Um hábito de três passos basta:
 
@@ -235,6 +235,14 @@ Entrevistadores raramente querem dólares, mas consciência de custo é um sinal
 !!! tip "Na entrevista"
 
     Perguntas de custo costumam vir disfarçadas: "Precisamos mesmo de Kafka aqui?", "Por que três réplicas?", "Isso poderia ser serverless?". Responda com **utilização e razão pico/média**: capacidade sempre ligada é mais barata quando está ocupada; preço por requisição é mais barato quando o tráfego é baixo ou muito em rajadas. Mencione que **transferência de dados** e **armazenamentos de dados gerenciados** costumam dominar antes da computação.
+
+!!! success "Boas práticas"
+
+    - **Distribua a conta do cluster pelos requests de recursos, por namespace e label** — os nós são compartilhados, então os requests são a chave justa, e são eles que o scheduler reserva.
+    - **Defina um orçamento com alertas em 50%, 80% e 100%, além de um alerta de anomalia no gasto diário** — um cluster de teste de carga esquecido aparece em um dia, não na fatura.
+    - **Coloque o custo de uma mudança de projeto no seu documento de projeto, em dólares por mês** — "PostgreSQL Multi-AZ: +US$ 187/mês, uma falha de zona vira um failover de um minuto" permite ao revisor julgar o trade-off. No BoxOffice: [alavancas de otimização](#optimization-levers).
+    - **Comprometa-se só até o menor uso dos últimos meses** — compromissos são pagos com ou sem uso; o piso é a única parte segura. No BoxOffice: os 6 nós sempre ligados, não os 24 nós da venda ([modelo de custos](#cost-model)).
+    - **Dê a cada sinal de telemetria a sua própria retenção** — traces de erro e métricas de SLO por meses, logs de depuração por dias; ingestão e retenção estão entre as maiores linhas da fatura.
 
 !!! warning "Armadilhas"
 
@@ -247,7 +255,7 @@ Entrevistadores raramente querem dólares, mas consciência de custo é um sinal
 
 ## Como se conecta { #how-it-connects }
 
-``` mermaid
+``` diagram
 flowchart LR
     BILL["a fatura: compute, serviços gerenciados,<br/>armazenamento, transferência, itens fixos"] --> INF["Informar: tags,<br/>custo por requests dos pods"]
     INF --> OPT["Otimizar: rightsizing,<br/>compromissos, spot, ARM"]
