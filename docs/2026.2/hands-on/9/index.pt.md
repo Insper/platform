@@ -1,348 +1,135 @@
-# 9. Mensageria com Kafka
+!!! tip "Objetivo principal"
 
-!!! info "Objetivo"
+    O objetivo principal deste hands-on é montar um **cluster PostgreSQL** no Docker Compose — um primário e duas réplicas mantidas em sincronia por **streaming replication** — e usá-lo para *ver* os conceitos de um cluster de banco de dados: replicação, escala de leituras, atraso de replicação (lag), commits síncronos, failover e escritas perdidas.
 
-    Adicionar mensageria assíncrona à plataforma. Quando um pedido é criado, publique um evento `OrderCreated` no Apache Kafka. Um novo `notification-service` (Python/FastAPI) consome esse evento de forma assíncrona e simula o envio de um e-mail de confirmação — sem que o order-service saiba que o notification-service existe.
-
-Hoje a plataforma usa chamadas REST síncronas para toda a comunicação entre serviços. Cada chamada que o order-service faz — ao account-service, ao product-service — acontece em linha, antes de a resposta ser devolvida ao cliente. Isso funciona para operações em que quem chama precisa de um resultado imediatamente. Mas algumas operações são do tipo *fire-and-forget* ("dispare e esqueça"): quando um pedido é criado, enviar um e-mail de confirmação não precisa bloquear o cliente. Este hands-on adiciona o Apache Kafka como a espinha dorsal de mensageria exatamente para esses casos.
+Todos os hands-on até aqui rodaram um único container `db`. Quando ele para, todo serviço que depende dele para também: ele é um **ponto único de falha**. Escalar o gateway para três réplicas (hands-on 7) e adicionar um cache (hands-on 8) tirou carga do banco de dados, mas não removeu esse ponto único. Um **cluster de banco de dados** mantém cópias dos dados em vários servidores, de modo que um deles pode assumir quando outro falha.
 
 ## Slides
 
 <div class="slides-embed">
-  <iframe src="slides/kafka.html" title="Slides: mensageria com Kafka" loading="lazy" allowfullscreen></iframe>
+  <iframe src="slides/db-cluster.html" title="Slides: cluster de banco de dados" loading="lazy" allowfullscreen></iframe>
 </div>
 
 Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** abre a visão do apresentador, com as notas.
-[:material-presentation: Abrir os slides em uma nova aba](slides/kafka.html){:target="_blank"}
+[:material-presentation: Abrir os slides em uma nova aba](slides/db-cluster.html){:target="_blank"}
 
-## 1. Arquitetura
+## Por que um cluster de banco de dados
 
-=== "Antes"
+| Objetivo | O que o cluster oferece | O que ele **não** oferece |
+|---|---|---|
+| **Disponibilidade** | outro servidor já tem os dados e pode se tornar o primário | zero downtime: um failover ainda leva segundos |
+| **Escala de leituras** | os `SELECT`s se distribuem entre as réplicas | escala de escritas: toda escrita continua indo para **um** primário |
+| **Durabilidade** | uma cópia de cada commit em outra máquina | proteção contra um `DELETE` por engano: ele também é replicado (é para isso que servem os backups) |
 
-    ``` mermaid-sim
-    flowchart LR
-        client[Cliente] -->|REST| gw[Gateway]
-        gw -->|REST| order[order-service]
-        order -->|REST síncrono| account[account-service]
-        order -->|REST síncrono| product[product-service]
-    ```
+Escalar as **escritas** exige outra técnica, o **sharding** (dividir os dados entre primários independentes, como fazem o Citus ou o Vitess). Este hands-on trata de **replicação**: cada nó guarda *todos* os dados.
 
-=== "Depois"
+## Como o PostgreSQL replica: o WAL
 
-    ``` mermaid-sim
-    flowchart LR
-        client[Cliente] -->|REST| gw[Gateway]
-        gw -->|REST| order[order-service]
-        order -->|REST síncrono| account[account-service]
-        order -->|REST síncrono| product[product-service]
-        order -->|"Kafka (assíncrono)\norder-events"| kafka[(Kafka)]
-        kafka -->|"Kafka (assíncrono)"| notification[notification-service]
-    ```
+Antes de alterar uma página de dados, o PostgreSQL grava a alteração no **WAL** (*write-ahead log*), um log em disco que só recebe acréscimos (append-only). Depois de um crash, o servidor reexecuta o WAL para se recuperar. A replicação reaproveita o mesmo log: o primário envia o seu WAL às réplicas, que o reexecutam, byte a byte, e terminam com cópias idênticas.
 
-!!! tip "Desacoplamento"
-
-    O order-service publica em um tópico chamado `order-events`. Ele não sabe nada sobre o notification-service. Amanhã você poderia adicionar um analytics-service consumindo o mesmo tópico sem mexer em uma única linha do código do order-service.
-
----
-
-## 2. Docker Compose — Adicionando o Kafka
-
-Adicione o Kafka e o Kafka UI ao `docker-compose.yml`. Um único nó Kafka 4 roda em modo **KRaft** — sem container do ZooKeeper. O Kafka UI oferece uma interface no navegador para inspecionar tópicos e mensagens durante o desenvolvimento.
-
-=== "Acréscimos ao docker-compose.yml"
-
-    ``` { .yaml .copy .select }
-      kafka:
-        image: apache/kafka:4.3.1
-        ports:
-          - "9092:9092"
-        environment:
-          # KRaft combined mode: this single node is both broker and controller
-          KAFKA_NODE_ID: 1
-          KAFKA_PROCESS_ROLES: broker,controller
-          KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
-          KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
-          KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
-          KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
-          KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-          KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-          # single broker: internal topics cannot have more than 1 replica
-          KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-          KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-          KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-          KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
-
-      kafka-ui:
-        image: provectuslabs/kafka-ui:latest
-        depends_on:
-          - kafka
-        ports:
-          - "8090:8080"
-        environment:
-          KAFKA_CLUSTERS_0_NAME: local
-          KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
-    ```
-
-!!! info "KRaft — sem ZooKeeper"
-
-    O Kafka guarda os metadados do cluster (tópicos, partições, líderes) em seu próprio quórum de controllers baseado em Raft, o **KRaft**. Antes, esses metadados ficavam em um ensemble ZooKeeper separado; o Kafka 4.0 (2025) removeu completamente o suporte ao ZooKeeper. Aqui o único nó é ao mesmo tempo broker e controller (`KAFKA_PROCESS_ROLES: broker,controller`): os clientes falam com o listener `PLAINTEXT` em `kafka:9092`, e o quórum de controllers usa o listener `CONTROLLER` na porta 9093. Veja [Arquitetura Orientada a Eventos](../../classes/event_driven/index.md).
-
-!!! note "Kafka UI"
-
-    Acesse o Kafka UI em `http://localhost:8090`. Você pode navegar pelos tópicos, inspecionar mensagens e monitorar o lag dos consumer groups — essencial para depurar durante o desenvolvimento.
-
----
-
-## 3. Order Service — Publicando eventos
-
-### 3.1 Dependência
-
-Adicione `spring-kafka` ao `pom.xml` do order-service:
-
-``` { .xml .copy .select }
-<dependency>
-    <groupId>org.springframework.kafka</groupId>
-    <artifactId>spring-kafka</artifactId>
-</dependency>
+``` mermaid-sim
+sequenceDiagram
+    participant App as Serviço
+    participant P as Primário
+    participant R1 as Réplica 1
+    participant R2 as Réplica 2
+    App->>P: INSERT INTO orders ...
+    P->>P: acrescenta a alteração ao WAL
+    P-->>App: COMMIT ok
+    P->>R1: envia registros do WAL (stream)
+    P->>R2: envia registros do WAL (stream)
+    R1->>R1: reexecuta o WAL
+    R2->>R2: reexecuta o WAL
+    App->>R1: SELECT * FROM orders
+    R1-->>App: linhas (até o último registro reexecutado)
 ```
 
-### 3.2 Record do evento
+| | **Replicação física (streaming)** | **Replicação lógica** |
+|---|---|---|
+| **O que trafega** | bytes do WAL: alterações em páginas de dados | alterações de linhas (`INSERT`/`UPDATE`/`DELETE`) por tabela |
+| **Réplica** | uma cópia exata do servidor inteiro, **somente leitura** | um banco de dados independente, que aceita escritas |
+| **Granularidade** | tudo (todos os bancos) | tabelas escolhidas (publication / subscription) |
+| **Versões** | mesma versão major | podem ser diferentes (usada em upgrades) |
+| **Usada para** | alta disponibilidade, réplicas de leitura | migrações, integrações, cópias parciais |
 
-Crie `OrderCreatedEvent.java` no pacote `store.order`:
+Este hands-on usa **replicação física por streaming**: a base da alta disponibilidade no PostgreSQL e de serviços gerenciados como o Amazon RDS.
 
-``` { .java .copy .select }
-package store.order;
+## Assíncrona ou síncrona?
 
-public record OrderCreatedEvent(
-    String orderId,
-    String customerId,
-    Double totalAmount,
-    String timestamp
-) {}
+A pergunta é *quando* o primário responde `COMMIT ok`:
+
+| | **Assíncrona** (padrão) | **Síncrona** |
+|---|---|---|
+| **O commit retorna** | assim que o WAL está no disco do primário | só depois que uma réplica confirma que tem o WAL |
+| **Latência de escrita** | baixa | + uma ida e volta na rede |
+| **Se o primário morre** | os últimos commits podem não ter chegado a nenhuma réplica: **escritas perdidas** (RPO > 0) | nenhuma transação confirmada é perdida (RPO = 0) |
+| **Se a réplica morre** | nada muda | os commits **bloqueiam** até uma réplica voltar (ou a configuração mudar) |
+
+Este é o [teorema CAP](../../classes/distributed_systems/cap/index.md) na prática: a replicação síncrona prefere a **consistência** (nenhuma escrita confirmada é perdida) e abre mão da **disponibilidade** das escritas quando a réplica está inacessível; a replicação assíncrona prefere a disponibilidade e aceita que quem lê de uma réplica veja **dados desatualizados** e que um failover perca as últimas escritas.
+
+## Arquitetura
+
+``` mermaid-sim
+flowchart LR
+    app["serviço\n(account, order...)"]
+    subgraph cluster [Cluster PostgreSQL]
+        p[("pg-primary\n:5432\nleitura e escrita")]
+        r1[("pg-replica1\n:5433\nsomente leitura")]
+        r2[("pg-replica2\n:5434\nsomente leitura")]
+        p e1@-->|"stream do WAL"| r1
+        p e2@-->|"stream do WAL"| r2
+    end
+    app e0@==>|"escritas + leituras"| p
+    app e3@-.->|"leituras"| r1
+    app e4@-.->|"leituras"| r2
+    e0@{ animate: true }
+    e1@{ animate: true }
+    e2@{ animate: true }
 ```
 
-### 3.3 Configuração do producer Kafka
+- Os três nós rodam a imagem oficial `postgres:17`. Um pequeno entrypoint decide o papel: um nó vazio **com** `PRIMARY_HOST` clona o primário com `pg_basebackup` e sobe como **hot standby** (ele aceita leituras).
+- A aplicação decide para onde vai cada consulta. Aqui, o roteamento fica na **connection string**: a libpq e o driver JDBC do PostgreSQL aceitam uma lista de hosts e escolhem o que tem o papel certo (`target_session_attrs` / `targetServerType`).
 
-Adicione o seguinte ao `application.yaml`:
+## Failover
 
-``` { .yaml .copy .select }
-spring:
-  kafka:
-    bootstrap-servers: kafka:9092
-    producer:
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-      acks: all
-      retries: 3
-      properties:
-        enable.idempotence: true
-```
+Quando o primário falha, uma réplica precisa ser **promovida** a primário, as outras réplicas precisam segui-la e os clientes precisam encontrá-la. Neste hands-on, você faz cada passo à mão, para ver o que uma ferramenta automática faz por você:
 
-!!! tip "acks=all"
+| Passo | À mão (este hands-on) | Automatizado |
+|---|---|---|
+| detectar a falha | `docker compose ps` | health checks, heartbeats |
+| escolher e promover uma réplica | `SELECT pg_promote();` | eleição de líder |
+| reapontar as outras réplicas | `ALTER SYSTEM SET primary_conninfo` | a ferramenta as reconfigura |
+| redirecionar os clientes | connection string com vários hosts | IP virtual, DNS, proxy (HAProxy, PgBouncer) |
+| trazer o primário antigo de volta | `pg_rewind` | a ferramenta faz o rewind dele |
 
-    Definir `acks=all` significa que o broker Kafka vai esperar que todas as réplicas sincronizadas (*in-sync replicas*) confirmem a escrita antes de confirmá-la. Em um ambiente de desenvolvimento com um único broker isso não tem efeito, mas em produção evita perda de dados durante o failover de um broker.
+!!! warning "Split brain"
 
-### 3.4 Publisher
+    A falha perigosa não é um primário morto, mas um primário que **parece** morto — isolado pela rede, mas ainda aceitando escritas. Se uma réplica for promovida, o cluster passa a ter **dois primários** e os dados divergem. Por isso, o failover automático precisa de acordo entre vários nós, um algoritmo de [consenso](../../classes/distributed_systems/consensus/index.md): o [Patroni](https://patroni.readthedocs.io){target="_blank"} guarda o lock de líder no etcd (Raft), e os serviços gerenciados (RDS Multi-AZ, Aurora, Cloud SQL) fazem o mesmo internamente.
 
-Crie `OrderEventPublisher.java`:
+<div class="grid cards" markdown>
 
-``` { .java .copy .select }
-package store.order;
+-   :material-file-code:{ .lg .middle } **[Docker Compose](./docker/)**
 
-import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.stereotype.Component;
-import lombok.RequiredArgsConstructor;
-import java.time.Instant;
+    ---
 
-@Component
-@RequiredArgsConstructor
-public class OrderEventPublisher {
+    Escreva o `compose.yaml` e os scripts, suba o cluster e verifique que as duas réplicas estão fazendo streaming.
 
-    private final KafkaTemplate<String, OrderCreatedEvent> kafkaTemplate;
+    [Docker Compose](./docker/){ .md-button }
 
-    public void publishOrderCreated(Order order) {
-        var event = new OrderCreatedEvent(
-            order.getId().toString(),
-            order.getCustomerId(),
-            order.getTotalAmount(),
-            Instant.now().toString()
-        );
-        kafkaTemplate.send("order-events", order.getId().toString(), event);
-    }
-}
-```
+-   :material-database-sync:{ .lg .middle } **[Replicação](./replication/)**
 
-### 3.5 Chamando o publisher
+    ---
 
-Em `OrderService.java`, injete o `OrderEventPublisher` e chame-o depois de salvar o pedido:
+    Escreva no primário, leia nas réplicas, provoque leituras desatualizadas, roteie por papel e ative os commits síncronos.
 
-``` { .java .copy .select }
-// After saving:
-eventPublisher.publishOrderCreated(savedOrder);
-```
+    [Replicação](./replication/){ .md-button }
 
----
+-   :material-swap-horizontal:{ .lg .middle } **[Failover](./failover/)**
 
-## 4. Notification Service (Python / FastAPI)
+    ---
 
-Um novo microsserviço em Python que consome `order-events` e registra no log uma notificação de e-mail simulada.
+    Pare o primário, promova uma réplica, reaponte o cluster, perca uma escrita de propósito e traga o primário antigo de volta.
 
-### 4.1 Estrutura de arquivos
+    [Failover](./failover/){ .md-button }
 
-```
-notification-service/
-    main.py
-    Dockerfile
-    requirements.txt
-```
-
-### 4.2 Código
-
-=== "requirements.txt"
-
-    ``` { .text .copy .select }
-    fastapi==0.110.0
-    kafka-python==2.3.2
-    uvicorn==0.29.0
-    ```
-
-=== "main.py"
-
-    ``` { .python .copy .select linenums="1" }
-    from fastapi import FastAPI
-    from kafka import KafkaConsumer
-    import json, threading, logging
-
-    logging.basicConfig(level=logging.INFO)
-    logger = logging.getLogger(__name__)
-
-    app = FastAPI()
-
-    def consume():
-        consumer = KafkaConsumer(
-            "order-events",
-            bootstrap_servers="kafka:9092",
-            group_id="notification-group",
-            value_deserializer=lambda m: json.loads(m.decode("utf-8")),
-            auto_offset_reset="earliest",
-            enable_auto_commit=False,
-        )
-        for message in consumer:
-            event = message.value
-            logger.info(
-                f"[NOTIFICATION] Order {event['orderId']} for customer "
-                f"{event['customerId']} — sending confirmation email "
-                f"(total: {event['totalAmount']})"
-            )
-            consumer.commit()
-
-    @app.on_event("startup")
-    def startup_event():
-        thread = threading.Thread(target=consume, daemon=True)
-        thread.start()
-
-    @app.get("/health")
-    def health():
-        return {"status": "up"}
-    ```
-
-=== "Dockerfile"
-
-    ``` { .dockerfile .copy .select }
-    FROM python:3.12-slim
-    WORKDIR /app
-    COPY requirements.txt .
-    RUN pip install --no-cache-dir -r requirements.txt
-    COPY main.py .
-    CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
-    ```
-
-Adicione o notification-service ao `docker-compose.yml`:
-
-``` { .yaml .copy .select }
-  notification-service:
-    build: ./notification-service
-    depends_on:
-      - kafka
-    environment:
-      - PYTHONUNBUFFERED=1
-```
-
-!!! note "enable_auto_commit=False"
-
-    O commit manual (`consumer.commit()`) garante que o offset só avança depois que a mensagem foi processada com sucesso. Se o serviço cair no meio do processamento, ele vai consumir a mensagem de novo ao reiniciar — semântica de entrega *at-least-once* (pelo menos uma vez).
-
----
-
-## 5. Testes
-
-### 5.1 Suba tudo
-
-``` termynal
-$ docker compose up --build -d
-$ docker compose ps
-NAME                    STATUS
-kafka                   running
-kafka-ui                running
-notification-service    running
-order-service           running
-```
-
-### 5.2 Crie um pedido
-
-``` termynal
-$ curl -s -X POST http://localhost:8080/orders \
-    -H "Content-Type: application/json" \
-    -d '{"customerId":"cust-42","items":[{"productId":"p1","quantity":2}]}' \
-    | jq .
-{
-  "id": "ord-7f3a",
-  "status": "CREATED",
-  "totalAmount": 49.98
-}
-```
-
-### 5.3 Verifique no Kafka UI
-
-Abra `http://localhost:8090` e navegue até **Topics → order-events → Messages**. Você deve ver o evento `OrderCreated` com `orderId: ord-7f3a`.
-
-### 5.4 Verifique a notificação
-
-``` termynal
-$ docker compose logs notification-service
-notification-service  | INFO: [NOTIFICATION] Order ord-7f3a for customer cust-42 — sending confirmation email (total: 49.98)
-```
-
----
-
-## 6. Confiabilidade — Dead Letter Queue
-
-Quando um consumer falha repetidamente ao processar uma mensagem, ela deve ir para uma DLQ em vez de travar o fluxo. O padrão de DLQ manual em Python publica os eventos que falharam em um tópico separado, `order-events-dlq`, em vez de derrubar o serviço:
-
-``` { .python .copy .select }
-try:
-    process_event(event)
-    consumer.commit()
-except Exception as e:
-    logger.error(f"Failed to process {event['orderId']}: {e} — sending to DLQ")
-    dlq_producer.send("order-events-dlq", value=event)
-    consumer.commit()
-```
-
-!!! warning "Entrega at-least-once"
-
-    O Kafka garante entrega *at-least-once* — uma mensagem pode ser entregue mais de uma vez (por exemplo, depois que um consumer cai antes do commit). A lógica do seu consumer deve ser **idempotente**: processar o mesmo evento duas vezes deve produzir o mesmo resultado que processá-lo uma vez. No notification service, isso significa verificar se um e-mail já foi enviado para aquele `orderId` antes de enviá-lo de novo.
-
----
-
-## 7. Checklist
-
-- [ ] Kafka (modo KRaft) + Kafka UI adicionados ao `docker-compose.yml`
-- [ ] Record `OrderCreatedEvent` criado no order-service
-- [ ] Dependência `spring-kafka` adicionada e `application.yaml` configurado
-- [ ] `OrderEventPublisher` publica em `order-events` depois de salvar
-- [ ] notification-service consome os eventos e registra as confirmações no log
-- [ ] Kafka UI mostra o evento depois de criar um pedido
-- [ ] Padrão de DLQ compreendido (consumer idempotente)
-
-[Próximo: Quiz](quiz.md){ .md-button .md-button--primary }
+</div>

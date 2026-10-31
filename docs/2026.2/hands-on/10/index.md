@@ -1,431 +1,348 @@
+# 10. Kafka Messaging
+
 !!! info "Goal"
 
-    Add **OpenTelemetry** instrumentation to every Spring Boot service so that a single user request — traversing **Gateway → OrderService → ProductService** — generates a unified distributed trace visible in **Jaeger**, with trace IDs automatically injected into log lines.
+    Add asynchronous messaging to the platform. When an order is created, publish an `OrderCreated` event to Apache Kafka. A new `notification-service` (Python/FastAPI) consumes this event asynchronously and simulates sending a confirmation email — without the order-service knowing the notification-service exists.
 
-You already have Prometheus scraping metrics and Grafana displaying dashboards. Metrics answer "how much" and "how often". They cannot tell you *which* service inside a multi-hop request chain is responsible for a 2-second tail latency. Distributed tracing answers that question.
+The platform currently uses synchronous REST calls for all inter-service communication. Every call the order-service makes — to account-service, to product-service — happens inline, before the response is returned to the client. This works for operations where the caller needs a result immediately. But some operations are fire-and-forget: when an order is created, sending an email confirmation doesn't need to block the customer. This hands-on adds Apache Kafka as the messaging backbone for exactly these cases.
 
 ## Slides
 
 <div class="slides-embed">
-  <iframe src="slides/tracing.html" title="Slides: distributed tracing" loading="lazy" allowfullscreen></iframe>
+  <iframe src="slides/kafka.html" title="Slides: kafka messaging" loading="lazy" allowfullscreen></iframe>
 </div>
 
 Click the slides and use ← → to move through them; **F** goes full screen and **P** opens the presenter view, with the notes.
-[:material-presentation: Open the slides in a new tab](slides/tracing.html){:target="_blank"}
+[:material-presentation: Open the slides in a new tab](slides/kafka.html){:target="_blank"}
 
-## The Problem This Solves
+## 1. Architecture
 
-Consider a slow `/orders` response. Prometheus shows elevated `http_server_requests_seconds` on the gateway, but the gateway delegates to OrderService which in turn calls ProductService and the database. The metric cannot tell you where the time went.
+=== "Before"
 
-Without tracing, the only option is to stare at logs across four separate services and guess.
-
-``` mermaid-sim
-sequenceDiagram
-    participant C as Client
-    participant G as Gateway
-    participant O as OrderService
-    participant P as ProductService
-    participant D as Database
-
-    C->>G: POST /orders  (? ms)
-    G->>O: POST /orders  (? ms)
-    O->>P: GET /products/{id}  (? ms)
-    P->>D: SELECT ...  (? ms)
-    D-->>P: row
-    P-->>O: ProductDTO
-    O-->>G: OrderDTO
-    G-->>C: 200 OK  (total: 2 340 ms)
-```
-
-With tracing, every hop is measured as a **span** and all spans for one request share a **trace ID**. The Jaeger UI renders the full call graph as a flame chart so you can see the slow span immediately.
-
-``` mermaid-sim
-sequenceDiagram
-    participant C as Client
-    participant G as Gateway
-    participant O as OrderService
-    participant P as ProductService
-    participant D as Database
-
-    C->>G: POST /orders<br/>traceparent: 00-4bf9...36-01
-    note over G: span: gateway.POST /orders (45 ms)
-    G->>O: POST /orders<br/>traceparent: 00-4bf9...36-01
-    note over O: span: order.POST /orders (2 250 ms)
-    O->>P: GET /products/7<br/>traceparent: 00-4bf9...36-01
-    note over P: span: product.GET /products/7 (2 190 ms)
-    P->>D: SELECT ...
-    note over D: span: jdbc.query (2 180 ms)
-    D-->>P: row
-    P-->>O: ProductDTO
-    O-->>G: OrderDTO
-    G-->>C: 200 OK  trace_id=4bf9...36
-```
-
-The bottleneck is immediately visible: the JDBC query inside ProductService accounts for almost all of the latency.
-
-## Architecture
-
-This hands-on adds Jaeger to the observability layer and wires the OpenTelemetry Java agent into each service container:
-
-``` mermaid-sim
-flowchart LR
-    subgraph obs [Observability Layer]
-        prometheus@{ shape: cyl, label: "Prometheus\n:9090" }
-        grafana[Grafana\n:3000]
-        jaeger["Jaeger\n:16686 UI\n:4317 OTLP"]:::highlighted
-        prometheus --> grafana
-    end
-    subgraph api [Trusted Layer]
-        loadbalancer --> gateway
-        gateway --> order
-        gateway --> account
-        order --> product
-        order --> db@{ shape: cyl, label: "PostgreSQL" }
-    end
-    gateway & order & account & product e1@-->|"OTLP traces"| jaeger
-    prometheus e2@-.->|"scrape /actuator/prometheus"| gateway & order & account & product
-    internet e0@==>|":80"| loadbalancer
-    e0@{ animate: true }
-    e1@{ animate: true }
-    e2@{ animate: true }
-    classDef highlighted fill:#fcc
-```
-
-## Adding Jaeger to Docker Compose
-
-[Jaeger](https://www.jaegertracing.io){target="_blank"} ships as a single `all-in-one` container that includes the collector, query engine, and UI. For production you would run these as separate components, but for local development the all-in-one image is sufficient.
-
-Add the following service to `compose.yaml`:
-
-``` yaml
-  jaeger:
-    image: jaegertracing/all-in-one:1.57
-    container_name: jaeger
-    environment:
-      COLLECTOR_OTLP_ENABLED: "true"
-    ports:
-      - "16686:16686"   # Jaeger UI
-      - "4317:4317"     # OTLP gRPC receiver
-      - "4318:4318"     # OTLP HTTP receiver
-    networks:
-      - store-net
-```
-
-!!! note "Port 4317 vs 4318"
-    The OTel Java agent defaults to **gRPC** on port 4317. Port 4318 is for HTTP/protobuf. Both carry the same OTLP protocol — use 4317 unless a firewall forces HTTP.
-
-## OpenTelemetry Java Agent
-
-The OpenTelemetry Java agent is a JVM instrumentation agent — a single JAR you attach with `-javaagent`. It uses Java's bytecode instrumentation API to intercept Spring MVC, Spring WebClient, RestTemplate, JDBC drivers, and dozens of other libraries **without any code changes**.
-
-### Download the agent
-
-Add a download step to each service's Dockerfile:
-
-``` dockerfile
-FROM eclipse-temurin:21-jre-alpine
-
-WORKDIR /app
-
-ADD https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v2.4.0/opentelemetry-javaagent.jar \
-    /app/opentelemetry-javaagent.jar
-
-COPY target/*.jar app.jar
-
-ENTRYPOINT ["java", \
-  "-javaagent:/app/opentelemetry-javaagent.jar", \
-  "-jar", "/app/app.jar"]
-```
-
-!!! tip "Pin the agent version"
-    The OTel agent version and the Spring Boot version must be compatible. v2.4.0 works with Spring Boot 3.x. Check the [compatibility matrix](https://github.com/open-telemetry/opentelemetry-java-instrumentation#supported-libraries-frameworks-and-application-servers){target="_blank"} before upgrading either dependency.
-
-### Configure each service in Docker Compose
-
-The agent is configured entirely through environment variables. Add the following `environment` block to each service in `compose.yaml`:
-
-=== "gateway-service"
-
-    ``` yaml
-      gateway:
-        build: ./gateway-service
-        environment:
-          OTEL_SERVICE_NAME: gateway-service
-          OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
-          OTEL_METRICS_EXPORTER: none
-          OTEL_LOGS_EXPORTER: none
-          OTEL_PROPAGATORS: tracecontext,baggage
+    ``` mermaid-sim
+    flowchart LR
+        client[Client] -->|REST| gw[Gateway]
+        gw -->|REST| order[order-service]
+        order -->|REST sync| account[account-service]
+        order -->|REST sync| product[product-service]
     ```
 
-=== "order-service"
+=== "After"
 
-    ``` yaml
-      order:
-        build: ./order-service
-        environment:
-          OTEL_SERVICE_NAME: order-service
-          OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
-          OTEL_METRICS_EXPORTER: none
-          OTEL_LOGS_EXPORTER: none
-          OTEL_PROPAGATORS: tracecontext,baggage
+    ``` mermaid-sim
+    flowchart LR
+        client[Client] -->|REST| gw[Gateway]
+        gw -->|REST| order[order-service]
+        order -->|REST sync| account[account-service]
+        order -->|REST sync| product[product-service]
+        order -->|"Kafka (async)\norder-events"| kafka[(Kafka)]
+        kafka -->|"Kafka (async)"| notification[notification-service]
     ```
 
-=== "product-service"
+!!! tip "Decoupling"
 
-    ``` yaml
-      product:
-        build: ./product-service
+    The order-service publishes to a topic called `order-events`. It has no knowledge of the notification-service. Tomorrow you could add an analytics-service consuming the same topic without touching a single line of order-service code.
+
+---
+
+## 2. Docker Compose — Adding Kafka
+
+Add Kafka and Kafka UI to `docker-compose.yml`. A single Kafka 4 node runs in **KRaft** mode — no ZooKeeper container. Kafka UI provides a browser-based interface for inspecting topics and messages during development.
+
+=== "docker-compose.yml additions"
+
+    ``` { .yaml .copy .select }
+      kafka:
+        image: apache/kafka:4.3.1
+        ports:
+          - "9092:9092"
         environment:
-          OTEL_SERVICE_NAME: product-service
-          OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
-          OTEL_METRICS_EXPORTER: none
-          OTEL_LOGS_EXPORTER: none
-          OTEL_PROPAGATORS: tracecontext,baggage
+          # KRaft combined mode: this single node is both broker and controller
+          KAFKA_NODE_ID: 1
+          KAFKA_PROCESS_ROLES: broker,controller
+          KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+          KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+          KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+          KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+          KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+          KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+          # single broker: internal topics cannot have more than 1 replica
+          KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+          KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+          KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+          KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+
+      kafka-ui:
+        image: provectuslabs/kafka-ui:latest
+        depends_on:
+          - kafka
+        ports:
+          - "8090:8080"
+        environment:
+          KAFKA_CLUSTERS_0_NAME: local
+          KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
     ```
 
-=== "account-service"
+!!! info "KRaft — no ZooKeeper"
 
-    ``` yaml
-      account:
-        build: ./account-service
-        environment:
-          OTEL_SERVICE_NAME: account-service
-          OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
-          OTEL_METRICS_EXPORTER: none
-          OTEL_LOGS_EXPORTER: none
-          OTEL_PROPAGATORS: tracecontext,baggage
-    ```
+    Kafka keeps its cluster metadata (topics, partitions, leaders) in its own Raft-based controller quorum, **KRaft**. Before, this metadata lived in a separate ZooKeeper ensemble; Kafka 4.0 (2025) removed ZooKeeper support entirely. Here the single node is both broker and controller (`KAFKA_PROCESS_ROLES: broker,controller`): clients talk to the `PLAINTEXT` listener on `kafka:9092`, and the controller quorum uses the `CONTROLLER` listener on port 9093. See [Event-Driven Architecture](../../classes/event_driven/index.md).
 
-!!! warning "Why `OTEL_METRICS_EXPORTER: none`?"
-    By default the OTel agent also tries to export metrics via OTLP. You are already collecting metrics with Prometheus and Micrometer — exporting them a second time to Jaeger would create duplicates and waste resources. Setting `none` disables the OTel metric pipeline while leaving trace export fully enabled.
+!!! note "Kafka UI"
 
-## Trace Propagation — How It Works
+    Access Kafka UI at `http://localhost:8090`. You can browse topics, inspect messages, and monitor consumer group lag — essential for debugging during development.
 
-When the agent intercepts an outgoing HTTP call, it injects the **W3C `traceparent` header** into the request. The receiving service's agent reads that header and creates a child span under the same trace.
+---
 
-The `traceparent` format is:
+## 3. Order Service — Publishing Events
 
-```
-00-{traceId}-{parentSpanId}-{flags}
- │   │            │               │
- │   │            │               └── 01 = sampled, 00 = not sampled
- │   │            └── 16-char parent span ID (hex)
- │   └── 32-char trace ID (hex) — identical on every hop
- └── version byte (always 00)
-```
+### 3.1 Dependency
 
-Example value seen in HTTP headers:
+Add `spring-kafka` to the order-service's `pom.xml`:
 
-```
-traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
-```
-
-The trace ID `4bf92f3577b34da6a3ce929d0e0e4736` is present on every service in the chain. All spans carrying that ID are grouped into one trace in Jaeger.
-
-``` mermaid-sim
-sequenceDiagram
-    participant G as Gateway Agent
-    participant O as Order Agent
-    participant P as Product Agent
-
-    G->>G: start root span<br/>traceId=4bf9...  spanId=aaa1
-    G->>O: POST /orders<br/>traceparent: 00-4bf9...-aaa1-01
-    O->>O: start child span<br/>traceId=4bf9...  spanId=bbb2  parent=aaa1
-    O->>P: GET /products/7<br/>traceparent: 00-4bf9...-bbb2-01
-    P->>P: start child span<br/>traceId=4bf9...  spanId=ccc3  parent=bbb2
-    P-->>O: 200
-    O-->>G: 200
-    G->>G: end root span → export to Jaeger
-    O->>O: end child span → export to Jaeger
-    P->>P: end child span → export to Jaeger
-```
-
-!!! note "Sampling"
-    The `01` flags byte means the trace is sampled and will be exported. The default sampler exports 100% of traces. For production, switch to a rate-limiting sampler: set `OTEL_TRACES_SAMPLER=parentbased_traceidratio` and `OTEL_TRACES_SAMPLER_ARG=0.1` to sample 10% of requests.
-
-## Correlating Traces with Logs
-
-A trace ID in Jaeger is only useful if you can find the matching log lines. The OTel agent bridges both worlds: it injects the active trace ID and span ID into SLF4J's MDC, so every log statement emitted during a traced request automatically carries the trace context.
-
-### Add the logback bridge dependency
-
-In each service's `pom.xml`:
-
-``` xml
+``` { .xml .copy .select }
 <dependency>
-    <groupId>io.opentelemetry.instrumentation</groupId>
-    <artifactId>opentelemetry-logback-appender-1.0</artifactId>
-    <version>2.4.0-alpha</version>
-    <scope>runtime</scope>
+    <groupId>org.springframework.kafka</groupId>
+    <artifactId>spring-kafka</artifactId>
 </dependency>
 ```
 
-### Configure logback-spring.xml
+### 3.2 Event Record
 
-Create `src/main/resources/logback-spring.xml` in each service:
+Create `OrderCreatedEvent.java` in the `store.order` package:
 
-``` xml
-<?xml version="1.0" encoding="UTF-8"?>
-<configuration>
-    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-        <encoder>
-            <pattern>
-                %d{HH:mm:ss.SSS} [%thread] %-5level %logger{36}
-                [trace_id=%X{trace_id} span_id=%X{span_id}] - %msg%n
-            </pattern>
-        </encoder>
-    </appender>
+``` { .java .copy .select }
+package store.order;
 
-    <root level="INFO">
-        <appender-ref ref="CONSOLE"/>
-    </root>
-</configuration>
+public record OrderCreatedEvent(
+    String orderId,
+    String customerId,
+    Double totalAmount,
+    String timestamp
+) {}
 ```
 
-!!! tip "MDC key names"
-    The OTel agent writes trace context under the keys `trace_id` and `span_id` in SLF4J MDC. These match the OTLP/W3C naming convention and are directly searchable in Loki, CloudWatch Insights, Splunk, and most other log aggregators.
+### 3.3 Kafka Producer Configuration
 
-With this configuration, every log line during a traced request will look like:
+Add the following to `application.yaml`:
 
-```
-14:23:01.442 [http-nio-8080-exec-3] INFO  c.example.order.OrderService
-    [trace_id=4bf92f3577b34da6a3ce929d0e0e4736 span_id=00f067aa0ba902b7] - creating order for account 42
-14:23:01.501 [http-nio-8080-exec-3] INFO  c.example.order.OrderService
-    [trace_id=4bf92f3577b34da6a3ce929d0e0e4736 span_id=00f067aa0ba902b7] - calling ProductService for product id 7
-```
-
-**Workflow**: open the slow trace in Jaeger → click the problematic span → copy the `trace_id` value → paste it into your log aggregator's search bar → all log lines from that exact request appear together.
-
-## Viewing Traces in Jaeger UI
-
-Rebuild and start the full stack:
-
-``` { .bash .copy .select }
-docker compose up -d --build
+``` { .yaml .copy .select }
+spring:
+  kafka:
+    bootstrap-servers: kafka:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+      properties:
+        enable.idempotence: true
 ```
 
-Verify Jaeger started:
+!!! tip "acks=all"
 
-``` { .bash .copy .select }
-docker compose ps jaeger
-```
+    Setting `acks=all` means the Kafka broker will wait for all in-sync replicas to acknowledge the write before confirming. In a single-broker development setup this has no effect, but in production it prevents data loss during broker failover.
 
-Expected output:
+### 3.4 Publisher
 
-```
-NAME      IMAGE                          STATUS    PORTS
-jaeger    jaegertracing/all-in-one:1.57  running   0.0.0.0:4317->4317/tcp, 0.0.0.0:16686->16686/tcp
-```
+Create `OrderEventPublisher.java`:
 
-Generate some traffic so there are traces to explore:
+``` { .java .copy .select }
+package store.order;
 
-``` { .bash .copy .select }
-curl -s -X POST http://localhost:8080/orders \
-  -H "Content-Type: application/json" \
-  -d '{"accountId": 1, "productId": 7, "quantity": 2}' | jq
-```
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.stereotype.Component;
+import lombok.RequiredArgsConstructor;
+import java.time.Instant;
 
-Open **[http://localhost:16686](http://localhost:16686){target="_blank"}** in your browser.
+@Component
+@RequiredArgsConstructor
+public class OrderEventPublisher {
 
-### Finding a trace
+    private final KafkaTemplate<String, OrderCreatedEvent> kafkaTemplate;
 
-1. In the **Service** dropdown, select `gateway-service`.
-2. Leave Operation as `all` and click **Find Traces**.
-3. The results list recent traces sorted by timestamp. Each row shows the root operation name, total duration, and span count.
-4. Click any trace to open the flame chart view.
-
-### Reading the flame chart
-
-The flame chart renders each span as a horizontal bar. The root span (gateway) is at the top. Child spans are indented below their parent. Bar width is proportional to duration — a wide bar is a slow operation.
-
-!!! example "What to look for"
-    - A span nearly as wide as the root span is the primary latency contributor.
-    - Spans labelled `SELECT` or `jdbc.query` with long duration indicate slow database queries.
-    - Spans labelled `HTTP GET` or `HTTP POST` are outbound HTTP calls captured by the agent.
-    - A span with a red `!` icon recorded an exception — click it to see the full stack trace attached as a span event.
-
-### Span attributes
-
-Clicking a span expands its tags. The agent records these automatically:
-
-| Tag | Example value |
-|---|---|
-| `http.method` | `POST` |
-| `http.url` | `http://order:8080/orders` |
-| `http.status_code` | `200` |
-| `db.system` | `postgresql` |
-| `db.statement` | `SELECT * FROM products WHERE id = ?` |
-| `net.peer.name` | `db` |
-
-## Adding Custom Spans
-
-The Java agent instruments framework code automatically, but it knows nothing about your business logic. When validation, pricing calculation, or any significant processing step needs to be traced individually, add a **manual span**.
-
-### Add the OpenTelemetry API dependency
-
-``` xml
-<dependency>
-    <groupId>io.opentelemetry</groupId>
-    <artifactId>opentelemetry-api</artifactId>
-</dependency>
-```
-
-Spring Boot's dependency management includes `opentelemetry-bom`, so no version is needed here.
-
-### Instrument business logic
-
-``` java
-import io.opentelemetry.api.trace.Span;
-import io.opentelemetry.api.trace.Tracer;
-import io.opentelemetry.context.Scope;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-
-@Service
-public class OrderService {
-
-    @Autowired
-    private Tracer tracer;
-
-    public OrderOut create(OrderIn orderIn) {
-
-        Span span = tracer.spanBuilder("validateOrder").startSpan();
-        try (Scope scope = span.makeCurrent()) {
-            span.setAttribute("order.account_id", orderIn.getAccountId());
-            span.setAttribute("order.product_id", orderIn.getProductId());
-
-            validateAccount(orderIn.getAccountId());
-            checkInventory(orderIn.getProductId(), orderIn.getQuantity());
-
-        } catch (Exception e) {
-            span.recordException(e);
-            throw e;
-        } finally {
-            span.end();
-        }
-
-        return persist(orderIn);
+    public void publishOrderCreated(Order order) {
+        var event = new OrderCreatedEvent(
+            order.getId().toString(),
+            order.getCustomerId(),
+            order.getTotalAmount(),
+            Instant.now().toString()
+        );
+        kafkaTemplate.send("order-events", order.getId().toString(), event);
     }
 }
 ```
 
-!!! warning "Always call `span.end()` in a `finally` block"
-    If `span.end()` is never called, the span is never exported to Jaeger. The `try-finally` pattern guarantees cleanup even when an exception is thrown. The agent handles this automatically for framework code; manual spans are your responsibility.
+### 3.5 Calling the Publisher
 
-!!! note "When to add manual spans"
-    Add manual spans when: (1) a method takes more than ~50 ms and you want to measure it independently, (2) you need to attach business-level attributes (`order.id`, `account.tier`) that are not captured by framework instrumentation, or (3) you need to record a caught exception as a span event. Do **not** add manual spans to trivial getters or field assignments — the noise obscures the useful data.
+In `OrderService.java`, inject `OrderEventPublisher` and call it after saving the order:
 
-## Checklist
-
-Before moving on, verify:
-
-- [ ] `docker compose ps` shows `jaeger` running with ports 16686 and 4317 exposed
-- [ ] `http://localhost:16686` loads the Jaeger UI without errors
-- [ ] After sending a request, `gateway-service` appears in the Jaeger service dropdown
-- [ ] A trace for `POST /orders` contains at least 3 spans: gateway, order-service, product-service
-- [ ] Each span has `http.method` and `http.status_code` tags set by the agent automatically
-- [ ] Log output includes `trace_id=` fields that match the trace ID shown in Jaeger
+``` { .java .copy .select }
+// After saving:
+eventPublisher.publishOrderCreated(savedOrder);
+```
 
 ---
 
-[Quiz](./quiz.md){ .md-button }
+## 4. Notification Service (Python / FastAPI)
+
+A new Python microservice that consumes `order-events` and logs a simulated email notification.
+
+### 4.1 File Structure
+
+```
+notification-service/
+    main.py
+    Dockerfile
+    requirements.txt
+```
+
+### 4.2 Code
+
+=== "requirements.txt"
+
+    ``` { .text .copy .select }
+    fastapi==0.110.0
+    kafka-python==2.3.2
+    uvicorn==0.29.0
+    ```
+
+=== "main.py"
+
+    ``` { .python .copy .select linenums="1" }
+    from fastapi import FastAPI
+    from kafka import KafkaConsumer
+    import json, threading, logging
+
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
+
+    app = FastAPI()
+
+    def consume():
+        consumer = KafkaConsumer(
+            "order-events",
+            bootstrap_servers="kafka:9092",
+            group_id="notification-group",
+            value_deserializer=lambda m: json.loads(m.decode("utf-8")),
+            auto_offset_reset="earliest",
+            enable_auto_commit=False,
+        )
+        for message in consumer:
+            event = message.value
+            logger.info(
+                f"[NOTIFICATION] Order {event['orderId']} for customer "
+                f"{event['customerId']} — sending confirmation email "
+                f"(total: {event['totalAmount']})"
+            )
+            consumer.commit()
+
+    @app.on_event("startup")
+    def startup_event():
+        thread = threading.Thread(target=consume, daemon=True)
+        thread.start()
+
+    @app.get("/health")
+    def health():
+        return {"status": "up"}
+    ```
+
+=== "Dockerfile"
+
+    ``` { .dockerfile .copy .select }
+    FROM python:3.12-slim
+    WORKDIR /app
+    COPY requirements.txt .
+    RUN pip install --no-cache-dir -r requirements.txt
+    COPY main.py .
+    CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
+    ```
+
+Add the notification-service to `docker-compose.yml`:
+
+``` { .yaml .copy .select }
+  notification-service:
+    build: ./notification-service
+    depends_on:
+      - kafka
+    environment:
+      - PYTHONUNBUFFERED=1
+```
+
+!!! note "enable_auto_commit=False"
+
+    Manual commit (`consumer.commit()`) ensures the offset advances only after the message has been successfully processed. If the service crashes mid-processing, it will re-consume the message on restart — at-least-once delivery semantics.
+
+---
+
+## 5. Testing
+
+### 5.1 Start Everything
+
+``` termynal
+$ docker compose up --build -d
+$ docker compose ps
+NAME                    STATUS
+kafka                   running
+kafka-ui                running
+notification-service    running
+order-service           running
+```
+
+### 5.2 Create an Order
+
+``` termynal
+$ curl -s -X POST http://localhost:8080/orders \
+    -H "Content-Type: application/json" \
+    -d '{"customerId":"cust-42","items":[{"productId":"p1","quantity":2}]}' \
+    | jq .
+{
+  "id": "ord-7f3a",
+  "status": "CREATED",
+  "totalAmount": 49.98
+}
+```
+
+### 5.3 Verify in Kafka UI
+
+Open `http://localhost:8090`, navigate to **Topics → order-events → Messages**. You should see the `OrderCreated` event with `orderId: ord-7f3a`.
+
+### 5.4 Verify Notification
+
+``` termynal
+$ docker compose logs notification-service
+notification-service  | INFO: [NOTIFICATION] Order ord-7f3a for customer cust-42 — sending confirmation email (total: 49.98)
+```
+
+---
+
+## 6. Reliability — Dead Letter Queue
+
+When a consumer fails to process a message repeatedly, it should go to a DLQ rather than blocking the stream. The Python manual DLQ pattern publishes failed events to a separate `order-events-dlq` topic instead of crashing:
+
+``` { .python .copy .select }
+try:
+    process_event(event)
+    consumer.commit()
+except Exception as e:
+    logger.error(f"Failed to process {event['orderId']}: {e} — sending to DLQ")
+    dlq_producer.send("order-events-dlq", value=event)
+    consumer.commit()
+```
+
+!!! warning "At-least-once delivery"
+
+    Kafka guarantees at-least-once delivery — a message may be delivered more than once (e.g., after a consumer crash before commit). Your consumer logic should be **idempotent**: processing the same event twice must produce the same result as processing it once. For the notification service, this means checking whether an email was already sent for this `orderId` before sending again.
+
+---
+
+## 7. Checklist
+
+- [ ] Kafka (KRaft mode) + Kafka UI added to `docker-compose.yml`
+- [ ] `OrderCreatedEvent` record created in order-service
+- [ ] `spring-kafka` dependency added, `application.yaml` configured
+- [ ] `OrderEventPublisher` publishes to `order-events` after save
+- [ ] notification-service consumes events and logs confirmations
+- [ ] Kafka UI shows the event after creating an order
+- [ ] DLQ pattern understood (idempotent consumer)
+
+[Next: Quiz](quiz.md){ .md-button .md-button--primary }

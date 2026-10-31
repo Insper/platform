@@ -119,7 +119,7 @@ More consumers than partitions? The extra consumers sit **idle**. Partitions are
 ## Keys, ordering and durability
 
 - With a **key**, `hash(key) % partitions` picks the partition → same key, same partition, **in order**.
-- Hands-on 9: `send("order-events", orderId, event)` → all events of one order stay in sequence; different orders run in parallel.
+- Hands-on 10: `send("order-events", orderId, event)` → all events of one order stay in sequence; different orders run in parallel.
 - Few key values (e.g. `country`) → **hot partitions**; adding partitions later moves keys.
 - Each partition is **replicated** (typically 3): a leader + followers; the up-to-date ones form the **ISR**.
 
@@ -176,7 +176,7 @@ The notification service sends the e-mail, then **crashes before committing** th
 * So: at-least-once + an **idempotent consumer** — processed-IDs table, upserts, unique constraints.
 
 <!--
-Hands-on 9 uses enable_auto_commit=False and commit() after processing: at-least-once.
+Hands-on 10 uses enable_auto_commit=False and commit() after processing: at-least-once.
 -->
 
 ---

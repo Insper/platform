@@ -491,7 +491,7 @@ Each layer handles a different failure scenario:
 
 - [Hands-on 1](../../../hands-on/1/index.md) — the Feign clients that need timeouts and breakers.
 - [Hands-on 7](../../../hands-on/7/index.md) — Nginx in front of the gateway, where edge rate limiting lives.
-- [Hands-on 9](../../../hands-on/9/index.md) — retries and dead letter queues for asynchronous consumers.
+- [Hands-on 10](../../../hands-on/10/index.md) — retries and dead letter queues for asynchronous consumers.
 - [SLI / SLO / SLA](../sli-slo-sla/index.md) — the budget these patterns protect.
 
 ## Key takeaways

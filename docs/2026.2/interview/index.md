@@ -874,7 +874,7 @@ def reduce(word, counts):       # receives (key, [v1, v2, ...])
           </ul>
           <p><strong>SLI / SLO / SLA:</strong> the SLI is the measurement (e.g. % of requests with latency &lt; 300 ms); the SLO is the internal target (e.g. 99.9% over 28 days); the SLA is the contract with the customer, with a penalty. The <em>error budget</em> (1 − SLO) defines how much risk you can spend on deploys and experiments.</p>
           <p><strong>Use percentiles, not averages:</strong> p50, p95 and p99. The average hides the tail — and the tail is where the unhappy users are.</p>
-          <p class="acc-link">In the course: <a href="../classes/observability/">Observability</a> · <a href="../classes/reliability/sli-slo-sla/">SLI / SLO / SLA</a> · <a href="../hands-on/6/">Hands-on 6</a> · <a href="../hands-on/10/">Hands-on 10</a></p>
+          <p class="acc-link">In the course: <a href="../classes/observability/">Observability</a> · <a href="../classes/reliability/sli-slo-sla/">SLI / SLO / SLA</a> · <a href="../hands-on/6/">Hands-on 6</a> · <a href="../hands-on/11/">Hands-on 11</a></p>
         </div>
       </div>
 
@@ -1145,8 +1145,8 @@ def base62(n: int) -> str:
         <h3>In-Memory Cache</h3>
         <p>Redis shared across replicas, cache-aside and TTL.</p>
       </a>
-      <a class="card border-green" href="../hands-on/9/">
-        <div class="card-label green">Hands-on 9</div>
+      <a class="card border-green" href="../hands-on/10/">
+        <div class="card-label green">Hands-on 10</div>
         <h3>Kafka Messaging</h3>
         <p>Event-driven asynchronous processing and decoupling between services.</p>
       </a>
@@ -1160,8 +1160,8 @@ def base62(n: int) -> str:
         <h3>Observability</h3>
         <p>Metrics with Prometheus and dashboards in Grafana.</p>
       </a>
-      <a class="card border-blue" href="../hands-on/10/">
-        <div class="card-label blue">Hands-on 10</div>
+      <a class="card border-blue" href="../hands-on/11/">
+        <div class="card-label blue">Hands-on 11</div>
         <h3>Distributed Tracing</h3>
         <p>OpenTelemetry + Jaeger: where a request's time was spent.</p>
       </a>

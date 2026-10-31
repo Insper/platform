@@ -2,129 +2,114 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Rastreamento distribuído
+## Mensageria com Kafka
 
-**Q1.** Uma requisição `POST /orders` leva 2 300 ms de ponta a ponta. O Prometheus mostra que o `http_server_requests_seconds_max` do gateway é de 2 300 ms. O que um trace distribuído informa que essa métrica **não consegue** informar?
+**Q1.** O que `enable_auto_commit=False` faz no consumer Kafka?
 
-- A. O número total de requisições por segundo que passam pelo gateway
-- B. O intervalo exato de tempo que cada serviço downstream — OrderService, ProductService, o banco de dados — consumiu dentro daquela única requisição, para que você identifique qual salto causou o atraso
-- C. Se o gateway tem folga de CPU suficiente para lidar com mais requisições simultâneas
-- D. A latência do percentil 99 de todas as requisições nos últimos cinco minutos
+- A. Desativa o mecanismo interno de retry do Kafka, obrigando a aplicação a tratar os retries manualmente
+- B. Impede que o consumer faça o commit do offset até que `consumer.commit()` seja chamado explicitamente — garantindo que o offset só avance depois de um processamento bem-sucedido
+- C. Diz ao Kafka para não persistir as mensagens em disco, reduzindo a latência do broker
+- D. Desativa o protocolo de consumer group, fazendo o consumer ler cada partição de forma independente
 
 ??? success "Resposta"
-    **B — A latência detalhada por salto de uma única requisição.**
+    **B — O offset só avança depois de um `consumer.commit()` explícito.**
 
-    Uma métrica do Prometheus é um agregado: ela informa o pior tempo de resposta observado entre todas as requisições de uma janela de tempo, mas não consegue decompor esse tempo pelas chamadas downstream. Um trace distribuído registra cada salto como um span, com seu próprio horário de início e sua duração. Você lê imediatamente que o próprio gateway levou 45 ms, o OrderService levou 2 250 ms e a query JDBC do ProductService levou 2 180 ms desse total — a métrica sozinha nunca mostra isso.
+    Com `enable_auto_commit=True` (o padrão), o Kafka faz o commit do offset periodicamente, quer o processamento tenha dado certo ou não. Se o serviço cair entre o auto-commit e o fim do trabalho, a mensagem se perde silenciosamente. Definir `False` e chamar `consumer.commit()` só depois de um processamento bem-sucedido garante a entrega at-least-once: uma queda antes do commit faz a mensagem ser entregue de novo na próxima inicialização.
 
 ---
 
-**Q2.** Depois de adicionar o agente Java do OTel ao Dockerfile e definir `OTEL_EXPORTER_OTLP_ENDPOINT`, uma chamada `RestTemplate` do OrderService para o ProductService aparece como um span filho no Jaeger — **sem nenhuma alteração no código-fonte Java**. Que mecanismo torna isso possível?
+**Q2.** Por que `acks=all` é importante em produção, mesmo acrescentando latência?
 
-- A. O Spring Boot Actuator expõe um endpoint `/actuator/traces` que o Jaeger coleta automaticamente
-- B. O agente Java do OTel usa instrumentação de bytecode da JVM para interceptar o `RestTemplate` em tempo de execução, injetando o cabeçalho `traceparent` nas requisições de saída e criando spans de forma transparente
-- C. O Spring Cloud Sleuth detecta a variável de ambiente `OTEL_EXPORTER_OTLP_ENDPOINT` e ativa o rastreamento automático
-- D. O cabeçalho `traceparent` é injetado pela rede overlay do Docker, compartilhada por todos os containers
+- A. Comprime as mensagens antes do envio, reduzindo o uso de banda de rede ao custo de tempo de CPU
+- B. Garante que o producer faça retries indefinidamente até que o broker confirme o recebimento
+- C. Exige que todas as réplicas sincronizadas confirmem a escrita antes de o broker confirmá-la — evitando perda de dados se o broker líder falhar logo depois de aceitar a mensagem
+- D. Só é relevante para consumers e não tem efeito no comportamento do producer
 
 ??? success "Resposta"
-    **B — Instrumentação de bytecode da JVM pela flag `-javaagent`.**
+    **C — Todas as réplicas sincronizadas confirmam antes da confirmação, evitando perda de dados na falha do líder.**
 
-    O agente Java do OTel é um agente de instrumentação padrão da JVM, carregado com `-javaagent:/app/opentelemetry-javaagent.jar`. No carregamento das classes, ele reescreve o bytecode de bibliotecas conhecidas — RestTemplate, WebClient, drivers JDBC, Spring MVC e muitas outras — para adicionar a criação de spans e a injeção de cabeçalhos. Sem alterações no código-fonte, sem anotações do Spring. O JAR da aplicação não é tocado; o agente modifica o bytecode em execução, na memória.
+    Com `acks=1` (padrão), o broker confirma a escrita assim que o líder da partição grava a mensagem em seu log local. Se o líder cair antes de replicá-la para os followers, a mensagem se perde. Com `acks=all`, o broker espera que todas as réplicas sincronizadas persistam a escrita antes de responder — a mensagem sobrevive a um failover do líder. Combinado com `enable.idempotence=true`, isso dá ao producer semântica exactly-once.
 
 ---
 
-**Q3.** Dado o valor de `traceparent`:
+**Q3.** O notification-service processa o mesmo `orderId` duas vezes por causa de uma queda antes do commit. Como o consumer idempotente deve lidar com isso?
 
-```
-00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
-```
-
-Qual parte identifica **toda a jornada da requisição** e é a mesma em todos os serviços da cadeia?
-
-- A. `00` — o byte de versão
-- B. `4bf92f3577b34da6a3ce929d0e0e4736` — o trace ID de 32 caracteres
-- C. `00f067aa0ba902b7` — o ID do span pai, de 16 caracteres
-- D. `01` — o byte de flags
+- A. Lançar uma exceção e enviar a duplicata para a DLQ
+- B. Processar o evento normalmente — o processamento duplicado é inevitável e aceitável
+- C. Verificar se uma notificação já foi enviada para esse `orderId` antes de agir; pular o envio se já existir um registro
+- D. Aumentar o fator de replicação do consumer group para evitar duplicatas no nível do broker
 
 ??? success "Resposta"
-    **B — O trace ID de 32 caracteres.**
+    **C — Verificar se já existe um registro do `orderId` e pular se ele já foi processado.**
 
-    O formato do cabeçalho W3C `traceparent` é `{version}-{traceId}-{parentSpanId}-{flags}`. O `traceId` é gerado uma única vez pelo primeiro serviço da cadeia (o gateway) e é propagado sem alterações para todos os serviços downstream. Ele é a chave comum que permite ao Jaeger agrupar todos os spans — do gateway, do OrderService, do ProductService e do driver JDBC — em um único trace. O `parentSpanId` muda a cada salto: ele identifica quem fez a chamada imediatamente antes, não a cadeia inteira.
+    Idempotência significa que aplicar a mesma operação várias vezes produz o mesmo resultado que aplicá-la uma vez. O consumer deve manter um armazenamento (banco de dados, set no Redis ou log) dos valores de `orderId` já processados. Antes de enviar um e-mail, ele consulta esse armazenamento: se o `orderId` já estiver lá, o evento é confirmado e ignorado. Esse padrão é essencial sempre que se usa entrega at-least-once — que é o padrão do Kafka.
 
 ---
 
-**Q4.** No `compose.yaml`, você define `OTEL_METRICS_EXPORTER: none` para todos os serviços. Que problema ocorreria se você **omitisse** essa variável e deixasse o exporter padrão ativo?
+**Q4.** Qual é a finalidade do `group_id` em um consumer Kafka?
 
-- A. O serviço não iniciaria, porque o Jaeger não suporta o protocolo de métricas OTLP
-- B. O agente OTel exportaria métricas via OTLP para o Jaeger além do pipeline Micrometer/Prometheus que já está rodando, criando séries de métricas duplicadas e desperdiçando recursos
-- C. O Prometheus pararia de coletar `/actuator/prometheus`, porque o agente OTel desativa o Micrometer
-- D. Os dashboards do Grafana quebrariam, porque os nomes dos labels das métricas diferem entre o OTLP e o formato de exposição do Prometheus
+- A. Identifica o cluster Kafka ao qual o consumer se conecta
+- B. Define o número máximo de consumers que podem ler uma única partição simultaneamente
+- C. Agrupa consumers em uma unidade lógica que lê um tópico coletivamente — o Kafka acompanha o offset commitado por grupo, e cada partição é atribuída a exatamente um consumer dentro do grupo
+- D. Criptografa a conexão do consumer com o broker usando uma chave compartilhada do grupo
 
 ??? success "Resposta"
-    **B — Métricas duplicadas exportadas por dois pipelines separados.**
+    **C — Agrupa consumers em uma unidade com controle de offset compartilhado; cada partição vai para um membro.**
 
-    Por padrão, o agente Java do OTel ativa um exporter de métricas OTLP junto com o exporter de traces. Como você já tem o Spring Boot Actuator + Micrometer exportando as mesmas métricas para o Prometheus, ativar o exporter de métricas do OTel envia uma segunda cópia de cada métrica para o endpoint OTLP do Jaeger. Isso desperdiça rede e armazenamento, e o backend de métricas do Jaeger não é o que você usa para os dashboards. Definir `OTEL_METRICS_EXPORTER: none` desativa apenas o pipeline de métricas; o pipeline de traces não é afetado.
+    Quando várias instâncias do notification-service estão rodando, todas compartilham `group_id="notification-group"`. O Kafka distribui as partições do tópico entre os membros do grupo, de modo que cada mensagem seja processada por exatamente uma instância — o que permite escalar os consumers horizontalmente. Se o group_id fosse único por instância, cada instância receberia todas as mensagens de forma independente, gerando notificações de e-mail duplicadas.
 
 ---
 
-**Q5.** Você abre no flame chart do Jaeger um trace de uma requisição `POST /orders` e vê quatro spans:
+**Q5.** O order-service publica em `order-events`. Dois novos serviços (analytics-service, fraud-service) também precisam desses eventos. Que mudança é necessária no order-service?
 
-```
-gateway-service      POST /orders          2 300 ms  ████████████████████
-  order-service      POST /orders          2 250 ms  ███████████████████
-    product-service  GET /products/7       2 190 ms  ██████████████████
-      jdbc           SELECT * FROM ...     2 180 ms  ██████████████████
-```
-
-Qual serviço você deve investigar primeiro, e por quê?
-
-- A. `gateway-service`, porque o span dele é a barra mais larga e, portanto, o principal gargalo
-- B. `order-service`, porque é o filho direto do gateway e responde pela maior parte do tempo total
-- C. O span `jdbc` dentro do `product-service`, porque ele responde por 2 180 ms dos 2 300 ms totais e é o span mais profundo, com o maior tempo próprio
-- D. Todos os serviços igualmente, porque as durações dos spans se sobrepõem e não é possível isolar uma única causa
+- A. Adicionar mais duas chamadas `kafkaTemplate.send()` para enviar os eventos aos tópicos dedicados dos novos serviços
+- B. Registrar os novos serviços como assinantes na configuração do order-service
+- C. Nenhuma — os outros consumers entram em um consumer group diferente e consomem do mesmo tópico de forma independente
+- D. Dividir o tópico `order-events` em três partições, uma por serviço consumidor
 
 ??? success "Resposta"
-    **C — O span `jdbc` dentro do `product-service`.**
+    **C — Nenhuma mudança. Os outros consumers entram em um consumer group diferente e consomem do mesmo tópico de forma independente.**
 
-    O flame chart mostra o *tempo de relógio* (wall-clock), então os spans pais sempre aparecem tão largos quanto os filhos, ou mais. O span do gateway é largo porque fica esperando tudo o que acontece downstream. A informação útil é o **span mais profundo com o maior tempo próprio**: `jdbc SELECT`, com 2 180 ms. Esse span não tem filhos — ele está realizando trabalho de fato, e não esperando outro serviço. Isso significa que uma query SQL lenta dentro do ProductService é a causa raiz. Comece por ali: verifique se falta um índice, se há uma query N+1 ou se falta um pool de conexões com o banco de dados.
+    Esse é o principal benefício de desacoplamento do Kafka em relação ao REST. Cada consumer group mantém seu próprio ponteiro de offset no tópico. `analytics-group` e `fraud-group` recebem, cada um, todas as mensagens de `order-events` de forma independente, no seu próprio ritmo, sem que o order-service saiba que eles existem. Com REST, o order-service precisaria de uma chamada explícita para cada serviço downstream — cada novo assinante exigiria uma mudança de código no publicador.
 
 ---
 
-**Q6.** Qual é a relação correta entre um **trace** e um **span**?
+**Q6.** O que a métrica de lag de consumer group do Kafka UI informa?
 
-- A. Um span é uma coleção de traces relacionados, agrupados pelo nome do serviço
-- B. Um trace representa a jornada completa, de ponta a ponta, de uma única requisição por todos os serviços; um span representa uma unidade de trabalho dentro dessa jornada (por exemplo, uma única chamada HTTP, uma query no banco de dados ou a execução de um método)
-- C. Trace e span são sinônimos — os dois se referem a um registro temporizado de uma única operação
-- D. Um span é uma amostra de vários traces agregados em um único ponto de uma série temporal
+- A. O número de mensagens que o producer publicou, mas que o broker ainda não persistiu em disco
+- B. A diferença entre o offset mais recente do tópico e o último offset commitado de um consumer group — indicando o quanto o consumer está atrasado
+- C. O tempo médio, em milissegundos, entre a publicação de uma mensagem e seu recebimento pelo consumer
+- D. O número de partições que não têm nenhum consumer ativo atribuído
 
 ??? success "Resposta"
-    **B — Trace = jornada completa; span = uma unidade de trabalho.**
+    **B — A distância entre o offset mais recente do tópico e o offset commitado do consumer group.**
 
-    Cada requisição gera exatamente um trace, identificado por um `traceId` único. Esse trace é composto de um ou mais spans. O span raiz (criado pelo gateway) é o primeiro; cada chamada downstream cria um span filho, cujo pai é o span que fez a chamada. Todos os spans compartilham o mesmo `traceId`, mas cada um tem seu próprio `spanId`, horário de início, horário de fim e atributos. A UI do Jaeger monta todos os spans com o mesmo `traceId` no flame chart que você vê.
+    Um lag de 0 significa que o consumer está acompanhando em tempo real. Um lag crescente indica que o consumer é mais lento que o producer — as mensagens estão se acumulando. No notification-service, um lag persistente significa confirmações por e-mail atrasadas. As soluções mais comuns são aumentar o número de instâncias do consumer (dentro do número de partições) ou otimizar a lógica de processamento. O Kafka UI mostra o lag por partição, o que facilita identificar um consumo desigual entre as partições.
 
 ---
 
-**Q7.** O seu método `OrderService.create()` chama três métodos auxiliares privados: `validateAccount()`, `checkInventory()` e `calculatePrice()`. O agente OTel já cria um span para a requisição HTTP `POST /orders` recebida. Em que circunstâncias você deve **adicionar um span manual** para um desses métodos auxiliares?
+**Q7.** Por que `KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092` é a configuração correta para o Docker Compose (usando o nome do serviço, e não `localhost`)?
 
-- A. Sempre — toda chamada de método deve ter seu próprio span para garantir cobertura completa
-- B. Nunca — o agente Java instrumenta todos os beans do Spring automaticamente, então spans manuais são redundantes
-- C. Quando o método auxiliar leva um tempo mensurável (por exemplo, > 50 ms), chama um sistema externo, ou quando você precisa anexar atributos de negócio (como `account.id` ou `inventory.available`) que a instrumentação dos frameworks não captura
-- D. Somente quando o método lança uma checked exception — spans manuais servem exclusivamente para rastrear erros
+- A. `localhost` é reservado para o listener do controller KRaft; o tráfego dos clientes precisa de um hostname separado
+- B. Os brokers Kafka usam `KAFKA_ADVERTISED_LISTENERS` para dizer aos clientes a qual endereço se conectar depois do bootstrap inicial; dentro do Docker Compose, os outros containers resolvem os nomes de serviço pelo DNS interno do Docker, então `kafka:9092` é alcançável, enquanto `localhost:9092` se referiria à interface de loopback de cada container
+- C. A imagem oficial `apache/kafka` não aceita `localhost` como endereço de listener
+- D. Usar `localhost` exporia o broker Kafka na máquina host, criando uma vulnerabilidade de segurança
 
 ??? success "Resposta"
-    **C — Quando o método auxiliar é lento, chama sistemas externos ou precisa de atributos personalizados.**
+    **B — O DNS interno do Docker resolve os nomes de serviço; `localhost` dentro de um container se refere ao loopback do próprio container.**
 
-    O agente instrumenta os *pontos de entrada dos frameworks* — requisições HTTP, chamadas JDBC, operações de cache. Ele não conhece os seus métodos privados de lógica de negócio. Adicione um span manual quando: (1) um método leva dezenas de milissegundos e você quer ver o custo dele separadamente no flame chart, (2) o método chama uma API externa que o agente não consegue detectar, ou (3) você quer registrar atributos de negócio, como `order.account_id` ou `inventory.result`, que só fazem sentido no seu domínio. Evite envolver getters triviais — spans demais escondem o sinal e acrescentam overhead.
+    Quando o container do order-service se conecta a `kafka:9092`, o DNS embutido do Docker resolve `kafka` para o IP interno do container do Kafka. Se `KAFKA_ADVERTISED_LISTENERS` fosse `localhost:9092`, o broker anunciaria um endereço que só leva de volta a ele mesmo — todo cliente que tentasse se conectar chegaria ao próprio loopback em vez de ao broker. Usar o nome do serviço torna o endereço anunciado válido a partir de qualquer container na mesma rede Docker.
 
 ---
 
-**Q8.** Um usuário relata que o pedido dele foi criado com o preço de produto errado. Você consegue reproduzir o problema e observa `trace_id=7d3a...b2` na UI do Jaeger. Seus logs são agregados no Loki. Qual é a forma mais rápida de encontrar as linhas de log exatas daquela requisição?
+**Q8.** Que problema o padrão DLQ (Dead Letter Queue) resolve?
 
-- A. Buscar `level=ERROR` no job `order-service` do Loki na janela de 5 minutos em torno do timestamp da requisição
-- B. Copiar o valor de `trace_id` do span no Jaeger e usá-lo como filtro de busca no Loki (`{job="order-service"} |= "7d3a...b2"`) — o campo `trace_id`, injetado pela ponte OTel do logback em cada linha de log via MDC, liga o trace diretamente à sua saída de log
-- C. Baixar o trace completo do Jaeger como JSON e procurar mensagens de erro embutidas nos eventos dos spans
-- D. Reiniciar o serviço com o log em nível `DEBUG` e reproduzir a requisição para gerar logs novos e mais detalhados
+- A. Limitar o producer quando ele publica mais rápido do que o broker consegue replicar
+- B. Comprimir mensagens grandes que excedem o tamanho máximo de mensagem do broker
+- C. Evitar que uma única mensagem impossível de processar ("poison pill") bloqueie o consumer indefinidamente — as mensagens que falham são movidas para um tópico separado para inspeção e reprocessamento posteriores, permitindo que o consumer continue processando o resto do fluxo
+- D. Distribuir as partições de forma uniforme entre os membros do consumer group para reduzir o lag
 
 ??? success "Resposta"
-    **B — Usar o `trace_id` do Jaeger como filtro de busca no Loki.**
+    **C — Tira do caminho as mensagens impossíveis de processar, para que não bloqueiem o fluxo do consumer.**
 
-    Esse é o valor central da correlação entre traces e logs. Como o `logback-spring.xml` usa `%X{trace_id}` no seu padrão, cada linha de log emitida durante uma requisição rastreada contém o trace ID vindo do MDC. Todas as linhas de log daquela requisição específica — e somente dela — compartilham o mesmo `trace_id=7d3a...b2`, mesmo que milhares de outras requisições tenham sido processadas ao mesmo tempo. Buscar esse ID no Loki devolve exatamente a sequência de logs do pedido com problema: as chamadas de serviço feitas, o preço calculado e a persistência final — restrita a milissegundos de tempo de relógio, sem o ruído das requisições de outros usuários.
+    Sem uma DLQ, uma única mensagem malformada ou impossível de processar faria o consumer tentar de novo indefinidamente, bloqueando todas as mensagens seguintes daquela partição. O padrão DLQ captura a exceção, publica a mensagem problemática em `order-events-dlq`, faz o commit do offset original e segue em frente. Os times de operações podem então inspecionar a DLQ, corrigir a causa raiz e reprocessar os eventos depois que o consumer for corrigido — sem perder nenhum dado.

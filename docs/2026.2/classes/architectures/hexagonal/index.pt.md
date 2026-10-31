@@ -203,7 +203,7 @@ Troque o primeiro participante por um teste e o quarto por `InMemoryAccountRepos
 | Ator externo | Tipo | Adaptador na loja |
 |---|---|---|
 | Gateway chamando `POST /auth/login` | entrada | `AuthResource` / `AuthController` (REST) |
-| Tópico Kafka `accounts` (veja o [Hands-on 9](../../../hands-on/9/index.md)) | entrada | um consumidor `@KafkaListener` |
+| Tópico Kafka `accounts` (veja o [Hands-on 10](../../../hands-on/10/index.md)) | entrada | um consumidor `@KafkaListener` |
 | Teste JUnit | entrada | a própria classe de teste |
 | `account-service` | saída | cliente Feign (`AccountController` no Hands-on 3) |
 | Postgres | saída | `AccountJpaAdapter` |

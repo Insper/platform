@@ -69,7 +69,7 @@ In the course, configuration follows the **twelve-factor** rule of keeping it in
 
 ### Message Broker
 
-Carries events between services asynchronously, so that the producer does not wait for — or even know — its consumers. The course uses **Apache Kafka**: the order service publishes `OrderCreated` to the `order-events` topic and the notification service consumes it ([Hands-on 9](../../../hands-on/9/index.md), [Event-Driven Architecture](../../event_driven/index.md)).
+Carries events between services asynchronously, so that the producer does not wait for — or even know — its consumers. The course uses **Apache Kafka**: the order service publishes `OrderCreated` to the `order-events` topic and the notification service consumes it ([Hands-on 10](../../../hands-on/10/index.md), [Event-Driven Architecture](../../event_driven/index.md)).
 
 ### Distributed Cache
 
@@ -77,7 +77,7 @@ An in-memory store shared by all replicas of a service, used to avoid repeating 
 
 ### Observability Stack
 
-With dozens of processes, "look at the log" no longer works. The platform collects **metrics** (Prometheus scrapes each service's `/actuator/prometheus`; Grafana draws dashboards — [Hands-on 6](../../../hands-on/6/index.md)) and **traces** that follow one request across services (OpenTelemetry + Jaeger — [Hands-on 10](../../../hands-on/10/index.md)). See [Observability](../../observability/index.md).
+With dozens of processes, "look at the log" no longer works. The platform collects **metrics** (Prometheus scrapes each service's `/actuator/prometheus`; Grafana draws dashboards — [Hands-on 6](../../../hands-on/6/index.md)) and **traces** that follow one request across services (OpenTelemetry + Jaeger — [Hands-on 11](../../../hands-on/11/index.md)). See [Observability](../../observability/index.md).
 
 ### Summary: the course's platform
 
@@ -88,9 +88,9 @@ With dozens of processes, "look at the log" no longer works. The platform collec
 | Identity provider | Keycloak, Auth0, Amazon Cognito | `auth-service` issuing JWTs | [3](../../../hands-on/3/index.md) |
 | Service discovery | Eureka, Consul, Kubernetes DNS | Docker Compose DNS, then Kubernetes Services | [1](../../../hands-on/1/index.md), [5](../../../hands-on/5/index.md) |
 | Configuration | Spring Cloud Config, Vault, ConfigMaps | `.env` + environment variables, then ConfigMaps and Secrets | [5](../../../hands-on/5/index.md) |
-| Message broker | Kafka, RabbitMQ | Kafka | [9](../../../hands-on/9/index.md) |
+| Message broker | Kafka, RabbitMQ | Kafka | [10](../../../hands-on/10/index.md) |
 | Cache | Redis, Memcached | Redis | [8](../../../hands-on/8/index.md) |
-| Observability | Prometheus, Grafana, OpenTelemetry, Jaeger | Prometheus + Grafana, OpenTelemetry + Jaeger | [6](../../../hands-on/6/index.md), [10](../../../hands-on/10/index.md) |
+| Observability | Prometheus, Grafana, OpenTelemetry, Jaeger | Prometheus + Grafana, OpenTelemetry + Jaeger | [6](../../../hands-on/6/index.md), [11](../../../hands-on/11/index.md) |
 
 ---
 
@@ -217,7 +217,7 @@ These practices are developed in their own classes: [Resilience Patterns](../../
 
 ## Connections
 
-- Build the components: [Hands-on 2 — Gateway](../../../hands-on/2/index.md), [3 — Security](../../../hands-on/3/index.md), [5 — Orchestration](../../../hands-on/5/index.md), [6 — Observability](../../../hands-on/6/index.md), [7 — Load Balancer](../../../hands-on/7/index.md), [8 — Cache](../../../hands-on/8/index.md), [9 — Kafka](../../../hands-on/9/index.md), [10 — Tracing](../../../hands-on/10/index.md).
+- Build the components: [Hands-on 2 — Gateway](../../../hands-on/2/index.md), [3 — Security](../../../hands-on/3/index.md), [5 — Orchestration](../../../hands-on/5/index.md), [6 — Observability](../../../hands-on/6/index.md), [7 — Load Balancer](../../../hands-on/7/index.md), [8 — Cache](../../../hands-on/8/index.md), [10 — Kafka](../../../hands-on/10/index.md), [11 — Tracing](../../../hands-on/11/index.md).
 - Why and where to split: [Microservices](../index.md), [Domain-Driven Design](../ddd/index.md).
 - Deploying all of it: [Project](../../../exercises/project/index.md).
 

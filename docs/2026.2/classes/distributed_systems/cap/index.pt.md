@@ -167,6 +167,7 @@ O PACELC[^4] é mais útil do que o CAP para as escolhas de banco de dados do di
 
 - [Consenso e algoritmos](../consensus/index.md) — como sistemas CP como o etcd de fato se mantêm consistentes: maiorias e Raft.
 - [Hands-on 8](../../../hands-on/8/index.md) — um cache Redis, uma escolha explícita de latência em vez de consistência.
+- [Hands-on 9](../../../hands-on/9/index.md) — um cluster PostgreSQL: leituras desatualizadas em réplicas assíncronas, commits que travam com replicação síncrona, uma escrita perdida num failover.
 - [Arquitetura orientada a eventos](../../event_driven/index.md) — eventos assíncronos tornam os serviços eventualmente consistentes entre si.
 
 ## Pontos-chave

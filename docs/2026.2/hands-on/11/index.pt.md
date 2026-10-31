@@ -1,323 +1,431 @@
-# 11. IA no CI/CD
-
 !!! info "Objetivo"
 
-    Adicionar uma etapa de revisão de código com IA ao pipeline de CI/CD da plataforma. Quando um desenvolvedor abre um pull request, um workflow do GitHub Actions chama a API do Claude para analisar o diff e publica um comentário de revisão estruturado — apontando automaticamente problemas de segurança, testes ausentes e questões de arquitetura.
+    Adicionar instrumentação **OpenTelemetry** a todos os serviços Spring Boot para que uma única requisição de usuário — passando por **Gateway → OrderService → ProductService** — gere um trace distribuído unificado, visível no **Jaeger**, com os trace IDs injetados automaticamente nas linhas de log.
 
-A IA não está substituindo engenheiros no desenvolvimento de software — ela está mudando quais tarefas ocupam a atenção deles. A revisão de código é um dos lugares de maior alavancagem para introduzir assistência de IA: revisores são escassos, o tempo de retorno é longo e muitos problemas (verificações de null ausentes, segredos fixos no código, violações das convenções de endpoints REST) são mecânicos o bastante para que um modelo os detecte com confiabilidade. Este hands-on adiciona um revisor automático com IA a cada pull request do repositório do projeto dos alunos.
+Você já tem o Prometheus coletando métricas e o Grafana exibindo dashboards. Métricas respondem "quanto" e "com que frequência". Elas não conseguem dizer *qual* serviço, dentro de uma cadeia de requisições com vários saltos, é o responsável por uma latência de cauda de 2 segundos. O rastreamento distribuído responde a essa pergunta.
 
 ## Slides
 
 <div class="slides-embed">
-  <iframe src="slides/ai-cicd.html" title="Slides: IA no CI/CD" loading="lazy" allowfullscreen></iframe>
+  <iframe src="slides/tracing.html" title="Slides: rastreamento distribuído" loading="lazy" allowfullscreen></iframe>
 </div>
 
 Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** abre a visão do apresentador, com as notas.
-[:material-presentation: Abrir os slides em uma nova aba](slides/ai-cicd.html){:target="_blank"}
+[:material-presentation: Abrir os slides em uma nova aba](slides/tracing.html){:target="_blank"}
 
----
+## O problema que isso resolve
 
-## 1. Arquitetura
+Considere uma resposta lenta de `/orders`. O Prometheus mostra `http_server_requests_seconds` elevado no gateway, mas o gateway delega ao OrderService, que por sua vez chama o ProductService e o banco de dados. A métrica não consegue dizer para onde foi o tempo.
 
-O revisor roda como um job do GitHub Actions disparado a cada evento de pull request. Ele busca o diff, envia-o para a API do Claude e publica a resposta estruturada como um comentário no PR antes da chegada dos revisores humanos.
+Sem rastreamento, a única opção é ficar olhando os logs de quatro serviços separados e chutar.
 
 ``` mermaid-sim
 sequenceDiagram
-    autonumber
-    actor Dev as Desenvolvedor
-    participant GH as GitHub
-    participant GHA as GitHub Actions
-    participant Claude as Claude API<br/>(claude-sonnet-4-6)
-    participant PR as Pull Request
+    participant C as Cliente
+    participant G as Gateway
+    participant O as OrderService
+    participant P as ProductService
+    participant D as Banco de dados
 
-    Dev->>GH: git push + abre o PR
-    GH->>+GHA: trigger: pull_request (opened, synchronize)
-    GHA->>GH: GET /repos/.../pulls/{pr}/files (diff)
-    GHA->>+Claude: POST /messages {diff, system_prompt}
-    Claude-->>-GHA: JSON da revisão {summary, issues[], suggestions[]}
-    GHA->>-PR: POST do comentário com a revisão formatada
+    C->>G: POST /orders  (? ms)
+    G->>O: POST /orders  (? ms)
+    O->>P: GET /products/{id}  (? ms)
+    P->>D: SELECT ...  (? ms)
+    D-->>P: linha
+    P-->>O: ProductDTO
+    O-->>G: OrderDTO
+    G-->>C: 200 OK  (total: 2 340 ms)
 ```
 
-A revisão roda como uma verificação não bloqueante — ela nunca bloqueia o merge, mas o resultado fica visível na linha do tempo do PR antes da chegada dos revisores humanos.
+Com rastreamento, cada salto é medido como um **span**, e todos os spans de uma requisição compartilham um **trace ID**. A UI do Jaeger desenha o grafo de chamadas completo como um flame chart, para que você veja o span lento imediatamente.
 
----
+``` mermaid-sim
+sequenceDiagram
+    participant C as Cliente
+    participant G as Gateway
+    participant O as OrderService
+    participant P as ProductService
+    participant D as Banco de dados
 
-## 2. Configuração
-
-### 2.1 Secret da chave de API
-
-Adicione a chave da API do Claude aos secrets do repositório no GitHub:
-
-1. Vá em repositório → **Settings** → **Secrets and variables** → **Actions**
-2. Clique em **New repository secret**
-3. Nome: `ANTHROPIC_API_KEY`
-4. Valor: sua chave de API obtida em [console.anthropic.com](https://console.anthropic.com){target="_blank"}
-
-!!! danger "Nunca faça commit da chave de API"
-
-    A chave deve ficar nos GitHub Secrets, nunca em `.github/workflows/*.yml` nem em qualquer arquivo versionado. O runner do Actions a injeta como variável de ambiente em tempo de execução.
-
-### 2.2 Arquivo do workflow
-
-Crie `.github/workflows/ai-review.yml`:
-
-``` { .yaml .copy }
-name: AI Code Review
-
-on:
-  pull_request:
-    types: [opened, synchronize]
-
-permissions:
-  pull-requests: write
-  contents: read
-
-jobs:
-  ai-review:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install dependencies
-        run: pip install anthropic PyGithub
-
-      - name: Run AI review
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          REPO: ${{ github.repository }}
-        run: python .github/scripts/ai_review.py
+    C->>G: POST /orders<br/>traceparent: 00-4bf9...36-01
+    note over G: span: gateway.POST /orders (45 ms)
+    G->>O: POST /orders<br/>traceparent: 00-4bf9...36-01
+    note over O: span: order.POST /orders (2 250 ms)
+    O->>P: GET /products/7<br/>traceparent: 00-4bf9...36-01
+    note over P: span: product.GET /products/7 (2 190 ms)
+    P->>D: SELECT ...
+    note over D: span: jdbc.query (2 180 ms)
+    D-->>P: linha
+    P-->>O: ProductDTO
+    O-->>G: OrderDTO
+    G-->>C: 200 OK  trace_id=4bf9...36
 ```
 
-!!! tip "O GITHUB_TOKEN é automático"
+O gargalo fica visível na hora: a query JDBC dentro do ProductService responde por quase toda a latência.
 
-    O secret `GITHUB_TOKEN` é injetado automaticamente pelo GitHub Actions em cada execução de workflow, com escopo restrito ao repositório e às permissões declaradas pelo workflow. Ele tem acesso de escrita a pull requests porque declaramos `permissions: pull-requests: write`. Você não cria esse secret manualmente.
+## Arquitetura
 
----
+Este hands-on adiciona o Jaeger à camada de observabilidade e conecta o agente Java do OpenTelemetry ao container de cada serviço:
 
-## 3. O script de revisão
-
-Crie `.github/scripts/ai_review.py`. O script busca o diff do PR, envia-o para a API do Claude e publica a resposta como um comentário no PR.
-
-``` { .python .copy linenums="1" }
-import os
-import anthropic
-from github import Github
-
-SYSTEM_PROMPT = """You are an expert code reviewer for a microservices platform course.
-Analyse the git diff provided and produce a structured review.
-
-Focus on:
-1. Security issues (hardcoded secrets, SQL injection, missing auth)
-2. Missing or inadequate error handling
-3. REST API convention violations (wrong HTTP methods, missing status codes)
-4. Obvious performance problems (N+1 queries, synchronous calls that should be async)
-5. Missing input validation
-
-Format your response as markdown with these sections:
-## Summary
-One paragraph overall assessment.
-
-## Issues Found
-Use severity labels: 🔴 Critical | 🟠 Warning | 🟡 Suggestion
-
-## What looks good
-Briefly note correct patterns you observed.
-
-Keep the review concise (under 400 words). If the diff is trivial (docs, config only), say so briefly.
-"""
-
-def get_pr_diff(repo, pr_number: int) -> str:
-    pr = repo.get_pull(pr_number)
-    files = pr.get_files()
-    diff_parts = []
-    total_lines = 0
-    for f in files:
-        if total_lines > 3000:
-            diff_parts.append("... (diff truncated — too large for single review)")
-            break
-        if f.patch:
-            diff_parts.append(f"### {f.filename}\n```diff\n{f.patch}\n```")
-            total_lines += f.patch.count('\n')
-    return "\n\n".join(diff_parts) if diff_parts else "No code changes detected."
-
-def post_review_comment(repo, pr_number: int, body: str) -> None:
-    pr = repo.get_pull(pr_number)
-    pr.create_issue_comment(
-        f"## 🤖 AI Code Review\n\n{body}\n\n---\n"
-        "*Powered by Claude · Non-blocking · For guidance only*"
-    )
-
-def main():
-    gh = Github(os.environ["GITHUB_TOKEN"])
-    repo = gh.get_repo(os.environ["REPO"])
-    pr_number = int(os.environ["PR_NUMBER"])
-
-    diff = get_pr_diff(repo, pr_number)
-
-    client = anthropic.Anthropic()
-    message = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=1024,
-        system=SYSTEM_PROMPT,
-        messages=[
-            {"role": "user", "content": f"Please review this pull request diff:\n\n{diff}"}
-        ]
-    )
-
-    review_text = message.content[0].text
-    post_review_comment(repo, pr_number, review_text)
-    print(f"Review posted to PR #{pr_number}")
-
-if __name__ == "__main__":
-    main()
+``` mermaid-sim
+flowchart LR
+    subgraph obs [Camada de observabilidade]
+        prometheus@{ shape: cyl, label: "Prometheus\n:9090" }
+        grafana[Grafana\n:3000]
+        jaeger["Jaeger\n:16686 UI\n:4317 OTLP"]:::highlighted
+        prometheus --> grafana
+    end
+    subgraph api [Camada confiável]
+        loadbalancer --> gateway
+        gateway --> order
+        gateway --> account
+        order --> product
+        order --> db@{ shape: cyl, label: "PostgreSQL" }
+    end
+    gateway & order & account & product e1@-->|"traces OTLP"| jaeger
+    prometheus e2@-.->|"scrape /actuator/prometheus"| gateway & order & account & product
+    internet e0@==>|":80"| loadbalancer
+    e0@{ animate: true }
+    e1@{ animate: true }
+    e2@{ animate: true }
+    classDef highlighted fill:#fcc
 ```
 
-Principais decisões de design deste script:
+## Adicionando o Jaeger ao Docker Compose
 
-| Decisão | Motivo |
+O [Jaeger](https://www.jaegertracing.io){target="_blank"} é distribuído como um único container `all-in-one` que inclui o coletor, o mecanismo de consulta e a UI. Em produção você rodaria esses componentes separadamente, mas para o desenvolvimento local a imagem all-in-one é suficiente.
+
+Adicione o seguinte serviço ao `compose.yaml`:
+
+``` yaml
+  jaeger:
+    image: jaegertracing/all-in-one:1.57
+    container_name: jaeger
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "16686:16686"   # Jaeger UI
+      - "4317:4317"     # OTLP gRPC receiver
+      - "4318:4318"     # OTLP HTTP receiver
+    networks:
+      - store-net
+```
+
+!!! note "Porta 4317 vs 4318"
+    O agente Java do OTel usa por padrão **gRPC** na porta 4317. A porta 4318 é para HTTP/protobuf. As duas transportam o mesmo protocolo OTLP — use a 4317, a menos que um firewall obrigue o uso de HTTP.
+
+## Agente Java do OpenTelemetry
+
+O agente Java do OpenTelemetry é um agente de instrumentação da JVM — um único JAR que você acopla com `-javaagent`. Ele usa a API de instrumentação de bytecode do Java para interceptar Spring MVC, Spring WebClient, RestTemplate, drivers JDBC e dezenas de outras bibliotecas **sem nenhuma alteração de código**.
+
+### Baixe o agente
+
+Adicione uma etapa de download ao Dockerfile de cada serviço:
+
+``` dockerfile
+FROM eclipse-temurin:21-jre-alpine
+
+WORKDIR /app
+
+ADD https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v2.4.0/opentelemetry-javaagent.jar \
+    /app/opentelemetry-javaagent.jar
+
+COPY target/*.jar app.jar
+
+ENTRYPOINT ["java", \
+  "-javaagent:/app/opentelemetry-javaagent.jar", \
+  "-jar", "/app/app.jar"]
+```
+
+!!! tip "Fixe a versão do agente"
+    A versão do agente OTel e a versão do Spring Boot precisam ser compatíveis. A v2.4.0 funciona com o Spring Boot 3.x. Consulte a [matriz de compatibilidade](https://github.com/open-telemetry/opentelemetry-java-instrumentation#supported-libraries-frameworks-and-application-servers){target="_blank"} antes de atualizar qualquer uma das duas dependências.
+
+### Configure cada serviço no Docker Compose
+
+O agente é configurado inteiramente por variáveis de ambiente. Adicione o seguinte bloco `environment` a cada serviço no `compose.yaml`:
+
+=== "gateway-service"
+
+    ``` yaml
+      gateway:
+        build: ./gateway-service
+        environment:
+          OTEL_SERVICE_NAME: gateway-service
+          OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+          OTEL_METRICS_EXPORTER: none
+          OTEL_LOGS_EXPORTER: none
+          OTEL_PROPAGATORS: tracecontext,baggage
+    ```
+
+=== "order-service"
+
+    ``` yaml
+      order:
+        build: ./order-service
+        environment:
+          OTEL_SERVICE_NAME: order-service
+          OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+          OTEL_METRICS_EXPORTER: none
+          OTEL_LOGS_EXPORTER: none
+          OTEL_PROPAGATORS: tracecontext,baggage
+    ```
+
+=== "product-service"
+
+    ``` yaml
+      product:
+        build: ./product-service
+        environment:
+          OTEL_SERVICE_NAME: product-service
+          OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+          OTEL_METRICS_EXPORTER: none
+          OTEL_LOGS_EXPORTER: none
+          OTEL_PROPAGATORS: tracecontext,baggage
+    ```
+
+=== "account-service"
+
+    ``` yaml
+      account:
+        build: ./account-service
+        environment:
+          OTEL_SERVICE_NAME: account-service
+          OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+          OTEL_METRICS_EXPORTER: none
+          OTEL_LOGS_EXPORTER: none
+          OTEL_PROPAGATORS: tracecontext,baggage
+    ```
+
+!!! warning "Por que `OTEL_METRICS_EXPORTER: none`?"
+    Por padrão, o agente OTel também tenta exportar métricas via OTLP. Você já coleta métricas com Prometheus e Micrometer — exportá-las uma segunda vez para o Jaeger criaria duplicatas e desperdiçaria recursos. Definir `none` desativa o pipeline de métricas do OTel, mantendo a exportação de traces totalmente ativa.
+
+## Propagação de traces — como funciona
+
+Quando o agente intercepta uma chamada HTTP de saída, ele injeta o **cabeçalho W3C `traceparent`** na requisição. O agente do serviço que a recebe lê esse cabeçalho e cria um span filho no mesmo trace.
+
+O formato do `traceparent` é:
+
+```
+00-{traceId}-{parentSpanId}-{flags}
+ │   │            │               │
+ │   │            │               └── 01 = sampled, 00 = not sampled
+ │   │            └── 16-char parent span ID (hex)
+ │   └── 32-char trace ID (hex) — identical on every hop
+ └── version byte (always 00)
+```
+
+Exemplo de valor visto nos cabeçalhos HTTP:
+
+```
+traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
+```
+
+O trace ID `4bf92f3577b34da6a3ce929d0e0e4736` está presente em todos os serviços da cadeia. Todos os spans que carregam esse ID são agrupados em um único trace no Jaeger.
+
+``` mermaid-sim
+sequenceDiagram
+    participant G as Agente do Gateway
+    participant O as Agente do Order
+    participant P as Agente do Product
+
+    G->>G: inicia o span raiz<br/>traceId=4bf9...  spanId=aaa1
+    G->>O: POST /orders<br/>traceparent: 00-4bf9...-aaa1-01
+    O->>O: inicia span filho<br/>traceId=4bf9...  spanId=bbb2  parent=aaa1
+    O->>P: GET /products/7<br/>traceparent: 00-4bf9...-bbb2-01
+    P->>P: inicia span filho<br/>traceId=4bf9...  spanId=ccc3  parent=bbb2
+    P-->>O: 200
+    O-->>G: 200
+    G->>G: encerra o span raiz → exporta para o Jaeger
+    O->>O: encerra o span filho → exporta para o Jaeger
+    P->>P: encerra o span filho → exporta para o Jaeger
+```
+
+!!! note "Amostragem"
+    O byte de flags `01` significa que o trace foi amostrado e será exportado. O sampler padrão exporta 100% dos traces. Em produção, troque por um sampler com limitação de taxa: defina `OTEL_TRACES_SAMPLER=parentbased_traceidratio` e `OTEL_TRACES_SAMPLER_ARG=0.1` para amostrar 10% das requisições.
+
+## Correlacionando traces com logs
+
+Um trace ID no Jaeger só é útil se você conseguir encontrar as linhas de log correspondentes. O agente OTel faz a ponte entre os dois mundos: ele injeta o trace ID e o span ID ativos no MDC do SLF4J, de modo que toda instrução de log emitida durante uma requisição rastreada carrega automaticamente o contexto do trace.
+
+### Adicione a dependência da ponte com o logback
+
+No `pom.xml` de cada serviço:
+
+``` xml
+<dependency>
+    <groupId>io.opentelemetry.instrumentation</groupId>
+    <artifactId>opentelemetry-logback-appender-1.0</artifactId>
+    <version>2.4.0-alpha</version>
+    <scope>runtime</scope>
+</dependency>
+```
+
+### Configure o logback-spring.xml
+
+Crie `src/main/resources/logback-spring.xml` em cada serviço:
+
+``` xml
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>
+                %d{HH:mm:ss.SSS} [%thread] %-5level %logger{36}
+                [trace_id=%X{trace_id} span_id=%X{span_id}] - %msg%n
+            </pattern>
+        </encoder>
+    </appender>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+</configuration>
+```
+
+!!! tip "Nomes das chaves no MDC"
+    O agente OTel grava o contexto do trace nas chaves `trace_id` e `span_id` do MDC do SLF4J. Elas seguem a convenção de nomes do OTLP/W3C e podem ser pesquisadas diretamente no Loki, no CloudWatch Insights, no Splunk e na maioria dos outros agregadores de logs.
+
+Com essa configuração, cada linha de log durante uma requisição rastreada vai ficar assim:
+
+```
+14:23:01.442 [http-nio-8080-exec-3] INFO  c.example.order.OrderService
+    [trace_id=4bf92f3577b34da6a3ce929d0e0e4736 span_id=00f067aa0ba902b7] - creating order for account 42
+14:23:01.501 [http-nio-8080-exec-3] INFO  c.example.order.OrderService
+    [trace_id=4bf92f3577b34da6a3ce929d0e0e4736 span_id=00f067aa0ba902b7] - calling ProductService for product id 7
+```
+
+**Fluxo de trabalho**: abra o trace lento no Jaeger → clique no span problemático → copie o valor de `trace_id` → cole-o na barra de busca do seu agregador de logs → todas as linhas de log daquela requisição exata aparecem juntas.
+
+## Visualizando traces na UI do Jaeger
+
+Refaça o build e suba a stack completa:
+
+``` { .bash .copy .select }
+docker compose up -d --build
+```
+
+Verifique se o Jaeger subiu:
+
+``` { .bash .copy .select }
+docker compose ps jaeger
+```
+
+Saída esperada:
+
+```
+NAME      IMAGE                          STATUS    PORTS
+jaeger    jaegertracing/all-in-one:1.57  running   0.0.0.0:4317->4317/tcp, 0.0.0.0:16686->16686/tcp
+```
+
+Gere algum tráfego para que haja traces para explorar:
+
+``` { .bash .copy .select }
+curl -s -X POST http://localhost:8080/orders \
+  -H "Content-Type: application/json" \
+  -d '{"accountId": 1, "productId": 7, "quantity": 2}' | jq
+```
+
+Abra **[http://localhost:16686](http://localhost:16686){target="_blank"}** no navegador.
+
+### Encontrando um trace
+
+1. No menu **Service**, selecione `gateway-service`.
+2. Deixe Operation como `all` e clique em **Find Traces**.
+3. Os resultados listam os traces recentes ordenados por timestamp. Cada linha mostra o nome da operação raiz, a duração total e o número de spans.
+4. Clique em qualquer trace para abrir a visualização em flame chart.
+
+### Lendo o flame chart
+
+O flame chart desenha cada span como uma barra horizontal. O span raiz (gateway) fica no topo. Os spans filhos aparecem recuados abaixo do pai. A largura da barra é proporcional à duração — uma barra larga é uma operação lenta.
+
+!!! example "O que procurar"
+    - Um span quase tão largo quanto o span raiz é o principal responsável pela latência.
+    - Spans rotulados `SELECT` ou `jdbc.query` com longa duração indicam queries lentas no banco de dados.
+    - Spans rotulados `HTTP GET` ou `HTTP POST` são chamadas HTTP de saída capturadas pelo agente.
+    - Um span com um ícone `!` vermelho registrou uma exceção — clique nele para ver o stack trace completo anexado como um evento do span.
+
+### Atributos do span
+
+Clicar em um span expande suas tags. O agente registra estas automaticamente:
+
+| Tag | Valor de exemplo |
 |---|---|
-| **Diff truncado em 3 000 linhas** | Evita custo excessivo de API em PRs muito grandes; as mudanças mais importantes costumam estar no início |
-| **`max_tokens=1024`** | ~750 palavras — o suficiente para uma revisão concisa sem pagar por verbosidade |
-| **Comentário, não review** | Reviews de PR exigem um estado de aprovação; comentários de issue são mais simples e sempre permitidos por `pull-requests: write` |
-| **Não bloqueante** | O workflow publica um comentário, mas não define uma verificação de status obrigatória, então o merge nunca é bloqueado |
+| `http.method` | `POST` |
+| `http.url` | `http://order:8080/orders` |
+| `http.status_code` | `200` |
+| `db.system` | `postgresql` |
+| `db.statement` | `SELECT * FROM products WHERE id = ?` |
+| `net.peer.name` | `db` |
+
+## Adicionando spans personalizados
+
+O agente Java instrumenta o código dos frameworks automaticamente, mas não sabe nada sobre a sua lógica de negócio. Quando uma validação, um cálculo de preço ou qualquer etapa de processamento relevante precisa ser rastreada individualmente, adicione um **span manual**.
+
+### Adicione a dependência da API do OpenTelemetry
+
+``` xml
+<dependency>
+    <groupId>io.opentelemetry</groupId>
+    <artifactId>opentelemetry-api</artifactId>
+</dependency>
+```
+
+O gerenciamento de dependências do Spring Boot inclui o `opentelemetry-bom`, então não é preciso informar a versão aqui.
+
+### Instrumente a lógica de negócio
+
+``` java
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.context.Scope;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+@Service
+public class OrderService {
+
+    @Autowired
+    private Tracer tracer;
+
+    public OrderOut create(OrderIn orderIn) {
+
+        Span span = tracer.spanBuilder("validateOrder").startSpan();
+        try (Scope scope = span.makeCurrent()) {
+            span.setAttribute("order.account_id", orderIn.getAccountId());
+            span.setAttribute("order.product_id", orderIn.getProductId());
+
+            validateAccount(orderIn.getAccountId());
+            checkInventory(orderIn.getProductId(), orderIn.getQuantity());
+
+        } catch (Exception e) {
+            span.recordException(e);
+            throw e;
+        } finally {
+            span.end();
+        }
+
+        return persist(orderIn);
+    }
+}
+```
+
+!!! warning "Sempre chame `span.end()` em um bloco `finally`"
+    Se `span.end()` nunca for chamado, o span nunca é exportado para o Jaeger. O padrão `try-finally` garante a finalização mesmo quando uma exceção é lançada. O agente cuida disso automaticamente no código dos frameworks; os spans manuais são responsabilidade sua.
+
+!!! note "Quando adicionar spans manuais"
+    Adicione spans manuais quando: (1) um método leva mais de ~50 ms e você quer medi-lo de forma independente, (2) você precisa anexar atributos de negócio (`order.id`, `account.tier`) que não são capturados pela instrumentação dos frameworks, ou (3) você precisa registrar uma exceção capturada como um evento do span. **Não** adicione spans manuais a getters triviais ou atribuições de campos — o ruído esconde os dados úteis.
+
+## Checklist
+
+Antes de seguir em frente, verifique:
+
+- [ ] `docker compose ps` mostra o `jaeger` rodando com as portas 16686 e 4317 expostas
+- [ ] `http://localhost:16686` carrega a UI do Jaeger sem erros
+- [ ] Depois de enviar uma requisição, `gateway-service` aparece no menu de serviços do Jaeger
+- [ ] Um trace de `POST /orders` contém pelo menos 3 spans: gateway, order-service, product-service
+- [ ] Cada span tem as tags `http.method` e `http.status_code` definidas automaticamente pelo agente
+- [ ] A saída de log inclui campos `trace_id=` que correspondem ao trace ID mostrado no Jaeger
 
 ---
 
-## 4. Testando a revisão
-
-### 4.1 Crie um PR de teste
-
-``` termynal
-$ git checkout -b feature/add-order-endpoint
-$ # make a change with a deliberate issue:
-$ # e.g., hardcode a JWT secret in application.yaml
-$ git add .
-$ git commit -m "add order endpoint"
-$ git push origin feature/add-order-endpoint
-```
-
-Abra um pull request no GitHub. Em cerca de 30 segundos, o workflow `AI Code Review` é disparado.
-
-### 4.2 O que você deve ver
-
-A revisão aparece como um comentário no PR feito pelo bot do Actions, estruturado assim:
-
-```
-## 🤖 AI Code Review
-
-## Summary
-This PR adds an order creation endpoint. The logic is mostly correct,
-but there is a critical security issue that must be resolved before merging.
-
-## Issues Found
-🔴 Critical — `application.yaml` contains a hardcoded JWT secret
-(`jwt.secret: mysecretkey123`). Secrets must be injected via environment
-variables or a secrets manager, never committed to source control.
-
-🟡 Suggestion — `POST /orders` returns `200 OK` on success. REST convention
-for resource creation is `201 Created` with a `Location` header pointing
-to the new resource.
-
-## What looks good
-Input validation via `@Valid` is correctly applied to the request body.
-The service layer is cleanly separated from the controller.
-```
-
-!!! tip "Calibre o prompt"
-
-    O system prompt em `ai_review.py` é o principal ponto de controle da qualidade da revisão. Se o modelo deixar passar problemas específicos do seu código (por exemplo, padrões de Feign client, anti-padrões de Spring Boot), adicione-os à lista `Focus on:`.
-
----
-
-## 5. Estendendo o revisor
-
-### 5.1 Apenas arquivos Java/YAML
-
-Adicione um filtro de caminhos para que mudanças triviais (documentação, imagens) não disparem uma revisão:
-
-``` { .yaml .copy }
-on:
-  pull_request:
-    types: [opened, synchronize]
-    paths:
-      - "**/*.java"
-      - "**/*.yaml"
-      - "**/*.yml"
-      - "**/pom.xml"
-      - "**/Dockerfile"
-```
-
-### 5.2 Adicione um resumo da revisão à descrição do PR
-
-Em vez de um comentário (ou além dele), atualize a descrição do PR com um breve resumo feito pela IA:
-
-``` { .python .copy }
-repo.get_pull(pr_number).edit(body=summary)
-```
-
-### 5.3 Saída estruturada em JSON
-
-Force o modelo a devolver um objeto estruturado pedindo JSON e fazendo o parse:
-
-``` { .python .copy }
-SYSTEM_PROMPT_JSON = """... same instructions ...
-Respond ONLY with valid JSON matching this schema:
-{
-  "summary": "string",
-  "critical_issues": ["string"],
-  "warnings": ["string"],
-  "suggestions": ["string"],
-  "score": 1-10
-}"""
-```
-
-Depois, renderize o JSON como uma tabela Markdown formatada no comentário do PR.
-
-### 5.4 Bloqueie o merge em problemas críticos
-
-Analise a revisão em busca de itens 🔴 Critical e use a GitHub Checks API para bloquear o merge até que os problemas críticos sejam resolvidos. Isso exige a permissão `checks: write` e a criação de um check run em vez de um comentário.
-
-!!! warning "Use a revisão por IA como guia, não como barreira"
-
-    Bloquear merges com base na saída da IA pode gerar falsos negativos (o modelo aponta código seguro) ou falsos positivos (o modelo deixa passar problemas reais). Comece apenas com comentários. Passe a bloquear somente se o time validar antes a precisão do modelo no seu código específico.
-
----
-
-## 6. Outros padrões de IA no pipeline
-
-Padrões da indústria que seguem a mesma estrutura — disparo por um evento de CI/CD, chamada a um LLM, ação sobre o resultado:
-
-| Padrão | O que a IA faz | Quando usar |
-|---|---|---|
-| **Revisão de código em PR** | Revisa o diff e aponta problemas | Em todo PR — este hands-on |
-| **Geração de testes** | Escreve testes unitários para as funções alteradas | Quando a cobertura cai abaixo de um limite |
-| **Padronização de mensagens de commit** | Reescreve ou valida mensagens de commit | Times grandes com mensagens de commit inconsistentes |
-| **Geração de changelog** | Gera o CHANGELOG.md a partir dos títulos de PRs/commits | Antes de cada release |
-| **Detecção de anomalias em logs** | Detecta padrões incomuns depois do deploy | Ao fim de um deploy |
-| **Consulta a runbooks de incidentes** | A partir do texto de um alerta, sugere passos de diagnóstico | Automação de plantão (on-call) |
-| **Sincronização da documentação** | Detecta mudanças de código com documentação desatualizada | Quando as assinaturas da API mudam |
-
-Todos eles compartilham a mesma arquitetura deste hands-on: um gatilho de CI/CD, uma etapa de coleta de contexto, uma chamada ao LLM com um system prompt específico da tarefa e uma ação sobre o resultado.
-
----
-
-## 7. Checklist
-
-- [ ] Secret `ANTHROPIC_API_KEY` adicionado às configurações do repositório no GitHub
-- [ ] `.github/workflows/ai-review.yml` criado e versionado
-- [ ] `.github/scripts/ai_review.py` criado e versionado
-- [ ] PR de teste aberto e comentário de revisão da IA aparecendo em até 60 segundos
-- [ ] Revisão não bloqueante (não impede o merge)
-- [ ] System prompt personalizado com padrões de microsserviços específicos da plataforma
-
-[Próximo: Quiz](quiz.md){ .md-button .md-button--primary }
+[Quiz](./quiz.md){ .md-button }

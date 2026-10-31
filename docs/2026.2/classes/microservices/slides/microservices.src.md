@@ -109,7 +109,7 @@ How small is micro? One team owns it end to end and can deploy it alone. Not "on
 | `product-service` | product catalogue | — | Product API |
 | `order-service` | orders of the current user | product, exchange, Kafka | Order API |
 | `exchange-service` (Python) | currency conversion | third-party rates API | Exchange API |
-| `notification-service` (Python) | confirmation e-mails | Kafka | Hands-on 9 |
+| `notification-service` (Python) | confirmation e-mails | Kafka | Hands-on 10 |
 
 <p class="small">Python and Java side by side: the contract is HTTP/JSON or a Kafka event, so the language does not leak.</p>
 

@@ -175,7 +175,7 @@ Chaos engineering without observability is dangerous and unproductive. Before ru
 
 - [SLI / SLO / SLA](../sli-slo-sla/index.md) — the steady state is expressed as SLIs, and experiments spend error budget.
 - [Resilience Patterns](../patterns/index.md) — what chaos experiments verify.
-- [Observability](../../observability/index.md) and [Hands-on 10](../../../hands-on/10/index.md) — you need metrics and traces to observe an experiment.
+- [Observability](../../observability/index.md) and [Hands-on 11](../../../hands-on/11/index.md) — you need metrics and traces to observe an experiment.
 - [Hands-on 5](../../../hands-on/5/index.md) — deleting a pod by hand (`kubectl delete pod`) is the simplest chaos experiment you can run on Kubernetes.
 
 ## Key takeaways

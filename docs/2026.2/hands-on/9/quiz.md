@@ -2,114 +2,114 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ---
 
-## Kafka Messaging
+## Database Cluster / PostgreSQL Replication
 
-**Q1.** What does `enable_auto_commit=False` achieve in the Kafka consumer?
+**Q1.** A team adds two read replicas to its PostgreSQL primary. Which problem does this **not** solve?
 
-- A. It disables Kafka's internal retry mechanism, forcing the application to handle retries manually
-- B. It prevents the consumer from committing its offset until `consumer.commit()` is called explicitly — ensuring the offset only advances after successful processing
-- C. It tells Kafka not to persist messages to disk, reducing broker latency
-- D. It disables the consumer group protocol, making the consumer read every partition independently
+- A. The primary being a single copy of the data
+- B. Too many `SELECT`s for one server
+- C. Too many `INSERT`s and `UPDATE`s for one server
+- D. Having a server ready to take over when the primary fails
 
 ??? success "Answer"
-    **B — Offset only advances after explicit `consumer.commit()`.**
+    **C — Replication does not scale writes.**
 
-    With `enable_auto_commit=True` (the default), Kafka periodically commits the offset regardless of whether processing succeeded. If the service crashes between auto-commit and finishing the work, the message is silently lost. Setting it to `False` and calling `consumer.commit()` only after successful processing guarantees at-least-once delivery: a crash before the commit causes the message to be re-delivered on the next startup.
+    Every node holds all the data and every write must still be applied on the single primary (and then replayed on each replica). Replicas spread reads and give availability and a second copy; scaling writes needs sharding (splitting the data across independent primaries).
 
 ---
 
-**Q2.** Why is `acks=all` important in production even if it adds latency?
+**Q2.** What does the primary send to its replicas in **physical streaming replication**?
 
-- A. It compresses messages before sending, reducing network bandwidth at the cost of CPU time
-- B. It ensures the producer retries indefinitely until the broker acknowledges receipt
-- C. It requires all in-sync replicas to acknowledge the write before the broker confirms — preventing data loss if the leader broker fails immediately after accepting the message
-- D. It is only relevant for consumers and has no effect on producer behaviour
+- A. The SQL statements it executed, to be re-executed on each replica
+- B. The WAL (write-ahead log) records: changes to data pages, replayed byte by byte
+- C. A full copy of the data directory every few seconds
+- D. Row changes of the tables listed in a publication
 
 ??? success "Answer"
-    **C — All in-sync replicas acknowledge before confirmation, preventing data loss on leader failure.**
+    **B — The WAL.**
 
-    With `acks=1` (default), the broker confirms the write once the partition leader has written the message to its local log. If the leader crashes before replicating to followers, the message is lost. With `acks=all`, the broker waits for every in-sync replica to persist the write before responding — the message survives a leader failover. Combined with `enable.idempotence=true`, this gives exactly-once producer semantics.
+    Before changing a page, PostgreSQL writes the change to the WAL; the replicas receive and replay those records and end up with identical pages. That is why a physical replica is read-only and must run the same major version. Row changes per table (D) are **logical** replication; the full copy (C) happens only once, with `pg_basebackup`, to create the replica.
 
 ---
 
-**Q3.** The notification-service processes the same `orderId` twice due to a crash before commit. How should the idempotent consumer handle this?
+**Q3.** In the lab, `pg_wal_replay_pause()` on `pg-replica1` followed by an `INSERT` on the primary made `pg-replica1` return the old row count. In production, without pausing anything, what does the same effect look like?
 
-- A. Throw an exception and send the duplicate to the DLQ
-- B. Process the event normally — duplicate processing is unavoidable and acceptable
-- C. Check whether a notification was already sent for this `orderId` before acting; skip the send if a record already exists
-- D. Increase the consumer group replication factor to prevent duplicates at the broker level
+- A. An error `cannot execute INSERT in a read-only transaction`
+- B. A user creates an order and, right after, does not see it in the list read from a replica
+- C. The primary blocks the commit until every replica has replayed it
+- D. The replica rejects queries until it catches up
 
 ??? success "Answer"
-    **C — Check for a prior record of the `orderId` and skip if already processed.**
+    **B — A stale read (read-your-writes violation).**
 
-    Idempotency means that applying the same operation multiple times produces the same result as applying it once. The consumer should maintain a store (database, Redis set, or log) of processed `orderId` values. Before sending an email, it checks that store: if the `orderId` is already present, the event is acknowledged and skipped. This pattern is essential whenever at-least-once delivery is in use — which is the default for Kafka.
+    Asynchronous replicas are always slightly behind; under load, long queries or a slow network, the lag grows. Reading right after writing may hit a replica that has not replayed the write yet. Fixes: read from the primary after a write, or `synchronous_commit = remote_apply` for reads that cannot be stale.
 
 ---
 
-**Q4.** What is the purpose of the `group_id` in a Kafka consumer?
+**Q4.** With `synchronous_standby_names = 'FIRST 1 ("pg-replica1")'`, `pg-replica1` stops. A client runs an `INSERT`, waits, and presses Ctrl+C. What is the state of the row?
 
-- A. It identifies the Kafka cluster the consumer connects to
-- B. It sets the maximum number of consumers allowed to read from a single partition simultaneously
-- C. It groups consumers into a logical unit that collectively reads a topic — Kafka tracks the committed offset per group, and each partition is assigned to exactly one consumer within the group
-- D. It encrypts the consumer's connection to the broker using a shared group key
+- A. It was rolled back: synchronous replication makes the commit atomic across servers
+- B. It is committed on the primary, but may not exist on any replica
+- C. It exists only on `pg-replica2`
+- D. It is lost on the primary and on the replicas
 
 ??? success "Answer"
-    **C — Groups consumers into a unit with shared offset tracking; each partition goes to one member.**
+    **B — Committed locally; only the wait was cancelled.**
 
-    When multiple instances of notification-service run, they all share `group_id="notification-group"`. Kafka distributes the topic's partitions across the group members so that each message is processed by exactly one instance — enabling horizontal scaling of consumers. If the group_id were unique per instance, each instance would independently receive every message, causing duplicate email notifications.
+    PostgreSQL warns: *"The transaction has already committed locally, but might not have been replicated to the standby."* Synchronous replication delays the answer to the client until a replica confirms; it is not a distributed transaction. And with one named synchronous replica, that replica's failure blocks every write.
 
 ---
 
-**Q5.** The order-service publishes to `order-events`. Two new services (analytics-service, fraud-service) also need these events. What change is required in order-service?
+**Q5.** Why is `ANY 1 ("pg-replica1", "pg-replica2")` usually preferred to `FIRST 1 ("pg-replica1")`?
 
-- A. Add two more `kafkaTemplate.send()` calls to push events to the new services' dedicated topics
-- B. Register the new services as subscribers in the order-service configuration
-- C. No change — other consumers join a different consumer group and independently consume from the same topic
-- D. Partition the `order-events` topic into three partitions, one per consumer service
+- A. It makes every commit faster than asynchronous replication
+- B. It waits for both replicas, so no data is ever lost
+- C. A commit needs a confirmation from either replica, so one replica can fail without blocking writes
+- D. It turns both replicas into writable nodes
 
 ??? success "Answer"
-    **C — No change. Other consumers join a different consumer group and independently consume from the same topic.**
+    **C — Quorum: any one of the two confirms.**
 
-    This is the key decoupling benefit of Kafka over REST. Each consumer group maintains its own offset pointer on the topic. `analytics-group` and `fraud-group` each receive every message from `order-events` independently, at their own pace, without the order-service having any knowledge of their existence. With REST, the order-service would need an explicit call to each downstream service — every new subscriber requires a code change in the publisher.
+    `FIRST 1` makes the named replica a single point of failure for writes. `ANY 1` (quorum) keeps RPO = 0 while tolerating the loss of one replica. It is still slower than asynchronous commits: every commit waits for one network round trip.
 
 ---
 
-**Q6.** What does the Kafka UI consumer group lag metric tell you?
+**Q6.** After `SELECT pg_promote();` on `pg-replica1`, the connection string `host=pg-primary,pg-replica1,pg-replica2 target_session_attrs=read-write` reaches the new primary with no change. Why?
 
-- A. The number of messages the producer has published but the broker has not yet persisted to disk
-- B. The difference between the latest offset on the topic and the last committed offset of a consumer group — indicating how far behind the consumer is
-- C. The average time in milliseconds between a message being published and it being received by the consumer
-- D. The number of partitions that have no active consumer assigned
+- A. Docker Compose renames `pg-replica1` to `pg-primary`
+- B. The driver tries the hosts in order and keeps the first one that accepts writes; `pg-primary` is down and `pg-replica2` is read-only
+- C. `pg_promote()` updates the DNS of the Docker network
+- D. The old primary forwards the connection to the new one
 
 ??? success "Answer"
-    **B — The gap between the topic's latest offset and the consumer group's committed offset.**
+    **B — Routing by role in the client.**
 
-    A lag of 0 means the consumer is keeping up in real time. A growing lag signals that the consumer is slower than the producer — messages are accumulating. For the notification-service, sustained lag means email confirmations are delayed. Common remedies are increasing consumer instances (within the partition count) or optimising the processing logic. Kafka UI displays per-partition lag, making it easy to identify uneven consumption across partitions.
+    libpq (`target_session_attrs`) and the JDBC driver (`targetServerType`) connect to each host and check whether it accepts writes. The configuration lists *candidates*, not *the* primary. Connections already open to the old primary break and must be reopened — connection pools do this automatically.
 
 ---
 
-**Q7.** Why is `KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092` the correct setting for Docker Compose (using the service name, not `localhost`)?
+**Q7.** In the unplanned failover, `lost-write` answered `INSERT 0 1` but disappeared after the promotion. What happened?
 
-- A. `localhost` is reserved for the KRaft controller listener; client traffic needs a separate hostname
-- B. Kafka brokers use `KAFKA_ADVERTISED_LISTENERS` to tell clients which address to connect to after the initial bootstrap; inside Docker Compose, other containers resolve service names via Docker's internal DNS, so `kafka:9092` is reachable while `localhost:9092` would refer to each container's own loopback interface
-- C. The official `apache/kafka` image refuses `localhost` as a listener address
-- D. Using `localhost` would expose the Kafka broker on the host machine, creating a security vulnerability
+- A. `pg_rewind` deleted it from the new primary
+- B. It existed only in the WAL of the killed primary: no replica received it before the crash, so the promoted replica never had it
+- C. The sequence skipped its id
+- D. Synchronous replication rolled it back
 
 ??? success "Answer"
-    **B — Docker's internal DNS resolves service names; `localhost` inside a container refers to that container's own loopback.**
+    **B — The RPO of asynchronous replication.**
 
-    When the order-service container connects to `kafka:9092`, Docker's embedded DNS resolves `kafka` to the Kafka container's internal IP. If `KAFKA_ADVERTISED_LISTENERS` were set to `localhost:9092`, the broker would advertise an address that only routes back to itself — every client trying to connect would reach their own loopback instead of the broker. Using the service name makes the advertised address valid from any container in the same Docker network.
+    The commit returned as soon as the WAL was on the primary's disk. The replicas were down, the primary was killed, and the promoted replica started timeline 2 without that record. When the old primary rejoins, `pg_rewind` discards its writes after the fork so it matches the new primary. Synchronous replication would have prevented the loss — by blocking the `INSERT`.
 
 ---
 
-**Q8.** What is the DLQ (Dead Letter Queue) pattern solving?
+**Q8.** Why does automatic failover (Patroni, RDS Multi-AZ) rely on a consensus store such as etcd instead of a script that promotes a replica when the primary stops answering?
 
-- A. Throttling the producer when it publishes faster than the broker can replicate
-- B. Compressing large messages that exceed the broker's maximum message size
-- C. Preventing a single unprocessable message ("poison pill") from blocking the consumer indefinitely — failed messages are moved to a separate topic for later inspection and replay, allowing the consumer to continue processing the rest of the stream
-- D. Distributing partitions evenly across consumer group members to reduce lag
+- A. etcd replicates the data faster than streaming replication
+- B. A primary that only *looks* dead (slow or isolated) would keep accepting writes while a replica is promoted: two primaries, a split brain. Consensus guarantees that only the holder of the leader key acts as primary
+- C. PostgreSQL cannot promote a replica without etcd
+- D. The script would need superuser access
 
 ??? success "Answer"
-    **C — Moves unprocessable messages aside so they don't block the consumer stream.**
+    **B — To avoid split brain.**
 
-    Without a DLQ, a single malformed or unprocessable message would cause the consumer to retry indefinitely, blocking all subsequent messages in that partition. The DLQ pattern catches the exception, publishes the problematic message to `order-events-dlq`, commits the original offset, and moves on. Operations teams can then inspect the DLQ, fix the root cause, and replay the events once the consumer is patched — without losing any data.
+    Detecting failure in a distributed system is unreliable: a timeout cannot tell "dead" from "slow" or "unreachable from here". With a leader key with TTL in a Raft store, an isolated primary cannot renew the key and demotes itself, and only one node can win the election.

@@ -263,7 +263,7 @@ CRDTs são usados nos tipos de dados do Riak, nos bancos Active-Active do Redis 
 | **Consul** | Descoberta de serviços, locks distribuídos | Raft |
 | **Apache Kafka** | Log distribuído, mensageria | KRaft (baseado em Raft); o modo ZooKeeper foi removido no Kafka 4.0 (2025) |
 
-O setup do Kafka do [Hands-on 9](../../../hands-on/9/index.md) roda o Kafka 4 em modo KRaft: não há container do ZooKeeper — a coordenação roda dentro do próprio Kafka, em seu próprio quórum Raft.
+O setup do Kafka do [Hands-on 10](../../../hands-on/10/index.md) roda o Kafka 4 em modo KRaft: não há container do ZooKeeper — a coordenação roda dentro do próprio Kafka, em seu próprio quórum Raft.
 
 !!! warning "Armadilhas"
     - **Não implemente Paxos nem Raft por conta própria** em uma aplicação. Delegue a um sistema comprovado: etcd, ZooKeeper, Consul ou o banco de dados (um `SELECT … FOR UPDATE`, uma restrição de unicidade, um advisory lock).
@@ -276,7 +276,8 @@ O setup do Kafka do [Hands-on 9](../../../hands-on/9/index.md) roda o Kafka 4 em
 
 - [Teorema CAP](../cap/index.md) — armazenamentos baseados em consenso (etcd, ZooKeeper) são os sistemas CP clássicos.
 - [Hands-on 5](../../../hands-on/5/index.md) — o Kubernetes guarda todo o seu estado no etcd, replicado com Raft.
-- [Hands-on 9](../../../hands-on/9/index.md) e [Arquitetura orientada a eventos](../../event_driven/index.md) — o Kafka replica as partições com um líder por partição.
+- [Hands-on 9](../../../hands-on/9/failover/index.md) — um failover de PostgreSQL feito à mão, e por que automatizá-lo (Patroni + etcd) exige consenso para evitar split brain.
+- [Hands-on 10](../../../hands-on/10/index.md) e [Arquitetura orientada a eventos](../../event_driven/index.md) — o Kafka replica as partições com um líder por partição.
 
 ## Pontos-chave
 

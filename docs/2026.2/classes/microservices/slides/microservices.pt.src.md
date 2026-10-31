@@ -109,7 +109,7 @@ Quão pequeno é "micro"? Um time é dono dele de ponta a ponta e consegue impla
 | `product-service` | catálogo de produtos | — | Product API |
 | `order-service` | pedidos do usuário atual | product, exchange, Kafka | Order API |
 | `exchange-service` (Python) | conversão de moedas | API de cotações de terceiros | Exchange API |
-| `notification-service` (Python) | e-mails de confirmação | Kafka | Hands-on 9 |
+| `notification-service` (Python) | e-mails de confirmação | Kafka | Hands-on 10 |
 
 <p class="small">Python e Java lado a lado: o contrato é HTTP/JSON ou um evento Kafka, então a linguagem não vaza.</p>
 

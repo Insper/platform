@@ -481,17 +481,24 @@ nav = [
         { "d. Run" = "2026.2/hands-on/8/run/index.md" },
         { "Quiz" = "2026.2/hands-on/8/quiz.md" },
       ] },
-      { "9. Kafka Messaging" = [
+      { "9. Database Cluster" = [
         { "a. Overview" = "2026.2/hands-on/9/index.md" },
+        { "b. Docker Compose" = "2026.2/hands-on/9/docker/index.md" },
+        { "c. Replication" = "2026.2/hands-on/9/replication/index.md" },
+        { "d. Failover" = "2026.2/hands-on/9/failover/index.md" },
         { "Quiz" = "2026.2/hands-on/9/quiz.md" },
       ] },
-      { "10. Distributed Tracing" = [
+      { "10. Kafka Messaging" = [
         { "a. Overview" = "2026.2/hands-on/10/index.md" },
         { "Quiz" = "2026.2/hands-on/10/quiz.md" },
       ] },
-      { "11. AI in CI/CD" = [
+      { "11. Distributed Tracing" = [
         { "a. Overview" = "2026.2/hands-on/11/index.md" },
         { "Quiz" = "2026.2/hands-on/11/quiz.md" },
+      ] },
+      { "12. AI in CI/CD" = [
+        { "a. Overview" = "2026.2/hands-on/12/index.md" },
+        { "Quiz" = "2026.2/hands-on/12/quiz.md" },
       ] },
     ] },
     { "Exercises" = [
@@ -829,11 +836,11 @@ language = "pt-BR"
 "7. Reliability" = "7. Confiabilidade"
 "8. In-Memory Cache" = "8. Cache em Memória"
 "8. Reliability" = "8. Confiabilidade"
-"9. Kafka Messaging" = "9. Mensageria com Kafka"
+"10. Kafka Messaging" = "10. Mensageria com Kafka"
 "9. Observability" = "9. Observabilidade"
-"10. Distributed Tracing" = "10. Rastreamento Distribuído"
+"11. Distributed Tracing" = "11. Rastreamento Distribuído"
 "10. Service Models" = "10. Modelos de Serviço"
-"11. AI in CI/CD" = "11. IA no CI/CD"
+"12. AI in CI/CD" = "12. IA no CI/CD"
 "11. Cloud Deployment Roadmap" = "11. Roteiro de Implantação na Nuvem"
 "Architecture & Components" = "Arquitetura & Componentes"
 "Bottlenecks" = "Gargalos"
@@ -870,6 +877,8 @@ language = "pt-BR"
 "11. Delivery" = "11. Entrega"
 "12. Network & Security" = "12. Redes e Segurança"
 "12. AI Assistant" = "12. Assistente de IA"
+"9. Database Cluster" = "9. Cluster de Banco de Dados"
+"c. Replication" = "c. Replicação"
 "11. Cloud-Native Platforms" = "11. Plataformas Cloud-Native"
 "13. AI Systems & Agents" = "13. Sistemas de IA e Agentes"
 "13. AI in CI/CD" = "13. IA no CI/CD"

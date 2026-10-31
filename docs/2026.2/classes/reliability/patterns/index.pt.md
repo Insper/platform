@@ -490,7 +490,7 @@ Cada camada trata um cenário de falha diferente:
 
 - [Hands-on 1](../../../hands-on/1/index.md) — os clientes Feign que precisam de timeouts e breakers.
 - [Hands-on 7](../../../hands-on/7/index.md) — o Nginx na frente do gateway, onde fica o rate limiting de borda.
-- [Hands-on 9](../../../hands-on/9/index.md) — retries e dead letter queues para consumidores assíncronos.
+- [Hands-on 10](../../../hands-on/10/index.md) — retries e dead letter queues para consumidores assíncronos.
 - [SLI / SLO / SLA](../sli-slo-sla/index.md) — o orçamento que esses padrões protegem.
 
 ## Pontos-chave

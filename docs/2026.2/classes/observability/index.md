@@ -173,7 +173,7 @@ In Java, the place to put it is the **MDC** (Mapped Diagnostic Context) of SLF4J
 
 === "OpenTelemetry Java agent (automatic)"
 
-    With the OTel Java agent attached (see [below](#java-zero-code-instrumentation) and [Hands-on 10](../../hands-on/10/index.md)), you write **no MDC code** for the trace context. The agent's Logback/Log4j instrumentation puts the active `trace_id`, `span_id` and `trace_flags` into the MDC whenever a span is current, and removes them afterwards. You only reference the keys in the pattern:
+    With the OTel Java agent attached (see [below](#java-zero-code-instrumentation) and [Hands-on 11](../../hands-on/11/index.md)), you write **no MDC code** for the trace context. The agent's Logback/Log4j instrumentation puts the active `trace_id`, `span_id` and `trace_flags` into the MDC whenever a span is current, and removes them afterwards. You only reference the keys in the pattern:
 
     ```
     %d{ISO8601} [%thread] %-5level %logger{36} [trace_id=%X{trace_id} span_id=%X{span_id}] - %msg%n
@@ -519,7 +519,7 @@ The three panels share a timeline: the spike visible in Panel 1 directly explain
 ## Connections
 
 - [Hands-on 6](../../hands-on/6/index.md) — Prometheus and Grafana for the store's metrics.
-- [Hands-on 10](../../hands-on/10/index.md) — OpenTelemetry Java agent, Jaeger and `trace_id` in the logs.
+- [Hands-on 11](../../hands-on/11/index.md) — OpenTelemetry Java agent, Jaeger and `trace_id` in the logs.
 - [Reliability](../reliability/index.md) and [SLI / SLO / SLA](../reliability/sli-slo-sla/index.md) — SLIs are PromQL queries over these metrics; burn-rate alerts use them.
 - [Event-Driven Architecture](../event_driven/index.md) — tracing across Kafka topics and monitoring consumer lag.
 - [Exercise: Bottlenecks](../../exercises/bottlenecks/index.md) — using observability to find where the platform is slow.

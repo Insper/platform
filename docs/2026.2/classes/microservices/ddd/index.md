@@ -240,7 +240,7 @@ public record OrderPlaced(
 ) {}
 ```
 
-When the `Order` aggregate is placed, it raises `OrderPlaced`. Other bounded contexts (Inventory, Billing, Notifications) subscribe to this event and react independently — without the Order context knowing who is listening. In [Hands-on 9](../../../hands-on/9/index.md) this is the `OrderCreated` event that the order service publishes to the Kafka topic `order-events` and the notification service consumes.
+When the `Order` aggregate is placed, it raises `OrderPlaced`. Other bounded contexts (Inventory, Billing, Notifications) subscribe to this event and react independently — without the Order context knowing who is listening. In [Hands-on 10](../../../hands-on/10/index.md) this is the `OrderCreated` event that the order service publishes to the Kafka topic `order-events` and the notification service consumes.
 
 ### Domain Services
 
@@ -307,7 +307,7 @@ The process:
 
 - Why boundaries matter: [Microservices](../index.md). The infrastructure around them: [Architecture & Components](../architecture/index.md).
 - Keeping the domain independent of frameworks inside a service: [Clean Architecture](../../architectures/clean/index.md) and [Hexagonal Architecture](../../architectures/hexagonal/index.md).
-- Domain events on a broker: [Event-Driven Architecture](../../event_driven/index.md), [Hands-on 9 — Kafka](../../../hands-on/9/index.md).
+- Domain events on a broker: [Event-Driven Architecture](../../event_driven/index.md), [Hands-on 10 — Kafka](../../../hands-on/10/index.md).
 - Model your own contexts: [Product API](../../../exercises/product/index.md), [Order API](../../../exercises/order/index.md), [Exchange API](../../../exercises/exchange/index.md).
 
 ---

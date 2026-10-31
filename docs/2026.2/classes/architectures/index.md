@@ -158,7 +158,7 @@ flowchart LR
 CQRS comes in degrees. The lightest form is two sets of classes over the **same database** (commands go through the domain model; queries read straight into DTOs). The next step is a **separate read store** — for example Postgres for writes and a Redis or search index for reads — kept in sync by events. The diagram above shows the heaviest form, with an event store.
 
 !!! tip "CQRS and Event Sourcing"
-    CQRS is often paired with **Event Sourcing**: rather than updating a row in a database, commands append immutable events to an event store. The read model is rebuilt by replaying those events through a projector. This combination is powerful but complex — adopt it when auditability, temporal queries, or very high read/write asymmetry justifies the overhead. Both patterns are covered in the [Event-Driven Architecture](../event_driven/index.md) class and implemented with Kafka in [Hands-on 9](../../hands-on/9/index.md).
+    CQRS is often paired with **Event Sourcing**: rather than updating a row in a database, commands append immutable events to an event store. The read model is rebuilt by replaying those events through a projector. This combination is powerful but complex — adopt it when auditability, temporal queries, or very high read/write asymmetry justifies the overhead. Both patterns are covered in the [Event-Driven Architecture](../event_driven/index.md) class and implemented with Kafka in [Hands-on 10](../../hands-on/10/index.md).
 
 !!! warning "CQRS pitfalls"
     - **Read-your-own-writes**: the user saves a product and the list still shows the old name, because the projection has not caught up. The UI must tolerate or hide the lag.

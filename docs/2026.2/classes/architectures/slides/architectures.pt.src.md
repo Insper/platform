@@ -291,7 +291,7 @@ A maioria das aplicações lê muito mais do que escreve: separe **comandos** de
 | Escalabilidade | vazão de escrita | vazão de leitura, de forma independente |
 | Armazenamento | normalizado ou log de eventos | desnormalizado, com junções prontas |
 
-<p class="small">Armadilha: ler as próprias escritas. Event Sourcing é opcional — veja a aula de Eventos e o Hands-on 9.</p>
+<p class="small">Armadilha: ler as próprias escritas. Event Sourcing é opcional — veja a aula de Eventos e o Hands-on 10.</p>
 
 ---
 

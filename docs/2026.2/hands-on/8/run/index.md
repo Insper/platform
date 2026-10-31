@@ -135,4 +135,4 @@ A healthy cache hit rate is above 90% for read-heavy workloads. If the miss rate
 
 ---
 
-Done! Redis now acts as a shared, persistent cache layer across all microservice replicas. Database load is reduced proportionally to the cache hit rate, and all gateway replicas share the same cache state regardless of which instance handles each request.
+Done! Redis now acts as a shared, persistent cache layer across all microservice replicas. Database load is reduced proportionally to the cache hit rate, and all gateway replicas share the same cache state regardless of which instance handles each request. The database behind the cache, though, is still a single container: [hands-on 9](../../9/index.md) turns it into a cluster with replicas and failover.
