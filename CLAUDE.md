@@ -102,8 +102,10 @@ speaker notes as HTML comments; last slide `## Takeaways`.
 ### 2027.1 and the Playground
 
 `docs/2027.1/` (the System Design edition) and `docs/playground/` (the System Design Playground
-simulator, edition-independent, at `/platform/playground/`) are published and listed in the nav
-(the 2027.1 block sits between `# >>> 2027.1 nav` and `# <<< 2027.1 nav` in `zensical.toml`).
+simulator, edition-independent, at `/platform/playground/`) are published and listed in the nav.
+2026.2 is still the current edition, so 2027.1 is listed **inside the Appendix** as "2027.1 (preview)"
+(pt "2027.1 (prévia)"); its block sits between `# >>> 2027.1 nav` and `# <<< 2027.1 nav` in
+`zensical.toml`. When 2027.1 becomes current, move the block back to the top of the nav.
 The simulator code is `docs/assets/javascripts/playground/*.js` +
 `assets/stylesheets/playground.css`; engine tests: `node scripts/playground/test_engine.mjs`.
 `SDP.catalogBase` in `catalog.js` sets where "Learn more" points (the edition's component catalog).
