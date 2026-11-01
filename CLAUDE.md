@@ -99,12 +99,12 @@ one table, or a short code block — split otherwise; `<!-- _class: tight -->` f
 (takeaway), `.warn` (pitfall); `.cols` for two columns; no Mermaid (Marp does not render it);
 speaker notes as HTML comments; last slide `## Takeaways`.
 
-### Unlisted sections: 2027.1 and the Playground
+### 2027.1 and the Playground
 
 `docs/2027.1/` (the System Design edition) and `docs/playground/` (the System Design Playground
-simulator, edition-independent, at `/platform/playground/`) are **published but not in the nav**
-yet: their nav blocks in `zensical.toml` are commented out with `#~ ` (search for `#~`). To list
-them, remove that prefix. The simulator code is `docs/assets/javascripts/playground/*.js` +
+simulator, edition-independent, at `/platform/playground/`) are published and listed in the nav
+(the 2027.1 block sits between `# >>> 2027.1 nav` and `# <<< 2027.1 nav` in `zensical.toml`).
+The simulator code is `docs/assets/javascripts/playground/*.js` +
 `assets/stylesheets/playground.css`; engine tests: `node scripts/playground/test_engine.mjs`.
 `SDP.catalogBase` in `catalog.js` sets where "Learn more" points (the edition's component catalog).
 
