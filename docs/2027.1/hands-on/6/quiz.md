@@ -153,3 +153,45 @@ Click **"Answer"** to reveal the correct answer and explanation.
     **B — Strong where it matters, cheap elsewhere.**
 
     It names the invariant, the mechanism that enforces it, the expiry of holds, what can relax, and how to protect the hot rows from overload — the core of the ticketing case study.
+
+---
+
+**Q12.** With `synchronous_standby_names = 'FIRST 1 ("db-replica")'` and the default `synchronous_commit = on`, the replica is stopped. A fan posts a hold, the gateway answers `504` after 5 s, and minutes later the replica comes back. What happened to the hold?
+
+- A. It was rolled back when the client gave up
+- B. It committed on the primary and only waited for the replica; when the replica returned, the commit finished, so the seat is `HELD` although the fan saw an error
+- C. It is lost: synchronous replication discards writes the standby never received
+- D. The primary refused it immediately with `cannot execute INSERT in a read-only transaction`
+
+??? success "Answer"
+    **B — Committed locally, waiting for the standby.**
+
+    Synchronous replication makes the primary wait for the standby *before answering*, not before committing: even cancelling prints "the transaction has already committed locally". The outcome is ambiguous for the client, so a retry must recognise its own earlier attempt (an idempotency key), and with a single synchronous standby that standby is a single point of failure for writes — production uses `ANY 1` over two or more.
+
+---
+
+**Q13.** After the crash in step 4, Ana's hold had answered `201`, but `GET /inventory/holds/{id}` on the promoted replica returned `404`. Why, and which setting would have prevented it?
+
+- A. The promotion deleted the holds table; `wal_log_hints = on` prevents it
+- B. With asynchronous replication, the hold was committed on the old primary but never shipped; it existed only in the dead primary's WAL. Synchronous replication (`synchronous_commit = on` with a synchronous standby) would have kept it, at the cost of waiting for the standby on every commit
+- C. The hold expired during the failover; a longer `INVENTORY_HOLD_TTL` prevents it
+- D. PgBouncer lost the transaction; session pooling prevents it
+
+??? success "Answer"
+    **B — The RPO of asynchronous replication.**
+
+    Whatever was committed but not yet shipped is lost when the primary dies: that is the recovery point objective. `on` waits until the WAL is on the standby's disk, so a promoted standby has it; `remote_apply` additionally waits until it is replayed, which also removes stale reads. Both cost latency, and with one standby, write availability.
+
+---
+
+**Q14.** The old primary is started again while the promoted replica holds the name `db`. Which statement is correct?
+
+- A. PostgreSQL detects the other primary and demotes itself
+- B. Both accept writes and answer differently for the same seat: a split brain. It must be fenced (stopped) and can rejoin only after `pg_rewind` discards its divergent history, which requires `wal_log_hints` or data checksums
+- C. Docker's DNS refuses to give the same name to two containers
+- D. The old primary automatically replays the new primary's WAL and catches up
+
+??? success "Answer"
+    **B — Split brain, then fence and rewind.**
+
+    Nothing in two standalone PostgreSQL servers decides who the leader is, and the network alias made both reachable as `db`. Failover managers solve it with consensus (Patroni's leader key in etcd) and fencing; `pg_rewind` then copies back the blocks changed since the timelines forked, so the old primary can follow the new one instead of being cloned from scratch.

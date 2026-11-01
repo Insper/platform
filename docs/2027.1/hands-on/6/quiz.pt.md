@@ -153,3 +153,45 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
     **B — Forte onde importa, barato no resto.**
 
     Ela nomeia o invariante, o mecanismo que o garante, a expiração das reservas, o que pode relaxar e como proteger as linhas quentes da sobrecarga — o núcleo do estudo de caso de venda de ingressos.
+
+---
+
+**Q12.** Com `synchronous_standby_names = 'FIRST 1 ("db-replica")'` e o padrão `synchronous_commit = on`, a réplica é parada. Um fã faz uma reserva, o gateway responde `504` depois de 5 s, e minutos depois a réplica volta. O que aconteceu com a reserva?
+
+- A. Foi desfeita quando o cliente desistiu
+- B. Ela foi confirmada no primário e só esperava a réplica; quando a réplica voltou, o commit terminou, então o assento está `HELD` embora o fã tenha visto um erro
+- C. Ela se perdeu: a replicação síncrona descarta escritas que o standby nunca recebeu
+- D. O primário a recusou na hora com `cannot execute INSERT in a read-only transaction`
+
+??? success "Resposta"
+    **B — Confirmada localmente, esperando o standby.**
+
+    A replicação síncrona faz o primário esperar o standby *antes de responder*, não antes de confirmar: até o cancelamento imprime "the transaction has already committed locally". O resultado fica ambíguo para o cliente, então uma nova tentativa precisa reconhecer a tentativa anterior (uma chave de idempotência), e com um único standby síncrono esse standby é um ponto único de falha para as escritas — em produção se usa `ANY 1` sobre dois ou mais.
+
+---
+
+**Q13.** Depois da queda do passo 4, a reserva da Ana tinha respondido `201`, mas `GET /inventory/holds/{id}` na réplica promovida devolveu `404`. Por quê, e que configuração teria evitado?
+
+- A. A promoção apagou a tabela de reservas; `wal_log_hints = on` evita
+- B. Com replicação assíncrona, a reserva foi confirmada no antigo primário mas nunca enviada; ela só existia no WAL do primário morto. A replicação síncrona (`synchronous_commit = on` com um standby síncrono) a teria mantido, ao custo de esperar o standby em todo commit
+- C. A reserva expirou durante o failover; um `INVENTORY_HOLD_TTL` maior evita
+- D. O PgBouncer perdeu a transação; o pooling de sessão evita
+
+??? success "Resposta"
+    **B — O RPO da replicação assíncrona.**
+
+    O que foi confirmado mas ainda não enviado se perde quando o primário morre: esse é o recovery point objective. O `on` espera o WAL estar no disco do standby, então um standby promovido o tem; o `remote_apply` espera também que ele seja reaplicado, o que elimina as leituras defasadas. Os dois custam latência e, com um standby só, disponibilidade de escrita.
+
+---
+
+**Q14.** O antigo primário é ligado de novo enquanto a réplica promovida tem o nome `db`. Qual afirmação está correta?
+
+- A. O PostgreSQL detecta o outro primário e se rebaixa
+- B. Os dois aceitam escritas e respondem diferente para o mesmo assento: um split brain. Ele precisa ser isolado (parado) e só pode voltar depois que o `pg_rewind` descartar a história divergente, o que exige `wal_log_hints` ou checksums de dados
+- C. O DNS do Docker se recusa a dar o mesmo nome a dois contêineres
+- D. O antigo primário reaplica automaticamente o WAL do novo primário e o alcança
+
+??? success "Resposta"
+    **B — Split brain, depois isolar e rebobinar.**
+
+    Nada em dois servidores PostgreSQL independentes decide quem é o líder, e o alias de rede deixou os dois alcançáveis como `db`. Os gerenciadores de failover resolvem isso com consenso (a chave de líder do Patroni no etcd) e fencing; o `pg_rewind` então copia de volta os blocos que mudaram desde que as timelines se separaram, para que o antigo primário possa seguir o novo em vez de ser clonado do zero.

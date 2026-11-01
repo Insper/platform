@@ -240,6 +240,7 @@ nav = [
         { "b. Holds & Locking" = "2027.1/hands-on/6/holds/index.md" },
         { "c. Replica & Pooling" = "2027.1/hands-on/6/replicas/index.md" },
         { "d. Indexes & EXPLAIN" = "2027.1/hands-on/6/indexes/index.md" },
+        { "e. Failover" = "2027.1/hands-on/6/failover/index.md" },
         { "Quiz" = "2027.1/hands-on/6/quiz.md" },
       ] },
       { "7. Async Messaging" = [
@@ -1038,6 +1039,7 @@ language = "pt-BR"
 "d. Performance Gate" = "d. Portão de Desempenho"
 "d. SLO and Burn-Rate Alert" = "d. SLO e Alerta de Burn Rate"
 "d. Tools and the Agent Loop" = "d. Ferramentas e o Loop do Agente"
+"e. Failover" = "e. Failover"
 "e. GitOps with Argo CD" = "e. GitOps com Argo CD"
 "e. Guardrails and Metrics" = "e. Guardrails e Métricas"
 "e. Ingress" = "e. Ingress"

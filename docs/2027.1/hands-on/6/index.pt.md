@@ -4,17 +4,18 @@
     - Compare três estratégias de concorrência numa venda relâmpago — **check-then-act ingênuo**, **lock pessimista** (`SELECT … FOR UPDATE`) e **lock otimista** (coluna de versão) — e *prove* quais vendem o mesmo assento duas vezes[^2].
     - Adicione uma **réplica de leitura** com replicação por streaming, roteie para ela as transações somente leitura e observe o **atraso de replicação** quebrando o read-your-writes.
     - Ponha o **PgBouncer** entre os serviços e o PostgreSQL, e use **`EXPLAIN ANALYZE`** + índices para corrigir a listagem lenta do catálogo.
-    - **Meça** cada mudança: conflitos, vendas duplicadas, p99, atraso, conexões, tempo de consulta.
+    - Torne a replicação **síncrona** e pague por isso, **derrube** o primário com uma reserva em andamento, faça o **failover** à mão, provoque um **split brain** e traga o antigo primário de volta com o **`pg_rewind`**.
+    - **Meça** cada mudança: conflitos, vendas duplicadas, p99, atraso, conexões, tempo de consulta, escritas perdidas.
 
-A venda relâmpago é o momento para o qual o BoxOffice existe: às 10:00, 60.000 assentos e dois milhões de fãs. O catálogo pôde ir para o cache porque alguns segundos de defasagem não fazem mal. **Os assentos são o oposto**: vender o mesmo assento duas vezes é o único bug que uma empresa de ingressos não pode se permitir. Este lab trata da camada de dados sob pressão[^1] — primeiro a corretude (transações e locks), depois a escala (réplicas, pooling, índices) — e dos trade-offs entre elas.
+A venda relâmpago é o momento para o qual o BoxOffice existe: às 10:00, 60.000 assentos e dois milhões de fãs. O catálogo pôde ir para o cache porque alguns segundos de defasagem não fazem mal. **Os assentos são o oposto**: vender o mesmo assento duas vezes é o único bug que uma empresa de ingressos não pode se permitir. Este lab trata da camada de dados sob pressão[^1] — primeiro a corretude (transações e locks), depois a escala (réplicas, pooling, índices), depois a sobrevivência (failover) — e dos trade-offs entre elas.
 
-Este lab constrói o capítulo 6 da [história da disciplina](../../index.md#story), o banco de dados do qual todo serviço stateless agora depende. Ele implementa as decisões da aula 6: [um assento, uma reserva](../../classes/databases/transactions/index.md#double-booking) com locks ou uma verificação de versão, uma [réplica de leitura e o seu atraso](../../classes/databases/replication/index.md#lag), [pool de conexões](../../classes/databases/replication/index.md) com o PgBouncer e [índices lidos com `EXPLAIN`](../../classes/databases/models/index.md).
+Este lab constrói o capítulo 6 da [história da disciplina](../../index.md#story), o banco de dados do qual todo serviço stateless agora depende. Ele implementa as decisões da aula 6: [um assento, uma reserva](../../classes/databases/transactions/index.md#double-booking) com locks ou uma verificação de versão, uma [réplica de leitura e o seu atraso](../../classes/databases/replication/index.md#lag), [pool de conexões](../../classes/databases/replication/index.md) com o PgBouncer, [índices lidos com `EXPLAIN`](../../classes/databases/models/index.md) e um [failover](../../classes/databases/replication/index.md#failover-when-the-leader-dies), com as suas escritas perdidas e o split brain.
 
 ## Antes de começar { #before-you-start }
 
 | | |
 |---|---|
-| **Tempo** | 4–5 horas (três partes: faça uma por encontro, se precisar) |
+| **Tempo** | 5–6 horas (quatro partes: faça uma por encontro, se precisar) |
 | **Você precisa de** | as ferramentas do lab 0; Docker com **8 GB** (onze contêineres, seis JVMs); portas 80, 8080, 8083, 5432, **5433**, **6432** e 6379 livres |
 | **Diretório** | todo comando roda na raiz do seu repositório `boxoffice/` (Windows: dentro do WSL 2) |
 
@@ -38,7 +39,7 @@ boxoffice/
 
 !!! tip "Recupere o atraso"
 
-    Pulou ou quebrou o lab 5? Baixe [boxoffice-after-lab-5.zip](../5/boxoffice-after-lab-5.zip), descompacte e `cd boxoffice`. Este lab **adiciona** `services/inventory`, `infra/postgres/*`, `infra/pgbouncer/*`, a migração do catalog `V3__index_events.sql`, quatro arquivos do k6 e `scripts/reset-inventory.sh`, e **substitui** o `docker-compose.yaml` e o `application.yaml` e o `SecurityConfig.java` do gateway; todos aparecem completos nas próximas páginas e estão em [`code/`](code/docker-compose.yaml). Ele também precisa de um **volume de banco novo** (`docker compose down -v`, explicado no passo 2).
+    Pulou ou quebrou o lab 5? Baixe [boxoffice-after-lab-5.zip](../5/boxoffice-after-lab-5.zip), descompacte e `cd boxoffice`. Este lab **adiciona** `services/inventory`, `infra/postgres/*`, `infra/pgbouncer/*`, a migração do catalog `V3__index_events.sql`, quatro arquivos do k6 e `scripts/reset-inventory.sh` e `infra/postgres/rejoin-as-replica.sh` (passo 4), e **substitui** o `docker-compose.yaml` e o `application.yaml` e o `SecurityConfig.java` do gateway; todos aparecem completos nas próximas páginas e estão em [`code/`](code/docker-compose.yaml). Ele também precisa de um **volume de banco novo** (`docker compose down -v`, explicado no passo 2).
 
 ## Slides
 
@@ -51,7 +52,8 @@ Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** a
 
 !!! info "Conexão com a teoria"
 
-    - Aula 6, [Bancos de dados](../../classes/databases/index.md): [transações e isolamento](../../classes/databases/transactions/index.md) (anomalias, `SELECT … FOR UPDATE` para reservas de assentos), [replicação](../../classes/databases/replication/index.md) (líder–seguidor, atraso), índices e B-trees.
+    - Aula 6, [Bancos de dados](../../classes/databases/index.md): [transações e isolamento](../../classes/databases/transactions/index.md) (anomalias, `SELECT … FOR UPDATE` para reservas de assentos), [replicação](../../classes/databases/replication/index.md) (líder–seguidor, atraso, failover), índices e B-trees.
+    - Aula 3, [Consenso e quóruns](../../classes/distributed/consensus/index.md): quem decide o líder depois de um failover, e o fencing.
     - Aula 3, [Modelos de consistência](../../classes/distributed/consistency/index.md): read-your-writes.
     - Estudo de caso: [Venda de ingressos](../../classes/case-studies/ticketing/index.md) (a venda relâmpago do BoxOffice).
     - Catálogo de componentes: [Banco SQL](../../reference/components/storage/index.md#sql).
@@ -115,6 +117,12 @@ O evento **1** tem **60.000 assentos** (30 setores × 40 fileiras × 50 assentos
 
     Leia um plano de consulta, acrescente os índices certos à listagem do catálogo, meça antes e depois.
 
+-   :material-database-alert:{ .lg .middle } **[4. Failover](failover/index.md)**
+
+    ---
+
+    Replicação síncrona e o seu custo, uma queda com uma reserva em andamento, failover movendo um nome, split brain, `pg_rewind`.
+
 </div>
 
 ## Meça { #measure-it }
@@ -156,10 +164,20 @@ PgBouncer SHOW POOLS: cl_active ____ , sv_active ____ , cl_waiting ____
 | before (V2) | | | |
 | after (V3)  | | | |
 
+## 6. Failover (step 4)
+| synchronous_commit (REPLICA_DELAY=1s) | stale_reads (%) | iteration_duration avg |
+|---|---:|---:|
+| on           | | |
+| remote_apply | | |
+Replica stopped, synchronous: hold HTTP status ____ , seat 10 afterwards ____
+Crash: Ana's hold after the failover (HTTP status) ____ ; seconds until holds worked again ____
+Split brain: seat 20 on db ____ , on db-replica ____
+
 ## Conclusions
 - Which locking strategy would you ship for the flash sale, and why?
 - Which reads may go to the replica, and which must not?
 - Cache (lab 5) or index (lab 6) for the listing — or both? Justify with your numbers.
+- Should holds be replicated synchronously? Give the RPO and the cost of each choice.
 ```
 
 !!! note "Se os seus números forem diferentes"
@@ -177,6 +195,12 @@ PgBouncer SHOW POOLS: cl_active ____ , sv_active ____ , cl_waiting ____
 | `prepared statement "S_1" already exists` | um PgBouncer sem `max_prepared_statements` (imagem mais antiga ou ini editado) | use `edoburu/pgbouncer:v1.26.0-p0` e o ini desta página |
 | `503`/`404` em `/inventory/**` pelo edge | o gateway não foi reconstruído com a nova rota | `docker compose up --build -d gateway`; depois, `curl -s localhost:8080/actuator/gateway/routes \| jq -r '.[].route_id'` precisa listar `inventory` |
 | reservas devolvem `401` | sem token (as reservas são protegidas) | faça login e passe `-H "Authorization: Bearer $TOKEN"` |
+| `ALTER SYSTEM SET synchronous_standby_names` falha com `syntax error at or near "-"` | o nome com hífen não está entre aspas | `'FIRST 1 ("db-replica")'`: aspas duplas em volta do nome, simples em volta do valor |
+| escritas travam, `pg_stat_activity` mostra `wait_event = SyncRep` | a replicação síncrona está ligada e a réplica caiu | suba a réplica, ou `ALTER SYSTEM RESET synchronous_standby_names` + `SELECT pg_reload_conf()` |
+| depois de `docker compose start db-replica`, o `db` está rodando de novo | o `db-replica` depende do `db`, então o `start` sobe ele também | pare o `db` de novo antes de promover; use `docker compose up -d --no-deps db-replica` |
+| `pg_rewind`: `target server needs to use either data checksums or "wal_log_hints = on"` | o `wal_log_hints` estava desligado quando o antigo primário rodava (seção 1 pulada) | o antigo primário não consegue voltar; recomece o cluster com `docker compose down -v` e `docker compose up --build -d` (o Flyway popula tudo de novo) e refaça o passo 4 a partir da seção 1 |
+| escritas falham com `cannot execute INSERT in a read-only transaction` depois do failover | `db` resolve para o standby que voltou e para o novo primário | termine a [volta ao primário original](failover/index.md#switchback) |
+| `db-replica` fica `unhealthy` depois de um clone novo, e o log diz `waiting for checkpoint` | um `replica-entrypoint.sh` antigo, sem `-c fast` | atualize o script e rode `docker compose up -d --force-recreate db-replica` |
 | contêineres mortos (`exit 137`), inicialização muito lenta | memória insuficiente para onze contêineres | dê 8 GB ao Docker, feche outros programas, ou pare `catalog-2`/`catalog-3` durante os experimentos do inventory |
 
 !!! success "Boas práticas neste lab"
@@ -185,6 +209,7 @@ PgBouncer SHOW POOLS: cl_active ____ , sv_active ____ , cl_waiting ____
     - **Mande para a réplica as leituras que podem estar desatualizadas, e todo o resto para o primário** — `@Transactional(readOnly = true)` roteado pelo `DataSourceConfig.java`; veja [Replicação — o atraso e as suas anomalias](../../classes/databases/replication/index.md#lag).
     - **Faça pool de conexões na frente do PostgreSQL, e migre contornando o pooler** — `pgbouncer.ini` em modo transação, `DB_MIGRATION_HOST` para o Flyway no `application.yaml` do `inventory`; veja [Replicação](../../classes/databases/replication/index.md) (pool de conexões).
     - **Acrescente um índice para uma consulta medida, conferido com `EXPLAIN ANALYZE`** — `V3__index_events.sql`; veja [Modelos de dados e engines de armazenamento](../../classes/databases/models/index.md) (lendo o `EXPLAIN`).
+    - **Saiba o que um failover perde, e isole o antigo primário** — a replicação assíncrona perdeu uma reserva que tinha respondido `201`; o `pg_rewind` (`rejoin-as-replica.sh`) é o único jeito de o antigo primário voltar; veja [Replicação — failover](../../classes/databases/replication/index.md#failover-when-the-leader-dies).
     - **Audite o invariante depois de todo teste** — `SeatQueries.doubleBookedSeats` atrás de `/inventory/audit/double-bookings`; veja [Transações — reservas de assentos](../../classes/databases/transactions/index.md#seat-holds).
 
 ## Limpeza { #clean-up }
@@ -205,7 +230,8 @@ Guarde tudo: o lab 7 acrescenta o `order` e o Kafka a esta stack e confirma as r
 - [ ] `db-replica` em streaming (o `pg_stat_replication` a mostra), leituras roteadas para ela e o experimento de read-your-writes com e sem `REPLICA_DELAY`.
 - [ ] PgBouncer na frente do primário, com as contagens de conexões.
 - [ ] `EXPLAIN ANALYZE` da listagem do catálogo antes e depois do `V3__index_events.sql`, e o sweep depois.
-- [ ] `results/lab6.md` completo com as três conclusões.
+- [ ] O failover do passo 4: a tabela da replicação síncrona, a reserva perdida, o split brain, e a stack de volta com o `db` como primário e o `db-replica` transmitindo.
+- [ ] `results/lab6.md` completo com as quatro conclusões.
 - [ ] Repositório com a tag `lab6`; [quiz](quiz.md) respondido.
 
 ## Estado final { #end-state }
@@ -214,6 +240,7 @@ Guarde tudo: o lab 7 acrescenta o `order` e o Kafka a esta stack e confirma as r
 boxoffice/
     docker-compose.yaml        # replaced: + db-replica (5433), + pgbouncer (6432), + inventory (8083)
     infra/postgres/10-replication.sh  infra/postgres/replica-entrypoint.sh     # new
+    infra/postgres/rejoin-as-replica.sh                                       # new: pg_rewind after a failover
     infra/pgbouncer/pgbouncer.ini  infra/pgbouncer/userlist.txt               # new
     load/lib.js  load/flash-sale.js  load/availability.js  load/read-your-writes.js   # new
     scripts/reset-inventory.sh                                                # new

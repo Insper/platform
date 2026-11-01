@@ -180,6 +180,37 @@ CREATE INDEX events_starts_at_idx ON catalog.events (starts_at, id);
 
 ---
 
+## Replicação síncrona: quanto custa
+
+| `synchronous_commit` (réplica 1 s atrás) | leituras defasadas | por iteração |
+|---|---:|---:|
+| `on`: WAL no disco do standby | 93–100% | ~0,05–0,4 s |
+| `remote_apply`: reaplicado no standby | **0%** | **2 s** |
+
+- Réplica parada → toda escrita **trava**; Ctrl+C: "already committed locally".
+- Um standby síncrono só = ponto único de falha para as escritas → `ANY 1` sobre dois.
+
+---
+
+<!-- _class: tight -->
+
+## Failover à mão
+
+1. A reserva da Ana responde **201** → `docker compose kill db`.
+2. `pg_promote()` na réplica: uma nova **timeline**.
+3. Mova o **nome**: alias de rede `db` → o novo primário (como um endpoint do RDS).
+4. 15 s depois as escritas voltam… e a reserva da Ana dá **404**: o **RPO** do assíncrono.
+5. O antigo primário volta como estava → **dois primários**, um nome: split brain → **isole-o**.
+6. `pg_rewind` (exige `wal_log_hints`) → ele volta como réplica; depois, volte ao original.
+
+<div class="warn">
+
+Uma pessoa às 10:01 é lenta demais: Patroni + etcd decidem o líder por **consenso**.
+
+</div>
+
+---
+
 ## Pontos-chave
 
 1. Nomeie o **invariante**; garanta-o de forma atômica (locks, versões, updates condicionais).
@@ -187,3 +218,4 @@ CREATE INDEX events_starts_at_idx ON catalog.events (starts_at, id);
 3. Réplicas escalam **leituras** que toleram **defasagem**; roteie o read-your-writes para o primário.
 4. Faça pool de conexões (**PgBouncer**) antes que o autoescalonamento as multiplique.
 5. **EXPLAIN** primeiro: um índice pode vencer um cache.
+6. Saiba o que um **failover** perde (RPO) e quem decide o líder; isole o antigo primário.

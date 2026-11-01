@@ -101,4 +101,4 @@ Compare com os números sem cache do lab 3. Depois religue o cache e decida, com
 
     Quando uma consulta está lenta, a ordem é: **medir** (qual consulta, com que frequência), **explicar** (qual plano), **corrigir o caminho de acesso** (índice, reescrita, desnormalização) e só então **acrescentar infraestrutura** (cache, réplica, shard). Os entrevistadores gostam de ouvir que você não faria cache de uma consulta que não explicou.
 
-Volte à [visão geral do lab](../index.md#measure-it) para registrar os resultados.
+Próximo: [4. Failover](../failover/index.md).

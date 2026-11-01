@@ -179,6 +179,37 @@ CREATE INDEX events_starts_at_idx ON catalog.events (starts_at, id);
 
 ---
 
+## Synchronous replication: what it costs
+
+| `synchronous_commit` (replica 1 s behind) | stale reads | per iteration |
+|---|---:|---:|
+| `on`: WAL on the standby's disk | 93–100% | ~0.05–0.4 s |
+| `remote_apply`: replayed on the standby | **0%** | **2 s** |
+
+- Replica stopped → every write **hangs**; Ctrl+C: "already committed locally".
+- One synchronous standby = a single point of failure for writes → `ANY 1` over two.
+
+---
+
+<!-- _class: tight -->
+
+## Failover by hand
+
+1. Ana's hold answers **201** → `docker compose kill db`.
+2. `pg_promote()` on the replica: a new **timeline**.
+3. Move the **name**: Docker network alias `db` → the new primary (like an RDS endpoint).
+4. 15 s later writes work again… and Ana's hold is **404**: the **RPO** of async.
+5. Old primary back as it was → **two primaries**, one name: split brain → **fence** it.
+6. `pg_rewind` (needs `wal_log_hints`) → it rejoins as a replica; then switch back.
+
+<div class="warn">
+
+A human at 10:01 is too slow: Patroni + etcd decide the leader by **consensus**.
+
+</div>
+
+---
+
 ## Takeaways
 
 1. Name the **invariant**; enforce it atomically (locks, versions, conditional updates).
@@ -186,3 +217,4 @@ CREATE INDEX events_starts_at_idx ON catalog.events (starts_at, id);
 3. Replicas scale **reads** that tolerate **staleness**; route read-your-writes to the primary.
 4. Pool connections (**PgBouncer**) before autoscaling multiplies them.
 5. **EXPLAIN** first: an index can beat a cache.
+6. Know what a **failover** loses (RPO) and who decides the leader; fence the old primary.

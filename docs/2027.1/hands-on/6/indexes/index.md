@@ -101,4 +101,4 @@ Compare with the no-cache numbers of lab 3. Then turn the cache back on and deci
 
     When a query is slow, the order is: **measure** (which query, how often), **explain** (what plan), **fix the access path** (index, rewrite, denormalize), and only then **add infrastructure** (cache, replica, shard). Interviewers like to hear that you would not cache a query you have not explained.
 
-Back to the [lab overview](../index.md#measure-it) to record the results.
+Next: [4. Failover](../failover/index.md).

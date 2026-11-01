@@ -4,17 +4,18 @@
     - Compare three concurrency strategies under a flash sale — **naive check-then-act**, **pessimistic locking** (`SELECT … FOR UPDATE`) and **optimistic locking** (version column) — and *prove* which ones double-book[^2].
     - Add a **read replica** with streaming replication, route read-only transactions to it, and observe **replication lag** breaking read-your-writes.
     - Put **PgBouncer** between the services and PostgreSQL, and use **`EXPLAIN ANALYZE`** + indexes to fix the slow catalog listing.
-    - **Measure** each change: conflicts, double bookings, p99, lag, connections, query time.
+    - Make replication **synchronous** and pay for it, **crash** the primary with a hold in flight, **fail over** by hand, provoke a **split brain** and rejoin the old primary with **`pg_rewind`**.
+    - **Measure** each change: conflicts, double bookings, p99, lag, connections, query time, lost writes.
 
-The flash sale is the moment BoxOffice exists for: at 10:00, 60,000 seats and two million fans. The catalog could be cached because a few seconds of staleness is harmless. **Seats are the opposite**: selling the same seat twice is the one bug a ticketing company cannot afford. This lab is about the data layer under pressure[^1] — correctness first (transactions and locks), then scale (replicas, pooling, indexes) — and about the trade-offs between them.
+The flash sale is the moment BoxOffice exists for: at 10:00, 60,000 seats and two million fans. The catalog could be cached because a few seconds of staleness is harmless. **Seats are the opposite**: selling the same seat twice is the one bug a ticketing company cannot afford. This lab is about the data layer under pressure[^1] — correctness first (transactions and locks), then scale (replicas, pooling, indexes), then survival (failover) — and about the trade-offs between them.
 
-This lab builds chapter 6 of the [story of the course](../../index.md#story), the database that every stateless service now depends on. It implements the decisions of class 6: [one seat, one hold](../../classes/databases/transactions/index.md#double-booking) with locks or a version check, a [read replica and its lag](../../classes/databases/replication/index.md#lag), [connection pooling](../../classes/databases/replication/index.md) with PgBouncer, and [indexes read with `EXPLAIN`](../../classes/databases/models/index.md).
+This lab builds chapter 6 of the [story of the course](../../index.md#story), the database that every stateless service now depends on. It implements the decisions of class 6: [one seat, one hold](../../classes/databases/transactions/index.md#double-booking) with locks or a version check, a [read replica and its lag](../../classes/databases/replication/index.md#lag), [connection pooling](../../classes/databases/replication/index.md) with PgBouncer, [indexes read with `EXPLAIN`](../../classes/databases/models/index.md), and a [failover](../../classes/databases/replication/index.md#failover-when-the-leader-dies) with its lost writes and split brain.
 
 ## Before you start { #before-you-start }
 
 | | |
 |---|---|
-| **Time** | 4–5 hours (three parts: do one per sitting if needed) |
+| **Time** | 5–6 hours (four parts: do one per sitting if needed) |
 | **You need** | the tools of lab 0; Docker with **8 GB** (eleven containers, six JVMs); ports 80, 8080, 8083, 5432, **5433**, **6432**, 6379 free |
 | **Directory** | every command runs from the root of your `boxoffice/` repository (Windows: inside WSL 2) |
 
@@ -38,7 +39,7 @@ boxoffice/
 
 !!! tip "Catch up"
 
-    Skipped or broke lab 5? Download [boxoffice-after-lab-5.zip](../5/boxoffice-after-lab-5.zip), unzip it and `cd boxoffice`. This lab **adds** `services/inventory`, `infra/postgres/*`, `infra/pgbouncer/*`, the catalog migration `V3__index_events.sql`, four k6 files and `scripts/reset-inventory.sh`, and **replaces** `docker-compose.yaml` and the gateway's `application.yaml` and `SecurityConfig.java`; all are shown in full on the next pages and are in [`code/`](code/docker-compose.yaml). It also needs a **fresh database volume** (`docker compose down -v`, explained in step 2).
+    Skipped or broke lab 5? Download [boxoffice-after-lab-5.zip](../5/boxoffice-after-lab-5.zip), unzip it and `cd boxoffice`. This lab **adds** `services/inventory`, `infra/postgres/*`, `infra/pgbouncer/*`, the catalog migration `V3__index_events.sql`, four k6 files and `scripts/reset-inventory.sh`, and `infra/postgres/rejoin-as-replica.sh` (step 4), and **replaces** `docker-compose.yaml` and the gateway's `application.yaml` and `SecurityConfig.java`; all are shown in full on the next pages and are in [`code/`](code/docker-compose.yaml). It also needs a **fresh database volume** (`docker compose down -v`, explained in step 2).
 
 ## Slides
 
@@ -51,7 +52,8 @@ Click the slides and use ← → to move through them; **F** goes full screen an
 
 !!! info "Theory connection"
 
-    - Class 6, [Databases](../../classes/databases/index.md): [transactions and isolation](../../classes/databases/transactions/index.md) (anomalies, `SELECT … FOR UPDATE` for seat holds), [replication](../../classes/databases/replication/index.md) (leader–follower, lag), indexes and B-trees.
+    - Class 6, [Databases](../../classes/databases/index.md): [transactions and isolation](../../classes/databases/transactions/index.md) (anomalies, `SELECT … FOR UPDATE` for seat holds), [replication](../../classes/databases/replication/index.md) (leader–follower, lag, failover), indexes and B-trees.
+    - Class 3, [Consensus & quorums](../../classes/distributed/consensus/index.md): who decides the leader after a failover, and fencing.
     - Class 3, [Consistency models](../../classes/distributed/consistency/index.md): read-your-writes.
     - Case study: [Ticketing](../../classes/case-studies/ticketing/index.md) (the BoxOffice flash sale).
     - Component catalog: [SQL Database](../../reference/components/storage/index.md#sql).
@@ -115,6 +117,12 @@ Event **1** has **60,000 seats** (30 sections × 40 rows × 50 seats); events 2�
 
     Read a query plan, add the right indexes to the catalog listing, measure before and after.
 
+-   :material-database-alert:{ .lg .middle } **[4. Failover](failover/index.md)**
+
+    ---
+
+    Synchronous replication and its cost, a crash with a hold in flight, failover by moving a name, split brain, `pg_rewind`.
+
 </div>
 
 ## Measure it { #measure-it }
@@ -156,10 +164,20 @@ PgBouncer SHOW POOLS: cl_active ____ , sv_active ____ , cl_waiting ____
 | before (V2) | | | |
 | after (V3)  | | | |
 
+## 6. Failover (step 4)
+| synchronous_commit (REPLICA_DELAY=1s) | stale_reads (%) | iteration_duration avg |
+|---|---:|---:|
+| on           | | |
+| remote_apply | | |
+Replica stopped, synchronous: hold HTTP status ____ , seat 10 afterwards ____
+Crash: Ana's hold after the failover (HTTP status) ____ ; seconds until holds worked again ____
+Split brain: seat 20 on db ____ , on db-replica ____
+
 ## Conclusions
 - Which locking strategy would you ship for the flash sale, and why?
 - Which reads may go to the replica, and which must not?
 - Cache (lab 5) or index (lab 6) for the listing — or both? Justify with your numbers.
+- Should holds be replicated synchronously? Give the RPO and the cost of each choice.
 ```
 
 !!! note "If your numbers differ"
@@ -177,6 +195,12 @@ PgBouncer SHOW POOLS: cl_active ____ , sv_active ____ , cl_waiting ____
 | `prepared statement "S_1" already exists` | a PgBouncer without `max_prepared_statements` (older image or edited ini) | use `edoburu/pgbouncer:v1.26.0-p0` and the ini of this page |
 | `503`/`404` on `/inventory/**` through the edge | the gateway was not rebuilt with the new route | `docker compose up --build -d gateway`, then `curl -s localhost:8080/actuator/gateway/routes \| jq -r '.[].route_id'` must list `inventory` |
 | holds return `401` | no token (holds are protected) | log in and pass `-H "Authorization: Bearer $TOKEN"` |
+| `ALTER SYSTEM SET synchronous_standby_names` fails with `syntax error at or near "-"` | the hyphenated name is not quoted | `'FIRST 1 ("db-replica")'`: double quotes around the name, single quotes around the value |
+| writes hang, `pg_stat_activity` shows `wait_event = SyncRep` | synchronous replication is on and the replica is down | start the replica, or `ALTER SYSTEM RESET synchronous_standby_names` + `SELECT pg_reload_conf()` |
+| after `docker compose start db-replica`, `db` is running again | `db-replica` depends on `db`, so `start` brings it up | stop `db` again before promoting; use `docker compose up -d --no-deps db-replica` |
+| `pg_rewind`: `target server needs to use either data checksums or "wal_log_hints = on"` | `wal_log_hints` was off when the old primary ran (section 1 skipped) | the old primary cannot rejoin; start the cluster over with `docker compose down -v` and `docker compose up --build -d` (Flyway seeds everything again), then redo step 4 from section 1 |
+| writes fail with `cannot execute INSERT in a read-only transaction` after the failover | `db` resolves to the rejoined standby and to the new primary | finish the [switchback](failover/index.md#switchback) |
+| `db-replica` stays `unhealthy` after a fresh clone, log says `waiting for checkpoint` | an old `replica-entrypoint.sh` without `-c fast` | update the script and `docker compose up -d --force-recreate db-replica` |
 | containers killed (`exit 137`), very slow startup | not enough memory for eleven containers | give Docker 8 GB, close other programs, or stop `catalog-2`/`catalog-3` during the inventory experiments |
 
 !!! success "Best practices in this lab"
@@ -185,6 +209,7 @@ PgBouncer SHOW POOLS: cl_active ____ , sv_active ____ , cl_waiting ____
     - **Send reads that may be stale to the replica, and everything else to the primary** — `@Transactional(readOnly = true)` routed by `DataSourceConfig.java`; see [Replication — lag and its anomalies](../../classes/databases/replication/index.md#lag).
     - **Pool connections in front of PostgreSQL, and migrate around the pooler** — `pgbouncer.ini` in transaction mode, `DB_MIGRATION_HOST` for Flyway in `inventory`'s `application.yaml`; see [Replication](../../classes/databases/replication/index.md) (connection pooling).
     - **Add an index for a measured query, checked with `EXPLAIN ANALYZE`** — `V3__index_events.sql`; see [Data models & storage engines](../../classes/databases/models/index.md) (reading `EXPLAIN`).
+    - **Know what a failover loses, and fence the old primary** — asynchronous replication lost a hold that had answered `201`; `pg_rewind` (`rejoin-as-replica.sh`) is the only way the old primary comes back; see [Replication — failover](../../classes/databases/replication/index.md#failover-when-the-leader-dies).
     - **Audit the invariant after every test** — `SeatQueries.doubleBookedSeats` behind `/inventory/audit/double-bookings`; see [Transactions — seat holds](../../classes/databases/transactions/index.md#seat-holds).
 
 ## Clean up
@@ -205,7 +230,8 @@ Keep everything: lab 7 adds `order` and Kafka on top of this stack and confirms 
 - [ ] `db-replica` streaming (`pg_stat_replication` shows it), reads routed to it, and the read-your-writes experiment with and without `REPLICA_DELAY`.
 - [ ] PgBouncer in front of the primary, with the connection counts.
 - [ ] `EXPLAIN ANALYZE` of the catalog listing before and after `V3__index_events.sql`, and the sweep after.
-- [ ] `results/lab6.md` complete with the three conclusions.
+- [ ] The failover of step 4: the synchronous-replication table, the lost hold, the split brain, and the stack back with `db` as primary and `db-replica` streaming.
+- [ ] `results/lab6.md` complete with the four conclusions.
 - [ ] Repository tagged `lab6`; [quiz](quiz.md) answered.
 
 ## End state
@@ -214,6 +240,7 @@ Keep everything: lab 7 adds `order` and Kafka on top of this stack and confirms 
 boxoffice/
     docker-compose.yaml        # replaced: + db-replica (5433), + pgbouncer (6432), + inventory (8083)
     infra/postgres/10-replication.sh  infra/postgres/replica-entrypoint.sh     # new
+    infra/postgres/rejoin-as-replica.sh                                       # new: pg_rewind after a failover
     infra/pgbouncer/pgbouncer.ini  infra/pgbouncer/userlist.txt               # new
     load/lib.js  load/flash-sale.js  load/availability.js  load/read-your-writes.js   # new
     scripts/reset-inventory.sh                                                # new

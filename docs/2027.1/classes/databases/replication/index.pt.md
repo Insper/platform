@@ -210,6 +210,14 @@ Cada passo esconde um problema difícil:
 
 Os serviços gerenciados empacotam tudo isso — Amazon RDS Multi-AZ com standby síncrono, Aurora com armazenamento em quorum, alta disponibilidade do Cloud SQL, HA com redundância de zona no Azure — com failovers que costumam levar de dezenas de segundos a alguns minutos; a pergunta de design para você é o que a aplicação faz enquanto isso (novas tentativas com backoff, veja [Confiabilidade](../../reliability/patterns/index.md)).
 
+!!! example "No código do BoxOffice: um failover à mão, e o antigo primário voltando (lab 6)"
+
+    O [Hands-on 6 — Failover](../../../hands-on/6/failover/index.md) percorre o diagrama acima sem nada automatizando. A reserva de um fã responde `201`, o primário é derrubado antes que a réplica assíncrona a receba, a réplica é promovida com `pg_promote()` e o nome `db` passa para ela (um alias de rede do Docker, a versão local de um endpoint DNS): todo serviço se reconecta em cerca de 15 s sem mudar configuração, e a reserva dá `404` — a escrita perdida da lista acima. Ligar o antigo primário de novo dá dois primários que discordam sobre o mesmo assento. Depois de isolá-lo, este script o traz de volta como seguidor: o `pg_rewind` descarta a história que o novo primário nunca teve, o que só funciona porque o primário roda com `wal_log_hints = on`.
+
+    ``` { .bash title="infra/postgres/rejoin-as-replica.sh (rewind, then follow the new primary)" }
+    --8<-- "docs/2027.1/hands-on/6/code/infra/postgres/rejoin-as-replica.sh:12:20"
+    ```
+
 **Experimente.** O cenário `db-failover` é um checkout de venda relâmpago num cluster com um primário e um seguidor **assíncrono**: 1.500 req/s, metade escritas. Em t = 90 s o primário morre. Execute-o e leia o relatório: com a semente padrão cerca de **1.600 escritas se perdem** (confirmadas pelo primário antigo, nunca enviadas ao seguidor) e a disponibilidade cai para cerca de **90,6%**, porque toda escrita falha durante os 30 s de failover. Selecione `orders-db` e mude *Replicação* para `sync`: as escritas perdidas caem para **0**, mas a disponibilidade não se mexe. Volte para `async` e ponha o *Tempo de failover* em 5 s: a disponibilidade sobe para cerca de **98%**, e as escritas voltam a se perder. Os dois controles respondem a perguntas diferentes: o modo de replicação define quanto você perde (o RPO), a detecção e a promoção definem quanto tempo você fica fora (o RTO). A solução possível (abra no playground completo ↗) combina replicação por quórum com 2 seguidores, 2 shards e failover de 5 s: 0 escritas perdidas, cerca de 99,2% de disponibilidade.
 
 <div class="sdp" data-scenario="db-failover" data-mode="compact" data-height="520"></div>

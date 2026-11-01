@@ -210,6 +210,14 @@ Each step hides a hard problem:
 
 Managed services package all of this — Amazon RDS Multi-AZ with a synchronous standby, Aurora with quorum storage, Cloud SQL high availability, Azure zone-redundant HA — with failovers that typically take from tens of seconds to a couple of minutes; the design question for you is what the application does meanwhile (retries with backoff, see [Reliability](../../reliability/patterns/index.md)).
 
+!!! example "In the BoxOffice code: a failover by hand, and the old primary rejoining (lab 6)"
+
+    [Hands-on 6 — Failover](../../../hands-on/6/failover/index.md) walks the diagram above with nobody automating it. A fan's hold answers `201`, the primary is killed before the asynchronous replica receives it, the replica is promoted with `pg_promote()` and the name `db` is moved to it (a Docker network alias, the local version of a DNS endpoint): every service reconnects within about 15 s without a configuration change, and the hold is `404` — the lost write of the list above. Starting the old primary again gives two primaries that disagree about the same seat. After fencing it, this script brings it back as a follower: `pg_rewind` discards the history the new primary never had, which works only because the primary runs with `wal_log_hints = on`.
+
+    ``` { .bash title="infra/postgres/rejoin-as-replica.sh (rewind, then follow the new primary)" }
+    --8<-- "docs/2027.1/hands-on/6/code/infra/postgres/rejoin-as-replica.sh:12:20"
+    ```
+
 **Try it.** The `db-failover` scenario is a flash-sale checkout on a cluster with one primary and one **asynchronous** follower: 1,500 req/s, half of them writes. At t = 90 s the primary dies. Press **Run** and read the report: with the default seed about **1,600 writes are lost** (acknowledged by the old primary, never shipped to the follower) and availability falls to about **90.6%**, because every write fails during the 30 s failover. Select `orders-db` and set *Replication* to `sync`: lost writes drop to **0**, but availability does not move. Set it back to `async` and the *Failover time* to 5 s: availability rises to about **98%**, and the writes are lost again. The two knobs answer different questions: replication mode sets how much you lose (the RPO), detection and promotion set how long you are down (the RTO). The possible solution (open it in the full playground ↗) combines quorum replication with 2 followers, 2 shards and a 5 s failover: 0 lost writes, about 99.2% availability.
 
 <div class="sdp" data-scenario="db-failover" data-mode="compact" data-height="520"></div>
