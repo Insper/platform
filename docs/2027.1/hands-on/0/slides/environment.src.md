@@ -69,7 +69,7 @@ that ties them together.
 
 ## Give Docker room
 
-- macOS: Docker Desktop → *Settings → Resources*.
+- macOS and Windows: Docker Desktop → *Settings → Resources*.
 - Linux: Docker Engine uses the whole machine, no VM in between.
 
 <div class="warn">

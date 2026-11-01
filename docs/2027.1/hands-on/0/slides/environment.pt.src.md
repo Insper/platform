@@ -69,7 +69,7 @@ que liga todos eles.
 
 ## Dê espaço ao Docker
 
-- macOS: Docker Desktop → *Settings → Resources*.
+- macOS e Windows: Docker Desktop → *Settings → Resources*.
 - Linux: o Docker Engine usa a máquina inteira, sem VM no meio.
 
 <div class="warn">
