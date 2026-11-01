@@ -16,7 +16,7 @@ The rule for the whole lab: **AI proposes, rules and humans dispose.** No step i
 |---|---|
 | **Time** | 6–8 hours for parts 0–6 (one part per sitting is fine), plus ~15 minutes a day for one week in part 7 |
 | **You need** | the tools of lab 0; a **GitHub account** (the repository on GitHub, the `gh` CLI logged in); for the free model, **~6 GB of free RAM and ~5 GB of disk** (8 GB machines: see [Troubleshooting](#troubleshooting)) |
-| **Directory** | every command runs from the root of your `boxoffice/` repository (Windows: inside WSL 2) |
+| **Directory** | every command runs from the root of your `boxoffice/` repository |
 | **Costs** | **zero** on the default path: the model runs on your machine (Ollama) or on the GitHub runner. What can cost money is listed in [What costs money](#costs) |
 
 ``` { .bash .copy }
@@ -120,11 +120,11 @@ All scripts live in `.github/ai/` of your repository and import one module, `llm
         ``` { .bash .copy }
         # macOS
         brew install ollama && brew services start ollama
-        # Linux and Windows (inside WSL 2)
+        # Linux
         curl -fsSL https://ollama.com/install.sh | sh
         ```
 
-        Check that the server answers: `curl -s http://localhost:11434/api/version` prints `{"version":"..."}`. On Linux without systemd (some WSL setups), start it by hand in another terminal with `ollama serve`.
+        Check that the server answers: `curl -s http://localhost:11434/api/version` prints `{"version":"..."}`. On Linux without systemd, start it by hand in another terminal with `ollama serve`.
 
     2. Get the model — **after** you saved the files of step 0.2 (the script is one of them):
 

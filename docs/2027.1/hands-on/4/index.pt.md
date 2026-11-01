@@ -15,7 +15,7 @@ Este lab constrói o capítulo 5 da [história da disciplina](../../index.md#sto
 |---|---|
 | **Tempo** | 3–4 horas |
 | **Você precisa de** | as ferramentas do lab 0; Docker com pelo menos **6 GB** (cinco JVMs a partir de agora); portas **80** e **8080** livres |
-| **Diretório** | todo comando roda na raiz do seu repositório `boxoffice/` (Windows: dentro do WSL 2) |
+| **Diretório** | todo comando roda na raiz do seu repositório `boxoffice/` |
 
 ``` { .bash .copy }
 docker compose version        # Docker Compose v2.x (or newer)

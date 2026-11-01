@@ -13,7 +13,7 @@ In lab 2 you found the knee of a single `catalog` instance. The simplest way to 
 |---|---|
 | **Time** | 2–3 hours |
 | **You need** | the tools of lab 0; Docker with at least **6 GB** (three JVMs + PostgreSQL + Nginx); **port 80 free** on your machine |
-| **Directory** | every command runs from the root of your `boxoffice/` repository (Windows: inside WSL 2) |
+| **Directory** | every command runs from the root of your `boxoffice/` repository |
 
 ``` { .bash .copy }
 docker compose version        # Docker Compose v2.x (or newer)

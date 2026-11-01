@@ -15,7 +15,7 @@ Este primeiro lab é curto, mas importante: um ambiente quebrado custa horas dep
 |---|---|
 | **Tempo** | 1–2 horas (a maior parte são downloads) |
 | **Você precisa de** | um computador com **8 GB de RAM ou mais** (16 GB é confortável a partir do lab 4), ~20 GB livres em disco, direitos de administrador, acesso à internet |
-| **Sistema operacional** | macOS, Linux ou Windows 10/11 com **WSL 2** (todo comando da disciplina roda em um shell Linux) |
+| **Sistema operacional** | macOS ou Linux (todo comando da disciplina roda em um shell Bash) |
 | **Estado inicial** | nenhum: este lab cria o repositório `boxoffice/` a partir de uma pasta vazia |
 
 !!! info "Primeiro lab"
@@ -194,18 +194,6 @@ A tabela lista para que serve cada ferramenta; as abas abaixo mostram como insta
     sudo install minikube-linux-amd64 /usr/local/bin/minikube && rm minikube-linux-amd64
     ```
 
-=== ":material-microsoft-windows: Windows"
-
-    Use o **WSL 2** com Ubuntu: os labs usam scripts Bash, e o compartilhamento de arquivos entre Windows e containers é lento e frágil.
-
-    ``` { .powershell .copy }
-    wsl --install -d Ubuntu-24.04
-    ```
-
-    1. Instale o [Docker Desktop](https://docs.docker.com/desktop/setup/install/windows-install/){target="_blank"} e habilite *Settings → Resources → WSL integration* para o Ubuntu.
-    2. Abra o terminal do **Ubuntu** e siga a aba **Linux** (pule as linhas do Docker Engine: o Docker Desktop já o fornece).
-    3. Mantenha o seu repositório **dentro do sistema de arquivos do WSL** (`~/boxoffice`), não em `/mnt/c/...`.
-
 !!! tip "Sem o k6 instalado? Rode em um container"
 
     O k6 é um único binário, mas, se você não conseguir instalá-lo, a imagem oficial funciona com os mesmos scripts. A partir da raiz do repositório:
@@ -253,7 +241,7 @@ As suas versões serão diferentes; o que importa é que nada diga `MISS` ou `FA
 !!! warning "Falhas comuns"
 
     - `FAIL maven … JAVA_HOME environment variable is not defined correctly`: aponte o `JAVA_HOME` para a pasta do JDK 21 (`export JAVA_HOME=$(/usr/libexec/java_home -v 21)` no macOS; `/usr/lib/jvm/java-21-openjdk-amd64` no Ubuntu) e acrescente a linha ao seu `~/.zshrc` ou `~/.bashrc`.
-    - `MISS Docker daemon is not running`: inicie o Docker Desktop (macOS/Windows) ou `sudo systemctl start docker` (Linux).
+    - `MISS Docker daemon is not running`: inicie o Docker Desktop (macOS) ou `sudo systemctl start docker` (Linux).
     - `permission denied … docker.sock` no Linux: você pulou o `usermod -aG docker`; saia da sessão e entre de novo.
     - `MISS Python 3.12 or newer`: rode `uv python install 3.12`. Nunca use `pip install` no Python do sistema: todo passo Python da disciplina passa pelo `uv` (`uv run`, `uv add`, `uvx`).
 
@@ -353,7 +341,7 @@ docker stop hello
     vus............................: 10     min=10          max=10
 ```
 
-Seus números dependem da máquina. Com o Docker Desktop (macOS, Windows) cada requisição também atravessa o encaminhamento de portas da VM, então espere algumas vezes menos do que no Linux nativo — cerca de 15.000 req/s com 10 VUs em um notebook Apple Silicon de 8 núcleos.
+Seus números dependem da máquina. Com o Docker Desktop (macOS) cada requisição também atravessa o encaminhamento de portas da VM, então espere algumas vezes menos do que no Linux nativo — cerca de 15.000 req/s com 10 VUs em um notebook Apple Silicon de 8 núcleos.
 
 Leia o resumo assim:
 
@@ -403,8 +391,7 @@ O [System Design Playground](../../../playground/index.md) simula, sob carga e e
 | `permission denied while trying to connect to the Docker daemon socket` | usuário Linux fora do grupo `docker` | `sudo usermod -aG docker "$USER"`, depois saia e entre de novo |
 | `Cannot connect to the Docker daemon` | Docker Desktop não iniciado | inicie o Docker Desktop e espere "Engine running" |
 | `FAIL maven … JAVA_HOME` | `JAVA_HOME` aponta para nada ou para um JDK antigo | aponte o `JAVA_HOME` para a pasta do JDK 21 (veja "Falhas comuns") |
-| tudo muito lento no Windows | o repositório está em `/mnt/c/...` | mova para `~/boxoffice` dentro do WSL |
-| `check-env.sh: line 1: #!/usr/bin/env: No such file` no WSL | o arquivo foi salvo com finais de linha do Windows | `sed -i 's/\r$//' scripts/check-env.sh` (e configure o editor para LF) |
+| `check-env.sh: line 1: #!/usr/bin/env: No such file` | o arquivo foi salvo com finais de linha do Windows (CRLF) | `sed -i 's/\r$//' scripts/check-env.sh` (e configure o editor para LF) |
 
 !!! success "Boas práticas neste lab"
 

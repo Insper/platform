@@ -22,16 +22,6 @@ You will spend much of this course in a terminal: `git`, `docker`, `kubectl`, `m
     sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
     ```
 
-=== ":material-microsoft-windows: Windows (WSL)"
-
-    zsh and Oh My Zsh do not run in PowerShell or `cmd`. Use them inside **WSL** (see [Development setup](development-setup.md#docker)): open your Ubuntu terminal and follow the Linux steps there.
-
-    ``` shell
-    sudo apt install zsh
-    chsh -s $(which zsh)
-    sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
-    ```
-
 `chsh` changes your login shell; it takes effect in the next terminal you open. Oh My Zsh also needs `git` and `curl`.
 
 ## Plugins { #plugins }
@@ -79,7 +69,6 @@ Open a new terminal (or run `source ~/.zshrc`) to apply. Other themes are listed
 
     - **zsh** is the shell, **Oh My Zsh** manages its configuration, and **plugins** add features one by one.
     - Autosuggestions and fuzzy history search (**Ctrl+R**) save the most typing; syntax highlighting catches typos before you run them.
-    - On Windows, run all of it inside **WSL**, the same Linux environment Docker uses.
 
 [^omz]: [Oh My Zsh](https://ohmyz.sh/){:target="_blank"} and its [README](https://github.com/ohmyzsh/ohmyzsh){:target="_blank"}.
 [^themes]: [Oh My Zsh themes](https://github.com/ohmyzsh/ohmyzsh/wiki/Themes){:target="_blank"}.

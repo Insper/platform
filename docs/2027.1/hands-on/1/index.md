@@ -12,7 +12,7 @@ Every ticketing site starts with the same page: *what is on, where, and when?* I
 |---|---|
 | **Time** | 3–4 hours |
 | **You need** | the tools of [lab 0](../0/index.md); Docker with at least **4 GB** of memory; the first build downloads ~100 MB of Maven dependencies |
-| **Directory** | every command on these pages runs from the root of your `boxoffice/` repository unless it starts with `cd` (Windows: inside WSL 2) |
+| **Directory** | every command on these pages runs from the root of your `boxoffice/` repository unless it starts with `cd` |
 
 Check the tools:
 

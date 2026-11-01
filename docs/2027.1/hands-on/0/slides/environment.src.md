@@ -67,12 +67,10 @@ that ties them together.
 
 ---
 
-## Windows? Use WSL 2
+## Give Docker room
 
-- `wsl --install -d Ubuntu-24.04`
-- Docker Desktop with **WSL integration** on.
-- Follow the **Linux** instructions inside Ubuntu.
-- Keep the repository in `~/boxoffice`, **not** in `/mnt/c/...`.
+- macOS: Docker Desktop → *Settings → Resources*.
+- Linux: Docker Engine uses the whole machine, no VM in between.
 
 <div class="warn">
 

@@ -80,7 +80,7 @@ curl -fsSL -o docker-compose.yaml https://insper.github.io/platform/2027.1/hands
         Install the NVIDIA Container Toolkit and add to the `ollama` service:
         `deploy: { resources: { reservations: { devices: [{ driver: nvidia, count: all, capabilities: [gpu] }] } } }`.
 
-    === "CPU only (Windows/WSL, Linux)"
+    === "CPU only"
 
         Use the containers as they are. It works, slowly: in a test run on a busy 8-core laptop the
         first token took tens of seconds. Prefer short questions, and compare with the optional Claude

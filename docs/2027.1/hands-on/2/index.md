@@ -13,7 +13,7 @@
 |---|---|
 | **Time** | 2–3 hours (each sweep takes ~10 minutes of waiting: start it and read the next section) |
 | **You need** | the tools of lab 0 (k6, uv, jq); Docker with at least **4 GB**; close heavy applications while measuring |
-| **Directory** | every command runs from the root of your `boxoffice/` repository (Windows: inside WSL 2) |
+| **Directory** | every command runs from the root of your `boxoffice/` repository |
 
 ``` { .bash .copy }
 docker compose version        # Docker Compose v2.x (or newer)

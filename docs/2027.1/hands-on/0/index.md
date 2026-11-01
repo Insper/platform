@@ -15,7 +15,7 @@ This first lab is short but important: a broken environment costs hours later, i
 |---|---|
 | **Time** | 1–2 hours (most of it is downloads) |
 | **You need** | a computer with **8 GB of RAM or more** (16 GB is comfortable from lab 4 on), ~20 GB of free disk, administrator rights, internet access |
-| **Operating system** | macOS, Linux, or Windows 10/11 with **WSL 2** (every command of the course runs in a Linux shell) |
+| **Operating system** | macOS or Linux (every command of the course runs in a Bash shell) |
 | **Start state** | nothing: this lab creates the `boxoffice/` repository from an empty folder |
 
 !!! info "First lab"
@@ -194,18 +194,6 @@ The table lists what each tool is for; the tabs below show how to install them o
     sudo install minikube-linux-amd64 /usr/local/bin/minikube && rm minikube-linux-amd64
     ```
 
-=== ":material-microsoft-windows: Windows"
-
-    Use **WSL 2** with Ubuntu: the labs use Bash scripts, and file sharing between Windows and containers is slow and fragile.
-
-    ``` { .powershell .copy }
-    wsl --install -d Ubuntu-24.04
-    ```
-
-    1. Install [Docker Desktop](https://docs.docker.com/desktop/setup/install/windows-install/){target="_blank"} and enable *Settings → Resources → WSL integration* for Ubuntu.
-    2. Open the **Ubuntu** terminal and follow the **Linux** tab (skip the Docker Engine lines: Docker Desktop provides it).
-    3. Keep your repository **inside the WSL file system** (`~/boxoffice`), not under `/mnt/c/...`.
-
 !!! tip "No k6 installed? Run it in a container"
 
     k6 is a single binary, but if you cannot install it, the official image works with the same scripts. From the repository root:
@@ -253,7 +241,7 @@ Your version numbers will differ; what matters is that nothing says `MISS` or `F
 !!! warning "Common failures"
 
     - `FAIL maven … JAVA_HOME environment variable is not defined correctly`: point `JAVA_HOME` to the JDK 21 folder (`export JAVA_HOME=$(/usr/libexec/java_home -v 21)` on macOS; `/usr/lib/jvm/java-21-openjdk-amd64` on Ubuntu) and add it to your `~/.zshrc` or `~/.bashrc`.
-    - `MISS Docker daemon is not running`: start Docker Desktop (macOS/Windows) or `sudo systemctl start docker` (Linux).
+    - `MISS Docker daemon is not running`: start Docker Desktop (macOS) or `sudo systemctl start docker` (Linux).
     - `permission denied … docker.sock` on Linux: you skipped `usermod -aG docker`; log out and in again.
     - `MISS Python 3.12 or newer`: run `uv python install 3.12`. Never `pip install` into the system Python: every Python step of the course goes through `uv` (`uv run`, `uv add`, `uvx`).
 
@@ -353,7 +341,7 @@ docker stop hello
     vus............................: 10     min=10          max=10
 ```
 
-Your numbers depend on the machine. With Docker Desktop (macOS, Windows) every request also crosses the VM's port forwarding, so expect a few times less than on native Linux — about 15,000 req/s at 10 VUs on an 8-core Apple Silicon laptop.
+Your numbers depend on the machine. With Docker Desktop (macOS) every request also crosses the VM's port forwarding, so expect a few times less than on native Linux — about 15,000 req/s at 10 VUs on an 8-core Apple Silicon laptop.
 
 Read the summary like this:
 
@@ -403,8 +391,7 @@ The [System Design Playground](../../../playground/index.md) simulates the same 
 | `permission denied while trying to connect to the Docker daemon socket` | Linux user not in the `docker` group | `sudo usermod -aG docker "$USER"`, then log out and in |
 | `Cannot connect to the Docker daemon` | Docker Desktop not started | start Docker Desktop and wait for "Engine running" |
 | `FAIL maven … JAVA_HOME` | `JAVA_HOME` points to nothing or to an old JDK | set `JAVA_HOME` to the JDK 21 folder (see "Common failures") |
-| everything is very slow on Windows | the repository lives under `/mnt/c/...` | move it to `~/boxoffice` inside WSL |
-| `check-env.sh: line 1: #!/usr/bin/env: No such file` on WSL | the file was saved with Windows line endings | `sed -i 's/\r$//' scripts/check-env.sh` (and configure your editor to use LF) |
+| `check-env.sh: line 1: #!/usr/bin/env: No such file` | the file was saved with Windows line endings (CRLF) | `sed -i 's/\r$//' scripts/check-env.sh` (and configure your editor to use LF) |
 
 !!! success "Best practices in this lab"
 

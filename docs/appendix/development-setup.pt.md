@@ -52,17 +52,7 @@ O Docker executa aplicações em **containers**: processos leves e isolados que 
 
 === ":material-microsoft-windows: Windows"
 
-    No Windows, o Docker executa containers Linux por meio do **WSL 2** (Windows Subsystem for Linux), um kernel Linux de verdade gerenciado pelo Windows.
-
-    1. Instale o WSL 2 num PowerShell de administrador e reinicie:
-
-        ```powershell
-        wsl --install
-        ```
-
-    2. Instale o [Docker Desktop para Windows](https://docs.docker.com/desktop/setup/install/windows-install/){:target="_blank"} e mantenha o **backend WSL 2** (o padrão). Ele exige Windows 10 22H2 ou Windows 11 23H2 ou mais novo, e WSL 2.1.5 ou mais novo[^desktop-windows].
-
-    Dica: clone os seus repositórios **dentro** do sistema de arquivos do WSL (ex.: `~/code` no Ubuntu), e não em `C:\`; o acesso a arquivos e os bind mounts ficam muito mais rápidos ali.
+    Instale o [Docker Desktop para Windows](https://docs.docker.com/desktop/setup/install/windows-install/){:target="_blank"}. Ele exige Windows 10 22H2 ou Windows 11 23H2 ou mais novo[^desktop-windows].
 
 === ":simple-apple: macOS"
 
@@ -117,7 +107,7 @@ Use uma versão de **suporte de longo prazo** (LTS, Long-Term Support)[^lts]: o 
     sudo apt install openjdk-25-jdk
     ```
 
-??? tip "Vários JDKs lado a lado: SDKMAN! (macOS, Linux, WSL)"
+??? tip "Vários JDKs lado a lado: SDKMAN! (macOS, Linux)"
     O [SDKMAN!](https://sdkman.io/){:target="_blank"} instala e alterna entre versões do JDK (e do Maven) por usuário, sem `sudo`:
 
     ```bash
@@ -228,14 +218,14 @@ Confira se o `mvn -v` informa a **mesma versão do Java** que o `java -version`:
 !!! takeaways ""
 
     - As ferramentas da disciplina seguem um caminho: **código → Git → build com Maven → imagem Docker → container**.
-    - No Windows, o Docker roda pelo **WSL 2**; no macOS, pelo **Docker Desktop**; no Linux, o **Docker Engine** roda nativamente.
+    - No macOS e no Windows, o Docker roda pelo **Docker Desktop**; no Linux, o **Docker Engine** roda nativamente.
     - Instale um **JDK** de versão **LTS**: o JDK 25 (ou o 21 nos laboratórios que o fixam). O **SDKMAN!** ajuda quando você precisa de vários.
     - Prefira o **Maven Wrapper** do projeto (`./mvnw`) quando houver; garanta que `mvn -v` e `java -version` concordem.
     - Na disciplina, o Python roda pelo **uv**, nunca pelo `pip`.
     - Rode os comandos da **verificação** num terminal novo antes do primeiro laboratório.
 
 [^desktop-license]: [Docker Desktop license agreement](https://docs.docker.com/subscription/desktop-license/){:target="_blank"}: gratuito para uso pessoal, educação, projetos open source não comerciais e pequenas empresas (menos de 250 funcionários e menos de US$ 10 milhões de receita anual).
-[^desktop-windows]: [Install Docker Desktop on Windows](https://docs.docker.com/desktop/setup/install/windows-install/){:target="_blank"} e [Install WSL](https://learn.microsoft.com/pt-br/windows/wsl/install){:target="_blank"}.
+[^desktop-windows]: [Install Docker Desktop on Windows](https://docs.docker.com/desktop/setup/install/windows-install/){:target="_blank"}.
 [^postinstall]: [Linux post-installation steps for Docker Engine](https://docs.docker.com/engine/install/linux-postinstall/){:target="_blank"}.
 [^lts]: [Suporte de longo prazo](https://pt.wikipedia.org/wiki/Suporte_de_longo_prazo){:target="_blank"}, Wikipédia.
 [^jdk-releases]: [Oracle Java SE Support Roadmap](https://www.oracle.com/java/technologies/java-se-support-roadmap.html){:target="_blank"}; datas de lançamento resumidas em [endoflife.date](https://endoflife.date/oracle-jdk){:target="_blank"}.

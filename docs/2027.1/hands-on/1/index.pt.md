@@ -12,7 +12,7 @@ Todo site de ingressos começa pela mesma página: *o que tem, onde e quando?* N
 |---|---|
 | **Tempo** | 3–4 horas |
 | **Você precisa de** | as ferramentas do [lab 0](../0/index.md); Docker com pelo menos **4 GB** de memória; o primeiro build baixa ~100 MB de dependências Maven |
-| **Diretório** | todo comando destas páginas roda na raiz do seu repositório `boxoffice/`, a menos que comece com `cd` (Windows: dentro do WSL 2) |
+| **Diretório** | todo comando destas páginas roda na raiz do seu repositório `boxoffice/`, a menos que comece com `cd` |
 
 Confira as ferramentas:
 

@@ -15,7 +15,7 @@ Caches are also, as every interview guide warns[^2], the most common source of s
 |---|---|
 | **Time** | 2–3 hours |
 | **You need** | the tools of lab 0; Docker with at least **6 GB**; ports 80, 8080 and **6379** free |
-| **Directory** | every command runs from the root of your `boxoffice/` repository (Windows: inside WSL 2) |
+| **Directory** | every command runs from the root of your `boxoffice/` repository |
 
 ``` { .bash .copy }
 docker compose version        # Docker Compose v2.x (or newer)

@@ -47,7 +47,7 @@ Instale o plugin `kubectl` do Argo Rollouts:
     brew install argoproj/tap/kubectl-argo-rollouts
     ```
 
-=== "Linux / WSL"
+=== "Linux"
 
     ``` shell
     curl -fsSLo kubectl-argo-rollouts https://github.com/argoproj/argo-rollouts/releases/download/v1.10.1/kubectl-argo-rollouts-linux-amd64

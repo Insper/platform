@@ -16,7 +16,7 @@ A regra do lab inteiro: **a IA propõe; regras e humanos decidem.** Nenhuma etap
 |---|---|
 | **Tempo** | 6–8 horas para as partes 0–6 (uma parte por sessão é ok), mais ~15 minutos por dia durante uma semana na parte 7 |
 | **Você precisa** | das ferramentas do lab 0; de uma **conta no GitHub** (o repositório no GitHub, a CLI `gh` autenticada); para o modelo gratuito, **~6 GB de RAM livre e ~5 GB de disco** (máquinas de 8 GB: veja [Solução de problemas](#troubleshooting)) |
-| **Diretório** | todo comando roda na raiz do seu repositório `boxoffice/` (Windows: dentro do WSL 2) |
+| **Diretório** | todo comando roda na raiz do seu repositório `boxoffice/` |
 | **Custos** | **zero** no caminho padrão: o modelo roda na sua máquina (Ollama) ou no runner do GitHub. O que pode custar dinheiro está em [O que custa dinheiro](#costs) |
 
 ``` { .bash .copy }
@@ -122,11 +122,11 @@ Todos os scripts ficam em `.github/ai/` do seu repositório e importam um único
         ``` { .bash .copy }
         # macOS
         brew install ollama && brew services start ollama
-        # Linux and Windows (inside WSL 2)
+        # Linux
         curl -fsSL https://ollama.com/install.sh | sh
         ```
 
-        Verifique se o servidor responde: `curl -s http://localhost:11434/api/version` imprime `{"version":"..."}`. No Linux sem systemd (algumas instalações de WSL), inicie-o à mão em outro terminal com `ollama serve`.
+        Verifique se o servidor responde: `curl -s http://localhost:11434/api/version` imprime `{"version":"..."}`. No Linux sem systemd, inicie-o à mão em outro terminal com `ollama serve`.
 
     2. Baixe o modelo — **depois** de salvar os arquivos do passo 0.2 (o script é um deles):
 

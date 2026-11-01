@@ -15,7 +15,7 @@ Caches também são, como todo guia de entrevista avisa[^2], a fonte mais comum 
 |---|---|
 | **Tempo** | 2–3 horas |
 | **Você precisa de** | as ferramentas do lab 0; Docker com pelo menos **6 GB**; portas 80, 8080 e **6379** livres |
-| **Diretório** | todo comando roda na raiz do seu repositório `boxoffice/` (Windows: dentro do WSL 2) |
+| **Diretório** | todo comando roda na raiz do seu repositório `boxoffice/` |
 
 ``` { .bash .copy }
 docker compose version        # Docker Compose v2.x (or newer)

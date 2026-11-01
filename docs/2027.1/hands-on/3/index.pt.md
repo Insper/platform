@@ -13,7 +13,7 @@ No lab 2 você encontrou o joelho de uma única instância do `catalog`. O jeito
 |---|---|
 | **Tempo** | 2–3 horas |
 | **Você precisa de** | as ferramentas do lab 0; Docker com pelo menos **6 GB** (três JVMs + PostgreSQL + Nginx); **a porta 80 livre** na sua máquina |
-| **Diretório** | todo comando roda na raiz do seu repositório `boxoffice/` (Windows: dentro do WSL 2) |
+| **Diretório** | todo comando roda na raiz do seu repositório `boxoffice/` |
 
 ``` { .bash .copy }
 docker compose version        # Docker Compose v2.x (or newer)

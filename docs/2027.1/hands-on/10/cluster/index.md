@@ -15,7 +15,7 @@ add-ons are distributed with:
     brew install helm kind kubectl
     ```
 
-=== "Linux / WSL"
+=== "Linux"
 
     ``` shell
     curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-4 | bash

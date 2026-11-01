@@ -13,7 +13,7 @@
 |---|---|
 | **Tempo** | 2–3 horas (cada varredura leva ~10 minutos de espera: inicie-a e leia a próxima seção) |
 | **Você precisa de** | as ferramentas do lab 0 (k6, uv, jq); Docker com pelo menos **4 GB**; feche aplicações pesadas enquanto mede |
-| **Diretório** | todo comando roda na raiz do seu repositório `boxoffice/` (Windows: dentro do WSL 2) |
+| **Diretório** | todo comando roda na raiz do seu repositório `boxoffice/` |
 
 ``` { .bash .copy }
 docker compose version        # Docker Compose v2.x (or newer)

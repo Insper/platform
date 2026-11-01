@@ -15,7 +15,7 @@ This lab builds chapter 5 of the [story of the course](../../index.md#story): th
 |---|---|
 | **Time** | 3–4 hours |
 | **You need** | the tools of lab 0; Docker with at least **6 GB** (five JVMs from now on); ports **80** and **8080** free |
-| **Directory** | every command runs from the root of your `boxoffice/` repository (Windows: inside WSL 2) |
+| **Directory** | every command runs from the root of your `boxoffice/` repository |
 
 ``` { .bash .copy }
 docker compose version        # Docker Compose v2.x (or newer)
