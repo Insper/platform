@@ -195,7 +195,7 @@ Cada grupo de consumidores controla seus próprios offsets, então `notification
 
 Quando um produtor envia uma mensagem **com chave**, o particionador padrão do Kafka calcula o hash da chave para escolher a partição: a mesma chave sempre vai para a mesma partição (enquanto o número de partições não mudar). Mensagens **sem chave** são espalhadas entre as partições.
 
-Como a ordem só é garantida *dentro* de uma partição, a chave é a forma de escolher **o que** precisa permanecer em ordem. No [Hands-on 9](../../hands-on/9/index.md), o order service envia `kafkaTemplate.send("order-events", order.getId().toString(), event)` — o `orderId` é a chave, então `OrderCreated`, `OrderPaid` e `OrderShipped` de um mesmo pedido são sempre lidos em sequência, enquanto pedidos diferentes são processados em paralelo.
+Como a ordem só é garantida *dentro* de uma partição, a chave é a forma de escolher **o que** precisa permanecer em ordem. No [Hands-on 10](../../hands-on/10/index.md), o order service envia `kafkaTemplate.send("order-events", order.getId().toString(), event)` — o `orderId` é a chave, então `OrderCreated`, `OrderPaid` e `OrderShipped` de um mesmo pedido são sempre lidos em sequência, enquanto pedidos diferentes são processados em paralelo.
 
 ``` mermaid-sim
 flowchart LR
@@ -223,10 +223,10 @@ A configuração `acks` do produtor escolhe quanto disso o produtor espera:
 | `1` | a líder a gravou | Perdida se a líder morrer antes de as seguidoras copiarem |
 | `all` | todas as réplicas em sincronia a têm (com `min.insync.replicas` ≥ 2) | Mais lenta, mas sobrevive à perda de um broker |
 
-O Hands-on 9 usa `acks: all` com `enable.idempotence: true`; o produtor idempotente anexa um número de sequência a cada mensagem, para que os retries do próprio produtor não criem duplicatas no log. (Desde o Kafka 3.0, ambos já são o padrão do produtor.)
+O Hands-on 10 usa `acks: all` com `enable.idempotence: true`; o produtor idempotente anexa um número de sequência a cada mensagem, para que os retries do próprio produtor não criem duplicatas no log. (Desde o Kafka 3.0, ambos já são o padrão do produtor.)
 
 !!! info "ZooKeeper e KRaft"
-    Clusters Kafka mais antigos guardavam seus metadados em um ensemble ZooKeeper separado. Hoje o Kafka tem seu próprio quórum de metadados baseado em Raft (**KRaft**; veja [Consenso](../distributed_systems/consensus/index.md)), e o Kafka 4.0 (2025) removeu completamente o suporte ao ZooKeeper. O [Hands-on 9](../../hands-on/9/index.md) roda o Kafka 4 em modo KRaft: um único nó que é broker e controller ao mesmo tempo.
+    Clusters Kafka mais antigos guardavam seus metadados em um ensemble ZooKeeper separado. Hoje o Kafka tem seu próprio quórum de metadados baseado em Raft (**KRaft**; veja [Consenso](../distributed_systems/consensus/index.md)), e o Kafka 4.0 (2025) removeu completamente o suporte ao ZooKeeper. O [Hands-on 10](../../hands-on/10/index.md) roda o Kafka 4 em modo KRaft: um único nó que é broker e controller ao mesmo tempo.
 
 ---
 
@@ -290,7 +290,7 @@ Um consumidor lê uma mensagem, a processa (por exemplo, envia um e-mail) e **fa
 | Garantia | Como | Uma queda significa | Uso típico |
 |---|---|---|---|
 | **At-most-once** | Commit **antes** de processar | A mensagem é **perdida** | Métricas em que uma lacuna é aceitável |
-| **At-least-once** | Commit **depois** de processar | A mensagem é **processada de novo** | A escolha padrão — Hands-on 9 (`enable_auto_commit=False` + `commit()` após o processamento) |
+| **At-least-once** | Commit **depois** de processar | A mensagem é **processada de novo** | A escolha padrão — Hands-on 10 (`enable_auto_commit=False` + `commit()` após o processamento) |
 | **Exactly-once** | Transações do Kafka (produtor idempotente + `isolation.level=read_committed`) | Nenhuma das duas — mas só para *ler do Kafka → escrever no Kafka* | Processamento de streams (Kafka Streams) |
 
 ``` mermaid-sim
@@ -321,7 +321,7 @@ Formas comuns de tornar um consumidor idempotente:
 
 ### O problema da escrita dupla (dual write)
 
-No Hands-on 9, o order service salva o pedido no Postgres e *depois* publica `OrderCreated` no Kafka. São dois sistemas diferentes, e nenhuma transação cobre os dois:
+No Hands-on 10, o order service salva o pedido no Postgres e *depois* publica `OrderCreated` no Kafka. São dois sistemas diferentes, e nenhuma transação cobre os dois:
 
 - O commit no banco funciona, e o serviço cai antes de publicar → o pedido existe, mas ninguém nunca é avisado.
 - O evento é publicado, e a transação do banco sofre rollback → os consumidores reagem a um pedido que não existe.
@@ -435,11 +435,11 @@ Faça retry apenas das falhas que podem dar certo depois (um banco brevemente in
 
 ## Conexões
 
-- [Hands-on 9](../../hands-on/9/index.md) — Kafka na loja: `OrderCreated` publicado pelo order service e consumido pelo notification service, com uma DLQ.
+- [Hands-on 10](../../hands-on/10/index.md) — Kafka na loja: `OrderCreated` publicado pelo order service e consumido pelo notification service, com uma DLQ.
 - [Microsserviços](../microservices/index.md) — um banco por serviço, o motivo pelo qual sagas e outboxes são necessários.
 - [Sistemas distribuídos](../distributed_systems/index.md) — consistência eventual, ordem e consenso (KRaft).
 - [Confiabilidade](../reliability/index.md) — retries, backoff e idempotência também se aplicam aos consumidores.
-- [Observabilidade](../observability/index.md) e [Hands-on 10](../../hands-on/10/index.md) — rastreando uma requisição através dos tópicos.
+- [Observabilidade](../observability/index.md) e [Hands-on 11](../../hands-on/11/index.md) — rastreando uma requisição através dos tópicos.
 
 ## Pontos-chave
 

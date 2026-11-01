@@ -240,7 +240,7 @@ public record OrderPlaced(
 ) {}
 ```
 
-Quando o agregado `Order` é efetivado, ele emite `OrderPlaced`. Outros bounded contexts (Estoque, Faturamento, Notificações) assinam esse evento e reagem de forma independente — sem que o contexto de Pedidos saiba quem está ouvindo. No [Hands-on 9](../../../hands-on/9/index.md), esse é o evento `OrderCreated` que o serviço de pedidos publica no tópico Kafka `order-events` e que o serviço de notificação consome.
+Quando o agregado `Order` é efetivado, ele emite `OrderPlaced`. Outros bounded contexts (Estoque, Faturamento, Notificações) assinam esse evento e reagem de forma independente — sem que o contexto de Pedidos saiba quem está ouvindo. No [Hands-on 10](../../../hands-on/10/index.md), esse é o evento `OrderCreated` que o serviço de pedidos publica no tópico Kafka `order-events` e que o serviço de notificação consome.
 
 ### Serviços de domínio
 
@@ -307,7 +307,7 @@ O processo:
 
 - Por que as fronteiras importam: [Microsserviços](../index.md). A infraestrutura ao redor delas: [Arquitetura e componentes](../architecture/index.md).
 - Mantendo o domínio independente de frameworks dentro de um serviço: [Clean Architecture](../../architectures/clean/index.md) e [Arquitetura Hexagonal](../../architectures/hexagonal/index.md).
-- Eventos de domínio em um broker: [Arquitetura orientada a eventos](../../event_driven/index.md), [Hands-on 9 — Kafka](../../../hands-on/9/index.md).
+- Eventos de domínio em um broker: [Arquitetura orientada a eventos](../../event_driven/index.md), [Hands-on 10 — Kafka](../../../hands-on/10/index.md).
 - Modele os seus próprios contextos: [Product API](../../../exercises/product/index.md), [Order API](../../../exercises/order/index.md), [Exchange API](../../../exercises/exchange/index.md).
 
 ---

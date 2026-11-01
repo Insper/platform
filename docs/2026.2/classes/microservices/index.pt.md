@@ -173,7 +173,7 @@ O curso constrói uma plataforma passo a passo. Cada serviço é dono de uma cap
 | `product-service` | Catálogo de produtos | dados de produtos | — | [Product API](../../exercises/product/index.md) |
 | `order-service` | Pedidos do usuário atual | dados de pedidos | product, exchange, Kafka | [Order API](../../exercises/order/index.md) |
 | `exchange-service` (Python) | Conversão de moedas | — | API de cotações de terceiros | [Exchange API](../../exercises/exchange/index.md) |
-| `notification-service` (Python) | E-mails de confirmação de pedido | — | Kafka | [Hands-on 9](../../hands-on/9/index.md) |
+| `notification-service` (Python) | E-mails de confirmação de pedido | — | Kafka | [Hands-on 10](../../hands-on/10/index.md) |
 
 Observe a *governança descentralizada* em ação: os serviços de câmbio e de notificação são escritos em Python, os demais em Java — o contrato é HTTP/JSON ou um evento Kafka, então a linguagem não vaza.
 
@@ -247,7 +247,7 @@ Os serviços de um sistema de microsserviços se comunicam de duas formas fundam
 
     **Use quando:** a consistência estrita não é necessária de imediato (por exemplo, enviar um e-mail, atualizar analytics, reservar estoque).
 
-Na loja, o serviço de pedidos chama o serviço de produtos de forma **síncrona** (ele precisa do preço para calcular o total antes de responder) e publica um evento `OrderCreated` no Kafka de forma **assíncrona**, para que o serviço de notificação envie o e-mail sem deixar o cliente esperando ([Hands-on 9](../../hands-on/9/index.md)).
+Na loja, o serviço de pedidos chama o serviço de produtos de forma **síncrona** (ele precisa do preço para calcular o total antes de responder) e publica um evento `OrderCreated` no Kafka de forma **assíncrona**, para que o serviço de notificação envie o e-mail sem deixar o cliente esperando ([Hands-on 10](../../hands-on/10/index.md)).
 
 !!! warning "Cadeias síncronas multiplicam as falhas"
     Se uma requisição precisa passar por três serviços, e cada um fica disponível 99,9% do tempo, a cadeia fica disponível apenas 0,999 × 0,999 × 0,999 ≈ **99,7%** do tempo — de cerca de 8,8 horas de indisponibilidade por ano para cerca de 26 horas. Cada salto síncrono a mais reduz a disponibilidade e adiciona latência. Mantenha as cadeias curtas, use timeouts e circuit breakers ([Padrões de resiliência](../reliability/patterns/index.md)) e mova para eventos o trabalho que não precisa de resposta imediata ([Arquitetura orientada a eventos](../event_driven/index.md)).
@@ -292,7 +292,7 @@ Na loja, o serviço de pedidos chama o serviço de produtos de forma **síncrona
 - Os contratos entre serviços: [API](../api/index.md).
 - Construa a plataforma: [Hands-on 1 — CRUD](../../hands-on/1/index.md), [Hands-on 2 — Gateway](../../hands-on/2/index.md), [Hands-on 3 — Segurança](../../hands-on/3/index.md).
 - Dentro de um serviço: [Arquiteturas de software](../architectures/index.md) (clean e hexagonal).
-- Integração assíncrona: [Arquitetura orientada a eventos](../event_driven/index.md) e [Hands-on 9 — Kafka](../../hands-on/9/index.md).
+- Integração assíncrona: [Arquitetura orientada a eventos](../event_driven/index.md) e [Hands-on 10 — Kafka](../../hands-on/10/index.md).
 
 ---
 

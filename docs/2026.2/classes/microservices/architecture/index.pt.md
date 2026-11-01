@@ -69,7 +69,7 @@ No curso, a configuração segue a regra **twelve-factor** de mantê-la no ambie
 
 ### Message broker
 
-Transporta eventos entre os serviços de forma assíncrona, para que o produtor não espere — nem sequer conheça — os seus consumidores. O curso usa o **Apache Kafka**: o serviço de pedidos publica `OrderCreated` no tópico `order-events` e o serviço de notificação o consome ([Hands-on 9](../../../hands-on/9/index.md), [Arquitetura orientada a eventos](../../event_driven/index.md)).
+Transporta eventos entre os serviços de forma assíncrona, para que o produtor não espere — nem sequer conheça — os seus consumidores. O curso usa o **Apache Kafka**: o serviço de pedidos publica `OrderCreated` no tópico `order-events` e o serviço de notificação o consome ([Hands-on 10](../../../hands-on/10/index.md), [Arquitetura orientada a eventos](../../event_driven/index.md)).
 
 ### Cache distribuído
 
@@ -77,7 +77,7 @@ Um armazenamento em memória compartilhado por todas as réplicas de um serviço
 
 ### Stack de observabilidade
 
-Com dezenas de processos, "olhar o log" não funciona mais. A plataforma coleta **métricas** (o Prometheus coleta o `/actuator/prometheus` de cada serviço; o Grafana desenha os dashboards — [Hands-on 6](../../../hands-on/6/index.md)) e **traces** que acompanham uma requisição através dos serviços (OpenTelemetry + Jaeger — [Hands-on 10](../../../hands-on/10/index.md)). Veja [Observabilidade](../../observability/index.md).
+Com dezenas de processos, "olhar o log" não funciona mais. A plataforma coleta **métricas** (o Prometheus coleta o `/actuator/prometheus` de cada serviço; o Grafana desenha os dashboards — [Hands-on 6](../../../hands-on/6/index.md)) e **traces** que acompanham uma requisição através dos serviços (OpenTelemetry + Jaeger — [Hands-on 11](../../../hands-on/11/index.md)). Veja [Observabilidade](../../observability/index.md).
 
 ### Resumo: a plataforma do curso
 
@@ -88,9 +88,9 @@ Com dezenas de processos, "olhar o log" não funciona mais. A plataforma coleta 
 | Provedor de identidade | Keycloak, Auth0, Amazon Cognito | `auth-service` emitindo JWTs | [3](../../../hands-on/3/index.md) |
 | Descoberta de serviços | Eureka, Consul, DNS do Kubernetes | DNS do Docker Compose, depois Services do Kubernetes | [1](../../../hands-on/1/index.md), [5](../../../hands-on/5/index.md) |
 | Configuração | Spring Cloud Config, Vault, ConfigMaps | `.env` + variáveis de ambiente, depois ConfigMaps e Secrets | [5](../../../hands-on/5/index.md) |
-| Message broker | Kafka, RabbitMQ | Kafka | [9](../../../hands-on/9/index.md) |
+| Message broker | Kafka, RabbitMQ | Kafka | [10](../../../hands-on/10/index.md) |
 | Cache | Redis, Memcached | Redis | [8](../../../hands-on/8/index.md) |
-| Observabilidade | Prometheus, Grafana, OpenTelemetry, Jaeger | Prometheus + Grafana, OpenTelemetry + Jaeger | [6](../../../hands-on/6/index.md), [10](../../../hands-on/10/index.md) |
+| Observabilidade | Prometheus, Grafana, OpenTelemetry, Jaeger | Prometheus + Grafana, OpenTelemetry + Jaeger | [6](../../../hands-on/6/index.md), [11](../../../hands-on/11/index.md) |
 
 ---
 
@@ -217,7 +217,7 @@ Essas práticas são desenvolvidas em aulas próprias: [Padrões de resiliência
 
 ## Conexões
 
-- Construa os componentes: [Hands-on 2 — Gateway](../../../hands-on/2/index.md), [3 — Segurança](../../../hands-on/3/index.md), [5 — Orquestração](../../../hands-on/5/index.md), [6 — Observabilidade](../../../hands-on/6/index.md), [7 — Balanceador de carga](../../../hands-on/7/index.md), [8 — Cache](../../../hands-on/8/index.md), [9 — Kafka](../../../hands-on/9/index.md), [10 — Rastreamento](../../../hands-on/10/index.md).
+- Construa os componentes: [Hands-on 2 — Gateway](../../../hands-on/2/index.md), [3 — Segurança](../../../hands-on/3/index.md), [5 — Orquestração](../../../hands-on/5/index.md), [6 — Observabilidade](../../../hands-on/6/index.md), [7 — Balanceador de carga](../../../hands-on/7/index.md), [8 — Cache](../../../hands-on/8/index.md), [10 — Kafka](../../../hands-on/10/index.md), [11 — Rastreamento](../../../hands-on/11/index.md).
 - Por que e onde dividir: [Microsserviços](../index.md), [Domain-Driven Design](../ddd/index.md).
 - Fazendo o deploy de tudo: [Projeto](../../../exercises/project/index.md).
 

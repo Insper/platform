@@ -261,7 +261,7 @@ O Compose roda tudo em **um único host**. Ele não distribui containers entre m
 
 - [Hands-on 1 — Containerização](../../../hands-on/1/containerization/index.md) — o primeiro arquivo Compose da loja: serviço de contas e PostgreSQL.
 - [Hands-on 2](../../../hands-on/2/index.md) — o gateway como único ponto de entrada publicado.
-- [Hands-on 7](../../../hands-on/7/index.md), [Hands-on 8](../../../hands-on/8/index.md), [Hands-on 9](../../../hands-on/9/index.md) — adicionando Nginx, Redis e Kafka à mesma stack do Compose.
+- [Hands-on 7](../../../hands-on/7/index.md), [Hands-on 8](../../../hands-on/8/index.md), [Hands-on 10](../../../hands-on/10/index.md) — adicionando Nginx, Redis e Kafka à mesma stack do Compose.
 - [Hands-on 5](../../../hands-on/5/index.md) — do Compose ao Kubernetes.
 
 ## Pontos-chave

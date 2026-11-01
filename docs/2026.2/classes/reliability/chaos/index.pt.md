@@ -174,7 +174,7 @@ Engenharia do caos sem observabilidade é perigosa e improdutiva. Antes de rodar
 
 - [SLI / SLO / SLA](../sli-slo-sla/index.md) — o estado estável é expresso como SLIs, e os experimentos gastam error budget.
 - [Padrões de Resiliência](../patterns/index.md) — o que os experimentos de caos verificam.
-- [Observabilidade](../../observability/index.md) e [Hands-on 10](../../../hands-on/10/index.md) — você precisa de métricas e traces para observar um experimento.
+- [Observabilidade](../../observability/index.md) e [Hands-on 11](../../../hands-on/11/index.md) — você precisa de métricas e traces para observar um experimento.
 - [Hands-on 5](../../../hands-on/5/index.md) — apagar um pod manualmente (`kubectl delete pod`) é o experimento de caos mais simples que você pode rodar no Kubernetes.
 
 ## Pontos-chave

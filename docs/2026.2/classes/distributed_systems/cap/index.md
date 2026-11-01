@@ -167,6 +167,7 @@ PACELC[^4] is more useful than CAP for making day-to-day database choices, becau
 
 - [Consensus & Algorithms](../consensus/index.md) — how CP systems such as etcd actually stay consistent: majorities and Raft.
 - [Hands-on 8](../../../hands-on/8/index.md) — a Redis cache, an explicit choice of latency over consistency.
+- [Hands-on 9](../../../hands-on/9/index.md) — a PostgreSQL cluster: stale reads on async replicas, commits that block with synchronous replication, a write lost in a failover.
 - [Event-Driven Architecture](../../event_driven/index.md) — asynchronous events make services eventually consistent with each other.
 
 ## Key takeaways

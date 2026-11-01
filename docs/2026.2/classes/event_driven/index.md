@@ -195,7 +195,7 @@ Each consumer group tracks its own offsets, so `notification-group` and `analyti
 
 When a producer sends a message **with a key**, Kafka's default partitioner hashes the key to choose the partition: the same key always goes to the same partition (as long as the number of partitions does not change). Messages **without a key** are spread across partitions.
 
-Since order is only guaranteed *inside* a partition, the key is how you choose **what** must stay in order. In [Hands-on 9](../../hands-on/9/index.md) the order service sends `kafkaTemplate.send("order-events", order.getId().toString(), event)` — the `orderId` is the key, so `OrderCreated`, `OrderPaid` and `OrderShipped` of the same order are always read in sequence, while different orders are processed in parallel.
+Since order is only guaranteed *inside* a partition, the key is how you choose **what** must stay in order. In [Hands-on 10](../../hands-on/10/index.md) the order service sends `kafkaTemplate.send("order-events", order.getId().toString(), event)` — the `orderId` is the key, so `OrderCreated`, `OrderPaid` and `OrderShipped` of the same order are always read in sequence, while different orders are processed in parallel.
 
 ``` mermaid-sim
 flowchart LR
@@ -223,10 +223,10 @@ The producer setting `acks` chooses how much of this the producer waits for:
 | `1` | the leader has written it | Lost if the leader dies before followers copy it |
 | `all` | all in-sync replicas have it (with `min.insync.replicas` ≥ 2) | Slowest, but survives the loss of a broker |
 
-Hands-on 9 uses `acks: all` with `enable.idempotence: true`; the idempotent producer attaches a sequence number to each message so that the producer's own retries do not create duplicates in the log. (Since Kafka 3.0 both are already the producer defaults.)
+Hands-on 10 uses `acks: all` with `enable.idempotence: true`; the idempotent producer attaches a sequence number to each message so that the producer's own retries do not create duplicates in the log. (Since Kafka 3.0 both are already the producer defaults.)
 
 !!! info "ZooKeeper and KRaft"
-    Older Kafka clusters stored their metadata in a separate ZooKeeper ensemble. Kafka now has its own Raft-based metadata quorum (**KRaft**; see [Consensus](../distributed_systems/consensus/index.md)), and Kafka 4.0 (2025) removed ZooKeeper support entirely. [Hands-on 9](../../hands-on/9/index.md) runs Kafka 4 in KRaft mode: a single node that is both broker and controller.
+    Older Kafka clusters stored their metadata in a separate ZooKeeper ensemble. Kafka now has its own Raft-based metadata quorum (**KRaft**; see [Consensus](../distributed_systems/consensus/index.md)), and Kafka 4.0 (2025) removed ZooKeeper support entirely. [Hands-on 10](../../hands-on/10/index.md) runs Kafka 4 in KRaft mode: a single node that is both broker and controller.
 
 ---
 
@@ -290,7 +290,7 @@ A consumer reads a message, processes it (e.g. sends an e-mail), and **commits i
 | Guarantee | How | A crash means | Typical use |
 |---|---|---|---|
 | **At-most-once** | Commit **before** processing | The message is **lost** | Metrics where a gap is acceptable |
-| **At-least-once** | Commit **after** processing | The message is **processed again** | The default choice — Hands-on 9 (`enable_auto_commit=False` + `commit()` after processing) |
+| **At-least-once** | Commit **after** processing | The message is **processed again** | The default choice — Hands-on 10 (`enable_auto_commit=False` + `commit()` after processing) |
 | **Exactly-once** | Kafka transactions (idempotent producer + `isolation.level=read_committed`) | Neither — but only for *read from Kafka → write to Kafka* | Stream processing (Kafka Streams) |
 
 ``` mermaid-sim
@@ -321,7 +321,7 @@ Common ways to make a consumer idempotent:
 
 ### The dual-write problem
 
-In Hands-on 9 the order service saves the order in Postgres and *then* publishes `OrderCreated` to Kafka. These are two different systems, and no transaction covers both:
+In Hands-on 10 the order service saves the order in Postgres and *then* publishes `OrderCreated` to Kafka. These are two different systems, and no transaction covers both:
 
 - The database commit succeeds, then the service crashes before publishing → the order exists, but nobody is ever notified.
 - The event is published, then the database transaction rolls back → consumers react to an order that does not exist.
@@ -435,11 +435,11 @@ Retry only failures that can succeed later (a database briefly unavailable). A m
 
 ## Connections
 
-- [Hands-on 9](../../hands-on/9/index.md) — Kafka in the store: `OrderCreated` published by the order service and consumed by the notification service, with a DLQ.
+- [Hands-on 10](../../hands-on/10/index.md) — Kafka in the store: `OrderCreated` published by the order service and consumed by the notification service, with a DLQ.
 - [Microservices](../microservices/index.md) — database per service, the reason sagas and outboxes are needed.
 - [Distributed Systems](../distributed_systems/index.md) — eventual consistency, ordering and consensus (KRaft).
 - [Reliability](../reliability/index.md) — retries, backoff and idempotency apply to consumers too.
-- [Observability](../observability/index.md) and [Hands-on 10](../../hands-on/10/index.md) — tracing a request across topics.
+- [Observability](../observability/index.md) and [Hands-on 11](../../hands-on/11/index.md) — tracing a request across topics.
 
 ## Key takeaways
 

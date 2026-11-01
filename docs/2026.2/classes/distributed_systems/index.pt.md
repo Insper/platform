@@ -174,7 +174,7 @@ sequenceDiagram
 A garantia é: **se *a* → *b*, então L(*a*) < L(*b*)**. A recíproca *não* é verdadeira — um timestamp de Lamport menor não prova que um evento causou o outro. Os **relógios vetoriais** resolvem isso mantendo um contador *por processo*; comparar dois vetores diz se um evento aconteceu antes do outro ou se eles são concorrentes. Eles são usados para detectar escritas conflitantes em bancos de dados replicados (veja [Consistência eventual](consensus/index.md#eventual-consistency-and-crdts)).
 
 !!! example "Onde você vai encontrar ordenação no curso"
-    O Kafka não usa o horário de relógio para ordenar mensagens: ele atribui a cada mensagem um **offset** monotonicamente crescente dentro de uma partição, de modo que todos os consumidores veem a mesma ordem naquela partição ([Hands-on 9](../../hands-on/9/index.md)). O Raft usa um contador lógico chamado **term** (mandato) para distinguir líderes antigos de novos ([Consenso](consensus/index.md#raft)).
+    O Kafka não usa o horário de relógio para ordenar mensagens: ele atribui a cada mensagem um **offset** monotonicamente crescente dentro de uma partição, de modo que todos os consumidores veem a mesma ordem naquela partição ([Hands-on 10](../../hands-on/10/index.md)). O Raft usa um contador lógico chamado **term** (mandato) para distinguir líderes antigos de novos ([Consenso](consensus/index.md#raft)).
 
 !!! warning "Não ordene eventos de máquinas diferentes por `System.currentTimeMillis()`"
     Comparar timestamps gerados por servidores diferentes é uma fonte clássica de bugs, por exemplo na resolução de conflitos "last write wins" (a última escrita vence): um nó com o relógio adiantado vence silenciosamente todos os conflitos. Use uma única autoridade para a ordenação (uma sequence do banco de dados, o offset de uma partição do Kafka) ou relógios lógicos.
@@ -208,10 +208,10 @@ A garantia é: **se *a* → *b*, então L(*a*) < L(*b*)**. A recíproca *não* �
 ## Conexões
 
 - [Microsserviços](../microservices/index.md) — dividir a loja em serviços é o que a transforma em um sistema distribuído.
-- [Arquitetura orientada a eventos](../event_driven/index.md) e [Hands-on 9](../../hands-on/9/index.md) — mensageria assíncrona com Kafka, ordenada pelos offsets das partições.
+- [Arquitetura orientada a eventos](../event_driven/index.md) e [Hands-on 10](../../hands-on/10/index.md) — mensageria assíncrona com Kafka, ordenada pelos offsets das partições.
 - [Confiabilidade](../reliability/index.md) — timeouts, retries, circuit breakers: projetar para a falha parcial.
 - [Hands-on 7](../../hands-on/7/index.md) e [Hands-on 8](../../hands-on/8/index.md) — escalabilidade horizontal atrás de um balanceador de carga, e um cache Redis.
-- [Hands-on 10](../../hands-on/10/index.md) — rastreamento distribuído, para ver uma requisição atravessando muitos serviços.
+- [Hands-on 11](../../hands-on/11/index.md) — rastreamento distribuído, para ver uma requisição atravessando muitos serviços.
 
 ## Pontos-chave
 

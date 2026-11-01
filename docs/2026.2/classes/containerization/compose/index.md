@@ -261,7 +261,7 @@ Compose runs everything on **one host**. It does not spread containers across ma
 
 - [Hands-on 1 — Containerization](../../../hands-on/1/containerization/index.md) — the first Compose file of the store: account service and PostgreSQL.
 - [Hands-on 2](../../../hands-on/2/index.md) — the gateway as the only published entry point.
-- [Hands-on 7](../../../hands-on/7/index.md), [Hands-on 8](../../../hands-on/8/index.md), [Hands-on 9](../../../hands-on/9/index.md) — adding Nginx, Redis and Kafka to the same Compose stack.
+- [Hands-on 7](../../../hands-on/7/index.md), [Hands-on 8](../../../hands-on/8/index.md), [Hands-on 10](../../../hands-on/10/index.md) — adding Nginx, Redis and Kafka to the same Compose stack.
 - [Hands-on 5](../../../hands-on/5/index.md) — from Compose to Kubernetes.
 
 ## Key takeaways

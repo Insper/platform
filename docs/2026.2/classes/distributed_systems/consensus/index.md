@@ -263,7 +263,7 @@ CRDTs are used in Riak's data types, Redis Enterprise Active-Active databases an
 | **Consul** | Service discovery, distributed locks | Raft |
 | **Apache Kafka** | Distributed log, messaging | KRaft (Raft-based); ZooKeeper mode was removed in Kafka 4.0 (2025) |
 
-The Kafka setup of [Hands-on 9](../../../hands-on/9/index.md) runs Kafka 4 in KRaft mode: there is no ZooKeeper container — the coordination runs inside Kafka itself, on its own Raft quorum.
+The Kafka setup of [Hands-on 10](../../../hands-on/10/index.md) runs Kafka 4 in KRaft mode: there is no ZooKeeper container — the coordination runs inside Kafka itself, on its own Raft quorum.
 
 !!! warning "Pitfalls"
     - **Do not implement Paxos or Raft yourself** for an application. Delegate to a proven system: etcd, ZooKeeper, Consul, or the database (a `SELECT … FOR UPDATE`, a unique constraint, an advisory lock).
@@ -276,7 +276,8 @@ The Kafka setup of [Hands-on 9](../../../hands-on/9/index.md) runs Kafka 4 in KR
 
 - [CAP Theorem](../cap/index.md) — consensus-based stores (etcd, ZooKeeper) are the classic CP systems.
 - [Hands-on 5](../../../hands-on/5/index.md) — Kubernetes keeps its whole state in etcd, replicated with Raft.
-- [Hands-on 9](../../../hands-on/9/index.md) and [Event-Driven Architecture](../../event_driven/index.md) — Kafka replicates partitions with a leader per partition.
+- [Hands-on 9](../../../hands-on/9/failover/index.md) — a PostgreSQL failover done by hand, and why automating it (Patroni + etcd) needs consensus to avoid split brain.
+- [Hands-on 10](../../../hands-on/10/index.md) and [Event-Driven Architecture](../../event_driven/index.md) — Kafka replicates partitions with a leader per partition.
 
 ## Key takeaways
 

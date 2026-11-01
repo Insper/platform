@@ -291,7 +291,7 @@ Most apps read far more than they write: split **commands** from **queries**.
 | Scalability | write throughput | read throughput, independently |
 | Storage | normalised or event log | denormalised, pre-joined |
 
-<p class="small">Pitfall: read-your-own-writes. Event Sourcing is optional — see the Event-Driven class and Hands-on 9.</p>
+<p class="small">Pitfall: read-your-own-writes. Event Sourcing is optional — see the Event-Driven class and Hands-on 10.</p>
 
 ---
 

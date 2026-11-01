@@ -1,348 +1,135 @@
-# 9. Kafka Messaging
+!!! tip "Main Goal"
 
-!!! info "Goal"
+    The main goal of this hands-on is to build a **PostgreSQL cluster** in Docker Compose — one primary and two replicas kept in sync by **streaming replication** — and use it to *see* the concepts of a database cluster: replication, read scaling, replication lag, synchronous commits, failover and lost writes.
 
-    Add asynchronous messaging to the platform. When an order is created, publish an `OrderCreated` event to Apache Kafka. A new `notification-service` (Python/FastAPI) consumes this event asynchronously and simulates sending a confirmation email — without the order-service knowing the notification-service exists.
-
-The platform currently uses synchronous REST calls for all inter-service communication. Every call the order-service makes — to account-service, to product-service — happens inline, before the response is returned to the client. This works for operations where the caller needs a result immediately. But some operations are fire-and-forget: when an order is created, sending an email confirmation doesn't need to block the customer. This hands-on adds Apache Kafka as the messaging backbone for exactly these cases.
+Every hands-on so far ran a single `db` container. When it stops, every service that depends on it stops too: it is a **single point of failure**. Scaling the gateway to three replicas (hands-on 7) and adding a cache (hands-on 8) took load off the database, but did not remove that single point. A **database cluster** keeps copies of the data on several servers, so one of them can take over when another fails.
 
 ## Slides
 
 <div class="slides-embed">
-  <iframe src="slides/kafka.html" title="Slides: kafka messaging" loading="lazy" allowfullscreen></iframe>
+  <iframe src="slides/db-cluster.html" title="Slides: database cluster" loading="lazy" allowfullscreen></iframe>
 </div>
 
 Click the slides and use ← → to move through them; **F** goes full screen and **P** opens the presenter view, with the notes.
-[:material-presentation: Open the slides in a new tab](slides/kafka.html){:target="_blank"}
+[:material-presentation: Open the slides in a new tab](slides/db-cluster.html){:target="_blank"}
 
-## 1. Architecture
+## Why a database cluster
 
-=== "Before"
+| Goal | What the cluster gives | What it does **not** give |
+|---|---|---|
+| **Availability** | another server already has the data and can become the primary | zero downtime: a failover still takes seconds |
+| **Read scaling** | `SELECT`s spread across the replicas | write scaling: every write still goes to **one** primary |
+| **Durability** | a copy of every commit on another machine | protection from a `DELETE` by mistake: it is replicated too (that is what backups are for) |
 
-    ``` mermaid-sim
-    flowchart LR
-        client[Client] -->|REST| gw[Gateway]
-        gw -->|REST| order[order-service]
-        order -->|REST sync| account[account-service]
-        order -->|REST sync| product[product-service]
-    ```
+Scaling **writes** needs a different technique, **sharding** (splitting the data across independent primaries, as Citus or Vitess do). This hands-on is about **replication**: every node holds *all* the data.
 
-=== "After"
+## How PostgreSQL replicates: the WAL
 
-    ``` mermaid-sim
-    flowchart LR
-        client[Client] -->|REST| gw[Gateway]
-        gw -->|REST| order[order-service]
-        order -->|REST sync| account[account-service]
-        order -->|REST sync| product[product-service]
-        order -->|"Kafka (async)\norder-events"| kafka[(Kafka)]
-        kafka -->|"Kafka (async)"| notification[notification-service]
-    ```
+Before changing a data page, PostgreSQL writes the change to the **WAL** (*write-ahead log*), an append-only log on disk. After a crash, the server replays the WAL to recover. Replication reuses the same log: the primary sends its WAL to the replicas, which replay it, byte by byte, and end up with identical copies.
 
-!!! tip "Decoupling"
-
-    The order-service publishes to a topic called `order-events`. It has no knowledge of the notification-service. Tomorrow you could add an analytics-service consuming the same topic without touching a single line of order-service code.
-
----
-
-## 2. Docker Compose — Adding Kafka
-
-Add Kafka and Kafka UI to `docker-compose.yml`. A single Kafka 4 node runs in **KRaft** mode — no ZooKeeper container. Kafka UI provides a browser-based interface for inspecting topics and messages during development.
-
-=== "docker-compose.yml additions"
-
-    ``` { .yaml .copy .select }
-      kafka:
-        image: apache/kafka:4.3.1
-        ports:
-          - "9092:9092"
-        environment:
-          # KRaft combined mode: this single node is both broker and controller
-          KAFKA_NODE_ID: 1
-          KAFKA_PROCESS_ROLES: broker,controller
-          KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
-          KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
-          KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
-          KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
-          KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-          KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-          # single broker: internal topics cannot have more than 1 replica
-          KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-          KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-          KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-          KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
-
-      kafka-ui:
-        image: provectuslabs/kafka-ui:latest
-        depends_on:
-          - kafka
-        ports:
-          - "8090:8080"
-        environment:
-          KAFKA_CLUSTERS_0_NAME: local
-          KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
-    ```
-
-!!! info "KRaft — no ZooKeeper"
-
-    Kafka keeps its cluster metadata (topics, partitions, leaders) in its own Raft-based controller quorum, **KRaft**. Before, this metadata lived in a separate ZooKeeper ensemble; Kafka 4.0 (2025) removed ZooKeeper support entirely. Here the single node is both broker and controller (`KAFKA_PROCESS_ROLES: broker,controller`): clients talk to the `PLAINTEXT` listener on `kafka:9092`, and the controller quorum uses the `CONTROLLER` listener on port 9093. See [Event-Driven Architecture](../../classes/event_driven/index.md).
-
-!!! note "Kafka UI"
-
-    Access Kafka UI at `http://localhost:8090`. You can browse topics, inspect messages, and monitor consumer group lag — essential for debugging during development.
-
----
-
-## 3. Order Service — Publishing Events
-
-### 3.1 Dependency
-
-Add `spring-kafka` to the order-service's `pom.xml`:
-
-``` { .xml .copy .select }
-<dependency>
-    <groupId>org.springframework.kafka</groupId>
-    <artifactId>spring-kafka</artifactId>
-</dependency>
+``` mermaid-sim
+sequenceDiagram
+    participant App as Service
+    participant P as Primary
+    participant R1 as Replica 1
+    participant R2 as Replica 2
+    App->>P: INSERT INTO orders ...
+    P->>P: append the change to the WAL
+    P-->>App: COMMIT ok
+    P->>R1: stream WAL records
+    P->>R2: stream WAL records
+    R1->>R1: replay the WAL
+    R2->>R2: replay the WAL
+    App->>R1: SELECT * FROM orders
+    R1-->>App: rows (as of the last replayed record)
 ```
 
-### 3.2 Event Record
+| | **Physical (streaming) replication** | **Logical replication** |
+|---|---|---|
+| **What travels** | WAL bytes: changes to data pages | row changes (`INSERT`/`UPDATE`/`DELETE`) per table |
+| **Replica** | an exact copy of the whole server, **read-only** | an independent database, writable |
+| **Granularity** | everything (all databases) | chosen tables (publication / subscription) |
+| **Versions** | same major version | can differ (used for upgrades) |
+| **Used for** | high availability, read replicas | migrations, integrations, partial copies |
 
-Create `OrderCreatedEvent.java` in the `store.order` package:
+This hands-on uses **physical streaming replication**: the basis of high availability in PostgreSQL and of managed services such as Amazon RDS.
 
-``` { .java .copy .select }
-package store.order;
+## Asynchronous or synchronous?
 
-public record OrderCreatedEvent(
-    String orderId,
-    String customerId,
-    Double totalAmount,
-    String timestamp
-) {}
+The question is *when* the primary answers `COMMIT ok`:
+
+| | **Asynchronous** (default) | **Synchronous** |
+|---|---|---|
+| **Commit returns** | as soon as the WAL is on the primary's disk | only after a replica confirms it has the WAL |
+| **Write latency** | low | + one network round trip |
+| **If the primary dies** | the last commits may not have reached any replica: **lost writes** (RPO > 0) | no committed transaction is lost (RPO = 0) |
+| **If the replica dies** | nothing changes | commits **block** until a replica is back (or the configuration changes) |
+
+This is the [CAP theorem](../../classes/distributed_systems/cap/index.md) in practice: synchronous replication prefers **consistency** (no committed write is lost) and gives up **availability** of writes when the replica is unreachable; asynchronous replication prefers availability and accepts that a reader of a replica may see **stale data** and that a failover may lose the last writes.
+
+## Architecture
+
+``` mermaid-sim
+flowchart LR
+    app["service\n(account, order...)"]
+    subgraph cluster [PostgreSQL cluster]
+        p[("pg-primary\n:5432\nread-write")]
+        r1[("pg-replica1\n:5433\nread-only")]
+        r2[("pg-replica2\n:5434\nread-only")]
+        p e1@-->|"WAL stream"| r1
+        p e2@-->|"WAL stream"| r2
+    end
+    app e0@==>|"writes + reads"| p
+    app e3@-.->|"reads"| r1
+    app e4@-.->|"reads"| r2
+    e0@{ animate: true }
+    e1@{ animate: true }
+    e2@{ animate: true }
 ```
 
-### 3.3 Kafka Producer Configuration
+- All three nodes run the official `postgres:17` image. A small entrypoint decides the role: an empty node **with** `PRIMARY_HOST` clones the primary with `pg_basebackup` and starts as a **hot standby** (it accepts reads).
+- The application decides where each query goes. Here the routing lives in the **connection string**: libpq and the PostgreSQL JDBC driver accept a list of hosts and pick the one with the right role (`target_session_attrs` / `targetServerType`).
 
-Add the following to `application.yaml`:
+## Failover
 
-``` { .yaml .copy .select }
-spring:
-  kafka:
-    bootstrap-servers: kafka:9092
-    producer:
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-      acks: all
-      retries: 3
-      properties:
-        enable.idempotence: true
-```
+When the primary fails, a replica must be **promoted** to primary, the other replicas must follow it, and the clients must find it. In this hands-on you do each step by hand, to see what an automatic tool does for you:
 
-!!! tip "acks=all"
+| Step | By hand (this hands-on) | Automated |
+|---|---|---|
+| detect the failure | `docker compose ps` | health checks, heartbeats |
+| choose and promote a replica | `SELECT pg_promote();` | leader election |
+| re-point the other replicas | `ALTER SYSTEM SET primary_conninfo` | the tool reconfigures them |
+| redirect the clients | multi-host connection string | virtual IP, DNS, proxy (HAProxy, PgBouncer) |
+| bring the old primary back | `pg_rewind` | the tool rewinds it |
 
-    Setting `acks=all` means the Kafka broker will wait for all in-sync replicas to acknowledge the write before confirming. In a single-broker development setup this has no effect, but in production it prevents data loss during broker failover.
+!!! warning "Split brain"
 
-### 3.4 Publisher
+    The dangerous failure is not a dead primary, but a primary that **looks** dead — isolated by the network, yet still accepting writes. If a replica is promoted, the cluster has **two primaries** and the data diverges. Automatic failover therefore needs agreement among several nodes, a [consensus](../../classes/distributed_systems/consensus/index.md) algorithm: [Patroni](https://patroni.readthedocs.io){target="_blank"} keeps the leader lock in etcd (Raft), and managed services (RDS Multi-AZ, Aurora, Cloud SQL) do the same internally.
 
-Create `OrderEventPublisher.java`:
+<div class="grid cards" markdown>
 
-``` { .java .copy .select }
-package store.order;
+-   :material-file-code:{ .lg .middle } **[Docker Compose](./docker/)**
 
-import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.stereotype.Component;
-import lombok.RequiredArgsConstructor;
-import java.time.Instant;
+    ---
 
-@Component
-@RequiredArgsConstructor
-public class OrderEventPublisher {
+    Write `compose.yaml` and the scripts, start the cluster and check that both replicas are streaming.
 
-    private final KafkaTemplate<String, OrderCreatedEvent> kafkaTemplate;
+    [Docker Compose](./docker/){ .md-button }
 
-    public void publishOrderCreated(Order order) {
-        var event = new OrderCreatedEvent(
-            order.getId().toString(),
-            order.getCustomerId(),
-            order.getTotalAmount(),
-            Instant.now().toString()
-        );
-        kafkaTemplate.send("order-events", order.getId().toString(), event);
-    }
-}
-```
+-   :material-database-sync:{ .lg .middle } **[Replication](./replication/)**
 
-### 3.5 Calling the Publisher
+    ---
 
-In `OrderService.java`, inject `OrderEventPublisher` and call it after saving the order:
+    Write on the primary, read on the replicas, provoke stale reads, route by role and turn on synchronous commits.
 
-``` { .java .copy .select }
-// After saving:
-eventPublisher.publishOrderCreated(savedOrder);
-```
+    [Replication](./replication/){ .md-button }
 
----
+-   :material-swap-horizontal:{ .lg .middle } **[Failover](./failover/)**
 
-## 4. Notification Service (Python / FastAPI)
+    ---
 
-A new Python microservice that consumes `order-events` and logs a simulated email notification.
+    Stop the primary, promote a replica, re-point the cluster, lose a write on purpose and bring the old primary back.
 
-### 4.1 File Structure
+    [Failover](./failover/){ .md-button }
 
-```
-notification-service/
-    main.py
-    Dockerfile
-    requirements.txt
-```
-
-### 4.2 Code
-
-=== "requirements.txt"
-
-    ``` { .text .copy .select }
-    fastapi==0.110.0
-    kafka-python==2.3.2
-    uvicorn==0.29.0
-    ```
-
-=== "main.py"
-
-    ``` { .python .copy .select linenums="1" }
-    from fastapi import FastAPI
-    from kafka import KafkaConsumer
-    import json, threading, logging
-
-    logging.basicConfig(level=logging.INFO)
-    logger = logging.getLogger(__name__)
-
-    app = FastAPI()
-
-    def consume():
-        consumer = KafkaConsumer(
-            "order-events",
-            bootstrap_servers="kafka:9092",
-            group_id="notification-group",
-            value_deserializer=lambda m: json.loads(m.decode("utf-8")),
-            auto_offset_reset="earliest",
-            enable_auto_commit=False,
-        )
-        for message in consumer:
-            event = message.value
-            logger.info(
-                f"[NOTIFICATION] Order {event['orderId']} for customer "
-                f"{event['customerId']} — sending confirmation email "
-                f"(total: {event['totalAmount']})"
-            )
-            consumer.commit()
-
-    @app.on_event("startup")
-    def startup_event():
-        thread = threading.Thread(target=consume, daemon=True)
-        thread.start()
-
-    @app.get("/health")
-    def health():
-        return {"status": "up"}
-    ```
-
-=== "Dockerfile"
-
-    ``` { .dockerfile .copy .select }
-    FROM python:3.12-slim
-    WORKDIR /app
-    COPY requirements.txt .
-    RUN pip install --no-cache-dir -r requirements.txt
-    COPY main.py .
-    CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
-    ```
-
-Add the notification-service to `docker-compose.yml`:
-
-``` { .yaml .copy .select }
-  notification-service:
-    build: ./notification-service
-    depends_on:
-      - kafka
-    environment:
-      - PYTHONUNBUFFERED=1
-```
-
-!!! note "enable_auto_commit=False"
-
-    Manual commit (`consumer.commit()`) ensures the offset advances only after the message has been successfully processed. If the service crashes mid-processing, it will re-consume the message on restart — at-least-once delivery semantics.
-
----
-
-## 5. Testing
-
-### 5.1 Start Everything
-
-``` termynal
-$ docker compose up --build -d
-$ docker compose ps
-NAME                    STATUS
-kafka                   running
-kafka-ui                running
-notification-service    running
-order-service           running
-```
-
-### 5.2 Create an Order
-
-``` termynal
-$ curl -s -X POST http://localhost:8080/orders \
-    -H "Content-Type: application/json" \
-    -d '{"customerId":"cust-42","items":[{"productId":"p1","quantity":2}]}' \
-    | jq .
-{
-  "id": "ord-7f3a",
-  "status": "CREATED",
-  "totalAmount": 49.98
-}
-```
-
-### 5.3 Verify in Kafka UI
-
-Open `http://localhost:8090`, navigate to **Topics → order-events → Messages**. You should see the `OrderCreated` event with `orderId: ord-7f3a`.
-
-### 5.4 Verify Notification
-
-``` termynal
-$ docker compose logs notification-service
-notification-service  | INFO: [NOTIFICATION] Order ord-7f3a for customer cust-42 — sending confirmation email (total: 49.98)
-```
-
----
-
-## 6. Reliability — Dead Letter Queue
-
-When a consumer fails to process a message repeatedly, it should go to a DLQ rather than blocking the stream. The Python manual DLQ pattern publishes failed events to a separate `order-events-dlq` topic instead of crashing:
-
-``` { .python .copy .select }
-try:
-    process_event(event)
-    consumer.commit()
-except Exception as e:
-    logger.error(f"Failed to process {event['orderId']}: {e} — sending to DLQ")
-    dlq_producer.send("order-events-dlq", value=event)
-    consumer.commit()
-```
-
-!!! warning "At-least-once delivery"
-
-    Kafka guarantees at-least-once delivery — a message may be delivered more than once (e.g., after a consumer crash before commit). Your consumer logic should be **idempotent**: processing the same event twice must produce the same result as processing it once. For the notification service, this means checking whether an email was already sent for this `orderId` before sending again.
-
----
-
-## 7. Checklist
-
-- [ ] Kafka (KRaft mode) + Kafka UI added to `docker-compose.yml`
-- [ ] `OrderCreatedEvent` record created in order-service
-- [ ] `spring-kafka` dependency added, `application.yaml` configured
-- [ ] `OrderEventPublisher` publishes to `order-events` after save
-- [ ] notification-service consumes events and logs confirmations
-- [ ] Kafka UI shows the event after creating an order
-- [ ] DLQ pattern understood (idempotent consumer)
-
-[Next: Quiz](quiz.md){ .md-button .md-button--primary }
+</div>

@@ -119,7 +119,7 @@ Mais consumidores do que partições? Os excedentes ficam **ociosos**. As parti�
 ## Chaves, ordem e durabilidade
 
 - Com **chave**, `hash(key) % partitions` escolhe a partição → mesma chave, mesma partição, **em ordem**.
-- Hands-on 9: `send("order-events", orderId, event)` → os eventos de um pedido ficam em sequência; pedidos diferentes, em paralelo.
+- Hands-on 10: `send("order-events", orderId, event)` → os eventos de um pedido ficam em sequência; pedidos diferentes, em paralelo.
 - Poucos valores de chave (ex.: `country`) → **partições quentes**; adicionar partições depois move chaves.
 - Cada partição é **replicada** (tipicamente 3): uma líder + seguidoras; as atualizadas formam o **ISR**.
 
@@ -176,7 +176,7 @@ O notification service envia o e-mail e **cai antes de fazer o commit** do offse
 * Então: at-least-once + **consumidor idempotente** — tabela de IDs processados, upserts, restrições de unicidade.
 
 <!--
-O Hands-on 9 usa enable_auto_commit=False e commit() após o processamento: at-least-once.
+O Hands-on 10 usa enable_auto_commit=False e commit() após o processamento: at-least-once.
 -->
 
 ---

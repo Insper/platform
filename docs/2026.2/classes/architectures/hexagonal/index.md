@@ -203,7 +203,7 @@ Replace the first participant with a test and the fourth with `InMemoryAccountRe
 | Outside actor | Kind | Adapter in the store |
 |---|---|---|
 | Gateway calling `POST /auth/login` | driving | `AuthResource` / `AuthController` (REST) |
-| Kafka topic `accounts` (see [Hands-on 9](../../../hands-on/9/index.md)) | driving | a `@KafkaListener` consumer |
+| Kafka topic `accounts` (see [Hands-on 10](../../../hands-on/10/index.md)) | driving | a `@KafkaListener` consumer |
 | JUnit test | driving | the test class itself |
 | `account-service` | driven | Feign client (`AccountController` in Hands-on 3) |
 | Postgres | driven | `AccountJpaAdapter` |

@@ -173,7 +173,7 @@ The course builds one platform step by step. Each service owns one capability an
 | `product-service` | Product catalogue | products data | — | [Product API](../../exercises/product/index.md) |
 | `order-service` | Orders of the current user | orders data | product, exchange, Kafka | [Order API](../../exercises/order/index.md) |
 | `exchange-service` (Python) | Currency conversion | — | third-party rates API | [Exchange API](../../exercises/exchange/index.md) |
-| `notification-service` (Python) | Order confirmation e-mails | — | Kafka | [Hands-on 9](../../hands-on/9/index.md) |
+| `notification-service` (Python) | Order confirmation e-mails | — | Kafka | [Hands-on 10](../../hands-on/10/index.md) |
 
 Note *decentralised governance* in action: the exchange and notification services are written in Python, the others in Java — the contract is HTTP/JSON or a Kafka event, so the language does not leak.
 
@@ -247,7 +247,7 @@ Services in a microservice system communicate in two fundamentally different way
 
     **Use when:** strict consistency is not needed immediately (e.g., sending an email, updating analytics, inventory reservation).
 
-In the store, the order service calls the product service **synchronously** (it needs the price to compute the total before answering), and publishes an `OrderCreated` event to Kafka **asynchronously** so that the notification service can send the e-mail without slowing the customer down ([Hands-on 9](../../hands-on/9/index.md)).
+In the store, the order service calls the product service **synchronously** (it needs the price to compute the total before answering), and publishes an `OrderCreated` event to Kafka **asynchronously** so that the notification service can send the e-mail without slowing the customer down ([Hands-on 10](../../hands-on/10/index.md)).
 
 !!! warning "Synchronous chains multiply failure"
     If a request must pass through three services, and each one is available 99.9% of the time, the chain is available only 0.999 × 0.999 × 0.999 ≈ **99.7%** of the time — from about 8.8 hours of downtime a year to about 26 hours. Every extra synchronous hop lowers availability and adds latency. Keep chains short, use timeouts and circuit breakers ([Resilience Patterns](../reliability/patterns/index.md)), and move work that does not need an immediate answer to events ([Event-Driven Architecture](../event_driven/index.md)).
@@ -292,7 +292,7 @@ In the store, the order service calls the product service **synchronously** (it 
 - The contracts between services: [API](../api/index.md).
 - Build the platform: [Hands-on 1 — CRUD](../../hands-on/1/index.md), [Hands-on 2 — Gateway](../../hands-on/2/index.md), [Hands-on 3 — Security](../../hands-on/3/index.md).
 - Inside one service: [Software Architectures](../architectures/index.md) (clean and hexagonal).
-- Asynchronous integration: [Event-Driven Architecture](../event_driven/index.md) and [Hands-on 9 — Kafka](../../hands-on/9/index.md).
+- Asynchronous integration: [Event-Driven Architecture](../event_driven/index.md) and [Hands-on 10 — Kafka](../../hands-on/10/index.md).
 
 ---
 

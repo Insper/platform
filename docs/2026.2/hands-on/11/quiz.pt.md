@@ -2,114 +2,129 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## IA no CI/CD
+## Rastreamento distribuído
 
-**Q1.** Por que o workflow de revisão com IA usa `GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}` sem que o desenvolvedor precise criar esse secret manualmente?
+**Q1.** Uma requisição `POST /orders` leva 2 300 ms de ponta a ponta. O Prometheus mostra que o `http_server_requests_seconds_max` do gateway é de 2 300 ms. O que um trace distribuído informa que essa métrica **não consegue** informar?
 
-- A. Ele é obtido das configurações pessoais do desenvolvedor no GitHub em tempo de execução
-- B. O GitHub Actions injeta automaticamente o `GITHUB_TOKEN` em cada execução de workflow, com escopo restrito ao repositório e às permissões declaradas pelo workflow
-- C. É um token global fornecido pela Anthropic para todas as integrações com o GitHub
-- D. Ele precisa ser definido manualmente no cofre de secrets da organização antes que o workflow possa rodar
+- A. O número total de requisições por segundo que passam pelo gateway
+- B. O intervalo exato de tempo que cada serviço downstream — OrderService, ProductService, o banco de dados — consumiu dentro daquela única requisição, para que você identifique qual salto causou o atraso
+- C. Se o gateway tem folga de CPU suficiente para lidar com mais requisições simultâneas
+- D. A latência do percentil 99 de todas as requisições nos últimos cinco minutos
 
 ??? success "Resposta"
-    **B — O `GITHUB_TOKEN` é injetado automaticamente pelo GitHub Actions em cada execução de workflow.**
+    **B — A latência detalhada por salto de uma única requisição.**
 
-    O GitHub gera um `GITHUB_TOKEN` efêmero no início de cada execução de workflow. As operações permitidas são controladas pelo bloco `permissions:` do arquivo do workflow — neste caso, `pull-requests: write` e `contents: read`. O token expira quando o workflow termina e nunca fica visível fora da execução. Você só precisa criar secrets manualmente para serviços externos, como o `ANTHROPIC_API_KEY`.
+    Uma métrica do Prometheus é um agregado: ela informa o pior tempo de resposta observado entre todas as requisições de uma janela de tempo, mas não consegue decompor esse tempo pelas chamadas downstream. Um trace distribuído registra cada salto como um span, com seu próprio horário de início e sua duração. Você lê imediatamente que o próprio gateway levou 45 ms, o OrderService levou 2 250 ms e a query JDBC do ProductService levou 2 180 ms desse total — a métrica sozinha nunca mostra isso.
 
 ---
 
-**Q2.** O que `fetch-depth: 0` faz na etapa `actions/checkout`, e por que o script de revisão precisa disso?
+**Q2.** Depois de adicionar o agente Java do OTel ao Dockerfile e definir `OTEL_EXPORTER_OTLP_ENDPOINT`, uma chamada `RestTemplate` do OrderService para o ProductService aparece como um span filho no Jaeger — **sem nenhuma alteração no código-fonte Java**. Que mecanismo torna isso possível?
 
-- A. Baixa todas as branches do repositório para que o script possa comparar quaisquer duas refs
-- B. Busca o histórico completo do git, e não apenas o último commit (o padrão `fetch-depth: 1`), o que é necessário para calcular o diff entre a branch do PR e sua branch base
-- C. Ativa clones rasos (shallow), mais rápidos de baixar em repositórios grandes
-- D. Não tem efeito no cálculo do diff — a biblioteca PyGithub busca o diff diretamente na API do GitHub, independentemente do histórico local do git
+- A. O Spring Boot Actuator expõe um endpoint `/actuator/traces` que o Jaeger coleta automaticamente
+- B. O agente Java do OTel usa instrumentação de bytecode da JVM para interceptar o `RestTemplate` em tempo de execução, injetando o cabeçalho `traceparent` nas requisições de saída e criando spans de forma transparente
+- C. O Spring Cloud Sleuth detecta a variável de ambiente `OTEL_EXPORTER_OTLP_ENDPOINT` e ativa o rastreamento automático
+- D. O cabeçalho `traceparent` é injetado pela rede overlay do Docker, compartilhada por todos os containers
 
 ??? success "Resposta"
-    **B — O histórico completo é necessário para encontrar a base do merge e calcular o diff.**
+    **B — Instrumentação de bytecode da JVM pela flag `-javaagent`.**
 
-    Por padrão, o `actions/checkout` clona com `--depth 1`, o que traz apenas o último commit. Comparar uma branch de PR com sua base exige conhecer o commit ancestral comum. Com `fetch-depth: 0`, o git tem o histórico completo e consegue identificar esse ancestral. A função `get_pr_diff` deste hands-on, na verdade, usa a API do GitHub (via PyGithub) para buscar os patches dos arquivos, então `fetch-depth: 0` importa principalmente se você passar a calcular os diffs localmente com `git diff`.
+    O agente Java do OTel é um agente de instrumentação padrão da JVM, carregado com `-javaagent:/app/opentelemetry-javaagent.jar`. No carregamento das classes, ele reescreve o bytecode de bibliotecas conhecidas — RestTemplate, WebClient, drivers JDBC, Spring MVC e muitas outras — para adicionar a criação de spans e a injeção de cabeçalhos. Sem alterações no código-fonte, sem anotações do Spring. O JAR da aplicação não é tocado; o agente modifica o bytecode em execução, na memória.
 
 ---
 
-**Q3.** O diff de um PR grande tem 5 000 linhas alteradas. A função `get_pr_diff` trunca depois de 3 000 linhas. Quais são duas abordagens melhores para lidar com diffs grandes sem perder cobertura?
+**Q3.** Dado o valor de `traceparent`:
 
-- A. Aumentar `max_tokens` para 8 192 e remover o limite de truncamento — o modelo vai tratar tudo em uma única chamada
-- B. Dividir o diff em várias chamadas à API (uma por arquivo ou por fronteira de serviço), ou priorizar os tipos de arquivo mais críticos (por exemplo, controllers e services Java) e pular arquivos de teste e código gerado
-- C. Dividir o PR em PRs menores antes de abri-lo — o workflow deveria rejeitar diffs com mais de 3 000 linhas
-- D. Usar um modelo mais barato e rápido para diffs grandes e reservar o `claude-sonnet-4-6` apenas para PRs pequenos e focados
+```
+00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
+```
+
+Qual parte identifica **toda a jornada da requisição** e é a mesma em todos os serviços da cadeia?
+
+- A. `00` — o byte de versão
+- B. `4bf92f3577b34da6a3ce929d0e0e4736` — o trace ID de 32 caracteres
+- C. `00f067aa0ba902b7` — o ID do span pai, de 16 caracteres
+- D. `01` — o byte de flags
 
 ??? success "Resposta"
-    **B — Dividir em várias chamadas ou priorizar os tipos de arquivo críticos.**
+    **B — O trace ID de 32 caracteres.**
 
-    O contexto de 200k tokens do Claude Sonnet tecnicamente comporta um diff grande em uma única chamada, mas o custo cresce com o número de tokens e a latência aumenta com o tamanho do contexto. Uma abordagem mais inteligente é revisar os arquivos em grupos (por exemplo, uma chamada à API por microsserviço) e publicar comentários separados, ou ordenar os arquivos por criticidade e pular mudanças de pouco valor, como código gerado automaticamente, arquivos de lock e fixtures de teste. Dividir também permite fornecer contexto específico de cada arquivo no system prompt.
+    O formato do cabeçalho W3C `traceparent` é `{version}-{traceId}-{parentSpanId}-{flags}`. O `traceId` é gerado uma única vez pelo primeiro serviço da cadeia (o gateway) e é propagado sem alterações para todos os serviços downstream. Ele é a chave comum que permite ao Jaeger agrupar todos os spans — do gateway, do OrderService, do ProductService e do driver JDBC — em um único trace. O `parentSpanId` muda a cada salto: ele identifica quem fez a chamada imediatamente antes, não a cadeia inteira.
 
 ---
 
-**Q4.** Por que a revisão por IA deve ser não bloqueante (apenas comentários), em vez de bloquear merges por padrão?
+**Q4.** No `compose.yaml`, você define `OTEL_METRICS_EXPORTER: none` para todos os serviços. Que problema ocorreria se você **omitisse** essa variável e deixasse o exporter padrão ativo?
 
-- A. O GitHub não suporta verificações de status obrigatórias vindas de chamadas a APIs de terceiros
-- B. Modelos de IA produzem tanto falsos positivos (apontam código correto) quanto falsos negativos (deixam passar problemas reais); um falso positivo que bloqueia um merge atrapalha o fluxo de trabalho dos desenvolvedores e corrói a confiança antes que o time tenha validado a precisão do modelo no seu código
-- C. Bloquear exige um plano pago do GitHub, que não está disponível para repositórios de alunos
-- D. Comentários são processados mais rápido que verificações de status, então aparecem antes da chegada do revisor humano
+- A. O serviço não iniciaria, porque o Jaeger não suporta o protocolo de métricas OTLP
+- B. O agente OTel exportaria métricas via OTLP para o Jaeger além do pipeline Micrometer/Prometheus que já está rodando, criando séries de métricas duplicadas e desperdiçando recursos
+- C. O Prometheus pararia de coletar `/actuator/prometheus`, porque o agente OTel desativa o Micrometer
+- D. Os dashboards do Grafana quebrariam, porque os nomes dos labels das métricas diferem entre o OTLP e o formato de exposição do Prometheus
 
 ??? success "Resposta"
-    **B — Falsos positivos bloqueiam merges e corroem a confiança antes que a precisão seja comprovada.**
+    **B — Métricas duplicadas exportadas por dois pipelines separados.**
 
-    LLMs são probabilísticos. Em bases de código para as quais não foram ajustados, eles vão apontar coisas que são intencionais ou irrelevantes para o projeto. Um merge bloqueado por um falso positivo gera atrito e ensina os desenvolvedores a ignorar a saída da revisão por IA. O padrão seguro é: comece apenas com comentários, meça precisão e recall no seu código ao longo de várias semanas e, então, aplique o bloqueio seletivamente apenas a verificações de alta confiança — tipicamente a detecção de segredos, que tem taxa de falsos positivos próxima de zero.
+    Por padrão, o agente Java do OTel ativa um exporter de métricas OTLP junto com o exporter de traces. Como você já tem o Spring Boot Actuator + Micrometer exportando as mesmas métricas para o Prometheus, ativar o exporter de métricas do OTel envia uma segunda cópia de cada métrica para o endpoint OTLP do Jaeger. Isso desperdiça rede e armazenamento, e o backend de métricas do Jaeger não é o que você usa para os dashboards. Definir `OTEL_METRICS_EXPORTER: none` desativa apenas o pipeline de métricas; o pipeline de traces não é afetado.
 
 ---
 
-**Q5.** Que permissão do GitHub o workflow precisa declarar para permitir que o script publique um comentário no PR, e onde ela é declarada?
+**Q5.** Você abre no flame chart do Jaeger um trace de uma requisição `POST /orders` e vê quatro spans:
 
-- A. `issues: write` — declarada dentro do bloco `env:` do job
-- B. `pull-requests: write` — declarada no bloco `permissions:` de nível superior do arquivo do workflow, que restringe as operações permitidas ao `GITHUB_TOKEN`
-- C. `repository: admin` — declarada na página de configurações do Actions da organização
-- D. `contents: write` — declarada na etapa que chama o `ai_review.py`
+```
+gateway-service      POST /orders          2 300 ms  ████████████████████
+  order-service      POST /orders          2 250 ms  ███████████████████
+    product-service  GET /products/7       2 190 ms  ██████████████████
+      jdbc           SELECT * FROM ...     2 180 ms  ██████████████████
+```
+
+Qual serviço você deve investigar primeiro, e por quê?
+
+- A. `gateway-service`, porque o span dele é a barra mais larga e, portanto, o principal gargalo
+- B. `order-service`, porque é o filho direto do gateway e responde pela maior parte do tempo total
+- C. O span `jdbc` dentro do `product-service`, porque ele responde por 2 180 ms dos 2 300 ms totais e é o span mais profundo, com o maior tempo próprio
+- D. Todos os serviços igualmente, porque as durações dos spans se sobrepõem e não é possível isolar uma única causa
 
 ??? success "Resposta"
-    **B — `pull-requests: write` no bloco `permissions:` de nível superior.**
+    **C — O span `jdbc` dentro do `product-service`.**
 
-    O bloco `permissions:` de um arquivo de workflow define o escopo do `GITHUB_TOKEN` injetado automaticamente. Sem `pull-requests: write`, qualquer chamada a `pr.create_issue_comment()` falha com HTTP 403. A permissão `contents: read` também é necessária para que a etapa de checkout consiga clonar o repositório. Declarar apenas as permissões necessárias segue o princípio do menor privilégio — o token não consegue realizar operações além do que o workflow exige.
+    O flame chart mostra o *tempo de relógio* (wall-clock), então os spans pais sempre aparecem tão largos quanto os filhos, ou mais. O span do gateway é largo porque fica esperando tudo o que acontece downstream. A informação útil é o **span mais profundo com o maior tempo próprio**: `jdbc SELECT`, com 2 180 ms. Esse span não tem filhos — ele está realizando trabalho de fato, e não esperando outro serviço. Isso significa que uma query SQL lenta dentro do ProductService é a causa raiz. Comece por ali: verifique se falta um índice, se há uma query N+1 ou se falta um pool de conexões com o banco de dados.
 
 ---
 
-**Q6.** Você quer que a revisão também detecte anotações OpenAPI ausentes (`@Operation`, `@ApiResponse`) nos controllers REST. Que mudança única consegue isso da forma mais eficaz?
+**Q6.** Qual é a relação correta entre um **trace** e um **span**?
 
-- A. Adicionar um job separado no workflow que use uma ferramenta de análise estática, como o Spotbugs, para procurar anotações ausentes
-- B. Adicionar uma linha à lista "Focus on:" do `SYSTEM_PROMPT`: "6. Missing OpenAPI annotations (`@Operation`, `@ApiResponse`) on REST controller methods." O prompt é o principal ponto de controle sobre o que o modelo percebe
-- C. Trocar para um modelo maior (`claude-opus-4`) — ele tem mais dados de treinamento sobre os padrões OpenAPI e vai detectar isso automaticamente
-- D. Pós-processar a saída do modelo com uma regex que procure `@RestController` no diff e aponte todo método sem `@Operation`
+- A. Um span é uma coleção de traces relacionados, agrupados pelo nome do serviço
+- B. Um trace representa a jornada completa, de ponta a ponta, de uma única requisição por todos os serviços; um span representa uma unidade de trabalho dentro dessa jornada (por exemplo, uma única chamada HTTP, uma query no banco de dados ou a execução de um método)
+- C. Trace e span são sinônimos — os dois se referem a um registro temporizado de uma única operação
+- D. Um span é uma amostra de vários traces agregados em um único ponto de uma série temporal
 
 ??? success "Resposta"
-    **B — Adicionar a verificação à lista "Focus on:" do `SYSTEM_PROMPT`.**
+    **B — Trace = jornada completa; span = uma unidade de trabalho.**
 
-    O system prompt é a forma mais barata e direta de mudar o foco da revisão. O modelo tem amplo conhecimento de Spring Boot e OpenAPI; ele só precisa de uma instrução explícita para aplicar esse conhecimento. Um pós-processador com regex (opção D) seria frágil e perderia o contexto. Um job separado de análise estática (opção A) é válido, mas acrescenta infraestrutura para algo que o modelo consegue tratar na mesma chamada. Trocar de modelo (opção C) aumenta o custo sem atacar a causa raiz — a instrução que faltava.
+    Cada requisição gera exatamente um trace, identificado por um `traceId` único. Esse trace é composto de um ou mais spans. O span raiz (criado pelo gateway) é o primeiro; cada chamada downstream cria um span filho, cujo pai é o span que fez a chamada. Todos os spans compartilham o mesmo `traceId`, mas cada um tem seu próprio `spanId`, horário de início, horário de fim e atributos. A UI do Jaeger monta todos os spans com o mesmo `traceId` no flame chart que você vê.
 
 ---
 
-**Q7.** Qual é o trade-off de custo e latência de aumentar `max_tokens` de 1 024 para 4 096 na chamada à API?
+**Q7.** O seu método `OrderService.create()` chama três métodos auxiliares privados: `validateAccount()`, `checkInventory()` e `calculatePrice()`. O agente OTel já cria um span para a requisição HTTP `POST /orders` recebida. Em que circunstâncias você deve **adicionar um span manual** para um desses métodos auxiliares?
 
-- A. `max_tokens` é um limite rígido para o tamanho da entrada, não da saída — aumentá-lo não tem efeito no custo nem na latência
-- B. Um `max_tokens` maior reserva mais orçamento de saída, o que aumenta o máximo de tokens de saída cobrados e pode aumentar a latência; para revisões de PR, 1 024 tokens (~750 palavras) costumam bastar, e limites maiores só se justificam para saída JSON estruturada com muitos campos ou para diffs muito grandes
-- C. O Claude cobra por requisição, não por token, então `max_tokens` não tem efeito no custo
-- D. Aumentar `max_tokens` reduz a latência, porque o modelo antecipa mais conteúdo em um único bloco de streaming
+- A. Sempre — toda chamada de método deve ter seu próprio span para garantir cobertura completa
+- B. Nunca — o agente Java instrumenta todos os beans do Spring automaticamente, então spans manuais são redundantes
+- C. Quando o método auxiliar leva um tempo mensurável (por exemplo, > 50 ms), chama um sistema externo, ou quando você precisa anexar atributos de negócio (como `account.id` ou `inventory.available`) que a instrumentação dos frameworks não captura
+- D. Somente quando o método lança uma checked exception — spans manuais servem exclusivamente para rastrear erros
 
 ??? success "Resposta"
-    **B — Um `max_tokens` maior permite uma saída mais longa, mas aumenta o custo máximo e a latência.**
+    **C — Quando o método auxiliar é lento, chama sistemas externos ou precisa de atributos personalizados.**
 
-    A Anthropic cobra pelos tokens de saída efetivamente gerados, até o limite de `max_tokens`. Definir um `max_tokens` alto não garante que o modelo use todos eles, mas permite que ele produza respostas mais longas quando quiser. Num comentário de PR, revisões com mais de ~750 palavras raramente são lidas com atenção — a concisão é uma qualidade. Use limites maiores quando precisar de uma saída estruturada extensa (por exemplo, gerar stubs completos de testes JUnit ou um objeto JSON detalhado com muitos campos).
+    O agente instrumenta os *pontos de entrada dos frameworks* — requisições HTTP, chamadas JDBC, operações de cache. Ele não conhece os seus métodos privados de lógica de negócio. Adicione um span manual quando: (1) um método leva dezenas de milissegundos e você quer ver o custo dele separadamente no flame chart, (2) o método chama uma API externa que o agente não consegue detectar, ou (3) você quer registrar atributos de negócio, como `order.account_id` ou `inventory.result`, que só fazem sentido no seu domínio. Evite envolver getters triviais — spans demais escondem o sinal e acrescentam overhead.
 
 ---
 
-**Q8.** Um time quer gerar automaticamente stubs de testes JUnit 5 para cada novo método público adicionado em um PR. Como você modificaria o workflow existente para isso?
+**Q8.** Um usuário relata que o pedido dele foi criado com o preço de produto errado. Você consegue reproduzir o problema e observa `trace_id=7d3a...b2` na UI do Jaeger. Seus logs são agregados no Loki. Qual é a forma mais rápida de encontrar as linhas de log exatas daquela requisição?
 
-- A. Substituir o `SYSTEM_PROMPT` por um prompt de geração de testes e publicar os testes como comentário — nenhuma outra mudança é necessária
-- B. Fazer o parse do diff para extrair as assinaturas dos novos métodos públicos dos arquivos Java, enviar essas assinaturas à API com um system prompt de geração de testes e, então, publicar os stubs gerados como comentário no PR ou abrir uma branch e um PR de acompanhamento com os novos arquivos de teste commitados
-- C. Adicionar uma etapa `pytest` depois da etapa de revisão por IA, que gere testes usando análise de cobertura
-- D. Usar anotações `@SpringBootTest` na descrição do PR para disparar a geração automática de esqueletos de teste no runner de CI
+- A. Buscar `level=ERROR` no job `order-service` do Loki na janela de 5 minutos em torno do timestamp da requisição
+- B. Copiar o valor de `trace_id` do span no Jaeger e usá-lo como filtro de busca no Loki (`{job="order-service"} |= "7d3a...b2"`) — o campo `trace_id`, injetado pela ponte OTel do logback em cada linha de log via MDC, liga o trace diretamente à sua saída de log
+- C. Baixar o trace completo do Jaeger como JSON e procurar mensagens de erro embutidas nos eventos dos spans
+- D. Reiniciar o serviço com o log em nível `DEBUG` e reproduzir a requisição para gerar logs novos e mais detalhados
 
 ??? success "Resposta"
-    **B — Extrair as assinaturas de métodos do diff, chamar a API com um prompt de geração de testes e, então, commitar os stubs ou publicá-los como comentário.**
+    **B — Usar o `trace_id` do Jaeger como filtro de busca no Loki.**
 
-    A principal mudança em relação a este hands-on está no system prompt e na lógica de pós-processamento. Em vez de pedir uma revisão, você pede stubs de testes JUnit 5. A etapa de parse do diff precisa identificar especificamente as assinaturas dos novos métodos `public` (e não todas as linhas alteradas). A saída pode ser publicada como comentário (mais rápido de implementar) ou commitada em uma branch e aberta como um PR complementar (mais útil, exige `contents: write` e etapas de git push). Em qualquer caso, o mesmo esqueleto GitHub Actions + API do Claude deste hands-on se aplica diretamente.
+    Esse é o valor central da correlação entre traces e logs. Como o `logback-spring.xml` usa `%X{trace_id}` no seu padrão, cada linha de log emitida durante uma requisição rastreada contém o trace ID vindo do MDC. Todas as linhas de log daquela requisição específica — e somente dela — compartilham o mesmo `trace_id=7d3a...b2`, mesmo que milhares de outras requisições tenham sido processadas ao mesmo tempo. Buscar esse ID no Loki devolve exatamente a sequência de logs do pedido com problema: as chamadas de serviço feitas, o preço calculado e a persistência final — restrita a milissegundos de tempo de relógio, sem o ruído das requisições de outros usuários.

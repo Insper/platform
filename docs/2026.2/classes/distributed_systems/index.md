@@ -174,7 +174,7 @@ sequenceDiagram
 The guarantee is: **if *a* → *b* then L(*a*) < L(*b*)**. The converse is *not* true — a smaller Lamport timestamp does not prove that one event caused the other. **Vector clocks** fix this by keeping one counter *per process*; comparing two vectors tells you whether one event happened before the other or whether they are concurrent. They are used to detect conflicting writes in replicated databases (see [Eventual consistency](consensus/index.md#eventual-consistency-and-crdts)).
 
 !!! example "Where you will meet ordering in the course"
-    Kafka does not use wall-clock time to order messages: it assigns each message a monotonically increasing **offset** inside a partition, so all consumers see the same order for that partition ([Hands-on 9](../../hands-on/9/index.md)). Raft uses a logical counter called a **term** to tell old leaders from new ones ([Consensus](consensus/index.md#raft)).
+    Kafka does not use wall-clock time to order messages: it assigns each message a monotonically increasing **offset** inside a partition, so all consumers see the same order for that partition ([Hands-on 10](../../hands-on/10/index.md)). Raft uses a logical counter called a **term** to tell old leaders from new ones ([Consensus](consensus/index.md#raft)).
 
 !!! warning "Do not order events by `System.currentTimeMillis()` across machines"
     Comparing timestamps produced by different servers is a classic source of bugs, for example in "last write wins" conflict resolution: a node with a fast clock silently wins every conflict. Use a single authority for ordering (a database sequence, a Kafka partition offset) or logical clocks.
@@ -208,10 +208,10 @@ The guarantee is: **if *a* → *b* then L(*a*) < L(*b*)**. The converse is *not*
 ## Connections
 
 - [Microservices](../microservices/index.md) — splitting the store into services is what turns it into a distributed system.
-- [Event-Driven Architecture](../event_driven/index.md) and [Hands-on 9](../../hands-on/9/index.md) — asynchronous messaging with Kafka, ordered by partition offsets.
+- [Event-Driven Architecture](../event_driven/index.md) and [Hands-on 10](../../hands-on/10/index.md) — asynchronous messaging with Kafka, ordered by partition offsets.
 - [Reliability](../reliability/index.md) — timeouts, retries, circuit breakers: designing for partial failure.
 - [Hands-on 7](../../hands-on/7/index.md) and [Hands-on 8](../../hands-on/8/index.md) — horizontal scaling behind a load balancer, and a Redis cache.
-- [Hands-on 10](../../hands-on/10/index.md) — distributed tracing, to see one request crossing many services.
+- [Hands-on 11](../../hands-on/11/index.md) — distributed tracing, to see one request crossing many services.
 
 ## Key takeaways
 

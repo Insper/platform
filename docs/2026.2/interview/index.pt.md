@@ -874,7 +874,7 @@ def reduce(word, counts):       # recebe (key, [v1, v2, ...])
           </ul>
           <p><strong>SLI / SLO / SLA:</strong> SLI é a medida (ex.: % de requests com latência &lt; 300 ms); SLO é a meta interna (ex.: 99,9% em 28 dias); SLA é o contrato com o cliente, com penalidade. O <em>error budget</em> (1 − SLO) define quanto risco você pode gastar com deploys e experimentos.</p>
           <p><strong>Use percentis, não médias:</strong> p50, p95 e p99. A média esconde a cauda — e é na cauda que estão os usuários insatisfeitos.</p>
-          <p class="acc-link">Na disciplina: <a href="../classes/observability/">Observability</a> · <a href="../classes/reliability/sli-slo-sla/">SLI / SLO / SLA</a> · <a href="../hands-on/6/">Hands-on 6</a> · <a href="../hands-on/10/">Hands-on 10</a></p>
+          <p class="acc-link">Na disciplina: <a href="../classes/observability/">Observability</a> · <a href="../classes/reliability/sli-slo-sla/">SLI / SLO / SLA</a> · <a href="../hands-on/6/">Hands-on 6</a> · <a href="../hands-on/11/">Hands-on 11</a></p>
         </div>
       </div>
 
@@ -1145,8 +1145,8 @@ def base62(n: int) -> str:
         <h3>In-Memory Cache</h3>
         <p>Redis compartilhado entre réplicas, cache-aside e TTL.</p>
       </a>
-      <a class="card border-green" href="../hands-on/9/">
-        <div class="card-label green">Hands-on 9</div>
+      <a class="card border-green" href="../hands-on/10/">
+        <div class="card-label green">Hands-on 10</div>
         <h3>Kafka Messaging</h3>
         <p>Processamento assíncrono orientado a eventos e desacoplamento entre serviços.</p>
       </a>
@@ -1160,8 +1160,8 @@ def base62(n: int) -> str:
         <h3>Observability</h3>
         <p>Métricas com Prometheus e dashboards no Grafana.</p>
       </a>
-      <a class="card border-blue" href="../hands-on/10/">
-        <div class="card-label blue">Hands-on 10</div>
+      <a class="card border-blue" href="../hands-on/11/">
+        <div class="card-label blue">Hands-on 11</div>
         <h3>Distributed Tracing</h3>
         <p>OpenTelemetry + Jaeger: onde o tempo de uma requisição foi gasto.</p>
       </a>
