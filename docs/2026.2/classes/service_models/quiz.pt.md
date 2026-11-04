@@ -196,3 +196,17 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
     **C — O banco de dados saiu do IaaS para o DBaaS.**
 
     No EC2, o time instala o Postgres, aplica patches no SO, escreve scripts de backup e cuida do failover. Com o RDS, isso tudo vira configurações (retenção de backup, Multi-AZ, janela de manutenção) que a AWS executa. A aplicação continua se conectando com o mesmo formato de URL JDBC e o mesmo driver, e o time continua dono da modelagem do schema, da otimização de consultas e de quem pode se conectar (security groups, usuários do banco de dados).
+
+---
+
+**Q15.** O serviço order da loja roda em **CaaS** e publicam uma falha crítica no **JDK**. Quem precisa agir?
+
+- A. O provedor, porque uma plataforma gerenciada aplica patches em tudo abaixo da aplicação
+- B. O time: o JDK está dentro da imagem, então ele atualiza a imagem base, reconstrói e faz o deploy de novo
+- C. Ninguém, porque os containers isolam o JDK do mundo externo
+- D. O provedor, desde que o time tenha um plano de suporte pago
+
+??? success "Resposta"
+    **B — O time.**
+
+    Em CaaS, o provedor cuida dos hosts e do SO deles, mas tudo o que está dentro da imagem pertence ao cliente, incluindo o JDK. Essa é a camada que separa o CaaS do PaaS: num PaaS, a plataforma fornece o runtime e aplica os patches nele.

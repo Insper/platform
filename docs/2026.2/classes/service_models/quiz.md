@@ -196,3 +196,17 @@ Click **"Answer"** to reveal the correct answer and explanation.
     **C — The database moved from IaaS to DBaaS.**
 
     On EC2 the team installs Postgres, patches the OS, writes backup scripts and handles failover. With RDS those become settings (backup retention, Multi-AZ, maintenance window) that AWS executes. The application still connects with the same JDBC URL format and driver, and the team still owns schema design, query tuning, and who may connect (security groups, database users).
+
+---
+
+**Q15.** The store's order service runs on **CaaS**, and a critical flaw is published in the **JDK**. Who has to act?
+
+- A. The provider, because a managed platform patches everything below the application
+- B. The team: the JDK is inside the image, so they update the base image, rebuild and deploy again
+- C. Nobody, because containers isolate the JDK from the outside world
+- D. The provider, as long as the team is on a paid support plan
+
+??? success "Answer"
+    **B — The team.**
+
+    On CaaS the provider takes care of the hosts and their OS, but everything inside the image belongs to the customer, including the JDK. This is the layer that separates CaaS from PaaS: on a PaaS, the platform supplies and patches the runtime.

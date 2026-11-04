@@ -319,3 +319,18 @@
 .md-typeset .admonition.takeaways strong {
     color: var(--tk);
 }
+
+/* Tables with many columns: <div class="compact-table" markdown>. Material's 5rem minimum per header
+   would push them past the page even when the cells are short. */
+.md-typeset .compact-table table:not([class]) {
+  display: table;
+  width: 100%;
+}
+.md-typeset .compact-table table:not([class]) th {
+  min-width: 0;
+}
+.md-typeset .compact-table table:not([class]) th,
+.md-typeset .compact-table table:not([class]) td {
+  padding: .3em .6em;
+  line-height: 1.4;
+}

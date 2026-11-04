@@ -66,14 +66,14 @@ Deixe a turma responder primeiro. O trade-off controle × velocidade é o fio co
 
 Todo modelo se mapeia nas mesmas seis camadas. A linha entre **provedor** e **cliente** vai subindo.
 
-| Camada | On-premises | IaaS | PaaS | SaaS |
-|---|---|---|---|---|
-| Dados | você | você | você | provedor |
-| Aplicação | você | você | você | provedor |
-| Middleware | você | você | provedor | provedor |
-| SO | você | você | provedor | provedor |
-| Virtualização | você | provedor | provedor | provedor |
-| Hardware | você | provedor | provedor | provedor |
+| Camada | On-premises | IaaS | CaaS | PaaS | FaaS | SaaS |
+|---|---|---|---|---|---|---|
+| Dados e acesso | você | você | você | você | você | você |
+| Aplicação | você | você | você | você | você | provedor |
+| Middleware | você | você | você | provedor | provedor | provedor |
+| SO | você | você | provedor | provedor | provedor | provedor |
+| Virtualização | você | provedor | provedor | provedor | provedor | provedor |
+| Hardware | você | provedor | provedor | provedor | provedor | provedor |
 
 <p class="small">IaaS, PaaS e SaaS são os três modelos fundamentais definidos pelo NIST. A segurança se divide do mesmo jeito: o provedor protege a nuvem; você protege o que coloca <em>nela</em>.</p>
 
@@ -231,14 +231,14 @@ Sistemas reais **misturam** modelos: decida **por componente**. O projeto da dis
 
 ## Comparação completa
 
-| | On-prem | IaaS | PaaS | CaaS | FaaS | SaaS |
+| | On-prem | IaaS | CaaS | PaaS | FaaS | SaaS |
 |---|---|---|---|---|---|---|
 | **Controle** | máximo | alto | médio | médio | baixo | mínimo |
-| **É seu** | tudo | SO e acima | app + dados | container + dados | código + dados | dados + usuários |
+| **É seu** | tudo | SO e acima | container + dados | app + dados | código + dados | dados + usuários |
 | **Lançamento** | lento | lento | rápido | rápido | muito rápido | imediato |
-| **Escala** | manual | manual / script | automática | auto (alguns a zero) | até zero | automática |
-| **Custo** | CapEx | por VM-hora | por uso | por container-hora | por invocação | por usuário/licença |
-| **Portabilidade** | total | alta | média | alta (imagem) | baixa (API do fornecedor) | baixa (export de dados) |
+| **Escala** | manual | manual / script | auto (alguns a zero) | automática | até zero | automática |
+| **Custo** | CapEx | por VM-hora | por container-hora | por uso | por invocação | por usuário/licença |
+| **Portabilidade** | total | alta | alta (imagem) | média | baixa (API do fornecedor) | baixa (export de dados) |
 
 <!--
 Leia a tabela linha por linha: controle e portabilidade caem à medida que o tempo de lançamento melhora.
@@ -249,13 +249,15 @@ O FaaS é o ponto fora da curva em portabilidade: o código é escrito contra a 
 
 ## Framework de decisão
 
-1. Precisa de **controle total do SO** ou de lift-and-shift? → **IaaS** (EC2, GCE, Azure VM)
-2. Vai fazer deploy de **containers**?
-   - quer gerenciar o Kubernetes você mesmo → **CaaS com Kubernetes** (EKS, GKE, AKS)
-   - caso contrário → **CaaS gerenciado** (Cloud Run, ECS Fargate)
-3. Workload **orientado a eventos / esporádico**? → **FaaS** (Lambda, Cloud Functions)
-4. Vai construir uma **aplicação própria**? → **PaaS** (Heroku, App Engine)
-5. Nenhuma das anteriores → **SaaS**: use um produto existente.
+Comece pela opção mais gerenciada. Pergunte em ordem e pare no primeiro **sim**:
+
+1. Um **produto** já faz o trabalho? → **SaaS** (GitHub Actions, Datadog)
+2. É um **banco, cache ou broker** padrão? → **serviço gerenciado** (RDS, ElastiCache, MSK)
+3. É **curto, orientado a eventos e esporádico**? → **FaaS** (Lambda, Cloud Functions)
+4. Precisa controlar o **SO ou um hardware especial**? → **IaaS** (EC2, Compute Engine, Azure VM)
+5. É um **container** que precisa da API do Kubernetes? → **Kubernetes gerenciado** (EKS, GKE, AKS)
+6. É um **container**? → **containers gerenciados** (Cloud Run, ECS Fargate)
+7. Nenhuma das anteriores → **PaaS** (Heroku, App Engine)
 
 ---
 

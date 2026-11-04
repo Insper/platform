@@ -66,14 +66,14 @@ Let the class answer first. The trade-off control × speed is the thread of the 
 
 Every model maps onto the same six layers. The line between **provider** and **customer** moves up.
 
-| Layer | On-premises | IaaS | PaaS | SaaS |
-|---|---|---|---|---|
-| Data | you | you | you | provider |
-| Application | you | you | you | provider |
-| Middleware | you | you | provider | provider |
-| OS | you | you | provider | provider |
-| Virtualisation | you | provider | provider | provider |
-| Hardware | you | provider | provider | provider |
+| Layer | On-premises | IaaS | CaaS | PaaS | FaaS | SaaS |
+|---|---|---|---|---|---|---|
+| Data and access | you | you | you | you | you | you |
+| Application | you | you | you | you | you | provider |
+| Middleware | you | you | you | provider | provider | provider |
+| OS | you | you | provider | provider | provider | provider |
+| Virtualisation | you | provider | provider | provider | provider | provider |
+| Hardware | you | provider | provider | provider | provider | provider |
 
 <p class="small">IaaS, PaaS and SaaS are the three foundational models defined by NIST. Security splits the same way: the provider secures the cloud, you secure what you put <em>in</em> it.</p>
 
@@ -231,14 +231,14 @@ Real systems **mix** models: run the decision **per component**. The course proj
 
 ## Full comparison
 
-| | On-prem | IaaS | PaaS | CaaS | FaaS | SaaS |
+| | On-prem | IaaS | CaaS | PaaS | FaaS | SaaS |
 |---|---|---|---|---|---|---|
 | **Control** | maximum | high | medium | medium | low | minimal |
-| **You own** | everything | OS and above | app + data | container + data | code + data | data + users |
+| **You own** | everything | OS and above | container + data | app + data | code + data | data + users |
 | **Time to market** | slow | slow | fast | fast | very fast | instant |
-| **Scaling** | manual | manual / scripted | automatic | auto (some to zero) | to zero | automatic |
-| **Cost model** | CapEx | per VM-hour | per usage | per container-hour | per invocation | per user/seat |
-| **Portability** | full | high | medium | high (image) | low (vendor API) | low (data export) |
+| **Scaling** | manual | manual / scripted | auto (some to zero) | automatic | to zero | automatic |
+| **Cost model** | CapEx | per VM-hour | per container-hour | per usage | per invocation | per user/seat |
+| **Portability** | full | high | high (image) | medium | low (vendor API) | low (data export) |
 
 <!--
 Read the table row by row: control and portability fall as time to market improves.
@@ -249,13 +249,15 @@ FaaS is the outlier on portability: the code is written against a vendor API.
 
 ## Decision framework
 
-1. Need **full OS control** or lift-and-shift? → **IaaS** (EC2, GCE, Azure VM)
-2. Deploying **containers**?
-   - want to manage Kubernetes yourself → **CaaS on Kubernetes** (EKS, GKE, AKS)
-   - otherwise → **managed CaaS** (Cloud Run, ECS Fargate)
-3. **Event-driven / sporadic** workload? → **FaaS** (Lambda, Cloud Functions)
-4. Building a **custom application**? → **PaaS** (Heroku, App Engine)
-5. None of the above → **SaaS**: use an existing product.
+Start from the most managed option. Ask in order and stop at the first **yes**:
+
+1. Does a **product** already do the job? → **SaaS** (GitHub Actions, Datadog)
+2. A standard **database, cache or broker**? → **managed service** (RDS, ElastiCache, MSK)
+3. **Short, event-driven and sporadic**? → **FaaS** (Lambda, Cloud Functions)
+4. Need control of the **OS or special hardware**? → **IaaS** (EC2, Compute Engine, Azure VM)
+5. A **container** that needs the Kubernetes API? → **managed Kubernetes** (EKS, GKE, AKS)
+6. A **container**? → **managed containers** (Cloud Run, ECS Fargate)
+7. None of the above → **PaaS** (Heroku, App Engine)
 
 ---
 
