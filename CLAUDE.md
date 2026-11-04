@@ -166,7 +166,7 @@ the tip, or when `LAB` holds an unregistered key. So: **when you change a lab se
 update the registry entry and `LAB`, run `node scripts/csim/test.mjs <sim>`, and rewrite the tip numbers it
 reports (en and pt); **when you write a simulator that uses a lab value**, register it the same way.
 
-Quiz pages (`classes/*/quiz.md`, `appendix/network/quiz.md`) keep plain Markdown (**Qn.** question, `- A.` … options, `??? success "Answer"` / `"Resposta"`
+Quiz pages (2026.2, 2027.1 and `appendix/network/quiz.md`) keep plain Markdown (**Qn.** question, `- A.` … options, `??? success "Answer"` / `"Resposta"`
 whose first bold starts with the letter); `assets/javascripts/quiz.js` turns them into compact cards with clickable options and a score.
 
 Every class page closes with `## Key takeaways { #key-takeaways }` (pt `## Pontos-chave`) followed by the list

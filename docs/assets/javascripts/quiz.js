@@ -1,5 +1,5 @@
 /*
- * Quizzes (2027.1 and the appendix): turns the quiz pages' Markdown into compact question cards.
+ * Quizzes (2026.2, 2027.1 and the appendix): turns the quiz pages' Markdown into compact question cards.
  *
  * The source stays plain Markdown, readable without JavaScript:
  *
@@ -14,7 +14,8 @@
  *       Explanation.
  *
  * Each question becomes a card: the options are buttons; picking one marks it right or wrong, shows
- * the correct one and opens the explanation. A bar on top counts answered and correct questions,
+ * the correct one and opens the explanation. A question without options is an open one: the card only
+ * has "show answer", and it counts as answered but not as correct. A bar on top counts answered and correct questions,
  * and the choices are remembered in this browser (localStorage, optional). Colors: theme only
  * (assets/stylesheets/quiz.css).
  */
@@ -47,9 +48,9 @@
 
     dets.forEach(function (det) {
       var ul = det.previousElementSibling;
-      if (!ul || ul.tagName !== "UL") return;
+      if (ul && ul.tagName !== "UL") ul = null;
       /* the question: the paragraphs (and code, tables…) back to the one that starts with **Qn.** */
-      var parts = [], n = ul.previousElementSibling, qid = null, label = null;
+      var parts = [], n = ul ? ul.previousElementSibling : det.previousElementSibling, qid = null, label = null;
       while (n && !/^(HR|H2|H3|DETAILS|UL)$/.test(n.tagName)) {
         parts.unshift(n);
         var m = n.tagName === "P" && n.textContent.trim().match(/^(Q(\d+)[^.]{0,20})\./);
@@ -59,12 +60,12 @@
       if (!qid) return;
       var strong = det.querySelector("p strong");
       var right = strong && (strong.textContent.trim().match(/^([A-E])\b/) || [])[1];
-      if (!right) return;
+      if (ul && !right) return;
 
       var card = document.createElement("section");
       card.className = "qz-card";
       card.id = "q" + qid;
-      ul.parentNode.insertBefore(card, parts[0]);
+      parts[0].parentNode.insertBefore(card, parts[0]);
       var head = document.createElement("div");
       head.className = "qz-q";
       var badge = document.createElement("span");
@@ -84,29 +85,31 @@
       head.appendChild(body);
       card.appendChild(head);
 
-      var opts = document.createElement("div");
-      opts.className = "qz-opts";
       var buttons = [];
-      Array.prototype.forEach.call(ul.children, function (li) {
-        var m = li.textContent.trim().match(/^([A-E])\.\s*/);
-        if (!m) return;
-        var b = document.createElement("button");
-        b.type = "button";
-        b.className = "qz-opt";
-        b.setAttribute("data-letter", m[1]);
-        var letter = document.createElement("span");
-        letter.className = "qz-l";
-        letter.textContent = m[1];
-        var text = document.createElement("span");
-        text.className = "qz-o";
-        text.innerHTML = li.innerHTML.replace(/^\s*[A-E]\.\s*/, "");
-        b.appendChild(letter);
-        b.appendChild(text);
-        opts.appendChild(b);
-        buttons.push(b);
-      });
-      ul.remove();
-      card.appendChild(opts);
+      if (ul) {
+        var opts = document.createElement("div");
+        opts.className = "qz-opts";
+        Array.prototype.forEach.call(ul.children, function (li) {
+          var m = li.textContent.trim().match(/^([A-E])\.\s*/);
+          if (!m) return;
+          var b = document.createElement("button");
+          b.type = "button";
+          b.className = "qz-opt";
+          b.setAttribute("data-letter", m[1]);
+          var letter = document.createElement("span");
+          letter.className = "qz-l";
+          letter.textContent = m[1];
+          var text = document.createElement("span");
+          text.className = "qz-o";
+          text.innerHTML = li.innerHTML.replace(/^\s*[A-E]\.\s*/, "");
+          b.appendChild(letter);
+          b.appendChild(text);
+          opts.appendChild(b);
+          buttons.push(b);
+        });
+        ul.remove();
+        card.appendChild(opts);
+      }
 
       det.classList.add("qz-exp");
       det.removeAttribute("open");
@@ -165,7 +168,7 @@
 
     function tally() {
       var done = 0, ok = 0;
-      cards.forEach(function (c) { if (c.choice !== undefined) done++; if (c.choice === c.right) ok++; });
+      cards.forEach(function (c) { if (c.choice !== undefined) done++; if (c.right && c.choice === c.right) ok++; });
       bar.querySelector(".qz-score").innerHTML = "<b>" + done + "/" + cards.length + "</b> " + T.answered + " · <b>" + ok + "</b> " + T.correct;
       bar.querySelector(".qz-track i").style.width = (100 * done / cards.length) + "%";
       bar.classList.toggle("qz-started", done > 0);
@@ -191,7 +194,7 @@
   }
 
   function init() {
-    if (!/\/(2027\.1|appendix)\//.test(location.pathname)) return;
+    if (!/\/(2026\.2|2027\.1|appendix)\//.test(location.pathname)) return;
     var article = document.querySelector(".md-content article.md-typeset, .md-content .md-typeset");
     if (article && !article.classList.contains("qz-page")) build(article);
   }
