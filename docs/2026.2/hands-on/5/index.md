@@ -122,6 +122,9 @@ flowchart TD
     | **NodePort** | Exposes the service on each node's IP at a static port. This allows you to access the service from outside the cluster using `<NodeIP>:<NodePort>`. |
     | **LoadBalancer** | Creates an external load balancer in supported cloud providers, routing traffic to your service. |
 
+    !!! info "LoadBalancer on Minikube"
+        Minikube has no cloud load balancer, so a `LoadBalancer` Service shows `EXTERNAL-IP` as `<pending>`. Run `minikube tunnel` in a separate terminal and leave it open: while it runs, the Service gets an external IP reachable from your machine.
+
 - **ConfigMap**: A way to pass configuration data to your application without hardcoding it into the container.
 
 - **Secret**: Similar to ConfigMap, but used for sensitive information like passwords or API keys, ensuring they are stored securely.
@@ -283,6 +286,7 @@ To install Minikube, follow the instructions in the [Minikube documentation](htt
 | `minikube status` | Check the status of the Minikube cluster. |
 | `minikube dashboard` | Open the Kubernetes dashboard in your web browser. |
 | `minikube ssh` | SSH into the Minikube VM. |
+| `minikube tunnel` | Give `LoadBalancer` Services an external IP (keep it running in a separate terminal). |
 | `minikube delete` | Delete the Minikube cluster. |
 | `minikube delete --all --purge` | Delete all Minikube clusters and remove their configurations. |
 

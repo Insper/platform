@@ -110,6 +110,9 @@ Um *executor* é um slot em que o Jenkins executa uma etapa (stage) ou um job do
 
 **Manage Jenkins → Nodes → Built-In Node → Configure → Number of executors → 10**
 
+!!! warning "Executors de menos"
+    O pipeline do `account-service` dispara o job `account` (`build job: 'account', wait: true`, na [seção 5](#5-exemplos)) e fica com o próprio executor enquanto espera. Com os 2 executors padrão e vários serviços em build ao mesmo tempo, todos os slots podem acabar presos a jobs que esperam o `account`, que nunca ganha um slot para rodar: os builds ficam parados na fila.
+
 === "Nodes"
 
     ![](./jenkins/images/jenkins.nodes.png)
@@ -133,7 +136,7 @@ Antes de criar pipelines que enviam imagens Docker, guarde o segredo do Docker H
 | Password | Access token do Docker Hub (veja a dica abaixo) |
 | ID | `dockerhub-credential` |
 
-!!! tip "Use access tokens, e não a senha da sua conta"
+!!! tip "Use access tokens e não a senha da sua conta"
     Crie um token dedicado, com escopo **Read & Write**, em **Docker Hub → Account Settings → Security → Access Tokens**. Se o token for comprometido, você pode revogá-lo sem mexer na senha da sua conta[^6].
 
 ## 4. Pipeline as Code

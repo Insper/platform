@@ -37,7 +37,16 @@ sequenceDiagram
     G-->>C: 200 OK  (total: 2 340 ms)
 ```
 
-Com rastreamento, cada salto é medido como um **span**, e todos os spans de uma requisição compartilham um **trace ID**. A UI do Jaeger desenha o grafo de chamadas completo como um flame chart, para que você veja o span lento imediatamente.
+Com rastreamento, cada salto é medido como um **span** e todos os spans de uma requisição compartilham um **trace ID**. A UI do Jaeger desenha o grafo de chamadas completo como um flame chart, para que você veja o span lento imediatamente.
+
+| Termo | O que é |
+|---|---|
+| **Span** | Uma operação cronometrada: uma chamada HTTP, uma query, uma etapa de negócio |
+| **Trace** | Todos os spans de uma requisição, agrupados por um **trace ID** comum |
+| **Pai / filho** | Cada span aponta para o span que o chamou |
+| **`traceparent`** | O cabeçalho W3C que leva o contexto ao próximo serviço |
+| **OTLP** | O protocolo que o agente usa para exportar os spans |
+| **Flame chart** | A visão do Jaeger: uma barra por span, largura = duração |
 
 ``` mermaid-sim
 sequenceDiagram
@@ -90,6 +99,8 @@ flowchart LR
     e2@{ animate: true }
     classDef highlighted fill:#fcc
 ```
+
+Dois pipelines rodam lado a lado: o Prometheus **puxa** (faz scrape de) as métricas de cada serviço, enquanto o agente de cada serviço **envia** os seus spans ao Jaeger por OTLP.
 
 ## Adicionando o Jaeger ao Docker Compose
 
@@ -198,6 +209,9 @@ O agente é configurado inteiramente por variáveis de ambiente. Adicione o segu
 
 !!! warning "Por que `OTEL_METRICS_EXPORTER: none`?"
     Por padrão, o agente OTel também tenta exportar métricas via OTLP. Você já coleta métricas com Prometheus e Micrometer — exportá-las uma segunda vez para o Jaeger criaria duplicatas e desperdiçaria recursos. Definir `none` desativa o pipeline de métricas do OTel, mantendo a exportação de traces totalmente ativa.
+
+!!! warning "`localhost` dentro de um container"
+    O `OTEL_EXPORTER_OTLP_ENDPOINT` precisa usar o nome do serviço no Compose, `http://jaeger:4317`. Dentro de um container, `localhost` é o próprio container, então um endpoint como `http://localhost:4317` manda os spans para lugar nenhum e nenhum trace chega ao Jaeger.
 
 ## Propagação de traces — como funciona
 

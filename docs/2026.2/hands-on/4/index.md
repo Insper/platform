@@ -111,6 +111,9 @@ An *executor* is a slot where Jenkins runs one pipeline stage or job. The defaul
 
 **Manage Jenkins → Nodes → Built-In Node → Configure → Number of executors → 10**
 
+!!! warning "Too few executors"
+    The `account-service` pipeline starts the `account` job (`build job: 'account', wait: true`, in [section 5](#5-examples)) and keeps its own executor while it waits. With the default 2 executors and several services building at once, every slot can end up held by a job waiting for `account`, and `account` never gets a slot to run: the builds hang in the queue.
+
 === "Nodes"
 
     ![](./jenkins/images/jenkins.nodes.png)

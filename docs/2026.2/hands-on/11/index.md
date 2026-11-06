@@ -39,6 +39,15 @@ sequenceDiagram
 
 With tracing, every hop is measured as a **span** and all spans for one request share a **trace ID**. The Jaeger UI renders the full call graph as a flame chart so you can see the slow span immediately.
 
+| Term | What it is |
+|---|---|
+| **Span** | One timed operation: an HTTP call, a query, a business step |
+| **Trace** | All the spans of one request, grouped by a shared **trace ID** |
+| **Parent / child** | Each span points to the span that called it |
+| **`traceparent`** | The W3C header that carries the context to the next service |
+| **OTLP** | The protocol the agent uses to export spans |
+| **Flame chart** | The Jaeger view: one bar per span, width = duration |
+
 ``` mermaid-sim
 sequenceDiagram
     participant C as Client
@@ -90,6 +99,8 @@ flowchart LR
     e2@{ animate: true }
     classDef highlighted fill:#fcc
 ```
+
+Two pipelines run side by side: Prometheus **pulls** (scrapes) the metrics from each service, while each service's agent **pushes** its spans to Jaeger over OTLP.
 
 ## Adding Jaeger to Docker Compose
 
@@ -198,6 +209,9 @@ The agent is configured entirely through environment variables. Add the followin
 
 !!! warning "Why `OTEL_METRICS_EXPORTER: none`?"
     By default the OTel agent also tries to export metrics via OTLP. You are already collecting metrics with Prometheus and Micrometer — exporting them a second time to Jaeger would create duplicates and waste resources. Setting `none` disables the OTel metric pipeline while leaving trace export fully enabled.
+
+!!! warning "`localhost` inside a container"
+    `OTEL_EXPORTER_OTLP_ENDPOINT` must use the Compose service name, `http://jaeger:4317`. Inside a container, `localhost` is the container itself, so an endpoint like `http://localhost:4317` sends the spans nowhere and no trace reaches Jaeger.
 
 ## Trace Propagation — How It Works
 

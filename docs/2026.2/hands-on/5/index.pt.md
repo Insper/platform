@@ -121,6 +121,9 @@ flowchart TD
     | **NodePort** | Expõe o serviço no IP de cada nó, em uma porta fixa. Isso permite acessar o serviço de fora do cluster usando `<NodeIP>:<NodePort>`. |
     | **LoadBalancer** | Cria um balanceador de carga externo nos provedores de nuvem que oferecem suporte, roteando o tráfego para o seu serviço. |
 
+    !!! info "LoadBalancer no Minikube"
+        O Minikube não tem um balanceador de carga de nuvem, então um Service `LoadBalancer` mostra `EXTERNAL-IP` como `<pending>`. Rode `minikube tunnel` em outro terminal e deixe-o aberto: enquanto ele roda, o Service recebe um IP externo acessível a partir da sua máquina.
+
 - **ConfigMap**: uma forma de passar dados de configuração para a sua aplicação sem deixá-los fixos dentro do container.
 
 - **Secret**: parecido com o ConfigMap, mas usado para informações sensíveis, como senhas ou chaves de API, garantindo que elas sejam armazenadas com segurança.
@@ -214,7 +217,7 @@ flowchart TD
         http://aac9dbab7421e4ec0a1b19472728b793-834724138.us-east-2.elb.amazonaws.com:8080/health-check # (1)!
         ```
 
-        1. Observe que é uma requisição HTTP, e não HTTPS. Para usar HTTPS, você precisa configurar certificados TLS e ajustar o recurso Ingress de acordo.
+        1. Observe que é uma requisição HTTP e não HTTPS. Para usar HTTPS, você precisa configurar certificados TLS e ajustar o recurso Ingress de acordo.
 
         Outra forma de expor a API é usar o recurso `Ingress`, que permite definir regras para rotear o tráfego HTTP/S externo para os seus serviços. Isso é especialmente útil para gerenciar vários serviços sob um único domínio ou subdomínio. Veja a [documentação do Ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/){target="_blank"} para mais detalhes.
 
@@ -232,7 +235,7 @@ flowchart TD
 
 ## Kubectl
 
-O Kubernetes é uma poderosa plataforma de orquestração de containers, e o `kubectl` é a sua ferramenta de linha de comando para gerenciar clusters Kubernetes. Abaixo estão alguns comandos comuns e suas descrições, para ajudar você a começar com o `kubectl`.
+O Kubernetes é uma poderosa plataforma de orquestração de containers e o `kubectl` é a sua ferramenta de linha de comando para gerenciar clusters Kubernetes. Abaixo estão alguns comandos comuns e suas descrições, para ajudar você a começar com o `kubectl`.
 
 Para instalar o `kubectl`, siga as instruções da [documentação do Kubernetes](https://kubernetes.io/docs/tasks/tools/install-kubectl/){:target="_blank"}. Para conferir se o `kubectl` foi instalado corretamente, execute:
 
@@ -282,6 +285,7 @@ Para instalar o Minikube, siga as instruções da [documentação do Minikube](h
 | `minikube status` | Mostra o status do cluster Minikube. |
 | `minikube dashboard` | Abre o dashboard do Kubernetes no navegador. |
 | `minikube ssh` | Abre uma sessão SSH na VM do Minikube. |
+| `minikube tunnel` | Dá um IP externo aos Services `LoadBalancer` (deixe-o rodando em outro terminal). |
 | `minikube delete` | Remove o cluster Minikube. |
 | `minikube delete --all --purge` | Remove todos os clusters Minikube e apaga suas configurações. |
 
