@@ -28,7 +28,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — mesma chave → mesma partição → ordem por chave.**
 
-    O particionador padrão faz o *hash* da chave módulo o número de partições. O Kafka só garante ordem dentro de uma partição, então usar o id do agregado como chave dá ordem *por pedido*, que é o que os consumidores precisam. Chaves diferentes podem compartilhar uma partição (D é falsa), e a chave não tem relação com semântica de entrega nem com criptografia.
+    O particionador padrão faz o *hash* da chave módulo o número de partições. O Kafka só garante ordem dentro de uma partição, então usar o id do agregado como chave dá ordem *por pedido*, que é o que os consumidores precisam. Chaves diferentes podem compartilhar uma partição (D é falsa) e a chave não tem relação com semântica de entrega nem com criptografia.
 
 ---
 
@@ -58,11 +58,11 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **C — o problema da escrita dupla.**
 
-    O PostgreSQL não consegue desfazer uma publicação no Kafka, e o Kafka não consegue desfazer um commit do banco. Seja qual for a ordem das duas escritas, uma queda, um deploy ou um timeout entre elas deixa os sistemas inconsistentes. O transactional outbox grava o evento na mesma transação do pedido; um relay o publica depois, tentando de novo até o Kafka confirmar.
+    O PostgreSQL não consegue desfazer uma publicação no Kafka e o Kafka não consegue desfazer um commit do banco. Seja qual for a ordem das duas escritas, uma queda, um deploy ou um timeout entre elas deixa os sistemas inconsistentes. O transactional outbox grava o evento na mesma transação do pedido; um relay o publica depois, tentando de novo até o Kafka confirmar.
 
 ---
 
-**Q5.** O relay envia um lote, o Kafka confirma, e o processo cai antes que o `UPDATE outbox SET published_at = ...` faça commit. O que acontece?
+**Q5.** O relay envia um lote, o Kafka confirma e o processo cai antes que o `UPDATE outbox SET published_at = ...` faça commit. O que acontece?
 
 - A. Os eventos se perdem
 - B. Os eventos são publicados de novo na próxima execução; os consumidores veem duplicatas e precisam ser idempotentes
@@ -100,7 +100,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **C — o efeito deu certo, mas o registro dele não.**
 
-    A e B estão tratados: a chave primária em `event_id` deixa só uma transação reivindicar o evento, e as entregas seguintes o encontram reivindicado. Mas o e-mail é um efeito colateral externo que o banco não consegue desfazer. Se o commit falhar depois do envio, a reivindicação some e uma retentativa envia de novo. A correção completa é uma chave de idempotência aceita pelo provedor (passe o `eventId`).
+    A e B estão tratados: a chave primária em `event_id` deixa só uma transação reivindicar o evento e as entregas seguintes o encontram reivindicado. Mas o e-mail é um efeito colateral externo que o banco não consegue desfazer. Se o commit falhar depois do envio, a reivindicação some e uma retentativa envia de novo. A correção completa é uma chave de idempotência aceita pelo provedor (passe o `eventId`).
 
 ---
 
@@ -120,7 +120,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ## Erros e a DLT { #errors-and-the-dlt }
 
-**Q9.** Uma mensagem na partição 3 faz o listener lançar uma `MailSendException` transitória toda vez, e o *error handler* está configurado com 3 retentativas e *backoff* exponencial (0,5 s, 1 s, 2 s). O que acontece com as outras mensagens?
+**Q9.** Uma mensagem na partição 3 faz o listener lançar uma `MailSendException` transitória toda vez e o *error handler* está configurado com 3 retentativas e *backoff* exponencial (0,5 s, 1 s, 2 s). O que acontece com as outras mensagens?
 
 - A. Todas as partições param até um operador intervir
 - B. As mensagens atrás dela **na partição 3** esperam cerca de 3,5 s; as outras partições seguem; depois o registro vai para `order-events-dlt` e a partição 3 continua
@@ -128,7 +128,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 - D. O Kafka move o registro para o fim da partição e tenta mais tarde
 
 ??? success "Resposta"
-    **B — retentativas bloqueantes atrasam só aquela partição, e depois a DLT a desbloqueia.**
+    **B — retentativas bloqueantes atrasam só aquela partição e depois a DLT a desbloqueia.**
 
     O `DefaultErrorHandler` tenta de novo no lugar, então a ordem é mantida e só a partição afetada espera. Depois das retentativas, o `DeadLetterPublishingRecoverer` publica o registro (com *headers* da exceção) na DLT e o offset é confirmado. O Kafka nunca reordena uma partição (D).
 
@@ -150,7 +150,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ## Sala de espera e capacidade { #waiting-room-and-capacity }
 
-**Q11.** A sala de espera admite 500 fãs por segundo. Um fã entra e fica na posição 45 000. Que ETA a página deve mostrar, e que lei o justifica?
+**Q11.** A sala de espera admite 500 fãs por segundo. Um fã entra e fica na posição 45 000. Que ETA a página deve mostrar e que lei o justifica?
 
 - A. 9 s — posição × taxa
 - B. 90 s — Lei de Little: espera = tamanho da fila / vazão
@@ -164,7 +164,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q12.** Com `EMAIL_LATENCY=50ms` e `NOTIFY_CONCURRENCY=1`, chegam 100 pedidos por segundo durante 60 s. Aproximadamente qual é o *lag* do consumidor ao fim da rajada, e quanto tempo leva para drenar?
+**Q12.** Com `EMAIL_LATENCY=50ms` e `NOTIFY_CONCURRENCY=1`, chegam 100 pedidos por segundo durante 60 s. Aproximadamente qual é o *lag* do consumidor ao fim da rajada e quanto tempo leva para drenar?
 
 - A. 0 mensagens; o Kafka absorve a rajada
 - B. ≈ 4 800 mensagens; ≈ 240 s
@@ -174,11 +174,11 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — capacidade de 20/s, chegadas de 100/s.**
 
-    Uma thread a 50 ms por e-mail atende 20 mensagens/s. O *backlog* cresce a 100 − 20 = 80/s, chegando a ≈ 4 800 depois de 60 s, e drena a 20/s depois da rajada: 4 800 / 20 = 240 s. Com 6 threads (120/s) o *lag* fica perto de zero; uma sétima thread ficaria ociosa, já que o tópico tem 6 partições.
+    Uma thread a 50 ms por e-mail atende 20 mensagens/s. O *backlog* cresce a 100 − 20 = 80/s, chegando a ≈ 4 800 depois de 60 s e drena a 20/s depois da rajada: 4 800 / 20 = 240 s. Com 6 threads (120/s) o *lag* fica perto de zero; uma sétima thread ficaria ociosa, já que o tópico tem 6 partições.
 
 ---
 
-**Q13.** O admissor da sala de espera é um método `@Scheduled` em `order`. Você escala `order` para 3 réplicas. O que dá errado, e qual é uma correção?
+**Q13.** O admissor da sala de espera é um método `@Scheduled` em `order`. Você escala `order` para 3 réplicas. O que dá errado e qual é uma correção?
 
 - A. Nada; o Redis serializa as retiradas
 - B. Cada réplica admite N fãs por segundo, então a taxa real de admissão triplica; rode o admissor em uma única instância (*worker*, eleição de líder ou trava distribuída)

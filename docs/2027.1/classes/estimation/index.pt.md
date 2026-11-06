@@ -54,7 +54,7 @@ Estimar é também como você **confere** um design e uma medição. Se o seu te
 
 ## O método: cinco passos { #the-method-five-steps }
 
-A estimativa de guardanapo (*back-of-the-envelope*) é uma forma de **estimativa de Fermi** (em homenagem ao físico Enrico Fermi, famoso por estimar quantidades como "quantos afinadores de piano existem em Chicago?" a partir de uma cadeia de palpites razoáveis). Os erros numa cadeia de palpites grosseiros tendem a se compensar em parte, e uma resposta dentro de um fator de 2–3 é boa o bastante para escolher entre designs que diferem por 10× ou mais[^1].
+A estimativa de guardanapo (*back-of-the-envelope*) é uma forma de **estimativa de Fermi** (em homenagem ao físico Enrico Fermi, famoso por estimar quantidades como "quantos afinadores de piano existem em Chicago?" a partir de uma cadeia de palpites razoáveis). Os erros numa cadeia de palpites grosseiros tendem a se compensar em parte e uma resposta dentro de um fator de 2–3 é boa o bastante para escolher entre designs que diferem por 10× ou mais[^1].
 
 1. **Dê nome à decisão.** O que o número vai decidir? "Precisamos particionar a tabela de pedidos?" — e não "quantos dados existem?".
 2. **Declare as premissas** em voz alta e anote-as: usuários, ações por usuário, tamanhos, fator de pico. Use números redondos.
@@ -89,7 +89,7 @@ Vamos encerrar a discussão do início da página. Cada passo usa uma ferramenta
 
     **2. Capacidade** ([filas](queueing/index.md)): cada "vaga" conclui 1 / 5 ms = 200 reservas/s; 8 vagas ≈ **1.600 reservas/s** a 100% de utilização. Para manter a latência razoável, rodamos a ≤ 70%: **≈ 1.100 reservas/s**.
 
-    **3. Veredito**: a demanda excede a capacidade em **~30×**. Nenhum ajuste fecha uma diferença de 30×. Sem uma fila, as requisições se acumulam, a latência explode muito antes de os erros aparecerem, e os timeouts provocam novas tentativas que pioram tudo.
+    **3. Veredito**: a demanda excede a capacidade em **~30×**. Nenhum ajuste fecha uma diferença de 30×. Sem uma fila, as requisições se acumulam, a latência explode muito antes de os erros aparecerem e os timeouts provocam novas tentativas que pioram tudo.
 
     **4. Design**: uma **sala de espera** admite fãs a ~1.000/s. Com 60 mil lugares e ~2 lugares por fã, são necessários no máximo ~30 mil fãs bem-sucedidos; a 1.000 admissões por segundo, eles são atendidos em cerca de 30 s, enquanto a fila diz aos demais, quase em tempo real, quão longe estão da frente — e, quando os lugares acabam, que o show esgotou.
 
@@ -109,7 +109,7 @@ O cenário `monolith` é um único servidor de aplicação e um único banco SQL
 
 ??? question "O que você deveria ter observado? (abra depois de experimentar)"
 
-    O throughput cresce linearmente com a carga oferecida enquanto a latência fica plana; então, à medida que o componente mais carregado se aproxima da saturação, **a latência se curva para cima** (o joelho) enquanto o throughput se achata. Depois da saturação, o throughput para de crescer, as filas crescem sem limite e os timeouts viram erros. A latência é o **aviso precoce**; os erros são o aviso **tardio**. É por isso que a capacidade é definida pela meta de latência ("o maior throughput em que o p99 < 300 ms"), e não pelo ponto em que o sistema cai. A página de [filas](queueing/index.md) deduz a forma da curva.
+    O throughput cresce linearmente com a carga oferecida enquanto a latência fica plana; então, à medida que o componente mais carregado se aproxima da saturação, **a latência se curva para cima** (o joelho) enquanto o throughput se achata. Depois da saturação, o throughput para de crescer, as filas crescem sem limite e os timeouts viram erros. A latência é o **aviso precoce**; os erros são o aviso **tardio**. É por isso que a capacidade é definida pela meta de latência ("o maior throughput em que o p99 < 300 ms") e não pelo ponto em que o sistema cai. A página de [filas](queueing/index.md) deduz a forma da curva.
 
 ---
 
@@ -152,16 +152,16 @@ flowchart LR
 |---|---|---|---|---|
 | [`app`](../../reference/components/compute/index.md#app) · [`worker`](../../reference/components/compute/index.md#worker) | Quantas instâncias, threads e conexões? | nós = pico / (capacidade × utilização-alvo) + reservas; L = λ × W | [Números](numbers/index.md), [Filas](queueing/index.md) | `monolith`, `scale-out` |
 | [`sql`](../../reference/components/storage/index.md#sql) | Um primário aguenta a carga — e os dados? | teto de escritas duráveis, U = X × S, o joelho, fração serial (linhas quentes), armazenamento × retenção × replicação | [Filas](queueing/index.md), [Números](numbers/index.md) | `monolith`, `flash-sale` |
-| [`cache`](../../reference/components/storage/index.md#cache) | Quanta memória, e quantas leituras ainda chegam ao banco? | latência de RAM vs SSD vs rede, o conjunto quente, 80/20 | [Números](numbers/index.md) | `read-heavy-cache` |
+| [`cache`](../../reference/components/storage/index.md#cache) | Quanta memória e quantas leituras ainda chegam ao banco? | latência de RAM vs SSD vs rede, o conjunto quente, 80/20 | [Números](numbers/index.md) | `read-heavy-cache` |
 | [`cdn`](../../reference/components/edge/index.md#cdn) · [`objstore`](../../reference/components/storage/index.md#objstore) | Quantos bits por segundo e quantos terabytes? | banda = QPS × tamanho, bits vs bytes, arquivos e logs dominam o armazenamento | [Números](numbers/index.md) | `cdn-static`, `video-streaming` |
-| [`queue`](../../reference/components/messaging/index.md#queue) | Qual o tamanho da fila, e com que rapidez ela esvazia? | W = L / λ, taxa de admissão abaixo da capacidade | [Filas](queueing/index.md) | `flash-sale`, `async-queue` |
+| [`queue`](../../reference/components/messaging/index.md#queue) | Qual o tamanho da fila e com que rapidez ela esvazia? | W = L / λ, taxa de admissão abaixo da capacidade | [Filas](queueing/index.md) | `flash-sale`, `async-queue` |
 | [`search`](../../reference/components/compute/index.md#search) | Por que o p99 do usuário é pior que o de cada shard? | percentis a partir de histogramas, 1 − (1 − q)ᴺ, hedging, orçamentos de latência | [Percentis](percentiles/index.md) | `scale-out`, `search-autocomplete` |
-| [`lb`](../../reference/components/edge/index.md#lb) · [`healthcheck`](../../reference/components/observability/index.md#healthcheck) | Quão disponível é um conjunto de réplicas, e quão rápido uma falha é detectada? | paralelo 1 − ∏(1 − aᵢ), MTTR, tempo de detecção + failover | [Matemática da Disponibilidade](availability-math/index.md) | `scale-out`, `multi-region` |
+| [`lb`](../../reference/components/edge/index.md#lb) · [`healthcheck`](../../reference/components/observability/index.md#healthcheck) | Quão disponível é um conjunto de réplicas e quão rápido uma falha é detectada? | paralelo 1 − ∏(1 − aᵢ), MTTR, tempo de detecção + failover | [Matemática da Disponibilidade](availability-math/index.md) | `scale-out`, `multi-region` |
 | [`payment`](../../reference/components/external/index.md#payment) · [`email`](../../reference/components/external/index.md#email) | Quanto uma dependência fraca custa ao caminho crítico? | série ∏ aᵢ, tirá-la do caminho, um segundo provedor | [Matemática da Disponibilidade](availability-math/index.md) | `payment-system`, `notification-system` |
 
 !!! tip "Na entrevista"
 
-    Gaste **3–5 minutos** com estimativas, logo depois de esclarecer os requisitos, e faça-as **em voz alta no quadro**: premissas numa coluna, resultados na outra. Termine sempre cada linha com sua consequência — "≈ 400 leituras/s em média, 1.200 no pico: um banco daria conta, mas um cache torna isso trivial" — e siga em frente. Se o entrevistador der números, use-os; se não, proponha números redondos e pergunte "faz sentido?". Precisão não é o objetivo; **ordens de grandeza que guiam decisões** são.
+    Gaste **3–5 minutos** com estimativas, logo depois de esclarecer os requisitos e faça-as **em voz alta no quadro**: premissas numa coluna, resultados na outra. Termine sempre cada linha com sua consequência — "≈ 400 leituras/s em média, 1.200 no pico: um banco daria conta, mas um cache torna isso trivial" — e siga em frente. Se o entrevistador der números, use-os; se não, proponha números redondos e pergunte "faz sentido?". Precisão não é o objetivo; **ordens de grandeza que guiam decisões** são.
 
 !!! success "Boas práticas"
 
@@ -194,13 +194,13 @@ flowchart LR
 
     - Decisões de design mudam em **ordens de grandeza**; a estimativa diz de que lado de um limiar você está.
     - Cinco passos: **decisão → premissas → potências de dez → conferência de sanidade → conclusão**.
-    - A capacidade é aproximadamente **vagas paralelas / tempo de serviço**, e você roda bem **abaixo** dela (≈ 60–75%) porque a latência explode perto da saturação.
+    - A capacidade é aproximadamente **vagas paralelas / tempo de serviço** e você roda bem **abaixo** dela (≈ 60–75%) porque a latência explode perto da saturação.
     - O resultado mais importante de uma estimativa costuma ser **qual número medir** em seguida.
     - Percentis e matemática da disponibilidade dizem o que os **usuários** experimentam, não só o que os servidores fazem.
 
 ## O que quebra em seguida { #what-breaks-next }
 
-O veredito é uma **diferença de 30×**: ~33.000 tentativas de reserva/s contra ~1.100 que um banco sustenta com uma utilização sensata, e o laboratório 2 mostra que uma única instância do `catalog` sai da meta de latência com algumas centenas de requisições por segundo. Uma sala de espera molda a demanda, mas ela, as réplicas da aplicação na frente do banco e um standby para o primário (uma máquina não promete 99,95%) significam **mais de uma máquina**. Entre máquinas há uma rede que perde, atrasa e duplica mensagens: um fã cuja "reserva" estoura o timeout e é repetida pode acabar com duas reservas, ou duas cobranças. O que muda quando a BoxOffice vira máquinas que só cooperam por mensagens é a [aula 3 — Sistemas Distribuídos](../distributed/index.md).
+O veredito é uma **diferença de 30×**: ~33.000 tentativas de reserva/s contra ~1.100 que um banco sustenta com uma utilização sensata e o laboratório 2 mostra que uma única instância do `catalog` sai da meta de latência com algumas centenas de requisições por segundo. Uma sala de espera molda a demanda, mas ela, as réplicas da aplicação na frente do banco e um standby para o primário (uma máquina não promete 99,95%) significam **mais de uma máquina**. Entre máquinas há uma rede que perde, atrasa e duplica mensagens: um fã cuja "reserva" estoura o timeout e é repetida pode acabar com duas reservas, ou duas cobranças. O que muda quando a BoxOffice vira máquinas que só cooperam por mensagens é a [aula 3 — Sistemas Distribuídos](../distributed/index.md).
 
 ---
 

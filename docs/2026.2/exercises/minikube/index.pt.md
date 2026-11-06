@@ -32,7 +32,7 @@ Os conceitos e os manifestos do Postgres e do Gateway são abordados no [Hands-o
 
 !!! example "Exemplo: `account-service`"
 
-    Um único `k8s.yaml` pode conter vários recursos, separados por `---`. O serviço de contas lê a conexão com o banco de dados do ConfigMap (host, porta, banco) e do Secret (usuário, senha), e se conecta ao Service `postgres` do [Hands-on 5](../../hands-on/5/index.md).
+    Um único `k8s.yaml` pode conter vários recursos, separados por `---`. O serviço de contas lê a conexão com o banco de dados do ConfigMap (host, porta, banco) e do Secret (usuário, senha) e se conecta ao Service `postgres` do [Hands-on 5](../../hands-on/5/index.md).
 
     === "k8s.yaml"
 

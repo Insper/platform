@@ -201,7 +201,7 @@ flowchart LR
 - **Retries de invocações assíncronas** causam duplicatas → handlers idempotentes.
 - **Custo descontrolado** — um laço (a função escreve no bucket que a dispara) → proteções, orçamentos e alertas.
 
-**No playground.** `serverless` é um nó de **chamada** com autoescala embutida: as requisições que precisam de uma instância nova pagam um **cold start** (`coldStartMs`, padrão 600 ms), a menos que instâncias `provisioned` fiquem sempre quentes, e acima do `concurrencyLimit` (padrão 1.000) as requisições são limitadas (429). O custo é por invocação mais GB-segundo (`memGB`). Compare-o com um nó `app` no perfil `spike`. Cenários: [`serverless-burst`](../../../../playground/scenarios/index.md#serverless-burst), [`video-streaming`](../../../../playground/scenarios/index.md#video-streaming).
+**No playground.** `serverless` é um nó de **chamada** com autoescala embutida: as requisições que precisam de uma instância nova pagam um **cold start** (`coldStartMs`, padrão 600 ms), a menos que instâncias `provisioned` fiquem sempre quentes e acima do `concurrencyLimit` (padrão 1.000) as requisições são limitadas (429). O custo é por invocação mais GB-segundo (`memGB`). Compare-o com um nó `app` no perfil `spike`. Cenários: [`serverless-burst`](../../../../playground/scenarios/index.md#serverless-burst), [`video-streaming`](../../../../playground/scenarios/index.md#video-streaming).
 
 **Produtos reais.**
 
@@ -227,7 +227,7 @@ flowchart LR
     - **KEDA** — autoescala orientada a eventos, inclusive até zero.
 
 !!! tip "Na entrevista"
-    "Serverless é ótimo para trabalho curto, com picos e orientado a eventos — o webhook de pagamento, miniaturas, tarefas noturnas — porque escala a partir de zero e pago por chamada. No caminho de compra, crítico em latência, prefiro contêineres aquecidos: cold starts pioram o p99, e uma rajada de funções pode esgotar as conexões do banco."
+    "Serverless é ótimo para trabalho curto, com picos e orientado a eventos — o webhook de pagamento, miniaturas, tarefas noturnas — porque escala a partir de zero e pago por chamada. No caminho de compra, crítico em latência, prefiro contêineres aquecidos: cold starts pioram o p99 e uma rajada de funções pode esgotar as conexões do banco."
 
 **Saiba mais:** [Computação › Serverless e autoescala](../../../classes/compute/serverless-autoscaling/index.md) · [Cloud-native › FinOps](../../../classes/cloud-native/finops/index.md) · [Estudo de caso: streaming de vídeo](../../../classes/case-studies/video-streaming/index.md)
 
@@ -357,7 +357,7 @@ flowchart LR
     - **Busca textual do PostgreSQL** — suficiente para catálogos pequenos.
 
 !!! tip "Na entrevista"
-    "A busca é um índice secundário: o banco continua sendo a fonte da verdade, as mudanças chegam ao OpenSearch por CDC ou outbox, e os resultados são quase em tempo real (cerca de um segundo de atraso). A disponibilidade mostrada no checkout vem sempre do serviço de inventário, nunca do índice de busca."
+    "A busca é um índice secundário: o banco continua sendo a fonte da verdade, as mudanças chegam ao OpenSearch por CDC ou outbox e os resultados são quase em tempo real (cerca de um segundo de atraso). A disponibilidade mostrada no checkout vem sempre do serviço de inventário, nunca do índice de busca."
 
 **Saiba mais:** [Bancos de dados › Especializados](../../../classes/databases/specialized/index.md) · [Mensageria › Padrões](../../../classes/messaging/patterns/index.md) · [Estudo de caso: autocompletar de busca](../../../classes/case-studies/search-autocomplete/index.md)
 
@@ -422,7 +422,7 @@ flowchart LR
     - **Temporal** — timers e agendamentos duráveis para workflows.
 
 !!! tip "Na entrevista"
-    "Trabalho baseado em tempo passa por um único scheduler que enfileira tarefas, não por cron em cada réplica: um lock ou eleição de líder garante uma execução, as tarefas são idempotentes caso rodem duas vezes, e os horários de início recebem jitter para que a meia-noite não vire uma manada."
+    "Trabalho baseado em tempo passa por um único scheduler que enfileira tarefas, não por cron em cada réplica: um lock ou eleição de líder garante uma execução, as tarefas são idempotentes caso rodem duas vezes e os horários de início recebem jitter para que a meia-noite não vire uma manada."
 
 **Saiba mais:** [Computação › Trabalho assíncrono](../../../classes/compute/async-work/index.md) · [Distribuídos › Consenso](../../../classes/distributed/consensus/index.md) · [Estudo de caso: sistema de notificações](../../../classes/case-studies/notification-system/index.md)
 
@@ -487,7 +487,7 @@ flowchart LR
     - Filas (RabbitMQ, Kafka) + workers para montar o seu próprio pipeline.
 
 !!! tip "Na entrevista"
-    "Os serviços publicam eventos; um serviço de notificações os consome, verifica as preferências, renderiza os templates e envia por filas por canal, de modo que um provedor de e-mail lento nunca bloqueia uma compra. Toda mensagem tem chave de deduplicação porque a entrega é pelo menos uma vez, e os envios respeitam a cota do provedor."
+    "Os serviços publicam eventos; um serviço de notificações os consome, verifica as preferências, renderiza os templates e envia por filas por canal, de modo que um provedor de e-mail lento nunca bloqueia uma compra. Toda mensagem tem chave de deduplicação porque a entrega é pelo menos uma vez e os envios respeitam a cota do provedor."
 
 **Saiba mais:** [Computação › Integrações](../../../classes/compute/integrations/index.md) · [Mensageria › Filas e pub/sub](../../../classes/messaging/queues-pubsub/index.md) · [Estudo de caso: sistema de notificações](../../../classes/case-studies/notification-system/index.md) · [Hands-on 7](../../../hands-on/7/index.md)
 

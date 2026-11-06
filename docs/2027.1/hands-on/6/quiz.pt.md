@@ -68,7 +68,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **C — Read-your-writes.**
 
-    A replicação é assíncrona; a réplica pode ainda não ter a reserva, e o fã veria um 404 para algo que acabou de criar. Leituras das próprias escritas recentes vão para o primário.
+    A replicação é assíncrona; a réplica pode ainda não ter a reserva e o fã veria um 404 para algo que acabou de criar. Leituras das próprias escritas recentes vão para o primário.
 
 ---
 
@@ -117,7 +117,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 **Q9.** O que o PgBouncer muda quando o `inventory` escala de 1 para 10 réplicas com 20 conexões cada?
 
 - A. Nada: o PostgreSQL continua recebendo 200 conexões
-- B. O PostgreSQL recebe no máximo `default_pool_size` conexões de servidor; as 200 conexões de cliente são multiplexadas, e os clientes excedentes fazem fila no PgBouncer em vez de falhar com "too many clients"
+- B. O PostgreSQL recebe no máximo `default_pool_size` conexões de servidor; as 200 conexões de cliente são multiplexadas e os clientes excedentes fazem fila no PgBouncer em vez de falhar com "too many clients"
 - C. Deixa toda consulta mais rápida
 - D. Faz cache dos resultados das consultas
 
@@ -138,7 +138,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — O índice fornece tanto o filtro quanto a ordem.**
 
-    `LIMIT` + um índice na ordem certa é uma das otimizações mais eficazes que existem. A contagem ainda visita todas as linhas que casam, e todo insert/update agora também mantém os índices — índices são um custo do lado da escrita.
+    `LIMIT` + um índice na ordem certa é uma das otimizações mais eficazes que existem. A contagem ainda visita todas as linhas que casam e todo insert/update agora também mantém os índices — índices são um custo do lado da escrita.
 
 ---
 
@@ -156,7 +156,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q12.** Com `synchronous_standby_names = 'FIRST 1 ("db-replica")'` e o padrão `synchronous_commit = on`, a réplica é parada. Um fã faz uma reserva, o gateway responde `504` depois de 5 s, e minutos depois a réplica volta. O que aconteceu com a reserva?
+**Q12.** Com `synchronous_standby_names = 'FIRST 1 ("db-replica")'` e o padrão `synchronous_commit = on`, a réplica é parada. Um fã faz uma reserva, o gateway responde `504` depois de 5 s e minutos depois a réplica volta. O que aconteceu com a reserva?
 
 - A. Foi desfeita quando o cliente desistiu
 - B. Ela foi confirmada no primário e só esperava a réplica; quando a réplica voltou, o commit terminou, então o assento está `HELD` embora o fã tenha visto um erro
@@ -166,11 +166,11 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — Confirmada localmente, esperando o standby.**
 
-    A replicação síncrona faz o primário esperar o standby *antes de responder*, não antes de confirmar: até o cancelamento imprime "the transaction has already committed locally". O resultado fica ambíguo para o cliente, então uma nova tentativa precisa reconhecer a tentativa anterior (uma chave de idempotência), e com um único standby síncrono esse standby é um ponto único de falha para as escritas — em produção se usa `ANY 1` sobre dois ou mais.
+    A replicação síncrona faz o primário esperar o standby *antes de responder*, não antes de confirmar: até o cancelamento imprime "the transaction has already committed locally". O resultado fica ambíguo para o cliente, então uma nova tentativa precisa reconhecer a tentativa anterior (uma chave de idempotência) e com um único standby síncrono esse standby é um ponto único de falha para as escritas — em produção se usa `ANY 1` sobre dois ou mais.
 
 ---
 
-**Q13.** Depois da queda do passo 4, a reserva da Ana tinha respondido `201`, mas `GET /inventory/holds/{id}` na réplica promovida devolveu `404`. Por quê, e que configuração teria evitado?
+**Q13.** Depois da queda do passo 4, a reserva da Ana tinha respondido `201`, mas `GET /inventory/holds/{id}` na réplica promovida devolveu `404`. Por quê e que configuração teria evitado?
 
 - A. A promoção apagou a tabela de reservas; `wal_log_hints = on` evita
 - B. Com replicação assíncrona, a reserva foi confirmada no antigo primário mas nunca enviada; ela só existia no WAL do primário morto. A replicação síncrona (`synchronous_commit = on` com um standby síncrono) a teria mantido, ao custo de esperar o standby em todo commit
@@ -194,4 +194,4 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — Split brain, depois isolar e rebobinar.**
 
-    Nada em dois servidores PostgreSQL independentes decide quem é o líder, e o alias de rede deixou os dois alcançáveis como `db`. Os gerenciadores de failover resolvem isso com consenso (a chave de líder do Patroni no etcd) e fencing; o `pg_rewind` então copia de volta os blocos que mudaram desde que as timelines se separaram, para que o antigo primário possa seguir o novo em vez de ser clonado do zero.
+    Nada em dois servidores PostgreSQL independentes decide quem é o líder e o alias de rede deixou os dois alcançáveis como `db`. Os gerenciadores de failover resolvem isso com consenso (a chave de líder do Patroni no etcd) e fencing; o `pg_rewind` então copia de volta os blocos que mudaram desde que as timelines se separaram, para que o antigo primário possa seguir o novo em vez de ser clonado do zero.

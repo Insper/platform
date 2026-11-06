@@ -1,5 +1,5 @@
 
-Um alerta é um pedido de atenção de um humano, muitas vezes às 3 da manhã. Isso o torna o sinal mais caro do sistema: custa sono, foco e, com o tempo, confiança. Dois modos de falha matam o alerting. **Alertas demais** — "CPU acima de 80%" em cada pod, cada oscilação de cada dependência — e o engenheiro de on-call aprende a ignorar o pager; o incidente real se afoga no ruído. **Alertas de menos, ou os errados** — e a primeira pessoa a notar o checkout quebrado é um fã nas redes sociais. Esta página trata de alertas que disparam quando, e somente quando, os usuários estão sendo prejudicados o bastante para que alguém precise agir.
+Um alerta é um pedido de atenção de um humano, muitas vezes às 3 da manhã. Isso o torna o sinal mais caro do sistema: custa sono, foco e, com o tempo, confiança. Dois modos de falha matam o alerting. **Alertas demais** — "CPU acima de 80%" em cada pod, cada oscilação de cada dependência — e o engenheiro de on-call aprende a ignorar o pager; o incidente real se afoga no ruído. **Alertas de menos, ou os errados** — e a primeira pessoa a notar o checkout quebrado é um fã nas redes sociais. Esta página trata de alertas que disparam quando e somente quando os usuários estão sendo prejudicados o bastante para que alguém precise agir.
 
 ---
 
@@ -69,7 +69,7 @@ O SRE Workbook[^2] compara seis desenhos progressivamente melhores para um alert
 | # | Regra | Precisão | Recall | Detecção | Reset | Problema |
 |---|---|---|---|---|---|---|
 | 1 | razão de erros > 0,1% em 10 min | baixa | alto | rápida | rápido | aciona por oscilações que mal tocam o budget |
-| 2 | razão de erros > 0,1% em 36 h | alta | alto | **muito lenta** | **muito lento** | uma indisponibilidade total leva ~2 min para alertar, e o alerta dura 36 h |
+| 2 | razão de erros > 0,1% em 36 h | alta | alto | **muito lenta** | **muito lento** | uma indisponibilidade total leva ~2 min para alertar e o alerta dura 36 h |
 | 3 | regra 1 + `for: 1h` | média | **baixo** | lenta | rápido | uma indisponibilidade de 100% ainda espera uma hora |
 | 4 | burn rate de 14,4× em 1 h | alta | médio | boa | lento | queimas lentas (3×) nunca alertam; o reset leva até uma hora |
 | 5 | vários burn rates (14,4× / 6× / 1×) | alta | alto | boa | lento | complexo; ainda lento para resetar |
@@ -119,7 +119,7 @@ print(buf.getvalue())
 plt.close(fig)
 ```
 
-Uma indisponibilidade total (100% de erros) dispara a regra rápida em menos de um minuto; um incidente que faz falhar 2% dos checkouts leva cerca de 43 minutos para disparar a regra rápida, e um que faz falhar 0,7% nunca a dispara, mas dispara a regra de 6 horas depois de cerca de 5 horas. Abaixo de 0,6% — um burn rate menor que 6× — só a regra de ticket o pega.
+Uma indisponibilidade total (100% de erros) dispara a regra rápida em menos de um minuto; um incidente que faz falhar 2% dos checkouts leva cerca de 43 minutos para disparar a regra rápida e um que faz falhar 0,7% nunca a dispara, mas dispara a regra de 6 horas depois de cerca de 5 horas. Abaixo de 0,6% — um burn rate menor que 6× — só a regra de ticket o pega.
 
 ### As regras em PromQL { #the-rules-in-promql }
 
@@ -186,7 +186,7 @@ Um **SLO de latência** funciona do mesmo jeito: os "eventos ruins" são as requ
 
 !!! example "No código do BoxOffice: os alertas de burn rate do `catalog` (lab 8)"
 
-    O [Hands-on 8 — SLO e alerta de burn rate](../../../hands-on/8/slo/index.md) escreve as duas primeiras regras da tabela acima como regras de alerta do Grafana, provisionadas a partir de um arquivo: um SLO de 99,5% em 28 dias para o `catalog` (um orçamento de 0,5%), com os health checks fora do SLI porque nenhum fã fez essas requisições. A consulta A é o burn rate em 1 h, a consulta B (não mostrada) a mesma expressão em 5 min, e C dispara só quando as duas passam de 14,4. Duas escolhas diferem da tabela: a regra de 6× é um **ticket**, não um page (um sinal mais barato para um time pequeno), e o `for: 1m` acrescenta um minuto de confirmação. Na execução de teste do lab, parar o banco disparou o page após **cerca de 440 s**, com burn rates de 17,0 (1 h) e 200,0 (5 min).
+    O [Hands-on 8 — SLO e alerta de burn rate](../../../hands-on/8/slo/index.md) escreve as duas primeiras regras da tabela acima como regras de alerta do Grafana, provisionadas a partir de um arquivo: um SLO de 99,5% em 28 dias para o `catalog` (um orçamento de 0,5%), com os health checks fora do SLI porque nenhum fã fez essas requisições. A consulta A é o burn rate em 1 h, a consulta B (não mostrada) a mesma expressão em 5 min e C dispara só quando as duas passam de 14,4. Duas escolhas diferem da tabela: a regra de 6× é um **ticket**, não um page (um sinal mais barato para um time pequeno), e o `for: 1m` acrescenta um minuto de confirmação. Na execução de teste do lab, parar o banco disparou o page após **cerca de 440 s**, com burn rates de 17,0 (1 h) e 200,0 (5 min).
 
     ``` { .yaml title="infra/grafana/alerting/slo-catalog.yaml (the fast-burn page)" }
     --8<-- "docs/2027.1/hands-on/8/code/infra/grafana/alerting/slo-catalog.yaml:11:25,37:48"
@@ -299,15 +299,15 @@ at this pace the 28-day budget is gone in about 2 days.
 
 ### Máquinas detectam, pessoas reparam { #machines-detect-people-repair }
 
-Um alerta não tira uma réplica quebrada do balanceador: um health check faz isso em segundos, e não acorda ninguém. O page é para o que uma máquina não consegue fazer sozinha — restaurar o que foi perdido antes que a próxima falha encontre o BoxOffice com menos redundância do que foi projetado para ter. É por isso que o runbook acima reduz o MTTR, e por isso que uma réplica que reinicia e se recupera sozinha não vale um page.
+Um alerta não tira uma réplica quebrada do balanceador: um health check faz isso em segundos e não acorda ninguém. O page é para o que uma máquina não consegue fazer sozinha — restaurar o que foi perdido antes que a próxima falha encontre o BoxOffice com menos redundância do que foi projetado para ter. É por isso que o runbook acima reduz o MTTR e por isso que uma réplica que reinicia e se recupera sozinha não vale um page.
 
-**Experimente.** No `observability-stack`, uma das três réplicas do `catalog` morre em t = 50 s e fica morta por 80 s. Adicione **Metrics** (conectado ao balanceador, à aplicação e ao banco) e um **Health Check** conectado ao balanceador, e rode: os erros duram 3 s, e a disponibilidade é de 99,4%. Agora adicione **Alerting** conectado ao Metrics e rode de novo.
+**Experimente.** No `observability-stack`, uma das três réplicas do `catalog` morre em t = 50 s e fica morta por 80 s. Adicione **Metrics** (conectado ao balanceador, à aplicação e ao banco) e um **Health Check** conectado ao balanceador, e rode: os erros duram 3 s e a disponibilidade é de 99,4%. Agora adicione **Alerting** conectado ao Metrics e rode de novo.
 
 <div class="sdp" data-scenario="observability-stack" data-mode="compact" data-height="520"></div>
 
 ??? question "O que você deveria ter observado?"
 
-    A curva de erros não muda: a disponibilidade continua em 99,4%, porque o health check já tinha tirado a réplica morta da rotação após 3 s. O que muda é o reparo: com alguém acionado, a réplica volta em t = 90 s em vez de t = 130 s, e o BoxOffice roda com duas de suas três réplicas por 40 s em vez de 80 s. Sem o health check, o Alerting sozinho também não ajuda os fãs — o balanceador continua mandando um terço das requisições para a réplica morta por 30 s (93,8% de disponibilidade). Máquinas contornam uma falha em segundos; pessoas a reparam em minutos, e o alerta é o que dá início aos minutos.
+    A curva de erros não muda: a disponibilidade continua em 99,4%, porque o health check já tinha tirado a réplica morta da rotação após 3 s. O que muda é o reparo: com alguém acionado, a réplica volta em t = 90 s em vez de t = 130 s e o BoxOffice roda com duas de suas três réplicas por 40 s em vez de 80 s. Sem o health check, o Alerting sozinho também não ajuda os fãs — o balanceador continua mandando um terço das requisições para a réplica morta por 30 s (93,8% de disponibilidade). Máquinas contornam uma falha em segundos; pessoas a reparam em minutos e o alerta é o que dá início aos minutos.
 
 ---
 
@@ -323,11 +323,11 @@ Um alerta não tira uma réplica quebrada do balanceador: um health check faz is
 
 !!! tip "Na entrevista"
 
-    Quando o entrevistador perguntar "como você saberia se isso quebrou?", responda com um **SLO e o alerta de burn rate dele**, não com uma lista de métricas: *"SLO de checkout de 99,9% em 28 dias; page quando o burn rate de 1 hora passar de 14,4×, confirmado pela janela de 5 minutos, ticket para queimas lentas; todo alerta aponta para um runbook."* Mencione que você alerta sobre **sintomas** e usa dashboards e traces para as causas, e que um dead man's switch protege o próprio pipeline de alertas. É uma resposta de nível sênior em quatro frases.
+    Quando o entrevistador perguntar "como você saberia se isso quebrou?", responda com um **SLO e o alerta de burn rate dele**, não com uma lista de métricas: *"SLO de checkout de 99,9% em 28 dias; page quando o burn rate de 1 hora passar de 14,4×, confirmado pela janela de 5 minutos, ticket para queimas lentas; todo alerta aponta para um runbook."* Mencione que você alerta sobre **sintomas** e usa dashboards e traces para as causas e que um dead man's switch protege o próprio pipeline de alertas. É uma resposta de nível sênior em quatro frases.
 
 !!! success "Boas práticas"
 
-    - **Derive todo page de um SLO, e mantenha as regras como código** — o limite passa a seguir uma meta de negócio, e toda mudança é revisada. No BoxOffice: `infra/grafana/alerting/slo-catalog.yaml`, provisionado na inicialização (caixa acima).
+    - **Derive todo page de um SLO e mantenha as regras como código** — o limite passa a seguir uma meta de negócio, e toda mudança é revisada. No BoxOffice: `infra/grafana/alerting/slo-catalog.yaml`, provisionado na inicialização (caixa acima).
     - **Tire do SLI os health checks e a sua própria carga sintética** — os orquestradores chamam `/actuator/health` a cada poucos segundos e ele quase nunca falha, inflando a taxa de sucesso com requisições que nenhum fã fez. No BoxOffice: `http_route!~"/actuator.*"` em toda consulta das regras do lab 8.
     - **Ponha o burn rate, as janelas e o link do runbook na notificação** — quem está de plantão julga a gravidade antes de abrir o notebook. No BoxOffice: a descrição *"Burn rate 17.0 (1 h) and 200.0 (5 min)"* do alerta do lab 8.
     - **Teste todo alerta causando a sua falha** — um alerta nunca visto disparando é uma hipótese; cronometre da falha ao page. No BoxOffice: o lab 8 para o `db` e registra *Pending* e *Firing* (cerca de 440 s numa execução de teste).
@@ -339,7 +339,7 @@ Um alerta não tira uma réplica quebrada do balanceador: um health check faz is
     - **`for: 1h` para reduzir ruído**: também atrasa em uma hora o page de uma indisponibilidade total; use burn rates.
     - **Uma única janela de SLO para toda situação**: um budget de 28 dias não protege uma abertura de vendas de 30 minutos; dê aos eventos críticos o próprio SLO.
     - **Alertas sem runbook ou sem dono**: o alerta dispara, ninguém sabe o que fazer, o incidente dura mais.
-    - **Sem dead man's switch**: a stack de monitoramento morre em silêncio, e o silêncio parece saúde.
+    - **Sem dead man's switch**: a stack de monitoramento morre em silêncio e o silêncio parece saúde.
     - **Nunca apagar alertas**: revise cada page depois do turno — se não era acionável, corrija ou apague.
 
 ## Como se conecta { #how-it-connects }

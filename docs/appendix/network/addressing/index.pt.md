@@ -1,5 +1,5 @@
 
-Todo pacote leva um **endereço IP** de origem e um de destino, e quase todo problema de rede neste curso se resume a uma pergunta: *esse endereço é alcançável de onde o pacote parte?* Um contêiner fala com o `db` em `172.18.0.3`, um pod recebe um endereço `10.x` do cluster, um banco na nuvem fica numa sub-rede privada, e o seu notebook compartilha um endereço público com todo mundo da sua casa. Esta página explica como os endereços são escritos (IPv4, IPv6, CIDR), quais faixas são públicas e quais são privadas, como o NAT permite que uma rede privada alcance a internet e como o Docker se apoia em tudo isso.
+Todo pacote leva um **endereço IP** de origem e um de destino e quase todo problema de rede neste curso se resume a uma pergunta: *esse endereço é alcançável de onde o pacote parte?* Um contêiner fala com o `db` em `172.18.0.3`, um pod recebe um endereço `10.x` do cluster, um banco na nuvem fica numa sub-rede privada e o seu notebook compartilha um endereço público com todo mundo da sua casa. Esta página explica como os endereços são escritos (IPv4, IPv6, CIDR), quais faixas são públicas e quais são privadas, como o NAT permite que uma rede privada alcance a internet e como o Docker se apoia em tudo isso.
 
 ---
 
@@ -17,7 +17,7 @@ O IPv4 usa endereços de **32 bits** escritos em notação decimal pontuada — 
 8 bits  8 bits 8 bits  8 bits   →  total 32 bits
 ```
 
-O IPv4 oferece 2³² ≈ **4,3 bilhões** de endereços únicos. Isso parecia enorme em 1981 — não era. O crescimento da internet, dos smartphones, dos dispositivos IoT e dos servidores na nuvem esgotou o estoque: a IANA entregou os seus últimos blocos livres aos cinco Registros Regionais de Internet em fevereiro de 2011, e os registros se esgotaram nos anos seguintes (APNIC em 2011, ARIN em 2015, RIPE NCC em 2019)[^2]. Hoje, endereços IPv4 novos são comprados, alugados ou compartilhados via NAT.
+O IPv4 oferece 2³² ≈ **4,3 bilhões** de endereços únicos. Isso parecia enorme em 1981 — não era. O crescimento da internet, dos smartphones, dos dispositivos IoT e dos servidores na nuvem esgotou o estoque: a IANA entregou os seus últimos blocos livres aos cinco Registros Regionais de Internet em fevereiro de 2011 e os registros se esgotaram nos anos seguintes (APNIC em 2011, ARIN em 2015, RIPE NCC em 2019)[^2]. Hoje, endereços IPv4 novos são comprados, alugados ou compartilhados via NAT.
 
 ### Blocos CIDR { #cidr }
 
@@ -40,7 +40,7 @@ O IPv6 usa endereços de **128 bits** escritos em oito grupos de quatro dígitos
 2001:0db8:85a3:0000:0000:8a2e:0370:7334
 ```
 
-Os zeros à esquerda de cada grupo podem ser omitidos, e uma sequência de grupos só de zeros pode ser comprimida em `::` — `2001:db8:85a3::8a2e:370:7334`.
+Os zeros à esquerda de cada grupo podem ser omitidos e uma sequência de grupos só de zeros pode ser comprimida em `::` — `2001:db8:85a3::8a2e:370:7334`.
 
 O IPv6 oferece 2¹²⁸ ≈ **3,4 × 10³⁸** endereços — o suficiente para cada grão de areia da Terra ter o seu. Mesmo assim, o IPv4 continua em toda parte, porque a transição exige atualizar todo equipamento de rede, sistema operacional e aplicação, e a maioria das redes roda os dois protocolos lado a lado (*dual stack*).
 
@@ -60,7 +60,7 @@ Um **endereço público** é único em toda a internet e roteado por ela (veja [
 
 ### Faixas privadas da RFC 1918 { #rfc1918 }
 
-Três faixas de endereços IPv4 são reservadas permanentemente para uso privado[^5]. Qualquer rede pode reutilizá-las, e a internet pública nunca as roteia:
+Três faixas de endereços IPv4 são reservadas permanentemente para uso privado[^5]. Qualquer rede pode reutilizá-las e a internet pública nunca as roteia:
 
 | Faixa (CIDR) | Endereços | Uso típico |
 |---|---|---|
@@ -104,7 +104,7 @@ Experimente: abra conexões, deixe o servidor responder e veja um estranho falha
 <div class="csim" data-sim="nat" data-timeout="60"></div>
 
 !!! tip "Experimente"
-    Aperte **notebook → HTTPS**: o roteador escreve a linha `192.168.1.10:52241` ⇄ `203.0.113.7:40001`. Aperte **servidor responde**: a resposta para a porta 40001 é traduzida de volta para o notebook. Aperte **celular → HTTPS**: uma segunda linha, `192.168.1.11:54584` ⇄ `203.0.113.7:40002` — o mesmo endereço público, diferenciado só pela porta. Agora aperte **estranho → :8080**: sem linha, descartado. **Estranho → porta da linha mais nova** também falha: a linha de 40002 só aceita `198.51.100.20:443`. Ligue o redirecionamento e tente o estranho na 8080 de novo: agora ele chega a `192.168.1.20:8080`. Por fim, aperte play: cada passo é 5 s, e com o timeout ocioso de 60 s as linhas somem após 12 passos; uma resposta do servidor depois disso é descartada.
+    Aperte **notebook → HTTPS**: o roteador escreve a linha `192.168.1.10:52241` ⇄ `203.0.113.7:40001`. Aperte **servidor responde**: a resposta para a porta 40001 é traduzida de volta para o notebook. Aperte **celular → HTTPS**: uma segunda linha, `192.168.1.11:54584` ⇄ `203.0.113.7:40002` — o mesmo endereço público, diferenciado só pela porta. Agora aperte **estranho → :8080**: sem linha, descartado. **Estranho → porta da linha mais nova** também falha: a linha de 40002 só aceita `198.51.100.20:443`. Ligue o redirecionamento e tente o estranho na 8080 de novo: agora ele chega a `192.168.1.20:8080`. Por fim, aperte play: cada passo é 5 s e com o timeout ocioso de 60 s as linhas somem após 12 passos; uma resposta do servidor depois disso é descartada.
 
 ---
 
@@ -140,7 +140,7 @@ services:
     image: postgres:17   # no ports: reachable only inside the network
 ```
 
-Só o `nginx` tem um mapeamento `ports:` no `compose.yaml` e é alcançável de fora do host. O `gateway` e o `db` estão dentro da rede privada do Docker — eles se comunicam entre si pelo nome do serviço, mas são invisíveis para a internet. As duas direções são NAT no host: uma porta publicada é NAT de destino (`:80` do host → `172.20.0.2:80`), e um contêiner que chama a internet sai por NAT de origem (masquerading), com o endereço do host como origem. No Linux, o Docker monta os dois com regras de iptables[^10].
+Só o `nginx` tem um mapeamento `ports:` no `compose.yaml` e é alcançável de fora do host. O `gateway` e o `db` estão dentro da rede privada do Docker — eles se comunicam entre si pelo nome do serviço, mas são invisíveis para a internet. As duas direções são NAT no host: uma porta publicada é NAT de destino (`:80` do host → `172.20.0.2:80`) e um contêiner que chama a internet sai por NAT de origem (masquerading), com o endereço do host como origem. No Linux, o Docker monta os dois com regras de iptables[^10].
 
 ---
 

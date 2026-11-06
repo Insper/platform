@@ -135,7 +135,7 @@ ON CONFLICT (hold_id) DO NOTHING
 ```
 
 - Uma reserva → no máximo um pedido: `hold_id` é `UNIQUE`.
-- Um clique duplo ou uma retentativa do gateway recebe **o mesmo pedido** (`200`), e **nenhum segundo evento**.
+- Um clique duplo ou uma retentativa do gateway recebe **o mesmo pedido** (`200`) e **nenhum segundo evento**.
 
 <div class="ok">
 

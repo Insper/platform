@@ -1,9 +1,9 @@
 
 > *"Projete uma plataforma de vídeo como o YouTube: criadores enviam vídeos, a plataforma os processa e milhões de espectadores assistem sem travar, em qualquer dispositivo e qualquer rede."*
 
-Vídeo é o caso em que **banda, e não requisições, é o gargalo**. Um redirecionamento tem 500 bytes; um minuto de vídeo HD tem dezenas de megabytes. Quase toda decisão de design decorre disso: os espectadores nunca tocam seus servidores (uma **CDN** entrega os bytes), os uploads nunca passam pelos seus servidores (vão **direto para o object storage**), e o trabalho pesado de CPU (**transcodificação**) é um pipeline em lote de workers que pode levar minutos. As partes interessantes são o pipeline, o **streaming com bitrate adaptativo** e a **economia** do tráfego de saída (*egress*).
+Vídeo é o caso em que **banda e não requisições é o gargalo**. Um redirecionamento tem 500 bytes; um minuto de vídeo HD tem dezenas de megabytes. Quase toda decisão de design decorre disso: os espectadores nunca tocam seus servidores (uma **CDN** entrega os bytes), os uploads nunca passam pelos seus servidores (vão **direto para o object storage**) e o trabalho pesado de CPU (**transcodificação**) é um pipeline em lote de workers que pode levar minutos. As partes interessantes são o pipeline, o **streaming com bitrate adaptativo** e a **economia** do tráfego de saída (*egress*).
 
-O BoxOffice usa vídeo em toda página de evento — trailers de artistas, tours pelos locais, replays de shows transmitidos ao vivo. Seu volume é pequeno perto do YouTube, mas a arquitetura é a mesma, e no dia em que um artista anuncia uma turnê com um vídeo, é a CDN que mantém a página do evento de pé.
+O BoxOffice usa vídeo em toda página de evento — trailers de artistas, tours pelos locais, replays de shows transmitidos ao vivo. Seu volume é pequeno perto do YouTube, mas a arquitetura é a mesma e no dia em que um artista anuncia uma turnê com um vídeo, é a CDN que mantém a página do evento de pé.
 
 | | |
 |---|---|
@@ -28,7 +28,7 @@ O BoxOffice usa vídeo em toda página de evento — trailers de artistas, tours
 
 ### Requisitos funcionais { #functional-requirements }
 
-1. Criadores **enviam** vídeos (até alguns GB) pela web e pelo celular, e acompanham o progresso do processamento.
+1. Criadores **enviam** vídeos (até alguns GB) pela web e pelo celular e acompanham o progresso do processamento.
 2. A plataforma **transcodifica** cada upload em várias resoluções e formatos, com miniaturas.
 3. Espectadores **assistem** com reprodução suave que se adapta à conexão; podem avançar e voltar.
 4. **Metadados** básicos: título, descrição, dono; **contagem de visualizações**.
@@ -291,7 +291,7 @@ Cada vídeo é codificado numa **escada** de renditions, cada uma cortada em seg
 
 !!! tip "Na entrevista"
 
-    Diga cedo: *"Os bytes nunca passam pelos meus servidores: uploads vão para o object storage com URLs pré-assinadas, e a reprodução vem da CDN. Meus servidores cuidam de metadados, orquestração e assinaturas."* Mostra que você achou o gargalo de verdade.
+    Diga cedo: *"Os bytes nunca passam pelos meus servidores: uploads vão para o object storage com URLs pré-assinadas e a reprodução vem da CDN. Meus servidores cuidam de metadados, orquestração e assinaturas."* Mostra que você achou o gargalo de verdade.
 
 ---
 
@@ -308,7 +308,7 @@ Cada vídeo é codificado numa **escada** de renditions, cada uma cortada em seg
 | Travamentos | O player escolhe uma rendition alta demais | ABR com lógica baseada no buffer; segmentos curtos; mais degraus baixos | Mais segmentos/requisições |
 | Crescimento do armazenamento | Centenas de TB/dia | Camadas de ciclo de vida; descartar degraus altos pouco vistos e recodificar sob demanda a partir do original | Primeira visualização mais lenta para vídeos antigos |
 
-Os trade-offs para **dizer em voz alta**: **custo de codificação vs. custo de entrega** (gastar CPU uma vez para economizar banda em cada visualização — só vale para vídeos que serão vistos), **tempo para publicar vs. completude** (resoluções baixas primeiro), e **empurrar vs. puxar para a borda** (pré-posicionar a cabeça, puxar a cauda).
+Os trade-offs para **dizer em voz alta**: **custo de codificação vs. custo de entrega** (gastar CPU uma vez para economizar banda em cada visualização — só vale para vídeos que serão vistos), **tempo para publicar vs. completude** (resoluções baixas primeiro) e **empurrar vs. puxar para a borda** (pré-posicionar a cabeça, puxar a cauda).
 
 ---
 
@@ -321,7 +321,7 @@ O cenário `video-streaming` tem o object store, uma CDN na frente dele e uma fi
     1. Rode com o perfil **load** e observe a taxa de acerto da CDN e a saída do object store (origem).
     2. Abaixe a taxa de acerto da CDN (ou remova a CDN): quanto tráfego a mais a origem recebe? É por isso que existem o shield e o pré-posicionamento.
     3. Mude para **spike** para simular uma onda de uploads: veja a fila de transcodificação crescer; acrescente workers e descubra quantos mantêm o backlog estável.
-    4. Ligue o caos para derrubar workers no meio das tarefas: a fila entrega de novo, e as retentativas terminam os vídeos?
+    4. Ligue o caos para derrubar workers no meio das tarefas: a fila entrega de novo e as retentativas terminam os vídeos?
 
 <div class="sdp" data-scenario="video-streaming" data-mode="full" data-height="640" data-profile="load"></div>
 
@@ -333,7 +333,7 @@ O cenário `video-streaming` tem o object store, uma CDN na frente dele e uma fi
 
 ??? question "O que muda para transmissão ao vivo (ex.: um show do BoxOffice transmitido ao vivo)?"
 
-    O orçamento cai de minutos para segundos. O codificador recebe um sinal ao vivo (RTMP/SRT/WebRTC) e produz a escada **em tempo real** — sem DAG paralelo por pedaços; os segmentos são publicados conforme são produzidos e as playlists são atualizadas continuamente. Low-latency HLS / CMAF em pedaços entregam segmentos parciais para chegar a poucos segundos de latência ponta a ponta. A CDN continua carregando os bytes, e o pico de audiência no início do show é previsível, então pré-aqueça a capacidade. Um replay são só os segmentos gravados transformados em VOD.
+    O orçamento cai de minutos para segundos. O codificador recebe um sinal ao vivo (RTMP/SRT/WebRTC) e produz a escada **em tempo real** — sem DAG paralelo por pedaços; os segmentos são publicados conforme são produzidos e as playlists são atualizadas continuamente. Low-latency HLS / CMAF em pedaços entregam segmentos parciais para chegar a poucos segundos de latência ponta a ponta. A CDN continua carregando os bytes e o pico de audiência no início do show é previsível, então pré-aqueça a capacidade. Um replay são só os segmentos gravados transformados em VOD.
 
 ??? question "O vídeo de um criador viraliza dez minutos após o upload. O que acontece?"
 
@@ -353,7 +353,7 @@ O cenário `video-streaming` tem o object store, uma CDN na frente dele e uma fi
 
 ??? question "Como você protege conteúdo premium?"
 
-    URLs ou tokens assinados com validade curta nos manifestos (a CDN os valida na borda), e DRM (Widevine, FairPlay, PlayReady) cifrando os segmentos com chaves entregues por um servidor de licenças só a players autorizados. Isso acrescenta uma dependência do servidor de licenças ao início da reprodução, então ele precisa ser altamente disponível.
+    URLs ou tokens assinados com validade curta nos manifestos (a CDN os valida na borda) e DRM (Widevine, FairPlay, PlayReady) cifrando os segmentos com chaves entregues por um servidor de licenças só a players autorizados. Isso acrescenta uma dependência do servidor de licenças ao início da reprodução, então ele precisa ser altamente disponível.
 
 ---
 
@@ -369,9 +369,9 @@ O cenário `video-streaming` tem o object store, uma CDN na frente dele e uma fi
 
 !!! success "Boas práticas"
 
-    - **Envie os uploads direto ao armazenamento de objetos com URLs pré-assinadas** — servidores de aplicação nunca repassam gigabytes, e um upload sobrevive a um deploy.
+    - **Envie os uploads direto ao armazenamento de objetos com URLs pré-assinadas** — servidores de aplicação nunca repassam gigabytes e um upload sobrevive a um deploy.
     - **Torne cada job de transcodificação idempotente por (vídeo, versão)** — um job repetido sobrescreve a mesma saída em vez de produzir uma segunda cópia.
-    - **Dê aos segmentos nomes imutáveis e versionados, e cabeçalhos de cache longos** — a CDN pode então guardá-los para sempre, e a taxa de acerto fica perto do máximo.
+    - **Dê aos segmentos nomes imutáveis e versionados e cabeçalhos de cache longos** — a CDN pode então guardá-los para sempre, e a taxa de acerto fica perto do máximo.
     - **Acompanhe o custo de egress por GB e a taxa de acerto da CDN** — o egress domina a conta; uma queda de 1 ponto na taxa de acerto pode ser uma parte grande do tráfego da origem.
     - **Codifique a cauda longa em menos versões** — a maioria dos vídeos é pouco assistida; transcodifique-os sob demanda ou em menos qualidades.
 

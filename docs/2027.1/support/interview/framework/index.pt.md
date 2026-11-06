@@ -5,7 +5,7 @@ Uma entrevista de system design é um problema aberto com um relógio. Sem estru
 Ao longo da página, o exemplo é a pergunta da [página inicial](../index.md): *"Projete um site de ingressos para um show num estádio. A venda abre sábado às 10:00."* — a venda relâmpago do BoxOffice, com **2 milhões de fãs** para **60.000 assentos**.
 
 !!! note "Os modelos ficam em inglês"
-    Os modelos dos blocos de texto estão em inglês de propósito: é a língua em que a maioria das entrevistas de system design acontece, e o vocabulário (QPS, p99, idempotency key) é o mesmo em português. Copie-os assim e preencha em qualquer língua.
+    Os modelos dos blocos de texto estão em inglês de propósito: é a língua em que a maioria das entrevistas de system design acontece e o vocabulário (QPS, p99, idempotency key) é o mesmo em português. Copie-os assim e preencha em qualquer língua.
 
 ``` diagram
 flowchart LR
@@ -37,7 +37,7 @@ flowchart LR
 
 ## 1. Esclarecer os requisitos { #1-clarify-the-requirements }
 
-**Objetivo.** Transformar um enunciado de uma linha num problema com fronteiras: quem usa, para quê, em que escala, e o que nunca pode dar errado. Tudo o que vem depois deste passo se justifica por algo escrito aqui.
+**Objetivo.** Transformar um enunciado de uma linha num problema com fronteiras: quem usa, para quê, em que escala e o que nunca pode dar errado. Tudo o que vem depois deste passo se justifica por algo escrito aqui.
 
 **O que dizer.**
 
@@ -121,7 +121,7 @@ Deciding number(s): ...  =>  implication: ...
     - Gastar dez minutos com aritmética precisa. Um algarismo significativo basta.
     - Estimar a média e projetar para ela: dimensione sempre para o pico.
     - Números que nunca influenciam uma decisão. Se uma estimativa não muda o design, pule-a.
-    - Esquecer de dizer as suposições em voz alta, e assim o entrevistador não pode corrigi-las.
+    - Esquecer de dizer as suposições em voz alta e assim o entrevistador não pode corrigi-las.
 
 !!! example "Venda relâmpago do BoxOffice — passo 2"
     - **Fãs por assento:** 2.000.000 ÷ 60.000 ≈ **33**. A maioria dos fãs não vai conseguir ingresso: justiça e um "esgotado" claro importam.
@@ -249,9 +249,9 @@ DEEP-DIVE CHECKLIST (for the chosen component)
     - Ignorar a dica do entrevistador apontando para um componente específico.
 
 !!! example "Venda relâmpago do BoxOffice — passo 5"
-    **Aprofundamento 1 — nunca vender um assento duas vezes.** Opções: (a) ler o status na aplicação e depois escrever — uma condição de corrida; (b) `SELECT … FOR UPDATE` numa transação — correto, mas segura locks de linha enquanto a transação está aberta; (c) um único update condicional atômico: `UPDATE seat SET status='held', hold_until=now()+interval '10 min', order_id=? WHERE event_id=? AND seat_id=? AND status='free'` — 1 linha atualizada significa que o fã conseguiu, 0 significa que outro conseguiu. Escolha (c): curto, o lock dura só o comando, e o banco garante o invariante. Um job de expiração libera as reservas cujo `hold_until` passou. Nunca mantenha uma transação aberta enquanto chama o provedor de pagamento.
+    **Aprofundamento 1 — nunca vender um assento duas vezes.** Opções: (a) ler o status na aplicação e depois escrever — uma condição de corrida; (b) `SELECT … FOR UPDATE` numa transação — correto, mas segura locks de linha enquanto a transação está aberta; (c) um único update condicional atômico: `UPDATE seat SET status='held', hold_until=now()+interval '10 min', order_id=? WHERE event_id=? AND seat_id=? AND status='free'` — 1 linha atualizada significa que o fã conseguiu, 0 significa que outro conseguiu. Escolha (c): curto, o lock dura só o comando e o banco garante o invariante. Um job de expiração libera as reservas cujo `hold_until` passou. Nunca mantenha uma transação aberta enquanto chama o provedor de pagamento.
 
-    **Aprofundamento 2 — sobreviver às 10:00.** Uma **sala de espera virtual**: os fãs que chegam recebem uma posição (sorteada entre os presentes às 10:00, depois por ordem de chegada), e o gateway os admite no ritmo que `inventory` aguenta — digamos 2.000 por minuto —, emitindo um token de admissão assinado e de vida curta exigido por `POST /holds`. A Lei de Little dimensiona: 2.000 admitidos/min com ~5 min no fluxo de compra ⇒ ~10.000 fãs lá dentro ao mesmo tempo. A fila transforma um pico de 10⁵ req/s num fluxo constante que o banco aguenta; o custo é o tempo de espera, mostrado com honestidade pela posição na fila.
+    **Aprofundamento 2 — sobreviver às 10:00.** Uma **sala de espera virtual**: os fãs que chegam recebem uma posição (sorteada entre os presentes às 10:00, depois por ordem de chegada) e o gateway os admite no ritmo que `inventory` aguenta — digamos 2.000 por minuto —, emitindo um token de admissão assinado e de vida curta exigido por `POST /holds`. A Lei de Little dimensiona: 2.000 admitidos/min com ~5 min no fluxo de compra ⇒ ~10.000 fãs lá dentro ao mesmo tempo. A fila transforma um pico de 10⁵ req/s num fluxo constante que o banco aguenta; o custo é o tempo de espera, mostrado com honestidade pela posição na fila.
 
 ---
 
@@ -269,7 +269,7 @@ DEEP-DIVE CHECKLIST (for the chosen component)
 
 - Qual componente está mais perto do limite (utilização perto do joelho)? Qual é ponto único de falha?
 - O que acontece quando cada dependência externa fica lenta ou cai?
-- Que consistência você relaxou, e o que o usuário vê por causa disso?
+- Que consistência você relaxou e o que o usuário vê por causa disso?
 - Quanto custa, aproximadamente? O que você monitoraria (SLIs) e o que geraria alerta?
 
 ```text
@@ -296,7 +296,7 @@ How we'd test it: load profile ... / chaos experiment ...
 
 !!! example "Venda relâmpago do BoxOffice — passo 6"
     - **O primeiro a quebrar:** o provedor de pagamento às 10:00 (cota externa, picos de latência) → timeout, circuit breaker, um estado `PENDING` no pedido com a reserva do assento estendida; a sala de espera admite menos fãs se o provedor ficar lento.
-    - **Pontos únicos de falha:** o primário do PostgreSQL → standby síncrono em outra AZ com failover automático; o Redis → replicado, e o mapa de assentos pode recorrer a uma cópia um pouco mais antiga.
+    - **Pontos únicos de falha:** o primário do PostgreSQL → standby síncrono em outra AZ com failover automático; o Redis → replicado e o mapa de assentos pode recorrer a uma cópia um pouco mais antiga.
     - **Trade-offs:** consistência forte só para assentos e pedidos, eventual para todo o resto; a sala de espera troca a paciência do usuário por um sistema que fica de pé; o mapa pode mostrar como livre um assento que já está reservado (a chamada de reserva é a autoridade).
     - **Prova:** um teste de spike com k6 até o pico esperado e um game day em que o provedor de pagamento fica lento; SLIs: taxa de sucesso e p99 das reservas, disponibilidade do checkout; alertas de burn rate no checkout.
 
@@ -327,7 +327,7 @@ Next with more time: multi-region / cost / abuse & security / analytics / evolut
     - Repetir o percurso inteiro em vez das decisões.
 
 !!! example "Venda relâmpago do BoxOffice — passo 7"
-    "Construímos um fluxo de venda de ingressos para um show num estádio em que 2 milhões de fãs disputam 60.000 assentos às 10:00. A CDN e os caches absorvem o pico de leitura, uma sala de espera transforma a multidão num fluxo constante, e as reservas de assento são updates condicionais atômicos no PostgreSQL, então um assento nunca é vendido duas vezes. O pagamento passa por um adaptador idempotente com timeouts e circuit breaker, e a confirmação segue de forma assíncrona por um outbox e o Kafka até o e-mail e o analytics. O principal risco é o provedor de pagamento no pico; com mais tempo, eu acrescentaria um segundo provedor, uma segunda região para o caminho de leitura e um modelo de pontuação de bots no WAF."
+    "Construímos um fluxo de venda de ingressos para um show num estádio em que 2 milhões de fãs disputam 60.000 assentos às 10:00. A CDN e os caches absorvem o pico de leitura, uma sala de espera transforma a multidão num fluxo constante e as reservas de assento são updates condicionais atômicos no PostgreSQL, então um assento nunca é vendido duas vezes. O pagamento passa por um adaptador idempotente com timeouts e circuit breaker e a confirmação segue de forma assíncrona por um outbox e o Kafka até o e-mail e o analytics. O principal risco é o provedor de pagamento no pico; com mais tempo, eu acrescentaria um segundo provedor, uma segunda região para o caminho de leitura e um modelo de pontuação de bots no WAF."
 
 ### A arquitetura final { #the-final-architecture }
 

@@ -1,4 +1,4 @@
-Antes da primeira linha de código, a sua equipe combina **o que** vai construir, **de que tamanho** precisa ser, **como saberá que funciona** e **quais decisões** está tomando. Esse acordo é o design doc do marco **M1**. Ele não é escrito uma vez e esquecido: é o mapa que o projeto inteiro segue, é atualizado a cada marco, e a sua versão final (M8) é o que vocês defendem na apresentação.
+Antes da primeira linha de código, a sua equipe combina **o que** vai construir, **de que tamanho** precisa ser, **como saberá que funciona** e **quais decisões** está tomando. Esse acordo é o design doc do marco **M1**. Ele não é escrito uma vez e esquecido: é o mapa que o projeto inteiro segue, é atualizado a cada marco e a sua versão final (M8) é o que vocês defendem na apresentação.
 
 !!! abstract "Objetivos"
 
@@ -48,7 +48,7 @@ Os complementos do projeto:
 1. **Escolham a opção juntos** (semana 3) e leiam o seu estudo de caso e o seu cenário no playground.
 2. **Escrevam primeiro os requisitos e as escalas.** Combinem o que está fora do escopo — isso protege o cronograma.
 3. **Transformem cada SLO em uma medição.** "p99 de `POST /holds` < 500 ms" vira "threshold do k6 `http_req_duration{name:POST /holds}` `p(99)<500` a 100 reservas/s por 10 min". Se vocês não sabem dizer como vão medir, ainda não é um SLO.
-4. **Estimem e dimensionem.** Usem as fórmulas do exercício de estimativas; tirem as capacidades por instância das suas medições do ex2 quando as tiverem, e marquem as premissas.
+4. **Estimem e dimensionem.** Usem as fórmulas do exercício de estimativas; tirem as capacidades por instância das suas medições do ex2 quando as tiverem e marquem as premissas.
 5. **Desenhem a arquitetura e percorram os fluxos.** Depois confiram com a tabela de componentes obrigatórios.
 6. **Dividam a propriedade** dos dados e dos serviços; escrevam os contratos de API e os schemas dos eventos.
 7. **Escrevam as ADRs** das decisões que são caras de mudar depois.

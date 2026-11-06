@@ -206,7 +206,7 @@ tour            order-events    5          0               0               0    
 ```
 
 As mensagens **continuam no log**: consumir não apaga. Cada grupo só guarda seu **offset** por
-partição (`CURRENT-OFFSET`), e o ***lag*** = `LOG-END-OFFSET − CURRENT-OFFSET` diz quão atrasado ele
+partição (`CURRENT-OFFSET`) e o ***lag*** = `LOG-END-OFFSET − CURRENT-OFFSET` diz quão atrasado ele
 está. Volte o grupo para o início e leia tudo de novo:
 
 ``` shell

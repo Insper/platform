@@ -10,7 +10,7 @@ flowchart LR
 
 | Ferramenta | Por que você precisa dela |
 |:-----|:----------------|
-| **[Git](#git)** | Controle de versão: todo laboratório e projeto vive num repositório Git, e a CI começa com um `git push`. |
+| **[Git](#git)** | Controle de versão: todo laboratório e projeto vive num repositório Git e a CI começa com um `git push`. |
 | **[Docker](#docker)** | Executa cada serviço, banco de dados e broker num container isolado, do mesmo jeito em qualquer máquina. |
 | **[Java](#java)** (JDK) | A linguagem dos microsserviços da disciplina (Spring Boot); o JDK os compila e executa. |
 | **[Maven](#maven)** | Faz o build dos projetos Java: baixa as dependências, compila, roda os testes e empacota o jar. |
@@ -77,9 +77,9 @@ O Docker executa aplicações em **containers**: processos leves e isolados que 
 
 ## Java { #java }
 
-Java é a linguagem dos microsserviços da disciplina. Você precisa de um **JDK** (Java Development Kit: o compilador `javac` mais o runtime), e não só de um JRE.
+Java é a linguagem dos microsserviços da disciplina. Você precisa de um **JDK** (Java Development Kit: o compilador `javac` mais o runtime) e não só de um JRE.
 
-Use uma versão de **suporte de longo prazo** (LTS, Long-Term Support)[^lts]: o **JDK 25** (setembro de 2025) é a LTS atual, e o JDK 21 (setembro de 2023), a anterior, ainda serve para os laboratórios que o fixam. As versões entre duas LTS, como o JDK 27 (setembro de 2026), só recebem atualizações até a versão seguinte, seis meses depois[^jdk-releases].
+Use uma versão de **suporte de longo prazo** (LTS, Long-Term Support)[^lts]: o **JDK 25** (setembro de 2025) é a LTS atual e o JDK 21 (setembro de 2023), a anterior, ainda serve para os laboratórios que o fixam. As versões entre duas LTS, como o JDK 27 (setembro de 2026), só recebem atualizações até a versão seguinte, seis meses depois[^jdk-releases].
 
 === ":material-microsoft-windows: Windows"
 
@@ -148,7 +148,7 @@ O Maven é a ferramenta de build dos projetos Java: ele lê o `pom.xml`, baixa a
     ```
 
 !!! info "O Maven Wrapper"
-    Muitos projetos (todos os gerados pelo Spring Initializr) trazem um **Maven Wrapper**: `./mvnw` (ou `mvnw.cmd` no Windows) baixa a versão do Maven que o projeto espera e a executa. Com um wrapper, `./mvnw package` funciona mesmo sem um Maven global, e todos fazem o build com a mesma versão.
+    Muitos projetos (todos os gerados pelo Spring Initializr) trazem um **Maven Wrapper**: `./mvnw` (ou `mvnw.cmd` no Windows) baixa a versão do Maven que o projeto espera e a executa. Com um wrapper, `./mvnw package` funciona mesmo sem um Maven global e todos fazem o build com a mesma versão.
 
 ## Python com uv { #uv }
 

@@ -206,7 +206,7 @@ Enquanto ele roda, acompanhe o lag em outro terminal (repita o comando algumas v
 docker compose exec pg-primary psql -U store -c "SELECT application_name, pg_size_pretty(pg_wal_lsn_diff(pg_current_wal_lsn(), replay_lsn)) AS behind, replay_lag FROM pg_stat_replication;"
 ```
 
-Depois, rode um benchmark **somente leitura** (`-S`) apenas contra as duas réplicas, cada conexão para uma delas, escolhida ao acaso — as leituras escalam com o número de réplicas. O `-n` pula o `VACUUM` que o pgbench roda primeiro, e que uma réplica recusa:
+Depois, rode um benchmark **somente leitura** (`-S`) apenas contra as duas réplicas, cada conexão para uma delas, escolhida ao acaso — as leituras escalam com o número de réplicas. O `-n` pula o `VACUUM` que o pgbench roda primeiro e que uma réplica recusa:
 
 ``` { .bash .copy .select }
 docker compose run --rm --entrypoint pgbench client -S -n -c 8 -T 15 "host=pg-replica1,pg-replica2 load_balance_hosts=random"

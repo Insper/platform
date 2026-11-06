@@ -76,7 +76,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ## Replicação e consistência { #replication-and-consistency }
 
-**Q6.** Uma fã paga e é redirecionada para *Meus ingressos*, que lê de uma réplica de leitura assíncrona. A lista está vazia. Que garantia foi violada, e qual é a correção mais barata?
+**Q6.** Uma fã paga e é redirecionada para *Meus ingressos*, que lê de uma réplica de leitura assíncrona. A lista está vazia. Que garantia foi violada e qual é a correção mais barata?
 
 - A. Linearizabilidade; fazer todas as leituras e escritas passarem por consenso
 - B. Read-your-writes; ler os dados da própria usuária no primário (ou passar a posição da escrita no log e esperar uma réplica que já a aplicou)
@@ -120,7 +120,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ## CAP e PACELC { #cap-and-pacelc }
 
-**Q9.** O estoque de assentos do BoxOffice está replicado em duas regiões, e o enlace entre elas cai. Um fã na região 2 pede para reservar um assento cujo estado mais recente está na região 1. Uma configuração **CP** vai:
+**Q9.** O estoque de assentos do BoxOffice está replicado em duas regiões e o enlace entre elas cai. Um fã na região 2 pede para reservar um assento cujo estado mais recente está na região 1. Uma configuração **CP** vai:
 
 - A. Reservar o assento na região 2 e reconciliar depois
 - B. Recusar a requisição (erro ou timeout) até conseguir confirmar o estado mais recente
@@ -204,7 +204,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **C — Em dúvida, segurando os locks.**
 
-    Um participante que votou sim prometeu confirmar se mandado, e não tem como saber se o coordenador decidiu commit (e outros já confirmaram) ou abort (talvez alguém tenha votado não). Ele precisa esperar — é o problema de bloqueio do 2PC. Sistemas como Spanner e CockroachDB o evitam replicando o estado do coordenador com consenso; a opção D descreve esse projeto, não o 2PC puro.
+    Um participante que votou sim prometeu confirmar se mandado e não tem como saber se o coordenador decidiu commit (e outros já confirmaram) ou abort (talvez alguém tenha votado não). Ele precisa esperar — é o problema de bloqueio do 2PC. Sistemas como Spanner e CockroachDB o evitam replicando o estado do coordenador com consenso; a opção D descreve esse projeto, não o 2PC puro.
 
 ---
 
@@ -218,7 +218,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — Compensar em ordem inversa.**
 
-    Uma saga é uma sequência de transações locais; quando um passo falha, os passos já concluídos são desfeitos por transações de compensação. Sagas não são isoladas — outros fãs viram o assento como reservado, e por isso o estado intermediário funciona como um lock semântico com expiração. Um provedor externo não tem "transação preparada" para desfazer (ele não pode participar de um 2PC), e repetir para sempre um cartão recusado não é regra de negócio.
+    Uma saga é uma sequência de transações locais; quando um passo falha, os passos já concluídos são desfeitos por transações de compensação. Sagas não são isoladas — outros fãs viram o assento como reservado e por isso o estado intermediário funciona como um lock semântico com expiração. Um provedor externo não tem "transação preparada" para desfazer (ele não pode participar de um 2PC) e repetir para sempre um cartão recusado não é regra de negócio.
 
 ---
 
@@ -234,7 +234,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — A escrita mais antiga pode vencer.**
 
-    Com relógios que discordam mais do que o intervalo entre os eventos, os timestamps os ordenam errado, e o LWW descarta uma escrita em silêncio — sempre com viés a favor do nó com o relógio mais adiantado. Para assentos e dinheiro, deixe uma autoridade única decidir (uma escrita condicional em um primário), ou detecte concorrência com vetores de versão.
+    Com relógios que discordam mais do que o intervalo entre os eventos, os timestamps os ordenam errado e o LWW descarta uma escrita em silêncio — sempre com viés a favor do nó com o relógio mais adiantado. Para assentos e dinheiro, deixe uma autoridade única decidir (uma escrita condicional em um primário), ou detecte concorrência com vetores de versão.
 
 ---
 

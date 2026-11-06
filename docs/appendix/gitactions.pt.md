@@ -77,7 +77,7 @@ jobs:
 
 ## Jobs, `needs` e o caminho crítico { #needs }
 
-Um único job é fácil de ler, mas lento: cada step espera o anterior. Dividir o trabalho em **jobs** permite que trabalhos independentes rodem em runners separados ao mesmo tempo, e `needs` declara a ordem onde ela importa. Os jobs formam um **DAG** (grafo acíclico dirigido):
+Um único job é fácil de ler, mas lento: cada step espera o anterior. Dividir o trabalho em **jobs** permite que trabalhos independentes rodem em runners separados ao mesmo tempo e `needs` declara a ordem onde ela importa. Os jobs formam um **DAG** (grafo acíclico dirigido):
 
 ``` { .yaml title=".github/workflows/ci.yml (jobs only)" .copy .select linenums="1" }
 jobs:
@@ -198,19 +198,19 @@ jobs:
 
 ## Fixando actions por SHA { #pinning }
 
-`uses: actions/checkout@v7` aponta para uma **tag**, e uma tag pode ser movida: se o repositório da action for comprometido, a próxima execução roda o que quer que `v7` aponte agora, com os seus secrets ao alcance. O guia de segurança do GitHub recomenda fixar (pin) as actions num **SHA de commit completo**, que não muda[^secure]:
+`uses: actions/checkout@v7` aponta para uma **tag** e uma tag pode ser movida: se o repositório da action for comprometido, a próxima execução roda o que quer que `v7` aponte agora, com os seus secrets ao alcance. O guia de segurança do GitHub recomenda fixar (pin) as actions num **SHA de commit completo**, que não muda[^secure]:
 
 ``` { .yaml title="pinned to a commit" .copy .select linenums="1" }
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 ```
 
 - Mantenha a versão num comentário, para que uma pessoa (ou o Dependabot, com o ecossistema `github-actions`) saiba o que é e possa atualizá-la.
-- Confira que o SHA vem do repositório da própria action, e não de um fork: `git ls-remote --tags https://github.com/actions/checkout`.
+- Confira que o SHA vem do repositório da própria action e não de um fork: `git ls-remote --tags https://github.com/actions/checkout`.
 - O mesmo guia também descreve os **lockfiles de dependências de workflow**, que registram o commit exato de cada action (inclusive as actions que uma action usa) e substituem o pinning por SHA nos repositórios que os adotam[^secure].
 
 ## CD: deploy no Kubernetes após uma execução bem-sucedida da CI { #cd }
 
-Este segundo workflow começa quando o workflow `CI` termina na `main`, e só faz o deploy se a CI passou.
+Este segundo workflow começa quando o workflow `CI` termina na `main` e só faz o deploy se a CI passou.
 
 ``` { .yaml title=".github/workflows/cd.yml" .copy .select linenums="1" }
 name: CD
@@ -269,7 +269,7 @@ As duas ferramentas implementam os mesmos conceitos de CI/CD, com trade-offs dif
     - Um workflow é **evento → jobs → steps**, versionado em `.github/workflows/`; cada job roda num **runner novo**.
     - Os jobs rodam **em paralelo**, a menos que `needs` os ordene. O **tempo de relógio é o caminho crítico** desse DAG e os **minutos de runner são a soma** de todos os jobs: acelere o caminho, não os jobs laterais.
     - Quando um job falha, os jobs que **precisam** dele são **pulados**, enquanto os independentes continuam rodando; `if: always()` ou `if: failure()` muda isso de propósito.
-    - Uma **matriz** multiplica jobs (e minutos), não tempo; um **cache** elimina downloads repetidos, e rende mais no caminho crítico.
+    - Uma **matriz** multiplica jobs (e minutos), não tempo; um **cache** elimina downloads repetidos e rende mais no caminho crítico.
     - **Secrets** alcançam outros sistemas; o **`GITHUB_TOKEN`** alcança este repositório e é limitado por `permissions:` — conceda o mínimo. **Fixe** as actions num SHA de commit.
 
 [^actions]: [Documentação do GitHub Actions](https://docs.github.com/en/actions){:target="_blank"}.

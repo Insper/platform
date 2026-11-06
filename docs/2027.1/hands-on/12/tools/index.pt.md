@@ -32,7 +32,7 @@ sequenceDiagram
 
 | Princípio | No código |
 |---|---|
-| **Schema por ferramenta** | os argumentos de cada ferramenta são um modelo pydantic; `model_json_schema()` é o schema que o modelo vê, e `model_validate` confere o que ele devolve |
+| **Schema por ferramenta** | os argumentos de cada ferramenta são um modelo pydantic; `model_json_schema()` é o schema que o modelo vê e `model_validate` confere o que ele devolve |
 | **Só leitura** | nenhuma ferramenta cria, altera ou cancela nada: um modelo confuso ou manipulado pode, no pior caso, ler |
 | **Identidade vinda da plataforma, não do modelo** | `get_order_status` usa o header `X-User-Email` (definido pelo gateway do lab 4), nunca um e-mail que o modelo ou o usuário digitou |
 | **A mesma resposta para "não é seu" e "não existe"** | uma mensagem diferente deixaria qualquer um sondar quais ids de pedido existem |
@@ -51,7 +51,7 @@ usá-las. Mover estas três ferramentas para um servidor MCP mudaria *onde* elas
 
 Leia o `run()` de cima para baixo:
 
-1. **Recupere primeiro.** A pergunta é buscada antes de o modelo ser chamado, e os top-k eventos entram
+1. **Recupere primeiro.** A pergunta é buscada antes de o modelo ser chamado e os top-k eventos entram
    como uma segunda mensagem de sistema. Modelos locais pequenos chamam ferramentas de forma pouco
    confiável; com o contexto já no prompt, as perguntas comuns não precisam de nenhuma chamada de
    ferramenta. Ferramentas são para o que a recuperação não tem como saber (status de pedido ao vivo, os
@@ -65,7 +65,7 @@ Leia o `run()` de cima para baixo:
    fim do arquivo) dá a cada chamada o seu índice, senão duas chamadas numa resposta seriam coladas numa
    só, com argumentos JSON inválidos.
 4. **Os resultados das ferramentas voltam como mensagens `role: tool`** — dados, nunca instruções (o
-   prompt de sistema diz isso, e os guardrails do passo 4 conferem a saída).
+   prompt de sistema diz isso e os guardrails do passo 4 conferem a saída).
 5. **Contabilize tudo**: tokens, custo, tempo até o primeiro token, duração — as entradas do passo 5.
 
 ## A API { #the-api }

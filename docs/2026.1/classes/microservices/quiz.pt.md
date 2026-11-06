@@ -129,7 +129,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — Encontrar a localização de rede atual de instâncias dinâmicas.**
 
-    Em um ambiente containerizado, instâncias são criadas e destruídas o tempo todo, e seus endereços IP mudam a cada reinício. Um registro de serviços (Consul, Eureka, DNS do Kubernetes) mantém a localização atual de todas as instâncias. Os serviços se registram ao iniciar e se descadastram ao encerrar, e quem chama consulta o registro para encontrá-los.
+    Em um ambiente containerizado, instâncias são criadas e destruídas o tempo todo, e seus endereços IP mudam a cada reinício. Um registro de serviços (Consul, Eureka, DNS do Kubernetes) mantém a localização atual de todas as instâncias. Os serviços se registram ao iniciar e se descadastram ao encerrar e quem chama consulta o registro para encontrá-los.
 
 ---
 

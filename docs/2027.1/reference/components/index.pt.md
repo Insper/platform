@@ -2,7 +2,7 @@
 
 Toda caixa que você pode colocar no canvas do [System Design Playground](../../../playground/index.md) tem uma entrada neste catálogo: **o que é**, **quando usar e quando não usar**, **números-chave**, **modos de falha**, **como se comporta no playground**, **produtos reais** na AWS, no GCP, no Azure e em código aberto, e uma frase que você pode dizer **na entrevista**. Os links "saiba mais" do simulador apontam para essas entradas.
 
-A paleta tem 49 componentes em 10 categorias. Elas seguem uma requisição da esquerda para a direita: um **cliente** chega à **borda**, a borda encaminha para a **computação**, a computação é empacotada e escalada em **contêineres** (num cluster Kubernetes), a computação lê e escreve no **armazenamento** e publica na **mensageria**, tudo é acompanhado pela **observabilidade**, disposto dentro de uma **rede**, e algumas requisições vão para componentes de **IA** ou para provedores **externos**.
+A paleta tem 49 componentes em 10 categorias. Elas seguem uma requisição da esquerda para a direita: um **cliente** chega à **borda**, a borda encaminha para a **computação**, a computação é empacotada e escalada em **contêineres** (num cluster Kubernetes), a computação lê e escreve no **armazenamento** e publica na **mensageria**, tudo é acompanhado pela **observabilidade**, disposto dentro de uma **rede** e algumas requisições vão para componentes de **IA** ou para provedores **externos**.
 
 ``` diagram
 flowchart LR
@@ -24,11 +24,11 @@ flowchart LR
 
 | Categoria | O que responde | Componentes | Aulas principais |
 |---|---|---|---|
-| [Cliente](client/index.md) | Quem envia o tráfego, e como? | 2 | [Introdução](../../classes/intro/index.md), [Borda › Protocolos](../../classes/edge/protocols/index.md) |
+| [Cliente](client/index.md) | Quem envia o tráfego e como? | 2 | [Introdução](../../classes/intro/index.md), [Borda › Protocolos](../../classes/edge/protocols/index.md) |
 | [Tráfego e borda](edge/index.md) | Como uma requisição nos encontra e entra com segurança? | 6 | [Borda](../../classes/edge/index.md) |
-| [Computação](compute/index.md) | Onde o código roda, e como escala? | 8 | [Computação](../../classes/compute/index.md) |
+| [Computação](compute/index.md) | Onde o código roda e como escala? | 8 | [Computação](../../classes/compute/index.md) |
 | [Contêineres](containers/index.md) | Como empacotar, implantar e escalar serviços independentes? | 4 | [Cloud-native](../../classes/cloud-native/index.md), [Computação › Serviços](../../classes/compute/services/index.md) |
-| [Armazenamento](storage/index.md) | Onde os dados vivem, e com que rapidez os lemos? | 7 | [Bancos de dados](../../classes/databases/index.md), [Cache](../../classes/caching/index.md) |
+| [Armazenamento](storage/index.md) | Onde os dados vivem e com que rapidez os lemos? | 7 | [Bancos de dados](../../classes/databases/index.md), [Cache](../../classes/caching/index.md) |
 | [Mensageria](messaging/index.md) | Como os serviços conversam sem esperar uns pelos outros? | 4 | [Mensageria](../../classes/messaging/index.md) |
 | [Observabilidade](observability/index.md) | Como sabemos o que está acontecendo? | 5 | [Observabilidade](../../classes/observability/index.md) |
 | [Rede](network/index.md) | Quem pode falar com quem? | 5 | [Rede e segurança](../../classes/network-security/index.md) |

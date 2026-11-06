@@ -24,7 +24,7 @@ A prática foi posta à prova de verdade em abril de 2011, quando uma grande fal
 | **Security Monkey** | Encontra e relata violações de políticas de segurança |
 | **Chaos Gorilla** | Simula a falha de uma Availability Zone inteira da AWS |
 
-A percepção foi transformadora: **a falha não é um caso especial a ser evitado; é o ambiente em que os sistemas de produção vivem, e a única forma de saber se o seu sistema sobrevive a ela é testá-lo ali.** Em 2016, engenheiros da Netflix formalizaram a prática e lhe deram nome em um artigo da IEEE Software[^2]; os princípios abaixo vêm desse trabalho.
+A percepção foi transformadora: **a falha não é um caso especial a ser evitado; é o ambiente em que os sistemas de produção vivem e a única forma de saber se o seu sistema sobrevive a ela é testá-lo ali.** Em 2016, engenheiros da Netflix formalizaram a prática e lhe deram nome em um artigo da IEEE Software[^2]; os princípios abaixo vêm desse trabalho.
 
 ---
 
@@ -66,7 +66,7 @@ flowchart LR
     R -->|"rodar de novo\ncom escopo maior"| H
 ```
 
-Um experimento de caos que **confirma a hipótese** (o sistema se comporta como esperado) gera confiança naquele modo de falha. Um experimento que **refuta a hipótese** é uma descoberta: o sistema não trata aquela falha corretamente, e a equipe agora sabe disso antes que um incidente real a ensine.
+Um experimento de caos que **confirma a hipótese** (o sistema se comporta como esperado) gera confiança naquele modo de falha. Um experimento que **refuta a hipótese** é uma descoberta: o sistema não trata aquela falha corretamente e a equipe agora sabe disso antes que um incidente real a ensine.
 
 !!! example "Um experimento na loja"
 
@@ -172,7 +172,7 @@ Engenharia do caos sem observabilidade é perigosa e improdutiva. Antes de rodar
 
 ## Conexões
 
-- [SLI / SLO / SLA](../sli-slo-sla/index.md) — o estado estável é expresso como SLIs, e os experimentos gastam error budget.
+- [SLI / SLO / SLA](../sli-slo-sla/index.md) — o estado estável é expresso como SLIs e os experimentos gastam error budget.
 - [Padrões de Resiliência](../patterns/index.md) — o que os experimentos de caos verificam.
 - [Observabilidade](../../observability/index.md) e [Hands-on 11](../../../hands-on/11/index.md) — você precisa de métricas e traces para observar um experimento.
 - [Hands-on 5](../../../hands-on/5/index.md) — apagar um pod manualmente (`kubectl delete pod`) é o experimento de caos mais simples que você pode rodar no Kubernetes.
@@ -180,7 +180,7 @@ Engenharia do caos sem observabilidade é perigosa e improdutiva. Antes de rodar
 ## Pontos-chave
 
 - Engenharia do caos é **experimentação**: uma hipótese de estado estável, uma injeção controlada, medição e análise.
-- Ela nasceu do Chaos Monkey da Netflix (2010) e do Simian Army, e dos GameDays da Amazon.
+- Ela nasceu do Chaos Monkey da Netflix (2010) e do Simian Army e dos GameDays da Amazon.
 - Injete falhas **do mundo real** (perda de instância, latência, erros de dependência) e mantenha o **raio de impacto** pequeno, ampliando-o passo a passo.
 - Uma hipótese refutada é uma **descoberta**, não um fracasso.
 - Pré-requisitos: observabilidade, padrões de resiliência, um aborto automatizado — e uma cultura sem culpados.

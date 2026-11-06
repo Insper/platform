@@ -8,7 +8,7 @@ Imagine um cliente reclamando que "o checkout está lento" na loja. A requisiç�
 
     Ao final desta aula, você deve ser capaz de:
 
-    - **Explicar** a diferença entre monitoramento e observabilidade, e qual pergunta cada pilar (métricas, logs, traces) responde.
+    - **Explicar** a diferença entre monitoramento e observabilidade e qual pergunta cada pilar (métricas, logs, traces) responde.
     - **Escrever** consultas PromQL para a taxa de requisições, a proporção de erros e os percentis de latência de um serviço Spring Boot, e **construir** dashboards RED / USE.
     - **Configurar** logs estruturados que carregam o trace ID e **correlacionar** uma linha de log com seu trace.
     - **Explicar** como o contexto de rastreamento atravessa os serviços com o cabeçalho W3C `traceparent` e **escolher** uma estratégia de amostragem.
@@ -32,7 +32,7 @@ A observabilidade se apoia em três tipos de dados complementares. Cada um respo
 | Pilar | Responde | Ferramentas | Retenção |
 |---|---|---|---|
 | **Métricas** | O sistema está saudável agora? A tendência é de alta ou de queda? | Prometheus → Grafana | Semanas a meses (agregadas) |
-| **Logs** | O que exatamente aconteceu, e em que sequência? | ELK / EFK / Loki | Dias a semanas |
+| **Logs** | O que exatamente aconteceu e em que sequência? | ELK / EFK / Loki | Dias a semanas |
 | **Traces** | Qual serviço desta requisição foi lento? Onde o erro se originou? | Jaeger / Tempo / Zipkin | Dias |
 
 Os três descrevem os mesmos eventos sob ângulos diferentes. Um `POST /orders` que falha produz: um incremento de um contador `http_server_requests_seconds_count{status="500"}` (métrica), uma linha JSON `{"level":"ERROR","msg":"product not found",...}` (log) e um trace com um span por salto, o último marcado como `ERROR` (trace). Métricas são baratas e dizem *que* algo mudou; logs e traces são mais caros e dizem *o quê* e *onde*.
@@ -75,7 +75,7 @@ PromQL é a linguagem de consulta do Prometheus. As consultas abaixo usam a mét
 
 Duas regras: aplique `rate()` ou `increase()` a um counter **antes** de somar (essas funções tratam os zeramentos do contador quando um pod reinicia) e mantenha o label `le` ao somar os buckets de um histogram (`sum by (le)`), porque o `histogram_quantile` precisa dele. As séries `_bucket` só existem se os histogramas estiverem habilitados: `management.metrics.distribution.percentiles-histogram.http.server.requests=true`.
 
-!!! info "Por que percentis, e não médias"
+!!! info "Por que percentis e não médias"
     Se 99 requisições levam 50 ms e 1 leva 5 s, a média é ~100 ms — parece ótimo, mas um em cada cem usuários espera 5 segundos. O P99 (o valor abaixo do qual estão 99% das requisições) expõe essa cauda; com muitas chamadas por página, a maioria dos usuários cai na cauda em algum momento.
 
 ### RED, USE e os Golden Signals
@@ -100,7 +100,7 @@ flowchart LR
     prom -->|"consultas PromQL"| grafana
 ```
 
-O Prometheus usa um modelo **pull**: a aplicação apenas expõe seus valores atuais em um endpoint HTTP, e o Prometheus os busca (faz o *scrape*) periodicamente e os armazena como séries temporais. É isso que o [Hands-on 6](../../hands-on/6/index.md) configura para a loja.
+O Prometheus usa um modelo **pull**: a aplicação apenas expõe seus valores atuais em um endpoint HTTP e o Prometheus os busca (faz o *scrape*) periodicamente e os armazena como séries temporais. É isso que o [Hands-on 6](../../hands-on/6/index.md) configura para a loja.
 
 Configuração do Spring Boot Actuator para expor o endpoint do Prometheus (também é necessária a dependência `io.micrometer:micrometer-registry-prometheus`):
 
@@ -116,7 +116,7 @@ management:
 ```
 
 !!! warning "Cardinalidade de labels"
-    Nunca coloque valores ilimitados — ID de usuário, ID de pedido, e-mail, URL completa com IDs — em um label de métrica. Cada valor distinto cria uma nova série temporal; 100.000 usuários × 10 endpoints × 5 códigos de status são 5 milhões de séries, e o Prometheus fica sem memória. Detalhes de alta cardinalidade pertencem a **logs e traces**. (É por isso que o Spring Boot usa o *template* da URI, `/orders/{id}`, como label `uri`, e não `/orders/42`.)
+    Nunca coloque valores ilimitados — ID de usuário, ID de pedido, e-mail, URL completa com IDs — em um label de métrica. Cada valor distinto cria uma nova série temporal; 100.000 usuários × 10 endpoints × 5 códigos de status são 5 milhões de séries e o Prometheus fica sem memória. Detalhes de alta cardinalidade pertencem a **logs e traces**. (É por isso que o Spring Boot usa o *template* da URI, `/orders/{id}`, como label `uri` e não `/orders/42`.)
 
 ### Alertas
 
@@ -182,7 +182,7 @@ Em Java, o lugar para colocá-lo é o **MDC** (Mapped Diagnostic Context) do SLF
 
 === "MDC manual (suas próprias chaves)"
 
-    `MDC.put` serve para **contexto de negócio** que nenhuma ferramenta tem como conhecer — o ID do cliente, o ID do pedido — ou para um correlation ID quando não há rastreamento nenhum. Sempre remova o que você colocou: as threads são reaproveitadas pelo pool do servidor, e uma chave esquecida vaza para os logs da próxima requisição.
+    `MDC.put` serve para **contexto de negócio** que nenhuma ferramenta tem como conhecer — o ID do cliente, o ID do pedido — ou para um correlation ID quando não há rastreamento nenhum. Sempre remova o que você colocou: as threads são reaproveitadas pelo pool do servidor e uma chave esquecida vaza para os logs da próxima requisição.
 
     ```java
     public Order create(OrderIn in) {
@@ -345,7 +345,7 @@ environment:
 
 ### Spans manuais
 
-Quando a instrumentação automática não tem granularidade suficiente — você quer ver quanto tempo levou o *seu* cálculo de preço, e não apenas as chamadas HTTP e SQL ao redor dele —, adicione spans personalizados. Adicione a dependência da API do OTel (sua versão é gerenciada pelo `opentelemetry-bom`, ou defina-a explicitamente):
+Quando a instrumentação automática não tem granularidade suficiente — você quer ver quanto tempo levou o *seu* cálculo de preço e não apenas as chamadas HTTP e SQL ao redor dele —, adicione spans personalizados. Adicione a dependência da API do OTel (sua versão é gerenciada pelo `opentelemetry-bom`, ou defina-a explicitamente):
 
 ```xml
 <dependency>
@@ -504,10 +504,10 @@ print(buf.getvalue())
 plt.close()
 ```
 
-Os três painéis compartilham a mesma linha do tempo: o pico visível no painel 1 explica diretamente o agrupamento de erros no painel 2, e os dois explicam o alongamento das durações dos spans no painel 3. Sem os três pilares, você veria apenas uma parte do quadro.
+Os três painéis compartilham a mesma linha do tempo: o pico visível no painel 1 explica diretamente o agrupamento de erros no painel 2 e os dois explicam o alongamento das durações dos spans no painel 3. Sem os três pilares, você veria apenas uma parte do quadro.
 
 !!! warning "Armadilhas comuns"
-    - **Registrar tudo em INFO** (ou DEBUG em produção): o volume e o custo dos logs explodem, e as linhas úteis se afogam.
+    - **Registrar tudo em INFO** (ou DEBUG em produção): o volume e o custo dos logs explodem e as linhas úteis se afogam.
     - **Registrar segredos ou dados pessoais**: senhas, JWTs, números de cartão e e-mails nunca devem chegar ao pipeline de logs.
     - **Labels de métrica ilimitados**: IDs de usuário ou de pedido como labels derrubam o Prometheus — coloque-os em logs e traces.
     - **Propagação de contexto quebrada**: um único serviço sem instrumentação (ou um proxy que descarta o `traceparent`) parte cada trace em dois.
@@ -526,7 +526,7 @@ Os três painéis compartilham a mesma linha do tempo: o pico visível no painel
 ## Pontos-chave
 
 - O monitoramento responde a perguntas conhecidas; a **observabilidade** permite investigar perguntas novas a partir de **métricas** (que algo mudou), **logs** (o quê) e **traces** (onde).
-- O Prometheus **coleta** `/actuator/prometheus`; use `rate()` em counters, `histogram_quantile` com `sum by (le)` para percentis, e mantenha os labels com baixa cardinalidade.
+- O Prometheus **coleta** `/actuator/prometheus`; use `rate()` em counters, `histogram_quantile` com `sum by (le)` para percentis e mantenha os labels com baixa cardinalidade.
 - Monte dashboards com **RED** (serviços) e **USE** (recursos); **alerte sobre sintomas** que os usuários sentem.
 - Os logs devem ser **estruturados** e carregar o `trace_id` — preenchido automaticamente pelo agente do OTel; use `MDC.put` só para suas próprias chaves de negócio.
 - Um trace é uma árvore de **spans** ligados pelo `traceparent`; o head sampling é barato, mas cego, e o tail sampling mantém os traces interessantes.

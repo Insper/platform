@@ -13,7 +13,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **C — SO convidado, runtime e middleware.**
 
-    O IaaS entrega a você uma máquina virtual com um SO recém-instalado. Você instala o Java, configura o nginx, aplica os patches do SO e gerencia tudo acima do hypervisor. O PaaS abstrai tudo isso — você envia o código, e a plataforma instala e gerencia o runtime.
+    O IaaS entrega a você uma máquina virtual com um SO recém-instalado. Você instala o Java, configura o nginx, aplica os patches do SO e gerencia tudo acima do hypervisor. O PaaS abstrai tudo isso — você envia o código e a plataforma instala e gerencia o runtime.
 
 ---
 
@@ -41,7 +41,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **D — Uma função como unidade de deploy, escala até zero, cobrança por invocação + duração.**
 
-    O PaaS também gerencia o SO e o runtime (A), o CaaS faz o deploy de containers (B), e a multi-tenancy é a marca registrada do SaaS (C). Escalar até zero já não é *exclusividade* do FaaS — plataformas de containers serverless, como Google Cloud Run e Azure Container Apps, também escalam até zero —, mas a combinação "fazer o deploy de uma função e pagar por invocação e por milissegundo" é o que define o FaaS. Um PaaS clássico mantém pelo menos uma instância rodando e cobra por ela mesmo quando ociosa. O trade-off é a latência de cold start e um tempo máximo de execução (15 min no AWS Lambda).
+    O PaaS também gerencia o SO e o runtime (A), o CaaS faz o deploy de containers (B) e a multi-tenancy é a marca registrada do SaaS (C). Escalar até zero já não é *exclusividade* do FaaS — plataformas de containers serverless, como Google Cloud Run e Azure Container Apps, também escalam até zero —, mas a combinação "fazer o deploy de uma função e pagar por invocação e por milissegundo" é o que define o FaaS. Um PaaS clássico mantém pelo menos uma instância rodando e cobra por ela mesmo quando ociosa. O trade-off é a latência de cold start e um tempo máximo de execução (15 min no AWS Lambda).
 
 ---
 
@@ -171,7 +171,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q13.** Um time roda o serviço order da loja no EKS e guarda as notas fiscais num bucket S3. Alguém torna o bucket **público**, e as notas fiscais vazam. Pelo modelo de responsabilidade compartilhada, de quem era essa responsabilidade?
+**Q13.** Um time roda o serviço order da loja no EKS e guarda as notas fiscais num bucket S3. Alguém torna o bucket **público** e as notas fiscais vazam. Pelo modelo de responsabilidade compartilhada, de quem era essa responsabilidade?
 
 - A. Da AWS — o S3 é um serviço gerenciado, então sua segurança é tarefa do provedor
 - B. Da AWS — o provedor deveria bloquear automaticamente todo bucket público
@@ -195,7 +195,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **C — O banco de dados saiu do IaaS para o DBaaS.**
 
-    No EC2, o time instala o Postgres, aplica patches no SO, escreve scripts de backup e cuida do failover. Com o RDS, isso tudo vira configurações (retenção de backup, Multi-AZ, janela de manutenção) que a AWS executa. A aplicação continua se conectando com o mesmo formato de URL JDBC e o mesmo driver, e o time continua dono da modelagem do schema, da otimização de consultas e de quem pode se conectar (security groups, usuários do banco de dados).
+    No EC2, o time instala o Postgres, aplica patches no SO, escreve scripts de backup e cuida do failover. Com o RDS, isso tudo vira configurações (retenção de backup, Multi-AZ, janela de manutenção) que a AWS executa. A aplicação continua se conectando com o mesmo formato de URL JDBC e o mesmo driver e o time continua dono da modelagem do schema, da otimização de consultas e de quem pode se conectar (security groups, usuários do banco de dados).
 
 ---
 

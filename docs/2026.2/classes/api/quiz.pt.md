@@ -113,7 +113,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **C — Chave de idempotência.**
 
-    A chave identifica a operação *lógica*. A primeira requisição cria o pedido e registra a chave; a repetição encontra a chave e devolve o mesmo pedido em vez de criar outro. A opção A quebra a semântica do HTTP (`GET` não pode mudar o estado), a B cria duplicatas, e a D muda o código de status, mas não resolve o problema da duplicação.
+    A chave identifica a operação *lógica*. A primeira requisição cria o pedido e registra a chave; a repetição encontra a chave e devolve o mesmo pedido em vez de criar outro. A opção A quebra a semântica do HTTP (`GET` não pode mudar o estado), a B cria duplicatas e a D muda o código de status, mas não resolve o problema da duplicação.
 
 ---
 
@@ -147,7 +147,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q11.** Onde o Swagger UI deve ser **desabilitado**, e por quê?
+**Q11.** Onde o Swagger UI deve ser **desabilitado** e por quê?
 
 - A. Em desenvolvimento — os desenvolvedores devem usar `curl`
 - B. Em staging — o ambiente de staging precisa espelhar exatamente a produção
@@ -185,7 +185,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **C — `SecurityScheme` do tipo HTTP/bearer + botão Authorize.**
 
-    Adicionar o esquema de segurança ao bean `OpenAPI` faz o springdoc renderizar um botão **Authorize** no Swagger UI. O usuário cola um JWT ali, e todas as requisições seguintes incluem `Authorization: Bearer <token>`. Sem essa configuração, o Swagger UI envia requisições não autenticadas a todos os endpoints protegidos.
+    Adicionar o esquema de segurança ao bean `OpenAPI` faz o springdoc renderizar um botão **Authorize** no Swagger UI. O usuário cola um JWT ali e todas as requisições seguintes incluem `Authorization: Bearer <token>`. Sem essa configuração, o Swagger UI envia requisições não autenticadas a todos os endpoints protegidos.
 
 ---
 
@@ -199,4 +199,4 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **D — `components.schemas`.**
 
-    `paths` descreve os endpoints; cada resposta aponta para um modelo com `$ref: "#/components/schemas/ProductOut"`, de modo que o modelo é definido uma única vez. `info` guarda o título e a versão, `servers` as URLs base, e `parameters` as entradas de caminho, query, cabeçalho e cookie de uma operação. O springdoc constrói `components.schemas` a partir dos seus records de DTO.
+    `paths` descreve os endpoints; cada resposta aponta para um modelo com `$ref: "#/components/schemas/ProductOut"`, de modo que o modelo é definido uma única vez. `info` guarda o título e a versão, `servers` as URLs base e `parameters` as entradas de caminho, query, cabeçalho e cookie de uma operação. O springdoc constrói `components.schemas` a partir dos seus records de DTO.

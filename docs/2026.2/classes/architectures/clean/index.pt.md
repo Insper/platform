@@ -1,5 +1,5 @@
 
-O SOLID nos diz como projetar uma classe. Mas um serviço tem dezenas de classes, e a pergunta passa a ser *onde* cada uma fica e *qual pode importar qual*. No [Hands-on 1](../../../hands-on/1/index.md), o `account-service` já separa `AccountResource`, `AccountService`, `AccountRepository` e `AccountModel` — a Clean Architecture é o conjunto de regras que explica essa separação e impede que ela se desgaste à medida que o serviço cresce.
+O SOLID nos diz como projetar uma classe. Mas um serviço tem dezenas de classes e a pergunta passa a ser *onde* cada uma fica e *qual pode importar qual*. No [Hands-on 1](../../../hands-on/1/index.md), o `account-service` já separa `AccountResource`, `AccountService`, `AccountRepository` e `AccountModel` — a Clean Architecture é o conjunto de regras que explica essa separação e impede que ela se desgaste à medida que o serviço cresce.
 
 A [Clean Architecture](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html){:target="_blank"} (Arquitetura Limpa) foi proposta por Robert C. Martin (Uncle Bob) em 2012 como uma síntese de várias ideias de arquitetura anteriores — Hexagonal (Ports & Adapters), Onion, Screaming Architecture, DCI e BCE (Boundary–Control–Entity). A sua regra central é a **Regra de Dependência** (*Dependency Rule*): as dependências do código-fonte precisam sempre apontar *para dentro*, rumo às políticas de nível mais alto[^1]. "Nível mais alto" significa mais perto do negócio e mais longe dos dispositivos de entrada/saída.
 
@@ -22,7 +22,7 @@ A [Clean Architecture](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clea
 !!! info "A Regra de Dependência"
     Nada em uma camada interna pode referenciar algo de uma camada externa. Os dados que atravessam as fronteiras precisam estar em estruturas simples — objetos simples ou records —, **nunca** em um tipo do framework. Uma anotação `@Entity` ou um `HttpServletRequest` nunca pode aparecer dentro de uma classe de Use Case ou de Entity.
 
-Como um Use Case pode salvar uma conta se não pode referenciar o banco de dados? Por meio da **Inversão de Dependência**: o Use Case declara a interface de que precisa (`AccountRepository`), e a camada externa a implementa. Em tempo de execução, a chamada vai *para fora* (service → JPA → Postgres), mas no código-fonte a dependência aponta *para dentro* (o adaptador JPA importa a interface). Esse cruzamento da fronteira é o coração da arquitetura.
+Como um Use Case pode salvar uma conta se não pode referenciar o banco de dados? Por meio da **Inversão de Dependência**: o Use Case declara a interface de que precisa (`AccountRepository`) e a camada externa a implementa. Em tempo de execução, a chamada vai *para fora* (service → JPA → Postgres), mas no código-fonte a dependência aponta *para dentro* (o adaptador JPA importa a interface). Esse cruzamento da fronteira é o coração da arquitetura.
 
 ### O que vai onde
 
@@ -70,7 +70,7 @@ flowchart LR
   classDef entity fill:#ff9
 ```
 
-O diagrama é o mapeamento simplificado do curso. No Hands-on 1, os nomes são um pouco diferentes, e um atalho é tomado:
+O diagrama é o mapeamento simplificado do curso. No Hands-on 1, os nomes são um pouco diferentes e um atalho é tomado:
 
 | Classe do Hands-on 1 | Papel no diagrama | Camada |
 |---|---|---|
@@ -83,7 +83,7 @@ O diagrama é o mapeamento simplificado do curso. No Hands-on 1, os nomes são u
 | `AccountModel` (`@Entity`) | Table | fronteira de persistência |
 
 !!! info "Um atalho pragmático"
-    No Hands-on 1, o `AccountRepository` estende uma interface do Spring Data, então o `AccountService` depende de um tipo do framework — a rigor, uma violação da Regra de Dependência (veja o alerta *Tipos do framework vazando para dentro* abaixo). Para um serviço CRUD pequeno, essa é uma troca razoável: menos código, e é improvável que o Spring Data seja substituído. O [exemplo completo](#full-working-example) abaixo mostra a versão estrita, em que o serviço depende de uma interface simples e só o adaptador conhece o JPA.
+    No Hands-on 1, o `AccountRepository` estende uma interface do Spring Data, então o `AccountService` depende de um tipo do framework — a rigor, uma violação da Regra de Dependência (veja o alerta *Tipos do framework vazando para dentro* abaixo). Para um serviço CRUD pequeno, essa é uma troca razoável: menos código e é improvável que o Spring Data seja substituído. O [exemplo completo](#full-working-example) abaixo mostra a versão estrita, em que o serviço depende de uma interface simples e só o adaptador conhece o JPA.
 
 ### Papel de cada componente
 
@@ -264,7 +264,7 @@ A regra "o e-mail precisa ser único" vive no `AccountService` (uma regra da apl
     Entidades que são puros sacos de dados (só getters/setters), com toda a lógica na camada de Service, são um sinal de que a fronteira entre camadas não está sendo usada. Leve a garantia das invariantes para a Entity — como faz `Account.of(...)` com as regras de e-mail e de senha.
 
 !!! warning "Mapear tudo em todo lugar"
-    A Clean Architecture estrita significa um modelo por camada e um mapper entre cada par. Em um serviço CRUD sem regras de negócio reais, isso é puro custo. Mantenha a separação estrita onde as regras estão, e aceite atalhos (como o repositório Spring Data do Hands-on 1) onde elas não estão.
+    A Clean Architecture estrita significa um modelo por camada e um mapper entre cada par. Em um serviço CRUD sem regras de negócio reais, isso é puro custo. Mantenha a separação estrita onde as regras estão e aceite atalhos (como o repositório Spring Data do Hands-on 1) onde elas não estão.
 
 ---
 
@@ -274,7 +274,7 @@ A regra "o e-mail precisa ser único" vive no `AccountService` (uma regra da apl
 - Quatro anéis: **Entities** (invariantes do domínio), **Use Cases** (regras da aplicação), **Interface Adapters** (controllers, mappers), **Frameworks & Drivers** (Spring, JPA, o banco de dados).
 - Cruzar uma fronteira para fora é feito com **Inversão de Dependência**: a camada interna declara a interface, a camada externa a implementa.
 - Os tipos do framework (`@Entity`, `HttpServletRequest`, interfaces do Spring Data) ficam nos anéis externos; **Parsers e Mappers** traduzem nas fronteiras.
-- O ganho: casos de uso testados com JUnit puro, e entrega ou persistência trocadas sem mexer nas regras de negócio. Veja a [Arquitetura Hexagonal](../hexagonal/index.md) para a mesma ideia vista a partir da fronteira.
+- O ganho: casos de uso testados com JUnit puro e entrega ou persistência trocadas sem mexer nas regras de negócio. Veja a [Arquitetura Hexagonal](../hexagonal/index.md) para a mesma ideia vista a partir da fronteira.
 
 Um passo a passo em Spring Boot desta arquitetura está disponível em vídeo[^2].
 

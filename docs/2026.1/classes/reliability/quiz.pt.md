@@ -28,7 +28,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — ~43,8 minutos.**
 
-    0,1% de 28 dias × 24 h × 60 min = 0,001 × 28 × 1440 ≈ 40,3 minutos. O número comumente citado é ~43,8 minutos porque 28 dias × 24 h × 60 min = 40.320 minutos, e 0,1% disso são 40,32 minutos (a diferença depende da janela exata usada). De qualquer forma, o error budget para três noves é de aproximadamente 40–44 minutos por mês.
+    0,1% de 28 dias × 24 h × 60 min = 0,001 × 28 × 1440 ≈ 40,3 minutos. O número comumente citado é ~43,8 minutos porque 28 dias × 24 h × 60 min = 40.320 minutos e 0,1% disso são 40,32 minutos (a diferença depende da janela exata usada). De qualquer forma, o error budget para três noves é de aproximadamente 40–44 minutos por mês.
 
 ---
 
@@ -74,7 +74,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q6.** Qual é a **diferença entre MTTF e MTTR**, e qual alavanca é mais rápida de melhorar durante um incidente em produção?
+**Q6.** Qual é a **diferença entre MTTF e MTTR** e qual alavanca é mais rápida de melhorar durante um incidente em produção?
 
 - A. MTTF é a frequência das falhas; MTTR é o tempo de reparo — o MTTF é mais rápido de melhorar
 - B. MTTF é o tempo médio até a falha (quanto tempo até quebrar); MTTR é o tempo médio de reparo (quanto tempo para consertar) — o MTTR é mais rápido de melhorar durante um incidente em andamento

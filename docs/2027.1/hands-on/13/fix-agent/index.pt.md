@@ -1,4 +1,4 @@
-O revisor da parte 1 faz **uma** chamada ao modelo e posta texto. Um **agente** é diferente: ele roda um loop — lê um arquivo, edita, roda o build, lê o erro, edita de novo — escolhendo o próprio próximo passo até a tarefa terminar ou um orçamento se esgotar (veja [Agentes e ferramentas](../../../classes/ai-systems/agents/index.md)). Isso o torna muito mais capaz, e muito mais perigoso: ele executa comandos, escreve código e custa mais a cada passo. Esta parte constrói um agente que reage a uma **execução de CI com falha** propondo uma correção como um **pull request em rascunho** — e gasta a maior parte das suas linhas mantendo esse agente dentro de uma caixa.
+O revisor da parte 1 faz **uma** chamada ao modelo e posta texto. Um **agente** é diferente: ele roda um loop — lê um arquivo, edita, roda o build, lê o erro, edita de novo — escolhendo o próprio próximo passo até a tarefa terminar ou um orçamento se esgotar (veja [Agentes e ferramentas](../../../classes/ai-systems/agents/index.md)). Isso o torna muito mais capaz e muito mais perigoso: ele executa comandos, escreve código e custa mais a cada passo. Esta parte constrói um agente que reage a uma **execução de CI com falha** propondo uma correção como um **pull request em rascunho** — e gasta a maior parte das suas linhas mantendo esse agente dentro de uma caixa.
 
 ## 3.1 O fluxo e suas fronteiras de confiança { #31-the-flow-and-its-trust-boundaries }
 
@@ -29,7 +29,7 @@ Três separações fazem o trabalho de segurança:
 |---|---|
 | **O agente nunca tem um token do GitHub.** Só a `ANTHROPIC_API_KEY` (ou a chave do LiteLLM) está no ambiente dele | Um agente confuso ou vítima de injection não consegue fazer push, comentar, aprovar nem ler outros repositórios |
 | **A verificação não é feita pelo agente.** Um passo de shell simples roda `mvn verify` de novo, rejeita arquivos fora de `services/<name>/src/` e rejeita `@Test` removidos ou `@Disabled` adicionados | "Consertei o build" é verificado, não acreditado; o atalho clássico — apagar o teste que falha — é pego |
-| **Só o `open-pr` pode escrever**, e ele não roda modelo nem build: ele aplica um patch | O acesso de escrita fica com dez linhas de shell determinístico |
+| **Só o `open-pr` pode escrever** e ele não roda modelo nem build: ele aplica um patch | O acesso de escrita fica com dez linhas de shell determinístico |
 
 E um humano faz o merge. Nada neste workflow chega à `main` sem um review exigido pela proteção de branch.
 
@@ -51,11 +51,11 @@ O [Claude Code](https://code.claude.com/docs/en/headless){target="_blank"} pode 
 O log da falha chega pela **stdin**, então o agente não precisa de permissão para ler arquivos fora do repositório.
 
 
-O caminho A só roda quando a variável de repositório `LLM_PROVIDER` é `anthropic`, e precisa do segredo `ANTHROPIC_API_KEY`: **toda execução é cobrada**, com teto de US$ 1,50 pelo `--max-budget-usd`. O workflow instala uma versão **fixada** do Claude Code (`@anthropic-ai/claude-code@2.1.302`); atualize-a de propósito, como qualquer outra dependência. Sem chave, pule para o caminho B — ele é o padrão.
+O caminho A só roda quando a variável de repositório `LLM_PROVIDER` é `anthropic` e precisa do segredo `ANTHROPIC_API_KEY`: **toda execução é cobrada**, com teto de US$ 1,50 pelo `--max-budget-usd`. O workflow instala uma versão **fixada** do Claude Code (`@anthropic-ai/claude-code@2.1.302`); atualize-a de propósito, como qualquer outra dependência. Sem chave, pule para o caminho B — ele é o padrão.
 
 !!! info "A GitHub Action do Claude Code"
 
-    A Anthropic também publica a [`anthropics/claude-code-action@v1`](https://github.com/anthropics/claude-code-action){target="_blank"}, que empacota o mesmo motor para o GitHub: menções `@claude` em PRs e issues, ou automação com um input `prompt`, e flags de CLI por meio de `claude_args` (por exemplo `--max-turns 5 --model ...`). É o jeito mais rápido de ter um assistente sob demanda nos PRs. Este lab chama a CLI diretamente porque queremos a **separação por artefato de patch** acima, em que o job que roda o agente não tem token de escrita; consulte a [documentação de segurança](https://github.com/anthropics/claude-code-action/blob/main/docs/security.md){target="_blank"} da action se você a usar para escritas.
+    A Anthropic também publica a [`anthropics/claude-code-action@v1`](https://github.com/anthropics/claude-code-action){target="_blank"}, que empacota o mesmo motor para o GitHub: menções `@claude` em PRs e issues, ou automação com um input `prompt` e flags de CLI por meio de `claude_args` (por exemplo `--max-turns 5 --model ...`). É o jeito mais rápido de ter um assistente sob demanda nos PRs. Este lab chama a CLI diretamente porque queremos a **separação por artefato de patch** acima, em que o job que roda o agente não tem token de escrita; consulte a [documentação de segurança](https://github.com/anthropics/claude-code-action/blob/main/docs/security.md){target="_blank"} da action se você a usar para escritas.
 
 
 ## 3.3 Caminho B — um agente neutro em relação ao provedor em menos de 200 linhas (gratuito com Ollama) { #33-path-b-a-provider-neutral-agent-in-under-200-lines-free-with-ollama }
@@ -91,7 +91,7 @@ Para ver que um agente é "só um loop", o `fix_agent.py` implementa um sobre qu
 | `concurrency` no SHA do head + verificação do branch `ai-fix/<sha8>` | **Idempotente**: uma proposta por commit com falha, mesmo que a execução seja repetida |
 | `if-no-files-found: ignore` + `always()` | A transcrição é enviada mesmo quando o agente falha — é justamente quando você precisa dela |
 
-| `--trailer "AI-assisted: ..."` | O commit diz que foi gerado por IA, e com qual modelo |
+| `--trailer "AI-assisted: ..."` | O commit diz que foi gerado por IA e com qual modelo |
 | `vars.LLM_PROVIDER == 'anthropic'` → caminho A, senão caminho B | Uma variável troca o agente; sem variável nenhuma, o caminho B roda com o Ollama **no runner** (gratuito, mas um runner só com CPU precisa de muitos minutos para 20 passos — a execução local da 3.5 é bem mais rápida) |
 
 !!! warning "Duas configurações do GitHub que você precisa conhecer"
@@ -128,7 +128,7 @@ git switch -c break-catalog
 git commit -am "catalog: simplify deleteEvent"
 ```
 
-**Localmente primeiro** (de graça, e minutos em vez de dezenas de minutos). Reproduza o que o CI vai ver, entregue o log ao agente e veja o que ele mudou. O Docker precisa estar rodando: o `mvn verify` — o seu, o `run_build` do agente e o passo de verificação no CI — também roda o teste com Testcontainers `CatalogApiTest` do lab 11:
+**Localmente primeiro** (de graça e minutos em vez de dezenas de minutos). Reproduza o que o CI vai ver, entregue o log ao agente e veja o que ele mudou. O Docker precisa estar rodando: o `mvn verify` — o seu, o `run_build` do agente e o passo de verificação no CI — também roda o teste com Testcontainers `CatalogApiTest` do lab 11:
 
 ``` { .bash .copy }
 mvn -B -f services/catalog/pom.xml verify > /tmp/ci-full.log 2>&1; tail -n 300 /tmp/ci-full.log > /tmp/ci-failure.log
@@ -163,15 +163,15 @@ $ jq -c '{step, tool, args}' /tmp/agent-audit.jsonl
 {"step":4,"tool":"finish","args":{"fixed":true,"explanation":"<325 chars>"}}
 ```
 
-Não conte com isso. Uma execução anterior do mesmo modelo **nunca abriu o `CatalogService.java`**: reescreveu o *teste* seis vezes — acrescentando, entre outros, um teste que espera um `404` quando o evento **existe**, o que transforma o bug em especificação (o problema do oráculo da parte 2) — depois quebrou a compilação com um método duplicado e esgotou os seus 20 passos depois de 8 minutos e meio e 165.075 tokens de entrada, terminando com `"fixed": false`. Nem então algo perigoso aconteceu: toda escrita ficou em `services/catalog/src/`, e no CI o `mvn verify` independente do passo de verificação falha com um patch assim, então nenhum PR é aberto. Esse é o objetivo das proteções — elas tornam um agente ruim inofensivo, não bom. Rode de novo (e com um modelo mais forte, se tiver um) e compare.
+Não conte com isso. Uma execução anterior do mesmo modelo **nunca abriu o `CatalogService.java`**: reescreveu o *teste* seis vezes — acrescentando, entre outros, um teste que espera um `404` quando o evento **existe**, o que transforma o bug em especificação (o problema do oráculo da parte 2) — depois quebrou a compilação com um método duplicado e esgotou os seus 20 passos depois de 8 minutos e meio e 165.075 tokens de entrada, terminando com `"fixed": false`. Nem então algo perigoso aconteceu: toda escrita ficou em `services/catalog/src/` e no CI o `mvn verify` independente do passo de verificação falha com um patch assim, então nenhum PR é aberto. Esse é o objetivo das proteções — elas tornam um agente ruim inofensivo, não bom. Rode de novo (e com um modelo mais forte, se tiver um) e compare.
 
-Seja o que for que ele fez, **verifique como o workflow faz**: `git diff --stat` só pode listar arquivos em `services/catalog/src/`, nenhum `@Test` pode sumir, e `mvn -B -f services/catalog/pom.xml verify` precisa passar. Depois desfaça a mudança do agente (`git checkout -- services`) — a execução de CI abaixo deve partir do commit quebrado.
+Seja o que for que ele fez, **verifique como o workflow faz**: `git diff --stat` só pode listar arquivos em `services/catalog/src/`, nenhum `@Test` pode sumir e `mvn -B -f services/catalog/pom.xml verify` precisa passar. Depois desfaça a mudança do agente (`git checkout -- services`) — a execução de CI abaixo deve partir do commit quebrado.
 
 **Depois no CI:**
 
 1. Faça push do branch e abra um PR: `git push -u origin break-catalog && gh pr create --fill --base main`.
 2. O CI falha (`gh pr checks` mostra `CI` em vermelho). Em menos de um minuto o workflow `AI fix` começa: `gh run list --workflow ai-fix.yaml --limit 1`. Com o modelo gratuito no runner, dê a ele até 45 minutos.
-3. Abra o resumo e baixe o artefato `ai-fix`: `gh run download <run id> -n ai-fix -D /tmp/ai-fix`. Ele tem `agent-audit.jsonl` (caminho B) ou `agent-transcript.jsonl` (caminho A), e `ai-fix.patch` se a mudança passou na verificação.
+3. Abra o resumo e baixe o artefato `ai-fix`: `gh run download <run id> -n ai-fix -D /tmp/ai-fix`. Ele tem `agent-audit.jsonl` (caminho B) ou `agent-transcript.jsonl` (caminho A) e `ai-fix.patch` se a mudança passou na verificação.
 4. Se a verificação passou, aparece um PR em rascunho `AI fix proposal for break-catalog (<sha>)`: `gh pr list --label ai-generated`. Leia-o e responda em `results/lab13.md`:
     - O agente corrigiu o **código** ou dobrou o **teste**? (A proteção pega testes apagados, não uma asserção enfraquecida — ele tentou?)
     - Quantos passos (ou turnos) e quantos dólares ou minutos foram necessários? Compare com o tempo que *você* levou.

@@ -1,4 +1,4 @@
-O BoxOffice tem nove serviços. Sem um gateway, o app mobile precisaria conhecer nove endereços, cada serviço validaria JWTs por conta própria (com nove bugs ligeiramente diferentes), cada serviço implementaria o seu próprio rate limit, e o script de um fã martelando `POST /api/holds` 500 vezes por segundo iria direto para `inventory`. O **API gateway** é a porta de entrada única que resolve tudo isso num só lugar — e é também o lugar onde muitas arquiteturas, sem alarde, criam um gargalo ou um segundo monólito.
+O BoxOffice tem nove serviços. Sem um gateway, o app mobile precisaria conhecer nove endereços, cada serviço validaria JWTs por conta própria (com nove bugs ligeiramente diferentes), cada serviço implementaria o seu próprio rate limit e o script de um fã martelando `POST /api/holds` 500 vezes por segundo iria direto para `inventory`. O **API gateway** é a porta de entrada única que resolve tudo isso num só lugar — e é também o lugar onde muitas arquiteturas, sem alarde, criam um gargalo ou um segundo monólito.
 
 Um **API gateway** é um reverse proxy L7 especializado em APIs: é o ponto de entrada único dos clientes, roteia cada requisição para o serviço certo e aplica **políticas transversais** — autenticação, rate limits, cotas, transformações, observabilidade — antes que a requisição chegue a qualquer código de negócio[^1]. Ele é o componente `apigw` da paleta.
 
@@ -50,7 +50,7 @@ A palavra-chave é **transversal**: preocupações que são as mesmas para todos
 
 ## Gateway, load balancer, ingress ou service mesh? { #comparison }
 
-Esses quatro componentes se sobrepõem, e os produtos borram as fronteiras (o Envoy é o motor de muitos deles). O que os distingue é **qual tráfego** tratam e **o que sabem**:
+Esses quatro componentes se sobrepõem e os produtos borram as fronteiras (o Envoy é o motor de muitos deles). O que os distingue é **qual tráfego** tratam e **o que sabem**:
 
 | | Load balancer (`lb`) | Ingress / Gateway API (`ingress`) | API gateway (`apigw`) | Service mesh (`mesh`) |
 |---|---|---|---|---|
@@ -171,7 +171,7 @@ Leia os dois painéis juntos:
 
 - Durante a **rajada**, o primeiro segundo aceita cerca de 29 requisições — os 20 tokens guardados mais o reabastecimento — e depois o limitador se acomoda na taxa de reabastecimento de 10/s; o excesso é rejeitado.
 - Durante a fase **sustentada** a 14 req/s, o balde se esvazia devagar (perde 4 tokens por segundo) e aceita tudo por cerca de cinco segundos; depois disso, aceita exatamente 10/s.
-- Quando o tráfego se acalma (4 req/s, portanto um reabastecimento líquido de 6 tokens/s), o balde volta a encher em cerca de três segundos, e a próxima rajada será absorvida de novo.
+- Quando o tráfego se acalma (4 req/s, portanto um reabastecimento líquido de 6 tokens/s), o balde volta a encher em cerca de três segundos e a próxima rajada será absorvida de novo.
 
 É o comportamento que você normalmente quer: **rajadas curtas são toleradas, excesso sustentado não**. Os dois parâmetros se traduzem diretamente em linguagem de produto — "10 requisições por segundo, rajadas de até 20".
 
@@ -345,7 +345,7 @@ Content-Type: application/problem+json
 
 !!! example "No código do BoxOffice: um rate limit na borda (lab 3)"
 
-    A borda Nginx do [Hands-on 3](../../../hands-on/3/index.md) dá a cada **API key** 20 req/s com rajada de 40 e responde `429` acima disso, sem tocar nas réplicas. O script k6 do lab manda um cliente guloso (50 req/s) e um educado (10 req/s) por 30 s: na execução do lab, o guloso recebeu 640 `200`s e 843 `429`s — mais ou menos os 20/s a que tem direito — e o educado 299 `200`s e **nenhum** `429`. Note o comentário na configuração: uma requisição sem o header tem chave vazia e não é limitada, e a chave é escolhida pelo cliente. Em produção, a chave é uma identidade autenticada (o JWT do lab 4), mais um limite generoso por IP para o tráfego anônimo.
+    A borda Nginx do [Hands-on 3](../../../hands-on/3/index.md) dá a cada **API key** 20 req/s com rajada de 40 e responde `429` acima disso, sem tocar nas réplicas. O script k6 do lab manda um cliente guloso (50 req/s) e um educado (10 req/s) por 30 s: na execução do lab, o guloso recebeu 640 `200`s e 843 `429`s — mais ou menos os 20/s a que tem direito — e o educado 299 `200`s e **nenhum** `429`. Note o comentário na configuração: uma requisição sem o header tem chave vazia e não é limitada e a chave é escolhida pelo cliente. Em produção, a chave é uma identidade autenticada (o JWT do lab 4), mais um limite generoso por IP para o tráfego anônimo.
 
     ``` { .nginx title="infra/nginx/nginx.conf (the limit)" }
     --8<-- "docs/2027.1/hands-on/3/code/infra/nginx/nginx.conf:28:32,43:44"
@@ -377,7 +377,7 @@ O projeto completo de um rate limiter distribuído, como problema de entrevista,
     - **Autenticação**: o gateway valida o JWT emitido por `auth` (assinatura com as chaves públicas em cache, expiração, audience) e repassa `X-User-Id`; os GETs de `catalog` são públicos.
     - **Rate limits** (várias camadas):
         - borda/WAF: 100 requisições por 10 s por IP em `/login`; token da sala de espera obrigatório em `/api/holds`;
-        - gateway: token bucket por usuário, 10 req/s com rajadas de 20 em `/api/**`, e 1 req/s com rajadas de 3 em `POST /api/holds`;
+        - gateway: token bucket por usuário, 10 req/s com rajadas de 20 em `/api/**` e 1 req/s com rajadas de 3 em `POST /api/holds`;
         - `inventory`: no máximo 6 assentos por hold e um hold ativo por usuário por evento (uma regra de negócio, garantida com o banco de dados).
     - **Store**: Redis (com uma réplica) para os baldes; se ele falhar, os gateways fazem **fail open** com um limite local de 1/6 do global.
     - **Respostas**: `429` com `Retry-After`; o app recua com jitter e mostra "muitas tentativas, tente de novo em alguns segundos".
@@ -395,7 +395,7 @@ O projeto completo de um rate limiter distribuído, como problema de entrevista,
     - **Rode um limite novo em modo de contagem (só log) antes de aplicá-lo** — meça quem teria sido limitado e só então ligue.
     - **Dê a cada rota a sua própria política de timeout e retry, com retries só em métodos idempotentes** — No BoxOffice: os timeouts de 1 s de conexão / 5 s de resposta do gateway e um filtro `Retry` limitado a `GET` no [lab 4](../../../hands-on/4/gateway/index.md) (quadro acima).
     - **Valide os JWTs localmente com chaves públicas em cache** — um JWKS buscado e guardado em cache pelo gateway não custa nenhuma chamada a `auth` por requisição. No BoxOffice: `jwk-set-uri` no `application.yaml` do lab 4.
-    - **Meça o overhead e a capacidade do próprio gateway** — p50 passando pelo gateway versus direto, e o seu ponto de ruptura, para dimensioná-lo como qualquer outra camada.
+    - **Meça o overhead e a capacidade do próprio gateway** — p50 passando pelo gateway versus direto e o seu ponto de ruptura, para dimensioná-lo como qualquer outra camada.
 
 !!! warning "Armadilhas"
     - **Gateway como ponto único de falha ou gargalo**: ele está no caminho de toda requisição. Rode várias réplicas em zonas diferentes, dimensione-o em testes de carga e mantenha pequeno o trabalho dele por requisição.

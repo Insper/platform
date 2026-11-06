@@ -28,14 +28,14 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — instrumentação de bytecode no carregamento das classes.**
 
-    A JVM chama o agente antes do `main`; o agente registra transformadores que adicionam criação de spans, propagação de contexto e registro de métricas aos métodos das bibliotecas suportadas. Por isso `JAVA_TOOL_OPTIONS=-javaagent:...` basta, e por isso a inicialização fica mais lenta.
+    A JVM chama o agente antes do `main`; o agente registra transformadores que adicionam criação de spans, propagação de contexto e registro de métricas aos métodos das bibliotecas suportadas. Por isso `JAVA_TOOL_OPTIONS=-javaagent:...` basta e por isso a inicialização fica mais lenta.
 
 ---
 
 **Q3.** As três réplicas do `catalog` usam o mesmo `OTEL_SERVICE_NAME: catalog`. Por que não `catalog-1`, `catalog-2`, `catalog-3`?
 
 - A. Porque o agente rejeita nomes com dígitos
-- B. Porque elas são um serviço com três instâncias: dashboards e SLOs agregam por serviço, e cada instância ainda ganha o seu próprio `service.instance.id`
+- B. Porque elas são um serviço com três instâncias: dashboards e SLOs agregam por serviço e cada instância ainda ganha o seu próprio `service.instance.id`
 - C. Porque o Prometheus só consegue guardar uma série por nome
 - D. Não há motivo; os dois são equivalentes
 
@@ -106,7 +106,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ## SLOs e alertas { #slos-and-alerts }
 
-**Q8.** O SLO do `catalog` é 99,5% em 28 dias. A fração de erros atual é 1%. Qual é a taxa de queima, e quanto tempo o orçamento inteiro duraria nesse ritmo?
+**Q8.** O SLO do `catalog` é 99,5% em 28 dias. A fração de erros atual é 1%. Qual é a taxa de queima e quanto tempo o orçamento inteiro duraria nesse ritmo?
 
 - A. 1; 28 dias
 - B. 2; 14 dias

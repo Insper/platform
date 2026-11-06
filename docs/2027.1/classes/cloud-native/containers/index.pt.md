@@ -1,4 +1,4 @@
-O serviço `inventory` funciona no notebook da Ana com Java 21.0.4 e falha no do Bruno com Java 17; o servidor de staging está em outro fuso horário; a produção tem uma `libc` mais antiga. Cada ambiente é uma máquina ligeiramente diferente, e cada diferença é um bug esperando um deploy. Um **container** empacota a aplicação *junto com tudo de que ela precisa para rodar* — runtime, bibliotecas, configurações padrão — em um único artefato imutável que se comporta da mesma forma em um notebook, na CI e em um cluster Kubernetes.
+O serviço `inventory` funciona no notebook da Ana com Java 21.0.4 e falha no do Bruno com Java 17; o servidor de staging está em outro fuso horário; a produção tem uma `libc` mais antiga. Cada ambiente é uma máquina ligeiramente diferente e cada diferença é um bug esperando um deploy. Um **container** empacota a aplicação *junto com tudo de que ela precisa para rodar* — runtime, bibliotecas, configurações padrão — em um único artefato imutável que se comporta da mesma forma em um notebook, na CI e em um cluster Kubernetes.
 
 ---
 
@@ -123,7 +123,7 @@ docker run --rm -p 8080:8080 --memory=512m --cpus=1 \
 
 !!! example "BoxOffice: o que o multi-stage nos deu"
 
-    Com a imagem ingênua de um único estágio (JDK + Maven + fontes) o time mediu uma imagem de cerca de 800 MB; a imagem distroless multi-stage ficou abaixo de 250 MB, e uma mudança típica de código enviava uma única camada pequena. Seus números serão diferentes — meça com `docker image ls` e `docker history` —, mas a ordem de grandeza é típica. Imagens menores importam para a **velocidade de escala**: quando o HPA adiciona 20 pods durante a venda, cada nó novo precisa baixar a imagem antes que o pod possa iniciar.
+    Com a imagem ingênua de um único estágio (JDK + Maven + fontes) o time mediu uma imagem de cerca de 800 MB; a imagem distroless multi-stage ficou abaixo de 250 MB e uma mudança típica de código enviava uma única camada pequena. Seus números serão diferentes — meça com `docker image ls` e `docker history` —, mas a ordem de grandeza é típica. Imagens menores importam para a **velocidade de escala**: quando o HPA adiciona 20 pods durante a venda, cada nó novo precisa baixar a imagem antes que o pod possa iniciar.
 
 !!! example "No código do BoxOffice: a imagem do `catalog` (lab 1)"
 
@@ -214,19 +214,19 @@ Os serviços se encontram pelo **nome do serviço** (`db`, `redis`) por meio do 
 
 !!! success "Boas práticas"
 
-    - **Ordene o Dockerfile do que muda menos para o que muda mais, e guarde em cache o download das dependências** — uma mudança de código passa a ser reconstruída em segundos em vez de minutos. No BoxOffice: o cache do BuildKit no [Dockerfile do lab 1](../../../hands-on/1/container/index.md).
+    - **Ordene o Dockerfile do que muda menos para o que muda mais e guarde em cache o download das dependências** — uma mudança de código passa a ser reconstruída em segundos em vez de minutos. No BoxOffice: o cache do BuildKit no [Dockerfile do lab 1](../../../hands-on/1/container/index.md).
     - **Dimensione o heap como fração do limite do container, deixando cerca de 25% para o resto da JVM** — metaspace, pilhas de threads e buffers vivem fora do heap. No BoxOffice: `MaxRAMPercentage=75` sob um limite de 768 MB ([lab 1](../../../hands-on/1/container/index.md)).
     - **Exponha na imagem endpoints separados de liveness e readiness** — os mesmos endpoints servem ao health check do Compose e às probes do Kubernetes. No BoxOffice: `/actuator/health/readiness` no [lab 1](../../../hands-on/1/container/index.md) e no [lab 10](../../../hands-on/10/deploy/index.md).
     - **Termine as requisições em andamento no `SIGTERM` em menos tempo que o período de graça** — 20 s de fase de encerramento contra os 30 s do Kubernetes deixam margem antes do `SIGKILL`. No BoxOffice: `SERVER_SHUTDOWN=graceful` no [lab 10](../../../hands-on/10/deploy/index.md).
-    - **Deixe um bot propor atualizações da imagem base e das bibliotecas toda semana, e escaneie toda imagem na CI** — correções chegam como pull requests pequenos e revisados, e uma CVE crítica com correção bloqueia a publicação. No BoxOffice: `dependabot.yml` e o gate do Trivy no [lab 11 — cadeia de suprimentos](../../../hands-on/11/supply-chain/index.md).
+    - **Deixe um bot propor atualizações da imagem base e das bibliotecas toda semana e escaneie toda imagem na CI** — correções chegam como pull requests pequenos e revisados, e uma CVE crítica com correção bloqueia a publicação. No BoxOffice: `dependabot.yml` e o gate do Trivy no [lab 11 — cadeia de suprimentos](../../../hands-on/11/supply-chain/index.md).
 
 !!! warning "Armadilhas"
 
-    - **`latest` em produção**: você não sabe o que está rodando, e o rollback fica ambíguo.
+    - **`latest` em produção**: você não sabe o que está rodando e o rollback fica ambíguo.
     - **Segredos gravados nas camadas**: um `COPY .env` ou `ARG PASSWORD` fica no histórico da imagem para sempre — mesmo que uma camada posterior apague o arquivo.
     - **Rodar como root** e com shell completo: uma RCE vira uma porta de entrada.
     - **Sem limite de memória, ou com heap maior que o limite**: reinícios `OOMKilled` aleatórios sob carga.
-    - **`ENTRYPOINT` em forma shell** (`ENTRYPOINT java -jar app.jar`): o `sh` vira PID 1, engole o `SIGTERM`, e cada deploy mata requisições no meio.
+    - **`ENTRYPOINT` em forma shell** (`ENTRYPOINT java -jar app.jar`): o `sh` vira PID 1, engole o `SIGTERM` e cada deploy mata requisições no meio.
     - **Gravar estado no sistema de arquivos do container**: ele some no próximo reinício.
 
 ## Como se conecta { #how-it-connects }

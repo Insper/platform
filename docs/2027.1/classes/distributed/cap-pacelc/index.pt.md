@@ -89,7 +89,7 @@ Um sistema consistente e disponível **enquanto não houver partições** — na
 | **Dados do BoxOffice** | Assentos, reservas, pedidos, pagamentos, sessões de autenticação | Catálogo, imagens, contadores, recomendações |
 
 !!! warning "CP e AP descrevem uma configuração, não um produto"
-    A maioria dos bancos de dados permite ajustar o trade-off — até por requisição. O Cassandra com leituras e escritas `QUORUM` se comporta muito mais como um sistema CP; o PostgreSQL servindo leituras de uma réplica *assíncrona* devolve dados desatualizados durante uma partição. Muitos sistemas reais não são, a rigor, nem CP nem AP: podem ficar indisponíveis *e* devolver dados desatualizados em alguns modos de falha[^2]. Pergunte *"como ele está configurado, e o que minhas requisições veem durante uma partição?"* em vez de *"este banco é CP ou AP?"*.
+    A maioria dos bancos de dados permite ajustar o trade-off — até por requisição. O Cassandra com leituras e escritas `QUORUM` se comporta muito mais como um sistema CP; o PostgreSQL servindo leituras de uma réplica *assíncrona* devolve dados desatualizados durante uma partição. Muitos sistemas reais não são, a rigor, nem CP nem AP: podem ficar indisponíveis *e* devolver dados desatualizados em alguns modos de falha[^2]. Pergunte *"como ele está configurado e o que minhas requisições veem durante uma partição?"* em vez de *"este banco é CP ou AP?"*.
 
 ---
 
@@ -162,7 +162,7 @@ Regiões falham — raramente, mas por inteiro — e o BoxOffice quer sobreviver
     - **Recuperação de desastres** — o banco de cada região envia backups e uma réplica assíncrona para outra região (ativo–passivo por região); as metas de RPO/RTO são discutidas em [Confiabilidade — recuperação de desastres](../../reliability/disaster-recovery/index.md).
 
 !!! tip "Na entrevista"
-    Nunca diga "vou escolher CP" (ou AP) **para o sistema inteiro**. Diga por dado, e diga o que o usuário vê: *"O estoque de assentos é CP: durante uma partição, o lado minoritário devolve 503 e o app diz 'tente novamente'; reserva em dobro é inaceitável. O catálogo é AP: pode estar segundos desatualizado."* Depois traga o **PACELC** — o entrevistador normalmente se importa mais com a latência do dia a dia do que com partições: *"dentro de uma região eu replico de forma síncrona entre zonas (~1–2 ms); entre regiões eu particiono por região de origem em vez de pagar 150 ms por escrita."* Mencionar que o C do CAP é linearizabilidade (e não o C do ACID) é um sinal forte e barato.
+    Nunca diga "vou escolher CP" (ou AP) **para o sistema inteiro**. Diga por dado e diga o que o usuário vê: *"O estoque de assentos é CP: durante uma partição, o lado minoritário devolve 503 e o app diz 'tente novamente'; reserva em dobro é inaceitável. O catálogo é AP: pode estar segundos desatualizado."* Depois traga o **PACELC** — o entrevistador normalmente se importa mais com a latência do dia a dia do que com partições: *"dentro de uma região eu replico de forma síncrona entre zonas (~1–2 ms); entre regiões eu particiono por região de origem em vez de pagar 150 ms por escrita."* Mencionar que o C do CAP é linearizabilidade (e não o C do ACID) é um sinal forte e barato.
 
 !!! success "Boas práticas"
 

@@ -13,10 +13,10 @@ Estes são os principais componentes e conceitos do JWT:
 
     - **Signature:** para criar a assinatura, você pega o header codificado, o payload codificado, um segredo e o algoritmo especificado no header, e assina tudo isso.
 
-* **Codificação:** cada uma das três partes é codificada em Base64Url, e as strings resultantes são concatenadas com pontos entre elas. O JWT final tem o formato: `xxxxx.yyyyy.zzzzz`.
+* **Codificação:** cada uma das três partes é codificada em Base64Url e as strings resultantes são concatenadas com pontos entre elas. O JWT final tem o formato: `xxxxx.yyyyy.zzzzz`.
 * **Stateless e autocontido:** JWTs são stateless, ou seja, toda a informação necessária está no próprio token. O servidor não precisa armazenar o estado do usuário. Eles também são autocontidos, ou seja, tudo o que é necessário está contido no token.
 * **Casos de uso:** JWTs são muito usados para autenticação e troca de informações entre partes. Por exemplo, depois que um usuário faz login, o servidor pode gerar um JWT e enviá-lo ao cliente. O cliente pode então incluir o JWT nos headers das requisições seguintes para acessar recursos protegidos. O servidor verifica a autenticidade do JWT usando a chave secreta armazenada.
-* **Cuidados de segurança:** embora JWTs sejam amplamente usados e versáteis, é importante manipulá-los com segurança. Por exemplo, a chave usada para assinar o JWT deve ser mantida em segredo, e deve-se usar HTTPS para transmitir JWTs, evitando ataques man-in-the-middle.
+* **Cuidados de segurança:** embora JWTs sejam amplamente usados e versáteis, é importante manipulá-los com segurança. Por exemplo, a chave usada para assinar o JWT deve ser mantida em segredo e deve-se usar HTTPS para transmitir JWTs, evitando ataques man-in-the-middle.
 
 Veja um exemplo simples de JWT criado no JWT Builder[^2]:
 

@@ -62,7 +62,7 @@ Qual parte identifica **toda a jornada da requisição** e é a mesma em todos o
 ??? success "Resposta"
     **B — Métricas duplicadas exportadas por dois pipelines separados.**
 
-    Por padrão, o agente Java do OTel ativa um exporter de métricas OTLP junto com o exporter de traces. Como você já tem o Spring Boot Actuator + Micrometer exportando as mesmas métricas para o Prometheus, ativar o exporter de métricas do OTel envia uma segunda cópia de cada métrica para o endpoint OTLP do Jaeger. Isso desperdiça rede e armazenamento, e o backend de métricas do Jaeger não é o que você usa para os dashboards. Definir `OTEL_METRICS_EXPORTER: none` desativa apenas o pipeline de métricas; o pipeline de traces não é afetado.
+    Por padrão, o agente Java do OTel ativa um exporter de métricas OTLP junto com o exporter de traces. Como você já tem o Spring Boot Actuator + Micrometer exportando as mesmas métricas para o Prometheus, ativar o exporter de métricas do OTel envia uma segunda cópia de cada métrica para o endpoint OTLP do Jaeger. Isso desperdiça rede e armazenamento e o backend de métricas do Jaeger não é o que você usa para os dashboards. Definir `OTEL_METRICS_EXPORTER: none` desativa apenas o pipeline de métricas; o pipeline de traces não é afetado.
 
 ---
 
@@ -75,7 +75,7 @@ gateway-service      POST /orders          2 300 ms  █████████
       jdbc           SELECT * FROM ...     2 180 ms  ██████████████████
 ```
 
-Qual serviço você deve investigar primeiro, e por quê?
+Qual serviço você deve investigar primeiro e por quê?
 
 - A. `gateway-service`, porque o span dele é a barra mais larga e, portanto, o principal gargalo
 - B. `order-service`, porque é o filho direto do gateway e responde pela maior parte do tempo total
@@ -85,7 +85,7 @@ Qual serviço você deve investigar primeiro, e por quê?
 ??? success "Resposta"
     **C — O span `jdbc` dentro do `product-service`.**
 
-    O flame chart mostra o *tempo de relógio* (wall-clock), então os spans pais sempre aparecem tão largos quanto os filhos, ou mais. O span do gateway é largo porque fica esperando tudo o que acontece downstream. A informação útil é o **span mais profundo com o maior tempo próprio**: `jdbc SELECT`, com 2 180 ms. Esse span não tem filhos — ele está realizando trabalho de fato, e não esperando outro serviço. Isso significa que uma query SQL lenta dentro do ProductService é a causa raiz. Comece por ali: verifique se falta um índice, se há uma query N+1 ou se falta um pool de conexões com o banco de dados.
+    O flame chart mostra o *tempo de relógio* (wall-clock), então os spans pais sempre aparecem tão largos quanto os filhos, ou mais. O span do gateway é largo porque fica esperando tudo o que acontece downstream. A informação útil é o **span mais profundo com o maior tempo próprio**: `jdbc SELECT`, com 2 180 ms. Esse span não tem filhos — ele está realizando trabalho de fato e não esperando outro serviço. Isso significa que uma query SQL lenta dentro do ProductService é a causa raiz. Comece por ali: verifique se falta um índice, se há uma query N+1 ou se falta um pool de conexões com o banco de dados.
 
 ---
 

@@ -1,10 +1,10 @@
-O BoxOffice roda em um notebook: nove serviços, PostgreSQL, Redis e Kafka, tudo iniciado com um único `docker compose up`. Então a realidade chega. Em uma terça-feira comum, a plataforma atende algumas centenas de requisições por segundo; na manhã em que um show de estádio abre as vendas, ela precisa absorver **vinte vezes isso por trinta minutos** e depois encolher de volta, para que ninguém pague por máquinas ociosas. O time quer publicar uma correção no `inventory` às 09:55 sem derrubar o site às 10:00, e saber, *antes* de a fatura chegar, quanto tudo isso custa.
+O BoxOffice roda em um notebook: nove serviços, PostgreSQL, Redis e Kafka, tudo iniciado com um único `docker compose up`. Então a realidade chega. Em uma terça-feira comum, a plataforma atende algumas centenas de requisições por segundo; na manhã em que um show de estádio abre as vendas, ela precisa absorver **vinte vezes isso por trinta minutos** e depois encolher de volta, para que ninguém pague por máquinas ociosas. O time quer publicar uma correção no `inventory` às 09:55 sem derrubar o site às 10:00 e saber, *antes* de a fatura chegar, quanto tudo isso custa.
 
 Nenhum desses é um problema da aplicação. São problemas de **plataforma**: onde o código roda, como ele chega lá, como escala e quem paga por isso. Esta aula trata do conjunto de práticas e ferramentas — containers, Kubernetes, infraestrutura como código, entrega contínua, GitOps, entrega progressiva e FinOps — que a indústria chama de **cloud-native**.
 
 !!! quote "A história até aqui"
 
-    Capítulo 11 da [história do curso](../../index.md#story). O BoxOffice tem todos os seus blocos: uma borda, serviços sem estado, um banco que vende cada assento uma única vez, caches, uma fila justa, telemetria e padrões de resiliência ([aula 4](../edge/index.md) a [aula 10](../reliability/index.md)). Os padrões funcionam, mas tudo isso ainda roda num único notebook com `docker compose up`, e o Compose não reinicia uma réplica morta em outro nó, não acrescenta réplicas de `catalog` às 09:45 nem desfaz uma versão ruim. **Esta aula** responde: onde o código roda, como ele chega lá, como escala — e quanto custa?
+    Capítulo 11 da [história do curso](../../index.md#story). O BoxOffice tem todos os seus blocos: uma borda, serviços sem estado, um banco que vende cada assento uma única vez, caches, uma fila justa, telemetria e padrões de resiliência ([aula 4](../edge/index.md) a [aula 10](../reliability/index.md)). Os padrões funcionam, mas tudo isso ainda roda num único notebook com `docker compose up` e o Compose não reinicia uma réplica morta em outro nó, não acrescenta réplicas de `catalog` às 09:45 nem desfaz uma versão ruim. **Esta aula** responde: onde o código roda, como ele chega lá, como escala — e quanto custa?
 
 !!! abstract "Objetivos de aprendizagem"
 
@@ -44,7 +44,7 @@ A Cloud Native Computing Foundation (CNCF) define tecnologias cloud-native como 
 | Ideia | O que significa | Exemplo no BoxOffice |
 |---|---|---|
 | **Artefatos imutáveis** | Você nunca corrige um servidor em execução; constrói uma nova imagem e substitui as instâncias antigas | `inventory:1.8.3` é construída uma vez e promovida sem alterações de staging para produção |
-| **Estado desejado declarativo** | Você descreve *o que* quer (5 réplicas de `catalog`), e um controlador faz continuamente a realidade corresponder | O Kubernetes reinicia um pod de `order` que caiu sem que ninguém seja acionado |
+| **Estado desejado declarativo** | Você descreve *o que* quer (5 réplicas de `catalog`) e um controlador faz continuamente a realidade corresponder | O Kubernetes reinicia um pod de `order` que caiu sem que ninguém seja acionado |
 | **Elasticidade** | A capacidade acompanha a demanda, automaticamente, em minutos ou segundos | `catalog` vai de 4 para 40 réplicas durante a venda e volta a 4 na hora do almoço |
 | **Automação de ponta a ponta** | Infraestrutura, builds, testes, deploys e rollbacks são código, versionado no Git | Um pull request aceito chega à produção por um pipeline, não por um checklist |
 
@@ -71,7 +71,7 @@ Uma plataforma só consegue reiniciar, mover e multiplicar um processo que permi
 
 ## Modelos de serviço: quem opera o quê { #service-models }
 
-Cada componente do BoxOffice precisa rodar *em algum lugar*, e para cada um o time escolhe quanto da pilha ele mesmo opera. A definição de computação em nuvem do NIST introduziu três modelos de serviço[^3]; a prática acrescentou vários outros. Todos podem ser lidos na mesma pilha de camadas:
+Cada componente do BoxOffice precisa rodar *em algum lugar* e para cada um o time escolhe quanto da pilha ele mesmo opera. A definição de computação em nuvem do NIST introduziu três modelos de serviço[^3]; a prática acrescentou vários outros. Todos podem ser lidos na mesma pilha de camadas:
 
 | Camada | On-premises | IaaS | CaaS | PaaS | FaaS | SaaS |
 |---|---|---|---|---|---|---|
@@ -167,7 +167,7 @@ flowchart LR
 |---|---|---|---|---|
 | [`app`](../../reference/components/compute/index.md#app) · [`worker`](../../reference/components/compute/index.md#worker) | Como empacotar um serviço para que rode igual em todo lugar? | twelve-factor (stateless, descartável), imagens OCI e camadas, digests, builds multi-stage, desligamento gracioso, SBOM e assinatura | [Containers](containers/index.md) | `scale-out` |
 | [`app`](../../reference/components/compute/index.md#app) · [`ingress`](../../reference/components/edge/index.md#ingress) · [`healthcheck`](../../reference/components/observability/index.md#healthcheck) | Quem mantém N réplicas saudáveis rodando e roteia para elas? | laço de controle, Deployment, Service, Gateway API, probes de startup/readiness/liveness, requests e limits, PodDisruptionBudget | [Kubernetes](kubernetes/index.md), [probes](kubernetes/index.md#probes) | `scale-out` |
-| [`app`](../../reference/components/compute/index.md#app) · [`worker`](../../reference/components/compute/index.md#worker) · [`scheduler`](../../reference/components/compute/index.md#scheduler) | Como a capacidade acompanha a abertura de vendas, e volta? | fórmula do HPA, autoscaling de nós, KEDA por lag, pré-escala com cron | [Kubernetes — autoscaling](kubernetes/index.md#autoscaling) | `scale-out`, `flash-sale` |
+| [`app`](../../reference/components/compute/index.md#app) · [`worker`](../../reference/components/compute/index.md#worker) · [`scheduler`](../../reference/components/compute/index.md#scheduler) | Como a capacidade acompanha a abertura de vendas e volta? | fórmula do HPA, autoscaling de nós, KEDA por lag, pré-escala com cron | [Kubernetes — autoscaling](kubernetes/index.md#autoscaling) | `scale-out`, `flash-sale` |
 | [`serverless`](../../reference/components/compute/index.md#serverless) | Pagar por requisição ou por hora? | FaaS, cold starts, limites de concorrência, ponto de equilíbrio | [esta visão geral](#service-models), [FinOps](finops/index.md) | `serverless-burst` |
 | [`sql`](../../reference/components/storage/index.md#sql) · [`cache`](../../reference/components/storage/index.md#cache) · [`kafka`](../../reference/components/messaging/index.md#kafka) · [`objstore`](../../reference/components/storage/index.md#objstore) · [`payment`](../../reference/components/external/index.md#payment) · [`email`](../../reference/components/external/index.md#email) | Quem opera cada componente? | IaaS, CaaS, PaaS, FaaS, DBaaS, SaaS, responsabilidade compartilhada, engenharia de plataforma | [esta visão geral](#service-models) | `flash-sale` |
 | [`vpc`](../../reference/components/network/index.md#vpc) · [`metrics`](../../reference/components/observability/index.md#metrics) · [`ingress`](../../reference/components/edge/index.md#ingress) | Como uma mudança chega à produção com segurança? | IaC, CI, GitOps com Argo CD, rolling / blue-green / canary, feature flags, expand/contract, DORA | [Entrega](delivery/index.md) | — (a entrega acontece fora do simulador) |
@@ -190,7 +190,7 @@ flowchart LR
     - **Lift-and-shift e chamar de cloud-native**: colocar uma imagem de VM com estado dentro de um container não muda nada em descartabilidade ou elasticidade.
     - **Kubernetes para um time de duas pessoas**: um PaaS dá os mesmos benefícios com muito menos carga operacional até que o número de serviços e a escala justifiquem o cluster.
     - **Ignorar os custos fixos**: control planes, load balancers e NAT gateways cobram por hora mesmo com tráfego zero.
-    - **Ambientes "floco de neve"**: um staging montado à mão difere da produção, e todo resultado de teste fica duvidoso.
+    - **Ambientes "floco de neve"**: um staging montado à mão difere da produção e todo resultado de teste fica duvidoso.
     - **Esquecer que os dados são seus**: serviços gerenciados não decidem quem pode ler suas tabelas ou buckets.
 
 ---
@@ -213,7 +213,7 @@ flowchart LR
 
 ## O que quebra em seguida { #what-breaks-next }
 
-A plataforma agora reinicia, escala e publica o BoxOffice sem ninguém tocar num servidor: no lab 10 o HPA pediu mais pods de `catalog` cerca de dois minutos depois do início de uma rampa de carga, e no lab 11 um canary que falhava 30% das requisições foi desfeito sozinho em cerca de um minuto. Mas uma plataforma compartilhada é também uma superfície de ataque compartilhada. Todo pod pode abrir uma conexão com qualquer outro pod e com o banco; um token roubado de um serviço é aceito por todos; bots compram os melhores lugares tão rápido quanto o HPA acrescenta capacidade; e cada imagem que o pipeline publica carrega centenas de bibliotecas de terceiros. Decidir quem pode falar com quem, verificar a identidade em cada chamada e confiar só no que o pipeline construiu é a [aula 12 — Rede e Segurança](../network-security/index.md).
+A plataforma agora reinicia, escala e publica o BoxOffice sem ninguém tocar num servidor: no lab 10 o HPA pediu mais pods de `catalog` cerca de dois minutos depois do início de uma rampa de carga e no lab 11 um canary que falhava 30% das requisições foi desfeito sozinho em cerca de um minuto. Mas uma plataforma compartilhada é também uma superfície de ataque compartilhada. Todo pod pode abrir uma conexão com qualquer outro pod e com o banco; um token roubado de um serviço é aceito por todos; bots compram os melhores lugares tão rápido quanto o HPA acrescenta capacidade; e cada imagem que o pipeline publica carrega centenas de bibliotecas de terceiros. Decidir quem pode falar com quem, verificar a identidade em cada chamada e confiar só no que o pipeline construiu é a [aula 12 — Rede e Segurança](../network-security/index.md).
 
 ---
 

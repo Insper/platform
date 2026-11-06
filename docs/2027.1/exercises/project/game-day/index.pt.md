@@ -6,7 +6,7 @@ O seu sistema passou nos testes de carga num dia de sol. Produção não é enso
 
     - **Formular** experimentos de caos como hipóteses sobre o estado estável, com raio de impacto limitado e condições de aborto.
     - **Injetar** falhas realistas (latência e queda de dependência, perda de pod e de nó, falha do broker ou do banco, deploy ruim) sob carga.
-    - **Observar** o efeito nos SLIs com a stack de observabilidade, e **verificar** a correção depois.
+    - **Observar** o efeito nos SLIs com a stack de observabilidade e **verificar** a correção depois.
     - **Responder** a uma falha surpresa injetada pelo professor, medindo o tempo para detectar e o tempo para mitigar.
     - **Aprender** com isso: um relatório sem culpados, com itens de ação, responsáveis e acompanhamento.
 
@@ -158,12 +158,12 @@ Adapte a tabela à sua opção de sistema (por exemplo, queda do gateway de LLM 
 
 1. **T−15 min:** ambiente saudável, dados carregados, dashboards abertos, alertas armados, k6 rodando a 50–70% da meta de teste, estado estável registrado por 5 minutos.
 2. **Por experimento:** o game master anuncia; o operador injeta; o escriba registra; os respondedores observam e falam em voz alta; no fim planejado (ou no aborto), o operador reverte; aguarde a recuperação; rode a verificação de correção; o escriba registra o fim da recuperação.
-3. **Falha surpresa:** o professor injeta uma falha que o time não conhece (escolhida de uma lista segura anunciada antes: uma toxic do Toxiproxy, um deployment escalado para zero, um pod consumindo CPU, um valor de configuração errado). O relógio começa na injeção. Registre **quando o primeiro alerta dispara (TTD)** e **quando os SLIs voltam ao SLO (TTM)**, e o que o time fez nesse intervalo.
+3. **Falha surpresa:** o professor injeta uma falha que o time não conhece (escolhida de uma lista segura anunciada antes: uma toxic do Toxiproxy, um deployment escalado para zero, um pod consumindo CPU, um valor de configuração errado). O relógio começa na injeção. Registre **quando o primeiro alerta dispara (TTD)** e **quando os SLIs voltam ao SLO (TTM)** e o que o time fez nesse intervalo.
 4. **Conversa a quente (10 min):** o que surpreendeu, o que funcionou, o que mudar.
 
 ### 7. Escreva o relatório { #7-write-the-report }
 
-Escreva **sem culpados**: descreva o que o sistema e as pessoas fizeram e por que aquilo fazia sentido no momento, e não quem errou[^3]. Toda descoberta vira um **item de ação** com responsável e marco (por exemplo, "acrescentar um alerta de backlog do outbox — Ana — M8").
+Escreva **sem culpados**: descreva o que o sistema e as pessoas fizeram e por que aquilo fazia sentido no momento e não quem errou[^3]. Toda descoberta vira um **item de ação** com responsável e marco (por exemplo, "acrescentar um alerta de backlog do outbox — Ana — M8").
 
 ## Templates
 
@@ -261,7 +261,7 @@ Níveis conforme definidos em [Como os exercícios são avaliados](../../index.m
 
 ??? question "O professor vai quebrar algo de forma permanente?"
 
-    Não. A falha surpresa é escolhida de uma lista anunciada antes, é reversível, e o professor a desfaz se o time não conseguir dentro do tempo. O objetivo é exercitar detecção e resposta, não destruir os seus dados.
+    Não. A falha surpresa é escolhida de uma lista anunciada antes, é reversível e o professor a desfaz se o time não conseguir dentro do tempo. O objetivo é exercitar detecção e resposta, não destruir os seus dados.
 
 ??? question "Nossa hipótese foi refutada. Isso é ruim para a nota?"
 

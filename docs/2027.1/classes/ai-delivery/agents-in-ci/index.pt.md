@@ -14,7 +14,7 @@ O [loop do agente](../../ai-systems/agents/index.md) — o modelo escolhe uma fe
 | **Da issue ao PR** | Issue rotulada ou `@mention` | Testes escritos com os critérios de aceitação da issue | Uma funcionalidade | Supervisionada; revisão humana como de costume |
 | **Sincronizar documentação e configuração** | API ou schema mudou | Lint, verificação de links, diff do OpenAPI | Documentação | Pode ser autônoma para mudanças só de documentação |
 
-Todas as linhas terminam no mesmo lugar: uma **proposta** (uma branch, um PR em rascunho) que verificações determinísticas e um humano aprovam. Esse é o nível 3 do [espectro de autonomia](../index.md#the-autonomy-spectrum). O nível 4 — aplicar mudanças sem aprovação a cada mudança — fica reservado para mudanças que são ao mesmo tempo de baixo risco e totalmente verificáveis, e raramente precisa de um modelo.
+Todas as linhas terminam no mesmo lugar: uma **proposta** (uma branch, um PR em rascunho) que verificações determinísticas e um humano aprovam. Esse é o nível 3 do [espectro de autonomia](../index.md#the-autonomy-spectrum). O nível 4 — aplicar mudanças sem aprovação a cada mudança — fica reservado para mudanças que são ao mesmo tempo de baixo risco e totalmente verificáveis e raramente precisa de um modelo.
 
 ---
 
@@ -95,7 +95,7 @@ Agentes no CI rodam **headless**: sem terminal, sem um humano para responder "po
               anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
     ```
 
-    Repare nas permissões: este job pode escrever código, PRs e issues — adequado para um assistente sob demanda que humanos invocam e que faz push de commits que um humano depois revisa. Para um agente *sem supervisão* que reage a falhas, prefira um job sem acesso de escrita que produza um patch, e um job separado que abra o PR (próxima seção). Consulte a documentação de segurança da action e os inputs atuais antes de usar.
+    Repare nas permissões: este job pode escrever código, PRs e issues — adequado para um assistente sob demanda que humanos invocam e que faz push de commits que um humano depois revisa. Para um agente *sem supervisão* que reage a falhas, prefira um job sem acesso de escrita que produza um patch e um job separado que abra o PR (próxima seção). Consulte a documentação de segurança da action e os inputs atuais antes de usar.
 
 === "Loop genérico (qualquer provedor)"
 
@@ -120,7 +120,7 @@ Agentes no CI rodam **headless**: sem terminal, sem um humano para responder "po
 
 ## Sandboxing
 
-O agente executa o build, e o build executa **o código do repositório**: testes, plugins do Maven, scripts. Suponha que esse código — ou o texto que o agente lê — possa ser hostil, e contenha-o em camadas:
+O agente executa o build e o build executa **o código do repositório**: testes, plugins do Maven, scripts. Suponha que esse código — ou o texto que o agente lê — possa ser hostil e contenha-o em camadas:
 
 | Camada | Controle | Protege contra |
 |---|---|---|
@@ -148,7 +148,7 @@ O que quer que o modelo decida, ele nunca pode fazer mais do que suas credenciai
 
 !!! example "No código do BoxOffice: dois jobs, dois privilégios (lab 13)"
 
-    O [Hands-on 13 — O agente de correção](../../../hands-on/13/fix-agent/index.md) divide o workflow exatamente assim. O job `fix` roda o modelo **e** o build não confiável com `contents: read` e `actions: read` (para buscar o log da falha), e só roda para execuções de CI que falharam em branches do próprio repositório, nunca nas suas próprias branches `ai-fix/`. O job `open-pr` tem `contents: write` e `pull-requests: write`, não roda modelo nem build, e só aplica o patch como um PR **rascunho** — depois que um passo independente rodou de novo o `mvn verify` e rejeitou `@Test` apagados e arquivos fora de `services/<name>/src/`.
+    O [Hands-on 13 — O agente de correção](../../../hands-on/13/fix-agent/index.md) divide o workflow exatamente assim. O job `fix` roda o modelo **e** o build não confiável com `contents: read` e `actions: read` (para buscar o log da falha) e só roda para execuções de CI que falharam em branches do próprio repositório, nunca nas suas próprias branches `ai-fix/`. O job `open-pr` tem `contents: write` e `pull-requests: write`, não roda modelo nem build e só aplica o patch como um PR **rascunho** — depois que um passo independente rodou de novo o `mvn verify` e rejeitou `@Test` apagados e arquivos fora de `services/<name>/src/`.
 
     ``` { .yaml title=".github/workflows/ai-fix.yaml (the two jobs)" }
     --8<-- "docs/2027.1/hands-on/13/code/.github/workflows/ai-fix.yaml:15:29,119:126"
@@ -213,7 +213,7 @@ print(buffer.getvalue())
 plt.close(fig)
 ```
 
-Sem cache, 40 turnos custam mais de oito vezes o que custam 10 turnos (cerca de US$ 11 contra US$ 1,3); com cache, a curva é quase linear e cerca de oito vezes mais barata aos 40 turnos. De um jeito ou de outro, o orçamento precisa ser **imposto pelo harness**, e não pedido no prompt:
+Sem cache, 40 turnos custam mais de oito vezes o que custam 10 turnos (cerca de US$ 11 contra US$ 1,3); com cache, a curva é quase linear e cerca de oito vezes mais barata aos 40 turnos. De um jeito ou de outro, o orçamento precisa ser **imposto pelo harness** e não pedido no prompt:
 
 | Orçamento | Valor típico para consertar o build | Imposto por |
 |---|---|---|
@@ -223,11 +223,11 @@ Sem cache, 40 turnos custam mais de oito vezes o que custam 10 turnos (cerca de 
 | Execuções por commit | 1 | Dedup pelo SHA do commit |
 | Execuções por dia por repositório | p. ex. 20 | Cota no LLM gateway |
 
-A razão que importa é **dólares por correção mergeada**, e não por execução: um agente que custa US$ 0,80 por execução, mas produz uma correção mergeável uma vez a cada quatro, custa US$ 3,20 por correção útil — compare isso com o tempo de engenheiro que ele economiza.
+A razão que importa é **dólares por correção mergeada** e não por execução: um agente que custa US$ 0,80 por execução, mas produz uma correção mergeável uma vez a cada quatro, custa US$ 3,20 por correção útil — compare isso com o tempo de engenheiro que ele economiza.
 
 !!! example "No código do BoxOffice: os orçamentos e a área de escrita do agente de correção (lab 13)"
 
-    O agente do [hands-on 13](../../../hands-on/13/fix-agent/index.md) para em 20 passos, 400.000 tokens ou US$ 1,50, o que vier primeiro; pode ler arquivos do repositório, mas só escreve sob `src/`, nunca em `.git/` ou `.github/`, e toda chamada de ferramenta vai para um log de auditoria. Uma execução com o `qwen2.5-coder-16k` local mostra por que o orçamento não é opcional: o modelo nunca abriu o `CatalogService.java`, reescreveu o *teste* seis vezes e parou depois dos seus 20 passos, 8½ minutos e 165.075 tokens de entrada com `"fixed": false`. Nada perigoso aconteceu — toda escrita ficou sob `services/catalog/src/`, e o `mvn verify` independente falhou, então nenhum PR foi aberto. As proteções tornam um agente ruim inofensivo, não bom.
+    O agente do [hands-on 13](../../../hands-on/13/fix-agent/index.md) para em 20 passos, 400.000 tokens ou US$ 1,50, o que vier primeiro; pode ler arquivos do repositório, mas só escreve sob `src/`, nunca em `.git/` ou `.github/`, e toda chamada de ferramenta vai para um log de auditoria. Uma execução com o `qwen2.5-coder-16k` local mostra por que o orçamento não é opcional: o modelo nunca abriu o `CatalogService.java`, reescreveu o *teste* seis vezes e parou depois dos seus 20 passos, 8½ minutos e 165.075 tokens de entrada com `"fixed": false`. Nada perigoso aconteceu — toda escrita ficou sob `services/catalog/src/` e o `mvn verify` independente falhou, então nenhum PR foi aberto. As proteções tornam um agente ruim inofensivo, não bom.
 
     ``` { .python title=".github/ai/fix_agent.py (budgets, write area, budget stop)" }
     --8<-- "docs/2027.1/hands-on/13/code/.github/ai/fix_agent.py:23:27,70:76,178:182"
@@ -237,16 +237,16 @@ A razão que importa é **dólares por correção mergeada**, e não por execuç
 
 ## Idempotência, retries e loops { #idempotency-retries-and-loops }
 
-Agentes são disparados por eventos, e eventos se repetem: uma execução de CI é reexecutada, dois pushes chegam no mesmo minuto, a própria branch do agente falha no CI. Os padrões de mensageria do curso se aplicam diretamente ([Mensageria — semântica de entrega](../../messaging/semantics/index.md)):
+Agentes são disparados por eventos e eventos se repetem: uma execução de CI é reexecutada, dois pushes chegam no mesmo minuto, a própria branch do agente falha no CI. Os padrões de mensageria do curso se aplicam diretamente ([Mensageria — semântica de entrega](../../messaging/semantics/index.md)):
 
 - **Chave de idempotência**: o SHA do commit que falhou. Uma proposta por SHA (branch `ai-fix/<sha8>`, grupo de `concurrency` no SHA). Reexecuções encontram a branch e param.
-- **Nada de autodisparo**: nunca rode o agente nas próprias branches (`ai-fix/*`), e lembre que pushes feitos com o `GITHUB_TOKEN` não disparam novas execuções de workflow no GitHub — um disjuntor de loops embutido.
+- **Nada de autodisparo**: nunca rode o agente nas próprias branches (`ai-fix/*`) e lembre que pushes feitos com o `GITHUB_TOKEN` não disparam novas execuções de workflow no GitHub — um disjuntor de loops embutido.
 - **Retries são para o transporte, não para a tarefa**: os SDKs repetem `429`/`5xx` com backoff. Reexecutar um *agente que falhou* é uma nova tentativa com um novo custo — torne isso uma decisão humana, ou no máximo um retry automático com uma estratégia diferente.
 - **Fail open para agentes consultivos**: se o agente falhar, o build vermelho original continua lá; nada fica pior do que antes.
 
 ---
 
-## Auditoria: quem mudou o quê, e por quê { #audit-who-changed-what-and-why }
+## Auditoria: quem mudou o quê e por quê { #audit-who-changed-what-and-why }
 
 A mudança de um agente precisa ser explicável meses depois. Guarde:
 
@@ -258,7 +258,7 @@ A mudança de um agente precisa ser explicável meses depois. Guarde:
 | Que o commit foi gerado por IA | Trailer do commit (`AI-assisted: ai-fix (claude-opus-5-5)`), rótulo `ai-generated` no PR |
 | Quem aprovou | A revisão do PR — o humano responsável |
 
-É a mesma disciplina de qualquer mudança em produção, e ela alimenta a [proveniência da cadeia de suprimentos](../security-governance/index.md) do software: você consegue responder "que código do `inventory` foi escrito por um agente, e aprovado por quem?".
+É a mesma disciplina de qualquer mudança em produção e ela alimenta a [proveniência da cadeia de suprimentos](../security-governance/index.md) do software: você consegue responder "que código do `inventory` foi escrito por um agente e aprovado por quem?".
 
 ---
 
@@ -276,7 +276,7 @@ A mudança de um agente precisa ser explicável meses depois. Guarde:
 
 !!! tip "Na entrevista"
 
-    Para "projete um agente que conserta builds quebrados", desenhe o **orquestrador** em volta do agente, e não só o loop: gatilho e dedup, sandbox e lista de ferramentas permitidas, orçamentos impostos pelo harness, verificação fora do agente, um passo privilegiado separado que abre um PR em **rascunho**, e a trilha de auditoria. Quantifique o custo por execução (quadrático nos turnos, atenuado pelo cache) e por correção *mergeada*. Diga quais falhas ele *não* deve tocar (testes flaky, infraestrutura, achados de segurança) e como o sistema as detecta.
+    Para "projete um agente que conserta builds quebrados", desenhe o **orquestrador** em volta do agente e não só o loop: gatilho e dedup, sandbox e lista de ferramentas permitidas, orçamentos impostos pelo harness, verificação fora do agente, um passo privilegiado separado que abre um PR em **rascunho** e a trilha de auditoria. Quantifique o custo por execução (quadrático nos turnos, atenuado pelo cache) e por correção *mergeada*. Diga quais falhas ele *não* deve tocar (testes flaky, infraestrutura, achados de segurança) e como o sistema as detecta.
 
 !!! success "Boas práticas"
 

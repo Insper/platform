@@ -38,7 +38,7 @@ serviços? O banco, o pool, o Kafka, o provedor de e-mail?
 </div>
 
 - O k6 mede de **fora**; precisamos da visão de **dentro**.
-- **Métricas**: *que* algo está errado, e quanto.
+- **Métricas**: *que* algo está errado e quanto.
 - **Traces**: *onde* o tempo foi gasto, requisição por requisição.
 - **Logs**: *por quê*, quando você já sabe onde olhar.
 
@@ -212,4 +212,4 @@ Você não conserta o que não mede — e não mede o que não instrumentou.
 3. Saltos assíncronos (outbox, filas) precisam do **`traceparent` levado com o dado**.
 4. Dashboards e alertas são **código** no repositório.
 5. Alerte pela **taxa de queima do SLO** em duas janelas, não por limiares crus.
-6. Observabilidade tem **custo** — meça, e amostre traces, não métricas.
+6. Observabilidade tem **custo** — meça e amostre traces, não métricas.

@@ -31,7 +31,7 @@ Dois modelos de entrega lado a lado: a cadeia síncrona obriga o produtor a espe
 
 === "Cadeia de chamadas síncronas"
 
-    O produtor precisa esperar que cada serviço downstream termine antes de devolver uma resposta ao cliente. A latência se acumula, e uma única dependência lenta (ou com falha) trava a requisição inteira.
+    O produtor precisa esperar que cada serviço downstream termine antes de devolver uma resposta ao cliente. A latência se acumula e uma única dependência lenta (ou com falha) trava a requisição inteira.
 
     ``` mermaid-sim
     sequenceDiagram
@@ -150,7 +150,7 @@ plt.close()
 
 ## Arquitetura do Kafka
 
-O Apache Kafka[^1] é um **log** distribuído e append-only: produtores acrescentam mensagens ao final, consumidores leem a partir de qualquer posição que escolherem, e as mensagens continuam no disco depois de lidas (até que a política de retenção as apague). Essa é a principal diferença em relação a uma *fila* de mensagens clássica, como o RabbitMQ, em que a mensagem é removida assim que um consumidor confirma o recebimento.
+O Apache Kafka[^1] é um **log** distribuído e append-only: produtores acrescentam mensagens ao final, consumidores leem a partir de qualquer posição que escolherem e as mensagens continuam no disco depois de lidas (até que a política de retenção as apague). Essa é a principal diferença em relação a uma *fila* de mensagens clássica, como o RabbitMQ, em que a mensagem é removida assim que um consumidor confirma o recebimento.
 
 O Kafka organiza as mensagens em **tópicos**, cada um dividido em **partições** ordenadas. Vários grupos de consumidores podem ler o mesmo tópico de forma independente — cada grupo mantém seu próprio ponteiro de offset por partição.
 
@@ -226,7 +226,7 @@ A configuração `acks` do produtor escolhe quanto disso o produtor espera:
 O Hands-on 10 usa `acks: all` com `enable.idempotence: true`; o produtor idempotente anexa um número de sequência a cada mensagem, para que os retries do próprio produtor não criem duplicatas no log. (Desde o Kafka 3.0, ambos já são o padrão do produtor.)
 
 !!! info "ZooKeeper e KRaft"
-    Clusters Kafka mais antigos guardavam seus metadados em um ensemble ZooKeeper separado. Hoje o Kafka tem seu próprio quórum de metadados baseado em Raft (**KRaft**; veja [Consenso](../distributed_systems/consensus/index.md)), e o Kafka 4.0 (2025) removeu completamente o suporte ao ZooKeeper. O [Hands-on 10](../../hands-on/10/index.md) roda o Kafka 4 em modo KRaft: um único nó que é broker e controller ao mesmo tempo.
+    Clusters Kafka mais antigos guardavam seus metadados em um ensemble ZooKeeper separado. Hoje o Kafka tem seu próprio quórum de metadados baseado em Raft (**KRaft**; veja [Consenso](../distributed_systems/consensus/index.md)) e o Kafka 4.0 (2025) removeu completamente o suporte ao ZooKeeper. O [Hands-on 10](../../hands-on/10/index.md) roda o Kafka 4 em modo KRaft: um único nó que é broker e controller ao mesmo tempo.
 
 ---
 
@@ -285,7 +285,7 @@ O CQRS costuma ser combinado com Event Sourcing, porque o log de eventos é o mo
 
 ## Garantias de entrega e consumidores idempotentes
 
-Um consumidor lê uma mensagem, a processa (por exemplo, envia um e-mail) e **faz o commit do offset** para dizer ao Kafka "terminei até aqui". Uma queda pode acontecer entre quaisquer dois desses passos, e *quando* você faz o commit decide quanto uma queda custa:
+Um consumidor lê uma mensagem, a processa (por exemplo, envia um e-mail) e **faz o commit do offset** para dizer ao Kafka "terminei até aqui". Uma queda pode acontecer entre quaisquer dois desses passos e *quando* você faz o commit decide quanto uma queda custa:
 
 | Garantia | Como | Uma queda significa | Uso típico |
 |---|---|---|---|
@@ -321,10 +321,10 @@ Formas comuns de tornar um consumidor idempotente:
 
 ### O problema da escrita dupla (dual write)
 
-No Hands-on 10, o order service salva o pedido no Postgres e *depois* publica `OrderCreated` no Kafka. São dois sistemas diferentes, e nenhuma transação cobre os dois:
+No Hands-on 10, o order service salva o pedido no Postgres e *depois* publica `OrderCreated` no Kafka. São dois sistemas diferentes e nenhuma transação cobre os dois:
 
-- O commit no banco funciona, e o serviço cai antes de publicar → o pedido existe, mas ninguém nunca é avisado.
-- O evento é publicado, e a transação do banco sofre rollback → os consumidores reagem a um pedido que não existe.
+- O commit no banco funciona e o serviço cai antes de publicar → o pedido existe, mas ninguém nunca é avisado.
+- O evento é publicado e a transação do banco sofre rollback → os consumidores reagem a um pedido que não existe.
 
 ### Transactional outbox
 

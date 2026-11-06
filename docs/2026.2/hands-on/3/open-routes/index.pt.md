@@ -98,7 +98,7 @@ api/
 
 ### 2.3 Conferindo as credenciais no `account`
 
-O `auth-service` nunca confere uma senha por conta própria. Essa conferência pertence ao `account`: ele é o único serviço que guarda a senha, e guarda apenas o seu hash SHA-256 (campo `hashPassword`, coluna `hash_password`, calculado por `AccountService.calcHash` no `create`). Por isso, o contrato do `account` do [Hands-on 1](../../1/repository/) ganha uma operação — `POST /accounts/login` (`AccountController.login`); adicione as partes abaixo ao `account` e ao `account-service`. O `account-service` calcula o hash da senha recebida com o **mesmo** `calcHash` e procura uma conta com aquele e-mail **e** aquele hash, pela query derivada do Spring Data `findByEmailAndHashPassword`. Ele responde `200` com o `AccountOut` (nunca o hash) ou `401 Unauthorized`. A senha só trafega dentro da camada confiável — exatamente como já acontece no `POST /accounts` durante o cadastro — e o hash nunca sai do `account`.
+O `auth-service` nunca confere uma senha por conta própria. Essa conferência pertence ao `account`: ele é o único serviço que guarda a senha e guarda apenas o seu hash SHA-256 (campo `hashPassword`, coluna `hash_password`, calculado por `AccountService.calcHash` no `create`). Por isso, o contrato do `account` do [Hands-on 1](../../1/repository/) ganha uma operação — `POST /accounts/login` (`AccountController.login`); adicione as partes abaixo ao `account` e ao `account-service`. O `account-service` calcula o hash da senha recebida com o **mesmo** `calcHash` e procura uma conta com aquele e-mail **e** aquele hash, pela query derivada do Spring Data `findByEmailAndHashPassword`. Ele responde `200` com o `AccountOut` (nunca o hash) ou `401 Unauthorized`. A senha só trafega dentro da camada confiável — exatamente como já acontece no `POST /accounts` durante o cadastro — e o hash nunca sai do `account`.
 
 !!! example "Código-fonte"
 
@@ -173,7 +173,7 @@ O `auth-service` nunca confere uma senha por conta própria. Essa conferência p
 
 !!! warning "Credenciais erradas são `401`, não `500`"
 
-    Um `.orElseThrow()` sem argumento lança `NoSuchElementException` quando nenhuma conta confere, e o Spring responde `500 Internal Server Error` — como se o servidor estivesse quebrado. Passe a exceção a lançar: `.orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, ...))`. Do outro lado, o Feign transforma esse `401` em uma `FeignException.Unauthorized` dentro do `auth-service` (e o `400` de uma senha vazia em uma `FeignException.BadRequest`); o `AuthService.login` (abaixo) as captura e responde `401` — senão o login voltaria a falhar com `500`.
+    Um `.orElseThrow()` sem argumento lança `NoSuchElementException` quando nenhuma conta confere e o Spring responde `500 Internal Server Error` — como se o servidor estivesse quebrado. Passe a exceção a lançar: `.orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, ...))`. Do outro lado, o Feign transforma esse `401` em uma `FeignException.Unauthorized` dentro do `auth-service` (e o `400` de uma senha vazia em uma `FeignException.BadRequest`); o `AuthService.login` (abaixo) as captura e responde `401` — senão o login voltaria a falhar com `500`.
 
 !!! note "Reinstale a biblioteca `account`"
 

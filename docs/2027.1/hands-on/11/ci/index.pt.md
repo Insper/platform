@@ -35,7 +35,7 @@ A propriedade `tomcat.version` substitui o Tomcat que o Spring Boot 4.1.1 traz (
 Trivy do [passo 2](../supply-chain/index.md) o rejeita por vulnerabilidades CRITICAL com correção.
 Remova a propriedade quando o Dependabot atualizar o parent para uma versão com um Tomcat mais novo.
 
-Rode-o localmente (precisa do Docker rodando, e de JDK 21 + Maven do [lab 0](../../0/index.md)):
+Rode-o localmente (precisa do Docker rodando e de JDK 21 + Maven do [lab 0](../../0/index.md)):
 
 <!-- termynal -->
 

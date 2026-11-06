@@ -6,7 +6,7 @@ Esta página revisa os protocolos que rodam na borda: as três gerações do HTT
 
 ## Round trips são a moeda { #round-trips }
 
-A banda continua crescendo; a velocidade da luz, não. Um **round-trip time** (RTT) é o tempo que um pacote leva para ir até o servidor e voltar: cerca de 1–10 ms dentro de uma cidade, cerca de 30–60 ms atravessando um continente, cerca de 100–200 ms entre continentes. Toda troca de protocolo que espera uma resposta custa pelo menos um RTT, e numa conexão nova há vários deles **antes do primeiro byte de dados**: um para abrir o TCP, um ou dois para o TLS[^7].
+A banda continua crescendo; a velocidade da luz, não. Um **round-trip time** (RTT) é o tempo que um pacote leva para ir até o servidor e voltar: cerca de 1–10 ms dentro de uma cidade, cerca de 30–60 ms atravessando um continente, cerca de 100–200 ms entre continentes. Toda troca de protocolo que espera uma resposta custa pelo menos um RTT e numa conexão nova há vários deles **antes do primeiro byte de dados**: um para abrir o TCP, um ou dois para o TLS[^7].
 
 É por isso que a história dos protocolos web é, em grande parte, uma história de **remover round trips** e **usar melhor as conexões**.
 
@@ -18,7 +18,7 @@ O HTTP/1.1 (1997, especificação atual RFC 9112) é um protocolo de texto: o cl
 
 - **Conexões persistentes (keep-alive)**: uma conexão TCP pode carregar muitas requisições, uma depois da outra, evitando um novo handshake para cada uma.
 - **Uma requisição por vez por conexão**: uma segunda requisição precisa esperar até a primeira resposta chegar por completo. Se a primeira resposta é lenta, tudo o que vem atrás espera — **head-of-line (HOL) blocking**. (O pipelining, que deveria resolver isso, nunca foi utilizável na prática.)
-- Os navegadores contornam isso abrindo **cerca de 6 conexões paralelas por host**, e os desenvolvedores contornavam *isso* com truques como domain sharding, sprites e bundling.
+- Os navegadores contornam isso abrindo **cerca de 6 conexões paralelas por host** e os desenvolvedores contornavam *isso* com truques como domain sharding, sprites e bundling.
 - Os cabeçalhos são texto puro e se repetem em toda requisição: cookies e user agents podem somar centenas de bytes por requisição.
 
 O HTTP/1.1 ainda está em toda parte — entre um load balancer e seus backends, em clientes simples, no `curl` — e serve perfeitamente para tráfego requisição-resposta de baixa concorrência.
@@ -32,18 +32,18 @@ O HTTP/2 (2015, RFC 9113) mantém a mesma semântica — métodos, códigos de s
 - **Compressão de cabeçalhos (HPACK)**: cabeçalhos repetidos são enviados como pequenas referências a uma tabela compartilhada pelas duas pontas.
 - **Prioridades de stream** e controle de fluxo por stream.
 
-Uma conexão por origem basta, então os truques de domain sharding passam a atrapalhar. Mas um problema permanece, uma camada abaixo: o TCP entrega os bytes **em ordem**. Se um único pacote se perde, o TCP segura *todos* os bytes depois dele — de *todos* os streams — até a retransmissão chegar. Numa rede móvel com perdas, a conexão única do HTTP/2 pode ser mais lenta que as seis do HTTP/1.1. Isso é o **head-of-line blocking do TCP**, e é a razão de ser do HTTP/3.
+Uma conexão por origem basta, então os truques de domain sharding passam a atrapalhar. Mas um problema permanece, uma camada abaixo: o TCP entrega os bytes **em ordem**. Se um único pacote se perde, o TCP segura *todos* os bytes depois dele — de *todos* os streams — até a retransmissão chegar. Numa rede móvel com perdas, a conexão única do HTTP/2 pode ser mais lenta que as seis do HTTP/1.1. Isso é o **head-of-line blocking do TCP** e é a razão de ser do HTTP/3.
 
 ## HTTP/3 e QUIC { #http3 }
 
-O HTTP/3 (2022, RFC 9114) roda sobre o **QUIC** (RFC 9000), um protocolo de transporte construído sobre **UDP**[^3]. O QUIC traz para o espaço de usuário o que o TCP fazia no kernel, e o redesenha:
+O HTTP/3 (2022, RFC 9114) roda sobre o **QUIC** (RFC 9000), um protocolo de transporte construído sobre **UDP**[^3]. O QUIC traz para o espaço de usuário o que o TCP fazia no kernel e o redesenha:
 
 - **Streams independentes no transporte**: um pacote perdido só atrasa o stream ao qual pertence; os outros continuam fluindo. Sem head-of-line blocking do TCP.
 - **TLS 1.3 embutido**: os handshakes de transporte e criptográfico são combinados, então uma conexão nova precisa de **1 RTT** antes de enviar dados — e uma retomada pode enviar dados já no primeiro pacote (**0-RTT**).
 - **Migração de conexão**: uma conexão QUIC é identificada por um **connection ID**, não pelo par (IP, porta). Quando o celular passa do Wi-Fi para o 4G, o IP muda mas a conexão sobrevive — sem novo handshake, sem "travar".
 - Sempre criptografado, incluindo a maior parte dos cabeçalhos de transporte, o que também dificulta a interferência de middleboxes.
 
-Os custos: o UDP às vezes é bloqueado ou estrangulado por redes corporativas (os navegadores caem para HTTP/2 automaticamente), o QUIC usa mais CPU que o TCP do kernel, e os load balancers precisam rotear por connection ID para manter as conexões que migram no mesmo servidor. Navegadores, CDNs e as grandes plataformas o adotaram rapidamente; dentro do data center, HTTP/1.1 e HTTP/2 continuam sendo a norma.
+Os custos: o UDP às vezes é bloqueado ou estrangulado por redes corporativas (os navegadores caem para HTTP/2 automaticamente), o QUIC usa mais CPU que o TCP do kernel e os load balancers precisam rotear por connection ID para manter as conexões que migram no mesmo servidor. Navegadores, CDNs e as grandes plataformas o adotaram rapidamente; dentro do data center, HTTP/1.1 e HTTP/2 continuam sendo a norma.
 
 | | HTTP/1.1 | HTTP/2 | HTTP/3 |
 |---|---|---|---|
@@ -118,7 +118,7 @@ print(buf.getvalue())
 plt.close()
 ```
 
-Duas conclusões. Primeiro, o protocolo importa **mais quando o servidor está longe** — 600 ms contra 150 ms intercontinental —, e é também por isso que as CDNs terminam as conexões perto do usuário: com uma borda na mesma cidade, até o TLS 1.2 custa só 40 ms. Segundo, o melhor handshake é o que você **não repete**: keep-alive e pools de conexão (também entre o gateway e os serviços) fazem o custo de estabelecimento desaparecer para toda requisição depois da primeira.
+Duas conclusões. Primeiro, o protocolo importa **mais quando o servidor está longe** — 600 ms contra 150 ms intercontinental — e é também por isso que as CDNs terminam as conexões perto do usuário: com uma borda na mesma cidade, até o TLS 1.2 custa só 40 ms. Segundo, o melhor handshake é o que você **não repete**: keep-alive e pools de conexão (também entre o gateway e os serviços) fazem o custo de estabelecimento desaparecer para toda requisição depois da primeira.
 
 ??? question "Pense antes: o app mobile faz 30 chamadas pequenas à API quando a tela do evento abre. A API está na Virgínia (RTT de 150 ms a partir de São Paulo) e o app abre uma nova conexão HTTP/1.1 com TLS 1.2 para cada chamada, 6 por vez. Quanto tempo isso leva, aproximadamente?"
     Cada chamada numa conexão nova custa 4 RTT ≈ 600 ms; 30 chamadas em lotes de 6 dão 5 lotes ≈ **3 segundos**, antes de qualquer tempo de servidor. Correções, em ordem de impacto: reaproveitar conexões (keep-alive) e **multiplexá-las** com HTTP/2 ou HTTP/3 (as 30 chamadas numa conexão só: 1 handshake + cerca de 1 RTT ≈ 300–450 ms); terminar o TLS numa **borda perto do fã**; e **agregar** as 30 chamadas em uma chamada por tela num BFF ([API gateway](../api-gateway/index.md#bff)).
@@ -135,7 +135,7 @@ O cliente pergunta a cada *N* segundos: "alguma novidade?". Trivial de implement
 
 ### Long polling { #long-polling }
 
-O cliente pergunta, e o servidor **mantém a requisição aberta** até haver novidade (ou um timeout de, digamos, 30 s), e então responde; o cliente pergunta de novo imediatamente. Quase tempo real sobre HTTP comum, mas cada mensagem custa uma requisição completa, e os servidores precisam manter muitas requisições abertas.
+O cliente pergunta e o servidor **mantém a requisição aberta** até haver novidade (ou um timeout de, digamos, 30 s) e então responde; o cliente pergunta de novo imediatamente. Quase tempo real sobre HTTP comum, mas cada mensagem custa uma requisição completa e os servidores precisam manter muitas requisições abertas.
 
 ### Server-Sent Events (SSE) { #sse }
 
@@ -151,11 +151,11 @@ id: 1843
 data: {"seat": "B-13", "status": "sold"}
 ```
 
-O SSE é **unidirecional** (servidor → cliente), só texto, e roda sobre HTTP normal — então passa por proxies, CDNs e load balancers, funciona sobre a multiplexação do HTTP/2, e a API `EventSource` do navegador **se reconecta automaticamente**, enviando o último `id` recebido num cabeçalho `Last-Event-ID` para que o servidor possa retomar. É a resposta boa mais simples para "empurrar atualizações para muitos clientes": placares ao vivo, notificações, a posição na sala de espera e o stream token a token de uma resposta de LLM.
+O SSE é **unidirecional** (servidor → cliente), só texto, e roda sobre HTTP normal — então passa por proxies, CDNs e load balancers, funciona sobre a multiplexação do HTTP/2 e a API `EventSource` do navegador **se reconecta automaticamente**, enviando o último `id` recebido num cabeçalho `Last-Event-ID` para que o servidor possa retomar. É a resposta boa mais simples para "empurrar atualizações para muitos clientes": placares ao vivo, notificações, a posição na sala de espera e o stream token a token de uma resposta de LLM.
 
 !!! example "No código do BoxOffice: o assistente transmite com SSE (lab 12)"
 
-    O assistente do [Hands-on 12 — Tools](../../../hands-on/12/tools/index.md) responde token a token via SSE: o endpoint devolve uma resposta `text/event-stream` com `Cache-Control: no-cache` (nenhum proxy pode fazer buffer ou cache de um stream ao vivo), e cada evento são duas linhas de texto e uma em branco, escritas por um helper de duas linhas em `agent.py`. Nenhuma biblioteca, nenhum upgrade de protocolo — uma resposta HTTP comum que qualquer proxy HTTP consegue repassar, desde que não faça buffer dela. A sala de espera do lab 7 escolheu a opção ainda mais simples: o fã faz **polling** em `GET /orders/waiting-room/{show}/tickets/{id}`.
+    O assistente do [Hands-on 12 — Tools](../../../hands-on/12/tools/index.md) responde token a token via SSE: o endpoint devolve uma resposta `text/event-stream` com `Cache-Control: no-cache` (nenhum proxy pode fazer buffer ou cache de um stream ao vivo) e cada evento são duas linhas de texto e uma em branco, escritas por um helper de duas linhas em `agent.py`. Nenhuma biblioteca, nenhum upgrade de protocolo — uma resposta HTTP comum que qualquer proxy HTTP consegue repassar, desde que não faça buffer dela. A sala de espera do lab 7 escolheu a opção ainda mais simples: o fã faz **polling** em `GET /orders/waiting-room/{show}/tickets/{id}`.
 
     ``` { .python title="services/assistant/app/main.py (the stream)" }
     --8<-- "docs/2027.1/hands-on/12/code/services/assistant/app/main.py:72:80"
@@ -226,7 +226,7 @@ message WatchRequest { string event_id = 1; }
 message SeatEvent { string seat_id = 1; string status = 2; }
 ```
 
-A partir desse arquivo, o compilador de protobuf gera código de cliente e de servidor em Java, Python, Go e outras linguagens. O gRPC oferece quatro tipos de chamada — **unary**, **server streaming**, **client streaming** e **bidirectional streaming** — e tem **deadlines** embutidos: quem chama diz "preciso de uma resposta em até 300 ms", e o deadline se propaga pela cadeia de chamadas, de modo que os serviços a jusante param de trabalhar em requisições que ninguém mais está esperando.
+A partir desse arquivo, o compilador de protobuf gera código de cliente e de servidor em Java, Python, Go e outras linguagens. O gRPC oferece quatro tipos de chamada — **unary**, **server streaming**, **client streaming** e **bidirectional streaming** — e tem **deadlines** embutidos: quem chama diz "preciso de uma resposta em até 300 ms" e o deadline se propaga pela cadeia de chamadas, de modo que os serviços a jusante param de trabalhar em requisições que ninguém mais está esperando.
 
 | | REST + JSON | gRPC + protobuf | GraphQL |
 |---|---|---|---|
@@ -276,8 +276,8 @@ Remédios: balanceamento L7 por requisição (Envoy, service mesh) ou balanceame
 
 !!! tip "Na entrevista"
     - Quando um problema tem requisitos de **tempo real** (chat, placares ao vivo, rastreamento de corridas, notificações), enuncie as opções e escolha explicitamente: "SSE para atualizações unidirecionais; WebSockets porque o chat é bidirecional; polling custaria N requisições por segundo à toa." Depois mencione a consequência: **conexões stateful precisam de uma camada de pub/sub** entre os servidores e de um plano para tempestades de reconexão.
-    - Para chamadas internas, "REST entre os serviços" está bom; diga "gRPC" quando latência, volume ou streaming importarem, e mencione **deadlines**.
-    - Se surgir a latência para usuários distantes, conte **round trips**: "TLS 1.3 e HTTP/3 reduzem o handshake a 1 RTT, e uma borda perto do usuário torna esse RTT pequeno."
+    - Para chamadas internas, "REST entre os serviços" está bom; diga "gRPC" quando latência, volume ou streaming importarem e mencione **deadlines**.
+    - Se surgir a latência para usuários distantes, conte **round trips**: "TLS 1.3 e HTTP/3 reduzem o handshake a 1 RTT e uma borda perto do usuário torna esse RTT pequeno."
 
 !!! success "Boas práticas"
 

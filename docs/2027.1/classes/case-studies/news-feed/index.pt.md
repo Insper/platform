@@ -3,7 +3,7 @@
 
 O news feed é o problema clássico de **leitura intensa com fan-out**. Uma escrita (uma publicação) precisa ficar visível nos feeds de todos que seguem o autor — duas pessoas para a maioria dos usuários, cinquenta milhões para um astro pop. A entrevista gira em torno de uma decisão — **fazer o trabalho quando a publicação é escrita, ou quando o feed é lido?** — e do que acontece nos extremos dessa decisão: celebridades, usuários inativos, publicações apagadas e ranqueamento.
 
-O BoxOffice tem o mesmo formato: fãs **seguem** artistas e locais, e a aba "Seguindo" mostra anúncios de turnês, novas datas e códigos de pré-venda. Quando um artista de estádio com milhões de seguidores anuncia uma turnê, o BoxOffice enfrenta exatamente o problema das celebridades desta página — no pior momento, porque todo mundo vai abrir o app ao mesmo tempo.
+O BoxOffice tem o mesmo formato: fãs **seguem** artistas e locais e a aba "Seguindo" mostra anúncios de turnês, novas datas e códigos de pré-venda. Quando um artista de estádio com milhões de seguidores anuncia uma turnê, o BoxOffice enfrenta exatamente o problema das celebridades desta página — no pior momento, porque todo mundo vai abrir o app ao mesmo tempo.
 
 | | |
 |---|---|
@@ -17,7 +17,7 @@ O BoxOffice tem o mesmo formato: fãs **seguem** artistas e locais, e a aba "Seg
     - **Estimar** a amplificação de escrita do fan-out e a memória de um cache de timelines.
     - **Comparar** fan-out na escrita, fan-out na leitura e o modelo híbrido, e **justificar** um limiar para celebridades.
     - **Projetar** o caminho de leitura: IDs da timeline vindos de um cache, hidratação com consultas em lote, mescla e ranqueamento dentro de um orçamento de latência.
-    - **Explicar** por que feeds paginam com cursores, e não com offsets.
+    - **Explicar** por que feeds paginam com cursores e não com offsets.
     - **Tratar** os casos de borda: usuários inativos, exclusões, mudanças de privacidade, usuários novos com feed vazio.
 
 ---
@@ -100,7 +100,7 @@ for name, value, unit in rows:
 O que os números dizem:
 
 - As leituras (**~12 mil/s, ~35 mil/s no pico**) superam os posts (**~230/s**) em 50:1. ⇒ torne as leituras baratas, mesmo ao custo de mais trabalho nas escritas.
-- Mas o fan-out por push transforma 230 posts/s em **~46 mil inserções de timeline/s** em média — e a média esconde a cauda: um post de uma conta com 50 M de seguidores são **50 M de inserções** sozinho. ⇒ o caminho de escrita precisa ser **assíncrono** (fila + workers), e celebridades precisam de tratamento especial.
+- Mas o fan-out por push transforma 230 posts/s em **~46 mil inserções de timeline/s** em média — e a média esconde a cauda: um post de uma conta com 50 M de seguidores são **50 M de inserções** sozinho. ⇒ o caminho de escrita precisa ser **assíncrono** (fila + workers) e celebridades precisam de tratamento especial.
 - Timelines em cache de 800 IDs para cada usuário diário ocupam **~1,3 TB de RAM** — um cluster de cache grande, mas comum (dezenas de nós). Guardar só **IDs**, não os posts, é o que torna isso viável; guardar só para usuários **ativos** reduz ainda mais.
 - Os posts somam **~7 TB/ano** (um armazenamento particionado), a mídia **~1 TB/dia** (object storage + CDN — nunca no banco).
 
@@ -282,7 +282,7 @@ flowchart LR
 ### 6.4 Paginação e atualidade { #64-pagination-and-freshness }
 
 - **Paginação por cursor**: o cursor é `(score, post_id)` do último item; a próxima página é `ZREVRANGEBYSCORE feed:42 (score -inf LIMIT 0 20`. Posts novos chegando no topo não deslocam a próxima página, ao contrário do `OFFSET`.
-- **Posts novos durante a rolagem** aparecem num aviso "novos posts" que recarrega do topo (uma requisição separada com `since=`), e não são inseridos embaixo do dedo do usuário.
+- **Posts novos durante a rolagem** aparecem num aviso "novos posts" que recarrega do topo (uma requisição separada com `since=`) e não são inseridos embaixo do dedo do usuário.
 - **Ler as próprias escritas:** depois de publicar, o autor precisa ver o post no próprio feed na hora, mesmo que o fan-out leve segundos — insira-o de forma síncrona na timeline do próprio autor, ou mescle os posts mais recentes do autor na leitura ([modelos de consistência](../../distributed/consistency/index.md)).
 
 ---
@@ -300,7 +300,7 @@ flowchart LR
 | Exclusões / privacidade | Post removido continua nas timelines | Filtrar na leitura pelo estado do post; limpeza preguiçosa | Pouco trabalho extra por leitura |
 | Tráfego de mídia | A banda domina a conta | CDN, tamanhos de imagem responsivos, lazy loading | Custo de CDN, invalidação de edições |
 
-Os trade-offs para **dizer em voz alta**: **amplificação de escrita vs. latência de leitura** (o push paga na escrita para as leituras serem baratas), **atualidade vs. custo** (fan-out assíncrono significa segundos de atraso), e **relevância vs. latência** (o ranqueamento precisa cair para o cronológico quando está lento).
+Os trade-offs para **dizer em voz alta**: **amplificação de escrita vs. latência de leitura** (o push paga na escrita para as leituras serem baratas), **atualidade vs. custo** (fan-out assíncrono significa segundos de atraso) e **relevância vs. latência** (o ranqueamento precisa cair para o cronológico quando está lento).
 
 ---
 
@@ -325,7 +325,7 @@ O cenário `news-feed` contém o serviço de posts, um caminho de fan-out por um
 
 ??? question "Um usuário segue 5 000 contas, 300 delas celebridades. O híbrido ainda funciona?"
 
-    Mesclar 300 timelines de celebridades a cada leitura seria lento. Opções: limitar o número de fontes puxadas por leitura (pegar as 50 celebridades mais recentes/mais relevantes por afinidade), pré-computar um "resumo de celebridades" por usuário a cada poucos minutos, ou abaixar o limiar de push para usuários com muitos seguidos famosos. Casos de borda como este são o motivo de sistemas reais decidirem push vs. pull **por par (autor, seguidor)**, e não só por autor.
+    Mesclar 300 timelines de celebridades a cada leitura seria lento. Opções: limitar o número de fontes puxadas por leitura (pegar as 50 celebridades mais recentes/mais relevantes por afinidade), pré-computar um "resumo de celebridades" por usuário a cada poucos minutos, ou abaixar o limiar de push para usuários com muitos seguidos famosos. Casos de borda como este são o motivo de sistemas reais decidirem push vs. pull **por par (autor, seguidor)** e não só por autor.
 
 ??? question "Um usuário volta depois de seis meses. O que faz a primeira abertura do feed?"
 

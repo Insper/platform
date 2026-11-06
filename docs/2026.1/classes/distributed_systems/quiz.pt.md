@@ -71,7 +71,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação. Tente
 ??? success "Resposta"
     **C — Armazenamento CP.**
 
-    Em transações financeiras, a correção é inegociável. Um armazenamento CP se recusa a processar o pagamento durante a partição (o cliente recebe um erro, e não uma cobrança em dobro). Um armazenamento AP poderia processar o pagamento em dois nós simultaneamente antes de a partição se resolver, criando uma transação duplicada que não pode ser desfeita com segurança.
+    Em transações financeiras, a correção é inegociável. Um armazenamento CP se recusa a processar o pagamento durante a partição (o cliente recebe um erro e não uma cobrança em dobro). Um armazenamento AP poderia processar o pagamento em dois nós simultaneamente antes de a partição se resolver, criando uma transação duplicada que não pode ser desfeita com segurança.
 
 ---
 
@@ -85,7 +85,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação. Tente
 ??? success "Resposta"
     **C — Máquina única ou LAN rigidamente controlada.**
 
-    CA só funciona quando partições realmente não podem ocorrer — o que só é realista para um único servidor ou para uma rede local sob controle estrito. Em qualquer implantação conectada à internet ou geograficamente distribuída, P é efetivamente obrigatório, e a escolha real fica entre C e A.
+    CA só funciona quando partições realmente não podem ocorrer — o que só é realista para um único servidor ou para uma rede local sob controle estrito. Em qualquer implantação conectada à internet ou geograficamente distribuída, P é efetivamente obrigatório e a escolha real fica entre C e A.
 
 ---
 
@@ -143,4 +143,4 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação. Tente
 ??? success "Resposta"
     **D — W + R > N.**
 
-    Se o quórum de escrita W mais o quórum de leitura R excede o total de réplicas N, pelo menos um nó que confirmou a escrita também participa de qualquer quórum de leitura. Essa sobreposição garante que a escrita mais recente esteja sempre visível em uma leitura por quórum, e é a base de sistemas como o Dynamo e a consistência ajustável do Cassandra.
+    Se o quórum de escrita W mais o quórum de leitura R excede o total de réplicas N, pelo menos um nó que confirmou a escrita também participa de qualquer quórum de leitura. Essa sobreposição garante que a escrita mais recente esteja sempre visível em uma leitura por quórum e é a base de sistemas como o Dynamo e a consistência ajustável do Cassandra.

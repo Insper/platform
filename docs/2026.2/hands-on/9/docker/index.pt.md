@@ -48,7 +48,7 @@ O `rejoin-as-replica.sh` só é usado em [Failover](../failover/index.md); crie-
 **`compose.yaml`**
 
 - `x-pg-env` e `x-pg-node` são âncoras YAML: os três nós compartilham a imagem, o ambiente, o entrypoint e o health check (`<<: *pg-node`). Só mudam o nome, a porta e o `PRIMARY_HOST`.
-- `cluster_name` dá nome a cada nó. Você vai lê-lo de volta com `SELECT current_setting('cluster_name')` para saber qual servidor respondeu, e uma réplica o usa como o seu nome no primário (`application_name` em `pg_stat_replication`) — a replicação síncrona se refere às réplicas por esse nome.
+- `cluster_name` dá nome a cada nó. Você vai lê-lo de volta com `SELECT current_setting('cluster_name')` para saber qual servidor respondeu e uma réplica o usa como o seu nome no primário (`application_name` em `pg_stat_replication`) — a replicação síncrona se refere às réplicas por esse nome.
 - O health check usa `-h 127.0.0.1` de propósito: enquanto a imagem cria o banco de dados, um servidor temporário escuta apenas em um socket Unix. Verificar por TCP marca o nó como healthy só quando o servidor de verdade está no ar.
 - Cada nó tem o seu **próprio volume**: uma réplica é uma cópia completa, não um disco compartilhado.
 - As réplicas **não têm `depends_on`**: o `node-entrypoint.sh` já espera pelo primário. Com `depends_on`, `docker compose start pg-replica1` também reiniciaria um primário que você parou de propósito — o que estragaria os experimentos de failover.
@@ -67,7 +67,7 @@ flowchart TD
     init --> run
 ```
 
-O `pg_basebackup` copia o diretório de dados inteiro do primário por uma conexão de replicação. `-X stream` também copia o WAL gravado durante a cópia, e `-R` grava `standby.signal` e `primary_conninfo` (de onde fazer o streaming) no novo diretório de dados: quando o PostgreSQL sobe e encontra `standby.signal`, ele sobe como **standby**.
+O `pg_basebackup` copia o diretório de dados inteiro do primário por uma conexão de replicação. `-X stream` também copia o WAL gravado durante a cópia e `-R` grava `standby.signal` e `primary_conninfo` (de onde fazer o streaming) no novo diretório de dados: quando o PostgreSQL sobe e encontra `standby.signal`, ele sobe como **standby**.
 
 **`init-primary.sh`** roda uma única vez, quando o primário cria o seu banco de dados. Ele cria o role `replicator` (que só pode fazer streaming do WAL), define `wal_keep_size` e `wal_log_hints` com `ALTER SYSTEM` e adiciona uma regra no `pg_hba.conf` para as conexões de replicação. Tudo isso fica guardado no diretório de dados, então o `pg_basebackup` o copia para cada réplica — qualquer uma delas pode ser promovida mais tarde e já tem a mesma configuração.
 

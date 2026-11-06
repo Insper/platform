@@ -2,7 +2,7 @@
 O projeto é a oportunidade de colocar em prática os conhecimentos adquiridos durante o curso. Ele deve ser desenvolvido em grupo, de 2 a 3 pessoas, e deve ser entregue ao final do curso. O projeto deve ser desenvolvido utilizando as tecnologias e ferramentas apresentadas durante o curso, incluindo AWS, EKS, CI/CD, testes de carga e análise de custos.
 
 O projeto é uma aplicação web que permite aos usuários comprar e vender produtos. 
-Ela integra os microsserviços da plataforma listados na tabela abaixo, e é esperado que cada membro do grupo implemente ao menos um deles:
+Ela integra os microsserviços da plataforma listados na tabela abaixo e é esperado que cada membro do grupo implemente ao menos um deles:
 
 - **Gateway**: o API gateway, ponto único de entrada que roteia as requisições para os serviços.
 - **Auth**: autenticação e autorização — login, emissão e validação dos tokens.

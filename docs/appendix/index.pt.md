@@ -8,7 +8,7 @@ pontos-chave.
 
 ## Uma requisição, de ponta a ponta
 
-Quase todo o apêndice cabe no caminho de uma única requisição, do navegador até um microsserviço, e do código que a
+Quase todo o apêndice cabe no caminho de uma única requisição, do navegador até um microsserviço e do código que a
 atende. Aperte play e acompanhe:
 
 ``` diagram-sim
@@ -67,7 +67,7 @@ Git (às vezes entre [submódulos](git-submodules.md)) e entregue por um pipelin
 
     ---
 
-    Conte as idas e voltas e os bytes que uma tela custa com REST e com GraphQL, e evolua uma API sem quebrar seus
+    Conte as idas e voltas e os bytes que uma tela custa com REST e com GraphQL e evolua uma API sem quebrar seus
     clientes.
 
     [:octicons-arrow-right-24: REST vs GraphQL](rest-vs-graphql.md) ·

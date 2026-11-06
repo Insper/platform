@@ -9,7 +9,7 @@ desejado para o caminho de leitura do BoxOffice: `db`, `redis` e `catalog`.
 ## Organização: base + overlays { #layout-base-overlays }
 
 Os manifestos ficam em `k8s/` no seu repositório, organizados com o **Kustomize** (embutido no
-`kubectl`): uma `base` com tudo o que é igual em todo ambiente, e um **overlay** por ambiente só com o
+`kubectl`): uma `base` com tudo o que é igual em todo ambiente e um **overlay** por ambiente só com o
 que muda (tags de imagem, secrets, número de réplicas). O [lab 11](../../11/index.md) adiciona um
 overlay para o deploy via GitOps sem tocar na base.
 
@@ -82,7 +82,7 @@ dados; apagar o PVC os apaga.
 --8<-- "docs/2027.1/hands-on/10/code/k8s/base/catalog.yaml"
 ```
 
-As três probes respondem três perguntas diferentes, e confundi-las causa quedas:
+As três probes respondem três perguntas diferentes e confundi-las causa quedas:
 
 | Probe | Pergunta | Em caso de falha | Endpoint do Spring Boot |
 |---|---|---|---|
@@ -174,7 +174,7 @@ redis-6757b9b5ff-9klb4    1/1     Running   0             3m31s   boxoffice-work
     ```
 
     Com `maxSurge: 1` e `maxUnavailable: 0`, o Kubernetes sobe um pod novo, espera até ele estar
-    **pronto**, depois termina um pod antigo, e repete. No [passo 5](../measure/index.md) você vai
+    **pronto**, depois termina um pod antigo e repete. No [passo 5](../measure/index.md) você vai
     rodar o k6 durante um rollout, com e sem a readiness probe e a pausa do `preStop`, e contar os
     erros.
 

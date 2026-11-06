@@ -10,7 +10,7 @@ Um **proxy** é um intermediário que fica entre clientes e servidores, encaminh
 
 === "Forward Proxy"
 
-    Um **forward proxy** fica na frente dos **clientes**. Ele encaminha as requisições de saída para a internet e devolve a resposta ao cliente. O servidor de destino vê o endereço do proxy, e não o do cliente original.
+    Um **forward proxy** fica na frente dos **clientes**. Ele encaminha as requisições de saída para a internet e devolve a resposta ao cliente. O servidor de destino vê o endereço do proxy e não o do cliente original.
 
     Usos comuns: firewalls corporativos, filtragem de conteúdo, anonimização (VPN, Tor).
 

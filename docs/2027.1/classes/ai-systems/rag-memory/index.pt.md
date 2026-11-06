@@ -1,8 +1,8 @@
-Um fã pergunta ao assistente: *"Posso levar minha câmera ao show na Arena Paulista, e o setor C tem acesso sem degraus?"*
+Um fã pergunta ao assistente: *"Posso levar minha câmera ao show na Arena Paulista e o setor C tem acesso sem degraus?"*
 
-A resposta existe — em algum lugar entre 4.000 documentos: regras dos locais (PDFs enviados por cada local, em português, revisados a cada temporada), o guia de acessibilidade, o FAQ, a própria descrição do evento. O modelo nunca os viu: eles são privados, e muitos mudaram depois que seus dados de treinamento foram coletados. Perguntado diretamente, ele vai produzir uma resposta fluente, plausível e possivelmente errada.
+A resposta existe — em algum lugar entre 4.000 documentos: regras dos locais (PDFs enviados por cada local, em português, revisados a cada temporada), o guia de acessibilidade, o FAQ, a própria descrição do evento. O modelo nunca os viu: eles são privados e muitos mudaram depois que seus dados de treinamento foram coletados. Perguntado diretamente, ele vai produzir uma resposta fluente, plausível e possivelmente errada.
 
-Três soluções tentadoras, e por que elas não bastam:
+Três soluções tentadoras e por que elas não bastam:
 
 | Abordagem | Ideia | Problema para o BoxOffice |
 |---|---|---|
@@ -77,7 +77,7 @@ Regras práticas:
 - **O mesmo modelo para documentos e consultas** — vetores de modelos diferentes vivem em espaços diferentes e não podem ser comparados.
 - **Modelo multilíngue** para o BoxOffice: os fãs perguntam em português, inglês e espanhol; alguns documentos dos locais existem só em português.
 - **Guarde o nome do modelo com cada vetor** (`embed_model`). Trocar o modelo de embedding significa **gerar de novo os embeddings de todo o corpus** — faça isso como um deploy blue/green: construa o novo índice ao lado, mude as leituras e depois descarte o antigo.
-- **Gerar embeddings é barato comparado à geração de texto** (uma única passada pelo modelo, sem decodificação), e o lado da ingestão pode usar APIs em lote; o lado da consulta gera o embedding de uma pergunta curta por requisição (de alguns milissegundos a dezenas de milissegundos).
+- **Gerar embeddings é barato comparado à geração de texto** (uma única passada pelo modelo, sem decodificação) e o lado da ingestão pode usar APIs em lote; o lado da consulta gera o embedding de uma pergunta curta por requisição (de alguns milissegundos a dezenas de milissegundos).
 
 Quanta memória o índice precisa? Os vetores brutos ocupam $N \times d \times$ bytes por valor; um grafo HNSW acrescenta links para os vizinhos de cada vetor:
 
@@ -218,7 +218,7 @@ O `ts_rank_cd` do PostgreSQL não é exatamente BM25, mas, para a fusão, só a 
 
 !!! example "No código do BoxOffice: pgvector no banco que a BoxOffice já opera (lab 12)"
 
-    O [Hands-on 12 — RAG com pgvector](../../../hands-on/12/rag/index.md) constrói a menor versão deste pipeline. Cada evento é curto o bastante para ser o seu próprio chunk: uma linha por evento, com embedding do `nomic-embed-text` (768 dimensões), num schema `assistant` do mesmo PostgreSQL, com um índice HNSW sobre a distância de cosseno. A consulta é **busca vetorial pura**: top-k por `<=>`. Escolher o pgvector em vez de um banco vetorial dedicado não custa quase nada para operar com algumas centenas de eventos — é mais um schema num banco que o time já protege e já inclui nos backups; o preço é o que esta versão simplificada deixa de fora (sem a metade por palavras-chave, sem reranker), e a avaliação abaixo mostra onde isso dói.
+    O [Hands-on 12 — RAG com pgvector](../../../hands-on/12/rag/index.md) constrói a menor versão deste pipeline. Cada evento é curto o bastante para ser o seu próprio chunk: uma linha por evento, com embedding do `nomic-embed-text` (768 dimensões), num schema `assistant` do mesmo PostgreSQL, com um índice HNSW sobre a distância de cosseno. A consulta é **busca vetorial pura**: top-k por `<=>`. Escolher o pgvector em vez de um banco vetorial dedicado não custa quase nada para operar com algumas centenas de eventos — é mais um schema num banco que o time já protege e já inclui nos backups; o preço é o que esta versão simplificada deixa de fora (sem a metade por palavras-chave, sem reranker) e a avaliação abaixo mostra onde isso dói.
 
     ``` { .python title="services/assistant/app/db.py (the table and the index)" }
     --8<-- "docs/2027.1/hands-on/12/code/services/assistant/app/db.py:11:21"
@@ -236,9 +236,9 @@ O `ts_rank_cd` do PostgreSQL não é exatamente BM25, mas, para a fusão, só a 
 | Gerar o embedding da consulta | 5–50 ms |
 | Busca vetorial + por palavras-chave (em paralelo) | 5–30 ms |
 | Reranquear 20–40 candidatos | 30–200 ms |
-| Tokens extras no prompt (5 chunks × ~400 tokens) | +2.000 tokens de entrada por chamada ao modelo → custo, e TTFT se não houver cache |
+| Tokens extras no prompt (5 chunks × ~400 tokens) | +2.000 tokens de entrada por chamada ao modelo → custo e TTFT se não houver cache |
 
-A recuperação em si é barata; o que você paga são os **tokens extras que ela acrescenta a cada chamada ao modelo**. Recupere menos chunks, e melhores.
+A recuperação em si é barata; o que você paga são os **tokens extras que ela acrescenta a cada chamada ao modelo**. Recupere menos chunks e melhores.
 
 ### Medindo a recuperação { #measuring-retrieval }
 
@@ -251,7 +251,7 @@ Se a resposta está errada, essas métricas dizem *onde*: a recuperação não t
 
 !!! example "No código do BoxOffice: hit@k e MRR num conjunto rotulado (lab 12)"
 
-    O seed do catálogo do lab 1 é gerado por uma fórmula, então o `eval_retrieval.py` sabe quais são os eventos certos para cada pergunta e mede só a recuperação, antes de qualquer modelo entrar. Uma execução de teste no [Hands-on 12 — RAG](../../../hands-on/12/rag/index.md) deu **hit@5 = 1,00 e MRR = 0,94** em 11 perguntas. A única posição imperfeita é "the big festival night at the stadium in São Paulo": o evento certo veio em 3º, atrás de festivais genéricos no mesmo estádio — nomes exatos são onde a busca vetorial pura é mais fraca, e onde a [busca híbrida](#hybrid) ajuda.
+    O seed do catálogo do lab 1 é gerado por uma fórmula, então o `eval_retrieval.py` sabe quais são os eventos certos para cada pergunta e mede só a recuperação, antes de qualquer modelo entrar. Uma execução de teste no [Hands-on 12 — RAG](../../../hands-on/12/rag/index.md) deu **hit@5 = 1,00 e MRR = 0,94** em 11 perguntas. A única posição imperfeita é "the big festival night at the stadium in São Paulo": o evento certo veio em 3º, atrás de festivais genéricos no mesmo estádio — nomes exatos são onde a busca vetorial pura é mais fraca e onde a [busca híbrida](#hybrid) ajuda.
 
     ``` { .python title="scripts/eval_retrieval.py (labels and scores)" }
     --8<-- "docs/2027.1/hands-on/12/code/scripts/eval_retrieval.py:30:43,52:62"
@@ -307,7 +307,7 @@ A memória transforma o assistente em um repositório de dados pessoais. Pela Le
 
 - Mostre ao fã o que está memorizado e deixe-o **editar e apagar**.
 - **A exclusão precisa chegar a todas as cópias**: a linha do perfil, os vetores episódicos, o cache de sessão, o cache semântico, os logs e traces que capturaram prompts. Projete as chaves `doc_id`/`user_id` para que uma exclusão seja uma consulta por repositório, não um projeto de arqueologia.
-- Aplique **retenção** (TTL) por padrão; mantenha as memórias por tenant e por usuário, e filtre a recuperação por eles — nunca busque os episódios de um usuário para outro.
+- Aplique **retenção** (TTL) por padrão; mantenha as memórias por tenant e por usuário e filtre a recuperação por eles — nunca busque os episódios de um usuário para outro.
 
 !!! example "BoxOffice: um turno, todas as memórias"
 
@@ -320,7 +320,7 @@ A memória transforma o assistente em um repositório de dados pessoais. Pela Le
 !!! success "Boas práticas"
 
     - **Meça a recuperação num conjunto rotulado antes de ajustar o prompt** — hit@k e MRR dizem se a resposta sequer estava no contexto. No BoxOffice: o `eval_retrieval.py` mediu hit@5 = 1,00 e MRR = 0,94 ([lab 12 — RAG](../../../hands-on/12/rag/index.md)).
-    - **Registre o modelo de embedding e a dimensão junto com o índice** — trocar o modelo vira então um re-embedding planejado, como uma migração de schema. No BoxOffice: `EMBED_MODEL` e `EMBED_DIM` (768) são configuração, e a tabela declara `vector(768)`.
+    - **Registre o modelo de embedding e a dimensão junto com o índice** — trocar o modelo vira então um re-embedding planejado, como uma migração de schema. No BoxOffice: `EMBED_MODEL` e `EMBED_DIM` (768) são configuração e a tabela declara `vector(768)`.
     - **Faça upsert por um id estável do documento** — a reingestão precisa substituir um documento, não duplicá-lo. No BoxOffice: `ON CONFLICT (id) DO UPDATE` em `event:<id>` no `rag.py`.
     - **Dê ao índice um SLO de atualização e meça o seu atraso** — por exemplo, uma regra de local alterada fica pesquisável em até 5 minutos; acompanhe o atraso da ingestão como o atraso de um consumidor.
     - **Dê às memórias um TTL e um caminho de exclusão por usuário** — o direito ao esquecimento da LGPD precisa chegar ao cache de sessão, ao armazenamento de longo prazo e ao índice vetorial.

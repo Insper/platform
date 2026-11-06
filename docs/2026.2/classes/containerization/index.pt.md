@@ -2,7 +2,7 @@
 Quando um servidor não dá mais conta do tráfego crescente, existem duas estratégias:
 
 **Escalabilidade vertical** (scale-up)
-: Substituir o servidor por um mais potente — mais CPU, mais RAM, disco mais rápido. É simples, mas limitado: existe um limite físico para o tamanho de uma única máquina, e cada upgrade exige parada.
+: Substituir o servidor por um mais potente — mais CPU, mais RAM, disco mais rápido. É simples, mas limitado: existe um limite físico para o tamanho de uma única máquina e cada upgrade exige parada.
 
 **Escalabilidade horizontal** (scale-out)
 : Adicionar mais servidores e distribuir a carga entre eles. Em teoria não tem limite, mas traz um problema crítico: **consistência entre ambientes**.
@@ -101,7 +101,7 @@ flowchart TB
 
 A ideia central: containers compartilham o kernel do hospedeiro, por isso iniciam em segundos e consomem muito menos memória. VMs carregam o próprio kernel — o que dá um isolamento mais forte ao custo de um overhead maior[^2].
 
-Na prática, os dois são **combinados**, e não opostos: um provedor de nuvem aluga uma VM para você (isolamento entre clientes), e você roda vários containers nela (densidade e portabilidade para os seus serviços).
+Na prática, os dois são **combinados** e não opostos: um provedor de nuvem aluga uma VM para você (isolamento entre clientes) e você roda vários containers nela (densidade e portabilidade para os seus serviços).
 
 ![Containers sobre o SO hospedeiro versus containers dentro de VMs](difference-vm-containers.png){ width="100%" }
 
@@ -113,7 +113,7 @@ Um container **não** é uma VM leve: é um **processo** Linux comum ao qual o k
 
 | Recurso | O que faz | O que você observa |
 |---|---|---|
-| **Namespaces** | Dão ao processo a própria visão de um recurso: IDs de processo (`pid`), interfaces de rede e portas (`net`), sistemas de arquivos montados (`mnt`), hostname (`uts`), usuários (`user`), IPC | Dentro do container, o `ps` mostra a sua aplicação como PID 1, e ela tem o próprio endereço IP e a porta 8080 |
+| **Namespaces** | Dão ao processo a própria visão de um recurso: IDs de processo (`pid`), interfaces de rede e portas (`net`), sistemas de arquivos montados (`mnt`), hostname (`uts`), usuários (`user`), IPC | Dentro do container, o `ps` mostra a sua aplicação como PID 1 e ela tem o próprio endereço IP e a porta 8080 |
 | **cgroups** (control groups) | Limitam e contabilizam CPU, memória e I/O | `docker run --memory 512m` — a JVM é encerrada (OOM) se passar de 512 MB |
 | **Sistema de arquivos em camadas** (OverlayFS) | Empilha as camadas somente leitura da imagem e adiciona uma fina **camada gravável** por cima (copy-on-write) | Os arquivos que você grava dentro do container desaparecem quando o container é removido |
 
@@ -126,7 +126,7 @@ docker top pg                                           # from the host: the pos
 ```
 
 !!! info "Docker no macOS e no Windows"
-    Namespaces e cgroups são recursos do kernel **Linux**. Por isso, o Docker Desktop no macOS e no Windows roda uma pequena **VM** Linux por trás dos panos, e os seus containers rodam dentro dela. É por isso que arquivos em bind mount podem ser mais lentos ali, e que uma imagem construída para `linux/arm64` (Apple Silicon) pode precisar de `--platform linux/amd64` para corresponder a um servidor na nuvem.
+    Namespaces e cgroups são recursos do kernel **Linux**. Por isso, o Docker Desktop no macOS e no Windows roda uma pequena **VM** Linux por trás dos panos, e os seus containers rodam dentro dela. É por isso que arquivos em bind mount podem ser mais lentos ali e que uma imagem construída para `linux/arm64` (Apple Silicon) pode precisar de `--platform linux/amd64` para corresponder a um servidor na nuvem.
 
 !!! tip "Docker é uma implementação de um padrão aberto"
     O formato de imagem e o comportamento do runtime são padronizados pela **Open Container Initiative (OCI)**. Uma imagem construída com `docker build` também roda no Podman, no containerd e no Kubernetes — que, desde a versão 1.24, não conversa mais com o Docker e executa containers por meio do containerd ou do CRI-O.
@@ -148,7 +148,7 @@ flowchart LR
 Um **Dockerfile** descreve como construir a imagem. Uma **imagem** é o artefato imutável — ela é versionada, armazenada em um registry e baixada em qualquer máquina. Um **container** é uma instância em execução de uma imagem — isolada, efêmera e descartável[^1].
 
 !!! example "O ciclo de vida na loja"
-    No [Hands-on 1](../../hands-on/1/containerization/index.md), o serviço de contas é empacotado assim: `mvn package` gera o JAR, um Dockerfile o copia para uma imagem base Java, e `docker compose up --build` constrói a imagem e a inicia ao lado do PostgreSQL. Mais adiante, no [Hands-on 4](../../hands-on/4/index.md), o Jenkins executa o mesmo build e envia a imagem para um registry, e no [Hands-on 5](../../hands-on/5/index.md) o Kubernetes baixa essa imagem e executa vários containers a partir dela.
+    No [Hands-on 1](../../hands-on/1/containerization/index.md), o serviço de contas é empacotado assim: `mvn package` gera o JAR, um Dockerfile o copia para uma imagem base Java e `docker compose up --build` constrói a imagem e a inicia ao lado do PostgreSQL. Mais adiante, no [Hands-on 4](../../hands-on/4/index.md), o Jenkins executa o mesmo build e envia a imagem para um registry, e no [Hands-on 5](../../hands-on/5/index.md) o Kubernetes baixa essa imagem e executa vários containers a partir dela.
 
 !!! warning "Armadilhas"
     - **Tratar um container como um servidor.** Não use `docker exec` para entrar em um container e instalar pacotes ou editar arquivos: a mudança se perde no próximo deploy. Altere o Dockerfile e faça o build de novo.

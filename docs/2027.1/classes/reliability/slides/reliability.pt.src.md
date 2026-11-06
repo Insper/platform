@@ -158,7 +158,7 @@ O componente mais perigoso não é o morto — é o **lento**. Quem chama não d
 
 - **Timeout** limita o tempo por chamada · **circuit breaker** para de chamar · **bulkhead** limita as threads.
 
-<p class="small">Playground: <code>cascading-failure</code> — adicione um timeout, depois um breaker, e observe as rotas saudáveis.</p>
+<p class="small">Playground: <code>cascading-failure</code> — adicione um timeout, depois um breaker e observe as rotas saudáveis.</p>
 
 ---
 

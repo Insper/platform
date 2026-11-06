@@ -59,7 +59,7 @@ test("the tip quotes the model's numbers", () => {
     ] : [
       `os segmentos ${ids[0]} e ${ids[1]} se perdem`,
       `O UDP termina em ${ms(r10.udp.done)} com ${r10.udp.delivered}/20 segmentos`,
-      `O TCP entrega os 20, em ordem, em ${ms(r10.tcp.done)}: ${r10.tcp.retrans} retransmissões, e ${r10.tcp.held} segmentos que já tinham chegado esperaram no buffer atrás do segmento ${ids[0]}`,
+      `O TCP entrega os 20, em ordem, em ${ms(r10.tcp.done)}: ${r10.tcp.retrans} retransmissões e ${r10.tcp.held} segmentos que já tinham chegado esperaram no buffer atrás do segmento ${ids[0]}`,
       `o UDP termina em ${ms(r0.udp.done)} e o TCP em ${ms(r0.tcp.done)} — a diferença de ${ms(r0.tcp.done - r0.udp.done)}`,
       `${r20.tcp.retrans} retransmissões, fim em ${ms(r20.tcp.done)}`,
       `o UDP fica com só ${r30.udp.delivered}/20, enquanto o TCP precisa de ${r30.tcp.retrans} retransmissões e ${ms(r30.tcp.done)}`

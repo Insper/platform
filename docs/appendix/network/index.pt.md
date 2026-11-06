@@ -7,7 +7,7 @@ Toda chamada num sistema de microsserviços atravessa uma rede: o navegador cheg
 
 A **internet** é uma rede global de redes — uma teia de computadores, roteadores e data centers interconectados que se comunicam por meio de um conjunto comum de protocolos padronizados. Nenhuma organização é dona da internet; ela é uma colaboração entre provedores de acesso (ISPs), governos, universidades e empresas, que concordam em seguir as mesmas regras para que suas redes possam interoperar.
 
-Os dados trafegam pela internet como **pacotes** — pequenos pedaços de tamanho variável, de no máximo 1.500 bytes numa rede Ethernet ou Wi-Fi típica. Um arquivo ou uma página web é dividido em muitos pacotes, e cada um é roteado de forma independente pela rede e remontado no destino. Esse modelo de *comutação de pacotes* é resiliente: se uma rota estiver congestionada ou interrompida, os pacotes encontram um caminho alternativo.
+Os dados trafegam pela internet como **pacotes** — pequenos pedaços de tamanho variável, de no máximo 1.500 bytes numa rede Ethernet ou Wi-Fi típica. Um arquivo ou uma página web é dividido em muitos pacotes e cada um é roteado de forma independente pela rede e remontado no destino. Esse modelo de *comutação de pacotes* é resiliente: se uma rota estiver congestionada ou interrompida, os pacotes encontram um caminho alternativo.
 
 ---
 

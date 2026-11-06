@@ -35,7 +35,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 **Q3.** Por que um cache que guarda apenas **1%** de um catálogo de 100.000 eventos consegue responder mais da metade das leituras?
 
 - A. Porque o Redis comprime os valores, então 1% da memória guarda o catálogo inteiro
-- B. Porque a popularidade é concentrada (aproximadamente Zipf): poucos itens recebem a maioria das requisições, e o cache guarda esses
+- B. Porque a popularidade é concentrada (aproximadamente Zipf): poucos itens recebem a maioria das requisições e o cache guarda esses
 - C. Porque o banco também tem um cache, então os dois juntos cobrem 100%
 - D. Não consegue; um cache com 1% dos dados responde no máximo 1% das leituras
 
@@ -120,7 +120,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q9.** Um relatório noturno lê **todos** os eventos uma vez, em ordem de id, pelo mesmo cache usado pelo site. Na manhã seguinte, a taxa de acerto fica muito baixa nos primeiros minutos. Qual política de despejo provavelmente estava em uso, e o que resistiria a isso?
+**Q9.** Um relatório noturno lê **todos** os eventos uma vez, em ordem de id, pelo mesmo cache usado pelo site. Na manhã seguinte, a taxa de acerto fica muito baixa nos primeiros minutos. Qual política de despejo provavelmente estava em uso e o que resistiria a isso?
 
 - A. LFU estava em uso; trocar por LRU
 - B. LRU estava em uso; a varredura substituiu os itens quentes por itens lidos uma única vez. LFU ou W-TinyLFU (ou fazer o relatório ignorar o cache) resistiriam
@@ -134,7 +134,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q10.** A BoxOffice roda 20 réplicas do `catalog`, cada uma com um cache em processo (L1) Caffeine na frente do Redis. Um organizador corrige um erro de digitação no nome do evento. Por que alguns usuários ainda podem ver o erro depois que o Redis foi invalidado, e o que resolve?
+**Q10.** A BoxOffice roda 20 réplicas do `catalog`, cada uma com um cache em processo (L1) Caffeine na frente do Redis. Um organizador corrige um erro de digitação no nome do evento. Por que alguns usuários ainda podem ver o erro depois que o Redis foi invalidado e o que resolve?
 
 - A. O Redis replica de forma assíncrona; a solução é o `WAIT`
 - B. O cache L1 de cada réplica ainda tem a própria cópia; resolva com um TTL curto no L1 e/ou uma invalidação difundida (pub/sub ou CDC) para todas as réplicas
@@ -211,11 +211,11 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 **Q15.** Um colega propõe implementar as reservas de assento **apenas** no Redis com `SET hold:42:A-12 fan:1017 NX PX 600000`, replicado com Sentinel, para não tocar no PostgreSQL durante a venda relâmpago. Qual é a objeção mais forte?
 
 - A. `SET NX` não é atômico
-- B. A replicação do Redis é assíncrona: depois de um failover o novo primário pode não ter uma reserva já concedida, e o assento pode ser concedido de novo — a decisão precisa ficar no banco, com o Redis apenas como pré-filtro rápido
+- B. A replicação do Redis é assíncrona: depois de um failover o novo primário pode não ter uma reserva já concedida e o assento pode ser concedido de novo — a decisão precisa ficar no banco, com o Redis apenas como pré-filtro rápido
 - C. O Redis não aceita chaves com dois-pontos
 - D. `PX` só aceita segundos
 
 ??? success "Resposta"
     **B — A replicação assíncrona pode perder reservas confirmadas.**
 
-    `SET NX` é atômico num nó, o que o torna um ótimo **filtro**, que rejeita a maioria dos cliques concorrentes em microssegundos. Mas um failover, um despejo ou um flush podem apagar uma reserva silenciosamente, e então dois fãs podem ter sucesso. A reserva do assento é feita numa transação SQL com uma restrição que torna a venda dupla impossível; o Redis só reduz quantas requisições chegam até ela.
+    `SET NX` é atômico num nó, o que o torna um ótimo **filtro**, que rejeita a maioria dos cliques concorrentes em microssegundos. Mas um failover, um despejo ou um flush podem apagar uma reserva silenciosamente e então dois fãs podem ter sucesso. A reserva do assento é feita numa transação SQL com uma restrição que torna a venda dupla impossível; o Redis só reduz quantas requisições chegam até ela.

@@ -1,14 +1,14 @@
 # RSA e Ed25519
 
-Esta página responde a uma pergunta: **como duas partes que nunca se encontraram podem confiar uma na outra numa rede pública?** A resposta é a criptografia de chave pública, e você a usa sempre que um serviço desta disciplina conversa com outro: o HTTPS no gateway (TLS[^rfc8446]), o JWT que o serviço de autenticação assina e todos os outros serviços conferem[^rfc7518], a chave SSH que abre um servidor ou um repositório Git[^rfc4253], os certificados que um cluster Kubernetes usa por dentro. Vamos montar o RSA com números pequenos, ver por que sua forma de livro-texto é insegura e depois conhecer o Ed25519, a alternativa moderna.
+Esta página responde a uma pergunta: **como duas partes que nunca se encontraram podem confiar uma na outra numa rede pública?** A resposta é a criptografia de chave pública e você a usa sempre que um serviço desta disciplina conversa com outro: o HTTPS no gateway (TLS[^rfc8446]), o JWT que o serviço de autenticação assina e todos os outros serviços conferem[^rfc7518], a chave SSH que abre um servidor ou um repositório Git[^rfc4253], os certificados que um cluster Kubernetes usa por dentro. Vamos montar o RSA com números pequenos, ver por que sua forma de livro-texto é insegura e depois conhecer o Ed25519, a alternativa moderna.
 
 ---
 
 ## Por que criptografia de chave pública { #why }
 
-Na criptografia **simétrica** (AES, ChaCha20), a mesma chave cifra e decifra. Ela é rápida, mas os dois lados precisam já compartilhar a chave, e mandá-la pela rede é exatamente o que um bisbilhoteiro espera. Ela também não escala: com uma chave por par, `N` partes precisam de `N(N − 1)/2` chaves, então 100 microsserviços precisariam de 4.950 segredos compartilhados.
+Na criptografia **simétrica** (AES, ChaCha20), a mesma chave cifra e decifra. Ela é rápida, mas os dois lados precisam já compartilhar a chave e mandá-la pela rede é exatamente o que um bisbilhoteiro espera. Ela também não escala: com uma chave por par, `N` partes precisam de `N(N − 1)/2` chaves, então 100 microsserviços precisariam de 4.950 segredos compartilhados.
 
-Em 1976, Diffie e Hellman propuseram uma saída[^dh_paper]: dar a cada parte **duas** chaves, uma pública e uma privada, de modo que o que a chave pública faz só a privada consegue desfazer. Em 1978, Rivest, Shamir e Adleman publicaram o primeiro esquema prático, o **RSA**[^rsa][^rsa_paper]. Cada parte agora publica uma chave e guarda uma em segredo: `N` partes precisam de `N` pares de chaves, e nada secreto trafega.
+Em 1976, Diffie e Hellman propuseram uma saída[^dh_paper]: dar a cada parte **duas** chaves, uma pública e uma privada, de modo que o que a chave pública faz só a privada consegue desfazer. Em 1978, Rivest, Shamir e Adleman publicaram o primeiro esquema prático, o **RSA**[^rsa][^rsa_paper]. Cada parte agora publica uma chave e guarda uma em segredo: `N` partes precisam de `N` pares de chaves e nada secreto trafega.
 
 ---
 
@@ -33,7 +33,7 @@ flowchart LR
     end
 ```
 
-A cifragem dá **confidencialidade** (só o dono lê). A assinatura dá **autenticidade e integridade** (só o dono poderia tê-la produzido, e a mensagem não foi alterada); ela não esconde a mensagem.
+A cifragem dá **confidencialidade** (só o dono lê). A assinatura dá **autenticidade e integridade** (só o dono poderia tê-la produzido e a mensagem não foi alterada); ela não esconde a mensagem.
 
 ---
 
@@ -49,11 +49,11 @@ O RSA se apoia na **aritmética modular** e numa assimetria: multiplicar dois pr
 | 4. Expoente público | `1 < e < φ(n)` com `gcd(e, φ(n)) = 1` | `e = 17` |
 | 5. Expoente privado | `d = e⁻¹ mod φ(n)`, isto é, `e × d ≡ 1 (mod φ(n))` | `d = 2753`, pois `17 × 2753 = 46801 = 15 × 3120 + 1` |
 
-O passo 5 é o **algoritmo de Euclides estendido**: divida `φ(n)` por `e`, depois o divisor pelo resto, e assim por diante, escrevendo cada resto como um múltiplo de `e` módulo `φ(n)`. Quando o resto chega a 1, o seu coeficiente é `d`. As mesmas divisões conferem o passo 4: o último resto não nulo é o `gcd(e, φ(n))`. O simulador mostra cada divisão.
+O passo 5 é o **algoritmo de Euclides estendido**: divida `φ(n)` por `e`, depois o divisor pelo resto e assim por diante, escrevendo cada resto como um múltiplo de `e` módulo `φ(n)`. Quando o resto chega a 1, o seu coeficiente é `d`. As mesmas divisões conferem o passo 4: o último resto não nulo é o `gcd(e, φ(n))`. O simulador mostra cada divisão.
 
 Alguns fatos que o exemplo de brinquedo esconde:
 
-- **Tamanhos reais.** `p` e `q` são primos aleatórios de cerca de 1024 bits cada (um `n` de 2048 bits) ou mais, e `e` é quase sempre `65537` (`2¹⁶ + 1`, um primo com apenas dois bits 1, então a cifragem é rápida).
+- **Tamanhos reais.** `p` e `q` são primos aleatórios de cerca de 1024 bits cada (um `n` de 2048 bits) ou mais e `e` é quase sempre `65537` (`2¹⁶ + 1`, um primo com apenas dois bits 1, então a cifragem é rápida).
 - **λ em vez de φ.** O padrão (RFC 8017[^rfc8017]) calcula `d` módulo `λ(n) = lcm(p − 1, q − 1)`, o que dá um `d` menor que funciona igual: aqui `λ(n) = 780` e `d = 413`.
 - **Os primos são guardados, em segredo.** O arquivo da chave privada também guarda `p`, `q` e alguns valores derivados deles, para que a decifragem use o teorema chinês do resto e rode várias vezes mais rápido. Quem descobre `p` ou `q` recalcula `d`, então eles são tão secretos quanto o próprio `d`.
 - **Por que funciona.** `(mᵉ)ᵈ = m^(ed) = m^(1 + k·φ(n)) ≡ m (mod n)`, pelo teorema de Euler[^euler] quando `m` não tem fator comum com `n` (e pelo teorema chinês do resto para todo outro `m < n`).
@@ -61,7 +61,7 @@ Alguns fatos que o exemplo de brinquedo esconde:
 <div class="csim" data-sim="rsa" data-p="61" data-q="53" data-e="17"></div>
 
 !!! tip "Experimente"
-    Mantenha p = 61, q = 53, e = 17 e aperte play: n = 3.233, φ(n) = 3.120, e o algoritmo de Euclides estendido acha d = 2.753 em 4 divisões. Agora escolha e = 3: gcd(3, 3.120) = 3, então não existe d. De volta a e = 17, use a chave: cifre 65 → 2.790 e veja-o voltar ao decifrar; digite HELLO e veja as duas letras L darem o mesmo número (L → 2.726). Assine 123 → 2.746 e depois adultere a assinatura. Em *ataque de dicionário*, o atacante acha a nota B em 2 tentativas só com a chave pública; com padding aleatório a mesma nota muda de texto cifrado a cada vez, embora este padding de brinquedo ainda deixe só 60 tentativas. Em *fatorar n*, a divisão por tentativa separa n em 53 × 61 após 27 divisões e recupera d. Um n de 2048 bits exigiria cerca de 10³⁰⁸.
+    Mantenha p = 61, q = 53, e = 17 e aperte play: n = 3.233, φ(n) = 3.120 e o algoritmo de Euclides estendido acha d = 2.753 em 4 divisões. Agora escolha e = 3: gcd(3, 3.120) = 3, então não existe d. De volta a e = 17, use a chave: cifre 65 → 2.790 e veja-o voltar ao decifrar; digite HELLO e veja as duas letras L darem o mesmo número (L → 2.726). Assine 123 → 2.746 e depois adultere a assinatura. Em *ataque de dicionário*, o atacante acha a nota B em 2 tentativas só com a chave pública; com padding aleatório a mesma nota muda de texto cifrado a cada vez, embora este padding de brinquedo ainda deixe só 60 tentativas. Em *fatorar n*, a divisão por tentativa separa n em 53 × 61 após 27 divisões e recupera d. Um n de 2048 bits exigiria cerca de 10³⁰⁸.
 
 ---
 
@@ -76,11 +76,11 @@ Com a chave acima, `65¹⁷ mod 3233 = 2790` e `2790²⁷⁵³ mod 3233 = 65`.
 
 Ninguém calcula `2790²⁷⁵³` multiplicando 2.752 vezes. O **square-and-multiply** (elevar ao quadrado e multiplicar) lê o expoente em binário: um quadrado por bit, mais uma multiplicação por bit 1. `17 = 10001₂` custa 4 quadrados e 1 multiplicação; um `d` de 2048 bits custa cerca de 2.048 quadrados, não 2²⁰⁴⁸ multiplicações. Reduzir `mod n` a cada passo mantém todo número abaixo de `n²`.
 
-Aplicar a fórmula diretamente, como acima, é o chamado **RSA de livro-texto** (*textbook RSA*), e ele é inseguro:
+Aplicar a fórmula diretamente, como acima, é o chamado **RSA de livro-texto** (*textbook RSA*) e ele é inseguro:
 
 - **Determinístico.** O mesmo `m` sempre dá o mesmo `c`. Um atacante que consegue adivinhar as mensagens possíveis ("sim" ou "não", uma nota de A a F) cifra cada palpite com a chave pública e compara: um **ataque de dicionário**. Letra a letra, é uma simples cifra de substituição.
 - **Maleável.** Multiplicar um texto cifrado por `2ᵉ mod n` dobra o texto claro escondido: no exemplo, `2790 × 2¹⁷ mod 3233` decifra para `130 = 2 × 65`. Um atacante consegue alterar uma mensagem que não consegue ler.
-- **Mensagens pequenas vazam.** Com `e = 3` e uma mensagem curta, `m³` pode ser menor que `n`: aí não há redução, e uma raiz cúbica comum recupera `m`.
+- **Mensagens pequenas vazam.** Com `e = 3` e uma mensagem curta, `m³` pode ser menor que `n`: aí não há redução e uma raiz cúbica comum recupera `m`.
 
 A correção é o **padding** com aleatoriedade antes da exponenciação, visto [mais abaixo](#padding).
 
@@ -88,14 +88,14 @@ A correção é o **padding** com aleatoriedade antes da exponenciação, visto 
 
 ## Assinaturas digitais { #signatures }
 
-A mesma matemática com as chaves trocadas dá assinaturas. Na prática, o que se assina é um **hash** da mensagem, `h = H(m)`: um hash cabe abaixo de `n`, e assiná-lo vale tanto quanto assinar a mensagem inteira.
+A mesma matemática com as chaves trocadas dá assinaturas. Na prática, o que se assina é um **hash** da mensagem, `h = H(m)`: um hash cabe abaixo de `n` e assiná-lo vale tanto quanto assinar a mensagem inteira.
 
 - **Assinar** com a chave privada: `s = hᵈ mod n`
 - **Verificar** com a chave pública: conferir que `sᵉ mod n = h`
 
-Com a chave acima, `h = 123` dá `s = 123²⁷⁵³ mod 3233 = 2746`, e `2746¹⁷ mod 3233 = 123`. Mude um bit da mensagem ou de `s` e a conferência falha; produzir um `s` válido para outra mensagem exige `d`.
+Com a chave acima, `h = 123` dá `s = 123²⁷⁵³ mod 3233 = 2746` e `2746¹⁷ mod 3233 = 123`. Mude um bit da mensagem ou de `s` e a conferência falha; produzir um `s` válido para outra mensagem exige `d`.
 
-É assim que funciona um JWT assinado com **`RS256`** ou **`PS256`**[^rfc7518]: o serviço de autenticação assina `header.payload` com a sua chave privada, e qualquer serviço que tenha a chave pública verifica o token sem conseguir emitir novos. As chaves públicas costumam ser publicadas como um JWK Set (RFC 7517[^rfc7517]) na URL que o provedor de identidade anuncia como `jwks_uri`.
+É assim que funciona um JWT assinado com **`RS256`** ou **`PS256`**[^rfc7518]: o serviço de autenticação assina `header.payload` com a sua chave privada e qualquer serviço que tenha a chave pública verifica o token sem conseguir emitir novos. As chaves públicas costumam ser publicadas como um JWK Set (RFC 7517[^rfc7517]) na URL que o provedor de identidade anuncia como `jwks_uri`.
 
 ``` diagram-sim
 sequenceDiagram
@@ -119,7 +119,7 @@ sequenceDiagram
 
 !!! warning "Quem escolhe o algoritmo é o verificador, não o token"
 
-    Um verificador que confia no próprio cabeçalho `alg` do token pode ser enganado: com `alg: none` ele pula a conferência, e com `alg: HS256` ele pode usar a chave *pública* RSA como segredo de HMAC, que o atacante também conhece. Configure o algoritmo e a chave esperados no lado que verifica.
+    Um verificador que confia no próprio cabeçalho `alg` do token pode ser enganado: com `alg: none` ele pula a conferência e com `alg: HS256` ele pode usar a chave *pública* RSA como segredo de HMAC, que o atacante também conhece. Configure o algoritmo e a chave esperados no lado que verifica.
 
 ---
 
@@ -127,7 +127,7 @@ sequenceDiagram
 
 O RSA não é usado para cifrar grandes volumes de dados. Cada operação é uma exponenciação modular completa sobre números de 2048 bits, ordens de grandeza mais lenta que o AES, que as CPUs modernas executam em hardware. E uma operação carrega muito pouco: com OAEP e SHA-256, uma chave de 2048 bits cifra no máximo `256 − 2 × 32 − 2 = 190` bytes (RFC 8017, §7.1.1[^rfc8017]).
 
-Por isso os sistemas combinam os dois tipos de criptografia, um padrão chamado **criptografia híbrida**: uma chave simétrica aleatória nova cifra os dados, e o algoritmo de chave pública protege só essa chave pequena.
+Por isso os sistemas combinam os dois tipos de criptografia, um padrão chamado **criptografia híbrida**: uma chave simétrica aleatória nova cifra os dados e o algoritmo de chave pública protege só essa chave pequena.
 
 ``` diagram
 flowchart LR
@@ -193,7 +193,7 @@ flowchart TD
 ```
 
 - **Aleatorizado:** cifrar a mesma mensagem duas vezes dá textos cifrados diferentes, então o ataque de dicionário falha. A semente tem o tamanho do hash (32 bytes com SHA-256), valores demais para testar.
-- **Tudo ou nada:** mudar qualquer bit do texto cifrado embaralha todo o bloco com padding, e a conferência na decifragem o rejeita; a maleabilidade some.
+- **Tudo ou nada:** mudar qualquer bit do texto cifrado embaralha todo o bloco com padding e a conferência na decifragem o rejeita; a maleabilidade some.
 - **Demonstrado:** o RSA-OAEP é seguro contra ataques de texto cifrado escolhido (IND-CCA2) no modelo de oráculo aleatório.
 
 !!! warning "Nunca use o padding de cifragem PKCS#1 v1.5"
@@ -228,7 +228,7 @@ flowchart TD
 
 ## Ed25519 { #ed25519 }
 
-O Ed25519[^ed25519][^eddsa_paper] é um **algoritmo de assinatura de curvas elípticas**, padronizado na RFC 8032[^rfc8032]. Ele não é RSA e não cifra, mas para assinaturas faz o mesmo trabalho com chaves muito menores, e hoje é a escolha preferida em muitos protocolos.
+O Ed25519[^ed25519][^eddsa_paper] é um **algoritmo de assinatura de curvas elípticas**, padronizado na RFC 8032[^rfc8032]. Ele não é RSA e não cifra, mas para assinaturas faz o mesmo trabalho com chaves muito menores e hoje é a escolha preferida em muitos protocolos.
 
 ### Por que curvas elípticas { #why-ecc }
 
@@ -283,7 +283,7 @@ A verificação confere que `S · B = R + SHA-512(R ‖ A ‖ m) · A`. Para ir 
 
 ### Determinismo, uma troca { #determinism }
 
-O Ed25519 deriva o seu nonce da chave privada e da mensagem, em vez de pedir a um gerador de números aleatórios. Isso elimina toda uma classe de bugs catastróficos: em 2010, o PlayStation 3 da Sony assinava o seu firmware com ECDSA usando o **mesmo nonce toda vez**, e duas assinaturas bastaram para calcular a chave privada[^ps3]. O preço é que um dispositivo cuja computação pode ser perturbada fisicamente (uma falha injetada enquanto ele assina a mesma mensagem duas vezes) pode vazar a sua chave[^fault]; isso importa para smart cards e hardware embarcado, não para servidores.
+O Ed25519 deriva o seu nonce da chave privada e da mensagem, em vez de pedir a um gerador de números aleatórios. Isso elimina toda uma classe de bugs catastróficos: em 2010, o PlayStation 3 da Sony assinava o seu firmware com ECDSA usando o **mesmo nonce toda vez** e duas assinaturas bastaram para calcular a chave privada[^ps3]. O preço é que um dispositivo cuja computação pode ser perturbada fisicamente (uma falha injetada enquanto ele assina a mesma mensagem duas vezes) pode vazar a sua chave[^fault]; isso importa para smart cards e hardware embarcado, não para servidores.
 
 ### Onde o Ed25519 é usado { #where }
 
@@ -315,7 +315,7 @@ openssl pkey -in rsa.pem -pubout -out rsa.pub.pem                          # its
 
 !!! info "O horizonte quântico"
 
-    Um computador quântico grande rodando o algoritmo de Shor quebraria **tanto** o RSA quanto as curvas elípticas. Nenhum existe ainda, mas o tráfego gravado hoje poderia ser decifrado depois, então a migração já começou: o NIST padronizou o ML-KEM (estabelecimento de chaves, FIPS 203[^fips203]) e o ML-DSA (assinaturas, FIPS 204[^fips204]) em 2024, e o seu plano de transição deprecia os algoritmos RSA e de curvas elípticas depois de 2030 e os proíbe depois de 2035[^nistir8547]. Implantações de TLS 1.3 já negociam trocas de chaves híbridas que combinam X25519 com ML-KEM.
+    Um computador quântico grande rodando o algoritmo de Shor quebraria **tanto** o RSA quanto as curvas elípticas. Nenhum existe ainda, mas o tráfego gravado hoje poderia ser decifrado depois, então a migração já começou: o NIST padronizou o ML-KEM (estabelecimento de chaves, FIPS 203[^fips203]) e o ML-DSA (assinaturas, FIPS 204[^fips204]) em 2024 e o seu plano de transição deprecia os algoritmos RSA e de curvas elípticas depois de 2030 e os proíbe depois de 2035[^nistir8547]. Implantações de TLS 1.3 já negociam trocas de chaves híbridas que combinam X25519 com ML-KEM.
 
 ---
 
@@ -337,12 +337,12 @@ Eddie Woo resolve o RSA à mão, do mesmo jeito que o simulador acima (em inglê
 
 !!! takeaways ""
 
-    - A criptografia de chave pública resolve a distribuição de chaves: cada parte publica uma chave e guarda uma em segredo, e nada secreto trafega.
-    - As chaves RSA vêm de dois primos secretos: `n = p × q` é público, `d = e⁻¹ mod φ(n)` é achado com o algoritmo de Euclides estendido, e fatorar `n` revelaria `d`.
+    - A criptografia de chave pública resolve a distribuição de chaves: cada parte publica uma chave e guarda uma em segredo e nada secreto trafega.
+    - As chaves RSA vêm de dois primos secretos: `n = p × q` é público, `d = e⁻¹ mod φ(n)` é achado com o algoritmo de Euclides estendido e fatorar `n` revelaria `d`.
     - A chave pública cifra e verifica; a privada decifra e assina. Um JWT assinado com `RS256`/`PS256` é conferido por todo serviço com a chave pública.
     - O RSA de livro-texto é determinístico e maleável: use OAEP para cifragem e PSS para assinaturas, nunca o padding de cifragem PKCS#1 v1.5.
-    - O RSA protege chaves, não dados: a criptografia híbrida o usa para uma chave simétrica pequena, e o TLS 1.3 usa chaves públicas só para combinar chaves (Diffie–Hellman) e assinar o handshake.
-    - O Ed25519 dá 128 bits de segurança com chaves de 32 bytes e assinaturas de 64 bytes, nonces determinísticos e nenhum padding: prefira-o para novas assinaturas, e acompanhe a migração pós-quântica.
+    - O RSA protege chaves, não dados: a criptografia híbrida o usa para uma chave simétrica pequena e o TLS 1.3 usa chaves públicas só para combinar chaves (Diffie–Hellman) e assinar o handshake.
+    - O Ed25519 dá 128 bits de segurança com chaves de 32 bytes e assinaturas de 64 bytes, nonces determinísticos e nenhum padding: prefira-o para novas assinaturas e acompanhe a migração pós-quântica.
 
 [^rsa]: [RSA cryptosystem — Wikipedia](https://en.wikipedia.org/wiki/RSA_(cryptosystem)){target="_blank"}
 [^euler]: [Euler's theorem — Wikipedia](https://en.wikipedia.org/wiki/Euler%27s_theorem){target="_blank"}

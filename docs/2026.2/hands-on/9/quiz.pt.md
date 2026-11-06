@@ -14,7 +14,7 @@ Clique em **"Resposta"** para ver a resposta correta e a explicação.
 ??? success "Resposta"
     **C — A replicação não escala as escritas.**
 
-    Cada nó guarda todos os dados, e toda escrita ainda precisa ser aplicada no único primário (e depois reexecutada em cada réplica). As réplicas distribuem as leituras e oferecem disponibilidade e uma segunda cópia; escalar as escritas exige sharding (dividir os dados entre primários independentes).
+    Cada nó guarda todos os dados e toda escrita ainda precisa ser aplicada no único primário (e depois reexecutada em cada réplica). As réplicas distribuem as leituras e oferecem disponibilidade e uma segunda cópia; escalar as escritas exige sharding (dividir os dados entre primários independentes).
 
 ---
 

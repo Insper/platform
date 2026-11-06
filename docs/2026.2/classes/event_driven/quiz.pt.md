@@ -61,7 +61,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q5.** Um usuário inicia um login e o seu serviço precisa devolver um token de sessão antes de a resposta HTTP ser enviada. Qual estilo de comunicação é a escolha correta, e por quê?
+**Q5.** Um usuário inicia um login e o seu serviço precisa devolver um token de sessão antes de a resposta HTTP ser enviada. Qual estilo de comunicação é a escolha correta e por quê?
 
 - A. Evento assíncrono, porque publicar no Kafka é mais rápido do que uma ida e volta HTTP
 - B. REST síncrono, porque quem chama precisa do resultado imediatamente para poder prosseguir
@@ -85,7 +85,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **C — A DLQ captura mensagens não processáveis sem bloquear o stream principal.**
 
-    Sem uma DLQ, uma mensagem que sempre faz o consumidor lançar uma exceção seria reprocessada para sempre (travando o progresso) ou descartada silenciosamente (perdendo dados). A DLQ é uma válvula de segurança: as mensagens com falha são movidas para lá, o stream continua, e um operador pode inspecionar a mensagem, corrigir a causa raiz e reprocessá-la. O `@RetryableTopic` do Spring Kafka automatiza o agendamento dos retries e o roteamento para a DLQ.
+    Sem uma DLQ, uma mensagem que sempre faz o consumidor lançar uma exceção seria reprocessada para sempre (travando o progresso) ou descartada silenciosamente (perdendo dados). A DLQ é uma válvula de segurança: as mensagens com falha são movidas para lá, o stream continua e um operador pode inspecionar a mensagem, corrigir a causa raiz e reprocessá-la. O `@RetryableTopic` do Spring Kafka automatiza o agendamento dos retries e o roteamento para a DLQ.
 
 ---
 
@@ -103,7 +103,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q8.** Em **event sourcing**, o que significa "reprocessar os eventos" (replay), e por que isso é útil?
+**Q8.** Em **event sourcing**, o que significa "reprocessar os eventos" (replay) e por que isso é útil?
 
 - A. Reenviar eventos com falha aos consumidores que não confirmaram o recebimento
 - B. Republicar eventos em um novo tópico para disparar novamente os serviços downstream
@@ -136,7 +136,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 - A. Porque o Kafka replica as partições em brokers diferentes, introduzindo atrasos de rede variáveis
 - B. Porque cada partição é um log ordenado independente, com sua própria sequência de offsets; uma mensagem na partição 0 no offset 5 e uma mensagem na partição 1 no offset 3 não têm relação temporal definida — o consumidor as recebe conforme a que for obtida primeiro no poll
 - C. Porque os grupos de consumidores leem as partições em ordem inversa por padrão, para equilibrar a carga
-- D. Porque o Kafka usa timestamps em vez de offsets para ordenar entre partições, e os relógios nunca estão perfeitamente sincronizados
+- D. Porque o Kafka usa timestamps em vez de offsets para ordenar entre partições e os relógios nunca estão perfeitamente sincronizados
 
 ??? success "Resposta"
     **B — Cada partição é um log independente; offsets não são comparáveis entre partições.**
@@ -155,11 +155,11 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — Usar o `orderId` como chave.**
 
-    O particionador padrão calcula o hash da chave, então a mesma chave sempre vai para a mesma partição, e o Kafka garante a ordem dentro de uma partição. Pedidos diferentes continuam espalhados pelas 6 partições e são processados em paralelo. A opção A perde a ordem; C mantém a ordem apenas abrindo mão do paralelismo (e não resolve a ordem *entre* partições); D é falsa — o Kafka não reordena mensagens por timestamp.
+    O particionador padrão calcula o hash da chave, então a mesma chave sempre vai para a mesma partição e o Kafka garante a ordem dentro de uma partição. Pedidos diferentes continuam espalhados pelas 6 partições e são processados em paralelo. A opção A perde a ordem; C mantém a ordem apenas abrindo mão do paralelismo (e não resolve a ordem *entre* partições); D é falsa — o Kafka não reordena mensagens por timestamp.
 
 ---
 
-**Q12.** O notification service faz o commit do offset no Kafka **depois** de enviar o e-mail. Ele cai logo após o envio, antes do commit. O que acontece no reinício, e o que o código deve fazer a respeito?
+**Q12.** O notification service faz o commit do offset no Kafka **depois** de enviar o e-mail. Ele cai logo após o envio, antes do commit. O que acontece no reinício e o que o código deve fazer a respeito?
 
 - A. A mensagem é perdida; não há nada a fazer
 - B. A mensagem é lida de novo (entrega at-least-once); o consumidor precisa ser idempotente, por exemplo, ignorando pedidos que já notificou
@@ -177,20 +177,20 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 - A. Torna o Kafka mais rápido agrupando mensagens em lotes no Postgres
 - B. Elimina a necessidade de grupos de consumidores
-- C. Evita a escrita dupla: o pedido e o evento são gravados na mesma transação local do banco, e um relay publica o evento depois, então uma queda não consegue mais deixar um pedido sem o seu evento (nem um evento sem o seu pedido)
+- C. Evita a escrita dupla: o pedido e o evento são gravados na mesma transação local do banco e um relay publica o evento depois, então uma queda não consegue mais deixar um pedido sem o seu evento (nem um evento sem o seu pedido)
 - D. Garante que cada evento seja entregue exatamente uma vez a cada consumidor
 
 ??? success "Resposta"
     **C — Transforma duas escritas em dois sistemas em uma única transação local.**
 
-    Sem o outbox, uma queda entre o commit no banco e a publicação perde o evento; um rollback depois da publicação produz um evento de um pedido que não existe. Com o outbox, as duas linhas são commitadas juntas, e um relay (polling ou CDC) publica o evento. O relay pode publicar duas vezes depois de uma queda, então D é falsa — os consumidores ainda precisam ser idempotentes.
+    Sem o outbox, uma queda entre o commit no banco e a publicação perde o evento; um rollback depois da publicação produz um evento de um pedido que não existe. Com o outbox, as duas linhas são commitadas juntas e um relay (polling ou CDC) publica o evento. O relay pode publicar duas vezes depois de uma queda, então D é falsa — os consumidores ainda precisam ser idempotentes.
 
 ---
 
 **Q14.** Em uma saga coreografada, o estoque reserva os itens após `OrderCreated`, mas em seguida o payment service emite `PaymentFailed`. O que deve acontecer?
 
 - A. O banco desfaz a reserva de estoque automaticamente, como em uma transação ACID
-- B. O inventory service executa uma **transação de compensação** que libera o estoque, e o pedido é marcado como cancelado
+- B. O inventory service executa uma **transação de compensação** que libera o estoque e o pedido é marcado como cancelado
 - C. O order service tenta o pagamento de novo indefinidamente, até dar certo
 - D. Nada — o estoque permanece reservado até que um operador corrija manualmente
 

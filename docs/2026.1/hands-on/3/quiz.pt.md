@@ -4,7 +4,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ## Segurança / JWT
 
-**Q1.** Quais são as três partes estruturais de um JWT, e como elas são separadas?
+**Q1.** Quais são as três partes estruturais de um JWT e como elas são separadas?
 
 - A. Header, Body, Footer — separadas por quebras de linha
 - B. Algorithm, Claims, Secret — separadas por ponto e vírgula
@@ -14,11 +14,11 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **C — Header.Payload.Signature.**
 
-    Cada parte é codificada em Base64URL, e as partes são unidas por pontos. O Header declara o algoritmo (`HS256`, `RS256`). O Payload contém as claims (ID do usuário, papéis, expiração). A Signature é calculada sobre Header + Payload usando a chave secreta — qualquer adulteração invalida a assinatura, sem precisar consultar o banco de dados.
+    Cada parte é codificada em Base64URL e as partes são unidas por pontos. O Header declara o algoritmo (`HS256`, `RS256`). O Payload contém as claims (ID do usuário, papéis, expiração). A Signature é calculada sobre Header + Payload usando a chave secreta — qualquer adulteração invalida a assinatura, sem precisar consultar o banco de dados.
 
 ---
 
-**Q2.** Qual serviço **gera os tokens JWT** depois de um login bem-sucedido, e por que essa responsabilidade fica nele?
+**Q2.** Qual serviço **gera os tokens JWT** depois de um login bem-sucedido e por que essa responsabilidade fica nele?
 
 - A. O gateway — ele trata toda a lógica de autenticação, por ser o ponto de entrada
 - B. O serviço account — ele é dono dos dados de identidade do usuário
@@ -60,7 +60,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q5.** Por que o `AuthService` é definido como uma **interface no módulo `auth`**, e não diretamente dentro do `auth-service`?
+**Q5.** Por que o `AuthService` é definido como uma **interface no módulo `auth`** e não diretamente dentro do `auth-service`?
 
 - A. O Spring Boot exige que interfaces e implementações fiquem em módulos Maven separados
 - B. Reduz o tempo de compilação, ao separar a interface da implementação

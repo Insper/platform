@@ -1,5 +1,5 @@
 
-A primeira pergunta durante um incidente nunca é "por quê?" — é "*há* algo errado, e onde devo olhar?". A segunda é "o que exatamente aconteceu com *esta* requisição?". A terceira é "qual linha de código está queimando o tempo?". Cada pergunta precisa de um tipo diferente de dado, com um custo diferente. Emitir todos os detalhes de todas as requisições responde a todas elas e leva você à falência; emitir só gráficos de CPU é barato e não responde a nenhuma. Esta página trata de escolher o **sinal** certo para cada pergunta.
+A primeira pergunta durante um incidente nunca é "por quê?" — é "*há* algo errado e onde devo olhar?". A segunda é "o que exatamente aconteceu com *esta* requisição?". A terceira é "qual linha de código está queimando o tempo?". Cada pergunta precisa de um tipo diferente de dado, com um custo diferente. Emitir todos os detalhes de todas as requisições responde a todas elas e leva você à falência; emitir só gráficos de CPU é barato e não responde a nenhuma. Esta página trata de escolher o **sinal** certo para cada pergunta.
 
 ---
 
@@ -23,7 +23,7 @@ flowchart LR
 
 !!! note "Nomes usados nesta aula"
 
-    O BoxOffice é instrumentado com o **agente Java do OpenTelemetry** ([Hands-on 8](../../../hands-on/8/index.md)), que segue as *semantic conventions* do OpenTelemetry[^1]. Sua métrica de servidor HTTP `http.server.request.duration` (um histograma, em segundos) chega ao Prometheus como `http_server_request_duration_seconds_bucket`, `_count` e `_sum`, com os labels `http_route`, `http_request_method` e `http_response_status_code`. O atributo de recurso `service.name` chega como o label `service_name` (o que o dashboard e os alertas do lab 8 filtram), e o Prometheus monta o `job` a partir de `service.namespace` e `service.name` — `boxoffice/order` no lab 8; uma configuração clássica de scrape dá ao `job` o nome do alvo coletado. As consultas desta página usam `job="order"` por brevidade. As métricas do próprio Micrometer do Spring Boot usam outros nomes (`http_server_requests_seconds` com `uri`, `status`, `application`). As consultas seguem a mesma ideia — confira quais nomes a sua stack emite antes de copiar uma consulta.
+    O BoxOffice é instrumentado com o **agente Java do OpenTelemetry** ([Hands-on 8](../../../hands-on/8/index.md)), que segue as *semantic conventions* do OpenTelemetry[^1]. Sua métrica de servidor HTTP `http.server.request.duration` (um histograma, em segundos) chega ao Prometheus como `http_server_request_duration_seconds_bucket`, `_count` e `_sum`, com os labels `http_route`, `http_request_method` e `http_response_status_code`. O atributo de recurso `service.name` chega como o label `service_name` (o que o dashboard e os alertas do lab 8 filtram) e o Prometheus monta o `job` a partir de `service.namespace` e `service.name` — `boxoffice/order` no lab 8; uma configuração clássica de scrape dá ao `job` o nome do alvo coletado. As consultas desta página usam `job="order"` por brevidade. As métricas do próprio Micrometer do Spring Boot usam outros nomes (`http_server_requests_seconds` com `uri`, `status`, `application`). As consultas seguem a mesma ideia — confira quais nomes a sua stack emite antes de copiar uma consulta.
 
 ---
 
@@ -86,7 +86,7 @@ Os golden signals são essencialmente RED + saturação. A **saturação** é o 
 
 ### RED em PromQL { #red-in-promql }
 
-PromQL é a linguagem de consulta do Prometheus (e do Mimir, do Thanos e da maioria dos backends compatíveis). Duas regras evitam a maioria das consultas erradas: aplique `rate()` a um counter **antes** de somá-lo (ele trata os resets do contador quando um pod reinicia), e mantenha o label `le` ao somar buckets de histograma.
+PromQL é a linguagem de consulta do Prometheus (e do Mimir, do Thanos e da maioria dos backends compatíveis). Duas regras evitam a maioria das consultas erradas: aplique `rate()` a um counter **antes** de somá-lo (ele trata os resets do contador quando um pod reinicia) e mantenha o label `le` ao somar buckets de histograma.
 
 ```promql
 # Rate: requests per second, per route, of the order service
@@ -124,7 +124,7 @@ sum(rate(http_server_request_duration_seconds_count{job="order", http_route="/ch
 
 Uma latência média esconde a cauda: se 99 checkouts levam 100 ms e um leva 10 s, a média é ~200 ms e parece ótima, mas um fã em cada cem espera dez segundos — e uma página que faz 20 chamadas encontra essa cauda na maioria dos carregamentos (veja [Percentis](../../estimation/percentiles/index.md)).
 
-Um erro mais sutil é calcular o p99 **por pod** e depois tirar a média entre os pods. Percentis não se compõem: o p99 da frota inteira não é a média dos p99 dos pods. A simulação abaixo tem quatro pods do `order`; um deles divide um nó com um vizinho barulhento (*noisy neighbour*) e está lento, e recebe 10% do tráfego.
+Um erro mais sutil é calcular o p99 **por pod** e depois tirar a média entre os pods. Percentis não se compõem: o p99 da frota inteira não é a média dos p99 dos pods. A simulação abaixo tem quatro pods do `order`; um deles divide um nó com um vizinho barulhento (*noisy neighbour*) e está lento e recebe 10% do tráfego.
 
 ```python exec="true"
 import numpy as np
@@ -231,7 +231,7 @@ Escreva logs como registros **estruturados** (JSON, ou o modelo de dados de log 
 }
 ```
 
-Os campos `trace_id` e `span_id` são o que transforma uma linha de log em parte de uma investigação: de um span lento você salta exatamente para as linhas de log dele, e de uma linha de erro você salta para o trace completo. Com o agente Java do OpenTelemetry, eles são adicionados ao contexto de logging automaticamente ([OpenTelemetry](../opentelemetry/index.md)).
+Os campos `trace_id` e `span_id` são o que transforma uma linha de log em parte de uma investigação: de um span lento você salta exatamente para as linhas de log dele e de uma linha de erro você salta para o trace completo. Com o agente Java do OpenTelemetry, eles são adicionados ao contexto de logging automaticamente ([OpenTelemetry](../opentelemetry/index.md)).
 
 ### O que (não) registrar { #what-not-to-log }
 
@@ -308,7 +308,7 @@ Leia de cima para baixo e procure o **caminho crítico** — a cadeia de spans q
 
 Um **profile** amostra, muitas vezes por segundo, o que cada thread de um processo está executando — a pilha de chamadas completa — e agrega as amostras. O **profiling contínuo** faz isso o tempo todo em produção com baixo overhead (as ferramentas costumam mirar em torno de 1–2% de CPU), então você pode comparar "10h00 de hoje" com "10h00 da semana passada".
 
-A visualização usual é o **flame graph**[^5]: cada caixa é uma função, sua **largura** é a fração das amostras em que ela estava na pilha, e as filhas ficam em cima de quem as chamou. Platôs largos no topo são onde a CPU realmente vai.
+A visualização usual é o **flame graph**[^5]: cada caixa é uma função, sua **largura** é a fração das amostras em que ela estava na pilha e as filhas ficam em cima de quem as chamou. Platôs largos no topo são onde a CPU realmente vai.
 
 | Tipo de profile | Mostra | Pergunta do BoxOffice |
 |---|---|---|
@@ -317,7 +317,7 @@ A visualização usual é o **flame graph**[^5]: cada caixa é uma função, sua
 | Lock / mutex | onde as threads esperam por locks | o lock do cache do mapa de assentos está disputado? |
 | Wall-clock | onde o tempo passa, incluindo espera | onde as threads de checkout ficam dormindo? |
 
-O profiling virou o quarto sinal do OpenTelemetry (ainda amadurecendo em 2026), e profilers baseados em eBPF (Parca, Pyroscope, profilers de nuvem) conseguem perfilar todos os processos de um nó sem alterar a aplicação. Traces dizem *qual serviço e qual operação* está lenta; profiles dizem *qual função dentro dele*.
+O profiling virou o quarto sinal do OpenTelemetry (ainda amadurecendo em 2026) e profilers baseados em eBPF (Parca, Pyroscope, profilers de nuvem) conseguem perfilar todos os processos de um nó sem alterar a aplicação. Traces dizem *qual serviço e qual operação* está lenta; profiles dizem *qual função dentro dele*.
 
 ---
 

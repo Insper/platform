@@ -14,12 +14,12 @@ Escolha um cenário na barra (ou **Tela em branco**), aperte ▶ e leia os pain�
 
 !!! abstract "O que o playground é (e o que não é)"
 
-    É um **modelo didático**: algumas dezenas de linhas de matemática por componente, ajustadas para que o comportamento seja realista e explicável — o joelho da curva de latência, um pool de threads que se esgota, um backlog que drena, um estouro de cache. **Não** é um benchmark: capacidades e preços do catálogo são ilustrativos, escolhidos para facilitar as contas. Use-o para raciocinar sobre *formas* e *ordens de grandeza*, e depois meça o sistema real (laboratórios).
+    É um **modelo didático**: algumas dezenas de linhas de matemática por componente, ajustadas para que o comportamento seja realista e explicável — o joelho da curva de latência, um pool de threads que se esgota, um backlog que drena, um estouro de cache. **Não** é um benchmark: capacidades e preços do catálogo são ilustrativos, escolhidos para facilitar as contas. Use-o para raciocinar sobre *formas* e *ordens de grandeza* e depois meça o sistema real (laboratórios).
 
 ## Primeiros passos
 
 1. Escolha **Cenário → Monólito** (já carregado acima) e aperte ▶. O perfil *breakpoint* aumenta a carga até o sistema quebrar.
-2. Ao final abre o **Relatório**: ponto de ruptura, percentis, o **gargalo** com uma explicação, e as metas (✓/✗).
+2. Ao final abre o **Relatório**: ponto de ruptura, percentis, o **gargalo** com uma explicação e as metas (✓/✗).
 3. Adicione um **Load Balancer** da paleta (clique em **+** ou arraste para a tela), conecte *users → Load Balancer → app* (arraste da pequena alça à direita de um nó até outro nó), exclua a aresta antiga e aumente as réplicas da aplicação no inspetor.
 4. Aperte ⟲ (recomeçar a execução) e ▶ de novo. Compare.
 5. Travou? Abra **Dicas** no painel da direita, ou **Mostrar uma solução possível**.
@@ -42,7 +42,7 @@ As arestas têm um sentido só: uma conexão que criaria um ciclo é recusada. U
 
 ## Como o modelo funciona { #how-the-model-works }
 
-O tempo avança em **ticks de 0,1 s** de tempo simulado; o seletor de velocidade roda 1, 5, 20 ou 100 ticks por décimo de segundo real. Cada tick tem duas partes: um **modelo fluido** que move *taxas* (requisições por segundo) pelo grafo, e uma amostra de **requisições sintéticas** (traces) que percorrem o grafo para medir os percentis de latência.
+O tempo avança em **ticks de 0,1 s** de tempo simulado; o seletor de velocidade roda 1, 5, 20 ou 100 ticks por décimo de segundo real. Cada tick tem duas partes: um **modelo fluido** que move *taxas* (requisições por segundo) pelo grafo e uma amostra de **requisições sintéticas** (traces) que percorrem o grafo para medir os percentis de latência.
 
 ### Chegadas e requisições
 
@@ -92,7 +92,7 @@ Os parâmetros das arestas modelam os padrões de resiliência da disciplina. Co
 
 $$\text{carga no alvo} = \lambda \cdot (1 + p + p^2 + \dots + p^r) \qquad P(\text{chamada falha}) = p^{\,r+1}$$
 
-Quando $p$ se aproxima de 1 o alvo recebe até $(r+1)\times$ a carga — uma **tempestade de retries**. O *backoff* espera $100\,\text{ms} \times 2^n$ entre tentativas (*exp+jitter* as espalha aleatoriamente), o que soma latência e suaviza as ondas, mas não reduz o total numa queda longa. Um **circuit breaker** abre quando mais de 50% das chamadas falham em 5 s: as chamadas falham na hora por 10 s, e então algumas chamadas de sonda (meio-aberto) decidem se ele fecha. Um **fallback** transforma uma chamada falha numa resposta degradada (contada como sucesso). Um **bulkhead** limita a fração das threads de quem chama que uma chamada pode ocupar. Uma **chave de idempotência** torna seguros os retries a um provedor de pagamento: sem ela, um retry após timeout conta como possível **cobrança duplicada**.
+Quando $p$ se aproxima de 1 o alvo recebe até $(r+1)\times$ a carga — uma **tempestade de retries**. O *backoff* espera $100\,\text{ms} \times 2^n$ entre tentativas (*exp+jitter* as espalha aleatoriamente), o que soma latência e suaviza as ondas, mas não reduz o total numa queda longa. Um **circuit breaker** abre quando mais de 50% das chamadas falham em 5 s: as chamadas falham na hora por 10 s e então algumas chamadas de sonda (meio-aberto) decidem se ele fecha. Um **fallback** transforma uma chamada falha numa resposta degradada (contada como sucesso). Um **bulkhead** limita a fração das threads de quem chama que uma chamada pode ocupar. Uma **chave de idempotência** torna seguros os retries a um provedor de pagamento: sem ela, um retry após timeout conta como possível **cobrança duplicada**.
 
 ### Caches, CDNs e chaves quentes { #caches-cdns-and-hot-keys }
 
@@ -100,11 +100,11 @@ Um cache com taxa de acerto $h$ só repassa os misses: leituras no banco $= \tex
 
 ### Mensageria
 
-Um broker aceita mensagens até sua capacidade e as guarda num backlog. Os consumidores puxam na própria capacidade; com Event Stream e Kafka no máximo $\min(\text{partições}, \text{réplicas consumidoras})$ consumidores trabalham em paralelo. Uma mensagem cujo processamento falha volta ao backlog (at-least-once). **Atraso do consumidor** = backlog ÷ taxa de drenagem bem-sucedida. Acima do *backlog máximo* (retenção) as mensagens são descartadas, e essas publicações contam como erros.
+Um broker aceita mensagens até sua capacidade e as guarda num backlog. Os consumidores puxam na própria capacidade; com Event Stream e Kafka no máximo $\min(\text{partições}, \text{réplicas consumidoras})$ consumidores trabalham em paralelo. Uma mensagem cujo processamento falha volta ao backlog (at-least-once). **Atraso do consumidor** = backlog ÷ taxa de drenagem bem-sucedida. Acima do *backlog máximo* (retenção) as mensagens são descartadas e essas publicações contam como erros.
 
 ### Autoescala e serverless
 
-Com a *autoescala* ligada, a cada 15 s um nó compara a utilização média de **CPU** com a meta e ajusta para $\lceil \text{réplicas} \times \rho / \text{meta} \rceil$ réplicas (entre mín. e máx.); réplicas novas recebem tráfego após o *aquecimento*. A primeira decisão vem em t = 15 s, e uma redução remove no máximo metade das réplicas por vez. Como o HPA do Kubernetes, ela observa a CPU — um nó sem threads não escala. Uma função **serverless** roda uma instância por requisição simultânea: instâncias $= \lambda \cdot W$. Requisições além das instâncias quentes caem em instâncias novas e pagam o **cold start**; além do *limite de concorrência* sofrem throttling (429). Instâncias *provisionadas* estão sempre quentes (e sempre são cobradas).
+Com a *autoescala* ligada, a cada 15 s um nó compara a utilização média de **CPU** com a meta e ajusta para $\lceil \text{réplicas} \times \rho / \text{meta} \rceil$ réplicas (entre mín. e máx.); réplicas novas recebem tráfego após o *aquecimento*. A primeira decisão vem em t = 15 s e uma redução remove no máximo metade das réplicas por vez. Como o HPA do Kubernetes, ela observa a CPU — um nó sem threads não escala. Uma função **serverless** roda uma instância por requisição simultânea: instâncias $= \lambda \cdot W$. Requisições além das instâncias quentes caem em instâncias novas e pagam o **cold start**; além do *limite de concorrência* sofrem throttling (429). Instâncias *provisionadas* estão sempre quentes (e sempre são cobradas).
 
 ### Contêineres { #containers }
 
@@ -116,7 +116,7 @@ Um limite de 0,5 corta as req/s pela metade **e** dobra o tempo de serviço; um 
 
 ### Clusters Kubernetes { #kubernetes-clusters }
 
-Uma moldura **Kubernetes Cluster** roda, como **pods**, os serviços cujo centro está dentro dela (um nó pertence ao primeiro cluster que o contém). Serviços gerenciados e provedores externos nunca rodam como pods, mesmo desenhados dentro: DNS, CDN, Load Balancer, WAF, Serverless, Object Store, Data Warehouse, DB Cluster, Message Queue, Pub/Sub, Event Stream, NAT, VPN, LLM Gateway e os componentes Externos. Toda réplica de um membro é um pod, e o cluster tem espaço para
+Uma moldura **Kubernetes Cluster** roda, como **pods**, os serviços cujo centro está dentro dela (um nó pertence ao primeiro cluster que o contém). Serviços gerenciados e provedores externos nunca rodam como pods, mesmo desenhados dentro: DNS, CDN, Load Balancer, WAF, Serverless, Object Store, Data Warehouse, DB Cluster, Message Queue, Pub/Sub, Event Stream, NAT, VPN, LLM Gateway e os componentes Externos. Toda réplica de um membro é um pod e o cluster tem espaço para
 
 $$C = \text{nós de trabalho prontos} \times \text{pods por nó}$$
 
@@ -138,7 +138,7 @@ Uma **falha de nó** (um [evento](#randomness-seeds-chaos-and-events)) mata um n
 
 Um **Service Registry** (nó lateral) registra os serviços conectados a ele, em qualquer direção. Para um serviço registrado:
 
-- **Réplicas mortas são descartadas em 3 s por todo chamador** — um balanceador, um API gateway ou outro serviço que o chama diretamente. Sem registry, numa chamada direta entre serviços ninguém detecta uma queda: a réplica caída continua recebendo sua parte das chamadas (que travam) até ser reparada, e os pods perdidos com um nó Kubernetes até o timeout *NotReady* de 40 s.
+- **Réplicas mortas são descartadas em 3 s por todo chamador** — um balanceador, um API gateway ou outro serviço que o chama diretamente. Sem registry, numa chamada direta entre serviços ninguém detecta uma queda: a réplica caída continua recebendo sua parte das chamadas (que travam) até ser reparada e os pods perdidos com um nó Kubernetes até o timeout *NotReady* de 40 s.
 - Pods novos recebem tráfego assim que ficam prontos: sem os 10 s de espera pela propagação dos endpoints.
 
 Ele custa 30 USD/mês + 5 por serviço anexado.
@@ -203,7 +203,7 @@ As metas são avaliadas na **janela estável** do perfil (sombreada nos gráfico
 
 Toda a aleatoriedade — chegadas, tempos de serviço, acertos de cache, que falhas acontecem e quando — vem de um único **gerador com semente**, dividido em fluxos independentes por finalidade. **Mesma semente + mesmo projeto + mesmo perfil ⇒ a mesma execução**, então você pode mudar uma coisa e atribuir a diferença a ela. Mudar o nível de caos não embaralha as chegadas. 🎲 sorteia uma nova semente; um projeto robusto passa com qualquer semente.
 
-O **caos** (*desligado, baixo, médio, alto* = ×0, ×1, ×3, ×8) define a taxa de eventos aleatórios. Você também pode injetar qualquer evento com o botão ⚡, e os cenários têm **eventos programados** em instantes fixos (ex.: *abre a venda*). Os eventos aparecem na aba **Eventos** e como marcas tracejadas nos gráficos.
+O **caos** (*desligado, baixo, médio, alto* = ×0, ×1, ×3, ×8) define a taxa de eventos aleatórios. Você também pode injetar qualquer evento com o botão ⚡ e os cenários têm **eventos programados** em instantes fixos (ex.: *abre a venda*). Os eventos aparecem na aba **Eventos** e como marcas tracejadas nos gráficos.
 
 | Evento | Efeito |
 |---|---|
@@ -222,7 +222,7 @@ O **caos** (*desligado, baixo, médio, alto* = ×0, ×1, ×3, ×8) define a taxa
 | Falha de nó | (Kubernetes Cluster) um nó de trabalho pronto morre com seus pods (≈ ⌈pods ÷ nós⌉, distribuídos entre os serviços); quem chama continua mandando requisições a eles até perceber (min(detecção, 40 s)); os pods perdidos são recriados após 40 s, Pending se não houver espaço; o nó volta quando o evento termina (2–5 min) |
 | Falha do primário | (DB Cluster) o primário de um shard morre: suas escritas falham durante o tempo de failover (suas leituras também, se vão ao primário), depois um seguidor é promovido e o shard fica com um nó a menos por 120 s; com replicação `async` as escritas dentro do atraso se perdem; sem seguidores o shard fica fora por 120 s |
 
-*Falha de nó* e *Falha do primário* só se aplicam a um Kubernetes Cluster e a um DB Cluster: projetos sem esses componentes nunca os sorteiam, e sua sequência de eventos aleatórios não muda. Um DB Cluster nunca tem *Queda de réplica*: suas falhas são falhas do primário.
+*Falha de nó* e *Falha do primário* só se aplicam a um Kubernetes Cluster e a um DB Cluster: projetos sem esses componentes nunca os sorteiam e sua sequência de eventos aleatórios não muda. Um DB Cluster nunca tem *Queda de réplica*: suas falhas são falhas do primário.
 
 ## Metas e o relatório do teste
 
@@ -239,7 +239,7 @@ Os componentes de observabilidade mudam o que você consegue ver, como na vida r
 - **Tracing**: habilita a aba **Trace**, uma cascata da requisição amostrada mais lenta (espera na fila hachurada).
 - **Health Check**: a detecção de falhas por balanceadores e DNS cai de 30 s para 3 s.
 - **Alerting** (ligado ao Metrics): reduz pela metade o tempo de reparo de uma réplica que caiu.
-- **Service Registry**: todo chamador de um serviço registrado — balanceador ou chamada direta — descarta uma réplica morta em 3 s, e pods novos recebem tráfego sem os 10 s de espera pelos endpoints.
+- **Service Registry**: todo chamador de um serviço registrado — balanceador ou chamada direta — descarta uma réplica morta em 3 s e pods novos recebem tráfego sem os 10 s de espera pelos endpoints.
 - **Service Mesh**: os serviços ligados a ele ganham +1 ms por chamada e timeouts, retries com backoff e circuit breakers por padrão; com o Metrics ligado ao mesh, todo serviço anexado é medido.
 
 ## Atalhos de teclado
@@ -306,8 +306,8 @@ Escreva uma instrução curta *Experimente* antes de cada simulador: o que mudar
 
 ## Limitações
 
-- É um **modelo fluido com traces amostrados**, não um simulador de pacotes: as filas guardam *taxas*, e os percentis vêm de cerca de 400 requisições amostradas por segundo simulado. Eventos muito raros (p99,99) não são resolvidos.
+- É um **modelo fluido com traces amostrados**, não um simulador de pacotes: as filas guardam *taxas* e os percentis vêm de cerca de 400 requisições amostradas por segundo simulado. Eventos muito raros (p99,99) não são resolvidos.
 - As requisições são independentes; não há sessões, transações nem locks (reservas de estoque são discutidas nas aulas, não simuladas).
-- Um cluster Kubernetes é uma contagem de vagas (nós × pods por nó): não há encaixe por CPU e memória, regras de afinidade nem pod disruption budgets, e os pods se espalham por igual entre os nós.
+- Um cluster Kubernetes é uma contagem de vagas (nós × pods por nó): não há encaixe por CPU e memória, regras de afinidade nem pod disruption budgets e os pods se espalham por igual entre os nós.
 - A latência de rede entre usuários e o sistema não é somada (a latência mostrada é do lado servidor), exceto os +70 ms de chamadas entre regiões e +1 ms por salto num service mesh.
 - Capacidades e preços são números redondos ilustrativos. Quando o playground e um teste de carga discordarem, confie no teste de carga — e descubra por quê.

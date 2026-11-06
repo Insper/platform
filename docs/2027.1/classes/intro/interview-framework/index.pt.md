@@ -1,5 +1,5 @@
 
-*"Projete um sistema de venda de ingressos como a BoxOffice. Você tem 45 minutos."* O enunciado tem uma frase de propósito. Não existe uma única resposta correta, nem uma bateria de testes escondida, e o entrevistador não vai dizer o que fazer em seguida. O que ele avalia é **como você sai de uma frase vaga e chega a um design defensável**: as perguntas que você faz, os números que estima, a estrutura que impõe e como raciocina sobre trade-offs quando ele contesta[^1].
+*"Projete um sistema de venda de ingressos como a BoxOffice. Você tem 45 minutos."* O enunciado tem uma frase de propósito. Não existe uma única resposta correta, nem uma bateria de testes escondida e o entrevistador não vai dizer o que fazer em seguida. O que ele avalia é **como você sai de uma frase vaga e chega a um design defensável**: as perguntas que você faz, os números que estima, a estrutura que impõe e como raciocina sobre trade-offs quando ele contesta[^1].
 
 Sem um método, 45 minutos somem rápido: 20 minutos no esquema do banco e depois o pânico para desenhar o resto. Esta página apresenta um **método de sete passos** com orçamento de tempo, aplica-o de ponta a ponta à BoxOffice e lista o que os entrevistadores procuram em cada passo. O mesmo método é útil fora das entrevistas — ele é o esqueleto de uma boa revisão de design ou de um documento de design.
 
@@ -155,9 +155,9 @@ flowchart LR
     |---|---|---|
     | Lock pessimista | `SELECT … FOR UPDATE` nas linhas dos lugares, dentro de uma transação | simples e correto; os locks formam fila sob disputa |
     | **Update condicional** (otimista) | um único `UPDATE … WHERE status = 'FREE'` atômico; conferir o número de linhas | sem locks longos; quem perde apenas tenta outros lugares |
-    | Lock distribuído (Redis) | lock por lugar no Redis, depois escrita no SQL | componente extra, e dois sistemas precisam concordar — evite quando o banco consegue fazer sozinho |
+    | Lock distribuído (Redis) | lock por lugar no Redis, depois escrita no SQL | componente extra e dois sistemas precisam concordar — evite quando o banco consegue fazer sozinho |
 
-    *Escolha*: update condicional no banco do inventário — o banco é a fonte única da verdade, e o verificar-e-gravar é uma única instrução atômica:
+    *Escolha*: update condicional no banco do inventário — o banco é a fonte única da verdade e o verificar-e-gravar é uma única instrução atômica:
 
     ```sql
     UPDATE seat
@@ -172,7 +172,7 @@ flowchart LR
 
 !!! example "BoxOffice — aprofundamento 2: o pico das 10:00"
 
-    A sala de espera admite fãs no ritmo que o inventário aguenta. Se uma reserva leva 5 ms de tempo de banco num evento quente e o banco roda ~8 delas em paralelo de forma produtiva, o inventário conclui cerca de 8 / 0,005 = **1.600 reservas/s** a plena utilização — digamos **~1.000/s** para manter a latência baixa (a aula 2 explica por quê). Com ~2 lugares por fã, 60 mil lugares precisam de ~30 mil fãs bem-sucedidos: cerca de **30 s** de admissões. Os outros ~2 M de fãs esperam na fila, e a sala de espera avisa o quanto antes que os ingressos esgotaram. A página do evento é pré-aquecida no cache e na CDN *antes* das 10:00 para evitar um estouro de cache frio.
+    A sala de espera admite fãs no ritmo que o inventário aguenta. Se uma reserva leva 5 ms de tempo de banco num evento quente e o banco roda ~8 delas em paralelo de forma produtiva, o inventário conclui cerca de 8 / 0,005 = **1.600 reservas/s** a plena utilização — digamos **~1.000/s** para manter a latência baixa (a aula 2 explica por quê). Com ~2 lugares por fã, 60 mil lugares precisam de ~30 mil fãs bem-sucedidos: cerca de **30 s** de admissões. Os outros ~2 M de fãs esperam na fila e a sala de espera avisa o quanto antes que os ingressos esgotaram. A página do evento é pré-aquecida no cache e na CDN *antes* das 10:00 para evitar um estouro de cache frio.
 
 !!! example "BoxOffice — aprofundamento 3: pagar exatamente uma vez"
 
@@ -212,7 +212,7 @@ A estrutura acima é necessária, mas não suficiente. Estes hábitos fazem a di
 
 !!! tip "Na entrevista"
 
-    Memorize os sete passos e seu orçamento de tempo, e **diga-os em voz alta no começo**: "Vou esclarecer os requisitos, fazer algumas estimativas rápidas, esboçar a API e os dados, desenhar um design de alto nível, depois me aprofundar nas partes mais difíceis e discutir gargalos." O entrevistador sabe na hora que você tem um plano — e você tem uma lista de verificação para quando o nervosismo bater.
+    Memorize os sete passos e seu orçamento de tempo e **diga-os em voz alta no começo**: "Vou esclarecer os requisitos, fazer algumas estimativas rápidas, esboçar a API e os dados, desenhar um design de alto nível, depois me aprofundar nas partes mais difíceis e discutir gargalos." O entrevistador sabe na hora que você tem um plano — e você tem uma lista de verificação para quando o nervosismo bater.
 
 ### Praticando com o playground { #practising-with-the-playground }
 
@@ -221,7 +221,7 @@ O [playground](../../../../playground/index.md) é um bom parceiro de treino par
 !!! success "Boas práticas"
 
     - **Mantenha os requisitos e os números num canto do quadro, visíveis até o fim** — toda decisão seguinte é conferida contra eles, em voz alta.
-    - **Pratique com cronômetro e um colega toda semana, e troquem de papel** — fazer o entrevistador ensina como soa uma resposta clara e dentro do tempo.
+    - **Pratique com cronômetro e um colega toda semana e troquem de papel** — fazer o entrevistador ensina como soa uma resposta clara e dentro do tempo.
     - **Ensaie três designs de referência até cada um caber em 10 minutos** — um feed com muita leitura, um sistema de ingressos com pico, um chat; a maioria dos problemas reusa os seus blocos. Na BoxOffice: o [estudo de caso de venda de ingressos](../../case-studies/ticketing/index.md).
     - **Confira no playground um design que você desenhou** — ponha seus números num cenário e veja se as metas passam; uma meta reprovada é o aprofundamento que faltou. Experimente o cenário `flash-sale`.
     - **Depois de cada simulado, anote uma decisão que você não conseguiu justificar com um número** — e vá atrás do número; essa lista é o seu plano de estudo.

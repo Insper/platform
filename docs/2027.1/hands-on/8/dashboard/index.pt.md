@@ -60,7 +60,7 @@ Três hábitos fazem a diferença:
 
     O Prometheus do `otel-lgtm` guarda **exemplars**: alguns trace ids de amostra presos aos buckets
     do histograma. No painel Duration, ative *Exemplars* nas opções da consulta; os losangos no gráfico
-    são requisições reais, e clicar em um abre o seu trace no Tempo. É o caminho mais curto de "o p99
+    são requisições reais e clicar em um abre o seu trace no Tempo. É o caminho mais curto de "o p99
     subiu" para "este comando SQL está lento".
 
 ## Exercício: veja um gargalo aparecer { #exercise-watch-a-bottleneck-appear }

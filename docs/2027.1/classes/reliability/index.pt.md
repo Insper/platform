@@ -1,4 +1,4 @@
-São 10:02, dois minutos depois da abertura de vendas do estádio. O BoxOffice está aguentando: a sala de espera admite fãs em ritmo constante, o `inventory` está a 60% da sua capacidade. Então o provedor externo de pagamento começa a responder em **4 segundos em vez de 200 ms**. Em um minuto, o `order` fica sem threads livres; o gateway, esperando pelo `order`, também; e fãs que só queriam *navegar* pelo catálogo recebem erros. Nada no BoxOffice está quebrado — nenhum bug, nenhum crash, nenhum disco cheio. O sistema simplesmente não tinha defesa contra uma dependência lenta, e a lentidão se espalhou até derrubar tudo.
+São 10:02, dois minutos depois da abertura de vendas do estádio. O BoxOffice está aguentando: a sala de espera admite fãs em ritmo constante, o `inventory` está a 60% da sua capacidade. Então o provedor externo de pagamento começa a responder em **4 segundos em vez de 200 ms**. Em um minuto, o `order` fica sem threads livres; o gateway, esperando pelo `order`, também; e fãs que só queriam *navegar* pelo catálogo recebem erros. Nada no BoxOffice está quebrado — nenhum bug, nenhum crash, nenhum disco cheio. O sistema simplesmente não tinha defesa contra uma dependência lenta e a lentidão se espalhou até derrubar tudo.
 
 Esta aula é sobre construir essas defesas e sobre decidir **com números** quanta falha é aceitável. **Confiabilidade** é a probabilidade de um sistema executar a função exigida sem falhar, em condições definidas, por um período definido[^1]. Em sistemas distribuídos essa definição cobre muito mais que hardware: bugs de software, dependências sobrecarregadas, partições de rede, deploys ruins, data centers perdidos e erros de operação.
 
@@ -6,7 +6,7 @@ Um sistema confiável não é aquele que nunca falha. É aquele que **falha de f
 
 !!! quote "A história até aqui"
 
-    Capítulo 10 da [história do curso](../../index.md#story). O BoxOffice espalha a multidão das 10:00 por réplicas stateless ([aula 4](../edge/index.md), [aula 5](../compute/index.md)), vende cada assento uma única vez ([aula 6](../databases/index.md)), responde leituras de um cache ([aula 7](../caching/index.md)) e admite fãs por uma sala de espera ([aula 8](../messaging/index.md)); a [aula 9](../observability/index.md) o tornou visível, com um SLO por jornada e um trace por checkout. Agora o trace mostra o problema: o provedor de pagamento responde em segundos em vez de milissegundos, e nada no BoxOffice está quebrado. **Esta aula** responde: como impedir que uma dependência lenta derrube tudo, e quanta redundância o SLO nos pede para comprar?
+    Capítulo 10 da [história do curso](../../index.md#story). O BoxOffice espalha a multidão das 10:00 por réplicas stateless ([aula 4](../edge/index.md), [aula 5](../compute/index.md)), vende cada assento uma única vez ([aula 6](../databases/index.md)), responde leituras de um cache ([aula 7](../caching/index.md)) e admite fãs por uma sala de espera ([aula 8](../messaging/index.md)); a [aula 9](../observability/index.md) o tornou visível, com um SLO por jornada e um trace por checkout. Agora o trace mostra o problema: o provedor de pagamento responde em segundos em vez de milissegundos e nada no BoxOffice está quebrado. **Esta aula** responde: como impedir que uma dependência lenta derrube tudo e quanta redundância o SLO nos pede para comprar?
 
 !!! abstract "Objetivos de aprendizagem"
 
@@ -62,7 +62,7 @@ $$
 
     Recuperar mais rápido foi o ganho maior — e muito mais barato que nunca falhar.
 
-O trabalho de confiabilidade puxa uma de duas alavancas. **Aumentar o MTTF** (menos falhas): testes, revisão de código, redundância, projeto tolerante a falhas, deploys cuidadosos. **Reduzir o MTTR** (recuperação mais rápida): bons alertas, dashboards e traces, runbooks, reinícios e failover automáticos, rollbacks rápidos. Em sistemas modernos o MTTR costuma ser a alavanca mais barata, e o próprio MTTR é uma soma — **tempo para detectar + tempo para diagnosticar + tempo para corrigir** — cada parcela atacada por uma prática diferente (veja [Observabilidade](../observability/index.md)).
+O trabalho de confiabilidade puxa uma de duas alavancas. **Aumentar o MTTF** (menos falhas): testes, revisão de código, redundância, projeto tolerante a falhas, deploys cuidadosos. **Reduzir o MTTR** (recuperação mais rápida): bons alertas, dashboards e traces, runbooks, reinícios e failover automáticos, rollbacks rápidos. Em sistemas modernos o MTTR costuma ser a alavanca mais barata e o próprio MTTR é uma soma — **tempo para detectar + tempo para diagnosticar + tempo para corrigir** — cada parcela atacada por uma prática diferente (veja [Observabilidade](../observability/index.md)).
 
 ### Os "noves" { #the-nines }
 
@@ -76,7 +76,7 @@ Metas de disponibilidade são expressas em número de "noves". A tabela mostra a
 | 99,99% ("quatro noves") | 52,6 minutos | 4,38 minutos | 4,03 minutos | 1,01 minuto |
 | 99,999% ("cinco noves") | 5,26 minutos | 26,3 segundos | 24,2 segundos | 6,05 segundos |
 
-Cada nove a mais é **10× menos indisponibilidade**, e não é uma melhoria incremental: muda a forma de operar. Com três noves, uma pessoa pode ser acionada, abrir o notebook e fazer rollback. Com quatro noves, o orçamento do mês inteiro é menor que o tempo de acordar; detecção e recuperação precisam ser automáticas. Com cinco noves, até o failover automático precisa terminar em segundos, e um único deploy ruim pode gastar o orçamento do ano.
+Cada nove a mais é **10× menos indisponibilidade** e não é uma melhoria incremental: muda a forma de operar. Com três noves, uma pessoa pode ser acionada, abrir o notebook e fazer rollback. Com quatro noves, o orçamento do mês inteiro é menor que o tempo de acordar; detecção e recuperação precisam ser automáticas. Com cinco noves, até o failover automático precisa terminar em segundos e um único deploy ruim pode gastar o orçamento do ano.
 
 !!! warning "Sempre diga a janela"
     "99,9%" sozinho é ambíguo: 43,8 minutos em um mês de calendário, 40,3 minutos em uma janela de 28 dias. Sempre que citar disponibilidade, diga em qual janela — e se ela conta tempo ou requisições (veja [SLOs](../observability/slo/index.md)).
@@ -85,7 +85,7 @@ Cada nove a mais é **10× menos indisponibilidade**, e não é uma melhoria inc
 
 ## Disponibilidade composta { #composite-availability }
 
-Uma requisição atravessa muitos componentes, e a disponibilidade que o usuário vê depende de como eles se combinam[^2]. Duas regras cobrem quase todos os casos (veja também [Matemática da disponibilidade](../estimation/availability-math/index.md)).
+Uma requisição atravessa muitos componentes e a disponibilidade que o usuário vê depende de como eles se combinam[^2]. Duas regras cobrem quase todos os casos (veja também [Matemática da disponibilidade](../estimation/availability-math/index.md)).
 
 === "Em série (todos são necessários)"
 
@@ -95,7 +95,7 @@ Uma requisição atravessa muitos componentes, e a disponibilidade que o usuári
     A_{\text{series}} = A_1 \times A_2 \times \cdots \times A_n
     $$
 
-    Três serviços com 99,9% cada dão $0.999^3 \approx 99.7\%$. A cadeia é pior que seu elo mais fraco, e **cada dependência síncrona adicionada baixa o teto**. Um serviço nunca pode prometer mais disponibilidade que o produto das dependências que ele chama de forma síncrona.
+    Três serviços com 99,9% cada dão $0.999^3 \approx 99.7\%$. A cadeia é pior que seu elo mais fraco e **cada dependência síncrona adicionada baixa o teto**. Um serviço nunca pode prometer mais disponibilidade que o produto das dependências que ele chama de forma síncrona.
 
 === "Em paralelo (qualquer um basta)"
 
@@ -162,7 +162,7 @@ plt.close()
 Lendo o gráfico de cima para baixo:
 
 - Com **uma instância de tudo**, os três serviços com 99,5% dominam: cerca de 98,3%, mais de 12 horas por mês sem compras.
-- **Três réplicas** dos serviços sem estado os tornam praticamente perfeitos, e o gargalo passa para os componentes que *não* são replicados: o banco de dados e o provedor externo de pagamento.
+- **Três réplicas** dos serviços sem estado os tornam praticamente perfeitos e o gargalo passa para os componentes que *não* são replicados: o banco de dados e o provedor externo de pagamento.
 - **Failover automático do banco** (um standby em outra zona) e um **segundo provedor de pagamento** atacam esses dois. Cada passo remove o elo mais fraco do momento — e o próximo mais fraco fica visível.
 
 ``` diagram-sim
@@ -198,7 +198,7 @@ Redundância só ajuda se o tráfego realmente sair do componente que falhou —
 Duas regras fazem a redundância funcionar:
 
 - **Capacidade N + 1 (ou N + 2).** Se a flash sale precisa de 6 réplicas do `order`, rode 7 ou 8: depois de perder uma (ou durante um deploy rolling), as restantes ainda precisam aguentar o pico. Com réplicas espalhadas em **3 zonas de disponibilidade**, perder uma zona inteira remove um terço da capacidade — planeje para isso.
-- **Sem estado sempre que possível.** Serviços sem estado fazem failover de forma trivial. O estado (bancos, caches, filas) precisa de replicação, e a replicação traz as perguntas difíceis: síncrona ou assíncrona, quantos dados podem se perder, e como evitar dois primários ao mesmo tempo (**split brain**; veja [Consenso](../distributed/consensus/index.md)). A página de [recuperação de desastres](disaster-recovery/index.md) trata do failover entre regiões.
+- **Sem estado sempre que possível.** Serviços sem estado fazem failover de forma trivial. O estado (bancos, caches, filas) precisa de replicação e a replicação traz as perguntas difíceis: síncrona ou assíncrona, quantos dados podem se perder e como evitar dois primários ao mesmo tempo (**split brain**; veja [Consenso](../distributed/consensus/index.md)). A página de [recuperação de desastres](disaster-recovery/index.md) trata do failover entre regiões.
 
 !!! info "Zonas de disponibilidade e regiões"
     Uma **zona de disponibilidade** (AZ) é um ou mais data centers com energia, refrigeração e rede independentes, a alguns quilômetros das outras zonas da mesma **região**; a latência entre zonas é de cerca de um milissegundo. Espalhar réplicas entre zonas protege contra a falha de um data center a um custo de latência quase nulo. Espalhar entre **regiões** (a centenas ou milhares de quilômetros) protege contra um desastre regional, mas toda chamada síncrona entre regiões custa dezenas de milissegundos.
@@ -207,7 +207,7 @@ Duas regras fazem a redundância funcionar:
 
 ## Modos de falha { #failure-modes }
 
-Sistemas distribuídos falham de formas que uma máquina sozinha não falha. **Falhas parciais** — alguns componentes funcionam e outros não — são muito mais comuns que indisponibilidades totais, e mais difíceis de tratar.
+Sistemas distribuídos falham de formas que uma máquina sozinha não falha. **Falhas parciais** — alguns componentes funcionam e outros não — são muito mais comuns que indisponibilidades totais e mais difíceis de tratar.
 
 | Classe de falha | Características | Estratégia de tratamento |
 |---|---|---|
@@ -218,7 +218,7 @@ Sistemas distribuídos falham de formas que uma máquina sozinha não falha. **F
 | **Bizantina / incorreta** | Devolve dados errados sem cair (bit flips, cache corrompido, bug) | Checksums, validação, reconciliação |
 | **Correlacionada** | Muitos componentes falham juntos (deploy ruim, certificado expirado, queda de zona) | Rollouts graduais, diversidade, multi-zona, testes de caos |
 
-A mais perigosa delas não é o crash, e sim o componente **lento**. Uma dependência que caiu responde na hora — com um erro de conexão — e quem chamou segue em frente. Uma dependência lenta segura os recursos de quem chamou enquanto pensa. Quem chama não consegue distinguir lento de morto (veja [Sistemas distribuídos](../distributed/index.md)), então, sem um prazo, espera.
+A mais perigosa delas não é o crash e sim o componente **lento**. Uma dependência que caiu responde na hora — com um erro de conexão — e quem chamou segue em frente. Uma dependência lenta segura os recursos de quem chamou enquanto pensa. Quem chama não consegue distinguir lento de morto (veja [Sistemas distribuídos](../distributed/index.md)), então, sem um prazo, espera.
 
 ### Falhas em cascata { #cascading-failures }
 

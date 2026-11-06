@@ -93,7 +93,7 @@ Projete um serviço como o bit.ly. Usuários enviam uma URL longa e recebem uma 
 **Esclareça primeiro.**
 
 - Aliases personalizados? Expiração? Um link pode ser editado ou apagado?
-- Precisamos de analytics de cliques, e quão atualizados?
+- Precisamos de analytics de cliques e quão atualizados?
 - A mesma URL longa sempre gera o mesmo código curto?
 
 **Conceitos-chave.**
@@ -117,7 +117,7 @@ Projete um serviço como o bit.ly. Usuários enviam uma URL longa e recebem uma 
 
 #### 2. Pastebin { #pastebin }
 
-Projete um serviço em que usuários colam um bloco de texto (até 1 MB) e recebem um link para compartilhá-lo. Os textos podem ser públicos ou não listados e podem expirar. Suponha 1 milhão de textos novos por dia, 10 leituras por texto em média, e que alguns viralizam (compartilhados em redes sociais) e recebem milhões de leituras.
+Projete um serviço em que usuários colam um bloco de texto (até 1 MB) e recebem um link para compartilhá-lo. Os textos podem ser públicos ou não listados e podem expirar. Suponha 1 milhão de textos novos por dia, 10 leituras por texto em média e que alguns viralizam (compartilhados em redes sociais) e recebem milhões de leituras.
 
 **Esclareça primeiro.**
 
@@ -174,7 +174,7 @@ Projete o ranking de um jogo para celular com 20 milhões de jogadores por mês.
 
 #### 4. Catálogo de eventos do BoxOffice { #event-catalog }
 
-Projete o catálogo de eventos do BoxOffice: páginas de shows, jogos e festivais com descrição, local, datas, preços e imagens. 50.000 eventos ativos, 5 milhões de visualizações por dia num dia normal, e até 200 vezes isso na manhã de uma grande abertura de vendas. Os produtores editam os eventos algumas vezes por dia.
+Projete o catálogo de eventos do BoxOffice: páginas de shows, jogos e festivais com descrição, local, datas, preços e imagens. 50.000 eventos ativos, 5 milhões de visualizações por dia num dia normal e até 200 vezes isso na manhã de uma grande abertura de vendas. Os produtores editam os eventos algumas vezes por dia.
 
 **Esclareça primeiro.**
 
@@ -205,7 +205,7 @@ Projete o catálogo de eventos do BoxOffice: páginas de shows, jogos e festivai
 
 #### 5. Rate limiter distribuído { #rate-limiter }
 
-Projete o rate limiter do API gateway do BoxOffice. Cada usuário pode fazer no máximo 10 requisições por segundo à API de compra (rajadas de 20 permitidas), e cada chave de API de parceiro no máximo 1.000 por minuto. O gateway roda com 30 réplicas atrás de um load balancer e atende 200.000 requisições por segundo no pico.
+Projete o rate limiter do API gateway do BoxOffice. Cada usuário pode fazer no máximo 10 requisições por segundo à API de compra (rajadas de 20 permitidas) e cada chave de API de parceiro no máximo 1.000 por minuto. O gateway roda com 30 réplicas atrás de um load balancer e atende 200.000 requisições por segundo no pico.
 
 **Esclareça primeiro.**
 
@@ -233,7 +233,7 @@ Projete o rate limiter do API gateway do BoxOffice. Cada usuário pode fazer no 
 
 #### 6. Gerador de IDs únicos { #unique-id-generator }
 
-O BoxOffice precisa de ids únicos de 64 bits para pedidos, ingressos e eventos, gerados por 200 instâncias de serviço em 3 regiões, até 100.000 ids por segundo no total. Os ids devem ser aproximadamente ordenáveis pela data de criação, e gerar um não pode exigir uma chamada de rede a um serviço central a cada requisição.
+O BoxOffice precisa de ids únicos de 64 bits para pedidos, ingressos e eventos, gerados por 200 instâncias de serviço em 3 regiões, até 100.000 ids por segundo no total. Os ids devem ser aproximadamente ordenáveis pela data de criação e gerar um não pode exigir uma chamada de rede a um serviço central a cada requisição.
 
 **Esclareça primeiro.**
 
@@ -261,7 +261,7 @@ O BoxOffice precisa de ids únicos de 64 bits para pedidos, ingressos e eventos,
 
 #### 7. Serviço de feature flags { #feature-flags }
 
-Projete um serviço de feature flags para os 40 serviços do BoxOffice: engenheiros ligam ou desligam funcionalidades e as liberam para uma porcentagem de usuários ou para segmentos específicos ("5% dos usuários no Brasil"). Cada requisição pode avaliar várias flags, então a avaliação não pode acrescentar praticamente nenhuma latência, e uma mudança precisa chegar a todos os serviços em até 10 segundos.
+Projete um serviço de feature flags para os 40 serviços do BoxOffice: engenheiros ligam ou desligam funcionalidades e as liberam para uma porcentagem de usuários ou para segmentos específicos ("5% dos usuários no Brasil"). Cada requisição pode avaliar várias flags, então a avaliação não pode acrescentar praticamente nenhuma latência e uma mudança precisa chegar a todos os serviços em até 10 segundos.
 
 **Esclareça primeiro.**
 
@@ -591,7 +591,7 @@ O BoxOffice quer uma lista "em alta agora": os 50 eventos mais vistos e mais com
 
 #### 18. Agregação de cliques em anúncios { #ad-click-aggregation }
 
-Projete o sistema que conta cliques em anúncios para cobrar os anunciantes: 10 bilhões de cliques por dia, pico de 500.000 por segundo. Os anunciantes veem dashboards por minuto com atraso de poucos minutos, e as faturas no fim do mês precisam ser exatas: nenhum clique contado duas vezes, nenhum perdido.
+Projete o sistema que conta cliques em anúncios para cobrar os anunciantes: 10 bilhões de cliques por dia, pico de 500.000 por segundo. Os anunciantes veem dashboards por minuto com atraso de poucos minutos e as faturas no fim do mês precisam ser exatas: nenhum clique contado duas vezes, nenhum perdido.
 
 **Esclareça primeiro.**
 
@@ -625,7 +625,7 @@ Projete o logging centralizado do BoxOffice: 300 instâncias de serviço produzi
 **Esclareça primeiro.**
 
 - Os logs já são estruturados (JSON), ou texto livre?
-- Quais campos precisam ser pesquisáveis, e é preciso busca de texto completo?
+- Quais campos precisam ser pesquisáveis e é preciso busca de texto completo?
 - Há dados pessoais nos logs que precisam ser mascarados?
 
 **Conceitos-chave.**
@@ -680,7 +680,7 @@ Projete uma plataforma de métricas (como um Prometheus + Grafana simplificado o
 
 #### 21. Chat (WhatsApp / Slack) { #chat }
 
-Projete um serviço de chat com conversas individuais e em grupo (até 500 membros), presença online e confirmações de entrega/leitura. 50 milhões de usuários por dia, 40 mensagens por usuário por dia, e mensagens entregues em até um segundo para usuários online; usuários offline as recebem ao reconectar.
+Projete um serviço de chat com conversas individuais e em grupo (até 500 membros), presença online e confirmações de entrega/leitura. 50 milhões de usuários por dia, 40 mensagens por usuário por dia e mensagens entregues em até um segundo para usuários online; usuários offline as recebem ao reconectar.
 
 **Esclareça primeiro.**
 
@@ -724,7 +724,7 @@ Durante a transmissão ao vivo de um festival pelo BoxOffice, 1 milhão de espec
 - [Timeouts, retries, circuit breakers e descarte de carga](../../../classes/reliability/patterns/index.md)
 - Catálogo: [Pub/Sub](../../../reference/components/messaging/index.md#pubsub) · [Load Balancer](../../../reference/components/edge/index.md#lb) · [App Server](../../../reference/components/compute/index.md#app) · [Cache](../../../reference/components/storage/index.md#cache) · [Kafka](../../../reference/components/messaging/index.md#kafka)
 
-**Cuidado com.** Transmitir 20.000 comentários/s para 1 M de espectadores dá 2 × 10¹⁰ mensagens/s; ninguém consegue ler isso. Amostre ou limite o que cada espectador recebe, e agregue as reações em contagens.
+**Cuidado com.** Transmitir 20.000 comentários/s para 1 M de espectadores dá 2 × 10¹⁰ mensagens/s; ninguém consegue ler isso. Amostre ou limite o que cada espectador recebe e agregue as reações em contagens.
 
 **Pratique.** Estudo de caso: ainda sem estudo de caso — compare com [Chat](../../../classes/case-studies/chat/index.md) · Cenário do playground: [`chat`](../../../../playground/scenarios/index.md#chat) (websockets e pub/sub)
 
@@ -917,7 +917,7 @@ Projete uma CDN para as imagens, scripts e páginas de eventos do BoxOffice: 100
 
 ## Difícil { #hard }
 
-Disputa, dinheiro, tempo real ou mídia em escala: o design ingênuo falha, e é no aprofundamento que a entrevista se decide.
+Disputa, dinheiro, tempo real ou mídia em escala: o design ingênuo falha e é no aprofundamento que a entrevista se decide.
 
 ### Dinheiro e consistência { #money-consistency }
 
@@ -929,7 +929,7 @@ O exemplo que acompanha o curso. Um show num estádio abre as vendas sábado às
 
 - Escolha de assento ou "melhor disponível"? Limite de ingressos por fã?
 - Uma sala de espera virtual é aceitável para o negócio?
-- Quanto dura a reserva, e o que acontece quando o pagamento falha?
+- Quanto dura a reserva e o que acontece quando o pagamento falha?
 
 **Conceitos-chave.**
 
@@ -1056,7 +1056,7 @@ Projete o checkout de uma loja online na Black Friday: 5.000 pedidos por segundo
 - [Webhooks, chaves de idempotência e conciliação](../../../classes/compute/integrations/index.md)
 - Catálogo: [App Server](../../../reference/components/compute/index.md#app) · [SQL Database](../../../reference/components/storage/index.md#sql) · [Kafka](../../../reference/components/messaging/index.md#kafka) · [Payment](../../../reference/components/external/index.md#payment) · [Message Queue](../../../reference/components/messaging/index.md#queue)
 
-**Cuidado com.** Uma transação distribuída (two-phase commit) entre serviços e um provedor externo não está disponível ou não é viável; você precisa de uma saga com compensações, e cada passo precisa ser idempotente, porque as mensagens são entregues pelo menos uma vez.
+**Cuidado com.** Uma transação distribuída (two-phase commit) entre serviços e um provedor externo não está disponível ou não é viável; você precisa de uma saga com compensações e cada passo precisa ser idempotente, porque as mensagens são entregues pelo menos uma vez.
 
 **Pratique.** Estudo de caso: [Sistema de pagamentos](../../../classes/case-studies/payment-system/index.md) · Cenário do playground: [`payment-system`](../../../../playground/scenarios/index.md#payment-system) (idempotência e um provedor externo)
 
@@ -1069,7 +1069,7 @@ Projete o checkout de uma loja online na Black Friday: 5.000 pedidos por segundo
 
 #### 34. Carteira digital { #digital-wallet }
 
-O BoxOffice lança uma carteira: os fãs mantêm um saldo (créditos de reembolsos, vales-presente), pagam ingressos com ele e transferem créditos para amigos. 10 milhões de carteiras, 5.000 transações por segundo no pico. Os saldos nunca podem ficar negativos nem divergir, e todo movimento precisa ser auditável por anos.
+O BoxOffice lança uma carteira: os fãs mantêm um saldo (créditos de reembolsos, vales-presente), pagam ingressos com ele e transferem créditos para amigos. 10 milhões de carteiras, 5.000 transações por segundo no pico. Os saldos nunca podem ficar negativos nem divergir e todo movimento precisa ser auditável por anos.
 
 **Esclareça primeiro.**
 
@@ -1205,7 +1205,7 @@ Projete uma plataforma de vídeo: criadores enviam vídeos (500 MB em média), e
 - [Números para estimativas](../../../classes/estimation/numbers/index.md)
 - Catálogo: [Object Store](../../../reference/components/storage/index.md#objstore) · [CDN](../../../reference/components/edge/index.md#cdn) · [Message Queue](../../../reference/components/messaging/index.md#queue) · [Worker](../../../reference/components/compute/index.md#worker) · [NoSQL DB](../../../reference/components/storage/index.md#nosql)
 
-**Cuidado com.** A banda, e não as requisições por segundo, domina: servir vídeo dos próprios servidores é impossível nessa escala; a CDN serve os segmentos. A transcodificação é trabalho em lote lento e paralelizável, nunca dentro da requisição de envio.
+**Cuidado com.** A banda e não as requisições por segundo domina: servir vídeo dos próprios servidores é impossível nessa escala; a CDN serve os segmentos. A transcodificação é trabalho em lote lento e paralelizável, nunca dentro da requisição de envio.
 
 **Pratique.** Estudo de caso: [Streaming de vídeo](../../../classes/case-studies/video-streaming/index.md) · Cenário do playground: [`video-streaming`](../../../../playground/scenarios/index.md#video-streaming) (object store, CDN e transcodificação)
 
@@ -1218,7 +1218,7 @@ Projete uma plataforma de vídeo: criadores enviam vídeos (500 MB em média), e
 
 #### 39. Sincronização de arquivos (Dropbox / Google Drive) { #file-sync }
 
-Projete um serviço de armazenamento e sincronização de arquivos: usuários mantêm pastas sincronizadas entre notebook, celular e web; arquivos de até 10 GB; 50 milhões de usuários com 10 GB cada em média. Edições num dispositivo devem aparecer nos outros em segundos, e edições offline precisam ser mescladas ou marcadas como conflito.
+Projete um serviço de armazenamento e sincronização de arquivos: usuários mantêm pastas sincronizadas entre notebook, celular e web; arquivos de até 10 GB; 50 milhões de usuários com 10 GB cada em média. Edições num dispositivo devem aparecer nos outros em segundos e edições offline precisam ser mescladas ou marcadas como conflito.
 
 **Esclareça primeiro.**
 
@@ -1278,13 +1278,13 @@ Projete a busca de texto completo nos posts de uma rede social: 500 milhões de 
 
 #### 41. Assistente de suporte com IA do BoxOffice { #ai-assistant }
 
-Projete o assistente de IA do BoxOffice: os fãs fazem perguntas em linguagem natural ("posso pedir reembolso para sábado?", "troque meus ingressos para domingo"); ele responde a partir das políticas e dos dados dos eventos e pode agir sobre os pedidos do próprio fã. 5.000 conversas por minuto no pico antes de grandes shows; as respostas devem começar a aparecer em até 2 segundos, custar menos de alguns centavos por conversa, e o assistente nunca pode agir sobre o pedido de outra pessoa.
+Projete o assistente de IA do BoxOffice: os fãs fazem perguntas em linguagem natural ("posso pedir reembolso para sábado?", "troque meus ingressos para domingo"); ele responde a partir das políticas e dos dados dos eventos e pode agir sobre os pedidos do próprio fã. 5.000 conversas por minuto no pico antes de grandes shows; as respostas devem começar a aparecer em até 2 segundos, custar menos de alguns centavos por conversa e o assistente nunca pode agir sobre o pedido de outra pessoa.
 
 **Esclareça primeiro.**
 
 - Quais ações são permitidas (só leitura, reembolsos, trocas)? Com confirmação?
 - Transferência para um atendente humano?
-- Quais idiomas, e que dados podem ser enviados a um provedor de modelos?
+- Quais idiomas e que dados podem ser enviados a um provedor de modelos?
 
 **Conceitos-chave.**
 
@@ -1307,12 +1307,12 @@ Projete o assistente de IA do BoxOffice: os fãs fazem perguntas em linguagem na
 
 #### 42. Chatbot de documentação com RAG { #rag-chatbot }
 
-Projete um chatbot que responde às perguntas dos funcionários a partir da documentação interna de uma empresa: 2 milhões de documentos (wikis, PDFs, tickets) que mudam diariamente, 10.000 funcionários, 50 perguntas por segundo no pico. As respostas precisam citar as fontes, e um funcionário nunca pode ver conteúdo de documentos que não tem permissão para ler.
+Projete um chatbot que responde às perguntas dos funcionários a partir da documentação interna de uma empresa: 2 milhões de documentos (wikis, PDFs, tickets) que mudam diariamente, 10.000 funcionários, 50 perguntas por segundo no pico. As respostas precisam citar as fontes e um funcionário nunca pode ver conteúdo de documentos que não tem permissão para ler.
 
 **Esclareça primeiro.**
 
 - Quão atualizado o índice precisa estar depois que um documento muda?
-- De onde vêm as permissões, e com que frequência mudam?
+- De onde vêm as permissões e com que frequência mudam?
 - Um modelo hospedado é aceitável para esses dados, ou precisa ser auto-hospedado?
 
 **Conceitos-chave.**
@@ -1403,7 +1403,7 @@ Projete um armazenamento chave-valor distribuído (como o Dynamo ou o Cassandra)
 
 #### 45. Serviço de lock distribuído { #distributed-lock }
 
-Projete um serviço de locks e eleição de líder (como Chubby, ZooKeeper ou etcd) para os jobs internos do BoxOffice: clientes adquirem locks nomeados com leases, alguns milhares de operações de lock por segundo, e o serviço precisa continuar correto (nunca dois donos) mesmo quando nós caem ou a rede se particiona.
+Projete um serviço de locks e eleição de líder (como Chubby, ZooKeeper ou etcd) para os jobs internos do BoxOffice: clientes adquirem locks nomeados com leases, alguns milhares de operações de lock por segundo e o serviço precisa continuar correto (nunca dois donos) mesmo quando nós caem ou a rede se particiona.
 
 **Esclareça primeiro.**
 
@@ -1527,7 +1527,7 @@ Projete uma plataforma interna em que os times do BoxOffice constroem agentes de
 **Esclareça primeiro.**
 
 - Quem cria os agentes: engenheiros em código, ou configuração por não engenheiros?
-- Quais ferramentas têm efeitos colaterais, e quem aprova o uso delas?
+- Quais ferramentas têm efeitos colaterais e quem aprova o uso delas?
 - Tarefas longas precisam de etapas de aprovação humana?
 
 **Conceitos-chave.**
@@ -1569,7 +1569,7 @@ Projete o gateway pelo qual todos os serviços do BoxOffice chamam modelos de li
 - [Planejamento de capacidade](../../../classes/performance/capacity-planning/index.md)
 - Catálogo: [LLM Gateway](../../../reference/components/ai/index.md#llmgw) · [API Gateway](../../../reference/components/edge/index.md#apigw) · [Cache](../../../reference/components/storage/index.md#cache) · [Metrics](../../../reference/components/observability/index.md#metrics) · [3rd Party API](../../../reference/components/external/index.md#thirdparty)
 
-**Cuidado com.** A capacidade se mede em tokens, não em requisições: um prompt longo pode custar tanto quanto cem curtos. Rate limits e orçamentos por time precisam contar tokens, e o pool de GPUs auto-hospedado satura pelo número de tokens sendo gerados ao mesmo tempo, não por requisições por segundo.
+**Cuidado com.** A capacidade se mede em tokens, não em requisições: um prompt longo pode custar tanto quanto cem curtos. Rate limits e orçamentos por time precisam contar tokens e o pool de GPUs auto-hospedado satura pelo número de tokens sendo gerados ao mesmo tempo, não por requisições por segundo.
 
 **Pratique.** Estudo de caso: [Assistente de IA](../../../classes/case-studies/ai-assistant/index.md) · Cenário do playground: [`ai-assistant`](../../../../playground/scenarios/index.md#ai-assistant) (LLM gateway, agente, ferramentas, RAG, segurança)
 

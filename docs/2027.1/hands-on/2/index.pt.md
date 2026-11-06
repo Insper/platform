@@ -49,7 +49,7 @@ Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** a
 
 !!! info "Conexão com a teoria"
 
-    - Na [história da disciplina](../../index.md#story), este lab fecha o capítulo 2 e abre o capítulo 3: ele troca o tempo de serviço *suposto* na [verificação de capacidade](../../classes/estimation/index.md) da aula por um joelho *medido*, e mostra que uma instância sai da meta de latência com algumas centenas de requisições por segundo — longe da demanda da abertura de vendas; por isso o BoxOffice precisa de [mais máquinas](../../classes/distributed/index.md).
+    - Na [história da disciplina](../../index.md#story), este lab fecha o capítulo 2 e abre o capítulo 3: ele troca o tempo de serviço *suposto* na [verificação de capacidade](../../classes/estimation/index.md) da aula por um joelho *medido* e mostra que uma instância sai da meta de latência com algumas centenas de requisições por segundo — longe da demanda da abertura de vendas; por isso o BoxOffice precisa de [mais máquinas](../../classes/distributed/index.md).
     - Aula 2, [Estimativas](../../classes/estimation/index.md): [filas e Lei de Little](../../classes/estimation/queueing/index.md), [percentis e latência de cauda](../../classes/estimation/percentiles/index.md).
     - Aula 15, [Engenharia de desempenho](../../classes/performance/index.md): [tipos de teste de carga](../../classes/performance/load-testing/index.md), [encontrando gargalos](../../classes/performance/bottlenecks/index.md).
 
@@ -63,7 +63,7 @@ O playground roda o mesmo experimento em segundos. Forme uma hipótese primeiro 
 
 ## 1. Modelo de carga fechado ou aberto? { #1-closed-or-open-workload }
 
-No lab 0, cada usuário virtual (VU) mandava uma requisição, esperava a resposta e mandava a próxima. Esse é um modelo **fechado**: quando o servidor fica lento, o gerador de carga fica lento junto, e o teste educadamente para de pressionar. Fãs reais não esperam uns pelos outros: às 10:00 eles chegam na taxa em que chegam. Esse é um modelo **aberto**.
+No lab 0, cada usuário virtual (VU) mandava uma requisição, esperava a resposta e mandava a próxima. Esse é um modelo **fechado**: quando o servidor fica lento, o gerador de carga fica lento junto e o teste educadamente para de pressionar. Fãs reais não esperam uns pelos outros: às 10:00 eles chegam na taxa em que chegam. Esse é um modelo **aberto**.
 
 | | Modelo fechado (`vus`, `constant-vus`) | Modelo aberto (`constant-arrival-rate`, `ramping-arrival-rate`) |
 |---|---|---|
@@ -93,10 +93,10 @@ O **teste de estresse** sobe uma escada de taxas além do joelho, segura o pico 
 
 | Teste | Executor | Pergunta |
 |---|---|---|
-| smoke (`load/smoke.js`, lab 1) | 1 VU | funciona, e quão rápido sem carga? |
+| smoke (`load/smoke.js`, lab 1) | 1 VU | funciona e quão rápido sem carga? |
 | carga (`load/load.js`) | `constant-arrival-rate` | a X req/s, quais são o p50/p95/p99 e a taxa de erros? |
 | varredura (`scripts/sweep.sh`) | várias execuções de `load.js` | onde está o joelho? |
-| estresse (`load/stress.js`) | `ramping-arrival-rate` | o que acontece além do joelho, e ele se recupera? |
+| estresse (`load/stress.js`) | `ramping-arrival-rate` | o que acontece além do joelho e ele se recupera? |
 
 ## 3. Observe por dentro { #3-watch-from-the-inside }
 
@@ -114,7 +114,7 @@ O k6 vê o serviço de fora. Para descobrir *por que* a latência cresce, você 
 
 Mantenha três terminais abertos durante todo teste: o k6, `bash scripts/watch-metrics.sh` e `docker stats` (CPU do `catalog` e do `db`).
 
-Você deve ver uma linha por segundo (na sobrecarga, uma a cada poucos segundos: a requisição que lê as métricas também espera uma thread livre do Tomcat). Em repouso, `busy_threads` vale 1 (a requisição que lê a métrica); sob carga ela segue a Lei de Little, e na sobrecarga o pool enche (linhas de uma execução deste lab, a 50, 400 e 600 req/s):
+Você deve ver uma linha por segundo (na sobrecarga, uma a cada poucos segundos: a requisição que lê as métricas também espera uma thread livre do Tomcat). Em repouso, `busy_threads` vale 1 (a requisição que lê a métrica); sob carga ela segue a Lei de Little e na sobrecarga o pool enche (linhas de uma execução deste lab, a 50, 400 e 600 req/s):
 
 ``` { .text }
 time      busy_threads  db_active  db_pending
@@ -177,7 +177,7 @@ A Lei de Little vale para qualquer sistema estável[^2]: **L = λ × W** — o n
 1. **O serviço inteiro**: `L` deve bater com `tomcat.threads.busy`. A 300 req/s com latência média de 10 ms, `L = 300 × 0.010 = 3` threads ocupadas.
 2. **O pool do banco**: cada requisição segura uma conexão durante o seu tempo de banco. O pool é um servidor com **10 vagas**, então ele satura quando `λ × (database time per request) = 10`.
 
-Essa segunda linha prevê o joelho. Meça o tempo de banco por requisição com um usuário (lab 1): se a mistura dá em média ~8 ms de banco por requisição *sem carga*, o pool permitiria `10 / 0.008 ≈ 1,250 req/s`. O joelho que você mediu é bem mais baixo — porque sob carga as consultas ficam mais lentas (o banco e a única CPU do catalog também estão ocupados), e cada requisição segura sua conexão por mais tempo. Olhe o `watch-metrics.sh` perto do joelho: `db_active` fica em **10** e `db_pending` começa a crescer. O pool está cheio; as requisições fazem fila por ele.
+Essa segunda linha prevê o joelho. Meça o tempo de banco por requisição com um usuário (lab 1): se a mistura dá em média ~8 ms de banco por requisição *sem carga*, o pool permitiria `10 / 0.008 ≈ 1,250 req/s`. O joelho que você mediu é bem mais baixo — porque sob carga as consultas ficam mais lentas (o banco e a única CPU do catalog também estão ocupados) e cada requisição segura sua conexão por mais tempo. Olhe o `watch-metrics.sh` perto do joelho: `db_active` fica em **10** e `db_pending` começa a crescer. O pool está cheio; as requisições fazem fila por ele.
 
 ??? question "Pense antes: as threads ocupadas chegam a 200 e `db_pending` a 190 a 600 req/s. O que isso significa?"
 
@@ -193,7 +193,7 @@ OUT=results/lab2-pool30 bash scripts/sweep.sh 50 100 200 300 400 500 600
 uv run scripts/summarize.py results/lab2-pool30/rate-*.json
 ```
 
-Compare as duas tabelas. Em geral o joelho **sobe**, mas não para sempre: com 30 conexões, o próximo recurso satura — a única CPU do `catalog` ou o próprio PostgreSQL (observe o `docker stats`). Um pool maior também tem custo: cada conexão é um processo no PostgreSQL, e no lab 6 três serviços × três réplicas × 30 conexões passariam de `max_connections`. Otimizar um recurso sempre muda o gargalo de lugar; o trabalho é saber para onde ele foi.
+Compare as duas tabelas. Em geral o joelho **sobe**, mas não para sempre: com 30 conexões, o próximo recurso satura — a única CPU do `catalog` ou o próprio PostgreSQL (observe o `docker stats`). Um pool maior também tem custo: cada conexão é um processo no PostgreSQL e no lab 6 três serviços × três réplicas × 30 conexões passariam de `max_connections`. Otimizar um recurso sempre muda o gargalo de lugar; o trabalho é saber para onde ele foi.
 
 ## 7. Estresse: além do joelho e de volta { #7-stress-past-the-knee-and-back }
 
@@ -282,7 +282,7 @@ Guarde `results/lab2*` (os resumos JSON e o seu `results/lab2.md`): o lab 3 comp
 - [ ] Duas varreduras (pool 10 e pool 30) com as tabelas em `results/lab2.md`, o joelho e a capacidade de cada uma.
 - [ ] A tabela da Lei de Little com pelo menos duas taxas, comparada com os medidores.
 - [ ] O relatório HTML do teste de estresse (`results/lab2-stress.html`, sem commit) e os seus três momentos descritos.
-- [ ] Um parágrafo: **qual é o gargalo do `catalog`, e qual é a sua evidência?**
+- [ ] Um parágrafo: **qual é o gargalo do `catalog` e qual é a sua evidência?**
 - [ ] Repositório com a tag `lab2`; [quiz](quiz.md) respondido.
 
 ## Estado final { #end-state }

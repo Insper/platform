@@ -12,7 +12,7 @@ A maioria das decisões de arquitetura nas empresas de verdade não é tomada na
 
 ## Contexto { #context }
 
-A estrutura de um bom design doc segue o [roteiro de entrevista](../../classes/intro/interview-framework/index.md) da Aula 1 — esclarecer → estimar → API e modelo de dados → design de alto nível → aprofundamentos → gargalos e trade-offs → fechamento — e o [guia de entrevista](../../support/interview/framework/index.md). Os [estudos de caso](../../classes/case-studies/index.md) da Aula 16 mostram exemplos completos resolvidos; o [catálogo de componentes](../../reference/components/index.md) dá o vocabulário (use os ids da paleta nos seus diagramas). Um design doc não é uma lista de tecnologias: cada componente precisa ser **justificado por um requisito ou um número**, e cada escolha importante precisa citar a **alternativa que você descartou**[^1].
+A estrutura de um bom design doc segue o [roteiro de entrevista](../../classes/intro/interview-framework/index.md) da Aula 1 — esclarecer → estimar → API e modelo de dados → design de alto nível → aprofundamentos → gargalos e trade-offs → fechamento — e o [guia de entrevista](../../support/interview/framework/index.md). Os [estudos de caso](../../classes/case-studies/index.md) da Aula 16 mostram exemplos completos resolvidos; o [catálogo de componentes](../../reference/components/index.md) dá o vocabulário (use os ids da paleta nos seus diagramas). Um design doc não é uma lista de tecnologias: cada componente precisa ser **justificado por um requisito ou um número** e cada escolha importante precisa citar a **alternativa que você descartou**[^1].
 
 ## Tarefa { #task }
 
@@ -93,8 +93,8 @@ Exemplos de perguntas:
 - "Mostre o que acontece quando `<dependência>` leva 5 segundos para responder."
 - "Por que este armazenamento e não `<alternativa>`? O que faria você mudar de ideia?"
 - "Onde dados podem ser perdidos ou duplicados? Como você sabe que isso não aconteceu?"
-- "Sobre o que você alerta? Quem é acordado, e o que essa pessoa olha primeiro?"
-- "Qual ADR você revisaria primeiro, e por quê?"
+- "Sobre o que você alerta? Quem é acordado e o que essa pessoa olha primeiro?"
+- "Qual ADR você revisaria primeiro e por quê?"
 
 O que se avalia é o entendimento: você pode dizer "não considerei isso" e então raciocinar a respeito. Ler o documento em voz alta não é uma defesa.
 
@@ -362,7 +362,7 @@ Níveis conforme definidos em [Como os exercícios são avaliados](../index.md#h
 
 ??? question "Posso basear meu design em um artigo público ou em um capítulo de livro?"
 
-    Sim — cite a fonte. Mas o documento precisa mostrar o **seu** raciocínio para os **seus** números, e dois alunos com o mesmo problema são comparados. Uma estrutura copiada com outras palavras é fácil de perceber na defesa.
+    Sim — cite a fonte. Mas o documento precisa mostrar o **seu** raciocínio para os **seus** números e dois alunos com o mesmo problema são comparados. Uma estrutura copiada com outras palavras é fácil de perceber na defesa.
 
 ??? question "Preciso implementar alguma coisa?"
 

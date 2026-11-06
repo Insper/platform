@@ -40,7 +40,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — Evitar corridas de ordenação.**
 
-    Mesmo a remoção tem uma corrida estreita (um leitor lento recolocando em cache um valor antigo depois da remoção), e é por isso que toda chave também tem um TTL: o TTL limita quanto tempo qualquer inconsistência pode durar.
+    Mesmo a remoção tem uma corrida estreita (um leitor lento recolocando em cache um valor antigo depois da remoção) e é por isso que toda chave também tem um TTL: o TTL limita quanto tempo qualquer inconsistência pode durar.
 
 ---
 
@@ -117,7 +117,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 **Q9.** O cache é **compartilhado** no Redis em vez de um `HashMap` local em cada réplica. Que vantagem você observou?
 
 - A. O Redis é mais rápido que um HashMap
-- B. Um valor carregado por uma réplica é hit para as outras, e todas as réplicas veem a mesma versão (uma remoção invalida em todo lugar)
+- B. Um valor carregado por uma réplica é hit para as outras e todas as réplicas veem a mesma versão (uma remoção invalida em todo lugar)
 - C. Caches locais não podem ter TTLs
 - D. O Redis comprime JSON
 
@@ -128,7 +128,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q10.** O HOT_SHARE cai de 0,8 para 0,2 (popularidade quase uniforme entre 200.000 eventos). O que acontece com o hit ratio dos detalhes, e por quê?
+**Q10.** O HOT_SHARE cai de 0,8 para 0,2 (popularidade quase uniforme entre 200.000 eventos). O que acontece com o hit ratio dos detalhes e por quê?
 
 - A. Aumenta, porque mais chaves ficam em cache
 - B. Cai muito: com um TTL de 60 s e acesso uniforme, a maioria dos eventos não é pedida de novo antes de a sua chave expirar

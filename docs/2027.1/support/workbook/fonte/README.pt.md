@@ -40,7 +40,7 @@ Pacotes: `mathpazo`, `helvet`, `tcolorbox` (com `tikzfill` e `pdfcol`), `enumite
 
 ## Sistema de cores { #colour-system }
 
-Cada cor carrega um significado, e os mesmos significados são usados pelo caderno, pela folha de consulta (`../../cheat-sheet/fonte/cheat-sheet.tex`), pelo mapa de conceitos e pelas cartas de estudo. Todo significado também está escrito num rótulo ou num ícone, para sobreviver à impressão em tons de cinza.
+Cada cor carrega um significado e os mesmos significados são usados pelo caderno, pela folha de consulta (`../../cheat-sheet/fonte/cheat-sheet.tex`), pelo mapa de conceitos e pelas cartas de estudo. Todo significado também está escrito num rótulo ou num ícone, para sobreviver à impressão em tons de cinza.
 
 | Significado | Cor | Fundo | Onde |
 |---|---|---|---|

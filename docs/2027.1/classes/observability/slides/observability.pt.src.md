@@ -231,7 +231,7 @@ Perguntas de alta cardinalidade ("*quais* fãs ficaram lentos?") pertencem a **t
 ```
 
 - **Estruturados** (JSON / modelo de log do OTel) com nomes de campo estáveis, não texto livre.
-- `trace_id` + `span_id`: saltar de uma linha de log para o trace dela, e voltar.
+- `trace_id` + `span_id`: saltar de uma linha de log para o trace dela e voltar.
 - Registre **eventos**, não passos; registre a **decisão** ("fallback porque o breaker abriu").
 - **Nunca** segredos ou dados pessoais; remova na origem e no Collector.
 

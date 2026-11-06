@@ -1,5 +1,5 @@
 
-A loja lança um aplicativo móvel e quer um botão **"Entrar com Google"**. O aplicativo nunca pode ver a senha do Google do usuário, o Google precisa saber qual aplicativo está pedindo acesso, e o usuário precisa poder dizer "este aplicativo pode ler meu endereço de e-mail, e nada mais". Ao mesmo tempo, um job noturno no `order-service` precisa chamar o `product-service` para conciliar o estoque — e não há usuário nenhum. Um endpoint de login caseiro não consegue expressar nada disso. O **OAuth 2.0**[^1] é o framework padrão para *autorização delegada*, e o **OpenID Connect**[^5] é a camada de identidade construída sobre ele.
+A loja lança um aplicativo móvel e quer um botão **"Entrar com Google"**. O aplicativo nunca pode ver a senha do Google do usuário, o Google precisa saber qual aplicativo está pedindo acesso e o usuário precisa poder dizer "este aplicativo pode ler meu endereço de e-mail, e nada mais". Ao mesmo tempo, um job noturno no `order-service` precisa chamar o `product-service` para conciliar o estoque — e não há usuário nenhum. Um endpoint de login caseiro não consegue expressar nada disso. O **OAuth 2.0**[^1] é o framework padrão para *autorização delegada* e o **OpenID Connect**[^5] é a camada de identidade construída sobre ele.
 
 ---
 
@@ -16,7 +16,7 @@ O OAuth 2.0 permite que uma aplicação **cliente** obtenha um **access token li
 | **Authorization Server** | Autentica o usuário e emite tokens | Keycloak, Auth0, AWS Cognito — ou o nosso `auth-service` |
 | **Resource Server** | API que guarda o recurso protegido e valida tokens | `order-service`, `account-service` (atrás do gateway) |
 
-Há dois tipos de cliente, e a diferença entre eles determina a escolha do fluxo:
+Há dois tipos de cliente e a diferença entre eles determina a escolha do fluxo:
 
 - **Cliente confidencial** — roda em um servidor e consegue manter um segredo (`client_secret`) seguro: um backend, um job batch.
 - **Cliente público** — roda no dispositivo do usuário e não consegue manter um segredo: uma single-page app (qualquer um pode ler o JavaScript dela), um aplicativo móvel (qualquer um pode descompilá-lo).
@@ -70,7 +70,7 @@ flowchart TD
 ```
 
 !!! danger "Nunca use ROPC"
-    O Resource Owner Password Credentials exige que o cliente colete diretamente o usuário e a senha. Isso anula o propósito do OAuth 2.0 (autorização delegada sem compartilhar credenciais), não suporta login com múltiplos fatores e ensina os usuários a digitar senhas em qualquer aplicativo. O OAuth 2.0 Security Best Current Practice (RFC 9700) diz que ele **não deve** ser usado, e o rascunho do OAuth 2.1 o remove junto com o grant Implicit[^2].
+    O Resource Owner Password Credentials exige que o cliente colete diretamente o usuário e a senha. Isso anula o propósito do OAuth 2.0 (autorização delegada sem compartilhar credenciais), não suporta login com múltiplos fatores e ensina os usuários a digitar senhas em qualquer aplicativo. O OAuth 2.0 Security Best Current Practice (RFC 9700) diz que ele **não deve** ser usado e o rascunho do OAuth 2.1 o remove junto com o grant Implicit[^2].
 
 ### Authorization Code + PKCE { #authorization-code-pkce }
 
@@ -167,7 +167,7 @@ Por que access tokens curtos? Um JWT autocontido não pode ser "desemitido": um 
 
 ## OpenID Connect (OIDC) { #openid-connect-oidc }
 
-O OAuth 2.0 cuida da autorização ("este cliente pode acessar este recurso?"). Ele deliberadamente não diz *quem é o usuário* — um access token é destinado à API, e não para ser lido pelo cliente. O OpenID Connect acrescenta a autenticação ("quem é este usuário?") ao definir um **ID Token** — um JWT com claims de usuário padronizadas, endereçado ao cliente[^5].
+O OAuth 2.0 cuida da autorização ("este cliente pode acessar este recurso?"). Ele deliberadamente não diz *quem é o usuário* — um access token é destinado à API e não para ser lido pelo cliente. O OpenID Connect acrescenta a autenticação ("quem é este usuário?") ao definir um **ID Token** — um JWT com claims de usuário padronizadas, endereçado ao cliente[^5].
 
 O OIDC estende o OAuth 2.0 com três acréscimos:
 
@@ -227,7 +227,7 @@ Em vez de cada microsserviço implementar a validação, o gateway é o primeiro
 
 ### Validação local com JWKS { #local-validation-with-jwks }
 
-Com assinaturas **assimétricas** (RS256, ES256), o Authorization Server assina com uma **chave privada** que nunca sai dele, e qualquer um pode verificar com a **chave pública** correspondente. As chaves públicas são publicadas como um **JSON Web Key Set (JWKS)**[^7] — um documento JSON em que cada chave tem um `kid` (key id); o header de todo JWT indica o `kid` que o assinou.
+Com assinaturas **assimétricas** (RS256, ES256), o Authorization Server assina com uma **chave privada** que nunca sai dele e qualquer um pode verificar com a **chave pública** correspondente. As chaves públicas são publicadas como um **JSON Web Key Set (JWKS)**[^7] — um documento JSON em que cada chave tem um `kid` (key id); o header de todo JWT indica o `kid` que o assinou.
 
 1. O Authorization Server publica suas chaves públicas em seu `jwks_uri` (no Keycloak: `/realms/<realm>/protocol/openid-connect/certs`).
 2. O gateway busca o JWKS e o mantém em **cache**.
@@ -282,7 +282,7 @@ Com o Spring Security (inclusive no Spring Cloud Gateway reativo), a validação
 
 Seja qual for a biblioteca, uma validação correta verifica[^8]:
 
-- a **assinatura**, com um algoritmo de uma allow-list explícita — nunca `alg: none`, e nunca deixe o header do token escolher o algoritmo;
+- a **assinatura**, com um algoritmo de uma allow-list explícita — nunca `alg: none` e nunca deixe o header do token escolher o algoritmo;
 - **`exp`** e **`nbf`** (com uma pequena tolerância de relógio);
 - **`iss`** — o token vem do *seu* Authorization Server;
 - **`aud`** — o token foi emitido *para esta API*;
@@ -290,7 +290,7 @@ Seja qual for a biblioteca, uma validação correta verifica[^8]:
 
 ### Validação remota (introspecção)
 
-A alternativa é perguntar ao Authorization Server a cada requisição: "este token é válido, e de quem ele é?". O OAuth padroniza isso como **token introspection** (RFC 7662)[^9]. A chamada `POST /auth/solve` em [Hands-on 3 — Autorização](../../../hands-on/3/authorization/index.md) é exatamente esse padrão, com um endpoint próprio.
+A alternativa é perguntar ao Authorization Server a cada requisição: "este token é válido e de quem ele é?". O OAuth padroniza isso como **token introspection** (RFC 7662)[^9]. A chamada `POST /auth/solve` em [Hands-on 3 — Autorização](../../../hands-on/3/authorization/index.md) é exatamente esse padrão, com um endpoint próprio.
 
 | | Local (JWKS) | Remota (introspecção, `/auth/solve`) |
 |---|---|---|

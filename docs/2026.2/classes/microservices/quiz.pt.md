@@ -85,7 +85,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — Referenciar outros agregados pela identidade.**
 
-    `Order` e `Product` são agregados diferentes, em bounded contexts (e serviços) diferentes. Guardar apenas o id do produto significa que o agregado do pedido nunca consegue modificar um produto, e os dois podem ser armazenados em bancos de dados diferentes. Isso também combina com o modelo do contexto de Pedidos: o item guarda o preço *pago*, então uma mudança posterior de preço no catálogo não altera os pedidos passados.
+    `Order` e `Product` são agregados diferentes, em bounded contexts (e serviços) diferentes. Guardar apenas o id do produto significa que o agregado do pedido nunca consegue modificar um produto e os dois podem ser armazenados em bancos de dados diferentes. Isso também combina com o modelo do contexto de Pedidos: o item guarda o preço *pago*, então uma mudança posterior de preço no catálogo não altera os pedidos passados.
 
 ---
 
@@ -157,7 +157,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — Encontrar a localização de rede atual de instâncias dinâmicas.**
 
-    Em um ambiente containerizado, instâncias são criadas e destruídas o tempo todo, e os seus endereços IP mudam a cada reinício. Um registro de serviços (Consul, Eureka, DNS do Kubernetes) mantém a localização atual de todas as instâncias. Os serviços se registram ao iniciar e se descadastram ao desligar, e quem chama consulta o registro para encontrá-los.
+    Em um ambiente containerizado, instâncias são criadas e destruídas o tempo todo, e os seus endereços IP mudam a cada reinício. Um registro de serviços (Consul, Eureka, DNS do Kubernetes) mantém a localização atual de todas as instâncias. Os serviços se registram ao iniciar e se descadastram ao desligar e quem chama consulta o registro para encontrá-los.
 
 ---
 
@@ -185,7 +185,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **C — cerca de 99,7%.**
 
-    Em uma cadeia síncrona, a requisição só tem sucesso se *todos* os serviços estiverem no ar, então as disponibilidades se multiplicam: 0,999 × 0,999 × 0,999 ≈ 0,997. A indisponibilidade cresce de cerca de 8,8 horas por ano para cerca de 26 horas. É por isso que cadeias síncronas longas são evitadas, e que o trabalho que não precisa de resposta imediata é movido para eventos.
+    Em uma cadeia síncrona, a requisição só tem sucesso se *todos* os serviços estiverem no ar, então as disponibilidades se multiplicam: 0,999 × 0,999 × 0,999 ≈ 0,997. A indisponibilidade cresce de cerca de 8,8 horas por ano para cerca de 26 horas. É por isso que cadeias síncronas longas são evitadas e que o trabalho que não precisa de resposta imediata é movido para eventos.
 
 ---
 

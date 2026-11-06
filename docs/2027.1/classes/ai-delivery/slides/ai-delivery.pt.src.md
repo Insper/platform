@@ -235,12 +235,12 @@ Regras que importam vivem em **testes, lints e grants** — não só num prompt.
 
 | Componente | Pergunta que responde | Ensinado em |
 |---|---|---|
-| `orchestrator` | Quem executa a etapa de IA, e até onde ela pode ir? | Visão geral · Agentes no CI |
+| `orchestrator` | Quem executa a etapa de IA e até onde ela pode ir? | Visão geral · Agentes no CI |
 | `llmgw` | Qual modelo, com qual cota, a que custo? | Visão geral · Sistemas de IA |
 | `toolreg` | Quais ferramentas e permissões a etapa recebe? | Agentes no CI |
 | `safety` | Um texto não confiável pode conduzir a etapa? | Segurança e governança |
 | `metrics` · `alerting` | Ajudou? A versão está saudável? | Visão geral · Liberação e operação |
-| `logs` | Quem mudou o quê, e por quê? | Agentes no CI · Segurança |
+| `logs` | Quem mudou o quê e por quê? | Agentes no CI · Segurança |
 
 <p class="small">Cada etapa de IA no pipeline é um pequeno sistema de IA: orquestrador, ferramentas com permissões, políticas, telemetria.</p>
 

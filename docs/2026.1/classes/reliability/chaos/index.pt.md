@@ -22,7 +22,7 @@ O Chaos Monkey se tornou o primeiro membro do **Simian Army** (exército de sím
 | **Security Monkey** | Encontra e reporta violações de políticas de segurança |
 | **Chaos Gorilla** | Simula a falha de uma Availability Zone inteira da AWS |
 
-A percepção foi transformadora: **a falha não é um caso especial a ser evitado; é o ambiente em que os sistemas de produção vivem, e a única forma de saber se o seu sistema sobrevive a ela é testá-lo lá.**
+A percepção foi transformadora: **a falha não é um caso especial a ser evitado; é o ambiente em que os sistemas de produção vivem e a única forma de saber se o seu sistema sobrevive a ela é testá-lo lá.**
 
 ---
 
@@ -62,7 +62,7 @@ flowchart LR
     R -->|"rodar de novo\ncom escopo maior"| H
 ```
 
-Um experimento de caos que **confirma a hipótese** (o sistema se comporta como esperado) aumenta a confiança naquele modo de falha. Um experimento que **refuta a hipótese** é uma descoberta: o sistema não trata essa falha corretamente, e a equipe agora sabe disso antes que um incidente real ensine.
+Um experimento de caos que **confirma a hipótese** (o sistema se comporta como esperado) aumenta a confiança naquele modo de falha. Um experimento que **refuta a hipótese** é uma descoberta: o sistema não trata essa falha corretamente e a equipe agora sabe disso antes que um incidente real ensine.
 
 ---
 
@@ -100,7 +100,7 @@ Controles práticos:
 - **Feature flags**: habilitar a injeção de caos apenas para uma porcentagem das requisições.
 - **Janelas de tempo**: rodar os experimentos apenas no horário comercial, quando a equipe está disponível para abortar.
 - **Condições automáticas de aborto**: se um SLI cair abaixo de um limite, interromper o experimento automaticamente.
-- **Dark reads / tráfego sombra**: rodar os experimentos contra uma cópia dos dados de produção, e não no caminho principal.
+- **Dark reads / tráfego sombra**: rodar os experimentos contra uma cópia dos dados de produção e não no caminho principal.
 
 ---
 

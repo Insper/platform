@@ -18,7 +18,7 @@ flowchart LR
 ```
 
 Isso é **nivelamento de carga por fila** (*queue-based load leveling*): as chegadas vêm em rajadas, o
-atendimento é constante, e a fila guarda a diferença. A Lei de Little dá a estimativa honesta que o fã
+atendimento é constante e a fila guarda a diferença. A Lei de Little dá a estimativa honesta que o fã
 vê:
 
 $$

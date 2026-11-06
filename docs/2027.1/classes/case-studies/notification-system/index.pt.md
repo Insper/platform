@@ -1,9 +1,9 @@
 
 > *"Projete um sistema de notificações que envia push, e-mails e SMS para muitos times de produto: confirmações de pedido, lembretes e campanhas de marketing. Os usuários precisam poder escolher o que recebem."*
 
-O sistema de notificações é o problema clássico de **fan-out assíncrono para terceiros não confiáveis**. Nada aqui é computacionalmente difícil; o que o torna interessante é que todas as partes interessantes ficam **fora** do seu controle: os gateways de push da Apple e do Google, provedores de e-mail e SMS com seus próprios rate limits, celulares que desinstalam o app, caixas de entrada que devolvem mensagens. A entrevista verifica se você consegue construir um pipeline que absorve rajadas, **nunca envia a mesma mensagem duas vezes** (ou explica quando pode enviar), mantém as mensagens urgentes rápidas enquanto um disparo de marketing está escoando, e respeita o que o usuário pediu.
+O sistema de notificações é o problema clássico de **fan-out assíncrono para terceiros não confiáveis**. Nada aqui é computacionalmente difícil; o que o torna interessante é que todas as partes interessantes ficam **fora** do seu controle: os gateways de push da Apple e do Google, provedores de e-mail e SMS com seus próprios rate limits, celulares que desinstalam o app, caixas de entrada que devolvem mensagens. A entrevista verifica se você consegue construir um pipeline que absorve rajadas, **nunca envia a mesma mensagem duas vezes** (ou explica quando pode enviar), mantém as mensagens urgentes rápidas enquanto um disparo de marketing está escoando e respeita o que o usuário pediu.
 
-O BoxOffice envia três tipos bem diferentes de notificação, e eles tornam os requisitos concretos:
+O BoxOffice envia três tipos bem diferentes de notificação e eles tornam os requisitos concretos:
 
 - **Transacional** — "seus ingressos para sábado" segundos depois do webhook de pagamento ([caso de ingressos](../ticketing/index.md)). Pouco volume, precisa chegar rápido, não pode se perder.
 - **Agendada** — "os portões abrem em 2 horas" para os 60 000 portadores de ingresso do show de hoje. Conhecida com antecedência, todas no mesmo momento.
@@ -18,7 +18,7 @@ O BoxOffice envia três tipos bem diferentes de notificação, e eles tornam os 
 
 !!! abstract "O que este caso treina"
 
-    - **Estimar** a rajada de uma campanha em massa e **mostrar** que o rate limit de um terceiro, e não seus servidores, define quanto tempo ela leva.
+    - **Estimar** a rajada de uma campanha em massa e **mostrar** que o rate limit de um terceiro e não seus servidores define quanto tempo ela leva.
     - **Projetar** um pipeline de filas e workers por canal e prioridade, para que o marketing nunca atrase uma redefinição de senha.
     - **Garantir** *efeito* de no máximo uma vez para o usuário quando possível, com IDs de notificação, consumidores idempotentes e recursos dos provedores — e **explicar** onde duplicatas ainda podem acontecer.
     - **Aplicar** retentativas com backoff e jitter, filas de mensagens mortas (DLQ), circuit breakers e failover de provedor a integrações externas.
@@ -58,7 +58,7 @@ Construir nossa própria infraestrutura de push ou e-mail (usamos provedores), o
 
     | Pergunta | Por que importa |
     |---|---|
-    | Quais canais, e quais são obrigatórios por tipo? | Fan-out por canal e provedores, custos e limites diferentes. |
+    | Quais canais e quais são obrigatórios por tipo? | Fan-out por canal e provedores, custos e limites diferentes. |
     | Qual o tamanho da maior campanha? Quão rápido ela precisa sair? | Dimensiona filas e workers; o limite de um provedor pode tornar "rápido" impossível. |
     | Transacional e marketing no mesmo sistema? | Prioridades ou filas separadas para o marketing nunca bloquear o transacional. |
     | Uma duplicata é pior que uma perda? | Confirmação de pedido: duplicata tudo bem, perda não. Marketing: o contrário. |
@@ -109,9 +109,9 @@ for name, value, unit in rows:
 
 O que os números dizem:
 
-- A **média é minúscula** (~145 mensagens/s) e o **pico é enorme**: uma campanha de pré-venda são 7,5 M de mensagens, **125 mil/s** se disparada em um minuto. ⇒ uma **fila** entre o disparo e os remetentes, e workers que escoam a uma taxa controlada. É um problema de absorver rajadas, não de vazão.
+- A **média é minúscula** (~145 mensagens/s) e o **pico é enorme**: uma campanha de pré-venda são 7,5 M de mensagens, **125 mil/s** se disparada em um minuto. ⇒ uma **fila** entre o disparo e os remetentes e workers que escoam a uma taxa controlada. É um problema de absorver rajadas, não de vazão.
 - Disparar em um minuto também gera ~**8 mil requisições/s** no app de fãs que tocam na notificação — no mesmo backend que está preparando a pré-venda. Espalhar por 30 minutos reduz isso a **~280 req/s**. ⇒ **espalhe as campanhas numa janela**: o sistema de notificações precisa proteger o resto do BoxOffice, não só a si mesmo.
-- Com um provedor de e-mail que aceita 1 000 mensagens/s, os 2,5 M de e-mails levam **~42 minutos**, não importa quantos workers rodemos. ⇒ o **limite do provedor** decide a duração; precisamos de rate limit por provedor, e e-mails transacionais precisam de **capacidade reservada** (uma prioridade separada), senão esperam 40 minutos atrás da campanha.
+- Com um provedor de e-mail que aceita 1 000 mensagens/s, os 2,5 M de e-mails levam **~42 minutos**, não importa quantos workers rodemos. ⇒ o **limite do provedor** decide a duração; precisamos de rate limit por provedor e e-mails transacionais precisam de **capacidade reservada** (uma prioridade separada), senão esperam 40 minutos atrás da campanha.
 - O log de notificações tem **~6 GB/dia** e as chaves de deduplicação de uma semana **~5 GB** — pouco. Armazenamento não é o problema; ordenar o trabalho é.
 
 ---
@@ -141,7 +141,7 @@ GET  /v1/notifications/{notificationId}                  → 200 {channel status
 
 - O disparo é **assíncrono**: `202 Accepted` significa "enfileirada de forma durável", não "entregue". Os produtores nunca esperam pela Apple ou pelo provedor de e-mail.
 - A **`Idempotency-Key`** vem do evento de negócio (`order-81f3-confirmed`), então um produtor que repete — ou um evento consumido duas vezes do Kafka — cria **uma** notificação.
-- A `priority` é definida pelo tipo (configurada centralmente), e não escolhida livremente por cada time — senão tudo vira "transacional".
+- A `priority` é definida pelo tipo (configurada centralmente) e não escolhida livremente por cada time — senão tudo vira "transacional".
 
 ---
 
@@ -274,7 +274,7 @@ Cada canal tem seu próprio provedor, modos de falha e limites, então cada um g
 | E-mail | Segundos a minutos | Baixo | Webhooks de entregue / devolvido / reclamação | Taxa do provedor, reputação do domínio |
 | SMS | Segundos | Alto | Recibos de entrega (DLR) | Custo, regras das operadoras, taxa do provedor |
 
-**Prioridades.** Duas filas separadas por canal (ou um sistema de filas com prioridade estrita) e **pools de workers separados ou capacidade reservada** para o transacional. Uma campanha de 2,5 M de e-mails escoa então no limite do provedor *menos* a fatia reservada ao transacional, e a confirmação do pedido continua saindo em segundos.
+**Prioridades.** Duas filas separadas por canal (ou um sistema de filas com prioridade estrita) e **pools de workers separados ou capacidade reservada** para o transacional. Uma campanha de 2,5 M de e-mails escoa então no limite do provedor *menos* a fatia reservada ao transacional e a confirmação do pedido continua saindo em segundos.
 
 ### 6.2 Entregar uma vez: idempotência, retentativas, DLQ e failover { #62-delivering-once-idempotency-retries-dlq-and-failover }
 
@@ -311,7 +311,7 @@ def handle(job):
 
 **Falhas por tipo.** Distinga erros **transitórios** (timeouts, `429`, `5xx`: repita com backoff exponencial e jitter), erros **permanentes** (token inválido, devolução permanente: não repita, corrija os dados) e **mensagens venenosas** (um template que falha ao renderizar: direto para a DLQ). A **fila de mensagens mortas** é monitorada; uma DLQ não vazia alerta alguém e tem uma ferramenta de reprocessamento.
 
-**Queda de provedor.** Um circuit breaker por provedor abre quando os erros se acumulam ([integrações](../../compute/integrations/index.md)). Para e-mail e SMS, mantenha um **segundo provedor** e faça failover do tráfego transacional para ele (o em massa pode simplesmente esperar). Para push não há alternativa ao APNs/FCM: enfileire e espere, e descarte pushes de marketing que ficaram velhos (um alerta de pré-venda depois que a pré-venda começou é ruído).
+**Queda de provedor.** Um circuit breaker por provedor abre quando os erros se acumulam ([integrações](../../compute/integrations/index.md)). Para e-mail e SMS, mantenha um **segundo provedor** e faça failover do tráfego transacional para ele (o em massa pode simplesmente esperar). Para push não há alternativa ao APNs/FCM: enfileire e espere e descarte pushes de marketing que ficaram velhos (um alerta de pré-venda depois que a pré-venda começou é ruído).
 
 !!! example "No código do BoxOffice: o consumidor idempotente e sua DLT (lab 7)"
 
@@ -344,7 +344,7 @@ flowchart LR
 
 - **As preferências ficam em cache** no roteador (são lidas a cada envio e mudam raramente); mesmo assim um opt-out precisa valer em segundos, então invalide na mudança.
 - **O transacional ignora** limites de frequência e horário de silêncio (uma confirmação de ingresso às 23:00 é esperada); o marketing nunca ignora. A categoria é fixa por tipo, de forma central.
-- **Templates** são versionados por tipo, canal e idioma; renderize no roteador (ou no worker) com os dados do disparo, e caia para um idioma padrão. Um erro de renderização é uma mensagem venenosa.
+- **Templates** são versionados por tipo, canal e idioma; renderize no roteador (ou no worker) com os dados do disparo e caia para um idioma padrão. Um erro de renderização é uma mensagem venenosa.
 - **Limites de frequência** (`INCR` com TTL diário por usuário e categoria) protegem os usuários de cinco times enviando cada um "só um" push por dia.
 - **Rate limits dos provedores** são aplicados pelos workers com um **token bucket** compartilhado por provedor e conta ([caso do rate limiter](../rate-limiter/index.md)), então desaceleramos **antes** de o provedor começar a responder `429`.
 
@@ -425,11 +425,11 @@ O cenário `notification-system` tem um scheduler e produtores alimentando uma f
 
 ??? question "Um usuário tem um celular, um tablet e o app web. Quem recebe o push?"
 
-    Todos os dispositivos ativos do usuário, por padrão — o registro de dispositivos tem uma linha por token. Use um **collapse ID** para a mesma notificação se substituir em vez de se empilhar, e quando o usuário a abre num dispositivo, envie uma atualização silenciosa para limpá-la dos outros (a mesma ideia de confirmação do [caso do chat](../chat/index.md)). Tokens que o provedor informa como mortos são desativados.
+    Todos os dispositivos ativos do usuário, por padrão — o registro de dispositivos tem uma linha por token. Use um **collapse ID** para a mesma notificação se substituir em vez de se empilhar e quando o usuário a abre num dispositivo, envie uma atualização silenciosa para limpá-la dos outros (a mesma ideia de confirmação do [caso do chat](../chat/index.md)). Tokens que o provedor informa como mortos são desativados.
 
 ??? question "Como você envia 'os portões abrem em 2 horas' exatamente na hora para 60 000 pessoas?"
 
-    O horário do evento é absoluto, então `send_at = abertura_dos_portões - 2 h` é o mesmo instante para todos; o scheduler começa o lote alguns minutos antes e o espalha (ninguém percebe 18:00 vs. 17:57). Use `FOR UPDATE SKIP LOCKED` (ou uma fila com atraso particionada) para que várias instâncias do scheduler dividam o trabalho sem enviar em dobro, e marque cada linha como `ENQUEUED` na mesma transação que a reivindica.
+    O horário do evento é absoluto, então `send_at = abertura_dos_portões - 2 h` é o mesmo instante para todos; o scheduler começa o lote alguns minutos antes e o espalha (ninguém percebe 18:00 vs. 17:57). Use `FOR UPDATE SKIP LOCKED` (ou uma fila com atraso particionada) para que várias instâncias do scheduler dividam o trabalho sem enviar em dobro e marque cada linha como `ENQUEUED` na mesma transação que a reivindica.
 
 ??? question "O marketing enviou uma campanha com a data errada. Dá para parar?"
 
@@ -437,7 +437,7 @@ O cenário `notification-system` tem um scheduler e produtores alimentando uma f
 
 ??? question "As notificações precisam ser ordenadas?"
 
-    Normalmente não de forma global, mas alguns pares importam: "pagamento recebido" não deveria chegar depois de "pedido cancelado". Evite depender da ordem: torne cada notificação autocontida (ela informa o estado atual, renderizado na hora do envio), use uma chave de ordenação por usuário na fila quando realmente importar, e aglutine notificações superadas (um status mais novo substitui o mais antigo).
+    Normalmente não de forma global, mas alguns pares importam: "pagamento recebido" não deveria chegar depois de "pedido cancelado". Evite depender da ordem: torne cada notificação autocontida (ela informa o estado atual, renderizado na hora do envio), use uma chave de ordenação por usuário na fila quando realmente importar e aglutine notificações superadas (um status mais novo substitui o mais antigo).
 
 ??? question "Como você acrescentaria uma caixa de entrada de notificações no app?"
 

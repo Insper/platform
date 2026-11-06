@@ -7,7 +7,7 @@ Até aqui o seu sistema "funciona". O Marco 6 faz uma pergunta mais difícil: **
     - **Planejar** uma campanha a partir dos SLOs da meta de teste da sua [opção de sistema](../index.md#system-options): jornadas de usuário, mistura, taxas de chegada, dados e ambiente.
     - **Modelar** a carga com um modelo aberto e thresholds por jornada no k6.
     - **Executar** testes de smoke, load (×3), stress, spike, soak e breakpoint e lê-los com dashboards.
-    - **Encontrar** o joelho e o gargalo, e **melhorar** o sistema em iterações documentadas.
+    - **Encontrar** o joelho e o gargalo e **melhorar** o sistema em iterações documentadas.
     - **Garantir** a correção (nenhuma venda duplicada, nenhuma mensagem perdida) e **automatizar** um portão de desempenho no CI.
 
 Este marco se apoia no exercício [relatório de teste de carga](../../load-test-report/index.md), na [Aula 15 — Performance](../../../classes/performance/index.md) e na stack de observabilidade do [Lab 8](../../../hands-on/8/index.md). Entrega na **semana 16**, peso de **15%** do projeto.
@@ -174,7 +174,7 @@ Adapte URLs, corpos e autenticação à sua API (obtenha um token no `setup()` o
     }
     ```
 
-    Meça o modelo real separadamente, a uma taxa baixa (por exemplo, 1 requisição/s), e informe os dois.
+    Meça o modelo real separadamente, a uma taxa baixa (por exemplo, 1 requisição/s) e informe os dois.
 
 ### 3. Carregue os dados e fixe o ambiente { #3-seed-the-data-and-fix-the-environment }
 

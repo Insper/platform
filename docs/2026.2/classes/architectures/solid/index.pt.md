@@ -1,5 +1,5 @@
 
-No [Hands-on 1](../../../hands-on/1/index.md), o `AccountService` começa pequeno: criar, ler, apagar. Depois alguém adiciona validação de e-mail, um e-mail de boas-vindas, um log de auditoria, uma regra de desconto por tipo de cliente, uma importação em massa para administradores… Seis meses depois, a classe tem 600 linhas, cada mudança quebra um teste que não tem nada a ver com ela, e ninguém consegue fazer um teste unitário sem um banco de dados e um servidor SMTP. Nada disso ainda é um problema de *arquitetura* — é um problema de **projeto de classes**, e o SOLID é o vocabulário para tratá-lo.
+No [Hands-on 1](../../../hands-on/1/index.md), o `AccountService` começa pequeno: criar, ler, apagar. Depois alguém adiciona validação de e-mail, um e-mail de boas-vindas, um log de auditoria, uma regra de desconto por tipo de cliente, uma importação em massa para administradores… Seis meses depois, a classe tem 600 linhas, cada mudança quebra um teste que não tem nada a ver com ela e ninguém consegue fazer um teste unitário sem um banco de dados e um servidor SMTP. Nada disso ainda é um problema de *arquitetura* — é um problema de **projeto de classes** e o SOLID é o vocabulário para tratá-lo.
 
 **SOLID** é um acrônimo para cinco princípios de projeto orientado a objetos reunidos por Robert C. Martin[^1]. Ele os descreveu juntos pela primeira vez no artigo *Design Principles and Design Patterns*, de 2000, e no livro *Agile Software Development: Principles, Patterns, and Practices* (2002); o acrônimo em si foi sugerido por Michael Feathers por volta de 2004. Esses princípios atuam no **nível das classes e dos módulos** — são os blocos de construção que a Clean Architecture e a Arquitetura Hexagonal impõem no nível do sistema.
 
@@ -26,7 +26,7 @@ flowchart LR
 
 ## S — Princípio da Responsabilidade Única
 
-> "Uma classe deve ter um, e apenas um, motivo para mudar." — Robert C. Martin
+> "Uma classe deve ter um e apenas um motivo para mudar." — Robert C. Martin
 
 Uma classe *responde a* um ator[^4]. Um ator é um grupo de usuários ou de partes interessadas que se importam com a mesma preocupação. Se uma classe atende a dois atores, as mudanças pedidas por um correm o risco de quebrar funcionalidades do outro.
 

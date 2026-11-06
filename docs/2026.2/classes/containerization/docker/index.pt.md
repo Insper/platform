@@ -84,7 +84,7 @@ As instruções que você vai usar com mais frequência:
 | `ENTRYPOINT` / `CMD` | O que roda **quando o container inicia** | `ENTRYPOINT ["java", "-jar", "app.jar"]` |
 
 !!! info "`RUN` vs `CMD` vs `ENTRYPOINT`"
-    `RUN` executa enquanto a imagem é **construída** (instalando pacotes, compilando). `ENTRYPOINT` e `CMD` definem o que executa quando um container **inicia**. Quando os dois estão presentes, o `CMD` fornece os *argumentos* padrão para o `ENTRYPOINT`, e qualquer coisa que você digitar depois do nome da imagem em `docker run <image> …` substitui o `CMD`. Prefira a forma exec, com colchetes (`["java", "-jar", "app.jar"]`): a JVM se torna o PID 1 e recebe o `SIGTERM` enviado por `docker stop`, de modo que o Spring Boot consegue encerrar de forma graciosa.
+    `RUN` executa enquanto a imagem é **construída** (instalando pacotes, compilando). `ENTRYPOINT` e `CMD` definem o que executa quando um container **inicia**. Quando os dois estão presentes, o `CMD` fornece os *argumentos* padrão para o `ENTRYPOINT` e qualquer coisa que você digitar depois do nome da imagem em `docker run <image> …` substitui o `CMD`. Prefira a forma exec, com colchetes (`["java", "-jar", "app.jar"]`): a JVM se torna o PID 1 e recebe o `SIGTERM` enviado por `docker stop`, de modo que o Spring Boot consegue encerrar de forma graciosa.
 
 ### `.dockerignore`
 
@@ -145,7 +145,7 @@ flowchart LR
     classDef changed fill:#f66,color:#fff
 ```
 
-O Dockerfile multi-stage acima já aproveita isso: `RUN mvn dependency:go-offline` só roda quando o `pom.xml` muda, e não a cada mudança no código.
+O Dockerfile multi-stage acima já aproveita isso: `RUN mvn dependency:go-offline` só roda quando o `pom.xml` muda e não a cada mudança no código.
 
 ---
 
@@ -219,7 +219,7 @@ docker run --rm --network store-net postgres:17 pg_isready -h db   # "db" resolv
 
 Com o Docker Compose, todos os serviços são ligados a uma rede definida pelo usuário que o Compose cria automaticamente, então eles se encontram usando o nome do serviço como hostname ([Docker Compose](../compose/index.md)).
 
-!!! warning "`EXPOSE` não publica uma porta, e `localhost` não é o host"
+!!! warning "`EXPOSE` não publica uma porta e `localhost` não é o host"
     - `EXPOSE 8080` é documentação. Para acessar o container pelo navegador, você precisa **publicar** a porta com `-p 8080:8080`.
     - Dentro de um container, `localhost` é o próprio container. Uma aplicação Spring Boot configurada com `jdbc:postgresql://localhost:5432/store` não vai encontrar um banco de dados rodando em outro container — use o nome do container (ou do serviço): `jdbc:postgresql://db:5432/store`.
 
@@ -240,7 +240,7 @@ docker run -v /host/path:/container/path myapp
 Volumes nomeados são preferidos em produção porque o Docker gerencia a localização deles. Bind mounts são úteis durante o desenvolvimento para refletir mudanças em arquivos locais sem reconstruir a imagem.
 
 !!! warning "O PostgreSQL 18 mudou o caminho dos dados"
-    Até o `postgres:17`, a imagem oficial guarda os dados em `/var/lib/postgresql/data`. A partir do `postgres:18`, os dados ficam em um diretório específico da versão (`/var/lib/postgresql/18/docker`), e o volume deve ser montado em `/var/lib/postgresql`. Uma imagem com a tag `postgres` ou `postgres:latest` mudou de comportamento silenciosamente quando a 18 virou `latest` — mais um motivo para **fixar a versão principal** das imagens das quais você depende.
+    Até o `postgres:17`, a imagem oficial guarda os dados em `/var/lib/postgresql/data`. A partir do `postgres:18`, os dados ficam em um diretório específico da versão (`/var/lib/postgresql/18/docker`) e o volume deve ser montado em `/var/lib/postgresql`. Uma imagem com a tag `postgres` ou `postgres:latest` mudou de comportamento silenciosamente quando a 18 virou `latest` — mais um motivo para **fixar a versão principal** das imagens das quais você depende.
 
 ---
 
@@ -249,7 +249,7 @@ Volumes nomeados são preferidos em produção porque o Docker gerencia a locali
 !!! tip "Boas práticas"
     - **Fixe as versões**: `eclipse-temurin:25-jre-alpine`, `postgres:17` — nunca um `latest` implícito para algo de que você faz deploy.
     - **Imagens base pequenas** (`-alpine`, `-jre`, distroless): downloads mais rápidos e menor superfície de ataque.
-    - **Um processo por container**: o serviço, e não o serviço *e* o banco de dados dele.
+    - **Um processo por container**: o serviço e não o serviço *e* o banco de dados dele.
     - **Rode como usuário não root** (`USER`), para que uma aplicação comprometida não rode como root dentro do container.
     - **Configuração por variáveis de ambiente**, para que a mesma imagem rode em todos os ambientes.
 
@@ -272,7 +272,7 @@ Volumes nomeados são preferidos em produção porque o Docker gerencia a locali
 - A CLI `docker` conversa com um daemon que constrói imagens, baixa imagens dos registries e inicia containers por meio do containerd/runc.
 - Um Dockerfile é uma receita; cada instrução que altera o sistema de arquivos é uma camada em cache — coloque as dependências **antes** do código-fonte.
 - **Builds multi-stage** mantêm o Maven e o código-fonte fora da imagem final; o `ENTRYPOINT` na forma exec permite que a JVM encerre de forma graciosa.
-- Publique portas com `-p host:container`; containers em uma rede **definida pelo usuário** se encontram pelo nome, e `localhost` significa o próprio container.
+- Publique portas com `-p host:container`; containers em uma rede **definida pelo usuário** se encontram pelo nome e `localhost` significa o próprio container.
 - Containers são descartáveis: mantenha os dados em **volumes**, a configuração em variáveis de ambiente e fixe as versões das imagens.
 
 ---

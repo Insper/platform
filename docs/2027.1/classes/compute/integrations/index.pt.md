@@ -1,6 +1,6 @@
-Às 10:03 do dia da abertura de vendas, um fã clica em **Pagar**. O serviço `payment` da BoxOffice chama o provedor de pagamentos, e a chamada dá timeout depois de 5 segundos. O cartão foi cobrado? O fã, vendo o indicador de carregamento girar, clica em **Pagar** de novo. Trinta segundos depois, o provedor envia uma notificação de que a *primeira* cobrança foi aprovada — e depois outra, da segunda. Enquanto isso, o provedor de e-mail está aplicando rate limit na BoxOffice porque 40 mil e-mails de confirmação foram enviados em 5 minutos, e uma API de mapas de locais usada na página do evento está fora do ar.
+Às 10:03 do dia da abertura de vendas, um fã clica em **Pagar**. O serviço `payment` da BoxOffice chama o provedor de pagamentos e a chamada dá timeout depois de 5 segundos. O cartão foi cobrado? O fã, vendo o indicador de carregamento girar, clica em **Pagar** de novo. Trinta segundos depois, o provedor envia uma notificação de que a *primeira* cobrança foi aprovada — e depois outra, da segunda. Enquanto isso, o provedor de e-mail está aplicando rate limit na BoxOffice porque 40 mil e-mails de confirmação foram enviados em 5 minutos e uma API de mapas de locais usada na página do evento está fora do ar.
 
-A BoxOffice compra de propósito seus **subdomínios genéricos** ([serviços](../services/index.md#subdomains-where-to-invest)) — processamento de cartões, entrega de e-mails, mapas. É a decisão certa, e ela transforma cada um deles numa dependência que você **não controla**: a latência, a disponibilidade, os limites, as mudanças de API e, principalmente, o fato de que **ela decide alguns resultados de forma assíncrona**. Esta página trata das técnicas que tornam essas integrações seguras: **chaves de idempotência, webhooks verificados, retries que não duplicam, reconciliação e um plano para a indisponibilidade de provedores**. A categoria EXTERNAL da paleta — [3rd Party API, Payment, Email](../../../reference/components/external/index.md) — é o assunto desta página.
+A BoxOffice compra de propósito seus **subdomínios genéricos** ([serviços](../services/index.md#subdomains-where-to-invest)) — processamento de cartões, entrega de e-mails, mapas. É a decisão certa e ela transforma cada um deles numa dependência que você **não controla**: a latência, a disponibilidade, os limites, as mudanças de API e, principalmente, o fato de que **ela decide alguns resultados de forma assíncrona**. Esta página trata das técnicas que tornam essas integrações seguras: **chaves de idempotência, webhooks verificados, retries que não duplicam, reconciliação e um plano para a indisponibilidade de provedores**. A categoria EXTERNAL da paleta — [3rd Party API, Payment, Email](../../../reference/components/external/index.md) — é o assunto desta página.
 
 ---
 
@@ -19,7 +19,7 @@ A BoxOffice compra de propósito seus **subdomínios genéricos** ([serviços](.
 Cada linha corresponde a uma regra de design:
 
 - **Isole o provedor atrás de um adapter** (uma camada anticorrupção, [serviços](../services/index.md#layered-clean-and-hexagonal)): o modelo do provedor, seus nomes de status e seu SDK param numa única classe.
-- **Toda chamada tem timeout, e os retries são seguros** (chaves de idempotência) — seções abaixo.
+- **Toda chamada tem timeout e os retries são seguros** (chaves de idempotência) — seções abaixo.
 - **Proteja-se do provedor** com um circuit breaker e um bulkhead por provedor ([confiabilidade](../../reliability/index.md)), para que um provedor lento não esgote suas threads (o cenário `cascading-failure`).
 - **Respeite os limites deles**: limite a vazão do seu lado, respeite `429` e `Retry-After`.
 - **Assuma que os resultados chegam de forma assíncrona**: modele os estados explicitamente, aceite webhooks, reconcilie.
@@ -179,11 +179,11 @@ As decisões escondidas nessas linhas são as que um entrevistador vai explorar:
 Quando a operação **também chama o provedor**, o passo 3 não é puramente local: a chamada ao provedor não é desfeita com a transação. Por isso a chamada de saída leva sua própria chave de idempotência derivada do id do pedido — se a transação da BoxOffice falhar depois de o provedor cobrar, o retry pergunta de novo ao provedor com a mesma chave e recebe o mesmo pagamento. Para operações mais longas, com vários passos, o desenho de "fases atômicas e pontos de recuperação" de Brandur Leach generaliza essa ideia[^3].
 
 !!! warning "As chaves precisam identificar a operação *lógica*"
-    Uma chave gerada a cada tentativa HTTP (um UUID novo a cada retry) não protege nada. Uma chave derivada do *conteúdo* ("fã 42 compra o assento C-14") bloqueia um fã que legitimamente compra duas vezes. Gere a chave quando o usuário **decide** agir, e reuse-a em todo retry dessa decisão.
+    Uma chave gerada a cada tentativa HTTP (um UUID novo a cada retry) não protege nada. Uma chave derivada do *conteúdo* ("fã 42 compra o assento C-14") bloqueia um fã que legitimamente compra duas vezes. Gere a chave quando o usuário **decide** agir e reuse-a em todo retry dessa decisão.
 
 !!! example "No código do BoxOffice: uma chave do `order` até o provedor (lab 9)"
 
-    No [Hands-on 9 — Payment](../../../hands-on/9/payment/index.md) a chave é derivada do próprio id da BoxOffice, `order-<orderId>`, então todo retry do mesmo pedido (o Resilience4j no `order`, o gateway, um clique duplo) leva a mesma chave. O `payment` é o adaptador: responde a uma chave conhecida a partir da sua tabela, chama o provedor **fora** de qualquer transação de banco (nenhuma conexão fica presa enquanto o provedor pensa), repassa a mesma chave e grava o resultado sob uma constraint `UNIQUE`. É mais simples que o executor acima: não há o estado `IN_PROGRESS`, então duas tentativas concorrentes com a mesma chave podem chegar ambas ao provedor, e é a deduplicação do próprio provedor por essa chave que garante uma única cobrança. Isso só é aceitável porque provedores reais deduplicam; na sua própria API, use o passo de reivindicação (*claim*).
+    No [Hands-on 9 — Payment](../../../hands-on/9/payment/index.md) a chave é derivada do próprio id da BoxOffice, `order-<orderId>`, então todo retry do mesmo pedido (o Resilience4j no `order`, o gateway, um clique duplo) leva a mesma chave. O `payment` é o adaptador: responde a uma chave conhecida a partir da sua tabela, chama o provedor **fora** de qualquer transação de banco (nenhuma conexão fica presa enquanto o provedor pensa), repassa a mesma chave e grava o resultado sob uma constraint `UNIQUE`. É mais simples que o executor acima: não há o estado `IN_PROGRESS`, então duas tentativas concorrentes com a mesma chave podem chegar ambas ao provedor e é a deduplicação do próprio provedor por essa chave que garante uma única cobrança. Isso só é aceitável porque provedores reais deduplicam; na sua própria API, use o passo de reivindicação (*claim*).
 
     ``` { .java title="services/order/src/main/java/boxoffice/order/payment/PaymentClient.java (the key)" }
     --8<-- "docs/2027.1/hands-on/9/code/services/order/src/main/java/boxoffice/order/payment/PaymentClient.java:25:32"
@@ -205,7 +205,7 @@ Nem toda falha é igual. O que você pode fazer em seguida depende de **a requis
 | Timeout **depois** de enviar a requisição | **desconhecido** | retry com a **mesma chave de idempotência**, ou consultar o status antes |
 | `5xx` do provedor | desconhecido (possivelmente parcial) | retry com a mesma chave, com backoff e jitter |
 | `429 Too Many Requests` | não | esperar o `Retry-After` e repetir; limitar a própria vazão |
-| `400`, `401`, `402` cartão recusado, `422` | não, e não vai dar certo | não repetir; mostrar o erro |
+| `400`, `401`, `402` cartão recusado, `422` | não e não vai dar certo | não repetir; mostrar o erro |
 
 Os retries seguem as regras de [confiabilidade](../../reliability/index.md): backoff exponencial com full jitter, um número máximo pequeno de tentativas, em **uma** camada só, e dentro do orçamento de tempo de quem chama. Para um checkout diante do usuário esse orçamento é curto — alguns segundos; depois disso, o pagamento vira `UNKNOWN`/`PENDING` e o fã vê "estamos confirmando seu pagamento", enquanto um job em segundo plano resolve a situação.
 
@@ -318,7 +318,7 @@ Muitos times também tratam o webhook **apenas como notificação** ("algo mudou
 | Atualizações perdidas | possíveis — exige reconciliação | nenhuma, se a consulta for completa |
 | Uso típico | canal principal para resultados | fallback para itens travados, reconciliação |
 
-Use os dois: webhooks como caminho rápido, e um **sweeper** que consulta o provedor sobre pagamentos ainda `UNKNOWN` ou `PENDING` depois de, digamos, 10 minutos.
+Use os dois: webhooks como caminho rápido e um **sweeper** que consulta o provedor sobre pagamentos ainda `UNKNOWN` ou `PENDING` depois de, digamos, 10 minutos.
 
 !!! info "Quando a BoxOffice envia webhooks"
     Revendedores assinam eventos da BoxOffice (`order.confirmed`, `event.cancelled`). Agora a BoxOffice é o provedor e precisa oferecer o que espera dos outros: entregas assinadas com id único e timestamp, retries com backoff exponencial por um período documentado, um armazenamento de mensagens mortas (dead letters), um painel para reenviar entregas e a promessa de que a entrega é pelo menos uma vez e sem ordem. Uma fila com um pool de workers por assinante evita que um revendedor lento atrase os demais.
@@ -327,7 +327,7 @@ Use os dois: webhooks como caminho rápido, e um **sweeper** que consulta o prov
 
 ## Reconciliação { #reconciliation }
 
-Idempotência e webhooks tornam cada interação segura. Eles não garantem que, no fim do dia, os registros da BoxOffice **batam** com os do provedor: um webhook pode se perder depois que os retries do provedor acabam, um atendente pode estornar um pagamento no painel do provedor, um bug pode pular uma atualização de estado, e o provedor desconta tarifas e chargebacks que você só conhece pelos relatórios.
+Idempotência e webhooks tornam cada interação segura. Eles não garantem que, no fim do dia, os registros da BoxOffice **batam** com os do provedor: um webhook pode se perder depois que os retries do provedor acabam, um atendente pode estornar um pagamento no painel do provedor, um bug pode pular uma atualização de estado e o provedor desconta tarifas e chargebacks que você só conhece pelos relatórios.
 
 A **reconciliação** é o job periódico que compara os dois lados e resolve as diferenças — prática padrão em qualquer sistema que movimenta dinheiro[^6].
 
@@ -393,12 +393,12 @@ flowchart LR
 
 As decisões da BoxOffice:
 
-- **Provedor de pagamentos fora** → o breaker abre depois de uma rajada de falhas; novos checkouts falham rápido com uma mensagem clara, e os **holds ativos são estendidos** pela duração da falha, para que os fãs não percam seus assentos enquanto esperam. Pagamentos que já estavam em voo continuam `UNKNOWN` e são resolvidos pelo sweeper quando o provedor volta. (Um segundo provedor de pagamentos está no roadmap, atrás da mesma porta `PaymentGateway`.)
+- **Provedor de pagamentos fora** → o breaker abre depois de uma rajada de falhas; novos checkouts falham rápido com uma mensagem clara e os **holds ativos são estendidos** pela duração da falha, para que os fãs não percam seus assentos enquanto esperam. Pagamentos que já estavam em voo continuam `UNKNOWN` e são resolvidos pelo sweeper quando o provedor volta. (Um segundo provedor de pagamentos está no roadmap, atrás da mesma porta `PaymentGateway`.)
 - **Provedor de e-mail fora ou aplicando rate limit** → as mensagens esperam na fila; o worker de notificação limita a vazão ao limite do provedor; depois de uma falha prolongada, o tráfego faz failover para um provedor secundário. Os links dos ingressos continuam disponíveis no app, então um e-mail atrasado é um incômodo, não uma venda perdida.
 - **API de mapas do local fora** → a página do evento é renderizada sem o mapa interativo (fallback para uma imagem em cache).
 
 !!! example "E-mail é uma integração com regras próprias"
-    Enviar e-mail de forma confiável é mais do que uma chamada de API. Os provedores impõem **rate limits** por conta; eles informam **bounces** (endereço inexistente) e **reclamações** (marcado como spam) por webhook, e a BoxOffice precisa parar de enviar para esses endereços (uma **lista de supressão**), ou o provedor suspende a conta. A autenticação do domínio com **SPF, DKIM e DMARC** decide se as mensagens chegam à caixa de entrada. E o e-mail **transacional** (ingressos, redefinição de senha) deve usar um fluxo ou subdomínio separado do e-mail de **marketing**, para que uma campanha ruim não prejudique a entrega de ingressos.
+    Enviar e-mail de forma confiável é mais do que uma chamada de API. Os provedores impõem **rate limits** por conta; eles informam **bounces** (endereço inexistente) e **reclamações** (marcado como spam) por webhook e a BoxOffice precisa parar de enviar para esses endereços (uma **lista de supressão**), ou o provedor suspende a conta. A autenticação do domínio com **SPF, DKIM e DMARC** decide se as mensagens chegam à caixa de entrada. E o e-mail **transacional** (ingressos, redefinição de senha) deve usar um fluxo ou subdomínio separado do e-mail de **marketing**, para que uma campanha ruim não prejudique a entrega de ingressos.
 
 ### Experimente no playground { #try-it-in-the-playground }
 
@@ -406,7 +406,7 @@ Abra o cenário `payment-system`: o checkout chama um serviço de pagamento que 
 
 1. Suba o nível de caos para **high**, para que o provedor tenha quedas e períodos lentos; observe o p99 do checkout e a taxa de erros.
 2. Configure retries **sem** backoff na aresta de pagamento: o provedor recebe uma tempestade de retries e fica fora por mais tempo. Troque para **backoff exponencial com jitter**.
-3. Adicione um **timeout** e um **circuit breaker** na aresta para o provedor: o checkout falha rápido em vez de acumular threads, e se recupera quando o provedor volta.
+3. Adicione um **timeout** e um **circuit breaker** na aresta para o provedor: o checkout falha rápido em vez de acumular threads e se recupera quando o provedor volta.
 
 <div class="sdp" data-scenario="payment-system" data-mode="compact" data-height="520" data-chaos="medium"></div>
 
@@ -416,7 +416,7 @@ Abra o cenário `payment-system`: o checkout chama um serviço de pagamento que 
 
 ## Segurança das integrações { #security-of-integrations }
 
-- **Segredos** (chaves de API, segredos de webhook) ficam num gerenciador de segredos, nunca no repositório; faça rotação, e use **chaves restritas** só com as permissões de que cada serviço precisa ([redes e segurança](../../network-security/index.md)).
+- **Segredos** (chaves de API, segredos de webhook) ficam num gerenciador de segredos, nunca no repositório; faça rotação e use **chaves restritas** só com as permissões de que cada serviço precisa ([redes e segurança](../../network-security/index.md)).
 - **Minimize o escopo do PCI DSS**: tokenize com os campos hospedados ou a página de pagamento do provedor, para que números de cartão nunca atravessem a rede da BoxOffice.
 - **Controle de saída**: as chamadas aos provedores saem por um NAT gateway com IPs fixos (alguns provedores os colocam em allowlist); negue o restante do tráfego de saída.
 - **Trate as respostas do provedor como entrada**: valide-as; um provedor comprometido ou com bug não pode injetar dados no seu sistema sem verificação.
@@ -448,7 +448,7 @@ Abra o cenário `payment-system`: o checkout chama um serviço de pagamento que 
     - **Guarde o id do provedor em todo estado de pagamento** — suporte, estornos e conciliação começam todos por ele. Na BoxOffice: a coluna `provider_ref` de `payments` (lab 9).
     - **Teste contra um provedor falso que pode ser lento, falhar e responder duas vezes** — um stub atrás de um proxy de falhas transforma "e se o provedor levar 3 s?" num teste que você repete. Na BoxOffice: o stub `psp` atrás do Toxiproxy no [lab 9](../../../hands-on/9/index.md).
     - **Acompanhe cada provedor como um dos seus serviços** — latência, taxa de erro e folga do limite de taxa por provedor num dashboard, mais a página de status dele; um alerta sobre o p99 do provedor dispara antes de o checkout falhar.
-    - **Restrinja cada credencial de provedor a um serviço** — só o `payment` pode ler a chave de pagamento, e rotacioná-la é uma operação rotineira e ensaiada ([zero trust](../../network-security/zero-trust/index.md)).
+    - **Restrinja cada credencial de provedor a um serviço** — só o `payment` pode ler a chave de pagamento e rotacioná-la é uma operação rotineira e ensaiada ([zero trust](../../network-security/zero-trust/index.md)).
 
 !!! warning "Armadilhas comuns"
 

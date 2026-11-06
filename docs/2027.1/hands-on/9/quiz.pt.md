@@ -4,7 +4,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ## Falhas em cascata e timeouts { #cascading-failures-and-timeouts }
 
-**Q1.** O `order` tem 50 threads. Os pagamentos chegam a 20 por segundo e o `payment` de repente leva 3 s para responder. O `GET /orders/{id}` não chama o `payment`. O que acontece com ele, e por quê?
+**Q1.** O `order` tem 50 threads. Os pagamentos chegam a 20 por segundo e o `payment` de repente leva 3 s para responder. O `GET /orders/{id}` não chama o `payment`. O que acontece com ele e por quê?
 
 - A. Nada: ele não depende do `payment`
 - B. Ele também fica lento e estoura o timeout: seriam necessárias 20/s × 3 s = 60 threads só para esperar o `payment`, mais que as 50 disponíveis, então toda requisição vai para a fila
@@ -32,7 +32,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q3.** A borda estoura o timeout depois de 5 s, o gateway depois de 10 s, e o `order` espera o `payment` por até 3 retries × 4 s. O que está errado?
+**Q3.** A borda estoura o timeout depois de 5 s, o gateway depois de 10 s e o `order` espera o `payment` por até 3 retries × 4 s. O que está errado?
 
 - A. Nada; timeouts internos mais longos são mais seguros
 - B. Os orçamentos internos excedem os externos: a borda desiste enquanto o `order` e o gateway continuam trabalhando em requisições que ninguém está esperando. Os orçamentos precisam encolher a cada salto
@@ -102,7 +102,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — fechado → aberto → half-open → fechado (ou aberto de novo).**
 
-    O estado aberto poupa as threads e o tempo de quem chama, e dá espaço para a dependência se recuperar em vez de uma enxurrada de chamadas condenadas. As sondas do half-open detectam a recuperação automaticamente. Um breaker não conserta nada — ele limita o estrago.
+    O estado aberto poupa as threads e o tempo de quem chama e dá espaço para a dependência se recuperar em vez de uma enxurrada de chamadas condenadas. As sondas do half-open detectam a recuperação automaticamente. Um breaker não conserta nada — ele limita o estrago.
 
 ---
 

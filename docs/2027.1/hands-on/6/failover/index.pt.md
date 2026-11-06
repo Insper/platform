@@ -35,7 +35,7 @@ A réplica ganha um nome, `cluster_name=db-replica`: é assim que o primário se
 --8<-- "docs/2027.1/hands-on/6/code/infra/postgres/replica-entrypoint.sh"
 ```
 
-O `10-replication.sh` só roda quando o volume é criado, e o seu já existe; então ligue a opção à mão (o `ALTER SYSTEM` grava no `postgresql.auto.conf`, dentro do diretório de dados) e reinicie. O `--force-recreate` faz o contêiner da réplica pegar o script novo:
+O `10-replication.sh` só roda quando o volume é criado e o seu já existe; então ligue a opção à mão (o `ALTER SYSTEM` grava no `postgresql.auto.conf`, dentro do diretório de dados) e reinicie. O `--force-recreate` faz o contêiner da réplica pegar o script novo:
 
 ``` { .bash .copy }
 docker compose exec db psql -U boxoffice -c "ALTER SYSTEM SET wal_log_hints = on"
@@ -107,11 +107,11 @@ Em duas execuções deste lab:
 | `on` | 93–100% | 45–380 ms |
 | `remote_apply` | **0%** | **2 s** |
 
-O `remote_apply` resolve o read-your-writes por completo, e cada iteração passa a levar 2 segundos: a reserva espera a réplica reaplicá-la (1 s), e a liberação no fim também (1 s). O atraso deixa de ser um problema de defasagem e vira um problema de **latência** em toda escrita.
+O `remote_apply` resolve o read-your-writes por completo e cada iteração passa a levar 2 segundos: a reserva espera a réplica reaplicá-la (1 s) e a liberação no fim também (1 s). O atraso deixa de ser um problema de defasagem e vira um problema de **latência** em toda escrita.
 
 !!! warning "Nunca ligue o `remote_apply` para o servidor inteiro"
 
-    Configurado assim, ele vale para toda transação de todo serviço: com a réplica 1 s atrás, cadastrar um fã no `auth` levou **1,1 s** numa execução de teste, e todo script do k6 que cria fãs fica lento junto. Se uma operação precisa dele, peça só naquela transação: `SET LOCAL synchronous_commit = remote_apply` dentro da transação da reserva.
+    Configurado assim, ele vale para toda transação de todo serviço: com a réplica 1 s atrás, cadastrar um fã no `auth` levou **1,1 s** numa execução de teste e todo script do k6 que cria fãs fica lento junto. Se uma operação precisa dele, peça só naquela transação: `SET LOCAL synchronous_commit = remote_apply` dentro da transação da reserva.
 
 **Quando a réplica falha.** Replicação síncrona com um standby só faz desse standby um ponto único de falha para as **escritas**:
 
@@ -124,7 +124,7 @@ curl -s -o /dev/null -w "seat map: %{http_code}\n" localhost/inventory/events/1/
 docker compose exec db psql -U boxoffice -c "UPDATE inventory.seats SET version = version WHERE id = 1"
 ```
 
-A reserva recebe `504` depois de 5 s (o timeout do gateway), o mapa de assentos também recebe `504` (as leituras dele vão para a réplica), e o `UPDATE` **trava**. Aperte ++ctrl+c++:
+A reserva recebe `504` depois de 5 s (o timeout do gateway), o mapa de assentos também recebe `504` (as leituras dele vão para a réplica) e o `UPDATE` **trava**. Aperte ++ctrl+c++:
 
 ``` { .text }
 Cancel request sent
@@ -140,9 +140,9 @@ docker compose start db-replica
 docker compose exec db psql -U boxoffice -c "SELECT id, status FROM inventory.seats WHERE id = 10"
 ```
 
-O assento 10 está `HELD`. A fã viu um erro, e a reserva existe. Por isso, um cliente que tenta de novo precisa reconhecer a própria tentativa anterior (uma chave de idempotência, veja [semântica de entrega](../../../classes/messaging/semantics/index.md)), ou vai receber `409` por um assento que já é dele.
+O assento 10 está `HELD`. A fã viu um erro e a reserva existe. Por isso, um cliente que tenta de novo precisa reconhecer a própria tentativa anterior (uma chave de idempotência, veja [semântica de entrega](../../../classes/messaging/semantics/index.md)), ou vai receber `409` por um assento que já é dele.
 
-Com dois ou mais standbys, `ANY 1 (a, b)` espera por quem responder primeiro: uma réplica pode falhar sem parar as escritas. É a configuração comum em produção, e o que os serviços gerenciados chamam de standby síncrono. Volte para a replicação assíncrona no resto do passo:
+Com dois ou mais standbys, `ANY 1 (a, b)` espera por quem responder primeiro: uma réplica pode falhar sem parar as escritas. É a configuração comum em produção e o que os serviços gerenciados chamam de standby síncrono. Volte para a replicação assíncrona no resto do passo:
 
 ``` { .bash .copy }
 docker compose exec db psql -U boxoffice -c "ALTER SYSTEM RESET synchronous_standby_names" -c "SELECT pg_reload_conf()"
@@ -150,7 +150,7 @@ docker compose exec db psql -U boxoffice -c "ALTER SYSTEM RESET synchronous_stan
 
 ## 3. O primário morre { #crash }
 
-Numa máquina só, a réplica fica apenas milissegundos atrás, pouco demais para perder uma escrita quando você quer. Pare-a por um momento para abrir essa janela: a reserva da Ana chega ao primário, e **só** ao primário.
+Numa máquina só, a réplica fica apenas milissegundos atrás, pouco demais para perder uma escrita quando você quer. Pare-a por um momento para abrir essa janela: a reserva da Ana chega ao primário e **só** ao primário.
 
 ``` { .bash .copy }
 bash scripts/reset-inventory.sh
@@ -163,9 +163,9 @@ docker compose up -d --no-deps db-replica
 
 A reserva respondeu `201` com status `ACTIVE`: para a Ana, os assentos 20 e 21 são dela. Depois, `kill` (e não `stop`): sem desligamento limpo, como numa queda de verdade.
 
-!!! warning "`--no-deps`, e não `docker compose start db-replica`"
+!!! warning "`--no-deps` e não `docker compose start db-replica`"
 
-    O `db-replica` depende do `db`, então um `start` simples traz o primário morto de volta também, e não sobra nada para o failover. O `up -d --no-deps` sobe só o serviço que você nomeia.
+    O `db-replica` depende do `db`, então um `start` simples traz o primário morto de volta também e não sobra nada para o failover. O `up -d --no-deps` sobe só o serviço que você nomeia.
 
 O que ainda funciona? Dê alguns segundos para o `inventory` se reconectar à réplica reiniciada e teste cada caminho da stack (fique neste terminal: as próximas seções reaproveitam `probe`, `$TOKEN` e `$HOLD_ID`):
 
@@ -189,11 +189,11 @@ Você deve ver:
 504 5.01s  event 1 (catalog)
 ```
 
-A réplica mantém os mapas de assentos de pé: uma réplica de leitura também é um pouco de **disponibilidade**. Tudo o que escreve, e tudo o que lê do primário, espera até o gateway desistir. (Um item do catálogo que ainda estiver no Redis responderia `200` até o TTL expirar: o cache do lab 5 é outra camada que esconde uma queda do banco, por um tempo.)
+A réplica mantém os mapas de assentos de pé: uma réplica de leitura também é um pouco de **disponibilidade**. Tudo o que escreve e tudo o que lê do primário espera até o gateway desistir. (Um item do catálogo que ainda estiver no Redis responderia `200` até o TTL expirar: o cache do lab 5 é outra camada que esconde uma queda do banco, por um tempo.)
 
 ## 4. Faça o failover { #failover }
 
-Um failover são duas decisões: **qual** nó vira o primário, e **como os clientes o encontram**. Promova a réplica:
+Um failover são duas decisões: **qual** nó vira o primário e **como os clientes o encontram**. Promova a réplica:
 
 ``` { .bash .copy }
 docker compose exec db-replica psql -U boxoffice -c "SELECT pg_promote()" -c "SELECT pg_is_in_recovery()"
@@ -222,7 +222,7 @@ probe "login" -X POST localhost/auth/login -H 'Content-Type: application/json' \
 probe "event 1" localhost/catalog/events/1
 ```
 
-Numa execução deste lab, a primeira rodada logo depois da mudança ainda teve `504`; 15 segundos depois, tudo respondeu `200`/`201`. Os pools descartam as conexões quebradas e abrem novas, e cada processo resolve `db` de novo (a JVM guarda um nome por 30 s, o PgBouncer por até 15 s). Nenhum arquivo mudou, nenhum serviço reiniciou.
+Numa execução deste lab, a primeira rodada logo depois da mudança ainda teve `504`; 15 segundos depois, tudo respondeu `200`/`201`. Os pools descartam as conexões quebradas e abrem novas e cada processo resolve `db` de novo (a JVM guarda um nome por 30 s, o PgBouncer por até 15 s). Nenhum arquivo mudou, nenhum serviço reiniciou.
 
 Agora procure a reserva da Ana:
 
@@ -239,15 +239,15 @@ docker compose exec db-replica psql -U boxoffice -c "SELECT id, status FROM inve
  21 | AVAILABLE
 ```
 
-**A reserva sumiu**, e os assentos 20 e 21 voltaram à venda: outro fã pode comprá-los, enquanto a Ana tem um `201` dizendo que são dela. A reserva só existia no WAL do primário morto. Esse é o **RPO** (recovery point objective) da replicação assíncrona: o que foi confirmado mas ainda não tinha sido enviado. A seção 2 é o preço de zerá-lo.
+**A reserva sumiu** e os assentos 20 e 21 voltaram à venda: outro fã pode comprá-los, enquanto a Ana tem um `201` dizendo que são dela. A reserva só existia no WAL do primário morto. Esse é o **RPO** (recovery point objective) da replicação assíncrona: o que foi confirmado mas ainda não tinha sido enviado. A seção 2 é o preço de zerá-lo.
 
 !!! info "Um nó, nenhum sobressalente"
 
-    A stack roda, mas sobre um banco só: o `db-replica` agora também é o primário, e os mapas de assentos o dividem com as escritas. Até a seção 7, não resta cópia para onde fazer failover.
+    A stack roda, mas sobre um banco só: o `db-replica` agora também é o primário e os mapas de assentos o dividem com as escritas. Até a seção 7, não resta cópia para onde fazer failover.
 
 ## 5. Split brain { #split-brain }
 
-E se o antigo primário não estava morto, só inalcançável (uma VM congelada, uma rede cortada), e volta? Suba-o do jeito que está:
+E se o antigo primário não estava morto, só inalcançável (uma VM congelada, uma rede cortada) e volta? Suba-o do jeito que está:
 
 ``` { .bash .copy }
 docker compose start db
@@ -266,7 +266,7 @@ db: primary=t, seat 20=HELD
 db-replica: primary=t, seat 20=AVAILABLE
 ```
 
-Dois primários, um nome, duas respostas sobre o assento 20. Cada conexão nova com `db` cai em qualquer um dos dois: o PgBouncer poderia pôr a próxima reserva da Ana num servidor e a auditoria no outro, e os dois responderiam satisfeitos. Nada aqui consegue dizer qual está certo. Isso é um **split brain**.
+Dois primários, um nome, duas respostas sobre o assento 20. Cada conexão nova com `db` cai em qualquer um dos dois: o PgBouncer poderia pôr a próxima reserva da Ana num servidor e a auditoria no outro e os dois responderiam satisfeitos. Nada aqui consegue dizer qual está certo. Isso é um **split brain**.
 
 **Isole** (fencing) o antigo primário antes que algo escreva nele:
 
@@ -274,11 +274,11 @@ Dois primários, um nome, duas respostas sobre o assento 20. Cada conexão nova 
 docker compose stop db
 ```
 
-Em produção, uma pessoa fazendo isso à mão às 10:01 é lenta e arriscada demais. Um gerenciador de failover como o Patroni guarda uma **chave de líder** no etcd, renovada a cada poucos segundos: um primário que não consegue renová-la se rebaixa, e um nó só pode se promover se tiver a chave. É o consenso decidindo quem é o líder ([Consenso e quóruns](../../../classes/distributed/consensus/index.md)), e o fencing garantindo que o perdedor pare (no extremo, STONITH: "shoot the other node in the head", derrubar o outro nó à força).
+Em produção, uma pessoa fazendo isso à mão às 10:01 é lenta e arriscada demais. Um gerenciador de failover como o Patroni guarda uma **chave de líder** no etcd, renovada a cada poucos segundos: um primário que não consegue renová-la se rebaixa e um nó só pode se promover se tiver a chave. É o consenso decidindo quem é o líder ([Consenso e quóruns](../../../classes/distributed/consensus/index.md)) e o fencing garantindo que o perdedor pare (no extremo, STONITH: "shoot the other node in the head", derrubar o outro nó à força).
 
 ## 6. Traga o antigo primário de volta com o `pg_rewind` { #rejoin }
 
-O diretório de dados do antigo primário tem uma história que o novo primário nunca teve: a reserva perdida da Ana, e depois a escrita do assento 20 durante o split brain. Ele não pode simplesmente seguir o novo primário. O `pg_rewind` encontra onde as duas timelines se separaram, copia do novo primário todo bloco que mudou desde então e joga fora o que só o antigo tinha:
+O diretório de dados do antigo primário tem uma história que o novo primário nunca teve: a reserva perdida da Ana e depois a escrita do assento 20 durante o split brain. Ele não pode simplesmente seguir o novo primário. O `pg_rewind` encontra onde as duas timelines se separaram, copia do novo primário todo bloco que mudou desde então e joga fora o que só o antigo tinha:
 
 ``` { .bash title="infra/postgres/rejoin-as-replica.sh" .copy linenums="1" }
 --8<-- "docs/2027.1/hands-on/6/code/infra/postgres/rejoin-as-replica.sh"
@@ -312,11 +312,11 @@ docker compose exec db psql -U boxoffice -c "SELECT pg_is_in_recovery()" -c "SEL
 docker compose exec db-replica psql -U boxoffice -c "SELECT application_name, state FROM pg_stat_replication"
 ```
 
-O `db` agora é uma réplica (`pg_is_in_recovery` = `t`), o assento 20 está `AVAILABLE` nos dois (a escrita do split brain foi descartada), e o `db-replica` o lista como `walreceiver`, `streaming`. Sem o `wal_log_hints`, o `pg_rewind` para com `target server needs to use either data checksums or "wal_log_hints = on"`, e o único caminho de volta é uma cópia completa.
+O `db` agora é uma réplica (`pg_is_in_recovery` = `t`), o assento 20 está `AVAILABLE` nos dois (a escrita do split brain foi descartada) e o `db-replica` o lista como `walreceiver`, `streaming`. Sem o `wal_log_hints`, o `pg_rewind` para com `target server needs to use either data checksums or "wal_log_hints = on"` e o único caminho de volta é uma cópia completa.
 
 !!! warning "Até a seção 7, `db` resolve para dois contêineres"
 
-    O nome `db` é do serviço `db`, e você o deu também ao `db-replica`. Uma escrita que cair no `db`, agora um standby somente leitura, falha com `cannot execute INSERT in a read-only transaction`. Trate a próxima seção como uma janela de manutenção e faça-a em seguida.
+    O nome `db` é do serviço `db` e você o deu também ao `db-replica`. Uma escrita que cair no `db`, agora um standby somente leitura, falha com `cannot execute INSERT in a read-only transaction`. Trate a próxima seção como uma janela de manutenção e faça-a em seguida.
 
 ## 7. Volte ao primário original { #switchback }
 
@@ -349,7 +349,7 @@ docker compose exec pgbouncer getent hosts db db-replica
 172.23.0.3        db-replica  db-replica
 ```
 
-Um nome, um endereço para cada um, e o primário é o `db` de novo (na timeline 3: uma separação por promoção). Uma última verificação da stack inteira:
+Um nome, um endereço para cada um e o primário é o `db` de novo (na timeline 3: uma separação por promoção). Uma última verificação da stack inteira:
 
 ``` { .bash .copy }
 probe "seat map" localhost/inventory/events/1/availability
@@ -362,7 +362,7 @@ curl -s localhost/inventory/audit/double-bookings -H "Authorization: Bearer $TOK
 bash scripts/reset-inventory.sh
 ```
 
-Todos os testes respondem `200` ou `201`, e a auditoria diz `{"doubleBookedSeats":0}`.
+Todos os testes respondem `200` ou `201` e a auditoria diz `{"doubleBookedSeats":0}`.
 
 ## 8. O que você fez à mão { #in-production }
 
@@ -378,12 +378,12 @@ Todos os testes respondem `200` ou `201`, e a auditoria diz `{"doubleBookedSeats
 
 Os serviços gerenciados (RDS Multi-AZ, Cloud SQL HA, Azure zone-redundant HA) fazem tudo isso por você, tipicamente em dezenas de segundos a alguns minutos. O seu design ainda precisa decidir o que a aplicação faz nesse meio-tempo: tentar de novo com backoff, mostrar "tente de novo", segurar a requisição numa fila (lab 7). Veja [Replicação — failover](../../../classes/databases/replication/index.md#failover-when-the-leader-dies) para a teoria.
 
-??? question "Pense primeiro: a Ana recebeu `201`, a reserva se perdeu e os assentos foram vendidos para outra pessoa. De quem é o problema, e o que poderia ter evitado?"
+??? question "Pense primeiro: a Ana recebeu `201`, a reserva se perdeu e os assentos foram vendidos para outra pessoa. De quem é o problema e o que poderia ter evitado?"
 
-    O banco cumpriu a promessa: a replicação assíncrona diz, por definição, que os últimos commits podem se perder. Foi o **design** que decidiu que reservas podem se perder. As opções, da mais barata: aceitar e detectar (no lab 7, confirmar a reserva perdida falha com `404`, e a Ana fica sabendo que os assentos foram embora); fazer só as reservas esperarem uma réplica (`ANY 1` sobre duas réplicas, `synchronous_commit = local` como padrão do servidor e `SET LOCAL synchronous_commit = on` na transação da reserva); ou usar um armazenamento que replica antes de confirmar (Aurora, Spanner, CockroachDB), pagando a latência em toda escrita.
+    O banco cumpriu a promessa: a replicação assíncrona diz, por definição, que os últimos commits podem se perder. Foi o **design** que decidiu que reservas podem se perder. As opções, da mais barata: aceitar e detectar (no lab 7, confirmar a reserva perdida falha com `404` e a Ana fica sabendo que os assentos foram embora); fazer só as reservas esperarem uma réplica (`ANY 1` sobre duas réplicas, `synchronous_commit = local` como padrão do servidor e `SET LOCAL synchronous_commit = on` na transação da reserva); ou usar um armazenamento que replica antes de confirmar (Aurora, Spanner, CockroachDB), pagando a latência em toda escrita.
 
 !!! tip "Na entrevista"
 
-    Quando desenhar um primário e uma réplica, diga o que acontece quando o primário morre: **RPO** (o que se perde: assíncrona = os últimos commits, síncrona = nada), **RTO** (quanto tempo as escritas ficam fora: detecção + promoção + reconexão dos clientes), **split brain** (quem decide o líder, e como o antigo é isolado) e **como os clientes encontram o novo primário** (DNS, VIP, proxy, driver). "Colocamos uma réplica para ter alta disponibilidade" fica incompleto sem esses quatro.
+    Quando desenhar um primário e uma réplica, diga o que acontece quando o primário morre: **RPO** (o que se perde: assíncrona = os últimos commits, síncrona = nada), **RTO** (quanto tempo as escritas ficam fora: detecção + promoção + reconexão dos clientes), **split brain** (quem decide o líder e como o antigo é isolado) e **como os clientes encontram o novo primário** (DNS, VIP, proxy, driver). "Colocamos uma réplica para ter alta disponibilidade" fica incompleto sem esses quatro.
 
 Volte à [visão geral do lab](../index.md#measure-it) para registrar os resultados.

@@ -1,5 +1,5 @@
 
-Abra o `account-service` do [Hands-on 1](../../hands-on/1/index.md) daqui a um ano. O time de produto quer um endpoint para o app mobile, o time de banco de dados quer migrar do Postgres para um serviço gerenciado, o time de segurança quer que as contas sejam criadas a partir de um evento Kafka, e alguém precisa escrever testes que rodem em segundos. Se as regras de negócio ("um e-mail só pode ser cadastrado uma vez", "uma senha tem pelo menos 8 caracteres") estiverem emaranhadas com anotações do Spring, SQL e códigos de status HTTP, cada um desses pedidos vira uma reescrita.
+Abra o `account-service` do [Hands-on 1](../../hands-on/1/index.md) daqui a um ano. O time de produto quer um endpoint para o app mobile, o time de banco de dados quer migrar do Postgres para um serviço gerenciado, o time de segurança quer que as contas sejam criadas a partir de um evento Kafka e alguém precisa escrever testes que rodem em segundos. Se as regras de negócio ("um e-mail só pode ser cadastrado uma vez", "uma senha tem pelo menos 8 caracteres") estiverem emaranhadas com anotações do Spring, SQL e códigos de status HTTP, cada um desses pedidos vira uma reescrita.
 
 A arquitetura de software define como os componentes de um sistema são organizados, como se comunicam e — mais importante — quais componentes **podem conhecer quais outros**. As arquiteturas vistas aqui compartilham o mesmo objetivo fundamental: **proteger a lógica de negócio de preocupações externas**, como frameworks, bancos de dados e mecanismos de entrega. Essa separação importa porque as preocupações externas mudam com mais frequência do que as regras de negócio. Uma migração de banco de dados, uma atualização de framework ou um novo protocolo de API não deveriam exigir reescrever a lógica central.
 
@@ -12,7 +12,7 @@ A arquitetura de software define como os componentes de um sistema são organiza
     - **Projetar** um serviço com portas e adaptadores, distinguindo portas de entrada (*driving*) de portas de saída (*driven*).
     - **Comparar** as arquiteturas em camadas, Clean e Hexagonal, e **justificar** quando a estrutura extra compensa.
     - **Escrever** um teste unitário para um caso de uso, substituindo o adaptador de banco de dados por um em memória.
-    - **Descrever** o CQRS e o seu custo (consistência eventual), e decidir quando ele vale a pena.
+    - **Descrever** o CQRS e o seu custo (consistência eventual) e decidir quando ele vale a pena.
 
 ## Slides
 
@@ -98,7 +98,7 @@ flowchart LR
   end
 ```
 
-Na versão em camadas, o serviço — a lógica de negócio — depende da tecnologia de persistência. Na versão Clean/Hexagonal, o serviço é dono de uma interface expressa em termos de negócio, e o código de persistência depende dela. Essa única mudança é o **Princípio da Inversão de Dependência** (o "D" do SOLID) aplicado na fronteira, e é isso que as próximas três páginas desenvolvem.
+Na versão em camadas, o serviço — a lógica de negócio — depende da tecnologia de persistência. Na versão Clean/Hexagonal, o serviço é dono de uma interface expressa em termos de negócio e o código de persistência depende dela. Essa única mudança é o **Princípio da Inversão de Dependência** (o "D" do SOLID) aplicado na fronteira e é isso que as próximas três páginas desenvolvem.
 
 ---
 
@@ -114,7 +114,7 @@ Na versão em camadas, o serviço — a lógica de negócio — depende da tecno
 | Relação | o ponto de partida habitual | parte explicitamente da Hexagonal e da Onion, nomeando as camadas internas[^1] | a ideia original de fronteira[^2] |
 
 !!! tip "Qual usar?"
-    As duas arquiteturas são complementares e costumam ser usadas juntas. Pense na **Hexagonal** como a definição de *como* funciona a fronteira da aplicação (portas e adaptadores), e na **Clean Architecture** como a definição do *que* vai dentro dessas fronteiras (camadas com políticas de dependência explícitas). A maioria dos microsserviços modernos combina as duas.
+    As duas arquiteturas são complementares e costumam ser usadas juntas. Pense na **Hexagonal** como a definição de *como* funciona a fronteira da aplicação (portas e adaptadores) e na **Clean Architecture** como a definição do *que* vai dentro dessas fronteiras (camadas com políticas de dependência explícitas). A maioria dos microsserviços modernos combina as duas.
 
 !!! warning "Não exagere na arquitetura de um serviço CRUD"
     Portas, adaptadores e mappers têm um custo: mais classes, mais conversões, mais indireção para ler. Um serviço que só armazena e devolve registros, sem regras de negócio reais (uma tabela de consulta, um catálogo simples), pode continuar em camadas. A estrutura extra compensa quando as **regras de negócio são ricas**, o serviço **vive por muito tempo** ou você precisa **trocar ou adicionar** mecanismos de entrega e armazenamentos de dados. Os microsserviços ajudam aqui: cada serviço pode escolher o nível de estrutura de que precisa.
@@ -170,7 +170,7 @@ O CQRS tem graus. A forma mais leve são dois conjuntos de classes sobre o **mes
 
 - Arquitetura trata de **quem pode depender de quem**: as dependências devem apontar dos detalhes voláteis (frameworks, bancos de dados, protocolos) para as regras de negócio estáveis.
 - A clássica arquitetura **em camadas** faz a lógica de negócio depender da persistência; a **Inversão de Dependência** na fronteira inverte essa seta.
-- O **SOLID** atua no nível das classes; a **Clean** (camadas + Regra de Dependência) e a **Hexagonal** (portas + adaptadores) aplicam a mesma ideia ao serviço inteiro, e normalmente são combinadas.
+- O **SOLID** atua no nível das classes; a **Clean** (camadas + Regra de Dependência) e a **Hexagonal** (portas + adaptadores) aplicam a mesma ideia ao serviço inteiro e normalmente são combinadas.
 - O ganho é **testabilidade e substituibilidade**; o custo é mais classes e mapeamentos — ajuste a estrutura à complexidade do serviço.
 - O **CQRS** separa escritas de leituras para que cada uma possa ser otimizada, ao preço da **consistência eventual**; ele não exige Event Sourcing.
 

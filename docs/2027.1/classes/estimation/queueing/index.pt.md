@@ -1,5 +1,5 @@
 
-O banco de inventário da BoxOffice está a 70% de CPU durante uma abertura de vendas normal, e as reservas levam cerca de 75 ms no p99. A equipe conclui que tem "30% de sobra". Na abertura de vendas seguinte, maior, a CPU chega a 92% — só 22 pontos a mais — e o p99 salta para quase 300 ms, quatro vezes pior e bem na meta de 300 ms da reserva. Timeouts disparam, os clientes tentam de novo e a carga extra leva o banco a 100%. Nada estava "quebrado"; a equipe simplesmente não conhecia a forma da curva que relaciona **carga** e **latência**. Esta página deduz essa curva de algumas leis simples e depois usa as mesmas leis para responder às perguntas que toda decisão de capacidade faz: *quantas requisições estão em andamento? que tamanho este pool precisa ter? quão cheio este componente pode rodar? acrescentar nós vai ajudar?*
+O banco de inventário da BoxOffice está a 70% de CPU durante uma abertura de vendas normal e as reservas levam cerca de 75 ms no p99. A equipe conclui que tem "30% de sobra". Na abertura de vendas seguinte, maior, a CPU chega a 92% — só 22 pontos a mais — e o p99 salta para quase 300 ms, quatro vezes pior e bem na meta de 300 ms da reserva. Timeouts disparam, os clientes tentam de novo e a carga extra leva o banco a 100%. Nada estava "quebrado"; a equipe simplesmente não conhecia a forma da curva que relaciona **carga** e **latência**. Esta página deduz essa curva de algumas leis simples e depois usa as mesmas leis para responder às perguntas que toda decisão de capacidade faz: *quantas requisições estão em andamento? que tamanho este pool precisa ter? quão cheio este componente pode rodar? acrescentar nós vai ajudar?*
 
 ---
 
@@ -57,7 +57,7 @@ Suas três formas respondem a três perguntas diferentes:
     - Requisições em andamento no serviço: 1.000 × 0,040 = **40** → com uma thread por requisição, o serviço precisa de pelo menos 40 threads de trabalho; com 4 réplicas, ~10 em cada, mais folga.
     - Conexões em uso: 1.000 × 0,010 = **10** → um pool de ~15 conexões somando todas as réplicas basta. Um pool de 200 não deixaria nada mais rápido — só permitiria que mais transações disputassem as mesmas linhas.
 
-    Agora o provedor de pagamentos fica lento, de 300 ms para 3 s, e o serviço de pedidos o chama de forma síncrona a 100 pedidos/s: as chamadas de pagamento em andamento vão de 100 × 0,3 = **30** para 100 × 3 = **300**. Se o serviço de pedidos tem 200 threads, ele se esgota — e todas as outras rotas do serviço de pedidos falham junto. Essa é a aritmética de uma **falha em cascata** ([aula 10](../../reliability/index.md)), e é por isso que timeouts e bulkheads existem.
+    Agora o provedor de pagamentos fica lento, de 300 ms para 3 s, e o serviço de pedidos o chama de forma síncrona a 100 pedidos/s: as chamadas de pagamento em andamento vão de 100 × 0,3 = **30** para 100 × 3 = **300**. Se o serviço de pedidos tem 200 threads, ele se esgota — e todas as outras rotas do serviço de pedidos falham junto. Essa é a aritmética de uma **falha em cascata** ([aula 10](../../reliability/index.md)) e é por isso que timeouts e bulkheads existem.
 
 ### A Lei de Little como detector de mentiras para testes de carga { #littles-law-as-a-lie-detector-for-load-tests }
 
@@ -67,7 +67,7 @@ $$
 N_{users} = X \times (R + Z)
 $$
 
-Com 100 VUs, sem tempo de pensar (Z = 0) e R = 50 ms, o teste **não consegue** produzir mais que 100 / 0,05 = 2.000 req/s, seja lá o que o servidor aguentasse. Se o servidor ficar lento, R = 500 ms, o teste gera só 200 req/s — a carga *cai* exatamente quando o sistema sofre, escondendo o problema. Confira todo resultado de teste de carga com essa fórmula; o laboratório 2 faz isso, e a [aula 15](../../performance/index.md) discute modelos de carga aberto e fechado.
+Com 100 VUs, sem tempo de pensar (Z = 0) e R = 50 ms, o teste **não consegue** produzir mais que 100 / 0,05 = 2.000 req/s, seja lá o que o servidor aguentasse. Se o servidor ficar lento, R = 500 ms, o teste gera só 200 req/s — a carga *cai* exatamente quando o sistema sofre, escondendo o problema. Confira todo resultado de teste de carga com essa fórmula; o laboratório 2 faz isso e a [aula 15](../../performance/index.md) discute modelos de carga aberto e fechado.
 
 ---
 
@@ -91,7 +91,7 @@ Essa é a regra "vagas paralelas divididas pelo tempo de serviço" usada na [vis
 
 ## Por que a latência explode antes de 100%: o joelho { #why-latency-explodes-before-100-the-knee }
 
-Se as requisições chegassem em intervalos perfeitamente regulares e cada uma levasse exatamente S, um servidor poderia rodar a 99% de utilização sem nenhuma espera. O tráfego real é **aleatório**: as requisições chegam em rajadas, e algumas demoram mais que outras. Durante uma rajada, as requisições fazem fila; a fila esvazia nos momentos tranquilos. Quanto mais ocupado o servidor, menos momentos tranquilos ele tem para se recuperar — e mais as filas crescem.
+Se as requisições chegassem em intervalos perfeitamente regulares e cada uma levasse exatamente S, um servidor poderia rodar a 99% de utilização sem nenhuma espera. O tráfego real é **aleatório**: as requisições chegam em rajadas e algumas demoram mais que outras. Durante uma rajada, as requisições fazem fila; a fila esvazia nos momentos tranquilos. Quanto mais ocupado o servidor, menos momentos tranquilos ele tem para se recuperar — e mais as filas crescem.
 
 O modelo mais simples disso é a fila **M/M/1**: chegadas aleatórias (Poisson), tempos de serviço aleatórios (exponenciais), um servidor. Seu tempo médio de resposta é[^2]:
 
@@ -157,7 +157,7 @@ plt.close()
 
 Três lições das curvas:
 
-1. **O joelho (*knee*).** A latência é quase plana em baixa utilização e depois se curva bruscamente. Para um único servidor, a curva fica em torno de 70–80%; depois dela, pequenos aumentos de carga causam enormes aumentos de latência, e a **cauda (p99) explode primeiro**.
+1. **O joelho (*knee*).** A latência é quase plana em baixa utilização e depois se curva bruscamente. Para um único servidor, a curva fica em torno de 70–80%; depois dela, pequenos aumentos de carga causam enormes aumentos de latência e a **cauda (p99) explode primeiro**.
 2. **Compartilhar a fila ajuda.** Com 16 servidores compartilhando uma fila, o joelho se desloca bem para a direita: uma requisição só espera se *todos* os servidores estiverem ocupados. Esse é um dos motivos pelos quais um grande pool atrás de um load balancer se comporta melhor que muitas filas pequenas e separadas (por exemplo, roteamento fixo de usuários para servidores específicos).
 3. **A variabilidade é a inimiga.** O modelo M/M/1 supõe chegadas e tempos de serviço muito aleatórios. Tráfego mais regular forma menos fila; tráfego em rajadas (uma abertura de vendas!) forma mais. A aproximação de Kingman para um único servidor deixa isso explícito[^3]:
 
@@ -179,7 +179,7 @@ A redundância empurra na mesma direção: com **4 réplicas a 60%**, perder uma
 
 !!! example "BoxOffice — lendo o joelho no playground"
 
-    Na [visão geral](../index.md), o cenário `monolith` com o perfil `breakpoint` aumenta a carga até quebrar. Suponha que o banco tenha 8 vagas e S = 5 ms: capacidade = 8 / 0,005 = 1.600 req/s. O joelho (p99 subindo bruscamente) deve aparecer em torno de 70–85% disso, ~1.100–1.350 req/s, e os erros só perto de 1.600 req/s. Se você vir o joelho muito antes, o gargalo está em outro lugar (no pool de threads do servidor de aplicação, talvez) — encontre o componente com a maior utilização.
+    Na [visão geral](../index.md), o cenário `monolith` com o perfil `breakpoint` aumenta a carga até quebrar. Suponha que o banco tenha 8 vagas e S = 5 ms: capacidade = 8 / 0,005 = 1.600 req/s. O joelho (p99 subindo bruscamente) deve aparecer em torno de 70–85% disso, ~1.100–1.350 req/s e os erros só perto de 1.600 req/s. Se você vir o joelho muito antes, o gargalo está em outro lugar (no pool de threads do servidor de aplicação, talvez) — encontre o componente com a maior utilização.
 
 <div class="sdp" data-scenario="monolith" data-mode="compact" data-profile="breakpoint" data-seed="7" data-height="500"></div>
 
@@ -278,8 +278,8 @@ O uso prático da USL é **ajustar** σ e κ a algumas medições de teste de ca
 
     - **Dimensione todo pool com a Lei de Little e deixe a fórmula num comentário** — threads = λ × W, conexões = λ × tempo segurando uma; um pool dimensionado "por segurança" só move a fila para dentro do banco.
     - **Observe a fila na frente do gargalo, não só a sua utilização** — conexões pendentes e threads ocupadas sobem antes de o gráfico de CPU parecer alarmante. Na BoxOffice: `hikaricp.connections.pending` no `scripts/watch-metrics.sh` do lab 2 ([Hands-on 2](../../../hands-on/2/index.md)).
-    - **Varra a taxa de chegada com modelo aberto, aquecimento e uma pausa entre os passos** — um ponto não é uma curva, uma JVM fria não é o seu serviço, e filas que sobraram estragam o passo seguinte. Na BoxOffice: `scripts/sweep.sh` (quadro acima).
-    - **Ponha as metas de autoscaling bem à esquerda do joelho** — escalar leva minutos, e o pico chega nesse meio-tempo. Na BoxOffice: o HPA do lab 10 mira 60% de CPU.
+    - **Varra a taxa de chegada com modelo aberto, aquecimento e uma pausa entre os passos** — um ponto não é uma curva, uma JVM fria não é o seu serviço e filas que sobraram estragam o passo seguinte. Na BoxOffice: `scripts/sweep.sh` (quadro acima).
+    - **Ponha as metas de autoscaling bem à esquerda do joelho** — escalar leva minutos e o pico chega nesse meio-tempo. Na BoxOffice: o HPA do lab 10 mira 60% de CPU.
     - **Reduza a variabilidade antes de acrescentar servidores** — admita num ritmo constante e elimine os lentos fora da curva; a fórmula de Kingman mostra que os dois encolhem a fila de graça. Na BoxOffice: a sala de espera (lab 7) e os índices do lab 6.
 
 !!! warning "Armadilhas comuns"

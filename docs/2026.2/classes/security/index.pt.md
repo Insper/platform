@@ -39,7 +39,7 @@ Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** a
 
 ## Autenticação vs. autorização
 
-Duas perguntas são feitas a cada requisição, e elas costumam ser confundidas:
+Duas perguntas são feitas a cada requisição e elas costumam ser confundidas:
 
 | | **Autenticação** (authN) | **Autorização** (authZ) |
 |---|---|---|
@@ -62,7 +62,7 @@ Alguns termos usados ao longo da aula:
 
 ## O que o Hands-on 3 construiu
 
-O fluxo abaixo é o que você implementou: o token é uma **referência** que só o `auth-service` consegue ler, e o gateway pergunta por ela a cada chamada.
+O fluxo abaixo é o que você implementou: o token é uma **referência** que só o `auth-service` consegue ler e o gateway pergunta por ela a cada chamada.
 
 ``` mermaid-sim
 sequenceDiagram
@@ -82,7 +82,7 @@ sequenceDiagram
     AC-->>B: 200 OK
 ```
 
-É um design sólido para uma única aplicação, e ele tem três propriedades que vale nomear:
+É um design sólido para uma única aplicação e ele tem três propriedades que vale nomear:
 
 - **Assinatura simétrica (HMAC, por exemplo HS256)** — o mesmo segredo assina e verifica. Só o `auth-service` guarda a `JWT_SECRET_KEY`, então só ele pode validar tokens; é por isso que o gateway precisa chamá-lo.
 - **Validação remota** — um salto de rede extra por requisição, mas o `auth-service` pode recusar um token imediatamente (por exemplo, após o logout).

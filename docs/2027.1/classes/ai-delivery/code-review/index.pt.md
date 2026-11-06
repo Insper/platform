@@ -4,12 +4,12 @@ Essa é a promessa da **revisão de código por IA**: um revisor que lê cada di
 
 ---
 
-## Por que revisão de código, e para que ela serve { #why-code-review-and-what-it-is-for }
+## Por que revisão de código e para que ela serve { #why-code-review-and-what-it-is-for }
 
-A revisão de código moderna — uma revisão leve, apoiada em ferramentas, de cada mudança antes do merge — é praticamente universal na indústria. Estudos na Microsoft e no Google concluíram que seus principais resultados não são apenas encontrar defeitos, mas **transferência de conhecimento, propriedade coletiva do código e consistência**; no Google, a latência mediana da revisão era menor que um dia, e a maioria das mudanças era pequena[^1][^2]. Duas consequências para a revisão por IA:
+A revisão de código moderna — uma revisão leve, apoiada em ferramentas, de cada mudança antes do merge — é praticamente universal na indústria. Estudos na Microsoft e no Google concluíram que seus principais resultados não são apenas encontrar defeitos, mas **transferência de conhecimento, propriedade coletiva do código e consistência**; no Google, a latência mediana da revisão era menor que um dia e a maioria das mudanças era pequena[^1][^2]. Duas consequências para a revisão por IA:
 
 - Um revisor de IA pode assumir parte do trabalho de **encontrar defeitos** e de **consistência**, mas não a transferência de conhecimento: um humano ainda precisa ler o código para aprendê-lo.
-- A latência da revisão importa. O primeiro olhar humano costuma esperar horas; uma revisão por IA em dois minutos dá ao autor algo para corrigir *antes* de o humano chegar, e a revisão humana fica mais curta.
+- A latência da revisão importa. O primeiro olhar humano costuma esperar horas; uma revisão por IA em dois minutos dá ao autor algo para corrigir *antes* de o humano chegar e a revisão humana fica mais curta.
 
 ---
 
@@ -76,7 +76,7 @@ Três regras práticas:
 
 ??? question "Pense primeiro: recuperação em um monorepo"
 
-    A BoxOffice vira um monorepo de 40 serviços e 2 milhões de linhas. Um PR muda a assinatura de `InventoryClient.confirmHold`. Que contexto extra mais melhoraria a revisão, e como encontrá-lo sem enviar o repositório inteiro?
+    A BoxOffice vira um monorepo de 40 serviços e 2 milhões de linhas. Um PR muda a assinatura de `InventoryClient.confirmHold`. Que contexto extra mais melhoraria a revisão e como encontrá-lo sem enviar o repositório inteiro?
 
     Os **pontos de chamada** do método alterado e o **contrato** da API que ele encapsula. Encontre-os de forma determinística — um índice de código (language server, `ctags`, um serviço de busca de código) ou um simples `git grep confirmHold` — e adicione os 5–10 trechos mais relevantes. A recuperação baseada em embeddings sobre o repositório ([RAG](../../ai-systems/rag-memory/index.md)) ajuda em perguntas vagas ("onde mais calculamos preços de assentos?"), mas, para "quem chama este método", um índice de símbolos é exato e mais barato.
 
@@ -113,7 +113,7 @@ Texto livre é para humanos; o pipeline precisa de **dados**. Peça um JSON que 
 | `title` | Impressão digital para deduplicação; a linha que as pessoas leem de relance |
 | `explanation`, `suggestion` | O corpo do comentário; uma correção concreta torna o comentário acionável |
 
-No GitHub, todos os achados de uma execução vão para **uma revisão** (`POST /repos/{owner}/{repo}/pulls/{number}/reviews` com um array `comments` de `path`, `line`, `side`), de modo que o autor recebe uma notificação, e não doze[^3]. Um **evento** de revisão `COMMENT` mantém o bot consultivo; é o código — não o modelo — que escolhe esse evento.
+No GitHub, todos os achados de uma execução vão para **uma revisão** (`POST /repos/{owner}/{repo}/pulls/{number}/reviews` com um array `comments` de `path`, `line`, `side`), de modo que o autor recebe uma notificação e não doze[^3]. Um **evento** de revisão `COMMENT` mantém o bot consultivo; é o código — não o modelo — que escolhe esse evento.
 
 ---
 
@@ -152,7 +152,7 @@ Publicar tudo encontra a maior parte dos problemas e é ignorado por todo mundo 
 
 !!! example "No código do BoxOffice: o filtro do revisor (lab 13)"
 
-    O [Hands-on 13 — O revisor](../../../hands-on/13/review/index.md) constrói a anatomia acima num único script. O título, a descrição e o diff do PR vão ao modelo embrulhados como dados **não confiáveis**; o modelo responde JSON contra um schema; e o código — não o modelo — mantém só os achados em linhas **adicionadas**, com severidade ≥ `minor`, sem confiança baixa, no máximo 6 por PR, os mais graves primeiro. Uma impressão digital de cada achado impede que ele seja publicado de novo no próximo push, e um erro do modelo encerra o job com exit code 0: **fail open**, porque uma etapa consultiva nunca pode bloquear merges. Uma execução de teste com o modelo local publicou um achado, o SQL injection plantado em `EventSearch.java`; com o Claude, uma revisão do golden set do lab custou cerca de US$ 0,012.
+    O [Hands-on 13 — O revisor](../../../hands-on/13/review/index.md) constrói a anatomia acima num único script. O título, a descrição e o diff do PR vão ao modelo embrulhados como dados **não confiáveis**; o modelo responde JSON contra um schema; e o código — não o modelo — mantém só os achados em linhas **adicionadas**, com severidade ≥ `minor`, sem confiança baixa, no máximo 6 por PR, os mais graves primeiro. Uma impressão digital de cada achado impede que ele seja publicado de novo no próximo push e um erro do modelo encerra o job com exit code 0: **fail open**, porque uma etapa consultiva nunca pode bloquear merges. Uma execução de teste com o modelo local publicou um achado, o SQL injection plantado em `EventSearch.java`; com o Claude, uma revisão do golden set do lab custou cerca de US$ 0,012.
 
     ``` { .python title=".github/ai/review.py (the review and the fail-open)" }
     --8<-- "docs/2027.1/hands-on/13/code/.github/ai/review.py:103:130,207:211"
@@ -176,7 +176,7 @@ Uma implantação segura: **sombra** (achados registrados, não publicados; comp
 
 ## Medindo o revisor { #measuring-the-reviewer }
 
-Não dá para ajustar o que não se mede, e "o time gosta" não é uma medida.
+Não dá para ajustar o que não se mede e "o time gosta" não é uma medida.
 
 | Métrica | Como | Observações |
 |---|---|---|
@@ -187,7 +187,7 @@ Não dá para ajustar o que não se mede, e "o time gosta" não é uma medida.
 | **Custo e latência** | US$ e minutos por revisão | A partir do uso de tokens do job |
 | **Comportamentais** | Tempo até a primeira revisão, rodadas de revisão, tempo até o merge | Exigem um período de referência |
 
-Um LLM também pode *julgar* comentários ("este comentário estava correto?"), o que é mais barato que rótulos humanos — mas o [LLM como juiz](../../ai-systems/safety-evals/index.md) tem vieses (tende a concordar com textos confiantes, e consigo mesmo). Use-o para triagem e calibre-o contra uma amostra rotulada por humanos.
+Um LLM também pode *julgar* comentários ("este comentário estava correto?"), o que é mais barato que rótulos humanos — mas o [LLM como juiz](../../ai-systems/safety-evals/index.md) tem vieses (tende a concordar com textos confiantes e consigo mesmo). Use-o para triagem e calibre-o contra uma amostra rotulada por humanos.
 
 ---
 
@@ -215,7 +215,7 @@ class ArchitectureTest {
 }
 ```
 
-O melhor projeto combina os dois: regras determinísticas **bloqueiam**, porque são exatas; o revisor de IA **explica** e pega o que as regras não conseguem expressar, e seus achados recorrentes viram candidatos a novas regras determinísticas. De novo, defesa em profundidade — e o usuário de banco do `order` sem grants em `inventory.*` é a última camada, que não depende de revisor nenhum.
+O melhor projeto combina os dois: regras determinísticas **bloqueiam**, porque são exatas; o revisor de IA **explica** e pega o que as regras não conseguem expressar e seus achados recorrentes viram candidatos a novas regras determinísticas. De novo, defesa em profundidade — e o usuário de banco do `order` sem grants em `inventory.*` é a última camada, que não depende de revisor nenhum.
 
 !!! example "BoxOffice: o revisor pega o atalho"
 
@@ -225,7 +225,7 @@ O melhor projeto combina os dois: regras determinísticas **bloqueiam**, porque 
 
 !!! tip "Na entrevista"
 
-    Quando pedirem para você projetar um revisor de código com IA, diga cedo que **precisão vale mais que recall** para tudo o que fala com humanos, e mostre como você vai *medi-la* (golden set para o recall, aceitos/avaliados para a precisão). Descreva o contexto (diff + convenções + ADRs + código relacionado por busca de símbolos), os achados estruturados, o filtro (linhas alteradas, severidade, confiança, dedup, teto) e a implantação (sombra → consultivo → gate por categoria). Mencione que regras de arquitetura devem ser **verificações determinísticas primeiro**, com a IA como quem explica.
+    Quando pedirem para você projetar um revisor de código com IA, diga cedo que **precisão vale mais que recall** para tudo o que fala com humanos e mostre como você vai *medi-la* (golden set para o recall, aceitos/avaliados para a precisão). Descreva o contexto (diff + convenções + ADRs + código relacionado por busca de símbolos), os achados estruturados, o filtro (linhas alteradas, severidade, confiança, dedup, teto) e a implantação (sombra → consultivo → gate por categoria). Mencione que regras de arquitetura devem ser **verificações determinísticas primeiro**, com a IA como quem explica.
 
 !!! success "Boas práticas"
 

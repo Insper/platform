@@ -1,12 +1,12 @@
-O assento A-12 está reservado para o Bruno. Às 10:00:00.040 (tempo real) ele desiste e o libera pelo `inventory-1`; vinte milissegundos depois, às 10:00:00.060, a Carla o pega pelo `inventory-2`. As duas atualizações são replicadas para os outros nós, e o armazenamento resolve o conflito com a regra mais comum que existe — **last write wins** (a última escrita vence) por timestamp. Mas o relógio do `inventory-1` está **50 ms adiantado**: a liberação do Bruno recebe o carimbo 10:00:00.090, e a reserva da Carla, 10:00:00.060. A liberação "vence", o assento aparece como FREE, e a Carla — que já foi cobrada — fica sem assento. Nenhuma mensagem se perdeu e nenhum código tinha bug: o sistema simplesmente confiou em dois relógios que discordavam.
+O assento A-12 está reservado para o Bruno. Às 10:00:00.040 (tempo real) ele desiste e o libera pelo `inventory-1`; vinte milissegundos depois, às 10:00:00.060, a Carla o pega pelo `inventory-2`. As duas atualizações são replicadas para os outros nós e o armazenamento resolve o conflito com a regra mais comum que existe — **last write wins** (a última escrita vence) por timestamp. Mas o relógio do `inventory-1` está **50 ms adiantado**: a liberação do Bruno recebe o carimbo 10:00:00.090 e a reserva da Carla, 10:00:00.060. A liberação "vence", o assento aparece como FREE e a Carla — que já foi cobrada — fica sem assento. Nenhuma mensagem se perdeu e nenhum código tinha bug: o sistema simplesmente confiou em dois relógios que discordavam.
 
-Um sistema distribuído **não tem relógio global**. Cada máquina tem o seu, eles se afastam uns dos outros, e o atraso de rede entre elas é variável e desconhecido — então "o que aconteceu primeiro?" não tem resposta de graça. Esta página mostra o que relógios físicos conseguem e não conseguem fazer, e as ferramentas que ordenam eventos sem confiar neles: relógios lógicos, relógios vetoriais, relógios híbridos, TrueTime e simples autoridades únicas.
+Um sistema distribuído **não tem relógio global**. Cada máquina tem o seu, eles se afastam uns dos outros e o atraso de rede entre elas é variável e desconhecido — então "o que aconteceu primeiro?" não tem resposta de graça. Esta página mostra o que relógios físicos conseguem e não conseguem fazer e as ferramentas que ordenam eventos sem confiar neles: relógios lógicos, relógios vetoriais, relógios híbridos, TrueTime e simples autoridades únicas.
 
 ---
 
 ## Dois relógios em toda máquina { #two-clocks }
 
-Todo sistema operacional oferece dois relógios diferentes, e confundi-los é um bug clássico:
+Todo sistema operacional oferece dois relógios diferentes e confundi-los é um bug clássico:
 
 | | Relógio de parede (hora do dia) | Relógio monotônico |
 |---|---|---|
@@ -33,7 +33,7 @@ long elapsedNs = System.nanoTime() - t0;
 
 ## Relógios físicos derivam { #drift }
 
-O relógio de um computador é um oscilador de quartzo, e o quartzo é imperfeito: sua frequência depende da temperatura e do cristal. A deriva é medida em **ppm** (partes por milhão): 20 ppm significam 20 µs ganhos ou perdidos por segundo — cerca de **1,7 segundo por dia**. O Google supõe um limite de 200 ppm para seus servidores[^1]. Abandonados à própria sorte, os relógios de duas máquinas divergem sem limite.
+O relógio de um computador é um oscilador de quartzo e o quartzo é imperfeito: sua frequência depende da temperatura e do cristal. A deriva é medida em **ppm** (partes por milhão): 20 ppm significam 20 µs ganhos ou perdidos por segundo — cerca de **1,7 segundo por dia**. O Google supõe um limite de 200 ppm para seus servidores[^1]. Abandonados à própria sorte, os relógios de duas máquinas divergem sem limite.
 
 O **NTP** (*Network Time Protocol*) corrige isso perguntando periodicamente a servidores de tempo (organizados em *estratos*, sendo o estrato 0 formado por relógios atômicos ou GPS) e ajustando o relógio local — aos poucos (*slewing*) para pequenas diferenças, com um salto (*stepping*) para grandes. Sua precisão é limitada pelo **atraso da rede**, que ele não consegue medir exatamente: o NTP supõe que a ida e a volta levaram o mesmo tempo, então atrasos assimétricos viram erro de relógio.
 
@@ -74,7 +74,7 @@ print(buf.getvalue())
 plt.close()
 ```
 
-Os servidores sincronizados ficam a poucos milissegundos uns dos outros (um dente de serra: derivam, corrigem, derivam); o que perdeu o NTP se afasta silenciosamente — 24 ms depois de dez minutos a 40 ppm, e mais de três segundos depois de um dia. Nada alerta por padrão. Ordens de grandeza típicas (ilustrativas; dependem muito da montagem):
+Os servidores sincronizados ficam a poucos milissegundos uns dos outros (um dente de serra: derivam, corrigem, derivam); o que perdeu o NTP se afasta silenciosamente — 24 ms depois de dez minutos a 40 ppm e mais de três segundos depois de um dia. Nada alerta por padrão. Ordens de grandeza típicas (ilustrativas; dependem muito da montagem):
 
 | Sincronização | Precisão típica | Observações |
 |---|---|---|
@@ -85,7 +85,7 @@ Os servidores sincronizados ficam a poucos milissegundos uns dos outros (um dent
 | GPS + relógios atômicos por data center (TrueTime do Google) | ε de poucos ms, **com um limite conhecido** | Veja [TrueTime](#truetime) |
 
 !!! info "Segundos bissextos e smearing"
-    De tempos em tempos um **segundo bissexto** era acrescentado ao UTC (Tempo Universal Coordenado), e relógios ingênuos repetiam um segundo ou pulavam — derrubando software em 2012. Google, AWS e outros agora fazem **smearing**: desaceleram levemente seus relógios ao longo de ~24 horas para que nenhum segundo se repita. Em 2022 a Conferência Geral de Pesos e Medidas decidiu parar de acrescentar segundos bissextos até 2035[^2]. Lição: até "que horas são" tem casos de borda operacionais.
+    De tempos em tempos um **segundo bissexto** era acrescentado ao UTC (Tempo Universal Coordenado) e relógios ingênuos repetiam um segundo ou pulavam — derrubando software em 2012. Google, AWS e outros agora fazem **smearing**: desaceleram levemente seus relógios ao longo de ~24 horas para que nenhum segundo se repita. Em 2022 a Conferência Geral de Pesos e Medidas decidiu parar de acrescentar segundos bissextos até 2035[^2]. Lição: até "que horas são" tem casos de borda operacionais.
 
 ---
 
@@ -108,7 +108,7 @@ sequenceDiagram
     Note over I1,I2: LWW: .090 > .060, a liberação vence<br/>a reserva da Carla é descartada em silêncio
 ```
 
-Com relógios sincronizados dentro de ε, dois eventos separados por menos de ε **não podem ser ordenados** por seus timestamps — e, em um armazenamento LWW, o nó com o relógio **mais adiantado** vence todo conflito. O Cassandra usa LWW por coluna por padrão, e o mesmo vale para qualquer lógica de merge "vence o `updated_at` maior" que você mesmo escreva. LWW é aceitável quando perder uma de duas escritas concorrentes é inofensivo (uma foto de perfil); é perigoso para assentos e dinheiro.
+Com relógios sincronizados dentro de ε, dois eventos separados por menos de ε **não podem ser ordenados** por seus timestamps — e, em um armazenamento LWW, o nó com o relógio **mais adiantado** vence todo conflito. O Cassandra usa LWW por coluna por padrão e o mesmo vale para qualquer lógica de merge "vence o `updated_at` maior" que você mesmo escreva. LWW é aceitável quando perder uma de duas escritas concorrentes é inofensivo (uma foto de perfil); é perigoso para assentos e dinheiro.
 
 A saída é parar de perguntar aos relógios *quando* algo aconteceu e perguntar, em vez disso, **o que poderia ter influenciado o quê**.
 
@@ -164,7 +164,7 @@ Três réplicas do carrinho da Carla (contadores `[SP, LIS, NYC]`):
 | 3 | NYC | recebe o passo 1, remove o ingresso | `[1, 0, 1]` | passo 1 → passo 3 |
 | 4 | comparar | passo 2 vs passo 3 | `[1,1,0]` vs `[1,0,1]` | **concorrentes**: nenhum é ≤ o outro |
 
-O armazenamento guarda as duas versões (*irmãos*, *siblings*) e pede à aplicação que as mescle — exatamente o que o Dynamo, da Amazon, fazia com o carrinho de compras (merge por união, e é por isso que itens apagados às vezes voltavam)[^4]. O Riak expunha o mesmo modelo.
+O armazenamento guarda as duas versões (*irmãos*, *siblings*) e pede à aplicação que as mescle — exatamente o que o Dynamo, da Amazon, fazia com o carrinho de compras (merge por união e é por isso que itens apagados às vezes voltavam)[^4]. O Riak expunha o mesmo modelo.
 
 ``` diagram-sim
 sequenceDiagram
@@ -185,7 +185,7 @@ Os dois relógios lado a lado, em três serviços do BoxOffice:
 <div class="csim" data-sim="clocks"></div>
 
 !!! tip "Experimente"
-    O cenário abre com dois eventos selecionados: `i2` (inventory libera o assento A-12, L=2, `[0,0,2]`) e `p1` (payment recebe `OrderPlaced`, L=3, `[2,1,0]`). Lamport diz 2 < 3, mas os vetores são incomparáveis — os eventos são **concorrentes**, e nada nos números de Lamport poderia ter mostrado isso. Agora clique em `o1` e depois em `i3`: `[1,0,0]` ≤ `[2,2,3]`, então `o1` → `i3` por meio de duas mensagens, e os números de Lamport concordam (1 < 5), como precisam. Clique num único evento para ver seu passado causal (anéis verdes) e seu futuro (azuis). Por fim, adicione um evento local em order (`o3`, `[3,0,0]`) e compare-o com `i3`: concorrentes. Envie uma mensagem de order para inventory e receba-a: o recebimento tem `o3` no seu passado.
+    O cenário abre com dois eventos selecionados: `i2` (inventory libera o assento A-12, L=2, `[0,0,2]`) e `p1` (payment recebe `OrderPlaced`, L=3, `[2,1,0]`). Lamport diz 2 < 3, mas os vetores são incomparáveis — os eventos são **concorrentes** e nada nos números de Lamport poderia ter mostrado isso. Agora clique em `o1` e depois em `i3`: `[1,0,0]` ≤ `[2,2,3]`, então `o1` → `i3` por meio de duas mensagens e os números de Lamport concordam (1 < 5), como precisam. Clique num único evento para ver seu passado causal (anéis verdes) e seu futuro (azuis). Por fim, adicione um evento local em order (`o3`, `[3,0,0]`) e compare-o com `i3`: concorrentes. Envie uma mensagem de order para inventory e receba-a: o recebimento tem `o3` no seu passado.
 
 O custo é o tamanho: o vetor cresce com o número de nós (ou clientes) que escrevem. Sistemas práticos usam **vetores de versão** com uma posição por *réplica* (não por cliente) e podam posições antigas.
 
@@ -228,13 +228,13 @@ class HLC:
         return (self.l, self.c)
 ```
 
-Timestamps HLC respeitam a causalidade (como os relógios de Lamport), ficam dentro do erro de sincronização em relação ao tempo real (então servem para snapshots do tipo "leia como estava às 10:00:00") e cabem em 64 bits. **CockroachDB**, **YugabyteDB** e **MongoDB** (cluster time) os usam. Eles ainda dependem de um **limite** para a defasagem dos relógios: o CockroachDB, por exemplo, tem um offset máximo configurado (500 ms por padrão), e um nó que detecta estar mais defasado que isso se desliga em vez de arriscar inconsistência[^6].
+Timestamps HLC respeitam a causalidade (como os relógios de Lamport), ficam dentro do erro de sincronização em relação ao tempo real (então servem para snapshots do tipo "leia como estava às 10:00:00") e cabem em 64 bits. **CockroachDB**, **YugabyteDB** e **MongoDB** (cluster time) os usam. Eles ainda dependem de um **limite** para a defasagem dos relógios: o CockroachDB, por exemplo, tem um offset máximo configurado (500 ms por padrão) e um nó que detecta estar mais defasado que isso se desliga em vez de arriscar inconsistência[^6].
 
 ---
 
 ## TrueTime e Spanner { #truetime }
 
-O **Spanner** do Google[^1] seguiu o caminho oposto: em vez de evitar o tempo físico, torná-lo **confiável**. Cada data center tem receptores GPS e relógios atômicos, e a API **TrueTime** não devolve um instante, e sim um **intervalo**: `TT.now() = [earliest, latest]`, com garantia de conter o tempo verdadeiro, com uma incerteza ε que o artigo relata ser tipicamente de 1–7 ms.
+O **Spanner** do Google[^1] seguiu o caminho oposto: em vez de evitar o tempo físico, torná-lo **confiável**. Cada data center tem receptores GPS e relógios atômicos e a API **TrueTime** não devolve um instante, e sim um **intervalo**: `TT.now() = [earliest, latest]`, com garantia de conter o tempo verdadeiro, com uma incerteza ε que o artigo relata ser tipicamente de 1–7 ms.
 
 Para tornar as transações **externamente consistentes** (se T1 confirma antes de T2 começar, o timestamp de T2 é maior), o Spanner usa a **espera de commit** (*commit wait*): escolhe o timestamp de commit *s* = `TT.now().latest` e então **espera até que `TT.now().earliest > s`** antes de tornar o commit visível — isto é, até que *s* esteja garantidamente no passado em todo lugar.
 
@@ -253,7 +253,7 @@ sequenceDiagram
     Note over C,S: qualquer transação posterior recebe s' > .106
 ```
 
-O custo da correção é, literalmente, **esperar a incerteza passar** (em média ~2ε por commit, sobreposto à replicação do Paxos). Um ε menor significa commits mais rápidos, e por isso o Google investe em relógios. A AWS publicou depois uma API open source parecida, a **ClockBound**, que devolve limites de erro em instâncias EC2.
+O custo da correção é, literalmente, **esperar a incerteza passar** (em média ~2ε por commit, sobreposto à replicação do Paxos). Um ε menor significa commits mais rápidos e por isso o Google investe em relógios. A AWS publicou depois uma API open source parecida, a **ClockBound**, que devolve limites de erro em instâncias EC2.
 
 ---
 
@@ -303,7 +303,7 @@ final class Snowflake {
 
 !!! example "BoxOffice: de onde vêm o tempo e a ordem"
     - **Quem pegou o assento A-12** — decidido pelo único primário do `inventory` daquele evento (`UPDATE` condicional); nenhum timestamp é comparado.
-    - **Expiração da reserva** — `expires_at = now() + interval '10 minutes'` calculado **pelo PostgreSQL no primário**, e o processo de varredura compara com o `now()` do mesmo banco: um relógio só, então a defasagem entre os servidores de aplicação é irrelevante.
+    - **Expiração da reserva** — `expires_at = now() + interval '10 minutes'` calculado **pelo PostgreSQL no primário** e o processo de varredura compara com o `now()` do mesmo banco: um relógio só, então a defasagem entre os servidores de aplicação é irrelevante.
     - **Ordem dos eventos** — todo evento sobre um show (`SeatHeld`, `SeatReleased`, `OrderPaid`) é publicado com chave Kafka = `eventId`, então eles caem em **uma partição** e todo consumidor os vê na mesma ordem.
     - **IDs** — pedidos e ingressos usam **UUIDv7**: únicos sem coordenação, bons para o índice, aproximadamente ordenáveis por tempo — nunca usados para decidir *quem chegou primeiro*.
     - **Durações e timeouts** — medidos com o relógio monotônico (`System.nanoTime()`), nunca com diferenças de relógio de parede.
@@ -311,7 +311,7 @@ final class Snowflake {
 
 !!! example "No código do BoxOffice: quem decide quando uma reserva expira (lab 6)"
 
-    O [Hands-on 6 — Reservas](../../../hands-on/6/holds/index.md) segue a regra da autoridade única onde ela mais importa: quem ficou com o assento é decidido por um `UPDATE` condicional no primário, e o varredor que libera reservas expiradas compara `expires_at` com o `now()` **do banco**, usando `FOR UPDATE SKIP LOCKED` para que várias réplicas do `inventory` o rodem ao mesmo tempo sem liberar a mesma reserva duas vezes. Olhe com atenção para o `expires_at`, porém: ele é calculado **em Java**, com o relógio da réplica do `inventory`, e conferido contra o relógio do banco — a armadilha abaixo, em miniatura. Num laptop todos os contêineres compartilham um relógio, então nada aparece; em produção a diferença entre uma réplica e o banco (milissegundos com NTP, muito mais sem ele) desloca o fim de cada reserva na mesma medida. Calculá-lo em SQL, `expires_at = now() + :ttl`, como diz o quadro acima, elimina o segundo relógio.
+    O [Hands-on 6 — Reservas](../../../hands-on/6/holds/index.md) segue a regra da autoridade única onde ela mais importa: quem ficou com o assento é decidido por um `UPDATE` condicional no primário e o varredor que libera reservas expiradas compara `expires_at` com o `now()` **do banco**, usando `FOR UPDATE SKIP LOCKED` para que várias réplicas do `inventory` o rodem ao mesmo tempo sem liberar a mesma reserva duas vezes. Olhe com atenção para o `expires_at`, porém: ele é calculado **em Java**, com o relógio da réplica do `inventory`, e conferido contra o relógio do banco — a armadilha abaixo, em miniatura. Num laptop todos os contêineres compartilham um relógio, então nada aparece; em produção a diferença entre uma réplica e o banco (milissegundos com NTP, muito mais sem ele) desloca o fim de cada reserva na mesma medida. Calculá-lo em SQL, `expires_at = now() + :ttl`, como diz o quadro acima, elimina o segundo relógio.
 
     ``` { .java title="services/inventory/src/main/java/boxoffice/inventory/HoldService.java (two clocks)" }
     --8<-- "docs/2027.1/hands-on/6/code/services/inventory/src/main/java/boxoffice/inventory/HoldService.java:52:53,189:208"
@@ -359,8 +359,8 @@ flowchart LR
 
 !!! takeaways ""
 
-    - **Não há relógio global**: relógios de quartzo derivam (ppm), o NTP os mantém a milissegundos uns dos outros — não idênticos, e não se ele parar.
-    - Use o relógio **monotônico** para durações e timeouts, e o relógio **de parede** só para timestamps voltados a pessoas.
+    - **Não há relógio global**: relógios de quartzo derivam (ppm), o NTP os mantém a milissegundos uns dos outros — não idênticos e não se ele parar.
+    - Use o relógio **monotônico** para durações e timeouts e o relógio **de parede** só para timestamps voltados a pessoas.
     - **Timestamps de máquinas diferentes não ordenam eventos** mais próximos do que a defasagem; o **LWW** perde escritas.
     - **Relógios de Lamport**: *a* → *b* ⇒ L(*a*) < L(*b*); **relógios vetoriais** também detectam concorrência; o **HLC** dá causalidade perto do tempo real em 64 bits; o **TrueTime** limita a incerteza e espera ela passar.
     - Na prática, obtenha ordem de uma **autoridade única**, de um **log particionado** por entidade ou de uma coluna de **versão** — e use Snowflake/UUIDv7 para ids únicos e ordenáveis, não para decidir quem chegou primeiro.

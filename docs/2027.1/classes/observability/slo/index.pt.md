@@ -1,4 +1,4 @@
-"O BoxOffice é confiável o bastante?" Ninguém responde a isso sem números. O gerente de produto quer lançar um novo mapa de lugares na semana anterior a uma abertura de vendas no estádio; a engenheira de plantão diz que o caminho de compra teve um mês ruim e quer congelar os deploys. Sem uma definição compartilhada de "bom o bastante", essa discussão é opinião contra opinião. A prática de Site Reliability Engineering (SRE) do Google introduziu um vocabulário que transforma a discussão em aritmética[^1], e hoje ele é padrão no mercado:
+"O BoxOffice é confiável o bastante?" Ninguém responde a isso sem números. O gerente de produto quer lançar um novo mapa de lugares na semana anterior a uma abertura de vendas no estádio; a engenheira de plantão diz que o caminho de compra teve um mês ruim e quer congelar os deploys. Sem uma definição compartilhada de "bom o bastante", essa discussão é opinião contra opinião. A prática de Site Reliability Engineering (SRE) do Google introduziu um vocabulário que transforma a discussão em aritmética[^1] e hoje ele é padrão no mercado:
 
 | Termo | Nome completo | Natureza | Exemplo no BoxOffice |
 |---|---|---|---|
@@ -92,7 +92,7 @@ Um SLO é uma meta para um SLI em uma janela:
 | Entrega de ingressos: 99% em até 2 min da confirmação, em 28 dias | Atualidade do caminho assíncrono |
 | Sala de espera da abertura de vendas: 99,95% das atualizações de posição com sucesso, durante cada abertura | Um SLO *restrito ao evento* para as horas que mais importam |
 
-Use uma **janela móvel** (os últimos 28 dias, avançando a cada minuto) em vez de um mês de calendário: 28 dias sempre contêm quatro de cada dia da semana, e o orçamento não "zera" magicamente no dia 1º.
+Use uma **janela móvel** (os últimos 28 dias, avançando a cada minuto) em vez de um mês de calendário: 28 dias sempre contêm quatro de cada dia da semana e o orçamento não "zera" magicamente no dia 1º.
 
 Como escolher o número:
 
@@ -113,7 +113,7 @@ $$
 
 === "Por requisições"
 
-    O caminho de compra recebe cerca de 1.000.000 de requisições por dia. Em 28 dias são 28.000.000 de requisições, e um SLO de 99,9% permite
+    O caminho de compra recebe cerca de 1.000.000 de requisições por dia. Em 28 dias são 28.000.000 de requisições e um SLO de 99,9% permite
 
     $$
     0.001 \times 28\,000\,000 = 28\,000 \text{ failed requests}
@@ -198,7 +198,7 @@ plt.close()
 
 Os dois incidentes ensinam lições diferentes:
 
-- O **deploy ruim** tem um burn rate enorme (50×) por pouco tempo. Ele precisa **acionar** alguém em minutos, e o orçamento mostra quanto custou: cerca de um quinto do mês.
+- O **deploy ruim** tem um burn rate enorme (50×) por pouco tempo. Ele precisa **acionar** alguém em minutos e o orçamento mostra quanto custou: cerca de um quinto do mês.
 - A **degradação lenta** nunca parece dramática — 0,2% de erros não assustaria ninguém num dashboard — mas a 2× ela **esgota o orçamento por volta do dia 26**. Só um alerta de queima lenta, em uma janela longa, a pega.
 
 ### Alertando pelo burn rate { #alerting-on-burn-rate }
@@ -219,7 +219,7 @@ Alerte pelo orçamento, não por taxas de erro brutas ou CPU. O SRE Workbook rec
     - **Soluços**: a regra ingênua (*erros > 0,1% em 5 min*) aciona alguém em quase todos — 10 vezes neste mês —, embora os 14 soluços juntos custem só 1,6% do orçamento. As regras de burn rate ficam quietas.
     - **Deploy ruim** (dia 9, 5% por 3 h): a regra de 14,4× aciona 17 minutos depois do início, quando o incidente custou 2,2% do orçamento; a de 6× vem após 42 minutos (5,3%). O incidente inteiro custa 22,3%.
     - **Degradação lenta** (2× a partir do dia 16): nenhum page; o ticket de 3 dias dispara 34 horas depois (dia 17,4), com 39% do orçamento gasto — mais de 8 dias antes de ele acabar (dia 25,9).
-    - Aperte **limpar incidentes**, avance até o dia 2, pause e injete *0,7% por 3 dias*: nenhum page rápido, mas a regra de 6× aciona após cerca de 5 horas. Com *20% por 30 min* o page chega após 4 minutos, e mesmo assim o incidente custa cerca de 15%: um alerta só salva o orçamento que ainda não foi queimado.
+    - Aperte **limpar incidentes**, avance até o dia 2, pause e injete *0,7% por 3 dias*: nenhum page rápido, mas a regra de 6× aciona após cerca de 5 horas. Com *20% por 30 min* o page chega após 4 minutos e mesmo assim o incidente custa cerca de 15%: um alerta só salva o orçamento que ainda não foi queimado.
 
     O lab 9 provisiona as mesmas regras de 14,4× e 6× (como page e ticket) para o `order`, com um SLO de 99,5%.
 

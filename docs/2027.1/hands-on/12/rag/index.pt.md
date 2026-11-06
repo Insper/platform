@@ -1,6 +1,6 @@
 # 2. RAG com pgvector { #2-rag-with-pgvector }
 
-Um modelo de linguagem não sabe nada sobre o catálogo do BoxOffice *desta semana*, e quando não sabe,
+Um modelo de linguagem não sabe nada sobre o catálogo do BoxOffice *desta semana* e quando não sabe,
 inventa com confiança. A **geração aumentada por recuperação** (RAG) resolve o primeiro problema e reduz
 o segundo: antes que o modelo responda, o serviço *recupera* os documentos mais relacionados à pergunta
 e os coloca no prompt, com instruções para responder só a partir deles e citá-los. A teoria está na
@@ -8,7 +8,7 @@ e os coloca no prompt, com instruções para responder só a partir deles e cit�
 
 ``` diagram-sim
 flowchart LR
-    subgraph ingest [ingestão: uma vez, e quando o catálogo muda]
+    subgraph ingest [ingestão: uma vez e quando o catálogo muda]
         cat[API do catalog] --> txt[evento -> texto]
         txt --> emb1[modelo de embeddings]
         emb1 --> pg[("assistant.documents (vector 768)")]
@@ -89,7 +89,7 @@ docker compose exec db psql -U boxoffice -d boxoffice \
 ## Avalie a recuperação { #evaluate-the-retrieval }
 
 "Retornou algo plausível" não é uma medição. Como o seed do catálogo é gerado por uma fórmula, as
-respostas certas para um conjunto de perguntas são conhecidas exatamente, e a recuperação pode ser
+respostas certas para um conjunto de perguntas são conhecidas exatamente e a recuperação pode ser
 pontuada:
 
 ``` python title="scripts/eval_retrieval.py"
@@ -133,7 +133,7 @@ vetorial é mais fraca; sistemas reais a combinam com busca por palavras-chave (
 ??? question "Por que avaliar a recuperação separadamente das respostas?"
 
     Se o documento certo não está no contexto, nenhum modelo consegue responder corretamente — e a falha
-    parece um "modelo ruim". Medir só a recuperação diz qual metade do pipeline consertar, e é barato:
+    parece um "modelo ruim". Medir só a recuperação diz qual metade do pipeline consertar e é barato:
     nenhuma chamada ao LLM, totalmente determinístico.
 
 [Próximo: Ferramentas e o loop do agente](../tools/index.md){ .md-button .md-button--primary }

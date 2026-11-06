@@ -61,7 +61,7 @@ public class AccountApplication {
 
 ## 4 Anotações de cache
 
-Coloque as anotações nos **métodos da camada de serviço**, e não nos controllers ou repositórios.
+Coloque as anotações nos **métodos da camada de serviço** e não nos controllers ou repositórios.
 
 ### `@Cacheable` — cache read-through
 

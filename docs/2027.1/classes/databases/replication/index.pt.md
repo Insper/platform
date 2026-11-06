@@ -1,6 +1,6 @@
 Dez minutos antes da abertura das vendas, o banco do catálogo está a 90% de CPU — quase tudo vindo de `SELECT`s da página do evento. O time adiciona duas **réplicas de leitura** e direciona as leituras para elas. A CPU cai para 30%. Então o canal de suporte se acende: "Eu paguei, o e-mail de confirmação chegou, mas *Meus ingressos* está vazio!" Nada se perdeu. A leitura seguinte do fã simplesmente foi para uma réplica que ainda não tinha recebido a escrita.
 
-A replicação — manter uma cópia dos mesmos dados em várias máquinas — é a ferramenta de escalabilidade e disponibilidade mais usada em bancos de dados, e ela vem exatamente com esse tipo de surpresa. Esta página cobre as três formas de replicar (líder único, multilíder e sem líder), o que o atraso de replicação faz com os usuários e o que acontece quando o líder morre.
+A replicação — manter uma cópia dos mesmos dados em várias máquinas — é a ferramenta de escalabilidade e disponibilidade mais usada em bancos de dados e ela vem exatamente com esse tipo de surpresa. Esta página cobre as três formas de replicar (líder único, multilíder e sem líder), o que o atraso de replicação faz com os usuários e o que acontece quando o líder morre.
 
 ---
 
@@ -59,7 +59,7 @@ sequenceDiagram
 | **Semissíncrona** / um standby síncrono | uma réplica confirmar, as outras assíncronas | nenhuma perda se esse standby sobreviver | + uma ida e volta na rede | se o standby síncrono morrer, outro precisa assumir o papel |
 | **Armazenamento com quorum** (Aurora: 4 de 6 cópias em 3 zonas)[^4] | um quorum de escrita dos nós de armazenamento confirmar | sobrevive à perda de uma zona | + ida e volta até o quorum | tolera nós lentos |
 
-No PostgreSQL, isso são as configurações `synchronous_commit` e `synchronous_standby_names`[^5]; `ANY 1 (s1, s2)` significa "espere qualquer um dos dois standbys" — um quorum que tolera um standby lento. Dentro de uma região, uma ida e volta síncrona custa cerca de um milissegundo; entre continentes custa de dezenas a centenas de milissegundos, e é por isso que réplicas entre regiões são quase sempre assíncronas.
+No PostgreSQL, isso são as configurações `synchronous_commit` e `synchronous_standby_names`[^5]; `ANY 1 (s1, s2)` significa "espere qualquer um dos dois standbys" — um quorum que tolera um standby lento. Dentro de uma região, uma ida e volta síncrona custa cerca de um milissegundo; entre continentes custa de dezenas a centenas de milissegundos e é por isso que réplicas entre regiões são quase sempre assíncronas.
 
 ---
 
@@ -89,7 +89,7 @@ sequenceDiagram
     O-->>F: "Você não tem ingressos"
 ```
 
-Qual a chance de isso acontecer? Num modelo ilustrativo — atraso distribuído exponencialmente em torno de uma média, e o próximo clique do fã indo para uma réplica — a resposta depende inteiramente do atraso naquele momento:
+Qual a chance de isso acontecer? Num modelo ilustrativo — atraso distribuído exponencialmente em torno de uma média e o próximo clique do fã indo para uma réplica — a resposta depende inteiramente do atraso naquele momento:
 
 ```python exec="1" html="1"
 import matplotlib.pyplot as plt
@@ -146,13 +146,13 @@ Num dia tranquilo o bug é invisível; durante a abertura das vendas — justame
 <div class="csim" data-sim="replication" data-mode="async"></div>
 
 !!! tip "Experimente"
-    O simulador começa onde começa o chamado do suporte: o fã segurou A-12 há 300 ms, e o atraso é de 1 s (o `REPLICA_DELAY=1s` do [Hands-on 6](../../../hands-on/6/index.md)). Aperte **ler minhas reservas**: db-2 responde sem A-12, uma leitura desatualizada. Dê play até os pontos chegarem (1 s para db-2, 1,5 s para db-3) e leia de novo: atualizada. Recomece com **ler as próprias escritas** ligado: a leitura vai ao líder e vem atualizada na hora. Depois segure um assento novo em cada modo: *async* confirma em 2 ms, *semi-sync* em 1.003 ms, *sync* em 1.503 ms (espera db-3, o mais lento). Por fim, recomece em *async* e **derrube o líder** com A-12 em trânsito: db-2 é promovido sem ela e a reserva se perde; em *semi-sync* ou *sync* nada se perde (veja a seção de failover abaixo).
+    O simulador começa onde começa o chamado do suporte: o fã segurou A-12 há 300 ms e o atraso é de 1 s (o `REPLICA_DELAY=1s` do [Hands-on 6](../../../hands-on/6/index.md)). Aperte **ler minhas reservas**: db-2 responde sem A-12, uma leitura desatualizada. Dê play até os pontos chegarem (1 s para db-2, 1,5 s para db-3) e leia de novo: atualizada. Recomece com **ler as próprias escritas** ligado: a leitura vai ao líder e vem atualizada na hora. Depois segure um assento novo em cada modo: *async* confirma em 2 ms, *semi-sync* em 1.003 ms, *sync* em 1.503 ms (espera db-3, o mais lento). Por fim, recomece em *async* e **derrube o líder** com A-12 em trânsito: db-2 é promovido sem ela e a reserva se perde; em *semi-sync* ou *sync* nada se perde (veja a seção de failover abaixo).
 
 Monitore o atraso como métrica de primeira classe — `pg_stat_replication.replay_lag` no PostgreSQL, `ReplicaLag` no Amazon RDS — e crie alertas sobre ele (veja [Observabilidade](../../observability/index.md)). Uma réplica minutos atrás é pior do que nenhuma réplica.
 
 !!! example "No código do BoxOffice: leituras roteadas pelo tipo de transação (lab 6)"
 
-    O [Hands-on 6 — Réplica e pooling](../../../hands-on/6/replicas/index.md) dá ao `inventory` dois pools atrás de um único `DataSource`: uma transação marcada `@Transactional(readOnly = true)` (o mapa de assentos) recebe uma conexão da réplica, todas as outras recebem o primário. É a linha "ler do líder os dados do próprio usuário" da tabela: o `find` lê a reserva do próprio fã com um `@Transactional` comum, no primário, porque o fã acabou de criá-la. O lab então mede o bug que isso evita: lendo o mapa de assentos logo depois de uma reserva, cerca de **6%** dos fãs não viram a própria reserva com a réplica na mesma máquina, e **98%** com `REPLICA_DELAY=1s`.
+    O [Hands-on 6 — Réplica e pooling](../../../hands-on/6/replicas/index.md) dá ao `inventory` dois pools atrás de um único `DataSource`: uma transação marcada `@Transactional(readOnly = true)` (o mapa de assentos) recebe uma conexão da réplica, todas as outras recebem o primário. É a linha "ler do líder os dados do próprio usuário" da tabela: o `find` lê a reserva do próprio fã com um `@Transactional` comum, no primário, porque o fã acabou de criá-la. O lab então mede o bug que isso evita: lendo o mapa de assentos logo depois de uma reserva, cerca de **6%** dos fãs não viram a própria reserva com a réplica na mesma máquina e **98%** com `REPLICA_DELAY=1s`.
 
     ``` { .java title="services/inventory/src/main/java/boxoffice/inventory/DataSourceConfig.java (two pools, one DataSource)" }
     --8<-- "docs/2027.1/hands-on/6/code/services/inventory/src/main/java/boxoffice/inventory/DataSourceConfig.java:11:38"
@@ -174,7 +174,7 @@ O problema nos microsserviços: 20 pods × um pool de 50 = **1.000 conexões** n
 
 !!! example "No código do BoxOffice: o PgBouncer na frente do PostgreSQL (lab 6)"
 
-    No [Hands-on 6](../../../hands-on/6/replicas/index.md) o `inventory` se conecta pelo PgBouncer em modo transação, e o PostgreSQL vê no máximo 20 conexões de servidor vindas dele, não importa quantas conexões de cliente cheguem. Numa execução de teste durante a venda relâmpago, o `pg_stat_activity` mostrou cerca de 60 conexões da aplicação (30 das três réplicas do `catalog`, 10 do `auth`, 20 do PgBouncer). Com `max_connections` reduzido a 80 e um pool de 40 no `inventory`, a mesma pilha falha com `too many clients already` quando o `inventory` se conecta direto, e continua funcionando pelo pooler, que transforma "clientes demais" em fila. As migrações continuam indo direto ao primário: o Flyway usa locks de sessão, que o pooling por transação não mantém.
+    No [Hands-on 6](../../../hands-on/6/replicas/index.md) o `inventory` se conecta pelo PgBouncer em modo transação e o PostgreSQL vê no máximo 20 conexões de servidor vindas dele, não importa quantas conexões de cliente cheguem. Numa execução de teste durante a venda relâmpago, o `pg_stat_activity` mostrou cerca de 60 conexões da aplicação (30 das três réplicas do `catalog`, 10 do `auth`, 20 do PgBouncer). Com `max_connections` reduzido a 80 e um pool de 40 no `inventory`, a mesma pilha falha com `too many clients already` quando o `inventory` se conecta direto e continua funcionando pelo pooler, que transforma "clientes demais" em fila. As migrações continuam indo direto ao primário: o Flyway usa locks de sessão, que o pooling por transação não mantém.
 
     ``` { .ini title="infra/pgbouncer/pgbouncer.ini (transaction pooling)" }
     --8<-- "docs/2027.1/hands-on/6/code/infra/pgbouncer/pgbouncer.ini:12:17"
@@ -205,20 +205,20 @@ Cada passo esconde um problema difícil:
 
 - A **detecção** usa timeouts. Curto demais: uma pausa de GC ou um soluço de rede dispara um failover desnecessário. Longo demais: minutos sem escritas.
 - **Escritas perdidas.** Com replicação assíncrona, as escritas confirmadas pelo líder antigo mas ainda não enviadas desaparecem. Se eram reservas de assentos, o novo primário pode vender os mesmos assentos de novo.
-- **Split brain.** Se o líder antigo estava apenas *particionado*, e não morto, dois nós podem aceitar escritas. Os sistemas evitam isso com consenso sobre quem é o líder (o Patroni guarda a chave do líder no etcd; veja [Consenso](../../distributed/consensus/index.md)) e com **fencing**: o líder antigo é isolado (STONITH, "shoot the other node in the head") ou suas escritas são rejeitadas por fencing tokens.
+- **Split brain.** Se o líder antigo estava apenas *particionado* e não morto, dois nós podem aceitar escritas. Os sistemas evitam isso com consenso sobre quem é o líder (o Patroni guarda a chave do líder no etcd; veja [Consenso](../../distributed/consensus/index.md)) e com **fencing**: o líder antigo é isolado (STONITH, "shoot the other node in the head") ou suas escritas são rejeitadas por fencing tokens.
 - **Os clientes precisam acompanhar.** Por DNS, IP virtual, proxy ou um driver que conhece a topologia.
 
 Os serviços gerenciados empacotam tudo isso — Amazon RDS Multi-AZ com standby síncrono, Aurora com armazenamento em quorum, alta disponibilidade do Cloud SQL, HA com redundância de zona no Azure — com failovers que costumam levar de dezenas de segundos a alguns minutos; a pergunta de design para você é o que a aplicação faz enquanto isso (novas tentativas com backoff, veja [Confiabilidade](../../reliability/patterns/index.md)).
 
-!!! example "No código do BoxOffice: um failover à mão, e o antigo primário voltando (lab 6)"
+!!! example "No código do BoxOffice: um failover à mão e o antigo primário voltando (lab 6)"
 
-    O [Hands-on 6 — Failover](../../../hands-on/6/failover/index.md) percorre o diagrama acima sem nada automatizando. A reserva de um fã responde `201`, o primário é derrubado antes que a réplica assíncrona a receba, a réplica é promovida com `pg_promote()` e o nome `db` passa para ela (um alias de rede do Docker, a versão local de um endpoint DNS): todo serviço se reconecta em cerca de 15 s sem mudar configuração, e a reserva dá `404` — a escrita perdida da lista acima. Ligar o antigo primário de novo dá dois primários que discordam sobre o mesmo assento. Depois de isolá-lo, este script o traz de volta como seguidor: o `pg_rewind` descarta a história que o novo primário nunca teve, o que só funciona porque o primário roda com `wal_log_hints = on`.
+    O [Hands-on 6 — Failover](../../../hands-on/6/failover/index.md) percorre o diagrama acima sem nada automatizando. A reserva de um fã responde `201`, o primário é derrubado antes que a réplica assíncrona a receba, a réplica é promovida com `pg_promote()` e o nome `db` passa para ela (um alias de rede do Docker, a versão local de um endpoint DNS): todo serviço se reconecta em cerca de 15 s sem mudar configuração e a reserva dá `404` — a escrita perdida da lista acima. Ligar o antigo primário de novo dá dois primários que discordam sobre o mesmo assento. Depois de isolá-lo, este script o traz de volta como seguidor: o `pg_rewind` descarta a história que o novo primário nunca teve, o que só funciona porque o primário roda com `wal_log_hints = on`.
 
     ``` { .bash title="infra/postgres/rejoin-as-replica.sh (rewind, then follow the new primary)" }
     --8<-- "docs/2027.1/hands-on/6/code/infra/postgres/rejoin-as-replica.sh:12:20"
     ```
 
-**Experimente.** O cenário `db-failover` é um checkout de venda relâmpago num cluster com um primário e um seguidor **assíncrono**: 1.500 req/s, metade escritas. Em t = 90 s o primário morre. Execute-o e leia o relatório: com a semente padrão cerca de **1.600 escritas se perdem** (confirmadas pelo primário antigo, nunca enviadas ao seguidor) e a disponibilidade cai para cerca de **90,6%**, porque toda escrita falha durante os 30 s de failover. Selecione `orders-db` e mude *Replicação* para `sync`: as escritas perdidas caem para **0**, mas a disponibilidade não se mexe. Volte para `async` e ponha o *Tempo de failover* em 5 s: a disponibilidade sobe para cerca de **98%**, e as escritas voltam a se perder. Os dois controles respondem a perguntas diferentes: o modo de replicação define quanto você perde (o RPO), a detecção e a promoção definem quanto tempo você fica fora (o RTO). A solução possível (abra no playground completo ↗) combina replicação por quórum com 2 seguidores, 2 shards e failover de 5 s: 0 escritas perdidas, cerca de 99,2% de disponibilidade.
+**Experimente.** O cenário `db-failover` é um checkout de venda relâmpago num cluster com um primário e um seguidor **assíncrono**: 1.500 req/s, metade escritas. Em t = 90 s o primário morre. Execute-o e leia o relatório: com a semente padrão cerca de **1.600 escritas se perdem** (confirmadas pelo primário antigo, nunca enviadas ao seguidor) e a disponibilidade cai para cerca de **90,6%**, porque toda escrita falha durante os 30 s de failover. Selecione `orders-db` e mude *Replicação* para `sync`: as escritas perdidas caem para **0**, mas a disponibilidade não se mexe. Volte para `async` e ponha o *Tempo de failover* em 5 s: a disponibilidade sobe para cerca de **98%** e as escritas voltam a se perder. Os dois controles respondem a perguntas diferentes: o modo de replicação define quanto você perde (o RPO), a detecção e a promoção definem quanto tempo você fica fora (o RTO). A solução possível (abra no playground completo ↗) combina replicação por quórum com 2 seguidores, 2 shards e failover de 5 s: 0 escritas perdidas, cerca de 99,2% de disponibilidade.
 
 <div class="sdp" data-scenario="db-failover" data-mode="compact" data-height="520"></div>
 
@@ -252,7 +252,7 @@ O artigo do **Dynamo** da Amazon (2007)[^3] popularizou um terceiro design, usad
 <div class="csim" data-sim="quorum" data-n="3" data-w="2" data-r="2" data-down="C"></div>
 
 !!! tip "Experimente"
-    O simulador começa na configuração usual: N = 3, W = 2, R = 2, réplica C fora do ar. Dê play: toda escrita cai em A e B, toda leitura consulta A e B, e nenhuma leitura vem desatualizada. Ponha W = 1 e R = 1: agora cerca de metade das leituras perde a última escrita (o quadro calcula C(U − W, R) / C(U, R): 50% com 2 réplicas vivas, 67% quando C volta). Volte a W = 2, R = 2 e clique em C para religá-la: ela volta com uma versão antiga, e mesmo assim as leituras por quórum continuam atualizadas; ligue o **read repair** e veja C se atualizar. Por fim, derrube também B: com uma réplica viva, escritas e leituras falham, porque o coordenador não consegue juntar 2 respostas.
+    O simulador começa na configuração usual: N = 3, W = 2, R = 2, réplica C fora do ar. Dê play: toda escrita cai em A e B, toda leitura consulta A e B, e nenhuma leitura vem desatualizada. Ponha W = 1 e R = 1: agora cerca de metade das leituras perde a última escrita (o quadro calcula C(U − W, R) / C(U, R): 50% com 2 réplicas vivas, 67% quando C volta). Volte a W = 2, R = 2 e clique em C para religá-la: ela volta com uma versão antiga e mesmo assim as leituras por quórum continuam atualizadas; ligue o **read repair** e veja C se atualizar. Por fim, derrube também B: com uma réplica viva, escritas e leituras falham, porque o coordenador não consegue juntar 2 respostas.
 
 Se **R + W > N**, todo conjunto de leitura se sobrepõe a todo conjunto de escrita em pelo menos uma réplica, então uma leitura vê a última escrita confirmada (com ressalvas sob escritas concorrentes e falhas — quoruns sozinhos não são linearizáveis). Com N = 3:
 

@@ -13,7 +13,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 - D. Discutir implantação multirregião, porque disponibilidade é um requisito não funcional
 
 ??? success "Resposta"
-    **B — Estimar, e transformar os números em decisões.**
+    **B — Estimar e transformar os números em decisões.**
 
     O roteiro é esclarecer → estimar → API e modelo de dados → design de alto nível → aprofundamentos → gargalos. Números como "4 mil redirecionamentos/s contra 40 escritas/s, conjunto quente de ~33 GB" é que justificam um cache e uma camada sem estado. Pular para tecnologias (A) ou para um tópico avançado (D) antes dos números é o erro mais comum; código (C) raramente é o ponto de uma entrevista de design.
 
@@ -33,7 +33,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q3.** O BoxOffice espera **10 000 fãs** comprando ao mesmo tempo no caminho de checkout, e cada um passa **5 minutos** escolhendo lugares e pagando. Em que taxa a sala de espera deve admitir fãs?
+**Q3.** O BoxOffice espera **10 000 fãs** comprando ao mesmo tempo no caminho de checkout e cada um passa **5 minutos** escolhendo lugares e pagando. Em que taxa a sala de espera deve admitir fãs?
 
 - A. ~2 fãs por segundo
 - B. ~33 fãs por segundo
@@ -63,7 +63,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q5.** O cluster Redis que guarda os contadores de rate limit fica inacessível. O que o gateway deve fazer no endpoint **`/login`**, e nas rotas comuns da API?
+**Q5.** O cluster Redis que guarda os contadores de rate limit fica inacessível. O que o gateway deve fazer no endpoint **`/login`** e nas rotas comuns da API?
 
 - A. Fail-open em todo lugar: disponibilidade é sempre mais importante
 - B. Fail-closed em todo lugar: uma API desprotegida é inaceitável
@@ -73,7 +73,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **C — Escolher por regra.**
 
-    Limites comuns protegem o backend, e um curto período com limites locais aproximados é melhor do que derrubar a API. Limites de login são um controle de segurança: se um atacante consegue sobrecarregar o Redis e assim desligá-los, ganha tentativas de senha ilimitadas. Repetir (D) acrescenta latência a toda requisição; a chamada ao limitador precisa de um timeout apertado e de um circuit breaker.
+    Limites comuns protegem o backend e um curto período com limites locais aproximados é melhor do que derrubar a API. Limites de login são um controle de segurança: se um atacante consegue sobrecarregar o Redis e assim desligá-los, ganha tentativas de senha ilimitadas. Repetir (D) acrescenta latência a toda requisição; a chamada ao limitador precisa de um timeout apertado e de um circuit breaker.
 
 ---
 
@@ -131,7 +131,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — Uma chave de idempotência vinda do cliente.**
 
-    Numa rede você só consegue **entrega pelo menos uma vez**; o **efeito** de exatamente uma vez vem de tornar a operação idempotente. O dispositivo anexa seu próprio ID de mensagem; uma repetição com o mesmo ID é reconhecida, guardada uma vez e confirmada de novo. O TCP (A) não ajuda entre reconexões, e recursos do broker (D) não cobrem o trecho dispositivo-servidor.
+    Numa rede você só consegue **entrega pelo menos uma vez**; o **efeito** de exatamente uma vez vem de tornar a operação idempotente. O dispositivo anexa seu próprio ID de mensagem; uma repetição com o mesmo ID é reconhecida, guardada uma vez e confirmada de novo. O TCP (A) não ajuda entre reconexões e recursos do broker (D) não cobrem o trecho dispositivo-servidor.
 
 ---
 
@@ -152,14 +152,14 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 **Q11.** Por que plataformas de vídeo fazem os clientes enviarem arquivos direto ao object storage com **URLs pré-assinadas**, em vez de passar pelos servidores de aplicação?
 
 - A. O object storage é o único lugar capaz de guardar arquivos grandes
-- B. Isso tira gigabytes de tráfego e conexões longas da camada de aplicação, e uploads multipart podem ser repetidos parte por parte
+- B. Isso tira gigabytes de tráfego e conexões longas da camada de aplicação e uploads multipart podem ser repetidos parte por parte
 - C. URLs pré-assinadas fazem o vídeo tocar mais rápido
 - D. Servidores de aplicação não lidam com HTTPS
 
 ??? success "Resposta"
     **B — Manter os bytes fora da aplicação.**
 
-    A aplicação só autoriza e assina; o object store absorve a banda e os uploads lentos e instáveis, e uploads multipart retomam após falhas sem recomeçar o arquivo inteiro. O mesmo princípio vale para a reprodução, que vem da CDN — a aplicação cuida de metadados e orquestração.
+    A aplicação só autoriza e assina; o object store absorve a banda e os uploads lentos e instáveis e uploads multipart retomam após falhas sem recomeçar o arquivo inteiro. O mesmo princípio vale para a reprodução, que vem da CDN — a aplicação cuida de metadados e orquestração.
 
 ---
 
@@ -182,14 +182,14 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 **Q13.** Num **razão contábil de partidas dobradas**, qual afirmação é verdadeira?
 
 - A. Cada pagamento é guardado como uma linha com o saldo final da conta
-- B. Toda transação é registrada como lançamentos que somam zero (débitos = créditos), os lançamentos são só de inserção, e os saldos são derivados deles
+- B. Toda transação é registrada como lançamentos que somam zero (débitos = créditos), os lançamentos são só de inserção e os saldos são derivados deles
 - C. Correções são feitas editando o lançamento errado
 - D. Partidas dobradas significa guardar cada pagamento duas vezes para durabilidade
 
 ??? success "Resposta"
     **B — Lançamentos balanceados e só de inserção.**
 
-    Uma venda de ingresso move dinheiro entre contas (fã → plataforma, plataforma → valor a pagar ao produtor, taxas), e os lançamentos de cada transação precisam fechar. Erros são corrigidos com **novos** lançamentos de estorno, nunca editando o histórico, o que torna o razão auditável e fácil de conciliar com os relatórios de liquidação do provedor.
+    Uma venda de ingresso move dinheiro entre contas (fã → plataforma, plataforma → valor a pagar ao produtor, taxas) e os lançamentos de cada transação precisam fechar. Erros são corrigidos com **novos** lançamentos de estorno, nunca editando o histórico, o que torna o razão auditável e fácil de conciliar com os relatórios de liquidação do provedor.
 
 ---
 
@@ -203,7 +203,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — Defesa em profundidade fora do modelo.**
 
-    Isso é **injeção de prompt indireta**. Prompts (A) e modelos maiores (D) reduzem o risco, mas não garantem nada. Os controles robustos são arquiteturais: a camada de ferramentas verifica se o fã autenticado pode reembolsar *este* pedido, efeitos colaterais exigem confirmação, e guardrails/validadores inspecionam entradas e saídas. Remover funcionalidades (C) não é design.
+    Isso é **injeção de prompt indireta**. Prompts (A) e modelos maiores (D) reduzem o risco, mas não garantem nada. Os controles robustos são arquiteturais: a camada de ferramentas verifica se o fã autenticado pode reembolsar *este* pedido, efeitos colaterais exigem confirmação e guardrails/validadores inspecionam entradas e saídas. Remover funcionalidades (C) não é design.
 
 ---
 
@@ -217,4 +217,4 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — Pré-computar offline, servir da memória, enviar menos requisições.**
 
-    O trabalho de ranqueamento acontece offline num pipeline (logs → agregação → construção do snapshot); o caminho online é a consulta de um prefixo. Debounce no cliente e cache com TTL curto reduzem a taxa de requisições. Varrer dados brutos a cada tecla (A, C) não cumpre a latência, e a personalização síncrona (D) é uma camada opcional por cima, não o núcleo.
+    O trabalho de ranqueamento acontece offline num pipeline (logs → agregação → construção do snapshot); o caminho online é a consulta de um prefixo. Debounce no cliente e cache com TTL curto reduzem a taxa de requisições. Varrer dados brutos a cada tecla (A, C) não cumpre a latência e a personalização síncrona (D) é uma camada opcional por cima, não o núcleo.

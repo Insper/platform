@@ -3,7 +3,7 @@
 Um assistente que conversa com 2 milhões de fãs vai receber pedidos para ignorar as suas regras, vai
 receber CPFs e números de cartão, e às vezes vai inventar um evento. A **malha de segurança** da
 [aula de segurança e avaliações](../../../classes/ai-systems/safety-evals/index.md) coloca verificações
-dos dois lados do modelo, e as **métricas** tornam o custo e a latência de cada resposta visíveis ao lado
+dos dois lados do modelo e as **métricas** tornam o custo e a latência de cada resposta visíveis ao lado
 do resto do BoxOffice no Grafana (lab 8).
 
 ``` diagram-sim
@@ -67,11 +67,11 @@ para o `otel-lgtm`, então as suas métricas ficam ao lado das dos serviços Jav
 
 | Métrica do Prometheus | Labels | Pergunta que responde |
 |---|---|---|
-| `assistant_llm_tokens_total` | `model`, `type` (prompt / completion) | quantos tokens, e para onde vão |
+| `assistant_llm_tokens_total` | `model`, `type` (prompt / completion) | quantos tokens e para onde vão |
 | `assistant_llm_cost_usd_total` | `model` | quanto o assistente custa por hora / por resposta |
 | `assistant_ttft_seconds_bucket` | `model` | quanto tempo o fã fica olhando para um balão vazio |
 | `assistant_duration_seconds_bucket` | `model` | quanto tempo até a resposta ficar completa |
-| `assistant_tool_calls_total` | `tool`, `outcome` | quais ferramentas são usadas, e com que frequência falham |
+| `assistant_tool_calls_total` | `tool`, `outcome` | quais ferramentas são usadas e com que frequência falham |
 | `assistant_guardrail_blocks_total` | `kind` | tentativas de injection, respostas não ancoradas |
 | `assistant_requests_total` | `outcome` | respondidas vs bloqueadas |
 

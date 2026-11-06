@@ -77,7 +77,7 @@ Passos:
         mkdocs serve
         ```
 
-    Isso inicia um servidor de desenvolvimento local, e você pode acessar a documentação abrindo [`http://127.0.0.1:8000`](http://127.0.0.1:8000){target="_blank"} no seu navegador.
+    Isso inicia um servidor de desenvolvimento local e você pode acessar a documentação abrindo [`http://127.0.0.1:8000`](http://127.0.0.1:8000){target="_blank"} no seu navegador.
 
 
 Agora, sem mais demora, você pode começar os exercícios hands-on!

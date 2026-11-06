@@ -6,7 +6,7 @@ Esta página pega uma parte do BoxOffice — eventos, locais, assentos e pedidos
 
 ## O modelo relacional { #relational }
 
-O modelo relacional guarda os dados como **tabelas** (relações) de **linhas** com um conjunto fixo de **colunas** tipadas. Os relacionamentos são expressos por **chaves estrangeiras**, e as consultas combinam tabelas com **joins**. O esquema é declarado de antemão e validado em toda escrita (**schema-on-write**)[^1].
+O modelo relacional guarda os dados como **tabelas** (relações) de **linhas** com um conjunto fixo de **colunas** tipadas. Os relacionamentos são expressos por **chaves estrangeiras** e as consultas combinam tabelas com **joins**. O esquema é declarado de antemão e validado em toda escrita (**schema-on-write**)[^1].
 
 ```sql title="BoxOffice core schema (PostgreSQL)"
 CREATE TABLE venues (
@@ -214,7 +214,7 @@ Alguns mitos para aposentar antes de uma entrevista:
 
 ??? question "Pense antes: onde você guardaria o estoque de assentos do BoxOffice se ele tivesse de atender um festival de 200 mil lugares com 50 portões de entrada?"
 
-    Ainda num banco relacional — o invariante (um assento, um ingresso) é o fator decisivo, e 200 mil linhas é pouco. Já as **leituras de ingresso nos portões** são só de inserção, ordenadas no tempo, escritas por 50 portões ao mesmo tempo e consultadas por `(evento, portão)` → um armazenamento wide-column (ou uma tabela SQL particionada) serve para elas. Mesmo evento, dois armazenamentos diferentes, decididos pelo padrão de acesso.
+    Ainda num banco relacional — o invariante (um assento, um ingresso) é o fator decisivo e 200 mil linhas é pouco. Já as **leituras de ingresso nos portões** são só de inserção, ordenadas no tempo, escritas por 50 portões ao mesmo tempo e consultadas por `(evento, portão)` → um armazenamento wide-column (ou uma tabela SQL particionada) serve para elas. Mesmo evento, dois armazenamentos diferentes, decididos pelo padrão de acesso.
 
 ---
 
@@ -242,7 +242,7 @@ Os números explicam por que as B-trees estão em toda parte. Com páginas de 8 
 | 3 | 125 milhões |
 | 4 | 62,5 bilhões |
 
-Uma tabela de um bilhão de linhas tem **4 níveis de profundidade**, e os níveis superiores ficam em cache na memória, então uma busca pontual custa uma ou duas leituras de disco. As escritas, porém, modificam uma página **no lugar**: mudar uma linha de 100 bytes suja uma página inteira de 8 KiB, que depois é gravada de volta, e a mudança também é acrescentada ao **write-ahead log** (WAL) para recuperação após falhas. Usada por PostgreSQL, MySQL InnoDB, SQL Server, Oracle, SQLite.
+Uma tabela de um bilhão de linhas tem **4 níveis de profundidade** e os níveis superiores ficam em cache na memória, então uma busca pontual custa uma ou duas leituras de disco. As escritas, porém, modificam uma página **no lugar**: mudar uma linha de 100 bytes suja uma página inteira de 8 KiB, que depois é gravada de volta, e a mudança também é acrescentada ao **write-ahead log** (WAL) para recuperação após falhas. Usada por PostgreSQL, MySQL InnoDB, SQL Server, Oracle, SQLite.
 
 ### LSM-trees { #lsm-trees }
 
@@ -263,7 +263,7 @@ As escritas são acréscimos sequenciais — muito rápidos, mesmo em discos len
 
 ### Amplificação de escrita { #write-amplification }
 
-A **amplificação de escrita** (*write amplification*) é o número de bytes que o motor grava no disco para cada byte que a aplicação escreve. Ela determina o desgaste do SSD, o custo de I/O e a vazão máxima de escrita. O modelo abaixo é uma intuição de guardanapo, não um benchmark: uma B-tree que reescreve uma página inteira de 8 KiB a cada pequena atualização aleatória (mais o WAL), e uma LSM-tree com compactação por níveis e razão de tamanho 10, em que cada registro é reescrito cerca de 5 vezes por nível durante a compactação (mais o WAL e o flush).
+A **amplificação de escrita** (*write amplification*) é o número de bytes que o motor grava no disco para cada byte que a aplicação escreve. Ela determina o desgaste do SSD, o custo de I/O e a vazão máxima de escrita. O modelo abaixo é uma intuição de guardanapo, não um benchmark: uma B-tree que reescreve uma página inteira de 8 KiB a cada pequena atualização aleatória (mais o WAL) e uma LSM-tree com compactação por níveis e razão de tamanho 10, em que cada registro é reescrito cerca de 5 vezes por nível durante a compactação (mais o WAL e o flush).
 
 ```python exec="1" html="1"
 import matplotlib.pyplot as plt
@@ -313,7 +313,7 @@ plt.close()
 
 Leia o gráfico como intuição:
 
-- Para **registros pequenos atualizados aleatoriamente** (contadores, status, eventos), a B-tree paga uma página inteira por uma mudança minúscula, e as escritas sequenciais e em lote da LSM-tree vencem. É por isso que armazenamentos com muita escrita (Cassandra, RocksDB) são baseados em LSM.
+- Para **registros pequenos atualizados aleatoriamente** (contadores, status, eventos), a B-tree paga uma página inteira por uma mudança minúscula e as escritas sequenciais e em lote da LSM-tree vencem. É por isso que armazenamentos com muita escrita (Cassandra, RocksDB) são baseados em LSM.
 - Para **registros grandes**, o custo da página se dilui e a compactação repetida da LSM-tree domina. Motores B-tree reais também acumulam muitas atualizações na mesma página antes de gravá-la, o que baixa bastante a sua curva em cargas com localidade.
 - Mais dados significam mais níveis na LSM, então sua amplificação de escrita cresce devagar com o tamanho do conjunto de dados.
 
@@ -330,7 +330,7 @@ Leia o gráfico como intuição:
 
 ## Índices { #indexes }
 
-Um **índice** é uma estrutura de dados adicional — normalmente uma B-tree — que mapeia valores de colunas para as linhas que os contêm, para que o banco encontre as linhas sem varrer a tabela inteira. A chave primária é sempre indexada; todos os outros índices são decisão sua, e cada um **acelera as leituras e desacelera as escritas** (todo `INSERT`/`UPDATE` precisa atualizar todos os índices da tabela).
+Um **índice** é uma estrutura de dados adicional — normalmente uma B-tree — que mapeia valores de colunas para as linhas que os contêm, para que o banco encontre as linhas sem varrer a tabela inteira. A chave primária é sempre indexada; todos os outros índices são decisão sua e cada um **acelera as leituras e desacelera as escritas** (todo `INSERT`/`UPDATE` precisa atualizar todos os índices da tabela).
 
 | Tipo de índice | O que é | Exemplo no BoxOffice |
 |---|---|---|
@@ -375,7 +375,7 @@ Guia de leitura: **Seq Scan** com um "Rows Removed by Filter" grande indica um �
 
 !!! example "No código do BoxOffice: o índice que conserta a listagem (lab 6)"
 
-    No [Hands-on 6 — Índices](../../../hands-on/6/indexes/index.md), o `EXPLAIN ANALYZE` de "próximos eventos em Recife, os mais próximos primeiro" mostra um `Seq Scan` que lê e ordena 200.000 eventos para devolver 20 (~37 ms). Com `(starts_at, id)`, o PostgreSQL percorre os eventos já em ordem de data e para depois de 20 de Recife: 189 entradas do índice em vez de 200.000 linhas, e menos de 1 ms. A contagem passa pelo índice menor `(venue_id, starts_at)` sem tocar a tabela (*Index Only Scan*): ~14 ms → ~4 ms. Repare no atalho: a migração usa um `CREATE INDEX` simples, que bloqueia as escritas em `events` enquanto o índice é construído — aceitável num banco de laboratório, não num banco em produção, onde se usa `CONCURRENTLY` (que não pode rodar dentro de uma transação, então a migração precisa ser marcada para rodar sem uma).
+    No [Hands-on 6 — Índices](../../../hands-on/6/indexes/index.md), o `EXPLAIN ANALYZE` de "próximos eventos em Recife, os mais próximos primeiro" mostra um `Seq Scan` que lê e ordena 200.000 eventos para devolver 20 (~37 ms). Com `(starts_at, id)`, o PostgreSQL percorre os eventos já em ordem de data e para depois de 20 de Recife: 189 entradas do índice em vez de 200.000 linhas e menos de 1 ms. A contagem passa pelo índice menor `(venue_id, starts_at)` sem tocar a tabela (*Index Only Scan*): ~14 ms → ~4 ms. Repare no atalho: a migração usa um `CREATE INDEX` simples, que bloqueia as escritas em `events` enquanto o índice é construído — aceitável num banco de laboratório, não num banco em produção, onde se usa `CONCURRENTLY` (que não pode rodar dentro de uma transação, então a migração precisa ser marcada para rodar sem uma).
 
     ``` { .sql title="services/catalog/src/main/resources/db/migration/V3__index_events.sql" }
     --8<-- "docs/2027.1/hands-on/6/code/services/catalog/src/main/resources/db/migration/V3__index_events.sql"
@@ -405,15 +405,15 @@ Guia de leitura: **Seq Scan** com um "Rows Removed by Filter" grande indica um �
     - **Coloque as regras no schema, não só no código** — `NOT NULL`, `CHECK`, `UNIQUE` e chaves estrangeiras dentro de um serviço pegam o bug que a revisão de código deixou passar. Na BoxOffice: `CHECK (status IN (...))` e `UNIQUE (event_id, section, seat_row, seat_number)` no `V1__create_inventory.sql` ([lab 6](../../../hands-on/6/holds/index.md)).
     - **Use tipos exatos para dinheiro e tempo** — `NUMERIC(10,2)` para preços e `TIMESTAMPTZ` para instantes; nunca ponto flutuante para dinheiro, nunca um horário sem o seu fuso. Na BoxOffice: a tabela de decisões do [lab 1](../../../hands-on/1/api/index.md).
     - **Leia planos sobre dados do tamanho da produção** — um `EXPLAIN (ANALYZE, BUFFERS)` sobre 100 linhas não diz nada sobre 200.000; semeie volumes realistas antes de julgar uma consulta. Na BoxOffice: o lab 6 indexa os 200.000 eventos semeados (quadro acima).
-    - **Dê a cada índice uma consulta que o justifique, e revise o uso** — confira `pg_stat_user_indexes.idx_scan` periodicamente e remova os índices que ninguém percorre; numa tabela de escrita quente cada um custa a todo insert.
-    - **Atualize as estatísticas depois de cargas em massa** — rode `ANALYZE` depois de uma semeadura ou de uma importação grande; o planejador escolhe por estimativas, e linhas estimadas muito longe das reais são o sinal de estatísticas velhas.
+    - **Dê a cada índice uma consulta que o justifique e revise o uso** — confira `pg_stat_user_indexes.idx_scan` periodicamente e remova os índices que ninguém percorre; numa tabela de escrita quente cada um custa a todo insert.
+    - **Atualize as estatísticas depois de cargas em massa** — rode `ANALYZE` depois de uma semeadura ou de uma importação grande; o planejador escolhe por estimativas e linhas estimadas muito longe das reais são o sinal de estatísticas velhas.
 
 !!! warning "Armadilhas comuns"
 
-    - **Um índice por coluna** "por via das dúvidas": escritas mais lentas, mais memória, e o planejador ainda não consegue combiná-los tão bem quanto um bom índice composto.
+    - **Um índice por coluna** "por via das dúvidas": escritas mais lentas, mais memória e o planejador ainda não consegue combiná-los tão bem quanto um bom índice composto.
     - **Ordem errada das colunas** num índice composto (`(status, event_id)` quando toda consulta filtra por `event_id`): a regra do prefixo mais à esquerda o torna inútil para a maioria das consultas.
     - **Funções sobre colunas indexadas** (`WHERE lower(email) = …`) ignoram um índice comum; crie um índice de expressão.
-    - **Documentos que crescem para sempre** (um documento de evento com todos os ingressos embutidos): leituras e escritas ficam mais lentas à medida que o array cresce, e muitos bancos limitam o tamanho do documento (16 MB no MongoDB).
+    - **Documentos que crescem para sempre** (um documento de evento com todos os ingressos embutidos): leituras e escritas ficam mais lentas à medida que o array cresce e muitos bancos limitam o tamanho do documento (16 MB no MongoDB).
     - **Modelar NoSQL como SQL** (tabelas normalizadas, joins na aplicação): você paga as idas e voltas pela rede e perde os pontos fortes dos dois modelos.
 
 ## Como se conecta { #how-it-connects }

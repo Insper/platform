@@ -94,7 +94,7 @@ higher than the stable version's p99 latency of 0.181 ms. [...]
 - Roll back the canary version to the stable version to ensure service reliability.
 ```
 
-Leia com olho crítico: o p99 do stable é **181 ms**, não "0.181 ms" (o modelo misturou segundos e milissegundos), e os próximos passos são genéricos. Na execução saudável, ele escreveu que o canary tinha um "higher RPS (20.1 vs. 380.0)". Um modelo maior se sai melhor — uma execução com `claude-opus-5-5` percebeu que as contagens brutas de `errors` parecem parecidas (0.62 vs 0.40) enquanto o canary, com 1/19 do tráfego, falha cerca de 29× mais por requisição, e rotulou as causas como hipóteses. De qualquer forma, uma frase errada não custa nada aqui: **os números que decidem vêm da política, não do modelo**.
+Leia com olho crítico: o p99 do stable é **181 ms**, não "0.181 ms" (o modelo misturou segundos e milissegundos), e os próximos passos são genéricos. Na execução saudável, ele escreveu que o canary tinha um "higher RPS (20.1 vs. 380.0)". Um modelo maior se sai melhor — uma execução com `claude-opus-5-5` percebeu que as contagens brutas de `errors` parecem parecidas (0.62 vs 0.40) enquanto o canary, com 1/19 do tráfego, falha cerca de 29× mais por requisição e rotulou as causas como hipóteses. De qualquer forma, uma frase errada não custa nada aqui: **os números que decidem vêm da política, não do modelo**.
 
 Agora tente quebrar a regra: edite `SYSTEM` na sua cópia para dizer *"se o canary parecer só um pouco pior, recomende promover"* e rode de novo o cenário de regressão. Não importa o que o modelo escreva, o código de saída continua 1 e, se o `verdict` da explicação discordar da política, ela é descartada (`_(LLM explanation discarded: it disagreed with the policy verdict.)_`). Restaure o `SYSTEM` depois (`git checkout -- .github/ai/canary_explain.py`). Por fim, tire o modelo — Claude sem chave:
 
@@ -161,7 +161,7 @@ Este passo precisa do cluster kind do [lab 10](../../10/index.md) (chamado `boxo
     git commit -m "k8s(catalog): explained canary verdict (lab 13)" && git push
     ```
 
-    Com um Job, *inconclusivo* (saída 2) conta como falha — a escolha conservadora. O Job roda uma vez, `initialDelay: 90s` depois do início da análise, e olha só o último minuto (`WINDOW=1m`): o Prometheus rotula cada série com o Service que a coletou, então uma janela de 5 minutos ainda contaria, como `catalog-canary`, os pods **antigos** que respondiam atrás desse Service antes de o canary começar — o veredito compararia a versão estável com ela mesma. A explicação fica nos logs do Job do próximo canary — uma nova imagem vinda do CI (`kubectl -n boxoffice logs -l job-name --tail=50`, ou `kubectl -n boxoffice get jobs` e `kubectl -n boxoffice logs job/<nome>`). O template aponta o modelo para o Ollama da sua máquina via `host.docker.internal` (Docker Desktop no macOS e no Windows; no Linux, use o IP do host na rede `kind` ou deixe-o inalcançável); para o Claude, crie o Secret com `kubectl -n boxoffice create secret generic llm --from-literal=anthropic-api-key="$ANTHROPIC_API_KEY"` e defina `LLM_PROVIDER` como `anthropic` no template (e rode o `kubectl apply` de novo). O passo funciona sem modelo nenhum: sem explicação, mesmo veredito.
+    Com um Job, *inconclusivo* (saída 2) conta como falha — a escolha conservadora. O Job roda uma vez, `initialDelay: 90s` depois do início da análise e olha só o último minuto (`WINDOW=1m`): o Prometheus rotula cada série com o Service que a coletou, então uma janela de 5 minutos ainda contaria, como `catalog-canary`, os pods **antigos** que respondiam atrás desse Service antes de o canary começar — o veredito compararia a versão estável com ela mesma. A explicação fica nos logs do Job do próximo canary — uma nova imagem vinda do CI (`kubectl -n boxoffice logs -l job-name --tail=50`, ou `kubectl -n boxoffice get jobs` e `kubectl -n boxoffice logs job/<nome>`). O template aponta o modelo para o Ollama da sua máquina via `host.docker.internal` (Docker Desktop no macOS e no Windows; no Linux, use o IP do host na rede `kind` ou deixe-o inalcançável); para o Claude, crie o Secret com `kubectl -n boxoffice create secret generic llm --from-literal=anthropic-api-key="$ANTHROPIC_API_KEY"` e defina `LLM_PROVIDER` como `anthropic` no template (e rode o `kubectl apply` de novo). O passo funciona sem modelo nenhum: sem explicação, mesmo veredito.
 
 ## 5.5 Meça { #55-measure-it }
 
@@ -174,7 +174,7 @@ Rode os três cenários e, se você tiver o cluster, um canary ao vivo com uma v
 | pouco tráfego | | | | | | |
 | canary lento ao vivo | | | | | | |
 
-Depois responda: a explicação teria encurtado o *seu* diagnóstico? Qual próximo passo foi o mais útil, e qual foi genérico?
+Depois responda: a explicação teria encurtado o *seu* diagnóstico? Qual próximo passo foi o mais útil e qual foi genérico?
 
 
 ## Solução de problemas { #troubleshooting }

@@ -1,12 +1,12 @@
 Todo ingresso vendido no BoxOffice precisa de um PDF com QR code. Gerá-lo leva cerca de 400 ms de CPU — lento demais para fazer dentro da requisição de compra durante uma flash sale. A solução óbvia é colocar o trabalho em algum lugar e deixar um pool de workers pegá-lo. Esse "algum lugar" é o componente de mensageria mais antigo e mais simples: a **fila**. Pouco depois, o time de produto pede um e-mail, uma notificação push, uma atualização da busca e um registro de analytics para cada compra — quatro serviços *diferentes*, cada um precisando da própria cópia. Essa é a segunda forma: **publish/subscribe**.
 
-Esta página cobre as duas formas, como elas se comportam sob carga, e a fila mais famosa do BoxOffice: a **sala de espera** que impede dois milhões de fãs de esmagarem o inventário de lugares às 10:00.
+Esta página cobre as duas formas, como elas se comportam sob carga e a fila mais famosa do BoxOffice: a **sala de espera** que impede dois milhões de fãs de esmagarem o inventário de lugares às 10:00.
 
 ---
 
 ## Filas ponto a ponto { #point-to-point-queues }
 
-Uma **fila de mensagens** guarda mensagens até que um consumidor as pegue. Cada mensagem é entregue a **um** consumidor; muitos consumidores podem ler a mesma fila, e eles *competem* pelas mensagens — o padrão **competing consumers** (consumidores concorrentes)[^1]. Adicionar consumidores aumenta o throughput sem nenhuma mudança no produtor.
+Uma **fila de mensagens** guarda mensagens até que um consumidor as pegue. Cada mensagem é entregue a **um** consumidor; muitos consumidores podem ler a mesma fila e eles *competem* pelas mensagens — o padrão **competing consumers** (consumidores concorrentes)[^1]. Adicionar consumidores aumenta o throughput sem nenhuma mudança no produtor.
 
 ``` diagram-sim
 flowchart LR
@@ -54,7 +54,7 @@ Esse protocolo dá entrega **at-least-once**: nenhuma mensagem se perde quando u
 | **Atraso** | Esconde uma mensagem nova por um tempo antes da primeira entrega | "Envie o lembrete 24 h antes do show" |
 
 !!! warning "Um visibility timeout menor que o job"
-    Se um job leva 45 s e o visibility timeout é de 30 s, a mensagem reaparece enquanto o primeiro worker ainda está trabalhando nela: dois workers processam cada mensagem lenta, e a carga dobra justamente quando o sistema está mais lento. Defina o timeout acima do p99 do tempo de processamento, ou faça o worker estendê-lo enquanto trabalha (`ChangeMessageVisibility` no SQS).
+    Se um job leva 45 s e o visibility timeout é de 30 s, a mensagem reaparece enquanto o primeiro worker ainda está trabalhando nela: dois workers processam cada mensagem lenta e a carga dobra justamente quando o sistema está mais lento. Defina o timeout acima do p99 do tempo de processamento, ou faça o worker estendê-lo enquanto trabalha (`ChangeMessageVisibility` no SQS).
 
 ### Ordenação { #ordering }
 
@@ -86,8 +86,8 @@ $$
     O simulador começa com os números do exemplo: 167 PDFs/s, 0,4 s cada, 95 workers (ρ = 0,70). Dê play.
 
     - Leia a linha **Little**: cerca de 67 PDFs no sistema = 166/s × 0,40 s. A Lei de Little vale qualquer que seja a distribuição das chegadas e dos tempos de serviço.
-    - Baixe **Workers K** para 70 (ρ = 0,95) e depois 68 (ρ = 0,98): W vai de 0,40 s para 0,48 s e 0,68 s, e a fila começa a oscilar. Abaixo de 67 não há regime estacionário: com 60 workers (ρ = 1,11), 2.006 jobs esperam depois de 2 minutos e 4.151 depois de 4 — o backlog só cresce. Um pool deste tamanho tem um joelho abrupto perto de ρ = 1; a meta de 70% é folga para picos.
-    - De volta a 95, aperte **pico de abertura** (3× por 20 s): o backlog chega a cerca de 5.300 jobs, o mais antigo espera 22 s, e a fila só esvazia cerca de 100 s depois do início do pico — ela escoa nos 71 jobs/s de sobra.
+    - Baixe **Workers K** para 70 (ρ = 0,95) e depois 68 (ρ = 0,98): W vai de 0,40 s para 0,48 s e 0,68 s e a fila começa a oscilar. Abaixo de 67 não há regime estacionário: com 60 workers (ρ = 1,11), 2.006 jobs esperam depois de 2 minutos e 4.151 depois de 4 — o backlog só cresce. Um pool deste tamanho tem um joelho abrupto perto de ρ = 1; a meta de 70% é folga para picos.
+    - De volta a 95, aperte **pico de abertura** (3× por 20 s): o backlog chega a cerca de 5.300 jobs, o mais antigo espera 22 s e a fila só esvazia cerca de 100 s depois do início do pico — ela escoa nos 71 jobs/s de sobra.
     - Ligue **escalar workers pelo backlog** e repita o pico: os novos workers levam 15 s para subir, então o pico quase não muda (cerca de 4.500), mas o job mais antigo espera 9 s e a fila esvazia em cerca de 27 s.
 
 ---
@@ -96,7 +96,7 @@ $$
 
 **Backpressure** é qualquer mecanismo pelo qual um consumidor lento faz um produtor rápido desacelerar — ou pelo menos faz o sistema *perceber* que não está dando conta. Sem isso, uma fila entre um produtor rápido e um consumidor lento é só um lugar onde o problema cresce em silêncio.
 
-Uma fila que pode crescer sem limite é uma ilusão: a memória ou o disco acabam em algum momento, e muito antes disso as mensagens do fim da fila ficam **velhas** (um push "seus lugares estão reservados" que chega duas horas depois é pior que nenhum). Toda fila precisa de uma resposta para "o que acontece quando ela enche?"[^2]:
+Uma fila que pode crescer sem limite é uma ilusão: a memória ou o disco acabam em algum momento e muito antes disso as mensagens do fim da fila ficam **velhas** (um push "seus lugares estão reservados" que chega duas horas depois é pior que nenhum). Toda fila precisa de uma resposta para "o que acontece quando ela enche?"[^2]:
 
 | Estratégia | O que acontece | Exemplo no BoxOffice | Custo |
 |---|---|---|---|
@@ -164,7 +164,7 @@ ZCARD room:ev-88
 Decisões de projeto que vale discutir:
 
 - **Taxa de admissão.** É um número de capacidade, não um chute: o throughput medido do `inventory` × um fator de segurança (digamos 50%): cerca de 1.100 × 0,5 ≈ 500 fãs/s, a taxa usada acima. Ela pode se adaptar: reduzir as admissões quando o p99 ou a taxa de erros do `inventory` sobem — um laço de realimentação.
-- **Justiça.** FIFO estrito premia quem tem a menor latência até o data center (e os bots). Muitos sites de ingressos dão aos fãs que chegaram *antes* do horário de abertura uma posição **aleatória** às 10:00, e só usam FIFO depois disso.
+- **Justiça.** FIFO estrito premia quem tem a menor latência até o data center (e os bots). Muitos sites de ingressos dão aos fãs que chegaram *antes* do horário de abertura uma posição **aleatória** às 10:00 e só usam FIFO depois disso.
 - **Bots.** A sala de espera é o lugar de exigir um desafio e aplicar detecção de bots e limites por conta (veja [Tráfego e borda](../../edge/index.md)).
 - **Expiração da reserva.** A admissão dá ao fã um direito de compra com prazo; a reserva dos lugares expira (aqui, depois de 10 minutos) e os lugares voltam para o estoque. Isso é um timer — outro job assíncrono.
 - **Onde roda.** As posições são servidas pela borda (funções de CDN ou um serviço pequeno, escalado horizontalmente, com Redis), então o polling de dois milhões de navegadores nunca chega aos serviços centrais.
@@ -179,7 +179,7 @@ Decisões de projeto que vale discutir:
 
 !!! info "Experimente no playground"
 
-    O cenário `flash-sale` é uma versão genérica do BoxOffice às 10:00, e começa **sem** sala de espera: `users → lb → app → inventory-db`, com os compradores chamando também o `payment provider` (cota de 500 req/s). Aperte **Run**: quando a venda abre (t = 60 s) o tráfego salta 20×, o `app` satura e aparecem erros; aumente as réplicas dele e quem satura passa a ser o `inventory-db` e o provedor de pagamento. Depois abra no playground completo (↗) e monte a sala de espera — um API Gateway que manda as escritas para uma Message Queue drenada por workers `order` (as dicas, ou **Mostrar uma solução possível**). O número de workers é a taxa de admissão: com poucos, o atraso do consumidor (quanto o comprador espera na fila) passa da meta de 300 s; com muitos, o `inventory-db` e a cota do pagamento voltam a ficar sob pressão. Ache a quantidade que mantém os dois dentro das metas.
+    O cenário `flash-sale` é uma versão genérica do BoxOffice às 10:00 e começa **sem** sala de espera: `users → lb → app → inventory-db`, com os compradores chamando também o `payment provider` (cota de 500 req/s). Aperte **Run**: quando a venda abre (t = 60 s) o tráfego salta 20×, o `app` satura e aparecem erros; aumente as réplicas dele e quem satura passa a ser o `inventory-db` e o provedor de pagamento. Depois abra no playground completo (↗) e monte a sala de espera — um API Gateway que manda as escritas para uma Message Queue drenada por workers `order` (as dicas, ou **Mostrar uma solução possível**). O número de workers é a taxa de admissão: com poucos, o atraso do consumidor (quanto o comprador espera na fila) passa da meta de 300 s; com muitos, o `inventory-db` e a cota do pagamento voltam a ficar sob pressão. Ache a quantidade que mantém os dois dentro das metas.
 
 <div class="sdp" data-scenario="flash-sale" data-mode="compact" data-height="560"></div>
 
@@ -187,7 +187,7 @@ Decisões de projeto que vale discutir:
 
 ## Publish/subscribe { #pubsub }
 
-No **publish/subscribe** (pub/sub) o produtor publica em um **tópico**, e cada **assinatura** desse tópico recebe a própria cópia de toda mensagem[^3]. Dentro de uma assinatura, os consumidores competem como em uma fila; *entre* assinaturas, cada assinatura vê tudo. Na prática, cada assinatura é uma fila que o broker preenche automaticamente.
+No **publish/subscribe** (pub/sub) o produtor publica em um **tópico** e cada **assinatura** desse tópico recebe a própria cópia de toda mensagem[^3]. Dentro de uma assinatura, os consumidores competem como em uma fila; *entre* assinaturas, cada assinatura vê tudo. Na prática, cada assinatura é uma fila que o broker preenche automaticamente.
 
 ``` diagram-sim
 flowchart LR
@@ -214,7 +214,7 @@ Adicionar um quarto consumidor — digamos, um programa de fidelidade que dá po
 
 ### Filtragem e roteamento { #filtering-and-routing }
 
-Nem todo assinante quer toda mensagem. Os brokers deixam uma assinatura declarar um **filtro** sobre atributos da mensagem, de modo que só as mensagens que casam são copiadas para ela — por exemplo, o serviço de SMS assina apenas eventos `OrderConfirmed` cujo atributo `channel` é `sms`. O RabbitMQ generaliza isso com **exchanges**: uma exchange `fanout` copia para toda fila ligada a ela, uma `direct` roteia por uma routing key exata, e uma `topic` roteia por padrões como `order.*.br`.
+Nem todo assinante quer toda mensagem. Os brokers deixam uma assinatura declarar um **filtro** sobre atributos da mensagem, de modo que só as mensagens que casam são copiadas para ela — por exemplo, o serviço de SMS assina apenas eventos `OrderConfirmed` cujo atributo `channel` é `sms`. O RabbitMQ generaliza isso com **exchanges**: uma exchange `fanout` copia para toda fila ligada a ela, uma `direct` roteia por uma routing key exata e uma `topic` roteia por padrões como `order.*.br`.
 
 ### Pub/sub durável e efêmero { #durable-and-ephemeral-pubsub }
 

@@ -5,21 +5,21 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 **Q1.** Por que o `diffutil.py` imprime cada linha do lado novo com o seu número (`L21 + ...`) antes de enviar o diff ao modelo?
 
 - A. Para reduzir o número de tokens no prompt
-- B. Porque modelos não são confiáveis para calcular números de linha a partir dos cabeçalhos de hunk `@@`, e o GitHub rejeita comentários de review em linhas que não estão no diff
+- B. Porque modelos não são confiáveis para calcular números de linha a partir dos cabeçalhos de hunk `@@` e o GitHub rejeita comentários de review em linhas que não estão no diff
 - C. Porque a API do Claude exige números de linha em blocos de código
 - D. Para esconder do modelo as linhas removidas
 
 ??? success "Resposta"
     **B.**
 
-    Contar linhas a partir de `@@ -16,4 +16,9 @@` é exatamente o tipo de contabilidade que um modelo de linguagem erra. Imprimir o número em cada linha transforma a tarefa em *copiar* um número, e o código então só aceita achados que apontam para uma linha que o PR **adicionou** — o que também evita um `422` da API do GitHub por um comentário fora do diff.
+    Contar linhas a partir de `@@ -16,4 +16,9 @@` é exatamente o tipo de contabilidade que um modelo de linguagem erra. Imprimir o número em cada linha transforma a tarefa em *copiar* um número e o código então só aceita achados que apontam para uma linha que o PR **adicionou** — o que também evita um `422` da API do GitHub por um comentário fora do diff.
 
 ---
 
 **Q2.** O revisor posta o seu review com `event: COMMENT`. Qual é o principal motivo de ele nunca enviar `APPROVE`?
 
 - A. O `GITHUB_TOKEN` não consegue aprovar pull requests em nenhuma configuração
-- B. Aprovar é uma decisão; o bot é consultivo, e um prompt injection que convença o modelo não pode virar uma aprovação
+- B. Aprovar é uma decisão; o bot é consultivo e um prompt injection que convença o modelo não pode virar uma aprovação
 - C. Reviews `APPROVE` não podem ter comentários inline
 - D. Aprovações custam mais chamadas de API
 
@@ -58,7 +58,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q5.** O gerador de testes produziu um teste que compila e passa duas vezes, com 100% de cobertura de linhas da classe. O PIT reporta o score de mutação inalterado (40% → 40%). O que o script faz, e por quê?
+**Q5.** O gerador de testes produziu um teste que compila e passa duas vezes, com 100% de cobertura de linhas da classe. O PIT reporta o score de mutação inalterado (40% → 40%). O que o script faz e por quê?
 
 - A. Aceita o teste, porque 100% de cobertura prova que ele é útil
 - B. Rejeita o teste (e devolve os mutantes sobreviventes ao modelo), porque ele não pega nenhum bug que os testes existentes deixam passar
@@ -146,7 +146,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 - A. O rollout é promovido, porque o modelo tem mais contexto do que os limites
 - B. O script pergunta de novo ao modelo até ele dizer rollback
-- C. O veredito da política (rollback, código de saída 1) prevalece, e a explicação é descartada porque contradiz a política
+- C. O veredito da política (rollback, código de saída 1) prevalece e a explicação é descartada porque contradiz a política
 - D. A análise fica inconclusiva
 
 ??? success "Resposta"

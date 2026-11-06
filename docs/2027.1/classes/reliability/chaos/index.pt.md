@@ -1,4 +1,4 @@
-O BoxOffice agora tem timeouts, um retry com jitter, um circuit breaker, um bulkhead, um fallback, uma região em warm standby e uma política de backups. Eles funcionam? Os testes unitários passam. Mas ninguém nunca viu o breaker do pagamento abrir com tráfego real, ninguém nunca promoveu o banco standby, e ninguém sabe quanto tempo o failover regional realmente leva. A primeira vez em que algo disso vai importar será durante uma abertura de vendas real no estádio, com dois milhões de fãs assistindo. O único jeito de *saber* é causar as falhas você mesmo, de propósito, enquanto observa e está pronto.
+O BoxOffice agora tem timeouts, um retry com jitter, um circuit breaker, um bulkhead, um fallback, uma região em warm standby e uma política de backups. Eles funcionam? Os testes unitários passam. Mas ninguém nunca viu o breaker do pagamento abrir com tráfego real, ninguém nunca promoveu o banco standby e ninguém sabe quanto tempo o failover regional realmente leva. A primeira vez em que algo disso vai importar será durante uma abertura de vendas real no estádio, com dois milhões de fãs assistindo. O único jeito de *saber* é causar as falhas você mesmo, de propósito, enquanto observa e está pronto.
 
 A **engenharia do caos** é a disciplina de fazer experimentos em um sistema para ganhar confiança na sua capacidade de suportar condições turbulentas em produção[^1]. Em vez de esperar as falhas acontecerem, você as injeta deliberadamente, de forma controlada, e usa o que aprende para corrigir fraquezas antes que incidentes reais as encontrem.
 
@@ -10,9 +10,9 @@ A **engenharia do caos** é a disciplina de fazer experimentos em um sistema par
 
 A ideia é mais antiga que o nome. Na Amazon, no começo dos anos 2000, Jesse Robbins conduzia exercícios de **GameDay** que causavam deliberadamente falhas grandes em produção para expor fraquezas escondidas — no software e nos times que o operavam[^3].
 
-A Netflix deu nome e ferramentas à prática. Depois de sair do próprio data center para a AWS, por volta de 2010 — onde qualquer instância pode sumir a qualquer momento —, ela criou o **Chaos Monkey**, um serviço que encerra instâncias de produção aleatórias **em horário comercial**, para que todo time precisasse construir serviços que sobrevivem à perda de instâncias, e os engenheiros estivessem em suas mesas para ver o que quebrava[^4]. Veio então todo um **Simian Army**: o Latency Monkey injetava atrasos nas chamadas, o Chaos Gorilla simulava a perda de uma zona de disponibilidade inteira. Em 2016, engenheiros da Netflix formalizaram a disciplina em um artigo da IEEE Software[^2], de onde vêm os princípios abaixo.
+A Netflix deu nome e ferramentas à prática. Depois de sair do próprio data center para a AWS, por volta de 2010 — onde qualquer instância pode sumir a qualquer momento —, ela criou o **Chaos Monkey**, um serviço que encerra instâncias de produção aleatórias **em horário comercial**, para que todo time precisasse construir serviços que sobrevivem à perda de instâncias e os engenheiros estivessem em suas mesas para ver o que quebrava[^4]. Veio então todo um **Simian Army**: o Latency Monkey injetava atrasos nas chamadas, o Chaos Gorilla simulava a perda de uma zona de disponibilidade inteira. Em 2016, engenheiros da Netflix formalizaram a disciplina em um artigo da IEEE Software[^2], de onde vêm os princípios abaixo.
 
-A percepção central: **falha não é um caso especial a evitar; é o ambiente em que os sistemas de produção vivem**, e o único jeito de saber se um sistema sobrevive a ela é testá-lo ali.
+A percepção central: **falha não é um caso especial a evitar; é o ambiente em que os sistemas de produção vivem** e o único jeito de saber se um sistema sobrevive a ela é testá-lo ali.
 
 ---
 
@@ -58,7 +58,7 @@ Um experimento que **confirma** a hipótese é evidência de que uma defesa func
     | Passo | Conteúdo |
     |---|---|
     | **Estado estável** | Sucesso das compras ≥ 99,9% e p99 das reservas < 500 ms; p99 do catálogo < 300 ms (o dashboard RED do [Hands-on 8](../../../hands-on/8/index.md)). |
-    | **Hipótese** | "Se o provedor de pagamento responder em 3 s em vez de 200 ms, o circuit breaker do `payment` abre em até 30 s, as compras falham rápido com 'pagamento temporariamente indisponível, lugares reservados', o bulkhead limita as chamadas ao pagamento a 50, e o catálogo e as reservas mantêm sua latência." |
+    | **Hipótese** | "Se o provedor de pagamento responder em 3 s em vez de 200 ms, o circuit breaker do `payment` abre em até 30 s, as compras falham rápido com 'pagamento temporariamente indisponível, lugares reservados', o bulkhead limita as chamadas ao pagamento a 50 e o catálogo e as reservas mantêm sua latência." |
     | **Injeção** | Toxiproxy entre o `payment` e o stub do provedor: um toxic de `latency` de 3 s ± 0,5 s, sob uma carga k6 de 100 compras/s. |
     | **Escopo e aborto** | Primeiro no ambiente Compose; depois em um pod canary. Abortar se o p99 do catálogo passar de 1 s ou se o error budget de compras queimar mais rápido que 10×. |
     | **Observação** | `resilience4j_circuitbreaker_state`, permissões livres do bulkhead, taxa de erros e p99 por rota, threads ocupadas do `order`, traces das compras lentas. |
@@ -87,7 +87,7 @@ Um experimento que **confirma** a hipótese é evidência de que uma defesa func
 
 ### Toxiproxy: caos no seu notebook { #toxiproxy }
 
-O [Toxiproxy](https://github.com/Shopify/toxiproxy){target="_blank"} é um proxy TCP com uma API para adicionar "toxics" — latência, timeouts, limites de banda, resets de conexão — a uma conexão. Coloque-o entre o `payment` e o stub do provedor no Docker Compose, e aponte o `payment` para o proxy:
+O [Toxiproxy](https://github.com/Shopify/toxiproxy){target="_blank"} é um proxy TCP com uma API para adicionar "toxics" — latência, timeouts, limites de banda, resets de conexão — a uma conexão. Coloque-o entre o `payment` e o stub do provedor no Docker Compose e aponte o `payment` para o proxy:
 
 ```yaml
 # docker-compose.yaml (excerpt)
@@ -118,7 +118,7 @@ toxiproxy-cli toxic remove -n timeout_downstream provider
 
 !!! example "No código do BoxOffice: o Toxiproxy e o script do mestre do jogo (lab 9)"
 
-    O [Hands-on 9 — Pagamento, provedor e Toxiproxy](../../../hands-on/9/payment/index.md) carrega os proxies de um arquivo na inicialização em vez de criá-los pela CLI: um na frente do `payment` (o `order` chama `toxiproxy:18085`) e um na frente do `psp`, o provedor falso (o `payment` chama `toxiproxy:18095`). Dois proxies dão dois lugares para quebrar, então o operador precisa descobrir *qual* salto está lento — nosso adaptador ou o provedor. Os toxics entram pela API HTTP na porta 8474; o [game day](../../../hands-on/9/game-day/index.md) embrulha seis deles num script para o mestre do jogo, e o `reset` (remove todo toxic, reativa todo proxy) é o botão de abortar.
+    O [Hands-on 9 — Pagamento, provedor e Toxiproxy](../../../hands-on/9/payment/index.md) carrega os proxies de um arquivo na inicialização em vez de criá-los pela CLI: um na frente do `payment` (o `order` chama `toxiproxy:18085`) e um na frente do `psp`, o provedor falso (o `payment` chama `toxiproxy:18095`). Dois proxies dão dois lugares para quebrar, então o operador precisa descobrir *qual* salto está lento — nosso adaptador ou o provedor. Os toxics entram pela API HTTP na porta 8474; o [game day](../../../hands-on/9/game-day/index.md) embrulha seis deles num script para o mestre do jogo e o `reset` (remove todo toxic, reativa todo proxy) é o botão de abortar.
 
     ``` { .json title="infra/toxiproxy/toxiproxy.json" }
     --8<-- "docs/2027.1/hands-on/9/code/infra/toxiproxy/toxiproxy.json"
@@ -179,7 +179,7 @@ Um **game day** é um exercício planejado, com o time todo, em que falhas são 
 
 !!! example "Game day da flash sale do BoxOffice"
 
-    **Objetivo**: ensaiar uma abertura de vendas do estádio em homologação, em escala de produção (o k6 reproduzindo o pico das 10:00), e verificar que o caminho de compra cumpre seus SLOs sob cinco falhas injetadas uma de cada vez.
+    **Objetivo**: ensaiar uma abertura de vendas do estádio em homologação, em escala de produção (o k6 reproduzindo o pico das 10:00) e verificar que o caminho de compra cumpre seus SLOs sob cinco falhas injetadas uma de cada vez.
 
     | Horário | Injeção | Comportamento esperado | Medida |
     |---|---|---|---|
@@ -194,7 +194,7 @@ Um **game day** é um exercício planejado, com o time todo, em que falhas são 
 
 !!! info "Experimente no playground"
 
-    Carregue o cenário `flash-sale` com o perfil **chaos** (300 s, caos no mínimo *medium*): o simulador injeta falhas aleatórias — quedas, degradações de latência, indisponibilidade do provedor — enquanto o tráfego da abertura roda. Aperte **Run**: o desenho inicial falha quando a venda abre (t = 60 s), faça o caos o que fizer, porque não tem sala de espera — um experimento de caos precisa primeiro de um estado estável que passe. Então abra no playground completo (↗), aperte **Mostrar uma solução possível** (as configurações, inclusive a seed 42, vão junto) e rode: a sala de espera absorve a venda, e a aba **Eventos** lista cada falha injetada. Quais delas o projeto aguenta, e qual componente sozinho ainda deixa uma meta vermelha — e como você o tornaria redundante em produção? Por fim troque o perfil para `load` para confirmar que o estado estável passa sem caos.
+    Carregue o cenário `flash-sale` com o perfil **chaos** (300 s, caos no mínimo *medium*): o simulador injeta falhas aleatórias — quedas, degradações de latência, indisponibilidade do provedor — enquanto o tráfego da abertura roda. Aperte **Run**: o desenho inicial falha quando a venda abre (t = 60 s), faça o caos o que fizer, porque não tem sala de espera — um experimento de caos precisa primeiro de um estado estável que passe. Então abra no playground completo (↗), aperte **Mostrar uma solução possível** (as configurações, inclusive a seed 42, vão junto) e rode: a sala de espera absorve a venda e a aba **Eventos** lista cada falha injetada. Quais delas o projeto aguenta e qual componente sozinho ainda deixa uma meta vermelha — e como você o tornaria redundante em produção? Por fim troque o perfil para `load` para confirmar que o estado estável passa sem caos.
 
 <div class="sdp" data-scenario="flash-sale" data-mode="compact" data-profile="chaos" data-chaos="medium" data-seed="42" data-height="560"></div>
 
@@ -224,7 +224,7 @@ Caos sem observabilidade é só quebrar coisas. Antes de injetar qualquer coisa,
 
 > Observabilidade primeiro, depois padrões de resiliência, depois experimentos de caos para provar que os padrões funcionam.
 
-É também a ordem dos labs: o [lab 8](../../../hands-on/8/index.md) instrumenta o BoxOffice antes de o [lab 9](../../../hands-on/9/index.md) quebrá-lo de propósito, e os operadores do game day trabalham com o dashboard e os alertas do lab 8.
+É também a ordem dos labs: o [lab 8](../../../hands-on/8/index.md) instrumenta o BoxOffice antes de o [lab 9](../../../hands-on/9/index.md) quebrá-lo de propósito e os operadores do game day trabalham com o dashboard e os alertas do lab 8.
 
 | Ferramenta | Mantida por | Pontos fortes |
 |---|---|---|
@@ -245,7 +245,7 @@ Caos sem observabilidade é só quebrar coisas. Antes de injetar qualquer coisa,
     - **Teste o comando de abortar antes da primeira injeção** — o abortar precisa funcionar quando o sistema não funciona. No BoxOffice: `curl -s -X POST localhost:8474/reset` remove todo toxic ([Hands-on 9 — Game day](../../../hands-on/9/game-day/index.md)).
     - **Mantenha os experimentos como código versionado, com fim embutido** — um script ou um manifesto com `duration` pode ser revisado, repetido e não pode ficar esquecido rodando. No BoxOffice: `scripts/game-day.sh`.
     - **Injete falhas abaixo da biblioteca cliente, na rede** — um proxy TCP exercita os timeouts e pools de conexão reais; um mock no código testa só o mock. No BoxOffice: um proxy do Toxiproxy por salto ([quadro acima](#toxiproxy)).
-    - **Cronometre detecção e mitigação em todo game day e compare entre rodadas** — a tendência desses dois números é a evidência de que o time, e não só o código, melhorou. No BoxOffice: a tabela de resultados do [Hands-on 9](../../../hands-on/9/measure/index.md).
+    - **Cronometre detecção e mitigação em todo game day e compare entre rodadas** — a tendência desses dois números é a evidência de que o time e não só o código melhorou. No BoxOffice: a tabela de resultados do [Hands-on 9](../../../hands-on/9/measure/index.md).
     - **Transforme cada descoberta num experimento de regressão no CI** — uma fraqueza corrigida hoje volta com o deploy da semana que vem; o módulo Toxiproxy do Testcontainers torna a verificação barata.
 
 !!! warning "Armadilhas comuns"

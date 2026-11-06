@@ -1,7 +1,7 @@
 
 > *"Projete uma plataforma de ingressos como a Ticketmaster. Um show de estádio abre as vendas às 10:00: dois milhões de fãs, sessenta mil lugares. Ninguém pode ficar com o mesmo lugar duas vezes."*
 
-Este é o caso principal da disciplina porque é o próprio **BoxOffice**, e porque reúne num só problema as ideias mais difíceis do semestre: um **pico** 100× maior que a carga normal que chega em segundos, um recurso **quente e fortemente consistente** (os lugares) que não dá para esconder atrás de um cache, uma **dependência externa** (o provedor de pagamento) lenta e às vezes fora do ar, e **tráfego adversário** (bots e cambistas). A maior parte do sistema é um catálogo chato e de muita leitura; a entrevista se decide nos dez minutos depois das 10:00.
+Este é o caso principal da disciplina porque é o próprio **BoxOffice** e porque reúne num só problema as ideias mais difíceis do semestre: um **pico** 100× maior que a carga normal que chega em segundos, um recurso **quente e fortemente consistente** (os lugares) que não dá para esconder atrás de um cache, uma **dependência externa** (o provedor de pagamento) lenta e às vezes fora do ar, e **tráfego adversário** (bots e cambistas). A maior parte do sistema é um catálogo chato e de muita leitura; a entrevista se decide nos dez minutos depois das 10:00.
 
 | | |
 |---|---|
@@ -13,7 +13,7 @@ Este é o caso principal da disciplina porque é o próprio **BoxOffice**, e por
 !!! abstract "O que este caso treina"
 
     - **Estimar** a taxa de chegada de uma abertura de vendas e **derivar** a taxa de admissão de uma sala de espera com a Lei de Little.
-    - **Projetar** reservas de lugar (*holds*) que nunca vendem o mesmo lugar duas vezes, e **comparar** lock pessimista, lock otimista e update condicional.
+    - **Projetar** reservas de lugar (*holds*) que nunca vendem o mesmo lugar duas vezes e **comparar** lock pessimista, lock otimista e update condicional.
     - **Modelar** o checkout como uma máquina de estados que sobrevive a timeouts de pagamento, retentativas e webhooks atrasados.
     - **Identificar** os gargalos de uma venda relâmpago (linhas quentes, pools de conexão, o provedor de pagamento, bots) e **defender** os trade-offs (justiça vs. vazão, experiência do usuário vs. consistência).
 
@@ -250,7 +250,7 @@ sequenceDiagram
 
 !!! example "No código do BoxOffice: onde mora cada caixa deste projeto"
 
-    Este caso é o BoxOffice, e os labs construíram a maior parte das suas caixas. Os labs constroem um checkout mais simples que o da seção 6.3 — o pagamento é uma chamada síncrona com timeout e circuit breaker, não uma máquina de estados com webhooks —, mas todas as outras linhas são o mecanismo real. Leia os arquivos nesta ordem e você terá lido o projeto:
+    Este caso é o BoxOffice e os labs construíram a maior parte das suas caixas. Os labs constroem um checkout mais simples que o da seção 6.3 — o pagamento é uma chamada síncrona com timeout e circuit breaker, não uma máquina de estados com webhooks —, mas todas as outras linhas são o mecanismo real. Leia os arquivos nesta ordem e você terá lido o projeto:
 
     | Componente | Lab | Arquivo para ler primeiro |
     |---|---|---|
@@ -332,7 +332,7 @@ Dois fãs clicam no lugar A-12-07 no mesmo milissegundo. Exatamente um deve ganh
 | Otimista (`version`) | Os perdedores repetem | Tempestade de retentativas em linhas quentes | Pouca disputa (dias normais) |
 | Redis `SET NX EX` | O mais rápido, TTL embutido | Duas fontes de verdade | Taxas extremas, necessidade medida |
 
-**Expiração.** Uma reserva precisa acabar mesmo que o fã feche o navegador. Combine (a) **expiração preguiçosa** no comando de reserva (um lugar `HELD` expirado conta como disponível), (b) um job do **scheduler** que varre as linhas de `hold` com `expires_at < now()` a cada poucos segundos e devolve os lugares para `AVAILABLE`, para o mapa ficar correto, e (c) **estender** a reserva enquanto um pagamento está em andamento, para que um fã que está pagando não perca o lugar no segundo 601.
+**Expiração.** Uma reserva precisa acabar mesmo que o fã feche o navegador. Combine (a) **expiração preguiçosa** no comando de reserva (um lugar `HELD` expirado conta como disponível), (b) um job do **scheduler** que varre as linhas de `hold` com `expires_at < now()` a cada poucos segundos e devolve os lugares para `AVAILABLE`, para o mapa ficar correto e (c) **estender** a reserva enquanto um pagamento está em andamento, para que um fã que está pagando não perca o lugar no segundo 601.
 
 !!! warning "Pista (GA): a única linha quente"
 
@@ -356,7 +356,7 @@ Pontos de design:
 
 1. **Página estática na CDN.** A página de espera é HTML + JS em cache na borda; a única chamada dinâmica é a consulta de status, respondida pelo Redis (`ZRANK` para a posição) ou por um número "atendendo agora" em cache — o cliente compara com o próprio número, então a origem responde um valor só para todo mundo.
 2. **Taxa de admissão pela Lei de Little.** O admissor deixa entrar `λ = L / W` fãs por segundo, onde `L` é o número de compradores que o caminho de checkout consegue atender (medido no teste de carga, ex.: 10 mil) e `W` o tempo que cada um passa (5 min). É um **laço fechado**: admite mais quando compradores saem cedo, admite menos quando o p99 de `POST /holds` sobe ou o provedor de pagamento fica lento.
-3. **Justiça.** FIFO puro premia quem tem a conexão mais rápida — normalmente os bots. Uma política comum: todos que chegam **antes** das 10:00 recebem uma posição **aleatória** às 10:00 (um sorteio), e quem chega depois vai para o fim da fila em ordem de chegada.
+3. **Justiça.** FIFO puro premia quem tem a conexão mais rápida — normalmente os bots. Uma política comum: todos que chegam **antes** das 10:00 recebem uma posição **aleatória** às 10:00 (um sorteio) e quem chega depois vai para o fim da fila em ordem de chegada.
 4. **Tokens, não sessões.** A admissão gera um `accessToken` assinado (evento, usuário, validade). O gateway verifica a assinatura localmente — sem armazenamento de sessão compartilhado no caminho quente — e aplica o "máximo de 6 ingressos por conta".
 5. **Bots.** O [WAF](../../edge/index.md) faz pontuação de bots, rate limit por IP/ASN e desafios; exigir uma conta logada e verificada para entrar na fila é o filtro mais forte. Queue-it, Cloudflare Waiting Room e a solução AWS Virtual Waiting Room são produtos reais construídos sobre essas ideias.
 
@@ -412,7 +412,7 @@ Os fãs martelam o mapa de lugares. Servi-lo a partir da tabela `seat` colocaria
 | Caches frios | Estouro de manada na página do evento às 10:00:00 | Pré-aquecimento, coalescência de requisições, TTL longo no conteúdo estático | É preciso invalidar se o evento mudar |
 | Região única | Queda da região durante a venda | Primário multi-AZ com standby síncrono; pausar a venda (a fila segura todo mundo) | Estoque ativo-ativo entre regiões é muito mais difícil (consenso) |
 
-Os dois trade-offs para **dizer em voz alta**: **consistência acima de disponibilidade para o estoque** (se o banco estiver inacessível, pare de vender; nunca venda a partir de uma réplica desatualizada), e **justiça e estabilidade acima de velocidade bruta** (uma venda que leva 25 minutos organizados é melhor do que uma que cai no minuto 2).
+Os dois trade-offs para **dizer em voz alta**: **consistência acima de disponibilidade para o estoque** (se o banco estiver inacessível, pare de vender; nunca venda a partir de uma réplica desatualizada) e **justiça e estabilidade acima de velocidade bruta** (uma venda que leva 25 minutos organizados é melhor do que uma que cai no minuto 2).
 
 ---
 
@@ -425,7 +425,7 @@ O cenário `flash-sale` reproduz o pico da abertura da venda (as nossas 10:00) n
     1. Rode o desenho inicial e observe a utilização do `app` e do `inventory-db` e a taxa de erros. Aumente as réplicas do `app`: o banco e a cota do pagamento saturam em seguida — é o caso "sem sala de espera" da seção 2: nenhuma quantidade de servidores de aplicação resolve.
     2. Siga as dicas (ou **Mostrar uma solução possível**): uma CDN, um cache para as leituras do catálogo e um API Gateway que manda as escritas para uma Message Queue — a sala de espera — drenada por workers `order`. Rode de novo e compare o p99, os erros e o atraso do consumidor (quanto o comprador espera na fila).
     3. Mude o número de workers `order`: encontre a taxa de admissão em que o atraso do consumidor fica abaixo da meta de 300 s sem passar da cota do provedor de pagamento.
-    4. Injete uma degradação de latência no provedor de pagamento (⚡) ou coloque o caos em **medium**: o que acontece com as requisições em andamento dos workers (Lei de Little) e com a fila, e o que o admissor deveria fazer?
+    4. Injete uma degradação de latência no provedor de pagamento (⚡) ou coloque o caos em **medium**: o que acontece com as requisições em andamento dos workers (Lei de Little) e com a fila e o que o admissor deveria fazer?
 
 <div class="sdp" data-scenario="flash-sale" data-mode="full" data-height="640"></div>
 
@@ -437,7 +437,7 @@ O cenário `flash-sale` reproduz o pico da abertura da venda (as nossas 10:00) n
 
 ??? question "O provedor de pagamento cai às 10:05. O que acontece?"
 
-    O circuit breaker em volta do adaptador de pagamento abre depois de algumas falhas; `POST /orders` responde rápido com "pagamentos temporariamente indisponíveis" em vez de ficar pendurado. O **admissor pausa** (não adianta admitir fãs que não podem pagar), e as reservas de quem já está no checkout são **estendidas** pela duração da queda, para ninguém perder um lugar sem ter culpa. Quando o breaker entra em meio-aberto e as sondagens dão certo, a admissão volta devagar. Se a queda for longa, um segundo provedor (failover) é a decisão de negócio a discutir.
+    O circuit breaker em volta do adaptador de pagamento abre depois de algumas falhas; `POST /orders` responde rápido com "pagamentos temporariamente indisponíveis" em vez de ficar pendurado. O **admissor pausa** (não adianta admitir fãs que não podem pagar) e as reservas de quem já está no checkout são **estendidas** pela duração da queda, para ninguém perder um lugar sem ter culpa. Quando o breaker entra em meio-aberto e as sondagens dão certo, a admissão volta devagar. Se a queda for longa, um segundo provedor (failover) é a decisão de negócio a discutir.
 
 ??? question "Como você barra os bots dos cambistas?"
 
@@ -453,7 +453,7 @@ O cenário `flash-sale` reproduz o pico da abertura da venda (as nossas 10:00) n
 
 ??? question "Dez grandes aberturas de vendas começam às 10:00 no mesmo dia. O design muda?"
 
-    Particione por `event_id`: cada evento tem sua própria fila e admissor, e o estoque pode ser **fragmentado por evento** (eventos nunca compartilham lugares, então não há transações entre shards). As partes compartilhadas são a borda (CDN, WAF), o rate limit global do provedor de pagamento e a capacidade de notificação — reparta-as por evento (bulkheads) para que uma venda quente não deixe as outras sem recursos.
+    Particione por `event_id`: cada evento tem sua própria fila e admissor e o estoque pode ser **fragmentado por evento** (eventos nunca compartilham lugares, então não há transações entre shards). As partes compartilhadas são a borda (CDN, WAF), o rate limit global do provedor de pagamento e a capacidade de notificação — reparta-as por evento (bulkheads) para que uma venda quente não deixe as outras sem recursos.
 
 ??? question "Como você testa isso antes da abertura real?"
 
@@ -479,7 +479,7 @@ O cenário `flash-sale` reproduz o pico da abertura da venda (as nossas 10:00) n
 
     - **Faça de "um assento, um comprador" um fato do banco** — um `UPDATE ... WHERE status = 'AVAILABLE'` condicional ou um lock, nunca uma verificação no código seguida de uma escrita. No BoxOffice: o [`HoldService.java`](../../../hands-on/6/holds/index.md) compara três estratégias.
     - **Expire as reservas com um job, não quando alguém as lê** — os assentos precisam voltar à venda mesmo que ninguém olhe; o lab 6 libera as reservas expiradas a cada 5 s com `FOR UPDATE SKIP LOCKED`, para que várias réplicas possam rodá-lo.
-    - **Defina a taxa de admissão a partir do joelho medido, com margem** — admita abaixo da vazão em que o p99 começa a subir, e reduza-a quando o provedor ficar lento.
+    - **Defina a taxa de admissão a partir do joelho medido, com margem** — admita abaixo da vazão em que o p99 começa a subir e reduza-a quando o provedor ficar lento.
     - **Ensaie a abertura de vendas antes da abertura de vendas** — um teste de carga de pico com o provedor substituído por um stub e um game day com falhas ([lab 9](../../../hands-on/9/index.md), [lab 11](../../../hands-on/11/performance-gate/index.md)).
     - **Guarde o mapa de assentos em cache por cerca de um segundo, nunca a decisão da reserva** — as leituras continuam baratas; toda decisão vai à fonte da verdade.
 

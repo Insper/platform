@@ -29,7 +29,7 @@ Um **recurso** é um substantivo — algo que a API expõe. URIs identificam rec
 ### Convenções de URI
 
 - Use **substantivos no plural** para coleções: `/orders`, `/products`, `/users`
-- Use **letras minúsculas com hífens**: `/order-items`, e não `/orderItems`
+- Use **letras minúsculas com hífens**: `/order-items` e não `/orderItems`
 - Aninhe para expressar posse: `/users/7/orders` — pedidos que pertencem ao usuário 7
 - Limite a profundidade do aninhamento a 2–3 níveis; evite `/users/7/orders/42/items/3/reviews`
 

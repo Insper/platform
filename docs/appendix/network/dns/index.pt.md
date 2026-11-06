@@ -1,5 +1,5 @@
 
-Pessoas lembram nomes; computadores roteiam pacotes usando endereços IP. O **DNS** (Domain Name System) é o banco de dados distribuído que traduz um no outro[^1], e quase toda requisição começa com uma consulta DNS. Ele importa neste curso muito além do navegador: os serviços do Docker Compose se encontram pelo nome via DNS, o Kubernetes dá um nome DNS a cada Service, e o failover na nuvem muitas vezes funciona trocando um registro DNS — o que só ajuda tão rápido quanto os caches deixam. Esta página mostra como um nome é resolvido, os tipos de registro que você vai encontrar, como inspecioná-los com o `dig` e o que o TTL troca.
+Pessoas lembram nomes; computadores roteiam pacotes usando endereços IP. O **DNS** (Domain Name System) é o banco de dados distribuído que traduz um no outro[^1] e quase toda requisição começa com uma consulta DNS. Ele importa neste curso muito além do navegador: os serviços do Docker Compose se encontram pelo nome via DNS, o Kubernetes dá um nome DNS a cada Service e o failover na nuvem muitas vezes funciona trocando um registro DNS — o que só ajuda tão rápido quanto os caches deixam. Esta página mostra como um nome é resolvido, os tipos de registro que você vai encontrar, como inspecioná-los com o `dig` e o que o TTL troca.
 
 ---
 
@@ -29,7 +29,7 @@ sequenceDiagram
 - Os **servidores de TLD** sabem quem é autoritativo para cada domínio abaixo deles.
 - Os **servidores autoritativos** de um domínio guardam os registros de fato, definidos por quem é dono do domínio.
 
-Toda resposta vem com um **TTL** (time to live, em segundos), e cada resolvedor no caminho a guarda em cache por esse tempo — o navegador, o sistema operacional, o resolvedor recursivo. O resolvedor também guarda as indicações (referrals): a próxima consulta sob `.com` pula a raiz, e a próxima para `example.com` vai direto aos seus servidores autoritativos. Por isso uma consulta típica leva poucos milissegundos a partir do cache, e uma fria, de dezenas a centenas. Consultas que falham também vão para o cache (*cache negativo*), então um nome consultado antes de existir pode continuar falhando por um tempo[^3].
+Toda resposta vem com um **TTL** (time to live, em segundos) e cada resolvedor no caminho a guarda em cache por esse tempo — o navegador, o sistema operacional, o resolvedor recursivo. O resolvedor também guarda as indicações (referrals): a próxima consulta sob `.com` pula a raiz e a próxima para `example.com` vai direto aos seus servidores autoritativos. Por isso uma consulta típica leva poucos milissegundos a partir do cache e uma fria, de dezenas a centenas. Consultas que falham também vão para o cache (*cache negativo*), então um nome consultado antes de existir pode continuar falhando por um tempo[^3].
 
 As consultas DNS em geral viajam por UDP na porta 53 — uma única pergunta e resposta pequenas, em que o handshake do TCP dobraria o custo — e recorrem ao TCP para respostas grandes ([Portas, TCP e UDP](../transport/index.md)).
 
@@ -86,7 +86,7 @@ example.com.		170	IN	A	172.66.147.243
 ;; MSG SIZE  rcvd: 72
 ```
 
-Leia de cima para baixo: `status: NOERROR` significa que o nome existe (`NXDOMAIN` significaria que não); as flags dizem que é uma resposta (`qr`) e que o servidor fez a recursão por você (`ra`); cada linha da **answer section** é um registro — nome, TTL restante em segundos, classe, tipo, valor. Aqui o nome tem dois registros A, e o cliente pode usar qualquer um. `SERVER` é o resolvedor que respondeu, e `Query time` mostra se a resposta veio do cache (poucos ms) ou não.
+Leia de cima para baixo: `status: NOERROR` significa que o nome existe (`NXDOMAIN` significaria que não); as flags dizem que é uma resposta (`qr`) e que o servidor fez a recursão por você (`ra`); cada linha da **answer section** é um registro — nome, TTL restante em segundos, classe, tipo, valor. Aqui o nome tem dois registros A e o cliente pode usar qualquer um. `SERVER` é o resolvedor que respondeu e `Query time` mostra se a resposta veio do cache (poucos ms) ou não.
 
 ---
 
@@ -102,9 +102,9 @@ Cada resolvedor expira a sua cópia no seu próprio relógio, então, depois de 
 <div class="csim" data-sim="dns" data-ttl="300"></div>
 
 !!! tip "Experimente"
-    Com TTL de 300 s, deixe rodar até t = 600 s: das 2.741 consultas dos clientes, 99,7% são respondidas por um cache e só 8 chegam aos servidores autoritativos. Ponha o TTL em 30 s e recomece: até t = 600 s os servidores autoritativos recebem 76 consultas e a taxa de acerto é 97,2%; com 10 s, 204 consultas (92,6%). De volta a 300 s, recomece, pause em t = 120 s e aperte **mudar o IP**: o resolvedor mais movimentado continua servindo o endereço antigo, e a última resposta antiga sai 180 s após a mudança — 814 respostas com o IP antigo no total, nunca mais tarde que um TTL depois da mudança.
+    Com TTL de 300 s, deixe rodar até t = 600 s: das 2.741 consultas dos clientes, 99,7% são respondidas por um cache e só 8 chegam aos servidores autoritativos. Ponha o TTL em 30 s e recomece: até t = 600 s os servidores autoritativos recebem 76 consultas e a taxa de acerto é 97,2%; com 10 s, 204 consultas (92,6%). De volta a 300 s, recomece, pause em t = 120 s e aperte **mudar o IP**: o resolvedor mais movimentado continua servindo o endereço antigo e a última resposta antiga sai 180 s após a mudança — 814 respostas com o IP antigo no total, nunca mais tarde que um TTL depois da mudança.
 
-Por isso as equipes **baixam o TTL antes de uma migração planejada** (um dia antes, para que o TTL longo antigo tenha expirado em todo lugar), trocam o endereço e o sobem de novo depois. E é por isso que o DNS sozinho faz um failover lento: o TTL é um piso, e alguns clientes guardam em cache por mais tempo do que deveriam — runtimes como a JVM mantêm o seu próprio cache.
+Por isso as equipes **baixam o TTL antes de uma migração planejada** (um dia antes, para que o TTL longo antigo tenha expirado em todo lugar), trocam o endereço e o sobem de novo depois. E é por isso que o DNS sozinho faz um failover lento: o TTL é um piso e alguns clientes guardam em cache por mais tempo do que deveriam — runtimes como a JVM mantêm o seu próprio cache.
 
 ---
 

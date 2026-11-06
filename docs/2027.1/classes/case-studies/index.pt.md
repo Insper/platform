@@ -5,7 +5,7 @@ Os doze estudos de caso abaixo são os problemas clássicos das entrevistas de s
 
 !!! quote "A história até aqui"
 
-    Capítulo 16, o último da [história da disciplina](../../index.md#story). Cada capítulo anterior acrescentou uma caixa ao BoxOffice porque um número pediu, e a [aula 15](../performance/index.md) provou que as caixas aguentam juntas às 10:00. O próximo sistema não será o BoxOffice: será um feed, um chat, um app de corridas — os mesmos blocos com outros números. **Esta aula** responde: você consegue reconstruir esse raciocínio, número a número, para um sistema que nunca viu, em 45 minutos?
+    Capítulo 16, o último da [história da disciplina](../../index.md#story). Cada capítulo anterior acrescentou uma caixa ao BoxOffice porque um número pediu e a [aula 15](../performance/index.md) provou que as caixas aguentam juntas às 10:00. O próximo sistema não será o BoxOffice: será um feed, um chat, um app de corridas — os mesmos blocos com outros números. **Esta aula** responde: você consegue reconstruir esse raciocínio, número a número, para um sistema que nunca viu, em 45 minutos?
 
 !!! abstract "Objetivos de aprendizagem"
 
@@ -135,7 +135,7 @@ Depois de alguns casos você vai notar que os aprofundamentos saem de uma lista 
     - **Escreva, para cada caixa do projeto, o número que a colocou ali e quanto ela custa** — "sala de espera: 33.000 reservas/s contra ~1.100; custa uma fila e uma regra de ordem justa". Uma caixa sem número é a primeira que um revisor remove.
     - **Nomeie o único recurso que não escala e proteja-o primeiro** — a linha quente do assento, a cota do provedor de pagamento, os tokens por minuto do provedor de LLM; o controle de admissão vai na frente dele antes de qualquer outra otimização.
     - **Dê a toda escrita que atravessa a rede uma chave de idempotência** — reservas, pagamentos, notificações; retentativas acontecem em todas as camadas. No BoxOffice: a mesma `Idempotency-Key` percorre `order → payment → PSP` ([lab 9](../../hands-on/9/payment/index.md)).
-    - **Escolha a consistência de cada dado, e escreva-a** — assentos e pagamentos fortes, contadores e feeds eventuais; a tabela faz parte do design doc, não é uma decisão de corredor.
+    - **Escolha a consistência de cada dado e escreva-a** — assentos e pagamentos fortes, contadores e feeds eventuais; a tabela faz parte do design doc, não é uma decisão de corredor.
     - **Teste sob carga o pico previsto antes do evento, com a dependência lenta substituída por um stub** — o joelho é medido, não suposto. No BoxOffice: o [lab 2](../../hands-on/2/index.md) encontra o joelho e o [portão de desempenho do lab 11](../../hands-on/11/performance-gate/index.md) o mantém.
 
 !!! warning "Armadilhas comuns em entrevistas de design"
@@ -143,7 +143,7 @@ Depois de alguns casos você vai notar que os aprofundamentos saem de uma lista 
     - **Pular para a solução** ("usamos Kafka e Cassandra") antes dos requisitos e dos números.
     - **Números que não mudam nada.** Toda estimativa deveria terminar numa decisão: "então o conjunto quente cabe em memória", "então precisamos de uma fila".
     - **Ignorar o caminho de escrita** ou o caminho de falha — o entrevistador vai perguntar "o que acontece quando X cai?".
-    - **Exagerar na engenharia**: microsserviços, multirregião e cinco bancos para um sistema com 100 requisições por segundo. Dizer "um único PostgreSQL basta aqui, e é neste ponto que ele deixa de bastar" é uma resposta sênior.
+    - **Exagerar na engenharia**: microsserviços, multirregião e cinco bancos para um sistema com 100 requisições por segundo. Dizer "um único PostgreSQL basta aqui e é neste ponto que ele deixa de bastar" é uma resposta sênior.
     - **Monólogo.** Confirme com o entrevistador ao fim de cada etapa; muitas vezes ele direciona você para o aprofundamento que interessa a ele.
 
 ---
@@ -185,7 +185,7 @@ flowchart LR
 
 ## O que quebra em seguida { #what-breaks-next }
 
-Nada na disciplina quebra em seguida — o próximo sistema é seu. Dezesseis capítulos transformaram um serviço e um banco num projeto em que cada caixa tem um número que a colocou ali e um preço: a sala de espera porque 33.000 reservas/s encontram ~1.100, o cache porque as páginas de evento são lidas 100× mais do que mudam, o circuit breaker porque o provedor responde em 4 s em vez de 200 ms. Três lugares testam se esse raciocínio virou seu. O [projeto em equipe](../../exercises/project/index.md) constrói e testa sob carga um sistema ao longo dos seus marcos e o quebra de propósito no [game day](../../exercises/project/game-day/index.md). As [entrevistas simuladas](../../support/interview/mock/index.md) pedem isso em voz alta, em 45 minutos, para um sistema que você não viu. O [design doc](../../exercises/design-doc/index.md) pede que você o escreva para que outra pessoa possa discordar de um número. Nos três, a pergunta é a mesma que todo capítulo fez: **qual número coloca esta caixa aqui, e quanto ela custa?**
+Nada na disciplina quebra em seguida — o próximo sistema é seu. Dezesseis capítulos transformaram um serviço e um banco num projeto em que cada caixa tem um número que a colocou ali e um preço: a sala de espera porque 33.000 reservas/s encontram ~1.100, o cache porque as páginas de evento são lidas 100× mais do que mudam, o circuit breaker porque o provedor responde em 4 s em vez de 200 ms. Três lugares testam se esse raciocínio virou seu. O [projeto em equipe](../../exercises/project/index.md) constrói e testa sob carga um sistema ao longo dos seus marcos e o quebra de propósito no [game day](../../exercises/project/game-day/index.md). As [entrevistas simuladas](../../support/interview/mock/index.md) pedem isso em voz alta, em 45 minutos, para um sistema que você não viu. O [design doc](../../exercises/design-doc/index.md) pede que você o escreva para que outra pessoa possa discordar de um número. Nos três, a pergunta é a mesma que todo capítulo fez: **qual número coloca esta caixa aqui e quanto ela custa?**
 
 ---
 

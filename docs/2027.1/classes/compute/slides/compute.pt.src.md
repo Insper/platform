@@ -97,7 +97,7 @@ Qualquer réplica atende qualquer requisição: **o estado vive fora do processo
 <p class="small">A latência explode perto de 100% ocupado (o joelho) — e o p99 piora antes da média.</p>
 
 <!--
-Pergunte: por que não 100 réplicas? Custo, e 100 × 20 conexões = 2.000 conexões no PostgreSQL:
+Pergunte: por que não 100 réplicas? Pelo custo e porque 100 × 20 conexões = 2.000 conexões no PostgreSQL:
 o gargalo muda para o banco. Mostre o cenário scale-out no playground.
 -->
 
@@ -456,7 +456,7 @@ Timeout **não** é falha: liberar os assentos de um fã que *foi* cobrado é um
 | `serverless` | o que escala por requisição, até zero? | cold start, concorrência = taxa × duração |
 | `auth` `search` `notifications` `analytics` | quais capacidades são compartilhadas? | bounded contexts, alimentadas por eventos, muitas vezes compradas |
 | `payment` `email` `thirdparty` | como depender do que não controlamos? | idempotency keys, webhooks, reconciliação |
-| *(a camada inteira)* | quantas réplicas, e quando? | HPA, KEDA, atraso do autoscaling, escala agendada |
+| *(a camada inteira)* | quantas réplicas e quando? | HPA, KEDA, atraso do autoscaling, escala agendada |
 
 <p class="small">Compute escala com facilidade <b>porque</b> é stateless — o estado mora nos armazenamentos das duas próximas aulas.</p>
 

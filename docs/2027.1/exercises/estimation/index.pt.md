@@ -71,7 +71,7 @@ Todos os fatos abaixo são **premissas ilustrativas** para o exercício — use-
 - [ ] **(obrigatório)** As premissas estão em uma tabela, separadas dos fatos dados.
 - [ ] QPS médio **e** de pico, separados em leituras e escritas.
 - [ ] Armazenamento por ano (com replicação) e banda (entrada e saída).
-- [ ] Tamanho do cache para o conjunto quente, e se ele cabe em um nó.
+- [ ] Tamanho do cache para o conjunto quente e se ele cabe em um nó.
 - [ ] Número de servidores para o caminho mais quente, usando a **Lei de Little** para a concorrência e uma utilização-alvo.
 - [ ] Disponibilidade do caminho principal (série/paralelo) comparada com um SLO-alvo.
 - [ ] Uma **verificação de sanidade** por sistema contra um número de referência (por exemplo, do [cheat sheet de números](../../reference/numbers/index.md)).
@@ -287,7 +287,7 @@ Níveis conforme definidos em [Como os exercícios são avaliados](../index.md#h
 
 ??? question "A IA me deu uma planilha completa em segundos. Posso usar?"
 
-    Você pode usar IA para conferir suas contas ou discutir premissas, e deve declarar o uso. Mas a verificação oral deste exercício é simples: você vai refazer uma linha de uma planilha no quadro com um fato alterado. Pratique fazendo sozinho.
+    Você pode usar IA para conferir suas contas ou discutir premissas e deve declarar o uso. Mas a verificação oral deste exercício é simples: você vai refazer uma linha de uma planilha no quadro com um fato alterado. Pratique fazendo sozinho.
 
 ??? question "Preciso incluir o tráfego normal (fora da venda) da BoxOffice?"
 

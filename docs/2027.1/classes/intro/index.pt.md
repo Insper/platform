@@ -5,7 +5,7 @@ Esta disciplina trata dessa camada — as decisões que ficam *acima* do código
 
 !!! quote "A história até aqui"
 
-    Capítulo 1 da [história da disciplina](../../index.md#story). A BoxOffice é, por enquanto, um serviço e um banco de dados — e ninguém escreveu o que "funcionar" significa: quantos fãs, com que rapidez, com que disponibilidade, e o que nunca pode acontecer. **Esta aula** responde: o que a BoxOffice precisa fazer, e quão bem — em números contra os quais um design possa ser conferido?
+    Capítulo 1 da [história da disciplina](../../index.md#story). A BoxOffice é, por enquanto, um serviço e um banco de dados — e ninguém escreveu o que "funcionar" significa: quantos fãs, com que rapidez, com que disponibilidade e o que nunca pode acontecer. **Esta aula** responde: o que a BoxOffice precisa fazer e quão bem — em números contra os quais um design possa ser conferido?
 
 !!! abstract "Objetivos de aprendizagem"
 
@@ -40,10 +40,10 @@ Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** a
 
 **Design de sistemas** (*system design*) é o processo de definir os **componentes** de um sistema, as **interfaces** entre eles e os **dados** que passam por eles e são armazenados por eles, de modo que o sistema satisfaça seus requisitos — tanto *o que* ele deve fazer quanto *quão bem* deve fazê-lo[^1]. Ele responde a perguntas como:
 
-- De quantos servidores precisamos, e o que acontece quando um deles morre?
+- De quantos servidores precisamos e o que acontece quando um deles morre?
 - Onde fica cada dado, quem pode alterá-lo e com que rapidez cada leitor precisa ver a alteração?
-- Que trabalho precisa acontecer *agora*, enquanto o usuário espera, e qual pode acontecer *depois*?
-- Quanto isso custa por mês, e o que quebra primeiro se o tráfego dobrar?
+- Que trabalho precisa acontecer *agora*, enquanto o usuário espera e qual pode acontecer *depois*?
+- Quanto isso custa por mês e o que quebra primeiro se o tráfego dobrar?
 
 Vale a pena colocar o design de sistemas ao lado do trabalho de design que você já conhece:
 
@@ -61,7 +61,7 @@ O salto do design de software para o design de sistemas é um salto de **um proc
 
 !!! tip "Não existe arquitetura certa — só arquiteturas justificadas"
 
-    A pergunta "qual é o melhor banco de dados?" não tem resposta. "Qual banco de dados serve para um inventário de lugares que nunca pode vender em dobro, com 5.000 escritas por segundo no pico, uma equipe de duas pessoas e um orçamento de R$ 20 mil por mês?" tem algumas boas respostas e muitas ruins. Design de sistemas é a habilidade de transformar o primeiro tipo de pergunta no segundo, e então escolher — dizendo em voz alta do que você abriu mão.
+    A pergunta "qual é o melhor banco de dados?" não tem resposta. "Qual banco de dados serve para um inventário de lugares que nunca pode vender em dobro, com 5.000 escritas por segundo no pico, uma equipe de duas pessoas e um orçamento de R$ 20 mil por mês?" tem algumas boas respostas e muitas ruins. Design de sistemas é a habilidade de transformar o primeiro tipo de pergunta no segundo e então escolher — dizendo em voz alta do que você abriu mão.
 
 ### Por que isso importa para você { #why-it-matters-to-you }
 
@@ -172,7 +172,7 @@ O fluxo de trabalho é sempre o mesmo:
 2. **Configurar** — defina capacidades, réplicas, taxas de acerto de cache, timeouts.
 3. **Carregar** — escolha um perfil de carga: `smoke` (um fio de tráfego, para verificar que funciona), `load` (o tráfego esperado), `stress` (além dele), `spike` (um salto repentino, como as 10:00 de sexta), `soak` (horas a uma taxa constante), `breakpoint` (rampa até algo quebrar), `chaos` (injeção de falhas).
 4. **Ler** — acompanhe throughput, percentis de latência (p50, p99), taxa de erros, utilização por componente e custo mensal.
-5. **Mudar uma coisa e rodar de novo.** É o método científico aplicado à arquitetura, e é exatamente o que você fará com sistemas reais nos laboratórios.
+5. **Mudar uma coisa e rodar de novo.** É o método científico aplicado à arquitetura e é exatamente o que você fará com sistemas reais nos laboratórios.
 
 Ao longo da disciplina, as páginas incorporam o playground já carregado com um cenário. Aqui está o primeiro: a BoxOffice como um único servidor de aplicação e um único banco SQL.
 
@@ -182,7 +182,7 @@ Ao longo da disciplina, as páginas incorporam o playground já carregado com um
 
 ??? question "O que você viu? (abra depois de experimentar)"
 
-    À medida que a carga se aproxima da capacidade do componente mais carregado, a latência cresce devagar no início e depois **explode** — muito antes de a taxa de erros subir. As requisições se acumulam na fila diante do componente saturado; cada nova requisição espera por todas as que estão à frente. Esse "joelho" na curva de latência é uma das formas mais importantes da disciplina: a [aula 2](../estimation/queueing/index.md) o explica com teoria de filas, e toda decisão de capacidade que você tomar depois (quantas réplicas? que tamanho de pool de conexões?) é sobre ficar à esquerda dele.
+    À medida que a carga se aproxima da capacidade do componente mais carregado, a latência cresce devagar no início e depois **explode** — muito antes de a taxa de erros subir. As requisições se acumulam na fila diante do componente saturado; cada nova requisição espera por todas as que estão à frente. Esse "joelho" na curva de latência é uma das formas mais importantes da disciplina: a [aula 2](../estimation/queueing/index.md) o explica com teoria de filas e toda decisão de capacidade que você tomar depois (quantas réplicas? que tamanho de pool de conexões?) é sobre ficar à esquerda dele.
 
 O segundo cenário coloca um load balancer na frente de várias réplicas da aplicação.
 
@@ -192,13 +192,13 @@ O segundo cenário coloca um load balancer na frente de várias réplicas da apl
 
 !!! example "BoxOffice — o que os dois cenários ensinam"
 
-    A escala horizontal (mais servidores de aplicação) só ajuda **enquanto os servidores de aplicação são o gargalo**. Quando o banco único satura, as réplicas extras apenas fazem fila no banco em vez de na aplicação. O próximo passo não é "mais do mesmo", e sim um *componente diferente*: um cache para as leituras do catálogo, réplicas de leitura ou uma fila na frente do inventário de lugares. Escolher qual, e provar com números, é o assunto de [A Jornada de Escala](scaling-journey/index.md) e do resto da disciplina.
+    A escala horizontal (mais servidores de aplicação) só ajuda **enquanto os servidores de aplicação são o gargalo**. Quando o banco único satura, as réplicas extras apenas fazem fila no banco em vez de na aplicação. O próximo passo não é "mais do mesmo" e sim um *componente diferente*: um cache para as leituras do catálogo, réplicas de leitura ou uma fila na frente do inventário de lugares. Escolher qual e provar com números é o assunto de [A Jornada de Escala](scaling-journey/index.md) e do resto da disciplina.
 
 ---
 
 ## O mapa de conceitos da introdução { #concept-map }
 
-Esta aula passa de leve por toda a paleta: cada **atributo de qualidade** (azul) é comprado com alguns **componentes da paleta** (verde), e a jornada de escala os adiciona um sintoma medido de cada vez. Use o mapa como índice para o resto do curso:
+Esta aula passa de leve por toda a paleta: cada **atributo de qualidade** (azul) é comprado com alguns **componentes da paleta** (verde) e a jornada de escala os adiciona um sintoma medido de cada vez. Use o mapa como índice para o resto do curso:
 
 ``` diagram
 flowchart LR
@@ -221,16 +221,16 @@ flowchart LR
 
 | Componente da paleta | Pergunta que responde | Conceitos | Ensinado em | Cenários |
 |---|---|---|---|---|
-| [`client`](../../reference/components/client/index.md#client) · [`mobile`](../../reference/components/client/index.md#mobile) | *Quem* usa o sistema, e para quê? | atores, requisitos funcionais, caminho principal, esboço da API | [Requisitos](requirements/index.md) | `monolith` |
-| [`app`](../../reference/components/compute/index.md#app) | O que executa a lógica, e como ter mais dele? | uma máquina primeiro, réplicas stateless, escalar verticalmente vs horizontalmente, monolito primeiro | [A Jornada de Escala](scaling-journey/index.md) (estágios 0, 2, 7) | `monolith`, `scale-out` |
+| [`client`](../../reference/components/client/index.md#client) · [`mobile`](../../reference/components/client/index.md#mobile) | *Quem* usa o sistema e para quê? | atores, requisitos funcionais, caminho principal, esboço da API | [Requisitos](requirements/index.md) | `monolith` |
+| [`app`](../../reference/components/compute/index.md#app) | O que executa a lógica e como ter mais dele? | uma máquina primeiro, réplicas stateless, escalar verticalmente vs horizontalmente, monolito primeiro | [A Jornada de Escala](scaling-journey/index.md) (estágios 0, 2, 7) | `monolith`, `scale-out` |
 | [`lb`](../../reference/components/edge/index.md#lb) · [`healthcheck`](../../reference/components/observability/index.md#healthcheck) | Como um crash ou um deploy deixa de ser uma indisponibilidade? | ponto único de falha, health checks, deploys graduais | [A Jornada de Escala](scaling-journey/index.md) (estágio 2) | `scale-out` |
-| [`sql`](../../reference/components/storage/index.md#sql) | Onde mora a verdade, e quão atualizada os leitores precisam vê-la? | banco separado, réplicas de leitura, atraso de replicação, consistência forte para assentos | [A Jornada de Escala](scaling-journey/index.md) (estágios 1, 3), [Requisitos](requirements/index.md) | `db-replicas` |
+| [`sql`](../../reference/components/storage/index.md#sql) | Onde mora a verdade e quão atualizada os leitores precisam vê-la? | banco separado, réplicas de leitura, atraso de replicação, consistência forte para assentos | [A Jornada de Escala](scaling-journey/index.md) (estágios 1, 3), [Requisitos](requirements/index.md) | `db-replicas` |
 | [`cache`](../../reference/components/storage/index.md#cache) · [`cdn`](../../reference/components/edge/index.md#cdn) · [`objstore`](../../reference/components/storage/index.md#objstore) | Como parar de calcular e enviar os mesmos bytes de novo? | taxa de acerto, TTL, invalidação, nomes de arquivo versionados | [A Jornada de Escala](scaling-journey/index.md) (estágios 4, 5) | `read-heavy-cache`, `cdn-static` |
-| [`queue`](../../reference/components/messaging/index.md#queue) · [`worker`](../../reference/components/compute/index.md#worker) | O que pode acontecer *depois*, e como sobreviver a um pico? | trabalho assíncrono, sala de espera, pelo menos uma vez, consumidores idempotentes | [A Jornada de Escala](scaling-journey/index.md) (estágio 6) | `async-queue`, `flash-sale` |
+| [`queue`](../../reference/components/messaging/index.md#queue) · [`worker`](../../reference/components/compute/index.md#worker) | O que pode acontecer *depois* e como sobreviver a um pico? | trabalho assíncrono, sala de espera, pelo menos uma vez, consumidores idempotentes | [A Jornada de Escala](scaling-journey/index.md) (estágio 6) | `async-queue`, `flash-sale` |
 | [`apigw`](../../reference/components/edge/index.md#apigw) · [`stream`](../../reference/components/messaging/index.md#stream) | Como muitos times e serviços compartilham um produto? | serviços por fronteiras de negócio, ponto único de entrada, eventos | [A Jornada de Escala](scaling-journey/index.md) (estágio 7) | `event-fanout` |
 | [`nosql`](../../reference/components/storage/index.md#nosql) · [`search`](../../reference/components/compute/index.md#search) · [`dwh`](../../reference/components/storage/index.md#dwh) | E se um banco for grande demais, quente demais ou errado para a tarefa? | particionamento, partições quentes, índice invertido, analytics fora do banco transacional | [A Jornada de Escala](scaling-journey/index.md) (estágio 8) | `sharding` |
 | [`waf`](../../reference/components/edge/index.md#waf) · [`dns`](../../reference/components/edge/index.md#dns) | Como sobreviver a bots, ataques e à queda de uma região? | mitigação de bots, rate limiting, multirregião, failover por DNS | [A Jornada de Escala](scaling-journey/index.md) (estágio 9) | `multi-region`, `flash-sale` |
-| *(todos eles)* | Quais componentes, em que ordem, e quanto custam? | atributos de qualidade, trade-offs, o método de 7 passos | [Requisitos](requirements/index.md), [O Método da Entrevista](interview-framework/index.md) | `flash-sale` |
+| *(todos eles)* | Quais componentes, em que ordem e quanto custam? | atributos de qualidade, trade-offs, o método de 7 passos | [Requisitos](requirements/index.md), [O Método da Entrevista](interview-framework/index.md) | `flash-sale` |
 
 ---
 
@@ -246,7 +246,7 @@ flowchart LR
 
     - **Ligue cada componente a um requisito** — cada caixa de um design deve apontar para o número que atende (uma carga, uma meta de latência, uma disponibilidade); uma caixa que não atende número nenhum é custo sem motivo. Na BoxOffice: os [requisitos não funcionais](requirements/index.md) da primeira versão.
     - **Guarde os números do documento de design com a fonte** — uma premissa marcada como premissa, uma medição com data e ambiente — para que um revisor confira qualquer um deles em minutos. Na BoxOffice: todo laboratório termina com um arquivo `results/labN.md` ([Hands-on 2](../../hands-on/2/index.md#measure-it)).
-    - **Mude uma coisa por experimento, e meça antes e depois** — duas mudanças de uma vez tornam o resultado impossível de explicar. Na BoxOffice: o lab 2 muda só o tamanho do pool e repete a mesma varredura.
+    - **Mude uma coisa por experimento e meça antes e depois** — duas mudanças de uma vez tornam o resultado impossível de explicar. Na BoxOffice: o lab 2 muda só o tamanho do pool e repete a mesma varredura.
     - **Registre cada decisão com a alternativa rejeitada e o seu preço** — um registro curto (contexto, decisão, consequências) responde "por que Redis?" seis meses depois, quando quem decidiu já saiu.
     - **Para cada caixa, escreva o que acontece quando ela fica lenta ou cai** — uma linha por componente, antes de construí-lo; falha parcial é o caso normal num sistema de muitas máquinas ([aula 3](../distributed/index.md)).
 
@@ -272,13 +272,13 @@ flowchart LR
 
     - Design de sistemas decide **componentes, interfaces e dados** para que um sistema cumpra requisitos funcionais *e* não funcionais sob **carga** e **falha parcial**.
     - É uma **disciplina de trade-offs**: cada componente compra uma qualidade com outra; bons designs dizem qual.
-    - A disciplina é organizada em torno de uma **paleta de componentes** com dez categorias; cada aula teórica ensina um grupo, e o [catálogo](../../reference/components/index.md) é o seu dicionário.
+    - A disciplina é organizada em torno de uma **paleta de componentes** com dez categorias; cada aula teórica ensina um grupo e o [catálogo](../../reference/components/index.md) é o seu dicionário.
     - A **BoxOffice** — uma plataforma de ingressos com uma venda relâmpago às 10:00 — é o exemplo em toda parte.
     - O **playground** permite montar, carregar e quebrar arquiteturas em minutos; os laboratórios fazem o mesmo com código real e medições reais.
 
 ## O que quebra em seguida { #what-breaks-next }
 
-Os requisitos agora têm números — 2 milhões de fãs no primeiro minuto, 60.000 lugares, p99 da reserva < 300 ms, checkout disponível 99,95% do tempo —, mas ninguém os conferiu contra o único PostgreSQL em que a BoxOffice roda. Se ele aguenta a abertura das 10:00 não é questão de opinião, é aritmética: requisições por segundo, o tempo que uma reserva ocupa o banco, quão cheio ele pode rodar antes de a latência explodir. Fazer essa conta, e encontrar ~33.000 tentativas de reserva/s contra ~1.100 que um banco sustenta, é a [aula 2 — Estimativas](../estimation/index.md).
+Os requisitos agora têm números — 2 milhões de fãs no primeiro minuto, 60.000 lugares, p99 da reserva < 300 ms, checkout disponível 99,95% do tempo —, mas ninguém os conferiu contra o único PostgreSQL em que a BoxOffice roda. Se ele aguenta a abertura das 10:00 não é questão de opinião, é aritmética: requisições por segundo, o tempo que uma reserva ocupa o banco, quão cheio ele pode rodar antes de a latência explodir. Fazer essa conta e encontrar ~33.000 tentativas de reserva/s contra ~1.100 que um banco sustenta é a [aula 2 — Estimativas](../estimation/index.md).
 
 ---
 

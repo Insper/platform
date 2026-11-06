@@ -1,13 +1,13 @@
-Um fã paga por dois lugares, o serviço `order` da BoxOffice grava o pedido… e cai antes de avisar alguém. Nada de e-mail com o ingresso. Ou o contrário: o evento sai, a transação no banco é desfeita e um fã recebe um ingresso de um pedido que não existe. Ou o broker entrega o mesmo evento duas vezes e o fã recebe dois e-mails — e depois, dois ingressos. Esse é o **problema da escrita dupla** (*dual write*), e todo sistema orientado a eventos precisa resolvê-lo. Neste exercício você o resolve com um **outbox transacional**, um **consumidor idempotente** e um **tópico de mensagens mortas** (DLT), e depois se esforça para quebrá-lo.
+Um fã paga por dois lugares, o serviço `order` da BoxOffice grava o pedido… e cai antes de avisar alguém. Nada de e-mail com o ingresso. Ou o contrário: o evento sai, a transação no banco é desfeita e um fã recebe um ingresso de um pedido que não existe. Ou o broker entrega o mesmo evento duas vezes e o fã recebe dois e-mails — e depois, dois ingressos. Esse é o **problema da escrita dupla** (*dual write*) e todo sistema orientado a eventos precisa resolvê-lo. Neste exercício você o resolve com um **outbox transacional**, um **consumidor idempotente** e um **tópico de mensagens mortas** (DLT), e depois se esforça para quebrá-lo.
 
 !!! abstract "Objetivos de aprendizagem"
 
     Ao final deste exercício você será capaz de:
 
-    - **Explicar** por que "gravar no banco, depois publicar no Kafka" perde ou inventa eventos, e como o outbox resolve isso.
+    - **Explicar** por que "gravar no banco, depois publicar no Kafka" perde ou inventa eventos e como o outbox resolve isso.
     - **Implementar** um outbox transacional com um relay por polling e um consumidor idempotente com retentativas e DLQ.
     - **Raciocinar** sobre semânticas de entrega: entrega at-least-once + processamento idempotente = efeitos colaterais effectively-once.
-    - **Verificar** a correção sob falhas com uma consulta de reconciliação, e **medir** a latência fim a fim e o atraso do consumidor.
+    - **Verificar** a correção sob falhas com uma consulta de reconciliação e **medir** a latência fim a fim e o atraso do consumidor.
 
 ## Contexto { #context }
 
@@ -53,7 +53,7 @@ Implemente e verifique o fluxo **pedido confirmado → e-mail com o ingresso** d
 - [ ] O relay publica com `acks=all` e marca as linhas só depois do ack; o outbox volta a **0 linhas não publicadas** depois que o broker volta (tempo medido).
 - [ ] Retentativas com backoff exponencial e uma **DLT**; a mensagem envenenada está na DLT e o consumidor continua processando as mensagens seguintes.
 - [ ] Roteiro de falhas executado durante a carga: queda do relay/`order`, broker parado por ≥ 60 s, consumidor morto (`SIGKILL`) no meio do processamento, um evento válido duplicado, uma mensagem envenenada.
-- [ ] Latência fim a fim (pedido confirmado → efeito colateral) p50/p95/p99, e atraso do consumidor ao longo do tempo.
+- [ ] Latência fim a fim (pedido confirmado → efeito colateral) p50/p95/p99 e atraso do consumidor ao longo do tempo.
 - [ ] Uma discussão sobre ordem (o que a chave garante e o que não garante) e sobre o e-mail real (um efeito colateral externo, fora do seu banco).
 - [ ] Seção *Uso de IA* (veja a [política](../index.md#use-of-ai-tools)).
 
@@ -550,7 +550,7 @@ Níveis conforme definidos em [Como os exercícios são avaliados](../index.md#h
 
 ??? question "O relay vai publicar eventos fora de ordem?"
 
-    Com um relay e `ORDER BY created_at`, os eventos são publicados na ordem de commit (aproximadamente). O Kafka mantém a ordem **por partição**, e a chave `orderId` coloca todos os eventos de um pedido na mesma partição. Não há ordem global entre pedidos — e a BoxOffice não precisa de uma. Explique isso na sua discussão.
+    Com um relay e `ORDER BY created_at`, os eventos são publicados na ordem de commit (aproximadamente). O Kafka mantém a ordem **por partição** e a chave `orderId` coloca todos os eventos de um pedido na mesma partição. Não há ordem global entre pedidos — e a BoxOffice não precisa de uma. Explique isso na sua discussão.
 
 ??? question "Por quanto tempo guardo `processed_events`?"
 

@@ -160,7 +160,7 @@ Respeitando a arquitetura limpa, temos as seguintes classes:
 As regras de negócio ficam no `AccountService`:
 
 - `create` responde `400 Bad Request` quando a senha está ausente ou tem menos de 6 caracteres, ou quando o email está vazio; caso contrário, guarda apenas o hash SHA-256 (em Base64) da senha, em `hash_password` — nunca a própria senha.
-- `findById` devolve `null` para um id inexistente, e o `AccountResource` transforma isso em `404 Not Found`.
+- `findById` devolve `null` para um id inexistente e o `AccountResource` transforma isso em `404 Not Found`.
 
 ## 4. Execução
 

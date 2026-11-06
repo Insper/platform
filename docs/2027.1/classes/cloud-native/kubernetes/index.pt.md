@@ -1,4 +1,4 @@
-O Docker Compose inicia o BoxOffice em uma máquina. A produção precisa de mais: quarenta containers espalhados por várias máquinas, um substituto iniciado em segundos quando um deles morre, uma nova versão publicada sem indisponibilidade e capacidade adicionada automaticamente quando a venda começa. Fazer isso à mão — SSH em um nó, `docker run`, atualizar o load balancer — não sobrevive à primeira noite de plantão. Um **orquestrador** faz isso por você, e o Kubernetes é o padrão de fato[^5].
+O Docker Compose inicia o BoxOffice em uma máquina. A produção precisa de mais: quarenta containers espalhados por várias máquinas, um substituto iniciado em segundos quando um deles morre, uma nova versão publicada sem indisponibilidade e capacidade adicionada automaticamente quando a venda começa. Fazer isso à mão — SSH em um nó, `docker run`, atualizar o load balancer — não sobrevive à primeira noite de plantão. Um **orquestrador** faz isso por você e o Kubernetes é o padrão de fato[^5].
 
 O Kubernetes descende dos gerenciadores de cluster internos do Google, Borg e Omega; seus projetistas resumiram a lição de uma década executando containers em escala como *estado declarativo reconciliado por laços de controle independentes*[^1].
 
@@ -34,7 +34,7 @@ sequenceDiagram
     Note over RS,API: real = desejado → nada a fazer
 ```
 
-É por isso que o Kubernetes **se autorrecupera**: um processo que caiu, um pod apagado ou um nó morto aparecem todos como "real ≠ desejado", e o mesmo laço os corrige. É também por isso que a API é **declarativa e idempotente**: aplicar o mesmo manifest duas vezes não muda nada.
+É por isso que o Kubernetes **se autorrecupera**: um processo que caiu, um pod apagado ou um nó morto aparecem todos como "real ≠ desejado" e o mesmo laço os corrige. É também por isso que a API é **declarativa e idempotente**: aplicar o mesmo manifest duas vezes não muda nada.
 
 ### As peças de um cluster { #the-pieces-of-a-cluster }
 
@@ -201,7 +201,7 @@ Mantenha a liveness **local** (a JVM está respondendo?) e faça a readiness ref
 
 !!! warning "Limites de CPU e latência"
 
-    Um serviço Java com limite de 1 CPU que mantém 4 threads (GC e requisições) ocupadas em paralelo num nó com vários núcleos pode consumir sua cota de 100 ms nos primeiros 25 ms de cada período de 100 ms e então ficar parado por 75 ms. O p99 cresce enquanto a CPU média parece normal. Observe a métrica do cgroup `nr_throttled` (exposta pelo cAdvisor como `container_cpu_cfs_throttled_periods_total`). Muitos times definem um **request** de CPU mas nenhum **limit** de CPU para serviços sensíveis à latência, e sempre definem um **limite de memória**. A [aula de Desempenho](../../performance/bottlenecks/index.md) mostra como identificar throttling em um teste de carga.
+    Um serviço Java com limite de 1 CPU que mantém 4 threads (GC e requisições) ocupadas em paralelo num nó com vários núcleos pode consumir sua cota de 100 ms nos primeiros 25 ms de cada período de 100 ms e então ficar parado por 75 ms. O p99 cresce enquanto a CPU média parece normal. Observe a métrica do cgroup `nr_throttled` (exposta pelo cAdvisor como `container_cpu_cfs_throttled_periods_total`). Muitos times definem um **request** de CPU mas nenhum **limit** de CPU para serviços sensíveis à latência e sempre definem um **limite de memória**. A [aula de Desempenho](../../performance/bottlenecks/index.md) mostra como identificar throttling em um teste de carga.
 
 ---
 
@@ -211,13 +211,13 @@ O laço de controle substitui os pods perdidos, mas a autocura precisa de duas c
 
 **Experimente:** em `k8s-node-failure`, `catalog` e `pricing` rodam 6 pods cada em 3 nós × 4 pods — um cluster lotado — e em t = 60 s um nó morre.
 
-1. Rode como está. Por cerca de 40 s, perto de 90% das requisições falham: quem chama ainda envia aos pods mortos. Depois os erros caem, e voltam a 7–10% a partir de t ≈ 150 s: os 2 pods perdidos de cada serviço não têm para onde ir, e 4 sobreviventes carregam a carga de 6. No total: erros ≈ 27%, p99 ≈ 4,6 s.
+1. Rode como está. Por cerca de 40 s, perto de 90% das requisições falham: quem chama ainda envia aos pods mortos. Depois os erros caem e voltam a 7–10% a partir de t ≈ 150 s: os 2 pods perdidos de cada serviço não têm para onde ir e 4 sobreviventes carregam a carga de 6. No total: erros ≈ 27%, p99 ≈ 4,6 s.
 2. Dê espaço ao cluster: ajuste `podsPerNode` para 8 no quadro do cluster. Os erros tardios desaparecem (os pods perdidos são realocados), mas a janela de 40 s continua: erros ≈ 25%.
 3. Conecte um **Service Registry** a `catalog` e `pricing` — o equivalente, no playground, a endpoints atualizados rapidamente. Quem chama descarta os pods mortos em 3 s em vez de 30–40 s: erros ≈ 4%.
 
 <div class="sdp" data-scenario="k8s-node-failure" data-mode="compact" data-height="520"></div>
 
-??? question "O que você deveria ter observado, e o que ainda falta?"
+??? question "O que você deveria ter observado e o que ainda falta?"
 
     Depois do passo 3, os erros restantes (5–9%) vêm dos sobreviventes: 4 pods carregam a carga de 6 até as substitutas ficarem prontas. Suba os dois serviços para **8 réplicas**, para que perder um terço ainda deixe capacidade suficiente: erros ≈ 1,7%. Depois acrescente um **timeout de 300 ms com 2 retries** em `catalog → pricing`: erros ≈ 0,8%, p99 ≈ 43 ms, por cerca de 1.370 USD/mês em vez de 1.330. A ordem importa: o mesmo timeout e os mesmos retries com só 6 réplicas levam os erros a ≈ 48% — retries contra sobreviventes sobrecarregados são uma [tempestade de retries](../../reliability/patterns/index.md#retry-with-backoff-and-jitter).
 
@@ -256,7 +256,7 @@ Com 4 pods de `catalog` a 90 % de CPU (do request) e meta de 60 %: ⌈4 × 90/60
 
 !!! example "BoxOffice: por que só o HPA não salva a venda"
 
-    O HPA reage *depois* que a CPU sobe; o autoscaler de nós precisa de minutos; cada JVM precisa de ~20–40 s para iniciar e aquecer. Uma venda relâmpago vai de 5 % a 100 % do pico em segundos. Por isso o time **pré-escala** antes das 10:00 — um CronJob ou o scaler de cron do KEDA ajusta `minReplicas` para o pico esperado às 09:45 —, mantém uma reserva de nós livres (pods "balão" de baixa prioridade, despejados quando pods reais precisam de espaço) e coloca uma [sala de espera](../../messaging/queues-pubsub/index.md) na frente, para que a admissão, e não o autoscaling, controle a taxa. Os números de capacidade vêm da página de [Planejamento de capacidade](../../performance/capacity-planning/index.md).
+    O HPA reage *depois* que a CPU sobe; o autoscaler de nós precisa de minutos; cada JVM precisa de ~20–40 s para iniciar e aquecer. Uma venda relâmpago vai de 5 % a 100 % do pico em segundos. Por isso o time **pré-escala** antes das 10:00 — um CronJob ou o scaler de cron do KEDA ajusta `minReplicas` para o pico esperado às 09:45 —, mantém uma reserva de nós livres (pods "balão" de baixa prioridade, despejados quando pods reais precisam de espaço) e coloca uma [sala de espera](../../messaging/queues-pubsub/index.md) na frente, para que a admissão e não o autoscaling controle a taxa. Os números de capacidade vêm da página de [Planejamento de capacidade](../../performance/capacity-planning/index.md).
 
 <div class="csim" data-sim="autoscale" data-traffic="flash" data-target="60" data-min="2" data-max="8" data-startup="40" data-stabilization="120"></div>
 
@@ -265,7 +265,7 @@ Com 4 pods de `catalog` a 90 % de CPU (do request) e meta de 60 %: ⌈4 × 90/60
 
     1. Rode a **abertura às 10:00**: o HPA quer 8 pods em 30 s, mas eles só ficam prontos 40 s depois — cerca de **8.900 requisições** (1,7%) perdidas ou lentas em 45 s acima da capacidade. Suba o início do pod para 120 s: cerca de 25.000 (4,9%).
     2. **Pré-escale**: ponha *Mín. pods* em 4 e nada se perde, por 193 réplica-minutos em vez de 181; mínimo 8 custa 241.
-    3. Escolha a **rampa diária** e observe a queda às 10:10: com a janela de 120 s o HPA ainda tem 8 pods às 10:11:30 e 6 quando o tráfego volta, às 10:13 (a CPU chega a 76%); ponha a janela em 0 e ele está com 4, e a CPU chega a 113% — 167 réplica-minutos em vez de 185, pagos com esse pico.
+    3. Escolha a **rampa diária** e observe a queda às 10:10: com a janela de 120 s o HPA ainda tem 8 pods às 10:11:30 e 6 quando o tráfego volta, às 10:13 (a CPU chega a 76%); ponha a janela em 0 e ele está com 4 e a CPU chega a 113% — 167 réplica-minutos em vez de 185, pagos com esse pico.
 
 Experimente: no cenário abaixo, rode o perfil `spike` com 2 réplicas e depois com 6. Observe a latência p99 e os erros enquanto as réplicas estão ocupadas; depois ative o autoscaling (se disponível) e observe o **atraso** entre o início do pico e o momento em que as novas réplicas ficam saudáveis.
 
@@ -311,7 +311,7 @@ Experimente: no cenário abaixo, rode o perfil `spike` com 2 réplicas e depois 
 
     - **Dê à startup probe o pior caso de partida, não o típico** — `periodSeconds × failureThreshold` precisa cobrir uma partida a frio com migrações. No BoxOffice: 5 s × 60 = 5 min no [lab 10](../../../hands-on/10/deploy/index.md).
     - **Faça rollouts com `maxUnavailable: 0` e um surge pequeno** — a capacidade nunca cai abaixo do número desejado durante um deploy, ao preço de um pod extra. No BoxOffice: `maxSurge: 1` em `k8s/base/catalog.yaml` ([lab 10](../../../hands-on/10/deploy/index.md)).
-    - **Pause alguns segundos no `preStop` antes de o processo parar de aceitar** — a remoção dos endpoints chega a cada nó com atraso, e as requisições continuam chegando nesse meio-tempo. No BoxOffice: um `sleep` de 5 s no `preStop`, medido no [lab 10 — Measure it](../../../hands-on/10/measure/index.md).
+    - **Pause alguns segundos no `preStop` antes de o processo parar de aceitar** — a remoção dos endpoints chega a cada nó com atraso e as requisições continuam chegando nesse meio-tempo. No BoxOffice: um `sleep` de 5 s no `preStop`, medido no [lab 10 — Measure it](../../../hands-on/10/measure/index.md).
     - **Escale para cima rápido e para baixo devagar** — nenhuma janela de estabilização na subida, minutos na descida, para que uma queda curta não remova capacidade necessária de novo um minuto depois. No BoxOffice: 0 s na subida, 120 s na descida em `catalog-hpa.yaml` ([lab 10](../../../hands-on/10/autoscaling/index.md)).
     - **Mantenha espaço para os pods de um nó (N + 1 nós)** — senão os substitutos de um nó morto ficam `Pending`. No BoxOffice: [Perdendo um nó](#losing-a-node).
     - **Defina um PodDisruptionBudget para todo serviço com mais de uma réplica** — atualizações de nós passam a drenar um pod de cada vez. No BoxOffice: `minAvailable: 3` nos manifests do `catalog` acima.

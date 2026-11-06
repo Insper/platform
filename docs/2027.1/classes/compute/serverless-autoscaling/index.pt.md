@@ -1,6 +1,6 @@
 Observe um dia de tráfego da BoxOffice. Da meia-noite às 09:45, a API atende algumas centenas de requisições por segundo. Às 10:00, quando a turnê de um show em estádio abre as vendas, o tráfego salta para dezenas de milhares — em segundos. Às 10:30 já voltou ao normal. O mesmo formato se repete algumas vezes por semana, em horários anunciados com antecedência, além das surpresas (um artista posta o link nas redes sociais às 23:00).
 
-Há duas opções ruins: dimensionar a frota para o pico e pagar por máquinas ociosas 99% do tempo, ou dimensioná-la para a média e cair às 10:00. Esta página cobre as duas famílias de ferramentas que evitam ambas — as **plataformas serverless**, que escalam por requisição e cobram por uso, e o **autoscaling**, que aumenta e diminui uma frota de réplicas com base em métricas ou agendas — e a verdade incômoda que elas compartilham: **escalar leva tempo**, e uma flash sale não espera.
+Há duas opções ruins: dimensionar a frota para o pico e pagar por máquinas ociosas 99% do tempo, ou dimensioná-la para a média e cair às 10:00. Esta página cobre as duas famílias de ferramentas que evitam ambas — as **plataformas serverless**, que escalam por requisição e cobram por uso, e o **autoscaling**, que aumenta e diminui uma frota de réplicas com base em métricas ou agendas — e a verdade incômoda que elas compartilham: **escalar leva tempo** e uma flash sale não espera.
 
 ---
 
@@ -8,7 +8,7 @@ Há duas opções ruins: dimensionar a frota para o pico e pagar por máquinas o
 
 **Serverless** significa que você faz o deploy do código e a plataforma provisiona, escala e cobra pelas máquinas por baixo, inclusive **escalando até zero** quando não há tráfego. Dois formatos dominam:
 
-- **Functions as a Service (FaaS)** — AWS Lambda, Google Cloud Run functions, Azure Functions: você faz o deploy de uma *função*, e a plataforma a chama uma vez por evento (uma requisição HTTP, uma mensagem de fila, o upload de um arquivo, um agendamento).
+- **Functions as a Service (FaaS)** — AWS Lambda, Google Cloud Run functions, Azure Functions: você faz o deploy de uma *função* e a plataforma a chama uma vez por evento (uma requisição HTTP, uma mensagem de fila, o upload de um arquivo, um agendamento).
 - **Containers serverless** — Google Cloud Run, AWS Fargate (com ECS), Azure Container Apps: você faz o deploy de uma *imagem de container* que atende HTTP; a plataforma executa quantas instâncias o tráfego exigir, até zero.
 
 A ideia já foi descrita como "programação em nuvem simplificada"[^1]: nenhum servidor para atualizar, nenhuma capacidade para planejar, pague apenas pelo que executa. As restrições são o preço.
@@ -55,12 +55,12 @@ Cold starts importam em caminhos **sensíveis à latência e voltados ao usuári
 
 Serverless escala rápido, mas não infinitamente:
 
-- **Limites de conta e de função**: o AWS Lambda tem uma cota padrão de 1.000 execuções concorrentes por Região, compartilhada por todas as funções da conta (pode ser aumentada), e cada função escala no máximo 1.000 ambientes a cada 10 segundos[^2]. Além do limite, as invocações sofrem **throttling** (`429`), e os eventos assíncronos são reprocessados depois.
+- **Limites de conta e de função**: o AWS Lambda tem uma cota padrão de 1.000 execuções concorrentes por Região, compartilhada por todas as funções da conta (pode ser aumentada) e cada função escala no máximo 1.000 ambientes a cada 10 segundos[^2]. Além do limite, as invocações sofrem **throttling** (`429`) e os eventos assíncronos são reprocessados depois.
 - **Reserved concurrency** limita uma função para que ela não deixe as outras sem recursos — e limita também a carga que ela pode colocar sobre um serviço downstream.
 - **Concorrência por instância**: containers serverless como o Cloud Run deixam uma instância atender várias requisições ao mesmo tempo (80 por padrão)[^3], o que significa muito menos instâncias — e menos cold starts — para serviços limitados por I/O.
 
 !!! warning "O serverless escala; seu banco de dados não"
-    1.000 funções concorrentes, cada uma abrindo uma conexão, significam 1.000 conexões em um servidor PostgreSQL que atende confortavelmente algumas centenas. A camada de funções escalou perfeitamente e derrubou o banco. Coloque um **pool de conexões** (RDS Proxy, PgBouncer) ou uma **fila** entre eles, e configure a reserved concurrency de acordo com o que o downstream aguenta.
+    1.000 funções concorrentes, cada uma abrindo uma conexão, significam 1.000 conexões em um servidor PostgreSQL que atende confortavelmente algumas centenas. A camada de funções escalou perfeitamente e derrubou o banco. Coloque um **pool de conexões** (RDS Proxy, PgBouncer) ou uma **fila** entre eles e configure a reserved concurrency de acordo com o que o downstream aguenta.
 
 ### Custo: por uso vs sempre ligado { #cost-per-use-vs-always-on }
 
@@ -102,7 +102,7 @@ print(buf.getvalue())
 plt.close()
 ```
 
-Com essas premissas, cada invocação custa cerca de US$ 1 por milhão; assim, funções são muito mais baratas abaixo de aproximadamente cem milhões de requisições por mês (algumas dezenas de requisições por segundo, em média), e containers vencem para serviços estáveis e ocupados. Cargas com picos e majoritariamente ociosas favorecem o serverless; cargas estáveis e de alto volume favorecem a capacidade provisionada. O FinOps ([cloud-native](../../cloud-native/index.md)) parte desse cálculo.
+Com essas premissas, cada invocação custa cerca de US$ 1 por milhão; assim, funções são muito mais baratas abaixo de aproximadamente cem milhões de requisições por mês (algumas dezenas de requisições por segundo, em média) e containers vencem para serviços estáveis e ocupados. Cargas com picos e majoritariamente ociosas favorecem o serverless; cargas estáveis e de alto volume favorecem a capacidade provisionada. O FinOps ([cloud-native](../../cloud-native/index.md)) parte desse cálculo.
 
 ### O panorama { #the-landscape }
 
@@ -218,7 +218,7 @@ A utilização de CPU é medida em relação ao **request** de CPU do pod; porta
 
 !!! example "No código do BoxOffice: o HPA do `catalog` (lab 10)"
 
-    O [Hands-on 10 — Autoscaling](../../../hands-on/10/autoscaling/index.md) mantém o alvo de 60% e o scale-up que "no máximo dobra a cada 15 s", e muda os números para caber num notebook: de 2 a 8 pods em vez de 4 a 40, uma segunda política de scale-up de `+2 pods` (vale a que acrescentar mais) e uma janela de scale-down de 2 minutos em vez de 5, para que você veja os pods saírem dentro do lab. Os 60% são relativos ao request de `250m` do pod, então o HPA acrescenta pods quando eles passam de 150 milicores em média. O que o lab mostra é o [atraso](#autoscaling-lag): cada pod novo precisa de dezenas de segundos até ficar pronto, e o p95 sobe durante a rampa antes de voltar a cair. O limite superior é o banco: 8 pods × 10 conexões = 80 conexões a um PostgreSQL.
+    O [Hands-on 10 — Autoscaling](../../../hands-on/10/autoscaling/index.md) mantém o alvo de 60% e o scale-up que "no máximo dobra a cada 15 s" e muda os números para caber num notebook: de 2 a 8 pods em vez de 4 a 40, uma segunda política de scale-up de `+2 pods` (vale a que acrescentar mais) e uma janela de scale-down de 2 minutos em vez de 5, para que você veja os pods saírem dentro do lab. Os 60% são relativos ao request de `250m` do pod, então o HPA acrescenta pods quando eles passam de 150 milicores em média. O que o lab mostra é o [atraso](#autoscaling-lag): cada pod novo precisa de dezenas de segundos até ficar pronto e o p95 sobe durante a rampa antes de voltar a cair. O limite superior é o banco: 8 pods × 10 conexões = 80 conexões a um PostgreSQL.
 
     ``` { .yaml title="k8s/base/catalog-hpa.yaml (lab 10)" }
     --8<-- "docs/2027.1/hands-on/10/code/k8s/base/catalog-hpa.yaml"
@@ -264,7 +264,7 @@ Com um lag de 4.800 mensagens e um limiar de 200, o KEDA pede 24 réplicas — o
 
 ## O atraso do autoscaling { #autoscaling-lag }
 
-O autoscaling reativo tem um atraso embutido: a carga precisa chegar, ser medida, disparar uma decisão, e a nova capacidade precisa subir e aquecer. Cada passo é pequeno; somados, são minutos:
+O autoscaling reativo tem um atraso embutido: a carga precisa chegar, ser medida, disparar uma decisão e a nova capacidade precisa subir e aquecer. Cada passo é pequeno; somados, são minutos:
 
 | Passo | Duração típica (ilustrativa) |
 |---|---|
@@ -344,11 +344,11 @@ A área vermelha é a demanda acima da capacidade: requisições que ficam na fi
 
 Quando você sabe que o pico vai chegar, **não espere pelas métricas**:
 
-- **Escalonamento agendado**: às 09:45, aumente o `minReplicas` (ou o mínimo do Auto Scaling group) para a previsão das 10:00, e reduza de volta às 10:45. Com o KEDA, um gatilho `cron` faz exatamente isso.
+- **Escalonamento agendado**: às 09:45, aumente o `minReplicas` (ou o mínimo do Auto Scaling group) para a previsão das 10:00 e reduza de volta às 10:45. Com o KEDA, um gatilho `cron` faz exatamente isso.
 - **Pré-aqueça tudo de que as réplicas precisam**: nós (overprovisioning com pods "reserva" de baixa prioridade, que são despejados quando os pods reais precisam do espaço), imagens baixadas, caches preenchidos, pools de conexão com o banco abertos.
 - **Escalonamento preditivo** (p. ex., o predictive scaling da AWS) aprende ciclos diários e semanais a partir do histórico e escala antes deles. Ajuda com o pico regular do fim da tarde, não com uma abertura de vendas pontual.
 
-E quando nem isso basta — dois milhões de fãs para 60 mil lugares —, capacidade não é a resposta: uma **sala de espera** admite fãs na taxa que o sistema consegue atender, o **rate limiting** barra os bots, e o **load shedding** rejeita o excesso cedo e a baixo custo ([edge](../../edge/index.md), [confiabilidade](../../reliability/index.md)). O cenário `flash-sale` do [playground](../../../../playground/index.md) combina todos eles.
+E quando nem isso basta — dois milhões de fãs para 60 mil lugares —, capacidade não é a resposta: uma **sala de espera** admite fãs na taxa que o sistema consegue atender, o **rate limiting** barra os bots e o **load shedding** rejeita o excesso cedo e a baixo custo ([edge](../../edge/index.md), [confiabilidade](../../reliability/index.md)). O cenário `flash-sale` do [playground](../../../../playground/index.md) combina todos eles.
 
 ### Reduzindo com segurança { #scaling-in-safely }
 
@@ -359,7 +359,7 @@ Reduzir a escala também causa incidentes:
 - **Escalar até zero** economiza dinheiro, mas traz de volta o cold start para a próxima requisição; mantenha um mínimo nos caminhos voltados ao usuário.
 
 !!! warning "Não faça autoscaling contra uma parede"
-    Defina o `maxReplicas` a partir do **orçamento do downstream**, não da esperança. Se o PostgreSQL aceita 500 conexões e cada réplica mantém um pool de 20, mais de 25 réplicas não conseguirão se conectar — e o autoscaler, vendo a latência alta, vai adicionar mais. Use um pool de conexões (PgBouncer), pools menores ou caches para reduzir a carga no banco, e crie um alerta para quando o HPA ficar parado no máximo.
+    Defina o `maxReplicas` a partir do **orçamento do downstream**, não da esperança. Se o PostgreSQL aceita 500 conexões e cada réplica mantém um pool de 20, mais de 25 réplicas não conseguirão se conectar — e o autoscaler, vendo a latência alta, vai adicionar mais. Use um pool de conexões (PgBouncer), pools menores ou caches para reduzir a carga no banco e crie um alerta para quando o HPA ficar parado no máximo.
 
 ---
 
@@ -379,7 +379,7 @@ Reduzir a escala também causa incidentes:
 
 !!! tip "Na entrevista"
 
-    Quando o problema tiver picos, diga explicitamente que **o autoscaling não é instantâneo**: *"O escalonamento reativo leva de um a alguns minutos — métricas, decisão, nó, imagem, aquecimento da JVM —, então para uma abertura de vendas conhecida eu pré-escalaria por agendamento às 09:45, e para picos inesperados contaria com folga, uma sala de espera e load shedding enquanto o HPA alcança a demanda."* Nomeie a métrica (*"CPU para o catalog, lag do consumidor para os workers de ingressos via KEDA"*), os limites (*"máximo de réplicas limitado pelas conexões do banco"*) e, se propuser serverless, as limitações dele (*"cold starts, cotas de concorrência, conexões com o banco — eu colocaria um RDS Proxy na frente"*).
+    Quando o problema tiver picos, diga explicitamente que **o autoscaling não é instantâneo**: *"O escalonamento reativo leva de um a alguns minutos — métricas, decisão, nó, imagem, aquecimento da JVM —, então para uma abertura de vendas conhecida eu pré-escalaria por agendamento às 09:45 e para picos inesperados contaria com folga, uma sala de espera e load shedding enquanto o HPA alcança a demanda."* Nomeie a métrica (*"CPU para o catalog, lag do consumidor para os workers de ingressos via KEDA"*), os limites (*"máximo de réplicas limitado pelas conexões do banco"*) e, se propuser serverless, as limitações dele (*"cold starts, cotas de concorrência, conexões com o banco — eu colocaria um RDS Proxy na frente"*).
 
 !!! success "Boas práticas"
 
@@ -387,7 +387,7 @@ Reduzir a escala também causa incidentes:
     - **Defina os requests de CPU a partir de um teste de carga** — o request é a CPU que um pod usa na sua vazão-alvo; os 60% do HPA são uma fração desse número, então um request chutado é um gatilho chutado. Na BoxOffice: `250m` para o `catalog` (lab 10).
     - **Escale para cima rápido e para baixo devagar** — dobre a cada 15 s na subida, remova poucos pods por minuto depois de uma janela de minutos na descida, para que uma pausa entre duas ondas de fãs não remova a capacidade necessária um minuto depois. Na BoxOffice: `catalog-hpa.yaml` (quadro acima).
     - **Teste a carga do escalonamento, não só do serviço** — uma rampa que registra réplicas desejadas vs prontas mede o atraso que a sua folga precisa cobrir. Na BoxOffice: `load/catalog-hpa.js` e `scripts/watch-hpa.sh` (lab 10).
-    - **Limite a concorrência das funções e crie um alarme de orçamento** — a concorrência reservada protege o banco atrás das funções, e um alarme de cobrança pega um laço descontrolado em horas, não no fim do mês.
+    - **Limite a concorrência das funções e crie um alarme de orçamento** — a concorrência reservada protege o banco atrás das funções e um alarme de cobrança pega um laço descontrolado em horas, não no fim do mês.
 
 !!! warning "Armadilhas comuns"
 

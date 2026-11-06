@@ -380,7 +380,7 @@ histogram_quantile(0.99,
 </code></pre>
 <ul>
 <li><strong>Estruturados</strong> (JSON / modelo de log do OTel) com nomes de campo estáveis, não texto livre.</li>
-<li><code>trace_id</code> + <code>span_id</code>: saltar de uma linha de log para o trace dela, e voltar.</li>
+<li><code>trace_id</code> + <code>span_id</code>: saltar de uma linha de log para o trace dela e voltar.</li>
 <li>Registre <strong>eventos</strong>, não passos; registre a <strong>decisão</strong> (&quot;fallback porque o breaker abriu&quot;).</li>
 <li><strong>Nunca</strong> segredos ou dados pessoais; remova na origem e no Collector.</li>
 </ul>

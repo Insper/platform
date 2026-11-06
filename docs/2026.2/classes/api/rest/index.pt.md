@@ -38,7 +38,7 @@ Fielding definiu o REST como um conjunto de restrições. Uma API que as respeit
 | **Layered System** (sistema em camadas) | Os clientes não conseguem saber se estão falando com o servidor final ou com um intermediário (gateway, cache, balanceador de carga). |
 | **Code on Demand** *(opcional)* | O servidor pode enviar código executável ao cliente (por exemplo, JavaScript). É a única restrição opcional. |
 
-Na plataforma do curso, **Stateless** e **Layered System** são o que torna possível a escalabilidade horizontal: como nenhuma réplica guarda sessão, o balanceador de carga do [Hands-on 7](../../../hands-on/7/index.md) pode enviar cada requisição para qualquer instância do gateway, e o cliente não consegue distinguir o Nginx, o gateway e o serviço.
+Na plataforma do curso, **Stateless** e **Layered System** são o que torna possível a escalabilidade horizontal: como nenhuma réplica guarda sessão, o balanceador de carga do [Hands-on 7](../../../hands-on/7/index.md) pode enviar cada requisição para qualquer instância do gateway e o cliente não consegue distinguir o Nginx, o gateway e o serviço.
 
 ---
 
@@ -56,7 +56,7 @@ Um **recurso** é um substantivo — uma coisa que a API expõe. URIs identifica
 ### Convenções de URI
 
 - Use **substantivos no plural** para coleções: `/orders`, `/products`, `/users`
-- Use **minúsculas com hífens**: `/order-items`, e não `/orderItems`
+- Use **minúsculas com hífens**: `/order-items` e não `/orderItems`
 - Aninhe para expressar posse: `/users/7/orders` — pedidos que pertencem ao usuário 7
 - Limite o aninhamento a 2–3 níveis; evite `/users/7/orders/42/items/3/reviews`
 - Use **parâmetros de consulta** (query parameters) para o que não é identidade: filtragem, ordenação, paginação (`/orders?status=PENDING`)
@@ -143,7 +143,7 @@ Use o código certo — clientes e intermediários dependem deles[^3]. O primeir
 Em uma plataforma de microsserviços, os códigos de gateway importam: um `502` ou `504` devolvido ao navegador geralmente significa "o gateway está bem, o serviço por trás dele não" — a primeira pista na hora de depurar.
 
 !!! example "Códigos de status no exercício Order API"
-    A [Order API](../../../exercises/order/index.md) pede `201` quando um pedido é criado, `400` quando um item referencia um produto que não existe, e `404` quando um usuário pede um pedido que pertence a outra pessoa. Retornar `404` em vez de `403` nesse caso é proposital: assim não se revela que o pedido existe.
+    A [Order API](../../../exercises/order/index.md) pede `201` quando um pedido é criado, `400` quando um item referencia um produto que não existe e `404` quando um usuário pede um pedido que pertence a outra pessoa. Retornar `404` em vez de `403` nesse caso é proposital: assim não se revela que o pedido existe.
 
 ---
 
@@ -205,7 +205,7 @@ Padronize as respostas de erro para que os clientes possam tratá-las de forma g
 | `detail` | Uma explicação específica *desta* ocorrência |
 | `instance` | Uma URI que identifica esta ocorrência (muitas vezes o caminho da requisição) |
 
-No Spring Boot, `@ControllerAdvice` / `@RestControllerAdvice` + `@ExceptionHandler` é a forma padrão de produzir respostas de erro consistentes, e a classe `ProblemDetail` do Spring produz o formato da RFC 9457:
+No Spring Boot, `@ControllerAdvice` / `@RestControllerAdvice` + `@ExceptionHandler` é a forma padrão de produzir respostas de erro consistentes e a classe `ProblemDetail` do Spring produz o formato da RFC 9457:
 
 ```java
 @RestControllerAdvice
@@ -246,7 +246,7 @@ GET /orders?status=PENDING&customerId=7
 
 A paginação por offset pede ao banco de dados `OFFSET 40 LIMIT 20`: o banco ainda lê e descarta as primeiras 40 linhas e, se uma linha for inserida nesse meio-tempo, o cliente vê um item duas vezes. Um cursor codifica "o último item que eu vi" (por exemplo, o id dele) e a consulta passa a ser `WHERE id > :last ORDER BY id LIMIT 20`, que usa o índice e não é afetada por inserções.
 
-A resposta deve incluir metadados de paginação. O `Pageable` do Spring Data lê `page`, `size` e `sort` automaticamente (as páginas começam em **0**, então `page=2` é a terceira página), e o seu `PagedModel` é serializado assim:
+A resposta deve incluir metadados de paginação. O `Pageable` do Spring Data lê `page`, `size` e `sort` automaticamente (as páginas começam em **0**, então `page=2` é a terceira página) e o seu `PagedModel` é serializado assim:
 
 ```json
 {

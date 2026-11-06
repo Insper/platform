@@ -102,7 +102,7 @@ Substitua o seu `docker-compose.yaml`. O bloco `x-catalog` é uma **âncora YAML
 
 !!! warning "Três réplicas, um banco"
 
-    As três réplicas compartilham o `db`, e cada uma tem o seu pool de 10 conexões: 30 conexões no total. Escalar a camada stateless multiplica a carga na camada stateful. Deixe o `docker stats` aberto: se o `db` chegar a 100% de CPU, acrescentar réplicas não vai ajudar — esse é o problema do lab 6.
+    As três réplicas compartilham o `db` e cada uma tem o seu pool de 10 conexões: 30 conexões no total. Escalar a camada stateless multiplica a carga na camada stateful. Deixe o `docker stats` aberto: se o `db` chegar a 100% de CPU, acrescentar réplicas não vai ajudar — esse é o problema do lab 6.
 
 ## 3. A borda: `nginx.conf` { #3-the-edge-nginxconf }
 
@@ -149,7 +149,7 @@ Round robin: cada réplica recebe uma de cada três requisições. Compare `rt` 
 
 !!! tip "Round robin ou least connections?"
 
-    O round robin ignora o quanto cada réplica está ocupada. Descomente `least_conn;` no upstream, rode `docker compose restart edge` (um `nginx -s reload` pode não ver a edição: muitos editores salvam substituindo o arquivo, e um bind mount de arquivo único continua mostrando o antigo) e repita a medição do passo 7: com uma mistura de requisições rápidas (detalhe) e lentas (listagem), o `least_conn` costuma aparar a cauda, porque uma réplica presa a requisições lentas recebe menos requisições novas.
+    O round robin ignora o quanto cada réplica está ocupada. Descomente `least_conn;` no upstream, rode `docker compose restart edge` (um `nginx -s reload` pode não ver a edição: muitos editores salvam substituindo o arquivo e um bind mount de arquivo único continua mostrando o antigo) e repita a medição do passo 7: com uma mistura de requisições rápidas (detalhe) e lentas (listagem), o `least_conn` costuma aparar a cauda, porque uma réplica presa a requisições lentas recebe menos requisições novas.
 
 ## 5. Falhas: parar, congelar, recuperar { #5-failures-stop-freeze-recover }
 
@@ -249,7 +249,7 @@ Deixe o `docker stats` aberto durante cada execução e anote **qual container e
 
 !!! warning "Réplicas frias e health checks passivos podem entrar em cascata"
 
-    Uma réplica que acabou de subir roda com uma JVM fria e é várias vezes mais lenta que uma aquecida. Sob carga pesada ela estoura o timeout, o Nginx a marca como falha (`max_fails`), a sua parte do tráfego passa para as outras, *elas* também estouram o timeout, e a borda acaba respondendo `502 no live upstreams` — enquanto as réplicas estão perfeitamente saudáveis. Sempre aqueça réplicas novas antes de medir; em produção é para isso que servem o **slow start** (aumentar aos poucos o peso de uma instância nova) e readiness probes que esperam o aquecimento.
+    Uma réplica que acabou de subir roda com uma JVM fria e é várias vezes mais lenta que uma aquecida. Sob carga pesada ela estoura o timeout, o Nginx a marca como falha (`max_fails`), a sua parte do tráfego passa para as outras, *elas* também estouram o timeout e a borda acaba respondendo `502 no live upstreams` — enquanto as réplicas estão perfeitamente saudáveis. Sempre aqueça réplicas novas antes de medir; em produção é para isso que servem o **slow start** (aumentar aos poucos o peso de uma instância nova) e readiness probes que esperam o aquecimento.
 
 Registre em `results/lab3.md`:
 
@@ -302,17 +302,17 @@ Scaling efficiency = capacity(3) / (3 × capacity(1)):
 | `Found orphan containers ([boxoffice-catalog-1])` | o serviço `catalog` único do lab 1 ainda existe | `docker compose up -d --remove-orphans` |
 | todas as requisições devolvem `502 Bad Gateway` logo depois do `up` | as réplicas ainda estão subindo (≈20–40 s) | espere até `docker compose ps` mostrar as três réplicas `healthy` |
 | `no live upstreams` em `docker compose logs edge`, 502 sob carga | todas as réplicas foram marcadas como falhas (timeouts na sobrecarga, muitas vezes JVMs frias) | baixe a carga, aqueça, confira `max_fails`/`proxy_read_timeout`; veja o aviso do passo 7 |
-| `nginx: [emerg] open() "/etc/nginx/nginx.conf" failed (2: No such file or directory)` depois de um reload | o seu editor substituiu o `nginx.conf` (arquivo novo), e o bind mount de arquivo único do container ainda aponta para o antigo | `docker compose restart edge` (monta o arquivo de novo) |
+| `nginx: [emerg] open() "/etc/nginx/nginx.conf" failed (2: No such file or directory)` depois de um reload | o seu editor substituiu o `nginx.conf` (arquivo novo) e o bind mount de arquivo único do container ainda aponta para o antigo | `docker compose restart edge` (monta o arquivo de novo) |
 | `nginx: [emerg] ... in /etc/nginx/nginx.conf:NN` | erro de digitação na configuração | `docker compose exec edge nginx -t` mostra a linha; corrija e rode `docker compose exec edge nginx -s reload` (ou `docker compose restart edge`) |
 | falta o `X-Instance` | a imagem do catalog não foi reconstruída com o novo filtro | `docker compose up --build -d` |
 | o teste de rate limit não mostra nenhum `429` | o k6 não mandou `X-Api-Key`, ou o `nginx.conf` antigo está montado | confira o conteúdo do arquivo dentro do container: `docker compose exec edge cat /etc/nginx/nginx.conf` |
 
 !!! success "Boas práticas neste lab"
 
-    - **Publique uma única porta e mantenha as réplicas privadas** — nenhum `ports:` em `catalog-1..3` no `docker-compose.yaml`, e `location / { return 404; }` no `nginx.conf` ([Tráfego e borda — proxies reversos](../../classes/edge/index.md#reverse-proxies)).
+    - **Publique uma única porta e mantenha as réplicas privadas** — nenhum `ports:` em `catalog-1..3` no `docker-compose.yaml` e `location / { return 404; }` no `nginx.conf` ([Tráfego e borda — proxies reversos](../../classes/edge/index.md#reverse-proxies)).
     - **Detecte falhas e só faça retry do que é seguro** — `max_fails=3 fail_timeout=10s` e `proxy_next_upstream` no `nginx.conf`; o Nginx não repete um `POST` ([Balanceamento de carga — health checks](../../classes/edge/load-balancing/index.md#health-checks)).
     - **Defina timeouts a partir da latência medida** — `proxy_connect_timeout 1s`, `proxy_read_timeout 5s`, acima do p99,9 saudável medido no lab 2 ([Balanceamento de carga — Nginx](../../classes/edge/load-balancing/index.md#nginx)).
-    - **Marque toda requisição na borda** — `X-Request-Id $request_id` vai para a réplica e volta para o cliente, e entra no access log ao lado do upstream e do seu tempo ([Tráfego e borda](../../classes/edge/index.md)).
+    - **Marque toda requisição na borda** — `X-Request-Id $request_id` vai para a réplica e volta para o cliente e entra no access log ao lado do upstream e do seu tempo ([Tráfego e borda](../../classes/edge/index.md)).
     - **Limite clientes gulosos com um `429` explícito** — `limit_req_zone … rate=20r/s` com `limit_req_status 429` protege as réplicas de um único cliente ([API gateway — rate limiting](../../classes/edge/api-gateway/index.md#rate-limiting)).
 
 ## Limpeza { #clean-up }

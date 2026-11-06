@@ -8,7 +8,7 @@ Para entregar uma aplicação de alto desempenho, você precisa identificar e tr
 | Mensageria | Desacoplar componentes para tratar tarefas assíncronas. | Use filas de mensagens como RabbitMQ ou Apache Kafka. |
 | Balanceamento de carga | Distribuir o tráfego de entrada entre vários servidores para evitar sobrecarga. | Use balanceadores de carga como Nginx ou HAProxy. |
 | Varredura de vulnerabilidades | Identificar e corrigir vulnerabilidades de segurança na aplicação. | Use ferramentas como SonarQube, OWASP ZAP ou Snyk para varredura de vulnerabilidades. |
-| Processamento de pagamentos | Tratar transações de pagamento de forma eficiente e segura. | Use gateways de pagamento de terceiros como Stripe ou PayPal, e garanta integração e tratamento de erros adequados. |
+| Processamento de pagamentos | Tratar transações de pagamento de forma eficiente e segura. | Use gateways de pagamento de terceiros como Stripe ou PayPal e garanta integração e tratamento de erros adequados. |
 | Autenticação e autorização | Gerenciar permissões de usuários e controle de acesso de forma eficiente. | Implemente controle de acesso baseado em papéis (RBAC). Ou use OAuth2 para autenticação baseada em token. |
 
 ## Cache

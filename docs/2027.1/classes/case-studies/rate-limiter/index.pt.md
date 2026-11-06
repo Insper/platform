@@ -1,7 +1,7 @@
 
 > *"Projete um rate limiter para uma API pública. Ele precisa funcionar entre muitas réplicas do API gateway, acrescentar quase nenhuma latência e permitir limites diferentes por usuário, por IP e por parceiro."*
 
-Toda API pública precisa de um, e todo sistema grande tem vários: na borda contra inundações, no gateway por cliente, dentro dos serviços para proteger uma dependência frágil. O problema é pequeno o bastante para ser projetado de ponta a ponta em 45 minutos e profundo o bastante para separar níveis: um candidato júnior diz "token bucket"; um sênior explica **por que** um contador de janela deslizante é preciso o suficiente, como tornar a verificação **atômica** entre 20 réplicas do gateway, o que acontece quando o armazenamento dos contadores **cai**, e por que só rate limiting não impede uma sobrecarga.
+Toda API pública precisa de um e todo sistema grande tem vários: na borda contra inundações, no gateway por cliente, dentro dos serviços para proteger uma dependência frágil. O problema é pequeno o bastante para ser projetado de ponta a ponta em 45 minutos e profundo o bastante para separar níveis: um candidato júnior diz "token bucket"; um sênior explica **por que** um contador de janela deslizante é preciso o suficiente, como tornar a verificação **atômica** entre 20 réplicas do gateway, o que acontece quando o armazenamento dos contadores **cai** e por que só rate limiting não impede uma sobrecarga.
 
 No BoxOffice, o rate limiter é a segunda linha de defesa da venda relâmpago: o [WAF](../../../reference/components/edge/index.md#waf) barra inundações óbvias, a sala de espera dosa as admissões e o gateway aplica "5 tentativas de reserva por minuto por conta" e as cotas dos parceiros revendedores.
 
@@ -15,7 +15,7 @@ No BoxOffice, o rate limiter é a segunda linha de defesa da venda relâmpago: o
 !!! abstract "O que este caso treina"
 
     - **Comparar** os cinco algoritmos clássicos de rate limiting quanto a precisão, memória e comportamento em rajadas.
-    - **Implementar** uma verificação atômica e distribuída com Redis e um script Lua, e **explicar** a condição de corrida que ela evita.
+    - **Implementar** uma verificação atômica e distribuída com Redis e um script Lua e **explicar** a condição de corrida que ela evita.
     - **Decidir** onde os limites ficam (borda, gateway, serviço, cliente) e como são configurados por usuário, IP e plano.
     - **Projetar** o comportamento em falha (fail-open vs. fail-closed) e o contrato com o cliente (429, `Retry-After`, backoff com jitter).
     - **Distinguir** rate limiting de descarte de carga (*load shedding*) e de limite de concorrência.
@@ -106,7 +106,7 @@ O que os números dizem:
 
 ## 3. API
 
-O limitador normalmente não é uma API pública, e sim um **filtro** dentro do gateway; mesmo assim, defina seu contrato — interno e externo.
+O limitador normalmente não é uma API pública e sim um **filtro** dentro do gateway; mesmo assim, defina seu contrato — interno e externo.
 
 ```http
 # Internal (gateway → limiter library or sidecar)
@@ -284,7 +284,7 @@ A janela fixa deixa passar **20 requisições em 20 ms** — o dobro do limite �
 !!! tip "Experimente"
     Os valores iniciais são os limites do Nginx do lab 3: **20 requisições/s** por chave de API e **burst de 40**. O tráfego começa com uma rajada sobre a fronteira de 1 s (20 requisições logo antes, 20 logo depois) e a repete em 3 s.
 
-    1. Rode com a **janela fixa**: 40 requisições chegam ao backend em cerca de 0,2 s, **2× o limite**, e isso se repete em 3 s.
+    1. Rode com a **janela fixa**: 40 requisições chegam ao backend em cerca de 0,2 s, **2× o limite** e isso se repete em 3 s.
     2. Mude para o **log deslizante**: o backend nunca vê mais que 20 em um segundo qualquer; a segunda metade de cada rajada recebe `429`.
     3. Mude para o **token bucket**: ele começa cheio, então deixa passar a rajada inteira — 46 requisições no segundo mais movimentado. Arraste a capacidade para 20 e o segundo mais movimentado cai para 29: a capacidade *é* a rajada que você permite.
     4. Escolha **rajadas** e o **leaky bucket**: o backend recebe 20 por segundo constantes, mas uma requisição na fila espera até 1,95 s — suavizar custa latência.
@@ -334,7 +334,7 @@ Detalhes que mostram senioridade:
 - **TTL em toda chave**: clientes ociosos somem sozinhos; a memória fica proporcional aos clientes *ativos*.
 - Carregue o script uma vez (`SCRIPT LOAD`) e chame-o com `EVALSHA` para não enviar o código-fonte a cada requisição.
 
-### 6.3 Onde aplicar, e local vs. global { #63-where-to-enforce-and-local-vs-global }
+### 6.3 Onde aplicar e local vs. global { #63-where-to-enforce-and-local-vs-global }
 
 ``` diagram-sim
 flowchart LR
@@ -390,7 +390,7 @@ flowchart LR
 | Mudanças de regras | Uma regra ruim bloqueia todo mundo | Regras como configuração versionada, modo de simulação ("shadow"), rollout gradual | Reação mais lenta |
 | Multirregião | Limite global exige coordenação entre regiões | Limites por região ou sincronização assíncrona | Até N× o limite em N regiões |
 
-Os trade-offs para **dizer em voz alta**: **precisão vs. latência** (contadores globais exatos custam um salto de rede; locais aproximados são de graça), **disponibilidade vs. proteção** (fail-open vs. fail-closed, escolhido por regra), e **justiça vs. simplicidade** (limites por IP são fáceis, mas punem usuários atrás de um NAT compartilhado).
+Os trade-offs para **dizer em voz alta**: **precisão vs. latência** (contadores globais exatos custam um salto de rede; locais aproximados são de graça), **disponibilidade vs. proteção** (fail-open vs. fail-closed, escolhido por regra) e **justiça vs. simplicidade** (limites por IP são fáceis, mas punem usuários atrás de um NAT compartilhado).
 
 ---
 
@@ -403,7 +403,7 @@ O cenário `rate-limiter` coloca um API gateway com rate limiting na frente de u
     1. Rode com o perfil **spike** e o limitador **desligado** (ou contornado): veja a utilização do backend chegar a 100% e o p99 e os erros explodirem para todo mundo.
     2. Ligue o limitador e rode de novo: rejeições (429) aparecem no gateway, enquanto o backend fica abaixo da saturação e o p99 das requisições *aceitas* fica estável.
     3. Aumente o limite passo a passo e encontre o valor em que o backend começa a saturar — essa é a capacidade abaixo da qual seu limite precisa ficar.
-    4. Ligue o caos para derrubar o armazenamento dos contadores (cache): o gateway faz fail-open ou fail-closed no simulador, e o que isso causa no backend?
+    4. Ligue o caos para derrubar o armazenamento dos contadores (cache): o gateway faz fail-open ou fail-closed no simulador e o que isso causa no backend?
 
 <div class="sdp" data-scenario="rate-limiter" data-mode="full" data-height="640" data-profile="spike"></div>
 
@@ -455,11 +455,11 @@ O cenário `rate-limiter` coloca um API gateway com rate limiting na frente de u
 
 !!! success "Boas práticas"
 
-    - **Responda `429` com `Retry-After`** — clientes bem-comportados desaceleram sozinhos, e a tempestade de retentativas nem começa.
+    - **Responda `429` com `Retry-After`** — clientes bem-comportados desaceleram sozinhos e a tempestade de retentativas nem começa.
     - **Faça verificar-e-contar uma operação atômica** — um script Lua no Redis; duas idas e voltas deixam duas réplicas aceitarem a mesma requisição.
-    - **Decida fail-open ou fail-closed por rota, e crie alertas para erros do limitador** — navegação falha aberta, login falha fechado; nos dois casos alguém precisa saber que o limitador caiu.
+    - **Decida fail-open ou fail-closed por rota e crie alertas para erros do limitador** — navegação falha aberta, login falha fechado; nos dois casos alguém precisa saber que o limitador caiu.
     - **Lance um limite novo primeiro em modo de simulação** — registre por um dia o que teria sido bloqueado antes de aplicá-lo; um limite errado é uma indisponibilidade causada por você.
-    - **Use a identidade como chave onde a tiver, e o IP só na borda** — o lab 3 usa a chave de API, e o seu `nginx.conf` observa que requisições sem chave também deveriam ser limitadas por IP em produção ([lab 3](../../../hands-on/3/index.md)).
+    - **Use a identidade como chave onde a tiver e o IP só na borda** — o lab 3 usa a chave de API, e o seu `nginx.conf` observa que requisições sem chave também deveriam ser limitadas por IP em produção ([lab 3](../../../hands-on/3/index.md)).
 
 ---
 

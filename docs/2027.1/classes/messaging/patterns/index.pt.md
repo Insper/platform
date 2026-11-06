@@ -1,4 +1,4 @@
-Uma compra no BoxOffice envolve três serviços, e cada um é dono dos seus dados: `order` (o pedido), `inventory` (os lugares) e `payment` (a cobrança, por meio de um provedor externo). Em um monólito com um só banco de dados, a compra seria uma transação ACID: reservar os lugares, cobrar, confirmar — tudo ou nada. Dividida em serviços, não há um banco único nem uma transação única. A resposta clássica, uma transação distribuída com two-phase commit (2PC), também não serve: o provedor de pagamento não vai participar da sua transação, e o 2PC bloqueia todos os participantes enquanto um coordenador estiver inacessível.
+Uma compra no BoxOffice envolve três serviços e cada um é dono dos seus dados: `order` (o pedido), `inventory` (os lugares) e `payment` (a cobrança, por meio de um provedor externo). Em um monólito com um só banco de dados, a compra seria uma transação ACID: reservar os lugares, cobrar, confirmar — tudo ou nada. Dividida em serviços, não há um banco único nem uma transação única. A resposta clássica, uma transação distribuída com two-phase commit (2PC), também não serve: o provedor de pagamento não vai participar da sua transação e o 2PC bloqueia todos os participantes enquanto um coordenador estiver inacessível.
 
 Esta página reúne os padrões que substituem a transação distribuída em sistemas orientados a eventos. Cada um responde a uma pergunta precisa:
 
@@ -120,7 +120,7 @@ O relay tem duas implementações comuns:
     }
     ```
 
-    Simples e portável, mas adiciona carga de polling no banco e até um intervalo de polling de latência. Rode um único relay ativo (ou particione o trabalho por agregado) para que os eventos do mesmo pedido fiquem em ordem, e apague as linhas publicadas depois de alguns dias.
+    Simples e portável, mas adiciona carga de polling no banco e até um intervalo de polling de latência. Rode um único relay ativo (ou particione o trabalho por agregado) para que os eventos do mesmo pedido fiquem em ordem e apague as linhas publicadas depois de alguns dias.
 
 === "CDC por log (Debezium)"
 
@@ -153,7 +153,7 @@ O relay tem duas implementações comuns:
 
 !!! example "No código do BoxOffice: o outbox no `order` (lab 7)"
 
-    O [Hands-on 7 — Transactional outbox](../../../hands-on/7/outbox/index.md) constrói o publicador por polling. `place()` insere o pedido e, no mesmo método `@Transactional`, acrescenta `OrderPlaced` ao outbox (`Outbox.append` é `Propagation.MANDATORY`: falha se alguém o chamar fora de uma transação). `NOTIFY_MODE=sync` mantém a versão "antes", que chama o `notification` por HTTP, para que você possa medir as duas. O relay envia um lote de até 100 linhas, espera o ack do Kafka para **todas** e só então marca as linhas: um crash no meio as republica (pelo menos uma vez), nunca as perde. Note uma diferença em relação ao conselho acima: várias réplicas do `order` podem fazer o relay em paralelo (`SKIP LOCKED`), o que é seguro aqui porque, por enquanto, cada pedido produz um único evento; com mais eventos por pedido, a ordem por pedido exigiria um único relay ou o particionamento por agregado. Numa execução de teste num laptop ocupado, o p50 do `POST /orders` caiu de **4,12 s** (sync) para **47 ms** (outbox), e parar o `notification` por 20 s derrubou cerca de um terço dos pedidos no modo sync e nenhum com o outbox ([Meça](../../../hands-on/7/measure/index.md)).
+    O [Hands-on 7 — Transactional outbox](../../../hands-on/7/outbox/index.md) constrói o publicador por polling. `place()` insere o pedido e, no mesmo método `@Transactional`, acrescenta `OrderPlaced` ao outbox (`Outbox.append` é `Propagation.MANDATORY`: falha se alguém o chamar fora de uma transação). `NOTIFY_MODE=sync` mantém a versão "antes", que chama o `notification` por HTTP, para que você possa medir as duas. O relay envia um lote de até 100 linhas, espera o ack do Kafka para **todas** e só então marca as linhas: um crash no meio as republica (pelo menos uma vez), nunca as perde. Note uma diferença em relação ao conselho acima: várias réplicas do `order` podem fazer o relay em paralelo (`SKIP LOCKED`), o que é seguro aqui porque, por enquanto, cada pedido produz um único evento; com mais eventos por pedido, a ordem por pedido exigiria um único relay ou o particionamento por agregado. Numa execução de teste num laptop ocupado, o p50 do `POST /orders` caiu de **4,12 s** (sync) para **47 ms** (outbox) e parar o `notification` por 20 s derrubou cerca de um terço dos pedidos no modo sync e nenhum com o outbox ([Meça](../../../hands-on/7/measure/index.md)).
 
     ``` { .java title="services/order/src/main/java/boxoffice/order/OrderService.java (order + event, one transaction)" }
     --8<-- "docs/2027.1/hands-on/7/code/services/order/src/main/java/boxoffice/order/OrderService.java:35:62"
@@ -189,7 +189,7 @@ No BoxOffice, o CDC sobre o banco do `catalog` mantém três sistemas derivados 
 | **Melhor para** | Eventos de domínio públicos entre serviços | Dados derivados internos: busca, cache, warehouse, migrações |
 
 !!! warning "CDC bruto vaza o seu schema"
-    Publicar mudanças brutas de tabelas transforma o layout interno das suas tabelas em uma API pública: renomear uma coluna vira uma mudança incompatível para consumidores que você talvez nem conheça. Use CDC bruto para dados que você controla de ponta a ponta (seu próprio índice de busca, seu warehouse), e um outbox com eventos projetados para tudo o que outros times consomem.
+    Publicar mudanças brutas de tabelas transforma o layout interno das suas tabelas em uma API pública: renomear uma coluna vira uma mudança incompatível para consumidores que você talvez nem conheça. Use CDC bruto para dados que você controla de ponta a ponta (seu próprio índice de busca, seu warehouse) e um outbox com eventos projetados para tudo o que outros times consomem.
 
 ---
 
@@ -350,7 +350,7 @@ flowchart LR
     fan -->|"GET /me/tickets (consulta)"| v1
 ```
 
-A página "Meus ingressos" precisa, para um fã, de todos os ingressos com nome do show, data, local, lugar e QR code — dados que pertencem ao `order`, ao `catalog` e ao `inventory`. Fazer join entre três serviços a cada visualização da página é lento e frágil. Em vez disso, um projetor consome os eventos deles e mantém uma tabela `my_tickets` com exatamente as colunas de que a página precisa. As leituras viram uma única consulta indexada, e o lado de leitura escala de forma independente (réplicas, cache, até um banco de dados diferente).
+A página "Meus ingressos" precisa, para um fã, de todos os ingressos com nome do show, data, local, lugar e QR code — dados que pertencem ao `order`, ao `catalog` e ao `inventory`. Fazer join entre três serviços a cada visualização da página é lento e frágil. Em vez disso, um projetor consome os eventos deles e mantém uma tabela `my_tickets` com exatamente as colunas de que a página precisa. As leituras viram uma única consulta indexada e o lado de leitura escala de forma independente (réplicas, cache, até um banco de dados diferente).
 
 O preço é a **consistência eventual entre escrita e leitura**: logo depois de comprar, o fã abre "Meus ingressos" e o ingresso novo ainda não está lá, porque o projetor está algumas centenas de milissegundos atrás. Soluções comuns para esse problema de *read-your-writes* (veja [Consistência](../../distributed/consistency/index.md)):
 
@@ -365,7 +365,7 @@ O preço é a **consistência eventual entre escrita e leitura**: logo depois de
 
 ## Event sourcing { #event-sourcing }
 
-Na maioria dos sistemas, o banco guarda o **estado atual** e os eventos são um subproduto. O **event sourcing** inverte isso: a **sequência de eventos é a fonte da verdade**, e o estado atual é calculado reproduzindo-os[^5].
+Na maioria dos sistemas, o banco guarda o **estado atual** e os eventos são um subproduto. O **event sourcing** inverte isso: a **sequência de eventos é a fonte da verdade** e o estado atual é calculado reproduzindo-os[^5].
 
 ```sql
 CREATE TABLE order_events (
@@ -409,7 +409,7 @@ Para mudar um pedido, o serviço carrega seus eventos, reconstrói o estado, ver
 | Encaixe natural com integração orientada a eventos | Apagar dados pessoais (LGPD/GDPR) em um log imutável exige cuidado (por exemplo, cifrar por cliente e apagar a chave) |
 
 !!! tip "Onde event sourcing cabe no BoxOffice"
-    Bons candidatos: o **livro-razão de pagamentos** (dinheiro precisa ser auditável, e um razão só de acréscimos é como a contabilidade já funciona) e o histórico de pedidos. Maus candidatos: o catálogo de eventos (uma tabela simples com CDC basta) e o mapa de lugares durante uma abertura de vendas (precisa de atualizações rápidas e com lock do estado atual, não de um histórico crescente).
+    Bons candidatos: o **livro-razão de pagamentos** (dinheiro precisa ser auditável e um razão só de acréscimos é como a contabilidade já funciona) e o histórico de pedidos. Maus candidatos: o catálogo de eventos (uma tabela simples com CDC basta) e o mapa de lugares durante uma abertura de vendas (precisa de atualizações rápidas e com lock do estado atual, não de um histórico crescente).
 
 ---
 
@@ -424,7 +424,7 @@ Para mudar um pedido, o serviço carrega seus eventos, reconstrói o estado, ver
 | Event sourcing | Histórico completo como fonte da verdade | Versionamento de eventos para sempre; projeções para toda consulta | Livro-razão de pagamentos, histórico de pedidos |
 
 !!! tip "Na entrevista"
-    Para qualquer fluxo que atravessa serviços e movimenta dinheiro ou inventário, os entrevistadores esperam que você diga "saga" *e* a torne concreta: liste os passos com suas compensações, nomeie o pivô (o pagamento), explique o que o usuário vê no estado intermediário (lugares reservados, pagamento em processamento) e como os timeouts são tratados (reconciliar com o provedor antes de compensar). Vai publicar eventos? Diga "transactional outbox" antes de perguntarem sobre o crash entre o commit e a publicação. Mencione CQRS ou event sourcing só quando um requisito pedir (auditoria, formatos de leitura muito diferentes), e diga quanto custam.
+    Para qualquer fluxo que atravessa serviços e movimenta dinheiro ou inventário, os entrevistadores esperam que você diga "saga" *e* a torne concreta: liste os passos com suas compensações, nomeie o pivô (o pagamento), explique o que o usuário vê no estado intermediário (lugares reservados, pagamento em processamento) e como os timeouts são tratados (reconciliar com o provedor antes de compensar). Vai publicar eventos? Diga "transactional outbox" antes de perguntarem sobre o crash entre o commit e a publicação. Mencione CQRS ou event sourcing só quando um requisito pedir (auditoria, formatos de leitura muito diferentes) e diga quanto custam.
 
 !!! success "Boas práticas"
 
@@ -433,7 +433,7 @@ Para mudar um pedido, o serviço carrega seus eventos, reconstrói o estado, ver
     - **Apague periodicamente as linhas já publicadas do outbox e indexe as não publicadas** — senão a tabela cresce uma linha por evento para sempre e a consulta do relay fica lenta. No BoxOffice: `OutboxRelay.purge` apaga, a cada hora, as linhas publicadas há mais de 1 dia.
     - **Persista o estado da saga e altere-o só com updates condicionais** — `UPDATE orders SET status = 'CONFIRMED' WHERE id = ? AND status = 'PENDING_PAYMENT'`: um evento atrasado ou duplicado não consegue fazer um pedido concluído voltar.
     - **Ordene os passos da saga para que o irreversível venha por último** — o que pode ser desfeito (a reserva do assento) antes do pivô (a cobrança), o que não pode ser desfeito (emitir o ingresso) depois dele.
-    - **Mantenha os modelos de leitura do CQRS reconstruíveis e ensaie a reconstrução** — guarde os eventos (ou o stream de CDC) por tempo suficiente para refazer uma projeção do zero, e cronometre quanto ela leva.
+    - **Mantenha os modelos de leitura do CQRS reconstruíveis e ensaie a reconstrução** — guarde os eventos (ou o stream de CDC) por tempo suficiente para refazer uma projeção do zero e cronometre quanto ela leva.
 
 !!! warning "Armadilhas comuns"
 

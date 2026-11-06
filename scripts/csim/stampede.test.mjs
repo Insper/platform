@@ -65,7 +65,7 @@ test("the tip quotes the model's numbers", () => {
       `executa ${S.WORKERS} consultas de ${ms(S.DELTA * 1000)} por vez (${n(CAP)}/s)`,
       `em t = ${TTL} s as consultas saltam para cerca de ${n(none.peakPerSec)}/s`,
       `o p99 chega a cerca de ${p99s}, com ${n(none.dbQueries)} consultas em ${S.DURATION} s para ${pages} páginas`,
-      `${n(coal.dbQueries)} consultas, p99 de ${ms(coal.p99)}, e ${n(coal.waited)} requisições esperam`,
+      `${n(coal.dbQueries)} consultas, p99 de ${ms(coal.p99)} e ${n(coal.waited)} requisições esperam`,
       `O pico de ${n(coal.peakPerSec)}/s que sobra são as ${S.OTHERS} páginas expirando juntas`,
       `(os ${JIT}% do lab 5) e ele cai para ${n(cj.peakPerSec)}/s`,
       `(${n(xf.dbQueries)} consultas, pico de ${n(xf.peakPerSec)}/s`,

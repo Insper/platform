@@ -12,7 +12,7 @@
 A venda relâmpago é na semana que vem e o time entrega dez mudanças por dia. Cada uma delas pode quebrar
 o checkout: uma query lenta, uma biblioteca vulnerável, uma versão que falha 30% das requisições. Ninguém
 consegue revisar toda mudança à mão nesse ritmo — o pipeline precisa responder *"esta mudança é segura
-para entregar a 2 milhões de fãs?"* automaticamente, e limitar o estrago quando a resposta estava errada.
+para entregar a 2 milhões de fãs?"* automaticamente e limitar o estrago quando a resposta estava errada.
 Este lab é o lado prático da [página de entrega](../../classes/cloud-native/delivery/index.md) da aula
 de cloud native e fecha o capítulo 11 da [história da disciplina](../../index.md#story) — fazer rollback
 de uma release ruim sem um humano: ele implementa
@@ -90,7 +90,7 @@ flowchart LR
 | Onde o pipeline gasta o seu tempo? | duração de cada job | GitHub Actions, `gh run view` |
 | Quanto tempo do `git push` até os usuários? | lead time por etapa | timestamps |
 | O portão pega uma regressão de desempenho? | p95/p99 do orçamento antes e depois | k6 no CI |
-| O canary para uma release ruim, e com que rapidez? | tempo de sync → abort, taxa de erro do canary | Argo Rollouts, Prometheus |
+| O canary para uma release ruim e com que rapidez? | tempo de sync → abort, taxa de erro do canary | Argo Rollouts, Prometheus |
 
 ## Pré-requisitos { #prerequisites }
 
@@ -119,7 +119,7 @@ O passo [Meça](measure/index.md) tem a tabela de resultados para guardar em `re
 | `test` falha com `Could not find a valid Docker environment` (localmente) | o Docker não está rodando | inicie o Docker; no CI isso nunca acontece no `ubuntu-latest` |
 | `image` falha com `denied: permission_denied` no push | falta `packages: write` ao job, ou o pacote pertence a outro repositório | mantenha o bloco `permissions`; nas configurações do pacote, dê acesso *Write* ao seu repositório |
 | `image` falha com `repository name must be lowercase` | o dono tem letras maiúsculas | o workflow converte para minúsculas com `${GITHUB_REPOSITORY_OWNER,,}`: não troque isso por um literal |
-| o portão do Trivy falha | existe na imagem uma vulnerabilidade CRITICAL com correção | leia a tabela no log; atualize a imagem base (`eclipse-temurin:21-jre` recebe patches com frequência) ou a biblioteca, e faça push |
+| o portão do Trivy falha | existe na imagem uma vulnerabilidade CRITICAL com correção | leia a tabela no log; atualize a imagem base (`eclipse-temurin:21-jre` recebe patches com frequência) ou a biblioteca e faça push |
 | `Deploy` falha com `remote rejected … protected branch` | a proteção de branch proíbe o push do bot | permita que o GitHub Actions faça bypass, ou abra um pull request em vez disso (veja o passo 4) |
 | o Argo CD mostra `ComparisonError … authentication required` | o segredo do repositório está faltando ou o token expirou | recrie o `boxoffice-repo` (passo 4) |
 | pods em `ImagePullBackOff` com `ghcr.io/...` | pacote privado e nenhum pull secret, ou dono errado na imagem | crie o `ghcr-pull` (passo 4) ou torne o pacote público; confira o `newName` |

@@ -38,7 +38,7 @@ HikariCP, Kafka, Redis, logback, a própria JVM — para que cada requisição v
 biblioteca reporte **métricas** com nomes padronizados (as *convenções semânticas* do OpenTelemetry) e
 cada linha de log carregue o **trace id** da requisição que a escreveu.
 
-Baixe-o uma vez em `infra/otel/` (são 26 MB: o `.gitignore` o mantém fora do Git, e cada clone roda o
+Baixe-o uma vez em `infra/otel/` (são 26 MB: o `.gitignore` o mantém fora do Git e cada clone roda o
 script):
 
 ``` shell title="scripts/get-otel-agent.sh"
@@ -114,7 +114,7 @@ vazio com esse nome — o Grafana então não consegue lê-lo e o `otel-lgtm` te
 --8<-- "docs/2027.1/hands-on/8/code/infra/grafana/dashboards.yaml"
 ```
 
-Depois reinicie tudo — os serviços Java reiniciam para pegar o agente, e o `--wait` retorna quando
+Depois reinicie tudo — os serviços Java reiniciam para pegar o agente e o `--wait` retorna quando
 todos os serviços estão saudáveis:
 
 <!-- termynal -->
@@ -129,7 +129,7 @@ catalog-1-1  | [otel.javaagent 2026-10-18 18:08:22:121 +0000] [main] INFO io.ope
 ```
 
 Com o agente, cada JVM sobe visivelmente mais devagar (a instrumentação acontece no carregamento das
-classes): com todas subindo juntas, o `catalog` levou cerca de 75–90 s numa execução de teste, e por
+classes): com todas subindo juntas, o `catalog` levou cerca de 75–90 s numa execução de teste e por
 isso os health checks dos serviços Java agora dão um `start_period` de 120 s. A primeira requisição
 pela borda também aquece o balanceador do gateway e as conexões do `catalog` com o Redis e o banco:
 numa stack fria ela pode passar do timeout de 5 s do gateway e voltar `504` — repita-a.
@@ -142,8 +142,8 @@ Abra o Grafana em `http://localhost:3000` (sem login nesta imagem) → **Explore
   `http_response_status_code="200"` — a rota é o *template*, nunca a URL crua, o que mantém o número de
   séries limitado.
 - **Tempo**: busque pelo serviço `gateway`. Uma requisição pela borda mostra spans do `gateway` e do
-  `catalog`, e dentro do `catalog`, quando o evento não está no cache Redis, um span por comando SQL.
-- **Loki**: `{service_name="order"}`. Cada linha tem `trace_id` e `span_id`, e um botão que leva ao
+  `catalog` e dentro do `catalog`, quando o evento não está no cache Redis, um span por comando SQL.
+- **Loki**: `{service_name="order"}`. Cada linha tem `trace_id` e `span_id` e um botão que leva ao
   trace. O console também: `docker compose logs order` imprime linhas como
   `[14263dc50b861be8bcf0bc1f4dbad3c5,a1c96ae57fb41b45] o.s.web.servlet.DispatcherServlet …`.
 
@@ -240,7 +240,7 @@ de um reinício é bem mais lento (JVMs frias com o agente): olhe o segundo.
 !!! tip "Na entrevista"
 
     "A propagação de contexto quebra em todo salto que não é uma chamada direta — filas, outboxes,
-    jobs em lote. Eu levo o `traceparent` do W3C na mensagem ou na linha, e o consumidor continua o
+    jobs em lote. Eu levo o `traceparent` do W3C na mensagem ou na linha e o consumidor continua o
     trace; para *fan-in* (um job processando muitas mensagens) eu uso **span links** em vez de um
     único pai."
 

@@ -1,4 +1,4 @@
-O teste breakpoint terminou: `POST /holds` mantém o p99 abaixo de 300 ms até cerca de 1 100 requisições por segundo, e a venda precisa de 4 500. E agora? Adicionar pods às cegas pode não mudar nada — ou piorar. Esta página trata do passo entre *medir* e *corrigir*: ler os resultados corretamente, localizar o recurso limitante, ver qual código ou consulta o consome e mudar uma coisa por vez até que o gargalo fique onde você quer.
+O teste breakpoint terminou: `POST /holds` mantém o p99 abaixo de 300 ms até cerca de 1 100 requisições por segundo e a venda precisa de 4 500. E agora? Adicionar pods às cegas pode não mudar nada — ou piorar. Esta página trata do passo entre *medir* e *corrigir*: ler os resultados corretamente, localizar o recurso limitante, ver qual código ou consulta o consome e mudar uma coisa por vez até que o gargalo fique onde você quer.
 
 ---
 
@@ -70,7 +70,7 @@ print(buf.getvalue())
 plt.close()
 ```
 
-Três regiões são visíveis, e cada uma tem um nome que você deve usar nos relatórios:
+Três regiões são visíveis e cada uma tem um nome que você deve usar nos relatórios:
 
 - **Até o joelho (≈ 1 100 req/s)**: alcançado = oferecido, p99 dentro do SLO. Esta é a **capacidade utilizável** deste deployment.
 - **Entre o joelho e o máximo**: alcançado ainda ≈ oferecido, mas o p99 quebra o SLO — o sistema está *funcionando*, só que *devagar demais*; filas estão se formando.
@@ -115,7 +115,7 @@ A capacidade que você reporta é o joelho: "um deployment de `inventory` com 4 
 
 ## Profiling: de "qual recurso" para "qual código" { #profiling-from-which-resource-to-which-code }
 
-As métricas dizem que o `inventory` passa o tempo esperando ou queimando CPU; um **profiler** diz *qual código* faz isso. Profilers modernos são **por amostragem**: muitas vezes por segundo eles registram a pilha de chamadas de cada thread, e o código que aparece em muitas amostras é para onde vai o tempo. O overhead é baixo o suficiente (tipicamente alguns por cento) para fazer profiling sob carga, até em produção.
+As métricas dizem que o `inventory` passa o tempo esperando ou queimando CPU; um **profiler** diz *qual código* faz isso. Profilers modernos são **por amostragem**: muitas vezes por segundo eles registram a pilha de chamadas de cada thread e o código que aparece em muitas amostras é para onde vai o tempo. O overhead é baixo o suficiente (tipicamente alguns por cento) para fazer profiling sob carga, até em produção.
 
 Dois tipos de perfil respondem a perguntas diferentes:
 
@@ -187,7 +187,7 @@ print(buf.getvalue())
 plt.close()
 ```
 
-Lendo este perfil wall-clock de `POST /holds` de cima para baixo: quase todo o tempo está dentro de `TransactionTemplate.execute` — e, dentro dele, um terço das amostras espera em uma leitura de socket dentro de `SeatRepository.lockSeats` (o banco está nos fazendo esperar por **locks de linha**), mais de um quarto espera em uma leitura de socket dentro de `PricingClient.quote` (uma chamada HTTP **dentro da transação**, segurando a conexão e os locks), e quase um quarto espera em `HikariPool.getConnection` (**esgotamento do pool**, causado pelos dois itens anteriores). JSON e logs, os suspeitos de sempre, são fatias finas. Um flame graph de CPU do mesmo serviço teria mostrado principalmente JSON e logs, e apontado para a correção errada.
+Lendo este perfil wall-clock de `POST /holds` de cima para baixo: quase todo o tempo está dentro de `TransactionTemplate.execute` — e, dentro dele, um terço das amostras espera em uma leitura de socket dentro de `SeatRepository.lockSeats` (o banco está nos fazendo esperar por **locks de linha**), mais de um quarto espera em uma leitura de socket dentro de `PricingClient.quote` (uma chamada HTTP **dentro da transação**, segurando a conexão e os locks), e quase um quarto espera em `HikariPool.getConnection` (**esgotamento do pool**, causado pelos dois itens anteriores). JSON e logs, os suspeitos de sempre, são fatias finas. Um flame graph de CPU do mesmo serviço teria mostrado principalmente JSON e logs e apontado para a correção errada.
 
 ### async-profiler para a JVM { #async-profiler-for-the-jvm }
 
@@ -275,7 +275,7 @@ Execution Time: 412.601 ms
 Como ler, de baixo para cima (o nó mais interno executa primeiro):
 
 - **`Seq Scan` com `Rows Removed by Filter: 5968520`** — o PostgreSQL leu todos os 6 milhões de assentos de todos os eventos para ficar com 31 480. Esse é o problema.
-- **`Buffers: … read=59861`** — cerca de 60 000 páginas (8 KB cada, ≈ 470 MB) vieram do disco ou do cache do SO, e não do cache de buffers do PostgreSQL. Sob carga, isso é saturação de I/O.
+- **`Buffers: … read=59861`** — cerca de 60 000 páginas (8 KB cada, ≈ 470 MB) vieram do disco ou do cache do SO e não do cache de buffers do PostgreSQL. Sob carga, isso é saturação de I/O.
 - **`Sort … top-N heapsort`** — ordenar 31 480 linhas para ficar com 8; barato aqui, mas evitável.
 - Compare as linhas **estimadas** `rows=30000` com as **reais** `rows=31480`: próximas, então as estatísticas estão boas. Uma diferença grande (100× fora) apontaria estatísticas desatualizadas (`ANALYZE`) ou colunas correlacionadas.
 
@@ -300,7 +300,7 @@ De 412 ms para 0,08 ms e de ~62 000 páginas para 5. O `CONCURRENTLY` constrói 
 
 !!! example "No código do BoxOffice: um índice em vez de um cache (lab 6)"
 
-    O [Hands-on 6 — Índices](../../../hands-on/6/indexes/index.md) faz isso no endpoint lento desde o lab 1, a listagem do catálogo "próximos eventos de uma cidade, os mais próximos primeiro". O `EXPLAIN ANALYZE` mostrou um `Parallel Seq Scan` e uma ordenação de 200.000 linhas para devolver 20. Um índice na ordem de `starts_at` deixa o PostgreSQL percorrer os eventos já ordenados e parar depois de uma página (189 entradas de índice lidas): na execução do lab, a consulta da página foi de ~37 ms para 0,62 ms, e a contagem de ~14 ms para ~4 ms com um *Index Only Scan*. A migração é um arquivo novo — `V1` e `V2` nunca são editados — e o lab mede com o cache desligado, para que o índice seja julgado sozinho.
+    O [Hands-on 6 — Índices](../../../hands-on/6/indexes/index.md) faz isso no endpoint lento desde o lab 1, a listagem do catálogo "próximos eventos de uma cidade, os mais próximos primeiro". O `EXPLAIN ANALYZE` mostrou um `Parallel Seq Scan` e uma ordenação de 200.000 linhas para devolver 20. Um índice na ordem de `starts_at` deixa o PostgreSQL percorrer os eventos já ordenados e parar depois de uma página (189 entradas de índice lidas): na execução do lab, a consulta da página foi de ~37 ms para 0,62 ms e a contagem de ~14 ms para ~4 ms com um *Index Only Scan*. A migração é um arquivo novo — `V1` e `V2` nunca são editados — e o lab mede com o cache desligado, para que o índice seja julgado sozinho.
 
     ``` { .sql title="services/catalog/src/main/resources/db/migration/V3__index_events.sql" }
     --8<-- "docs/2027.1/hands-on/6/code/services/catalog/src/main/resources/db/migration/V3__index_events.sql"
@@ -360,9 +360,9 @@ spring:
       connection-timeout: 2000    # wait at most 2 s for a connection (the default is 30 s)
 ```
 
-!!! example "No código do BoxOffice: um pool que move o joelho, e um pooler (labs 2 e 6)"
+!!! example "No código do BoxOffice: um pool que move o joelho e um pooler (labs 2 e 6)"
 
-    No [Hands-on 2](../../../hands-on/2/index.md) o pool do `catalog` (10 conexões, `DB_POOL_SIZE`) é o primeiro recurso a saturar, e subi-lo para 30 move o joelho para cima — até a única CPU do `catalog` ou o PostgreSQL saturarem em seguida. O [Hands-on 6 — Réplicas e PgBouncer](../../../hands-on/6/replicas/index.md) então conta quanto custam pools maiores: cada réplica de cada serviço abre o seu. Em pooling por transação, o PgBouncer empresta uma de 20 conexões reais por uma transação de cada vez: na execução do lab o PostgreSQL viu cerca de 60 conexões da aplicação, 20 delas do PgBouncer servindo todo o `inventory`. Sem ele, `INVENTORY_POOL_SIZE=40` contra `max_connections=80` falha com `too many clients already`; com ele, a mesma demanda vira **fila** (`cl_waiting`). O preço: recursos de sessão (os locks do Flyway) precisam contornar o pooler.
+    No [Hands-on 2](../../../hands-on/2/index.md) o pool do `catalog` (10 conexões, `DB_POOL_SIZE`) é o primeiro recurso a saturar e subi-lo para 30 move o joelho para cima — até a única CPU do `catalog` ou o PostgreSQL saturarem em seguida. O [Hands-on 6 — Réplicas e PgBouncer](../../../hands-on/6/replicas/index.md) então conta quanto custam pools maiores: cada réplica de cada serviço abre o seu. Em pooling por transação, o PgBouncer empresta uma de 20 conexões reais por uma transação de cada vez: na execução do lab o PostgreSQL viu cerca de 60 conexões da aplicação, 20 delas do PgBouncer servindo todo o `inventory`. Sem ele, `INVENTORY_POOL_SIZE=40` contra `max_connections=80` falha com `too many clients already`; com ele, a mesma demanda vira **fila** (`cl_waiting`). O preço: recursos de sessão (os locks do Flyway) precisam contornar o pooler.
 
     ``` { .ini title="infra/pgbouncer/pgbouncer.ini" }
     --8<-- "docs/2027.1/hands-on/6/code/infra/pgbouncer/pgbouncer.ini"
@@ -385,7 +385,7 @@ Mantenha um diário de cada execução: o que mudou, o novo joelho e o que satur
 
 Depois da execução 6, o gargalo é deliberado: a taxa de admissão da sala de espera, definida abaixo do joelho do banco. Escalar além disso exigiria particionar o inventário por evento ou local ([Bancos de dados — particionamento](../../databases/partitioning/index.md)) — uma mudança muito maior, agora justificada por números.
 
-Experimente: o cenário `monolith` (um servidor de aplicação e um PostgreSQL, perfil **breakpoint**) produz as duas primeiras linhas de um registro desses em poucos minutos. Rode como está e abra o Relatório: o gargalo é o `app`, já 86 % ocupado a cerca de 430 req/s, e o sistema quebra a cerca de **590 req/s**. Mude uma coisa — selecione o `app` e suba as réplicas para 6 — e rode de novo: o ponto de ruptura salta para cerca de **2.520 req/s**, e o gargalo passa para o `db`, 87 % ocupado a cerca de 2.180 req/s. Agora mude a coisa *errada*: 12 réplicas em vez de 6. O ponto de ruptura continua em cerca de 2.520 req/s enquanto o custo mensal vai de cerca de 1.170 para 1.890 USD — acrescentar capacidade a um componente que não é o gargalo não compra nada.
+Experimente: o cenário `monolith` (um servidor de aplicação e um PostgreSQL, perfil **breakpoint**) produz as duas primeiras linhas de um registro desses em poucos minutos. Rode como está e abra o Relatório: o gargalo é o `app`, já 86 % ocupado a cerca de 430 req/s e o sistema quebra a cerca de **590 req/s**. Mude uma coisa — selecione o `app` e suba as réplicas para 6 — e rode de novo: o ponto de ruptura salta para cerca de **2.520 req/s** e o gargalo passa para o `db`, 87 % ocupado a cerca de 2.180 req/s. Agora mude a coisa *errada*: 12 réplicas em vez de 6. O ponto de ruptura continua em cerca de 2.520 req/s enquanto o custo mensal vai de cerca de 1.170 para 1.890 USD — acrescentar capacidade a um componente que não é o gargalo não compra nada.
 
 <div class="sdp" data-scenario="monolith" data-mode="full" data-profile="breakpoint" data-height="620"></div>
 
@@ -396,8 +396,8 @@ Experimente: o cenário `monolith` (um servidor de aplicação e um PostgreSQL, 
 !!! success "Boas práticas"
 
     - **Ligue o `pg_stat_statements` e o log de consultas lentas em todo ambiente desde o primeiro dia** — por exemplo `log_min_duration_statement = 200ms`; a pergunta "qual consulta?" é feita durante um incidente, sobre dados que já precisam existir.
-    - **Entregue cada índice como uma nova migração versionada, e construa-o com `CONCURRENTLY` em tabelas grandes em uso** — a mudança de esquema é revisada, repetível em todo ambiente e não bloqueia escritas. No BoxOffice: o `V3__index_events.sql` do [lab 6](../../../hands-on/6/indexes/index.md).
-    - **Coloque um pooler na frente do PostgreSQL quando vários serviços e réplicas se conectam, e falhe rápido na espera por conexão** — o pooling por transação mantém as conexões no servidor perto do que a Lei de Little exige; um `connection-timeout` de 2 s em vez de 30 s transforma uma fila num erro claro. No BoxOffice: o `infra/pgbouncer/pgbouncer.ini` do [lab 6](../../../hands-on/6/replicas/index.md).
+    - **Entregue cada índice como uma nova migração versionada e construa-o com `CONCURRENTLY` em tabelas grandes em uso** — a mudança de esquema é revisada, repetível em todo ambiente e não bloqueia escritas. No BoxOffice: o `V3__index_events.sql` do [lab 6](../../../hands-on/6/indexes/index.md).
+    - **Coloque um pooler na frente do PostgreSQL quando vários serviços e réplicas se conectam e falhe rápido na espera por conexão** — o pooling por transação mantém as conexões no servidor perto do que a Lei de Little exige; um `connection-timeout` de 2 s em vez de 30 s transforma uma fila num erro claro. No BoxOffice: o `infra/pgbouncer/pgbouncer.ini` do [lab 6](../../../hands-on/6/replicas/index.md).
     - **Mantenha o registro de otimizações no repositório** — uma linha por execução: a mudança, o novo joelho, o que saturou em seguida; é a evidência por trás de cada número de capacidade. No BoxOffice: as varreduras com pool 10 e pool 30 do [lab 2](../../../hands-on/2/index.md).
     - **Rode profiling contínuo em produção com uma taxa de amostragem baixa** — alguns por cento de overhead compram o flame graph do incidente antes que alguém o peça.
 

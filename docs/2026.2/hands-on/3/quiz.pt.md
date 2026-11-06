@@ -18,7 +18,7 @@ Clique em **"Resposta"** para ver a resposta correta e a explicação.
 
 ---
 
-**Q2.** Qual serviço **gera os tokens JWT** após um login bem-sucedido, e por que essa responsabilidade fica com ele?
+**Q2.** Qual serviço **gera os tokens JWT** após um login bem-sucedido e por que essa responsabilidade fica com ele?
 
 - A. O gateway — ele cuida de toda a lógica de autenticação, por ser o ponto de entrada
 - B. O serviço de contas — ele é o dono dos dados de identidade do usuário
@@ -60,7 +60,7 @@ Clique em **"Resposta"** para ver a resposta correta e a explicação.
 
 ---
 
-**Q5.** Por que o `AuthController` é definido como uma **interface no módulo `auth`**, e não diretamente dentro do `auth-service`?
+**Q5.** Por que o `AuthController` é definido como uma **interface no módulo `auth`** e não diretamente dentro do `auth-service`?
 
 - A. O Spring Boot exige que interfaces e implementações fiquem em módulos Maven separados
 - B. Isso reduz o tempo de compilação, ao separar a interface da implementação
@@ -70,6 +70,6 @@ Clique em **"Resposta"** para ver a resposta correta e a explicação.
 ??? success "Resposta"
     **C — Separação da interface para um gerenciamento limpo de dependências.**
 
-    Um cliente Feign só precisa da interface e dos DTOs, então quem chama depende da biblioteca enxuta `auth` — exatamente como o próprio `auth-service` chama o `account-service` pela biblioteca `account`. Depender do `auth-service` levaria o JJWT, o Spring MVC e todo o resto do serviço para o classpath de quem chama. (O Gateway é a exceção: ele é reativo, então chama o `/auth/solve` com `WebClient`, e não com Feign.)
+    Um cliente Feign só precisa da interface e dos DTOs, então quem chama depende da biblioteca enxuta `auth` — exatamente como o próprio `auth-service` chama o `account-service` pela biblioteca `account`. Depender do `auth-service` levaria o JJWT, o Spring MVC e todo o resto do serviço para o classpath de quem chama. (O Gateway é a exceção: ele é reativo, então chama o `/auth/solve` com `WebClient` e não com Feign.)
 
 ---

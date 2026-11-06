@@ -25,7 +25,7 @@ Escalar as **escritas** exige outra técnica, o **sharding** (dividir os dados e
 
 ## Como o PostgreSQL replica: o WAL
 
-Antes de alterar uma página de dados, o PostgreSQL grava a alteração no **WAL** (*write-ahead log*), um log em disco que só recebe acréscimos (append-only). Depois de um crash, o servidor reexecuta o WAL para se recuperar. A replicação reaproveita o mesmo log: o primário envia o seu WAL às réplicas, que o reexecutam, byte a byte, e terminam com cópias idênticas.
+Antes de alterar uma página de dados, o PostgreSQL grava a alteração no **WAL** (*write-ahead log*), um log em disco que só recebe acréscimos (append-only). Depois de um crash, o servidor reexecuta o WAL para se recuperar. A replicação reaproveita o mesmo log: o primário envia o seu WAL às réplicas, que o reexecutam, byte a byte e terminam com cópias idênticas.
 
 ``` mermaid-sim
 sequenceDiagram
@@ -104,7 +104,7 @@ Quando o primário falha, uma réplica precisa ser **promovida** a primário, as
 
 !!! warning "Split brain"
 
-    A falha perigosa não é um primário morto, mas um primário que **parece** morto — isolado pela rede, mas ainda aceitando escritas. Se uma réplica for promovida, o cluster passa a ter **dois primários** e os dados divergem. Por isso, o failover automático precisa de acordo entre vários nós, um algoritmo de [consenso](../../classes/distributed_systems/consensus/index.md): o [Patroni](https://patroni.readthedocs.io){target="_blank"} guarda o lock de líder no etcd (Raft), e os serviços gerenciados (RDS Multi-AZ, Aurora, Cloud SQL) fazem o mesmo internamente.
+    A falha perigosa não é um primário morto, mas um primário que **parece** morto — isolado pela rede, mas ainda aceitando escritas. Se uma réplica for promovida, o cluster passa a ter **dois primários** e os dados divergem. Por isso, o failover automático precisa de acordo entre vários nós, um algoritmo de [consenso](../../classes/distributed_systems/consensus/index.md): o [Patroni](https://patroni.readthedocs.io){target="_blank"} guarda o lock de líder no etcd (Raft) e os serviços gerenciados (RDS Multi-AZ, Aurora, Cloud SQL) fazem o mesmo internamente.
 
 <div class="grid cards" markdown>
 

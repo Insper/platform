@@ -120,7 +120,7 @@ graph TD
 - Construir uma nova aplicação sem expertise em infraestrutura na equipe
 - Prototipagem rápida e MVPs
 - Backends de API e microsserviços que não precisam de controle do SO
-- Equipes que querem entregar funcionalidades, e não gerenciar servidores
+- Equipes que querem entregar funcionalidades e não gerenciar servidores
 
 !!! example "Fluxo típico em PaaS"
     1. `git push heroku main` (ou conecte um repositório do GitHub)
@@ -157,7 +157,7 @@ Os modelos fundamentais deram origem a variantes especializadas, voltadas a uma 
 
 ### FaaS — Função como Serviço (Serverless)
 
-O extremo do PaaS. Você implanta **funções** individuais, e não aplicações. O provedor gerencia tudo — inclusive escalar até zero quando ocioso — e cobra apenas pelos milissegundos em que a função executa.
+O extremo do PaaS. Você implanta **funções** individuais e não aplicações. O provedor gerencia tudo — inclusive escalar até zero quando ocioso — e cobra apenas pelos milissegundos em que a função executa.
 
 | | |
 |---|---|

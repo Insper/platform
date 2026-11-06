@@ -1,10 +1,10 @@
-Na manhã seguinte a uma grande abertura de vendas, chegam dois chamados ao suporte. A Ana recebeu **três** e-mails de confirmação idênticos. O Bruno não recebeu **nenhum**, embora seu pedido esteja confirmado e os ingressos estejam no app. Os dois problemas têm a mesma raiz: as mensagens atravessam várias máquinas e redes, qualquer uma delas pode falhar entre dois passos, e cada falha ou **perde** uma mensagem ou a **repete**. Esta página é sobre decidir qual das duas você pode tolerar, e sobre escrever consumidores para os quais uma repetição não causa dano.
+Na manhã seguinte a uma grande abertura de vendas, chegam dois chamados ao suporte. A Ana recebeu **três** e-mails de confirmação idênticos. O Bruno não recebeu **nenhum**, embora seu pedido esteja confirmado e os ingressos estejam no app. Os dois problemas têm a mesma raiz: as mensagens atravessam várias máquinas e redes, qualquer uma delas pode falhar entre dois passos e cada falha ou **perde** uma mensagem ou a **repete**. Esta página é sobre decidir qual das duas você pode tolerar e sobre escrever consumidores para os quais uma repetição não causa dano.
 
 ---
 
 ## Onde mensagens se perdem ou se duplicam { #where-messages-get-lost-or-duplicated }
 
-Siga um `OrderConfirmed` do `order` até o `notification`. Ele atravessa três trechos, e cada trecho tem a sua falha:
+Siga um `OrderConfirmed` do `order` até o `notification`. Ele atravessa três trechos e cada trecho tem a sua falha:
 
 ``` diagram-sim
 flowchart LR
@@ -43,7 +43,7 @@ Uma **garantia de entrega** diz quantas vezes cada mensagem é *processada* na p
     O consumidor `payment` começa at-least-once (*cobra → commit*) e vai cair logo depois de cobrar o `o-1003`. Dê play.
 
     - Veja o reinício ler o `o-1003` de novo: **7 cobranças para 6 pedidos**, um cliente paga duas vezes.
-    - Troque para *commit → cobra* e derrube *após o commit*: o offset passa do `o-1003` antes da cobrança, e o pedido é **perdido** (5 cobranças). Cair no outro ponto é inofensivo para cada estratégia — o perigo é o intervalo entre os dois passos.
+    - Troque para *commit → cobra* e derrube *após o commit*: o offset passa do `o-1003` antes da cobrança e o pedido é **perdido** (5 cobranças). Cair no outro ponto é inofensivo para cada estratégia — o perigo é o intervalo entre os dois passos.
     - Ligue a **chave de idempotência**: com *cobra → commit* a reentrega é pulada (6 cobranças, ninguém duas vezes) — efetivamente uma vez; com *commit → cobra* o pedido continua perdido, porque a deduplicação elimina repetições, não perdas.
 
     O consumidor `notification` do lab 7 usa a combinação que funciona: ele faz commit depois de cada registro (`ack-mode: record`) e deduplica em `processed_events` (`NOTIFY_IDEMPOTENT=true`).
@@ -133,7 +133,7 @@ O Kafka garante ordem **por partição**, ou seja, por chave. Várias coisas ain
 - **Processamento paralelo dentro de um consumidor.** Um pool de threads processa registros da mesma chave ao mesmo tempo.
 - **Retries no consumidor.** Mover um registro com falha para um tópico de retry deixa registros posteriores da mesma chave passarem na frente (próxima seção).
 
-Quando a ordem importa e o transporte não consegue garanti-la, torne o **consumidor** tolerante: carregue em cada evento uma **versão** (ou número de sequência) vinda da fonte da verdade, e ignore qualquer coisa mais antiga do que você já aplicou:
+Quando a ordem importa e o transporte não consegue garanti-la, torne o **consumidor** tolerante: carregue em cada evento uma **versão** (ou número de sequência) vinda da fonte da verdade e ignore qualquer coisa mais antiga do que você já aplicou:
 
 ```sql
 -- search keeps "seats left" per event; inventory stamps each change with a version
@@ -147,7 +147,7 @@ Isso torna a atualização idempotente *e* insensível à ordem: aplicar as vers
 
 ??? question "Pense antes: ordenar por `orderId` basta para o índice de busca?"
 
-    Não, se os eventos vêm de serviços diferentes. O `inventory` publica `SeatsHeld` e `SeatsReleased` com chave pelo lugar ou pelo evento, o `order` publica `OrderConfirmed` com chave pelo pedido. O índice de busca os vê intercalados de forma arbitrária. A solução não é uma ordem global (que mataria o paralelismo), e sim uma **versão por entidade** produzida pelo serviço que é dono dela: a disponibilidade do evento `ev-88` é versionada pelo `inventory`, e a busca só aplica versões mais novas.
+    Não, se os eventos vêm de serviços diferentes. O `inventory` publica `SeatsHeld` e `SeatsReleased` com chave pelo lugar ou pelo evento, o `order` publica `OrderConfirmed` com chave pelo pedido. O índice de busca os vê intercalados de forma arbitrária. A solução não é uma ordem global (que mataria o paralelismo) e sim uma **versão por entidade** produzida pelo serviço que é dono dela: a disponibilidade do evento `ev-88` é versionada pelo `inventory` e a busca só aplica versões mais novas.
 
 ---
 
@@ -216,13 +216,13 @@ Operando uma DLQ:
 
 ### Backpressure no consumidor { #backpressure-in-the-consumer }
 
-Um consumidor Kafka *puxa* as mensagens, então nunca é inundado pelo broker — mas ele pode inundar quem ele chama. O serviço `notification` não deve exceder o limite de taxa do provedor de e-mail só porque há um backlog de 100.000 mensagens esperando. Controle o ritmo com `max.poll.records` e um rate limiter no cliente, **pause** as partições enquanto um circuit breaker mais adiante estiver aberto (veja [Padrões de resiliência](../../reliability/patterns/index.md)), e deixe o lag crescer: um backlog que escoa no ritmo do provedor é melhor que ser banido pelo provedor.
+Um consumidor Kafka *puxa* as mensagens, então nunca é inundado pelo broker — mas ele pode inundar quem ele chama. O serviço `notification` não deve exceder o limite de taxa do provedor de e-mail só porque há um backlog de 100.000 mensagens esperando. Controle o ritmo com `max.poll.records` e um rate limiter no cliente, **pause** as partições enquanto um circuit breaker mais adiante estiver aberto (veja [Padrões de resiliência](../../reliability/patterns/index.md)) e deixe o lag crescer: um backlog que escoa no ritmo do provedor é melhor que ser banido pelo provedor.
 
 ---
 
 ## Evolução de schema { #schema-evolution }
 
-Eventos vivem mais que o código que os produziu: um tópico com 7 dias de retenção contém mensagens escritas pela versão da semana passada do `order`, e os consumidores que as leem podem ser meses mais velhos ou mais novos. Você não consegue implantar produtores e consumidores de forma atômica, então **toda mudança de schema precisa ser compatível** com as versões ainda em execução[^4].
+Eventos vivem mais que o código que os produziu: um tópico com 7 dias de retenção contém mensagens escritas pela versão da semana passada do `order` e os consumidores que as leem podem ser meses mais velhos ou mais novos. Você não consegue implantar produtores e consumidores de forma atômica, então **toda mudança de schema precisa ser compatível** com as versões ainda em execução[^4].
 
 | Compatibilidade | Garante | Mudanças seguras | Ordem do deploy |
 |---|---|---|---|

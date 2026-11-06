@@ -1,4 +1,4 @@
-Chega a primeira fatura real do ambiente de produção do BoxOffice, e ela é três vezes a estimativa. Ninguém sabe explicar por quê: os custos estão espalhados em quarenta itens, metade deles com nomes como `USE1-NatGateway-Bytes` e `DataTransfer-Regional-Bytes`, e nenhum recurso tem uma tag com o serviço que o criou. Na nuvem, **toda decisão de arquitetura é também uma decisão de compra** — e a fatura é a única métrica que todo executivo lê.
+Chega a primeira fatura real do ambiente de produção do BoxOffice e ela é três vezes a estimativa. Ninguém sabe explicar por quê: os custos estão espalhados em quarenta itens, metade deles com nomes como `USE1-NatGateway-Bytes` e `DataTransfer-Regional-Bytes`, e nenhum recurso tem uma tag com o serviço que o criou. Na nuvem, **toda decisão de arquitetura é também uma decisão de compra** — e a fatura é a única métrica que todo executivo lê.
 
 **FinOps** (operações financeiras de nuvem) é a prática de trazer responsabilidade financeira ao modelo de gastos variáveis da nuvem, para que engenharia, finanças e negócio façam juntos os trade-offs entre velocidade, custo e qualidade[^1]. Para quem projeta sistemas, isso se resume a três habilidades: **estimar** quanto uma arquitetura vai custar, **atribuir** quanto ela de fato custa e **otimizar** sem quebrar os SLOs[^2].
 
@@ -198,7 +198,7 @@ print(buf.getvalue())
 plt.close()
 ```
 
-Abaixo de aproximadamente dez requisições por segundo *em média*, pagar por requisição vence — containers ociosos são puro desperdício. Acima disso, o adicional por requisição se acumula e containers sempre ligados vencem, ainda mais com compromissos. Tráfego em rajadas muda o quadro: o que importa é a **média**, enquanto os containers precisam ser dimensionados para o **pico** (ou escalar automaticamente). É por isso que o BoxOffice roda o gerador de miniaturas e os receptores de webhook como funções, e o caminho de compra em containers.
+Abaixo de aproximadamente dez requisições por segundo *em média*, pagar por requisição vence — containers ociosos são puro desperdício. Acima disso, o adicional por requisição se acumula e containers sempre ligados vencem, ainda mais com compromissos. Tráfego em rajadas muda o quadro: o que importa é a **média**, enquanto os containers precisam ser dimensionados para o **pico** (ou escalar automaticamente). É por isso que o BoxOffice roda o gerador de miniaturas e os receptores de webhook como funções e o caminho de compra em containers.
 
 ---
 
@@ -238,7 +238,7 @@ Entrevistadores raramente querem dólares, mas consciência de custo é um sinal
 
 !!! success "Boas práticas"
 
-    - **Distribua a conta do cluster pelos requests de recursos, por namespace e label** — os nós são compartilhados, então os requests são a chave justa, e são eles que o scheduler reserva.
+    - **Distribua a conta do cluster pelos requests de recursos, por namespace e label** — os nós são compartilhados, então os requests são a chave justa e são eles que o scheduler reserva.
     - **Defina um orçamento com alertas em 50%, 80% e 100%, além de um alerta de anomalia no gasto diário** — um cluster de teste de carga esquecido aparece em um dia, não na fatura.
     - **Coloque o custo de uma mudança de projeto no seu documento de projeto, em dólares por mês** — "PostgreSQL Multi-AZ: +US$ 187/mês, uma falha de zona vira um failover de um minuto" permite ao revisor julgar o trade-off. No BoxOffice: [alavancas de otimização](#optimization-levers).
     - **Comprometa-se só até o menor uso dos últimos meses** — compromissos são pagos com ou sem uso; o piso é a única parte segura. No BoxOffice: os 6 nós sempre ligados, não os 24 nós da venda ([modelo de custos](#cost-model)).

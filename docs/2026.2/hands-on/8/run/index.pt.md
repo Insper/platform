@@ -135,4 +135,4 @@ Uma taxa de acertos saudável fica acima de 90% em workloads com muitas leituras
 
 ---
 
-Pronto! O Redis agora atua como uma camada de cache compartilhada e persistente entre todas as réplicas dos microsserviços. A carga no banco de dados cai na proporção da taxa de acertos do cache, e todas as réplicas do gateway compartilham o mesmo estado de cache, não importa qual instância atenda cada requisição. O banco por trás do cache, porém, ainda é um único container: o [hands-on 9](../../9/index.md) o transforma em um cluster com réplicas e failover.
+Pronto! O Redis agora atua como uma camada de cache compartilhada e persistente entre todas as réplicas dos microsserviços. A carga no banco de dados cai na proporção da taxa de acertos do cache e todas as réplicas do gateway compartilham o mesmo estado de cache, não importa qual instância atenda cada requisição. O banco por trás do cache, porém, ainda é um único container: o [hands-on 9](../../9/index.md) o transforma em um cluster com réplicas e failover.

@@ -1,14 +1,14 @@
 
-Quando a loja roda no Kubernetes ([Hands-on 5](../../../hands-on/5/index.md)), todo o estado do cluster — quais pods existem, qual imagem cada Deployment roda, quais Secrets estão definidos — fica no **etcd**. Um cluster de produção roda três ou cinco membros do etcd para que o cluster sobreviva à perda de uma máquina. Mas a replicação traz uma pergunta: se dois comandos `kubectl apply` chegam a dois membros diferentes no mesmo instante, e um dos membros cai em seguida, **qual versão é a verdade**, e como os sobreviventes concordam sobre ela sem um árbitro? Responder a essa pergunta é o problema do consenso.
+Quando a loja roda no Kubernetes ([Hands-on 5](../../../hands-on/5/index.md)), todo o estado do cluster — quais pods existem, qual imagem cada Deployment roda, quais Secrets estão definidos — fica no **etcd**. Um cluster de produção roda três ou cinco membros do etcd para que o cluster sobreviva à perda de uma máquina. Mas a replicação traz uma pergunta: se dois comandos `kubectl apply` chegam a dois membros diferentes no mesmo instante e um dos membros cai em seguida, **qual versão é a verdade** e como os sobreviventes concordam sobre ela sem um árbitro? Responder a essa pergunta é o problema do consenso.
 
-**Consenso** é o problema de fazer um grupo de nós distribuídos concordar sobre um único valor — apesar de mensagens atrasadas, perdidas ou reordenadas, e apesar da falha de alguns nós. Ele é a primitiva fundamental para eleição de líder, locks distribuídos, máquinas de estado replicadas e repositórios de configuração consistentes.
+**Consenso** é o problema de fazer um grupo de nós distribuídos concordar sobre um único valor — apesar de mensagens atrasadas, perdidas ou reordenadas e apesar da falha de alguns nós. Ele é a primitiva fundamental para eleição de líder, locks distribuídos, máquinas de estado replicadas e repositórios de configuração consistentes.
 
 Uma **máquina de estado replicada** é o uso mais comum: todo nó começa no mesmo estado e aplica os mesmos comandos **na mesma ordem** (um *log*), de modo que todo nó termina no mesmo estado. O consenso é o que faz todos os nós concordarem sobre a próxima entrada do log.
 
 Um algoritmo de consenso correto precisa garantir dois tipos de propriedade:
 
 **Safety** (segurança: "nada de ruim acontece")
-: Todos os nós que decidem, decidem o **mesmo** valor, e esse valor foi de fato proposto por alguém.
+: Todos os nós que decidem, decidem o **mesmo** valor e esse valor foi de fato proposto por alguém.
 
 **Liveness** (vivacidade: "algo de bom acaba acontecendo")
 : Todo nó que não falhou **acaba** decidindo.
@@ -133,7 +133,7 @@ stateDiagram-v2
   Leader --> Follower : vê um term maior
 ```
 
-Os **terms** (mandatos) funcionam como relógios lógicos (veja [Tempo e ordenação](../index.md#time-and-ordering-logical-clocks)): cada term começa com uma eleição, e há no máximo um líder por term. Um nó que recebe uma mensagem de um term maior volta imediatamente a ser follower.
+Os **terms** (mandatos) funcionam como relógios lógicos (veja [Tempo e ordenação](../index.md#time-and-ordering-logical-clocks)): cada term começa com uma eleição e há no máximo um líder por term. Um nó que recebe uma mensagem de um term maior volta imediatamente a ser follower.
 
 ### Sequência da eleição de líder
 
@@ -178,10 +178,10 @@ sequenceDiagram
   L-->>C: Success
 ```
 
-O líder só responde ao cliente depois que uma maioria dos nós (contando ele mesmo) gravou a entrada de forma durável. Como qualquer líder futuro precisa receber votos de uma maioria, e qualquer maioria contém pelo menos um nó que tem a entrada, uma entrada confirmada sobrevive à falha de qualquer **minoria** dos nós.
+O líder só responde ao cliente depois que uma maioria dos nós (contando ele mesmo) gravou a entrada de forma durável. Como qualquer líder futuro precisa receber votos de uma maioria e qualquer maioria contém pelo menos um nó que tem a entrada, uma entrada confirmada sobrevive à falha de qualquer **minoria** dos nós.
 
 !!! info "Experimente"
-    A [visualização do Raft](https://raft.github.io/){target="_blank"}[^4] permite parar nós e assistir a uma nova eleição, e [The Secret Lives of Data](https://thesecretlivesofdata.com/raft/){target="_blank"}[^5] percorre o Raft passo a passo.
+    A [visualização do Raft](https://raft.github.io/){target="_blank"}[^4] permite parar nós e assistir a uma nova eleição e [The Secret Lives of Data](https://thesecretlivesofdata.com/raft/){target="_blank"}[^5] percorre o Raft passo a passo.
 
 ---
 
@@ -212,7 +212,7 @@ A **consistência ajustável do Cassandra** expõe W e R como parâmetros por re
 | escrita `ALL`, leitura `ONE` | 3 | 1 | ✅ | leituras rápidas, mas um único nó fora do ar bloqueia todas as escritas |
 
 !!! warning "W + R > N é necessário, mas não suficiente"
-    A sobreposição garante que uma leitura *contate* um nó com a escrita mais recente, mas restam casos-limite: duas escritas concorrentes, uma escrita que teve sucesso em menos de W nós e foi reportada como falha, ou quóruns "sloppy" (frouxos), que aceitam escritas em nós substitutos durante falhas. Por isso, bancos de dados baseados em quórum costumam ser descritos como oferecendo consistência *ajustável*, e não linearizabilidade.
+    A sobreposição garante que uma leitura *contate* um nó com a escrita mais recente, mas restam casos-limite: duas escritas concorrentes, uma escrita que teve sucesso em menos de W nós e foi reportada como falha, ou quóruns "sloppy" (frouxos), que aceitam escritas em nós substitutos durante falhas. Por isso, bancos de dados baseados em quórum costumam ser descritos como oferecendo consistência *ajustável* e não linearizabilidade.
 
 ---
 
@@ -276,7 +276,7 @@ O setup do Kafka do [Hands-on 10](../../../hands-on/10/index.md) roda o Kafka 4 
 
 - [Teorema CAP](../cap/index.md) — armazenamentos baseados em consenso (etcd, ZooKeeper) são os sistemas CP clássicos.
 - [Hands-on 5](../../../hands-on/5/index.md) — o Kubernetes guarda todo o seu estado no etcd, replicado com Raft.
-- [Hands-on 9](../../../hands-on/9/failover/index.md) — um failover de PostgreSQL feito à mão, e por que automatizá-lo (Patroni + etcd) exige consenso para evitar split brain.
+- [Hands-on 9](../../../hands-on/9/failover/index.md) — um failover de PostgreSQL feito à mão e por que automatizá-lo (Patroni + etcd) exige consenso para evitar split brain.
 - [Hands-on 10](../../../hands-on/10/index.md) e [Arquitetura orientada a eventos](../../event_driven/index.md) — o Kafka replica as partições com um líder por partição.
 
 ## Pontos-chave

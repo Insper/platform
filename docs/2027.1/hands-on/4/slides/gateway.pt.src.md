@@ -28,7 +28,7 @@ JWT, login.
 
 ---
 
-## Quem é você, e o que você pode fazer?
+## Quem é você e o que você pode fazer?
 
 <div class="q">
 

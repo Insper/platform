@@ -82,7 +82,7 @@ $$
 A_{series} = a_1 \times a_2 \times \dots \times a_n = \prod_{i=1}^{n} a_i
 $$
 
-A cadeia é sempre **pior que seu elo mais fraco**, e cada dependência síncrona a mais baixa o teto. O gráfico mostra $a^n$ para n componentes idênticos:
+A cadeia é sempre **pior que seu elo mais fraco** e cada dependência síncrona a mais baixa o teto. O gráfico mostra $a^n$ para n componentes idênticos:
 
 ```python exec="1" html="1"
 from io import StringIO
@@ -179,7 +179,7 @@ Três lições, em ordem decrescente de custo-benefício:
 
 ## A premissa da independência { #the-independence-assumption }
 
-Todas as fórmulas acima supõem que os componentes falham de forma **independente**. Falhas reais costumam ser **correlacionadas**, e a correlação destrói a fórmula do paralelo:
+Todas as fórmulas acima supõem que os componentes falham de forma **independente**. Falhas reais costumam ser **correlacionadas** e a correlação destrói a fórmula do paralelo:
 
 - Duas réplicas no **mesmo host, rack ou zona de disponibilidade** caem junto com ele.
 - Duas réplicas rodando a **mesma versão com bug** quebram com a mesma entrada.
@@ -189,7 +189,7 @@ Todas as fórmulas acima supõem que os componentes falham de forma **independen
 
 !!! example "BoxOffice — três réplicas, uma queda"
 
-    O serviço de inventário roda 3 réplicas, cada uma 99,5% disponível sozinha: a fórmula do paralelo promete 1 − 0,005³ ≈ 99,99999%. Na prática, a pior queda do ano veio de uma versão com uma configuração errada do pool de conexões, implantada nas três réplicas em 2 minutos. As três falharam juntas, por 40 minutos, até o rollback. **A redundância não ajudou, porque a falha não era independente.** As correções não são mais réplicas, e sim *diversidade no tempo e no espaço*: deploys canário (uma réplica primeiro, observar, depois o resto), réplicas espalhadas por zonas e rollback rápido (MTTR menor).
+    O serviço de inventário roda 3 réplicas, cada uma 99,5% disponível sozinha: a fórmula do paralelo promete 1 − 0,005³ ≈ 99,99999%. Na prática, a pior queda do ano veio de uma versão com uma configuração errada do pool de conexões, implantada nas três réplicas em 2 minutos. As três falharam juntas, por 40 minutos, até o rollback. **A redundância não ajudou, porque a falha não era independente.** As correções não são mais réplicas e sim *diversidade no tempo e no espaço*: deploys canário (uma réplica primeiro, observar, depois o resto), réplicas espalhadas por zonas e rollback rápido (MTTR menor).
 
 Projetar para a independência — domínios de falha separados (zonas, regiões), implantações graduais, nenhuma dependência compartilhada escondida — é tão importante quanto acrescentar réplicas.
 
@@ -205,17 +205,17 @@ $$
 
 Dez failovers por ano a 30 s + 30 s cada dão 10 minutos: tudo bem para 99,99% (52 minutos por ano), mas consome um quinto do orçamento. Health checks mais rápidos, novas tentativas do lado do cliente para outra réplica e drenagem de conexões reduzem esse tempo.
 
-**Experimente.** No cenário `scale-out` uma réplica do `catalog` cai em t = 80 s, e nada avisa o load balancer: ele continua mandando a essa réplica sua parte do tráfego por ~30 s. Primeiro dê ao design capacidade para sobreviver à perda — clique em `catalog` e aumente as réplicas para **5** — e aperte **Run**: observe a taxa de erros a partir de t = 80 s. Depois abra no playground completo (↗), acrescente um **Health Check**, ligue-o ao load balancer e rode de novo.
+**Experimente.** No cenário `scale-out` uma réplica do `catalog` cai em t = 80 s e nada avisa o load balancer: ele continua mandando a essa réplica sua parte do tráfego por ~30 s. Primeiro dê ao design capacidade para sobreviver à perda — clique em `catalog` e aumente as réplicas para **5** — e aperte **Run**: observe a taxa de erros a partir de t = 80 s. Depois abra no playground completo (↗), acrescente um **Health Check**, ligue-o ao load balancer e rode de novo.
 
 <div class="sdp" data-scenario="scale-out" data-mode="compact" data-height="520"></div>
 
 ??? question "O que você deveria ter observado?"
 
-    Com 5 réplicas e sem health check, uma requisição em cada cinco vai para a réplica morta: cerca de **20% das requisições falham de t ≈ 81 s a t ≈ 110 s**, cerca de 4% da execução inteira de 3 minutos. Com o health check, a réplica sai em 3 s: os erros vão de t ≈ 81 s a 83 s e a execução termina com cerca de **0,4%** — a mesma falha, um décimo do estrago, exatamente como *indisponibilidade ≈ falhas × tempo de detecção* prevê. Com as 2 réplicas do desenho original, a detecção não é o primeiro problema: as duas réplicas estão sobrecarregadas antes da queda (ρ > 1), e perder uma corta a capacidade pela metade de novo.
+    Com 5 réplicas e sem health check, uma requisição em cada cinco vai para a réplica morta: cerca de **20% das requisições falham de t ≈ 81 s a t ≈ 110 s**, cerca de 4% da execução inteira de 3 minutos. Com o health check, a réplica sai em 3 s: os erros vão de t ≈ 81 s a 83 s e a execução termina com cerca de **0,4%** — a mesma falha, um décimo do estrago, exatamente como *indisponibilidade ≈ falhas × tempo de detecção* prevê. Com as 2 réplicas do desenho original, a detecção não é o primeiro problema: as duas réplicas estão sobrecarregadas antes da queda (ρ > 1) e perder uma corta a capacidade pela metade de novo.
 
 !!! example "No código do BoxOffice: health checks passivos e uma nova tentativa (lab 3)"
 
-    A borda Nginx do [Hands-on 3](../../../hands-on/3/index.md) detecta falhas **passivamente**, pelas requisições reais: 3 falhas em 10 s tiram uma réplica de rotação por 10 s, e o `proxy_next_upstream` repete a requisição que falhou uma vez em outra réplica, então o fã não vê o erro. O laboratório mediu os dois tipos de falha sob 150 req/s: uma réplica **parada** custou quase nada (a conexão é recusada na hora e repetida em outra); uma **congelada** custou o timeout de leitura — nenhum erro em 14.990 requisições, mas p99 = 1 s e máximo = 5,05 s, o `proxy_read_timeout`. O tempo de detecção é pago em erros quando ninguém repete a requisição, e em latência quando alguém repete.
+    A borda Nginx do [Hands-on 3](../../../hands-on/3/index.md) detecta falhas **passivamente**, pelas requisições reais: 3 falhas em 10 s tiram uma réplica de rotação por 10 s e o `proxy_next_upstream` repete a requisição que falhou uma vez em outra réplica, então o fã não vê o erro. O laboratório mediu os dois tipos de falha sob 150 req/s: uma réplica **parada** custou quase nada (a conexão é recusada na hora e repetida em outra); uma **congelada** custou o timeout de leitura — nenhum erro em 14.990 requisições, mas p99 = 1 s e máximo = 5,05 s, o `proxy_read_timeout`. O tempo de detecção é pago em erros quando ninguém repete a requisição e em latência quando alguém repete.
 
     ``` { .nginx title="infra/nginx/nginx.conf (detection and retry)" }
     --8<-- "docs/2027.1/hands-on/3/code/infra/nginx/nginx.conf:19:26,56:60"
@@ -234,7 +234,7 @@ Dez failovers por ano a 30 s + 30 s cada dão 10 minutos: tudo bem para 99,99% (
 !!! success "Boas práticas"
 
     - **Desenhe o caminho crítico e calcule sua disponibilidade antes de prometer um SLO** — multiplique os elos; se o produto ficar abaixo da promessa, mude o design, não a redação da promessa. Na BoxOffice: a cadeia do checkout nesta página.
-    - **Automatize detecção e recuperação** — health checks a cada poucos segundos, reinício automático, uma nova tentativa em outra réplica; o MTTR é a alavanca barata. Na BoxOffice: `max_fails` e `proxy_next_upstream` no `nginx.conf` do lab 3 (quadro acima), e o health check do gateway a cada 5 s no [lab 4](../../../hands-on/4/gateway/index.md).
+    - **Automatize detecção e recuperação** — health checks a cada poucos segundos, reinício automático, uma nova tentativa em outra réplica; o MTTR é a alavanca barata. Na BoxOffice: `max_fails` e `proxy_next_upstream` no `nginx.conf` do lab 3 (quadro acima) e o health check do gateway a cada 5 s no [lab 4](../../../hands-on/4/gateway/index.md).
     - **Treine o failover com agenda e cronometre** — derrube uma réplica ou um primário num ambiente de teste e meça detecção + failover contra o orçamento. Na BoxOffice: o passo 5 do [Hands-on 3](../../../hands-on/3/index.md) (parar e congelar uma réplica) e o game day do lab 9.
     - **Acompanhe o orçamento de erro, não só o uptime** — 99,95% das requisições em 28 dias são cerca de 20 minutos de falha total; gaste-o de propósito (versões, experimentos), não por acidente.
     - **Dê a toda dependência um timeout e um fallback** — o timeout limita quanto tempo uma dependência fraca pode machucar; o fallback a mantém branda. Na BoxOffice: o timeout de leitura de 1 s de `order → payment` no lab 9.

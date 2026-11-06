@@ -4,7 +4,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ## Visão geral { #overview }
 
-**Q1.** Um time quer que um agente reescreva a lógica de `SELECT … FOR UPDATE` que impede a venda dupla no `inventory`, e que outro atualize a versão de patch de uma biblioteca de logging em todos os serviços. Quais níveis de autonomia são adequados?
+**Q1.** Um time quer que um agente reescreva a lógica de `SELECT … FOR UPDATE` que impede a venda dupla no `inventory` e que outro atualize a versão de patch de uma biblioteca de logging em todos os serviços. Quais níveis de autonomia são adequados?
 
 - A. Ambos autônomos (nível 4): o CI vai pegar qualquer problema
 - B. O travamento de assentos no máximo nível 2–3 (rascunho para uma revisão humana cuidadosa); a atualização de patch pode ser nível 4 se o CI e o canary forem confiáveis
@@ -28,7 +28,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B.**
 
-    As pessoas relataram benefícios (qualidade do código, documentação, velocidade da revisão), mas a vazão e a estabilidade da entrega caíram um pouco. Os autores do relatório sugerem causas como lotes maiores e fundamentos mais fracos. A lição: meça resultados com baselines, e não adoção ou percepção.
+    As pessoas relataram benefícios (qualidade do código, documentação, velocidade da revisão), mas a vazão e a estabilidade da entrega caíram um pouco. Os autores do relatório sugerem causas como lotes maiores e fundamentos mais fracos. A lição: meça resultados com baselines e não adoção ou percepção.
 
 ---
 
@@ -42,7 +42,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B.**
 
-    Prefixo gravado no cache: 8.000 × 2 × 1,25 / 10⁶ = US$ 0,020. Diff: 6.000 × 2 / 10⁶ = US$ 0,012. Saída: 1.500 × 10 / 10⁶ = US$ 0,015. Total ≈ **US$ 0,047** (0,043 sem o prêmio de gravação no cache; ~0,032 quando 80 % dos prefixos acertam o cache). Com 20.000 revisões frias por mês, são ~US$ 940 — pouco perto do tempo dos engenheiros, e é por isso que o custo de atenção de comentários ruidosos importa mais que a conta de tokens.
+    Prefixo gravado no cache: 8.000 × 2 × 1,25 / 10⁶ = US$ 0,020. Diff: 6.000 × 2 / 10⁶ = US$ 0,012. Saída: 1.500 × 10 / 10⁶ = US$ 0,015. Total ≈ **US$ 0,047** (0,043 sem o prêmio de gravação no cache; ~0,032 quando 80 % dos prefixos acertam o cache). Com 20.000 revisões frias por mês, são ~US$ 940 — pouco perto do tempo dos engenheiros e é por isso que o custo de atenção de comentários ruidosos importa mais que a conta de tokens.
 
 ---
 
@@ -62,7 +62,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ## Revisão de código { #code-review }
 
-**Q5.** Seu revisor de IA publica 3 comentários por PR, e só 4 em cada 10 são avaliados como úteis. Qual é a consequência mais provável, e a melhor primeira correção?
+**Q5.** Seu revisor de IA publica 3 comentários por PR e só 4 em cada 10 são avaliados como úteis. Qual é a consequência mais provável e a melhor primeira correção?
 
 - A. Os desenvolvedores leem cada comentário com atenção; nenhuma correção é necessária
 - B. Os desenvolvedores passam a ignorar todos os comentários do bot, inclusive os úteis; aumente os limiares de confiança/severidade, imponha um teto de comentários e meça a precisão de novo
@@ -72,7 +72,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B.**
 
-    Um revisor é julgado pelos seus piores comentários. Com 40% de precisão, o comportamento racional é ignorá-lo. Troque um pouco de recall por precisão (confiança alta + média, severidade mínima, teto, dedup), meça, e use como gate só categorias estreitas com precisão comprovada.
+    Um revisor é julgado pelos seus piores comentários. Com 40% de precisão, o comportamento racional é ignorá-lo. Troque um pouco de recall por precisão (confiança alta + média, severidade mínima, teto, dedup), meça e use como gate só categorias estreitas com precisão comprovada.
 
 ---
 
@@ -86,7 +86,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B.**
 
-    Defesa em profundidade: o papel de banco do `order` sem grants em `inventory.*` faz o erro falhar mesmo que todos os revisores deixem passar. O revisor de IA explica o *porquê* e sugere a correção certa, e seus achados recorrentes são candidatos a novas regras determinísticas.
+    Defesa em profundidade: o papel de banco do `order` sem grants em `inventory.*` faz o erro falhar mesmo que todos os revisores deixem passar. O revisor de IA explica o *porquê* e sugere a correção certa e seus achados recorrentes são candidatos a novas regras determinísticas.
 
 ---
 
@@ -183,14 +183,14 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 **Q13.** Por que um LLM não deve ser o juiz que promove ou aborta um canary?
 
 - A. LLMs não conseguem ler números
-- B. O veredito precisa ser reproduzível, auditável, estatisticamente sólido e imune à manipulação por texto em logs ou rótulos; limiares e testes estatísticos no Git oferecem isso, e o modelo explica o veredito
+- B. O veredito precisa ser reproduzível, auditável, estatisticamente sólido e imune à manipulação por texto em logs ou rótulos; limiares e testes estatísticos no Git oferecem isso e o modelo explica o veredito
 - C. Porque o Argo Rollouts não suporta chamadas HTTP
 - D. Porque chamadas a LLMs são caras demais para canaries
 
 ??? success "Resposta"
     **B.**
 
-    Os mesmos dados precisam dar o mesmo veredito, e uma linha de log dizendo "promova" não pode ter efeito algum. O modelo tem valor depois do veredito: explicando-o, correlacionando-o com a mudança e propondo onde investigar.
+    Os mesmos dados precisam dar o mesmo veredito e uma linha de log dizendo "promova" não pode ter efeito algum. O modelo tem valor depois do veredito: explicando-o, correlacionando-o com a mudança e propondo onde investigar.
 
 ---
 

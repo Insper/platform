@@ -1,5 +1,5 @@
 
-O painel da BoxOffice diz que o endpoint do mapa de lugares tem **latência média de 55 ms**. Todos estão contentes — menos os fãs, que reclamam nas redes sociais que o mapa de lugares "demora uma eternidade" durante as aberturas de vendas. Os dois lados têm razão. A média é 55 ms; mas uma requisição em cada cem leva mais de meio segundo, e um fã que abre o mapa de lugares, atualiza, amplia dois setores e tenta três reservas faz requisições suficientes para cair numa dessas lentas quase toda visita. Esta página trata das requisições lentas: como medi-las, por que importam mais do que a média sugere e por que ficam **piores** à medida que os sistemas ficam mais distribuídos.
+O painel da BoxOffice diz que o endpoint do mapa de lugares tem **latência média de 55 ms**. Todos estão contentes — menos os fãs, que reclamam nas redes sociais que o mapa de lugares "demora uma eternidade" durante as aberturas de vendas. Os dois lados têm razão. A média é 55 ms; mas uma requisição em cada cem leva mais de meio segundo e um fã que abre o mapa de lugares, atualiza, amplia dois setores e tenta três reservas faz requisições suficientes para cair numa dessas lentas quase toda visita. Esta página trata das requisições lentas: como medi-las, por que importam mais do que a média sugere e por que ficam **piores** à medida que os sistemas ficam mais distribuídos.
 
 ---
 
@@ -136,7 +136,7 @@ Essa é a observação central de *The Tail at Scale*, de Dean e Barroso[^3]: co
 
     O serviço de busca divide o índice de eventos em 20 shards para manter cada um pequeno e rápido. Cada shard responde em 15 ms no p50 e 120 ms no p99 (um merge ou um cache miss de vez em quando). A busca do usuário espera pelos 20:
 
-    - P(pelo menos um shard acima de 120 ms) = 1 − 0,99²⁰ ≈ **18%** — então o **p82 visto pelo usuário** já é ≥ 120 ms, e o p99 visto pelo usuário é determinado pelo p99.9 dos shards, ou pior.
+    - P(pelo menos um shard acima de 120 ms) = 1 − 0,99²⁰ ≈ **18%** — então o **p82 visto pelo usuário** já é ≥ 120 ms e o p99 visto pelo usuário é determinado pelo p99.9 dos shards, ou pior.
     - Reduzir os shards pela metade, para 10, corta essa probabilidade para ~10%, mas deixa cada shard maior e mais lento. Manter 20 shards e usar **hedging** (abaixo) costuma ser a troca melhor.
 
 ---
@@ -164,7 +164,7 @@ Você não consegue eliminar a variabilidade; consegue projetar para que ela nã
 
 - **Hedged requests**: envie a requisição a uma réplica; se ela não responder dentro de, digamos, a latência **p95**, envie uma segunda cópia a outra réplica e use a que responder primeiro. Só ~5% das requisições são duplicadas, mas a cauda encolhe drasticamente. Dean e Barroso relatam um caso do Google em que fazer hedging após 10 ms reduziu o p99.9 de uma leitura de 1.000 chaves de 1.800 ms para 74 ms, com apenas 2% mais requisições[^3]. Faça hedging só de leituras **idempotentes**.
 - **Tied requests**: envie para duas réplicas ao mesmo tempo, cada uma sabendo da outra; a primeira a *começar* o processamento cancela a outra. Remove a variabilidade de fila ao custo de um pouco de coordenação.
-- **Reduza o fan-out**: menos partições, e maiores, para caminhos críticos em latência; pré-calcule agregados (um resumo materializado do mapa de lugares em vez de chamar cinco serviços).
+- **Reduza o fan-out**: menos partições e maiores para caminhos críticos em latência; pré-calcule agregados (um resumo materializado do mapa de lugares em vez de chamar cinco serviços).
 - **Degrade com elegância**: dê a cada backend um prazo e devolva uma resposta **parcial** — o mapa de lugares sem o painel de recomendações ainda é um mapa de lugares.
 - **Tire trabalho do caminho crítico**: o que não precisa terminar antes da resposta (e-mails, analytics, indexação de busca) vai para uma fila.
 - **Mantenha a utilização baixa** nos componentes críticos em latência e **isole-os** do trabalho em lote.
@@ -183,7 +183,7 @@ Uma meta voltada ao usuário precisa ser dividida entre os componentes do caminh
 | Margem | 250 ms | variação da rede, novas tentativas |
 | **Total** | **1.500 ms** | — |
 
-Somar p99s é pessimista (raramente todos acontecem na mesma requisição), e é exatamente o que você quer num orçamento. Quando uma etapa estoura seu orçamento, você sabe de quem é o problema. Cada orçamento também define o **timeout** daquele componente — um timeout maior que o orçamento inteiro de quem chama não protege nada.
+Somar p99s é pessimista (raramente todos acontecem na mesma requisição) e é exatamente o que você quer num orçamento. Quando uma etapa estoura seu orçamento, você sabe de quem é o problema. Cada orçamento também define o **timeout** daquele componente — um timeout maior que o orçamento inteiro de quem chama não protege nada.
 
 ---
 
@@ -191,7 +191,7 @@ Somar p99s é pessimista (raramente todos acontecem na mesma requisição), e é
 
 Duas armadilhas fazem a latência de cauda parecer melhor do que é:
 
-- **Omissão coordenada** (*coordinated omission*): um gerador de carga que só envia a próxima requisição depois que a anterior volta *para de enviar* quando o servidor trava — então ele nunca registra as requisições que *teriam* chegado durante a trava, e a cauda some dos resultados. Use ferramentas que mantêm uma taxa de chegada constante (modelo aberto: o `constant-arrival-rate` do k6, wrk2) e compare os horários de envio pretendidos e reais[^4]. A [aula 15](../../performance/index.md) aprofunda o tema.
+- **Omissão coordenada** (*coordinated omission*): um gerador de carga que só envia a próxima requisição depois que a anterior volta *para de enviar* quando o servidor trava — então ele nunca registra as requisições que *teriam* chegado durante a trava e a cauda some dos resultados. Use ferramentas que mantêm uma taxa de chegada constante (modelo aberto: o `constant-arrival-rate` do k6, wrk2) e compare os horários de envio pretendidos e reais[^4]. A [aula 15](../../performance/index.md) aprofunda o tema.
 - **Medir no lugar errado**: o próprio cronômetro do servidor não vê o tempo na fila de aceitação, no load balancer e na rede. Meça onde o usuário está (no cliente, ou na borda) e compare com os números do lado do servidor.
 
 !!! example "No código do BoxOffice: percentis no teste de carga (lab 2)"
@@ -208,7 +208,7 @@ Duas armadilhas fazem a latência de cauda parecer melhor do que é:
 
 ??? question "Pense antes: SLO para o mapa de lugares"
 
-    A BoxOffice quer um SLO para o endpoint do mapa de lugares. Opção A: "latência média < 100 ms". Opção B: "99% das requisições < 300 ms, medido no gateway ao longo de 28 dias". Qual, e por quê?
+    A BoxOffice quer um SLO para o endpoint do mapa de lugares. Opção A: "latência média < 100 ms". Opção B: "99% das requisições < 300 ms, medido no gateway ao longo de 28 dias". Qual e por quê?
 
     **Resposta**: **B**. Ela é expressa como percentil (restringe a cauda, que os usuários sentem), tem um limiar que importa para os usuários, um ponto de medição (o gateway, mais perto do usuário que o serviço) e uma janela. A opção A pode ser cumprida enquanto 3% das requisições levam mais de um segundo — exatamente a reclamação nas redes sociais. SLOs são desenvolvidos na [aula 9](../../observability/slo/index.md).
 
@@ -221,8 +221,8 @@ Duas armadilhas fazem a latência de cauda parecer melhor do que é:
     - **Exporte a latência como histograma com limites de faixa nos thresholds do SLO** — com uma borda de faixa em 300 ms, "p99 < 300 ms" é calculado com exatidão em vez de interpolado.
     - **Rotule a latência por rota, nunca um número por serviço** — uma página de detalhes rápida e uma listagem lenta precisam de percentis separados. Na BoxOffice: os rótulos `name:detail` e `name:list` no `load/load.js` do lab 2 (quadro acima).
     - **Informe p50, p99 e p99,9 junto com o número de requisições** — um p99 sobre 200 requisições é a segunda mais lenta; ele precisa de milhares para significar algo.
-    - **Derive todo timeout de um orçamento de latência, e propague o prazo restante** — uma chamada recebe no máximo sua parte do orçamento de quem chama, para que quem chama nunca estoure antes e repita um trabalho ainda em andamento.
-    - **Faça hedging só de leituras idempotentes, depois do p95, com um teto de carga extra** (alguns por cento) — o hedging compra latência de cauda com carga, e a carga precisa ficar limitada.
+    - **Derive todo timeout de um orçamento de latência e propague o prazo restante** — uma chamada recebe no máximo sua parte do orçamento de quem chama, para que quem chama nunca estoure antes e repita um trabalho ainda em andamento.
+    - **Faça hedging só de leituras idempotentes, depois do p95, com um teto de carga extra** (alguns por cento) — o hedging compra latência de cauda com carga e a carga precisa ficar limitada.
 
 !!! warning "Armadilhas comuns"
 

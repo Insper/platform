@@ -11,7 +11,7 @@ Um único estilo de API não serve aos quatro. Esta página compara as quatro fa
 
 ## Uma API é um contrato { #an-api-is-a-contract }
 
-Uma **API** (Application Programming Interface) é o contrato entre um **provedor** (o serviço que a implementa) e seus **consumidores** (o código que a chama): quais operações existem, o que elas aceitam e o que devolvem — e nada sobre como são implementadas. Um contrato estável é o que permite ao time do `catalog` reescrever sua camada de persistência sem avisar ninguém, e o que permite ao time mobile publicar sem esperar o backend.
+Uma **API** (Application Programming Interface) é o contrato entre um **provedor** (o serviço que a implementa) e seus **consumidores** (o código que a chama): quais operações existem, o que elas aceitam e o que devolvem — e nada sobre como são implementadas. Um contrato estável é o que permite ao time do `catalog` reescrever sua camada de persistência sem avisar ninguém e o que permite ao time mobile publicar sem esperar o backend.
 
 Três consequências orientam tudo o que vem a seguir:
 
@@ -75,7 +75,7 @@ O recurso: um **evento** com sua **disponibilidade** (lugares restantes por seto
 
 === "gRPC + Protocol Buffers"
 
-    As operações são **chamadas de procedimento remoto** declaradas num arquivo `.proto`; o código de cliente e servidor é **gerado**, e as mensagens trafegam em binário compacto sobre HTTP/2.
+    As operações são **chamadas de procedimento remoto** declaradas num arquivo `.proto`; o código de cliente e servidor é **gerado** e as mensagens trafegam em binário compacto sobre HTTP/2.
 
     ```protobuf title="inventory.proto"
     syntax = "proto3";
@@ -111,7 +111,7 @@ O recurso: um **evento** com sua **disponibilidade** (lugares restantes por seto
     }
     ```
 
-    Os números (`= 1`, `= 2`) são **field tags**: na rede trafegam apenas a tag e o valor, não o nome do campo — por isso as mensagens protobuf são compactas, e por isso uma tag nunca pode ser reutilizada.
+    Os números (`= 1`, `= 2`) são **field tags**: na rede trafegam apenas a tag e o valor, não o nome do campo — por isso as mensagens protobuf são compactas e por isso uma tag nunca pode ser reutilizada.
 
 === "GraphQL"
 
@@ -152,7 +152,7 @@ O recurso: um **evento** com sua **disponibilidade** (lugares restantes por seto
 
 === "Assíncrono (eventos + AsyncAPI)"
 
-    Nenhuma requisição: o provedor **publica** um fato quando algo muda, e os consumidores interessados assinam. O contrato é o schema da mensagem e o canal, descritos em **AsyncAPI**.
+    Nenhuma requisição: o provedor **publica** um fato quando algo muda e os consumidores interessados assinam. O contrato é o schema da mensagem e o canal, descritos em **AsyncAPI**.
 
     ```yaml title="asyncapi.yaml (excerpt)"
     asyncapi: 3.0.0
@@ -239,7 +239,7 @@ O cursor é uma string opaca (muitas vezes o base64 da chave de ordenação da �
 ### Cache e operações longas { #caching-and-long-running-operations }
 
 - **Requisições condicionais**: o `catalog` devolve `ETag: "v17"` e `Cache-Control: public, max-age=30`; um cliente que repete a requisição com `If-None-Match: "v17"` recebe `304 Not Modified` sem corpo. A CDN ([edge](../../edge/dns-cdn/index.md#cache-control)) faz o mesmo em escala — mais um motivo para manter as leituras como `GET`s cacheáveis.
-- **Operações longas**: nunca segure uma conexão por 30 s. Responda `202 Accepted` com um recurso de status em `Location: /v1/orders/ord_9`, e deixe o cliente consultá-lo ou receber um push. O checkout usa exatamente isso enquanto o provedor de pagamentos decide.
+- **Operações longas**: nunca segure uma conexão por 30 s. Responda `202 Accepted` com um recurso de status em `Location: /v1/orders/ord_9` e deixe o cliente consultá-lo ou receber um push. O checkout usa exatamente isso enquanto o provedor de pagamentos decide.
 
 ### O contrato no código { #the-contract-in-code }
 
@@ -273,7 +273,7 @@ O [hands-on 1](../../../hands-on/1/index.md) constrói uma versão mais simples 
 
 !!! example "No código do BoxOffice: o contrato do `catalog` (lab 1)"
 
-    O [Hands-on 1 — API](../../../hands-on/1/api/index.md) é code-first: o springdoc lê o controller e publica o documento OpenAPI sob o prefixo do próprio serviço, `/catalog/openapi` (Swagger UI em `/swagger-ui.html`), para que o documento passe pela borda e pelo gateway junto com a API que descreve. O `POST` responde `201` com um `Location`, e todo erro é `application/problem+json`. Compare com o ideal acima: ainda não há `/v1` (acrescente antes que um consumidor externo dependa desses caminhos), a paginação é por offset (`page`, `size` ≤ 50) sobre 200.000 eventos semeados, barata nas primeiras páginas e lenta nas profundas, e não há `ETag`: o lab barateia as leituras com o Redis ([lab 5](../../../hands-on/5/cache-aside/index.md)).
+    O [Hands-on 1 — API](../../../hands-on/1/api/index.md) é code-first: o springdoc lê o controller e publica o documento OpenAPI sob o prefixo do próprio serviço, `/catalog/openapi` (Swagger UI em `/swagger-ui.html`), para que o documento passe pela borda e pelo gateway junto com a API que descreve. O `POST` responde `201` com um `Location` e todo erro é `application/problem+json`. Compare com o ideal acima: ainda não há `/v1` (acrescente antes que um consumidor externo dependa desses caminhos), a paginação é por offset (`page`, `size` ≤ 50) sobre 200.000 eventos semeados, barata nas primeiras páginas e lenta nas profundas, e não há `ETag`: o lab barateia as leituras com o Redis ([lab 5](../../../hands-on/5/cache-aside/index.md)).
 
     ``` { .java title="services/catalog/src/main/java/boxoffice/catalog/EventController.java (the contract, code-first)" }
     --8<-- "docs/2027.1/hands-on/1/code/services/catalog/src/main/java/boxoffice/catalog/EventController.java:20:47"
@@ -289,7 +289,7 @@ gRPC é um framework de RPC criado pelo Google, construído sobre **HTTP/2** e *
 - **Mensagens binárias compactas** e parsing barato: payloads protobuf costumam ser várias vezes menores que o JSON equivalente, o que importa para tráfego interno intenso.
 - **Multiplexação**: muitas chamadas concorrentes sobre uma única conexão HTTP/2.
 - **Streaming**: unário, server streaming (o `WatchAvailability` acima), client streaming e bidirecional.
-- **Deadlines** que se propagam: quem chama diz "preciso de uma resposta em até 300 ms", e cada salto sabe quanto tempo resta.
+- **Deadlines** que se propagam: quem chama diz "preciso de uma resposta em até 300 ms" e cada salto sabe quanto tempo resta.
 
 E o que custa:
 
@@ -359,7 +359,7 @@ flowchart TD
     q2 -->|"serviço interno,<br/>volume moderado"| rest
 ```
 
-Sistemas reais misturam todos eles. No BoxOffice: **REST** na borda pública e para parceiros, um **BFF GraphQL** para os apps web e mobile, **gRPC** entre `order` e `inventory`, **eventos** para tudo o que acontece *porque* um pedido foi confirmado, e **webhooks** chegando do provedor de pagamentos.
+Sistemas reais misturam todos eles. No BoxOffice: **REST** na borda pública e para parceiros, um **BFF GraphQL** para os apps web e mobile, **gRPC** entre `order` e `inventory`, **eventos** para tudo o que acontece *porque* um pedido foi confirmado e **webhooks** chegando do provedor de pagamentos.
 
 ---
 
@@ -404,7 +404,7 @@ Depois, **expanda e contraia** (*parallel change*): publique a v2 ao lado da v1,
     - `POST /v1/orders` `{holdId, paymentToken}` + `Idempotency-Key` → `202 {orderId, status: PENDING}`
     - `GET /v1/orders/{id}` → status
 
-    Mencione **paginação** (cursor), **idempotência** nas escritas, **rate limits**, e diga *por que* escolheu o estilo ("REST na borda pela cacheabilidade e pelos parceiros; gRPC internamente entre order e inventory"). Entrevistadores percebem quando você sabe quais chamadas são repetidas e quais não podem duplicar.
+    Mencione **paginação** (cursor), **idempotência** nas escritas, **rate limits** e diga *por que* escolheu o estilo ("REST na borda pela cacheabilidade e pelos parceiros; gRPC internamente entre order e inventory"). Entrevistadores percebem quando você sabe quais chamadas são repetidas e quais não podem duplicar.
 
 !!! success "Boas práticas"
 

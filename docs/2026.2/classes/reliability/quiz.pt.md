@@ -28,7 +28,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — ~40,3 minutos.**
 
-    28 dias × 24 h × 60 min = 40.320 minutos, e 0,1% disso é ≈ 40,3 minutos. O valor de ~43,8 minutos que aparece em muitas tabelas de "noves" é para um mês de calendário médio (365,25 / 12 ≈ 30,44 dias), e 8,77 horas é o orçamento de um ano inteiro. Sempre calcule o orçamento para a janela que o SLO de fato usa.
+    28 dias × 24 h × 60 min = 40.320 minutos e 0,1% disso é ≈ 40,3 minutos. O valor de ~43,8 minutos que aparece em muitas tabelas de "noves" é para um mês de calendário médio (365,25 / 12 ≈ 30,44 dias) e 8,77 horas é o orçamento de um ano inteiro. Sempre calcule o orçamento para a janela que o SLO de fato usa.
 
 ---
 
@@ -74,7 +74,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q6.** Qual é a **diferença entre MTTF e MTTR**, e qual alavanca é mais rápida de melhorar durante um incidente em produção?
+**Q6.** Qual é a **diferença entre MTTF e MTTR** e qual alavanca é mais rápida de melhorar durante um incidente em produção?
 
 - A. MTTF é a frequência de falhas; MTTR é o tempo de reparo — o MTTF é mais rápido de melhorar
 - B. MTTF é o tempo médio até a falha (quanto tempo até quebrar); MTTR é o tempo médio de reparo (quanto tempo para consertar) — o MTTR é mais rápido de melhorar durante um incidente em andamento
@@ -142,7 +142,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — Rate limiter → circuit breaker → bulkhead → timeout → retry com backoff.**
 
-    Cada camada trata um cenário de falha distinto: o rate limiter protege contra picos de tráfego e abusos; o circuit breaker falha rápido nas chamadas a dependências que sabidamente estão falhando; o bulkhead isola pools de threads para que uma dependência lenta não deixe as outras sem recursos; o timeout limita o tempo de espera; o retry trata falhas transitórias. Na organização mostrada em aula, o rate limiting e a falha rápida acontecem antes de ocupar uma thread do bulkhead. As bibliotecas podem aninhá-los de outro jeito — o padrão do Resilience4j coloca o Retry como camada mais externa, para que cada tentativa passe pelo breaker —, mas o conjunto de camadas é o mesmo, e C e D deixam de fora camadas essenciais.
+    Cada camada trata um cenário de falha distinto: o rate limiter protege contra picos de tráfego e abusos; o circuit breaker falha rápido nas chamadas a dependências que sabidamente estão falhando; o bulkhead isola pools de threads para que uma dependência lenta não deixe as outras sem recursos; o timeout limita o tempo de espera; o retry trata falhas transitórias. Na organização mostrada em aula, o rate limiting e a falha rápida acontecem antes de ocupar uma thread do bulkhead. As bibliotecas podem aninhá-los de outro jeito — o padrão do Resilience4j coloca o Retry como camada mais externa, para que cada tentativa passe pelo breaker —, mas o conjunto de camadas é o mesmo e C e D deixam de fora camadas essenciais.
 
 ---
 

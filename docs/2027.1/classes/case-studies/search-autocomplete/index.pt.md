@@ -1,7 +1,7 @@
 
 > *"Projete as sugestões da caixa de busca de um site grande: enquanto o usuário digita, mostre as 5–10 complementações mais prováveis do que ele está digitando, rápido o bastante para parecer instantâneo."*
 
-O autocomplete (também chamado de *typeahead* ou *busca enquanto se digita*) parece uma pequena funcionalidade de interface e é um sistema muito instrutivo. Cada **tecla** é uma requisição, então ele é um dos endpoints de maior QPS de qualquer site; a resposta precisa chegar bem abaixo de 100 ms ou não serve para nada (o usuário já digitou a próxima letra); e as sugestões são **dados derivados** — calculados offline a partir de milhões de buscas passadas e depois servidos da memória. A entrevista testa se você separa o **caminho de atendimento** (um índice só de leitura, em memória) do **caminho de dados** (logs → agregação → construção do índice), e se você sabe qual estrutura de dados responde "as top-k complementações de um prefixo" sem varrer nada.
+O autocomplete (também chamado de *typeahead* ou *busca enquanto se digita*) parece uma pequena funcionalidade de interface e é um sistema muito instrutivo. Cada **tecla** é uma requisição, então ele é um dos endpoints de maior QPS de qualquer site; a resposta precisa chegar bem abaixo de 100 ms ou não serve para nada (o usuário já digitou a próxima letra); e as sugestões são **dados derivados** — calculados offline a partir de milhões de buscas passadas e depois servidos da memória. A entrevista testa se você separa o **caminho de atendimento** (um índice só de leitura, em memória) do **caminho de dados** (logs → agregação → construção do índice) e se você sabe qual estrutura de dados responde "as top-k complementações de um prefixo" sem varrer nada.
 
 O BoxOffice precisa exatamente disso: fãs digitam `col…` e esperam *Coldplay*, *Coldplay São Paulo*, *Coala Festival*, misturando artistas, locais e cidades. Quando uma turnê é anunciada, as buscas por aquele artista disparam em minutos — e as sugestões de ontem ainda não sabem disso. Esse problema de atualidade é um dos aprofundamentos abaixo.
 
@@ -15,7 +15,7 @@ O BoxOffice precisa exatamente disso: fãs digitam `col…` e esperam *Coldplay*
 !!! abstract "O que este caso treina"
 
     - **Estimar** o tráfego de teclas e **mostrar** como debounce e cache o reduzem antes de chegar aos servidores.
-    - **Explicar** como uma trie com top-k guardado em cada nó responde um prefixo em O(tamanho do prefixo), e **comparar** com uma tabela hash de prefixos.
+    - **Explicar** como uma trie com top-k guardado em cada nó responde um prefixo em O(tamanho do prefixo) e **comparar** com uma tabela hash de prefixos.
     - **Projetar** o pipeline de dados que transforma logs de busca num índice: agregação, decaimento no tempo, construção do snapshot, troca atômica.
     - **Decidir** entre replicar o índice inteiro e fragmentá-lo por prefixo, levando em conta a assimetria de carga.
     - **Tratar** a atualidade (buscas em alta), a filtragem de termos ofensivos ou bloqueados e um orçamento de latência de dezenas de milissegundos.
@@ -299,11 +299,11 @@ flowchart LR
 
 ### 6.3 Atendendo em escala: replicar, cachear, fazer debounce { #63-serving-at-scale-replicate-cache-debounce }
 
-- **Replique primeiro.** Com ~6 GB por idioma, cada nó guarda o índice inteiro; acrescentar nós aumenta a vazão linearmente, e qualquer nó responde qualquer prefixo — sem roteamento, sem shards quentes.
+- **Replique primeiro.** Com ~6 GB por idioma, cada nó guarda o índice inteiro; acrescentar nós aumenta a vazão linearmente e qualquer nó responde qualquer prefixo — sem roteamento, sem shards quentes.
 - **Fragmente quando não couber mais**, por **faixa de prefixo** — mas pelo tráfego, não pelo alfabeto: `s` e `c` recebem muito mais tráfego que `x` e `q`, então divida faixas como `ca–ce`, `cf–cz` até cada shard ter carga parecida. Como alternativa, fragmente primeiro por idioma/região, que é uma divisão natural.
 - **Caches em todas as camadas**: o navegador (`max-age=60` e um mapa em memória dos prefixos já vistos na sessão), a CDN para prefixos curtos e públicos, um pequeno LRU dentro do serviço para os prefixos mais quentes ([padrões de cache](../../caching/patterns/index.md)).
 - **Disciplina no cliente**: debounce (~100–150 ms), começar só depois de 1–2 caracteres, cancelar requisições em andamento quando o prefixo muda e descartar respostas de prefixos velhos (respostas podem chegar fora de ordem).
-- **Orçamento de latência**: de um p99 de 100 ms percebido pelo usuário, a ida e volta pela rede leva a maior parte; o serviço precisa responder em poucos milissegundos — o que uma estrutura em memória e só de leitura faz com facilidade, e uma consulta ao banco por tecla não.
+- **Orçamento de latência**: de um p99 de 100 ms percebido pelo usuário, a ida e volta pela rede leva a maior parte; o serviço precisa responder em poucos milissegundos — o que uma estrutura em memória e só de leitura faz com facilidade e uma consulta ao banco por tecla não.
 
 ### 6.4 Atualidade, filtragem e personalização { #64-freshness-filtering-and-personalization }
 
@@ -328,7 +328,7 @@ flowchart LR
 | Respostas fora de ordem | A resposta de `co` chega depois da de `col` | O cliente descarta respostas que não batem com o prefixo atual | — |
 | Serviço fora do ar | Caixa de busca sem sugestões | Degradar em silêncio; a busca continua funcionando | Experiência pior, sem indisponibilidade |
 
-Os trade-offs para **dizer em voz alta**: **atualidade vs. simplicidade** (snapshots diários imutáveis mais uma pequena camada de tendências, em vez de um índice mutável), **memória vs. latência** (top-k guardado em cada nó), e **replicação vs. fragmentação** (replique enquanto couber em RAM; fragmente pelo tráfego quando não couber).
+Os trade-offs para **dizer em voz alta**: **atualidade vs. simplicidade** (snapshots diários imutáveis mais uma pequena camada de tendências, em vez de um índice mutável), **memória vs. latência** (top-k guardado em cada nó) e **replicação vs. fragmentação** (replique enquanto couber em RAM; fragmente pelo tráfego quando não couber).
 
 ---
 
@@ -389,7 +389,7 @@ O cenário `search-autocomplete` coloca um serviço de busca atrás de um cache,
 
 !!! success "Boas práticas"
 
-    - **Faça debounce no cliente e cancele requisições obsoletas** — cerca de 100 ms de debounce eliminam a maior parte das requisições por tecla, e uma requisição cancelada é uma que o servidor nunca atende.
+    - **Faça debounce no cliente e cancele requisições obsoletas** — cerca de 100 ms de debounce eliminam a maior parte das requisições por tecla e uma requisição cancelada é uma que o servidor nunca atende.
     - **Construa o índice offline e troque-o de forma atômica** — os nós que servem só leem; um build ruim é revertido apontando para a versão anterior.
     - **Guarde prefixos curtos em cache na CDN com TTL curto** — prefixos de uma e duas letras são iguais para todos e os mais pedidos.
     - **Filtre as sugestões por uma lista de bloqueio antes de publicá-las** — uma sugestão ofensiva ou juridicamente sensível é um incidente mesmo que um milhão de usuários a tenha digitado.

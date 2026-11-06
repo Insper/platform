@@ -5,7 +5,7 @@
     - **Meça** o hit ratio e o seu efeito no p99 e na capacidade, com uma popularidade realista e *concentrada*.
     - Reproduza um **cache stampede** em uma chave quente e corrija-o com um lock distribuído e jitter no TTL — e meça a correção.
 
-O catálogo é o exemplo clássico de serviço com muita leitura: na semana do show no estádio, alguns milhares de eventos populares recebem quase todo o tráfego, e a listagem de "próximos eventos em São Paulo" é pedida milhares de vezes por minuto, enquanto muda poucas vezes por dia. O lab 2 mostrou que o banco (por meio do seu pool de conexões) é o que limita o `catalog`. Um **cache**[^1] responde da memória às perguntas repetidas, então o banco só vê a primeira.
+O catálogo é o exemplo clássico de serviço com muita leitura: na semana do show no estádio, alguns milhares de eventos populares recebem quase todo o tráfego e a listagem de "próximos eventos em São Paulo" é pedida milhares de vezes por minuto, enquanto muda poucas vezes por dia. O lab 2 mostrou que o banco (por meio do seu pool de conexões) é o que limita o `catalog`. Um **cache**[^1] responde da memória às perguntas repetidas, então o banco só vê a primeira.
 
 Caches também são, como todo guia de entrevista avisa[^2], a fonte mais comum de bugs sutis em system design: dados desatualizados, partidas a frio, chaves quentes e stampedes. Neste lab você vai ver cada um deles com as suas próprias medições.
 
@@ -37,7 +37,7 @@ boxoffice/
 
 !!! tip "Recupere o atraso"
 
-    Pulou ou quebrou o lab 4? Baixe [boxoffice-after-lab-4.zip](../4/boxoffice-after-lab-4.zip), descompacte e `cd boxoffice`. Este lab **adiciona** o `EventCache.java` e dois scripts do k6, e **substitui** o `docker-compose.yaml`, o `pom.xml` do catalog, o `application.yaml` e o `EventController.java`; todos aparecem completos nas próximas páginas e estão em [`code/`](code/docker-compose.yaml).
+    Pulou ou quebrou o lab 4? Baixe [boxoffice-after-lab-4.zip](../4/boxoffice-after-lab-4.zip), descompacte e `cd boxoffice`. Este lab **adiciona** o `EventCache.java` e dois scripts do k6 e **substitui** o `docker-compose.yaml`, o `pom.xml` do catalog, o `application.yaml` e o `EventController.java`; todos aparecem completos nas próximas páginas e estão em [`code/`](code/docker-compose.yaml).
 
 ## Slides
 
@@ -179,7 +179,7 @@ Registre em `results/lab5.md`:
 
 ??? question "Pense primeiro: por que uma execução com cache quente pode ser muito melhor do que uma com cache frio, se as duas usam o mesmo código?"
 
-    Na execução fria, a primeira requisição de cada chave é um miss — e com 2.000 eventos quentes mais milhares de frios, os primeiros segundos parecem exatamente a execução sem cache. Um cache só é tão bom quanto o seu **hit ratio**, e o hit ratio depende do **espaço de chaves**, da **distribuição de popularidade** e do **TTL**, não da velocidade do Redis. É por isso que deploys que esvaziam caches, ou nós novos com caches vazios, causam picos de latência em produção — e por isso alguns sistemas *aquecem* os caches antes de receber tráfego. (Neste lab a diferença só aparece quando o TTL dura mais que o teste: veja a nota abaixo.)
+    Na execução fria, a primeira requisição de cada chave é um miss — e com 2.000 eventos quentes mais milhares de frios, os primeiros segundos parecem exatamente a execução sem cache. Um cache só é tão bom quanto o seu **hit ratio** e o hit ratio depende do **espaço de chaves**, da **distribuição de popularidade** e do **TTL**, não da velocidade do Redis. É por isso que deploys que esvaziam caches, ou nós novos com caches vazios, causam picos de latência em produção — e por isso alguns sistemas *aquecem* os caches antes de receber tráfego. (Neste lab a diferença só aparece quando o TTL dura mais que o teste: veja a nota abaixo.)
 
 !!! note "Se os seus números forem diferentes"
 
@@ -203,7 +203,7 @@ Registre em `results/lab5.md`:
     - **Commit, depois delete**: o `EventController.java` remove a chave depois que `updateEvent` retorna. Por quê: [invalidação — apague, não atualize](../../classes/caching/invalidation/index.md#delete-vs-update).
     - **TTL com jitter em toda chave** (`withJitter` no `EventCache.java`), para que um aquecimento não agende uma avalanche. Por quê: [avalanche](../../classes/caching/failure-modes/index.md#avalanche).
     - **Uma reconstrução por chave** sob carga (lock `SET … NX PX 2000`): os misses caíram de 2.238 para 19 numa execução de teste (200 VUs, 60 s). Por quê: [stampede](../../classes/caching/failure-modes/index.md#stampede).
-    - **Meça, não suponha**: `X-Cache` mais um contador por resultado, e a mesma carga antes e depois. Por quê: [a conta do hit ratio](../../classes/caching/index.md#hit-ratio-math).
+    - **Meça, não suponha**: `X-Cache` mais um contador por resultado e a mesma carga antes e depois. Por quê: [a conta do hit ratio](../../classes/caching/index.md#hit-ratio-math).
 
 ## Limpeza { #clean-up }
 

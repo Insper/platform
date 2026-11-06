@@ -12,7 +12,7 @@ Saber o que *é* um cache, uma fila ou um circuit breaker não é o mesmo que sa
 
 ## Contexto { #context }
 
-O playground simula um design sob um perfil de carga (o mesmo vocabulário do k6: `smoke`, `load`, `stress`, `spike`, `soak`, `breakpoint`, `chaos`). O que você precisa para este exercício (o manual completo está na [página do playground](../../../playground/index.md), e as lições de cada cenário no [guia de cenários](../../../playground/scenarios/index.md)):
+O playground simula um design sob um perfil de carga (o mesmo vocabulário do k6: `smoke`, `load`, `stress`, `spike`, `soak`, `breakpoint`, `chaos`). O que você precisa para este exercício (o manual completo está na [página do playground](../../../playground/index.md) e as lições de cada cenário no [guia de cenários](../../../playground/scenarios/index.md)):
 
 - **Cenário** — um design inicial mais um enunciado, um perfil de carga e **metas** (por exemplo, p99 abaixo de um limite, taxa de erro, disponibilidade, atraso do consumidor), incluindo uma **meta de custo** (US$/mês, preços marcados como *ilustrativos*). O enunciado e as metas aparecem no inspetor quando nada está selecionado.
 - **Seed** — todo número aleatório (chegadas, latências, falhas) vem de um único gerador com semente. **Mesma seed + mesmo design + mesmo perfil ⇒ execução idêntica.** A seed fica na barra de ferramentas; o botão 🎲 sorteia uma nova.
@@ -30,13 +30,13 @@ Para cada cenário abaixo, parta do cenário como ele é carregado (**não** mud
 
 #### Desafio 1 — `flash-sale` { #challenge-1-flash-sale }
 
-Uma venda relâmpago com estoque limitado (a abertura das 10:00 do BoxOffice em forma genérica): um pico de usuários atinge o catálogo e o inventário, e os pagamentos vão para um provedor externo.
+Uma venda relâmpago com estoque limitado (a abertura das 10:00 do BoxOffice em forma genérica): um pico de usuários atinge o catálogo e o inventário e os pagamentos vão para um provedor externo.
 
-**Experimente:** aperte ▶ e observe qual nó fica vermelho primeiro, e quando. Veja o relatório: qual meta falha, e o que diz a explicação do gargalo? Depois pergunte: quantas requisições por segundo o banco do inventário realmente aceita, e quem decide quantos usuários chegam até ele?
+**Experimente:** aperte ▶ e observe qual nó fica vermelho primeiro e quando. Veja o relatório: qual meta falha e o que diz a explicação do gargalo? Depois pergunte: quantas requisições por segundo o banco do inventário realmente aceita e quem decide quantos usuários chegam até ele?
 
 <div class="sdp" data-scenario="flash-sale" data-mode="compact" data-height="520"></div>
 
-Pontos para pensar (não é uma receita): o que pode ser servido sem tocar no inventário (conteúdo estático, o catálogo, a disponibilidade de estoque que pode estar alguns segundos desatualizada); que taxa de admissão o inventário sustenta (utilização abaixo de ~0,7); o que acontece com os usuários ainda não admitidos (uma sala de espera é uma fila, e uma fila tem backlog); onde vai parar a latência do provedor de pagamento.
+Pontos para pensar (não é uma receita): o que pode ser servido sem tocar no inventário (conteúdo estático, o catálogo, a disponibilidade de estoque que pode estar alguns segundos desatualizada); que taxa de admissão o inventário sustenta (utilização abaixo de ~0,7); o que acontece com os usuários ainda não admitidos (uma sala de espera é uma fila e uma fila tem backlog); onde vai parar a latência do provedor de pagamento.
 
 #### Desafio 2 — `cascading-failure` { #challenge-2-cascading-failure }
 
@@ -52,7 +52,7 @@ Pontos para pensar: um valor de timeout derivado do p99 normal da dependência (
 
 O assistente de suporte da BoxOffice: um orquestrador chama um LLM através de um gateway, recupera contexto de uma memória (RAG) e chama ferramentas. Ele é lento e caro.
 
-**Experimente:** execute e abra o indicador de custo. Para onde vai o dinheiro? Quantas chamadas sequenciais ao LLM uma requisição de usuário faz, e o que isso causa na latência?
+**Experimente:** execute e abra o indicador de custo. Para onde vai o dinheiro? Quantas chamadas sequenciais ao LLM uma requisição de usuário faz e o que isso causa na latência?
 
 <div class="sdp" data-scenario="ai-assistant" data-mode="compact" data-height="520"></div>
 
@@ -75,14 +75,14 @@ A incorporação abaixo mostra o mesmo cenário com uma seed fixa e caos médio 
 Você muda a **arquitetura**, não as leis da natureza. A menos que você justifique no texto (e a justificativa seja aceita), **não** edite:
 
 - capacidade por réplica, tempo de serviço (`latencyMs`) e variabilidade (`sigma`) de qualquer tipo de componente;
-- preços, e a latência, a cota (`rateLimit`) ou o comportamento de queda dos componentes externos (`payment`, `thirdparty`, `email`) e do LLM;
+- preços e a latência, a cota (`rateLimit`) ou o comportamento de queda dos componentes externos (`payment`, `thirdparty`, `email`) e do LLM;
 - as metas, o perfil, o RPS-alvo e a proporção de leituras do cenário.
 
-Taxas de acerto de cache e CDN acima de **0,95**, e de cache semântico acima de **0,4**, precisam de justificativa baseada na carga (popularidade das chaves, repetição das perguntas).
+Taxas de acerto de cache e CDN acima de **0,95** e de cache semântico acima de **0,4** precisam de justificativa baseada na carga (popularidade das chaves, repetição das perguntas).
 
 !!! warning "O botão *Show a possible solution*"
 
-    Cada cenário tem uma solução de referência. Você pode carregá-la e estudá-la. Uma entrega **idêntica (ou quase idêntica) à solução de referência fica limitada a C**. Para chegar a B ou A, o design precisa ser seu e ser **mais barato** que a referência com as mesmas metas ou **mais robusto** (passa em mais seeds em `medium`, ou passa em `high`), e você precisa explicar por quê.
+    Cada cenário tem uma solução de referência. Você pode carregá-la e estudá-la. Uma entrega **idêntica (ou quase idêntica) à solução de referência fica limitada a C**. Para chegar a B ou A, o design precisa ser seu e ser **mais barato** que a referência com as mesmas metas ou **mais robusto** (passa em mais seeds em `medium`, ou passa em `high`) e você precisa explicar por quê.
 
 ## Requisitos { #requirements }
 

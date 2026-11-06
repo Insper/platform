@@ -43,7 +43,7 @@ Quantas dessas requisições deveriam chegar ao serviço `inventory`?
 
 <!--
 Deixe a turma chutar. A resposta guia a aula inteira: cachear o que pode ser cacheado, filtrar o
-que precisa ser filtrado, limitar o que sobra, e só então balancear entre réplicas saudáveis.
+que precisa ser filtrado, limitar o que sobra e só então balancear entre réplicas saudáveis.
 -->
 
 ---
@@ -96,7 +96,7 @@ Milhares de resolvers × uma vez por TTL.
 
 ---
 
-## Roteamento com DNS, e anycast
+## Roteamento com DNS e anycast
 
 | Política | A resposta depende de |
 |---|---|

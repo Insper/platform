@@ -1,4 +1,4 @@
-Colocar um cache na frente de um banco levanta duas perguntas que não têm nada a ver com o Redis em si: **quem preenche o cache** quando um valor está faltando, e **o que acontece com o cache quando o dado é escrito**. As respostas formam um pequeno conjunto de padrões com nome. Vale a pena conhecê-los pelo nome: numa revisão de arquitetura ou numa entrevista, "cache-aside com remoção na escrita e TTL de 5 minutos" diz numa frase o que de outro jeito levaria um parágrafo[^2].
+Colocar um cache na frente de um banco levanta duas perguntas que não têm nada a ver com o Redis em si: **quem preenche o cache** quando um valor está faltando e **o que acontece com o cache quando o dado é escrito**. As respostas formam um pequeno conjunto de padrões com nome. Vale a pena conhecê-los pelo nome: numa revisão de arquitetura ou numa entrevista, "cache-aside com remoção na escrita e TTL de 5 minutos" diz numa frase o que de outro jeito levaria um parágrafo[^2].
 
 | Padrão | Quem lê o banco numa falta | O que acontece numa escrita |
 |---|---|---|
@@ -9,7 +9,7 @@ Colocar um cache na frente de um banco levanta duas perguntas que não têm nada
 | [Write-around](#write-around) | — | banco escrito, cache **não é tocado** (preenchido na próxima leitura) |
 | [Refresh-ahead](#refresh-ahead) | o cache, **antes** de expirar | — |
 
-Ao longo da página o exemplo é o serviço `catalog` da BoxOffice: `GET /events/{id}` devolve um evento com o local e a tabela de preços, e os organizadores ocasionalmente editam um evento com `PUT /events/{id}`.
+Ao longo da página o exemplo é o serviço `catalog` da BoxOffice: `GET /events/{id}` devolve um evento com o local e a tabela de preços e os organizadores ocasionalmente editam um evento com `PUT /events/{id}`.
 
 ---
 
@@ -43,7 +43,7 @@ Por que ele é o default:
 Seus custos:
 
 - **A primeira leitura de cada chave é lenta** (falta + banco + SET): três idas e voltas em vez de uma.
-- **Janela de defasagem**: entre a escrita no banco e a remoção, e em algumas condições de corrida ([Invalidação](../invalidation/index.md#race)), leitores podem ver um valor antigo — limitado pelo TTL.
+- **Janela de defasagem**: entre a escrita no banco e a remoção e em algumas condições de corrida ([Invalidação](../invalidation/index.md#race)), leitores podem ver um valor antigo — limitado pelo TTL.
 - **A lógica de cache fica espalhada pelo código da aplicação** — a não ser que um framework a esconda.
 
 ### Cache-aside no Spring Boot { #cache-aside-in-spring-boot }
@@ -113,7 +113,7 @@ public class CacheConfig {
     --8<-- "docs/2027.1/hands-on/5/code/services/catalog/src/main/java/boxoffice/catalog/EventCache.java:54:61,86:87,99:117"
     ```
 
-    O caminho de escrita está no `EventController.java`: `service.updateEvent(...)` faz o commit, e só então `cache.evict(eventKey(id))` remove a chave — *escreva primeiro, depois remova*, a ordem explicada em [Invalidação](../invalidation/index.md#delete-vs-update).
+    O caminho de escrita está no `EventController.java`: `service.updateEvent(...)` faz o commit e só então `cache.evict(eventKey(id))` remove a chave — *escreva primeiro, depois remova*, a ordem explicada em [Invalidação](../invalidation/index.md#delete-vs-update).
 
 ### Cache-aside à mão (Python) { #cache-aside-by-hand-python }
 
@@ -234,7 +234,7 @@ Use só para dados em que perder alguns segundos de escritas é aceitável: cont
 
 No **write-around**, as escritas vão direto para o banco e o cache não é tocado (ou a chave é simplesmente removida). O valor só entra no cache quando alguém o lê.
 
-É o que o cache-aside faz no caminho de escrita, e é a escolha certa quando **o dado escrito raramente é lido logo em seguida**: o ingresso que um fã acabou de comprar (lido poucas vezes, por uma só pessoa), logs de auditoria, histórico de pedidos. Escrever isso no cache só despejaria entradas úteis.
+É o que o cache-aside faz no caminho de escrita e é a escolha certa quando **o dado escrito raramente é lido logo em seguida**: o ingresso que um fã acabou de comprar (lido poucas vezes, por uma só pessoa), logs de auditoria, histórico de pedidos. Escrever isso no cache só despejaria entradas úteis.
 
 ---
 
@@ -277,7 +277,7 @@ Na prática, os sistemas **combinam** os padrões: cache-aside + write-around (r
 <div class="csim" data-sim="cache" data-size="500" data-strategy="aside"></div>
 
 !!! tip "Experimente"
-    O TTL começa em 60 s, o `CACHE_TTL_EVENT` do [Hands-on 5](../../../hands-on/5/cache-aside/index.md). Dê play e deixe o cache aquecer: depois de um minuto a taxa de acerto se estabiliza perto de 86% e o banco recebe cerca de 29 das 200 leituras/s, sem nenhuma leitura desatualizada, porque cada edição apaga sua chave. Mude para **só TTL**: células laranja aparecem nos eventos quentes, e cerca de 11% das leituras devolvem um evento mais velho que o banco (com TTL de 10 s, cerca de 2%, mas a taxa de acerto cai para 79%: o TTL troca frescor por carga). **Write-through** é tão atualizado quanto apagar a chave e evita a falta depois de cada edição. Reduza o cache para 100 chaves: o LRU despeja parte do conjunto quente, e a taxa de acerto cai para cerca de 58% (85 leituras/s no banco).
+    O TTL começa em 60 s, o `CACHE_TTL_EVENT` do [Hands-on 5](../../../hands-on/5/cache-aside/index.md). Dê play e deixe o cache aquecer: depois de um minuto a taxa de acerto se estabiliza perto de 86% e o banco recebe cerca de 29 das 200 leituras/s, sem nenhuma leitura desatualizada, porque cada edição apaga sua chave. Mude para **só TTL**: células laranja aparecem nos eventos quentes e cerca de 11% das leituras devolvem um evento mais velho que o banco (com TTL de 10 s, cerca de 2%, mas a taxa de acerto cai para 79%: o TTL troca frescor por carga). **Write-through** é tão atualizado quanto apagar a chave e evita a falta depois de cada edição. Reduza o cache para 100 chaves: o LRU despeja parte do conjunto quente e a taxa de acerto cai para cerca de 58% (85 leituras/s no banco).
 
 ---
 
@@ -285,7 +285,7 @@ Na prática, os sistemas **combinam** os padrões: cache-aside + write-around (r
 
 Os padrões dizem *quando* ler e escrever no cache; o desenho de chaves e valores decide se ele funciona em escala.
 
-**Chaves estruturadas, com namespace.** Use um prefixo por serviço e entidade, e inclua tudo que muda a resposta:
+**Chaves estruturadas, com namespace.** Use um prefixo por serviço e entidade e inclua tudo que muda a resposta:
 
 ```text
 boxoffice:catalog:event:42:v3                 # one event, schema version 3
@@ -325,7 +325,7 @@ flowchart LR
     L2 --> L1
 ```
 
-- **Por quê**: um acerto no L1 custa uma consulta a um hash map (microssegundos, sem rede), e ele absorve **chaves quentes** que de outro modo martelariam um único shard do Redis ([Modos de Falha — chaves quentes](../failure-modes/index.md#hot-keys)).
+- **Por quê**: um acerto no L1 custa uma consulta a um hash map (microssegundos, sem rede) e ele absorve **chaves quentes** que de outro modo martelariam um único shard do Redis ([Modos de Falha — chaves quentes](../failure-modes/index.md#hot-keys)).
 - **O problema — invalidação**: com 20 réplicas, uma escrita precisa invalidar 20 caches L1 privados mais o Redis. Opções: um TTL bem curto no L1 (1–5 s), aceitando essa defasagem; ou difundir as invalidações pelo pub/sub do Redis (ou pelo client-side caching do Redis com rastreamento, `CLIENT TRACKING`) para que cada réplica descarte sua cópia local.
 
 !!! example "BoxOffice: o que vai onde"
@@ -341,7 +341,7 @@ flowchart LR
 
 !!! tip "Na entrevista"
 
-    Diga o padrão e a invalidação de uma vez só: "cache-aside no Redis para os detalhes do evento, TTL de 5 minutos, remoção na escrita depois do commit, e um L1 em processo de 2 segundos para os eventos mais quentes durante a abertura de vendas". Depois mostre que conhece os custos: a penalidade da falta, a janela de defasagem e a corrida que o TTL limita. Se o entrevistador apertar na consistência, diga o que você **não** cacheia e por quê.
+    Diga o padrão e a invalidação de uma vez só: "cache-aside no Redis para os detalhes do evento, TTL de 5 minutos, remoção na escrita depois do commit e um L1 em processo de 2 segundos para os eventos mais quentes durante a abertura de vendas". Depois mostre que conhece os custos: a penalidade da falta, a janela de defasagem e a corrida que o TTL limita. Se o entrevistador apertar na consistência, diga o que você **não** cacheia e por quê.
 
 !!! success "Boas práticas"
 
@@ -355,7 +355,7 @@ flowchart LR
 
     - **Atualizar o cache na escrita** em vez de remover: dois escritores concorrentes podem deixar o valor mais antigo no cache para sempre (veja [Invalidação](../invalidation/index.md#delete-vs-update)).
     - **Remover antes do commit da transação** (`@CacheEvict` + `@Transactional` na ordem errada).
-    - **Cachear `null` sem querer** — ou nunca cachear, e deixar ids inexistentes baterem no banco.
+    - **Cachear `null` sem querer** — ou nunca cachear e deixar ids inexistentes baterem no banco.
     - **Write-behind para dados que você não pode perder.**
     - **Chaves que esquecem uma dimensão** (idioma, moeda, usuário) — o cache serve a resposta errada, rapidamente.
     - **Serialização Java de entidades com relações lazy** — serializar uma entidade JPA pode disparar consultas ou falhar; cacheie DTOs, não entidades.

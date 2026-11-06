@@ -26,7 +26,7 @@ Este marco se apoia na parte de FinOps da [Aula 11 — Cloud-native](../../../cl
 - [ ] **(obrigatório)** Todo preço vem de uma **calculadora ou página de preços oficial**, com data e região; nenhum preço é inventado. As premissas (horas por mês, GB transferidos, utilização, retenção) estão listadas.
 - [ ] Economia unitária: **custo por 1.000 requisições** e **custo por unidade de negócio** da sua opção.
 - [ ] Custo do **ambiente realmente usado** (notebook, minutos de CI, eventual conta na nuvem — com a fatura, se uma nuvem foi usada).
-- [ ] Sensibilidade: custo com **×10 de tráfego**, provisionado para o pico vs com autoscaling, e com **compromissos/spot** (instâncias reservadas, savings plans, descontos por uso comprometido).
+- [ ] Sensibilidade: custo com **×10 de tráfego**, provisionado para o pico vs com autoscaling e com **compromissos/spot** (instâncias reservadas, savings plans, descontos por uso comprometido).
 - [ ] Uma **comparação de modelos de serviço** para pelo menos um componente (por exemplo, Kafka autogerenciado no Kubernetes vs um serviço Kafka gerenciado vs uma fila serverless): custo, esforço operacional, limites.
 - [ ] **≥ 3 alavancas de economia**, cada uma ligada a uma **medição** do M6 (por exemplo, "taxa de acerto de 95% → o banco pode ser um tamanho menor") com a economia estimada.
 - [ ] Seção *Uso de IA* (veja a [política](../../index.md#use-of-ai-tools)).
@@ -149,7 +149,7 @@ Divida pela unidade que importa para o negócio. Na BoxOffice, **custo por ingre
 
 !!! example "BoxOffice — pico versus mês"
 
-    Uma venda relâmpago dura minutos, mas a capacidade provisionada para ela é paga o mês inteiro. Compare: (a) provisionado para o pico da venda 730 h/mês; (b) uma base mais autoscaling durante as vendas; (c) (b) mais uma sala de espera que limita o caminho do inventário. A sala de espera não é só um recurso de justiça — é um recurso de **custo**: ela permite dimensionar o caminho caro e fortemente consistente pela taxa de admissão, e não pela multidão.
+    Uma venda relâmpago dura minutos, mas a capacidade provisionada para ela é paga o mês inteiro. Compare: (a) provisionado para o pico da venda 730 h/mês; (b) uma base mais autoscaling durante as vendas; (c) (b) mais uma sala de espera que limita o caminho do inventário. A sala de espera não é só um recurso de justiça — é um recurso de **custo**: ela permite dimensionar o caminho caro e fortemente consistente pela taxa de admissão e não pela multidão.
 
 ### 5. Modelos de serviço { #5-service-models }
 

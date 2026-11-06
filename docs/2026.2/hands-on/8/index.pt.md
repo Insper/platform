@@ -15,7 +15,7 @@ Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** a
 
 ## Bancos de dados em memória
 
-Um **banco de dados em memória** (IMDB, *in-memory database*) mantém o seu conjunto de dados de trabalho principal na RAM, e não em disco. Como a latência de acesso à RAM é medida em nanossegundos, enquanto o acesso a disco é medido em milissegundos, os IMDBs são ordens de grandeza mais rápidos em workloads com muitas leituras.
+Um **banco de dados em memória** (IMDB, *in-memory database*) mantém o seu conjunto de dados de trabalho principal na RAM e não em disco. Como a latência de acesso à RAM é medida em nanossegundos, enquanto o acesso a disco é medido em milissegundos, os IMDBs são ordens de grandeza mais rápidos em workloads com muitas leituras.
 
 | | Tradicional (em disco) | Em memória |
 |---|---|---|

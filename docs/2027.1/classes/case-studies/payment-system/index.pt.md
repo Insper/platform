@@ -1,7 +1,7 @@
 
-> *"Projete o sistema de pagamentos de uma plataforma de ingressos. Os fãs pagam com cartão ou Pix por meio de um provedor de pagamento externo; os produtores recebem depois do show. Ninguém pode ser cobrado duas vezes, e cada centavo precisa ser contabilizado."*
+> *"Projete o sistema de pagamentos de uma plataforma de ingressos. Os fãs pagam com cartão ou Pix por meio de um provedor de pagamento externo; os produtores recebem depois do show. Ninguém pode ser cobrado duas vezes e cada centavo precisa ser contabilizado."*
 
-Pagamentos são onde "eventualmente consistente" deixa de ser uma resposta aceitável. Um fã cobrado duas vezes liga para o banco; um produtor pago duas vezes é dinheiro que você nunca mais vai ver; um ingresso emitido sem pagamento é um presente. Mesmo assim, o sistema conversa com um **provedor externo** por uma rede não confiável, o que significa timeouts com **resultado desconhecido**, webhooks duplicados e dinheiro que chega dias depois num arquivo de liquidação. A entrevista testa se você consegue transformar um mundo pelo-menos-uma-vez num **efeito de exatamente uma vez**, e se você sabe como dinheiro é registrado: um **livro-razão de partidas dobradas**, não uma coluna `balance`.
+Pagamentos são onde "eventualmente consistente" deixa de ser uma resposta aceitável. Um fã cobrado duas vezes liga para o banco; um produtor pago duas vezes é dinheiro que você nunca mais vai ver; um ingresso emitido sem pagamento é um presente. Mesmo assim, o sistema conversa com um **provedor externo** por uma rede não confiável, o que significa timeouts com **resultado desconhecido**, webhooks duplicados e dinheiro que chega dias depois num arquivo de liquidação. A entrevista testa se você consegue transformar um mundo pelo-menos-uma-vez num **efeito de exatamente uma vez** e se você sabe como dinheiro é registrado: um **livro-razão de partidas dobradas**, não uma coluna `balance`.
 
 Este é o serviço `payment` do BoxOffice — o adaptador por trás do fluxo de pedidos do [caso de ingressos](../ticketing/index.md). Aquela página modela o pedido como uma máquina de estados (`HELD → PENDING_PAYMENT → CONFIRMED`) e usa webhooks e conciliação; esta página desce um nível e mostra o que acontece **dentro** do `payment`: idempotência, o livro-razão, a integração com o provedor e a conciliação diária.
 
@@ -17,7 +17,7 @@ Este é o serviço `payment` do BoxOffice — o adaptador por trás do fluxo de 
     - **Explicar** por que a "entrega exatamente uma vez" não existe e **construir** um *efeito* de exatamente uma vez a partir de retentativas mais idempotência.
     - **Projetar** um armazenamento de chaves de idempotência que lida com duplicatas concorrentes, repetições e payloads alterados.
     - **Registrar** movimentações de dinheiro num livro-razão de partidas dobradas e **verificar** que toda transação fecha.
-    - **Integrar** com um provedor de serviços de pagamento (PSP) ficando fora da maior parte do escopo do PCI DSS, e **tratar** timeouts de resultado desconhecido.
+    - **Integrar** com um provedor de serviços de pagamento (PSP) ficando fora da maior parte do escopo do PCI DSS e **tratar** timeouts de resultado desconhecido.
     - **Projetar** a conciliação entre o livro-razão e os relatórios de liquidação do provedor.
 
 ---
@@ -58,7 +58,7 @@ Processar cartões por conta própria (não somos adquirente), modelos antifraud
     | Processamos cartões nós mesmos ou usamos um PSP (Stripe, Adyen, Mercado Pago, Pagar.me…)? | Um PSP com página hospedada ou tokenização mantém os dados brutos do cartão fora dos nossos sistemas. |
     | Autorizar e capturar juntos, ou autorizar agora e capturar depois? | A captura em duas etapas permite liberar o dinheiro se a reserva do lugar falhar. |
     | Quais meios de pagamento? Pix / boleto são assíncronos | Meios assíncronos tornam os webhooks a única forma de saber o resultado. |
-    | Quem recebe, e quando? Há taxa da plataforma? | Define as contas do livro-razão (devido ao produtor, receita da plataforma) e os repasses. |
+    | Quem recebe e quando? Há taxa da plataforma? | Define as contas do livro-razão (devido ao produtor, receita da plataforma) e os repasses. |
     | Um PSP ou vários (failover, roteamento por custo)? | Vários PSPs multiplicam o trabalho de integração e de conciliação. |
     | Qual a política de reembolso? Reembolsos parciais? | Reembolsos também são transações no livro-razão; parciais precisam de valores por item. |
 
@@ -101,7 +101,7 @@ for name, value, unit in rows:
 
 O que os números dizem:
 
-- Em média, só **~3,5 pagamentos/s**; o pico de **300/s** é definido pelas aberturas de vendas. Com um provedor de 2 s, há **~600 chamadas em andamento** no pico (Lei de Little). ⇒ dimensione o pool de conexões e o bulkhead do adaptador para isso, e lembre que o provedor tem o **seu próprio rate limit**.
+- Em média, só **~3,5 pagamentos/s**; o pico de **300/s** é definido pelas aberturas de vendas. Com um provedor de 2 s, há **~600 chamadas em andamento** no pico (Lei de Little). ⇒ dimensione o pool de conexões e o bulkhead do adaptador para isso e lembre que o provedor tem o **seu próprio rate limit**.
 - O livro-razão cresce **1,2 M de linhas/dia, ~88 GB/ano**: um único **PostgreSQL** bem indexado com um standby guarda anos disso. Pagamentos são um problema de **corretude**, não de escala.
 - Os registros de idempotência ocupam **~300 MB/dia**; guarde-os por 24 h–7 dias e cabem em qualquer lugar.
 - Mesmo uma taxa de 0,1% de duplicatas significaria **~300 cobranças duplicadas por dia** — 300 fãs irritados e chargebacks. Esse é o número que justifica idempotência em todo lugar.
@@ -238,7 +238,7 @@ sequenceDiagram
 
 ### 6.1 Efeito de exatamente uma vez: chaves de idempotência { #61-exactly-once-effect-idempotency-keys }
 
-Não existe **entrega** exatamente uma vez numa rede: uma requisição cuja resposta se perdeu pode ou não ter sido executada. O que dá para construir é um **efeito** de exatamente uma vez: o cliente repete até obter uma resposta (pelo menos uma vez), e o servidor torna a operação **idempotente** — executá-la duas vezes tem o mesmo efeito que uma ([semântica de entrega](../../messaging/semantics/index.md)).
+Não existe **entrega** exatamente uma vez numa rede: uma requisição cuja resposta se perdeu pode ou não ter sido executada. O que dá para construir é um **efeito** de exatamente uma vez: o cliente repete até obter uma resposta (pelo menos uma vez) e o servidor torna a operação **idempotente** — executá-la duas vezes tem o mesmo efeito que uma ([semântica de entrega](../../messaging/semantics/index.md)).
 
 O algoritmo no servidor para `POST /v1/payments` com `Idempotency-Key: K`:
 
@@ -274,7 +274,7 @@ Idempotency-Key: user-42                ✘ blocks every future purchase of that
 
 !!! example "No código do BoxOffice: o adaptador de pagamento (lab 9)"
 
-    O [Hands-on 9 — Pagamento, provedor e Toxiproxy](../../../hands-on/9/payment/index.md) constrói uma versão menor deste algoritmo. A mesma chave percorre `order → payment → PSP`: o `order` envia `Idempotency-Key: order-<id>`, o `payment` a procura, chama o PSP **fora** de qualquer transação do banco (nunca segure uma conexão esperando) e grava o resultado sob uma chave `UNIQUE`. O que fica de fora é a linha `IN_PROGRESS`: duas duplicatas concorrentes podem chegar ambas ao PSP, e só a idempotência do próprio provedor, com a mesma chave, impede a segunda cobrança — a tabela acima fecha essa brecha. No lab, a mesma requisição enviada duas vezes devolve `201` e depois `200` com o mesmo `id` e o mesmo `providerRef`. O [outbox do lab 7](../../../hands-on/7/outbox/index.md) é o padrão da seção 6.4.
+    O [Hands-on 9 — Pagamento, provedor e Toxiproxy](../../../hands-on/9/payment/index.md) constrói uma versão menor deste algoritmo. A mesma chave percorre `order → payment → PSP`: o `order` envia `Idempotency-Key: order-<id>`, o `payment` a procura, chama o PSP **fora** de qualquer transação do banco (nunca segure uma conexão esperando) e grava o resultado sob uma chave `UNIQUE`. O que fica de fora é a linha `IN_PROGRESS`: duas duplicatas concorrentes podem chegar ambas ao PSP e só a idempotência do próprio provedor, com a mesma chave, impede a segunda cobrança — a tabela acima fecha essa brecha. No lab, a mesma requisição enviada duas vezes devolve `201` e depois `200` com o mesmo `id` e o mesmo `providerRef`. O [outbox do lab 7](../../../hands-on/7/outbox/index.md) é o padrão da seção 6.4.
 
     ``` { .java title="services/payment/src/main/java/boxoffice/payment/PaymentService.java (charge once per key)" }
     --8<-- "docs/2027.1/hands-on/9/code/services/payment/src/main/java/boxoffice/payment/PaymentService.java:22:38"
@@ -307,7 +307,7 @@ stateDiagram-v2
 
 ### 6.3 O livro-razão de partidas dobradas { #63-the-double-entry-ledger }
 
-Uma coluna `balance` que você atualiza com `UPDATE` perde o histórico, não consegue se explicar a um auditor e quebra em silêncio sob atualizações concorrentes. A contabilidade resolveu isso há séculos: **partidas dobradas**. Toda transação é um conjunto de linhas, cada uma movendo dinheiro para dentro (débito) ou para fora (crédito) de uma conta, e **as linhas de toda transação somam zero**. Os saldos são **derivados** somando as linhas; nada é atualizado ou apagado — um erro é corrigido por uma nova transação de estorno.
+Uma coluna `balance` que você atualiza com `UPDATE` perde o histórico, não consegue se explicar a um auditor e quebra em silêncio sob atualizações concorrentes. A contabilidade resolveu isso há séculos: **partidas dobradas**. Toda transação é um conjunto de linhas, cada uma movendo dinheiro para dentro (débito) ou para fora (crédito) de uma conta e **as linhas de toda transação somam zero**. Os saldos são **derivados** somando as linhas; nada é atualizado ou apagado — um erro é corrigido por uma nova transação de estorno.
 
 Um fã compra um ingresso de 200,00 mais uma taxa de serviço de 30,00; o PSP fica com uma taxa de 2,5%; o produtor recebe depois do show:
 
@@ -365,7 +365,7 @@ Regras de engenharia para o livro-razão:
 3. Aplicar a mudança como uma **transição condicional** (`… WHERE status IN ('PROCESSING','UNKNOWN')`), para que eventos fora de ordem (um `failed` depois de um `captured`) não façam o estado andar para trás.
 4. Responder `2xx` rápido e fazer o trabalho pesado de forma assíncrona; um handler lento faz o provedor repetir, multiplicando a carga.
 
-**Outbox.** O estado do pagamento, as linhas do livro-razão e uma linha no `outbox` são confirmados juntos; um relay publica o outbox no Kafka. O serviço de pedidos nunca fica sabendo de um pagamento que sofreu rollback, e nunca perde um que foi confirmado ([padrões de mensageria](../../messaging/patterns/index.md)).
+**Outbox.** O estado do pagamento, as linhas do livro-razão e uma linha no `outbox` são confirmados juntos; um relay publica o outbox no Kafka. O serviço de pedidos nunca fica sabendo de um pagamento que sofreu rollback e nunca perde um que foi confirmado ([padrões de mensageria](../../messaging/patterns/index.md)).
 
 A **conciliação** é a rede de segurança de tudo isso. Uma vez por dia o PSP publica um **relatório de liquidação** (todo pagamento capturado, reembolso, taxa e repasse). Um job agendado o carrega no warehouse e o casa, linha a linha, com o livro-razão:
 
@@ -438,7 +438,7 @@ O cenário `payment-system` modela o serviço de pagamentos, seu banco e um prov
 
 ??? question "Precisamos de event sourcing para pagamentos?"
 
-    O livro-razão já **é** um log só de inserção de fatos financeiros, e a tabela de pagamentos registra uma máquina de estados com seu histórico (`events[]`). Event sourcing completo de todo agregado é opcional; o que importa é a imutabilidade das movimentações de dinheiro e a capacidade de explicar cada saldo. Muitos sistemas de pagamento combinam uma tabela relacional de estado com um livro-razão imutável — mais simples de consultar e auditar.
+    O livro-razão já **é** um log só de inserção de fatos financeiros e a tabela de pagamentos registra uma máquina de estados com seu histórico (`events[]`). Event sourcing completo de todo agregado é opcional; o que importa é a imutabilidade das movimentações de dinheiro e a capacidade de explicar cada saldo. Muitos sistemas de pagamento combinam uma tabela relacional de estado com um livro-razão imutável — mais simples de consultar e auditar.
 
 ??? question "Como você acrescentaria um segundo provedor de pagamento?"
 
@@ -464,7 +464,7 @@ O cenário `payment-system` modela o serviço de pagamentos, seu banco e um prov
 
     - **Nunca mantenha uma transação do banco aberta durante a chamada ao provedor** — o `PaymentService` do lab 9 chama o PSP fora de qualquer transação, para que um provedor lento não esgote o pool de conexões ([lab 9](../../../hands-on/9/payment/index.md)).
     - **Guarde dinheiro em unidades inteiras (centavos) ou `NUMERIC`, nunca em ponto flutuante** — a tabela do lab 9 usa `NUMERIC(10,2)`; um float não representa R$ 0,10 exatamente.
-    - **Dê a cada salto um timeout menor que o de quem o chama** — senão quem chama desiste enquanto o chamado ainda trabalha, e a sua retentativa roda ao lado da primeira tentativa. Confira no lab 9: o `order` espera 1 s pelo `payment`, que espera 2 s pelo PSP; com um provedor lento, só a chave de idempotência impede a retentativa de cobrar duas vezes.
+    - **Dê a cada salto um timeout menor que o de quem o chama** — senão quem chama desiste enquanto o chamado ainda trabalha e a sua retentativa roda ao lado da primeira tentativa. Confira no lab 9: o `order` espera 1 s pelo `payment`, que espera 2 s pelo PSP; com um provedor lento, só a chave de idempotência impede a retentativa de cobrar duas vezes.
     - **Concilie todo dia com o relatório de liquidação do provedor** — toda diferença vira um chamado com dono; o razão só está certo se alguém o confere.
     - **Mantenha os dados de cartão fora dos seus sistemas** — a tokenização pelo provedor deixa o BoxOffice fora da maior parte do escopo do PCI DSS.
 

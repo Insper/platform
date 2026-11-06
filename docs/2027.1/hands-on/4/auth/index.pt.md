@@ -140,7 +140,7 @@ Os records trocados com os clientes:
 
 !!! warning "Uma chave nova a cada reinício"
 
-    O `TokenService` gera o par de chaves RSA em memória quando o `auth` sobe. Reinicie o `auth` e todo token emitido antes é rejeitado (`kid` desconhecido), e duas réplicas do `auth` assinariam cada uma com uma chave diferente. Em produção, a chave privada fica em um **KMS ou gerenciador de segredos**, o JWKS lista a chave atual **e** a anterior durante uma rotação, e as chaves giram em um calendário. Num lab, um reinício que desloga todo mundo é uma vantagem: você vê por que a rotação exige cuidado.
+    O `TokenService` gera o par de chaves RSA em memória quando o `auth` sobe. Reinicie o `auth` e todo token emitido antes é rejeitado (`kid` desconhecido) e duas réplicas do `auth` assinariam cada uma com uma chave diferente. Em produção, a chave privada fica em um **KMS ou gerenciador de segredos**, o JWKS lista a chave atual **e** a anterior durante uma rotação e as chaves giram em um calendário. Num lab, um reinício que desloga todo mundo é uma vantagem: você vê por que a rotação exige cuidado.
 
 ## 5. Cadastro, login, me { #5-register-login-me }
 

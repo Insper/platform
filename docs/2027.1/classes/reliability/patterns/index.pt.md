@@ -1,6 +1,6 @@
 Quando uma dependência degrada, o comportamento ingênuo — continuar enviando requisições e esperar a resposta — produz com certeza a cascata da [visão geral](../index.md#cascading-failures): as threads de quem chama bloqueiam, sua fila enche e a falha sobe até usuários que não tinham nada a ver com a dependência quebrada. **Padrões de resiliência** são decisões de projeto que interrompem essa propagação. Eles não evitam falhas; eles **limitam até onde uma falha vai**[^1].
 
-Ao longo desta página seguimos uma chamada do BoxOffice: **o `order` chama o `payment`**, o adaptador na frente do provedor externo de pagamento, para cobrar o cartão de um fã durante a saga de compra (veja [Mensageria — padrões](../../messaging/patterns/index.md#sagas)). É a chamada mais perigosa do sistema: está no caminho da receita, atravessa a internet até um terceiro, e o dia ruim do terceiro vira o nosso.
+Ao longo desta página seguimos uma chamada do BoxOffice: **o `order` chama o `payment`**, o adaptador na frente do provedor externo de pagamento, para cobrar o cartão de um fã durante a saga de compra (veja [Mensageria — padrões](../../messaging/patterns/index.md#sagas)). É a chamada mais perigosa do sistema: está no caminho da receita, atravessa a internet até um terceiro e o dia ruim do terceiro vira o nosso.
 
 | Padrão | Pergunta que responde | Protege contra |
 |---|---|---|
@@ -17,7 +17,7 @@ Ao longo desta página seguimos uma chamada do BoxOffice: **o `order` chama o `p
 
 ## Timeout { #timeout }
 
-Um **timeout** é um prazo em uma chamada de saída: se a resposta não chegou a tempo, quem chama a abandona e trata o erro. Sem timeout, uma dependência pendurada segura uma thread (e uma conexão, e memória) indefinidamente; com ele, o estrago que uma chamada lenta pode fazer é limitado.
+Um **timeout** é um prazo em uma chamada de saída: se a resposta não chegou a tempo, quem chama a abandona e trata o erro. Sem timeout, uma dependência pendurada segura uma thread (e uma conexão e memória) indefinidamente; com ele, o estrago que uma chamada lenta pode fazer é limitado.
 
 ``` diagram-sim
 sequenceDiagram
@@ -52,11 +52,11 @@ Os timeouts precisam encolher à medida que a requisição desce. Um prazo defin
 | `payment` → provedor | 1,8 s | deixa margem para o trabalho do próprio adaptador |
 
 !!! warning "Timeouts são só o primeiro passo"
-    Um timeout transforma uma espera infinita em um erro rápido. Você ainda precisa decidir o que fazer com o erro: repetir (se for transitório e seguro), parar de chamar por um tempo (circuit breaker) ou responder outra coisa (fallback). E um timeout numa chamada *não idempotente* deixa um resultado desconhecido — a cobrança pode ter sido feita —, e é por isso que as chamadas ao `payment` levam uma chave de idempotência (veja [Integrações](../../compute/integrations/index.md)).
+    Um timeout transforma uma espera infinita em um erro rápido. Você ainda precisa decidir o que fazer com o erro: repetir (se for transitório e seguro), parar de chamar por um tempo (circuit breaker) ou responder outra coisa (fallback). E um timeout numa chamada *não idempotente* deixa um resultado desconhecido — a cobrança pode ter sido feita — e é por isso que as chamadas ao `payment` levam uma chave de idempotência (veja [Integrações](../../compute/integrations/index.md)).
 
 !!! example "No código do BoxOffice: os timeouts de `order` → `payment` (lab 9)"
 
-    O [Hands-on 9 — Padrões de resiliência](../../../hands-on/9/patterns/index.md) dá ao cliente do `payment` seus dois timeouts: 500 ms para conectar e 1 s para ler (`PAYMENT_READ_TIMEOUT`; `0` espera para sempre, o experimento "antes"). A chave de idempotência `order-<id>` é a mesma em toda tentativa, e é isso que torna seguro o retry da próxima seção. A aritmética do lab: 20 pagamentos/s contra um provedor 3 s lento seguram 20 × 3 = 60 threads, mais que o pool de 50; com o timeout de 1 s, 20 × 1 = 20.
+    O [Hands-on 9 — Padrões de resiliência](../../../hands-on/9/patterns/index.md) dá ao cliente do `payment` seus dois timeouts: 500 ms para conectar e 1 s para ler (`PAYMENT_READ_TIMEOUT`; `0` espera para sempre, o experimento "antes"). A chave de idempotência `order-<id>` é a mesma em toda tentativa e é isso que torna seguro o retry da próxima seção. A aritmética do lab: 20 pagamentos/s contra um provedor 3 s lento seguram 20 × 3 = 60 threads, mais que o pool de 50; com o timeout de 1 s, 20 × 1 = 20.
 
     ``` { .java title="services/order/src/main/java/boxoffice/order/payment/PaymentClient.java (timeouts and idempotency key)" }
     --8<-- "docs/2027.1/hands-on/9/code/services/order/src/main/java/boxoffice/order/payment/PaymentClient.java:15:32"
@@ -183,7 +183,7 @@ print(buf.getvalue())
 plt.close()
 ```
 
-- **Esquerda — retries podem manter um sistema caído.** Sem retries (cinza), os sucessos caem durante a degradação e voltam no instante em que ela termina. Com 3 retries por requisição (vermelho), cada falha vira até 4 chamadas; a carga extra mantém o provedor sobrecarregado *depois* que o gatilho passou, e o sistema se acomoda num estado degradado — uma **falha metaestável** (veja a [visão geral](../index.md#other-amplifiers)). Backoff e jitter não resolvem isso: eles espalham os retries no tempo, mas não reduzem a quantidade. Um **retry budget** (azul) — os retries podem acrescentar no máximo 10% ao tráfego normal — limita a amplificação e o sistema se recupera na hora.
+- **Esquerda — retries podem manter um sistema caído.** Sem retries (cinza), os sucessos caem durante a degradação e voltam no instante em que ela termina. Com 3 retries por requisição (vermelho), cada falha vira até 4 chamadas; a carga extra mantém o provedor sobrecarregado *depois* que o gatilho passou e o sistema se acomoda num estado degradado — uma **falha metaestável** (veja a [visão geral](../index.md#other-amplifiers)). Backoff e jitter não resolvem isso: eles espalham os retries no tempo, mas não reduzem a quantidade. Um **retry budget** (azul) — os retries podem acrescentar no máximo 10% ao tráfego normal — limita a amplificação e o sistema se recupera na hora.
 - **Direita — jitter evita ondas sincronizadas.** Sem jitter (laranja), todos os clientes que falharam juntos repetem juntos: 1.000 chamadas em uma janela de 100 ms, só 150 têm sucesso, as outras 850 repetem juntas de novo… depois de 15 segundos, 250 clientes ainda não conseguiram. Com full jitter (azul), os mesmos retries se espalham abaixo da linha de capacidade e todos conseguem em cerca de 1,5 s.
 
 Daí saem três regras:
@@ -194,7 +194,7 @@ Daí saem três regras:
 
 !!! info "Experimente no playground"
 
-    O cenário `retry-storm` tem clientes repetindo chamadas que falharam, sem backoff, contra um serviço que sofre uma indisponibilidade curta. Aperte **Run** e observe a taxa de requisições ao serviço pular para várias vezes a taxa dos clientes durante a indisponibilidade, e o serviço continuar sobrecarregado depois de quando deveria ter se recuperado. Depois troque a política de retry para **backoff exponencial com jitter**, adicione um **retry budget** e compare o tempo de recuperação.
+    O cenário `retry-storm` tem clientes repetindo chamadas que falharam, sem backoff, contra um serviço que sofre uma indisponibilidade curta. Aperte **Run** e observe a taxa de requisições ao serviço pular para várias vezes a taxa dos clientes durante a indisponibilidade e o serviço continuar sobrecarregado depois de quando deveria ter se recuperado. Depois troque a política de retry para **backoff exponencial com jitter**, adicione um **retry budget** e compare o tempo de recuperação.
 
 <div class="sdp" data-scenario="retry-storm" data-mode="compact" data-height="520"></div>
 
@@ -223,7 +223,7 @@ stateDiagram-v2
 : As chamadas passam; o breaker registra sucessos, falhas e chamadas lentas numa janela deslizante.
 
 **Aberto** (falhando rápido)
-: As chamadas falham na hora (`CallNotPermittedException` no Resilience4j). As threads de quem chama ficam livres, e a dependência ganha espaço para respirar em vez de uma tempestade de retries.
+: As chamadas falham na hora (`CallNotPermittedException` no Resilience4j). As threads de quem chama ficam livres e a dependência ganha espaço para respirar em vez de uma tempestade de retries.
 
 **Meio-aberto** (testando)
 : Depois do tempo de espera, algumas chamadas são permitidas. Se derem certo, o breaker fecha; se não, abre de novo.
@@ -272,7 +272,7 @@ flowchart LR
     bc --> cat["catalog<br/>(saudável)"]
 ```
 
-O dimensionamento vem de novo da Lei de Little. A 100 compras/s e 200 ms por cobrança, cerca de 20 chamadas estão em voo. Um bulkhead de **50** deixa espaço para a latência crescer 2,5× antes de as chamadas serem rejeitadas; quando o provedor vai para 4 s, no máximo 50 threads esperam por ele (em vez de 400), e as outras 150 continuam atendendo reservas, páginas de pedido e todo o resto. Chamadas rejeitadas falham em microssegundos e vão para o fallback.
+O dimensionamento vem de novo da Lei de Little. A 100 compras/s e 200 ms por cobrança, cerca de 20 chamadas estão em voo. Um bulkhead de **50** deixa espaço para a latência crescer 2,5× antes de as chamadas serem rejeitadas; quando o provedor vai para 4 s, no máximo 50 threads esperam por ele (em vez de 400) e as outras 150 continuam atendendo reservas, páginas de pedido e todo o resto. Chamadas rejeitadas falham em microssegundos e vão para o fallback.
 
 O Resilience4j oferece um **bulkhead de semáforo** (limita chamadas concorrentes nas threads de quem chama; barato, o padrão) e um **bulkhead de pool de threads** (executa as chamadas num pool dedicado). A ideia é geral: pools de conexão separados por carga de trabalho num banco, consumer groups separados no Kafka, deployments separados para tráfego crítico e não crítico, filas separadas para confirmações e e-mails de marketing.
 
@@ -280,7 +280,7 @@ O Resilience4j oferece um **bulkhead de semáforo** (limita chamadas concorrente
 
 ## Load shedding { #load-shedding }
 
-Quando a demanda passa da capacidade, *algumas* requisições vão falhar. O **load shedding** (descarte de carga) decide **quais** e as faz falhar **cedo e barato**, para que o resto tenha sucesso. Sem ele, o servidor aceita tudo, toda requisição fica lenta, a maioria dá timeout depois de consumir recursos, e o goodput (trabalho útil) desaba — todos falham[^4].
+Quando a demanda passa da capacidade, *algumas* requisições vão falhar. O **load shedding** (descarte de carga) decide **quais** e as faz falhar **cedo e barato**, para que o resto tenha sucesso. Sem ele, o servidor aceita tudo, toda requisição fica lenta, a maioria dá timeout depois de consumir recursos e o goodput (trabalho útil) desaba — todos falham[^4].
 
 - **Descarte na porta.** Rejeite com `503` + `Retry-After` antes de fazer qualquer trabalho: uma rejeição custa microssegundos, uma requisição que dá timeout custa o processamento inteiro.
 - **Descarte por prioridade.** Durante a abertura do estádio, o BoxOffice classifica o tráfego: compras e reservas são críticas; navegação no catálogo é importante; recomendações, autocomplete e "eventos relacionados" são descartáveis. Sob sobrecarga, os descartáveis saem primeiro.
@@ -297,7 +297,7 @@ Quando a demanda passa da capacidade, *algumas* requisições vão falhar. O **l
 
 O **rate limiting** limita quantas requisições um **cliente** (um IP, um usuário, uma chave de API, um parceiro) pode enviar numa janela de tempo. O load shedding protege o servidor da sobrecarga *total*; o rate limiting o protege de clientes *individuais* — bots atualizando o mapa de lugares centenas de vezes por segundo, a integração bugada de um parceiro, um scraper.
 
-O algoritmo comum é o **token bucket**: os tokens se recarregam numa taxa constante (o limite sustentado), o tamanho do balde permite rajadas curtas, e cada requisição consome um token; balde vazio significa `429 Too Many Requests`. Limites por usuário ou chave de API ficam no API gateway, apoiados num armazenamento compartilhado como o Redis, onde a identidade autenticada é conhecida. Os algoritmos (token bucket, leaky bucket, janela deslizante) e sua implementação estão em [Borda — API gateway](../../edge/api-gateway/index.md); o cenário `rate-limiter` do playground mostra um gateway protegendo um backend.
+O algoritmo comum é o **token bucket**: os tokens se recarregam numa taxa constante (o limite sustentado), o tamanho do balde permite rajadas curtas e cada requisição consome um token; balde vazio significa `429 Too Many Requests`. Limites por usuário ou chave de API ficam no API gateway, apoiados num armazenamento compartilhado como o Redis, onde a identidade autenticada é conhecida. Os algoritmos (token bucket, leaky bucket, janela deslizante) e sua implementação estão em [Borda — API gateway](../../edge/api-gateway/index.md); o cenário `rate-limiter` do playground mostra um gateway protegendo um backend.
 
 ---
 
@@ -420,7 +420,7 @@ Os padrões trabalham em camadas. Para a chamada `order` → `payment`, o BoxOff
 
 !!! example "No código do BoxOffice: a pilha de proteção no `order` (lab 9)"
 
-    O [Hands-on 9 — Padrões de resiliência](../../../hands-on/9/patterns/index.md) configura a pilha com números de laptop: 50 threads do Tomcat em vez de 200, timeout de leitura de 1 s, 3 tentativas com 200 ms de backoff ± 50% de jitter, um breaker que também abre quando metade das últimas 20 chamadas levou mais de 800 ms e fica aberto 10 s, e um bulkhead de **10** chamadas simultâneas que nunca enfileira (`max-wait-duration: 0`). Cada parâmetro lê uma variável de ambiente, então cada experimento desliga um padrão sem rebuild. O `PaymentGateway` empilha as anotações na ordem padrão do Resilience4j — Retry ( CircuitBreaker ( Bulkhead ( call ) ) ) — com o fallback na camada externa, e o retry ignora `CallNotPermittedException` e `BulkheadFullException`: um breaker aberto ou um bulkhead cheio falha rápido em vez de ser repetido. O fallback responde `503` e o pedido fica `PENDING_PAYMENT`, o "tente de novo" honesto do [Fallback](#fallback-and-graceful-degradation). Com o provedor 3 s lento, o lab mediu o `GET /orders/{id}` — que nunca chama o `payment` — com mediana de **9,04 s** sem proteção e **6,5 ms** com os padrões.
+    O [Hands-on 9 — Padrões de resiliência](../../../hands-on/9/patterns/index.md) configura a pilha com números de laptop: 50 threads do Tomcat em vez de 200, timeout de leitura de 1 s, 3 tentativas com 200 ms de backoff ± 50% de jitter, um breaker que também abre quando metade das últimas 20 chamadas levou mais de 800 ms e fica aberto 10 s, e um bulkhead de **10** chamadas simultâneas que nunca enfileira (`max-wait-duration: 0`). Cada parâmetro lê uma variável de ambiente, então cada experimento desliga um padrão sem rebuild. O `PaymentGateway` empilha as anotações na ordem padrão do Resilience4j — Retry ( CircuitBreaker ( Bulkhead ( call ) ) ) — com o fallback na camada externa e o retry ignora `CallNotPermittedException` e `BulkheadFullException`: um breaker aberto ou um bulkhead cheio falha rápido em vez de ser repetido. O fallback responde `503` e o pedido fica `PENDING_PAYMENT`, o "tente de novo" honesto do [Fallback](#fallback-and-graceful-degradation). Com o provedor 3 s lento, o lab mediu o `GET /orders/{id}` — que nunca chama o `payment` — com mediana de **9,04 s** sem proteção e **6,5 ms** com os padrões.
 
     ``` { .yaml title="services/order/src/main/resources/application.yaml (resilience4j)" }
     --8<-- "docs/2027.1/hands-on/9/code/services/order/src/main/resources/application.yaml:47:84"
@@ -437,7 +437,7 @@ Os padrões trabalham em camadas. Para a chamada `order` → `payment`, o BoxOff
 
     1. **Nada ligado**: 20 pagamentos/s × 4 s pedem 80 threads; as **50** ficam ocupadas em segundos e, em 30 s, cerca de 220 pagamentos não encontram thread nenhuma — nem o `GET /orders` encontraria.
     2. **Timeout**: só cerca de 20 threads ficam ocupadas, mas **0%** dos pagamentos dão certo. O timeout protege o `order`, não o pagamento.
-    3. **+ retentativas**: o provedor passa a receber cerca de **2×** os pagamentos (44 chamadas/s) justamente quando está com dificuldade, e as 50 threads lotam de novo — 3 tentativas de 1 s mais o backoff prendem cada thread por cerca de 3,6 s.
+    3. **+ retentativas**: o provedor passa a receber cerca de **2×** os pagamentos (44 chamadas/s) justamente quando está com dificuldade e as 50 threads lotam de novo — 3 tentativas de 1 s mais o backoff prendem cada thread por cerca de 3,6 s.
     4. **+ circuit breaker**: ele abre 1,6 s depois do início; os pagamentos falham rápido, as threads caem para cerca de 1 e o provedor não recebe chamadas. Arraste a latência de volta para 200 ms: 10 s depois de abrir, o breaker fica semiaberto, 3 sondas dão certo e ele fecha. Pontos vermelhos na janela dele são falhas, laranja são chamadas lentas.
 
 Como as camadas interagem — verifique antes de lançar:
@@ -464,7 +464,7 @@ Como as camadas interagem — verifique antes de lançar:
 | Fallback | O que o fã vê | "pagamento temporariamente indisponível, lugares reservados" |
 
 !!! tip "Na entrevista"
-    Quando um projeto tem uma chamada a um terceiro ou a uma dependência crítica, ofereça a pilha de proteção de uma vez: "timeout por volta do p99,9, um retry com backoff e jitter e uma chave de idempotência, um circuit breaker que também conta chamadas lentas, um bulkhead dimensionado com a Lei de Little e um fallback que diz a verdade ao usuário". Depois justifique um número (o bulkhead ou o timeout) com aritmética. Se perguntarem sobre sobrecarga, diferencie **rate limiting** (por cliente) de **load shedding** (o sistema todo, por prioridade), e mencione a amplificação de retries entre camadas.
+    Quando um projeto tem uma chamada a um terceiro ou a uma dependência crítica, ofereça a pilha de proteção de uma vez: "timeout por volta do p99,9, um retry com backoff e jitter e uma chave de idempotência, um circuit breaker que também conta chamadas lentas, um bulkhead dimensionado com a Lei de Little e um fallback que diz a verdade ao usuário". Depois justifique um número (o bulkhead ou o timeout) com aritmética. Se perguntarem sobre sobrecarga, diferencie **rate limiting** (por cliente) de **load shedding** (o sistema todo, por prioridade) e mencione a amplificação de retries entre camadas.
 
 !!! success "Boas práticas"
 

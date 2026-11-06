@@ -49,7 +49,7 @@ flowchart LR
 O **monolito modular** merece mais atenção do que costuma receber. Ele entrega o principal benefício dos microsserviços — fronteiras claras, cada módulo dono dos seus dados — sem pagar pela rede. Se um módulo depois precisar de escala independente ou de outro time, ele pode ser extraído ao longo de uma fronteira que já existe. A Shopify, por exemplo, descreveu publicamente sua escolha de modularizar um grande monolito Rails em vez de quebrá-lo em serviços[^7].
 
 !!! tip "Monolito primeiro"
-    A maioria dos sistemas de microsserviços bem-sucedidos começou como monolito: raramente você conhece as fronteiras certas no primeiro dia, e mover uma fronteira dentro de uma base de código é uma refatoração, enquanto movê-la entre serviços é uma migração[^2]. Comece com um monolito (modular); divida quando uma das forças abaixo se tornar real.
+    A maioria dos sistemas de microsserviços bem-sucedidos começou como monolito: raramente você conhece as fronteiras certas no primeiro dia e mover uma fronteira dentro de uma base de código é uma refatoração, enquanto movê-la entre serviços é uma migração[^2]. Comece com um monolito (modular); divida quando uma das forças abaixo se tornar real.
 
 ### Quando dividir compensa { #when-splitting-pays-off }
 
@@ -111,7 +111,7 @@ Essa última linha é a razão de a BoxOffice ter um problema de [integrações 
 
 A **linguagem ubíqua** é o vocabulário compartilhado por desenvolvedores e especialistas do domínio e usado literalmente no código: se a equipe da bilheteria fala *hold*, *on-sale*, *mapa de assentos* e *alocação*, o código diz `Hold`, `OnSale`, `SeatMap` e `Allocation` — não `TempReservation` nem `Lock`.
 
-Mas a mesma palavra muitas vezes significa coisas diferentes em partes diferentes do negócio. Um **bounded context** (contexto delimitado) é a fronteira dentro da qual vale um modelo, e um significado para cada palavra:
+Mas a mesma palavra muitas vezes significa coisas diferentes em partes diferentes do negócio. Um **bounded context** (contexto delimitado) é a fronteira dentro da qual vale um modelo e um significado para cada palavra:
 
 ``` diagram-sim
 flowchart LR
@@ -128,13 +128,13 @@ flowchart LR
     inv -. "mesma palavra,<br/>modelo diferente" .- ord
 ```
 
-Tentar construir uma única classe `Event` que sirva aos três — com imagens, mapa de assentos e preços históricos — produz um objeto inchado que não serve bem a nenhum e acopla três times. Em vez disso, cada contexto é dono do seu próprio modelo, e eles trocam **ids e eventos**. Note em especial o contexto Order: um pedido guarda o **preço pago**, não uma referência ao preço atual, porque se o catálogo mudar um preço amanhã, o pedido de ontem não pode mudar.
+Tentar construir uma única classe `Event` que sirva aos três — com imagens, mapa de assentos e preços históricos — produz um objeto inchado que não serve bem a nenhum e acopla três times. Em vez disso, cada contexto é dono do seu próprio modelo e eles trocam **ids e eventos**. Note em especial o contexto Order: um pedido guarda o **preço pago**, não uma referência ao preço atual, porque se o catálogo mudar um preço amanhã, o pedido de ontem não pode mudar.
 
 **Um bounded context normalmente corresponde a um serviço** (ou a um pequeno grupo de serviços muito relacionados). Essa é a principal heurística para fronteiras de serviços.
 
 ### Context maps: como os contextos se relacionam { #context-maps-how-contexts-relate }
 
-Os contextos trocam dados, e a relação entre cada par é uma decisão de design. Um **context map** (mapa de contextos) desenha essas relações[^3]:
+Os contextos trocam dados e a relação entre cada par é uma decisão de design. Um **context map** (mapa de contextos) desenha essas relações[^3]:
 
 | Padrão | Significado | Use quando |
 |---|---|---|
@@ -314,7 +314,7 @@ Quando `order` precisa confirmar um hold, ele chama a **API** de `inventory`, nu
 
 A aula 8 ([mensageria](../../messaging/index.md)) aprofunda os eventos; a página de [estilos de API](../api-styles/index.md) cobre as opções de requisição/resposta.
 
-**Experimente.** O cenário `microservices` divide a aplicação em `catalog`, `inventory`, `order` e `notify`, cada um com seu banco, atrás de um gateway, e comprar é uma cadeia síncrona: `order` chama `inventory`, `catalog` e `notify` antes de responder. Execute-o: com 2.000 req/s o catálogo não consegue os pods de que precisa e cerca de 25% das requisições falham (pods e nós são a história da [aula 11](../../cloud-native/index.md)). Abra-o no playground completo (↗) e aperte **Mostrar uma solução possível**: mais espaço no cluster e uma fila entre `order` e `notify`; o p99 cai para cerca de 60 ms. Agora apague a fila e ligue `order` direto em `notify` de novo: com a mesma capacidade, o p99 volta a cerca de 360 ms, porque cada comprador agora espera a confirmação (120 ms em média, com uma cauda longa) antes de receber a resposta.
+**Experimente.** O cenário `microservices` divide a aplicação em `catalog`, `inventory`, `order` e `notify`, cada um com seu banco, atrás de um gateway e comprar é uma cadeia síncrona: `order` chama `inventory`, `catalog` e `notify` antes de responder. Execute-o: com 2.000 req/s o catálogo não consegue os pods de que precisa e cerca de 25% das requisições falham (pods e nós são a história da [aula 11](../../cloud-native/index.md)). Abra-o no playground completo (↗) e aperte **Mostrar uma solução possível**: mais espaço no cluster e uma fila entre `order` e `notify`; o p99 cai para cerca de 60 ms. Agora apague a fila e ligue `order` direto em `notify` de novo: com a mesma capacidade, o p99 volta a cerca de 360 ms, porque cada comprador agora espera a confirmação (120 ms em média, com uma cauda longa) antes de receber a resposta.
 
 <div class="sdp" data-scenario="microservices" data-mode="compact" data-height="520"></div>
 
@@ -322,7 +322,7 @@ A aula 8 ([mensageria](../../messaging/index.md)) aprofunda os eventos; a págin
 
 ## Dentro de um serviço: arquitetura interna { #inside-one-service-internal-architecture }
 
-Dividir o sistema decide as fronteiras *entre* serviços. Cada serviço ainda precisa de uma estrutura *interna*, e o mesmo princípio vale em escala menor: **proteja as regras de negócio daquilo que muda com mais frequência** — frameworks, bancos de dados, protocolos, provedores.
+Dividir o sistema decide as fronteiras *entre* serviços. Cada serviço ainda precisa de uma estrutura *interna* e o mesmo princípio vale em escala menor: **proteja as regras de negócio daquilo que muda com mais frequência** — frameworks, bancos de dados, protocolos, provedores.
 
 ### SOLID em uma tabela { #solid-in-one-table }
 
@@ -338,7 +338,7 @@ Os cinco princípios SOLID[^8] são regras no nível de classe que tornam essa p
 
 ### Em camadas, clean e hexagonal { #layered-clean-and-hexagonal }
 
-A maioria dos serviços Spring Boot começa **em camadas**: controller → service → repository → banco de dados. Isso separa o HTTP da lógica de negócio, mas a camada de negócio ainda *depende* da camada de persistência. A **Clean Architecture** (Robert C. Martin) e a **Arquitetura Hexagonal**, também chamada de *ports and adapters* (Alistair Cockburn), invertem essa única seta: o núcleo define interfaces (**portas**) em termos de negócio, e a infraestrutura (**adaptadores**) as implementa[^9][^10].
+A maioria dos serviços Spring Boot começa **em camadas**: controller → service → repository → banco de dados. Isso separa o HTTP da lógica de negócio, mas a camada de negócio ainda *depende* da camada de persistência. A **Clean Architecture** (Robert C. Martin) e a **Arquitetura Hexagonal**, também chamada de *ports and adapters* (Alistair Cockburn), invertem essa única seta: o núcleo define interfaces (**portas**) em termos de negócio e a infraestrutura (**adaptadores**) as implementa[^9][^10].
 
 ``` diagram-sim
 flowchart LR
@@ -406,7 +406,7 @@ Algumas capacidades são necessárias para muitas partes do sistema e aparecem c
 | **Analytics** | [`analytics`](../../../reference/components/compute/index.md#analytics) | um stream de eventos e agregados | construir o pipeline sobre Kafka + um data warehouse | append-only, alto volume de escrita, nunca no caminho da requisição |
 | **Scheduler** | [`scheduler`](../../../reference/components/compute/index.md#scheduler) | definições de jobs e sua próxima execução | Kubernetes CronJob, um scheduler da nuvem ou uma biblioteca com locks | veja [trabalho assíncrono](../async-work/index.md#schedulers) |
 
-Dois padrões se repetem: esses serviços são em sua maioria **alimentados por eventos** em vez de chamados de forma síncrona, e seus dados muitas vezes são **derivados** — busca e analytics podem ser reconstruídos a partir da fonte da verdade, o que os torna mais baratos de operar.
+Dois padrões se repetem: esses serviços são em sua maioria **alimentados por eventos** em vez de chamados de forma síncrona e seus dados muitas vezes são **derivados** — busca e analytics podem ser reconstruídos a partir da fonte da verdade, o que os torna mais baratos de operar.
 
 ### Mapa de serviços da BoxOffice { #boxoffice-service-map }
 
@@ -424,7 +424,7 @@ Dois padrões se repetem: esses serviços são em sua maioria **alimentados por 
 
 !!! example "No código do BoxOffice: uma porta de entrada, uma rota por serviço (labs 4 e 6)"
 
-    O `gateway` do [Hands-on 4](../../../hands-on/4/gateway/index.md) é o único serviço com que a borda fala. Cada serviço ganha uma rota por prefixo de caminho, então o cliente nunca sabe onde roda o `auth` ou o `inventory`, e o lab 6 acrescenta o `inventory` com três linhas. O `lb://catalog` é a divisão por perfil de escala na prática: só o `catalog`, que é de leitura intensa, roda três réplicas, escolhidas a cada requisição entre as saudáveis; `auth` e `inventory` rodam uma cada.
+    O `gateway` do [Hands-on 4](../../../hands-on/4/gateway/index.md) é o único serviço com que a borda fala. Cada serviço ganha uma rota por prefixo de caminho, então o cliente nunca sabe onde roda o `auth` ou o `inventory` e o lab 6 acrescenta o `inventory` com três linhas. O `lb://catalog` é a divisão por perfil de escala na prática: só o `catalog`, que é de leitura intensa, roda três réplicas, escolhidas a cada requisição entre as saudáveis; `auth` e `inventory` rodam uma cada.
 
     ``` { .yaml title="services/gateway/src/main/resources/application.yaml (one route per service)" }
     --8<-- "docs/2027.1/hands-on/6/code/services/gateway/src/main/resources/application.yaml:22:34"
@@ -439,7 +439,7 @@ Dois padrões se repetem: esses serviços são em sua maioria **alimentados por 
     - **Escreva a força por trás de cada fronteira de serviço** — perfil de escala, time, isolamento de falhas, conformidade ou tecnologia, no design doc; uma fronteira sem força restante é candidata a ser fundida. Na BoxOffice: `catalog` (leitura intensa, três réplicas) e `inventory` (escrita quente, correção em primeiro lugar) são separados pelo perfil de escala.
     - **Dê a cada serviço seu próprio papel no banco, com direitos só sobre o seu schema** — assim a fronteira é imposta pelo banco, não pela revisão de código. Na BoxOffice os labs compartilham o usuário `boxoffice` (quadro acima): este é o passo a dar antes da produção.
     - **Nomeie um time dono por serviço num catálogo de serviços** — dono, escala de plantão, runbook e SLO; quando o `inventory` disparar um alerta às 10:01, ninguém deve precisar perguntar quem atende.
-    - **Passe todo o tráfego externo por um gateway, e deixe as chamadas entre serviços fora dele** — um lugar para autenticação e limites de taxa, sem acrescentar um salto a cada chamada interna. Na BoxOffice: a borda só fala com o `gateway` ([lab 4](../../../hands-on/4/gateway/index.md)).
+    - **Passe todo o tráfego externo por um gateway e deixe as chamadas entre serviços fora dele** — um lugar para autenticação e limites de taxa, sem acrescentar um salto a cada chamada interna. Na BoxOffice: a borda só fala com o `gateway` ([lab 4](../../../hands-on/4/gateway/index.md)).
     - **Imponha as fronteiras dos módulos no build antes de extrair serviços** — visibilidade de pacotes e um teste de arquitetura (ArchUnit) no CI mantêm um monólito modular modular; extrair um módulo cuja fronteira já se sustenta é um deploy, não uma reescrita.
 
 !!! warning "Armadilhas comuns"

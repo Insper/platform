@@ -49,7 +49,7 @@ sequenceDiagram
     Note over N1,N2: a partição se resolve, as réplicas se sincronizam
 ```
 
-Nenhuma das respostas está "errada": o nó CP prefere recusar a mentir; o nó AP responde com o melhor valor que tem. Qual delas é aceitável depende dos **dados**, e não da tecnologia.
+Nenhuma das respostas está "errada": o nó CP prefere recusar a mentir; o nó AP responde com o melhor valor que tem. Qual delas é aceitável depende dos **dados** e não da tecnologia.
 
 ---
 
@@ -105,7 +105,7 @@ Pressupõe que não há partições, o que só é realista em sistemas de uma ú
 | **Exemplos** | ZooKeeper, etcd, PostgreSQL (replicação síncrona) | Cassandra, DynamoDB, DNS | SGBD relacional em um único nó |
 
 !!! warning "CP e AP são rótulos de uma configuração, não de um produto"
-    A maioria dos bancos de dados permite ajustar o trade-off por requisição: o Cassandra lendo e escrevendo com `QUORUM` se comporta muito mais como um sistema CP, e um PostgreSQL que atende leituras a partir de uma réplica *assíncrona* pode devolver dados desatualizados. Muitos sistemas reais, a rigor, não são nem totalmente CP nem totalmente AP[^5]. Pergunte "como ele está configurado e o que acontece com as *minhas* requisições durante uma partição?" em vez de "este banco é CP ou AP?".
+    A maioria dos bancos de dados permite ajustar o trade-off por requisição: o Cassandra lendo e escrevendo com `QUORUM` se comporta muito mais como um sistema CP e um PostgreSQL que atende leituras a partir de uma réplica *assíncrona* pode devolver dados desatualizados. Muitos sistemas reais, a rigor, não são nem totalmente CP nem totalmente AP[^5]. Pergunte "como ele está configurado e o que acontece com as *minhas* requisições durante uma partição?" em vez de "este banco é CP ou AP?".
 
 ---
 

@@ -1,6 +1,6 @@
 # REST vs GraphQL
 
-Todo microsserviço deste curso publica uma API, e todo front-end, parceiro e serviço vizinho depende dela. REST e GraphQL são os dois estilos que você mais vai encontrar sobre HTTP. Eles pedem dados de formas muito diferentes, e cada escolha tem um custo: em idas e voltas, em bytes, em carga no banco, em cache e na forma como a API evolui.
+Todo microsserviço deste curso publica uma API e todo front-end, parceiro e serviço vizinho depende dela. REST e GraphQL são os dois estilos que você mais vai encontrar sobre HTTP. Eles pedem dados de formas muito diferentes e cada escolha tem um custo: em idas e voltas, em bytes, em carga no banco, em cache e na forma como a API evolui.
 
 Esta página compara os dois na mesma necessidade, uma tela que mostra um usuário, seus pedidos e os itens de cada pedido. Ela responde a quatro perguntas:
 
@@ -15,7 +15,7 @@ Para o panorama mais amplo, que também cobre gRPC e APIs assíncronas, veja a a
 
 ## Duas formas de pedir dados { #two-models }
 
-**REST** (REpresentational State Transfer) é um estilo arquitetural, não um protocolo[^2]. Roy Fielding o descreveu em sua tese de 2000[^4]. Na prática, uma API REST expõe **recursos**, cada um com a sua URL. Os clientes agem sobre eles com os **métodos** HTTP, e cada resposta traz uma **representação** do recurso. Quem decide o formato dessa representação é o servidor.
+**REST** (REpresentational State Transfer) é um estilo arquitetural, não um protocolo[^2]. Roy Fielding o descreveu em sua tese de 2000[^4]. Na prática, uma API REST expõe **recursos**, cada um com a sua URL. Os clientes agem sobre eles com os **métodos** HTTP e cada resposta traz uma **representação** do recurso. Quem decide o formato dessa representação é o servidor.
 
 | Método | Significado | Exemplo | Seguro | Idempotente |
 |---|---|---|---|---|
@@ -25,7 +25,7 @@ Para o panorama mais amplo, que também cobre gRPC e APIs assíncronas, veja a a
 | `PATCH` | alterar parte de um recurso | `PATCH /users/42` | não | não necessariamente |
 | `DELETE` | remover um recurso | `DELETE /orders/101` | não | sim |
 
-**GraphQL** é uma linguagem de consulta e um runtime para APIs[^3]. O Facebook o criou em 2012 e o publicou em 2015. O servidor publica um **schema** tipado atrás de **um único endpoint**, normalmente `POST /graphql`. O cliente envia um documento dizendo quais campos quer, e a resposta vem exatamente nesse formato. Há três tipos de operação: `query` (leitura), `mutation` (escrita) e `subscription` (um fluxo de eventos). No servidor, uma função **resolver** busca cada campo.
+**GraphQL** é uma linguagem de consulta e um runtime para APIs[^3]. O Facebook o criou em 2012 e o publicou em 2015. O servidor publica um **schema** tipado atrás de **um único endpoint**, normalmente `POST /graphql`. O cliente envia um documento dizendo quais campos quer e a resposta vem exatamente nesse formato. Há três tipos de operação: `query` (leitura), `mutation` (escrita) e `subscription` (um fluxo de eventos). No servidor, uma função **resolver** busca cada campo.
 
 ``` diagram
 flowchart LR
@@ -115,7 +115,7 @@ A tela *Meus pedidos* mostra o nome e o avatar do usuário, depois cada pedido c
     }
     ```
 
-    **Uma requisição**, e a resposta tem exatamente os campos da query, no mesmo formato.
+    **Uma requisição** e a resposta tem exatamente os campos da query, no mesmo formato.
 
 Passo a passo, o cliente REST paga uma ida e volta de rede por recurso:
 
@@ -160,7 +160,7 @@ O `loop` do segundo diagrama é o [problema N+1](#n-plus-1). Ele não desaparece
 ## Over-fetching e under-fetching { #over-under-fetching }
 
 - **Over-fetching** (buscar demais): a resposta traz mais do que o cliente precisa. `GET /users/42` devolve o usuário inteiro mesmo quando a tela só mostra o nome. Numa rede móvel, esses bytes custam tempo e bateria.
-- **Under-fetching** (buscar de menos): uma resposta não basta, e o cliente faz mais requisições. Aqui, uma requisição a mais por pedido.
+- **Under-fetching** (buscar de menos): uma resposta não basta e o cliente faz mais requisições. Aqui, uma requisição a mais por pedido.
 
 O GraphQL elimina os dois por construção: o cliente pede exatamente os campos de que precisa, atravessando objetos relacionados, numa só requisição.
 
@@ -179,9 +179,9 @@ Um servidor GraphQL muitas vezes é exatamente esse BFF: uma camada na frente de
 
 ## O problema N+1 e o DataLoader { #n-plus-1 }
 
-Um servidor GraphQL resolve uma query campo a campo. O resolver de `orders` devolve N pedidos. Depois, o resolver de `items` roda **uma vez por pedido**, e cada chamada faz a sua própria consulta. São 1 consulta para o usuário, 1 para os pedidos e N para os itens: **N + 2 consultas para uma requisição**. O nome "N+1" vem da parte 1 + N. O cliente vê uma ida e volta rápida, enquanto o banco recebe uma rajada de consultas pequenas.
+Um servidor GraphQL resolve uma query campo a campo. O resolver de `orders` devolve N pedidos. Depois, o resolver de `items` roda **uma vez por pedido** e cada chamada faz a sua própria consulta. São 1 consulta para o usuário, 1 para os pedidos e N para os itens: **N + 2 consultas para uma requisição**. O nome "N+1" vem da parte 1 + N. O cliente vê uma ida e volta rápida, enquanto o banco recebe uma rajada de consultas pequenas.
 
-Um **DataLoader**[^6] resolve isso agrupando as consultas. Durante uma etapa da execução, cada resolver só *registra* a chave de que precisa (`load(101)`, `load(102)`, …). No fim da etapa, o loader chama uma função de lote uma única vez com todas as chaves. Essa função faz uma consulta (`WHERE order_id IN (101, 102, …)`), e o loader entrega a cada resolver a sua parte. Ele também guarda cada chave em cache pelo resto da requisição.
+Um **DataLoader**[^6] resolve isso agrupando as consultas. Durante uma etapa da execução, cada resolver só *registra* a chave de que precisa (`load(101)`, `load(102)`, …). No fim da etapa, o loader chama uma função de lote uma única vez com todas as chaves. Essa função faz uma consulta (`WHERE order_id IN (101, 102, …)`) e o loader entrega a cada resolver a sua parte. Ele também guarda cada chave em cache pelo resto da requisição.
 
 No Spring for GraphQL, `@BatchMapping` registra um DataLoader para você[^7]:
 
@@ -215,20 +215,20 @@ No Spring for GraphQL, `@BatchMapping` registra um DataLoader para você[^7]:
     }
     ```
 
-O REST tem o mesmo problema, só que no cliente: o laço de `GET /orders/{id}/items` é um N+1 pela rede, e cada passo custa uma ida e volta inteira.
+O REST tem o mesmo problema, só que no cliente: o laço de `GET /orders/{id}/items` é um N+1 pela rede e cada passo custa uma ida e volta inteira.
 
 O simulador põe números nos dois estilos. A tela precisa de um usuário, N pedidos e 3 itens por pedido. Os custos são ilustrativos: 4 ms de trabalho da aplicação por requisição e 5 ms por consulta ao banco. Mexa nos controles para ver para onde vai o tempo.
 
 <div class="csim" data-sim="api-fetch" data-n="10" data-rtt="100" data-mode="seq" data-loader="off"></div>
 
 !!! tip "Experimente"
-    Comece com N = 10 pedidos e RTT = 100 ms. O REST sequencial faz 12 idas e voltas e leva 1.308 ms. Ele baixa 21,6 kB, e 88% do conteúdo são campos que a tela nunca mostra. Mude o REST para **paralelo**: o usuário e os pedidos vão juntos, depois todas as requisições de itens juntas. São duas ondas, 218 ms. O GraphQL faz uma ida e volta, baixa 2,5 kB e leva 164 ms, mas os resolvers fizeram 12 consultas ao banco em fila. Ligue o **DataLoader**: 3 consultas, 119 ms. Agora desligue de novo e arraste N até 50: o GraphQL leva 364 ms, mais que o REST paralelo com 218 ms. Um servidor GraphQL ingênuo pode perder no banco o tempo que ganhou na rede.
+    Comece com N = 10 pedidos e RTT = 100 ms. O REST sequencial faz 12 idas e voltas e leva 1.308 ms. Ele baixa 21,6 kB e 88% do conteúdo são campos que a tela nunca mostra. Mude o REST para **paralelo**: o usuário e os pedidos vão juntos, depois todas as requisições de itens juntas. São duas ondas, 218 ms. O GraphQL faz uma ida e volta, baixa 2,5 kB e leva 164 ms, mas os resolvers fizeram 12 consultas ao banco em fila. Ligue o **DataLoader**: 3 consultas, 119 ms. Agora desligue de novo e arraste N até 50: o GraphQL leva 364 ms, mais que o REST paralelo com 218 ms. Um servidor GraphQL ingênuo pode perder no banco o tempo que ganhou na rede.
 
 ---
 
 ## Cache { #caching }
 
-**O REST ganha o cache HTTP de graça.** Um `GET` tem uma URL, e a URL é a chave do cache. Navegadores, CDNs e proxies reversos já entendem `Cache-Control`. Com `ETag` e `If-None-Match`, o cliente revalida de forma barata e recebe um `304 Not Modified` sem corpo:
+**O REST ganha o cache HTTP de graça.** Um `GET` tem uma URL e a URL é a chave do cache. Navegadores, CDNs e proxies reversos já entendem `Cache-Control`. Com `ETag` e `If-None-Match`, o cliente revalida de forma barata e recebe um `304 Not Modified` sem corpo:
 
 ```http
 GET /products/7 HTTP/1.1
@@ -239,16 +239,16 @@ Cache-Control: max-age=60
 ETag: "v12"
 ```
 
-**O GraphQL não ganha, por padrão.** As queries costumam ir por `POST` para a mesma URL `/graphql`, e os caches HTTP não guardam respostas de `POST`. Como cada query é diferente, não há uma URL para usar como chave. As respostas de costume:
+**O GraphQL não ganha, por padrão.** As queries costumam ir por `POST` para a mesma URL `/graphql` e os caches HTTP não guardam respostas de `POST`. Como cada query é diferente, não há uma URL para usar como chave. As respostas de costume:
 
 - **`GET` para queries.** A especificação GraphQL over HTTP permite que servidores aceitem queries (nunca mutations) por `GET`, com a query na URL[^8]. Só que queries longas geram URLs longas.
-- **Persisted queries** (queries registradas). O cliente registra cada query antes, no build ou no primeiro uso, e depois envia só o hash dela. A requisição fica curta, pode ser um `GET` cacheável, e um servidor que aceita *apenas* queries registradas também bloqueia queries arbitrárias e caras. As "automatic persisted queries" da Apollo são um protocolo muito usado[^9]:
+- **Persisted queries** (queries registradas). O cliente registra cada query antes, no build ou no primeiro uso, e depois envia só o hash dela. A requisição fica curta, pode ser um `GET` cacheável e um servidor que aceita *apenas* queries registradas também bloqueia queries arbitrárias e caras. As "automatic persisted queries" da Apollo são um protocolo muito usado[^9]:
 
     ```http
     GET /graphql?operationName=MyOrders&variables={"id":42}&extensions={"persistedQuery":{"version":1,"sha256Hash":"ecf4edb46db40b5132295c0291d62fb65d6759a9eedfa4d5d612dd5ec54a6b38"}} HTTP/1.1
     ```
 
-- **Caches normalizados no cliente**, como Apollo Client e Relay. Eles guardam cada objeto de uma resposta por tipo e id, e uma query posterior que pede `User:42` o lê da memória.
+- **Caches normalizados no cliente**, como Apollo Client e Relay. Eles guardam cada objeto de uma resposta por tipo e id e uma query posterior que pede `User:42` o lê da memória.
 
 ---
 
@@ -264,7 +264,7 @@ Content-Type: application/problem+json
  "title": "Order not found", "status": 404, "detail": "Order 999 does not exist"}
 ```
 
-**O GraphQL informa os erros no corpo.** A resposta traz uma lista `errors` ao lado de `data`, e uma query pode dar certo em parte: o usuário e os pedidos voltam, e os itens de um pedido falham. Na prática, a maioria dos servidores responde `200 OK` sempre que conseguiu executar a query:
+**O GraphQL informa os erros no corpo.** A resposta traz uma lista `errors` ao lado de `data` e uma query pode dar certo em parte: o usuário e os pedidos voltam e os itens de um pedido falham. Na prática, a maioria dos servidores responde `200 OK` sempre que conseguiu executar a query:
 
 ```json
 {
@@ -300,7 +300,7 @@ type Money {
 }
 ```
 
-Ferramentas e IDEs avisam sobre campos obsoletos, e a introspecção os lista. Isso funciona porque o servidor vê exatamente qual cliente lê qual campo. Um servidor REST só vê que alguém chamou `GET /orders`.
+Ferramentas e IDEs avisam sobre campos obsoletos e a introspecção os lista. Isso funciona porque o servidor vê exatamente qual cliente lê qual campo. Um servidor REST só vê que alguém chamou `GET /orders`.
 
 ---
 
@@ -318,7 +318,7 @@ Ferramentas e IDEs avisam sobre campos obsoletos, e a introspecção os lista. I
 | Evolução | versões para mudanças incompatíveis | adicionar campos, `@deprecated`, remover depois |
 | Contrato | OpenAPI (opcional) | schema com introspecção (obrigatório) |
 
-- **Escolha REST** para APIs públicas e de parceiros, serviços CRUD, leituras cacheáveis e downloads de arquivos, e para chamadas entre serviços. É simples, toda ferramenta entende, e códigos de status e caches funcionam sem esforço extra.
+- **Escolha REST** para APIs públicas e de parceiros, serviços CRUD, leituras cacheáveis e downloads de arquivos, e para chamadas entre serviços. É simples, toda ferramenta entende e códigos de status e caches funcionam sem esforço extra.
 - **Escolha GraphQL** quando muitas telas diferentes compõem dados de vários serviços, principalmente em redes móveis. Ele costuma ficar como um BFF na frente de serviços REST ou gRPC. Planeje DataLoaders, limites de profundidade e de custo das queries, autorização por campo e persisted queries desde o primeiro dia.
 - **gRPC** é a terceira opção, para chamadas internas entre serviços: protobuf binário sobre HTTP/2, um contrato `.proto` obrigatório e streaming, mas o navegador não consegue chamá-lo diretamente.
 
@@ -329,7 +329,7 @@ A maioria dos sistemas reais mistura os três: REST na borda pública, GraphQL p
 ## Pontos-chave { #key-takeaways }
 
 !!! takeaways ""
-    - O REST expõe **recursos** manipulados com métodos HTTP, e o servidor define cada resposta. O GraphQL expõe um **schema tipado** atrás de um endpoint, e o cliente define a resposta.
+    - O REST expõe **recursos** manipulados com métodos HTTP e o servidor define cada resposta. O GraphQL expõe um **schema tipado** atrás de um endpoint e o cliente define a resposta.
     - O REST tende a fazer **over-fetching** (representações inteiras) e **under-fetching** (uma requisição por recurso relacionado). O GraphQL busca exatamente os campos de uma tela numa só ida e volta.
     - O N+1 não desaparece com GraphQL: ele vai para o servidor, onde os resolvers fazem uma consulta por objeto pai. Agrupe-as com um **DataLoader** (`@BatchMapping` no Spring).
     - O REST ganha **cache HTTP** de graça. O GraphQL precisa de queries por `GET`, **persisted queries** ou caches no cliente.

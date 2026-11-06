@@ -24,7 +24,7 @@ flowchart LR
     end
 ```
 
-O NIST dá nome às peças: um **Policy Enforcement Point (PEP)** fica no caminho de toda requisição e a bloqueia ou encaminha; um **Policy Decision Point (PDP)** decide a partir da identidade e do contexto. No BoxOffice, o **API gateway** é o PEP para usuários, e o **proxy do mesh** ao lado de cada serviço é o PEP para workloads ([Service mesh](../service-mesh/index.md)).
+O NIST dá nome às peças: um **Policy Enforcement Point (PEP)** fica no caminho de toda requisição e a bloqueia ou encaminha; um **Policy Decision Point (PDP)** decide a partir da identidade e do contexto. No BoxOffice, o **API gateway** é o PEP para usuários e o **proxy do mesh** ao lado de cada serviço é o PEP para workloads ([Service mesh](../service-mesh/index.md)).
 
 ### Princípios { #principles }
 
@@ -59,7 +59,7 @@ O Zero Trust exige que todo workload tenha uma identidade que consiga provar **s
 | Pod → API da nuvem (S3, Secrets Manager, KMS) | a service account do Kubernetes federada a um papel na nuvem: EKS Pod Identity / IRSA, GKE Workload Identity Federation, Azure Workload Identity | chaves de acesso em variáveis de ambiente |
 | Pipeline de CI → nuvem | o **token OIDC** do sistema de CI trocado por credenciais de nuvem de vida curta | chaves de acesso da nuvem guardadas como segredos do CI |
 
-A terceira é uma mudança pequena com grande efeito: o GitHub Actions consegue pedir um token OIDC que diz "sou o workflow `release.yaml` deste repositório, no branch `main`", e a nuvem confia nessa afirmação para um papel válido só durante o job[^3]:
+A terceira é uma mudança pequena com grande efeito: o GitHub Actions consegue pedir um token OIDC que diz "sou o workflow `release.yaml` deste repositório, no branch `main`" e a nuvem confia nessa afirmação para um papel válido só durante o job[^3]:
 
 ```yaml
 permissions:
@@ -172,7 +172,7 @@ username           v-k8s-order-x7Qa2
 password           A1a-4kd0s8f7GQpz
 ```
 
-Cada pod de `order` recebe o seu próprio usuário de banco, que expira em uma hora. Uma credencial roubada de um pod para de funcionar sozinha, e os logs do banco mostram exatamente qual pod fez o quê.
+Cada pod de `order` recebe o seu próprio usuário de banco, que expira em uma hora. Uma credencial roubada de um pod para de funcionar sozinha e os logs do banco mostram exatamente qual pod fez o quê.
 
 ### Criptografia em repouso com envelope encryption { #encryption-at-rest-with-envelope-encryption }
 
@@ -212,7 +212,7 @@ flowchart LR
 
 ### O que tem dentro: o SBOM { #what-is-inside-the-sbom }
 
-Um **SBOM** (Software Bill of Materials) é a lista de ingredientes de um artefato: cada pacote, versão e licença, em um formato padrão — **CycloneDX** (OWASP) ou **SPDX** (Linux Foundation, ISO/IEC 5962)[^5]. Quando o próximo Log4Shell for anunciado, a pergunta "quais das nossas imagens contêm esta versão?" vira uma consulta, e não uma semana de pânico.
+Um **SBOM** (Software Bill of Materials) é a lista de ingredientes de um artefato: cada pacote, versão e licença, em um formato padrão — **CycloneDX** (OWASP) ou **SPDX** (Linux Foundation, ISO/IEC 5962)[^5]. Quando o próximo Log4Shell for anunciado, a pergunta "quais das nossas imagens contêm esta versão?" vira uma consulta e não uma semana de pânico.
 
 ### Está vulnerável: varredura { #is-it-vulnerable-scanning }
 
@@ -258,7 +258,7 @@ jobs:
 
 !!! example "No código do BoxOffice: o job de imagem do pipeline (lab 11)"
 
-    O [Hands-on 11 — Imagem e cadeia de suprimentos](../../../hands-on/11/supply-chain/index.md) responde às três perguntas para a imagem do `catalog`, com uma melhoria em relação ao job acima: constrói a imagem localmente (`load: true`), faz a varredura e só a envia ao registry **se** o portão do Trivy passa — uma imagem vulnerável nunca é publicada. O portão é estreito de propósito, só *crítica e corrigível*: falhar em todo `HIGH` sem correção bloquearia todo o trabalho, e um portão sempre vermelho passa a ser ignorado. O SBOM é SPDX (Syft) e, em vez de chamar o `cosign`, o job usa as actions de atestação do GitHub, que assinam a proveniência e o SBOM sem chave com o Sigstore (`id-token: write`) e os ligam ao **digest** da imagem. Toda action está fixada num SHA de commit, e o [Dependabot](../../../hands-on/11/supply-chain/index.md#keep-dependencies-moving) propõe toda semana, como pull requests que o pipeline testa, atualizações de actions, dependências Maven e imagens base. O que o lab **não** faz é o último elo, abaixo: a proveniência é conferida à mão (`gh attestation verify`), não por um admission controller.
+    O [Hands-on 11 — Imagem e cadeia de suprimentos](../../../hands-on/11/supply-chain/index.md) responde às três perguntas para a imagem do `catalog`, com uma melhoria em relação ao job acima: constrói a imagem localmente (`load: true`), faz a varredura e só a envia ao registry **se** o portão do Trivy passa — uma imagem vulnerável nunca é publicada. O portão é estreito de propósito, só *crítica e corrigível*: falhar em todo `HIGH` sem correção bloquearia todo o trabalho e um portão sempre vermelho passa a ser ignorado. O SBOM é SPDX (Syft) e, em vez de chamar o `cosign`, o job usa as actions de atestação do GitHub, que assinam a proveniência e o SBOM sem chave com o Sigstore (`id-token: write`) e os ligam ao **digest** da imagem. Toda action está fixada num SHA de commit e o [Dependabot](../../../hands-on/11/supply-chain/index.md#keep-dependencies-moving) propõe toda semana, como pull requests que o pipeline testa, atualizações de actions, dependências Maven e imagens base. O que o lab **não** faz é o último elo, abaixo: a proveniência é conferida à mão (`gh attestation verify`), não por um admission controller.
 
     ``` { .yaml title=".github/workflows/ci.yaml (image job: permissions, scan gate, attestations)" }
     --8<-- "docs/2027.1/hands-on/11/code/.github/workflows/ci.yaml:73:78,119:126,142:154"
@@ -290,7 +290,7 @@ spec:
                     subject: "https://github.com/repo-classes/pma271/.github/workflows/release.yaml@refs/heads/main"
 ```
 
-Outros hábitos que fecham lacunas comuns: **fixar por digest** (`image@sha256:…`, actions pelo SHA do commit), usar imagens base mínimas ou distroless, rodar containers sem root e com sistema de arquivos somente leitura, usar um proxy de pacotes privado com nomes escopados para evitar dependency confusion, e seguir o Secure Software Development Framework (SSDF) do NIST como checklist do processo[^8].
+Outros hábitos que fecham lacunas comuns: **fixar por digest** (`image@sha256:…`, actions pelo SHA do commit), usar imagens base mínimas ou distroless, rodar containers sem root e com sistema de arquivos somente leitura, usar um proxy de pacotes privado com nomes escopados para evitar dependency confusion e seguir o Secure Software Development Framework (SSDF) do NIST como checklist do processo[^8].
 
 **Experimente.** Abra o cenário `ai-assistant`. O assistente chama ferramentas (`catalog`, `order`) em nome do usuário: liste cada identidade no caminho (usuário, assistente, registro de ferramentas, serviços) e o que cada uma deveria poder fazer. Onde você colocaria o PEP de uma chamada de ferramenta? Quais segredos o LLM gateway guarda? (A aula de [Sistemas de IA](../../ai-systems/index.md) aprofunda o safety mesh.)
 
@@ -312,7 +312,7 @@ Outros hábitos que fecham lacunas comuns: **fixar por digest** (`image@sha256:�
 | Detecção | logs de auditoria, alertas de requisições negadas | uma chamada negada vinda de `search` aciona alguém do plantão |
 
 !!! tip "Na entrevista"
-    "Zero Trust" é jargão, a menos que você o torne concreto. Diga três coisas: **toda chamada carrega uma identidade** (tokens para usuários, mTLS para serviços), **todo recurso verifica uma política** (menor privilégio, negação padrão, inclusive na saída) e **as credenciais são de vida curta** (identidade de workload, segredos dinâmicos, nenhuma chave estática no CI). Se o projeto tiver um provedor de pagamentos, acrescente: "a chave de API fica em um gerenciador de segredos, só o serviço de pagamento consegue lê-la, e rotacionamos com duas chaves ativas." Para a cadeia de suprimentos, uma linha basta: "o CI gera um SBOM, faz a varredura e assina as imagens; o cluster só roda imagens assinadas."
+    "Zero Trust" é jargão, a menos que você o torne concreto. Diga três coisas: **toda chamada carrega uma identidade** (tokens para usuários, mTLS para serviços), **todo recurso verifica uma política** (menor privilégio, negação padrão, inclusive na saída) e **as credenciais são de vida curta** (identidade de workload, segredos dinâmicos, nenhuma chave estática no CI). Se o projeto tiver um provedor de pagamentos, acrescente: "a chave de API fica em um gerenciador de segredos, só o serviço de pagamento consegue lê-la e rotacionamos com duas chaves ativas." Para a cadeia de suprimentos, uma linha basta: "o CI gera um SBOM, faz a varredura e assina as imagens; o cluster só roda imagens assinadas."
 
 !!! success "Boas práticas"
 
@@ -320,12 +320,12 @@ Outros hábitos que fecham lacunas comuns: **fixar por digest** (`image@sha256:�
     - **Gire todo segredo com agenda e ensaie o runbook de vazamento** — rotação com duas chaves (por exemplo, a cada 90 dias) e um exercício por trimestre, cronometrado: quantos minutos de "chave vazou" até "chave antiga revogada"?
     - **Prefira credenciais dinâmicas e de vida curta** — usuários de banco emitidos por pod com TTL de 1 hora por um motor de segredos, em vez de uma senha que vive por anos.
     - **Procure segredos em todo push** — um scanner de segredos com proteção de push (no repositório e no CI) bloqueia o commit antes de a chave ficar pública.
-    - **Fixe actions de terceiros e imagens base num SHA de commit ou digest, e deixe um bot propor as atualizações** — no BoxOffice: o `ci.yaml` do lab 11 fixa toda action, e o `dependabot.yml` abre pull requests semanais ([quadro da cadeia de suprimentos](#supply-chain-security)).
+    - **Fixe actions de terceiros e imagens base num SHA de commit ou digest e deixe um bot propor as atualizações** — no BoxOffice: o `ci.yaml` do lab 11 fixa toda action e o `dependabot.yml` abre pull requests semanais ([quadro da cadeia de suprimentos](#supply-chain-security)).
     - **Dê aos jobs de CI as permissões mínimas de token** — `contents: read` por padrão, `id-token: write` só no job que assina. No BoxOffice: o job `image` do [lab 11](../../../hands-on/11/supply-chain/index.md).
 
 !!! warning "Armadilhas comuns"
     - **"É interno, então é seguro"** — a definição do modelo de perímetro.
-    - **Uma credencial compartilhada por todos os serviços** — quando vaza, não dá para saber quem a usou, e a rotação quebra todo mundo ao mesmo tempo.
+    - **Uma credencial compartilhada por todos os serviços** — quando vaza, não dá para saber quem a usou e a rotação quebra todo mundo ao mesmo tempo.
     - **Segredos no Git, em imagens, em ConfigMaps ou em logs de CI** — e "apagar o commit" em vez de rotacionar.
     - **Chaves estáticas da nuvem no CI** — use o token OIDC do CI e papéis de vida curta.
     - **Assinar sem verificar** — uma assinatura que ninguém confere no deploy não protege nada.

@@ -1,6 +1,6 @@
-Três anos depois do lançamento, a BoxOffice vende em 30 países. As tabelas `orders` e `tickets` crescem centenas de milhões de linhas por ano, o disco do primário é medido em terabytes e a taxa de escrita durante as grandes aberturas de vendas chega perto do que uma máquina consegue absorver. As réplicas não ajudam mais: elas escalam leituras, e toda réplica continua tendo de aplicar **todas** as escritas. O próximo degrau da [escada de escalabilidade](../index.md#scaling-ladder) é dividir os próprios dados entre máquinas.
+Três anos depois do lançamento, a BoxOffice vende em 30 países. As tabelas `orders` e `tickets` crescem centenas de milhões de linhas por ano, o disco do primário é medido em terabytes e a taxa de escrita durante as grandes aberturas de vendas chega perto do que uma máquina consegue absorver. As réplicas não ajudam mais: elas escalam leituras e toda réplica continua tendo de aplicar **todas** as escritas. O próximo degrau da [escada de escalabilidade](../index.md#scaling-ladder) é dividir os próprios dados entre máquinas.
 
-O **particionamento** — também chamado de **sharding** — divide um conjunto de dados de forma que cada registro pertença a exatamente uma **partição** (shard), e partições diferentes vivam em nós diferentes. Cada nó cuida apenas da sua parte das leituras, das escritas e do armazenamento. Os nomes variam conforme o produto — *shard* no MongoDB e no Elasticsearch, *region* no HBase, *tablet* no Bigtable, *range* no CockroachDB, *vnode* no Cassandra —, mas as perguntas são sempre as mesmas: **por qual chave, como distribuir por igual, como encontrar e como mover quando os nós mudam**[^1].
+O **particionamento** — também chamado de **sharding** — divide um conjunto de dados de forma que cada registro pertença a exatamente uma **partição** (shard) e partições diferentes vivam em nós diferentes. Cada nó cuida apenas da sua parte das leituras, das escritas e do armazenamento. Os nomes variam conforme o produto — *shard* no MongoDB e no Elasticsearch, *region* no HBase, *tablet* no Bigtable, *range* no CockroachDB, *vnode* no Cassandra —, mas as perguntas são sempre as mesmas: **por qual chave, como distribuir por igual, como encontrar e como mover quando os nós mudam**[^1].
 
 ``` diagram-sim
 flowchart LR
@@ -44,7 +44,7 @@ O **hashing consistente** (*consistent hashing*)[^2] coloca nós e chaves no mes
 
 Quando um nó entra, ele assume apenas as chaves entre ele e seu antecessor; quando um nó sai, só as chaves dele vão para o sucessor. Em média, **1/N das chaves se move**, o mínimo possível — contra quase todas com `mod N`.
 
-Com uma única posição por nó, os arcos ficam desiguais e um nó pode ficar com muito mais do que sua parte. Os **nós virtuais** (*vnodes*) resolvem isso: cada nó físico ocupa muitas posições no anel (100–256 é comum), então sua fatia total se equilibra na média, e um nó com o dobro da capacidade pode simplesmente ficar com o dobro de vnodes.
+Com uma única posição por nó, os arcos ficam desiguais e um nó pode ficar com muito mais do que sua parte. Os **nós virtuais** (*vnodes*) resolvem isso: cada nó físico ocupa muitas posições no anel (100–256 é comum), então sua fatia total se equilibra na média e um nó com o dobro da capacidade pode simplesmente ficar com o dobro de vnodes.
 
 A simulação abaixo faz hash de 20.000 chaves com MD5. À esquerda, a porcentagem de chaves que mudam de nó quando o cluster cresce de N − 1 para N nós; à direita, quão desbalanceados ficam 10 nós (nó mais carregado ÷ média) conforme cresce o número de nós virtuais:
 
@@ -161,7 +161,7 @@ A chave de partição é a decisão de maior consequência e a menos reversível
 
 ??? question "Pense antes: por que não particionar `seats` apenas por `seat_id`?"
 
-    A distribuição seria perfeita, mas a consulta principal — "assentos disponíveis do evento 42, setor B" — se espalharia por todos os shards, e uma reserva em grupo de 4 assentos vizinhos viraria uma transação entre shards. A localidade da consulta dominante e das transações vale mais do que uma distribuição perfeita.
+    A distribuição seria perfeita, mas a consulta principal — "assentos disponíveis do evento 42, setor B" — se espalharia por todos os shards e uma reserva em grupo de 4 assentos vizinhos viraria uma transação entre shards. A localidade da consulta dominante e das transações vale mais do que uma distribuição perfeita.
 
 ---
 
@@ -195,7 +195,7 @@ Mitigações, da menos à mais invasiva:
 
 ## Índices secundários em dados particionados { #secondary-indexes-on-partitioned-data }
 
-Particionar por `customer_id` deixa "pedidos do cliente 7" rápido. E "pedidos do evento 42"? É preciso um **índice secundário**, e em dados particionados ele vem em dois sabores:
+Particionar por `customer_id` deixa "pedidos do cliente 7" rápido. E "pedidos do evento 42"? É preciso um **índice secundário** e em dados particionados ele vem em dois sabores:
 
 ``` diagram
 flowchart TB
@@ -297,7 +297,7 @@ sequenceDiagram
 | SQL e joins | completos | a maior parte, com ressalvas | a maior parte | nenhum / limitado |
 | Operação | simples | camada de sharding para operar | gerenciada ou complexa | gerenciada ou complexa |
 
-SQL distribuído não sai de graça: toda escrita é replicada por consenso, então a latência é maior do que num único nó, e uma transação que abrange regiões paga idas e voltas entre regiões. É a resposta certa quando você **precisa** ao mesmo tempo de transações SQL e de mais capacidade de escrita ou resiliência geográfica do que um primário consegue dar — não como padrão.
+SQL distribuído não sai de graça: toda escrita é replicada por consenso, então a latência é maior do que num único nó e uma transação que abrange regiões paga idas e voltas entre regiões. É a resposta certa quando você **precisa** ao mesmo tempo de transações SQL e de mais capacidade de escrita ou resiliência geográfica do que um primário consegue dar — não como padrão.
 
 !!! tip "Na entrevista"
 
@@ -309,7 +309,7 @@ SQL distribuído não sai de graça: toda escrita é replicada por consenso, ent
 
 !!! success "Boas práticas"
 
-    - **Crie muito mais partições lógicas do que nós** — por exemplo 1.024 partições em 4 nós: o rebalanceamento então move partições inteiras, e o número nunca precisa mudar.
+    - **Crie muito mais partições lógicas do que nós** — por exemplo 1.024 partições em 4 nós: o rebalanceamento então move partições inteiras e o número nunca precisa mudar.
     - **Coloque a chave de partição em toda chave primária e em toda consulta quente** — o roteamento vira uma consulta a um mapa, nunca um broadcast a todos os shards.
     - **Acompanhe a carga por partição, não só o total** — as 10 partições com mais requisições/s e maior tamanho revelam uma chave quente antes que ela sature o seu nó.
     - **Ensaie uma divisão antes de precisar dela** — mova uma partição numa cópia de homologação com dados do tamanho da produção e meça o tempo; esse tempo decide quão cedo você precisa começar quando o crescimento chegar.

@@ -3,7 +3,7 @@
 As ferramentas do ofício, agrupadas por função. Para cada uma: o que é em uma linha, quando recorrer a ela, o laboratório em que a usamos neste curso e o site oficial. A pilha do curso é pequena de propósito: **Docker Compose** para rodar tudo localmente, **k6** para testes de carga, **OpenTelemetry + `grafana/otel-lgtm`** para observar, **Toxiproxy** para injetar falhas, **kind ou minikube** para Kubernetes, **GitHub Actions** e **Argo CD** para entregar, e **LiteLLM + Ollama + pgvector** para o serviço de IA. As alternativas estão listadas para que você as reconheça em vagas de emprego e em blogs de engenharia.
 
 !!! note "Sobre os links"
-    Os links levam ao site oficial ou ao repositório oficial de cada projeto. As ferramentas mudam rápido: confira a documentação atual antes de copiar um comando de um post de blog, e fixe as versões no seu `docker-compose.yaml` e nos arquivos de CI.
+    Os links levam ao site oficial ou ao repositório oficial de cada projeto. As ferramentas mudam rápido: confira a documentação atual antes de copiar um comando de um post de blog e fixe as versões no seu `docker-compose.yaml` e nos arquivos de CI.
 
 ## Qual ferramenta para qual trabalho { #which-tool-for-which-job }
 
@@ -107,7 +107,7 @@ As ferramentas do ofício, agrupadas por função. Para cada uma: o que é em um
 | **diagrams.net (draw.io)** | Editor de diagramas gratuito com conjuntos de ícones das nuvens | Diagramas de arquitetura detalhados com os ícones oficiais das nuvens | Documento de design do projeto | [drawio.com](https://www.drawio.com) |
 | **PlantUML** | Diagramas como texto, forte em UML e C4 | Times que já usam UML | Reconheça | [plantuml.com](https://plantuml.com) |
 | **Structurizr** / **modelo C4** | O modelo C4 (contexto, contêineres, componentes, código) e uma ferramenta para manter diagramas como código | Documentos de design com vários níveis de zoom consistentes | [Documento de design](../../exercises/design-doc/index.md) | [c4model.com](https://c4model.com) · [structurizr.com](https://structurizr.com) |
-| **System Design Playground** | O simulador do curso: projete com a paleta e rode sob carga | Testar se um design sobrevive, e não só desenhá-lo | [Playground](../../../playground/index.md) | — |
+| **System Design Playground** | O simulador do curso: projete com a paleta e rode sob carga | Testar se um design sobrevive e não só desenhá-lo | [Playground](../../../playground/index.md) | — |
 
 ## Bancos de dados e cache { #databases-and-caching }
 
@@ -148,7 +148,7 @@ As ferramentas do ofício, agrupadas por função. Para cada uma: o que é em um
 | **LiteLLM** | Gateway/proxy de LLMs com API compatível com a da OpenAI, orçamentos, fallbacks e acompanhamento de custo | Uma porta de entrada única para modelos locais e hospedados | [Hands-on 12](../../hands-on/12/index.md) | [github.com/BerriAI/litellm](https://github.com/BerriAI/litellm) |
 | **Ollama** | Executa modelos de pesos abertos localmente atrás de uma API HTTP | Desenvolver sem chaves de API nem custos | [Hands-on 12](../../hands-on/12/index.md) | [ollama.com](https://ollama.com) |
 | **pgvector** | Tipo vetorial e índices de similaridade (HNSW, IVFFlat) para PostgreSQL | RAG sem acrescentar um banco novo | [Hands-on 12](../../hands-on/12/index.md) | [github.com/pgvector/pgvector](https://github.com/pgvector/pgvector) |
-| **Model Context Protocol** + **MCP Inspector** | Protocolo aberto para expor ferramentas a modelos, e uma ferramenta para testar servidores MCP | Construir e depurar as ferramentas do assistente | [Hands-on 12](../../hands-on/12/index.md) | [modelcontextprotocol.io](https://modelcontextprotocol.io) · [inspector](https://github.com/modelcontextprotocol/inspector) |
+| **Model Context Protocol** + **MCP Inspector** | Protocolo aberto para expor ferramentas a modelos e uma ferramenta para testar servidores MCP | Construir e depurar as ferramentas do assistente | [Hands-on 12](../../hands-on/12/index.md) | [modelcontextprotocol.io](https://modelcontextprotocol.io) · [inspector](https://github.com/modelcontextprotocol/inspector) |
 | **promptfoo** | Testes e red teaming de prompts, RAG e guardrails, executáveis no CI | Pegar regressões nas respostas e nas defesas contra injeção | [Hands-on 12](../../hands-on/12/index.md) | [promptfoo.dev](https://www.promptfoo.dev) |
 
 !!! tip "Aprenda o trabalho, não só a ferramenta"

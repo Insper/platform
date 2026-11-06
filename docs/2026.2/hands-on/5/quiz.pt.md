@@ -18,7 +18,7 @@ Clique em **"Resposta"** para ver a resposta correta e a explicação.
 
 ---
 
-**Q2.** O que é um **Pod** no Kubernetes, e como ele difere de um container?
+**Q2.** O que é um **Pod** no Kubernetes e como ele difere de um container?
 
 - A. Um Pod é uma máquina virtual; um container é um processo dentro dela
 - B. Um Pod é a menor unidade implantável — um ou mais containers que compartilham o mesmo namespace de rede e os mesmos volumes de armazenamento
@@ -46,7 +46,7 @@ Clique em **"Resposta"** para ver a resposta correta e a explicação.
 
 ---
 
-**Q4.** O que `kubectl apply -f k8s.yaml` faz, e como ele difere de `kubectl create`?
+**Q4.** O que `kubectl apply -f k8s.yaml` faz e como ele difere de `kubectl create`?
 
 - A. `apply` cria recursos; `create` os atualiza
 - B. `apply` é declarativo — cria ou atualiza os recursos para que correspondam ao estado desejado no arquivo; `create` só cria recursos novos e falha se eles já existirem

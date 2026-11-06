@@ -1,4 +1,4 @@
-Quinze minutos para mostrar um semestre de trabalho. A apresentação final não é um passeio por todas as aulas que vocês usaram — é uma **revisão de design**: este é o problema, esta é a arquitetura e o porquê, aqui está ela rodando sob carga, aqui está a evidência de que cumpre os SLOs, isto foi o que quebrou no game day, isto é quanto custa, e isto é o que faríamos a seguir. Depois os revisores fazem perguntas — para **cada** membro.
+Quinze minutos para mostrar um semestre de trabalho. A apresentação final não é um passeio por todas as aulas que vocês usaram — é uma **revisão de design**: este é o problema, esta é a arquitetura e o porquê, aqui está ela rodando sob carga, aqui está a evidência de que cumpre os SLOs, isto foi o que quebrou no game day, isto é quanto custa e isto é o que faríamos a seguir. Depois os revisores fazem perguntas — para **cada** membro.
 
 !!! abstract "Metas"
 
@@ -75,13 +75,13 @@ O vídeo é para quem nunca viu o curso: um recrutador, um futuro colega de time
 
 ### 4. Prepare-se para as perguntas { #4-prepare-for-the-qa }
 
-As perguntas vão para **indivíduos**, e qualquer membro pode ser questionado sobre qualquer parte do sistema. Espere perguntas como:
+As perguntas vão para **indivíduos** e qualquer membro pode ser questionado sobre qualquer parte do sistema. Espere perguntas como:
 
 - "Mostre o que acontece, componente a componente, quando um fã reserva um assento. Onde isso pode falhar?"
 - "O seu p99 na meta foi 180 ms. O que domina esse valor? Como vocês sabem?"
-- "Se o tráfego crescer 10×, o que quebra primeiro? O que vocês mudariam, e quanto custaria?"
+- "Se o tráfego crescer 10×, o que quebra primeiro? O que vocês mudariam e quanto custaria?"
 - "Por que Kafka e não uma fila simples aqui? O que faria vocês mudarem de ideia?"
-- "Mostre o alerta que disparou no game day. Qual é a janela de burn rate, e por quê?"
+- "Mostre o alerta que disparou no game day. Qual é a janela de burn rate e por quê?"
 - "Esta parte foi escrita com ajuda de IA. Explique-a e mude este parâmetro: o que acontece?"
 
 ### 5. Finalize a documentação { #5-finish-the-documentation }

@@ -34,7 +34,7 @@ flowchart LR
 
 ## VPC { #vpc }
 
-**O que é.** Uma Virtual Private Cloud é uma rede logicamente isolada que pertence a você dentro de uma região da nuvem. Você escolhe a faixa de endereços privados (por exemplo `10.0.0.0/16`, 65.536 endereços), e nada entra nem sai a menos que você acrescente gateways e rotas. Todo o resto (sub-redes, tabelas de rotas, security groups, gateways) vive dentro de uma VPC. Pense nela como o prédio; as sub-redes são os andares e os security groups são as fechaduras de cada porta.
+**O que é.** Uma Virtual Private Cloud é uma rede logicamente isolada que pertence a você dentro de uma região da nuvem. Você escolhe a faixa de endereços privados (por exemplo `10.0.0.0/16`, 65.536 endereços) e nada entra nem sai a menos que você acrescente gateways e rotas. Todo o resto (sub-redes, tabelas de rotas, security groups, gateways) vive dentro de uma VPC. Pense nela como o prédio; as sub-redes são os andares e os security groups são as fechaduras de cada porta.
 
 **Quando usar.**
 
@@ -65,7 +65,7 @@ flowchart LR
 - **Exposição acidental** — uma rota para o internet gateway numa sub-rede de banco, ou um security group aberto para `0.0.0.0/0` → sub-redes privadas para dados, security groups de mínimo privilégio, verificação de políticas na infraestrutura como código.
 - **Esgotamento de IPs** — uma faixa pequena se enche à medida que pods do Kubernetes recebem IPs → dimensione com folga ou use faixas secundárias.
 
-**No playground.** `vpc` é uma **moldura de grupo**: desenhe-a em volta dos nós de uma região; ela tem um nome e um rótulo de região. Um evento de *queda de região* derruba todos os nós dentro da moldura marcada com aquela região, e é assim que o cenário `multi-region` mostra por que uma VPC só nunca é um plano de recuperação de desastres. A moldura em si não custa nada e não acrescenta latência. Cenários: [`multi-region`](../../../../playground/scenarios/index.md#multi-region), [`observability-stack`](../../../../playground/scenarios/index.md#observability-stack).
+**No playground.** `vpc` é uma **moldura de grupo**: desenhe-a em volta dos nós de uma região; ela tem um nome e um rótulo de região. Um evento de *queda de região* derruba todos os nós dentro da moldura marcada com aquela região e é assim que o cenário `multi-region` mostra por que uma VPC só nunca é um plano de recuperação de desastres. A moldura em si não custa nada e não acrescenta latência. Cenários: [`multi-region`](../../../../playground/scenarios/index.md#multi-region), [`observability-stack`](../../../../playground/scenarios/index.md#observability-stack).
 
 **Produtos reais.**
 
@@ -89,7 +89,7 @@ flowchart LR
     - Não há equivalente direto: a VPC é uma abstração da nuvem. Em hardware próprio, as mesmas ideias são VLANs e roteamento; no OpenStack, as redes do **Neutron**; localmente, as **redes do Docker** e as redes de cluster do **kind/minikube** fazem o papel de redes isoladas.
 
 !!! tip "Na entrevista"
-    "Tudo roda numa VPC com sub-redes em pelo menos duas zonas de disponibilidade: só o load balancer é público; serviços e bancos ficam em sub-redes privadas, e os security groups liberam apenas as chamadas de que o design precisa."
+    "Tudo roda numa VPC com sub-redes em pelo menos duas zonas de disponibilidade: só o load balancer é público; serviços e bancos ficam em sub-redes privadas e os security groups liberam apenas as chamadas de que o design precisa."
 
 **Saiba mais:** [Rede e segurança › Rede na nuvem](../../../classes/network-security/cloud-network/index.md) · [Confiabilidade › Recuperação de desastres](../../../classes/reliability/disaster-recovery/index.md) · [Cloud-native › Kubernetes](../../../classes/cloud-native/kubernetes/index.md)
 
@@ -183,7 +183,7 @@ flowchart LR
 **Modos de falha.**
 
 - **Esgotamento de portas** — muitas conexões para o mesmo IP e porta de destino consomem as portas de origem → pool de conexões e keep-alive, mais IPs no NAT.
-- **Falha zonal** — um NAT gateway único para todas as zonas falha ou sua zona cai → um NAT por AZ, e as sub-redes privadas de cada zona roteiam para o seu.
+- **Falha zonal** — um NAT gateway único para todas as zonas falha ou sua zona cai → um NAT por AZ e as sub-redes privadas de cada zona roteiam para o seu.
 - **Susto no custo** — logs, imagens ou backups passando pelo NAT → VPC endpoints para os serviços do provedor, olhe a linha "por GB" da fatura.
 - **Rota ausente** — depois de uma mudança na rede, os serviços privados perdem a saída em silêncio (timeouts para o provedor) → verificações sintéticas das dependências externas.
 
@@ -340,6 +340,6 @@ flowchart LR
     - **Envoy** — o proxy por baixo de muitos meshes e gateways.
 
 !!! tip "Na entrevista"
-    "Com dezenas de serviços eu usaria um mesh para ter mTLS, timeouts, retries e telemetria em todas as chamadas sem mexer no código — mas ele custa latência por salto e uma plataforma para operar; com cinco serviços eu usaria bibliotecas, e manteria os retries numa camada só."
+    "Com dezenas de serviços eu usaria um mesh para ter mTLS, timeouts, retries e telemetria em todas as chamadas sem mexer no código — mas ele custa latência por salto e uma plataforma para operar; com cinco serviços eu usaria bibliotecas e manteria os retries numa camada só."
 
 **Saiba mais:** [Rede e segurança › Service mesh](../../../classes/network-security/service-mesh/index.md) · [Rede e segurança › Zero trust](../../../classes/network-security/zero-trust/index.md) · [Confiabilidade › Padrões](../../../classes/reliability/patterns/index.md) · [Hands-on 9](../../../hands-on/9/index.md)

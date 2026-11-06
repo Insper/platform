@@ -23,7 +23,7 @@ flowchart LR
 
 ## S — Princípio da Responsabilidade Única
 
-> "Uma classe deve ter um, e apenas um, motivo para mudar." — Robert C. Martin
+> "Uma classe deve ter um e apenas um motivo para mudar." — Robert C. Martin
 
 Uma classe *responde a* um único ator. Um ator é um grupo de usuários ou stakeholders que se importam com a mesma preocupação. Se uma classe atende a dois atores, as mudanças pedidas por um deles correm o risco de quebrar funcionalidades do outro.
 
@@ -211,7 +211,7 @@ classDiagram
 
 > "Módulos de alto nível não devem depender de módulos de baixo nível. Ambos devem depender de abstrações. Abstrações não devem depender de detalhes. Detalhes devem depender de abstrações." — Robert C. Martin
 
-Sem o DIP, a lógica de negócio de alto nível (casos de uso) conhece e instancia a infraestrutura de baixo nível (bancos de dados, clientes HTTP). Uma mudança no banco de dados obriga a reescrever a lógica de negócio. O DIP inverte isso: o módulo de alto nível declara uma interface (a abstração), e o módulo de baixo nível a implementa. Ambos dependem da interface — a seta da dependência aponta para a regra de negócio, não para a infraestrutura.
+Sem o DIP, a lógica de negócio de alto nível (casos de uso) conhece e instancia a infraestrutura de baixo nível (bancos de dados, clientes HTTP). Uma mudança no banco de dados obriga a reescrever a lógica de negócio. O DIP inverte isso: o módulo de alto nível declara uma interface (a abstração) e o módulo de baixo nível a implementa. Ambos dependem da interface — a seta da dependência aponta para a regra de negócio, não para a infraestrutura.
 
 === ":x: Violação — instanciação direta"
 

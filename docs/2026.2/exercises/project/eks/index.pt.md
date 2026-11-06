@@ -72,7 +72,7 @@ O Amazon Elastic Kubernetes Service (EKS) é um serviço gerenciado que facilita
         end
         ```
 
-        Crie uma VPC com a configuração a seguir, incluindo 2 sub-redes públicas e 2 sub-redes privadas. As sub-redes públicas serão usadas pelos balanceadores de carga, e as privadas, pelos pods. A VPC deve ser criada na mesma região do cluster EKS.
+        Crie uma VPC com a configuração a seguir, incluindo 2 sub-redes públicas e 2 sub-redes privadas. As sub-redes públicas serão usadas pelos balanceadores de carga e as privadas, pelos pods. A VPC deve ser criada na mesma região do cluster EKS.
 
         Para criar a VPC, use o AWS CloudFormation com o arquivo de template: [amazon-eks-vpc-private-subnets.yaml](amazon-eks-vpc-private-subnets.yaml){: download="amazon-eks-vpc-private-subnets.yaml"} (baixe-o e faça o upload como template do CloudFormation).
 
@@ -91,7 +91,7 @@ O Amazon Elastic Kubernetes Service (EKS) é um serviço gerenciado que facilita
     
             O cluster EKS leva alguns minutos para ser criado. Você pode acompanhar o status do cluster no console da AWS. Depois que o cluster for criado, você pode acessá-lo pela AWS CLI ou pelo kubectl.
         
-            Note também que o cluster ainda não tem nós: apenas o plano de controle (control plane) foi criado, e ainda não existe nenhum nó de trabalho (worker node).
+            Note também que o cluster ainda não tem nós: apenas o plano de controle (control plane) foi criado e ainda não existe nenhum nó de trabalho (worker node).
 
     === "4. Criar uma role para o node group"
 

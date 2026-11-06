@@ -39,7 +39,7 @@ Clique em **"Resposta"** para ver a resposta correta e a explicação.
 
 - A. Ele executa todos os estágios de build em paralelo, reduzindo o tempo total de build
 - B. Ele permite usar várias imagens base ao mesmo tempo em um único container
-- C. A imagem final contém apenas os artefatos de execução, e não as ferramentas de build — gerando uma imagem menor e mais segura
+- C. A imagem final contém apenas os artefatos de execução e não as ferramentas de build — gerando uma imagem menor e mais segura
 - D. Ele permite que a mesma imagem rode em vários sistemas operacionais
 
 ??? success "Resposta"
@@ -87,11 +87,11 @@ Clique em **"Resposta"** para ver a resposta correta e a explicação.
 ??? success "Resposta"
     **D — Uma rede `bridge` definida pelo usuário.**
 
-    Em uma rede bridge definida pelo usuário (`docker network create …`), o servidor DNS embutido do Docker resolve os nomes dos containers para os seus endereços IP. A rede bridge *padrão* (usada quando você não passa `--network`) **não** oferece resolução de nomes — ali os containers só podem usar endereços IP. O Docker Compose cria uma rede definida pelo usuário para cada projeto, e é assim que os serviços se encontram pelo nome do serviço (`db`, `app`, `gateway`) sem nenhum endereço IP fixo no código.
+    Em uma rede bridge definida pelo usuário (`docker network create …`), o servidor DNS embutido do Docker resolve os nomes dos containers para os seus endereços IP. A rede bridge *padrão* (usada quando você não passa `--network`) **não** oferece resolução de nomes — ali os containers só podem usar endereços IP. O Docker Compose cria uma rede definida pelo usuário para cada projeto e é assim que os serviços se encontram pelo nome do serviço (`db`, `app`, `gateway`) sem nenhum endereço IP fixo no código.
 
 ---
 
-**Q7.** Um Dockerfile contém `EXPOSE 8080`, e você inicia o container com `docker run -d store/account:1.0`. Por que `http://localhost:8080` no navegador não responde?
+**Q7.** Um Dockerfile contém `EXPOSE 8080` e você inicia o container com `docker run -d store/account:1.0`. Por que `http://localhost:8080` no navegador não responde?
 
 - A. `EXPOSE` só funciona com o Docker Compose
 - B. `EXPOSE` é documentação; a porta precisa ser **publicada** com `-p 8080:8080` para ser acessível a partir do host
@@ -110,12 +110,12 @@ Clique em **"Resposta"** para ver a resposta correta e a explicação.
 **Q8.** O que o `depends_on` com `condition: service_healthy` faz que o `depends_on` simples não faz?
 
 - A. Define um timeout depois do qual o serviço dependente inicia de qualquer forma
-- B. Atrasa o serviço dependente até que a dependência passe no seu `healthcheck`, e não apenas até o processo do container iniciar
+- B. Atrasa o serviço dependente até que a dependência passe no seu `healthcheck` e não apenas até o processo do container iniciar
 - C. Faz o Compose reiniciar a dependência se ela ficar unhealthy depois de iniciar
 - D. Executa a dependência em uma rede isolada separada
 
 ??? success "Resposta"
-    **B — Espera o healthcheck passar, e não só o container iniciar.**
+    **B — Espera o healthcheck passar e não só o container iniciar.**
 
     O `depends_on` simples só espera o container da dependência estar *em execução* (processo iniciado). O processo do banco de dados pode estar rodando, mas ainda não pronto para aceitar conexões. `condition: service_healthy` espera até que o comando de `healthcheck` dentro da dependência retorne o código de saída 0 — por exemplo, `pg_isready -U myapp`.
 

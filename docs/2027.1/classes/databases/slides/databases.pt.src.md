@@ -45,7 +45,7 @@ Um único PostgreSQL guarda tudo. O show no estádio abre as vendas. O que quebr
 
 <div class="ok">
 
-Não há nada de errado com o PostgreSQL: **dados diferentes têm formatos diferentes**, e pediram a um único armazenamento que fosse bom em todos.
+Não há nada de errado com o PostgreSQL: **dados diferentes têm formatos diferentes** e pediram a um único armazenamento que fosse bom em todos.
 
 </div>
 
@@ -361,7 +361,7 @@ De 9 → 10 nós de cache: `mod N` move **~90%** das chaves (um flush do cache s
 
 ---
 
-## Escolhendo a chave, e as partições quentes
+## Escolhendo a chave e as partições quentes
 
 - Critérios da chave: **cardinalidade · tráfego uniforme · caminho quente em uma partição**.
 - `orders` por `customer_id` ✓ — relatórios por evento espalham → warehouse.

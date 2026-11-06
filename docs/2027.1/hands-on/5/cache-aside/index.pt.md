@@ -1,4 +1,4 @@
-**Cache-aside** (também chamado de *lazy loading*) é o padrão de cache mais comum: a aplicação conversa tanto com o cache quanto com o banco, e o cache só contém o que alguém pediu recentemente.
+**Cache-aside** (também chamado de *lazy loading*) é o padrão de cache mais comum: a aplicação conversa tanto com o cache quanto com o banco e o cache só contém o que alguém pediu recentemente.
 
 | Padrão | Quem carrega o cache | Escritas | Usado aqui? |
 |---|---|---|---|
@@ -45,7 +45,7 @@ Os **timeouts de 200 ms** importam: o timeout padrão de comando do Lettuce é d
 Decisões de design, uma a uma:
 
 - **Guarde o JSON da resposta**, não objetos Java. Um hit devolve a string como está: sem banco, sem mapeamento de objetos, sem serialização. Ela também é legível com `redis-cli GET`.
-- **Jackson 3**: o Spring Boot 4 vem com o Jackson 3 (pacote `tools.jackson`). O bean de JSON é um `JsonMapper`, e as suas exceções são unchecked, então `toJson` não precisa de `try/catch`.
+- **Jackson 3**: o Spring Boot 4 vem com o Jackson 3 (pacote `tools.jackson`). O bean de JSON é um `JsonMapper` e as suas exceções são unchecked, então `toJson` não precisa de `try/catch`.
 - **TTL com jitter** (`+0–10%`): chaves escritas no mesmo segundo não expiram todas no mesmo segundo.
 - **Falhas do Redis viram misses** (`catch (DataAccessException e)`): o cache é uma otimização, nunca uma dependência obrigatória. Com o Redis fora do ar, o `catalog` fica tão lento quanto antes do lab 5, mas funciona.
 - **Um contador por resultado** (`catalog.cache.requests{result=HIT|MISS|BYPASS}`) em cada réplica, visível em `/actuator/metrics/catalog.cache.requests` — e no Grafana no lab 8.
@@ -61,7 +61,7 @@ Os endpoints GET agora devolvem `ResponseEntity<String>` — o JSON vem do cache
 
 !!! warning "Por que remover em vez de atualizar a chave?"
 
-    Duas atualizações concorrentes podem escrever no cache na ordem inversa dos commits no banco, deixando a versão *mais antiga* em cache até o TTL. Apagar a chave é idempotente: a próxima leitura carrega o que o banco tiver. Mesmo a remoção tem uma condição de corrida (um leitor carrega a linha antiga logo antes do commit da atualização e a escreve *depois* da remoção), e é por isso que toda chave também tem um TTL: **o TTL é a rede de segurança de todo esquema de invalidação**.
+    Duas atualizações concorrentes podem escrever no cache na ordem inversa dos commits no banco, deixando a versão *mais antiga* em cache até o TTL. Apagar a chave é idempotente: a próxima leitura carrega o que o banco tiver. Mesmo a remoção tem uma condição de corrida (um leitor carrega a linha antiga logo antes do commit da atualização e a escreve *depois* da remoção) e é por isso que toda chave também tem um TTL: **o TTL é a rede de segurança de todo esquema de invalidação**.
 
 As páginas de listagem **não** são removidas: uma mudança em um evento pode afetar milhares de chaves de listagem (toda cidade/página que o contém). Em vez disso, elas expiram depois de `CACHE_TTL_LIST` (10 s) — uma escolha deliberada de **defasagem limitada** para a listagem em troca de simplicidade.
 

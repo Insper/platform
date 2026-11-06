@@ -1,4 +1,4 @@
-O projeto é entregue em **nove marcos**. Cada um acrescenta uma camada ao mesmo sistema, na ordem em que as aulas a ensinam, para que vocês nunca construam algo que ainda não viram em aula — e nunca deixem tudo para as duas últimas semanas. Cada marco tem **critérios de aceitação que vocês mesmos podem conferir** antes do prazo, e um **check-in** curto em aula.
+O projeto é entregue em **nove marcos**. Cada um acrescenta uma camada ao mesmo sistema, na ordem em que as aulas a ensinam, para que vocês nunca construam algo que ainda não viram em aula — e nunca deixem tudo para as duas últimas semanas. Cada marco tem **critérios de aceitação que vocês mesmos podem conferir** antes do prazo e um **check-in** curto em aula.
 
 ``` diagram
 flowchart LR
@@ -24,7 +24,7 @@ Cada marco é avaliado pela tag `m<n>` enviada até o prazo (semana indicada em 
 
 Detalhes, template e rubrica: [design doc](../design-doc/index.md). Relacionados: exercícios de [estimativas](../../estimation/index.md) e de [design doc](../../design-doc/index.md).
 
-**Perguntas do check-in:** Qual SLO é o mais difícil de cumprir, e por quê? Qual número das estimativas guia a maior decisão? Quem é responsável pelo quê?
+**Perguntas do check-in:** Qual SLO é o mais difícil de cumprir e por quê? Qual número das estimativas guia a maior decisão? Quem é responsável pelo quê?
 
 ## M2 — Caminho principal rodando { #m2-core-path-running }
 
@@ -82,7 +82,7 @@ Detalhes, template e rubrica: [design doc](../design-doc/index.md). Relacionados
 
 **Relacionados:** [Lab 7](../../../hands-on/7/index.md) (assíncrono), [Lab 8](../../../hands-on/8/index.md) (observabilidade), [Lab 9](../../../hands-on/9/index.md) (resiliência e caos), exercício [orientado a eventos](../../event-driven/index.md); opção de IA: [Lab 12](../../../hands-on/12/index.md).
 
-**Perguntas do check-in:** Derrubem o consumidor agora — o que acontece com os eventos, e como vocês sabem que nenhum se perde? Por que esse valor de timeout? Abram o dashboard: qual serviço é o mais lento e por quê?
+**Perguntas do check-in:** Derrubem o consumidor agora — o que acontece com os eventos e como vocês sabem que nenhum se perde? Por que esse valor de timeout? Abram o dashboard: qual serviço é o mais lento e por quê?
 
 ## M5 — Kubernetes + CI/CD { #m5-kubernetes-cicd }
 
@@ -104,7 +104,7 @@ Detalhes, template e rubrica: [design doc](../design-doc/index.md). Relacionados
 
 **Relacionados:** [Lab 10](../../../hands-on/10/index.md) (Kubernetes), [Lab 11](../../../hands-on/11/index.md) (entrega), exercício de [autoscaling no Kubernetes](../../kubernetes-autoscaling/index.md).
 
-**Perguntas do check-in:** Enviem uma mudança que quebra um threshold — o que acontece? Como vocês fazem rollback, e quanto tempo leva? O que limita o seu `maxReplicas`?
+**Perguntas do check-in:** Enviem uma mudança que quebra um threshold — o que acontece? Como vocês fazem rollback e quanto tempo leva? O que limita o seu `maxReplicas`?
 
 ## M6 — Campanha de testes de carga { #m6-load-test-campaign }
 
@@ -115,7 +115,7 @@ Detalhes, template e rubrica: [design doc](../design-doc/index.md). Relacionados
 
 Detalhes, template e rubrica: [campanha de testes de carga](../load-test-campaign/index.md). Relacionados: [Aula 15](../../../classes/performance/index.md), [Lab 2](../../../hands-on/2/index.md).
 
-**Perguntas do check-in:** Com que carga o primeiro SLO quebra, e qual recurso causa isso? Qual iteração mais ajudou? Como vocês sabem que o gerador de carga não era o gargalo?
+**Perguntas do check-in:** Com que carga o primeiro SLO quebra e qual recurso causa isso? Qual iteração mais ajudou? Como vocês sabem que o gerador de carga não era o gargalo?
 
 ## M7 — Game day de caos { #m7-chaos-game-day }
 
@@ -130,7 +130,7 @@ Detalhes, templates e rubrica: [game day](../game-day/index.md). Relacionados: [
 
 ## M8 — Relatório de custos { #m8-cost-report }
 
-**Semana 18 · 10% · tag `m8`.** Coloquem preço na escala de projeto e no que vocês realmente executaram, e liguem o custo às suas medições.
+**Semana 18 · 10% · tag `m8`.** Coloquem preço na escala de projeto e no que vocês realmente executaram e liguem o custo às suas medições.
 
 - [ ] Custo mensal da escala de projeto com lista de componentes, economia unitária e análise de sensibilidade.
 - [ ] Atualização final do design doc (changelog completo).

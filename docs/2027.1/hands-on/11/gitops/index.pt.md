@@ -1,8 +1,8 @@
 # 4. GitOps com Argo CD { #4-gitops-with-argo-cd }
 
 Até agora você fez deploy com `kubectl apply` a partir do seu notebook: quem tem as credenciais muda o
-cluster, e nada registra o que está rodando. O **GitOps** inverte a direção: o estado desejado vive no
-Git, e um agente **dentro** do cluster — o **Argo CD** — o puxa e mantém o cluster igual a ele, para
+cluster e nada registra o que está rodando. O **GitOps** inverte a direção: o estado desejado vive no
+Git e um agente **dentro** do cluster — o **Argo CD** — o puxa e mantém o cluster igual a ele, para
 sempre. O CI nunca toca no cluster; ele só escreve no Git. A teoria está na
 [aula de entrega](../../../classes/cloud-native/delivery/index.md).
 
@@ -28,7 +28,7 @@ kubectl config use-context kind-boxoffice
 kubectl delete namespace boxoffice --wait=true
 ```
 
-Instale o Argo CD, o Argo Rollouts (o passo 5 o usa, e o overlay de GitOps já contém um `Rollout`) e o
+Instale o Argo CD, o Argo Rollouts (o passo 5 o usa e o overlay de GitOps já contém um `Rollout`) e o
 pequeno Prometheus do passo 5. As CRDs grandes precisam de server-side apply:
 
 ``` shell
@@ -42,10 +42,10 @@ kubectl apply -f k8s/monitoring/prometheus.yaml
 kubectl -n argocd rollout status deployment/argocd-server --timeout=300s
 ```
 
-Você deve ver `deployment "argocd-server" successfully rolled out`, e `kubectl get pods -n
+Você deve ver `deployment "argocd-server" successfully rolled out` e `kubectl get pods -n
 argo-rollouts` e `kubectl get pods -n monitoring` devem mostrar um pod rodando cada.
 
-O Argo CD só considera um `Ingress` `Healthy` quando o controller escreveu um endereço no status dele,
+O Argo CD só considera um `Ingress` `Healthy` quando o controller escreveu um endereço no status dele
 e um Traefik exposto como NodePort não escreve nenhum: a Application ficaria em `Progressing` para
 sempre. Faça o Traefik publicar `127.0.0.1`:
 
@@ -71,7 +71,7 @@ Acesse `https://localhost:8443` (aceite o certificado autoassinado) e use essa s
 
 O seu repositório e os seus pacotes são privados, então o cluster precisa de credenciais só de leitura.
 Crie um **fine-grained personal access token** no GitHub (*Settings → Developer settings → Fine-grained
-tokens*) para o seu repositório `boxoffice` com *Contents: read*, e um **token clássico** com
+tokens*) para o seu repositório `boxoffice` com *Contents: read* e um **token clássico** com
 `read:packages` para as imagens (ou torne o pacote `boxoffice-catalog` público e pule o segundo
 segredo). Nunca faça commit deles:
 
@@ -133,7 +133,7 @@ o workflow `Deploy` o escreve depois da próxima execução bem-sucedida do CI.
 Ele roda quando o `CI` termina na `main`, edita a entrada `images` do overlay com
 `kustomize edit set image` (o Kustomize vem pré-instalado nos runners Ubuntu do GitHub) e faz push do
 commit. O Kustomize reescreve o arquivo inteiro ao editá-lo: os comentários somem e as listas são
-reindentadas, o que é esperado. Um commit enviado com o `GITHUB_TOKEN` do workflow não inicia novas execuções de workflow, e o
+reindentadas, o que é esperado. Um commit enviado com o `GITHUB_TOKEN` do workflow não inicia novas execuções de workflow e o
 `CI` ignora mudanças em `k8s/**` de qualquer forma, então não há loop. Como o `Deploy` faz commit na
 `main`, a sua `main` local fica para trás depois de cada deploy: daqui em diante, rode
 `git pull --rebase` antes de cada `git push`.

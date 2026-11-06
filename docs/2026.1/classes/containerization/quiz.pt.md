@@ -23,7 +23,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 - A. Ele executa todas as etapas de build em paralelo, reduzindo o tempo total de build
 - B. Ele permite usar várias imagens base simultaneamente em um mesmo container
-- C. A imagem final contém apenas os artefatos de execução, e não o ferramental de build — gerando uma imagem menor e mais segura
+- C. A imagem final contém apenas os artefatos de execução e não o ferramental de build — gerando uma imagem menor e mais segura
 - D. Ele permite que a mesma imagem rode em vários sistemas operacionais
 
 ??? success "Resposta"
@@ -80,12 +80,12 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 **Q6.** O que `depends_on` com `condition: service_healthy` faz que o `depends_on` simples não faz?
 
 - A. Define um timeout depois do qual o serviço dependente inicia de qualquer forma
-- B. Atrasa o serviço dependente até que a dependência passe no seu `healthcheck`, e não apenas até o processo do container iniciar
+- B. Atrasa o serviço dependente até que a dependência passe no seu `healthcheck` e não apenas até o processo do container iniciar
 - C. Faz o Compose reiniciar a dependência se ela ficar não saudável depois da inicialização
 - D. Executa a dependência em uma rede isolada separada
 
 ??? success "Resposta"
-    **B — Espera o healthcheck passar, e não apenas o container iniciar.**
+    **B — Espera o healthcheck passar e não apenas o container iniciar.**
 
     O `depends_on` simples só espera que o container da dependência esteja *em execução* (processo iniciado). O processo do banco de dados pode estar rodando, mas ainda não pronto para aceitar conexões. `condition: service_healthy` espera até que o comando de `healthcheck` dentro da dependência retorne código de saída 0 — por exemplo, `pg_isready -U myapp`.
 

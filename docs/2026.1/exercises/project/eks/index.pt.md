@@ -92,7 +92,7 @@ O Amazon Elastic Kubernetes Service (EKS) é um serviço gerenciado que facilita
     
             O cluster EKS levará alguns minutos para ser criado. Você pode acompanhar o status do cluster no console da AWS. Depois que o cluster for criado, você pode acessá-lo usando o AWS CLI ou o kubectl.
         
-            Note também que o cluster ainda não tem nós: apenas o plano de controle (Control Plane) foi criado, e ainda não existe nenhum nó de trabalho (worker node).
+            Note também que o cluster ainda não tem nós: apenas o plano de controle (Control Plane) foi criado e ainda não existe nenhum nó de trabalho (worker node).
 
     === "4. Criar uma role para o Node Group"
 

@@ -1,9 +1,9 @@
 
-> *"Projete um aplicativo de chat como o WhatsApp ou o Slack: conversas individuais e em grupo, confirmações de entrega e de leitura, presença online, e tem que funcionar em celulares com rede instável."*
+> *"Projete um aplicativo de chat como o WhatsApp ou o Slack: conversas individuais e em grupo, confirmações de entrega e de leitura, presença online e tem que funcionar em celulares com rede instável."*
 
-O chat é o problema clássico **com estado e em tempo real**. Todo o resto desta disciplina prefere servidores sem estado atrás de um balanceador de carga; o chat precisa de milhões de **conexões de longa duração**, então os servidores que as seguram têm estado e o sistema precisa saber *em qual* servidor cada usuário está conectado. Por cima disso vêm as perguntas que separam níveis: como **ordenar** mensagens sem um relógio global, como entregar **exatamente uma vez na tela** numa rede que repete envios, e o que acontece com uma mensagem enviada para alguém cujo celular está num túnel?
+O chat é o problema clássico **com estado e em tempo real**. Todo o resto desta disciplina prefere servidores sem estado atrás de um balanceador de carga; o chat precisa de milhões de **conexões de longa duração**, então os servidores que as seguram têm estado e o sistema precisa saber *em qual* servidor cada usuário está conectado. Por cima disso vêm as perguntas que separam níveis: como **ordenar** mensagens sem um relógio global, como entregar **exatamente uma vez na tela** numa rede que repete envios e o que acontece com uma mensagem enviada para alguém cujo celular está num túnel?
 
-O BoxOffice também tem chat: cada evento tem um grupo de fãs onde quem tem ingresso conversa antes e durante o show, e os fãs falam com atendentes sobre seus pedidos. Num festival, dezenas de milhares de fãs no mesmo grupo do evento é o follow-up do "canal gigante" desta página.
+O BoxOffice também tem chat: cada evento tem um grupo de fãs onde quem tem ingresso conversa antes e durante o show e os fãs falam com atendentes sobre seus pedidos. Num festival, dezenas de milhares de fãs no mesmo grupo do evento é o follow-up do "canal gigante" desta página.
 
 | | |
 |---|---|
@@ -17,7 +17,7 @@ O BoxOffice também tem chat: cada evento tem um grupo de fãs onde quem tem ing
     - **Escolher** um transporte em tempo real (WebSocket, SSE, long polling) e **projetar** uma frota de gateways de conexão com estado.
     - **Rotear** uma mensagem até o gateway que segura a conexão do destinatário, com um registro de sessões e pub/sub.
     - **Garantir** a ordem por conversa e a exibição exatamente uma vez em cima de uma entrega pelo-menos-uma-vez.
-    - **Projetar** a entrega offline e a sincronização entre dispositivos com cursores por dispositivo, e uma presença que não derrete o sistema.
+    - **Projetar** a entrega offline e a sincronização entre dispositivos com cursores por dispositivo e uma presença que não derrete o sistema.
     - **Modelar** o armazenamento de mensagens para acesso de muita escrita e ordenado no tempo.
 
 ---
@@ -105,7 +105,7 @@ O que os números dizem:
 
 - **~23 mil mensagens/s em média, ~70 mil no pico**, e o fan-out dos grupos as transforma em **~460 mil entregas/s**. ⇒ a entrega é um problema de roteamento entre muitas máquinas, não um problema de banco de dados.
 - **15 M de conexões simultâneas** precisam de **~300 nós de gateway**. ⇒ os gateways são uma frota grande e **com estado**: deploys, quedas e escalonamento desconectam usuários, então a reconexão precisa ser barata e bem-comportada.
-- Se cada cliente mandasse um heartbeat de aplicação para um serviço central de presença, seriam **500 mil escritas/s** só para dizer "ainda estou aqui". ⇒ a presença precisa ser derivada da **própria conexão** no gateway, e só as **mudanças** publicadas.
+- Se cada cliente mandasse um heartbeat de aplicação para um serviço central de presença, seriam **500 mil escritas/s** só para dizer "ainda estou aqui". ⇒ a presença precisa ser derivada da **própria conexão** no gateway e só as **mudanças** publicadas.
 - O histórico cresce **~1,8 TB/dia replicado, ~0,66 PB/ano**. ⇒ um armazenamento horizontalmente escalável e otimizado para escrita (wide-column / LSM), particionado por conversa.
 
 ---
@@ -286,7 +286,7 @@ sequenceDiagram
 Presença parece barata e não é: toda mudança de status de um usuário interessa a todos os seus contatos.
 
 - Derive a presença da **conexão**: online quando o primeiro dispositivo conecta, offline quando o último desconecta mais um período de tolerância (digamos 30 s, para esconder oscilações da rede).
-- Publique **só mudanças**, e só para usuários que estão **online e olhando** (a lista de contatos ou a conversa aberta se inscreve; um app fechado não).
+- Publique **só mudanças** e só para usuários que estão **online e olhando** (a lista de contatos ou a conversa aberta se inscreve; um app fechado não).
 - Em grupos com mais de algumas dezenas de membros, **não faça fan-out de presença** — mostre "visto por último" sob demanda.
 - Guarde o `lastSeen` com TTL no cache; tudo bem perdê-lo.
 
@@ -309,7 +309,7 @@ Presença parece barata e não é: toda mudança de status de um usuário intere
 | Tempestade de presença | Milhões de atualizações de status | Só mudanças, só para inscritos, sem presença em grupos grandes | Presença menos "ao vivo" |
 | Limites do provedor de push | Throttling ou queda de APNs/FCM | Agrupar notificações por conversa; retentar com backoff | Alertas atrasados para usuários offline |
 
-Os trade-offs para **dizer em voz alta**: **ordem por conversa, não global** (barata e suficiente), **pelo menos uma vez + dedupe em vez de "entrega exatamente uma vez"** (a única garantia honesta sobre uma rede), e **gateways com estado mantidos burros** (estado na conexão, lógica em outro lugar).
+Os trade-offs para **dizer em voz alta**: **ordem por conversa, não global** (barata e suficiente), **pelo menos uma vez + dedupe em vez de "entrega exatamente uma vez"** (a única garantia honesta sobre uma rede) e **gateways com estado mantidos burros** (estado na conexão, lógica em outro lugar).
 
 ---
 
@@ -338,7 +338,7 @@ O cenário `chat` tem gateways segurando conexões WebSocket, uma camada de pub/
 
 ??? question "Por que não ordenar as mensagens por timestamp?"
 
-    Os relógios dos dispositivos erram por segundos ou minutos, e os relógios de servidores em máquinas diferentes discordam por milissegundos — o suficiente para reordenar uma troca rápida. Um **número de sequência por conversa** atribuído pelo servidor, emitido por um único dono daquela conversa, dá uma ordem total com a qual todos os membros concordam. Os timestamps ficam só para exibição.
+    Os relógios dos dispositivos erram por segundos ou minutos e os relógios de servidores em máquinas diferentes discordam por milissegundos — o suficiente para reordenar uma troca rápida. Um **número de sequência por conversa** atribuído pelo servidor, emitido por um único dono daquela conversa, dá uma ordem total com a qual todos os membros concordam. Os timestamps ficam só para exibição.
 
 ??? question "O que muda com criptografia de ponta a ponta?"
 

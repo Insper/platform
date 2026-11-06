@@ -27,7 +27,7 @@ porcentagem do **request** (250m), não do nó: um pod usando 150m está a 60%.
 | `scaleDown.stabilizationWindowSeconds: 120` | usa a recomendação *mais alta* dos últimos 2 min — sem oscilação quando a carga oscila |
 | `scaleDown.policies` (1 pod a cada 30 s) | libera capacidade devagar; escalar para baixo rápido demais dispara o scale-up de novo |
 
-??? question "Por que CPU, e quando ela é o sinal errado?"
+??? question "Por que CPU e quando ela é o sinal errado?"
 
     O `catalog` é limitado por CPU quando a taxa de acerto do cache é alta: mais requisições → mais
     CPU, quase linearmente, então a CPU é um bom indicador da carga. Ela é o sinal errado quando o
@@ -53,7 +53,7 @@ volta. O observador registra o que o HPA vê e decide a cada 5 segundos.
     --8<-- "docs/2027.1/hands-on/10/code/scripts/watch-hpa.sh"
     ```
 
-Comece com pods **aquecidos**. Uma JVM que acabou de iniciar queima CPU compilando código, e o HPA
+Comece com pods **aquecidos**. Uma JVM que acabou de iniciar queima CPU compilando código e o HPA
 escala com essa CPU também: numa execução de teste iniciada logo depois de um rollout, `PEAK=250` levou
 o `catalog` a 8 réplicas, as liveness probes estouraram o timeout com as CPUs ocupadas, pods
 reiniciaram e o k6 viu 26% de erros. A mesma execução com pods aquecidos nunca saiu de 2 réplicas.

@@ -1,9 +1,9 @@
 
 > *"Projete um serviço de corridas por aplicativo como o Uber ou a 99: um passageiro pede uma corrida, o sistema encontra um motorista próximo e os dois se veem no mapa até a corrida terminar."*
 
-Corridas por aplicativo são o problema clássico **geoespacial, de muita escrita e em tempo real**. Centenas de milhares de celulares informam sua posição a cada poucos segundos; a maioria dessas escritas é inútil segundos depois, e a única consulta que importa — *quais motoristas disponíveis estão perto deste ponto?* — precisa responder em milissegundos. Por cima disso há um problema de consistência pequeno mas rígido: **um motorista, uma corrida**. A entrevista testa se você sabe escolher um índice espacial, manter os dados quentes em memória, particionar o mundo de forma sensata e proteger o único lugar onde a corretude não é negociável.
+Corridas por aplicativo são o problema clássico **geoespacial, de muita escrita e em tempo real**. Centenas de milhares de celulares informam sua posição a cada poucos segundos; a maioria dessas escritas é inútil segundos depois e a única consulta que importa — *quais motoristas disponíveis estão perto deste ponto?* — precisa responder em milissegundos. Por cima disso há um problema de consistência pequeno mas rígido: **um motorista, uma corrida**. A entrevista testa se você sabe escolher um índice espacial, manter os dados quentes em memória, particionar o mundo de forma sensata e proteger o único lugar onde a corretude não é negociável.
 
-O BoxOffice encontra os mesmos problemas duas vezes. Sua busca "eventos perto de mim" usa as mesmas ideias de índice geográfico, e todo show de estádio termina com **60 000 fãs saindo de uma vez** — um app de corridas vê uma única célula do mapa passar de um punhado de pedidos para milhares em minutos. Essa célula quente é um dos follow-ups abaixo.
+O BoxOffice encontra os mesmos problemas duas vezes. Sua busca "eventos perto de mim" usa as mesmas ideias de índice geográfico e todo show de estádio termina com **60 000 fãs saindo de uma vez** — um app de corridas vê uma única célula do mapa passar de um punhado de pedidos para milhares em minutos. Essa célula quente é um dos follow-ups abaixo.
 
 | | |
 |---|---|
@@ -237,7 +237,7 @@ Uma B-tree em `(lat, lon)` não responde "dentro de 2 km" de forma eficiente: el
 
 === "Geohash"
 
-    Intercala os bits da longitude e da latitude e codifica em base32: pontos próximos compartilham um **prefixo** (`6gyf4…`). Prefixo = célula, então "próximo" vira "mesmo prefixo", o que qualquer armazenamento chave-valor ordenado responde (o Redis GEO usa um geohash de 52 bits como score do sorted set). Grade fixa, simples, mas as células são retângulos cujo tamanho depende da latitude, e dois pontos de lados opostos de uma borda podem ter prefixos totalmente diferentes.
+    Intercala os bits da longitude e da latitude e codifica em base32: pontos próximos compartilham um **prefixo** (`6gyf4…`). Prefixo = célula, então "próximo" vira "mesmo prefixo", o que qualquer armazenamento chave-valor ordenado responde (o Redis GEO usa um geohash de 52 bits como score do sorted set). Grade fixa, simples, mas as células são retângulos cujo tamanho depende da latitude e dois pontos de lados opostos de uma borda podem ter prefixos totalmente diferentes.
 
 === "Quadtree"
 
@@ -278,7 +278,7 @@ O momento perigoso: os matchers de dois passageiros escolhem o mesmo motorista m
 
 1. Os candidatos vêm do índice geográfico (rápido, um pouco desatualizado — tudo bem).
 2. Antes de ofertar, **trave o motorista**: `SET lock:driver:42 <rideId> NX PX 15000` — só um matcher ganha; o lock expira se o motorista ignorar a oferta ou o matcher cair.
-3. O motorista aceita → o serviço de corridas atribui com um **update condicional** (`UPDATE ride SET driver_id = 42, status = 'ACCEPTED' WHERE ride_id = $1 AND status = 'MATCHING'`), e o índice único parcial garante que o motorista não tem outra corrida ativa — a última linha de defesa durável caso o lock falhe algum dia.
+3. O motorista aceita → o serviço de corridas atribui com um **update condicional** (`UPDATE ride SET driver_id = 42, status = 'ACCEPTED' WHERE ride_id = $1 AND status = 'MATCHING'`) e o índice único parcial garante que o motorista não tem outra corrida ativa — a última linha de defesa durável caso o lock falhe algum dia.
 4. O motorista recusa ou a oferta expira → libere o lock e oferte ao próximo candidato.
 
 **Matching guloso vs. em lote.** O guloso (cada pedido pega seu motorista disponível mais próximo) é simples e rápido. O matching em lote junta pedidos por 1–2 segundos e resolve um problema de atribuição sobre todos (minimizando o tempo total até o embarque), o que é globalmente melhor em áreas densas — um trade-off clássico de latência por eficiência.
@@ -319,13 +319,13 @@ O **preço dinâmico** cabe no mesmo pipeline: um job de stream conta os pedidos
 | Fan-out em tempo real | 140 mil envios de posição/s para passageiros | Conexões persistentes, enviar só para corridas ativas, taxa menor quando longe | Mapa menos suave |
 | Serviço de ETA lento | Matching bloqueado | Timeout + recorrer à distância em linha reta × fator | Ranqueamento pior por um momento |
 
-Os trade-offs para **dizer em voz alta**: **atualidade vs. custo de escrita** (posições a cada 4 s, não a cada segundo), **consistência eventual para posições, consistência forte para a atribuição** (o índice geográfico pode estar desatualizado; o lock do motorista e a linha da corrida, não), e **matching guloso vs. em lote** (latência vs. eficiência global).
+Os trade-offs para **dizer em voz alta**: **atualidade vs. custo de escrita** (posições a cada 4 s, não a cada segundo), **consistência eventual para posições, consistência forte para a atribuição** (o índice geográfico pode estar desatualizado; o lock do motorista e a linha da corrida, não) e **matching guloso vs. em lote** (latência vs. eficiência global).
 
 ---
 
 ## 8. Experimente no playground { #8-try-it-in-the-playground }
 
-O cenário `ride-sharing` modela atualizações de localização com muita escrita passando por um stream até um índice geográfico, e um caminho de matching que o lê.
+O cenário `ride-sharing` modela atualizações de localização com muita escrita passando por um stream até um índice geográfico e um caminho de matching que o lê.
 
 !!! tip "Experimente"
 
@@ -364,7 +364,7 @@ O cenário `ride-sharing` modela atualizações de localização com muita escri
 
 ??? question "Como você acrescentaria corridas compartilhadas (pooling)?"
 
-    O matching fica mais difícil: o candidato é um motorista **já em corrida** cuja rota absorve um desvio dentro de limites para os dois passageiros. O índice geográfico precisa incluir motoristas em corridas compartilhadas com assentos sobrando, e o matcher avalia o custo de inserção na rota. A máquina de estados ganha trechos por passageiro. É um bom lugar para mostrar que você percebe quando um problema muda de classe (de vizinho mais próximo para uma otimização com restrições).
+    O matching fica mais difícil: o candidato é um motorista **já em corrida** cuja rota absorve um desvio dentro de limites para os dois passageiros. O índice geográfico precisa incluir motoristas em corridas compartilhadas com assentos sobrando e o matcher avalia o custo de inserção na rota. A máquina de estados ganha trechos por passageiro. É um bom lugar para mostrar que você percebe quando um problema muda de classe (de vizinho mais próximo para uma otimização com restrições).
 
 ---
 
@@ -382,8 +382,8 @@ O cenário `ride-sharing` modela atualizações de localização com muita escri
 
     - **Limite as atualizações de posição pelo estado** — alguns segundos entre pings dirigindo, muito menos quando parado; os pings são a maior parte da carga de escrita.
     - **Atribua um motorista com uma atualização condicional** — `UPDATE ... WHERE status = 'AVAILABLE'` (ou um lease com TTL) faz de "um motorista, uma corrida" um fato do banco, como as reservas de assento do [lab 6](../../../hands-on/6/holds/index.md).
-    - **Mantenha as posições ao vivo em memória com TTL, e persista as corridas** — posições são telemetria; a corrida e o seu preço são o registro.
-    - **Dê timeout às ofertas e ofereça de novo** — um motorista que não responde em segundos volta para o grupo, e o passageiro recebe o próximo.
+    - **Mantenha as posições ao vivo em memória com TTL e persista as corridas** — posições são telemetria; a corrida e o seu preço são o registro.
+    - **Dê timeout às ofertas e ofereça de novo** — um motorista que não responde em segundos volta para o grupo e o passageiro recebe o próximo.
     - **Particione o índice geográfico por região** — o horário de pico de uma cidade fica na partição dessa cidade.
 
 ---

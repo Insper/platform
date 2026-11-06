@@ -186,9 +186,9 @@ Suggestion: Use parameterized queries to prevent SQL injection. Replace the line
 AI review: react 👍 if useful, 👎 if not. Advisory only.
 ```
 
-Problema certo, linha certa — e uma sugestão que **não compila**: o `JdbcClient` não tem método `bind` (é `.param(...)`), e os curingas `%` sumiram. A sugestão de um revisor é uma dica para um humano, nunca um patch para aplicar às cegas.
+Problema certo, linha certa — e uma sugestão que **não compila**: o `JdbcClient` não tem método `bind` (é `.param(...)`) e os curingas `%` sumiram. A sugestão de um revisor é uma dica para um humano, nunca um patch para aplicar às cegas.
 
-Confira também pelo terminal: `gh pr view --comments` mostra o comentário fixo, e `gh api "repos/{owner}/{repo}/pulls/$(gh pr view --json number -q .number)/comments" --jq '.[].path'` lista os arquivos que receberam comentários inline.
+Confira também pelo terminal: `gh pr view --comments` mostra o comentário fixo e `gh api "repos/{owner}/{repo}/pulls/$(gh pr view --json number -q .number)/comments" --jq '.[].path'` lista os arquivos que receberam comentários inline.
 
 No **resumo do job** (Actions → a execução → Summary), o mesmo relatório da execução local: a tabela de achados, os descartados e a tabela de custo. Com o modelo local a coluna de custo diz `n/a`: você paga em minutos de runner. Para comparar, uma execução do golden set de cinco casos da parte 6 com `claude-opus-5-5`, feita enquanto este lab era escrito, custou cerca de **US$ 0,012 por review**, com a maior parte do prompt de sistema servida do cache depois da primeira chamada — os seus números vão variar com o tamanho dos seus diffs e das suas convenções:
 
@@ -212,7 +212,7 @@ Mude um botão por vez, no mesmo PR, e compare os resumos dos jobs:
 
 | Botão | Onde | Efeito a observar |
 |---|---|---|
-| `AI_REVIEW_MIN_SEVERITY` (`minor`) | variável de repositório | `major` → menos comentários, e mais importantes |
+| `AI_REVIEW_MIN_SEVERITY` (`minor`) | variável de repositório | `major` → menos comentários e mais importantes |
 | `AI_REVIEW_MAX_COMMENTS` (`6`) | variável de repositório | Teto rígido de ruído por push |
 | `AI_REVIEW_MAX_DIFF_LINES` (`1500`) | variável de repositório | PRs grandes: arquivos acima do orçamento são listados como *não revisados* — honesto, não truncado em silêncio |
 | `LLM_MODEL` | variável de repositório | Qualidade vs. custo: compare na parte 7 |

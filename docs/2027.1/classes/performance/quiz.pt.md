@@ -72,7 +72,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B.**
 
-    Eles são complementares. Em um teste de carga, as métricas RED viram os thresholds (por endpoint), e quando um threshold falha, o USE nos recursos — incluindo recursos de software como pools e locks — localiza o gargalo.
+    Eles são complementares. Em um teste de carga, as métricas RED viram os thresholds (por endpoint) e quando um threshold falha, o USE nos recursos — incluindo recursos de software como pools e locks — localiza o gargalo.
 
 ---
 
@@ -102,7 +102,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **C.**
 
-    X = N / (R + Z): 200 / 1,1 ≈ 182 req/s, e 200 / 3,0 ≈ 67 req/s. Fãs reais chegando pela internet não desaceleram porque o sistema desacelerou; um modelo aberto (taxa de chegada) continua enviando ~182 req/s e revela a fila.
+    X = N / (R + Z): 200 / 1,1 ≈ 182 req/s e 200 / 3,0 ≈ 67 req/s. Fãs reais chegando pela internet não desaceleram porque o sistema desacelerou; um modelo aberto (taxa de chegada) continua enviando ~182 req/s e revela a fila.
 
 ---
 
@@ -130,7 +130,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B.**
 
-    Iterações descartadas são carga que nunca foi enviada. Adicione um threshold `dropped_iterations: ['count==0']` para que um teste assim não possa passar, e dimensione os VUs com a Lei de Little.
+    Iterações descartadas são carga que nunca foi enviada. Adicione um threshold `dropped_iterations: ['count==0']` para que um teste assim não possa passar e dimensione os VUs com a Lei de Little.
 
 ---
 
@@ -165,7 +165,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 **Q12.** Um assento esgotado faz `POST /holds` retornar `409 Conflict`. Por padrão, o k6 o conta em `http_req_failed`. O que o teste deve fazer?
 
 - A. Ignorar `http_req_failed` completamente
-- B. Declarar 409 como status esperado (`http.setResponseCallback(http.expectedStatuses({ min: 200, max: 399 }, 409))`) para que só as falhas reais contem, e verificar o resultado de negócio separadamente (assentos reservados)
+- B. Declarar 409 como status esperado (`http.setResponseCallback(http.expectedStatuses({ min: 200, max: 399 }, 409))`) para que só as falhas reais contem e verificar o resultado de negócio separadamente (assentos reservados)
 - C. Repetir os 409 até darem certo
 - D. Remover o fluxo de reserva do teste
 
@@ -206,7 +206,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q15.** As reservas têm pico de 4 500/s. O joelho de um pod de `inventory` é 275 reservas/s, você planeja operar a 75 % do joelho, e as réplicas ficam espalhadas por 3 zonas de modo que perder uma zona ainda deixe capacidade suficiente. De quantos pods você precisa?
+**Q15.** As reservas têm pico de 4 500/s. O joelho de um pod de `inventory` é 275 reservas/s, você planeja operar a 75 % do joelho e as réplicas ficam espalhadas por 3 zonas de modo que perder uma zona ainda deixe capacidade suficiente. De quantos pods você precisa?
 
 - A. 17
 - B. 22
@@ -223,7 +223,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 **Q16.** Um time adiciona um teste de orçamento com k6 em todo pull request, mas ele falha ao acaso cerca de uma vez por semana e os desenvolvedores o rodam de novo até passar. Qual é a melhor melhoria?
 
 - A. Remover o teste
-- B. Reduzir o ruído (taxa de chegada fixa, aquecimento, mesmo tipo de runner, uma repetição automática), comparar de forma relativa com a linha de base da `main` com uma tolerância, e adicionar orçamentos determinísticos como statements SQL por requisição
+- B. Reduzir o ruído (taxa de chegada fixa, aquecimento, mesmo tipo de runner, uma repetição automática), comparar de forma relativa com a linha de base da `main` com uma tolerância e adicionar orçamentos determinísticos como statements SQL por requisição
 - C. Aumentar os thresholds para 10 s
 - D. Rodar o teste breakpoint completo em todo pull request
 

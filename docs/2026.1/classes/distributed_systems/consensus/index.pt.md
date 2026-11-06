@@ -1,5 +1,5 @@
 
-**Consenso** é o problema de fazer um grupo de nós distribuídos concordar sobre um único valor — apesar de mensagens atrasadas, perdidas ou fora de ordem, e apesar de alguns nós falharem. É a primitiva fundamental para eleição de líder, locks distribuídos, máquinas de estado replicadas e repositórios de configuração consistentes.
+**Consenso** é o problema de fazer um grupo de nós distribuídos concordar sobre um único valor — apesar de mensagens atrasadas, perdidas ou fora de ordem e apesar de alguns nós falharem. É a primitiva fundamental para eleição de líder, locks distribuídos, máquinas de estado replicadas e repositórios de configuração consistentes.
 
 ---
 

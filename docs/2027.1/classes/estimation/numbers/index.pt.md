@@ -68,7 +68,7 @@ Em 2009, Jeff Dean (Google) popularizou uma lista de "números que todos deveria
 
 ### O que a tabela ensina { #what-the-table-teaches }
 
-1. **A memória é ~1.000× mais rápida que o SSD, e o SSD ~100× mais rápido que o HDD em leituras aleatórias.** É por isso que caches (o Redis mantém tudo em RAM) e índices em memória existem.
+1. **A memória é ~1.000× mais rápida que o SSD e o SSD ~100× mais rápido que o HDD em leituras aleatórias.** É por isso que caches (o Redis mantém tudo em RAM) e índices em memória existem.
 2. **Dentro de um data centre, a rede custa mais que o trabalho.** Um `GET` no Redis consome microssegundos de CPU no servidor; o que você espera é a ida e volta. Uma página que faz 50 chamadas sequenciais ao Redis gasta ~10–25 ms só em idas e voltas — **agrupe-as** (`MGET`, pipelining) ou use cache no próprio processo.
 3. **Entre regiões, a física vence.** A luz na fibra óptica viaja a cerca de 200.000 km/s, isto é, **~5 µs por km**, então cada 100 km acrescentam cerca de **1 ms de ida e volta** antes de qualquer roteador ou servidor tocar no pacote. São Paulo–Virgínia são ~7.500 km em linha reta, então a ida e volta mínima teórica é de ~75 ms; as rotas reais dão ~110–130 ms. Nenhuma tecnologia remove isso: **evite chamadas síncronas entre regiões no caminho crítico** e atenda os usuários de perto (CDN, implantações regionais).
 4. **Sequencial ganha de aleatório.** Ler 1 MB sequencialmente de um SSD custa mais ou menos o mesmo que algumas leituras aleatórias de 4 KB. Armazenamento estruturado em log, o log append-only do Kafka e o processamento em lote exploram isso.
@@ -244,7 +244,7 @@ Para a **memória de cache**, uma regra prática comum é a regra 80/20: uma peq
     - **Esquecer as idas e voltas**: 100 chamadas sequenciais de 0,5 ms são 50 ms, mesmo que cada chamada quase não faça nada.
     - **Dimensionar para a média diária** em vez do pico — ou esquecer o pico repentino.
     - **Ignorar replicação, índices e retenção** no armazenamento.
-    - **Bits vs bytes**, e **86.400 vs 10⁵** quando a precisão importa (por exemplo, em cálculos de SLA — use o valor exato aí).
+    - **Bits vs bytes** e **86.400 vs 10⁵** quando a precisão importa (por exemplo, em cálculos de SLA — use o valor exato aí).
 
 ---
 

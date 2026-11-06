@@ -19,7 +19,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 **Q2.** Por que cada serviço do BoxOffice atende os seus endpoints apenas sob o próprio prefixo (`/catalog/...`, `/auth/...`)?
 
 - A. O Spring Boot exige um prefixo em todo controller
-- B. Para que o edge e o gateway possam rotear pelo caminho sem reescrevê-lo, e dois serviços nunca disputem o mesmo caminho
+- B. Para que o edge e o gateway possam rotear pelo caminho sem reescrevê-lo e dois serviços nunca disputem o mesmo caminho
 - C. Para deixar as URLs mais longas e difíceis de adivinhar
 - D. Porque o Nginx não consegue fazer proxy do caminho raiz `/`
 
@@ -33,7 +33,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 **Q3.** O BoxOffice usa **uma** instância PostgreSQL com **um schema por serviço**. Qual regra mantém os serviços independentes?
 
 - A. Todo serviço pode ler todo schema, mas só o `catalog` escreve
-- B. Cada schema é criado e alterado apenas pelas migrations do serviço dono dele, e os serviços nunca fazem join entre schemas
+- B. Cada schema é criado e alterado apenas pelas migrations do serviço dono dele e os serviços nunca fazem join entre schemas
 - C. Todos os serviços compartilham uma única tabela de histórico do Flyway
 - D. Os schemas são criados à mão pelo professor antes de cada lab
 
@@ -118,7 +118,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 - A. O GitHub exige tags em repositórios privados
 - B. Tags deixam o build mais rápido
-- C. Para ter um estado nomeado e reproduzível: `git diff lab4 lab5` mostra o que mudou quando um lab posterior quebra algo, e uma medição sempre pode ser ligada ao código que a produziu
+- C. Para ter um estado nomeado e reproduzível: `git diff lab4 lab5` mostra o que mudou quando um lab posterior quebra algo e uma medição sempre pode ser ligada ao código que a produziu
 - D. Tags são necessárias para rodar o Docker Compose
 
 ??? success "Resposta"

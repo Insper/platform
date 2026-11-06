@@ -93,7 +93,7 @@ Leia: o PIT fez **18 mutantes** de `CatalogService`; os três testes do `Catalog
 
 | Código-fonte do mesmo pacote no prompt | Para fazer mock de `EventRepository`, o modelo precisa das assinaturas reais dos métodos; caso contrário, o teste não compila |
 | Roda o teste **duas vezes** | Um teste que passa uma vez e falha na outra é pior do que nenhum teste |
-| `env` sem `KEY`/`TOKEN`/`SECRET` | O código sob teste, e o teste gerado, nunca veem a chave de API |
+| `env` sem `KEY`/`TOKEN`/`SECRET` | O código sob teste e o teste gerado nunca veem a chave de API |
 | `MIN_GAIN` de 5 pontos percentuais | Um teste que não acrescenta nada mensurável é ruído a manter |
 | Apaga o arquivo se for rejeitado | Nada que não foi comprovado fica na árvore de trabalho |
 | Uma linha por tentativa no resumo | Você vê *por que* uma tentativa foi rejeitada: erro de compilação, teste falhando ou poucos mutantes mortos |
@@ -109,7 +109,7 @@ git commit -m "test(catalog): unit tests, PIT and the AI test generator (lab 13)
 git push
 ```
 
-Depois rode o gerador em `CatalogService`, a partir da raiz do repositório. Ele precisa de `mvn` e do JDK 21 na sua máquina, e chama o modelo até três vezes; com o modelo local, espere **5–15 minutos**:
+Depois rode o gerador em `CatalogService`, a partir da raiz do repositório. Ele precisa de `mvn` e do JDK 21 na sua máquina e chama o modelo até três vezes; com o modelo local, espere **5–15 minutos**:
 
 ``` { .bash .copy }
 uv run --no-project --python 3.12 --with-requirements .github/ai/requirements.txt \
@@ -117,7 +117,7 @@ uv run --no-project --python 3.12 --with-requirements .github/ai/requirements.tx
 git status --short   # CatalogServiceAiTest.java exists only if it was accepted
 ```
 
-O resumo compara o score de mutação com e sem a classe gerada, e diz por que cada tentativa foi aceita ou rejeitada. Uma execução com o `qwen2.5-coder-16k` local enquanto este lab era escrito:
+O resumo compara o score de mutação com e sem a classe gerada e diz por que cada tentativa foi aceita ou rejeitada. Uma execução com o `qwen2.5-coder-16k` local enquanto este lab era escrito:
 
 ```text
 ### AI tests for `boxoffice.catalog.CatalogService`
@@ -144,7 +144,7 @@ Registre os seus números — modelo, tentativas, score inicial e final, minutos
 
 ## 2.5 O workflow { #25-the-workflow }
 
-Gerar testes para todo PR seria lento e caro. O workflow roda **sob demanda**: adicione o label `ai-tests` a um PR. Ele tem **dois jobs**: `generate` roda o modelo e o build com um token somente leitura, e `publish` — o único job que pode escrever — aplica o patch e abre um PR em rascunho. O job que executa código não confiável (o código do PR e o código do modelo) nunca tem um token de escrita.
+Gerar testes para todo PR seria lento e caro. O workflow roda **sob demanda**: adicione o label `ai-tests` a um PR. Ele tem **dois jobs**: `generate` roda o modelo e o build com um token somente leitura e `publish` — o único job que pode escrever — aplica o patch e abre um PR em rascunho. O job que executa código não confiável (o código do PR e o código do modelo) nunca tem um token de escrita.
 
 ``` { .yaml title=".github/workflows/ai-tests.yaml" .copy linenums="1" }
 --8<-- "docs/2027.1/hands-on/13/code/.github/workflows/ai-tests.yaml"
@@ -175,7 +175,7 @@ gh pr checks --watch                # "AI tests / generate" appears a few second
 Você deve ver o job `generate` terminar (20–45 minutos com o modelo gratuito num runner só com CPU: o modelo, dois builds Maven por tentativa e o PIT) e então:
 
 - um PR em rascunho `AI tests for #N`, com o label `ai-generated`, baseado em `catalog-docs`, com um commit que leva o trailer `AI-assisted: gen_tests.py (...)` — confira com `gh pr list --label ai-generated`; ou
-- `publish` **pulado**, e o resumo do job `generate` listando as tentativas rejeitadas. Esse é um resultado válido: anote o porquê.
+- `publish` **pulado** e o resumo do job `generate` listando as tentativas rejeitadas. Esse é um resultado válido: anote o porquê.
 
 Faça o merge de um PR `AI tests` no seu branch só depois de ler cada teste.
 
@@ -194,7 +194,7 @@ Faça o merge de um PR `AI tests` no seu branch só depois de ler cada teste.
 
 | Sintoma | Causa | Correção |
 |---|---|---|
-| `Could not find a valid Docker environment` no `CatalogApiTest` | o `mvn verify` também roda o teste com Testcontainers do lab 11, e o Docker não está rodando | inicie o Docker (lab 0); ou rode só o teste unitário: `mvn -B -f services/catalog/pom.xml test -Dtest=CatalogServiceTest` |
+| `Could not find a valid Docker environment` no `CatalogApiTest` | o `mvn verify` também roda o teste com Testcontainers do lab 11 e o Docker não está rodando | inicie o Docker (lab 0); ou rode só o teste unitário: `mvn -B -f services/catalog/pom.xml test -Dtest=CatalogServiceTest` |
 | `package org.junit.jupiter.api does not exist` | falta o `spring-boot-starter-test` no `pom.xml` | use o `pom.xml` do passo 2.2 |
 | PIT: `No test library found` ou `0 tests examined` | falta a dependência `pitest-junit5-plugin`, ou `-DtargetTests` não casa com o nome da classe de teste | mantenha o bloco do plugin do passo 2.2; classes de teste terminam em `Test` (`CatalogService*Test`) |
 | `release version 21 not supported` / `The JAVA_HOME environment variable is not defined correctly` | o Maven roda com outro JDK, ou o `JAVA_HOME` está errado | `java -version` precisa dizer 21+; defina o `JAVA_HOME` (macOS: `export JAVA_HOME=$(/usr/libexec/java_home -v 21)`) |

@@ -323,7 +323,7 @@ spec:
 
 <div class="warn">
 
-Retries na biblioteca (3) × retries no mesh (3) = **9 chamadas** por clique em um `payment` que já sofre. Faça retry em **uma** camada, e só de chamadas idempotentes.
+Retries na biblioteca (3) × retries no mesh (3) = **9 chamadas** por clique em um `payment` que já sofre. Faça retry em **uma** camada e só de chamadas idempotentes.
 
 </div>
 

@@ -4,7 +4,7 @@ Engenharia de desempenho é a disciplina que evita esse post-mortem. Não é "ro
 
 !!! quote "A história até aqui"
 
-    Capítulo 15 da [história da disciplina](../../index.md#story). Cada capítulo acrescentou uma caixa ao BoxOffice porque um número pediu: uma borda e réplicas sem estado ([aula 4](../edge/index.md), [aula 5](../compute/index.md)), um banco que vende cada assento uma vez só ([aula 6](../databases/index.md)), um cache ([aula 7](../caching/index.md)), uma sala de espera ([aula 8](../messaging/index.md)), SLOs e disjuntores ([aula 9](../observability/index.md), [aula 10](../reliability/index.md)), Kubernetes ([aula 11](../cloud-native/index.md)) — e, desde a [aula 14](../ai-delivery/index.md), as mudanças chegam mais rápido do que alguém consegue reverificá-las à mão. Cada caixa foi medida sozinha, no seu próprio lab. **Esta aula** responde: o projeto *inteiro* aguenta a próxima venda — 2 M de fãs às 10:00, p99 abaixo de 300 ms —, como provar isso, e como manter a prova a cada mudança?
+    Capítulo 15 da [história da disciplina](../../index.md#story). Cada capítulo acrescentou uma caixa ao BoxOffice porque um número pediu: uma borda e réplicas sem estado ([aula 4](../edge/index.md), [aula 5](../compute/index.md)), um banco que vende cada assento uma vez só ([aula 6](../databases/index.md)), um cache ([aula 7](../caching/index.md)), uma sala de espera ([aula 8](../messaging/index.md)), SLOs e disjuntores ([aula 9](../observability/index.md), [aula 10](../reliability/index.md)), Kubernetes ([aula 11](../cloud-native/index.md)) — e, desde a [aula 14](../ai-delivery/index.md), as mudanças chegam mais rápido do que alguém consegue reverificá-las à mão. Cada caixa foi medida sozinha, no seu próprio lab. **Esta aula** responde: o projeto *inteiro* aguenta a próxima venda — 2 M de fãs às 10:00, p99 abaixo de 300 ms —, como provar isso e como manter a prova a cada mudança?
 
 !!! abstract "Objetivos de aprendizagem"
 
@@ -16,7 +16,7 @@ Engenharia de desempenho é a disciplina que evita esse post-mortem. Não é "ro
     - **Projetar e escrever** testes smoke, load, stress, spike, soak e breakpoint em k6, escolhendo entre os modelos de carga aberto (taxa de chegada) e fechado (usuários virtuais), com thresholds que codificam os SLOs.
     - **Detectar** a omissão coordenada e outros erros de medição (dados irreais, caches frios, gerador de carga saturado) que fazem um teste mentir.
     - **Diagnosticar** um gargalo com profiling (flame graphs do async-profiler e do py-spy), ferramentas de banco de dados (`EXPLAIN ANALYZE`, `pg_stat_statements`) e dimensionamento de pools.
-    - **Planejar** capacidade com a Lei de Little e folga, e **impor** orçamentos de desempenho na CI.
+    - **Planejar** capacidade com a Lei de Little e folga e **impor** orçamentos de desempenho na CI.
 
 ## Roteiro { #roadmap }
 
@@ -148,7 +148,7 @@ plt.close()
 
 Leia os dois gráficos juntos:
 
-1. **A região plana.** Com carga baixa, a latência é só o tempo de serviço. Dobrar a carga quase não a muda. A maioria dos sistemas passa a maior parte da vida aqui, e é por isso que *parecem* rápidos.
+1. **A região plana.** Com carga baixa, a latência é só o tempo de serviço. Dobrar a carga quase não a muda. A maioria dos sistemas passa a maior parte da vida aqui e é por isso que *parecem* rápidos.
 2. **O joelho.** Acima de cerca de 70–80 % de utilização, as requisições começam a encontrar todos os servidores ocupados e entram na fila. A latência — e o p99 primeiro — se curva para cima. O joelho é a **capacidade útil** do sistema: a maior vazão em que o SLO de latência ainda é cumprido.
 3. **Saturação.** Quando a carga oferecida se aproxima da capacidade, as filas crescem sem limite; a latência fica vertical e os timeouts viram erros. A vazão para de crescer.
 4. **Escala retrógrada.** Com custos de contenção e coerência, adicionar *mais concorrência* depois do pico **reduz** a vazão — threads brigam por locks, caches se invalidam, conexões expiram e são refeitas. Um sistema empurrado além do pico pode vender *menos* ingressos por segundo do que um mantido logo abaixo dele, que é o argumento central para controle de admissão e salas de espera.
@@ -159,13 +159,13 @@ Leia os dois gráficos juntos:
 
 !!! example "No código do BoxOffice: o joelho do `catalog`, medido (lab 2)"
 
-    O [Hands-on 2 — Medir primeiro](../../hands-on/2/index.md) encontra o joelho exatamente como esta seção descreve: o `sweep.sh` roda o `load.js` (modelo aberto) uma vez por taxa de chegada, um minuto cada, depois de um aquecimento de 30 s que não é registrado, e espera 10 s entre os passos para as filas esvaziarem. Na execução de exemplo do lab (`catalog` limitado a 1 CPU, pool de 10 conexões com o banco), o p99 é 38,6 ms a 300 req/s, 223,7 ms a 400 e 2.056 ms a 500 — onde o k6 também descartou 410 iterações. O joelho fica entre 300 e 400 req/s, e o recurso que saturou foi o pool de conexões, não a CPU.
+    O [Hands-on 2 — Medir primeiro](../../hands-on/2/index.md) encontra o joelho exatamente como esta seção descreve: o `sweep.sh` roda o `load.js` (modelo aberto) uma vez por taxa de chegada, um minuto cada, depois de um aquecimento de 30 s que não é registrado, e espera 10 s entre os passos para as filas esvaziarem. Na execução de exemplo do lab (`catalog` limitado a 1 CPU, pool de 10 conexões com o banco), o p99 é 38,6 ms a 300 req/s, 223,7 ms a 400 e 2.056 ms a 500 — onde o k6 também descartou 410 iterações. O joelho fica entre 300 e 400 req/s e o recurso que saturou foi o pool de conexões, não a CPU.
 
     ``` { .bash title="scripts/sweep.sh (one load test per arrival rate)" }
     --8<-- "docs/2027.1/hands-on/2/code/scripts/sweep.sh"
     ```
 
-Experimente: este cenário do playground é o sistema mais simples possível — cliente → servidor de aplicação → banco SQL — rodando o perfil **breakpoint**, que aumenta a taxa de chegada passo a passo até algo quebrar. Pressione **Run** e observe três números juntos: vazão, latência p99 e a utilização de cada componente. Anote a taxa em que o p99 começa a se curvar (o joelho) e qual componente chega a 100 % primeiro (o gargalo). Depois dê mais capacidade a esse componente e rode de novo: o joelho se move, e qual componente vira o novo gargalo?
+Experimente: este cenário do playground é o sistema mais simples possível — cliente → servidor de aplicação → banco SQL — rodando o perfil **breakpoint**, que aumenta a taxa de chegada passo a passo até algo quebrar. Pressione **Run** e observe três números juntos: vazão, latência p99 e a utilização de cada componente. Anote a taxa em que o p99 começa a se curvar (o joelho) e qual componente chega a 100 % primeiro (o gargalo). Depois dê mais capacidade a esse componente e rode de novo: o joelho se move e qual componente vira o novo gargalo?
 
 <div class="sdp" data-scenario="monolith" data-mode="compact" data-profile="breakpoint" data-height="520"></div>
 
@@ -190,7 +190,7 @@ flowchart LR
 
 - **Objetivos primeiro.** "Rápido" não é um requisito. "`POST /holds`: p99 < 300 ms e erros < 0,1 % a 4 500 req/s" é. Sem isso, nenhum teste pode passar ou falhar.
 - **Mude uma coisa de cada vez** e rode o mesmo teste de novo — senão você não consegue atribuir a melhoria.
-- **A produção fecha o ciclo.** O tráfego real é o melhor modelo de carga: métricas e traces de produção alimentam o próximo teste, e o orçamento de desempenho na CI impede que regressões voltem.
+- **A produção fecha o ciclo.** O tráfego real é o melhor modelo de carga: métricas e traces de produção alimentam o próximo teste e o orçamento de desempenho na CI impede que regressões voltem.
 
 | Nível | Pergunta | Ferramentas |
 |---|---|---|
@@ -251,7 +251,7 @@ flowchart LR
 | [`sql`](../../reference/components/storage/index.md#sql) | Qual *consulta ou lock* limita o caminho? | `pg_stat_statements`, `EXPLAIN ANALYZE`, linhas quentes, `SKIP LOCKED`, dimensionamento do pool de conexões | [Encontrando gargalos](bottlenecks/index.md) | `flash-sale` |
 | [`cache`](../../reference/components/storage/index.md#cache) | O teste está medindo um *cache quente* que a produção não terá? | aquecimento, teste com cache frio, taxa de acerto, stampede | [Metodologia](methodology/index.md#warm-up) | `read-heavy-cache` |
 | [`metrics`](../../reference/components/observability/index.md#metrics) · [`tracing`](../../reference/components/observability/index.md#tracing) | Qual recurso *satura primeiro*? | USE, RED e sinais de ouro, flame graphs, profiling contínuo | [Metodologia](methodology/index.md) · [Encontrando gargalos](bottlenecks/index.md) | `observability-stack` |
-| [`queue`](../../reference/components/messaging/index.md#queue) · [`serverless`](../../reference/components/compute/index.md#serverless) | Quantas réplicas, e *quanto admitimos*? | folga, atraso do autoscaling, cold starts, pré-escalonamento, taxa de admissão da sala de espera | [Planejamento de capacidade](capacity-planning/index.md) | `flash-sale`, `serverless-burst` |
+| [`queue`](../../reference/components/messaging/index.md#queue) · [`serverless`](../../reference/components/compute/index.md#serverless) | Quantas réplicas e *quanto admitimos*? | folga, atraso do autoscaling, cold starts, pré-escalonamento, taxa de admissão da sala de espera | [Planejamento de capacidade](capacity-planning/index.md) | `flash-sale`, `serverless-burst` |
 | [`thirdparty`](../../reference/components/external/index.md#thirdparty) | O que acontece quando uma dependência *fica lenta sob carga*? | carga e caos juntos, Toxiproxy, timeouts, circuit breakers | [Testes de carga](load-testing/index.md) | `cascading-failure` |
 | *(o pipeline)* | A *próxima mudança* vai regredir? | orçamentos de desempenho na CI, thresholds como SLOs | [Planejamento de capacidade](capacity-planning/index.md#performance-budgets) | — |
 
@@ -275,7 +275,7 @@ flowchart LR
 
 ## O que quebra em seguida { #what-breaks-next }
 
-A engenharia de desempenho prova *este* projeto para *esta* carga: um sistema de ingressos, uma venda, uma mistura de cerca de 80 % de leituras e 20 % de reservas e pedidos, um joelho medido nos próprios pods do BoxOffice. O método — modelo de carga, testes de modelo aberto, o joelho, a folga, um orçamento na CI — vale para qualquer sistema; os números e as caixas, não. Um feed de notícias espalha cada post para milhões de seguidores, um chat mantém milhões de conexões abertas por horas, um app de corridas grava a posição de cada motorista a cada poucos segundos: números diferentes pedem blocos diferentes. Reconhecer quais blocos dos quinze capítulos anteriores um sistema novo precisa, e qual número pede cada um, é a [aula 16 — Estudos de caso](../case-studies/index.md).
+A engenharia de desempenho prova *este* projeto para *esta* carga: um sistema de ingressos, uma venda, uma mistura de cerca de 80 % de leituras e 20 % de reservas e pedidos, um joelho medido nos próprios pods do BoxOffice. O método — modelo de carga, testes de modelo aberto, o joelho, a folga, um orçamento na CI — vale para qualquer sistema; os números e as caixas, não. Um feed de notícias espalha cada post para milhões de seguidores, um chat mantém milhões de conexões abertas por horas, um app de corridas grava a posição de cada motorista a cada poucos segundos: números diferentes pedem blocos diferentes. Reconhecer quais blocos dos quinze capítulos anteriores um sistema novo precisa e qual número pede cada um é a [aula 16 — Estudos de caso](../case-studies/index.md).
 
 ---
 

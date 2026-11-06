@@ -12,7 +12,7 @@
 
 ## Contexto { #context }
 
-O [Lab 2](../../hands-on/2/index.md) apresentou o k6 e os percentis no serviço `catalog`; o [Lab 3](../../hands-on/3/index.md) o colocou atrás do Nginx com réplicas. A [Aula 2](../../classes/estimation/index.md) deu a teoria: utilização, filas, o joelho, latência de cauda e Lei de Little. A [Aula 15](../../classes/performance/index.md) aprofunda o tema mais adiante no semestre, e a [campanha de testes de carga](../project/load-test-campaign/index.md) do projeto reaproveita tudo o que você construir aqui.
+O [Lab 2](../../hands-on/2/index.md) apresentou o k6 e os percentis no serviço `catalog`; o [Lab 3](../../hands-on/3/index.md) o colocou atrás do Nginx com réplicas. A [Aula 2](../../classes/estimation/index.md) deu a teoria: utilização, filas, o joelho, latência de cauda e Lei de Little. A [Aula 15](../../classes/performance/index.md) aprofunda o tema mais adiante no semestre e a [campanha de testes de carga](../project/load-test-campaign/index.md) do projeto reaproveita tudo o que você construir aqui.
 
 Duas ideias separam um teste de carga de um número qualquer:
 
@@ -35,8 +35,8 @@ flowchart LR
 Execute uma campanha de testes de carga contra **um endpoint HTTP (ou uma pequena mistura)** do seu próprio serviço — o `catalog` da BoxOffice dos labs (recomendado) ou outro serviço seu — e escreva um relatório que responda:
 
 1. Qual é a **vazão máxima sustentável** do seu ambiente com p99 abaixo do seu SLO e erros abaixo de 1%?
-2. Onde está o **joelho**, e **qual recurso** o causa?
-3. Que **única mudança** desloca o joelho, e quanto?
+2. Onde está o **joelho** e **qual recurso** o causa?
+3. Que **única mudança** desloca o joelho e quanto?
 
 ## Requisitos { #requirements }
 
@@ -267,7 +267,7 @@ curl -s localhost:8080/actuator/metrics/tomcat.threads.busy | jq '.measurements'
 docker compose exec db psql -U catalog -c "select state, count(*) from pg_stat_activity group by state;"
 ```
 
-Depois confira com a **Lei de Little**. Se o teste de load atinge λ = 400 req/s com latência média W = 25 ms, há `L = 400 × 0,025 = 10` requisições em andamento. Se cada requisição segura uma conexão com o banco durante a maior parte do tempo e o pool tem 10 conexões, o pool está cheio: a próxima requisição espera — esse é o joelho. O `maximum-pool-size` padrão do Hikari é 10, e é por isso que esse é o gargalo clássico de um serviço Spring Boot.
+Depois confira com a **Lei de Little**. Se o teste de load atinge λ = 400 req/s com latência média W = 25 ms, há `L = 400 × 0,025 = 10` requisições em andamento. Se cada requisição segura uma conexão com o banco durante a maior parte do tempo e o pool tem 10 conexões, o pool está cheio: a próxima requisição espera — esse é o joelho. O `maximum-pool-size` padrão do Hikari é 10 e é por isso que esse é o gargalo clássico de um serviço Spring Boot.
 
 ### 6. Mude uma coisa e teste de novo { #6-change-one-thing-and-re-test }
 

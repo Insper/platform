@@ -80,5 +80,5 @@ test("a very fast burn pages in minutes but the incident is mostly spent by then
   ok(f.delay <= 5, "pages in minutes");
   tipHas("slo-burn", lang => lang === "en"
     ? [`the page comes after ${f.delay} minutes, yet the incident still costs about ${pc(whole, 0, lang)}`]
-    : [`o page chega após ${f.delay} minutos, e mesmo assim o incidente custa cerca de ${pc(whole, 0, lang)}`]);
+    : [`o page chega após ${f.delay} minutos e mesmo assim o incidente custa cerca de ${pc(whole, 0, lang)}`]);
 });

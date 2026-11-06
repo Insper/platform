@@ -1,4 +1,4 @@
-No projeto em equipe vocês **projetam, constroem, medem, quebram e defendem** um sistema, da primeira estimativa a uma implantação testada sob carga no Kubernetes. É o curso em miniatura: cada aula acrescenta uma peça, cada lab dá um exemplo funcionando para adaptar, e cada marco pede **evidências** — um diagrama, uma verificação que passa, um relatório do k6, um dashboard — e não promessas.
+No projeto em equipe vocês **projetam, constroem, medem, quebram e defendem** um sistema, da primeira estimativa a uma implantação testada sob carga no Kubernetes. É o curso em miniatura: cada aula acrescenta uma peça, cada lab dá um exemplo funcionando para adaptar e cada marco pede **evidências** — um diagrama, uma verificação que passa, um relatório do k6, um dashboard — e não promessas.
 
 !!! abstract "Objetivos"
 
@@ -8,7 +8,7 @@ No projeto em equipe vocês **projetam, constroem, medem, quebram e defendem** u
     - **Construído** o caminho principal como serviços que sobem com um comando (Docker Compose) e no Kubernetes.
     - **Escalado** o sistema com cache, replicação e processamento assíncrono, e o **protegido** com padrões de resiliência.
     - **Entregado** o sistema continuamente (CI/CD com testes, varredura de imagens e um portão de desempenho).
-    - **Provado** que ele atende a um SLO-alvo com uma campanha de testes de carga, e que degrada com elegância em um **game day** de caos.
+    - **Provado** que ele atende a um SLO-alvo com uma campanha de testes de carga e que degrada com elegância em um **game day** de caos.
     - **Precificado** o sistema (relatório de custos com economia unitária) e o **defendido** em uma apresentação final.
 
 ## Regras das equipes { #team-rules }
@@ -111,7 +111,7 @@ Escolha **uma** opção. Todas exercitam a paleta inteira, mas cada uma força u
 
 === "6. Assistente de suporte com IA"
 
-    Um assistente de suporte para a BoxOffice (ou outro domínio combinado com o professor): ele responde perguntas com **RAG** sobre a central de ajuda e o catálogo de eventos, e usa **ferramentas** para consultar ou cancelar pedidos — com segurança.
+    Um assistente de suporte para a BoxOffice (ou outro domínio combinado com o professor): ele responde perguntas com **RAG** sobre a central de ajuda e o catálogo de eventos e usa **ferramentas** para consultar ou cancelar pedidos — com segurança.
 
     **Requisitos centrais:** gateway de LLM (LiteLLM) com roteamento de modelos, fallback e cotas por usuário; pipeline de ingestão (chunking, embeddings, pgvector); orquestrador com um loop de agente limitado e chamadas de ferramentas aos serviços existentes; guardrails (prompt injection, dados pessoais, validação da saída); cache semântico; métricas de tokens e de custo; um conjunto de avaliação.
 
@@ -140,7 +140,7 @@ Seja qual for a opção, o sistema precisa ter os componentes abaixo (ids da pal
 | Dados | Um banco SQL (`sql`) com migrações; um segundo armazenamento justificado, se necessário (`nosql`, `objstore`, `vectordb`) | M2 |
 | Cache | Um cache (`cache`) em um caminho de leitura quente, com taxa de acerto medida | M3 |
 | Replicação | Uma réplica de leitura ou um pool de conexões na frente do banco, justificado por uma medição | M3 |
-| Mensageria | Um broker (`kafka`, `queue` ou `pubsub`) com **outbox transacional** ou **consumidor idempotente**, e uma DLQ | M4 |
+| Mensageria | Um broker (`kafka`, `queue` ou `pubsub`) com **outbox transacional** ou **consumidor idempotente** e uma DLQ | M4 |
 | Resiliência | Timeout + retentativa com backoff e jitter + circuit breaker em pelo menos uma dependência lenta/externa (`payment`, `thirdparty`, `email` ou `llmgw`) | M4 |
 | Observabilidade | OpenTelemetry → métricas, logs e traces (`grafana/otel-lgtm` basta); um dashboard RED; um alerta de burn rate de SLO | M4 |
 | Plataforma | Kubernetes (kind/minikube ou nuvem) com probes, requests/limits e um HPA em pelo menos um serviço | M5 |

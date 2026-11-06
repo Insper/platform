@@ -1,6 +1,6 @@
 # Roteiro de deploy na nuvem
 
-Kubernetes não é a resposta certa para todo time. Ele resolve problemas reais em escala — mas traz uma complexidade operacional e um custo significativos, capazes de afundar um time pequeno ou uma startup antes mesmo de ela lançar sua primeira funcionalidade. Esta aula mapeia o panorama de deploy e oferece um roteiro de decisão: dado o tamanho do seu time, a quantidade de serviços e a sua maturidade operacional, qual é a escolha de infraestrutura certa *agora*, e como você evolui para o próximo nível?
+Kubernetes não é a resposta certa para todo time. Ele resolve problemas reais em escala — mas traz uma complexidade operacional e um custo significativos, capazes de afundar um time pequeno ou uma startup antes mesmo de ela lançar sua primeira funcionalidade. Esta aula mapeia o panorama de deploy e oferece um roteiro de decisão: dado o tamanho do seu time, a quantidade de serviços e a sua maturidade operacional, qual é a escolha de infraestrutura certa *agora* e como você evolui para o próximo nível?
 
 A aula anterior, [Modelos de serviço](../service_models/index.md), deu o vocabulário (IaaS, PaaS, CaaS, DBaaS). Esta aula o transforma em plataformas concretas, preços e um caminho de migração para a loja: gateway, account, order, Postgres.
 
@@ -10,8 +10,8 @@ A aula anterior, [Modelos de serviço](../service_models/index.md), deu o vocabu
 
     - **Comparar** as principais plataformas de deploy (Railway, Render, Fly.io, Lightsail, ECS Fargate / Express Mode, EKS, K3s) pelo que elas escondem e pelo que você ainda gerencia.
     - **Escolher** uma plataforma para um dado tamanho de time, quantidade de serviços e maturidade operacional, e justificar por que o Kubernetes vale ou ainda não vale a pena.
-    - **Estimar** o custo mensal de um pequeno sistema de microsserviços a partir de preços unitários, e apontar os custos fixos (control plane, balanceador de carga, NAT gateway) que dominam em pequena escala.
-    - **Planejar** um caminho de migração guiado por problemas concretos, e não por especulação sobre a escala futura.
+    - **Estimar** o custo mensal de um pequeno sistema de microsserviços a partir de preços unitários e apontar os custos fixos (control plane, balanceador de carga, NAT gateway) que dominam em pequena escala.
+    - **Planejar** um caminho de migração guiado por problemas concretos e não por especulação sobre a escala futura.
     - **Diagnosticar** as armadilhas de rede comuns das plataformas simples (rede privada, acesso a um banco de dados gerenciado).
 
 ## Slides
@@ -98,10 +98,10 @@ A seção [5](#5-cost-comparison) estima o custo mensal de cada uma para o mesmo
         A -->|Sim| C
     ```
 
-    **Por que ECS Fargate para times médios:** não há nós EC2 para aplicar patches, e há integração nativa com AWS IAM, Secrets Manager, ECR e descoberta de serviços (Cloud Map / Service Connect). Você perde o ecossistema Kubernetes, mas evita a taxa fixa do control plane e a operação dos nós, o que torna o dia a dia muito mais simples.
+    **Por que ECS Fargate para times médios:** não há nós EC2 para aplicar patches e há integração nativa com AWS IAM, Secrets Manager, ECR e descoberta de serviços (Cloud Map / Service Connect). Você perde o ecossistema Kubernetes, mas evita a taxa fixa do control plane e a operação dos nós, o que torna o dia a dia muito mais simples.
 
     !!! note "O Fargate não escala para zero sozinho"
-        Um serviço ECS mantém seu `desiredCount` de tasks rodando e sendo cobradas 24/7. O auto scaling ajusta essa contagem entre um mínimo e um máximo; chegar a zero exige que você mesmo defina o mínimo (ou um agendamento) como 0, e a próxima requisição fica então sem nenhuma task para atendê-la.
+        Um serviço ECS mantém seu `desiredCount` de tasks rodando e sendo cobradas 24/7. O auto scaling ajusta essa contagem entre um mínimo e um máximo; chegar a zero exige que você mesmo defina o mínimo (ou um agendamento) como 0 e a próxima requisição fica então sem nenhuma task para atendê-la.
 
     | | ECS Fargate | EKS |
     |---|---|---|
@@ -145,7 +145,7 @@ A seção [5](#5-cost-comparison) estima o custo mensal de cada uma para o mesmo
 
 ### AWS Lightsail Containers
 
-O Lightsail embrulha containers em uma abstração que lembra o Heroku: envie uma imagem, defina variáveis de ambiente, escolha um tamanho de nó (*power*) e uma quantidade de nós (*scale*) e receba um endpoint HTTPS público. Não há VPCs, security groups nem políticas IAM para configurar, e o **preço mensal é fixo** por nó[^4].
+O Lightsail embrulha containers em uma abstração que lembra o Heroku: envie uma imagem, defina variáveis de ambiente, escolha um tamanho de nó (*power*) e uma quantidade de nós (*scale*) e receba um endpoint HTTPS público. Não há VPCs, security groups nem políticas IAM para configurar e o **preço mensal é fixo** por nó[^4].
 
 ```termynal
 $ aws lightsail create-container-service --service-name my-api \
@@ -192,7 +192,7 @@ aws ecs create-express-gateway-service \
 
 ### Railway
 
-O Railway oferece a experiência de desenvolvedor mais simples do ecossistema: conecte um repositório do GitHub, e o Railway detecta a linguagem e o framework, faz o build e o deploy automaticamente. A cobrança é por uso (por vCPU e GB de memória efetivamente usados, por segundo), além de uma pequena taxa mensal de plano que conta como crédito de uso[^6].
+O Railway oferece a experiência de desenvolvedor mais simples do ecossistema: conecte um repositório do GitHub e o Railway detecta a linguagem e o framework, faz o build e o deploy automaticamente. A cobrança é por uso (por vCPU e GB de memória efetivamente usados, por segundo), além de uma pequena taxa mensal de plano que conta como crédito de uso[^6].
 
 O que o Railway oferece de fábrica:
 
@@ -252,7 +252,7 @@ Se você quer os recursos do Kubernetes, mas não o custo nem a complexidade do 
 | Requisitos de recursos | Médios | Muito baixos | Muito baixos | Baixos |
 
 !!! warning "Auto-hospedar transfere o trabalho, não só o custo"
-    K3s em uma VM de US$ 24 dá a você a API do Kubernetes por uma fração do preço do EKS (seção 5), mas agora o control plane é **seu**: uma única VM é um ponto único de falha, e upgrades, backups do datastore e certificados passam a ser responsabilidade sua.
+    K3s em uma VM de US$ 24 dá a você a API do Kubernetes por uma fração do preço do EKS (seção 5), mas agora o control plane é **seu**: uma única VM é um ponto único de falha e upgrades, backups do datastore e certificados passam a ser responsabilidade sua.
 
 ---
 
@@ -264,7 +264,7 @@ Quanto custa rodar os três microsserviços da loja (gateway, account, order) ma
     - Preços de tabela on-demand **aproximados** em USD, na região americana mais barata (AWS `us-east-1` N. Virginia, Fly.io `iad`), conferidos em **outubro de 2026**[^1][^4][^5][^6][^7]. Preços mudam; confirme na [AWS Pricing Calculator](https://calculator.aws/){:target="_blank"} e na página de cada provedor.
     - Tudo roda **24/7** (730 horas por mês) com tráfego moderado.
     - **Não incluídos:** transferência de dados de saída, armazenamento de logs e métricas, nomes de domínio, impostos, free tiers e créditos.
-    - **São Paulo é mais caro.** Os preços de tabela de `sa-east-1` são bem mais altos que os de `us-east-1` na maioria dos serviços, e o Fly.io também cobra mais em `gru`. Use a sua região real ao fazer a estimativa.
+    - **São Paulo é mais caro.** Os preços de tabela de `sa-east-1` são bem mais altos que os de `us-east-1` na maioria dos serviços e o Fly.io também cobra mais em `gru`. Use a sua região real ao fazer a estimativa.
 
 ```python exec="1" html="1"
 # Single source of truth for the cost numbers of this class (table + chart).
@@ -410,7 +410,7 @@ Os mesmos quatro componentes, implantados nas três plataformas do caminho de mi
 | **Postgres** | Add-on Postgres do Railway | RDS, acessado por regras de security group | RDS, credenciais sincronizadas pelo External Secrets |
 | **Deploy** | `git push` para `main` | CI faz o build da imagem → ECR → nova task definition | CI faz o build da imagem → ECR → ArgoCD sincroniza os manifestos a partir do Git |
 
-O código da aplicação não muda entre as três colunas: o estilo 12-factor (configuração em variáveis de ambiente, serviços stateless, estado no Postgres) é o que faz de cada migração um exercício de deploy, e não uma reescrita.
+O código da aplicação não muda entre as três colunas: o estilo 12-factor (configuração em variáveis de ambiente, serviços stateless, estado no Postgres) é o que faz de cada migração um exercício de deploy e não uma reescrita.
 
 ---
 

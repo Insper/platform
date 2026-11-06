@@ -1,5 +1,5 @@
 
-Imagine a loja que você vai construir neste curso rodando como uma única aplicação Spring Boot, com um único banco PostgreSQL, em uma única máquina. É simples de entender — até o tráfego crescer além do que essa máquina aguenta, ou a máquina cair e levar a loja inteira junto. No momento em que você divide o trabalho entre várias máquinas (um gateway, um serviço de contas, um serviço de pedidos, um banco de dados, um cache, um broker de mensagens), você construiu um **sistema distribuído**, e surge uma nova classe de problemas.
+Imagine a loja que você vai construir neste curso rodando como uma única aplicação Spring Boot, com um único banco PostgreSQL, em uma única máquina. É simples de entender — até o tráfego crescer além do que essa máquina aguenta, ou a máquina cair e levar a loja inteira junto. No momento em que você divide o trabalho entre várias máquinas (um gateway, um serviço de contas, um serviço de pedidos, um banco de dados, um cache, um broker de mensagens), você construiu um **sistema distribuído** e surge uma nova classe de problemas.
 
 Sistemas distribuídos representam um paradigma de computação em que vários computadores independentes colaboram para atingir um objetivo comum, aparecendo para o usuário final como um único sistema coerente[^3]. Diferentemente dos sistemas centralizados, em que todo o processamento ocorre em uma máquina, os sistemas distribuídos se estendem por redes e usam nós interconectados (um **nó** é qualquer computador ou processo independente que participa do sistema) para cuidar do armazenamento de dados, da computação e da comunicação.
 
@@ -13,13 +13,13 @@ Essa arquitetura sustenta as plataformas de nuvem modernas (AWS, Google Cloud, A
     - **Identificar** as 8 falácias da computação distribuída em um projeto concreto, como uma chamada entre dois microsserviços.
     - **Explicar** como relógios lógicos (Lamport) ordenam eventos sem um relógio físico compartilhado.
     - **Escolher** entre consistência e disponibilidade para um dado domínio de dados usando CAP e PACELC.
-    - **Descrever** como o Raft elege um líder e replica um log com quóruns de maioria, e dimensionar um cluster para um dado número de falhas.
+    - **Descrever** como o Raft elege um líder e replica um log com quóruns de maioria e dimensionar um cluster para um dado número de falhas.
     - **Comparar** consistência forte (quóruns, consenso) com consistência eventual (LWW, relógios vetoriais, CRDTs).
 
 ## Roteiro
 
 1. **Esta visão geral** — o que é um sistema distribuído, por que os construímos, quanto eles custam e os três problemas de raiz (falha parcial, rede não confiável, ausência de relógio global).
-2. [Teorema CAP](cap/index.md) — a escolha entre consistência e disponibilidade durante uma partição de rede, e sua extensão PACELC.
+2. [Teorema CAP](cap/index.md) — a escolha entre consistência e disponibilidade durante uma partição de rede e sua extensão PACELC.
 3. [Consenso e algoritmos](consensus/index.md) — como os nós concordam sobre um valor apesar de falhas: FLP, modelos de falha, Paxos, Raft, quóruns e CRDTs.
 4. [Quiz](quiz.md) — verifique o que você entendeu.
 
@@ -49,7 +49,7 @@ flowchart LR
     order -->|OrderCreated| kafka[[Kafka]]
 ```
 
-Cada seta é uma mensagem pela rede, e cada caixa é um processo que pode falhar sozinho. Se o serviço de produtos estiver lento, o serviço de pedidos espera; se o Kafka estiver fora do ar, o pedido pode ser gravado, mas o evento nunca é publicado. Nada nesse desenho compartilha memória ou relógio — os serviços cooperam apenas trocando mensagens. Essa é exatamente a definição de sistema distribuído, e é por isso que o restante desta aula importa para o [projeto](../../exercises/project/index.md).
+Cada seta é uma mensagem pela rede e cada caixa é um processo que pode falhar sozinho. Se o serviço de produtos estiver lento, o serviço de pedidos espera; se o Kafka estiver fora do ar, o pedido pode ser gravado, mas o evento nunca é publicado. Nada nesse desenho compartilha memória ou relógio — os serviços cooperam apenas trocando mensagens. Essa é exatamente a definição de sistema distribuído e é por isso que o restante desta aula importa para o [projeto](../../exercises/project/index.md).
 
 ---
 
@@ -77,7 +77,7 @@ Aplicações web seguem o modelo cliente-servidor (navegadores fazem requisiçõ
 | **Paralelismo** | As tarefas são divididas e processadas de forma concorrente. O MapReduce (Hadoop) é o exemplo clássico em análise de big data. |
 | **Redução de latência** | Nós posicionados perto dos usuários reduzem o tempo de ida e volta. CDNs como a Akamai servem conteúdo a partir do ponto de borda mais próximo. |
 
-Na loja, a escalabilidade horizontal é o que o [Hands-on 7](../../hands-on/7/index.md) faz com o Nginx na frente de várias réplicas de um serviço, e a redução de latência é o que o cache Redis do [Hands-on 8](../../hands-on/8/index.md) oferece.
+Na loja, a escalabilidade horizontal é o que o [Hands-on 7](../../hands-on/7/index.md) faz com o Nginx na frente de várias réplicas de um serviço e a redução de latência é o que o cache Redis do [Hands-on 8](../../hands-on/8/index.md) oferece.
 
 ---
 
@@ -138,13 +138,13 @@ Do ponto de vista de quem chama, uma requisição perdida, um servidor que caiu,
 
 ### 3. Ausência de relógio global { #3-no-global-clock }
 
-Cada máquina tem seu próprio relógio de quartzo, e os relógios **derivam**: dois servidores sincronizados com NTP (Network Time Protocol) ainda podem discordar em milissegundos, e muito mais depois de uma configuração errada ou de uma pausa da VM. Assim, você não consegue ordenar de forma confiável dois eventos em máquinas diferentes comparando seus horários de relógio — um pedido criado "às 10:00:00.120" em um nó pode, na verdade, ter acontecido *depois* de um cancelamento registrado "às 10:00:00.150" em outro.
+Cada máquina tem seu próprio relógio de quartzo e os relógios **derivam**: dois servidores sincronizados com NTP (Network Time Protocol) ainda podem discordar em milissegundos e muito mais depois de uma configuração errada ou de uma pausa da VM. Assim, você não consegue ordenar de forma confiável dois eventos em máquinas diferentes comparando seus horários de relógio — um pedido criado "às 10:00:00.120" em um nó pode, na verdade, ter acontecido *depois* de um cancelamento registrado "às 10:00:00.150" em outro.
 
 ---
 
 ## Tempo e ordenação: relógios lógicos { #time-and-ordering-logical-clocks }
 
-Leslie Lamport[^1] observou que, na maioria dos casos, não precisamos do horário *real* dos eventos — precisamos da sua **ordem**, e especificamente da relação *aconteceu-antes* (*happened-before*, →):
+Leslie Lamport[^1] observou que, na maioria dos casos, não precisamos do horário *real* dos eventos — precisamos da sua **ordem** e especificamente da relação *aconteceu-antes* (*happened-before*, →):
 
 - se *a* e *b* acontecem no mesmo processo e *a* vem primeiro, então *a* → *b*;
 - se *a* é o envio de uma mensagem e *b* o seu recebimento, então *a* → *b*;
@@ -210,7 +210,7 @@ A garantia é: **se *a* → *b*, então L(*a*) < L(*b*)**. A recíproca *não* �
 - [Microsserviços](../microservices/index.md) — dividir a loja em serviços é o que a transforma em um sistema distribuído.
 - [Arquitetura orientada a eventos](../event_driven/index.md) e [Hands-on 10](../../hands-on/10/index.md) — mensageria assíncrona com Kafka, ordenada pelos offsets das partições.
 - [Confiabilidade](../reliability/index.md) — timeouts, retries, circuit breakers: projetar para a falha parcial.
-- [Hands-on 7](../../hands-on/7/index.md) e [Hands-on 8](../../hands-on/8/index.md) — escalabilidade horizontal atrás de um balanceador de carga, e um cache Redis.
+- [Hands-on 7](../../hands-on/7/index.md) e [Hands-on 8](../../hands-on/8/index.md) — escalabilidade horizontal atrás de um balanceador de carga e um cache Redis.
 - [Hands-on 11](../../hands-on/11/index.md) — rastreamento distribuído, para ver uma requisição atravessando muitos serviços.
 
 ## Pontos-chave

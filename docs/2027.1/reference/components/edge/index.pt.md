@@ -151,7 +151,7 @@ flowchart LR
     - CDNs comerciais frequentemente comparadas: Cloudflare, Akamai, Fastly.
 
 !!! tip "Na entrevista"
-    "Tudo o que é igual para todo usuário passa pela CDN: arquivos estáticos com URLs versionadas e TTLs longos, e até a página do evento com alguns segundos de TTL durante a abertura das vendas. Com 95% de acerto a origem vê uma requisição em vinte; tudo o que é pessoal ou exige consistência forte passa direto pela CDN."
+    "Tudo o que é igual para todo usuário passa pela CDN: arquivos estáticos com URLs versionadas e TTLs longos e até a página do evento com alguns segundos de TTL durante a abertura das vendas. Com 95% de acerto a origem vê uma requisição em vinte; tudo o que é pessoal ou exige consistência forte passa direto pela CDN."
 
 **Saiba mais:** [Borda › DNS e CDN](../../../classes/edge/dns-cdn/index.md) · [Caching › Padrões](../../../classes/caching/patterns/index.md) · [Estudo de caso: streaming de vídeo](../../../classes/case-studies/video-streaming/index.md) · [Estudo de caso: venda de ingressos](../../../classes/case-studies/ticketing/index.md)
 

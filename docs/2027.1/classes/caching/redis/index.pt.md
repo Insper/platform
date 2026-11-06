@@ -5,7 +5,7 @@ O **Redis** (*REmote DIctionary Server*) é a resposta padrão para "qual cache 
 ## O que torna o Redis rápido { #what-makes-redis-fast }
 
 - **Tudo está em RAM.** Uma leitura é uma consulta a uma tabela hash mais uma cópia de memória; o disco só é usado para persistência, em segundo plano.
-- **Uma thread executa os comandos.** Os comandos rodam um de cada vez numa única thread principal (desde o Redis 6, threads de I/O separadas podem cuidar da leitura e escrita na rede). Não há locks dentro do servidor, e **todo comando é atômico**: nenhum outro comando roda no meio de um `INCR`.
+- **Uma thread executa os comandos.** Os comandos rodam um de cada vez numa única thread principal (desde o Redis 6, threads de I/O separadas podem cuidar da leitura e escrita na rede). Não há locks dentro do servidor e **todo comando é atômico**: nenhum outro comando roda no meio de um `INCR`.
 - **Protocolo simples, valores pequenos.** A maioria dos comandos é O(1) ou O(log n). No mesmo data center, a ida e volta de um `GET` pequeno custa uma fração de milissegundo, dominada pela rede.
 
 A thread única também é a principal limitação do Redis: um comando lento (uma varredura O(n) de uma chave grande, um script Lua demorado) **bloqueia todos os clientes**. A vazão por nó é alta — da ordem de 100.000 comandos simples por segundo ou mais em hardware típico, um número ilustrativo que você deve verificar com o `redis-benchmark` no seu ambiente — e escalar além de um nó significa usar o [Redis Cluster](#cluster).
@@ -60,7 +60,7 @@ OK
 (integer) 2
 ```
 
-A sala de espera é um bom exemplo de escolha de estrutura: um sorted set com a hora de chegada (em milissegundos) como *score* dá a cada fã sua posição em O(log n) (`ZRANK`), e permite ao job de admissão pegar os próximos 500 fãs num só comando (`ZPOPMIN waitingroom:42 500`).
+A sala de espera é um bom exemplo de escolha de estrutura: um sorted set com a hora de chegada (em milissegundos) como *score* dá a cada fã sua posição em O(log n) (`ZRANK`) e permite ao job de admissão pegar os próximos 500 fãs num só comando (`ZPOPMIN waitingroom:42 500`).
 
 ### Idas e voltas: pipelining e comandos multichave { #round-trips-pipelining-and-multi-key-commands }
 
@@ -187,7 +187,7 @@ flowchart LR
 
 ### Hash slots vs. hashing consistente { #hash-slots-vs-consistent-hashing }
 
-O Memcached segue outro caminho: os servidores não se conhecem, e **o cliente** decide qual servidor guarda uma chave, normalmente com **hashing consistente** (o algoritmo *ketama*), de modo que acrescentar um servidor remapeie só ~1/N das chaves ([Bancos de dados — hashing consistente](../../databases/partitioning/index.md#consistent-hashing)). O Redis Cluster usa um número fixo de slots: o mapeamento chave → slot nunca muda, só o slot → nó, e os próprios nós coordenam o failover e os redirecionamentos.
+O Memcached segue outro caminho: os servidores não se conhecem e **o cliente** decide qual servidor guarda uma chave, normalmente com **hashing consistente** (o algoritmo *ketama*), de modo que acrescentar um servidor remapeie só ~1/N das chaves ([Bancos de dados — hashing consistente](../../databases/partitioning/index.md#consistent-hashing)). O Redis Cluster usa um número fixo de slots: o mapeamento chave → slot nunca muda, só o slot → nó e os próprios nós coordenam o failover e os redirecionamentos.
 
 | | Redis Cluster (hash slots) | Hashing consistente no cliente (Memcached) |
 |---|---|---|

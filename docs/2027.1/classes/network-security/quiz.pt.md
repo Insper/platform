@@ -5,7 +5,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ## Modelagem de ameaças e o OWASP API Top 10 { #threat-modeling-and-the-owasp-api-top-10 }
 
-**Q1.** Em uma sessão de STRIDE sobre o checkout do BoxOffice, o time anota: *"um atacante envia um webhook falso de `pagamento capturado` para o nosso endpoint, e emitimos ingressos que nunca foram pagos."* Qual categoria STRIDE é essa, e qual é o melhor controle?
+**Q1.** Em uma sessão de STRIDE sobre o checkout do BoxOffice, o time anota: *"um atacante envia um webhook falso de `pagamento capturado` para o nosso endpoint e emitimos ingressos que nunca foram pagos."* Qual categoria STRIDE é essa, e qual é o melhor controle?
 
 - A. Repúdio — manter um log de auditoria de webhooks mais longo
 - B. Falsificação de identidade (spoofing) — verificar a assinatura do webhook do provedor (HMAC) e consultar de novo o status do pagamento antes de emitir ingressos
@@ -19,7 +19,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q2.** Um usuário logado troca a URL de `/orders/1042` para `/orders/1043` e vê o pedido de outro cliente, incluindo nome e números dos assentos. O gateway validou o JWT corretamente. Qual risco da OWASP API é esse, e onde ele precisa ser corrigido?
+**Q2.** Um usuário logado troca a URL de `/orders/1042` para `/orders/1043` e vê o pedido de outro cliente, incluindo nome e números dos assentos. O gateway validou o JWT corretamente. Qual risco da OWASP API é esse e onde ele precisa ser corrigido?
 
 - A. API2 Broken Authentication — corrigir no gateway validando o `aud`
 - B. API8 Security Misconfiguration — corrigir com uma regra de WAF
@@ -29,7 +29,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **C — BOLA, corrigido no serviço que é dono dos dados.**
 
-    A autenticação funcionou: o gateway sabe que quem chama é `acc-42`. O que falhou foi a verificação *por objeto*: só `order` sabe quem é o dono do pedido 1043. Essa verificação não pode ser centralizada na borda. Devolva `404` (ou `403`) quando o pedido não for de quem chama, e escreva um teste "usuário A pede o pedido do usuário B".
+    A autenticação funcionou: o gateway sabe que quem chama é `acc-42`. O que falhou foi a verificação *por objeto*: só `order` sabe quem é o dono do pedido 1043. Essa verificação não pode ser centralizada na borda. Devolva `404` (ou `403`) quando o pedido não for de quem chama e escreva um teste "usuário A pede o pedido do usuário B".
 
 ---
 
@@ -52,18 +52,18 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 **Q4.** O navegador de um fã, em casa, envia uma requisição para `10.20.40.17`, o endereço privado do pod `payment`. Todos os security groups da VPC liberam o IP do fã. O que acontece?
 
 - A. A requisição chega ao pod, porque os security groups a liberam
-- B. A requisição é descartada na Internet: `10.20.40.17` é um endereço privado (RFC 1918) que ninguém anuncia, e o núcleo da Internet não tem rota padrão
+- B. A requisição é descartada na Internet: `10.20.40.17` é um endereço privado (RFC 1918) que ninguém anuncia e o núcleo da Internet não tem rota padrão
 - C. A requisição chega à VPC, mas o NAT gateway a descarta
 - D. A requisição só chega ao pod por IPv6
 
 ??? success "Resposta"
     **B — Endereços privados não são roteados na Internet.**
 
-    Roteadores encaminham pelo maior prefixo que contém o destino, e só os blocos anunciados por BGP aparecem nas tabelas do núcleo. `10.0.0.0/8` é reutilizado em milhões de redes, então ninguém o anuncia: o pacote não encontra rota no primeiro roteador do núcleo, muito antes que algum security group pudesse vê-lo. Isso é alcance, não autorização — qualquer coisa *dentro* da rede ainda alcança o pod.
+    Roteadores encaminham pelo maior prefixo que contém o destino e só os blocos anunciados por BGP aparecem nas tabelas do núcleo. `10.0.0.0/8` é reutilizado em milhões de redes, então ninguém o anuncia: o pacote não encontra rota no primeiro roteador do núcleo, muito antes que algum security group pudesse vê-lo. Isso é alcance, não autorização — qualquer coisa *dentro* da rede ainda alcança o pod.
 
 ---
 
-**Q5.** Quantos endereços tem a sub-rede `10.20.32.0/19`, e `10.20.64.5` é um deles?
+**Q5.** Quantos endereços tem a sub-rede `10.20.32.0/19` e `10.20.64.5` é um deles?
 
 - A. 2 048 endereços; sim
 - B. 8 192 endereços (`10.20.32.0`–`10.20.63.255`); não, ele está no bloco `/19` seguinte
@@ -93,7 +93,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ## Redes em nuvem { #cloud-networking }
 
-**Q7.** O BoxOffice planeja sub-redes privadas de aplicação `/24` em cada AZ, e o Kubernetes dá a cada pod um IP da VPC. Quantos endereços pods e nós conseguem de fato usar em uma sub-rede dessas na AWS?
+**Q7.** O BoxOffice planeja sub-redes privadas de aplicação `/24` em cada AZ e o Kubernetes dá a cada pod um IP da VPC. Quantos endereços pods e nós conseguem de fato usar em uma sub-rede dessas na AWS?
 
 - A. 256
 - B. 254
@@ -103,7 +103,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **C — 251.**
 
-    Um `/24` tem 2⁸ = 256 endereços, e a AWS reserva 5 em toda sub-rede (endereço de rede, roteador da VPC, DNS, um para uso futuro, broadcast). 251 endereços divididos entre nós e pods se esgotam no primeiro grande evento de autoscaling — por isso o plano do BoxOffice usa sub-redes de aplicação `/19` (8 187 endereços utilizáveis cada).
+    Um `/24` tem 2⁸ = 256 endereços e a AWS reserva 5 em toda sub-rede (endereço de rede, roteador da VPC, DNS, um para uso futuro, broadcast). 251 endereços divididos entre nós e pods se esgotam no primeiro grande evento de autoscaling — por isso o plano do BoxOffice usa sub-redes de aplicação `/19` (8 187 endereços utilizáveis cada).
 
 ---
 
@@ -167,7 +167,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 **Q12.** O Istio está instalado com mTLS em modo **STRICT**, mas não existe nenhuma `AuthorizationPolicy`. O pod `search` comprometido chama `POST /charges` em `payment`. O que acontece?
 
-- A. A chamada é aceita: `search` tem uma identidade válida no mesh, e sem uma política de autorização todo workload autenticado é permitido
+- A. A chamada é aceita: `search` tem uma identidade válida no mesh e sem uma política de autorização todo workload autenticado é permitido
 - B. A chamada é rejeitada, porque o mTLS só permite serviços conhecidos
 - C. A chamada é rejeitada, porque o modo STRICT bloqueia todo o tráfego leste–oeste
 - D. A chamada só é aceita se `search` tiver um JWT
@@ -193,11 +193,11 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q14.** `order` usa Resilience4j com 3 tentativas nas chamadas a `payment`, e o `VirtualService` do mesh acrescenta `retries.attempts: 2` (ou seja, até 3 tentativas por chamada). Durante uma lentidão de `payment`, quantas requisições um clique do usuário pode gerar em `payment`, e qual é a lição?
+**Q14.** `order` usa Resilience4j com 3 tentativas nas chamadas a `payment` e o `VirtualService` do mesh acrescenta `retries.attempts: 2` (ou seja, até 3 tentativas por chamada). Durante uma lentidão de `payment`, quantas requisições um clique do usuário pode gerar em `payment` e qual é a lição?
 
 - A. 3 — o mesh ignora os retries da aplicação
 - B. 5 — os retries se somam
-- C. 9 — os retries se multiplicam entre camadas; faça retry em uma só camada, e só de operações idempotentes
+- C. 9 — os retries se multiplicam entre camadas; faça retry em uma só camada e só de operações idempotentes
 - D. 1 — os retries são desligados durante lentidões
 
 ??? success "Resposta"
@@ -223,7 +223,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q16.** Access tokens vivem 15 minutos e são validados **localmente** no gateway com o JWKS. Um refresh token é revogado às 14:05; o último access token foi emitido às 13:58. Até quando um ladrão com esse access token consegue chamar a API, e como encurtar essa janela?
+**Q16.** Access tokens vivem 15 minutos e são validados **localmente** no gateway com o JWKS. Um refresh token é revogado às 14:05; o último access token foi emitido às 13:58. Até quando um ladrão com esse access token consegue chamar a API e como encurtar essa janela?
 
 - A. Até as 14:05 — revogar o refresh token invalida os access tokens
 - B. Até as 14:13 — a validação local aceita o token até `exp`; encurte o tempo de vida do access token, ou use introspecção / uma denylist de `jti` para chamadas sensíveis

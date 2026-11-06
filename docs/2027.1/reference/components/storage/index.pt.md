@@ -1,6 +1,6 @@
 # Armazenamento { #storage }
 
-O **armazenamento** é onde vive o estado do sistema — e o estado é o que torna sistemas difíceis. A computação pode ser trocada, reiniciada e multiplicada à vontade; os dados precisam sobreviver a quedas, ser lidos de volta corretamente e permanecer consistentes quando muitas requisições mexem neles ao mesmo tempo. Cada componente de armazenamento da paleta responde a uma pergunta diferente: *onde está a verdade?* (SQL Database), *como sobreviver a um primário morto, e quanto se pode perder?* (DB Cluster), *como guardar volumes enormes com acesso simples?* (NoSQL DB), *como evitar perguntar de novo ao banco?* (Cache), *para onde vão os arquivos grandes?* (Object Store), *como analisar o histórico?* (Data Warehouse), *como encontrar coisas pelo significado?* (Vector DB).
+O **armazenamento** é onde vive o estado do sistema — e o estado é o que torna sistemas difíceis. A computação pode ser trocada, reiniciada e multiplicada à vontade; os dados precisam sobreviver a quedas, ser lidos de volta corretamente e permanecer consistentes quando muitas requisições mexem neles ao mesmo tempo. Cada componente de armazenamento da paleta responde a uma pergunta diferente: *onde está a verdade?* (SQL Database), *como sobreviver a um primário morto e quanto se pode perder?* (DB Cluster), *como guardar volumes enormes com acesso simples?* (NoSQL DB), *como evitar perguntar de novo ao banco?* (Cache), *para onde vão os arquivos grandes?* (Object Store), *como analisar o histórico?* (Data Warehouse), *como encontrar coisas pelo significado?* (Vector DB).
 
 No BoxOffice, o inventário de assentos e os pedidos vivem no PostgreSQL (a verdade, com transações — nada de venda dupla); o catálogo de eventos é lido milhões de vezes e fica atrás de um cache Redis; pôsteres, mapas dos locais e ingressos em PDF vão para um object store; o histórico de vendas flui para um data warehouse que alimenta o painel de "artistas mais vendidos"; e o assistente de suporte encontra a resposta certa do FAQ por meio de um índice vetorial.
 
@@ -94,7 +94,7 @@ flowchart LR
     - **PgBouncer** — pooler de conexões leve para PostgreSQL.
 
 !!! tip "Na entrevista"
-    "A fonte da verdade de assentos e pedidos é um banco relacional, porque preciso de transações para garantir que não haja venda dupla. Escalo as leituras com réplicas e um cache, mantenho as escritas num primário com standby para failover, e só particiono quando o volume de escrita ou o tamanho dos dados me obrigarem."
+    "A fonte da verdade de assentos e pedidos é um banco relacional, porque preciso de transações para garantir que não haja venda dupla. Escalo as leituras com réplicas e um cache, mantenho as escritas num primário com standby para failover e só particiono quando o volume de escrita ou o tamanho dos dados me obrigarem."
 
 **Saiba mais:** [Bancos de dados › Modelos de dados](../../../classes/databases/models/index.md) · [Bancos de dados › Transações](../../../classes/databases/transactions/index.md) · [Bancos de dados › Replicação](../../../classes/databases/replication/index.md) · [Estudo de caso: ingressos](../../../classes/case-studies/ticketing/index.md) · [Hands-on 1](../../../hands-on/1/index.md) · [Hands-on 6](../../../hands-on/6/index.md)
 
@@ -102,7 +102,7 @@ flowchart LR
 
 ## DB Cluster { #dbcluster }
 
-**O que é.** Um banco de dados rodando como um **grupo de nós** em vez de um único servidor: cada **shard** (uma fatia das chaves) tem um **primário** que aceita as escritas e **seguidores** que recebem uma cópia do seu log, e um gerenciador do cluster (ou um protocolo de consenso como Raft ou Paxos) **detecta um primário morto e promove um seguidor** automaticamente. Ele acrescenta o que um único nó [SQL Database](#sql) não oferece: capacidade de leitura nos seguidores, capacidade de escrita com mais shards e sobrevivência à falha de um nó ou de uma zona. Os dois botões que todo projeto precisa escolher são **como uma escrita é confirmada** — *async* (só o primário: rápido, pode perder as últimas escritas no failover), *sync* (o primário mais um seguidor) ou *quorum* (a maioria dos nós do shard) — e **para onde vão as leituras** (só o primário: sempre frescas; seguidores também: mais capacidade, possivelmente desatualizadas).
+**O que é.** Um banco de dados rodando como um **grupo de nós** em vez de um único servidor: cada **shard** (uma fatia das chaves) tem um **primário** que aceita as escritas e **seguidores** que recebem uma cópia do seu log e um gerenciador do cluster (ou um protocolo de consenso como Raft ou Paxos) **detecta um primário morto e promove um seguidor** automaticamente. Ele acrescenta o que um único nó [SQL Database](#sql) não oferece: capacidade de leitura nos seguidores, capacidade de escrita com mais shards e sobrevivência à falha de um nó ou de uma zona. Os dois botões que todo projeto precisa escolher são **como uma escrita é confirmada** — *async* (só o primário: rápido, pode perder as últimas escritas no failover), *sync* (o primário mais um seguidor) ou *quorum* (a maioria dos nós do shard) — e **para onde vão as leituras** (só o primário: sempre frescas; seguidores também: mais capacidade, possivelmente desatualizadas).
 
 **Quando usar.**
 
@@ -116,7 +116,7 @@ flowchart LR
 - **Replicação assíncrona perde dados no failover**: as escritas ainda dentro do atraso de replicação quando o primário morre desaparecem (RPO > 0). Use sync ou quorum para dinheiro e assentos.
 - **Sync e quorum custam latência em toda escrita** (uma ida e volta a um seguidor, muitas vezes em outra AZ); um único seguidor síncrono que fica lento deixa todas as escritas lentas — o quorum tolera um seguidor lento.
 - **Seguidores atrasam**: ler deles quebra o read-your-writes → leia suas próprias escritas no primário, ou espere a posição do seguidor.
-- **Particionar é difícil de desfazer**: joins e transações entre shards ficam caros, e uma **chave quente** (um evento popular) satura o seu shard enquanto os outros ficam ociosos.
+- **Particionar é difícil de desfazer**: joins e transações entre shards ficam caros e uma **chave quente** (um evento popular) satura o seu shard enquanto os outros ficam ociosos.
 - O failover não é instantâneo: detecção mais promoção mais reconexão dos clientes leva tipicamente dezenas de segundos — o RTO.
 - Split brain: dois nós que acreditam ser o primário corrompem os dados → eleição de líder por consenso, fencing.
 
@@ -247,7 +247,7 @@ Cenários: [`db-failover`](../../../../playground/scenarios/index.md#db-failover
     - **FoundationDB** — armazenamento chave-valor ordenado com transações ACID.
 
 !!! tip "Na entrevista"
-    "Para bilhões de mensagens de chat acessadas por conversa, eu usaria um banco de colunas largas particionado por `conversation_id` e ordenado por tempo: as escritas escalam com os nós e a consulta principal cai numa só partição. O preço é não ter joins nem consultas ad hoc, e preciso vigiar as partições quentes."
+    "Para bilhões de mensagens de chat acessadas por conversa, eu usaria um banco de colunas largas particionado por `conversation_id` e ordenado por tempo: as escritas escalam com os nós e a consulta principal cai numa só partição. O preço é não ter joins nem consultas ad hoc e preciso vigiar as partições quentes."
 
 **Saiba mais:** [Bancos de dados › Modelos de dados](../../../classes/databases/models/index.md) · [Bancos de dados › Particionamento](../../../classes/databases/partitioning/index.md) · [Distribuídos › Consistência](../../../classes/distributed/consistency/index.md) · [Estudo de caso: chat](../../../classes/case-studies/chat/index.md) · [Estudo de caso: encurtador de URLs](../../../classes/case-studies/url-shortener/index.md)
 

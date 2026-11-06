@@ -1,6 +1,6 @@
 # Entrevistas simuladas { #mock-interviews }
 
-System design é uma prova oral, e o único jeito de ficar bom numa prova oral é falar. Esta página é um protocolo de **entrevistas simuladas em dupla**: um estudante é o candidato, o outro o entrevistador, e vocês trocam de papel. Ser o entrevistador não é um favor ao colega: ouvir um design com a rubrica na mão é o jeito mais rápido de aprender como soa uma resposta forte.
+System design é uma prova oral e o único jeito de ficar bom numa prova oral é falar. Esta página é um protocolo de **entrevistas simuladas em dupla**: um estudante é o candidato, o outro o entrevistador e vocês trocam de papel. Ser o entrevistador não é um favor ao colega: ouvir um design com a rubrica na mão é o jeito mais rápido de aprender como soa uma resposta forte.
 
 !!! abstract "Do que você precisa"
     - Duas pessoas (três, se houver um observador), 60 minutos: 45 para a entrevista, 10 para o feedback, 5 para trocar.
@@ -58,7 +58,7 @@ As fases seguem o [framework](../framework/index.md). O entrevistador controla o
 
 **O entrevistador diz:** "De que carga estamos falando, mais ou menos?" (só se o candidato não começar sozinho).
 
-**Provoque com:** "Qual destes números muda o seu design?" · "Qual é o pico, e não a média?"
+**Provoque com:** "Qual destes números muda o seu design?" · "Qual é o pico e não a média?"
 
 | Sinais verdes | Sinais vermelhos |
 |---|---|
@@ -70,7 +70,7 @@ As fases seguem o [framework](../framework/index.md). O entrevistador controla o
 
 **O entrevistador diz:** "Como é a API do fluxo principal?"
 
-**Provoque com:** "O que acontece se o cliente mandar esta requisição duas vezes?" · "Qual é a chave desta tabela, e que consulta a usa?"
+**Provoque com:** "O que acontece se o cliente mandar esta requisição duas vezes?" · "Qual é a chave desta tabela e que consulta a usa?"
 
 | Sinais verdes | Sinais vermelhos |
 |---|---|
@@ -81,7 +81,7 @@ As fases seguem o [framework](../framework/index.md). O entrevistador controla o
 
 **O entrevistador diz:** "Me mostre o design."
 
-**Provoque com:** "Siga uma requisição do clique do fã até o banco." · "O que aqui não tem estado, e onde o estado fica?"
+**Provoque com:** "Siga uma requisição do clique do fã até o banco." · "O que aqui não tem estado e onde o estado fica?"
 
 | Sinais verdes | Sinais vermelhos |
 |---|---|
@@ -136,7 +136,7 @@ As fases seguem o [framework](../framework/index.md). O entrevistador controla o
 | Lista o que faria com mais tempo (multi-região, custo, abuso, monitoramento) | Estoura o tempo |
 
 !!! warning "Armadilhas do entrevistador"
-    - **Ajudar demais.** Se você explica a resposta, não aprende nada sobre o candidato, e o candidato não aprende nada sobre ficar travado. Dê a dica em forma de pergunta, no máximo uma por fase.
+    - **Ajudar demais.** Se você explica a resposta, não aprende nada sobre o candidato e o candidato não aprende nada sobre ficar travado. Dê a dica em forma de pergunta, no máximo uma por fase.
     - **Tocas de coelho.** Se o candidato gasta dez minutos num detalhe, interrompa com educação: "vamos estacionar isso e olhar o resto".
     - **Avaliar a resposta, não o raciocínio.** Um design diferente do estudo de caso pode ser excelente. Avalie o quanto ele atende aos requisitos e o quanto os trade-offs são bem argumentados.
 

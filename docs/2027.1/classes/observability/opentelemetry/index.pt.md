@@ -16,7 +16,7 @@ O OpenTelemetry é um projeto da CNCF que define **como a telemetria é produzid
 | **OTLP** | o OpenTelemetry Protocol, sobre gRPC (porta **4317**) ou HTTP/protobuf (porta **4318**) | todos os serviços exportam para o Collector via OTLP |
 | **Collector** | um processo independente que recebe, processa e exporta telemetria | remove números de cartão, aplica tail sampling, distribui para os backends |
 
-Os sinais amadureceram em ritmos diferentes: **traces** e **métricas** são estáveis, **logs** ficaram estáveis depois (o OTel principalmente *faz a ponte* com bibliotecas de logging existentes, adicionando o contexto de trace), e os **profiles** foram adicionados como quarto sinal e ainda estão amadurecendo.
+Os sinais amadureceram em ritmos diferentes: **traces** e **métricas** são estáveis, **logs** ficaram estáveis depois (o OTel principalmente *faz a ponte* com bibliotecas de logging existentes, adicionando o contexto de trace) e os **profiles** foram adicionados como quarto sinal e ainda estão amadurecendo.
 
 ``` diagram
 flowchart LR
@@ -40,7 +40,7 @@ flowchart LR
 
 ## Propagação de contexto { #context-propagation }
 
-Um trace só existe se cada salto souber a qual trace pertence. A **propagação de contexto** é o mecanismo: quem chama injeta o contexto de trace atual na requisição de saída, e quem é chamado o extrai e cria o próprio span como filho.
+Um trace só existe se cada salto souber a qual trace pertence. A **propagação de contexto** é o mecanismo: quem chama injeta o contexto de trace atual na requisição de saída e quem é chamado o extrai e cria o próprio span como filho.
 
 ### O header `traceparent` { #the-traceparent-header }
 
@@ -54,7 +54,7 @@ traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
              └─ version
 ```
 
-Em cada chamada de saída, um serviço mantém o `trace-id` e as flags e **substitui o parent-id pelo ID do seu próprio span atual**. Nenhum serviço precisa entender o trace inteiro; a árvore é reconstruída pelo backend a partir das ligações com o pai. Um segundo header, `tracestate`, carrega dados específicos de fornecedor, e o **baggage** (`baggage: tenant=festival-x,channel=mobile`) carrega pares chave-valor de negócio que todo serviço adiante pode ler — útil, mas cada byte viaja em cada requisição, então mantenha-o pequeno e nunca coloque segredos nele.
+Em cada chamada de saída, um serviço mantém o `trace-id` e as flags e **substitui o parent-id pelo ID do seu próprio span atual**. Nenhum serviço precisa entender o trace inteiro; a árvore é reconstruída pelo backend a partir das ligações com o pai. Um segundo header, `tracestate`, carrega dados específicos de fornecedor e o **baggage** (`baggage: tenant=festival-x,channel=mobile`) carrega pares chave-valor de negócio que todo serviço adiante pode ler — útil, mas cada byte viaja em cada requisição, então mantenha-o pequeno e nunca coloque segredos nele.
 
 ### Acompanhando um checkout { #following-a-checkout }
 
@@ -100,7 +100,7 @@ Três detalhes importam na prática:
 
 !!! example "No código do BoxOffice: o trace através do outbox (lab 8)"
 
-    O agente propaga o contexto por HTTP e nos headers do Kafka sozinho, mas os eventos do BoxOffice não vão direto para o Kafka: desde o lab 7, o `order` os grava numa tabela **outbox** na mesma transação do pedido, e um relay os publica depois, numa thread do agendador — um salto que o agente não enxerga, e que dividia cada pedido em dois traces sem relação. O [Hands-on 8 — instrumente tudo](../../../hands-on/8/instrument/index.md) carrega o `traceparent` junto com o dado: uma coluna nova (`V2__outbox_traceparent.sql`), `inject` quando a linha é gravada, depois `extract` e `makeCurrent()` antes de o relay enviar, para que o span de produtor do agente vire filho da requisição original. Na execução de teste do lab o resultado é **um** trace: a requisição levou 9 ms, o relay publicou 22 ms depois do início, e o `notification` gastou 67 ms.
+    O agente propaga o contexto por HTTP e nos headers do Kafka sozinho, mas os eventos do BoxOffice não vão direto para o Kafka: desde o lab 7, o `order` os grava numa tabela **outbox** na mesma transação do pedido e um relay os publica depois, numa thread do agendador — um salto que o agente não enxerga e que dividia cada pedido em dois traces sem relação. O [Hands-on 8 — instrumente tudo](../../../hands-on/8/instrument/index.md) carrega o `traceparent` junto com o dado: uma coluna nova (`V2__outbox_traceparent.sql`), `inject` quando a linha é gravada, depois `extract` e `makeCurrent()` antes de o relay enviar, para que o span de produtor do agente vire filho da requisição original. Na execução de teste do lab o resultado é **um** trace: a requisição levou 9 ms, o relay publicou 22 ms depois do início e o `notification` gastou 67 ms.
 
     ``` { .java title="services/order/src/main/java/boxoffice/order/outbox/Outbox.java (write the event and its traceparent)" }
     --8<-- "docs/2027.1/hands-on/8/code/services/order/src/main/java/boxoffice/order/outbox/Outbox.java:26:39"
@@ -138,7 +138,7 @@ environment:
 
 !!! example "No código do BoxOffice: um agente para todo serviço Java (lab 8)"
 
-    O [Hands-on 8 — instrumente tudo](../../../hands-on/8/instrument/index.md) não embute o agente nas imagens, como faz o Dockerfile acima: o `scripts/get-otel-agent.sh` baixa uma versão fixada (2.32.0) uma vez em `infra/otel/`, e todo serviço Java a monta só para leitura e a carrega por `JAVA_TOOL_OPTIONS`. As configurações ficam numa única âncora YAML mesclada em cada serviço, para que os serviços não divirjam; só o `OTEL_SERVICE_NAME` muda — três réplicas do `catalog`, **um** serviço. `OTEL_ON=false` roda a mesma imagem sem o agente, e é assim que o lab mede quanto o agente custa; as métricas são exportadas a cada 10 s em vez de 60 s, para que os dashboards reajam dentro de um experimento curto.
+    O [Hands-on 8 — instrumente tudo](../../../hands-on/8/instrument/index.md) não embute o agente nas imagens, como faz o Dockerfile acima: o `scripts/get-otel-agent.sh` baixa uma versão fixada (2.32.0) uma vez em `infra/otel/` e todo serviço Java a monta só para leitura e a carrega por `JAVA_TOOL_OPTIONS`. As configurações ficam numa única âncora YAML mesclada em cada serviço, para que os serviços não divirjam; só o `OTEL_SERVICE_NAME` muda — três réplicas do `catalog`, **um** serviço. `OTEL_ON=false` roda a mesma imagem sem o agente e é assim que o lab mede quanto o agente custa; as métricas são exportadas a cada 10 s em vez de 60 s, para que os dashboards reajam dentro de um experimento curto.
 
     ``` { .yaml title="docker-compose.yaml (the x-otel anchor and the catalog replicas)" }
     --8<-- "docs/2027.1/hands-on/8/code/docker-compose.yaml:3:12,15:22"
@@ -189,7 +189,7 @@ Com o agente anexado, a alternativa mais simples é uma anotação no método: `
 
 ## O Collector { #the-collector }
 
-Os serviços poderiam exportar direto para cada backend, mas aí cada serviço precisaria conhecer cada backend, suas credenciais e sua política de retry. O **Collector** os desacopla: os serviços enviam OTLP para um só lugar, e os **pipelines** do Collector decidem o que acontece em seguida. Um pipeline tem três estágios por sinal: **receivers** (como os dados entram), **processors** (o que é feito com eles, em ordem), **exporters** (para onde vão).
+Os serviços poderiam exportar direto para cada backend, mas aí cada serviço precisaria conhecer cada backend, suas credenciais e sua política de retry. O **Collector** os desacopla: os serviços enviam OTLP para um só lugar e os **pipelines** do Collector decidem o que acontece em seguida. Um pipeline tem três estágios por sinal: **receivers** (como os dados entram), **processors** (o que é feito com eles, em ordem), **exporters** (para onde vão).
 
 ```yaml
 # otel-collector.yaml — gateway Collector for BoxOffice (sketch)
@@ -299,7 +299,7 @@ for name, kept, err_kept in strategies:
     print(f"| {name} | {kept:.1%} | {gb_per_day(kept):,.1f} GB | {errors_per_day * err_kept:,.0f} ({err_kept:.0%}) |")
 ```
 
-O tail sampling armazena menos que o head sampling de 10% e ainda guarda **todos** os traces de erro — ao preço de enviar 100% dos spans pela rede até o Collector e mantê-los em buffer durante a janela de decisão. Uma receita comum em produção: head sampling de 100% (ou uma razão alta) nos serviços, tail sampling num Collector gateway, e **métricas calculadas a partir de todas as requisições antes da amostragem**, para que dashboards e SLOs sejam exatos mesmo que a maioria dos traces seja descartada.
+O tail sampling armazena menos que o head sampling de 10% e ainda guarda **todos** os traces de erro — ao preço de enviar 100% dos spans pela rede até o Collector e mantê-los em buffer durante a janela de decisão. Uma receita comum em produção: head sampling de 100% (ou uma razão alta) nos serviços, tail sampling num Collector gateway e **métricas calculadas a partir de todas as requisições antes da amostragem**, para que dashboards e SLOs sejam exatos mesmo que a maioria dos traces seja descartada.
 
 !!! example "Exemplars: de uma métrica para um trace"
 
@@ -359,13 +359,13 @@ services:
 
 !!! tip "Na entrevista"
 
-    "Como você rastreia uma requisição entre microsserviços?" — *"Todo serviço é instrumentado com OpenTelemetry; o header W3C `traceparent` (e os headers das mensagens do Kafka nos saltos assíncronos) propaga o trace ID; os spans vão via OTLP para um Collector que aplica tail sampling — guarda todos os erros e traces lentos, alguns por cento do resto — e exporta para um backend de tracing. Os logs carregam o trace ID, e os histogramas de latência carregam exemplars, então consigo ir de um dashboard para um trace e dele para os seus logs."* Depois acrescente o ângulo de custo: as métricas são calculadas sobre 100% do tráfego; os traces são amostrados.
+    "Como você rastreia uma requisição entre microsserviços?" — *"Todo serviço é instrumentado com OpenTelemetry; o header W3C `traceparent` (e os headers das mensagens do Kafka nos saltos assíncronos) propaga o trace ID; os spans vão via OTLP para um Collector que aplica tail sampling — guarda todos os erros e traces lentos, alguns por cento do resto — e exporta para um backend de tracing. Os logs carregam o trace ID e os histogramas de latência carregam exemplars, então consigo ir de um dashboard para um trace e dele para os seus logs."* Depois acrescente o ângulo de custo: as métricas são calculadas sobre 100% do tráfego; os traces são amostrados.
 
 !!! success "Boas práticas"
 
-    - **Fixe as versões do agente e do SDK, e atualize de propósito** — uma nova versão da instrumentação pode renomear métricas e atributos (as semantic conventions evoluem), quebrando dashboards e alertas em silêncio. No BoxOffice: `scripts/get-otel-agent.sh` fixa a 2.32.0.
+    - **Fixe as versões do agente e do SDK e atualize de propósito** — uma nova versão da instrumentação pode renomear métricas e atributos (as semantic conventions evoluem), quebrando dashboards e alertas em silêncio. No BoxOffice: `scripts/get-otel-agent.sh` fixa a 2.32.0.
     - **Configure o OpenTelemetry uma vez, por variáveis de ambiente compartilhadas por todos os serviços** — exporter, sampler, atributos de recurso; só o `OTEL_SERVICE_NAME` muda por serviço. No BoxOffice: a âncora `x-otel` (caixa acima).
-    - **Use um sampler baseado no pai na cabeça** — a raiz decide uma vez e todo salto segue, então um trace é mantido ou descartado inteiro, nunca em fragmentos. No BoxOffice: `OTEL_TRACES_SAMPLER=parentbased_always_on`, e `parentbased_traceidratio` a 10% no experimento B do [Hands-on 8 — meça](../../../hands-on/8/measure/index.md).
+    - **Use um sampler baseado no pai na cabeça** — a raiz decide uma vez e todo salto segue, então um trace é mantido ou descartado inteiro, nunca em fragmentos. No BoxOffice: `OTEL_TRACES_SAMPLER=parentbased_always_on` e `parentbased_traceidratio` a 10% no experimento B do [Hands-on 8 — meça](../../../hands-on/8/measure/index.md).
     - **Carregue o `traceparent` por todo salto assíncrono que é seu** — linhas de outbox, tabelas de jobs, envelopes próprios; cada salto sem ele divide todo trace em dois. No BoxOffice: a coluna `traceparent` do outbox (caixa acima).
     - **Remova `traceparent` e `baggage` na saída para terceiros** — ids internos e contexto de negócio não devem vazar para um provedor de pagamentos que nunca vai mandar os spans dele para você.
     - **Monitore o próprio Collector** — suas métricas (exportações recusadas e com falha, tamanho da fila, memória) são o único sinal de que telemetria está sendo descartada; um Collector mudo parece exatamente um sistema tranquilo.
@@ -375,7 +375,7 @@ services:
     - **Protocolo e porta trocados**: o agente Java 2.x usa por padrão OTLP sobre HTTP (4318); apontá-lo para a 4317 sem `OTEL_EXPORTER_OTLP_PROTOCOL=grpc` silenciosamente não produz dados.
     - **Sem `service.name`**: tudo aparece como `unknown_service`.
     - **Head sampling de 1% e nenhum tail sampling**: o único trace de que você precisa durante o incidente foi descartado.
-    - **Tail sampling atrás de um load balancer round-robin**: spans do mesmo trace caem em Collectors diferentes, e cada decisão é tomada sobre fragmentos.
+    - **Tail sampling atrás de um load balancer round-robin**: spans do mesmo trace caem em Collectors diferentes e cada decisão é tomada sobre fragmentos.
     - **Sem `memory_limiter`**: o Collector é morto por falta de memória (OOM) justamente no pico de tráfego.
     - **Segredos e dados pessoais em atributos ou baggage**: a telemetria é copiada para muitos sistemas e guardada por semanas.
 

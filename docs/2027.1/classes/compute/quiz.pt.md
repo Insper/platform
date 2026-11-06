@@ -6,7 +6,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 **Q1.** A primeira versão do `inventory` da BoxOffice guarda as reservas de assento (holds) em um `ConcurrentHashMap` dentro de cada réplica. Tudo funciona no notebook do desenvolvedor. O que acontece com três réplicas atrás de um load balancer round-robin?
 
-- A. A próxima requisição do fã pode cair numa réplica que não conhece o hold, um reinício esquece todos os holds, e duas réplicas podem reservar o mesmo assento para fãs diferentes
+- A. A próxima requisição do fã pode cair numa réplica que não conhece o hold, um reinício esquece todos os holds e duas réplicas podem reservar o mesmo assento para fãs diferentes
 - B. Nada muda: cada réplica tem seu próprio mapa, então os holds ficam três vezes mais rápidos
 - C. O load balancer sincroniza automaticamente os três mapas
 - D. Só o desempenho piora, porque os mapas precisam ser copiados entre as réplicas
@@ -42,7 +42,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — A latência não é linear na carga.**
 
-    Numa fila, o tempo de espera cresce como 1 / (1 − ρ): com 50% de utilização uma requisição espera mais ou menos o seu tempo de serviço; com 90%, cerca de dez vezes isso, e o p99 piora ainda antes. A folga também cobre rajadas e a perda de uma réplica ou de uma zona.
+    Numa fila, o tempo de espera cresce como 1 / (1 − ρ): com 50% de utilização uma requisição espera mais ou menos o seu tempo de serviço; com 90%, cerca de dez vezes isso e o p99 piora ainda antes. A folga também cobre rajadas e a perda de uma réplica ou de uma zona.
 
 ---
 
@@ -86,13 +86,13 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **C — Somente dentro do adapter.**
 
-    A porta (`PaymentGateway`) pertence ao núcleo e fala a língua da BoxOffice; o adapter é a única classe que conhece a API do provedor. Isso mantém os testes dos casos de uso independentes do provedor e transforma a adição de um segundo provedor num novo adapter, e não numa reescrita.
+    A porta (`PaymentGateway`) pertence ao núcleo e fala a língua da BoxOffice; o adapter é a única classe que conhece a API do provedor. Isso mantém os testes dos casos de uso independentes do provedor e transforma a adição de um segundo provedor num novo adapter e não numa reescrita.
 
 ---
 
 ## Estilos de API { #api-styles }
 
-**Q7.** O serviço interno `order` chama o `inventory` milhares de vezes por segundo durante a abertura de vendas; os dois pertencem à BoxOffice. Qual estilo se encaixa melhor, e qual é o principal cuidado operacional?
+**Q7.** O serviço interno `order` chama o `inventory` milhares de vezes por segundo durante a abertura de vendas; os dois pertencem à BoxOffice. Qual estilo se encaixa melhor e qual é o principal cuidado operacional?
 
 - A. GraphQL; o cuidado é que ele não pode ser usado entre serviços
 - B. Webhooks; o cuidado é que eles precisam de assinaturas
@@ -150,7 +150,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q11.** O `inventory` roda 10 réplicas, e um método `@Scheduled(fixedRate = 30_000)` libera os holds expirados. O que está errado, e o que uma correção correta exige?
+**Q11.** O `inventory` roda 10 réplicas e um método `@Scheduled(fixedRate = 30_000)` libera os holds expirados. O que está errado e o que uma correção correta exige?
 
 - A. Nada está errado; o Spring roda métodos agendados em uma réplica só
 - B. O job roda nas 10 réplicas; um lock distribuído com expiração (por exemplo, ShedLock) reduz as duplicações, mas como locks podem expirar durante uma pausa, a própria liberação também precisa ser idempotente (um `UPDATE` condicional) ou protegida por fencing token
@@ -166,7 +166,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ## Serverless e autoscaling { #serverless-and-autoscaling }
 
-**Q12.** Uma função atende 1.500 requisições/s com duração média de 200 ms no AWS Lambda (uma requisição por ambiente de execução). Quantos ambientes simultâneos ela precisa, e que risco isso cria para um banco PostgreSQL atrás dela?
+**Q12.** Uma função atende 1.500 requisições/s com duração média de 200 ms no AWS Lambda (uma requisição por ambiente de execução). Quantos ambientes simultâneos ela precisa e que risco isso cria para um banco PostgreSQL atrás dela?
 
 - A. 30 ambientes; nenhum risco
 - B. 1.500 ambientes; um por requisição por segundo
@@ -180,7 +180,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q13.** Uma venda de estádio abre às 10:00 e o tráfego salta 20× em segundos. O HPA do Kubernetes mira 60% de CPU. Por que os fãs ainda veem erros nos primeiros minutos, e qual é a melhor mitigação para esse evento **conhecido**?
+**Q13.** Uma venda de estádio abre às 10:00 e o tráfego salta 20× em segundos. O HPA do Kubernetes mira 60% de CPU. Por que os fãs ainda veem erros nos primeiros minutos e qual é a melhor mitigação para esse evento **conhecido**?
 
 - A. O escalonamento reativo precisa de métricas, de uma decisão, possivelmente de nós novos, de download de imagens e de aquecimento da JVM — minutos no total; escale **por agendamento** (por exemplo, às 09:45) até a previsão e pré-aqueça caches e pools
 - B. O HPA está quebrado; troque-o por um VPA
@@ -200,7 +200,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 - A. Marcar o pagamento como falho e liberar os assentos do fã
 - B. Marcar o pagamento como bem-sucedido, já que a maioria das cobranças dá certo
-- C. Marcá-lo como `UNKNOWN`, depois repetir com a **mesma chave de idempotência** ou consultar o status no provedor, e também aceitar o resultado por webhook
+- C. Marcá-lo como `UNKNOWN`, depois repetir com a **mesma chave de idempotência** ou consultar o status no provedor e também aceitar o resultado por webhook
 - D. Repetir imediatamente com uma nova chave de idempotência, para o provedor não rejeitar como duplicata
 
 ??? success "Resposta"
@@ -228,7 +228,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 - A. Para recalcular a taxa de câmbio de cada pagamento
 - B. Porque o provedor exige isso para a chave de API continuar válida
-- C. Porque webhooks podem se perder depois que os retries do provedor acabam, estornos podem ser feitos no painel do provedor, bugs podem pular atualizações, e tarifas e chargebacks só aparecem nos relatórios — os dois lados precisam ser comparados e as diferenças resolvidas
+- C. Porque webhooks podem se perder depois que os retries do provedor acabam, estornos podem ser feitos no painel do provedor, bugs podem pular atualizações e tarifas e chargebacks só aparecem nos relatórios — os dois lados precisam ser comparados e as diferenças resolvidas
 - D. Reconciliação só é necessária quando não há idempotência
 
 ??? success "Resposta"

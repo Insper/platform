@@ -3,7 +3,7 @@ A loja tem um front-end web, um aplicativo mobile e um serviço de pedidos, e os
 
 Uma **API** (Application Programming Interface) é um contrato que define como dois componentes de software se comunicam. Ela especifica quais operações estão disponíveis, quais entradas aceitam e quais saídas retornam — sem expor a implementação interna.
 
-No contexto de microsserviços, as APIs são o principal mecanismo de integração: os serviços expõem APIs, os clientes as consomem, e os times evoluem cada lado de forma independente, desde que o contrato seja respeitado. Uma fronteira de API estável significa que a implementação por trás dela pode ser totalmente substituída sem impactar nenhum consumidor.
+No contexto de microsserviços, as APIs são o principal mecanismo de integração: os serviços expõem APIs, os clientes as consomem e os times evoluem cada lado de forma independente, desde que o contrato seja respeitado. Uma fronteira de API estável significa que a implementação por trás dela pode ser totalmente substituída sem impactar nenhum consumidor.
 
 ``` mermaid-sim
 flowchart LR
@@ -26,8 +26,8 @@ flowchart LR
     - **Explicar** por que um contrato de API estável permite que os times alterem e façam o deploy de serviços de forma independente.
     - **Comparar** APIs REST, gRPC, GraphQL, WebSocket e baseadas em mensagens, e **escolher** uma para uma dada interação.
     - **Projetar** um recurso REST com URIs, métodos HTTP, códigos de status, corpos de erro e paginação corretos.
-    - **Distinguir** uma mudança incompatível (breaking change) de uma retrocompatível, e versionar uma API quando necessário.
-    - **Documentar** um serviço Spring Boot com OpenAPI e Swagger UI, e **decidir** onde a documentação pode ser exposta.
+    - **Distinguir** uma mudança incompatível (breaking change) de uma retrocompatível e versionar uma API quando necessário.
+    - **Documentar** um serviço Spring Boot com OpenAPI e Swagger UI e **decidir** onde a documentação pode ser exposta.
 
 ## Roteiro
 
@@ -106,7 +106,7 @@ A mesma operação — "me dê o produto 42" — fica bem diferente em cada um d
     message Product { string id = 1; string name = 2; double price = 3; }
     ```
 
-    O contrato é um arquivo `.proto`; o código é **gerado** para cliente e servidor, e as mensagens trafegam em binário compacto. Chamá-la exige um cliente gRPC — um navegador não consegue chamá-la diretamente.
+    O contrato é um arquivo `.proto`; o código é **gerado** para cliente e servidor e as mensagens trafegam em binário compacto. Chamá-la exige um cliente gRPC — um navegador não consegue chamá-la diretamente.
 
 === "GraphQL"
 

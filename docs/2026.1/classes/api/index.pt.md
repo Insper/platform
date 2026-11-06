@@ -1,7 +1,7 @@
 
 Uma **API** (Application Programming Interface, ou interface de programação de aplicações) é um contrato que define como dois componentes de software se comunicam. Ela especifica quais operações estão disponíveis, quais entradas aceitam e quais saídas retornam — sem expor a implementação interna.
 
-No contexto de microsserviços, as APIs são o principal mecanismo de integração: os serviços expõem APIs, os clientes as consomem, e os times evoluem cada lado de forma independente, desde que o contrato seja respeitado. Uma fronteira de API estável significa que a implementação por trás dela pode ser completamente substituída sem impactar nenhum consumidor.
+No contexto de microsserviços, as APIs são o principal mecanismo de integração: os serviços expõem APIs, os clientes as consomem e os times evoluem cada lado de forma independente, desde que o contrato seja respeitado. Uma fronteira de API estável significa que a implementação por trás dela pode ser completamente substituída sem impactar nenhum consumidor.
 
 ``` mermaid
 flowchart LR

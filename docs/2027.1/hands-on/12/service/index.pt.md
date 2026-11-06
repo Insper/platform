@@ -83,7 +83,7 @@ curl -fsSL -o docker-compose.yaml https://insper.github.io/platform/2027.1/hands
     === "Só CPU"
 
         Use os contêineres como estão. Funciona, devagar: numa execução de teste num notebook ocupado de
-        8 núcleos, o primeiro token levou dezenas de segundos. Prefira perguntas curtas, e compare com a
+        8 núcleos, o primeiro token levou dezenas de segundos. Prefira perguntas curtas e compare com a
         rota opcional do Claude desta página.
 
 Suba a infraestrutura (a imagem do `db` muda, então o `db` reinicia uma vez):
@@ -159,7 +159,7 @@ versões por conta própria. (O `mcp` está na lista porque o LiteLLM o importa 
 ferramentas.)
 
 Rodar Python localmente (o passo 4 roda) grava pastas `__pycache__/` ao lado do código; acrescente duas
-linhas ao `.gitignore` da raiz para que o `git add -A` as deixe de fora, e também qualquer `.venv/`:
+linhas ao `.gitignore` da raiz para que o `git add -A` as deixe de fora e também qualquer `.venv/`:
 
 ``` text title=".gitignore"
 --8<-- "docs/2027.1/hands-on/12/code/.gitignore"
@@ -185,7 +185,7 @@ linhas ao `.gitignore` da raiz para que o `git add -A` as deixe de fora, e tamb�
     --8<-- "docs/2027.1/hands-on/12/code/services/assistant/app/__init__.py"
     ```
 
-O LiteLLM dá a todo provedor a mesma interface no estilo da OpenAI, e o seu `Router` é o gateway da
+O LiteLLM dá a todo provedor a mesma interface no estilo da OpenAI e o seu `Router` é o gateway da
 [aula de gateway de LLM](../../../classes/ai-systems/llm-gateway/index.md):
 
 | Preocupação | Aqui |
@@ -240,7 +240,7 @@ nativo.
 
 !!! warning "Rota `claude` sem querer?"
 
-    Então a `ANTHROPIC_API_KEY` já está definida no seu shell (outras ferramentas usam a mesma variável), e
+    Então a `ANTHROPIC_API_KEY` já está definida no seu shell (outras ferramentas usam a mesma variável) e
     toda pergunta vai para a API paga. Rode `unset ANTHROPIC_API_KEY` e `docker compose up -d --wait assistant`
     de novo: o health check deve mostrar `"route":"local"`.
 

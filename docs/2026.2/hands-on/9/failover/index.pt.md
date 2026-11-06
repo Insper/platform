@@ -61,7 +61,7 @@ LOG:  database system is ready to accept connections
 INSERT 0 1
 ```
 
-A timeline marca a bifurcação na história: o WAL na timeline 2 pertence ao novo primário, e qualquer servidor ainda na timeline 1 é uma cópia do passado.
+A timeline marca a bifurcação na história: o WAL na timeline 2 pertence ao novo primário e qualquer servidor ainda na timeline 1 é uma cópia do passado.
 
 ### Os clientes encontram o novo primário
 
@@ -185,7 +185,7 @@ docker compose exec pg-replica2 psql -U store -c "ALTER SYSTEM SET primary_conni
  34 | after-failover | 2026-10-31 18:51:50.223978+00
 ```
 
-O `lost-write` **sumiu**: ele existia apenas no WAL do primário morto. Este é o **RPO** (*recovery point objective*) da replicação assíncrona — os commits do último instante antes de um crash. (O salto de 2 para 34 não é um bug: uma sequence registra os seus valores em lotes de 32, e um failover pula o resto do lote. Nunca espere ids `serial` sem lacunas.)
+O `lost-write` **sumiu**: ele existia apenas no WAL do primário morto. Este é o **RPO** (*recovery point objective*) da replicação assíncrona — os commits do último instante antes de um crash. (O salto de 2 para 34 não é um bug: uma sequence registra os seus valores em lotes de 32 e um failover pula o resto do lote. Nunca espere ids `serial` sem lacunas.)
 
 Agora reintegre o primário antigo. O diretório de dados dele ainda tem o `lost-write`, na timeline 1, depois da bifurcação — desta vez o `pg_rewind` tem trabalho a fazer:
 
@@ -221,7 +221,7 @@ Tudo o que você fez à mão cabe em um script. A parte difícil é o primeiro p
 - Um primário que não responde ao health check pode estar **lento**, ou **isolado** do monitor, mas não dos clientes. Promover uma réplica nesse caso cria **dois primários** aceitando escritas diferentes: um *split brain*, muito pior do que alguns segundos de downtime.
 - O próprio monitor pode falhar, ou dois monitores podem discordar.
 
-É por isso que o failover automático é construído sobre [consenso](../../../classes/distributed_systems/consensus/index.md): no [Patroni](https://patroni.readthedocs.io){target="_blank"}, cada nó roda um agente, e só o agente que detém a **leader key** no etcd (Raft) pode rodar como primário. A chave tem um TTL: um primário isolado não consegue renová-la e **rebaixa a si mesmo** antes que uma réplica seja promovida. Os serviços gerenciados (Amazon RDS Multi-AZ, Aurora, Google Cloud SQL) rodam a mesma lógica por você.
+É por isso que o failover automático é construído sobre [consenso](../../../classes/distributed_systems/consensus/index.md): no [Patroni](https://patroni.readthedocs.io){target="_blank"}, cada nó roda um agente e só o agente que detém a **leader key** no etcd (Raft) pode rodar como primário. A chave tem um TTL: um primário isolado não consegue renová-la e **rebaixa a si mesmo** antes que uma réplica seja promovida. Os serviços gerenciados (Amazon RDS Multi-AZ, Aurora, Google Cloud SQL) rodam a mesma lógica por você.
 
 ## 4. Conectando a plataforma
 
@@ -249,7 +249,7 @@ O `-v` remove os três volumes; sem ele, o cluster, com os papéis em que termin
 
 - [ ] As duas réplicas aparecem como `streaming` em `pg_stat_replication`.
 - [ ] Uma linha inserida no primário é lida nas duas réplicas; um `INSERT` em uma réplica falha.
-- [ ] Com a reexecução pausada, uma réplica retorna dados desatualizados, e o `bytes_behind` mostra isso.
+- [ ] Com a reexecução pausada, uma réplica retorna dados desatualizados e o `bytes_behind` mostra isso.
 - [ ] `target_session_attrs=read-write` encontra o primário, antes e depois de um failover.
 - [ ] Com `FIRST 1 ("pg-replica1")` e essa réplica parada, um commit bloqueia; com `ANY 1`, não.
 - [ ] Depois de um failover por crash, você consegue explicar por que o `lost-write` sumiu e o que o teria evitado.

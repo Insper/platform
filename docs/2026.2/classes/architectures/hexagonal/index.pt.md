@@ -1,5 +1,5 @@
 
-Olhe para o `auth-service` do [Hands-on 3](../../../hands-on/3/index.md) de fora. Ele é *chamado* pelo gateway via HTTP, e logo poderia ser chamado por um consumidor Kafka ou por uma ferramenta de linha de comando para administradores; os seus testes também querem chamá-lo. Ele *chama* outras coisas: o `account-service` via Feign, uma biblioteca de JWT, talvez o Redis para os tokens revogados. Os diagramas em camadas desenham o HTTP "em cima" e o banco de dados "embaixo", mas, para a lógica de negócio, eles são o mesmo tipo de coisa — **o mundo externo** — e cada um deles deveria ser substituível sem mexer nas regras de login.
+Olhe para o `auth-service` do [Hands-on 3](../../../hands-on/3/index.md) de fora. Ele é *chamado* pelo gateway via HTTP e logo poderia ser chamado por um consumidor Kafka ou por uma ferramenta de linha de comando para administradores; os seus testes também querem chamá-lo. Ele *chama* outras coisas: o `account-service` via Feign, uma biblioteca de JWT, talvez o Redis para os tokens revogados. Os diagramas em camadas desenham o HTTP "em cima" e o banco de dados "embaixo", mas, para a lógica de negócio, eles são o mesmo tipo de coisa — **o mundo externo** — e cada um deles deveria ser substituível sem mexer nas regras de login.
 
 A [Arquitetura Hexagonal](https://alistair.cockburn.us/hexagonal-architecture/){:target="_blank"} — também chamada de **Ports & Adapters** (portas e adaptadores) — foi apresentada por Alistair Cockburn em 2005. A ideia é colocar o núcleo da aplicação no centro e expô-lo por meio de *portas* (interfaces), às quais se conectam *adaptadores* externos. O formato de hexágono é arbitrário; ele indica que a aplicação tem vários pontos de entrada/saída equivalentes, sem nenhum lado privilegiado — não existe "em cima" e "embaixo", apenas **dentro** e **fora**[^1].
 
@@ -31,7 +31,7 @@ flowchart LR
 
 ## Portas
 
-Uma **porta** é uma interface pura — um contrato definido *pelo* núcleo da aplicação, e não pela tecnologia externa. Existem dois tipos:
+Uma **porta** é uma interface pura — um contrato definido *pelo* núcleo da aplicação e não pela tecnologia externa. Existem dois tipos:
 
 | Tipo | Direção | Definida por | Implementada por | Exemplo |
 |---|---|---|---|---|
@@ -196,7 +196,7 @@ sequenceDiagram
     In-->>GW: 200 OK + token
 ```
 
-Troque o primeiro participante por um teste e o quarto por `InMemoryAccountRepository`, e o núcleo roda exatamente o mesmo código — essa é toda a ideia.
+Troque o primeiro participante por um teste e o quarto por `InMemoryAccountRepository` e o núcleo roda exatamente o mesmo código — essa é toda a ideia.
 
 ### Os serviços da loja como hexágonos
 
@@ -211,7 +211,7 @@ Troque o primeiro participante por um teste e o quarto por `InMemoryAccountRepos
 | Kafka (publicando `AccountCreated`) | saída | um adaptador com `KafkaTemplate` |
 
 !!! info "O Hands-on 3 sob esta ótica"
-    No Hands-on 3, o `AuthService` chama diretamente a interface Feign `AccountController`. Essa interface é definida pelo módulo de API `account`, e não pelo núcleo de auth — então a porta é moldada pelo serviço remoto, e uma mudança na API do `account` chega até a lógica de login. A versão hexagonal estrita declara uma pequena porta no núcleo de auth (por exemplo, `AccountLookup.findByEmail`) e transforma o cliente Feign em um adaptador por trás dela.
+    No Hands-on 3, o `AuthService` chama diretamente a interface Feign `AccountController`. Essa interface é definida pelo módulo de API `account` e não pelo núcleo de auth — então a porta é moldada pelo serviço remoto, e uma mudança na API do `account` chega até a lógica de login. A versão hexagonal estrita declara uma pequena porta no núcleo de auth (por exemplo, `AccountLookup.findByEmail`) e transforma o cliente Feign em um adaptador por trás dela.
 
 ---
 
@@ -303,7 +303,7 @@ com.example.auth/
 ## Erros comuns
 
 !!! warning "Portas definidas pelo adaptador"
-    Se a interface `AccountRepository` espelha os nomes de métodos do `JpaRepository` do Spring Data, ela está sendo moldada pelo JPA, e não pelas necessidades da aplicação. Defina as portas em termos de conceitos do domínio, não de conceitos de persistência.
+    Se a interface `AccountRepository` espelha os nomes de métodos do `JpaRepository` do Spring Data, ela está sendo moldada pelo JPA e não pelas necessidades da aplicação. Defina as portas em termos de conceitos do domínio, não de conceitos de persistência.
 
 !!! warning "O núcleo importando o adaptador"
     Qualquer `import com.example.adapter.*` dentro do pacote de domínio ou de aplicação é uma violação imediata. A injeção de dependência (Spring, CDI) deve resolver o adaptador em tempo de execução, não em tempo de compilação.

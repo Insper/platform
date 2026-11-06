@@ -39,7 +39,7 @@ boxoffice/
 
 !!! tip "Recupere o atraso"
 
-    Pulou ou quebrou o lab 0? Baixe [boxoffice-after-lab-0.zip](../0/boxoffice-after-lab-0.zip), descompacte e `cd boxoffice` (depois `git init -b main`, se quiser controle de versão). Todo arquivo deste lab aparece completo nas próximas páginas, e os mesmos arquivos estão na pasta `code/` deste lab (por exemplo [`code/docker-compose.yaml`](code/docker-compose.yaml)).
+    Pulou ou quebrou o lab 0? Baixe [boxoffice-after-lab-0.zip](../0/boxoffice-after-lab-0.zip), descompacte e `cd boxoffice` (depois `git init -b main`, se quiser controle de versão). Todo arquivo deste lab aparece completo nas próximas páginas e os mesmos arquivos estão na pasta `code/` deste lab (por exemplo [`code/docker-compose.yaml`](code/docker-compose.yaml)).
 
 ## Slides
 
@@ -79,11 +79,11 @@ O serviço segue a estrutura clássica de três camadas — **controller** (HTTP
 | `POST` | `/catalog/venues` | `VenueIn` | `201` |
 | `GET` | `/actuator/health` · `/catalog/openapi` · `/swagger-ui.html` | — | saúde, documento OpenAPI, documentação interativa |
 
-O banco começa com **50 locais em 10 cidades e 200.000 eventos** (um por hora a partir de março de 2027), gerados por uma migration do Flyway[^1]. O evento **1** é o show de venda relâmpago da disciplina: *BoxOffice Fest — Stadium Night*, em um estádio de 60.000 lugares. Um volume realista de dados é proposital: uma consulta instantânea com 10 linhas pode levar dezenas de milissegundos com 200.000, e é exatamente isso que você vai medir.
+O banco começa com **50 locais em 10 cidades e 200.000 eventos** (um por hora a partir de março de 2027), gerados por uma migration do Flyway[^1]. O evento **1** é o show de venda relâmpago da disciplina: *BoxOffice Fest — Stadium Night*, em um estádio de 60.000 lugares. Um volume realista de dados é proposital: uma consulta instantânea com 10 linhas pode levar dezenas de milissegundos com 200.000 e é exatamente isso que você vai medir.
 
 !!! info "Conexão com a teoria"
 
-    - Na [história da disciplina](../../index.md#story), o `catalog` é o "um serviço, um banco" dos capítulos 1 e 2: os estágios 0 e 1 da [jornada de escala](../../classes/intro/scaling-journey/index.md), e o sistema cuja capacidade a [aula 2](../../classes/estimation/index.md) estima e o lab 2 mede. Sua 1 CPU e suas 10 conexões com o banco são os números que o lab 2 transforma num joelho.
+    - Na [história da disciplina](../../index.md#story), o `catalog` é o "um serviço, um banco" dos capítulos 1 e 2: os estágios 0 e 1 da [jornada de escala](../../classes/intro/scaling-journey/index.md) e o sistema cuja capacidade a [aula 2](../../classes/estimation/index.md) estima e o lab 2 mede. Sua 1 CPU e suas 10 conexões com o banco são os números que o lab 2 transforma num joelho.
     - Aula 5, [Computação e serviços](../../classes/compute/index.md): servidores de aplicação sem estado, [estilos de API](../../classes/compute/api-styles/index.md) (REST, recursos, códigos de status, versionamento).
     - Aula 6, [Bancos de dados](../../classes/databases/index.md): [modelos de dados](../../classes/databases/models/index.md) relacionais, schemas e migrations.
 
@@ -144,7 +144,7 @@ boxoffice/
 
 ## Meça: a referência sem carga { #measure-it }
 
-Antes de perguntar "quanta carga ele aguenta?" (lab 2), registre a velocidade de cada endpoint **com um único usuário**. Esse é o *tempo de serviço*: a melhor latência que você verá, e a referência para toda comparação posterior.
+Antes de perguntar "quanta carga ele aguenta?" (lab 2), registre a velocidade de cada endpoint **com um único usuário**. Esse é o *tempo de serviço*: a melhor latência que você verá e a referência para toda comparação posterior.
 
 Salve o smoke test como `load/smoke.js`:
 
@@ -177,7 +177,7 @@ Com a stack rodando ([passo 3](container/index.md)):
     http_reqs.............................: 112    3.678382/s
 ```
 
-Os números acima vêm de uma execução em um notebook; os seus serão diferentes. Duas coisas devem chamar a atenção mesmo assim: a **listagem é claramente mais lenta que o detalhe**, umas 2 a 6 vezes (ela junta duas tabelas, ordena e conta milhares de linhas; o detalhe é uma busca por chave primária), e **o p99 fica longe da mediana** mesmo com um único usuário (compilação JIT, coleta de lixo, as primeiras conexões do pool).
+Os números acima vêm de uma execução em um notebook; os seus serão diferentes. Duas coisas devem chamar a atenção mesmo assim: a **listagem é claramente mais lenta que o detalhe**, umas 2 a 6 vezes (ela junta duas tabelas, ordena e conta milhares de linhas; o detalhe é uma busca por chave primária) e **o p99 fica longe da mediana** mesmo com um único usuário (compilação JIT, coleta de lixo, as primeiras conexões do pool).
 
 Registre os resultados em `results/lab1.md`:
 
@@ -197,11 +197,11 @@ Registre os resultados em `results/lab1.md`:
 
 ??? question "Pense antes: rode o smoke test duas vezes. Por que a segunda execução é mais rápida?"
 
-    As primeiras requisições depois de uma inicialização encontram uma JVM **fria** (classes carregando, o JIT ainda interpretando bytecode), um pool de conexões vazio e páginas do PostgreSQL que ainda não estão no seu buffer cache. Depois de algumas centenas de requisições, tudo está **aquecido**. Por isso testes de carga sempre têm aquecimento, e você nunca deve comparar uma execução fria com uma aquecida.
+    As primeiras requisições depois de uma inicialização encontram uma JVM **fria** (classes carregando, o JIT ainda interpretando bytecode), um pool de conexões vazio e páginas do PostgreSQL que ainda não estão no seu buffer cache. Depois de algumas centenas de requisições, tudo está **aquecido**. Por isso testes de carga sempre têm aquecimento e você nunca deve comparar uma execução fria com uma aquecida.
 
 !!! note "Se os seus números forem diferentes"
 
-    Os valores absolutos dependem da sua CPU, da memória dada ao Docker e do que mais está rodando (feche abas e IDEs que não estiver usando). O que deve valer em qualquer máquina: todos os checks passam, o detalhe é claramente mais rápido que a listagem (umas 2 vezes ou mais), e a segunda execução é mais rápida que a primeira. Se o p95 do detalhe passar de ~100 ms com um usuário, provavelmente falta CPU ou memória ao Docker (`docker stats`).
+    Os valores absolutos dependem da sua CPU, da memória dada ao Docker e do que mais está rodando (feche abas e IDEs que não estiver usando). O que deve valer em qualquer máquina: todos os checks passam, o detalhe é claramente mais rápido que a listagem (umas 2 vezes ou mais) e a segunda execução é mais rápida que a primeira. Se o p95 do detalhe passar de ~100 ms com um usuário, provavelmente falta CPU ou memória ao Docker (`docker stats`).
 
 ## Solução de problemas { #troubleshooting }
 

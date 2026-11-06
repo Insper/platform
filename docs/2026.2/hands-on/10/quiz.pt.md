@@ -50,7 +50,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 - A. Identifica o cluster Kafka ao qual o consumer se conecta
 - B. Define o número máximo de consumers que podem ler uma única partição simultaneamente
-- C. Agrupa consumers em uma unidade lógica que lê um tópico coletivamente — o Kafka acompanha o offset commitado por grupo, e cada partição é atribuída a exatamente um consumer dentro do grupo
+- C. Agrupa consumers em uma unidade lógica que lê um tópico coletivamente — o Kafka acompanha o offset commitado por grupo e cada partição é atribuída a exatamente um consumer dentro do grupo
 - D. Criptografa a conexão do consumer com o broker usando uma chave compartilhada do grupo
 
 ??? success "Resposta"
@@ -88,7 +88,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q7.** Por que `KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092` é a configuração correta para o Docker Compose (usando o nome do serviço, e não `localhost`)?
+**Q7.** Por que `KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092` é a configuração correta para o Docker Compose (usando o nome do serviço e não `localhost`)?
 
 - A. `localhost` é reservado para o listener do controller KRaft; o tráfego dos clientes precisa de um hostname separado
 - B. Os brokers Kafka usam `KAFKA_ADVERTISED_LISTENERS` para dizer aos clientes a qual endereço se conectar depois do bootstrap inicial; dentro do Docker Compose, os outros containers resolvem os nomes de serviço pelo DNS interno do Docker, então `kafka:9092` é alcançável, enquanto `localhost:9092` se referiria à interface de loopback de cada container

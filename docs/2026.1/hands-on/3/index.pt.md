@@ -110,7 +110,7 @@ Para desenvolver a camada de segurança, os passos são os seguintes:
 
     ---
 
-    Configure o módulo `auth-service` com `AuthResource` e `AuthService`, e configure o `RouterValidator` para distinguir os endpoints protegidos dos abertos;
+    Configure o módulo `auth-service` com `AuthResource` e `AuthService` e configure o `RouterValidator` para distinguir os endpoints protegidos dos abertos;
 
     [Rotas abertas](./open-routes/){ .md-button }
 

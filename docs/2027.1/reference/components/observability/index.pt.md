@@ -230,7 +230,7 @@ flowchart LR
     - **Zipkin** — o sistema de tracing de código aberto original.
 
 !!! tip "Na entrevista"
-    "Com o OpenTelemetry, o trace id flui do gateway por todos os serviços e pelos cabeçalhos do Kafka, então um checkout lento aparece como uma cascata: 3,8 s de 4 s esperando o provedor de pagamento. Guardo todos os traces de erro e lentos com amostragem na cauda, e alguns por cento do resto."
+    "Com o OpenTelemetry, o trace id flui do gateway por todos os serviços e pelos cabeçalhos do Kafka, então um checkout lento aparece como uma cascata: 3,8 s de 4 s esperando o provedor de pagamento. Guardo todos os traces de erro e lentos com amostragem na cauda e alguns por cento do resto."
 
 **Saiba mais:** [Observabilidade › OpenTelemetry](../../../classes/observability/opentelemetry/index.md) · [Observabilidade › Sinais](../../../classes/observability/signals/index.md) · [Desempenho › Gargalos](../../../classes/performance/bottlenecks/index.md) · [Sistemas de IA › Segurança e avaliações](../../../classes/ai-systems/safety-evals/index.md) · [Hands-on 8](../../../hands-on/8/index.md)
 
@@ -248,7 +248,7 @@ flowchart LR
 
 **Quando não usar (ou cuidado).**
 
-- Alertar sobre causas em vez de sintomas ("CPU > 80%") aciona pessoas por coisas que não afetam os usuários → **fadiga de alertas**, e os acionamentos reais passam a ser ignorados.
+- Alertar sobre causas em vez de sintomas ("CPU > 80%") aciona pessoas por coisas que não afetam os usuários → **fadiga de alertas** e os acionamentos reais passam a ser ignorados.
 - Alertas sem dono ou sem runbook.
 - Limiares estáticos sobre métricas ruidosas ficam oscilando → use janelas, burn rates, histerese.
 - Os alertas dependem de a pilha de monitoramento estar viva → um "dead man's switch" (um alerta de batimento sempre disparado, que aciona alguém quando para).
@@ -296,7 +296,7 @@ flowchart LR
     - Serviços comerciais de acionamento como o **PagerDuty** são comuns para escalas de plantão.
 
 !!! tip "Na entrevista"
-    "Aciono por sintomas, não por causas: alertas de burn rate em múltiplas janelas sobre o SLO do checkout — consumo de 14× em uma hora aciona o plantonista, consumos lentos abrem um ticket. Todo alerta tem um dono e um runbook, e um alerta de batimento avisa se o próprio monitoramento caiu."
+    "Aciono por sintomas, não por causas: alertas de burn rate em múltiplas janelas sobre o SLO do checkout — consumo de 14× em uma hora aciona o plantonista, consumos lentos abrem um ticket. Todo alerta tem um dono e um runbook e um alerta de batimento avisa se o próprio monitoramento caiu."
 
 **Saiba mais:** [Observabilidade › Alertas](../../../classes/observability/alerting/index.md) · [Observabilidade › SLOs](../../../classes/observability/slo/index.md) · [Observabilidade › Resposta a incidentes](../../../classes/observability/incident-response/index.md) · [Estimativas › Matemática da disponibilidade](../../../classes/estimation/availability-math/index.md) · [Hands-on 8](../../../hands-on/8/index.md)
 
@@ -316,7 +316,7 @@ flowchart LR
 **Quando não usar (ou cuidado).**
 
 - **Não verifique dependências na liveness**: se o banco fica lento e a liveness de todos os pods o verifica, o Kubernetes reinicia todos os pods de uma vez — uma tempestade de restarts que piora a queda.
-- Uma readiness que verifica uma dependência compartilhada pode tirar **todas** as réplicas de uma vez → verifique só o que a própria instância precisa, e degrade com elegância.
+- Uma readiness que verifica uma dependência compartilhada pode tirar **todas** as réplicas de uma vez → verifique só o que a própria instância precisa e degrade com elegância.
 - Endpoints de saúde devem ser baratos, rápidos e sem autenticação, mas não públicos (sem detalhes sensíveis).
 - Limiares agressivos demais oscilam; frouxos demais deixam instâncias mortas em rotação.
 
@@ -365,6 +365,6 @@ flowchart LR
     - Detecção de outliers do **Envoy** — health check passivo em proxies e service meshes.
 
 !!! tip "Na entrevista"
-    "Cada réplica expõe liveness e readiness separadamente: a liveness só diz que o processo não travou, a readiness diz que ele pode atender agora — ela falha durante o aquecimento e o desligamento. O load balancer para de rotear para uma réplica com falha em segundos, e eu nunca coloco verificação do banco na liveness, senão um banco lento reinicia a frota inteira."
+    "Cada réplica expõe liveness e readiness separadamente: a liveness só diz que o processo não travou, a readiness diz que ele pode atender agora — ela falha durante o aquecimento e o desligamento. O load balancer para de rotear para uma réplica com falha em segundos e eu nunca coloco verificação do banco na liveness, senão um banco lento reinicia a frota inteira."
 
 **Saiba mais:** [Observabilidade › Sinais](../../../classes/observability/signals/index.md) · [Cloud-native › Kubernetes](../../../classes/cloud-native/kubernetes/index.md) · [Confiabilidade › Padrões](../../../classes/reliability/patterns/index.md) · [Borda › Balanceamento de carga](../../../classes/edge/load-balancing/index.md) · [Load Balancer](../edge/index.md#lb) · [Hands-on 3](../../../hands-on/3/index.md) · [Hands-on 10](../../../hands-on/10/index.md)

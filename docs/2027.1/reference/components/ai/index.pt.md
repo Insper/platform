@@ -192,7 +192,7 @@ flowchart LR
 - **Deriva de esquema** — a API muda e o esquema da ferramenta não → gerar os esquemas a partir da API (OpenAPI), testes de contrato.
 - **Ferramenta lenta ou falhando** trava o agente → timeouts, circuit breakers, resultados de erro estruturados sobre os quais o modelo consegue raciocinar.
 
-**No playground.** `toolreg` é um nó de **chamada** atrás do orquestrador: cada passo do agente o chama, e ele distribui para os serviços que implementam as ferramentas (nós `app` como catalog e order). Sua latência e suas falhas se somam a cada passo, multiplicadas pelo `steps` do orquestrador. Cenários: [`ai-assistant`](../../../../playground/scenarios/index.md#ai-assistant).
+**No playground.** `toolreg` é um nó de **chamada** atrás do orquestrador: cada passo do agente o chama e ele distribui para os serviços que implementam as ferramentas (nós `app` como catalog e order). Sua latência e suas falhas se somam a cada passo, multiplicadas pelo `steps` do orquestrador. Cenários: [`ai-assistant`](../../../../playground/scenarios/index.md#ai-assistant).
 
 **Produtos reais.**
 
@@ -253,13 +253,13 @@ flowchart LR
 
 **Modos de falha.**
 
-- **Falhas de recuperação** — o trecho certo não está no top-k, e o modelo responde com um palpite próprio → busca híbrida (palavra-chave + vetor), reordenação, chunking melhor, conjuntos de avaliação.
+- **Falhas de recuperação** — o trecho certo não está no top-k e o modelo responde com um palpite próprio → busca híbrida (palavra-chave + vetor), reordenação, chunking melhor, conjuntos de avaliação.
 - **Índice desatualizado** — uma política de reembolso antiga continua sendo citada → recalcular os embeddings na mudança (CDC a partir do repositório de documentos), versionar documentos.
 - **Vazamento entre clientes** → filtros de metadados obrigatórios, coleções separadas por cliente quando necessário.
-- **Estouro de contexto / perdido no meio** → menos trechos, e melhores; resumir o histórico da conversa.
+- **Estouro de contexto / perdido no meio** → menos trechos e melhores; resumir o histórico da conversa.
 - **Envenenamento de memória** — um documento ou mensagem maliciosa é guardado e depois recuperado como instrução → tratar o texto recuperado como dado, sanitizar o que é gravado na memória de longo prazo.
 
-**No playground.** `memory` é um nó de **chamada** que o orquestrador chama uma vez por passo (ou por requisição) para recuperar contexto; normalmente fica na frente de um nó `vectordb`. Sua latência se soma a cada requisição, e um nó de memória lento ou falhando degrada as respostas (contadas como erros ou sucessos degradados). Cenários: [`ai-assistant`](../../../../playground/scenarios/index.md#ai-assistant).
+**No playground.** `memory` é um nó de **chamada** que o orquestrador chama uma vez por passo (ou por requisição) para recuperar contexto; normalmente fica na frente de um nó `vectordb`. Sua latência se soma a cada requisição e um nó de memória lento ou falhando degrada as respostas (contadas como erros ou sucessos degradados). Cenários: [`ai-assistant`](../../../../playground/scenarios/index.md#ai-assistant).
 
 **Produtos reais.**
 
@@ -294,7 +294,7 @@ flowchart LR
 
 ## Safety Mesh { #safety }
 
-**O que é.** A camada de verificações em volta do modelo: **guardrails de entrada** (detectar tentativas de prompt injection e jailbreak, bloquear temas proibidos, mascarar dados pessoais antes que cheguem a um provedor), **guardrails de saída** (moderar o conteúdo, verificar se a resposta está ancorada nas fontes recuperadas, validar saídas estruturadas contra um esquema, mascarar segredos) e **guardrails de ação** (confirmar ou bloquear chamadas de ferramentas arriscadas, impor limites como "no máximo um reembolso por pedido"). Chama-se mesh porque essas verificações se aplicam em vários pontos (antes do modelo, depois dele, antes de cada ferramenta), e não numa caixa só.
+**O que é.** A camada de verificações em volta do modelo: **guardrails de entrada** (detectar tentativas de prompt injection e jailbreak, bloquear temas proibidos, mascarar dados pessoais antes que cheguem a um provedor), **guardrails de saída** (moderar o conteúdo, verificar se a resposta está ancorada nas fontes recuperadas, validar saídas estruturadas contra um esquema, mascarar segredos) e **guardrails de ação** (confirmar ou bloquear chamadas de ferramentas arriscadas, impor limites como "no máximo um reembolso por pedido"). Chama-se mesh porque essas verificações se aplicam em vários pontos (antes do modelo, depois dele, antes de cada ferramenta) e não numa caixa só.
 
 **Quando usar.**
 

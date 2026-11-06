@@ -18,7 +18,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q2.** Durante uma flash sale, requisições de compra entram em uma fila a **5.000 por segundo durante 2 minutos**, e os workers processam **3.000 por segundo**. Ignorando o tráfego antes e depois, qual é o backlog no fim do pico, e quanto tempo espera a última requisição?
+**Q2.** Durante uma flash sale, requisições de compra entram em uma fila a **5.000 por segundo durante 2 minutos** e os workers processam **3.000 por segundo**. Ignorando o tráfego antes e depois, qual é o backlog no fim do pico e quanto tempo espera a última requisição?
 
 - A. 240.000 mensagens; cerca de 80 segundos
 - B. 600.000 mensagens; cerca de 200 segundos
@@ -48,7 +48,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ## Filas e pub/sub { #queues-and-pubsub }
 
-**Q4.** Um worker de PDF leva **45 s** para gerar um pacote grande de ingressos, e o **visibility timeout do SQS é de 30 s**. O que acontece?
+**Q4.** Um worker de PDF leva **45 s** para gerar um pacote grande de ingressos e o **visibility timeout do SQS é de 30 s**. O que acontece?
 
 - A. A mensagem é apagada depois de 30 s e o PDF se perde
 - B. O SQS espera automaticamente o worker terminar
@@ -58,7 +58,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **C — o job lento é processado duas vezes.**
 
-    O visibility timeout só esconde a mensagem; se nenhum ack chega antes de ele expirar, o broker supõe que o consumidor morreu e reentrega. Defina o timeout acima do p99 do tempo de processamento (ou estenda-o enquanto trabalha, com `ChangeMessageVisibility`), e mantenha o consumidor idempotente de qualquer forma — a reentrega também acontece depois de crashes reais.
+    O visibility timeout só esconde a mensagem; se nenhum ack chega antes de ele expirar, o broker supõe que o consumidor morreu e reentrega. Defina o timeout acima do p99 do tempo de processamento (ou estenda-o enquanto trabalha, com `ChangeMessageVisibility`) e mantenha o consumidor idempotente de qualquer forma — a reentrega também acontece depois de crashes reais.
 
 ---
 
@@ -134,7 +134,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q10.** O consumidor de `analytics` processa **25 registros por segundo por partição** (ele grava cada registro em uma tabela de staging do warehouse). O pico-alvo é **600 registros por segundo**, e o lado do produtor não é gargalo. Qual é o número mínimo de partições?
+**Q10.** O consumidor de `analytics` processa **25 registros por segundo por partição** (ele grava cada registro em uma tabela de staging do warehouse). O pico-alvo é **600 registros por segundo** e o lado do produtor não é gargalo. Qual é o número mínimo de partições?
 
 - A. 6
 - B. 24
@@ -150,7 +150,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ## Semântica de entrega { #delivery-semantics }
 
-**Q11.** O `notification` faz o commit do offset **depois** de enviar o e-mail. O pod é derrubado durante um deploy logo depois de o e-mail ser enviado e antes do commit. O que acontece, e qual é a correção certa?
+**Q11.** O `notification` faz o commit do offset **depois** de enviar o e-mail. O pod é derrubado durante um deploy logo depois de o e-mail ser enviado e antes do commit. O que acontece e qual é a correção certa?
 
 - A. O e-mail se perde; faça o commit antes de enviar
 - B. O registro é reentregue e o e-mail é enviado de novo; torne o consumidor idempotente (deduplicação por id do evento, chave de idempotência para o provedor)
@@ -160,7 +160,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — duplicata; torne o consumidor idempotente.**
 
-    Fazer o commit depois de processar dá entrega at-least-once: depois do crash, o novo dono da partição continua do último offset confirmado e processa o registro de novo. Fazer o commit antes (A) troca duplicatas por perdas. O produtor idempotente (C) só elimina duplicatas entre produtor e broker, e as transações do Kafka (D) não cobrem um efeito colateral fora do Kafka, como um e-mail.
+    Fazer o commit depois de processar dá entrega at-least-once: depois do crash, o novo dono da partição continua do último offset confirmado e processa o registro de novo. Fazer o commit antes (A) troca duplicatas por perdas. O produtor idempotente (C) só elimina duplicatas entre produtor e broker e as transações do Kafka (D) não cobrem um efeito colateral fora do Kafka, como um e-mail.
 
 ---
 
@@ -174,7 +174,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — linha de deduplicação e mudança de negócio em uma transação.**
 
-    Se o serviço cai antes do commit, nem a linha de deduplicação nem a mudança existem, e a reentrega é processada normalmente; depois do commit, a reentrega bate na chave única e é pulada. A deixa uma janela em que um crash duplica ou perde a mudança; C anula a deduplicação (o id precisa pertencer ao evento, criado uma vez pelo produtor); D se perde no restart e não é compartilhado entre instâncias.
+    Se o serviço cai antes do commit, nem a linha de deduplicação nem a mudança existem e a reentrega é processada normalmente; depois do commit, a reentrega bate na chave única e é pulada. A deixa uma janela em que um crash duplica ou perde a mudança; C anula a deduplicação (o id precisa pertencer ao evento, criado uma vez pelo produtor); D se perde no restart e não é compartilhado entre instâncias.
 
 ---
 
@@ -204,7 +204,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **C — transactional outbox.**
 
-    O problema é uma escrita dupla: dois sistemas, nenhuma transação compartilhada, e um crash entre as escritas perde o evento. Inverter a ordem (A) cria eventos fantasmas; retries (B) não ajudam se o processo morre; o 2PC (D) não é suportado pelo provedor externo e bloqueia os participantes quando o coordenador falha. O outbox torna o evento parte da transação local; o relay o publica, talvez duas vezes, então os consumidores continuam idempotentes.
+    O problema é uma escrita dupla: dois sistemas, nenhuma transação compartilhada e um crash entre as escritas perde o evento. Inverter a ordem (A) cria eventos fantasmas; retries (B) não ajudam se o processo morre; o 2PC (D) não é suportado pelo provedor externo e bloqueia os participantes quando o coordenador falha. O outbox torna o evento parte da transação local; o relay o publica, talvez duas vezes, então os consumidores continuam idempotentes.
 
 ---
 

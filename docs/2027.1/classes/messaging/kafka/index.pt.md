@@ -1,6 +1,6 @@
-Seis meses depois de o BoxOffice adotar pub/sub, chegam três pedidos na mesma semana. O time de dados quer carregar *todos* os eventos de pedido dos últimos sete dias no data warehouse — inclusive eventos publicados antes de o carregador existir. O time de busca lançou um bug que indexou preços errados por duas horas e quer **reler** essas duas horas depois da correção. E o time de fraude quer todos os eventos do mesmo pedido, em ordem, para detectar padrões de "reserva, libera, reserva, libera" feitos por bots. Uma fila não consegue fazer nada disso: depois que uma mensagem é confirmada, ela some, e consumidores concorrentes embaralham a ordem.
+Seis meses depois de o BoxOffice adotar pub/sub, chegam três pedidos na mesma semana. O time de dados quer carregar *todos* os eventos de pedido dos últimos sete dias no data warehouse — inclusive eventos publicados antes de o carregador existir. O time de busca lançou um bug que indexou preços errados por duas horas e quer **reler** essas duas horas depois da correção. E o time de fraude quer todos os eventos do mesmo pedido, em ordem, para detectar padrões de "reserva, libera, reserva, libera" feitos por bots. Uma fila não consegue fazer nada disso: depois que uma mensagem é confirmada, ela some e consumidores concorrentes embaralham a ordem.
 
-Os três pedidos pedem a mesma coisa: guardar as mensagens, em ordem, e deixar cada leitor decidir de onde ler. Isso é um **log**, e o Apache Kafka é o sistema que transformou o log na espinha dorsal das arquiteturas de dados modernas[^1][^2].
+Os três pedidos pedem a mesma coisa: guardar as mensagens, em ordem, e deixar cada leitor decidir de onde ler. Isso é um **log** e o Apache Kafka é o sistema que transformou o log na espinha dorsal das arquiteturas de dados modernas[^1][^2].
 
 ---
 
@@ -22,7 +22,7 @@ flowchart LR
 Essa mudança minúscula — ler não apaga — tem consequências grandes:
 
 - **Qualquer número de leitores independentes.** `notification`, `analytics` e o carregador do warehouse leem os mesmos dados no seu próprio ritmo. Um leitor lento só fica para trás; não atrasa ninguém.
-- **Replay.** Um leitor pode mover seu offset para trás e reler o histórico (a correção do time de busca), e um leitor novo pode começar do início (o carregador do time de dados).
+- **Replay.** Um leitor pode mover seu offset para trás e reler o histórico (a correção do time de busca) e um leitor novo pode começar do início (o carregador do time de dados).
 - **Ordem.** Os registros são lidos na ordem em que foram escritos — dentro de um log.
 - **O log é a fonte da verdade sobre "o que aconteceu".** Bancos de dados, caches e índices de busca podem ser reconstruídos a partir dele — a ideia por trás de change data capture e event sourcing ([Padrões](../patterns/index.md)).
 
@@ -120,10 +120,10 @@ print(buf.getvalue())
 plt.close()
 ```
 
-Com chave `orderId` (à esquerda), cada partição recebe cerca de 1/12 do tráfego. Com chave pelo show (à direita), toda compra do show no estádio cai em **uma partição quente**: um broker e um consumidor fazem a maior parte do trabalho enquanto os outros ficam ociosos, e adicionar consumidores não ajuda. A lição: **escolha a chave com a granularidade mais fina que ainda preserve a ordenação de que o negócio precisa.** Eventos de pedido precisam de ordem por pedido, não de ordem por show.
+Com chave `orderId` (à esquerda), cada partição recebe cerca de 1/12 do tráfego. Com chave pelo show (à direita), toda compra do show no estádio cai em **uma partição quente**: um broker e um consumidor fazem a maior parte do trabalho enquanto os outros ficam ociosos e adicionar consumidores não ajuda. A lição: **escolha a chave com a granularidade mais fina que ainda preserve a ordenação de que o negócio precisa.** Eventos de pedido precisam de ordem por pedido, não de ordem por show.
 
 !!! warning "Mudar o número de partições move as chaves"
-    `hash(key) mod N` muda quando $N$ muda. Se você aumentar `order-events` de 12 para 24 partições, cerca de metade das chaves vai para outra partição, e por um tempo eventos novos de um pedido podem ser lidos antes de eventos antigos que ainda esperam na partição antiga. Dimensione as partições com folga desde o início; se precisar aumentar, faça isso com pouco tráfego, ou crie um tópico novo e migre os consumidores.
+    `hash(key) mod N` muda quando $N$ muda. Se você aumentar `order-events` de 12 para 24 partições, cerca de metade das chaves vai para outra partição e por um tempo eventos novos de um pedido podem ser lidos antes de eventos antigos que ainda esperam na partição antiga. Dimensione as partições com folga desde o início; se precisar aumentar, faça isso com pouco tráfego, ou crie um tópico novo e migre os consumidores.
 
 ---
 
@@ -175,9 +175,9 @@ Regras que decorrem de "uma partição, um consumidor por grupo":
     Os valores iniciais são os do lab 7: `order-events` tem 6 partições e `notification` roda 3 consumidores (`NOTIFY_CONCURRENCY`). Dê play e o lag fica perto de zero. Depois:
 
     - Suba **Consumidores** para 8: 2 deles não recebem partição e ficam ociosos.
-    - Troque a **Chave** para *nenhuma*: OrderPlaced e OrderConfirmed do mesmo pedido caem em partições diferentes, e alguns pedidos são lidos confirmados antes de criados (22 em 200 ticks com 3 consumidores, 107 com 2). De volta a *orderId*: nunca.
+    - Troque a **Chave** para *nenhuma*: OrderPlaced e OrderConfirmed do mesmo pedido caem em partições diferentes e alguns pedidos são lidos confirmados antes de criados (22 em 200 ticks com 3 consumidores, 107 com 2). De volta a *orderId*: nunca.
     - Troque a **Chave** para *show*: o show do estádio `ev-1` cai em P5, que fica para trás (183 registros depois de 200 ticks) enquanto as outras partições ficam perto de zero — e com 6 consumidores ainda são 142 atrás.
-    - **Derrube um consumidor**: o grupo inteiro para durante o rebalance, o lag cresce em *todas* as partições, e então os 2 sobreviventes assumem 3 partições cada e retomam dos offsets confirmados.
+    - **Derrube um consumidor**: o grupo inteiro para durante o rebalance, o lag cresce em *todas* as partições e então os 2 sobreviventes assumem 3 partições cada e retomam dos offsets confirmados.
 
 ### Offsets e consumer lag { #offsets-and-consumer-lag }
 
@@ -253,7 +253,7 @@ Um log não pode crescer para sempre. Cada tópico tem uma **política de limpez
 
 Um tópico **compactado** se comporta como uma tabela que também é um stream: um consumidor novo o lê desde o início e termina com o valor mais recente de cada chave. Apagar uma chave é feito escrevendo um **tombstone** (a chave com valor `null`). O próprio `__consumer_offsets` do Kafka é um tópico compactado.
 
-O **armazenamento em camadas** (*tiered storage*, pronto para produção desde o Kafka 3.9) mantém só os segmentos recentes nos discos dos brokers e move os segmentos antigos para object storage (S3, GCS, Azure Blob). Retenção longa — meses de eventos para replay — fica barata, e os brokers ficam mais leves de substituir.
+O **armazenamento em camadas** (*tiered storage*, pronto para produção desde o Kafka 3.9) mantém só os segmentos recentes nos discos dos brokers e move os segmentos antigos para object storage (S3, GCS, Azure Blob). Retenção longa — meses de eventos para replay — fica barata e os brokers ficam mais leves de substituir.
 
 ---
 
@@ -264,10 +264,10 @@ Um broker Kafka movimenta com frequência centenas de megabytes por segundo em h
 - **I/O sequencial.** As escritas vão para o fim de um arquivo de segmento; as leituras de consumidores em dia vêm da mesma região recente. Acesso sequencial a disco é ordens de grandeza mais rápido que acesso aleatório (veja [Números](../../estimation/numbers/index.md)).
 - **O page cache do sistema operacional.** O Kafka não mantém um cache próprio; ele deixa o sistema operacional guardar em memória os segmentos recentes, então consumidores em dia leem da RAM.
 - **Zero-copy.** Para servir um consumidor, o broker pede ao kernel que envie os bytes do arquivo direto para o socket (`sendfile`), sem copiá-los pela aplicação.
-- **Lotes e compressão.** Os produtores agrupam registros em lotes por partição (`linger.ms`, `batch.size`) e comprimem lotes inteiros (`zstd`, `lz4`). Menos requisições, e maiores; menos bytes em disco e na rede.
+- **Lotes e compressão.** Os produtores agrupam registros em lotes por partição (`linger.ms`, `batch.size`) e comprimem lotes inteiros (`zstd`, `lz4`). Menos requisições e maiores; menos bytes em disco e na rede.
 - **Particionamento.** A carga se espalha por muitos brokers e muitos consumidores.
 
-O custo é latência: os lotes adicionam alguns milissegundos (`linger.ms`), e `acks=all` adiciona uma ida e volta de replicação. A latência típica de ponta a ponta fica entre alguns e dezenas de milissegundos — ótimo para eventos, mas não substitui uma chamada RPC em memória.
+O custo é latência: os lotes adicionam alguns milissegundos (`linger.ms`) e `acks=all` adiciona uma ida e volta de replicação. A latência típica de ponta a ponta fica entre alguns e dezenas de milissegundos — ótimo para eventos, mas não substitui uma chamada RPC em memória.
 
 ---
 
@@ -343,7 +343,7 @@ E os serviços Spring Boot configuram seus clientes de acordo:
 
 !!! example "No código do BoxOffice: o Kafka no Compose (lab 7)"
 
-    O [Hands-on 7 — Kafka no Compose](../../../hands-on/7/kafka/index.md) roda **um** nó que é broker e controller KRaft ao mesmo tempo, com a criação automática desligada e os dois tópicos criados por um contêiner de execução única: `order-events` e `order-events-dlt` com **6 partições** e **fator de replicação 1**. Um laptop não comporta três brokers em três zonas, então este é o ponto em que o lab *não* é produção: `acks: all` no `order` espera "todas as réplicas em sincronia", e com RF = 1 isso é uma réplica — exatamente a armadilha descrita em [Replicação e durabilidade](#replication-and-durability). As 6 partições limitam o lado do consumidor: o `notification` roda 3 threads (`NOTIFY_CONCURRENCY`), e mais de 6 ficariam ociosas. O [experimento de pico e escoamento](../../../hands-on/7/measure/index.md) do lab aplica a aritmética desta página: uma thread a 50 ms por e-mail trata 20/s, então 100 pedidos/s por 60 s deixam cerca de 4.800 mensagens de lag, que levam cerca de 240 s para escoar; seis threads mantêm o lag perto de zero.
+    O [Hands-on 7 — Kafka no Compose](../../../hands-on/7/kafka/index.md) roda **um** nó que é broker e controller KRaft ao mesmo tempo, com a criação automática desligada e os dois tópicos criados por um contêiner de execução única: `order-events` e `order-events-dlt` com **6 partições** e **fator de replicação 1**. Um laptop não comporta três brokers em três zonas, então este é o ponto em que o lab *não* é produção: `acks: all` no `order` espera "todas as réplicas em sincronia" e com RF = 1 isso é uma réplica — exatamente a armadilha descrita em [Replicação e durabilidade](#replication-and-durability). As 6 partições limitam o lado do consumidor: o `notification` roda 3 threads (`NOTIFY_CONCURRENCY`) e mais de 6 ficariam ociosas. O [experimento de pico e escoamento](../../../hands-on/7/measure/index.md) do lab aplica a aritmética desta página: uma thread a 50 ms por e-mail trata 20/s, então 100 pedidos/s por 60 s deixam cerca de 4.800 mensagens de lag, que levam cerca de 240 s para escoar; seis threads mantêm o lag perto de zero.
 
     ``` { .yaml title="docker-compose.yaml (one KRaft node, topics created explicitly)" }
     --8<-- "docs/2027.1/hands-on/7/code/docker-compose.yaml:216:234,242:254"
@@ -378,7 +378,7 @@ O Redpanda e o Azure Event Hubs expõem o **protocolo do Kafka**, então cliente
 !!! warning "Armadilhas comuns"
 
     - **Uma chave de baixa cardinalidade** (país, show, `true`/`false`) cria partições quentes que nenhuma quantidade de consumidores resolve.
-    - **Poucas partições**: o grupo não escala além delas, e adicionar partições depois remapeia as chaves.
+    - **Poucas partições**: o grupo não escala além delas e adicionar partições depois remapeia as chaves.
     - **`acks=1` ou `min.insync.replicas=1`** para eventos de negócio: "confirmado" não significa "seguro".
     - **Processar uma partição com um pool de threads** sem separar o trabalho por chave: a ordem se perde em silêncio.
     - **Processamento lento dentro do loop de poll** além de `max.poll.interval.ms`: o consumidor é expulso, o grupo faz rebalance, outro consumidor recebe os mesmos registros — uma tempestade de rebalances com duplicatas.

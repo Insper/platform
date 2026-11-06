@@ -65,7 +65,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 **Q6.** Para que serve o endpoint JWKS?
 
 ??? success "Resposta"
-    **Ele publica as chaves públicas de assinatura do Authorization Server**, para que os Resource Servers e o Gateway validem as assinaturas de JWT localmente, sem chamar o servidor de autenticação a cada requisição. Cada chave tem um `kid`, e o header de cada JWT indica o `kid` que o assinou. A rotação de chaves é feita atualizando o JWKS — os serviços buscam o JWKS de novo diante de um `kid` desconhecido, então sempre usam as chaves atuais sem um novo deploy.
+    **Ele publica as chaves públicas de assinatura do Authorization Server**, para que os Resource Servers e o Gateway validem as assinaturas de JWT localmente, sem chamar o servidor de autenticação a cada requisição. Cada chave tem um `kid` e o header de cada JWT indica o `kid` que o assinou. A rotação de chaves é feita atualizando o JWKS — os serviços buscam o JWKS de novo diante de um `kid` desconhecido, então sempre usam as chaves atuais sem um novo deploy.
 
 ---
 
@@ -130,7 +130,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 **Q13.** Por que os Secrets do Kubernetes NÃO são considerados seguros por padrão?
 
 ??? success "Resposta"
-    **Os Secrets são armazenados como strings codificadas em base64 no etcd, e base64 não é criptografia — pode ser decodificado trivialmente** (`echo c3RvcmU= | base64 -d` imprime `store`). Sem criptografia em repouso no etcd e sem RBAC rigoroso sobre os Secrets, qualquer principal com permissão para ler Secrets — ou para criar um pod que os monte — consegue lê-los em texto puro. Sistemas em produção habilitam a criptografia em repouso, mantêm os manifestos de segredos fora do Git e frequentemente usam um gerenciador de segredos externo, como o HashiCorp Vault ou o AWS Secrets Manager.
+    **Os Secrets são armazenados como strings codificadas em base64 no etcd e base64 não é criptografia — pode ser decodificado trivialmente** (`echo c3RvcmU= | base64 -d` imprime `store`). Sem criptografia em repouso no etcd e sem RBAC rigoroso sobre os Secrets, qualquer principal com permissão para ler Secrets — ou para criar um pod que os monte — consegue lê-los em texto puro. Sistemas em produção habilitam a criptografia em repouso, mantêm os manifestos de segredos fora do Git e frequentemente usam um gerenciador de segredos externo, como o HashiCorp Vault ou o AWS Secrets Manager.
 
 ---
 

@@ -4,7 +4,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ## Números e estimativas { #numbers-and-estimation }
 
-**Q1.** A BoxOffice tem 2 M de fãs ativos por dia, cada um vendo cerca de 20 páginas por dia. Qual é a taxa **média** de leituras, e para o que você deve dimensionar?
+**Q1.** A BoxOffice tem 2 M de fãs ativos por dia, cada um vendo cerca de 20 páginas por dia. Qual é a taxa **média** de leituras e para o que você deve dimensionar?
 
 - A. ~40 leituras/s; dimensionar para a média
 - B. ~400 leituras/s em média; dimensionar para a hora de pico, ~2–3× maior (~1.000–1.200 leituras/s)
@@ -14,7 +14,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — ~400 leituras/s em média, dimensionando para o pico.**
 
-    2 × 10⁶ × 20 = 4 × 10⁷ leituras/dia; um dia ≈ 10⁵ s, então ≈ 400 leituras/s (463 com os 86.400 exatos). O tráfego não é plano: a hora mais movimentada costuma ser 2–3× a média, e é isso que a capacidade precisa aguentar. Os picos das aberturas de vendas são estimados separadamente.
+    2 × 10⁶ × 20 = 4 × 10⁷ leituras/dia; um dia ≈ 10⁵ s, então ≈ 400 leituras/s (463 com os 86.400 exatos). O tráfego não é plano: a hora mais movimentada costuma ser 2–3× a média e é isso que a capacidade precisa aguentar. Os picos das aberturas de vendas são estimados separadamente.
 
 ---
 
@@ -32,7 +32,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q3.** Um handler de página faz 40 chamadas **sequenciais** ao Redis na mesma zona de disponibilidade, cada uma quase sem trabalho no servidor. Aproximadamente quanto tempo o handler gasta nessas chamadas, e qual é a correção?
+**Q3.** Um handler de página faz 40 chamadas **sequenciais** ao Redis na mesma zona de disponibilidade, cada uma quase sem trabalho no servidor. Aproximadamente quanto tempo o handler gasta nessas chamadas e qual é a correção?
 
 - A. ~40 µs; nada a corrigir
 - B. ~4–20 ms, dominados pelas idas e voltas de rede; agrupe as chamadas (`MGET`, pipelining) ou use cache no próprio processo
@@ -46,7 +46,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q4.** A BoxOffice emite 200 mil PDFs de ingressos por dia, com ~100 KB cada, e quer guardá-los por 5 anos. Aproximadamente quanto armazenamento é isso, e onde ele deve ficar?
+**Q4.** A BoxOffice emite 200 mil PDFs de ingressos por dia, com ~100 KB cada, e quer guardá-los por 5 anos. Aproximadamente quanto armazenamento é isso e onde ele deve ficar?
 
 - A. ~36 GB, na tabela de pedidos
 - B. ~3,6 TB, no Redis
@@ -60,7 +60,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q5.** As páginas de eventos carregam ~1 MB de imagens, e o pico é de 1.200 visualizações de página por segundo. De quanta banda a origem precisa sem uma CDN?
+**Q5.** As páginas de eventos carregam ~1 MB de imagens e o pico é de 1.200 visualizações de página por segundo. De quanta banda a origem precisa sem uma CDN?
 
 - A. ~1,2 Mbit/s
 - B. ~120 Mbit/s
@@ -100,7 +100,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **C — W = L / λ = 2.000.000 / 1.000 = 2.000 s ≈ 33 min.**
 
-    Na prática, os 60 mil lugares acabam muito antes, e a sala de espera deveria avisar o resto da fila que o show esgotou em vez de fazê-los esperar.
+    Na prática, os 60 mil lugares acabam muito antes e a sala de espera deveria avisar o resto da fila que o show esgotou em vez de fazê-los esperar.
 
 ---
 
@@ -190,7 +190,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q14.** O checkout chama de forma síncrona cinco componentes, cada um 99,9% disponível, com falhas independentes. Qual é a melhor estimativa da disponibilidade do checkout, e a melhor primeira melhoria?
+**Q14.** O checkout chama de forma síncrona cinco componentes, cada um 99,9% disponível, com falhas independentes. Qual é a melhor estimativa da disponibilidade do checkout e a melhor primeira melhoria?
 
 - A. 99,9%; nada a melhorar
 - B. ~99,5%; tirar do caminho crítico qualquer componente pelo qual o usuário não precisa esperar (por exemplo, enviar o e-mail de forma assíncrona)

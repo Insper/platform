@@ -1,5 +1,5 @@
 
-Imagine a loja como uma única aplicação Spring Boot: login, catálogo, pedidos e pagamentos em um só código-fonte, um só banco de dados, um só `.jar` para implantar. Na Black Friday, apenas o checkout fica sobrecarregado, mas a única forma de escalá-lo é rodar mais cópias de *tudo*. Um bug na página do catálogo derruba o login junto. Três times agora compartilham o código, e cada release exige que todos concordem com o mesmo dia. Não há nada de errado com o código — o **formato** do sistema é que não se encaixa mais na organização.
+Imagine a loja como uma única aplicação Spring Boot: login, catálogo, pedidos e pagamentos em um só código-fonte, um só banco de dados, um só `.jar` para implantar. Na Black Friday, apenas o checkout fica sobrecarregado, mas a única forma de escalá-lo é rodar mais cópias de *tudo*. Um bug na página do catálogo derruba o login junto. Três times agora compartilham o código e cada release exige que todos concordem com o mesmo dia. Não há nada de errado com o código — o **formato** do sistema é que não se encaixa mais na organização.
 
 O estilo de microsserviços é uma resposta a esse problema específico: à medida que times e bases de código crescem, um único monólito fica cada vez mais caro de mudar — modificar um módulo exige entender e testar o sistema inteiro, e um deploy exige coordenação com a organização toda.
 
@@ -11,7 +11,7 @@ O estilo de microsserviços é uma resposta a esse problema específico: à medi
 
     - **Comparar** um monólito, um monólito modular e microsserviços, e **justificar** quando a divisão compensa o seu custo.
     - **Explicar** a Lei de Conway e os princípios centrais de microsserviços (capacidade única, independência, isolamento de dados).
-    - **Escolher** entre comunicação síncrona e assíncrona para uma interação, e **estimar** o custo de disponibilidade de uma cadeia síncrona.
+    - **Escolher** entre comunicação síncrona e assíncrona para uma interação e **estimar** o custo de disponibilidade de uma cadeia síncrona.
     - **Aplicar** o Domain-Driven Design (bounded contexts, agregados, mapas de contexto) para encontrar as fronteiras dos serviços.
     - **Descrever** os componentes de infraestrutura de uma plataforma de microsserviços e acompanhar uma requisição pela arquitetura do curso.
 
@@ -70,12 +70,12 @@ Nenhum dos dois estilos é universalmente melhor. A escolha certa depende do tam
 | **Consistência dos dados** | Transações ACID | Consistência eventual entre serviços |
 | **Perfil de time** | Time pequeno, no mesmo lugar | Vários times, cada um dono de um serviço |
 
-Dois termos da tabela merecem uma definição. Uma **transação ACID** (Atomicidade, Consistência, Isolamento, Durabilidade) permite que o monólito altere pedidos e estoque em uma única operação de banco de dados, que acontece por inteiro ou não acontece. Entre serviços não existe transação compartilhada: cada serviço grava os seus próprios dados, e o sistema fica consistente um instante depois — **consistência eventual** (veja [Teorema CAP](../distributed_systems/cap/index.md)).
+Dois termos da tabela merecem uma definição. Uma **transação ACID** (Atomicidade, Consistência, Isolamento, Durabilidade) permite que o monólito altere pedidos e estoque em uma única operação de banco de dados, que acontece por inteiro ou não acontece. Entre serviços não existe transação compartilhada: cada serviço grava os seus próprios dados e o sistema fica consistente um instante depois — **consistência eventual** (veja [Teorema CAP](../distributed_systems/cap/index.md)).
 
 !!! tip "Comece com um monólito"
     A maioria dos sistemas de microsserviços bem-sucedidos começou como monólito. Identifique fronteiras de domínio estáveis (usando Domain-Driven Design) antes de dividir. A decomposição prematura cria um *monólito distribuído* — toda a complexidade dos microsserviços, sem nenhum dos benefícios de independência.
 
-**O meio-termo: um monólito modular.** Uma única unidade implantável, mas dividida internamente em módulos com interfaces explícitas e sem tabelas compartilhadas — cada módulo poderia virar um serviço depois. Isso dá ao time prática com fronteiras antes de pagar o preço da rede, e muitas vezes é a resposta certa para um time pequeno.
+**O meio-termo: um monólito modular.** Uma única unidade implantável, mas dividida internamente em módulos com interfaces explícitas e sem tabelas compartilhadas — cada módulo poderia virar um serviço depois. Isso dá ao time prática com fronteiras antes de pagar o preço da rede e muitas vezes é a resposta certa para um time pequeno.
 
 !!! warning "Sintomas de um monólito distribuído"
     - Os serviços precisam ser **implantados juntos** ("release train"), porque uma mudança em um quebra os outros.
@@ -141,7 +141,7 @@ print(buf.getvalue())
 plt.close()
 ```
 
-A lei também funciona ao contrário, e é assim que as organizações a usam de propósito: a **manobra inversa de Conway** (*inverse Conway maneuver*) organiza os times primeiro (um time por capacidade de negócio) para que a arquitetura venha em seguida.
+A lei também funciona ao contrário e é assim que as organizações a usam de propósito: a **manobra inversa de Conway** (*inverse Conway maneuver*) organiza os times primeiro (um time por capacidade de negócio) para que a arquitetura venha em seguida.
 
 ---
 
@@ -179,7 +179,7 @@ Observe a *governança descentralizada* em ação: os serviços de câmbio e de 
 
 ### Ser dono dos dados
 
-**Banco de dados por serviço** (*database-per-service*) significa que nenhum serviço lê ou escreve nas tabelas de outro serviço. Isso não exige um *servidor* de banco de dados por serviço. No hands-on, um único container Postgres hospeda vários **esquemas**, e cada serviço é o único que mexe no seu (o serviço de contas define `hibernate.default_schema: accounts` e roda as próprias migrações Flyway):
+**Banco de dados por serviço** (*database-per-service*) significa que nenhum serviço lê ou escreve nas tabelas de outro serviço. Isso não exige um *servidor* de banco de dados por serviço. No hands-on, um único container Postgres hospeda vários **esquemas** e cada serviço é o único que mexe no seu (o serviço de contas define `hibernate.default_schema: accounts` e roda as próprias migrações Flyway):
 
 ``` mermaid-sim
 flowchart LR
@@ -250,7 +250,7 @@ Os serviços de um sistema de microsserviços se comunicam de duas formas fundam
 Na loja, o serviço de pedidos chama o serviço de produtos de forma **síncrona** (ele precisa do preço para calcular o total antes de responder) e publica um evento `OrderCreated` no Kafka de forma **assíncrona**, para que o serviço de notificação envie o e-mail sem deixar o cliente esperando ([Hands-on 10](../../hands-on/10/index.md)).
 
 !!! warning "Cadeias síncronas multiplicam as falhas"
-    Se uma requisição precisa passar por três serviços, e cada um fica disponível 99,9% do tempo, a cadeia fica disponível apenas 0,999 × 0,999 × 0,999 ≈ **99,7%** do tempo — de cerca de 8,8 horas de indisponibilidade por ano para cerca de 26 horas. Cada salto síncrono a mais reduz a disponibilidade e adiciona latência. Mantenha as cadeias curtas, use timeouts e circuit breakers ([Padrões de resiliência](../reliability/patterns/index.md)) e mova para eventos o trabalho que não precisa de resposta imediata ([Arquitetura orientada a eventos](../event_driven/index.md)).
+    Se uma requisição precisa passar por três serviços e cada um fica disponível 99,9% do tempo, a cadeia fica disponível apenas 0,999 × 0,999 × 0,999 ≈ **99,7%** do tempo — de cerca de 8,8 horas de indisponibilidade por ano para cerca de 26 horas. Cada salto síncrono a mais reduz a disponibilidade e adiciona latência. Mantenha as cadeias curtas, use timeouts e circuit breakers ([Padrões de resiliência](../reliability/patterns/index.md)) e mova para eventos o trabalho que não precisa de resposta imediata ([Arquitetura orientada a eventos](../event_driven/index.md)).
 
 ---
 

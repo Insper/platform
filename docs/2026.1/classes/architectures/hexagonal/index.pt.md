@@ -28,7 +28,7 @@ flowchart LR
 
 ## Ports
 
-Um **port** é uma interface pura — um contrato definido *pelo* núcleo da aplicação, e não pela tecnologia externa. Há dois tipos:
+Um **port** é uma interface pura — um contrato definido *pelo* núcleo da aplicação e não pela tecnologia externa. Há dois tipos:
 
 | Tipo | Direção | Definido por | Implementado por | Exemplo |
 |---|---|---|---|---|
@@ -257,13 +257,13 @@ com.example.auth/
 ## Erros comuns
 
 !!! warning "Ports definidos pelo adapter"
-    Se a interface `AccountRepository` espelha os nomes de métodos do `JpaRepository` do Spring Data, ela está sendo moldada pelo JPA, e não pelas necessidades da aplicação. Defina os ports em termos de conceitos do domínio, não de conceitos de persistência.
+    Se a interface `AccountRepository` espelha os nomes de métodos do `JpaRepository` do Spring Data, ela está sendo moldada pelo JPA e não pelas necessidades da aplicação. Defina os ports em termos de conceitos do domínio, não de conceitos de persistência.
 
 !!! warning "O núcleo importando o adapter"
     Qualquer `import com.example.adapter.*` dentro do pacote de domínio ou de aplicação é uma violação imediata. A injeção de dependência (Spring, CDI) deve resolver o adapter em tempo de execução, não em tempo de compilação.
 
 !!! warning "Ports demais"
-    Um port por caso de uso leva a uma explosão de interfaces. Agrupe as operações relacionadas — `AccountRepository` é um único port, e não ports separados para `findByEmail`, `save` e `delete`.
+    Um port por caso de uso leva a uma explosão de interfaces. Agrupe as operações relacionadas — `AccountRepository` é um único port e não ports separados para `findByEmail`, `save` e `delete`.
 
 ---
 

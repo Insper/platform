@@ -182,7 +182,7 @@ evento</strong>. Ao contrário, você anuncia um pedido que <strong>não existe<
 </code></pre>
 <ul>
 <li>Uma reserva → no máximo um pedido: <code>hold_id</code> é <code>UNIQUE</code>.</li>
-<li>Um clique duplo ou uma retentativa do gateway recebe <strong>o mesmo pedido</strong> (<code>200</code>), e <strong>nenhum segundo evento</strong>.</li>
+<li>Um clique duplo ou uma retentativa do gateway recebe <strong>o mesmo pedido</strong> (<code>200</code>) e <strong>nenhum segundo evento</strong>.</li>
 </ul>
 <div class="ok">
 <p>Idempotência é uma decisão de projeto em <strong>cada</strong> salto: API, relay, consumidor.</p>

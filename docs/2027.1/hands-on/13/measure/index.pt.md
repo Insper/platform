@@ -1,4 +1,4 @@
-Todo lab deste curso termina com uma medição, e esta importa mais do que a maioria: ferramentas de IA são adotadas por **sensação**. Num ensaio clínico randomizado de 2025 feito pela METR, desenvolvedores experientes de código aberto usando ferramentas de IA levaram cerca de **19% mais tempo** para concluir as tarefas — enquanto acreditavam ter sido cerca de **20% mais rápidos**[^1]. Um estudo não encerra a questão para o seu time, mas encerra uma coisa: **você precisa medir**. Esta parte mede o revisor da parte 1 (e as outras etapas) ao longo de uma semana de pull requests reais.
+Todo lab deste curso termina com uma medição e esta importa mais do que a maioria: ferramentas de IA são adotadas por **sensação**. Num ensaio clínico randomizado de 2025 feito pela METR, desenvolvedores experientes de código aberto usando ferramentas de IA levaram cerca de **19% mais tempo** para concluir as tarefas — enquanto acreditavam ter sido cerca de **20% mais rápidos**[^1]. Um estudo não encerra a questão para o seu time, mas encerra uma coisa: **você precisa medir**. Esta parte mede o revisor da parte 1 (e as outras etapas) ao longo de uma semana de pull requests reais.
 
 ## 7.1 O que medir { #71-what-to-measure }
 
@@ -46,7 +46,7 @@ Você deve ver uma linha por PR do período e os totais. O formato, de uma execu
 - Median time to merge: 0.0 h (2 merged)
 ```
 
-Com o modelo gratuito, `US$` fica em 0 — o seu custo está na coluna `CI min`. Rode-o no fim da semana, e uma vez no meio para conferir que os comentários estão sendo avaliados.
+Com o modelo gratuito, `US$` fica em 0 — o seu custo está na coluna `CI min`. Rode-o no fim da semana e uma vez no meio para conferir que os comentários estão sendo avaliados.
 
 ## 7.3 A semana { #73-the-week }
 

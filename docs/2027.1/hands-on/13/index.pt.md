@@ -134,7 +134,7 @@ Todos os scripts ficam em `.github/ai/` do seu repositório e importam um único
         bash .github/ai/ollama-model.sh
         ```
 
-        Ele baixa o `qwen2.5-coder:7b` (4,7 GB, uma vez) e cria o `qwen2.5-coder-16k`, o mesmo modelo com uma **janela de contexto de 16.384 tokens**. A janela padrão do Ollama é de 4.096 tokens, e um prompt maior é cortado **em silêncio** — o revisor perderia as instruções num diff grande. No final, você deve ver:
+        Ele baixa o `qwen2.5-coder:7b` (4,7 GB, uma vez) e cria o `qwen2.5-coder-16k`, o mesmo modelo com uma **janela de contexto de 16.384 tokens**. A janela padrão do Ollama é de 4.096 tokens e um prompt maior é cortado **em silêncio** — o revisor perderia as instruções num diff grande. No final, você deve ver:
 
         ```text
         success
@@ -173,7 +173,7 @@ Todos os scripts ficam em `.github/ai/` do seu repositório e importam um único
 |---|---|
 | Ollama na sua máquina | gratuito (energia, ~5 GB de disco) |
 | Minutos do GitHub Actions | **gratuitos em repositórios públicos**; num repositório privado contam na cota mensal do seu plano ([cobrança do GitHub](https://docs.github.com/en/billing/concepts/product-billing/github-actions){target="_blank"}) — o caminho do Ollama usa vários minutos de runner por job de IA |
-| API do Claude (`LLM_PROVIDER=anthropic`, e o caminho A da parte 3) | **paga** por token; proteja-a com um limite de gasto no workspace. Cada job imprime o seu custo em US$ |
+| API do Claude (`LLM_PROVIDER=anthropic` e o caminho A da parte 3) | **paga** por token; proteja-a com um limite de gasto no workspace. Cada job imprime o seu custo em US$ |
 | Um proxy LiteLLM na internet | o que o provedor por trás dele cobrar |
 
 !!! warning "Política do curso para este lab"
@@ -319,7 +319,7 @@ Se você usou o Claude, **revogue a chave de API** no Claude Console (ou mantenh
 ## Entrega { #deliverable }
 
 - [ ] `.github/ai/` com `llm.py`, `diffutil.py`, `review.py`, `gen_tests.py`, `fix_agent.py`, `release_notes.py`, `canary_explain.py`, `eval_review.py`, `metrics.py`, `ollama-model.sh`, `requirements.txt`, o golden set em `evals/` e os snapshots em `canary/`.
-- [ ] `CONVENTIONS.md` com pelo menos cinco regras específicas do **seu** BoxOffice, e pelo menos um ADR em `docs/adr/`.
+- [ ] `CONVENTIONS.md` com pelo menos cinco regras específicas do **seu** BoxOffice e pelo menos um ADR em `docs/adr/`.
 - [ ] Os workflows `ai-review.yaml`, `ai-tests.yaml`, `ai-fix.yaml`, `ai-release-notes.yaml` e `ai-eval.yaml`, cada um com um bloco `permissions:` explícito, passando no `actionlint` (parte 6).
 - [ ] Um PR em que o revisor postou comentários inline, com a tabela de custo no resumo do job.
 - [ ] Um PR em rascunho aberto pelo gerador de testes com um **score de mutação maior**, ou o resumo do job explicando por que os testes foram rejeitados.

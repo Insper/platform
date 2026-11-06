@@ -35,7 +35,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação. Tente
 
 ## Teorema CAP
 
-**Q3.** O que significa o **P** do CAP, e por que ele é inegociável em qualquer sistema distribuído real?
+**Q3.** O que significa o **P** do CAP e por que ele é inegociável em qualquer sistema distribuído real?
 
 - A. Performance (desempenho) — sistemas lentos são considerados indisponíveis
 - B. Persistence (persistência) — os dados precisam sobreviver a reinícios dos nós
@@ -101,7 +101,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação. Tente
 ??? success "Resposta"
     **C — Armazenamento CP.**
 
-    Em transações financeiras, a correção é inegociável. Um armazenamento CP se recusa a processar o pagamento durante a partição (o cliente recebe um erro, e não uma cobrança em dobro). Um armazenamento AP poderia processar o pagamento em dois nós simultaneamente antes de a partição se resolver, criando uma transação duplicada que não pode ser desfeita com segurança. O last-write-wins (D) descartaria silenciosamente uma das escritas conflitantes, e depende de relógios que derivam.
+    Em transações financeiras, a correção é inegociável. Um armazenamento CP se recusa a processar o pagamento durante a partição (o cliente recebe um erro e não uma cobrança em dobro). Um armazenamento AP poderia processar o pagamento em dois nós simultaneamente antes de a partição se resolver, criando uma transação duplicada que não pode ser desfeita com segurança. O last-write-wins (D) descartaria silenciosamente uma das escritas conflitantes e depende de relógios que derivam.
 
 ---
 
@@ -115,7 +115,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação. Tente
 ??? success "Resposta"
     **C — Uma única máquina ou uma rede local rigidamente controlada.**
 
-    CA só funciona quando partições realmente não podem ocorrer — o que só é realista para um único servidor ou para uma rede local sob controle rigoroso. Em qualquer implantação conectada à internet ou geograficamente distribuída, P é, na prática, obrigatório, e a escolha real fica entre C e A.
+    CA só funciona quando partições realmente não podem ocorrer — o que só é realista para um único servidor ou para uma rede local sob controle rigoroso. Em qualquer implantação conectada à internet ou geograficamente distribuída, P é, na prática, obrigatório e a escolha real fica entre C e A.
 
 ---
 
@@ -187,7 +187,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação. Tente
 ??? success "Resposta"
     **D — W + R > N.**
 
-    Se o quórum de escrita W somado ao quórum de leitura R ultrapassa o total de réplicas N, pelo menos um nó que confirmou a escrita precisa participar de qualquer quórum de leitura. Essa sobreposição garante que a escrita mais recente esteja sempre visível em uma leitura por quórum, e é a base de sistemas como o Dynamo e da consistência ajustável do Cassandra (por exemplo, leituras e escritas `QUORUM` com N = 3: 2 + 2 > 3).
+    Se o quórum de escrita W somado ao quórum de leitura R ultrapassa o total de réplicas N, pelo menos um nó que confirmou a escrita precisa participar de qualquer quórum de leitura. Essa sobreposição garante que a escrita mais recente esteja sempre visível em uma leitura por quórum e é a base de sistemas como o Dynamo e da consistência ajustável do Cassandra (por exemplo, leituras e escritas `QUORUM` com N = 3: 2 + 2 > 3).
 
 ---
 
@@ -201,4 +201,4 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação. Tente
 ??? success "Resposta"
     **B — 7.**
 
-    O merge do G-Counter toma o **máximo elemento a elemento** das posições: `[max(4,2), max(1,3), max(0,0)]` = `[4, 3, 0]`, cuja soma é 7. Como cada nó só incrementa a sua própria posição, o máximo de uma posição é o seu valor mais recente; somar os dois totais (C) contaria em dobro, e o merge é comutativo e idempotente, então a ordem dos merges não importa (D é falsa).
+    O merge do G-Counter toma o **máximo elemento a elemento** das posições: `[max(4,2), max(1,3), max(0,0)]` = `[4, 3, 0]`, cuja soma é 7. Como cada nó só incrementa a sua própria posição, o máximo de uma posição é o seu valor mais recente; somar os dois totais (C) contaria em dobro e o merge é comutativo e idempotente, então a ordem dos merges não importa (D é falsa).

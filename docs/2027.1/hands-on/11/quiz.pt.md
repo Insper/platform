@@ -14,11 +14,11 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — teste contra a dependência real.**
 
-    Um substituto em memória aceita SQL que o PostgreSQL rejeita (e vice-versa), ignora recursos específicos do PostgreSQL como `ON CONFLICT` ou índices parciais, e nunca roda as migrações reais. O Testcontainers sobe a imagem real no Docker durante o teste; o preço é de alguns segundos por classe de teste.
+    Um substituto em memória aceita SQL que o PostgreSQL rejeita (e vice-versa), ignora recursos específicos do PostgreSQL como `ON CONFLICT` ou índices parciais e nunca roda as migrações reais. O Testcontainers sobe a imagem real no Docker durante o teste; o preço é de alguns segundos por classe de teste.
 
 ---
 
-**Q2.** O workflow tem `permissions: contents: read` no topo, e o job `image` acrescenta `packages: write`, `id-token: write`, `attestations: write` e `security-events: write`. Por que não dar `write-all` ao workflow inteiro?
+**Q2.** O workflow tem `permissions: contents: read` no topo e o job `image` acrescenta `packages: write`, `id-token: write`, `attestations: write` e `security-events: write`. Por que não dar `write-all` ao workflow inteiro?
 
 - A. `write-all` não é YAML válido
 - B. Privilégio mínimo: um step comprometido (por exemplo, uma dependência maliciosa num teste) só pode fazer o que o token do seu job permite; os jobs de teste não conseguem fazer push de imagens nem reescrever o repositório
@@ -28,7 +28,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — limite o raio de impacto de cada job.**
 
-    O `GITHUB_TOKEN` é injetado em todo job. Jobs que rodam código de terceiros (plugins do Maven, dependências de teste) recebem acesso só de leitura; só o job que precisa publicar recebe as permissões para isso, e só enquanto dura.
+    O `GITHUB_TOKEN` é injetado em todo job. Jobs que rodam código de terceiros (plugins do Maven, dependências de teste) recebem acesso só de leitura; só o job que precisa publicar recebe as permissões para isso e só enquanto dura.
 
 ---
 
@@ -65,7 +65,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 **Q5.** Por que o portão do Trivy só falha em vulnerabilidades `CRITICAL` **com correção** (`ignore-unfixed`), enquanto o relatório completo lista tudo?
 
 - A. O Trivy não consegue detectar vulnerabilidades sem correção
-- B. Um portão precisa ser acionável: bloquear toda mudança por vulnerabilidades que ninguém consegue corrigir hoje deixa o portão permanentemente vermelho, e os times aprendem a contorná-lo; o relatório mantém o resto visível para priorização
+- B. Um portão precisa ser acionável: bloquear toda mudança por vulnerabilidades que ninguém consegue corrigir hoje deixa o portão permanentemente vermelho e os times aprendem a contorná-lo; o relatório mantém o resto visível para priorização
 - C. Vulnerabilidades HIGH nunca são exploráveis
 - D. O GitHub limita os envios de SARIF a achados críticos
 
@@ -84,7 +84,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 - D. Que a imagem foi escaneada pelo Trivy
 
 ??? success "Resposta"
-    **B — quem a construiu, a partir de quê, e que ela não foi adulterada.**
+    **B — quem a construiu, a partir de quê e que ela não foi adulterada.**
 
     A atestação é uma declaração assinada (Sigstore, sem chaves, usando a identidade OIDC do job) ligada ao digest da imagem. Uma política de admissão do cluster pode recusar imagens sem proveniência válida do seu repositório — o "S" de SLSA.
 
@@ -106,7 +106,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q8.** O orçamento é p95 < 300 ms, e a execução normal mede p95 ≈ 7 ms. Um threshold tão folgado não é inútil?
+**Q8.** O orçamento é p95 < 300 ms e a execução normal mede p95 ≈ 7 ms. Um threshold tão folgado não é inútil?
 
 - A. Sim, deveria ser 8 ms
 - B. Não: runners compartilhados de CI são ruidosos, então um threshold apertado falharia aleatoriamente; o portão está lá para pegar regressões grandes (o sleep proposital de 400 ms, uma query N+1), enquanto a tendência dos números ao longo de muitas execuções revela as pequenas

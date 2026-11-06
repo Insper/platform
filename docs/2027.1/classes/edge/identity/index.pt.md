@@ -1,5 +1,5 @@
 
-O BoxOffice lança o seu app mobile. Alguém propõe o projeto óbvio: uma tela de login no app, o app envia e-mail e senha para `POST /login`, guarda a senha no celular "para o usuário não precisar digitar de novo" e a envia em toda requisição. Em uma semana, o time de produto também quer **"Entrar com Google"**, um **checkout web**, um **job noturno de conciliação** em `order` que chama `inventory` sem nenhum usuário por trás, e um **assistente de IA** que age em nome do usuário. Um login caseiro não consegue expressar nada disso com segurança. Esta página trata dos padrões que conseguem: **sessões e tokens**, **JWT**, **OAuth 2.1** e **OpenID Connect**, e dos modelos de autorização que decidem *o que* um chamador autenticado pode fazer.
+O BoxOffice lança o seu app mobile. Alguém propõe o projeto óbvio: uma tela de login no app, o app envia e-mail e senha para `POST /login`, guarda a senha no celular "para o usuário não precisar digitar de novo" e a envia em toda requisição. Em uma semana, o time de produto também quer **"Entrar com Google"**, um **checkout web**, um **job noturno de conciliação** em `order` que chama `inventory` sem nenhum usuário por trás e um **assistente de IA** que age em nome do usuário. Um login caseiro não consegue expressar nada disso com segurança. Esta página trata dos padrões que conseguem: **sessões e tokens**, **JWT**, **OAuth 2.1** e **OpenID Connect**, e dos modelos de autorização que decidem *o que* um chamador autenticado pode fazer.
 
 ---
 
@@ -73,7 +73,7 @@ signature: RSASSA-PKCS1-v1_5( SHA-256( base64url(header) + "." + base64url(paylo
 
 O payload é **codificado, não criptografado** — qualquer um consegue lê-lo. Nunca coloque ali segredos ou dados pessoais que você não mostraria ao próprio usuário.
 
-Com algoritmos **assimétricos** (RS256, ES256, EdDSA), o provedor de identidade assina com uma chave privada que nunca sai dele, e qualquer um verifica com a chave pública, publicada como um **JWKS** (JSON Web Key Set) no `jwks_uri` do provedor. Com HMAC **simétrico** (HS256), todo verificador tem o mesmo segredo e, portanto, também consegue **forjar** tokens — aceitável só quando emissor e verificador são o mesmo serviço.
+Com algoritmos **assimétricos** (RS256, ES256, EdDSA), o provedor de identidade assina com uma chave privada que nunca sai dele e qualquer um verifica com a chave pública, publicada como um **JWKS** (JSON Web Key Set) no `jwks_uri` do provedor. Com HMAC **simétrico** (HS256), todo verificador tem o mesmo segredo e, portanto, também consegue **forjar** tokens — aceitável só quando emissor e verificador são o mesmo serviço.
 
 ### Checklist de validação { #validation-checklist }
 
@@ -91,7 +91,7 @@ A RFC 8725 (JWT Best Current Practices) é a referência[^1]. Um resource server
 
 !!! example "No código do BoxOffice: o `auth` assina os tokens (lab 4)"
 
-    No [Hands-on 4 — auth](../../../hands-on/4/auth/index.md), o BoxOffice ganha sua porta de entrada: o `auth` assina todo token com **RS256**, a chave privada nunca sai dele, e a chave pública é servida como JWKS em `/auth/.well-known/jwks.json`, para que o gateway verifique sem compartilhar um segredo que também permitiria forjar tokens. Compare as claims com a checklist: `iss`, `aud`, `sub`, `exp`, `jti` e o cabeçalho `kid` estão lá, e o papel vira uma claim `scope` (`user` ou `user admin`). Três atalhos, cada um com seu preço: `typ` é um `JWT` simples (ainda não há ID tokens com que confundi-lo); o par de chaves é gerado a cada inicialização, então reiniciar o `auth` rejeita todo token emitido antes (`kid` desconhecido) — o aviso do lab explica por que chaves reais vivem num KMS e giram com duas chaves no JWKS; e a validade é de 1 hora (`JWT_TTL`), sem refresh token, então um token roubado funciona por até uma hora, não 15 minutos.
+    No [Hands-on 4 — auth](../../../hands-on/4/auth/index.md), o BoxOffice ganha sua porta de entrada: o `auth` assina todo token com **RS256**, a chave privada nunca sai dele e a chave pública é servida como JWKS em `/auth/.well-known/jwks.json`, para que o gateway verifique sem compartilhar um segredo que também permitiria forjar tokens. Compare as claims com a checklist: `iss`, `aud`, `sub`, `exp`, `jti` e o cabeçalho `kid` estão lá, e o papel vira uma claim `scope` (`user` ou `user admin`). Três atalhos, cada um com seu preço: `typ` é um `JWT` simples (ainda não há ID tokens com que confundi-lo); o par de chaves é gerado a cada inicialização, então reiniciar o `auth` rejeita todo token emitido antes (`kid` desconhecido) — o aviso do lab explica por que chaves reais vivem num KMS e giram com duas chaves no JWKS; e a validade é de 1 hora (`JWT_TTL`), sem refresh token, então um token roubado funciona por até uma hora, não 15 minutos.
 
     ``` { .java title="services/auth/src/main/java/boxoffice/auth/TokenService.java (signing a token)" }
     --8<-- "docs/2027.1/hands-on/4/code/services/auth/src/main/java/boxoffice/auth/TokenService.java:48:72"
@@ -141,7 +141,7 @@ flowchart TD
 
 ## Authorization Code + PKCE para o app mobile { #authorization-code-pkce-for-the-mobile-app }
 
-O app nunca vê a senha. Ele abre o **navegador do sistema** (não uma WebView embutida, onde o app poderia ler as teclas digitadas — RFC 8252[^5]) no authorization server, o usuário faz login lá (com MFA ou uma passkey), e o app recebe um **authorization code** de vida curta e uso único por meio de um redirecionamento. Depois o app troca o código por tokens em uma requisição direta, pelo back-channel.
+O app nunca vê a senha. Ele abre o **navegador do sistema** (não uma WebView embutida, onde o app poderia ler as teclas digitadas — RFC 8252[^5]) no authorization server, o usuário faz login lá (com MFA ou uma passkey) e o app recebe um **authorization code** de vida curta e uso único por meio de um redirecionamento. Depois o app troca o código por tokens em uma requisição direta, pelo back-channel.
 
 O **PKCE** (Proof Key for Code Exchange, pronuncia-se "pixy", RFC 7636[^6]) amarra o código à instância do app que iniciou o fluxo:
 
@@ -301,7 +301,7 @@ spring:
 ```
 
 !!! warning "Remova cabeçalhos de identidade na borda"
-    Se o gateway repassa `X-Account-Id: acc-42` aos serviços, ele precisa **remover** qualquer `X-Account-Id` enviado pelo cliente, e os serviços devem ser inalcançáveis a não ser pelo gateway (ou devem verificar o token por conta própria). Caso contrário, qualquer um que alcance um serviço diretamente pode se passar por qualquer usuário.
+    Se o gateway repassa `X-Account-Id: acc-42` aos serviços, ele precisa **remover** qualquer `X-Account-Id` enviado pelo cliente e os serviços devem ser inalcançáveis a não ser pelo gateway (ou devem verificar o token por conta própria). Caso contrário, qualquer um que alcance um serviço diretamente pode se passar por qualquer usuário.
 
 !!! example "No código do BoxOffice: o gateway confere o token uma vez (lab 4)"
 
@@ -389,8 +389,8 @@ Motores de política (OPA, Cedar, OpenFGA) tiram as regras do código e as coloc
 !!! success "Boas práticas"
 
     - **Emita access tokens que vivam 5–15 minutos, com refresh tokens rotativos** — a latência de revogação é igual à validade do token. No BoxOffice: o lab 4 emite tokens de 1 hora sem refresh token, um atalho nomeado no quadro do `auth`, acima.
-    - **Valide tokens localmente contra um JWKS em cache, buscando-o de novo quando chega um `kid` desconhecido** — nenhuma chamada ao provedor de identidade por requisição, e a rotação de chaves não exige indisponibilidade. No BoxOffice: o `NimbusReactiveJwtDecoder` do gateway ([quadro do gateway](#gateway-validation)).
-    - **Gire as chaves de assinatura com agenda e publique a chave antiga e a nova no JWKS durante a sobreposição** — tokens assinados antes da rotação continuam válidos até expirar. (O lab 4, em vez disso, cria uma chave nova a cada inicialização, e todo token morre com ela.)
+    - **Valide tokens localmente contra um JWKS em cache, buscando-o de novo quando chega um `kid` desconhecido** — nenhuma chamada ao provedor de identidade por requisição e a rotação de chaves não exige indisponibilidade. No BoxOffice: o `NimbusReactiveJwtDecoder` do gateway ([quadro do gateway](#gateway-validation)).
+    - **Gire as chaves de assinatura com agenda e publique a chave antiga e a nova no JWKS durante a sobreposição** — tokens assinados antes da rotação continuam válidos até expirar. (O lab 4, em vez disso, cria uma chave nova a cada inicialização e todo token morre com ela.)
     - **Remova no gateway os cabeçalhos de identidade enviados pelo cliente antes de acrescentar os seus** — no BoxOffice: o `UserHeadersFilter` remove `X-User-*` primeiro ([quadro do gateway](#gateway-validation)).
     - **Faça hash das senhas com uma função lenta e ajustável e limite a taxa de login** — BCrypt com custo ≥ 10 ou Argon2id; no [lab 4](../../../hands-on/4/auth/index.md), BCrypt com custo 10 limita o `auth` a algo como 10–20 logins/s por CPU, então os logins precisam acontecer antes das 10:00, não às 10:00.
 
@@ -431,7 +431,7 @@ flowchart LR
     - **Sessões** revogam na hora, mas precisam de um store compartilhado; **JWTs** escalam sem estado, mas continuam válidos até `exp`. Combine access tokens curtos com refresh tokens revogáveis.
     - Valide JWTs direito: algoritmo de uma allow-list, `kid` do seu JWKS, `iss`, `aud`, `exp`, `typ`, escopos.
     - **OAuth 2.1**: Authorization Code + **PKCE** para todo cliente com usuário (navegador do sistema no mobile, BFF na web), **Client Credentials** para jobs, **Token Exchange** para delegação; nada de Implicit nem ROPC.
-    - **OIDC** acrescenta o ID token, o UserInfo e o discovery. Escolha RBAC, ABAC ou ReBAC para autorização, e sempre verifique a posse (BOLA).
+    - **OIDC** acrescenta o ID token, o UserInfo e o discovery. Escolha RBAC, ABAC ou ReBAC para autorização e sempre verifique a posse (BOLA).
 
 ---
 

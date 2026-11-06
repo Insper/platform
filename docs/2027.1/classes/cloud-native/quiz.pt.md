@@ -4,7 +4,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ## Cloud-native e modelos de serviço { #cloud-native-and-service-models }
 
-**Q1.** Uma versão antiga do `inventory` do BoxOffice guardava as reservas de assentos em um mapa dentro da JVM. Qual propriedade twelve-factor ela violava, e qual era o sintoma visível com três réplicas?
+**Q1.** Uma versão antiga do `inventory` do BoxOffice guardava as reservas de assentos em um mapa dentro da JVM. Qual propriedade twelve-factor ela violava e qual era o sintoma visível com três réplicas?
 
 - A. Config — a URL do banco estava fixa no código, então as réplicas usavam bancos diferentes
 - B. Processos (sem estado) — uma reserva feita em uma réplica era invisível para as outras e se perdia quando aquele pod era substituído
@@ -14,7 +14,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — Processos precisam ser sem estado.**
 
-    Estado guardado na memória do processo prende o usuário a uma instância. Atrás de um load balancer, a próxima requisição pode ir para outra réplica, e qualquer reinício, rolling update ou redução de escala destrói o estado. Levar as reservas para o PostgreSQL (com expiração) ou para o Redis (com TTL) torna todas as réplicas equivalentes e descartáveis.
+    Estado guardado na memória do processo prende o usuário a uma instância. Atrás de um load balancer, a próxima requisição pode ir para outra réplica e qualquer reinício, rolling update ou redução de escala destrói o estado. Levar as reservas para o PostgreSQL (com expiração) ou para o Redis (com TTL) torna todas as réplicas equivalentes e descartáveis.
 
 ---
 
@@ -35,7 +35,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 **Q3.** Qual responsabilidade fica com o cliente em **todos** os modelos de serviço, inclusive SaaS?
 
 - A. Aplicar patches no sistema operacional
-- B. Decidir quem pode acessar os dados, e a configuração do serviço
+- B. Decidir quem pode acessar os dados e a configuração do serviço
 - C. Substituir discos com defeito
 - D. Escalar o runtime
 
@@ -58,28 +58,28 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **C — O kernel.**
 
-    Containers são processos isolados (namespaces) com limites de recursos (cgroups) sobre um único kernel compartilhado. VMs inicializam cada uma o próprio kernel sobre um hipervisor. É por isso que containers iniciam em milissegundos e são mais densos, e também por que sua fronteira de isolamento é mais fraca — plataformas multi-inquilino os envolvem em micro-VMs como Firecracker ou gVisor.
+    Containers são processos isolados (namespaces) com limites de recursos (cgroups) sobre um único kernel compartilhado. VMs inicializam cada uma o próprio kernel sobre um hipervisor. É por isso que containers iniciam em milissegundos e são mais densos e também por que sua fronteira de isolamento é mais fraca — plataformas multi-inquilino os envolvem em micro-VMs como Firecracker ou gVisor.
 
 ---
 
 **Q5.** No Dockerfile do `catalog`, `COPY pom.xml` e `mvn dependency:go-offline` vêm **antes** de `COPY src`. Por quê?
 
 - A. O Maven exige que o POM fique em uma camada separada
-- B. Para que uma mudança de código invalide só as camadas posteriores, e o download das dependências seja reaproveitado do cache de build
+- B. Para que uma mudança de código invalide só as camadas posteriores e o download das dependências seja reaproveitado do cache de build
 - C. Para deixar a imagem final menor
 - D. Porque imagens distroless não suportam `COPY src`
 
 ??? success "Resposta"
     **B — Cache de camadas.**
 
-    Cada instrução produz uma camada, e uma camada só é reconstruída se suas entradas (ou uma camada anterior) mudaram. Dependências mudam raramente; o código muda a cada commit. Ordenar do que muda menos para o que muda mais mantém os passos caros em cache. (O tamanho da imagem é reduzido pelo build *multi-stage*, não por essa ordem.)
+    Cada instrução produz uma camada e uma camada só é reconstruída se suas entradas (ou uma camada anterior) mudaram. Dependências mudam raramente; o código muda a cada commit. Ordenar do que muda menos para o que muda mais mantém os passos caros em cache. (O tamanho da imagem é reduzido pelo build *multi-stage*, não por essa ordem.)
 
 ---
 
 **Q6.** Um time usa `ENTRYPOINT java -jar app.jar` (forma shell). A cada rolling update algumas requisições falham. Qual a causa mais provável?
 
 - A. A JVM inicia devagar demais
-- B. O `/bin/sh` é o PID 1, não repassa o `SIGTERM` ao Java, e o container é morto com `SIGKILL` após o período de tolerância, derrubando as requisições em andamento
+- B. O `/bin/sh` é o PID 1, não repassa o `SIGTERM` ao Java e o container é morto com `SIGKILL` após o período de tolerância, derrubando as requisições em andamento
 - C. A imagem é grande demais para ser baixada a tempo
 - D. A readiness probe é rígida demais
 
@@ -102,7 +102,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — Reconciliação por controladores.**
 
-    O Kubernetes é um conjunto de laços de controle. O controlador de nós marca o nó como não pronto, seus pods acabam sendo despejados, o ReplicaSet vê 2 reais vs 4 desejados, cria dois pods, e o scheduler os associa a nós com capacidade livre. Não é preciso nenhuma pessoa nem sincronização com o Git.
+    O Kubernetes é um conjunto de laços de controle. O controlador de nós marca o nó como não pronto, seus pods acabam sendo despejados, o ReplicaSet vê 2 reais vs 4 desejados, cria dois pods e o scheduler os associa a nós com capacidade livre. Não é preciso nenhuma pessoa nem sincronização com o Git.
 
 ---
 
@@ -153,14 +153,14 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 **Q11.** Qual propriedade distingue o **GitOps por pull** (Argo CD) de um job de CI que executa `kubectl apply`?
 
 - A. GitOps só funciona com Helm
-- B. Um agente dentro do cluster reconcilia continuamente o cluster com o estado no Git; a CI nunca guarda credenciais do cluster, e a deriva manual é detectada ou revertida
+- B. Um agente dentro do cluster reconcilia continuamente o cluster com o estado no Git; a CI nunca guarda credenciais do cluster e a deriva manual é detectada ou revertida
 - C. GitOps faz deploy mais rápido porque pula os testes
 - D. Com GitOps não é possível fazer rollback
 
 ??? success "Resposta"
     **B — Reconciliação contínua por pull.**
 
-    O cluster puxa seu estado desejado do Git, então a trilha de auditoria é o `git log`, o rollback é um `git revert`, a deriva fica visível, e o sistema de CI — alvo frequente de ataques — não tem permissão para mudar a produção.
+    O cluster puxa seu estado desejado do Git, então a trilha de auditoria é o `git log`, o rollback é um `git revert`, a deriva fica visível e o sistema de CI — alvo frequente de ataques — não tem permissão para mudar a produção.
 
 ---
 
@@ -192,7 +192,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q14.** No modelo de custo do BoxOffice, quatro vendas de 2 horas precisam de 24 nós extras. Por que elas acrescentam tão pouco à fatura mensal, e qual é a lição?
+**Q14.** No modelo de custo do BoxOffice, quatro vendas de 2 horas precisam de 24 nós extras. Por que elas acrescentam tão pouco à fatura mensal e qual é a lição?
 
 - A. Porque nós de pico são gratuitos na AWS
 - B. Porque 24 nós × 8 horas é uma fração minúscula de 24 nós × 730 horas; capacidade elástica custa em proporção ao tempo em que existe, então autoscaling e pré-escala para picos conhecidos vencem o provisionamento permanente para o pico

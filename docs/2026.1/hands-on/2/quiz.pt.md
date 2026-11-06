@@ -18,7 +18,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q2.** Que framework o **Spring Cloud Gateway** usa internamente, e qual vantagem isso traz?
+**Q2.** Que framework o **Spring Cloud Gateway** usa internamente e qual vantagem isso traz?
 
 - A. Spring MVC (baseado em servlets) — o framework Spring mais estável
 - B. Spring WebFlux (reativo/não bloqueante) — trata grandes volumes de conexões concorrentes com um número pequeno de threads
@@ -63,11 +63,11 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 **Q5.** A entrada do gateway no `compose.yaml` tem `depends_on: [account]`. Quando seria importante adicionar `condition: service_healthy` a essa dependência?
 
 - A. Nunca — o gateway inicia rapidamente e o serviço account está sempre pronto antes
-- B. Quando a rotina de inicialização do gateway faz chamadas HTTP imediatas ao account (por exemplo, validação de rotas): ele precisa que o account esteja totalmente inicializado, e não apenas iniciado
+- B. Quando a rotina de inicialização do gateway faz chamadas HTTP imediatas ao account (por exemplo, validação de rotas): ele precisa que o account esteja totalmente inicializado e não apenas iniciado
 - C. Apenas em produção — o desenvolvimento local nunca tem problemas de ordem de inicialização
 - D. É exigido pela especificação do Docker Compose para todas as entradas `depends_on`
 
 ??? success "Resposta"
     **B — Quando o gateway faz chamadas HTTP ao serviço downstream durante a inicialização.**
 
-    Se o gateway valida rotas ou pré-carrega configurações do account na inicialização, e o processo do account já subiu mas a conexão com o banco de dados ainda não está pronta, o gateway falha ao iniciar. `condition: service_healthy` espera até que o health check do account (por exemplo, `/actuator/health`) retorne 200 antes de iniciar o gateway.
+    Se o gateway valida rotas ou pré-carrega configurações do account na inicialização e o processo do account já subiu mas a conexão com o banco de dados ainda não está pronta, o gateway falha ao iniciar. `condition: service_healthy` espera até que o health check do account (por exemplo, `/actuator/health`) retorne 200 antes de iniciar o gateway.

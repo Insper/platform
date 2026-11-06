@@ -25,7 +25,7 @@ Qualquer ordem das duas escritas tem uma janela de falha:
 
 | Ordem das escritas | Queda entre as escritas | Resultado |
 |---|---|---|
-| Banco, depois Kafka | pedido gravado, evento perdido | nenhum e-mail, e nenhum outro serviço fica sabendo do pedido |
+| Banco, depois Kafka | pedido gravado, evento perdido | nenhum e-mail e nenhum outro serviço fica sabendo do pedido |
 | Kafka, depois banco | evento publicado, INSERT falha | um pedido *fantasma*: e-mail de um pedido que não existe |
 | Kafka dentro da transação do banco | a publicação no Kafka dá certo, o commit falha | o mesmo fantasma; o PostgreSQL não consegue desfazer o Kafka |
 
@@ -310,7 +310,7 @@ com chave = id do pedido e os *headers* `eventId` e `eventType`.
 Agora prove as duas garantias:
 
 1. **Requisição idempotente.** Envie o mesmo `curl` de novo: a resposta é `200` (não `201`) com o
-   mesmo `id`, e nenhuma mensagem nova aparece no tópico.
+   mesmo `id` e nenhuma mensagem nova aparece no tópico.
 2. **Nenhum evento perdido.** Pare o Kafka, faça um pedido, suba o Kafka de novo:
 
     ``` shell

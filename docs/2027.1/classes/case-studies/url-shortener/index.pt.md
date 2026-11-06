@@ -1,7 +1,7 @@
 
 > *"Projete um encurtador de URLs como o bit.ly ou o TinyURL: o usuário envia uma URL longa e recebe uma curta; quem abrir a URL curta é redirecionado para a original."*
 
-O encurtador de URLs é o "hello world" das entrevistas de system design, e costuma ser o **primeiro** problema de um júnior ou o **aquecimento** numa rodada sênior. Parece trivial — uma consulta chave-valor — e essa é justamente a armadilha: o entrevistador quer ver se você **conduz** a conversa (requisitos, números, API, dados, design, aprofundamentos) em vez de pular direto para "usa um hash". Ele exercita três ideias que você vai reutilizar em quase todos os outros casos: **geração de IDs únicos**, **cache para leitura intensa** e **tirar o trabalho secundário (analytics) do caminho crítico**.
+O encurtador de URLs é o "hello world" das entrevistas de system design e costuma ser o **primeiro** problema de um júnior ou o **aquecimento** numa rodada sênior. Parece trivial — uma consulta chave-valor — e essa é justamente a armadilha: o entrevistador quer ver se você **conduz** a conversa (requisitos, números, API, dados, design, aprofundamentos) em vez de pular direto para "usa um hash". Ele exercita três ideias que você vai reutilizar em quase todos os outros casos: **geração de IDs únicos**, **cache para leitura intensa** e **tirar o trabalho secundário (analytics) do caminho crítico**.
 
 O BoxOffice também usa um: o SMS "seus ingressos para sábado" traz um link curto como `https://bx.example/aB3x9Kq`, porque um SMS tem 160 caracteres e uma URL de ingresso assinada tem 300.
 
@@ -102,14 +102,14 @@ for name, value, unit in rows:
 O que os números dizem:
 
 - **~40 escritas/s** e **~4 mil redirecionamentos/s** (pico ~12 mil/s): um único banco aguentaria as escritas; é para as leituras que projetamos. ⇒ **cache** na frente do armazenamento, servidores de aplicação **sem estado** atrás de um balanceador de carga.
-- **6 bilhões de links, ~3 TB em 5 anos**: é demais para ficar confortável num nó só com réplicas e índices, e trivial para um armazenamento chave-valor particionado. O padrão de acesso é uma **consulta por chave única**, então um banco KV (DynamoDB, Cassandra) ou uma tabela SQL fragmentada funcionam.
+- **6 bilhões de links, ~3 TB em 5 anos**: é demais para ficar confortável num nó só com réplicas e índices e trivial para um armazenamento chave-valor particionado. O padrão de acesso é uma **consulta por chave única**, então um banco KV (DynamoDB, Cassandra) ou uma tabela SQL fragmentada funcionam.
 - **7 caracteres base62 = 3,5 trilhões de códigos**; usamos 0,17% deles em 5 anos. Códigos curtos não são o recurso escasso — **unicidade sem coordenação** é o problema de design.
 - O conjunto quente tem **~33 GB**: cabe na RAM de um ou dois nós de cache. Com popularidade do tipo Zipf (poucos links recebem a maioria dos cliques), a taxa de acerto será alta.
 - Os eventos de clique somam **~67 GB/dia** — mais do que os próprios links. ⇒ eles vão para um stream e um armazenamento de analytics, nunca para a tabela principal.
 
 !!! tip "Na entrevista"
 
-    Diga a conclusão, não só o número: *"4 mil leituras por segundo contra 40 escritas, e o conjunto quente cabe em memória — então é um problema de cache com um problema de geração de IDs acoplado."*
+    Diga a conclusão, não só o número: *"4 mil leituras por segundo contra 40 escritas e o conjunto quente cabe em memória — então é um problema de cache com um problema de geração de IDs acoplado."*
 
 ---
 
@@ -230,7 +230,7 @@ Este é o aprofundamento que todo entrevistador espera. Quatro famílias, cada u
 
 === "Serviço gerador de chaves (KGS)"
 
-    Um serviço separado pré-gera códigos aleatórios não usados numa tabela e entrega lotes aos servidores de aplicação, marcando-os como usados. Códigos imprevisíveis, sem colisões no caminho da requisição. Custos: mais um serviço com estado para replicar, e cuidado para dois servidores nunca receberem o mesmo lote (mover as chaves de `unused` para `used` de forma atômica).
+    Um serviço separado pré-gera códigos aleatórios não usados numa tabela e entrega lotes aos servidores de aplicação, marcando-os como usados. Códigos imprevisíveis, sem colisões no caminho da requisição. Custos: mais um serviço com estado para replicar e cuidado para dois servidores nunca receberem o mesmo lote (mover as chaves de `unused` para `used` de forma atômica).
 
 === "IDs estilo Snowflake"
 
@@ -264,7 +264,7 @@ def base62(n: int) -> str:
 
 **Recomendação para a entrevista:** contador com alocação por faixas + embaralhamento para códigos gerados; uma inserção condicional (`IF NOT EXISTS`) para aliases personalizados. Cite o hash e por que você não o escolheu (colisões, estatísticas compartilhadas).
 
-### 6.2 O redirecionamento: 301 ou 302, e o cache { #62-the-redirect-301-or-302-and-caching }
+### 6.2 O redirecionamento: 301 ou 302 e o cache { #62-the-redirect-301-or-302-and-caching }
 
 | | 301 Moved Permanently | 302 Found (ou 307) |
 |---|---|---|
@@ -350,7 +350,7 @@ O cenário `url-shortener` tem o caminho de leitura desta página: balanceador d
 
 ??? question "Como você conta cliques únicos por link?"
 
-    Contagens exatas de únicos exigem o conjunto de IDs de visitantes — enorme para links populares. Use **HyperLogLog** por link por dia (`PFADD`/`PFCOUNT` no Redis, ou a função de distintos aproximados do armazenamento de analytics): ~1% de erro com alguns kilobytes por contador, e HLLs podem ser combinados entre dias.
+    Contagens exatas de únicos exigem o conjunto de IDs de visitantes — enorme para links populares. Use **HyperLogLog** por link por dia (`PFADD`/`PFCOUNT` no Redis, ou a função de distintos aproximados do armazenamento de analytics): ~1% de erro com alguns kilobytes por contador e HLLs podem ser combinados entre dias.
 
 ??? question "Como você limpa links expirados? Códigos podem ser reutilizados?"
 
@@ -362,7 +362,7 @@ O cenário `url-shortener` tem o caminho de leitura desta página: balanceador d
 
 ??? question "Por que não usar simplesmente a coluna auto-increment do banco?"
 
-    Funciona em escala pequena e é uma resposta perfeitamente boa para os links internos do BoxOffice. Com 100 M de links por mês num armazenamento fragmentado não existe um auto-increment único, e o primário vira gargalo de escrita e ponto único de falha. A reserva por faixas mantém a mesma ideia (um contador) tocando o contador compartilhado uma vez a cada 10 000 ids.
+    Funciona em escala pequena e é uma resposta perfeitamente boa para os links internos do BoxOffice. Com 100 M de links por mês num armazenamento fragmentado não existe um auto-increment único e o primário vira gargalo de escrita e ponto único de falha. A reserva por faixas mantém a mesma ideia (um contador) tocando o contador compartilhado uma vez a cada 10 000 ids.
 
 ---
 
@@ -379,7 +379,7 @@ O cenário `url-shortener` tem o caminho de leitura desta página: balanceador d
 !!! success "Boas práticas"
 
     - **Coloque uma restrição `UNIQUE` no código curto** — seja qual for o gerador dos códigos, o banco transforma uma colisão num erro que você repete, nunca numa sobrescrita silenciosa do link de outra pessoa.
-    - **Escolha o status do redirecionamento de propósito** — `302` mantém todo clique visível para você; `301` deixa o navegador guardar o redirecionamento, e a partir daí a análise nunca mais vê esses cliques.
+    - **Escolha o status do redirecionamento de propósito** — `302` mantém todo clique visível para você; `301` deixa o navegador guardar o redirecionamento e a partir daí a análise nunca mais vê esses cliques.
     - **Mande os eventos de clique para uma fila, nunca os grave no caminho do redirecionamento** — o p99 do redirecionamento não pode depender de o armazenamento de análise estar no ar.
     - **Guarde em cache também os códigos desconhecidos, por pouco tempo** — uma varredura de códigos aleatórios não pode chegar ao banco (penetração de cache).
     - **Limite a criação de links por conta** — o abuso (links de spam e phishing) entra pela criação, não pelos redirecionamentos.

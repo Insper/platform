@@ -11,7 +11,7 @@ E como a memória é finita, vem uma terceira pergunta: **quando o cache enche, 
 
 ## O orçamento de defasagem { #the-staleness-budget }
 
-Antes de escolher um mecanismo, decida — com o time de produto, não sozinho — quão errado cada tipo de dado pode estar, e por quanto tempo. A resposta é diferente para cada entidade.
+Antes de escolher um mecanismo, decida — com o time de produto, não sozinho — quão errado cada tipo de dado pode estar e por quanto tempo. A resposta é diferente para cada entidade.
 
 !!! example "BoxOffice: orçamento de defasagem por tipo de dado"
 
@@ -37,7 +37,7 @@ Um **TTL** (*time to live*, tempo de vida) faz cada entrada expirar depois de um
 Escolher o TTL é um compromisso entre atualidade e taxa de acerto:
 
 - **Longo demais**: dados velhos vivem muito depois de uma mudança.
-- **Curto demais**: a cauda longa de chaves sempre erra (uma chave lida uma vez a cada 10 minutos nunca acerta com TTL de 60 s), e chaves quentes expiram com frequência, o que arrisca um [*stampede*](../failure-modes/index.md#stampede).
+- **Curto demais**: a cauda longa de chaves sempre erra (uma chave lida uma vez a cada 10 minutos nunca acerta com TTL de 60 s) e chaves quentes expiram com frequência, o que arrisca um [*stampede*](../failure-modes/index.md#stampede).
 
 Regras práticas:
 
@@ -49,7 +49,7 @@ Regras práticas:
 
 ## Invalidação explícita { #explicit-invalidation }
 
-Para ter atualidade melhor que o TTL, o código que escreve no banco também avisa o cache de que o valor mudou. Duas decisões importam: **remover ou atualizar**, e **em que ordem**.
+Para ter atualidade melhor que o TTL, o código que escreve no banco também avisa o cache de que o valor mudou. Duas decisões importam: **remover ou atualizar** e **em que ordem**.
 
 ### Remova, não atualize { #delete-vs-update }
 
@@ -105,7 +105,7 @@ O leitor leu antes da escrita e gravou depois da remoção. É raro — o leitor
 1. **Um TTL como rede de segurança** — limita o estrago. Para a maioria dos dados, basta.
 2. **Remoção dupla atrasada** (*delayed double delete*) — o escritor remove e remove de novo pouco depois (por exemplo, 500 ms, mais que uma leitura típica). A segunda remoção apaga o que um leitor lento recolocou. Barato, mas probabilístico.
 3. **Valores versionados** — guarde a versão da linha junto com o valor e só escreva no cache se a versão for mais nova que a que está lá. Como as versões vêm do banco (coluna `version`, ou o LSN do commit), um leitor lento com `v1` não consegue sobrescrever `v2`. Com versões, *atualizar* na escrita também passa a ser seguro.
-4. **Leases** — numa falta, o cache entrega ao leitor um **token de lease**; uma remoção invalida os tokens pendentes, e um `SET` com token inválido é rejeitado. O memcache do Facebook usa leases tanto para essa corrida quanto para limitar *stampedes* (um só lease por chave a cada poucos segundos)[^2].
+4. **Leases** — numa falta, o cache entrega ao leitor um **token de lease**; uma remoção invalida os tokens pendentes e um `SET` com token inválido é rejeitado. O memcache do Facebook usa leases tanto para essa corrida quanto para limitar *stampedes* (um só lease por chave a cada poucos segundos)[^2].
 
 ```lua title="set_if_newer.lua — versioned set in Redis"
 -- KEYS[1] = cache key; ARGV[1] = version; ARGV[2] = value; ARGV[3] = TTL in seconds
@@ -323,7 +323,7 @@ São os mesmos modelos de consistência vistos em [Sistemas Distribuídos](../..
 
 !!! tip "Na entrevista"
 
-    Quando você adiciona um cache, a pergunta seguinte é sempre "como você o mantém consistente?". Uma resposta forte tem três camadas: (1) o orçamento de defasagem para esse dado ("preços: alguns segundos; descrições: um minuto"); (2) o mecanismo — TTL como rede de segurança, remoção depois do commit, CDC se houver muitos escritores; (3) a saída para as decisões — "o checkout lê o preço do banco". Mencione a corrida do cache-aside e como o TTL (ou versões, ou leases) a limita, e você estará à frente da maioria dos candidatos.
+    Quando você adiciona um cache, a pergunta seguinte é sempre "como você o mantém consistente?". Uma resposta forte tem três camadas: (1) o orçamento de defasagem para esse dado ("preços: alguns segundos; descrições: um minuto"); (2) o mecanismo — TTL como rede de segurança, remoção depois do commit, CDC se houver muitos escritores; (3) a saída para as decisões — "o checkout lê o preço do banco". Mencione a corrida do cache-aside e como o TTL (ou versões, ou leases) a limita e você estará à frente da maioria dos candidatos.
 
 !!! success "Boas práticas"
 

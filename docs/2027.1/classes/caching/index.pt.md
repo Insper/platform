@@ -1,17 +1,17 @@
-São 9h59 do dia em que um show de estádio abre as vendas. A BoxOffice tem 60.000 lugares para vender e cerca de 2 milhões de fãs com a página do evento aberta, apertando F5. Às 10h00 o serviço `catalog` recebe dezenas de milhares de requisições `GET /events/42` por segundo, e cada uma executa as mesmas três consultas SQL: o evento, o local, a tabela de preços. Os dados não mudam há uma semana. Mesmo assim, o banco do catálogo chega a 100% de CPU, consultas que levavam 3 ms passam a levar 800 ms e o **checkout** — que compartilha esse banco — começa a dar timeout. Ninguém comprou um ingresso ainda, e o sistema já caiu.
+São 9h59 do dia em que um show de estádio abre as vendas. A BoxOffice tem 60.000 lugares para vender e cerca de 2 milhões de fãs com a página do evento aberta, apertando F5. Às 10h00 o serviço `catalog` recebe dezenas de milhares de requisições `GET /events/42` por segundo e cada uma executa as mesmas três consultas SQL: o evento, o local, a tabela de preços. Os dados não mudam há uma semana. Mesmo assim, o banco do catálogo chega a 100% de CPU, consultas que levavam 3 ms passam a levar 800 ms e o **checkout** — que compartilha esse banco — começa a dar timeout. Ninguém comprou um ingresso ainda e o sistema já caiu.
 
-A solução não é um banco maior. É parar de fazer ao banco a mesma pergunta dois milhões de vezes. Isso é **cache**: guardar uma cópia da resposta a uma pergunta cara em um lugar mais rápido e mais barato de ler, e servir a cópia enquanto ela for boa o suficiente.
+A solução não é um banco maior. É parar de fazer ao banco a mesma pergunta dois milhões de vezes. Isso é **cache**: guardar uma cópia da resposta a uma pergunta cara em um lugar mais rápido e mais barato de ler e servir a cópia enquanto ela for boa o suficiente.
 
 !!! quote "A história até aqui"
 
-    Capítulo 7 da [história da disciplina](../../index.md#story). A borda espalha os fãs por réplicas sem estado ([aula 4](../edge/index.md), [aula 5](../compute/index.md)), e o PostgreSQL garante que um assento seja vendido uma vez só ([aula 6](../databases/index.md)). Não guardar estado tem um preço: **toda** leitura agora chega ao banco, e as páginas de evento são lidas cerca de 100 vezes mais do que mudam. **Esta aula** responde: como parar de fazer ao banco a mesma pergunta — e o que nunca pode ser respondido por uma cópia?
+    Capítulo 7 da [história da disciplina](../../index.md#story). A borda espalha os fãs por réplicas sem estado ([aula 4](../edge/index.md), [aula 5](../compute/index.md)) e o PostgreSQL garante que um assento seja vendido uma vez só ([aula 6](../databases/index.md)). Não guardar estado tem um preço: **toda** leitura agora chega ao banco e as páginas de evento são lidas cerca de 100 vezes mais do que mudam. **Esta aula** responde: como parar de fazer ao banco a mesma pergunta — e o que nunca pode ser respondido por uma cópia?
 
 !!! abstract "Objetivos de aprendizagem"
 
     Ao final desta aula, você deve ser capaz de:
 
     - **Explicar** por que caches funcionam (localidade e popularidade concentrada) e **identificar** as camadas onde uma requisição pode ser cacheada, do navegador ao buffer pool do banco.
-    - **Calcular** a latência efetiva e a carga no banco para uma dada taxa de acerto (*hit ratio*), e **dimensionar** um cache para um conjunto de trabalho (*working set*).
+    - **Calcular** a latência efetiva e a carga no banco para uma dada taxa de acerto (*hit ratio*) e **dimensionar** um cache para um conjunto de trabalho (*working set*).
     - **Comparar** cache-aside, read-through, write-through, write-behind, write-around e refresh-ahead, e **escolher** um para cada tipo de dado da BoxOffice.
     - **Projetar** uma estratégia de invalidação (TTL, remoção explícita, chaves versionadas, captura de mudanças) e **selecionar** uma política de despejo (*eviction*).
     - **Diagnosticar** modos de falha de cache — *stampede*, avalanche, penetração, chaves quentes, queda do cache — e **aplicar** a correção adequada.
@@ -44,7 +44,7 @@ Um cache é uma aposta: *o dado que eu li agora será lido de novo em breve*. Du
 - **Localidade temporal** — o que foi lido recentemente tende a ser lido de novo. Um fã que abriu a página do evento vai recarregá-la uma dúzia de vezes antes das 10h00.
 - **Popularidade concentrada** — uma pequena fração dos itens recebe a maior parte das requisições. A BoxOffice lista 100.000 eventos, mas numa sexta à noite algumas centenas deles (os grandes shows, os jogos do fim de semana) levam quase todo o tráfego.
 
-A popularidade na web segue, aproximadamente, uma **distribuição do tipo Zipf**: o item de posição $i$ é pedido com probabilidade proporcional a $1/i^{s}$, onde $s$ (a *concentração*, ou *skew*) costuma ficar entre 0,6 e 1 para objetos web[^1]. Quanto maior o $s$, mais concentrado o tráfego, e mais um cache pequeno ajuda.
+A popularidade na web segue, aproximadamente, uma **distribuição do tipo Zipf**: o item de posição $i$ é pedido com probabilidade proporcional a $1/i^{s}$, onde $s$ (a *concentração*, ou *skew*) costuma ficar entre 0,6 e 1 para objetos web[^1]. Quanto maior o $s$, mais concentrado o tráfego e mais um cache pequeno ajuda.
 
 ??? question "Pense antes: qual o tamanho do cache?"
 
@@ -96,7 +96,7 @@ Quanto mais profunda a camada, mais consistente ela é: o buffer pool do banco n
 
 !!! info "Cache vs. buffer vs. réplica"
 
-    Um **cache** guarda uma cópia *descartável*: perdê-la custa desempenho, nunca dados. Um **buffer** guarda dados em trânsito (por exemplo, escritas esperando para serem gravadas). Uma **réplica de leitura** ([Bancos de dados](../databases/index.md)) é uma cópia completa e continuamente atualizada do banco. Se perder o seu "cache" perde dados, ele não é um cache — é um banco de dados, e precisa ser tratado como tal.
+    Um **cache** guarda uma cópia *descartável*: perdê-la custa desempenho, nunca dados. Um **buffer** guarda dados em trânsito (por exemplo, escritas esperando para serem gravadas). Uma **réplica de leitura** ([Bancos de dados](../databases/index.md)) é uma cópia completa e continuamente atualizada do banco. Se perder o seu "cache" perde dados, ele não é um cache — é um banco de dados e precisa ser tratado como tal.
 
 ---
 
@@ -246,7 +246,7 @@ Abra o [playground completo](../../../playground/index.md) para adicionar um cac
 
 ## O mapa de conceitos de caching { #concept-map }
 
-Um cache não é um componente, e sim uma camada em cada salto: cada componente da paleta no caminho de leitura pode responder a partir de uma cópia antes que a requisição chegue à fonte da verdade. O mapa liga cada **componente da paleta** (verde) aos **conceitos de cache** que ele usa (azul):
+Um cache não é um componente e sim uma camada em cada salto: cada componente da paleta no caminho de leitura pode responder a partir de uma cópia antes que a requisição chegue à fonte da verdade. O mapa liga cada **componente da paleta** (verde) aos **conceitos de cache** que ele usa (azul):
 
 ``` diagram
 flowchart LR
@@ -280,14 +280,14 @@ flowchart LR
 
 !!! tip "Na entrevista"
 
-    Não adicione um cache por reflexo. Justifique com a proporção de leituras e escritas e com a concentração ("as leituras superam as escritas 100:1 e o 1% de eventos mais populares leva a maior parte do tráfego"), diga a taxa de acerto esperada e **o que ela faz com a carga do banco** ("com 95%, o banco vê 2.500 QPS em vez de 50.000"), e então diga como mantém o cache atualizado (TTL + remoção na escrita) e o que acontece quando ele falha. Os entrevistadores valorizam as perguntas que você responde antes de eles fazerem.
+    Não adicione um cache por reflexo. Justifique com a proporção de leituras e escritas e com a concentração ("as leituras superam as escritas 100:1 e o 1% de eventos mais populares leva a maior parte do tráfego"), diga a taxa de acerto esperada e **o que ela faz com a carga do banco** ("com 95%, o banco vê 2.500 QPS em vez de 50.000") e então diga como mantém o cache atualizado (TTL + remoção na escrita) e o que acontece quando ele falha. Os entrevistadores valorizam as perguntas que você responde antes de eles fazerem.
 
 !!! success "Boas práticas"
 
     - **Justifique o cache com números antes de adicioná-lo**: razão leitura/escrita, concentração, taxa de acerto esperada e a carga que ele tira do banco ("95% → o banco vê 1 leitura em 20"). No BoxOffice: o [lab 5 mede](../../hands-on/5/index.md#measure-it) a taxa de acerto, o p99 e a capacidade antes e depois.
     - **Faça cada resposta dizer o que aconteceu** (`HIT`, `MISS`, `BYPASS` num cabeçalho e num contador): uma taxa de acerto que você não vê é uma taxa de acerto que você não consegue defender. No BoxOffice: `X-Cache` no `EventCache.java`.
     - **Dê um TTL a toda chave**, mesmo às que você invalida explicitamente, e dimensione o TTL pela defasagem que cada tipo de dado tolera ([orçamento de defasagem](invalidation/index.md)).
-    - **Trate o cache como opcional**: timeouts curtos no cliente, fallback para a fonte da verdade, e um banco dimensionado para sobreviver a um cache frio na carga esperada.
+    - **Trate o cache como opcional**: timeouts curtos no cliente, fallback para a fonte da verdade e um banco dimensionado para sobreviver a um cache frio na carga esperada.
     - **Mantenha as decisões na fonte da verdade**: reservas de assento, pagamentos e saldos nunca vêm de uma cópia.
 
 !!! warning "Armadilhas comuns"
@@ -320,7 +320,7 @@ flowchart LR
 
 ## O que quebra em seguida { #what-breaks-next }
 
-O caminho de leitura agora é barato: com 95% de acerto o banco vê uma leitura em cada vinte, e o lab 5 mede isso. O caminho de **escrita** não mudou. O `POST /orders` ainda reserva o assento, chama o provedor de pagamento e envia o e-mail de confirmação dentro da mesma requisição, então o fã espera o mais lento deles, e uma falha no e-mail vira uma falha nas compras. E nenhum cache ajuda quando 2 milhões de fãs querem *comprar*, não ler: o banco aguenta cerca de 1.100 reservas/s e chegam 33.000. Tirar o trabalho lento da requisição, e colocar a multidão numa fila justa, é a [aula 8 — Mensageria](../messaging/index.md).
+O caminho de leitura agora é barato: com 95% de acerto o banco vê uma leitura em cada vinte e o lab 5 mede isso. O caminho de **escrita** não mudou. O `POST /orders` ainda reserva o assento, chama o provedor de pagamento e envia o e-mail de confirmação dentro da mesma requisição, então o fã espera o mais lento deles e uma falha no e-mail vira uma falha nas compras. E nenhum cache ajuda quando 2 milhões de fãs querem *comprar*, não ler: o banco aguenta cerca de 1.100 reservas/s e chegam 33.000. Tirar o trabalho lento da requisição e colocar a multidão numa fila justa é a [aula 8 — Mensageria](../messaging/index.md).
 
 ---
 

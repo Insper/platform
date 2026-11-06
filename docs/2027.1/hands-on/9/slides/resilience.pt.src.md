@@ -136,7 +136,7 @@ Um timeout não significa que a chamada falhou — a resposta pode ter se perdid
 
 <div class="q">
 
-As chamadas dão certo em 700 ms — abaixo do timeout e do limite de chamada lenta. A 70/s, o `GET /orders/{id}` fica lento mesmo assim. Por quê, e o que resolve?
+As chamadas dão certo em 700 ms — abaixo do timeout e do limite de chamada lenta. A 70/s, o `GET /orders/{id}` fica lento mesmo assim. Por quê e o que resolve?
 
 </div>
 

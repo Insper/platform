@@ -3,9 +3,9 @@
     - Instalar e verificar as ferramentas usadas em **todos** os labs: Docker + Compose, JDK 21, Maven, uv + Python 3.12, k6, kubectl, kind ou minikube, Git.
     - Criar **o seu repositório BoxOffice** com a estrutura que os próximos doze labs vão preencher.
     - Conhecer os **nomes de serviços, portas, variáveis de ambiente e convenções** que todos os labs compartilham.
-    - **Medir** a sua máquina pela primeira vez: quantas requisições por segundo ela atende, e com que latência?
+    - **Medir** a sua máquina pela primeira vez: quantas requisições por segundo ela atende e com que latência?
 
-Durante o semestre você vai construir o **BoxOffice**, uma plataforma de venda de ingressos para shows, jogos e festivais. Ele começa como um pequeno serviço no seu notebook e cresce, lab após lab, até virar um sistema com proxy de borda, API gateway, cache, banco replicado, stream de eventos, observabilidade, Kubernetes e um assistente de IA. Cada lab acrescenta um componente da paleta do [System Design Playground](../../../playground/index.md), e **cada lab termina com uma medição**: projeto de sistemas é feito de trade-offs, e um trade-off só é real quando você consegue colocar um número nele.
+Durante o semestre você vai construir o **BoxOffice**, uma plataforma de venda de ingressos para shows, jogos e festivais. Ele começa como um pequeno serviço no seu notebook e cresce, lab após lab, até virar um sistema com proxy de borda, API gateway, cache, banco replicado, stream de eventos, observabilidade, Kubernetes e um assistente de IA. Cada lab acrescenta um componente da paleta do [System Design Playground](../../../playground/index.md) e **cada lab termina com uma medição**: projeto de sistemas é feito de trade-offs e um trade-off só é real quando você consegue colocar um número nele.
 
 Este primeiro lab é curto, mas importante: um ambiente quebrado custa horas depois, no meio de um teste de carga.
 
@@ -20,7 +20,7 @@ Este primeiro lab é curto, mas importante: um ambiente quebrado custa horas dep
 
 !!! info "Primeiro lab"
 
-    Não há nada para recuperar: todo lab seguinte começa do estado ao fim do anterior, e cada página de lab oferece um `boxoffice-after-lab-<n>.zip` pronto se você pular ou quebrar um lab.
+    Não há nada para recuperar: todo lab seguinte começa do estado ao fim do anterior e cada página de lab oferece um `boxoffice-after-lab-<n>.zip` pronto se você pular ou quebrar um lab.
 
 ## Slides
 
@@ -33,7 +33,7 @@ Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** a
 
 ## Aonde vamos chegar { #where-we-are-going }
 
-O diagrama mostra o BoxOffice no fim do semestre. Não se preocupe com os detalhes: cada caixa tem o seu lab, e o número em cada rótulo diz qual.
+O diagrama mostra o BoxOffice no fim do semestre. Não se preocupe com os detalhes: cada caixa tem o seu lab e o número em cada rótulo diz qual.
 
 ``` diagram
 flowchart LR
@@ -163,7 +163,7 @@ A tabela lista para que serve cada ferramenta; as abas abaixo mostram como insta
     uv python install 3.12              # Python is managed by uv, not by Homebrew or pip
     ```
 
-    Abra o Docker Desktop uma vez para ele iniciar o engine, e dê a ele **pelo menos 4 CPUs e 8 GB de memória** (*Settings → Resources*).
+    Abra o Docker Desktop uma vez para ele iniciar o engine e dê a ele **pelo menos 4 CPUs e 8 GB de memória** (*Settings → Resources*).
 
 === ":simple-linux: Linux (Ubuntu 24.04)"
 
@@ -308,7 +308,7 @@ git push -u origin main
 
 ## 4. Meça: a referência da sua máquina { #measure-it }
 
-Todo lab termina com uma medição, e esta define a referência: **quanto o seu notebook consegue atender quando o servidor quase não faz nada?** O alvo é um Nginx padrão devolvendo uma pequena página estática; qualquer número que você obtiver depois para o BoxOffice será *menor*, e a diferença é o custo do seu código, do seu banco e dos seus saltos de rede.
+Todo lab termina com uma medição e esta define a referência: **quanto o seu notebook consegue atender quando o servidor quase não faz nada?** O alvo é um Nginx padrão devolvendo uma pequena página estática; qualquer número que você obtiver depois para o BoxOffice será *menor* e a diferença é o custo do seu código, do seu banco e dos seus saltos de rede.
 
 Salve o script como `load/hello.js`:
 
@@ -376,7 +376,7 @@ Little's Law check (VUs ≈ throughput × average latency):
 
 !!! warning "O k6 compete com o servidor"
 
-    O k6 e o servidor dividem os mesmos núcleos de CPU, então, acima de algumas dezenas de milhares de requisições por segundo, você mede o k6 tanto quanto o Nginx. Para uma referência, tudo bem; no lab 2 o alvo será muito mais lento que o k6, e o problema desaparece.
+    O k6 e o servidor dividem os mesmos núcleos de CPU, então, acima de algumas dezenas de milhares de requisições por segundo, você mede o k6 tanto quanto o Nginx. Para uma referência, tudo bem; no lab 2 o alvo será muito mais lento que o k6 e o problema desaparece.
 
 ## 5. Primeiro contato com o playground { #5-first-look-at-the-playground }
 
@@ -400,7 +400,7 @@ O [System Design Playground](../../../playground/index.md) simula, sob carga e e
 !!! success "Boas práticas neste lab"
 
     - **Confira o ferramental com um script, não de memória** — `scripts/check-env.sh` mostra cada ferramenta e versão, então um ambiente quebrado aparece em segundos, não no meio de um teste de carga. Por que importa: toda medição da disciplina supõe o mesmo ambiente ([Como estudar projeto de sistemas](../../classes/intro/index.md)).
-    - **Mantenha segredos e saídas volumosas fora do Git** — o `.gitignore` exclui `.env` e os relatórios HTML do k6, e mantém os resumos JSON e as tabelas em `results/*.md`. Segurança é um atributo de qualidade desde o primeiro dia ([Requisitos](../../classes/intro/requirements/index.md)).
+    - **Mantenha segredos e saídas volumosas fora do Git** — o `.gitignore` exclui `.env` e os relatórios HTML do k6 e mantém os resumos JSON e as tabelas em `results/*.md`. Segurança é um atributo de qualidade desde o primeiro dia ([Requisitos](../../classes/intro/requirements/index.md)).
     - **Meça uma referência antes de mudar qualquer coisa** — `load/hello.js` diz o que a *sua* máquina atende, a referência de todo número seguinte ([Estimativas](../../classes/estimation/index.md)).
     - **Anote cada medição com o seu ambiente** — `results/lab0.md` registra máquina, taxa e latência; um número sem o ambiente não pode ser comparado ([Tornando requisitos mensuráveis](../../classes/intro/requirements/index.md)).
 

@@ -5,7 +5,7 @@ Durante uma venda da BoxOffice, quase toda requisição é uma **leitura** das m
     Ao final deste exercício você será capaz de:
 
     - **Implementar** cache-aside com TTL, jitter e invalidação na escrita, e uma separação leitura/escrita entre um primário e uma réplica.
-    - **Prever** a taxa de acerto e a carga no banco a partir da distribuição das chaves, e **verificar** a previsão com medições.
+    - **Prever** a taxa de acerto e a carga no banco a partir da distribuição das chaves e **verificar** a previsão com medições.
     - **Comparar** antes/depois com a mesma carga: p99, joelho, carga no banco.
     - **Demonstrar** uma leitura desatualizada causada pelo atraso de replicação (e pelo cache) e **mitigá-la**.
     - **Reproduzir** um cache stampede e **corrigi-lo** com coalescência de requisições.
@@ -53,7 +53,7 @@ A partir do seu serviço do relatório de teste de carga (o `catalog` da BoxOffi
 
 1. Acrescente **cache-aside** com Redis no principal endpoint de leitura (`GET /events/{id}`): TTL com jitter, **remoção na escrita** depois do commit da transação, contadores de hit/miss.
 2. Acrescente uma **réplica PostgreSQL por streaming** e direcione **as transações somente leitura para a réplica** e as escritas para o primário.
-3. Execute **a mesma carga k6** (com chaves em distribuição de Zipf e uma pequena parcela de escritas) **antes** (ambiente do ex2) e **depois**, e compare.
+3. Execute **a mesma carga k6** (com chaves em distribuição de Zipf e uma pequena parcela de escritas) **antes** (ambiente do ex2) e **depois** e compare.
 4. **Demonstre uma leitura desatualizada** (atraso da réplica e cache) e implemente ou argumente uma **mitigação**.
 5. **Reproduza um cache stampede** em uma chave quente e **corrija-o**.
 
@@ -62,7 +62,7 @@ A partir do seu serviço do relatório de teste de carga (o `catalog` da BoxOffi
 - [ ] **(obrigatório)** Cache-aside no endpoint de leitura com TTL **e** invalidação na escrita (depois do commit); um contador de hits e um de misses expostos como métricas.
 - [ ] **(obrigatório)** Uma réplica por streaming com separação leitura/escrita; evidência de que **≥ 90% das transações de leitura** vão para a réplica (`pg_stat_database` nos dois nós).
 - [ ] **(obrigatório)** Antes/depois com **o mesmo** script k6, os mesmos dados e os mesmos recursos; resultados brutos versionados.
-- [ ] A sua **previsão** de taxa de acerto e de carga no banco, depois a medição: taxa de acerto **≥ 80%** em regime, e leituras no banco dentro de **±20%** de `(1 − h) λ` (ou uma explicação da diferença).
+- [ ] A sua **previsão** de taxa de acerto e de carga no banco, depois a medição: taxa de acerto **≥ 80%** em regime e leituras no banco dentro de **±20%** de `(1 − h) λ` (ou uma explicação da diferença).
 - [ ] p99 na taxa de load do ex2 e o **novo joelho** (teste de stress), comparados com o antes.
 - [ ] Atraso de replicação medido **ocioso** e **sob carga de escrita**.
 - [ ] Uma **leitura desatualizada** demonstrada passo a passo (pausando o replay na réplica) e uma mitigação implementada ou argumentada com precisão (read-your-writes).

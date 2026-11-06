@@ -1,5 +1,5 @@
 
-A maioria das arquiteturas famosas não foi projetada; ela **evoluiu**. Começou como um programa e um banco de dados numa máquina, e cada novo componente foi acrescentado porque um sintoma específico — uma CPU saturada, uma página lenta, uma queda durante um deploy — o tornou necessário. Esta página acompanha a BoxOffice por esse caminho, do primeiro usuário aos dez milhões, um sintoma de cada vez[^1].
+A maioria das arquiteturas famosas não foi projetada; ela **evoluiu**. Começou como um programa e um banco de dados numa máquina e cada novo componente foi acrescentado porque um sintoma específico — uma CPU saturada, uma página lenta, uma queda durante um deploy — o tornou necessário. Esta página acompanha a BoxOffice por esse caminho, do primeiro usuário aos dez milhões, um sintoma de cada vez[^1].
 
 Duas regras guiam toda a jornada:
 
@@ -34,7 +34,7 @@ flowchart LR
     fan --> vm["Uma VM<br/>app + PostgreSQL + arquivos"]
 ```
 
-Esta é a arquitetura **certa** para os primeiros usuários: uma coisa só para publicar, monitorar e fazer backup; as transações são locais; não há rede entre o código e os dados. Ela também é frágil: a máquina é um **ponto único de falha** (*SPOF*, *single point of failure*), e a aplicação e o banco disputam a mesma CPU, memória e disco.
+Esta é a arquitetura **certa** para os primeiros usuários: uma coisa só para publicar, monitorar e fazer backup; as transações são locais; não há rede entre o código e os dados. Ela também é frágil: a máquina é um **ponto único de falha** (*SPOF*, *single point of failure*) e a aplicação e o banco disputam a mesma CPU, memória e disco.
 
 ## Etapa 1 — separar o banco de dados { #stage-1-separate-the-database }
 
@@ -67,7 +67,7 @@ Você explorou esta etapa na visão geral com o cenário `scale-out`: as réplic
 
 !!! example "No código do BoxOffice: o estágio 2, construído (lab 3)"
 
-    O [Hands-on 3](../../../hands-on/3/index.md) constrói este estágio com Docker Compose: três réplicas idênticas do `catalog` iniciadas a partir de uma única definição, **nenhuma porta publicada** em nenhuma delas, e o Nginx como única porta de entrada. A única mudança de código é um filtro que carimba o nome da réplica em cada resposta — um serviço sem estado escala horizontalmente sem tocar na sua lógica. O laboratório então mede o alerta acima: com requisições baratas, três réplicas trazem três núcleos; com a mistura do lab 2, o PostgreSQL é o gargalo — numa execução de teste, o `db` ficou em ~670% de CPU enquanto cada réplica usava ~20% — e as réplicas a mais só mandam mais consultas concorrentes ao mesmo banco. Esse é o sintoma que abre o estágio 3 (e os labs 5 e 6).
+    O [Hands-on 3](../../../hands-on/3/index.md) constrói este estágio com Docker Compose: três réplicas idênticas do `catalog` iniciadas a partir de uma única definição, **nenhuma porta publicada** em nenhuma delas e o Nginx como única porta de entrada. A única mudança de código é um filtro que carimba o nome da réplica em cada resposta — um serviço sem estado escala horizontalmente sem tocar na sua lógica. O laboratório então mede o alerta acima: com requisições baratas, três réplicas trazem três núcleos; com a mistura do lab 2, o PostgreSQL é o gargalo — numa execução de teste, o `db` ficou em ~670% de CPU enquanto cada réplica usava ~20% — e as réplicas a mais só mandam mais consultas concorrentes ao mesmo banco. Esse é o sintoma que abre o estágio 3 (e os labs 5 e 6).
 
     ``` { .yaml title="docker-compose.yaml (three replicas, one door)" }
     --8<-- "docs/2027.1/hands-on/3/code/docker-compose.yaml:47:67"
@@ -96,7 +96,7 @@ flowchart LR
 
 ## Etapa 4 — um cache { #stage-4-a-cache }
 
-**Sintoma**: mesmo com réplicas, toda página de evento roda as mesmas cinco consultas — para dados que mudam algumas vezes por dia. O p99 do catálogo cresce com o tráfego, e cada nova réplica custa uma máquina de banco inteira.
+**Sintoma**: mesmo com réplicas, toda página de evento roda as mesmas cinco consultas — para dados que mudam algumas vezes por dia. O p99 do catálogo cresce com o tráfego e cada nova réplica custa uma máquina de banco inteira.
 
 **Mudança**: acrescentar um **cache** (Redis) na frente do banco, usando **cache-aside**: a aplicação procura primeiro no cache; numa falta (*miss*), lê do banco e guarda o resultado com um TTL (*time to live*, tempo de vida).
 
@@ -122,7 +122,7 @@ A aritmética é o que faz dos caches a ferramenta mais poderosa da paleta. Com 
 
 ## Etapa 6 — trabalho assíncrono e a primeira abertura de vendas { #stage-6-asynchronous-work-and-the-first-on-sale }
 
-**Sintoma 1**: o checkout leva 2–3 s, e a maior parte não é o pagamento — é gerar o PDF do ingresso e enviar o e-mail *enquanto o fã espera*. Quando o provedor de e-mail está lento, o checkout fica lento; quando ele cai, **o checkout falha**.
+**Sintoma 1**: o checkout leva 2–3 s e a maior parte não é o pagamento — é gerar o PDF do ingresso e enviar o e-mail *enquanto o fã espera*. Quando o provedor de e-mail está lento, o checkout fica lento; quando ele cai, **o checkout falha**.
 
 **Mudança**: tudo o que não precisa terminar antes da resposta vai para uma **fila de mensagens**. O checkout grava o pedido, publica uma mensagem `TicketIssued` e responde imediatamente; **workers** consomem a fila, geram o PDF e enviam o e-mail no próprio ritmo, tentando de novo em caso de falha.
 
@@ -163,7 +163,7 @@ flowchart LR
 
 **Sintoma**: a tabela de pedidos tem bilhões de linhas e o disco e o throughput de escrita do primário estão perto do limite; a busca textual com `LIKE '%rock%'` varre milhões de linhas; os painéis de vendas dos organizadores rodam agregações pesadas no banco de produção.
 
-**Mudança**: usar o armazenamento certo para cada trabalho, e **particionar** o que precisa crescer:
+**Mudança**: usar o armazenamento certo para cada trabalho e **particionar** o que precisa crescer:
 
 - **Particionamento (sharding)** divide os dados entre vários nós de banco por uma chave — pedidos por `fanId`, inventário de lugares por `eventId` —, de modo que as escritas escalem com o número de shards.
 - Um **motor de busca** (índice invertido) para busca textual e por facetas, alimentado de forma assíncrona pelos eventos do catálogo.
@@ -177,7 +177,7 @@ flowchart LR
 
 **Mudança**: um **WAF** (*Web Application Firewall*) e mitigação de robôs na borda; **rate limiting** no API Gateway (por fã, por IP, por cartão); implantação em **várias zonas de disponibilidade** primeiro, depois em **várias regiões** com failover por **DNS**.
 
-**Problema novo**: os dados agora ficam longe uns dos outros. Replicar o inventário de lugares entre regiões de forma síncrona custa dezenas de milissegundos por escrita (a velocidade da luz é um limite rígido); de forma assíncrona, arrisca vender um lugar duas vezes durante um failover. O meio-termo usual: o inventário de cada evento tem **uma região-sede**, e as outras regiões encaminham as reservas para ela. A aula 3 explica por que não existe almoço grátis aqui (CAP e PACELC).
+**Problema novo**: os dados agora ficam longe uns dos outros. Replicar o inventário de lugares entre regiões de forma síncrona custa dezenas de milissegundos por escrita (a velocidade da luz é um limite rígido); de forma assíncrona, arrisca vender um lugar duas vezes durante um failover. O meio-termo usual: o inventário de cada evento tem **uma região-sede** e as outras regiões encaminham as reservas para ela. A aula 3 explica por que não existe almoço grátis aqui (CAP e PACELC).
 
 **Experimente:** o cenário final é uma venda relâmpago (a nossa abertura de vendas das 10:00) num desenho que ainda não tem nenhum desses componentes: `users → lb → app → inventory-db`, mais o `payment provider`. Aperte **Run**: quando a venda abre (t = 60 s) o tráfego salta 20×. Encontre o primeiro gargalo, aumente a capacidade dele e encontre o próximo. Depois abra no playground completo (↗) e aperte **Mostrar uma solução possível** para ver os componentes desta jornada trabalhando juntos — CDN, cache, API gateway e uma fila de sala de espera.
 
@@ -192,7 +192,7 @@ Algumas coisas não pertencem a nenhuma etapa — elas precisam estar lá **desd
 - **Observabilidade** — métricas, logs e traces. Toda decisão acima começa com "o sintoma é…": sem medição não há sintoma, só opiniões.
 - **Automação** — infraestrutura como código, CI/CD, testes automatizados. Dez servidores configurados à mão são dez servidores diferentes.
 - **Segurança** — autenticação, privilégio mínimo, segredos fora do código, desde o primeiro commit.
-- **Consciência de custo** — saber quanto cada componente custa por mês, e por ingresso vendido.
+- **Consciência de custo** — saber quanto cada componente custa por mês e por ingresso vendido.
 
 ??? question "Pense antes: em que ordem você acrescentaria componentes num sistema *dominado por escritas*?"
 
@@ -207,7 +207,7 @@ Algumas coisas não pertencem a nenhuma etapa — elas precisam estar lá **desd
 !!! success "Boas práticas"
 
     - **Encontre o recurso saturado com medidores internos antes de acrescentar um componente** — threads ocupadas, uso do pool, CPU por contêiner; o novo componente vai onde a fila cresce. Na BoxOffice: `scripts/watch-metrics.sh` no [lab 2](../../../hands-on/2/index.md).
-    - **Mantenha o "antes" ligável quando acrescentar um componente** — uma flag de configuração permite medir com e sem ele, e voltar atrás sem deploy. Na BoxOffice: `NOTIFY_MODE=sync|outbox` (lab 7) e `CACHE_STAMPEDE_PROTECTION` (lab 5).
+    - **Mantenha o "antes" ligável quando acrescentar um componente** — uma flag de configuração permite medir com e sem ele e voltar atrás sem deploy. Na BoxOffice: `NOTIFY_MODE=sync|outbox` (lab 7) e `CACHE_STAMPEDE_PROTECTION` (lab 5).
     - **Leve a chave de particionamento em toda tabela quente desde o início** — `event_id` em assentos e reservas faz do estágio 8 uma migração, não uma reescrita. Na BoxOffice: toda consulta a `inventory.seats` filtra por `event_id` ([lab 6](../../../hands-on/6/holds/index.md)).
     - **Prefira um serviço gerenciado para cada camada com estado até que um número diga o contrário** — um PostgreSQL gerenciado traz backups, patches e failover que uma equipe de duas pessoas teria de operar às 3 da manhã.
     - **Faça teste de carga de cada estágio no pico esperado antes de o tráfego chegar** — e guarde o resultado. Na BoxOffice: o lab 3 mede 1 contra 3 réplicas com duas cargas ([Hands-on 3](../../../hands-on/3/index.md#measure-it)).

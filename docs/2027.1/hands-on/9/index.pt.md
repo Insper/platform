@@ -92,7 +92,7 @@ flowchart LR
 | Pergunta | Métrica | Ferramenta |
 |---|---|---|
 | Uma dependência lenta prejudica endpoints que não a usam? | p95 e erros do `browse` enquanto o `payment` está lento | k6 |
-| Quanto cada padrão ajuda, e quanto custa? | p95 do `pay`, % confirmados, % de falha rápida | k6 |
+| Quanto cada padrão ajuda e quanto custa? | p95 do `pay`, % confirmados, % de falha rápida | k6 |
 | Quão rápido o breaker abre e se recupera? | transições de estado ao longo do tempo | `/actuator/circuitbreakers` |
 | Quão rápido o time detecta e mitiga? | tempo para detectar, tempo para mitigar | linha do tempo do game day |
 
@@ -108,13 +108,13 @@ flowchart LR
 1. [Pagamento, provedor e Toxiproxy](payment/index.md) — o adaptador idempotente `payment`, um provedor WireMock, os proxies do Toxiproxy e o seu primeiro toxic.
 2. [Padrões de resiliência](patterns/index.md) — reproduza a cascata, depois adicione timeout, retry, circuit breaker e bulkhead, um de cada vez.
 3. [Game day](game-day/index.md) — papéis, hipóteses, falhas escondidas, linha do tempo e uma revisão sem culpados.
-4. [Meça](measure/index.md) — o script do k6 com um cenário `pay` e um `browse`, e a tabela de resultados.
+4. [Meça](measure/index.md) — o script do k6 com um cenário `pay` e um `browse` e a tabela de resultados.
 
 ## Experimente no playground { #try-it-in-the-playground }
 
 **Experimente:** em `cascading-failure`, rode o perfil `load` e aumente a latência do nó de terceiro
 (3rd party): veja a utilização do app server chegar a 100% e os erros dele se espalharem para todas as
-requisições. Depois defina um timeout e ative o circuit breaker na aresta para o terceiro, e rode de
+requisições. Depois defina um timeout e ative o circuit breaker na aresta para o terceiro e rode de
 novo. Em `retry-storm`, compare `retries: 3` com e sem backoff `exp+jitter` durante uma queda.
 
 <div class="sdp" data-scenario="cascading-failure" data-mode="compact" data-height="520"></div>
@@ -178,12 +178,12 @@ Faça commit e tag: `git add -A && git commit -m "lab 9: resilience" && git tag 
 ## Checklist
 
 - [ ] `payment`, `psp` e `toxiproxy` rodam no `docker-compose.yaml`; `order` e `payment` chegam às suas dependências pelo Toxiproxy
-- [ ] o `POST /payments` é idempotente pela `Idempotency-Key`, e a chave é repassada ao provedor
+- [ ] o `POST /payments` é idempotente pela `Idempotency-Key` e a chave é repassada ao provedor
 - [ ] o `POST /orders/{id}/pay` confirma o pedido (status `CONFIRMED` + `OrderConfirmed` no outbox) e é protegido por timeout, retry, circuit breaker e bulkhead
 - [ ] a execução sem proteção mostra a cascata (`browse` degradado); a execução de cada padrão mostra o seu efeito, em números
 - [ ] um game day com pelo menos três experimentos escondidos, uma linha do tempo e uma revisão sem culpados por rodada
 - [ ] tabela de resultados preenchida em `results/lab9.md` e explicada
-- [ ] autoverificação: `curl -s -X POST localhost:8474/reset`, depois `PAYMENT_RESILIENCE=true docker compose up -d --wait order`, e uma chamada `pay` devolve `CONFIRMED`; push com a tag `lab9`
+- [ ] autoverificação: `curl -s -X POST localhost:8474/reset`, depois `PAYMENT_RESILIENCE=true docker compose up -d --wait order` e uma chamada `pay` devolve `CONFIRMED`; push com a tag `lab9`
 
 ## Relacionados { #related }
 

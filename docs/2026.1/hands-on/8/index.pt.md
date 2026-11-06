@@ -6,7 +6,7 @@ Quando o gateway escala horizontalmente, cada instância da JVM tem seu próprio
 
 ## Bancos de dados em memória
 
-Um **banco de dados em memória** (IMDB, *in-memory database*) mantém seu conjunto de dados de trabalho principal na RAM, e não em disco. Como a latência de acesso à RAM é medida em nanossegundos, enquanto a de acesso ao disco é medida em milissegundos, os IMDBs são ordens de grandeza mais rápidos para workloads com muitas leituras.
+Um **banco de dados em memória** (IMDB, *in-memory database*) mantém seu conjunto de dados de trabalho principal na RAM e não em disco. Como a latência de acesso à RAM é medida em nanossegundos, enquanto a de acesso ao disco é medida em milissegundos, os IMDBs são ordens de grandeza mais rápidos para workloads com muitas leituras.
 
 | | Tradicional (em disco) | Em memória |
 |---|---|---|

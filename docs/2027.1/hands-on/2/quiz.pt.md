@@ -12,7 +12,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — Modelo aberto, sem coordinated omission.**
 
-    Com um número fixo de VUs, cada VU espera a sua resposta antes de mandar a próxima requisição; quando o servidor fica lento, o gerador educadamente manda menos, e o teste subestima o estrago. Fãs reais chegam de forma independente, e é isso que os executores por taxa de chegada simulam.
+    Com um número fixo de VUs, cada VU espera a sua resposta antes de mandar a próxima requisição; quando o servidor fica lento, o gerador educadamente manda menos e o teste subestima o estrago. Fãs reais chegam de forma independente e é isso que os executores por taxa de chegada simulam.
 
 ---
 
@@ -54,7 +54,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **C — Throughput sob um SLO.**
 
-    Além do joelho o serviço ainda pode *processar* muitas requisições por segundo, mas os usuários esperam segundos. A capacidade é definida pelas metas de latência e de erros, e você planeja com uma margem abaixo dela.
+    Além do joelho o serviço ainda pode *processar* muitas requisições por segundo, mas os usuários esperam segundos. A capacidade é definida pelas metas de latência e de erros e você planeja com uma margem abaixo dela.
 
 ---
 
@@ -89,7 +89,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 **Q7.** Você dobrou `DB_POOL_SIZE` de 10 para 20 e o joelho foi de ~350 para ~550 req/s. Por que não colocar 500?
 
 - A. O HikariCP não permite mais de 100
-- B. Cada conexão é um processo do PostgreSQL; além da capacidade do próprio banco, mais conexões só acrescentam contenção, e várias réplicas × pools grandes passam de `max_connections`
+- B. Cada conexão é um processo do PostgreSQL; além da capacidade do próprio banco, mais conexões só acrescentam contenção e várias réplicas × pools grandes passam de `max_connections`
 - C. Pools maiores deixam o Java mais lento
 - D. O Flyway falharia
 
@@ -110,7 +110,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — Aquecimento.**
 
-    Compilação JIT, carregamento de classes, conexões do pool e páginas frias do banco deixam o primeiro minuto mais lento. Por isso o `sweep.sh` roda antes um aquecimento que não é registrado, e por isso testes de carga sérios descartam o período de rampa.
+    Compilação JIT, carregamento de classes, conexões do pool e páginas frias do banco deixam o primeiro minuto mais lento. Por isso o `sweep.sh` roda antes um aquecimento que não é registrado e por isso testes de carga sérios descartam o período de rampa.
 
 ---
 

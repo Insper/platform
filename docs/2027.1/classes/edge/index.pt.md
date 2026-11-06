@@ -6,16 +6,16 @@ Neste curso, **a borda** é o conjunto de componentes que recebem, filtram, rote
 
 !!! quote "A história até aqui"
 
-    Capítulo 4 da [história do curso](../../index.md#story). O BoxOffice tem números ([aula 2](../estimation/index.md)) e sabe que a rede entre suas máquinas mente ([aula 3](../distributed/index.md)). Agora 2 milhões de celulares enviam uma requisição no mesmo segundo — cerca de 100.000 requisições/s na borda — enquanto uma réplica de `catalog` só mantém sua meta de latência até algumas centenas. **Esta aula** responde: quais requisições podem terminar antes de chegar a qualquer serviço, e como o restante chega a uma réplica saudável — de um chamador identificado, de forma justa e a uma taxa que o núcleo aguenta?
+    Capítulo 4 da [história do curso](../../index.md#story). O BoxOffice tem números ([aula 2](../estimation/index.md)) e sabe que a rede entre suas máquinas mente ([aula 3](../distributed/index.md)). Agora 2 milhões de celulares enviam uma requisição no mesmo segundo — cerca de 100.000 requisições/s na borda — enquanto uma réplica de `catalog` só mantém sua meta de latência até algumas centenas. **Esta aula** responde: quais requisições podem terminar antes de chegar a qualquer serviço e como o restante chega a uma réplica saudável — de um chamador identificado, de forma justa e a uma taxa que o núcleo aguenta?
 
 !!! abstract "Objetivos de aprendizagem"
 
     Ao final desta aula você deve ser capaz de:
 
     - **Rastrear** uma requisição de um cliente até um serviço passando por DNS, CDN, WAF, load balancer, API gateway e ingress, e **explicar** o que cada salto decide.
-    - **Configurar** registros DNS e TTLs, e o cache da CDN (`Cache-Control`, cache keys, invalidação) para uma página de muita leitura, e **calcular** a carga na origem para um dado hit ratio.
+    - **Configurar** registros DNS e TTLs e o cache da CDN (`Cache-Control`, cache keys, invalidação) para uma página de muita leitura e **calcular** a carga na origem para um dado hit ratio.
     - **Comparar** load balancing L4 e L7 e **escolher** um algoritmo de balanceamento (round robin, least connections, power of two choices, consistent hashing) para uma carga de trabalho.
-    - **Projetar** uma política de rate limiting com token bucket ou sliding window, e **posicioná-la** na camada certa.
+    - **Projetar** uma política de rate limiting com token bucket ou sliding window e **posicioná-la** na camada certa.
     - **Contrastar** HTTP/1.1, HTTP/2, HTTP/3 (QUIC), WebSockets, SSE e gRPC, e **selecionar** um deles para uma dada interação.
     - **Defender** uma arquitetura de borda contra bots e ataques DDoS com regras de WAF, rate limits, desafios e uma sala de espera.
 
@@ -72,11 +72,11 @@ Leia o diagrama como uma série de **decisões**, tomadas o mais cedo (e da form
 1. O **DNS** decide *para onde* o cliente vai: qual endereço IP, qual região, qual localidade de borda.
 2. A **CDN** (Content Delivery Network) decide se a requisição precisa ir adiante: se a resposta está em cache na borda, a jornada termina aqui, a poucos milissegundos do fã.
 3. O **WAF** (Web Application Firewall) decide se a requisição é *permitida*: tráfego malformado, malicioso ou abusivo é descartado aqui.
-4. O **load balancer** decide *qual réplica* atende a requisição, e só a envia para réplicas saudáveis.
+4. O **load balancer** decide *qual réplica* atende a requisição e só a envia para réplicas saudáveis.
 5. O **API gateway** decide se o *chamador* é permitido e está dentro da sua cota: autenticação, rate limits, roteamento para o serviço certo.
 6. O **ingress** (dentro do Kubernetes) decide qual *Service* do cluster recebe a requisição, por host e path.
 
-Cada salto remove trabalho do seguinte. Em uma venda relâmpago bem projetada, a grande maioria das requisições termina na CDN (assets estáticos, a página do evento, até um mapa de assentos em cache por um segundo), muitos bots terminam no WAF, e só um fluxo controlado e justo chega ao `inventory`.
+Cada salto remove trabalho do seguinte. Em uma venda relâmpago bem projetada, a grande maioria das requisições termina na CDN (assets estáticos, a página do evento, até um mapa de assentos em cache por um segundo), muitos bots terminam no WAF e só um fluxo controlado e justo chega ao `inventory`.
 
 | Id na paleta | Componente | Tarefa | Camada | Produtos típicos |
 |---|---|---|---|---|
@@ -134,7 +134,7 @@ O TLS (Transport Layer Security) criptografa o tráfego entre dois pontos. Na bo
 Arquiteturas modernas seguem uma postura **zero trust**: terminar o TLS público na borda e criptografar de novo dentro do cluster — frequentemente de forma automática, com TLS mútuo (mTLS) de um service mesh (veja [Rede & Segurança](../network-security/index.md)).
 
 ??? question "Pense antes: uma CDN consegue cachear uma página se o TLS vai até o serviço?"
-    Não. Para cachear uma resposta, a CDN precisa lê-la, e para lê-la precisa ter o certificado e decifrar o tráfego. Com TLS pass-through, a CDN só vê bytes criptografados e não consegue nem cacheá-los nem filtrá-los. É por isso que CDNs e WAFs terminam o TLS: você confia ao seu provedor de borda o seu certificado (ou um certificado emitido para ele) em troca de cache e filtragem.
+    Não. Para cachear uma resposta, a CDN precisa lê-la e para lê-la precisa ter o certificado e decifrar o tráfego. Com TLS pass-through, a CDN só vê bytes criptografados e não consegue nem cacheá-los nem filtrá-los. É por isso que CDNs e WAFs terminam o TLS: você confia ao seu provedor de borda o seu certificado (ou um certificado emitido para ele) em troca de cache e filtragem.
 
 ---
 
@@ -155,7 +155,7 @@ Cada salto adiciona tempo. Suponha que o BoxOffice queira que a API do mapa de a
 Três lições saem desse tipo de tabela:
 
 - **Estabelecer conexões é caro e evitável.** Cache de DNS, keep-alive e retomada de sessão TLS removem cerca de um terço do custo frio. O HTTP/3 remove ainda mais ([Protocolos](protocols/index.md)).
-- **A distância domina.** Se a origem estivesse na Virgínia em vez de São Paulo, cada round trip custaria cerca de 120 ms em vez de 10 ms, e uma requisição fria pagaria vários deles. É por isso que existem CDNs e localidades de borda.
+- **A distância domina.** Se a origem estivesse na Virgínia em vez de São Paulo, cada round trip custaria cerca de 120 ms em vez de 10 ms e uma requisição fria pagaria vários deles. É por isso que existem CDNs e localidades de borda.
 - **A requisição mais barata é a que nunca chega à origem.** Um cache hit na borda responde no tempo de um RTT até o ponto de presença mais próximo.
 
 ---
@@ -176,7 +176,7 @@ As regras de WAF começam em modo **count** (só registro), são ajustadas contr
 
 ### Mitigação de bots { #bots }
 
-Nem todo bot é ruim (crawlers de buscadores, monitores de uptime), e os ruins se parecem cada vez mais com humanos. A mitigação combina vários sinais, dos mais baratos primeiro:
+Nem todo bot é ruim (crawlers de buscadores, monitores de uptime) e os ruins se parecem cada vez mais com humanos. A mitigação combina vários sinais, dos mais baratos primeiro:
 
 | Técnica | Como funciona | Detém | Custo / risco |
 |---|---|---|---|
@@ -210,9 +210,9 @@ A ideia-chave é a **assimetria**: você não consegue superar um atacante em ca
     - **WAF**: regras gerenciadas da OWASP ligadas; uma regra customizada só permite `POST /api/holds` com um token válido da sala de espera; `POST /login` limitado por IP e por conta.
     - **Bots**: desafio JavaScript para fingerprints suspeitos; ASNs de data center desafiados antes de entrar na fila.
     - **Sala de espera**: admite um número fixo de usuários por minuto, dimensionado pela capacidade de `inventory` e `payment` medida nos testes de carga.
-    - **API gateway**: validação do JWT e um token bucket de 10 requisições/s por usuário com rajadas de 20, e um limite de 6 assentos por reserva.
+    - **API gateway**: validação do JWT e um token bucket de 10 requisições/s por usuário com rajadas de 20 e um limite de 6 assentos por reserva.
 
-    O resultado: os serviços centrais veem milhares de requisições por segundo em vez de milhões, e as veem na ordem que a sala de espera decidiu — não na ordem que o bot mais rápido decidiu.
+    O resultado: os serviços centrais veem milhares de requisições por segundo em vez de milhões e as veem na ordem que a sala de espera decidiu — não na ordem que o bot mais rápido decidiu.
 
 **Experimente.** Carregue o cenário de venda relâmpago e aperte **Run**. O desenho, como está, não tem CDN, gateway nem sala de espera — só `users → lb → app → inventory-db`, com os compradores também chamando o `payment provider` (cota de 500 req/s). Quando a venda abre (t = 60 s), o tráfego salta 20×: o `app` satura e os erros e o p99 explodem; aumente as réplicas dele e o gargalo só se desloca para o `inventory-db` e o provedor de pagamento. Depois abra no playground completo (↗) e siga as dicas — uma CDN na frente, um cache para as leituras do catálogo e um API gateway que envia os compradores para uma fila de sala de espera drenada por workers `order` — ou aperte **Mostrar uma solução possível**. Compare a latência p99, a taxa de erros e as req/s atendidas, e leia o consumer lag: é quanto tempo um comprador espera na fila.
 
@@ -288,7 +288,7 @@ flowchart LR
 
 ## O que quebra em seguida { #what-breaks-next }
 
-A borda decide qual réplica atende cada requisição, e o gateway confere o token do chamador uma vez para todos os serviços — mas ambos assumem algo que não conseguem garantir: que **qualquer** réplica pode atender **qualquer** requisição. Uma réplica que guarda a sessão do fã ou uma reserva de assento na própria memória a perde quando morre, ou quando a próxima requisição cai em outra réplica. O lab 3 mostra o outro limite: três réplicas de `catalog` atrás do Nginx multiplicam as requisições baratas, mas não a carga mista, em que o PostgreSQL é o gargalo (em uma execução de teste, `db` a ~670% de CPU e cada réplica a ~20%). O que uma réplica precisa ser (stateless), como os serviços são recortados e o gateway que o lab 4 constrói com `auth` atrás desta borda estão na [aula 5 — Compute & Services](../compute/index.md).
+A borda decide qual réplica atende cada requisição e o gateway confere o token do chamador uma vez para todos os serviços — mas ambos assumem algo que não conseguem garantir: que **qualquer** réplica pode atender **qualquer** requisição. Uma réplica que guarda a sessão do fã ou uma reserva de assento na própria memória a perde quando morre, ou quando a próxima requisição cai em outra réplica. O lab 3 mostra o outro limite: três réplicas de `catalog` atrás do Nginx multiplicam as requisições baratas, mas não a carga mista, em que o PostgreSQL é o gargalo (em uma execução de teste, `db` a ~670% de CPU e cada réplica a ~20%). O que uma réplica precisa ser (stateless), como os serviços são recortados e o gateway que o lab 4 constrói com `auth` atrás desta borda estão na [aula 5 — Compute & Services](../compute/index.md).
 
 ## Relacionados { #related }
 

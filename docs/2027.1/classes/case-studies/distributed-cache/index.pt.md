@@ -14,10 +14,10 @@ No BoxOffice, o cache guarda páginas de eventos, retratos da disponibilidade de
 
 !!! abstract "O que este caso treina"
 
-    - **Dimensionar** um cluster de cache pela memória **e** pelas operações por segundo, e **relacionar** a taxa de acerto com a carga no banco.
+    - **Dimensionar** um cluster de cache pela memória **e** pelas operações por segundo e **relacionar** a taxa de acerto com a carga no banco.
     - **Explicar** por que `hash(chave) % N` falha quando os nós mudam e como o hash consistente com nós virtuais resolve.
-    - **Escolher** uma política de despejo e TTLs para uma carga, e **explicar** o que o W-TinyLFU acrescenta ao LRU.
-    - **Projetar** replicação e failover, e **declarar** o que se perde com replicação assíncrona.
+    - **Escolher** uma política de despejo e TTLs para uma carga e **explicar** o que o W-TinyLFU acrescenta ao LRU.
+    - **Projetar** replicação e failover e **declarar** o que se perde com replicação assíncrona.
     - **Mitigar** chaves quentes, chaves grandes e estouros de manada no cache.
 
 ---
@@ -54,7 +54,7 @@ Persistência em disco (snapshots/AOF), replicação entre regiões, estruturas 
     |---|---|
     | É um cache (dados podem se perder) ou um armazenamento primário? | Um cache pode usar replicação assíncrona e despejar à vontade; um armazenamento não. |
     | Tamanho total dos dados e tamanho dos valores? | Dimensionamento de memória; valores grandes (MBs) exigem cuidado especial. |
-    | Razão leitura/escrita e pico de ops/s? | Muitas vezes são as ops/s, e não a memória, que decidem o número de nós. |
+    | Razão leitura/escrita e pico de ops/s? | Muitas vezes são as ops/s e não a memória que decidem o número de nós. |
     | Dados desatualizados são aceitáveis? Por quanto tempo? | TTLs, estratégia de invalidação, leitura em réplicas. |
     | Algumas chaves são muito mais quentes que outras? | Chaves quentes quebram o particionamento equilibrado. |
     | Quem roteia: a biblioteca cliente, um proxy ou os servidores? | Afeta latência, complexidade do cliente e operação. |
@@ -187,7 +187,7 @@ sequenceDiagram
 
 ## 6. Aprofundamentos (deep dives) { #6-deep-dives }
 
-### 6.1 Particionamento: por que `hash % N` quebra, e o hash consistente { #61-partitioning-why-hash-n-breaks-and-consistent-hashing }
+### 6.1 Particionamento: por que `hash % N` quebra e o hash consistente { #61-partitioning-why-hash-n-breaks-and-consistent-hashing }
 
 Com `nó = hash(chave) % N`, passar de 4 para 5 nós muda o dono de quase todas as chaves — um cache com 80% das chaves de repente no lugar errado é, para o banco, o mesmo que um cache vazio. O **hash consistente** coloca nós e chaves no mesmo anel de valores de hash; uma chave pertence ao primeiro nó no sentido horário. Acrescentar um nó só toma chaves dos vizinhos — cerca de `1/N` delas. Cada nó físico recebe muitos **nós virtuais** (pontos no anel) para a carga ficar equilibrada e as chaves de um nó que falhou se espalharem por todos os outros, não só por um vizinho ([particionamento](../../databases/partitioning/index.md)).
 
@@ -238,7 +238,7 @@ Leia a tabela em duas colunas. **Chaves movidas** ao passar de 4 para 5 nós: `h
 
 === "Hash slots fixos (Redis Cluster)"
 
-    O espaço de chaves é dividido num número fixo de slots (16 384); cada nó é dono de um conjunto de slots. O rebalanceamento **move slots**, não faixas de hash individuais, e o cluster avisa os clientes com redirecionamentos `MOVED`/`ASK`. O mesmo benefício do anel (só os slots movidos mudam de dono), mais simples de raciocinar e de migrar aos poucos.
+    O espaço de chaves é dividido num número fixo de slots (16 384); cada nó é dono de um conjunto de slots. O rebalanceamento **move slots**, não faixas de hash individuais e o cluster avisa os clientes com redirecionamentos `MOVED`/`ASK`. O mesmo benefício do anel (só os slots movidos mudam de dono), mais simples de raciocinar e de migrar aos poucos.
 
 === "Rendezvous hashing"
 
@@ -281,7 +281,7 @@ sequenceDiagram
 
 - A replicação costuma ser **assíncrona**: escritas rápidas, mas um failover pode perder as últimas escritas confirmadas. Para um cache isso é aceitável — a próxima falta recarrega do banco. Se um valor desatualizado for perigoso (disponibilidade de lugares), mantenha TTLs curtos ou apague as chaves na escrita ([invalidação](../../caching/patterns/index.md)).
 - A **detecção de falhas** precisa de **maioria** (Redis Sentinel, ou os nós do cluster votando) para que um observador isolado não promova uma réplica sozinho.
-- **Split brain**: depois de uma partição, o primário antigo ainda pode aceitar escritas de clientes do lado dele. Mitigue fazendo o primário parar de aceitar escritas quando não enxerga réplicas/pares suficientes (`min-replicas-to-write`), e com épocas/termos para clientes e nós rejeitarem o primário velho.
+- **Split brain**: depois de uma partição, o primário antigo ainda pode aceitar escritas de clientes do lado dele. Mitigue fazendo o primário parar de aceitar escritas quando não enxerga réplicas/pares suficientes (`min-replicas-to-write`) e com épocas/termos para clientes e nós rejeitarem o primário velho.
 - **Réplicas aquecidas** também atendem leituras (se leituras desatualizadas forem aceitáveis) e evitam o estouro de manada do nó frio depois do failover.
 
 ### 6.4 Chaves quentes, chaves grandes e estouros de manada { #64-hot-keys-big-keys-and-stampedes }
@@ -303,7 +303,7 @@ def should_refresh_early(expires_at: float, recompute_s: float, beta: float = 1.
 
 !!! example "No código do BoxOffice: um lease contra o stampede (lab 5)"
 
-    O BoxOffice roda um Redis só, não um cluster, então os labs não constroem o particionamento deste caso — mas o [Hands-on 5 — Stampede](../../../hands-on/5/stampede/index.md) constrói o seu lease: a primeira falta pega o `lock` com `SET NX` e recarrega, relê depois de vencer, e as outras consultam a chave por no máximo 20 × 25 ms. No teste do lab (200 usuários virtuais por 60 s, TTL de 3 s), as faltas caíram de **2.238 para 19** — uma consulta ao banco por expiração. O passo a passo completo está em [Cache — modos de falha](../../caching/failure-modes/index.md).
+    O BoxOffice roda um Redis só, não um cluster, então os labs não constroem o particionamento deste caso — mas o [Hands-on 5 — Stampede](../../../hands-on/5/stampede/index.md) constrói o seu lease: a primeira falta pega o `lock` com `SET NX` e recarrega, relê depois de vencer e as outras consultam a chave por no máximo 20 × 25 ms. No teste do lab (200 usuários virtuais por 60 s, TTL de 3 s), as faltas caíram de **2.238 para 19** — uma consulta ao banco por expiração. O passo a passo completo está em [Cache — modos de falha](../../caching/failure-modes/index.md).
 
     ``` { .java title="services/catalog/src/main/java/boxoffice/catalog/EventCache.java (the lease)" }
     --8<-- "docs/2027.1/hands-on/5/code/services/catalog/src/main/java/boxoffice/catalog/EventCache.java:62:85"
@@ -335,13 +335,13 @@ A implantação de memcache do Facebook, por exemplo, colocou o roteamento num p
 | Estouro de manada na expiração | Milhares de faltas para uma chave | Leases/coalescência, renovação antecipada, jitter no TTL, servir o velho | Leve desatualização |
 | Pressão de memória | Tempestades de despejo, fragmentação, swap | Folga (~70–80%), política certa, alertas de despejos e memória | Menos bytes usados por nó |
 
-Os trade-offs para **dizer em voz alta**: **disponibilidade e velocidade acima de consistência** (um cache pode estar desatualizado ou perder escritas; o banco é a verdade), **memória vs. vazão** (dimensione pelos dois), e **distribuição equilibrada vs. chaves quentes** (o hash espalha chaves, não popularidade).
+Os trade-offs para **dizer em voz alta**: **disponibilidade e velocidade acima de consistência** (um cache pode estar desatualizado ou perder escritas; o banco é a verdade), **memória vs. vazão** (dimensione pelos dois) e **distribuição equilibrada vs. chaves quentes** (o hash espalha chaves, não popularidade).
 
 ---
 
 ## 8. Experimente no playground { #8-try-it-in-the-playground }
 
-Dois cenários cobrem as duas metades deste caso: o cache na frente de um banco, e o particionamento dos dados entre nós.
+Dois cenários cobrem as duas metades deste caso: o cache na frente de um banco e o particionamento dos dados entre nós.
 
 !!! tip "Experimente — cache na frente do banco"
 

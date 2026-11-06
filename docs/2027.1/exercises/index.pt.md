@@ -67,7 +67,7 @@ O conceito final de uma entrega é o nível que melhor descreve **a maioria** do
 
 ### Uso de ferramentas de IA { #use-of-ai-tools }
 
-Ferramentas de IA (assistentes de chat, assistentes de código, agentes) **são permitidas** — elas fazem parte de como software é construído em 2026, e aprender a usá-las bem faz parte do curso. As regras:
+Ferramentas de IA (assistentes de chat, assistentes de código, agentes) **são permitidas** — elas fazem parte de como software é construído em 2026 e aprender a usá-las bem faz parte do curso. As regras:
 
 1. **Você é responsável por cada linha e cada número.** Se você entregou, precisa conseguir explicar, executar e alterar na hora.
 2. **Declare o uso.** Cada página de exercício termina com uma seção *Uso de IA*: quais ferramentas, para quê (por exemplo, "gerou o esqueleto do script k6", "revisou minha ADR") e o que você conferiu ou alterou por conta própria.

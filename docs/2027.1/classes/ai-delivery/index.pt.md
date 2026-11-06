@@ -4,14 +4,14 @@ Nada disso é problema dos modelos. As mesmas ferramentas, bem projetadas, reduz
 
 !!! quote "A história até aqui"
 
-    Capítulo 14 da [história da disciplina](../../index.md#story). Toda mudança na BoxOffice passa pelo pipeline do [lab 11](../../hands-on/11/index.md) — build, testes, varredura, assinatura, canary — e, desde a [aula 13](../ai-systems/index.md), um modelo roda dentro do produto. Agora os mesmos modelos escrevem o código, e as mudanças chegam mais rápido do que as pessoas que as revisam, testam e liberam. **Esta aula** responde: onde a IA pode acelerar a entrega sem virar quem aprova o próprio trabalho?
+    Capítulo 14 da [história da disciplina](../../index.md#story). Toda mudança na BoxOffice passa pelo pipeline do [lab 11](../../hands-on/11/index.md) — build, testes, varredura, assinatura, canary — e, desde a [aula 13](../ai-systems/index.md), um modelo roda dentro do produto. Agora os mesmos modelos escrevem o código e as mudanças chegam mais rápido do que as pessoas que as revisam, testam e liberam. **Esta aula** responde: onde a IA pode acelerar a entrega sem virar quem aprova o próprio trabalho?
 
 !!! abstract "Objetivos de aprendizagem"
 
     Ao final desta aula, você deve ser capaz de:
 
     - **Mapear** as capacidades de IA para cada etapa do ciclo de entrega (planejar, codificar, revisar, testar, construir, liberar, operar) e **posicionar** uma ferramenta no espectro que vai do assistente ao agente autônomo.
-    - **Projetar** um revisor de pull requests com IA: contexto, saída estruturada, controle de ruído, consultivo vs. gate, e como **medir** sua precisão.
+    - **Projetar** um revisor de pull requests com IA: contexto, saída estruturada, controle de ruído, consultivo vs. gate e como **medir** sua precisão.
     - **Avaliar** testes gerados por IA com testes de mutação e **explicar** o problema do oráculo, a triagem de testes flaky e a seleção de testes.
     - **Especificar** um agente que roda sem interface (headless) no CI com privilégio mínimo, orçamentos, idempotência, verificação e trilha de auditoria.
     - **Separar** decisão de explicação na liberação e na operação: pontuação de risco, análise de canary, resumos de incidentes, postmortems.
@@ -50,7 +50,7 @@ Esta aula não repete dois fundamentos; leia-os antes, se necessário:
 
 ## IA ao longo do ciclo de entrega { #ai-across-the-delivery-lifecycle }
 
-O ciclo de entrega de software é uma sequência de etapas, cada uma com suas entradas, saídas e modos de falha. A IA pode ajudar em todas elas — mas o que "ajudar" significa, e o que pode dar errado, varia muito:
+O ciclo de entrega de software é uma sequência de etapas, cada uma com suas entradas, saídas e modos de falha. A IA pode ajudar em todas elas — mas o que "ajudar" significa e o que pode dar errado varia muito:
 
 | Etapa | O que a IA faz | Exemplo na BoxOffice | Principal risco | Controle |
 |---|---|---|---|---|
@@ -101,7 +101,7 @@ Subir na escala compra vazão e custa controle. O nível certo depende do **raio
 
     (a) Atualizar o `jackson-databind` de 2.18.1 para 2.18.2 em todos os serviços; (b) reescrever o `SELECT … FOR UPDATE` do `inventory`; (c) traduzir as mensagens de erro do `notification` para o espanhol.
 
-    (a) O nível 4 é razoável *se* o CI for confiável: versão de patch, testes automatizados, canary — é o que o merge automático do Dependabot/Renovate já faz sem IA. (b) Nível 2, no máximo: bugs de concorrência são difíceis de testar, e o raio de impacto é "reserva duplicada às 10h". (c) Nível 3: um agente pode fazer o trabalho e abrir um PR, mas um falante nativo o revisa — a correção não é verificável por máquina.
+    (a) O nível 4 é razoável *se* o CI for confiável: versão de patch, testes automatizados, canary — é o que o merge automático do Dependabot/Renovate já faz sem IA. (b) Nível 2, no máximo: bugs de concorrência são difíceis de testar e o raio de impacto é "reserva duplicada às 10h". (c) Nível 3: um agente pode fazer o trabalho e abrir um PR, mas um falante nativo o revisa — a correção não é verificável por máquina.
 
 ---
 
@@ -111,9 +111,9 @@ Toda etapa de IA em um pipeline — revisão, geração de testes, agente de cor
 
 | Parte | Pergunta | Exemplo do revisor |
 |---|---|---|
-| **Gatilho** | Que evento a inicia, e qual *não* deve iniciá-la? | `pull_request` opened/synchronize; não em rascunhos, não em forks |
-| **Contexto** | O que ela lê, e o que disso não é confiável? | Diff (não confiável), texto do PR (não confiável), `CONVENTIONS.md`, ADRs |
-| **Saída** | Em que formato, e como é validada? | Achados em JSON contra um schema; só linhas adicionadas; limiares |
+| **Gatilho** | Que evento a inicia e qual *não* deve iniciá-la? | `pull_request` opened/synchronize; não em rascunhos, não em forks |
+| **Contexto** | O que ela lê e o que disso não é confiável? | Diff (não confiável), texto do PR (não confiável), `CONVENTIONS.md`, ADRs |
+| **Saída** | Em que formato e como é validada? | Achados em JSON contra um schema; só linhas adicionadas; limiares |
 | **Ação** | O que ela altera, com qual permissão? | Comentários inline, `pull-requests: write`; nunca aprova |
 | **Orçamento e fallback** | Tempo, tokens e dólares máximos? E se o modelo estiver fora do ar ou errado? | 10 min, ~US$ 0,02; fail open (sem comentários) |
 
@@ -183,7 +183,7 @@ O que os números dizem:
 - **Tokens são baratos em comparação com pessoas.** Mesmo com o maior modelo, uma revisão custa centavos; a organização de 500 engenheiros paga por mês aproximadamente o que custam alguns dias de trabalho de um engenheiro. A falha cara não é a conta, é o **ruído**: um revisor com 40% de precisão que posta quatro comentários em cada uma de ~5.000 revisões por semana produz cerca de 12.000 comentários inúteis por semana — a um minuto cada, 200 horas — cinco semanas inteiras de 40 horas de engenheiros gastas para lê-los.
 - **Os tokens de saída são cerca de metade da conta** no modelo grande, embora sejam um décimo dos tokens: cada token de saída custa 5× um token de entrada. Pedir "sem elogios, sem repetir o código" também é uma otimização de custo.
 - **Fazer cache do prefixo estável** ajuda mais à medida que o prefixo cresce (arquivos de convenções grandes, muitos ADRs) — mas só se o prefixo for idêntico byte a byte entre as execuções.
-- **Modelos locais** eliminam a conta de tokens, mas não o custo: um runner de CPU gerando poucos tokens por segundo deixa o job com minutos de duração, e um recall menor significa defeitos não detectados. Compare-os em um golden set antes de escolher.
+- **Modelos locais** eliminam a conta de tokens, mas não o custo: um runner de CPU gerando poucos tokens por segundo deixa o job com minutos de duração e um recall menor significa defeitos não detectados. Compare-os em um golden set antes de escolher.
 - **Minutos de runner**: um job de revisão de ~1,5 minuto em um runner Linux hospedado custa na ordem de um centavo de dólar aos preços típicos por minuto (confira com seu provedor de CI) — comparável aos tokens. Um agente que roda o build completo três vezes custa muito mais em minutos do que em tokens.
 
 Agentes se comportam de outra forma: cada passo reenvia o contexto crescente, então o custo cresce aproximadamente de forma **quadrática** com o número de passos ([Sistemas de IA — os números](../ai-systems/index.md#numbers)). A página [Agentes no CI](agents-in-ci/index.md) faz essa conta para um agente de correção do build.
@@ -192,7 +192,7 @@ Agentes se comportam de outra forma: cada passo reenvia o contexto crescente, en
 
 ## O LLM gateway é infraestrutura compartilhada { #the-llm-gateway-is-shared-infrastructure }
 
-Bots de CI são clientes do modelo assim como o assistente da BoxOffice. Na escala de uma organização, eles devem passar pelo mesmo [LLM gateway](../ai-systems/llm-gateway/index.md): um único lugar para chaves, **cotas e orçamentos por repositório**, roteamento de modelos ("modelo pequeno para notas de versão, modelo grande para revisão de segurança"), fallbacks quando um provedor cai e atribuição de custo por time. Sem ele, cada repositório guarda sua própria chave de API, e um loop descontrolado de agente em um repositório pode esgotar o rate limit da organização durante a abertura das vendas.
+Bots de CI são clientes do modelo assim como o assistente da BoxOffice. Na escala de uma organização, eles devem passar pelo mesmo [LLM gateway](../ai-systems/llm-gateway/index.md): um único lugar para chaves, **cotas e orçamentos por repositório**, roteamento de modelos ("modelo pequeno para notas de versão, modelo grande para revisão de segurança"), fallbacks quando um provedor cai e atribuição de custo por time. Sem ele, cada repositório guarda sua própria chave de API e um loop descontrolado de agente em um repositório pode esgotar o rate limit da organização durante a abertura das vendas.
 
 Experimente: abra o cenário abaixo com o perfil `spike` e imagine que o pico não são fãs, mas **uma atualização em massa de dependências** que dispara 300 revisões de PR e 300 agentes de correção ao mesmo tempo. O playground tem um só tipo de cliente, então mostra o que faz uma cota **compartilhada**: ao longo da execução cerca de 70% das perguntas falham, contra 37% na carga normal. Selecione o LLM Gateway e baixe a **Cota do provedor** de 10 para 5 chamadas/s: os erros passam de 90% — para todos. É por isso que o gateway precisa de uma cota **por cliente** (por repositório, por time) com prioridade para o tráfego interativo: os bots devem esperar, os fãs não. O playground não modela cotas por cliente; o seu botão **Modelo reserva** mostra a outra alavanca, capacidade comprada a um preço (os erros caem para cerca de 3%, o custo por mês dobra).
 
@@ -208,7 +208,7 @@ Experimente: abra o cenário abaixo com o perfil `spike` e imagine que o pico n�
     2. **Estimativas**: PRs por dia (~500 engenheiros × ~1 PR/dia ≈ 500, ×2 com re-revisões), tokens por revisão, custo por mês (centavos por revisão → no máximo alguns milhares de dólares por mês), orçamento de latência (comentários antes de o revisor humano chegar, < 5 min).
     3. **Projeto**: gatilho em eventos de PR com filtros de caminho e roteamento ciente do `CODEOWNERS`; contexto = diff + **convenções por diretório** + ADRs + responsáveis; achados estruturados; controle de ruído (limiares, deduplicação, só linhas alteradas, teto por PR); uma revisão por push; LLM gateway com cotas por time; fail open.
     4. **Implantação gradual**: modo sombra (achados registrados, não postados) em um golden set e em PRs reais → consultivo para times voluntários → medir a precisão por categoria → usar como gate só as categorias de alta precisão (por exemplo segredos, SQL injection, chamadas que cruzam fronteiras), como check obrigatório, nunca como aprovação.
-    5. **Riscos**: prompt injection vinda do texto do PR, segredos em prompts, PRs de forks e `pull_request_target`, regressões do modelo — uma avaliação com golden set no CI a cada mudança de prompt ou de modelo, e dashboards de custo.
+    5. **Riscos**: prompt injection vinda do texto do PR, segredos em prompts, PRs de forks e `pull_request_target`, regressões do modelo — uma avaliação com golden set no CI a cada mudança de prompt ou de modelo e dashboards de custo.
 
 !!! success "Boas práticas"
 
@@ -252,7 +252,7 @@ flowchart LR
 
 | Componente da paleta | Pergunta que responde | Conceitos | Ensinado em | Cenários |
 |---|---|---|---|---|
-| [`orchestrator`](../../reference/components/ai/index.md#orchestrator) | Quem executa a etapa de IA, e *até onde ela pode ir*? | espectro de autonomia, o contrato em cinco partes, execuções headless, orçamentos, idempotência, verificação fora do agente | esta visão geral · [Agentes no CI](agents-in-ci/index.md) | — |
+| [`orchestrator`](../../reference/components/ai/index.md#orchestrator) | Quem executa a etapa de IA e *até onde ela pode ir*? | espectro de autonomia, o contrato em cinco partes, execuções headless, orçamentos, idempotência, verificação fora do agente | esta visão geral · [Agentes no CI](agents-in-ci/index.md) | — |
 | [`llmgw`](../../reference/components/ai/index.md#llmgw) | *Qual modelo*, com qual cota, a que custo? | gateway compartilhado, cotas por repositório, roteamento por tarefa, fallbacks, cache de prefixo, atribuição de custo | esta visão geral · [Sistemas de IA — LLM Gateway](../ai-systems/llm-gateway/index.md) | `ai-assistant` (perfil spike) |
 | [`toolreg`](../../reference/components/ai/index.md#toolreg) | Quais ferramentas e *permissões* a etapa recebe? | menor privilégio, sandbox, lista de ferramentas permitidas, escopos de token, etapa privilegiada que abre um PR em rascunho | [Agentes no CI](agents-in-ci/index.md) | — |
 | [`safety`](../../reference/components/ai/index.md#safety) | Um *texto não confiável* pode conduzir a etapa? | prompt injection em PRs, a tríade letal, exfiltração, slopsquatting, política como código | [Segurança e governança](security-governance/index.md) | — |
@@ -281,7 +281,7 @@ flowchart LR
 
 ## O que quebra em seguida { #what-breaks-next }
 
-Toda etapa de IA desta aula julga **uma mudança**: um diff, uma classe de teste, um build vermelho, um canary contra a sua baseline no tráfego de hoje. Nenhuma responde à pergunta que a próxima abertura de vendas faz ao sistema **inteiro**: com a borda, os caches, a sala de espera, os breakers, o Kubernetes e um assistente no lugar, a BoxOffice mantém o p99 abaixo de 300 ms quando 2 M de fãs chegam às 10:00, qual componente quebra primeiro, e quanto custa operá-la? Catorze capítulos acrescentaram caixas; nenhum provou que elas aguentam juntas. Provar isso com carga, perfis e um modelo de custo — e corrigir o que a prova encontrar — é a [aula 15 — Engenharia de Desempenho](../performance/index.md).
+Toda etapa de IA desta aula julga **uma mudança**: um diff, uma classe de teste, um build vermelho, um canary contra a sua baseline no tráfego de hoje. Nenhuma responde à pergunta que a próxima abertura de vendas faz ao sistema **inteiro**: com a borda, os caches, a sala de espera, os breakers, o Kubernetes e um assistente no lugar, a BoxOffice mantém o p99 abaixo de 300 ms quando 2 M de fãs chegam às 10:00, qual componente quebra primeiro e quanto custa operá-la? Catorze capítulos acrescentaram caixas; nenhum provou que elas aguentam juntas. Provar isso com carga, perfis e um modelo de custo — e corrigir o que a prova encontrar — é a [aula 15 — Engenharia de Desempenho](../performance/index.md).
 
 ---
 

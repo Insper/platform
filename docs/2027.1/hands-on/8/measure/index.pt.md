@@ -66,7 +66,7 @@ docker compose up -d --wait # afterwards: back to 100% (the defaults of the anch
 Conte os traces guardados por minuto no Tempo (Explore → Tempo → Search, serviço
 `gateway`, últimos 5 minutos) e compare o p95 com o experimento A. Note que **métricas não são
 amostradas**: o dashboard RED continua contando todas as requisições — por isso taxas e percentis vêm
-das métricas, e os exemplos (o *porquê*) dos traces.
+das métricas e os exemplos (o *porquê*) dos traces.
 
 ## C. Cardinalidade { #c-cardinality }
 
@@ -108,7 +108,7 @@ Copie esta tabela para `results/lab8.md` e preencha.
 | D · Parada do `db` → Pending → Firing (mm:ss) | — | |
 
 Abaixo da tabela, responda em um parágrafo cada: o custo do agente vale a pena para o BoxOffice? Que
-taxa de amostragem você escolheria para a venda relâmpago, e por quê? O tempo de detecção medido bate
+taxa de amostragem você escolheria para a venda relâmpago e por quê? O tempo de detecção medido bate
 com a previsão do passo 3?
 
 [Voltar à visão geral](../index.md){ .md-button } [Quiz](../quiz.md){ .md-button .md-button--primary }

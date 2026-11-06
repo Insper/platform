@@ -103,7 +103,7 @@ Tudo o que o gateway lê fica sob `spring.cloud.gateway.server.webflux` — o pr
 | Chave | O que faz |
 | --- | --- |
 | `routes` | Cada rota tem um `id`, uma `uri` e um predicado `Path`: `/accounts/**` vai para `http://account:8080`, o nome do serviço do microsserviço account no Compose. |
-| `globalcors` | CORS para todos os caminhos, configurado uma única vez. As origens permitidas vêm de `CORS_ALLOWED_ORIGINS`, com os front-ends locais como padrão; `allowCredentials: true` permite que o navegador envie cookies (o token do [hands-on 3](../3/index.md)) — por isso as origens são listadas, e não `*`. |
+| `globalcors` | CORS para todos os caminhos, configurado uma única vez. As origens permitidas vêm de `CORS_ALLOWED_ORIGINS`, com os front-ends locais como padrão; `allowCredentials: true` permite que o navegador envie cookies (o token do [hands-on 3](../3/index.md)) — por isso as origens são listadas e não `*`. |
 | `default-filters` | Filtros aplicados a todas as rotas. `RemoveRequestHeader=id-account` descarta qualquer cabeçalho `id-account` enviado pelo cliente, para que só o gateway possa defini-lo (hands-on 3); `DedupeResponseHeader` remove os cabeçalhos de CORS duplicados quando um serviço também os define. |
 
 O `GatewayResource` responde `GET /health-check` com o hostname do container, o que mostra qual réplica respondeu quando houver várias ([hands-on 7](../7/index.md)). Ele devolve só essa variável de propósito: responder com `System.getenv()` publicaria todas as variáveis de ambiente — senhas e segredos incluídos.

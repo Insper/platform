@@ -60,7 +60,7 @@ $$
 --8<-- "docs/2026.1/grade.py"
 ```
 
-1. **Quizzes**: a disciplina terá 3 quizzes, e o quiz com a menor nota será descartado. A nota final de quizzes será a média simples das duas melhores notas:
+1. **Quizzes**: a disciplina terá 3 quizzes e o quiz com a menor nota será descartado. A nota final de quizzes será a média simples das duas melhores notas:
 
     $$
     \text{Quizzes} = \frac{\text{Q}_1 + \text{Q}_2 + \text{Q}_3 - \min(\text{Q}_1, \text{Q}_2, \text{Q}_3)}{2}
@@ -106,7 +106,7 @@ $$
 
         :material-github: A documentação do projeto DEVE ser hospedada no GitHub Pages e deve ser pública;
 
-        :simple-materialformkdocs: O formato para publicar a documentação é o [mkdocs](https://www.mkdocs.org/){target="_blank"}, e a documentação deve ser publicada no GitHub Pages;
+        :simple-materialformkdocs: O formato para publicar a documentação é o [mkdocs](https://www.mkdocs.org/){target="_blank"} e a documentação deve ser publicada no GitHub Pages;
 
         :octicons-project-template-16: Um template baseado no [material](https://squidfunk.github.io/mkdocs-material/){target="_blank"} está disponível para ajudar na documentação: [template de entrega](https://hsandmann.github.io/documentation.template/){target="_blank"}.
 

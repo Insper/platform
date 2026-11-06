@@ -2,7 +2,7 @@
 
 O Kubernetes promete elasticidade e autocura. Coloque números nas duas. Como sempre, rode cada
 experimento duas vezes e reporte a segunda execução; os números nas caixas de "forma esperada" são
-**ilustrativos** (vêm de uma execução num laptop, e os seus vão ser outros).
+**ilustrativos** (vêm de uma execução num laptop e os seus vão ser outros).
 
 | # | Experimento | Botão | O que registrar |
 |---|---|---|---|

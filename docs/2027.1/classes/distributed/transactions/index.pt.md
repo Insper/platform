@@ -6,7 +6,7 @@ Uma **transação distribuída** é uma unidade de trabalho que altera dados em 
 
 ## Atomicidade entre nós: o problema { #atomicity-across-nodes-the-problem }
 
-Em um único nó, a atomicidade vem do log do banco de dados: as mudanças de uma transação se tornam duráveis e visíveis em um único ponto, o registro de commit. Entre nós não há um log único, e cada participante pode falhar de forma independente — então um ingênuo "faça commit em todos, um depois do outro" deixa uma janela em que alguns participantes fizeram commit e outros não:
+Em um único nó, a atomicidade vem do log do banco de dados: as mudanças de uma transação se tornam duráveis e visíveis em um único ponto, o registro de commit. Entre nós não há um log único e cada participante pode falhar de forma independente — então um ingênuo "faça commit em todos, um depois do outro" deixa uma janela em que alguns participantes fizeram commit e outros não:
 
 ``` diagram-sim
 sequenceDiagram
@@ -33,7 +33,7 @@ Existem duas famílias de soluções:
 
 O 2PC introduz um **coordenador** (muitas vezes o serviço ou o nó de banco que iniciou a transação) e divide o commit em duas fases[^1]:
 
-1. **Prepare (votação)**: o coordenador pergunta a cada participante "você consegue fazer commit?". Um participante que responde **sim** precisa antes gravar de forma durável em disco todas as mudanças e um registro de *prepared*, e manter os locks: a partir desse momento ele **prometeu** fazer commit se for pedido — não pode mais abortar por conta própria.
+1. **Prepare (votação)**: o coordenador pergunta a cada participante "você consegue fazer commit?". Um participante que responde **sim** precisa antes gravar de forma durável em disco todas as mudanças e um registro de *prepared* e manter os locks: a partir desse momento ele **prometeu** fazer commit se for pedido — não pode mais abortar por conta própria.
 2. **Commit (decisão)**: se **todos** votaram sim, o coordenador grava **commit** no próprio log e manda todos fazerem commit; se alguém votou não (ou estourou o timeout), ele decide **abort**.
 
 ``` diagram-sim
@@ -74,7 +74,7 @@ sequenceDiagram
 
 Você mesmo pode provocar isso no simulador em [Sagas](#sagas): escolha **2PC** e **queda do coordenador**.
 
-Durante a abertura das vendas às 10:00, a linha travada de um assento bloqueia todos os outros fãs que tentam segurá-lo, e um coordenador que caiu pode congelar um bloco inteiro de assentos. O **three-phase commit (3PC)** tenta eliminar o bloqueio, mas pressupõe atrasos de rede limitados, que redes reais não garantem; sistemas em produção, em vez disso, tornam o **próprio coordenador tolerante a falhas** replicando sua decisão com **consenso** — exatamente o que fazem o Google Spanner (2PC sobre grupos Paxos) e o CockroachDB (sobre Raft)[^2].
+Durante a abertura das vendas às 10:00, a linha travada de um assento bloqueia todos os outros fãs que tentam segurá-lo e um coordenador que caiu pode congelar um bloco inteiro de assentos. O **three-phase commit (3PC)** tenta eliminar o bloqueio, mas pressupõe atrasos de rede limitados, que redes reais não garantem; sistemas em produção, em vez disso, tornam o **próprio coordenador tolerante a falhas** replicando sua decisão com **consenso** — exatamente o que fazem o Google Spanner (2PC sobre grupos Paxos) e o CockroachDB (sobre Raft)[^2].
 
 ### Quanto o 2PC custa { #what-2pc-costs }
 
@@ -113,7 +113,7 @@ plt.close()
 
 ??? question "Pense antes: `inventory` e `order` compartilham o mesmo cluster PostgreSQL, mas usam schemas diferentes. Você precisa de 2PC entre eles?"
 
-    Não — se as duas tabelas estão no **mesmo banco de dados**, uma única transação local cobre as duas, e isso é muito mais simples e rápido do que qualquer protocolo distribuído. Separar os dados em bancos diferentes é uma decisão com preço; quando dois dados precisam mudar atomicamente o tempo todo, é um forte indício de que pertencem ao mesmo serviço ou pelo menos ao mesmo banco de dados (veja [Compute — serviços](../../compute/services/index.md)).
+    Não — se as duas tabelas estão no **mesmo banco de dados**, uma única transação local cobre as duas e isso é muito mais simples e rápido do que qualquer protocolo distribuído. Separar os dados em bancos diferentes é uma decisão com preço; quando dois dados precisam mudar atomicamente o tempo todo, é um forte indício de que pertencem ao mesmo serviço ou pelo menos ao mesmo banco de dados (veja [Compute — serviços](../../compute/services/index.md)).
 
 ---
 
@@ -133,7 +133,7 @@ O checkout do BoxOffice como uma saga:
 <div class="csim" data-sim="saga" data-mode="saga" data-fail="declined"></div>
 
 !!! tip "Experimente"
-    Dê play na execução padrão, **cobrança recusada**: T1 e T2 fazem commit, T3 falha, e o orquestrador executa C2 (libera A-12) e depois C1 (cancela o pedido 981) — o log da saga as lista na ordem inversa dos passos que desfazem, e o *tempo segurando locks* fica em 0 ms. Escolha **timeout na cobrança**: o cartão *foi* cobrado, mas a resposta se perdeu, então o orquestrador acrescenta C3, um estorno com a mesma chave de idempotência, antes de liberar o assento. Escolha **ticket fora**: a falha vem depois do pivô (a cobrança bem-sucedida), então nada é compensado — o passo do ingresso falha duas vezes, dá certo na terceira tentativa, e o pedido termina `CONFIRMED`. Depois mude para **2PC**: sem falha, a linha do assento fica travada por 145 ms; com **queda do coordenador**, todos os participantes votaram YES e esperam em dúvida — o tempo de lock cresce um segundo por passo e os fãs fazem fila atrás do assento A-12 até você reiniciar o coordenador, que não encontra decisão no seu log e aborta.
+    Dê play na execução padrão, **cobrança recusada**: T1 e T2 fazem commit, T3 falha e o orquestrador executa C2 (libera A-12) e depois C1 (cancela o pedido 981) — o log da saga as lista na ordem inversa dos passos que desfazem, e o *tempo segurando locks* fica em 0 ms. Escolha **timeout na cobrança**: o cartão *foi* cobrado, mas a resposta se perdeu, então o orquestrador acrescenta C3, um estorno com a mesma chave de idempotência, antes de liberar o assento. Escolha **ticket fora**: a falha vem depois do pivô (a cobrança bem-sucedida), então nada é compensado — o passo do ingresso falha duas vezes, dá certo na terceira tentativa e o pedido termina `CONFIRMED`. Depois mude para **2PC**: sem falha, a linha do assento fica travada por 145 ms; com **queda do coordenador**, todos os participantes votaram YES e esperam em dúvida — o tempo de lock cresce um segundo por passo e os fãs fazem fila atrás do assento A-12 até você reiniciar o coordenador, que não encontra decisão no seu log e aborta.
 
 
 Duas formas de coordenar os passos:
@@ -150,14 +150,14 @@ Duas formas de coordenar os passos:
 
 Entre os passos, outras transações veem estados intermediários: um pedido `PENDING`, um assento `RESERVED_FOR_PAYMENT`. Sagas são **ACD sem o I**. Projete contramedidas explicitamente[^4]:
 
-- **Locks semânticos**: o estado intermediário *é* o lock — enquanto um assento está `RESERVED_FOR_PAYMENT`, nenhum outro fã consegue segurá-lo, e a reserva expira depois de 10 minutos se a saga nunca terminar.
+- **Locks semânticos**: o estado intermediário *é* o lock — enquanto um assento está `RESERVED_FOR_PAYMENT`, nenhum outro fã consegue segurá-lo e a reserva expira depois de 10 minutos se a saga nunca terminar.
 - **Passos comutativos e idempotentes**: todo passo e toda compensação podem ser repetidos (at-least-once), então cada um precisa de uma chave de idempotência ([Idempotência](../index.md#idempotency)).
 - **Ordene os passos por risco**: faça primeiro os passos baratos, invisíveis e fáceis de reverter, e por último os difíceis ou impossíveis de compensar (uma cobrança, um e-mail), de modo que uma falha no fim da saga tenha pouco a desfazer. Um estorno é uma compensação que o fã *vê*; liberar um assento é invisível.
 - **Passo pivô**: o passo depois do qual a saga só pode seguir em frente (aqui, a cobrança bem-sucedida) — depois dele, os passos restantes precisam ser repetidos até darem certo, nunca compensados.
 
 !!! example "No código do BoxOffice: um passo da saga em torno da cobrança (lab 9)"
 
-    Os labs constroem uma versão encurtada desta saga no `order`: o [lab 7](../../../hands-on/7/outbox/index.md) cria o pedido `PENDING_PAYMENT`, e o [Hands-on 9 — Padrões](../../../hands-on/9/patterns/index.md) acrescenta o passo de pagamento. Observe três escolhas. A cobrança acontece **fora** de qualquer transação de banco (uma conexão nunca fica presa enquanto se espera o provedor). O resultado é aplicado com um `UPDATE … WHERE status = 'PENDING_PAYMENT'` **condicional**, então duas chamadas `pay` concorrentes — ambas deduplicadas pelo `payment` por meio da mesma chave de idempotência — mudam o status uma vez e emitem um evento. E o resultado (`OrderConfirmed` ou `OrderCancelled`, o gatilho da compensação) sai pelo **outbox**, na mesma transação local que a mudança de status.
+    Os labs constroem uma versão encurtada desta saga no `order`: o [lab 7](../../../hands-on/7/outbox/index.md) cria o pedido `PENDING_PAYMENT` e o [Hands-on 9 — Padrões](../../../hands-on/9/patterns/index.md) acrescenta o passo de pagamento. Observe três escolhas. A cobrança acontece **fora** de qualquer transação de banco (uma conexão nunca fica presa enquanto se espera o provedor). O resultado é aplicado com um `UPDATE … WHERE status = 'PENDING_PAYMENT'` **condicional**, então duas chamadas `pay` concorrentes — ambas deduplicadas pelo `payment` por meio da mesma chave de idempotência — mudam o status uma vez e emitem um evento. E o resultado (`OrderConfirmed` ou `OrderCancelled`, o gatilho da compensação) sai pelo **outbox**, na mesma transação local que a mudança de status.
 
     ``` { .java title="services/order/src/main/java/boxoffice/order/OrderService.java (pay)" }
     --8<-- "docs/2027.1/hands-on/9/code/services/order/src/main/java/boxoffice/order/OrderService.java:77:100"
@@ -165,13 +165,13 @@ Entre os passos, outras transações veem estados intermediários: um pedido `PE
 
 ### Reserva: try, confirm, cancel { #tcc }
 
-O padrão **TCC** (try–confirm–cancel) faz cada participante oferecer uma operação *provisória* com um timeout. O BoxOffice já funciona assim: o **hold** é o *try* (o assento fica reservado por 10 minutos), a **venda** é o *confirm*, e a **expiração ou liberação** é o *cancel*. Provedores de pagamento oferecem o mesmo formato: **autorizar** (reservar o valor) → **capturar** (efetivar a cobrança) ou **cancelar** (*void*, liberar o valor). Como todo estado provisório expira sozinho, uma queda em qualquer lugar deixa o sistema convergindo para um estado seguro em vez de bloquear.
+O padrão **TCC** (try–confirm–cancel) faz cada participante oferecer uma operação *provisória* com um timeout. O BoxOffice já funciona assim: o **hold** é o *try* (o assento fica reservado por 10 minutos), a **venda** é o *confirm* e a **expiração ou liberação** é o *cancel*. Provedores de pagamento oferecem o mesmo formato: **autorizar** (reservar o valor) → **capturar** (efetivar a cobrança) ou **cancelar** (*void*, liberar o valor). Como todo estado provisório expira sozinho, uma queda em qualquer lugar deixa o sistema convergindo para um estado seguro em vez de bloquear.
 
 ---
 
 ## O problema da escrita dupla e o outbox { #outbox }
 
-Todo passo de uma saga faz duas coisas: altera o próprio banco de dados **e** avisa o próximo passo (envia um evento ou um comando). Fazer isso como duas escritas separadas é o **problema da escrita dupla** (*dual write*) — se o serviço cai entre elas, o banco diz "assento reservado", mas nenhum evento é enviado, e a saga trava:
+Todo passo de uma saga faz duas coisas: altera o próprio banco de dados **e** avisa o próximo passo (envia um evento ou um comando). Fazer isso como duas escritas separadas é o **problema da escrita dupla** (*dual write*) — se o serviço cai entre elas, o banco diz "assento reservado", mas nenhum evento é enviado e a saga trava:
 
 ``` diagram-sim
 sequenceDiagram
@@ -190,7 +190,7 @@ O **outbox transacional** grava o evento em uma tabela `outbox` **na mesma trans
 
 !!! example "No código do BoxOffice: pedido + outbox em uma transação (lab 7)"
 
-    O [Hands-on 7 — Outbox](../../../hands-on/7/outbox/index.md) grava o pedido e seu evento `OrderPlaced` em **um** método `@Transactional`; `Outbox.append` é declarado `Propagation.MANDATORY`, então falha se alguém o chamar fora da transação de negócio. O mesmo método é idempotente: `ON CONFLICT (hold_id) DO NOTHING` transforma uma requisição repetida para o mesmo hold em um replay que devolve o pedido existente e não acrescenta um segundo evento. O lab prova a garantia parando o Kafka: o pedido foi aceito enquanto o broker estava fora, e seu evento foi publicado **71 s depois**, quando o Kafka voltou — o fã nunca viu a falha.
+    O [Hands-on 7 — Outbox](../../../hands-on/7/outbox/index.md) grava o pedido e seu evento `OrderPlaced` em **um** método `@Transactional`; `Outbox.append` é declarado `Propagation.MANDATORY`, então falha se alguém o chamar fora da transação de negócio. O mesmo método é idempotente: `ON CONFLICT (hold_id) DO NOTHING` transforma uma requisição repetida para o mesmo hold em um replay que devolve o pedido existente e não acrescenta um segundo evento. O lab prova a garantia parando o Kafka: o pedido foi aceito enquanto o broker estava fora e seu evento foi publicado **71 s depois**, quando o Kafka voltou — o fã nunca viu a falha.
 
     ``` { .java title="services/order/src/main/java/boxoffice/order/OrderService.java (place)" }
     --8<-- "docs/2027.1/hands-on/7/code/services/order/src/main/java/boxoffice/order/OrderService.java:35:62"
@@ -217,7 +217,7 @@ O **outbox transacional** grava o evento em uma tabela `outbox` **na mesma trans
     4. **Nenhum 2PC** entre serviços — o provedor externo não poderia participar de um, de qualquer forma.
 
 !!! tip "Na entrevista"
-    Quando um design mexe "atomicamente" nos dados de vários serviços, diga: *"Não vou usar 2PC entre serviços — ele bloqueia se o coordenador falha, acopla a disponibilidade de todos os participantes, e o provedor de pagamento não consegue participar. Vou usar uma saga orquestrada com compensações, passos idempotentes, um lock semântico no assento e um outbox transacional para publicar o evento de cada passo."* Depois nomeie o **passo pivô** e o que acontece em um timeout com o provedor. Se os dados podem viver em um único banco, diga isso — a melhor transação distribuída é a que você evita.
+    Quando um design mexe "atomicamente" nos dados de vários serviços, diga: *"Não vou usar 2PC entre serviços — ele bloqueia se o coordenador falha, acopla a disponibilidade de todos os participantes e o provedor de pagamento não consegue participar. Vou usar uma saga orquestrada com compensações, passos idempotentes, um lock semântico no assento e um outbox transacional para publicar o evento de cada passo."* Depois nomeie o **passo pivô** e o que acontece em um timeout com o provedor. Se os dados podem viver em um único banco, diga isso — a melhor transação distribuída é a que você evita.
 
 !!! success "Boas práticas"
 
@@ -230,7 +230,7 @@ O **outbox transacional** grava o evento em uma tabela `outbox` **na mesma trans
 !!! warning "Armadilhas"
     - **Escritas duplas** (banco, depois broker) sem outbox: uma queda entre elas trava a saga silenciosamente.
     - **Passos ou compensações não idempotentes**: retries cobram ou estornam em dobro.
-    - **Esquecer que compensações podem falhar**: elas precisam ser repetidas até darem certo, e gerar alerta quando não derem.
+    - **Esquecer que compensações podem falhar**: elas precisam ser repetidas até darem certo e gerar alerta quando não derem.
     - **Tratar sagas como isoladas**: outro fã vê `RESERVED_FOR_PAYMENT`; projete para isso (locks semânticos, expiração).
     - **2PC com coordenador não replicado**: uma queda do coordenador deixa os participantes em dúvida com locks mantidos.
 

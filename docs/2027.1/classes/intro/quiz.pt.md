@@ -4,7 +4,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ## Design de sistemas e requisitos { #system-design-and-requirements }
 
-**Q1.** Qual pergunta é de **design de sistemas**, e não de design de software (no nível do código)?
+**Q1.** Qual pergunta é de **design de sistemas** e não de design de software (no nível do código)?
 
 - A. O `OrderService` deve depender de uma interface ou de uma classe concreta de cliente de pagamento?
 - B. Qual algoritmo de ordenação deve ordenar os eventos por data?
@@ -104,7 +104,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q8.** O banco do catálogo está com 80% de CPU, e 95% das suas consultas são leituras de dados que mudam algumas vezes por dia. Acrescentar qual componente dá a maior redução de carga no banco por real (R$) gasto?
+**Q8.** O banco do catálogo está com 80% de CPU e 95% das suas consultas são leituras de dados que mudam algumas vezes por dia. Acrescentar qual componente dá a maior redução de carga no banco por real (R$) gasto?
 
 - A. Mais réplicas do servidor de aplicação.
 - B. Um cache com cache-aside, chegando a 95% de acerto.
@@ -118,7 +118,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q9.** Depois de acrescentar réplicas de leitura, um fã paga, é redirecionado para "Meus pedidos" e não vê o pedido novo. O que está acontecendo, e qual é uma correção padrão?
+**Q9.** Depois de acrescentar réplicas de leitura, um fã paga, é redirecionado para "Meus pedidos" e não vê o pedido novo. O que está acontecendo e qual é uma correção padrão?
 
 - A. O pedido foi perdido; ative replicação síncrona em tudo.
 - B. Atraso de replicação: a leitura caiu numa réplica que ainda não aplicou a escrita; leia do primário os dados recentes do próprio fã (*read-your-writes*).

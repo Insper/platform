@@ -5,7 +5,7 @@
 
 ## O que conta como incidente { #what-counts-as-an-incident }
 
-Um **incidente** é um evento não planejado que degrada ou ameaça um serviço do qual os usuários dependem, e que precisa de uma resposta **coordenada**. Nem todo alerta é um incidente; um incidente é declarado quando a resposta precisa de mais de uma pessoa trabalhando do jeito normal. **Níveis de severidade** tornam essa decisão rápida e consistente — ninguém deveria discutir a definição às 3 da manhã.
+Um **incidente** é um evento não planejado que degrada ou ameaça um serviço do qual os usuários dependem e que precisa de uma resposta **coordenada**. Nem todo alerta é um incidente; um incidente é declarado quando a resposta precisa de mais de uma pessoa trabalhando do jeito normal. **Níveis de severidade** tornam essa decisão rápida e consistente — ninguém deveria discutir a definição às 3 da manhã.
 
 | Severidade | Critérios (BoxOffice) | Exemplo | Resposta |
 |---|---|---|---|
@@ -16,7 +16,7 @@ Um **incidente** é um evento não planejado que degrada ou ameaça um serviço 
 
 !!! tip "Declare cedo, rebaixe à vontade"
 
-    Declarar um incidente é barato; declará-lo tarde é caro. Um SEV1 que acaba sendo um SEV3 custa vinte minutos de algumas pessoas. Um SEV3 que na verdade era um SEV1 custa uma abertura de vendas. Faça de "declare e rebaixe depois" a norma, e nunca puna ninguém por declarar.
+    Declarar um incidente é barato; declará-lo tarde é caro. Um SEV1 que acaba sendo um SEV3 custa vinte minutos de algumas pessoas. Um SEV3 que na verdade era um SEV1 custa uma abertura de vendas. Faça de "declare e rebaixe depois" a norma e nunca puna ninguém por declarar.
 
 ---
 
@@ -26,7 +26,7 @@ Um **incidente** é um evento não planejado que degrada ou ameaça um serviço 
 
 - **Escalas** (*rotations*): um **primário** e um **secundário** (escalonamento se o primário não confirmar em poucos minutos), geralmente em turnos de uma semana com uma **passagem de turno** (*handoff*) escrita — problemas em aberto, deploys arriscados, silêncios em vigor.
 - **Follow-the-sun**: times em fusos horários diferentes dividem o dia para que ninguém seja acionado de madrugada; exige pelo menos duas sedes.
-- **Carga sustentável**: a prática de SRE do Google limita o trabalho de on-call para que os engenheiros passem a maior parte do tempo em engenharia, e mira em no máximo cerca de **dois incidentes por turno de 12 horas** — um incidente consome horas de acompanhamento, não só a resposta[^2]. Mais do que isso significa que o alerting ou o sistema precisa de trabalho, não de mais resistência.
+- **Carga sustentável**: a prática de SRE do Google limita o trabalho de on-call para que os engenheiros passem a maior parte do tempo em engenharia e mira em no máximo cerca de **dois incidentes por turno de 12 horas** — um incidente consome horas de acompanhamento, não só a resposta[^2]. Mais do que isso significa que o alerting ou o sistema precisa de trabalho, não de mais resistência.
 - **You build it, you run it**: o time dono de um serviço carrega o pager dele. É o incentivo mais forte para construir software operável.
 - **Preparação**: runbooks, acessos já concedidos (nunca "estou esperando acesso à produção"), dashboards nos favoritos e prática em **game days** ([Engenharia do caos](../../reliability/chaos/index.md)).
 
@@ -49,7 +49,7 @@ stateDiagram-v2
     Encerrado --> [*]
 ```
 
-Cada transição tem um timestamp, e os intervalos entre elas são as métricas que importam:
+Cada transição tem um timestamp e os intervalos entre elas são as métricas que importam:
 
 | Métrica | De → até | Melhora com |
 |---|---|---|
@@ -106,7 +106,7 @@ sequenceDiagram
 
 ## Mitigar primeiro { #mitigate-first }
 
-Durante um incidente, o objetivo é **parar o impacto**, não entendê-lo. O entendimento vem depois, com o postmortem — e é muito mais fácil quando a pressão passou. As melhores mitigações são **genéricas**: funcionam qualquer que seja a causa exata, e são ensaiadas com antecedência.
+Durante um incidente, o objetivo é **parar o impacto**, não entendê-lo. O entendimento vem depois, com o postmortem — e é muito mais fácil quando a pressão passou. As melhores mitigações são **genéricas**: funcionam qualquer que seja a causa exata e são ensaiadas com antecedência.
 
 | Mitigação | Quando | Exemplo no BoxOffice | Pré-requisito |
 |---|---|---|---|
@@ -170,14 +170,14 @@ Um **postmortem** (também chamado de *incident review* ou retrospectiva) é uma
 
 ### Blameless
 
-Um postmortem é **blameless** (sem culpados)[^4]: ele assume que todos agiram de forma razoável com o que sabiam no momento, e pergunta *como o sistema tornou o erro fácil*, não *quem errou*. Não se trata de ser gentil. Se as pessoas são punidas por relatos honestos, elas param de fazê-los, e a organização perde a única fonte precisa de informação sobre como seus sistemas realmente falham. "O engenheiro rodou o comando errado" vira "a ferramenta permitiu um comando destrutivo contra a produção sem confirmação, e o runbook o mostrava ao lado de um comando inofensivo".
+Um postmortem é **blameless** (sem culpados)[^4]: ele assume que todos agiram de forma razoável com o que sabiam no momento e pergunta *como o sistema tornou o erro fácil*, não *quem errou*. Não se trata de ser gentil. Se as pessoas são punidas por relatos honestos, elas param de fazê-los e a organização perde a única fonte precisa de informação sobre como seus sistemas realmente falham. "O engenheiro rodou o comando errado" vira "a ferramenta permitiu um comando destrutivo contra a produção sem confirmação e o runbook o mostrava ao lado de um comando inofensivo".
 
 ### Causa raiz — ou fatores contribuintes? { #root-cause-or-contributing-factors }
 
 Sistemas complexos raramente falham por **um** motivo; incidentes precisam que vários fatores se alinhem[^5]. No incidente do BoxOffice:
 
 - o provedor ficou lento (gatilho externo, fora do controle do BoxOffice);
-- o adaptador de pagamentos **não tinha timeout** menor que o do próprio provedor, e um pool de 20 conexões compartilhado por todas as chamadas;
+- o adaptador de pagamentos **não tinha timeout** menor que o do próprio provedor e um pool de 20 conexões compartilhado por todas as chamadas;
 - o provedor secundário existia, mas a troca era um passo manual e não documentado;
 - os alertas gerais de SLO de 28 dias não foram projetados para uma abertura de vendas de 30 minutos;
 - o teste de carga antes da abertura usou um mock do provedor que sempre respondia em 100 ms.
@@ -226,7 +226,7 @@ As ações são a única parte de um postmortem que muda alguma coisa. Cada uma 
 
 !!! example "No código do BoxOffice: um incidente ensaiado (lab 9)"
 
-    O [Hands-on 9 — game day](../../../hands-on/9/game-day/index.md) roda esta página em miniatura. Um mestre do jogo injeta uma de seis falhas sem contar a ninguém qual; os operadores a detectam com o dashboard do lab 8 e os alertas de burn rate (copiados para o `order` em `slo-order.yaml`); um escriba mantém a linha do tempo; e cada rodada termina com uma revisão sem culpados em `results/lab9-gameday.md` — tempo para detectar, tempo para mitigar, itens de ação com um dono. O script abaixo é toda a caixa de ferramentas do mestre do jogo, e o seu `reset` é o botão de abortar, testado antes da primeira injeção.
+    O [Hands-on 9 — game day](../../../hands-on/9/game-day/index.md) roda esta página em miniatura. Um mestre do jogo injeta uma de seis falhas sem contar a ninguém qual; os operadores a detectam com o dashboard do lab 8 e os alertas de burn rate (copiados para o `order` em `slo-order.yaml`); um escriba mantém a linha do tempo; e cada rodada termina com uma revisão sem culpados em `results/lab9-gameday.md` — tempo para detectar, tempo para mitigar, itens de ação com um dono. O script abaixo é toda a caixa de ferramentas do mestre do jogo e o seu `reset` é o botão de abortar, testado antes da primeira injeção.
 
     ``` { .sh title="scripts/game-day.sh (the hidden failures)" }
     --8<-- "docs/2027.1/hands-on/9/code/scripts/game-day.sh:7:16"
@@ -234,7 +234,7 @@ As ações são a única parte de um postmortem que muda alguma coisa. Cada uma 
 
 !!! note "Assistentes de IA na resposta a incidentes"
 
-    Em 2026, muitos times usam assistentes baseados em LLM para resumir o canal do incidente num rascunho de linha do tempo, sugerir consultas ou buscar em postmortems passados incidentes parecidos. São bons escribas e boas ferramentas de busca. Não são incident commanders: um assistente pode produzir uma causa raiz convincente porém errada, então toda afirmação precisa ser conferida com a telemetria, e as decisões ficam com os humanos nos papéis acima.
+    Em 2026, muitos times usam assistentes baseados em LLM para resumir o canal do incidente num rascunho de linha do tempo, sugerir consultas ou buscar em postmortems passados incidentes parecidos. São bons escribas e boas ferramentas de busca. Não são incident commanders: um assistente pode produzir uma causa raiz convincente porém errada, então toda afirmação precisa ser conferida com a telemetria e as decisões ficam com os humanos nos papéis acima.
 
 ---
 
@@ -265,9 +265,9 @@ As ações são a única parte de um postmortem que muda alguma coisa. Cada uma 
     - **Sem incident commander**: todo mundo depura, ninguém decide, ninguém comunica.
     - **Investigar antes de mitigar**: os usuários continuam sofrendo enquanto o time entende um problema que um rollback teria parado.
     - **Incidentes silenciosos**: nenhuma atualização por uma hora; suporte e negócio inventam a própria versão.
-    - **Postmortems que buscam culpados**: as pessoas escondem o que fizeram, e os verdadeiros fatores contribuintes continuam escondidos.
+    - **Postmortems que buscam culpados**: as pessoas escondem o que fizeram e os verdadeiros fatores contribuintes continuam escondidos.
     - **Ações sem dono ou sem data**: o mesmo incidente acontece de novo na próxima abertura de vendas.
-    - **On-call insustentável**: pages demais esgotam as pessoas, e pessoas cansadas pioram o próximo incidente.
+    - **On-call insustentável**: pages demais esgotam as pessoas e pessoas cansadas pioram o próximo incidente.
 
 ## Como se conecta { #how-it-connects }
 

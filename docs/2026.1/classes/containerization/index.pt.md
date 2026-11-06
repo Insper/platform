@@ -2,7 +2,7 @@
 Quando um servidor não consegue lidar com o tráfego crescente, existem duas estratégias:
 
 **Escalonamento vertical** (scale-up)
-: Substituir o servidor por um mais potente — mais CPU, mais RAM, disco mais rápido. É simples, mas limitado: existe um limite físico para o tamanho de uma única máquina, e os upgrades exigem tempo fora do ar.
+: Substituir o servidor por um mais potente — mais CPU, mais RAM, disco mais rápido. É simples, mas limitado: existe um limite físico para o tamanho de uma única máquina e os upgrades exigem tempo fora do ar.
 
 **Escalonamento horizontal** (scale-out)
 : Adicionar mais servidores e distribuir a carga entre eles. Teoricamente ilimitado, mas introduz um problema crítico: a **consistência entre ambientes**.

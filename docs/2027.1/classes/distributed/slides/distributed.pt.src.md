@@ -265,7 +265,7 @@ Corrija com precisão: **read-your-writes**, não consistência forte global.
 | Catálogo, imagens | **AP / eventual** | réplicas, cache, CDN |
 | Contadores de interesse | **eventual (CRDT)** | contadores por região mesclados |
 
-<p class="small">Multirregião: cada evento tem uma <b>região de origem</b> (a do local do show) — a consistência forte fica local, e uma partição só afeta reservas entre regiões.</p>
+<p class="small">Multirregião: cada evento tem uma <b>região de origem</b> (a do local do show) — a consistência forte fica local e uma partição só afeta reservas entre regiões.</p>
 
 ---
 

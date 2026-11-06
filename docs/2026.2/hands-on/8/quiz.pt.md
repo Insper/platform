@@ -46,7 +46,7 @@ Clique em **"Resposta"** para ver a resposta correta e a explicação.
 
 ---
 
-**Q4.** O que o TTL (time-to-live) garante para as entradas em cache, e o que aconteceria sem ele?
+**Q4.** O que o TTL (time-to-live) garante para as entradas em cache e o que aconteceria sem ele?
 
 - A. O TTL limita o número de leituras por entrada; sem ele, chaves muito acessadas monopolizariam a memória
 - B. O TTL expira as entradas automaticamente após uma duração configurada — sem ele, dados desatualizados se acumulariam indefinidamente, já que o banco muda, mas o cache não

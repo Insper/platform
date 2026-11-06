@@ -22,7 +22,7 @@ flowchart LR
     d -->|"RTO: serviço fora"| r["serviço<br/>restaurado"]
 ```
 
-São decisões de negócio expressas em minutos, e se traduzem em dinheiro: cada minuto de RTO durante uma abertura de vendas é venda perdida; cada minuto de RPO são pedidos (e pagamentos!) que precisam ser reconstruídos à mão ou estornados. Números menores custam mais, de forma aproximadamente exponencial.
+São decisões de negócio expressas em minutos e se traduzem em dinheiro: cada minuto de RTO durante uma abertura de vendas é venda perdida; cada minuto de RPO são pedidos (e pagamentos!) que precisam ser reconstruídos à mão ou estornados. Números menores custam mais, de forma aproximadamente exponencial.
 
 !!! example "BoxOffice: RPO e RTO por serviço"
 
@@ -62,7 +62,7 @@ pgbackrest --stanza=order --type=time "--target=2027-03-14 21:59:30-03" \
   --target-action=promote restore
 ```
 
-O RPO passa a ser o atraso do arquivamento do WAL (segundos a um minuto), e o RTO é o **tempo de restauração**, que você precisa estimar — e medir:
+O RPO passa a ser o atraso do arquivamento do WAL (segundos a um minuto) e o RTO é o **tempo de restauração**, que você precisa estimar — e medir:
 
 $$
 t_{\text{restore}} \approx \frac{\text{base backup size}}{\text{restore throughput}} + \frac{\text{WAL to replay}}{\text{replay throughput}}
@@ -96,7 +96,7 @@ $$
 | **Custo** | Moderado | Alto: uma segunda cópia de (parte de) tudo, mais transferência de dados |
 | **Complexidade** | Baixa | Alta: consistência dos dados, deploys em duas regiões, testes |
 
-A replicação síncrona entre regiões coloca uma ida e volta entre regiões em cada escrita: $\approx 30$–$100$ ms por commit costuma ser inaceitável no caminho de reserva de lugares. Por isso, DR multi-região em geral significa replicação **assíncrona**, e um RPO igual ao atraso da replicação no momento do desastre. É por isso que "RPO = 0 entre regiões" ou é muito caro (replicação síncrona, ou um banco globalmente consistente como Spanner ou CockroachDB pagando a latência) ou é um mal-entendido.
+A replicação síncrona entre regiões coloca uma ida e volta entre regiões em cada escrita: $\approx 30$–$100$ ms por commit costuma ser inaceitável no caminho de reserva de lugares. Por isso, DR multi-região em geral significa replicação **assíncrona** e um RPO igual ao atraso da replicação no momento do desastre. É por isso que "RPO = 0 entre regiões" ou é muito caro (replicação síncrona, ou um banco globalmente consistente como Spanner ou CockroachDB pagando a latência) ou é um mal-entendido.
 
 Multi-região também é uma questão **jurídica**: dados pessoais podem estar sujeitos a regras de residência (LGPD no Brasil, GDPR na União Europeia), que restringem quais regiões podem guardar a cópia.
 
@@ -104,10 +104,10 @@ Multi-região também é uma questão **jurídica**: dados pessoais podem estar 
 
     O cenário `db-failover` é o checkout da venda relâmpago — 1.500 req/s, metade escritas — num primário com um seguidor replicado de forma **assíncrona**. Em t = 90 s o primário morre e a promoção leva 30 s. Aperte **Run** e leia dois números: cerca de **1.600 escritas perdidas** (pedidos confirmados pelo primário mas ainda dentro do atraso de replicação: o RPO) e uma disponibilidade de cerca de **90,6%** (30 s em que toda escrita falha: o RTO). Depois selecione o cluster e mude um parâmetro por vez:
 
-    - **Replicação: sync** — as escritas perdidas caem para **0**, a disponibilidade fica em 90,6%: um RPO melhor, o mesmo RTO, e toda escrita agora paga uma ida e volta ao seguidor.
+    - **Replicação: sync** — as escritas perdidas caem para **0**, a disponibilidade fica em 90,6%: um RPO melhor, o mesmo RTO e toda escrita agora paga uma ida e volta ao seguidor.
     - **Tempo de failover: 5 s** (de volta ao async) — a disponibilidade sobe para cerca de **98,1%**, mas os ~1.600 pedidos continuam perdidos.
 
-    A solução possível faz as duas coisas — replicação por quorum com 2 seguidores, failover de 5 s — e divide as chaves em 2 shards, para que um primário morto leve só metade das escritas: 0 perdidas, cerca de 99,2% de disponibilidade. RPO e RTO são parâmetros separados, e cada um tem seu preço.
+    A solução possível faz as duas coisas — replicação por quorum com 2 seguidores, failover de 5 s — e divide as chaves em 2 shards, para que um primário morto leve só metade das escritas: 0 perdidas, cerca de 99,2% de disponibilidade. RPO e RTO são parâmetros separados e cada um tem seu preço.
 
 <div class="sdp" data-scenario="db-failover" data-mode="compact" data-height="520"></div>
 
@@ -235,7 +235,7 @@ Pontos que decidem se funciona:
 
 !!! info "Experimente no playground"
 
-    O cenário `multi-region` tem failover de DNS entre duas regiões. Rode com o perfil **load** e depois provoque uma **indisponibilidade da região** primária. Observe a taxa de erros até o health check do DNS fazer o failover, e anote quanto tempo leva. Mude o TTL do DNS e o intervalo do health check e meça o novo tempo de recuperação; depois reduza a capacidade da região standby e veja o que acontece com a latência logo após o failover.
+    O cenário `multi-region` tem failover de DNS entre duas regiões. Rode com o perfil **load** e depois provoque uma **indisponibilidade da região** primária. Observe a taxa de erros até o health check do DNS fazer o failover e anote quanto tempo leva. Mude o TTL do DNS e o intervalo do health check e meça o novo tempo de recuperação; depois reduza a capacidade da região standby e veja o que acontece com a latência logo após o failover.
 
 <div class="sdp" data-scenario="multi-region" data-mode="compact" data-chaos="off" data-height="540"></div>
 
@@ -250,12 +250,12 @@ Pontos que decidem se funciona:
 | **Camada 2** — derivados | `search`, `notification` | **Pilot light**: reconstruir o índice a partir do catálogo; reenviar notificações pendentes a partir do Kafka | Derivado / reprocessável | 4 h |
 | **Camada 3** — interno | analytics, warehouse | **Backup e restore** | 24 h | 2 dias |
 
-Por que um **warm standby** para a camada 0, e não algo mais barato ou mais forte: o RTO de 15 minutos descarta backup e restore (só restaurar os 2 TB do banco do `order` leva cerca de 2,8 horas) e torna o pilot light arriscado (promover e escalar do zero leva dezenas de minutos); o ativo-ativo deixaria duas regiões venderem o assento B-12 ao mesmo tempo. O preço é uma segunda região rodando a cerca de um décimo da escala o ano todo, mais os exercícios que provam que ela consegue assumir.
+Por que um **warm standby** para a camada 0 e não algo mais barato ou mais forte: o RTO de 15 minutos descarta backup e restore (só restaurar os 2 TB do banco do `order` leva cerca de 2,8 horas) e torna o pilot light arriscado (promover e escalar do zero leva dezenas de minutos); o ativo-ativo deixaria duas regiões venderem o assento B-12 ao mesmo tempo. O preço é uma segunda região rodando a cerca de um décimo da escala o ano todo, mais os exercícios que provam que ela consegue assumir.
 
 E as práticas que mantêm o plano honesto:
 
 - **Um runbook** por cenário (perda de região, corrupção de banco, conta comprometida) com os comandos exatos, os responsáveis e os critérios de decisão.
-- **Exercícios de DR** duas vezes por ano: fazer de fato o failover para a região B por uma hora num período tranquilo, e restaurar um backup de produção num ambiente descartável todo mês. A página de [engenharia do caos](../chaos/index.md) mostra como conduzi-los como game days.
+- **Exercícios de DR** duas vezes por ano: fazer de fato o failover para a região B por uma hora num período tranquilo e restaurar um backup de produção num ambiente descartável todo mês. A página de [engenharia do caos](../chaos/index.md) mostra como conduzi-los como game days.
 - **Revisar RPO/RTO com o negócio** todo ano: o contrato do estádio pode exigir mais, ou a camada de analytics pode aceitar menos.
 
 !!! tip "Na entrevista"

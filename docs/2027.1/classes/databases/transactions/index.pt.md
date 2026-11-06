@@ -60,7 +60,7 @@ sequenceDiagram
     DB-->>B: ok — "assento reservado"
 ```
 
-As duas requisições leram `AVAILABLE` *antes* que qualquer uma escrevesse; as duas concluíram "livre"; o segundo `UPDATE` sobrescreveu o primeiro. Esta é a **condição de corrida check-then-act**, e a anomalia se chama **lost update** (atualização perdida): a escrita de Alice foi perdida silenciosamente. O lock de linha não ajudou, porque só serializou os dois `UPDATE`s — a decisão já tinha sido tomada com base em leituras desatualizadas.
+As duas requisições leram `AVAILABLE` *antes* que qualquer uma escrevesse; as duas concluíram "livre"; o segundo `UPDATE` sobrescreveu o primeiro. Esta é a **condição de corrida check-then-act** e a anomalia se chama **lost update** (atualização perdida): a escrita de Alice foi perdida silenciosamente. O lock de linha não ajudou, porque só serializou os dois `UPDATE`s — a decisão já tinha sido tomada com base em leituras desatualizadas.
 
 Se a tabela `tickets` tiver `PRIMARY KEY (event_id, seat_id)` (veja [Modelos de Dados](../models/index.md#relational)), o segundo insert do *ingresso* falha na confirmação do pagamento — depois que o dinheiro já foi cobrado. A constraint livrou o estádio de duas pessoas no mesmo assento, mas transformou o bug num estorno e num cliente irritado. Constraints são a última linha de defesa, não o design.
 
@@ -100,7 +100,7 @@ PostgreSQL, MySQL InnoDB, Oracle e a maioria dos motores modernos usam **control
 | `status = AVAILABLE` | T100 (carga do evento) | transações cujo snapshot é anterior ao commit de T205 |
 | `status = HELD, held_by = Alice` | T205 (Alice) | transações que começam depois do commit de T205 |
 
-A vantagem: **leitores nunca bloqueiam escritores, e escritores nunca bloqueiam leitores**. O custo: versões antigas se acumulam e precisam ser limpas (`VACUUM` no PostgreSQL), e dois escritores na *mesma linha* continuam serializados por um lock de linha.
+A vantagem: **leitores nunca bloqueiam escritores e escritores nunca bloqueiam leitores**. O custo: versões antigas se acumulam e precisam ser limpas (`VACUUM` no PostgreSQL) e dois escritores na *mesma linha* continuam serializados por um lock de linha.
 
 ### Write skew: o limite de ingressos { #write-skew-the-ticket-limit }
 
@@ -115,7 +115,7 @@ A BoxOffice permite no máximo 6 ingressos por cliente por evento. Alice já tem
 | 5 | `COMMIT` | `COMMIT` |
 | | **Alice agora tem 8 ingressos** | |
 
-Nenhuma linha foi escrita pelas duas transações, então não há conflito de lock de linha e a snapshot isolation não vê nada de errado. Isso é **write skew**, e ele é causado por um fantasma: o `count(*)` de cada transação teria mudado se ela tivesse visto as escritas da outra. Duas correções:
+Nenhuma linha foi escrita pelas duas transações, então não há conflito de lock de linha e a snapshot isolation não vê nada de errado. Isso é **write skew** e ele é causado por um fantasma: o `count(*)` de cada transação teria mudado se ela tivesse visto as escritas da outra. Duas correções:
 
 - Isolamento **serializable**: a serializable snapshot isolation (SSI) do PostgreSQL[^4] acompanha as dependências de leitura/escrita e aborta uma das transações com `ERROR: could not serialize access due to read/write dependencies among transactions` (SQLSTATE `40001`). A aplicação precisa **tentar de novo**.
 - **Materializar o conflito**: fazer as duas transações travarem primeiro a *mesma* linha, por exemplo uma linha por cliente por evento:
@@ -138,7 +138,7 @@ COMMIT;
 
 ## Quatro maneiras de corrigir a venda dupla { #four-ways-to-fix-the-double-booking }
 
-As quatro funcionam em qualquer banco relacional de mercado em read committed, e é por isso que são preferidas a "basta subir o nível de isolamento".
+As quatro funcionam em qualquer banco relacional de mercado em read committed e é por isso que são preferidas a "basta subir o nível de isolamento".
 
 ### 1. Update condicional atômico (compare-and-set) { #1-atomic-conditional-update-compare-and-set }
 
@@ -236,7 +236,7 @@ ON CONFLICT (event_id, seat_id) DO UPDATE
 
 !!! example "No código do BoxOffice: três estratégias atrás de uma chave (lab 6)"
 
-    O [Hands-on 6 — Holds](../../../hands-on/6/holds/index.md) coloca três delas atrás de uma configuração, `INVENTORY_LOCKING`, e roda o mesmo teste de venda relâmpago contra cada uma (100 assentos, milhares de tentativas). `naive` é o [bug acima](#double-booking), verificar-e-agir; `pessimistic` é a correção 2, travando os assentos em `ORDER BY id` para que duas reservas sobrepostas não entrem em deadlock; `optimistic` é a correção 3, um compare-and-set de versão por assento. Numa execução num notebook ocupado, a auditoria encontrou **9 assentos vendidos em dobro** com `naive` e **0** com as outras duas, e `optimistic` teve o menor p99 de reserva (1,03 s contra 1,77 s do `pessimistic`). Isso não contradiz a tabela: quando o assento já foi, o conflito *é* a resposta (`409`, "ocupado"), então ninguém tenta de novo e ninguém espera por um lock. O lock otimista só degrada quando os perdedores tentam de novo as mesmas linhas.
+    O [Hands-on 6 — Holds](../../../hands-on/6/holds/index.md) coloca três delas atrás de uma configuração, `INVENTORY_LOCKING` e roda o mesmo teste de venda relâmpago contra cada uma (100 assentos, milhares de tentativas). `naive` é o [bug acima](#double-booking), verificar-e-agir; `pessimistic` é a correção 2, travando os assentos em `ORDER BY id` para que duas reservas sobrepostas não entrem em deadlock; `optimistic` é a correção 3, um compare-and-set de versão por assento. Numa execução num notebook ocupado, a auditoria encontrou **9 assentos vendidos em dobro** com `naive` e **0** com as outras duas, e `optimistic` teve o menor p99 de reserva (1,03 s contra 1,77 s do `pessimistic`). Isso não contradiz a tabela: quando o assento já foi, o conflito *é* a resposta (`409`, "ocupado"), então ninguém tenta de novo e ninguém espera por um lock. O lock otimista só degrada quando os perdedores tentam de novo as mesmas linhas.
 
     ``` { .java title="services/inventory/src/main/java/boxoffice/inventory/HoldService.java (three strategies)" }
     --8<-- "docs/2027.1/hands-on/6/code/services/inventory/src/main/java/boxoffice/inventory/HoldService.java:76:84,87:95,98:113"
@@ -364,7 +364,7 @@ A reserva vive no banco do `inventory`, o pedido no banco do `order` e o pagamen
 
 !!! tip "Na entrevista"
 
-    - Quando um design tem um **recurso escasso** (assentos, estoque, nomes de usuário, códigos de cupom), diga as palavras "condição de corrida check-then-act" e mostre a correção: "um `UPDATE … WHERE status = 'AVAILABLE'` condicional, e eu verifico o número de linhas afetadas", mais "uma constraint de unicidade como última linha de defesa".
+    - Quando um design tem um **recurso escasso** (assentos, estoque, nomes de usuário, códigos de cupom), diga as palavras "condição de corrida check-then-act" e mostre a correção: "um `UPDATE … WHERE status = 'AVAILABLE'` condicional e eu verifico o número de linhas afetadas", mais "uma constraint de unicidade como última linha de defesa".
     - Saiba o nível de isolamento padrão do banco que você citar (PostgreSQL: read committed; MySQL InnoDB: repeatable read) e uma anomalia que ele permite.
     - Para "melhor lugar disponível" ou filas de jobs em SQL, mencione `FOR UPDATE SKIP LOCKED`.
     - Para fluxos entre serviços, diga **saga + outbox + chaves de idempotência**, não transações distribuídas.

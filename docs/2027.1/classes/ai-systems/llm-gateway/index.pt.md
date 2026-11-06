@@ -75,7 +75,7 @@ flowchart TD
 
 ## Fallbacks e retentativas { #fallbacks-and-retries }
 
-Uma chamada ao modelo **não tem efeitos colaterais**: repeti-la é sempre *seguro* (chamadas de ferramenta são outra história — veja [Agentes e ferramentas](../agents/index.md#side-effects)). Mas nem todo erro merece uma retentativa, e alguns merecem outro modelo.
+Uma chamada ao modelo **não tem efeitos colaterais**: repeti-la é sempre *seguro* (chamadas de ferramenta são outra história — veja [Agentes e ferramentas](../agents/index.md#side-effects)). Mas nem todo erro merece uma retentativa e alguns merecem outro modelo.
 
 | Erro | Significado | Ação do gateway |
 |---|---|---|
@@ -163,7 +163,7 @@ O gateway impõe os próprios limites, mais finos:
 
 1. **Degradar**: rotear para um modelo menor ou responder a partir do cache/FAQ.
 2. **Enfileirar**: trabalho em segundo plano (resumos, embeddings) espera a próxima janela — o padrão de [fila assíncrona](../../messaging/queues-pubsub/index.md).
-3. **Descartar**: devolver `429` com `Retry-After` e uma mensagem amigável; o tráfego interativo tem **prioridade** sobre o de lote, e os fluxos de pagamento sobre a navegação.
+3. **Descartar**: devolver `429` com `Retry-After` e uma mensagem amigável; o tráfego interativo tem **prioridade** sobre o de lote e os fluxos de pagamento sobre a navegação.
 
 !!! example "BoxOffice às 10:00"
 
@@ -217,7 +217,7 @@ Regras que mantêm um cache semântico seguro:
 Gerar uma resposta tem duas fases com perfis opostos:
 
 - **Prefill** — o modelo processa todos os tokens de entrada **em paralelo**. É limitado por computação e termina quando aparece o primeiro token de saída: define o **tempo até o primeiro token (TTFT)**. O TTFT cresce com o tamanho do prompt fora do cache e com a fila no servidor.
-- **Decode** — o modelo gera os tokens de saída **um de cada vez**, e cada passo lê todos os pesos do modelo da memória da GPU. É limitado pela largura de banda de memória e define o **tempo por token de saída (TPOT)**, também chamado de latência entre tokens (ITL, *inter-token latency*).
+- **Decode** — o modelo gera os tokens de saída **um de cada vez** e cada passo lê todos os pesos do modelo da memória da GPU. É limitado pela largura de banda de memória e define o **tempo por token de saída (TPOT)**, também chamado de latência entre tokens (ITL, *inter-token latency*).
 
 $$
 \text{latência}_{\text{e2e}} = \text{TTFT} + \text{TPOT} \times (N_{out} - 1)
@@ -272,7 +272,7 @@ plt.close()
 
 ### Streaming
 
-Como a resposta chega token a token, o gateway a envia em **streaming** para o cliente — normalmente com Server-Sent Events (SSE) sobre HTTP, como visto em [Protocolos](../../edge/protocols/index.md). O fã começa a ler depois do TTFT, e não depois da latência total; é por isso que **o TTFT é o SLO interativo** (por exemplo, TTFT p95 < 1,5 s) e **o TPOT só precisa vencer a velocidade de leitura** (as pessoas leem cerca de 4–8 palavras por segundo, então ~15–20 tokens/s já parece fluido).
+Como a resposta chega token a token, o gateway a envia em **streaming** para o cliente — normalmente com Server-Sent Events (SSE) sobre HTTP, como visto em [Protocolos](../../edge/protocols/index.md). O fã começa a ler depois do TTFT e não depois da latência total; é por isso que **o TTFT é o SLO interativo** (por exemplo, TTFT p95 < 1,5 s) e **o TPOT só precisa vencer a velocidade de leitura** (as pessoas leem cerca de 4–8 palavras por segundo, então ~15–20 tokens/s já parece fluido).
 
 O streaming tem consequências arquiteturais:
 
@@ -341,7 +341,7 @@ O gateway é um padrão, não um produto. Exemplos para explorar — consulte a 
 
 !!! tip "Na entrevista"
 
-    Coloque um gateway de LLM entre todos os serviços e os modelos e cite quatro de suas funções: **roteamento por alias, fallbacks com circuit breakers, cotas de tokens com prioridades e telemetria de custo/latência**. Separe o **TTFT** (SLO interativo, com streaming) do **TPOT** (velocidade) na sua estimativa de latência, e diferencie o **cache de prompt** (seguro, reduz o custo de entrada e o TTFT) do **cache semântico** (arriscado, só para respostas genéricas). Se o entrevistador perguntar sobre hospedar por conta própria, responda com os argumentos de memória do KV cache e de utilização.
+    Coloque um gateway de LLM entre todos os serviços e os modelos e cite quatro de suas funções: **roteamento por alias, fallbacks com circuit breakers, cotas de tokens com prioridades e telemetria de custo/latência**. Separe o **TTFT** (SLO interativo, com streaming) do **TPOT** (velocidade) na sua estimativa de latência e diferencie o **cache de prompt** (seguro, reduz o custo de entrada e o TTFT) do **cache semântico** (arriscado, só para respostas genéricas). Se o entrevistador perguntar sobre hospedar por conta própria, responda com os argumentos de memória do KV cache e de utilização.
 
 !!! success "Boas práticas"
 
@@ -354,7 +354,7 @@ O gateway é um padrão, não um produto. Exemplos para explorar — consulte a 
 !!! warning "Armadilhas comuns"
 
     - **Nomes de modelos fixos no código dos serviços** — toda troca de modelo vira um deploy de vários times. Use aliases.
-    - **Modelos "latest" sem versão fixada** — a qualidade muda sem deploy, e ninguém sabe por que as avaliações caíram.
+    - **Modelos "latest" sem versão fixada** — a qualidade muda sem deploy e ninguém sabe por que as avaliações caíram.
     - **Repetir `400`s e recusas**, ou fazer fallback para um modelo com menos proteções após uma recusa.
     - **Limitar a taxa só por requisições** — uma requisição de 100k tokens custa tanto quanto mil pequenas.
     - **Dados variáveis no topo do prompt** — o cache de prompt nunca acerta.

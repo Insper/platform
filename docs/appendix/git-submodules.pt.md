@@ -1,6 +1,6 @@
 Um **submódulo** (submodule) do Git é um repositório Git colocado dentro de outro repositório como um subdiretório, com o seu próprio histórico, independente[^book]. O repositório de fora é o **superprojeto** (superproject). Nesta disciplina, o caso típico é um projeto que reúne vários microsserviços, cada um no seu repositório (`account`, `order`, `gateway`…), num só lugar onde um único `docker compose up` ou uma única pipeline de CI enxerga todos.
 
-Esta página responde a uma pergunta: **o que o superprojeto guarda de fato**, e como isso explica cada comando — e cada surpresa — do fluxo de trabalho com submódulos?
+Esta página responde a uma pergunta: **o que o superprojeto guarda de fato** e como isso explica cada comando — e cada surpresa — do fluxo de trabalho com submódulos?
 
 ## O modelo mental: um ponteiro para um commit { #mental-model }
 
@@ -67,7 +67,7 @@ O novo `.gitmodules` fica assim:
 
 ## O fluxo, passo a passo { #workflow }
 
-Acompanhe uma mudança desde um clone novo até a máquina de um colega. Observe duas coisas: o que há em `api/account/` em cada passo, e para qual repositório vai cada push.
+Acompanhe uma mudança desde um clone novo até a máquina de um colega. Observe duas coisas: o que há em `api/account/` em cada passo e para qual repositório vai cada push.
 
 ``` diagram-sim
 sequenceDiagram
@@ -171,12 +171,12 @@ Duas perguntas diferentes, dois comandos diferentes:
 !!! warning "Desfazer a atualização de um colega"
     Depois de um `git pull` simples, o ponteiro mudou, mas a pasta do submódulo não: `git status` mostra `modified: api/account (new commits)`. Um `git add .` descuidado agora faz o commit do commit **antigo** de volta como ponteiro. Rode `git submodule update` (ou faça o pull com `--recurse-submodules`) antes de colocar arquivos no stage.
 
-- **A pasta vazia**: um clone sem `--recurse-submodules` deixa `api/account/` vazia, e o build ou o `docker compose` falha por falta de arquivos. Escreva o comando de clone no README.
-- **A CI também precisa dos submódulos**: o `actions/checkout` não os baixa, a menos que você defina `submodules: true` (ou `recursive`), e um submódulo privado precisa de um token que consiga lê-lo.
+- **A pasta vazia**: um clone sem `--recurse-submodules` deixa `api/account/` vazia e o build ou o `docker compose` falha por falta de arquivos. Escreva o comando de clone no README.
+- **A CI também precisa dos submódulos**: o `actions/checkout` não os baixa, a menos que você defina `submodules: true` (ou `recursive`) e um submódulo privado precisa de um token que consiga lê-lo.
 
 ## Alternativas { #alternatives }
 
-Submódulos servem quando as partes têm donos e ciclos de release separados, e você quer fixar versões exatas. Muitas vezes, algo mais simples serve melhor:
+Submódulos servem quando as partes têm donos e ciclos de release separados e você quer fixar versões exatas. Muitas vezes, algo mais simples serve melhor:
 
 | Abordagem | Como funciona | Bom quando | Custo |
 |:---------|:-------------|:----------|:-----|
@@ -192,9 +192,9 @@ Para uma biblioteca Java compartilhada, publicar um artefato Maven costuma ser o
 !!! takeaways ""
 
     - O superprojeto guarda um **gitlink**: o **hash de um commit** do submódulo (modo `160000`), mais a sua URL em `.gitmodules`. Ele nunca acompanha uma branch.
-    - Esse ponteiro explica o fluxo: clone com `--recurse-submodules` (ou `update --init`), e um checkout novo é um **HEAD destacado** no commit fixado.
+    - Esse ponteiro explica o fluxo: clone com `--recurse-submodules` (ou `update --init`) e um checkout novo é um **HEAD destacado** no commit fixado.
     - Para mudar um submódulo: **mude para uma branch**, faça o commit, **faça o push do submódulo** e depois **faça o commit e o push do novo ponteiro** no superprojeto — nessa ordem.
-    - Deixe o Git garantir a ordem com `push.recurseSubmodules` (`check` ou `on-demand`), e faça pull com `--recurse-submodules`.
+    - Deixe o Git garantir a ordem com `push.recurseSubmodules` (`check` ou `on-demand`) e faça pull com `--recurse-submodules`.
     - Considere as alternativas — **monorepo**, **subtree**, um **gerenciador de pacotes** — quando os submódulos trazem mais passos do que valor.
 
-[^book]: [Git Tools — Submodules](https://git-scm.com/book/en/v2/Git-Tools-Submodules){:target="_blank"}, no *Pro Git* (há uma [tradução para o português](https://git-scm.com/book/pt-br/v2/Ferramentas-do-Git-Subm%C3%B3dulos){:target="_blank"}), e as páginas de referência [git-submodule](https://git-scm.com/docs/git-submodule){:target="_blank"} e [gitsubmodules](https://git-scm.com/docs/gitsubmodules){:target="_blank"}.
+[^book]: [Git Tools — Submodules](https://git-scm.com/book/en/v2/Git-Tools-Submodules){:target="_blank"}, no *Pro Git* (há uma [tradução para o português](https://git-scm.com/book/pt-br/v2/Ferramentas-do-Git-Subm%C3%B3dulos){:target="_blank"}) e as páginas de referência [git-submodule](https://git-scm.com/docs/git-submodule){:target="_blank"} e [gitsubmodules](https://git-scm.com/docs/gitsubmodules){:target="_blank"}.

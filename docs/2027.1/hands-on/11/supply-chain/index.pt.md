@@ -25,7 +25,7 @@ explica os seus steps.
 | Step | Action | Observações |
 |---|---|---|
 | nome da imagem | shell | `ghcr.io/<owner>/boxoffice-catalog`, **em minúsculas** (o GHCR rejeita maiúsculas; `${VAR,,}` converte para minúsculas no Bash) |
-| `docker/setup-buildx-action` (v4.4.1), `docker/login-action` (v4.6.0) | | BuildKit, e um login no registry do GitHub com o próprio `GITHUB_TOKEN` do job (`packages: write`) |
+| `docker/setup-buildx-action` (v4.4.1), `docker/login-action` (v4.6.0) | | BuildKit e um login no registry do GitHub com o próprio `GITHUB_TOKEN` do job (`packages: write`) |
 | `docker/metadata-action` (v6.2.0) | | tags `sha-<sha completo do commit>` (imutável, o que vai para o deploy) e `main` (móvel, para humanos) |
 | build com `load: true` | `docker/build-push-action` (v7.4.0) | a imagem vai para o Docker do runner, **ainda não** para o registry; camadas em cache no cache do GitHub (`type=gha`) |
 | relatório do Trivy | `aquasecurity/trivy-action` | SARIF enviado para **Security → Code scanning**, nunca falha |
@@ -36,7 +36,7 @@ explica os seus steps.
 
 Escanear *antes* do push significa que uma imagem vulnerável nunca é publicada. O portão é estreito de
 propósito: falhar em todo `HIGH` sem correção bloquearia todo o trabalho por problemas que ninguém
-consegue resolver hoje, e times aprendem a ignorar um portão que está sempre vermelho. O relatório
+consegue resolver hoje e times aprendem a ignorar um portão que está sempre vermelho. O relatório
 completo continua listando essas vulnerabilidades.
 
 !!! warning "Fixe actions de terceiros num commit"
@@ -46,7 +46,7 @@ completo continua listando essas vulnerabilidades.
     suprimentos contra pipelines de CI. Toda action em `ci.yaml` e `deploy.yaml` — incluindo as do
     GitHub e as do Docker — está fixada num **SHA completo de commit**, com a versão num comentário
     (`actions/checkout@3d3c42e… # v7.0.1`). O Dependabot (abaixo) propõe as atualizações como pull
-    requests, e o [lab 13](../../13/index.md) confere as fixações com o `zizmor`.
+    requests e o [lab 13](../../13/index.md) confere as fixações com o `zizmor`.
 
 ## Mantenha as dependências em dia { #keep-dependencies-moving }
 
@@ -73,7 +73,7 @@ verdes e, no fim, dois links de atestação. Depois:
     ```
 
     Você deve ver `✓ Verification succeeded!` e o workflow, o commit e o runner que construíram a
-    imagem. Qualquer mudança na imagem — mesmo de um byte — muda o seu digest, e a verificação falha.
+    imagem. Qualquer mudança na imagem — mesmo de um byte — muda o seu digest e a verificação falha.
 
 ??? question "O que o SBOM lhe dá no dia em que uma nova vulnerabilidade é publicada?"
 

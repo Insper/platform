@@ -32,7 +32,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q3.** O gateway roda **3 réplicas independentes com 99% cada**, e toda requisição também precisa de um **banco de dados com 99,95%**. Qual é a disponibilidade aproximada do caminho?
+**Q3.** O gateway roda **3 réplicas independentes com 99% cada** e toda requisição também precisa de um **banco de dados com 99,95%**. Qual é a disponibilidade aproximada do caminho?
 
 - A. 97%
 - B. 99%
@@ -56,7 +56,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — esgotamento de threads e uma cascata.**
 
-    Lei de Little: chamadas em voo = taxa de chegada × tempo por chamada. Com 100 ms, 5 threads ficam ocupadas; com 5 s, seriam 250 — além do pool de 100. As requisições enfileiram, todas as rotas do `order` ficam lentas (inclusive as que não chamam o pagamento), e quem chama o `order` começa a esgotar os próprios pools. Um timeout, um circuit breaker e um bulkhead quebram, cada um, essa cadeia.
+    Lei de Little: chamadas em voo = taxa de chegada × tempo por chamada. Com 100 ms, 5 threads ficam ocupadas; com 5 s, seriam 250 — além do pool de 100. As requisições enfileiram, todas as rotas do `order` ficam lentas (inclusive as que não chamam o pagamento) e quem chama o `order` começa a esgotar os próprios pools. Um timeout, um circuit breaker e um bulkhead quebram, cada um, essa cadeia.
 
 ---
 
@@ -90,7 +90,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q7.** Com um SLO de **99,9%** em 28 dias, a taxa de erros está estável em **0,6%**. Qual é o burn rate, e quando o orçamento se esgota?
+**Q7.** Com um SLO de **99,9%** em 28 dias, a taxa de erros está estável em **0,6%**. Qual é o burn rate e quando o orçamento se esgota?
 
 - A. 0,6×; nunca
 - B. 6×; em cerca de 4,7 dias
@@ -120,7 +120,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q9.** Depois de um failover do banco, **1.000 clientes** recebem um erro de conexão no mesmo instante e todos repetem com backoff exponencial (0,5 s, 1 s, 2 s…) **sem jitter**. O que dá errado, e qual é a correção?
+**Q9.** Depois de um failover do banco, **1.000 clientes** recebem um erro de conexão no mesmo instante e todos repetem com backoff exponencial (0,5 s, 1 s, 2 s…) **sem jitter**. O que dá errado e qual é a correção?
 
 - A. Nada: o backoff exponencial já espalha os retries
 - B. Todos os clientes repetem nos mesmos instantes, criando picos sincronizados acima da capacidade; a maioria falha de novo. O full jitter torna cada espera aleatória para os retries se espalharem
@@ -130,7 +130,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — ondas sincronizadas; adicione full jitter.**
 
-    Backoff sem jitter mantém em sincronia os clientes que falharam juntos: 1.000 requisições em 0,5 s, os sobreviventes em 1,5 s, e assim por diante, cada onda acima da capacidade. O full jitter ($\text{random}(0, \text{base} \cdot 2^n)$) os espalha, e a maioria tem sucesso na primeira rodada.
+    Backoff sem jitter mantém em sincronia os clientes que falharam juntos: 1.000 requisições em 0,5 s, os sobreviventes em 1,5 s e assim por diante, cada onda acima da capacidade. O full jitter ($\text{random}(0, \text{base} \cdot 2^n)$) os espalha e a maioria tem sucesso na primeira rodada.
 
 ---
 
@@ -151,14 +151,14 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 **Q11.** No pico, o `order` faz **100 chamadas de pagamento por segundo** com latência normal de **200 ms**. O time define um **bulkhead de 50** chamadas concorrentes para o pagamento. O que isso dá?
 
 - A. As chamadas ao pagamento ficam limitadas a 50 por segundo
-- B. Normalmente cerca de 20 chamadas estão em voo; o bulkhead tolera a latência crescer cerca de 2,5× antes de rejeitar, e quando o pagamento fica muito lento no máximo 50 threads esperam por ele, sobrando o resto para outras rotas
+- B. Normalmente cerca de 20 chamadas estão em voo; o bulkhead tolera a latência crescer cerca de 2,5× antes de rejeitar e quando o pagamento fica muito lento no máximo 50 threads esperam por ele, sobrando o resto para outras rotas
 - C. 50 threads ficam reservadas e sempre ocupadas
 - D. As chamadas ao pagamento serão repetidas 50 vezes
 
 ??? success "Resposta"
     **B — folga de cerca de 2,5× e um teto para o estrago.**
 
-    Lei de Little: $100 \times 0.2 = 20$ chamadas concorrentes normalmente. Com 50 permissões, a latência pode chegar a cerca de 500 ms antes de as chamadas serem rejeitadas. Se o pagamento vai para 4 s, no máximo 50 threads esperam (em vez de 400), e as chamadas além disso falham na hora para o fallback, enquanto reservas e catálogo continuam funcionando.
+    Lei de Little: $100 \times 0.2 = 20$ chamadas concorrentes normalmente. Com 50 permissões, a latência pode chegar a cerca de 500 ms antes de as chamadas serem rejeitadas. Se o pagamento vai para 4 s, no máximo 50 threads esperam (em vez de 400) e as chamadas além disso falham na hora para o fallback, enquanto reservas e catálogo continuam funcionando.
 
 ---
 
@@ -178,10 +178,10 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ## Recuperação de desastres e caos { #disaster-recovery-and-chaos }
 
-**Q13.** Às 22:00 um script apaga todas as linhas de `orders` em produção. O standby síncrono em outra zona replicou o delete. O que restaura os dados, e qual objetivo o tempo de restauração afeta?
+**Q13.** Às 22:00 um script apaga todas as linhas de `orders` em produção. O standby síncrono em outra zona replicou o delete. O que restaura os dados e qual objetivo o tempo de restauração afeta?
 
 - A. Promover o standby; afeta o RPO
-- B. Uma restauração para um ponto no tempo a partir dos backups (backup base + replay do WAL até 21:59:59); a duração da restauração determina o RTO, e o atraso do arquivamento, o RPO
+- B. Uma restauração para um ponto no tempo a partir dos backups (backup base + replay do WAL até 21:59:59); a duração da restauração determina o RTO e o atraso do arquivamento, o RPO
 - C. Nada consegue restaurar: a replicação é o backup
 - D. Fazer failover para outra região; afeta o RPO
 

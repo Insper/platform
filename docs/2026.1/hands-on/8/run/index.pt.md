@@ -135,4 +135,4 @@ Uma taxa de cache hit saudável fica acima de 90% em workloads com muitas leitur
 
 ---
 
-Pronto! O Redis agora atua como uma camada de cache compartilhada e persistente para todas as réplicas dos microsserviços. A carga sobre o banco de dados diminui proporcionalmente à taxa de cache hit, e todas as réplicas do gateway compartilham o mesmo estado de cache, independentemente de qual instância atenda cada requisição.
+Pronto! O Redis agora atua como uma camada de cache compartilhada e persistente para todas as réplicas dos microsserviços. A carga sobre o banco de dados diminui proporcionalmente à taxa de cache hit e todas as réplicas do gateway compartilham o mesmo estado de cache, independentemente de qual instância atenda cada requisição.

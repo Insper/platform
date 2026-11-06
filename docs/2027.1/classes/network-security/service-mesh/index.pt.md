@@ -8,7 +8,7 @@ O BoxOffice agora roda nove serviços no Kubernetes. Cada time reimplementou as 
 Um service mesh é uma camada de infraestrutura dedicada à **comunicação entre serviços**[^1]. Ele tem duas partes:
 
 - **Plano de dados** (*data plane*) — proxies que ficam no caminho de toda requisição entre serviços. Eles terminam e originam TLS, aplicam políticas, fazem retry, timeout, balanceamento de carga e emitem métricas e traces.
-- **Plano de controle** (*control plane*) — o cérebro que configura os proxies: distribui regras de roteamento e políticas, e atua como **autoridade certificadora** que emite a identidade de cada workload.
+- **Plano de controle** (*control plane*) — o cérebro que configura os proxies: distribui regras de roteamento e políticas e atua como **autoridade certificadora** que emite a identidade de cada workload.
 
 ``` diagram
 flowchart TB
@@ -55,7 +55,7 @@ Onde o proxy roda? Três projetos estão em produção hoje[^2][^3].
     Um container de proxy (Envoy no Istio, `linkerd2-proxy` no Linkerd) é **injetado em todo pod**. Todo o tráfego de entrada e saída do pod é redirecionado por ele.
 
     - Todo salto é L7 completo (entende HTTP): retries, roteamento por cabeçalho, políticas por caminho.
-    - Custo: um proxy por pod — memória e CPU multiplicadas pelo número de pods, um salto extra em cada ponta de toda chamada, e o ciclo de vida do sidecar fica acoplado ao da aplicação (atualizar o mesh significa reiniciar todos os pods; jobs precisam que o sidecar termine).
+    - Custo: um proxy por pod — memória e CPU multiplicadas pelo número de pods, um salto extra em cada ponta de toda chamada e o ciclo de vida do sidecar fica acoplado ao da aplicação (atualizar o mesh significa reiniciar todos os pods; jobs precisam que o sidecar termine).
 
 === "Ambient (Istio)"
 
@@ -83,7 +83,7 @@ Onde o proxy roda? Três projetos estão em produção hoje[^2][^3].
 !!! note "gRPC sem proxy"
     Uma quarta opção dispensa o proxy: bibliotecas gRPC podem receber a configuração do mesh diretamente do plano de controle (o protocolo xDS). É eficiente, mas só funciona para serviços gRPC escritos com uma biblioteca compatível.
 
-??? question "Pense antes: o BoxOffice tem 9 serviços × 6 réplicas, e cada sidecar reserva 50 MB de memória. Quanto o mesh custa em memória?"
+??? question "Pense antes: o BoxOffice tem 9 serviços × 6 réplicas e cada sidecar reserva 50 MB de memória. Quanto o mesh custa em memória?"
 
     54 pods × 50 MB ≈ **2,7 GB** só para sidecars (uma reserva ilustrativa; meça a sua), mais CPU proporcional ao tráfego. Durante uma venda relâmpago, quando o autoscaler leva `order` e `inventory` a 40 réplicas cada, os sidecars escalam junto. Esse custo linear é a principal motivação dos planos de dados ambient e eBPF.
 
@@ -91,7 +91,7 @@ Onde o proxy roda? Três projetos estão em produção hoje[^2][^3].
 
 ## Identidade e mTLS { #mtls }
 
-Como `payment` sabe que uma chamada vem mesmo de `order`? Endereços IP não provam nada — pods são recriados com novos IPs, e o atacante no pod `search` comprometido pode enviar de qualquer IP. O mesh dá a cada workload uma **identidade criptográfica**.
+Como `payment` sabe que uma chamada vem mesmo de `order`? Endereços IP não provam nada — pods são recriados com novos IPs e o atacante no pod `search` comprometido pode enviar de qualquer IP. O mesh dá a cada workload uma **identidade criptográfica**.
 
 - **TLS** (Transport Layer Security) — o servidor prova a sua identidade com um **certificado X.509** assinado por uma autoridade certificadora; o canal é criptografado.
 - **mTLS** (TLS mútuo) — o cliente *também* apresenta um certificado. Os dois lados são autenticados.
@@ -272,7 +272,7 @@ spec:
 
 A **detecção de outliers** tira uma *réplica* problemática do pool de balanceamento por um tempo — um circuit breaker por instância. Os limites do **pool de conexões** são um bulkhead: quando `payment` está lento, no máximo 200 requisições esperam por ele, em vez de todas as threads de `order`.
 
-**Experimente.** Abra o cenário `cascading-failure`: uma dependência externa lenta, sem timeouts, esgota as threads de quem a chama, e requisições sem relação começam a falhar. Ligue o timeout e o circuit breaker, rode de novo e compare a taxa de erros e o p99 das outras rotas. No BoxOffice, o timeout do `VirtualService` e os limites da `DestinationRule` do mesh são uma forma de aplicar exatamente essa correção sem tocar no código.
+**Experimente.** Abra o cenário `cascading-failure`: uma dependência externa lenta, sem timeouts, esgota as threads de quem a chama e requisições sem relação começam a falhar. Ligue o timeout e o circuit breaker, rode de novo e compare a taxa de erros e o p99 das outras rotas. No BoxOffice, o timeout do `VirtualService` e os limites da `DestinationRule` do mesh são uma forma de aplicar exatamente essa correção sem tocar no código.
 
 <div class="sdp" data-scenario="cascading-failure" data-mode="compact" data-height="520" data-profile="load"></div>
 
@@ -372,8 +372,8 @@ Um mesh é poderoso e caro de operar. Ele acrescenta um plano de controle para o
 
 !!! success "Boas práticas"
 
-    - **Implante o mTLS em etapas, com prazo** — modo permissivo, acompanhe a métrica de conexões em texto puro cair a zero, e então STRICT por namespace numa data escrita no plano.
-    - **Derive as políticas de autorização do grafo de chamadas** — negar por padrão por namespace, e então permitir cada aresta (`order → payment`) pela identidade do serviço; o grafo serve também de documentação.
+    - **Implante o mTLS em etapas, com prazo** — modo permissivo, acompanhe a métrica de conexões em texto puro cair a zero e então STRICT por namespace numa data escrita no plano.
+    - **Derive as políticas de autorização do grafo de chamadas** — negar por padrão por namespace e então permitir cada aresta (`order → payment`) pela identidade do serviço; o grafo serve também de documentação.
     - **Ponha retries em uma camada só, com orçamento de retries** — por exemplo, no máximo 20% de requisições extras, e só para métodos idempotentes; a outra camada fica com os timeouts.
     - **Faça o timeout de cada salto menor que o de quem chama** — o gateway espera 5 s (o [lab 4](../../../hands-on/4/gateway/index.md) define `response-timeout: 5s`), então `order → payment` precisa desistir bem antes disso.
     - **Orce o data plane** — defina requests de CPU e memória para os proxies e conte cerca de 1 ms por salto no orçamento de latência de um caminho com 4–5 saltos.
@@ -414,7 +414,7 @@ flowchart LR
     - Um service mesh = **plano de dados** (proxies em toda chamada) + **plano de controle** (configuração + autoridade certificadora); ele tira mTLS, política, resiliência e telemetria do código.
     - **Sidecar** dá L7 completo em todo lugar a um custo por pod; **ambient** separa o L4 (ztunnel por nó) do L7 opcional (waypoints); **eBPF** faz L3/L4 no kernel.
     - **mTLS** autentica workloads com identidades SPIFFE derivadas das service accounts; uma **política de autorização** decide quem pode chamar o quê.
-    - Políticas de tráfego — **timeouts, retries, detecção de outliers, pesos de canary** — são declaradas por rota; faça retry em uma só camada, e só de chamadas idempotentes.
+    - Políticas de tráfego — **timeouts, retries, detecção de outliers, pesos de canary** — são declaradas por rota; faça retry em uma só camada e só de chamadas idempotentes.
     - **NetworkPolicy** (L3/L4, negar por padrão, entrada *e* saída) e política do mesh (L7, identidade) são camadas complementares. Para um punhado de serviços, um mesh pode não valer a pena.
 
 ---

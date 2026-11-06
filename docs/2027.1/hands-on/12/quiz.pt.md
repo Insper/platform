@@ -28,11 +28,11 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — os headers vêm primeiro.**
 
-    O `StreamingResponse` inicia a resposta imediatamente; o primeiro token chega segundos depois. É por isso que o `scripts/assistant_load.py` interpreta os Server-Sent Events, e por isso o serviço também registra o TTFT por conta própria (`assistant_ttft_seconds`).
+    O `StreamingResponse` inicia a resposta imediatamente; o primeiro token chega segundos depois. É por isso que o `scripts/assistant_load.py` interpreta os Server-Sent Events e por isso o serviço também registra o TTFT por conta própria (`assistant_ttft_seconds`).
 
 ---
 
-**Q3.** Com concorrência 1, uma resposta leva 120 s. Os fãs enviam 1 pergunta por minuto. Quantas requisições estão em andamento, em média, e o que isso significa?
+**Q3.** Com concorrência 1, uma resposta leva 120 s. Os fãs enviam 1 pergunta por minuto. Quantas requisições estão em andamento, em média e o que isso significa?
 
 - A. 0,5: o modelo fica ocioso metade do tempo
 - B. 2: Lei de Little, L = λ·W = (1/60 por s) × 120 s; com uma instância do modelo atendendo uma requisição de cada vez, as requisições fazem fila e o TTFT cresce
@@ -58,7 +58,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — siga o formato de treinamento do modelo de embeddings.**
 
-    Cada modelo de embeddings tem as suas próprias convenções (prefixos, tamanho máximo, normalização). Ignorá-las diminui silenciosamente a qualidade da recuperação — e é por isso que a recuperação precisa ser medida (hit@k), e não presumida.
+    Cada modelo de embeddings tem as suas próprias convenções (prefixos, tamanho máximo, normalização). Ignorá-las diminui silenciosamente a qualidade da recuperação — e é por isso que a recuperação precisa ser medida (hit@k) e não presumida.
 
 ---
 
@@ -76,10 +76,10 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q6.** A avaliação da recuperação dá hit@5 = 1,00, mas MRR = 0,94: a resposta certa de uma pergunta ficou na posição 3. Qual pergunta, e por que ela é a difícil?
+**Q6.** A avaliação da recuperação dá hit@5 = 1,00, mas MRR = 0,94: a resposta certa de uma pergunta ficou na posição 3. Qual pergunta e por que ela é a difícil?
 
 - A. "When is Play #7?", porque 7 é um número pequeno
-- B. "the big festival night at the stadium in São Paulo": o evento certo (BoxOffice Fest — Stadium Night) compete com muitos festivais genéricos no mesmo estádio; a busca vetorial é mais fraca com nomes e datas exatos, e é aí que a busca híbrida (palavras-chave + vetores) e os rerankers ajudam
+- B. "the big festival night at the stadium in São Paulo": o evento certo (BoxOffice Fest — Stadium Night) compete com muitos festivais genéricos no mesmo estádio; a busca vetorial é mais fraca com nomes e datas exatos e é aí que a busca híbrida (palavras-chave + vetores) e os rerankers ajudam
 - C. "Is there any festival in Recife?", porque há 9 respostas certas
 - D. Nenhuma; o MRR é sempre menor que 1
 
@@ -109,7 +109,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 **Q8.** Por que o loop do agente é limitado a `MAX_STEPS = 4`, com a última chamada feita sem ferramentas?
 
 - A. O Ollama não suporta mais de quatro chamadas
-- B. Cada passo é mais uma chamada ao LLM (latência e custo se somam), e um modelo pode entrar em loop chamando ferramentas; o limite garante uma resposta em no máximo quatro chamadas
+- B. Cada passo é mais uma chamada ao LLM (latência e custo se somam) e um modelo pode entrar em loop chamando ferramentas; o limite garante uma resposta em no máximo quatro chamadas
 - C. Para deixar a resposta mais curta
 - D. Porque só há três ferramentas
 
@@ -123,7 +123,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 **Q9.** Por que o assistente recupera os top-k eventos **antes** da primeira chamada ao modelo, em vez de confiar que o modelo chame `search_events`?
 
 - A. Porque o `search_events` não funciona
-- B. As perguntas comuns precisam do catálogo de qualquer forma, e modelos pequenos chamam ferramentas de forma pouco confiável; recuperar primeiro torna a resposta possível em uma chamada (menor latência e custo), e as ferramentas ficam para o que a recuperação não tem como saber, como o status de um pedido ao vivo
+- B. As perguntas comuns precisam do catálogo de qualquer forma e modelos pequenos chamam ferramentas de forma pouco confiável; recuperar primeiro torna a resposta possível em uma chamada (menor latência e custo) e as ferramentas ficam para o que a recuperação não tem como saber, como o status de um pedido ao vivo
 - C. Porque ferramentas não podem rodar em paralelo
 - D. Para evitar usar o pgvector
 
@@ -141,7 +141,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 - A. Sim, o padrão cobre todas as injections
 - B. Não: padrões deixam passar paráfrases, outros idiomas e injections escondidas em documentos ou em resultados de ferramentas; a proteção real é arquitetural — ferramentas só de leitura, identidade vinda dos headers, verificações na saída — para que uma injection bem-sucedida consiga causar pouco dano
 - C. Sim, se o padrão não diferencia maiúsculas de minúsculas
-- D. Não, e não há nada a fazer
+- D. Não: não há nada a fazer
 
 ??? success "Resposta"
     **B — defesa em profundidade; limite o raio de impacto.**
@@ -150,7 +150,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q11.** Uma resposta cita `[event:999]`, mas o evento 999 não estava no contexto nem foi retornado por uma ferramenta. O que o guarda de saída faz, e por quê?
+**Q11.** Uma resposta cita `[event:999]`, mas o evento 999 não estava no contexto nem foi retornado por uma ferramenta. O que o guarda de saída faz e por quê?
 
 - A. Nada; citações são decorativas
 - B. Troca a citação por `[unverified]` e marca a resposta como `grounded: false` (contada numa métrica): o modelo inventou uma referência, então a afirmação ao lado dela não merece confiança
@@ -164,7 +164,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q12.** Uma pergunta usa cerca de 1.000 tokens de entrada e 100 tokens de saída. Com o `claude-opus-5-5` a US$ 4 por milhão de tokens de entrada e US$ 20 por milhão de tokens de saída, quanto ela custa, e quanto custam 20.000 perguntas no dia da venda?
+**Q12.** Uma pergunta usa cerca de 1.000 tokens de entrada e 100 tokens de saída. Com o `claude-opus-5-5` a US$ 4 por milhão de tokens de entrada e US$ 20 por milhão de tokens de saída, quanto ela custa e quanto custam 20.000 perguntas no dia da venda?
 
 - A. US$ 0,024 por pergunta; US$ 480
 - B. US$ 0,006 por pergunta; US$ 120

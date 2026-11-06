@@ -5,7 +5,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ## Princípios SOLID
 
-**Q1.** `AccountService.createAccount` valida a entrada, executa um `INSERT` SQL, envia um e-mail de boas-vindas e grava um log de auditoria. Qual princípio ele viola mais diretamente, e por quê?
+**Q1.** `AccountService.createAccount` valida a entrada, executa um `INSERT` SQL, envia um e-mail de boas-vindas e grava um log de auditoria. Qual princípio ele viola mais diretamente e por quê?
 
 - A. Substituição de Liskov — ele não estende uma classe base
 - B. Responsabilidade Única — ele tem vários motivos para mudar (regras de validação, esquema, template de e-mail, formato de auditoria), cada um pertencente a uma parte interessada diferente
@@ -43,7 +43,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **C — O módulo de alto nível.**
 
-    Se a interface vive junto do código de persistência e espelha o JPA, o código de negócio continua dependendo da persistência. O DIP inverte a seta: o lado de negócio declara do que precisa, e a infraestrutura depende dessa declaração. A injeção de dependência do Spring apenas *conecta* a implementação em tempo de execução; ela, por si só, não inverte nenhuma dependência.
+    Se a interface vive junto do código de persistência e espelha o JPA, o código de negócio continua dependendo da persistência. O DIP inverte a seta: o lado de negócio declara do que precisa e a infraestrutura depende dessa declaração. A injeção de dependência do Spring apenas *conecta* a implementação em tempo de execução; ela, por si só, não inverte nenhuma dependência.
 
 ---
 
@@ -53,7 +53,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 - A. Para fora — as camadas internas dependem das externas para utilitários do framework
 - B. Nas duas direções — camadas internas e externas podem importar umas às outras livremente
-- C. Para dentro — as camadas externas dependem das internas, e as camadas internas nunca referenciam nada de uma camada externa
+- C. Para dentro — as camadas externas dependem das internas e as camadas internas nunca referenciam nada de uma camada externa
 - D. Para baixo — as camadas de nível mais alto dependem da infraestrutura de nível mais baixo
 
 ??? success "Resposta"
@@ -101,7 +101,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — Traduz entre os tipos da fronteira dos adaptadores e os tipos do caso de uso.**
 
-    O Parser fica na fronteira entre a camada de Interface Adapters e a camada de Use Cases. No Hands-on 1, o `AccountParser` converte `AccountIn` (o contrato HTTP) em `Account` (o objeto do caso de uso) na entrada, e `Account` de volta em `AccountOut` na saída. Nem o controller nem o serviço precisam conhecer a representação do outro.
+    O Parser fica na fronteira entre a camada de Interface Adapters e a camada de Use Cases. No Hands-on 1, o `AccountParser` converte `AccountIn` (o contrato HTTP) em `Account` (o objeto do caso de uso) na entrada e `Account` de volta em `AccountOut` na saída. Nem o controller nem o serviço precisam conhecer a representação do outro.
 
 ---
 
@@ -159,7 +159,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **C — Núcleo testável com testes unitários simples e stubs em memória.**
 
-    O `AuthServiceImpl` recebe uma interface `AccountRepository`. Em um teste, substitua-a por `InMemoryAccountRepository` (um `HashMap`). O teste roda em milissegundos, sem infraestrutura. Essa é a propriedade arquitetural que torna o TDD viável na prática — a regra de negócio é testada diretamente, e não através do HTTP e de um banco de dados real.
+    O `AuthServiceImpl` recebe uma interface `AccountRepository`. Em um teste, substitua-a por `InMemoryAccountRepository` (um `HashMap`). O teste roda em milissegundos, sem infraestrutura. Essa é a propriedade arquitetural que torna o TDD viável na prática — a regra de negócio é testada diretamente e não através do HTTP e de um banco de dados real.
 
 ---
 
@@ -173,7 +173,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — O adaptador está moldando a porta.**
 
-    Se `AccountRepository` tem `saveAll()`, `deleteById(Long id)`, `flush()`, `findAll(Pageable)` — esses são conceitos do Spring Data. Uma porta orientada ao domínio expressaria conceitos do domínio: `findByEmail(String email)`, `save(Account account)`. Quando a porta espelha o adaptador, você acidentalmente fez o domínio depender do vocabulário da infraestrutura, e não o contrário.
+    Se `AccountRepository` tem `saveAll()`, `deleteById(Long id)`, `flush()`, `findAll(Pageable)` — esses são conceitos do Spring Data. Uma porta orientada ao domínio expressaria conceitos do domínio: `findByEmail(String email)`, `save(Account account)`. Quando a porta espelha o adaptador, você acidentalmente fez o domínio depender do vocabulário da infraestrutura e não o contrário.
 
 ---
 
@@ -203,11 +203,11 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — A seta se inverte na fronteira de persistência.**
 
-    Em tempo de execução, as chamadas continuam indo de service → banco de dados nas duas. O que muda é a dependência em tempo de compilação: com a Inversão de Dependência, o `AccountService` depende da sua própria interface `AccountRepository`, e o `AccountJpaAdapter` a implementa. Agora a persistência depende do código de negócio, e não o contrário.
+    Em tempo de execução, as chamadas continuam indo de service → banco de dados nas duas. O que muda é a dependência em tempo de compilação: com a Inversão de Dependência, o `AccountService` depende da sua própria interface `AccountRepository` e o `AccountJpaAdapter` a implementa. Agora a persistência depende do código de negócio e não o contrário.
 
 ---
 
-**Q15.** Um time aplica CQRS ao catálogo de produtos: as escritas vão para o Postgres, e as leituras vêm de um modelo de leitura desnormalizado, atualizado por eventos. Logo depois de editar um produto, um usuário vê o nome antigo na lista. Por quê, e isso é um bug?
+**Q15.** Um time aplica CQRS ao catálogo de produtos: as escritas vão para o Postgres e as leituras vêm de um modelo de leitura desnormalizado, atualizado por eventos. Logo depois de editar um produto, um usuário vê o nome antigo na lista. Por quê e isso é um bug?
 
 - A. Um bug no Postgres — as escritas deveriam ficar visíveis imediatamente em todo lugar
 - B. Comportamento esperado: o modelo de leitura é **eventualmente consistente** e fica atrás do lado de escrita até a projeção ser atualizada; a UI precisa tolerar isso

@@ -1,12 +1,12 @@
 
-Um colega está construindo o serviço de pedidos e precisa chamar o seu serviço de produtos. O que ele lê? O seu código-fonte está em outro repositório, uma página de wiki fica desatualizada depois da primeira refatoração, e uma coleção do Postman só mostra as requisições que alguém lembrou de salvar. O que ele precisa é do **próprio contrato**, escrito em um formato que pessoas e ferramentas entendem, e gerado a partir do código para que não possa divergir dele. É isso que o OpenAPI e o Swagger UI oferecem.
+Um colega está construindo o serviço de pedidos e precisa chamar o seu serviço de produtos. O que ele lê? O seu código-fonte está em outro repositório, uma página de wiki fica desatualizada depois da primeira refatoração e uma coleção do Postman só mostra as requisições que alguém lembrou de salvar. O que ele precisa é do **próprio contrato**, escrito em um formato que pessoas e ferramentas entendem, e gerado a partir do código para que não possa divergir dele. É isso que o OpenAPI e o Swagger UI oferecem.
 
 **OpenAPI** é uma especificação, independente de linguagem, para descrever APIs REST[^2]. Um documento OpenAPI é um arquivo YAML ou JSON que descreve cada endpoint: a URL, o método HTTP, os parâmetros, o corpo da requisição e todas as respostas possíveis. O **Swagger UI** é a ferramenta mais usada para renderizar esse documento como uma interface web interativa, na qual os usuários podem ler e executar chamadas à API diretamente no navegador[^3].
 
 Juntos, OpenAPI + Swagger UI oferecem uma documentação viva, sempre sincronizada com o código.
 
 !!! info "OpenAPI ou Swagger?"
-    *Swagger* era o nome original da especificação. Em 2016 ela foi doada à OpenAPI Initiative (Linux Foundation) e renomeada para **OpenAPI Specification**. Hoje, "OpenAPI" nomeia o **formato** (versões 3.0, 3.1 e, desde 2025, 3.2), e "Swagger" nomeia uma família de **ferramentas** em torno dele: Swagger UI, Swagger Editor, Swagger Codegen.
+    *Swagger* era o nome original da especificação. Em 2016 ela foi doada à OpenAPI Initiative (Linux Foundation) e renomeada para **OpenAPI Specification**. Hoje, "OpenAPI" nomeia o **formato** (versões 3.0, 3.1 e, desde 2025, 3.2) e "Swagger" nomeia uma família de **ferramentas** em torno dele: Swagger UI, Swagger Editor, Swagger Codegen.
 
 ---
 
@@ -206,7 +206,7 @@ public record ProductOut(
 
 ## Metadados da API
 
-Configure os endpoints do springdoc no `application.yml`, e os metadados globais (título, versão, contato) com um `@Bean`:
+Configure os endpoints do springdoc no `application.yml` e os metadados globais (título, versão, contato) com um `@Bean`:
 
 === "application.yml"
 
@@ -268,7 +268,7 @@ public class OpenApiConfig {
 }
 ```
 
-Depois disso, o Swagger UI mostra um botão **Authorize**. Cole um JWT nele, e todas as requisições seguintes vão incluir `Authorization: Bearer <token>`.
+Depois disso, o Swagger UI mostra um botão **Authorize**. Cole um JWT nele e todas as requisições seguintes vão incluir `Authorization: Bearer <token>`.
 
 !!! note "Na plataforma do curso"
     No [Hands-on 3](../../../hands-on/3/index.md), o **gateway** valida o JWT (lido de um cookie) e repassa a identidade de quem chama para os serviços no cabeçalho `id-account`. Portanto, um serviço de negócio não valida tokens por conta própria: quando você o testa diretamente no Swagger UI dele, preencha o campo do cabeçalho `id-account` que o springdoc gera a partir do parâmetro `@RequestHeader`. O esquema bearer acima é o que você precisa quando o próprio serviço valida `Authorization: Bearer`.

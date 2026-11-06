@@ -40,7 +40,7 @@ O **ponto de entrada único** para todos os clientes externos. O gateway é resp
 O gateway é a fronteira entre a internet pública e a rede interna confiável. No curso, ele é uma aplicação **Spring Cloud Gateway** ([Hands-on 2](../../../hands-on/2/index.md)); as rotas são declaradas no `application.yaml`, por exemplo `Path=/accounts/**` → `http://account:8080`.
 
 !!! info "Gateway ou balanceador de carga?"
-    Os dois repassam requisições, mas em níveis diferentes. Um **balanceador de carga** distribui as requisições de *um* serviço entre as suas réplicas idênticas e não sabe nada sobre a aplicação. Um **gateway** decide para *qual* serviço vai uma requisição e aplica regras da aplicação (autenticação, limites de taxa). O curso usa os dois: o Nginx balanceia as réplicas do gateway, e o gateway roteia para os serviços.
+    Os dois repassam requisições, mas em níveis diferentes. Um **balanceador de carga** distribui as requisições de *um* serviço entre as suas réplicas idênticas e não sabe nada sobre a aplicação. Um **gateway** decide para *qual* serviço vai uma requisição e aplica regras da aplicação (autenticação, limites de taxa). O curso usa os dois: o Nginx balanceia as réplicas do gateway e o gateway roteia para os serviços.
 
 ### Provedor de identidade
 
@@ -180,7 +180,7 @@ sequenceDiagram
 - **10–12** A resposta faz o caminho de volta. Um trace no Jaeger mostra exatamente esses saltos como spans.
 
 !!! warning "Armadilhas comuns de arquitetura"
-    - **Contornar o gateway**: se a porta de um serviço de negócio for publicada na internet, qualquer pessoa pode chamá-lo e **forjar o header `id-account`**. Somente o gateway (ou o balanceador de carga na frente dele) pode ser exposto, e o gateway precisa sobrescrever qualquer header de identidade enviado pelo cliente.
+    - **Contornar o gateway**: se a porta de um serviço de negócio for publicada na internet, qualquer pessoa pode chamá-lo e **forjar o header `id-account`**. Somente o gateway (ou o balanceador de carga na frente dele) pode ser exposto e o gateway precisa sobrescrever qualquer header de identidade enviado pelo cliente.
     - **Uma única instância do gateway**: o ponto de entrada vira um ponto único de falha e um gargalo — rode réplicas atrás de um balanceador de carga ([Hands-on 7](../../../hands-on/7/index.md)).
     - **Lógica de negócio no gateway**: o gateway deve rotear e aplicar regras transversais, não calcular o total dos pedidos. Caso contrário, toda mudança de domínio exige um deploy do gateway.
     - **"Rede confiável" como única defesa**: HTTP simples dentro do cluster é uma simplificação; plataformas em produção costumam adicionar TLS mútuo entre os serviços ([Segurança](../../security/index.md)).

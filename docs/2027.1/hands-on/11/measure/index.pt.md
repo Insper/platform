@@ -75,7 +75,7 @@ Copie para `results/lab11.md` e preencha.
 | D · Sync → `Degraded` (s); medições de `error-rate` | |
 | D · Requisições que falharam durante o canary ruim (% das requisições do k6) | |
 
-Abaixo da tabela: qual etapa você otimizaria primeiro para encurtar o lead time, e quanto isso custaria
+Abaixo da tabela: qual etapa você otimizaria primeiro para encurtar o lead time e quanto isso custaria
 em segurança?
 
 [Voltar à visão geral](../index.md){ .md-button } [Quiz](../quiz.md){ .md-button .md-button--primary }

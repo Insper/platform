@@ -1,7 +1,7 @@
 
 Sábado, 9h59. Um show de estádio abre as vendas às 10h00 no BoxOffice: 2 milhões de fãs para 60 mil lugares. Às 10h04 o canal de suporte se enche de "o checkout fica girando para sempre". O time abre os dashboards: todos os pods estão verdes, a CPU está em 45%, a taxa de erros é de 0,3%, os health checks passam. E mesmo assim o fã mediano espera nove segundos para pagar. É o gateway? As reservas de assento no `inventory`? O provedor de pagamentos externo? O banco de dados? Quatro times entram numa call e cada um mostra um dashboard provando que o *seu* serviço está bem.
 
-É para esse momento que a observabilidade existe. O sistema não está *fora do ar* — está *lento de um jeito que ninguém previu*, e a única saída é fazer perguntas novas ao sistema em execução e obter respostas em minutos, não em dias. Esta aula trata de projetar um sistema para que essas perguntas possam ser respondidas: quais sinais emitir, como carregar o contexto entre serviços, quando acordar um humano e como conduzir o incidente depois que alguém acordou.
+É para esse momento que a observabilidade existe. O sistema não está *fora do ar* — está *lento de um jeito que ninguém previu* e a única saída é fazer perguntas novas ao sistema em execução e obter respostas em minutos, não em dias. Esta aula trata de projetar um sistema para que essas perguntas possam ser respondidas: quais sinais emitir, como carregar o contexto entre serviços, quando acordar um humano e como conduzir o incidente depois que alguém acordou.
 
 !!! quote "A história até aqui"
 
@@ -13,7 +13,7 @@ Sábado, 9h59. Um show de estádio abre as vendas às 10h00 no BoxOffice: 2 milh
 
     - **Distinguir** monitoramento de observabilidade e **mapear** os cinco componentes de observabilidade da paleta (métricas, logs, tracing, alertas, health checks) para as perguntas que eles respondem.
     - **Instrumentar** um serviço com o sinal certo para cada pergunta, aplicando **RED**, **USE** e os **golden signals**, e **estimar** o custo e a cardinalidade da telemetria que ele produz.
-    - **Explicar** como o OpenTelemetry propaga o contexto de trace por HTTP e Kafka, e **configurar** um pipeline do Collector com amostragem.
+    - **Explicar** como o OpenTelemetry propaga o contexto de trace por HTTP e Kafka e **configurar** um pipeline do Collector com amostragem.
     - **Definir** SLIs e SLOs para as jornadas de usuário do BoxOffice e **calcular** error budgets e burn rates.
     - **Projetar** alertas baseados em SLO com regras *multiwindow, multi-burn-rate* e **roteá-los** para as pessoas certas.
     - **Configurar** probes de liveness, readiness e startup sem causar reinícios em cascata.
@@ -46,7 +46,7 @@ As duas palavras costumam ser usadas como sinônimos, mas descrevem capacidades 
 
 **Monitoramento** (*monitoring*) acompanha um conjunto de indicadores **pré-definidos** e avisa quando um deles cruza um limiar: "taxa de erros acima de 1%", "disco acima de 90%". Ele responde a perguntas que você sabia que deveria fazer quando montou o dashboard — os *known unknowns*.
 
-**Observabilidade** é uma propriedade do sistema: o quão bem você consegue inferir seu **estado interno a partir de suas saídas externas**[^1]. O termo vem da teoria de controle (Kalman, 1960); em software, significa que, sem publicar código novo, você consegue fazer uma pergunta em que nunca tinha pensado — "por que só os checkouts com mais de quatro ingressos, pagos com uma bandeira de cartão, estão lentos desde 10h02?" — e respondê-la a partir da telemetria que o sistema já emite[^2]. Esses são os *unknown unknowns*, e sistemas distribuídos estão cheios deles.
+**Observabilidade** é uma propriedade do sistema: o quão bem você consegue inferir seu **estado interno a partir de suas saídas externas**[^1]. O termo vem da teoria de controle (Kalman, 1960); em software, significa que, sem publicar código novo, você consegue fazer uma pergunta em que nunca tinha pensado — "por que só os checkouts com mais de quatro ingressos, pagos com uma bandeira de cartão, estão lentos desde 10h02?" — e respondê-la a partir da telemetria que o sistema já emite[^2]. Esses são os *unknown unknowns* e sistemas distribuídos estão cheios deles.
 
 | | Monitoramento | Observabilidade |
 |---|---|---|
@@ -60,13 +60,13 @@ O monitoramento não está obsoleto — ele é um *subconjunto*. Você ainda pre
 
 ??? question "Pense antes: por que os dashboards do BoxOffice estavam verdes?"
 
-    Os dashboards acompanhavam **causas** escolhidas de antemão — CPU, memória, status dos pods, a taxa de erros — em média sobre todos os endpoints. O problema do checkout era de **latência**, em **uma rota**, concentrado na **cauda** (p99), causado por uma dependência fora do BoxOffice. Uma média sobre todas as rotas o esconde duas vezes: as outras rotas diluem a rota de checkout, e a requisição mediana esconde as lentas. A solução não é "mais dashboards": é medir o que os usuários sentem por jornada (percentis de latência do `POST /checkout`) e ter traces para ver *onde*, dentro da requisição, o tempo foi gasto.
+    Os dashboards acompanhavam **causas** escolhidas de antemão — CPU, memória, status dos pods, a taxa de erros — em média sobre todos os endpoints. O problema do checkout era de **latência**, em **uma rota**, concentrado na **cauda** (p99), causado por uma dependência fora do BoxOffice. Uma média sobre todas as rotas o esconde duas vezes: as outras rotas diluem a rota de checkout e a requisição mediana esconde as lentas. A solução não é "mais dashboards": é medir o que os usuários sentem por jornada (percentis de latência do `POST /checkout`) e ter traces para ver *onde*, dentro da requisição, o tempo foi gasto.
 
 ---
 
 ## A paleta de observabilidade { #the-observability-palette }
 
-No [System Design Playground](../../../playground/index.md), a categoria OBSERVABILITY tem cinco componentes. Cada um responde a uma pergunta diferente, e cada um é consumido por alguém diferente — um humano investigando, um humano sendo acordado, ou uma máquina tomando uma decisão de roteamento.
+No [System Design Playground](../../../playground/index.md), a categoria OBSERVABILITY tem cinco componentes. Cada um responde a uma pergunta diferente e cada um é consumido por alguém diferente — um humano investigando, um humano sendo acordado, ou uma máquina tomando uma decisão de roteamento.
 
 | Componente | Pergunta que responde | Consumidor | Custo relativo | Detalhes |
 |---|---|---|---|---|
@@ -107,17 +107,17 @@ flowchart LR
 2. **Localizar** com métricas: o dashboard RED mostra que o p99 do `POST /checkout` foi de 400 ms para 9 s; as outras rotas estão normais.
 3. **Escolher um exemplo**: um painel de latência com exemplars liga uma amostra lenta ao seu `trace_id`.
 4. **Encontrar o salto**: o *waterfall* do trace mostra 8 dos 9 segundos dentro do span `payment`, na chamada ao provedor externo.
-5. **Explicar**: os logs daquele span mostram `connection pool exhausted, waited 7.9 s` — o provedor está lento, e o `payment` tem um pool de 20 conexões.
+5. **Explicar**: os logs daquele span mostram `connection pool exhausted, waited 7.9 s` — o provedor está lento e o `payment` tem um pool de 20 conexões.
 6. **Mitigar primeiro**, entender depois ([Resposta a Incidentes](incident-response/index.md)): abrir o circuit breaker, colocar os checkouts numa fila ou trocar de provedor.
 7. **Aprender**: o postmortem pergunta por que um provedor lento conseguiu fazer o checkout inteiro de refém — e adiciona um timeout, um bulkhead e um alerta sobre a latência do provedor.
 
 !!! example "BoxOffice — o caminho crítico de um checkout"
 
-    O checkout da venda relâmpago atravessa cinco serviços do BoxOffice e uma dependência externa: `gateway` → `order` → `inventory` (confirma a reserva do assento, PostgreSQL) → `payment` (adaptador) → **provedor de pagamentos externo**, e então o `order` publica `OrderConfirmed` no Kafka, consumido pelo `notification` (e-mail/push). Cada seta é um lugar onde o tempo pode sumir, e o provedor externo é o único lugar onde o BoxOffice não consegue adicionar instrumentação — só medir as chamadas que faz.
+    O checkout da venda relâmpago atravessa cinco serviços do BoxOffice e uma dependência externa: `gateway` → `order` → `inventory` (confirma a reserva do assento, PostgreSQL) → `payment` (adaptador) → **provedor de pagamentos externo** e então o `order` publica `OrderConfirmed` no Kafka, consumido pelo `notification` (e-mail/push). Cada seta é um lugar onde o tempo pode sumir e o provedor externo é o único lugar onde o BoxOffice não consegue adicionar instrumentação — só medir as chamadas que faz.
 
 ### Veja no simulador { #see-it-in-the-simulator }
 
-**Experimente.** Em t = 50 s uma das três réplicas do `catalog` morre. Aperte *Run* sem mudar nada: todo serviço mostra a utilização como "?" (nada é medido), e por 30 s o balanceador continua mandando um terço das requisições para a réplica morta — cerca de 33% de erros de t = 51 s a 80 s, 93,8% de disponibilidade na execução. Adicione **Metrics** e conecte ao balanceador, à aplicação e ao banco: os números aparecem, mas os fãs veem exatamente os mesmos erros — medir não conserta nada sozinho. Depois adicione um **Health Check** conectado ao balanceador: a réplica morta sai da rotação em 3 s em vez de 30 s, e a disponibilidade sobe para 99,4%. O que o último componente, **Alerting**, muda está em [Alertas](alerting/index.md#machines-detect-people-repair).
+**Experimente.** Em t = 50 s uma das três réplicas do `catalog` morre. Aperte *Run* sem mudar nada: todo serviço mostra a utilização como "?" (nada é medido) e por 30 s o balanceador continua mandando um terço das requisições para a réplica morta — cerca de 33% de erros de t = 51 s a 80 s, 93,8% de disponibilidade na execução. Adicione **Metrics** e conecte ao balanceador, à aplicação e ao banco: os números aparecem, mas os fãs veem exatamente os mesmos erros — medir não conserta nada sozinho. Depois adicione um **Health Check** conectado ao balanceador: a réplica morta sai da rotação em 3 s em vez de 30 s e a disponibilidade sobe para 99,4%. O que o último componente, **Alerting**, muda está em [Alertas](alerting/index.md#machines-detect-people-repair).
 
 <div class="sdp" data-scenario="observability-stack" data-mode="compact" data-height="520"></div>
 
@@ -129,7 +129,7 @@ O simulador completo está no [System Design Playground](../../../playground/ind
 
 Um health check é o sinal mais simples e o único consumido por **máquinas**: um load balancer, um orquestrador ou um sistema de service discovery chama um endpoint e decide se uma instância deve **receber tráfego** ou ser **reiniciada**. Como as máquinas agem sobre ele automaticamente e em escala, um health check mal projetado é uma das causas clássicas de indisponibilidade total.
 
-O Kubernetes distingue três probes[^3], e a distinção é o ponto principal:
+O Kubernetes distingue três probes[^3] e a distinção é o ponto principal:
 
 | Probe | Pergunta | Em caso de falha | Deve verificar |
 |---|---|---|---|
@@ -183,13 +183,13 @@ readinessProbe:
 
 ### Checks rasos vs profundos { #shallow-vs-deep-checks }
 
-Um check **raso** (*shallow*) responde "meu processo está vivo?". Um check **profundo** (*deep*) também chama as dependências — o banco de dados, o Redis, o provedor de pagamentos. Checks profundos parecem mais honestos, e essa é justamente a armadilha.
+Um check **raso** (*shallow*) responde "meu processo está vivo?". Um check **profundo** (*deep*) também chama as dependências — o banco de dados, o Redis, o provedor de pagamentos. Checks profundos parecem mais honestos e essa é justamente a armadilha.
 
 !!! warning "A cascata do check profundo"
 
-    Suponha que a probe de readiness do `order` inclua a conexão com o PostgreSQL. O banco faz um failover de 20 segundos. Todos os pods do `order` falham a readiness no mesmo instante, o Kubernetes remove **todos** eles do Service, e o gateway passa a devolver `503` para todas as rotas — inclusive as que só leem do Redis. Pior: se a probe de *liveness* incluir o banco, o Kubernetes **reinicia** todos os pods ao mesmo tempo; todos sobem frios, martelam juntos o banco enquanto ele volta, e a indisponibilidade se prolonga sozinha.
+    Suponha que a probe de readiness do `order` inclua a conexão com o PostgreSQL. O banco faz um failover de 20 segundos. Todos os pods do `order` falham a readiness no mesmo instante, o Kubernetes remove **todos** eles do Service e o gateway passa a devolver `503` para todas as rotas — inclusive as que só leem do Redis. Pior: se a probe de *liveness* incluir o banco, o Kubernetes **reinicia** todos os pods ao mesmo tempo; todos sobem frios, martelam juntos o banco enquanto ele volta e a indisponibilidade se prolonga sozinha.
 
-    Regras práticas: **a liveness nunca verifica dependências**; a readiness verifica só o que *esta* instância precisa localmente e o que *outra* instância não resolveria; a saúde das dependências pertence a **métricas e alertas**, e dependências degradadas são tratadas com timeouts, circuit breakers e fallbacks ([Padrões de resiliência](../reliability/patterns/index.md)).
+    Regras práticas: **a liveness nunca verifica dependências**; a readiness verifica só o que *esta* instância precisa localmente e o que *outra* instância não resolveria; a saúde das dependências pertence a **métricas e alertas** e dependências degradadas são tratadas com timeouts, circuit breakers e fallbacks ([Padrões de resiliência](../reliability/patterns/index.md)).
 
 | | Raso (só o processo) | Profundo (processo + dependências) |
 |---|---|---|
@@ -227,7 +227,7 @@ Com 100% de amostragem de traces, são mais de 5 TB de traces por mês — antes
 
 ## O mapa de conceitos da observabilidade { #concept-map }
 
-Os cinco componentes de observabilidade descrevem as mesmas requisições por ângulos diferentes, e o contexto compartilhado (exemplars, `trace_id`) os transforma numa única investigação. O mapa liga cada **componente da paleta** (verde) aos **conceitos** de que ele depende (azul) e às aulas que os continuam:
+Os cinco componentes de observabilidade descrevem as mesmas requisições por ângulos diferentes e o contexto compartilhado (exemplars, `trace_id`) os transforma numa única investigação. O mapa liga cada **componente da paleta** (verde) aos **conceitos** de que ele depende (azul) e às aulas que os continuam:
 
 ``` diagram
 flowchart LR
@@ -283,7 +283,7 @@ flowchart LR
 ## Relacionados { #related }
 
 - [Hands-on 8 — Observabilidade](../../hands-on/8/index.md): auto-instrumentação com OpenTelemetry e `grafana/otel-lgtm` no BoxOffice; dashboard RED, traces e um alerta de burn rate.
-- [Hands-on 9 — Resiliência e caos](../../hands-on/9/index.md) e [Hands-on 10 — Kubernetes](../../hands-on/10/index.md): probes, falhas com Toxiproxy, e como observá-las na telemetria.
+- [Hands-on 9 — Resiliência e caos](../../hands-on/9/index.md) e [Hands-on 10 — Kubernetes](../../hands-on/10/index.md): probes, falhas com Toxiproxy e como observá-las na telemetria.
 - [Confiabilidade](../reliability/index.md) e [SLOs](slo/index.md): SLIs, SLOs e error budgets — o que os alertas desta aula fazem cumprir.
 - [Engenharia de desempenho](../performance/index.md): testes de carga só são úteis se você conseguir ver *por que* o sistema entorta.
 - [Exercício: relatório de teste de carga](../../exercises/load-test-report/index.md) e o [game day](../../exercises/project/game-day/index.md) do projeto.

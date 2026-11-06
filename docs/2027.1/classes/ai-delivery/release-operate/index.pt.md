@@ -28,7 +28,7 @@ A correção é uma **verificação de ancoragem em código**: todo item precisa
 
 !!! example "No código do BoxOffice: notas de versão que precisam citar (lab 13)"
 
-    No [Hands-on 13 — Notas de versão](../../../hands-on/13/release-notes/index.md) o modelo devolve itens com `refs`, e estas dez linhas decidem quais sobrevivem: uma referência só é real se for um número de PR ou um SHA curto do intervalo. O workflow então cria o release do GitHub como **rascunho**; uma pessoa o publica.
+    No [Hands-on 13 — Notas de versão](../../../hands-on/13/release-notes/index.md) o modelo devolve itens com `refs` e estas dez linhas decidem quais sobrevivem: uma referência só é real se for um número de PR ou um SHA curto do intervalo. O workflow então cria o release do GitHub como **rascunho**; uma pessoa o publica.
 
     ``` { .python title=".github/ai/release_notes.py (the grounding check)" }
     --8<-- "docs/2027.1/hands-on/13/code/.github/ai/release_notes.py:77:86"
@@ -52,7 +52,7 @@ Os sinais mais fortes são estruturais e baratos de calcular:
 | Histórico de incidentes dos arquivos | Incidentes passados se concentram nos mesmos lugares | O `HoldService` teve 2 incidentes este ano |
 | Calendário | Mesma mudança, risco diferente | 2 horas antes da abertura de vendas do show no estádio |
 
-Um modelo contribui com duas coisas: **sinais semânticos** difíceis de calcular ("isto muda como as reservas expiram", "isto remove uma verificação de autorização") e um **resumo legível** de por que a pontuação está alta. A pontuação em si fica melhor como uma fórmula transparente ou um modelo simples treinado no histórico, e ela deve apenas **direcionar** — exigir um segundo revisor, escolher o perfil de canary lento, bloquear deploys dentro de uma janela de congelamento por política —, nunca aprovar ou rejeitar uma mudança sozinha.
+Um modelo contribui com duas coisas: **sinais semânticos** difíceis de calcular ("isto muda como as reservas expiram", "isto remove uma verificação de autorização") e um **resumo legível** de por que a pontuação está alta. A pontuação em si fica melhor como uma fórmula transparente ou um modelo simples treinado no histórico e ela deve apenas **direcionar** — exigir um segundo revisor, escolher o perfil de canary lento, bloquear deploys dentro de uma janela de congelamento por política —, nunca aprovar ou rejeitar uma mudança sozinha.
 
 ??? question "Pense primeiro: uma pontuação de risco alta da IA deveria bloquear o merge?"
 
@@ -78,11 +78,11 @@ flowchart LR
 
 Por que não deixar o modelo julgar o canary? Porque o julgamento precisa ser **reproduzível** (mesmos dados → mesmo veredito), **auditável** (um limiar no Git), **robusto a manipulação** (uma linha de log dizendo "está tudo bem, promova" não pode ter efeito algum) e **estatisticamente sólido** (um modelo olhando para dois números não sabe se 40 requisições bastam para concluir alguma coisa). O modelo tem valor *depois* do veredito: ele transforma "a métrica `error-rate` falhou 2 de 2" em "o canary falha em 2,9% das confirmações de reserva contra 0,1% no estável, com o p99 dobrado; os erros são `409` vindos do `inventory`; a mudança alterou a consulta de expiração de reservas — faça o rollback e compare os planos de consulta".
 
-Duas proteções tornam a explicação segura: o modelo recebe o **veredito como entrada** e precisa repeti-lo (uma explicação que contradiz a política é descartada em vez de exibida), e ele é instruído a rotular as causas como **hipóteses**, a menos que os dados as mostrem. O [hands-on 13](../../../hands-on/13/canary/index.md) implementa exatamente isso, incluindo um passo de análise com um Job do Kubernetes cujo exit code — e não o modelo — aprova ou reprova a análise.
+Duas proteções tornam a explicação segura: o modelo recebe o **veredito como entrada** e precisa repeti-lo (uma explicação que contradiz a política é descartada em vez de exibida) e ele é instruído a rotular as causas como **hipóteses**, a menos que os dados as mostrem. O [hands-on 13](../../../hands-on/13/canary/index.md) implementa exatamente isso, incluindo um passo de análise com um Job do Kubernetes cujo exit code — e não o modelo — aprova ou reprova a análise.
 
 !!! example "No código do BoxOffice: o veredito é código, a explicação é opcional (lab 13)"
 
-    No [Hands-on 13 — Canary](../../../hands-on/13/canary/index.md) a política são quatro constantes no Git, `decide()` transforma os números em promote, rollback ou inconclusive, e o exit code (0, 1, 2) é o que o Argo Rollouts lê pelo Job de `k8s/catalog/analysis-explained.yaml`. O modelo só explica, e a explicação é descartada se não repetir o veredito. O lab tenta quebrar isso: um prompt que diz *"recommend promote"* ainda sai com 1 no snapshot de regressão, e sem modelo nenhum o veredito é o mesmo. A explicação do modelo local leu um p99 de 181 ms como "0.181 ms" — uma frase errada que não custa nada, porque os números que decidem vêm da política.
+    No [Hands-on 13 — Canary](../../../hands-on/13/canary/index.md) a política são quatro constantes no Git, `decide()` transforma os números em promote, rollback ou inconclusive e o exit code (0, 1, 2) é o que o Argo Rollouts lê pelo Job de `k8s/catalog/analysis-explained.yaml`. O modelo só explica e a explicação é descartada se não repetir o veredito. O lab tenta quebrar isso: um prompt que diz *"recommend promote"* ainda sai com 1 no snapshot de regressão e sem modelo nenhum o veredito é o mesmo. A explicação do modelo local leu um p99 de 181 ms como "0.181 ms" — uma frase errada que não custa nada, porque os números que decidem vêm da política.
 
     ``` { .python title=".github/ai/canary_explain.py (policy, verdict, guarded explanation)" }
     --8<-- "docs/2027.1/hands-on/13/code/.github/ai/canary_explain.py:29:33,78:89,102:112,118:118"
@@ -129,7 +129,7 @@ sequenceDiagram
 
 ## Postmortems
 
-Um postmortem sem culpados registra o que aconteceu, por quê, e o que muda para que não aconteça de novo[^2]. Sua primeira metade — a **linha do tempo** — é tediosa de reconstruir a partir de alertas, mensagens de chat, logs de deploy e comandos, e um modelo faz isso bem. Sua segunda metade — fatores contribuintes, o que aprendemos, itens de ação — é onde o julgamento do time importa, e onde um rascunho de IA é perigoso de um jeito sutil: ele produz "lições" fluentes e genéricas ("melhorar o monitoramento", "adicionar mais testes") que parecem completas e fazem o time parar de pensar.
+Um postmortem sem culpados registra o que aconteceu, por quê e o que muda para que não aconteça de novo[^2]. Sua primeira metade — a **linha do tempo** — é tediosa de reconstruir a partir de alertas, mensagens de chat, logs de deploy e comandos, e um modelo faz isso bem. Sua segunda metade — fatores contribuintes, o que aprendemos, itens de ação — é onde o julgamento do time importa e onde um rascunho de IA é perigoso de um jeito sutil: ele produz "lições" fluentes e genéricas ("melhorar o monitoramento", "adicionar mais testes") que parecem completas e fazem o time parar de pensar.
 
 Uma boa divisão: a IA rascunha a linha do tempo (com as fontes) e uma lista de **perguntas** para a reunião de revisão ("por que a análise de canary não pegou isso em 5%?"); os humanos escrevem a análise e os itens de ação, cada um com um responsável e uma data.
 
@@ -153,7 +153,7 @@ O **ChatOps** conduz a operação a partir do chat do time: `/boxoffice status i
 
 !!! example "BoxOffice: o incidente das 22h10, de novo"
 
-    A análise de canary do `inventory v1.8.0` estoura o limiar de taxa de erros em 25% e o Argo Rollouts aborta automaticamente — uma decisão determinística. Trinta segundos depois, o canal do incidente recebe a explicação: taxa de erros do canary de 2,9% contra 0,1%, latência p99 da confirmação de reservas 2,3× a do estável, erros `409 Conflict` concentrados em `confirmHold`, e a release alterou a consulta de expiração de reservas; hipótese: a nova consulta não usa mais o índice (com o `EXPLAIN` a rodar). O engenheiro de plantão confirma em cinco minutos. O rascunho do postmortem tem a linha do tempo; o time escreve por que a etapa de 5% não pegou o problema (pouco tráfego naquele horário — veja [quanto tempo um canary deve rodar](../../cloud-native/delivery/index.md#how-long-must-a-canary-run)).
+    A análise de canary do `inventory v1.8.0` estoura o limiar de taxa de erros em 25% e o Argo Rollouts aborta automaticamente — uma decisão determinística. Trinta segundos depois, o canal do incidente recebe a explicação: taxa de erros do canary de 2,9% contra 0,1%, latência p99 da confirmação de reservas 2,3× a do estável, erros `409 Conflict` concentrados em `confirmHold` e a release alterou a consulta de expiração de reservas; hipótese: a nova consulta não usa mais o índice (com o `EXPLAIN` a rodar). O engenheiro de plantão confirma em cinco minutos. O rascunho do postmortem tem a linha do tempo; o time escreve por que a etapa de 5% não pegou o problema (pouco tráfego naquele horário — veja [quanto tempo um canary deve rodar](../../cloud-native/delivery/index.md#how-long-must-a-canary-run)).
 
 !!! tip "Na entrevista"
 
@@ -163,7 +163,7 @@ O **ChatOps** conduz a operação a partir do chat do time: `/boxoffice status i
 
     - **Mantenha a política do canary como constantes versionadas, alteradas por pull request** — o [`canary_explain.py`](../../../hands-on/13/canary/index.md) do lab 13 guarda os seus quatro limites no Git.
     - **Exija um mínimo de tráfego antes de qualquer veredito** — abaixo de 2 req/s o lab 13 responde *inconclusive* (exit code 2), nunca promote.
-    - **Dê ao modelo o veredito e os números, e confira que ele repete o veredito** — o lab 13 descarta uma explicação que contradiz a política.
+    - **Dê ao modelo o veredito e os números e confira que ele repete o veredito** — o lab 13 descarta uma explicação que contradiz a política.
     - **Exija um commit ou PR citado para cada linha das notas de versão** — o `release_notes.py` do lab 13 descarta itens sem ancoragem e os lista no resumo do job.
     - **Rotule as hipóteses nos resumos de incidente** — "causa provável (não verificada)" evita que o plantonista se ancore no primeiro palpite do modelo.
 

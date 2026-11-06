@@ -42,7 +42,7 @@ Como ler um plano:
 | `Index Scan` / `Index Only Scan` | percorre uma B-tree; *Only* significa que nunca toca a tabela |
 | `Hash Join`, `Nested Loop`, `Merge Join` | três formas de fazer join; o nested loop é ótimo quando o lado externo é pequeno e o lado interno tem um índice |
 | `Sort` | ordena em memória (ou em disco: `external merge`) — evitável quando um índice já entrega a ordem |
-| `actual time=a..b rows=n` | tempo até a primeira e até a última linha, e a contagem real de linhas; compare com o `rows` estimado para detectar estatísticas ruins |
+| `actual time=a..b rows=n` | tempo até a primeira e até a última linha e a contagem real de linhas; compare com o `rows` estimado para detectar estatísticas ruins |
 
 O problema está à vista: 200.000 linhas são lidas e ordenadas para devolver 20.
 

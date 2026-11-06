@@ -1,5 +1,5 @@
 
-No laptop de um desenvolvedor, o BoxOffice vive em uma rede Docker: todo container alcança todos os outros, e só o Nginx publica uma porta. Na nuvem, a decisão equivalente é muito maior e muito mais difícil de mudar depois. Quais máquinas recebem um endereço público? O banco de dados consegue chegar à Internet — e a Internet consegue chegar ao banco? Como o serviço `payment` chama o provedor, que só aceita requisições de **endereços IP em uma lista de permissão** (*allow-list*)? Como um engenheiro depura um pod sem abrir SSH para o mundo? Esta página constrói a rede do BoxOffice em um provedor de nuvem, um componente de cada vez.
+No laptop de um desenvolvedor, o BoxOffice vive em uma rede Docker: todo container alcança todos os outros e só o Nginx publica uma porta. Na nuvem, a decisão equivalente é muito maior e muito mais difícil de mudar depois. Quais máquinas recebem um endereço público? O banco de dados consegue chegar à Internet — e a Internet consegue chegar ao banco? Como o serviço `payment` chama o provedor, que só aceita requisições de **endereços IP em uma lista de permissão** (*allow-list*)? Como um engenheiro depura um pod sem abrir SSH para o mundo? Esta página constrói a rede do BoxOffice em um provedor de nuvem, um componente de cada vez.
 
 Os exemplos usam os nomes da AWS, os mais comuns em descrições de vagas; as abas no fim mapeiam esses nomes para Google Cloud e Azure. As ideias são as mesmas em todo lugar[^1]. Esta página supõe que você sabe o que são um endereço IP, um bloco CIDR, um endereço privado e o NAT — se não, leia antes [Como a Internet funciona](../internet/index.md): ela tem a mesma rede do BoxOffice como um caminho de pacote interativo.
 
@@ -56,7 +56,7 @@ Confira o plano no explorador de endereços: divida `10.20.0.0/16` em 8 sub-rede
 
 ??? question "Pense antes: quantos pods cabem em uma sub-rede privada de aplicação?"
 
-    Um `/19` tem 2¹³ = 8 192 endereços, menos 5 reservados = **8 187**. Os nós também ocupam endereços, e o CNI mantém alguns IPs "aquecidos" por nó, então o número real de pods é menor — mas na casa dos milhares por AZ. Um `/24` (251 utilizáveis) teria se esgotado no primeiro evento de autoscaling de uma venda relâmpago.
+    Um `/19` tem 2¹³ = 8 192 endereços, menos 5 reservados = **8 187**. Os nós também ocupam endereços e o CNI mantém alguns IPs "aquecidos" por nó, então o número real de pods é menor — mas na casa dos milhares por AZ. Um `/24` (251 utilizáveis) teria se esgotado no primeiro evento de autoscaling de uma venda relâmpago.
 
 ---
 
@@ -402,7 +402,7 @@ flowchart LR
     - Sub-redes privadas alcançam a Internet **apenas na saída**, por um **NAT gateway**, que também dá um IP de saída estável para allow-lists; use um por AZ em caminhos críticos.
     - **Security groups** são stateful e podem referenciar uns aos outros; **NACLs** são proteções stateless no nível da sub-rede. Nenhum dos dois é identidade de workload.
     - Planeje **CIDRs** com folga e sem sobreposição; a AWS reserva 5 endereços por sub-rede; pods podem precisar de muitos IPs.
-    - Use **VPC endpoints** para serviços da nuvem, **peering/transit/PrivateLink** entre redes, **VPN ou links dedicados** até o on-premises, e **session managers** em vez de bastions.
+    - Use **VPC endpoints** para serviços da nuvem, **peering/transit/PrivateLink** entre redes, **VPN ou links dedicados** até o on-premises e **session managers** em vez de bastions.
 
 ---
 

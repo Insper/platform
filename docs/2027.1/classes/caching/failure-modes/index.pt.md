@@ -25,7 +25,7 @@ O perigo é a distância entre a carga para a qual o banco foi dimensionado (as 
 
     A BoxOffice precisa mudar o formato do evento cacheado (`:v3` → `:v4`). A versão fica pronta às 9h30; a abertura de vendas do estádio começa às 10h00.
 
-    Não às 9h30. Uma nova versão de chave é um cache frio para todos os eventos, e o momento mais quente do mês está a meia hora de distância. Publique depois do pico da abertura (ou antes, com aquecimento e tempo suficiente para verificar a taxa de acerto). De forma geral: **agende deploys que invalidam o cache fora dos picos conhecidos**, e faça-os de forma gradual para que as versões antiga e nova aqueçam em paralelo.
+    Não às 9h30. Uma nova versão de chave é um cache frio para todos os eventos e o momento mais quente do mês está a meia hora de distância. Publique depois do pico da abertura (ou antes, com aquecimento e tempo suficiente para verificar a taxa de acerto). De forma geral: **agende deploys que invalidam o cache fora dos picos conhecidos** e faça-os de forma gradual para que as versões antiga e nova aqueçam em paralelo.
 
 Correções:
 
@@ -207,19 +207,19 @@ def xfetch(r, key: str, recompute, ttl: int = 300, beta: float = 1.0):
 <div class="csim" data-sim="stampede" data-rate="500"></div>
 
 !!! tip "Experimente"
-    A execução segue o teste de stampede do lab 5: um aquecimento põe no cache a página do evento quente (500 leituras/s) e outras 40 com o mesmo TTL de 3 s, e o banco executa 20 consultas de 200 ms por vez (100/s). Dê play com todas as chaves desligadas: em t = 3 s as consultas saltam para cerca de 1.060/s, centenas esperam na fila, e o p99 chega a cerca de 5 s, com 1.229 consultas em 10 s para 41 páginas. Ligue o **agrupamento de requisições** (o `CACHE_STAMPEDE_PROTECTION=true` do lab 5): 122 consultas, p99 de 200 ms, e 543 requisições esperam a carga de outra requisição. O pico de 280/s que sobra são as 40 páginas expirando juntas, a [avalanche](#avalanche) abaixo: acrescente o **jitter no TTL** (os 10% do lab 5) e ele cai para 120/s. O **XFetch** sozinho dispensa o lock e ninguém espera: a página quente é renovada antes de expirar (314 consultas, pico de 230/s, porque vários leitores a renovam ao mesmo tempo). Com as três, o pico fica abaixo da capacidade, em 90/s.
+    A execução segue o teste de stampede do lab 5: um aquecimento põe no cache a página do evento quente (500 leituras/s) e outras 40 com o mesmo TTL de 3 s e o banco executa 20 consultas de 200 ms por vez (100/s). Dê play com todas as chaves desligadas: em t = 3 s as consultas saltam para cerca de 1.060/s, centenas esperam na fila e o p99 chega a cerca de 5 s, com 1.229 consultas em 10 s para 41 páginas. Ligue o **agrupamento de requisições** (o `CACHE_STAMPEDE_PROTECTION=true` do lab 5): 122 consultas, p99 de 200 ms e 543 requisições esperam a carga de outra requisição. O pico de 280/s que sobra são as 40 páginas expirando juntas, a [avalanche](#avalanche) abaixo: acrescente o **jitter no TTL** (os 10% do lab 5) e ele cai para 120/s. O **XFetch** sozinho dispensa o lock e ninguém espera: a página quente é renovada antes de expirar (314 consultas, pico de 230/s, porque vários leitores a renovam ao mesmo tempo). Com as três, o pico fica abaixo da capacidade, em 90/s.
 
 ---
 
 ## Avalanche de cache { #avalanche }
 
-Uma **avalanche de cache** é um *stampede* em muitas chaves ao mesmo tempo: um grande conjunto de chaves expira no mesmo instante, ou o cache é esvaziado, e as faltas de todas elas atingem o banco juntas.
+Uma **avalanche de cache** é um *stampede* em muitas chaves ao mesmo tempo: um grande conjunto de chaves expira no mesmo instante, ou o cache é esvaziado e as faltas de todas elas atingem o banco juntas.
 
 !!! example "BoxOffice: o aquecimento que causou a queda"
 
     Para preparar a abertura das 10h00, um job aquece o cache às **9h50** com as 5.000 páginas mais quentes, todas com `TTL = 600 s`. Todas expiram às **10:00:00** — o exato instante em que 2 milhões de fãs apertam F5. O aquecimento deixou as coisas piores do que nenhum aquecimento.
 
-A correção é o **jitter**: acrescente um componente aleatório a cada TTL, por exemplo `ttl = 600 + random(0, 120)`, para que as expirações se espalhem por dois minutos. Combine com refresh-ahead ou XFetch para as chaves mais quentes, e com proteção contra *stampede* para cada chave individual.
+A correção é o **jitter**: acrescente um componente aleatório a cada TTL, por exemplo `ttl = 600 + random(0, 120)`, para que as expirações se espalhem por dois minutos. Combine com refresh-ahead ou XFetch para as chaves mais quentes e com proteção contra *stampede* para cada chave individual.
 
 !!! example "No código do BoxOffice: jitter em todo TTL (lab 5)"
 
@@ -290,7 +290,7 @@ flowchart TD
     C -->|"não"| S["descartar carga e servir degradado:<br/>página estática, sala de espera,<br/>faltas com limite de taxa"]
 ```
 
-A verdade incômoda: **depois que o banco é dimensionado para as faltas, o cache deixa de ser opcional**. Ele é uma dependência que sustenta carga, e precisa da mesma engenharia de confiabilidade que o banco:
+A verdade incômoda: **depois que o banco é dimensionado para as faltas, o cache deixa de ser opcional**. Ele é uma dependência que sustenta carga e precisa da mesma engenharia de confiabilidade que o banco:
 
 - **Timeouts** em toda chamada ao cache (dezenas de milissegundos, não o padrão do cliente) e um **circuit breaker**, para que um cache doente falhe rápido em vez de prender threads ([Confiabilidade](../../reliability/patterns/index.md)).
 - **Replicação com failover automático** (Redis Sentinel ou Cluster; serviços gerenciados fazem isso por você) — veja [Redis](../redis/index.md#replication).
@@ -335,7 +335,7 @@ O [playground completo](../../../../playground/index.md) permite acrescentar uma
 
 !!! success "Boas práticas"
 
-    - **Ponha um timeout curto em toda chamada ao cache** (milissegundos, não os segundos padrão do cliente) e trate um erro como miss. No BoxOffice: `timeout: 200ms` e `connect-timeout: 200ms` no `application.yaml` do `catalog`, e o `read()` do `EventCache.java` devolve `null` em qualquer erro do Redis.
+    - **Ponha um timeout curto em toda chamada ao cache** (milissegundos, não os segundos padrão do cliente) e trate um erro como miss. No BoxOffice: `timeout: 200ms` e `connect-timeout: 200ms` no `application.yaml` do `catalog` e o `read()` do `EventCache.java` devolve `null` em qualquer erro do Redis.
     - **Acrescente jitter a todo TTL** e proteja cada chave quente com um lock ou com agrupamento de requisições ([quadros acima](#stampede)).
     - **Ensaie o cache frio**: esvazie o Redis num teste de carga no pico esperado e verifique que o banco sobrevive; se não sobreviver, mantenha um plano de aquecimento e um limite de taxa no caminho do miss.
     - **Observe o cache como um banco**: taxa de acerto, despejos, memória, latência por comando e as chaves mais quentes (`redis-cli --hotkeys`, que exige uma política LFU; chaves grandes com `--bigkeys`).

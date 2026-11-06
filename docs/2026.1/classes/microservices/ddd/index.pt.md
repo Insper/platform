@@ -1,5 +1,5 @@
 
-O [Domain-Driven Design (DDD)](https://en.wikipedia.org/wiki/Domain-driven_design){target="_blank"} é uma abordagem de desenvolvimento de software apresentada por Eric Evans[^1] que coloca o **domínio** — a área específica de negócio que o software apoia — no centro de todas as decisões de projeto. O DDD oferece um vocabulário e um conjunto de padrões que ajudam a traduzir a complexidade do negócio em estrutura de código, e é a principal ferramenta para identificar as fronteiras certas entre microsserviços.
+O [Domain-Driven Design (DDD)](https://en.wikipedia.org/wiki/Domain-driven_design){target="_blank"} é uma abordagem de desenvolvimento de software apresentada por Eric Evans[^1] que coloca o **domínio** — a área específica de negócio que o software apoia — no centro de todas as decisões de projeto. O DDD oferece um vocabulário e um conjunto de padrões que ajudam a traduzir a complexidade do negócio em estrutura de código e é a principal ferramenta para identificar as fronteiras certas entre microsserviços.
 
 ---
 

@@ -2,7 +2,7 @@ Dois engenheiros recebem a tarefa de implementar *"encontre dois assentos abaixo
 
 O primeiro escreve um **workflow**: extrai `date`, `quantity` e `max_price` da mensagem com uma chamada ao modelo que devolve JSON; chama `search_events` e `search_seats` no código; escolhe o par de assentos vizinhos mais barato; chama `hold_seats`; pede ao modelo que redija a resposta. Duas chamadas ao modelo, cada passo testável, latência previsível.
 
-O segundo escreve um **agente**: entrega ao modelo as ferramentas e o objetivo, e deixa que ele decida o que chamar, em que ordem e quando parar. Ele atende pedidos que o primeiro projeto nunca previu (*"…e, se não houver nada no sábado, tente domingo, mas não no anel superior"*), e falha de maneiras que o primeiro projeto jamais falharia (reserva o evento errado, ou fica comparando assentos para sempre).
+O segundo escreve um **agente**: entrega ao modelo as ferramentas e o objetivo e deixa que ele decida o que chamar, em que ordem e quando parar. Ele atende pedidos que o primeiro projeto nunca previu (*"…e, se não houver nada no sábado, tente domingo, mas não no anel superior"*) e falha de maneiras que o primeiro projeto jamais falharia (reserva o evento errado, ou fica comparando assentos para sempre).
 
 Os dois projetos estão corretos — para pedidos diferentes. Esta página trata da maquinaria do segundo e de como saber quando escolher o primeiro.
 
@@ -84,7 +84,7 @@ Cinco detalhes nessas 25 linhas concentram a maior parte da engenharia:
 
 !!! example "No código do BoxOffice: o laço limitado do assistente (lab 12)"
 
-    O [Hands-on 12 — Ferramentas e o laço do agente](../../../hands-on/12/tools/index.md) escreve este laço com duas decisões que o esboço acima deixa em aberto. Ele **recupera primeiro**: os 5 eventos do catálogo mais próximos entram no prompt antes da primeira chamada ao modelo, porque modelos locais pequenos chamam ferramentas de forma pouco confiável e, com o contexto já presente, as perguntas comuns não precisam de ferramenta nenhuma. E a **última das `MAX_STEPS` = 4 chamadas é feita sem ferramentas**, então o modelo precisa responder: o orçamento de passos não pode terminar em silêncio. Cada passo é transmitido ao fã em streaming, e os resultados das ferramentas voltam como mensagens `role: tool` — dados, nunca instruções.
+    O [Hands-on 12 — Ferramentas e o laço do agente](../../../hands-on/12/tools/index.md) escreve este laço com duas decisões que o esboço acima deixa em aberto. Ele **recupera primeiro**: os 5 eventos do catálogo mais próximos entram no prompt antes da primeira chamada ao modelo, porque modelos locais pequenos chamam ferramentas de forma pouco confiável e, com o contexto já presente, as perguntas comuns não precisam de ferramenta nenhuma. E a **última das `MAX_STEPS` = 4 chamadas é feita sem ferramentas**, então o modelo precisa responder: o orçamento de passos não pode terminar em silêncio. Cada passo é transmitido ao fã em streaming e os resultados das ferramentas voltam como mensagens `role: tool` — dados, nunca instruções.
 
     ``` { .python title="services/assistant/app/agent.py (the loop)" }
     --8<-- "docs/2027.1/hands-on/12/code/services/assistant/app/agent.py:49:82"
@@ -130,7 +130,7 @@ O modelo escolhe as ferramentas **lendo seus nomes e descrições**, então a in
 
 ## Ferramentas são efeitos colaterais { #side-effects }
 
-Uma chamada ao modelo pode ser repetida à vontade. Uma chamada de ferramenta **muda o mundo**. Se `hold_seats` estoura o tempo e o loop tenta de novo, a primeira reserva aconteceu ou não? Esse é o problema de integração de [Computação e serviços](../../compute/integrations/index.md), e as respostas são as mesmas:
+Uma chamada ao modelo pode ser repetida à vontade. Uma chamada de ferramenta **muda o mundo**. Se `hold_seats` estoura o tempo e o loop tenta de novo, a primeira reserva aconteceu ou não? Esse é o problema de integração de [Computação e serviços](../../compute/integrations/index.md) e as respostas são as mesmas:
 
 - **Chaves de idempotência.** O orquestrador deriva uma chave de `(conversation, step, call)` e a passa para toda ferramenta de escrita; o serviço devolve o mesmo resultado para a mesma chave.
 - **Reversível primeiro.** Prefira ações que tenham um "desfazer" natural — uma **reserva temporária (hold)** expira em 10 minutos; um **pedido** com pagamento, não.
@@ -154,7 +154,7 @@ Uma chamada ao modelo pode ser repetida à vontade. Uma chamada de ferramenta **
 
 ### Execução durável { #durable-execution }
 
-Uma conversa que aguarda a confirmação do fã, ou uma tarefa que roda por minutos, não pode viver só na memória de um processo: pods reiniciam. Persista o estado do agente depois de **cada passo** — mensagens, chamadas de ferramenta pendentes, chaves de idempotência — em um banco de dados, e retome a partir do último checkpoint. Para tarefas longas de vários passos, um **motor de workflow durável** (no estilo do Temporal: cada passo registrado, repetido e retomável) entrega isso de graça; para chats curtos, uma linha `conversation_state` mais o cache de sessão do [Memory Fabric](../rag-memory/index.md) bastam.
+Uma conversa que aguarda a confirmação do fã, ou uma tarefa que roda por minutos, não pode viver só na memória de um processo: pods reiniciam. Persista o estado do agente depois de **cada passo** — mensagens, chamadas de ferramenta pendentes, chaves de idempotência — em um banco de dados e retome a partir do último checkpoint. Para tarefas longas de vários passos, um **motor de workflow durável** (no estilo do Temporal: cada passo registrado, repetido e retomável) entrega isso de graça; para chats curtos, uma linha `conversation_state` mais o cache de sessão do [Memory Fabric](../rag-memory/index.md) bastam.
 
 ---
 
@@ -178,7 +178,7 @@ O loop do agente planeja **um passo de cada vez**. Para tarefas mais longas, o p
     3. Escolher o par mais barato; se não houver, verificar o domingo.
     4. Reservar o par (reversível, 10 min) e devolver o link de pagamento.
 
-    Mostrar o plano custa uma chamada, mas permite que o fã corrija um mal-entendido *antes* de qualquer ação, e dá ao time de avaliação uma trajetória para comparar com a esperada.
+    Mostrar o plano custa uma chamada, mas permite que o fã corrija um mal-entendido *antes* de qualquer ação e dá ao time de avaliação uma trajetória para comparar com a esperada.
 
 ### Por que cada passo precisa ser verificado { #why-every-step-must-be-checked }
 
@@ -202,7 +202,7 @@ Um passo que acerta 95% das vezes parece bom; uma tarefa de 10 passos construíd
 
 ## Registro de ferramentas e MCP { #mcp }
 
-Sem um padrão, cada agente precisa de uma integração sob medida com cada ferramenta: N agentes × M ferramentas. O **Model Context Protocol (MCP)**[^5] faz pelos agentes o que o Language Server Protocol fez pelos editores de código: cada provedor de ferramentas escreve **um servidor MCP**, cada host de agente embute **clientes MCP**, e qualquer cliente pode usar qualquer servidor — N + M integrações.
+Sem um padrão, cada agente precisa de uma integração sob medida com cada ferramenta: N agentes × M ferramentas. O **Model Context Protocol (MCP)**[^5] faz pelos agentes o que o Language Server Protocol fez pelos editores de código: cada provedor de ferramentas escreve **um servidor MCP**, cada host de agente embute **clientes MCP** e qualquer cliente pode usar qualquer servidor — N + M integrações.
 
 ``` diagram
 flowchart LR
@@ -311,7 +311,7 @@ O MCP padroniza o *protocolo de rede*; o componente **Tool Registry** é a gover
 
 !!! warning "Anotações são dicas, não segurança"
 
-    `readOnlyHint` e `destructiveHint` vêm do servidor. Um servidor de terceiros malicioso ou com bugs pode mentir, e as **descrições** das suas ferramentas são texto que o modelo lê — um lugar para instruções injetadas (*tool poisoning*), que podem até mudar depois que você aprovou o servidor. Trate servidores MCP de terceiros como código de terceiros: revise, fixe a versão, isole em sandbox e imponha as permissões no seu próprio registro e nos seus serviços.
+    `readOnlyHint` e `destructiveHint` vêm do servidor. Um servidor de terceiros malicioso ou com bugs pode mentir e as **descrições** das suas ferramentas são texto que o modelo lê — um lugar para instruções injetadas (*tool poisoning*), que podem até mudar depois que você aprovou o servidor. Trate servidores MCP de terceiros como código de terceiros: revise, fixe a versão, isole em sandbox e imponha as permissões no seu próprio registro e nos seus serviços.
 
 Para a comunicação **entre agentes** de times ou empresas diferentes, estão surgindo protocolos próprios (por exemplo, o *Agent2Agent*, A2A). A distinção a guardar: o MCP conecta um agente a **ferramentas e dados**; os protocolos agente-a-agente conectam um agente a **outro agente**.
 
@@ -345,7 +345,7 @@ sequenceDiagram
     S-->>F: proposta combinada: confirmar?
 ```
 
-Sistemas multiagente trocam dinheiro e latência por modularidade. Cada agente tem seu próprio contexto (mais tokens no total), cada handoff perde informação a menos que o estado seja passado explicitamente, e as falhas ficam mais difíceis de rastrear. Passe **artefatos explícitos e estruturados** entre os agentes (uma lista de assentos candidatos com IDs), não transcrições inteiras, e rastreie a árvore completa de chamadas ([Observabilidade](../safety-evals/index.md#observability)).
+Sistemas multiagente trocam dinheiro e latência por modularidade. Cada agente tem seu próprio contexto (mais tokens no total), cada handoff perde informação a menos que o estado seja passado explicitamente e as falhas ficam mais difíceis de rastrear. Passe **artefatos explícitos e estruturados** entre os agentes (uma lista de assentos candidatos com IDs), não transcrições inteiras, e rastreie a árvore completa de chamadas ([Observabilidade](../safety-evals/index.md#observability)).
 
 ---
 
@@ -363,7 +363,7 @@ Sistemas multiagente trocam dinheiro e latência por modularidade. Cada agente t
 
 !!! tip "Experimente"
 
-    Rode o cenário do assistente de IA com o perfil **stress**. Cada requisição que entra no Orchestrator vira várias chamadas ao LLM Gateway e ao Tool Registry: compare a taxa de requisições no orquestrador com a taxa no gateway. Essa razão é o número de passos do agente, e é o multiplicador da sua capacidade e do seu custo de modelo.
+    Rode o cenário do assistente de IA com o perfil **stress**. Cada requisição que entra no Orchestrator vira várias chamadas ao LLM Gateway e ao Tool Registry: compare a taxa de requisições no orquestrador com a taxa no gateway. Essa razão é o número de passos do agente e é o multiplicador da sua capacidade e do seu custo de modelo.
 
 <div class="sdp" data-scenario="ai-assistant" data-mode="compact" data-height="520" data-profile="stress"></div>
 
@@ -382,7 +382,7 @@ As chamadas de ferramenta em paralelo economizaram uma rodada inteira (≈ 2 s).
 
 !!! tip "Na entrevista"
 
-    Diga **"workflow primeiro, agente onde for preciso"** e justifique com a matemática da composição ($0.95^{10} \approx 60\%$). Desenhe o loop com seus **orçamentos** (passos, tokens, tempo) e mostre onde as ferramentas são **autorizadas como o usuário** e **tornadas idempotentes**. Cite o MCP como a forma de os times exporem ferramentas, e acrescente um registro para permissões, níveis de risco e auditoria. Se o assunto multiagente aparecer, dê um motivo concreto (separação de ferramentas ou paralelismo) e o seu custo (tokens, latência, dificuldade de depuração).
+    Diga **"workflow primeiro, agente onde for preciso"** e justifique com a matemática da composição ($0.95^{10} \approx 60\%$). Desenhe o loop com seus **orçamentos** (passos, tokens, tempo) e mostre onde as ferramentas são **autorizadas como o usuário** e **tornadas idempotentes**. Cite o MCP como a forma de os times exporem ferramentas e acrescente um registro para permissões, níveis de risco e auditoria. Se o assunto multiagente aparecer, dê um motivo concreto (separação de ferramentas ou paralelismo) e o seu custo (tokens, latência, dificuldade de depuração).
 
 !!! success "Boas práticas"
 
@@ -397,7 +397,7 @@ As chamadas de ferramenta em paralelo economizaram uma rodada inteira (≈ 2 s).
 
     - **Agentes para fluxos determinísticos** — mais lentos, mais caros e menos confiáveis do que dez linhas de código.
     - **Sem orçamentos** — um modelo preso em um loop é um custo sem limite.
-    - **Ferramentas com cara de banco de dados** (`run_sql`, `get_everything`) — resultados enormes, risco de injeção, e o modelo faz o trabalho que o seu serviço deveria fazer.
+    - **Ferramentas com cara de banco de dados** (`run_sql`, `get_everything`) — resultados enormes, risco de injeção e o modelo faz o trabalho que o seu serviço deveria fazer.
     - **Repetir ferramentas de escrita sem chaves de idempotência** — reservas em dobro, pedidos em dobro.
     - **Uma super-credencial do próprio agente** em vez do token do usuário — o problema do "confused deputy" (delegado confuso).
     - **Confiar cegamente em servidores MCP de terceiros** — suas descrições são prompts e suas anotações são alegações.

@@ -82,7 +82,7 @@ Dependências a adicionar:
 
 !!! note "Stack reativa"
 
-    O Spring Cloud Gateway roda sobre o **Project Reactor** (WebFlux), e não sobre a stack tradicional de servlets. É por isso que o `AuthorizationFilter` retorna `Mono<Void>` em vez de `void`, e que o cliente HTTP dentro dele usa `WebClient` em vez de `RestTemplate`.
+    O Spring Cloud Gateway roda sobre o **Project Reactor** (WebFlux) e não sobre a stack tradicional de servlets. É por isso que o `AuthorizationFilter` retorna `Mono<Void>` em vez de `void` e que o cliente HTTP dentro dele usa `WebClient` em vez de `RestTemplate`.
 
 A estrutura resultante é:
 

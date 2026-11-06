@@ -79,6 +79,6 @@ test("the tip quotes lab 10 and the model's numbers", () => {
     `Suba o início do pod para ${SLOW_START} s: cerca de ${fmt(near(slow.dropped, 1000), 0, lang)} (${pct(slow, lang)})`,
     `em ${pre.min} e nada se perde, por ${fmt(pre.r.replicaMinutes, 0, lang)} réplica-minutos em vez de ${fmt(def.replicaMinutes, 0, lang)}; mínimo ${L.max} custa ${fmt(full.replicaMinutes, 0, lang)}`,
     `com a janela de ${L.stabilization} s o HPA ainda tem ${at(keep, DIP).pods} pods às 10:11:30 e ${at(keep, BACK).ready} quando o tráfego volta, às 10:13 (a CPU chega a ${cpuPeak(keep)}%)`,
-    `ele está com ${at(flap, BACK).ready}, e a CPU chega a ${cpuPeak(flap)}% — ${fmt(flap.replicaMinutes, 0, lang)} réplica-minutos em vez de ${fmt(keep.replicaMinutes, 0, lang)}`,
+    `ele está com ${at(flap, BACK).ready} e a CPU chega a ${cpuPeak(flap)}% — ${fmt(flap.replicaMinutes, 0, lang)} réplica-minutos em vez de ${fmt(keep.replicaMinutes, 0, lang)}`,
   ]);
 });

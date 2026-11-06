@@ -41,7 +41,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **C — Falso. Control plane do EKS + node group mínimo superam o custo total das alternativas mais simples.**
 
-    O control plane do EKS custa US$ 0,10/hora × 730 horas ≈ US$ 73/mês antes de um único container rodar. Um node group mínimo (2 × `t3.medium`) acrescenta cerca de US$ 61/mês, e um balanceador de carga e um pequeno banco RDS levam o modelo de custos da aula a aproximadamente US$ 180/mês — contra algo em torno de US$ 15–25/mês para os mesmos três serviços no Fly.io, no Railway ou em uma VM Lightsail (preços de tabela de outubro de 2026, `us-east-1`). (O projeto da disciplina usa EKS mesmo assim, porque seu objetivo é *aprender* Kubernetes.) Além do custo, o EKS exige um conhecimento operacional significativo (roles IAM para service accounts, rede com VPC CNI, configuração de ingress controller) que desvia a atenção dos conceitos de nível de aplicação que a disciplina busca ensinar.
+    O control plane do EKS custa US$ 0,10/hora × 730 horas ≈ US$ 73/mês antes de um único container rodar. Um node group mínimo (2 × `t3.medium`) acrescenta cerca de US$ 61/mês e um balanceador de carga e um pequeno banco RDS levam o modelo de custos da aula a aproximadamente US$ 180/mês — contra algo em torno de US$ 15–25/mês para os mesmos três serviços no Fly.io, no Railway ou em uma VM Lightsail (preços de tabela de outubro de 2026, `us-east-1`). (O projeto da disciplina usa EKS mesmo assim, porque seu objetivo é *aprender* Kubernetes.) Além do custo, o EKS exige um conhecimento operacional significativo (roles IAM para service accounts, rede com VPC CNI, configuração de ingress controller) que desvia a atenção dos conceitos de nível de aplicação que a disciplina busca ensinar.
 
 ---
 
@@ -76,21 +76,21 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 **Q6.** Um serviço implantado no Fly.io na região de São Paulo (`gru`) atende usuários na Europa. Que recurso do Fly.io pode reduzir a latência para os usuários europeus?
 
 - A. O Fly.io faz cache automático de todas as respostas da API no mundo todo — nenhuma configuração necessária
-- B. Você pode implantar o mesmo container em regiões adicionais do Fly.io (por exemplo, `lhr` para Londres, `ams` para Amsterdã) com uma única flag, e o roteamento Anycast do Fly direciona cada usuário para a região mais próxima
+- B. Você pode implantar o mesmo container em regiões adicionais do Fly.io (por exemplo, `lhr` para Londres, `ams` para Amsterdã) com uma única flag e o roteamento Anycast do Fly direciona cada usuário para a região mais próxima
 - C. O Fly.io usa o CloudFront para servir respostas automaticamente a partir de nós de borda europeus
 - D. O Fly.io comprime todas as respostas antes de transmiti-las, reduzindo a latência efetiva
 
 ??? success "Resposta"
     **B — Implantar em regiões adicionais; o roteamento Anycast do Fly.io direciona os usuários para a instância mais próxima.**
 
-    O Fly.io atribui a cada aplicação um endereço IP Anycast. Quando um usuário europeu se conecta, sua requisição é roteada via BGP até o nó de borda do Fly mais próximo que roda o seu container — normalmente `lhr` (Londres) ou `ams` (Amsterdã). Adicionar regiões é um único comando, por exemplo `fly scale count 3 --region gru,lhr,ams`. O trade-off: serviços stateless escalam globalmente sem esforço, mas serviços com estado (bancos de dados, sessões) exigem estratégias deliberadas de replicação ou de consistência global — o Fly Postgres clássico é uma app que você mesmo opera, e o mais recente Managed Postgres elimina esse trabalho a um preço fixo maior.
+    O Fly.io atribui a cada aplicação um endereço IP Anycast. Quando um usuário europeu se conecta, sua requisição é roteada via BGP até o nó de borda do Fly mais próximo que roda o seu container — normalmente `lhr` (Londres) ou `ams` (Amsterdã). Adicionar regiões é um único comando, por exemplo `fly scale count 3 --region gru,lhr,ams`. O trade-off: serviços stateless escalam globalmente sem esforço, mas serviços com estado (bancos de dados, sessões) exigem estratégias deliberadas de replicação ou de consistência global — o Fly Postgres clássico é uma app que você mesmo opera e o mais recente Managed Postgres elimina esse trabalho a um preço fixo maior.
 
 ---
 
 **Q7.** A loja está implantada em **Lightsail container services**: o gateway tem o endpoint público e precisa chamar o serviço account e um banco RDS Postgres que vive em uma VPC normal da AWS. Qual afirmação está correta?
 
 - A. Os containers do Lightsail compartilham a VPC padrão da AWS, então as duas chamadas funcionam sem configuração
-- B. Todo container service do Lightsail precisa ser público; o gateway chama o account pela URL pública dele, e o RDS é inacessível a partir do Lightsail
+- B. Todo container service do Lightsail precisa ser público; o gateway chama o account pela URL pública dele e o RDS é inacessível a partir do Lightsail
 - C. O gateway consegue alcançar o account pelo domínio privado dele (`account.service.local`), mas alcançar o RDS em uma VPC exige habilitar o Lightsail VPC peering com a VPC padrão da conta
 - D. O Lightsail exige um VPC Connector do App Runner para alcançar tanto o account quanto o RDS
 
@@ -118,14 +118,14 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 **Q9.** O modelo de custos da aula estima cerca de **US$ 71/mês** para os três serviços da loja no ECS Fargate (configuração baixa). Aproximadamente US$ 30 disso são do Application Load Balancer e US$ 14 do RDS. O que isso mostra?
 
 - A. A estimativa está errada — o processamento é sempre a maior linha de uma conta de nuvem
-- B. Em pequena escala, os recursos fixos cobrados por hora (balanceador de carga, banco de dados, NAT gateway, control plane do EKS) dominam a conta, e são cobrados mesmo com tráfego zero
+- B. Em pequena escala, os recursos fixos cobrados por hora (balanceador de carga, banco de dados, NAT gateway, control plane do EKS) dominam a conta e são cobrados mesmo com tráfego zero
 - C. Balanceadores de carga são cobrados só por requisição, então os US$ 30 somem quando ninguém usa a loja
 - D. Levar os mesmos serviços para o EKS eliminaria o custo do balanceador de carga
 
 ??? success "Resposta"
     **B — Custos fixos dominam em pequena escala.**
 
-    Três pequenas tasks Fargate (0,25 vCPU / 0,5 GB) custam cerca de US$ 27/mês; a taxa por hora do ALB, as unidades de capacidade e os endereços IPv4 públicos custam cerca de US$ 30, e a menor instância RDS cerca de US$ 14 — tudo cobrado por hora, cheguem requisições ou não. O EKS *acrescentaria* um control plane de US$ 73 e ainda precisaria de um balanceador de carga. É por isso que plataformas com taxa fixa perdem com três serviços e ganham com cinquenta, e por isso que NAT gateways, balanceadores de carga e clusters esquecidos são a clássica surpresa na conta de um aluno.
+    Três pequenas tasks Fargate (0,25 vCPU / 0,5 GB) custam cerca de US$ 27/mês; a taxa por hora do ALB, as unidades de capacidade e os endereços IPv4 públicos custam cerca de US$ 30, e a menor instância RDS cerca de US$ 14 — tudo cobrado por hora, cheguem requisições ou não. O EKS *acrescentaria* um control plane de US$ 73 e ainda precisaria de um balanceador de carga. É por isso que plataformas com taxa fixa perdem com três serviços e ganham com cinquenta e por isso que NAT gateways, balanceadores de carga e clusters esquecidos são a clássica surpresa na conta de um aluno.
 
 ---
 
@@ -137,9 +137,9 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 - D. Ir para VMs EC2 puras para ter o máximo de controle
 
 ??? success "Resposta"
-    **C — Ficar, e definir os gatilhos de migração.**
+    **C — Ficar e definir os gatilhos de migração.**
 
-    Cada migração deve ser motivada por um problema concreto, não por especulação ou por valorizar o currículo. O EKS acrescentaria uma taxa fixa de control plane, operação de nós e um conhecimento de Kubernetes de que o time ainda não precisa — horas de trabalho de plataforma que não entregam nenhuma funcionalidade. Manter a aplicação 12-factor faz de uma mudança futura um exercício de deploy, e não uma reescrita, então esperar custa pouco.
+    Cada migração deve ser motivada por um problema concreto, não por especulação ou por valorizar o currículo. O EKS acrescentaria uma taxa fixa de control plane, operação de nós e um conhecimento de Kubernetes de que o time ainda não precisa — horas de trabalho de plataforma que não entregam nenhuma funcionalidade. Manter a aplicação 12-factor faz de uma mudança futura um exercício de deploy e não uma reescrita, então esperar custa pouco.
 
 ---
 
@@ -147,10 +147,10 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 - A. Da API do Kubernetes — o K3s usa seu próprio formato de manifesto
 - B. De nada — K3s em uma VM equivale ao EKS
-- C. De um control plane gerenciado e altamente disponível: em uma VM, o control plane é um ponto único de falha, e upgrades, backups do datastore e certificados passam a ser responsabilidade sua
+- C. De um control plane gerenciado e altamente disponível: em uma VM, o control plane é um ponto único de falha e upgrades, backups do datastore e certificados passam a ser responsabilidade sua
 - D. Da capacidade de rodar containers Spring Boot
 
 ??? success "Resposta"
     **C — Do control plane gerenciado e altamente disponível.**
 
-    O K3s é uma distribuição certificada pela CNCF, então seus Deployments, Services e Ingresses funcionam sem alterações. O que os US$ 0,10/hora do EKS compram é um control plane que a AWS roda em várias Availability Zones, mantém atualizado e com backup. Com K3s em uma VM, perder a VM é perder o cluster e todos os workloads nele; auto-hospedar transfere o trabalho para você, e não apenas tira o custo do caminho.
+    O K3s é uma distribuição certificada pela CNCF, então seus Deployments, Services e Ingresses funcionam sem alterações. O que os US$ 0,10/hora do EKS compram é um control plane que a AWS roda em várias Availability Zones, mantém atualizado e com backup. Com K3s em uma VM, perder a VM é perder o cluster e todos os workloads nele; auto-hospedar transfere o trabalho para você e não apenas tira o custo do caminho.

@@ -46,7 +46,7 @@ Por exemplo: *"a proporção de requisições `GET /products` que retornam um st
 | **Disponibilidade** | Fração das requisições atendidas com sucesso | `non-5xx responses / total HTTP requests` |
 | **Latência** | Fração das requisições atendidas rápido o suficiente | `requests faster than 200 ms / total requests` (equivalente a P95 < 200 ms) |
 | **Taxa de erros** | Fração das requisições que resultam em erro | `HTTP 5xx / total HTTP requests` (o complemento da disponibilidade) |
-| **Vazão** | Volume de trabalho que o sistema processa | `Requests per second` (geralmente uma métrica de capacidade, e não um SLI) |
+| **Vazão** | Volume de trabalho que o sistema processa | `Requests per second` (geralmente uma métrica de capacidade e não um SLI) |
 | **Durabilidade** | Fração dos dados que podem ser recuperados | `Successful reads / total attempted reads` |
 | **Atualidade** | Idade da escrita bem-sucedida mais recente | `Time since last successful cache refresh` |
 

@@ -61,7 +61,7 @@ O `catalog` fica lento sob carga. Cache? Réplica? Mais dez servidores? Qual —
 
 | Teste | Pergunta |
 |---|---|
-| smoke | funciona, e quão rápido com 1 usuário? |
+| smoke | funciona e quão rápido com 1 usuário? |
 | carga | a X req/s, quais são p50/p95/p99? |
 | varredura | onde está o joelho? |
 | estresse | o que acontece depois dele — e ele se recupera? |

@@ -145,13 +145,13 @@ O passo [Meça](measure/index.md) tem os scripts e a tabela de resultados para g
 | `/assistant/ingest` retorna `Internal Server Error` ou `{"ingested":0}` | o gateway não está rodando (`Name or service not known` em `docker compose logs assistant`), ou o catálogo atrás dele caiu | `docker compose up -d --wait gateway`; `docker compose ps gateway catalog-1`; `docker compose exec assistant python -c "import urllib.request;print(urllib.request.urlopen('http://gateway:8080/catalog/events/1').status)"` |
 | `uv sync --frozen` falha no build | o `uv.lock` não corresponde ao `pyproject.toml` | rode `uv lock` em `services/assistant` (na sua máquina) e refaça o build |
 | nenhuma métrica `assistant_*` no Grafana | `OTEL_EXPORTER_OTLP_ENDPOINT` não definida, ou nenhuma pergunta respondida ainda | confira as variáveis do `assistant`; as métricas são exportadas a cada 10 s |
-| `Bind for 0.0.0.0:11434 failed: port is already allocated` | o Ollama já roda nativamente na sua máquina, e o `docker compose up -d` também subiu o contêiner `ollama` | mantenha o nativo: `docker compose stop ollama ollama-init`, e suba os serviços pelo nome (`docker compose up -d assistant`) com `OLLAMA_URL` exportada |
+| `Bind for 0.0.0.0:11434 failed: port is already allocated` | o Ollama já roda nativamente na sua máquina e o `docker compose up -d` também subiu o contêiner `ollama` | mantenha o nativo: `docker compose stop ollama ollama-init` e suba os serviços pelo nome (`docker compose up -d assistant`) com `OLLAMA_URL` exportada |
 | `litellm.Timeout … Timeout passed=120.0` nos logs; `errors` no teste de carga | o modelo roda numa CPU e as requisições ficam na fila diante dele por mais que os 120 s do gateway | diminua a concorrência (`--concurrency 1 2 --requests 2`), ou rode o Ollama nativamente; o `timeout=120` está em `app/llm.py` |
-| `422 blocked` para uma pergunta normal | um falso positivo dos padrões de injection | reformule, e anote: falsos positivos fazem parte da qualidade medida do guardrail |
+| `422 blocked` para uma pergunta normal | um falso positivo dos padrões de injection | reformule e anote: falsos positivos fazem parte da qualidade medida do guardrail |
 
 !!! success "Boas práticas neste lab"
 
-    - **Rotas em vez de nomes de modelo, com um fallback** — o `app/llm.py` pede `local` ou `claude`, e `claude` cai para `local`; por quê: [LLM Gateway](../../classes/ai-systems/llm-gateway/index.md).
+    - **Rotas em vez de nomes de modelo, com um fallback** — o `app/llm.py` pede `local` ou `claude` e `claude` cai para `local`; por quê: [LLM Gateway](../../classes/ai-systems/llm-gateway/index.md).
     - **Um loop limitado que sempre termina com uma resposta** — o `app/agent.py` para em `MAX_STEPS` = 4 e faz a última chamada sem ferramentas; por quê: [o loop do agente](../../classes/ai-systems/agents/index.md#loop).
     - **Ferramentas só de leitura, identidade vinda da plataforma** — o `app/tools.py` pega o fã do `X-User-Email` e nunca escreve; por quê: [ferramentas são efeitos colaterais](../../classes/ai-systems/agents/index.md#side-effects).
     - **Recuperação medida por si só** — o `scripts/eval_retrieval.py` calcula hit@k e MRR antes que qualquer modelo responda; por quê: [RAG e memória](../../classes/ai-systems/rag-memory/index.md#hybrid).
@@ -167,7 +167,7 @@ docker compose down -v                      # or remove everything (including th
 O `docker compose down -v` também apaga o volume `ollama-models`: a próxima execução baixa os modelos de
 novo. Mantenha-o se for continuar para o lab 13, que pode usar o mesmo modelo local. Com o Ollama nativo,
 `ollama stop qwen2.5:1.5b` libera a memória do modelo na hora (ele também sai da memória após 5 minutos
-ocioso), e `ollama rm qwen2.5:1.5b nomic-embed-text` apaga os modelos quando você não precisar mais deles.
+ocioso) e `ollama rm qwen2.5:1.5b nomic-embed-text` apaga os modelos quando você não precisar mais deles.
 
 ## Estado final { #end-state }
 
@@ -194,7 +194,7 @@ Faça o commit e a tag: `git add -A && git commit -m "lab 12: AI assistant" && g
 - [ ] `get_order_status` só responde para o usuário em `X-User-Email`
 - [ ] métricas `assistant_*` (tokens, custo, TTFT) visíveis no Grafana
 - [ ] tabela de resultados preenchida em `results/lab12.md`, incluindo onde o modelo rodou
-- [ ] autoverificação: `docker compose up -d --build assistant` a partir de um clone limpo, e então `curl localhost:8088/assistant/health` retorna `"status":"UP"`; push com a tag `lab12`
+- [ ] autoverificação: `docker compose up -d --build assistant` a partir de um clone limpo e então `curl localhost:8088/assistant/health` retorna `"status":"UP"`; push com a tag `lab12`
 
 ## Relacionados { #related }
 

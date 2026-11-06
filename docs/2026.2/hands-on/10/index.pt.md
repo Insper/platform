@@ -85,7 +85,7 @@ Adicione o Kafka e o Kafka UI ao `docker-compose.yml`. Um único nó Kafka 4 rod
 
 !!! info "KRaft — sem ZooKeeper"
 
-    O Kafka guarda os metadados do cluster (tópicos, partições, líderes) em seu próprio quórum de controllers baseado em Raft, o **KRaft**. Antes, esses metadados ficavam em um ensemble ZooKeeper separado; o Kafka 4.0 (2025) removeu completamente o suporte ao ZooKeeper. Aqui o único nó é ao mesmo tempo broker e controller (`KAFKA_PROCESS_ROLES: broker,controller`): os clientes falam com o listener `PLAINTEXT` em `kafka:9092`, e o quórum de controllers usa o listener `CONTROLLER` na porta 9093. Veja [Arquitetura Orientada a Eventos](../../classes/event_driven/index.md).
+    O Kafka guarda os metadados do cluster (tópicos, partições, líderes) em seu próprio quórum de controllers baseado em Raft, o **KRaft**. Antes, esses metadados ficavam em um ensemble ZooKeeper separado; o Kafka 4.0 (2025) removeu completamente o suporte ao ZooKeeper. Aqui o único nó é ao mesmo tempo broker e controller (`KAFKA_PROCESS_ROLES: broker,controller`): os clientes falam com o listener `PLAINTEXT` em `kafka:9092` e o quórum de controllers usa o listener `CONTROLLER` na porta 9093. Veja [Arquitetura Orientada a Eventos](../../classes/event_driven/index.md).
 
 !!! note "Kafka UI"
 

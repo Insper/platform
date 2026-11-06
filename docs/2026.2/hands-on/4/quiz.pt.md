@@ -46,7 +46,7 @@ Clique em **"Resposta"** para ver a resposta correta e a explicação.
 
 ---
 
-**Q4.** Por que as credenciais do Docker Hub ficam no **Jenkins Credential Store**, e não diretamente no `Jenkinsfile`?
+**Q4.** Por que as credenciais do Docker Hub ficam no **Jenkins Credential Store** e não diretamente no `Jenkinsfile`?
 
 - A. O Jenkins não consegue ler variáveis de ambiente em um `Jenkinsfile`
 - B. Guardar as credenciais no credential store faz com que elas nunca sejam gravadas em disco nem apareçam nos logs — e o Jenkinsfile (que é versionado no repositório) nunca contém segredos

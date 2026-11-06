@@ -76,7 +76,7 @@ O novo pacote `boxoffice.order.payment` contém o cliente e o gateway protegido:
     ```
 
 O `OrderService` ganha o `pay`. Repare **onde está a transação**: a chamada remota acontece sem
-transação aberta, e só a curta atualização de status roda dentro de uma — segurar uma conexão do banco
+transação aberta e só a curta atualização de status roda dentro de uma — segurar uma conexão do banco
 enquanto se espera 3 s por uma dependência levaria a cascata para o pool de conexões.
 
 === "OrderService.java"
@@ -147,7 +147,7 @@ k6 run load/pay-under-chaos.js
 
 Agora todo pagamento falha depois de 1 s em vez de travar por 3 s: uma thread fica presa 1 s, não 3 s,
 então 20/s × 1 s = 20 threads — dentro do pool. O `GET /orders/{id}` se recupera. **Um timeout
-converte uma falha lenta numa falha rápida**, e falhas rápidas não se propagam em cascata.
+converte uma falha lenta numa falha rápida** e falhas rápidas não se propagam em cascata.
 
 !!! warning "Os timeouts precisam ser menores que o de quem chama"
 
@@ -171,7 +171,7 @@ k6 run load/pay-under-chaos.js
 ```
 
 Com uma tentativa, uma parte dos pagamentos falha (não exatamente 30%: a toxicity se aplica por conexão
-TCP, e as conexões saudáveis são reutilizadas). Com três tentativas, um pagamento só falha se as três
+TCP e as conexões saudáveis são reutilizadas). Com três tentativas, um pagamento só falha se as três
 falharem: se uma tentativa falha com probabilidade *p*, três falham com *p*³ — 30% vira 2,7%. Numa
 execução de teste deste lab (segundas rodadas, já que a primeira depois de recriar também mostra as
 rejeições do bulkhead com a JVM fria), cerca de 0,5% dos pagamentos falharam com uma tentativa e 0,1%
@@ -208,7 +208,7 @@ teste e fecha de novo se elas derem certo. Reative o proxy no meio da execução
 `/actuator/circuitbreakerevents` lista cada transição.
 
 O breaker protege **os dois lados**: o `order` para de gastar threads e tempo em chamadas que vão
-falhar, e o `payment` ganha fôlego para se recuperar em vez de uma enxurrada de retries.
+falhar e o `payment` ganha fôlego para se recuperar em vez de uma enxurrada de retries.
 
 ### 4. Bulkhead
 
@@ -229,7 +229,7 @@ curl -s -X POST localhost:8474/reset                # remove every toxic
 
 Sem bulkhead, 70/s × 0,7 s ≈ 49 threads esperam o `payment`: o pool de 50 fica praticamente cheio e o
 `GET /orders/{id}` entra na fila atrás dos pagamentos. Com `max-concurrent-calls: 10`, no máximo 10
-threads esperam o `payment`; os pagamentos concorrentes excedentes são rejeitados na hora (`503`), e as
+threads esperam o `payment`; os pagamentos concorrentes excedentes são rejeitados na hora (`503`) e as
 outras 40 threads continuam servindo o `GET /orders/{id}` com latência normal.
 
 Numa execução de teste deste lab (segundas rodadas), as chamadas que passaram sem o bulkhead levaram

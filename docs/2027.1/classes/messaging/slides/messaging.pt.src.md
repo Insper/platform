@@ -276,7 +276,7 @@ Mudar N move as chaves (`hash mod N` muda) — dimensione as partições com fol
 
 ## Dimensionando partições
 
-> N ≥ max(T / p, T / c), e depois adicione folga
+> N ≥ max(T / p, T / c) e depois adicione folga
 
 - Pico: 30.000 pedidos × 10 eventos / 180 s ≈ **1.700 eventos/s** — trivial para os produtores.
 - `notification`: 50 ms por e-mail → `c = 20/s` por partição.

@@ -75,7 +75,7 @@ Requisitos não funcionais descrevem **qualidades** do sistema. A literatura de 
 | **Segurança** | Está protegido contra uso indevido e ataques? | ameaças mitigadas; achados de auditoria | nenhum dado de cartão armazenado (escopo PCI minimizado); robôs bloqueados | WAF, Auth Service, API Gateway, VPC, Safety Mesh |
 | **Operabilidade** | A equipe consegue rodar, mudar e consertar? | MTTR, frequência de deploys, qualidade dos alertas | deploy diário sem indisponibilidade; MTTR < 30 min | Metrics, Logs, Tracing, Alerting, CI/CD |
 
-O restante desta seção dá a cada atributo um significado preciso — "escalável" e "disponível" são usados de forma vaga no dia a dia, e palavras vagas geram requisitos ruins.
+O restante desta seção dá a cada atributo um significado preciso — "escalável" e "disponível" são usados de forma vaga no dia a dia e palavras vagas geram requisitos ruins.
 
 ### Escalabilidade { #scalability }
 
@@ -85,14 +85,14 @@ O restante desta seção dá a cada atributo um significado preciso — "escalá
 - *inventory*: reservas de lugares por segundo **num único evento** (dominado por escritas, todas nas mesmas linhas quentes);
 - *notification*: e-mails por minuto depois de uma abertura de vendas (em rajadas, podem atrasar).
 
-Cada um escala com uma técnica diferente: cache e CDN para o primeiro, particionamento e sala de espera para o segundo, fila e workers para o terceiro. Existem duas direções, e você usará as duas:
+Cada um escala com uma técnica diferente: cache e CDN para o primeiro, particionamento e sala de espera para o segundo, fila e workers para o terceiro. Existem duas direções e você usará as duas:
 
-- **Escala vertical** (*scale up*): uma máquina maior. Simples, sem mudar o código, mas limitada pela maior máquina que você consegue comprar, e ainda um ponto único de falha.
+- **Escala vertical** (*scale up*): uma máquina maior. Simples, sem mudar o código, mas limitada pela maior máquina que você consegue comprar e ainda um ponto único de falha.
 - **Escala horizontal** (*scale out*): mais máquinas. Praticamente ilimitada para componentes sem estado, mas exige um load balancer, servidores sem estado e — para os dados — particionamento e replicação.
 
 ### Disponibilidade { #availability }
 
-**Disponibilidade** é a fração do tempo (ou das requisições) em que o sistema atende os usuários corretamente. Ela é expressa em "noves" e **sempre numa janela**: 99,9% em janela móvel de 28 dias permite cerca de 40 minutos de indisponibilidade; 99,99% permite cerca de 4 minutos. Cada nove a mais custa muito mais que o anterior — a [aula 2](../../estimation/availability-math/index.md) dá a matemática, e a [aula 10](../../reliability/index.md), a engenharia.
+**Disponibilidade** é a fração do tempo (ou das requisições) em que o sistema atende os usuários corretamente. Ela é expressa em "noves" e **sempre numa janela**: 99,9% em janela móvel de 28 dias permite cerca de 40 minutos de indisponibilidade; 99,99% permite cerca de 4 minutos. Cada nove a mais custa muito mais que o anterior — a [aula 2](../../estimation/availability-math/index.md) dá a matemática e a [aula 10](../../reliability/index.md), a engenharia.
 
 A disponibilidade também não é uniforme: a BoxOffice convive com o widget de recomendações fora do ar por uma hora, mas não com o checkout fora do ar durante uma abertura de vendas.
 
@@ -125,7 +125,7 @@ Não confunda durabilidade com disponibilidade: um banco pode estar **fora do ar
 
 ### Custo { #cost }
 
-Todo componente tem um preço: máquinas, serviços gerenciados, armazenamento, tráfego de saída da rede, taxas de terceiros e as pessoas para operá-lo. Custo é um requisito de primeira classe — uma arquitetura que cumpre todas as outras metas a dez vezes o orçamento é uma arquitetura fracassada. Bons requisitos de custo são ligados ao negócio: **custo por ingresso vendido**, custo por usuário ativo ou um teto mensal. Repare também que o tráfego da BoxOffice é **em picos**: pagar o mês inteiro pela capacidade de uma abertura de vendas de 10 minutos é desperdício, e é por isso que autoscaling, filas e serverless importam (a [aula 11](../../cloud-native/index.md) trata de FinOps).
+Todo componente tem um preço: máquinas, serviços gerenciados, armazenamento, tráfego de saída da rede, taxas de terceiros e as pessoas para operá-lo. Custo é um requisito de primeira classe — uma arquitetura que cumpre todas as outras metas a dez vezes o orçamento é uma arquitetura fracassada. Bons requisitos de custo são ligados ao negócio: **custo por ingresso vendido**, custo por usuário ativo ou um teto mensal. Repare também que o tráfego da BoxOffice é **em picos**: pagar o mês inteiro pela capacidade de uma abertura de vendas de 10 minutos é desperdício e é por isso que autoscaling, filas e serverless importam (a [aula 11](../../cloud-native/index.md) trata de FinOps).
 
 ### Segurança { #security }
 
@@ -175,7 +175,7 @@ Cada linha é testável — com um teste de carga, um experimento de caos ou a f
 
 !!! example "No código do BoxOffice: um requisito de latência escrito como teste (lab 1)"
 
-    O primeiro serviço da BoxOffice já carrega seu requisito em código. O smoke test do [Hands-on 1](../../../hands-on/1/index.md) escreve "o catálogo é rápido" como **thresholds por endpoint** — p95 abaixo de 200 ms para os detalhes de um evento, abaixo de 500 ms para a listagem de uma cidade, nenhuma requisição com falha — e o k6 reprova a execução quando um deles é ultrapassado. Na execução de exemplo do laboratório, com um usuário, os detalhes responderam com p95 = 11 ms e a listagem com p95 = 42 ms. Um usuário prova pouco sobre 2 milhões; o lab 2 faz as mesmas perguntas sob carga, e o lab 11 transforma o mesmo tipo de threshold num orçamento de desempenho que bloqueia uma versão.
+    O primeiro serviço da BoxOffice já carrega seu requisito em código. O smoke test do [Hands-on 1](../../../hands-on/1/index.md) escreve "o catálogo é rápido" como **thresholds por endpoint** — p95 abaixo de 200 ms para os detalhes de um evento, abaixo de 500 ms para a listagem de uma cidade, nenhuma requisição com falha — e o k6 reprova a execução quando um deles é ultrapassado. Na execução de exemplo do laboratório, com um usuário, os detalhes responderam com p95 = 11 ms e a listagem com p95 = 42 ms. Um usuário prova pouco sobre 2 milhões; o lab 2 faz as mesmas perguntas sob carga e o lab 11 transforma o mesmo tipo de threshold num orçamento de desempenho que bloqueia uma versão.
 
     ``` { .javascript title="load/smoke.js (the requirement)" }
     --8<-- "docs/2027.1/hands-on/1/code/load/smoke.js:10:20"
@@ -236,7 +236,7 @@ Os requisitos vêm acompanhados de **restrições** — decisões já tomadas po
 !!! success "Boas práticas"
 
     - **Dê a cada meta de latência um percentil, um ponto de medição e uma janela** — "p99 do checkout < 1,5 s, medido no gateway, em 28 dias" pode virar alerta e relatório; uma meta sem janela não pode ser calculada.
-    - **Transforme cada meta numa verificação automática** — um threshold do k6, um alerta de SLO, um orçamento que reprova o build; um requisito que ninguém confere se perde a cada versão. Na BoxOffice: os thresholds de `load/smoke.js` ([lab 1](../../../hands-on/1/index.md)), e o orçamento de desempenho do lab 11.
+    - **Transforme cada meta numa verificação automática** — um threshold do k6, um alerta de SLO, um orçamento que reprova o build; um requisito que ninguém confere se perde a cada versão. Na BoxOffice: os thresholds de `load/smoke.js` ([lab 1](../../../hands-on/1/index.md)) e o orçamento de desempenho do lab 11.
     - **Ponha uma consulta por trás de todo "nunca"** — "nenhum assento vendido duas vezes" vira uma auditoria que precisa devolver 0 depois de todo teste. Na BoxOffice: o endpoint de auditoria `double-bookings` do [Hands-on 6 — Reservas](../../../hands-on/6/holds/index.md).
     - **Versione os requisitos junto com o código** — um `requirements.md` alterado no mesmo pull request do design que ele justifica, para que os revisores vejam os dois.
     - **Dê a cada meta um responsável e uma data de revisão** — as metas da primeira versão são premissas; revise-as com os dados da primeira abertura de vendas real.

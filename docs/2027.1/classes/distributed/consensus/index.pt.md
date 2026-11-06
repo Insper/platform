@@ -1,4 +1,4 @@
-Às 10:00:03, três segundos depois de abertas as vendas, a máquina que roda o **primário** PostgreSQL do `inventory` congela. Seu standby síncrono está saudável. Alguém — ou algo — precisa decidir que o primário antigo está morto, promover o standby e fazer todas as réplicas do `inventory` escreverem no novo. Agora imagine que o primário antigo não estava morto, só pausado por oito segundos por um soluço no armazenamento: ele acorda, ainda acredita que é o primário e aceita uma reserva do assento A-12 que o novo primário já tinha dado a outra pessoa. Dois primários ao mesmo tempo é o que se chama de **split brain**, e em um sistema de ingressos isso significa assentos vendidos duas vezes.
+Às 10:00:03, três segundos depois de abertas as vendas, a máquina que roda o **primário** PostgreSQL do `inventory` congela. Seu standby síncrono está saudável. Alguém — ou algo — precisa decidir que o primário antigo está morto, promover o standby e fazer todas as réplicas do `inventory` escreverem no novo. Agora imagine que o primário antigo não estava morto, só pausado por oito segundos por um soluço no armazenamento: ele acorda, ainda acredita que é o primário e aceita uma reserva do assento A-12 que o novo primário já tinha dado a outra pessoa. Dois primários ao mesmo tempo é o que se chama de **split brain** e em um sistema de ingressos isso significa assentos vendidos duas vezes.
 
 Decidir "quem é o primário agora" é uma instância do problema de **consenso**: fazer um grupo de nós **concordar sobre um único valor** — apesar de mensagens perdidas e atrasadas e apesar de alguns nós falharem. O consenso é a base da eleição de líder, dos locks distribuídos, da configuração replicada (o etcd por trás de todo cluster Kubernetes) e de todo banco de dados replicado fortemente consistente.
 
@@ -27,20 +27,20 @@ flowchart LR
 Um algoritmo de consenso correto garante:
 
 **Segurança (*safety*)** — "nada de ruim acontece"
-: Todos os nós que decidem, decidem o **mesmo** valor (a mesma entrada do log em cada posição), e esse valor foi proposto por alguém.
+: Todos os nós que decidem, decidem o **mesmo** valor (a mesma entrada do log em cada posição) e esse valor foi proposto por alguém.
 
 **Vivacidade (*liveness*)** — "algo de bom acaba acontecendo"
 : Nós que não falharam **eventualmente** decidem.
 
 ### Por que é difícil: FLP { #why-it-is-hard-flp }
 
-O **resultado de impossibilidade FLP** (Fischer, Lynch e Paterson, 1985)[^1] prova que, em um sistema totalmente **assíncrono** — sem limite para o atraso das mensagens —, nenhum algoritmo determinístico consegue garantir consenso se mesmo **um** nó pode cair: alguma sequência azarada de atrasos o mantém indeciso para sempre. A saída, usada pelo Paxos e pelo Raft, é **nunca comprometer a segurança** e garantir progresso só quando a rede se comporta "bem o bastante" (sincronia parcial), usando **timeouts** para suspeitar de falhas. Um timeout pode estar errado (o nó só estava lento), e por isso os algoritmos precisam continuar seguros mesmo quando as suspeitas são falsas.
+O **resultado de impossibilidade FLP** (Fischer, Lynch e Paterson, 1985)[^1] prova que, em um sistema totalmente **assíncrono** — sem limite para o atraso das mensagens —, nenhum algoritmo determinístico consegue garantir consenso se mesmo **um** nó pode cair: alguma sequência azarada de atrasos o mantém indeciso para sempre. A saída, usada pelo Paxos e pelo Raft, é **nunca comprometer a segurança** e garantir progresso só quando a rede se comporta "bem o bastante" (sincronia parcial), usando **timeouts** para suspeitar de falhas. Um timeout pode estar errado (o nó só estava lento) e por isso os algoritmos precisam continuar seguros mesmo quando as suspeitas são falsas.
 
 ---
 
 ## Maiorias: por que clusters têm 3 ou 5 nós { #majorities }
 
-O truque central é o **quórum de maioria**: uma decisão só é válida se mais da metade dos N nós a aceitar. **Quaisquer duas maiorias do mesmo cluster têm pelo menos um nó em comum** — então duas decisões conflitantes nunca podem ambas reunir uma maioria: o nó em comum teria de votar nas duas, e o protocolo proíbe isso.
+O truque central é o **quórum de maioria**: uma decisão só é válida se mais da metade dos N nós a aceitar. **Quaisquer duas maiorias do mesmo cluster têm pelo menos um nó em comum** — então duas decisões conflitantes nunca podem ambas reunir uma maioria: o nó em comum teria de votar nas duas e o protocolo proíbe isso.
 
 | Tamanho do cluster N | Maioria ⌊N/2⌋ + 1 | Falhas toleradas ⌊(N−1)/2⌋ |
 |---|---|---|
@@ -89,9 +89,9 @@ print(buf.getvalue())
 plt.close()
 ```
 
-Com nós a 99% cada, um nó dá 2 noves, **dois nós dão menos** (98,01% — os dois precisam estar no ar), três nós dão ≈ 99,97% e cinco ≈ 99,999%. A hipótese de independência é otimista — nós na mesma zona, na mesma versão ou sobrecarregados pelo mesmo tráfego falham juntos —, e por isso os nós são espalhados por domínios de falha.
+Com nós a 99% cada, um nó dá 2 noves, **dois nós dão menos** (98,01% — os dois precisam estar no ar), três nós dão ≈ 99,97% e cinco ≈ 99,999%. A hipótese de independência é otimista — nós na mesma zona, na mesma versão ou sobrecarregados pelo mesmo tráfego falham juntos — e por isso os nós são espalhados por domínios de falha.
 
-### Split brain, e por que a maioria o impede { #split-brain-and-why-the-majority-prevents-it }
+### Split brain e por que a maioria o impede { #split-brain-and-why-the-majority-prevents-it }
 
 Uma partição divide um cluster de 5 nós em 3/2. Só o lado com 3 nós consegue formar uma maioria, eleger um líder e confirmar escritas; o lado com 2 sabe que é minoria e para de aceitar escritas:
 
@@ -109,13 +109,13 @@ flowchart LR
     min -->|"não alcança 3 votos"| ko([rejeita escritas: 503])
 ```
 
-É exatamente o comportamento CP do [CAP](../cap-pacelc/index.md): o lado minoritário fica indisponível, e assim o sistema permanece consistente.
+É exatamente o comportamento CP do [CAP](../cap-pacelc/index.md): o lado minoritário fica indisponível e assim o sistema permanece consistente.
 
 ---
 
 ## Raft { #raft }
 
-O Raft (Ongaro e Ousterhout, 2014)[^2] foi projetado para ser **compreensível**, e é o algoritmo de consenso que você tem mais chance de encontrar: etcd (Kubernetes), Consul, CockroachDB, TiKV, YugabyteDB e o controlador KRaft do Kafka o usam. Ele divide o problema em três partes:
+O Raft (Ongaro e Ousterhout, 2014)[^2] foi projetado para ser **compreensível** e é o algoritmo de consenso que você tem mais chance de encontrar: etcd (Kubernetes), Consul, CockroachDB, TiKV, YugabyteDB e o controlador KRaft do Kafka o usam. Ele divide o problema em três partes:
 
 1. **Eleição de líder** — exatamente um líder por termo; todas as escritas passam por ele.
 2. **Replicação do log** — o líder acrescenta comandos ao seu log e os replica para os seguidores.
@@ -161,7 +161,7 @@ sequenceDiagram
 Três regras a tornam segura:
 
 - **Um voto por nó por termo** — então no máximo um candidato consegue reunir uma maioria em um termo.
-- **Restrição de eleição** — um nó só vota em um candidato cujo log esteja **pelo menos tão atualizado** quanto o seu. Como toda entrada confirmada está em uma maioria, e o vencedor precisa de votos de uma maioria, o novo líder certamente tem todas as entradas confirmadas.
+- **Restrição de eleição** — um nó só vota em um candidato cujo log esteja **pelo menos tão atualizado** quanto o seu. Como toda entrada confirmada está em uma maioria e o vencedor precisa de votos de uma maioria, o novo líder certamente tem todas as entradas confirmadas.
 - **Election timeouts aleatórios** (o artigo sugere 150–300 ms) — se todos os seguidores dessem timeout juntos, dividiriam os votos para sempre; com timeouts aleatórios, normalmente um dispara primeiro e vence antes de os outros começarem.
 
 Por quanto tempo as escritas ficam indisponíveis quando um líder morre? Aproximadamente **election timeout + uma rodada de votação**. Os padrões do etcd são heartbeat de 100 ms e election timeout de 1.000 ms[^3] (ajustados para cima por causa da latência entre zonas), então a queda de um líder significa cerca de um a dois segundos sem escritas — um número a lembrar quando o timeout de um cliente é menor do que isso.
@@ -186,7 +186,7 @@ sequenceDiagram
 ```
 
 - O líder só responde ao cliente depois que uma **maioria** (contando ele mesmo) gravou a entrada de forma **durável**: entradas confirmadas sobrevivem à perda de qualquer minoria.
-- Cada `AppendEntries` leva o índice e o termo da entrada anterior; um seguidor a rejeita se seu log não coincide ali, e o líder volta atrás até os logs concordarem, então sobrescreve o sufixo divergente e não confirmado do seguidor. Essa **correspondência de logs** (*log matching*) mantém todos os logs idênticos até o commit index.
+- Cada `AppendEntries` leva o índice e o termo da entrada anterior; um seguidor a rejeita se seu log não coincide ali e o líder volta atrás até os logs concordarem, então sobrescreve o sufixo divergente e não confirmado do seguidor. Essa **correspondência de logs** (*log matching*) mantém todos os logs idênticos até o commit index.
 - Os seguidores aprendem o **commit index** em mensagens posteriores e aplicam as entradas à sua própria máquina de estado.
 
 O protocolo inteiro, ao vivo — eleição, replicação, um líder que cai e uma partição:
@@ -194,7 +194,7 @@ O protocolo inteiro, ao vivo — eleição, replicação, um líder que cai e um
 <div class="csim" data-sim="raft" data-seed="3"></div>
 
 !!! tip "Experimente"
-    O cluster começa com S2 liderando o termo 1 e duas reservas confirmadas em todos os logs (células cheias, barra verde). **Derrube o líder** logo de cara: os anéis dos seguidores continuam encolhendo até um se esgotar — aqui S1, que vence o termo 2 cerca de 310 ms depois (um timeout de 150–300 ms mais uma rodada de votos) e ainda tem as duas entradas confirmadas. Reinicie S2 (clique nele) e veja-o voltar como seguidor. Depois aperte recomeçar, ligue a **partição 2 | 3** (S2 e S3 no lado pequeno) e **escreva no lado pequeno**: S2 anexa `hold A-14` no índice 3, mas só alcança 2 de 5 nós, então a célula fica tracejada para sempre; enquanto isso, o lado grande elege um novo líder no termo 2. **Escreva no lado grande**: essa entrada é confirmada em 3 de 5. Desfaça a partição: S2 vê o termo 2, volta a seguidor, e seu `hold A-14` não confirmado é sobrescrito pela entrada do termo 2 em S2 e S3 — a escrita que o cliente nunca ouviu ter dado certo.
+    O cluster começa com S2 liderando o termo 1 e duas reservas confirmadas em todos os logs (células cheias, barra verde). **Derrube o líder** logo de cara: os anéis dos seguidores continuam encolhendo até um se esgotar — aqui S1, que vence o termo 2 cerca de 310 ms depois (um timeout de 150–300 ms mais uma rodada de votos) e ainda tem as duas entradas confirmadas. Reinicie S2 (clique nele) e veja-o voltar como seguidor. Depois aperte recomeçar, ligue a **partição 2 | 3** (S2 e S3 no lado pequeno) e **escreva no lado pequeno**: S2 anexa `hold A-14` no índice 3, mas só alcança 2 de 5 nós, então a célula fica tracejada para sempre; enquanto isso, o lado grande elege um novo líder no termo 2. **Escreva no lado grande**: essa entrada é confirmada em 3 de 5. Desfaça a partição: S2 vê o termo 2, volta a seguidor e seu `hold A-14` não confirmado é sobrescrito pela entrada do termo 2 em S2 e S3 — a escrita que o cliente nunca ouviu ter dado certo.
 
 !!! info "Leituras no Raft também não são de graça"
     Um líder que responde leituras a partir do seu estado local pode ser um líder **desatualizado** que ainda não percebeu um termo mais novo. Leituras linearizáveis precisam confirmar a liderança — com uma rodada de heartbeats para uma maioria (o *ReadIndex* do etcd) ou com um **lease de líder** baseado em tempo, que depende de uma deriva de relógio limitada. Servir leituras a partir de seguidores é mais rápido, mas só eventualmente consistente, a menos que o seguidor primeiro pergunte ao líder o commit index atual.
@@ -205,7 +205,7 @@ O protocolo inteiro, ao vivo — eleição, replicação, um líder que cai e um
 
 ### Paxos, em um parágrafo { #paxos-in-one-paragraph }
 
-O **Paxos** (Lamport, 1989/1998; "Paxos Made Simple", 2001)[^4] é o algoritmo de consenso original, com as mesmas garantias. Sua forma de decisão única concorda sobre um valor em duas fases (*prepare/promise*, depois *accept/accepted*) entre proponentes e aceitadores com cédulas numeradas; sistemas de produção rodam o **Multi-Paxos** — um líder estável que pula a primeira fase —, que se parece muito com o Raft. O Paxos é comprovado e amplamente usado (Chubby e Spanner, do Google), mas famoso por ser difícil de implementar; a contribuição do Raft não foram garantias novas, e sim uma estrutura que engenheiros conseguem seguir. O ZooKeeper usa um protocolo aparentado, o ZAB (*ZooKeeper Atomic Broadcast*).
+O **Paxos** (Lamport, 1989/1998; "Paxos Made Simple", 2001)[^4] é o algoritmo de consenso original, com as mesmas garantias. Sua forma de decisão única concorda sobre um valor em duas fases (*prepare/promise*, depois *accept/accepted*) entre proponentes e aceitadores com cédulas numeradas; sistemas de produção rodam o **Multi-Paxos** — um líder estável que pula a primeira fase —, que se parece muito com o Raft. O Paxos é comprovado e amplamente usado (Chubby e Spanner, do Google), mas famoso por ser difícil de implementar; a contribuição do Raft não foram garantias novas e sim uma estrutura que engenheiros conseguem seguir. O ZooKeeper usa um protocolo aparentado, o ZAB (*ZooKeeper Atomic Broadcast*).
 
 ---
 
@@ -282,9 +282,9 @@ UPDATE scheduled_jobs
 | **Spanner, CockroachDB, YugabyteDB, TiDB** | SQL com consenso por faixa de dados | Paxos (Spanner) / Raft |
 
 !!! example "BoxOffice: quem é o primário?"
-    O PostgreSQL do `inventory` roda sob o **Patroni**, com um cluster **etcd** de 3 nós espalhado por 3 zonas de disponibilidade. O primário detém uma **chave de líder** no etcd com TTL de ~30 s (o padrão do Patroni), renovada a cada ~10 s. Se ele para de renovar — crash, congelamento, perda de rede —, a chave expira, o standby síncrono mais saudável a obtém (um compare-and-set atômico no etcd: só um pode vencer), promove a si mesmo, e os clientes seguem o novo líder pelo endpoint do serviço. Um primário antigo que acorda descobre que não detém mais a chave e **se rebaixa** (o Patroni também pode usar um watchdog para reiniciar a máquina). A decisão do assento em si continua sendo um simples `UPDATE … WHERE status = 'FREE'` no único primário — o consenso é usado **apenas** para decidir qual nó é esse.
+    O PostgreSQL do `inventory` roda sob o **Patroni**, com um cluster **etcd** de 3 nós espalhado por 3 zonas de disponibilidade. O primário detém uma **chave de líder** no etcd com TTL de ~30 s (o padrão do Patroni), renovada a cada ~10 s. Se ele para de renovar — crash, congelamento, perda de rede —, a chave expira, o standby síncrono mais saudável a obtém (um compare-and-set atômico no etcd: só um pode vencer), promove a si mesmo e os clientes seguem o novo líder pelo endpoint do serviço. Um primário antigo que acorda descobre que não detém mais a chave e **se rebaixa** (o Patroni também pode usar um watchdog para reiniciar a máquina). A decisão do assento em si continua sendo um simples `UPDATE … WHERE status = 'FREE'` no único primário — o consenso é usado **apenas** para decidir qual nó é esse.
 
-**Experimente.** O cenário `db-failover` é a história do início da página, medida: checkout a 1.500 req/s, metade delas escritas, num cluster com um primário e um seguidor replicado de forma **assíncrona**. Em t = 90 s o primário morre, e promover o seguidor leva 30 s — mais ou menos o TTL da chave de líder do Patroni acima. Aperte **Run** e leia *escritas perdidas* e *disponibilidade* na barra de metas. Depois clique em `orders-db` e mude um botão por vez: **Replicação** `sync` (ou `quorum` com 2 seguidores por shard), **Tempo de failover** 5 s, **Shards** 2.
+**Experimente.** O cenário `db-failover` é a história do início da página, medida: checkout a 1.500 req/s, metade delas escritas, num cluster com um primário e um seguidor replicado de forma **assíncrona**. Em t = 90 s o primário morre e promover o seguidor leva 30 s — mais ou menos o TTL da chave de líder do Patroni acima. Aperte **Run** e leia *escritas perdidas* e *disponibilidade* na barra de metas. Depois clique em `orders-db` e mude um botão por vez: **Replicação** `sync` (ou `quorum` com 2 seguidores por shard), **Tempo de failover** 5 s, **Shards** 2.
 
 <div class="sdp" data-scenario="db-failover" data-mode="compact" data-height="520"></div>
 

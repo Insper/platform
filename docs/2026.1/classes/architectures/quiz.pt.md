@@ -9,7 +9,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 - A. Para fora — as camadas internas dependem das externas para usar utilitários do framework
 - B. Nas duas direções — camadas internas e externas podem importar umas às outras livremente
-- C. Para dentro — as camadas externas dependem das internas, e as camadas internas nunca referenciam nada de uma camada externa
+- C. Para dentro — as camadas externas dependem das internas e as camadas internas nunca referenciam nada de uma camada externa
 - D. Para baixo — as camadas de nível mais alto dependem da infraestrutura de nível mais baixo
 
 ??? success "Resposta"
@@ -57,7 +57,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — Traduz entre os tipos da fronteira dos adapters e os tipos dos casos de uso.**
 
-    O Parser fica na fronteira entre a camada de Interface Adapters e a camada de Use Cases. Ele converte `AccountIn` (contrato HTTP) em `Account` (objeto de domínio) na entrada, e `Account` de volta em `AccountOut` na saída. Nem o controller nem o service precisam conhecer a representação do outro.
+    O Parser fica na fronteira entre a camada de Interface Adapters e a camada de Use Cases. Ele converte `AccountIn` (contrato HTTP) em `Account` (objeto de domínio) na entrada e `Account` de volta em `AccountOut` na saída. Nem o controller nem o service precisam conhecer a representação do outro.
 
 ---
 
@@ -115,7 +115,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **C — Núcleo testável com testes unitários simples e stubs em memória.**
 
-    `AuthServiceImpl` recebe uma interface `AccountRepository`. No teste, substitua-a por `InMemoryAccountRepository` (um `HashMap`). O teste roda em milissegundos, sem infraestrutura. Essa é a propriedade arquitetural que torna o TDD viável na prática — a regra de negócio é testada diretamente, e não através do HTTP e de um banco de dados real.
+    `AuthServiceImpl` recebe uma interface `AccountRepository`. No teste, substitua-a por `InMemoryAccountRepository` (um `HashMap`). O teste roda em milissegundos, sem infraestrutura. Essa é a propriedade arquitetural que torna o TDD viável na prática — a regra de negócio é testada diretamente e não através do HTTP e de um banco de dados real.
 
 ---
 
@@ -129,7 +129,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — O adapter está moldando o port.**
 
-    Se `AccountRepository` tem `findAll()`, `saveAll()`, `deleteById(Long id)` — esses são conceitos de JPA. Um port orientado pelo domínio expressaria conceitos do domínio: `findByEmail(String email)`, `save(Account account)`. Quando o port espelha o adapter, você acabou fazendo, sem querer, o domínio depender do vocabulário da infraestrutura, e não o contrário.
+    Se `AccountRepository` tem `findAll()`, `saveAll()`, `deleteById(Long id)` — esses são conceitos de JPA. Um port orientado pelo domínio expressaria conceitos do domínio: `findByEmail(String email)`, `save(Account account)`. Quando o port espelha o adapter, você acabou fazendo, sem querer, o domínio depender do vocabulário da infraestrutura e não o contrário.
 
 ---
 

@@ -1,6 +1,6 @@
 Um fã digita "tayler swift sp dezembro" na caixa de busca da BoxOffice. O marketing quer "ingressos vendidos por minuto, por cidade, nos últimos dois anos" toda manhã. A página do evento mostra um pôster de 2 MB para milhões de visitantes. O assistente de suporte precisa achar o parágrafo da política de reembolso que responde "posso ter meu dinheiro de volta se o show mudar de data?" — uma frase que quase não compartilha palavras com o texto da política.
 
-Um banco de dados relacional *consegue* fazer uma versão fraca de cada uma dessas coisas, e muitas vezes esse é o começo certo. Mas cada uma tem um motor projetado para ela: um **mecanismo de busca**, um **armazenamento de objetos**, um **data warehouse** e um **banco de dados vetorial**. Os quatro guardam **dados derivados** (veja a [visão geral](../index.md)): cópias do sistema de registro, remodeladas para um tipo de pergunta.
+Um banco de dados relacional *consegue* fazer uma versão fraca de cada uma dessas coisas e muitas vezes esse é o começo certo. Mas cada uma tem um motor projetado para ela: um **mecanismo de busca**, um **armazenamento de objetos**, um **data warehouse** e um **banco de dados vetorial**. Os quatro guardam **dados derivados** (veja a [visão geral](../index.md)): cópias do sistema de registro, remodeladas para um tipo de pergunta.
 
 ---
 
@@ -18,7 +18,7 @@ flowchart LR
     UP["upload do pôster"] --> O[("armazenamento de objetos")]
 ```
 
-Por que não fazer o serviço escrever no banco *e* no índice de busca diretamente (uma **escrita dupla**, *dual write*)? Porque as duas escritas podem falhar de forma independente ou chegar em ordens diferentes sob concorrência, deixando os armazenamentos permanentemente inconsistentes. O CDC (ou o transactional outbox, veja [Padrões de mensageria](../../messaging/patterns/index.md)) oferece uma única fonte ordenada de mudanças, e qualquer armazenamento derivado pode ser reconstruído reproduzindo-a.
+Por que não fazer o serviço escrever no banco *e* no índice de busca diretamente (uma **escrita dupla**, *dual write*)? Porque as duas escritas podem falhar de forma independente ou chegar em ordens diferentes sob concorrência, deixando os armazenamentos permanentemente inconsistentes. O CDC (ou o transactional outbox, veja [Padrões de mensageria](../../messaging/patterns/index.md)) oferece uma única fonte ordenada de mudanças e qualquer armazenamento derivado pode ser reconstruído reproduzindo-a.
 
 ---
 
@@ -52,7 +52,7 @@ Uma consulta faz a interseção ou a união de listas de postings, o que é ráp
 3. **Stemming** (específico do idioma): `shows` → `show`, `ingressos` → `ingress`.
 4. **Sinônimos**: `sp` ↔ `sao paulo`.
 
-O mesmo analisador roda sobre a consulta, então "SÃO PAULO" e "sao paulo" casam com os mesmos termos. O **casamento aproximado** (*fuzzy matching*) aceita termos dentro de uma distância de edição (`tayler` → `taylor`, distância 1), e **edge n-grams** ou *completion suggesters* indexam prefixos (`tay`, `tayl`, …) para o autocomplete.
+O mesmo analisador roda sobre a consulta, então "SÃO PAULO" e "sao paulo" casam com os mesmos termos. O **casamento aproximado** (*fuzzy matching*) aceita termos dentro de uma distância de edição (`tayler` → `taylor`, distância 1) e **edge n-grams** ou *completion suggesters* indexam prefixos (`tay`, `tayl`, …) para o autocomplete.
 
 ### Ranking
 
@@ -101,7 +101,7 @@ Os documentos que casam recebem uma pontuação de **relevância**. O padrão no
 ### Operando um cluster de busca { #running-a-search-cluster }
 
 - Um índice é dividido em **shards** (fixados na criação, veja [Particionamento](../partitioning/index.md#consistent-hashing)) com **réplicas** para disponibilidade e vazão de leitura. Uma consulta se espalha para uma cópia de cada shard e combina os melhores resultados — scatter/gather.
-- A busca é **quase em tempo real**: documentos novos ficam pesquisáveis após um *refresh* (1 segundo por padrão no Elasticsearch), e o pipeline de CDC acrescenta seu próprio atraso. O evento que a casa de shows acabou de criar pode levar alguns segundos para aparecer — aceitável para busca, não para inventário.
+- A busca é **quase em tempo real**: documentos novos ficam pesquisáveis após um *refresh* (1 segundo por padrão no Elasticsearch) e o pipeline de CDC acrescenta seu próprio atraso. O evento que a casa de shows acabou de criar pode levar alguns segundos para aparecer — aceitável para busca, não para inventário.
 - O índice é **derivado**: quando o mapeamento ou o analisador muda, construa um índice novo a partir do stream ou de um snapshot e troque um *alias* para ele.
 
 **Experimente.** O cenário `search-autocomplete` coloca um serviço de busca e um cache atrás do gateway. Rode-o e observe que fração das teclas digitadas o cache absorve (prefixos populares como "tay" se repetem muito); depois aumente a carga e veja qual componente satura primeiro quando o cache está frio.
@@ -125,7 +125,7 @@ O **armazenamento de objetos** (*object storage*) guarda **blobs** — imagens, 
 | Custo por GB | o menor, com camadas frias | médio | o maior |
 | Durabilidade | o Amazon S3 é projetado para 99,999999999% (11 noves) ao ano, guardando cópias em várias instalações | um volume; replique você mesmo | sua replicação e seus backups |
 
-Desde 2020, o Amazon S3 oferece consistência forte de leitura após escrita para todas as operações, e as outras grandes nuvens também. O que o armazenamento de objetos **não** faz: anexar dados a um objeto, renomear de forma barata (renomear = copiar + apagar), travar (*lock*) ou consultar o conteúdo dos objetos (exceto por motores que leem arquivos, como um warehouse).
+Desde 2020, o Amazon S3 oferece consistência forte de leitura após escrita para todas as operações e as outras grandes nuvens também. O que o armazenamento de objetos **não** faz: anexar dados a um objeto, renomear de forma barata (renomear = copiar + apagar), travar (*lock*) ou consultar o conteúdo dos objetos (exceto por motores que leem arquivos, como um warehouse).
 
 O padrão que mantém os blobs longe dos seus servidores é a **URL pré-assinada** (*presigned URL*): o serviço autoriza o upload, mas os bytes vão direto do navegador para o bucket.
 
@@ -198,7 +198,7 @@ Os serviços rodam **OLTP** (*online transaction processing*): muitas leituras e
 
 ### Por que colunas { #why-columns }
 
-Um **armazenamento colunar** (*column store*) guarda cada coluna em seus próprios arquivos. Uma consulta que lê 3 de 30 colunas lê cerca de um décimo dos bytes, e uma coluna de valores parecidos (`city`, `status`) comprime extremamente bem (codificação por dicionário e *run-length*)[^5]. Com números ilustrativos para o clickstream da BoxOffice — 20 GB/dia por dois anos ≈ 15 TB brutos:
+Um **armazenamento colunar** (*column store*) guarda cada coluna em seus próprios arquivos. Uma consulta que lê 3 de 30 colunas lê cerca de um décimo dos bytes e uma coluna de valores parecidos (`city`, `status`) comprime extremamente bem (codificação por dicionário e *run-length*)[^5]. Com números ilustrativos para o clickstream da BoxOffice — 20 GB/dia por dois anos ≈ 15 TB brutos:
 
 | Layout | Bytes lidos por uma consulta sobre 3 de 30 colunas |
 |---|---|
@@ -373,7 +373,7 @@ print(buffer.getvalue())
 plt.close()
 ```
 
-Comparar cerca de 8% dos vetores já devolve aproximadamente 9 dos 10 vizinhos verdadeiros; cada ponto extra de recall custa mais trabalho. Embeddings reais e o HNSW se comportam de forma diferente nos detalhes, mas o formato — uma curva ajustável de recall versus custo — é o mesmo, e é uma decisão de produto: no RAG, um reranker depois da etapa ANN perdoa um recall um pouco menor.
+Comparar cerca de 8% dos vetores já devolve aproximadamente 9 dos 10 vizinhos verdadeiros; cada ponto extra de recall custa mais trabalho. Embeddings reais e o HNSW se comportam de forma diferente nos detalhes, mas o formato — uma curva ajustável de recall versus custo — é o mesmo e é uma decisão de produto: no RAG, um reranker depois da etapa ANN perdoa um recall um pouco menor.
 
 ### Onde guardar os vetores { #where-to-keep-vectors }
 
@@ -409,7 +409,7 @@ Dimensionamento, como exemplo resolvido: 100 mil trechos × 1.024 dimensões × 
 
 !!! example "No código do BoxOffice: pgvector no PostgreSQL que já temos (lab 12)"
 
-    O assistente do [Hands-on 12 — RAG](../../../hands-on/12/rag/index.md) fica com a primeira linha da tabela: seus vetores moram no mesmo PostgreSQL que todo o resto (a imagem do lab é o PostgreSQL 17 com pgvector), no seu próprio schema `assistant`, com um índice HNSW por distância de cosseno. Os números explicam por que não é preciso um banco vetorial dedicado: o lab gera embeddings de 300 eventos com 768 dimensões (cerca de 1 MB de floats), e mesmo os 200.000 eventos do catálogo dariam cerca de 600 MB. Um sistema a menos para operar e manter sincronizado é o motivo; o preço é que a construção do índice e as consultas vetoriais dividem o primário com as reservas.
+    O assistente do [Hands-on 12 — RAG](../../../hands-on/12/rag/index.md) fica com a primeira linha da tabela: seus vetores moram no mesmo PostgreSQL que todo o resto (a imagem do lab é o PostgreSQL 17 com pgvector), no seu próprio schema `assistant`, com um índice HNSW por distância de cosseno. Os números explicam por que não é preciso um banco vetorial dedicado: o lab gera embeddings de 300 eventos com 768 dimensões (cerca de 1 MB de floats) e mesmo os 200.000 eventos do catálogo dariam cerca de 600 MB. Um sistema a menos para operar e manter sincronizado é o motivo; o preço é que a construção do índice e as consultas vetoriais dividem o primário com as reservas.
 
     ``` { .python title="services/assistant/app/db.py (table and HNSW index)" }
     --8<-- "docs/2027.1/hands-on/12/code/services/assistant/app/db.py:8:22"
@@ -438,7 +438,7 @@ Dimensionamento, como exemplo resolvido: 100 mil trechos × 1.024 dimensões × 
     - Para qualquer requisito de "busca", diga **índice invertido** e como ele é mantido em sincronia (**CDC**, consistência eventual de segundos) — e que o índice é um dado derivado que você pode reconstruir.
     - Imagens, vídeos e arquivos → **armazenamento de objetos + CDN + URLs pré-assinadas**; o banco guarda só chaves e metadados.
     - "Analytics" ou "relatórios" → **OLAP em um warehouse**, armazenamento colunar, alimentado por CDC/ELT — "nunca no primário OLTP".
-    - Busca semântica ou RAG → **embeddings + índice ANN (HNSW)**, e mencione **recall vs latência** e a opção do pgvector antes de um produto dedicado.
+    - Busca semântica ou RAG → **embeddings + índice ANN (HNSW)** e mencione **recall vs latência** e a opção do pgvector antes de um produto dedicado.
 
 !!! success "Boas práticas"
 

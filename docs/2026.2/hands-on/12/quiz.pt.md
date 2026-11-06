@@ -18,10 +18,10 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q2.** O que `fetch-depth: 0` faz na etapa `actions/checkout`, e por que o script de revisão precisa disso?
+**Q2.** O que `fetch-depth: 0` faz na etapa `actions/checkout` e por que o script de revisão precisa disso?
 
 - A. Baixa todas as branches do repositório para que o script possa comparar quaisquer duas refs
-- B. Busca o histórico completo do git, e não apenas o último commit (o padrão `fetch-depth: 1`), o que é necessário para calcular o diff entre a branch do PR e sua branch base
+- B. Busca o histórico completo do git e não apenas o último commit (o padrão `fetch-depth: 1`), o que é necessário para calcular o diff entre a branch do PR e sua branch base
 - C. Ativa clones rasos (shallow), mais rápidos de baixar em repositórios grandes
 - D. Não tem efeito no cálculo do diff — a biblioteca PyGithub busca o diff diretamente na API do GitHub, independentemente do histórico local do git
 
@@ -60,7 +60,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q5.** Que permissão do GitHub o workflow precisa declarar para permitir que o script publique um comentário no PR, e onde ela é declarada?
+**Q5.** Que permissão do GitHub o workflow precisa declarar para permitir que o script publique um comentário no PR e onde ela é declarada?
 
 - A. `issues: write` — declarada dentro do bloco `env:` do job
 - B. `pull-requests: write` — declarada no bloco `permissions:` de nível superior do arquivo do workflow, que restringe as operações permitidas ao `GITHUB_TOKEN`
@@ -91,7 +91,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 **Q7.** Qual é o trade-off de custo e latência de aumentar `max_tokens` de 1 024 para 4 096 na chamada à API?
 
 - A. `max_tokens` é um limite rígido para o tamanho da entrada, não da saída — aumentá-lo não tem efeito no custo nem na latência
-- B. Um `max_tokens` maior reserva mais orçamento de saída, o que aumenta o máximo de tokens de saída cobrados e pode aumentar a latência; para revisões de PR, 1 024 tokens (~750 palavras) costumam bastar, e limites maiores só se justificam para saída JSON estruturada com muitos campos ou para diffs muito grandes
+- B. Um `max_tokens` maior reserva mais orçamento de saída, o que aumenta o máximo de tokens de saída cobrados e pode aumentar a latência; para revisões de PR, 1 024 tokens (~750 palavras) costumam bastar e limites maiores só se justificam para saída JSON estruturada com muitos campos ou para diffs muito grandes
 - C. O Claude cobra por requisição, não por token, então `max_tokens` não tem efeito no custo
 - D. Aumentar `max_tokens` reduz a latência, porque o modelo antecipa mais conteúdo em um único bloco de streaming
 

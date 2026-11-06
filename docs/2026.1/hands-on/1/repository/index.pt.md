@@ -22,7 +22,7 @@ sequenceDiagram
 
 As relações entre as diferentes camadas são feitas por meio de diferentes DTOs (Data Transfer Objects). Para traduzir entre as camadas, usamos parsers, responsáveis por converter os DTOs em entidades e vice-versa.
 
-- A classe `AccountParser` é responsável por essa tradução e contém os métodos para converter o DTO `AccountIn` na entidade `Account`, e a entidade `Account` no DTO `AccountOut`.
+- A classe `AccountParser` é responsável por essa tradução e contém os métodos para converter o DTO `AccountIn` na entidade `Account` e a entidade `Account` no DTO `AccountOut`.
 
 - Já o `AccountModel` é a classe que representa o modelo de banco de dados da entidade Account, usado pelo `AccountRepository` para tratar a persistência dos dados da entidade. A classe `AccountModel` contém os atributos da entidade Account e é anotada com anotações JPA, que definem o mapeamento entre a classe e a tabela do banco de dados.
 

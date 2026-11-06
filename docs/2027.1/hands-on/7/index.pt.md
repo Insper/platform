@@ -11,7 +11,7 @@
 
 São 10:00 e o show no estádio abre as vendas. Cada `POST /orders` aceito pelo serviço `order` também
 precisa gerar um e-mail de confirmação. Se `order` chamar `notification` por HTTP, o fã espera pelo
-provedor de e-mail, uma queda do e-mail vira uma queda de pedidos, e os 2 milhões de fãs que chegam no
+provedor de e-mail, uma queda do e-mail vira uma queda de pedidos e os 2 milhões de fãs que chegam no
 mesmo segundo atingem todos os serviços de uma vez. Este lab troca esse acoplamento por três ideias da
 [aula de mensageria](../../classes/messaging/index.md): **eventos em um log**, **entrega
 *at-least-once* tratada com idempotência** e **filas que absorvem um pico**.
@@ -213,7 +213,7 @@ Faça commit e tag: `git add -A && git commit -m "lab 7: async messaging" && git
 - [ ] `order` grava `orders` e `outbox` em uma transação; repetir o `POST /orders` com o mesmo `holdId` devolve o mesmo pedido e não cria evento novo
 - [ ] o relay do outbox publica com chave = `orderId` e marca as linhas como publicadas; parar o Kafka não perde nenhum evento
 - [ ] `notification` envia um e-mail por pedido mesmo depois de um *reset* de offsets (duplicatas são ignoradas)
-- [ ] uma mensagem envenenada chega à `order-events-dlt` depois das tentativas, e a partição continua andando
+- [ ] uma mensagem envenenada chega à `order-events-dlt` depois das tentativas e a partição continua andando
 - [ ] a sala de espera admite na taxa configurada; um `POST /orders` sem ticket de admissão é recusado durante a abertura das vendas
 - [ ] tabela de resultados do passo [Meça](measure/index.md) preenchida em `results/lab7.md`, com uma explicação curta de cada número
 - [ ] autoverificação: `docker compose down -v && docker compose up -d --build` a partir de um clone limpo sobe tudo saudável; depois, push para o GitHub com a tag `lab7`

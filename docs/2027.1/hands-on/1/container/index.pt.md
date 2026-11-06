@@ -84,7 +84,7 @@ Agora chame a API:
 {"detail":"event 999999 not found","instance":"/catalog/events/999999","status":404,"title":"Not Found"}
 ```
 
-Crie um local e um evento, e depois quebre as regras de propósito:
+Crie um local e um evento e depois quebre as regras de propósito:
 
 ``` { .bash .copy }
 # 201 Created + Location header

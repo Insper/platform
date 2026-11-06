@@ -1,5 +1,5 @@
 
-Rodar o serviço de contas e o banco de dados dele com comandos `docker` puros já exige um punhado de linhas de comando longas, e a ordem importa:
+Rodar o serviço de contas e o banco de dados dele com comandos `docker` puros já exige um punhado de linhas de comando longas e a ordem importa:
 
 ``` bash
 docker network create store
@@ -78,7 +78,7 @@ O vocabulário de um arquivo Compose[^2]:
 | `depends_on` | Ordem de inicialização entre os serviços |
 | `volumes` | Volumes nomeados ou bind mounts; o `volumes:` de nível superior declara os nomeados |
 
-!!! info "`docker compose`, e não `docker-compose`; e sem `version:`"
+!!! info "`docker compose` e não `docker-compose`; e sem `version:`"
     O Compose v2 é um plugin da CLI do Docker: o comando é `docker compose` (com espaço). O antigo `docker-compose` (v1), escrito em Python, não é mais suportado desde 2023. A chave de nível superior `version: "3.8"` que você vê em tutoriais antigos está obsoleta — o Compose a ignora e mostra um aviso. O nome de arquivo preferido é `compose.yaml`; `docker-compose.yml` ainda é aceito.
 
 ---
@@ -101,7 +101,7 @@ O vocabulário de um arquivo Compose[^2]:
 
 ---
 
-## Redes: nomes de serviço, e não `localhost`
+## Redes: nomes de serviço e não `localhost`
 
 O Compose cria uma rede por projeto e registra cada serviço no DNS embutido do Docker[^3]. Dentro dessa rede, os serviços conversam entre si na **porta do container** usando o **nome do serviço**; o mapeamento de `ports:` só importa para o tráfego que vem da sua máquina.
 
@@ -250,7 +250,7 @@ Acesse o serviço web em [http://localhost:80](http://localhost:80){:target="_bl
 O Compose roda tudo em **um único host**. Ele não distribui containers entre máquinas, não os reagenda quando um host cai e não faz rolling updates. É ideal para desenvolvimento, CI e pequenos deploys em um único servidor; em um cluster, as mesmas imagens são executadas por um orquestrador, como o Kubernetes ([Hands-on 5](../../../hands-on/5/index.md)).
 
 !!! warning "Erros comuns"
-    - **`depends_on` sem health check**, e depois depurar falhas de inicialização "aleatórias".
+    - **`depends_on` sem health check** e depois depurar falhas de inicialização "aleatórias".
     - **`docker compose down -v` em um banco de dados que importa** — o volume nomeado, com todos os dados, some.
     - **Publicar todas as portas** (`5432:5432`, `6379:6379`) "por via das dúvidas": cada porta publicada é uma porta de entrada para a stack. Publique apenas o ponto de entrada (o gateway).
     - **Esquecer o `--build`**: `docker compose up` reaproveita a imagem construída da última vez, então a sua mudança no código não aparece.

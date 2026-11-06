@@ -8,7 +8,7 @@
     - **Configurar** um HPA (`autoscaling/v2`) com meta de CPU e comportamento de escala.
     - **Prever** o número de réplicas com a fórmula do HPA e **medir** a linha do tempo real da escalada sob carga.
     - **Decompor** o atraso da escalada (janela de métricas, período de sincronização, subida do pod, aquecimento da JVM, readiness).
-    - **Provar** uma atualização gradual sem indisponibilidade sob carga, e **encontrar** o próximo gargalo (conexões com o banco).
+    - **Provar** uma atualização gradual sem indisponibilidade sob carga e **encontrar** o próximo gargalo (conexões com o banco).
 
 ## Contexto { #context }
 
@@ -56,7 +56,7 @@ sequenceDiagram
 - [ ] O **atraso da escalada** decomposto: degrau de carga → utilização acima da meta → decisão do HPA → pod agendado → pod pronto.
 - [ ] E2 comparado com o E1 (mesma carga, uma mudança), com uma conclusão.
 - [ ] E3: **0 requisições com falha** durante um rollout restart a uma taxa estável (resumo do k6).
-- [ ] Orçamento de conexões: `maxReplicas × tamanho do pool` vs `max_connections` do PostgreSQL, e a correção que você aplicaria.
+- [ ] Orçamento de conexões: `maxReplicas × tamanho do pool` vs `max_connections` do PostgreSQL e a correção que você aplicaria.
 - [ ] Um vídeo de **no máximo 3 minutos** mostrando o E1 (k6 rodando, `kubectl get hpa -w`, pods aparecendo).
 - [ ] Seção *Uso de IA* (veja a [política](../index.md#use-of-ai-tools)).
 
@@ -202,7 +202,7 @@ Por que cada bloco importa[^2]:
 | Bloco | O que dá errado sem ele |
 |-|-|
 | `requests.cpu` | O HPA não consegue calcular a utilização (ela é relativa ao request); o escalonador sobrecarrega os nós |
-| `limits.memory` + `MaxRAMPercentage` | A JVM dimensiona o heap pelo nó, não pelo contêiner, e é morta por OOM |
+| `limits.memory` + `MaxRAMPercentage` | A JVM dimensiona o heap pelo nó, não pelo contêiner e é morta por OOM |
 | `startupProbe` | Uma JVM que demora a subir é morta pela liveness probe antes de ficar pronta (loop de reinícios) |
 | `readinessProbe` | Pods novos recebem tráfego antes de conseguir atendê-lo: erros justamente quando você escala |
 | `preStop` + desligamento gracioso + `maxUnavailable: 0` | Requisições em andamento falham a cada deploy e a cada redução |

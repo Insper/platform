@@ -67,7 +67,7 @@ O TTL é um trade-off clássico entre **a rapidez com que uma mudança se propag
 | 1–2 dias | dias | mínima | registros NS, coisas que nunca mudam |
 
 !!! tip "Baixe o TTL antes de uma migração"
-    Se você vai mover `api.boxoffice.com` para um novo load balancer na próxima terça-feira, baixe o TTL dele de 1 hora para 60 segundos **na segunda** (pelo menos um TTL antigo de antecedência). Os resolvers que guardaram o registro antigo com o TTL de 1 hora já o terão expirado na terça, e a troca vai levar cerca de um minuto em vez de uma hora. Suba o TTL de novo depois da migração.
+    Se você vai mover `api.boxoffice.com` para um novo load balancer na próxima terça-feira, baixe o TTL dele de 1 hora para 60 segundos **na segunda** (pelo menos um TTL antigo de antecedência). Os resolvers que guardaram o registro antigo com o TTL de 1 hora já o terão expirado na terça e a troca vai levar cerca de um minuto em vez de uma hora. Suba o TTL de novo depois da migração.
 
 ### Roteamento com DNS: GeoDNS, latência, pesos e failover { #dns-routing }
 
@@ -102,9 +102,9 @@ sequenceDiagram
 ```
 
 !!! warning "O failover por DNS não é instantâneo"
-    O tempo de failover é aproximadamente **detecção + TTL**: com um intervalo de health check de 30 s, 3 falhas para declarar a primária fora e um TTL de 60 s, os clientes migram depois de cerca de 90 s + 60 s = **2,5 minutos** no melhor caso. Na prática demora mais: alguns resolvers e clientes **ignoram TTLs baixos** (resolvers de provedores que impõem um TTL mínimo, aplicações que resolvem um nome uma vez e guardam o endereço em um pool de conexões, dispositivos antigos), e conexões de longa duração continuam falando com a região morta até quebrarem. O failover por DNS é bom para desastres **regionais**; para *servidores* que falham dentro de uma região, use um load balancer com health checks, que reage em segundos ([Balanceamento de carga](../load-balancing/index.md)).
+    O tempo de failover é aproximadamente **detecção + TTL**: com um intervalo de health check de 30 s, 3 falhas para declarar a primária fora e um TTL de 60 s, os clientes migram depois de cerca de 90 s + 60 s = **2,5 minutos** no melhor caso. Na prática demora mais: alguns resolvers e clientes **ignoram TTLs baixos** (resolvers de provedores que impõem um TTL mínimo, aplicações que resolvem um nome uma vez e guardam o endereço em um pool de conexões, dispositivos antigos) e conexões de longa duração continuam falando com a região morta até quebrarem. O failover por DNS é bom para desastres **regionais**; para *servidores* que falham dentro de uma região, use um load balancer com health checks, que reage em segundos ([Balanceamento de carga](../load-balancing/index.md)).
 
-**Experimente.** Abra o cenário multirregião e rode o perfil **load**. Depois provoque a queda da região primária (chaos **high**, ou desative a região no painel). Observe quanto tempo os erros duram até o DNS mandar o tráfego para a secundária, e mude o TTL do DNS para ver como ele estica ou encurta essa janela.
+**Experimente.** Abra o cenário multirregião e rode o perfil **load**. Depois provoque a queda da região primária (chaos **high**, ou desative a região no painel). Observe quanto tempo os erros duram até o DNS mandar o tráfego para a secundária e mude o TTL do DNS para ver como ele estica ou encurta essa janela.
 
 <div class="sdp" data-scenario="multi-region" data-mode="compact" data-height="520" data-profile="load"></div>
 
@@ -164,7 +164,7 @@ sequenceDiagram
 | **Pull (origin pull)** | o PoP busca na origem no primeiro miss e depois guarda em cache | zero trabalho de upload; só o conteúdo popular ocupa o cache | a primeira requisição em cada PoP é lenta (um miss) | sites, APIs, quase tudo |
 | **Push** | você envia o conteúdo para o armazenamento da CDN com antecedência | sem misses a frio; previsível | você gerencia uploads, versões e remoção | arquivos grandes conhecidos de antemão: vídeo, downloads de software, patches de jogos |
 
-A maioria dos designs usa **pull** na frente de uma origem, e essa origem frequentemente é um **object store** (S3, Cloud Storage, Azure Blob — o componente `objstore`) para arquivos estáticos e mídia.
+A maioria dos designs usa **pull** na frente de uma origem e essa origem frequentemente é um **object store** (S3, Cloud Storage, Azure Blob — o componente `objstore`) para arquivos estáticos e mídia.
 
 ### A chave de cache { #cache-key }
 
@@ -189,7 +189,7 @@ A origem diz a todo cache — o navegador, a CDN, qualquer proxy no meio — o q
 | `stale-if-error=N` | se a origem falhar, continue servindo a cópia velha por até N s |
 | `immutable` | o conteúdo nunca vai mudar nesta URL; nem revalide |
 
-A revalidação usa **validadores**: a origem envia um `ETag` (um identificador de versão) ou `Last-Modified`; o cache pergunta `If-None-Match: "v42"`, e a origem responde `304 Not Modified` sem corpo quando nada mudou — barato para os dois lados.
+A revalidação usa **validadores**: a origem envia um `ETag` (um identificador de versão) ou `Last-Modified`; o cache pergunta `If-None-Match: "v42"` e a origem responde `304 Not Modified` sem corpo quando nada mudou — barato para os dois lados.
 
 ```http title="Typical BoxOffice responses"
 # fingerprinted JavaScript bundle: cache "forever"
@@ -210,13 +210,13 @@ Cache-Control: private, no-store
 A imagem do pôster do evento mudou. Como os 300 PoPs ficam sabendo? Há duas estratégias:
 
 - **Purge (invalidação)**: chame a API da CDN para remover `/img/stadium.webp` (ou uma tag, ou um prefixo) de todos os PoPs. A próxima requisição dá miss e busca a nova versão. Purges não são instantâneos — eles se propagam em segundos a minutos, dependendo do provedor — e navegadores que já guardaram a versão antiga com `max-age` não serão purgados de jeito nenhum.
-- **URLs versionadas (com fingerprint)**: nunca altere um arquivo no lugar. O build produz `app.3f9a1c.js`; um novo build produz `app.b71e02.js` e o HTML referencia o novo nome. Versões antigas e novas coexistem, os caches nunca servem a errada, e os arquivos podem ficar em cache com `immutable` por um ano. Só o pequeno HTML que os referencia precisa de um TTL curto.
+- **URLs versionadas (com fingerprint)**: nunca altere um arquivo no lugar. O build produz `app.3f9a1c.js`; um novo build produz `app.b71e02.js` e o HTML referencia o novo nome. Versões antigas e novas coexistem, os caches nunca servem a errada e os arquivos podem ficar em cache com `immutable` por um ano. Só o pequeno HTML que os referencia precisa de um TTL curto.
 
 Prefira URLs versionadas para todo arquivo estático e reserve os purges para casos excepcionais (um erro em uma página publicada, remoções por ordem judicial). É a versão de borda da piada mais antiga da computação — *só existem duas coisas difíceis em ciência da computação: invalidação de cache e dar nomes às coisas* — e as URLs versionadas resolvem a primeira fazendo a segunda. A invalidação em geral é estudada na [aula de caching](../../caching/index.md).
 
 ### Origin shield e cache em camadas { #origin-shield }
 
-Com 300 PoPs, um arquivo novo pode causar **300 misses** — um por PoP — que vão todos para a origem. Um **cache em camadas** (*tiered cache*, ou **origin shield**) acrescenta uma camada intermediária: os PoPs perguntam a um cache regional, e só o cache regional pergunta à origem. A origem vê uma requisição por objeto em vez de uma por PoP, e o request collapsing no shield junta misses simultâneos para o mesmo objeto em uma única busca na origem.
+Com 300 PoPs, um arquivo novo pode causar **300 misses** — um por PoP — que vão todos para a origem. Um **cache em camadas** (*tiered cache*, ou **origin shield**) acrescenta uma camada intermediária: os PoPs perguntam a um cache regional e só o cache regional pergunta à origem. A origem vê uma requisição por objeto em vez de uma por PoP e o request collapsing no shield junta misses simultâneos para o mesmo objeto em uma única busca na origem.
 
 ``` diagram
 flowchart LR
@@ -343,7 +343,7 @@ Maus usos: qualquer coisa que precise do seu banco de dados a cada requisição 
 !!! success "Boas práticas"
 
     - **Defina `Cache-Control` explicitamente em toda resposta da origem** — inclusive `private` ou `no-store` em dados pessoais; nunca deixe o padrão de uma CDN decidir o que é compartilhado.
-    - **Baixe o TTL do DNS dias antes de uma migração ou venda planejada, e suba-o depois** — os resolvers mantêm o TTL antigo até ele expirar, então a mudança precisa ser feita um TTL antes.
+    - **Baixe o TTL do DNS dias antes de uma migração ou venda planejada e suba-o depois** — os resolvers mantêm o TTL antigo até ele expirar, então a mudança precisa ser feita um TTL antes.
     - **Monitore a taxa de acerto por caminho e alerte quando ela cair** — de 95% para 80% quadruplica a carga da origem (de 5% para 20% das requisições).
     - **Sirva `stale-if-error` e `stale-while-revalidate`** — a CDN continua respondendo com a última cópia boa quando a origem falha ou está sendo atualizada.
     - **Mantenha as páginas estáticas de fallback na CDN** — "esgotado", a sala de espera, a página de manutenção; elas precisam carregar quando todos os serviços atrás delas estão fora.
@@ -379,7 +379,7 @@ flowchart LR
 
     - O DNS é um banco de dados **hierárquico, delegado e cacheado**; o cache dos resolvers recursivos faz com que os servidores autoritativos vejam uma consulta por resolver por TTL.
     - O **TTL** troca propagação de mudanças por carga de consultas; baixe-o *antes* de uma mudança planejada.
-    - O DNS pode rotear por **geografia, latência, peso ou saúde**; o failover por DNS leva cerca de **detecção + TTL**, e alguns clientes ignoram TTLs.
+    - O DNS pode rotear por **geografia, latência, peso ou saúde**; o failover por DNS leva cerca de **detecção + TTL** e alguns clientes ignoram TTLs.
     - O **anycast** anuncia o mesmo IP a partir de vários locais: baixa latência, failover rápido e absorção de DDoS.
     - Uma **CDN** corta a latência, alivia a origem e absorve ataques; a maioria das CDNs faz **pull** da origem e guarda em cache por uma **chave de cache** que você precisa projetar.
     - A origem controla o cache com **`Cache-Control`**; prefira **URLs versionadas** a purges; o **micro-caching** torna baratos os endpoints dinâmicos quentes.

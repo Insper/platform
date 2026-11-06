@@ -12,7 +12,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — Separação entre assinar e verificar.**
 
-    Com HS256, o mesmo segredo assina e verifica, então todo verificador é também um falsificador em potencial, e o segredo precisa ser distribuído para todo lado. Com RS256, a chave pública pode ser publicada (JWKS) com segurança.
+    Com HS256, o mesmo segredo assina e verifica, então todo verificador é também um falsificador em potencial e o segredo precisa ser distribuído para todo lado. Com RS256, a chave pública pode ser publicada (JWKS) com segurança.
 
 ---
 
@@ -38,7 +38,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 - D. O edge bloqueia o header
 
 ??? success "Resposta"
-    **B — 401, e o header seria removido de qualquer jeito.**
+    **B — 401 e o header seria removido de qualquer jeito.**
 
     `anyExchange().authenticated()` rejeita a requisição; e o `UserHeadersFilter` sempre apaga os headers `X-User-*` que chegam antes de definir os seus a partir de um token validado. Sem essa remoção, falsificar headers seria trivial.
 
@@ -54,7 +54,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **C — 403.**
 
-    401 significa "não sei quem você é" (token ausente/inválido); 403 significa "sei quem você é, e você não pode fazer isso" (a regra exige `SCOPE_admin`).
+    401 significa "não sei quem você é" (token ausente/inválido); 403 significa "sei quem você é e você não pode fazer isso" (a regra exige `SCOPE_admin`).
 
 ---
 

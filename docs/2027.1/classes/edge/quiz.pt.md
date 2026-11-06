@@ -14,7 +14,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **C — O API gateway.**
 
-    Validar a identidade (assinatura do JWT, expiração, audiência) é a tarefa transversal clássica do API gateway: é feita uma vez, de forma consistente, antes de qualquer serviço executar. A CDN e o load balancer não conhecem usuários (embora uma edge function *possa* pré-validar tokens), e o ingress só roteia por host e path. Os serviços ainda devem verificar a autorização sobre os próprios recursos (zero trust), mas rejeitar um token expirado é papel do gateway.
+    Validar a identidade (assinatura do JWT, expiração, audiência) é a tarefa transversal clássica do API gateway: é feita uma vez, de forma consistente, antes de qualquer serviço executar. A CDN e o load balancer não conhecem usuários (embora uma edge function *possa* pré-validar tokens) e o ingress só roteia por host e path. Os serviços ainda devem verificar a autorização sobre os próprios recursos (zero trust), mas rejeitar um token expirado é papel do gateway.
 
 ---
 
@@ -58,7 +58,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **C — Cerca de 90 segundos.**
 
-    A detecção leva cerca de 3 × 10 s = 30 s; depois disso, os resolvers ainda podem manter a resposta antiga por até um TTL (60 s). Total ≈ 30 + 60 = 90 s no melhor caso. Na prática é mais: alguns resolvers e clientes guardam respostas por mais tempo que o TTL, e conexões abertas continuam usando a região antiga até caírem. Failover de DNS serve para desastres regionais, não para failover rápido no nível de instância.
+    A detecção leva cerca de 3 × 10 s = 30 s; depois disso, os resolvers ainda podem manter a resposta antiga por até um TTL (60 s). Total ≈ 30 + 60 = 90 s no melhor caso. Na prática é mais: alguns resolvers e clientes guardam respostas por mais tempo que o TTL e conexões abertas continuam usando a região antiga até caírem. Failover de DNS serve para desastres regionais, não para failover rápido no nível de instância.
 
 ---
 
@@ -80,7 +80,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 - A. Manter o nome `app.js` e definir `Cache-Control: no-store` nele
 - B. Manter o nome `app.js`, fazer o deploy e removê-lo (purge) de todos os PoPs
-- C. Dar ao bundle um nome baseado no conteúdo (`app.b71e02.js`), cacheado com `max-age=31536000, immutable`, e referenciá-lo a partir de uma página HTML com TTL curto
+- C. Dar ao bundle um nome baseado no conteúdo (`app.b71e02.js`), cacheado com `max-age=31536000, immutable` e referenciá-lo a partir de uma página HTML com TTL curto
 - D. Definir `max-age=60` em `app.js` e esperar um minuto após cada deploy
 
 ??? success "Resposta"
@@ -120,7 +120,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q9.** Uma camada de cache usa `server = hash(key) mod N` com N = 4 servidores. Um quinto servidor é adicionado. Aproximadamente que fração das chaves passa a mapear para outro servidor, e quanto seria com consistent hashing?
+**Q9.** Uma camada de cache usa `server = hash(key) mod N` com N = 4 servidores. Um quinto servidor é adicionado. Aproximadamente que fração das chaves passa a mapear para outro servidor e quanto seria com consistent hashing?
 
 - A. 20% com `mod N`; 80% com consistent hashing
 - B. Cerca de 80% com `mod N`; cerca de 20% com consistent hashing
@@ -137,7 +137,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 **Q10.** Por que as implementações de consistent hashing colocam cada servidor **muitas vezes** no anel (nós virtuais)?
 
 - A. Para criptografar as chaves
-- B. Para que os arcos entre os pontos se compensem, de modo que cada servidor fique com perto da sua parcela justa de chaves, e para espalhar as chaves de um servidor removido por todos os servidores restantes
+- B. Para que os arcos entre os pontos se compensem, de modo que cada servidor fique com perto da sua parcela justa de chaves e para espalhar as chaves de um servidor removido por todos os servidores restantes
 - C. Para permitir que a mesma chave seja guardada em vários servidores, por durabilidade
 - D. Para tornar as buscas O(1) em vez de O(log N)
 
@@ -151,7 +151,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 **Q11.** O serviço `order` chama `inventory` via gRPC através de um load balancer L4. Depois de escalar `inventory` de 3 para 6 pods, os pods novos quase não recebem tráfego. Qual é a causa mais provável?
 
 - A. Os pods novos falharam nas readiness probes
-- B. O gRPC usa conexões HTTP/2 de longa duração, e um load balancer L4 escolhe um backend só quando uma conexão é aberta; as conexões existentes continuam nos pods antigos
+- B. O gRPC usa conexões HTTP/2 de longa duração e um load balancer L4 escolhe um backend só quando uma conexão é aberta; as conexões existentes continuam nos pods antigos
 - C. O gRPC não suporta mais de três servidores
 - D. O load balancer L4 usa consistent hashing sobre o path da requisição
 
@@ -164,7 +164,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ## API gateway e rate limiting { #api-gateway-and-rate-limiting }
 
-**Q12.** Um token bucket tem **capacidade 20** e **taxa de reposição de 10 tokens/s**. Um fã que ficou ocioso por um minuto envia 50 requisições no mesmo instante. Quantas são aceitas imediatamente, e qual é a taxa sustentada máxima depois disso?
+**Q12.** Um token bucket tem **capacidade 20** e **taxa de reposição de 10 tokens/s**. Um fã que ficou ocioso por um minuto envia 50 requisições no mesmo instante. Quantas são aceitas imediatamente e qual é a taxa sustentada máxima depois disso?
 
 - A. 50 aceitas; depois 20 por segundo
 - B. 20 aceitas; depois 10 por segundo
@@ -188,11 +188,11 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **C — 200.**
 
-    Esse é o **problema da fronteira** das janelas fixas: 100 requisições às 10:00:59 enchem a janela das 10:00, e mais 100 às 10:01:00 enchem a janela das 10:01 — 200 aceitas em cerca de um segundo, o dobro da taxa pretendida. O sliding window log (exato) ou o sliding window counter (aproximação ponderada) resolvem isso.
+    Esse é o **problema da fronteira** das janelas fixas: 100 requisições às 10:00:59 enchem a janela das 10:00 e mais 100 às 10:01:00 enchem a janela das 10:01 — 200 aceitas em cerca de um segundo, o dobro da taxa pretendida. O sliding window log (exato) ou o sliding window counter (aproximação ponderada) resolvem isso.
 
 ---
 
-**Q14.** O BoxOffice roda **6 réplicas do gateway** atrás de um load balancer, e cada réplica guarda seus contadores de rate limit na memória local, com limite de 10 req/s por usuário. As requisições se espalham igualmente entre as réplicas. Que limite o usuário tem de fato, e qual é a correção usual?
+**Q14.** O BoxOffice roda **6 réplicas do gateway** atrás de um load balancer e cada réplica guarda seus contadores de rate limit na memória local, com limite de 10 req/s por usuário. As requisições se espalham igualmente entre as réplicas. Que limite o usuário tem de fato e qual é a correção usual?
 
 - A. 10 req/s; nenhuma correção necessária
 - B. Até cerca de 60 req/s; guardar os contadores em um store compartilhado como o Redis e atualizá-los de forma atômica (por exemplo, com um script Lua)
@@ -218,4 +218,4 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — Server-Sent Events.**
 
-    O tráfego é **unidirecional** (servidor → cliente), então SSE se encaixa exatamente: é HTTP comum (funciona através de CDNs, proxies e da multiplexação do HTTP/2), e o `EventSource` se reconecta e retoma sozinho. WebSockets funcionariam, mas acrescentam um canal bidirecional com estado, tratamento de upgrade e reconexão customizada sem nenhum benefício. O gRPC não está disponível nativamente nos navegadores. Polling com micro-caching na CDN também é um projeto válido, e até mais barato, se um atraso de alguns segundos for aceitável.
+    O tráfego é **unidirecional** (servidor → cliente), então SSE se encaixa exatamente: é HTTP comum (funciona através de CDNs, proxies e da multiplexação do HTTP/2), e o `EventSource` se reconecta e retoma sozinho. WebSockets funcionariam, mas acrescentam um canal bidirecional com estado, tratamento de upgrade e reconexão customizada sem nenhum benefício. O gRPC não está disponível nativamente nos navegadores. Polling com micro-caching na CDN também é um projeto válido e até mais barato, se um atraso de alguns segundos for aceitável.

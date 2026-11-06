@@ -1,8 +1,8 @@
 # Mensageria { #messaging }
 
-Os componentes de **mensageria** colocam uma **fronteira assíncrona** entre a parte do sistema que produz trabalho e a parte que o executa. Em vez de chamar um serviço e esperar, o produtor grava uma mensagem num broker e segue em frente; os consumidores a leem quando puderem. Essa única mudança desacopla os dois lados no **tempo** (o consumidor pode estar fora do ar ou lento), na **taxa** (um pico vira um backlog que é drenado no ritmo dos consumidores) e no **conhecimento** (o produtor não precisa saber quem consome). O preço: o resultado deixa de ser imediato, mensagens podem chegar duas vezes ou fora de ordem, e agora é preciso vigiar backlogs e atrasos.
+Os componentes de **mensageria** colocam uma **fronteira assíncrona** entre a parte do sistema que produz trabalho e a parte que o executa. Em vez de chamar um serviço e esperar, o produtor grava uma mensagem num broker e segue em frente; os consumidores a leem quando puderem. Essa única mudança desacopla os dois lados no **tempo** (o consumidor pode estar fora do ar ou lento), na **taxa** (um pico vira um backlog que é drenado no ritmo dos consumidores) e no **conhecimento** (o produtor não precisa saber quem consome). O preço: o resultado deixa de ser imediato, mensagens podem chegar duas vezes ou fora de ordem e agora é preciso vigiar backlogs e atrasos.
 
-No BoxOffice, a sala de espera da venda relâmpago é uma fila; o `order` publica eventos `OrderConfirmed` no Kafka, e `notification`, `analytics` e `search` os consomem cada um de forma independente; o envio de e-mails fica atrás de uma fila, para que um provedor lento nunca deixe o checkout lento.
+No BoxOffice, a sala de espera da venda relâmpago é uma fila; o `order` publica eventos `OrderConfirmed` no Kafka e `notification`, `analytics` e `search` os consomem cada um de forma independente; o envio de e-mails fica atrás de uma fila, para que um provedor lento nunca deixe o checkout lento.
 
 | Componente | Em uma frase | Id no playground |
 |---|---|---|
@@ -94,7 +94,7 @@ flowchart LR
     - **Redis Streams** / bibliotecas como **Celery** (Python) e **BullMQ** (Node.js) — filas de jobs sobre Redis ou RabbitMQ.
 
 !!! tip "Na entrevista"
-    "Tudo o que o usuário não precisa esperar vai para uma fila: o checkout responde na hora e os workers enviam o e-mail e geram o ingresso. A fila absorve picos, repete as falhas e estaciona as mensagens venenosas numa DLQ; como a entrega é at-least-once, os consumidores são idempotentes, e eu alerto pela profundidade da fila e pela idade da mensagem mais antiga."
+    "Tudo o que o usuário não precisa esperar vai para uma fila: o checkout responde na hora e os workers enviam o e-mail e geram o ingresso. A fila absorve picos, repete as falhas e estaciona as mensagens venenosas numa DLQ; como a entrega é at-least-once, os consumidores são idempotentes e eu alerto pela profundidade da fila e pela idade da mensagem mais antiga."
 
 **Saiba mais:** [Mensageria › Filas e pub/sub](../../../classes/messaging/queues-pubsub/index.md) · [Mensageria › Semânticas de entrega](../../../classes/messaging/semantics/index.md) · [Computação › Trabalho assíncrono](../../../classes/compute/async-work/index.md) · [Estudo de caso: sistema de notificações](../../../classes/case-studies/notification-system/index.md) · [Hands-on 7](../../../hands-on/7/index.md)
 
@@ -102,7 +102,7 @@ flowchart LR
 
 ## Pub/Sub { #pubsub }
 
-**O que é.** No publish/subscribe, o produtor publica uma mensagem num **tópico** e o broker entrega uma **cópia para cada assinatura**. Os publicadores não sabem quem escuta; acrescentar um novo assinante não exige mudança alguma no publicador. Cada assinatura se comporta como uma fila própria (com acks e retries). Os sistemas clássicos de pub/sub apagam a mensagem quando todas as assinaturas a confirmam e são otimizados para fan-out de baixa latência, e não para retenção longa ou reprocessamento.
+**O que é.** No publish/subscribe, o produtor publica uma mensagem num **tópico** e o broker entrega uma **cópia para cada assinatura**. Os publicadores não sabem quem escuta; acrescentar um novo assinante não exige mudança alguma no publicador. Cada assinatura se comporta como uma fila própria (com acks e retries). Os sistemas clássicos de pub/sub apagam a mensagem quando todas as assinaturas a confirmam e são otimizados para fan-out de baixa latência e não para retenção longa ou reprocessamento.
 
 **Quando usar.**
 
@@ -164,7 +164,7 @@ flowchart LR
     - **Redis Pub/Sub** — canais em memória, dispare-e-esqueça.
 
 !!! tip "Na entrevista"
-    "Quando um evento é cancelado, o serviço de eventos só publica `EventCancelled`; reembolsos, notificações e busca têm cada um a sua assinatura e reagem de forma independente. Acrescentar um consumidor não mexe no publicador. A entrega é at-least-once, então todo assinante é idempotente, e eu monitoro o backlog de cada assinatura separadamente."
+    "Quando um evento é cancelado, o serviço de eventos só publica `EventCancelled`; reembolsos, notificações e busca têm cada um a sua assinatura e reagem de forma independente. Acrescentar um consumidor não mexe no publicador. A entrega é at-least-once, então todo assinante é idempotente e eu monitoro o backlog de cada assinatura separadamente."
 
 **Saiba mais:** [Mensageria › Filas e pub/sub](../../../classes/messaging/queues-pubsub/index.md) · [Mensageria › Padrões](../../../classes/messaging/patterns/index.md) · [Borda › Protocolos](../../../classes/edge/protocols/index.md) · [Estudo de caso: chat](../../../classes/case-studies/chat/index.md) · [Estudo de caso: feed de notícias](../../../classes/case-studies/news-feed/index.md)
 
@@ -172,7 +172,7 @@ flowchart LR
 
 ## Event Stream { #stream }
 
-**O que é.** Um event stream é um **log ordenado, apenas de acréscimo** (*append-only*), dividido em **partições** e **retido** por um período (horas, dias ou para sempre), sem ser apagado ao ser consumido. Cada consumidor (ou consumer group) guarda o seu **offset** — a sua posição no log —, de modo que muitos consumidores independentes podem ler os mesmos eventos no próprio ritmo, e um consumidor novo pode **reprocessar** o histórico desde o começo. Eventos com a mesma chave vão para a mesma partição, o que dá **ordem por chave**. É a espinha dorsal de arquiteturas orientadas a eventos, de captura de mudanças (CDC) e de análises em tempo real. O Kafka é a implementação mais conhecida e tem uma entrada própria abaixo; esta entrada cobre o conceito e as alternativas gerenciadas.
+**O que é.** Um event stream é um **log ordenado, apenas de acréscimo** (*append-only*), dividido em **partições** e **retido** por um período (horas, dias ou para sempre), sem ser apagado ao ser consumido. Cada consumidor (ou consumer group) guarda o seu **offset** — a sua posição no log —, de modo que muitos consumidores independentes podem ler os mesmos eventos no próprio ritmo e um consumidor novo pode **reprocessar** o histórico desde o começo. Eventos com a mesma chave vão para a mesma partição, o que dá **ordem por chave**. É a espinha dorsal de arquiteturas orientadas a eventos, de captura de mudanças (CDC) e de análises em tempo real. O Kafka é a implementação mais conhecida e tem uma entrada própria abaixo; esta entrada cobre o conceito e as alternativas gerenciadas.
 
 **Quando usar.**
 
@@ -233,7 +233,7 @@ flowchart LR
     - **Redis Streams** — streams leves com consumer groups.
 
 !!! tip "Na entrevista"
-    "Os eventos de pedido vão para um log particionado e retido, com chave `order_id`: cada consumer group lê no seu próprio offset, então notification, analytics e um futuro serviço antifraude são independentes e podem reprocessar o histórico. A ordem é por chave, o paralelismo é limitado pelo número de partições, e o número que eu vigio é o atraso do consumidor."
+    "Os eventos de pedido vão para um log particionado e retido, com chave `order_id`: cada consumer group lê no seu próprio offset, então notification, analytics e um futuro serviço antifraude são independentes e podem reprocessar o histórico. A ordem é por chave, o paralelismo é limitado pelo número de partições e o número que eu vigio é o atraso do consumidor."
 
 **Saiba mais:** [Mensageria › Filas e pub/sub](../../../classes/messaging/queues-pubsub/index.md) · [Mensageria › Kafka](../../../classes/messaging/kafka/index.md) · [Mensageria › Padrões](../../../classes/messaging/patterns/index.md) · [Estudo de caso: transporte por aplicativo](../../../classes/case-studies/ride-sharing/index.md)
 
@@ -241,7 +241,7 @@ flowchart LR
 
 ## Kafka { #kafka }
 
-**O que é.** O Apache Kafka é uma plataforma distribuída de streaming de eventos. Os dados são organizados em **tópicos**, cada um dividido em **partições**; cada partição é um log ordenado, apenas de acréscimo, replicado entre **brokers** (um líder, seguidores no conjunto de *réplicas em sincronia*, ISR). Os produtores escolhem a partição pela **chave** (mesma chave → mesma partição → em ordem). Os consumidores entram em **consumer groups**: dentro de um grupo, cada partição é atribuída a um consumidor, e o grupo registra **offsets** para lembrar onde parou. As mensagens ficam retidas por tempo ou tamanho (ou para sempre, como o último valor por chave, com **log compaction**). Desde o Kafka 4.0, os clusters rodam em modo **KRaft** (quórum de metadados baseado em Raft, sem ZooKeeper). Em volta do núcleo: Kafka Connect (integrações, CDC com Debezium), Kafka Streams (processamento de streams) e schema registries.
+**O que é.** O Apache Kafka é uma plataforma distribuída de streaming de eventos. Os dados são organizados em **tópicos**, cada um dividido em **partições**; cada partição é um log ordenado, apenas de acréscimo, replicado entre **brokers** (um líder, seguidores no conjunto de *réplicas em sincronia*, ISR). Os produtores escolhem a partição pela **chave** (mesma chave → mesma partição → em ordem). Os consumidores entram em **consumer groups**: dentro de um grupo, cada partição é atribuída a um consumidor e o grupo registra **offsets** para lembrar onde parou. As mensagens ficam retidas por tempo ou tamanho (ou para sempre, como o último valor por chave, com **log compaction**). Desde o Kafka 4.0, os clusters rodam em modo **KRaft** (quórum de metadados baseado em Raft, sem ZooKeeper). Em volta do núcleo: Kafka Connect (integrações, CDC com Debezium), Kafka Streams (processamento de streams) e schema registries.
 
 **Quando usar.**
 
@@ -254,7 +254,7 @@ flowchart LR
 
 - Sistemas pequenos com poucos jobs em segundo plano: uma fila gerenciada é muito mais simples de operar.
 - Roteamento por mensagem, prioridades, mensagens atrasadas e retries por mensagem não são o forte do Kafka (filas fazem isso melhor).
-- O número de partições é uma decisão de capacidade tomada de antemão: limita o paralelismo dos consumidores, e acrescentar partições depois muda o mapeamento chave → partição (a ordem por chave quebra na transição).
+- O número de partições é uma decisão de capacidade tomada de antemão: limita o paralelismo dos consumidores e acrescentar partições depois muda o mapeamento chave → partição (a ordem por chave quebra na transição).
 - "Exactly-once" existe para processamento Kafka-para-Kafka (produtor idempotente + transações); efeitos colaterais fora do Kafka continuam exigindo consumidores idempotentes.
 - Operar Kafka (brokers, armazenamento, rebalanceamento, upgrades) dá trabalho de verdade → considere um serviço gerenciado.
 
@@ -304,6 +304,6 @@ flowchart LR
     - **Kafka Connect** e **Kafka Streams** — integração e processamento de streams, parte do projeto Apache Kafka.
 
 !!! tip "Na entrevista"
-    "Eu usaria o Kafka como espinha dorsal de eventos: o serviço de pedidos grava num outbox na mesma transação, o Debezium publica num tópico com chave `order_id`, e notification, analytics e search são consumer groups separados. Dimensiono as partições pelo paralelismo de consumo de que preciso, uso fator de replicação 3 com `acks=all` e torno todo consumidor idempotente, porque a entrega é at-least-once."
+    "Eu usaria o Kafka como espinha dorsal de eventos: o serviço de pedidos grava num outbox na mesma transação, o Debezium publica num tópico com chave `order_id` e notification, analytics e search são consumer groups separados. Dimensiono as partições pelo paralelismo de consumo de que preciso, uso fator de replicação 3 com `acks=all` e torno todo consumidor idempotente, porque a entrega é at-least-once."
 
 **Saiba mais:** [Mensageria › Kafka](../../../classes/messaging/kafka/index.md) · [Mensageria › Semânticas de entrega](../../../classes/messaging/semantics/index.md) · [Mensageria › Padrões](../../../classes/messaging/patterns/index.md) · [Distribuídos › Consenso](../../../classes/distributed/consensus/index.md) · [Estudo de caso: sistema de pagamentos](../../../classes/case-studies/payment-system/index.md) · [Hands-on 7](../../../hands-on/7/index.md)

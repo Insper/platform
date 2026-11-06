@@ -1,4 +1,4 @@
-A suíte de testes da BoxOffice cresceu para cerca de 4.000 testes. Uma execução completa do CI leva 25 minutos, mais ou menos uma execução em cada trinta falha por motivos que ninguém entende e passa quando repetida, e o serviço `inventory` — aquele em que um bug significa assentos vendidos duas vezes — é o que tem menos testes, porque sua lógica é a mais difícil de testar. A IA pode escrever testes, fazer a triagem de falhas e escolher quais testes rodar. Cada uma dessas coisas é útil, e cada uma tem uma armadilha: um teste gerado pode **proteger um bug**, um bot de triagem pode **esconder uma falha real** atrás da palavra "flaky", e um seletor de testes pode **pular justamente o teste que importava**. Esta página trata de colher o benefício sem cair nas armadilhas.
+A suíte de testes da BoxOffice cresceu para cerca de 4.000 testes. Uma execução completa do CI leva 25 minutos, mais ou menos uma execução em cada trinta falha por motivos que ninguém entende e passa quando repetida, e o serviço `inventory` — aquele em que um bug significa assentos vendidos duas vezes — é o que tem menos testes, porque sua lógica é a mais difícil de testar. A IA pode escrever testes, fazer a triagem de falhas e escolher quais testes rodar. Cada uma dessas coisas é útil e cada uma tem uma armadilha: um teste gerado pode **proteger um bug**, um bot de triagem pode **esconder uma falha real** atrás da palavra "flaky" e um seletor de testes pode **pular justamente o teste que importava**. Esta página trata de colher o benefício sem cair nas armadilhas.
 
 ---
 
@@ -62,7 +62,7 @@ O loop acima devolve ao modelo os **mutantes sobreviventes** ("linha 42: a front
 
 ## Testes de contrato { #contract-tests }
 
-Em um sistema de microsserviços, as falhas de teste mais caras acontecem **entre** serviços: o `order` espera que o `inventory` retorne `409 Conflict` para uma reserva expirada; o `inventory` muda para `410 Gone`. **Testes de contrato orientados ao consumidor** (Pact, Spring Cloud Contract) capturam o que cada consumidor realmente usa, e o build do provedor verifica que ele ainda satisfaz todos os contratos.
+Em um sistema de microsserviços, as falhas de teste mais caras acontecem **entre** serviços: o `order` espera que o `inventory` retorne `409 Conflict` para uma reserva expirada; o `inventory` muda para `410 Gone`. **Testes de contrato orientados ao consumidor** (Pact, Spring Cloud Contract) capturam o que cada consumidor realmente usa e o build do provedor verifica que ele ainda satisfaz todos os contratos.
 
 A IA ajuda a rascunhá-los: com o código de cliente do consumidor e o documento OpenAPI do provedor, um modelo escreve as interações (`POST /inventory/holds/{id}/confirm` → `200` ou `409`) muito mais rápido que uma pessoa. A armadilha: se o modelo derivar o contrato da **implementação do provedor**, o contrato descreve o que o provedor faz hoje — não o que o consumidor precisa — e não verifica nada. Gere a partir do lado do **consumidor** e deixe que a verificação no provedor (determinística) seja o juiz.
 
@@ -90,13 +90,13 @@ class SeatMapProperties {
 }
 ```
 
-O exemplo usa o [jqwik](https://jqwik.net){target="_blank"} para JUnit 5. Os modelos são bons em **propor invariantes** a partir de uma descrição do domínio ("vendidos + reservados + disponíveis = capacidade", "um assento confirmado nunca é liberado por expiração") e em escrever geradores. Duas verificações os mantêm honestos: plante um bug e confirme que a propriedade falha (uma propriedade que nunca falha pode ser vazia), e leia cada invariante contra as regras do domínio.
+O exemplo usa o [jqwik](https://jqwik.net){target="_blank"} para JUnit 5. Os modelos são bons em **propor invariantes** a partir de uma descrição do domínio ("vendidos + reservados + disponíveis = capacidade", "um assento confirmado nunca é liberado por expiração") e em escrever geradores. Duas verificações os mantêm honestos: plante um bug e confirme que a propriedade falha (uma propriedade que nunca falha pode ser vazia) e leia cada invariante contra as regras do domínio.
 
 ---
 
 ## Scripts de teste de carga a partir do OpenAPI { #load-test-scripts-from-openapi }
 
-Todo serviço da BoxOffice publica um documento OpenAPI. Um modelo consegue transformá-lo — junto com uma amostra de logs de acesso reais — em um script k6 com endpoints, payloads e verificações realistas em segundos. O que ele não consegue saber é o **modelo de carga**: o mix de requisições (95% de leituras do catálogo durante uma abertura de vendas), o processo de chegada (modelo aberto com rampa, e não um número fixo de usuários em loop), o think time e a distribuição dos dados (todo mundo quer os mesmos 500 assentos da primeira fila). Essas decisões vêm da [aula de desempenho](../../performance/index.md) e das suas medições, e um script gerado que usa silenciosamente um modelo fechado sem think time mede o sistema errado.
+Todo serviço da BoxOffice publica um documento OpenAPI. Um modelo consegue transformá-lo — junto com uma amostra de logs de acesso reais — em um script k6 com endpoints, payloads e verificações realistas em segundos. O que ele não consegue saber é o **modelo de carga**: o mix de requisições (95% de leituras do catálogo durante uma abertura de vendas), o processo de chegada (modelo aberto com rampa e não um número fixo de usuários em loop), o think time e a distribuição dos dados (todo mundo quer os mesmos 500 assentos da primeira fila). Essas decisões vêm da [aula de desempenho](../../performance/index.md) e das suas medições e um script gerado que usa silenciosamente um modelo fechado sem think time mede o sistema errado.
 
 Um fluxo seguro: gere o script, **revise o bloco de cenário** (executor, taxas, limiares) à mão, rode um smoke test e mantenha o script em `load/` como qualquer outro código.
 
@@ -104,7 +104,7 @@ Um fluxo seguro: gere o script, **revise o bloco de cenário** (executor, taxas,
 
 ## Triagem de testes flaky { #flaky-test-triage }
 
-Um **teste flaky** passa e falha com o mesmo código. A instabilidade de testes é um problema grande e bem documentado no CI da indústria: o Google relatou que uma fração significativa de seus testes já havia apresentado comportamento flaky, e que isso era um custo importante do seu sistema de CI[^4]. Quando um build fica vermelho, alguém precisa decidir: regressão real, teste quebrado, problema de infraestrutura ou flake?
+Um **teste flaky** passa e falha com o mesmo código. A instabilidade de testes é um problema grande e bem documentado no CI da indústria: o Google relatou que uma fração significativa de seus testes já havia apresentado comportamento flaky e que isso era um custo importante do seu sistema de CI[^4]. Quando um build fica vermelho, alguém precisa decidir: regressão real, teste quebrado, problema de infraestrutura ou flake?
 
 Um modelo que lê o log da falha e o histórico consegue classificar rapidamente — mas os **sinais determinísticos** devem vir primeiro, porque são baratos e confiáveis:
 
@@ -141,7 +141,7 @@ Rodar todos os 4.000 testes a cada push custa 25 minutos; a maioria deles não p
 - **Baseada em cobertura**: testes cuja cobertura registrada inclui as linhas alteradas. Precisa, mas exige mapas de cobertura atualizados.
 - **Preditiva**: um modelo treinado no histórico prevê quais testes provavelmente vão falhar com esta mudança; a Meta relatou pegar a grande maioria das falhas rodando uma fração dos testes[^5]. LLMs podem contribuir com features (do que se trata a mudança), mas a decisão é estatística.
 
-A rede de segurança é inegociável: a **suíte completa** continua rodando — na `main` após o merge, à noite ou antes da release —, de modo que um teste perdido é pego horas depois, e não em produção. Os números tornam o trade-off concreto (premissas ilustrativas no código):
+A rede de segurança é inegociável: a **suíte completa** continua rodando — na `main` após o merge, à noite ou antes da release —, de modo que um teste perdido é pego horas depois e não em produção. Os números tornam o trade-off concreto (premissas ilustrativas no código):
 
 ```python exec="1"
 # Test selection: CI minutes saved vs regressions that slip to the nightly full run.

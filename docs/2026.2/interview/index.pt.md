@@ -193,7 +193,7 @@ hide:
         <div class="step-num amber">2</div>
         <div class="step-body">
           <strong>Make Reasonable Assumptions</strong>
-          <span>Com o escopo definido, declare assunções explícitas: "vou assumir 10M DAU, pico de 100k req/s, disponibilidade de 99.9% (downtime máximo de ~8.7h/ano), e que o sistema é muito mais read-heavy do que write-heavy (100:1)". Isso ancora toda a conversa seguinte e demonstra que você pensa em métricas concretas.</span>
+          <span>Com o escopo definido, declare assunções explícitas: "vou assumir 10M DAU, pico de 100k req/s, disponibilidade de 99.9% (downtime máximo de ~8.7h/ano) e que o sistema é muito mais read-heavy do que write-heavy (100:1)". Isso ancora toda a conversa seguinte e demonstra que você pensa em métricas concretas.</span>
         </div>
       </div>
       <div class="step-item">
@@ -517,7 +517,7 @@ hide:
         </button>
         <div class="acc-body">
           <p><strong>Vertical scaling (scale up):</strong> adiciona mais CPU, RAM ou disco na mesma máquina. É simples — não requer mudança de código. Mas tem limite físico e hardware (não existe uma máquina com RAM infinita), cria single point of failure e o custo cresce exponencialmente com a capacidade.</p>
-          <p><strong>Horizontal scaling (scale out):</strong> adiciona mais máquinas. Teoricamente ilimitado e mais econômico em escala. Exige design stateless nos servidores de aplicação, load balancing, e coordenação entre nós. A maioria dos sistemas web de grande escala usa horizontal.</p>
+          <p><strong>Horizontal scaling (scale out):</strong> adiciona mais máquinas. Teoricamente ilimitado e mais econômico em escala. Exige design stateless nos servidores de aplicação, load balancing e coordenação entre nós. A maioria dos sistemas web de grande escala usa horizontal.</p>
           <p><strong>Estratégia prática:</strong> comece com vertical (mais simples, zero refactoring), mas projete para horizontal desde o início. Quando vertical atingir custo ou limite físico, migre para horizontal. O erro é não planejar isso desde o início.</p>
           <div class="table-wrap" style="margin-top:12px;"><table class="cmp-table">
             <thead><tr><th>Aspecto</th><th>Vertical</th><th>Horizontal</th></tr></thead>
@@ -636,7 +636,7 @@ hide:
           <span class="acc-arrow">▶</span>
         </button>
         <div class="acc-body">
-          <p>Em vez de processar tudo de forma síncrona dentro da request do usuário, você enfileira o trabalho pesado para execução assíncrona. O usuário recebe uma resposta rápida (confirmação de recebimento), e workers processam em background.</p>
+          <p>Em vez de processar tudo de forma síncrona dentro da request do usuário, você enfileira o trabalho pesado para execução assíncrona. O usuário recebe uma resposta rápida (confirmação de recebimento) e workers processam em background.</p>
           <p><strong>Casos de uso clássicos:</strong></p>
           <ul>
             <li>Envio de email/SMS após cadastro</li>

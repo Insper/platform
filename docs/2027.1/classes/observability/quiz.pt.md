@@ -15,7 +15,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — Causas, em média sobre tudo, escondem um sintoma de latência de cauda em uma jornada.**
 
-    CPU e status dos pods são causas escolhidas de antemão. A experiência dos fãs era um sintoma de **latência** no `POST /checkout`, concentrado no **p99**, causado pelo provedor de pagamentos. A média sobre todas as rotas dilui a rota de checkout, e a mediana esconde a cauda. Meça o que os usuários sentem — percentis de latência e SLIs por jornada — e use traces para descobrir para onde foi o tempo.
+    CPU e status dos pods são causas escolhidas de antemão. A experiência dos fãs era um sintoma de **latência** no `POST /checkout`, concentrado no **p99**, causado pelo provedor de pagamentos. A média sobre todas as rotas dilui a rota de checkout e a mediana esconde a cauda. Meça o que os usuários sentem — percentis de latência e SLIs por jornada — e use traces para descobrir para onde foi o tempo.
 
 ---
 
@@ -43,7 +43,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — Liveness.**
 
-    A liveness responde "o processo travou sem conserto?", e sua falha **reinicia** o container. A readiness só remove a instância do load balancer (útil quando ela está temporariamente incapaz de atender, por exemplo sobrecarregada ou drenando). A startup protege aplicações de inicialização lenta pausando as outras probes até a inicialização terminar.
+    A liveness responde "o processo travou sem conserto?" e sua falha **reinicia** o container. A readiness só remove a instância do load balancer (útil quando ela está temporariamente incapaz de atender, por exemplo sobrecarregada ou drenando). A startup protege aplicações de inicialização lenta pausando as outras probes até a inicialização terminar.
 
 ---
 
@@ -52,14 +52,14 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 **Q4.** Um time adiciona o label `customer_id` (cerca de 1 milhão de valores) ao histograma de latência do checkout, que já tem 204.000 séries. Qual é a consequência mais provável?
 
 - A. As consultas ficam um pouco mais lentas, mas nada mais muda
-- B. O número de séries é multiplicado por até um milhão, e o backend de métricas fica sem memória ou a fatura explode
+- B. O número de séries é multiplicado por até um milhão e o backend de métricas fica sem memória ou a fatura explode
 - C. O Prometheus descarta o label automaticamente porque ele tem alta cardinalidade
 - D. Nada, porque histogramas guardam só buckets, não labels
 
 ??? success "Resposta"
     **B — A cardinalidade se multiplica.**
 
-    Cada combinação distinta de valores de labels é uma série separada; adicionar um label ilimitado multiplica o número de séries pelo número de valores dele. Perguntas por cliente pertencem a **traces e logs**, onde `customer_id` é um atributo consultado sob demanda, e não uma dimensão pré-agregada de métrica.
+    Cada combinação distinta de valores de labels é uma série separada; adicionar um label ilimitado multiplica o número de séries pelo número de valores dele. Perguntas por cliente pertencem a **traces e logs**, onde `customer_id` é um atributo consultado sob demanda e não uma dimensão pré-agregada de métrica.
 
 ---
 
@@ -112,7 +112,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 - A. Cada serviço gera um novo trace-id
 - B. O trace-id e as flags são mantidos; o parent-id é substituído pelo ID do span atual de quem chama
 - C. O header é repassado sem alteração para que o backend identifique o span raiz
-- D. Quem é chamado devolve o header na resposta, e quem chamou o mescla
+- D. Quem é chamado devolve o header na resposta e quem chamou o mescla
 
 ??? success "Resposta"
     **B — Mesmo trace-id, novo parent-id a cada salto.**
@@ -151,7 +151,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ## Alertas { #alerting }
 
-**Q11.** O SLO do checkout é 99,9% numa janela móvel de 28 dias. A razão de erros observada na última hora é 1,44%. Qual é o burn rate, e quanto do budget essa hora consumiu?
+**Q11.** O SLO do checkout é 99,9% numa janela móvel de 28 dias. A razão de erros observada na última hora é 1,44%. Qual é o burn rate e quanto do budget essa hora consumiu?
 
 - A. Burn rate 1,44; 1,44% do budget
 - B. Burn rate 14,4; cerca de 2% do budget

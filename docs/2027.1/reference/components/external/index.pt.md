@@ -87,7 +87,7 @@ flowchart LR
 
 ## Payment { #payment }
 
-**O que é.** Um provedor de serviços de pagamento (PSP) cobra cartões, carteiras e pagamentos instantâneos em seu nome e transfere o dinheiro para a sua conta. Você nunca guarda números de cartão: o provedor entrega ao navegador um formulário hospedado ou tokeniza o cartão, e o seu backend só vê um token. O fluxo usual tem duas metades: uma requisição **síncrona** para criar ou confirmar um pagamento (que pode devolver "pendente") e um **webhook assíncrono** do provedor com o status final (aprovado, recusado, reembolsado, contestado). No Brasil, os pagamentos instantâneos via **Pix** seguem o mesmo formato: você cria uma cobrança (um QR code) e a confirmação chega como notificação.
+**O que é.** Um provedor de serviços de pagamento (PSP) cobra cartões, carteiras e pagamentos instantâneos em seu nome e transfere o dinheiro para a sua conta. Você nunca guarda números de cartão: o provedor entrega ao navegador um formulário hospedado ou tokeniza o cartão e o seu backend só vê um token. O fluxo usual tem duas metades: uma requisição **síncrona** para criar ou confirmar um pagamento (que pode devolver "pendente") e um **webhook assíncrono** do provedor com o status final (aprovado, recusado, reembolsado, contestado). No Brasil, os pagamentos instantâneos via **Pix** seguem o mesmo formato: você cria uma cobrança (um QR code) e a confirmação chega como notificação.
 
 **Quando usar.**
 
@@ -119,7 +119,7 @@ flowchart LR
 - **Estados inconsistentes** — pago no provedor, mas o pedido foi cancelado localmente (ou o contrário) → uma saga com compensações (reembolsar, liberar o assento) e a conciliação como rede de segurança.
 - **Fraude e chargebacks** → as ferramentas antifraude do provedor, limites de velocidade por usuário e por cartão, 3-D Secure.
 
-**No playground.** `payment` é um nó externo de **chamada** com grande variância de latência (mediana de 400 ms), uma cota do provedor `quota` (padrão 500 req/s) e quedas aleatórias; o cenário `payment-system` mostra retries sem idempotência criando cobranças duplicadas, e o cenário `flash-sale` mostra o pagamento virando o gargalo quando a venda abre. Use `timeoutMs`, `retries` com `exp+jitter`, `circuitBreaker` e um `fallback` ("pagamento pendente") na aresta que vem de `order`. Cenários: [`payment-system`](../../../../playground/scenarios/index.md#payment-system), [`flash-sale`](../../../../playground/scenarios/index.md#flash-sale), [`cascading-failure`](../../../../playground/scenarios/index.md#cascading-failure).
+**No playground.** `payment` é um nó externo de **chamada** com grande variância de latência (mediana de 400 ms), uma cota do provedor `quota` (padrão 500 req/s) e quedas aleatórias; o cenário `payment-system` mostra retries sem idempotência criando cobranças duplicadas e o cenário `flash-sale` mostra o pagamento virando o gargalo quando a venda abre. Use `timeoutMs`, `retries` com `exp+jitter`, `circuitBreaker` e um `fallback` ("pagamento pendente") na aresta que vem de `order`. Cenários: [`payment-system`](../../../../playground/scenarios/index.md#payment-system), [`flash-sale`](../../../../playground/scenarios/index.md#flash-sale), [`cascading-failure`](../../../../playground/scenarios/index.md#cascading-failure).
 
 **Produtos reais.**
 
@@ -142,7 +142,7 @@ flowchart LR
     - Sandboxes e CLIs dos provedores (por exemplo, a **Stripe CLI** para encaminhar webhooks de teste) para desenvolvimento.
 
 !!! tip "Na entrevista"
-    "O pagamento passa por um adaptador com uma chave de idempotência por tentativa, timeout e circuit breaker; o status final vem de um webhook assinado processado de forma idempotente, o assento fica reservado com expiração em vez de lock, e um job de conciliação contra o relatório do provedor pega o que escapar."
+    "O pagamento passa por um adaptador com uma chave de idempotência por tentativa, timeout e circuit breaker; o status final vem de um webhook assinado processado de forma idempotente, o assento fica reservado com expiração em vez de lock e um job de conciliação contra o relatório do provedor pega o que escapar."
 
 **Saiba mais:** [Computação › Integrações](../../../classes/compute/integrations/index.md) · [Estudo de caso: sistema de pagamentos](../../../classes/case-studies/payment-system/index.md) · [Mensageria › Padrões](../../../classes/messaging/patterns/index.md) · [Hands-on 9](../../../hands-on/9/index.md)
 
@@ -182,7 +182,7 @@ flowchart LR
 - **Mensagem venenosa** (endereço inválido, erro no modelo) trava a fila → dead-letter queue após N tentativas, alertas.
 - **Perda silenciosa** → acompanhar os eventos do provedor (entregue/devolvido) e oferecer "reenviar ingresso" no app.
 
-**No playground.** `email` é um nó externo de **chamada** (mediana de 250 ms) com uma cota do provedor `quota` (padrão 100 envios/s) e quedas ocasionais; coloque-o atrás de nós `queue` e `worker` para que a latência e as falhas dele virem backlog, e não erros para o usuário. Cenários: [`notification-system`](../../../../playground/scenarios/index.md#notification-system), [`async-queue`](../../../../playground/scenarios/index.md#async-queue), [`flash-sale`](../../../../playground/scenarios/index.md#flash-sale).
+**No playground.** `email` é um nó externo de **chamada** (mediana de 250 ms) com uma cota do provedor `quota` (padrão 100 envios/s) e quedas ocasionais; coloque-o atrás de nós `queue` e `worker` para que a latência e as falhas dele virem backlog e não erros para o usuário. Cenários: [`notification-system`](../../../../playground/scenarios/index.md#notification-system), [`async-queue`](../../../../playground/scenarios/index.md#async-queue), [`flash-sale`](../../../../playground/scenarios/index.md#flash-sale).
 
 **Produtos reais.**
 

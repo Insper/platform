@@ -4,7 +4,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ## Modelos e motores de armazenamento { #models-and-storage-engines }
 
-**Q1.** A BoxOffice precisa garantir que um assento nunca seja vendido duas vezes, e os analistas vivem inventando perguntas novas sobre os pedidos. Qual escolha de armazenamento serve melhor aos **pedidos e ao inventário de assentos**?
+**Q1.** A BoxOffice precisa garantir que um assento nunca seja vendido duas vezes e os analistas vivem inventando perguntas novas sobre os pedidos. Qual escolha de armazenamento serve melhor aos **pedidos e ao inventário de assentos**?
 
 - A. Um banco wide-column, porque escala as escritas horizontalmente
 - B. Um banco de documentos, embutindo cada ingresso dentro do documento do evento
@@ -21,7 +21,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 **Q2.** Por que um índice B-tree em uma tabela com **um bilhão de linhas** costuma responder a uma busca pontual com só uma ou duas leituras de disco?
 
 - A. Porque B-trees mantêm a tabela inteira em memória
-- B. Porque, com um fan-out de algumas centenas de chaves por página, a árvore tem só cerca de 4 níveis, e os níveis superiores ficam em cache na memória
+- B. Porque, com um fan-out de algumas centenas de chaves por página, a árvore tem só cerca de 4 níveis e os níveis superiores ficam em cache na memória
 - C. Porque B-trees aplicam hash à chave para chegar direto à página no disco
 - D. Porque o PostgreSQL comprime o índice para caber em uma página
 
@@ -35,7 +35,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 **Q3.** Um time está escolhendo um motor de armazenamento para os **registros de leitura nas catracas**: milhões de escritas minúsculas, só de inserção, por hora, lidas de volta por `(evento, portão)` e tempo. Qual afirmação está correta?
 
 - A. Uma B-tree é melhor, porque atualizações no lugar evitam compactação
-- B. Uma LSM-tree serve bem: as escritas são anexações sequenciais em uma memtable e em SSTables, e os Bloom filters mantêm as leituras pontuais baratas; a compactação é o preço
+- B. Uma LSM-tree serve bem: as escritas são anexações sequenciais em uma memtable e em SSTables e os Bloom filters mantêm as leituras pontuais baratas; a compactação é o preço
 - C. Nenhuma das duas: dados só de inserção devem ir para o armazenamento de objetos
 - D. Uma LSM-tree, porque nunca precisa ler mais de um arquivo por consulta
 
@@ -56,13 +56,13 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **C.**
 
-    Uma B-tree composta é ordenada pela primeira coluna, depois pela segunda, e assim por diante (a **regra do prefixo mais à esquerda**). Sem `event_id`, as entradas que casam estão espalhadas pelo índice inteiro — como procurar numa lista telefônica ordenada por sobrenome todo mundo que se chama "Ana".
+    Uma B-tree composta é ordenada pela primeira coluna, depois pela segunda e assim por diante (a **regra do prefixo mais à esquerda**). Sem `event_id`, as entradas que casam estão espalhadas pelo índice inteiro — como procurar numa lista telefônica ordenada por sobrenome todo mundo que se chama "Ana".
 
 ---
 
 ## Transações e isolamento { #transactions-and-isolation }
 
-**Q5.** Duas requisições rodam isto no PostgreSQL (read committed) para o assento `A-12`: `SELECT status …` → `AVAILABLE`, depois `UPDATE seats SET status = 'HELD', held_by = :me WHERE event_id = 42 AND seat_id = 'A-12'`. As duas reportam sucesso. Qual é a anomalia, e qual mudança única a corrige?
+**Q5.** Duas requisições rodam isto no PostgreSQL (read committed) para o assento `A-12`: `SELECT status …` → `AVAILABLE`, depois `UPDATE seats SET status = 'HELD', held_by = :me WHERE event_id = 42 AND seat_id = 'A-12'`. As duas reportam sucesso. Qual é a anomalia e qual mudança única a corrige?
 
 - A. Leitura suja; trocar para read uncommitted
 - B. Leitura fantasma; adicionar um índice em `status`
@@ -72,11 +72,11 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **C — Lost update; torne a atualização condicional.**
 
-    As duas transações decidiram com base em uma leitura desatualizada; o lock de linha só serializou os dois `UPDATE`s, e o segundo sobrescreveu o primeiro. Com a condição dentro do `UPDATE`, o PostgreSQL reavalia o `WHERE` sobre a versão mais recente da linha depois que a primeira transação faz commit: a segunda atualização casa com 0 linhas e a aplicação avisa a esse fã que o assento foi ocupado.
+    As duas transações decidiram com base em uma leitura desatualizada; o lock de linha só serializou os dois `UPDATE`s e o segundo sobrescreveu o primeiro. Com a condição dentro do `UPDATE`, o PostgreSQL reavalia o `WHERE` sobre a versão mais recente da linha depois que a primeira transação faz commit: a segunda atualização casa com 0 linhas e a aplicação avisa a esse fã que o assento foi ocupado.
 
 ---
 
-**Q6.** Sob **repeatable read** no PostgreSQL (snapshot isolation), um cliente com 4 ingressos abre duas abas; cada uma conta os ingressos do cliente (4), verifica `4 + 2 ≤ 6` e reserva dois assentos *diferentes*. As duas fazem commit. O que aconteceu, e o que evita isso?
+**Q6.** Sob **repeatable read** no PostgreSQL (snapshot isolation), um cliente com 4 ingressos abre duas abas; cada uma conta os ingressos do cliente (4), verifica `4 + 2 ≤ 6` e reserva dois assentos *diferentes*. As duas fazem commit. O que aconteceu e o que evita isso?
 
 - A. Nada de errado: repeatable read evita todas as anomalias
 - B. Write skew; usar isolamento serializable (com retentativas) ou travar uma linha compartilhada, como uma linha de limite por cliente, com `SELECT … FOR UPDATE`
@@ -100,7 +100,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — `FOR UPDATE SKIP LOCKED`.**
 
-    Um `FOR UPDATE` simples faz todos os fãs esperarem pelas mesmas primeiras linhas livres; o `SKIP LOCKED` entrega a cada transação linhas que ninguém mais está segurando, então elas avançam em paralelo. Serializable causaria abortos e retentativas sob essa disputa, e um lock de tabela serializa tudo.
+    Um `FOR UPDATE` simples faz todos os fãs esperarem pelas mesmas primeiras linhas livres; o `SKIP LOCKED` entrega a cada transação linhas que ninguém mais está segurando, então elas avançam em paralelo. Serializable causaria abortos e retentativas sob essa disputa e um lock de tabela serializa tudo.
 
 ---
 
@@ -164,7 +164,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ## Particionamento e armazenamentos especializados { #partitioning-and-specialized-stores }
 
-**Q12.** Um cache distribuído com 9 nós usa `node = hash(key) mod N`. Um nó é adicionado. Aproximadamente que fração das chaves passa a ser mapeada para outro nó, e o que o hashing consistente daria?
+**Q12.** Um cache distribuído com 9 nós usa `node = hash(key) mod N`. Um nó é adicionado. Aproximadamente que fração das chaves passa a ser mapeada para outro nó e o que o hashing consistente daria?
 
 - A. Cerca de 10% com mod N; cerca de 90% com hashing consistente
 - B. Cerca de 90% com mod N; cerca de 10% com hashing consistente
@@ -192,7 +192,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q14.** O marketing quer "ingressos vendidos por minuto por cidade nos últimos dois anos" toda manhã. Onde essa consulta deve rodar, e por quê?
+**Q14.** O marketing quer "ingressos vendidos por minuto por cidade nos últimos dois anos" toda manhã. Onde essa consulta deve rodar e por quê?
 
 - A. No primário do order, com um índice em `created_at`
 - B. Em um data warehouse colunar alimentado por CDC/ELT, porque ela varre poucas colunas de muitíssimas linhas e não pode competir com o checkout
@@ -216,4 +216,4 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — Embeddings + busca aproximada de vizinhos mais próximos.**
 
-    A busca lexical (A, C) casa palavras, e os dois textos compartilham poucas. Os embeddings colocam textos de **significado** parecido perto uns dos outros; um índice ANN como o HNSW encontra os mais próximos rapidamente, ao custo de um recall não perfeito. Na prática, busca híbrida (BM25 + vetores) e um reranker costumam funcionar melhor.
+    A busca lexical (A, C) casa palavras e os dois textos compartilham poucas. Os embeddings colocam textos de **significado** parecido perto uns dos outros; um índice ANN como o HNSW encontra os mais próximos rapidamente, ao custo de um recall não perfeito. Na prática, busca híbrida (BM25 + vetores) e um reranker costumam funcionar melhor.

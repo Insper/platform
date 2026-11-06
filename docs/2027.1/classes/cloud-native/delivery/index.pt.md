@@ -1,6 +1,6 @@
-São 09:40 do dia da venda. Um bug no `inventory` faz uma reserva de assento expirar dois minutos antes da hora, e a correção é uma mudança de uma linha. Em um time sem pipeline de entrega, a correção espera: alguém precisa fazer o build, alguém precisa copiar o jar, alguém precisa reiniciar servidores um a um, e ninguém quer fazer isso vinte minutos antes do maior pico de tráfego do ano. Em um time com um bom pipeline, a correção é aceita, construída, varrida, publicada para 5 % do tráfego, **verificada automaticamente contra os SLOs** e promovida — ou revertida — sem que ninguém toque em um servidor.
+São 09:40 do dia da venda. Um bug no `inventory` faz uma reserva de assento expirar dois minutos antes da hora e a correção é uma mudança de uma linha. Em um time sem pipeline de entrega, a correção espera: alguém precisa fazer o build, alguém precisa copiar o jar, alguém precisa reiniciar servidores um a um e ninguém quer fazer isso vinte minutos antes do maior pico de tráfego do ano. Em um time com um bom pipeline, a correção é aceita, construída, varrida, publicada para 5 % do tráfego, **verificada automaticamente contra os SLOs** e promovida — ou revertida — sem que ninguém toque em um servidor.
 
-Esta página constrói esse pipeline em quatro camadas: a infraestrutura é **código**, cada mudança é **integrada e testada continuamente**, o cluster **puxa** seu estado desejado do Git, e cada release é **exposta gradualmente** e julgada por métricas.
+Esta página constrói esse pipeline em quatro camadas: a infraestrutura é **código**, cada mudança é **integrada e testada continuamente**, o cluster **puxa** seu estado desejado do Git e cada release é **exposta gradualmente** e julgada por métricas.
 
 ``` diagram-sim
 flowchart LR
@@ -17,7 +17,7 @@ flowchart LR
 
 ## Infraestrutura como código { #iac }
 
-O ambiente de produção do BoxOffice tem uma VPC, sub-redes, um cluster Kubernetes, um PostgreSQL gerenciado, um Redis gerenciado, um cluster Kafka, buckets, registros DNS e papéis IAM — algumas centenas de recursos. Criados com cliques em um console, eles não podem ser revisados, reproduzidos ou reconstruídos após um desastre, e o staging se afasta silenciosamente da produção. **Infraestrutura como código (IaC)** descreve esses recursos em arquivos versionados que uma ferramenta aplica.
+O ambiente de produção do BoxOffice tem uma VPC, sub-redes, um cluster Kubernetes, um PostgreSQL gerenciado, um Redis gerenciado, um cluster Kafka, buckets, registros DNS e papéis IAM — algumas centenas de recursos. Criados com cliques em um console, eles não podem ser revisados, reproduzidos ou reconstruídos após um desastre e o staging se afasta silenciosamente da produção. **Infraestrutura como código (IaC)** descreve esses recursos em arquivos versionados que uma ferramenta aplica.
 
 | Propriedade | Por que importa para o BoxOffice |
 |---|---|
@@ -164,7 +164,7 @@ Repare no que o pipeline **não** faz: ele nunca executa `kubectl apply` contra 
 
 !!! example "No código do BoxOffice: `CI` e `Deploy` (lab 11)"
 
-    O [Hands-on 11 — CI](../../../hands-on/11/ci/index.md) constrói uma versão menor desse pipeline para um único repositório: um workflow `CI` testa todos os serviços numa matriz, roda um **orçamento de desempenho com k6** contra o `catalog` (veja [Planejamento de capacidade — orçamentos de desempenho](../../performance/capacity-planning/index.md#performance-budgets)) e só então — na `main` — constrói, escaneia, atesta e publica a imagem. Leia a linha `needs:`: nenhuma imagem existe se os testes *e* o orçamento não passaram. O scan bloqueia só **vulnerabilidades críticas que têm correção** (um gate que falha por tudo acaba desligado), e a assinatura usa as atestações de build do GitHub em vez do `cosign`. Um workflow separado, `Deploy`, escreve a nova tag (`sha-…`, não um digest) em `k8s/overlays/gitops` no mesmo repositório — o "repositório de configuração" é uma pasta.
+    O [Hands-on 11 — CI](../../../hands-on/11/ci/index.md) constrói uma versão menor desse pipeline para um único repositório: um workflow `CI` testa todos os serviços numa matriz, roda um **orçamento de desempenho com k6** contra o `catalog` (veja [Planejamento de capacidade — orçamentos de desempenho](../../performance/capacity-planning/index.md#performance-budgets)) e só então — na `main` — constrói, escaneia, atesta e publica a imagem. Leia a linha `needs:`: nenhuma imagem existe se os testes *e* o orçamento não passaram. O scan bloqueia só **vulnerabilidades críticas que têm correção** (um gate que falha por tudo acaba desligado) e a assinatura usa as atestações de build do GitHub em vez do `cosign`. Um workflow separado, `Deploy`, escreve a nova tag (`sha-…`, não um digest) em `k8s/overlays/gitops` no mesmo repositório — o "repositório de configuração" é uma pasta.
 
     ``` { .yaml title=".github/workflows/ci.yaml (image job: order of the jobs, the vulnerability gate, provenance)" }
     --8<-- "docs/2027.1/hands-on/11/code/.github/workflows/ci.yaml:67:70,119:126,142:147"
@@ -255,7 +255,7 @@ Fazer o deploy (colocar código novo nos servidores) e **liberar** (expô-lo aos
 | **Shadow (espelhamento)** | Copia o tráfego real para a nova versão; descarta suas respostas | Não | Até 2× | Nada a reverter | 0 % (cuidado com efeitos colaterais: pagamentos!) |
 | **Feature flags** | Faz deploy do código desligado; ativa por usuário/segmento em tempo de execução | Não | Nenhuma | Desligar a flag | O segmento escolhido |
 
-Rolling updates são o padrão do Kubernetes e bastam para a maioria das mudanças. Para mudanças arriscadas no caminho de compra — `inventory`, `order`, `payment` — o BoxOffice usa **canaries** e, para funcionalidades de produto, **feature flags** (com uma API neutra de fornecedor como a OpenFeature), que desacoplam totalmente *deploy* de *release*: o código vai para produção na terça, e a funcionalidade é ativada para 1 % dos fãs na quinta.
+Rolling updates são o padrão do Kubernetes e bastam para a maioria das mudanças. Para mudanças arriscadas no caminho de compra — `inventory`, `order`, `payment` — o BoxOffice usa **canaries** e, para funcionalidades de produto, **feature flags** (com uma API neutra de fornecedor como a OpenFeature), que desacoplam totalmente *deploy* de *release*: o código vai para produção na terça e a funcionalidade é ativada para 1 % dos fãs na quinta.
 
 !!! warning "O banco de dados não faz rollback"
 
@@ -342,7 +342,7 @@ spec:
 
 ### Quanto tempo um canary precisa rodar? { #how-long-must-a-canary-run }
 
-Um canary a 5 % vê poucas requisições, e erros raros precisam de muitas requisições para aparecer. Antes de escolher a duração das pausas, estime quantas requisições do canary você precisa para distinguir uma regressão real de ruído. A tabela usa o tamanho de amostra padrão por aproximação normal para comparar duas proporções (α unilateral = 5 %, poder de 80 %), com uma taxa de erros de base ilustrativa de 0,1 % e 400 requisições por segundo chegando ao `inventory`:
+Um canary a 5 % vê poucas requisições e erros raros precisam de muitas requisições para aparecer. Antes de escolher a duração das pausas, estime quantas requisições do canary você precisa para distinguir uma regressão real de ruído. A tabela usa o tamanho de amostra padrão por aproximação normal para comparar duas proporções (α unilateral = 5 %, poder de 80 %), com uma taxa de erros de base ilustrativa de 0,1 % e 400 requisições por segundo chegando ao `inventory`:
 
 ```python exec="1"
 from math import sqrt, ceil
@@ -365,11 +365,11 @@ for p1 in (0.010, 0.005, 0.002):
     print(f"| {BASELINE:.1%} → {p1:.1%} errors | {n:,} | {t5:.1f} min | {t25:.1f} min |")
 ```
 
-Regressões grandes aparecem em um ou dois minutos; dobrar uma taxa de erros pequena exige um quarto de hora a 5 %. É por isso que as etapas de um canary são medidas em **minutos, não segundos**, por que a análise compara o canary com a **linha de base estável** rodando ao mesmo tempo (mesmo tráfego, mesmo horário), e por que serviços com pouco tráfego se beneficiam de pausas mais longas ou de tráfego sintético. O SRE workbook do Google discute esses trade-offs no capítulo sobre canarying de releases[^6].
+Regressões grandes aparecem em um ou dois minutos; dobrar uma taxa de erros pequena exige um quarto de hora a 5 %. É por isso que as etapas de um canary são medidas em **minutos, não segundos**, por que a análise compara o canary com a **linha de base estável** rodando ao mesmo tempo (mesmo tráfego, mesmo horário) e por que serviços com pouco tráfego se beneficiam de pausas mais longas ou de tráfego sintético. O SRE workbook do Google discute esses trade-offs no capítulo sobre canarying de releases[^6].
 
 !!! example "BoxOffice: nada de canary durante a venda"
 
-    Mesmo com análise automática, o BoxOffice declara um **congelamento de mudanças** no caminho de compra de 30 minutos antes de uma venda até o fim dela: o tráfego é incomum demais para a linha de base significar algo, e o custo de um rollout ruim é máximo. A correção das 09:40 da introdução, portanto, espera — a menos que o responsável pela venda autorize uma exceção, por um caminho também escrito com antecedência: um canary *expresso* (5 % → 100 % com 5 minutos de análise) às 09:42. Escrever essa regra com antecedência faz parte da engenharia de entrega.
+    Mesmo com análise automática, o BoxOffice declara um **congelamento de mudanças** no caminho de compra de 30 minutos antes de uma venda até o fim dela: o tráfego é incomum demais para a linha de base significar algo e o custo de um rollout ruim é máximo. A correção das 09:40 da introdução, portanto, espera — a menos que o responsável pela venda autorize uma exceção, por um caminho também escrito com antecedência: um canary *expresso* (5 % → 100 % com 5 minutos de análise) às 09:42. Escrever essa regra com antecedência faz parte da engenharia de entrega.
 
 ---
 

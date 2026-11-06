@@ -1,11 +1,11 @@
 
-O BoxOffice sai do laptop e vai para produção na nuvem. Em um mês, quatro histórias chegam à mesa do time. O laptop de um prestador de serviço é roubado, e nele há um arquivo `.env` com a **chave de API do provedor de pagamentos**. O novo **app mobile** precisa de login, e alguém propõe "é só guardar a senha no app". Às 10:00 do dia em que um show de estádio abre as vendas, **bots** pegam 30% das reservas de assento no primeiro minuto e revendem os ingressos pelo triplo do preço. E uma biblioteca vulnerável no serviço `search` permite que um atacante execute código dentro de um pod — de onde, na configuração padrão, todos os outros serviços, o banco de dados e a Internet estão a uma conexão de distância.
+O BoxOffice sai do laptop e vai para produção na nuvem. Em um mês, quatro histórias chegam à mesa do time. O laptop de um prestador de serviço é roubado e nele há um arquivo `.env` com a **chave de API do provedor de pagamentos**. O novo **app mobile** precisa de login e alguém propõe "é só guardar a senha no app". Às 10:00 do dia em que um show de estádio abre as vendas, **bots** pegam 30% das reservas de assento no primeiro minuto e revendem os ingressos pelo triplo do preço. E uma biblioteca vulnerável no serviço `search` permite que um atacante execute código dentro de um pod — de onde, na configuração padrão, todos os outros serviços, o banco de dados e a Internet estão a uma conexão de distância.
 
 Nenhum desses casos é um bug em uma linha de código. São problemas de **projeto**: onde ficam as fronteiras de rede, quem pode falar com quem, como as identidades são provadas, onde os segredos vivem e com que rapidez podem ser revogados. Esta aula trata segurança e redes do jeito que o resto do curso trata escalabilidade — como **decisões de arquitetura com trade-offs**, tomadas de propósito, desenhadas no diagrama e defendidas em uma entrevista.
 
 !!! quote "A história até aqui"
 
-    Capítulo 12 da [história da disciplina](../../index.md#story). O gateway já confere o token de cada fã uma única vez ([aula 4 — Identidade](../edge/identity/index.md), construída no [lab 4](../../hands-on/4/index.md)), e a [aula 11](../cloud-native/index.md) trocou o Compose por Kubernetes e um pipeline de entrega. Agora muitos serviços, construídos por muitas pessoas e por um pipeline, dividem uma plataforma — e as quatro histórias acima mostram o custo dessa confiança: bots na fila da abertura de vendas, uma chave vazada, um pod que alcança tudo, bibliotecas que ninguém revisou. **Esta aula** responde: onde ficam as fronteiras de confiança, quem pode falar com quem, como segredos são limitados e revogados, e como sabemos o que entregamos?
+    Capítulo 12 da [história da disciplina](../../index.md#story). O gateway já confere o token de cada fã uma única vez ([aula 4 — Identidade](../edge/identity/index.md), construída no [lab 4](../../hands-on/4/index.md)) e a [aula 11](../cloud-native/index.md) trocou o Compose por Kubernetes e um pipeline de entrega. Agora muitos serviços, construídos por muitas pessoas e por um pipeline, dividem uma plataforma — e as quatro histórias acima mostram o custo dessa confiança: bots na fila da abertura de vendas, uma chave vazada, um pod que alcança tudo, bibliotecas que ninguém revisou. **Esta aula** responde: onde ficam as fronteiras de confiança, quem pode falar com quem, como segredos são limitados e revogados, e como sabemos o que entregamos?
 
 !!! abstract "Objetivos de aprendizagem"
 
@@ -45,7 +45,7 @@ A alternativa é fazer as perguntas de segurança **enquanto se desenha a arquit
 
 | Ideia | Pergunta que responde | Onde na aula |
 |---|---|---|
-| **Modelagem de ameaças** | O que pode dar errado, e onde? | esta página |
+| **Modelagem de ameaças** | O que pode dar errado e onde? | esta página |
 | **Defesa em profundidade** | Se um controle falhar, o que segura o atacante em seguida? | esta página, todas as subpáginas |
 | **Menor privilégio / Zero Trust** | Qual é o *mínimo* de que cada usuário, serviço e caminho de rede precisa? | [Zero Trust](zero-trust/index.md), [Service mesh](service-mesh/index.md) |
 
@@ -101,7 +101,7 @@ flowchart LR
     M -->|"login"| A
 ```
 
-Cinco fronteiras de confiança são atravessadas em um único checkout: Internet → borda, borda → cluster, serviço → banco, cluster → provedor e provedor → cluster (o webhook). Cada seta é uma pergunta: *quem está chamando, como sabemos, e o que ele pode fazer?*
+Cinco fronteiras de confiança são atravessadas em um único checkout: Internet → borda, borda → cluster, serviço → banco, cluster → provedor e provedor → cluster (o webhook). Cada seta é uma pergunta: *quem está chamando, como sabemos e o que ele pode fazer?*
 
 ### Passo 2 — STRIDE { #step-2-stride }
 
@@ -160,7 +160,7 @@ flowchart LR
 | 6 | Dados e segredos | chaves e senhas vazadas | gerenciador de segredos, rotação, criptografia em repouso (KMS) | [Zero Trust](zero-trust/index.md#secrets-management) |
 | 7 | Cadeia de suprimentos | dependência ou imagem maliciosa | SBOM, varredura de vulnerabilidades, imagens assinadas, proveniência | [Zero Trust](zero-trust/index.md#supply-chain-security) |
 
-As camadas são **independentes**: o security group do banco não se importa se o token era válido, e a política do mesh não se importa se o WAF foi contornado. Essa independência é o ponto.
+As camadas são **independentes**: o security group do banco não se importa se o token era válido e a política do mesh não se importa se o WAF foi contornado. Essa independência é o ponto.
 
 ---
 
@@ -184,7 +184,7 @@ A **OWASP** (Open Worldwide Application Security Project) publica uma lista dos 
 !!! warning "BOLA é o número um por um motivo"
     O gateway consegue dizer "este é o usuário 42". Só o serviço `order` sabe se o pedido 1042 pertence ao usuário 42. A autorização por objeto **não pode** ser centralizada na borda; ela vive no código que é dono dos dados. Teste explicitamente: "o usuário A pede o pedido do usuário B → `404` ou `403`".
 
-**Experimente.** Abra o cenário `flash-sale` e aperte **Run**: observe como a rajada da abertura da venda (t = 60 s, as nossas 10:00) satura o `app` e depois o `inventory-db`. Agora selecione `users`, ajuste o *tráfego de bots* para 0,45 — os bots passam a ser cerca de 30% das requisições (API6) — e rode de novo. Qual componente você adicionaria primeiro, e onde — WAF na borda, rate limiting no gateway ou a fila da sala de espera? Use o [playground completo](../../../playground/index.md) (↗) para adicionar os componentes e comparar o p99 e a taxa de erros (as metas contam só usuários reais).
+**Experimente.** Abra o cenário `flash-sale` e aperte **Run**: observe como a rajada da abertura da venda (t = 60 s, as nossas 10:00) satura o `app` e depois o `inventory-db`. Agora selecione `users`, ajuste o *tráfego de bots* para 0,45 — os bots passam a ser cerca de 30% das requisições (API6) — e rode de novo. Qual componente você adicionaria primeiro e onde — WAF na borda, rate limiting no gateway ou a fila da sala de espera? Use o [playground completo](../../../playground/index.md) (↗) para adicionar os componentes e comparar o p99 e a taxa de erros (as metas contam só usuários reais).
 
 <div class="sdp" data-scenario="flash-sale" data-mode="compact" data-height="520"></div>
 
@@ -215,9 +215,9 @@ flowchart LR
 | Componente da paleta | Pergunta que responde | Conceitos | Ensinado em | Cenários |
 |---|---|---|---|---|
 | [`waf`](../../reference/components/edge/index.md#waf) | Esta requisição é um ataque ou um bot? | OWASP API4/API6, regras contra bots, rate limits, sala de espera | [OWASP API Top 10](#owasp-api-top-10), [Borda — segurança](../edge/index.md#edge-security) | `flash-sale`, `rate-limiter` |
-| [`auth`](../../reference/components/compute/index.md#auth) | *Quem* é o usuário, e qual cliente pede? | OAuth 2.1, Authorization Code + PKCE, OIDC, Client Credentials, Token Exchange | [Identidade](../edge/identity/index.md#oauth) | `flash-sale` (estenda-o), `blank` |
+| [`auth`](../../reference/components/compute/index.md#auth) | *Quem* é o usuário e qual cliente pede? | OAuth 2.1, Authorization Code + PKCE, OIDC, Client Credentials, Token Exchange | [Identidade](../edge/identity/index.md#oauth) | `flash-sale` (estenda-o), `blank` |
 | [`apigw`](../../reference/components/edge/index.md#apigw) | A requisição traz um token válido? | validação de JWT (JWKS, `iss`, `aud`, `exp`), remoção de headers | [Identidade — gateway](../edge/identity/index.md#gateway-validation) | `rate-limiter`, `flash-sale` |
-| [`vpc`](../../reference/components/network/index.md#vpc) · [`subnet`](../../reference/components/network/index.md#subnet) | *Onde* vive cada componente, e o que o alcança? | plano de CIDR, sub-redes públicas/privadas/isoladas, tabelas de rotas, SGs/NACLs | [Redes na nuvem](cloud-network/index.md#subnets) | `multi-region`, `scale-out` |
+| [`vpc`](../../reference/components/network/index.md#vpc) · [`subnet`](../../reference/components/network/index.md#subnet) | *Onde* vive cada componente e o que o alcança? | plano de CIDR, sub-redes públicas/privadas/isoladas, tabelas de rotas, SGs/NACLs | [Redes na nuvem](cloud-network/index.md#subnets) | `multi-region`, `scale-out` |
 | [`nat`](../../reference/components/network/index.md#nat) | Como os serviços privados chamam *para fora*? | NAT por AZ, IP de saída estável, VPC endpoints | [Redes na nuvem](cloud-network/index.md#subnets) | `payment-system` |
 | [`vpn`](../../reference/components/network/index.md#vpn) | Como outras redes e pessoas *entram*? | peering, transit, PrivateLink, VPN, session manager | [Redes na nuvem](cloud-network/index.md#private-connectivity) | `multi-region` |
 | [`mesh`](../../reference/components/network/index.md#mesh) | *Qual serviço* pode chamar qual? | mTLS, SPIFFE, política de autorização, política de tráfego, NetworkPolicy | [Service mesh](service-mesh/index.md) | `cascading-failure`, `retry-storm` |
@@ -263,7 +263,7 @@ flowchart LR
 
 ## O que quebra em seguida { #what-breaks-next }
 
-Todo chamador desta aula é uma pessoa ou um serviço que nós escrevemos: o fã com um token, o `order` com uma identidade de workload, o pipeline com uma proveniência assinada. O próximo chamador não é nenhum dos dois. Os fãs querem pedir "dois lugares abaixo de R$ 300 no sábado, reserve", e um assistente responde chamando `catalog` e `inventory` por eles: uma dependência lenta, cara e não determinística que pode **agir** sobre o estoque, em nome do fã, e que pode ser convencida a fazer a coisa errada pelo texto que lê. Projetar um sistema em torno de um modelo — e decidir o que ele pode tocar — é a [aula 13 — Sistemas de IA](../ai-systems/index.md).
+Todo chamador desta aula é uma pessoa ou um serviço que nós escrevemos: o fã com um token, o `order` com uma identidade de workload, o pipeline com uma proveniência assinada. O próximo chamador não é nenhum dos dois. Os fãs querem pedir "dois lugares abaixo de R$ 300 no sábado, reserve" e um assistente responde chamando `catalog` e `inventory` por eles: uma dependência lenta, cara e não determinística que pode **agir** sobre o estoque, em nome do fã, e que pode ser convencida a fazer a coisa errada pelo texto que lê. Projetar um sistema em torno de um modelo — e decidir o que ele pode tocar — é a [aula 13 — Sistemas de IA](../ai-systems/index.md).
 
 ---
 

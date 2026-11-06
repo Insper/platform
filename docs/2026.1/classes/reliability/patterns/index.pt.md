@@ -12,7 +12,7 @@ flowchart LR
     classDef ok fill:#6c6,color:#fff
 ```
 
-Os padrões abaixo são complementares — sistemas em produção os usam combinados, e não isoladamente.
+Os padrões abaixo são complementares — sistemas em produção os usam combinados e não isoladamente.
 
 ---
 
@@ -90,7 +90,7 @@ $$
 \text{wait}_n = \min\left(c \cdot 2^n,\ \text{max\_wait}\right) + \text{random}(0,\ \text{jitter\_cap})
 $$
 
-A AWS recomenda o *full jitter* (sortear a espera inteira, e não apenas uma fração dela)[^2] como a estratégia mais eficaz para grandes populações de clientes.
+A AWS recomenda o *full jitter* (sortear a espera inteira e não apenas uma fração dela)[^2] como a estratégia mais eficaz para grandes populações de clientes.
 
 !!! danger "Não faça retry de operações não idempotentes"
     Fazer retry de um `POST /orders` que cria um novo pedido pode gerar duplicatas. Só faça retry de operações **idempotentes** (`GET`, `PUT`, `DELETE`) ou que tenham sido explicitamente projetadas para serem seguras a retries (chaves de idempotência, tokens de deduplicação).
@@ -213,7 +213,7 @@ O Spring Boot Actuator expõe os dois, prontos para uso, em `/actuator/health/li
 
 ## Defesa em profundidade
 
-Esses padrões são combinados em camadas, e não escolhidos isoladamente. Uma cadeia de chamadas de nível de produção combina todos eles:
+Esses padrões são combinados em camadas e não escolhidos isoladamente. Uma cadeia de chamadas de nível de produção combina todos eles:
 
 ``` mermaid
 flowchart LR

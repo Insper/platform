@@ -40,7 +40,7 @@ O que você precisa saber para encerrar isso em cinco minutos?
 * Demanda: quantas tentativas de reserva **por segundo** às 10:00?
 * Custo de uma reserva: por quanto tempo ela mantém o banco **ocupado**?
 * Ponto de operação seguro: quão **cheio** o banco pode rodar antes de a latência explodir?
-* Experiência: o que os fãs **azarados** veem, e com que frequência fica **fora do ar**?
+* Experiência: o que os fãs **azarados** veem e com que frequência fica **fora do ar**?
 
 ---
 
@@ -60,7 +60,7 @@ Decisões mudam em **ordens de grandeza** — você precisa saber de que lado de
 
 ## O método
 
-1. **Dê nome à decisão** — "precisamos particionar?", e não "quantos dados?".
+1. **Dê nome à decisão** — "precisamos particionar?" e não "quantos dados?".
 2. **Declare as premissas** em voz alta — números redondos.
 3. **Potências de dez** — mantenha um algarismo significativo.
 4. **Confira a sanidade** contra um número que você conhece.

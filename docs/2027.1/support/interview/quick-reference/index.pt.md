@@ -211,7 +211,7 @@ CAP: durante uma **partição**, escolha entre consistência e disponibilidade. 
 | As consultas são variadas ou ad hoc; joins importam | O esquema varia por item ou as linhas são muito largas |
 | Os dados cabem em poucos nós (escala vertical + réplicas vão longe) | O volume de dados ou de escrita passa de um primário |
 | Correção vale mais que vazão bruta (pedidos, assentos) | Disponibilidade entre regiões vale mais que consistência forte |
-| Você ainda não tem certeza (o padrão mais seguro) | Você conhece bem os padrões de acesso, e eles são poucos |
+| Você ainda não tem certeza (o padrão mais seguro) | Você conhece bem os padrões de acesso e eles são poucos |
 
 NewSQL (Spanner, CockroachDB) oferece SQL e transações com escala horizontal, a um custo em latência e dinheiro. [Aula 6 · Modelos de dados](../../../classes/databases/models/index.md)
 
@@ -241,7 +241,7 @@ NewSQL (Spanner, CockroachDB) oferece SQL e transações com escala horizontal, 
 | "A parte difícil aqui é…, então eu gostaria de aprofundar ali." | Aprofundar a página de login |
 | "O que acontece se esta chamada der timeout? Ela precisa ser idempotente." | "A gente só tenta de novo." |
 | "Isto é um ponto único de falha; eu acrescentaria…" | "Não vai falhar." |
-| "Eu mediria o p99 e a taxa de erros, e faria teste de carga até o joelho." | "Deve ser rápido o bastante." |
+| "Eu mediria o p99 e a taxa de erros e faria teste de carga até o joelho." | "Deve ser rápido o bastante." |
 | "Bom ponto — deixa eu rever isso." | Defender uma falha que o entrevistador encontrou |
 
 [^1]: Jeff Dean, "Numbers Everyone Should Know" (palestras, 2009–2010); a tabela mais citada está em <https://gist.github.com/jboner/2841832>. As idas e voltas entre regiões dependem das rotas: meça nos seus provedores.

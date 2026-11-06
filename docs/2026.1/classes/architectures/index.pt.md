@@ -64,7 +64,7 @@ flowchart LR
 | Relação | Incorpora as ideias da Hexagonal | A Clean Architecture é um superconjunto |
 
 !!! tip "Qual usar?"
-    As duas arquiteturas são complementares e costumam ser usadas juntas. Pense na **Hexagonal** como a definição de *como* funciona a fronteira da aplicação (ports & adapters), e na **Clean Architecture** como a definição do *que* fica dentro dessas fronteiras (camadas com políticas de dependência explícitas). A maioria dos microsserviços modernos combina as duas.
+    As duas arquiteturas são complementares e costumam ser usadas juntas. Pense na **Hexagonal** como a definição de *como* funciona a fronteira da aplicação (ports & adapters) e na **Clean Architecture** como a definição do *que* fica dentro dessas fronteiras (camadas com políticas de dependência explícitas). A maioria dos microsserviços modernos combina as duas.
 
 ---
 

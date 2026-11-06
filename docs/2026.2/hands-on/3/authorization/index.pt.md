@@ -82,7 +82,7 @@ Dependências a adicionar:
 
 !!! note "Stack reativa"
 
-    O Spring Cloud Gateway roda sobre o **Project Reactor** (WebFlux), e não sobre a stack tradicional de servlets. É por isso que o `AuthorizationFilter` devolve `Mono<Void>` em vez de `void`, e que o cliente HTTP dentro dele usa `WebClient` em vez de `RestTemplate`.
+    O Spring Cloud Gateway roda sobre o **Project Reactor** (WebFlux) e não sobre a stack tradicional de servlets. É por isso que o `AuthorizationFilter` devolve `Mono<Void>` em vez de `void` e que o cliente HTTP dentro dele usa `WebClient` em vez de `RestTemplate`.
 
 A estrutura resultante é:
 
@@ -452,7 +452,7 @@ routes:
 
 !!! note "Token inválido → `401`"
 
-    O `retrieve()` transforma uma resposta de erro do `/auth/solve` em exceção, e uma exceção não tratada no Gateway vira `500`. O `onStatus(...)` converte o `401` de um token inválido ou expirado em `401` no Gateway, para o front end saber que precisa fazer login de novo.
+    O `retrieve()` transforma uma resposta de erro do `/auth/solve` em exceção e uma exceção não tratada no Gateway vira `500`. O `onStatus(...)` converte o `401` de um token inválido ou expirado em `401` no Gateway, para o front end saber que precisa fazer login de novo.
 
 ## 4. Atualizando o Docker Compose
 

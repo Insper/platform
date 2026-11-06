@@ -71,7 +71,7 @@ Normalmente há dois timeouts em uma chamada HTTP: o **connect timeout** (quanto
     Se o serviço de produtos levar mais de um segundo, o serviço de pedidos recebe uma exceção em vez de uma thread bloqueada e pode decidir o que fazer em seguida.
 
 !!! warning "Timeouts são só o primeiro passo"
-    Sozinho, um timeout apenas converte um travamento em um erro rápido. Combine-o com uma política de retry (abaixo) para falhas transitórias, e com um circuit breaker e um fallback para indisponibilidades mais longas.
+    Sozinho, um timeout apenas converte um travamento em um erro rápido. Combine-o com uma política de retry (abaixo) para falhas transitórias e com um circuit breaker e um fallback para indisponibilidades mais longas.
 
 ---
 

@@ -4,13 +4,13 @@ Esta aula é sobre a outra forma de ligar os serviços: **mensagens**. Em vez de
 
 !!! quote "A história até aqui"
 
-    Capítulo 8 da [história da disciplina](../../index.md#story). A borda espalha os fãs por réplicas sem estado ([aula 4](../edge/index.md), [aula 5](../compute/index.md)), o PostgreSQL vende cada assento uma vez só ([aula 6](../databases/index.md)) e o Redis responde as páginas de evento ([aula 7](../caching/index.md)). O caminho de **escrita** ainda é uma única cadeia síncrona, e a multidão ainda é 30 vezes grande demais: chegam cerca de 33.000 reservas/s para as ~1.100 que um banco aguenta. **Esta aula** responde: o que pode sair da requisição e esperar numa fila, como nunca perder nem duplicar um evento no caminho, e como dar a 2 milhões de fãs uma fila justa?
+    Capítulo 8 da [história da disciplina](../../index.md#story). A borda espalha os fãs por réplicas sem estado ([aula 4](../edge/index.md), [aula 5](../compute/index.md)), o PostgreSQL vende cada assento uma vez só ([aula 6](../databases/index.md)) e o Redis responde as páginas de evento ([aula 7](../caching/index.md)). O caminho de **escrita** ainda é uma única cadeia síncrona e a multidão ainda é 30 vezes grande demais: chegam cerca de 33.000 reservas/s para as ~1.100 que um banco aguenta. **Esta aula** responde: o que pode sair da requisição e esperar numa fila, como nunca perder nem duplicar um evento no caminho e como dar a 2 milhões de fãs uma fila justa?
 
 !!! abstract "Objetivos de aprendizagem"
 
     Ao final desta aula você deve ser capaz de:
 
-    - **Decidir** se uma interação entre dois serviços do BoxOffice deve ser uma chamada síncrona, um comando enfileirado ou um evento publicado, e **justificar** a escolha com argumentos de latência, disponibilidade e acoplamento.
+    - **Decidir** se uma interação entre dois serviços do BoxOffice deve ser uma chamada síncrona, um comando enfileirado ou um evento publicado e **justificar** a escolha com argumentos de latência, disponibilidade e acoplamento.
     - **Comparar** filas de mensagens, tópicos pub/sub e logs de eventos, e **escolher** o componente certo da paleta (`queue`, `pubsub`, `stream`, `kafka`) para um requisito.
     - **Explicar** como o Kafka armazena e entrega dados — tópicos, partições, offsets, consumer groups, replicação, retenção e compactação — e **dimensionar** o número de partições para um throughput-alvo.
     - **Estimar** backlog, consumer lag e tempo de escoamento sob um pico de tráfego, e **projetar** backpressure para uma fila.
@@ -42,7 +42,7 @@ Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** a
 
 Em uma interação **síncrona**, quem chama envia uma requisição e **espera** a resposta antes de continuar — uma chamada HTTP ou gRPC. Em uma interação **assíncrona**, quem chama entrega uma mensagem a um intermediário (um **broker**) e continua imediatamente; o receptor processa a mensagem depois, possivelmente muito depois, possivelmente em outro continente.
 
-Compare as duas versões da compra no BoxOffice. O usuário clica em "Comprar"; o serviço `order` precisa criar o pedido, e outros cinco serviços precisam ficar sabendo dele.
+Compare as duas versões da compra no BoxOffice. O usuário clica em "Comprar"; o serviço `order` precisa criar o pedido e outros cinco serviços precisam ficar sabendo dele.
 
 === "Cadeia síncrona"
 
@@ -64,7 +64,7 @@ Compare as duas versões da compra no BoxOffice. O usuário clica em "Comprar"; 
         O-->>-U: 201 Created (depois de todos eles)
     ```
 
-    O tempo de resposta é a **soma** de todas as chamadas, e a compra falha se **qualquer** uma delas falhar.
+    O tempo de resposta é a **soma** de todas as chamadas e a compra falha se **qualquer** uma delas falhar.
 
 === "Eventos assíncronos"
 
@@ -116,7 +116,7 @@ A diferença não é só velocidade. Ela aparece em três números que você já
 
 ??? question "Pense antes: a reserva de lugares também deveria ser assíncrona?"
 
-    Não. Quando o fã clica em um lugar, ele precisa saber **agora** se o lugar é dele. Uma reserva é uma pergunta cuja resposta quem chama precisa para continuar, e ela precisa ser fortemente consistente (nada de venda duplicada). Ela continua sendo uma chamada síncrona ao `inventory` (veja [Transações](../databases/transactions/index.md)). Assincronia é para trabalho cujo resultado quem chama **não** precisa para continuar: notificações, atualização da busca, analytics, notas fiscais.
+    Não. Quando o fã clica em um lugar, ele precisa saber **agora** se o lugar é dele. Uma reserva é uma pergunta cuja resposta quem chama precisa para continuar e ela precisa ser fortemente consistente (nada de venda duplicada). Ela continua sendo uma chamada síncrona ao `inventory` (veja [Transações](../databases/transactions/index.md)). Assincronia é para trabalho cujo resultado quem chama **não** precisa para continuar: notificações, atualização da busca, analytics, notas fiscais.
 
     A regra prática: **se quem chama precisa da resposta para continuar, chame; se só precisa que o trabalho aconteça em algum momento, envie uma mensagem.**
 
@@ -127,7 +127,7 @@ A diferença não é só velocidade. Ela aparece em três números que você já
 Um **message broker** é um servidor que recebe mensagens de **produtores**, as armazena de forma durável e as entrega a **consumidores**[^1]. Colocar um broker entre dois serviços traz quatro propriedades que uma chamada direta não traz:
 
 1. **Desacoplamento temporal.** Produtor e consumidor não precisam estar no ar ao mesmo tempo. Se o `notification` está sendo reimplantado, os eventos `OrderConfirmed` esperam no broker.
-2. **Nivelamento de carga.** O broker é um buffer: produtores podem escrever mais rápido do que os consumidores leem por um tempo, e o backlog escoa depois. Um pico vira uma fila em vez de uma indisponibilidade.
+2. **Nivelamento de carga.** O broker é um buffer: produtores podem escrever mais rápido do que os consumidores leem por um tempo e o backlog escoa depois. Um pico vira uma fila em vez de uma indisponibilidade.
 3. **Fan-out.** Um evento publicado pode ser entregue a muitos consumidores independentes. Adicionar um novo consumidor (detecção de fraude, programa de fidelidade) não mexe no produtor.
 4. **Escala independente e isolamento de falhas.** Cada consumidor escala com a própria carga e falha sozinho. Um pipeline de analytics lento não atrasa os e-mails.
 
@@ -272,7 +272,7 @@ O [System Design Playground](../../../playground/index.md) tem quatro componente
 A pergunta decisiva é o que acontece com uma mensagem **depois que ela é lida**:
 
 - Em uma **fila**, ler é *tirar*: a mensagem some quando confirmada. Ótimo para distribuir trabalho.
-- Em um **log**, ler é *olhar*: a mensagem fica, e cada leitor guarda um marcador. Ótimo para muitos leitores independentes, replay e histórico.
+- Em um **log**, ler é *olhar*: a mensagem fica e cada leitor guarda um marcador. Ótimo para muitos leitores independentes, replay e histórico.
 
 ``` diagram
 flowchart TD
@@ -300,7 +300,7 @@ flowchart TD
 
 ## O mapa de conceitos de mensageria { #concept-map }
 
-Toda mensagem percorre o mesmo caminho: um produtor a entrega a um dos quatro componentes de mensageria, e um consumidor a processa depois. O mapa liga cada **componente da paleta** (verde) aos **conceitos** desta aula (azul) e às aulas que os continuam:
+Toda mensagem percorre o mesmo caminho: um produtor a entrega a um dos quatro componentes de mensageria e um consumidor a processa depois. O mapa liga cada **componente da paleta** (verde) aos **conceitos** desta aula (azul) e às aulas que os continuam:
 
 ``` diagram
 flowchart LR
@@ -325,7 +325,7 @@ flowchart LR
 | Componente da paleta | Pergunta que responde | Conceitos | Ensinado em | Cenários |
 |---|---|---|---|---|
 | [`app`](../../reference/components/compute/index.md#app) | Chamar e esperar, ou enviar uma mensagem? | síncrono vs assíncrono, disponibilidade de uma cadeia, consistência eventual, comandos vs eventos | [esta visão geral](#sync-vs-async) | `async-queue` |
-| [`queue`](../../reference/components/messaging/index.md#queue) | Quem faz este *trabalho*, e em que taxa? | consumidores concorrentes, ack e visibility timeout, backpressure, sala de espera | [Filas e pub/sub](queues-pubsub/index.md), [a sala de espera](queues-pubsub/index.md#the-flash-sale-waiting-room) | `async-queue`, `flash-sale` |
+| [`queue`](../../reference/components/messaging/index.md#queue) | Quem faz este *trabalho* e em que taxa? | consumidores concorrentes, ack e visibility timeout, backpressure, sala de espera | [Filas e pub/sub](queues-pubsub/index.md), [a sala de espera](queues-pubsub/index.md#the-flash-sale-waiting-room) | `async-queue`, `flash-sale` |
 | [`pubsub`](../../reference/components/messaging/index.md#pubsub) | Como *cada* serviço interessado recebe a sua cópia? | tópico, assinaturas, push/pull, filtros, durável vs efêmero | [Filas e pub/sub](queues-pubsub/index.md#pubsub) | `notification-system`, `chat` |
 | [`stream`](../../reference/components/messaging/index.md#stream) · [`kafka`](../../reference/components/messaging/index.md#kafka) | Quem precisa de *histórico*, replay e ordem por chave? | log, partições, chaves, consumer groups, lag, replicação, retenção, compactação | [Kafka e logs de eventos](kafka/index.md) | `event-fanout` |
 | [`worker`](../../reference/components/compute/index.md#worker) · [`notifications`](../../reference/components/compute/index.md#notifications) · [`search`](../../reference/components/compute/index.md#search) · [`analytics`](../../reference/components/compute/index.md#analytics) | E se uma mensagem chegar *duas vezes*, atrasada, fora de ordem ou quebrada? | pelo menos uma vez, consumidor idempotente, atualizações guardadas por versão, DLQ, evolução de schema | [Semântica de entrega](semantics/index.md) | `notification-system`, `payment-system` |
@@ -361,7 +361,7 @@ flowchart LR
 
 ## O que quebra em seguida { #what-breaks-next }
 
-O e-mail saiu da requisição: no lab 7, uma falha no e-mail não derruba mais nenhum pedido, e a sala de espera só deixa entrar o que o `inventory` consegue atender. O preço é a visibilidade. Uma compra agora é uma requisição, uma linha no banco, um relay do outbox, um registro no Kafka e um consumidor, em quatro processos e em quatro momentos diferentes: quando um fã diz "paguei e não recebi o e-mail", ninguém consegue dizer onde o pedido parou. E quando o provedor de pagamento fica lento, as médias nos dashboards continuam verdes enquanto os fãs falham no checkout. Seguir um pedido entre serviços, e medir o que os fãs de fato sentem, é a [aula 9 — Observabilidade](../observability/index.md).
+O e-mail saiu da requisição: no lab 7, uma falha no e-mail não derruba mais nenhum pedido e a sala de espera só deixa entrar o que o `inventory` consegue atender. O preço é a visibilidade. Uma compra agora é uma requisição, uma linha no banco, um relay do outbox, um registro no Kafka e um consumidor, em quatro processos e em quatro momentos diferentes: quando um fã diz "paguei e não recebi o e-mail", ninguém consegue dizer onde o pedido parou. E quando o provedor de pagamento fica lento, as médias nos dashboards continuam verdes enquanto os fãs falham no checkout. Seguir um pedido entre serviços e medir o que os fãs de fato sentem é a [aula 9 — Observabilidade](../observability/index.md).
 
 ---
 

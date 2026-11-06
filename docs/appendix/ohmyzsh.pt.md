@@ -33,7 +33,7 @@ O `chsh` troca o seu shell de login; a mudança vale a partir do próximo termin
 | `zsh-syntax-highlighting` | Colore a linha de comando enquanto você digita: um comando que não existe fica vermelho antes de você apertar Enter. |
 | `fzf` (incluído, precisa do programa `fzf`) | Busca aproximada (fuzzy): **Ctrl+R** busca no histórico, **Ctrl+T** insere o caminho de um arquivo, **Alt+C** entra numa pasta. |
 
-O `git` e o `fzf` vêm com o Oh My Zsh; os outros dois, e o próprio programa `fzf`, são baixados uma vez:
+O `git` e o `fzf` vêm com o Oh My Zsh; os outros dois e o próprio programa `fzf` são baixados uma vez:
 
 ``` shell
 git clone https://github.com/zsh-users/zsh-syntax-highlighting ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting

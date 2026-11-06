@@ -29,7 +29,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — Nenhum token de autenticação válido.**
 
-    `401` significa "você não está autenticado" — o servidor não sabe quem você é. `403 Forbidden` significa "eu sei quem você é, mas você não tem permissão para fazer isso". Confundir os dois é um erro comum: um JWT ausente deve retornar 401, e não 403.
+    `401` significa "você não está autenticado" — o servidor não sabe quem você é. `403 Forbidden` significa "eu sei quem você é, mas você não tem permissão para fazer isso". Confundir os dois é um erro comum: um JWT ausente deve retornar 401 e não 403.
 
 ---
 
@@ -105,7 +105,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q8.** Onde o Swagger UI deve ser **desabilitado**, e por quê?
+**Q8.** Onde o Swagger UI deve ser **desabilitado** e por quê?
 
 - A. Em desenvolvimento — os desenvolvedores devem usar `curl` em vez dele
 - B. Em homologação — o ambiente de homologação precisa espelhar exatamente a produção
@@ -143,4 +143,4 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **C — `SecurityScheme` do tipo HTTP/bearer + botão Authorize.**
 
-    Adicionar o esquema de segurança ao bean `OpenAPI` faz o springdoc renderizar um botão **Authorize** no Swagger UI. O usuário cola um JWT ali, e todas as requisições seguintes incluem `Authorization: Bearer <token>`. Sem essa configuração, o Swagger UI envia requisições não autenticadas a todos os endpoints protegidos.
+    Adicionar o esquema de segurança ao bean `OpenAPI` faz o springdoc renderizar um botão **Authorize** no Swagger UI. O usuário cola um JWT ali e todas as requisições seguintes incluem `Authorization: Bearer <token>`. Sem essa configuração, o Swagger UI envia requisições não autenticadas a todos os endpoints protegidos.

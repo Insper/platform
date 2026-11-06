@@ -316,7 +316,7 @@ UPDATE seat
 
 <div class="ok">
 
-Diga os sete passos no começo: o entrevistador vê um plano, e você ganha uma lista de verificação para quando o nervosismo bater.
+Diga os sete passos no começo: o entrevistador vê um plano e você ganha uma lista de verificação para quando o nervosismo bater.
 
 </div>
 
@@ -328,7 +328,7 @@ Diga os sete passos no começo: o entrevistador vê um plano, e você ganha uma 
 
 | Componente | Pergunta que responde | Conceitos-chave |
 |---|---|---|
-| `client` `mobile` | *quem* usa, e para quê? | atores, requisitos funcionais |
+| `client` `mobile` | *quem* usa e para quê? | atores, requisitos funcionais |
 | `lb` `app` `healthcheck` | como um crash deixa de ser indisponibilidade? | réplicas stateless, escalar horizontalmente |
 | `sql` | onde mora a verdade? | réplicas, atraso, consistência forte para assentos |
 | `cache` `cdn` `objstore` | como parar de enviar os mesmos bytes? | taxa de acerto, TTL, arquivos versionados |

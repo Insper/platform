@@ -19,7 +19,7 @@ Uma entrevista de design mostra como você raciocina sobre um sistema hipotétic
 Responda em **dois minutos ou menos**, com esta estrutura:
 
 - **S — Situação**: o contexto em uma ou duas frases. Qual projeto, qual sistema, que escala.
-- **T — Tarefa**: o que *você* precisava alcançar, e o que tornava isso difícil.
+- **T — Tarefa**: o que *você* precisava alcançar e o que tornava isso difícil.
 - **A — Ação**: o que você fez, com o raciocínio e as alternativas que descartou. É a parte mais longa.
 - **R — Resultado**: o que aconteceu, com um número se possível.
 - **L — Lição** (*learning*): o que você faria diferente, ou o que agora faz por padrão.
@@ -57,7 +57,7 @@ Você já tem a matéria-prima. Escreva uma história de cada uma destas ativida
 !!! example "Uma resposta completa: pergunta 3, de um projeto BoxOffice"
     **Situação.** "Na disciplina de Arquitetura de Sistemas, meu time de três pessoas construiu uma plataforma de ingressos com um catálogo, um serviço de inventário para reservas de assentos e um serviço de pedidos, no Kubernetes."
 
-    **Tarefa.** "Nossa meta era atender 2.000 requisições por segundo na página do evento com p99 abaixo de 300 ms. No primeiro teste de carga com k6, o p99 estava em 1,4 segundo com só 600 requisições por segundo, e eu era o responsável pelo serviço de catálogo."
+    **Tarefa.** "Nossa meta era atender 2.000 requisições por segundo na página do evento com p99 abaixo de 300 ms. No primeiro teste de carga com k6, o p99 estava em 1,4 segundo com só 600 requisições por segundo e eu era o responsável pelo serviço de catálogo."
 
     **Ação.** "Eu não queria chutar, então olhei os traces primeiro: 85% do tempo estava no banco, a mesma consulta dos detalhes do evento, umas 40 vezes por segundo para o mesmo evento. Considerei réplicas de leitura e um cache. Réplicas acrescentariam capacidade, mas manteriam a consulta de 20 ms em toda requisição; um Redis com cache-aside eliminaria a maioria das consultas, ao custo de dados desatualizados. Como os detalhes do evento mudam pouco, escolhi o cache com TTL de 60 segundos, apagando a chave nas atualizações. Também criei um índice que o `EXPLAIN` mostrou que faltava."
 

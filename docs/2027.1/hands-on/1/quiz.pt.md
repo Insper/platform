@@ -5,14 +5,14 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 **Q1.** Por que o `catalog` devolve records `EventOut` em vez da entidade JPA `Event`?
 
 - A. Records são serializados mais rápido que classes
-- B. O contrato da API fica independente da tabela: colunas novas não vazam, e associações lazy nunca são serializadas fora de uma transação
+- B. O contrato da API fica independente da tabela: colunas novas não vazam e associações lazy nunca são serializadas fora de uma transação
 - C. O Spring MVC não consegue serializar entidades
 - D. Entidades não podem ter um campo `id`
 
 ??? success "Resposta"
     **B — Desacoplar o contrato do armazenamento.**
 
-    Uma entidade é um mapeamento de tabela; um DTO é uma promessa aos clientes. Se forem o mesmo objeto, toda mudança de schema é uma mudança de API, e um `venue` lazy tocado pelo Jackson depois do fim da transação lança `LazyInitializationException`.
+    Uma entidade é um mapeamento de tabela; um DTO é uma promessa aos clientes. Se forem o mesmo objeto, toda mudança de schema é uma mudança de API e um `venue` lazy tocado pelo Jackson depois do fim da transação lança `LazyInitializationException`.
 
 ---
 
@@ -58,7 +58,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q5.** Um cliente chama `GET /catalog/events?size=5000`. O que o serviço responde, e por que isso é uma decisão de projeto?
+**Q5.** Um cliente chama `GET /catalog/events?size=5000`. O que o serviço responde e por que isso é uma decisão de projeto?
 
 - A. 200 com 5.000 eventos — o cliente pediu
 - B. 400, porque `size` tem `@Max(50)`: toda coleção deve ser limitada, ou uma requisição pode carregar a tabela inteira
@@ -96,7 +96,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — Uma unidade fixa de capacidade.**
 
-    Sem limite, um container pode usar todos os núcleos do seu notebook, e escalar horizontalmente não mostraria ganho. Servidores e pods reais também têm tamanhos fixos; planejamento de capacidade é "quantas unidades deste tamanho?".
+    Sem limite, um container pode usar todos os núcleos do seu notebook e escalar horizontalmente não mostraria ganho. Servidores e pods reais também têm tamanhos fixos; planejamento de capacidade é "quantas unidades deste tamanho?".
 
 ---
 
@@ -110,7 +110,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — Imagem de execução pequena, ferramentas de build ficam para trás.**
 
-    O estágio de build (JDK + Maven, centenas de MB) é descartado. Imagens menores significam deploys e autoescala (lab 10) mais rápidos, e menos pacotes para corrigir.
+    O estágio de build (JDK + Maven, centenas de MB) é descartado. Imagens menores significam deploys e autoescala (lab 10) mais rápidos e menos pacotes para corrigir.
 
 ---
 

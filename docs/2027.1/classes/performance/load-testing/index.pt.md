@@ -1,12 +1,12 @@
 O teste que não previu a queda do ano passado usava 200 usuários virtuais, cada um em um laço "requisição, espera a resposta, dorme um segundo". Ele reportou p95 = 180 ms. No dia real, o p99 passou de 10 segundos. Os dois números foram *medidos*; só um descrevia a realidade. A diferença não estava na ferramenta — estava em como o teste gerava carga, no que media e no que perguntava. Esta página trata de projetar testes de carga que digam a verdade: os seis tipos clássicos de teste, o modelo de carga por trás de cada um, thresholds que codificam SLOs e os erros de medição que fazem testes mentirem.
 
-Todos os exemplos usam o **k6** (Grafana Labs), a ferramenta de testes de carga dos labs do curso: os testes são JavaScript, o motor é Go, e ele suporta os dois modelos de carga por meio de seus *executors*[^1]. Trechos equivalentes para Gatling, Locust, JMeter, wrk2 e vegeta estão no final.
+Todos os exemplos usam o **k6** (Grafana Labs), a ferramenta de testes de carga dos labs do curso: os testes são JavaScript, o motor é Go e ele suporta os dois modelos de carga por meio de seus *executors*[^1]. Trechos equivalentes para Gatling, Locust, JMeter, wrk2 e vegeta estão no final.
 
 ---
 
 ## Anatomia de um teste k6 { #anatomy-of-a-k6-test }
 
-Um script k6 tem uma parte de **init** (imports, dados, `options`), um `setup()` opcional que roda uma vez, o **código do VU** (a função default ou uma função nomeada por cenário) que roda muitas vezes, e um `teardown()` opcional. Os testes do BoxOffice compartilham um módulo com os fluxos de usuário, então cada tipo de teste abaixo é só uma *forma de carga* diferente sobre o mesmo comportamento:
+Um script k6 tem uma parte de **init** (imports, dados, `options`), um `setup()` opcional que roda uma vez, o **código do VU** (a função default ou uma função nomeada por cenário) que roda muitas vezes e um `teardown()` opcional. Os testes do BoxOffice compartilham um módulo com os fluxos de usuário, então cada tipo de teste abaixo é só uma *forma de carga* diferente sobre o mesmo comportamento:
 
 ```javascript title="k6/lib/boxoffice.js"
 import http from 'k6/http';
@@ -122,7 +122,7 @@ Nos executors de taxa de chegada, os VUs são só os *trabalhadores* que executa
 
 !!! example "No código do BoxOffice: um teste de carga de modelo aberto (lab 2)"
 
-    Os scripts desta página modelam a campanha completa da venda; o [Hands-on 2 — Medir primeiro](../../../hands-on/2/index.md) começa com um serviço. O `load.js` dele envia `RATE` requisições por segundo ao `catalog` com `constant-arrival-rate`, qualquer que seja a latência, com uma mistura 80/20 de páginas de evento e listagens por cidade. Repare no dimensionamento dos VUs: `preAllocatedVUs` cobre a taxa quando as requisições são rápidas, e `maxVUs` deixa o k6 acrescentar trabalhadores quando elas ficam lentas — quando até esses acabam, aparece `dropped_iterations`, que o lab lê como o sinal de que o joelho foi ultrapassado. Os thresholds são por endpoint (`name:detail`, `name:list`), como na tabela abaixo.
+    Os scripts desta página modelam a campanha completa da venda; o [Hands-on 2 — Medir primeiro](../../../hands-on/2/index.md) começa com um serviço. O `load.js` dele envia `RATE` requisições por segundo ao `catalog` com `constant-arrival-rate`, qualquer que seja a latência, com uma mistura 80/20 de páginas de evento e listagens por cidade. Repare no dimensionamento dos VUs: `preAllocatedVUs` cobre a taxa quando as requisições são rápidas e `maxVUs` deixa o k6 acrescentar trabalhadores quando elas ficam lentas — quando até esses acabam, aparece `dropped_iterations`, que o lab lê como o sinal de que o joelho foi ultrapassado. Os thresholds são por endpoint (`name:detail`, `name:list`), como na tabela abaixo.
 
     ``` { .javascript title="load/load.js (the open-model options)" }
     --8<-- "docs/2027.1/hands-on/2/code/load/load.js:14:31"
@@ -132,7 +132,7 @@ Nos executors de taxa de chegada, os VUs são só os *trabalhadores* que executa
 
 ## Thresholds: SLOs como critérios de aprovação { #thresholds-slos-as-passfail-criteria }
 
-Um threshold transforma uma métrica em um veredito; o k6 termina com código diferente de zero quando um falha, e é isso que permite a um pipeline usá-lo como gate. Escreva os SLOs do [modelo de carga](../methodology/index.md#workload-model) como thresholds, **por endpoint**:
+Um threshold transforma uma métrica em um veredito; o k6 termina com código diferente de zero quando um falha e é isso que permite a um pipeline usá-lo como gate. Escreva os SLOs do [modelo de carga](../methodology/index.md#workload-model) como thresholds, **por endpoint**:
 
 | SLO (do documento de design) | Threshold do k6 |
 |---|---|
@@ -143,7 +143,7 @@ Um threshold transforma uma métrica em um veredito; o k6 termina com código di
 | O próprio teste manteve o cronograma | `dropped_iterations: ['count==0']` |
 | Parar um teste breakpoint quando o SLO está claramente quebrado | `{ threshold: 'p(99)<1000', abortOnFail: true, delayAbortEval: '1m' }` |
 
-Thresholds de percentis são avaliados sobre toda a execução do teste (ou sobre o subconjunto com a tag), e é por isso que o aquecimento precisa ser um cenário separado, fora da tag medida (veja [Metodologia — aquecimento](../methodology/index.md#warm-up)).
+Thresholds de percentis são avaliados sobre toda a execução do teste (ou sobre o subconjunto com a tag) e é por isso que o aquecimento precisa ser um cenário separado, fora da tag medida (veja [Metodologia — aquecimento](../methodology/index.md#warm-up)).
 
 ---
 
@@ -203,7 +203,7 @@ plt.close()
 
 ### Teste smoke { #smoke-test }
 
-O teste smoke é a verificação "isso pelo menos roda?" — rode-o depois de cada mudança no script ou no sistema, e como primeiro passo na CI. Um modelo fechado com um ou dois VUs serve aqui.
+O teste smoke é a verificação "isso pelo menos roda?" — rode-o depois de cada mudança no script ou no sistema e como primeiro passo na CI. Um modelo fechado com um ou dois VUs serve aqui.
 
 ```javascript title="k6/smoke.js"
 import { browse, search, hold } from './lib/boxoffice.js';
@@ -275,9 +275,9 @@ As fatias são de *iterações*; como `hold()` faz duas requisições, calibre a
 
 ### Teste stress { #stress-test }
 
-O teste stress vai além do pico esperado em degraus, mantém cada degrau tempo suficiente para observar e depois volta, para ver se o sistema **se recupera sozinho**. O resultado interessante não é "aprovado/reprovado", e sim *como* ele falha:
+O teste stress vai além do pico esperado em degraus, mantém cada degrau tempo suficiente para observar e depois volta, para ver se o sistema **se recupera sozinho**. O resultado interessante não é "aprovado/reprovado" e sim *como* ele falha:
 
-- **Com elegância**: acima da capacidade, o gateway ou o serviço rejeita o excesso rapidamente (429/503 em milissegundos), a latência das requisições aceitas fica perto do SLO, e tudo volta ao normal quando a carga cai. É isso que [rate limiting e load shedding](../../reliability/patterns/index.md) compram.
+- **Com elegância**: acima da capacidade, o gateway ou o serviço rejeita o excesso rapidamente (429/503 em milissegundos), a latência das requisições aceitas fica perto do SLO e tudo volta ao normal quando a carga cai. É isso que [rate limiting e load shedding](../../reliability/patterns/index.md) compram.
 - **De forma catastrófica**: tudo fica lento, timeouts disparam retries, retries acrescentam carga (uma [tempestade de retries](../../../../playground/index.md)), o pool de conexões e as threads se esgotam, e o sistema continua degradado *depois* que a carga cai (pressão de memória, um backlog de trabalho enfileirado, circuit breakers oscilando).
 
 ```javascript title="k6/stress.js"
@@ -310,7 +310,7 @@ export const options = {
 
 !!! example "No código do BoxOffice: um teste de stress que volta a descer (lab 2)"
 
-    O [Hands-on 2](../../../hands-on/2/index.md) roda o mesmo formato no `catalog`: degraus de 25 %, 50 %, 75 % e 100 % do `PEAK`, o pico mantido por um minuto, e depois uma queda para 25 % por mais um minuto. Os dois últimos estágios são o objetivo do teste: o lab pergunta quantos segundos o p95 leva para voltar ao normal depois da queda. Um serviço que se recupera sozinho é estável; um que continua lento precisa de descarte de carga (labs 3 e 9). O threshold de 2 s no p99 não julga o pico — só sinaliza uma execução que nunca se recuperou.
+    O [Hands-on 2](../../../hands-on/2/index.md) roda o mesmo formato no `catalog`: degraus de 25 %, 50 %, 75 % e 100 % do `PEAK`, o pico mantido por um minuto e depois uma queda para 25 % por mais um minuto. Os dois últimos estágios são o objetivo do teste: o lab pergunta quantos segundos o p95 leva para voltar ao normal depois da queda. Um serviço que se recupera sozinho é estável; um que continua lento precisa de descarte de carga (labs 3 e 9). O threshold de 2 s no p99 não julga o pico — só sinaliza uma execução que nunca se recuperou.
 
     ``` { .javascript title="load/stress.js (the staircase and back down)" }
     --8<-- "docs/2027.1/hands-on/2/code/load/stress.js:13:38"
@@ -349,13 +349,13 @@ export const options = {
 
 Rode-o duas vezes — com o autoscaler no mínimo normal e com **pré-escala** — e compare os dois primeiros minutos. A diferença é o argumento a favor da pré-escala (veja [Kubernetes — autoscaling](../../cloud-native/kubernetes/index.md)).
 
-Experimente: o cenário abaixo é uma venda relâmpago como a do BoxOffice, e o perfil `load` dele já contém o pico: um evento roteirizado em t = 60 s (*abre a venda*) multiplica o tráfego por 20 por 90 s (não escolha o perfil `spike` por cima — ele multiplicaria por 5 de novo). O desenho inicial não tem sala de espera: `users → lb → app → inventory-db`, com os compradores chamando o `payment provider`. Rode e veja para onde vai a carga excedente: o `app` satura e a rejeita (erros), e o p99 explode. Depois abra no playground completo (↗), aperte **Mostrar uma solução possível** (CDN, cache do catálogo e uma fila de sala de espera drenada por workers `order`) e rode de novo. Compare o p99, a taxa de erros e a utilização do `inventory-db`: o excedente agora espera na fila — o atraso do consumidor — em vez de falhar.
+Experimente: o cenário abaixo é uma venda relâmpago como a do BoxOffice e o perfil `load` dele já contém o pico: um evento roteirizado em t = 60 s (*abre a venda*) multiplica o tráfego por 20 por 90 s (não escolha o perfil `spike` por cima — ele multiplicaria por 5 de novo). O desenho inicial não tem sala de espera: `users → lb → app → inventory-db`, com os compradores chamando o `payment provider`. Rode e veja para onde vai a carga excedente: o `app` satura e a rejeita (erros) e o p99 explode. Depois abra no playground completo (↗), aperte **Mostrar uma solução possível** (CDN, cache do catálogo e uma fila de sala de espera drenada por workers `order`) e rode de novo. Compare o p99, a taxa de erros e a utilização do `inventory-db`: o excedente agora espera na fila — o atraso do consumidor — em vez de falhar.
 
 <div class="sdp" data-scenario="flash-sale" data-mode="compact" data-height="560"></div>
 
 ### Teste soak { #soak-test }
 
-O teste soak (de resistência) mantém uma carga realista — tipicamente a média diária — por horas. Ele encontra problemas que precisam de *tempo*: vazamentos de memória, vazamentos de conexões ou de descritores de arquivo, caches sem limite, volumes de log enchendo discos, tabelas crescendo devagar sem índice, renovações de certificados ou tokens que falham depois de N horas, e o comportamento do GC depois que o heap encheu uma vez.
+O teste soak (de resistência) mantém uma carga realista — tipicamente a média diária — por horas. Ele encontra problemas que precisam de *tempo*: vazamentos de memória, vazamentos de conexões ou de descritores de arquivo, caches sem limite, volumes de log enchendo discos, tabelas crescendo devagar sem índice, renovações de certificados ou tokens que falham depois de N horas e o comportamento do GC depois que o heap encheu uma vez.
 
 ```javascript title="k6/soak.js"
 import { browse, search, hold } from './lib/boxoffice.js';
@@ -379,7 +379,7 @@ export const options = {
 };
 ```
 
-Um teste soak é lido como **tendências**, não totais: o p99 na hora 8 vs na hora 1, e a inclinação do uso de recursos. Uma consulta PromQL como a abaixo, sobre a geração antiga do heap da JVM *depois* das coletas de lixo, deve ser plana; uma inclinação positiva constante é um vazamento.
+Um teste soak é lido como **tendências**, não totais: o p99 na hora 8 vs na hora 1 e a inclinação do uso de recursos. Uma consulta PromQL como a abaixo, sobre a geração antiga do heap da JVM *depois* das coletas de lixo, deve ser plana; uma inclinação positiva constante é um vazamento.
 
 ```promql
 deriv(jvm_memory_used_bytes{service="inventory", area="heap", id=~".*Old Gen"}[1h])
@@ -387,7 +387,7 @@ deriv(jvm_memory_used_bytes{service="inventory", area="heap", id=~".*Old Gen"}[1
 
 ### Teste breakpoint { #breakpoint-test }
 
-O teste breakpoint (de capacidade) aumenta a taxa de chegada continuamente, muito além do pico esperado, e se interrompe sozinho quando o sistema claramente quebra. Seu resultado é um número: o **joelho** (a maior taxa em que o SLO ainda vale) e o **ponto de ruptura** — mais o nome do recurso que saturou primeiro.
+O teste breakpoint (de capacidade) aumenta a taxa de chegada continuamente, muito além do pico esperado e se interrompe sozinho quando o sistema claramente quebra. Seu resultado é um número: o **joelho** (a maior taxa em que o SLO ainda vale) e o **ponto de ruptura** — mais o nome do recurso que saturou primeiro.
 
 ```javascript title="k6/breakpoint.js"
 import { hold } from './lib/boxoffice.js';
@@ -410,7 +410,7 @@ export const options = {
 };
 ```
 
-Nunca rode um teste breakpoint contra a produção, e sempre observe o **gerador de carga**: com milhares de VUs, uma única máquina de k6 pode virar o gargalo — verifique sua CPU e as `dropped_iterations`, e distribua o teste (k6-operator) quando necessário. A página [Encontrando gargalos](../bottlenecks/index.md) mostra como ler a curva resultante.
+Nunca rode um teste breakpoint contra a produção e sempre observe o **gerador de carga**: com milhares de VUs, uma única máquina de k6 pode virar o gargalo — verifique sua CPU e as `dropped_iterations`, e distribua o teste (k6-operator) quando necessário. A página [Encontrando gargalos](../bottlenecks/index.md) mostra como ler a curva resultante.
 
 ---
 
@@ -525,7 +525,7 @@ k6 run --out experimental-prometheus-rw --tag testid=onsale-2027-03-14-run2 \
 K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_EXPORT=report.html k6 run k6/load.js
 ```
 
-Com o k6 e as métricas OpenTelemetry dos serviços no mesmo Grafana (a stack `grafana/otel-lgtm` do [Hands-on 8](../../../hands-on/8/index.md)), um único dashboard mostra a taxa de chegada e o p99 do k6 ao lado das métricas RED de cada serviço e das métricas USE de cada recurso. Requisições lentas são encontradas por **exemplars de trace**, e seus spans mostram para onde foi o tempo. Para testes além de uma máquina, o **k6-operator** executa um teste como vários pods paralelos em um cluster Kubernetes.
+Com o k6 e as métricas OpenTelemetry dos serviços no mesmo Grafana (a stack `grafana/otel-lgtm` do [Hands-on 8](../../../hands-on/8/index.md)), um único dashboard mostra a taxa de chegada e o p99 do k6 ao lado das métricas RED de cada serviço e das métricas USE de cada recurso. Requisições lentas são encontradas por **exemplars de trace** e seus spans mostram para onde foi o tempo. Para testes além de uma máquina, o **k6-operator** executa um teste como vários pods paralelos em um cluster Kubernetes.
 
 ---
 
@@ -684,13 +684,13 @@ Todas as ferramentas abaixo conseguem expressar os seis tipos de teste; elas dif
 
 !!! tip "Na entrevista"
 
-    Duas frases sinalizam experiência real: "Eu usaria um teste de **modelo aberto** — taxa de chegada, não usuários virtuais — porque fãs não esperam uns pelos outros; um modelo fechado recua quando o sistema fica lento e esconde a fila (**omissão coordenada**)." e "Os thresholds são os **SLOs por endpoint**, e eu rodaria testes load, spike e breakpoint: o load para o veredito, o spike para o atraso do autoscaling e a sala de espera, o breakpoint para o joelho e a folga."
+    Duas frases sinalizam experiência real: "Eu usaria um teste de **modelo aberto** — taxa de chegada, não usuários virtuais — porque fãs não esperam uns pelos outros; um modelo fechado recua quando o sistema fica lento e esconde a fila (**omissão coordenada**)." e "Os thresholds são os **SLOs por endpoint** e eu rodaria testes load, spike e breakpoint: o load para o veredito, o spike para o atraso do autoscaling e a sala de espera, o breakpoint para o joelho e a folga."
 
 !!! success "Boas práticas"
 
     - **Compartilhe um módulo de fluxos de usuário e varie só o formato da carga** — smoke, load, stress, spike e breakpoint passam a diferir só em *quanto* e *quando*, e os resultados ficam comparáveis.
     - **Dimensione os VUs com a Lei de Little antes da execução** — `preAllocatedVUs` ≈ taxa × duração da iteração, `maxVUs` algumas vezes isso, para que uma lentidão seja absorvida em vez de virar um teste fechado. No BoxOffice: o `load/load.js` do [lab 2](../../../hands-on/2/index.md).
-    - **Dê a todo teste acima do pico uma fase de recuperação, e meça o tempo para recuperar** — a volta à carga normal é onde se descobre se o sistema é estável. No BoxOffice: os dois últimos estágios do `load/stress.js` ([lab 2](../../../hands-on/2/index.md)).
+    - **Dê a todo teste acima do pico uma fase de recuperação e meça o tempo para recuperar** — a volta à carga normal é onde se descobre se o sistema é estável. No BoxOffice: os dois últimos estágios do `load/stress.js` ([lab 2](../../../hands-on/2/index.md)).
     - **Escreva a hipótese de uma execução de caos como um threshold sobre o tráfego que *não* deveria sofrer** — a falha está contida quando a rota não afetada mantém seu SLO. No BoxOffice: `browse` p95 < 200 ms no `load/pay-under-chaos.js` ([lab 9](../../../hands-on/9/patterns/index.md)).
     - **Marque cada execução e envie o k6 para o mesmo backend de métricas dos serviços** — `--tag testid=…` permite achar, comparar e anotar uma execução nos mesmos dashboards dos serviços meses depois.
 

@@ -6,7 +6,7 @@ Esta página explica como os dados são copiados entre nós (**replicação**) e
 
 ## Por que replicar? { #why-replicate }
 
-Manter uma cópia do mesmo dado em vários nós atende a três objetivos diferentes, e vale dizer qual deles você quer:
+Manter uma cópia do mesmo dado em vários nós atende a três objetivos diferentes e vale dizer qual deles você quer:
 
 | Objetivo | Como a replicação ajuda | BoxOffice |
 |---|---|---|
@@ -41,7 +41,7 @@ Vários nós aceitam escritas — tipicamente um líder por data center ou regi�
 
 ### Sem líder (leaderless) { #leaderless }
 
-Qualquer réplica aceita leituras e escritas. O cliente (ou um coordenador) envia cada escrita a várias réplicas e cada leitura a várias réplicas, e **quóruns** decidem o que conta como sucesso (`R + W > N`, veja [Consenso e Quóruns](../consensus/index.md#quorums)). É o projeto do artigo Dynamo, da Amazon[^2], do Cassandra e do ScyllaDB.
+Qualquer réplica aceita leituras e escritas. O cliente (ou um coordenador) envia cada escrita a várias réplicas e cada leitura a várias réplicas e **quóruns** decidem o que conta como sucesso (`R + W > N`, veja [Consenso e Quóruns](../consensus/index.md#quorums)). É o projeto do artigo Dynamo, da Amazon[^2], do Cassandra e do ScyllaDB.
 
 | | Um líder | Vários líderes | Sem líder |
 |---|---|---|---|
@@ -140,11 +140,11 @@ flowchart TD
     CP --> EV
 ```
 
-Uma seta de A para B significa "A garante tudo o que B garante, e mais". Read-your-writes e leituras monotônicas são **garantias de sessão**: valem para a sessão de um cliente, não para todos; o prefixo consistente (consistent prefix) promete que nenhum leitor vê escritas fora da ordem em que aconteceram.
+Uma seta de A para B significa "A garante tudo o que B garante e mais". Read-your-writes e leituras monotônicas são **garantias de sessão**: valem para a sessão de um cliente, não para todos; o prefixo consistente (consistent prefix) promete que nenhum leitor vê escritas fora da ordem em que aconteceram.
 
 ### Linearizabilidade (consistência forte) { #linearizability }
 
-A **linearizabilidade** faz um sistema replicado se comportar **como se houvesse uma única cópia dos dados**, e cada operação tivesse efeito atômico em um instante entre seu início e seu fim[^4]. Uma vez que alguma leitura devolveu um valor novo, toda leitura posterior (de qualquer pessoa, em qualquer réplica) precisa devolver esse valor ou um mais novo.
+A **linearizabilidade** faz um sistema replicado se comportar **como se houvesse uma única cópia dos dados** e cada operação tivesse efeito atômico em um instante entre seu início e seu fim[^4]. Uma vez que alguma leitura devolveu um valor novo, toda leitura posterior (de qualquer pessoa, em qualquer réplica) precisa devolver esse valor ou um mais novo.
 
 ``` diagram-sim
 sequenceDiagram
@@ -168,14 +168,14 @@ A linearizabilidade é o que você precisa quando a correção depende de **uma 
 - **eleição de líder e locks** — só um nó pode acreditar que é o líder;
 - **tempo entre canais** — um fã paga e o serviço `notification` (lendo em outro lugar) precisa ver o pedido pago.
 
-Ela é obtida roteando todas as leituras e escritas de uma chave por **um líder**, que por sua vez é eleito por **consenso** (com cuidado com líderes desatualizados), ou por consenso em cada operação. O preço: toda operação paga pelo menos uma ida e volta até o líder ou até uma maioria, e nós que não alcançam o líder/a maioria precisam recusar — a escolha entre C e A do [CAP](../cap-pacelc/index.md).
+Ela é obtida roteando todas as leituras e escritas de uma chave por **um líder**, que por sua vez é eleito por **consenso** (com cuidado com líderes desatualizados), ou por consenso em cada operação. O preço: toda operação paga pelo menos uma ida e volta até o líder ou até uma maioria e nós que não alcançam o líder/a maioria precisam recusar — a escolha entre C e A do [CAP](../cap-pacelc/index.md).
 
 !!! info "Serializável não é linearizável"
     **Serializabilidade** é uma garantia de *isolamento* para transações sobre muitos objetos (o resultado equivale a alguma ordem serial das transações). **Linearizabilidade** é uma garantia de *atualidade* para objetos individuais (leituras veem a última escrita em tempo real). Um banco pode oferecer uma, as duas ("serializabilidade estrita", como no Spanner) ou nenhuma. Os níveis de isolamento estão em [Bancos de dados — transações](../../databases/transactions/index.md).
 
 ### Consistência sequencial { #sequential-consistency }
 
-Todos os nós veem todas as operações na **mesma ordem**, e as operações de cada nó aparecem na ordem do seu programa — mas essa ordem não precisa respeitar o tempo real. Uma leitura pode devolver um valor "antigo" em termos de relógio, desde que todos concordem com a sequência. É sobretudo um conceito de memória de hardware e de teoria; em system design raramente você o escolhe explicitamente.
+Todos os nós veem todas as operações na **mesma ordem** e as operações de cada nó aparecem na ordem do seu programa — mas essa ordem não precisa respeitar o tempo real. Uma leitura pode devolver um valor "antigo" em termos de relógio, desde que todos concordem com a sequência. É sobretudo um conceito de memória de hardware e de teoria; em system design raramente você o escolhe explicitamente.
 
 ### Consistência causal { #causal }
 
@@ -211,12 +211,12 @@ sequenceDiagram
 Como oferecê-las em cima de réplicas assíncronas:
 
 - **Ler do líder depois de uma escrita**: por uma janela curta (por exemplo, 1–5 s) depois que a fã escreve, roteie as leituras *dela* para o primário — ou sempre leia do primário os dados que pertencem ao usuário (*Meus ingressos*).
-- **Tokens de versão**: a escrita devolve a posição no log do líder (no PostgreSQL, o LSN do WAL — *Log Sequence Number*); o cliente o envia na próxima leitura, e uma réplica só responde depois de ter aplicado pelo menos aquela posição (senão espera ou encaminha ao líder). Muitos bancos expõem isso como *sessões causais* ou *tokens de read-after-write* (sessões de consistência causal do MongoDB, consistência de sessão do Cosmos DB).
+- **Tokens de versão**: a escrita devolve a posição no log do líder (no PostgreSQL, o LSN do WAL — *Log Sequence Number*); o cliente o envia na próxima leitura e uma réplica só responde depois de ter aplicado pelo menos aquela posição (senão espera ou encaminha ao líder). Muitos bancos expõem isso como *sessões causais* ou *tokens de read-after-write* (sessões de consistência causal do MongoDB, consistência de sessão do Cosmos DB).
 - **Réplica fixa (sticky)**: prenda cada sessão a uma réplica (hash do id da sessão) — dá leituras monotônicas, não read-your-writes.
 
 !!! example "No código do BoxOffice: read-your-writes pelo roteamento (lab 6)"
 
-    O [Hands-on 6 — Réplicas](../../../hands-on/6/replicas/index.md) acrescenta uma réplica por streaming ao banco do `inventory` e usa a primeira técnica acima. Um `DataSource` envolve dois pools; uma transação marcada `@Transactional(readOnly = true)` — o mapa de assentos, a disponibilidade por setor — recebe uma conexão da réplica, todas as outras recebem o primário. O `HoldService.find` *não* é somente leitura de propósito: o fã acabou de criar aquela reserva, então ela é lida do primário. O laboratório mediu por quê: um fã que reserva um assento e recarrega o mapa de assentos na hora, a partir da réplica, não viu a própria reserva em **cerca de 6%** das tentativas com a réplica na mesma máquina, e em **98%** com 1 s de atraso artificial.
+    O [Hands-on 6 — Réplicas](../../../hands-on/6/replicas/index.md) acrescenta uma réplica por streaming ao banco do `inventory` e usa a primeira técnica acima. Um `DataSource` envolve dois pools; uma transação marcada `@Transactional(readOnly = true)` — o mapa de assentos, a disponibilidade por setor — recebe uma conexão da réplica, todas as outras recebem o primário. O `HoldService.find` *não* é somente leitura de propósito: o fã acabou de criar aquela reserva, então ela é lida do primário. O laboratório mediu por quê: um fã que reserva um assento e recarrega o mapa de assentos na hora, a partir da réplica, não viu a própria reserva em **cerca de 6%** das tentativas com a réplica na mesma máquina e em **98%** com 1 s de atraso artificial.
 
     ``` { .java title="services/inventory/src/main/java/boxoffice/inventory/DataSourceConfig.java (the routing)" }
     --8<-- "docs/2027.1/hands-on/6/code/services/inventory/src/main/java/boxoffice/inventory/DataSourceConfig.java:11:38"
@@ -224,7 +224,7 @@ Como oferecê-las em cima de réplicas assíncronas:
 
 ### Consistência eventual { #eventual }
 
-A **consistência eventual** só promete que, *se as escritas pararem*, todas as réplicas vão **eventualmente convergir** para o mesmo valor. Não diz *quando*, e não diz nada sobre o que você lê enquanto isso. É a garantia do DNS, da maioria dos caches e CDNs, das réplicas assíncronas e dos armazenamentos sem líder em configurações de quórum baixas.
+A **consistência eventual** só promete que, *se as escritas pararem*, todas as réplicas vão **eventualmente convergir** para o mesmo valor. Não diz *quando* e não diz nada sobre o que você lê enquanto isso. É a garantia do DNS, da maioria dos caches e CDNs, das réplicas assíncronas e dos armazenamentos sem líder em configurações de quórum baixas.
 
 Ela serve perfeitamente para muitos domínios — a descrição do evento, a imagem do cartaz, o contador "312 pessoas estão vendo este evento". A parte difícil é o que acontece quando réplicas aceitaram **escritas concorrentes** no mesmo item e precisam convergir:
 
@@ -235,7 +235,7 @@ Ela serve perfeitamente para muitos domínios — a descrição do evento, a ima
 | **CRDTs** | Tipos de dados cujo merge é comutativo, associativo e idempotente | Automático, convergência demonstrável; só para dados que cabem em um CRDT (contadores, conjuntos, registradores, texto) |
 | **Evitar conflitos** | Rotear todas as escritas de uma chave para um líder (uma região "de origem") | Nenhum conflito; as escritas dessa chave pagam a latência até a origem |
 
-Um **CRDT** (*Conflict-free Replicated Data Type*, tipo de dado replicado livre de conflitos)[^7] é projetado para que as réplicas possam trocar estado em qualquer ordem, quantas vezes for, e ainda terminar iguais. O mais simples é o contador que só cresce: cada réplica incrementa apenas a sua posição, e o merge pega o máximo elemento a elemento.
+Um **CRDT** (*Conflict-free Replicated Data Type*, tipo de dado replicado livre de conflitos)[^7] é projetado para que as réplicas possam trocar estado em qualquer ordem, quantas vezes for, e ainda terminar iguais. O mais simples é o contador que só cresce: cada réplica incrementa apenas a sua posição e o merge pega o máximo elemento a elemento.
 
 ```java title="GCounter.java"
 // Grow-only counter CRDT: e.g. "fans interested in event 42", counted in 3 regions

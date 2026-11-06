@@ -32,7 +32,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q3.** Qual código de status HTTP um `POST` bem-sucedido que cria uma nova conta retorna, e qual header deve acompanhá-lo?
+**Q3.** Qual código de status HTTP um `POST` bem-sucedido que cria uma nova conta retorna e qual header deve acompanhá-lo?
 
 - A. `200 OK` sem headers adicionais
 - B. `201 Created` com um header `Location` apontando para a URI do novo recurso
@@ -70,7 +70,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **C — Converte `AccountIn` → `Account` de domínio.**
 
-    O Parser garante a fronteira entre camadas: o Controller conhece o `AccountIn` (contrato HTTP); o Service conhece o `Account` (objeto de domínio). O Parser é a única classe que conhece os dois, e ele vive na fronteira. Assim, mudar os nomes dos campos do JSON nunca exige mexer na lógica do serviço.
+    O Parser garante a fronteira entre camadas: o Controller conhece o `AccountIn` (contrato HTTP); o Service conhece o `Account` (objeto de domínio). O Parser é a única classe que conhece os dois e ele vive na fronteira. Assim, mudar os nomes dos campos do JSON nunca exige mexer na lógica do serviço.
 
 ---
 
@@ -84,7 +84,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — `Account` → `AccountModel` (`@Entity`) na fronteira da persistência.**
 
-    A classe de domínio `Account` não tem anotações JPA. O adaptador de persistência a converte em `AccountModel` (que tem `@Entity`, `@Column` etc.) antes de persistir, e de volta em `Account` depois da leitura. Isso mantém a camada de domínio livre de preocupações de infraestrutura — o padrão é chamado de *Repository Adapter* ou *Anti-Corruption Layer*.
+    A classe de domínio `Account` não tem anotações JPA. O adaptador de persistência a converte em `AccountModel` (que tem `@Entity`, `@Column` etc.) antes de persistir e de volta em `Account` depois da leitura. Isso mantém a camada de domínio livre de preocupações de infraestrutura — o padrão é chamado de *Repository Adapter* ou *Anti-Corruption Layer*.
 
 ---
 

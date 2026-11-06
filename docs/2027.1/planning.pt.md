@@ -37,7 +37,7 @@ flowchart LR
     A --> P["Prove<br/>semanas 16–19"]
 ```
 
-A ordem segue a [história da disciplina](index.md#story): cada aula parte do problema que a anterior deixou, e cada lab constrói, no BoxOffice, a resposta de uma aula que você já viu. Algumas semanas juntam duas aulas e a semana seguinte junta os dois labs correspondentes, porque os labs precisam de ambas: cache (lab 5) e dados em escala (lab 6) depois das aulas 6 e 7; observabilidade (lab 8) e resiliência (lab 9) depois das aulas 9 e 10; Kubernetes (lab 10) e entrega (lab 11) depois das aulas 11 e 12. A observabilidade vem antes da confiabilidade de propósito: não dá para melhorar o que não se vê, o SLO é definido onde é medido, e nos labs você instrumenta o BoxOffice (lab 8) antes de quebrá-lo de propósito (lab 9) — senão os experimentos de caos não têm nada para mostrar.
+A ordem segue a [história da disciplina](index.md#story): cada aula parte do problema que a anterior deixou e cada lab constrói, no BoxOffice, a resposta de uma aula que você já viu. Algumas semanas juntam duas aulas e a semana seguinte junta os dois labs correspondentes, porque os labs precisam de ambas: cache (lab 5) e dados em escala (lab 6) depois das aulas 6 e 7; observabilidade (lab 8) e resiliência (lab 9) depois das aulas 9 e 10; Kubernetes (lab 10) e entrega (lab 11) depois das aulas 11 e 12. A observabilidade vem antes da confiabilidade de propósito: não dá para melhorar o que não se vê, o SLO é definido onde é medido e nos labs você instrumenta o BoxOffice (lab 8) antes de quebrá-lo de propósito (lab 9) — senão os experimentos de caos não têm nada para mostrar.
 
 ## Como funciona uma semana { #how-a-week-works }
 

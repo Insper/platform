@@ -2,7 +2,7 @@ Como vimos no hands-on anterior, os microsserviços são implementados como apli
 
 Um arquivo do Docker Compose é um arquivo YAML que define como os containers Docker devem se comportar em produção. O arquivo contém a configuração do banco de dados, dos microsserviços e da rede.
 
-O diagrama abaixo ilustra a arquitetura do sistema que será criada com o Docker Compose, na qual os microsserviços ficam isolados do acesso externo, formando uma camada confiável. Os microsserviços só acessam o banco de dados, e o acesso externo é bloqueado.
+O diagrama abaixo ilustra a arquitetura do sistema que será criada com o Docker Compose, na qual os microsserviços ficam isolados do acesso externo, formando uma camada confiável. Os microsserviços só acessam o banco de dados e o acesso externo é bloqueado.
 
 ``` mermaid
 flowchart LR

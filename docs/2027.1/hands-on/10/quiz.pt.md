@@ -14,7 +14,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — um controller reconciliando o estado desejado e o real.**
 
-    Um Deployment gerencia ReplicaSets, e um ReplicaSet mantém o número de pods que casam com o seu seletor igual a `replicas`. Apagar um pod muda o estado real; o laço do controller percebe e age. Essa é a ideia central do Kubernetes: declarar o estado desejado e deixar os laços de controle convergirem para ele.
+    Um Deployment gerencia ReplicaSets e um ReplicaSet mantém o número de pods que casam com o seu seletor igual a `replicas`. Apagar um pod muda o estado real; o laço do controller percebe e age. Essa é a ideia central do Kubernetes: declarar o estado desejado e deixar os laços de controle convergirem para ele.
 
 ---
 
@@ -28,21 +28,21 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — identidade estável e armazenamento por réplica.**
 
-    Pods stateless podem ser mortos e recriados em qualquer lugar: qualquer réplica serve qualquer requisição. Os dados de um banco precisam sobreviver ao seu pod, e cada réplica (primária, réplicas) tem os seus próprios dados e nome. Para bancos em produção, serviços gerenciados ou operators (o CloudNativePG, por exemplo) acrescentam backups, failover e upgrades por cima.
+    Pods stateless podem ser mortos e recriados em qualquer lugar: qualquer réplica serve qualquer requisição. Os dados de um banco precisam sobreviver ao seu pod e cada réplica (primária, réplicas) tem os seus próprios dados e nome. Para bancos em produção, serviços gerenciados ou operators (o CloudNativePG, por exemplo) acrescentam backups, failover e upgrades por cima.
 
 ---
 
 **Q3.** O `secretGenerator` cria `db-credentials-c677754gbf` em vez de `db-credentials`. Qual é a vantagem do sufixo com hash?
 
 - A. Ele criptografa o Secret
-- B. Mudar o conteúdo produz um nome novo, e toda referência é reescrita: os pods que o usam passam por um rollout com os novos valores em vez de ficarem com os antigos
+- B. Mudar o conteúdo produz um nome novo e toda referência é reescrita: os pods que o usam passam por um rollout com os novos valores em vez de ficarem com os antigos
 - C. Ele impede que outros namespaces leiam o Secret
 - D. Ele é exigido pela API do Kubernetes
 
 ??? success "Resposta"
     **B — mudanças de configuração disparam rollouts.**
 
-    Variáveis de ambiente vindas de um Secret só são lidas quando um contêiner inicia. Se o Secret mudasse no lugar, os pods em execução ficariam com a senha antiga até algum restart sem relação. Um nome novo muda o template do pod, e o Deployment faz o rollout. (Atenção: um Secret codificado em base64 no Git não é secreto; projetos reais usam um gerenciador de segredos ou secrets selados/criptografados.)
+    Variáveis de ambiente vindas de um Secret só são lidas quando um contêiner inicia. Se o Secret mudasse no lugar, os pods em execução ficariam com a senha antiga até algum restart sem relação. Um nome novo muda o template do pod e o Deployment faz o rollout. (Atenção: um Secret codificado em base64 no Git não é secreto; projetos reais usam um gerenciador de segredos ou secrets selados/criptografados.)
 
 ---
 
@@ -52,13 +52,13 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 - A. Nada; a liveness só importa na inicialização
 - B. Todo pod do `catalog` falha na liveness e o Kubernetes reinicia todos eles, transformando uma oscilação de 20 segundos em minutos de queda enquanto as JVMs reiniciam
-- C. Os pods são removidos do Service até o banco voltar, e depois adicionados de novo
+- C. Os pods são removidos do Service até o banco voltar e depois adicionados de novo
 - D. O HPA adiciona pods
 
 ??? success "Resposta"
     **B — uma dependência na liveness causa restarts em massa.**
 
-    Liveness significa "este processo quebrou sem conserto, reinicie-o". Uma oscilação do banco não se resolve reiniciando o `catalog`, e reiniciar todas as réplicas de uma vez piora as coisas. A readiness ("não me mande tráfego agora") é o lugar certo para condições que devem tirar um pod temporariamente — e mesmo ali, uma dependência compartilhada tiraria *todos* os pods; muitas vezes é melhor continuar pronto e falhar rápido as requisições individuais.
+    Liveness significa "este processo quebrou sem conserto, reinicie-o". Uma oscilação do banco não se resolve reiniciando o `catalog` e reiniciar todas as réplicas de uma vez piora as coisas. A readiness ("não me mande tráfego agora") é o lugar certo para condições que devem tirar um pod temporariamente — e mesmo ali, uma dependência compartilhada tiraria *todos* os pods; muitas vezes é melhor continuar pronto e falhar rápido as requisições individuais.
 
 ---
 
@@ -120,7 +120,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q9.** A venda relâmpago começa às 10:00 em ponto. Cada pod novo do `catalog` leva ~40 s para ficar pronto, e o HPA reage em ~15–30 s. Qual é a melhor estratégia?
+**Q9.** A venda relâmpago começa às 10:00 em ponto. Cada pod novo do `catalog` leva ~40 s para ficar pronto e o HPA reage em ~15–30 s. Qual é a melhor estratégia?
 
 - A. Confiar só no HPA; ele foi projetado para isso
 - B. Pré-escalar antes das 10:00 (aumentar o `minReplicas` com um job agendado ou à mão) e manter o HPA para o inesperado
@@ -134,7 +134,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q10.** O HPA escalou o `catalog` para 8 pods, e agora o PostgreSQL rejeita conexões. Por quê?
+**Q10.** O HPA escalou o `catalog` para 8 pods e agora o PostgreSQL rejeita conexões. Por quê?
 
 - A. O HPA também escala o PostgreSQL para baixo
 - B. Cada pod tem o seu próprio pool de conexões (por exemplo, 10 conexões): 8 pods abrem até 80 conexões, mais do que uma instância do banco permite ou aguenta bem — escalar a camada stateless levou o gargalo para a stateful

@@ -72,7 +72,7 @@ Agora entregue uma release que quebra 30% das requisições, *pelo Git*. Em
 `k8s/overlays/gitops/kustomization.yaml`, adicione mais uma operação ao patch do Deployment (depois da
 `MANAGEMENT_METRICS_DISTRIBUTION_PERCENTILESHISTOGRAM_HTTP_SERVER_REQUESTS`), com o seu `- op:`
 exatamente embaixo das outras linhas `- op:` desse patch. Os commits do `Deploy` reformataram o
-arquivo (4 espaços, como abaixo); outra indentação quebra o patch, e o Argo CD reporta um
+arquivo (4 espaços, como abaixo); outra indentação quebra o patch e o Argo CD reporta um
 `ComparisonError` em vez de iniciar um canary:
 
 ``` yaml
@@ -117,7 +117,7 @@ e as medições da métrica `error-rate` foram `[]` (ainda sem tráfego no canar
 canary viram erros por cerca de um minuto; todos os outros nem perceberam.
 
 `Degraded` é o sinal para corrigir para a frente no Git: reverta o experimento
-(`git revert HEAD && git push`), o Argo CD sincroniza, e o próximo rollout começa de um estado limpo.
+(`git revert HEAD && git push`), o Argo CD sincroniza e o próximo rollout começa de um estado limpo.
 
 !!! warning "O que um canary não consegue pegar"
 

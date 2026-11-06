@@ -92,7 +92,7 @@ flowchart LR
     classDef changed fill:#f66,color:#fff
 ```
 
-O Dockerfile multi-stage acima já tira proveito disso: `RUN mvn dependency:go-offline` só é executado quando o `pom.xml` muda, e não a cada mudança no código.
+O Dockerfile multi-stage acima já tira proveito disso: `RUN mvn dependency:go-offline` só é executado quando o `pom.xml` muda e não a cada mudança no código.
 
 ---
 

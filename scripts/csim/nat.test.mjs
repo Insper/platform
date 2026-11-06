@@ -58,6 +58,6 @@ test("the tip quotes the model's numbers", () => {
     lang === "en" ? `the row for ${R.phone.pubPort} only accepts 198.51.100.20:443` : `a linha de ${R.phone.pubPort} só aceita 198.51.100.20:443`,
     `192.168.1.20:8080`,
     lang === "en" ? `each step is ${N.STEP} s, and with the 60 s idle timeout the rows disappear after ${R.steps} steps`
-      : `cada passo é ${N.STEP} s, e com o timeout ocioso de 60 s as linhas somem após ${R.steps} passos`
+      : `cada passo é ${N.STEP} s e com o timeout ocioso de 60 s as linhas somem após ${R.steps} passos`
   ]);
 });

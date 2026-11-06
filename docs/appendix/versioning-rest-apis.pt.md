@@ -1,10 +1,10 @@
 # Versionamento de APIs REST
 
-Um microsserviço é implantado no seu próprio ritmo, mas os consumidores dele não: um app móvel que os usuários nunca atualizam, um parceiro que integrou uma vez, o serviço de outro time, com os seus próprios prazos. Quando a API precisa mudar de um jeito que os quebraria, o provedor precisa de uma forma de oferecer o contrato novo **ao lado** do antigo, e de uma forma de aposentar o antigo com ordem. Isso é versionamento de API.
+Um microsserviço é implantado no seu próprio ritmo, mas os consumidores dele não: um app móvel que os usuários nunca atualizam, um parceiro que integrou uma vez, o serviço de outro time, com os seus próprios prazos. Quando a API precisa mudar de um jeito que os quebraria, o provedor precisa de uma forma de oferecer o contrato novo **ao lado** do antigo e de uma forma de aposentar o antigo com ordem. Isso é versionamento de API.
 
 Esta página responde:
 
-- Quando uma mudança precisa de uma nova versão, e quando não precisa?
+- Quando uma mudança precisa de uma nova versão e quando não precisa?
 - Onde vai a versão: no caminho, num parâmetro de query, num header ou no media type?
 - Como implementar no Spring, com o suporte nativo do Spring Boot 4 e do jeito clássico?
 - Como depreciar e aposentar a versão antiga sem surpreender ninguém?
@@ -33,7 +33,7 @@ Só para **mudanças incompatíveis** (breaking changes): aquelas depois das qua
 Dois hábitos tornam a maioria das mudanças compatível e evitam a maioria das versões novas:
 
 - **Leitor tolerante** (tolerant reader)[^7]: o consumidor lê só os campos de que precisa e ignora o resto. O mapeador JSON do Spring Boot ignora propriedades desconhecidas por padrão (o Jackson 3, usado pelo Spring Boot 4, tornou isso o padrão da biblioteca), então mantenha assim.
-- **Expandir e contrair** (parallel change)[^8]: em vez de renomear `price`, adicione `priceCents` ao lado, migre os consumidores e só remova `price` quando ninguém mais o ler. Um campo também faz parte do contrato, e pode ser depreciado sozinho.
+- **Expandir e contrair** (parallel change)[^8]: em vez de renomear `price`, adicione `priceCents` ao lado, migre os consumidores e só remova `price` quando ninguém mais o ler. Um campo também faz parte do contrato e pode ser depreciado sozinho.
 
 Quando uma mudança incompatível é inevitável, aumente a versão **major** (versionamento semântico[^9]: `MAJOR.MINOR.PATCH`). Mudanças compatíveis não precisam de uma versão que o cliente tenha de pedir.
 
@@ -188,17 +188,17 @@ Antes do Spring Framework 7 (Spring Boot 3.x e anteriores), não existe o atribu
     public OrderV2 getV2(@PathVariable Long id) { ... }
     ```
 
-Funciona, mas você mesmo precisa tratar uma versão ausente ou desconhecida (dependendo da estratégia, termina num `400`, `404` ou `406`), e todo método versionado repete a condição. Nos dois estilos, mantenha a regra de negócio num único service e deixe só os controllers e os DTOs mudarem por versão.
+Funciona, mas você mesmo precisa tratar uma versão ausente ou desconhecida (dependendo da estratégia, termina num `400`, `404` ou `406`) e todo método versionado repete a condição. Nos dois estilos, mantenha a regra de negócio num único service e deixe só os controllers e os DTOs mudarem por versão.
 
-Numa arquitetura de microsserviços, a versão também pode escolher um **deployment**: o gateway ou o ingress do Kubernetes manda `/api/v1/**` para os pods da release antiga e `/api/v2/**` para a nova. Cada versão então escala, e um dia é desligada, de forma independente.
+Numa arquitetura de microsserviços, a versão também pode escolher um **deployment**: o gateway ou o ingress do Kubernetes manda `/api/v1/**` para os pods da release antiga e `/api/v2/**` para a nova. Cada versão então escala e um dia é desligada, de forma independente.
 
 ---
 
 ## Depreciação e sunset { #deprecation-sunset }
 
-Uma versão é aposentada em etapas, e o cliente deveria ficar sabendo de cada etapa **pela própria API**, não só por e-mail. Dois headers de resposta padronizados levam essa informação:
+Uma versão é aposentada em etapas e o cliente deveria ficar sabendo de cada etapa **pela própria API**, não só por e-mail. Dois headers de resposta padronizados levam essa informação:
 
-- **`Deprecation`** (RFC 9745, março de 2025)[^4]: este recurso está (ou estará) depreciado a partir desta data. Ele ainda funciona, mas você deveria migrar. O valor é uma data de structured field: `@` seguido dos segundos Unix. Rascunhos anteriores usavam `Deprecation: true`, e você ainda pode encontrá-lo.
+- **`Deprecation`** (RFC 9745, março de 2025)[^4]: este recurso está (ou estará) depreciado a partir desta data. Ele ainda funciona, mas você deveria migrar. O valor é uma data de structured field: `@` seguido dos segundos Unix. Rascunhos anteriores usavam `Deprecation: true` e você ainda pode encontrá-lo.
 - **`Sunset`** (RFC 8594, maio de 2019)[^5]: a partir desta data, espera-se que o recurso pare de responder. O valor é uma data HTTP. A RFC 9745 exige que o sunset não seja anterior à depreciação.
 - Headers **`Link`** com `rel="deprecation"` e `rel="sunset"` apontam para a documentação para humanos: o guia de migração, a política de aposentadoria.
 
@@ -236,7 +236,7 @@ sequenceDiagram
     G-->>C: 410 Gone + Link para o guia de migração
 ```
 
-- **Meça antes de remover.** Conte as requisições por versão e por cliente, por exemplo com um rótulo `version` nas métricas de requisição. Remova a v1 quando o tráfego dela chegar a zero, ou quando os clientes restantes tiverem sido avisados pessoalmente, e não só porque o calendário mandou.
+- **Meça antes de remover.** Conte as requisições por versão e por cliente, por exemplo com um rótulo `version` nas métricas de requisição. Remova a v1 quando o tráfego dela chegar a zero, ou quando os clientes restantes tiverem sido avisados pessoalmente e não só porque o calendário mandou.
 - **Responda com um erro claro depois da remoção.** `410 Gone` com um link para o guia de migração explica mais que um `404` seco. A RFC 8594 não define um código: depois do sunset, vale de um erro a um redirecionamento.
 - **Publique uma política**, por exemplo "uma versão major é suportada por pelo menos 6 meses depois que a sucessora sai", para que os consumidores possam se planejar.
 
@@ -275,7 +275,7 @@ public ResponseEntity<OrderV1> get(@PathVariable Long id) {
 
 ## Pegando quebras antes da produção: testes de contrato { #contract-tests }
 
-Como saber que uma mudança é compatível *antes* de implantá-la? Com **contratos orientados ao consumidor** (consumer-driven contracts), cada consumidor publica as interações de que depende, por exemplo "`order` chama `GET /api/v1/products/{id}` e lê `name` e `price`". O CI do provedor executa todos os contratos publicados contra o novo build e falha se algum quebrar. Uma mudança proibida aparece então como um build vermelho, e não como um incidente em produção, e os contratos ainda dizem exatamente quais consumidores ainda usam a v1. As ferramentas comuns são **Pact** e **Spring Cloud Contract**[^6].
+Como saber que uma mudança é compatível *antes* de implantá-la? Com **contratos orientados ao consumidor** (consumer-driven contracts), cada consumidor publica as interações de que depende, por exemplo "`order` chama `GET /api/v1/products/{id}` e lê `name` e `price`". O CI do provedor executa todos os contratos publicados contra o novo build e falha se algum quebrar. Uma mudança proibida aparece então como um build vermelho e não como um incidente em produção, e os contratos ainda dizem exatamente quais consumidores ainda usam a v1. As ferramentas comuns são **Pact** e **Spring Cloud Contract**[^6].
 
 ---
 
@@ -285,7 +285,7 @@ Como saber que uma mudança é compatível *antes* de implantá-la? Com **contra
     - Crie uma nova versão só para **mudanças incompatíveis**: remover ou renomear campos, mudar tipos ou significado, novas entradas obrigatórias, códigos de status diferentes. Mudanças aditivas saem na versão atual.
     - **Leitores tolerantes** e **expandir e contrair** mantêm a maioria das mudanças compatível, então a maioria delas não precisa de versão nova.
     - A versão pode ir no **caminho da URI**, num **parâmetro de query**, num **header próprio** ou no **media type**. O caminho é o mais visível e o mais fácil de rotear; escolha uma estratégia para todos os serviços.
-    - O Spring Framework 7 / Spring Boot 4 tem versionamento nativo: `ApiVersionConfigurer` ou `spring.mvc.apiversion.*` para resolver a versão, e `@GetMapping(version = "2.0+")` para mapeá-la. Versões anteriores usam `params`, `headers`, `produces` ou caminhos separados.
+    - O Spring Framework 7 / Spring Boot 4 tem versionamento nativo: `ApiVersionConfigurer` ou `spring.mvc.apiversion.*` para resolver a versão e `@GetMapping(version = "2.0+")` para mapeá-la. Versões anteriores usam `params`, `headers`, `produces` ou caminhos separados.
     - Aposente uma versão em etapas: anuncie com os headers **`Deprecation`** (RFC 9745) e **`Sunset`** (RFC 8594) e um `Link` para o guia de migração, meça o tráfego por versão e remova quando o tráfego acabar.
     - **Testes de contrato orientados ao consumidor** (Pact, Spring Cloud Contract) pegam mudanças incompatíveis no CI.
 

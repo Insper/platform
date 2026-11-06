@@ -73,7 +73,7 @@ Dois deles merecem mais atenção.
 
 ### Power of two choices { #p2c }
 
-Escolher o backend menos carregado entre *todos* parece ideal, mas, com muitas instâncias de load balancer (cada uma com uma visão um pouco desatualizada), todas escolhem o mesmo servidor "menos carregado" ao mesmo tempo e o sobrecarregam — um **rebanho** (*herd*). Escolher um backend ao acaso evita o rebanho, mas deixa, por azar, alguns servidores bem mais ocupados que outros. Mitzenmacher mostrou que um pequeno meio-termo pega quase o melhor dos dois: **sortear dois backends e escolher o menos carregado**[^2]. A carga máxima cai exponencialmente em comparação com a escolha puramente aleatória, e não há rebanho, porque instâncias diferentes do LB sorteiam pares diferentes. Envoy, Nginx (`random two least_conn`), HAProxy e as bibliotecas gRPC implementam esse algoritmo; ele é a escolha padrão de muitos proxies modernos.
+Escolher o backend menos carregado entre *todos* parece ideal, mas, com muitas instâncias de load balancer (cada uma com uma visão um pouco desatualizada), todas escolhem o mesmo servidor "menos carregado" ao mesmo tempo e o sobrecarregam — um **rebanho** (*herd*). Escolher um backend ao acaso evita o rebanho, mas deixa, por azar, alguns servidores bem mais ocupados que outros. Mitzenmacher mostrou que um pequeno meio-termo pega quase o melhor dos dois: **sortear dois backends e escolher o menos carregado**[^2]. A carga máxima cai exponencialmente em comparação com a escolha puramente aleatória e não há rebanho, porque instâncias diferentes do LB sorteiam pares diferentes. Envoy, Nginx (`random two least_conn`), HAProxy e as bibliotecas gRPC implementam esse algoritmo; ele é a escolha padrão de muitos proxies modernos.
 
 <div class="csim" data-sim="lb" data-algo="rr" data-rate="100" data-factor="5"></div>
 
@@ -105,7 +105,7 @@ flowchart LR
 
 No diagrama, as posições vão de 0 a 99: `hold:42` tem hash 30 e pertence a B (o primeiro nó na posição 30 ou depois); `hold:91` tem hash 90 e dá a volta até A. Quando o nó D entra na posição 55, só as chaves entre 40 e 55 — como `hold:77` — passam de C para D; nada mais muda. Em geral, quando um servidor é adicionado, ele assume apenas as chaves entre ele e o seu antecessor — cerca de **1/(N+1)** delas; quando um é removido, só as chaves dele se movem, para o sucessor.
 
-Com um ponto por servidor, os arcos do anel têm comprimentos muito diferentes, e alguns servidores ficam com bem mais do que a sua parte. A solução são os **nós virtuais**[^5]: cada servidor físico é colocado no anel muitas vezes (100–200 pontos, por exemplo), e os arcos se equilibram na média. Os nós virtuais também facilitam dar mais pontos a uma máquina maior (pesos) e, quando um servidor sai, espalhar as chaves dele por *todos* os outros em vez de despejá-las num único vizinho.
+Com um ponto por servidor, os arcos do anel têm comprimentos muito diferentes e alguns servidores ficam com bem mais do que a sua parte. A solução são os **nós virtuais**[^5]: cada servidor físico é colocado no anel muitas vezes (100–200 pontos, por exemplo) e os arcos se equilibram na média. Os nós virtuais também facilitam dar mais pontos a uma máquina maior (pesos) e, quando um servidor sai, espalhar as chaves dele por *todos* os outros em vez de despejá-las num único vizinho.
 
 A simulação abaixo distribui 40.000 chaves de hold de assento em 5 nós. À esquerda, um ponto por nó contra 200 nós virtuais por nó; à direita, a fração de chaves que muda de dono quando um 6º nó entra:
 
@@ -181,7 +181,7 @@ O hashing consistente aparece em todo lugar em system design: `hash $key consist
 
 ## Service discovery: como o LB conhece as réplicas { #service-discovery }
 
-Réplicas vêm e vão — o autoscaling as adiciona às 09:58, um deploy as substitui, um crash remove uma — e os seus endereços IP mudam toda vez. Antes de o load balancer poder escolher uma réplica saudável, alguém precisa contar a ele **quais réplicas existem agora**. Isso é **service discovery**, e ele tem dois formatos:
+Réplicas vêm e vão — o autoscaling as adiciona às 09:58, um deploy as substitui, um crash remove uma — e os seus endereços IP mudam toda vez. Antes de o load balancer poder escolher uma réplica saudável, alguém precisa contar a ele **quais réplicas existem agora**. Isso é **service discovery** e ele tem dois formatos:
 
 ``` diagram-sim
 flowchart LR
@@ -219,7 +219,7 @@ Um load balancer só é tão bom quanto o que ele sabe sobre quais backends est�
 | **Ativo** | o LB sonda cada backend periodicamente (`GET /actuator/health/readiness` a cada 5 s; 2 falhas → não saudável; 3 sucessos → saudável de novo) | backends que caíram, travaram ou ainda não estão prontos, mesmo sem tráfego | target groups da AWS, `health_check` do Nginx Plus, `check` do HAProxy, readiness probes do Kubernetes |
 | **Passivo** (outlier detection) | o LB observa as respostas reais; um backend que devolve muitos 5xx ou timeouts é ejetado por um tempo | backends que passam na sonda mas falham nas requisições reais | outlier detection do Envoy, `max_fails` / `fail_timeout` do Nginx |
 
-Projete o endpoint de saúde com cuidado. A **readiness** ("consigo atender tráfego agora?") deve verificar o que a instância precisa para responder às requisições — mas, se ela verificar uma dependência *compartilhada*, como o banco de dados, uma oscilação do banco marca **todas** as réplicas como não saudáveis ao mesmo tempo, e o LB fica sem nada para onde rotear. O meio-termo usual: a readiness reflete o estado da própria instância (iniciada, aquecida, não sobrecarregada, não em desligamento); falhas de dependências são tratadas com timeouts e circuit breakers ([Confiabilidade — padrões](../../reliability/patterns/index.md)).
+Projete o endpoint de saúde com cuidado. A **readiness** ("consigo atender tráfego agora?") deve verificar o que a instância precisa para responder às requisições — mas, se ela verificar uma dependência *compartilhada*, como o banco de dados, uma oscilação do banco marca **todas** as réplicas como não saudáveis ao mesmo tempo e o LB fica sem nada para onde rotear. O meio-termo usual: a readiness reflete o estado da própria instância (iniciada, aquecida, não sobrecarregada, não em desligamento); falhas de dependências são tratadas com timeouts e circuit breakers ([Confiabilidade — padrões](../../reliability/patterns/index.md)).
 
 ### Connection draining { #draining }
 
@@ -247,7 +247,7 @@ Prefira **réplicas stateless**. Use afinidade só onde o estado é inerentement
 
 Um único load balancer na frente de dez réplicas é um **ponto único de falha**. Como o próprio LB se mantém no ar depende de quem o opera:
 
-- **Load balancers gerenciados de nuvem** (ALB/NLB, Google Cloud Load Balancing, Azure Load Balancer) são sistemas distribuídos operados pelo provedor em várias zonas de disponibilidade; você recebe um nome DNS ou um IP, e o provedor escala e substitui as máquinas por baixo.
+- **Load balancers gerenciados de nuvem** (ALB/NLB, Google Cloud Load Balancing, Azure Load Balancer) são sistemas distribuídos operados pelo provedor em várias zonas de disponibilidade; você recebe um nome DNS ou um IP e o provedor escala e substitui as máquinas por baixo.
 - **Auto-hospedados** (Nginx, HAProxy, Envoy em VMs): rode pelo menos dois, num **par ativo-passivo** que compartilha um **IP virtual** (VIP), movido por VRRP (keepalived) quando o ativo falha, ou **ativo-ativo** atrás de DNS ou de uma camada L4.
 - **Anycast** na borda: o mesmo IP anunciado de muitos locais ([DNS & CDN](../dns-cdn/index.md#anycast)).
 
@@ -263,7 +263,7 @@ flowchart TB
     i1 --> p2[pods de order]
 ```
 
-**Experimente.** Carregue o cenário scale-out e rode o perfil **load** com 2 réplicas; anote a latência p99 e os erros. Aumente o número de réplicas até o p99 se estabilizar. Depois derrube uma réplica com o teste rodando (chaos **medium**, ou pare-a no painel): veja os health checks a removerem, o pico de erros que dura até isso acontecer, e as réplicas restantes absorverem a carga. Experimente outro algoritmo de balanceamento e compare o p99.
+**Experimente.** Carregue o cenário scale-out e rode o perfil **load** com 2 réplicas; anote a latência p99 e os erros. Aumente o número de réplicas até o p99 se estabilizar. Depois derrube uma réplica com o teste rodando (chaos **medium**, ou pare-a no painel): veja os health checks a removerem, o pico de erros que dura até isso acontecer e as réplicas restantes absorverem a carga. Experimente outro algoritmo de balanceamento e compare o p99.
 
 <div class="sdp" data-scenario="scale-out" data-mode="compact" data-height="520" data-profile="load"></div>
 
@@ -283,7 +283,7 @@ O [Hands-on 3](../../../hands-on/3/index.md) coloca o Nginx na frente de três r
     --8<-- "docs/2027.1/hands-on/3/code/infra/nginx/nginx.conf:19:26,43:61"
     ```
 
-Note o que é configurado além do algoritmo: **timeouts** em direção aos backends, conexões **keep-alive** com eles e **`proxy_next_upstream`**, que refaz uma requisição que falhou em outra réplica. O Nginx não refaz requisições não idempotentes (como `POST`) por padrão — refazer um `POST /holds` em outra réplica poderia criar dois holds. Os timeouts vêm de medição, não de gosto: um read timeout menor que o p99 saudável transforma respostas lentas em retries, e o lab usa 5 s para um serviço cujas listagens levam centenas de milissegundos sob carga.
+Note o que é configurado além do algoritmo: **timeouts** em direção aos backends, conexões **keep-alive** com eles e **`proxy_next_upstream`**, que refaz uma requisição que falhou em outra réplica. O Nginx não refaz requisições não idempotentes (como `POST`) por padrão — refazer um `POST /holds` em outra réplica poderia criar dois holds. Os timeouts vêm de medição, não de gosto: um read timeout menor que o p99 saudável transforma respostas lentas em retries e o lab usa 5 s para um serviço cujas listagens levam centenas de milissegundos sob carga.
 
 ---
 

@@ -32,7 +32,7 @@ O OWASP Top 10 para aplicações com LLM[^1] é a lista de verificação padrão
 Em uma aplicação clássica, código e dados viajam por canais separados: um prepared statement não consegue transformar o nome de um usuário em SQL. Em uma aplicação com LLM, **instruções e dados dividem o mesmo canal** — o prompt — e o modelo não tem um jeito confiável de distingui-los. Qualquer texto que chega ao contexto pode tentar agir como instrução.
 
 - **Injeção direta** (*jailbreak*): o próprio usuário escreve a instrução maliciosa. O atacante é o usuário, então o dano se limita ao que *aquele usuário* pode fazer — **se** as ferramentas aplicarem as permissões do usuário.
-- **Injeção indireta**[^2]: a instrução chega por um conteúdo que o modelo lê em nome do usuário — um documento recuperado, a descrição de um evento, o resultado de uma ferramenta, uma página web, um e-mail, até a descrição de uma ferramenta MCP. O atacante é um **terceiro**, e a vítima é o usuário que fez uma pergunta inocente.
+- **Injeção indireta**[^2]: a instrução chega por um conteúdo que o modelo lê em nome do usuário — um documento recuperado, a descrição de um evento, o resultado de uma ferramenta, uma página web, um e-mail, até a descrição de uma ferramenta MCP. O atacante é um **terceiro** e a vítima é o usuário que fez uma pergunta inocente.
 
 ``` diagram-sim
 sequenceDiagram
@@ -50,7 +50,7 @@ sequenceDiagram
     O-->>F: phishing entregue pelo assistente
 ```
 
-**Não existe filtro que resolva a injeção de prompt**: detectores também são modelos, e atacantes iteram contra eles. A abordagem robusta é arquitetural — assuma que qualquer modelo que lê texto não confiável **pode estar comprometido**, e limite o que um modelo comprometido consegue fazer.
+**Não existe filtro que resolva a injeção de prompt**: detectores também são modelos e atacantes iteram contra eles. A abordagem robusta é arquitetural — assuma que qualquer modelo que lê texto não confiável **pode estar comprometido** e limite o que um modelo comprometido consegue fazer.
 
 ### A trifeta letal { #the-lethal-trifecta }
 
@@ -107,11 +107,11 @@ Prefira **verificações determinísticas** sempre que possível: são rápidas,
 
 !!! tip "Experimente"
 
-    O cenário `ai-assistant` abaixo não tem Safety Mesh, e o simulador envia 2% das perguntas como tentativas de prompt injection. Aperte **Run** e leia **respostas inseguras**: 2% — todo ataque chega ao modelo. Arraste um **Safety Mesh** da paleta para o caminho (apague a aresta `gateway → assistant`, ligue `gateway → Safety Mesh → assistant`) e rode de novo: as respostas inseguras caem para **0,04%**, ou seja, 2% × (1 − 0,98), a sua taxa de captura padrão, por cerca de US$ 200 a mais por mês e um p99 que quase não se mexe. Depois selecione o mesh e baixe a **Taxa de captura de ataques** para 0,90: 0,2%, e a meta (< 0,1%) falha.
+    O cenário `ai-assistant` abaixo não tem Safety Mesh e o simulador envia 2% das perguntas como tentativas de prompt injection. Aperte **Run** e leia **respostas inseguras**: 2% — todo ataque chega ao modelo. Arraste um **Safety Mesh** da paleta para o caminho (apague a aresta `gateway → assistant`, ligue `gateway → Safety Mesh → assistant`) e rode de novo: as respostas inseguras caem para **0,04%**, ou seja, 2% × (1 − 0,98), a sua taxa de captura padrão, por cerca de US$ 200 a mais por mês e um p99 que quase não se mexe. Depois selecione o mesh e baixe a **Taxa de captura de ataques** para 0,90: 0,2% e a meta (< 0,1%) falha.
 
     ??? question "O que você deveria ter observado?"
 
-        Um classificador é uma probabilidade, não um muro. No pico das 10:00 da [visão geral](../index.md#numbers) (20.000 perguntas em dez minutos), 0,04% ainda são cerca de **8 ataques que chegam ao modelo**, e 0,2% são 40. O mesh reduz a taxa; só o projeto limita o estrago dos que passam: ferramentas só de leitura ou com o escopo do usuário, texto não confiável mantido como dado, confirmação para ações irreversíveis. Note também o que o mesh *não* resolveu — os erros, o p99 e o custo vêm dos seis passos do agente contra a cota do provedor, que as dicas do cenário resolvem com menos passos, um cache semântico e um modelo reserva ([Agentes e ferramentas](../agents/index.md), [LLM Gateway](../llm-gateway/index.md)).
+        Um classificador é uma probabilidade, não um muro. No pico das 10:00 da [visão geral](../index.md#numbers) (20.000 perguntas em dez minutos), 0,04% ainda são cerca de **8 ataques que chegam ao modelo** e 0,2% são 40. O mesh reduz a taxa; só o projeto limita o estrago dos que passam: ferramentas só de leitura ou com o escopo do usuário, texto não confiável mantido como dado, confirmação para ações irreversíveis. Note também o que o mesh *não* resolveu — os erros, o p99 e o custo vêm dos seis passos do agente contra a cota do provedor, que as dicas do cenário resolvem com menos passos, um cache semântico e um modelo reserva ([Agentes e ferramentas](../agents/index.md), [LLM Gateway](../llm-gateway/index.md)).
 
 <div class="sdp" data-scenario="ai-assistant" data-mode="full" data-height="640"></div>
 
@@ -123,7 +123,7 @@ Dados pessoais só devem chegar a um provedor de modelo, a uma linha de log ou a
 
 Nunca execute nem exiba a saída do modelo sem verificá-la, assim como você não confiaria em um campo de formulário:
 
-- **Estrutura**: argumentos de ferramentas e respostas estruturadas validados contra um schema — use o modo de saída estruturada da API, e valide mesmo assim.
+- **Estrutura**: argumentos de ferramentas e respostas estruturadas validados contra um schema — use o modo de saída estruturada da API e valide mesmo assim.
 - **Regras de negócio**: os assentos na resposta precisam ser assentos devolvidos pelo `search_seats`; preços ≤ o limite do fã; o ID da reserva precisa existir. O modelo **resume** os resultados das ferramentas; ele não é a fonte da verdade.
 - **Citações**: todo `[doc_id]` precisa ser um dos chunks recuperados ([RAG e memória](../rag-memory/index.md)).
 - **Renderização**: escape o HTML; use allowlist de domínios nos links; nada de imagens remotas (a URL de uma imagem pode levar dados exfiltrados na query string).
@@ -135,7 +135,7 @@ A defesa mais barata e mais forte contra a agência excessiva é perguntar ao us
 - **Confirme a ação exata**, não uma intenção: *"Reservar os assentos C12 e C13 para Os Paralelos, sábado 13/03, R$ 560 no total — confirma?"*.
 - **A confirmação é um evento de interface** (um botão ligado aos parâmetros da ação), não a palavra "sim" interpretada pelo modelo — um texto injetado não aperta botões.
 - **Classifique o risco** ([Agentes e ferramentas](../agents/index.md#side-effects)): leituras e ações reversíveis rodam sozinhas dentro de limites; ações irreversíveis e financeiras sempre pedem confirmação; algumas ações simplesmente não são oferecidas.
-- **Evite a fadiga de aprovação**: se todo passo pede confirmação, o usuário clica "sim" sem ler. Confirme pouco, e só o que importa.
+- **Evite a fadiga de aprovação**: se todo passo pede confirmação, o usuário clica "sim" sem ler. Confirme pouco e só o que importa.
 
 ### Uma verificação de guardrail em código { #guardrail-code }
 
@@ -198,7 +198,7 @@ Tudo nela é determinístico e testável por testes unitários: `redact("cartão
 
 !!! example "No código do BoxOffice: as verificações de entrada e de saída (lab 12)"
 
-    O [Hands-on 12 — Guardrails e métricas](../../../hands-on/12/guardrails/index.md) coloca duas verificações determinísticas em volta do modelo. Na **entrada**: um limite de tamanho, uma lista de padrões para as injeções óbvias (rejeitadas com HTTP 422, antes de qualquer chamada ao modelo) e a redação de CPFs, números de cartão e e-mails. Na **saída**: a verificação de citações — uma resposta só é *grounded* se cita documentos que de fato recebeu, e ids inventados viram `[unverified]`. Não há verificação de chamada de ferramenta porque as ferramentas do lab são só de leitura: ali, a defesa mais forte é a arquitetura. Numa execução de teste, o `qwen2.5:1.5b` deu os fatos certos mas ignorou a regra de citá-los, e a verificação marcou a resposta `grounded: false`.
+    O [Hands-on 12 — Guardrails e métricas](../../../hands-on/12/guardrails/index.md) coloca duas verificações determinísticas em volta do modelo. Na **entrada**: um limite de tamanho, uma lista de padrões para as injeções óbvias (rejeitadas com HTTP 422, antes de qualquer chamada ao modelo) e a redação de CPFs, números de cartão e e-mails. Na **saída**: a verificação de citações — uma resposta só é *grounded* se cita documentos que de fato recebeu e ids inventados viram `[unverified]`. Não há verificação de chamada de ferramenta porque as ferramentas do lab são só de leitura: ali, a defesa mais forte é a arquitetura. Numa execução de teste, o `qwen2.5:1.5b` deu os fatos certos mas ignorou a regra de citá-los e a verificação marcou a resposta `grounded: false`.
 
     ``` { .python title="services/assistant/app/guardrails.py (redaction, input and output checks)" }
     --8<-- "docs/2027.1/hands-on/12/code/services/assistant/app/guardrails.py:11:15,25:51"
@@ -208,7 +208,7 @@ Tudo nela é determinístico e testável por testes unitários: `redact("cartão
 
 ## Avaliação { #evaluation }
 
-O incidente 3 — o prompt mais simpático que quebrou as reservas — é uma **regressão**. Em software clássico, testes pegam regressões. Funcionalidades com LLM precisam da mesma disciplina, adaptada a dois fatos: as saídas variam entre execuções, e "correto" muitas vezes é um julgamento, não uma igualdade.
+O incidente 3 — o prompt mais simpático que quebrou as reservas — é uma **regressão**. Em software clássico, testes pegam regressões. Funcionalidades com LLM precisam da mesma disciplina, adaptada a dois fatos: as saídas variam entre execuções e "correto" muitas vezes é um julgamento, não uma igualdade.
 
 **Toda mudança em um prompt, um modelo, uma descrição de ferramenta, nas configurações de recuperação ou no roteamento do gateway é um deploy** e precisa passar pela avaliação antes de ir para produção.
 
@@ -219,12 +219,12 @@ O incidente 3 — o prompt mais simpático que quebrou as reservas — é uma **
 | Verificações determinísticas | schema válido, ferramenta certa escolhida, citações existentes, nenhum PII na saída | asserções em código | ~zero | a cada commit |
 | **Golden set** | comportamento de ponta a ponta em casos curados com resultados conhecidos | rodar o sistema em 100–500 casos; avaliar pelo estado e por regras | minutos, alguns US$ | a cada mudança (CI) |
 | **LLM como juiz** (LLM-as-judge) | qualidades abertas: utilidade, tom, fidelidade às fontes | um modelo pontua as saídas segundo uma rubrica | mais US$ | a cada mudança, por amostragem |
-| Revisão humana | o que os juízes deixam passar; calibração dos juízes | especialistas rotulam amostras | caro | semanalmente, e antes de grandes lançamentos |
+| Revisão humana | o que os juízes deixam passar; calibração dos juízes | especialistas rotulam amostras | caro | semanalmente e antes de grandes lançamentos |
 | **Online** | usuários reais, tráfego real | métricas de produto e de operação, testes A/B | — | continuamente |
 
 ### Golden sets
 
-Um **golden set** é uma coleção versionada de casos, cada um com uma entrada, o contexto (respostas determinísticas das ferramentas — fixtures — para que a execução não dependa de dados vivos), o resultado esperado e o avaliador. Construa-o a partir de **conversas reais** (anonimizadas), e continue acrescentando: todo bug encontrado em produção e todo ataque bem-sucedido do red-teaming vira um caso novo.
+Um **golden set** é uma coleção versionada de casos, cada um com uma entrada, o contexto (respostas determinísticas das ferramentas — fixtures — para que a execução não dependa de dados vivos), o resultado esperado e o avaliador. Construa-o a partir de **conversas reais** (anonimizadas) e continue acrescentando: todo bug encontrado em produção e todo ataque bem-sucedido do red-teaming vira um caso novo.
 
 ``` yaml title="evals/booking/booking-017.yaml"
 id: booking-017

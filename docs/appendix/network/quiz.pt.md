@@ -143,7 +143,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q11.** Um notebook em `192.168.1.10` abriu uma conexão com um servidor web, e o roteador NAT escreveu a linha `192.168.1.10:52241 ⇄ 203.0.113.7:40001`. Um host da internet que o notebook nunca contatou envia agora um pacote para `203.0.113.7:22`. O que acontece?
+**Q11.** Um notebook em `192.168.1.10` abriu uma conexão com um servidor web e o roteador NAT escreveu a linha `192.168.1.10:52241 ⇄ 203.0.113.7:40001`. Um host da internet que o notebook nunca contatou envia agora um pacote para `203.0.113.7:22`. O que acontece?
 
 - A. O roteador o encaminha ao notebook, o único dispositivo com uma conexão aberta
 - B. O roteador o descarta: nenhuma linha tem a porta pública 22, então ele não tem como saber qual host privado deveria recebê-lo
@@ -171,7 +171,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q13.** A linha de NAT de uma conexão ociosa foi apagada após o seu timeout. Qual é a consequência, e o que as conexões de longa duração fazem a respeito?
+**Q13.** A linha de NAT de uma conexão ociosa foi apagada após o seu timeout. Qual é a consequência e o que as conexões de longa duração fazem a respeito?
 
 - A. Nada muda: o próximo pacote do servidor recria a linha
 - B. O próximo pacote do servidor é descartado, porque o roteador não sabe mais a qual host privado ele pertence; conexões longas e ociosas mandam keep-alives para que a linha nunca expire
@@ -181,7 +181,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — Pacotes atrasados são descartados; keep-alives mantêm a linha viva.**
 
-    As linhas só existem enquanto o tráfego as renova. As normas fixam timeouts ociosos mínimos (2 minutos para UDP, 2 horas e 4 minutos para TCP estabelecido), mas muitos equipamentos usam valores menores. Um pool de conexões de banco ou um WebSocket que fica em silêncio por mais tempo que isso quebra sem aviso, e por isso eles enviam pacotes de keep-alive periódicos.
+    As linhas só existem enquanto o tráfego as renova. As normas fixam timeouts ociosos mínimos (2 minutos para UDP, 2 horas e 4 minutos para TCP estabelecido), mas muitos equipamentos usam valores menores. Um pool de conexões de banco ou um WebSocket que fica em silêncio por mais tempo que isso quebra sem aviso e por isso eles enviam pacotes de keep-alive periódicos.
 
 ---
 
@@ -199,7 +199,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q15.** Por que o DNS normalmente roda sobre UDP, e não TCP?
+**Q15.** Por que o DNS normalmente roda sobre UDP e não TCP?
 
 - A. O UDP é criptografado e o TCP não
 - B. Uma consulta DNS é uma pergunta pequena e uma resposta pequena; o handshake do TCP acrescentaria uma ida e volta inteira antes de a pergunta ser enviada, e, se uma resposta se perde, o cliente simplesmente pergunta de novo
@@ -213,7 +213,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q16.** Uma equipe planeja mover `api.example.com` para um novo endereço IP. O TTL do registro é 86.400 s (um dia). O que ela deve esperar, e qual é a prática usual?
+**Q16.** Uma equipe planeja mover `api.example.com` para um novo endereço IP. O TTL do registro é 86.400 s (um dia). O que ela deve esperar e qual é a prática usual?
 
 - A. Todos os clientes passam para o endereço novo em segundos
 - B. Os resolvedores que guardaram a resposta antiga continuam a servi-la até a sua cópia expirar — por até um dia —, então a equipe baixa o TTL (para, digamos, 60 s) pelo menos um dia antes da mudança e o sobe de novo depois

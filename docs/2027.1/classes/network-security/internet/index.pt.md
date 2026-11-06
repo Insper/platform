@@ -1,4 +1,4 @@
-Às 10h00 um fã em São Paulo toca em **Comprar** num celular ligado ao Wi-Fi de casa. Alguns milissegundos depois, um pod com o endereço `10.20.40.17` cobra o cartão num provedor de pagamento que aceita requisições de exatamente um endereço no mundo. Entre os dois há uma dúzia de roteadores, pelo menos três traduções de endereço e quatro tabelas de rotas — e nenhum deles sabe nada sobre o BoxOffice. Esta página explica esse caminho desde o começo: o que é um endereço IP, por que alguns endereços são **públicos** e outros **privados**, como um bloco de endereços é dividido em **sub-redes**, e como o **NAT** permite que milhões de dispositivos privados compartilhem poucos endereços públicos. A [próxima página](../cloud-network/index.md) constrói a rede do BoxOffice na nuvem sobre essas ideias, e o resto da aula a protege.
+Às 10h00 um fã em São Paulo toca em **Comprar** num celular ligado ao Wi-Fi de casa. Alguns milissegundos depois, um pod com o endereço `10.20.40.17` cobra o cartão num provedor de pagamento que aceita requisições de exatamente um endereço no mundo. Entre os dois há uma dúzia de roteadores, pelo menos três traduções de endereço e quatro tabelas de rotas — e nenhum deles sabe nada sobre o BoxOffice. Esta página explica esse caminho desde o começo: o que é um endereço IP, por que alguns endereços são **públicos** e outros **privados**, como um bloco de endereços é dividido em **sub-redes** e como o **NAT** permite que milhões de dispositivos privados compartilhem poucos endereços públicos. A [próxima página](../cloud-network/index.md) constrói a rede do BoxOffice na nuvem sobre essas ideias e o resto da aula a protege.
 
 !!! info "Dois simuladores nesta página"
 
@@ -31,7 +31,7 @@ flowchart LR
 Dois fatos saem da figura e explicam quase toda esta página:
 
 - **Roteadores olham só o cabeçalho IP.** Nunca leem a URL; o IP de destino decide o caminho. O quadro em volta do pacote é descartado e refeito a cada salto.
-- **Portas são da camada de transporte**, mas dispositivos de NAT e firewalls também as leem: é assim que um endereço público é compartilhado, e é assim que um security group libera a `5432` e recusa a `22`.
+- **Portas são da camada de transporte**, mas dispositivos de NAT e firewalls também as leem: é assim que um endereço público é compartilhado e é assim que um security group libera a `5432` e recusa a `22`.
 
 ---
 
@@ -70,7 +70,7 @@ Rode `traceroute` (Linux, macOS) ou `tracert` (Windows) para qualquer site: cada
 
 !!! info "O núcleo da Internet não tem rota padrão"
 
-    O roteador da sua casa tem uma rota padrão (`0.0.0.0/0 → operadora`). Os grandes roteadores do núcleo não: só guardam os prefixos que alguém anunciou. Um pacote para um endereço que ninguém anuncia — um endereço **privado** como `10.20.40.17` — não encontra rota e é descartado no primeiro roteador do núcleo. É isso, e não um firewall, que impede a Internet de alcançar um pod pelo seu IP privado.
+    O roteador da sua casa tem uma rota padrão (`0.0.0.0/0 → operadora`). Os grandes roteadores do núcleo não: só guardam os prefixos que alguém anunciou. Um pacote para um endereço que ninguém anuncia — um endereço **privado** como `10.20.40.17` — não encontra rota e é descartado no primeiro roteador do núcleo. É isso e não um firewall que impede a Internet de alcançar um pod pelo seu IP privado.
 
 ---
 
@@ -133,13 +133,13 @@ Um endereço **público** é o que torna um host alcançável *a partir* da Inte
 
 !!! warning "Privado é sobre alcance, não sobre confiança"
 
-    Um endereço privado só diz "a Internet não tem rota até mim". Qualquer coisa dentro da rede — um pod comprometido, um peering mal configurado, a VPN de um engenheiro — ainda o alcança. Por isso os [security groups](../cloud-network/index.md#security-groups) continuam restringindo cada porta, e por isso o [Zero Trust](../zero-trust/index.md) autentica cada chamada em vez de confiar na rede.
+    Um endereço privado só diz "a Internet não tem rota até mim". Qualquer coisa dentro da rede — um pod comprometido, um peering mal configurado, a VPN de um engenheiro — ainda o alcança. Por isso os [security groups](../cloud-network/index.md#security-groups) continuam restringindo cada porta e por isso o [Zero Trust](../zero-trust/index.md) autentica cada chamada em vez de confiar na rede.
 
 ---
 
 ## NAT: muitos hosts privados atrás de um endereço público { #nat }
 
-O **NAT** (Network Address Translation) reescreve endereços no cabeçalho IP quando os pacotes atravessam um dispositivo. A forma mais comum, o **NAT de origem** (também chamado PAT ou *masquerading*), é o que fazem o roteador da sua casa, a sua operadora de celular e o NAT gateway da nuvem: trocam a origem privada de cada pacote que sai pelo seu próprio endereço público e uma porta livre, e anotam o par numa **tabela de tradução**.
+O **NAT** (Network Address Translation) reescreve endereços no cabeçalho IP quando os pacotes atravessam um dispositivo. A forma mais comum, o **NAT de origem** (também chamado PAT ou *masquerading*), é o que fazem o roteador da sua casa, a sua operadora de celular e o NAT gateway da nuvem: trocam a origem privada de cada pacote que sai pelo seu próprio endereço público e uma porta livre e anotam o par numa **tabela de tradução**.
 
 ``` diagram-sim
 sequenceDiagram
@@ -170,7 +170,7 @@ Quatro consequências aparecem o tempo todo em design de sistemas:
 3. **Um NAT dá um endereço de saída estável.** Os pods mudam de nó e os seus IPs mudam, mas tudo o que mandam para a Internet sai com o IP público fixo do NAT — o que o BoxOffice registra na lista de permissões do provedor de pagamento ([redes em nuvem](../cloud-network/index.md#subnets)).
 4. **O NAT de destino publica um serviço privado.** A reescrita inversa — "pacotes para a minha `:443` pública vão para este host privado" — é o que fazem um load balancer, um internet gateway da nuvem (NAT 1:1 para IPs públicos) e o `ports: "80:80"` do Docker.
 
-Um NAT também tem **capacidade**: cada conexão para o mesmo destino precisa da sua própria porta pública, e um endereço público tem no máximo 65 535. Um NAT gateway da AWS suporta até 55 000 conexões simultâneas para cada destino único[^6] — um limite real quando centenas de pods chamam a mesma API de pagamento durante uma abertura de vendas.
+Um NAT também tem **capacidade**: cada conexão para o mesmo destino precisa da sua própria porta pública e um endereço público tem no máximo 65 535. Um NAT gateway da AWS suporta até 55 000 conexões simultâneas para cada destino único[^6] — um limite real quando centenas de pods chamam a mesma API de pagamento durante uma abertura de vendas.
 
 ---
 
@@ -190,7 +190,7 @@ flowchart TD
 Uma **sub-rede** é, portanto, um bloco de endereços cujos hosts falam diretamente entre si; todo o resto passa por um roteador. Os projetos dividem o espaço de endereços em sub-redes por três razões:
 
 - **Posicionamento**: na nuvem uma sub-rede vive numa zona de disponibilidade, então uma sub-rede por zona permite espalhar réplicas e perder uma zona sem perder um serviço.
-- **Política de roteamento**: cada sub-rede tem uma tabela de rotas, e é a tabela que a torna **pública** (uma rota para um internet gateway), **privada** (uma rota para um NAT) ou **isolada** (nenhuma rota para fora).
+- **Política de roteamento**: cada sub-rede tem uma tabela de rotas e é a tabela que a torna **pública** (uma rota para um internet gateway), **privada** (uma rota para um NAT) ou **isolada** (nenhuma rota para fora).
 - **Raio de impacto e regras**: firewalls e flow logs são associados por sub-rede; um erro numa camada não abre as outras.
 
 Uma **tabela de rotas** é uma lista de `bloco de destino → alvo`. Toda tabela numa VPC tem a rota `local` para o próprio bloco da VPC; o resto decide a camada:
@@ -201,13 +201,13 @@ Uma **tabela de rotas** é uma lista de `bloco de destino → alvo`. Toda tabela
 | `rt-private` | local | NAT gateway | **privada**: só saída, pelo NAT |
 | `rt-data` | local | — | **isolada**: nem entrada nem saída |
 
-Quando um pacote para `10.20.8.10` sai de uma sub-rede privada, as duas rotas "o contêm" (`0.0.0.0/0` contém tudo), e **o maior prefixo vence**: `/16` vence `/0`, então ele fica dentro da VPC.
+Quando um pacote para `10.20.8.10` sai de uma sub-rede privada, as duas rotas "o contêm" (`0.0.0.0/0` contém tudo) e **o maior prefixo vence**: `/16` vence `/0`, então ele fica dentro da VPC.
 
 ---
 
 ## O caminho do pacote: a VPC do BoxOffice { #packet-walk }
 
-Agora junte as peças. O simulador abaixo é uma versão pequena da rede do BoxOffice (uma zona de disponibilidade): uma sub-rede **pública** com o load balancer e o NAT gateway, uma sub-rede **privada** com os pods `order` e `payment`, e uma sub-rede **isolada** com o PostgreSQL. Cada passo mostra onde o pacote está, a sua origem e o seu destino (os campos que acabaram de mudar ficam destacados), a tabela de rotas ou o security group consultado, e a linha que casou.
+Agora junte as peças. O simulador abaixo é uma versão pequena da rede do BoxOffice (uma zona de disponibilidade): uma sub-rede **pública** com o load balancer e o NAT gateway, uma sub-rede **privada** com os pods `order` e `payment`, e uma sub-rede **isolada** com o PostgreSQL. Cada passo mostra onde o pacote está, a sua origem e o seu destino (os campos que acabaram de mudar ficam destacados), a tabela de rotas ou o security group consultado e a linha que casou.
 
 <div class="netsim" data-tool="packet" data-scenario="fan-site"></div>
 
@@ -221,7 +221,7 @@ Agora junte as peças. O simulador abaixo é uma versão pequena da rede do BoxO
 
 ??? question "O que você deveria ter visto? (abra depois de experimentar)"
 
-    - Os pods nunca conhecem nenhum endereço público: as traduções acontecem nas bordas (roteador de casa, internet gateway, NAT gateway), e a resposta é traduzida de volta pelos mesmos dispositivos.
+    - Os pods nunca conhecem nenhum endereço público: as traduções acontecem nas bordas (roteador de casa, internet gateway, NAT gateway) e a resposta é traduzida de volta pelos mesmos dispositivos.
     - A **tabela de rotas** decide se um pacote *pode* sair de uma sub-rede; o **security group** decide se o destino o *aceita*; a **tabela do NAT** decide se um pacote que chega é uma resposta ou um estranho.
     - Um pacote descartado **não gera mensagem de erro**: quem enviou espera o seu timeout. "Connection timed out" geralmente indica uma rota ou um firewall; "connection refused" indica que o host foi alcançado e nada escuta naquela porta.
 
@@ -241,7 +241,7 @@ Agora junte as peças. O simulador abaixo é uma versão pequena da rede do BoxO
 
 !!! example "No código do BoxOffice: pods, nós e uma porta publicada (lab 10)"
 
-    No [Hands-on 10](../../../hands-on/10/index.md) o cluster kind tem três nós, cada um um container com endereço privado; cada pod recebe o seu próprio endereço privado da rede de pods (o padrão do kind, `10.244.0.0/16`), e os Services recebem endereços virtuais de outro bloco privado. A única entrada a partir da sua máquina é o `extraPortMappings`: a porta 80 do host → a NodePort `30080` do controlador de Ingress — mais uma vez um NAT de destino, no papel do internet gateway na frente do load balancer.
+    No [Hands-on 10](../../../hands-on/10/index.md) o cluster kind tem três nós, cada um um container com endereço privado; cada pod recebe o seu próprio endereço privado da rede de pods (o padrão do kind, `10.244.0.0/16`) e os Services recebem endereços virtuais de outro bloco privado. A única entrada a partir da sua máquina é o `extraPortMappings`: a porta 80 do host → a NodePort `30080` do controlador de Ingress — mais uma vez um NAT de destino, no papel do internet gateway na frente do load balancer.
 
     ``` { .yaml title="k8s/kind.yaml" }
     --8<-- "docs/2027.1/hands-on/10/code/k8s/kind.yaml"
@@ -251,13 +251,13 @@ Agora junte as peças. O simulador abaixo é uma versão pequena da rede do BoxO
 
 ## IPv6 em um parágrafo { #ipv6 }
 
-Endereços IPv6 têm **128 bits** (2¹²⁸ ≈ 3,4 × 10³⁸), escritos em grupos hexadecimais como `2001:db8:20::17`. Há o suficiente para cada dispositivo ter um endereço **roteável globalmente**, então redes IPv6 normalmente **não usam NAT** — o que significa que, com IPv6, um pod *poderia* ser alcançável a partir da Internet, e só as tabelas de rotas e os firewalls (security groups) decidem se ele é. Nuvens e operadoras rodam **dual-stack** (IPv4 e IPv6 lado a lado), e o IPv4 público virou um recurso cobrado: desde fevereiro de 2024 a AWS cobra por todo endereço IPv4 público, em uso ou não[^7]. As ideias de projeto desta página — sub-redes, tabelas de rotas, maior prefixo, firewalls — são as mesmas no IPv6.
+Endereços IPv6 têm **128 bits** (2¹²⁸ ≈ 3,4 × 10³⁸), escritos em grupos hexadecimais como `2001:db8:20::17`. Há o suficiente para cada dispositivo ter um endereço **roteável globalmente**, então redes IPv6 normalmente **não usam NAT** — o que significa que, com IPv6, um pod *poderia* ser alcançável a partir da Internet e só as tabelas de rotas e os firewalls (security groups) decidem se ele é. Nuvens e operadoras rodam **dual-stack** (IPv4 e IPv6 lado a lado) e o IPv4 público virou um recurso cobrado: desde fevereiro de 2024 a AWS cobra por todo endereço IPv4 público, em uso ou não[^7]. As ideias de projeto desta página — sub-redes, tabelas de rotas, maior prefixo, firewalls — são as mesmas no IPv6.
 
 ---
 
 !!! tip "Na entrevista"
 
-    Raramente vão pedir para você calcular uma máscara, mas vão perguntar "como a Internet chega ao seu serviço, e como o seu serviço chama o mundo de fora?". Responda num fôlego só: "os fãs resolvem o nome para o IP **público** do load balancer; tudo atrás dele tem endereços **privados** em sub-redes privadas; as chamadas ao provedor de pagamento saem por um **NAT gateway por AZ** com um IP fixo que o provedor coloca na lista de permissões; a sub-rede do banco **não tem rota** para a Internet." Depois, se houver tempo, comente que limites de taxa por IP são injustos atrás do NAT das operadoras.
+    Raramente vão pedir para você calcular uma máscara, mas vão perguntar "como a Internet chega ao seu serviço e como o seu serviço chama o mundo de fora?". Responda num fôlego só: "os fãs resolvem o nome para o IP **público** do load balancer; tudo atrás dele tem endereços **privados** em sub-redes privadas; as chamadas ao provedor de pagamento saem por um **NAT gateway por AZ** com um IP fixo que o provedor coloca na lista de permissões; a sub-rede do banco **não tem rota** para a Internet." Depois, se houver tempo, comente que limites de taxa por IP são injustos atrás do NAT das operadoras.
 
 !!! success "Boas práticas"
 
@@ -265,15 +265,15 @@ Endereços IPv6 têm **128 bits** (2¹²⁸ ≈ 3,4 × 10³⁸), escritos em gru
     - **Escolha blocos privados que nunca vão se sobrepor** — um plano único para toda VPC, escritório e cluster (VPC `10.20.0.0/16`, pods e Services de blocos reservados no mesmo plano), para que peering e VPNs continuem possíveis depois.
     - **Faça a tabela de rotas dizer a camada**: sub-redes públicas roteiam `0.0.0.0/0` para o internet gateway, as privadas para um NAT na mesma zona, as de dados para lugar nenhum — e revise qualquer mudança numa rota padrão como uma mudança de código.
     - **Dimensione sub-redes para o pico com folga**, não para hoje: conte nós, IPs de pods e os 5 endereços reservados (um `/24` tem 251 utilizáveis na AWS; acaba no primeiro grande scale-out).
-    - **Nunca confie só no IP do cliente** — atrás do NAT das operadoras milhares de fãs compartilham um endereço; limite por chave de API ou por usuário, e use limites por IP só como escudo grosseiro contra enxurradas.
-    - **Acompanhe a capacidade do NAT em destinos quentes** — reutilize conexões (keep-alive, pools de conexões) com o provedor de pagamento em vez de abrir uma por requisição, e alerte em erros de alocação de portas.
+    - **Nunca confie só no IP do cliente** — atrás do NAT das operadoras milhares de fãs compartilham um endereço; limite por chave de API ou por usuário e use limites por IP só como escudo grosseiro contra enxurradas.
+    - **Acompanhe a capacidade do NAT em destinos quentes** — reutilize conexões (keep-alive, pools de conexões) com o provedor de pagamento em vez de abrir uma por requisição e alerte em erros de alocação de portas.
 
 !!! warning "Armadilhas comuns"
 
     - **"Tem IP privado, então está seguro"** — um endereço privado limita quem consegue rotear até ele, não quem tem permissão de entrar; vizinhos comprometidos, peerings e VPNs estão do lado de dentro.
     - **Colocar o IP de um pod ou de um nó na lista de permissões de um parceiro** — esses endereços mudam a cada reagendamento; coloque o IP público fixo do NAT.
     - **Confundir "timeout" com "refused"** — um timeout aponta para uma rota, um security group ou um NAT; uma recusa significa que o host foi alcançado e nada escuta naquela porta.
-    - **`10.0.0.0/16` sobreposto em todo lugar** — o padrão de muitos templates, e a razão pela qual duas equipes não conseguem ligar as suas redes.
+    - **`10.0.0.0/16` sobreposto em todo lugar** — o padrão de muitos templates e a razão pela qual duas equipes não conseguem ligar as suas redes.
     - **Expor `169.254.169.254` a requisições não confiáveis** — um *server-side request forgery* que alcança o serviço de metadados pode roubar as credenciais de nuvem da máquina (exija a API de metadados com token).
 
 ---
@@ -301,9 +301,9 @@ flowchart LR
 !!! takeaways ""
 
     - Uma requisição viaja como um pacote IP; **roteadores leem só o IP de destino** e o encaminham pelo **maior prefixo**, salto a salto; as redes anunciam os seus blocos com **BGP**.
-    - Um endereço IPv4 tem uma **parte de rede e uma parte de host**; `/n` fixa os primeiros *n* bits, o bloco tem 2³²⁻ⁿ endereços, e cada bit a mais o divide ao meio.
+    - Um endereço IPv4 tem uma **parte de rede e uma parte de host**; `/n` fixa os primeiros *n* bits, o bloco tem 2³²⁻ⁿ endereços e cada bit a mais o divide ao meio.
     - Blocos **privados** (RFC 1918) são reutilizados em todo lugar e nunca roteados na Internet; endereços **públicos** são únicos e anunciados. Privado significa inalcançável de fora, não confiável.
-    - O **NAT** permite que hosts privados compartilhem um endereço público: conexões só começam de dentro, os servidores veem o IP do NAT, e o NAT dá um endereço de saída estável para listas de permissões.
+    - O **NAT** permite que hosts privados compartilhem um endereço público: conexões só começam de dentro, os servidores veem o IP do NAT e o NAT dá um endereço de saída estável para listas de permissões.
     - Um host envia diretamente dentro da sua **sub-rede** e ao **gateway padrão** no resto; a **tabela de rotas** de uma sub-rede a torna pública, privada ou isolada.
 
 ---

@@ -5,7 +5,7 @@ Uma folha de consulta com os números por trás de toda estimativa de guardanapo
 !!! warning "Leia os rótulos"
     Três tipos de número vivem nesta página. Valores **exatos** (potências de dois, segundos num dia, noves de disponibilidade) valem sempre. Os valores **clássicos** de latência vêm de referências conhecidas[^1][^2] e continuam sendo boa intuição. Tudo o que está marcado como **≈ ilustrativo** ou **aproximado (2026)** depende de hardware, carga, configuração e provedor: use para raciocinar, depois meça o seu próprio sistema (é para isso que serve o [Hands-on 2](../../hands-on/2/index.md)) e confira as calculadoras de preço dos provedores.
 
-A teoria por trás destes números está em [Estimativas › Números](../../classes/estimation/numbers/index.md), [Filas](../../classes/estimation/queueing/index.md), [Percentis](../../classes/estimation/percentiles/index.md) e [Matemática da disponibilidade](../../classes/estimation/availability-math/index.md). O [catálogo de componentes](../components/index.md) traz números-chave por componente, e o [playground](../../../playground/index.md) usa as mesmas ordens de grandeza nos seus valores padrão.
+A teoria por trás destes números está em [Estimativas › Números](../../classes/estimation/numbers/index.md), [Filas](../../classes/estimation/queueing/index.md), [Percentis](../../classes/estimation/percentiles/index.md) e [Matemática da disponibilidade](../../classes/estimation/availability-math/index.md). O [catálogo de componentes](../components/index.md) traz números-chave por componente e o [playground](../../../playground/index.md) usa as mesmas ordens de grandeza nos seus valores padrão.
 
 ---
 
@@ -53,7 +53,7 @@ A teoria por trás destes números está em [Estimativas › Números](../../cla
 
 ### A tabela clássica { #the-classic-table }
 
-A tabela popularizada por Jeff Dean e Peter Norvig[^1][^2]. O hardware mudou (veja a próxima tabela), mas são as **proporções** que você precisa lembrar: a memória é cerca de 1.000× mais rápida que uma leitura de SSD, e uma ida e volta dentro de um data center é cerca de 1.000× mais rápida que uma ida e volta atravessando um oceano.
+A tabela popularizada por Jeff Dean e Peter Norvig[^1][^2]. O hardware mudou (veja a próxima tabela), mas são as **proporções** que você precisa lembrar: a memória é cerca de 1.000× mais rápida que uma leitura de SSD e uma ida e volta dentro de um data center é cerca de 1.000× mais rápida que uma ida e volta atravessando um oceano.
 
 | Operação | Valor clássico | Observações |
 |---|---|---|
@@ -234,7 +234,7 @@ Um show num estádio abre as vendas às 10:00: **2 milhões de fãs, 60.000 asse
 | Armazenamento | 30 mil pedidos × 1 KB | ≈ 30 MB — armazenamento não é o problema |
 | Custo da CDN | ≈ 5 MB por fã (primeiro carregamento + 40 atualizações) × 2 M | ≈ 10 TB ≈ USD 200–900 (aproximado, 2026) |
 
-A estimativa aponta direto para o design: o pico de leitura é da **CDN**, a disputa é de uma **sala de espera** que transforma a multidão num fluxo constante, o assento precisa ser uma linha **fortemente consistente** com reserva atômica, e pagamento e e-mail são dependências **limitadas e assíncronas**. O design completo está no [estudo de caso de ingressos](../../classes/case-studies/ticketing/index.md); experimente os números no cenário [`flash-sale`](../../../playground/scenarios/index.md#flash-sale) do [playground](../../../playground/index.md).
+A estimativa aponta direto para o design: o pico de leitura é da **CDN**, a disputa é de uma **sala de espera** que transforma a multidão num fluxo constante, o assento precisa ser uma linha **fortemente consistente** com reserva atômica e pagamento e e-mail são dependências **limitadas e assíncronas**. O design completo está no [estudo de caso de ingressos](../../classes/case-studies/ticketing/index.md); experimente os números no cenário [`flash-sale`](../../../playground/scenarios/index.md#flash-sale) do [playground](../../../playground/index.md).
 
 [^1]: Jonas Bonér, "Latency Numbers Every Programmer Should Know" (compilação de valores de Jeff Dean e Peter Norvig), [gist.github.com/jboner/2841832](https://gist.github.com/jboner/2841832).
 [^2]: Jeff Dean, "Designs, Lessons and Advice from Building Large Distributed Systems", palestra no LADIS 2009; Peter Norvig, "Teach Yourself Programming in Ten Years", [norvig.com/21-days.html](https://norvig.com/21-days.html).

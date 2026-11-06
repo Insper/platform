@@ -133,7 +133,7 @@ Uma possível implementação das classes `AccountController`, `AccountIn` e `Ac
         --8<-- "docs/2026.2/hands-on/1/controller/code/AccountOut.java"
         ```
 
-Os DTOs são `record`s do Java com o `@Builder` do Lombok; o `@Accessors(fluent = true)` mantém os acessores sem o prefixo `get` (`in.email()`, e não `in.getEmail()`), o mesmo estilo usado pelas classes do `account-service`.
+Os DTOs são `record`s do Java com o `@Builder` do Lombok; o `@Accessors(fluent = true)` mantém os acessores sem o prefixo `get` (`in.email()` e não `in.getEmail()`), o mesmo estilo usado pelas classes do `account-service`.
 
 !!! info "Mais um endpoint depois"
 

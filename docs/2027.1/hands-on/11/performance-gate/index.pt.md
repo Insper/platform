@@ -34,7 +34,7 @@ JVM que ainda está subindo.
 
 O job `performance budget` do `ci.yaml` (passo 1) instala o k6 com `grafana/setup-k6-action`, roda o
 script com `grafana/run-k6-action` e imprime os logs do serviço se falhar. Um threshold ultrapassado faz
-o k6 sair com código 99, e o job falha.
+o k6 sair com código 99 e o job falha.
 
 ## Rode localmente { #run-it-locally }
 
@@ -79,7 +79,7 @@ avisa. Feche o pull request sem fazer merge (e apague a branch) — era só um e
 
     Runners compartilhados de CI variam de uma execução para outra. Defina thresholds com uma margem de
     segurança sobre os seus números normais (aqui, o p95 é ~7 ms contra um orçamento de 300 ms), mantenha
-    o teste curto mas longo o bastante para ter milhares de amostras, e olhe a tendência dos números ao
+    o teste curto mas longo o bastante para ter milhares de amostras e olhe a tendência dos números ao
     longo de muitas execuções antes de apertá-los. Um portão que falha aleatoriamente ensina as pessoas a
     rodar de novo até ficar verde.
 

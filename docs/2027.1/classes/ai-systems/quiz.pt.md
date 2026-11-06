@@ -28,7 +28,7 @@ Clique em **"Resposta"** para ver a alternativa correta e a explicação.
 ??? success "Resposta"
     **C — Instruções e dados dividem o mesmo canal.**
 
-    Um prepared statement garante que o dado do usuário nunca seja interpretado como SQL. Um modelo lê o prompt de sistema, a mensagem do usuário, os documentos recuperados e os resultados de ferramentas como uma única sequência de tokens, e qualquer um deles pode tentar agir como instrução. Por isso a defesa é arquitetural (menor privilégio, isolamento, confirmação), e não um único filtro.
+    Um prepared statement garante que o dado do usuário nunca seja interpretado como SQL. Um modelo lê o prompt de sistema, a mensagem do usuário, os documentos recuperados e os resultados de ferramentas como uma única sequência de tokens, e qualquer um deles pode tentar agir como instrução. Por isso a defesa é arquitetural (menor privilégio, isolamento, confirmação) e não um único filtro.
 
 ---
 
@@ -46,7 +46,7 @@ Clique em **"Resposta"** para ver a alternativa correta e a explicação.
 
 ---
 
-**Q4.** Um modelo tem TTFT = 0,5 s e TPOT = 25 ms. Aproximadamente quanto tempo leva uma resposta de 400 tokens de ponta a ponta, e quanto tempo até o usuário ver a primeira palavra se ela for transmitida em streaming?
+**Q4.** Um modelo tem TTFT = 0,5 s e TPOT = 25 ms. Aproximadamente quanto tempo leva uma resposta de 400 tokens de ponta a ponta e quanto tempo até o usuário ver a primeira palavra se ela for transmitida em streaming?
 
 - A. 10,5 s no total; 0,5 s até o primeiro token
 - B. 10,5 s no total; 10,5 s até o primeiro token
@@ -100,13 +100,13 @@ Clique em **"Resposta"** para ver a alternativa correta e a explicação.
 ??? success "Resposta"
     **C.**
 
-    Um `400` é um erro do cliente: repetir a requisição idêntica falha do mesmo jeito, e ele não diz nada sobre a saúde do provedor (portanto não conta como falha no circuit breaker). Retries com backoff servem para `429` e `5xx`; estouro de contexto exige outra requisição (compactação, menos chunks) ou um modelo com janela maior.
+    Um `400` é um erro do cliente: repetir a requisição idêntica falha do mesmo jeito e ele não diz nada sobre a saúde do provedor (portanto não conta como falha no circuit breaker). Retries com backoff servem para `429` e `5xx`; estouro de contexto exige outra requisição (compactação, menos chunks) ou um modelo com janela maior.
 
 ---
 
 ## Agentes e ferramentas { #agents-and-tools }
 
-**Q8.** Cada passo de um agente está correto com probabilidade 0,95, de forma independente. Qual é, aproximadamente, a probabilidade de uma tarefa de 10 passos dar certo, e qual é a principal lição de projeto?
+**Q8.** Cada passo de um agente está correto com probabilidade 0,95, de forma independente. Qual é, aproximadamente, a probabilidade de uma tarefa de 10 passos dar certo e qual é a principal lição de projeto?
 
 - A. 95% — os passos não se acumulam
 - B. ~60% — reduzir o número de passos, validar após cada passo e usar workflows nas partes conhecidas
@@ -134,7 +134,7 @@ Clique em **"Resposta"** para ver a alternativa correta e a explicação.
 
 ---
 
-**Q10.** No Model Context Protocol (MCP), o que um **servidor** MCP oferece, e como o cliente descobre suas ferramentas?
+**Q10.** No Model Context Protocol (MCP), o que um **servidor** MCP oferece e como o cliente descobre suas ferramentas?
 
 - A. Um endpoint de modelo; o cliente chama `models/list`
 - B. Ferramentas (além de resources e prompts) descritas com nomes, descrições e JSON Schemas; o cliente as descobre com `tools/list` via JSON-RPC e as invoca com `tools/call`
@@ -167,14 +167,14 @@ Clique em **"Resposta"** para ver a alternativa correta e a explicação.
 **Q12.** Um fã pergunta: *"tem acesso sem degraus ao setor C?"*. A busca vetorial devolve chunks sobre "acessibilidade" em geral, mas perde aquele que cita "setor C" e "portão 5". Que mudança resolve isso mais diretamente?
 
 - A. Aumentar a dimensão do embedding de 1.024 para 3.072
-- B. Adicionar busca por palavras-chave (BM25/full-text) e fundir os dois rankings com Reciprocal Rank Fusion, e depois reranquear
+- B. Adicionar busca por palavras-chave (BM25/full-text) e fundir os dois rankings com Reciprocal Rank Fusion e depois reranquear
 - C. Fazer fine-tuning do LLM nos documentos dos locais
 - D. Colocar todos os documentos dos locais no prompt
 
 ??? success "Resposta"
     **B — Busca híbrida + reranqueamento.**
 
-    Vetores densos capturam significado, mas são fracos com tokens exatos (códigos, letras de setor, nomes, siglas); a busca por palavras-chave é exata, mas cega a paráfrases. O RRF combina os dois rankings usando só as posições (1/(60 + posição) em cada lista), e um reranqueador cross-encoder então ordena os melhores candidatos lendo pergunta e chunk juntos.
+    Vetores densos capturam significado, mas são fracos com tokens exatos (códigos, letras de setor, nomes, siglas); a busca por palavras-chave é exata, mas cega a paráfrases. O RRF combina os dois rankings usando só as posições (1/(60 + posição) em cada lista) e um reranqueador cross-encoder então ordena os melhores candidatos lendo pergunta e chunk juntos.
 
 ---
 
@@ -206,7 +206,7 @@ Clique em **"Resposta"** para ver a alternativa correta e a explicação.
 
 ---
 
-**Q15.** O time usa um LLM como juiz para pontuar a utilidade das respostas, e as notas sobem muito depois de uma mudança de prompt que deixou as respostas duas vezes mais longas. Qual é a explicação mais provável, e o que fazer?
+**Q15.** O time usa um LLM como juiz para pontuar a utilidade das respostas e as notas sobem muito depois de uma mudança de prompt que deixou as respostas duas vezes mais longas. Qual é a explicação mais provável e o que fazer?
 
 - A. As respostas realmente melhoraram; pode publicar
 - B. Viés de verbosidade do juiz; usar uma rubrica com critérios concretos que valorize concisão, comparar respostas de tamanho parecido e validar o juiz contra rótulos humanos
@@ -216,4 +216,4 @@ Clique em **"Resposta"** para ver a alternativa correta e a explicação.
 ??? success "Resposta"
     **B — Viés de verbosidade.**
 
-    Juízes LLM tendem a preferir respostas mais longas, preferir a primeira resposta em comparações pareadas e preferir saídas da própria família de modelos. Um juiz é um instrumento de medida: valide sua concordância com rótulos humanos antes de confiar nele, e valide de novo quando o prompt ou o modelo do juiz mudar.
+    Juízes LLM tendem a preferir respostas mais longas, preferir a primeira resposta em comparações pareadas e preferir saídas da própria família de modelos. Um juiz é um instrumento de medida: valide sua concordância com rótulos humanos antes de confiar nele e valide de novo quando o prompt ou o modelo do juiz mudar.

@@ -44,7 +44,7 @@ Crie `services/gateway` (mesmo `Dockerfile` com `EXPOSE 8080`, mesmo `.dockerign
 
 !!! note "Dois load balancers?"
 
-    Sim, de propósito: o **edge** balanceia entre réplicas do *gateway* (acrescente `gateway-2` ao upstream do Nginx quando um gateway não bastar), e o **gateway** balanceia entre instâncias dos *serviços*. Isso espelha a nuvem: um load balancer L7 público na frente de uma frota de API gateways, que chamam os serviços por balanceamento de carga interno.
+    Sim, de propósito: o **edge** balanceia entre réplicas do *gateway* (acrescente `gateway-2` ao upstream do Nginx quando um gateway não bastar) e o **gateway** balanceia entre instâncias dos *serviços*. Isso espelha a nuvem: um load balancer L7 público na frente de uma frota de API gateways, que chamam os serviços por balanceamento de carga interno.
 
 ## 3. Segurança: quem pode chamar o quê { #3-security-who-may-call-what }
 

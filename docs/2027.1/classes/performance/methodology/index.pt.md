@@ -1,4 +1,4 @@
-"O `inventory` está lento no teste da pré-venda." Em dez minutos, o canal do time tem quatro propostas: colocar um cache Redis, mudar para uma instância de banco maior, adicionar mais pods, reescrever o caminho quente em Go. Cada uma custa dias ou dólares; no máximo uma ataca a causa real; e ninguém olhou uma única métrica ainda. Uma **metodologia** é o que substitui esse chute: uma forma sistemática de ir de um sintoma ao recurso limitante, e de lá à única mudança que importa.
+"O `inventory` está lento no teste da pré-venda." Em dez minutos, o canal do time tem quatro propostas: colocar um cache Redis, mudar para uma instância de banco maior, adicionar mais pods, reescrever o caminho quente em Go. Cada uma custa dias ou dólares; no máximo uma ataca a causa real; e ninguém olhou uma única métrica ainda. Uma **metodologia** é o que substitui esse chute: uma forma sistemática de ir de um sintoma ao recurso limitante e de lá à única mudança que importa.
 
 ---
 
@@ -59,7 +59,7 @@ O resultado vira o modelo de carga que todos os testes desta aula reutilizam (os
 
 Três propriedades das cargas reais são perdidas rotineiramente nos testes e precisam ser modeladas de propósito:
 
-- **Assimetria** (*skew*). As requisições não são uniformes sobre os dados. Durante uma venda, um evento recebe quase todo o tráfego, e os melhores setores recebem a maioria das reservas — o clássico problema de **chave quente / linha quente**. A popularidade costuma ser modelada com uma distribuição de Zipf.
+- **Assimetria** (*skew*). As requisições não são uniformes sobre os dados. Durante uma venda, um evento recebe quase todo o tráfego e os melhores setores recebem a maioria das reservas — o clássico problema de **chave quente / linha quente**. A popularidade costuma ser modelada com uma distribuição de Zipf.
 - **Sessões e think time.** Um fã olha o mapa de assentos por alguns segundos antes de reservar. O **think time** (a pausa entre as requisições de um usuário) molda a concorrência: com a mesma taxa de chegada, think times mais longos significam mais sessões simultâneas (Lei de Little de novo).
 - **Chegadas sincronizadas.** Vendas reais não são uma rampa suave: centenas de milhares de clientes atualizam a página às 10:00:00. Um teste que sobe a carga em 10 minutos perde o segundo mais perigoso do dia.
 
@@ -103,10 +103,10 @@ flowchart TD
 1. **CPU do `inventory`**: 45 % de utilização, fila de execução curta, sem throttling. Não é o gargalo — adicionar pods não ajudaria.
 2. **Memória/GC**: o GC usa menos de 2 % do tempo. Tudo bem.
 3. **Threads do Tomcat**: todas as 200 ocupadas. Saturado — mas threads são um recurso *sintoma*: estão ocupadas *esperando* alguma coisa.
-4. **Pool de conexões**: 10 de 10 conexões ativas, **180 threads pendentes**. Toda reserva espera uma conexão: pela Lei de Little, 180 esperando / 1 500 por segundo ≈ 120 ms de espera no pool em média, e muito mais na cauda.
-5. **PostgreSQL**: CPU só a 35 % — então uma instância maior também não ajudaria. Mas o `pg_stat_activity` mostra a maioria das sessões em `wait_event = Lock: tuple`: transações esperam por **locks de linha** nos mesmos poucos assentos quentes, e cada transação mantém seu lock enquanto também chama o serviço de preços.
+4. **Pool de conexões**: 10 de 10 conexões ativas, **180 threads pendentes**. Toda reserva espera uma conexão: pela Lei de Little, 180 esperando / 1 500 por segundo ≈ 120 ms de espera no pool em média e muito mais na cauda.
+5. **PostgreSQL**: CPU só a 35 % — então uma instância maior também não ajudaria. Mas o `pg_stat_activity` mostra a maioria das sessões em `wait_event = Lock: tuple`: transações esperam por **locks de linha** nos mesmos poucos assentos quentes e cada transação mantém seu lock enquanto também chama o serviço de preços.
 
-O gargalo é **contenção de locks**, amplificada por transações longas. Das quatro propostas da introdução, nenhuma resolveria: um cache não ajuda escritas, um banco maior já tem CPU ociosa, mais pods adicionariam mais gente esperando, e Go esperaria nos mesmos locks. As correções que funcionam — transações mais curtas (chamar o serviço de preços *antes* do `BEGIN`), `SELECT … FOR UPDATE SKIP LOCKED` para entregar aos fãs assentos livres *diferentes* e uma sala de espera para limitar as reservas concorrentes — são discutidas em [Encontrando gargalos](../bottlenecks/index.md) e [Bancos de dados — transações](../../databases/transactions/index.md).
+O gargalo é **contenção de locks**, amplificada por transações longas. Das quatro propostas da introdução, nenhuma resolveria: um cache não ajuda escritas, um banco maior já tem CPU ociosa, mais pods adicionariam mais gente esperando e Go esperaria nos mesmos locks. As correções que funcionam — transações mais curtas (chamar o serviço de preços *antes* do `BEGIN`), `SELECT … FOR UPDATE SKIP LOCKED` para entregar aos fãs assentos livres *diferentes* e uma sala de espera para limitar as reservas concorrentes — são discutidas em [Encontrando gargalos](../bottlenecks/index.md) e [Bancos de dados — transações](../../databases/transactions/index.md).
 
 ```sql title="Who is waiting on what? (PostgreSQL)"
 SELECT wait_event_type, wait_event, state, count(*)
@@ -144,7 +144,7 @@ Um teste de carga mede *o ambiente em que roda*. Cada diferença em relação à
 
 | Dimensão | Precisa ser igual à produção? | Observação do BoxOffice |
 |---|---|---|
-| Tipos de instância, arquitetura de CPU, requests/limits dos containers | **Sim** | Um teste em nós ARM diz pouco sobre uma produção x86, e vice-versa |
+| Tipos de instância, arquitetura de CPU, requests/limits dos containers | **Sim** | Um teste em nós ARM diz pouco sobre uma produção x86 e vice-versa |
 | Número de réplicas e configuração de autoscaling | Sim, ou escale o teste proporcionalmente *e verifique a linearidade* | Reduzir 10× só vale onde o sistema escala linearmente — bancos e locks raramente escalam |
 | Configuração: tamanhos de pool, timeouts, flags da JVM, feature flags | **Sim** | Mesmos valores Helm / overlay Kustomize da produção, vindos do Git |
 | Volume e distribuição dos dados | **Mesma ordem de grandeza**, mesma assimetria | 1 000 assentos em vez de 60 000 mudam todos os índices e todas as taxas de acerto de cache |
@@ -246,8 +246,8 @@ Ambientes de nuvem são ruidosos: vizinhos compartilham hosts, redes variam, aut
 
 !!! success "Boas práticas"
 
-    - **Escreva um plano de teste de uma página antes da primeira execução, e revise-o como um design doc** — objetivo, carga, modelo, ambiente, observação e critérios de saída combinados antes impedem a campanha de virar uma busca por uma execução verde (exemplo acima).
-    - **Tire a mistura de endpoints dos logs de produção, e atualize-a depois de cada grande evento** — a mistura muda a cada funcionalidade; um modelo da venda do ano passado testa o produto do ano passado.
+    - **Escreva um plano de teste de uma página antes da primeira execução e revise-o como um design doc** — objetivo, carga, modelo, ambiente, observação e critérios de saída combinados antes impedem a campanha de virar uma busca por uma execução verde (exemplo acima).
+    - **Tire a mistura de endpoints dos logs de produção e atualize-a depois de cada grande evento** — a mistura muda a cada funcionalidade; um modelo da venda do ano passado testa o produto do ano passado.
     - **Transforme o checklist USE num script e rode-o ao lado do gerador de carga** — uma linha por segundo com os medidores do pool de threads e do pool de conexões transforma "o que está saturado?" numa leitura, não num palpite. No BoxOffice: o `scripts/watch-metrics.sh` do [lab 2](../../../hands-on/2/index.md).
     - **Defina o ambiente de teste como código, com os limites de produção por réplica** — mesmos limites de CPU e memória, mesmos tamanhos de pool e timeouts, para que um número por réplica signifique o mesmo no teste e na produção. No BoxOffice: o `.github/ci/compose.perf.yaml` do [lab 11](../../../hands-on/11/performance-gate/index.md).
     - **Repita cada configuração pelo menos três vezes e relate a mediana e a dispersão** — uma diferença menor que a dispersão entre execuções é ruído, não melhoria.

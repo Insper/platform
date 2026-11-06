@@ -2,7 +2,7 @@
 
 Um dashboard precisa de alguém olhando para ele. Um **alerta** olha por você — e um alerta ruim te
 acorda às 3 da manhã por nada, até você aprender a ignorá-lo. Este passo transforma uma promessa ao
-usuário em um alerta que dispara quando, e somente quando, a promessa está em risco. A teoria está na
+usuário em um alerta que dispara quando e somente quando a promessa está em risco. A teoria está na
 [aula de alertas](../../../classes/observability/alerting/index.md) e na
 [aula de SLO](../../../classes/observability/slo/index.md).
 
@@ -31,7 +31,7 @@ com 28 dias eles significam 2,1% e 5,4% — perto o bastante para manter os núm
 
 | Alerta | Problema |
 |---|---|
-| `erros > 1%` por 5 min | dispara num soluço de 5 minutos que custou cerca de 0,01% do orçamento (ruído), e fica calado com uma taxa de erros de 0,8% que queima o orçamento inteiro em 17,5 dias (perdido) |
+| `erros > 1%` por 5 min | dispara num soluço de 5 minutos que custou cerca de 0,01% do orçamento (ruído) e fica calado com uma taxa de erros de 0,8% que queima o orçamento inteiro em 17,5 dias (perdido) |
 | `erros > 0` | aciona o tempo todo |
 | `p99 > 1 s` em uma instância | mede uma máquina, não usuários |
 

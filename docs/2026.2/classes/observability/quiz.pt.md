@@ -44,7 +44,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — Taxa média de crescimento por segundo na janela de 5 minutos.**
 
-    `rate()` divide o crescimento total do contador na janela pela duração da janela em segundos. Um contador que cresceu 300 em 5 minutos retorna `1.0` (um erro por segundo). Como `rate()` opera sobre o contador bruto, ele trata corretamente os zeramentos do contador (reinícios do serviço) — o que `increase()` também faz, mas como contagem absoluta, e não como taxa por segundo.
+    `rate()` divide o crescimento total do contador na janela pela duração da janela em segundos. Um contador que cresceu 300 em 5 minutos retorna `1.0` (um erro por segundo). Como `rate()` opera sobre o contador bruto, ele trata corretamente os zeramentos do contador (reinícios do serviço) — o que `increase()` também faz, mas como contagem absoluta e não como taxa por segundo.
 
 ---
 
@@ -90,7 +90,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **C — Mesmo `traceId`, novo `spanId` igual ao ID do span corrente.**
 
-    O `traceId` (`abc123...`) nunca muda ao longo de toda a requisição — essa é a invariante que liga todos os spans. O campo `parentSpanId` do novo cabeçalho recebe o ID do span *corrente* (`999888...`), de modo que o serviço downstream sabe exatamente qual span disparou a chamada. O `def456...` recebido torna-se o `parentSpanId` do span *corrente* (armazenado no registro do span), e não é repassado adiante.
+    O `traceId` (`abc123...`) nunca muda ao longo de toda a requisição — essa é a invariante que liga todos os spans. O campo `parentSpanId` do novo cabeçalho recebe o ID do span *corrente* (`999888...`), de modo que o serviço downstream sabe exatamente qual span disparou a chamada. O `def456...` recebido torna-se o `parentSpanId` do span *corrente* (armazenado no registro do span) e não é repassado adiante.
 
 ---
 
@@ -122,7 +122,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **C — O OTel Collector.**
 
-    O Collector é um proxy agnóstico a fornecedores, implantado como sidecar ou como gateway no nível do cluster. Seu pipeline tem três estágios: *receivers* (aceitam OTLP, Jaeger, Zipkin etc.), *processors* (filtram, amostram, agrupam em lotes, adicionam atributos) e *exporters* (enviam para Prometheus, Jaeger, Loki, Datadog etc., simultaneamente). Centralizar o encaminhamento da telemetria no Collector significa que trocar de backend exige apenas uma mudança na configuração do Collector, e não um novo deploy de cada aplicação.
+    O Collector é um proxy agnóstico a fornecedores, implantado como sidecar ou como gateway no nível do cluster. Seu pipeline tem três estágios: *receivers* (aceitam OTLP, Jaeger, Zipkin etc.), *processors* (filtram, amostram, agrupam em lotes, adicionam atributos) e *exporters* (enviam para Prometheus, Jaeger, Loki, Datadog etc., simultaneamente). Centralizar o encaminhamento da telemetria no Collector significa que trocar de backend exige apenas uma mudança na configuração do Collector e não um novo deploy de cada aplicação.
 
 ---
 
@@ -174,7 +174,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q12.** Os serviços usam head sampling de 10%, e o OTel Collector tem uma regra de tail sampling "manter 100% dos traces com um span ERROR". Que fração dos traces de erro chega ao Jaeger?
+**Q12.** Os serviços usam head sampling de 10% e o OTel Collector tem uma regra de tail sampling "manter 100% dos traces com um span ERROR". Que fração dos traces de erro chega ao Jaeger?
 
 - A. 100% — a regra de tail sobrepõe a decisão do head
 - B. Cerca de 10% — traces descartados pelo head sampling nunca são enviados ao Collector, então a regra de tail não tem como recuperá-los
@@ -198,7 +198,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **A — O label `le` carrega os limites dos buckets.**
 
-    Cada bucket do histogram é uma série com um label `le` ("less than or equal", menor ou igual), como `le="0.1"`. A soma entre instâncias precisa manter o `le` para que as contagens de cada bucket de todas as instâncias sejam somadas entre si; somar tudo em um único número destrói a distribuição, e o `histogram_quantile` não devolve nada útil.
+    Cada bucket do histogram é uma série com um label `le` ("less than or equal", menor ou igual), como `le="0.1"`. A soma entre instâncias precisa manter o `le` para que as contagens de cada bucket de todas as instâncias sejam somadas entre si; somar tudo em um único número destrói a distribuição e o `histogram_quantile` não devolve nada útil.
 
 ---
 

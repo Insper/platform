@@ -1,13 +1,13 @@
 
 Você decidiu dividir a loja em serviços. Onde cortar? Por tabela do banco de dados (`products`, `orders`, `order_items`)? Por camada (um serviço para a UI, outro para a lógica)? Pelo que os times estiverem fazendo neste mês? Cada uma dessas opções produz serviços que precisam mudar juntos e se chamam o tempo todo — um monólito distribuído. Você precisa de uma forma de encontrar os pontos em que o **próprio negócio** tem uma divisão natural. É isso que o Domain-Driven Design oferece.
 
-O [Domain-Driven Design (DDD)](https://en.wikipedia.org/wiki/Domain-driven_design){target="_blank"} é uma abordagem de desenvolvimento de software apresentada por Eric Evans[^1] que coloca o **domínio** — a área específica do negócio que o software apoia — no centro de todas as decisões de projeto. O DDD oferece um vocabulário e um conjunto de padrões que ajudam a traduzir a complexidade do negócio em estrutura de código, e é a principal ferramenta para identificar as fronteiras certas entre microsserviços.
+O [Domain-Driven Design (DDD)](https://en.wikipedia.org/wiki/Domain-driven_design){target="_blank"} é uma abordagem de desenvolvimento de software apresentada por Eric Evans[^1] que coloca o **domínio** — a área específica do negócio que o software apoia — no centro de todas as decisões de projeto. O DDD oferece um vocabulário e um conjunto de padrões que ajudam a traduzir a complexidade do negócio em estrutura de código e é a principal ferramenta para identificar as fronteiras certas entre microsserviços.
 
 O DDD atua em dois níveis:
 
 | Nível | Pergunta que responde | Ferramentas |
 |---|---|---|
-| **Design estratégico** | *Onde ficam as fronteiras?* Como o negócio se divide em partes, e como as partes se relacionam? | Subdomínios, linguagem ubíqua, bounded contexts, mapas de contexto, Event Storming |
+| **Design estratégico** | *Onde ficam as fronteiras?* Como o negócio se divide em partes e como as partes se relacionam? | Subdomínios, linguagem ubíqua, bounded contexts, mapas de contexto, Event Storming |
 | **Design tático** | *O que vai dentro de uma fronteira?* Como o modelo é escrito em código? | Entidades, objetos de valor, agregados, repositórios, eventos de domínio, serviços de domínio |
 
 O design estratégico decide os **microsserviços**; o design tático dá forma ao **código dentro de cada um**.
@@ -16,7 +16,7 @@ O design estratégico decide os **microsserviços**; o design tático dá forma 
 
 ## Subdomínios: onde investir
 
-O **domínio** da loja é o varejo online. Ele se divide em **subdomínios**, e nem todos merecem o mesmo esforço[^2]:
+O **domínio** da loja é o varejo online. Ele se divide em **subdomínios** e nem todos merecem o mesmo esforço[^2]:
 
 | Tipo | Significado | Na loja |
 |---|---|---|
@@ -184,7 +184,7 @@ Regras:
 - O código externo guarda referências apenas para a **raiz**, nunca para as entidades internas.
 - Todas as invariantes são garantidas pela raiz. Exemplo: "um pedido não pode ter mais de 50 itens" é verificado dentro de `Order.addItem()`.
 - Agregados são a unidade de persistência — salve e carregue o agregado inteiro de uma vez.
-- **Referencie outros agregados apenas pela identidade.** Um `OrderItem` guarda o id do produto, não um objeto `Product`; o pedido guarda o id da conta, não um `Account`. Caso contrário, um agregado poderia alterar outro, e os dois nunca poderiam viver em serviços diferentes.
+- **Referencie outros agregados apenas pela identidade.** Um `OrderItem` guarda o id do produto, não um objeto `Product`; o pedido guarda o id da conta, não um `Account`. Caso contrário, um agregado poderia alterar outro e os dois nunca poderiam viver em serviços diferentes.
 - **Uma transação altera um agregado.** Se um caso de uso precisa alterar dois agregados, a segunda alteração acontece depois, disparada por um evento de domínio (consistência eventual).
 
 Uma **invariante** é uma regra que precisa ser sempre verdadeira para que o agregado seja válido. A raiz é onde ela é verificada:
@@ -226,7 +226,7 @@ public interface OrderRepository {
 }
 ```
 
-O domínio declara a interface; a infraestrutura fornece a implementação (JPA, MongoDB, em memória). No hands-on, `AccountRepository extends CrudRepository<AccountModel, String>` é uma interface desse tipo, e o Spring Data gera a implementação. Existe **um repositório por raiz de agregado** — não existe `OrderItemRepository`, porque os itens só são salvos por meio do seu pedido.
+O domínio declara a interface; a infraestrutura fornece a implementação (JPA, MongoDB, em memória). No hands-on, `AccountRepository extends CrudRepository<AccountModel, String>` é uma interface desse tipo e o Spring Data gera a implementação. Existe **um repositório por raiz de agregado** — não existe `OrderItemRepository`, porque os itens só são salvos por meio do seu pedido.
 
 ### Eventos de domínio
 
@@ -288,9 +288,9 @@ O processo:
 
 !!! warning "Erros comuns de DDD"
     - **Serviços de entidade**: um serviço por tabela ou substantivo (`OrderItemService`, `AddressService`). Eles não têm comportamento próprio e precisam sempre ser chamados juntos.
-    - **Modelo de domínio anêmico**: entidades só com getters e setters, e todas as regras em uma classe de serviço. Nada protege as invariantes; coloque a regra na raiz do agregado.
+    - **Modelo de domínio anêmico**: entidades só com getters e setters e todas as regras em uma classe de serviço. Nada protege as invariantes; coloque a regra na raiz do agregado.
     - **Um modelo gigante**: uma única classe `Customer`/`Product` compartilhada por todos os serviços por meio de uma biblioteca comum — toda mudança obriga todos os serviços a um novo deploy.
-    - **Agregados grandes demais**: um agregado `Account` que contém todos os seus pedidos. Carregar uma conta carrega milhares de pedidos, e dois usuários editando pedidos diferentes entram em conflito. Mantenha os agregados pequenos; ligue-os pelo id.
+    - **Agregados grandes demais**: um agregado `Account` que contém todos os seus pedidos. Carregar uma conta carrega milhares de pedidos e dois usuários editando pedidos diferentes entram em conflito. Mantenha os agregados pequenos; ligue-os pelo id.
 
 ---
 

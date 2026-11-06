@@ -54,7 +54,7 @@ As variáveis chegam aos contêineres porque o `docker-compose.yaml` as interpol
 
     Com `EMAIL_LATENCY=50ms`, o p50 síncrono fica um pouco acima de 50 ms — o fã paga pelo e-mail em
     todo pedido — enquanto a versão com outbox responde em poucos milissegundos (dois INSERTs e um
-    commit). A 50 pedidos/s as duas mantêm a taxa, e numa máquina ocupada as caudas medem sobretudo a
+    commit). A 50 pedidos/s as duas mantêm a taxa e numa máquina ocupada as caudas medem sobretudo a
     máquina: compare o p50. Aumente a taxa (`RATE=200 DURATION=30s`) e a diferença vira um precipício.
     Uma execução de teste deste lab (outros programas rodando, *load average* perto de 10 em 8 núcleos)
     deu:
@@ -110,13 +110,13 @@ WHERE occurred_at >= '$START';"
 ```
 
 Depois repita os dois blocos com `NOTIFY_CONCURRENCY=6`. O `START` limita cada consulta à sua própria
-execução: os e-mails da outra execução, e do experimento B, distorceriam os percentis.
+execução: os e-mails da outra execução e do experimento B distorceriam os percentis.
 
 ??? question "Preveja antes de rodar: que *lag* a concorrência 1 vai atingir?"
 
     Cada *thread* consumidora atende no máximo 1 / 50 ms = **20 e-mails/s**. Com uma thread e 100
     pedidos/s, o *backlog* cresce a 100 − 20 = 80 mensagens/s: depois de 60 s, **≈ 4 800** mensagens de
-    *lag*, e ele drena a 20/s → **≈ 240 s** para esvaziar. Com seis threads (capacidade 120/s > 100/s)
+    *lag* e ele drena a 20/s → **≈ 240 s** para esvaziar. Com seis threads (capacidade 120/s > 100/s)
     o *lag* fica perto de zero. Mais de seis threads não ajudariam: o tópico tem seis partições. Uma
     execução de teste deste lab chegou a cerca de 4 900 mensagens e levou cerca de 320 s para drenar:
     cada e-mail custa um pouco mais que os 50 ms de latência simulada (SMTP, a transação no banco). Com
@@ -151,7 +151,7 @@ k6 run --summary-trend-stats="avg,p(50),p(95),p(99),max" load/waiting-room-spike
 
 Cerca de 700 fãs chegam em 40 s, a 20 por segundo; a sala deixa entrar 10 por segundo. Confira no
 resumo: `wr_admitted` cresce a 10/s, `http_req_duration{name:order}` fica estável, toda requisição de
-robô recebe `403`, e `wr_eta_error_seconds` — a espera real menos o ETA prometido na entrada — fica
+robô recebe `403` e `wr_eta_error_seconds` — a espera real menos o ETA prometido na entrada — fica
 dentro de um ou dois segundos: a Lei de Little, `espera = posição / taxa`, é uma promessa honesta
 quando a taxa é constante.
 

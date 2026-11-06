@@ -201,11 +201,11 @@ Faça commit e tag: `git add -A && git commit -m "lab 8: observability" && git t
 
 ## Checklist
 
-- [ ] `scripts/get-otel-agent.sh` baixa o agente, e o `docker-compose.yaml` o conecta a cada serviço Java pela âncora `x-otel` e pelo volume `infra/otel`, cada um com o seu `OTEL_SERVICE_NAME`
+- [ ] `scripts/get-otel-agent.sh` baixa o agente e o `docker-compose.yaml` o conecta a cada serviço Java pela âncora `x-otel` e pelo volume `infra/otel`, cada um com o seu `OTEL_SERVICE_NAME`
 - [ ] o Explore do Grafana mostra `http_server_request_duration_seconds_*` de todos os serviços, traces no Tempo e logs com `trace_id` no Loki
 - [ ] um único trace vai do `POST /orders` no `order`, passando pelo relay do outbox e pelo Kafka, até o `notification`
 - [ ] `infra/grafana/` contém o provedor de dashboards, o `boxoffice-red.json` e o `slo-catalog.yaml`, carregados na inicialização
-- [ ] o alerta de queima rápida disparou quando o `db` foi parado, e parou depois que ele voltou
+- [ ] o alerta de queima rápida disparou quando o `db` foi parado e parou depois que ele voltou
 - [ ] tabela de resultados do passo [Meça](measure/index.md) preenchida em `results/lab8.md` e explicada
 - [ ] autoverificação: depois de `docker compose down -v && sh scripts/get-otel-agent.sh && docker compose up -d`, o dashboard e as duas regras de alerta aparecem sem passos manuais; push com a tag `lab8`
 

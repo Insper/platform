@@ -416,7 +416,7 @@ Extraia memórias só das **mensagens do próprio usuário** (envenenamento de m
 
 <div class="ok">
 
-Prefira verificações determinísticas: rápidas, testáveis, e ninguém as convence a mudar de decisão.
+Prefira verificações determinísticas: rápidas, testáveis e ninguém as convence a mudar de decisão.
 
 </div>
 
@@ -458,8 +458,8 @@ invoke_agent boxoffice-assistant                        10.1 s
 | Componente | Pergunta que responde | Ensinado em |
 |---|---|---|
 | `llmgw` | Qual modelo atende esta chamada, com qual orçamento? | LLM Gateway |
-| `orchestrator` | Quem decide o próximo passo, e quando ele para? | Agentes e ferramentas |
-| `toolreg` | O que o modelo pode pedir para fazer, e em nome de quem? | Agentes e ferramentas (MCP) |
+| `orchestrator` | Quem decide o próximo passo e quando ele para? | Agentes e ferramentas |
+| `toolreg` | O que o modelo pode pedir para fazer e em nome de quem? | Agentes e ferramentas (MCP) |
 | `memory` · `vectordb` | O que precisa voltar para o prompt? | RAG e memória |
 | `safety` | Esta entrada, saída ou ação é permitida? | Segurança, avaliações e obs. |
 | `tracing` · `metrics` | Está certo, rápido e barato? | Segurança, avaliações e obs. |

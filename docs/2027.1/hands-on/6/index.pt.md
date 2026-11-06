@@ -3,7 +3,7 @@
     - Construa o **`inventory`**, o coração fortemente consistente do BoxOffice: assentos e **reservas** (*holds*), em que um assento nunca pode pertencer a dois fãs.
     - Compare três estratégias de concorrência numa venda relâmpago — **check-then-act ingênuo**, **lock pessimista** (`SELECT … FOR UPDATE`) e **lock otimista** (coluna de versão) — e *prove* quais vendem o mesmo assento duas vezes[^2].
     - Adicione uma **réplica de leitura** com replicação por streaming, roteie para ela as transações somente leitura e observe o **atraso de replicação** quebrando o read-your-writes.
-    - Ponha o **PgBouncer** entre os serviços e o PostgreSQL, e use **`EXPLAIN ANALYZE`** + índices para corrigir a listagem lenta do catálogo.
+    - Ponha o **PgBouncer** entre os serviços e o PostgreSQL e use **`EXPLAIN ANALYZE`** + índices para corrigir a listagem lenta do catálogo.
     - Torne a replicação **síncrona** e pague por isso, **derrube** o primário com uma reserva em andamento, faça o **failover** à mão, provoque um **split brain** e traga o antigo primário de volta com o **`pg_rewind`**.
     - **Meça** cada mudança: conflitos, vendas duplicadas, p99, atraso, conexões, tempo de consulta, escritas perdidas.
 
@@ -53,7 +53,7 @@ Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** a
 !!! info "Conexão com a teoria"
 
     - Aula 6, [Bancos de dados](../../classes/databases/index.md): [transações e isolamento](../../classes/databases/transactions/index.md) (anomalias, `SELECT … FOR UPDATE` para reservas de assentos), [replicação](../../classes/databases/replication/index.md) (líder–seguidor, atraso, failover), índices e B-trees.
-    - Aula 3, [Consenso e quóruns](../../classes/distributed/consensus/index.md): quem decide o líder depois de um failover, e o fencing.
+    - Aula 3, [Consenso e quóruns](../../classes/distributed/consensus/index.md): quem decide o líder depois de um failover e o fencing.
     - Aula 3, [Modelos de consistência](../../classes/distributed/consistency/index.md): read-your-writes.
     - Estudo de caso: [Venda de ingressos](../../classes/case-studies/ticketing/index.md) (a venda relâmpago do BoxOffice).
     - Catálogo de componentes: [Banco SQL](../../reference/components/storage/index.md#sql).
@@ -200,16 +200,16 @@ Split brain: seat 20 on db ____ , on db-replica ____
 | depois de `docker compose start db-replica`, o `db` está rodando de novo | o `db-replica` depende do `db`, então o `start` sobe ele também | pare o `db` de novo antes de promover; use `docker compose up -d --no-deps db-replica` |
 | `pg_rewind`: `target server needs to use either data checksums or "wal_log_hints = on"` | o `wal_log_hints` estava desligado quando o antigo primário rodava (seção 1 pulada) | o antigo primário não consegue voltar; recomece o cluster com `docker compose down -v` e `docker compose up --build -d` (o Flyway popula tudo de novo) e refaça o passo 4 a partir da seção 1 |
 | escritas falham com `cannot execute INSERT in a read-only transaction` depois do failover | `db` resolve para o standby que voltou e para o novo primário | termine a [volta ao primário original](failover/index.md#switchback) |
-| `db-replica` fica `unhealthy` depois de um clone novo, e o log diz `waiting for checkpoint` | um `replica-entrypoint.sh` antigo, sem `-c fast` | atualize o script e rode `docker compose up -d --force-recreate db-replica` |
+| `db-replica` fica `unhealthy` depois de um clone novo e o log diz `waiting for checkpoint` | um `replica-entrypoint.sh` antigo, sem `-c fast` | atualize o script e rode `docker compose up -d --force-recreate db-replica` |
 | contêineres mortos (`exit 137`), inicialização muito lenta | memória insuficiente para onze contêineres | dê 8 GB ao Docker, feche outros programas, ou pare `catalog-2`/`catalog-3` durante os experimentos do inventory |
 
 !!! success "Boas práticas neste lab"
 
     - **Decida no banco, não na aplicação** — `SELECT … FOR UPDATE` com `ORDER BY id`, ou um compare-and-set de versão, no `HoldService.java`; veja [Transações — o bug da venda duplicada](../../classes/databases/transactions/index.md#double-booking).
-    - **Mande para a réplica as leituras que podem estar desatualizadas, e todo o resto para o primário** — `@Transactional(readOnly = true)` roteado pelo `DataSourceConfig.java`; veja [Replicação — o atraso e as suas anomalias](../../classes/databases/replication/index.md#lag).
-    - **Faça pool de conexões na frente do PostgreSQL, e migre contornando o pooler** — `pgbouncer.ini` em modo transação, `DB_MIGRATION_HOST` para o Flyway no `application.yaml` do `inventory`; veja [Replicação](../../classes/databases/replication/index.md) (pool de conexões).
+    - **Mande para a réplica as leituras que podem estar desatualizadas e todo o resto para o primário** — `@Transactional(readOnly = true)` roteado pelo `DataSourceConfig.java`; veja [Replicação — o atraso e as suas anomalias](../../classes/databases/replication/index.md#lag).
+    - **Faça pool de conexões na frente do PostgreSQL e migre contornando o pooler** — `pgbouncer.ini` em modo transação, `DB_MIGRATION_HOST` para o Flyway no `application.yaml` do `inventory`; veja [Replicação](../../classes/databases/replication/index.md) (pool de conexões).
     - **Acrescente um índice para uma consulta medida, conferido com `EXPLAIN ANALYZE`** — `V3__index_events.sql`; veja [Modelos de dados e engines de armazenamento](../../classes/databases/models/index.md) (lendo o `EXPLAIN`).
-    - **Saiba o que um failover perde, e isole o antigo primário** — a replicação assíncrona perdeu uma reserva que tinha respondido `201`; o `pg_rewind` (`rejoin-as-replica.sh`) é o único jeito de o antigo primário voltar; veja [Replicação — failover](../../classes/databases/replication/index.md#failover-when-the-leader-dies).
+    - **Saiba o que um failover perde e isole o antigo primário** — a replicação assíncrona perdeu uma reserva que tinha respondido `201`; o `pg_rewind` (`rejoin-as-replica.sh`) é o único jeito de o antigo primário voltar; veja [Replicação — failover](../../classes/databases/replication/index.md#failover-when-the-leader-dies).
     - **Audite o invariante depois de todo teste** — `SeatQueries.doubleBookedSeats` atrás de `/inventory/audit/double-bookings`; veja [Transações — reservas de assentos](../../classes/databases/transactions/index.md#seat-holds).
 
 ## Limpeza { #clean-up }
@@ -226,11 +226,11 @@ Guarde tudo: o lab 7 acrescenta o `order` e o Kafka a esta stack e confirma as r
 ## Entrega { #deliverable }
 
 - [ ] `services/inventory` rodando atrás do gateway; o gateway roteia `/inventory/**` (GETs em `/inventory/events/**` abertos, reservas protegidas).
-- [ ] A tabela da venda relâmpago com as três estratégias, incluindo o resultado da **auditoria** de cada uma: pelo menos uma execução do `naive` com vendas duplicadas > 0, e `pessimistic`/`optimistic` com 0.
+- [ ] A tabela da venda relâmpago com as três estratégias, incluindo o resultado da **auditoria** de cada uma: pelo menos uma execução do `naive` com vendas duplicadas > 0 e `pessimistic`/`optimistic` com 0.
 - [ ] `db-replica` em streaming (o `pg_stat_replication` a mostra), leituras roteadas para ela e o experimento de read-your-writes com e sem `REPLICA_DELAY`.
 - [ ] PgBouncer na frente do primário, com as contagens de conexões.
-- [ ] `EXPLAIN ANALYZE` da listagem do catálogo antes e depois do `V3__index_events.sql`, e o sweep depois.
-- [ ] O failover do passo 4: a tabela da replicação síncrona, a reserva perdida, o split brain, e a stack de volta com o `db` como primário e o `db-replica` transmitindo.
+- [ ] `EXPLAIN ANALYZE` da listagem do catálogo antes e depois do `V3__index_events.sql` e o sweep depois.
+- [ ] O failover do passo 4: a tabela da replicação síncrona, a reserva perdida, o split brain e a stack de volta com o `db` como primário e o `db-replica` transmitindo.
 - [ ] `results/lab6.md` completo com as quatro conclusões.
 - [ ] Repositório com a tag `lab6`; [quiz](quiz.md) respondido.
 

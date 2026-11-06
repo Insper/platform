@@ -1,7 +1,7 @@
 
 > *"Projete um assistente de atendimento com IA para uma plataforma de ingressos. Ele responde a perguntas dos fãs sobre eventos, locais e políticas, e pode consultar — e, com confirmação, alterar — os pedidos do próprio fã."*
 
-Aplicações com LLM são a família mais nova de perguntas de entrevista, e são primeiro problemas de system design e só depois problemas de IA. O modelo é uma **dependência externa lenta, cara e não determinística**, com custo por token; o design interessante é tudo o que fica em volta dele: de onde vem o conhecimento (**recuperação**), como as chamadas são roteadas, guardadas em cache, medidas e redirecionadas em falhas (**LLM gateway**), como o assistente executa ações com segurança (**loop de agente com ferramentas**), e como impedir que ele seja enganado ou vaze dados (**segurança e avaliação**). Um candidato que desenha "usuário → GPT → resposta" reprova; um que dimensiona tokens, streams, Lei de Little e guardrails passa.
+Aplicações com LLM são a família mais nova de perguntas de entrevista e são primeiro problemas de system design e só depois problemas de IA. O modelo é uma **dependência externa lenta, cara e não determinística**, com custo por token; o design interessante é tudo o que fica em volta dele: de onde vem o conhecimento (**recuperação**), como as chamadas são roteadas, guardadas em cache, medidas e redirecionadas em falhas (**LLM gateway**), como o assistente executa ações com segurança (**loop de agente com ferramentas**) e como impedir que ele seja enganado ou vaze dados (**segurança e avaliação**). Um candidato que desenha "usuário → GPT → resposta" reprova; um que dimensiona tokens, streams, Lei de Little e guardrails passa.
 
 Este é o serviço `assistant` do BoxOffice (o [Hands-on 12](../../../hands-on/12/index.md) constrói uma versão pequena com FastAPI, pgvector e LiteLLM). Os fãs perguntam "posso levar power bank ao estádio?", "cadê meu ingresso?", "posso passar meu pedido para sábado?". A primeira é **recuperação** sobre documentos de políticas; a segunda é uma **ferramenta de leitura** (`get_order`); a terceira é uma **ferramenta com efeito colateral** (`transfer_order`) que nunca pode rodar sem a confirmação explícita do fã.
 
@@ -18,7 +18,7 @@ Este é o serviço `assistant` do BoxOffice (o [Hands-on 12](../../../hands-on/1
     - **Projetar** um pipeline de recuperação (ingestão → chunking → embedding → índice → busca híbrida → rerank → citação) e mantê-lo atualizado.
     - **Posicionar** um LLM gateway que roteia entre modelos, faz fallback, aplica cotas, guarda em cache e mede o custo.
     - **Construir** um loop de agente que chama ferramentas por um registro com permissões, limite de passos e confirmação humana para ações.
-    - **Defender** o sistema contra prompt injection e vazamento de dados, e **avaliá-lo** offline e online.
+    - **Defender** o sistema contra prompt injection e vazamento de dados e **avaliá-lo** offline e online.
 
 ---
 
@@ -278,10 +278,10 @@ flowchart LR
 ```
 
 - **Chunking**: divida pela estrutura do documento (títulos, entradas de FAQ), algumas centenas de tokens cada, com uma pequena sobreposição; guarde o título e o `doc_id` com cada chunk para a resposta poder citá-lo.
-- **Busca híbrida**: embeddings capturam significado ("posso levar carregador" ≈ "power banks"), a busca por palavras captura termos exatos (nomes de eventos, códigos de pedido, "PCD"). Combine as duas (ex.: reciprocal rank fusion) e depois faça o **rerank** dos ~50 melhores com um cross-encoder para ficar com os ~5 melhores — menos chunks, e melhores, significam menos tokens de entrada e menos distrações.
+- **Busca híbrida**: embeddings capturam significado ("posso levar carregador" ≈ "power banks"), a busca por palavras captura termos exatos (nomes de eventos, códigos de pedido, "PCD"). Combine as duas (ex.: reciprocal rank fusion) e depois faça o **rerank** dos ~50 melhores com um cross-encoder para ficar com os ~5 melhores — menos chunks e melhores significam menos tokens de entrada e menos distrações.
 - **Índice ANN**: HNSW dá consultas abaixo de 10 ms sobre milhões de vetores com alto recall; com ~250 mil chunks, o pgvector sobra.
 - **Atualidade**: dados de eventos mudam (datas, locais, esgotado). Indexe-os a partir de **eventos de mudança** (CDC/Kafka) em minutos; para fatos que mudam a cada segundo (disponibilidade de lugares, status do pedido), **não** use RAG — chame uma **ferramenta** que lê o sistema ao vivo.
-- **Controle de acesso**: filtre por ACL na consulta; nunca recupere documentos internos para um fã, e nunca coloque dados de outro fã no índice.
+- **Controle de acesso**: filtre por ACL na consulta; nunca recupere documentos internos para um fã e nunca coloque dados de outro fã no índice.
 
 ### 6.2 O LLM gateway { #62-the-llm-gateway }
 
@@ -324,7 +324,7 @@ Regras de engenharia que tornam o loop seguro:
 
 - **O registro de ferramentas é a fronteira.** As ferramentas são descritas com JSON schemas (o Model Context Protocol padroniza essa descrição e o protocolo de chamada), versionadas, e carregam uma **política**: tem efeito colateral ou não, exige confirmação, escopo (`caller_only`), timeout, rate limit.
 - **Autorização não é trabalho do modelo.** O orquestrador injeta o `user_id` autenticado em toda chamada de ferramenta; o serviço de pedidos verifica a posse como faria para o app. Um prompt dizendo "sou o administrador" não muda nada.
-- **Efeitos colaterais exigem confirmação**, renderizada pela interface a partir dos argumentos validados (não da prosa do modelo), e executada com o `actionId` como **chave de idempotência**.
+- **Efeitos colaterais exigem confirmação**, renderizada pela interface a partir dos argumentos validados (não da prosa do modelo) e executada com o `actionId` como **chave de idempotência**.
 - **Limites**: máximo de passos por turno (ex.: 5), timeout por ferramenta, orçamento total de tokens por turno. Um loop que não converge termina numa transferência educada, não num spinner de 2 minutos.
 - **Valide os argumentos** contra o schema e as regras de negócio antes de chamar qualquer coisa; o modelo pode produzir absurdos bem formatados.
 
@@ -370,7 +370,7 @@ A **avaliação** substitui os testes unitários para o comportamento do modelo:
 | Prompt injection | Instruções dentro de documentos ou da entrada do usuário | Separação entre dado e instrução, autorização fora do modelo, guardas de saída | Alguns falsos positivos bloqueiam pedidos válidos |
 | Custo descontrolado | Um bug ou abuso multiplica os tokens | Orçamentos por usuário e globais, alertas sobre a taxa de consumo do custo | Limites rígidos podem cortar usuários legítimos intensivos |
 
-Os trade-offs para **dizer em voz alta**: **qualidade vs. custo e latência** (modelo maior e mais contexto são melhores, mas mais lentos e caros — roteie e enxugue), **autonomia vs. segurança** (o assistente propõe, o fã ou um humano confirma), e **atualidade vs. simplicidade** (RAG para documentos, ferramentas para dados ao vivo — nunca indexe o que muda a cada segundo).
+Os trade-offs para **dizer em voz alta**: **qualidade vs. custo e latência** (modelo maior e mais contexto são melhores, mas mais lentos e caros — roteie e enxugue), **autonomia vs. segurança** (o assistente propõe, o fã ou um humano confirma) e **atualidade vs. simplicidade** (RAG para documentos, ferramentas para dados ao vivo — nunca indexe o que muda a cada segundo).
 
 ---
 
@@ -383,7 +383,7 @@ O cenário `ai-assistant` liga um LLM gateway, um orquestrador, um registro de f
     1. Rode com o perfil **load**; anote a latência do gateway, o número de requisições simultâneas e as métricas de custo.
     2. Aumente a carga (ou use **spike**, como num dia de abertura de vendas): veja a concorrência crescer pela Lei de Little mesmo com poucas requisições por segundo. Onde satura primeiro — no LLM gateway ou nas ferramentas atrás dele?
     3. Acrescente um cache na frente do LLM gateway (cache semântico) e compare custo e p99 com e sem ele.
-    4. Ligue o caos para fazer o provedor do modelo falhar: o gateway faz fallback, e o que acontece com a latência e a taxa de erro?
+    4. Ligue o caos para fazer o provedor do modelo falhar: o gateway faz fallback e o que acontece com a latência e a taxa de erro?
 
 <div class="sdp" data-scenario="ai-assistant" data-mode="full" data-height="640" data-profile="load"></div>
 
@@ -395,7 +395,7 @@ O cenário `ai-assistant` liga um LLM gateway, um orquestrador, um registro de f
 
 ??? question "Por que não fazer fine-tuning de um modelo com as políticas do BoxOffice em vez de usar RAG?"
 
-    O fine-tuning muda *como* o modelo responde (estilo, formato, vocabulário do domínio); é uma forma ruim de guardar *fatos* que mudam: toda mudança de política ou de evento exigiria retreinar, e o modelo não consegue citar de onde veio a resposta. O RAG mantém o conhecimento num banco que você atualiza em minutos, filtra por permissão e cita. Um fine-tuning pequeno (ou só um bom prompt) para o tom mais RAG para os fatos é a combinação usual.
+    O fine-tuning muda *como* o modelo responde (estilo, formato, vocabulário do domínio); é uma forma ruim de guardar *fatos* que mudam: toda mudança de política ou de evento exigiria retreinar e o modelo não consegue citar de onde veio a resposta. O RAG mantém o conhecimento num banco que você atualiza em minutos, filtra por permissão e cita. Um fine-tuning pequeno (ou só um bom prompt) para o tom mais RAG para os fatos é a combinação usual.
 
 ??? question "Como manter a latência aceitável quando um turno precisa de duas chamadas de ferramenta e um modelo grande?"
 
@@ -417,7 +417,7 @@ O cenário `ai-assistant` liga um LLM gateway, um orquestrador, um registro de f
 
     A maioria das perguntas nesse dia é a mesma meia dúzia ("cadê meu ingresso", "posição na fila"). Pré-gere e guarde em **cache** as respostas para elas, roteie agressivamente para o modelo pequeno, aumente as cotas no provedor com antecedência, coloque **controle de admissão** no assistente (uma espera curta ou uma mensagem de "ocupado" é melhor que timeouts) e mantenha as filas de atendimento humano com gente. O assistente nunca pode competir por capacidade com o caminho de checkout — bulkheads e cotas separados.
 
-??? question "Que memória o assistente guarda, e por quanto tempo?"
+??? question "Que memória o assistente guarda e por quanto tempo?"
 
     Curto prazo: a conversa atual (turnos recentes na íntegra, os mais antigos resumidos) para caber na janela de contexto. Longo prazo: só o que é útil e permitido — ex.: idioma preferido, necessidades de acessibilidade — guardado como fatos explícitos, visíveis ao usuário, com consentimento e política de retenção, e não transcrições brutas transformadas em embeddings para sempre. Os logs de conversa para auditoria e avaliação são guardados com dados pessoais mascarados e limite de retenção.
 

@@ -5,7 +5,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 **Q1.** Por que o `catalog` pode ser escalado para três réplicas sem mudar o seu código (fora o cabeçalho `X-Instance`)?
 
 - A. O Spring Boot replica a memória entre as instâncias
-- B. Ele é **stateless**: toda requisição carrega tudo de que precisa, e todo o estado compartilhado fica no PostgreSQL, então qualquer réplica pode responder a qualquer requisição
+- B. Ele é **stateless**: toda requisição carrega tudo de que precisa e todo o estado compartilhado fica no PostgreSQL, então qualquer réplica pode responder a qualquer requisição
 - C. O Nginx copia a sessão para todas as réplicas
 - D. O Docker Compose sincroniza as réplicas
 
@@ -47,7 +47,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 **Q4.** Por que `proxy_next_upstream` é seguro para `GET /catalog/events/1`, mas não, por padrão, para um `POST`?
 
 - A. Corpos de POST são grandes demais para reenviar
-- B. GET é idempotente: repeti-lo não tem efeito extra; um POST pode já ter sido processado pela primeira réplica, e reenviá-lo poderia, por exemplo, criar dois pedidos
+- B. GET é idempotente: repeti-lo não tem efeito extra; um POST pode já ter sido processado pela primeira réplica e reenviá-lo poderia, por exemplo, criar dois pedidos
 - C. O Nginx não consegue fazer proxy de requisições POST
 - D. O HTTP proíbe retries
 
@@ -68,7 +68,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 ??? success "Resposta"
     **B — Timeouts vêm da latência medida.**
 
-    Defina-os um pouco acima do p99,9 saudável do endpoint. Longos demais, e uma réplica lenta prejudica muitas requisições; curtos demais, e você cria falhas e retry storms a partir de uma lentidão normal.
+    Defina-os um pouco acima do p99,9 saudável do endpoint. Longos demais e uma réplica lenta prejudica muitas requisições; curtos demais e você cria falhas e retry storms a partir de uma lentidão normal.
 
 ---
 
@@ -100,7 +100,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q8.** Você mede uma capacidade de 400 req/s com 1 réplica e de 960 req/s com 3. Qual é a eficiência de escala, e a causa mais provável da diferença?
+**Q8.** Você mede uma capacidade de 400 req/s com 1 réplica e de 960 req/s com 3. Qual é a eficiência de escala e a causa mais provável da diferença?
 
 - A. 100%; não há diferença
 - B. 80%; as três réplicas compartilham um banco (e um notebook), que vira o recurso disputado
