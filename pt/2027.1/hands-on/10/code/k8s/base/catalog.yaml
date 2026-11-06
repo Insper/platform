@@ -1,0 +1,70 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: catalog
+spec:
+  selector:
+    app: catalog
+  ports:
+    - name: http
+      port: 8082
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: catalog
+spec:
+  replicas: 2                        # the HPA takes over from here
+  selector:
+    matchLabels:
+      app: catalog
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1                    # one extra pod during a rollout...
+      maxUnavailable: 0              # ...and never fewer ready pods than desired
+  template:
+    metadata:
+      labels:
+        app: catalog
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: catalog
+          image: boxoffice/catalog:dev
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8082
+          envFrom:
+            - configMapRef:
+                name: boxoffice-config
+            - secretRef:
+                name: db-credentials
+          env:
+            - name: SERVER_SHUTDOWN
+              value: graceful        # finish in-flight requests on SIGTERM
+          resources:
+            requests:                # what the scheduler reserves; HPA percentages are relative to this
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 768Mi
+          startupProbe:              # the JVM needs time: no liveness kills before it has started
+            httpGet: { path: /actuator/health/liveness, port: http }
+            periodSeconds: 5
+            failureThreshold: 60     # up to 5 min: the first start also runs the Flyway migrations
+          livenessProbe:             # "restart me": only for a process that is stuck
+            httpGet: { path: /actuator/health/liveness, port: http }
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:            # "send me traffic": removed from the Service while not ready
+            httpGet: { path: /actuator/health/readiness, port: http }
+            periodSeconds: 5
+            failureThreshold: 2
+          lifecycle:
+            preStop:
+              sleep:
+                seconds: 5           # let the endpoints update before the JVM stops accepting

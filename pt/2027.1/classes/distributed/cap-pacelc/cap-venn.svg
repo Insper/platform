@@ -1,0 +1,28 @@
+<svg class="cap-venn" viewBox="0 0 640 560" role="img" aria-labelledby="cap-venn-title-pt cap-venn-desc-pt" xmlns="http://www.w3.org/2000/svg">
+  <title id="cap-venn-title-pt">Teorema CAP</title>
+  <desc id="cap-venn-desc-pt">Três círculos sobrepostos: Consistência, Disponibilidade e Tolerância a partições. As interseções são CP e AP, as duas escolhas reais, e CA, que só existe sem partições. O centro, as três ao mesmo tempo, é impossível.</desc>
+  <circle class="ring c" cx="320" cy="190" r="150"/>
+  <circle class="ring a" cx="233" cy="340" r="150"/>
+  <circle class="ring p" cx="407" cy="340" r="150"/>
+  <text class="name" x="320" y="95" text-anchor="middle">Consistência</text>
+  <text class="def" x="320" y="118" text-anchor="middle">toda leitura vê a última escrita</text>
+  <text class="name" x="160" y="420" text-anchor="middle">Disponibilidade</text>
+  <text class="def" x="160" y="443" text-anchor="middle">toda requisição recebe</text>
+  <text class="def" x="160" y="461" text-anchor="middle">uma resposta sem erro</text>
+  <text class="name" x="480" y="405" text-anchor="middle">Tolerância a</text>
+  <text class="name" x="480" y="431" text-anchor="middle">partições</text>
+  <text class="def" x="480" y="453" text-anchor="middle">funciona com a rede</text>
+  <text class="def" x="480" y="471" text-anchor="middle">dividida</text>
+  <text class="pair" x="395" y="236" text-anchor="middle">CP</text>
+  <text class="ex" x="395" y="257" text-anchor="middle">ZooKeeper, etcd</text>
+  <text class="pair" x="320" y="386" text-anchor="middle">AP</text>
+  <text class="ex" x="320" y="404" text-anchor="middle">Cassandra, DNS</text>
+  <text class="pair ca" x="245" y="236" text-anchor="middle">CA</text>
+  <text class="ex ca" x="245" y="257" text-anchor="middle">sem partições</text>
+  <text class="ex ca" x="245" y="273" text-anchor="middle">(um único nó)</text>
+  <circle class="none" cx="320" cy="292" r="15"/>
+  <path class="none-x" d="M313 285 L327 299 M327 285 L313 299"/>
+  <text class="ex none-t" x="320" y="324" text-anchor="middle">as três:</text>
+  <text class="ex none-t" x="320" y="339" text-anchor="middle">impossível</text>
+  <text class="foot" x="320" y="535" text-anchor="middle">Partições vão acontecer: a escolha real é entre CP e AP — durante a partição.</text>
+</svg>

@@ -1,0 +1,18 @@
+[project]
+name = "assistant"
+version = "1.0.0"
+description = "BoxOffice AI support assistant (lab 12)"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.146",
+    "httpx>=0.28",
+    "litellm>=1.106",
+    "mcp>=1.20",
+    "numpy>=2.3",
+    "opentelemetry-exporter-otlp-proto-http>=1.45",
+    "opentelemetry-sdk>=1.45",
+    "pgvector>=0.5",
+    "psycopg[binary,pool]>=3.3",
+    "pydantic>=2.14",
+    "uvicorn[standard]>=0.54",
+]
