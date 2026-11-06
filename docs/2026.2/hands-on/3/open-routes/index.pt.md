@@ -23,9 +23,10 @@ As rotas abertas definidas nesta plataforma são:
 
 | Método | Caminho | Finalidade |
 |---|---|---|
-| `POST` | `/auth/register` | Criar uma nova conta |
-| `POST` | `/auth/login` | Autenticar e receber um cookie JWT |
-| `GET` | `/auth/logout` | Apagar o cookie JWT |
+| `POST` | `/auth/register` | 🔓 Criar uma nova conta |
+| `POST` | `/auth/login` | 🔓 Autenticar e receber um cookie JWT |
+| `GET` | `/auth/logout` | 🔓 Apagar o cookie JWT |
+| qualquer outra | p. ex. `/accounts/**`, `/auth/me` | 🔒 exige um cookie válido |
 
 Todo o resto — inclusive todos os endpoints `/accounts/**` — exige um cookie válido.
 
@@ -175,6 +176,22 @@ O `auth-service` nunca confere uma senha por conta própria. Essa conferência p
 
     Um `.orElseThrow()` sem argumento lança `NoSuchElementException` quando nenhuma conta confere e o Spring responde `500 Internal Server Error` — como se o servidor estivesse quebrado. Passe a exceção a lançar: `.orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, ...))`. Do outro lado, o Feign transforma esse `401` em uma `FeignException.Unauthorized` dentro do `auth-service` (e o `400` de uma senha vazia em uma `FeignException.BadRequest`); o `AuthService.login` (abaixo) as captura e responde `401` — senão o login voltaria a falhar com `500`.
 
+``` mermaid-sim
+sequenceDiagram
+    actor User as Usuário
+    participant Auth as auth-service
+    participant Acc as account-service
+    participant DB as db
+    User->>Auth: POST /auth/login (senha errada)
+    Auth->>Acc: POST /accounts/login (AccountIn)
+    Acc->>Acc: calcHash(password)
+    Acc->>DB: findByEmailAndHashPassword(email, hash)
+    DB-->>Acc: nenhuma linha
+    Acc-->>Auth: 401 Unauthorized
+    Note over Auth: catch FeignException.Unauthorized
+    Auth-->>User: 401 Unauthorized, não 500
+```
+
 !!! note "Reinstale a biblioteca `account`"
 
     O `AccountController` fica no módulo de interface `account`, então rode `mvn clean install` em `api/account` de novo antes de compilar o `account-service` e o `auth-service`.
@@ -203,6 +220,22 @@ sequenceDiagram
     JwtService-->>-AuthService: string JWT assinada
     AuthService-->>-AuthResource: string JWT assinada
     AuthResource->>-User: Set-Cookie: __store_jwt_token=<jwt>
+```
+
+E o `getId`, que o `/auth/solve` roda para o Gateway a cada requisição protegida:
+
+``` mermaid-sim
+flowchart LR
+    t["getId(jwt)"] --> s{"assinatura\nconfere?"}
+    s -->|não| e1["SignatureException"]
+    s -->|sim| n{"agora depois do nbf?"}
+    n -->|não| e2["PrematureJwtException"]
+    n -->|sim| x{"agora antes do exp?"}
+    x -->|não| e3["ExpiredJwtException"]
+    x -->|sim| id["devolve o jti\n(idAccount)"]
+    e1 --> u["catch JwtException\n401 Unauthorized"]
+    e2 --> u
+    e3 --> u
 ```
 
 !!! example "Código-fonte"

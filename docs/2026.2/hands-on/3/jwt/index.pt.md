@@ -4,7 +4,7 @@ O primeiro passo para construir a camada de segurança é entender os **JSON Web
 
 O JWT é uma forma compacta e segura para URLs de representar declarações (claims) entre duas partes. É o padrão usado pela plataforma para transportar a identidade do usuário autenticado entre os serviços sem guardar estado de sessão no servidor — o que o torna naturalmente compatível com escalabilidade horizontal.
 
-Um JWT é formado por três partes codificadas em Base64Url, separadas por pontos.
+Um JWT é formado por três partes codificadas em Base64Url, separadas por pontos. Elas são só **codificadas, não criptografadas**: qualquer um que tenha o token lê o payload. O que ninguém consegue sem a chave secreta é **alterá-lo** — a assinatura prova quem emitiu o token e que ele não foi modificado.
 
 !!! example "Exemplo de JWT"
 
@@ -56,6 +56,20 @@ Um JWT é formado por três partes codificadas em Base64Url, separadas por ponto
 !!! warning "Chave secreta"
 
     A chave secreta usada para assinar o JWT deve ser mantida em sigilo. Quem tiver acesso a ela consegue forjar tokens. O `application.yaml` do `auth-service` a lê da variável de ambiente `JWT_SECRET_KEY` e traz um valor padrão **de desenvolvimento** só para a stack subir sem configuração — esse valor é público (está no repositório), então fora da sua máquina defina sempre a `JWT_SECRET_KEY` com uma chave sua e **nunca coloque fixa** uma chave real no código-fonte.
+
+Para conferir um token, o `auth` calcula a assinatura de novo com a **sua** chave e a compara com a que o token carrega:
+
+``` mermaid-sim
+flowchart LR
+    t["token recebido\nheader.payload.signature"]
+    h["HMACSHA256(header.payload,\nchave secreta do auth)"]
+    c{"igual à\nassinatura?"}
+    ok["válido: lê as claims"]
+    no["SignatureException\n401"]
+    t --> h --> c
+    c -->|sim| ok
+    c -->|"não: payload editado\nou outra chave"| no
+```
 
 As principais claims usadas nesta plataforma são:
 

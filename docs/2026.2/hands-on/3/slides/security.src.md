@@ -14,11 +14,15 @@ theme: platform
 {{INCLUDE:scripts/slides/theme.js}}
 </script>
 
+<style>
+{{INCLUDE:scripts/slides/diagram.css}}
+</style>
+
 <div class="kicker">Platforms, Microservices, DevOps and APIs · Hands-on 3</div>
 
 # Hands-on 3 — Security
 
-**Log in once, get a signed JWT, and let the Gateway check it on every request**
+**Log in once, get a signed JSON Web Token (JWT), and let the Gateway check it on every request**
 
 <!--
 Outline: (1) authentication × authorization; (2) JWT and its claims; (3) the auth interface and the open routes;
@@ -48,7 +52,13 @@ Let the class answer first: checking credentials in every service multiplies the
 
 ## Three modules
 
-`internet → gateway → account / auth / others` · `auth → account` · all inside the **trusted layer**
+<div class="flow">
+<div class="box muted" style="flex: .5">internet</div><div class="arrow">→</div>
+<div class="box accent">gateway<small>the only published port, :8080</small></div><div class="arrow">→</div>
+<div class="box orange">auth<small>login, JWT, /auth/solve</small></div><div class="arrow">→</div>
+<div class="box">account<small>password hash, db</small></div>
+</div>
+<p class="small">gateway, auth and account: all inside the <strong>trusted layer</strong> (the Compose network).</p>
 
 | Module | Role |
 |---|---|
@@ -62,7 +72,7 @@ Let the class answer first: checking credentials in every service multiplies the
 
 ## JSON Web Token
 
-Three Base64Url parts separated by dots: `header.payload.signature`
+Three Base64Url parts separated by dots: <span class="chip red">header</span> . <span class="chip accent">payload</span> . <span class="chip green">signature</span> — encoded, **not encrypted**
 
 ```
 HMACSHA256( base64UrlEncode(header) + "." + base64UrlEncode(payload),
@@ -247,14 +257,18 @@ Browsers reject `SameSite=None` without `Secure`: in production, frontend and AP
 
 A `GlobalFilter`: **every** request passes through it before routing.
 
-1. `isSecured`? **No** → forward as is.
-2. Cookie `__store_jwt_token` present? **No** → `401 Unauthorized`.
-3. `POST http://auth:8080/auth/solve` with `{ "token": jwt }`.
-4. Invalid token → `401`. Valid → add the header and forward:
-
-| Header | Value |
-|---|---|
-| `id-account` | the account UUID from the token |
+<div class="flow">
+<div class="box">request</div><div class="arrow">→</div>
+<div class="box accent">isSecured?<small>RouterValidator</small></div><div class="arrow">yes →</div>
+<div class="box accent">cookie<small>__store_jwt_token</small></div><div class="arrow">→</div>
+<div class="box orange">POST /auth/solve<small>signature, nbf, exp</small></div><div class="arrow">→</div>
+<div class="box green">+ id-account<small>the jti, then forward</small></div>
+</div>
+<div class="flow">
+<div class="box muted">open route<small>register, login, logout: forward as is</small></div>
+<div class="box red">no cookie<small>401 Unauthorized</small></div>
+<div class="box red">invalid or expired token<small>401, kept by onStatus(4xx)</small></div>
+</div>
 
 <p class="small">An <code>id-account</code> sent by the client is dropped first (<code>RemoveRequestHeader</code>): nobody can pose as another account.</p>
 
@@ -356,6 +370,24 @@ curl http://localhost:8080/accounts                  # 401 — no cookie
 The default `JWT_SECRET_KEY` is in the repository: anyone could forge tokens for a deployment that keeps it.
 
 </div>
+
+---
+
+## Without Docker: the simulator
+
+<div class="flow">
+<div class="box accent">Authorization 5 (test)<small>200, 200, 200, 401 · the JWT page's token, byte for byte</small></div>
+<div class="box orange">bad tokens<small>wrong password, forged id-account, edited payload</small></div>
+<div class="box red">forged with the default key<small>200 as another user, until JWT_SECRET_KEY is yours</small></div>
+</div>
+
+- Each button is a `curl` of the lab through the Gateway; the boxes light up along the path.
+- The tokens are real HS256 JWTs signed with the key of `application.yaml`: paste one into jwt.io.
+- Past the cookie's `Max-Age`, curl stops sending it; sent by hand, the token meets `ExpiredJwtException`.
+
+<!--
+The simulator sits on the overview (bad tokens) and in section 5 of Authorization (the page's four commands).
+-->
 
 ---
 

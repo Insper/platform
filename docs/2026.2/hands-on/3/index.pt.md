@@ -22,17 +22,15 @@ flowchart LR
     subgraph api [Camada confiável]
         gateway --> account
         gateway --> others
-        gateway e4@==> auth:::red
+        gateway e4@==> auth
         auth e2@==> account
         account --> db@{ shape: cyl, label: "Banco de dados" }
         others --> db
     end
-    internet e1@==>|requisição| gateway:::orange
+    internet e1@==>|requisição| gateway
     e1@{ animate: true }
     e2@{ animate: true }
     e4@{ animate: true }
-    classDef red fill:#fcc
-    classDef orange fill:#FCBE3E
 ```
 
 A camada de segurança é construída em três módulos:
@@ -113,6 +111,14 @@ classDiagram
     AuthParser ..> Register
     AuthorizationFilter *-- RouterValidator
 ```
+
+Antes de escrever código, brinque com a camada pronta: cadastre-se, faça login, chame uma rota protegida e depois tente enganá-la.
+
+<div class="csim" data-sim="jwt-gateway" data-script="tokens"></div>
+
+!!! tip "Experimente"
+
+    Sem Docker à mão, ou quer ver o que cada requisição faz por dentro? O simulador roda a pilha do lab: cada botão é um `curl` pelo Gateway e as caixas acendem pelo caminho que a requisição fez. Em **Autorização 5 (teste)**, os quatro comandos da página respondem 200, 200, 200 e 401 e o login emite exatamente o token de exemplo da página JWT: válido até 14:00:00, 3600 s depois do seu `nbf`. Em **tokens ruins**, senha errada é 401, um header `id-account` forjado é descartado, um payload editado falha na assinatura e um token assinado de novo com a chave padrão pública recebe 200 como Ana — até o `JWT_SECRET_KEY` ser seu. Passado o `Max-Age` do cookie, o curl para de enviá-lo; enviado à mão, o token esbarra em `ExpiredJwtException`.
 
 Para desenvolver a camada de segurança, os passos são os seguintes:
 

@@ -25,6 +25,20 @@ Quando o token é válido, o filtro enriquece a requisição repassada com um he
 
 Antes disso, o Gateway **remove qualquer `id-account` enviado pelo cliente** (`RemoveRequestHeader=id-account` em `default-filters`, que rodam antes do `AuthorizationFilter`): senão qualquer pessoa poderia chamar uma rota protegida se passando por outra conta. O header que chega aos serviços só pode vir do Gateway.
 
+``` mermaid-sim
+sequenceDiagram
+    actor C as Cliente
+    participant G as Gateway
+    participant A as auth
+    participant S as account
+    C->>G: GET /accounts com o cookie de Antonio e o id-account de outro usuário
+    G->>G: RemoveRequestHeader=id-account
+    G->>A: POST /auth/solve (token)
+    A-->>G: idAccount de Antonio
+    G->>S: GET /accounts com o id-account de Antonio
+    Note over C,S: o id-account que chega a um serviço vem só do token
+```
+
 Isso significa que os microsserviços seguintes **nunca precisam interpretar JWTs por conta própria** — o Gateway cuida disso e repassa a identidade já resolvida em um header simples.
 
 ## 2. Sequência completa da requisição
@@ -243,6 +257,11 @@ routes:
                       uri: http://account:8080
                       predicates:
                         - Path=/accounts/**
+
+                    - id: auth-service
+                      uri: http://auth:8080
+                      predicates:
+                        - Path=/auth/**
 
         logging:
           level:
@@ -502,6 +521,23 @@ services:
       replicas: 1
 ```
 
+``` mermaid-sim
+flowchart LR
+    host["sua máquina\ncurl, navegador"]
+    subgraph net [Rede do Compose: a camada confiável]
+        gateway["gateway\n8080:8080"]
+        auth["auth\n:8080"]
+        account["account\n:8080"]
+        db[("db\n:5432")]
+    end
+    host e0@==>|"localhost:8080"| gateway
+    gateway e1@--> auth
+    gateway e2@--> account
+    auth --> account
+    account --> db
+    e0@{ animate: true }
+```
+
 `auth` e `gateway` não precisam de variáveis para rodar na sua máquina: o `application.yaml` do `auth` lê `JWT_SECRET_KEY`, `JWT_HTTP_ONLY` e `JWT_DURATION` com valores padrão de desenvolvimento, e o Gateway lê `CORS_ALLOWED_ORIGINS` (padrão `http://localhost,http://localhost:3000,http://localhost:8080`).
 
 !!! warning "JWT_SECRET_KEY fora do desenvolvimento"
@@ -555,6 +591,23 @@ curl -b cookies.txt http://localhost:8080/accounts
 ``` bash
 curl http://localhost:8080/accounts
 ```
+
+O que cada caso deve responder:
+
+| Requisição | Cookie | Esperado |
+|---|---|---|
+| `POST /auth/register` | nenhum (rota aberta) | ✅ `200` |
+| `POST /auth/login` | nenhum (rota aberta) | ✅ `200` + `Set-Cookie: __store_jwt_token=…` |
+| `POST /auth/login`, senha errada | nenhum | ❌ `401`, não `500` |
+| `GET /accounts` | válido | ✅ `200` + as contas |
+| `GET /accounts` | nenhum | ❌ `401` |
+| `GET /accounts` | expirado, editado ou assinado com outra chave | ❌ `401`, não `500` |
+
+<div class="csim" data-sim="jwt-gateway" data-script="test"></div>
+
+!!! tip "Experimente"
+
+    Sem Docker à mão, ou quer ver o que cada requisição faz por dentro? O simulador roda a pilha do lab: cada botão é um `curl` pelo Gateway e as caixas acendem pelo caminho que a requisição fez. Em **Autorização 5 (teste)**, os quatro comandos da página respondem 200, 200, 200 e 401 e o login emite exatamente o token de exemplo da página JWT: válido até 14:00:00, 3600 s depois do seu `nbf`. Em **tokens ruins**, senha errada é 401, um header `id-account` forjado é descartado, um payload editado falha na assinatura e um token assinado de novo com a chave padrão pública recebe 200 como Ana — até o `JWT_SECRET_KEY` ser seu. Passado o `Max-Age` do cookie, o curl para de enviá-lo; enviado à mão, o token esbarra em `ExpiredJwtException`.
 
 ---
 

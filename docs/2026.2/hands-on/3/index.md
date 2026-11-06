@@ -22,17 +22,15 @@ flowchart LR
     subgraph api [Trusted Layer]
         gateway --> account
         gateway --> others
-        gateway e4@==> auth:::red
+        gateway e4@==> auth
         auth e2@==> account
         account --> db@{ shape: cyl, label: "Database" }
         others --> db
     end
-    internet e1@==>|request| gateway:::orange
+    internet e1@==>|request| gateway
     e1@{ animate: true }
     e2@{ animate: true }
     e4@{ animate: true }
-    classDef red fill:#fcc
-    classDef orange fill:#FCBE3E
 ```
 
 The security layer is built across three modules:
@@ -113,6 +111,14 @@ classDiagram
     AuthParser ..> Register
     AuthorizationFilter *-- RouterValidator
 ```
+
+Before writing any code, play the finished layer: register, log in, call a secured route, then try to cheat it.
+
+<div class="csim" data-sim="jwt-gateway" data-script="tokens"></div>
+
+!!! tip "Try it"
+
+    No Docker at hand, or want to see what each request does inside? The simulator runs the lab's stack: every button is a `curl` through the Gateway, and the boxes light up along the path the request took. In **Authorization 5 (test)**, the four commands of the page answer 200, 200, 200 and 401, and the login issues exactly the example token of the JWT page: valid until 14:00:00, 3600 s after its `nbf`. In **bad tokens**, a wrong password is a 401, a forged `id-account` header is dropped, an edited payload fails the signature, and a token signed again with the public default key gets 200 as Ana — until `JWT_SECRET_KEY` is your own. Past the cookie's `Max-Age`, curl stops sending it; sent by hand, the token meets `ExpiredJwtException`.
 
 To develop the security layer, the steps are as follows:
 

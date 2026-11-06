@@ -14,11 +14,15 @@ theme: platform
 {{INCLUDE:scripts/slides/theme.js}}
 </script>
 
+<style>
+{{INCLUDE:scripts/slides/diagram.css}}
+</style>
+
 <div class="kicker">Plataformas, Microsserviços, DevOps e APIs · Hands-on 3</div>
 
 # Hands-on 3 — Segurança
 
-**Faça login uma vez, receba um JWT assinado e deixe o Gateway verificá-lo a cada requisição**
+**Faça login uma vez, receba um JSON Web Token (JWT) assinado e deixe o Gateway verificá-lo a cada requisição**
 
 <!--
 Roteiro: (1) autenticação × autorização; (2) o JWT e suas claims; (3) a interface auth e as rotas abertas;
@@ -48,7 +52,13 @@ Deixe a turma responder primeiro: verificar credenciais em cada serviço multipl
 
 ## Três módulos
 
-`internet → gateway → account / auth / others` · `auth → account` · tudo dentro da **camada confiável**
+<div class="flow">
+<div class="box muted" style="flex: .5">internet</div><div class="arrow">→</div>
+<div class="box accent">gateway<small>a única porta publicada, :8080</small></div><div class="arrow">→</div>
+<div class="box orange">auth<small>login, JWT, /auth/solve</small></div><div class="arrow">→</div>
+<div class="box">account<small>hash da senha, db</small></div>
+</div>
+<p class="small">gateway, auth e account: todos dentro da <strong>camada confiável</strong> (a rede do Compose).</p>
 
 | Módulo | Papel |
 |---|---|
@@ -62,7 +72,7 @@ Deixe a turma responder primeiro: verificar credenciais em cada serviço multipl
 
 ## JSON Web Token
 
-Três partes em Base64Url separadas por pontos: `header.payload.signature`
+Três partes em Base64Url separadas por pontos: <span class="chip red">header</span> . <span class="chip accent">payload</span> . <span class="chip green">signature</span> — codificadas, **não criptografadas**
 
 ```
 HMACSHA256( base64UrlEncode(header) + "." + base64UrlEncode(payload),
@@ -247,14 +257,18 @@ Os navegadores rejeitam `SameSite=None` sem `Secure`: em produção, frontend e 
 
 Um `GlobalFilter`: **toda** requisição passa por ele antes do roteamento.
 
-1. `isSecured`? **Não** → encaminha como está.
-2. Cookie `__store_jwt_token` presente? **Não** → `401 Unauthorized`.
-3. `POST http://auth:8080/auth/solve` com `{ "token": jwt }`.
-4. Token inválido → `401`. Válido → adiciona o header e encaminha:
-
-| Header | Valor |
-|---|---|
-| `id-account` | o UUID da conta, tirado do token |
+<div class="flow">
+<div class="box">requisição</div><div class="arrow">→</div>
+<div class="box accent">isSecured?<small>RouterValidator</small></div><div class="arrow">sim →</div>
+<div class="box accent">cookie<small>__store_jwt_token</small></div><div class="arrow">→</div>
+<div class="box orange">POST /auth/solve<small>assinatura, nbf, exp</small></div><div class="arrow">→</div>
+<div class="box green">+ id-account<small>põe o jti e encaminha</small></div>
+</div>
+<div class="flow">
+<div class="box muted">rota aberta<small>register, login, logout: encaminha como está</small></div>
+<div class="box red">sem cookie<small>401 Unauthorized</small></div>
+<div class="box red">token inválido ou expirado<small>401, mantido pelo onStatus(4xx)</small></div>
+</div>
 
 <p class="small">Um <code>id-account</code> enviado pelo cliente é descartado antes (<code>RemoveRequestHeader</code>): ninguém se passa por outra conta.</p>
 
@@ -356,6 +370,24 @@ curl http://localhost:8080/accounts                  # 401 — no cookie
 A `JWT_SECRET_KEY` padrão está no repositório: qualquer um forjaria tokens para uma implantação que a mantenha.
 
 </div>
+
+---
+
+## Sem Docker: o simulador
+
+<div class="flow">
+<div class="box accent">Autorização 5 (teste)<small>200, 200, 200, 401 · o token da página JWT, byte a byte</small></div>
+<div class="box orange">tokens ruins<small>senha errada, id-account forjado, payload editado</small></div>
+<div class="box red">forjado com a chave padrão<small>200 como outro usuário, até o JWT_SECRET_KEY ser seu</small></div>
+</div>
+
+- Cada botão é um `curl` do lab pelo Gateway; as caixas acendem pelo caminho.
+- Os tokens são JWTs HS256 de verdade, assinados com a chave do `application.yaml`: cole um no jwt.io.
+- Passado o `Max-Age` do cookie, o curl para de enviá-lo; enviado à mão, o token esbarra em `ExpiredJwtException`.
+
+<!--
+O simulador está na visão geral (tokens ruins) e na seção 5 de Autorização (os quatro comandos da página).
+-->
 
 ---
 

@@ -23,9 +23,10 @@ The open routes defined in this platform are:
 
 | Method | Path | Purpose |
 |---|---|---|
-| `POST` | `/auth/register` | Create a new account |
-| `POST` | `/auth/login` | Authenticate and receive a JWT cookie |
-| `GET` | `/auth/logout` | Clear the JWT cookie |
+| `POST` | `/auth/register` | 🔓 Create a new account |
+| `POST` | `/auth/login` | 🔓 Authenticate and receive a JWT cookie |
+| `GET` | `/auth/logout` | 🔓 Clear the JWT cookie |
+| any other | e.g. `/accounts/**`, `/auth/me` | 🔒 needs a valid cookie |
 
 Everything else — including all `/accounts/**` endpoints — requires a valid cookie.
 
@@ -175,6 +176,22 @@ api/
 
     A bare `.orElseThrow()` throws `NoSuchElementException` when no account matches, and Spring answers `500 Internal Server Error` — as if the server were broken. Pass the exception to throw: `.orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, ...))`. On the other side, Feign turns that `401` into a `FeignException.Unauthorized` inside `auth-service` (and the `400` of an empty password into a `FeignException.BadRequest`); `AuthService.login` (below) catches them and answers `401`, otherwise the login would fail with `500` again.
 
+``` mermaid-sim
+sequenceDiagram
+    actor User
+    participant Auth as auth-service
+    participant Acc as account-service
+    participant DB as db
+    User->>Auth: POST /auth/login (wrong password)
+    Auth->>Acc: POST /accounts/login (AccountIn)
+    Acc->>Acc: calcHash(password)
+    Acc->>DB: findByEmailAndHashPassword(email, hash)
+    DB-->>Acc: no row
+    Acc-->>Auth: 401 Unauthorized
+    Note over Auth: catch FeignException.Unauthorized
+    Auth-->>User: 401 Unauthorized, not 500
+```
+
 !!! note "Reinstall the `account` library"
 
     `AccountController` lives in the `account` interface module, so run `mvn clean install` in `api/account` again before building `account-service` and `auth-service`.
@@ -203,6 +220,22 @@ sequenceDiagram
     JwtService-->>-AuthService: signed JWT string
     AuthService-->>-AuthResource: signed JWT (String)
     AuthResource->>-User: Set-Cookie: __store_jwt_token=<jwt>
+```
+
+And `getId`, which `/auth/solve` runs for the Gateway on every secured request:
+
+``` mermaid-sim
+flowchart LR
+    t["getId(jwt)"] --> s{"signature\nmatches?"}
+    s -->|no| e1["SignatureException"]
+    s -->|yes| n{"now after nbf?"}
+    n -->|no| e2["PrematureJwtException"]
+    n -->|yes| x{"now before exp?"}
+    x -->|no| e3["ExpiredJwtException"]
+    x -->|yes| id["return the jti\n(idAccount)"]
+    e1 --> u["catch JwtException\n401 Unauthorized"]
+    e2 --> u
+    e3 --> u
 ```
 
 !!! example "Source"

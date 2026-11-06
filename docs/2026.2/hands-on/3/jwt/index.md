@@ -4,7 +4,7 @@ The first step in building the security layer is understanding **JSON Web Tokens
 
 JWT is a compact, URL-safe way to represent claims between two parties. It is the standard used by the platform to carry the authenticated user's identity across services without storing server-side session state — making it naturally compatible with horizontal scalability.
 
-A JWT consists of three Base64Url-encoded parts separated by dots.
+A JWT consists of three Base64Url-encoded parts separated by dots. They are only **encoded, not encrypted**: anyone holding the token can read its payload. What nobody can do without the secret key is **change** it — the signature proves who issued the token and that it was not altered.
 
 !!! example "Example JWT"
 
@@ -56,6 +56,20 @@ A JWT consists of three Base64Url-encoded parts separated by dots.
 !!! warning "Secret Key"
 
     The secret key used to sign the JWT must be kept confidential. Anyone with access to it can forge tokens. The `application.yaml` of `auth-service` reads it from the environment variable `JWT_SECRET_KEY` and ships a **development** default only so the stack runs out of the box — that default is public (it is in the repository), so outside your machine always set `JWT_SECRET_KEY` with a key of your own and **never hardcode** a real one in source code.
+
+To check a token, `auth` computes the signature again with **its own** key and compares it with the one the token carries:
+
+``` mermaid-sim
+flowchart LR
+    t["token received\nheader.payload.signature"]
+    h["HMACSHA256(header.payload,\nauth's secret key)"]
+    c{"same as the\nsignature?"}
+    ok["valid: read the claims"]
+    no["SignatureException\n401"]
+    t --> h --> c
+    c -->|yes| ok
+    c -->|"no: payload edited\nor another key"| no
+```
 
 The key claims used in this platform are:
 

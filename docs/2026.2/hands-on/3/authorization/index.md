@@ -25,6 +25,20 @@ When the token is valid, the filter enriches the downstream request with one hea
 
 Before that, the Gateway **removes any `id-account` sent by the client** (`RemoveRequestHeader=id-account` in `default-filters`, which run before `AuthorizationFilter`): otherwise anyone could call a secured route pretending to be another account. The header that reaches the services can only come from the Gateway.
 
+``` mermaid-sim
+sequenceDiagram
+    actor C as Client
+    participant G as Gateway
+    participant A as auth
+    participant S as account
+    C->>G: GET /accounts with the cookie of Antonio and id-account of another user
+    G->>G: RemoveRequestHeader=id-account
+    G->>A: POST /auth/solve (token)
+    A-->>G: idAccount of Antonio
+    G->>S: GET /accounts with id-account of Antonio
+    Note over C,S: the id-account that reaches a service comes only from the token
+```
+
 This means downstream microservices **never need to parse JWTs themselves** — the Gateway handles it and passes the resolved identity as a plain header.
 
 ## 2. Full Request Sequence
@@ -243,6 +257,11 @@ routes:
                       uri: http://account:8080
                       predicates:
                         - Path=/accounts/**
+
+                    - id: auth-service
+                      uri: http://auth:8080
+                      predicates:
+                        - Path=/auth/**
 
         logging:
           level:
@@ -502,6 +521,23 @@ services:
       replicas: 1
 ```
 
+``` mermaid-sim
+flowchart LR
+    host["your machine\ncurl, browser"]
+    subgraph net [Compose network: the trusted layer]
+        gateway["gateway\n8080:8080"]
+        auth["auth\n:8080"]
+        account["account\n:8080"]
+        db[("db\n:5432")]
+    end
+    host e0@==>|"localhost:8080"| gateway
+    gateway e1@--> auth
+    gateway e2@--> account
+    auth --> account
+    account --> db
+    e0@{ animate: true }
+```
+
 `auth` and `gateway` need no variables to run on your machine: `auth`'s `application.yaml` reads `JWT_SECRET_KEY`, `JWT_HTTP_ONLY` and `JWT_DURATION` with development defaults, and the Gateway reads `CORS_ALLOWED_ORIGINS` (default `http://localhost,http://localhost:3000,http://localhost:8080`).
 
 !!! warning "JWT_SECRET_KEY outside development"
@@ -555,6 +591,23 @@ curl -b cookies.txt http://localhost:8080/accounts
 ``` bash
 curl http://localhost:8080/accounts
 ```
+
+What each case should answer:
+
+| Request | Cookie | Expected |
+|---|---|---|
+| `POST /auth/register` | none (open route) | ✅ `200` |
+| `POST /auth/login` | none (open route) | ✅ `200` + `Set-Cookie: __store_jwt_token=…` |
+| `POST /auth/login`, wrong password | none | ❌ `401`, not `500` |
+| `GET /accounts` | valid | ✅ `200` + the accounts |
+| `GET /accounts` | none | ❌ `401` |
+| `GET /accounts` | expired, edited or signed with another key | ❌ `401`, not `500` |
+
+<div class="csim" data-sim="jwt-gateway" data-script="test"></div>
+
+!!! tip "Try it"
+
+    No Docker at hand, or want to see what each request does inside? The simulator runs the lab's stack: every button is a `curl` through the Gateway, and the boxes light up along the path the request took. In **Authorization 5 (test)**, the four commands of the page answer 200, 200, 200 and 401, and the login issues exactly the example token of the JWT page: valid until 14:00:00, 3600 s after its `nbf`. In **bad tokens**, a wrong password is a 401, a forged `id-account` header is dropped, an edited payload fails the signature, and a token signed again with the public default key gets 200 as Ana — until `JWT_SECRET_KEY` is your own. Past the cookie's `Max-Age`, curl stops sending it; sent by hand, the token meets `ExpiredJwtException`.
 
 ---
 
