@@ -46,6 +46,10 @@ Renting a server in a datacentre on a three-year contract is not cloud computing
 
 **CapEx vs OpEx.** Buying servers is **capital expenditure (CapEx)**: a large payment up front for hardware sized for the peak you *expect*. The cloud turns this into **operational expenditure (OpEx)**: you pay monthly for what you *use*. OpEx removes the up-front bet, but it is not automatically cheaper. A workload at full load 24/7 for years can cost more in the cloud than on owned hardware.
 
+--8<-- "docs/2026.2/classes/service_models/capex-opex.svg"
+
+With CapEx, capacity grows in steps bought months ahead, so it never matches demand: after each purchase you pay for **idle** capacity, and before the next one arrives demand outgrows it and is **lost**. With OpEx, capacity follows demand with a small margin.
+
 !!! info "Service model is not deployment model"
     NIST also defines **deployment models**, which say *who shares* the infrastructure: **public** (any paying customer), **private** (one organisation), **hybrid** (a combination) and **community** (organisations with common requirements). This class is about the other axis: *how much of it you operate*.
 

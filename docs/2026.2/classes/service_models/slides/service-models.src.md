@@ -102,6 +102,20 @@ NIST SP 800-145: **five essential characteristics**, and a service must have **a
 
 ---
 
+## CapEx vs OpEx: capacity and demand
+
+{{INCLUDE:docs/2026.2/classes/service_models/capex-opex.svg}}
+
+<p class="small">CapEx buys capacity in steps months ahead: <b>idle</b> after each purchase, <b>shortage</b> before the next. OpEx follows demand with a small margin.</p>
+
+<!--
+The gap between the staircase and the demand is the cost of guessing: orange is money spent on capacity nobody
+uses, red is customers turned away. Autoscaling on OpEx closes the gap, but pays a premium per unit (see the
+cost simulator on the page).
+-->
+
+---
+
 ## The responsibility stack
 
 Every application in production needs the same six layers. Read them **from the bottom up**:

@@ -46,6 +46,10 @@ Alugar um servidor num datacenter com um contrato de três anos não é computa�
 
 **CapEx vs OpEx.** Comprar servidores é **despesa de capital (CapEx, *capital expenditure*)**: um pagamento alto e antecipado por hardware dimensionado para o pico que você *espera*. A nuvem transforma isso em **despesa operacional (OpEx, *operational expenditure*)**: você paga por mês o que *usa*. O OpEx elimina a aposta antecipada, mas não é automaticamente mais barato. Um workload em carga máxima 24/7 durante anos pode custar mais na nuvem do que em hardware próprio.
 
+--8<-- "docs/2026.2/classes/service_models/capex-opex.pt.svg"
+
+Com CapEx, a capacidade cresce em degraus comprados com meses de antecedência e por isso nunca coincide com a demanda: depois de cada compra você paga por capacidade **ociosa** e, antes de a próxima chegar, a demanda passa dela e é **perdida**. Com OpEx, a capacidade acompanha a demanda com uma pequena folga.
+
 !!! info "Modelo de serviço não é modelo de implantação"
     O NIST também define **modelos de implantação**, que dizem *quem compartilha* a infraestrutura: **pública** (qualquer cliente pagante), **privada** (uma organização), **híbrida** (uma combinação) e **comunitária** (organizações com requisitos em comum). Esta aula trata do outro eixo: *quanto dela você opera*.
 

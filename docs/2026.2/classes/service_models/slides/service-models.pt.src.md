@@ -102,6 +102,20 @@ NIST SP 800-145: **cinco características essenciais** e um serviço precisa ter
 
 ---
 
+## CapEx vs OpEx: capacidade e demanda
+
+{{INCLUDE:docs/2026.2/classes/service_models/capex-opex.pt.svg}}
+
+<p class="small">O CapEx compra capacidade em degraus com meses de antecedência: <b>ociosa</b> depois de cada compra, <b>falta</b> antes da próxima. O OpEx acompanha a demanda com uma pequena folga.</p>
+
+<!--
+A distância entre a escada e a demanda é o custo de adivinhar: o laranja é dinheiro gasto em capacidade que
+ninguém usa e o vermelho são clientes recusados. O autoscaling no OpEx fecha essa distância, mas paga mais por
+unidade (veja o simulador de custo na página).
+-->
+
+---
+
 ## A pilha de responsabilidade
 
 Toda aplicação em produção precisa das mesmas seis camadas. Leia **de baixo para cima**:
