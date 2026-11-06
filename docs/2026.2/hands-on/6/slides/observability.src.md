@@ -14,6 +14,10 @@ theme: platform
 {{INCLUDE:scripts/slides/theme.js}}
 </script>
 
+<style>
+{{INCLUDE:scripts/slides/diagram.css}}
+</style>
+
 <div class="kicker">Platforms, Microservices, DevOps and APIs · Hands-on 6</div>
 
 # Hands-on 6 — Observability
@@ -65,13 +69,18 @@ This hands-on focuses on **monitoring**: Spring Boot **Actuator** → **Promethe
 
 ## Architecture
 
-| Component | Role |
-|---|---|
-| **Actuator** + **Micrometer** | each service exposes `/<prefix>/actuator/prometheus` |
-| **Prometheus** `:9090` | **pulls** (scrapes) the metrics of every service, stores time series |
-| **Grafana** `:3000` | queries Prometheus and draws dashboards |
-
-`gateway`, `auth`, `account` ← scrape ← **Prometheus** → **Grafana**
+<div class="flow" style="align-items: stretch">
+<div class="group">
+<div class="caption">trusted layer · Actuator + Micrometer</div>
+<div class="box">gateway<small>/gateway/actuator/prometheus</small></div>
+<div class="box">auth<small>/auth/actuator/prometheus</small></div>
+<div class="box">account<small>/accounts/actuator/prometheus</small></div>
+</div>
+<div class="arrow" style="align-self: center">← scrape<br>every 1s</div>
+<div class="box accent" style="flex: .7; display: flex; flex-direction: column; justify-content: center">Prometheus :9090<small>pulls the metrics, stores time series</small></div>
+<div class="arrow" style="align-self: center">← queries</div>
+<div class="box green" style="flex: .6; display: flex; flex-direction: column; justify-content: center">Grafana :3000<small>draws dashboards</small></div>
+</div>
 
 <p class="small">The observability layer sits alongside the trusted layer; clients still enter through the load balancer on port 80.</p>
 
@@ -203,6 +212,24 @@ Prometheus **pulls**: the services do not know Prometheus exists — they only e
 
 ---
 
+## From a counter to requests per second
+
+<div class="flow">
+<div class="box">service<small>counts every request: http_server_requests_seconds_count</small></div><div class="arrow">scrape →</div>
+<div class="box accent">samples<small>1s apart: 1180, 1191, 1202…</small></div><div class="arrow">rate([1m]) →</div>
+<div class="box green">11 req/s<small>the counter's increase ÷ the window's seconds</small></div>
+</div>
+
+- `up` = 1 when the last scrape answered, 0 otherwise: the same as **Status → Targets**.
+- `rate()` needs **two samples** in the window: keep it ≥ 4 × `scrape_interval`.
+- The scrapes count too: an idle service shows **1 req/s**, Prometheus itself.
+
+<!--
+The Prometheus page has the queries (up, the counter, rate, sum by job) and the simulator.
+-->
+
+---
+
 ## 4 · Grafana datasource
 
 `setup/grafana/provisioning/datasources/datasources.yml`:
@@ -252,16 +279,34 @@ Show the Targets page live: it is the quickest way to see whether the scrape con
 
 ## Common pitfalls
 
-<div class="warn">
-
-`metrics_path` ≠ `base-path` → the target shows **DOWN** (404). The two must match exactly.
-
+<div class="flow">
+<div class="box">metrics_path<small>/actuator/prometheus</small></div><div class="arrow">≠</div>
+<div class="box">base-path + /prometheus<small>/accounts/actuator/prometheus</small></div><div class="arrow">→</div>
+<div class="box red">404 Not Found<small>the target shows DOWN</small></div>
 </div>
 
 - `prometheus` does not start → check that `setup/prometheus/prometheus.yml` exists and is valid YAML.
 - Targets must use the **Docker hostnames**, not `localhost` (inside a container, that is the container itself).
 - Dashboard empty → the `DS_PROMETHEUS` variable does not point to the `prometheus` datasource.
 - Only `prometheus` is in `exposure.include`: other Actuator endpoints stay closed.
+
+---
+
+## Without Docker: the simulator
+
+<div class="flow">
+<div class="box accent">0 req/s → rate 1<small>the scrapes are requests</small></div>
+<div class="box green">10 req/s → 11<small>gateway, auth and account</small></div>
+<div class="box orange">15s and [5s]<small>fewer than two samples: empty</small></div>
+<div class="box red">stop account<small>up = 0; a wrong path: 404</small></div>
+</div>
+
+- The Prometheus page embeds the lab's three jobs: same paths, same 1s interval.
+- Move the traffic, the interval and the window; stop a service or break its `metrics_path`.
+
+<!--
+The simulator sits in "Query the metrics", on the Prometheus page.
+-->
 
 ---
 

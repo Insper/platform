@@ -68,5 +68,14 @@ Configure each service's `application.yaml` to expose the Prometheus endpoint un
 
 !!! info "Why different base paths?"
 
-    Each microservice uses its own context prefix so the Prometheus endpoint becomes reachable as `/gateway/actuator/prometheus`, `/auth/actuator/prometheus`, and `/accounts/actuator/prometheus` — without port conflicts and without exposing internal ports directly.`
+    Each microservice uses its own context prefix so the Prometheus endpoint becomes reachable as `/gateway/actuator/prometheus`, `/auth/actuator/prometheus`, and `/accounts/actuator/prometheus` — without port conflicts and without exposing internal ports directly.
+
+The `metrics_path` of each job in `prometheus.yml` ([Prometheus](../prometheus/index.md)) must be this `base-path` followed by `/prometheus`, character by character; otherwise the scrape gets a 404 and the target shows **DOWN**:
+
+``` mermaid-sim
+flowchart LR
+    yml["prometheus.yml\nmetrics_path: /accounts/actuator/prometheus"] -->|"GET account:8080"| svc{"base-path is\n/accounts/actuator?"}
+    svc -->|yes| up["200 with the metrics\ntarget UP"]
+    svc -->|no| down["404 Not Found\ntarget DOWN"]
+```
 

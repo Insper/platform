@@ -14,6 +14,10 @@ theme: platform
 {{INCLUDE:scripts/slides/theme.js}}
 </script>
 
+<style>
+{{INCLUDE:scripts/slides/diagram.css}}
+</style>
+
 <div class="kicker">Plataformas, Microsserviços, DevOps e APIs · Hands-on 6</div>
 
 # Hands-on 6 — Observabilidade
@@ -65,13 +69,18 @@ Este hands-on foca no **monitoramento**: Spring Boot **Actuator** → **Promethe
 
 ## Arquitetura
 
-| Componente | Papel |
-|---|---|
-| **Actuator** + **Micrometer** | cada serviço expõe `/<prefixo>/actuator/prometheus` |
-| **Prometheus** `:9090` | **puxa** (scrape) as métricas de cada serviço e guarda as séries temporais |
-| **Grafana** `:3000` | consulta o Prometheus e desenha dashboards |
-
-`gateway`, `auth`, `account` ← scrape ← **Prometheus** → **Grafana**
+<div class="flow" style="align-items: stretch">
+<div class="group">
+<div class="caption">camada confiável · Actuator + Micrometer</div>
+<div class="box">gateway<small>/gateway/actuator/prometheus</small></div>
+<div class="box">auth<small>/auth/actuator/prometheus</small></div>
+<div class="box">account<small>/accounts/actuator/prometheus</small></div>
+</div>
+<div class="arrow" style="align-self: center">← coleta<br>a cada 1s</div>
+<div class="box accent" style="flex: .7; display: flex; flex-direction: column; justify-content: center">Prometheus :9090<small>puxa as métricas, guarda séries temporais</small></div>
+<div class="arrow" style="align-self: center">← consulta</div>
+<div class="box green" style="flex: .6; display: flex; flex-direction: column; justify-content: center">Grafana :3000<small>desenha dashboards</small></div>
+</div>
 
 <p class="small">A camada de observabilidade fica ao lado da camada confiável; os clientes continuam entrando pelo balanceador de carga na porta 80.</p>
 
@@ -203,6 +212,24 @@ O Prometheus **puxa**: os serviços nem sabem que ele existe — apenas expõem 
 
 ---
 
+## De um contador a requisições por segundo
+
+<div class="flow">
+<div class="box">serviço<small>conta cada requisição: http_server_requests_seconds_count</small></div><div class="arrow">coleta →</div>
+<div class="box accent">amostras<small>a 1s uma da outra: 1180, 1191, 1202…</small></div><div class="arrow">rate([1m]) →</div>
+<div class="box green">11 req/s<small>o aumento do contador ÷ os segundos da janela</small></div>
+</div>
+
+- `up` = 1 quando a última coleta respondeu, 0 se não: o mesmo que **Status → Targets**.
+- O `rate()` precisa de **duas amostras** na janela: mantenha-a ≥ 4 × `scrape_interval`.
+- As coletas também contam: um serviço sem tráfego mostra **1 req/s**, o próprio Prometheus.
+
+<!--
+A página do Prometheus tem as consultas (up, o contador, rate, sum by job) e o simulador.
+-->
+
+---
+
 ## 4 · Fonte de dados do Grafana
 
 `setup/grafana/provisioning/datasources/datasources.yml`:
@@ -252,16 +279,34 @@ Mostre a página Targets ao vivo: é o jeito mais rápido de ver se a configura�
 
 ## Armadilhas comuns
 
-<div class="warn">
-
-`metrics_path` ≠ `base-path` → o alvo aparece **DOWN** (404). Os dois devem coincidir exatamente.
-
+<div class="flow">
+<div class="box">metrics_path<small>/actuator/prometheus</small></div><div class="arrow">≠</div>
+<div class="box">base-path + /prometheus<small>/accounts/actuator/prometheus</small></div><div class="arrow">→</div>
+<div class="box red">404 Not Found<small>o alvo aparece DOWN</small></div>
 </div>
 
 - `prometheus` não sobe → confira se `setup/prometheus/prometheus.yml` existe e é um YAML válido.
 - Os alvos devem usar os **hostnames Docker**, não `localhost` (dentro de um container, é o próprio container).
 - Dashboard vazio → a variável `DS_PROMETHEUS` não aponta para a fonte de dados `prometheus`.
 - Só `prometheus` está em `exposure.include`: os demais endpoints do Actuator continuam fechados.
+
+---
+
+## Sem Docker: o simulador
+
+<div class="flow">
+<div class="box accent">0 req/s → rate 1<small>as coletas são requisições</small></div>
+<div class="box green">10 req/s → 11<small>gateway, auth e account</small></div>
+<div class="box orange">15s e [5s]<small>menos de duas amostras: vazio</small></div>
+<div class="box red">pare o account<small>up = 0; um caminho errado: 404</small></div>
+</div>
+
+- A página do Prometheus embute os três jobs do lab: mesmos caminhos, mesmo intervalo de 1s.
+- Mude o tráfego, o intervalo e a janela; pare um serviço ou quebre o `metrics_path` dele.
+
+<!--
+O simulador fica em "Consulte as métricas", na página do Prometheus.
+-->
 
 ---
 

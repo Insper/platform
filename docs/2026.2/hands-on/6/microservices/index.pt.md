@@ -70,3 +70,12 @@ Configure o `application.yaml` de cada serviço para expor o endpoint do Prometh
 
     Cada microsserviço usa o seu próprio prefixo de contexto, de modo que o endpoint do Prometheus fica acessível como `/gateway/actuator/prometheus`, `/auth/actuator/prometheus` e `/accounts/actuator/prometheus` — sem conflitos de porta e sem expor diretamente as portas internas.
 
+O `metrics_path` de cada job no `prometheus.yml` ([Prometheus](../prometheus/index.md)) precisa ser esse `base-path` seguido de `/prometheus`, caractere por caractere; senão a coleta recebe um 404 e o alvo aparece como **DOWN**:
+
+``` mermaid-sim
+flowchart LR
+    yml["prometheus.yml\nmetrics_path: /accounts/actuator/prometheus"] -->|"GET account:8080"| svc{"o base-path é\n/accounts/actuator?"}
+    svc -->|sim| up["200 com as métricas\nalvo UP"]
+    svc -->|não| down["404 Not Found\nalvo DOWN"]
+```
+

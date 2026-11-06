@@ -14,7 +14,15 @@ datasources:
     isDefault: true
 ```
 
-O Grafana carrega esse arquivo automaticamente na inicialização, conectando-se à instância do Prometheus na rede Docker interna — sem nenhuma configuração manual pela interface.
+O Grafana carrega esse arquivo automaticamente na inicialização, conectando-se à instância do Prometheus na rede Docker interna — sem nenhuma configuração manual pela interface. Com `access: proxy`, quem consulta `http://prometheus:9090` é o servidor do Grafana (não o seu navegador), um nome que só existe dentro dessa rede:
+
+``` mermaid-sim
+flowchart LR
+    file["datasources.yml\nuid: prometheus"] -->|lido na inicialização| gf["Grafana :3000"]
+    browser["seu navegador"] -->|"localhost:3000"| gf
+    gf -->|"access: proxy\nhttp://prometheus:9090"| prom[("Prometheus :9090")]
+    dash["dashboard 4701 ou 12900\nDS_PROMETHEUS = prometheus"] -->|"painéis: consultas"| gf
+```
 
 Com a stack em execução, abra o Grafana no navegador:
 
