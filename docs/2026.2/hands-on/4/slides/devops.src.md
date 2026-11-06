@@ -14,6 +14,10 @@ theme: platform
 {{INCLUDE:scripts/slides/theme.js}}
 </script>
 
+<style>
+{{INCLUDE:scripts/slides/diagram.css}}
+</style>
+
 <div class="kicker">Platforms, Microservices, DevOps and APIs · Hands-on 4</div>
 
 # Hands-on 4 — DevOps
@@ -32,7 +36,15 @@ Outline: (1) CI and CD; (2) Jenkins in a container; (3) unlock, executors, crede
 - **Continuous Integration (CI)** — merge often; every merge triggers an automated **build and test**.
 - **Continuous Delivery (CD)** — every change that passes CI is **packaged** and ready to deploy.
 
-`git push` → CI server (**Jenkins**) → Build → Test → Package Docker image → Push to registry → Deploy
+<div class="flow">
+<div class="box muted">git push</div><div class="arrow">→</div>
+<div class="box accent">Jenkins<small>CI server</small></div><div class="arrow">→</div>
+<div class="box">Build</div><div class="arrow">→</div>
+<div class="box">Test</div><div class="arrow">→</div>
+<div class="box orange">Docker image<small>package</small></div><div class="arrow">→</div>
+<div class="box orange">registry<small>push</small></div><div class="arrow">→</div>
+<div class="box green">Deploy</div>
+</div>
 
 <div class="ok">
 
@@ -164,9 +176,15 @@ environment {
 }
 ```
 
-1. **Dependencies** — `build job: 'account', wait: true`: rebuild the upstream module first.
-2. **Build** — `mvn -B -DskipTests clean package`: the runnable jar.
-3. **Build & Push Image** — multi-platform image to Docker Hub.
+<div class="flow">
+<div class="box accent">Dependencies<small>build job: 'account', wait: true</small></div><div class="arrow">→</div>
+<div class="box accent">Build<small>mvn -B -DskipTests clean package</small></div><div class="arrow">→</div>
+<div class="box orange">Build &amp; Push Image<small>multi-platform image to Docker Hub</small></div><div class="arrow">→</div>
+<div class="box green">:latest + :BUILD_ID</div>
+</div>
+<div class="flow">
+<div class="box red">any stage fails → <strong>Finished: FAILURE</strong><small>the later stages are skipped; a failed account fails Dependencies</small></div>
+</div>
 
 <p class="small"><code>NAME</code> is the Docker Hub repository; replace the user with yours.</p>
 
@@ -194,6 +212,30 @@ withCredentials([usernamePassword(
 
 ---
 
+## Too few executors: a build that waits holds its slot
+
+<div class="flow" style="align-items: stretch">
+<div class="group">
+<div class="caption">Built-In Node · 2 executors</div>
+<div class="box orange">account-service #1<small>Dependencies: waits for account</small></div>
+<div class="box orange">auth-service #1<small>Dependencies: waits for account</small></div>
+</div>
+<div class="arrow" style="align-self: center">⇄</div>
+<div class="group">
+<div class="caption">Build queue</div>
+<div class="box red">account #1<small>waiting for next available executor</small></div>
+</div>
+</div>
+
+- Each pipeline holds its executor **while it waits**; `account` never gets one: the builds hang forever.
+- The fix of the lab: **10 executors**, more than the pipelines that wait at once.
+
+<!--
+The page draws the same case as a sequence diagram under "Too few executors"; the simulator plays it and the fix.
+-->
+
+---
+
 ## Common pitfalls
 
 - **Credential ID mismatch**: `credentialsId` must be exactly `dockerhub-credential`.
@@ -204,6 +246,23 @@ withCredentials([usernamePassword(
 
 <!--
 The executors point: account-service occupies a slot while it waits for account.
+-->
+
+---
+
+## Without Jenkins: the simulator
+
+<div class="flow">
+<div class="box accent">the lab's jobs<small>account, then account-service: :latest and :1 at 140 s</small></div>
+<div class="box orange">too few executors<small>2 executors: stuck from 5 s · 10: done at 150 s</small></div>
+<div class="box red">a failing stage<small>account does not compile · wrong credentials ID</small></div>
+</div>
+
+- The Built-In Node, its executors, the build queue and the stage view of the lab's Jenkinsfiles.
+- Change the executors or inject a failure while the builds run.
+
+<!--
+The simulator sits at the end of section 5 of the page. The durations are illustrative.
 -->
 
 ---

@@ -16,8 +16,6 @@ flowchart LR
     end
     ci --> pipeline
     push -->|deploy| env([Target\nEnvironment])
-    classDef highlight fill:#FCBE3E
-    class ci highlight
 ```
 
 [Jenkins](https://www.jenkins.io/){:target="_blank"} is one of the most widely adopted open-source automation servers. It orchestrates CI/CD pipelines through a rich plugin ecosystem and supports **Pipeline as Code** — pipeline definitions committed to the repository alongside application code in a file called `Jenkinsfile`[^2].
@@ -60,6 +58,23 @@ The `compose.yaml` builds a custom image on top of `jenkins/jenkins:jdk25` with 
 The Jenkins process is added to the `docker` group so that pipelines can invoke `docker` commands without requiring root. The host Docker socket (`/var/run/docker.sock`) is bind-mounted into the container for this purpose[^3].
 
 Jenkins' home (`/var/jenkins_home`: plugins, jobs, credentials) is bind-mounted to `./config/jenkins` (or `$CONFIG/jenkins`, when the `CONFIG` variable is set), so it survives `docker compose down`. That folder holds secrets, so the `jenkins/.gitignore` keeps `config/` and `.env` out of git.
+
+``` mermaid-sim
+flowchart LR
+    browser["browser\nlocalhost:9080"]
+    subgraph host [your machine]
+        j["container jenkins\nJenkins :8080\nmaven, docker, kubectl, aws"]
+        sock[("/var/run/docker.sock\nthe host's Docker daemon")]
+        cfg[("./config/jenkins\n= /var/jenkins_home")]
+    end
+    hub[("Docker Hub")]
+    browser e0@==>|"9080:8080"| j
+    j e1@-->|"docker build, docker push"| sock
+    j --- cfg
+    sock e2@-->|push| hub
+    e0@{ animate: true }
+    e1@{ animate: true }
+```
 
 !!! warning "Docker socket security"
     Mounting `/var/run/docker.sock` gives the container full control over the host Docker daemon. This is acceptable for local development, but should be hardened (e.g., rootless Docker or a dedicated build daemon) in shared or production environments.
@@ -114,6 +129,23 @@ An *executor* is a slot where Jenkins runs one pipeline stage or job. The defaul
 !!! warning "Too few executors"
     The `account-service` pipeline starts the `account` job (`build job: 'account', wait: true`, in [section 5](#5-examples)) and keeps its own executor while it waits. With the default 2 executors and several services building at once, every slot can end up held by a job waiting for `account`, and `account` never gets a slot to run: the builds hang in the queue.
 
+``` mermaid-sim
+sequenceDiagram
+    participant AS as account-service build
+    participant AU as auth-service build
+    participant Q as Build queue
+    participant E as 2 executors
+    AS->>E: takes executor 1
+    AU->>E: takes executor 2
+    AS->>Q: build job account, wait true
+    AU->>Q: build job account (joins the same queue item)
+    Q->>E: account needs an executor
+    E-->>Q: none free
+    Note over AS,E: both builds wait for account and account waits for an executor they hold
+```
+
+The simulator at the end of [section 5](#5-examples) plays this case and the fix.
+
 === "Nodes"
 
     ![](./jenkins/images/jenkins.nodes.png)
@@ -157,7 +189,7 @@ Jenkins supports two pipeline syntaxes:
 
 | Syntax | Description |
 |---|---|
-| **Declarative** | Structured, opinionated DSL — recommended for most projects |
+| **Declarative** | Structured, opinionated DSL — ✅ recommended for most projects |
 | **Scripted** | Full Groovy — maximum flexibility, steeper learning curve |
 
 The examples below use the **declarative** syntax.
@@ -213,6 +245,18 @@ A complete pipeline that builds the service, creates a multi-platform Docker ima
     ``` { .groovy .copy .select linenums="1" title="Jenkinsfile" }
     --8<-- "docs/2026.2/hands-on/4/jenkins/code/Jenkinsfile.account-service"
     ```
+
+Each stage runs only if the one before it succeeded; the first failure ends the build:
+
+``` mermaid-sim
+flowchart LR
+    d["Dependencies\nbuild job account"] -->|SUCCESS| b["Build\nmvn package"]
+    b -->|SUCCESS| p["Build and Push Image\nbuildx --push"]
+    p -->|SUCCESS| ok["Finished: SUCCESS\ntags latest and BUILD_ID"]
+    d -->|"account FAILURE"| f["Finished: FAILURE\nlater stages skipped"]
+    b -->|"exit code not 0"| f
+    p -->|"no credential\ndockerhub-credential"| f
+```
 
 #### Walkthrough
 
@@ -281,6 +325,21 @@ withCredentials([usernamePassword(
 - **`docker buildx`** — creates a *BuildKit* builder that cross-compiles images for both `linux/arm64` (Apple Silicon, AWS Graviton) and `linux/amd64` (standard x86-64)[^8].
 - **Dual tags** — `:latest` provides a stable reference; `:<BUILD_ID>` pins a specific Jenkins build so any image can be traced back to its source commit.
 - The builder instance is removed after the push to free up system resources.
+
+Play the two pipelines, the executors and the failures without Jenkins:
+
+<div class="csim" data-sim="jenkins-pipeline" data-script="lab"></div>
+
+!!! tip "Try it"
+
+    No Jenkins at hand? The simulator runs the lab's jobs on the Built-In Node, 5 s of build time per step (the durations are illustrative). In **the lab's jobs**, account builds, then account-service starts account #2 in its Dependencies stage and pushes `humbertosandmann/account` with the tags :latest and :1 at 140 s. In **too few executors**, account-service and auth-service (the same Jenkinsfile for the modules of hands-on 3) start together on the default 2 executors: each holds one while it waits for account, and account waits in the queue — stuck from 5 s, forever. Raising the executors to 10 frees it: both finish at 150 s (3 executors would already do: 140 s). In **a failing stage**, account does not compile, so Dependencies fails and Build and Build & Push Image are skipped; then a wrong credentials ID fails Build & Push Image.
+
+!!! warning "Common pitfalls"
+
+    - **Credential ID mismatch**: `credentialsId` must be exactly the ID saved in step 3, `dockerhub-credential`; otherwise Build & Push Image fails with `Could not find credentials entry with ID 'dockerhub-credential'`.
+    - **Hard-coded repository**: `NAME` points to `humbertosandmann`; change it to **your** Docker Hub user, or the push is denied.
+    - **Upstream job missing**: `build job: 'account'` fails with `No item named account found` if the `account` job was not created first.
+    - **Tests skipped**: both pipelines pass `-DskipTests`; add a `Test` stage with `mvn test` to enforce them.
 
 
 

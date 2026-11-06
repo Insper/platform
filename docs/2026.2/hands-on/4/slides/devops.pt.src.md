@@ -14,6 +14,10 @@ theme: platform
 {{INCLUDE:scripts/slides/theme.js}}
 </script>
 
+<style>
+{{INCLUDE:scripts/slides/diagram.css}}
+</style>
+
 <div class="kicker">Plataformas, Microsserviços, DevOps e APIs · Hands-on 4</div>
 
 # Hands-on 4 — DevOps
@@ -32,7 +36,15 @@ Roteiro: (1) CI e CD; (2) o Jenkins em um container; (3) desbloqueio, executors,
 - **Integração Contínua (CI)** — faça merge com frequência; cada merge dispara **build e testes** automáticos.
 - **Entrega Contínua (CD)** — toda mudança que passa pela CI é **empacotada** e fica pronta para o deploy.
 
-`git push` → servidor de CI (**Jenkins**) → Build → Testes → Imagem Docker → Push para o registry → Deploy
+<div class="flow">
+<div class="box muted">git push</div><div class="arrow">→</div>
+<div class="box accent">Jenkins<small>servidor de CI</small></div><div class="arrow">→</div>
+<div class="box">Build</div><div class="arrow">→</div>
+<div class="box">Testes</div><div class="arrow">→</div>
+<div class="box orange">imagem Docker<small>empacota</small></div><div class="arrow">→</div>
+<div class="box orange">registry<small>push</small></div><div class="arrow">→</div>
+<div class="box green">Deploy</div>
+</div>
 
 <div class="ok">
 
@@ -164,9 +176,15 @@ environment {
 }
 ```
 
-1. **Dependencies** — `build job: 'account', wait: true`: refaz antes o build do módulo do qual depende.
-2. **Build** — `mvn -B -DskipTests clean package`: o jar executável.
-3. **Build & Push Image** — imagem multiplataforma para o Docker Hub.
+<div class="flow">
+<div class="box accent">Dependencies<small>build job: 'account', wait: true</small></div><div class="arrow">→</div>
+<div class="box accent">Build<small>mvn -B -DskipTests clean package</small></div><div class="arrow">→</div>
+<div class="box orange">Build &amp; Push Image<small>imagem multiplataforma para o Docker Hub</small></div><div class="arrow">→</div>
+<div class="box green">:latest + :BUILD_ID</div>
+</div>
+<div class="flow">
+<div class="box red">qualquer estágio falha → <strong>Finished: FAILURE</strong><small>os estágios seguintes são pulados; um account que falha derruba Dependencies</small></div>
+</div>
 
 <p class="small"><code>NAME</code> é o repositório no Docker Hub; troque o usuário pelo seu.</p>
 
@@ -194,6 +212,30 @@ withCredentials([usernamePassword(
 
 ---
 
+## Poucos executors: um build que espera segura o slot
+
+<div class="flow" style="align-items: stretch">
+<div class="group">
+<div class="caption">Built-In Node · 2 executors</div>
+<div class="box orange">account-service #1<small>Dependencies: espera o account</small></div>
+<div class="box orange">auth-service #1<small>Dependencies: espera o account</small></div>
+</div>
+<div class="arrow" style="align-self: center">⇄</div>
+<div class="group">
+<div class="caption">Fila de builds</div>
+<div class="box red">account #1<small>esperando o próximo executor livre</small></div>
+</div>
+</div>
+
+- Cada pipeline segura o executor **enquanto espera**; o `account` nunca ganha um: os builds travam para sempre.
+- A solução do lab: **10 executors**, mais do que os pipelines que esperam ao mesmo tempo.
+
+<!--
+A página desenha o mesmo caso como diagrama de sequência em "Executors de menos"; o simulador mostra o caso e a solução.
+-->
+
+---
+
 ## Armadilhas comuns
 
 - **ID de credencial diferente**: `credentialsId` precisa ser exatamente `dockerhub-credential`.
@@ -204,6 +246,23 @@ withCredentials([usernamePassword(
 
 <!--
 O ponto dos executors: o account-service ocupa um slot enquanto espera o account.
+-->
+
+---
+
+## Sem Jenkins: o simulador
+
+<div class="flow">
+<div class="box accent">os jobs do lab<small>account e depois account-service: :latest e :1 em 140 s</small></div>
+<div class="box orange">poucos executors<small>2 executors: travado desde 5 s · 10: pronto em 150 s</small></div>
+<div class="box red">um estágio que falha<small>account não compila · ID de credencial errado</small></div>
+</div>
+
+- O Built-In Node, seus executors, a fila de builds e a visão de estágios dos Jenkinsfiles do lab.
+- Mude os executors ou injete uma falha com os builds rodando.
+
+<!--
+O simulador está no fim da seção 5 da página. As durações são ilustrativas.
 -->
 
 ---

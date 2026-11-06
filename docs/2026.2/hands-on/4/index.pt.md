@@ -15,8 +15,6 @@ flowchart LR
     end
     ci --> pipeline
     push -->|deploy| env([Ambiente\nde destino])
-    classDef highlight fill:#FCBE3E
-    class ci highlight
 ```
 
 O [Jenkins](https://www.jenkins.io/){:target="_blank"} é um dos servidores de automação open source mais adotados. Ele orquestra pipelines de CI/CD por meio de um rico ecossistema de plugins e suporta **Pipeline as Code** — definições de pipeline versionadas no repositório, junto ao código da aplicação, em um arquivo chamado `Jenkinsfile`[^2].
@@ -59,6 +57,23 @@ O `compose.yaml` constrói uma imagem personalizada sobre `jenkins/jenkins:jdk25
 O processo do Jenkins é adicionado ao grupo `docker` para que os pipelines possam executar comandos `docker` sem precisar de root. Para isso, o socket do Docker do hospedeiro (`/var/run/docker.sock`) é montado (bind mount) dentro do container[^3].
 
 A home do Jenkins (`/var/jenkins_home`: plugins, jobs, credenciais) é montada em `./config/jenkins` (ou em `$CONFIG/jenkins`, quando a variável `CONFIG` está definida), então sobrevive a um `docker compose down`. Essa pasta guarda segredos, por isso o `jenkins/.gitignore` deixa `config/` e `.env` fora do git.
+
+``` mermaid-sim
+flowchart LR
+    browser["navegador\nlocalhost:9080"]
+    subgraph host [sua máquina]
+        j["container jenkins\nJenkins :8080\nmaven, docker, kubectl, aws"]
+        sock[("/var/run/docker.sock\no daemon Docker do hospedeiro")]
+        cfg[("./config/jenkins\n= /var/jenkins_home")]
+    end
+    hub[("Docker Hub")]
+    browser e0@==>|"9080:8080"| j
+    j e1@-->|"docker build, docker push"| sock
+    j --- cfg
+    sock e2@-->|push| hub
+    e0@{ animate: true }
+    e1@{ animate: true }
+```
 
 !!! warning "Segurança do socket do Docker"
     Montar o `/var/run/docker.sock` dá ao container controle total sobre o daemon Docker do hospedeiro. Isso é aceitável em desenvolvimento local, mas deve ser reforçado (por exemplo, com Docker rootless ou um daemon de build dedicado) em ambientes compartilhados ou de produção.
@@ -113,6 +128,23 @@ Um *executor* é um slot em que o Jenkins executa uma etapa (stage) ou um job do
 !!! warning "Executors de menos"
     O pipeline do `account-service` dispara o job `account` (`build job: 'account', wait: true`, na [seção 5](#5-exemplos)) e fica com o próprio executor enquanto espera. Com os 2 executors padrão e vários serviços em build ao mesmo tempo, todos os slots podem acabar presos a jobs que esperam o `account`, que nunca ganha um slot para rodar: os builds ficam parados na fila.
 
+``` mermaid-sim
+sequenceDiagram
+    participant AS as build do account-service
+    participant AU as build do auth-service
+    participant Q as Fila de builds
+    participant E as 2 executors
+    AS->>E: pega o executor 1
+    AU->>E: pega o executor 2
+    AS->>Q: build job account, wait true
+    AU->>Q: build job account (entra no mesmo item da fila)
+    Q->>E: account precisa de um executor
+    E-->>Q: nenhum livre
+    Note over AS,E: os dois builds esperam o account e o account espera um executor que eles seguram
+```
+
+O simulador no fim da [seção 5](#5-exemplos) mostra esse caso e a solução.
+
 === "Nodes"
 
     ![](./jenkins/images/jenkins.nodes.png)
@@ -156,7 +188,7 @@ O Jenkins suporta duas sintaxes de pipeline:
 
 | Sintaxe | Descrição |
 |---|---|
-| **Declarativa** | DSL estruturada e opinativa — recomendada para a maioria dos projetos |
+| **Declarativa** | DSL estruturada e opinativa — ✅ recomendada para a maioria dos projetos |
 | **Scripted** | Groovy completo — máxima flexibilidade, curva de aprendizado mais íngreme |
 
 Os exemplos abaixo usam a sintaxe **declarativa**.
@@ -212,6 +244,18 @@ Um pipeline completo, que faz o build do serviço, cria uma imagem Docker multip
     ``` { .groovy .copy .select linenums="1" title="Jenkinsfile" }
     --8<-- "docs/2026.2/hands-on/4/jenkins/code/Jenkinsfile.account-service"
     ```
+
+Cada estágio só roda se o anterior teve sucesso; a primeira falha encerra o build:
+
+``` mermaid-sim
+flowchart LR
+    d["Dependencies\nbuild job account"] -->|SUCCESS| b["Build\nmvn package"]
+    b -->|SUCCESS| p["Build and Push Image\nbuildx --push"]
+    p -->|SUCCESS| ok["Finished: SUCCESS\ntags latest e BUILD_ID"]
+    d -->|"account FAILURE"| f["Finished: FAILURE\nestágios seguintes pulados"]
+    b -->|"exit code diferente de 0"| f
+    p -->|"sem a credencial\ndockerhub-credential"| f
+```
 
 #### Passo a passo
 
@@ -280,6 +324,21 @@ withCredentials([usernamePassword(
 - **`docker buildx`** — cria um builder *BuildKit* que gera imagens tanto para `linux/arm64` (Apple Silicon, AWS Graviton) quanto para `linux/amd64` (x86-64 padrão)[^8].
 - **Duas tags** — `:latest` oferece uma referência estável; `:<BUILD_ID>` fixa um build específico do Jenkins, de modo que qualquer imagem pode ser rastreada até o commit de origem.
 - A instância do builder é removida após o push para liberar recursos do sistema.
+
+Rode os dois pipelines, os executors e as falhas sem o Jenkins:
+
+<div class="csim" data-sim="jenkins-pipeline" data-script="lab"></div>
+
+!!! tip "Experimente"
+
+    Sem Jenkins à mão? O simulador roda os jobs do lab no Built-In Node, 5 s de build por passo (as durações são ilustrativas). Em **os jobs do lab**, o account faz o build e depois o account-service inicia o account #2 no estágio Dependencies e envia `humbertosandmann/account` com as tags :latest e :1 em 140 s. Em **poucos executors**, account-service e auth-service (o mesmo Jenkinsfile para os módulos do hands-on 3) começam juntos nos 2 executors padrão: cada um segura um enquanto espera o account e o account espera na fila — travado desde 5 s, para sempre. Subir os executors para 10 o libera: os dois terminam em 150 s (3 executors já bastariam: 140 s). Em **um estágio que falha**, o account não compila, então Dependencies falha e Build e Build & Push Image são pulados; depois, um ID de credencial errado derruba o Build & Push Image.
+
+!!! warning "Armadilhas comuns"
+
+    - **ID de credencial diferente**: o `credentialsId` precisa ser exatamente o ID salvo no passo 3, `dockerhub-credential`; senão o Build & Push Image falha com `Could not find credentials entry with ID 'dockerhub-credential'`.
+    - **Repositório fixo no código**: o `NAME` aponta para `humbertosandmann`; troque pelo **seu** usuário do Docker Hub, senão o push é negado.
+    - **Job anterior inexistente**: o `build job: 'account'` falha com `No item named account found` se o job `account` não foi criado antes.
+    - **Testes pulados**: os dois pipelines passam `-DskipTests`; adicione um estágio `Test` com `mvn test` para exigi-los.
 
 
 
