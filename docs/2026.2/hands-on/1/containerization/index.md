@@ -9,10 +9,9 @@ flowchart LR
     subgraph api [Trusted Layer]
         account e3@==> db@{ shape: cyl, label: "Database" }
     end
-    internet e1@==>|request| account:::red
+    internet e1@==>|request| account
     e1@{ animate: true }
     e3@{ animate: true }
-    classDef red fill:#fcc
 ```
 
 At diagram, the `account` microservice is the business logic layer that interacts with the database.
@@ -49,6 +48,27 @@ The content of the files are as follows:
     ```
 
 In this configuration, we use the `postgres:17` image to create a PostgreSQL container, and we set the environment variables for the database using the `.env` file. Only `account` publishes a port (`8080`); the database has no `ports`, so it is reachable only from inside the Compose network — the trusted layer.
+
+| Service | Port on the host | Reachable from |
+|---|---|---|
+| `account` | ✅ `8080` | your machine (`localhost:8080`) and the Compose network |
+| `db` | ❌ none | only the Compose network, as `db:5432` |
+
+From the jar to the running containers:
+
+``` mermaid-sim
+flowchart LR
+    pkg["mvn clean package"] e1@--> jar["target/*.jar"]
+    jar e2@-->|"COPY in the Dockerfile"| img["image store-account"]
+    img e3@-->|"docker compose up"| acc["container account\n:8080 on the host"]
+    pg["image postgres:17"] e4@-->|"docker compose up"| db["container db\nno published port"]
+    acc e5@-->|"db:5432"| db
+```
+
+!!! warning "Common pitfalls"
+
+    - The Dockerfile copies `target/*.jar`: run `mvn clean package` **before** `docker compose up --build`, or there is no jar to copy.
+    - Inside Compose, services reach each other by **service name** (`db`, `account`), not `localhost`: inside a container, `localhost` is the container itself.
 
 To run the application, we need to execute the following command:
 

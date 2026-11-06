@@ -148,6 +148,17 @@ After coding the interface, we need to install the package to the local Maven re
 mvn clean install
 ```
 
+``` mermaid-sim
+flowchart LR
+    src["api/account\n(interface + DTOs)"] e1@-->|"mvn clean install"| m2["local Maven repository\n~/.m2: store:account:1.0.0"]
+    m2 e2@-->|"pom.xml dependency"| svc["account-service\n(implements it)"]
+    m2 e3@-.->|"pom.xml dependency"| other["other services\n(call it with Feign)"]
+```
+
+!!! warning "Install before you build the service"
+
+    `account-service` depends on `store:account:1.0.0`: run `mvn clean install` in `account` first (and again after every change to the interface), or the build of `account-service` cannot find it.
+
 ---
 
 Done! The Account interface is now ready to be used by other modules in the project.

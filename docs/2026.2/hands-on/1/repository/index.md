@@ -44,6 +44,27 @@ Flyway is a database migration tool that allows us to manage and version our dat
 
 In the code, we have a `db/migration` directory, which contains the migration scripts for the Account microservice. Each migration script is named in a specific format, starting with a version number (e.g., `V2026.08.24.001`) followed by a description of the migration (e.g., `create_schema`). These migration scripts will be executed in order by Flyway to ensure that our database schema is always up-to-date.
 
+At every start, Flyway compares the scripts with what the database has already run and applies only the new ones, before JPA starts:
+
+``` mermaid-sim
+sequenceDiagram
+    participant A as account (starting)
+    participant F as Flyway
+    participant D as db (PostgreSQL)
+    A->>F: migrate
+    F->>D: read accounts.flyway_schema_history
+    D-->>F: versions already applied
+    F->>D: V2026.08.24.001 create_schema
+    F->>D: V2026.08.24.002 create_table
+    F->>D: record both versions
+    F-->>A: schema up to date
+    A->>A: JPA, then Tomcat on :8080
+```
+
+!!! warning "An applied migration is history"
+
+    Flyway keeps a checksum of every script it ran: editing an applied script makes the next start fail its validation. Change the schema with a **new** `V…__….sql` script.
+
 ## 3. Code
 
 Let's go code the implementation of the Account microservice, which consists of a lot of classes. The resulting directory structure will look like this:
@@ -161,6 +182,41 @@ The business rules live in `AccountService`:
 
 - `create` answers `400 Bad Request` when the password is missing or shorter than 6 characters, or when the email is empty; otherwise it stores only the SHA-256 hash (Base64) of the password, in `hash_password` — never the password itself.
 - `findById` returns `null` for an unknown id, and `AccountResource` turns it into `404 Not Found`.
+
+``` mermaid-sim
+flowchart TB
+    req["POST /accounts\n(body: AccountIn)"] e1@--> p1{"password present?"}
+    p1 -->|"no"| r400a["400 Password is empty"]
+    p1 e2@-->|"yes"| p2{"6+ characters\nafter trim?"}
+    p2 -->|"no"| r400b["400 at least 6 characters"]
+    p2 e3@-->|"yes"| p3{"email not empty?"}
+    p3 -->|"no"| r400c["400 Email is empty"]
+    p3 e4@-->|"yes"| hash["hash = SHA-256 in Base64"]
+    hash e5@--> ins["INSERT INTO accounts.accounts"]
+    ins -->|"email already there\nor name missing"| r500["500: the table refuses"]
+    ins e6@-->|"ok"| r201["201 Created\nLocation: /accounts/(new id)"]
+```
+
+Look at the last branch: `AccountService` checks the password and the email, but not the name, and it does not look for an existing email. The table does (`name … NOT NULL`, `email … UNIQUE`), and nobody maps the exception it raises, so the client gets `500` instead of `400`.
+
+The finished endpoints:
+
+| Method | Path | Success | Errors |
+|---|---|---|---|
+| `POST` | `/accounts` | `201 Created` + `Location: /accounts/{id}`, no body | `400 Bad Request` (password missing or short, email empty, no body); ⚠️ `500 Internal Server Error` (email already in the table, name missing) |
+| `GET` | `/accounts` | `200 OK` + list of `AccountOut` | — |
+| `GET` | `/accounts/{id}` | `200 OK` + `AccountOut` | `404 Not Found` |
+| `DELETE` | `/accounts/{id}` | `204 No Content`, even for an unknown id | — |
+| `GET` | `/accounts/health-check` | `200 OK` | — |
+| `PUT` | `/accounts`, `/accounts/{id}` | — | `405 Method Not Allowed`: there is no update endpoint |
+
+`create` builds the `Location` header with `ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}")`. The literal `/accounts/health-check` wins over `/accounts/{id}`, so a `GET` of `health-check` is never taken for an id. `AccountOut` has no password field: the hash never leaves the service.
+
+<div class="csim" data-sim="account-crud" data-script="endpoints"></div>
+
+!!! tip "Try it"
+
+    Before running Docker, the same service in the browser: the simulator runs the lab's code over an empty `accounts.accounts`. Play or → sends the lab's requests one by one: POST returns 201 with a `Location` header and no body, `GET /accounts` lists the account without the password or its hash, a password of 3 characters gets 400 (AccountService), the same email again gets 500 (the `UNIQUE` of the table, not a rule of the service), PUT gets 405 (there is no update endpoint), and DELETE answers 204 even the second time. In **free** mode, send a body without name: AccountService lets it through and the database refuses it (500).
 
 ## 4. Running
 

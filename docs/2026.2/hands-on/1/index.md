@@ -91,6 +91,19 @@ classDiagram
 
     This approach allows the separation of concerns and the organization of the codebase into different modules, making it easier to maintain and scale the application. Also, it creates a facility to reuse the microservice by other microservices in the future - builts in Java.
 
+Because `AccountController` carries `@FeignClient(name = "account", url = "http://account:8080")`, the same interface serves both sides: `account-service` implements it, and another Java service that depends on `account` calls it as if it were a local method — Feign turns the call into a request to the Account service (in [hands-on 3](../3/index.md), the authentication service calls it this way).
+
+``` mermaid-sim
+sequenceDiagram
+    participant O as another service
+    participant F as AccountController (Feign client)
+    participant A as account-service
+    O->>F: findById("42")
+    F->>A: GET http://account:8080/accounts/42
+    A-->>F: 200 OK + AccountOut
+    F-->>O: AccountOut
+```
+
 The construction of the Account microservice follows the Clean Architecture approach, which promotes the total decoupling of business rules from interface layers. The diagram below illustrates the flow of data among the layers of the Account microservice:
 
 ``` mermaid-sim

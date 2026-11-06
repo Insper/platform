@@ -14,6 +14,10 @@ theme: platform
 {{INCLUDE:scripts/slides/theme.js}}
 </script>
 
+<style>
+{{INCLUDE:scripts/slides/diagram.css}}
+</style>
+
 <div class="kicker">Platforms, Microservices, DevOps and APIs · Hands-on 1</div>
 
 # Hands-on 1 — CRUD
@@ -77,14 +81,16 @@ Splitting the contract from the implementation lets **other Java microservices r
 
 ## Clean architecture: one object per layer
 
-`Request → Controller/Resource → Service → Repository → Database`
+<div class="flow">
+<div class="box muted">request<small>JSON</small></div><div class="arrow">→</div>
+<div class="box accent">AccountResource<small>AccountIn · AccountOut (DTOs)</small></div><div class="arrow">parser →</div>
+<div class="box accent">AccountService<small>Account (entity)</small></div><div class="arrow">parser →</div>
+<div class="box accent">AccountRepository<small>AccountModel (JPA)</small></div><div class="arrow">→</div>
+<div class="box green">PostgreSQL<small>table accounts.accounts</small></div>
+</div>
 
-| Layer | Object | Parser on the way in |
-|---|---|---|
-| Controller / Resource | `AccountIn`, `AccountOut` (DTOs) | JSON → `AccountIn` |
-| Service | `Account` (entity) | `AccountIn → Account` |
-| Repository | `AccountModel` (JPA) | `Account → AccountModel` |
-| Database | table `accounts.accounts` | — |
+- On the way in: JSON → `AccountIn` → `Account` → `AccountModel` → a row.
+- Each layer sees **only its own object**: the service never sees JSON nor JPA annotations.
 
 <p class="small">On the way back: <code>AccountModel → Account → AccountOut</code>. <code>AccountParser</code> and <code>AccountModel</code> do the translations.</p>
 
@@ -264,15 +270,40 @@ public Account create(Account account) {
 
 ---
 
+## What can a POST answer?
+
+<div class="flow" style="align-items: stretch">
+<div class="box" style="flex: .6; display: flex; flex-direction: column; justify-content: center">POST /accounts<small>AccountIn</small></div>
+<div class="arrow" style="align-self: center">→</div>
+<div class="group">
+<div class="caption">AccountService</div>
+<div class="box orange">no password · under 6 characters · no email<small>400 Bad Request</small></div>
+</div>
+<div class="arrow" style="align-self: center">→</div>
+<div class="group">
+<div class="caption">table accounts.accounts</div>
+<div class="box red">email already there · name missing<small>500: the table refuses</small></div>
+<div class="box green">INSERT ok<small>201 Created + Location</small></div>
+</div>
+</div>
+
+- The service checks the password and the email — **not** the name, **nor** an existing email.
+- The table's `NOT NULL` and `UNIQUE` catch the rest, but nobody maps that exception: **500**, not 400.
+
+---
+
+<!-- _class: tight -->
+
 ## The finished endpoints
 
 | Method | Path | Response |
 |---|---|---|
-| `POST` | `/accounts` | `201 Created` + `Location: /accounts/{id}` |
+| `POST` | `/accounts` | `201 Created` + `Location: /accounts/{id}`; `400`, `500` |
 | `GET` | `/accounts` | `200 OK` + list of `AccountOut` |
 | `GET` | `/accounts/{id}` | `200 OK`, or `404 Not Found` |
-| `DELETE` | `/accounts/{id}` | `204 No Content` |
+| `DELETE` | `/accounts/{id}` | `204 No Content`, even for an unknown id |
 | `GET` | `/accounts/health-check` | `200 OK` |
+| `PUT` | any | `405 Method Not Allowed`: no update endpoint |
 
 <p class="small"><code>create</code> builds the <code>Location</code> header with <code>ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}")</code>; an unknown id in <code>findById</code> throws <code>ResponseStatusException(NOT_FOUND)</code>.</p>
 
@@ -335,6 +366,26 @@ Inside `psql` (it runs in the `db` container, not in `account`):
 - Inside Compose, services talk by **hostname** (`db`, `account`), not `localhost`.
 - A migration already applied is history: change the schema with a **new** `V…__…sql` script.
 - Keep the password out of `AccountOut` — the output DTO is the public face of the service.
+
+---
+
+## Without Docker: the simulator
+
+<div class="flow">
+<div class="box green">POST<small>201 + Location</small></div>
+<div class="box orange">password "123"<small>400 · AccountService</small></div>
+<div class="box red">same email<small>500 · UNIQUE</small></div>
+<div class="box orange">PUT<small>405</small></div>
+<div class="box green">DELETE, twice<small>204 both times</small></div>
+</div>
+
+- The Repository page embeds the lab's service as a simulator: same endpoints, same checks, same table.
+- Each request shows the object of every layer and **where it stopped**; the table shows the rows and their `hash_password`.
+- **Free** mode: send a body without name and watch the database, not the service, refuse it.
+
+<!--
+The simulator opens on the lab's endpoints; play or → sends them one by one.
+-->
 
 ---
 

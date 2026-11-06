@@ -9,10 +9,9 @@ flowchart LR
     subgraph api [Camada confiável]
         account e3@==> db@{ shape: cyl, label: "Banco de dados" }
     end
-    internet e1@==>|requisição| account:::red
+    internet e1@==>|requisição| account
     e1@{ animate: true }
     e3@{ animate: true }
-    classDef red fill:#fcc
 ```
 
 No diagrama, o microsserviço `account` é a camada de lógica de negócio que interage com o banco de dados.
@@ -49,6 +48,27 @@ O conteúdo dos arquivos é o seguinte:
     ```
 
 Nessa configuração, usamos a imagem `postgres:17` para criar um container PostgreSQL e definimos as variáveis de ambiente do banco de dados por meio do arquivo `.env`. Só o `account` publica uma porta (`8080`); o banco não tem `ports`, então só é acessível de dentro da rede do Compose — a camada confiável.
+
+| Serviço | Porta no host | Acessível a partir de |
+|---|---|---|
+| `account` | ✅ `8080` | a sua máquina (`localhost:8080`) e a rede do Compose |
+| `db` | ❌ nenhuma | só a rede do Compose, como `db:5432` |
+
+Do jar aos containers rodando:
+
+``` mermaid-sim
+flowchart LR
+    pkg["mvn clean package"] e1@--> jar["target/*.jar"]
+    jar e2@-->|"COPY no Dockerfile"| img["imagem store-account"]
+    img e3@-->|"docker compose up"| acc["container account\n:8080 no host"]
+    pg["imagem postgres:17"] e4@-->|"docker compose up"| db["container db\nsem porta publicada"]
+    acc e5@-->|"db:5432"| db
+```
+
+!!! warning "Armadilhas comuns"
+
+    - O Dockerfile copia `target/*.jar`: rode `mvn clean package` **antes** de `docker compose up --build`, senão não há jar para copiar.
+    - Dentro do Compose, os serviços se acham pelo **nome do serviço** (`db`, `account`), não por `localhost`: dentro de um container, `localhost` é o próprio container.
 
 Para executar a aplicação, precisamos rodar o seguinte comando:
 

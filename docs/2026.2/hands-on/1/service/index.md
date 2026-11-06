@@ -188,6 +188,21 @@ curl -X GET http://localhost:8080/accounts/health-check
 
 If everything is working correctly, you should receive a `200 OK` status code in the response, indicating that the microservice is up and running.
 
+At this stage only `health-check` is real: the other methods of `AccountResource` are stubs (`findById` returns the same example for any id), filled in on the [Repository](../repository/) page.
+
+``` mermaid-sim
+sequenceDiagram
+    participant C as curl
+    participant T as Spring (Tomcat :8080)
+    participant R as AccountResource
+    C->>T: GET /accounts/health-check
+    T->>R: healthCheck()
+    R-->>C: 200 OK (no body)
+    C->>T: GET /accounts/42
+    T->>R: findById("42")
+    R-->>C: 200 OK, the fixed example (John, id 1345)
+```
+
 ---
 
 Done! The Account Microservice is now ready to be used in the project.

@@ -14,6 +14,10 @@ theme: platform
 {{INCLUDE:scripts/slides/theme.js}}
 </script>
 
+<style>
+{{INCLUDE:scripts/slides/diagram.css}}
+</style>
+
 <div class="kicker">Plataformas, Microsserviços, DevOps e APIs · Hands-on 1</div>
 
 # Hands-on 1 — CRUD
@@ -77,14 +81,16 @@ Separar o contrato da implementação permite que **outros microsserviços Java 
 
 ## Arquitetura limpa: um objeto por camada
 
-`Request → Controller/Resource → Service → Repository → Database`
+<div class="flow">
+<div class="box muted">requisição<small>JSON</small></div><div class="arrow">→</div>
+<div class="box accent">AccountResource<small>AccountIn · AccountOut (DTOs)</small></div><div class="arrow">parser →</div>
+<div class="box accent">AccountService<small>Account (entidade)</small></div><div class="arrow">parser →</div>
+<div class="box accent">AccountRepository<small>AccountModel (JPA)</small></div><div class="arrow">→</div>
+<div class="box green">PostgreSQL<small>tabela accounts.accounts</small></div>
+</div>
 
-| Camada | Objeto | Parser na ida |
-|---|---|---|
-| Controller / Resource | `AccountIn`, `AccountOut` (DTOs) | JSON → `AccountIn` |
-| Service | `Account` (entidade) | `AccountIn → Account` |
-| Repository | `AccountModel` (JPA) | `Account → AccountModel` |
-| Banco de dados | tabela `accounts.accounts` | — |
+- Na ida: JSON → `AccountIn` → `Account` → `AccountModel` → uma linha.
+- Cada camada vê **só o seu objeto**: o serviço nunca vê JSON nem anotações JPA.
 
 <p class="small">Na volta: <code>AccountModel → Account → AccountOut</code>. <code>AccountParser</code> e <code>AccountModel</code> fazem as traduções.</p>
 
@@ -264,15 +270,40 @@ public Account create(Account account) {
 
 ---
 
+## O que um POST pode responder?
+
+<div class="flow" style="align-items: stretch">
+<div class="box" style="flex: .6; display: flex; flex-direction: column; justify-content: center">POST /accounts<small>AccountIn</small></div>
+<div class="arrow" style="align-self: center">→</div>
+<div class="group">
+<div class="caption">AccountService</div>
+<div class="box orange">sem senha · menos de 6 caracteres · sem email<small>400 Bad Request</small></div>
+</div>
+<div class="arrow" style="align-self: center">→</div>
+<div class="group">
+<div class="caption">tabela accounts.accounts</div>
+<div class="box red">email já existe · nome ausente<small>500: a tabela recusa</small></div>
+<div class="box green">INSERT ok<small>201 Created + Location</small></div>
+</div>
+</div>
+
+- O serviço confere a senha e o email — **não** o nome, **nem** um email já existente.
+- O `NOT NULL` e o `UNIQUE` da tabela pegam o resto, mas ninguém trata essa exceção: **500**, não 400.
+
+---
+
+<!-- _class: tight -->
+
 ## Os endpoints prontos
 
 | Método | Caminho | Resposta |
 |---|---|---|
-| `POST` | `/accounts` | `201 Created` + `Location: /accounts/{id}` |
+| `POST` | `/accounts` | `201 Created` + `Location: /accounts/{id}`; `400`, `500` |
 | `GET` | `/accounts` | `200 OK` + lista de `AccountOut` |
 | `GET` | `/accounts/{id}` | `200 OK` ou `404 Not Found` |
-| `DELETE` | `/accounts/{id}` | `204 No Content` |
+| `DELETE` | `/accounts/{id}` | `204 No Content`, mesmo para um id desconhecido |
 | `GET` | `/accounts/health-check` | `200 OK` |
+| `PUT` | qualquer | `405 Method Not Allowed`: não há endpoint de atualização |
 
 <p class="small"><code>create</code> monta o cabeçalho <code>Location</code> com <code>ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}")</code>; um id inexistente em <code>findById</code> lança <code>ResponseStatusException(NOT_FOUND)</code>.</p>
 
@@ -335,6 +366,26 @@ Dentro do `psql` (ele roda no container `db`, não no `account`):
 - Dentro do Compose, os serviços se falam pelo **hostname** (`db`, `account`), não por `localhost`.
 - Uma migração já aplicada é história: mude o esquema com um **novo** script `V…__…sql`.
 - Mantenha a senha fora do `AccountOut` — o DTO de saída é a face pública do serviço.
+
+---
+
+## Sem Docker: o simulador
+
+<div class="flow">
+<div class="box green">POST<small>201 + Location</small></div>
+<div class="box orange">senha "123"<small>400 · AccountService</small></div>
+<div class="box red">mesmo email<small>500 · UNIQUE</small></div>
+<div class="box orange">PUT<small>405</small></div>
+<div class="box green">DELETE, duas vezes<small>204 nas duas</small></div>
+</div>
+
+- A página Repository traz o serviço do lab como simulador: mesmos endpoints, mesmas validações, mesma tabela.
+- Cada requisição mostra o objeto de cada camada e **onde parou**; a tabela mostra as linhas e o `hash_password`.
+- Modo **livre**: envie um corpo sem nome e veja o banco, não o serviço, recusar.
+
+<!--
+O simulador abre nos endpoints do lab; play ou → envia um por um.
+-->
 
 ---
 

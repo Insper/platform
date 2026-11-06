@@ -148,6 +148,17 @@ Depois de codificar a interface, precisamos instalar o pacote no repositório Ma
 mvn clean install
 ```
 
+``` mermaid-sim
+flowchart LR
+    src["api/account\n(interface + DTOs)"] e1@-->|"mvn clean install"| m2["repositório Maven local\n~/.m2: store:account:1.0.0"]
+    m2 e2@-->|"dependência no pom.xml"| svc["account-service\n(implementa)"]
+    m2 e3@-.->|"dependência no pom.xml"| other["outros serviços\n(chamam via Feign)"]
+```
+
+!!! warning "Instale antes de compilar o serviço"
+
+    O `account-service` depende de `store:account:1.0.0`: rode `mvn clean install` em `account` primeiro (e de novo a cada mudança na interface), senão o build do `account-service` não o encontra.
+
 ---
 
 Pronto! A interface Account agora está pronta para ser usada por outros módulos do projeto.
