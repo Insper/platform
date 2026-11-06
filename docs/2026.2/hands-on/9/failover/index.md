@@ -6,6 +6,12 @@ docker compose up -d --wait
 docker compose exec pg-primary psql -U store -c "CREATE TABLE orders (id serial PRIMARY KEY, item text NOT NULL, created_at timestamptz DEFAULT now());" -c "INSERT INTO orders (item) VALUES ('keyboard'), ('mouse');"
 ```
 
+<div class="csim" data-sim="pg-cluster" data-script="failover"></div>
+
+!!! tip "Try it"
+
+    The simulator runs this page: here it opens on the planned failover. The simulator starts where the lab starts: `orders` with keyboard and mouse, both replicas streaming; play or → runs the page's commands, and the buttons work at any time. In **Replication 1–4**, with the replay paused, pg-replica1 shows 2 rows and pg-replica2 3, 184 bytes behind. In **Replication 5 (sync)**, with `FIRST 1 ("pg-replica1")` and that replica stopped, the `INSERT` of headset hangs; with `ANY 1`, webcam returns at once. In **Lost write**, after-failover gets id 34 and `pg_rewind` discards lost-write. In **free** mode, try what the lab does not: start the old primary without `pg_rewind` and watch two primaries appear.
+
 ## 1. Planned failover
 
 ### The primary goes down
@@ -210,6 +216,24 @@ docker compose exec pg-primary psql -U store -c "SELECT pg_is_in_recovery();" -c
 
 `pg-primary` is now a replica and agrees with the new primary: `lost-write` was discarded for good.
 
+``` mermaid-sim
+flowchart LR
+    c["keyboard, mouse\ntimeline 1"]
+    lw["lost-write\nonly on the dead pg-primary"]
+    af["after-failover (id 34)\npg-replica1, timeline 2"]
+    rw["pg_rewind cuts pg-primary\nback to the fork"]
+    c e1@-->|"pg-primary keeps writing"| lw
+    c e2@-->|"pg_promote()"| af
+    lw e3@-.->|"discarded"| rw
+    rw e4@-->|"follows timeline 2"| af
+```
+
+<div class="csim" data-sim="pg-cluster" data-script="lost-write"></div>
+
+!!! tip "Try it"
+
+    The simulator replays this section: here it opens on the lost write. The simulator starts where the lab starts: `orders` with keyboard and mouse, both replicas streaming; play or → runs the page's commands, and the buttons work at any time. In **Replication 1–4**, with the replay paused, pg-replica1 shows 2 rows and pg-replica2 3, 184 bytes behind. In **Replication 5 (sync)**, with `FIRST 1 ("pg-replica1")` and that replica stopped, the `INSERT` of headset hangs; with `ANY 1`, webcam returns at once. In **Lost write**, after-failover gets id 34 and `pg_rewind` discards lost-write. In **free** mode, try what the lab does not: start the old primary without `pg_rewind` and watch two primaries appear.
+
 !!! question "Would synchronous replication have saved `lost-write`?"
 
     Yes, but not for free. With `synchronous_standby_names = 'ANY 1 (...)'`, the `INSERT` would not have answered while both replicas were down — it would have **blocked** (experiment 5 of [Replication](../replication/index.md#5-synchronous-replication)). The client would never have been told the order existed. RPO = 0 is paid with write availability: CAP again.
@@ -222,6 +246,21 @@ Everything you did by hand fits in a script. The hard part is the first step —
 - The monitor itself may fail, or two monitors may disagree.
 
 That is why automatic failover is built on [consensus](../../../classes/distributed_systems/consensus/index.md): in [Patroni](https://patroni.readthedocs.io){target="_blank"}, each node runs an agent, and only the agent that holds the **leader key** in etcd (Raft) may run as primary. The key has a TTL: an isolated primary cannot renew it and **demotes itself** before a replica is promoted. Managed services (Amazon RDS Multi-AZ, Aurora, Google Cloud SQL) run the same logic for you.
+
+``` mermaid-sim
+sequenceDiagram
+    participant P as pg-1 (primary)
+    participant E as etcd (Raft)
+    participant R as pg-2 (replica)
+    P->>E: renew the leader key (TTL 30 s)
+    E-->>P: ok, you are the leader
+    Note over P,E: the network between pg-1 and etcd breaks
+    P-xE: renew the leader key
+    P->>P: cannot renew: demote itself
+    R->>E: the key expired: take it
+    E-->>R: ok, you are the leader
+    R->>R: promote
+```
 
 ## 4. Connecting the platform
 

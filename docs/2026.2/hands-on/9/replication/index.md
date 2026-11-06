@@ -1,5 +1,11 @@
 Run every command from the `pgcluster/` folder, with the cluster up (`docker compose up -d --wait`). Each experiment shows one property of the cluster; read the output before moving on.
 
+<div class="csim" data-sim="pg-cluster" data-script="replication"></div>
+
+!!! tip "Try it"
+
+    No Docker at hand, or want to see the state between two commands? The simulator runs this page. The simulator starts where the lab starts: `orders` with keyboard and mouse, both replicas streaming; play or → runs the page's commands, and the buttons work at any time. In **Replication 1–4**, with the replay paused, pg-replica1 shows 2 rows and pg-replica2 3, 184 bytes behind. In **Replication 5 (sync)**, with `FIRST 1 ("pg-replica1")` and that replica stopped, the `INSERT` of headset hangs; with `ANY 1`, webcam returns at once. In **Lost write**, after-failover gets id 34 and `pg_rewind` discards lost-write. In **free** mode, try what the lab does not: start the old primary without `pg_rewind` and watch two primaries appear.
+
 ## 1. Write on the primary, read on the replicas
 
 Create a table and insert two rows **on the primary**:
@@ -75,6 +81,22 @@ Resume the replay — the row appears:
 docker compose exec pg-replica1 psql -U store -c "SELECT pg_wal_replay_resume();" -c "SELECT count(*) FROM orders;"
 ```
 
+``` mermaid-sim
+sequenceDiagram
+    participant U as User
+    participant App as Service
+    participant P as pg-primary
+    participant R as pg-replica1 (lagging)
+    U->>App: create an order
+    App->>P: INSERT
+    P-->>App: COMMIT ok
+    U->>App: list my orders
+    App->>R: SELECT
+    R-->>App: rows without the new order
+    App-->>U: where is my order?
+    P->>R: the WAL arrives (too late)
+```
+
 !!! danger "Read-your-writes"
 
     This is what a user sees when the application writes on the primary and then reads from a lagging replica: "I created the order, but it is not in my list". Replication lag grows under heavy load, long queries on the replica or a slow network. Common fixes: read from the primary right after a write (for that user, for a few seconds), or use synchronous replication with `remote_apply` (experiment 5) for the queries that cannot be stale.
@@ -91,6 +113,23 @@ docker compose run --rm client "host=pg-primary,pg-replica1,pg-replica2 target_s
  current_setting
 -----------------
  pg-primary
+```
+
+``` mermaid-sim
+flowchart LR
+    d["driver\ntarget_session_attrs=read-write"]
+    h1["pg-primary\naccepts writes?"]
+    h2["pg-replica1\naccepts writes?"]
+    h3["pg-replica2\naccepts writes?"]
+    ok["keep this connection"]
+    no["error: no server\nwith the required role"]
+    d --> h1
+    h1 -->|yes| ok
+    h1 -->|"no or down"| h2
+    h2 -->|yes| ok
+    h2 -->|"no or down"| h3
+    h3 -->|yes| ok
+    h3 -->|"no or down"| no
 ```
 
 The driver tries the hosts in order and keeps the first one that accepts writes. For reads, ask for a standby and spread the connections at random:
@@ -184,6 +223,21 @@ How much the primary waits for is set by `synchronous_commit`:
 | `remote_write` | received the WAL (in memory) | survives a primary crash |
 | `on` (default) | written the WAL to disk | survives a crash of both |
 | `remote_apply` | **replayed** the WAL | a read on that replica sees the commit (no stale read) |
+
+``` mermaid-sim
+sequenceDiagram
+    participant App as Service
+    participant P as pg-primary
+    participant R as Synchronous replica
+    App->>P: COMMIT
+    P->>R: WAL record
+    R-->>P: received in memory: remote_write returns here
+    R->>R: write the WAL to disk
+    R-->>P: on disk: on (the default) returns here
+    R->>R: replay the WAL
+    R-->>P: replayed: remote_apply returns here
+    P-->>App: COMMIT ok
+```
 
 Return to asynchronous replication before the next page:
 

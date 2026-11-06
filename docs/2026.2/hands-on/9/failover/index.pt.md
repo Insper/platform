@@ -6,6 +6,12 @@ docker compose up -d --wait
 docker compose exec pg-primary psql -U store -c "CREATE TABLE orders (id serial PRIMARY KEY, item text NOT NULL, created_at timestamptz DEFAULT now());" -c "INSERT INTO orders (item) VALUES ('keyboard'), ('mouse');"
 ```
 
+<div class="csim" data-sim="pg-cluster" data-script="failover"></div>
+
+!!! tip "Experimente"
+
+    O simulador roda esta página: aqui ele abre no failover planejado. O simulador começa onde o lab começa: `orders` com keyboard e mouse, as duas réplicas recebendo o WAL; play ou → roda os comandos da página e os botões funcionam a qualquer momento. Em **Replicação 1–4**, com o replay pausado, pg-replica1 mostra 2 linhas e pg-replica2 3, 184 bytes atrás. Em **Replicação 5 (sync)**, com `FIRST 1 ("pg-replica1")` e essa réplica parada, o `INSERT` de headset trava; com `ANY 1`, webcam retorna na hora. Em **Escrita perdida**, after-failover recebe o id 34 e o `pg_rewind` descarta lost-write. No modo **livre**, tente o que o lab não faz: inicie o primário antigo sem `pg_rewind` e veja aparecerem dois primários.
+
 ## 1. Failover planejado
 
 ### O primário cai
@@ -210,6 +216,24 @@ docker compose exec pg-primary psql -U store -c "SELECT pg_is_in_recovery();" -c
 
 O `pg-primary` agora é uma réplica e concorda com o novo primário: o `lost-write` foi descartado de vez.
 
+``` mermaid-sim
+flowchart LR
+    c["keyboard, mouse\ntimeline 1"]
+    lw["lost-write\nsó no pg-primary morto"]
+    af["after-failover (id 34)\npg-replica1, timeline 2"]
+    rw["pg_rewind corta o pg-primary\nde volta à bifurcação"]
+    c e1@-->|"pg-primary continua escrevendo"| lw
+    c e2@-->|"pg_promote()"| af
+    lw e3@-.->|"descartado"| rw
+    rw e4@-->|"segue a timeline 2"| af
+```
+
+<div class="csim" data-sim="pg-cluster" data-script="lost-write"></div>
+
+!!! tip "Experimente"
+
+    O simulador refaz esta seção: aqui ele abre na escrita perdida. O simulador começa onde o lab começa: `orders` com keyboard e mouse, as duas réplicas recebendo o WAL; play ou → roda os comandos da página e os botões funcionam a qualquer momento. Em **Replicação 1–4**, com o replay pausado, pg-replica1 mostra 2 linhas e pg-replica2 3, 184 bytes atrás. Em **Replicação 5 (sync)**, com `FIRST 1 ("pg-replica1")` e essa réplica parada, o `INSERT` de headset trava; com `ANY 1`, webcam retorna na hora. Em **Escrita perdida**, after-failover recebe o id 34 e o `pg_rewind` descarta lost-write. No modo **livre**, tente o que o lab não faz: inicie o primário antigo sem `pg_rewind` e veja aparecerem dois primários.
+
 !!! question "A replicação síncrona teria salvado o `lost-write`?"
 
     Sim, mas não de graça. Com `synchronous_standby_names = 'ANY 1 (...)'`, o `INSERT` não teria respondido enquanto as duas réplicas estavam fora do ar — ele teria **bloqueado** (experimento 5 de [Replicação](../replication/index.md#5-synchronous-replication)). O cliente nunca teria sido informado de que o pedido existia. O RPO = 0 é pago com a disponibilidade das escritas: CAP de novo.
@@ -222,6 +246,21 @@ Tudo o que você fez à mão cabe em um script. A parte difícil é o primeiro p
 - O próprio monitor pode falhar, ou dois monitores podem discordar.
 
 É por isso que o failover automático é construído sobre [consenso](../../../classes/distributed_systems/consensus/index.md): no [Patroni](https://patroni.readthedocs.io){target="_blank"}, cada nó roda um agente e só o agente que detém a **leader key** no etcd (Raft) pode rodar como primário. A chave tem um TTL: um primário isolado não consegue renová-la e **rebaixa a si mesmo** antes que uma réplica seja promovida. Os serviços gerenciados (Amazon RDS Multi-AZ, Aurora, Google Cloud SQL) rodam a mesma lógica por você.
+
+``` mermaid-sim
+sequenceDiagram
+    participant P as pg-1 (primário)
+    participant E as etcd (Raft)
+    participant R as pg-2 (réplica)
+    P->>E: renova a chave de líder (TTL 30 s)
+    E-->>P: ok, você é o líder
+    Note over P,E: a rede entre pg-1 e etcd cai
+    P-xE: renova a chave de líder
+    P->>P: não renovou: rebaixa a si mesmo
+    R->>E: a chave expirou: pega para si
+    E-->>R: ok, você é o líder
+    R->>R: promove
+```
 
 ## 4. Conectando a plataforma
 

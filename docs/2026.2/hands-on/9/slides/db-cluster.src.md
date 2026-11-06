@@ -14,6 +14,10 @@ theme: platform
 {{INCLUDE:scripts/slides/theme.js}}
 </script>
 
+<style>
+{{INCLUDE:scripts/slides/diagram.css}}
+</style>
+
 <div class="kicker">Platforms, Microservices, DevOps and APIs · Hands-on 9</div>
 
 # Hands-on 9 — Database Cluster
@@ -89,13 +93,45 @@ CAP in practice: sync prefers **consistency**, async prefers **availability**.
 
 ---
 
+## When does `COMMIT ok` come back?
+
+<div class="flow">
+<div class="arrow" style="flex: .5; text-align: left">Async</div>
+<div class="box">INSERT</div><div class="arrow">→</div>
+<div class="box accent">WAL on the primary's disk</div><div class="arrow">→</div>
+<div class="box green">COMMIT ok</div><div class="arrow">⋯</div>
+<div class="box muted">the replica gets the WAL<small>a crash before this loses the commit</small></div>
+</div>
+<div class="flow">
+<div class="arrow" style="flex: .5; text-align: left">Sync</div>
+<div class="box">INSERT</div><div class="arrow">→</div>
+<div class="box accent">WAL on the primary's disk</div><div class="arrow">→</div>
+<div class="box orange">a replica confirms<small>+1 round trip; waits if it is down</small></div><div class="arrow">→</div>
+<div class="box green">COMMIT ok</div>
+</div>
+
+- Async: the client hears "ok" **before** any copy exists → **RPO > 0**.
+- Sync: the client hears "ok" **after** a copy exists → **RPO = 0**, paid with latency and blocked commits.
+
+<!--
+The page's sequence diagram "Asynchronous or synchronous?" shows the same two paths step by step.
+-->
+
+---
+
 ## Architecture
 
-| Node | Port (host) | Role |
-|---|---|---|
-| `pg-primary` | `5432` | read-write; streams its WAL to both replicas |
-| `pg-replica1` | `5433` | read-only hot standby |
-| `pg-replica2` | `5434` | read-only hot standby |
+<div class="flow" style="align-items: stretch">
+<div class="box muted" style="flex: .55; display: flex; flex-direction: column; justify-content: center">service<small>account, order…</small></div>
+<div class="arrow" style="align-self: center">writes + reads →</div>
+<div class="box accent" style="display: flex; flex-direction: column; justify-content: center">pg-primary<small>:5432 · read-write</small></div>
+<div class="arrow" style="align-self: center">WAL stream →</div>
+<div class="group">
+<div class="caption">hot standbys · reads</div>
+<div class="box green">pg-replica1<small>:5433 · read-only</small></div>
+<div class="box green">pg-replica2<small>:5434 · read-only</small></div>
+</div>
+</div>
 
 - All three run `postgres:17`; an entrypoint picks the role: empty + `PRIMARY_HOST` → clone the primary with `pg_basebackup`.
 - The **application** decides where each query goes: here, in the **connection string** (`target_session_attrs` / `targetServerType`).
@@ -309,6 +345,29 @@ That is the **RPO** of async replication. Sync would have saved it — by **bloc
 
 ---
 
+## The fork: where `lost-write` went
+
+<div class="flow" style="align-items: stretch">
+<div class="box" style="display: flex; flex-direction: column; justify-content: center">keyboard, mouse<small>timeline 1, on every node</small></div>
+<div class="arrow" style="align-self: center">→</div>
+<div class="group">
+<div class="caption">after the fork</div>
+<div class="box red">lost-write<small>only on the killed pg-primary, timeline 1</small></div>
+<div class="box green">after-failover · id 34<small>pg-replica1 promoted, timeline 2</small></div>
+</div>
+<div class="arrow" style="align-self: center">→</div>
+<div class="box orange" style="display: flex; flex-direction: column; justify-content: center">pg_rewind<small>cuts pg-primary back to the fork; it follows timeline 2</small></div>
+</div>
+
+- The client heard `INSERT 0 1` for `lost-write`: the order existed, then vanished.
+- A planned stop has no red branch: *no rewind required*.
+
+<!--
+The page draws the same fork as a step-by-step diagram in "Unplanned failover: a lost write".
+-->
+
+---
+
 ## 3 · Why not a failover script?
 
 <div class="q">
@@ -338,6 +397,25 @@ The primary stops answering the health check. Is it dead?
 - Reads on the replicas: a second `DataSource` (`preferSecondary`) + `AbstractRoutingDataSource` for `readOnly` — mind the stale reads.
 
 <p class="small">Clean-up: <code>docker compose down -v</code> — without <code>-v</code> the cluster comes back with the roles it ended in.</p>
+
+---
+
+## Without Docker: the simulator
+
+<div class="flow">
+<div class="box accent">Replication 1–4<small>2 rows on the paused replica, 3 on the other, 184 bytes behind</small></div>
+<div class="box orange">Replication 5 (sync)<small>FIRST 1 hangs, ANY 1 returns</small></div>
+<div class="box green">Planned failover<small>promote, follow, no rewind required</small></div>
+<div class="box red">Lost write<small>id 34, lost-write discarded</small></div>
+</div>
+
+- The pages embed the cluster of the lab as a simulator: same nodes, same commands, same outputs.
+- Play runs a page step by step; the buttons work at any time.
+- **Free** mode: start the old primary without `pg_rewind` → two primaries, **split brain**.
+
+<!--
+The simulator sits on the overview (opening on experiment 5), at the top of Replication and Failover, and in the lost-write section.
+-->
 
 ---
 

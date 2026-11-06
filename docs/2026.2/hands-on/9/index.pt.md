@@ -17,9 +17,9 @@ Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** a
 
 | Objetivo | O que o cluster oferece | O que ele **não** oferece |
 |---|---|---|
-| **Disponibilidade** | outro servidor já tem os dados e pode se tornar o primário | zero downtime: um failover ainda leva segundos |
-| **Escala de leituras** | os `SELECT`s se distribuem entre as réplicas | escala de escritas: toda escrita continua indo para **um** primário |
-| **Durabilidade** | uma cópia de cada commit em outra máquina | proteção contra um `DELETE` por engano: ele também é replicado (é para isso que servem os backups) |
+| **Disponibilidade** | ✅ outro servidor já tem os dados e pode se tornar o primário | ❌ zero downtime: um failover ainda leva segundos |
+| **Escala de leituras** | ✅ os `SELECT`s se distribuem entre as réplicas | ❌ escala de escritas: toda escrita continua indo para **um** primário |
+| **Durabilidade** | ✅ uma cópia de cada commit em outra máquina | ❌ proteção contra um `DELETE` por engano: ele também é replicado (é para isso que servem os backups) |
 
 Escalar as **escritas** exige outra técnica, o **sharding** (dividir os dados entre primários independentes, como fazem o Citus ou o Vitess). Este hands-on trata de **replicação**: cada nó guarda *todos* os dados.
 
@@ -62,10 +62,36 @@ A pergunta é *quando* o primário responde `COMMIT ok`:
 |---|---|---|
 | **O commit retorna** | assim que o WAL está no disco do primário | só depois que uma réplica confirma que tem o WAL |
 | **Latência de escrita** | baixa | + uma ida e volta na rede |
-| **Se o primário morre** | os últimos commits podem não ter chegado a nenhuma réplica: **escritas perdidas** (RPO > 0) | nenhuma transação confirmada é perdida (RPO = 0) |
-| **Se a réplica morre** | nada muda | os commits **bloqueiam** até uma réplica voltar (ou a configuração mudar) |
+| **Se o primário morre** | ⚠️ os últimos commits podem não ter chegado a nenhuma réplica: **escritas perdidas** (RPO > 0) | ✅ nenhuma transação confirmada é perdida (RPO = 0) |
+| **Se a réplica morre** | ✅ nada muda | ⚠️ os commits **bloqueiam** até uma réplica voltar (ou a configuração mudar) |
+``` mermaid-sim
+sequenceDiagram
+    participant App as Serviço
+    participant P as Primário
+    participant R as Réplica
+    alt assíncrona (padrão)
+        App->>P: INSERT
+        P->>P: WAL no disco do primário
+        P-->>App: COMMIT ok
+        P->>R: envia o WAL (um instante depois)
+        Note over P,R: se o primário morre antes disso, o commit se perde
+    else síncrona
+        App->>P: INSERT
+        P->>P: WAL no disco do primário
+        P->>R: envia o WAL
+        R-->>P: recebi
+        P-->>App: COMMIT ok
+        Note over App,R: uma ida e volta a mais; se a réplica cai, o commit espera
+    end
+```
 
 Este é o [teorema CAP](../../classes/distributed_systems/cap/index.md) na prática: a replicação síncrona prefere a **consistência** (nenhuma escrita confirmada é perdida) e abre mão da **disponibilidade** das escritas quando a réplica está inacessível; a replicação assíncrona prefere a disponibilidade e aceita que quem lê de uma réplica veja **dados desatualizados** e que um failover perca as últimas escritas.
+
+<div class="csim" data-sim="pg-cluster" data-script="sync"></div>
+
+!!! tip "Experimente"
+
+    Antes do lab, o mesmo cluster no navegador: aqui ele abre no experimento 5 de Replicação. O simulador começa onde o lab começa: `orders` com keyboard e mouse, as duas réplicas recebendo o WAL; play ou → roda os comandos da página e os botões funcionam a qualquer momento. Em **Replicação 1–4**, com o replay pausado, pg-replica1 mostra 2 linhas e pg-replica2 3, 184 bytes atrás. Em **Replicação 5 (sync)**, com `FIRST 1 ("pg-replica1")` e essa réplica parada, o `INSERT` de headset trava; com `ANY 1`, webcam retorna na hora. Em **Escrita perdida**, after-failover recebe o id 34 e o `pg_rewind` descarta lost-write. No modo **livre**, tente o que o lab não faz: inicie o primário antigo sem `pg_rewind` e veja aparecerem dois primários.
 
 ## Arquitetura
 
@@ -101,6 +127,21 @@ Quando o primário falha, uma réplica precisa ser **promovida** a primário, as
 | reapontar as outras réplicas | `ALTER SYSTEM SET primary_conninfo` | a ferramenta as reconfigura |
 | redirecionar os clientes | connection string com vários hosts | IP virtual, DNS, proxy (HAProxy, PgBouncer) |
 | trazer o primário antigo de volta | `pg_rewind` | a ferramenta faz o rewind dele |
+
+``` mermaid-sim
+sequenceDiagram
+    participant A as Cliente A
+    participant P as pg-primary
+    participant M as Monitor
+    participant R as pg-replica1
+    participant B as Cliente B
+    Note over P,M: a rede entre eles cai
+    M-xP: health check (sem resposta)
+    M->>R: pg_promote()
+    A->>P: INSERT 'x' (o pg-primary está vivo)
+    B->>R: INSERT 'y'
+    Note over P,R: dois primários: 'x' só em um, 'y' só no outro
+```
 
 !!! warning "Split brain"
 

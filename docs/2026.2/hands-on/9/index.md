@@ -17,9 +17,9 @@ Click the slides and use ← → to move through them; **F** goes full screen an
 
 | Goal | What the cluster gives | What it does **not** give |
 |---|---|---|
-| **Availability** | another server already has the data and can become the primary | zero downtime: a failover still takes seconds |
-| **Read scaling** | `SELECT`s spread across the replicas | write scaling: every write still goes to **one** primary |
-| **Durability** | a copy of every commit on another machine | protection from a `DELETE` by mistake: it is replicated too (that is what backups are for) |
+| **Availability** | ✅ another server already has the data and can become the primary | ❌ zero downtime: a failover still takes seconds |
+| **Read scaling** | ✅ `SELECT`s spread across the replicas | ❌ write scaling: every write still goes to **one** primary |
+| **Durability** | ✅ a copy of every commit on another machine | ❌ protection from a `DELETE` by mistake: it is replicated too (that is what backups are for) |
 
 Scaling **writes** needs a different technique, **sharding** (splitting the data across independent primaries, as Citus or Vitess do). This hands-on is about **replication**: every node holds *all* the data.
 
@@ -62,10 +62,36 @@ The question is *when* the primary answers `COMMIT ok`:
 |---|---|---|
 | **Commit returns** | as soon as the WAL is on the primary's disk | only after a replica confirms it has the WAL |
 | **Write latency** | low | + one network round trip |
-| **If the primary dies** | the last commits may not have reached any replica: **lost writes** (RPO > 0) | no committed transaction is lost (RPO = 0) |
-| **If the replica dies** | nothing changes | commits **block** until a replica is back (or the configuration changes) |
+| **If the primary dies** | ⚠️ the last commits may not have reached any replica: **lost writes** (RPO > 0) | ✅ no committed transaction is lost (RPO = 0) |
+| **If the replica dies** | ✅ nothing changes | ⚠️ commits **block** until a replica is back (or the configuration changes) |
+``` mermaid-sim
+sequenceDiagram
+    participant App as Service
+    participant P as Primary
+    participant R as Replica
+    alt asynchronous (default)
+        App->>P: INSERT
+        P->>P: WAL on the primary's disk
+        P-->>App: COMMIT ok
+        P->>R: stream the WAL (a moment later)
+        Note over P,R: if the primary dies before this, the commit is lost
+    else synchronous
+        App->>P: INSERT
+        P->>P: WAL on the primary's disk
+        P->>R: stream the WAL
+        R-->>P: I have it
+        P-->>App: COMMIT ok
+        Note over App,R: one more round trip; if the replica is down, the commit waits
+    end
+```
 
 This is the [CAP theorem](../../classes/distributed_systems/cap/index.md) in practice: synchronous replication prefers **consistency** (no committed write is lost) and gives up **availability** of writes when the replica is unreachable; asynchronous replication prefers availability and accepts that a reader of a replica may see **stale data** and that a failover may lose the last writes.
+
+<div class="csim" data-sim="pg-cluster" data-script="sync"></div>
+
+!!! tip "Try it"
+
+    Before the lab, the same cluster in the browser: here it opens on experiment 5 of Replication. The simulator starts where the lab starts: `orders` with keyboard and mouse, both replicas streaming; play or → runs the page's commands, and the buttons work at any time. In **Replication 1–4**, with the replay paused, pg-replica1 shows 2 rows and pg-replica2 3, 184 bytes behind. In **Replication 5 (sync)**, with `FIRST 1 ("pg-replica1")` and that replica stopped, the `INSERT` of headset hangs; with `ANY 1`, webcam returns at once. In **Lost write**, after-failover gets id 34 and `pg_rewind` discards lost-write. In **free** mode, try what the lab does not: start the old primary without `pg_rewind` and watch two primaries appear.
 
 ## Architecture
 
@@ -101,6 +127,21 @@ When the primary fails, a replica must be **promoted** to primary, the other rep
 | re-point the other replicas | `ALTER SYSTEM SET primary_conninfo` | the tool reconfigures them |
 | redirect the clients | multi-host connection string | virtual IP, DNS, proxy (HAProxy, PgBouncer) |
 | bring the old primary back | `pg_rewind` | the tool rewinds it |
+
+``` mermaid-sim
+sequenceDiagram
+    participant A as Client A
+    participant P as pg-primary
+    participant M as Monitor
+    participant R as pg-replica1
+    participant B as Client B
+    Note over P,M: the network between them breaks
+    M-xP: health check (no answer)
+    M->>R: pg_promote()
+    A->>P: INSERT 'x' (pg-primary is alive)
+    B->>R: INSERT 'y'
+    Note over P,R: two primaries: 'x' only on one, 'y' only on the other
+```
 
 !!! warning "Split brain"
 

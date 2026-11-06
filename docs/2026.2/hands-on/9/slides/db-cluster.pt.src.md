@@ -14,6 +14,10 @@ theme: platform
 {{INCLUDE:scripts/slides/theme.js}}
 </script>
 
+<style>
+{{INCLUDE:scripts/slides/diagram.css}}
+</style>
+
 <div class="kicker">Plataformas, Microsserviços, DevOps e APIs · Hands-on 9</div>
 
 # Hands-on 9 — Cluster de banco de dados
@@ -89,13 +93,45 @@ CAP na prática: a síncrona prefere **consistência**, a assíncrona prefere **
 
 ---
 
+## Quando o `COMMIT ok` volta?
+
+<div class="flow">
+<div class="arrow" style="flex: .5; text-align: left">Assíncrona</div>
+<div class="box">INSERT</div><div class="arrow">→</div>
+<div class="box accent">WAL no disco do primário</div><div class="arrow">→</div>
+<div class="box green">COMMIT ok</div><div class="arrow">⋯</div>
+<div class="box muted">a réplica recebe o WAL<small>um crash antes disso perde o commit</small></div>
+</div>
+<div class="flow">
+<div class="arrow" style="flex: .5; text-align: left">Síncrona</div>
+<div class="box">INSERT</div><div class="arrow">→</div>
+<div class="box accent">WAL no disco do primário</div><div class="arrow">→</div>
+<div class="box orange">uma réplica confirma<small>+1 ida e volta; espera se ela cair</small></div><div class="arrow">→</div>
+<div class="box green">COMMIT ok</div>
+</div>
+
+- Assíncrona: o cliente ouve "ok" **antes** de existir uma cópia → **RPO > 0**.
+- Síncrona: o cliente ouve "ok" **depois** de existir uma cópia → **RPO = 0**, pago com latência e commits bloqueados.
+
+<!--
+O diagrama de sequência da página "Assíncrona ou síncrona?" mostra os mesmos dois caminhos passo a passo.
+-->
+
+---
+
 ## Arquitetura
 
-| Nó | Porta (host) | Papel |
-|---|---|---|
-| `pg-primary` | `5432` | leitura e escrita; envia seu WAL para as duas réplicas |
-| `pg-replica1` | `5433` | hot standby, somente leitura |
-| `pg-replica2` | `5434` | hot standby, somente leitura |
+<div class="flow" style="align-items: stretch">
+<div class="box muted" style="flex: .55; display: flex; flex-direction: column; justify-content: center">serviço<small>account, order…</small></div>
+<div class="arrow" style="align-self: center">escritas + leituras →</div>
+<div class="box accent" style="display: flex; flex-direction: column; justify-content: center">pg-primary<small>:5432 · leitura e escrita</small></div>
+<div class="arrow" style="align-self: center">stream do WAL →</div>
+<div class="group">
+<div class="caption">hot standbys · leituras</div>
+<div class="box green">pg-replica1<small>:5433 · somente leitura</small></div>
+<div class="box green">pg-replica2<small>:5434 · somente leitura</small></div>
+</div>
+</div>
 
 - Os três rodam `postgres:17`; um entrypoint escolhe o papel: vazio + `PRIMARY_HOST` → clona o primário com `pg_basebackup`.
 - A **aplicação** decide para onde vai cada consulta: aqui, na **connection string** (`target_session_attrs` / `targetServerType`).
@@ -309,6 +345,29 @@ Esse é o **RPO** da replicação assíncrona. A síncrona o teria salvado — *
 
 ---
 
+## A bifurcação: para onde foi o `lost-write`
+
+<div class="flow" style="align-items: stretch">
+<div class="box" style="display: flex; flex-direction: column; justify-content: center">keyboard, mouse<small>timeline 1, em todos os nós</small></div>
+<div class="arrow" style="align-self: center">→</div>
+<div class="group">
+<div class="caption">depois da bifurcação</div>
+<div class="box red">lost-write<small>só no pg-primary morto, timeline 1</small></div>
+<div class="box green">after-failover · id 34<small>pg-replica1 promovida, timeline 2</small></div>
+</div>
+<div class="arrow" style="align-self: center">→</div>
+<div class="box orange" style="display: flex; flex-direction: column; justify-content: center">pg_rewind<small>corta o pg-primary de volta à bifurcação; ele segue a timeline 2</small></div>
+</div>
+
+- O cliente ouviu `INSERT 0 1` para o `lost-write`: o pedido existiu e depois sumiu.
+- Uma parada planejada não tem o ramo vermelho: *no rewind required*.
+
+<!--
+A página desenha a mesma bifurcação num diagrama passo a passo em "Failover não planejado: uma escrita perdida".
+-->
+
+---
+
 ## 3 · Por que não um script de failover?
 
 <div class="q">
@@ -338,6 +397,25 @@ O primário para de responder ao health check. Ele está morto?
 - Leituras nas réplicas: um segundo `DataSource` (`preferSecondary`) + `AbstractRoutingDataSource` para `readOnly` — cuidado com as leituras desatualizadas.
 
 <p class="small">Limpeza: <code>docker compose down -v</code> — sem o <code>-v</code>, o cluster volta com os papéis em que terminou.</p>
+
+---
+
+## Sem Docker: o simulador
+
+<div class="flow">
+<div class="box accent">Replicação 1–4<small>2 linhas na réplica pausada, 3 na outra, 184 bytes atrás</small></div>
+<div class="box orange">Replicação 5 (sync)<small>FIRST 1 trava, ANY 1 retorna</small></div>
+<div class="box green">Failover planejado<small>promove, segue, no rewind required</small></div>
+<div class="box red">Escrita perdida<small>id 34, lost-write descartado</small></div>
+</div>
+
+- As páginas trazem o cluster do lab como simulador: mesmos nós, mesmos comandos, mesmas saídas.
+- O play roda uma página passo a passo; os botões funcionam a qualquer momento.
+- Modo **livre**: inicie o primário antigo sem `pg_rewind` → dois primários, **split brain**.
+
+<!--
+O simulador está na visão geral (abrindo no experimento 5), no topo de Replicação e de Failover e na seção da escrita perdida.
+-->
 
 ---
 

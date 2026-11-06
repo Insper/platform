@@ -1,5 +1,11 @@
 Rode todos os comandos a partir da pasta `pgcluster/`, com o cluster no ar (`docker compose up -d --wait`). Cada experimento mostra uma propriedade do cluster; leia a saída antes de seguir em frente.
 
+<div class="csim" data-sim="pg-cluster" data-script="replication"></div>
+
+!!! tip "Experimente"
+
+    Sem Docker à mão ou quer ver o estado entre dois comandos? O simulador roda esta página. O simulador começa onde o lab começa: `orders` com keyboard e mouse, as duas réplicas recebendo o WAL; play ou → roda os comandos da página e os botões funcionam a qualquer momento. Em **Replicação 1–4**, com o replay pausado, pg-replica1 mostra 2 linhas e pg-replica2 3, 184 bytes atrás. Em **Replicação 5 (sync)**, com `FIRST 1 ("pg-replica1")` e essa réplica parada, o `INSERT` de headset trava; com `ANY 1`, webcam retorna na hora. Em **Escrita perdida**, after-failover recebe o id 34 e o `pg_rewind` descarta lost-write. No modo **livre**, tente o que o lab não faz: inicie o primário antigo sem `pg_rewind` e veja aparecerem dois primários.
+
 ## 1. Escrever no primário, ler nas réplicas
 
 Crie uma tabela e insira duas linhas **no primário**:
@@ -75,6 +81,22 @@ Retome a reexecução — a linha aparece:
 docker compose exec pg-replica1 psql -U store -c "SELECT pg_wal_replay_resume();" -c "SELECT count(*) FROM orders;"
 ```
 
+``` mermaid-sim
+sequenceDiagram
+    participant U as Usuário
+    participant App as Serviço
+    participant P as pg-primary
+    participant R as pg-replica1 (atrasada)
+    U->>App: cria um pedido
+    App->>P: INSERT
+    P-->>App: COMMIT ok
+    U->>App: lista meus pedidos
+    App->>R: SELECT
+    R-->>App: linhas sem o pedido novo
+    App-->>U: cadê meu pedido?
+    P->>R: o WAL chega (tarde demais)
+```
+
 !!! danger "Read-your-writes"
 
     É isso que um usuário vê quando a aplicação escreve no primário e depois lê de uma réplica atrasada: "eu criei o pedido, mas ele não está na minha lista". O lag de replicação cresce com carga pesada, consultas longas na réplica ou uma rede lenta. Correções comuns: ler do primário logo depois de uma escrita (para aquele usuário, por alguns segundos) ou usar replicação síncrona com `remote_apply` (experimento 5) nas consultas que não podem ver dados desatualizados.
@@ -91,6 +113,23 @@ docker compose run --rm client "host=pg-primary,pg-replica1,pg-replica2 target_s
  current_setting
 -----------------
  pg-primary
+```
+
+``` mermaid-sim
+flowchart LR
+    d["driver\ntarget_session_attrs=read-write"]
+    h1["pg-primary\naceita escritas?"]
+    h2["pg-replica1\naceita escritas?"]
+    h3["pg-replica2\naceita escritas?"]
+    ok["fica com esta conexão"]
+    no["erro: nenhum servidor\ncom o papel pedido"]
+    d --> h1
+    h1 -->|sim| ok
+    h1 -->|"não ou fora do ar"| h2
+    h2 -->|sim| ok
+    h2 -->|"não ou fora do ar"| h3
+    h3 -->|sim| ok
+    h3 -->|"não ou fora do ar"| no
 ```
 
 O driver tenta os hosts em ordem e fica com o primeiro que aceita escritas. Para leituras, peça um standby e distribua as conexões aleatoriamente:
@@ -184,6 +223,21 @@ Quanto o primário espera é definido por `synchronous_commit`:
 | `remote_write` | recebeu o WAL (em memória) | sobrevive a um crash do primário |
 | `on` (padrão) | gravou o WAL em disco | sobrevive a um crash dos dois |
 | `remote_apply` | **reexecutou** o WAL | uma leitura naquela réplica vê o commit (sem leitura desatualizada) |
+
+``` mermaid-sim
+sequenceDiagram
+    participant App as Serviço
+    participant P as pg-primary
+    participant R as Réplica síncrona
+    App->>P: COMMIT
+    P->>R: registro de WAL
+    R-->>P: recebido em memória: remote_write retorna aqui
+    R->>R: grava o WAL em disco
+    R-->>P: em disco: on (o padrão) retorna aqui
+    R->>R: reexecuta o WAL
+    R-->>P: reexecutado: remote_apply retorna aqui
+    P-->>App: COMMIT ok
+```
 
 Volte à replicação assíncrona antes da próxima página:
 
