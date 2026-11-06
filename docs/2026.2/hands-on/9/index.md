@@ -81,7 +81,7 @@ sequenceDiagram
         P->>R: stream the WAL
         R-->>P: I have it
         P-->>App: COMMIT ok
-        Note over App,R: one more round trip; if the replica is down, the commit waits
+        Note over App,R: one more round trip, and if the replica is down the commit waits
     end
 ```
 

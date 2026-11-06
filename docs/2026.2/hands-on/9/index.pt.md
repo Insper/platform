@@ -81,7 +81,7 @@ sequenceDiagram
         P->>R: envia o WAL
         R-->>P: recebi
         P-->>App: COMMIT ok
-        Note over App,R: uma ida e volta a mais; se a réplica cai, o commit espera
+        Note over App,R: uma ida e volta a mais e, se a réplica cai, o commit espera
     end
 ```
 
