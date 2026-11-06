@@ -138,6 +138,8 @@ spring:
         enable.idempotence: true
 ```
 
+`kafka:9092` is the broker's name inside the Docker network: inside a container, `localhost:9092` is the container itself, not the broker.
+
 !!! tip "acks=all"
 
     Setting `acks=all` means the Kafka broker will wait for all in-sync replicas to acknowledge the write before confirming. In a single-broker development setup this has no effect, but in production it prevents data loss during broker failover.
@@ -179,6 +181,25 @@ In `OrderService.java`, inject `OrderEventPublisher` and call it after saving th
 ``` { .java .copy .select }
 // After saving:
 eventPublisher.publishOrderCreated(savedOrder);
+```
+
+Publish **after** saving: never announce an order that does not exist. The request then goes like this — the synchronous part for the customer, the email later, on the consumer's own time:
+
+``` mermaid-sim
+sequenceDiagram
+    participant C as Client
+    participant O as order-service
+    participant DB as Database
+    participant K as Kafka (order-events)
+    participant N as notification-service
+    C->>O: POST /orders
+    O->>O: REST calls to account-service and product-service
+    O->>DB: save the order
+    O->>K: send(order-events, key = orderId, event)
+    O-->>C: 201 CREATED (does not wait for the email)
+    K->>N: OrderCreated, on the next poll
+    N->>N: log the confirmation email
+    N->>K: commit the offset
 ```
 
 ---
@@ -272,6 +293,19 @@ Add the notification-service to `docker-compose.yml`:
 
     Manual commit (`consumer.commit()`) ensures the offset advances only after the message has been successfully processed. If the service crashes mid-processing, it will re-consume the message on restart — at-least-once delivery semantics.
 
+``` mermaid-sim
+sequenceDiagram
+    participant K as Kafka (order-events)
+    participant N as notification-service
+    K->>N: message at offset 0
+    N->>N: send the email
+    N-xK: crash before commit()
+    Note over K,N: offset 0 was never committed
+    K->>N: after the restart, offset 0 again
+    N->>N: the same email a second time
+    N->>K: commit(), the group now points at offset 1
+```
+
 ---
 
 ## 5. Testing
@@ -313,6 +347,61 @@ $ docker compose logs notification-service
 notification-service  | INFO: [NOTIFICATION] Order ord-7f3a for customer cust-42 — sending confirmation email (total: 49.98)
 ```
 
+### 5.5 Scale the notification-service
+
+A topic is split into **partitions**. The key picks the partition (a hash of `orderId`, modulo the number of partitions), so all events with the same key stay in order in one partition. Inside a consumer group, each partition is read by **one** member at a time, and Kafka keeps the committed offset per partition. When a member joins or leaves, the group **rebalances**: partitions change owner, and the new owner resumes at the committed offset. Lag is the log-end offset minus the committed offset.
+
+`order-events` was auto-created on the first publish with the broker's default of **1 partition** (the compose sets no `KAFKA_NUM_PARTITIONS`). Start a second instance and look at the group:
+
+``` { .bash .copy .select }
+docker compose up -d --scale notification-service=2
+docker compose exec kafka /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server kafka:9092 --describe --group notification-group
+```
+
+Only one consumer owns partition 0: the second instance is in the group with nothing to read. Add partitions — Kafka can add them, never remove them:
+
+``` { .bash .copy .select }
+docker compose exec kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --alter --topic order-events --partitions 3
+```
+
+Once the clients refresh their metadata (up to five minutes, `metadata.max.age.ms`; `docker compose restart notification-service order-service` makes it immediate), the group rebalances and both instances work. Create a few orders and run `--describe` again: each partition shows its `CURRENT-OFFSET`, `LOG-END-OFFSET` and `LAG`.
+
+``` mermaid-sim
+flowchart LR
+    os["order-service\nkey = orderId"]
+    subgraph topic ["order-events"]
+        p0["partition 0"]
+        p1["partition 1"]
+        p2["partition 2"]
+    end
+    subgraph group ["notification-group"]
+        n1["notification-service-1"]
+        n2["notification-service-2"]
+    end
+    os --> p0
+    os --> p1
+    os --> p2
+    p0 --> n1
+    p1 --> n1
+    p2 --> n2
+    p0 & p1 & p2 -.->|"another group gets every message"| an["analytics-group"]
+```
+
+| Instances in `notification-group` | With 1 partition (the lab) | With 3 partitions |
+|---|---|---|
+| 1 | ✅ reads partition 0 | ✅ reads 0, 1 and 2 |
+| 2 | ⚠️ one instance is idle | ✅ 0 and 1 · 2 |
+| 3 | ⚠️ two instances are idle | ✅ one partition each |
+| 4 | ⚠️ three instances are idle | ⚠️ one instance is idle |
+
+The number of partitions caps the parallelism of a group. A different group (an analytics-service, say) reads every message independently, at its own offsets.
+
+<div class="csim" data-sim="order-events" data-script="scale"></div>
+
+!!! tip "Try it"
+
+    The simulator starts where the lab starts: `order-events` auto-created with 1 partition, one notification-service in `notification-group`; play or → runs a page, and the buttons work at any time. In **5.5 Scale the consumer**, six orders land in partition 0 and a second instance gets nothing; after `--partitions 3`, notification-service-1 reads partitions 0 and 1, notification-service-2 reads partition 2, and the next six orders split 2, 2 and 2 by key. In **6 Failures**, a kill before `consumer.commit()` sends 1 duplicate email, the idempotent consumer skips the repeat, and without the try/except a bad event stops the consumer while the lag grows to 3; with the DLQ it ends in `order-events-dlq` and the lag drops to 0. In **free** mode, scale to 4 instances with 3 partitions and watch one sit idle.
+
 ---
 
 ## 6. Reliability — Dead Letter Queue
@@ -328,6 +417,26 @@ except Exception as e:
     dlq_producer.send("order-events-dlq", value=event)
     consumer.commit()
 ```
+
+Either way the offset advances: the main stream continues, and the DLQ is inspected (and replayed) later.
+
+``` mermaid-sim
+flowchart LR
+    m["message from\norder-events"] --> p{"process_event"}
+    p -->|ok| c["consumer.commit()"]
+    p -->|exception| d["send to\norder-events-dlq"]
+    d --> c
+    c --> n["next message"]
+    d -.->|"inspected and replayed later"| ops["operations"]
+```
+
+Without the try/except (the code of section 4), the exception ends the consume thread: `/health` still answers `up`, but the offset no longer moves and the lag grows behind the bad message. After `max.poll.interval.ms` (five minutes) Kafka hands the partition to another member — which meets the same message.
+
+<div class="csim" data-sim="order-events" data-script="failures"></div>
+
+!!! tip "Try it"
+
+    The simulator starts where the lab starts: `order-events` auto-created with 1 partition, one notification-service in `notification-group`; play or → runs a page, and the buttons work at any time. In **5.5 Scale the consumer**, six orders land in partition 0 and a second instance gets nothing; after `--partitions 3`, notification-service-1 reads partitions 0 and 1, notification-service-2 reads partition 2, and the next six orders split 2, 2 and 2 by key. In **6 Failures**, a kill before `consumer.commit()` sends 1 duplicate email, the idempotent consumer skips the repeat, and without the try/except a bad event stops the consumer while the lag grows to 3; with the DLQ it ends in `order-events-dlq` and the lag drops to 0. In **free** mode, scale to 4 instances with 3 partitions and watch one sit idle.
 
 !!! warning "At-least-once delivery"
 

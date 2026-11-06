@@ -14,6 +14,10 @@ theme: platform
 {{INCLUDE:scripts/slides/theme.js}}
 </script>
 
+<style>
+{{INCLUDE:scripts/slides/diagram.css}}
+</style>
+
 <div class="kicker">Plataformas, Microsserviços, DevOps e APIs · Hands-on 10</div>
 
 # Hands-on 10 — Mensageria com Kafka
@@ -44,22 +48,19 @@ Agora precisamos enviar um **e-mail de confirmação**. Mais uma chamada REST?
 
 ## 1 · Arquitetura
 
-<div class="cols">
-<div>
-
-### Antes
-
-cliente → gateway → **order-service** → account-service, product-service *(REST, síncrono)*
-
+<div class="flow">
+<div class="arrow" style="flex: .45; text-align: left">Antes</div>
+<div class="box">cliente</div><div class="arrow">→</div>
+<div class="box">gateway</div><div class="arrow">→</div>
+<div class="box accent">order-service</div><div class="arrow">REST, síncrono →</div>
+<div class="box">account-service<small>e product-service</small></div>
 </div>
-<div>
-
-### Depois
-
-As mesmas chamadas REST, mais:
-**order-service** → tópico `order-events` → **notification-service** *(Kafka, assíncrono)*
-
-</div>
+<div class="flow">
+<div class="arrow" style="flex: .45; text-align: left">Depois</div>
+<div class="box muted">as mesmas chamadas REST</div><div class="arrow">+</div>
+<div class="box accent">order-service</div><div class="arrow">publica →</div>
+<div class="box orange">order-events<small>tópico Kafka</small></div><div class="arrow">assíncrono →</div>
+<div class="box green">notification-service</div>
 </div>
 
 <div class="ok">
@@ -75,7 +76,7 @@ Desacoplamento: amanhã um **analytics-service** pode consumir `order-events` se
 2. **Docker Compose** — adicionar o Kafka (modo KRaft, sem ZooKeeper) e o Kafka UI.
 3. **order-service** — `spring-kafka`, o record `OrderCreatedEvent`, config do producer, publisher.
 4. **notification-service** — um novo consumer em Python / FastAPI.
-5. **Testes** — criar um pedido, ver o evento no Kafka UI e nos logs de notificação.
+5. **Testes** — criar um pedido, ver o evento no Kafka UI e nos logs de notificação; escalar o consumer.
 6. **Confiabilidade** — dead letter queue e consumers idempotentes.
 
 ---
@@ -228,6 +229,25 @@ for message in consumer:
 
 ---
 
+## At-least-once: uma queda antes do `commit()`
+
+<div class="flow">
+<div class="box">offset 0<small>OrderCreated ord-7f3a</small></div><div class="arrow">→</div>
+<div class="box green">e-mail enviado</div><div class="arrow">→</div>
+<div class="box red">queda<small>antes de consumer.commit()</small></div><div class="arrow">→</div>
+<div class="box">reinício<small>recomeça no offset confirmado: 0</small></div><div class="arrow">→</div>
+<div class="box orange">o mesmo e-mail de novo</div>
+</div>
+
+- O Kafka só conhece o offset **confirmado**: tudo depois dele é entregue de novo.
+- Duplicatas são normais, então o consumer deve ser **idempotente**: pular um `orderId` já notificado.
+
+<!--
+A página desenha a mesma linha do tempo num diagrama passo a passo em "enable_auto_commit=False"; o simulador a reproduz em "6 · Falhas".
+-->
+
+---
+
 <!-- _class: tight -->
 
 ## 5 · Testes
@@ -247,6 +267,33 @@ docker compose logs notification-service
 
 ---
 
+## 5.5 · Partições e o grupo de consumidores
+
+<div class="flow" style="align-items: stretch">
+<div class="box" style="flex: .7; display: flex; flex-direction: column; justify-content: center">order-service<small>chave = orderId</small></div>
+<div class="arrow" style="align-self: center">hash(chave) →</div>
+<div class="group">
+<div class="caption">order-events · 3 partições</div>
+<div class="box orange">partição 0</div><div class="box orange">partição 1</div><div class="box orange">partição 2</div>
+</div>
+<div class="arrow" style="align-self: center">um leitor cada →</div>
+<div class="group">
+<div class="caption">notification-group</div>
+<div class="box green">notification-service-1<small>partições 0 e 1</small></div>
+<div class="box green">notification-service-2<small>partição 2</small></div>
+</div>
+</div>
+
+- O tópico do lab é criado automaticamente com **1 partição**: uma segunda instância não tem nada para ler.
+- `kafka-topics.sh --alter --partitions 3` → o grupo **rebalanceia**; o novo dono recomeça no offset confirmado.
+- Atraso (*lag*) = offset final do log − offset confirmado: `kafka-consumer-groups.sh --describe --group notification-group`.
+
+<!--
+A seção 5.5 da página tem os comandos, um diagrama e uma tabela: o número de partições limita o paralelismo de um grupo.
+-->
+
+---
+
 ## 6 · Confiabilidade: dead letter queue
 
 Uma mensagem que falha sempre não pode **travar o fluxo**. Envie-a para `order-events-dlq`:
@@ -262,6 +309,24 @@ except Exception as e:
 ```
 
 <p class="small">Nos dois casos o offset avança: o fluxo principal continua e a DLQ é inspecionada depois.</p>
+
+---
+
+## Sem Docker: o simulador
+
+<div class="flow">
+<div class="box accent">5 · Testes<small>ord-7f3a → partição 0, offset 0, atraso 0</small></div>
+<div class="box orange">5.5 · Escalar o consumidor<small>1 partição: a 2ª instância fica ociosa · 3 partições: 0 e 1 · 2</small></div>
+<div class="box red">6 · Falhas<small>1 e-mail duplicado · atraso 3 atrás de um evento ruim · a DLQ o zera</small></div>
+</div>
+
+- As páginas embutem o tópico e o grupo do lab: mesmos nomes, mesmo hash chave → partição do cliente do Kafka.
+- O play roda uma página passo a passo; os botões (POST, poll, scale, kill, `--partitions`) funcionam a qualquer momento.
+- Modo **livre**: 4 instâncias em 3 partições → uma fica ociosa.
+
+<!--
+O simulador está na seção 5.5 (abrindo em "Escalar o consumidor") e na seção 6 (abrindo em "Falhas").
+-->
 
 ---
 

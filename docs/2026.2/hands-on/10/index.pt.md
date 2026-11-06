@@ -138,6 +138,8 @@ spring:
         enable.idempotence: true
 ```
 
+`kafka:9092` é o nome do broker dentro da rede do Docker: dentro de um container, `localhost:9092` é o próprio container, não o broker.
+
 !!! tip "acks=all"
 
     Definir `acks=all` significa que o broker Kafka vai esperar que todas as réplicas sincronizadas (*in-sync replicas*) confirmem a escrita antes de confirmá-la. Em um ambiente de desenvolvimento com um único broker isso não tem efeito, mas em produção evita perda de dados durante o failover de um broker.
@@ -179,6 +181,25 @@ Em `OrderService.java`, injete o `OrderEventPublisher` e chame-o depois de salva
 ``` { .java .copy .select }
 // After saving:
 eventPublisher.publishOrderCreated(savedOrder);
+```
+
+Publique **depois** de salvar: nunca anuncie um pedido que não existe. A requisição então segue assim — a parte síncrona para o cliente, o e-mail depois, no tempo do consumidor:
+
+``` mermaid-sim
+sequenceDiagram
+    participant C as Cliente
+    participant O as order-service
+    participant DB as Banco de dados
+    participant K as Kafka (order-events)
+    participant N as notification-service
+    C->>O: POST /orders
+    O->>O: chamadas REST a account-service e product-service
+    O->>DB: salva o pedido
+    O->>K: send(order-events, chave = orderId, evento)
+    O-->>C: 201 CREATED (não espera o e-mail)
+    K->>N: OrderCreated, no próximo poll
+    N->>N: registra o e-mail de confirmação
+    N->>K: confirma o offset
 ```
 
 ---
@@ -272,6 +293,19 @@ Adicione o notification-service ao `docker-compose.yml`:
 
     O commit manual (`consumer.commit()`) garante que o offset só avança depois que a mensagem foi processada com sucesso. Se o serviço cair no meio do processamento, ele vai consumir a mensagem de novo ao reiniciar — semântica de entrega *at-least-once* (pelo menos uma vez).
 
+``` mermaid-sim
+sequenceDiagram
+    participant K as Kafka (order-events)
+    participant N as notification-service
+    K->>N: mensagem no offset 0
+    N->>N: envia o e-mail
+    N-xK: cai antes do commit()
+    Note over K,N: o offset 0 nunca foi confirmado
+    K->>N: depois do reinício, o offset 0 de novo
+    N->>N: o mesmo e-mail uma segunda vez
+    N->>K: commit(), o grupo agora aponta para o offset 1
+```
+
 ---
 
 ## 5. Testes
@@ -313,6 +347,61 @@ $ docker compose logs notification-service
 notification-service  | INFO: [NOTIFICATION] Order ord-7f3a for customer cust-42 — sending confirmation email (total: 49.98)
 ```
 
+### 5.5 Escale o notification-service
+
+Um tópico é dividido em **partições**. A chave escolhe a partição (um hash do `orderId`, módulo o número de partições), então todos os eventos com a mesma chave ficam em ordem numa partição. Dentro de um grupo de consumidores (*consumer group*), cada partição é lida por **um** membro por vez e o Kafka guarda o offset confirmado de cada partição. Quando um membro entra ou sai, o grupo **rebalanceia**: as partições mudam de dono e o novo dono recomeça no offset confirmado. O atraso (*lag*) é o offset final do log menos o offset confirmado.
+
+`order-events` foi criado automaticamente na primeira publicação com o padrão do broker, **1 partição** (o compose não define `KAFKA_NUM_PARTITIONS`). Suba uma segunda instância e olhe o grupo:
+
+``` { .bash .copy .select }
+docker compose up -d --scale notification-service=2
+docker compose exec kafka /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server kafka:9092 --describe --group notification-group
+```
+
+Só um consumidor é dono da partição 0: a segunda instância está no grupo sem nada para ler. Acrescente partições — o Kafka pode acrescentá-las, nunca removê-las:
+
+``` { .bash .copy .select }
+docker compose exec kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --alter --topic order-events --partitions 3
+```
+
+Quando os clientes atualizam os metadados (até cinco minutos, `metadata.max.age.ms`; `docker compose restart notification-service order-service` torna isso imediato), o grupo rebalanceia e as duas instâncias trabalham. Crie alguns pedidos e rode `--describe` de novo: cada partição mostra `CURRENT-OFFSET`, `LOG-END-OFFSET` e `LAG`.
+
+``` mermaid-sim
+flowchart LR
+    os["order-service\nchave = orderId"]
+    subgraph topic ["order-events"]
+        p0["partição 0"]
+        p1["partição 1"]
+        p2["partição 2"]
+    end
+    subgraph group ["notification-group"]
+        n1["notification-service-1"]
+        n2["notification-service-2"]
+    end
+    os --> p0
+    os --> p1
+    os --> p2
+    p0 --> n1
+    p1 --> n1
+    p2 --> n2
+    p0 & p1 & p2 -.->|"outro grupo recebe todas as mensagens"| an["analytics-group"]
+```
+
+| Instâncias no `notification-group` | Com 1 partição (o lab) | Com 3 partições |
+|---|---|---|
+| 1 | ✅ lê a partição 0 | ✅ lê 0, 1 e 2 |
+| 2 | ⚠️ uma instância fica ociosa | ✅ 0 e 1 · 2 |
+| 3 | ⚠️ duas instâncias ficam ociosas | ✅ uma partição cada |
+| 4 | ⚠️ três instâncias ficam ociosas | ⚠️ uma instância fica ociosa |
+
+O número de partições limita o paralelismo de um grupo. Um grupo diferente (um analytics-service, por exemplo) lê todas as mensagens de forma independente, com os próprios offsets.
+
+<div class="csim" data-sim="order-events" data-script="scale"></div>
+
+!!! tip "Experimente"
+
+    O simulador começa onde o lab começa: `order-events` criado automaticamente com 1 partição, um notification-service no `notification-group`; play ou → roda uma página e os botões funcionam a qualquer momento. Em **5.5 Escalar o consumidor**, seis pedidos caem na partição 0 e uma segunda instância não recebe nada; depois de `--partitions 3`, notification-service-1 lê as partições 0 e 1, notification-service-2 lê a partição 2 e os seis pedidos seguintes se dividem em 2, 2 e 2 pela chave. Em **6 Falhas**, um kill antes de `consumer.commit()` envia 1 e-mail duplicado, o consumidor idempotente pula a repetição e, sem o try/except, um evento ruim para o consumidor enquanto o atraso cresce para 3; com a DLQ ele termina em `order-events-dlq` e o atraso cai para 0. No modo **livre**, escale para 4 instâncias com 3 partições e veja uma ficar ociosa.
+
 ---
 
 ## 6. Confiabilidade — Dead Letter Queue
@@ -328,6 +417,26 @@ except Exception as e:
     dlq_producer.send("order-events-dlq", value=event)
     consumer.commit()
 ```
+
+Nos dois casos o offset avança: o fluxo principal continua e a DLQ é inspecionada (e reprocessada) depois.
+
+``` mermaid-sim
+flowchart LR
+    m["mensagem de\norder-events"] --> p{"process_event"}
+    p -->|ok| c["consumer.commit()"]
+    p -->|exceção| d["envia para\norder-events-dlq"]
+    d --> c
+    c --> n["próxima mensagem"]
+    d -.->|"inspecionada e reprocessada depois"| ops["operações"]
+```
+
+Sem o try/except (o código da seção 4), a exceção encerra a thread consume: o `/health` ainda responde `up`, mas o offset não anda mais e o atraso cresce atrás da mensagem ruim. Depois de `max.poll.interval.ms` (cinco minutos) o Kafka entrega a partição a outro membro — que encontra a mesma mensagem.
+
+<div class="csim" data-sim="order-events" data-script="failures"></div>
+
+!!! tip "Experimente"
+
+    O simulador começa onde o lab começa: `order-events` criado automaticamente com 1 partição, um notification-service no `notification-group`; play ou → roda uma página e os botões funcionam a qualquer momento. Em **5.5 Escalar o consumidor**, seis pedidos caem na partição 0 e uma segunda instância não recebe nada; depois de `--partitions 3`, notification-service-1 lê as partições 0 e 1, notification-service-2 lê a partição 2 e os seis pedidos seguintes se dividem em 2, 2 e 2 pela chave. Em **6 Falhas**, um kill antes de `consumer.commit()` envia 1 e-mail duplicado, o consumidor idempotente pula a repetição e, sem o try/except, um evento ruim para o consumidor enquanto o atraso cresce para 3; com a DLQ ele termina em `order-events-dlq` e o atraso cai para 0. No modo **livre**, escale para 4 instâncias com 3 partições e veja uma ficar ociosa.
 
 !!! warning "Entrega at-least-once"
 
