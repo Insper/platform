@@ -14,6 +14,10 @@ theme: platform
 {{INCLUDE:scripts/slides/theme.js}}
 </script>
 
+<style>
+{{INCLUDE:scripts/slides/diagram.css}}
+</style>
+
 <div class="kicker">Plataformas, Microsserviços, DevOps e APIs · Hands-on 5</div>
 
 # Hands-on 5 — Orquestração
@@ -79,16 +83,28 @@ Docker Swarm e Apache Mesos são outros.
 
 ## Os objetos do Kubernetes
 
-`Deployment` → define um `ReplicaSet` → gerencia `Pod`s → executam `Container`s
+<div class="flow" style="align-items: stretch">
+<div class="group" style="flex: .8">
+<div class="caption">configuração</div>
+<div class="box muted">ConfigMap<small>ajustes, fora da imagem</small></div>
+<div class="box red">Secret<small>senhas, tokens</small></div>
+</div>
+<div class="arrow" style="align-self: center">env →</div>
+<div class="box accent" style="display: flex; flex-direction: column; justify-content: center">Deployment<small>quantas réplicas, como atualizar</small></div>
+<div class="arrow" style="align-self: center">define →</div>
+<div class="box orange" style="display: flex; flex-direction: column; justify-content: center">ReplicaSet<small>mantém esses Pods vivos</small></div>
+<div class="arrow" style="align-self: center">gerencia →</div>
+<div class="group">
+<div class="caption">Pods · rótulo app: gateway</div>
+<div class="box green">Pod<small>um ou mais containers</small></div>
+<div class="box green">Pod<small>menor unidade</small></div>
+</div>
+<div class="arrow" style="align-self: center">← seleciona</div>
+<div class="box accent" style="flex: .8; display: flex; flex-direction: column; justify-content: center">Service<small>roteia o tráfego para os Pods</small></div>
+</div>
 
-| Objeto | Papel |
-|---|---|
-| **Deployment** | o gerente: quantas réplicas, como atualizá-las |
-| **ReplicaSet** | mantém vivo o número certo de Pods |
-| **Pod** | menor unidade; um ou mais containers |
-| **Service** | balanceador de carga: roteia o tráfego para os Pods |
-| **ConfigMap** | configuração, fora da imagem |
-| **Secret** | dados sensíveis: senhas, chaves de API |
+- O Deployment declara o **estado desejado**; o ReplicaSet fecha a diferença para ele.
+- Um Service acha seus Pods por **rótulo**, nunca pelo nome.
 
 ---
 
@@ -108,6 +124,32 @@ Na loja: o **Postgres** é um `ClusterIP` (só interno); o **gateway** é um `Lo
 
 <!--
 Conecte com o hands-on 2: o gateway continua sendo a única porta — agora no nível do cluster.
+-->
+
+---
+
+## Rótulos ligam os objetos
+
+<div class="flow">
+<div class="box muted">você<small>127.0.0.1:8080</small></div>
+<div class="arrow">minikube tunnel →</div>
+<div class="box accent">Service gateway<small>LoadBalancer :8080 · selector app: gateway</small></div>
+<div class="arrow">→</div>
+<div class="box green">Pods do gateway<small>rótulo app: gateway</small></div>
+</div>
+<div class="flow">
+<div class="box muted">outro Pod<small>account…</small></div>
+<div class="arrow">postgres:5432 →</div>
+<div class="box orange">Service postgres<small>ClusterIP :5432 · selector app: postgres</small></div>
+<div class="arrow">→</div>
+<div class="box green">Pod do postgres<small>rótulo app: postgres</small></div>
+</div>
+
+- O nome do Service é um nome do sistema de nomes de domínio (DNS, *Domain Name System*) no cluster: `postgres` = `POSTGRES_HOST` do ConfigMap.
+- Um `selector` que não bate com nenhum rótulo → o Service fica **sem endpoints**.
+
+<!--
+A página desenha os mesmos caminhos em "Rótulos ligam os objetos".
 -->
 
 ---
@@ -259,9 +301,27 @@ kubectl get services
 
 ---
 
-## Escala: o HPA
+## Autocorreção: apague um Pod
 
-O **Horizontal Pod Autoscaler** muda o número de réplicas a partir da CPU observada (ou de outras métricas).
+<div class="flow">
+<div class="box red">kubectl delete pod<small>gateway-…-d5lp9</small></div><div class="arrow">→</div>
+<div class="box orange">ReplicaSet<small>watch: 0 de 1 Pod</small></div><div class="arrow">→</div>
+<div class="box accent">cria um Pod<small>gateway-…-nh6z6</small></div><div class="arrow">→</div>
+<div class="box green">Running<small>nome novo, IP novo, mesmo hash</small></div>
+</div>
+
+- Ninguém o reinicia à mão: o controlador fecha a diferença para `replicas: 1`.
+- `kubectl scale deployment gateway --replicas=3` muda o estado desejado; o Service espalha as requisições.
+- Nunca dependa do nome ou do IP de um Pod: dependa do Service.
+
+<!--
+A página tem a versão passo a passo em "Autocorreção e escala".
+-->
+---
+
+## Escala: o Horizontal Pod Autoscaler (HPA)
+
+O **HPA** muda o número de réplicas a partir da CPU observada (ou de outras métricas).
 
 ```bash
 kubectl autoscale deployment <name> --cpu-percent=<target> --min=<min> --max=<max>
@@ -315,6 +375,24 @@ Você define a **CPU alvo** e o **mínimo / máximo de réplicas**; o controller
 - **Imagens desatualizadas**: `:latest` + `imagePullPolicy: Always` baixa a imagem a cada reinício — fixe as tags em produção.
 - **Segredos em texto puro**: base64 é codificação; um `secrets.yaml` versionado é uma senha vazada.
 - **Tipo de Service errado**: um banco de dados como `LoadBalancer` fica exposto à internet.
+
+---
+
+## Sem Minikube: o simulador
+
+<div class="flow">
+<div class="box accent">Postgres<small>Secret, ConfigMap, Deployment, Service: em ordem</small></div>
+<div class="box orange">Gateway<small>&lt;pending&gt; → tunnel → 127.0.0.1; apagar; escalar para 3</small></div>
+<div class="box red">Armadilhas<small>CreateContainerConfigError; um seletor sem endpoints</small></div>
+</div>
+
+- A página embute o cluster do lab: mesmos manifestos, mesmos comandos, mesmas saídas.
+- O play roda uma parte da página passo a passo; os botões funcionam a qualquer momento.
+- Modo **livre**: aplique os arquivos em qualquer ordem, apague Pods, escale, pare o tunnel.
+
+<!--
+O simulador fica em "Autocorreção e escala", abrindo na parte do gateway.
+-->
 
 ---
 

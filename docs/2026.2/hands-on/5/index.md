@@ -42,8 +42,9 @@ Docker Compose and Kubernetes (K8s) both manage containerized applications but s
 | Aspect            | Docker Compose                     | Kubernetes                        |
 |-------------------|------------------------------------|-----------------------------------|
 | **Scope**         | Single-host                       | Multi-host, cluster-based         |
-| **Scalability**   | No auto-scaling                   | Dynamic auto-scaling              |
-| **Complexity**    | Simple, low learning curve        | Complex, steeper learning curve   |
+| **Scalability**   | ❌ No auto-scaling                | ✅ Dynamic auto-scaling           |
+| **Self-healing**  | ⚠️ Restart policies only          | ✅ Controllers recreate failed pods |
+| **Complexity**    | ✅ Simple, low learning curve     | ⚠️ Complex, steeper learning curve |
 | **Use Case**      | Local dev, testing, small prod    | Large-scale, production systems   |
 
 Tools like Kompose can help migrate Docker Compose files to Kubernetes, easing the transition for growing applications [Docker Compose vs Kubernetes - Spacelift](https://spacelift.io/blog/docker-compose-vs-kubernetes).
@@ -87,23 +88,21 @@ Kubernetes is an open-source container orchestration platform that automates the
 
 ``` mermaid-sim
 flowchart TD
-    Deployment:::orange -->|defines| ReplicaSet
+    Deployment -->|defines| ReplicaSet
     ReplicaSet -->|manages| pod((Pod))
-    pod:::red -->|runs| Container
+    pod -->|runs| Container
     Deployment -->|scales| pod
     Deployment -->|updates| pod
 
-    Service:::orange -->|exposes| pod
+    Service -->|exposes| pod
 
     subgraph  
-        ConfigMap:::orange
-        Secret:::orange
+        ConfigMap
+        Secret
     end
 
     ConfigMap --> Deployment
     Secret --> Deployment
-    classDef red fill:#f55
-    classDef orange fill:#ffa500
 ```
 
 - **Deployment**: This is like the manager for your application, deciding how many copies (replicas) should run and updating them when needed.
@@ -125,9 +124,34 @@ flowchart TD
     !!! info "LoadBalancer on Minikube"
         Minikube has no cloud load balancer, so a `LoadBalancer` Service shows `EXTERNAL-IP` as `<pending>`. Run `minikube tunnel` in a separate terminal and leave it open: while it runs, the Service gets an external IP reachable from your machine.
 
+        ``` mermaid-sim
+        stateDiagram-v2
+            state "EXTERNAL-IP pending" as Pending
+            state "EXTERNAL-IP 127.0.0.1" as External
+            [*] --> Pending: kubectl apply, type LoadBalancer
+            Pending --> External: minikube tunnel starts
+            External --> Pending: tunnel stopped with Ctrl+C
+        ```
+
 - **ConfigMap**: A way to pass configuration data to your application without hardcoding it into the container.
 
 - **Secret**: Similar to ConfigMap, but used for sensitive information like passwords or API keys, ensuring they are stored securely.
+
+    !!! warning "base64 is not encryption"
+        The values in a Secret manifest are only **base64-encoded**: `c3RvcmU=` decodes to `store`. Anyone who reads `secrets.yaml` has the password, so keep real secrets out of Git.
+
+### Labels connect the objects { #labels }
+
+Nothing in Kubernetes points to a pod by name: a Deployment finds its pods, and a Service its **endpoints**, by **label**. The pods of `deployment.yaml` carry `app: postgres` and the Service of `service.yaml` selects `app: postgres`; the gateway does the same with `app: gateway`. The Service name is also a Domain Name System (DNS) name inside the cluster: the other pods reach the database as `postgres:5432`, the same value as `POSTGRES_HOST` in the ConfigMap. In the store, **Postgres** is a `ClusterIP` (internal only) and the **gateway** is a `LoadBalancer`, the single public entry:
+
+``` mermaid-sim
+flowchart LR
+    you["You\n127.0.0.1:8080"] -->|minikube tunnel| gsvc["Service gateway\nLoadBalancer :8080"]
+    gsvc -->|"selector app: gateway"| gp1(("gateway\npod"))
+    gsvc -->|"selector app: gateway"| gp2(("gateway\npod"))
+    other["another pod\n(account…)"] -->|"postgres:5432"| psvc["Service postgres\nClusterIP :5432"]
+    psvc -->|"selector app: postgres"| pp(("postgres\npod"))
+```
 
 !!! tip "Example on the Postgres Service"
 
@@ -222,7 +246,30 @@ flowchart TD
 
         Another way to expose the API is to use the `Ingress` resource, which allows you to define rules for routing external HTTP/S traffic to your services. This is particularly useful for managing multiple services under a single domain or subdomain. See the [Ingress documentation](https://kubernetes.io/docs/concepts/services-networking/ingress/){target="_blank"} for more details.
 
+### Self-healing and scaling { #self-healing }
 
+A Deployment declares a **desired state** (`replicas: 1`); its ReplicaSet compares it with the pods that exist and closes the gap. Delete the gateway pod with `kubectl delete pod <pod-name>` and a new one appears, with a new name and a new IP; `kubectl scale deployment gateway --replicas=3` changes the desired state, and the Service spreads the requests over the three pods:
+
+``` mermaid-sim
+sequenceDiagram
+    participant You as kubectl
+    participant API as API server
+    participant RS as ReplicaSet gateway
+    participant K as kubelet
+    You->>API: delete pod gateway-…-d5lp9
+    API->>K: stop the container
+    RS->>API: watch: 0 of 1 pods
+    RS->>API: create pod gateway-…-nh6z6
+    API->>K: run it on the node
+    K-->>API: Running, with a new name and a new IP
+    Note over You,K: nobody restarted it by hand: the controller closed the gap to the desired state
+```
+
+<div class="csim" data-sim="k8s-lab" data-script="gateway"></div>
+
+!!! tip "Try it"
+
+    Before Minikube, the same cluster in the browser: here it opens on the gateway part, with Postgres already applied. Play or → runs the page's commands; the buttons work at any time. The gateway Service shows EXTERNAL-IP `<pending>` until `minikube tunnel` runs, then `127.0.0.1`. Delete the pod: the ReplicaSet creates another one with a new suffix and the same ReplicaSet hash. Scale to 3 and six curls get 6 answers from 3 pods. In **Pitfalls**, `deployment.yaml` goes first and the pod stays in `CreateContainerConfigError` until the ConfigMap and the Secret exist.
 
 !!! tip "Horizontal Pod Autoscaler"
 
@@ -231,10 +278,29 @@ flowchart TD
 
     Check the documentation for more details on how to set up HPA: [Horizontal Pod Autoscaling](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/) and [HorizontalPodAutoscaler Walkthrough](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale-walkthrough/){:target="_blank"}.
 
+### Common pitfalls { #pitfalls }
+
+- **Labels**: a Service or Deployment `selector` that does not match the pod labels finds **nothing** (`kubectl get endpoints` shows `<none>`).
+- **Order**: apply the Secret and the ConfigMap **before** the Deployment that references them, or the pod waits:
+
+    ``` mermaid-sim
+    sequenceDiagram
+        participant You as kubectl
+        participant K as Kubernetes
+        You->>K: apply deployment.yaml first
+        K-->>You: pod CreateContainerConfigError
+        Note over K: configmap postgres-configmap not found
+        You->>K: apply configmap.yaml and secrets.yaml
+        K-->>You: the kubelet retries, pod Running
+    ```
+
+- **Stale images**: `:latest` with `imagePullPolicy: Always` pulls whatever the tag points to on every restart — pin tags in production.
+- **Plain-text secrets**: base64 is encoding; a committed `secrets.yaml` is a leaked password.
+- **Wrong Service type**: a database as `LoadBalancer` exposes it to the internet; keep it `ClusterIP`.
 
 ---
 
-## Kubeclt
+## Kubectl
 
 Kubernetes is a powerful container orchestration platform, and `kubectl` is its command-line tool for managing Kubernetes clusters. Below are some common commands and their descriptions to help you get started with `kubectl`.
 
