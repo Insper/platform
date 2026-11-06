@@ -14,6 +14,50 @@ After that your environment should be ready to start the exercises. We should cr
 Click the slides and use ← → to move through them; **F** goes full screen and **P** opens the presenter view, with the notes.
 [:material-presentation: Open the slides in a new tab](slides/prerequisites.html){:target="_blank"}
 
+## The toolchain
+
+Every lab follows the same path: you write the code, track it with Git, build it with Maven, package it as a Docker image and run it as a container (later on Kubernetes). Each tool covers one step:
+
+``` mermaid-sim
+flowchart LR
+    code["your code\n(Java, Spring Boot)"] e1@-->|"git commit"| git["Git\n(GitHub)"]
+    git e2@-->|"mvn package"| jar["Maven\ntarget/*.jar"]
+    jar e3@-->|"docker build"| img["Docker image"]
+    img e4@-->|"docker compose up"| ctr["container"]
+    ctr e5@-.->|"later"| k8s["Kubernetes"]
+```
+
+| Tool | Why you need it | Check |
+|---|---|---|
+| **Git** | version control: every lab lives in a repository; continuous integration (CI) starts from a `git push` | `git --version` |
+| **Docker** | runs each service, database and broker in an isolated container | `docker run --rm hello-world` |
+| **Java** | the language of the microservices (Spring Boot); the Java Development Kit (JDK) compiles and runs them | `java -version` |
+| **Maven** | downloads dependencies, compiles, runs the tests, packages the jar | `mvn -v` |
+| **uv** | runs the Python scripts of the later labs, with pinned versions | `uv --version` |
+
+Most of the work happens on your machine; GitHub keeps the repositories and can publish the documentation:
+
+``` mermaid-sim
+flowchart LR
+    subgraph laptop [Your machine]
+        term["terminal\ngit · mvn · java · uv"]
+        docker["Docker\nDesktop or Engine"]
+        term e1@-->|"docker compose up"| docker
+    end
+    subgraph gh [GitHub]
+        org["organization\nusername-studies"]
+        pages["GitHub Pages\n(documentation)"]
+        org e3@-.-> pages
+    end
+    term e2@==>|"git push"| org
+```
+
+Run the check in a **new** terminal (it sees the updated `PATH`) before the first lab. The appendix has the installation per operating system and the troubleshooting.
+
+!!! warning "Maven and Java must agree"
+
+    `mvn -v` must report the **same Java version** as `java -version`: Maven uses `JAVA_HOME`, which can point to a different JDK than the one on your `PATH`.
+
 ## Root Repository
 
 The root repository will serve as the central point for accessing all other microservices repositories and the documentation. It will help in organizing the project structure and managing dependencies efficiently.
@@ -23,6 +67,19 @@ To better organize the projet, we propose to create a new organization in GitHub
 !!! tip "Documentation Hosting"
 
     Additionally, we can use GitHub Pages to host the documentation for the project.
+
+``` mermaid-sim
+flowchart TB
+    org["GitHub organization\nusername-studies"]
+    org e1@--> platform["platform\n(root repository)"]
+    org e2@--> account["account"]
+    org e3@--> service["account-service"]
+    org e4@--> more["gateway-service, ..."]
+    platform e5@-.->|"submodule api/account"| account
+    platform e6@-.->|"submodule api/account-service"| service
+```
+
+Each microservice is a repository of its own; from hands-on 1 on, `platform` links them as **Git submodules** under `api/` (`git submodule add <repository_url> api/account`).
 
 Steps:
 

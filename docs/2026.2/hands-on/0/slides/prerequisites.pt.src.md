@@ -14,6 +14,10 @@ theme: platform
 {{INCLUDE:scripts/slides/theme.js}}
 </script>
 
+<style>
+{{INCLUDE:scripts/slides/diagram.css}}
+</style>
+
 <div class="kicker">Plataformas, Microsserviços, DevOps e APIs · Hands-on 0</div>
 
 # Hands-on 0 — Pré-requisitos
@@ -39,13 +43,21 @@ Roteiro: (1) as ferramentas do apêndice Configuração do ambiente de desenvolv
 
 ---
 
+<!-- _class: tight -->
+
 ## As ferramentas: um caminho
 
-**o seu código → Git → build com Maven → imagem Docker → container** (mais tarde, no Kubernetes)
+<div class="flow">
+<div class="box">o seu código<small>Java · Spring Boot</small></div><div class="arrow">commit →</div>
+<div class="box accent">Git<small>GitHub</small></div><div class="arrow">mvn package →</div>
+<div class="box accent">Maven<small>target/*.jar</small></div><div class="arrow">docker build →</div>
+<div class="box orange">imagem Docker</div><div class="arrow">compose up →</div>
+<div class="box green">container<small>mais tarde, no Kubernetes</small></div>
+</div>
 
 | Ferramenta | Por que você precisa dela |
 |---|---|
-| **Git** | controle de versão: todo laboratório vive num repositório; a CI começa com um `git push` |
+| **Git** | controle de versão: todo laboratório vive num repositório; a integração contínua (CI, *continuous integration*) começa com um `git push` |
 | **Docker** | executa cada serviço, banco de dados e broker num container isolado |
 | **Java** (JDK) | a linguagem dos microsserviços (Spring Boot); o JDK os compila e executa |
 | **Maven** | baixa as dependências, compila, roda os testes e empacota o jar |
@@ -114,6 +126,14 @@ JAVA_HOME mal definido, um JDK antigo primeiro no PATH, comando não encontrado 
 ## Uma organização para o projeto
 
 Crie uma organização no GitHub, p. ex. `<username>-studies` e coloque **todos** os repositórios da disciplina dentro dela.
+
+<div class="group">
+<div class="caption">organização no GitHub · username-studies</div>
+<div class="flow">
+<div class="box accent">platform<small>repositório raiz</small></div><div class="arrow">submódulos em api/ →</div>
+<div class="box">account</div><div class="box">account-service</div><div class="box muted">gateway-service, …</div>
+</div>
+</div>
 
 - **Permissões de acesso** gerenciadas em um só lugar.
 - **Issues e pull requests** para acompanhar o progresso entre repositórios.

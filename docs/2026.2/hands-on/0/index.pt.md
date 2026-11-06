@@ -13,6 +13,50 @@ Depois disso, o seu ambiente deve estar pronto para começar os exercícios. Vam
 Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** abre a visão do apresentador, com as notas.
 [:material-presentation: Abrir os slides em uma nova aba](slides/prerequisites.html){:target="_blank"}
 
+## A cadeia de ferramentas
+
+Todo lab segue o mesmo caminho: você escreve o código, versiona com Git, compila com Maven, empacota como imagem Docker e roda como container (mais tarde no Kubernetes). Cada ferramenta cobre um passo:
+
+``` mermaid-sim
+flowchart LR
+    code["seu código\n(Java, Spring Boot)"] e1@-->|"git commit"| git["Git\n(GitHub)"]
+    git e2@-->|"mvn package"| jar["Maven\ntarget/*.jar"]
+    jar e3@-->|"docker build"| img["imagem Docker"]
+    img e4@-->|"docker compose up"| ctr["container"]
+    ctr e5@-.->|"depois"| k8s["Kubernetes"]
+```
+
+| Ferramenta | Para que serve | Verificação |
+|---|---|---|
+| **Git** | controle de versão: todo lab vive num repositório; a integração contínua (CI, *continuous integration*) começa num `git push` | `git --version` |
+| **Docker** | roda cada serviço, banco e broker num container isolado | `docker run --rm hello-world` |
+| **Java** | a linguagem dos microsserviços (Spring Boot); o kit de desenvolvimento Java (JDK, *Java Development Kit*) compila e executa | `java -version` |
+| **Maven** | baixa dependências, compila, roda os testes, empacota o jar | `mvn -v` |
+| **uv** | roda os scripts Python dos labs seguintes, com versões fixadas | `uv --version` |
+
+Quase todo o trabalho acontece na sua máquina; o GitHub guarda os repositórios e pode publicar a documentação:
+
+``` mermaid-sim
+flowchart LR
+    subgraph laptop [Sua máquina]
+        term["terminal\ngit · mvn · java · uv"]
+        docker["Docker\nDesktop ou Engine"]
+        term e1@-->|"docker compose up"| docker
+    end
+    subgraph gh [GitHub]
+        org["organização\nusername-studies"]
+        pages["GitHub Pages\n(documentação)"]
+        org e3@-.-> pages
+    end
+    term e2@==>|"git push"| org
+```
+
+Rode a verificação num terminal **novo** (ele enxerga o `PATH` atualizado) antes do primeiro lab. O apêndice traz a instalação por sistema operacional e a solução de problemas.
+
+!!! warning "Maven e Java precisam concordar"
+
+    `mvn -v` precisa mostrar a **mesma versão do Java** que `java -version`: o Maven usa o `JAVA_HOME`, que pode apontar para um JDK diferente do que está no seu `PATH`.
+
 ## Repositório raiz
 
 O repositório raiz será o ponto central de acesso a todos os outros repositórios de microsserviços e à documentação. Ele ajuda a organizar a estrutura do projeto e a gerenciar as dependências de forma eficiente.
@@ -22,6 +66,19 @@ Para organizar melhor o projeto, propomos criar uma nova organização no GitHub
 !!! tip "Hospedagem da documentação"
 
     Além disso, podemos usar o GitHub Pages para hospedar a documentação do projeto.
+
+``` mermaid-sim
+flowchart TB
+    org["organização no GitHub\nusername-studies"]
+    org e1@--> platform["platform\n(repositório raiz)"]
+    org e2@--> account["account"]
+    org e3@--> service["account-service"]
+    org e4@--> more["gateway-service, ..."]
+    platform e5@-.->|"submódulo api/account"| account
+    platform e6@-.->|"submódulo api/account-service"| service
+```
+
+Cada microsserviço é um repositório próprio; a partir do hands-on 1, o `platform` os liga como **submódulos Git** em `api/` (`git submodule add <repository_url> api/account`).
 
 Passos:
 

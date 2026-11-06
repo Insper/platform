@@ -14,6 +14,10 @@ theme: platform
 {{INCLUDE:scripts/slides/theme.js}}
 </script>
 
+<style>
+{{INCLUDE:scripts/slides/diagram.css}}
+</style>
+
 <div class="kicker">Platforms, Microservices, DevOps and APIs · Hands-on 0</div>
 
 # Hands-on 0 — Prerequisites
@@ -39,13 +43,21 @@ Outline: (1) the toolchain from the appendix Development Setup: Git, Docker, Jav
 
 ---
 
+<!-- _class: tight -->
+
 ## The toolchain: one path
 
-**your code → Git → Maven build → Docker image → container** (later on Kubernetes)
+<div class="flow">
+<div class="box">your code<small>Java · Spring Boot</small></div><div class="arrow">commit →</div>
+<div class="box accent">Git<small>GitHub</small></div><div class="arrow">mvn package →</div>
+<div class="box accent">Maven<small>target/*.jar</small></div><div class="arrow">docker build →</div>
+<div class="box orange">Docker image</div><div class="arrow">compose up →</div>
+<div class="box green">container<small>later on Kubernetes</small></div>
+</div>
 
 | Tool | Why you need it |
 |---|---|
-| **Git** | version control: every lab lives in a repository; CI starts from a `git push` |
+| **Git** | version control: every lab lives in a repository; continuous integration (CI) starts from a `git push` |
 | **Docker** | runs each service, database and broker in an isolated container |
 | **Java** (JDK) | the language of the microservices (Spring Boot); the JDK compiles and runs them |
 | **Maven** | downloads dependencies, compiles, runs the tests, packages the jar |
@@ -114,6 +126,14 @@ JAVA_HOME not defined correctly, an older JDK first on the PATH, command not fou
 ## One organization for the project
 
 Create a GitHub organization, e.g. `<username>-studies`, and put **every** repository of the course inside it.
+
+<div class="group">
+<div class="caption">GitHub organization · username-studies</div>
+<div class="flow">
+<div class="box accent">platform<small>root repository</small></div><div class="arrow">submodules in api/ →</div>
+<div class="box">account</div><div class="box">account-service</div><div class="box muted">gateway-service, …</div>
+</div>
+</div>
 
 - **Access permissions** managed in one place.
 - **Issues and pull requests** to track progress across repositories.
