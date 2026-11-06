@@ -14,6 +14,10 @@ theme: platform
 {{INCLUDE:scripts/slides/theme.js}}
 </script>
 
+<style>
+{{INCLUDE:scripts/slides/diagram.css}}
+</style>
+
 <div class="kicker">Plataformas, Microsserviços, DevOps e APIs · Hands-on 2</div>
 
 # Hands-on 2 — Gateway
@@ -47,11 +51,21 @@ Deixe a turma responder. O gateway é um proxy reverso: uma porta aberta, todo o
 
 ## A arquitetura
 
-`internet` → **gateway** → `account`, outros → `database`
+<div class="flow" style="align-items: stretch">
+<div class="box muted" style="flex: .55; display: flex; flex-direction: column; justify-content: center">internet<small>cliente</small></div>
+<div class="arrow" style="align-self: center">:8080 →</div>
+<div class="group" style="flex: 4">
+<div class="caption">camada confiável · rede do Compose</div>
+<div class="flow">
+<div class="box accent">gateway<small>a única porta publicada</small></div><div class="arrow">→</div>
+<div class="box">account<small>sem porta</small></div><div class="box muted">outros</div><div class="arrow">→</div>
+<div class="box green">banco de dados</div>
+</div>
+</div>
+</div>
 
 - O **gateway** é um proxy reverso: o único ponto de entrada de todas as requisições.
 - O `account` e os outros serviços vivem na **camada confiável**, inacessíveis de fora.
-- **Só uma porta** fica exposta para a internet.
 
 <div class="ok">
 
@@ -129,6 +143,18 @@ routes:
 ```
 
 Uma requisição que casa com o **predicado** `Path` é encaminhada para a `uri` da rota.
+
+---
+
+## Qual rota atende um caminho?
+
+<div class="flow"><div class="box" style="flex: .7">/health-check</div><div class="arrow">→</div><div class="box green">GatewayResource<small>endpoint próprio, conferido primeiro</small></div></div>
+<div class="flow"><div class="box" style="flex: .7">/insper/…</div><div class="arrow">→</div><div class="box accent">insper-service<small>https://www.insper.edu.br/insper/…</small></div></div>
+<div class="flow"><div class="box" style="flex: .7">/accounts · /accounts/…</div><div class="arrow">→</div><div class="box accent">account-service<small>http://account:8080/accounts/…</small></div></div>
+<div class="flow"><div class="box" style="flex: .7">/account · /products</div><div class="arrow">→</div><div class="box red">nenhuma rota<small>404 Not Found</small></div></div>
+
+- Primeiro o endpoint próprio, depois as rotas **na ordem do arquivo**: o primeiro que casa vence e o **caminho inteiro** segue.
+- Um predicado é um padrão, não um prefixo: `/accounts/**` não casa com `/account`.
 
 ---
 
@@ -244,6 +270,26 @@ curl http://localhost:8080/accounts      # routed to account:8080
 - **Sem jar**: `COPY target/*.jar` falha se o projeto não foi empacotado.
 - **CORS**: uma chamada do navegador falha se a origem não estiver em `allowedOrigins`.
 - **Portas vazando**: publicar a porta do `account` contorna o gateway.
+
+---
+
+## Sem Docker: o simulador
+
+<div class="flow">
+<div class="box green">/health-check<small>200 · GatewayResource</small></div>
+<div class="box accent">/accounts<small>200 · account:8080</small></div>
+<div class="box red">/account<small>404 · no route</small></div>
+<div class="box red">evil.example<small>403 · CORS</small></div>
+<div class="box orange">account stopped<small>500</small></div>
+</div>
+
+- A página traz o gateway do lab como simulador: o endpoint próprio, as duas rotas, os filtros e as origens do `application.yaml`.
+- O play repete **Executar e verificar**; digite qualquer caminho e veja qual linha da tabela de rotas responde.
+- Pare o container `account` ou chame-o direto do host: a rota falha e a chamada direta nem resolve `account`.
+
+<!--
+O simulador fica na seção Executar e verificar da página.
+-->
 
 ---
 

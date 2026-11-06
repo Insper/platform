@@ -14,6 +14,10 @@ theme: platform
 {{INCLUDE:scripts/slides/theme.js}}
 </script>
 
+<style>
+{{INCLUDE:scripts/slides/diagram.css}}
+</style>
+
 <div class="kicker">Platforms, Microservices, DevOps and APIs · Hands-on 2</div>
 
 # Hands-on 2 — Gateway
@@ -47,11 +51,21 @@ Let the class answer. The gateway is a reverse proxy: one port open, everything 
 
 ## The architecture
 
-`internet` → **gateway** → `account`, others → `database`
+<div class="flow" style="align-items: stretch">
+<div class="box muted" style="flex: .55; display: flex; flex-direction: column; justify-content: center">internet<small>client</small></div>
+<div class="arrow" style="align-self: center">:8080 →</div>
+<div class="group" style="flex: 4">
+<div class="caption">trusted layer · Compose network</div>
+<div class="flow">
+<div class="box accent">gateway<small>the only published port</small></div><div class="arrow">→</div>
+<div class="box">account<small>no port</small></div><div class="box muted">others</div><div class="arrow">→</div>
+<div class="box green">database</div>
+</div>
+</div>
+</div>
 
 - The **gateway** is a reverse proxy: the single entry point for every request.
 - `account` and the other services live in the **trusted layer**, unreachable from outside.
-- **Only one port** is exposed to the internet.
 
 <div class="ok">
 
@@ -129,6 +143,18 @@ routes:
 ```
 
 A request matching the `Path` **predicate** is forwarded to the route's `uri`.
+
+---
+
+## Which route answers a path?
+
+<div class="flow"><div class="box" style="flex: .7">/health-check</div><div class="arrow">→</div><div class="box green">GatewayResource<small>own endpoint, checked first</small></div></div>
+<div class="flow"><div class="box" style="flex: .7">/insper/…</div><div class="arrow">→</div><div class="box accent">insper-service<small>https://www.insper.edu.br/insper/…</small></div></div>
+<div class="flow"><div class="box" style="flex: .7">/accounts · /accounts/…</div><div class="arrow">→</div><div class="box accent">account-service<small>http://account:8080/accounts/…</small></div></div>
+<div class="flow"><div class="box" style="flex: .7">/account · /products</div><div class="arrow">→</div><div class="box red">no route<small>404 Not Found</small></div></div>
+
+- Own endpoint first, then the routes **in file order**: the first match wins and the **whole path** goes on.
+- A predicate is a pattern, not a prefix: `/accounts/**` does not match `/account`.
 
 ---
 
@@ -244,6 +270,26 @@ curl http://localhost:8080/accounts      # routed to account:8080
 - **No jar**: `COPY target/*.jar` fails if the project was not packaged.
 - **CORS**: a browser call fails if the origin is not in `allowedOrigins`.
 - **Leaking ports**: publishing `account`'s port bypasses the gateway.
+
+---
+
+## Without Docker: the simulator
+
+<div class="flow">
+<div class="box green">/health-check<small>200 · GatewayResource</small></div>
+<div class="box accent">/accounts<small>200 · account:8080</small></div>
+<div class="box red">/account<small>404 · no route</small></div>
+<div class="box red">evil.example<small>403 · CORS</small></div>
+<div class="box orange">account stopped<small>500</small></div>
+</div>
+
+- The page embeds the lab's gateway as a simulator: its own endpoint, the two routes, the filters and the origins of `application.yaml`.
+- Play replays **Run and verify**; type any path and see which row of the route table answers.
+- Stop the `account` container, or call it directly from the host: the route fails, the direct call cannot even resolve `account`.
+
+<!--
+The simulator sits in the Run and verify section of the page.
+-->
 
 ---
 
