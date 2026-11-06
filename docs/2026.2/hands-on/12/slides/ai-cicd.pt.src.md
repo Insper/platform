@@ -14,6 +14,10 @@ theme: platform
 {{INCLUDE:scripts/slides/theme.js}}
 </script>
 
+<style>
+{{INCLUDE:scripts/slides/diagram.css}}
+</style>
+
 <div class="kicker">Plataformas, Microsserviços, DevOps e APIs · Hands-on 12</div>
 
 # Hands-on 12 — IA no CI/CD
@@ -50,11 +54,13 @@ Pergunte quais comentários de revisão eles escrevem repetidamente. Esses são 
 
 Quando um desenvolvedor abre um PR, um job do **GitHub Actions** envia o diff à **API do Claude** e publica uma revisão estruturada como **comentário no PR**.
 
-1. O desenvolvedor faz push e abre um PR.
-2. O GitHub dispara o workflow em `pull_request` (`opened`, `synchronize`).
-3. O job busca o diff: `GET /repos/.../pulls/{pr}/files`.
-4. Ele chama o Claude (`claude-sonnet-4-6`) com o diff e um **system prompt**.
-5. Ele publica a revisão como comentário no PR.
+<div class="flow">
+<div class="box">git push<small>abre o PR</small></div><div class="arrow">→</div>
+<div class="box">pull_request<small>opened · synchronize</small></div><div class="arrow">→</div>
+<div class="box accent">job ai-review<small>GET /repos/.../pulls/{pr}/files</small></div><div class="arrow">→</div>
+<div class="box orange">API do Claude<small>claude-sonnet-4-6 · diff + system prompt</small></div><div class="arrow">→</div>
+<div class="box green">comentário no PR<small>a revisão, na linha do tempo</small></div>
+</div>
 
 <div class="ok">
 
@@ -183,6 +189,25 @@ post_review_comment(repo, pr_number, message.content[0].text)
 
 ---
 
+## 3 · O corte de 3 000 linhas
+
+Um PR grande, arquivo por arquivo, como o `get_pr_diff` os adiciona:
+
+<div class="flow">
+<div class="box green">ProductMapper.java<small>+1800 · enviado · 1 799 linhas até aqui</small></div><div class="arrow">→</div>
+<div class="box green">ProductService.java<small>+1400 · enviado · 3 198 linhas, passou de 3 000</small></div><div class="arrow">✂</div>
+<div class="box red">application.yaml<small>+6 · nunca enviado: a senha fixa nele nunca é revisada</small></div>
+</div>
+
+- O laço para **antes do próximo arquivo** assim que passa de 3 000 linhas.
+- Mais barato e mais rápido, mas o modelo não pode apontar o que nunca viu: um **falso negativo**.
+
+<!--
+A página desenha o mesmo laço como diagrama passo a passo sob as decisões de design; o "PR grande" do simulador o reproduz.
+-->
+
+---
+
 ## 4 · Teste com um problema proposital
 
 ```bash
@@ -247,6 +272,23 @@ Bloquear merges com base na saída da IA é confiar nos erros dela: ela pode **a
 
 ---
 
+## 5 · O que a trava muda
+
+<div class="matrix" style="--n: 2">
+<div></div><div class="head">comentário (este hands-on)</div><div class="head">check obrigatório (5.4)</div>
+<div class="row">🔴 real encontrado</div><div class="box orange">merge liberado: alguém precisa ler</div><div class="box green">bloqueado até a correção</div>
+<div class="row">falso positivo</div><div class="box green">um comentário a ignorar</div><div class="box red">um PR seguro fica bloqueado</div>
+<div class="row">falso negativo</div><div class="box red">entra sem ninguém notar</div><div class="box red">entra sem ninguém notar: o check passa</div>
+<div class="row">o job falha</div><div class="box green">merge liberado, um ✗ vermelho</div><div class="box red">ninguém faz merge até passar</div>
+<div class="row">o filtro paths pula</div><div class="box green">sem check, merge liberado</div><div class="box red">check parado: “Expected — Waiting for status”</div>
+</div>
+
+<!--
+Falso positivo: um segredo falso num recurso de teste. Falso negativo: o problema está depois do corte de 3 000 linhas. O job falha: sem o secret ANTHROPIC_API_KEY, ou a API continua sobrecarregada (529). A página tem a mesma tabela com marcadores.
+-->
+
+---
+
 <!-- _class: tight -->
 
 ## 6 · A mesma forma, outras tarefas
@@ -262,6 +304,24 @@ Bloquear merges com base na saída da IA é confiar nos erros dela: ela pode **a
 | Detecção de anomalias em logs | identifica padrões incomuns | depois de um deploy |
 | Consulta a runbooks de incidentes | sugere passos de diagnóstico a partir do alerta | automação de plantão |
 | Sincronização da documentação | detecta código alterado com docs desatualizadas | assinaturas da API mudam |
+
+---
+
+## Sem repositório: o simulador
+
+<div class="flow">
+<div class="box accent">4 · 5.1<small>1 🔴 + 1 🟡, merge liberado · edited não roda nada · paths pula o README</small></div>
+<div class="box orange">5.4 trava<small>bloqueado, corrigido, falso positivo, falso negativo, espera sem fim</small></div>
+<div class="box red">falhas<small>sem secret: exit code 1 · 529 repetido · 529 que persiste</small></div>
+</div>
+
+- A página embute o workflow e o script do lab: os mesmos gatilhos, os mesmos passos, o mesmo corte de 3 000 linhas.
+- O play repete uma seção; abra um PR, faça push, edite ou rode de novo a qualquer momento.
+- Troque o modo para **check obrigatório** para ver o que uma trava muda.
+
+<!--
+Embutido duas vezes: no fim da seção 4 (abrindo em 4 · 5.1) e sob a tabela de 5.4 (abrindo em 5.4 trava).
+-->
 
 ---
 

@@ -14,6 +14,10 @@ theme: platform
 {{INCLUDE:scripts/slides/theme.js}}
 </script>
 
+<style>
+{{INCLUDE:scripts/slides/diagram.css}}
+</style>
+
 <div class="kicker">Platforms, Microservices, DevOps and APIs · Hands-on 12</div>
 
 # Hands-on 12 — AI in CI/CD
@@ -50,11 +54,13 @@ Ask which review comments they write over and over. Those are the candidates for
 
 When a developer opens a PR, a **GitHub Actions** job sends the diff to the **Claude API** and posts a structured review as a **PR comment**.
 
-1. Developer pushes and opens a PR.
-2. GitHub triggers the workflow on `pull_request` (`opened`, `synchronize`).
-3. The job fetches the diff: `GET /repos/.../pulls/{pr}/files`.
-4. It calls Claude (`claude-sonnet-4-6`) with the diff and a **system prompt**.
-5. It posts the review as a comment on the PR.
+<div class="flow">
+<div class="box">git push<small>open the PR</small></div><div class="arrow">→</div>
+<div class="box">pull_request<small>opened · synchronize</small></div><div class="arrow">→</div>
+<div class="box accent">job ai-review<small>GET /repos/.../pulls/{pr}/files</small></div><div class="arrow">→</div>
+<div class="box orange">Claude API<small>claude-sonnet-4-6 · diff + system prompt</small></div><div class="arrow">→</div>
+<div class="box green">PR comment<small>the review, in the timeline</small></div>
+</div>
 
 <div class="ok">
 
@@ -183,6 +189,25 @@ post_review_comment(repo, pr_number, message.content[0].text)
 
 ---
 
+## 3 · The 3 000-line cut
+
+A large PR, file by file, as `get_pr_diff` adds them:
+
+<div class="flow">
+<div class="box green">ProductMapper.java<small>+1800 · sent · 1 799 lines so far</small></div><div class="arrow">→</div>
+<div class="box green">ProductService.java<small>+1400 · sent · 3 198 lines, past 3 000</small></div><div class="arrow">✂</div>
+<div class="box red">application.yaml<small>+6 · never sent: its hardcoded password is never reviewed</small></div>
+</div>
+
+- The loop stops **before the next file** once more than 3 000 lines are in.
+- Cheaper and faster, but the model cannot flag what it never saw: a **false negative**.
+
+<!--
+The page draws the same loop as a step-by-step diagram under the design decisions; the simulator's "large PR" plays it.
+-->
+
+---
+
 ## 4 · Test it with a deliberate issue
 
 ```bash
@@ -247,6 +272,23 @@ Blocking merges on AI output means trusting its mistakes: it can **flag safe cod
 
 ---
 
+## 5 · What the gate changes
+
+<div class="matrix" style="--n: 2">
+<div></div><div class="head">comment (this hands-on)</div><div class="head">required check (5.4)</div>
+<div class="row">real 🔴 found</div><div class="box orange">merge allowed: someone must read it</div><div class="box green">blocked until the fix</div>
+<div class="row">false positive</div><div class="box green">a comment to ignore</div><div class="box red">a safe PR is blocked</div>
+<div class="row">false negative</div><div class="box red">merged unnoticed</div><div class="box red">merged unnoticed: the check passes</div>
+<div class="row">the job fails</div><div class="box green">merge allowed, a red ✗</div><div class="box red">nobody merges until it passes</div>
+<div class="row">paths filter skips it</div><div class="box green">no check, merge allowed</div><div class="box red">check stuck: “Expected — Waiting for status”</div>
+</div>
+
+<!--
+False positive: a fake secret in a test resource. False negative: the issue sits after the 3 000-line cut. The job fails: no ANTHROPIC_API_KEY secret, or the API stays overloaded (529). The page has the same table with markers.
+-->
+
+---
+
 <!-- _class: tight -->
 
 ## 6 · The same shape, other tasks
@@ -262,6 +304,24 @@ Blocking merges on AI output means trusting its mistakes: it can **flag safe cod
 | Anomaly detection in logs | spots unusual patterns | after a deployment |
 | Incident runbook lookup | suggests diagnostic steps from alert text | on-call automation |
 | Documentation sync | detects code changes with outdated docs | API signatures change |
+
+---
+
+## Without a repository: the simulator
+
+<div class="flow">
+<div class="box accent">4 · 5.1<small>1 🔴 + 1 🟡, merge allowed · edited runs nothing · paths skips the README</small></div>
+<div class="box orange">5.4 gate<small>blocked, fixed, false positive, false negative, waiting forever</small></div>
+<div class="box red">failures<small>no secret: exit code 1 · 529 retried · 529 that persists</small></div>
+</div>
+
+- The page embeds the lab's workflow and script: same triggers, same steps, same 3 000-line cut.
+- Play replays a section; open a PR, push, edit or re-run at any time.
+- Switch the mode to **required check** to see what a gate changes.
+
+<!--
+Embedded twice: at the end of section 4 (opening on 4 · 5.1) and under the 5.4 table (opening on 5.4 gate).
+-->
 
 ---
 

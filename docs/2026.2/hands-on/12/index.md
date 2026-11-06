@@ -98,6 +98,18 @@ jobs:
         run: python .github/scripts/ai_review.py
 ```
 
+The workflow runs only for the event types it lists. Editing the PR title or description (`edited`) starts nothing, and with the `paths` filter of [5.1](#51-target-only-javayaml-files) a PR that touches no listed file is skipped:
+
+``` mermaid-sim
+flowchart LR
+    ev["pull_request event"] --> ty{"type is opened\nor synchronize?"}
+    ty -->|"no: edited, closed..."| none["no run"]
+    ty -->|"yes"| pa{"paths filter (5.1)\nmatches a file?"}
+    pa -->|"no"| skip["workflow skipped"]
+    pa -->|"yes, or no filter"| job["job ai-review\ncheckout, Python,\ndependencies, AI review"]
+    job --> cm["PR comment"]
+```
+
 !!! tip "GITHUB_TOKEN is automatic"
 
     The `GITHUB_TOKEN` secret is injected automatically by GitHub Actions for every workflow run, scoped to the repository and the workflow's declared permissions. It has write access to pull-requests because we declared `permissions: pull-requests: write`. You do not create this secret manually.
@@ -191,6 +203,16 @@ Key design decisions in this script:
 | **Comment, not review** | PR reviews require approval state; issue comments are simpler and always allowed by `pull-requests: write` |
 | **Non-blocking** | The workflow posts a comment but does not set a required status check, so the merge is never blocked |
 
+The truncation is a trade-off. `get_pr_diff` adds the PR's files one by one and stops before the next file once more than 3 000 lines are in: a file after the cut is never sent, so the model cannot flag what it never saw.
+
+``` mermaid-sim
+flowchart LR
+    f["next file\nof the PR"] --> c{"more than 3 000\nlines so far?"}
+    c -->|"no"| add["add its patch\ncount its lines"]
+    add --> f
+    c -->|"yes"| stop["append: diff truncated\nskip the remaining files"]
+```
+
 ---
 
 ## 4. Testing the Review
@@ -236,6 +258,16 @@ The service layer is cleanly separated from the controller.
 !!! tip "Calibrate the prompt"
 
     The system prompt in `ai_review.py` is the primary control surface for review quality. If the model misses issues specific to your codebase (e.g., Feign client patterns, Spring Boot anti-patterns), add them to the `Focus on:` list.
+
+!!! warning "When the job fails"
+
+    Without the `ANTHROPIC_API_KEY` secret of step 2.1, the **Run AI review** step fails with `Error: Process completed with exit code 1.` and no comment appears. The check is not required, so the merge is not blocked: the PR only shows a red ✗. A `529 Overloaded` answer is retried twice by the `anthropic` library; if it persists, the job fails for a reason that has nothing to do with the code: re-run it.
+
+<div class="csim" data-sim="ai-pr-review" data-script="lab"></div>
+
+!!! tip "Try it"
+
+    The workflow and the script of this page, on four pull requests. **4 · 5.1** replays this section: the test PR opens with 1 🔴 and 1 🟡 and the merge allowed; `edited` starts nothing; the fix brings a second comment, with the 🟡 only; with the paths filter, the README PR does not run. **5.4 gate** and **failures** show what a required check changes. In free mode, open the large PR: 3 198 of its 3 203 diff lines are sent, and its `application.yaml` is never reviewed.
 
 ---
 
@@ -289,13 +321,47 @@ Parse the review for 🔴 Critical items and use the GitHub Checks API to block 
 
 !!! warning "Use AI review as a guide, not a gate"
 
-    Blocking merges on AI output can create false negatives (model flags safe code) or false positives (model misses real issues). Start with comments-only. Graduate to blocking only if the team validates the model's accuracy on your specific codebase first.
+    Blocking merges on AI output can create false positives (model flags safe code) or false negatives (model misses real issues). Start with comments-only. Graduate to blocking only if the team validates the model's accuracy on your specific codebase first.
+
+``` mermaid-sim
+sequenceDiagram
+    actor Dev as Developer
+    participant GHA as GitHub Actions
+    participant Claude as Claude API
+    participant PR as Pull Request
+    Dev->>GHA: push (synchronize)
+    GHA->>Claude: diff + system prompt
+    Claude-->>GHA: review with a 🔴 Critical
+    alt comment (this hands-on)
+        GHA->>PR: comment with the review
+        Note over PR: merge allowed, a human decides
+    else required check run (5.4)
+        GHA->>PR: check run AI review = failure
+        Note over PR: merge blocked until a push fixes it
+    end
+```
+
+What the gate changes, situation by situation:
+
+| Situation | Comment (this hands-on) | Required check (5.4) |
+|---|---|---|
+| **The review finds a real 🔴** | ⚠️ merge allowed: someone must read the comment | ✅ merge blocked until the fix |
+| **False positive** (a fake secret in a test resource) | ✅ a comment to ignore | ❌ a safe PR is blocked |
+| **False negative** (the issue is after the 3 000-line cut) | ❌ merged unnoticed | ❌ merged unnoticed: the check passes |
+| **The job fails** (no secret, API overloaded) | ✅ merge allowed, with a red ✗ | ❌ nobody merges until the job passes |
+| **The paths filter skips the workflow** (5.1) | ✅ no check, merge allowed | ❌ the check stays "Expected — Waiting for status to be reported" |
+
+<div class="csim" data-sim="ai-pr-review" data-script="gate"></div>
+
+!!! tip "Try it"
+
+    **5.4 gate** replays the table: the test PR is blocked by its 🔴 and allowed after the fix; the test fixture is blocked although it is safe; the large PR passes with its password unseen, since only 3 198 of its 3 203 diff lines are sent; the README PR waits for a status that never comes. **Failures** plays a missing secret and a `529`.
 
 ---
 
 ## 6. Other AI-in-Pipeline Patterns
 
-Industry patterns that follow the same structure — trigger on a CI/CD event, call an LLM, act on the result:
+Industry patterns that follow the same structure — trigger on a CI/CD event, call a large language model (LLM), act on the result:
 
 | Pattern | What AI does | When to use |
 |---|---|---|
@@ -308,6 +374,13 @@ Industry patterns that follow the same structure — trigger on a CI/CD event, c
 | **Documentation sync** | Detects code changes with outdated docs | When API signatures change |
 
 All of these share the same architecture as this hands-on: a CI/CD trigger, a context-gathering step, an LLM call with a task-specific system prompt, and an action on the result.
+
+``` mermaid-sim
+flowchart LR
+    t["CI/CD trigger\nPR, release, deploy, alert"] --> c["gather context\ndiff, commits, logs"]
+    c --> l["LLM call\ntask-specific system prompt"]
+    l --> a["act on the result\ncomment, file, check"]
+```
 
 ---
 

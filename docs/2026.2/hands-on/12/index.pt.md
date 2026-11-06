@@ -98,6 +98,18 @@ jobs:
         run: python .github/scripts/ai_review.py
 ```
 
+O workflow só roda para os tipos de evento que lista. Editar o título ou a descrição do PR (`edited`) não dispara nada e, com o filtro `paths` de [5.1](#51-apenas-arquivos-javayaml), um PR que não toca nenhum arquivo da lista é pulado:
+
+``` mermaid-sim
+flowchart LR
+    ev["evento pull_request"] --> ty{"o tipo é opened\nou synchronize?"}
+    ty -->|"não: edited, closed..."| none["nada roda"]
+    ty -->|"sim"| pa{"filtro paths (5.1)\ncasa com um arquivo?"}
+    pa -->|"não"| skip["workflow pulado"]
+    pa -->|"sim, ou sem filtro"| job["job ai-review\ncheckout, Python,\ndependências, revisão"]
+    job --> cm["comentário no PR"]
+```
+
 !!! tip "O GITHUB_TOKEN é automático"
 
     O secret `GITHUB_TOKEN` é injetado automaticamente pelo GitHub Actions em cada execução de workflow, com escopo restrito ao repositório e às permissões declaradas pelo workflow. Ele tem acesso de escrita a pull requests porque declaramos `permissions: pull-requests: write`. Você não cria esse secret manualmente.
@@ -191,6 +203,16 @@ Principais decisões de design deste script:
 | **Comentário, não review** | Reviews de PR exigem um estado de aprovação; comentários de issue são mais simples e sempre permitidos por `pull-requests: write` |
 | **Não bloqueante** | O workflow publica um comentário, mas não define uma verificação de status obrigatória, então o merge nunca é bloqueado |
 
+O corte é uma troca. O `get_pr_diff` adiciona os arquivos do PR um a um e para antes do próximo arquivo assim que passa de 3 000 linhas: um arquivo depois do corte nunca é enviado, então o modelo não pode apontar o que nunca viu.
+
+``` mermaid-sim
+flowchart LR
+    f["próximo arquivo\ndo PR"] --> c{"mais de 3 000\nlinhas até agora?"}
+    c -->|"não"| add["adiciona o patch\nconta as linhas"]
+    add --> f
+    c -->|"sim"| stop["acrescenta: diff truncated\npula os arquivos restantes"]
+```
+
 ---
 
 ## 4. Testando a revisão
@@ -236,6 +258,16 @@ The service layer is cleanly separated from the controller.
 !!! tip "Calibre o prompt"
 
     O system prompt em `ai_review.py` é o principal ponto de controle da qualidade da revisão. Se o modelo deixar passar problemas específicos do seu código (por exemplo, padrões de Feign client, anti-padrões de Spring Boot), adicione-os à lista `Focus on:`.
+
+!!! warning "Quando o job falha"
+
+    Sem o secret `ANTHROPIC_API_KEY` do passo 2.1, o passo **Run AI review** falha com `Error: Process completed with exit code 1.` e nenhum comentário aparece. O check não é obrigatório, então o merge não é bloqueado: o PR só mostra um ✗ vermelho. Uma resposta `529 Overloaded` é repetida duas vezes pela biblioteca `anthropic`; se persistir, o job falha por um motivo que nada tem a ver com o código: rode-o de novo.
+
+<div class="csim" data-sim="ai-pr-review" data-script="lab"></div>
+
+!!! tip "Experimente"
+
+    O workflow e o script desta página, em quatro pull requests. **4 · 5.1** repete esta seção: o PR de teste abre com 1 🔴 e 1 🟡 e o merge liberado; `edited` não dispara nada; a correção traz um segundo comentário, só com o 🟡; com o filtro paths, o PR do README não roda. **5.4 trava** e **falhas** mostram o que um check obrigatório muda. No modo livre, abra o PR grande: 3 198 das suas 3 203 linhas de diff são enviadas e o seu `application.yaml` nunca é revisado.
 
 ---
 
@@ -289,13 +321,47 @@ Analise a revisão em busca de itens 🔴 Critical e use a GitHub Checks API par
 
 !!! warning "Use a revisão por IA como guia, não como barreira"
 
-    Bloquear merges com base na saída da IA pode gerar falsos negativos (o modelo aponta código seguro) ou falsos positivos (o modelo deixa passar problemas reais). Comece apenas com comentários. Passe a bloquear somente se o time validar antes a precisão do modelo no seu código específico.
+    Bloquear merges com base na saída da IA pode gerar falsos positivos (o modelo aponta código seguro) ou falsos negativos (o modelo deixa passar problemas reais). Comece apenas com comentários. Passe a bloquear somente se o time validar antes a precisão do modelo no seu código específico.
+
+``` mermaid-sim
+sequenceDiagram
+    actor Dev as Desenvolvedor
+    participant GHA as GitHub Actions
+    participant Claude as Claude API
+    participant PR as Pull Request
+    Dev->>GHA: push (synchronize)
+    GHA->>Claude: diff + system prompt
+    Claude-->>GHA: revisão com um 🔴 Critical
+    alt comentário (este hands-on)
+        GHA->>PR: comentário com a revisão
+        Note over PR: merge liberado, uma pessoa decide
+    else check run obrigatório (5.4)
+        GHA->>PR: check run AI review = failure
+        Note over PR: merge bloqueado até um push corrigir
+    end
+```
+
+O que a trava muda, situação por situação:
+
+| Situação | Comentário (este hands-on) | Check obrigatório (5.4) |
+|---|---|---|
+| **A revisão acha um 🔴 real** | ⚠️ merge liberado: alguém precisa ler o comentário | ✅ merge bloqueado até a correção |
+| **Falso positivo** (um segredo falso num recurso de teste) | ✅ um comentário a ignorar | ❌ um PR seguro fica bloqueado |
+| **Falso negativo** (o problema está depois do corte de 3 000 linhas) | ❌ entra sem ninguém notar | ❌ entra sem ninguém notar: o check passa |
+| **O job falha** (sem secret, API sobrecarregada) | ✅ merge liberado, com um ✗ vermelho | ❌ ninguém faz merge até o job passar |
+| **O filtro paths pula o workflow** (5.1) | ✅ sem check, merge liberado | ❌ o check fica em "Expected — Waiting for status to be reported" |
+
+<div class="csim" data-sim="ai-pr-review" data-script="gate"></div>
+
+!!! tip "Experimente"
+
+    **5.4 trava** repete a tabela: o PR de teste é bloqueado pelo seu 🔴 e liberado depois da correção; a fixture de teste é bloqueada embora seja segura; o PR grande passa com a senha nunca vista, pois só 3 198 das suas 3 203 linhas de diff são enviadas; o PR do README espera um status que nunca vem. **Falhas** mostra um secret ausente e um `529`.
 
 ---
 
 ## 6. Outros padrões de IA no pipeline
 
-Padrões da indústria que seguem a mesma estrutura — disparo por um evento de CI/CD, chamada a um LLM, ação sobre o resultado:
+Padrões da indústria que seguem a mesma estrutura — disparo por um evento de CI/CD, chamada a um modelo de linguagem de grande porte (LLM, *large language model*), ação sobre o resultado:
 
 | Padrão | O que a IA faz | Quando usar |
 |---|---|---|
@@ -308,6 +374,13 @@ Padrões da indústria que seguem a mesma estrutura — disparo por um evento de
 | **Sincronização da documentação** | Detecta mudanças de código com documentação desatualizada | Quando as assinaturas da API mudam |
 
 Todos eles compartilham a mesma arquitetura deste hands-on: um gatilho de CI/CD, uma etapa de coleta de contexto, uma chamada ao LLM com um system prompt específico da tarefa e uma ação sobre o resultado.
+
+``` mermaid-sim
+flowchart LR
+    t["gatilho de CI/CD\nPR, release, deploy, alerta"] --> c["coleta de contexto\ndiff, commits, logs"]
+    c --> l["chamada ao LLM\nsystem prompt da tarefa"]
+    l --> a["ação sobre o resultado\ncomentário, arquivo, check"]
+```
 
 ---
 
