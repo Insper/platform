@@ -11,7 +11,7 @@ Each option draws a different line between **what your team operates** and **wha
 
     By the end of this class you should be able to:
 
-    - **Explain** what makes a service "cloud" and the difference between CapEx and OpEx.
+    - **Explain** what makes a service "cloud" and the difference between capital expenditure (CapEx) and operational expenditure (OpEx).
     - **Place** IaaS, CaaS, PaaS, FaaS and SaaS on the responsibility stack, stating who acts when something breaks.
     - **Compare** the models by control, unit of deployment, scaling, cost and portability.
     - **Choose** a model for each component of a system and justify the trade-off.

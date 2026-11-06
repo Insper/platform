@@ -157,7 +157,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q12.** Uma empresa substitui os servidores do seu próprio datacenter (comprados a cada 5 anos) por instâncias EC2 cobradas por segundo. Como isso muda o **modelo de custo**?
+**Q12.** Uma empresa substitui os servidores do seu próprio datacenter (comprados a cada 5 anos) por instâncias EC2 cobradas por segundo. Como isso muda o **modelo de custo**, entre CapEx (*capital expenditure*, despesa de capital) e OpEx (*operational expenditure*, despesa operacional)?
 
 - A. De OpEx para CapEx: a empresa agora é dona das instâncias
 - B. De CapEx para OpEx: sem compra antecipada dimensionada para o pico esperado; a empresa paga mensalmente pelo que usa

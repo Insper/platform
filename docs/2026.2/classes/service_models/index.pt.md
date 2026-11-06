@@ -11,7 +11,7 @@ Cada opção traça uma linha diferente entre **o que seu time opera** e **o que
 
     Ao final desta aula, você deve ser capaz de:
 
-    - **Explicar** o que torna um serviço "nuvem" e a diferença entre CapEx e OpEx.
+    - **Explicar** o que torna um serviço "nuvem" e a diferença entre despesa de capital (CapEx, *capital expenditure*) e despesa operacional (OpEx, *operational expenditure*).
     - **Situar** IaaS, CaaS, PaaS, FaaS e SaaS na pilha de responsabilidade, dizendo quem age quando algo quebra.
     - **Comparar** os modelos quanto a controle, unidade de deploy, escalabilidade, custo e portabilidade.
     - **Escolher** um modelo para cada componente de um sistema e justificar o trade-off.
@@ -44,7 +44,7 @@ Alugar um servidor num datacenter com um contrato de três anos não é computa�
 
 </div>
 
-**CapEx vs OpEx.** Comprar servidores é **despesa de capital (CapEx)**: um pagamento alto e antecipado por hardware dimensionado para o pico que você *espera*. A nuvem transforma isso em **despesa operacional (OpEx)**: você paga por mês o que *usa*. O OpEx elimina a aposta antecipada, mas não é automaticamente mais barato. Um workload em carga máxima 24/7 durante anos pode custar mais na nuvem do que em hardware próprio.
+**CapEx vs OpEx.** Comprar servidores é **despesa de capital (CapEx, *capital expenditure*)**: um pagamento alto e antecipado por hardware dimensionado para o pico que você *espera*. A nuvem transforma isso em **despesa operacional (OpEx, *operational expenditure*)**: você paga por mês o que *usa*. O OpEx elimina a aposta antecipada, mas não é automaticamente mais barato. Um workload em carga máxima 24/7 durante anos pode custar mais na nuvem do que em hardware próprio.
 
 !!! info "Modelo de serviço não é modelo de implantação"
     O NIST também define **modelos de implantação**, que dizem *quem compartilha* a infraestrutura: **pública** (qualquer cliente pagante), **privada** (uma organização), **híbrida** (uma combinação) e **comunitária** (organizações com requisitos em comum). Esta aula trata do outro eixo: *quanto dela você opera*.

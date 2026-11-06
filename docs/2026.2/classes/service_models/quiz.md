@@ -157,7 +157,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ---
 
-**Q12.** A company replaces its own datacentre servers (bought every 5 years) with EC2 instances billed per second. How does this change the **cost model**?
+**Q12.** A company replaces its own datacentre servers (bought every 5 years) with EC2 instances billed per second. How does this change the **cost model**, between CapEx (capital expenditure) and OpEx (operational expenditure)?
 
 - A. From OpEx to CapEx: the company now owns the instances
 - B. From CapEx to OpEx: no up-front purchase sized for the expected peak; the company pays monthly for what it uses

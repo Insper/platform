@@ -77,7 +77,7 @@ NIST SP 800-145: **cinco características essenciais** e um serviço precisa ter
 <div class="cols">
 <div>
 
-### CapEx — comprar servidores
+### CapEx (*capital expenditure*, despesa de capital) — comprar servidores
 
 - Um pagamento alto e **antecipado**.
 - Hardware dimensionado para o pico que você **espera**.
@@ -85,7 +85,7 @@ NIST SP 800-145: **cinco características essenciais** e um serviço precisa ter
 </div>
 <div>
 
-### OpEx — a nuvem
+### OpEx (*operational expenditure*, despesa operacional) — a nuvem
 
 - Paga **por mês** o que **usa**.
 - Elimina a aposta antecipada…
