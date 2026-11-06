@@ -57,7 +57,7 @@ sequenceDiagram
     participant D as Banco de dados
 
     C->>G: POST /orders<br/>traceparent: 00-4bf9...36-01
-    note over G: span: gateway.POST /orders (45 ms)
+    note over G: span: gateway.POST /orders (2 340 ms)
     G->>O: POST /orders<br/>traceparent: 00-4bf9...36-01
     note over O: span: order.POST /orders (2 250 ms)
     O->>P: GET /products/7<br/>traceparent: 00-4bf9...36-01
@@ -72,6 +72,12 @@ sequenceDiagram
 
 O gargalo fica visível na hora: a query JDBC dentro do ProductService responde por quase toda a latência.
 
+<div class="csim" data-sim="otel-trace" data-script="lab"></div>
+
+!!! tip "Experimente"
+
+    Antes do lab, o mesmo trace no navegador. Ele abre com o curl da página já enviado: 5 spans, 180 ms. Play ou → repete a página: com a consulta lenta, o trace leva 2 340 ms e o SELECT products 2 180 ms (93%); o mesmo atraso no código do próprio product-service deixa o SELECT em 20 ms; com o product-service exportando para localhost:4317, o order-service mostra 2 225 ms de tempo próprio; com o sampler de 10%, o Jaeger guarda 6 de 100 requisições. Clique num span para ver suas tags; os cabeçalhos e as linhas de log sob a cascata levam o mesmo trace id.
+
 ## Arquitetura
 
 Este hands-on adiciona o Jaeger à camada de observabilidade e conecta o agente Java do OpenTelemetry ao container de cada serviço:
@@ -81,7 +87,7 @@ flowchart LR
     subgraph obs [Camada de observabilidade]
         prometheus@{ shape: cyl, label: "Prometheus\n:9090" }
         grafana[Grafana\n:3000]
-        jaeger["Jaeger\n:16686 UI\n:4317 OTLP"]:::highlighted
+        jaeger["Jaeger\n:16686 UI\n:4317 OTLP"]
         prometheus --> grafana
     end
     subgraph api [Camada confiável]
@@ -97,7 +103,6 @@ flowchart LR
     e0@{ animate: true }
     e1@{ animate: true }
     e2@{ animate: true }
-    classDef highlighted fill:#fcc
 ```
 
 Dois pipelines rodam lado a lado: o Prometheus **puxa** (faz scrape de) as métricas de cada serviço, enquanto o agente de cada serviço **envia** os seus spans ao Jaeger por OTLP.
@@ -213,6 +218,20 @@ O agente é configurado inteiramente por variáveis de ambiente. Adicione o segu
 !!! warning "`localhost` dentro de um container"
     O `OTEL_EXPORTER_OTLP_ENDPOINT` precisa usar o nome do serviço no Compose, `http://jaeger:4317`. Dentro de um container, `localhost` é o próprio container, então um endpoint como `http://localhost:4317` manda os spans para lugar nenhum e nenhum trace chega ao Jaeger.
 
+``` mermaid-sim
+flowchart LR
+    subgraph oc ["container do order"]
+        agent["agente OTel\nexporta seus spans"]
+        lo["localhost:4317\nninguém escuta aqui"]
+    end
+    jaeger["jaeger:4317\no container do Jaeger"]
+    agent -->|"http://localhost:4317"| lo
+    agent -->|"http://jaeger:4317"| jaeger
+```
+
+!!! note "Dê nome a cada serviço"
+    Sem `OTEL_SERVICE_NAME`, o agente informa o serviço como `unknown_service:java`. Os quatro serviços acabam sob um único nome no menu **Service** do Jaeger e você não consegue distingui-los.
+
 ## Propagação de traces — como funciona
 
 Quando o agente intercepta uma chamada HTTP de saída, ele injeta o **cabeçalho W3C `traceparent`** na requisição. O agente do serviço que a recebe lê esse cabeçalho e cria um span filho no mesmo trace.
@@ -249,13 +268,30 @@ sequenceDiagram
     P->>P: inicia span filho<br/>traceId=4bf9...  spanId=ccc3  parent=bbb2
     P-->>O: 200
     O-->>G: 200
-    G->>G: encerra o span raiz → exporta para o Jaeger
-    O->>O: encerra o span filho → exporta para o Jaeger
     P->>P: encerra o span filho → exporta para o Jaeger
+    O->>O: encerra o span filho → exporta para o Jaeger
+    G->>G: encerra o span raiz → exporta para o Jaeger
 ```
 
 !!! note "Amostragem"
     O byte de flags `01` significa que o trace foi amostrado e será exportado. O sampler padrão exporta 100% dos traces. Em produção, troque por um sampler com limitação de taxa: defina `OTEL_TRACES_SAMPLER=parentbased_traceidratio` e `OTEL_TRACES_SAMPLER_ARG=0.1` para amostrar 10% das requisições.
+
+A decisão é **baseada no pai** (*parent-based*): o gateway decide uma vez, no span raiz, e escreve a resposta nas flags; cada serviço seguinte obedece às flags, então um trace nunca fica amostrado pela metade. Uma requisição que não foi amostrada ainda tem um trace ID: ele aparece nas linhas de log, não no Jaeger.
+
+``` mermaid-sim
+flowchart LR
+    req["POST /orders\nainda sem traceparent"] --> root{"gateway-service\nspan raiz: amostrar?"}
+    root -->|"sim, 1 em 10"| s1["traceparent ...-01\norder e product\nregistram e exportam"]
+    s1 --> j["o Jaeger tem\no trace inteiro"]
+    root -->|"não, 9 em 10"| s0["traceparent ...-00\nnenhum serviço exporta"]
+    s0 --> l["as linhas de log\nainda levam o trace_id"]
+```
+
+| | Padrão (`parentbased_always_on`) | `parentbased_traceidratio`, `0.1` |
+|---|---|---|
+| **Traces no Jaeger** | ✅ toda requisição | ⚠️ cerca de 1 em 10 |
+| **Custo de exportação e armazenamento** | ⚠️ cresce com o tráfego | ✅ cerca de um décimo |
+| **Uma requisição lenta rara** | ✅ sempre está lá | ⚠️ pode não ter sido guardada |
 
 ## Correlacionando traces com logs
 
@@ -303,12 +339,20 @@ Com essa configuração, cada linha de log durante uma requisição rastreada va
 
 ```
 14:23:01.442 [http-nio-8080-exec-3] INFO  c.example.order.OrderService
-    [trace_id=4bf92f3577b34da6a3ce929d0e0e4736 span_id=00f067aa0ba902b7] - creating order for account 42
-14:23:01.501 [http-nio-8080-exec-3] INFO  c.example.order.OrderService
+    [trace_id=4bf92f3577b34da6a3ce929d0e0e4736 span_id=00f067aa0ba902b7] - creating order for account 1
+14:23:01.462 [http-nio-8080-exec-3] INFO  c.example.order.OrderService
     [trace_id=4bf92f3577b34da6a3ce929d0e0e4736 span_id=00f067aa0ba902b7] - calling ProductService for product id 7
 ```
 
 **Fluxo de trabalho**: abra o trace lento no Jaeger → clique no span problemático → copie o valor de `trace_id` → cole-o na barra de busca do seu agregador de logs → todas as linhas de log daquela requisição exata aparecem juntas.
+
+``` mermaid-sim
+flowchart LR
+    a["Jaeger\ntrace lento"] --> b["clique no\nspan lento"]
+    b --> c["copie o\ntrace_id dele"]
+    c --> d["agregador de logs\nbusque o trace_id"]
+    d --> e["todas as linhas de log\ndaquela requisição"]
+```
 
 ## Visualizando traces na UI do Jaeger
 
@@ -354,6 +398,7 @@ O flame chart desenha cada span como uma barra horizontal. O span raiz (gateway)
 
 !!! example "O que procurar"
     - Um span quase tão largo quanto o span raiz é o principal responsável pela latência.
+    - Spans aninhados ficam todos tão largos quando a parte lenta está no fundo: o culpado é o span cuja barra os filhos não cobrem (o seu tempo próprio).
     - Spans rotulados `SELECT` ou `jdbc.query` com longa duração indicam queries lentas no banco de dados.
     - Spans rotulados `HTTP GET` ou `HTTP POST` são chamadas HTTP de saída capturadas pelo agente.
     - Um span com um ícone `!` vermelho registrou uma exceção — clique nele para ver o stack trace completo anexado como um evento do span.
@@ -421,6 +466,17 @@ public class OrderService {
         return persist(orderIn);
     }
 }
+```
+
+Com o span manual, a chamada ao ProductService (dentro de `checkInventory`) vira filha dele: no flame chart, `validateOrder` fica entre o order-service e o product-service.
+
+``` mermaid-sim
+flowchart TB
+    g["gateway-service\nPOST /orders"] --> o["order-service\nPOST /orders"]
+    o --> v["order-service\nvalidateOrder (span manual)"]
+    v --> p["product-service\nGET /products/7"]
+    p --> q["product-service\nSELECT products"]
+    o --> i["order-service\nINSERT orders"]
 ```
 
 !!! warning "Sempre chame `span.end()` em um bloco `finally`"

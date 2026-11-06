@@ -57,7 +57,7 @@ sequenceDiagram
     participant D as Database
 
     C->>G: POST /orders<br/>traceparent: 00-4bf9...36-01
-    note over G: span: gateway.POST /orders (45 ms)
+    note over G: span: gateway.POST /orders (2 340 ms)
     G->>O: POST /orders<br/>traceparent: 00-4bf9...36-01
     note over O: span: order.POST /orders (2 250 ms)
     O->>P: GET /products/7<br/>traceparent: 00-4bf9...36-01
@@ -72,6 +72,12 @@ sequenceDiagram
 
 The bottleneck is immediately visible: the JDBC query inside ProductService accounts for almost all of the latency.
 
+<div class="csim" data-sim="otel-trace" data-script="lab"></div>
+
+!!! tip "Try it"
+
+    Before the lab, the same trace in the browser. It opens with the page's curl already sent: 5 spans, 180 ms. Play or → replays the page: with the slow query, the trace takes 2 340 ms and SELECT products 2 180 ms (93%); the same delay in product-service's own code leaves the SELECT at 20 ms; with product-service exporting to localhost:4317, order-service shows 2 225 ms of self time; with the 10% sampler, Jaeger keeps 6 of 100 requests. Click a span to see its tags; the headers and log lines under the waterfall carry the same trace id.
+
 ## Architecture
 
 This hands-on adds Jaeger to the observability layer and wires the OpenTelemetry Java agent into each service container:
@@ -81,7 +87,7 @@ flowchart LR
     subgraph obs [Observability Layer]
         prometheus@{ shape: cyl, label: "Prometheus\n:9090" }
         grafana[Grafana\n:3000]
-        jaeger["Jaeger\n:16686 UI\n:4317 OTLP"]:::highlighted
+        jaeger["Jaeger\n:16686 UI\n:4317 OTLP"]
         prometheus --> grafana
     end
     subgraph api [Trusted Layer]
@@ -97,7 +103,6 @@ flowchart LR
     e0@{ animate: true }
     e1@{ animate: true }
     e2@{ animate: true }
-    classDef highlighted fill:#fcc
 ```
 
 Two pipelines run side by side: Prometheus **pulls** (scrapes) the metrics from each service, while each service's agent **pushes** its spans to Jaeger over OTLP.
@@ -213,6 +218,20 @@ The agent is configured entirely through environment variables. Add the followin
 !!! warning "`localhost` inside a container"
     `OTEL_EXPORTER_OTLP_ENDPOINT` must use the Compose service name, `http://jaeger:4317`. Inside a container, `localhost` is the container itself, so an endpoint like `http://localhost:4317` sends the spans nowhere and no trace reaches Jaeger.
 
+``` mermaid-sim
+flowchart LR
+    subgraph oc ["order container"]
+        agent["OTel agent\nexports its spans"]
+        lo["localhost:4317\nnobody listens here"]
+    end
+    jaeger["jaeger:4317\nthe Jaeger container"]
+    agent -->|"http://localhost:4317"| lo
+    agent -->|"http://jaeger:4317"| jaeger
+```
+
+!!! note "Name every service"
+    Without `OTEL_SERVICE_NAME`, the agent reports the service as `unknown_service:java`. The four services end up under one name in Jaeger's **Service** dropdown and you cannot tell them apart.
+
 ## Trace Propagation — How It Works
 
 When the agent intercepts an outgoing HTTP call, it injects the **W3C `traceparent` header** into the request. The receiving service's agent reads that header and creates a child span under the same trace.
@@ -249,13 +268,30 @@ sequenceDiagram
     P->>P: start child span<br/>traceId=4bf9...  spanId=ccc3  parent=bbb2
     P-->>O: 200
     O-->>G: 200
-    G->>G: end root span → export to Jaeger
-    O->>O: end child span → export to Jaeger
     P->>P: end child span → export to Jaeger
+    O->>O: end child span → export to Jaeger
+    G->>G: end root span → export to Jaeger
 ```
 
 !!! note "Sampling"
     The `01` flags byte means the trace is sampled and will be exported. The default sampler exports 100% of traces. For production, switch to a rate-limiting sampler: set `OTEL_TRACES_SAMPLER=parentbased_traceidratio` and `OTEL_TRACES_SAMPLER_ARG=0.1` to sample 10% of requests.
+
+The decision is **parent-based**: the gateway decides once, at the root span, and writes the answer in the flags; every service downstream follows the flags, so a trace is never half-sampled. A request that was not sampled still has a trace ID: it shows up in the log lines, not in Jaeger.
+
+``` mermaid-sim
+flowchart LR
+    req["POST /orders\nno traceparent yet"] --> root{"gateway-service\nroot span: sample?"}
+    root -->|"yes, 1 in 10"| s1["traceparent ...-01\norder and product\nrecord and export"]
+    s1 --> j["Jaeger has\nthe whole trace"]
+    root -->|"no, 9 in 10"| s0["traceparent ...-00\nno service exports"]
+    s0 --> l["the log lines\nstill carry the trace_id"]
+```
+
+| | Default (`parentbased_always_on`) | `parentbased_traceidratio`, `0.1` |
+|---|---|---|
+| **Traces in Jaeger** | ✅ every request | ⚠️ about 1 in 10 |
+| **Export and storage cost** | ⚠️ grows with the traffic | ✅ about a tenth |
+| **A rare slow request** | ✅ always there | ⚠️ may not have been kept |
 
 ## Correlating Traces with Logs
 
@@ -303,12 +339,20 @@ With this configuration, every log line during a traced request will look like:
 
 ```
 14:23:01.442 [http-nio-8080-exec-3] INFO  c.example.order.OrderService
-    [trace_id=4bf92f3577b34da6a3ce929d0e0e4736 span_id=00f067aa0ba902b7] - creating order for account 42
-14:23:01.501 [http-nio-8080-exec-3] INFO  c.example.order.OrderService
+    [trace_id=4bf92f3577b34da6a3ce929d0e0e4736 span_id=00f067aa0ba902b7] - creating order for account 1
+14:23:01.462 [http-nio-8080-exec-3] INFO  c.example.order.OrderService
     [trace_id=4bf92f3577b34da6a3ce929d0e0e4736 span_id=00f067aa0ba902b7] - calling ProductService for product id 7
 ```
 
 **Workflow**: open the slow trace in Jaeger → click the problematic span → copy the `trace_id` value → paste it into your log aggregator's search bar → all log lines from that exact request appear together.
+
+``` mermaid-sim
+flowchart LR
+    a["Jaeger\nslow trace"] --> b["click the\nslow span"]
+    b --> c["copy its\ntrace_id"]
+    c --> d["log aggregator\nsearch the trace_id"]
+    d --> e["every log line\nof that request"]
+```
 
 ## Viewing Traces in Jaeger UI
 
@@ -354,6 +398,7 @@ The flame chart renders each span as a horizontal bar. The root span (gateway) i
 
 !!! example "What to look for"
     - A span nearly as wide as the root span is the primary latency contributor.
+    - Nested spans are all that wide when the slow part is deep: the culprit is the span whose bar its children do not cover (its own, or self, time).
     - Spans labelled `SELECT` or `jdbc.query` with long duration indicate slow database queries.
     - Spans labelled `HTTP GET` or `HTTP POST` are outbound HTTP calls captured by the agent.
     - A span with a red `!` icon recorded an exception — click it to see the full stack trace attached as a span event.
@@ -421,6 +466,17 @@ public class OrderService {
         return persist(orderIn);
     }
 }
+```
+
+With the manual span, the call to ProductService (inside `checkInventory`) becomes its child: in the flame chart, `validateOrder` sits between order-service and product-service.
+
+``` mermaid-sim
+flowchart TB
+    g["gateway-service\nPOST /orders"] --> o["order-service\nPOST /orders"]
+    o --> v["order-service\nvalidateOrder (manual span)"]
+    v --> p["product-service\nGET /products/7"]
+    p --> q["product-service\nSELECT products"]
+    o --> i["order-service\nINSERT orders"]
 ```
 
 !!! warning "Always call `span.end()` in a `finally` block"

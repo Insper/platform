@@ -14,6 +14,10 @@ theme: platform
 {{INCLUDE:scripts/slides/theme.js}}
 </script>
 
+<style>
+{{INCLUDE:scripts/slides/diagram.css}}
+</style>
+
 <div class="kicker">Platforms, Microservices, DevOps and APIs · Hands-on 11</div>
 
 # Hands-on 11 — Distributed Tracing
@@ -66,10 +70,18 @@ Instrument every Spring Boot service with **OpenTelemetry** so that one request 
 
 ## Architecture
 
-- Trusted layer as before: load balancer → gateway → `order`, `account`; `order` → `product`, PostgreSQL.
-- **New**: gateway, order, account and product export **OTLP traces** to Jaeger (`:4317`).
-- Prometheus keeps **scraping** `/actuator/prometheus` on the same services → Grafana `:3000`.
-- Jaeger (`:16686` UI) joins Prometheus and Grafana in the **observability layer**.
+<div class="flow" style="align-items: stretch">
+<div class="box green" style="flex: .8; display: flex; flex-direction: column; justify-content: center">Prometheus :9090<small>→ Grafana :3000 · metrics</small></div>
+<div class="arrow" style="align-self: center">← scrape<br>/actuator/prometheus</div>
+<div class="group">
+<div class="caption">trusted layer · an OTel agent in each</div>
+<div class="box">gateway-service</div>
+<div class="box">order-service · account-service</div>
+<div class="box">product-service<small>order → product, PostgreSQL as before</small></div>
+</div>
+<div class="arrow" style="align-self: center">OTLP traces →<br>push to :4317</div>
+<div class="box accent" style="flex: .8; display: flex; flex-direction: column; justify-content: center">Jaeger<small>collector + query + UI :16686 · new</small></div>
+</div>
 
 <div class="ok">
 
@@ -162,10 +174,18 @@ traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
              └ version (always 00)
 ```
 
-1. Gateway agent starts the **root span** (`spanId=aaa1`).
-2. Outgoing call carries `traceparent: 00-4bf9…-aaa1-01`.
-3. Order agent reads it → **child span** `bbb2`, parent `aaa1`; and so on to Product (`ccc3`).
-4. Each span **ends** and is **exported** to Jaeger, which groups them by trace ID.
+<div class="flow">
+<div class="box">gateway-service<small>root span aaa1</small></div>
+<div class="arrow">00-4bf9…-aaa1-01 →</div>
+<div class="box">order-service<small>span bbb2 · parent aaa1</small></div>
+<div class="arrow">00-4bf9…-bbb2-01 →</div>
+<div class="box">product-service<small>span ccc3 · parent bbb2</small></div>
+<div class="arrow">export →</div>
+<div class="box accent">Jaeger<small>groups the spans by trace ID</small></div>
+</div>
+
+- Each agent reads the incoming header, starts a **child span** and sends its own span ID onward.
+- Each span **ends** and is **exported** on its own; Jaeger puts the trace together.
 
 ---
 
@@ -179,11 +199,16 @@ OTEL_TRACES_SAMPLER: parentbased_traceidratio
 OTEL_TRACES_SAMPLER_ARG: "0.1"   # 10% of requests
 ```
 
-<div class="ok">
-
-**Parent-based**: the decision is taken once at the root and travels in the `01`/`00` flag — a trace is never half-sampled.
-
+<div class="flow" style="align-items: stretch">
+<div class="box accent" style="flex: .8; display: flex; flex-direction: column; justify-content: center">gateway-service<small>the root span decides, once</small></div>
+<div class="arrow" style="align-self: center">flags in<br>traceparent →</div>
+<div class="group">
+<div class="box green">01 · sampled<small>order and product export too: the whole trace in Jaeger</small></div>
+<div class="box muted">00 · not sampled<small>nobody exports; the logs still carry the trace_id</small></div>
 </div>
+</div>
+
+**Parent-based**: a trace is never half-sampled.
 
 ---
 
@@ -223,6 +248,23 @@ curl -s -X POST http://localhost:8080/orders \
 1. Open `http://localhost:16686`, pick `gateway-service` in **Service**.
 2. Leave Operation as `all` → **Find Traces**.
 3. Click a trace to open the **flame chart**.
+
+---
+
+## The slow request, as Jaeger draws it
+
+<div class="flow" style="margin: .12em 0"><div class="arrow" style="flex: 0 0 13em; text-align: left">gateway POST /orders</div><div style="flex: 1"><div class="box " style="margin-left: 0.0%; width: 100.0%; padding: .15em .3em; text-align: left; white-space: nowrap">2 340 ms · own 90</div></div></div>
+<div class="flow" style="margin: .12em 0"><div class="arrow" style="flex: 0 0 13em; text-align: left">order POST /orders</div><div style="flex: 1"><div class="box " style="margin-left: 1.9%; width: 96.2%; padding: .15em .3em; text-align: left; white-space: nowrap">2 250 ms · own 35</div></div></div>
+<div class="flow" style="margin: .12em 0"><div class="arrow" style="flex: 0 0 13em; text-align: left">product GET /products/{id}</div><div style="flex: 1"><div class="box " style="margin-left: 2.8%; width: 93.6%; padding: .15em .3em; text-align: left; white-space: nowrap">2 190 ms · own 10</div></div></div>
+<div class="flow" style="margin: .12em 0"><div class="arrow" style="flex: 0 0 13em; text-align: left">product SELECT products</div><div style="flex: 1"><div class="box red" style="margin-left: 3.0%; width: 93.2%; padding: .15em .3em; text-align: left; white-space: nowrap">2 180 ms · own 2 180</div></div></div>
+<div class="flow" style="margin: .12em 0"><div class="arrow" style="flex: 0 0 13em; text-align: left">order INSERT orders</div><div style="flex: 1"><div class="box " style="margin-left: 96.4%; width: 1.7%; padding: .15em .3em; text-align: left; white-space: nowrap"></div></div></div>
+
+- Four bars are almost as wide as the root: width alone does not name the culprit.
+- Look at the **own (self) time**, the part not covered by children: `SELECT products` holds 2 180 of 2 340 ms (93%).
+
+<!--
+Same numbers as the page's sequence diagram and the simulator's first step. Bar width = duration; the INSERT is the thin bar at the end.
+-->
 
 ---
 
@@ -281,6 +323,25 @@ A manual span without `span.end()` in a `finally` is **never exported** to Jaege
 
 <!--
 The localhost-vs-service-name point: see the warning "`localhost` inside a container" on the page.
+-->
+
+---
+
+## Without Docker: the simulator
+
+<div class="flow">
+<div class="box red">slow query<small>2 340 ms · SELECT 2 180 ms, 93%</small></div>
+<div class="box orange">delay in product's code<small>its span grows · SELECT stays 20 ms</small></div>
+<div class="box muted">localhost:4317 in product<small>2 spans lost · order shows 2 225 ms of own time</small></div>
+<div class="box green">sampler 0.1<small>Jaeger keeps 6 of 100 requests</small></div>
+</div>
+
+- The page embeds the lab's trace: same services, same request, same trace ID (`4bf92f35…4736`).
+- Play replays the page step by step; the knobs work at any time.
+- Under the waterfall: the `traceparent` of each hop and the log lines with `trace_id` / `span_id`.
+
+<!--
+The simulator sits after the page's second diagram. Also try validateOrder without end(): product-service shows up with a missing parent.
 -->
 
 ---

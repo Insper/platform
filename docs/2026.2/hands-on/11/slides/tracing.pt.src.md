@@ -14,6 +14,10 @@ theme: platform
 {{INCLUDE:scripts/slides/theme.js}}
 </script>
 
+<style>
+{{INCLUDE:scripts/slides/diagram.css}}
+</style>
+
 <div class="kicker">Plataformas, Microsserviços, DevOps e APIs · Hands-on 11</div>
 
 # Hands-on 11 — Rastreamento distribuído
@@ -66,10 +70,18 @@ Instrumentar todos os serviços Spring Boot com **OpenTelemetry** para que uma r
 
 ## Arquitetura
 
-- Camada confiável como antes: load balancer → gateway → `order`, `account`; `order` → `product`, PostgreSQL.
-- **Novo**: gateway, order, account e product exportam **traces OTLP** para o Jaeger (`:4317`).
-- O Prometheus continua fazendo **scrape** de `/actuator/prometheus` nos mesmos serviços → Grafana `:3000`.
-- O Jaeger (UI na `:16686`) entra na **camada de observabilidade**, ao lado do Prometheus e do Grafana.
+<div class="flow" style="align-items: stretch">
+<div class="box green" style="flex: .8; display: flex; flex-direction: column; justify-content: center">Prometheus :9090<small>→ Grafana :3000 · métricas</small></div>
+<div class="arrow" style="align-self: center">← scrape<br>/actuator/prometheus</div>
+<div class="group">
+<div class="caption">camada confiável · um agente OTel em cada</div>
+<div class="box">gateway-service</div>
+<div class="box">order-service · account-service</div>
+<div class="box">product-service<small>order → product, PostgreSQL como antes</small></div>
+</div>
+<div class="arrow" style="align-self: center">traces OTLP →<br>envio para :4317</div>
+<div class="box accent" style="flex: .8; display: flex; flex-direction: column; justify-content: center">Jaeger<small>coletor + consulta + UI :16686 · novo</small></div>
+</div>
 
 <div class="ok">
 
@@ -162,10 +174,18 @@ traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
              └ version (always 00)
 ```
 
-1. O agente do gateway inicia o **span raiz** (`spanId=aaa1`).
-2. A chamada de saída leva `traceparent: 00-4bf9…-aaa1-01`.
-3. O agente do Order o lê → **span filho** `bbb2`, pai `aaa1`; e assim até o Product (`ccc3`).
-4. Cada span **termina** e é **exportado** para o Jaeger, que os agrupa pelo trace ID.
+<div class="flow">
+<div class="box">gateway-service<small>span raiz aaa1</small></div>
+<div class="arrow">00-4bf9…-aaa1-01 →</div>
+<div class="box">order-service<small>span bbb2 · pai aaa1</small></div>
+<div class="arrow">00-4bf9…-bbb2-01 →</div>
+<div class="box">product-service<small>span ccc3 · pai bbb2</small></div>
+<div class="arrow">exporta →</div>
+<div class="box accent">Jaeger<small>agrupa os spans pelo trace ID</small></div>
+</div>
+
+- Cada agente lê o cabeçalho que chega, inicia um **span filho** e envia adiante o próprio span ID.
+- Cada span **termina** e é **exportado** por conta própria; o Jaeger monta o trace.
 
 ---
 
@@ -179,11 +199,16 @@ OTEL_TRACES_SAMPLER: parentbased_traceidratio
 OTEL_TRACES_SAMPLER_ARG: "0.1"   # 10% of requests
 ```
 
-<div class="ok">
-
-**Parent-based**: a decisão é tomada uma vez, na raiz e viaja na flag `01`/`00` — um trace nunca é amostrado pela metade.
-
+<div class="flow" style="align-items: stretch">
+<div class="box accent" style="flex: .8; display: flex; flex-direction: column; justify-content: center">gateway-service<small>o span raiz decide, uma vez</small></div>
+<div class="arrow" style="align-self: center">flags no<br>traceparent →</div>
+<div class="group">
+<div class="box green">01 · amostrado<small>order e product também exportam: o trace inteiro no Jaeger</small></div>
+<div class="box muted">00 · não amostrado<small>ninguém exporta; os logs ainda levam o trace_id</small></div>
 </div>
+</div>
+
+**Parent-based** (baseada no pai): um trace nunca é amostrado pela metade.
 
 ---
 
@@ -223,6 +248,23 @@ curl -s -X POST http://localhost:8080/orders \
 1. Abra `http://localhost:16686` e escolha `gateway-service` em **Service**.
 2. Deixe Operation como `all` → **Find Traces**.
 3. Clique em um trace para abrir o **flame chart**.
+
+---
+
+## A requisição lenta, como o Jaeger a desenha
+
+<div class="flow" style="margin: .12em 0"><div class="arrow" style="flex: 0 0 13em; text-align: left">gateway POST /orders</div><div style="flex: 1"><div class="box " style="margin-left: 0.0%; width: 100.0%; padding: .15em .3em; text-align: left; white-space: nowrap">2 340 ms · próprio 90</div></div></div>
+<div class="flow" style="margin: .12em 0"><div class="arrow" style="flex: 0 0 13em; text-align: left">order POST /orders</div><div style="flex: 1"><div class="box " style="margin-left: 1.9%; width: 96.2%; padding: .15em .3em; text-align: left; white-space: nowrap">2 250 ms · próprio 35</div></div></div>
+<div class="flow" style="margin: .12em 0"><div class="arrow" style="flex: 0 0 13em; text-align: left">product GET /products/{id}</div><div style="flex: 1"><div class="box " style="margin-left: 2.8%; width: 93.6%; padding: .15em .3em; text-align: left; white-space: nowrap">2 190 ms · próprio 10</div></div></div>
+<div class="flow" style="margin: .12em 0"><div class="arrow" style="flex: 0 0 13em; text-align: left">product SELECT products</div><div style="flex: 1"><div class="box red" style="margin-left: 3.0%; width: 93.2%; padding: .15em .3em; text-align: left; white-space: nowrap">2 180 ms · próprio 2 180</div></div></div>
+<div class="flow" style="margin: .12em 0"><div class="arrow" style="flex: 0 0 13em; text-align: left">order INSERT orders</div><div style="flex: 1"><div class="box " style="margin-left: 96.4%; width: 1.7%; padding: .15em .3em; text-align: left; white-space: nowrap"></div></div></div>
+
+- Quatro barras são quase tão largas quanto a raiz: a largura sozinha não aponta o culpado.
+- Olhe o **tempo próprio**, a parte não coberta por filhos: `SELECT products` tem 2 180 dos 2 340 ms (93%).
+
+<!--
+Os mesmos números do diagrama de sequência da página e do primeiro passo do simulador. Largura da barra = duração; o INSERT é a barra fina no fim.
+-->
 
 ---
 
@@ -281,6 +323,25 @@ Um span manual sem `span.end()` em um `finally` **nunca é exportado** para o Ja
 
 <!--
 O ponto localhost vs. nome do serviço: veja o aviso "`localhost` dentro de um container" na página.
+-->
+
+---
+
+## Sem Docker: o simulador
+
+<div class="flow">
+<div class="box red">consulta lenta<small>2 340 ms · SELECT 2 180 ms, 93%</small></div>
+<div class="box orange">atraso no código do product<small>o span dele cresce · SELECT fica em 20 ms</small></div>
+<div class="box muted">localhost:4317 no product<small>2 spans perdidos · order mostra 2 225 ms de tempo próprio</small></div>
+<div class="box green">sampler 0.1<small>o Jaeger guarda 6 de 100 requisições</small></div>
+</div>
+
+- A página embute o trace do lab: os mesmos serviços, a mesma requisição, o mesmo trace ID (`4bf92f35…4736`).
+- O play repete a página passo a passo; os controles funcionam a qualquer momento.
+- Sob a cascata: o `traceparent` de cada salto e as linhas de log com `trace_id` / `span_id`.
+
+<!--
+O simulador fica depois do segundo diagrama da página. Experimente também validateOrder sem end(): o product-service aparece com o pai ausente.
 -->
 
 ---
