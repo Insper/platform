@@ -14,6 +14,10 @@ theme: platform
 {{INCLUDE:scripts/slides/theme.js}}
 </script>
 
+<style>
+{{INCLUDE:scripts/slides/diagram.css}}
+</style>
+
 <div class="kicker">Plataformas, Microsserviços, DevOps e APIs · Hands-on 8</div>
 
 # Hands-on 8 — Cache em memória
@@ -42,6 +46,33 @@ A próxima requisição para a conta 42 cai na réplica 2. **O que acontece?**
 
 ---
 
+## Um cache por JVM × um Redis compartilhado
+
+<div class="flow" style="align-items: stretch">
+<div class="group">
+<div class="caption">type: simple · ConcurrentMapCache</div>
+<div class="box">account-1<small>a própria cópia da conta 42</small></div>
+<div class="box">account-2<small>outra cópia, outra consulta ao banco</small></div>
+<div class="box red">PUT por account-1<small>account-2 fica com o nome antigo, sem expirar</small></div>
+</div>
+<div class="group">
+<div class="caption">type: redis</div>
+<div class="box">account-1 · account-2<small>sem cópia local</small></div>
+<div class="box accent">redis · accounts::42<small>uma cópia, tempo de vida (TTL, <em>time to live</em>) de 300 s</small></div>
+<div class="box green">PUT por account-1<small>account-2 lê o valor novo</small></div>
+</div>
+</div>
+
+- Por JVM: um miss **por réplica** e uma escrita só corrige a réplica que a fez.
+- Compartilhado: um miss para todas as réplicas; `@CachePut` / `@CacheEvict` agem sobre a única cópia.
+
+<!--
+O serviço `account` roda duas réplicas no compose do lab (deploy.replicas: 2); é lá que o cache vive.
+A página de visão geral desenha os dois casos num diagrama passo a passo e o simulador os reproduz ("local × compartilhado").
+-->
+
+---
+
 ## Bancos de dados em memória
 
 | | Em disco | Em memória |
@@ -57,11 +88,18 @@ A próxima requisição para a conta 42 cai na réplica 2. **O que acontece?**
 
 ## Cache-aside
 
-1. Serviço → Redis: `GET account:42`
-2. **Hit** → retorna o valor. Fim.
-3. **Miss** (`nil`) → Serviço → PostgreSQL: `SELECT * FROM accounts WHERE id = 42`
-4. O banco de dados retorna a linha.
-5. Serviço → Redis: `SET account:42 ... EX 300` — a próxima leitura é um hit.
+<div class="flow">
+<div class="arrow" style="flex: .4; text-align: left">Hit</div>
+<div class="box">GET accounts::42</div><div class="arrow">→</div>
+<div class="box green">o JSON<small>corpo do método pulado · cerca de 0,004 s</small></div>
+</div>
+<div class="flow">
+<div class="arrow" style="flex: .4; text-align: left">Miss</div>
+<div class="box">GET accounts::42</div><div class="arrow">→</div>
+<div class="box muted">(nil)</div><div class="arrow">→</div>
+<div class="box orange">SELECT no PostgreSQL<small>cerca de 0,058 s</small></div><div class="arrow">→</div>
+<div class="box accent">SET accounts::42<small>TTL de 300 s · próxima leitura: hit</small></div>
+</div>
 
 <div class="ok">
 
@@ -105,7 +143,27 @@ Este hands-on habilita o **AOF**: `--appendonly yes`.
 
 ## Arquitetura
 
-internet → `:8080` **lb** (Nginx) → gateway ×3 → `auth`, `account` → **Redis** `:6379` → PostgreSQL *(só em caso de miss)*
+<div class="flow" style="align-items: stretch">
+<div class="box muted" style="flex: .6; display: flex; flex-direction: column; justify-content: center">internet</div>
+<div class="arrow" style="align-self: center">:8080 →</div>
+<div class="box" style="flex: .7; display: flex; flex-direction: column; justify-content: center">lb<small>Nginx</small></div>
+<div class="arrow" style="align-self: center">→</div>
+<div class="group">
+<div class="caption">gateway ×3</div>
+<div class="box">gateway-1</div><div class="box">gateway-2</div><div class="box">gateway-3</div>
+</div>
+<div class="arrow" style="align-self: center">→</div>
+<div class="group">
+<div class="caption">serviços</div>
+<div class="box">auth</div><div class="box">account ×2</div>
+</div>
+<div class="arrow" style="align-self: center">→</div>
+<div class="group">
+<div class="caption">dados</div>
+<div class="box accent">redis<small>:6379 · lido primeiro</small></div>
+<div class="box orange">PostgreSQL<small>só em caso de miss</small></div>
+</div>
+</div>
 
 - Todas as réplicas compartilham **um** Redis: uma entrada gravada pela réplica 1 pode ser lida pelas réplicas 2 e 3.
 - Passos: **1** Docker Compose → **2** Spring Boot → **3** executar e medir.
@@ -300,6 +358,7 @@ docker compose logs account --tail 20        # no database query this time
 ## 3 · Medir
 
 ```bash
+docker compose exec redis redis-cli DEL "accounts::42"   # or the "miss" is a hit too
 curl -o /dev/null -s -w "Cache miss: %{time_total}s\n" http://localhost:8080/accounts/42
 curl -o /dev/null -s -w "Cache hit:  %{time_total}s\n" http://localhost:8080/accounts/42
 ```
@@ -317,7 +376,7 @@ docker compose exec redis redis-cli
 docker compose exec redis redis-cli MONITOR
 docker compose exec redis redis-cli INFO stats | grep -E "keyspace_(hits|misses)"
 # keyspace_hits:8
-# keyspace_misses:1
+# keyspace_misses:2
 ```
 
 - Depois do TTL, a próxima leitura volta a ser **miss**: o cache fica eventualmente consistente.
@@ -334,10 +393,28 @@ Um cache pode servir **dados desatualizados**: `@CachePut` / `@CacheEvict` nas e
 
 </div>
 
-- Esquecer `@EnableCaching` ou `type: redis` → nenhum cache compartilhado.
+- Esquecer `@EnableCaching` → as anotações não fazem nada; `type: simple` → um cache por JVM, nenhum compartilhado.
 - Valores binários no `redis-cli` → falta o serializador JSON.
 - `MONITOR` registra **todos os comandos**: use com cuidado em produção.
 - A porta `6379` é publicada só para desenvolvimento; em produção, mantenha o Redis dentro da rede Docker.
+
+---
+
+## Sem Docker: o simulador
+
+<div class="flow">
+<div class="box accent">Execução<small>miss, depois um hit por account-2 · 0,058 s × 0,004 s · TTL 287</small></div>
+<div class="box orange">local × compartilhado<small>dois misses, depois uma leitura desatualizada após um PUT</small></div>
+<div class="box green">TTL e dado desatualizado<small>um UPDATE no psql fica escondido por até 300 s</small></div>
+</div>
+
+- As páginas embutem a pilha do lab como simulador: mesma chave, TTL, anotações e saídas.
+- O play roda uma página passo a passo; os botões (curl, redis-cli, psql) funcionam a qualquer momento.
+- Depois da página Executar, o `INFO stats` mostra `keyspace_hits:8`, `keyspace_misses:2`: 80 % de hits.
+
+<!--
+O simulador está na visão geral (abrindo em "local × compartilhado") e no topo de Executar.
+-->
 
 ---
 

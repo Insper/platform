@@ -30,12 +30,12 @@ O padrão típico em produção é o **cache-aside**: a aplicação consulta pri
 
 ``` mermaid-sim
 flowchart LR
-    app[Serviço] -->|"1. GET account:42"| redis[(Redis)]
+    app[Serviço] -->|"1. GET accounts::42"| redis[(Redis)]
     redis -->|"2a. cache hit → retorna"| app
     redis -->|"2b. cache miss (nil)"| app
     app -->|"3. SELECT * FROM accounts\nWHERE id = 42"| db[(PostgreSQL)]
     db -->|"4. retorna a linha"| app
-    app -->|"5. SET account:42 ...EX 300"| redis
+    app -->|"5. SET accounts::42 ... EX 300"| redis
 ```
 
 ## Redis
@@ -61,10 +61,10 @@ O Redis não é puramente volátil. Dois mecanismos de persistência permitem um
 
 | Modo | Como funciona | Trade-off |
 |---|---|---|
-| **RDB (snapshot)** | Faz um fork do processo e grava em disco um snapshot pontual, em intervalos configurados | Reinícios rápidos; pode perder segundos de dados |
-| **AOF (append-only file)** | Registra cada comando de escrita; é reexecutado no reinício | Perda de dados quase nula; arquivos maiores, reinício mais lento |
-| **RDB + AOF** | Ambos ativos ao mesmo tempo | Recomendado para produção |
-| **Sem persistência** | Puramente em memória; dados perdidos no reinício | Aceitável para um cache puro |
+| **RDB (snapshot)** | Faz um fork do processo e grava em disco um snapshot pontual, em intervalos configurados | ⚠️ Reinícios rápidos; pode perder segundos de dados |
+| **AOF (append-only file)** | Registra cada comando de escrita; é reexecutado no reinício | ✅ Perda de dados quase nula; arquivos maiores, reinício mais lento |
+| **RDB + AOF** | Ambos ativos ao mesmo tempo | ✅ Recomendado para produção |
+| **Sem persistência** | Puramente em memória; dados perdidos no reinício | ⚠️ Aceitável para um cache puro |
 
 Neste hands-on, habilitamos o AOF (`--appendonly yes`), que oferece durabilidade sem sacrificar o desempenho de escrita.
 
@@ -83,7 +83,7 @@ flowchart LR
         nginx e3@==> gw3["gateway\n(réplica 3)"]
         gw1 & gw2 & gw3 --> auth
         gw1 & gw2 & gw3 --> account
-        auth & account e4@-->|"leitura/escrita no cache"| redis["Redis\n:6379"]:::highlighted
+        auth & account e4@-->|"leitura/escrita no cache"| redis["Redis\n:6379"]
         redis -->|"só em cache miss"| db@{ shape: cyl, label: "PostgreSQL" }
     end
     internet e0@==>|":8080"| nginx
@@ -92,10 +92,42 @@ flowchart LR
     e2@{ animate: true }
     e3@{ animate: true }
     e4@{ animate: true }
-    classDef highlighted fill:#fcc
 ```
 
 As três réplicas do gateway compartilham a mesma instância do Redis. Uma entrada de cache gravada pela réplica 1 pode ser lida imediatamente pelas réplicas 2 e 3, eliminando consultas redundantes ao banco, não importa qual instância atenda a próxima requisição.
+
+O cache em si vive nos serviços atrás do gateway: o `account` roda duas réplicas (`deploy.replicas: 2`) e guarda o `findById` em cache. Compare um cache por JVM com um cache compartilhado:
+
+``` mermaid-sim
+sequenceDiagram
+    participant C as Cliente
+    participant A1 as account-1
+    participant A2 as account-2
+    participant R as Redis
+    participant DB as PostgreSQL
+    alt um cache local por JVM
+        C->>A1: GET /accounts/42
+        A1->>DB: SELECT (miss no próprio cache)
+        C->>A2: GET /accounts/42
+        A2->>DB: SELECT de novo (o cache dela está vazio)
+        C->>A1: PUT /accounts/42
+        Note over A1,A2: account-1 atualiza a própria cópia, account-2 fica com a antiga
+    else um Redis compartilhado
+        C->>A1: GET /accounts/42
+        A1->>R: GET accounts::42 (nil)
+        A1->>DB: SELECT
+        A1->>R: SET accounts::42
+        C->>A2: GET /accounts/42
+        A2->>R: GET accounts::42 (hit)
+        Note over A2,DB: uma consulta para as duas réplicas e uma escrita atualiza a única cópia
+    end
+```
+
+<div class="csim" data-sim="account-cache" data-script="replicas"></div>
+
+!!! tip "Experimente"
+
+    Sem Docker à mão? O simulador roda a pilha do lab: lb, três gateways, account-1 e account-2, Redis e PostgreSQL, com a chave (`accounts::42`), o TTL e as anotações do lab; play ou → roda uma página e os botões funcionam a qualquer momento. Em **Execução**, a segunda requisição é um hit mesmo com account-2 respondendo, a medição dá 0,058 s e 0,004 s, o `TTL` responde 287 e o `INFO stats` termina em `keyspace_hits:8` e `keyspace_misses:2` (80%). Em **local × compartilhado**, com `type: simple` as duas réplicas dão miss duas vezes e um `PUT` por account-1 deixa account-2 servindo "Ada Lovelace"; com o Redis, um miss serve as duas. Em **TTL e dado desatualizado**, um `UPDATE` no psql fica invisível até o TTL de 300 s acabar e um 404 nunca vai para o cache.
 
 <div class="grid cards" markdown>
 

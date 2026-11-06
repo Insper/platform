@@ -14,6 +14,10 @@ theme: platform
 {{INCLUDE:scripts/slides/theme.js}}
 </script>
 
+<style>
+{{INCLUDE:scripts/slides/diagram.css}}
+</style>
+
 <div class="kicker">Platforms, Microservices, DevOps and APIs · Hands-on 8</div>
 
 # Hands-on 8 — In-Memory Cache
@@ -42,6 +46,33 @@ The next request for account 42 lands on replica 2. **What happens?**
 
 ---
 
+## One cache per JVM × one shared Redis
+
+<div class="flow" style="align-items: stretch">
+<div class="group">
+<div class="caption">type: simple · ConcurrentMapCache</div>
+<div class="box">account-1<small>its own copy of account 42</small></div>
+<div class="box">account-2<small>another copy, another database query</small></div>
+<div class="box red">PUT through account-1<small>account-2 keeps the old name, with no expiry</small></div>
+</div>
+<div class="group">
+<div class="caption">type: redis</div>
+<div class="box">account-1 · account-2<small>no local copy</small></div>
+<div class="box accent">redis · accounts::42<small>one copy, time to live (TTL) 300 s</small></div>
+<div class="box green">PUT through account-1<small>account-2 reads the new value</small></div>
+</div>
+</div>
+
+- Per JVM: one miss **per replica**, and a write fixes only the replica that made it.
+- Shared: one miss for all replicas; `@CachePut` / `@CacheEvict` act on the only copy.
+
+<!--
+The `account` service runs two replicas in the lab's compose (deploy.replicas: 2); that is where the cache lives.
+The overview page draws both cases as a step-by-step diagram, and the simulator plays them ("local × shared").
+-->
+
+---
+
 ## In-memory databases
 
 | | Disk-based | In-memory |
@@ -57,11 +88,18 @@ The next request for account 42 lands on replica 2. **What happens?**
 
 ## Cache-aside
 
-1. Service → Redis: `GET account:42`
-2. **Hit** → return the value. Done.
-3. **Miss** (`nil`) → Service → PostgreSQL: `SELECT * FROM accounts WHERE id = 42`
-4. The database returns the row.
-5. Service → Redis: `SET account:42 ... EX 300` — the next read is a hit.
+<div class="flow">
+<div class="arrow" style="flex: .4; text-align: left">Hit</div>
+<div class="box">GET accounts::42</div><div class="arrow">→</div>
+<div class="box green">the JSON<small>method body skipped · about 0.004 s</small></div>
+</div>
+<div class="flow">
+<div class="arrow" style="flex: .4; text-align: left">Miss</div>
+<div class="box">GET accounts::42</div><div class="arrow">→</div>
+<div class="box muted">(nil)</div><div class="arrow">→</div>
+<div class="box orange">SELECT in PostgreSQL<small>about 0.058 s</small></div><div class="arrow">→</div>
+<div class="box accent">SET accounts::42<small>TTL 300 s · next read: a hit</small></div>
+</div>
 
 <div class="ok">
 
@@ -105,7 +143,27 @@ This hands-on enables **AOF**: `--appendonly yes`.
 
 ## Architecture
 
-internet → `:8080` **lb** (Nginx) → gateway ×3 → `auth`, `account` → **Redis** `:6379` → PostgreSQL *(on a miss only)*
+<div class="flow" style="align-items: stretch">
+<div class="box muted" style="flex: .6; display: flex; flex-direction: column; justify-content: center">internet</div>
+<div class="arrow" style="align-self: center">:8080 →</div>
+<div class="box" style="flex: .7; display: flex; flex-direction: column; justify-content: center">lb<small>Nginx</small></div>
+<div class="arrow" style="align-self: center">→</div>
+<div class="group">
+<div class="caption">gateway ×3</div>
+<div class="box">gateway-1</div><div class="box">gateway-2</div><div class="box">gateway-3</div>
+</div>
+<div class="arrow" style="align-self: center">→</div>
+<div class="group">
+<div class="caption">services</div>
+<div class="box">auth</div><div class="box">account ×2</div>
+</div>
+<div class="arrow" style="align-self: center">→</div>
+<div class="group">
+<div class="caption">data</div>
+<div class="box accent">redis<small>:6379 · read first</small></div>
+<div class="box orange">PostgreSQL<small>on a miss only</small></div>
+</div>
+</div>
 
 - All replicas share **one** Redis: an entry written via replica 1 is readable via replicas 2 and 3.
 - Steps: **1** Docker Compose → **2** Spring Boot → **3** run and measure.
@@ -300,6 +358,7 @@ docker compose logs account --tail 20        # no database query this time
 ## 3 · Measure
 
 ```bash
+docker compose exec redis redis-cli DEL "accounts::42"   # or the "miss" is a hit too
 curl -o /dev/null -s -w "Cache miss: %{time_total}s\n" http://localhost:8080/accounts/42
 curl -o /dev/null -s -w "Cache hit:  %{time_total}s\n" http://localhost:8080/accounts/42
 ```
@@ -317,7 +376,7 @@ docker compose exec redis redis-cli
 docker compose exec redis redis-cli MONITOR
 docker compose exec redis redis-cli INFO stats | grep -E "keyspace_(hits|misses)"
 # keyspace_hits:8
-# keyspace_misses:1
+# keyspace_misses:2
 ```
 
 - After the TTL, the next read is a **miss** again: the cache stays eventually consistent.
@@ -334,10 +393,28 @@ A cache can serve **stale data**: `@CachePut` / `@CacheEvict` on writes and a **
 
 </div>
 
-- Forgetting `@EnableCaching` or `type: redis` → no shared cache.
+- Forgetting `@EnableCaching` → the annotations do nothing; `type: simple` → one cache per JVM, none shared.
 - Binary values in `redis-cli` → JSON serialiser missing.
 - `MONITOR` logs **every command**: use with caution in production.
 - Port `6379` is published only for development; in production keep Redis inside the Docker network.
+
+---
+
+## Without Docker: the simulator
+
+<div class="flow">
+<div class="box accent">Run<small>miss, then a hit through account-2 · 0.058 s × 0.004 s · TTL 287</small></div>
+<div class="box orange">local × shared<small>two misses, then a stale read after a PUT</small></div>
+<div class="box green">TTL and stale data<small>a psql UPDATE stays hidden for up to 300 s</small></div>
+</div>
+
+- The pages embed the lab's stack as a simulator: same key, TTL, annotations and outputs.
+- Play runs a page step by step; the buttons (curl, redis-cli, psql) work at any time.
+- After the Run page, `INFO stats` reads `keyspace_hits:8`, `keyspace_misses:2`: 80 % hits.
+
+<!--
+The simulator sits on the overview (opening on "local × shared") and at the top of Run.
+-->
 
 ---
 

@@ -41,7 +41,7 @@ spring:
 | Propriedade | Valor | Significado |
 |---|---|---|
 | `host` / `port` | variáveis de ambiente | Resolvidos a partir do ambiente do Docker Compose em tempo de execução |
-| `type: redis` | — | Força o Spring Cache a usar o Redis; desativa o `ConcurrentMapCache` padrão, em memória |
+| `type: redis` | — | Força o Spring Cache a usar o Redis; desativa o `ConcurrentMapCache` padrão, em memória (um por JVM, sem TTL) |
 | `time-to-live` | 300 000 ms | As chaves expiram automaticamente após 5 minutos — evita dados desatualizados indefinidamente |
 | `cache-null-values` | false | Não guarda resultados `null` em cache; permite consultar de novo quando um registro ainda não existe |
 
@@ -148,3 +148,32 @@ Com essa configuração, executar `redis-cli GET "accounts::42"` retorna uma str
 | `@Cacheable` | Operações de leitura (GET) | Retorna o valor em cache; executa só em caso de miss |
 | `@CachePut` | Operações de escrita (PUT/PATCH) | Sempre executa; atualiza o cache com o resultado |
 | `@CacheEvict` | Operações de exclusão (DELETE) | Executa; remove a chave do cache |
+
+As três anotações sobre uma conta, como o Redis as vê (o `MONITOR` da página [Executar](../run/index.md) mostra os mesmos comandos):
+
+``` mermaid-sim
+sequenceDiagram
+    participant C as Cliente
+    participant S as AccountService (proxy)
+    participant R as Redis
+    participant DB as PostgreSQL
+    C->>S: GET /accounts/42 (@Cacheable)
+    S->>R: GET accounts::42
+    R-->>S: (nil): um miss
+    S->>DB: findById roda
+    S->>R: SET accounts::42, TTL 300 s
+    C->>S: GET /accounts/42 (@Cacheable)
+    S->>R: GET accounts::42
+    R-->>S: o JSON: um hit, o corpo do método é pulado
+    C->>S: PUT /accounts/42 (@CachePut)
+    S->>DB: update roda
+    S->>R: SET accounts::42 com o valor novo
+    C->>S: DELETE /accounts/42 (@CacheEvict)
+    S->>DB: delete roda
+    S->>R: DEL accounts::42
+```
+
+!!! warning "Armadilhas comuns"
+    - Esquecer `@EnableCaching`: as anotações não fazem nada. Com `type: simple` (ou sem o starter do Redis), cada réplica guarda o próprio `ConcurrentMapCache` — nenhum cache compartilhado.
+    - Valores binários no `redis-cli`: falta o serializador JSON (`RedisConfig`).
+    - Um cache pode servir **dados desatualizados**: `@CachePut` / `@CacheEvict` nas escritas e um TTL o mantêm eventualmente consistente. Uma mudança feita pelas costas do serviço (direto no banco) fica invisível até o TTL acabar.

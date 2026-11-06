@@ -41,7 +41,7 @@ spring:
 | Property | Value | Meaning |
 |---|---|---|
 | `host` / `port` | env vars | Resolved from Docker Compose environment at runtime |
-| `type: redis` | — | Forces Spring Cache to use Redis; disables the default in-memory `ConcurrentMapCache` |
+| `type: redis` | — | Forces Spring Cache to use Redis; disables the default in-memory `ConcurrentMapCache` (one per JVM, with no TTL) |
 | `time-to-live` | 300 000 ms | Keys expire automatically after 5 minutes — prevents stale data indefinitely |
 | `cache-null-values` | false | Do not cache `null` results; allows re-query when a record doesn't exist yet |
 
@@ -148,3 +148,32 @@ With this configuration, running `redis-cli GET "accounts::42"` returns a human-
 | `@Cacheable` | Read (GET) operations | Return cached; execute only on miss |
 | `@CachePut` | Write (PUT/PATCH) operations | Always execute; update cache with result |
 | `@CacheEvict` | Delete (DELETE) operations | Execute; remove key from cache |
+
+The three annotations on one account, as Redis sees them (the `MONITOR` of the [Run](../run/index.md) page shows the same commands):
+
+``` mermaid-sim
+sequenceDiagram
+    participant C as Client
+    participant S as AccountService (proxy)
+    participant R as Redis
+    participant DB as PostgreSQL
+    C->>S: GET /accounts/42 (@Cacheable)
+    S->>R: GET accounts::42
+    R-->>S: (nil): a miss
+    S->>DB: findById runs
+    S->>R: SET accounts::42, TTL 300 s
+    C->>S: GET /accounts/42 (@Cacheable)
+    S->>R: GET accounts::42
+    R-->>S: the JSON: a hit, the method body is skipped
+    C->>S: PUT /accounts/42 (@CachePut)
+    S->>DB: update runs
+    S->>R: SET accounts::42 with the new value
+    C->>S: DELETE /accounts/42 (@CacheEvict)
+    S->>DB: delete runs
+    S->>R: DEL accounts::42
+```
+
+!!! warning "Common pitfalls"
+    - Forgetting `@EnableCaching`: the annotations do nothing. With `type: simple` (or without the Redis starter), each replica keeps its own `ConcurrentMapCache` — no shared cache.
+    - Binary values in `redis-cli`: the JSON serialiser (`RedisConfig`) is missing.
+    - A cache can serve **stale data**: `@CachePut` / `@CacheEvict` on the writes and a TTL keep it eventually consistent. A change made behind the service's back (straight in the database) stays invisible until the TTL runs out.

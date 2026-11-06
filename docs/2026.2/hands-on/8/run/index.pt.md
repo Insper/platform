@@ -1,3 +1,9 @@
+<div class="csim" data-sim="account-cache" data-script="run"></div>
+
+!!! tip "Experimente"
+
+    Sem Docker à mão? O simulador roda a pilha do lab: lb, três gateways, account-1 e account-2, Redis e PostgreSQL, com a chave (`accounts::42`), o TTL e as anotações do lab; play ou → roda uma página e os botões funcionam a qualquer momento. Em **Execução**, a segunda requisição é um hit mesmo com account-2 respondendo, a medição dá 0,058 s e 0,004 s, o `TTL` responde 287 e o `INFO stats` termina em `keyspace_hits:8` e `keyspace_misses:2` (80%). Em **local × compartilhado**, sem `type: redis` as duas réplicas dão miss duas vezes e um `PUT` por account-1 deixa account-2 servindo "Ada Lovelace"; com o Redis, um miss serve as duas. Em **TTL e dado desatualizado**, um `UPDATE` no psql fica invisível até o TTL de 300 s acabar e um 404 nunca vai para o cache.
+
 Reconstrua e suba a stack completa com o Redis:
 
 ``` { .bash .copy .select }
@@ -79,9 +85,36 @@ docker compose logs account --tail 20
 
 Se o cache estiver funcionando, você verá uma linha de log para a primeira requisição, mas **nenhuma** para a segunda.
 
+As duas requisições lado a lado. O Nginx e o Docker as espalham pelas réplicas, então a segunda pode cair na outra réplica de `account`: mesmo assim é um hit, porque as duas leem o mesmo Redis.
+
+``` mermaid-sim
+sequenceDiagram
+    participant C as curl
+    participant G as lb e gateway
+    participant A as account
+    participant R as redis
+    participant DB as db
+    C->>G: GET /accounts/42 (primeira)
+    G->>A: GET /accounts/42
+    A->>R: GET accounts::42
+    R-->>A: (nil)
+    A->>DB: SELECT ... WHERE id = '42'
+    A->>R: SET accounts::42 ... PX 300000
+    A-->>C: 200, cerca de 0,058 s
+    C->>G: GET /accounts/42 (segunda)
+    G->>A: GET /accounts/42
+    A->>R: GET accounts::42
+    R-->>A: o JSON
+    A-->>C: 200, cerca de 0,004 s, sem SELECT
+```
+
 ## Medir a diferença de latência
 
-Use a saída de tempos embutida do `curl` para comparar os tempos de resposta:
+Use a saída de tempos embutida do `curl` para comparar os tempos de resposta. A chave ainda está no cache por causa das requisições acima, então apague-a antes — senão o "miss" abaixo também é um hit:
+
+``` { .bash .copy .select }
+docker compose exec redis redis-cli DEL "accounts::42"
+```
 
 ``` { .bash .copy .select }
 curl -o /dev/null -s -w "Cache miss: %{time_total}s\n" http://localhost:8080/accounts/42
@@ -110,6 +143,19 @@ TTL "accounts::42"
 
 Quando o TTL chega a 0, o Redis remove a chave automaticamente. A próxima requisição será um cache miss e o banco de dados será consultado de novo — mantendo o cache eventualmente consistente com o banco.
 
+``` mermaid-sim
+stateDiagram-v2
+    state "ausente" as absent
+    state "em cache" as cached
+    [*] --> absent
+    absent --> cached: GET com miss, depois SET com TTL de 300 s
+    cached --> cached: GET com hit (o TTL continua descendo)
+    cached --> cached: PUT, @CachePut grava o valor novo
+    cached --> absent: o TTL chega a 0
+    cached --> absent: DELETE, @CacheEvict
+    absent --> absent: GET de um id inexistente, 404 não vai para o cache
+```
+
 ## Monitorar a taxa de acertos do cache
 
 Observe a atividade do cache em tempo real com o comando `MONITOR`, embutido no Redis (use com cuidado em produção — ele registra todos os comandos):
@@ -128,8 +174,10 @@ docker compose exec redis redis-cli INFO stats | grep -E "keyspace_(hits|misses)
 
 ```
 keyspace_hits:8
-keyspace_misses:1
+keyspace_misses:2
 ```
+
+Estes são os números depois dos passos desta página, com quatro requisições durante o `MONITOR`: dois misses (a primeira requisição e a que vem depois do `DEL`) e oito hits — o `GET` e o `TTL` do próprio `redis-cli` também contam como leituras. Os seus números dependem de quantas requisições você enviou.
 
 Uma taxa de acertos saudável fica acima de 90% em workloads com muitas leituras. Se a taxa de misses estiver alta, considere aumentar o TTL ou pré-aquecer o cache na inicialização.
 

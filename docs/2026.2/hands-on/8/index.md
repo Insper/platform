@@ -30,12 +30,12 @@ The typical production pattern is **cache-aside**: the application checks the in
 
 ``` mermaid-sim
 flowchart LR
-    app[Service] -->|"1. GET account:42"| redis[(Redis)]
+    app[Service] -->|"1. GET accounts::42"| redis[(Redis)]
     redis -->|"2a. cache hit → return"| app
     redis -->|"2b. cache miss (nil)"| app
     app -->|"3. SELECT * FROM accounts\nWHERE id = 42"| db[(PostgreSQL)]
     db -->|"4. return row"| app
-    app -->|"5. SET account:42 ...EX 300"| redis
+    app -->|"5. SET accounts::42 ... EX 300"| redis
 ```
 
 ## Redis
@@ -61,10 +61,10 @@ Redis is not purely volatile. Two persistence mechanisms allow controlled durabi
 
 | Mode | How it works | Trade-off |
 |---|---|---|
-| **RDB (snapshot)** | Forks the process and writes a point-in-time snapshot to disk at configured intervals | Fast restarts; may lose seconds of data |
-| **AOF (append-only file)** | Logs every write command; replayed on restart | Near-zero data loss; larger files, slower restart |
-| **RDB + AOF** | Both active simultaneously | Recommended for production |
-| **No persistence** | Pure in-memory; data lost on restart | Acceptable for a pure cache |
+| **RDB (snapshot)** | Forks the process and writes a point-in-time snapshot to disk at configured intervals | ⚠️ Fast restarts; may lose seconds of data |
+| **AOF (append-only file)** | Logs every write command; replayed on restart | ✅ Near-zero data loss; larger files, slower restart |
+| **RDB + AOF** | Both active simultaneously | ✅ Recommended for production |
+| **No persistence** | Pure in-memory; data lost on restart | ⚠️ Acceptable for a pure cache |
 
 For this hands-on we enable AOF (`--appendonly yes`), providing durability without sacrificing write performance.
 
@@ -83,7 +83,7 @@ flowchart LR
         nginx e3@==> gw3["gateway\n(replica 3)"]
         gw1 & gw2 & gw3 --> auth
         gw1 & gw2 & gw3 --> account
-        auth & account e4@-->|"cache read/write"| redis["Redis\n:6379"]:::highlighted
+        auth & account e4@-->|"cache read/write"| redis["Redis\n:6379"]
         redis -->|"cache miss only"| db@{ shape: cyl, label: "PostgreSQL" }
     end
     internet e0@==>|":8080"| nginx
@@ -92,10 +92,42 @@ flowchart LR
     e2@{ animate: true }
     e3@{ animate: true }
     e4@{ animate: true }
-    classDef highlighted fill:#fcc
 ```
 
 All three gateway replicas share the same Redis instance. A cache entry written by replica 1 is immediately readable by replicas 2 and 3, eliminating redundant database queries regardless of which instance handles the next request.
+
+The cache itself lives in the services behind the gateway: `account` runs two replicas (`deploy.replicas: 2`) and caches `findById`. Compare one cache per JVM with one shared cache:
+
+``` mermaid-sim
+sequenceDiagram
+    participant C as Client
+    participant A1 as account-1
+    participant A2 as account-2
+    participant R as Redis
+    participant DB as PostgreSQL
+    alt one local cache per JVM
+        C->>A1: GET /accounts/42
+        A1->>DB: SELECT (miss in its own cache)
+        C->>A2: GET /accounts/42
+        A2->>DB: SELECT again (its cache is empty)
+        C->>A1: PUT /accounts/42
+        Note over A1,A2: account-1 updates its own copy, account-2 keeps the old one
+    else one shared Redis
+        C->>A1: GET /accounts/42
+        A1->>R: GET accounts::42 (nil)
+        A1->>DB: SELECT
+        A1->>R: SET accounts::42
+        C->>A2: GET /accounts/42
+        A2->>R: GET accounts::42 (hit)
+        Note over A2,DB: one query for both replicas, and a write updates the only copy
+    end
+```
+
+<div class="csim" data-sim="account-cache" data-script="replicas"></div>
+
+!!! tip "Try it"
+
+    No Docker at hand? The simulator runs the lab's stack: lb, three gateways, account-1 and account-2, Redis and PostgreSQL, with the lab's key (`accounts::42`), TTL and annotations; play or → runs a page, and the buttons work at any time. In **Run**, the second request is a hit even though account-2 answers, the measurement gives 0.058 s and 0.004 s, `TTL` answers 287 and `INFO stats` ends at `keyspace_hits:8` and `keyspace_misses:2` (80%). In **local × shared**, with `type: simple` the two replicas miss twice and a `PUT` through account-1 leaves account-2 serving "Ada Lovelace"; with Redis, one miss serves both. In **TTL and stale data**, an `UPDATE` in psql stays invisible until the 300 s TTL runs out, and a 404 is never cached.
 
 <div class="grid cards" markdown>
 
