@@ -105,13 +105,12 @@ Adding Nginx as a load balancer changes the entry point of the platform. The gat
     ``` mermaid-sim
     flowchart LR
         subgraph api [Trusted Layer]
-            gateway:::orange --> auth
+            gateway --> auth
             gateway --> account
             account --> db@{ shape: cyl, label: "Database" }
         end
         internet e1@==>|":8080"| gateway
         e1@{ animate: true }
-        classDef orange fill:#FCBE3E
     ```
 
 === "After"
@@ -119,7 +118,7 @@ Adding Nginx as a load balancer changes the entry point of the platform. The gat
     ``` mermaid-sim
     flowchart LR
         subgraph lb [Load Balancer Layer]
-            nginx["lb · Nginx\n:80"]:::highlighted
+            nginx["lb · Nginx\n:80"]
         end
         subgraph api [Trusted Layer]
             gw1["gateway\n(replica 1)"]
@@ -139,7 +138,6 @@ Adding Nginx as a load balancer changes the entry point of the platform. The gat
         e1@{ animate: true }
         e2@{ animate: true }
         e3@{ animate: true }
-        classDef highlighted fill:#fcc
     ```
 
 The steps to implement this are:
@@ -171,3 +169,11 @@ The steps to implement this are:
     [Run](./run/){ .md-button }
 
 </div>
+
+## The lab in the browser { #simulator }
+
+<div class="csim" data-sim="nginx-upstream" data-script="run"></div>
+
+!!! tip "Try it"
+
+    Before Docker, the same stack in the browser: lb (Nginx) on host port 8080, three gateway replicas and the lab's `nginx.conf`. Play or → runs the page's commands; the buttons work at any time. The loop gets 3 answers from each replica. After `--scale gateway=5` it gets still 3 hostnames until `nginx -s reload`, then 5. In **A replica stops**, `docker stop store-gateway-2`: the client still gets 9 answers, with 1 failed attempt in the lb's log and a loop of 3.4 s instead of 0.5 s; Nginx then skips that replica for 10 s. In **One replica**, the same stop gives 502 Bad Gateway: there is no other replica to pass the request to.

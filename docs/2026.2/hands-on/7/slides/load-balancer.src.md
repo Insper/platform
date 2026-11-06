@@ -14,6 +14,10 @@ theme: platform
 {{INCLUDE:scripts/slides/theme.js}}
 </script>
 
+<style>
+{{INCLUDE:scripts/slides/diagram.css}}
+</style>
+
 <div class="kicker">Platforms, Microservices, DevOps and APIs · Hands-on 7</div>
 
 # Hands-on 7 — Load Balancer
@@ -102,25 +106,22 @@ Here **Nginx is a reverse proxy**: the only component exposed, spreading traffic
 
 ## Architecture
 
-<div class="cols">
-<div>
-
-### Before
-
-internet → `:8080` **gateway** → `auth`, `account` → database
-
-The gateway is exposed directly.
-
+<div class="flow">
+<div class="arrow" style="flex: .45; text-align: left">Before</div>
+<div class="box muted">internet</div><div class="arrow">:8080 →</div>
+<div class="box red">gateway<small>exposed directly · one instance</small></div><div class="arrow">→</div>
+<div class="box">auth, account<small>→ database</small></div>
 </div>
-<div>
-
-### After
-
-internet → `:8080` **lb** (Nginx `:80`) → gateway ×3 → `auth`, `account` → database
-
-Only Nginx is reachable from outside the Docker network.
-
+<div class="flow" style="align-items: stretch">
+<div class="arrow" style="flex: .45; text-align: left; align-self: center">After</div>
+<div class="box muted" style="display: flex; flex-direction: column; justify-content: center">internet</div><div class="arrow" style="align-self: center">:8080 →</div>
+<div class="box accent" style="display: flex; flex-direction: column; justify-content: center">lb · Nginx :80<small>the only exposed component</small></div><div class="arrow" style="align-self: center">→</div>
+<div class="group">
+<div class="caption">no ports published</div>
+<div class="box green">gateway-1</div><div class="box green">gateway-2</div><div class="box green">gateway-3</div>
 </div>
+<div class="arrow" style="align-self: center">→</div>
+<div class="box" style="display: flex; flex-direction: column; justify-content: center">auth, account<small>→ database</small></div>
 </div>
 
 Steps: **1** `nginx.conf` → **2** `compose.yaml` (`lb` + gateway replicas) → **3** run and verify.
@@ -153,7 +154,7 @@ http {
 
 | Directive | Purpose |
 |---|---|
-| `upstream gateways` | the pool of backends; Docker DNS expands `gateway:8080` to **all replica IPs** |
+| `upstream gateways` | the pool of backends; Docker's Domain Name System (DNS) expands `gateway:8080` to **all replica IPs** |
 | _(no algorithm line)_ | default **Round Robin**; `least_conn;` would send the next request → fewest active connections |
 | `proxy_pass` | forwards the request to the upstream pool |
 | `X-Real-IP` | original client IP for the backend |
@@ -166,9 +167,12 @@ http {
 
 ## 1 · How Nginx finds the replicas
 
-1. Compose starts **3 replicas** of `gateway`.
-2. Docker's internal DNS resolves the name `gateway` to **every replica IP**.
-3. Nginx queries that record **once, at startup**, and builds the upstream pool.
+<div class="flow">
+<div class="box">Compose<small>starts 3 replicas of gateway</small></div><div class="arrow">→</div>
+<div class="box accent">Docker DNS<small>gateway → every replica IP</small></div><div class="arrow">once, at startup →</div>
+<div class="box green">upstream gateways<small>3 peers</small></div><div class="arrow">--scale 5 →</div>
+<div class="box orange">still 3 peers<small>replicas 4 and 5 idle</small></div>
+</div>
 
 <div class="warn">
 
@@ -243,13 +247,42 @@ docker compose ps gateway                  # confirm the count
 docker compose up -d --scale gateway=1     # scale down
 ```
 
-<div class="ok">
+<p class="small">After scaling down and reloading, Nginx stops routing to the containers that are gone. Before the reload, it still tries their IPs: slower answers, a log full of failed attempts.</p>
 
-If one replica crashes, Docker restarts it and Nginx keeps routing to the healthy ones: the failure is **transparent to clients**.
+---
 
+## When a replica stops
+
+<div class="flow">
+<div class="box">GET /health-check</div><div class="arrow">→</div>
+<div class="box red">gateway-2 · stopped<small>113: Host is unreachable</small></div><div class="arrow">next upstream →</div>
+<div class="box green">gateway-3<small>200 to the client</small></div><div class="arrow">then</div>
+<div class="box orange">gateway-2 off for 10 s<small>max_fails=1 · fail_timeout=10s</small></div>
 </div>
 
-<p class="small">After scaling down and reloading, Nginx stops routing to the containers that are gone.</p>
+- The lab's `nginx.conf` sets neither value: these are Nginx's **defaults**, a **passive** health check.
+- 3 replicas, one stopped: every request answered, one slow request every 10 s.
+- 1 replica, stopped: **502 Bad Gateway** — nobody to pass the request to.
+
+<!--
+The Run page has the commands (docker stop store-gateway-2, the loop, docker compose logs lb) and the step-by-step diagram.
+-->
+---
+
+## Without Docker: the simulator
+
+<div class="flow">
+<div class="box accent">Run<small>3 answers per replica; --scale 5: still 3 until the reload</small></div>
+<div class="box orange">A replica stops<small>9 answers, 1 failed attempt, 3.4 s</small></div>
+<div class="box red">One replica<small>stopped: 502</small></div>
+</div>
+
+- The pages embed the lab's lb and gateways: same `nginx.conf`, same commands, same outputs.
+- Play runs a page step by step; the buttons work at any time; try `ip_hash` or `random`.
+
+<!--
+The simulator sits on the overview (opening on Run) and in "When a replica stops" on the Run page.
+-->
 
 ---
 

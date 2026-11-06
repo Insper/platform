@@ -105,13 +105,12 @@ Adicionar o Nginx como balanceador de carga muda o ponto de entrada da plataform
     ``` mermaid-sim
     flowchart LR
         subgraph api [Camada confiável]
-            gateway:::orange --> auth
+            gateway --> auth
             gateway --> account
             account --> db@{ shape: cyl, label: "Banco de dados" }
         end
         internet e1@==>|":8080"| gateway
         e1@{ animate: true }
-        classDef orange fill:#FCBE3E
     ```
 
 === "Depois"
@@ -119,7 +118,7 @@ Adicionar o Nginx como balanceador de carga muda o ponto de entrada da plataform
     ``` mermaid-sim
     flowchart LR
         subgraph lb [Camada de balanceamento de carga]
-            nginx["lb · Nginx\n:80"]:::highlighted
+            nginx["lb · Nginx\n:80"]
         end
         subgraph api [Camada confiável]
             gw1["gateway\n(réplica 1)"]
@@ -139,7 +138,6 @@ Adicionar o Nginx como balanceador de carga muda o ponto de entrada da plataform
         e1@{ animate: true }
         e2@{ animate: true }
         e3@{ animate: true }
-        classDef highlighted fill:#fcc
     ```
 
 Os passos para implementar isso são:
@@ -171,3 +169,11 @@ Os passos para implementar isso são:
     [Executar](./run/){ .md-button }
 
 </div>
+
+## O lab no navegador { #simulator }
+
+<div class="csim" data-sim="nginx-upstream" data-script="run"></div>
+
+!!! tip "Experimente"
+
+    Antes do Docker, a mesma pilha no navegador: lb (Nginx) na porta 8080 do host, três réplicas do gateway e o `nginx.conf` do lab. Play ou → roda os comandos da página; os botões funcionam a qualquer momento. O loop recebe 3 respostas de cada réplica. Depois de `--scale gateway=5` ele recebe ainda 3 hostnames até o `nginx -s reload` e depois 5. Em **Uma réplica para**, `docker stop store-gateway-2`: o cliente ainda recebe 9 respostas, com 1 tentativa falha no log do lb e um loop de 3,4 s em vez de 0,5 s; depois o Nginx pula essa réplica por 10 s. Em **Uma réplica**, a mesma parada dá 502 Bad Gateway: não há outra réplica para quem passar a requisição.
