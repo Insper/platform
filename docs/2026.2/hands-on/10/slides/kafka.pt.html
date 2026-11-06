@@ -85,7 +85,7 @@ Agora precisamos enviar um <strong>e-mail de confirmação</strong>. Mais uma ch
 </ul>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="3" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="3" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="14">
-<h2 id="arquitetura">Arquitetura</h2>
+<h2 id="1--arquitetura">1 · Arquitetura</h2>
 <div class="cols">
 <div>
 <h3 id="antes">Antes</h3>
@@ -103,16 +103,17 @@ Agora precisamos enviar um <strong>e-mail de confirmação</strong>. Mais uma ch
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="4" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="4" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="14">
 <h2 id="os-passos">Os passos</h2>
-<ol>
+<ol start="2">
 <li><strong>Docker Compose</strong> — adicionar o Kafka (modo KRaft, sem ZooKeeper) e o Kafka UI.</li>
 <li><strong>order-service</strong> — <code>spring-kafka</code>, o record <code>OrderCreatedEvent</code>, config do producer, publisher.</li>
 <li><strong>notification-service</strong> — um novo consumer em Python / FastAPI.</li>
-<li><strong>Teste</strong> — criar um pedido, ver o evento no Kafka UI e nos logs de notificação.</li>
+<li><strong>Testes</strong> — criar um pedido, ver o evento no Kafka UI e nos logs de notificação.</li>
 <li><strong>Confiabilidade</strong> — dead letter queue e consumers idempotentes.</li>
 </ol>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="5" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="5" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="14">
-<h2 id="1--docker-compose">1 · Docker Compose</h2>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="5" data-paginate="true" data-class="tight" data-lang="pt-BR" data-theme="platform" lang="pt-BR" class="tight" data-marpit-pagination="5" style="--paginate:true;--class:tight;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="14">
+<h2 id="2--docker-compose">2 · Docker Compose</h2>
+<p>Dois serviços novos no <code>docker-compose.yml</code>:</p>
 <table>
 <thead>
 <tr>
@@ -139,14 +140,14 @@ Agora precisamos enviar um <strong>e-mail de confirmação</strong>. Mais uma ch
 </table>
 <p>Configurações principais do Kafka:</p>
 <ul>
-<li><code>KAFKA_PROCESS_ROLES: broker,controller</code> — <strong>KRaft</strong>: o Kafka guarda os próprios metadados; o ZooKeeper foi removido no Kafka 4.0.</li>
+<li><code>KAFKA_PROCESS_ROLES: broker,controller</code> — <strong>KRaft</strong>: um nó é broker e controller (quórum em <code>CONTROLLER://:9093</code>); o ZooKeeper foi removido no Kafka 4.0.</li>
 <li><code>KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092</code> — clientes se conectam pelo nome do serviço.</li>
 <li><code>KAFKA_AUTO_CREATE_TOPICS_ENABLE: &quot;true&quot;</code> — <code>order-events</code> é criado na primeira publicação.</li>
 <li><code>KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1</code> — um único broker em desenvolvimento.</li>
 </ul>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="6" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="6" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="14">
-<h2 id="2--order-service-o-evento">2 · order-service: o evento</h2>
+<h2 id="3--order-service-o-evento">3 · order-service: o evento</h2>
 <div class="cols">
 <div>
 <p><code>pom.xml</code>:</p>
@@ -170,7 +171,7 @@ Agora precisamos enviar um <strong>e-mail de confirmação</strong>. Mais uma ch
 <p class="small">Um record: imutável, como o fato que ele representa.</p>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="7" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="7" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="14">
-<h2 id="2--configura%C3%A7%C3%A3o-do-producer">2 · Configuração do producer</h2>
+<h2 id="3--configura%C3%A7%C3%A3o-do-producer">3 · Configuração do producer</h2>
 <pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-yaml"><span class="hljs-attr">spring:</span>
   <span class="hljs-attr">kafka:</span>
     <span class="hljs-attr">bootstrap-servers:</span> <span class="hljs-string">kafka:9092</span>
@@ -185,7 +186,7 @@ Agora precisamos enviar um <strong>e-mail de confirmação</strong>. Mais uma ch
 <p class="small"><code>acks: all</code> espera todas as réplicas sincronizadas antes de confirmar. Sem efeito com um único broker; em produção, evita perda de dados no failover de um broker.</p>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="8" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="8" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="14">
-<h2 id="2--publicando">2 · Publicando</h2>
+<h2 id="3--publicando">3 · Publicando</h2>
 <pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-java"><span class="hljs-meta">@Component</span>
 <span class="hljs-meta">@RequiredArgsConstructor</span>
 <span class="hljs-keyword">public</span> <span class="hljs-keyword">class</span> <span class="hljs-title class_">OrderEventPublisher</span> {
@@ -202,7 +203,7 @@ Agora precisamos enviar um <strong>e-mail de confirmação</strong>. Mais uma ch
 <p class="small">Tópico <code>order-events</code>, chave = id do pedido, valor = o evento em JSON.</p>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="9" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="9" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="14">
-<h2 id="3--notification-service-python--fastapi">3 · notification-service (Python / FastAPI)</h2>
+<h2 id="4--notification-service-python--fastapi">4 · notification-service (Python / FastAPI)</h2>
 <div class="cols">
 <div>
 <pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-text">notification-service/
@@ -226,7 +227,7 @@ uvicorn==0.29.0
 </div>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="10" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="10" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="14">
-<h2 id="3--o-consumer">3 · O consumer</h2>
+<h2 id="4--o-consumer">4 · O consumer</h2>
 <pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-python">consumer = KafkaConsumer(
     <span class="hljs-string">&quot;order-events&quot;</span>,
     bootstrap_servers=<span class="hljs-string">&quot;kafka:9092&quot;</span>,
@@ -243,7 +244,7 @@ uvicorn==0.29.0
 <p class="small"><code>enable_auto_commit=False</code> + <code>commit()</code> depois do processamento: uma queda no meio do processamento faz a mensagem ser consumida de novo — <strong>at-least-once</strong>.</p>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="11" data-paginate="true" data-class="tight" data-lang="pt-BR" data-theme="platform" lang="pt-BR" class="tight" data-marpit-pagination="11" style="--paginate:true;--class:tight;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="14">
-<h2 id="4--teste">4 · Teste</h2>
+<h2 id="5--testes">5 · Testes</h2>
 <pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-bash">docker compose up --build -d
 docker compose ps        <span class="hljs-comment"># kafka, kafka-ui, notification-service, order-service</span>
 curl -s -X POST http://localhost:8080/orders \
@@ -258,7 +259,7 @@ docker compose logs notification-service
 </ul>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="12" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="12" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="14">
-<h2 id="5--quando-o-processamento-falha-dlq">5 · Quando o processamento falha: DLQ</h2>
+<h2 id="6--confiabilidade-dead-letter-queue">6 · Confiabilidade: dead letter queue</h2>
 <p>Uma mensagem que falha sempre não pode <strong>travar o fluxo</strong>. Envie-a para <code>order-events-dlq</code>:</p>
 <pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-python"><span class="hljs-keyword">try</span>:
     process_event(event)
@@ -268,7 +269,7 @@ docker compose logs notification-service
     dlq_producer.send(<span class="hljs-string">&quot;order-events-dlq&quot;</span>, value=event)
     consumer.commit()
 </code></pre>
-<p class="small">Nos dois casos o offset avança: o fluxo principal continua, e a DLQ é inspecionada depois.</p>
+<p class="small">Nos dois casos o offset avança: o fluxo principal continua e a DLQ é inspecionada depois.</p>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="13" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="13" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="14">
 <h2 id="armadilhas">Armadilhas</h2>

@@ -64,6 +64,21 @@ Instrument every Spring Boot service with **OpenTelemetry** so that one request 
 
 ---
 
+## Architecture
+
+- Trusted layer as before: load balancer → gateway → `order`, `account`; `order` → `product`, PostgreSQL.
+- **New**: gateway, order, account and product export **OTLP traces** to Jaeger (`:4317`).
+- Prometheus keeps **scraping** `/actuator/prometheus` on the same services → Grafana `:3000`.
+- Jaeger (`:16686` UI) joins Prometheus and Grafana in the **observability layer**.
+
+<div class="ok">
+
+Two pipelines side by side: metrics are **scraped** by Prometheus, traces are **pushed** by each service's agent.
+
+</div>
+
+---
+
 ## The vocabulary
 
 | Term | What it is |
@@ -93,7 +108,7 @@ Instrument every Spring Boot service with **OpenTelemetry** so that one request 
       - store-net
 ```
 
-<p class="small">All-in-one is fine for local development; in production the collector, query and UI run separately.</p>
+<p class="small">All-in-one is fine for local development; in production the collector, query and UI run separately. The agent defaults to <b>gRPC on 4317</b>; 4318 is OTLP over HTTP/protobuf.</p>
 
 ---
 
@@ -265,7 +280,7 @@ A manual span without `span.end()` in a `finally` is **never exported** to Jaege
 - Manual spans on everything → **noise** that hides the useful data.
 
 <!--
-The localhost-vs-service-name point is a well-known Compose mistake, not stated verbatim in the page.
+The localhost-vs-service-name point: see the warning "`localhost` inside a container" on the page.
 -->
 
 ---

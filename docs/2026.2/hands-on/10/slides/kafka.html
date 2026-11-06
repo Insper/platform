@@ -85,7 +85,7 @@ Now we must send a <strong>confirmation email</strong>. Add one more REST call?<
 </ul>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="3" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="3" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="14">
-<h2 id="architecture">Architecture</h2>
+<h2 id="1--architecture">1 · Architecture</h2>
 <div class="cols">
 <div>
 <h3 id="before">Before</h3>
@@ -103,16 +103,17 @@ Now we must send a <strong>confirmation email</strong>. Add one more REST call?<
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="4" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="4" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="14">
 <h2 id="the-steps">The steps</h2>
-<ol>
+<ol start="2">
 <li><strong>Docker Compose</strong> — add Kafka (KRaft mode, no ZooKeeper) and Kafka UI.</li>
 <li><strong>order-service</strong> — <code>spring-kafka</code>, the <code>OrderCreatedEvent</code> record, producer config, publisher.</li>
 <li><strong>notification-service</strong> — a new Python / FastAPI consumer.</li>
-<li><strong>Test</strong> — create an order, see the event in Kafka UI and in the notification logs.</li>
+<li><strong>Testing</strong> — create an order, see the event in Kafka UI and in the notification logs.</li>
 <li><strong>Reliability</strong> — dead letter queue and idempotent consumers.</li>
 </ol>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="5" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="5" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="14">
-<h2 id="1--docker-compose">1 · Docker Compose</h2>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="5" data-paginate="true" data-class="tight" data-lang="en" data-theme="platform" lang="en" class="tight" data-marpit-pagination="5" style="--paginate:true;--class:tight;--lang:en;--theme:platform;" data-marpit-pagination-total="14">
+<h2 id="2--docker-compose">2 · Docker Compose</h2>
+<p>Two services added to <code>docker-compose.yml</code>:</p>
 <table>
 <thead>
 <tr>
@@ -139,14 +140,14 @@ Now we must send a <strong>confirmation email</strong>. Add one more REST call?<
 </table>
 <p>Key Kafka settings:</p>
 <ul>
-<li><code>KAFKA_PROCESS_ROLES: broker,controller</code> — <strong>KRaft</strong>: Kafka keeps its own metadata; ZooKeeper was removed in Kafka 4.0.</li>
+<li><code>KAFKA_PROCESS_ROLES: broker,controller</code> — <strong>KRaft</strong>: one node is broker and controller (quorum on <code>CONTROLLER://:9093</code>); ZooKeeper was removed in Kafka 4.0.</li>
 <li><code>KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092</code> — clients connect by the service name.</li>
 <li><code>KAFKA_AUTO_CREATE_TOPICS_ENABLE: &quot;true&quot;</code> — <code>order-events</code> is created on first publish.</li>
 <li><code>KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1</code> — a single broker in development.</li>
 </ul>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="6" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="6" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="14">
-<h2 id="2--order-service-the-event">2 · order-service: the event</h2>
+<h2 id="3--order-service-the-event">3 · order-service: the event</h2>
 <div class="cols">
 <div>
 <p><code>pom.xml</code>:</p>
@@ -170,7 +171,7 @@ Now we must send a <strong>confirmation email</strong>. Add one more REST call?<
 <p class="small">A record: immutable, like the fact it represents.</p>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="7" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="7" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="14">
-<h2 id="2--producer-configuration">2 · Producer configuration</h2>
+<h2 id="3--producer-configuration">3 · Producer configuration</h2>
 <pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-yaml"><span class="hljs-attr">spring:</span>
   <span class="hljs-attr">kafka:</span>
     <span class="hljs-attr">bootstrap-servers:</span> <span class="hljs-string">kafka:9092</span>
@@ -185,7 +186,7 @@ Now we must send a <strong>confirmation email</strong>. Add one more REST call?<
 <p class="small"><code>acks: all</code> waits for every in-sync replica before confirming. No effect on a single broker; in production it prevents data loss on broker failover.</p>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="8" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="8" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="14">
-<h2 id="2--publishing">2 · Publishing</h2>
+<h2 id="3--publishing">3 · Publishing</h2>
 <pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-java"><span class="hljs-meta">@Component</span>
 <span class="hljs-meta">@RequiredArgsConstructor</span>
 <span class="hljs-keyword">public</span> <span class="hljs-keyword">class</span> <span class="hljs-title class_">OrderEventPublisher</span> {
@@ -202,7 +203,7 @@ Now we must send a <strong>confirmation email</strong>. Add one more REST call?<
 <p class="small">Topic <code>order-events</code>, key = order id, value = the event as JSON.</p>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="9" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="9" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="14">
-<h2 id="3--notification-service-python--fastapi">3 · notification-service (Python / FastAPI)</h2>
+<h2 id="4--notification-service-python--fastapi">4 · notification-service (Python / FastAPI)</h2>
 <div class="cols">
 <div>
 <pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-text">notification-service/
@@ -226,7 +227,7 @@ uvicorn==0.29.0
 </div>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="10" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="10" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="14">
-<h2 id="3--the-consumer">3 · The consumer</h2>
+<h2 id="4--the-consumer">4 · The consumer</h2>
 <pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-python">consumer = KafkaConsumer(
     <span class="hljs-string">&quot;order-events&quot;</span>,
     bootstrap_servers=<span class="hljs-string">&quot;kafka:9092&quot;</span>,
@@ -243,7 +244,7 @@ uvicorn==0.29.0
 <p class="small"><code>enable_auto_commit=False</code> + <code>commit()</code> after processing: a crash mid-processing means the message is consumed again — <strong>at-least-once</strong>.</p>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="11" data-paginate="true" data-class="tight" data-lang="en" data-theme="platform" lang="en" class="tight" data-marpit-pagination="11" style="--paginate:true;--class:tight;--lang:en;--theme:platform;" data-marpit-pagination-total="14">
-<h2 id="4--test">4 · Test</h2>
+<h2 id="5--testing">5 · Testing</h2>
 <pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-bash">docker compose up --build -d
 docker compose ps        <span class="hljs-comment"># kafka, kafka-ui, notification-service, order-service</span>
 curl -s -X POST http://localhost:8080/orders \
@@ -258,7 +259,7 @@ docker compose logs notification-service
 </ul>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="12" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="12" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="14">
-<h2 id="5--when-processing-fails-dlq">5 · When processing fails: DLQ</h2>
+<h2 id="6--reliability-dead-letter-queue">6 · Reliability: dead letter queue</h2>
 <p>A message that keeps failing must not <strong>block the stream</strong>. Send it to <code>order-events-dlq</code> instead:</p>
 <pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-python"><span class="hljs-keyword">try</span>:
     process_event(event)

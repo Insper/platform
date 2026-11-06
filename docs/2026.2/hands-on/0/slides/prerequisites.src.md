@@ -21,15 +21,16 @@ theme: platform
 **Set up the tools and the root repository before the first microservice**
 
 <!--
-Outline: (1) the toolchain: Git, Docker, Java, Maven; (2) a GitHub organization; (3) the root
-repository `platform`; (4) bonus: documentation with MkDocs Material on GitHub Pages.
+Outline: (1) the toolchain from the appendix Development Setup: Git, Docker, Java, Maven, uv;
+(2) the check commands; (3) a GitHub organization; (4) the root repository `platform`;
+(5) bonus: documentation with MkDocs Material on GitHub Pages.
 -->
 
 ---
 
 ## Goal
 
-- Install the **development environment** used in every hands-on.
+- Set up the **development environment** used in every hands-on.
 - Create a **GitHub organization** to group the project's repositories.
 - Create the **root repository** `platform`: the central point for the microservices and the documentation.
 - (Bonus) publish the project's **documentation** with MkDocs Material and GitHub Pages.
@@ -38,40 +39,75 @@ repository `platform`; (4) bonus: documentation with MkDocs Material on GitHub P
 
 ---
 
-## The toolchain
+## The toolchain: one path
 
-| Tool | What for | macOS | Linux (Debian) |
-|---|---|---|---|
-| **Git** | version control | `brew install git` | `apt install git` |
-| **Docker** | run apps in isolated containers | Docker Engine docs | Docker Engine docs |
-| **Java** | backend language | `brew install openjdk` | `apt install openjdk-21` |
-| **Maven** | dependencies and build | `brew install maven` | `apt install maven` |
+**your code → Git → Maven build → Docker image → container** (later on Kubernetes)
 
-<div class="ok">
-
-Use an **LTS** JDK — OpenJDK **21** or **25**.
-
-</div>
+| Tool | Why you need it |
+|---|---|
+| **Git** | version control: every lab lives in a repository; CI starts from a `git push` |
+| **Docker** | runs each service, database and broker in an isolated container |
+| **Java** (JDK) | the language of the microservices (Spring Boot); the JDK compiles and runs them |
+| **Maven** | downloads dependencies, compiles, runs the tests, packages the jar |
+| **uv** | runs the Python scripts of the later labs, with pinned versions |
 
 <!--
-Ask who is on Windows: they need the extra environment-variable step on the next slide.
+Four tools for the Java path, plus uv for the Python scripts of the later labs.
 -->
 
 ---
 
-## Windows: one extra step
+<!-- _class: tight -->
 
-Java and Maven are downloaded and **unzipped** by hand (OpenJDK from jdk.java.net, the Maven binary from maven.apache.org). Then:
+## Installing, per OS
 
-- set `JAVA_HOME` to the JDK folder;
-- set `MAVEN_HOME` to the Maven folder;
-- add each one's `bin` directory to `PATH`.
+| Tool | Windows | macOS | Linux (Debian) |
+|---|---|---|---|
+| **Git** | Git for Windows (+ Git Bash) | `brew install git` | `apt install git` |
+| **Docker** | Docker Desktop | Docker Desktop | Docker Engine (native) |
+| **Java** | Temurin JDK 25 `.msi` | `brew install openjdk@25` | `apt install openjdk-25-jdk` |
+| **Maven** | binary `.zip` + `PATH` | `brew install maven` | `apt install maven` |
+| **uv** | PowerShell installer | `brew install uv` | `curl … install.sh \| sh` |
+
+- Docker Desktop runs the engine in a small Linux VM; on Linux, add your user to the `docker` group.
+- Prefer the project's **Maven Wrapper** (`./mvnw`) when it has one: everyone builds with the same version.
+- Python in the course runs through **uv**, never `pip`.
+
+---
+
+## Java: an LTS JDK
+
+- You need a **JDK** (compiler + runtime), not just a JRE.
+- Use an **LTS**: **JDK 25** (September 2025); JDK 21 still works for the labs that pin it.
+- Plain `brew install openjdk` installs the newest release — not necessarily an LTS.
+- Windows: in the Temurin installer, keep **Add to PATH** and enable **`JAVA_HOME`** (off by default).
+- Maven finds Java through `JAVA_HOME`: set it first, to the JDK folder (the one that contains `bin/`).
+- Several JDKs side by side: **SDKMAN!** (macOS, Linux) switches versions and sets `JAVA_HOME`.
+
+---
+
+## Check your setup
+
+Open a **new** terminal (it sees the updated `PATH`) and run:
+
+```bash
+git --version
+docker run --rm hello-world
+java -version
+mvn -v
+uv --version
+```
 
 <div class="warn">
 
-Forgetting `PATH` is the classic error: the tools are installed, but the terminal does not find `java` or `mvn`.
+`mvn -v` must report the **same Java version** as `java -version`: Maven uses `JAVA_HOME`, which can point to a different JDK than the one on your `PATH`.
 
 </div>
+
+<!--
+Troubleshooting on the page: Docker daemon not running, docker.sock permission (docker group),
+JAVA_HOME not defined correctly, an older JDK first on the PATH, command not found in an old terminal.
+-->
 
 ---
 
@@ -122,8 +158,9 @@ Open `http://127.0.0.1:8000` — and host the same site with **GitHub Pages**.
 
 ## Takeaways
 
-1. Four tools for every hands-on: **Git, Docker, Java (LTS 21/25), Maven**.
-2. On Windows, set `JAVA_HOME`, `MAVEN_HOME` and the `PATH`.
-3. One **GitHub organization** groups the repositories, permissions and issues.
-4. The **root repository** `platform` is the entry point: `api/`, `docs/`, `web/`, `docker/`.
-5. Document as you build: **MkDocs Material** locally, **GitHub Pages** online.
+1. One path: **code → Git → Maven build → Docker image → container**; plus **uv** for Python.
+2. Docker Desktop on macOS and Windows; **Docker Engine** natively on Linux.
+3. An **LTS JDK** (25, or 21 where a lab pins it); `mvn -v` and `java -version` must agree.
+4. Run the **check** commands in a new terminal before the first lab.
+5. One **GitHub organization** and the **root repository** `platform`: `api/`, `docs/`, `web/`, `docker/`.
+6. Document as you build: **MkDocs Material** locally, **GitHub Pages** online.

@@ -111,10 +111,6 @@ Left to right: **more control, more ops**. The paths target **different use case
 
 </div>
 
-<!--
-The course project uses EKS anyway: its goal is to learn Kubernetes, not to minimise cost.
--->
-
 ---
 
 ## Medium team: 5–20 devs, 10–50 services
@@ -147,6 +143,20 @@ No dedicated ops / platform engineer? → **ECS Fargate + ALB + RDS**. Otherwise
 | **Metrics Server** | enables the HPA |
 
 <p class="small">Plus <strong>separate clusters per environment</strong> (dev, staging, prod). <strong>EKS Auto Mode</strong> (Dec 2024) lets AWS manage nodes too, for a fee.</p>
+
+---
+
+## Then why does the course project use EKS?
+
+<div class="q">
+
+The project deploys the store on **EKS** with a team of 2–3 people — exactly what this class advises a *startup* not to do.
+
+</div>
+
+- The goal is different: the project exists to **learn** Kubernetes and AWS, not to minimise cost or time-to-market.
+- Keep the cluster **small** and **delete it** when you are not using it.
+- The **Costs** task compares its bill with the alternatives of the cost model.
 
 ---
 
@@ -206,8 +216,8 @@ Tasks run in **your VPC**: reaching RDS is a security-group rule (port 5432) —
 - Automatic HTTPS, custom domains
 - Postgres, Redis, MongoDB add-ons
 - Logs, metrics, env vars in a dashboard
-
 - Private network: `account.railway.internal`
+- Usage-based: vCPU and GB used, per second
 
 <p class="small">No VPC design, no Helm/CRDs/GitOps — lock-in grows past 10–15 services.</p>
 
@@ -286,6 +296,27 @@ Three small Fargate tasks cost **~$27**: compute is often the *smallest* line. F
 
 </div>
 
+<p class="small">One EKS cluster per environment triples the fixed part. Protect the account: an <strong>AWS Budget</strong> alert first, tags on every resource, delete NAT, ALB and clusters when you stop.</p>
+
+---
+
+<!-- _class: tight -->
+
+## The store at each stage
+
+| Component | Day 1 — Railway | Year 1 — ECS Fargate | Year 2+ — EKS |
+|---|---|---|---|
+| **gateway** | public domain | ECS service behind the ALB | Deployment + Service, Ingress (LB Controller) |
+| **account, order** | `account.railway.internal` | Service Connect / Cloud Map | Deployments + `ClusterIP` Services |
+| **Postgres** | Railway add-on | RDS, security-group rules | RDS, credentials via External Secrets |
+| **Deploy** | `git push` to `main` | CI → ECR → new task definition | CI → ECR → ArgoCD syncs from Git |
+
+<div class="ok">
+
+The application code does **not** change across the columns: the **12-factor** style (config in env vars, stateless services, state in Postgres) makes each migration a deployment exercise, not a rewrite.
+
+</div>
+
 ---
 
 ## Migration path
@@ -324,9 +355,8 @@ Operating EKS for a 3-person startup for a year: **40+ hours** of platform ops t
 ## Takeaways
 
 1. Kubernetes is not the default: pick by **team size, service count and ops maturity**.
-2. Two paths: **developer experience** (Railway → Fly.io → Lightsail) and **AWS-native** (Express → ECS → EKS).
-3. Small: **Railway, Render, Fly.io, Lightsail, ECS Express Mode**. Medium: **ECS Fargate**. Large: **EKS**.
-4. **Fixed costs** (control plane $73, ALB $30, NAT $33) dominate small bills — state region, date, sizing.
-5. **K3s, K0s, Kind, Minikube** give the K8s API without EKS — and hand you its operations.
-6. Migrate on **concrete pain**, not on speculation.
-7. Keep the app **portable**: managed products change (App Runner).
+2. Two paths: **developer experience** (Railway → Fly.io → Lightsail) and **AWS-native** (Express → ECS Fargate → EKS → EC2).
+3. At small scale, **fixed costs** (EKS control plane $73, ALB $30, NAT $33) dominate — state region, date and sizing.
+4. Small: **Railway, Render, Fly.io, Lightsail, ECS Express Mode**. Medium: **ECS Fargate**. Large: **EKS** + Karpenter/Auto Mode, ArgoCD, LB Controller, External Secrets.
+5. **K3s, K0s, Kind, Minikube** give the K8s API without EKS — and hand you the control plane's operations.
+6. Migrate on **concrete pain**, keep the app **portable**, never assume a managed product lasts forever (App Runner).

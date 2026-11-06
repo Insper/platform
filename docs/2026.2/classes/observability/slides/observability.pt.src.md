@@ -21,9 +21,9 @@ theme: platform
 **O monitoramento diz que algo está errado; a observabilidade diz por quê**
 
 <!--
-Roteiro: (1) os três pilares; (2) métricas: Prometheus, PromQL, RED/USE; (3) logs estruturados e
-correlation IDs; (4) alertas e cardinalidade; (5) traces, traceparent, amostragem; (6) OpenTelemetry;
-(7) LGTM e DORA.
+Roteiro: (1) os três pilares; (2) métricas: Prometheus, PromQL, RED/USE, pipeline, cardinalidade,
+alertas; (3) logs estruturados, correlation IDs e MDC; (4) traces, traceparent, amostragem;
+(5) OpenTelemetry: agente e spans manuais; (6) LGTM; (7) DORA; (8) armadilhas.
 -->
 
 ---
@@ -32,7 +32,7 @@ correlation IDs; (4) alertas e cardinalidade; (5) traces, traceparent, amostrage
 
 <div class="q">
 
-Uma requisição passa por **oito serviços e três bancos de dados**, e está lenta.
+Uma requisição passa por **oito serviços e três bancos de dados** e está lenta.
 Um único gráfico de CPU em um único dashboard consegue dizer por quê?
 
 </div>
@@ -43,6 +43,8 @@ Um único gráfico de CPU em um único dashboard consegue dizer por quê?
 * É uma propriedade do sistema: o estado interno **inferível a partir das saídas externas**.
 
 <!--
+A loja: "o checkout está lento" — Nginx, gateway, auth, order, product, Postgres, talvez Kafka. Qual deles?
+Para todos ou só para este cliente? Sem telemetria pensada de antemão, a resposta é chute.
 Exemplo da página: "por que exatamente 7% das requisições de clientes móveis em São Paulo estão
 dando timeout numa terça-feira?" — nenhum dashboard foi construído para essa pergunta.
 -->
@@ -57,9 +59,11 @@ dando timeout numa terça-feira?" — nenhum dashboard foi construído para essa
 | **Logs** | O que exatamente aconteceu, em que ordem? | ELK / EFK / Loki | dias a semanas |
 | **Traces** | Qual serviço foi lento? Onde o erro começou? | Jaeger / Tempo / Zipkin | dias |
 
+Um `POST /orders` que falha → um contador `…_count{status="500"}` **+1** · uma linha JSON `{"level":"ERROR",…}` · um trace cujo último span é `ERROR`.
+
 <div class="ok">
 
-Cada pilar responde a uma pergunta diferente; a observabilidade precisa dos **três funcionando juntos**.
+Métricas são baratas e dizem **que** algo mudou; logs e traces custam mais e dizem **o quê** e **onde**. A observabilidade precisa dos **três**.
 
 </div>
 
@@ -90,13 +94,14 @@ http_requests_total{method="GET", status="200", service="order"} 4823
 |---|---|
 | `rate(…_count[5m])` | requisições por segundo em 5 minutos |
 | `sum by (application) (rate(…_count{status=~"5.."}[5m]))` | erros 5xx por segundo, por serviço |
+| `sum(rate(…_count{status=~"5.."}[5m])) / sum(rate(…_count[5m]))` | **proporção** de erros (0–1): base de um SLI |
 | `histogram_quantile(0.99, sum by (le) (rate(…_bucket[5m])))` | latência P99 entre instâncias |
 
 - **RED** (Tom Wilkie) — serviços: **R**ate, **E**rrors, **D**uration → o que os usuários experimentam.
 - **USE** (Brendan Gregg) — recursos: **U**tilisation, **S**aturation, **E**rrors.
 - Os **quatro golden signals** do Google: latência, tráfego, erros, saturação.
 
-<p class="small"><code>rate()</code> antes do <code>sum</code>; mantenha o <code>le</code> para percentis. Percentis, nunca médias: o P99 mostra a cauda lenta.</p>
+<p class="small"><code>rate()</code> antes do <code>sum</code> (reinícios do contador); mantenha o <code>le</code> para percentis. <b>Percentis, nunca médias</b>: 99 × 50 ms + 1 × 5 s dão ~100 ms de média, mas um usuário em 100 espera 5 s.</p>
 
 ---
 
@@ -130,6 +135,7 @@ management:
   labels: { severity: page }
 ```
 
+- O Prometheus avalia a regra → **Alertmanager** (ou Grafana Alerting) → e-mail, Slack, pager; `for: 5m` evita oscilação.
 - **Alerte sobre sintomas** que os usuários sentem (erros, latência, consumo do SLO) — não sobre "CPU > 80%".
 
 <div class="warn">
@@ -152,6 +158,8 @@ Nunca use **IDs de usuário ou de pedido** como label: cada valor é uma nova s�
 - `INFO` — eventos significativos · `WARN` — inesperado, mas tratado (retry, fallback).
 - `ERROR` — falha que exige atenção.
 
+<p class="small">Pipeline: JSON no <b>stdout</b> → Filebeat / Fluentd → Elasticsearch → Kibana; ou <b>Loki</b> (indexa só labels, mais barato, no mesmo Grafana).</p>
+
 ---
 
 <!-- _class: tight -->
@@ -172,7 +180,7 @@ O **MDC** é um mapa por thread impresso em cada linha de log com `%X{key}`.
 try (var c = MDC.putCloseable("customerId", in.customerId())) { … }
 ```
 
-<p class="small">Pipeline: JSON no <b>stdout</b> → Filebeat / Fluentd → Elasticsearch → Kibana; ou <b>Loki</b> (só labels, mais barato, no Grafana).</p>
+<p class="small"><b>O MDC é por thread</b> (<code>ThreadLocal</code>): <code>@Async</code>, <code>CompletableFuture</code> ou o gateway WebFlux não o enxergam, a menos que o contexto seja propagado.</p>
 
 ---
 
@@ -278,9 +286,25 @@ Destaque o finally { span.end(); }: um span que nunca é encerrado nunca é expo
 
 ---
 
-## Uma só interface: LGTM, e DORA
+## Uma só interface: a stack LGTM
 
-**Loki + Grafana + Tempo + Mimir/Prometheus** — todos os sinais no Grafana. Investigação: alerta de métrica → "View Traces" no Tempo → clique em um span → suas linhas de log no Loki.
+**Loki + Grafana + Tempo + Mimir/Prometheus** — os três sinais numa única interface.
+
+- A grande vantagem é a **correlação de sinais**.
+- Investigação: um alerta de métrica dispara → "View Traces" abre o trace no **Tempo** → clique num span → suas linhas de log no **Loki**.
+- A navegação entre sinais separa uma plataforma de observabilidade de três ferramentas de monitoramento isoladas.
+
+<div class="ok">
+
+Num pico de tráfego, os três pilares compartilham a linha do tempo: o pico de requisições explica o aglomerado de erros e ambos explicam os spans esticados.
+
+</div>
+
+---
+
+## Métricas DORA
+
+Duas medem **vazão**, duas medem **estabilidade** — equipes elite pontuam bem nas quatro: velocidade e estabilidade **não** são um trade-off.
 
 | Métrica DORA | Mede | Elite (2024) |
 |---|---|---|
@@ -289,16 +313,25 @@ Destaque o finally { span.end(); }: um span que nunca é encerrado nunca é expo
 | Change Failure Rate | % de deploys que exigem correção ou rollback | ~5% |
 | Failed Deployment Recovery Time | tempo de recuperação (antes MTTR) | < 1 hora |
 
-<p class="small">As métricas DORA também são telemetria: não dá para medi-las sem observabilidade.</p>
+<p class="small">As métricas DORA também são telemetria: deploys vêm dos logs de CI/CD, a recuperação dos horários dos incidentes, as falhas de deploys correlacionados com picos de erro.</p>
+
+---
+
+## Armadilhas comuns
+
+- **Registrar tudo em INFO** (ou DEBUG em produção): o volume e o custo explodem, as linhas úteis se afogam.
+- **Registrar segredos ou dados pessoais**: senhas, JWTs, números de cartão e e-mails nunca chegam ao pipeline.
+- **Labels de métrica ilimitados**: IDs de usuário ou de pedido derrubam o Prometheus — use logs e traces.
+- **Propagação de contexto quebrada**: um serviço sem instrumentação, ou um proxy que descarta o `traceparent`, parte cada trace em dois.
+- **Alertar sobre causas, não sobre sintomas**: dezenas de alertas de CPU sobre os quais ninguém age escondem aquele que importa.
 
 ---
 
 ## Pontos-chave
 
-1. O monitoramento diz **que** algo está errado; a observabilidade permite perguntar **por quê**.
-2. Três pilares: **métricas** (saúde), **logs** (o que aconteceu), **traces** (onde).
-3. O Prometheus coleta `/actuator/prometheus`; **PromQL**, **RED**/**USE**, labels de baixa cardinalidade, alertas sobre **sintomas**.
-4. Os logs devem ser **estruturados** e carregar o `trace_id` — o agente do OTel preenche o MDC para você.
-5. Um trace é uma árvore de **spans**; o `traceparent` carrega o contexto; head sampling é cego, tail sampling é seletivo.
-6. O **OpenTelemetry** é o padrão neutro em relação a fornecedores; o agente Java exige **zero código**.
-7. Correlacione os sinais em um só lugar (**LGTM**) — e meça a entrega com **DORA**.
+1. O monitoramento responde a perguntas conhecidas; a **observabilidade** investiga novas a partir de **métricas** (que), **logs** (o quê) e **traces** (onde).
+2. O Prometheus **coleta** `/actuator/prometheus`; `rate()` nos contadores, `histogram_quantile` com `sum by (le)`, labels de baixa cardinalidade.
+3. Dashboards com **RED** (serviços) e **USE** (recursos); **alerte sobre sintomas** que os usuários sentem.
+4. Logs **estruturados**, com o `trace_id` — preenchido pelo agente do OTel; `MDC.put` só para chaves de negócio.
+5. Um trace é uma árvore de **spans** ligados pelo `traceparent`; head sampling é barato, mas cego; tail sampling guarda os traces interessantes.
+6. O **OpenTelemetry** é o padrão neutro em relação a fornecedores; meça a entrega com as quatro métricas **DORA**.

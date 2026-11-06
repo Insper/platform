@@ -21,63 +21,99 @@ theme: platform
 **Prepare as ferramentas e o repositório raiz antes do primeiro microsserviço**
 
 <!--
-Roteiro: (1) as ferramentas: Git, Docker, Java, Maven; (2) uma organização no GitHub; (3) o
-repositório raiz `platform`; (4) bônus: documentação com MkDocs Material no GitHub Pages.
+Roteiro: (1) as ferramentas do apêndice Configuração do ambiente de desenvolvimento: Git, Docker, Java, Maven, uv;
+(2) os comandos de verificação; (3) uma organização no GitHub; (4) o repositório raiz `platform`;
+(5) bônus: documentação com MkDocs Material no GitHub Pages.
 -->
 
 ---
 
 ## Objetivo
 
-- Instalar o **ambiente de desenvolvimento** usado em todos os hands-on.
+- Preparar o **ambiente de desenvolvimento** usado em todos os hands-on.
 - Criar uma **organização no GitHub** para agrupar os repositórios do projeto.
 - Criar o **repositório raiz** `platform`: o ponto central dos microsserviços e da documentação.
 - (Bônus) publicar a **documentação** do projeto com MkDocs Material e GitHub Pages.
 
-<p class="small">Instalação passo a passo por sistema operacional: apêndice <strong>Development Setup</strong>.</p>
+<p class="small">Instalação passo a passo por sistema operacional: apêndice <strong>Configuração do ambiente de desenvolvimento</strong>.</p>
 
 ---
 
-## As ferramentas
+## As ferramentas: um caminho
 
-| Ferramenta | Para quê | macOS | Linux (Debian) |
-|---|---|---|---|
-| **Git** | controle de versão | `brew install git` | `apt install git` |
-| **Docker** | rodar apps em containers isolados | docs do Docker Engine | docs do Docker Engine |
-| **Java** | linguagem do backend | `brew install openjdk` | `apt install openjdk-21` |
-| **Maven** | dependências e build | `brew install maven` | `apt install maven` |
+**o seu código → Git → build com Maven → imagem Docker → container** (mais tarde, no Kubernetes)
 
-<div class="ok">
-
-Use um JDK **LTS** — OpenJDK **21** ou **25**.
-
-</div>
+| Ferramenta | Por que você precisa dela |
+|---|---|
+| **Git** | controle de versão: todo laboratório vive num repositório; a CI começa com um `git push` |
+| **Docker** | executa cada serviço, banco de dados e broker num container isolado |
+| **Java** (JDK) | a linguagem dos microsserviços (Spring Boot); o JDK os compila e executa |
+| **Maven** | baixa as dependências, compila, roda os testes e empacota o jar |
+| **uv** | executa os scripts Python dos laboratórios finais, com versões fixadas |
 
 <!--
-Pergunte quem usa Windows: essas pessoas precisam do passo extra das variáveis de ambiente, no próximo slide.
+Quatro ferramentas para o caminho Java, mais o uv para os scripts Python dos laboratórios finais.
 -->
 
 ---
 
-## Windows: um passo a mais
+<!-- _class: tight -->
 
-Java e Maven são baixados e **descompactados** à mão (OpenJDK em jdk.java.net, o binário do Maven em maven.apache.org). Depois:
+## Instalação, por sistema
 
-- defina `JAVA_HOME` com a pasta do JDK;
-- defina `MAVEN_HOME` com a pasta do Maven;
-- adicione o diretório `bin` de cada um ao `PATH`.
+| Ferramenta | Windows | macOS | Linux (Debian) |
+|---|---|---|---|
+| **Git** | Git for Windows (+ Git Bash) | `brew install git` | `apt install git` |
+| **Docker** | Docker Desktop | Docker Desktop | Docker Engine (nativo) |
+| **Java** | JDK Temurin 25 `.msi` | `brew install openjdk@25` | `apt install openjdk-25-jdk` |
+| **Maven** | binário `.zip` + `PATH` | `brew install maven` | `apt install maven` |
+| **uv** | instalador PowerShell | `brew install uv` | `curl … install.sh \| sh` |
+
+- O Docker Desktop roda o engine numa pequena VM Linux; no Linux, adicione o seu usuário ao grupo `docker`.
+- Prefira o **Maven Wrapper** do projeto (`./mvnw`) quando houver: todos fazem o build com a mesma versão.
+- Na disciplina, o Python roda pelo **uv**, nunca pelo `pip`.
+
+---
+
+## Java: um JDK LTS
+
+- Você precisa de um **JDK** (compilador + runtime), não só de um JRE.
+- Use uma **LTS**: o **JDK 25** (setembro de 2025); o JDK 21 ainda serve nos laboratórios que o fixam.
+- `brew install openjdk` sozinho instala a versão mais nova — não necessariamente uma LTS.
+- Windows: no instalador Temurin, mantenha **Add to PATH** e ative o **`JAVA_HOME`** (desligado por padrão).
+- O Maven encontra o Java pelo `JAVA_HOME`: defina-o antes, com a pasta do JDK (a que contém `bin/`).
+- Vários JDKs lado a lado: o **SDKMAN!** (macOS, Linux) troca de versão e define o `JAVA_HOME`.
+
+---
+
+## Verifique o seu ambiente
+
+Abra um terminal **novo** (ele enxerga o `PATH` atualizado) e rode:
+
+```bash
+git --version
+docker run --rm hello-world
+java -version
+mvn -v
+uv --version
+```
 
 <div class="warn">
 
-Esquecer o `PATH` é o erro clássico: as ferramentas estão instaladas, mas o terminal não encontra `java` nem `mvn`.
+O `mvn -v` deve informar a **mesma versão do Java** que o `java -version`: o Maven usa o `JAVA_HOME`, que pode apontar para um JDK diferente do que está no seu `PATH`.
 
 </div>
+
+<!--
+Solução de problemas na página: daemon do Docker parado, permissão no docker.sock (grupo docker),
+JAVA_HOME mal definido, um JDK antigo primeiro no PATH, comando não encontrado num terminal antigo.
+-->
 
 ---
 
 ## Uma organização para o projeto
 
-Crie uma organização no GitHub, p. ex. `<username>-studies`, e coloque **todos** os repositórios da disciplina dentro dela.
+Crie uma organização no GitHub, p. ex. `<username>-studies` e coloque **todos** os repositórios da disciplina dentro dela.
 
 - **Permissões de acesso** gerenciadas em um só lugar.
 - **Issues e pull requests** para acompanhar o progresso entre repositórios.
@@ -122,8 +158,9 @@ Abra `http://127.0.0.1:8000` — e hospede o mesmo site com o **GitHub Pages**.
 
 ## Pontos-chave
 
-1. Quatro ferramentas para todos os hands-on: **Git, Docker, Java (LTS 21/25), Maven**.
-2. No Windows, defina `JAVA_HOME`, `MAVEN_HOME` e o `PATH`.
-3. Uma **organização no GitHub** agrupa os repositórios, as permissões e as issues.
-4. O **repositório raiz** `platform` é a porta de entrada: `api/`, `docs/`, `web/`, `docker/`.
-5. Documente enquanto constrói: **MkDocs Material** localmente, **GitHub Pages** online.
+1. Um caminho: **código → Git → build com Maven → imagem Docker → container**; mais o **uv** para o Python.
+2. Docker Desktop no macOS e no Windows; **Docker Engine** nativo no Linux.
+3. Um **JDK LTS** (25, ou 21 onde o laboratório o fixa); `mvn -v` e `java -version` devem concordar.
+4. Rode os comandos da **verificação** num terminal novo antes do primeiro laboratório.
+5. Uma **organização no GitHub** e o **repositório raiz** `platform`: `api/`, `docs/`, `web/`, `docker/`.
+6. Documente enquanto constrói: **MkDocs Material** localmente, **GitHub Pages** online.

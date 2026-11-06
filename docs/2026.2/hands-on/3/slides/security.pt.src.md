@@ -21,13 +21,14 @@ theme: platform
 **Faça login uma vez, receba um JWT assinado e deixe o Gateway verificá-lo a cada requisição**
 
 <!--
-Roteiro: (1) autenticação × autorização; (2) o JWT e suas claims; (3) a interface auth e o auth-service;
-(4) o cookie; (5) rotas abertas; (6) o AuthorizationFilter no gateway; (7) compose e testes.
+Roteiro: (1) autenticação × autorização; (2) o JWT e suas claims; (3) a interface auth e as rotas abertas;
+(4) o auth-service e a conferência das credenciais no account; (5) o cookie; (6) o AuthorizationFilter no gateway;
+(7) compose, testes e armadilhas.
 -->
 
 ---
 
-## Quem é você, e o que você pode fazer?
+## Quem é você e o que você pode fazer?
 
 <div class="q">
 
@@ -45,7 +46,7 @@ Deixe a turma responder primeiro: verificar credenciais em cada serviço multipl
 
 ---
 
-## Três novos módulos
+## Três módulos
 
 `internet → gateway → account / auth / others` · `auth → account` · tudo dentro da **camada confiável**
 
@@ -53,9 +54,9 @@ Deixe a turma responder primeiro: verificar credenciais em cada serviço multipl
 |---|---|
 | `auth` | biblioteca de interface: `AuthController` + DTOs `LoginIn`, `RegisterIn`, `TokenOut` |
 | `auth-service` | implementação: `AuthResource`, `AuthService`, `JwtService`; delega as contas ao `account` via Feign |
-| `gateway-service` | ponto único de entrada: `AuthorizationFilter` + `RouterValidator` |
+| `gateway-service` | o ponto único de entrada do hands-on 2, agora com `AuthorizationFilter` + `RouterValidator` |
 
-<p class="small">Mesmo padrão de <code>account</code> / <code>account-service</code>: uma biblioteca instalada com <code>mvn clean install</code>, mais um serviço executável.</p>
+<p class="small">Mesmo padrão de <code>account</code> / <code>account-service</code>: cada um é um submódulo git em <code>api/</code>; a biblioteca é instalada com <code>mvn clean install</code>.</p>
 
 ---
 
@@ -64,10 +65,11 @@ Deixe a turma responder primeiro: verificar credenciais em cada serviço multipl
 Três partes em Base64Url separadas por pontos: `header.payload.signature`
 
 ```
-HMAC( base64UrlEncode(header) + "." + base64UrlEncode(payload), secret )
+HMACSHA256( base64UrlEncode(header) + "." + base64UrlEncode(payload),
+            Base64.decode(JWT_SECRET_KEY) )   // 32 bytes = 256 bits
 ```
 
-- **Header**: tipo do token e algoritmo de assinatura.
+- **Header**: o algoritmo de assinatura — o JJWT escreve só `{"alg": "HS256"}`.
 - **Payload**: as **claims** — declarações sobre o usuário.
 - **Signature**: prova que o token foi emitido por quem tem o segredo e não foi alterado.
 - **Stateless**: sem sessão no servidor, então escala horizontalmente.
@@ -109,6 +111,28 @@ Quem tem a **chave secreta** consegue forjar tokens: guarde-a em uma variável d
 
 ---
 
+## Rotas abertas × protegidas: `RouterValidator`
+
+Cadastro e login precisam ser abertos — senão ninguém conseguiria fazer login.
+
+```java
+private List<String> openApiEndpoints = List.of(
+    "POST /auth/register",
+    "GET /auth/logout",
+    "POST /auth/login");
+
+public Predicate<ServerHttpRequest> isSecured = request ->
+    openApiEndpoints.stream().noneMatch(/* method and path match, /** = prefix */);
+```
+
+<div class="ok">
+
+**Protegido por padrão**: tudo o que não está na lista — inclusive todo `/accounts/**` — exige um cookie válido.
+
+</div>
+
+---
+
 ## `auth-service`
 
 | Classe | Responsabilidade |
@@ -125,6 +149,35 @@ store:
     httpOnly: ${JWT_HTTP_ONLY:true}
     duration: ${JWT_DURATION:3600000} # 1 hour in milliseconds
 ```
+
+---
+
+<!-- _class: tight -->
+
+## Conferindo as credenciais no `account`
+
+O `auth-service` nunca confere senha: o `account` ganha o **`POST /accounts/login`** (`AccountController.login`).
+
+```java
+// account-service: AccountService (calcHash already exists)
+public Account findByEmailAndPassword(String email, String password) {
+    if (password == null || password.isEmpty())
+        throw new ResponseStatusException(BAD_REQUEST, "Password is empty");
+    final String hash = calcHash(password);
+    return accountRepository.findByEmailAndHashPassword(email, hash)
+        .map(AccountModel::to)
+        .orElseThrow(() -> new ResponseStatusException(
+            UNAUTHORIZED, "Invalid credentials"));
+}
+```
+
+- `findByEmailAndHashPassword`: uma consulta derivada do Spring Data no `AccountRepository`. O endpoint responde `200` + `AccountOut` ou `401`.
+- O hash nunca sai do `account`; o `AuthService.login` transforma `FeignException.Unauthorized` / `BadRequest` em `401`.
+- O `AccountController` mudou: rode `mvn clean install` em `api/account` de novo.
+
+<!--
+O SHA-256 puro mantém o curso simples; em produção se usa um algoritmo lento e com salt (bcrypt, Argon2, o PasswordEncoder do Spring Security).
+-->
 
 ---
 
@@ -171,7 +224,7 @@ public String getId(String jwt) {
 
 ## Login → cookie
 
-1. `POST /auth/login` → `AuthService.login` → `POST /accounts/login` (confere o hash) → `JwtService.generate`.
+1. `POST /auth/login` → `AuthService.login` → `POST /accounts/login` (confere o hash ou dá `401`) → `JwtService.generate`.
 2. O `AuthResource` responde com `Set-Cookie: __store_jwt_token=<jwt>`.
 3. O navegador o guarda e o **envia automaticamente** em cada requisição seguinte.
 
@@ -185,28 +238,6 @@ public String getId(String jwt) {
 <div class="warn">
 
 Os navegadores rejeitam `SameSite=None` sem `Secure`: em produção, frontend e API precisam usar **HTTPS**.
-
-</div>
-
----
-
-## Rotas abertas: `RouterValidator`
-
-Sem rotas abertas, ninguém conseguiria fazer login.
-
-```java
-private List<String> openApiEndpoints = List.of(
-    "POST /auth/register",
-    "GET /auth/logout",
-    "POST /auth/login");
-
-public Predicate<ServerHttpRequest> isSecured = request ->
-    openApiEndpoints.stream().noneMatch(/* method and path match, /** = prefix */);
-```
-
-<div class="ok">
-
-**Protegido por padrão**: tudo o que não está na lista — inclusive todo `/accounts/**` — exige um cookie válido.
 
 </div>
 
@@ -251,7 +282,7 @@ public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
 }
 ```
 
-<p class="small">O Spring Cloud Gateway é <strong>reativo</strong> (WebFlux): o filtro devolve <code>Mono&lt;Void&gt;</code> e chama o auth com <code>WebClient</code>, não com <code>RestTemplate</code>.</p>
+<p class="small">O Spring Cloud Gateway é <strong>reativo</strong> (WebFlux): o filtro devolve <code>Mono&lt;Void&gt;</code> e chama o auth com <code>WebClient</code>, não com <code>RestTemplate</code>. O <code>onStatus(4xx)</code> mantém um token inválido como <code>401</code>, não <code>500</code>.</p>
 
 ---
 
@@ -312,12 +343,28 @@ curl http://localhost:8080/accounts                  # 401 — no cookie
 
 ---
 
+## Armadilhas comuns
+
+- **Credenciais erradas → `500`**: um `.orElseThrow()` sem argumento lança `NoSuchElementException`; lance um `401`.
+- **Cookie expirado → `500`**: o `getId` precisa capturar a `JwtException`; o `onStatus` do filtro mantém o `401`.
+- **Build falha depois do `login`**: reinstale a biblioteca `account` antes de `account-service` e `auth-service`.
+- **Cookie ignorado**: `SameSite=None` sem `Secure` é rejeitado pelo navegador.
+- **Health check vazando**: o `/health-check` não é rota, o filtro não roda nele — devolva só o hostname.
+
+<div class="warn">
+
+A `JWT_SECRET_KEY` padrão está no repositório: qualquer um forjaria tokens para uma implantação que a mantenha.
+
+</div>
+
+---
+
 ## Pontos-chave
 
 1. A **autenticação** emite um JWT assinado; a **autorização** o confere a cada requisição.
 2. Um JWT é `header.payload.signature`; a **chave secreta** é o que o torna confiável.
-3. O `JwtService` assina com `jti`, `sub`, `iss`, `nbf`, `exp` — e valida a assinatura, `nbf` e `exp`.
+3. O `account` confere o hash da senha (`POST /accounts/login`); o `JwtService` assina `jti`, `sub`, `iss`, `nbf`, `exp`, `email`.
 4. O token viaja em um cookie `HttpOnly` e `Secure`: `__store_jwt_token`.
 5. `RouterValidator`: só cadastro, login e logout são abertos — **protegido por padrão**.
 6. O `AuthorizationFilter` resolve o token via `/auth/solve` e repassa o `id-account`.
-7. Os serviços seguintes **nunca interpretam JWTs**: o Gateway faz isso uma única vez.
+7. Os serviços seguintes **nunca interpretam JWTs**; credenciais ou tokens inválidos são `401`, nunca `500`.

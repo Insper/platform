@@ -21,9 +21,10 @@ theme: platform
 **Delegue a identidade a um padrão, verifique cada requisição**
 
 <!--
-Roteiro: (1) do Hands-on 3 às lacunas de um esquema caseiro; (2) authN vs. authZ;
-(3) papéis, tokens, escopos e grants do OAuth 2.0; (4) PKCE e Client Credentials; (5) OIDC;
-(6) JWKS vs. introspecção no gateway; (7) Zero Trust, mTLS, NetworkPolicy; (8) segredos.
+Roteiro: (1) visão geral: authN vs. authZ, o que o Hands-on 3 construiu, o que o JWT sozinho não
+resolve, as camadas de segurança; (2) OAuth 2.0: papéis, tokens, escopos, grants, PKCE, Client
+Credentials, OIDC, JWKS vs. introspecção, onde o navegador guarda o token, armadilhas; (3) Zero Trust:
+PEP/PDP, o pod comprometido, mTLS + política, NetworkPolicy, segredos.
 -->
 
 ---
@@ -65,6 +66,22 @@ O gateway **autentica**; cada serviço ainda precisa **autorizar** os próprios 
 
 ---
 
+## O que o Hands-on 3 construiu
+
+1. `POST /auth/login` → o `auth-service` confere a senha, assina um JWT e o devolve num cookie.
+2. A cada requisição: gateway → `POST /auth/solve {token}` → `{idAccount}`.
+3. O gateway repassa a chamada com o header `id-account`.
+
+| Propriedade | Consequência |
+|---|---|
+| **Assinatura simétrica** (HMAC, HS256) | só o `auth-service` guarda a `JWT_SECRET_KEY` → só ele valida |
+| **Validação remota** | um salto extra por requisição, mas recusa imediata (p. ex. após o logout) |
+| **Confiança na rede** | o `account-service` acredita em qualquer `id-account`: só o gateway o alcança |
+
+<p class="small">Um design sólido para <b>uma</b> aplicação — o token é uma referência que só o <code>auth-service</code> consegue ler.</p>
+
+---
+
 ## O que o JWT sozinho não resolve
 
 | Problema | JWT caseiro | Resposta padrão |
@@ -77,6 +94,26 @@ O gateway **autentica**; cada serviço ainda precisa **autorizar** os próprios 
 | Pod comprometido | rede interna confiável | **mTLS**, **NetworkPolicy** |
 
 <p class="small">JWT é um <b>formato</b>. OAuth 2.0 e OIDC definem como tokens são obtidos, delegados e considerados confiáveis.</p>
+
+---
+
+## As camadas de segurança da loja
+
+**Defesa em profundidade**: camadas independentes, para que quem vence uma ainda enfrente a próxima.
+
+| Camada | Ameaça | Controle |
+|---|---|---|
+| Borda | interceptação, abuso | TLS, rate limiting |
+| Identidade | credenciais roubadas ou forjadas | OAuth 2.0 / OIDC, tokens de vida curta |
+| Requisição | usuário lê dados de outra pessoa | autorização em cada serviço |
+| Entre serviços | movimento lateral a partir de um pod | mTLS, NetworkPolicy, políticas de autorização |
+| Dados | senhas e chaves vazadas | gerenciador de segredos, criptografia em repouso |
+
+<div class="warn">
+
+**Segurança só no gateway**: um `NodePort` ou uma porta de debug permite a qualquer um enviar `id-account: <any id>`. E mais: nada de criptografia caseira nem bearer tokens de 24 horas.
+
+</div>
 
 ---
 
@@ -211,6 +248,27 @@ spring.security.oauth2.resourceserver.jwt:
 
 ---
 
+## Onde o navegador guarda o token
+
+| Armazenamento | Lido por JS? | Principal risco | Mitigação |
+|---|---|---|---|
+| `localStorage` / `sessionStorage` | sim | qualquer script XSS o rouba | evite para tokens |
+| Cookie `HttpOnly` (Hands-on 3) | não | CSRF: o cookie vai automaticamente | `SameSite`, `Secure`, tokens CSRF |
+| Sessão no servidor (BFF) | nenhum token no navegador | roubo de sessão | o BFF guarda os tokens |
+
+---
+
+## Armadilhas do OAuth 2.0
+
+- **ROPC ou Implicit** em código novo — use Authorization Code + PKCE.
+- **Pular a verificação do `aud`** — um token válido para outra API é aceito pela sua.
+- **Access tokens de vida longa** — um bearer token roubado vale até o `exp`.
+- **Um segredo HMAC compartilhado por muitos serviços** — quem verifica também consegue *forjar*; use um JWKS.
+- **Tokens em URLs ou logs** — acabam em logs de proxy e no histórico; use headers ou cookies.
+- **Chamar a API com o ID token** — ID tokens são para o cliente; APIs aceitam access tokens.
+
+---
+
 ## Zero Trust
 
 <div class="cols">
@@ -227,7 +285,7 @@ Um pod comprometido → **movimento lateral** para todo lado.
 
 ### Zero Trust (NIST SP 800-207)
 
-**Toda requisição** → ponto de aplicação (gateway, sidecar) → decisão de política → permite com **privilégio mínimo** ou nega.
+**Toda requisição** → **PEP** (ponto de aplicação: gateway, sidecar) → **PDP** (decisão de política) → permite com **privilégio mínimo** ou nega.
 
 </div>
 </div>
@@ -237,6 +295,22 @@ Um pod comprometido → **movimento lateral** para todo lado.
 | Verificar a identidade explicitamente | tokens OIDC, mTLS, SPIFFE |
 | Privilégio mínimo · presumir a violação | escopos, RBAC, NetworkPolicy |
 | Validação contínua | TTLs curtos, nova autenticação, monitoramento |
+
+---
+
+## Exemplo: o pod comprometido, de novo
+
+| Passo do atacante | Modelo de perímetro | Controle Zero Trust |
+|---|---|---|
+| Chamar o `account-service` com um `id-account` forjado | aceito: quem chama está "dentro" | só a identidade de workload do gateway (mTLS + política) |
+| Conectar a qualquer pod | permitido | NetworkPolicy: só fluxos declarados |
+| Reusar a senha do BD do ambiente | funciona por meses | credencial de vida curta, por serviço (≤ 1 hora) |
+
+<div class="ok">
+
+**Presuma a violação**: limite o que um pod comprometido consegue **chamar**, **alcançar** e **ler**.
+
+</div>
 
 ---
 
@@ -302,6 +376,21 @@ Um Secret do Kubernetes é **base64, não criptografia**: `echo c3RvcmU= | base6
 
 ---
 
+## Segredos: erros comuns
+
+- **Segredos no Git**, mesmo privado ou "só para dev" — o histórico os guarda; rotacione todo segredo que um dia foi commitado.
+- **Uma única credencial compartilhada por todos os serviços** — um vazamento não tem como ser rastreado; rotacioná-la quebra todo mundo.
+- **Segredos em logs e mensagens de erro** — mascare-os, como o Jenkins faz com `withCredentials`.
+- **Tratar o mTLS como autorização** — um certificado prova identidade, não permissão.
+
+<div class="ok">
+
+Higiene mínima para Secrets nativos: **criptografia em repouso** no etcd, **RBAC** em `get`/`list`, manifestos **fora do Git** (ou Sealed Secrets / SOPS).
+
+</div>
+
+---
+
 ## Pontos-chave
 
 1. **AuthN** = quem, **authZ** = o quê; o gateway autentica, cada serviço autoriza seus objetos.
@@ -309,5 +398,5 @@ Um Secret do Kubernetes é **base64, não criptografia**: `echo c3RvcmU= | base6
 3. **Code + PKCE** para usuários, **Client Credentials** para serviços — **nunca ROPC ou Implicit**.
 4. **Access tokens** curtos para as APIs, **refresh tokens** para o Auth Server, **ID token** para o cliente.
 5. **JWKS** = validação local, sem salto; **introspecção** (`/auth/solve`) = revogação imediata.
-6. **Zero Trust**: verifique cada chamada — identidade mTLS, política de autorização, NetworkPolicy deny-all.
-7. Segredos: base64 não é criptografia — criptografia em repouso, RBAC e credenciais de **vida curta**.
+6. **Zero Trust**: presuma a violação e verifique cada chamada — identidade mTLS, política de autorização, NetworkPolicy deny-all.
+7. Segurança em **camadas**: TLS na borda, tokens para usuários, mTLS entre serviços, um gerenciador de segredos — base64 não é criptografia.

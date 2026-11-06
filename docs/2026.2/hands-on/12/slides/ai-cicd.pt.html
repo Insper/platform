@@ -85,7 +85,7 @@ Em que ponto do pipeline um assistente de IA compensa primeiro?</p>
 </ul>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="3" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="3" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="15">
-<h2 id="o-objetivo-e-o-fluxo">O objetivo e o fluxo</h2>
+<h2 id="1--arquitetura-o-fluxo">1 · Arquitetura: o fluxo</h2>
 <p>Quando um desenvolvedor abre um PR, um job do <strong>GitHub Actions</strong> envia o diff à <strong>API do Claude</strong> e publica uma revisão estruturada como <strong>comentário no PR</strong>.</p>
 <ol>
 <li>O desenvolvedor faz push e abre um PR.</li>
@@ -99,7 +99,7 @@ Em que ponto do pipeline um assistente de IA compensa primeiro?</p>
 </div>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="4" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="4" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="15">
-<h2 id="passo-1--o-secret-da-chave-de-api">Passo 1 — O secret da chave de API</h2>
+<h2 id="21--o-secret-da-chave-de-api">2.1 · O secret da chave de API</h2>
 <p>Repositório → <strong>Settings</strong> → <strong>Secrets and variables</strong> → <strong>Actions</strong> → <strong>New repository secret</strong></p>
 <ul>
 <li>Nome: <code>ANTHROPIC_API_KEY</code></li>
@@ -112,7 +112,7 @@ Em que ponto do pipeline um assistente de IA compensa primeiro?</p>
 </div>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="5" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="5" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="15">
-<h2 id="passo-2--workflow-gatilho-e-permiss%C3%B5es">Passo 2 — Workflow: gatilho e permissões</h2>
+<h2 id="22--workflow-gatilho-e-permiss%C3%B5es">2.2 · Workflow: gatilho e permissões</h2>
 <p><code>.github/workflows/ai-review.yml</code></p>
 <pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-yaml"><span class="hljs-attr">name:</span> <span class="hljs-string">AI</span> <span class="hljs-string">Code</span> <span class="hljs-string">Review</span>
 
@@ -127,7 +127,7 @@ Em que ponto do pipeline um assistente de IA compensa primeiro?</p>
 <p class="small"><code>pull-requests: write</code> é o que permite ao <code>GITHUB_TOKEN</code> comentar no PR.</p>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="6" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="6" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="15">
-<h2 id="passo-2--workflow-o-job">Passo 2 — Workflow: o job</h2>
+<h2 id="22--workflow-o-job">2.2 · Workflow: o job</h2>
 <pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-yaml"><span class="hljs-attr">jobs:</span>
   <span class="hljs-attr">ai-review:</span>
     <span class="hljs-attr">runs-on:</span> <span class="hljs-string">ubuntu-latest</span>
@@ -145,7 +145,7 @@ Em que ponto do pipeline um assistente de IA compensa primeiro?</p>
 </code></pre>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="7" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="7" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="15">
-<h2 id="passo-3--o-system-prompt">Passo 3 — O system prompt</h2>
+<h2 id="3--o-script-de-revis%C3%A3o-system-prompt">3 · O script de revisão: system prompt</h2>
 <p>O <strong>system prompt</strong> em <code>.github/scripts/ai_review.py</code> é o principal ponto de controle da qualidade da revisão.</p>
 <div class="cols">
 <div>
@@ -170,7 +170,7 @@ Em que ponto do pipeline um assistente de IA compensa primeiro?</p>
 </div>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="8" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="8" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="15">
-<h2 id="passo-3--diff-entra-coment%C3%A1rio-sai">Passo 3 — Diff entra, comentário sai</h2>
+<h2 id="3--diff-entra-coment%C3%A1rio-sai">3 · Diff entra, comentário sai</h2>
 <pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-python">diff = get_pr_diff(repo, pr_number)   <span class="hljs-comment"># concatenates f.patch, stops after 3000 lines</span>
 
 client = anthropic.Anthropic()        <span class="hljs-comment"># reads ANTHROPIC_API_KEY</span>
@@ -186,7 +186,7 @@ post_review_comment(repo, pr_number, message.content[<span class="hljs-number">0
 <p class="small"><code>post_review_comment</code> chama o <code>pr.create_issue_comment(...)</code> do PyGithub com um cabeçalho "🤖 AI Code Review".</p>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="9" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="9" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="15">
-<h2 id="decis%C3%B5es-de-design">Decisões de design</h2>
+<h2 id="3--decis%C3%B5es-de-design">3 · Decisões de design</h2>
 <table>
 <thead>
 <tr>
@@ -215,7 +215,7 @@ post_review_comment(repo, pr_number, message.content[<span class="hljs-number">0
 </table>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="10" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="10" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="15">
-<h2 id="passo-4--teste-com-um-problema-proposital">Passo 4 — Teste com um problema proposital</h2>
+<h2 id="4--teste-com-um-problema-proposital">4 · Teste com um problema proposital</h2>
 <pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-bash">git checkout -b feature/add-order-endpoint
 <span class="hljs-comment"># make a change with a deliberate issue,</span>
 <span class="hljs-comment"># e.g. hardcode a JWT secret in application.yaml</span>
@@ -229,7 +229,7 @@ git push origin feature/add-order-endpoint
 </ul>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="11" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="11" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="15">
-<h2 id="o-que-voc%C3%AA-deve-ver">O que você deve ver</h2>
+<h2 id="4--o-que-voc%C3%AA-deve-ver">4 · O que você deve ver</h2>
 <pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-text">## <img class="emoji" draggable="false" alt="🤖" src="https://cdn.jsdelivr.net/gh/jdecked/twemoji@17.0.3/assets/svg/1f916.svg" data-marp-twemoji=""/> AI Code Review
 
 ## Summary
@@ -244,9 +244,10 @@ This PR adds an order creation endpoint. ... a critical security issue ...
 ## What looks good
 Input validation via `@Valid` is correctly applied to the request body.
 </code></pre>
+<p class="small">Calibre o prompt: se o modelo deixa passar problemas específicos do seu código (Feign clients, anti-padrões de Spring Boot), adicione-os à lista <code>Focus on:</code>.</p>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="12" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="12" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="15">
-<h2 id="estendendo-o-revisor">Estendendo o revisor</h2>
+<h2 id="5--estendendo-o-revisor">5 · Estendendo o revisor</h2>
 <table>
 <thead>
 <tr>
@@ -271,15 +272,11 @@ Input validation via `@Valid` is correctly applied to the request body.
 <td>Bloquear em <img class="emoji" draggable="false" alt="🔴" src="https://cdn.jsdelivr.net/gh/jdecked/twemoji@17.0.3/assets/svg/1f534.svg" data-marp-twemoji=""/> Critical</td>
 <td><strong>Checks API</strong> do GitHub, <code>checks: write</code>, um check run em vez de um comentário</td>
 </tr>
-<tr>
-<td>Problemas específicos do código</td>
-<td>adicioná-los (Feign clients, anti-padrões de Spring Boot) à lista <code>Focus on:</code></td>
-</tr>
 </tbody>
 </table>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="13" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="13" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="15">
-<h2 id="um-guia-n%C3%A3o-uma-barreira">Um guia, não uma barreira</h2>
+<h2 id="5--um-guia-n%C3%A3o-uma-barreira">5 · Um guia, não uma barreira</h2>
 <div class="warn">
 <p>Bloquear merges com base na saída da IA é confiar nos erros dela: ela pode <strong>apontar código seguro</strong> ou <strong>deixar passar problemas reais</strong>.</p>
 </div>
@@ -290,8 +287,8 @@ Input validation via `@Valid` is correctly applied to the request body.
 <li>Mantenha o diff e a resposta <strong>limitados</strong> (3 000 linhas, <code>max_tokens</code>) — cada PR é uma chamada de API que custa dinheiro.</li>
 </ul>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="14" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="14" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="15">
-<h2 id="a-mesma-forma-outras-tarefas">A mesma forma, outras tarefas</h2>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="14" data-paginate="true" data-class="tight" data-lang="pt-BR" data-theme="platform" lang="pt-BR" class="tight" data-marpit-pagination="14" style="--paginate:true;--class:tight;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="15">
+<h2 id="6--a-mesma-forma-outras-tarefas">6 · A mesma forma, outras tarefas</h2>
 <p><strong>Gatilho de CI/CD → coletar contexto → chamada ao LLM com prompt da tarefa → agir sobre o resultado</strong></p>
 <table>
 <thead>
@@ -311,6 +308,11 @@ Input validation via `@Valid` is correctly applied to the request body.
 <td>Geração de testes</td>
 <td>escreve testes unitários das funções alteradas</td>
 <td>cobertura abaixo do limite</td>
+</tr>
+<tr>
+<td>Padronização de mensagens de commit</td>
+<td>reescreve ou valida mensagens de commit</td>
+<td>times grandes, commits inconsistentes</td>
 </tr>
 <tr>
 <td>Geração de changelog</td>

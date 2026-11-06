@@ -72,150 +72,238 @@
 <h1 id="arquiteturas">Arquiteturas</h1>
 <p><strong>Proteja a lógica de negócio: as dependências apontam para o núcleo</strong></p>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="2" data-marpit-fragments="3" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="2" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="16">
-<h2 id="quem-conhece-quem">Quem conhece quem?</h2>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="2" data-marpit-fragments="3" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="2" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="27">
+<h2 id="o-account-service-daqui-a-um-ano">O account service daqui a um ano</h2>
 <div class="q">
-<p>Um <code>UserService</code> importa anotações JPA, um controller valida a entrada, um repositório retorna códigos de status HTTP. O que acontece quando você <strong>troca o banco de dados</strong>?</p>
+<p>O mobile quer um endpoint, o time de banco quer um serviço gerenciado, a segurança quer contas criadas a partir de um evento Kafka e alguém precisa de testes que rodem em segundos. E se as regras (&quot;um e-mail só pode ser cadastrado uma vez&quot;, &quot;uma senha tem pelo menos 8 caracteres&quot;) estiverem emaranhadas com anotações do Spring, SQL e códigos de status HTTP?</p>
 </div>
 <ul>
-<li data-marpit-fragment="1">Cada componente conhece todos os outros: uma <strong>Big Ball of Mud</strong> (grande bola de lama).</li>
-<li data-marpit-fragment="2">Sem testes isolados, sem substituir partes, sem trabalho em paralelo entre times.</li>
-<li data-marpit-fragment="3">As preocupações externas (BD, framework, protocolo) <strong>mudam com mais frequência</strong> que as regras de negócio — e arrastam as regras junto.</li>
+<li data-marpit-fragment="1">Cada um desses pedidos vira uma <strong>reescrita</strong>.</li>
+<li data-marpit-fragment="2">A arquitetura decide <strong>quais componentes podem conhecer quais outros</strong>.</li>
+<li data-marpit-fragment="3">Objetivo: <strong>proteger a lógica de negócio das preocupações externas</strong> — frameworks, bancos e protocolos mudam mais do que as regras de negócio.</li>
 </ul>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="3" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="3" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="16">
-<h2 id="uma-regra-inverta-a-seta">Uma regra: inverta a seta</h2>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="3" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="3" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="27">
+<h2 id="o-problema-central">O problema central</h2>
+<ul>
+<li>Sem uma regra, as dependências se acumulam nas duas direções: um <code>UserService</code> importa anotações JPA, um controller valida, um repositório retorna códigos de status HTTP.</li>
+<li>O resultado é uma <strong>Big Ball of Mud</strong> (grande bola de lama): sem testes isolados, sem trocar partes, sem trabalho em paralelo dos times.</li>
+<li>A solução é uma restrição: <strong>as dependências fluem numa única direção</strong>, para o núcleo estável — adaptadores e controllers apontam para o núcleo, o núcleo <strong>nunca importa</strong> o mundo externo (HTTP, banco, mensageria, CLI).</li>
+</ul>
+<div class="ok">
+<p>Uma <strong>dependência</strong> = uma referência em tempo de compilação (um <code>import</code>, o tipo de um campo, um <code>new B()</code>). Aponte-a do que muda sempre (frameworks, protocolos) para o que muda pouco (regras de negócio).</p>
+</div>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="4" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="4" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="27">
+<h2 id="o-ponto-de-partida-arquitetura-em-camadas">O ponto de partida: arquitetura em camadas</h2>
 <div class="cols">
 <div>
 <h3 id="em-camadas-n-tier">Em camadas (n-tier)</h3>
-<p><code>Controller</code> → <code>Service</code> → <code>JpaRepository</code> → Postgres</p>
-<p>A <strong>lógica de negócio depende da persistência</strong>.</p>
+<p><code>AccountController</code> → <code>AccountService</code> → <code>JpaRepository</code> (Spring Data) → Postgres</p>
+<p>Um bom primeiro passo, mas a <strong>lógica de negócio depende da persistência</strong>.</p>
 </div>
 <div>
 <h3 id="clean--hexagonal">Clean / Hexagonal</h3>
-<p><code>Service</code> → «interface» <code>AccountRepository</code> ← <code>AccountJpaAdapter</code> → Postgres</p>
-<p>A <strong>persistência depende do negócio</strong>.</p>
+<p><code>AccountService</code> → «interface» <code>AccountRepository</code> ← <code>AccountJpaAdapter</code> → Postgres</p>
+<p>O serviço é dono de uma interface <strong>em termos de negócio</strong>; <strong>a persistência depende do negócio</strong>.</p>
 </div>
 </div>
 <div class="ok">
-<p><strong>As dependências fluem em uma só direção</strong>, rumo ao núcleo estável. O núcleo <strong>nunca importa</strong> o mundo externo (HTTP, BD, MQ, CLI).</p>
+<p>Essa única mudança é o <strong>Princípio da Inversão de Dependência</strong> (o &quot;D&quot; do SOLID) aplicado na fronteira — o que as próximas três partes desenvolvem.</p>
 </div>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="4" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="4" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="16">
-<h2 id="solid--projeto-no-n%C3%ADvel-das-classes">SOLID — projeto no nível das classes</h2>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="5" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="5" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="27">
+<div class="kicker">SOLID</div>
+<h2 id="solid--design-no-n%C3%ADvel-das-classes">SOLID — design no nível das classes</h2>
+<p>O <code>AccountService</code> cresce: validação, e-mail de boas-vindas, log de auditoria, descontos, importação em lote… 600 linhas, testes sem relação quebram, nenhum teste unitário sem banco e servidor SMTP. Um problema de <strong>design de classes</strong>.</p>
 <table>
 <thead>
 <tr>
 <th></th>
 <th>Princípio</th>
-<th>Problema resolvido → mecanismo</th>
+<th>Criado por</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><strong>S</strong></td>
 <td>Responsabilidade Única</td>
-<td>uma classe, vários motivos para mudar → <strong>uma preocupação por classe</strong></td>
+<td>Robert C. Martin</td>
 </tr>
 <tr>
 <td><strong>O</strong></td>
 <td>Aberto/Fechado</td>
-<td>editar código para adicionar funções → <strong>novas implementações de uma interface</strong></td>
+<td>Bertrand Meyer, 1988</td>
 </tr>
 <tr>
 <td><strong>L</strong></td>
 <td>Substituição de Liskov</td>
-<td>subtipos quebram contratos → <strong>honre o comportamento, não só as assinaturas</strong></td>
+<td>Barbara Liskov, 1987; com Jeannette Wing, 1994</td>
 </tr>
 <tr>
 <td><strong>I</strong></td>
 <td>Segregação de Interfaces</td>
-<td>interfaces gordas → <strong>divida conforme a necessidade do cliente</strong></td>
+<td>Robert C. Martin</td>
 </tr>
 <tr>
 <td><strong>D</strong></td>
 <td>Inversão de Dependência</td>
-<td>lógica acoplada à infraestrutura → <strong>ambos dependem de uma abstração</strong></td>
+<td>Robert C. Martin</td>
 </tr>
 </tbody>
 </table>
-<p class="small">Reunidos por Robert C. Martin (2000–2002); acrônimo de Michael Feathers; Aberto/Fechado de Bertrand Meyer (1988); Liskov de Barbara Liskov (1987).</p>
+<p class="small">Reunidos por Martin (artigo de 2000; livro de 2002); a sigla é de Michael Feathers, por volta de 2004. Nível de classe — os blocos que a Clean e a Hexagonal impõem no nível do sistema.</p>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="5" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="5" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="16">
-<h2 id="s-e-o">S e O</h2>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="6" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="6" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="27">
+<h2 id="s--responsabilidade-%C3%BAnica">S — Responsabilidade Única</h2>
+<blockquote>
+<p>&quot;Uma classe deve ter um e apenas um motivo para mudar.&quot;</p>
+</blockquote>
+<ul>
+<li>Uma classe responde a <strong>um ator</strong> (um grupo de interessados com a mesma preocupação).</li>
+<li>Violação: o <code>AccountService</code> valida, persiste, envia o e-mail e audita — <strong>quatro motivos para mudar</strong> num arquivo.</li>
+<li>Aplicado: <code>AccountRepository</code> (persistir), <code>EmailService</code> (notificar), <code>AuditService</code> (registrar); o <code>AccountService</code> só <strong>orquestra</strong> e só muda quando o fluxo de criação de conta muda.</li>
+</ul>
+<div class="q">
+<p>O SRP <strong>não</strong> significa &quot;fazer uma coisa só&quot;: um serviço pode orquestrar vários passos se todos servem à mesma preocupação e ao mesmo dono.</p>
+</div>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="7" data-paginate="true" data-class="tight" data-lang="pt-BR" data-theme="platform" lang="pt-BR" class="tight" data-marpit-pagination="7" style="--paginate:true;--class:tight;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="27">
+<h2 id="o--abertofechado">O — Aberto/Fechado</h2>
+<blockquote>
+<p>&quot;Aberto para extensão, mas fechado para modificação.&quot; — Bertrand Meyer</p>
+</blockquote>
+<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-java"><span class="hljs-keyword">public</span> <span class="hljs-keyword">class</span> <span class="hljs-title class_">DiscountService</span> {
+    <span class="hljs-keyword">private</span> <span class="hljs-keyword">final</span> List&lt;DiscountPolicy&gt; policies;   <span class="hljs-comment">// the extension point</span>
+    <span class="hljs-keyword">public</span> <span class="hljs-type">double</span> <span class="hljs-title function_">calculate</span><span class="hljs-params">(Account account)</span> {
+        <span class="hljs-keyword">return</span> policies.stream()
+            .filter(p -&gt; p.appliesTo(account))
+            .findFirst()
+            .map(p -&gt; p.calculate(account))
+            .orElse(account.orderTotal() * <span class="hljs-number">0.05</span>);
+    }
+}
+</code></pre>
+<ul>
+<li>Acrescentar a <code>PartnerDiscountPolicy</code> = <strong>uma classe nova</strong> com <code>@Component</code>; o Spring injeta todas as <code>DiscountPolicy</code> na lista.</li>
+<li><strong>Fechado contra quais mudanças?</strong> Coloque a abstração no eixo <strong>provável</strong> de variação (novos tipos de cliente), não &quot;por via das dúvidas&quot;.</li>
+</ul>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="8" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="8" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="27">
+<h2 id="l--substitui%C3%A7%C3%A3o-de-liskov">L — Substituição de Liskov</h2>
+<p>Subtipos precisam honrar o <strong>contrato</strong> do supertipo — o comportamento, não só as assinaturas.</p>
 <div class="cols">
 <div>
-<h3 id="responsabilidade-%C3%BAnica">Responsabilidade Única</h3>
-<blockquote>
-<p>Um, e apenas um, motivo para mudar.</p>
-</blockquote>
-<p>Um <code>AccountService</code> que valida, persiste, envia e-mails e audita tem <strong>quatro motivos para mudar</strong>.</p>
-<p>Divida: <code>AccountRepository</code>, <code>EmailService</code>, <code>AuditService</code>; o serviço só <strong>orquestra</strong>.</p>
+<h3 id="viola%C3%A7%C3%A3o">Violação</h3>
+<p><code>Square extends Rectangle</code> sobrescreve os setters: <code>setWidth(5); setHeight(3);</code> → <code>area()</code> dá <strong>9</strong>, não 15.</p>
+<p>Correção: <code>Rectangle</code> e <code>Square</code> implementam uma interface <code>Shape</code> com <code>area()</code>.</p>
 </div>
 <div>
-<h3 id="abertofechado">Aberto/Fechado</h3>
-<blockquote>
-<p>Aberto para extensão, fechado para modificação.</p>
-</blockquote>
-<p>O <code>DiscountService</code> depende da interface <code>DiscountPolicy</code>.</p>
-<p>Adicionar <code>PartnerDiscountPolicy</code> = <strong>uma classe nova</strong>; o <code>DiscountService</code> nunca é tocado.</p>
+<h3 id="na-loja-adaptadores-de-teste">Na loja: adaptadores de teste</h3>
+<p><code>InMemoryAccountRepository</code> e <code>AccountJpaAdapter</code> implementam <code>AccountRepository</code>. Se o banco rejeita um e-mail duplicado e a versão em memória o sobrescreve, <strong>os testes unitários passam e a produção falha</strong>.</p>
 </div>
+</div>
+<div class="ok">
+<p>Um teste escrito para o supertipo precisa passar para todo subtipo: rode um mesmo <strong>teste de contrato</strong> nos dois adaptadores.</p>
 </div>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="6" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="6" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="16">
-<h2 id="l-e-i">L e I</h2>
-<div class="cols">
-<div>
-<h3 id="substitui%C3%A7%C3%A3o-de-liskov">Substituição de Liskov</h3>
-<p><code>Square extends Rectangle</code> sobrescreve os setters:</p>
-<p><code>setWidth(5); setHeight(3);</code> → <code>area()</code> dá <strong>9</strong>, e não 15.</p>
-<p>Correção: os dois implementam uma interface <code>Shape</code> com <code>area()</code>.</p>
-</div>
-<div>
-<h3 id="segrega%C3%A7%C3%A3o-de-interfaces">Segregação de Interfaces</h3>
-<p>Um <code>AccountRepository</code> gordo obriga quem chama a depender de métodos de administração.</p>
-<p>Divida em <code>AccountReader</code>, <code>AccountWriter</code>, <code>AccountAdmin</code>: o <code>AccountService</code> usa só os dois primeiros.</p>
-</div>
-</div>
-<p class="small">Teste do LSP: um teste escrito para o supertipo precisa passar para todo subtipo — inclusive <code>InMemoryAccountRepository</code> vs. o adaptador JPA (mesmo comportamento com e-mail duplicado).</p>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="9" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="9" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="27">
+<h2 id="i--segrega%C3%A7%C3%A3o-de-interfaces">I — Segregação de Interfaces</h2>
+<blockquote>
+<p>&quot;Clientes não devem ser forçados a depender de interfaces que não usam.&quot;</p>
+</blockquote>
+<ul>
+<li>Um <code>AccountRepository</code> gordo (find, save, delete, <code>findByRole</code>, <code>bulkImport</code>…) faz todo chamador depender dos métodos de administração e relatórios — e recompilar quando eles mudam.</li>
+<li>Divida pela necessidade do cliente: <code>AccountReader</code>, <code>AccountWriter</code>, <code>AccountAdmin</code> (que estende o reader).</li>
+<li>O <code>JpaAccountAdapter</code> implementa as três; o <code>AccountService</code> depende só de <code>AccountReader</code> e <code>AccountWriter</code>.</li>
+</ul>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="7" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="7" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="16">
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="10" data-paginate="true" data-class="tight" data-lang="pt-BR" data-theme="platform" lang="pt-BR" class="tight" data-marpit-pagination="10" style="--paginate:true;--class:tight;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="27">
 <h2 id="d--invers%C3%A3o-de-depend%C3%AAncia">D — Inversão de Dependência</h2>
-<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-java"><span class="hljs-keyword">public</span> <span class="hljs-keyword">interface</span> <span class="hljs-title class_">AccountRepository</span> {           <span class="hljs-comment">// the abstraction</span>
+<blockquote>
+<p>&quot;Módulos de alto nível não devem depender de módulos de baixo nível. Ambos devem depender de abstrações.&quot;</p>
+</blockquote>
+<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-java"><span class="hljs-keyword">public</span> <span class="hljs-keyword">interface</span> <span class="hljs-title class_">AccountRepository</span> {            <span class="hljs-comment">// owned by the business code</span>
     <span class="hljs-type">Optional</span>&lt;Account&gt; <span class="hljs-title function_">findById</span><span class="hljs-params">(String id)</span>;
     <span class="hljs-type">Account</span> <span class="hljs-title function_">save</span><span class="hljs-params">(Account account)</span>;
 }
-<span class="hljs-keyword">public</span> <span class="hljs-keyword">class</span> <span class="hljs-title class_">AccountService</span> {                   <span class="hljs-comment">// high-level: depends on it</span>
+<span class="hljs-keyword">public</span> <span class="hljs-keyword">class</span> <span class="hljs-title class_">AccountService</span> {                    <span class="hljs-comment">// high-level: depends on the abstraction</span>
     <span class="hljs-keyword">private</span> <span class="hljs-keyword">final</span> AccountRepository repository;
-    <span class="hljs-type">public</span> <span class="hljs-title function_">AccountService</span><span class="hljs-params">(AccountRepository repository)</span> { ... }
+    <span class="hljs-type">public</span> <span class="hljs-title function_">AccountService</span><span class="hljs-params">(AccountRepository repository)</span> { <span class="hljs-built_in">this</span>.repository = repository; }
 }
 <span class="hljs-meta">@Repository</span>
-<span class="hljs-keyword">public</span> <span class="hljs-keyword">class</span> <span class="hljs-title class_">JpaAccountRepository</span> <span class="hljs-keyword">implements</span> <span class="hljs-title class_">AccountRepository</span> { ... }
+<span class="hljs-keyword">public</span> <span class="hljs-keyword">class</span> <span class="hljs-title class_">JpaAccountRepository</span> <span class="hljs-keyword">implements</span> <span class="hljs-title class_">AccountRepository</span> { <span class="hljs-comment">/* ... */</span> }
 </code></pre>
-<p>Antes: <code>new MySqlAccountRepository()</code>. Agora o JPA, ou o <code>InMemoryAccountRepository</code> nos testes, se encaixam.</p>
-<p class="small">A DI (o Spring injetando beans) é o <i>mecanismo</i>; o DIP é o <i>princípio</i>: o tipo injetado é uma abstração <b>que pertence ao código de negócio</b>.</p>
+<ul>
+<li>Antes: <code>new MySqlAccountRepository()</code>. Depois: JPA em produção, <code>InMemoryAccountRepository</code> nos testes.</li>
+<li><strong>Quem é dono da interface</strong> importa: declarada ao lado do <code>AccountService</code>, em termos de negócio — não espelhando o JPA no pacote de persistência.</li>
+<li><strong>Injeção de Dependência</strong> (o Spring ligando os beans) é a <em>técnica</em>; <strong>Inversão de Controle</strong>, o framework chamando seu código; o DIP é o <em>princípio</em>: o tipo injetado é uma abstração do módulo de alto nível.</li>
+</ul>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="8" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="8" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="16">
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="11" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="11" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="27">
+<h2 id="solid-%C3%A9-um-guia-n%C3%A3o-um-objetivo">SOLID é um guia, não um objetivo</h2>
+<table>
+<thead>
+<tr>
+<th>Princípio</th>
+<th>Problema resolvido</th>
+<th>Mecanismo</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>SRP</strong></td>
+<td>classes que mudam por vários motivos</td>
+<td>uma preocupação por classe</td>
+</tr>
+<tr>
+<td><strong>OCP</strong></td>
+<td>editar código para acrescentar funcionalidades</td>
+<td>novas implementações de uma interface</td>
+</tr>
+<tr>
+<td><strong>LSP</strong></td>
+<td>subtipos que quebram contratos</td>
+<td>honrar o comportamento, não só as assinaturas</td>
+</tr>
+<tr>
+<td><strong>ISP</strong></td>
+<td>interfaces gordas</td>
+<td>dividir pela necessidade do cliente</td>
+</tr>
+<tr>
+<td><strong>DIP</strong></td>
+<td>lógica acoplada à infraestrutura</td>
+<td>ambos dependem de uma abstração</td>
+</tr>
+</tbody>
+</table>
+<div class="warn">
+<p><strong>Excesso</strong>: uma interface para cada classe (uma implementação, nenhum fake) · SRP até um método por classe · herança para reaproveitar código (prefira composição) · generalidade especulativa (<strong>YAGNI</strong>).</p>
+</div>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="12" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="12" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="27">
+<div class="kicker">Clean Architecture</div>
 <h2 id="clean-architecture">Clean Architecture</h2>
-<p>Robert C. Martin, 2012 — uma síntese da Hexagonal, da Onion, do BCE e de outras.</p>
+<p>Robert C. Martin, 2012 — uma síntese de Hexagonal, Onion, Screaming Architecture, DCI e BCE.</p>
 <table>
 <thead>
 <tr>
 <th>Camada</th>
-<th>Também chamada de</th>
+<th>Também chamada</th>
 <th>Responsabilidade</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><strong>Entities</strong></td>
+<td><strong>Entities</strong> (entidades)</td>
 <td>Domínio</td>
-<td>regras de negócio de toda a empresa</td>
+<td>regras de negócio e dados de toda a empresa</td>
 </tr>
 <tr>
-<td><strong>Use Cases</strong></td>
+<td><strong>Use Cases</strong> (casos de uso)</td>
 <td>Aplicação</td>
-<td>o que a aplicação <em>faz</em>; orquestra as Entities</td>
+<td>o que a aplicação <em>faz</em>; orquestram as Entities</td>
 </tr>
 <tr>
 <td><strong>Interface Adapters</strong></td>
@@ -225,41 +313,104 @@
 <tr>
 <td><strong>Frameworks &amp; Drivers</strong></td>
 <td>Infraestrutura</td>
-<td>web, BD, UI, APIs externas — todo detalhe</td>
+<td>web, banco, UI, APIs externas — todo detalhe</td>
 </tr>
 </tbody>
 </table>
 <div class="ok">
-<p><strong>A Regra de Dependência</strong>: nada em uma camada interna referencia uma camada externa. Nada de <code>@Entity</code> ou <code>HttpServletRequest</code> dentro de um Use Case.</p>
+<p><strong>A Regra de Dependência</strong>: nada numa camada interna referencia uma camada externa. Os dados atravessam as fronteiras como objetos simples ou records — nada de <code>@Entity</code> ou <code>HttpServletRequest</code> num Use Case.</p>
 </div>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="9" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="9" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="16">
-<h2 id="a-que-camada-uma-classe-pertence">A que camada uma classe pertence?</h2>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="13" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="13" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="27">
+<h2 id="atravessando-uma-fronteira-e-onde-fica-cada-classe">Atravessando uma fronteira e onde fica cada classe</h2>
+<p>Como um Use Case salva uma conta sem referenciar o banco? <strong>Inversão de Dependência</strong>: ele declara o <code>AccountRepository</code> e a camada externa o implementa. Em tempo de execução a chamada vai <strong>para fora</strong>; no código-fonte a dependência aponta <strong>para dentro</strong>.</p>
 <ul>
 <li>Muda quando o <strong>negócio</strong> muda → <strong>Entity ou Use Case</strong>.</li>
 <li>Muda quando a <strong>interface</strong> muda (REST → gRPC, JSON → XML) → <strong>Interface Adapter</strong>.</li>
-<li>Muda quando uma <strong>biblioteca</strong> é atualizada (Spring Boot, dialeto JPA) → <strong>Frameworks &amp; Drivers</strong>.</li>
+<li>Muda quando uma <strong>biblioteca</strong> é atualizada (Spring Boot, dialeto do JPA) → <strong>Frameworks &amp; Drivers</strong>.</li>
 </ul>
-<p>Hands-on 1: <code>AccountResource</code> + <code>AccountIn/Out</code> (adaptadores) → <strong><code>AccountParser</code></strong> → <code>AccountService</code> (caso de uso) → <code>AccountRepository</code> → <code>AccountModel</code> (<code>@Entity</code>)</p>
-<p class="small">Atalho: o repositório do Hands-on 1 é uma interface do Spring Data — um tipo do framework no caso de uso. Tudo bem para um CRUD pequeno; a versão estrita adiciona porta + adaptador + <b>Mapper</b>.</p>
+<p class="small">Uma regra de negócio que precisa de uma anotação do framework? Leve a regra para uma classe interna e deixe a anotação no adaptador.</p>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="10" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="10" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="16">
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="14" data-paginate="true" data-class="tight" data-lang="pt-BR" data-theme="platform" lang="pt-BR" class="tight" data-marpit-pagination="14" style="--paginate:true;--class:tight;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="27">
+<h2 id="na-nossa-arquitetura-hands-on-1">Na nossa arquitetura: Hands-on 1</h2>
+<table>
+<thead>
+<tr>
+<th>Classe do Hands-on 1</th>
+<th>Papel</th>
+<th>Camada</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>AccountController</code> (interface) + <code>AccountResource</code></td>
+<td>Interface</td>
+<td>Interface Adapters</td>
+</tr>
+<tr>
+<td><code>AccountIn</code>, <code>AccountOut</code></td>
+<td>RecordIn / RecordOut: o contrato HTTP</td>
+<td>Interface Adapters</td>
+</tr>
+<tr>
+<td><code>AccountParser</code></td>
+<td>Parser: <code>Record*</code> ↔ DTOs do caso de uso</td>
+<td>fronteira Adapters ↔ Use Cases</td>
+</tr>
+<tr>
+<td><code>AccountService</code></td>
+<td>Service: a lógica do caso de uso</td>
+<td>Use Cases</td>
+</tr>
+<tr>
+<td><code>Account</code></td>
+<td>DTO / objeto de domínio</td>
+<td>Use Cases / Entities</td>
+</tr>
+<tr>
+<td><code>AccountRepository</code> (<code>CrudRepository</code> do Spring Data)</td>
+<td>Repository</td>
+<td>fronteira de persistência</td>
+</tr>
+<tr>
+<td><code>AccountModel</code> (<code>@Entity</code>)</td>
+<td>Table, alcançada por um <strong>Mapper</strong></td>
+<td>fronteira de persistência</td>
+</tr>
+</tbody>
+</table>
+<div class="warn">
+<p><strong>Um atalho pragmático</strong>: o repositório estende uma interface do Spring Data, então o serviço depende de um tipo do framework — a rigor, uma violação. Uma troca justa para um serviço CRUD pequeno; a versão estrita dá ao serviço uma interface simples e só o adaptador conhece o JPA.</p>
+</div>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="15" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="15" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="27">
 <h2 id="post-accounts-camada-por-camada"><code>POST /accounts</code>, camada por camada</h2>
 <ol>
-<li><code>AccountController</code> (adaptador) recebe o JSON → <code>service.create(AccountIn)</code>.</li>
-<li><code>AccountService</code> (caso de uso) → <code>repository.findByEmail</code> — <strong>regra da aplicação</strong>: e-mail único.</li>
-<li><code>Account.of(in)</code> (entidade) — <strong>invariantes do domínio</strong>: e-mail válido, senha ≥ 8 caracteres, gera o hash.</li>
-<li><code>repository.save(account)</code> → a porta é implementada por <code>AccountJpaAdapter</code>.</li>
-<li>Adaptador → <code>AccountMapper.toTable</code> → <code>INSERT</code> JPA no Postgres.</li>
+<li>O <code>AccountController</code> (adaptador) recebe o JSON → <code>service.create(AccountIn)</code>.</li>
+<li>O <code>AccountService</code> (caso de uso) → <code>repository.findByEmail</code> — <strong>regra da aplicação</strong>: o e-mail é único.</li>
+<li><code>Account.of(in)</code> (entidade) — <strong>invariantes do domínio</strong>: o e-mail tem @, a senha tem ≥ 8 caracteres, gera o hash.</li>
+<li><code>repository.save(account)</code> → a porta é implementada pelo <code>AccountJpaAdapter</code>.</li>
+<li>O adaptador → <code>AccountMapper.toTable</code> → <code>INSERT</code> no Postgres.</li>
 <li><code>AccountOut</code> → <code>201 Created</code>.</li>
 </ol>
 <div class="ok">
-<p>Em tempo de execução, as chamadas vão <strong>para fora</strong>; as dependências do código apontam <strong>para dentro</strong>. Nenhuma regra sabe que o Postgres existe.</p>
+<p>Nenhuma regra sabe que o Postgres existe. Ganho: casos de uso testados com JUnit puro, REST ou persistência trocados sem tocá-los, times construindo adaptadores em paralelo sobre portas combinadas.</p>
 </div>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="11" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="11" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="16">
-<h2 id="hexagonal-portas-e-adaptadores">Hexagonal: portas e adaptadores</h2>
-<p>Alistair Cockburn, 2005. Uma <strong>porta</strong> é uma interface <strong>que pertence ao núcleo</strong>; um <strong>adaptador</strong> se encaixa nela pelo lado de fora.</p>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="16" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="16" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="27">
+<h2 id="clean-architecture-erros-comuns">Clean Architecture: erros comuns</h2>
+<ul>
+<li><strong>Tipos do framework vazando para dentro</strong>: <code>@Entity</code>, <code>@Column</code>, <code>@JsonProperty</code> ou <code>HttpServletRequest</code> num Use Case ou Entity.</li>
+<li><strong>Controllers gordos</strong>: <code>if</code>s, vários serviços, fluxos — controllers traduzem e delegam, nada mais.</li>
+<li><strong>Modelo de domínio anêmico</strong>: entidades como sacos de dados com toda a lógica no serviço; leve os invariantes para a Entity, como faz o <code>Account.of(...)</code>.</li>
+<li><strong>Mapear tudo em todo lugar</strong>: um modelo por camada num serviço CRUD sem regras reais é puro overhead; mantenha a separação estrita onde estão as regras.</li>
+</ul>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="17" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="17" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="27">
+<div class="kicker">Arquitetura Hexagonal</div>
+<h2 id="hexagonal-dentro-e-fora">Hexagonal: dentro e fora</h2>
+<p>O auth service é <strong>chamado</strong> pelo gateway (em breve por um consumidor Kafka, uma CLI, seus testes) e <strong>chama</strong> o account via Feign, uma biblioteca JWT, o Redis. Para as regras de login, tudo isso é <strong>o mundo externo</strong>.</p>
+<p>Alistair Cockburn, 2005 — <strong>Ports &amp; Adapters</strong>. Sem em cima nem embaixo: só <strong>dentro</strong> e <strong>fora</strong>.</p>
 <table>
 <thead>
 <tr>
@@ -271,142 +422,276 @@
 </thead>
 <tbody>
 <tr>
-<td><strong>Primária / entrada</strong></td>
-<td>fora → app</td>
-<td>a aplicação</td>
+<td><strong>Primária / de entrada</strong> (<em>driving</em>)</td>
+<td>fora → aplicação</td>
+<td>a própria aplicação</td>
 <td><code>AuthService</code>, chamada pelo controller REST</td>
 </tr>
 <tr>
-<td><strong>Secundária / saída</strong></td>
-<td>app → fora</td>
+<td><strong>Secundária / de saída</strong> (<em>driven</em>)</td>
+<td>aplicação → fora</td>
 <td>um adaptador externo</td>
 <td><code>AccountRepository</code>, implementada pelo JPA</td>
 </tr>
 </tbody>
 </table>
-<ul>
-<li>Adaptadores de entrada: controller REST, <code>@KafkaListener</code>, CLI, a <strong>suíte de testes</strong>.</li>
-<li>Adaptadores de saída: JPA (Postgres), Feign (<code>account-service</code>), Redis, produtor Kafka, fakes em memória.</li>
-</ul>
-<p class="small">O formato de hexágono é arbitrário: vários pontos de entrada/saída equivalentes, sem nenhum lado privilegiado.</p>
+<div class="ok">
+<p>Os dois tipos <strong>pertencem ao núcleo</strong>; o adaptador se conecta de fora — <strong>o núcleo nunca importa o adaptador</strong>.</p>
+</div>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="12" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="12" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="16">
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="18" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="18" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="27">
+<h2 id="portas-e-adaptadores-no-c%C3%B3digo">Portas e adaptadores no código</h2>
+<div class="cols">
+<div>
+<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-java"><span class="hljs-comment">// primary port, in the core</span>
+<span class="hljs-keyword">public</span> <span class="hljs-keyword">interface</span> <span class="hljs-title class_">AuthService</span> {
+    <span class="hljs-type">TokenOut</span> <span class="hljs-title function_">login</span><span class="hljs-params">(String email,
+                   String password)</span>;
+    <span class="hljs-type">void</span> <span class="hljs-title function_">logout</span><span class="hljs-params">(String token)</span>;
+}
+<span class="hljs-comment">// secondary port, in the core</span>
+<span class="hljs-keyword">public</span> <span class="hljs-keyword">interface</span> <span class="hljs-title class_">AccountRepository</span> {
+    <span class="hljs-type">Optional</span>&lt;Account&gt; <span class="hljs-title function_">findByEmail</span><span class="hljs-params">(String email)</span>;
+    <span class="hljs-type">Account</span> <span class="hljs-title function_">save</span><span class="hljs-params">(Account account)</span>;
+}
+</code></pre>
+</div>
+<div>
+<ul>
+<li>O <code>AuthServiceImpl</code> implementa a porta primária e depende só de portas secundárias.</li>
+<li><strong>Adaptadores de entrada</strong>: <code>AuthController</code> (<code>POST /auth/login</code>), uma CLI, um <code>@KafkaListener</code>, a suíte de testes.</li>
+<li><strong>Adaptadores de saída</strong>: <code>AccountJpaAdapter</code> (mapeia <code>AccountTable</code> ↔ <code>Account</code>), Feign, Redis, um produtor Kafka, <code>InMemoryAccountRepository</code>.</li>
+</ul>
+</div>
+</div>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="19" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="19" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="27">
+<h2 id="uma-requisi%C3%A7%C3%A3o-atravessando-o-hex%C3%A1gono">Uma requisição atravessando o hexágono</h2>
+<ol>
+<li>Gateway → <code>AuthController</code> (adaptador de entrada): <code>POST /auth/login {email, password}</code>.</li>
+<li>→ <code>login(email, password)</code> pela <strong>porta <code>AuthService</code></strong> → <code>AuthServiceImpl</code> (núcleo).</li>
+<li>→ <code>findByEmail(email)</code> pela <strong>porta <code>AccountRepository</code></strong> → <code>AccountJpaAdapter</code> → Postgres.</li>
+<li><code>Account</code> (mapeada de <code>AccountTable</code>) → <code>matchesPassword</code>, gera o JWT.</li>
+<li><code>TokenOut</code> → <code>200 OK</code> + token.</li>
+</ol>
+<div class="ok">
+<p>Troque o gateway por um teste e o adaptador JPA pelo <code>InMemoryAccountRepository</code>: o núcleo roda exatamente o mesmo código — é esse o objetivo.</p>
+</div>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="20" data-paginate="true" data-class="tight" data-lang="pt-BR" data-theme="platform" lang="pt-BR" class="tight" data-marpit-pagination="20" style="--paginate:true;--class:tight;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="27">
+<h2 id="os-servi%C3%A7os-da-loja-como-hex%C3%A1gonos">Os serviços da loja como hexágonos</h2>
+<table>
+<thead>
+<tr>
+<th>Ator externo</th>
+<th>Tipo</th>
+<th>Adaptador na loja</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>gateway chamando <code>POST /auth/login</code></td>
+<td>entrada</td>
+<td><code>AuthResource</code> / <code>AuthController</code> (REST)</td>
+</tr>
+<tr>
+<td>tópico Kafka <code>accounts</code></td>
+<td>entrada</td>
+<td>um consumidor <code>@KafkaListener</code></td>
+</tr>
+<tr>
+<td>teste JUnit</td>
+<td>entrada</td>
+<td>a própria classe de teste</td>
+</tr>
+<tr>
+<td><code>account-service</code></td>
+<td>saída</td>
+<td>cliente Feign (<code>AccountController</code> no Hands-on 3)</td>
+</tr>
+<tr>
+<td>Postgres</td>
+<td>saída</td>
+<td><code>AccountJpaAdapter</code></td>
+</tr>
+<tr>
+<td>Redis (cache, tokens revogados)</td>
+<td>saída</td>
+<td>um adaptador Redis</td>
+</tr>
+<tr>
+<td>Kafka (publicando <code>AccountCreated</code>)</td>
+<td>saída</td>
+<td>um adaptador <code>KafkaTemplate</code></td>
+</tr>
+</tbody>
+</table>
+<div class="q">
+<p><strong>O Hands-on 3 sob esta ótica</strong>: o <code>AuthService</code> chama a interface Feign <code>AccountController</code>, definida pelo módulo <code>account</code> — uma porta moldada pelo serviço remoto. A versão estrita declara uma porta pequena no núcleo do auth (<code>AccountLookup.findByEmail</code>), com o Feign como um adaptador por trás dela.</p>
+</div>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="21" data-paginate="true" data-class="tight" data-lang="pt-BR" data-theme="platform" lang="pt-BR" class="tight" data-marpit-pagination="21" style="--paginate:true;--class:tight;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="27">
 <h2 id="teste-o-n%C3%BAcleo-sem-infraestrutura">Teste o núcleo sem infraestrutura</h2>
 <pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-java"><span class="hljs-keyword">class</span> <span class="hljs-title class_">AuthServiceTest</span> {
-    <span class="hljs-type">InMemoryAccountRepository</span> <span class="hljs-variable">accounts</span> <span class="hljs-operator">=</span> <span class="hljs-keyword">new</span> <span class="hljs-title class_">InMemoryAccountRepository</span>();
-    <span class="hljs-type">AuthService</span> <span class="hljs-variable">service</span> <span class="hljs-operator">=</span> <span class="hljs-keyword">new</span> <span class="hljs-title class_">AuthServiceImpl</span>(accounts, tokens, jwt); <span class="hljs-comment">// tokens: in-memory too</span>
+    <span class="hljs-keyword">private</span> <span class="hljs-keyword">final</span> <span class="hljs-type">InMemoryAccountRepository</span> <span class="hljs-variable">accounts</span> <span class="hljs-operator">=</span> <span class="hljs-keyword">new</span> <span class="hljs-title class_">InMemoryAccountRepository</span>();
+    <span class="hljs-keyword">private</span> <span class="hljs-keyword">final</span> <span class="hljs-type">InMemoryTokenRepository</span>   <span class="hljs-variable">tokens</span>   <span class="hljs-operator">=</span> <span class="hljs-keyword">new</span> <span class="hljs-title class_">InMemoryTokenRepository</span>();
+    <span class="hljs-keyword">private</span> <span class="hljs-keyword">final</span> <span class="hljs-type">JwtService</span>                <span class="hljs-variable">jwt</span>      <span class="hljs-operator">=</span> <span class="hljs-keyword">new</span> <span class="hljs-title class_">JwtService</span>(<span class="hljs-string">&quot;test-secret&quot;</span>);
+    <span class="hljs-keyword">private</span> <span class="hljs-keyword">final</span> <span class="hljs-type">AuthService</span>               <span class="hljs-variable">service</span>  <span class="hljs-operator">=</span>
+        <span class="hljs-keyword">new</span> <span class="hljs-title class_">AuthServiceImpl</span>(accounts, tokens, jwt);
 
     <span class="hljs-meta">@Test</span>
     <span class="hljs-type">void</span> <span class="hljs-title function_">loginFails_whenPasswordIsWrong</span><span class="hljs-params">()</span> {
         accounts.save(Account.of(<span class="hljs-keyword">new</span> <span class="hljs-title class_">RegisterIn</span>(<span class="hljs-string">&quot;Ada&quot;</span>, <span class="hljs-string">&quot;ada@example.com&quot;</span>, <span class="hljs-string">&quot;securepass&quot;</span>)));
+
         assertThatThrownBy(() -&gt; service.login(<span class="hljs-string">&quot;ada@example.com&quot;</span>, <span class="hljs-string">&quot;wrongpassword&quot;</span>))
             .isInstanceOf(InvalidCredentialsException.class);
     }
 }
 </code></pre>
-<p>Sem <code>@SpringBootTest</code>, sem H2, sem porta 8080 — roda em <strong>milissegundos</strong>.</p>
+<p>Sem <code>@SpringBootTest</code>, sem H2, sem porta 8080 — o teste aciona a porta primária e roda em <strong>milissegundos</strong>.</p>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="13" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="13" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="16">
-<h2 id="clean-%C3%97-hexagonal">Clean × Hexagonal</h2>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="22" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="22" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="27">
+<h2 id="hexagonal-erros-comuns">Hexagonal: erros comuns</h2>
+<ul>
+<li><strong>Portas definidas pelo adaptador</strong>: um <code>AccountRepository</code> que espelha os nomes do <code>JpaRepository</code> — nomeie as portas em termos do <strong>domínio</strong>.</li>
+<li><strong>O núcleo importando o adaptador</strong>: qualquer <code>import com.example.adapter.*</code> no domínio; a injeção de dependência resolve o adaptador em tempo de execução.</li>
+<li><strong>Granularidade errada das portas</strong>: uma porta <em>por método</em> (<code>SaveAccountPort</code>, <code>FindAccountByEmailPort</code>…) explode; agrupe por coesão. Uma interface por <strong>caso de uso</strong> no lado de entrada é um estilo legítimo — escolha uma convenção por serviço.</li>
+<li><strong>Vazando objetos de domínio pelo adaptador de entrada</strong>: devolver o <code>Account</code> (com o <code>passwordHash</code>) no controller acopla o HTTP ao domínio e vaza um segredo — devolva <code>TokenOut</code>, <code>AccountOut</code>.</li>
+</ul>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="23" data-paginate="true" data-class="tight" data-lang="pt-BR" data-theme="platform" lang="pt-BR" class="tight" data-marpit-pagination="23" style="--paginate:true;--class:tight;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="27">
+<div class="kicker">Comparação</div>
+
+<h2 id="lado-a-lado">Lado a lado</h2>
 <table>
 <thead>
 <tr>
 <th>Aspecto</th>
+<th>Em camadas (n-tier)</th>
 <th>Clean</th>
 <th>Hexagonal</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Abstração central</td>
+<td><strong>Abstração central</strong></td>
+<td>camadas horizontais</td>
 <td>camadas concêntricas + Regra de Dependência</td>
 <td>hexágono + portas e adaptadores</td>
 </tr>
 <tr>
-<td>Direção das dependências</td>
+<td><strong>Direção das dependências</strong></td>
+<td>de cima para baixo, rumo ao banco</td>
 <td>sempre para dentro</td>
-<td>sempre rumo ao núcleo</td>
+<td>sempre para o núcleo</td>
 </tr>
 <tr>
-<td>Vocabulário</td>
-<td>Entities · Use Cases · Adapters · Frameworks</td>
-<td>Domain · App Services · Ports · Adapters</td>
+<td><strong>Vocabulário</strong></td>
+<td>Controller · Service · Repository</td>
+<td>Entities · Use Cases · Interface Adapters · Frameworks &amp; Drivers</td>
+<td>Domínio · Serviços de aplicação · Portas · Adaptadores</td>
 </tr>
 <tr>
-<td>Testes</td>
+<td><strong>Testes</strong></td>
+<td>em geral precisa de um banco (ou de mocks de tipos do framework)</td>
 <td>camadas internas isoladas</td>
-<td>substituir os adaptadores</td>
+<td>núcleo testado trocando os adaptadores</td>
+</tr>
+<tr>
+<td><strong>Flexibilidade</strong></td>
+<td>trocar o banco mexe nos serviços</td>
+<td>framework e banco podem ser trocados</td>
+<td>qualquer sistema externo pode ser trocado</td>
+</tr>
+<tr>
+<td><strong>Relação</strong></td>
+<td>o ponto de partida usual</td>
+<td>parte da Hexagonal e da Onion, nomeando as camadas internas</td>
+<td>a ideia original de fronteira</td>
 </tr>
 </tbody>
 </table>
 <div class="ok">
-<p>Complementares: a <strong>Hexagonal</strong> define <em>como</em> funciona a fronteira; a <strong>Clean</strong> define <em>o que</em> vai dentro dela. A maioria dos microsserviços modernos combina as duas.</p>
+<p>Complementares: a <strong>Hexagonal</strong> define <em>como</em> a fronteira funciona; a <strong>Clean</strong> define <em>o que</em> vai dentro dela. A maioria dos microsserviços modernos combina as duas.</p>
 </div>
-<p class="small">Não exagere na arquitetura de um CRUD: portas e mappers compensam com regras ricas, vida longa ou E/S substituível.</p>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="14" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="14" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="16">
-<h2 id="cqrs">CQRS</h2>
-<p>A maioria das aplicações lê muito mais do que escreve: separe <strong>comandos</strong> de <strong>consultas</strong>.</p>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="24" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="24" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="27">
+<h2 id="n%C3%A3o-exagere-na-arquitetura-de-um-servi%C3%A7o-crud">Não exagere na arquitetura de um serviço CRUD</h2>
+<p>Portas, adaptadores e mappers custam <strong>mais classes, mais conversões, mais indireção</strong> para ler.</p>
 <ul>
-<li>Mais leve: dois conjuntos de classes sobre o <strong>mesmo BD</strong>.</li>
-<li>Intermediário: um <strong>armazenamento de leitura separado</strong> (Redis, índice de busca) alimentado por eventos.</li>
-<li>Mais pesado: <code>POST /orders</code> → Event Store → Kafka → Projetor → <strong>Modelo de leitura</strong> ← <code>GET /orders</code>.</li>
+<li>Um serviço que só guarda e devolve registros (uma tabela de referência, um catálogo simples) pode <strong>continuar em camadas</strong>.</li>
+<li>A estrutura compensa quando as <strong>regras de negócio são ricas</strong>, o serviço <strong>vive muito</strong> ou você precisa <strong>trocar ou acrescentar</strong> mecanismos de entrega e armazenamentos.</li>
 </ul>
+<div class="ok">
+<p>Os microsserviços ajudam: cada serviço escolhe o nível de estrutura de que precisa.</p>
+</div>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="25" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="25" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="27">
+<div class="kicker">CQRS</div>
+<h2 id="cqrs--command-query-responsibility-segregation">CQRS — Command Query Responsibility Segregation</h2>
+<p>O catálogo: milhares de <code>GET /products?category=...</code> por segundo, alguns <code>PUT /products/{id}</code> por hora. Um único modelo precisa ser normalizado para escritas seguras <strong>e</strong> desnormalizado para buscas rápidas — e não atende bem a nenhum dos dois.</p>
+<ul>
+<li>Separe o <strong>lado de escrita</strong> (comandos alteram o estado) do <strong>lado de leitura</strong> (consultas devolvem visões): modelados, armazenados e escalados de forma independente.</li>
+<li>Estende a <em>Command-Query Separation</em> de Bertrand Meyer (um método altera o estado ou devolve dados, nunca os dois) de métodos para modelos inteiros; nomeado por Greg Young por volta de 2010.</li>
+<li>Forma mais pesada: <code>POST /orders</code> → command handler → event store (anexa <code>OrderCreated</code>) → event bus → projetor → modelo de leitura ← <code>GET /orders</code>.</li>
+</ul>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="26" data-paginate="true" data-class="tight" data-lang="pt-BR" data-theme="platform" lang="pt-BR" class="tight" data-marpit-pagination="26" style="--paginate:true;--class:tight;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="27">
+<h2 id="cqrs-os-dois-lados-e-seus-graus">CQRS: os dois lados e seus graus</h2>
 <table>
 <thead>
 <tr>
-<th></th>
+<th>Aspecto</th>
 <th>Lado de comando</th>
 <th>Lado de consulta</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Consistência</td>
-<td>forte</td>
-<td><strong>eventual</strong> (o modelo de leitura atrasa)</td>
+<td><strong>Responsabilidade</strong></td>
+<td>valida e aplica alterações</td>
+<td>serve visões desnormalizadas, otimizadas para consulta</td>
 </tr>
 <tr>
-<td>Escalabilidade</td>
+<td><strong>Consistência</strong></td>
+<td>forte (sucesso ou falha atômicos)</td>
+<td><strong>eventual</strong> (o modelo de leitura fica para trás)</td>
+</tr>
+<tr>
+<td><strong>Escalabilidade</strong></td>
 <td>vazão de escrita</td>
 <td>vazão de leitura, de forma independente</td>
 </tr>
 <tr>
-<td>Armazenamento</td>
+<td><strong>Armazenamento</strong></td>
 <td>normalizado ou log de eventos</td>
-<td>desnormalizado, com junções prontas</td>
+<td>tabelas ou documentos desnormalizados, já combinados</td>
 </tr>
 </tbody>
 </table>
-<p class="small">Armadilha: ler as próprias escritas. Event Sourcing é opcional — veja a aula de Eventos e o Hands-on 10.</p>
-</section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="15" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="15" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="16">
-<h2 id="erros-comuns">Erros comuns</h2>
-<div class="warn">
 <ul>
-<li><strong>Tipos do framework vazando para dentro</strong>: <code>@Entity</code>, <code>@JsonProperty</code>, <code>HttpServletRequest</code> em um Use Case.</li>
-<li><strong>Controllers gordos</strong>: <code>if</code>s e orquestração — controllers traduzem e delegam.</li>
-<li><strong>Modelo de domínio anêmico</strong>: entidades como sacos de dados; leve as invariantes para a Entity.</li>
-<li><strong>Portas moldadas pelo adaptador</strong>: espelhar os nomes do <code>JpaRepository</code> em vez de conceitos do domínio.</li>
-<li><strong>O núcleo importando o adaptador</strong>: <code>import com.example.adapter.*</code> no domínio.</li>
-<li><strong>Uma porta por método</strong>: <code>SaveAccountPort</code>, <code>FindAccountPort</code>… → explosão de interfaces.</li>
+<li>Mais leve: dois conjuntos de classes sobre o <strong>mesmo banco</strong>. Intermediário: um <strong>armazenamento de leitura separado</strong> (Redis, um índice de busca) alimentado por eventos. Mais pesado: um <strong>event store</strong>.</li>
+<li>Muitas vezes combinado com <strong>Event Sourcing</strong> (comandos anexam eventos imutáveis; o modelo de leitura é reconstruído pela reprodução) — mas o CQRS não o exige. Veja a aula de Event-Driven e o Hands-on 10.</li>
 </ul>
+<div class="warn">
+<p><strong>Ler as próprias escritas</strong>: o usuário salva um produto e a lista ainda mostra o nome antigo — a interface precisa tolerar ou esconder o atraso. <strong>Aplicar em tudo</strong>: Fowler alerta que o CQRS serve só para <em>algumas</em> partes de um sistema — use-o na parte quente, dominada por leituras.</p>
 </div>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="16" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="16" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="16">
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="27" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="27" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="27">
 <h2 id="pontos-chave">Pontos-chave</h2>
 <ol>
-<li>Sem uma regra, você tem uma <strong>Big Ball of Mud</strong>; a solução é <strong>uma única direção de dependência</strong>, rumo ao núcleo — inverta a seta das camadas.</li>
-<li>O <strong>SOLID</strong> é a base no nível das classes; o <strong>DIP</strong> é o que torna as arquiteturas possíveis.</li>
-<li><strong>Clean</strong>: Entities → Use Cases → Adapters → Frameworks; a <strong>Regra de Dependência</strong> aponta para dentro.</li>
-<li><strong>Hexagonal</strong>: o núcleo é dono das <strong>portas</strong>; os <strong>adaptadores</strong> se encaixam pelo lado de fora.</li>
-<li>Troque os adaptadores para testar o núcleo em <strong>milissegundos</strong>, sem Spring nem banco de dados.</li>
-<li>Clean e Hexagonal são <strong>complementares</strong> — a maioria dos microsserviços usa as duas.</li>
-<li>O <strong>CQRS</strong> separa escritas de leituras, ao preço da <strong>consistência eventual</strong> — use-o onde as leituras predominam.</li>
+<li>Arquitetura trata de <strong>quem pode depender de quem</strong>: dos detalhes voláteis (frameworks, bancos, protocolos) para as regras de negócio estáveis.</li>
+<li>A clássica arquitetura <strong>em camadas</strong> faz a lógica de negócio depender da persistência; a <strong>Inversão de Dependência</strong> na fronteira inverte essa seta.</li>
+<li>O <strong>SOLID</strong> atua no nível das classes; a <strong>Clean</strong> (camadas + Regra de Dependência) e a <strong>Hexagonal</strong> (portas + adaptadores) aplicam a mesma ideia ao serviço inteiro e normalmente são combinadas.</li>
+<li>As portas <strong>pertencem ao núcleo</strong> e têm nomes do domínio; trocar adaptadores testa o núcleo em <strong>milissegundos</strong>.</li>
+<li>O ganho é <strong>testabilidade e substituibilidade</strong>; o custo é mais classes e mapeamentos — ajuste a estrutura à complexidade do serviço.</li>
+<li>O <strong>CQRS</strong> separa escritas de leituras, ao preço da <strong>consistência eventual</strong>; ele não exige Event Sourcing.</li>
 </ol>
 </section>
 <script>!function(){"use strict";const t={h1:{proto:()=>HTMLHeadingElement,attrs:{role:"heading","aria-level":"1"},style:"display: block; font-size: 2em; margin-block-start: 0.67em; margin-block-end: 0.67em; margin-inline-start: 0px; margin-inline-end: 0px; font-weight: bold;"},h2:{proto:()=>HTMLHeadingElement,attrs:{role:"heading","aria-level":"2"},style:"display: block; font-size: 1.5em; margin-block-start: 0.83em; margin-block-end: 0.83em; margin-inline-start: 0px; margin-inline-end: 0px; font-weight: bold;"},h3:{proto:()=>HTMLHeadingElement,attrs:{role:"heading","aria-level":"3"},style:"display: block; font-size: 1.17em; margin-block-start: 1em; margin-block-end: 1em; margin-inline-start: 0px; margin-inline-end: 0px; font-weight: bold;"},h4:{proto:()=>HTMLHeadingElement,attrs:{role:"heading","aria-level":"4"},style:"display: block; margin-block-start: 1.33em; margin-block-end: 1.33em; margin-inline-start: 0px; margin-inline-end: 0px; font-weight: bold;"},h5:{proto:()=>HTMLHeadingElement,attrs:{role:"heading","aria-level":"5"},style:"display: block; font-size: 0.83em; margin-block-start: 1.67em; margin-block-end: 1.67em; margin-inline-start: 0px; margin-inline-end: 0px; font-weight: bold;"},h6:{proto:()=>HTMLHeadingElement,attrs:{role:"heading","aria-level":"6"},style:"display: block; font-size: 0.67em; margin-block-start: 2.33em; margin-block-end: 2.33em; margin-inline-start: 0px; margin-inline-end: 0px; font-weight: bold;"},span:{proto:()=>HTMLSpanElement},pre:{proto:()=>HTMLElement,style:"display: block; font-family: monospace; white-space: pre; margin: 1em 0; --marp-auto-scaling-white-space: pre;"}},e="data-marp-auto-scaling-wrapper",i="data-marp-auto-scaling-svg",n="data-marp-auto-scaling-container";class s extends HTMLElement{container;containerSize;containerObserver;svg;svgComputedStyle;svgPreserveAspectRatio="xMinYMid meet";wrapper;wrapperSize;wrapperObserver;constructor(){super();const t=t=>([e])=>{const{width:i,height:n}=e.contentRect;this[t]={width:i,height:n},this.updateSVGRect()};this.attachShadow({mode:"open"}),this.containerObserver=new ResizeObserver(t("containerSize")),this.wrapperObserver=new ResizeObserver((...e)=>{t("wrapperSize")(...e),this.flushSvgDisplay()})}static get observedAttributes(){return["data-downscale-only"]}connectedCallback(){this.shadowRoot.innerHTML=`\n<style>\n  svg[${i}] { display: block; width: 100%; height: auto; vertical-align: top; }\n  span[${n}] { display: table; white-space: var(--marp-auto-scaling-white-space, nowrap); width: max-content; }\n</style>\n<div ${e}>\n  <svg part="svg" ${i}>\n    <foreignObject><span ${n}><slot></slot></span></foreignObject>\n  </svg>\n</div>\n    `.split(/\n\s*/).join(""),this.wrapper=this.shadowRoot.querySelector(`div[${e}]`)??void 0;const t=this.svg;this.svg=this.wrapper?.querySelector(`svg[${i}]`)??void 0,this.svg!==t&&(this.svgComputedStyle=this.svg?window.getComputedStyle(this.svg):void 0),this.container=this.svg?.querySelector(`span[${n}]`)??void 0,this.observe()}disconnectedCallback(){this.svg=void 0,this.svgComputedStyle=void 0,this.wrapper=void 0,this.container=void 0,this.observe()}attributeChangedCallback(){this.observe()}flushSvgDisplay(){const{svg:t}=this;t&&(t.style.display="inline",requestAnimationFrame(()=>{t.style.display=""}))}observe(){this.containerObserver.disconnect(),this.wrapperObserver.disconnect(),this.wrapper&&this.wrapperObserver.observe(this.wrapper),this.container&&this.containerObserver.observe(this.container),this.svgComputedStyle&&this.observeSVGStyle(this.svgComputedStyle)}observeSVGStyle(t){const e=()=>{const i=(()=>{const e=t.getPropertyValue("--preserve-aspect-ratio");if(e)return e.trim();return`x${(({textAlign:t,direction:e})=>{if(t.endsWith("left"))return"Min";if(t.endsWith("right"))return"Max";if("start"===t||"end"===t){let i="rtl"===e;return"end"===t&&(i=!i),i?"Max":"Min"}return"Mid"})(t)}YMid meet`})();i!==this.svgPreserveAspectRatio&&(this.svgPreserveAspectRatio=i,this.updateSVGRect()),t===this.svgComputedStyle&&requestAnimationFrame(e)};e()}updateSVGRect(){let t=Math.ceil(this.containerSize?.width??0);const e=Math.ceil(this.containerSize?.height??0);void 0!==this.dataset.downscaleOnly&&(t=Math.max(t,this.wrapperSize?.width??0));const i=this.svg?.querySelector(":scope > foreignObject");if(i?.setAttribute("width",`${t}`),i?.setAttribute("height",`${e}`),this.svg&&(this.svg.setAttribute("viewBox",`0 0 ${t} ${e}`),this.svg.setAttribute("preserveAspectRatio",this.svgPreserveAspectRatio),this.svg.style.height=t<=0||e<=0?"0":""),this.container){const t=this.svgPreserveAspectRatio.toLowerCase();this.container.style.marginLeft=t.startsWith("xmid")||t.startsWith("xmax")?"auto":"0",this.container.style.marginRight=t.startsWith("xmi")?"auto":"0"}}}const r=(t,{attrs:e={},style:i})=>class extends t{constructor(...t){super(...t);for(const[t,i]of Object.entries(e))this.hasAttribute(t)||this.setAttribute(t,i);this._shadow()}static get observedAttributes(){return["data-auto-scaling"]}connectedCallback(){this._update()}attributeChangedCallback(){this._update()}_shadow(){if(!this.shadowRoot)try{this.attachShadow({mode:"open"})}catch(t){if(!(t instanceof Error&&"NotSupportedError"===t.name))throw t}return this.shadowRoot}_update(){const t=this._shadow();if(t){const e=i?`<style>:host { ${i} }</style>`:"";let n="<slot></slot>";const{autoScaling:s}=this.dataset;if(void 0!==s){n=`<marp-auto-scaling exportparts="svg:auto-scaling" ${"downscale-only"===s?"data-downscale-only":""}>${n}</marp-auto-scaling>`}t.innerHTML=e+n}}};let o;const a=()=>o??(o=!!document.createElement("div",{is:"marp-auto-scaling"}).outerHTML.startsWith("<div is"),o),l=Symbol();let c;const d="marpitSVGPolyfill:setZoomFactor,",h=Symbol(),g=Symbol();const p=()=>{const t="Apple Computer, Inc."===navigator.vendor,e=t?[v]:[],i={then:e=>(t?(async()=>{if(void 0===c){const t=document.createElement("canvas");t.width=10,t.height=10;const e=t.getContext("2d"),i=new Image(10,10),n=new Promise(t=>{i.addEventListener("load",()=>t())});i.crossOrigin="anonymous",i.src="data:image/svg+xml;charset=utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2210%22%20height%3D%2210%22%20viewBox%3D%220%200%201%201%22%3E%3CforeignObject%20width%3D%221%22%20height%3D%221%22%20requiredExtensions%3D%22http%3A%2F%2Fwww.w3.org%2F1999%2Fxhtml%22%3E%3Cdiv%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F1999%2Fxhtml%22%20style%3D%22width%3A%201px%3B%20height%3A%201px%3B%20background%3A%20red%3B%20position%3A%20relative%22%3E%3C%2Fdiv%3E%3C%2FforeignObject%3E%3C%2Fsvg%3E",await n,e.drawImage(i,0,0),c=e.getImageData(5,5,1,1).data[3]<128}return c})().then(t=>{null==e||e(t?[v]:[])}):null==e||e([]),i)};return Object.assign(e,i)};let m,u;function v(t){const e="object"==typeof t&&t.target||document,i="object"==typeof t?t.zoom:t;window[g]||(Object.defineProperty(window,g,{configurable:!0,value:!0}),document.body.style.zoom=1.0001,document.body.offsetHeight,document.body.style.zoom=1,window.addEventListener("message",({data:t,origin:e})=>{if(e===window.origin)try{if(t&&"string"==typeof t&&t.startsWith(d)){const[,e]=t.split(","),i=Number.parseFloat(e);Number.isNaN(i)||(u=i)}}catch(t){console.error(t)}}));let n=!1;Array.from(e.querySelectorAll("svg[data-marpit-svg]"),t=>{var e,s,r,o;t.style.transform||(t.style.transform="translateZ(0)");const a=i||u||t.currentScale||1;m!==a&&(m=a,n=a);const l=t.getBoundingClientRect(),{length:c}=t.children;for(let i=0;i<c;i+=1){const n=t.children[i];if(n.getScreenCTM){const t=n.getScreenCTM();if(t){const i=null!==(s=null===(e=n.x)||void 0===e?void 0:e.baseVal.value)&&void 0!==s?s:0,c=null!==(o=null===(r=n.y)||void 0===r?void 0:r.baseVal.value)&&void 0!==o?o:0,d=n.children.length;for(let e=0;e<d;e+=1){const s=n.children[e];if("SECTION"===s.tagName){const{style:e}=s;e.transformOrigin||(e.transformOrigin=`${-i}px ${-c}px`),e.transform=`scale(${a}) matrix(${t.a}, ${t.b}, ${t.c}, ${t.d}, ${t.e-l.left}, ${t.f-l.top}) translateZ(0.0001px)`;break}}}}}}),!1!==n&&Array.from(e.querySelectorAll("iframe"),({contentWindow:t})=>{null==t||t.postMessage(`${d}${n}`,"null"===window.origin?"*":window.origin)})}function w({once:t=!1,target:e=document}={}){const i=function(t=document){if(t[h])return t[h];let e=!0;const i=()=>{e=!1,delete t[h]};Object.defineProperty(t,h,{configurable:!0,value:i});let n=[],s=!1;(async()=>{try{n=await p()}finally{s=!0}})();const r=()=>{for(const e of n)e({target:t});s&&0===n.length||e&&window.requestAnimationFrame(r)};return r(),i}(e);return t?(i(),()=>{}):i}m=1,u=void 0;const b=Symbol(),y=(e=document)=>{if("undefined"==typeof window)throw new Error("Marp Core's browser script is valid only in browser context.");if(((e=document)=>{const i=window[l];i||customElements.define("marp-auto-scaling",s);for(const n of Object.keys(t)){const s=`marp-${n}`,o=t[n].proto();a()&&o!==HTMLElement?i||customElements.define(s,r(o,{style:t[n].style}),{extends:n}):(i||customElements.define(s,r(HTMLElement,t[n])),e.querySelectorAll(`${n}[is="${s}"]`).forEach(t=>{t.outerHTML=t.outerHTML.replace(new RegExp(`^<${n}`,"i"),`<${s}`).replace(new RegExp(`</${n}>$`,"i"),`</${s}>`)}))}window[l]=!0})(e),e[b])return e[b];const i=w({target:e}),n=()=>{i(),delete e[b]},o=Object.assign(n,{cleanup:n,update:()=>y(e)});return Object.defineProperty(e,b,{configurable:!0,value:o}),o},f=document.currentScript;y(f?f.getRootNode():document)}();
-</script></foreignObject></svg></div><div class="bespoke-marp-note" data-index="0" tabindex="0"><p>Roteiro: (1) a Big Ball of Mud; dependências em camadas vs. invertidas; (2) SOLID no nível das classes;
-(3) Clean Architecture: camadas, a Regra de Dependência, o mapeamento do Hands-on 1; (4) Hexagonal: portas,
-adaptadores, os adaptadores da loja, testes; (5) Clean vs. Hexagonal, quando não usar; (6) CQRS; (7) erros.</p></div><div class="bespoke-marp-note" data-index="2" tabindex="0"><p>Em tempo de execução, as chamadas continuam indo de service → BD; só a dependência de compilação se inverte. É isso que o D do SOLID faz.</p></div><div class="bespoke-marp-note" data-index="6" tabindex="0"><p>O DIP é o que torna possíveis a Clean e a Hexagonal: inverta a dependência em cada fronteira.</p></div><script>/*!! License: https://unpkg.com/@marp-team/marp-cli@4.5.1/lib/bespoke.js.LICENSE.txt */
+</script></foreignObject></svg></div><div class="bespoke-marp-note" data-index="0" tabindex="0"><p>Objetivos: explicar cada princípio SOLID e achar uma violação; explicar a Regra de Dependência e situar uma classe
+numa camada da Clean Architecture; projetar portas e adaptadores (de entrada e de saída); comparar camadas, Clean e
+Hexagonal e justificar a estrutura extra; testar um caso de uso com um adaptador em memória; descrever o CQRS e seu custo.
+Roteiro: (1) o problema central e o ponto de partida em camadas; (2) SOLID; (3) Clean Architecture; (4) Hexagonal;
+(5) comparação lado a lado; (6) CQRS.</p></div><script>/*!! License: https://unpkg.com/@marp-team/marp-cli@4.5.1/lib/bespoke.js.LICENSE.txt */
 !function(){"use strict";function e(e){return e&&e.__esModule&&Object.prototype.hasOwnProperty.call(e,"default")?e.default:e}var t,n,r=(n||(n=1,t={from:function(e,t){var n,r=1===(e.parent||e).nodeType?e.parent||e:document.querySelector(e.parent||e),o=[].filter.call("string"==typeof e.slides?r.querySelectorAll(e.slides):e.slides||r.children,function(e){return"SCRIPT"!==e.nodeName}),i={},a=function(e,t){return(t=t||{}).index=o.indexOf(e),t.slide=e,t},s=function(e,t){i[e]=(i[e]||[]).filter(function(e){return e!==t})},l=function(e,t){return(i[e]||[]).reduce(function(e,n){return e&&!1!==n(t)},!0)},c=function(e,t){o[e]&&(n&&l("deactivate",a(n,t)),n=o[e],l("activate",a(n,t)))},d=function(e,t){var r=o.indexOf(n)+e;l(e>0?"next":"prev",a(n,t))&&c(r,t)},u={off:s,on:function(e,t){return(i[e]||(i[e]=[])).push(t),s.bind(null,e,t)},fire:l,slide:function(e,t){if(!arguments.length)return o.indexOf(n);l("slide",a(o[e],t))&&c(e,t)},next:d.bind(null,1),prev:d.bind(null,-1),parent:r,slides:o,destroy:function(e){l("destroy",a(n,e)),i={}}};return(t||[]).forEach(function(e){e(u)}),n||c(0),u}}),t),o=e(r);const i=document.body,a=(...e)=>history.replaceState(...e),s="",l="presenter",c="next",d="overview",u=["",l,d,c],f="bespoke-marp-",m=`data-${f}`,g=(e,{protocol:t,host:n,pathname:r,hash:o}=location)=>{const i=e.toString();return`${t}//${n}${r}${i?"?":""}${i}${o}`},p=()=>i.dataset.bespokeView,v=e=>new URLSearchParams(location.search).get(e),h=(e,t={})=>{const n={location,setter:a,...t},r=new URLSearchParams(n.location.search);for(const t of Object.keys(e)){const n=e[t];"string"==typeof n?r.set(t,n):r.delete(t)}try{n.setter({...window.history.state??{}},"",g(r,n.location))}catch(e){console.error(e)}},w=(()=>{const e="bespoke-marp";try{return localStorage.setItem(e,e),localStorage.removeItem(e),!0}catch{return!1}})(),y=e=>{try{return localStorage.getItem(e)}catch{return null}},b=(e,t)=>{try{return localStorage.setItem(e,t),!0}catch{return!1}},k=e=>{try{return localStorage.removeItem(e),!0}catch{return!1}},x=(e,t)=>{const n="aria-hidden";t?e.setAttribute(n,"true"):e.removeAttribute(n)},E=e=>{e.parent.classList.add(`${f}parent`),e.slides.forEach(e=>e.classList.add(`${f}slide`)),e.on("activate",t=>{const n=`${f}active`,r=t.slide,o=r.classList,i=!o.contains(n);if(e.slides.forEach(e=>{e.classList.remove(n),x(e,!0)}),o.add(n),x(r,!1),i){const e=`${n}-ready`;o.add(e),document.body.clientHeight,o.remove(e)}})},$=e=>{let t=0,n=0;Object.defineProperty(e,"fragments",{enumerable:!0,value:e.slides.map(e=>[null,...e.querySelectorAll("[data-marpit-fragment]")])});const r=r=>void 0!==e.fragments[t][n+r],o=(r,o)=>{t=r,n=o,e.fragments.forEach((e,t)=>{e.forEach((e,n)=>{if(null==e)return;const i=t<r||t===r&&n<=o;e.setAttribute(`${m}fragment`,(i?"":"in")+"active");const a=`${m}current-fragment`;t===r&&n===o?e.setAttribute(a,"current"):e.removeAttribute(a)})}),e.fragmentIndex=o;const i={slide:e.slides[r],index:r,fragments:e.fragments[r],fragmentIndex:o};e.fire("fragment",i)};e.on("next",({fragment:i=!0})=>{if(i){if(r(1))return o(t,n+1),!1;const i=t+1;e.fragments[i]&&o(i,0)}else{const r=e.fragments[t].length;if(n+1<r)return o(t,r-1),!1;const i=e.fragments[t+1];i&&o(t+1,i.length-1)}}),e.on("prev",({fragment:i=!0})=>{if(r(-1)&&i)return o(t,n-1),!1;const a=t-1;e.fragments[a]&&o(a,e.fragments[a].length-1)}),e.on("slide",({index:t,fragment:n})=>{let r=0;if(void 0!==n){const o=e.fragments[t];if(o){const{length:e}=o;r=-1===n?e-1:Math.min(Math.max(n,0),e-1)}}o(t,r)}),o(0,0)},L=document,S=()=>!(!L.fullscreenEnabled&&!L.webkitFullscreenEnabled),P=()=>!(!L.fullscreenElement&&!L.webkitFullscreenElement),_=e=>{e.fullscreen=()=>{S()&&(async()=>{P()?(L.exitFullscreen||L.webkitExitFullscreen)?.call(L):((e=L.body)=>{(e.requestFullscreen||e.webkitRequestFullscreen)?.call(e)})()})()},document.addEventListener("keydown",t=>{"f"!==t.key&&"F11"!==t.key||t.altKey||t.ctrlKey||t.metaKey||!S()||(e.fullscreen(),t.preventDefault())})},O=`${f}inactive`,T=(e=2e3)=>({parent:t,fire:n})=>{const r=t.classList,o=e=>n(`marp-${e?"":"in"}active`);let i;const a=()=>{i&&clearTimeout(i),i=setTimeout(()=>{r.add(O),o()},e),r.contains(O)&&(r.remove(O),o(!0))};for(const e of["mousedown","mousemove","touchend"])document.addEventListener(e,a);setTimeout(a,0)},I=["AUDIO","BUTTON","INPUT","SELECT","TEXTAREA","VIDEO"],M=e=>{e.parent.addEventListener("keydown",e=>{if(!e.target)return;const t=e.target;(I.includes(t.nodeName)||"true"===t.contentEditable)&&e.stopPropagation()})},A=e=>{window.addEventListener("load",()=>{for(const t of e.slides){const e=t.querySelector("marp-auto-scaling, [data-auto-scaling], [data-marp-fitting]");t.setAttribute(`${m}load`,e?"":"hideable")}})},C=({interval:e=250}={})=>t=>{document.addEventListener("keydown",e=>{if(" "===e.key&&e.shiftKey)t.prev();else if("ArrowLeft"===e.key||"ArrowUp"===e.key||"PageUp"===e.key)t.prev({fragment:!e.shiftKey});else if(" "!==e.key||e.shiftKey)if("ArrowRight"===e.key||"ArrowDown"===e.key||"PageDown"===e.key)t.next({fragment:!e.shiftKey});else if("End"===e.key)t.slide(t.slides.length-1,{fragment:-1});else{if("Home"!==e.key)return;t.slide(0)}else t.next();e.preventDefault()});let n,r,o=0;t.parent.addEventListener("wheel",i=>{let a=!1;const s=(e,t)=>{e&&(a=a||((e,t)=>((e,t)=>{const n="X"===t?"Width":"Height";return e[`client${n}`]<e[`scroll${n}`]})(e,t)&&((e,t)=>{const{overflow:n}=e,r=e[`overflow${t}`];return"auto"===n||"scroll"===n||"auto"===r||"scroll"===r})(getComputedStyle(e),t))(e,t)),e?.parentElement&&s(e.parentElement,t)};if(0!==i.deltaX&&s(i.target,"X"),0!==i.deltaY&&s(i.target,"Y"),a)return;i.preventDefault();const l=Math.sqrt(i.deltaX**2+i.deltaY**2);if(void 0!==i.wheelDelta){if(void 0===i.webkitForce&&Math.abs(i.wheelDelta)<40)return;if(i.deltaMode===i.DOM_DELTA_PIXEL&&l<4)return}else if(i.deltaMode===i.DOM_DELTA_PIXEL&&l<12)return;r&&clearTimeout(r),r=setTimeout(()=>{n=0},e);const c=Date.now()-o<e,d=l<=n;if(n=l,c||d)return;let u;(i.deltaX>0||i.deltaY>0)&&(u="next"),(i.deltaX<0||i.deltaY<0)&&(u="prev"),u&&(t[u](),o=Date.now())})},D=(e=`.${f}osc`)=>{const t=document.querySelector(e);if(!t)return()=>{};const n=(e,n)=>{t.querySelectorAll(`[${m}osc=${JSON.stringify(e)}]`).forEach(n)};if(S()||n("fullscreen",e=>e.style.display="none"),!w){const e=(e,t)=>{e.disabled=!0,e.title=`${t} is disabled due to restricted localStorage.`};n("presenter",t=>e(t,"Presenter view")),n("overview",t=>e(t,"Overview view"))}return e=>{t.addEventListener("click",t=>{if(t.target instanceof HTMLElement){const{bespokeMarpOsc:n}=t.target.dataset;n&&t.target.blur();const r={fragment:!t.shiftKey};"next"===n?e.next(r):"prev"===n?e.prev(r):"fullscreen"===n?e?.fullscreen():"presenter"===n?e.openPresenterView():"overview"===n&&e.toggleOverviewView()}}),e.parent.appendChild(t),e.on("activate",({index:t})=>{n("page",n=>n.textContent=`Page ${t+1} of ${e.slides.length}`)}),e.on("fragment",({index:t,fragments:r,fragmentIndex:o})=>{n("prev",e=>e.disabled=0===t&&0===o),n("next",n=>n.disabled=t===e.slides.length-1&&o===r.length-1)}),e.on("marp-active",()=>x(t,!1)),e.on("marp-inactive",()=>x(t,!0)),S()&&(e=>{for(const t of["","webkit"])L.addEventListener(t+"fullscreenchange",e)})(()=>n("fullscreen",e=>e.classList.toggle("exit",S()&&P())))}},N=e=>{if(e.syncKey&&"string"==typeof e.syncKey)return!0;throw new Error("The current instance of Bespoke.js is incompatible with Marp bespoke sync plugin.")},B=(e={})=>{const t=e.key||window.history.state?.marpBespokeSyncKey||Math.random().toString(36).slice(2),n=`bespoke-marp-sync-${t}`;var r;r={marpBespokeSyncKey:t},h({},{setter:(e,...t)=>a({...e,...r},...t)});const o=()=>{const e=y(n);return e?JSON.parse(e):Object.create(null)},i=e=>{const t=o(),r={...t,...e(t)};return b(n,JSON.stringify(r)),r},s=()=>{window.removeEventListener("pageshow",s),i(e=>({reference:(e.reference||0)+1}))};return e=>{s(),Object.defineProperty(e,"syncKey",{value:t,enumerable:!0});let r=!0;setTimeout(()=>{e.on("fragment",e=>{r&&i(()=>({index:e.index,fragmentIndex:e.fragmentIndex}))})},0),window.addEventListener("storage",t=>{if(t.key===n&&t.oldValue&&t.newValue){const n=JSON.parse(t.oldValue),o=JSON.parse(t.newValue);if(n.index!==o.index||n.fragmentIndex!==o.fragmentIndex)try{r=!1,e.slide(o.index,{fragment:o.fragmentIndex,forSync:!0})}finally{r=!0}}});const a=()=>{const{reference:e}=o();void 0===e||e<=1?k(n):i(()=>({reference:e-1}))};window.addEventListener("pagehide",e=>{e.persisted&&window.addEventListener("pageshow",s),a()}),e.on("destroy",a)}},K=e=>{w&&document.addEventListener("keydown",t=>{("o"!==t.key||t.altKey||t.ctrlKey||t.metaKey)&&"Escape"!==t.key||(t.preventDefault(),e())})};let q=null;const V=({closeOnSelect:e=!0}={})=>t=>{N(t);const n=n=>{const r=(()=>{if(!q||!q.isConnected){q=document.createElement("div"),q.className=`${f}overview`,q.inert=!0;const n=document.createElement("iframe");n.src=(()=>{const n=new URLSearchParams(location.search);return n.set("view","overview"),n.set("sync",t.syncKey),e&&n.set("closeOnSelect","1"),g(n)})(),q.append(n),document.body.append(q)}return q})(),o=n??!r.dataset.open;setTimeout(()=>{if(r.dataset.open=o?"1":"",r.inert=!o,t.skipTransition=o,o){const e=r.querySelector("iframe");try{e?.contentWindow?.focus()}catch{e?.focus()}}else window.focus()},0)};Object.defineProperties(t,{toggleOverviewView:{enumerable:!0,value:n}}),window.addEventListener("message",e=>{e.origin===window.origin&&"closeOverview"===e.data&&n(!1)}),K(n)},j=e=>{const{title:t}=document;document.title="[Overview]"+(t?` - ${t}`:"");const n=!!v("closeOnSelect"),r=()=>{window.parent.postMessage("closeOverview","null"===window.origin?"*":window.origin)};if(e.slides.forEach((t,o)=>{t.tabIndex=0;const i=()=>{e.slide(o,{fragment:-1}),n&&r()};t.addEventListener("click",i),t.addEventListener("keydown",e=>{"Enter"!==e.key&&" "!==e.key||(e.preventDefault(),i())})}),window.addEventListener("keydown",t=>{const n=e.slide(),r=t=>{const r=t=>{const n=e.slides[t].getBoundingClientRect();return[Math.round((n.left+n.right)/2),Math.round((n.top+n.bottom)/2)]};let o=null,i=n;do{const e=r(i);if(o){if(Math.abs(e[0]-o[0])<2)return i}else o=e;i+=t}while(i>=0&&i<e.slides.length);return n};if("ArrowLeft"===t.key)e.slide(Math.max(n-1,0),{fragment:-1});else if("ArrowRight"===t.key)e.slide(Math.min(n+1,e.slides.length-1),{fragment:-1});else if("ArrowUp"===t.key)e.slide(r(-1),{fragment:-1});else if("ArrowDown"===t.key)e.slide(r(1),{fragment:-1});else if("End"===t.key)e.slide(e.slides.length-1,{fragment:-1});else{if("Home"!==t.key)return;e.slide(0,{fragment:-1})}t.preventDefault();const o=e.slide();e.slides[o]?.focus?.(),e.slides[o]?.scrollIntoView?.({behavior:"smooth",block:"nearest"})}),e.on("slide",({index:t})=>{e.slides[t]?.scrollIntoView?.({behavior:"smooth",block:"nearest"})}),window.parent!==window){K(r);const e=document.createElement("header");e.className=`${f}overview-header`;const t=document.createElement("button");t.className=`${f}overview-close`,t.type="button",t.title="Close overview",t.textContent=t.title,t.addEventListener("click",r),e.append(t),document.body.prepend(e)}},F=()=>{const e=p();return{[s]:V(),[l]:V({closeOnSelect:!1}),[d]:j}[e]},U=e=>{window.addEventListener("message",t=>{if(t.origin!==window.origin)return;const[n,r]=t.data.split(":");if("navigate"===n){const[t,n]=r.split(",");let o=Number.parseInt(t,10),i=Number.parseInt(n,10)+1;i>=e.fragments[o].length&&(o+=1,i=0),e.slide(o,{fragment:i})}})};var R,X,H,W,J,Y,z,G={exports:{}},Q=(R||(R=1,G.exports=(X=["area","base","br","col","command","embed","hr","img","input","keygen","link","meta","param","source","track","wbr"],H=function(e){return String(e).replace(/[&<>"']/g,function(e){return"&"+W[e]+";"})},W={"&":"amp","<":"lt",">":"gt",'"':"quot","'":"apos"},J="dangerouslySetInnerHTML",Y={className:"class",htmlFor:"for"},z={},function(e,t){var n=[],r="";t=t||{};for(var o=arguments.length;o-- >2;)n.push(arguments[o]);if("function"==typeof e)return t.children=n.reverse(),e(t);if(e){if(r+="<"+e,t)for(var i in t)!1!==t[i]&&null!=t[i]&&i!==J&&(r+=" "+(Y[i]?Y[i]:H(i))+'="'+H(t[i])+'"');r+=">"}if(-1===X.indexOf(e)){if(t[J])r+=t[J].__html;else for(;n.length;){var a=n.pop();if(a)if(a.pop)for(var s=a.length;s--;)n.push(a[s]);else r+=!0===z[a]?a:H(a)}r+=e?"</"+e+">":""}return z[r]=!0,r})),G.exports),Z=e(Q);const ee=({children:e})=>Z(null,null,...e),te=`${f}presenter-`,ne={container:`${te}container`,dragbar:`${te}dragbar-container`,next:`${te}next`,nextContainer:`${te}next-container`,noteContainer:`${te}note-container`,noteWrapper:`${te}note-wrapper`,noteButtons:`${te}note-buttons`,infoContainer:`${te}info-container`,infoPageArea:`${te}info-page-area`,infoPage:`${te}info-page`,infoPagePrev:`${te}info-page-prev`,infoPageNext:`${te}info-page-next`,noteButtonsBigger:`${te}note-bigger`,noteButtonsSmaller:`${te}note-smaller`,infoTime:`${te}info-time`,infoTimer:`${te}info-timer`},re=e=>{const{title:t}=document;document.title="[Presenter view]"+(t?` - ${t}`:"");const n={},r=e=>(n[e]=n[e]||document.querySelector(`.${e}`),n[e]);document.body.appendChild((e=>{const t=document.createElement("div");return t.className=ne.container,t.appendChild(e),t.insertAdjacentHTML("beforeend",Z(ee,null,Z("div",{class:ne.nextContainer},Z("iframe",{class:ne.next,src:"?view=next"})),Z("div",{class:ne.dragbar}),Z("div",{class:ne.noteContainer},Z("div",{class:ne.noteWrapper}),Z("div",{class:ne.noteButtons},Z("button",{class:ne.noteButtonsSmaller,tabindex:"-1",title:"Smaller notes font size"},"Smaller notes font size"),Z("button",{class:ne.noteButtonsBigger,tabindex:"-1",title:"Bigger notes font size"},"Bigger notes font size"))),Z("div",{class:ne.infoContainer},Z("div",{class:ne.infoPageArea},Z("button",{class:ne.infoPagePrev,tabindex:"-1",title:"Previous"},"Previous"),Z("button",{class:ne.infoPage}),Z("button",{class:ne.infoPageNext,tabindex:"-1",title:"Next"},"Next")),Z("time",{class:ne.infoTime,title:"Current time"}),Z("time",{class:ne.infoTimer,title:"Timer"})))),t})(e.parent)),(e=>{let t=!1;r(ne.dragbar).addEventListener("mousedown",()=>{t=!0,r(ne.dragbar).classList.add("active")}),window.addEventListener("mouseup",()=>{t=!1,r(ne.dragbar).classList.remove("active")}),window.addEventListener("mousemove",e=>{if(!t)return;const n=e.clientX/document.documentElement.clientWidth*100;r(ne.container).style.setProperty("--bespoke-marp-presenter-split-ratio",`${Math.max(0,Math.min(100,n))}%`)}),r(ne.nextContainer).addEventListener("click",()=>e.next());const n=r(ne.next),o=(i=n,(e,t)=>i.contentWindow?.postMessage(`navigate:${e},${t}`,"null"===window.origin?"*":window.origin));var i;n.addEventListener("load",()=>{r(ne.nextContainer).classList.add("active"),o(e.slide(),e.fragmentIndex),e.on("fragment",({index:e,fragmentIndex:t})=>o(e,t))});const a=document.querySelectorAll(".bespoke-marp-note");a.forEach(e=>{e.addEventListener("keydown",e=>e.stopPropagation()),r(ne.noteWrapper).appendChild(e)}),e.on("activate",()=>a.forEach(t=>t.classList.toggle("active",t.dataset.index==e.slide())));let s=0;const l=e=>{s=Math.max(-5,s+e),r(ne.noteContainer).style.setProperty("--bespoke-marp-note-font-scale",(1.2**s).toFixed(4))},c=()=>l(1),d=()=>l(-1),u=r(ne.noteButtonsBigger),f=r(ne.noteButtonsSmaller);u.addEventListener("click",()=>{u.blur(),c()}),f.addEventListener("click",()=>{f.blur(),d()}),document.addEventListener("keydown",e=>{"+"===e.key&&c(),"-"===e.key&&d()},!0);const m=r(ne.infoPage);e.on("activate",({index:t})=>{m.textContent=`${t+1} / ${e.slides.length}`}),m.addEventListener("click",()=>{m.blur(),e.toggleOverviewView()});const g=r(ne.infoPagePrev),p=r(ne.infoPageNext);g.addEventListener("click",t=>{g.blur(),e.prev({fragment:!t.shiftKey})}),p.addEventListener("click",t=>{p.blur(),e.next({fragment:!t.shiftKey})}),e.on("fragment",({index:t,fragments:n,fragmentIndex:r})=>{g.disabled=0===t&&0===r,p.disabled=t===e.slides.length-1&&r===n.length-1});let v=new Date;const h=()=>{const e=new Date,t=e=>`${Math.floor(e)}`.padStart(2,"0"),n=e.getTime()-v.getTime(),o=t(n/1e3%60),i=t(n/1e3/60%60),a=t(n/36e5%24);r(ne.infoTime).textContent=e.toLocaleTimeString(),r(ne.infoTimer).textContent=`${a}:${i}:${o}`};h(),setInterval(h,250),r(ne.infoTimer).addEventListener("click",()=>{v=new Date})})(e)},oe=e=>{N(e),Object.defineProperties(e,{openPresenterView:{enumerable:!0,value:ie},presenterUrl:{enumerable:!0,get:ae}}),w&&document.addEventListener("keydown",t=>{"p"!==t.key||t.altKey||t.ctrlKey||t.metaKey||(t.preventDefault(),e.openPresenterView())})};function ie(){const{max:e,floor:t}=Math,n=e(t(.85*window.innerWidth),640),r=e(t(.85*window.innerHeight),360);return window.open(this.presenterUrl,te+this.syncKey,`width=${n},height=${r},menubar=no,toolbar=no`)}function ae(){const e=new URLSearchParams(location.search);return e.set("view","presenter"),e.set("sync",this.syncKey),g(e)}const se=e=>{const t=p();return t===c&&e.appendChild(document.createElement("span")),{[s]:oe,[l]:re,[c]:U}[t]},le=e=>{e.on("activate",t=>{document.querySelectorAll(".bespoke-progress-parent > .bespoke-progress-bar").forEach(n=>{n.style.flexBasis=100*t.index/(e.slides.length-1)+"%"})})},ce=e=>{const t=Number.parseInt(e,10);return Number.isNaN(t)?null:t},de=(e={})=>{const t={history:!0,...e};return e=>{let n=!0;const r=e=>{const t=n;try{return n=!0,e()}finally{n=t}},o=(t={fragment:!0})=>{let n=t.fragment?ce(v("f")||""):null;((t,n)=>{const{min:r,max:o}=Math,{fragments:i,slides:a}=e,s=o(0,r(t,a.length-1)),l=o(0,r(n||0,i[s].length-1));s===e.slide()&&l===e.fragmentIndex||e.slide(s,{fragment:l})})((()=>{if(location.hash){const[t]=location.hash.slice(1).split(":~:");if(/^\d+$/.test(t))return(ce(t)??1)-1;const r=document.getElementById(t)||document.querySelector(`a[name="${CSS.escape(t)}"]`);if(r){const{length:t}=e.slides;for(let o=0;o<t;o+=1)if(e.slides[o].contains(r)){const t=e.fragments?.[o],i=r.closest("[data-marpit-fragment]");if(t&&i){const e=t.indexOf(i);e>=0&&(n=e)}return o}}}return 0})(),n)};e.on("fragment",({index:e,fragmentIndex:r})=>{n||h({f:0===r||r.toString()},{location:{...location,hash:`#${e+1}`},setter:(...e)=>t.history?history.pushState(...e):history.replaceState(...e)})}),setTimeout(()=>{o(),window.addEventListener("hashchange",()=>r(()=>{o({fragment:!1}),h({f:void 0})})),window.addEventListener("popstate",()=>{n||r(()=>o())}),n=!1},0)}},{PI:ue,abs:fe,sqrt:me,atan2:ge}=Math,pe={passive:!0},ve=({slope:e=-.7,swipeThreshold:t=30}={})=>n=>{let r;const o=n.parent,i=e=>{const t=o.getBoundingClientRect();return{x:e.pageX-(t.left+t.right)/2,y:e.pageY-(t.top+t.bottom)/2}};o.addEventListener("touchstart",({touches:e})=>{r=1===e.length?i(e[0]):void 0},pe),o.addEventListener("touchmove",e=>{if(r)if(1===e.touches.length){e.preventDefault();const t=i(e.touches[0]),n=t.x-r.x,o=t.y-r.y;r.delta=me(fe(n)**2+fe(o)**2),r.radian=ge(n,o)}else r=void 0}),o.addEventListener("touchend",o=>{if(r){if(r.delta&&r.delta>=t&&r.radian){const t=(r.radian-e+ue)%(2*ue)-ue;n[t<0?"next":"prev"](),o.stopPropagation()}r=void 0}},pe)},he=new Map;he.clear(),he.set("none",{backward:{both:void 0,incoming:void 0,outgoing:void 0},forward:{both:void 0,incoming:void 0,outgoing:void 0}});const we={both:"",outgoing:"outgoing-",incoming:"incoming-"},ye={forward:"",backward:"-backward"},be=e=>`--marp-bespoke-transition-animation-${e}`,ke=e=>`--marp-transition-${e}`,xe=be("name"),Ee=be("duration"),$e=e=>new Promise(t=>{const n={},r=document.createElement("div"),o=e=>{r.remove(),t(e)};r.addEventListener("animationstart",()=>o(n)),Object.assign(r.style,{animationName:e,animationDuration:"1s",animationFillMode:"both",animationPlayState:"paused",position:"absolute",pointerEvents:"none"}),document.body.appendChild(r);const i=getComputedStyle(r).getPropertyValue(ke("duration"));i&&Number.parseFloat(i)>=0&&(n.defaultDuration=i),((e,t)=>{requestAnimationFrame(()=>{e.style.animationPlayState="running",requestAnimationFrame(()=>t(void 0))})})(r,o)}),Le=async e=>he.has(e)?he.get(e):(e=>{const t={},n=[];for(const[r,o]of Object.entries(we))for(const[i,a]of Object.entries(ye)){const s=`marp-${o}transition${a}-${e}`;n.push($e(s).then(e=>{t[i]=t[i]||{},t[i][r]=e?{...e,name:s}:void 0}))}return Promise.all(n).then(()=>t)})(e).then(t=>(he.set(e,t),t)),Se=e=>Object.values(e).flatMap(Object.values).every(e=>!e),Pe=(e,{type:t,backward:n})=>{const r=e[n?"backward":"forward"],o=(()=>{const e=r[t],n=e=>({[xe]:e.name});if(e)return n(e);if(r.both){const e=n(r.both);return"incoming"===t&&(e[be("direction")]="reverse"),e}})();return!o&&n?Pe(e,{type:t,backward:!1}):o||{[xe]:"__bespoke_marp_transition_no_animation__"}},_e=e=>{if(e)try{const t=JSON.parse(e);if((e=>{if("object"!=typeof e)return!1;const t=e;return"string"==typeof t.name&&(void 0===t.duration||"string"==typeof t.duration)})(t))return t}catch{}},Oe="_tSId",Te="_tA",Ie="bespoke-marp-transition-warming-up",Me=window.matchMedia("(prefers-reduced-motion: reduce)"),Ae="__bespoke_marp_transition_reduced_outgoing__",Ce="__bespoke_marp_transition_reduced_incoming__",De={forward:{both:void 0,incoming:{name:Ce},outgoing:{name:Ae}},backward:{both:void 0,incoming:{name:Ce},outgoing:{name:Ae}}},Ne=e=>{if(!document.startViewTransition)return;const t=t=>(void 0!==t&&(e._tD=t),e._tD);let n;t(!1),((...e)=>{CSS.registerProperty({name:ke("duration"),syntax:"<time>",inherits:!0,initialValue:"-1s"});const t=[...new Set(e).values()];return Promise.all(t.map(e=>Le(e))).then()})(...Array.from(document.querySelectorAll("section[data-transition], section[data-transition-back]")).flatMap(e=>[e.dataset.transition,e.dataset.transitionBack].flatMap(e=>{const t=_e(e);return[t?.name,t?.builtinFallback?`__builtin__${t.name}`:void 0]}).filter(e=>!!e))).then(()=>{document.querySelectorAll("style").forEach(e=>{e.innerHTML=e.innerHTML.replace(/--marp-transition-duration:[^;}]*[;}]/g,e=>e.slice(0,-1)+"!important"+e.slice(-1))})});const r=(n,{back:r,cond:o})=>i=>{const a=t();if(a)return!!i[Te]||!("object"!=typeof a||(a.skipTransition(),!i.forSync));if(e.skipTransition)return!0;if(!o(i))return!0;const s=e.slides[e.slide()],l=()=>i.back??r,c="data-transition"+(l()?"-back":""),d=s.querySelector(`section[${c}]`);if(!d)return!0;const u=_e(d.getAttribute(c)??void 0);return!u||((async(e,{builtinFallback:t=!0}={})=>{let n=await Le(e);if(Se(n)){if(!t)return;return n=await Le(`__builtin__${e}`),Se(n)?void 0:n}return n})(u.name,{builtinFallback:u.builtinFallback}).then(e=>{if(!e){t(!0);try{n(i)}finally{t(!1)}return}let r=e;Me.matches&&(console.warn("Use a constant animation to transition because preferring reduced motion by viewer has detected."),r=De);const o=document.getElementById(Oe);o&&o.remove();const a=document.createElement("style");a.id=Oe,document.head.appendChild(a),((e,t)=>{const n=[`:root{${ke("direction")}:${t.backward?-1:1};}`,":root:has(.bespoke-marp-inactive){cursor:none;}"],r=t=>{const n=e[t].both?.defaultDuration||e[t].outgoing?.defaultDuration||e[t].incoming?.defaultDuration;return"forward"===t?n:n||r("forward")},o=t.duration||r(t.backward?"backward":"forward");void 0!==o&&n.push(`::view-transition-group(*){${Ee}:${o};}`);const i=e=>Object.entries(e).map(([e,t])=>`${e}:${t};`).join("");return n.push(`::view-transition-old(root){${i(Pe(e,{...t,type:"outgoing"}))}}`,`::view-transition-new(root){${i(Pe(e,{...t,type:"incoming"}))}}`),n})(r,{backward:l(),duration:u.duration}).forEach(e=>a.sheet?.insertRule(e));const s=document.documentElement.classList;s.add(Ie);let c=!1;const d=()=>{c||(n(i),c=!0,s.remove(Ie))},f=()=>{t(!1),a.remove(),s.remove(Ie)};try{t(!0);const e=document.startViewTransition(d);t(e),e.finished.finally(f)}catch(e){console.error(e),d(),f()}}),!1)};e.on("prev",r(t=>e.prev({...t,[Te]:!0}),{back:!0,cond:e=>e.index>0&&!((e.fragment??1)&&n.fragmentIndex>0)})),e.on("next",r(t=>e.next({...t,[Te]:!0}),{cond:t=>t.index+1<e.slides.length&&!(n.fragmentIndex+1<n.fragments.length)})),setTimeout(()=>{e.on("slide",r(t=>e.slide(t.index,{...t,[Te]:!0}),{cond:t=>{const n=e.slide();return t.index!==n&&(t.back=t.index<n,!0)}}))},0),e.on("fragment",e=>{n=e})};let Be;const Ke=()=>(void 0===Be&&(Be="wakeLock"in navigator&&navigator.wakeLock),Be),qe=async()=>{const e=Ke();if(e)try{return await e.request("screen")}catch(e){console.warn(e)}return null},Ve=async()=>{if(!Ke())return;let e;const t=()=>{e&&"visible"===document.visibilityState&&qe()};for(const e of["visibilitychange","fullscreenchange"])document.addEventListener(e,t);return e=await qe(),e};((e=document.getElementById(":$p"))=>{(()=>{const e=v("view");i.dataset.bespokeView=u.some(t=>t&&t===e)?e:""})();const t=(e=>{const t=v(e);return h({[e]:void 0}),t})("sync")||void 0;o.from(e,((...e)=>{const t=u.findIndex(e=>p()===e);return e.map(([e,n])=>e[t]&&n).filter(e=>e)})([[1,1,1,0],B({key:t})],[[1,1,0,1],se(e)],[[1,1,0,0],M],[[1,1,1,1],E],[[1,0,0,0],T()],[[1,1,1,1],A],[[1,1,1,1],de({history:!1})],[[1,1,0,0],C()],[[1,1,1,0],_],[[1,0,0,0],le],[[1,1,0,0],ve()],[[1,0,0,0],D()],[[1,1,1,0],F()],[[1,0,0,0],Ne],[[1,1,1,1],$],[[1,1,1,0],Ve]))})()}();</script></body></html>

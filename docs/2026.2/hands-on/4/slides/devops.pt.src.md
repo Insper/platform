@@ -75,6 +75,8 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
 ```
 
+<p class="small">A home do Jenkins (plugins, jobs, credenciais) fica em <code>./config/jenkins</code>, então sobrevive ao <code>docker compose down</code>; ela guarda segredos, por isso o <code>jenkins/.gitignore</code> deixa <code>config/</code> e <code>.env</code> fora do git.</p>
+
 ---
 
 ## O que a imagem traz
@@ -127,7 +129,7 @@ docker exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword
 
 <div class="ok">
 
-Use um token com escopo **Read & Write**, e não sua senha: um token vazado é revogado sem mexer na conta.
+Use um token com escopo **Read & Write** e não sua senha: um token vazado é revogado sem mexer na conta.
 
 </div>
 

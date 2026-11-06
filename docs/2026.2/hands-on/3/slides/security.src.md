@@ -21,8 +21,9 @@ theme: platform
 **Log in once, get a signed JWT, and let the Gateway check it on every request**
 
 <!--
-Outline: (1) authentication × authorization; (2) JWT and its claims; (3) auth interface and auth-service;
-(4) the cookie; (5) open routes; (6) AuthorizationFilter at the gateway; (7) compose and testing.
+Outline: (1) authentication × authorization; (2) JWT and its claims; (3) the auth interface and the open routes;
+(4) auth-service and the credential check in account; (5) the cookie; (6) AuthorizationFilter at the gateway;
+(7) compose, testing and pitfalls.
 -->
 
 ---
@@ -45,7 +46,7 @@ Let the class answer first: checking credentials in every service multiplies the
 
 ---
 
-## Three new modules
+## Three modules
 
 `internet → gateway → account / auth / others` · `auth → account` · all inside the **trusted layer**
 
@@ -53,9 +54,9 @@ Let the class answer first: checking credentials in every service multiplies the
 |---|---|
 | `auth` | interface library: `AuthController` + DTOs `LoginIn`, `RegisterIn`, `TokenOut` |
 | `auth-service` | implementation: `AuthResource`, `AuthService`, `JwtService`; delegates accounts to `account` via Feign |
-| `gateway-service` | single entry point: `AuthorizationFilter` + `RouterValidator` |
+| `gateway-service` | the single entry point of hands-on 2, now with `AuthorizationFilter` + `RouterValidator` |
 
-<p class="small">Same pattern as <code>account</code> / <code>account-service</code>: a library installed with <code>mvn clean install</code>, plus a runnable service.</p>
+<p class="small">Same pattern as <code>account</code> / <code>account-service</code>: each one a git submodule under <code>api/</code>; the library is installed with <code>mvn clean install</code>.</p>
 
 ---
 
@@ -64,10 +65,11 @@ Let the class answer first: checking credentials in every service multiplies the
 Three Base64Url parts separated by dots: `header.payload.signature`
 
 ```
-HMAC( base64UrlEncode(header) + "." + base64UrlEncode(payload), secret )
+HMACSHA256( base64UrlEncode(header) + "." + base64UrlEncode(payload),
+            Base64.decode(JWT_SECRET_KEY) )   // 32 bytes = 256 bits
 ```
 
-- **Header**: token type and signing algorithm.
+- **Header**: the signing algorithm — JJWT writes only `{"alg": "HS256"}`.
 - **Payload**: the **claims** — statements about the user.
 - **Signature**: proves the token was issued by whoever holds the secret and was not altered.
 - **Stateless**: no server-side session, so it scales horizontally.
@@ -109,6 +111,28 @@ Anyone with the **secret key** can forge tokens: keep it in an environment varia
 
 ---
 
+## Open vs. secured routes: `RouterValidator`
+
+Register and login must be open — otherwise nobody could ever log in.
+
+```java
+private List<String> openApiEndpoints = List.of(
+    "POST /auth/register",
+    "GET /auth/logout",
+    "POST /auth/login");
+
+public Predicate<ServerHttpRequest> isSecured = request ->
+    openApiEndpoints.stream().noneMatch(/* method and path match, /** = prefix */);
+```
+
+<div class="ok">
+
+**Secured by default**: everything not in the list — including all `/accounts/**` — needs a valid cookie.
+
+</div>
+
+---
+
 ## `auth-service`
 
 | Class | Responsibility |
@@ -125,6 +149,35 @@ store:
     httpOnly: ${JWT_HTTP_ONLY:true}
     duration: ${JWT_DURATION:3600000} # 1 hour in milliseconds
 ```
+
+---
+
+<!-- _class: tight -->
+
+## Checking credentials in `account`
+
+`auth-service` never checks a password: `account` gains **`POST /accounts/login`** (`AccountController.login`).
+
+```java
+// account-service: AccountService (calcHash already exists)
+public Account findByEmailAndPassword(String email, String password) {
+    if (password == null || password.isEmpty())
+        throw new ResponseStatusException(BAD_REQUEST, "Password is empty");
+    final String hash = calcHash(password);
+    return accountRepository.findByEmailAndHashPassword(email, hash)
+        .map(AccountModel::to)
+        .orElseThrow(() -> new ResponseStatusException(
+            UNAUTHORIZED, "Invalid credentials"));
+}
+```
+
+- `findByEmailAndHashPassword`: a Spring Data derived query in `AccountRepository`. The endpoint answers `200` + `AccountOut`, or `401`.
+- The hash never leaves `account`; `AuthService.login` turns `FeignException.Unauthorized` / `BadRequest` into `401`.
+- `AccountController` changed: run `mvn clean install` in `api/account` again.
+
+<!--
+Plain SHA-256 keeps the course simple; production uses a slow, salted algorithm (bcrypt, Argon2, Spring Security's PasswordEncoder).
+-->
 
 ---
 
@@ -171,7 +224,7 @@ public String getId(String jwt) {
 
 ## Login → cookie
 
-1. `POST /auth/login` → `AuthService.login` → `POST /accounts/login` (hash check) → `JwtService.generate`.
+1. `POST /auth/login` → `AuthService.login` → `POST /accounts/login` (hash check, or `401`) → `JwtService.generate`.
 2. `AuthResource` answers with `Set-Cookie: __store_jwt_token=<jwt>`.
 3. The browser stores it and **sends it automatically** on every later request.
 
@@ -185,28 +238,6 @@ public String getId(String jwt) {
 <div class="warn">
 
 Browsers reject `SameSite=None` without `Secure`: in production, frontend and API must use **HTTPS**.
-
-</div>
-
----
-
-## Open routes: `RouterValidator`
-
-Without open routes, nobody could ever log in.
-
-```java
-private List<String> openApiEndpoints = List.of(
-    "POST /auth/register",
-    "GET /auth/logout",
-    "POST /auth/login");
-
-public Predicate<ServerHttpRequest> isSecured = request ->
-    openApiEndpoints.stream().noneMatch(/* method and path match, /** = prefix */);
-```
-
-<div class="ok">
-
-**Secured by default**: everything not in the list — including all `/accounts/**` — needs a valid cookie.
 
 </div>
 
@@ -251,7 +282,7 @@ public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
 }
 ```
 
-<p class="small">Spring Cloud Gateway is <strong>reactive</strong> (WebFlux): the filter returns <code>Mono&lt;Void&gt;</code> and calls auth with <code>WebClient</code>, not <code>RestTemplate</code>.</p>
+<p class="small">Spring Cloud Gateway is <strong>reactive</strong> (WebFlux): the filter returns <code>Mono&lt;Void&gt;</code> and calls auth with <code>WebClient</code>, not <code>RestTemplate</code>. Its <code>onStatus(4xx)</code> keeps an invalid token a <code>401</code>, not a <code>500</code>.</p>
 
 ---
 
@@ -312,12 +343,28 @@ curl http://localhost:8080/accounts                  # 401 — no cookie
 
 ---
 
+## Common pitfalls
+
+- **Wrong credentials → `500`**: a bare `.orElseThrow()` throws `NoSuchElementException`; throw a `401`.
+- **Expired cookie → `500`**: `getId` must catch `JwtException`; the filter's `onStatus` keeps the `401`.
+- **Build fails after `login`**: reinstall the `account` library before `account-service` and `auth-service`.
+- **Cookie ignored**: `SameSite=None` without `Secure` is rejected by the browser.
+- **Leaky health check**: `/health-check` is not a route, the filter does not run there — return only the hostname.
+
+<div class="warn">
+
+The default `JWT_SECRET_KEY` is in the repository: anyone could forge tokens for a deployment that keeps it.
+
+</div>
+
+---
+
 ## Takeaways
 
 1. **Authentication** issues a signed JWT; **authorization** checks it on every request.
 2. A JWT is `header.payload.signature`; the **secret key** is what makes it trustworthy.
-3. `JwtService` signs with `jti`, `sub`, `iss`, `nbf`, `exp` — and validates signature, `nbf` and `exp`.
+3. `account` checks the password hash (`POST /accounts/login`); `JwtService` signs `jti`, `sub`, `iss`, `nbf`, `exp`, `email`.
 4. The token travels in an `HttpOnly`, `Secure` cookie: `__store_jwt_token`.
 5. `RouterValidator`: only register, login and logout are open — **secured by default**.
 6. `AuthorizationFilter` resolves the token via `/auth/solve` and forwards `id-account`.
-7. Downstream services **never parse JWTs**: the Gateway does it once.
+7. Downstream services **never parse JWTs**; bad credentials or tokens are a `401`, never a `500`.

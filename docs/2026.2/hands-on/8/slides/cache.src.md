@@ -105,7 +105,7 @@ This hands-on enables **AOF**: `--appendonly yes`.
 
 ## Architecture
 
-internet → `:80` **Nginx** → gateway ×3 → `auth`, `account` → **Redis** `:6379` → PostgreSQL *(on a miss only)*
+internet → `:8080` **lb** (Nginx) → gateway ×3 → `auth`, `account` → **Redis** `:6379` → PostgreSQL *(on a miss only)*
 
 - All replicas share **one** Redis: an entry written via replica 1 is readable via replicas 2 and 3.
 - Steps: **1** Docker Compose → **2** Spring Boot → **3** run and measure.
@@ -258,10 +258,35 @@ Cached classes (`AccountOut`) must be JSON-serialisable: no-arg constructor, pub
 
 ---
 
-## 3 · Run and see a hit
+<!-- _class: tight -->
+
+## 3 · Run
 
 ```bash
 docker compose up -d --build
+docker compose ps -a
+```
+
+```text
+NAME                STATUS     PORTS
+store-redis-1       running    0.0.0.0:6379->6379/tcp
+store-lb-1          running    0.0.0.0:8080->80/tcp
+store-gateway-1     running
+store-gateway-2     running
+store-gateway-3     running
+store-account-1     running
+store-account-2     running
+store-auth-1        running
+store-db-1          running    0.0.0.0:5432->5432/tcp
+```
+
+- The new container is `redis`; `account` now runs **2 replicas**, the gateway 3.
+
+---
+
+## 3 · First request: miss · second: hit
+
+```bash
 curl -s http://localhost:8080/accounts/42 | jq    # 1st: miss, hits the database
 docker compose exec redis redis-cli
 > KEYS accounts::*                           # 1) "accounts::42"
@@ -280,10 +305,24 @@ curl -o /dev/null -s -w "Cache hit:  %{time_total}s\n" http://localhost:8080/acc
 ```
 
 - Typical: **miss 0.058 s**, **hit 0.004 s** — 10–15× faster, no database round-trip.
-- `TTL "accounts::42"` — seconds until the key expires; then the next read is a miss again.
-- `redis-cli INFO stats` → `keyspace_hits` / `keyspace_misses`. Healthy: **> 90 % hits** on read-heavy loads.
+- Redis answers in < 1 ms and the response goes only through the gateway.
 
-<p class="small">High miss rate? Increase the TTL or pre-warm the cache on startup.</p>
+---
+
+## 3 · TTL and hit rate
+
+```bash
+docker compose exec redis redis-cli
+> TTL "accounts::42"          # seconds left; at 0 the key is removed
+docker compose exec redis redis-cli MONITOR
+docker compose exec redis redis-cli INFO stats | grep -E "keyspace_(hits|misses)"
+# keyspace_hits:8
+# keyspace_misses:1
+```
+
+- After the TTL, the next read is a **miss** again: the cache stays eventually consistent.
+- `MONITOR` streams every `GET` (hit or nil) and `SET` (miss + store).
+- Healthy: **> 90 % hits** on read-heavy loads. Too many misses? Raise the TTL or pre-warm the cache.
 
 ---
 
@@ -310,3 +349,4 @@ A cache can serve **stale data**: `@CachePut` / `@CacheEvict` on writes and a **
 4. Spring Cache: `@Cacheable` reads, `@CachePut` updates, `@CacheEvict` invalidates.
 5. A **TTL** bounds staleness; **JSON** serialisation keeps the cache inspectable.
 6. Verify with `redis-cli` (`KEYS`, `GET`, `TTL`, `INFO stats`) and compare miss × hit latency.
+7. The database behind the cache is still **one container**: hands-on 9 turns it into a cluster.

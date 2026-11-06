@@ -112,7 +112,11 @@ public interface AccountController {
 }
 ```
 
-<p class="small">Os DTOs são records com <code>@Builder</code> do Lombok e <code>@Accessors(fluent = true)</code>: <code>AccountIn(name, email, password)</code> e <code>AccountOut(id, name, email)</code> — a senha nunca sai.</p>
+<p class="small">Os DTOs são records com <code>@Builder</code> do Lombok e <code>@Accessors(fluent = true)</code>: <code>AccountIn(name, email, password)</code> e <code>AccountOut(id, name, email)</code> — a senha nunca sai. Depois, <code>mvn clean install</code> coloca o <code>account</code> no repositório Maven local.</p>
+
+<!--
+No hands-on 3 esta interface ganha POST /accounts/login, que o serviço de autenticação chama para conferir um email e uma senha.
+-->
 
 ---
 
@@ -137,7 +141,7 @@ git submodule add <repository_url> api/account-service
 
 ## Passo 2 — Service: fazer responder
 
-`AccountResource` implementa `AccountController`; no início, só o `health-check` é de verdade.
+`AccountResource` implementa `AccountController` — ele a enxerga porque o `pom.xml` depende de `store:account:1.0.0`. No início, só o `health-check` é de verdade.
 
 ```java
 @Controller
@@ -185,6 +189,8 @@ services:
   account:
     build:
       context: ./account-service
+    ports:
+      - 8080:8080
     depends_on:
       - db
 ```
@@ -192,7 +198,7 @@ services:
 </div>
 </div>
 
-<p class="small"><code>docker compose up -d --build</code> · <code>docker compose ps -a</code> — os serviços vivem em uma <strong>camada confiável</strong>.</p>
+<p class="small">Só o <code>account</code> publica porta (<code>8080</code>); o <code>db</code> não tem nenhuma, então só é alcançável dentro da rede do Compose — a <strong>camada confiável</strong>. <code>docker compose up -d --build</code> · <code>docker compose ps -a</code></p>
 
 ---
 
@@ -227,6 +233,7 @@ public interface AccountRepository
 
 - O **ORM** mapeia tabelas → classes, linhas → objetos.
 - O `CrudRepository` dá `save`, `findById`, `findAll`, `deleteById` de graça.
+- O `pom.xml` adiciona `spring-boot-starter-data-jpa`, `postgresql`, `spring-boot-starter-flyway`.
 
 </div>
 </div>

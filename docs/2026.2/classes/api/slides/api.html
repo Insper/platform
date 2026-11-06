@@ -72,20 +72,75 @@
 <h1 id="api">API</h1>
 <p><strong>A contract that lets each side evolve on its own</strong></p>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="2" data-marpit-fragments="4" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="2" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="16">
-<h2 id="replace-everything-behind-it">Replace everything behind it</h2>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="2" data-marpit-fragments="3" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="2" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="29">
+<h2 id="three-clients-one-product-service">Three clients, one product service</h2>
 <div class="q">
-<p>The team rewrites the product service: new language, new database, new framework.<br />
-Which clients break?</p>
+<p>The web front-end, the mobile app and the order service all need product data. How does each one know which URL to call, what to send and what comes back? And what happens to them when the product team <strong>rewrites</strong> its service next semester?</p>
 </div>
 <ul>
-<li data-marpit-fragment="1"><strong>None</strong> — as long as the <strong>contract</strong> is respected.</li>
-<li data-marpit-fragment="2">An API defines the <strong>operations</strong>, their <strong>inputs</strong> and <strong>outputs</strong> — and hides the implementation.</li>
-<li data-marpit-fragment="3">In the hands-on: module <code>account</code> = the contract (<code>AccountController</code> + <code>AccountIn</code>/<code>AccountOut</code>); <code>account-service</code> = the private implementation.</li>
-<li data-marpit-fragment="4">Changing a <strong>DTO</strong> is changing the contract: never return the JPA model.</li>
+<li data-marpit-fragment="1">An <strong>API</strong> is a contract: the <strong>operations</strong>, their <strong>inputs</strong> and their <strong>outputs</strong> — without exposing the implementation.</li>
+<li data-marpit-fragment="2">Clients depend on the contract and <strong>cannot see</strong> the language, database or framework behind it.</li>
+<li data-marpit-fragment="3">Respect the contract and the implementation can be <strong>completely replaced</strong> without impacting any consumer.</li>
 </ul>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="3" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="3" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="16">
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="3" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="3" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="29">
+<h2 id="why-apis-matter">Why APIs matter</h2>
+<table>
+<thead>
+<tr>
+<th>Without a stable API</th>
+<th>With a stable API contract</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>every internal change risks breaking consumers</td>
+<td>consumers are isolated from implementation changes</td>
+</tr>
+<tr>
+<td>teams coordinate every deployment</td>
+<td>teams deploy independently</td>
+</tr>
+<tr>
+<td>integration errors surface at runtime</td>
+<td>the contract is testable before integration</td>
+</tr>
+<tr>
+<td>documentation drifts and goes stale</td>
+<td>the contract is the single source of truth</td>
+</tr>
+</tbody>
+</table>
+<p class="small"><strong>Consumer</strong> (client): the code that calls the API · <strong>Provider</strong>: the service that implements it · <strong>Endpoint</strong>: one operation, method + path (<code>GET /accounts/{id}</code>) · <strong>DTO</strong>: a class that only carries data across the boundary.</p>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="4" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="4" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="29">
+<h2 id="the-contract-in-our-platform">The contract in our platform</h2>
+<table>
+<thead>
+<tr>
+<th>Module</th>
+<th>Contains</th>
+<th>Who depends on it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>account</code></td>
+<td>the <strong>contract</strong>: <code>AccountController</code> interface (<code>POST /accounts</code>, <code>GET /accounts/{id}</code>…) and DTOs <code>AccountIn</code> / <code>AccountOut</code></td>
+<td>the implementation <strong>and</strong> every client — auth calls accounts through it as an OpenFeign client</td>
+</tr>
+<tr>
+<td><code>account-service</code></td>
+<td>the <strong>implementation</strong>: <code>AccountResource</code>, <code>AccountService</code>, <code>AccountModel</code> (JPA), the repository</td>
+<td>nobody — private to the account team</td>
+</tr>
+</tbody>
+</table>
+<div class="ok">
+<p>The account team changes the database, model or logic freely. Only a change to <code>AccountController</code>, <code>AccountIn</code> or <code>AccountOut</code> is visible to others — the change that must be negotiated and, if it breaks clients, <strong>versioned</strong>.</p>
+</div>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="5" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="5" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="29">
 <h2 id="types-of-apis">Types of APIs</h2>
 <table>
 <thead>
@@ -99,39 +154,70 @@ Which clients break?</p>
 <tbody>
 <tr>
 <td><strong>REST</strong></td>
-<td>HTTP/1.1, HTTP/2</td>
+<td>HTTP/1.1 or HTTP/2</td>
 <td>JSON / XML</td>
-<td>public and internal web APIs — the default</td>
+<td>public and internal web APIs — the dominant choice</td>
 </tr>
 <tr>
 <td><strong>gRPC</strong></td>
 <td>HTTP/2</td>
-<td>Protocol Buffers</td>
-<td>fast internal service-to-service calls</td>
+<td>Protocol Buffers (binary)</td>
+<td>high-performance internal service-to-service calls</td>
 </tr>
 <tr>
 <td><strong>GraphQL</strong></td>
 <td>HTTP</td>
 <td>JSON</td>
-<td>client picks the fields; Backend for Frontend</td>
+<td>client-driven queries; Backend for Frontend (BFF)</td>
 </tr>
 <tr>
 <td><strong>WebSocket</strong></td>
-<td>HTTP <code>Upgrade</code>, then full-duplex</td>
+<td>starts as an HTTP <code>Upgrade</code>, then full-duplex</td>
 <td>any</td>
-<td>real time: chat, live feeds</td>
+<td>real time: chat, live feeds, collaboration</td>
 </tr>
 <tr>
 <td><strong>Message-based</strong></td>
-<td>AMQP / Kafka</td>
+<td>AMQP / Kafka protocol</td>
 <td>JSON / Avro</td>
 <td>asynchronous, event-driven integration</td>
 </tr>
 </tbody>
 </table>
-<p class="small">Same question, three shapes: <code>GET /products/42</code> · <code>rpc GetProduct(GetProductRequest)</code> · <code>query { product(id: "42") { name price } }</code></p>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="4" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="4" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="16">
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="6" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="6" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="29">
+<h2 id="give-me-product-42-three-ways">&quot;Give me product 42&quot;, three ways</h2>
+<div class="cols3">
+<div>
+<h3 id="rest">REST</h3>
+<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-http"><span class="hljs-keyword">GET</span> <span class="hljs-string">/products/42</span> <span class="hljs-meta">HTTP/1.1</span>
+<span class="hljs-attribute">Accept</span><span class="hljs-punctuation">: </span>application/json
+</code></pre>
+<p>The URL identifies the <strong>resource</strong>; the method says what to do. Any HTTP client works.</p>
+</div>
+<div>
+<h3 id="grpc">gRPC</h3>
+<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-protobuf"><span class="hljs-keyword">service </span><span class="hljs-title class_">ProductService</span> {
+  <span class="hljs-function"><span class="hljs-keyword">rpc</span> GetProduct (GetProductRequest)
+    <span class="hljs-keyword">returns</span> (Product)</span>;
+}
+</code></pre>
+<p>A <code>.proto</code> contract, <strong>generated</strong> code, compact binary. No direct browser call.</p>
+</div>
+<div>
+<h3 id="graphql">GraphQL</h3>
+<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-graphql"><span class="hljs-keyword">query</span> <span class="hljs-punctuation">{</span>
+  product<span class="hljs-punctuation">(</span><span class="hljs-symbol">id</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;42&quot;</span><span class="hljs-punctuation">)</span> <span class="hljs-punctuation">{</span> name price <span class="hljs-punctuation">}</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<p>One endpoint (<code>POST /graphql</code>); the <strong>client chooses the fields</strong>.</p>
+</div>
+</div>
+<div class="ok">
+<p><strong>How to choose</strong>: REST for the store's public API (universal tooling, cacheable <code>GET</code>s); gRPC for chatty internal calls; GraphQL for a front-end composing many services; messaging when the producer should not wait.</p>
+</div>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="7" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="7" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="29">
 <h2 id="how-restful-the-richardson-model">How RESTful? The Richardson model</h2>
 <table>
 <thead>
@@ -144,33 +230,52 @@ Which clients break?</p>
 <tbody>
 <tr>
 <td><strong>0 — Swamp of POX</strong></td>
-<td>one endpoint for everything</td>
+<td>one endpoint for all operations</td>
 <td><code>POST /service?op=getOrder</code></td>
 </tr>
 <tr>
 <td><strong>1 — Resources</strong></td>
-<td>one URI per resource</td>
+<td>separate URIs per resource</td>
 <td><code>GET /orders/42</code></td>
 </tr>
 <tr>
 <td><strong>2 — HTTP verbs</strong></td>
-<td>right methods + status codes</td>
+<td>GET, POST, PUT, DELETE + status codes</td>
 <td><code>DELETE /orders/42</code> → <code>204</code></td>
 </tr>
 <tr>
 <td><strong>3 — Hypermedia</strong></td>
-<td>responses link to next actions (HATEOAS)</td>
-<td><code>&quot;rel&quot;: &quot;cancel&quot;</code></td>
+<td>responses link to the next actions</td>
+<td><code>&quot;links&quot;: [{&quot;rel&quot;: &quot;cancel&quot;, &quot;href&quot;: &quot;/orders/42/cancel&quot;}]</code></td>
 </tr>
 </tbody>
 </table>
-<div class="ok">
-<p>Most production APIs live at <strong>level 2</strong> — the focus of this course, documented with <strong>OpenAPI / Swagger</strong>.</p>
-</div>
+<ul>
+<li><strong>POX</strong> = Plain Old XML: HTTP as a tunnel for remote procedure calls. <strong>HATEOAS</strong> = Hypermedia As The Engine Of Application State: the client discovers next steps from links.</li>
+<li>Most production APIs live at <strong>level 2</strong> — the focus of this course; level 3 is rare (PayPal's <code>links</code> with <code>rel</code> and <code>href</code>).</li>
+</ul>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="5" data-paginate="true" data-class="tight" data-lang="en" data-theme="platform" lang="en" class="tight" data-marpit-pagination="5" style="--paginate:true;--class:tight;--lang:en;--theme:platform;" data-marpit-pagination-total="16">
-<h2 id="rest-resources-representations-constraints">REST: resources, representations, constraints</h2>
-<p>A <strong>resource</strong> has a URI (<code>/products/42</code>); clients exchange <strong>representations</strong> of it (JSON).</p>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="8" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="8" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="29">
+<h2 id="common-pitfalls-when-designing-an-api">Common pitfalls when designing an API</h2>
+<ul>
+<li><strong>Leaking the implementation</strong>: returning the JPA entity exposes columns such as the password hash and ties the contract to the schema — use DTOs (<code>AccountOut</code> has no password).</li>
+<li><strong>Chatty APIs</strong>: a screen that needs ten calls is slow across a network — design resources around what consumers need.</li>
+<li><strong>Silent breaking changes</strong>: renaming a JSON field passes the provider's own tests and breaks every consumer — treat the contract as public.</li>
+<li><strong>RPC disguised as REST</strong>: verbs in the URL (<code>/createOrder</code>) put the API at Richardson level 0–1.</li>
+</ul>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="9" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="9" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="29">
+<div class="kicker">REST API design</div>
+<h2 id="rest-resources-and-representations">REST: resources and representations</h2>
+<p>You must publish the store's <strong>Product API</strong>; the web front-end and the order service will call it without reading your code. REST (Roy Fielding, 2000) — an architectural <strong>style</strong>, not a protocol — gives shared answers on top of HTTP.</p>
+<ul>
+<li>A <strong>resource</strong> is anything with a name: a product, all products, one user's orders — identified by a <strong>URI</strong> (<code>/products/0195abfb-...</code>).</li>
+<li>A <strong>representation</strong> is a snapshot of its state, usually JSON. The client never touches the row in Postgres: <strong>Representational State Transfer</strong>.</li>
+<li><code>Content-Type</code> says the body's format; <code>Accept</code> says what the client wants back.</li>
+</ul>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="10" data-paginate="true" data-class="tight" data-lang="en" data-theme="platform" lang="en" class="tight" data-marpit-pagination="10" style="--paginate:true;--class:tight;--lang:en;--theme:platform;" data-marpit-pagination-total="29">
+<h2 id="rest-constraints">REST constraints</h2>
 <table>
 <thead>
 <tr>
@@ -181,11 +286,11 @@ Which clients break?</p>
 <tbody>
 <tr>
 <td><strong>Client-Server</strong></td>
-<td>UI and storage are separate concerns</td>
+<td>the server does not know the UI; the client does not know the storage</td>
 </tr>
 <tr>
 <td><strong>Stateless</strong></td>
-<td>each request carries everything — the JWT goes with every call</td>
+<td>each request carries everything; no session between requests — the JWT travels with every call</td>
 </tr>
 <tr>
 <td><strong>Cacheable</strong></td>
@@ -193,20 +298,23 @@ Which clients break?</p>
 </tr>
 <tr>
 <td><strong>Uniform Interface</strong></td>
-<td>URIs + standard methods + self-descriptive messages</td>
+<td>URIs + standard methods + self-descriptive messages (<code>Content-Type</code>, status) + links (HATEOAS)</td>
 </tr>
 <tr>
 <td><strong>Layered System</strong></td>
-<td>the client cannot tell the server from a gateway or load balancer</td>
+<td>the client cannot tell the end server from a gateway, cache or load balancer</td>
 </tr>
 <tr>
-<td><strong>Code on Demand</strong></td>
-<td>optional: the server may send code (JavaScript)</td>
+<td><strong>Code on Demand</strong> <em>(optional)</em></td>
+<td>the server may send executable code (JavaScript)</td>
 </tr>
 </tbody>
 </table>
+<div class="ok">
+<p><strong>Stateless</strong> + <strong>Layered System</strong> make horizontal scaling possible: no replica keeps a session, so Hands-on 7's load balancer sends each request to any gateway instance.</p>
+</div>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="6" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="6" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="16">
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="11" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="11" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="29">
 <h2 id="resources-are-nouns">Resources are nouns</h2>
 <div class="cols">
 <div>
@@ -241,14 +349,16 @@ Which clients break?</p>
 <ul>
 <li><strong>Plural</strong> nouns: <code>/orders</code>, <code>/products</code></li>
 <li><strong>Lowercase with hyphens</strong>: <code>/order-items</code></li>
-<li>Nest for ownership: <code>/users/7/orders</code></li>
-<li>At most 2–3 levels of nesting</li>
+<li>Nest for ownership: <code>/users/7/orders</code>, at most 2–3 levels</li>
 <li>Filters, sort, pages → <strong>query</strong> parameters</li>
 </ul>
 </div>
 </div>
+<div class="ok">
+<p><strong>Actions that are not CRUD</strong> (cancel an order): a state change, <code>PATCH /orders/42</code> with <code>{&quot;status&quot;: &quot;CANCELLED&quot;}</code>, or a sub-resource, <code>POST /orders/42/cancellation</code>. The verb stays out of the path.</p>
+</div>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="7" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="7" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="16">
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="12" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="12" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="29">
 <h2 id="http-methods">HTTP methods</h2>
 <table>
 <thead>
@@ -264,7 +374,7 @@ Which clients break?</p>
 <td><code>GET</code></td>
 <td><img class="emoji" draggable="false" alt="✅" src="https://cdn.jsdelivr.net/gh/jdecked/twemoji@17.0.3/assets/svg/2705.svg" data-marp-twemoji=""/></td>
 <td><img class="emoji" draggable="false" alt="✅" src="https://cdn.jsdelivr.net/gh/jdecked/twemoji@17.0.3/assets/svg/2705.svg" data-marp-twemoji=""/></td>
-<td>read a resource or collection</td>
+<td>retrieve a resource or collection; must not modify state</td>
 </tr>
 <tr>
 <td><code>POST</code></td>
@@ -276,13 +386,13 @@ Which clients break?</p>
 <td><code>PUT</code></td>
 <td><img class="emoji" draggable="false" alt="✅" src="https://cdn.jsdelivr.net/gh/jdecked/twemoji@17.0.3/assets/svg/2705.svg" data-marp-twemoji=""/></td>
 <td><img class="emoji" draggable="false" alt="❌" src="https://cdn.jsdelivr.net/gh/jdecked/twemoji@17.0.3/assets/svg/274c.svg" data-marp-twemoji=""/></td>
-<td>replace the whole resource</td>
+<td>replace completely — the client sends the full representation</td>
 </tr>
 <tr>
 <td><code>PATCH</code></td>
 <td><img class="emoji" draggable="false" alt="❌" src="https://cdn.jsdelivr.net/gh/jdecked/twemoji@17.0.3/assets/svg/274c.svg" data-marp-twemoji=""/></td>
 <td><img class="emoji" draggable="false" alt="❌" src="https://cdn.jsdelivr.net/gh/jdecked/twemoji@17.0.3/assets/svg/274c.svg" data-marp-twemoji=""/></td>
-<td>partial update</td>
+<td>partial update (<code>{&quot;op&quot;: &quot;increment&quot;}</code> changes on every call)</td>
 </tr>
 <tr>
 <td><code>DELETE</code></td>
@@ -293,92 +403,102 @@ Which clients break?</p>
 </tbody>
 </table>
 <ul>
-<li><strong>Safe</strong>: does not change server state. <strong>Idempotent</strong>: repeating it has the same <strong>effect</strong> as calling once.</li>
-<li>A second <code>DELETE /products/42</code> returns <code>404</code> — still idempotent: the state is the same.</li>
+<li><strong>Safe</strong>: no change to server state (<code>GET</code>, <code>HEAD</code>, <code>OPTIONS</code>) — caches and crawlers may call them freely.</li>
+<li><strong>Idempotent</strong>: same <strong>effect on the server</strong> once or many times. <code>DELETE /products/42</code> → <code>204</code>, then <code>404</code>: still idempotent — treat a <code>404</code> on a retried <code>DELETE</code> as success.</li>
 </ul>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="8" data-marpit-fragments="4" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="8" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="16">
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="13" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="13" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="29">
 <h2 id="retrying-a-post-idempotency-keys">Retrying a <code>POST</code>: idempotency keys</h2>
 <div class="q">
-<p><code>POST /orders</code> times out. Was the order created? Retry and risk a duplicate, or give up and risk losing it?</p>
+<p><code>POST /orders</code> and the response never arrives. Was the order created? Retrying may create a <strong>duplicate</strong>; not retrying may <strong>lose</strong> it.</p>
 </div>
-<ul>
-<li data-marpit-fragment="1">The client sends a unique <strong><code>Idempotency-Key</code></strong> (a UUID) per logical operation.</li>
-<li data-marpit-fragment="2">The server stores processed keys with their result.</li>
-<li data-marpit-fragment="3">A retry with the <strong>same key</strong> returns the stored result — <strong>no duplicate</strong>.</li>
-<li data-marpit-fragment="4">Same mechanism as Stripe's payment API; retries and backoff → Resilience Patterns.</li>
-</ul>
+<ol>
+<li>The client generates a unique <strong><code>Idempotency-Key</code></strong> (a UUID) per <em>logical</em> operation.</li>
+<li>The server creates order 42 and remembers <code>k1 → 42</code>; the <code>201</code> is lost.</li>
+<li>Timeout: the client retries with the <strong>same key</strong>.</li>
+<li>The server sees <code>k1</code> already processed → <code>201 Created</code>, order 42, <strong>no duplicate</strong>.</li>
+</ol>
+<p class="small">Keys stored with the result (a table with a unique constraint, or Redis with an expiry) — Stripe's mechanism. Retries and backoff: Resilience Patterns.</p>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="9" data-paginate="true" data-class="tight" data-lang="en" data-theme="platform" lang="en" class="tight" data-marpit-pagination="9" style="--paginate:true;--class:tight;--lang:en;--theme:platform;" data-marpit-pagination-total="16">
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="14" data-paginate="true" data-class="tight" data-lang="en" data-theme="platform" lang="en" class="tight" data-marpit-pagination="14" style="--paginate:true;--class:tight;--lang:en;--theme:platform;" data-marpit-pagination-total="29">
 <h2 id="status-codes-use-the-right-one">Status codes: use the right one</h2>
+<p><strong>4xx</strong>: the client did something wrong (do not retry unchanged) · <strong>5xx</strong>: the server failed (a retry may succeed)</p>
 <div class="cols3">
 <div>
-<h3 id="2xx--success">2xx — success</h3>
+<h3 id="2xx">2xx</h3>
 <ul>
 <li><code>200 OK</code></li>
 <li><code>201 Created</code> + <code>Location</code></li>
-<li><code>202 Accepted</code> (async)</li>
+<li><code>202 Accepted</code> (queued, async)</li>
 <li><code>204 No Content</code></li>
 </ul>
 </div>
 <div>
-<h3 id="4xx--client-error">4xx — client error</h3>
+<h3 id="4xx">4xx</h3>
 <ul>
-<li><code>400</code> malformed request</li>
-<li><code>401</code> no / invalid token</li>
+<li><code>400</code> malformed, missing fields</li>
+<li><code>401</code> no / invalid / expired token</li>
 <li><code>403</code> valid token, no permission</li>
 <li><code>404</code> not found</li>
 <li><code>409</code> conflict, duplicate</li>
-<li><code>422</code> business rule failed</li>
-<li><code>429</code> rate limited</li>
+<li><code>422</code> business validation failed</li>
+<li><code>429</code> rate limited + <code>Retry-After</code></li>
 </ul>
 </div>
 <div>
-<h3 id="5xx--server-error">5xx — server error</h3>
+<h3 id="5xx">5xx</h3>
 <ul>
 <li><code>500</code> unhandled — <strong>no stack traces</strong></li>
-<li><code>502</code> bad answer behind the gateway</li>
+<li><code>502</code> invalid answer behind the gateway</li>
 <li><code>503</code> down or overloaded</li>
 <li><code>504</code> no answer behind the gateway</li>
 </ul>
 </div>
 </div>
 <div class="warn">
-<p><code>401</code> means &quot;who are you?&quot;; <code>403</code> means &quot;I know who you are, and the answer is no&quot;.</p>
+<p><code>401</code> = &quot;who are you?&quot;; <code>403</code> = &quot;I know who you are, and the answer is no&quot;. A <code>502</code>/<code>504</code> usually means &quot;the gateway is fine, the service behind it is not&quot;.</p>
 </div>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="10" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="10" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="16">
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="15" data-paginate="true" data-class="tight" data-lang="en" data-theme="platform" lang="en" class="tight" data-marpit-pagination="15" style="--paginate:true;--class:tight;--lang:en;--theme:platform;" data-marpit-pagination-total="29">
 <h2 id="request-and-response">Request and response</h2>
 <div class="cols">
 <div>
-<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-http"><span class="hljs-keyword">POST</span> <span class="hljs-string">/products</span> <span class="hljs-meta">HTTP/1.1</span>
+<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-http"><span class="hljs-keyword">POST</span> <span class="hljs-string">/orders</span> <span class="hljs-meta">HTTP/1.1</span>
 <span class="hljs-attribute">Content-Type</span><span class="hljs-punctuation">: </span>application/json
+<span class="hljs-attribute">Authorization</span><span class="hljs-punctuation">: </span>Bearer eyJhbGciOiJIUzI1NiJ9...
 
-<span class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Tomato&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;price&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">10.12</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;unit&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;kg&quot;</span>
-<span class="hljs-punctuation">}</span>
+<span class="language-prolog">{
+  <span class="hljs-string">&quot;customerId&quot;</span>: <span class="hljs-number">7</span>,
+  <span class="hljs-string">&quot;items&quot;</span>: [
+    { <span class="hljs-string">&quot;productId&quot;</span>: <span class="hljs-number">101</span>, <span class="hljs-string">&quot;quantity&quot;</span>: <span class="hljs-number">2</span> }
+  ]
+}
 </span></code></pre>
 </div>
 <div>
 <pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-http"><span class="hljs-meta">HTTP/1.1</span> <span class="hljs-number">201</span> Created
-<span class="hljs-attribute">Location</span><span class="hljs-punctuation">: </span>/products/0195abfb-...
+<span class="hljs-attribute">Content-Type</span><span class="hljs-punctuation">: </span>application/json
+<span class="hljs-attribute">Location</span><span class="hljs-punctuation">: </span>/orders/42
 
 <span class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;0195abfb-...&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Tomato&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;price&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">10.12</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;unit&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;kg&quot;</span>
+  <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">42</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;customerId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">7</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;PENDING&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;total&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span> <span class="hljs-attr">&quot;amount&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">59.90</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;currency&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;BRL&quot;</span> <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;createdAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2026-04-28T14:30:00Z&quot;</span>
 <span class="hljs-punctuation">}</span>
 </span></code></pre>
 </div>
 </div>
-<p class="small">Spring: <code>ResponseEntity.created(uri).body(out)</code> sets both <code>201</code> and <code>Location</code>; <code>@ResponseStatus(CREATED)</code> cannot set the header.</p>
+<div class="ok">
+<p>Conventions for every service: <strong>camelCase</strong> fields, dates in <strong>ISO 8601</strong> with time zone, money with an explicit <strong>currency</strong>, ids as opaque strings (the course uses UUIDs).</p>
+</div>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="11" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="11" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="16">
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="16" data-paginate="true" data-class="tight" data-lang="en" data-theme="platform" lang="en" class="tight" data-marpit-pagination="16" style="--paginate:true;--class:tight;--lang:en;--theme:platform;" data-marpit-pagination-total="29">
 <h2 id="errors-with-a-standard-shape-problem-details">Errors with a standard shape: Problem Details</h2>
 <p>RFC 9457, media type <code>application/problem+json</code>:</p>
+<div class="cols">
+<div>
 <pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;type&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;https://store.example.com/problems/out-of-stock&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;title&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Product out of stock&quot;</span><span class="hljs-punctuation">,</span>
@@ -387,38 +507,91 @@ Which clients break?</p>
   <span class="hljs-attr">&quot;instance&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;/orders&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<p class="small">In Spring Boot: <code>@RestControllerAdvice</code> + <code>@ExceptionHandler</code> returning a <code>ProblemDetail</code>; <code>spring.mvc.problemdetails.enabled: true</code> for the framework's own errors.</p>
-</section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="12" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="12" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="16">
-<h2 id="pagination-and-versioning">Pagination and versioning</h2>
-<div class="cols">
-<div>
-<h3 id="never-return-unbounded-collections">Never return unbounded collections</h3>
-<ul>
-<li>Offset: <code>?page=2&amp;size=20</code> — simple, slow on large tables</li>
-<li>Cursor: <code>?after=eyJpZCI6NDJ9</code> — uses the index, no page drift</li>
-<li>Filter on the <strong>server</strong>: <code>?status=PENDING</code></li>
-<li>Spring Data pages are <strong>0-based</strong></li>
-</ul>
 </div>
 <div>
-<h3 id="version-on-breaking-changes">Version on breaking changes</h3>
-<ul>
-<li><strong>URI path</strong>: <code>/v1/orders</code> — most common, easy to test</li>
-<li><strong>Header</strong>: <code>Accept: application/vnd.myapi.v2+json</code></li>
-<li><strong>Query param</strong>: <code>?version=2</code> — avoid, it is not a filter</li>
-<li>Run <code>v1</code> and <code>v2</code> side by side, then retire <code>v1</code></li>
-</ul>
-</div>
-</div>
-</section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="13" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="13" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="16">
-<h2 id="breaking-or-not">Breaking or not?</h2>
 <table>
 <thead>
 <tr>
-<th>Backward compatible</th>
-<th>Breaking → new version</th>
+<th>Field</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>type</code></td>
+<td>URI of the <em>kind</em> of problem</td>
+</tr>
+<tr>
+<td><code>title</code></td>
+<td>short summary of the kind</td>
+</tr>
+<tr>
+<td><code>status</code></td>
+<td>the HTTP status, repeated</td>
+</tr>
+<tr>
+<td><code>detail</code></td>
+<td><em>this</em> occurrence</td>
+</tr>
+<tr>
+<td><code>instance</code></td>
+<td>URI of this occurrence</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<ul>
+<li>Spring: <code>@RestControllerAdvice</code> + <code>@ExceptionHandler</code> returning a <code>ProblemDetail</code>; <code>spring.mvc.problemdetails.enabled: true</code> for the framework's own errors (a failed <code>@Valid</code>).</li>
+</ul>
+<div class="warn">
+<p><strong>Never leak internals</strong>: a stack trace or SQL message tells an attacker your framework, versions and tables. Log details with a trace id; return a generic message.</p>
+</div>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="17" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="17" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="29">
+<h2 id="pagination-and-filtering">Pagination and filtering</h2>
+<p>Never return unbounded collections: <code>GET /orders?page=2&amp;size=20&amp;sort=createdAt,desc</code> · <code>GET /orders?status=PENDING</code></p>
+<table>
+<thead>
+<tr>
+<th>Pattern</th>
+<th>Parameters</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Offset</strong></td>
+<td><code>?page=2&amp;size=20</code></td>
+<td><code>OFFSET 40 LIMIT 20</code> still reads 40 rows; an insert makes an item appear twice</td>
+</tr>
+<tr>
+<td><strong>Cursor</strong></td>
+<td><code>?after=eyJpZCI6NDJ9</code></td>
+<td><code>WHERE id &gt; :last ORDER BY id LIMIT 20</code>: uses the index, no page drift</td>
+</tr>
+<tr>
+<td><strong>Filtering</strong></td>
+<td><code>?status=PENDING</code></td>
+<td>always on the server, never in the client</td>
+</tr>
+<tr>
+<td><strong>Sorting</strong></td>
+<td><code>?sort=name,asc&amp;sort=createdAt,desc</code></td>
+<td>several fields allowed</td>
+</tr>
+</tbody>
+</table>
+<p class="small">Spring Data's <code>Pageable</code> reads page, size and sort (pages are <strong>0-based</strong>: <code>page=2</code> is the third); <code>PagedModel</code> returns <code>content</code> + <code>page</code> metadata (size, number, totalElements, totalPages).</p>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="18" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="18" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="29">
+<h2 id="breaking-or-not">Breaking or not?</h2>
+<p>Would an existing client, <strong>unchanged</strong>, stop working?</p>
+<table>
+<thead>
+<tr>
+<th>Backward compatible (no new version)</th>
+<th>Breaking (new version)</th>
 </tr>
 </thead>
 <tbody>
@@ -436,22 +609,102 @@ Which clients break?</p>
 </tr>
 <tr>
 <td>accept a new input value</td>
-<td>change a type or meaning (cents vs. reais)</td>
+<td>change a type or meaning (<code>price</code> in cents instead of reais)</td>
+</tr>
+<tr>
+<td></td>
+<td>change a status code clients depend on</td>
 </tr>
 </tbody>
 </table>
 <div class="ok">
-<p>Clients are <strong>tolerant readers</strong>: they ignore fields they do not know. Prefer compatible changes; version only when you must.</p>
+<p>Compatible changes rely on <strong>tolerant readers</strong>: clients ignore unknown fields (Jackson's default — do not turn it off in clients).</p>
 </div>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="14" data-paginate="true" data-class="tight" data-lang="en" data-theme="platform" lang="en" class="tight" data-marpit-pagination="14" style="--paginate:true;--class:tight;--lang:en;--theme:platform;" data-marpit-pagination-total="16">
-<h2 id="openapi-the-contract-as-a-document">OpenAPI: the contract as a document</h2>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="19" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="19" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="29">
+<h2 id="versioning">Versioning</h2>
+<table>
+<thead>
+<tr>
+<th>Strategy</th>
+<th>Example</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>URI path</strong></td>
+<td><code>/v1/orders</code>, <code>/v2/orders</code></td>
+<td>most common in microservices; easy to test in a browser</td>
+</tr>
+<tr>
+<td><strong>Header</strong></td>
+<td><code>Accept: application/vnd.myapi.v2+json</code></td>
+<td>cleaner URIs; harder to test manually</td>
+</tr>
+<tr>
+<td><strong>Query param</strong></td>
+<td><code>/orders?version=2</code></td>
+<td>avoid — a version is not a filter</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Major increments (<code>v1</code> → <code>v2</code>) signal breaking changes; run both side by side, announce a deprecation date, remove <code>v1</code> when its traffic is gone (<code>Sunset</code> header, RFC 8594).</li>
+</ul>
+<div class="warn">
+<p><strong>Pitfalls</strong>: a version per change (clients cannot keep up) · breaking &quot;just for one internal client&quot; (you rarely know every client) · the shared <code>account</code> module: a change to <code>AccountOut</code> rebuilds every dependent service — treat it as a published contract.</p>
+</div>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="20" data-paginate="true" data-class="tight" data-lang="en" data-theme="platform" lang="en" class="tight" data-marpit-pagination="20" style="--paginate:true;--class:tight;--lang:en;--theme:platform;" data-marpit-pagination-total="29">
+<h2 id="spring-boot-quick-reference">Spring Boot quick reference</h2>
+<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-java"><span class="hljs-meta">@RestController</span>
+<span class="hljs-meta">@RequestMapping(&quot;/products&quot;)</span>
+<span class="hljs-keyword">public</span> <span class="hljs-keyword">class</span> <span class="hljs-title class_">ProductResource</span> {
+    <span class="hljs-meta">@GetMapping(&quot;/{id}&quot;)</span>
+    <span class="hljs-keyword">public</span> <span class="hljs-type">ResponseEntity</span>&lt;ProductOut&gt; <span class="hljs-title function_">findById</span><span class="hljs-params">(<span class="hljs-meta">@PathVariable</span> String id)</span> {
+        <span class="hljs-keyword">return</span> ResponseEntity.ok(productService.findById(id));            <span class="hljs-comment">// 200, or 404 via the advice</span>
+    }
+    <span class="hljs-meta">@PostMapping</span>
+    <span class="hljs-keyword">public</span> <span class="hljs-type">ResponseEntity</span>&lt;ProductOut&gt; <span class="hljs-title function_">create</span><span class="hljs-params">(<span class="hljs-meta">@RequestBody</span> <span class="hljs-meta">@Valid</span> ProductIn in)</span> {
+        <span class="hljs-type">ProductOut</span> <span class="hljs-variable">created</span> <span class="hljs-operator">=</span> productService.create(in);
+        <span class="hljs-keyword">return</span> ResponseEntity
+            .created(URI.create(<span class="hljs-string">&quot;/products/&quot;</span> + created.id()))             <span class="hljs-comment">// 201 + Location</span>
+            .body(created);
+    }
+    <span class="hljs-meta">@DeleteMapping(&quot;/{id}&quot;)</span>
+    <span class="hljs-keyword">public</span> <span class="hljs-type">ResponseEntity</span>&lt;Void&gt; <span class="hljs-title function_">delete</span><span class="hljs-params">(<span class="hljs-meta">@PathVariable</span> String id)</span> {
+        productService.delete(id);
+        <span class="hljs-keyword">return</span> ResponseEntity.noContent().build();                        <span class="hljs-comment">// 204</span>
+    }
+}
+</code></pre>
+<p class="small"><code>@ResponseStatus(CREATED)</code> also returns 201 but cannot set <code>Location</code>. <code>@Valid</code> runs Bean Validation (<code>@NotBlank</code>, <code>@Positive</code>) → <code>400</code>.</p>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="21" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="21" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="29">
+<div class="kicker">OpenAPI and Swagger</div>
+<h2 id="the-contract-written-down">The contract, written down</h2>
+<p>A teammate building the order service must call your product service. Your code is in another repo, a wiki goes stale, a Postman collection shows only what someone saved. They need <strong>the contract itself</strong>, readable by people and tools, generated from the code.</p>
+<ul>
+<li><strong>OpenAPI</strong>: a language-agnostic YAML/JSON description of every endpoint — URL, method, parameters, body, responses.</li>
+<li><strong>Swagger UI</strong>: renders it as an interactive page where you read and <strong>execute</strong> calls.</li>
+<li><em>Swagger</em> was the spec's original name; donated to the OpenAPI Initiative in 2016. Today OpenAPI is the <strong>format</strong> (3.0, 3.1, 3.2 since 2025) and Swagger the <strong>tools</strong> (UI, Editor, Codegen).</li>
+</ul>
+<p class="small">Machine-readable, so it also feeds client generators, contract tests, mock servers and gateways that import routes.</p>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="22" data-paginate="true" data-class="tight" data-lang="en" data-theme="platform" lang="en" class="tight" data-marpit-pagination="22" style="--paginate:true;--class:tight;--lang:en;--theme:platform;" data-marpit-pagination-total="29">
+<h2 id="anatomy-of-an-openapi-document">Anatomy of an OpenAPI document</h2>
+<p><code>GET /products/{id}</code> of the Product API exercise, in OpenAPI 3.1:</p>
 <pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-yaml"><span class="hljs-attr">openapi:</span> <span class="hljs-number">3.1</span><span class="hljs-number">.0</span>
 <span class="hljs-attr">info:</span> { <span class="hljs-attr">title:</span> <span class="hljs-string">Product</span> <span class="hljs-string">Service</span> <span class="hljs-string">API</span>, <span class="hljs-attr">version:</span> <span class="hljs-number">1.0</span><span class="hljs-number">.0</span> }
+<span class="hljs-attr">servers:</span>
+  <span class="hljs-bullet">-</span> <span class="hljs-attr">url:</span> <span class="hljs-string">http://localhost:8080</span>
 <span class="hljs-attr">paths:</span>
   <span class="hljs-string">/products/{id}:</span>
     <span class="hljs-attr">get:</span>
       <span class="hljs-attr">summary:</span> <span class="hljs-string">Find</span> <span class="hljs-string">a</span> <span class="hljs-string">product</span> <span class="hljs-string">by</span> <span class="hljs-string">ID</span>
+      <span class="hljs-attr">parameters:</span>
+        <span class="hljs-bullet">-</span> { <span class="hljs-attr">name:</span> <span class="hljs-string">id</span>, <span class="hljs-attr">in:</span> <span class="hljs-string">path</span>, <span class="hljs-attr">required:</span> <span class="hljs-literal">true</span>, <span class="hljs-attr">schema:</span> { <span class="hljs-attr">type:</span> <span class="hljs-string">string</span>, <span class="hljs-attr">format:</span> <span class="hljs-string">uuid</span> } }
       <span class="hljs-attr">responses:</span>
         <span class="hljs-attr">&quot;200&quot;:</span>
           <span class="hljs-attr">content:</span>
@@ -460,43 +713,164 @@ Which clients break?</p>
         <span class="hljs-attr">&quot;404&quot;:</span> { <span class="hljs-attr">description:</span> <span class="hljs-string">Product</span> <span class="hljs-string">not</span> <span class="hljs-string">found</span> }
 <span class="hljs-attr">components:</span>
   <span class="hljs-attr">schemas:</span> { <span class="hljs-attr">ProductOut:</span> { <span class="hljs-attr">type:</span> <span class="hljs-string">object</span> } }
+  <span class="hljs-attr">securitySchemes:</span>
+    <span class="hljs-attr">bearerAuth:</span> { <span class="hljs-attr">type:</span> <span class="hljs-string">http</span>, <span class="hljs-attr">scheme:</span> <span class="hljs-string">bearer</span>, <span class="hljs-attr">bearerFormat:</span> <span class="hljs-string">JWT</span> }
 </code></pre>
-<ul>
-<li><strong>Code-first</strong> (this course): springdoc generates it from the Java code. <strong>Contract-first</strong>: write the YAML, generate code.</li>
-<li><em>Swagger</em> = the old name of the spec; today the tools (Swagger UI, Editor).</li>
-</ul>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="15" data-paginate="true" data-class="tight" data-lang="en" data-theme="platform" lang="en" class="tight" data-marpit-pagination="15" style="--paginate:true;--class:tight;--lang:en;--theme:platform;" data-marpit-pagination-total="16">
-<h2 id="springdoc-and-swagger-ui">springdoc and Swagger UI</h2>
-<ul>
-<li>Dependency <code>org.springdoc:springdoc-openapi-starter-webmvc-ui</code> — <strong>3.0.x for Spring Boot 4</strong>, 2.8.x for Boot 3.</li>
-<li><code>/swagger-ui.html</code> (interactive) · <code>/v3/api-docs</code> (JSON) · <code>/v3/api-docs.yaml</code></li>
-<li>Describe with <code>@Tag</code>, <code>@Operation</code>, <code>@ApiResponse</code>, and <code>@Schema(description, example)</code> on the DTO records.</li>
-<li>JWT: a <code>bearerAuth</code> security scheme in the <code>OpenAPI</code> bean → <strong>Authorize</strong> button.</li>
-<li>In our platform the gateway resolves the JWT; test a service directly with the <code>id-account</code> header.</li>
-</ul>
-<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-yaml"><span class="hljs-comment"># application-prod.yml</span>
-<span class="hljs-attr">springdoc:</span>
-  <span class="hljs-attr">api-docs:</span> { <span class="hljs-attr">enabled:</span> <span class="hljs-literal">false</span> }
-  <span class="hljs-attr">swagger-ui:</span> { <span class="hljs-attr">enabled:</span> <span class="hljs-literal">false</span> }
-</code></pre>
-<div class="warn">
-<p>Swagger UI in production <strong>documents your entire attack surface</strong>.</p>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="23" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="23" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="29">
+<h2 id="the-sections-of-the-document">The sections of the document</h2>
+<table>
+<thead>
+<tr>
+<th>Section</th>
+<th>What it holds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>info</code></td>
+<td>title, version and description of the <strong>API</strong> (not of OpenAPI)</td>
+</tr>
+<tr>
+<td><code>servers</code></td>
+<td>base URLs where the API can be reached</td>
+</tr>
+<tr>
+<td><code>paths</code></td>
+<td>every endpoint: method, parameters (<code>in: path</code>, <code>query</code>, <code>header</code>, <code>cookie</code>), request body, responses per status code</td>
+</tr>
+<tr>
+<td><code>components.schemas</code></td>
+<td>data models (the DTOs), referenced with <code>$ref</code> so they are defined once</td>
+</tr>
+<tr>
+<td><code>components.securitySchemes</code></td>
+<td>how clients authenticate (bearer token, API key, OAuth 2.0)</td>
+</tr>
+</tbody>
+</table>
+<div class="ok">
+<p>You rarely write this file by hand in this course — springdoc generates it from the Java code — but knowing its structure is what lets you <strong>read and review</strong> the generated document.</p>
 </div>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="16" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="16" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="16">
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="24" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="24" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="29">
+<h2 id="code-first-or-contract-first">Code-first or contract-first?</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th><strong>Code-first</strong> (this course)</th>
+<th><strong>Contract-first</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Source of truth</td>
+<td>the Java controllers and DTOs</td>
+<td>the <code>openapi.yaml</code></td>
+</tr>
+<tr>
+<td>Document</td>
+<td>generated at startup (springdoc)</td>
+<td>written first, reviewed by consumers</td>
+</tr>
+<tr>
+<td>Code</td>
+<td>written by hand</td>
+<td>generated (<code>openapi-generator-maven-plugin</code>)</td>
+</tr>
+<tr>
+<td>Good for</td>
+<td>small teams, fast iteration</td>
+<td>public APIs, many consumers, parallel front-end work</td>
+</tr>
+<tr>
+<td>Risk</td>
+<td>the API &quot;just happens&quot;, design not reviewed</td>
+<td>extra build step, rigid generated code</td>
+</tr>
+</tbody>
+</table>
+<div class="ok">
+<p>Code-first matches the hands-on: the <code>account</code> module <em>is</em> the contract, in Java. Either way, review the generated document as a consumer would before merging.</p>
+</div>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="25" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="25" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="29">
+<h2 id="springdoc-in-a-spring-boot-service">springdoc in a Spring Boot service</h2>
+<ul>
+<li>Dependency <code>org.springdoc:springdoc-openapi-starter-webmvc-ui</code> — <strong>3.0.x for Spring Boot 4</strong> (the hands-on uses 4.0.3), 2.8.x for Boot 3; a mismatch fails at startup. WebFlux (the gateway): <code>springdoc-openapi-starter-webflux-ui</code>.</li>
+<li>Then: <code>/swagger-ui.html</code> (interactive) · <code>/v3/api-docs</code> (JSON) · <code>/v3/api-docs.yaml</code>.</li>
+</ul>
+<div class="q">
+<p><strong>Where to open it in our platform</strong>: only the gateway publishes a port (<code>8080:8080</code>) and it routes <code>/accounts/**</code>, not <code>/swagger-ui/**</code>. Open a service's Swagger UI when running it alone (IDE, <code>localhost</code>) or by publishing its port during development — the documentation stays inside the trusted network.</p>
+</div>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="26" data-paginate="true" data-class="tight" data-lang="en" data-theme="platform" lang="en" class="tight" data-marpit-pagination="26" style="--paginate:true;--class:tight;--lang:en;--theme:platform;" data-marpit-pagination-total="29">
+<h2 id="annotating-the-api">Annotating the API</h2>
+<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-java"><span class="hljs-meta">@Tag(name = &quot;Products&quot;, description = &quot;Manage the product catalogue&quot;)</span>
+<span class="hljs-keyword">public</span> <span class="hljs-keyword">class</span> <span class="hljs-title class_">ProductController</span> {
+    <span class="hljs-meta">@GetMapping(&quot;/{id}&quot;)</span>
+    <span class="hljs-meta">@Operation(summary = &quot;Find a product by ID&quot;)</span>
+    <span class="hljs-meta">@ApiResponse(responseCode = &quot;200&quot;, description = &quot;Product found&quot;)</span>
+    <span class="hljs-meta">@ApiResponse(responseCode = &quot;404&quot;, description = &quot;Product not found&quot;)</span>
+    <span class="hljs-keyword">public</span> <span class="hljs-type">ProductOut</span> <span class="hljs-title function_">findById</span><span class="hljs-params">(<span class="hljs-meta">@PathVariable</span> String id)</span> { ... }
+}
+
+<span class="hljs-keyword">public</span> <span class="hljs-keyword">record</span> <span class="hljs-title class_">ProductIn</span><span class="hljs-params">(
+    @Schema(description = &quot;Product name&quot;, example = &quot;Tomato&quot;)</span> <span class="hljs-meta">@NotBlank</span> String name,
+    <span class="hljs-meta">@Schema(description = &quot;Unit price&quot;, example = &quot;10.12&quot;)</span> <span class="hljs-meta">@Positive</span> BigDecimal price,
+    <span class="hljs-meta">@Schema(description = &quot;Unit of sale&quot;, example = &quot;kg&quot;)</span> <span class="hljs-meta">@NotBlank</span> String unit) {}
+</code></pre>
+<ul>
+<li>springdoc infers paths, methods, types and DTO fields; annotations add descriptions, examples and non-obvious responses.</li>
+<li>Mappings and annotations on the interface (<code>AccountController</code>) are picked up: the documentation sits next to the contract.</li>
+<li>Bean Validation is documented: <code>@NotBlank</code> → <code>required</code>; <code>@Size</code>, <code>@Min</code>, <code>@Max</code> → schema limits.</li>
+</ul>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="27" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="27" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="29">
+<h2 id="metadata-and-security-scheme">Metadata and security scheme</h2>
+<ul>
+<li>Paths in <code>application.yml</code> (<code>springdoc.api-docs.path</code>, <code>springdoc.swagger-ui.path</code>); title, version and contact in an <code>OpenAPI</code> <strong><code>@Bean</code></strong>.</li>
+<li>A <code>bearerAuth</code> security scheme (<code>HTTP</code>, <code>bearer</code>, <code>JWT</code>) in the same bean → an <strong>Authorize</strong> button: paste a JWT and every call sends <code>Authorization: Bearer &lt;token&gt;</code>.</li>
+</ul>
+<div class="ok">
+<p><strong>In our platform</strong> the gateway validates the JWT (from a cookie) and forwards <code>id-account</code>. To test a business service directly, fill the <code>id-account</code> header field springdoc generates from the <code>@RequestHeader</code> parameter; the bearer scheme is for services that validate tokens themselves.</p>
+</div>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="28" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="28" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="29">
+<h2 id="swagger-off-in-production">Swagger off in production</h2>
+<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-yaml"><span class="hljs-comment"># application-prod.yml</span>
+<span class="hljs-attr">springdoc:</span>
+  <span class="hljs-attr">api-docs:</span>
+    <span class="hljs-attr">enabled:</span> <span class="hljs-literal">false</span>
+  <span class="hljs-attr">swagger-ui:</span>
+    <span class="hljs-attr">enabled:</span> <span class="hljs-literal">false</span>
+</code></pre>
+<p>Activate with <code>SPRING_PROFILES_ACTIVE=prod</code> (in <code>compose.yaml</code> or the Kubernetes deployment). A public API on purpose? Publish the generated document on a documentation site instead.</p>
+<div class="warn">
+<ul>
+<li>Swagger UI in production <strong>documents your entire attack surface</strong>.</li>
+<li><strong>Documentation that lies</strong>: <code>@ApiResponse(responseCode = &quot;404&quot;)</code> on a method that returns <code>500</code> — test the status codes.</li>
+<li><strong>Entities in the document</strong>: document DTOs. <strong>No examples</strong>: add <code>example</code> to <code>@Schema</code>.</li>
+</ul>
+</div>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="29" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="29" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="29">
 <h2 id="takeaways">Takeaways</h2>
 <ol>
-<li>An API is a <strong>contract</strong>: consumers depend on it, never on the implementation (<code>account</code> vs <code>account-service</code>).</li>
-<li>Most APIs live at Richardson <strong>level 2</strong>: resources + HTTP verbs + status codes.</li>
-<li>Know what is <strong>safe</strong> (<code>GET</code>) and <strong>idempotent</strong> (<code>GET</code>, <code>PUT</code>, <code>DELETE</code>); make <code>POST</code> retry-safe with an <strong>idempotency key</strong>.</li>
-<li>Return the <strong>right status code</strong> and errors as <strong>Problem Details</strong>.</li>
-<li>Paginate collections; prefer <strong>compatible changes</strong>, version breaking ones with <strong><code>/v2/</code></strong>.</li>
-<li>An <strong>OpenAPI</strong> document describes the contract; <strong>springdoc</strong> generates it and Swagger UI from the code — keep it off in production.</li>
+<li>An API is a <strong>contract</strong>: consumers depend on it, never on the implementation (<code>account</code> vs <code>account-service</code>); never expose entities — changing a DTO is changing the contract.</li>
+<li>REST over HTTP is the default; gRPC, GraphQL, WebSocket and messaging solve specific needs. Most APIs live at Richardson <strong>level 2</strong>.</li>
+<li>URIs name <strong>resources</strong>; <code>GET</code> is safe; <code>GET</code>, <code>PUT</code>, <code>DELETE</code> are idempotent; make <code>POST</code> retry-safe with an <strong>idempotency key</strong>.</li>
+<li>Return the precise <strong>status code</strong> and errors as <strong>Problem Details</strong>; paginate every collection (cursors for large tables).</li>
+<li>Add, do not remove: compatible changes need no version; breaking ones need <strong><code>/v2/</code></strong> and a deprecation period.</li>
+<li><strong>OpenAPI</strong> is the machine-readable contract; springdoc generates it (code-first); keep Swagger UI <strong>off in production</strong> and test the documented status codes.</li>
 </ol>
 </section>
 <script>!function(){"use strict";const t={h1:{proto:()=>HTMLHeadingElement,attrs:{role:"heading","aria-level":"1"},style:"display: block; font-size: 2em; margin-block-start: 0.67em; margin-block-end: 0.67em; margin-inline-start: 0px; margin-inline-end: 0px; font-weight: bold;"},h2:{proto:()=>HTMLHeadingElement,attrs:{role:"heading","aria-level":"2"},style:"display: block; font-size: 1.5em; margin-block-start: 0.83em; margin-block-end: 0.83em; margin-inline-start: 0px; margin-inline-end: 0px; font-weight: bold;"},h3:{proto:()=>HTMLHeadingElement,attrs:{role:"heading","aria-level":"3"},style:"display: block; font-size: 1.17em; margin-block-start: 1em; margin-block-end: 1em; margin-inline-start: 0px; margin-inline-end: 0px; font-weight: bold;"},h4:{proto:()=>HTMLHeadingElement,attrs:{role:"heading","aria-level":"4"},style:"display: block; margin-block-start: 1.33em; margin-block-end: 1.33em; margin-inline-start: 0px; margin-inline-end: 0px; font-weight: bold;"},h5:{proto:()=>HTMLHeadingElement,attrs:{role:"heading","aria-level":"5"},style:"display: block; font-size: 0.83em; margin-block-start: 1.67em; margin-block-end: 1.67em; margin-inline-start: 0px; margin-inline-end: 0px; font-weight: bold;"},h6:{proto:()=>HTMLHeadingElement,attrs:{role:"heading","aria-level":"6"},style:"display: block; font-size: 0.67em; margin-block-start: 2.33em; margin-block-end: 2.33em; margin-inline-start: 0px; margin-inline-end: 0px; font-weight: bold;"},span:{proto:()=>HTMLSpanElement},pre:{proto:()=>HTMLElement,style:"display: block; font-family: monospace; white-space: pre; margin: 1em 0; --marp-auto-scaling-white-space: pre;"}},e="data-marp-auto-scaling-wrapper",i="data-marp-auto-scaling-svg",n="data-marp-auto-scaling-container";class s extends HTMLElement{container;containerSize;containerObserver;svg;svgComputedStyle;svgPreserveAspectRatio="xMinYMid meet";wrapper;wrapperSize;wrapperObserver;constructor(){super();const t=t=>([e])=>{const{width:i,height:n}=e.contentRect;this[t]={width:i,height:n},this.updateSVGRect()};this.attachShadow({mode:"open"}),this.containerObserver=new ResizeObserver(t("containerSize")),this.wrapperObserver=new ResizeObserver((...e)=>{t("wrapperSize")(...e),this.flushSvgDisplay()})}static get observedAttributes(){return["data-downscale-only"]}connectedCallback(){this.shadowRoot.innerHTML=`\n<style>\n  svg[${i}] { display: block; width: 100%; height: auto; vertical-align: top; }\n  span[${n}] { display: table; white-space: var(--marp-auto-scaling-white-space, nowrap); width: max-content; }\n</style>\n<div ${e}>\n  <svg part="svg" ${i}>\n    <foreignObject><span ${n}><slot></slot></span></foreignObject>\n  </svg>\n</div>\n    `.split(/\n\s*/).join(""),this.wrapper=this.shadowRoot.querySelector(`div[${e}]`)??void 0;const t=this.svg;this.svg=this.wrapper?.querySelector(`svg[${i}]`)??void 0,this.svg!==t&&(this.svgComputedStyle=this.svg?window.getComputedStyle(this.svg):void 0),this.container=this.svg?.querySelector(`span[${n}]`)??void 0,this.observe()}disconnectedCallback(){this.svg=void 0,this.svgComputedStyle=void 0,this.wrapper=void 0,this.container=void 0,this.observe()}attributeChangedCallback(){this.observe()}flushSvgDisplay(){const{svg:t}=this;t&&(t.style.display="inline",requestAnimationFrame(()=>{t.style.display=""}))}observe(){this.containerObserver.disconnect(),this.wrapperObserver.disconnect(),this.wrapper&&this.wrapperObserver.observe(this.wrapper),this.container&&this.containerObserver.observe(this.container),this.svgComputedStyle&&this.observeSVGStyle(this.svgComputedStyle)}observeSVGStyle(t){const e=()=>{const i=(()=>{const e=t.getPropertyValue("--preserve-aspect-ratio");if(e)return e.trim();return`x${(({textAlign:t,direction:e})=>{if(t.endsWith("left"))return"Min";if(t.endsWith("right"))return"Max";if("start"===t||"end"===t){let i="rtl"===e;return"end"===t&&(i=!i),i?"Max":"Min"}return"Mid"})(t)}YMid meet`})();i!==this.svgPreserveAspectRatio&&(this.svgPreserveAspectRatio=i,this.updateSVGRect()),t===this.svgComputedStyle&&requestAnimationFrame(e)};e()}updateSVGRect(){let t=Math.ceil(this.containerSize?.width??0);const e=Math.ceil(this.containerSize?.height??0);void 0!==this.dataset.downscaleOnly&&(t=Math.max(t,this.wrapperSize?.width??0));const i=this.svg?.querySelector(":scope > foreignObject");if(i?.setAttribute("width",`${t}`),i?.setAttribute("height",`${e}`),this.svg&&(this.svg.setAttribute("viewBox",`0 0 ${t} ${e}`),this.svg.setAttribute("preserveAspectRatio",this.svgPreserveAspectRatio),this.svg.style.height=t<=0||e<=0?"0":""),this.container){const t=this.svgPreserveAspectRatio.toLowerCase();this.container.style.marginLeft=t.startsWith("xmid")||t.startsWith("xmax")?"auto":"0",this.container.style.marginRight=t.startsWith("xmi")?"auto":"0"}}}const r=(t,{attrs:e={},style:i})=>class extends t{constructor(...t){super(...t);for(const[t,i]of Object.entries(e))this.hasAttribute(t)||this.setAttribute(t,i);this._shadow()}static get observedAttributes(){return["data-auto-scaling"]}connectedCallback(){this._update()}attributeChangedCallback(){this._update()}_shadow(){if(!this.shadowRoot)try{this.attachShadow({mode:"open"})}catch(t){if(!(t instanceof Error&&"NotSupportedError"===t.name))throw t}return this.shadowRoot}_update(){const t=this._shadow();if(t){const e=i?`<style>:host { ${i} }</style>`:"";let n="<slot></slot>";const{autoScaling:s}=this.dataset;if(void 0!==s){n=`<marp-auto-scaling exportparts="svg:auto-scaling" ${"downscale-only"===s?"data-downscale-only":""}>${n}</marp-auto-scaling>`}t.innerHTML=e+n}}};let o;const a=()=>o??(o=!!document.createElement("div",{is:"marp-auto-scaling"}).outerHTML.startsWith("<div is"),o),l=Symbol();let c;const d="marpitSVGPolyfill:setZoomFactor,",h=Symbol(),g=Symbol();const p=()=>{const t="Apple Computer, Inc."===navigator.vendor,e=t?[v]:[],i={then:e=>(t?(async()=>{if(void 0===c){const t=document.createElement("canvas");t.width=10,t.height=10;const e=t.getContext("2d"),i=new Image(10,10),n=new Promise(t=>{i.addEventListener("load",()=>t())});i.crossOrigin="anonymous",i.src="data:image/svg+xml;charset=utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2210%22%20height%3D%2210%22%20viewBox%3D%220%200%201%201%22%3E%3CforeignObject%20width%3D%221%22%20height%3D%221%22%20requiredExtensions%3D%22http%3A%2F%2Fwww.w3.org%2F1999%2Fxhtml%22%3E%3Cdiv%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F1999%2Fxhtml%22%20style%3D%22width%3A%201px%3B%20height%3A%201px%3B%20background%3A%20red%3B%20position%3A%20relative%22%3E%3C%2Fdiv%3E%3C%2FforeignObject%3E%3C%2Fsvg%3E",await n,e.drawImage(i,0,0),c=e.getImageData(5,5,1,1).data[3]<128}return c})().then(t=>{null==e||e(t?[v]:[])}):null==e||e([]),i)};return Object.assign(e,i)};let m,u;function v(t){const e="object"==typeof t&&t.target||document,i="object"==typeof t?t.zoom:t;window[g]||(Object.defineProperty(window,g,{configurable:!0,value:!0}),document.body.style.zoom=1.0001,document.body.offsetHeight,document.body.style.zoom=1,window.addEventListener("message",({data:t,origin:e})=>{if(e===window.origin)try{if(t&&"string"==typeof t&&t.startsWith(d)){const[,e]=t.split(","),i=Number.parseFloat(e);Number.isNaN(i)||(u=i)}}catch(t){console.error(t)}}));let n=!1;Array.from(e.querySelectorAll("svg[data-marpit-svg]"),t=>{var e,s,r,o;t.style.transform||(t.style.transform="translateZ(0)");const a=i||u||t.currentScale||1;m!==a&&(m=a,n=a);const l=t.getBoundingClientRect(),{length:c}=t.children;for(let i=0;i<c;i+=1){const n=t.children[i];if(n.getScreenCTM){const t=n.getScreenCTM();if(t){const i=null!==(s=null===(e=n.x)||void 0===e?void 0:e.baseVal.value)&&void 0!==s?s:0,c=null!==(o=null===(r=n.y)||void 0===r?void 0:r.baseVal.value)&&void 0!==o?o:0,d=n.children.length;for(let e=0;e<d;e+=1){const s=n.children[e];if("SECTION"===s.tagName){const{style:e}=s;e.transformOrigin||(e.transformOrigin=`${-i}px ${-c}px`),e.transform=`scale(${a}) matrix(${t.a}, ${t.b}, ${t.c}, ${t.d}, ${t.e-l.left}, ${t.f-l.top}) translateZ(0.0001px)`;break}}}}}}),!1!==n&&Array.from(e.querySelectorAll("iframe"),({contentWindow:t})=>{null==t||t.postMessage(`${d}${n}`,"null"===window.origin?"*":window.origin)})}function w({once:t=!1,target:e=document}={}){const i=function(t=document){if(t[h])return t[h];let e=!0;const i=()=>{e=!1,delete t[h]};Object.defineProperty(t,h,{configurable:!0,value:i});let n=[],s=!1;(async()=>{try{n=await p()}finally{s=!0}})();const r=()=>{for(const e of n)e({target:t});s&&0===n.length||e&&window.requestAnimationFrame(r)};return r(),i}(e);return t?(i(),()=>{}):i}m=1,u=void 0;const b=Symbol(),y=(e=document)=>{if("undefined"==typeof window)throw new Error("Marp Core's browser script is valid only in browser context.");if(((e=document)=>{const i=window[l];i||customElements.define("marp-auto-scaling",s);for(const n of Object.keys(t)){const s=`marp-${n}`,o=t[n].proto();a()&&o!==HTMLElement?i||customElements.define(s,r(o,{style:t[n].style}),{extends:n}):(i||customElements.define(s,r(HTMLElement,t[n])),e.querySelectorAll(`${n}[is="${s}"]`).forEach(t=>{t.outerHTML=t.outerHTML.replace(new RegExp(`^<${n}`,"i"),`<${s}`).replace(new RegExp(`</${n}>$`,"i"),`</${s}>`)}))}window[l]=!0})(e),e[b])return e[b];const i=w({target:e}),n=()=>{i(),delete e[b]},o=Object.assign(n,{cleanup:n,update:()=>y(e)});return Object.defineProperty(e,b,{configurable:!0,value:o}),o},f=document.currentScript;y(f?f.getRootNode():document)}();
-</script></foreignObject></svg></div><div class="bespoke-marp-note" data-index="0" tabindex="0"><p>Outline: (1) what an API contract is, in our platform; (2) API styles and the Richardson model;
-(3) REST: resources, methods, idempotency keys, status codes, Problem Details, pagination, versioning;
-(4) OpenAPI documents and Swagger UI with springdoc.</p></div><div class="bespoke-marp-note" data-index="4" tabindex="0"><p>Stateless + layered is what lets Nginx send each request to any gateway replica (hands-on 7).</p></div><div class="bespoke-marp-note" data-index="6" tabindex="0"><p>Ask: a client times out on POST /orders. Can it simply retry? Why is PUT different?</p></div><script>/*!! License: https://unpkg.com/@marp-team/marp-cli@4.5.1/lib/bespoke.js.LICENSE.txt */
+</script></foreignObject></svg></div><div class="bespoke-marp-note" data-index="0" tabindex="0"><p>Objectives: explain why a stable contract lets teams deploy independently; compare REST, gRPC, GraphQL, WebSocket
+and messaging and choose one; design a REST resource (URIs, methods, status codes, errors, pagination); tell a
+breaking change from a compatible one and version when needed; document a Spring Boot service with OpenAPI and
+Swagger UI and decide where the documentation may be exposed.
+Outline: (1) the API contract, styles, Richardson; (2) REST API design; (3) OpenAPI and Swagger.</p></div><div class="bespoke-marp-note" data-index="13" tabindex="0"><p>Order API exercise: 201 on create, 400 when an item references a missing product, 404 (not 403) for someone
+else's order — it does not reveal that the order exists.</p></div><script>/*!! License: https://unpkg.com/@marp-team/marp-cli@4.5.1/lib/bespoke.js.LICENSE.txt */
 !function(){"use strict";function e(e){return e&&e.__esModule&&Object.prototype.hasOwnProperty.call(e,"default")?e.default:e}var t,n,r=(n||(n=1,t={from:function(e,t){var n,r=1===(e.parent||e).nodeType?e.parent||e:document.querySelector(e.parent||e),o=[].filter.call("string"==typeof e.slides?r.querySelectorAll(e.slides):e.slides||r.children,function(e){return"SCRIPT"!==e.nodeName}),i={},a=function(e,t){return(t=t||{}).index=o.indexOf(e),t.slide=e,t},s=function(e,t){i[e]=(i[e]||[]).filter(function(e){return e!==t})},l=function(e,t){return(i[e]||[]).reduce(function(e,n){return e&&!1!==n(t)},!0)},c=function(e,t){o[e]&&(n&&l("deactivate",a(n,t)),n=o[e],l("activate",a(n,t)))},d=function(e,t){var r=o.indexOf(n)+e;l(e>0?"next":"prev",a(n,t))&&c(r,t)},u={off:s,on:function(e,t){return(i[e]||(i[e]=[])).push(t),s.bind(null,e,t)},fire:l,slide:function(e,t){if(!arguments.length)return o.indexOf(n);l("slide",a(o[e],t))&&c(e,t)},next:d.bind(null,1),prev:d.bind(null,-1),parent:r,slides:o,destroy:function(e){l("destroy",a(n,e)),i={}}};return(t||[]).forEach(function(e){e(u)}),n||c(0),u}}),t),o=e(r);const i=document.body,a=(...e)=>history.replaceState(...e),s="",l="presenter",c="next",d="overview",u=["",l,d,c],f="bespoke-marp-",m=`data-${f}`,g=(e,{protocol:t,host:n,pathname:r,hash:o}=location)=>{const i=e.toString();return`${t}//${n}${r}${i?"?":""}${i}${o}`},p=()=>i.dataset.bespokeView,v=e=>new URLSearchParams(location.search).get(e),h=(e,t={})=>{const n={location,setter:a,...t},r=new URLSearchParams(n.location.search);for(const t of Object.keys(e)){const n=e[t];"string"==typeof n?r.set(t,n):r.delete(t)}try{n.setter({...window.history.state??{}},"",g(r,n.location))}catch(e){console.error(e)}},w=(()=>{const e="bespoke-marp";try{return localStorage.setItem(e,e),localStorage.removeItem(e),!0}catch{return!1}})(),y=e=>{try{return localStorage.getItem(e)}catch{return null}},b=(e,t)=>{try{return localStorage.setItem(e,t),!0}catch{return!1}},k=e=>{try{return localStorage.removeItem(e),!0}catch{return!1}},x=(e,t)=>{const n="aria-hidden";t?e.setAttribute(n,"true"):e.removeAttribute(n)},E=e=>{e.parent.classList.add(`${f}parent`),e.slides.forEach(e=>e.classList.add(`${f}slide`)),e.on("activate",t=>{const n=`${f}active`,r=t.slide,o=r.classList,i=!o.contains(n);if(e.slides.forEach(e=>{e.classList.remove(n),x(e,!0)}),o.add(n),x(r,!1),i){const e=`${n}-ready`;o.add(e),document.body.clientHeight,o.remove(e)}})},$=e=>{let t=0,n=0;Object.defineProperty(e,"fragments",{enumerable:!0,value:e.slides.map(e=>[null,...e.querySelectorAll("[data-marpit-fragment]")])});const r=r=>void 0!==e.fragments[t][n+r],o=(r,o)=>{t=r,n=o,e.fragments.forEach((e,t)=>{e.forEach((e,n)=>{if(null==e)return;const i=t<r||t===r&&n<=o;e.setAttribute(`${m}fragment`,(i?"":"in")+"active");const a=`${m}current-fragment`;t===r&&n===o?e.setAttribute(a,"current"):e.removeAttribute(a)})}),e.fragmentIndex=o;const i={slide:e.slides[r],index:r,fragments:e.fragments[r],fragmentIndex:o};e.fire("fragment",i)};e.on("next",({fragment:i=!0})=>{if(i){if(r(1))return o(t,n+1),!1;const i=t+1;e.fragments[i]&&o(i,0)}else{const r=e.fragments[t].length;if(n+1<r)return o(t,r-1),!1;const i=e.fragments[t+1];i&&o(t+1,i.length-1)}}),e.on("prev",({fragment:i=!0})=>{if(r(-1)&&i)return o(t,n-1),!1;const a=t-1;e.fragments[a]&&o(a,e.fragments[a].length-1)}),e.on("slide",({index:t,fragment:n})=>{let r=0;if(void 0!==n){const o=e.fragments[t];if(o){const{length:e}=o;r=-1===n?e-1:Math.min(Math.max(n,0),e-1)}}o(t,r)}),o(0,0)},L=document,S=()=>!(!L.fullscreenEnabled&&!L.webkitFullscreenEnabled),P=()=>!(!L.fullscreenElement&&!L.webkitFullscreenElement),_=e=>{e.fullscreen=()=>{S()&&(async()=>{P()?(L.exitFullscreen||L.webkitExitFullscreen)?.call(L):((e=L.body)=>{(e.requestFullscreen||e.webkitRequestFullscreen)?.call(e)})()})()},document.addEventListener("keydown",t=>{"f"!==t.key&&"F11"!==t.key||t.altKey||t.ctrlKey||t.metaKey||!S()||(e.fullscreen(),t.preventDefault())})},O=`${f}inactive`,T=(e=2e3)=>({parent:t,fire:n})=>{const r=t.classList,o=e=>n(`marp-${e?"":"in"}active`);let i;const a=()=>{i&&clearTimeout(i),i=setTimeout(()=>{r.add(O),o()},e),r.contains(O)&&(r.remove(O),o(!0))};for(const e of["mousedown","mousemove","touchend"])document.addEventListener(e,a);setTimeout(a,0)},I=["AUDIO","BUTTON","INPUT","SELECT","TEXTAREA","VIDEO"],M=e=>{e.parent.addEventListener("keydown",e=>{if(!e.target)return;const t=e.target;(I.includes(t.nodeName)||"true"===t.contentEditable)&&e.stopPropagation()})},A=e=>{window.addEventListener("load",()=>{for(const t of e.slides){const e=t.querySelector("marp-auto-scaling, [data-auto-scaling], [data-marp-fitting]");t.setAttribute(`${m}load`,e?"":"hideable")}})},C=({interval:e=250}={})=>t=>{document.addEventListener("keydown",e=>{if(" "===e.key&&e.shiftKey)t.prev();else if("ArrowLeft"===e.key||"ArrowUp"===e.key||"PageUp"===e.key)t.prev({fragment:!e.shiftKey});else if(" "!==e.key||e.shiftKey)if("ArrowRight"===e.key||"ArrowDown"===e.key||"PageDown"===e.key)t.next({fragment:!e.shiftKey});else if("End"===e.key)t.slide(t.slides.length-1,{fragment:-1});else{if("Home"!==e.key)return;t.slide(0)}else t.next();e.preventDefault()});let n,r,o=0;t.parent.addEventListener("wheel",i=>{let a=!1;const s=(e,t)=>{e&&(a=a||((e,t)=>((e,t)=>{const n="X"===t?"Width":"Height";return e[`client${n}`]<e[`scroll${n}`]})(e,t)&&((e,t)=>{const{overflow:n}=e,r=e[`overflow${t}`];return"auto"===n||"scroll"===n||"auto"===r||"scroll"===r})(getComputedStyle(e),t))(e,t)),e?.parentElement&&s(e.parentElement,t)};if(0!==i.deltaX&&s(i.target,"X"),0!==i.deltaY&&s(i.target,"Y"),a)return;i.preventDefault();const l=Math.sqrt(i.deltaX**2+i.deltaY**2);if(void 0!==i.wheelDelta){if(void 0===i.webkitForce&&Math.abs(i.wheelDelta)<40)return;if(i.deltaMode===i.DOM_DELTA_PIXEL&&l<4)return}else if(i.deltaMode===i.DOM_DELTA_PIXEL&&l<12)return;r&&clearTimeout(r),r=setTimeout(()=>{n=0},e);const c=Date.now()-o<e,d=l<=n;if(n=l,c||d)return;let u;(i.deltaX>0||i.deltaY>0)&&(u="next"),(i.deltaX<0||i.deltaY<0)&&(u="prev"),u&&(t[u](),o=Date.now())})},D=(e=`.${f}osc`)=>{const t=document.querySelector(e);if(!t)return()=>{};const n=(e,n)=>{t.querySelectorAll(`[${m}osc=${JSON.stringify(e)}]`).forEach(n)};if(S()||n("fullscreen",e=>e.style.display="none"),!w){const e=(e,t)=>{e.disabled=!0,e.title=`${t} is disabled due to restricted localStorage.`};n("presenter",t=>e(t,"Presenter view")),n("overview",t=>e(t,"Overview view"))}return e=>{t.addEventListener("click",t=>{if(t.target instanceof HTMLElement){const{bespokeMarpOsc:n}=t.target.dataset;n&&t.target.blur();const r={fragment:!t.shiftKey};"next"===n?e.next(r):"prev"===n?e.prev(r):"fullscreen"===n?e?.fullscreen():"presenter"===n?e.openPresenterView():"overview"===n&&e.toggleOverviewView()}}),e.parent.appendChild(t),e.on("activate",({index:t})=>{n("page",n=>n.textContent=`Page ${t+1} of ${e.slides.length}`)}),e.on("fragment",({index:t,fragments:r,fragmentIndex:o})=>{n("prev",e=>e.disabled=0===t&&0===o),n("next",n=>n.disabled=t===e.slides.length-1&&o===r.length-1)}),e.on("marp-active",()=>x(t,!1)),e.on("marp-inactive",()=>x(t,!0)),S()&&(e=>{for(const t of["","webkit"])L.addEventListener(t+"fullscreenchange",e)})(()=>n("fullscreen",e=>e.classList.toggle("exit",S()&&P())))}},N=e=>{if(e.syncKey&&"string"==typeof e.syncKey)return!0;throw new Error("The current instance of Bespoke.js is incompatible with Marp bespoke sync plugin.")},B=(e={})=>{const t=e.key||window.history.state?.marpBespokeSyncKey||Math.random().toString(36).slice(2),n=`bespoke-marp-sync-${t}`;var r;r={marpBespokeSyncKey:t},h({},{setter:(e,...t)=>a({...e,...r},...t)});const o=()=>{const e=y(n);return e?JSON.parse(e):Object.create(null)},i=e=>{const t=o(),r={...t,...e(t)};return b(n,JSON.stringify(r)),r},s=()=>{window.removeEventListener("pageshow",s),i(e=>({reference:(e.reference||0)+1}))};return e=>{s(),Object.defineProperty(e,"syncKey",{value:t,enumerable:!0});let r=!0;setTimeout(()=>{e.on("fragment",e=>{r&&i(()=>({index:e.index,fragmentIndex:e.fragmentIndex}))})},0),window.addEventListener("storage",t=>{if(t.key===n&&t.oldValue&&t.newValue){const n=JSON.parse(t.oldValue),o=JSON.parse(t.newValue);if(n.index!==o.index||n.fragmentIndex!==o.fragmentIndex)try{r=!1,e.slide(o.index,{fragment:o.fragmentIndex,forSync:!0})}finally{r=!0}}});const a=()=>{const{reference:e}=o();void 0===e||e<=1?k(n):i(()=>({reference:e-1}))};window.addEventListener("pagehide",e=>{e.persisted&&window.addEventListener("pageshow",s),a()}),e.on("destroy",a)}},K=e=>{w&&document.addEventListener("keydown",t=>{("o"!==t.key||t.altKey||t.ctrlKey||t.metaKey)&&"Escape"!==t.key||(t.preventDefault(),e())})};let q=null;const V=({closeOnSelect:e=!0}={})=>t=>{N(t);const n=n=>{const r=(()=>{if(!q||!q.isConnected){q=document.createElement("div"),q.className=`${f}overview`,q.inert=!0;const n=document.createElement("iframe");n.src=(()=>{const n=new URLSearchParams(location.search);return n.set("view","overview"),n.set("sync",t.syncKey),e&&n.set("closeOnSelect","1"),g(n)})(),q.append(n),document.body.append(q)}return q})(),o=n??!r.dataset.open;setTimeout(()=>{if(r.dataset.open=o?"1":"",r.inert=!o,t.skipTransition=o,o){const e=r.querySelector("iframe");try{e?.contentWindow?.focus()}catch{e?.focus()}}else window.focus()},0)};Object.defineProperties(t,{toggleOverviewView:{enumerable:!0,value:n}}),window.addEventListener("message",e=>{e.origin===window.origin&&"closeOverview"===e.data&&n(!1)}),K(n)},j=e=>{const{title:t}=document;document.title="[Overview]"+(t?` - ${t}`:"");const n=!!v("closeOnSelect"),r=()=>{window.parent.postMessage("closeOverview","null"===window.origin?"*":window.origin)};if(e.slides.forEach((t,o)=>{t.tabIndex=0;const i=()=>{e.slide(o,{fragment:-1}),n&&r()};t.addEventListener("click",i),t.addEventListener("keydown",e=>{"Enter"!==e.key&&" "!==e.key||(e.preventDefault(),i())})}),window.addEventListener("keydown",t=>{const n=e.slide(),r=t=>{const r=t=>{const n=e.slides[t].getBoundingClientRect();return[Math.round((n.left+n.right)/2),Math.round((n.top+n.bottom)/2)]};let o=null,i=n;do{const e=r(i);if(o){if(Math.abs(e[0]-o[0])<2)return i}else o=e;i+=t}while(i>=0&&i<e.slides.length);return n};if("ArrowLeft"===t.key)e.slide(Math.max(n-1,0),{fragment:-1});else if("ArrowRight"===t.key)e.slide(Math.min(n+1,e.slides.length-1),{fragment:-1});else if("ArrowUp"===t.key)e.slide(r(-1),{fragment:-1});else if("ArrowDown"===t.key)e.slide(r(1),{fragment:-1});else if("End"===t.key)e.slide(e.slides.length-1,{fragment:-1});else{if("Home"!==t.key)return;e.slide(0,{fragment:-1})}t.preventDefault();const o=e.slide();e.slides[o]?.focus?.(),e.slides[o]?.scrollIntoView?.({behavior:"smooth",block:"nearest"})}),e.on("slide",({index:t})=>{e.slides[t]?.scrollIntoView?.({behavior:"smooth",block:"nearest"})}),window.parent!==window){K(r);const e=document.createElement("header");e.className=`${f}overview-header`;const t=document.createElement("button");t.className=`${f}overview-close`,t.type="button",t.title="Close overview",t.textContent=t.title,t.addEventListener("click",r),e.append(t),document.body.prepend(e)}},F=()=>{const e=p();return{[s]:V(),[l]:V({closeOnSelect:!1}),[d]:j}[e]},U=e=>{window.addEventListener("message",t=>{if(t.origin!==window.origin)return;const[n,r]=t.data.split(":");if("navigate"===n){const[t,n]=r.split(",");let o=Number.parseInt(t,10),i=Number.parseInt(n,10)+1;i>=e.fragments[o].length&&(o+=1,i=0),e.slide(o,{fragment:i})}})};var R,X,H,W,J,Y,z,G={exports:{}},Q=(R||(R=1,G.exports=(X=["area","base","br","col","command","embed","hr","img","input","keygen","link","meta","param","source","track","wbr"],H=function(e){return String(e).replace(/[&<>"']/g,function(e){return"&"+W[e]+";"})},W={"&":"amp","<":"lt",">":"gt",'"':"quot","'":"apos"},J="dangerouslySetInnerHTML",Y={className:"class",htmlFor:"for"},z={},function(e,t){var n=[],r="";t=t||{};for(var o=arguments.length;o-- >2;)n.push(arguments[o]);if("function"==typeof e)return t.children=n.reverse(),e(t);if(e){if(r+="<"+e,t)for(var i in t)!1!==t[i]&&null!=t[i]&&i!==J&&(r+=" "+(Y[i]?Y[i]:H(i))+'="'+H(t[i])+'"');r+=">"}if(-1===X.indexOf(e)){if(t[J])r+=t[J].__html;else for(;n.length;){var a=n.pop();if(a)if(a.pop)for(var s=a.length;s--;)n.push(a[s]);else r+=!0===z[a]?a:H(a)}r+=e?"</"+e+">":""}return z[r]=!0,r})),G.exports),Z=e(Q);const ee=({children:e})=>Z(null,null,...e),te=`${f}presenter-`,ne={container:`${te}container`,dragbar:`${te}dragbar-container`,next:`${te}next`,nextContainer:`${te}next-container`,noteContainer:`${te}note-container`,noteWrapper:`${te}note-wrapper`,noteButtons:`${te}note-buttons`,infoContainer:`${te}info-container`,infoPageArea:`${te}info-page-area`,infoPage:`${te}info-page`,infoPagePrev:`${te}info-page-prev`,infoPageNext:`${te}info-page-next`,noteButtonsBigger:`${te}note-bigger`,noteButtonsSmaller:`${te}note-smaller`,infoTime:`${te}info-time`,infoTimer:`${te}info-timer`},re=e=>{const{title:t}=document;document.title="[Presenter view]"+(t?` - ${t}`:"");const n={},r=e=>(n[e]=n[e]||document.querySelector(`.${e}`),n[e]);document.body.appendChild((e=>{const t=document.createElement("div");return t.className=ne.container,t.appendChild(e),t.insertAdjacentHTML("beforeend",Z(ee,null,Z("div",{class:ne.nextContainer},Z("iframe",{class:ne.next,src:"?view=next"})),Z("div",{class:ne.dragbar}),Z("div",{class:ne.noteContainer},Z("div",{class:ne.noteWrapper}),Z("div",{class:ne.noteButtons},Z("button",{class:ne.noteButtonsSmaller,tabindex:"-1",title:"Smaller notes font size"},"Smaller notes font size"),Z("button",{class:ne.noteButtonsBigger,tabindex:"-1",title:"Bigger notes font size"},"Bigger notes font size"))),Z("div",{class:ne.infoContainer},Z("div",{class:ne.infoPageArea},Z("button",{class:ne.infoPagePrev,tabindex:"-1",title:"Previous"},"Previous"),Z("button",{class:ne.infoPage}),Z("button",{class:ne.infoPageNext,tabindex:"-1",title:"Next"},"Next")),Z("time",{class:ne.infoTime,title:"Current time"}),Z("time",{class:ne.infoTimer,title:"Timer"})))),t})(e.parent)),(e=>{let t=!1;r(ne.dragbar).addEventListener("mousedown",()=>{t=!0,r(ne.dragbar).classList.add("active")}),window.addEventListener("mouseup",()=>{t=!1,r(ne.dragbar).classList.remove("active")}),window.addEventListener("mousemove",e=>{if(!t)return;const n=e.clientX/document.documentElement.clientWidth*100;r(ne.container).style.setProperty("--bespoke-marp-presenter-split-ratio",`${Math.max(0,Math.min(100,n))}%`)}),r(ne.nextContainer).addEventListener("click",()=>e.next());const n=r(ne.next),o=(i=n,(e,t)=>i.contentWindow?.postMessage(`navigate:${e},${t}`,"null"===window.origin?"*":window.origin));var i;n.addEventListener("load",()=>{r(ne.nextContainer).classList.add("active"),o(e.slide(),e.fragmentIndex),e.on("fragment",({index:e,fragmentIndex:t})=>o(e,t))});const a=document.querySelectorAll(".bespoke-marp-note");a.forEach(e=>{e.addEventListener("keydown",e=>e.stopPropagation()),r(ne.noteWrapper).appendChild(e)}),e.on("activate",()=>a.forEach(t=>t.classList.toggle("active",t.dataset.index==e.slide())));let s=0;const l=e=>{s=Math.max(-5,s+e),r(ne.noteContainer).style.setProperty("--bespoke-marp-note-font-scale",(1.2**s).toFixed(4))},c=()=>l(1),d=()=>l(-1),u=r(ne.noteButtonsBigger),f=r(ne.noteButtonsSmaller);u.addEventListener("click",()=>{u.blur(),c()}),f.addEventListener("click",()=>{f.blur(),d()}),document.addEventListener("keydown",e=>{"+"===e.key&&c(),"-"===e.key&&d()},!0);const m=r(ne.infoPage);e.on("activate",({index:t})=>{m.textContent=`${t+1} / ${e.slides.length}`}),m.addEventListener("click",()=>{m.blur(),e.toggleOverviewView()});const g=r(ne.infoPagePrev),p=r(ne.infoPageNext);g.addEventListener("click",t=>{g.blur(),e.prev({fragment:!t.shiftKey})}),p.addEventListener("click",t=>{p.blur(),e.next({fragment:!t.shiftKey})}),e.on("fragment",({index:t,fragments:n,fragmentIndex:r})=>{g.disabled=0===t&&0===r,p.disabled=t===e.slides.length-1&&r===n.length-1});let v=new Date;const h=()=>{const e=new Date,t=e=>`${Math.floor(e)}`.padStart(2,"0"),n=e.getTime()-v.getTime(),o=t(n/1e3%60),i=t(n/1e3/60%60),a=t(n/36e5%24);r(ne.infoTime).textContent=e.toLocaleTimeString(),r(ne.infoTimer).textContent=`${a}:${i}:${o}`};h(),setInterval(h,250),r(ne.infoTimer).addEventListener("click",()=>{v=new Date})})(e)},oe=e=>{N(e),Object.defineProperties(e,{openPresenterView:{enumerable:!0,value:ie},presenterUrl:{enumerable:!0,get:ae}}),w&&document.addEventListener("keydown",t=>{"p"!==t.key||t.altKey||t.ctrlKey||t.metaKey||(t.preventDefault(),e.openPresenterView())})};function ie(){const{max:e,floor:t}=Math,n=e(t(.85*window.innerWidth),640),r=e(t(.85*window.innerHeight),360);return window.open(this.presenterUrl,te+this.syncKey,`width=${n},height=${r},menubar=no,toolbar=no`)}function ae(){const e=new URLSearchParams(location.search);return e.set("view","presenter"),e.set("sync",this.syncKey),g(e)}const se=e=>{const t=p();return t===c&&e.appendChild(document.createElement("span")),{[s]:oe,[l]:re,[c]:U}[t]},le=e=>{e.on("activate",t=>{document.querySelectorAll(".bespoke-progress-parent > .bespoke-progress-bar").forEach(n=>{n.style.flexBasis=100*t.index/(e.slides.length-1)+"%"})})},ce=e=>{const t=Number.parseInt(e,10);return Number.isNaN(t)?null:t},de=(e={})=>{const t={history:!0,...e};return e=>{let n=!0;const r=e=>{const t=n;try{return n=!0,e()}finally{n=t}},o=(t={fragment:!0})=>{let n=t.fragment?ce(v("f")||""):null;((t,n)=>{const{min:r,max:o}=Math,{fragments:i,slides:a}=e,s=o(0,r(t,a.length-1)),l=o(0,r(n||0,i[s].length-1));s===e.slide()&&l===e.fragmentIndex||e.slide(s,{fragment:l})})((()=>{if(location.hash){const[t]=location.hash.slice(1).split(":~:");if(/^\d+$/.test(t))return(ce(t)??1)-1;const r=document.getElementById(t)||document.querySelector(`a[name="${CSS.escape(t)}"]`);if(r){const{length:t}=e.slides;for(let o=0;o<t;o+=1)if(e.slides[o].contains(r)){const t=e.fragments?.[o],i=r.closest("[data-marpit-fragment]");if(t&&i){const e=t.indexOf(i);e>=0&&(n=e)}return o}}}return 0})(),n)};e.on("fragment",({index:e,fragmentIndex:r})=>{n||h({f:0===r||r.toString()},{location:{...location,hash:`#${e+1}`},setter:(...e)=>t.history?history.pushState(...e):history.replaceState(...e)})}),setTimeout(()=>{o(),window.addEventListener("hashchange",()=>r(()=>{o({fragment:!1}),h({f:void 0})})),window.addEventListener("popstate",()=>{n||r(()=>o())}),n=!1},0)}},{PI:ue,abs:fe,sqrt:me,atan2:ge}=Math,pe={passive:!0},ve=({slope:e=-.7,swipeThreshold:t=30}={})=>n=>{let r;const o=n.parent,i=e=>{const t=o.getBoundingClientRect();return{x:e.pageX-(t.left+t.right)/2,y:e.pageY-(t.top+t.bottom)/2}};o.addEventListener("touchstart",({touches:e})=>{r=1===e.length?i(e[0]):void 0},pe),o.addEventListener("touchmove",e=>{if(r)if(1===e.touches.length){e.preventDefault();const t=i(e.touches[0]),n=t.x-r.x,o=t.y-r.y;r.delta=me(fe(n)**2+fe(o)**2),r.radian=ge(n,o)}else r=void 0}),o.addEventListener("touchend",o=>{if(r){if(r.delta&&r.delta>=t&&r.radian){const t=(r.radian-e+ue)%(2*ue)-ue;n[t<0?"next":"prev"](),o.stopPropagation()}r=void 0}},pe)},he=new Map;he.clear(),he.set("none",{backward:{both:void 0,incoming:void 0,outgoing:void 0},forward:{both:void 0,incoming:void 0,outgoing:void 0}});const we={both:"",outgoing:"outgoing-",incoming:"incoming-"},ye={forward:"",backward:"-backward"},be=e=>`--marp-bespoke-transition-animation-${e}`,ke=e=>`--marp-transition-${e}`,xe=be("name"),Ee=be("duration"),$e=e=>new Promise(t=>{const n={},r=document.createElement("div"),o=e=>{r.remove(),t(e)};r.addEventListener("animationstart",()=>o(n)),Object.assign(r.style,{animationName:e,animationDuration:"1s",animationFillMode:"both",animationPlayState:"paused",position:"absolute",pointerEvents:"none"}),document.body.appendChild(r);const i=getComputedStyle(r).getPropertyValue(ke("duration"));i&&Number.parseFloat(i)>=0&&(n.defaultDuration=i),((e,t)=>{requestAnimationFrame(()=>{e.style.animationPlayState="running",requestAnimationFrame(()=>t(void 0))})})(r,o)}),Le=async e=>he.has(e)?he.get(e):(e=>{const t={},n=[];for(const[r,o]of Object.entries(we))for(const[i,a]of Object.entries(ye)){const s=`marp-${o}transition${a}-${e}`;n.push($e(s).then(e=>{t[i]=t[i]||{},t[i][r]=e?{...e,name:s}:void 0}))}return Promise.all(n).then(()=>t)})(e).then(t=>(he.set(e,t),t)),Se=e=>Object.values(e).flatMap(Object.values).every(e=>!e),Pe=(e,{type:t,backward:n})=>{const r=e[n?"backward":"forward"],o=(()=>{const e=r[t],n=e=>({[xe]:e.name});if(e)return n(e);if(r.both){const e=n(r.both);return"incoming"===t&&(e[be("direction")]="reverse"),e}})();return!o&&n?Pe(e,{type:t,backward:!1}):o||{[xe]:"__bespoke_marp_transition_no_animation__"}},_e=e=>{if(e)try{const t=JSON.parse(e);if((e=>{if("object"!=typeof e)return!1;const t=e;return"string"==typeof t.name&&(void 0===t.duration||"string"==typeof t.duration)})(t))return t}catch{}},Oe="_tSId",Te="_tA",Ie="bespoke-marp-transition-warming-up",Me=window.matchMedia("(prefers-reduced-motion: reduce)"),Ae="__bespoke_marp_transition_reduced_outgoing__",Ce="__bespoke_marp_transition_reduced_incoming__",De={forward:{both:void 0,incoming:{name:Ce},outgoing:{name:Ae}},backward:{both:void 0,incoming:{name:Ce},outgoing:{name:Ae}}},Ne=e=>{if(!document.startViewTransition)return;const t=t=>(void 0!==t&&(e._tD=t),e._tD);let n;t(!1),((...e)=>{CSS.registerProperty({name:ke("duration"),syntax:"<time>",inherits:!0,initialValue:"-1s"});const t=[...new Set(e).values()];return Promise.all(t.map(e=>Le(e))).then()})(...Array.from(document.querySelectorAll("section[data-transition], section[data-transition-back]")).flatMap(e=>[e.dataset.transition,e.dataset.transitionBack].flatMap(e=>{const t=_e(e);return[t?.name,t?.builtinFallback?`__builtin__${t.name}`:void 0]}).filter(e=>!!e))).then(()=>{document.querySelectorAll("style").forEach(e=>{e.innerHTML=e.innerHTML.replace(/--marp-transition-duration:[^;}]*[;}]/g,e=>e.slice(0,-1)+"!important"+e.slice(-1))})});const r=(n,{back:r,cond:o})=>i=>{const a=t();if(a)return!!i[Te]||!("object"!=typeof a||(a.skipTransition(),!i.forSync));if(e.skipTransition)return!0;if(!o(i))return!0;const s=e.slides[e.slide()],l=()=>i.back??r,c="data-transition"+(l()?"-back":""),d=s.querySelector(`section[${c}]`);if(!d)return!0;const u=_e(d.getAttribute(c)??void 0);return!u||((async(e,{builtinFallback:t=!0}={})=>{let n=await Le(e);if(Se(n)){if(!t)return;return n=await Le(`__builtin__${e}`),Se(n)?void 0:n}return n})(u.name,{builtinFallback:u.builtinFallback}).then(e=>{if(!e){t(!0);try{n(i)}finally{t(!1)}return}let r=e;Me.matches&&(console.warn("Use a constant animation to transition because preferring reduced motion by viewer has detected."),r=De);const o=document.getElementById(Oe);o&&o.remove();const a=document.createElement("style");a.id=Oe,document.head.appendChild(a),((e,t)=>{const n=[`:root{${ke("direction")}:${t.backward?-1:1};}`,":root:has(.bespoke-marp-inactive){cursor:none;}"],r=t=>{const n=e[t].both?.defaultDuration||e[t].outgoing?.defaultDuration||e[t].incoming?.defaultDuration;return"forward"===t?n:n||r("forward")},o=t.duration||r(t.backward?"backward":"forward");void 0!==o&&n.push(`::view-transition-group(*){${Ee}:${o};}`);const i=e=>Object.entries(e).map(([e,t])=>`${e}:${t};`).join("");return n.push(`::view-transition-old(root){${i(Pe(e,{...t,type:"outgoing"}))}}`,`::view-transition-new(root){${i(Pe(e,{...t,type:"incoming"}))}}`),n})(r,{backward:l(),duration:u.duration}).forEach(e=>a.sheet?.insertRule(e));const s=document.documentElement.classList;s.add(Ie);let c=!1;const d=()=>{c||(n(i),c=!0,s.remove(Ie))},f=()=>{t(!1),a.remove(),s.remove(Ie)};try{t(!0);const e=document.startViewTransition(d);t(e),e.finished.finally(f)}catch(e){console.error(e),d(),f()}}),!1)};e.on("prev",r(t=>e.prev({...t,[Te]:!0}),{back:!0,cond:e=>e.index>0&&!((e.fragment??1)&&n.fragmentIndex>0)})),e.on("next",r(t=>e.next({...t,[Te]:!0}),{cond:t=>t.index+1<e.slides.length&&!(n.fragmentIndex+1<n.fragments.length)})),setTimeout(()=>{e.on("slide",r(t=>e.slide(t.index,{...t,[Te]:!0}),{cond:t=>{const n=e.slide();return t.index!==n&&(t.back=t.index<n,!0)}}))},0),e.on("fragment",e=>{n=e})};let Be;const Ke=()=>(void 0===Be&&(Be="wakeLock"in navigator&&navigator.wakeLock),Be),qe=async()=>{const e=Ke();if(e)try{return await e.request("screen")}catch(e){console.warn(e)}return null},Ve=async()=>{if(!Ke())return;let e;const t=()=>{e&&"visible"===document.visibilityState&&qe()};for(const e of["visibilitychange","fullscreenchange"])document.addEventListener(e,t);return e=await qe(),e};((e=document.getElementById(":$p"))=>{(()=>{const e=v("view");i.dataset.bespokeView=u.some(t=>t&&t===e)?e:""})();const t=(e=>{const t=v(e);return h({[e]:void 0}),t})("sync")||void 0;o.from(e,((...e)=>{const t=u.findIndex(e=>p()===e);return e.map(([e,n])=>e[t]&&n).filter(e=>e)})([[1,1,1,0],B({key:t})],[[1,1,0,1],se(e)],[[1,1,0,0],M],[[1,1,1,1],E],[[1,0,0,0],T()],[[1,1,1,1],A],[[1,1,1,1],de({history:!1})],[[1,1,0,0],C()],[[1,1,1,0],_],[[1,0,0,0],le],[[1,1,0,0],ve()],[[1,0,0,0],D()],[[1,1,1,0],F()],[[1,0,0,0],Ne],[[1,1,1,1],$],[[1,1,1,0],Ve]))})()}();</script></body></html>

@@ -21,61 +21,85 @@ theme: platform
 **Many independent machines that must look like one**
 
 <!--
-Outline: (1) why distribute and the three root problems; (2) fallacies, partial failure, timeouts
-and idempotency; (3) logical clocks; (4) CAP and PACELC; (5) consensus: FLP, failure models,
-majorities, Raft; (6) quorums, eventual consistency and CRDTs.
+Objectives: explain what makes a system distributed and the three root problems; identify the 8 fallacies in a
+call between two services; order events with Lamport clocks; choose C or A with CAP and PACELC; describe Raft
+and size a cluster; compare quorums and consensus with eventual consistency (LWW, vector clocks, CRDTs).
+Outline: (1) overview: the store, classification, gains and costs, fallacies, the three root problems, logical clocks;
+(2) CAP and PACELC; (3) consensus: FLP, failure models, majorities, Paxos, Raft, quorums, CRDTs, use don't build.
 -->
 
 ---
 
-## Why is this hard?
+## From one machine to many
 
 <div class="q">
 
-Several computers collaborate and the user should see **a single coherent system**.
-What makes coordinating them harder than running everything on one machine?
+The store as **one** Spring Boot application with **one** PostgreSQL on **one** machine is simple to reason about. What happens when traffic outgrows it, or the machine dies?
 
 </div>
 
-* **Partial failure** — each node can fail on its own while the rest keeps running.
-* **Unreliable network** — messages can be delayed, lost or duplicated.
-* **No shared clock** — no global notion of "now".
-
-<!--
-Let the class answer first. These three facts are the root of every topic in this class.
--->
+* Split the work: gateway, account, order, database, cache, message broker…
+* …and you have built a **distributed system**: independent **nodes** that cooperate only by **passing messages**, with **no shared clock**, and look like **one coherent system** to the user.
+* A new class of problems appears.
 
 ---
 
 ## Our store is a distributed system
 
-One click on **Place order**:
+One click on **Place order** crosses the network several times:
 
-Browser → **Gateway** → Auth → **Order** → Product → Redis · Order → **PostgreSQL** · Order → **Kafka**
+Browser → `POST /orders` → **Gateway** → Auth (validate token) · Gateway → **Order** → Product → Redis (cached price) · Order → **PostgreSQL** (`INSERT`) · Order → **Kafka** (`OrderCreated`)
 
-- Every arrow is a network message; every box can fail on its own.
-- **Heterogeneous** (Java, Python, Postgres, Redis, Kafka), **loosely coupled** (HTTP, events), **client-server**.
+- Each arrow is a **message** over the network; each box is a process that can **fail on its own**.
+- Product slow → order waits. Kafka down → the order may be stored but the event never published.
+- Nothing shares memory or a clock: exactly the definition of a distributed system.
+
+---
+
+## Classification
+
+| Dimension | Option A | Option B |
+|---|---|---|
+| **Uniformity** | Homogeneous: all nodes run the same stack | **Heterogeneous**: diverse hardware and OS |
+| **Coupling** | Tightly coupled: shared memory | **Loosely coupled**: messages, independent lifecycle |
+| **Topology** | **Client-server**: servers hold resources | Peer-to-peer: all nodes share resources (BitTorrent) |
+
+<div class="ok">
+
+The store is **heterogeneous** (Java services, a Python notification service, PostgreSQL, Redis, Kafka), **loosely coupled** (HTTP and Kafka) and **client-server** (browser → gateway → services).
+
+</div>
+
+---
+
+## What we gain, what we pay
 
 <div class="cols">
 <div>
 
-### What we gain
+### Advantages
 
-- Horizontal scalability
-- Fault tolerance (replication)
-- Lower latency (caches, CDNs)
+- **Horizontal scalability**: add nodes (Cassandra)
+- **Fault tolerance**: replication (Spanner)
+- **Resource sharing**: pooled capacity (Folding@home)
+- **Parallelism**: MapReduce (Hadoop)
+- **Latency reduction**: nodes near users (CDNs)
 
 </div>
 <div>
 
-### What we pay
+### Disadvantages
 
-- Complexity, distributed state
-- Network failures to handle
-- Operational cost: monitoring, tracing
+- **Complexity**: coordination, distributed state
+- **Network overhead**: delayed, lost, duplicated messages
+- **Consistency vs availability** (CAP)
+- **Expanded attack surface**: Byzantine faults
+- **Operational cost**: Prometheus, Kubernetes, tracing
 
 </div>
 </div>
+
+<p class="small">In the store: horizontal scaling with Nginx in front of replicas (Hands-on 7); lower latency with the Redis cache (Hands-on 8).</p>
 
 ---
 
@@ -83,36 +107,34 @@ Browser → **Gateway** → Auth → **Order** → Product → Redis · Order �
 
 ## The 8 fallacies of distributed computing
 
-Deutsch and colleagues at Sun (1994; the 8th by Gosling) — **all of them false**:
+Deutsch and colleagues at Sun (seven in 1994; Gosling added the eighth in 1997) — **all of them false**:
 
-<div class="cols">
-<div>
-
-1. The network is reliable
-2. Latency is zero
-3. Bandwidth is infinite
-4. The network is secure
-
-</div>
-<div>
-
-5. Topology doesn't change
-6. There is one administrator
-7. Transport cost is zero
-8. The network is homogeneous
-
-</div>
-</div>
+| Fallacy | In the store |
+|---|---|
+| The network is reliable | the call from order to product fails halfway |
+| Latency is zero | five sequential calls of 40 ms make a 200 ms checkout |
+| Bandwidth is infinite | returning the whole catalogue in one response |
+| The network is secure | services trust any caller inside the cluster |
+| Topology doesn't change | a Kubernetes pod is rescheduled with a new IP |
+| There is one administrator | another team changes a firewall rule |
+| Transport cost is zero | JSON parsing and cross-zone traffic on the cloud bill |
+| The network is homogeneous | Java services, a Python service, Kafka's binary protocol |
 
 <div class="warn">
 
-Common root: treating the network as a **reliable local function call**. Design **for** failure — assume it will happen and degrade gracefully.
+Common root: treating the network as a **reliable local function call**. Design **for** failure: assume it will happen and degrade gracefully.
 
 </div>
 
-<!--
-Ask for a store example of each: five 40 ms calls in sequence, a pod rescheduled with a new IP...
--->
+---
+
+## The three root problems
+
+Almost every difficulty in this course traces back to three facts:
+
+1. **Partial failure** — part of the system fails while the rest keeps running: product is down, gateway and order are fine. Each component must decide what to do when a dependency stops answering.
+2. **An unreliable network** — a caller cannot tell **slow** from **dead**.
+3. **No global clock** — clocks drift; you cannot order events on different machines by their timestamps.
 
 ---
 
@@ -121,45 +143,112 @@ Ask for a store example of each: five 40 ms calls in sequence, a pod rescheduled
 Order → Product: *reserve 1 unit of product 42* … **silence**.
 
 - Request lost? Product crashed? Reply lost? Product just slow? **They all look the same.**
-- The only tool: a **timeout** — but it does not say whether the operation ran.
-- A retry may apply it **twice** → retried operations must be **idempotent** (e.g. a unique request id).
+- The only practical tool: a **timeout** — after a deadline, assume failure.
+- But a timeout does not say whether the operation ran: a retry may apply it **twice**.
+- So retried operations must be **idempotent**: applying twice = applying once (e.g. a unique request id the server deduplicates).
 
 <div class="ok">
 
-Timeouts, retries with backoff and circuit breakers: see the **Reliability** class.
+Timeouts, retries with backoff and circuit breakers: **Resilience Patterns** (Reliability class).
 
 </div>
 
 ---
 
-## No global clock: logical time
+## No global clock
 
-Clocks drift — never order events from different machines by `currentTimeMillis()`.
-
-**Lamport clock** — one counter per process:
-
-1. increment before each event;
-2. attach the counter to every message sent;
-3. on receive: `max(local, received) + 1`.
-
-- Guarantee: if *a* happened-before *b*, then L(*a*) < L(*b*) — not the converse.
-- **Vector clocks** (one counter per process) also detect **concurrent** events.
-
-<p class="small">Kafka orders by partition offset; Raft by term — single authorities, not wall clocks.</p>
-
----
-
-## CAP theorem
-
-A system that **replicates data** cannot guarantee all three at once (Brewer 2000; Gilbert and Lynch 2002):
-
-- **C — Consistency**: every read returns the most recent write, or an error (linearisability — **not** ACID's C).
-- **A — Availability**: every request to a live node gets a non-error response, maybe not the latest write.
-- **P — Partition tolerance**: keeps working when the network splits the nodes into groups.
+- Each machine has its own quartz clock, and clocks **drift**.
+- Two servers synchronised with NTP can still disagree by milliseconds — much more after a misconfiguration or a VM pause.
+- An order created "at 10:00:00.120" on one node may have happened **after** a cancellation stamped "10:00:00.150" on another.
 
 <div class="warn">
 
-Partitions **will** happen. P is not optional: the real choice is **C or A during a partition**.
+Do not order events by `System.currentTimeMillis()` across machines: in "last write wins", a node with a fast clock silently wins every conflict. Use a **single authority** (a database sequence, a Kafka partition offset) or **logical clocks**.
+
+</div>
+
+---
+
+<!-- _class: tight -->
+
+## Logical clocks (Lamport)
+
+We need the **order** of events, not their real time: *happened-before* (→) — same process, message send → receive, transitivity. Neither → the other: **concurrent**.
+
+<div class="cols">
+<div>
+
+**Lamport clock**, one counter per process:
+
+1. increment before each local event;
+2. attach the counter to every message;
+3. on receive *t*: `max(local, t) + 1`.
+
+</div>
+<div>
+
+**Example**
+
+- Order: create order (1), send `OrderCreated` (2)
+- Consumer: receive → `max(0,2)+1 = 3`, send `SendEmail` (4)
+- Notification: local event (1), receive → `max(1,4)+1 = 5`
+
+</div>
+</div>
+
+- Guarantee: if *a* → *b* then L(*a*) < L(*b*) — **not** the converse.
+- **Vector clocks** (one counter per process) tell "happened before" from "concurrent": conflict detection in replicated databases.
+
+<p class="small">In the course: Kafka orders by partition <strong>offset</strong> (Hands-on 10); Raft tells old leaders from new ones by <strong>term</strong>.</p>
+
+---
+
+<div class="kicker">CAP theorem</div>
+
+## Answer or refuse?
+
+Product data in PostgreSQL, replicated on two nodes, **one per data centre**. The link between the sites goes down; both nodes are alive.
+
+<div class="q">
+
+A customer on site B asks for the stock of product 42, just updated on site A. What should node B do?
+
+</div>
+
+* **Answer with what it has** (possibly stale)…
+* …or **refuse to answer** until it can talk to A again. There is no third option.
+
+---
+
+## The CAP theorem
+
+A system that **replicates data** cannot guarantee all three at once (Brewer 2000; Gilbert and Lynch 2002):
+
+- **C — Consistency**: every read returns the most recent write, or an error (linearisability: as if there were a single copy).
+- **A — Availability**: every request to a non-failing node gets a non-error response, maybe not the latest write.
+- **P — Partition tolerance**: keeps operating when the network splits the nodes into groups that cannot talk.
+
+<div class="warn">
+
+Partitions **will** happen: P is not optional, the real choice is **C or A during a partition**. And CAP's C is **not** ACID's C (constraints valid): a single PostgreSQL is ACID-consistent; CAP only appears with **replicas**.
+
+</div>
+
+---
+
+## A partition, step by step
+
+3 replicas: Node 1 and Node 3 still talk, **Node 2 is cut off**.
+
+1. Client A writes `stock[42] = 0` on Node 1 → replication to Node 2 fails → Node 1 answers OK.
+2. Client B reads `stock[42]` from Node 2:
+   - **CP**: `error: cannot reach majority`
+   - **AP**: `stock[42] = 5` (stale)
+3. The partition heals, replicas sync.
+
+<div class="ok">
+
+Neither answer is "wrong": the CP node refuses rather than lie; the AP node answers with the best value it has. Which one is acceptable depends on the **data**, not on the technology.
 
 </div>
 
@@ -167,38 +256,26 @@ Partitions **will** happen. P is not optional: the real choice is **C or A durin
 
 ## CP or AP?
 
-<div class="cols">
-<div>
+| | CP | AP | CA |
+|---|---|---|---|
+| **During a partition** | rejects requests | answers, maybe stale | — |
+| **Consistency** | always | eventually | always |
+| **Examples** | ZooKeeper, etcd, PostgreSQL (sync replication), MongoDB (majority) | Cassandra, DynamoDB, CouchDB, DNS | single-node RDBMS |
+| **Use when** | payments, inventory, identity | carts, feeds, search indexes | only on one node |
 
-### CP
+<div class="warn">
 
-During a partition, **refuse** rather than return stale data.
-
-ZooKeeper, etcd, PostgreSQL (sync replication), MongoDB (majority writes).
-
-**Payments, inventory, auth.**
-
-</div>
-<div>
-
-### AP
-
-During a partition, **every node answers** — then replicas **converge** (eventual consistency).
-
-Cassandra, DynamoDB, CouchDB, DNS.
-
-**Catalogue, shopping cart, feeds.**
+CP and AP label a **configuration**, not a product: Cassandra with `QUORUM` behaves much like CP; PostgreSQL reading from an **asynchronous** replica can return stale data. Ask what happens to **your** requests during a partition.
 
 </div>
-</div>
-
-<p class="small">CA only exists on a single node. CP/AP describe a <strong>configuration</strong>, not a product — choose per data domain.</p>
 
 ---
 
 ## PACELC: and when there is no partition?
 
-**If Partition** → **A** or **C** · **Else** → **L**atency or **C**onsistency
+**If Partition** → **A** or **C** · **Else** → **L**atency or **C**onsistency (Abadi, 2010)
+
+To be consistent, a write waits for the replicas (a round-trip); to be fast, it answers before they confirm.
 
 | System | Partition | Normal operation | Class |
 |---|---|---|---|
@@ -208,22 +285,68 @@ Cassandra, DynamoDB, CouchDB, DNS.
 
 <div class="ok">
 
-Most of the time there is **no partition** — but latency vs consistency is **always** there: an async read replica or a Redis cache can return stale data.
+**In the store**: an **async read replica** for `GET /products` is the EL choice — faster, but replication lag can return an old price. The **Redis cache** (Hands-on 8) makes the same choice until the TTL expires.
 
 </div>
 
 ---
 
-## Consensus — and why it is hard
+## Choose per data domain
 
-**Consensus**: nodes agree on **one value** (or one log order) despite lost messages and failed nodes — leader election, locks, replicated state machines.
+<div class="cols">
+<div>
 
-- **Safety**: nobody decides differently. **Liveness**: everyone eventually decides.
+### AP
 
-> **FLP (1985)**: fully asynchronous + one node may crash → no deterministic algorithm always terminates.
+- **Product catalogue**: showing an item in stock a moment too long is acceptable.
+- **Shopping cart**: diverging replicas reconcile on checkout.
 
-- Paxos and Raft **never break safety**; they progress when the network behaves (partial synchrony).
-- In practice: **timeouts** — a slow node looks just like a crashed one.
+</div>
+<div>
+
+### CP
+
+- **Payments**: a double charge cannot be reconciled afterwards.
+- **Authentication**: a revoked token must be invalid everywhere at once.
+
+</div>
+</div>
+
+<div class="warn">
+
+**Common mistakes**: "we chose CA" (with data on more than one machine, partitions happen) · treating CAP as permanent (the C/A choice only applies *during* a partition) · forgetting the cache (Redis in front of a CP database makes those reads AP-like).
+
+</div>
+
+---
+
+<div class="kicker">Consensus</div>
+
+## Which version is the truth?
+
+Kubernetes keeps the whole cluster state in **etcd**, with 3 or 5 members. Two `kubectl apply` arrive at two members at once, then one member crashes: how do the survivors agree, **without a referee**?
+
+- **Consensus**: nodes agree on **one value** despite delayed, lost or reordered messages and failed nodes — leader election, locks, configuration stores.
+- **Replicated state machine**: same start state + same commands **in the same order** (a log) → same end state.
+- **Safety**: all nodes that decide, decide the **same** value. **Liveness**: every non-faulty node **eventually** decides.
+
+---
+
+## Why consensus is hard: FLP
+
+> **FLP (Fischer, Lynch, Paterson, 1985)**: fully asynchronous network + a single node that may crash → **no deterministic algorithm always reaches consensus**.
+
+Every practical algorithm makes a trade-off:
+
+- assume **partial synchrony** and only guarantee progress when delays become bounded, or
+- use **randomisation** (terminates with probability 1), or
+- weaken the problem (accept blocking forever in adversarial conditions).
+
+<div class="ok">
+
+Paxos and Raft take the first route: they **never violate safety** and make progress when the network behaves — using **timeouts**, so a slow node looks just like a crashed one.
+
+</div>
 
 ---
 
@@ -233,92 +356,151 @@ Most of the time there is **no partition** — but latency vs consistency is **a
 |---|---|---|
 | **Crash-stop** | halts and never recovers | N nodes tolerate ⌊(N-1)/2⌋ failures |
 | **Crash-recovery** | halts, may restart with persistent state | durable logs, rejoining nodes |
-| **Byzantine** | arbitrary — wrong messages, malice | **3f+1** nodes to tolerate f failures |
+| **Byzantine** | arbitrary: wrong messages, equivocation, malice | **3f+1** nodes to tolerate f failures |
 
-- Datacenter algorithms assume **crash-stop** or **crash-recovery**.
+- Most datacenter algorithms assume **crash-stop** or **crash-recovery**.
 - Byzantine fault tolerance: blockchains and safety-critical systems.
 
 ---
 
 ## Majorities: why 3 or 5 nodes
 
-Any two majorities **overlap** → two conflicting decisions can never both win (no split brain).
+A decision is valid only with a **majority**; any two majorities **share a node**, so two conflicting decisions can never both win.
 
-| Nodes | Majority | Failures tolerated |
+<div class="cols">
+<div>
+
+| N | Majority | Tolerated |
 |---|---|---|
+| 1 | 1 | 0 |
+| 2 | 2 | 0 |
 | 3 | 2 | **1** |
 | 4 | 3 | 1 |
 | 5 | 3 | **2** |
-
-<div class="ok">
-
-Use an **odd** number: a 4th node costs money and tolerates **no** extra failure. A partition 3/2 → only the side with 3 keeps writing.
+| 7 | 4 | 3 |
 
 </div>
+<div>
 
-<!--
-Quick check: with 7 nodes, how many can fail? (3.)
--->
+- Use an **odd** number: a 4th node costs money and tolerates **no** extra failure.
+- 2 nodes is worse than 1: losing either stops it.
+- **Split brain**: 5 nodes split 3/2 → only the side with 3 elects and commits; the side with 2 rejects writes.
+
+</div>
+</div>
 
 ---
 
-## Raft
+## Paxos
 
-Designed for **understandability** (Ongaro and Ousterhout, 2014).
+Lamport (1998; "Paxos Made Simple", 2001). Roles: **proposers**, **acceptors**, **learners**.
 
-- **Election**: Follower → *randomised* election timeout → Candidate → **majority vote** → Leader. A higher **term** makes any node step down.
-- **Replication**: client writes `x=5` to the leader → `AppendEntries` → **commit after a majority** acknowledges → reply.
-- **Safety**: a candidate's log must be at least as up-to-date as the voters'; committed entries survive any **minority** failure.
+1. **Prepare**: the proposer sends ballot `n`; each acceptor promises to ignore lower ballots and replies with the highest proposal it has **already accepted**, if any.
+2. **Accept**: after a majority of promises, it sends `Accept(n, value)`. The value is **not free**: if a promise carried an accepted value, it must propose the highest-numbered one.
+3. The value is **chosen** once a majority accepts it (2 of 3).
 
-<p class="small">Raft: etcd (Kubernetes), Consul, CockroachDB, Kafka KRaft. Paxos (Lamport) is the older, harder ancestor; ZooKeeper uses ZAB.</p>
+- "Adopt the previously accepted value" is what makes Paxos **safe**.
+- Notoriously hard to implement: no leader election, log compaction or membership changes in the algorithm.
 
-<!--
-Show raft.github.io: stop the leader and watch the election.
--->
+---
+
+## Raft: leader election
+
+Designed for **understandability** (Ongaro and Ousterhout, 2014): leader election, log replication, safety.
+
+- Follower → **election timeout** → Candidate → **majority vote** → Leader. Higher **term** seen → back to follower.
+- **Terms** are logical clocks: each starts with an election, at most **one leader per term**; one vote per node per term.
+- `RequestVote(term=2, lastLogIndex=5)`: a candidate wins only if its log is **at least as up-to-date** as the voters' (election restriction) → the new leader holds every committed entry.
+- Timeouts are **randomised** (150–300 ms): otherwise everyone becomes candidate at once and splits the votes.
+
+<p class="small">Try it: raft.github.io (stop the leader and watch the election) and The Secret Lives of Data.</p>
+
+---
+
+## Raft: log replication
+
+1. Client: `Write x=5` → Leader.
+2. Leader → `AppendEntries(x=5)` → followers.
+3. A **majority** (counting the leader) has durably written it → **commit** → `Success` to the client.
+
+<div class="ok">
+
+Every future leader needs a majority of votes, and every majority holds the entry: a committed entry survives the failure of any **minority**.
+
+</div>
+
+<p class="small">Raft runs in etcd (Kubernetes), CockroachDB and Consul.</p>
 
 ---
 
 ## Quorums
 
-For **N** replicas, a write needs **W** acknowledgements and a read needs **R** responses.
+Leaderless databases (Cassandra, DynamoDB): **N** replicas, a write needs **W** acks, a read needs **R** responses. **W + R > N** → every read quorum overlaps every write quorum.
 
-<div class="ok">
+| Setting (N = 3) | W | R | W + R > N? | Effect |
+|---|---|---|---|---|
+| `ONE` / `ONE` | 1 | 1 | ❌ | fastest; reads may be stale |
+| `QUORUM` / `QUORUM` | 2 | 2 | ✅ | latest acknowledged write; tolerates 1 node down |
+| `ALL` / `ONE` | 3 | 1 | ✅ | fast reads; one node down blocks every write |
 
-**W + R > N** → every read quorum overlaps every write quorum: at least one node read has the latest write.
+<div class="warn">
+
+**Necessary, not sufficient**: concurrent writes, a write on fewer than W nodes reported as failed, "sloppy" quorums. Quorum databases offer **tunable** consistency, not linearisability.
 
 </div>
 
-| N = 3 (Cassandra) | W + R | Effect |
-|---|---|---|
-| `ONE` / `ONE` | 2 ❌ | fastest, reads may be stale |
-| `QUORUM` / `QUORUM` | 4 ✅ | latest write; tolerates 1 node down |
-| `ALL` / `ONE` | 4 ✅ | one node down blocks every write |
-
 ---
+
+<!-- _class: tight -->
 
 ## Eventual consistency and CRDTs
 
-AP systems promise: with no new updates, replicas **eventually converge** — but not *when*.
+AP systems: with no new updates, replicas **eventually converge** — not saying *when*.
 
-- **Last-Write-Wins** — highest timestamp wins; loses concurrent writes, trusts drifting clocks.
-- **Vector clocks** — detect concurrent writes for explicit resolution.
-- **CRDTs** — a **merge** that is commutative and idempotent: order and repetition do not matter.
+- **Last-Write-Wins**: highest timestamp wins; loses concurrent writes and trusts drifting clocks.
+- **Vector clocks**: detect concurrent writes for explicit resolution.
+- **CRDTs**: a **merge** that is commutative, associative and idempotent.
 
 ```java
-void increment() { counts[me]++; }               // G-Counter: own slot only
-void merge(GCounter o) {                          // element-wise max
-    for (int i = 0; i < counts.length; i++) counts[i] = Math.max(counts[i], o.counts[i]);
+void increment() { counts[me]++; }               // G-Counter: each node, its own slot
+
+void merge(GCounter other) {                      // element-wise max
+    for (int i = 0; i < counts.length; i++)
+        counts[i] = Math.max(counts[i], other.counts[i]);
 }
 ```
+
+Product views: node 0 `[3, 0]`, node 1 `[0, 2]` → both merge to `[3, 2]` = **5**. LWW on one number: 3 or 2.
+
+<p class="small">Riak data types, Redis Active-Active, Automerge and Yjs; Dynamo's cart (2007) merged versions by set union.</p>
+
+---
+
+## In practice: use, don't build
+
+| Tool | Role | Algorithm |
+|---|---|---|
+| **etcd** | key-value store, Kubernetes config | Raft |
+| **ZooKeeper** | coordination, leader election | ZAB (Paxos-derived) |
+| **Consul** | service discovery, locks | Raft |
+| **Kafka** | distributed log | KRaft (Raft); ZooKeeper mode removed in 4.0 |
+
+<div class="warn">
+
+- **Do not implement Paxos or Raft yourself**: etcd, ZooKeeper, Consul, or the database (`SELECT … FOR UPDATE`, unique constraint).
+- **Consensus is not free**: a majority round-trip through one leader — small, critical data only.
+- **A lock is not a guarantee**: a paused holder wakes after its lease expired; use a **fencing token**.
+
+</div>
 
 ---
 
 ## Takeaways
 
-1. Distributed: independent nodes, **messages only**, **no shared clock** — our store is one.
-2. The **8 fallacies** are false; a caller cannot tell slow from dead: **timeouts** + **idempotent** retries.
-3. Order events with a single authority or **logical clocks**, not wall clocks.
-4. **CAP**: during a partition choose **C or A**; **PACELC** adds latency vs consistency. Choose per data domain.
-5. **FLP**: consensus keeps safety and relies on timeouts for progress.
-6. **Majorities** overlap — use 3 or 5 nodes; **Raft** elects a leader and commits on a majority.
+1. Distributed: independent nodes, **messages only**, **no shared clock** — the store is one as soon as it has more than one service.
+2. We gain scalability, fault tolerance and latency; we pay in complexity, network failures and operations. The **8 fallacies** are false.
+3. A caller cannot tell slow from dead: **timeouts** + **idempotent** retries. Order events with a single authority or **logical clocks**.
+4. **CAP**: during a partition, **C or A** (CA only on one node); **PACELC** adds latency vs consistency. Choose **per data domain**.
+5. **FLP**: consensus always keeps safety and relies on timeouts for liveness.
+6. **Majorities** overlap: 3 or 5 nodes. **Raft**: randomised timeouts, one leader per term, commit on a majority.
 7. Quorums need **W + R > N**; AP systems converge with LWW, vector clocks or **CRDTs**.

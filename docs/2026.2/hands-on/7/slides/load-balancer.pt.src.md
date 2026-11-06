@@ -164,6 +164,21 @@ http {
 
 ---
 
+## 1 · Como o Nginx encontra as réplicas
+
+1. O Compose sobe **3 réplicas** do `gateway`.
+2. O DNS interno do Docker resolve o nome `gateway` para **o IP de cada réplica**.
+3. O Nginx consulta esse registro **uma vez, na inicialização** e monta o pool upstream.
+
+<div class="warn">
+
+Réplicas adicionadas depois ficam **invisíveis** para o Nginx até ele resolver o nome de novo:
+`docker compose exec lb nginx -s reload`
+
+</div>
+
+---
+
 <!-- _class: tight -->
 
 ## 2 · Docker Compose
@@ -205,21 +220,6 @@ http {
 
 ---
 
-## Como o Nginx encontra as réplicas
-
-1. O Compose sobe **3 réplicas** do `gateway`.
-2. O DNS interno do Docker resolve o nome `gateway` para **o IP de cada réplica**.
-3. O Nginx consulta esse registro **uma vez, na inicialização**, e monta o pool upstream.
-
-<div class="warn">
-
-Réplicas adicionadas depois ficam **invisíveis** para o Nginx até ele resolver o nome de novo:
-`docker compose exec lb nginx -s reload`
-
-</div>
-
----
-
 ## 3 · Executar e verificar
 
 ```bash
@@ -248,6 +248,8 @@ docker compose up -d --scale gateway=1     # scale down
 Se uma réplica cair, o Docker a reinicia e o Nginx continua roteando para as saudáveis: a falha é **transparente para os clientes**.
 
 </div>
+
+<p class="small">Depois de reduzir as réplicas e recarregar, o Nginx deixa de rotear para os containers que saíram.</p>
 
 ---
 

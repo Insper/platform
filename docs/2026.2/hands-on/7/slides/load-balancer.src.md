@@ -164,6 +164,21 @@ http {
 
 ---
 
+## 1 · How Nginx finds the replicas
+
+1. Compose starts **3 replicas** of `gateway`.
+2. Docker's internal DNS resolves the name `gateway` to **every replica IP**.
+3. Nginx queries that record **once, at startup**, and builds the upstream pool.
+
+<div class="warn">
+
+Replicas added later are **invisible** to Nginx until it re-resolves the name:
+`docker compose exec lb nginx -s reload`
+
+</div>
+
+---
+
 <!-- _class: tight -->
 
 ## 2 · Docker Compose
@@ -205,21 +220,6 @@ http {
 
 ---
 
-## How Nginx finds the replicas
-
-1. Compose starts **3 replicas** of `gateway`.
-2. Docker's internal DNS resolves the name `gateway` to **every replica IP**.
-3. Nginx queries that record **once, at startup**, and builds the upstream pool.
-
-<div class="warn">
-
-Replicas added later are **invisible** to Nginx until it re-resolves the name:
-`docker compose exec lb nginx -s reload`
-
-</div>
-
----
-
 ## 3 · Run and verify
 
 ```bash
@@ -248,6 +248,8 @@ docker compose up -d --scale gateway=1     # scale down
 If one replica crashes, Docker restarts it and Nginx keeps routing to the healthy ones: the failure is **transparent to clients**.
 
 </div>
+
+<p class="small">After scaling down and reloading, Nginx stops routing to the containers that are gone.</p>
 
 ---
 

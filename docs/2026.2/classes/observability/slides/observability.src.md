@@ -21,9 +21,9 @@ theme: platform
 **Monitoring tells you that something is wrong; observability tells you why**
 
 <!--
-Outline: (1) the three pillars; (2) metrics: Prometheus, PromQL, RED/USE; (3) structured logs and
-correlation IDs; (4) alerting and cardinality; (5) traces, traceparent, sampling; (6) OpenTelemetry;
-(7) LGTM and DORA.
+Outline: (1) the three pillars; (2) metrics: Prometheus, PromQL, RED/USE, pipeline, cardinality,
+alerting; (3) structured logs, correlation IDs and MDC; (4) traces, traceparent, sampling;
+(5) OpenTelemetry: agent and manual spans; (6) LGTM; (7) DORA; (8) pitfalls.
 -->
 
 ---
@@ -43,6 +43,8 @@ Can a single CPU graph on a single dashboard tell you why?
 * It is a property of the system: internal state **inferable from external outputs**.
 
 <!--
+The store: "checkout is slow" — Nginx, gateway, auth, order, product, Postgres, maybe Kafka. Which one?
+For everyone or just this customer? Without telemetry designed in advance, the answer is guessing.
 Example from the page: "why are exactly 7% of requests from mobile clients in São Paulo timing out
 on a Tuesday?" — no dashboard was built for that question.
 -->
@@ -57,9 +59,11 @@ on a Tuesday?" — no dashboard was built for that question.
 | **Logs** | What exactly happened, in what order? | ELK / EFK / Loki | days to weeks |
 | **Traces** | Which service was slow? Where did the error start? | Jaeger / Tempo / Zipkin | days |
 
+One failing `POST /orders` → a counter `…_count{status="500"}` **+1** · a JSON line `{"level":"ERROR",…}` · a trace whose last span is `ERROR`.
+
 <div class="ok">
 
-Each pillar answers a different question; observability needs **all three working together**.
+Metrics are cheap and tell you **that** something changed; logs and traces cost more and tell you **what** and **where**. Observability needs **all three**.
 
 </div>
 
@@ -90,13 +94,14 @@ http_requests_total{method="GET", status="200", service="order"} 4823
 |---|---|
 | `rate(…_count[5m])` | requests per second over 5 minutes |
 | `sum by (application) (rate(…_count{status=~"5.."}[5m]))` | 5xx errors per second, per service |
+| `sum(rate(…_count{status=~"5.."}[5m])) / sum(rate(…_count[5m]))` | error **ratio** (0–1): basis of an SLI |
 | `histogram_quantile(0.99, sum by (le) (rate(…_bucket[5m])))` | P99 latency across instances |
 
 - **RED** (Tom Wilkie) — services: **R**ate, **E**rrors, **D**uration → what users experience.
 - **USE** (Brendan Gregg) — resources: **U**tilisation, **S**aturation, **E**rrors.
 - Google's **four golden signals**: latency, traffic, errors, saturation.
 
-<p class="small"><code>rate()</code> before <code>sum</code>; keep <code>le</code> for percentiles. Percentiles, never averages: P99 shows the slow tail.</p>
+<p class="small"><code>rate()</code> before <code>sum</code> (counter resets); keep <code>le</code> for percentiles. <b>Percentiles, never averages</b>: 99 × 50 ms + 1 × 5 s averages ~100 ms, but one user in 100 waits 5 s.</p>
 
 ---
 
@@ -130,6 +135,7 @@ management:
   labels: { severity: page }
 ```
 
+- Prometheus evaluates the rule → **Alertmanager** (or Grafana Alerting) → e-mail, Slack, pager; `for: 5m` avoids flapping.
 - **Alert on symptoms** users feel (errors, latency, SLO burn) — not on "CPU > 80%".
 
 <div class="warn">
@@ -152,6 +158,8 @@ Never label with **user or order IDs**: each value is a new series — 100k user
 - `INFO` — significant events · `WARN` — unexpected but handled (retry, fallback).
 - `ERROR` — failure that needs attention.
 
+<p class="small">Pipeline: JSON to <b>stdout</b> → Filebeat / Fluentd → Elasticsearch → Kibana; or <b>Loki</b> (indexes labels only, cheaper, in the same Grafana).</p>
+
 ---
 
 <!-- _class: tight -->
@@ -172,7 +180,7 @@ The **MDC** is a per-thread map printed in every log line with `%X{key}`.
 try (var c = MDC.putCloseable("customerId", in.customerId())) { … }
 ```
 
-<p class="small">Pipeline: JSON to <b>stdout</b> → Filebeat / Fluentd → Elasticsearch → Kibana; or <b>Loki</b> (labels only, cheaper, in Grafana).</p>
+<p class="small"><b>The MDC is per thread</b> (<code>ThreadLocal</code>): <code>@Async</code>, <code>CompletableFuture</code> or the WebFlux gateway do not see it unless the context is propagated.</p>
 
 ---
 
@@ -278,9 +286,25 @@ Point out finally { span.end(); }: a span that is never ended is never exported.
 
 ---
 
-## One UI: LGTM, and DORA
+## One UI: the LGTM stack
 
-**Loki + Grafana + Tempo + Mimir/Prometheus** — all signals in Grafana. Drill-down: metric alert → "View Traces" in Tempo → click a span → its log lines in Loki.
+**Loki + Grafana + Tempo + Mimir/Prometheus** — the three signals in a single UI.
+
+- The key advantage is **signal correlation**.
+- Drill-down: a metric alert fires → "View Traces" opens the trace in **Tempo** → click a span → its log lines in **Loki**.
+- Cross-signal navigation separates an observability platform from three isolated monitoring tools.
+
+<div class="ok">
+
+In a traffic spike the three pillars share a timeline: the rate peak explains the error cluster, and both explain the stretched spans.
+
+</div>
+
+---
+
+## DORA metrics
+
+Two measure **throughput**, two measure **stability** — elite teams score well on all four: speed and stability are **not** a trade-off.
 
 | DORA metric | Measures | Elite (2024) |
 |---|---|---|
@@ -289,16 +313,25 @@ Point out finally { span.end(); }: a span that is never ended is never exported.
 | Change Failure Rate | % of deploys needing a fix or rollback | ~5% |
 | Failed Deployment Recovery Time | time to recover (formerly MTTR) | < 1 hour |
 
-<p class="small">DORA metrics are telemetry too: you cannot measure them without observability.</p>
+<p class="small">DORA metrics are telemetry too: deploys from CI/CD logs, recovery from incident timestamps, failures from deploys correlated with error spikes.</p>
+
+---
+
+## Common pitfalls
+
+- **Logging everything at INFO** (or DEBUG in production): volume and cost explode, the useful lines drown.
+- **Logging secrets or personal data**: passwords, JWTs, card numbers, e-mails never reach the pipeline.
+- **Unbounded metric labels**: user or order IDs crash Prometheus — logs and traces instead.
+- **Broken context propagation**: one uninstrumented service, or a proxy that drops `traceparent`, splits every trace in two.
+- **Alerting on causes, not symptoms**: dozens of CPU alerts nobody acts on hide the one that matters.
 
 ---
 
 ## Takeaways
 
-1. Monitoring says **that** something is wrong; observability lets you ask **why**.
-2. Three pillars: **metrics** (health), **logs** (what happened), **traces** (where).
-3. Prometheus scrapes `/actuator/prometheus`; **PromQL**, **RED**/**USE**, low-cardinality labels, **symptom** alerts.
-4. Logs must be **structured** and carry the `trace_id` — the OTel agent fills the MDC for you.
-5. A trace is a tree of **spans**; `traceparent` carries the context; head sampling is blind, tail sampling is selective.
-6. **OpenTelemetry** is the vendor-neutral standard; the Java agent needs **zero code**.
-7. Correlate signals in one place (**LGTM**) — and measure delivery with **DORA**.
+1. Monitoring answers known questions; **observability** investigates new ones from **metrics** (that), **logs** (what) and **traces** (where).
+2. Prometheus **scrapes** `/actuator/prometheus`; `rate()` on counters, `histogram_quantile` with `sum by (le)`, low-cardinality labels.
+3. Dashboards with **RED** (services) and **USE** (resources); **alert on symptoms** users feel.
+4. Logs **structured**, carrying the `trace_id` — filled by the OTel agent; `MDC.put` only for business keys.
+5. A trace is a tree of **spans** linked by `traceparent`; head sampling is cheap but blind, tail sampling keeps the interesting traces.
+6. **OpenTelemetry** is the vendor-neutral standard; measure delivery with the four **DORA** metrics.

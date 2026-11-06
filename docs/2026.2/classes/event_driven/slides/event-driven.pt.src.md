@@ -21,9 +21,10 @@ theme: platform
 **Publique um fato, deixe os outros reagirem**
 
 <!--
-Roteiro: (1) por que a cadeia síncrona dói; (2) eventos, tópicos, partições, offsets; (3) Kafka,
-chaves e grupos de consumidores; (4) garantias de entrega, outbox e sagas; (5) event sourcing, CQRS;
-(6) dead letter queue; (7) quando não usar.
+Roteiro: (1) por que orientado a eventos: a cadeia síncrona vs. publicar um evento; (2) conceitos
+fundamentais; (3) Kafka: o log, chaves e ordem, durabilidade; (4) padrões de mensageria: pub/sub,
+consumidores concorrentes, event sourcing, CQRS; (5) garantias de entrega e consumidores idempotentes;
+(6) outbox e sagas; (7) dead letter queue; (8) quando usar e as armadilhas.
 -->
 
 ---
@@ -37,16 +38,18 @@ O que acontece com o tempo de resposta se o order service chamar cada um antes d
 
 </div>
 
-* A latência vira a **soma** de todas as chamadas.
+* A latência vira a **soma** de todas as chamadas — um penhasco de latência.
 * Uma dependência lenta (ou com falha) **trava a requisição inteira**.
-* O order service precisa **conhecer cada consumidor** — adicionar um significa alterá-lo.
+* O order service precisa **conhecer cada consumidor** — uma explosão de acoplamento.
 
 <!--
-Deixe a turma responder antes de mostrar os tópicos. O argumento do acoplamento (terceiro tópico) é o
-que cresce junto com o sistema.
+Deixe a turma responder antes de mostrar os tópicos. O contrato alternativo: publicar um evento e
+deixar os interessados reagirem de forma assíncrona.
 -->
 
 ---
+
+<!-- _class: tight -->
 
 ## Dois contratos
 
@@ -55,18 +58,14 @@ que cresce junto com o sistema.
 
 ### Cadeia síncrona
 
-`POST /orders` → e-mail → estoque → fraude → `201 Created`
-
-O cliente espera **por todos eles**.
+`POST /orders` → e-mail → estoque → fraude → `201 Created`: o cliente espera **por todos eles**.
 
 </div>
 <div>
 
 ### Publicar um evento
 
-`POST /orders` → publica `OrderCreated` → `202 Accepted`
-
-Cada consumidor reage **no seu próprio ritmo**.
+`POST /orders` → publica `OrderCreated` → `202 Accepted`: cada consumidor reage **no seu próprio ritmo**.
 
 </div>
 </div>
@@ -76,58 +75,82 @@ Cada consumidor reage **no seu próprio ritmo**.
 | Latência | soma de todas as chamadas | só a do produtor |
 | Acoplamento | produtor conhece todos os consumidores | produtor não conhece nenhum |
 | Resiliência | um consumidor lento bloqueia todos | falhas são independentes |
+| Vazão | limitada pela dependência mais lenta | consumidores escalam de forma independente |
+| Depuração | trace simples da requisição | exige rastreamento distribuído |
 | Consistência | forte | **eventual** |
+
+<!--
+A simulação de profundidade da fila na página: produtor 3/passo, consumidor 2/passo → a fila cresce
+sem limite; o consumidor escala para 5/passo no passo 10 → ele alcança. Esse backlog é o lag do consumidor.
+-->
 
 ---
 
-## O vocabulário
+<!-- _class: tight -->
+
+## Conceitos fundamentais
 
 | Conceito | O que é | Exemplo |
 |---|---|---|
 | **Evento** | registro imutável de algo que aconteceu | `OrderCreated { orderId, … }` |
 | **Comando** | instrução para fazer algo — pode ser rejeitada | `PlaceOrder { items, … }` |
+| **Broker** | guarda as mensagens e as entrega aos consumidores | um broker Kafka (`kafka:9092`) |
 | **Tópico** | log nomeado, durável e ordenado | `order-events` |
-| **Partição** | fragmento do tópico, para paralelismo | partição 0, 1, 2 |
-| **Offset** | posição de uma mensagem na partição | offset 42 |
-| **Grupo de consumidores** | consumidores que dividem o trabalho de um tópico | `notification-service` |
+| **Partição** | fragmento do tópico; a ordem só vale dentro dela | partição 0, 1, 2 |
+| **Chave** | valor opcional que decide a partição | `orderId` |
+| **Offset** | posição de uma mensagem na partição | offset 42 na partição 1 |
+| **Grupo de consumidores** | consumidores que dividem o trabalho de um tópico | `notification-group` |
 
 <div class="ok">
 
-**Eventos são fatos**: o log é append-only, nunca atualizado. É isso que torna seguro o **replay**.
+**Eventos são fatos**: o log é append-only, nunca atualizado nem apagado. É isso que torna seguro o **replay**.
 
 </div>
 
 ---
 
-## Kafka: tópicos, partições, grupos
+## Kafka: um log, não uma fila
 
-- Um **tópico** é dividido em **partições** ordenadas; a ordem é garantida **dentro** de uma partição.
-- Cada **grupo de consumidores** mantém seu offset por partição — `notification-group` e `analytics-group` leem o mesmo log de forma **independente**.
-- Dentro de um grupo, **uma partição → um consumidor** por vez.
-- Adicionar um novo grupo nunca afeta os existentes.
+- Produtores **acrescentam** ao final; consumidores leem de **qualquer posição**; as mensagens **ficam** depois de lidas.
+- Uma fila clássica (RabbitMQ) remove a mensagem assim que um consumidor confirma o recebimento.
+- Um **tópico** é dividido em **partições** ordenadas; cada **grupo de consumidores** mantém seu offset por partição.
+- `notification-group` e `analytics-group` leem o mesmo log de forma **independente**; um grupo novo nunca afeta os outros.
+
+| Retenção | Configuração | Comportamento |
+|---|---|---|
+| Tempo | `retention.ms=604800000` | apaga após 7 dias (o padrão) |
+| Tamanho | `retention.bytes=1073741824` | os segmentos mais antigos saem quando uma **partição** passa de 1 GB |
+| Compactação | `cleanup.policy=compact` | guarda só a última mensagem por chave |
+
+---
+
+## Chaves, partições e ordem
+
+- Com **chave**, `hash(key) % partitions` escolhe a partição → mesma chave, mesma partição, **em ordem**.
+- Sem chave → mensagens espalhadas pelas partições, **sem ordem** entre eventos relacionados.
+- A ordem só vale **dentro** de uma partição: a chave escolhe **o que** precisa ficar em ordem.
+- Hands-on 10: `kafkaTemplate.send("order-events", order.getId().toString(), event)` → `OrderCreated`, `OrderPaid`, `OrderShipped` de um pedido em sequência; pedidos diferentes, em paralelo.
 
 <div class="warn">
 
-Mais consumidores do que partições? Os excedentes ficam **ociosos**. As partições são o teto do paralelismo.
+**Escolhendo a chave**: poucos valores (ex.: `country`) → **partições quentes**; adicionar partições depois muda `hash(key) % partitions` e move chaves — dimensione as partições desde o início.
 
 </div>
 
-<p class="small">As mensagens ficam após a leitura: <code>retention.ms</code> (padrão 7 dias), <code>retention.bytes</code> (por partição) ou <code>cleanup.policy=compact</code> (último valor por chave).</p>
-
 ---
 
-## Chaves, ordem e durabilidade
+## Durabilidade: replicação e `acks`
 
-- Com **chave**, `hash(key) % partitions` escolhe a partição → mesma chave, mesma partição, **em ordem**.
-- Hands-on 10: `send("order-events", orderId, event)` → os eventos de um pedido ficam em sequência; pedidos diferentes, em paralelo.
-- Poucos valores de chave (ex.: `country`) → **partições quentes**; adicionar partições depois move chaves.
-- Cada partição é **replicada** (tipicamente 3): uma líder + seguidoras; as atualizadas formam o **ISR**.
+Cada partição é **replicada** (tipicamente 3): uma **líder** recebe as escritas e **seguidoras** a copiam; as atualizadas formam o **ISR**. Se a líder cai, uma seguidora em sincronia assume.
 
 | `acks` | Confirmado quando… | Risco |
 |---|---|---|
-| `0` | enviado | perdido se o broker não recebeu |
-| `1` | a líder gravou | perdido se a líder cair antes |
-| `all` | todas as réplicas em sincronia têm | mais lento — sobrevive à perda de um broker |
+| `0` | enviado (sem confirmação) | perdido se o broker não recebeu |
+| `1` | a líder gravou | perdido se a líder cair antes de as seguidoras copiarem |
+| `all` | todas as réplicas em sincronia têm (`min.insync.replicas` ≥ 2) | mais lento — sobrevive à perda de um broker |
+
+- Hands-on 10: `acks: all` + `enable.idempotence: true` — os retries do próprio produtor não criam duplicatas (os padrões desde o Kafka 3.0).
+- Metadados: o **KRaft** (quórum Raft) substituiu o ZooKeeper, removido no Kafka 4.0; o Hands-on 10 roda um nó que é broker e controller.
 
 ---
 
@@ -138,7 +161,7 @@ Mais consumidores do que partições? Os excedentes ficam **ociosos**. As parti�
 
 ### Pub/sub (fan-out)
 
-Um evento → **cada** grupo recebe sua própria cópia.
+Um evento → **cada** grupo recebe sua própria cópia; um pipeline de analytics lento não atrasa as notificações.
 
 E-mail, log de auditoria, analytics, invalidação de cache.
 
@@ -147,16 +170,43 @@ E-mail, log de auditoria, analytics, invalidação de cache.
 
 ### Consumidores concorrentes
 
-Consumidores do **mesmo** grupo dividem as partições → cada mensagem processada **uma vez**.
+Consumidores do **mesmo** grupo dividem as partições → cada mensagem processada por **um** consumidor.
 
 Processamento de pedidos, pagamentos, redimensionamento de imagens.
 
 </div>
 </div>
 
-<div class="ok">
+<div class="warn">
 
-Mesmo broker, dois padrões: **grupos diferentes fazem fan-out**, **o mesmo grupo divide o trabalho**.
+Teto do paralelismo = partições: com 3 partições, um quarto consumidor fica **ocioso**. Um consumidor que entra ou sai dispara um **rebalanceamento**.
+
+</div>
+
+---
+
+## Event sourcing
+
+Guarde o **histórico completo de eventos**, não só o estado atual.
+
+- O modelo de escrita **é** o log de eventos: `OrderCreated`, `OrderPaid`, `OrderShipped`, …
+- Estado atual = **replay** dos eventos desde o início (ou a partir de um snapshot).
+- Comando → append no **event store** → `202 Accepted`; uma **projeção** atualiza o modelo de leitura.
+- Projeções podem ser **reconstruídas a qualquer momento**: depuração com "viagem no tempo", migração de esquema sem downtime.
+
+---
+
+## CQRS
+
+Separe o **lado de escrita** (comandos, eventos, event store) do **lado de leitura** (consultas, projeções).
+
+- **Comandos** (`POST /orders`) → command handler → event store + barramento de eventos (Kafka).
+- **Consultas** (`GET /orders`) → um **modelo de leitura** otimizado para a consulta.
+- Costuma vir com event sourcing, mas não é obrigatório: **CDC** (o Debezium lê o log de transações) pode sincronizar dois bancos.
+
+<div class="warn">
+
+**Não são o padrão**: eventos versionados para sempre, modelos de leitura **eventualmente consistentes**, reconstruções lentas. Use-os onde o domínio precisa de trilha de auditoria ou de formatos de leitura e escrita muito diferentes (histórico de pedidos, livros-razão) — não em toda entidade CRUD.
 
 </div>
 
@@ -164,31 +214,42 @@ Mesmo broker, dois padrões: **grupos diferentes fazem fan-out**, **o mesmo grup
 
 ## Garantias de entrega
 
+Um consumidor lê, processa (p. ex. envia um e-mail) e **faz o commit do offset**. *Quando* ele faz o commit decide o custo de uma queda:
+
+| Garantia | Como | Uma queda significa |
+|---|---|---|
+| **At-most-once** | commit **antes** de processar | a mensagem é **perdida** |
+| **At-least-once** | commit **depois** de processar | a mensagem é **processada de novo** |
+| **Exactly-once** | transações do Kafka (`read_committed`) | nenhum dos dois — mas só Kafka → Kafka |
+
+<p class="small">Hands-on 10: <code>enable_auto_commit=False</code> + <code>commit()</code> após o processamento = at-least-once. O Kafka não consegue "desenviar" um e-mail nem desfazer uma linha no Postgres.</p>
+
+---
+
+## Consumidores idempotentes
+
 <div class="q">
 
-O notification service envia o e-mail e **cai antes de fazer o commit** do offset. O que acontece no reinício?
+O notification service envia o e-mail e **cai antes do commit** do offset 42. No reinício, lê o offset 42 de novo. O cliente recebe dois e-mails?
 
 </div>
 
-* Ele lê a mesma mensagem **de novo**: commit após processar = **at-least-once**.
-* Commit *antes* de processar = **at-most-once**: uma queda **perde** a mensagem.
-* O exactly-once do Kafka cobre só Kafka → Kafka; não dá para "desenviar" um e-mail.
-* Então: at-least-once + **consumidor idempotente** — tabela de IDs processados, upserts, restrições de unicidade.
+Não, se processar duas vezes tiver o **mesmo efeito** que processar uma:
 
-<!--
-O Hands-on 10 usa enable_auto_commit=False e commit() após o processamento: at-least-once.
--->
+- **Tabela de mensagens processadas**: grave o ID do evento na mesma transação da mudança de negócio; pule eventos já gravados.
+- **Idempotência natural**: `UPSERT`, "definir status como PAID" em vez de "somar 10 ao saldo".
+- **Restrições de unicidade**: o banco rejeita um segundo insert do mesmo `orderId`.
 
 ---
 
 ## A escrita dupla e o outbox
 
-Salvar o pedido no Postgres **e** publicar no Kafka são dois sistemas, sem transação em comum:
+O Hands-on 10 salva o pedido no Postgres e *depois* publica no Kafka — dois sistemas, sem transação em comum:
 
-- commit, depois queda antes de publicar → o pedido existe, **evento perdido**;
-- publica, depois rollback → evento sobre um pedido que **não existe**.
+- commit, depois queda antes de publicar → o pedido existe, **ninguém é avisado**;
+- publica, depois rollback → consumidores reagem a um pedido que **não existe**.
 
-**Transactional outbox**: `INSERT INTO orders` + `INSERT INTO outbox` em **uma transação local** → um relay (polling ou CDC/Debezium) publica no Kafka e marca a linha como enviada.
+**Transactional outbox**: `INSERT INTO orders` + `INSERT INTO outbox` em **uma transação local** (os dois ou nenhum) → um relay (polling ou CDC/Debezium) publica no Kafka e marca a linha como enviada.
 
 <div class="warn">
 
@@ -200,57 +261,41 @@ O relay pode publicar duas vezes após uma queda: os consumidores ainda precisam
 
 ## Sagas
 
-Uma operação de negócio, vários bancos: reservar estoque, depois cobrar o cartão.
+Uma operação de negócio, vários bancos (reservar estoque, cobrar o cartão): não há uma única transação ACID. Uma **saga** = transações locais, cada uma disparada pelo evento anterior; na falha, **compensações**.
 
-`OrderCreated` → estoque reserva → `StockReserved` → pagamento falha → `PaymentFailed` → estoque **libera** (compensação) → pedido `CANCELLED`
+`OrderCreated` → estoque reserva → `StockReserved` → pagamento falha → `PaymentFailed` → estoque **libera** → pedido `CANCELLED`
 
 | Estilo | Coordenação | Cuidado |
 |---|---|---|
-| **Coreografia** | serviços reagem aos eventos uns dos outros | o fluxo fica espalhado |
-| **Orquestração** | um orquestrador envia comandos | mais um serviço para operar |
+| **Coreografia** | serviços reagem aos eventos uns dos outros | o fluxo fica espalhado, difícil de seguir |
+| **Orquestração** | um orquestrador envia comandos | mais um serviço para construir e operar |
 
-<p class="small">Sem isolamento: outros veem estados intermediários — modele-os (<code>PENDING</code>, <code>CONFIRMED</code>, <code>CANCELLED</code>).</p>
-
----
-
-## Event sourcing
-
-Guarde o **histórico**, não só o estado atual.
-
-- O modelo de escrita **é** o log de eventos: `OrderCreated`, `ItemAdded`, `OrderPaid`, …
-- Estado atual = **replay** dos eventos (ou a partir de um snapshot).
-- Projeções (modelos de leitura) podem ser **reconstruídas a qualquer momento** — depuração com "viagem no tempo", novas visões sem migrar dados.
-
-> O banco guarda onde você está; o log de eventos guarda como você chegou lá.
+<p class="small">Sagas não são transações: sem isolamento — modele os estados (<code>PENDING</code>, <code>CONFIRMED</code>, <code>CANCELLED</code>) e torne cada passo e cada compensação idempotentes.</p>
 
 ---
 
-## CQRS
+<!-- _class: tight -->
 
-Separe o **lado de escrita** do **lado de leitura**.
+## Dead letter queue
 
-- **Comandos** (`POST /orders`) → command handler → event store → barramento de eventos.
-- **Consultas** (`GET /orders`) → um **modelo de leitura** moldado para a consulta.
-- Costuma vir com event sourcing, mas não é obrigatório: change-data-capture pode sincronizar dois bancos.
+Uma mensagem que continua falhando não pode **bloquear o stream**: esgotados os retries, ela vai para uma **DLQ** (um tópico separado), inspecionada e reprocessada manualmente.
+
+```java
+@RetryableTopic(backOff = @BackOff(delay = 1000, multiplier = 2))   // 3 attempts in total
+@KafkaListener(topics = "order-events", groupId = "invoice-group")
+public void onOrderCreated(OrderCreatedEvent event) {
+    invoiceService.create(event);   // throws → retried after 1 s, then 2 s
+}
+
+@DltHandler
+public void onDeadLetter(OrderCreatedEvent event) { log.error(...); }
+```
 
 <div class="warn">
 
-O modelo de leitura é **eventualmente consistente**: logo após um comando, uma consulta pode ainda não vê-lo.
+Faça retry só de falhas que podem dar certo depois (um banco fora por instantes). JSON inválido ou um ID de produto desconhecido vai **direto para a DLQ**: o retry só atrasa a partição.
 
 </div>
-
----
-
-## Quando uma mensagem continua falhando
-
-Uma mensagem envenenada não pode **bloquear o stream**.
-
-1. O consumidor a pega → **processamento**.
-2. Falha transitória → **retry** após um backoff.
-3. Máximo de retries excedido → vai para a **Dead Letter Queue** (um tópico separado).
-4. O stream principal continua; a DLQ é inspecionada e **reprocessada manualmente**.
-
-<p class="small">Spring Kafka: <code>@RetryableTopic</code> configura tentativas, backoff e o tópico da DLQ de forma declarativa.</p>
 
 ---
 
@@ -264,31 +309,30 @@ Uma mensagem envenenada não pode **bloquear o stream**.
 | Log de auditoria de toda alteração | evento | fire-and-forget, fan-out |
 | Pagamento | depende | retry idempotente → evento; confirmação bloqueante → REST + saga |
 | Pipeline de analytics | evento | alto volume, consumidores lentos não são problema |
+| Health check do serviço | REST | síncrono por natureza |
 
 ---
 
-## O preço
+## O preço e as armadilhas
 
 <div class="warn">
 
-Uma requisição que cruza **5 serviços e 3 tópicos** é difícil de depurar: você precisa de **rastreamento distribuído** (aula de Observabilidade) para segui-la.
+Uma requisição que cruza **5 serviços e 3 tópicos** exige **rastreamento distribuído** para ser depurada. Adote eventos quando o acoplamento e a latência das chamadas síncronas forem problemas **concretos**.
 
 </div>
 
-- A consistência eventual precisa ser **projetada** — na interface e nas regras de negócio.
-- Os consumidores precisam ser **idempotentes**: entrega at-least-once significa que duplicatas acontecem.
-- Eventos são um contrato público: só **adicione campos opcionais**; versione mudanças incompatíveis.
-- Acompanhe o **lag dos consumidores** por grupo — um backlog crescente é um incidente em câmera lenta.
-- Adote eventos quando o **acoplamento e a latência** das chamadas síncronas forem problemas concretos — não por si só.
+- **Supor exactly-once**: duplicatas *vão* chegar; todo consumidor precisa ser idempotente.
+- **Escritas duplas** sem outbox perdem ou inventam eventos após uma queda.
+- **Quebrar o esquema do evento**: só adicione campos opcionais; versione (`OrderCreatedV2`) — um schema registry pode garantir isso.
+- **Ignorar o lag do consumidor**: monitore-o por grupo (Kafka UI, Prometheus) e alerte quando crescer.
+- **Comandos disfarçados**: `SendEmailToCustomer` acopla a um consumidor — publique o fato (`OrderCreated`).
 
 ---
 
 ## Pontos-chave
 
-1. Cadeias síncronas somam **latência** e **acoplamento**; eventos desacoplam produtor e consumidores.
-2. Um **evento** é um fato imutável; um **comando** pode ser rejeitado.
-3. Kafka: tópico → **partições**; a **chave** escolhe a partição e, com isso, a ordem; `acks=all` para durabilidade.
-4. Grupos diferentes fazem **fan-out**; o mesmo grupo **divide** o trabalho.
-5. A entrega é **at-least-once**: commit após processar, consumidores **idempotentes**.
-6. **Outbox** em vez de escritas duplas; **sagas** com compensações em vez de transações distribuídas.
-7. **Event sourcing**, **CQRS** e **DLQs** resolvem problemas específicos — o custo é a consistência eventual e o **rastreamento**.
+1. Use **eventos** quando quem chama não precisa da resposta para continuar; uma **requisição síncrona** quando precisa.
+2. O Kafka é um **log** replicado e particionado: a ordem vale dentro de uma partição, a **chave** escolhe a partição, cada grupo mantém seus offsets — grupos diferentes fazem **fan-out**, o mesmo grupo **divide** o trabalho.
+3. Na prática, a entrega é **at-least-once**: commit depois de processar, todo consumidor **idempotente**.
+4. Nunca faça escrita dupla: o **transactional outbox** publica com confiabilidade; **sagas** com compensações substituem transações distribuídas.
+5. **Event sourcing** e **CQRS** são para domínios específicos, não são o padrão; uma **DLQ** impede que mensagens envenenadas bloqueiem uma partição.

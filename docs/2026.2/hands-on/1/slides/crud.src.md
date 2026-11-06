@@ -112,7 +112,11 @@ public interface AccountController {
 }
 ```
 
-<p class="small">DTOs are Lombok <code>@Builder</code> records with <code>@Accessors(fluent = true)</code>: <code>AccountIn(name, email, password)</code> and <code>AccountOut(id, name, email)</code> — the password never goes out.</p>
+<p class="small">DTOs are Lombok <code>@Builder</code> records with <code>@Accessors(fluent = true)</code>: <code>AccountIn(name, email, password)</code> and <code>AccountOut(id, name, email)</code> — the password never goes out. Then <code>mvn clean install</code> puts <code>account</code> in the local Maven repository.</p>
+
+<!--
+In hands-on 3 this interface gains POST /accounts/login, which the auth service calls to check an email and a password.
+-->
 
 ---
 
@@ -137,7 +141,7 @@ git submodule add <repository_url> api/account-service
 
 ## Step 2 — Service: make it answer
 
-`AccountResource` implements `AccountController`; at first only `health-check` is real.
+`AccountResource` implements `AccountController` — it sees it because `pom.xml` depends on `store:account:1.0.0`. At first only `health-check` is real.
 
 ```java
 @Controller
@@ -185,6 +189,8 @@ services:
   account:
     build:
       context: ./account-service
+    ports:
+      - 8080:8080
     depends_on:
       - db
 ```
@@ -192,7 +198,7 @@ services:
 </div>
 </div>
 
-<p class="small"><code>docker compose up -d --build</code> · <code>docker compose ps -a</code> — the services live in a <strong>trusted layer</strong>.</p>
+<p class="small">Only <code>account</code> publishes a port (<code>8080</code>); <code>db</code> has none, so it is reachable only inside the Compose network — the <strong>trusted layer</strong>. <code>docker compose up -d --build</code> · <code>docker compose ps -a</code></p>
 
 ---
 
@@ -227,6 +233,7 @@ public interface AccountRepository
 
 - **ORM** maps tables → classes, rows → objects.
 - `CrudRepository` gives `save`, `findById`, `findAll`, `deleteById` for free.
+- `pom.xml` adds `spring-boot-starter-data-jpa`, `postgresql`, `spring-boot-starter-flyway`.
 
 </div>
 </div>

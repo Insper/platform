@@ -72,19 +72,19 @@
 <h1 id="containerization">Containerization</h1>
 <p><strong>Package the application with everything it needs — run it identically everywhere</strong></p>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="2" data-marpit-fragments="4" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="2" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="16">
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="2" data-marpit-fragments="4" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="2" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="27">
 <h2 id="traffic-is-growing">Traffic is growing</h2>
 <div class="q">
 <p>Your server can no longer handle the load. What are your options — and what new problem appears?</p>
 </div>
 <ul>
-<li data-marpit-fragment="1"><strong>Vertical scaling</strong> — a bigger machine: simple, but there is a physical limit and upgrades mean downtime.</li>
-<li data-marpit-fragment="2"><strong>Horizontal scaling</strong> — more machines behind a load balancer: theoretically unbounded…</li>
-<li data-marpit-fragment="3">…but now every server must be <strong>identical</strong>: OS, library versions, environment variables.</li>
-<li data-marpit-fragment="4"><em>&quot;It works on my machine&quot;</em> — <strong>containers</strong> package the app <strong>with all its dependencies</strong>.</li>
+<li data-marpit-fragment="1"><strong>Vertical scaling</strong> (scale-up) — a bigger machine: simple, but bounded, and upgrades mean downtime.</li>
+<li data-marpit-fragment="2"><strong>Horizontal scaling</strong> (scale-out) — more servers behind a load balancer: theoretically unbounded…</li>
+<li data-marpit-fragment="3">…but with ten servers, every one must be <strong>identical</strong>: OS, Java version, libraries, configuration.</li>
+<li data-marpit-fragment="4"><em>&quot;It works on my machine&quot;</em> — a <strong>container image</strong> packages the app <strong>with all its dependencies</strong> and runs the same on the laptop, the CI server and every production node.</li>
 </ul>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="3" data-paginate="true" data-class="tight" data-lang="en" data-theme="platform" lang="en" class="tight" data-marpit-pagination="3" style="--paginate:true;--class:tight;--lang:en;--theme:platform;" data-marpit-pagination-total="16">
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="3" data-paginate="true" data-class="tight" data-lang="en" data-theme="platform" lang="en" class="tight" data-marpit-pagination="3" style="--paginate:true;--class:tight;--lang:en;--theme:platform;" data-marpit-pagination-total="27">
 <h2 id="containers-vs-virtual-machines">Containers vs. virtual machines</h2>
 <div class="cols">
 <div>
@@ -98,77 +98,107 @@
 <thead>
 <tr>
 <th>Aspect</th>
-<th>Containers</th>
+<th>Docker containers</th>
 <th>Virtual machines</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Isolation</td>
-<td>process-level, shared kernel</td>
-<td>full OS, own kernel</td>
+<td><strong>Isolation</strong></td>
+<td>process-level, share the host kernel</td>
+<td>full OS, each VM has its own kernel</td>
 </tr>
 <tr>
-<td>Overhead</td>
-<td>lightweight</td>
+<td><strong>Overhead</strong></td>
+<td>lightweight, no OS per container</td>
 <td>a complete OS per VM</td>
 </tr>
 <tr>
-<td>Startup</td>
+<td><strong>Startup</strong></td>
 <td>seconds</td>
-<td>minutes</td>
+<td>minutes (full OS boot)</td>
 </tr>
 <tr>
-<td>Security boundary</td>
-<td>weaker</td>
-<td>stronger</td>
+<td><strong>Portability</strong></td>
+<td>high: image bundles app + dependencies</td>
+<td>lower: OS-specific configuration</td>
 </tr>
 <tr>
-<td>Typical use</td>
+<td><strong>Security boundary</strong></td>
+<td>weaker (shared kernel)</td>
+<td>stronger (separate kernel)</td>
+</tr>
+<tr>
+<td><strong>Typical use</strong></td>
 <td>microservices, CI/CD, scaling out</td>
 <td>different guest OS, strong isolation</td>
 </tr>
 </tbody>
 </table>
-<p class="small">In the cloud they are combined: containers run <strong>inside</strong> the VMs you rent.</p>
+<div class="ok">
+<p>Combined, not opposed: the cloud rents you a VM (isolation between customers) and you run several containers on it.</p>
+</div>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="4" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="4" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="16">
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="4" data-paginate="true" data-class="tight" data-lang="en" data-theme="platform" lang="en" class="tight" data-marpit-pagination="4" style="--paginate:true;--class:tight;--lang:en;--theme:platform;" data-marpit-pagination-total="27">
 <h2 id="what-a-container-really-is">What a container really is</h2>
-<p>Not a small VM — an ordinary <strong>Linux process</strong> with a restricted view of the machine:</p>
+<p>Not a small VM — an ordinary <strong>Linux process</strong> that the kernel shows a restricted view of the machine:</p>
 <table>
 <thead>
 <tr>
 <th>Feature</th>
-<th>Gives the process</th>
-<th>You see</th>
+<th>What it does</th>
+<th>What you observe</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><strong>Namespaces</strong></td>
-<td>its own PIDs, network, mounts, hostname</td>
-<td>the app is PID 1, own IP and ports</td>
+<td>own view of PIDs, network, mounts, hostname, users</td>
+<td>your app is PID 1, with its own IP and port 8080</td>
 </tr>
 <tr>
 <td><strong>cgroups</strong></td>
-<td>CPU and memory limits</td>
-<td><code>--memory 512m</code> → OOM-killed above it</td>
+<td>limit and account CPU, memory, I/O</td>
+<td><code>--memory 512m</code> → the JVM is OOM-killed above it</td>
 </tr>
 <tr>
-<td><strong>OverlayFS</strong></td>
-<td>read-only image layers + a writable layer</td>
-<td>files written inside vanish with the container</td>
+<td><strong>Layered filesystem</strong> (OverlayFS)</td>
+<td>read-only image layers + a thin writable layer</td>
+<td>files written inside vanish when the container is removed</td>
 </tr>
 </tbody>
 </table>
+<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-bash">docker run --<span class="hljs-built_in">rm</span> alpine ps          <span class="hljs-comment"># inside: ps is PID 1, nothing else is visible</span>
+docker run -d --name pg -e POSTGRES_PASSWORD=secret postgres:17
+docker top pg                      <span class="hljs-comment"># from the host: the postgres processes, with host PIDs</span>
+</code></pre>
+<p class="small">macOS/Windows: Docker Desktop runs a hidden Linux VM. Images follow the <strong>OCI</strong> standard: they also run on Podman, containerd and Kubernetes (which no longer talks to Docker since 1.24).</p>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="5" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="5" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="27">
+<h2 id="the-container-lifecycle">The container lifecycle</h2>
+<p>Source + <code>Dockerfile</code> → <strong>docker build</strong> → <code>Image:tag</code> → <strong>docker push</strong> → <code>Registry</code> → <strong>docker pull</strong> → <strong>docker run</strong> → containers 1, 2, 3</p>
 <ul>
-<li>Docker Desktop on macOS/Windows runs a hidden <strong>Linux VM</strong> for this.</li>
-<li>Images follow the <strong>OCI</strong> standard: they also run on Podman, containerd, Kubernetes.</li>
+<li><strong>Dockerfile</strong>: how to build the image.</li>
+<li><strong>Image</strong>: the immutable artifact — versioned, stored in a registry, pulled onto any machine.</li>
+<li><strong>Container</strong>: a running instance — isolated, ephemeral, disposable.</li>
+</ul>
+<div class="ok">
+<p><strong>In the store</strong>: Hands-on 1 packages the account service (<code>mvn package</code> → Dockerfile → <code>docker compose up --build</code> next to PostgreSQL); Hands-on 4 has Jenkins build and push the image; Hands-on 5 has Kubernetes pull it and run several containers.</p>
+</div>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="6" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="6" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="27">
+<h2 id="pitfalls-of-the-container-model">Pitfalls of the container model</h2>
+<ul>
+<li><strong>Treating a container like a server</strong>: <code>docker exec</code> to install packages or edit files is lost on the next deploy — change the Dockerfile and rebuild.</li>
+<li><strong>Storing data in the container</strong>: the writable layer disappears with it — persist databases in a <strong>volume</strong>.</li>
+<li><strong>Shipping <code>latest</code></strong>: it points to whatever was pushed last — deploy <code>myapp:1.4.2</code> or a Git commit SHA, so you can roll back.</li>
+<li><strong>Assuming a container is a security boundary</strong>: all containers share the host kernel; untrusted code needs stronger isolation (VMs).</li>
 </ul>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="5" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="5" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="16">
-<h2 id="core-concepts">Core concepts</h2>
-<p><code>Dockerfile</code> → <strong>docker build</strong> → <code>Image</code> → <strong>docker push</strong> → <code>Registry</code> → <strong>docker pull</strong> → <strong>docker run</strong> → <code>Container</code></p>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="7" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="7" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="27">
+<div class="kicker">Docker</div>
+<h2 id="from-a-laptop-setup-to-an-artifact">From a laptop setup to an artifact</h2>
+<p><code>mvn spring-boot:run</code> works because <strong>your</strong> laptop has the right JDK, Maven and variables. Docker turns the setup into a <strong>file</strong> (the Dockerfile) and the result into an <strong>artifact</strong> (the image).</p>
 <table>
 <thead>
 <tr>
@@ -179,38 +209,101 @@
 <tbody>
 <tr>
 <td><strong>Dockerfile</strong></td>
-<td>the recipe; each <code>RUN</code>/<code>COPY</code> adds a read-only <strong>layer</strong></td>
+<td>the recipe; each <code>RUN</code> / <code>COPY</code> / <code>ADD</code> adds a read-only <strong>layer</strong></td>
 </tr>
 <tr>
 <td><strong>Image</strong></td>
-<td>immutable artifact, <code>name:tag</code> — versioned, pushed, shipped</td>
+<td>immutable snapshot, <code>name:tag</code> (<code>store/account:1.0</code>); no tag = <code>latest</code></td>
 </tr>
 <tr>
 <td><strong>Container</strong></td>
-<td>running instance of an image — isolated, ephemeral, disposable</td>
+<td>running instance: shares the kernel, own filesystem, network, PIDs</td>
 </tr>
 <tr>
 <td><strong>Registry</strong></td>
-<td>stores images: Docker Hub (public), ECR, GHCR, GitLab (private)</td>
+<td>stores images: Docker Hub (public); ECR, GHCR, GitLab (private)</td>
 </tr>
 </tbody>
 </table>
-<p class="small">The <code>docker</code> CLI only talks to the daemon (<code>dockerd</code>), which starts containers through containerd/runc.</p>
+<p class="small">The <code>docker</code> CLI is only a client: it calls the daemon (<code>dockerd</code>), which pulls images and starts containers through containerd + runc. "Cannot connect to the Docker daemon" = nobody listening on the other side.</p>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="6" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="6" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="16">
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="8" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="8" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="27">
 <h2 id="a-dockerfile">A Dockerfile</h2>
-<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-dockerfile"><span class="hljs-keyword">FROM</span> eclipse-temurin:<span class="hljs-number">25</span>-jre-alpine      <span class="hljs-comment"># smallest base that fits</span>
+<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-dockerfile"><span class="hljs-comment"># Base image — choose the smallest that fits</span>
+<span class="hljs-keyword">FROM</span> eclipse-temurin:<span class="hljs-number">25</span>-jre-alpine
 <span class="hljs-keyword">WORKDIR</span><span class="language-bash"> /app</span>
-<span class="hljs-keyword">COPY</span><span class="language-bash"> target/*.jar app.jar               <span class="hljs-comment"># Maven&#x27;s JAR, renamed</span></span>
-<span class="hljs-keyword">EXPOSE</span> <span class="hljs-number">8080</span>                             <span class="hljs-comment"># documentation only</span>
-<span class="hljs-keyword">ENTRYPOINT</span><span class="language-bash"> [<span class="hljs-string">&quot;java&quot;</span>, <span class="hljs-string">&quot;-jar&quot;</span>, <span class="hljs-string">&quot;app.jar&quot;</span>]  <span class="hljs-comment"># exec form: JVM gets SIGTERM</span></span>
+<span class="hljs-comment"># Copy the built artifact from the host (run `mvn package` first)</span>
+<span class="hljs-keyword">COPY</span><span class="language-bash"> target/*.jar app.jar</span>
+<span class="hljs-comment"># Documentation only</span>
+<span class="hljs-keyword">EXPOSE</span> <span class="hljs-number">8080</span>
+<span class="hljs-keyword">ENTRYPOINT</span><span class="language-bash"> [<span class="hljs-string">&quot;java&quot;</span>, <span class="hljs-string">&quot;-jar&quot;</span>, <span class="hljs-string">&quot;app.jar&quot;</span>]</span>
 </code></pre>
 <ul>
-<li><code>RUN</code> executes at <strong>build</strong> time; <code>ENTRYPOINT</code>/<code>CMD</code> at <strong>start</strong> time (<code>CMD</code> = default arguments).</li>
-<li>A <code>.dockerignore</code> keeps <code>.git</code>, <code>.env</code> and IDE files out of the build context.</li>
+<li>The pattern of the store's services in Hands-on 1: Java 25 base, the Maven JAR, <code>java -jar</code>.</li>
+<li><code>*.jar</code> matches <code>account-service-0.0.1-SNAPSHOT.jar</code> (not the <code>*.jar.original</code>); <code>COPY</code> renames it.</li>
 </ul>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="7" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="7" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="16">
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="9" data-paginate="true" data-class="tight" data-lang="en" data-theme="platform" lang="en" class="tight" data-marpit-pagination="9" style="--paginate:true;--class:tight;--lang:en;--theme:platform;" data-marpit-pagination-total="27">
+<h2 id="the-instructions-you-will-use-most">The instructions you will use most</h2>
+<table>
+<thead>
+<tr>
+<th>Instruction</th>
+<th>Purpose</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>FROM</code></td>
+<td>base image (always first)</td>
+<td><code>FROM eclipse-temurin:25-jre-alpine</code></td>
+</tr>
+<tr>
+<td><code>WORKDIR</code></td>
+<td>set and create the working directory</td>
+<td><code>WORKDIR /app</code></td>
+</tr>
+<tr>
+<td><code>COPY</code></td>
+<td>files from the build context into the image</td>
+<td><code>COPY target/*.jar app.jar</code></td>
+</tr>
+<tr>
+<td><code>RUN</code></td>
+<td>command <strong>at build time</strong>, saved as a layer</td>
+<td><code>RUN apk add --no-cache curl</code></td>
+</tr>
+<tr>
+<td><code>ENV</code></td>
+<td>variable for build and run time</td>
+<td><code>ENV SPRING_PROFILES_ACTIVE=prod</code></td>
+</tr>
+<tr>
+<td><code>ARG</code></td>
+<td>build-time variable only</td>
+<td><code>ARG VERSION=1.0</code></td>
+</tr>
+<tr>
+<td><code>EXPOSE</code></td>
+<td>documents the port (does <strong>not</strong> publish it)</td>
+<td><code>EXPOSE 8080</code></td>
+</tr>
+<tr>
+<td><code>USER</code></td>
+<td>run as this user</td>
+<td><code>USER app</code></td>
+</tr>
+<tr>
+<td><code>ENTRYPOINT</code> / <code>CMD</code></td>
+<td>what runs <strong>when the container starts</strong></td>
+<td><code>ENTRYPOINT [&quot;java&quot;, &quot;-jar&quot;, &quot;app.jar&quot;]</code></td>
+</tr>
+</tbody>
+</table>
+<p class="small"><code>CMD</code> gives default arguments to <code>ENTRYPOINT</code> and is replaced by what you type after the image name. Exec form (brackets): the JVM is PID 1 and gets the <code>SIGTERM</code> of <code>docker stop</code> — graceful shutdown.</p>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="10" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="10" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="27">
 <h2 id="multi-stage-builds">Multi-stage builds</h2>
 <pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-dockerfile"><span class="hljs-comment"># Stage 1: build</span>
 <span class="hljs-keyword">FROM</span> maven:<span class="hljs-number">3.9</span>-eclipse-temurin-<span class="hljs-number">25</span> AS builder
@@ -219,32 +312,33 @@
 <span class="hljs-keyword">RUN</span><span class="language-bash"> mvn dependency:go-offline</span>
 <span class="hljs-keyword">COPY</span><span class="language-bash"> src ./src</span>
 <span class="hljs-keyword">RUN</span><span class="language-bash"> mvn package -DskipTests</span>
-<span class="hljs-comment"># Stage 2: run — only the JRE</span>
+
+<span class="hljs-comment"># Stage 2: run — only the JRE, no Maven, no source</span>
 <span class="hljs-keyword">FROM</span> eclipse-temurin:<span class="hljs-number">25</span>-jre-alpine
 <span class="hljs-keyword">WORKDIR</span><span class="language-bash"> /app</span>
 <span class="hljs-keyword">COPY</span><span class="language-bash"> --from=builder /build/target/*.jar app.jar</span>
 <span class="hljs-keyword">ENTRYPOINT</span><span class="language-bash"> [<span class="hljs-string">&quot;java&quot;</span>, <span class="hljs-string">&quot;-jar&quot;</span>, <span class="hljs-string">&quot;app.jar&quot;</span>]</span>
 </code></pre>
-<p>The final image has <strong>only the JRE and the JAR</strong> — Maven and the sources are discarded.</p>
+<p class="small">The final image has only the JRE and the JAR — and the machine that builds it needs no Maven or JDK. A <code>.dockerignore</code> (<code>.git</code>, <code>.env</code>, IDE files) keeps the build context small and secrets out of layers.</p>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="8" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="8" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="16">
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="11" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="11" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="27">
 <h2 id="layer-caching-order-matters">Layer caching: order matters</h2>
 <p>An unchanged layer is <strong>reused</strong> from cache; a changed layer <strong>rebuilds itself and every layer after it</strong>.</p>
 <div class="cols">
 <div>
 <h3 id="poor-order">Poor order</h3>
-<p><code>COPY src</code> first → every commit busts the cache → dependencies download <strong>again</strong>.</p>
+<p><code>COPY src ./src</code> first → every commit busts the cache → all Maven dependencies download <strong>again</strong>.</p>
 </div>
 <div>
 <h3 id="good-order">Good order</h3>
-<p><code>COPY pom.xml</code> → <code>RUN mvn dependency:go-offline</code> → <code>COPY src</code> → <code>RUN mvn package</code></p>
+<p><code>COPY pom.xml .</code> → <code>RUN mvn dependency:go-offline</code> → <code>COPY src ./src</code> → <code>RUN mvn package</code> (only rebuilds the app)</p>
 </div>
 </div>
 <div class="ok">
-<p>Put what changes <strong>rarely</strong> (dependencies) before what changes <strong>often</strong> (source code).</p>
+<p>Put what changes <strong>rarely</strong> (dependencies) before what changes <strong>often</strong> (source code). The multi-stage Dockerfile already does it.</p>
 </div>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="9" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="9" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="16">
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="12" data-paginate="true" data-class="tight" data-lang="en" data-theme="platform" lang="en" class="tight" data-marpit-pagination="12" style="--paginate:true;--class:tight;--lang:en;--theme:platform;" data-marpit-pagination-total="27">
 <h2 id="essential-commands">Essential commands</h2>
 <table>
 <thead>
@@ -256,11 +350,15 @@
 <tbody>
 <tr>
 <td style="text-align:left"><code>docker build -t myapp:1.0 .</code></td>
-<td style="text-align:left">build an image from the local Dockerfile</td>
+<td style="text-align:left">build an image from the Dockerfile here</td>
 </tr>
 <tr>
-<td style="text-align:left"><code>docker run -d -p 8080:8080 &lt;image&gt;</code></td>
-<td style="text-align:left">start detached, publish host 8080 → container 8080</td>
+<td style="text-align:left"><code>docker run -d -p 8080:8080 --name myapp -e KEY=value &lt;image&gt;</code></td>
+<td style="text-align:left">detached, port <code>host:container</code>, name, variable</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>docker run --rm &lt;image&gt;</code></td>
+<td style="text-align:left">remove the container when it exits</td>
 </tr>
 <tr>
 <td style="text-align:left"><code>docker ps -a</code></td>
@@ -268,51 +366,117 @@
 </tr>
 <tr>
 <td style="text-align:left"><code>docker logs -f &lt;container&gt;</code></td>
-<td style="text-align:left">follow the logs</td>
+<td style="text-align:left">follow its stdout and stderr</td>
 </tr>
 <tr>
 <td style="text-align:left"><code>docker exec -it &lt;container&gt; sh</code></td>
-<td style="text-align:left">open a shell inside a running container</td>
+<td style="text-align:left">shell inside a running container</td>
 </tr>
 <tr>
 <td style="text-align:left"><code>docker stop</code> / <code>docker rm &lt;container&gt;</code></td>
-<td style="text-align:left">SIGTERM (SIGKILL after 10 s), then remove</td>
+<td style="text-align:left"><code>SIGTERM</code> (<code>SIGKILL</code> after 10 s), then remove</td>
 </tr>
 <tr>
-<td style="text-align:left"><code>docker push</code> / <code>docker pull &lt;image&gt;</code></td>
-<td style="text-align:left">send to / fetch from a registry</td>
+<td style="text-align:left"><code>docker images</code> / <code>pull</code> / <code>push</code> / <code>tag</code> / <code>rmi</code></td>
+<td style="text-align:left">manage images and registries</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>docker system prune</code></td>
+<td style="text-align:left">remove stopped containers, dangling images, unused networks</td>
 </tr>
 </tbody>
 </table>
-<p class="small">Container exits at once? <code>docker ps -a</code> → <code>docker logs</code> → <code>docker inspect</code> (exit code 137 = killed, often for memory).</p>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="10" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="10" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="16">
-<h2 id="networks-and-volumes">Networks and volumes</h2>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="13" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="13" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="27">
+<h2 id="debugging-a-container-that-does-not-start">Debugging a container that does not start</h2>
+<p>The most common first problem: it exits right after <code>docker run</code>. Follow the evidence:</p>
+<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-bash">docker ps -a                    <span class="hljs-comment"># STATUS shows &quot;Exited (1) 3 seconds ago&quot;</span>
+docker logs account             <span class="hljs-comment"># the application&#x27;s own error message</span>
+docker inspect -f <span class="hljs-string">&#x27;{{.State.ExitCode}} {{.State.OOMKilled}}&#x27;</span> account   <span class="hljs-comment"># 137 + true = killed for memory</span>
+docker run -it --<span class="hljs-built_in">rm</span> --entrypoint sh store/account:1.0                 <span class="hljs-comment"># open a shell in the image</span>
+</code></pre>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="14" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="14" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="27">
+<h2 id="networking">Networking</h2>
+<p>Each container has its own network namespace — its own IP and its own <code>localhost</code>.</p>
+<ul>
+<li><strong>User-defined <code>bridge</code></strong> (<code>docker network create</code>): containers reach each other <strong>by name</strong> (embedded DNS).</li>
+<li><strong>Default <code>bridge</code></strong> (no <code>--network</code>): IP addresses only · <code>host</code>: shares the host's stack · <code>none</code>.</li>
+</ul>
+<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-bash">docker network create store-net
+docker run -d --name db --network store-net -e POSTGRES_PASSWORD=secret postgres:17
+docker run --<span class="hljs-built_in">rm</span> --network store-net postgres:17 pg_isready -h db
+</code></pre>
+<div class="warn">
+<p><code>EXPOSE 8080</code> is documentation: <strong>publish</strong> with <code>-p 8080:8080</code>. Inside a container, <code>localhost</code> is the container itself: use <code>jdbc:postgresql://db:5432/store</code>, not <code>localhost:5432</code>.</p>
+</div>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="15" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="15" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="27">
+<h2 id="volumes">Volumes</h2>
+<p>Containers are ephemeral: data written inside is lost when the container is removed.</p>
+<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-bash"><span class="hljs-comment"># Named volume (managed by Docker)</span>
+docker run -v mydata:/var/lib/postgresql/data postgres:17
+
+<span class="hljs-comment"># Bind mount (maps a host directory)</span>
+docker run -v /host/path:/container/path myapp
+</code></pre>
+<ul>
+<li><strong>Named volumes</strong> in production: Docker manages the location.</li>
+<li><strong>Bind mounts</strong> in development: local changes without rebuilding.</li>
+</ul>
+<div class="warn">
+<p><code>postgres:18</code> moved its data to <code>/var/lib/postgresql/18/docker</code> (mount <code>/var/lib/postgresql</code>): <code>postgres:latest</code> changed silently — <strong>pin the major version</strong>.</p>
+</div>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="16" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="16" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="27">
+<h2 id="good-practices-and-common-mistakes">Good practices and common mistakes</h2>
 <div class="cols">
 <div>
-<h3 id="networks">Networks</h3>
+<h3 id="good-practices">Good practices</h3>
 <ul>
-<li><strong>User-defined</strong> <code>bridge</code>: containers reach each other <strong>by name</strong></li>
-<li>default <code>bridge</code>: IP addresses only</li>
-<li><code>host</code>: shares the host's network stack</li>
-<li><code>EXPOSE</code> documents; <strong><code>-p</code></strong> publishes</li>
+<li><strong>Pin versions</strong>: <code>eclipse-temurin:25-jre-alpine</code>, <code>postgres:17</code></li>
+<li><strong>Small base images</strong>: <code>-alpine</code>, <code>-jre</code>, distroless</li>
+<li><strong>One process</strong> per container</li>
+<li><strong>Non-root user</strong> (<code>USER</code>)</li>
+<li><strong>Configuration in env vars</strong>: one image for every environment</li>
 </ul>
 </div>
 <div>
-<h3 id="volumes">Volumes</h3>
-<p>Containers are <strong>ephemeral</strong> — data inside is lost on removal.</p>
+<h3 id="common-mistakes">Common mistakes</h3>
 <ul>
-<li><strong>Named volume</strong> <code>mydata:/var/lib/postgresql/data</code> — Docker manages it.</li>
-<li><strong>Bind mount</strong> <code>./init.sql:/docker-…/init.sql</code> — dev, seed scripts.</li>
+<li><strong>Secrets in the image</strong> (<code>COPY .env</code>, <code>ENV DB_PASSWORD=…</code>): every layer is readable</li>
+<li><strong>Stale JAR</strong>: single-stage <code>docker build</code> copies whatever is in <code>target/</code></li>
+<li><strong>Source before dependencies</strong>: every commit downloads Maven again</li>
 </ul>
 </div>
 </div>
-<p class="small"><code>postgres:18</code> moved its data to <code>/var/lib/postgresql/18/docker</code>: pin major versions.</p>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="11" data-paginate="true" data-class="tight" data-lang="en" data-theme="platform" lang="en" class="tight" data-marpit-pagination="11" style="--paginate:true;--class:tight;--lang:en;--theme:platform;" data-marpit-pagination-total="16">
-<h2 id="docker-compose">Docker Compose</h2>
-<p>The whole stack in <strong>one declarative file</strong>, started with <code>docker compose up -d --build</code>.</p>
-<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-yaml"><span class="hljs-attr">services:</span>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="17" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="17" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="27">
+<div class="kicker">Docker Compose</div>
+<h2 id="from-a-script-to-a-file">From a script to a file</h2>
+<p>The account service and its database with plain <code>docker</code>, in the right order:</p>
+<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-bash">docker network create store
+docker volume create db-data
+docker run -d --name db --network store \
+  -e POSTGRES_DB=store -e POSTGRES_USER=store -e POSTGRES_PASSWORD=secret \
+  -v db-data:/var/lib/postgresql/data postgres:17
+docker build -t store/account ./account-service
+docker run -d --name account --network store -p 8080:8080 \
+  -e SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/store store/account
+</code></pre>
+<p>Add a gateway, auth, Redis and Kafka: an error-prone script nobody can review in a pull request. <strong>Docker Compose</strong> replaces it with one <strong>declarative</strong> <code>compose.yaml</code> and one command.</p>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="18" data-paginate="true" data-class="tight" data-lang="en" data-theme="platform" lang="en" class="tight" data-marpit-pagination="18" style="--paginate:true;--class:tight;--lang:en;--theme:platform;" data-marpit-pagination-total="27">
+<h2 id="basic-structure">Basic structure</h2>
+<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-yaml"><span class="hljs-attr">name:</span> <span class="hljs-string">myapp</span>
+
+<span class="hljs-attr">services:</span>
+  <span class="hljs-attr">web:</span>
+    <span class="hljs-attr">build:</span> <span class="hljs-string">./web</span>
+    <span class="hljs-attr">ports:</span>
+      <span class="hljs-bullet">-</span> <span class="hljs-string">&quot;80:80&quot;</span>
+    <span class="hljs-attr">depends_on:</span>
+      <span class="hljs-bullet">-</span> <span class="hljs-string">app</span>
   <span class="hljs-attr">app:</span>
     <span class="hljs-attr">build:</span> <span class="hljs-string">./app</span>
     <span class="hljs-attr">environment:</span>
@@ -323,13 +487,56 @@
     <span class="hljs-attr">image:</span> <span class="hljs-string">postgres:17</span>
     <span class="hljs-attr">volumes:</span>
       <span class="hljs-bullet">-</span> <span class="hljs-string">db-data:/var/lib/postgresql/data</span>
+
 <span class="hljs-attr">volumes:</span>
   <span class="hljs-attr">db-data:</span>
 </code></pre>
-<p class="small">Compose creates a network per project: the <strong>service name is the hostname</strong> — note <code>db:5432</code>.</p>
+<p class="small">One network per project: each service is reachable by its <strong>service name as the hostname</strong> (<code>db</code>, <code>app</code>, <code>web</code>).</p>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="12" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="12" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="16">
-<h2 id="compose-commands-and-the-localhost-trap">Compose: commands and the <code>localhost</code> trap</h2>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="19" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="19" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="27">
+<h2 id="the-vocabulary-of-a-compose-file">The vocabulary of a Compose file</h2>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code></td>
+<td>project name; prefixes containers, networks, volumes (<code>myapp-db-1</code>)</td>
+</tr>
+<tr>
+<td><code>services</code></td>
+<td>one entry per container; a template you can replicate</td>
+</tr>
+<tr>
+<td><code>image</code> / <code>build</code></td>
+<td>an existing image / build from a local Dockerfile</td>
+</tr>
+<tr>
+<td><code>ports</code></td>
+<td>publish <code>host:container</code> — only what must be reached from outside</td>
+</tr>
+<tr>
+<td><code>environment</code></td>
+<td>variables passed to the container</td>
+</tr>
+<tr>
+<td><code>depends_on</code></td>
+<td>start order between services</td>
+</tr>
+<tr>
+<td><code>volumes</code></td>
+<td>named volumes or bind mounts; top-level <code>volumes:</code> declares the named ones</td>
+</tr>
+</tbody>
+</table>
+<p class="small">Compose v2 is <code>docker compose</code> (with a space); <code>docker-compose</code> v1 is unsupported since 2023 and <code>version:</code> is obsolete. Preferred name: <code>compose.yaml</code>.</p>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="20" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="20" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="27">
+<h2 id="key-commands">Key commands</h2>
 <table>
 <thead>
 <tr>
@@ -340,81 +547,203 @@
 <tbody>
 <tr>
 <td style="text-align:left"><code>docker compose up -d --build</code></td>
-<td style="text-align:left">rebuild images and start everything</td>
+<td style="text-align:left">rebuild images and start everything in the background</td>
 </tr>
 <tr>
-<td style="text-align:left"><code>docker compose ps</code> / <code>logs -f app</code></td>
-<td style="text-align:left">status / follow one service's logs</td>
+<td style="text-align:left"><code>docker compose ps</code></td>
+<td style="text-align:left">list running services</td>
 </tr>
 <tr>
-<td style="text-align:left"><code>docker compose config</code></td>
-<td style="text-align:left">print the file with <code>${VARS}</code> resolved</td>
+<td style="text-align:left"><code>docker compose logs -f app</code></td>
+<td style="text-align:left">follow one service's logs</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>docker compose exec app sh</code></td>
+<td style="text-align:left">shell in a running service</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>docker compose restart app</code></td>
+<td style="text-align:left">restart one service</td>
 </tr>
 <tr>
 <td style="text-align:left"><code>docker compose down</code> / <code>down -v</code></td>
-<td style="text-align:left">remove containers and networks / <strong>and volumes</strong></td>
+<td style="text-align:left">remove containers and networks / <strong>and named volumes</strong></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>docker compose config</code></td>
+<td style="text-align:left">the final file with <code>${VARIABLES}</code> resolved — check it first</td>
+</tr>
+</tbody>
+</table>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="21" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="21" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="27">
+<h2 id="service-names-not-localhost">Service names, not <code>localhost</code></h2>
+<p>Inside the project network, services talk on the <strong>container port</strong> by <strong>service name</strong>; <code>ports:</code> only matters for traffic from your machine.</p>
+<table>
+<thead>
+<tr>
+<th>From</th>
+<th>URL</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>the <code>app</code> container</td>
+<td><code>jdbc:postgresql://db:5432/myapp</code></td>
+</tr>
+<tr>
+<td>your laptop (IDE, <code>psql</code>, DBeaver)</td>
+<td><code>jdbc:postgresql://localhost:5432/myapp</code> (only with <code>ports: - 5432:5432</code>)</td>
 </tr>
 </tbody>
 </table>
 <div class="warn">
-<p>Inside a container, <strong><code>localhost</code> is the container itself</strong>. <code>localhost:5432</code> works from the IDE and fails in Compose — use <code>db:5432</code>, passed as an environment variable.</p>
+<p>The most common Compose bug: <code>localhost:5432</code> works from the IDE and fails inside Compose with <em>Connection refused</em>. Use <code>db</code> and pass the URL as an environment variable, so the same image works in both places.</p>
 </div>
+<p class="small">In Hands-on 2 only the gateway publishes a port; the other services are reachable only inside the network.</p>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="13" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="13" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="16">
-<h2 id="configuration-with-env">Configuration with <code>.env</code></h2>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="22" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="22" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="27">
+<h2 id="environment-variables-and-env">Environment variables and <code>.env</code></h2>
 <pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-yaml"><span class="hljs-attr">environment:</span>
-  <span class="hljs-attr">POSTGRES_DB:</span> <span class="hljs-string">${POSTGRES_DB:-myapp}</span>             <span class="hljs-comment"># default if unset</span>
-  <span class="hljs-attr">POSTGRES_PASSWORD:</span> <span class="hljs-string">${POSTGRES_PASSWORD:?set</span> <span class="hljs-string">it}</span> <span class="hljs-comment"># required: fail loudly</span>
+  <span class="hljs-attr">POSTGRES_DB:</span> <span class="hljs-string">${POSTGRES_DB:-myapp}</span>
+  <span class="hljs-attr">POSTGRES_PASSWORD:</span> <span class="hljs-string">${POSTGRES_PASSWORD:?set</span> <span class="hljs-string">it</span> <span class="hljs-string">in</span> <span class="hljs-string">.env}</span>
 </code></pre>
 <ul>
-<li><code>.env</code> (next to <code>compose.yaml</code>) fills the <code>${...}</code> placeholders; shell variables win.</li>
-<li><code>env_file: account.env</code> injects a whole file <strong>into a container</strong>.</li>
-<li>Publish only the entry point; keep <code>5432</code> inside the Compose network in production.</li>
+<li><code>:-myapp</code> = <strong>default</strong> value; <code>:?</code> = <strong>fail loudly</strong> if missing (plain <code>${VAR}</code> only warns and substitutes an empty string).</li>
+<li><code>.env</code> (next to <code>compose.yaml</code>) is read automatically for <strong>interpolation</strong>; shell variables win. It is <strong>not</strong> passed to the containers.</li>
+<li><code>env_file: account.env</code> injects every <code>KEY=value</code> of a file <strong>into a container</strong>.</li>
 </ul>
 <div class="warn">
-<p><strong>Never commit <code>.env</code></strong> — <code>.gitignore</code> it and commit a <code>.env.example</code> instead.</p>
+<p><strong>Never commit <code>.env</code></strong>: <code>.gitignore</code> it, one per environment, and commit a <code>.env.example</code> with placeholders.</p>
 </div>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="14" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="14" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="16">
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="23" data-paginate="true" data-class="tight" data-lang="en" data-theme="platform" lang="en" class="tight" data-marpit-pagination="23" style="--paginate:true;--class:tight;--lang:en;--theme:platform;" data-marpit-pagination-total="27">
 <h2 id="started-is-not-ready">Started is not ready</h2>
 <p><code>depends_on</code> orders the <strong>start</strong>, but does not wait for the database to <strong>finish initialising</strong>.</p>
-<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-yaml"><span class="hljs-attr">db:</span>
-  <span class="hljs-attr">healthcheck:</span>
-    <span class="hljs-attr">test:</span> [<span class="hljs-string">&quot;CMD-SHELL&quot;</span>, <span class="hljs-string">&quot;pg_isready -U myapp&quot;</span>]
-    <span class="hljs-attr">interval:</span> <span class="hljs-string">5s</span>
-    <span class="hljs-attr">retries:</span> <span class="hljs-number">5</span>
-<span class="hljs-attr">app:</span>
-  <span class="hljs-attr">depends_on:</span>
-    <span class="hljs-attr">db:</span>
-      <span class="hljs-attr">condition:</span> <span class="hljs-string">service_healthy</span>
+<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-yaml"><span class="hljs-attr">services:</span>
+  <span class="hljs-attr">db:</span>
+    <span class="hljs-attr">image:</span> <span class="hljs-string">postgres:17</span>
+    <span class="hljs-attr">healthcheck:</span>
+      <span class="hljs-attr">test:</span> [<span class="hljs-string">&quot;CMD-SHELL&quot;</span>, <span class="hljs-string">&quot;pg_isready -U myapp&quot;</span>]
+      <span class="hljs-attr">interval:</span> <span class="hljs-string">5s</span>
+      <span class="hljs-attr">timeout:</span> <span class="hljs-string">5s</span>
+      <span class="hljs-attr">retries:</span> <span class="hljs-number">5</span>
+  <span class="hljs-attr">app:</span>
+    <span class="hljs-attr">build:</span> <span class="hljs-string">./app</span>
+    <span class="hljs-attr">depends_on:</span>
+      <span class="hljs-attr">db:</span>
+        <span class="hljs-attr">condition:</span> <span class="hljs-string">service_healthy</span>
 </code></pre>
+<p><code>compose up</code> starts db → <code>pg_isready</code> unhealthy, retry in 5 s → healthy → starts app → app connects on <code>db:5432</code>.</p>
+<p class="small">Without it, app may crash while PostgreSQL is still creating its files. <code>restart: on-failure</code> is a complementary safety net.</p>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="15" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="15" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="16">
-<h2 id="pitfalls--and-beyond-one-host">Pitfalls — and beyond one host</h2>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="24" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="24" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="27">
+<h2 id="named-volumes-vs-bind-mounts">Named volumes vs. bind mounts</h2>
+<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-yaml"><span class="hljs-attr">services:</span>
+  <span class="hljs-attr">db:</span>
+    <span class="hljs-attr">volumes:</span>
+      <span class="hljs-bullet">-</span> <span class="hljs-string">db-data:/var/lib/postgresql/data</span>
+      <span class="hljs-bullet">-</span> <span class="hljs-string">./init.sql:/docker-entrypoint-initdb.d/init.sql</span>
+</code></pre>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Named volume</th>
+<th>Bind mount</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Data location</strong></td>
+<td>managed by Docker</td>
+<td>a host path you choose</td>
+</tr>
+<tr>
+<td><strong>Removed by <code>down -v</code></strong></td>
+<td>yes — data is deleted</td>
+<td>no — the host folder stays</td>
+</tr>
+<tr>
+<td><strong>Use case</strong></td>
+<td>production data, databases</td>
+<td>dev: hot reload, seed scripts</td>
+</tr>
+</tbody>
+</table>
+<div class="warn">
+<p>Init scripts run <strong>only when the data directory is empty</strong>: after changing <code>init.sql</code>, <code>docker compose down -v</code> to re-initialise.</p>
+</div>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="25" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="25" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="27">
+<h2 id="limits-of-compose">Limits of Compose</h2>
+<p>Compose runs everything on <strong>one host</strong>: no spreading across machines, no rescheduling when a host dies, no rolling updates. Ideal for development, CI and small single-server deployments.</p>
 <div class="warn">
 <ul>
-<li>Shipping <strong><code>latest</code></strong> — deploy <code>myapp:1.4.2</code> or a commit SHA, so you can roll back.</li>
-<li><strong>Secrets in the image</strong> (<code>COPY .env</code>, <code>ENV PASSWORD=…</code>) — every layer is readable.</li>
-<li>Editing a running container — lost on the next deploy; change the Dockerfile.</li>
-<li>Forgetting <code>--build</code> — Compose reuses the old image.</li>
+<li><strong><code>depends_on</code> without a health check</strong> → &quot;random&quot; startup failures.</li>
+<li><strong><code>down -v</code> on a database you care about</strong> → the volume and its data are gone.</li>
+<li><strong>Publishing every port</strong> &quot;just in case&quot; → each one is a door; publish only the gateway.</li>
+<li><strong>Forgetting <code>--build</code></strong> → Compose reuses the old image and your change does not appear.</li>
 </ul>
 </div>
-<p>Compose runs on <strong>one host</strong>. Many hosts, self-healing, rolling updates → <strong>Kubernetes</strong> (Hands-on 5) or managed services: ECS/Fargate, Cloud Run, EKS, GKE, AKS.</p>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="16" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="16" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="16">
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="26" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="26" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="27">
+<h2 id="containerisation-in-the-cloud">Containerisation in the cloud</h2>
+<p>Many hosts — restarting crashed containers, spreading replicas, rolling out versions — is the job of an <strong>orchestrator</strong> such as Kubernetes (Hands-on 5). Managed services add scheduling, scaling and load balancing:</p>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Provider</th>
+<th>Model</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>ECS / Fargate</strong></td>
+<td>AWS</td>
+<td>managed containers — no cluster to operate</td>
+</tr>
+<tr>
+<td><strong>EKS</strong></td>
+<td>AWS</td>
+<td>managed Kubernetes</td>
+</tr>
+<tr>
+<td><strong>Cloud Run</strong></td>
+<td>Google</td>
+<td>serverless containers — scales to zero</td>
+</tr>
+<tr>
+<td><strong>GKE</strong></td>
+<td>Google</td>
+<td>managed Kubernetes</td>
+</tr>
+<tr>
+<td><strong>AKS</strong></td>
+<td>Azure</td>
+<td>managed Kubernetes</td>
+</tr>
+</tbody>
+</table>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="27" data-paginate="true" data-class="tight" data-lang="en" data-theme="platform" lang="en" class="tight" data-marpit-pagination="27" style="--paginate:true;--class:tight;--lang:en;--theme:platform;" data-marpit-pagination-total="27">
 <h2 id="takeaways">Takeaways</h2>
 <ol>
-<li>Horizontal scaling needs <strong>identical environments</strong>; containers end <em>&quot;it works on my machine&quot;</em>.</li>
-<li>A container is a <strong>Linux process</strong> (namespaces + cgroups + layers): fast and light, weaker isolation than a VM.</li>
-<li><strong>Dockerfile → image → registry → container</strong>; multi-stage builds and <strong>layer order</strong> give small images and fast rebuilds.</li>
-<li>Publish with <code>-p</code>; on a user-defined network containers find each other <strong>by name</strong> — never <code>localhost</code>.</li>
-<li>Containers are ephemeral: persist data in <strong>volumes</strong>; pin image versions.</li>
-<li><strong>Compose</strong> describes the stack; <code>.env</code> fills placeholders and is never committed.</li>
-<li>Use <strong>health checks</strong> so dependencies are ready; beyond one host, use an orchestrator.</li>
+<li>Horizontal scaling needs <strong>identical environments</strong>; a container image packages the app with its dependencies and ends <em>&quot;it works on my machine&quot;</em>.</li>
+<li>A container is an isolated <strong>Linux process</strong> (namespaces + cgroups + layered filesystem): shares the kernel, starts in seconds, isolates less than a VM.</li>
+<li><strong>Dockerfile → image → registry → container</strong>; <strong>multi-stage</strong> builds and dependencies <strong>before</strong> source give small images and fast rebuilds.</li>
+<li>Publish with <code>-p host:container</code>; on a user-defined network, containers find each other <strong>by name</strong> — <code>localhost</code> is the container itself.</li>
+<li>Containers are disposable: data in <strong>volumes</strong>, configuration in env vars, explicit image versions — never <code>latest</code>.</li>
+<li><code>compose.yaml</code> declares the stack; <code>.env</code> fills placeholders and is never committed; <code>healthcheck</code> + <code>service_healthy</code> waits until a dependency is <strong>ready</strong>.</li>
+<li>Docker and Compose run on one host; orchestrators and managed cloud services run containers across many.</li>
 </ol>
 </section>
 <script>!function(){"use strict";const t={h1:{proto:()=>HTMLHeadingElement,attrs:{role:"heading","aria-level":"1"},style:"display: block; font-size: 2em; margin-block-start: 0.67em; margin-block-end: 0.67em; margin-inline-start: 0px; margin-inline-end: 0px; font-weight: bold;"},h2:{proto:()=>HTMLHeadingElement,attrs:{role:"heading","aria-level":"2"},style:"display: block; font-size: 1.5em; margin-block-start: 0.83em; margin-block-end: 0.83em; margin-inline-start: 0px; margin-inline-end: 0px; font-weight: bold;"},h3:{proto:()=>HTMLHeadingElement,attrs:{role:"heading","aria-level":"3"},style:"display: block; font-size: 1.17em; margin-block-start: 1em; margin-block-end: 1em; margin-inline-start: 0px; margin-inline-end: 0px; font-weight: bold;"},h4:{proto:()=>HTMLHeadingElement,attrs:{role:"heading","aria-level":"4"},style:"display: block; margin-block-start: 1.33em; margin-block-end: 1.33em; margin-inline-start: 0px; margin-inline-end: 0px; font-weight: bold;"},h5:{proto:()=>HTMLHeadingElement,attrs:{role:"heading","aria-level":"5"},style:"display: block; font-size: 0.83em; margin-block-start: 1.67em; margin-block-end: 1.67em; margin-inline-start: 0px; margin-inline-end: 0px; font-weight: bold;"},h6:{proto:()=>HTMLHeadingElement,attrs:{role:"heading","aria-level":"6"},style:"display: block; font-size: 0.67em; margin-block-start: 2.33em; margin-block-end: 2.33em; margin-inline-start: 0px; margin-inline-end: 0px; font-weight: bold;"},span:{proto:()=>HTMLSpanElement},pre:{proto:()=>HTMLElement,style:"display: block; font-family: monospace; white-space: pre; margin: 1em 0; --marp-auto-scaling-white-space: pre;"}},e="data-marp-auto-scaling-wrapper",i="data-marp-auto-scaling-svg",n="data-marp-auto-scaling-container";class s extends HTMLElement{container;containerSize;containerObserver;svg;svgComputedStyle;svgPreserveAspectRatio="xMinYMid meet";wrapper;wrapperSize;wrapperObserver;constructor(){super();const t=t=>([e])=>{const{width:i,height:n}=e.contentRect;this[t]={width:i,height:n},this.updateSVGRect()};this.attachShadow({mode:"open"}),this.containerObserver=new ResizeObserver(t("containerSize")),this.wrapperObserver=new ResizeObserver((...e)=>{t("wrapperSize")(...e),this.flushSvgDisplay()})}static get observedAttributes(){return["data-downscale-only"]}connectedCallback(){this.shadowRoot.innerHTML=`\n<style>\n  svg[${i}] { display: block; width: 100%; height: auto; vertical-align: top; }\n  span[${n}] { display: table; white-space: var(--marp-auto-scaling-white-space, nowrap); width: max-content; }\n</style>\n<div ${e}>\n  <svg part="svg" ${i}>\n    <foreignObject><span ${n}><slot></slot></span></foreignObject>\n  </svg>\n</div>\n    `.split(/\n\s*/).join(""),this.wrapper=this.shadowRoot.querySelector(`div[${e}]`)??void 0;const t=this.svg;this.svg=this.wrapper?.querySelector(`svg[${i}]`)??void 0,this.svg!==t&&(this.svgComputedStyle=this.svg?window.getComputedStyle(this.svg):void 0),this.container=this.svg?.querySelector(`span[${n}]`)??void 0,this.observe()}disconnectedCallback(){this.svg=void 0,this.svgComputedStyle=void 0,this.wrapper=void 0,this.container=void 0,this.observe()}attributeChangedCallback(){this.observe()}flushSvgDisplay(){const{svg:t}=this;t&&(t.style.display="inline",requestAnimationFrame(()=>{t.style.display=""}))}observe(){this.containerObserver.disconnect(),this.wrapperObserver.disconnect(),this.wrapper&&this.wrapperObserver.observe(this.wrapper),this.container&&this.containerObserver.observe(this.container),this.svgComputedStyle&&this.observeSVGStyle(this.svgComputedStyle)}observeSVGStyle(t){const e=()=>{const i=(()=>{const e=t.getPropertyValue("--preserve-aspect-ratio");if(e)return e.trim();return`x${(({textAlign:t,direction:e})=>{if(t.endsWith("left"))return"Min";if(t.endsWith("right"))return"Max";if("start"===t||"end"===t){let i="rtl"===e;return"end"===t&&(i=!i),i?"Max":"Min"}return"Mid"})(t)}YMid meet`})();i!==this.svgPreserveAspectRatio&&(this.svgPreserveAspectRatio=i,this.updateSVGRect()),t===this.svgComputedStyle&&requestAnimationFrame(e)};e()}updateSVGRect(){let t=Math.ceil(this.containerSize?.width??0);const e=Math.ceil(this.containerSize?.height??0);void 0!==this.dataset.downscaleOnly&&(t=Math.max(t,this.wrapperSize?.width??0));const i=this.svg?.querySelector(":scope > foreignObject");if(i?.setAttribute("width",`${t}`),i?.setAttribute("height",`${e}`),this.svg&&(this.svg.setAttribute("viewBox",`0 0 ${t} ${e}`),this.svg.setAttribute("preserveAspectRatio",this.svgPreserveAspectRatio),this.svg.style.height=t<=0||e<=0?"0":""),this.container){const t=this.svgPreserveAspectRatio.toLowerCase();this.container.style.marginLeft=t.startsWith("xmid")||t.startsWith("xmax")?"auto":"0",this.container.style.marginRight=t.startsWith("xmi")?"auto":"0"}}}const r=(t,{attrs:e={},style:i})=>class extends t{constructor(...t){super(...t);for(const[t,i]of Object.entries(e))this.hasAttribute(t)||this.setAttribute(t,i);this._shadow()}static get observedAttributes(){return["data-auto-scaling"]}connectedCallback(){this._update()}attributeChangedCallback(){this._update()}_shadow(){if(!this.shadowRoot)try{this.attachShadow({mode:"open"})}catch(t){if(!(t instanceof Error&&"NotSupportedError"===t.name))throw t}return this.shadowRoot}_update(){const t=this._shadow();if(t){const e=i?`<style>:host { ${i} }</style>`:"";let n="<slot></slot>";const{autoScaling:s}=this.dataset;if(void 0!==s){n=`<marp-auto-scaling exportparts="svg:auto-scaling" ${"downscale-only"===s?"data-downscale-only":""}>${n}</marp-auto-scaling>`}t.innerHTML=e+n}}};let o;const a=()=>o??(o=!!document.createElement("div",{is:"marp-auto-scaling"}).outerHTML.startsWith("<div is"),o),l=Symbol();let c;const d="marpitSVGPolyfill:setZoomFactor,",h=Symbol(),g=Symbol();const p=()=>{const t="Apple Computer, Inc."===navigator.vendor,e=t?[v]:[],i={then:e=>(t?(async()=>{if(void 0===c){const t=document.createElement("canvas");t.width=10,t.height=10;const e=t.getContext("2d"),i=new Image(10,10),n=new Promise(t=>{i.addEventListener("load",()=>t())});i.crossOrigin="anonymous",i.src="data:image/svg+xml;charset=utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2210%22%20height%3D%2210%22%20viewBox%3D%220%200%201%201%22%3E%3CforeignObject%20width%3D%221%22%20height%3D%221%22%20requiredExtensions%3D%22http%3A%2F%2Fwww.w3.org%2F1999%2Fxhtml%22%3E%3Cdiv%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F1999%2Fxhtml%22%20style%3D%22width%3A%201px%3B%20height%3A%201px%3B%20background%3A%20red%3B%20position%3A%20relative%22%3E%3C%2Fdiv%3E%3C%2FforeignObject%3E%3C%2Fsvg%3E",await n,e.drawImage(i,0,0),c=e.getImageData(5,5,1,1).data[3]<128}return c})().then(t=>{null==e||e(t?[v]:[])}):null==e||e([]),i)};return Object.assign(e,i)};let m,u;function v(t){const e="object"==typeof t&&t.target||document,i="object"==typeof t?t.zoom:t;window[g]||(Object.defineProperty(window,g,{configurable:!0,value:!0}),document.body.style.zoom=1.0001,document.body.offsetHeight,document.body.style.zoom=1,window.addEventListener("message",({data:t,origin:e})=>{if(e===window.origin)try{if(t&&"string"==typeof t&&t.startsWith(d)){const[,e]=t.split(","),i=Number.parseFloat(e);Number.isNaN(i)||(u=i)}}catch(t){console.error(t)}}));let n=!1;Array.from(e.querySelectorAll("svg[data-marpit-svg]"),t=>{var e,s,r,o;t.style.transform||(t.style.transform="translateZ(0)");const a=i||u||t.currentScale||1;m!==a&&(m=a,n=a);const l=t.getBoundingClientRect(),{length:c}=t.children;for(let i=0;i<c;i+=1){const n=t.children[i];if(n.getScreenCTM){const t=n.getScreenCTM();if(t){const i=null!==(s=null===(e=n.x)||void 0===e?void 0:e.baseVal.value)&&void 0!==s?s:0,c=null!==(o=null===(r=n.y)||void 0===r?void 0:r.baseVal.value)&&void 0!==o?o:0,d=n.children.length;for(let e=0;e<d;e+=1){const s=n.children[e];if("SECTION"===s.tagName){const{style:e}=s;e.transformOrigin||(e.transformOrigin=`${-i}px ${-c}px`),e.transform=`scale(${a}) matrix(${t.a}, ${t.b}, ${t.c}, ${t.d}, ${t.e-l.left}, ${t.f-l.top}) translateZ(0.0001px)`;break}}}}}}),!1!==n&&Array.from(e.querySelectorAll("iframe"),({contentWindow:t})=>{null==t||t.postMessage(`${d}${n}`,"null"===window.origin?"*":window.origin)})}function w({once:t=!1,target:e=document}={}){const i=function(t=document){if(t[h])return t[h];let e=!0;const i=()=>{e=!1,delete t[h]};Object.defineProperty(t,h,{configurable:!0,value:i});let n=[],s=!1;(async()=>{try{n=await p()}finally{s=!0}})();const r=()=>{for(const e of n)e({target:t});s&&0===n.length||e&&window.requestAnimationFrame(r)};return r(),i}(e);return t?(i(),()=>{}):i}m=1,u=void 0;const b=Symbol(),y=(e=document)=>{if("undefined"==typeof window)throw new Error("Marp Core's browser script is valid only in browser context.");if(((e=document)=>{const i=window[l];i||customElements.define("marp-auto-scaling",s);for(const n of Object.keys(t)){const s=`marp-${n}`,o=t[n].proto();a()&&o!==HTMLElement?i||customElements.define(s,r(o,{style:t[n].style}),{extends:n}):(i||customElements.define(s,r(HTMLElement,t[n])),e.querySelectorAll(`${n}[is="${s}"]`).forEach(t=>{t.outerHTML=t.outerHTML.replace(new RegExp(`^<${n}`,"i"),`<${s}`).replace(new RegExp(`</${n}>$`,"i"),`</${s}>`)}))}window[l]=!0})(e),e[b])return e[b];const i=w({target:e}),n=()=>{i(),delete e[b]},o=Object.assign(n,{cleanup:n,update:()=>y(e)});return Object.defineProperty(e,b,{configurable:!0,value:o}),o},f=document.currentScript;y(f?f.getRootNode():document)}();
-</script></foreignObject></svg></div><div class="bespoke-marp-note" data-index="0" tabindex="0"><p>Outline: (1) scaling and &quot;it works on my machine&quot;; (2) containers vs VMs and what a container
-really is; (3) Docker: Dockerfile, layers, commands, networks, volumes; (4) Docker Compose:
-services, localhost pitfall, .env, health checks; (5) pitfalls and beyond one host.</p></div><div class="bespoke-marp-note" data-index="1" tabindex="0"><p>Let the class answer before revealing. The last bullet is the motivation for the whole class.</p></div><div class="bespoke-marp-note" data-index="13" tabindex="0"><p>Ask: what happens to the app if it connects while Postgres is still initialising?</p></div><script>/*!! License: https://unpkg.com/@marp-team/marp-cli@4.5.1/lib/bespoke.js.LICENSE.txt */
+</script></foreignObject></svg></div><div class="bespoke-marp-note" data-index="0" tabindex="0"><p>Objectives: explain what a container is (namespaces, cgroups, layered filesystem) and how it differs from a VM;
+write a multi-stage, cache-friendly Dockerfile for a Spring Boot service; run, inspect and debug containers;
+compose a service + PostgreSQL with compose.yaml, .env and health checks; diagnose localhost, lost data,
+committed secrets and latest.
+Outline: (1) overview: scaling, containers vs VMs, what a container really is, the lifecycle; (2) Docker;
+(3) Docker Compose; (4) containerisation in the cloud.</p></div><script>/*!! License: https://unpkg.com/@marp-team/marp-cli@4.5.1/lib/bespoke.js.LICENSE.txt */
 !function(){"use strict";function e(e){return e&&e.__esModule&&Object.prototype.hasOwnProperty.call(e,"default")?e.default:e}var t,n,r=(n||(n=1,t={from:function(e,t){var n,r=1===(e.parent||e).nodeType?e.parent||e:document.querySelector(e.parent||e),o=[].filter.call("string"==typeof e.slides?r.querySelectorAll(e.slides):e.slides||r.children,function(e){return"SCRIPT"!==e.nodeName}),i={},a=function(e,t){return(t=t||{}).index=o.indexOf(e),t.slide=e,t},s=function(e,t){i[e]=(i[e]||[]).filter(function(e){return e!==t})},l=function(e,t){return(i[e]||[]).reduce(function(e,n){return e&&!1!==n(t)},!0)},c=function(e,t){o[e]&&(n&&l("deactivate",a(n,t)),n=o[e],l("activate",a(n,t)))},d=function(e,t){var r=o.indexOf(n)+e;l(e>0?"next":"prev",a(n,t))&&c(r,t)},u={off:s,on:function(e,t){return(i[e]||(i[e]=[])).push(t),s.bind(null,e,t)},fire:l,slide:function(e,t){if(!arguments.length)return o.indexOf(n);l("slide",a(o[e],t))&&c(e,t)},next:d.bind(null,1),prev:d.bind(null,-1),parent:r,slides:o,destroy:function(e){l("destroy",a(n,e)),i={}}};return(t||[]).forEach(function(e){e(u)}),n||c(0),u}}),t),o=e(r);const i=document.body,a=(...e)=>history.replaceState(...e),s="",l="presenter",c="next",d="overview",u=["",l,d,c],f="bespoke-marp-",m=`data-${f}`,g=(e,{protocol:t,host:n,pathname:r,hash:o}=location)=>{const i=e.toString();return`${t}//${n}${r}${i?"?":""}${i}${o}`},p=()=>i.dataset.bespokeView,v=e=>new URLSearchParams(location.search).get(e),h=(e,t={})=>{const n={location,setter:a,...t},r=new URLSearchParams(n.location.search);for(const t of Object.keys(e)){const n=e[t];"string"==typeof n?r.set(t,n):r.delete(t)}try{n.setter({...window.history.state??{}},"",g(r,n.location))}catch(e){console.error(e)}},w=(()=>{const e="bespoke-marp";try{return localStorage.setItem(e,e),localStorage.removeItem(e),!0}catch{return!1}})(),y=e=>{try{return localStorage.getItem(e)}catch{return null}},b=(e,t)=>{try{return localStorage.setItem(e,t),!0}catch{return!1}},k=e=>{try{return localStorage.removeItem(e),!0}catch{return!1}},x=(e,t)=>{const n="aria-hidden";t?e.setAttribute(n,"true"):e.removeAttribute(n)},E=e=>{e.parent.classList.add(`${f}parent`),e.slides.forEach(e=>e.classList.add(`${f}slide`)),e.on("activate",t=>{const n=`${f}active`,r=t.slide,o=r.classList,i=!o.contains(n);if(e.slides.forEach(e=>{e.classList.remove(n),x(e,!0)}),o.add(n),x(r,!1),i){const e=`${n}-ready`;o.add(e),document.body.clientHeight,o.remove(e)}})},$=e=>{let t=0,n=0;Object.defineProperty(e,"fragments",{enumerable:!0,value:e.slides.map(e=>[null,...e.querySelectorAll("[data-marpit-fragment]")])});const r=r=>void 0!==e.fragments[t][n+r],o=(r,o)=>{t=r,n=o,e.fragments.forEach((e,t)=>{e.forEach((e,n)=>{if(null==e)return;const i=t<r||t===r&&n<=o;e.setAttribute(`${m}fragment`,(i?"":"in")+"active");const a=`${m}current-fragment`;t===r&&n===o?e.setAttribute(a,"current"):e.removeAttribute(a)})}),e.fragmentIndex=o;const i={slide:e.slides[r],index:r,fragments:e.fragments[r],fragmentIndex:o};e.fire("fragment",i)};e.on("next",({fragment:i=!0})=>{if(i){if(r(1))return o(t,n+1),!1;const i=t+1;e.fragments[i]&&o(i,0)}else{const r=e.fragments[t].length;if(n+1<r)return o(t,r-1),!1;const i=e.fragments[t+1];i&&o(t+1,i.length-1)}}),e.on("prev",({fragment:i=!0})=>{if(r(-1)&&i)return o(t,n-1),!1;const a=t-1;e.fragments[a]&&o(a,e.fragments[a].length-1)}),e.on("slide",({index:t,fragment:n})=>{let r=0;if(void 0!==n){const o=e.fragments[t];if(o){const{length:e}=o;r=-1===n?e-1:Math.min(Math.max(n,0),e-1)}}o(t,r)}),o(0,0)},L=document,S=()=>!(!L.fullscreenEnabled&&!L.webkitFullscreenEnabled),P=()=>!(!L.fullscreenElement&&!L.webkitFullscreenElement),_=e=>{e.fullscreen=()=>{S()&&(async()=>{P()?(L.exitFullscreen||L.webkitExitFullscreen)?.call(L):((e=L.body)=>{(e.requestFullscreen||e.webkitRequestFullscreen)?.call(e)})()})()},document.addEventListener("keydown",t=>{"f"!==t.key&&"F11"!==t.key||t.altKey||t.ctrlKey||t.metaKey||!S()||(e.fullscreen(),t.preventDefault())})},O=`${f}inactive`,T=(e=2e3)=>({parent:t,fire:n})=>{const r=t.classList,o=e=>n(`marp-${e?"":"in"}active`);let i;const a=()=>{i&&clearTimeout(i),i=setTimeout(()=>{r.add(O),o()},e),r.contains(O)&&(r.remove(O),o(!0))};for(const e of["mousedown","mousemove","touchend"])document.addEventListener(e,a);setTimeout(a,0)},I=["AUDIO","BUTTON","INPUT","SELECT","TEXTAREA","VIDEO"],M=e=>{e.parent.addEventListener("keydown",e=>{if(!e.target)return;const t=e.target;(I.includes(t.nodeName)||"true"===t.contentEditable)&&e.stopPropagation()})},A=e=>{window.addEventListener("load",()=>{for(const t of e.slides){const e=t.querySelector("marp-auto-scaling, [data-auto-scaling], [data-marp-fitting]");t.setAttribute(`${m}load`,e?"":"hideable")}})},C=({interval:e=250}={})=>t=>{document.addEventListener("keydown",e=>{if(" "===e.key&&e.shiftKey)t.prev();else if("ArrowLeft"===e.key||"ArrowUp"===e.key||"PageUp"===e.key)t.prev({fragment:!e.shiftKey});else if(" "!==e.key||e.shiftKey)if("ArrowRight"===e.key||"ArrowDown"===e.key||"PageDown"===e.key)t.next({fragment:!e.shiftKey});else if("End"===e.key)t.slide(t.slides.length-1,{fragment:-1});else{if("Home"!==e.key)return;t.slide(0)}else t.next();e.preventDefault()});let n,r,o=0;t.parent.addEventListener("wheel",i=>{let a=!1;const s=(e,t)=>{e&&(a=a||((e,t)=>((e,t)=>{const n="X"===t?"Width":"Height";return e[`client${n}`]<e[`scroll${n}`]})(e,t)&&((e,t)=>{const{overflow:n}=e,r=e[`overflow${t}`];return"auto"===n||"scroll"===n||"auto"===r||"scroll"===r})(getComputedStyle(e),t))(e,t)),e?.parentElement&&s(e.parentElement,t)};if(0!==i.deltaX&&s(i.target,"X"),0!==i.deltaY&&s(i.target,"Y"),a)return;i.preventDefault();const l=Math.sqrt(i.deltaX**2+i.deltaY**2);if(void 0!==i.wheelDelta){if(void 0===i.webkitForce&&Math.abs(i.wheelDelta)<40)return;if(i.deltaMode===i.DOM_DELTA_PIXEL&&l<4)return}else if(i.deltaMode===i.DOM_DELTA_PIXEL&&l<12)return;r&&clearTimeout(r),r=setTimeout(()=>{n=0},e);const c=Date.now()-o<e,d=l<=n;if(n=l,c||d)return;let u;(i.deltaX>0||i.deltaY>0)&&(u="next"),(i.deltaX<0||i.deltaY<0)&&(u="prev"),u&&(t[u](),o=Date.now())})},D=(e=`.${f}osc`)=>{const t=document.querySelector(e);if(!t)return()=>{};const n=(e,n)=>{t.querySelectorAll(`[${m}osc=${JSON.stringify(e)}]`).forEach(n)};if(S()||n("fullscreen",e=>e.style.display="none"),!w){const e=(e,t)=>{e.disabled=!0,e.title=`${t} is disabled due to restricted localStorage.`};n("presenter",t=>e(t,"Presenter view")),n("overview",t=>e(t,"Overview view"))}return e=>{t.addEventListener("click",t=>{if(t.target instanceof HTMLElement){const{bespokeMarpOsc:n}=t.target.dataset;n&&t.target.blur();const r={fragment:!t.shiftKey};"next"===n?e.next(r):"prev"===n?e.prev(r):"fullscreen"===n?e?.fullscreen():"presenter"===n?e.openPresenterView():"overview"===n&&e.toggleOverviewView()}}),e.parent.appendChild(t),e.on("activate",({index:t})=>{n("page",n=>n.textContent=`Page ${t+1} of ${e.slides.length}`)}),e.on("fragment",({index:t,fragments:r,fragmentIndex:o})=>{n("prev",e=>e.disabled=0===t&&0===o),n("next",n=>n.disabled=t===e.slides.length-1&&o===r.length-1)}),e.on("marp-active",()=>x(t,!1)),e.on("marp-inactive",()=>x(t,!0)),S()&&(e=>{for(const t of["","webkit"])L.addEventListener(t+"fullscreenchange",e)})(()=>n("fullscreen",e=>e.classList.toggle("exit",S()&&P())))}},N=e=>{if(e.syncKey&&"string"==typeof e.syncKey)return!0;throw new Error("The current instance of Bespoke.js is incompatible with Marp bespoke sync plugin.")},B=(e={})=>{const t=e.key||window.history.state?.marpBespokeSyncKey||Math.random().toString(36).slice(2),n=`bespoke-marp-sync-${t}`;var r;r={marpBespokeSyncKey:t},h({},{setter:(e,...t)=>a({...e,...r},...t)});const o=()=>{const e=y(n);return e?JSON.parse(e):Object.create(null)},i=e=>{const t=o(),r={...t,...e(t)};return b(n,JSON.stringify(r)),r},s=()=>{window.removeEventListener("pageshow",s),i(e=>({reference:(e.reference||0)+1}))};return e=>{s(),Object.defineProperty(e,"syncKey",{value:t,enumerable:!0});let r=!0;setTimeout(()=>{e.on("fragment",e=>{r&&i(()=>({index:e.index,fragmentIndex:e.fragmentIndex}))})},0),window.addEventListener("storage",t=>{if(t.key===n&&t.oldValue&&t.newValue){const n=JSON.parse(t.oldValue),o=JSON.parse(t.newValue);if(n.index!==o.index||n.fragmentIndex!==o.fragmentIndex)try{r=!1,e.slide(o.index,{fragment:o.fragmentIndex,forSync:!0})}finally{r=!0}}});const a=()=>{const{reference:e}=o();void 0===e||e<=1?k(n):i(()=>({reference:e-1}))};window.addEventListener("pagehide",e=>{e.persisted&&window.addEventListener("pageshow",s),a()}),e.on("destroy",a)}},K=e=>{w&&document.addEventListener("keydown",t=>{("o"!==t.key||t.altKey||t.ctrlKey||t.metaKey)&&"Escape"!==t.key||(t.preventDefault(),e())})};let q=null;const V=({closeOnSelect:e=!0}={})=>t=>{N(t);const n=n=>{const r=(()=>{if(!q||!q.isConnected){q=document.createElement("div"),q.className=`${f}overview`,q.inert=!0;const n=document.createElement("iframe");n.src=(()=>{const n=new URLSearchParams(location.search);return n.set("view","overview"),n.set("sync",t.syncKey),e&&n.set("closeOnSelect","1"),g(n)})(),q.append(n),document.body.append(q)}return q})(),o=n??!r.dataset.open;setTimeout(()=>{if(r.dataset.open=o?"1":"",r.inert=!o,t.skipTransition=o,o){const e=r.querySelector("iframe");try{e?.contentWindow?.focus()}catch{e?.focus()}}else window.focus()},0)};Object.defineProperties(t,{toggleOverviewView:{enumerable:!0,value:n}}),window.addEventListener("message",e=>{e.origin===window.origin&&"closeOverview"===e.data&&n(!1)}),K(n)},j=e=>{const{title:t}=document;document.title="[Overview]"+(t?` - ${t}`:"");const n=!!v("closeOnSelect"),r=()=>{window.parent.postMessage("closeOverview","null"===window.origin?"*":window.origin)};if(e.slides.forEach((t,o)=>{t.tabIndex=0;const i=()=>{e.slide(o,{fragment:-1}),n&&r()};t.addEventListener("click",i),t.addEventListener("keydown",e=>{"Enter"!==e.key&&" "!==e.key||(e.preventDefault(),i())})}),window.addEventListener("keydown",t=>{const n=e.slide(),r=t=>{const r=t=>{const n=e.slides[t].getBoundingClientRect();return[Math.round((n.left+n.right)/2),Math.round((n.top+n.bottom)/2)]};let o=null,i=n;do{const e=r(i);if(o){if(Math.abs(e[0]-o[0])<2)return i}else o=e;i+=t}while(i>=0&&i<e.slides.length);return n};if("ArrowLeft"===t.key)e.slide(Math.max(n-1,0),{fragment:-1});else if("ArrowRight"===t.key)e.slide(Math.min(n+1,e.slides.length-1),{fragment:-1});else if("ArrowUp"===t.key)e.slide(r(-1),{fragment:-1});else if("ArrowDown"===t.key)e.slide(r(1),{fragment:-1});else if("End"===t.key)e.slide(e.slides.length-1,{fragment:-1});else{if("Home"!==t.key)return;e.slide(0,{fragment:-1})}t.preventDefault();const o=e.slide();e.slides[o]?.focus?.(),e.slides[o]?.scrollIntoView?.({behavior:"smooth",block:"nearest"})}),e.on("slide",({index:t})=>{e.slides[t]?.scrollIntoView?.({behavior:"smooth",block:"nearest"})}),window.parent!==window){K(r);const e=document.createElement("header");e.className=`${f}overview-header`;const t=document.createElement("button");t.className=`${f}overview-close`,t.type="button",t.title="Close overview",t.textContent=t.title,t.addEventListener("click",r),e.append(t),document.body.prepend(e)}},F=()=>{const e=p();return{[s]:V(),[l]:V({closeOnSelect:!1}),[d]:j}[e]},U=e=>{window.addEventListener("message",t=>{if(t.origin!==window.origin)return;const[n,r]=t.data.split(":");if("navigate"===n){const[t,n]=r.split(",");let o=Number.parseInt(t,10),i=Number.parseInt(n,10)+1;i>=e.fragments[o].length&&(o+=1,i=0),e.slide(o,{fragment:i})}})};var R,X,H,W,J,Y,z,G={exports:{}},Q=(R||(R=1,G.exports=(X=["area","base","br","col","command","embed","hr","img","input","keygen","link","meta","param","source","track","wbr"],H=function(e){return String(e).replace(/[&<>"']/g,function(e){return"&"+W[e]+";"})},W={"&":"amp","<":"lt",">":"gt",'"':"quot","'":"apos"},J="dangerouslySetInnerHTML",Y={className:"class",htmlFor:"for"},z={},function(e,t){var n=[],r="";t=t||{};for(var o=arguments.length;o-- >2;)n.push(arguments[o]);if("function"==typeof e)return t.children=n.reverse(),e(t);if(e){if(r+="<"+e,t)for(var i in t)!1!==t[i]&&null!=t[i]&&i!==J&&(r+=" "+(Y[i]?Y[i]:H(i))+'="'+H(t[i])+'"');r+=">"}if(-1===X.indexOf(e)){if(t[J])r+=t[J].__html;else for(;n.length;){var a=n.pop();if(a)if(a.pop)for(var s=a.length;s--;)n.push(a[s]);else r+=!0===z[a]?a:H(a)}r+=e?"</"+e+">":""}return z[r]=!0,r})),G.exports),Z=e(Q);const ee=({children:e})=>Z(null,null,...e),te=`${f}presenter-`,ne={container:`${te}container`,dragbar:`${te}dragbar-container`,next:`${te}next`,nextContainer:`${te}next-container`,noteContainer:`${te}note-container`,noteWrapper:`${te}note-wrapper`,noteButtons:`${te}note-buttons`,infoContainer:`${te}info-container`,infoPageArea:`${te}info-page-area`,infoPage:`${te}info-page`,infoPagePrev:`${te}info-page-prev`,infoPageNext:`${te}info-page-next`,noteButtonsBigger:`${te}note-bigger`,noteButtonsSmaller:`${te}note-smaller`,infoTime:`${te}info-time`,infoTimer:`${te}info-timer`},re=e=>{const{title:t}=document;document.title="[Presenter view]"+(t?` - ${t}`:"");const n={},r=e=>(n[e]=n[e]||document.querySelector(`.${e}`),n[e]);document.body.appendChild((e=>{const t=document.createElement("div");return t.className=ne.container,t.appendChild(e),t.insertAdjacentHTML("beforeend",Z(ee,null,Z("div",{class:ne.nextContainer},Z("iframe",{class:ne.next,src:"?view=next"})),Z("div",{class:ne.dragbar}),Z("div",{class:ne.noteContainer},Z("div",{class:ne.noteWrapper}),Z("div",{class:ne.noteButtons},Z("button",{class:ne.noteButtonsSmaller,tabindex:"-1",title:"Smaller notes font size"},"Smaller notes font size"),Z("button",{class:ne.noteButtonsBigger,tabindex:"-1",title:"Bigger notes font size"},"Bigger notes font size"))),Z("div",{class:ne.infoContainer},Z("div",{class:ne.infoPageArea},Z("button",{class:ne.infoPagePrev,tabindex:"-1",title:"Previous"},"Previous"),Z("button",{class:ne.infoPage}),Z("button",{class:ne.infoPageNext,tabindex:"-1",title:"Next"},"Next")),Z("time",{class:ne.infoTime,title:"Current time"}),Z("time",{class:ne.infoTimer,title:"Timer"})))),t})(e.parent)),(e=>{let t=!1;r(ne.dragbar).addEventListener("mousedown",()=>{t=!0,r(ne.dragbar).classList.add("active")}),window.addEventListener("mouseup",()=>{t=!1,r(ne.dragbar).classList.remove("active")}),window.addEventListener("mousemove",e=>{if(!t)return;const n=e.clientX/document.documentElement.clientWidth*100;r(ne.container).style.setProperty("--bespoke-marp-presenter-split-ratio",`${Math.max(0,Math.min(100,n))}%`)}),r(ne.nextContainer).addEventListener("click",()=>e.next());const n=r(ne.next),o=(i=n,(e,t)=>i.contentWindow?.postMessage(`navigate:${e},${t}`,"null"===window.origin?"*":window.origin));var i;n.addEventListener("load",()=>{r(ne.nextContainer).classList.add("active"),o(e.slide(),e.fragmentIndex),e.on("fragment",({index:e,fragmentIndex:t})=>o(e,t))});const a=document.querySelectorAll(".bespoke-marp-note");a.forEach(e=>{e.addEventListener("keydown",e=>e.stopPropagation()),r(ne.noteWrapper).appendChild(e)}),e.on("activate",()=>a.forEach(t=>t.classList.toggle("active",t.dataset.index==e.slide())));let s=0;const l=e=>{s=Math.max(-5,s+e),r(ne.noteContainer).style.setProperty("--bespoke-marp-note-font-scale",(1.2**s).toFixed(4))},c=()=>l(1),d=()=>l(-1),u=r(ne.noteButtonsBigger),f=r(ne.noteButtonsSmaller);u.addEventListener("click",()=>{u.blur(),c()}),f.addEventListener("click",()=>{f.blur(),d()}),document.addEventListener("keydown",e=>{"+"===e.key&&c(),"-"===e.key&&d()},!0);const m=r(ne.infoPage);e.on("activate",({index:t})=>{m.textContent=`${t+1} / ${e.slides.length}`}),m.addEventListener("click",()=>{m.blur(),e.toggleOverviewView()});const g=r(ne.infoPagePrev),p=r(ne.infoPageNext);g.addEventListener("click",t=>{g.blur(),e.prev({fragment:!t.shiftKey})}),p.addEventListener("click",t=>{p.blur(),e.next({fragment:!t.shiftKey})}),e.on("fragment",({index:t,fragments:n,fragmentIndex:r})=>{g.disabled=0===t&&0===r,p.disabled=t===e.slides.length-1&&r===n.length-1});let v=new Date;const h=()=>{const e=new Date,t=e=>`${Math.floor(e)}`.padStart(2,"0"),n=e.getTime()-v.getTime(),o=t(n/1e3%60),i=t(n/1e3/60%60),a=t(n/36e5%24);r(ne.infoTime).textContent=e.toLocaleTimeString(),r(ne.infoTimer).textContent=`${a}:${i}:${o}`};h(),setInterval(h,250),r(ne.infoTimer).addEventListener("click",()=>{v=new Date})})(e)},oe=e=>{N(e),Object.defineProperties(e,{openPresenterView:{enumerable:!0,value:ie},presenterUrl:{enumerable:!0,get:ae}}),w&&document.addEventListener("keydown",t=>{"p"!==t.key||t.altKey||t.ctrlKey||t.metaKey||(t.preventDefault(),e.openPresenterView())})};function ie(){const{max:e,floor:t}=Math,n=e(t(.85*window.innerWidth),640),r=e(t(.85*window.innerHeight),360);return window.open(this.presenterUrl,te+this.syncKey,`width=${n},height=${r},menubar=no,toolbar=no`)}function ae(){const e=new URLSearchParams(location.search);return e.set("view","presenter"),e.set("sync",this.syncKey),g(e)}const se=e=>{const t=p();return t===c&&e.appendChild(document.createElement("span")),{[s]:oe,[l]:re,[c]:U}[t]},le=e=>{e.on("activate",t=>{document.querySelectorAll(".bespoke-progress-parent > .bespoke-progress-bar").forEach(n=>{n.style.flexBasis=100*t.index/(e.slides.length-1)+"%"})})},ce=e=>{const t=Number.parseInt(e,10);return Number.isNaN(t)?null:t},de=(e={})=>{const t={history:!0,...e};return e=>{let n=!0;const r=e=>{const t=n;try{return n=!0,e()}finally{n=t}},o=(t={fragment:!0})=>{let n=t.fragment?ce(v("f")||""):null;((t,n)=>{const{min:r,max:o}=Math,{fragments:i,slides:a}=e,s=o(0,r(t,a.length-1)),l=o(0,r(n||0,i[s].length-1));s===e.slide()&&l===e.fragmentIndex||e.slide(s,{fragment:l})})((()=>{if(location.hash){const[t]=location.hash.slice(1).split(":~:");if(/^\d+$/.test(t))return(ce(t)??1)-1;const r=document.getElementById(t)||document.querySelector(`a[name="${CSS.escape(t)}"]`);if(r){const{length:t}=e.slides;for(let o=0;o<t;o+=1)if(e.slides[o].contains(r)){const t=e.fragments?.[o],i=r.closest("[data-marpit-fragment]");if(t&&i){const e=t.indexOf(i);e>=0&&(n=e)}return o}}}return 0})(),n)};e.on("fragment",({index:e,fragmentIndex:r})=>{n||h({f:0===r||r.toString()},{location:{...location,hash:`#${e+1}`},setter:(...e)=>t.history?history.pushState(...e):history.replaceState(...e)})}),setTimeout(()=>{o(),window.addEventListener("hashchange",()=>r(()=>{o({fragment:!1}),h({f:void 0})})),window.addEventListener("popstate",()=>{n||r(()=>o())}),n=!1},0)}},{PI:ue,abs:fe,sqrt:me,atan2:ge}=Math,pe={passive:!0},ve=({slope:e=-.7,swipeThreshold:t=30}={})=>n=>{let r;const o=n.parent,i=e=>{const t=o.getBoundingClientRect();return{x:e.pageX-(t.left+t.right)/2,y:e.pageY-(t.top+t.bottom)/2}};o.addEventListener("touchstart",({touches:e})=>{r=1===e.length?i(e[0]):void 0},pe),o.addEventListener("touchmove",e=>{if(r)if(1===e.touches.length){e.preventDefault();const t=i(e.touches[0]),n=t.x-r.x,o=t.y-r.y;r.delta=me(fe(n)**2+fe(o)**2),r.radian=ge(n,o)}else r=void 0}),o.addEventListener("touchend",o=>{if(r){if(r.delta&&r.delta>=t&&r.radian){const t=(r.radian-e+ue)%(2*ue)-ue;n[t<0?"next":"prev"](),o.stopPropagation()}r=void 0}},pe)},he=new Map;he.clear(),he.set("none",{backward:{both:void 0,incoming:void 0,outgoing:void 0},forward:{both:void 0,incoming:void 0,outgoing:void 0}});const we={both:"",outgoing:"outgoing-",incoming:"incoming-"},ye={forward:"",backward:"-backward"},be=e=>`--marp-bespoke-transition-animation-${e}`,ke=e=>`--marp-transition-${e}`,xe=be("name"),Ee=be("duration"),$e=e=>new Promise(t=>{const n={},r=document.createElement("div"),o=e=>{r.remove(),t(e)};r.addEventListener("animationstart",()=>o(n)),Object.assign(r.style,{animationName:e,animationDuration:"1s",animationFillMode:"both",animationPlayState:"paused",position:"absolute",pointerEvents:"none"}),document.body.appendChild(r);const i=getComputedStyle(r).getPropertyValue(ke("duration"));i&&Number.parseFloat(i)>=0&&(n.defaultDuration=i),((e,t)=>{requestAnimationFrame(()=>{e.style.animationPlayState="running",requestAnimationFrame(()=>t(void 0))})})(r,o)}),Le=async e=>he.has(e)?he.get(e):(e=>{const t={},n=[];for(const[r,o]of Object.entries(we))for(const[i,a]of Object.entries(ye)){const s=`marp-${o}transition${a}-${e}`;n.push($e(s).then(e=>{t[i]=t[i]||{},t[i][r]=e?{...e,name:s}:void 0}))}return Promise.all(n).then(()=>t)})(e).then(t=>(he.set(e,t),t)),Se=e=>Object.values(e).flatMap(Object.values).every(e=>!e),Pe=(e,{type:t,backward:n})=>{const r=e[n?"backward":"forward"],o=(()=>{const e=r[t],n=e=>({[xe]:e.name});if(e)return n(e);if(r.both){const e=n(r.both);return"incoming"===t&&(e[be("direction")]="reverse"),e}})();return!o&&n?Pe(e,{type:t,backward:!1}):o||{[xe]:"__bespoke_marp_transition_no_animation__"}},_e=e=>{if(e)try{const t=JSON.parse(e);if((e=>{if("object"!=typeof e)return!1;const t=e;return"string"==typeof t.name&&(void 0===t.duration||"string"==typeof t.duration)})(t))return t}catch{}},Oe="_tSId",Te="_tA",Ie="bespoke-marp-transition-warming-up",Me=window.matchMedia("(prefers-reduced-motion: reduce)"),Ae="__bespoke_marp_transition_reduced_outgoing__",Ce="__bespoke_marp_transition_reduced_incoming__",De={forward:{both:void 0,incoming:{name:Ce},outgoing:{name:Ae}},backward:{both:void 0,incoming:{name:Ce},outgoing:{name:Ae}}},Ne=e=>{if(!document.startViewTransition)return;const t=t=>(void 0!==t&&(e._tD=t),e._tD);let n;t(!1),((...e)=>{CSS.registerProperty({name:ke("duration"),syntax:"<time>",inherits:!0,initialValue:"-1s"});const t=[...new Set(e).values()];return Promise.all(t.map(e=>Le(e))).then()})(...Array.from(document.querySelectorAll("section[data-transition], section[data-transition-back]")).flatMap(e=>[e.dataset.transition,e.dataset.transitionBack].flatMap(e=>{const t=_e(e);return[t?.name,t?.builtinFallback?`__builtin__${t.name}`:void 0]}).filter(e=>!!e))).then(()=>{document.querySelectorAll("style").forEach(e=>{e.innerHTML=e.innerHTML.replace(/--marp-transition-duration:[^;}]*[;}]/g,e=>e.slice(0,-1)+"!important"+e.slice(-1))})});const r=(n,{back:r,cond:o})=>i=>{const a=t();if(a)return!!i[Te]||!("object"!=typeof a||(a.skipTransition(),!i.forSync));if(e.skipTransition)return!0;if(!o(i))return!0;const s=e.slides[e.slide()],l=()=>i.back??r,c="data-transition"+(l()?"-back":""),d=s.querySelector(`section[${c}]`);if(!d)return!0;const u=_e(d.getAttribute(c)??void 0);return!u||((async(e,{builtinFallback:t=!0}={})=>{let n=await Le(e);if(Se(n)){if(!t)return;return n=await Le(`__builtin__${e}`),Se(n)?void 0:n}return n})(u.name,{builtinFallback:u.builtinFallback}).then(e=>{if(!e){t(!0);try{n(i)}finally{t(!1)}return}let r=e;Me.matches&&(console.warn("Use a constant animation to transition because preferring reduced motion by viewer has detected."),r=De);const o=document.getElementById(Oe);o&&o.remove();const a=document.createElement("style");a.id=Oe,document.head.appendChild(a),((e,t)=>{const n=[`:root{${ke("direction")}:${t.backward?-1:1};}`,":root:has(.bespoke-marp-inactive){cursor:none;}"],r=t=>{const n=e[t].both?.defaultDuration||e[t].outgoing?.defaultDuration||e[t].incoming?.defaultDuration;return"forward"===t?n:n||r("forward")},o=t.duration||r(t.backward?"backward":"forward");void 0!==o&&n.push(`::view-transition-group(*){${Ee}:${o};}`);const i=e=>Object.entries(e).map(([e,t])=>`${e}:${t};`).join("");return n.push(`::view-transition-old(root){${i(Pe(e,{...t,type:"outgoing"}))}}`,`::view-transition-new(root){${i(Pe(e,{...t,type:"incoming"}))}}`),n})(r,{backward:l(),duration:u.duration}).forEach(e=>a.sheet?.insertRule(e));const s=document.documentElement.classList;s.add(Ie);let c=!1;const d=()=>{c||(n(i),c=!0,s.remove(Ie))},f=()=>{t(!1),a.remove(),s.remove(Ie)};try{t(!0);const e=document.startViewTransition(d);t(e),e.finished.finally(f)}catch(e){console.error(e),d(),f()}}),!1)};e.on("prev",r(t=>e.prev({...t,[Te]:!0}),{back:!0,cond:e=>e.index>0&&!((e.fragment??1)&&n.fragmentIndex>0)})),e.on("next",r(t=>e.next({...t,[Te]:!0}),{cond:t=>t.index+1<e.slides.length&&!(n.fragmentIndex+1<n.fragments.length)})),setTimeout(()=>{e.on("slide",r(t=>e.slide(t.index,{...t,[Te]:!0}),{cond:t=>{const n=e.slide();return t.index!==n&&(t.back=t.index<n,!0)}}))},0),e.on("fragment",e=>{n=e})};let Be;const Ke=()=>(void 0===Be&&(Be="wakeLock"in navigator&&navigator.wakeLock),Be),qe=async()=>{const e=Ke();if(e)try{return await e.request("screen")}catch(e){console.warn(e)}return null},Ve=async()=>{if(!Ke())return;let e;const t=()=>{e&&"visible"===document.visibilityState&&qe()};for(const e of["visibilitychange","fullscreenchange"])document.addEventListener(e,t);return e=await qe(),e};((e=document.getElementById(":$p"))=>{(()=>{const e=v("view");i.dataset.bespokeView=u.some(t=>t&&t===e)?e:""})();const t=(e=>{const t=v(e);return h({[e]:void 0}),t})("sync")||void 0;o.from(e,((...e)=>{const t=u.findIndex(e=>p()===e);return e.map(([e,n])=>e[t]&&n).filter(e=>e)})([[1,1,1,0],B({key:t})],[[1,1,0,1],se(e)],[[1,1,0,0],M],[[1,1,1,1],E],[[1,0,0,0],T()],[[1,1,1,1],A],[[1,1,1,1],de({history:!1})],[[1,1,0,0],C()],[[1,1,1,0],_],[[1,0,0,0],le],[[1,1,0,0],ve()],[[1,0,0,0],D()],[[1,1,1,0],F()],[[1,0,0,0],Ne],[[1,1,1,1],$],[[1,1,1,0],Ve]))})()}();</script></body></html>

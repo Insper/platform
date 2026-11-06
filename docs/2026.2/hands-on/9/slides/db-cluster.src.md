@@ -22,8 +22,9 @@ theme: platform
 
 <!--
 Outline: (1) why a cluster, and what it does not solve; (2) the WAL and streaming replication;
-(3) async vs sync, CAP; (4) the compose project; (5) experiments: lag, routing, sync commits;
-(6) failover by hand, lost writes, pg_rewind; (7) why automation needs consensus.
+(3) async vs sync, CAP; (4) architecture and failover, by hand × automated; (5) Docker Compose: files,
+start, check; (6) Replication: experiments 1–6; (7) Failover: planned, lost write, consensus, connecting
+the platform.
 -->
 
 ---
@@ -88,14 +89,52 @@ CAP in practice: sync prefers **consistency**, async prefers **availability**.
 
 ---
 
-## The compose project
+## Architecture
+
+| Node | Port (host) | Role |
+|---|---|---|
+| `pg-primary` | `5432` | read-write; streams its WAL to both replicas |
+| `pg-replica1` | `5433` | read-only hot standby |
+| `pg-replica2` | `5434` | read-only hot standby |
+
+- All three run `postgres:17`; an entrypoint picks the role: empty + `PRIMARY_HOST` → clone the primary with `pg_basebackup`.
+- The **application** decides where each query goes: here, in the **connection string** (`target_session_attrs` / `targetServerType`).
+
+<p class="small">Steps: <b>1</b> Docker Compose → <b>2</b> Replication (experiments) → <b>3</b> Failover.</p>
+
+---
+
+## Failover: by hand × automated
+
+| Step | By hand (this hands-on) | Automated |
+|---|---|---|
+| detect the failure | `docker compose ps` | health checks, heartbeats |
+| choose and promote a replica | `SELECT pg_promote();` | leader election |
+| re-point the other replicas | `ALTER SYSTEM SET primary_conninfo` | the tool reconfigures them |
+| redirect the clients | multi-host connection string | virtual IP, DNS, proxy (HAProxy, PgBouncer) |
+| bring the old primary back | `pg_rewind` | the tool rewinds it |
+
+<div class="warn">
+
+**Split brain**: a primary that only *looks* dead keeps accepting writes → two primaries. Automation needs **consensus**.
+
+</div>
+
+---
+
+<!-- _class: tight -->
+
+## 1 · The compose project
+
+`pgcluster/`: `compose.yaml` + `scripts/` (`node-entrypoint.sh`, `init-primary.sh`, `rejoin-as-replica.sh`)
 
 <div class="cols">
 <div>
 
-- 3 × `postgres:17`, one volume each
-- `pg-primary` `:5432`, `pg-replica1` `:5433`, `pg-replica2` `:5434`
+- 3 × `postgres:17`, **one volume each**, shared via YAML anchors
+- `cluster_name`: which node answered
 - `PRIMARY_HOST` set → the node is a replica
+- replicas have **no `depends_on`**: the entrypoint waits
 - `client` (profile `tools`): `psql` inside the network
 
 </div>
@@ -113,14 +152,16 @@ pg_basebackup -h "$PRIMARY_HOST" \
 </div>
 </div>
 
-<p class="small"><code>init-primary.sh</code>: role <code>replicator</code>, <code>wal_keep_size</code>, <code>wal_log_hints</code>, <code>pg_hba</code> rule — copied to every replica.</p>
+<p class="small"><code>init-primary.sh</code>: role <code>replicator</code>, <code>wal_keep_size</code>, <code>wal_log_hints</code>, <code>pg_hba</code> rule — copied to every replica. Save the scripts with <b>LF</b> line endings.</p>
 
 ---
 
-## Check it
+<!-- _class: tight -->
+
+## 1 · Start and check
 
 ```bash
-docker compose up -d --wait
+docker compose up -d --wait     # returns when all three nodes are healthy
 docker compose exec pg-primary psql -U store \
   -c "SELECT application_name, state, sync_state FROM pg_stat_replication;"
 ```
@@ -132,11 +173,27 @@ docker compose exec pg-primary psql -U store \
  pg-replica2      | streaming | async
 ```
 
+- `docker compose logs pg-replica1`: *cloning pg-primary … entering standby mode … started streaming WAL*.
 - On a replica: `pg_is_in_recovery()` → `t`, `pg_stat_wal_receiver` → streaming from `pg-primary`.
 
 ---
 
-## Experiments 1–3: copies, read-only, lag
+## 1 · Troubleshooting
+
+| Symptom | Cause and fix |
+|---|---|
+| `$'\r': command not found` | scripts saved with CRLF: save as LF, recreate the cluster |
+| replica loops on `no pg_hba.conf entry for replication connection` | primary created before `init-primary.sh` existed: recreate |
+| `port is already allocated` on 5432 | the `db` of a previous hands-on is up: stop it or change the ports |
+| replica stuck on `waiting for pg-primary...` | the primary is not up: `docker compose logs pg-primary` |
+
+```bash
+docker compose down -v && docker compose up -d --wait    # start over: one primary, two replicas
+```
+
+---
+
+## 2 · Experiments 1–3: copies, read-only, lag
 
 - `CREATE TABLE` + `INSERT` on the primary → the rows appear on both replicas.
 - `INSERT` on a replica → `cannot execute INSERT in a read-only transaction`.
@@ -152,7 +209,7 @@ docker compose exec pg-primary psql -U store \
 
 ---
 
-## Experiment 4: routing by role
+## 2 · Experiment 4: routing by role
 
 ```bash
 host=pg-primary,pg-replica1,pg-replica2 target_session_attrs=read-write
@@ -168,7 +225,7 @@ jdbc:postgresql://pg-primary:5432,pg-replica1:5432,pg-replica2:5432/store?target
 
 ---
 
-## Experiment 5: synchronous commits
+## 2 · Experiment 5: synchronous commits
 
 - `synchronous_standby_names = 'FIRST 1 ("pg-replica1")'` → `sync_state = sync`
 - Stop `pg-replica1`, `INSERT` → **hangs**. Ctrl+C:
@@ -189,7 +246,37 @@ Is the row committed? *(Yes — only the wait was cancelled.)*
 
 ---
 
-## Failover by hand
+## 2 · How long the primary waits
+
+| `synchronous_commit` | Commit returns when the sync replica has… | Guarantees |
+|---|---|---|
+| `remote_write` | received the WAL (in memory) | survives a primary crash |
+| `on` (default) | written the WAL to disk | survives a crash of both |
+| `remote_apply` | **replayed** the WAL | a read on that replica sees the commit |
+
+- `ANY 1` → both replicas show `sync_state = quorum`; one may be down.
+- Back to async before the failover page: `ALTER SYSTEM RESET synchronous_standby_names;` + `pg_reload_conf()`.
+
+---
+
+## 2 · Experiment 6: under load (optional)
+
+```bash
+docker compose run --rm --entrypoint pgbench client -h pg-primary -i -s 10
+docker compose run --rm --entrypoint pgbench client -h pg-primary -c 8 -T 30 -P 5
+docker compose run --rm --entrypoint pgbench client -S -n -c 8 -T 15 \
+  "host=pg-replica1,pg-replica2 load_balance_hosts=random"
+```
+
+- While writing, watch `replay_lag` in `pg_stat_replication`: the lag grows under load.
+- The read-only run (`-S`) spreads over the replicas: **reads scale** with them.
+- Repeat with `ANY 1`: the drop in write `tps` is the **price of RPO = 0**.
+
+---
+
+<!-- _class: tight -->
+
+## 3 · Planned failover
 
 | Step | Command |
 |---|---|
@@ -199,11 +286,14 @@ Is the row committed? *(Yes — only the wait was cancelled.)*
 | other replica | `ALTER SYSTEM SET primary_conninfo = 'host=pg-replica1 ...'` + reload |
 | old primary | `rejoin-as-replica.sh` → `pg_rewind` + `standby.signal` |
 
+- Before the rejoin, `pg-primary` must be **stopped**: two servers on one data directory corrupt it.
+- After a clean stop: *no rewind required* — the old primary wrote nothing the new one lacks.
+
 <p class="small">Roles swapped, names stale: real clusters name nodes <code>pg-1</code>, <code>pg-2</code>… and ask <code>pg_is_in_recovery()</code>.</p>
 
 ---
 
-## The lost write
+## 3 · Unplanned failover: the lost write
 
 - Stop both replicas, `INSERT 'lost-write'` → `INSERT 0 1`, then **kill** the primary.
 - Start the replicas, promote `pg-replica1`: `lost-write` is **gone**.
@@ -219,7 +309,7 @@ That is the **RPO** of async replication. Sync would have saved it — by **bloc
 
 ---
 
-## Why not a failover script?
+## 3 · Why not a failover script?
 
 <div class="q">
 
@@ -231,6 +321,23 @@ The primary stops answering the health check. Is it dead?
 - Promote a replica then → **two primaries**: split brain.
 - **Patroni**: only the holder of the **leader key** in etcd (Raft, with TTL) runs as primary; an isolated primary demotes itself.
 - Managed: RDS Multi-AZ, Aurora, Cloud SQL do the same for you.
+
+---
+
+## 3 · Connecting the platform
+
+```yaml
+  account:
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://pg-primary:5432,pg-replica1:5432,pg-replica2:5432/store?targetServerType=primary
+      SPRING_DATASOURCE_USERNAME: store
+      SPRING_DATASOURCE_PASSWORD: devpass
+```
+
+- After a failover, HikariCP drops the broken connections and the driver finds the **new** primary.
+- Reads on the replicas: a second `DataSource` (`preferSecondary`) + `AbstractRoutingDataSource` for `readOnly` — mind the stale reads.
+
+<p class="small">Clean-up: <code>docker compose down -v</code> — without <code>-v</code> the cluster comes back with the roles it ended in.</p>
 
 ---
 

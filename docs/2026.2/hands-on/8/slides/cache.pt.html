@@ -72,7 +72,7 @@
 <h1 id="hands-on-8--cache-em-mem%C3%B3ria">Hands-on 8 — Cache em memória</h1>
 <p><strong>Um único cache Redis compartilhado por todas as réplicas: o banco só responde em caso de miss</strong></p>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="2" data-marpit-fragments="3" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="2" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="16">
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="2" data-marpit-fragments="3" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="2" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="18">
 <h2 id="tr%C3%AAs-r%C3%A9plicas-tr%C3%AAs-caches">Três réplicas, três caches?</h2>
 <div class="q">
 <p>O gateway roda com <strong>3 réplicas</strong>, cada JVM com o seu próprio cache local. A réplica 1 guarda a conta 42 em cache.<br />
@@ -84,7 +84,7 @@ A próxima requisição para a conta 42 cai na réplica 2. <strong>O que acontec
 <li data-marpit-fragment="3">A solução: um <strong>cache externo compartilhado</strong> — todas as réplicas leem e escrevem no <strong>mesmo armazenamento</strong>.</li>
 </ul>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="3" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="3" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="16">
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="3" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="3" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="18">
 <h2 id="bancos-de-dados-em-mem%C3%B3ria">Bancos de dados em memória</h2>
 <table>
 <thead>
@@ -128,7 +128,7 @@ A próxima requisição para a conta 42 cai na réplica 2. <strong>O que acontec
 </tbody>
 </table>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="4" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="4" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="16">
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="4" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="4" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="18">
 <h2 id="cache-aside">Cache-aside</h2>
 <ol>
 <li>Serviço → Redis: <code>GET account:42</code></li>
@@ -141,7 +141,7 @@ A próxima requisição para a conta 42 cai na réplica 2. <strong>O que acontec
 <p>O banco de dados continua sendo a <strong>fonte da verdade</strong>; o cache só economiza idas e voltas.</p>
 </div>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="5" data-paginate="true" data-class="tight" data-lang="pt-BR" data-theme="platform" lang="pt-BR" class="tight" data-marpit-pagination="5" style="--paginate:true;--class:tight;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="16">
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="5" data-paginate="true" data-class="tight" data-lang="pt-BR" data-theme="platform" lang="pt-BR" class="tight" data-marpit-pagination="5" style="--paginate:true;--class:tight;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="18">
 <h2 id="redis">Redis</h2>
 <p>Remote Dictionary Server: cache, armazenamento de sessões, message broker — o cache distribuído padrão de fato.</p>
 <table>
@@ -187,7 +187,7 @@ A próxima requisição para a conta 42 cai na réplica 2. <strong>O que acontec
 </table>
 <p class="small">Diferentemente do Memcached (só strings), o Redis tem estruturas de dados nativas com operações O(1) ou O(log n).</p>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="6" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="6" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="16">
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="6" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="6" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="18">
 <h2 id="persist%C3%AAncia">Persistência</h2>
 <table>
 <thead>
@@ -222,15 +222,15 @@ A próxima requisição para a conta 42 cai na réplica 2. <strong>O que acontec
 </table>
 <p>Este hands-on habilita o <strong>AOF</strong>: <code>--appendonly yes</code>.</p>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="7" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="7" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="16">
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="7" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="7" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="18">
 <h2 id="arquitetura">Arquitetura</h2>
-<p>internet → <code>:80</code> <strong>Nginx</strong> → gateway ×3 → <code>auth</code>, <code>account</code> → <strong>Redis</strong> <code>:6379</code> → PostgreSQL <em>(só em caso de miss)</em></p>
+<p>internet → <code>:8080</code> <strong>lb</strong> (Nginx) → gateway ×3 → <code>auth</code>, <code>account</code> → <strong>Redis</strong> <code>:6379</code> → PostgreSQL <em>(só em caso de miss)</em></p>
 <ul>
 <li>Todas as réplicas compartilham <strong>um</strong> Redis: uma entrada gravada pela réplica 1 pode ser lida pelas réplicas 2 e 3.</li>
 <li>Passos: <strong>1</strong> Docker Compose → <strong>2</strong> Spring Boot → <strong>3</strong> executar e medir.</li>
 </ul>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="8" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="8" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="16">
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="8" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="8" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="18">
 <h2 id="1--docker-compose">1 · Docker Compose</h2>
 <div class="cols">
 <div>
@@ -263,7 +263,7 @@ A próxima requisição para a conta 42 cai na réplica 2. <strong>O que acontec
 </div>
 <p>As mesmas <code>REDIS_HOST</code> / <code>REDIS_PORT</code> em todo serviço que usa o cache (por exemplo, <code>auth</code>).</p>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="9" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="9" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="16">
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="9" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="9" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="18">
 <h2 id="2--spring-boot-depend%C3%AAncias-e-configura%C3%A7%C3%A3o">2 · Spring Boot: dependências e configuração</h2>
 <div class="cols">
 <div>
@@ -289,7 +289,7 @@ A próxima requisição para a conta 42 cai na réplica 2. <strong>O que acontec
 </div>
 <p class="small"><code>type: redis</code> substitui o <code>ConcurrentMapCache</code> padrão, em memória; TTL de 5 minutos; <code>null</code> não vai para o cache.</p>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="10" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="10" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="16">
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="10" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="10" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="18">
 <h2 id="2--cacheable-leitura-read-through">2 · <code>@Cacheable</code>: leitura (read-through)</h2>
 <pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-java"><span class="hljs-meta">@Cacheable(value = &quot;accounts&quot;, key = &quot;#id&quot;)</span>
 <span class="hljs-keyword">public</span> <span class="hljs-type">AccountOut</span> <span class="hljs-title function_">findById</span><span class="hljs-params">(String id)</span> {
@@ -304,7 +304,7 @@ A próxima requisição para a conta 42 cai na réplica 2. <strong>O que acontec
 </ul>
 <p class="small">As anotações vão nos métodos da <strong>camada de serviço</strong>, não nos controllers nem nos repositories.</p>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="11" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="11" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="16">
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="11" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="11" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="18">
 <h2 id="2--mantendo-o-cache-consistente">2 · Mantendo o cache consistente</h2>
 <div class="cols">
 <div>
@@ -346,7 +346,7 @@ A próxima requisição para a conta 42 cai na réplica 2. <strong>O que acontec
 </div>
 <p class="small"><code>@CacheEvict(value = "accounts", allEntries = true)</code> limpa o cache inteiro (atualizações em massa).</p>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="12" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="12" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="16">
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="12" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="12" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="18">
 <h2 id="2--serializa%C3%A7%C3%A3o-json">2 · Serialização JSON</h2>
 <p>A serialização Java padrão grava <strong>binário ilegível</strong>. Um bean <code>RedisConfig</code> troca para JSON:</p>
 <pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-java"><span class="hljs-meta">@Bean</span>
@@ -362,10 +362,29 @@ A próxima requisição para a conta 42 cai na réplica 2. <strong>O que acontec
 <p>Classes em cache (<code>AccountOut</code>) devem ser serializáveis em JSON: construtor sem argumentos, campos públicos ou getters, <code>@JsonIgnoreProperties(ignoreUnknown = true)</code>.</p>
 </div>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="13" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="13" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="16">
-<h2 id="3--executar-e-ver-um-hit">3 · Executar e ver um hit</h2>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="13" data-paginate="true" data-class="tight" data-lang="pt-BR" data-theme="platform" lang="pt-BR" class="tight" data-marpit-pagination="13" style="--paginate:true;--class:tight;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="18">
+<h2 id="3--executar">3 · Executar</h2>
 <pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-bash">docker compose up -d --build
-curl -s http://localhost:8080/accounts/42 | jq    <span class="hljs-comment"># 1st: miss, hits the database</span>
+docker compose ps -a
+</code></pre>
+<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-text">NAME                STATUS     PORTS
+store-redis-1       running    0.0.0.0:6379-&gt;6379/tcp
+store-lb-1          running    0.0.0.0:8080-&gt;80/tcp
+store-gateway-1     running
+store-gateway-2     running
+store-gateway-3     running
+store-account-1     running
+store-account-2     running
+store-auth-1        running
+store-db-1          running    0.0.0.0:5432-&gt;5432/tcp
+</code></pre>
+<ul>
+<li>O container novo é o <code>redis</code>; o <code>account</code> agora roda <strong>2 réplicas</strong>, o gateway 3.</li>
+</ul>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="14" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="14" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="18">
+<h2 id="3--primeira-requisi%C3%A7%C3%A3o-miss--segunda-hit">3 · Primeira requisição: miss · segunda: hit</h2>
+<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-bash">curl -s http://localhost:8080/accounts/42 | jq    <span class="hljs-comment"># 1st: miss, hits the database</span>
 docker compose <span class="hljs-built_in">exec</span> redis redis-cli
 &gt; KEYS accounts::*                           <span class="hljs-comment"># 1) &quot;accounts::42&quot;</span>
 &gt; GET <span class="hljs-string">&quot;accounts::42&quot;</span>                         <span class="hljs-comment"># {&quot;id&quot;:&quot;42&quot;,&quot;name&quot;:&quot;Ada Lovelace&quot;,...}</span>
@@ -373,19 +392,32 @@ curl -s http://localhost:8080/accounts/42 | jq    <span class="hljs-comment"># 2
 docker compose logs account --<span class="hljs-built_in">tail</span> 20        <span class="hljs-comment"># no database query this time</span>
 </code></pre>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="14" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="14" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="16">
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="15" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="15" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="18">
 <h2 id="3--medir">3 · Medir</h2>
 <pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-bash">curl -o /dev/null -s -w <span class="hljs-string">&quot;Cache miss: %{time_total}s\n&quot;</span> http://localhost:8080/accounts/42
 curl -o /dev/null -s -w <span class="hljs-string">&quot;Cache hit:  %{time_total}s\n&quot;</span> http://localhost:8080/accounts/42
 </code></pre>
 <ul>
 <li>Típico: <strong>miss 0,058 s</strong>, <strong>hit 0,004 s</strong> — 10–15× mais rápido, sem ida e volta ao banco.</li>
-<li><code>TTL &quot;accounts::42&quot;</code> — segundos até a chave expirar; depois disso, a próxima leitura volta a ser miss.</li>
-<li><code>redis-cli INFO stats</code> → <code>keyspace_hits</code> / <code>keyspace_misses</code>. Saudável: <strong>&gt; 90 % de hits</strong> em cargas de leitura.</li>
+<li>O Redis responde em &lt; 1 ms e a resposta passa só pelo gateway.</li>
 </ul>
-<p class="small">Taxa de miss alta? Aumente o TTL ou pré-aqueça o cache na inicialização.</p>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="15" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="15" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="16">
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="16" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="16" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="18">
+<h2 id="3--ttl-e-taxa-de-hits">3 · TTL e taxa de hits</h2>
+<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-bash">docker compose <span class="hljs-built_in">exec</span> redis redis-cli
+&gt; TTL <span class="hljs-string">&quot;accounts::42&quot;</span>          <span class="hljs-comment"># seconds left; at 0 the key is removed</span>
+docker compose <span class="hljs-built_in">exec</span> redis redis-cli MONITOR
+docker compose <span class="hljs-built_in">exec</span> redis redis-cli INFO stats | grep -E <span class="hljs-string">&quot;keyspace_(hits|misses)&quot;</span>
+<span class="hljs-comment"># keyspace_hits:8</span>
+<span class="hljs-comment"># keyspace_misses:1</span>
+</code></pre>
+<ul>
+<li>Depois do TTL, a próxima leitura volta a ser <strong>miss</strong>: o cache fica eventualmente consistente.</li>
+<li>O <code>MONITOR</code> mostra cada <code>GET</code> (hit ou nil) e cada <code>SET</code> (miss + gravação).</li>
+<li>Saudável: <strong>&gt; 90 % de hits</strong> em cargas de leitura. Muitos misses? Aumente o TTL ou pré-aqueça o cache.</li>
+</ul>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="17" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="17" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="18">
 <h2 id="armadilhas">Armadilhas</h2>
 <div class="warn">
 <p>Um cache pode servir <strong>dados desatualizados</strong>: <code>@CachePut</code> / <code>@CacheEvict</code> nas escritas e um <strong>TTL</strong> o mantêm eventualmente consistente.</p>
@@ -397,7 +429,7 @@ curl -o /dev/null -s -w <span class="hljs-string">&quot;Cache hit:  %{time_total
 <li>A porta <code>6379</code> é publicada só para desenvolvimento; em produção, mantenha o Redis dentro da rede Docker.</li>
 </ul>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="16" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="16" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="16">
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="18" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="18" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="18">
 <h2 id="pontos-chave">Pontos-chave</h2>
 <ol>
 <li>Com réplicas, um cache <strong>local</strong> por JVM não basta: use um cache <strong>compartilhado</strong> (Redis).</li>
@@ -406,6 +438,7 @@ curl -o /dev/null -s -w <span class="hljs-string">&quot;Cache hit:  %{time_total
 <li>Spring Cache: <code>@Cacheable</code> lê, <code>@CachePut</code> atualiza, <code>@CacheEvict</code> invalida.</li>
 <li>Um <strong>TTL</strong> limita a desatualização; a serialização <strong>JSON</strong> mantém o cache inspecionável.</li>
 <li>Verifique com o <code>redis-cli</code> (<code>KEYS</code>, <code>GET</code>, <code>TTL</code>, <code>INFO stats</code>) e compare a latência de miss × hit.</li>
+<li>O banco atrás do cache continua sendo <strong>um container só</strong>: o hands-on 9 o transforma em um cluster.</li>
 </ol>
 </section>
 <script>!function(){"use strict";const t={h1:{proto:()=>HTMLHeadingElement,attrs:{role:"heading","aria-level":"1"},style:"display: block; font-size: 2em; margin-block-start: 0.67em; margin-block-end: 0.67em; margin-inline-start: 0px; margin-inline-end: 0px; font-weight: bold;"},h2:{proto:()=>HTMLHeadingElement,attrs:{role:"heading","aria-level":"2"},style:"display: block; font-size: 1.5em; margin-block-start: 0.83em; margin-block-end: 0.83em; margin-inline-start: 0px; margin-inline-end: 0px; font-weight: bold;"},h3:{proto:()=>HTMLHeadingElement,attrs:{role:"heading","aria-level":"3"},style:"display: block; font-size: 1.17em; margin-block-start: 1em; margin-block-end: 1em; margin-inline-start: 0px; margin-inline-end: 0px; font-weight: bold;"},h4:{proto:()=>HTMLHeadingElement,attrs:{role:"heading","aria-level":"4"},style:"display: block; margin-block-start: 1.33em; margin-block-end: 1.33em; margin-inline-start: 0px; margin-inline-end: 0px; font-weight: bold;"},h5:{proto:()=>HTMLHeadingElement,attrs:{role:"heading","aria-level":"5"},style:"display: block; font-size: 0.83em; margin-block-start: 1.67em; margin-block-end: 1.67em; margin-inline-start: 0px; margin-inline-end: 0px; font-weight: bold;"},h6:{proto:()=>HTMLHeadingElement,attrs:{role:"heading","aria-level":"6"},style:"display: block; font-size: 0.67em; margin-block-start: 2.33em; margin-block-end: 2.33em; margin-inline-start: 0px; margin-inline-end: 0px; font-weight: bold;"},span:{proto:()=>HTMLSpanElement},pre:{proto:()=>HTMLElement,style:"display: block; font-family: monospace; white-space: pre; margin: 1em 0; --marp-auto-scaling-white-space: pre;"}},e="data-marp-auto-scaling-wrapper",i="data-marp-auto-scaling-svg",n="data-marp-auto-scaling-container";class s extends HTMLElement{container;containerSize;containerObserver;svg;svgComputedStyle;svgPreserveAspectRatio="xMinYMid meet";wrapper;wrapperSize;wrapperObserver;constructor(){super();const t=t=>([e])=>{const{width:i,height:n}=e.contentRect;this[t]={width:i,height:n},this.updateSVGRect()};this.attachShadow({mode:"open"}),this.containerObserver=new ResizeObserver(t("containerSize")),this.wrapperObserver=new ResizeObserver((...e)=>{t("wrapperSize")(...e),this.flushSvgDisplay()})}static get observedAttributes(){return["data-downscale-only"]}connectedCallback(){this.shadowRoot.innerHTML=`\n<style>\n  svg[${i}] { display: block; width: 100%; height: auto; vertical-align: top; }\n  span[${n}] { display: table; white-space: var(--marp-auto-scaling-white-space, nowrap); width: max-content; }\n</style>\n<div ${e}>\n  <svg part="svg" ${i}>\n    <foreignObject><span ${n}><slot></slot></span></foreignObject>\n  </svg>\n</div>\n    `.split(/\n\s*/).join(""),this.wrapper=this.shadowRoot.querySelector(`div[${e}]`)??void 0;const t=this.svg;this.svg=this.wrapper?.querySelector(`svg[${i}]`)??void 0,this.svg!==t&&(this.svgComputedStyle=this.svg?window.getComputedStyle(this.svg):void 0),this.container=this.svg?.querySelector(`span[${n}]`)??void 0,this.observe()}disconnectedCallback(){this.svg=void 0,this.svgComputedStyle=void 0,this.wrapper=void 0,this.container=void 0,this.observe()}attributeChangedCallback(){this.observe()}flushSvgDisplay(){const{svg:t}=this;t&&(t.style.display="inline",requestAnimationFrame(()=>{t.style.display=""}))}observe(){this.containerObserver.disconnect(),this.wrapperObserver.disconnect(),this.wrapper&&this.wrapperObserver.observe(this.wrapper),this.container&&this.containerObserver.observe(this.container),this.svgComputedStyle&&this.observeSVGStyle(this.svgComputedStyle)}observeSVGStyle(t){const e=()=>{const i=(()=>{const e=t.getPropertyValue("--preserve-aspect-ratio");if(e)return e.trim();return`x${(({textAlign:t,direction:e})=>{if(t.endsWith("left"))return"Min";if(t.endsWith("right"))return"Max";if("start"===t||"end"===t){let i="rtl"===e;return"end"===t&&(i=!i),i?"Max":"Min"}return"Mid"})(t)}YMid meet`})();i!==this.svgPreserveAspectRatio&&(this.svgPreserveAspectRatio=i,this.updateSVGRect()),t===this.svgComputedStyle&&requestAnimationFrame(e)};e()}updateSVGRect(){let t=Math.ceil(this.containerSize?.width??0);const e=Math.ceil(this.containerSize?.height??0);void 0!==this.dataset.downscaleOnly&&(t=Math.max(t,this.wrapperSize?.width??0));const i=this.svg?.querySelector(":scope > foreignObject");if(i?.setAttribute("width",`${t}`),i?.setAttribute("height",`${e}`),this.svg&&(this.svg.setAttribute("viewBox",`0 0 ${t} ${e}`),this.svg.setAttribute("preserveAspectRatio",this.svgPreserveAspectRatio),this.svg.style.height=t<=0||e<=0?"0":""),this.container){const t=this.svgPreserveAspectRatio.toLowerCase();this.container.style.marginLeft=t.startsWith("xmid")||t.startsWith("xmax")?"auto":"0",this.container.style.marginRight=t.startsWith("xmi")?"auto":"0"}}}const r=(t,{attrs:e={},style:i})=>class extends t{constructor(...t){super(...t);for(const[t,i]of Object.entries(e))this.hasAttribute(t)||this.setAttribute(t,i);this._shadow()}static get observedAttributes(){return["data-auto-scaling"]}connectedCallback(){this._update()}attributeChangedCallback(){this._update()}_shadow(){if(!this.shadowRoot)try{this.attachShadow({mode:"open"})}catch(t){if(!(t instanceof Error&&"NotSupportedError"===t.name))throw t}return this.shadowRoot}_update(){const t=this._shadow();if(t){const e=i?`<style>:host { ${i} }</style>`:"";let n="<slot></slot>";const{autoScaling:s}=this.dataset;if(void 0!==s){n=`<marp-auto-scaling exportparts="svg:auto-scaling" ${"downscale-only"===s?"data-downscale-only":""}>${n}</marp-auto-scaling>`}t.innerHTML=e+n}}};let o;const a=()=>o??(o=!!document.createElement("div",{is:"marp-auto-scaling"}).outerHTML.startsWith("<div is"),o),l=Symbol();let c;const d="marpitSVGPolyfill:setZoomFactor,",h=Symbol(),g=Symbol();const p=()=>{const t="Apple Computer, Inc."===navigator.vendor,e=t?[v]:[],i={then:e=>(t?(async()=>{if(void 0===c){const t=document.createElement("canvas");t.width=10,t.height=10;const e=t.getContext("2d"),i=new Image(10,10),n=new Promise(t=>{i.addEventListener("load",()=>t())});i.crossOrigin="anonymous",i.src="data:image/svg+xml;charset=utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2210%22%20height%3D%2210%22%20viewBox%3D%220%200%201%201%22%3E%3CforeignObject%20width%3D%221%22%20height%3D%221%22%20requiredExtensions%3D%22http%3A%2F%2Fwww.w3.org%2F1999%2Fxhtml%22%3E%3Cdiv%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F1999%2Fxhtml%22%20style%3D%22width%3A%201px%3B%20height%3A%201px%3B%20background%3A%20red%3B%20position%3A%20relative%22%3E%3C%2Fdiv%3E%3C%2FforeignObject%3E%3C%2Fsvg%3E",await n,e.drawImage(i,0,0),c=e.getImageData(5,5,1,1).data[3]<128}return c})().then(t=>{null==e||e(t?[v]:[])}):null==e||e([]),i)};return Object.assign(e,i)};let m,u;function v(t){const e="object"==typeof t&&t.target||document,i="object"==typeof t?t.zoom:t;window[g]||(Object.defineProperty(window,g,{configurable:!0,value:!0}),document.body.style.zoom=1.0001,document.body.offsetHeight,document.body.style.zoom=1,window.addEventListener("message",({data:t,origin:e})=>{if(e===window.origin)try{if(t&&"string"==typeof t&&t.startsWith(d)){const[,e]=t.split(","),i=Number.parseFloat(e);Number.isNaN(i)||(u=i)}}catch(t){console.error(t)}}));let n=!1;Array.from(e.querySelectorAll("svg[data-marpit-svg]"),t=>{var e,s,r,o;t.style.transform||(t.style.transform="translateZ(0)");const a=i||u||t.currentScale||1;m!==a&&(m=a,n=a);const l=t.getBoundingClientRect(),{length:c}=t.children;for(let i=0;i<c;i+=1){const n=t.children[i];if(n.getScreenCTM){const t=n.getScreenCTM();if(t){const i=null!==(s=null===(e=n.x)||void 0===e?void 0:e.baseVal.value)&&void 0!==s?s:0,c=null!==(o=null===(r=n.y)||void 0===r?void 0:r.baseVal.value)&&void 0!==o?o:0,d=n.children.length;for(let e=0;e<d;e+=1){const s=n.children[e];if("SECTION"===s.tagName){const{style:e}=s;e.transformOrigin||(e.transformOrigin=`${-i}px ${-c}px`),e.transform=`scale(${a}) matrix(${t.a}, ${t.b}, ${t.c}, ${t.d}, ${t.e-l.left}, ${t.f-l.top}) translateZ(0.0001px)`;break}}}}}}),!1!==n&&Array.from(e.querySelectorAll("iframe"),({contentWindow:t})=>{null==t||t.postMessage(`${d}${n}`,"null"===window.origin?"*":window.origin)})}function w({once:t=!1,target:e=document}={}){const i=function(t=document){if(t[h])return t[h];let e=!0;const i=()=>{e=!1,delete t[h]};Object.defineProperty(t,h,{configurable:!0,value:i});let n=[],s=!1;(async()=>{try{n=await p()}finally{s=!0}})();const r=()=>{for(const e of n)e({target:t});s&&0===n.length||e&&window.requestAnimationFrame(r)};return r(),i}(e);return t?(i(),()=>{}):i}m=1,u=void 0;const b=Symbol(),y=(e=document)=>{if("undefined"==typeof window)throw new Error("Marp Core's browser script is valid only in browser context.");if(((e=document)=>{const i=window[l];i||customElements.define("marp-auto-scaling",s);for(const n of Object.keys(t)){const s=`marp-${n}`,o=t[n].proto();a()&&o!==HTMLElement?i||customElements.define(s,r(o,{style:t[n].style}),{extends:n}):(i||customElements.define(s,r(HTMLElement,t[n])),e.querySelectorAll(`${n}[is="${s}"]`).forEach(t=>{t.outerHTML=t.outerHTML.replace(new RegExp(`^<${n}`,"i"),`<${s}`).replace(new RegExp(`</${n}>$`,"i"),`</${s}>`)}))}window[l]=!0})(e),e[b])return e[b];const i=w({target:e}),n=()=>{i(),delete e[b]},o=Object.assign(n,{cleanup:n,update:()=>y(e)});return Object.defineProperty(e,b,{configurable:!0,value:o}),o},f=document.currentScript;y(f?f.getRootNode():document)}();

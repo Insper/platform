@@ -67,7 +67,7 @@ This hands-on focuses on **monitoring**: Spring Boot **Actuator** → **Promethe
 
 | Component | Role |
 |---|---|
-| **Actuator** + **Micrometer** | each service exposes `/actuator/prometheus` |
+| **Actuator** + **Micrometer** | each service exposes `/<prefix>/actuator/prometheus` |
 | **Prometheus** `:9090` | **pulls** (scrapes) the metrics of every service, stores time series |
 | **Grafana** `:3000` | queries Prometheus and draws dashboards |
 
@@ -156,6 +156,9 @@ management:
       - 3000:3000
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - $SETUP/grafana:/var/lib/grafana
+      - $SETUP/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
 ```
 
 - `.env`: `SETUP=./setup` — the folder with all external config (`setup/prometheus/`, `setup/grafana/`).

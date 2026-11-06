@@ -176,7 +176,7 @@ public class GatewayResource {
 }
 ```
 
-<p class="small">Nunca devolva <code>System.getenv()</code>: isso publicaria todos os segredos. <code>GatewayServiceApplication</code> é um <code>@SpringBootApplication</code> simples.</p>
+<p class="small">O hostname mostra qual réplica respondeu quando houver várias (hands-on 7). Nunca devolva <code>System.getenv()</code>: isso publicaria todos os segredos. <code>GatewayServiceApplication</code> é um <code>@SpringBootApplication</code> simples.</p>
 
 ---
 
@@ -227,7 +227,7 @@ Só o gateway publica uma porta. O `account` só é alcançável **por meio do g
 ```bash
 docker compose up -d --build
 curl http://localhost:8080/health-check   # {"hostname":"..."}
-curl http://localhost:8080/accounts/...   # routed to account:8080
+curl http://localhost:8080/accounts      # routed to account:8080
 ```
 
 - Envie requisições para a **porta do gateway** e confira se chegam ao microsserviço certo.

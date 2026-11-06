@@ -169,7 +169,7 @@ spec:
                        limits:   { memory: "512Mi", cpu: "500m" } }
 ```
 
-- O `env` lê `POSTGRES_DB` via **`configMapKeyRef`**, e o usuário e a senha via **`secretKeyRef`**.
+- O `env` lê `POSTGRES_DB` via **`configMapKeyRef`** e o usuário e a senha via **`secretKeyRef`**.
 - O `selector` precisa corresponder aos **labels** do Pod — é assim que o Deployment encontra seus Pods.
 
 ---

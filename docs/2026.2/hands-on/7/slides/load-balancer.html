@@ -251,7 +251,19 @@
 </table>
 <p class="small">Algorithm inside <code>upstream</code>: none = Round Robin · <code>least_conn;</code> · <code>ip_hash;</code> · <code>random;</code> · <code>server gateway:8080 weight=3;</code></p>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="9" data-paginate="true" data-class="tight" data-lang="en" data-theme="platform" lang="en" class="tight" data-marpit-pagination="9" style="--paginate:true;--class:tight;--lang:en;--theme:platform;" data-marpit-pagination-total="13">
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="9" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="9" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="13">
+<h2 id="1--how-nginx-finds-the-replicas">1 · How Nginx finds the replicas</h2>
+<ol>
+<li>Compose starts <strong>3 replicas</strong> of <code>gateway</code>.</li>
+<li>Docker's internal DNS resolves the name <code>gateway</code> to <strong>every replica IP</strong>.</li>
+<li>Nginx queries that record <strong>once, at startup</strong>, and builds the upstream pool.</li>
+</ol>
+<div class="warn">
+<p>Replicas added later are <strong>invisible</strong> to Nginx until it re-resolves the name:<br />
+<code>docker compose exec lb nginx -s reload</code></p>
+</div>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="10" data-paginate="true" data-class="tight" data-lang="en" data-theme="platform" lang="en" class="tight" data-marpit-pagination="10" style="--paginate:true;--class:tight;--lang:en;--theme:platform;" data-marpit-pagination-total="13">
 <h2 id="2--docker-compose">2 · Docker Compose</h2>
 <div class="cols">
 <div>
@@ -282,18 +294,6 @@
 </ul>
 <p class="small">Host port 8080 → Nginx (80): clients keep calling <code>http://localhost:8080</code>. The repository keeps <code>replicas: 1</code>; use 3 to see the balancing.</p>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="10" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="10" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="13">
-<h2 id="how-nginx-finds-the-replicas">How Nginx finds the replicas</h2>
-<ol>
-<li>Compose starts <strong>3 replicas</strong> of <code>gateway</code>.</li>
-<li>Docker's internal DNS resolves the name <code>gateway</code> to <strong>every replica IP</strong>.</li>
-<li>Nginx queries that record <strong>once, at startup</strong>, and builds the upstream pool.</li>
-</ol>
-<div class="warn">
-<p>Replicas added later are <strong>invisible</strong> to Nginx until it re-resolves the name:<br />
-<code>docker compose exec lb nginx -s reload</code></p>
-</div>
-</section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="11" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="11" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="13">
 <h2 id="3--run-and-verify">3 · Run and verify</h2>
 <pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-bash">docker compose up -d --build
@@ -316,6 +316,7 @@ docker compose up -d --scale gateway=1     <span class="hljs-comment"># scale do
 <div class="ok">
 <p>If one replica crashes, Docker restarts it and Nginx keeps routing to the healthy ones: the failure is <strong>transparent to clients</strong>.</p>
 </div>
+<p class="small">After scaling down and reloading, Nginx stops routing to the containers that are gone.</p>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="13" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="13" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="13">
 <h2 id="takeaways">Takeaways</h2>

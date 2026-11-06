@@ -111,10 +111,6 @@ Da esquerda para a direita: **mais controle, mais ops**. Os caminhos atendem a *
 
 </div>
 
-<!--
-O projeto da disciplina usa EKS mesmo assim: o objetivo dele é aprender Kubernetes, não minimizar custo.
--->
-
 ---
 
 ## Time médio: 5–20 devs, 10–50 serviços
@@ -147,6 +143,20 @@ Sem engenheiro de ops / plataforma dedicado? → **ECS Fargate + ALB + RDS**. Co
 | **Metrics Server** | habilita o HPA |
 
 <p class="small">Além de <strong>clusters separados por ambiente</strong> (dev, staging, prod). O <strong>EKS Auto Mode</strong> (dez. 2024) deixa a AWS gerenciar também os nós, mediante taxa.</p>
+
+---
+
+## Então por que o projeto da disciplina usa EKS?
+
+<div class="q">
+
+O projeto faz o deploy da loja no **EKS** com um time de 2–3 pessoas — exatamente o que esta aula desaconselha a uma *startup*.
+
+</div>
+
+- O objetivo é outro: o projeto existe para **aprender** Kubernetes e AWS, não para minimizar custo ou time-to-market.
+- Mantenha o cluster **pequeno** e **apague-o** quando não estiver usando.
+- A atividade de **Custos** compara a conta dele com as alternativas do modelo de custos.
 
 ---
 
@@ -206,8 +216,8 @@ As tasks rodam na **sua VPC**: alcançar o RDS é uma regra de security group (p
 - HTTPS automático, domínios próprios
 - Add-ons de Postgres, Redis, MongoDB
 - Logs, métricas e variáveis em um dashboard
-
 - Rede privada: `account.railway.internal`
+- Cobrança por uso: vCPU e GB usados, por segundo
 
 <p class="small">Sem projeto de VPC, sem Helm/CRDs/GitOps — o lock-in cresce além de 10–15 serviços.</p>
 
@@ -287,6 +297,27 @@ Três pequenas tasks Fargate custam **~US$ 27**: o processamento costuma ser a *
 
 </div>
 
+<p class="small">Um cluster EKS por ambiente triplica a parte fixa. Proteja a conta: primeiro um alerta de <strong>AWS Budget</strong>, tags em cada recurso; apague NAT, ALB e clusters quando parar.</p>
+
+---
+
+<!-- _class: tight -->
+
+## A loja em cada estágio
+
+| Componente | Dia 1 — Railway | Ano 1 — ECS Fargate | Ano 2+ — EKS |
+|---|---|---|---|
+| **gateway** | domínio público | serviço ECS atrás do ALB | Deployment + Service, Ingress (LB Controller) |
+| **account, order** | `account.railway.internal` | Service Connect / Cloud Map | Deployments + Services `ClusterIP` |
+| **Postgres** | add-on do Railway | RDS, regras de security group | RDS, credenciais via External Secrets |
+| **Deploy** | `git push` para `main` | CI → ECR → nova task definition | CI → ECR → ArgoCD sincroniza a partir do Git |
+
+<div class="ok">
+
+O código da aplicação **não** muda entre as colunas: o estilo **12-factor** (configuração em variáveis de ambiente, serviços stateless, estado no Postgres) faz de cada migração um exercício de deploy, não uma reescrita.
+
+</div>
+
 ---
 
 ## Caminho de migração
@@ -325,9 +356,8 @@ Operar EKS numa startup de 3 pessoas por um ano: **40+ horas** de ops de platafo
 ## Pontos-chave
 
 1. Kubernetes não é o padrão: escolha por **tamanho do time, quantidade de serviços e maturidade de ops**.
-2. Dois caminhos: **experiência do dev** (Railway → Fly.io → Lightsail) e **nativo da AWS** (Express → ECS → EKS).
-3. Pequeno: **Railway, Render, Fly.io, Lightsail, ECS Express Mode**. Médio: **ECS Fargate**. Grande: **EKS**.
-4. **Custos fixos** (control plane US$ 73, ALB US$ 30, NAT US$ 33) dominam contas pequenas — informe região, data e porte.
-5. **K3s, K0s, Kind, Minikube** dão a API do K8s sem o EKS — e entregam a você a operação.
-6. Migre por **problema concreto**, não por especulação.
-7. Mantenha a app **portável**: produtos gerenciados mudam (App Runner).
+2. Dois caminhos: **experiência do dev** (Railway → Fly.io → Lightsail) e **nativo da AWS** (Express → ECS Fargate → EKS → EC2).
+3. Em pequena escala, **custos fixos** (control plane do EKS US$ 73, ALB US$ 30, NAT US$ 33) dominam — informe região, data e dimensionamento.
+4. Pequeno: **Railway, Render, Fly.io, Lightsail, ECS Express Mode**. Médio: **ECS Fargate**. Grande: **EKS** + Karpenter/Auto Mode, ArgoCD, LB Controller, External Secrets.
+5. **K3s, K0s, Kind, Minikube** dão a API do K8s sem o EKS — e entregam a você a operação do control plane.
+6. Migre por **problema concreto**, mantenha a app **portável** e nunca suponha que um produto gerenciado dura para sempre (App Runner).

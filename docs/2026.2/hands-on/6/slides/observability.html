@@ -124,7 +124,7 @@ A user reports that requests are slow. <strong>How do you find out which service
 <tbody>
 <tr>
 <td><strong>Actuator</strong> + <strong>Micrometer</strong></td>
-<td>each service exposes <code>/actuator/prometheus</code></td>
+<td>each service exposes <code>/&lt;prefix&gt;/actuator/prometheus</code></td>
 </tr>
 <tr>
 <td><strong>Prometheus</strong> <code>:9090</code></td>
@@ -221,6 +221,9 @@ A user reports that requests are slow. <strong>How do you find out which service
       <span class="hljs-bullet">-</span> <span class="hljs-number">3000</span><span class="hljs-string">:3000</span>
     <span class="hljs-attr">environment:</span>
       <span class="hljs-bullet">-</span> <span class="hljs-string">GF_SECURITY_ADMIN_PASSWORD=admin</span>
+    <span class="hljs-attr">volumes:</span>
+      <span class="hljs-bullet">-</span> <span class="hljs-string">$SETUP/grafana:/var/lib/grafana</span>
+      <span class="hljs-bullet">-</span> <span class="hljs-string">$SETUP/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources</span>
 </code></pre>
 <ul>
 <li><code>.env</code>: <code>SETUP=./setup</code> — the folder with all external config (<code>setup/prometheus/</code>, <code>setup/grafana/</code>).</li>

@@ -273,7 +273,7 @@
                        <span class="hljs-attr">limits:</span>   { <span class="hljs-attr">memory:</span> <span class="hljs-string">&quot;512Mi&quot;</span>, <span class="hljs-attr">cpu:</span> <span class="hljs-string">&quot;500m&quot;</span> } }
 </code></pre>
 <ul>
-<li>O <code>env</code> lê <code>POSTGRES_DB</code> via <strong><code>configMapKeyRef</code></strong>, e o usuário e a senha via <strong><code>secretKeyRef</code></strong>.</li>
+<li>O <code>env</code> lê <code>POSTGRES_DB</code> via <strong><code>configMapKeyRef</code></strong> e o usuário e a senha via <strong><code>secretKeyRef</code></strong>.</li>
 <li>O <code>selector</code> precisa corresponder aos <strong>labels</strong> do Pod — é assim que o Deployment encontra seus Pods.</li>
 </ul>
 </section>

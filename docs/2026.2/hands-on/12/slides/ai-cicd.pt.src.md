@@ -46,7 +46,7 @@ Pergunte quais comentários de revisão eles escrevem repetidamente. Esses são 
 
 ---
 
-## O objetivo e o fluxo
+## 1 · Arquitetura: o fluxo
 
 Quando um desenvolvedor abre um PR, um job do **GitHub Actions** envia o diff à **API do Claude** e publica uma revisão estruturada como **comentário no PR**.
 
@@ -64,7 +64,7 @@ Quando um desenvolvedor abre um PR, um job do **GitHub Actions** envia o diff à
 
 ---
 
-## Passo 1 — O secret da chave de API
+## 2.1 · O secret da chave de API
 
 Repositório → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**
 
@@ -81,7 +81,7 @@ Repositório → **Settings** → **Secrets and variables** → **Actions** → 
 
 ---
 
-## Passo 2 — Workflow: gatilho e permissões
+## 2.2 · Workflow: gatilho e permissões
 
 `.github/workflows/ai-review.yml`
 
@@ -101,7 +101,7 @@ permissions:
 
 ---
 
-## Passo 2 — Workflow: o job
+## 2.2 · Workflow: o job
 
 ```yaml
 jobs:
@@ -122,7 +122,7 @@ jobs:
 
 ---
 
-## Passo 3 — O system prompt
+## 3 · O script de revisão: system prompt
 
 O **system prompt** em `.github/scripts/ai_review.py` é o principal ponto de controle da qualidade da revisão.
 
@@ -152,7 +152,7 @@ O **system prompt** em `.github/scripts/ai_review.py` é o principal ponto de co
 
 ---
 
-## Passo 3 — Diff entra, comentário sai
+## 3 · Diff entra, comentário sai
 
 ```python
 diff = get_pr_diff(repo, pr_number)   # concatenates f.patch, stops after 3000 lines
@@ -172,7 +172,7 @@ post_review_comment(repo, pr_number, message.content[0].text)
 
 ---
 
-## Decisões de design
+## 3 · Decisões de design
 
 | Decisão | Motivo |
 |---|---|
@@ -183,7 +183,7 @@ post_review_comment(repo, pr_number, message.content[0].text)
 
 ---
 
-## Passo 4 — Teste com um problema proposital
+## 4 · Teste com um problema proposital
 
 ```bash
 git checkout -b feature/add-order-endpoint
@@ -199,7 +199,7 @@ git push origin feature/add-order-endpoint
 
 ---
 
-## O que você deve ver
+## 4 · O que você deve ver
 
 ```text
 ## 🤖 AI Code Review
@@ -217,9 +217,11 @@ This PR adds an order creation endpoint. ... a critical security issue ...
 Input validation via `@Valid` is correctly applied to the request body.
 ```
 
+<p class="small">Calibre o prompt: se o modelo deixa passar problemas específicos do seu código (Feign clients, anti-padrões de Spring Boot), adicione-os à lista <code>Focus on:</code>.</p>
+
 ---
 
-## Estendendo o revisor
+## 5 · Estendendo o revisor
 
 | Extensão | Como |
 |---|---|
@@ -227,11 +229,10 @@ Input validation via `@Valid` is correctly applied to the request body.
 | Resumo na descrição do PR | `repo.get_pull(pr_number).edit(body=summary)` |
 | Saída estruturada | pedir **só JSON**: `summary`, `critical_issues`, `warnings`, `suggestions`, `score` → renderizar como tabela |
 | Bloquear em 🔴 Critical | **Checks API** do GitHub, `checks: write`, um check run em vez de um comentário |
-| Problemas específicos do código | adicioná-los (Feign clients, anti-padrões de Spring Boot) à lista `Focus on:` |
 
 ---
 
-## Um guia, não uma barreira
+## 5 · Um guia, não uma barreira
 
 <div class="warn">
 
@@ -246,7 +247,9 @@ Bloquear merges com base na saída da IA é confiar nos erros dela: ela pode **a
 
 ---
 
-## A mesma forma, outras tarefas
+<!-- _class: tight -->
+
+## 6 · A mesma forma, outras tarefas
 
 **Gatilho de CI/CD → coletar contexto → chamada ao LLM com prompt da tarefa → agir sobre o resultado**
 
@@ -254,6 +257,7 @@ Bloquear merges com base na saída da IA é confiar nos erros dela: ela pode **a
 |---|---|---|
 | Revisão de código em PR | revisa o diff, aponta problemas | todo PR — este hands-on |
 | Geração de testes | escreve testes unitários das funções alteradas | cobertura abaixo do limite |
+| Padronização de mensagens de commit | reescreve ou valida mensagens de commit | times grandes, commits inconsistentes |
 | Geração de changelog | `CHANGELOG.md` a partir de títulos de PRs/commits | antes de cada release |
 | Detecção de anomalias em logs | identifica padrões incomuns | depois de um deploy |
 | Consulta a runbooks de incidentes | sugere passos de diagnóstico a partir do alerta | automação de plantão |

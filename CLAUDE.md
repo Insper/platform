@@ -98,6 +98,9 @@ one table, or a short code block — split otherwise; `<!-- _class: tight -->` f
 `-` lists, `*` only to reveal an answer one item at a time; boxes `.q` (question), `.ok`
 (takeaway), `.warn` (pitfall); `.cols` for two columns; no Mermaid (Marp does not render it);
 speaker notes as HTML comments; last slide `## Takeaways`.
+Diagrams in a deck are HTML boxes with the generic classes of `scripts/slides/diagram.css` (`.box`, `.chip`,
+`.matrix`, `.flow`, `.group`, `.arrow`; tones `.accent`/`.orange`/`.green`/`.red`/`.muted`), included in the first
+slide with `<style>{{INCLUDE:scripts/slides/diagram.css}}</style>` (that file has no blank lines nor tag names).
 
 ### 2027.1 and the Playground
 

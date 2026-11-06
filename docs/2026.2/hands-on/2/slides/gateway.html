@@ -208,7 +208,7 @@
     }
 }
 </code></pre>
-<p class="small">Never return <code>System.getenv()</code>: it would publish every secret. <code>GatewayServiceApplication</code> is a plain <code>@SpringBootApplication</code>.</p>
+<p class="small">The hostname shows which replica answered once there are several (hands-on 7). Never return <code>System.getenv()</code>: it would publish every secret. <code>GatewayServiceApplication</code> is a plain <code>@SpringBootApplication</code>.</p>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="10" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="10" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="13">
 <h2 id="dockerfile-and-composeyaml">Dockerfile and compose.yaml</h2>
@@ -245,7 +245,7 @@
 <h2 id="run-and-verify">Run and verify</h2>
 <pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-bash">docker compose up -d --build
 curl http://localhost:8080/health-check   <span class="hljs-comment"># {&quot;hostname&quot;:&quot;...&quot;}</span>
-curl http://localhost:8080/accounts/...   <span class="hljs-comment"># routed to account:8080</span>
+curl http://localhost:8080/accounts      <span class="hljs-comment"># routed to account:8080</span>
 </code></pre>
 <ul>
 <li>Send requests to the <strong>gateway's port</strong> and check they reach the right microservice.</li>

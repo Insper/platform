@@ -42,7 +42,7 @@ Agora precisamos enviar um **e-mail de confirmação**. Mais uma chamada REST?
 
 ---
 
-## Arquitetura
+## 1 · Arquitetura
 
 <div class="cols">
 <div>
@@ -72,15 +72,19 @@ Desacoplamento: amanhã um **analytics-service** pode consumir `order-events` se
 
 ## Os passos
 
-1. **Docker Compose** — adicionar o Kafka (modo KRaft, sem ZooKeeper) e o Kafka UI.
-2. **order-service** — `spring-kafka`, o record `OrderCreatedEvent`, config do producer, publisher.
-3. **notification-service** — um novo consumer em Python / FastAPI.
-4. **Teste** — criar um pedido, ver o evento no Kafka UI e nos logs de notificação.
-5. **Confiabilidade** — dead letter queue e consumers idempotentes.
+2. **Docker Compose** — adicionar o Kafka (modo KRaft, sem ZooKeeper) e o Kafka UI.
+3. **order-service** — `spring-kafka`, o record `OrderCreatedEvent`, config do producer, publisher.
+4. **notification-service** — um novo consumer em Python / FastAPI.
+5. **Testes** — criar um pedido, ver o evento no Kafka UI e nos logs de notificação.
+6. **Confiabilidade** — dead letter queue e consumers idempotentes.
 
 ---
 
-## 1 · Docker Compose
+<!-- _class: tight -->
+
+## 2 · Docker Compose
+
+Dois serviços novos no `docker-compose.yml`:
 
 | Serviço | Imagem | Porta | Papel |
 |---|---|---|---|
@@ -89,14 +93,14 @@ Desacoplamento: amanhã um **analytics-service** pode consumir `order-events` se
 
 Configurações principais do Kafka:
 
-- `KAFKA_PROCESS_ROLES: broker,controller` — **KRaft**: o Kafka guarda os próprios metadados; o ZooKeeper foi removido no Kafka 4.0.
+- `KAFKA_PROCESS_ROLES: broker,controller` — **KRaft**: um nó é broker e controller (quórum em `CONTROLLER://:9093`); o ZooKeeper foi removido no Kafka 4.0.
 - `KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092` — clientes se conectam pelo nome do serviço.
 - `KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"` — `order-events` é criado na primeira publicação.
 - `KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1` — um único broker em desenvolvimento.
 
 ---
 
-## 2 · order-service: o evento
+## 3 · order-service: o evento
 
 <div class="cols">
 <div>
@@ -131,7 +135,7 @@ public record OrderCreatedEvent(
 
 ---
 
-## 2 · Configuração do producer
+## 3 · Configuração do producer
 
 ```yaml
 spring:
@@ -150,7 +154,7 @@ spring:
 
 ---
 
-## 2 · Publicando
+## 3 · Publicando
 
 ```java
 @Component
@@ -172,7 +176,7 @@ No `OrderService`, **depois de salvar**: `eventPublisher.publishOrderCreated(sav
 
 ---
 
-## 3 · notification-service (Python / FastAPI)
+## 4 · notification-service (Python / FastAPI)
 
 <div class="cols">
 <div>
@@ -203,7 +207,7 @@ uvicorn==0.29.0
 
 ---
 
-## 3 · O consumer
+## 4 · O consumer
 
 ```python
 consumer = KafkaConsumer(
@@ -226,7 +230,7 @@ for message in consumer:
 
 <!-- _class: tight -->
 
-## 4 · Teste
+## 5 · Testes
 
 ```bash
 docker compose up --build -d
@@ -243,7 +247,7 @@ docker compose logs notification-service
 
 ---
 
-## 5 · Quando o processamento falha: DLQ
+## 6 · Confiabilidade: dead letter queue
 
 Uma mensagem que falha sempre não pode **travar o fluxo**. Envie-a para `order-events-dlq`:
 
@@ -257,7 +261,7 @@ except Exception as e:
     consumer.commit()
 ```
 
-<p class="small">Nos dois casos o offset avança: o fluxo principal continua, e a DLQ é inspecionada depois.</p>
+<p class="small">Nos dois casos o offset avança: o fluxo principal continua e a DLQ é inspecionada depois.</p>
 
 ---
 

@@ -46,7 +46,7 @@ Ask which review comments they write over and over. Those are the candidates for
 
 ---
 
-## The goal and the flow
+## 1 · Architecture: the flow
 
 When a developer opens a PR, a **GitHub Actions** job sends the diff to the **Claude API** and posts a structured review as a **PR comment**.
 
@@ -64,7 +64,7 @@ When a developer opens a PR, a **GitHub Actions** job sends the diff to the **Cl
 
 ---
 
-## Step 1 — The API key secret
+## 2.1 · The API key secret
 
 Repository → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**
 
@@ -81,7 +81,7 @@ Repository → **Settings** → **Secrets and variables** → **Actions** → **
 
 ---
 
-## Step 2 — Workflow: trigger and permissions
+## 2.2 · Workflow: trigger and permissions
 
 `.github/workflows/ai-review.yml`
 
@@ -101,7 +101,7 @@ permissions:
 
 ---
 
-## Step 2 — Workflow: the job
+## 2.2 · Workflow: the job
 
 ```yaml
 jobs:
@@ -122,7 +122,7 @@ jobs:
 
 ---
 
-## Step 3 — The system prompt
+## 3 · The review script: system prompt
 
 The **system prompt** in `.github/scripts/ai_review.py` is the main control surface for review quality.
 
@@ -152,7 +152,7 @@ The **system prompt** in `.github/scripts/ai_review.py` is the main control surf
 
 ---
 
-## Step 3 — Diff in, comment out
+## 3 · Diff in, comment out
 
 ```python
 diff = get_pr_diff(repo, pr_number)   # concatenates f.patch, stops after 3000 lines
@@ -172,7 +172,7 @@ post_review_comment(repo, pr_number, message.content[0].text)
 
 ---
 
-## Design decisions
+## 3 · Design decisions
 
 | Decision | Reason |
 |---|---|
@@ -183,7 +183,7 @@ post_review_comment(repo, pr_number, message.content[0].text)
 
 ---
 
-## Step 4 — Test it with a deliberate issue
+## 4 · Test it with a deliberate issue
 
 ```bash
 git checkout -b feature/add-order-endpoint
@@ -199,7 +199,7 @@ git push origin feature/add-order-endpoint
 
 ---
 
-## What you should see
+## 4 · What you should see
 
 ```text
 ## 🤖 AI Code Review
@@ -217,9 +217,11 @@ This PR adds an order creation endpoint. ... a critical security issue ...
 Input validation via `@Valid` is correctly applied to the request body.
 ```
 
+<p class="small">Calibrate the prompt: if the model misses issues specific to your codebase (Feign clients, Spring Boot anti-patterns), add them to the <code>Focus on:</code> list.</p>
+
 ---
 
-## Extending the reviewer
+## 5 · Extending the reviewer
 
 | Extension | How |
 |---|---|
@@ -227,11 +229,10 @@ Input validation via `@Valid` is correctly applied to the request body.
 | Summary in the PR description | `repo.get_pull(pr_number).edit(body=summary)` |
 | Structured output | ask for **JSON only**: `summary`, `critical_issues`, `warnings`, `suggestions`, `score` → render as a table |
 | Block on 🔴 Critical | GitHub **Checks API**, `checks: write`, a check run instead of a comment |
-| Codebase-specific issues | add them (Feign clients, Spring Boot anti-patterns) to the `Focus on:` list |
 
 ---
 
-## A guide, not a gate
+## 5 · A guide, not a gate
 
 <div class="warn">
 
@@ -246,7 +247,9 @@ Blocking merges on AI output means trusting its mistakes: it can **flag safe cod
 
 ---
 
-## The same shape, other tasks
+<!-- _class: tight -->
+
+## 6 · The same shape, other tasks
 
 **CI/CD trigger → gather context → LLM call with a task-specific prompt → act on the result**
 
@@ -254,6 +257,7 @@ Blocking merges on AI output means trusting its mistakes: it can **flag safe cod
 |---|---|---|
 | PR code review | reviews diff, flags issues | every PR — this hands-on |
 | Test generation | writes unit tests for changed functions | coverage drops below threshold |
+| Commit message enforcement | rewrites or validates commit messages | large teams, inconsistent commit hygiene |
 | Changelog generation | `CHANGELOG.md` from PR titles/commits | before every release |
 | Anomaly detection in logs | spots unusual patterns | after a deployment |
 | Incident runbook lookup | suggests diagnostic steps from alert text | on-call automation |

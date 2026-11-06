@@ -21,9 +21,10 @@ theme: platform
 **Publish a fact, let others react**
 
 <!--
-Outline: (1) why the synchronous chain hurts; (2) events, topics, partitions, offsets; (3) Kafka,
-keys and consumer groups; (4) delivery guarantees, outbox and sagas; (5) event sourcing, CQRS;
-(6) dead letter queue; (7) when not to use it.
+Outline: (1) why event-driven: the synchronous chain vs publishing an event; (2) core concepts;
+(3) Kafka: the log, keys and ordering, durability; (4) messaging patterns: pub/sub, competing
+consumers, event sourcing, CQRS; (5) delivery guarantees and idempotent consumers; (6) outbox and
+sagas; (7) dead letter queue; (8) when to use it, and the pitfalls.
 -->
 
 ---
@@ -37,16 +38,18 @@ What happens to the response time if the order service calls each of them before
 
 </div>
 
-* Latency becomes the **sum** of every call.
+* Latency becomes the **sum** of every call — a latency cliff.
 * One slow (or failing) dependency **stalls the whole request**.
-* The order service must **know every consumer** — adding one means changing it.
+* The order service must **know every consumer** — a coupling explosion.
 
 <!--
-Let the class answer before showing the bullets. The coupling argument (third bullet) is the one
-that grows with the system.
+Let the class answer before showing the bullets. The alternative contract: publish an event and let
+interested parties react asynchronously.
 -->
 
 ---
+
+<!-- _class: tight -->
 
 ## Two contracts
 
@@ -55,18 +58,14 @@ that grows with the system.
 
 ### Synchronous chain
 
-`POST /orders` → email → inventory → fraud → `201 Created`
-
-The client waits for **all of them**.
+`POST /orders` → email → inventory → fraud → `201 Created`: the client waits for **all of them**.
 
 </div>
 <div>
 
 ### Publish an event
 
-`POST /orders` → publish `OrderCreated` → `202 Accepted`
-
-Each consumer reacts **on its own schedule**.
+`POST /orders` → publish `OrderCreated` → `202 Accepted`: each consumer reacts **on its own schedule**.
 
 </div>
 </div>
@@ -76,58 +75,82 @@ Each consumer reacts **on its own schedule**.
 | Latency | sum of all calls | only the producer |
 | Coupling | producer knows all consumers | producer knows none |
 | Resilience | one slow consumer blocks all | failures are independent |
+| Throughput | limited by the slowest dependency | consumers scale independently |
+| Debugging | simple request trace | needs distributed tracing |
 | Consistency | strong | **eventual** |
+
+<!--
+The page's queue-depth simulation: producer 3/step, consumer 2/step → the queue grows without bound;
+the consumer scales to 5/step at step 10 → it catches up. That backlog is the consumer lag.
+-->
 
 ---
 
-## The vocabulary
+<!-- _class: tight -->
+
+## Core concepts
 
 | Concept | What it is | Example |
 |---|---|---|
 | **Event** | immutable record of something that happened | `OrderCreated { orderId, … }` |
 | **Command** | instruction to do something — can be rejected | `PlaceOrder { items, … }` |
+| **Broker** | stores messages and serves them to consumers | a Kafka broker (`kafka:9092`) |
 | **Topic** | named, durable, ordered log | `order-events` |
-| **Partition** | shard of a topic, for parallelism | partition 0, 1, 2 |
-| **Offset** | position of a message in a partition | offset 42 |
-| **Consumer group** | consumers sharing the work of a topic | `notification-service` |
+| **Partition** | shard of a topic; order kept only inside it | partition 0, 1, 2 |
+| **Key** | optional value that decides the partition | `orderId` |
+| **Offset** | position of a message in a partition | offset 42 in partition 1 |
+| **Consumer group** | consumers sharing the work of a topic | `notification-group` |
 
 <div class="ok">
 
-**Events are facts**: the log is append-only, never updated. That is what makes it safe to **replay**.
+**Events are facts**: the log is append-only, never updated or deleted. That is what makes it safe to **replay**.
 
 </div>
 
 ---
 
-## Kafka: topics, partitions, groups
+## Kafka: a log, not a queue
 
-- A **topic** is split into ordered **partitions**; order is guaranteed **within** a partition.
-- Each **consumer group** keeps its own offset per partition — `notification-group` and `analytics-group` read the same log **independently**.
-- Inside a group, **one partition → one consumer** at a time.
-- Adding a new group never affects the existing ones.
+- Producers **append** to the end; consumers read from **any position**; messages **stay** after being read.
+- A classic queue (RabbitMQ) removes a message once a consumer acknowledges it.
+- A **topic** is split into ordered **partitions**; each **consumer group** keeps its own offset per partition.
+- `notification-group` and `analytics-group` read the same log **independently**; a new group never affects the others.
+
+| Retention | Config | Behaviour |
+|---|---|---|
+| Time | `retention.ms=604800000` | delete after 7 days (the default) |
+| Size | `retention.bytes=1073741824` | oldest segments go when a **partition** passes 1 GB |
+| Compact | `cleanup.policy=compact` | keep only the latest message per key |
+
+---
+
+## Keys, partitions and ordering
+
+- With a **key**, `hash(key) % partitions` picks the partition → same key, same partition, **in order**.
+- No key → messages spread over partitions, **no ordering** between related events.
+- Order holds only **inside** a partition: the key chooses **what** must stay in order.
+- Hands-on 10: `kafkaTemplate.send("order-events", order.getId().toString(), event)` → `OrderCreated`, `OrderPaid`, `OrderShipped` of one order in sequence; different orders in parallel.
 
 <div class="warn">
 
-More consumers than partitions? The extra consumers sit **idle**. Partitions are the ceiling of parallelism.
+**Choosing the key**: few values (e.g. `country`) → **hot partitions**; adding partitions later changes `hash(key) % partitions` and moves keys — size partitions up front.
 
 </div>
 
-<p class="small">Messages stay after being read: <code>retention.ms</code> (default 7 days), <code>retention.bytes</code> (per partition) or <code>cleanup.policy=compact</code> (last value per key).</p>
-
 ---
 
-## Keys, ordering and durability
+## Durability: replication and `acks`
 
-- With a **key**, `hash(key) % partitions` picks the partition → same key, same partition, **in order**.
-- Hands-on 10: `send("order-events", orderId, event)` → all events of one order stay in sequence; different orders run in parallel.
-- Few key values (e.g. `country`) → **hot partitions**; adding partitions later moves keys.
-- Each partition is **replicated** (typically 3): a leader + followers; the up-to-date ones form the **ISR**.
+Each partition is **replicated** (typically 3): a **leader** takes the writes, **followers** copy it; the up-to-date ones form the **ISR**. If the leader dies, an in-sync follower takes over.
 
 | `acks` | Confirmed when… | Risk |
 |---|---|---|
-| `0` | sent | lost if the broker never got it |
-| `1` | the leader wrote it | lost if the leader dies first |
-| `all` | all in-sync replicas have it | slowest — survives a broker loss |
+| `0` | sent (no confirmation) | lost if the broker never got it |
+| `1` | the leader wrote it | lost if the leader dies before followers copy it |
+| `all` | all in-sync replicas have it (`min.insync.replicas` ≥ 2) | slowest — survives a broker loss |
+
+- Hands-on 10: `acks: all` + `enable.idempotence: true` — the producer's own retries create no duplicates (the defaults since Kafka 3.0).
+- Metadata: **KRaft** (Raft quorum) replaced ZooKeeper, removed in Kafka 4.0; Hands-on 10 runs one node as broker and controller.
 
 ---
 
@@ -138,7 +161,7 @@ More consumers than partitions? The extra consumers sit **idle**. Partitions are
 
 ### Pub/sub (fan-out)
 
-One event → **every** group gets its own copy.
+One event → **every** group gets its own copy; a slow analytics pipeline does not slow notifications.
 
 Email, audit log, analytics, cache invalidation.
 
@@ -147,16 +170,43 @@ Email, audit log, analytics, cache invalidation.
 
 ### Competing consumers
 
-Consumers of the **same** group split the partitions → each message processed **once**.
+Consumers of the **same** group split the partitions → each message processed by **one** consumer.
 
 Order processing, payments, image resizing.
 
 </div>
 </div>
 
-<div class="ok">
+<div class="warn">
 
-Same broker, two patterns: **different groups fan out**, **same group shares the work**.
+Parallelism ceiling = partitions: with 3 partitions a fourth consumer sits **idle**. A consumer joining or leaving triggers a **rebalance**.
+
+</div>
+
+---
+
+## Event sourcing
+
+Store the **full history of events**, not just the current state.
+
+- The write model **is** the event log: `OrderCreated`, `OrderPaid`, `OrderShipped`, …
+- Current state = **replay** the events from the beginning (or from a snapshot).
+- Command → append to the **event store** → `202 Accepted`; a **projection** updates the read model.
+- Projections can be **rebuilt at any time**: time-travel debugging, zero-downtime schema migration.
+
+---
+
+## CQRS
+
+Separate the **write side** (commands, events, event store) from the **read side** (queries, projections).
+
+- **Commands** (`POST /orders`) → command handler → event store + event bus (Kafka).
+- **Queries** (`GET /orders`) → a **read model** optimised for the query.
+- Often paired with event sourcing, but not required: **CDC** (Debezium reads the transaction log) can sync two databases.
+
+<div class="warn">
+
+**Not defaults**: events versioned forever, **eventually consistent** read models, slow rebuilds. Use them where the domain needs an audit trail or very different read and write shapes (order history, ledgers) — not for every CRUD entity.
 
 </div>
 
@@ -164,31 +214,42 @@ Same broker, two patterns: **different groups fan out**, **same group shares the
 
 ## Delivery guarantees
 
+A consumer reads, processes (e.g. sends an e-mail) and **commits its offset**. *When* it commits decides what a crash costs:
+
+| Guarantee | How | A crash means |
+|---|---|---|
+| **At-most-once** | commit **before** processing | the message is **lost** |
+| **At-least-once** | commit **after** processing | the message is **processed again** |
+| **Exactly-once** | Kafka transactions (`read_committed`) | neither — but only Kafka → Kafka |
+
+<p class="small">Hands-on 10: <code>enable_auto_commit=False</code> + <code>commit()</code> after processing = at-least-once. Kafka cannot "un-send" an e-mail or roll back a Postgres row.</p>
+
+---
+
+## Idempotent consumers
+
 <div class="q">
 
-The notification service sends the e-mail, then **crashes before committing** the offset. What happens on restart?
+The notification service sends the e-mail and **crashes before committing** offset 42. On restart it reads offset 42 again. Does the customer get two e-mails?
 
 </div>
 
-* It reads the same message **again**: commit-after-processing = **at-least-once**.
-* Commit *before* processing = **at-most-once**: a crash **loses** the message.
-* Kafka's exactly-once covers only Kafka → Kafka; it cannot "un-send" an e-mail.
-* So: at-least-once + an **idempotent consumer** — processed-IDs table, upserts, unique constraints.
+Not if processing twice has the **same effect** as processing once:
 
-<!--
-Hands-on 10 uses enable_auto_commit=False and commit() after processing: at-least-once.
--->
+- **Processed-message table**: store the event ID in the same transaction as the business change; skip events already stored.
+- **Natural idempotency**: `UPSERT`, "set status to PAID" instead of "add 10 to the balance".
+- **Unique constraints**: the database rejects a second insert of the same `orderId`.
 
 ---
 
 ## The dual write and the outbox
 
-Saving the order in Postgres **and** publishing to Kafka are two systems, no shared transaction:
+Hands-on 10 saves the order in Postgres and *then* publishes to Kafka — two systems, no shared transaction:
 
-- commit, then crash before publishing → order exists, **event lost**;
-- publish, then rollback → event about an order that **does not exist**.
+- commit, then crash before publishing → the order exists, **nobody is notified**;
+- publish, then rollback → consumers react to an order that **does not exist**.
 
-**Transactional outbox**: `INSERT INTO orders` + `INSERT INTO outbox` in **one local transaction** → a relay (polling or CDC/Debezium) publishes to Kafka and marks the row as sent.
+**Transactional outbox**: `INSERT INTO orders` + `INSERT INTO outbox` in **one local transaction** (both or neither) → a relay (polling or CDC/Debezium) publishes to Kafka and marks the row as sent.
 
 <div class="warn">
 
@@ -200,57 +261,41 @@ The relay can publish twice after a crash: consumers still need to be **idempote
 
 ## Sagas
 
-One business operation, several databases: reserve stock, then charge the card.
+One business operation, several databases (reserve stock, charge the card): no single ACID transaction. A **saga** = local transactions, each triggered by the previous event; on failure, **compensations**.
 
-`OrderCreated` → inventory reserves → `StockReserved` → payment fails → `PaymentFailed` → inventory **releases** (compensation) → order `CANCELLED`
+`OrderCreated` → inventory reserves → `StockReserved` → payment fails → `PaymentFailed` → inventory **releases** → order `CANCELLED`
 
 | Style | Coordination | Watch out |
 |---|---|---|
-| **Choreography** | services react to each other's events | the flow is spread everywhere |
-| **Orchestration** | an orchestrator sends commands | one more service to run |
+| **Choreography** | services react to each other's events | the flow is spread, hard to follow |
+| **Orchestration** | an orchestrator sends commands | one more service to build and run |
 
-<p class="small">No isolation: others see intermediate states — model them (<code>PENDING</code>, <code>CONFIRMED</code>, <code>CANCELLED</code>).</p>
-
----
-
-## Event sourcing
-
-Store the **history**, not just the current state.
-
-- The write model **is** the event log: `OrderCreated`, `ItemAdded`, `OrderPaid`, …
-- Current state = **replay** the events (or start from a snapshot).
-- Projections (read models) can be **rebuilt at any time** — time-travel debugging, new views without migrating data.
-
-> The database stores where you are; the event log stores how you got there.
+<p class="small">Sagas are not transactions: no isolation — model the states (<code>PENDING</code>, <code>CONFIRMED</code>, <code>CANCELLED</code>) and make every step and compensation idempotent.</p>
 
 ---
 
-## CQRS
+<!-- _class: tight -->
 
-Separate the **write side** from the **read side**.
+## Dead letter queue
 
-- **Commands** (`POST /orders`) → command handler → event store → event bus.
-- **Queries** (`GET /orders`) → a **read model** shaped for the query.
-- Often paired with event sourcing, but not required: change-data-capture can sync two databases.
+A message that keeps failing must not **block the stream**: after the retries it moves to a **DLQ** (a separate topic), inspected and reprocessed manually.
+
+```java
+@RetryableTopic(backOff = @BackOff(delay = 1000, multiplier = 2))   // 3 attempts in total
+@KafkaListener(topics = "order-events", groupId = "invoice-group")
+public void onOrderCreated(OrderCreatedEvent event) {
+    invoiceService.create(event);   // throws → retried after 1 s, then 2 s
+}
+
+@DltHandler
+public void onDeadLetter(OrderCreatedEvent event) { log.error(...); }
+```
 
 <div class="warn">
 
-The read model is **eventually consistent**: right after a command, a query may not see it yet.
+Retry only failures that can succeed later (a database briefly down). Invalid JSON or an unknown product ID goes **straight to the DLQ**: retrying only delays the partition.
 
 </div>
-
----
-
-## When a message keeps failing
-
-A poison message must not **block the stream**.
-
-1. Consumer picks it up → **processing**.
-2. Transient failure → **retry** after backoff.
-3. Max retries exceeded → move to the **Dead Letter Queue** (a separate topic).
-4. The main stream continues; the DLQ is inspected and **reprocessed manually**.
-
-<p class="small">Spring Kafka: <code>@RetryableTopic</code> configures attempts, backoff and the DLQ topic declaratively.</p>
 
 ---
 
@@ -264,31 +309,30 @@ A poison message must not **block the stream**.
 | Audit log of every mutation | event | fire-and-forget, fan-out |
 | Payment | depends | idempotent retry → event; blocking confirmation → REST + saga |
 | Analytics pipeline | event | high volume, slow consumers are fine |
+| Service health check | REST | synchronous by nature |
 
 ---
 
-## The price
+## The price, and the pitfalls
 
 <div class="warn">
 
-A request that crosses **5 services and 3 topics** is hard to debug: you need **distributed tracing** (Observability class) to follow it.
+A request across **5 services and 3 topics** needs **distributed tracing** to debug. Adopt events when the coupling and latency of synchronous calls are **concrete** problems.
 
 </div>
 
-- Eventual consistency must be **designed for** — in the UI and in the business rules.
-- Consumers must be **idempotent**: at-least-once delivery means duplicates happen.
-- Events are a public contract: only **add optional fields**; version breaking changes.
-- Watch **consumer lag** per group — a growing backlog is an incident in slow motion.
-- Adopt events when the **coupling and latency** of synchronous calls are concrete problems — not for their own sake.
+- **Assuming exactly-once**: duplicates *will* arrive; every consumer must be idempotent.
+- **Dual writes** without an outbox lose or invent events after a crash.
+- **Breaking the event schema**: only add optional fields; version (`OrderCreatedV2`) — a schema registry can enforce it.
+- **Ignoring consumer lag**: monitor it per group (Kafka UI, Prometheus) and alert when it grows.
+- **Commands in disguise**: `SendEmailToCustomer` couples to one consumer — publish the fact (`OrderCreated`).
 
 ---
 
 ## Takeaways
 
-1. Synchronous chains add up **latency** and **coupling**; events decouple producer and consumers.
-2. An **event** is an immutable fact; a **command** can be rejected.
-3. Kafka: topic → **partitions**; the **key** picks the partition and so the order; `acks=all` for durability.
-4. Different groups **fan out**; the same group **shares** the work.
-5. Delivery is **at-least-once**: commit after processing, make consumers **idempotent**.
-6. **Outbox** instead of dual writes; **sagas** with compensations instead of distributed transactions.
-7. **Event sourcing**, **CQRS** and **DLQs** solve specific problems — the cost is eventual consistency and **tracing**.
+1. Use **events** when the caller does not need the answer to continue; a **synchronous request** when it does.
+2. Kafka is a replicated, partitioned **log**: order holds within a partition, the **key** picks the partition, each group keeps its own offsets — different groups **fan out**, the same group **shares** the work.
+3. Delivery is realistically **at-least-once**: commit after processing, make every consumer **idempotent**.
+4. Never dual-write: the **transactional outbox** publishes reliably; **sagas** with compensations replace distributed transactions.
+5. **Event sourcing** and **CQRS** are for specific domains, not defaults; a **DLQ** keeps poison messages from blocking a partition.

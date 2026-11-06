@@ -1,0 +1,44 @@
+/*
+ * Diagrams drawn in HTML inside a slide (Marp renders no Mermaid): boxes, a
+ * matrix of cells, groups and flows, in the theme's colours only (the
+ * variables of theme.css, so light and dark both work).
+ *
+ * Opt-in per deck, so that changing it does not touch the other decks
+ * (Marp inlines the CSS in every built .html). In the first slide:
+ *
+ *   a style element holding the INCLUDE marker of build.py with this file's path
+ *
+ * Tones (on .box or .chip): .accent, .orange, .green, .red, .muted.
+ * No blank lines and no tag names in this file: either would end the style element.
+ */
+/* a box; inline in a sentence with .chip */
+section .box, section .chip {
+  border: 1px solid var(--border); border-radius: 6px; background: var(--card);
+  color: var(--strong); line-height: 1.25; text-align: center;
+}
+section .box { padding: .35em .55em; font-size: .68em; }
+section .box small { display: block; color: var(--muted); font-size: .85em; font-weight: 400; }
+section .chip { display: inline-block; padding: 0 .45em; font-size: .8em; }
+section :is(.box, .chip).accent { background: color-mix(in srgb, var(--accent) 22%, var(--bg)); border-color: var(--accent); }
+section :is(.box, .chip).orange { background: color-mix(in srgb, var(--orange) 24%, var(--bg)); border-color: var(--orange); }
+section :is(.box, .chip).green  { background: color-mix(in srgb, var(--green) 22%, var(--bg)); border-color: var(--green); }
+section :is(.box, .chip).red    { background: color-mix(in srgb, var(--red) 18%, var(--bg)); border-color: var(--red); }
+section :is(.box, .chip).muted  { background: transparent; border-style: dashed; color: var(--muted); }
+/* a matrix: one label column + --n columns of cells; .head for headers */
+section .matrix {
+  display: grid; grid-template-columns: max-content repeat(var(--n, 6), 1fr);
+  gap: 5px; align-items: stretch; margin: .3em 0 .5em;
+}
+section .matrix > .head { font-size: .62em; font-weight: 600; color: var(--muted); align-self: end; text-align: center; }
+section .matrix > .row { font-size: .66em; font-weight: 600; color: var(--strong); align-self: center; padding-right: .6em; }
+section .matrix > .box { display: flex; align-items: center; justify-content: center; }
+/* a flow of boxes and arrows, left to right */
+section .flow { display: flex; align-items: center; gap: .45em; margin: .3em 0; }
+section .flow > .box { flex: 1; }
+section .arrow { color: var(--muted); font-size: .8em; font-weight: 600; white-space: nowrap; text-align: center; }
+/* a group: a dashed frame with a caption, holding boxes in a column */
+section .group {
+  flex: 1; display: flex; flex-direction: column; gap: 6px;
+  border: 1.5px dashed var(--border); border-radius: 10px; padding: .45em .5em .55em;
+}
+section .group > .caption { font-size: .58em; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; text-align: center; }

@@ -208,7 +208,7 @@
     }
 }
 </code></pre>
-<p class="small">Nunca devolva <code>System.getenv()</code>: isso publicaria todos os segredos. <code>GatewayServiceApplication</code> é um <code>@SpringBootApplication</code> simples.</p>
+<p class="small">O hostname mostra qual réplica respondeu quando houver várias (hands-on 7). Nunca devolva <code>System.getenv()</code>: isso publicaria todos os segredos. <code>GatewayServiceApplication</code> é um <code>@SpringBootApplication</code> simples.</p>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="10" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="10" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="13">
 <h2 id="dockerfile-e-composeyaml">Dockerfile e compose.yaml</h2>
@@ -245,7 +245,7 @@
 <h2 id="executar-e-verificar">Executar e verificar</h2>
 <pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-bash">docker compose up -d --build
 curl http://localhost:8080/health-check   <span class="hljs-comment"># {&quot;hostname&quot;:&quot;...&quot;}</span>
-curl http://localhost:8080/accounts/...   <span class="hljs-comment"># routed to account:8080</span>
+curl http://localhost:8080/accounts      <span class="hljs-comment"># routed to account:8080</span>
 </code></pre>
 <ul>
 <li>Envie requisições para a <strong>porta do gateway</strong> e confira se chegam ao microsserviço certo.</li>

@@ -21,9 +21,10 @@ theme: platform
 **Delegate identity to a standard, verify every request**
 
 <!--
-Outline: (1) from Hands-on 3 to the gaps of a homemade scheme; (2) authN vs authZ;
-(3) OAuth 2.0 roles, tokens, scopes and grants; (4) PKCE and Client Credentials; (5) OIDC;
-(6) JWKS vs introspection at the gateway; (7) Zero Trust, mTLS, NetworkPolicy; (8) secrets.
+Outline: (1) overview: authN vs authZ, what Hands-on 3 built, what JWT alone cannot do, the security
+layers; (2) OAuth 2.0: roles, tokens, scopes, grants, PKCE, Client Credentials, OIDC, JWKS vs
+introspection, browser storage, pitfalls; (3) Zero Trust: PEP/PDP, the compromised pod, mTLS + policy,
+NetworkPolicy, secrets.
 -->
 
 ---
@@ -65,6 +66,22 @@ The gateway **authenticates**; each service must still **authorize** its own obj
 
 ---
 
+## What Hands-on 3 built
+
+1. `POST /auth/login` → `auth-service` checks the password, signs a JWT, returns it in a cookie.
+2. Each request: gateway → `POST /auth/solve {token}` → `{idAccount}`.
+3. Gateway forwards the call with the `id-account` header.
+
+| Property | Consequence |
+|---|---|
+| **Symmetric signature** (HMAC, HS256) | only `auth-service` holds `JWT_SECRET_KEY` → only it can validate |
+| **Remote validation** | one extra hop per request, but immediate refusal (e.g. after logout) |
+| **Trust in the network** | `account-service` believes any `id-account`: only the gateway reaches it |
+
+<p class="small">A sound design for <b>one</b> application — the token is a reference only <code>auth-service</code> can read.</p>
+
+---
+
 ## What JWT alone cannot do
 
 | Problem | Homemade JWT | Standard answer |
@@ -77,6 +94,26 @@ The gateway **authenticates**; each service must still **authorize** its own obj
 | Compromised pod | internal network trusted | **mTLS**, **NetworkPolicy** |
 
 <p class="small">JWT is a <b>format</b>. OAuth 2.0 and OIDC define how tokens are obtained, delegated and trusted.</p>
+
+---
+
+## The security layers of the store
+
+**Defense in depth**: independent layers, so an attacker who defeats one still faces the next.
+
+| Layer | Threat | Control |
+|---|---|---|
+| Edge | eavesdropping, abuse | TLS, rate limiting |
+| Identity | stolen or forged credentials | OAuth 2.0 / OIDC, short-lived tokens |
+| Request | user reads someone else's data | authorization in each service |
+| Service-to-service | lateral movement from a pod | mTLS, NetworkPolicy, authz policies |
+| Data | leaked passwords and keys | secrets manager, encryption at rest |
+
+<div class="warn">
+
+**Security only at the gateway**: a `NodePort` or debug port lets anyone send `id-account: <any id>`. Also: no homemade crypto; no 24-hour bearer tokens.
+
+</div>
 
 ---
 
@@ -211,6 +248,27 @@ spring.security.oauth2.resourceserver.jwt:
 
 ---
 
+## Where the browser keeps the token
+
+| Storage | Read by JS? | Main risk | Mitigation |
+|---|---|---|---|
+| `localStorage` / `sessionStorage` | yes | any XSS script steals it | avoid for tokens |
+| `HttpOnly` cookie (Hands-on 3) | no | CSRF: the cookie goes automatically | `SameSite`, `Secure`, CSRF tokens |
+| Server-side session (BFF) | no token in the browser | session theft | the BFF holds the tokens |
+
+---
+
+## OAuth 2.0 pitfalls
+
+- **ROPC or Implicit** in new code — use Authorization Code + PKCE.
+- **Skipping the `aud` check** — a valid token for another API is accepted by yours.
+- **Long-lived access tokens** — a stolen bearer token is valid until `exp`.
+- **One HMAC secret shared by many services** — whoever can verify can also *forge*; use a JWKS.
+- **Tokens in URLs or logs** — they end up in proxy logs and history; use headers or cookies.
+- **Calling the API with the ID token** — ID tokens are for the client; APIs accept access tokens.
+
+---
+
 ## Zero Trust
 
 <div class="cols">
@@ -227,7 +285,7 @@ One compromised pod → **lateral movement** everywhere.
 
 ### Zero Trust (NIST SP 800-207)
 
-**Every request** → enforcement point (gateway, sidecar) → policy decision → allow with **least privilege** or deny.
+**Every request** → **PEP** (enforcement point: gateway, sidecar) → **PDP** (policy decision) → allow with **least privilege** or deny.
 
 </div>
 </div>
@@ -237,6 +295,22 @@ One compromised pod → **lateral movement** everywhere.
 | Verify identity explicitly | OIDC tokens, mTLS, SPIFFE |
 | Least privilege · assume breach | scopes, RBAC, NetworkPolicy |
 | Continuous validation | short TTLs, re-auth, monitoring |
+
+---
+
+## Example: the compromised pod, again
+
+| Attacker step | Perimeter model | Zero Trust control |
+|---|---|---|
+| Call `account-service` with a forged `id-account` | accepted: caller is "inside" | only the gateway's workload identity (mTLS + authz policy) |
+| Connect to any pod | allowed | NetworkPolicy: only declared flows |
+| Reuse the DB password from the env | works for months | short-lived, per-service credential (≤ 1 hour) |
+
+<div class="ok">
+
+**Assume breach**: limit what a compromised pod can **call**, **reach** and **read**.
+
+</div>
 
 ---
 
@@ -302,6 +376,21 @@ A Kubernetes Secret is **base64, not encryption**: `echo c3RvcmU= | base64 -d` �
 
 ---
 
+## Secrets: common mistakes
+
+- **Secrets in Git**, even private or "just for dev" — history keeps them; rotate any secret ever committed.
+- **One shared credential for every service** — a leak cannot be traced; rotating it breaks everyone.
+- **Secrets in logs and error messages** — mask them, as Jenkins does with `withCredentials`.
+- **Treating mTLS as authorization** — a certificate proves identity, not permission.
+
+<div class="ok">
+
+Minimum hygiene for native Secrets: **encryption at rest** for etcd, **RBAC** on `get`/`list`, manifests **out of Git** (or Sealed Secrets / SOPS).
+
+</div>
+
+---
+
 ## Takeaways
 
 1. **AuthN** = who, **authZ** = what; the gateway authenticates, each service authorizes its objects.
@@ -309,5 +398,5 @@ A Kubernetes Secret is **base64, not encryption**: `echo c3RvcmU= | base64 -d` �
 3. **Code + PKCE** for users, **Client Credentials** for services — **never ROPC or Implicit**.
 4. Short **access tokens** to APIs, **refresh tokens** to the Auth Server, **ID token** to the client.
 5. **JWKS** = local validation, no hop; **introspection** (`/auth/solve`) = immediate revocation.
-6. **Zero Trust**: verify every call — mTLS identity, authorization policy, default-deny NetworkPolicy.
-7. Secrets: base64 is not encryption — encryption at rest, RBAC, and **short-lived** credentials.
+6. **Zero Trust**: assume breach, verify every call — mTLS identity, authorization policy, default-deny NetworkPolicy.
+7. Security is **layered**: TLS at the edge, tokens for users, mTLS between services, a secrets manager — base64 is not encryption.

@@ -64,6 +64,21 @@ Instrumentar todos os serviços Spring Boot com **OpenTelemetry** para que uma r
 
 ---
 
+## Arquitetura
+
+- Camada confiável como antes: load balancer → gateway → `order`, `account`; `order` → `product`, PostgreSQL.
+- **Novo**: gateway, order, account e product exportam **traces OTLP** para o Jaeger (`:4317`).
+- O Prometheus continua fazendo **scrape** de `/actuator/prometheus` nos mesmos serviços → Grafana `:3000`.
+- O Jaeger (UI na `:16686`) entra na **camada de observabilidade**, ao lado do Prometheus e do Grafana.
+
+<div class="ok">
+
+Dois pipelines lado a lado: as métricas são **coletadas** pelo Prometheus; os traces são **enviados** pelo agente de cada serviço.
+
+</div>
+
+---
+
 ## O vocabulário
 
 | Termo | O que é |
@@ -93,7 +108,7 @@ Instrumentar todos os serviços Spring Boot com **OpenTelemetry** para que uma r
       - store-net
 ```
 
-<p class="small">O all-in-one basta para o desenvolvimento local; em produção, coletor, consulta e UI rodam separados.</p>
+<p class="small">O all-in-one basta para o desenvolvimento local; em produção, coletor, consulta e UI rodam separados. O agente usa por padrão <b>gRPC na 4317</b>; a 4318 é OTLP sobre HTTP/protobuf.</p>
 
 ---
 
@@ -166,7 +181,7 @@ OTEL_TRACES_SAMPLER_ARG: "0.1"   # 10% of requests
 
 <div class="ok">
 
-**Parent-based**: a decisão é tomada uma vez, na raiz, e viaja na flag `01`/`00` — um trace nunca é amostrado pela metade.
+**Parent-based**: a decisão é tomada uma vez, na raiz e viaja na flag `01`/`00` — um trace nunca é amostrado pela metade.
 
 </div>
 
@@ -265,7 +280,7 @@ Um span manual sem `span.end()` em um `finally` **nunca é exportado** para o Ja
 - Spans manuais em tudo → **ruído** que esconde os dados úteis.
 
 <!--
-O ponto localhost vs. nome do serviço é um erro bem conhecido no Compose, não citado literalmente na página.
+O ponto localhost vs. nome do serviço: veja o aviso "`localhost` dentro de um container" na página.
 -->
 
 ---

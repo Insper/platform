@@ -176,7 +176,7 @@ public class GatewayResource {
 }
 ```
 
-<p class="small">Never return <code>System.getenv()</code>: it would publish every secret. <code>GatewayServiceApplication</code> is a plain <code>@SpringBootApplication</code>.</p>
+<p class="small">The hostname shows which replica answered once there are several (hands-on 7). Never return <code>System.getenv()</code>: it would publish every secret. <code>GatewayServiceApplication</code> is a plain <code>@SpringBootApplication</code>.</p>
 
 ---
 
@@ -227,7 +227,7 @@ Only the gateway publishes a port. `account` is reachable **only through the gat
 ```bash
 docker compose up -d --build
 curl http://localhost:8080/health-check   # {"hostname":"..."}
-curl http://localhost:8080/accounts/...   # routed to account:8080
+curl http://localhost:8080/accounts      # routed to account:8080
 ```
 
 - Send requests to the **gateway's port** and check they reach the right microservice.

@@ -75,6 +75,8 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
 ```
 
+<p class="small">The Jenkins home (plugins, jobs, credentials) lives in <code>./config/jenkins</code>, so it survives <code>docker compose down</code>; it holds secrets, so <code>jenkins/.gitignore</code> keeps <code>config/</code> and <code>.env</code> out of git.</p>
+
 ---
 
 ## What the image carries
