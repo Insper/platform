@@ -116,14 +116,52 @@ A pilha fica concreta quando algo dá errado. Encontre o evento e leia a linha p
 
 A tabela considera a configuração usual de cada modelo. Em CaaS e PaaS a plataforma escala, mas você ainda define os limites. Em Kubernetes gerenciado com node groups clássicos, o SO dos nós ainda é em parte tarefa sua.
 
+<div class="csim" data-sim="service-stack" data-model="iaas"></div>
+
+!!! tip "Experimente"
+    Escolha cada modelo sem evento: as camadas que você mantém caem de **6** no on-premises para **4** no IaaS, **3** no CaaS, **2** no PaaS e no FaaS e **1** no SaaS. A linha tracejada entre você e o provedor sobe uma camada por vez, menos do PaaS para o FaaS, que a compartilham.
+
+    1. Escolha **Falha no JDK** e passe de IaaS para CaaS e para PaaS: você age no IaaS e no CaaS (no CaaS o JDK está dentro da sua imagem); do PaaS em diante, quem age é o provedor.
+    2. Escolha **Black Friday 10×**: ela não atinge uma camada só: é capacidade, então age quem adiciona máquinas. No IaaS você sobe mais VMs; no CaaS o provedor adiciona instâncias (você ainda define os limites).
+    3. Escolha **Chave vaza** e percorra os seis modelos: quem age é sempre você.
+
 ??? question "Confira o que entendeu: a loja roda num PaaS e publicam uma falha no kernel do Linux. O que seu time faz?"
     Nada, no que diz respeito ao SO: o provedor aplica o patch, como mostra a linha do SO. Agora mude uma coisa: a loja roda em CaaS e a falha é no **JDK**. Aí seu time age, porque o JDK está dentro da sua imagem: você atualiza a imagem base, reconstrói e faz o deploy de novo.
+
+O mesmo evento, passo a passo: publicam uma falha no kernel do Linux enquanto a loja roda em IaaS e, depois, em PaaS.
+
+``` mermaid-sim
+sequenceDiagram
+  participant L as Comunidade Linux
+  participant P as Provedor de nuvem
+  participant T as Seu time
+  participant S as A loja
+  L->>P: publica a falha no kernel (CVE)
+  Note over P,S: IaaS: o SO é seu
+  P->>T: boletim de segurança
+  T->>S: apt upgrade e reboot, uma VM de cada vez
+  Note over P,S: PaaS: o SO é do provedor
+  P->>S: aplica o patch nos hosts e reinicia suas instâncias aos poucos
+  S-->>T: nada a fazer além de acompanhar os dashboards
+```
 
 ---
 
 ## Subindo a pilha, um modelo de cada vez
 
 O NIST define três modelos fundamentais: **IaaS**, **PaaS** e **SaaS**[^1]. Depois, o mercado acrescentou **CaaS** e **FaaS** entre eles. Cada seção abaixo tem as mesmas partes, para que você possa compará-las e cada uma coloca a loja naquele modelo.
+
+O que você entrega à plataforma diminui conforme sobe a pilha:
+
+``` mermaid-sim
+flowchart LR
+  you([Seu time])
+  you -->|"SSH, apt install, java -jar"| iaas["IaaS<br/>uma VM"]
+  you -->|"docker push"| caas["CaaS<br/>uma imagem"]
+  you -->|"git push"| paas["PaaS<br/>o código"]
+  you -->|"envia um handler"| faas["FaaS<br/>uma função"]
+  you -->|"cria a conta, configura"| saas["SaaS<br/>uma conta"]
+```
 
 ### IaaS: Infraestrutura como Serviço
 
@@ -241,8 +279,33 @@ O PaaS favorece o padrão **12-factor app**[^5]: processos sem estado, configura
 
 Duas restrições vêm com esse modelo. A primeira é o **cold start**: a primeira requisição que chega a uma função sem instância pronta precisa esperar a plataforma criar um sandbox, carregar o código e iniciar o runtime e, numa aplicação Spring Boot, isso pode levar segundos. A segunda é um tempo máximo de execução: 15 minutos no Lambda[^6].
 
+``` mermaid-sim
+sequenceDiagram
+  participant E as Evento (novo pedido)
+  participant P as Plataforma FaaS
+  participant F as Instância da função
+  E->>P: invocação
+  Note over P,F: cold start: nenhuma instância pronta
+  P->>F: cria o sandbox, carrega o código, inicia o runtime
+  F-->>P: resposta (segundos com Spring Boot)
+  E->>P: próxima invocação, logo depois
+  Note over P,F: quente: a instância é reaproveitada
+  P->>F: chama o handler
+  F-->>P: resposta (milissegundos)
+  Note over P,F: minutos sem uso: a plataforma remove a instância (escala até zero)
+```
+
 - **Escolha quando** o trabalho é curto, orientado a eventos e esporádico: webhooks, tarefas agendadas, processar um arquivo depois do upload.
 - **Evite quando** o serviço precisa de baixa latência em toda requisição ou recebe tráfego alto e constante: um container sempre ligado é mais barato e mais previsível.
+
+<div class="csim" data-sim="cloud-cost" data-requests="1000000" data-duration="100" data-memory="512"></div>
+
+!!! tip "Experimente"
+    Os controles começam em **1 mi de requisições/mês**, **100 ms** e **512 MB**: o FaaS custa **US$ 1,03** por mês, as duas tasks Fargate sempre ligadas **US$ 36,04** e as duas VMs **US$ 60,74**. Preços: EC2 t3.medium US$ 0,0416/h, Fargate US$ 0,04048 por vCPU-hora e US$ 0,004445 por GB-hora, Lambda US$ 0,20 por milhão de requisições e US$ 0,0000166667 por GB-segundo (AWS `us-east-1`, sob demanda, novembro de 2026; ficam de fora o nível gratuito, o balanceador de carga e a transferência de dados).
+
+    1. Aumente as requisições: o FaaS deixa de ser mais barato em cerca de **34,9 mi de requisições/mês**, só **13,3 requisições por segundo** em média. Depois desse ponto as tasks sempre ligadas custam o mesmo, enquanto o FaaS continua cobrando cada requisição.
+    2. Com **1 bi de requisições/mês** o FaaS custa **US$ 1.033**, o Fargate **US$ 216** (12 tasks) e as VMs **US$ 91,10** (3 VMs): numa escala grande e constante vence a unidade mais barata, como dizem os itens acima.
+    3. Ponha a duração em **300 ms** e a memória em **1024 MB**: cada chamada custa cerca de 5× mais e o ponto de equilíbrio cai para **6,9 mi**. Com **10 ms** e **128 MB** ele sobe para **163 mi**.
 
 !!! info "Containers serverless borram a fronteira"
     O Google Cloud Run e o Azure Container Apps também **escalam até zero** e cobram pelo uso, como o FaaS, mas executam qualquer imagem de container. "Serverless" descreve o *modelo de operação* (nenhum servidor para gerenciar, pagamento pelo uso) e não só funções.
@@ -325,6 +388,27 @@ Leia a tabela por linhas, observando como cada característica muda da esquerda 
 
 ---
 
+## Quem oferece cada modelo { #providers }
+
+As grandes nuvens oferecem quase todos os modelos; provedores menores costumam se especializar em um degrau da pilha. Leia a tabela por colunas para ver que **um modelo descreve um serviço, não uma empresa**: a AWS aparece em todas as linhas.
+
+<div class="compact-table" markdown>
+
+| Modelo | AWS | Google Cloud | Microsoft | Outros provedores |
+|---|---|---|---|---|
+| **IaaS** | EC2 | Compute Engine | Azure Virtual Machines | DigitalOcean Droplets, Oracle Cloud Compute, Magalu Cloud |
+| **CaaS** | ECS / Fargate, EKS | Cloud Run, GKE | Azure Container Apps, AKS | DigitalOcean Kubernetes, Fly.io |
+| **PaaS** | Elastic Beanstalk | App Engine | Azure App Service | Heroku, Railway, Render |
+| **FaaS** | Lambda | Cloud Run functions (antigo Cloud Functions) | Azure Functions | Cloudflare Workers, Vercel Functions |
+| **SaaS** | Amazon Connect, QuickSight | Google Workspace | Microsoft 365, Dynamics 365 | Salesforce, Slack, GitHub, Shopify, TOTVS, RD Station |
+| **Blocos gerenciados** | RDS, ElastiCache, MSK | Cloud SQL, Memorystore | Azure Database, Azure Cache for Redis | Neon, Upstash, Confluent Cloud |
+
+</div>
+
+A loja desta aula poderia usar um único provedor (na AWS: EKS para os serviços, RDS para o Postgres) ou misturar provedores (GitHub para o código e o CI): o que decide é o requisito de cada componente, como mostra a próxima seção.
+
+---
+
 ## Como escolher
 
 **Escolha por componente, não por sistema.** Comece pela opção mais gerenciada e só desça quando um requisito concreto obrigar. Faça estas perguntas em ordem e pare no primeiro **sim**:
@@ -342,6 +426,24 @@ Leia a tabela por linhas, observando como cada característica muda da esquerda 
 | | Nenhuma das anteriores | **PaaS:** Heroku, App Engine |
 
 </div>
+
+As mesmas perguntas como um fluxo; cada componente do sistema passa por ele sozinho:
+
+``` mermaid-sim
+flowchart TD
+  q1["1. Um produto já<br/>faz o trabalho?"] -->|sim| saas["SaaS"]
+  q1 -->|não| q2["2. Banco, cache ou<br/>broker padrão?"]
+  q2 -->|sim| man["Serviço gerenciado"]
+  q2 -->|não| q3["3. Trabalho curto, orientado<br/>a eventos e esporádico?"]
+  q3 -->|sim| faas["FaaS"]
+  q3 -->|não| q4["4. Precisa do SO ou de<br/>hardware especial?"]
+  q4 -->|sim| iaas["IaaS"]
+  q4 -->|não| q5["5. Container que precisa<br/>da API do Kubernetes?"]
+  q5 -->|sim| k8s["CaaS: Kubernetes gerenciado"]
+  q5 -->|não| q6["6. É um container?"]
+  q6 -->|sim| caas["CaaS: containers gerenciados"]
+  q6 -->|não| paas["PaaS"]
+```
 
 ### Exemplo: a loja, componente por componente
 
@@ -384,7 +486,7 @@ Passar um componente para um modelo mais gerenciado nunca elimina a linha de dad
 ## Erros comuns
 
 !!! warning "Erros comuns"
-    - **Entender "gerenciado" como "não é problema meu".** A maioria dos vazamentos de dados na nuvem vem de configuração do lado do cliente, como um bucket S3 público, um banco aberto para `0.0.0.0/0` ou uma access key vazada, e não do provedor. Essa camada é sempre sua[^2].
+    - **Entender "gerenciado" como "não é problema meu".** A maioria dos vazamentos de dados na nuvem vem de configuração do lado do cliente, como um bucket S3 público, um banco aberto para `0.0.0.0/0` ou uma access key vazada e não do provedor. Essa camada é sempre sua[^2].
     - **Ignorar o lock-in.** Quanto mais alto o modelo, mais seu código e seus dados dependem da API de um único fornecedor. Prefira interfaces abertas quando elas custam pouco: containers, Postgres e a API do Kubernetes.
     - **Supor que o modelo mais alto é sempre mais barato.** Serviços gerenciados cobram um adicional por unidade. Em pequena escala, isso é muito mais barato do que o tempo de um engenheiro; em escala grande e constante, um time pode economizar operando o componente por conta própria.
     - **Guardar estado numa instância de PaaS ou FaaS.** Arquivos locais e sessões em memória desaparecem num reinício ou numa redução de escala. Mantenha o estado num banco de dados, cache ou armazenamento de objetos.

@@ -37,7 +37,7 @@ export function near(a, b, tol, msg) {
 export const ROOT = path.join(here, "../..");
 
 /* the folders whose pages embed concept simulators */
-export const SIM_DIRS = ["docs/2027.1", "docs/appendix"];
+export const SIM_DIRS = ["docs/2026.2", "docs/2027.1", "docs/appendix"];
 
 /* every page (en and pt) that embeds <div class="csim" data-sim="<sim>"> */
 export function pagesOf(sim) {
@@ -63,7 +63,7 @@ export function tipText(sim, page) {
   if (!/^!!! tip/.test(lines[i] || "")) return "";
   const body = [];
   for (i++; i < lines.length && (!lines[i].trim() || /^ {4}/.test(lines[i])); i++) body.push(lines[i].trim());
-  return body.join(" ").replace(/\*\*|`/g, "").replace(/\s+/g, " ");
+  return body.join(" ").replace(/\*\*|`/g, "").replace(/\\\$/g, "$").replace(/\s+/g, " ");
 }
 
 /* a number as each language writes it: 1,060.5 / 1.060,5 */

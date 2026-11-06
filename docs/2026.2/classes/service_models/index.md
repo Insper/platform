@@ -116,14 +116,52 @@ The stack becomes concrete when something goes wrong. Find the event and read ac
 
 The table assumes the usual setup of each model. On CaaS and PaaS the platform scales, but you still set the limits. On managed Kubernetes with classic node groups, the OS of the nodes is still partly your job.
 
+<div class="csim" data-sim="service-stack" data-model="iaas"></div>
+
+!!! tip "Try it"
+    Pick each model with no event: the layers you maintain drop from **6** on-premises to **4** on IaaS, **3** on CaaS, **2** on PaaS and FaaS and **1** on SaaS. The dashed line between you and the provider climbs one layer at a time, except from PaaS to FaaS, which share it.
+
+    1. Choose **JDK flaw** and step from IaaS to CaaS to PaaS: you act on IaaS and CaaS (on CaaS the JDK is inside your image); the provider acts from PaaS on.
+    2. Choose **Black Friday 10×**: it hits no single layer: it is capacity, so whoever adds machines acts. On IaaS you start more VMs, on CaaS the provider adds instances (you still set the limits).
+    3. Choose **Key leaks** and try all six models: the actor is always you.
+
 ??? question "Check your understanding: the store runs on a PaaS and a flaw is published in the Linux kernel. What does your team do?"
     Nothing, as far as the OS is concerned: the provider patches it, which is what the OS row shows. Now change one thing: the store runs on CaaS and the flaw is in the **JDK**. Then your team acts, because the JDK is inside your image: you update the base image, rebuild and deploy again.
+
+The same event, step by step: a Linux kernel flaw is published while the store runs on IaaS, and again on PaaS.
+
+``` mermaid-sim
+sequenceDiagram
+  participant L as Linux community
+  participant P as Cloud provider
+  participant T as Your team
+  participant S as The store
+  L->>P: publishes the kernel flaw (CVE)
+  Note over P,S: IaaS: the OS is yours
+  P->>T: security bulletin
+  T->>S: apt upgrade and reboot, one VM at a time
+  Note over P,S: PaaS: the OS is the provider's
+  P->>S: patches the hosts and restarts your instances gradually
+  S-->>T: nothing to do but watch the dashboards
+```
 
 ---
 
 ## Climbing the stack, one model at a time
 
 NIST defines three foundational models: **IaaS**, **PaaS** and **SaaS**[^1]. The market later added **CaaS** and **FaaS** between them. Each section below has the same parts, so you can compare them, and each one puts the store on that model.
+
+What you hand to the platform shrinks as you climb:
+
+``` mermaid-sim
+flowchart LR
+  you([Your team])
+  you -->|"SSH, apt install, java -jar"| iaas["IaaS<br/>a VM"]
+  you -->|"docker push"| caas["CaaS<br/>an image"]
+  you -->|"git push"| paas["PaaS<br/>the code"]
+  you -->|"upload a handler"| faas["FaaS<br/>a function"]
+  you -->|"sign up, configure"| saas["SaaS<br/>an account"]
+```
 
 ### IaaS: Infrastructure as a Service
 
@@ -241,8 +279,33 @@ PaaS favours the **12-factor app**[^5] pattern: stateless processes, configurati
 
 Two constraints come with this model. The first is the **cold start**: the first request that reaches a function with no instance ready has to wait for the platform to create a sandbox, load the code and start the runtime, and in a Spring Boot application that can take seconds. The second is a maximum execution time: 15 minutes on Lambda[^6].
 
+``` mermaid-sim
+sequenceDiagram
+  participant E as Event (new order)
+  participant P as FaaS platform
+  participant F as Function instance
+  E->>P: invoke
+  Note over P,F: cold start: no instance ready
+  P->>F: create sandbox, load code, start the runtime
+  F-->>P: response (seconds with Spring Boot)
+  E->>P: next invoke, a moment later
+  Note over P,F: warm: the instance is reused
+  P->>F: call the handler
+  F-->>P: response (milliseconds)
+  Note over P,F: idle for minutes: the platform removes the instance (scale to zero)
+```
+
 - **Choose it when** the work is short, event-driven and sporadic: webhooks, scheduled jobs, processing a file after upload.
 - **Avoid it when** the service needs low latency on every request or receives steady, heavy traffic: an always-on container is cheaper and more predictable.
+
+<div class="csim" data-sim="cloud-cost" data-requests="1000000" data-duration="100" data-memory="512"></div>
+
+!!! tip "Try it"
+    The sliders start at **1 M requests/month**, **100 ms** and **512 MB**: FaaS costs **\$1.03** a month, the 2 always-on Fargate tasks **\$36.04** and the 2 VMs **\$60.74**. Prices: EC2 t3.medium \$0.0416/h, Fargate \$0.04048 per vCPU-hour and \$0.004445 per GB-hour, Lambda \$0.20 per million requests and \$0.0000166667 per GB-second (AWS `us-east-1`, on-demand, November 2026; free tier, load balancer and data transfer left out).
+
+    1. Slide the requests up: FaaS stops being cheaper at about **34.9 M requests/month**, only **13.3 requests per second** on average. Past that point the always-on tasks cost the same, while FaaS keeps charging for every request.
+    2. At **1 B requests/month** FaaS costs **\$1,033**, Fargate **\$216** (12 tasks) and the VMs **\$91.10** (3 VMs): at a large, steady scale the cheapest unit wins, as the bullets above say.
+    3. Set the duration to **300 ms** and the memory to **1024 MB**: each call costs about 5× more and the break-even falls to **6.9 M**. With **10 ms** and **128 MB** it rises to **163 M**.
 
 !!! info "Serverless containers blur the line"
     Google Cloud Run and Azure Container Apps also **scale to zero** and bill by usage, just like FaaS, but they run any container image. "Serverless" describes the *operating model* (no servers to manage, pay per use), not only functions.
@@ -325,6 +388,27 @@ Read the table by rows, watching how each characteristic changes from left to ri
 
 ---
 
+## Who offers each model { #providers }
+
+The big clouds offer almost every model; smaller providers usually specialize in one step of the stack. Read the table by columns to see that **a model describes a service, not a company**: AWS appears on every row.
+
+<div class="compact-table" markdown>
+
+| Model | AWS | Google Cloud | Microsoft | Other providers |
+|---|---|---|---|---|
+| **IaaS** | EC2 | Compute Engine | Azure Virtual Machines | DigitalOcean Droplets, Oracle Cloud Compute, Magalu Cloud |
+| **CaaS** | ECS / Fargate, EKS | Cloud Run, GKE | Azure Container Apps, AKS | DigitalOcean Kubernetes, Fly.io |
+| **PaaS** | Elastic Beanstalk | App Engine | Azure App Service | Heroku, Railway, Render |
+| **FaaS** | Lambda | Cloud Run functions (formerly Cloud Functions) | Azure Functions | Cloudflare Workers, Vercel Functions |
+| **SaaS** | Amazon Connect, QuickSight | Google Workspace | Microsoft 365, Dynamics 365 | Salesforce, Slack, GitHub, Shopify, TOTVS, RD Station |
+| **Managed blocks** | RDS, ElastiCache, MSK | Cloud SQL, Memorystore | Azure Database, Azure Cache for Redis | Neon, Upstash, Confluent Cloud |
+
+</div>
+
+The store in this class could use one row of a single provider (on AWS: EKS for the services, RDS for Postgres) or mix providers (GitHub for the code and CI): what decides is the requirement of each component, as the next section shows.
+
+---
+
 ## How to choose
 
 **Choose per component, not per system.** Start from the most managed option and go down only when a concrete requirement forces you to. Ask these questions in order and stop at the first **yes**:
@@ -342,6 +426,24 @@ Read the table by rows, watching how each characteristic changes from left to ri
 | | None of the above | **PaaS:** Heroku, App Engine |
 
 </div>
+
+The same questions as a flow; each component of the system goes through it on its own:
+
+``` mermaid-sim
+flowchart TD
+  q1["1. A product already<br/>does the job?"] -->|yes| saas["SaaS"]
+  q1 -->|no| q2["2. Standard database,<br/>cache or broker?"]
+  q2 -->|yes| man["Managed service"]
+  q2 -->|no| q3["3. Short, event-driven,<br/>sporadic work?"]
+  q3 -->|yes| faas["FaaS"]
+  q3 -->|no| q4["4. Need the OS or<br/>special hardware?"]
+  q4 -->|yes| iaas["IaaS"]
+  q4 -->|no| q5["5. Container that needs<br/>the Kubernetes API?"]
+  q5 -->|yes| k8s["CaaS: managed Kubernetes"]
+  q5 -->|no| q6["6. A container?"]
+  q6 -->|yes| caas["CaaS: managed containers"]
+  q6 -->|no| paas["PaaS"]
+```
 
 ### Example: the store, component by component
 
