@@ -87,7 +87,8 @@ embedded in the topic's overview page under `## Slides`:
 
 `uv run scripts/slides/build.py` (or `--only <src.md>`) runs the Marp CLI (`npx`, version pinned, needs
 Node) into `<slug>.html` next to the source; the built `.html` is committed, so CI needs no Node.
-**Edit the `.src.md`, never the built `.html`**; `--check` fails when a deck is stale. The `exclude`
+**Edit the `.src.md`, never the built `.html`**; `--check` fails when a deck is stale. `uv run scripts/slides/overflow.py [src.md…]` renders
+each deck in headless Chrome and fails when a slide overflows its 1280×720 frame. The `exclude`
 plugin keeps `*/slides/*.src.md` out of the site. `{{INCLUDE:path}}` (relative to the repo root)
 inlines a file before Marp runs.
 
