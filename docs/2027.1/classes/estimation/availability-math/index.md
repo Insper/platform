@@ -3,14 +3,14 @@ BoxOffice promises organizers that checkout will be available **99.95%** of the 
 
 ---
 
-## Availability, MTTF and MTTR
+## Availability, mean time to failure (MTTF) and to recovery (MTTR) { #availability-mttf-and-mttr }
 
 **Availability** is the fraction of time — or of requests — in which a system does its job. Two ways of measuring it are common:
 
 | Kind | Formula | Good for |
 |---|---|---|
 | **Time-based** | uptime / (uptime + downtime) | infrastructure, "is it up?" |
-| **Request-based** | successful requests / valid requests | services; what users actually experience; the basis of SLOs[^2] |
+| **Request-based** | successful requests / valid requests | services; what users actually experience; the basis of service level objectives (SLOs)[^2] |
 
 For a component that alternates between working and being repaired, availability follows from two averages:
 
@@ -160,10 +160,10 @@ flowchart LR
 
 | Design | Calculation | Availability | Failures per 30 days |
 |---|---|---|---|
-| **Naive** (everything synchronous, in series) | 0.9999 × 0.9995⁴ × 0.999 × 0.995 | **99.19%** | ~5.8 h |
-| **E-mail made asynchronous** (queue + worker; off the critical path) | 0.9999 × 0.9995⁴ × 0.999 | 99.69% | ~2.2 h |
-| **+ second payment provider** (fail over when the first is down) | 0.9999 × 0.9995⁴ × (1 − 0.001²) | 99.79% | ~1.5 h |
-| **+ every internal component at 99.99%** (replicas, automatic failover, safe deploys) | 0.9999⁵ × (1 − 0.001²) | **99.95%** | ~22 min |
+| **Naive** (everything synchronous, in series) | 0.9999 × 0.9995⁴ × 0.999 × 0.995 | 🔴 **99.19%** | ~5.8 h |
+| **E-mail made asynchronous** (queue + worker; off the critical path) | 0.9999 × 0.9995⁴ × 0.999 | 🟡 99.69% | ~2.2 h |
+| **+ second payment provider** (fail over when the first is down) | 0.9999 × 0.9995⁴ × (1 − 0.001²) | 🟡 99.79% | ~1.5 h |
+| **+ every internal component at 99.99%** (replicas, automatic failover, safe deploys) | 0.9999⁵ × (1 − 0.001²) | ✅ **99.95%** | ~22 min |
 
 Three lessons, in decreasing order of cost-effectiveness:
 
@@ -173,7 +173,7 @@ Three lessons, in decreasing order of cost-effectiveness:
 
 !!! tip "Soft dependencies are not in the chain"
 
-    A dependency whose failure the service can **tolerate** — by serving a cached value, a default, or a partial page — does not multiply into the availability of the critical path. Recommendations, view counters and the AI assistant should all be *soft* dependencies of checkout: if they fail, checkout still works. Turning hard dependencies into soft ones (fallbacks, caches, async) is a design skill you will practise in [class 10](../../reliability/index.md).
+    A dependency whose failure the service can **tolerate** — by serving a cached value, a default, or a partial page — does not multiply into the availability of the critical path. Recommendations, view counters and the artificial intelligence (AI) assistant should all be *soft* dependencies of checkout: if they fail, checkout still works. Turning hard dependencies into soft ones (fallbacks, caches, async) is a design skill you will practise in [class 10](../../reliability/index.md).
 
 ---
 
@@ -184,7 +184,7 @@ All the formulas above assume that components fail **independently**. Real failu
 - Two replicas on the **same host, rack or availability zone** go down together with it.
 - Two replicas running the **same buggy release** crash on the same input.
 - A **bad configuration** pushed everywhere at once breaks every replica at once.
-- A shared dependency — the same DNS provider, the same certificate that expires, the same database — is a **single point of failure** hidden behind apparent redundancy.
+- A shared dependency — the same Domain Name System (DNS) provider, the same certificate that expires, the same database — is a **single point of failure** hidden behind apparent redundancy.
 - Overload: when one replica dies, its traffic moves to the others, which may then fail too (a cascading failure).
 
 !!! example "BoxOffice — three replicas, one outage"
@@ -225,7 +225,7 @@ Ten failovers a year at 30 s + 30 s each is 10 minutes: fine for 99.99% (52 minu
 
     BoxOffice runs in one region with three availability zones. The provider's documentation suggests that a full-region outage is rare, but when it happens it can last hours. A second region (active-passive, with DNS failover) would roughly double infrastructure cost. How would you decide?
 
-    **Answer sketch**: estimate the **expected cost of downtime** versus the cost of the second region. If a region outage of ~4 h happens about once every two years (an assumption to validate with your provider's history), the expected downtime is ~2 h/year — almost half of the ~4.4 h/year that a 99.95% target allows, before any other incident. Then consider *when* it happens: a region outage during a stadium on-sale costs the business far more than one at 4 a.m. on a Tuesday. If the SLA with organizers carries penalties, or one lost on-sale costs more than a year of a second region, it is worth it — and then the hard part is the data (class 3 and class 10), not the servers.
+    **Answer sketch**: estimate the **expected cost of downtime** versus the cost of the second region. If a region outage of ~4 h happens about once every two years (an assumption to validate with your provider's history), the expected downtime is ~2 h/year — almost half of the ~4.4 h/year that a 99.95% target allows, before any other incident. Then consider *when* it happens: a region outage during a stadium on-sale costs the business far more than one at 4 a.m. on a Tuesday. If the service level agreement (SLA) with organizers carries penalties, or one lost on-sale costs more than a year of a second region, it is worth it — and then the hard part is the data (class 3 and class 10), not the servers.
 
 !!! tip "In the interview"
 

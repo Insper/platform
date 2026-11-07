@@ -1,11 +1,11 @@
 !!! abstract "In this lab"
 
-    - Install and check the toolchain used in **every** lab: Docker + Compose, JDK 21, Maven, uv + Python 3.12, k6, kubectl, kind or minikube, Git.
-    - Create **your BoxOffice repository** with the layout that the next twelve labs fill in.
+    - Install and check the toolchain used in **every** lab: Docker + Compose, Java Development Kit (JDK) 21, Maven, uv + Python 3.12, k6, kubectl, kind or minikube, Git.
+    - Create **your BoxOffice repository** with the layout that the next thirteen labs fill in.
     - Learn the **service names, ports, environment variables and conventions** that every lab shares.
     - **Measure** your machine for the first time: how many requests per second can it serve, and with what latency?
 
-During the semester you will build **BoxOffice**, a ticketing platform for concerts, games and festivals. It starts as one small service on your laptop and grows, lab after lab, into a system with an edge proxy, an API gateway, a cache, a replicated database, an event stream, observability, Kubernetes and an AI assistant. Each lab adds one component of the [System Design Playground](../../../playground/index.md) palette, and **each lab ends with a measurement**: system design is about trade-offs, and a trade-off is only real when you can put a number on it.
+During the semester you will build **BoxOffice**, a ticketing platform for concerts, games and festivals. It starts as one small service on your laptop and grows, lab after lab, into a system with an edge proxy, an application programming interface (API) gateway, a cache, a replicated database, an event stream, observability, Kubernetes and an artificial intelligence (AI) assistant. Each lab adds one component of the [System Design Playground](../../../playground/index.md) palette, and **each lab ends with a measurement**: system design is about trade-offs, and a trade-off is only real when you can put a number on it.
 
 This first lab is short but important: a broken environment costs hours later, in the middle of a load test.
 
@@ -14,7 +14,7 @@ This first lab is short but important: a broken environment costs hours later, i
 | | |
 |---|---|
 | **Time** | 1–2 hours (most of it is downloads) |
-| **You need** | a computer with **8 GB of RAM or more** (16 GB is comfortable from lab 4 on), ~20 GB of free disk, administrator rights, internet access |
+| **You need** | a computer with **8 GB of random-access memory (RAM) or more** (16 GB is comfortable from lab 4 on), ~20 GB of free disk, administrator rights, internet access |
 | **Operating system** | macOS, Linux or Windows 10/11 (every command of the course runs in a Bash shell) |
 | **Start state** | nothing: this lab creates the `boxoffice/` repository from an empty folder |
 
@@ -65,11 +65,11 @@ Every lab — and every team project — uses the names below. **Do not rename t
 
 **Application services** (one folder each under `services/`):
 
-| Compose service | Lab | Stack | Port | Public route prefix | DB schema | Role |
+| Compose service | Lab | Stack | Port | Public route prefix | Database schema | Role |
 |---|---|---|---|---|---|---|
 | `edge` | 3 | Nginx 1.30 | **80** | — | — | reverse proxy, load balancer, rate limiting: the only public entry from lab 3 on |
-| `gateway` | 4 | Spring Cloud Gateway | **8080** | all of them | — | routing, JWT validation, identity headers |
-| `auth` | 4 | Spring Boot | **8081** | `/auth/**` | `auth` | users, login, issues JWTs (RS256) and publishes the JWKS |
+| `gateway` | 4 | Spring Cloud Gateway | **8080** | all of them | — | routing, JSON Web Token (JWT) validation, identity headers |
+| `auth` | 4 | Spring Boot | **8081** | `/auth/**` | `auth` | users, login, issues JWTs (RS256) and publishes the JSON Web Key Set (JWKS) |
 | `catalog` | 1 | Spring Boot | **8082** | `/catalog/**` | `catalog` | events and venues (read-heavy). Runs as `catalog-1`, `catalog-2`, `catalog-3` from lab 3 on |
 | `inventory` | 6 | Spring Boot | **8083** | `/inventory/**` | `inventory` | seats and holds (strongly consistent) |
 | `order` | 7 | Spring Boot | **8084** | `/orders/**` | `orders` | orders, transactional outbox |
@@ -85,11 +85,11 @@ Every lab — and every team project — uses the names below. **Do not rename t
 | `db` | 1 | `postgres:17` | **5432** | database `boxoffice`, user `boxoffice`, password `boxoffice`; **one schema per service** |
 | `db-replica` | 6 | `postgres:17` | **5433** | streaming replica of `db`, read-only |
 | `pgbouncer` | 6 | `edoburu/pgbouncer:v1.26.0-p0` | **6432** | connection pooler in front of `db` |
-| `redis` | 5 | `redis:8-alpine` | **6379** | cache (`maxmemory` + LRU) |
+| `redis` | 5 | `redis:8-alpine` | **6379** | cache (`maxmemory` + least-recently-used eviction, LRU) |
 | `kafka` | 7 | Apache Kafka (KRaft) | **9092** | event stream |
 | `otel-lgtm` | 8 | `grafana/otel-lgtm` | **3000** (Grafana), **4317**/**4318** (OTLP gRPC/HTTP) | metrics, logs, traces |
 | `toxiproxy` | 9 | `ghcr.io/shopify/toxiproxy` | **8474** (API) | latency and fault injection |
-| `ollama` | 12 | `ollama/ollama` | **11434** | local LLM |
+| `ollama` | 12 | `ollama/ollama` | **11434** | local large language model (LLM) |
 | k6 web dashboard | 2 | — | **5665** | `K6_WEB_DASHBOARD=true k6 run …` |
 | hello (lab 0 only) | 0 | `nginx:1.30-alpine` | **8888** | target of the baseline measurement |
 
@@ -97,15 +97,15 @@ Every lab — and every team project — uses the names below. **Do not rename t
 
 | Topic | Convention |
 |---|---|
-| Java | JDK **21**, Spring Boot **4.1.x** (Spring Framework 7, Jackson 3), Spring Cloud **2025.1.x**, Maven, no Lombok (Java `record`s for DTOs) |
+| Java | JDK **21**, Spring Boot **4.1.x** (Spring Framework 7, Jackson 3), Spring Cloud **2025.1.x**, Maven, no Lombok (Java `record`s for data transfer objects, DTOs) |
 | Python | Python 3.12 managed by **uv** (`uv init`, `uv add <pkg>`, `uv run <cmd>`, `uvx <tool>`); never `pip`/`venv`. Dockerfiles copy uv with `COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/` and run `uv sync --frozen` |
 | Packages | `boxoffice.<service>` (e.g. `boxoffice.catalog`); Maven `groupId` `boxoffice`, `artifactId` = service name |
-| HTTP paths | each service serves **only** under its prefix (`catalog` → `/catalog/...`), so the edge and the gateway route without rewriting paths |
+| Hypertext Transfer Protocol (HTTP) paths | each service serves **only** under its prefix (`catalog` → `/catalog/...`), so the edge and the gateway route without rewriting paths |
 | Database | one PostgreSQL instance (`db`), one **schema per service**, owned by that service's Flyway migrations (`src/main/resources/db/migration`); no cross-schema joins |
 | Health | Spring Boot Actuator: `/actuator/health`, `/actuator/health/liveness`, `/actuator/health/readiness`, `/actuator/metrics` |
-| Errors | RFC 9457 `application/problem+json` (`spring.mvc.problemdetails.enabled: true`) |
+| Errors | Request for Comments (RFC) 9457 `application/problem+json` (`spring.mvc.problemdetails.enabled: true`) |
 | Compose file | `docker-compose.yaml` at the repository root, project name `boxoffice` |
-| Load scripts | `load/*.js` (k6), base URL from `BASE_URL`; results saved under `results/` |
+| Load scripts | `load/*.js` (k6), base Uniform Resource Locator (URL) from `BASE_URL`; results saved under `results/` |
 
 **Environment variables** (the same name everywhere; defaults in parentheses):
 
@@ -163,7 +163,7 @@ The table lists what each tool is for; the tabs below show how to install them o
     uv python install 3.12              # Python is managed by uv, not by Homebrew or pip
     ```
 
-    Open Docker Desktop once so it starts the engine, and give it **at least 4 CPUs and 8 GB of memory** (*Settings → Resources*).
+    Open Docker Desktop once so it starts the engine, and give it **at least 4 central processing units (CPUs) and 8 GB of memory** (*Settings → Resources*).
 
 === ":simple-linux: Linux (Ubuntu 24.04)"
 
@@ -345,13 +345,27 @@ docker stop hello
     vus............................: 10     min=10          max=10
 ```
 
-Your numbers depend on the machine. With Docker Desktop (macOS, Windows) every request also crosses the VM's port forwarding, so expect a few times less than on native Linux — about 15,000 req/s at 10 VUs on an 8-core Apple Silicon laptop.
+Your numbers depend on the machine. With Docker Desktop (macOS, Windows) every request also crosses the virtual machine's (VM) port forwarding, so expect a few times less than on native Linux — about 15,000 req/s at 10 VUs on an 8-core Apple Silicon laptop.
 
 Read the summary like this:
 
 - `http_reqs … /s` is the **throughput** (requests per second, RPS).
 - `http_req_duration` gives the **latency** distribution: `med` is the median (p50), `p(95)`/`p(99)` are the 95th/99th percentiles — 1 request in 100 is slower than p99.
 - `vus` is the **concurrency**: each virtual user sends a request, waits for the answer, and sends the next one (a *closed* workload model).
+
+``` diagram-sim
+sequenceDiagram
+    participant V as VU 1 (of 10)
+    participant N as hello (Nginx)
+    V->>N: GET /
+    N-->>V: 200 after W, the latency
+    V->>N: GET / again at once (no think time)
+    N-->>V: 200 after W
+    Note over V,N: one VU completes 1 / W requests per second
+    Note over V,N: 10 VUs complete λ = 10 / W, so L = λ × W = 10 requests inside
+```
+
+That is why `vus` ≈ throughput × average latency in every run: the load generator decides how many requests are inside, and the server's latency decides the throughput. When the server slows down, a closed model sends *less* — lab 2 shows why that hides overload.
 
 Record the results in `results/lab0.md`:
 
@@ -382,7 +396,7 @@ Little's Law check (VUs ≈ throughput × average latency):
 
 The [System Design Playground](../../../playground/index.md) simulates the same components you will build, under load, in seconds. Every lab embeds the scenario it is about to measure for real, so you can form a hypothesis *before* running k6.
 
-**Try it:** press **Run** on the `monolith` scenario below (one app server, one SQL database). Raise the load until p99 jumps. Which component saturates first? Write down the answer — you will check it against your own `catalog` service in lab 2.
+**Try it:** press **Run** on the `monolith` scenario below (one app server, one Structured Query Language (SQL) database). Raise the load until p99 jumps. Which component saturates first? Write down the answer — you will check it against your own `catalog` service in lab 2.
 
 <div class="sdp" data-scenario="monolith" data-mode="compact" data-height="460"></div>
 
@@ -395,12 +409,12 @@ The [System Design Playground](../../../playground/index.md) simulates the same 
 | `permission denied while trying to connect to the Docker daemon socket` | Linux user not in the `docker` group | `sudo usermod -aG docker "$USER"`, then log out and in |
 | `Cannot connect to the Docker daemon` | Docker Desktop not started | start Docker Desktop and wait for "Engine running" |
 | `FAIL maven … JAVA_HOME` | `JAVA_HOME` points to nothing or to an old JDK | set `JAVA_HOME` to the JDK 21 folder (see "Common failures") |
-| `check-env.sh: line 1: #!/usr/bin/env: No such file` | the file was saved with Windows line endings (CRLF) | `sed -i 's/\r$//' scripts/check-env.sh` (and configure your editor to use LF) |
+| `check-env.sh: line 1: #!/usr/bin/env: No such file` | the file was saved with Windows line endings (CRLF) | `sed -i 's/\r$//' scripts/check-env.sh` (and configure your editor to use line feeds only, LF) |
 
 !!! success "Best practices in this lab"
 
     - **Check the toolchain with a script, not from memory** — `scripts/check-env.sh` prints every tool and version, so a broken environment is found in seconds, not in the middle of a load test. Why it matters: every measurement of the course assumes the same setup ([How to study system design](../../classes/intro/index.md)).
-    - **Keep secrets and bulky outputs out of Git** — `.gitignore` excludes `.env` and the k6 HTML reports, and keeps the JSON summaries and the tables in `results/*.md`. Security is a quality attribute from day one ([Requirements](../../classes/intro/requirements/index.md)).
+    - **Keep secrets and bulky outputs out of Git** — `.gitignore` excludes `.env` and the k6 HTML (HyperText Markup Language) reports, and keeps the JSON (JavaScript Object Notation) summaries and the tables in `results/*.md`. Security is a quality attribute from day one ([Requirements](../../classes/intro/requirements/index.md)).
     - **Measure a baseline before changing anything** — `load/hello.js` tells you what *your* machine serves, the reference for every later number ([Estimation](../../classes/estimation/index.md)).
     - **Write each measurement down with its setup** — `results/lab0.md` records machine, rate and latency; a number without its setup cannot be compared ([Making requirements measurable](../../classes/intro/requirements/index.md)).
 

@@ -1,11 +1,11 @@
 
-The BoxOffice inventory database is at 70% CPU during a normal on-sale and holds take about 75 ms at p99. The team decides it has "30% to spare". At the next, bigger on-sale the CPU reaches 92% — only 22 points more — and the p99 jumps to almost 300 ms, four times worse and right at the 300 ms hold target. Timeouts fire, clients retry, and the extra load pushes the database to 100%. Nothing was "broken"; the team simply did not know the shape of the curve that relates **load** to **latency**. This page derives that curve from a few simple laws, and then uses the same laws to answer the questions that every capacity decision asks: *how many requests are in flight? how big must this pool be? how full can this component run? will adding nodes help?*
+The BoxOffice inventory database is at 70% CPU (central processing unit) during a normal on-sale and holds take about 75 ms at the 99th percentile (p99). The team decides it has "30% to spare". At the next, bigger on-sale the CPU reaches 92% — only 22 points more — and the p99 jumps to almost 300 ms, four times worse and right at the 300 ms hold target. Timeouts fire, clients retry, and the extra load pushes the database to 100%. Nothing was "broken"; the team simply did not know the shape of the curve that relates **load** to **latency**. This page derives that curve from a few simple laws, and then uses the same laws to answer the questions that every capacity decision asks: *how many requests are in flight? how big must this pool be? how full can this component run? will adding nodes help?*
 
 ---
 
 ## The vocabulary of a queue
 
-Every component that serves requests — a CPU core, a thread pool, a database connection, a payment API — can be seen as a **queue** in front of one or more **servers** (in queueing theory, a "server" is anything that serves a request):
+Every component that serves requests — a CPU core, a thread pool, a database connection, a payment application programming interface (API) — can be seen as a **queue** in front of one or more **servers** (in queueing theory, a "server" is anything that serves a request):
 
 ``` diagram-sim
 flowchart LR
@@ -167,6 +167,17 @@ $$
 
 where $C_a$ and $C_s$ are the coefficients of variation (standard deviation / mean) of the inter-arrival and service times. The first factor is the utilization effect; the second is the **variability** effect. A waiting room that admits fans at a steady rate lowers $C_a$; cutting slow outliers (a heavy query that takes 50× the normal time) lowers $C_s$. Both reduce queueing without adding a single server.
 
+The simulator turns the three lessons into knobs. Holds wait in one queue for **c** servers, each hold keeps a server busy for 5 ms on average, and the arrival rate follows from the utilization you choose (λ = ρ · c / S). Each change starts a new experiment and leaves the last one as a dot next to the M/M/c curve.
+
+<div class="csim" data-sim="hold-queue" data-servers="1" data-rho="70" data-arrivals="random"></div>
+
+!!! tip "Try it"
+
+    1. Press play with one server at ρ = 70%: after 60 s the tiles read a mean R of 18.2 ms and a p99 of 77 ms — the "75 ms at 70%" of the story at the top of this page. L = 2.59 requests in the system and λ × W = 2.59: Little's Law holds.
+    2. Move ρ to 92%: the mean becomes 68.3 ms and the p99 285 ms — 22 points more load, almost four times the tail, right at the 300 ms target.
+    3. Keep 92% and change only the arrivals: **steady** (a waiting room) brings the mean down to 31.7 ms, **bursty** raises it to 98.8 ms. Same load, same server: only the variability changed — Kingman's second factor.
+    4. Choose 8 servers at 70%: p99 24 ms, the M/M/c number of the [overview's capacity check](../index.md); at 92% it is still 42 ms. One queue in front of many servers pushes the knee to the right.
+
 ### What utilization should you run at?
 
 | Component | Typical sustained target | Why |
@@ -185,9 +196,13 @@ Redundancy pushes in the same direction: with **4 replicas at 60%**, losing one 
 
 **Try it:** run the breakpoint profile, then double the database's capacity (or add app replicas) and run again. Does the knee move? By how much? If adding app replicas does not move it, which component is the bottleneck?
 
+Lab 2's own stack, as a preset: one `catalog` and its PostgreSQL with the default pool of 10 connections, under a breakpoint ramp. The playground treats the pool as the *c* servers of this page — 10 connections ÷ ≈ 20 ms per query ≈ 480 queries/s — so its knee sits a little below that. Find it, and read which component the Report blames.
+
+<div class="sdp" data-scenario="boxoffice-pool" data-mode="compact" data-height="440"></div>
+
 !!! example "In the BoxOffice code: the knee of `catalog`, measured (lab 2)"
 
-    [Hands-on 2](../../../hands-on/2/index.md) draws this curve for the real service. The sweep runs the open-model load test once per arrival rate, one minute each, after a warm-up (a cold JVM would spoil the first point) and with a pause between steps so the queues drain. In the lab's example run (1 CPU, a pool of 10 connections), p99 was 39 ms at 300 req/s, 224 ms at 400 and 2,056 ms at 500 req/s, where k6 also had to drop 410 iterations: flat, then a wall. Little's Law names the queue: at 600 req/s the lab saw all 200 Tomcat threads busy, 10 database connections active and **190 requests waiting for a connection** — the pool of 10 is the *c* servers of this page, and the knee is where it saturates. Step 6 of the lab raises the pool to 30 and watches the bottleneck move.
+    [Hands-on 2](../../../hands-on/2/index.md) draws this curve for the real service. The sweep runs the open-model load test once per arrival rate, one minute each, after a warm-up (a cold Java virtual machine, JVM, would spoil the first point) and with a pause between steps so the queues drain. In the lab's example run (1 CPU, a pool of 10 connections), p99 was 39 ms at 300 req/s, 224 ms at 400 and 2,056 ms at 500 req/s, where k6 also had to drop 410 iterations: flat, then a wall. Little's Law names the queue: at 600 req/s the lab saw all 200 Tomcat threads busy, 10 database connections active and **190 requests waiting for a connection** — the queue forms at the pool of 10, the *c* servers of this page. Step 6 of the lab raises the pool to 30 and checks whether the knee moves with it, or whether the pool was only where the queue showed and PostgreSQL was what was full.
 
     ``` { .bash title="scripts/sweep.sh" }
     --8<-- "docs/2027.1/hands-on/2/code/scripts/sweep.sh"
@@ -279,7 +294,7 @@ The practical use of the USL is to **fit** σ and κ to a few load-test measurem
     - **Size every pool with Little's Law and leave the formula as a comment** — threads = λ × W, connections = λ × time holding one; a pool sized "to be safe" only moves the queue into the database.
     - **Watch the queue in front of the bottleneck, not only its utilization** — pending connections and busy threads rise before the CPU graph looks alarming. In BoxOffice: `hikaricp.connections.pending` in lab 2's `scripts/watch-metrics.sh` ([Hands-on 2](../../../hands-on/2/index.md)).
     - **Sweep the arrival rate with an open model, a warm-up and a pause between steps** — one point is not a curve, a cold JVM is not your service, and leftover queues spoil the next step. In BoxOffice: `scripts/sweep.sh` (box above).
-    - **Set autoscaling targets well left of the knee** — scaling takes minutes, and the burst arrives meanwhile. In BoxOffice: the HPA of lab 10 targets 60% CPU.
+    - **Set autoscaling targets well left of the knee** — scaling takes minutes, and the burst arrives meanwhile. In BoxOffice: the Horizontal Pod Autoscaler (HPA) of lab 10 targets 60% CPU.
     - **Reduce variability before adding servers** — admit at a steady rate and remove slow outliers; Kingman's formula shows both shrink the queue for free. In BoxOffice: the waiting room (lab 7) and the indexes of lab 6.
 
 !!! warning "Common pitfalls"

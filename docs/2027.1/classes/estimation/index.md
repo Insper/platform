@@ -5,13 +5,13 @@ This class gives you the tools to settle that argument in five minutes on a whit
 
 !!! quote "The story so far"
 
-    Chapter 2 of the [story of the course](../../index.md#story). [Class 1](../intro/index.md) wrote down what BoxOffice must do and how well: 2 million fans in the first minute, 60,000 seats, hold p99 < 300 ms. BoxOffice still runs on one service and one PostgreSQL. **This class** answers: can that database take the 10:00 on-sale — and how do we know before building anything?
+    Chapter 2 of the [story of the course](../../index.md#story). [Class 1](../intro/index.md) wrote down what BoxOffice must do and how well: 2 million fans in the first minute, 60,000 seats, hold 99th-percentile latency (p99) < 300 ms. BoxOffice still runs on one service and one PostgreSQL. **This class** answers: can that database take the 10:00 on-sale — and how do we know before building anything?
 
 !!! abstract "Learning objectives"
 
     By the end of this class you should be able to:
 
-    - **Recall** the orders of magnitude of latency (memory, SSD, network in a data centre, across continents) and of common data sizes, and **use** powers of two and ten fluently.
+    - **Recall** the orders of magnitude of latency (memory, solid-state drive (SSD), network in a data centre, across continents) and of common data sizes, and **use** powers of two and ten fluently.
     - **Estimate** requests per second (average and peak), storage, bandwidth and number of servers for a system from a few stated assumptions.
     - **Apply** Little's Law and the utilization law to size thread pools, connection pools and queues, and to validate a load test.
     - **Explain** why latency explodes near full utilization (the knee) and **choose** a safe operating utilization.
@@ -24,7 +24,7 @@ This class gives you the tools to settle that argument in five minutes on a whit
 2. [Numbers Every Engineer Should Know](numbers/index.md) — powers of two, latency numbers, sizes, and estimating requests per second, storage and bandwidth.
 3. [Queueing, Little's Law and Scalability](queueing/index.md) — concurrency, utilization, the knee of the latency curve, Amdahl and the Universal Scalability Law.
 4. [Percentiles and Tail Latency](percentiles/index.md) — why averages lie, how fan-out amplifies the tail, and how to fight it.
-5. [Availability Math](availability-math/index.md) — nines, MTTF/MTTR, components in series and in parallel, correlated failures.
+5. [Availability Math](availability-math/index.md) — nines, mean time to failure and to recovery (MTTF/MTTR), components in series and in parallel, correlated failures.
 6. [Quiz](quiz.md) — check your understanding.
 
 ## Slides
@@ -48,7 +48,7 @@ Architectural decisions differ by **orders of magnitude**, not by percentages. A
 | 40 TB per year | plan partitioning or an object store from the start |
 | 1,200 catalog reads/s, 99% repeated | **cache** them; the database only sees the misses |
 | 100,000 hold attempts/s on 60,000 seats | the inventory cannot absorb it — **queue** fans in a waiting room |
-| 8 Gbit/s of images | serve them from a **CDN**, not from the app servers |
+| 8 Gbit/s of images | serve them from a **content delivery network (CDN)**, not from the app servers |
 | one synchronous dependency at 99.9% on every request | the service cannot promise more than 99.9% — **remove it from the critical path** or make it redundant |
 
 Estimation is also how you **check** a design and a measurement. If your load test says one server handles 50,000 requests per second while each request takes 20 ms on a single thread, something is wrong with the test — and Little's Law will tell you so in one line.
@@ -98,11 +98,23 @@ Let us settle the argument from the beginning of the page. Every step uses a too
 
     **Conclusion**: one PostgreSQL primary is enough **if** a waiting room shapes the demand; a "distributed database" would not remove the hot-row contention anyway, since everyone wants the same seats.
 
+The whole check fits in one picture. Press play to follow it from the two numbers to the design:
+
+``` diagram-sim
+flowchart LR
+    D["demand<br/>2 M fans / 60 s<br/>≈ 33,000 holds/s"]:::problem --> G{"demand / capacity<br/>≈ 30×"}
+    C["capacity<br/>8 slots / 5 ms = 1,600/s<br/>× 70% ≈ 1,100/s"]:::comp --> G
+    G -->|"no tuning closes 30×"| W["waiting room<br/>admits ~1,000/s"]:::tech
+    W --> I["inventory + one PostgreSQL<br/>~70% busy · p99 ≈ 25 ms"]:::comp
+    I --> S["~30 k winning fans<br/>served in ~30 s"]
+    W --> L["everyone else waits in line<br/>and learns early it is sold out"]
+```
+
 Notice that the most important number — **5 ms per hold** — is an assumption. Estimation tells you *which* number to measure first. Lab 2 measures it.
 
 ### See it in the playground
 
-The `monolith` scenario is a single app server and a single SQL database. The `breakpoint` profile ramps the load up steadily until something breaks — the standard way to find the capacity of a system.
+The `monolith` scenario is a single app server and a single Structured Query Language (SQL) database. The `breakpoint` profile ramps the load up steadily until something breaks — the standard way to find the capacity of a system.
 
 **Try it:** run the breakpoint profile and watch three curves at once: throughput, p99 latency and database utilization. Note the request rate at which **p99 starts to rise sharply** (the knee) and the rate at which **errors appear**. Then read the database's service time in the component panel and compute its capacity by hand (capacity = parallel slots / service time). How close is the knee to ~70–80% of that capacity?
 
@@ -112,19 +124,24 @@ The `monolith` scenario is a single app server and a single SQL database. The `b
 
     Throughput grows linearly with the offered load while latency stays flat; then, as the most-loaded component approaches saturation, **latency bends upward** (the knee) while throughput flattens. Past saturation, throughput stops growing at all, queues grow without bound, and timeouts turn into errors. Latency is the **early warning**; errors are the **late** one. That is why capacity is defined by the latency target ("the highest throughput at which p99 < 300 ms"), not by the point where the system crashes. The [queueing](queueing/index.md) page derives the shape of the curve.
 
+
+Then the on-sale itself. `boxoffice-onsale` puts the capacity check above in the playground: two million fans in the first minute against one inventory database of 8 connections × 5 ms. **Try it:** press **Run** and watch the database at 10:00 — eighty inventory replicas in front of it change nothing, because every hold ends in the same database. Then follow the hints: a waiting room that admits ≈ 1,000 holds/s keeps the database near 63% and the holds under 300 ms, and the queue's lag is how long a fan waits in line.
+
+<div class="sdp" data-scenario="boxoffice-onsale" data-mode="compact" data-height="460"></div>
+
 ---
 
 ## The toolbox at a glance
 
 | Question | Tool | Formula / rule | Subpage |
 |---|---|---|---|
-| How many requests per second? | QPS estimate | DAU × actions / 86,400 × peak factor | [numbers](numbers/index.md) |
+| How many requests per second? | queries per second (QPS) estimate | daily active users (DAU) × actions / 86,400 × peak factor | [numbers](numbers/index.md) |
 | How much data? | storage estimate | items × size × retention × replication | [numbers](numbers/index.md) |
 | How much network? | bandwidth estimate | requests/s × response size | [numbers](numbers/index.md) |
 | How many requests in flight? | Little's Law | L = λ × W | [queueing](queueing/index.md) |
 | How busy is a resource? | utilization law | U = X × S | [queueing](queueing/index.md) |
 | How slow near saturation? | M/M/1 | R = S / (1 − ρ) | [queueing](queueing/index.md) |
-| Will more nodes help? | Amdahl, USL | C(N) = N / (1 + σ(N−1) + κN(N−1)) | [queueing](queueing/index.md) |
+| Will more nodes help? | Amdahl, Universal Scalability Law (USL) | C(N) = N / (1 + σ(N−1) + κN(N−1)) | [queueing](queueing/index.md) |
 | How slow for the unlucky users? | percentiles | p99, p99.9; 1 − (1 − q)ᴺ under fan-out | [percentiles](percentiles/index.md) |
 | How often is it down? | availability math | series ∏aᵢ; parallel 1 − ∏(1 − aᵢ) | [availability math](availability-math/index.md) |
 
@@ -153,7 +170,7 @@ flowchart LR
 |---|---|---|---|---|
 | [`app`](../../reference/components/compute/index.md#app) · [`worker`](../../reference/components/compute/index.md#worker) | How many instances, threads and connections? | nodes = peak / (capacity × target utilization) + spares; L = λ × W | [Numbers](numbers/index.md), [Queueing](queueing/index.md) | `monolith`, `scale-out` |
 | [`sql`](../../reference/components/storage/index.md#sql) | Can one primary take the load — and the data? | durable-write ceiling, U = X × S, the knee, serial fraction (hot rows), storage × retention × replication | [Queueing](queueing/index.md), [Numbers](numbers/index.md) | `monolith`, `flash-sale` |
-| [`cache`](../../reference/components/storage/index.md#cache) | How much memory, and how many reads still reach the database? | RAM vs SSD vs network latency, the hot set, 80/20 | [Numbers](numbers/index.md) | `read-heavy-cache` |
+| [`cache`](../../reference/components/storage/index.md#cache) | How much memory, and how many reads still reach the database? | random-access memory (RAM) vs SSD vs network latency, the hot set, 80/20 | [Numbers](numbers/index.md) | `read-heavy-cache` |
 | [`cdn`](../../reference/components/edge/index.md#cdn) · [`objstore`](../../reference/components/storage/index.md#objstore) | How many bits per second and how many terabytes? | bandwidth = QPS × size, bits vs bytes, files and logs dominate storage | [Numbers](numbers/index.md) | `cdn-static`, `video-streaming` |
 | [`queue`](../../reference/components/messaging/index.md#queue) | How long is the line, and how fast does it drain? | W = L / λ, admission rate below capacity | [Queueing](queueing/index.md) | `flash-sale`, `async-queue` |
 | [`search`](../../reference/components/compute/index.md#search) | Why is the user's p99 worse than every shard's? | percentiles from histograms, 1 − (1 − q)ᴺ, hedging, latency budgets | [Percentiles](percentiles/index.md) | `scale-out`, `search-autocomplete` |
@@ -168,7 +185,7 @@ flowchart LR
 
     - **Keep the estimate in a versioned sheet next to the code** — assumptions in one column, results in another, each with a date; when a lab or production measures a number, replace the assumption and recompute. In BoxOffice: `results/lab2.md` ([Hands-on 2](../../hands-on/2/index.md#measure-it)).
     - **Measure first the number the conclusion is most sensitive to** — here, the 5 ms a hold keeps the database busy; a 2× error there doubles the number of machines.
-    - **Size latency-sensitive tiers for ~60–70% utilization at peak, plus one spare (N+1)** — the knee and the loss of one node both need the headroom. In BoxOffice: the HPA of lab 10 scales `catalog` at 60% CPU.
+    - **Size latency-sensitive tiers for ~60–70% utilization at peak, plus one spare (N+1)** — the knee and the loss of one node both need the headroom. In BoxOffice: the Horizontal Pod Autoscaler (HPA) of lab 10 scales `catalog` at 60% CPU.
     - **Write the formula next to every capacity setting** — `maximum-pool-size: 10  # 1,000 holds/s × 10 ms = 10`; the next engineer can recheck it when the load changes. In BoxOffice: `DB_POOL_SIZE` in lab 1's compose, varied in lab 2.
     - **Compare the estimate with reality after every big event** — predicted versus observed requests/s, p99 and utilization; the gap tells you which assumption to fix before the next on-sale.
 

@@ -14,7 +14,7 @@ Esta disciplina trata dessa camada — as decisões que ficam *acima* do código
     - **Explicar** o que é design de sistemas, como ele difere do design de software (no nível do código) e por que é uma disciplina de trade-offs, e não a busca pela arquitetura "certa".
     - **Distinguir** requisitos funcionais de não funcionais e **escrever** metas mensuráveis de atributos de qualidade (escalabilidade, disponibilidade, latência, consistência, durabilidade, custo, segurança, operabilidade) para um sistema.
     - **Traçar** a evolução de um sistema de um servidor até milhões de usuários, **identificando** o sintoma que dispara cada novo componente.
-    - **Aplicar** um método com tempo controlado (esclarecer → estimar → API e modelo de dados → design de alto nível → aprofundamentos → gargalos e trade-offs → fechamento) a um problema de design aberto em 45 minutos.
+    - **Aplicar** um método com tempo controlado (esclarecer → estimar → interface de programação (API, *application programming interface*) e modelo de dados → design de alto nível → aprofundamentos → gargalos e trade-offs → fechamento) a um problema de design aberto em 45 minutos.
     - **Usar** o System Design Playground para montar uma arquitetura a partir da paleta de componentes, colocá-la sob carga e ler suas métricas.
 
 ## Roteiro { #roadmap }
@@ -51,7 +51,7 @@ Vale a pena colocar o design de sistemas ao lado do trabalho de design que você
 |---|---|---|---|
 | **Algoritmo** | Como calculo isto de forma eficiente? | função, estrutura de dados | encontrar o melhor bloco de 4 lugares adjacentes disponíveis |
 | **Design de software** | Como organizo este código para que seja fácil de mudar? | classes, módulos, pacotes | `OrderService` depende de uma interface `PaymentGateway` |
-| **Design de sistemas** | Como estes *processos e máquinas em execução* cooperam sob carga e falha? | serviços, bancos de dados, filas, caches, redes | inventário no PostgreSQL com locks de linha; catálogo servido por um cache e uma CDN |
+| **Design de sistemas** | Como estes *processos e máquinas em execução* cooperam sob carga e falha? | serviços, bancos de dados, filas, caches, redes | inventário no PostgreSQL com locks de linha; catálogo servido por um cache e uma rede de distribuição de conteúdo (CDN, *content delivery network*) |
 
 O salto do design de software para o design de sistemas é um salto de **um processo** para **muitos processos em muitas máquinas, ligados por uma rede não confiável**. Esse salto traz três realidades novas:
 
@@ -67,7 +67,7 @@ O salto do design de software para o design de sistemas é um salto de **um proc
 
 - **No trabalho**, quase toda funcionalidade acaba levantando uma questão de sistema: *Esta consulta vai ser rápida com 50 milhões de linhas? Este e-mail deve ser enviado de forma síncrona? O que acontece se o provedor de pagamentos cair?* Engenheiros que respondem com números tomam decisões melhores e recebem decisões maiores.
 - **Em entrevistas**, system design é uma etapa padrão para vagas de engenharia de software na maioria das empresas de tecnologia. Ela é aberta de propósito: o entrevistador observa *como você pensa* — como esclarece, estima, estrutura e lida com trade-offs[^2].
-- **Nesta disciplina**, é o fio que liga tudo, do DNS aos agentes de IA: cada tópico é um componente que você acrescenta a um design por um motivo que pode medir.
+- **Nesta disciplina**, é o fio que liga tudo, do sistema de nomes de domínio (DNS, *Domain Name System*) aos agentes de inteligência artificial (IA): cada tópico é um componente que você acrescenta a um design por um motivo que pode medir.
 
 ---
 
@@ -124,11 +124,11 @@ Arquiteturas reais são montadas a partir de um conjunto surpreendentemente pequ
 | **Tráfego e borda** | DNS, CDN, Load Balancer, WAF, API Gateway, Ingress | [4. Tráfego e Borda](../edge/index.md) |
 | **Computação** | App Server, Worker, Serverless, Auth Service, Search, Scheduler, Notifications, Analytics | [5. Computação e Serviços](../compute/index.md) |
 | **Contêineres** | Microservice, Container, Kubernetes Cluster, Service Registry | [11. Cloud-Native](../cloud-native/index.md), [5. Computação e Serviços](../compute/services/index.md) |
-| **Armazenamento** | SQL Database, DB Cluster, NoSQL DB, Cache, Object Store, Data Warehouse, Vector DB | [6. Bancos de Dados](../databases/index.md), [7. Cache](../caching/index.md) |
+| **Armazenamento** | SQL Database (*Structured Query Language*), DB Cluster (*database*), NoSQL DB, Cache, Object Store, Data Warehouse, Vector DB | [6. Bancos de Dados](../databases/index.md), [7. Cache](../caching/index.md) |
 | **Mensageria** | Message Queue, Pub/Sub, Event Stream, Kafka | [8. Mensageria](../messaging/index.md) |
 | **Observabilidade** | Metrics, Logs, Tracing, Alerting, Health Check | [9. Observabilidade](../observability/index.md) |
-| **Rede** | VPC, Subnet, NAT Gateway, VPN, Service Mesh | [12. Rede e Segurança](../network-security/index.md) |
-| **IA e agentes** | LLM Gateway, Orchestrator, Tool Registry, Memory Fabric, Safety Mesh | [13. Sistemas de IA](../ai-systems/index.md) |
+| **Rede** | nuvem privada virtual (VPC, *virtual private cloud*), Subnet, NAT Gateway (tradução de endereços, *network address translation*), rede privada virtual (VPN, *virtual private network*), Service Mesh | [12. Rede e Segurança](../network-security/index.md) |
+| **IA e agentes** | LLM Gateway (modelo de linguagem de grande porte, *large language model*), Orchestrator, Tool Registry, Memory Fabric, Safety Mesh | [13. Sistemas de IA](../ai-systems/index.md) |
 | **Externo** | 3rd Party API, Payment, Email | [5. Computação e Serviços](../compute/index.md) |
 
 As demais aulas são **transversais**: não acrescentam caixas, mas dão as ferramentas para raciocinar sobre todas elas.
@@ -154,7 +154,7 @@ flowchart TB
     F --> P --> O --> X
 ```
 
-Cada componente tem uma entrada no [catálogo de componentes](../../reference/components/index.md) — por exemplo [Load Balancer](../../reference/components/edge/index.md#lb), [Cache](../../reference/components/storage/index.md#cache) ou [Message Queue](../../reference/components/messaging/index.md#queue) — com uma definição de uma linha para entrevistas, números-chave, modos de falha e os produtos reais (AWS, GCP, Azure, open source) que o implementam. Use-o como dicionário durante a leitura.
+Cada componente tem uma entrada no [catálogo de componentes](../../reference/components/index.md) — por exemplo [Load Balancer](../../reference/components/edge/index.md#lb), [Cache](../../reference/components/storage/index.md#cache) ou [Message Queue](../../reference/components/messaging/index.md#queue) — com uma definição de uma linha para entrevistas, números-chave, modos de falha e os produtos reais (Amazon Web Services, AWS; Google Cloud Platform, GCP; Azure; open source) que o implementam. Use-o como dicionário durante a leitura.
 
 !!! info "Como o semestre funciona"
 
@@ -225,7 +225,7 @@ flowchart LR
 | [`app`](../../reference/components/compute/index.md#app) | O que executa a lógica e como ter mais dele? | uma máquina primeiro, réplicas stateless, escalar verticalmente vs horizontalmente, monolito primeiro | [A Jornada de Escala](scaling-journey/index.md) (estágios 0, 2, 7) | `monolith`, `scale-out` |
 | [`lb`](../../reference/components/edge/index.md#lb) · [`healthcheck`](../../reference/components/observability/index.md#healthcheck) | Como um crash ou um deploy deixa de ser uma indisponibilidade? | ponto único de falha, health checks, deploys graduais | [A Jornada de Escala](scaling-journey/index.md) (estágio 2) | `scale-out` |
 | [`sql`](../../reference/components/storage/index.md#sql) | Onde mora a verdade e quão atualizada os leitores precisam vê-la? | banco separado, réplicas de leitura, atraso de replicação, consistência forte para assentos | [A Jornada de Escala](scaling-journey/index.md) (estágios 1, 3), [Requisitos](requirements/index.md) | `db-replicas` |
-| [`cache`](../../reference/components/storage/index.md#cache) · [`cdn`](../../reference/components/edge/index.md#cdn) · [`objstore`](../../reference/components/storage/index.md#objstore) | Como parar de calcular e enviar os mesmos bytes de novo? | taxa de acerto, TTL, invalidação, nomes de arquivo versionados | [A Jornada de Escala](scaling-journey/index.md) (estágios 4, 5) | `read-heavy-cache`, `cdn-static` |
+| [`cache`](../../reference/components/storage/index.md#cache) · [`cdn`](../../reference/components/edge/index.md#cdn) · [`objstore`](../../reference/components/storage/index.md#objstore) | Como parar de calcular e enviar os mesmos bytes de novo? | taxa de acerto, tempo de vida (TTL, *time to live*), invalidação, nomes de arquivo versionados | [A Jornada de Escala](scaling-journey/index.md) (estágios 4, 5) | `read-heavy-cache`, `cdn-static` |
 | [`queue`](../../reference/components/messaging/index.md#queue) · [`worker`](../../reference/components/compute/index.md#worker) | O que pode acontecer *depois* e como sobreviver a um pico? | trabalho assíncrono, sala de espera, pelo menos uma vez, consumidores idempotentes | [A Jornada de Escala](scaling-journey/index.md) (estágio 6) | `async-queue`, `flash-sale` |
 | [`apigw`](../../reference/components/edge/index.md#apigw) · [`stream`](../../reference/components/messaging/index.md#stream) | Como muitos times e serviços compartilham um produto? | serviços por fronteiras de negócio, ponto único de entrada, eventos | [A Jornada de Escala](scaling-journey/index.md) (estágio 7) | `event-fanout` |
 | [`nosql`](../../reference/components/storage/index.md#nosql) · [`search`](../../reference/components/compute/index.md#search) · [`dwh`](../../reference/components/storage/index.md#dwh) | E se um banco for grande demais, quente demais ou errado para a tarefa? | particionamento, partições quentes, índice invertido, analytics fora do banco transacional | [A Jornada de Escala](scaling-journey/index.md) (estágio 8) | `sharding` |
@@ -262,7 +262,7 @@ flowchart LR
 ## Relacionados { #related }
 
 - Laboratórios: [0. Ambiente](../../hands-on/0/index.md) (ferramentas e o repositório da disciplina) e [1. Primeiro serviço](../../hands-on/1/index.md) (a API `catalog`).
-- Exercício: [Design no playground](../../exercises/playground-design/index.md) — resolver desafios do playground com metas de SLO e custo.
+- Exercício: [Design no playground](../../exercises/playground-design/index.md) — resolver desafios do playground com metas de objetivo de nível de serviço (SLO, *service level objective*) e custo.
 - Estudo de caso: [Venda de ingressos — a venda relâmpago da BoxOffice](../case-studies/ticketing/index.md), o design completo do sistema apresentado aqui.
 - Entrevista: [Método da entrevista](../../support/interview/framework/index.md) e [problemas para praticar](../../support/interview/problems/index.md).
 

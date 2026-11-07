@@ -1,5 +1,5 @@
 
-How long does it take to read a seat from memory? From an SSD? From a database in the same data centre? From a server in Virginia, while the fan is in São Paulo? The answers span **eight orders of magnitude** — from a nanosecond to a hundred milliseconds — and most architectural rules of thumb ("cache it", "batch it", "don't call across regions synchronously") are just consequences of that spread. This page collects the numbers worth memorizing and shows how to turn them, together with a few assumptions about users, into requests per second, storage and bandwidth.
+How long does it take to read a seat from memory? From a solid-state drive (SSD)? From a database in the same data centre? From a server in Virginia, while the fan is in São Paulo? The answers span **eight orders of magnitude** — from a nanosecond to a hundred milliseconds — and most architectural rules of thumb ("cache it", "batch it", "don't call across regions synchronously") are just consequences of that spread. This page collects the numbers worth memorizing and shows how to turn them, together with a few assumptions about users, into requests per second, storage and bandwidth.
 
 ---
 
@@ -9,7 +9,7 @@ Data sizes are powers of two; estimates are easier in powers of ten. Since 2¹�
 
 | Power of two | Exact value | ≈ Power of ten | Unit | Something that size |
 |---|---|---|---|---|
-| 2¹⁰ | 1,024 | 10³ (thousand) | 1 KB | a short JSON response; a seat record ×10 |
+| 2¹⁰ | 1,024 | 10³ (thousand) | 1 KB | a short JavaScript Object Notation (JSON) response; a seat record ×10 |
 | 2²⁰ | 1,048,576 | 10⁶ (million) | 1 MB | an event poster (compressed photo) |
 | 2³⁰ | ≈ 1.07 × 10⁹ | 10⁹ (billion) | 1 GB | a year of BoxOffice seat data (illustrative) |
 | 2⁴⁰ | ≈ 1.10 × 10¹² | 10¹² (trillion) | 1 TB | a large single-node database |
@@ -58,21 +58,21 @@ In 2009, Jeff Dean (Google) popularized a list of "numbers everyone should know"
 | Random 4 KB read from an NVMe SSD | ~20–100 µs | 6–28 h |
 | Round trip inside one data centre / availability zone | ~0.1–0.5 ms | 1–6 days |
 | Read 1 MB sequentially from an NVMe SSD | ~0.2 ms | 2.3 days |
-| Redis `GET` or primary-key SQL query, same zone (mostly network) | ~0.2–1 ms | 2–12 days |
+| Redis `GET` or primary-key Structured Query Language (SQL) query, same zone (mostly network) | ~0.2–1 ms | 2–12 days |
 | Round trip between availability zones of one region | ~1–2 ms | 12–23 days |
 | Spinning disk (HDD) seek | ~5–10 ms | 2–4 months |
 | Read 1 MB sequentially from an HDD | ~5 ms | 2 months |
-| Round trip São Paulo ↔ US East (Virginia) | ~110–130 ms | ~4 years |
+| Round trip São Paulo ↔ United States east coast (Virginia) | ~110–130 ms | ~4 years |
 | Round trip across the Atlantic / Pacific | ~80–200 ms | 3–6 years |
-| TCP + TLS handshake to a far server | 2–3 round trips | — |
+| Transmission Control Protocol (TCP) + Transport Layer Security (TLS) handshake to a far server | 2–3 round trips | — |
 
 ### What the table teaches
 
 1. **Memory is ~1,000× faster than SSD, and SSD ~100× faster than HDD for random reads.** This is why caches (Redis keeps everything in RAM) and in-memory indexes exist.
-2. **Inside a data centre, the network costs more than the work.** A Redis `GET` takes microseconds of CPU on the server; the round trip is what you wait for. A page that makes 50 sequential calls to Redis spends ~10–25 ms just on round trips — **batch** them (`MGET`, pipelining) or cache in process.
+2. **Inside a data centre, the network costs more than the work.** A Redis `GET` takes microseconds of central processing unit (CPU) time on the server; the round trip is what you wait for. A page that makes 50 sequential calls to Redis spends ~10–25 ms just on round trips — **batch** them (`MGET`, pipelining) or cache in process.
 3. **Across regions, physics wins.** Light in optical fibre travels at about 200,000 km/s, i.e. **~5 µs per km**, so every 100 km adds about **1 ms of round trip** before any router or server touches the packet. São Paulo to Virginia is ~7,500 km in a straight line, so the theoretical minimum round trip is ~75 ms; real routes give ~110–130 ms. No technology removes this: **avoid synchronous cross-region calls on the critical path** and serve users from nearby (CDN, regional deployments).
 4. **Sequential beats random.** Reading 1 MB sequentially from an SSD costs about as much as a few random 4 KB reads. Log-structured storage, Kafka's append-only log and batch processing all exploit this.
-5. **Round trips add up; bandwidth rarely limits small requests.** For a 2 KB API response, latency is dominated by round trips (connection setup, TLS, the request itself), not by transfer time. Reusing connections (keep-alive, HTTP/2) matters more than a fatter pipe.
+5. **Round trips add up; bandwidth rarely limits small requests.** For a 2 KB application programming interface (API) response, latency is dominated by round trips (connection setup, TLS, the request itself), not by transfer time. Reusing connections (keep-alive, HTTP/2) matters more than a fatter pipe.
 
 !!! example "BoxOffice — the seat map, three ways"
 
@@ -110,15 +110,15 @@ The pattern to remember: **reads are cheaper than durable writes**, **memory is 
 |---|---|---|
 | Boolean / byte | 1 B | — |
 | Integer / timestamp | 4–8 B | `bigint`, epoch millis |
-| UUID | 16 B (36 B as text) | store binary when you can |
+| Universally unique identifier (UUID) | 16 B (36 B as text) | store binary when you can |
 | Short string (name, e-mail) | 20–100 B | UTF-8 |
 | BoxOffice seat row | ~100 B | ids, status, price, hold id, version |
 | BoxOffice order | ~1 KB | with items and payment reference |
 | BoxOffice event (description, metadata) | ~2–5 KB | — |
 | JSON API response (a page of results) | 2–50 KB | before compression |
-| Ticket PDF | ~100 KB | — |
+| Ticket PDF (Portable Document Format) | ~100 KB | — |
 | Compressed photo (poster) | 200 KB – 2 MB | multiple resolutions |
-| 1 minute of HD video | 50–100 MB | depends on bitrate |
+| 1 minute of high-definition (HD) video | 50–100 MB | depends on bitrate |
 | One embedding vector (1,024 dims × 4 B) | ~4 KB | relevant for vector DBs (class 13) |
 
 Two multipliers are easy to forget: **replication** (a database usually keeps 3 copies; object stores replicate internally) and **indexes and overhead** (often 1.5–2× the raw data in a relational database).
@@ -216,7 +216,7 @@ For **cache memory**, a common rule of thumb is the 80/20 rule: a small fraction
     --8<-- "docs/2027.1/hands-on/1/code/docker-compose.yaml:21:39"
     ```
 
-??? question "Think first: estimate a URL shortener"
+??? question "Think first: estimate a Uniform Resource Locator (URL) shortener"
 
     100 M new short URLs per month; reads are 100× writes; each record ~500 B; keep for 5 years.
 
@@ -244,7 +244,7 @@ For **cache memory**, a common rule of thumb is the 80/20 rule: a small fraction
     - **Forgetting round trips**: 100 sequential calls at 0.5 ms are 50 ms, even if each call does almost nothing.
     - **Sizing for the daily average** instead of the peak — or forgetting the spike altogether.
     - **Ignoring replication, indexes and retention** in storage.
-    - **Bits vs bytes**, and **86,400 vs 10⁵** when precision matters (e.g. SLA calculations — use the exact value there).
+    - **Bits vs bytes**, and **86,400 vs 10⁵** when precision matters (e.g. service level agreement (SLA) calculations — use the exact value there).
 
 ---
 

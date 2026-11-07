@@ -57,9 +57,13 @@ Click the slides and use ← → to move through them; **F** goes full screen an
 
 The playground runs the same experiment in seconds. Form a hypothesis first, then check it against the real service.
 
-**Try it:** the `monolith` scenario below starts with the *breakpoint* profile — the load grows until something gives. Watch which component turns red first and how p99 behaves just before. Then write down your guess for `catalog`: *"it will break at about ___ req/s because ___ saturates first"*.
+**Try it:** the `monolith` scenario below starts with the *breakpoint* profile — the load grows until something gives. Watch which component turns red first and how the 99th percentile (p99) behaves just before. Then write down your guess for `catalog`: *"it will break at about ___ req/s because ___ saturates first"*.
 
 <div class="sdp" data-scenario="monolith" data-mode="compact" data-profile="breakpoint" data-height="480"></div>
+
+Then this lab's own preset: one `catalog` and its PostgreSQL with the default pool of 10 connections, under a ramp like `stress.js`. Find the knee and the component the Report blames, then follow the hints: the playground predicts that 30 connections move the knee past 600 req/s, because it models the catalog's CPU (800 req/s) and the pool as the only limits. Write that prediction down — step 6 tests it on the real service.
+
+<div class="sdp" data-scenario="boxoffice-pool" data-mode="compact" data-height="440"></div>
 
 ## 1. Closed or open workload?
 
@@ -69,8 +73,8 @@ In lab 0 each virtual user (VU) sent a request, waited for the answer, and sent 
 |---|---|---|
 | You set | number of concurrent users | **arrival rate** (requests per second) |
 | When the server slows down | k6 sends fewer requests | k6 keeps the rate and starts more VUs |
-| Good for | "N users working in a back office" | public websites, APIs, flash sales |
-| Hides overload? | **yes** — throughput drops quietly (*coordinated omission*) | no — latency and queue grow visibly |
+| Good for | "N users working in a back office" | public websites, application programming interfaces (APIs), flash sales |
+| Hides overload? | ⚠️ **yes** — throughput drops quietly (*coordinated omission*) | ✅ no — latency and queue grow visibly |
 | Signal of saturation | latency up, throughput flat | latency explodes, **`dropped_iterations`** > 0 |
 
 !!! warning "Coordinated omission"
@@ -108,6 +112,24 @@ k6 sees the service from the outside. To find *why* latency grows you need gauge
 | `hikaricp.connections.active` | database connections in use | pool size (`DB_POOL_SIZE`, default **10**) |
 | `hikaricp.connections.pending` | requests **waiting** for a connection | — (should be 0) |
 
+``` diagram-sim
+sequenceDiagram
+    participant K as k6 (one VU)
+    participant T as Tomcat thread
+    participant P as Hikari pool
+    participant D as PostgreSQL
+    K->>T: GET /catalog/events/42 (busy_threads + 1)
+    T->>P: getConnection()
+    Note over T,P: all 10 in use: the thread waits (db_pending + 1)
+    P-->>T: a free connection (db_active + 1)
+    T->>D: SELECT the event by id
+    D-->>T: one row
+    T->>P: close() returns the connection (db_active - 1)
+    T-->>K: 200 and the JSON (busy_threads - 1)
+```
+
+A thread holds a connection only during its transaction, so `busy_threads` ≥ `db_active` + `db_pending`; when `db_pending` grows, the threads are not short of work — they wait for a connection.
+
 ``` { .bash title="scripts/watch-metrics.sh" .copy linenums="1" }
 --8<-- "docs/2027.1/hands-on/2/code/scripts/watch-metrics.sh"
 ```
@@ -125,7 +147,7 @@ time      busy_threads  db_active  db_pending
 
 ## 4. Find the knee
 
-Run `load.js` at increasing rates, one minute each, and save each summary. The sweep script does the bookkeeping (and a warm-up first: a cold JVM would spoil the first point):
+Run `load.js` at increasing rates, one minute each, and save each summary. The sweep script does the bookkeeping (and a warm-up first: a cold Java virtual machine, JVM, would spoil the first point):
 
 ``` { .bash title="scripts/sweep.sh" .copy linenums="1" }
 --8<-- "docs/2027.1/hands-on/2/code/scripts/sweep.sh"
@@ -193,7 +215,7 @@ OUT=results/lab2-pool30 bash scripts/sweep.sh 50 100 200 300 400 500 600
 uv run scripts/summarize.py results/lab2-pool30/rate-*.json
 ```
 
-Compare the two tables. Typically the knee moves **up**, but not forever: with 30 connections, the next resource saturates — the single CPU of `catalog`, or PostgreSQL itself (watch `docker stats`). A bigger pool also has a cost: every connection is a process in PostgreSQL, and in lab 6 three services × three replicas × 30 connections would exceed `max_connections`. Optimizing one resource always moves the bottleneck somewhere else; the job is to know where it went.
+Compare the two tables — and compare them with your playground prediction. If the pool was the narrowest pipe, the knee moves **up**, but not forever: with 30 connections the next resource saturates — the single CPU of `catalog`, or PostgreSQL itself. If the knee **barely moves**, the pool was only where the queue showed: `docker stats` shows `db` at its CPU limit, and 30 connections let more listings share the same cores (the twin at the end of step 7 plays this case; lab 3 meets it again with three replicas). Both outcomes answer the question; the evidence is which resource is full. A bigger pool also has a cost: every connection is a process in PostgreSQL, and in lab 6 three services × three replicas × 30 connections would exceed `max_connections`. Optimizing one resource always moves the bottleneck somewhere else; the job is to know where it went.
 
 ## 7. Stress: past the knee and back
 
@@ -203,11 +225,22 @@ K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_EXPORT=results/lab2-stress.html \
   k6 run -e PEAK=600 load/stress.js
 ```
 
-Open [http://localhost:5665](http://localhost:5665){target="_blank"} while it runs: the k6 web dashboard plots request rate, latency percentiles and VUs over time; the HTML report is saved at the end. Look for three moments:
+Open [http://localhost:5665](http://localhost:5665){target="_blank"} while it runs: the k6 web dashboard plots request rate, latency percentiles and VUs over time; the HTML (HyperText Markup Language) report is saved at the end. Look for three moments:
 
 1. **The knee** on the way up: p95 leaves the floor.
 2. **The peak**: VUs climb towards `maxVUs` — k6 needs more concurrent users to keep the rate because each request takes longer (Little's Law again, from the client side).
 3. **The recovery**: after the drop to 25% of the peak, how many seconds until p95 is back to normal? A service that recovers by itself is *stable*; one that stays slow (queues that never drain, a garbage collector that never catches up) needs load shedding — a topic for labs 3 and 9.
+
+**Without Docker: the twin.** The simulator replays this lab with a model of its stack — the 200 Tomcat threads, the pool of `DB_POOL_SIZE` connections, one CPU for `catalog`, PostgreSQL with 7 cores (lab 3 saw it at ~670% CPU) — loaded the way `load.js`, `sweep.sh` and `stress.js` load it. Its service times are not measured: they are chosen so that the sweep has the shape of the example run of step 4 (an event detail costs almost nothing; a city listing keeps the database busy). Each script is one step of this page.
+
+<div class="csim" data-sim="catalog-sweep" data-script="sweep"></div>
+
+!!! tip "Try it"
+
+    1. **4 · sweep**: p99 stays flat up to 300 req/s (83 ms), leaves the floor at 400 (159 ms) and hits the wall at 500: 1,364 ms, only 463 req/s served and 1,688 dropped iterations. The page's run gave 224 ms, 2,056 ms, 490 req/s and 410: the same shape, other numbers. At the end of the 600 req/s step, watch-metrics prints the line of step 3 — 200 busy threads, 10 active, 190 waiting — while `docker stats` shows `db` at 700% CPU — all its 7 cores — and `catalog` at 61%.
+    2. **6 · pool of 30**: the knee does not move — 464 req/s at 500. At 400 req/s the details' p99 falls from 93 ms to 9 ms (they no longer wait behind listings for a connection) and the listings' p99 rises from 210 ms to 289 ms (more of them share the database's cores). In this model the pool was where the queue showed and PostgreSQL was what was full; your machine decides which case you get.
+    3. **1 · closed vs open**: 50 VUs that wait for their answers get 459 req/s with p99 266 ms — inside a 300 ms target, nothing looks wrong. The open model at 500 req/s, on the same service, gives p99 1,336 ms and 1,558 dropped iterations.
+    4. **7 · stress**: at the peak k6 drops iterations and the VUs climb; after the drop to 150 req/s, the p99 of each second is back under 300 ms 8 s after the drop began — this catalog recovers by itself.
 
 ## Measure it { #measure-it }
 
@@ -253,11 +286,11 @@ Setup: catalog 1 CPU / 768 MB, Hikari pool = 10, PostgreSQL 17, k6 open model (8
 |---|---|---|
 | every request fails with `connection refused` | the stack is not running, or `BASE_URL` points elsewhere | `docker compose ps`; in lab 2 the target is `http://localhost:8082` (the default) |
 | `level=warning msg="Insufficient VUs, reached 2000 active VUs and cannot initialize more"` | the arrival rate needs more concurrent requests than `maxVUs` | expected past the knee; the run is still valid — note `dropped_iterations` |
-| `summarize.py` prints only the header | no JSON matched the glob (wrong `OUT` folder) | `ls results/lab2/`; pass the same folder you gave to `sweep.sh` |
+| `summarize.py` prints only the header | no JSON (JavaScript Object Notation) file matched the glob (wrong `OUT` folder) | `ls results/lab2/`; pass the same folder you gave to `sweep.sh` |
 | `watch-metrics.sh` prints `?` | `jq` missing, or `catalog` not reachable on 8082 | install `jq`; `curl localhost:8082/actuator/metrics` must list `tomcat.threads.busy` |
 | `uv: command not found` | uv not installed | lab 0, step 1 — or run `python3 scripts/summarize.py …` (it only uses the standard library) |
 | the first point of a sweep is worse than the next ones | cold JVM | `sweep.sh` already warms up; repeat the run if your machine was busy |
-| numbers vary a lot between two identical runs | background load (browser, IDE, other containers) | close what you can, stop unrelated containers (`docker ps`), run twice and keep the second |
+| numbers vary a lot between two identical runs | background load (browser, integrated development environment (IDE), other containers) | close what you can, stop unrelated containers (`docker ps`), run twice and keep the second |
 
 !!! success "Best practices in this lab"
 

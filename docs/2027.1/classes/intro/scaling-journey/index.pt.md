@@ -1,5 +1,5 @@
 
-A maioria das arquiteturas famosas não foi projetada; ela **evoluiu**. Começou como um programa e um banco de dados numa máquina e cada novo componente foi acrescentado porque um sintoma específico — uma CPU saturada, uma página lenta, uma queda durante um deploy — o tornou necessário. Esta página acompanha a BoxOffice por esse caminho, do primeiro usuário aos dez milhões, um sintoma de cada vez[^1].
+A maioria das arquiteturas famosas não foi projetada; ela **evoluiu**. Começou como um programa e um banco de dados numa máquina e cada novo componente foi acrescentado porque um sintoma específico — uma CPU (unidade central de processamento) saturada, uma página lenta, uma queda durante um deploy — o tornou necessário. Esta página acompanha a BoxOffice por esse caminho, do primeiro usuário aos dez milhões, um sintoma de cada vez[^1].
 
 Duas regras guiam toda a jornada:
 
@@ -9,15 +9,15 @@ Duas regras guiam toda a jornada:
 | Etapa | Escala (ilustrativa) | Sintoma | O que é acrescentado | Problema novo que traz |
 |---|---|---|---|---|
 | 0 | primeiros usuários | — | um servidor: aplicação + banco | tudo falha junto |
-| 1 | ~10 mil usuários | aplicação e banco disputam CPU e memória | **SQL Database** separado | salto de rede; duas coisas para rodar |
+| 1 | ~10 mil usuários | aplicação e banco disputam CPU e memória | **SQL Database** (*Structured Query Language*) separado | salto de rede; duas coisas para rodar |
 | 2 | ~100 mil usuários diários | um deploy ou uma queda derruba o site | **Load Balancer** + réplicas sem estado de **App Server** + **Health Check** | o estado de sessão precisa sair do servidor |
 | 3 | ~1 M de usuários diários | CPU do banco alta, quase tudo leitura | **réplicas de leitura** | atraso de replicação, leituras desatualizadas |
 | 4 | idem | p99 do catálogo cresce com o tráfego | **Cache** | invalidação, cache frio, estouro (*stampede*) |
-| 5 | idem | conta de banda e peso das páginas | **CDN** + **Object Store** | invalidação de cache na borda |
+| 5 | idem | conta de banda e peso das páginas | **CDN** (rede de distribuição de conteúdo, *content delivery network*) + **Object Store** | invalidação de cache na borda |
 | 6 | primeira grande abertura de vendas | checkout atrasado pelo e-mail; o pico esmaga o inventário | **Message Queue** + **Worker**; sala de espera | duplicatas, backlog, ordenação |
-| 7 | muitas equipes, muitas funcionalidades | um bug ou um deploy afeta tudo | divisão em **serviços**; **API Gateway**; **Event Stream** | chamadas de rede falham; dados distribuídos |
+| 7 | muitas equipes, muitas funcionalidades | um bug ou um deploy afeta tudo | divisão em **serviços**; **API Gateway** (interface de programação, *application programming interface*); **Event Stream** | chamadas de rede falham; dados distribuídos |
 | 8 | ~10 M de usuários diários | um banco grande demais / quente demais | **particionamento**, **Search**, **Data Warehouse** | partições quentes, consultas entre shards |
-| 9 | escala nacional | robôs, ataques, queda de uma região | **WAF**, rate limiting, **multi-região** + failover por **DNS** | replicação de dados entre regiões |
+| 9 | escala nacional | robôs, ataques, queda de uma região | **WAF** (firewall de aplicação web, *web application firewall*), rate limiting, **multi-região** + failover por **DNS** (*Domain Name System*) | replicação de dados entre regiões |
 
 Os números são ordens de grandeza para um produto web dominado por leituras, não limiares: uma carga de trabalho diferente bate em cada parede num ponto diferente. **Meça, depois decida.**
 
@@ -25,7 +25,7 @@ Os números são ordens de grandeza para um produto web dominado por leituras, n
 
 ## Etapa 0 — uma caixa só { #stage-0-one-box }
 
-A primeira versão da BoxOffice é uma única aplicação Spring Boot e um banco PostgreSQL **na mesma máquina virtual**. O DNS aponta o domínio para o endereço IP dela.
+A primeira versão da BoxOffice é uma única aplicação Spring Boot e um banco PostgreSQL **na mesma máquina virtual**. O DNS aponta o domínio para o endereço IP (*Internet Protocol*) dela.
 
 ``` diagram-sim
 flowchart LR
@@ -38,7 +38,7 @@ Esta é a arquitetura **certa** para os primeiros usuários: uma coisa só para 
 
 ## Etapa 1 — separar o banco de dados { #stage-1-separate-the-database }
 
-**Sintoma**: sob carga, o buffer cache do banco e a JVM brigam por memória; um relatório pesado deixa todas as páginas lentas; reiniciar a aplicação para um deploy também coloca o banco em risco.
+**Sintoma**: sob carga, o buffer cache do banco e a máquina virtual Java (JVM, *Java virtual machine*) brigam por memória; um relatório pesado deixa todas as páginas lentas; reiniciar a aplicação para um deploy também coloca o banco em risco.
 
 **Mudança**: mover o PostgreSQL para uma máquina própria — ou, melhor ainda, para um serviço de banco **gerenciado**, que cuida de backups, atualizações e failover. Agora a camada web e a camada de dados podem ser dimensionadas e escaladas **de forma independente**: a aplicação precisa de CPU, o banco precisa de memória e discos rápidos.
 
@@ -90,6 +90,24 @@ flowchart LR
 
 **Problema novo — atraso de replicação** (*replication lag*): as réplicas ficam alguns milissegundos (ou, sob carga, segundos) atrás do primário. Um fã paga, é redirecionado para "Meus pedidos", a página lê de uma réplica… e o pedido ainda não está lá. As correções incluem **ler as próprias escritas** (*read-your-writes*: ler do primário os dados recentes do próprio fã) ou mandar fluxos críticos inteiros para o primário. E o inventário de lugares, que nunca pode estar desatualizado, continua lendo do primário.
 
+``` diagram-sim
+sequenceDiagram
+    participant F as Fã
+    participant A as Aplicação
+    participant P as Primário
+    participant R as Réplica
+    F->>A: POST /orders (paga)
+    A->>P: INSERT do pedido
+    P-->>A: confirmado (commit)
+    P-)R: replicação (chega um instante depois)
+    A-->>F: 302 para Meus pedidos
+    F->>A: GET /orders/mine
+    A->>R: SELECT dos pedidos do fã
+    R-->>A: nenhum pedido ainda: a réplica está atrasada
+    A-->>F: Meus pedidos está vazio
+    Note over A,P: ler as próprias escritas: por alguns segundos depois de uma escrita, leia os dados deste fã no primário
+```
+
 **Experimente:** acrescente réplicas de leitura e veja a utilização do primário cair; depois aumente o atraso de replicação e procure leituras desatualizadas. Quais páginas da BoxOffice poderiam tolerá-las?
 
 <div class="sdp" data-scenario="db-replicas" data-mode="compact" data-height="500"></div>
@@ -112,7 +130,7 @@ A aritmética é o que faz dos caches a ferramenta mais poderosa da paleta. Com 
 
 **Sintoma**: as páginas de eventos carregam pôsteres e fotos dos locais — cerca de 1 MB por visualização de página. A 1.000 visualizações por segundo, isso dá **1 GB/s (8 Gbit/s)** saindo dos servidores da BoxOffice, quase tudo bytes idênticos enviados de novo e de novo. Fãs longe do data centre esperam por cada imagem.
 
-**Mudança**: mover imagens e arquivos estáticos (JavaScript, CSS) para um **object store** (do tipo S3: barato, durável, ilimitado) e servi-los por uma **CDN** (*Content Delivery Network*), uma rede de servidores de borda perto dos usuários que guardam esses arquivos em cache. A origem envia cada arquivo uma vez por ponto de presença da borda, em vez de uma vez por fã.
+**Mudança**: mover imagens e arquivos estáticos (JavaScript, CSS — *Cascading Style Sheets*) para um **object store** (do tipo S3: barato, durável, ilimitado) e servi-los por uma **CDN** (*Content Delivery Network*), uma rede de servidores de borda perto dos usuários que guardam esses arquivos em cache. A origem envia cada arquivo uma vez por ponto de presença da borda, em vez de uma vez por fã.
 
 **Problema novo**: um pôster alterado continua em cache em centenas de pontos de borda. A correção comum são **nomes de arquivo versionados** (`poster.v2.jpg`, ou um hash do conteúdo), em vez de tentar limpar todas as bordas.
 
@@ -122,7 +140,7 @@ A aritmética é o que faz dos caches a ferramenta mais poderosa da paleta. Com 
 
 ## Etapa 6 — trabalho assíncrono e a primeira abertura de vendas { #stage-6-asynchronous-work-and-the-first-on-sale }
 
-**Sintoma 1**: o checkout leva 2–3 s e a maior parte não é o pagamento — é gerar o PDF do ingresso e enviar o e-mail *enquanto o fã espera*. Quando o provedor de e-mail está lento, o checkout fica lento; quando ele cai, **o checkout falha**.
+**Sintoma 1**: o checkout leva 2–3 s e a maior parte não é o pagamento — é gerar o PDF (*Portable Document Format*) do ingresso e enviar o e-mail *enquanto o fã espera*. Quando o provedor de e-mail está lento, o checkout fica lento; quando ele cai, **o checkout falha**.
 
 **Mudança**: tudo o que não precisa terminar antes da resposta vai para uma **fila de mensagens**. O checkout grava o pedido, publica uma mensagem `TicketIssued` e responde imediatamente; **workers** consomem a fila, geram o PDF e enviam o e-mail no próprio ritmo, tentando de novo em caso de falha.
 
@@ -177,7 +195,7 @@ flowchart LR
 
 **Mudança**: um **WAF** (*Web Application Firewall*) e mitigação de robôs na borda; **rate limiting** no API Gateway (por fã, por IP, por cartão); implantação em **várias zonas de disponibilidade** primeiro, depois em **várias regiões** com failover por **DNS**.
 
-**Problema novo**: os dados agora ficam longe uns dos outros. Replicar o inventário de lugares entre regiões de forma síncrona custa dezenas de milissegundos por escrita (a velocidade da luz é um limite rígido); de forma assíncrona, arrisca vender um lugar duas vezes durante um failover. O meio-termo usual: o inventário de cada evento tem **uma região-sede** e as outras regiões encaminham as reservas para ela. A aula 3 explica por que não existe almoço grátis aqui (CAP e PACELC).
+**Problema novo**: os dados agora ficam longe uns dos outros. Replicar o inventário de lugares entre regiões de forma síncrona custa dezenas de milissegundos por escrita (a velocidade da luz é um limite rígido); de forma assíncrona, arrisca vender um lugar duas vezes durante um failover. O meio-termo usual: o inventário de cada evento tem **uma região-sede** e as outras regiões encaminham as reservas para ela. A aula 3 explica por que não existe almoço grátis aqui (os teoremas CAP e PACELC).
 
 **Experimente:** o cenário final é uma venda relâmpago (a nossa abertura de vendas das 10:00) num desenho que ainda não tem nenhum desses componentes: `users → lb → app → inventory-db`, mais o `payment provider`. Aperte **Run**: quando a venda abre (t = 60 s) o tráfego salta 20×. Encontre o primeiro gargalo, aumente a capacidade dele e encontre o próximo. Depois abra no playground completo (↗) e aperte **Mostrar uma solução possível** para ver os componentes desta jornada trabalhando juntos — CDN, cache, API gateway e uma fila de sala de espera.
 

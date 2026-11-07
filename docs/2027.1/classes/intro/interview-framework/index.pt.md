@@ -33,7 +33,7 @@ As expectativas crescem com a senioridade. Um guia aproximado:
 |---|---|---|---|
 | 1 | **Esclarecer os requisitos** | 0–5 min | lista funcional (3–5 itens) + metas não funcionais |
 | 2 | **Estimar** | 5–10 min | requisições/s (média e pico), armazenamento, banda — e o que implicam |
-| 3 | **API e modelo de dados** | 10–15 min | 4–6 endpoints; entidades principais com suas chaves |
+| 3 | **API (interface de programação, *application programming interface*) e modelo de dados** | 10–15 min | 4–6 endpoints; entidades principais com suas chaves |
 | 4 | **Design de alto nível** | 15–25 min | diagrama de caixas e setas cobrindo todo requisito funcional |
 | 5 | **Aprofundamentos** (*deep dives*) | 25–37 min | detalhes das 1–3 partes mais difíceis |
 | 6 | **Gargalos e trade-offs** | 37–42 min | o que quebra primeiro, como corrigir, quanto custa cada escolha |
@@ -113,13 +113,13 @@ GET  /orders/{orderId}                status and tickets
 | `seat` | (`event_id`, `seat_id`) | setor, fileira, preço, **status** (livre / reservado / vendido), `hold_id`, `version` | SQL (inventário) |
 | `hold` | `hold_id` | `fan_id`, `event_id`, lista de lugares, `expires_at` | SQL (inventário) |
 | `order` | `order_id` | `fan_id`, `hold_id`, valor, status, **chave de idempotência** | SQL (pedidos) |
-| `ticket` | `ticket_id` | `order_id`, lugar, QR code | SQL / Object Store (PDF) |
+| `ticket` | `ticket_id` | `order_id`, lugar, QR code (*Quick Response*) | SQL / Object Store (PDF) |
 
 Mencione o padrão de acesso ao lado de cada entidade: o mapa de lugares é lido por `event_id`; reservas alteram alguns lugares de um evento; pedidos são lidos por `fan_id`. Esses padrões definem os índices e, mais tarde, as chaves de partição.
 
 ## Passo 4 — Design de alto nível (≈ 10 min) { #step-4-high-level-design-10-min }
 
-**Objetivo**: um diagrama que atenda **todo requisito funcional** de ponta a ponta. Comece simples e acrescente o que as estimativas pedirem. Percorra uma requisição de cada vez enquanto desenha ("o fã abre a página do evento: CDN, gateway, catalog, cache…").
+**Objetivo**: um diagrama que atenda **todo requisito funcional** de ponta a ponta. Comece simples e acrescente o que as estimativas pedirem. Percorra uma requisição de cada vez enquanto desenha ("o fã abre a página do evento: CDN (rede de distribuição de conteúdo), gateway, catalog, cache…").
 
 ``` diagram-sim
 flowchart LR
@@ -153,9 +153,9 @@ flowchart LR
 
     | Opção | Como | Trade-off |
     |---|---|---|
-    | Lock pessimista | `SELECT … FOR UPDATE` nas linhas dos lugares, dentro de uma transação | simples e correto; os locks formam fila sob disputa |
-    | **Update condicional** (otimista) | um único `UPDATE … WHERE status = 'FREE'` atômico; conferir o número de linhas | sem locks longos; quem perde apenas tenta outros lugares |
-    | Lock distribuído (Redis) | lock por lugar no Redis, depois escrita no SQL | componente extra e dois sistemas precisam concordar — evite quando o banco consegue fazer sozinho |
+    | 🟡 Lock pessimista | `SELECT … FOR UPDATE` nas linhas dos lugares, dentro de uma transação | simples e correto; os locks formam fila sob disputa |
+    | ✅ **Update condicional** (otimista) | um único `UPDATE … WHERE status = 'FREE'` atômico; conferir o número de linhas | sem locks longos; quem perde apenas tenta outros lugares |
+    | ⚠️ Lock distribuído (Redis) | lock por lugar no Redis, depois escrita no SQL | componente extra e dois sistemas precisam concordar — evite quando o banco consegue fazer sozinho |
 
     *Escolha*: update condicional no banco do inventário — o banco é a fonte única da verdade e o verificar-e-gravar é uma única instrução atômica:
 
@@ -169,6 +169,25 @@ flowchart LR
     ```
 
     Reservas expiradas são liberadas por um job agendado (`status = 'HELD' AND expires_at < now()`), ou de forma preguiçosa, na hora da leitura.
+
+Dois fãs clicam no mesmo lugar no mesmo milissegundo. Aperte play: o banco decide, um comando de cada vez, e quem perde fica sabendo na hora:
+
+``` diagram-sim
+sequenceDiagram
+    participant A as Fã A
+    participant B as Fã B
+    participant I as inventory
+    participant D as SQL do inventário
+    A->>I: POST /events/42/holds (lugar A-12)
+    B->>I: POST /events/42/holds (lugar A-12)
+    I->>D: UPDATE seat SET HELD WHERE A-12 está FREE (para A)
+    I->>D: UPDATE seat SET HELD WHERE A-12 está FREE (para B)
+    Note over D: o lock da linha ordena os dois comandos
+    D-->>I: 1 linha atualizada (A)
+    D-->>I: 0 linhas atualizadas (B), o lugar não está mais FREE
+    I-->>A: 201 holdId, expiresAt
+    I-->>B: 409 lugar ocupado
+```
 
 !!! example "BoxOffice — aprofundamento 2: o pico das 10:00"
 
@@ -188,13 +207,13 @@ flowchart LR
 | Provedor de pagamento lento ou fora do ar | timeout + circuit breaker; reserva estendida enquanto o pagamento está pendente | complexidade; lugares presos por mais tempo |
 | Estouro do cache do catálogo às 10:00 | pré-aquecimento; agrupamento de requisições (*request coalescing*) | mais peças móveis |
 | Falha do primário do inventário | standby síncrono + failover automático | latência de escrita; alguns segundos de indisponibilidade |
-| Robôs | WAF, rate limit por fã/cartão, CAPTCHA na entrada da fila | atrito para os fãs de verdade |
+| Robôs | WAF (firewall de aplicação web), rate limit por fã/cartão, CAPTCHA (um desafio que só humanos deveriam passar) na entrada da fila | atrito para os fãs de verdade |
 
 Depois, nomeie os principais trade-offs **explicitamente**: *"Escolhi consistência forte para os lugares em vez de disponibilidade: se o primário do inventário estiver inacessível, as reservas falham em vez de arriscar uma venda duplicada. O catálogo é o oposto: aceito 60 s de atraso em troca de velocidade."*
 
 ## Passo 7 — Fechamento (≈ 3 min) { #step-7-wrap-up-3-min }
 
-**Objetivo**: deixar uma imagem final clara. Em três ou quatro frases: o que você projetou, como cumpre os requisitos principais, o que faria a seguir com mais tempo (monitoramento e alertas de SLO, multi-região, o assistente de IA…) e quaisquer perguntas em aberto. Não introduza componentes novos agora.
+**Objetivo**: deixar uma imagem final clara. Em três ou quatro frases: o que você projetou, como cumpre os requisitos principais, o que faria a seguir com mais tempo (monitoramento e alertas de objetivo de nível de serviço, SLO, multi-região, o assistente de inteligência artificial, IA…) e quaisquer perguntas em aberto. Não introduza componentes novos agora.
 
 ---
 

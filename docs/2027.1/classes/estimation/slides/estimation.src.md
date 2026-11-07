@@ -14,6 +14,10 @@ theme: platform
 {{INCLUDE:scripts/slides/theme.js}}
 </script>
 
+<style>
+{{INCLUDE:scripts/slides/diagram.css}}
+</style>
+
 <div class="kicker">System Architecture · Insper</div>
 
 # Back-of-the-Envelope Estimation
@@ -53,7 +57,7 @@ Decisions change by **orders of magnitude** — you need to know which side of a
 | 40 GB of orders per year | one primary is fine — **don't shard** |
 | 1,200 reads/s, 99% repeated | **cache** them |
 | 100 k hold attempts/s on 60 k seats | **queue** fans in a waiting room |
-| 8 Gbit/s of images | serve from a **CDN** |
+| 8 Gbit/s of images | serve from a **content delivery network (CDN)** |
 | one sync dependency at 99.9% | the service can't promise more — **take it off the path** |
 
 ---
@@ -74,20 +78,55 @@ Decisions change by **orders of magnitude** — you need to know which side of a
 
 ---
 
+## A complete capacity check
+
+<div class="flow">
+<div class="box red">demand<small>2 M fans / 60 s ≈ <b>33,000</b> holds/s (more with re-clicks)</small></div>
+<div class="box green">capacity<small>8 slots / 5 ms = 1,600/s · at ≤ 70% ≈ <b>1,100</b>/s</small></div>
+<div class="arrow">→</div>
+<div class="box red">verdict<small>a <b>30× gap</b>: no tuning closes it</small></div>
+<div class="arrow">→</div>
+<div class="box orange">design<small>a <b>waiting room</b> admits ~1,000/s</small></div>
+<div class="arrow">→</div>
+<div class="box green">result<small>~30 k winning fans in ~30 s · hold 99th percentile (p99) ≈ 25 ms</small></div>
+</div>
+
+<div class="ok">
+
+One PostgreSQL primary is enough **if** demand is shaped; a "distributed database" would not remove the hot-row contention. The key number — **5 ms per hold** — is an assumption: lab 2 measures it.
+
+</div>
+
+<!--
+Each box uses a tool from later in the class: demand (numbers), capacity (queueing), the 25 ms p99 (M/M/c, queueing),
+and the availability of the chain (availability math).
+-->
+
+---
+
+## See it in the playground
+
+<div class="cols">
+<div class="box accent"><code>monolith</code> · breakpoint profile<small>throughput grows, then <b>latency bends</b> (the knee), errors come <b>late</b>. Capacity = the highest rate with p99 inside the target.</small></div>
+<div class="box orange"><code>boxoffice-onsale</code><small>2 M fans against one database of 8 connections × 5 ms: eighty inventory replicas change nothing. The hints build the waiting room that keeps it near 63%.</small></div>
+</div>
+
+---
+
 <!-- _class: tight -->
 
 ## Latency numbers (2020s, orders of magnitude)
 
 | Operation | Latency |
 |---|---|
-| L1 cache reference | ~1 ns |
+| Level-1 (L1) cache reference | ~1 ns |
 | Main memory reference | ~100 ns |
-| Random 4 KB read, NVMe SSD | ~20–100 µs |
+| Random 4 KB read, NVMe solid-state drive (SSD) | ~20–100 µs |
 | Round trip inside a zone | ~0.1–0.5 ms |
 | Redis `GET` / primary-key query, same zone | ~0.2–1 ms |
 | Round trip between zones | ~1–2 ms |
-| HDD seek | ~5–10 ms |
-| São Paulo ↔ US East round trip | ~110–130 ms |
+| Hard disk drive (HDD) seek | ~5–10 ms |
+| São Paulo ↔ United States east coast round trip | ~110–130 ms |
 
 <p class="small">Light in fibre: ~5 µs per km → ~1 ms of round trip per 100 km. Sources: Dean (2009), Scott, Gregg.</p>
 
@@ -95,7 +134,7 @@ Decisions change by **orders of magnitude** — you need to know which side of a
 
 ## What the table teaches
 
-- **RAM ≈ 1,000× faster than SSD** for random reads → caches.
+- **Random-access memory (RAM) ≈ 1,000× faster than SSD** for random reads → caches.
 - **Inside a data centre, the network costs more than the work** → batch round trips (`MGET`, pipelining).
 - **Across regions, physics wins** → no sync cross-region calls on the critical path; serve from nearby.
 - **Sequential beats random** → logs, Kafka, batch processing.
@@ -110,7 +149,7 @@ Seat map with 60,000 seats: 60,000 queries ≈ **30 s**; one query ≈ **20–40
 
 ## Requests per second
 
-> QPS = daily active users × actions / 86,400 · peak = QPS × peak factor
+> queries per second (QPS) = daily active users × actions / 86,400 · peak = QPS × peak factor
 
 <div class="cols">
 <div>
@@ -147,11 +186,26 @@ Size for the **peak** — and estimate **spikes separately**.
 
 | BoxOffice data | Per year | Where |
 |---|---|---|
-| Orders: 100 k/day × 1 KB | ~37 GB | SQL — **no sharding needed** |
-| Ticket PDFs: 200 k/day × 100 KB | ~7 TB | Object Store (or generate on demand) |
+| Orders: 100 k/day × 1 KB | ~37 GB | Structured Query Language (SQL) database — **no sharding needed** |
+| Ticket PDFs (Portable Document Format): 200 k/day × 100 KB | ~7 TB | Object Store (or generate on demand) |
 | Images at peak: 1,200 views/s × 1 MB | — | ~**10 Gbit/s** → **CDN** |
 
 <p class="small">Bits vs bytes: a 10 Gbit/s link carries 1.25 GB/s.</p>
+
+---
+
+## The vocabulary of a queue
+
+<div class="flow">
+<div class="box muted">arrivals<small><b>λ</b> requests/s · 1,000 holds/s</small></div><div class="arrow">→</div>
+<div class="box orange">queue<small>waiting time <b>Wq</b></small></div><div class="arrow">→</div>
+<div class="box green">c servers<small>service time <b>S</b> = 5 ms · c = 8 connections</small></div><div class="arrow">→</div>
+<div class="box muted">completions<small><b>X</b> requests/s (= λ when stable)</small></div>
+</div>
+
+- Utilization **ρ = λ · S / c** = 1,000 × 0.005 / 8 = **62.5%**.
+- Response **R = Wq + S**; **L** = requests waiting or in service.
+- A "server" is anything that serves: a core, a thread, a connection, a payment application programming interface (API).
 
 ---
 
@@ -172,11 +226,11 @@ Size for the **peak** — and estimate **spikes separately**.
 ## Little's Law at work
 
 - **Cascading failure**: 100 payments/s × 0.3 s = **30** threads waiting. Provider slows to 3 s → **300** threads → a 200-thread pool is exhausted, *every* route fails.
-- **Load-test lie detector**: closed loop, N = X × (R + Z). 100 VUs, R = 50 ms → max **2,000 req/s**; if R grows to 500 ms → **200 req/s**. The test backs off exactly when the system struggles.
+- **Load-test lie detector**: closed loop, N = X × (R + Z). 100 virtual users (VUs), R = 50 ms → max **2,000 req/s**; if R grows to 500 ms → **200 req/s**. The test backs off exactly when the system struggles.
 
 <div class="ok">
 
-Pools: size them with L = λW **plus headroom** — a pool of 500 DB connections adds no capacity, only contention.
+Pools: size them with L = λW **plus headroom** — a pool of 500 database connections adds no capacity, only contention.
 
 </div>
 
@@ -212,6 +266,22 @@ Why not run it at 95%?
 
 ---
 
+## Play the knee
+
+The simulator on the queueing page: holds wait in one queue for **c** servers, S = 5 ms, λ = ρ · c / S.
+
+| Experiment (60 s of model time) | Mean R | p99 |
+|---|---|---|
+| 1 server, ρ = 70%, random arrivals | 18.2 ms | 77 ms 🟢 |
+| 1 server, ρ = 92% | 68.3 ms | 285 ms 🔴 |
+| 1 server, 92%, **steady** arrivals (a waiting room) | 31.7 ms | — |
+| 1 server, 92%, **bursty** arrivals | 98.8 ms | — |
+| **8 servers**, ρ = 70% | — | 24 ms 🟢 |
+
+<p class="small">Utilization, variability and pooling: the three lessons of the curve, one knob each.</p>
+
+---
+
 ## Where to operate
 
 | Component | Target at peak | Why |
@@ -227,7 +297,7 @@ Why not run it at 95%?
 
 ## When more nodes stop helping
 
-> Amdahl: speedup ≤ **1/σ** · USL: C(N) = N / (1 + σ(N−1) + κN(N−1))
+> Amdahl: speedup ≤ **1/σ** · Universal Scalability Law (USL): C(N) = N / (1 + σ(N−1) + κN(N−1))
 
 - **σ (contention)**: serial work — one primary, a global lock. 5% serial → never more than **20×**.
 - **κ (coherency)**: nodes talking to each other — distributed locks, cache coherence. Throughput **peaks** at N* = √((1−σ)/κ), then **falls**.
@@ -242,7 +312,7 @@ Shared-nothing scales: BoxOffice partitions inventory **by event**, so holds for
 
 ## Why averages lie
 
-- Latency distributions have a **long tail**: cache misses, GC pauses, locks, retries.
+- Latency distributions have a **long tail**: cache misses, garbage-collection (GC) pauses, locks, retries.
 - Example: mean **55 ms**, p50 **40 ms**, p99 **~500 ms**, p99.9 **~1.1 s**.
 - Use **p50** (typical), **p99** / **p99.9** (the unlucky — often your best customers).
 - A visit with 50 requests hits ≥ 1 above the p99 with probability 1 − 0.99⁵⁰ ≈ **39%**.
@@ -259,11 +329,13 @@ Shared-nothing scales: BoxOffice partitions inventory **by event**, so holds for
 
 > P(user request slow) = **1 − (1 − q)ᴺ**
 
-| Fan-out N | q = 1% (backend p99) | q = 0.1% (p99.9) |
-|---|---|---|
-| 1 | 1% | 0.1% |
-| 20 | 18% | 2% |
-| 100 | **63%** | 9.5% |
+<div class="flow">
+<div class="box green">N = 1<small>1% of user requests slow</small></div><div class="arrow">→</div>
+<div class="box orange">N = 20 (BoxOffice search shards)<small><b>18%</b> slow · at q = 0.1%: 2%</small></div><div class="arrow">→</div>
+<div class="box red">N = 100<small><b>63%</b> slow · at q = 0.1%: 9.5%</small></div>
+</div>
+
+<p class="small">q = the probability that one backend call is above its p99 (1%) or p99.9 (0.1%).</p>
 
 <p class="small">"The Tail at Scale": with fan-out, the backend's tail becomes the user's common case (its median from ~70 calls). BoxOffice search queries 20 shards in parallel: 18 % of searches see a shard's p99.</p>
 
@@ -286,7 +358,7 @@ Shared-nothing scales: BoxOffice partitions inventory **by event**, so holds for
 
 ## Availability and the nines
 
-> A = MTTF / (MTTF + MTTR) — 720 h / 2 h → 99.72%; auto-recover in 2 min → **99.995%**
+> A = MTTF / (MTTF + MTTR), mean time to failure and to recovery — 720 h / 2 h → 99.72%; auto-recover in 2 min → **99.995%**
 
 | A | per year | per 30.44 days | per 28 days |
 |---|---|---|---|
@@ -307,37 +379,22 @@ Shared-nothing scales: BoxOffice partitions inventory **by event**, so holds for
 
 | BoxOffice checkout | Availability |
 |---|---|
-| naive: 7 sync links in series, incl. e-mail at 99.5% | **99.19%** (~5.8 h/month) |
-| e-mail async | 99.69% |
-| + second payment provider | 99.79% |
-| + internal links at 99.99% | **99.95%** |
+| naive: 7 sync links in series, incl. e-mail at 99.5% | 🔴 **99.19%** (~5.8 h/month) |
+| e-mail async | 🟡 99.69% |
+| + second payment provider | 🟡 99.79% |
+| + internal links at 99.99% | ✅ **99.95%** |
 
 ---
 
 ## Independence is an assumption
 
 - 3 replicas at 99.5% → "99.99999%"… until **one bad release** hits all three in 2 minutes.
-- Correlated failures: same **zone**, same **release**, same **config**, a shared **dependency** (DNS, certificate).
+- Correlated failures: same **zone**, same **release**, same **config**, a shared **dependency** (the Domain Name System, DNS; a certificate).
 - Redundancy needs **failover that works**: detection + switch time × failures per year.
 
 <div class="ok">
 
 Rule of the extra nine: each critical dependency ~**one nine better** than the service. Turn hard dependencies into **soft** ones (cache, fallback, async).
-
-</div>
-
----
-
-## The on-sale, settled
-
-- **Demand**: 2 M fans / 60 s ≈ **33 k holds/s** (more with re-clicks).
-- **Capacity**: 8 slots / 5 ms = 1,600/s; at ≤ 70% → **~1,100/s**.
-- **Verdict**: a **30× gap** — no tuning closes it.
-- **Design**: a **waiting room** admitting ~1,000/s; ~30 k winning fans served in ~30 s.
-
-<div class="ok">
-
-One PostgreSQL primary is enough **if** demand is shaped. The key number — **5 ms per hold** — is an assumption: lab 2 measures it.
 
 </div>
 
@@ -370,3 +427,4 @@ One PostgreSQL primary is enough **if** demand is shaped. The key number — **5
 5. Amdahl and **USL**: coordination caps scaling; partition to share nothing.
 6. Use **percentiles**; fan-out turns rare slowness into common slowness.
 7. Series **multiply**, parallel **1 − ∏(1 − a)**; failures are often **correlated**.
+8. Next: a 30× gap means **many machines** — and a network between them that loses, delays and duplicates (class 3).

@@ -5,13 +5,13 @@ Esta aula dá as ferramentas para encerrar essa discussão em cinco minutos num 
 
 !!! quote "A história até aqui"
 
-    Capítulo 2 da [história da disciplina](../../index.md#story). A [aula 1](../intro/index.md) escreveu o que a BoxOffice precisa fazer e quão bem: 2 milhões de fãs no primeiro minuto, 60.000 lugares, p99 da reserva < 300 ms. A BoxOffice ainda roda num serviço e num PostgreSQL. **Esta aula** responde: esse banco aguenta a abertura das 10:00 — e como saber isso antes de construir qualquer coisa?
+    Capítulo 2 da [história da disciplina](../../index.md#story). A [aula 1](../intro/index.md) escreveu o que a BoxOffice precisa fazer e quão bem: 2 milhões de fãs no primeiro minuto, 60.000 lugares, latência de percentil 99 (p99) da reserva < 300 ms. A BoxOffice ainda roda num serviço e num PostgreSQL. **Esta aula** responde: esse banco aguenta a abertura das 10:00 — e como saber isso antes de construir qualquer coisa?
 
 !!! abstract "Objetivos de aprendizagem"
 
     Ao final desta aula, você deve ser capaz de:
 
-    - **Lembrar** as ordens de grandeza de latência (memória, SSD, rede dentro de um data centre, entre continentes) e de tamanhos de dados comuns, e **usar** potências de dois e de dez com fluência.
+    - **Lembrar** as ordens de grandeza de latência (memória, unidade de estado sólido (SSD, *solid-state drive*), rede dentro de um data centre, entre continentes) e de tamanhos de dados comuns, e **usar** potências de dois e de dez com fluência.
     - **Estimar** requisições por segundo (média e pico), armazenamento, banda e número de servidores de um sistema a partir de poucas premissas declaradas.
     - **Aplicar** a Lei de Little e a lei da utilização para dimensionar pools de threads, pools de conexões e filas, e para validar um teste de carga.
     - **Explicar** por que a latência explode perto da utilização máxima (o joelho) e **escolher** uma utilização de operação segura.
@@ -24,7 +24,7 @@ Esta aula dá as ferramentas para encerrar essa discussão em cinco minutos num 
 2. [Números que Todo Engenheiro Deveria Saber](numbers/index.md) — potências de dois, números de latência, tamanhos e como estimar requisições por segundo, armazenamento e banda.
 3. [Filas, Lei de Little e Escalabilidade](queueing/index.md) — concorrência, utilização, o joelho da curva de latência, Amdahl e a Universal Scalability Law.
 4. [Percentis e Latência de Cauda](percentiles/index.md) — por que médias mentem, como o fan-out amplifica a cauda e como combatê-la.
-5. [Matemática da Disponibilidade](availability-math/index.md) — noves, MTTF/MTTR, componentes em série e em paralelo, falhas correlacionadas.
+5. [Matemática da Disponibilidade](availability-math/index.md) — noves, tempo médio até a falha e até a recuperação (MTTF/MTTR, *mean time to failure / to recovery*), componentes em série e em paralelo, falhas correlacionadas.
 6. [Quiz](quiz.md) — verifique seu entendimento.
 
 ## Slides
@@ -47,7 +47,7 @@ Decisões de arquitetura diferem em **ordens de grandeza**, não em porcentagens
 | 40 GB de pedidos por ano | um único primário PostgreSQL basta por anos — **não particione** |
 | 1.200 leituras/s do catálogo, 99% repetidas | **coloque em cache**; o banco só vê os misses |
 | 100.000 tentativas de reserva/s para 60.000 lugares | o inventário não consegue absorver — **enfileire** os fãs numa sala de espera |
-| 8 Gbit/s de imagens | sirva-as por uma **CDN**, não pelos servidores de aplicação |
+| 8 Gbit/s de imagens | sirva-as por uma **rede de distribuição de conteúdo (CDN, *content delivery network*)**, não pelos servidores de aplicação |
 | uma dependência síncrona a 99,9% em toda requisição | o serviço não pode prometer mais que 99,9% — **tire-a do caminho crítico** ou torne-a redundante |
 
 Estimar é também como você **confere** um design e uma medição. Se o seu teste de carga diz que um servidor atende 50.000 requisições por segundo enquanto cada requisição leva 20 ms numa única thread, há algo errado com o teste — e a Lei de Little vai lhe dizer isso em uma linha.
@@ -97,11 +97,23 @@ Vamos encerrar a discussão do início da página. Cada passo usa uma ferramenta
 
     **Conclusão**: um primário PostgreSQL basta **se** uma sala de espera moldar a demanda; um "banco distribuído" não eliminaria a contenção nas linhas quentes, já que todo mundo quer os mesmos lugares.
 
+A verificação inteira cabe numa figura. Aperte play para segui-la dos dois números até o projeto:
+
+``` diagram-sim
+flowchart LR
+    D["demanda<br/>2 M de fãs / 60 s<br/>≈ 33.000 reservas/s"]:::problem --> G{"demanda / capacidade<br/>≈ 30×"}
+    C["capacidade<br/>8 vagas / 5 ms = 1.600/s<br/>× 70% ≈ 1.100/s"]:::comp --> G
+    G -->|"nenhum ajuste fecha 30×"| W["sala de espera<br/>admite ~1.000/s"]:::tech
+    W --> I["inventory + um PostgreSQL<br/>~70% ocupado · p99 ≈ 25 ms"]:::comp
+    I --> S["~30 mil fãs vencedores<br/>atendidos em ~30 s"]
+    W --> L["todos os outros esperam na fila<br/>e sabem cedo que esgotou"]
+```
+
 Repare que o número mais importante — **5 ms por reserva** — é uma premissa. A estimativa diz *qual* número medir primeiro. O laboratório 2 o mede.
 
 ### Veja no playground { #see-it-in-the-playground }
 
-O cenário `monolith` é um único servidor de aplicação e um único banco SQL. O perfil `breakpoint` aumenta a carga continuamente até algo quebrar — a forma padrão de encontrar a capacidade de um sistema.
+O cenário `monolith` é um único servidor de aplicação e um único banco SQL (*Structured Query Language*). O perfil `breakpoint` aumenta a carga continuamente até algo quebrar — a forma padrão de encontrar a capacidade de um sistema.
 
 **Experimente:** rode o perfil breakpoint e acompanhe três curvas ao mesmo tempo: throughput, latência p99 e utilização do banco. Anote a taxa de requisições em que o **p99 começa a subir bruscamente** (o joelho, *knee*) e a taxa em que **os erros aparecem**. Depois leia o tempo de serviço do banco no painel do componente e calcule sua capacidade à mão (capacidade = vagas paralelas / tempo de serviço). Quão perto o joelho fica de ~70–80% dessa capacidade?
 
@@ -111,19 +123,24 @@ O cenário `monolith` é um único servidor de aplicação e um único banco SQL
 
     O throughput cresce linearmente com a carga oferecida enquanto a latência fica plana; então, à medida que o componente mais carregado se aproxima da saturação, **a latência se curva para cima** (o joelho) enquanto o throughput se achata. Depois da saturação, o throughput para de crescer, as filas crescem sem limite e os timeouts viram erros. A latência é o **aviso precoce**; os erros são o aviso **tardio**. É por isso que a capacidade é definida pela meta de latência ("o maior throughput em que o p99 < 300 ms") e não pelo ponto em que o sistema cai. A página de [filas](queueing/index.md) deduz a forma da curva.
 
+
+Depois, a própria abertura. O `boxoffice-onsale` leva a verificação de capacidade acima para o playground: dois milhões de fãs no primeiro minuto contra um banco de inventário de 8 conexões × 5 ms. **Experimente:** aperte **Run** e observe o banco às 10:00 — oitenta réplicas do inventário na frente dele não mudam nada, porque toda reserva termina no mesmo banco. Depois siga as dicas: uma sala de espera que admite ≈ 1.000 reservas/s mantém o banco perto de 63% e as reservas abaixo de 300 ms; o atraso da fila é quanto um fã espera na fila.
+
+<div class="sdp" data-scenario="boxoffice-onsale" data-mode="compact" data-height="460"></div>
+
 ---
 
 ## A caixa de ferramentas num relance { #the-toolbox-at-a-glance }
 
 | Pergunta | Ferramenta | Fórmula / regra | Subpágina |
 |---|---|---|---|
-| Quantas requisições por segundo? | estimativa de QPS | DAU × ações / 86.400 × fator de pico | [números](numbers/index.md) |
+| Quantas requisições por segundo? | estimativa de consultas por segundo (QPS, *queries per second*) | usuários ativos diários (DAU, *daily active users*) × ações / 86.400 × fator de pico | [números](numbers/index.md) |
 | Quantos dados? | estimativa de armazenamento | itens × tamanho × retenção × replicação | [números](numbers/index.md) |
 | Quanta rede? | estimativa de banda | requisições/s × tamanho da resposta | [números](numbers/index.md) |
 | Quantas requisições em andamento? | Lei de Little | L = λ × W | [filas](queueing/index.md) |
 | Quão ocupado está um recurso? | lei da utilização | U = X × S | [filas](queueing/index.md) |
 | Quão lento perto da saturação? | M/M/1 | R = S / (1 − ρ) | [filas](queueing/index.md) |
-| Mais nós vão ajudar? | Amdahl, USL | C(N) = N / (1 + σ(N−1) + κN(N−1)) | [filas](queueing/index.md) |
+| Mais nós vão ajudar? | Amdahl, Lei Universal de Escalabilidade (USL, *Universal Scalability Law*) | C(N) = N / (1 + σ(N−1) + κN(N−1)) | [filas](queueing/index.md) |
 | Quão lento para os usuários azarados? | percentis | p99, p99.9; 1 − (1 − q)ᴺ sob fan-out | [percentis](percentiles/index.md) |
 | Com que frequência fica fora do ar? | matemática da disponibilidade | série ∏aᵢ; paralelo 1 − ∏(1 − aᵢ) | [matemática da disponibilidade](availability-math/index.md) |
 
@@ -152,7 +169,7 @@ flowchart LR
 |---|---|---|---|---|
 | [`app`](../../reference/components/compute/index.md#app) · [`worker`](../../reference/components/compute/index.md#worker) | Quantas instâncias, threads e conexões? | nós = pico / (capacidade × utilização-alvo) + reservas; L = λ × W | [Números](numbers/index.md), [Filas](queueing/index.md) | `monolith`, `scale-out` |
 | [`sql`](../../reference/components/storage/index.md#sql) | Um primário aguenta a carga — e os dados? | teto de escritas duráveis, U = X × S, o joelho, fração serial (linhas quentes), armazenamento × retenção × replicação | [Filas](queueing/index.md), [Números](numbers/index.md) | `monolith`, `flash-sale` |
-| [`cache`](../../reference/components/storage/index.md#cache) | Quanta memória e quantas leituras ainda chegam ao banco? | latência de RAM vs SSD vs rede, o conjunto quente, 80/20 | [Números](numbers/index.md) | `read-heavy-cache` |
+| [`cache`](../../reference/components/storage/index.md#cache) | Quanta memória e quantas leituras ainda chegam ao banco? | latência de memória (RAM, *random-access memory*) vs SSD vs rede, o conjunto quente, 80/20 | [Números](numbers/index.md) | `read-heavy-cache` |
 | [`cdn`](../../reference/components/edge/index.md#cdn) · [`objstore`](../../reference/components/storage/index.md#objstore) | Quantos bits por segundo e quantos terabytes? | banda = QPS × tamanho, bits vs bytes, arquivos e logs dominam o armazenamento | [Números](numbers/index.md) | `cdn-static`, `video-streaming` |
 | [`queue`](../../reference/components/messaging/index.md#queue) | Qual o tamanho da fila e com que rapidez ela esvazia? | W = L / λ, taxa de admissão abaixo da capacidade | [Filas](queueing/index.md) | `flash-sale`, `async-queue` |
 | [`search`](../../reference/components/compute/index.md#search) | Por que o p99 do usuário é pior que o de cada shard? | percentis a partir de histogramas, 1 − (1 − q)ᴺ, hedging, orçamentos de latência | [Percentis](percentiles/index.md) | `scale-out`, `search-autocomplete` |
@@ -167,7 +184,7 @@ flowchart LR
 
     - **Mantenha a estimativa numa planilha versionada ao lado do código** — premissas numa coluna, resultados em outra, cada uma com data; quando um laboratório ou a produção mede um número, troque a premissa e recalcule. Na BoxOffice: `results/lab2.md` ([Hands-on 2](../../hands-on/2/index.md#measure-it)).
     - **Meça primeiro o número ao qual a conclusão é mais sensível** — aqui, os 5 ms que uma reserva ocupa o banco; um erro de 2× ali dobra o número de máquinas.
-    - **Dimensione as camadas sensíveis a latência para ~60–70% de utilização no pico, mais uma de reserva (N+1)** — o joelho e a perda de um nó precisam, os dois, da folga. Na BoxOffice: o HPA do lab 10 escala o `catalog` em 60% de CPU.
+    - **Dimensione as camadas sensíveis a latência para ~60–70% de utilização no pico, mais uma de reserva (N+1)** — o joelho e a perda de um nó precisam, os dois, da folga. Na BoxOffice: o HPA (*Horizontal Pod Autoscaler*) do lab 10 escala o `catalog` em 60% de CPU.
     - **Escreva a fórmula ao lado de cada configuração de capacidade** — `maximum-pool-size: 10  # 1.000 reservas/s × 10 ms = 10`; o próximo engenheiro pode reconferir quando a carga mudar. Na BoxOffice: `DB_POOL_SIZE` no compose do lab 1, variado no lab 2.
     - **Compare a estimativa com a realidade depois de cada grande evento** — requisições/s, p99 e utilização previstos contra observados; a diferença diz qual premissa corrigir antes da próxima abertura de vendas.
 

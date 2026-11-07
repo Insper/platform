@@ -14,7 +14,7 @@ This course is about that layer — the decisions that sit *above* the code and 
     - **Explain** what system design is, how it differs from software (code-level) design, and why it is a trade-off discipline rather than a search for the "right" architecture.
     - **Distinguish** functional from non-functional requirements and **write** measurable quality-attribute targets (scalability, availability, latency, consistency, durability, cost, security, operability) for a system.
     - **Trace** the evolution of a system from one server to millions of users, **identifying** the symptom that triggers each new component.
-    - **Apply** a time-boxed framework (clarify → estimate → API & data model → high-level design → deep dives → bottlenecks & trade-offs → wrap-up) to an open-ended design problem in 45 minutes.
+    - **Apply** a time-boxed framework (clarify → estimate → application programming interface (API) & data model → high-level design → deep dives → bottlenecks & trade-offs → wrap-up) to an open-ended design problem in 45 minutes.
     - **Use** the System Design Playground to build an architecture from the component palette, load it, and read its metrics.
 
 ## Roadmap
@@ -51,7 +51,7 @@ It is useful to place system design next to the design work you already know:
 |---|---|---|---|
 | **Algorithm** | How do I compute this efficiently? | function, data structure | find the best available block of 4 adjacent seats |
 | **Software design** | How do I organize this code so it is easy to change? | classes, modules, packages | `OrderService` depends on a `PaymentGateway` interface |
-| **System design** | How do these *running processes and machines* cooperate under load and failure? | services, databases, queues, caches, networks | inventory in PostgreSQL with row locks; catalog served from a cache and a CDN |
+| **System design** | How do these *running processes and machines* cooperate under load and failure? | services, databases, queues, caches, networks | inventory in PostgreSQL with row locks; catalog served from a cache and a content delivery network (CDN) |
 
 The jump from software design to system design is a jump from **one process** to **many processes on many machines, connected by an unreliable network**. That jump brings three new realities:
 
@@ -67,7 +67,7 @@ The jump from software design to system design is a jump from **one process** to
 
 - **At work**, almost every feature eventually raises a system question: *Will this query be fast with 50 million rows? Should this e-mail be sent synchronously? What happens if the payment provider is down?* Engineers who can answer with numbers make better decisions and are trusted with bigger ones.
 - **In interviews**, system design is a standard round for software engineering roles at most technology companies. It is open-ended on purpose: the interviewer watches *how you think* — how you clarify, estimate, structure, and handle trade-offs[^2].
-- **In this course**, it is the thread that ties together everything from DNS to AI agents: each topic is a component you add to a design for a reason you can measure.
+- **In this course**, it is the thread that ties together everything from the Domain Name System (DNS) to artificial intelligence (AI) agents: each topic is a component you add to a design for a reason you can measure.
 
 ---
 
@@ -124,11 +124,11 @@ Real architectures are assembled from a surprisingly small set of building block
 | **Traffic & edge** | DNS, CDN, Load Balancer, WAF, API Gateway, Ingress | [4. Traffic & Edge](../edge/index.md) |
 | **Compute** | App Server, Worker, Serverless, Auth Service, Search, Scheduler, Notifications, Analytics | [5. Compute & Services](../compute/index.md) |
 | **Containers** | Microservice, Container, Kubernetes Cluster, Service Registry | [11. Cloud-Native](../cloud-native/index.md), [5. Compute & Services](../compute/services/index.md) |
-| **Storage** | SQL Database, DB Cluster, NoSQL DB, Cache, Object Store, Data Warehouse, Vector DB | [6. Databases](../databases/index.md), [7. Caching](../caching/index.md) |
+| **Storage** | Structured Query Language (SQL) Database, database (DB) Cluster, NoSQL DB, Cache, Object Store, Data Warehouse, Vector DB | [6. Databases](../databases/index.md), [7. Caching](../caching/index.md) |
 | **Messaging** | Message Queue, Pub/Sub, Event Stream, Kafka | [8. Messaging](../messaging/index.md) |
 | **Observability** | Metrics, Logs, Tracing, Alerting, Health Check | [9. Observability](../observability/index.md) |
-| **Network** | VPC, Subnet, NAT Gateway, VPN, Service Mesh | [12. Network & Security](../network-security/index.md) |
-| **AI & agents** | LLM Gateway, Orchestrator, Tool Registry, Memory Fabric, Safety Mesh | [13. AI Systems](../ai-systems/index.md) |
+| **Network** | virtual private cloud (VPC), Subnet, network address translation (NAT) Gateway, virtual private network (VPN), Service Mesh | [12. Network & Security](../network-security/index.md) |
+| **AI & agents** | large language model (LLM) Gateway, Orchestrator, Tool Registry, Memory Fabric, Safety Mesh | [13. AI Systems](../ai-systems/index.md) |
 | **External** | 3rd Party API, Payment, Email | [5. Compute & Services](../compute/index.md) |
 
 The other classes are **cross-cutting**: they do not add boxes, they give you the tools to reason about all of them.
@@ -154,7 +154,7 @@ flowchart TB
     F --> P --> O --> X
 ```
 
-Each component has an entry in the [component catalog](../../reference/components/index.md) — for example [Load Balancer](../../reference/components/edge/index.md#lb), [Cache](../../reference/components/storage/index.md#cache) or [Message Queue](../../reference/components/messaging/index.md#queue) — with a one-line interview definition, key numbers, failure modes and the real products (AWS, GCP, Azure, open source) that implement it. Use it as a dictionary while you read.
+Each component has an entry in the [component catalog](../../reference/components/index.md) — for example [Load Balancer](../../reference/components/edge/index.md#lb), [Cache](../../reference/components/storage/index.md#cache) or [Message Queue](../../reference/components/messaging/index.md#queue) — with a one-line interview definition, key numbers, failure modes and the real products (Amazon Web Services, AWS; Google Cloud Platform, GCP; Azure; open source) that implement it. Use it as a dictionary while you read.
 
 !!! info "How the semester runs"
 
@@ -225,7 +225,7 @@ flowchart LR
 | [`app`](../../reference/components/compute/index.md#app) | What runs the logic, and how do we get more of it? | one box first, stateless replicas, scale up vs out, monolith first | [The Scaling Journey](scaling-journey/index.md) (stages 0, 2, 7) | `monolith`, `scale-out` |
 | [`lb`](../../reference/components/edge/index.md#lb) · [`healthcheck`](../../reference/components/observability/index.md#healthcheck) | How does a crash or a deploy stop being an outage? | single point of failure, health checks, rolling deploys | [The Scaling Journey](scaling-journey/index.md) (stage 2) | `scale-out` |
 | [`sql`](../../reference/components/storage/index.md#sql) | Where does the truth live, and how fresh must readers see it? | separate database, read replicas, replication lag, strong consistency for seats | [The Scaling Journey](scaling-journey/index.md) (stages 1, 3), [Requirements](requirements/index.md) | `db-replicas` |
-| [`cache`](../../reference/components/storage/index.md#cache) · [`cdn`](../../reference/components/edge/index.md#cdn) · [`objstore`](../../reference/components/storage/index.md#objstore) | How do we stop computing and sending the same bytes again? | hit ratio, TTL, invalidation, versioned file names | [The Scaling Journey](scaling-journey/index.md) (stages 4, 5) | `read-heavy-cache`, `cdn-static` |
+| [`cache`](../../reference/components/storage/index.md#cache) · [`cdn`](../../reference/components/edge/index.md#cdn) · [`objstore`](../../reference/components/storage/index.md#objstore) | How do we stop computing and sending the same bytes again? | hit ratio, time to live (TTL), invalidation, versioned file names | [The Scaling Journey](scaling-journey/index.md) (stages 4, 5) | `read-heavy-cache`, `cdn-static` |
 | [`queue`](../../reference/components/messaging/index.md#queue) · [`worker`](../../reference/components/compute/index.md#worker) | What can happen *later*, and how do we survive a spike? | asynchronous work, waiting room, at-least-once, idempotent consumers | [The Scaling Journey](scaling-journey/index.md) (stage 6) | `async-queue`, `flash-sale` |
 | [`apigw`](../../reference/components/edge/index.md#apigw) · [`stream`](../../reference/components/messaging/index.md#stream) | How do many teams and services share one product? | services along business boundaries, single entry point, events | [The Scaling Journey](scaling-journey/index.md) (stage 7) | `event-fanout` |
 | [`nosql`](../../reference/components/storage/index.md#nosql) · [`search`](../../reference/components/compute/index.md#search) · [`dwh`](../../reference/components/storage/index.md#dwh) | What if one database is too big, too hot or wrong for the job? | partitioning, hot partitions, inverted index, analytics off the transactional database | [The Scaling Journey](scaling-journey/index.md) (stage 8) | `sharding` |
@@ -262,7 +262,7 @@ flowchart LR
 ## Related
 
 - Hands-on: [0. Environment](../../hands-on/0/index.md) (tools and the course repository) and [1. First service](../../hands-on/1/index.md) (the `catalog` API).
-- Exercise: [Playground design](../../exercises/playground-design/index.md) — solve playground challenges against SLO and cost goals.
+- Exercise: [Playground design](../../exercises/playground-design/index.md) — solve playground challenges against service level objective (SLO) and cost goals.
 - Case study: [Ticketing — the BoxOffice flash sale](../case-studies/ticketing/index.md), the full design of the system introduced here.
 - Interview: [Interview framework](../../support/interview/framework/index.md) and [practice problems](../../support/interview/problems/index.md).
 

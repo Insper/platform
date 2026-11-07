@@ -14,6 +14,10 @@ theme: platform
 {{INCLUDE:scripts/slides/theme.js}}
 </script>
 
+<style>
+{{INCLUDE:scripts/slides/diagram.css}}
+</style>
+
 <div class="kicker">System Architecture · Insper</div>
 
 # What is System Design
@@ -85,10 +89,30 @@ There is no right architecture — only **justified** ones. The skill is to turn
 | **Read-heavy** traffic | events, venues, seat maps |
 | **Strong consistency** | a seat is sold exactly once |
 | **External dependencies** | payment provider, e-mail, push |
-| **Abuse** and **async work** | bots (WAF, rate limits); tickets by e-mail, waiting room |
-| **AI** | a support assistant (RAG + tools) |
+| **Abuse** and **async work** | bots (web application firewall, WAF; rate limits); tickets by e-mail, waiting room |
+| **Artificial intelligence (AI)** | a support assistant (retrieval-augmented generation, RAG, + tools) |
 
 <p class="small">Services: <code>gateway</code>, <code>auth</code>, <code>catalog</code>, <code>inventory</code>, <code>order</code>, <code>payment</code>, <code>notification</code>, <code>search</code>, <code>assistant</code> — built in the labs, in the course repository.</p>
+
+---
+
+## Where BoxOffice is heading
+
+<div class="flow">
+<div class="box muted">fan</div><div class="arrow">→</div>
+<div class="box green">CDN<small>content delivery network: static files, images</small></div>
+<div class="box red">WAF<small>bots</small></div><div class="arrow">→</div>
+<div class="box orange">API gateway<small>application programming interface (API) entry: auth, rate limit</small></div><div class="arrow">→</div>
+<div class="box">catalog<small>+ cache → SQL (Structured Query Language) database</small></div>
+</div>
+<div class="flow">
+<div class="box orange">waiting room<small>a queue</small></div><div class="arrow">→</div>
+<div class="box accent">inventory<small>SQL: seats &amp; holds</small></div><div class="arrow">→</div>
+<div class="box">order → payment<small>external provider</small></div><div class="arrow">→</div>
+<div class="box">event stream<small>→ notification: e-mail, push</small></div>
+</div>
+
+<p class="small">You do not need every box today. By week 15 you will say why each one is there, what number would make you remove it, and what comes next.</p>
 
 ---
 
@@ -99,14 +123,14 @@ There is no right architecture — only **justified** ones. The skill is to turn
 | Category | Components | Class |
 |---|---|---|
 | **Client** | Client, Mobile | 1 |
-| **Traffic & edge** | DNS, CDN, Load Balancer, WAF, API Gateway, Ingress | 4 |
+| **Traffic & edge** | Domain Name System (DNS), CDN, Load Balancer, WAF, API Gateway, Ingress | 4 |
 | **Compute** | App Server, Worker, Serverless, Auth, Search, Scheduler, Notifications, Analytics | 5 |
 | **Containers** | Microservice, Container, Kubernetes Cluster, Service Registry | 11 |
-| **Storage** | SQL, NoSQL, Cache, Object Store, Data Warehouse, Vector DB | 6, 7 |
+| **Storage** | SQL, NoSQL, Cache, Object Store, Data Warehouse, Vector database | 6, 7 |
 | **Messaging** | Message Queue, Pub/Sub, Event Stream, Kafka | 8 |
 | **Observability** | Metrics, Logs, Tracing, Alerting, Health Check | 9 |
-| **Network** | VPC, Subnet, NAT Gateway, VPN, Service Mesh | 12 |
-| **AI & agents** | LLM Gateway, Orchestrator, Tool Registry, Memory Fabric, Safety Mesh | 13 |
+| **Network** | virtual private cloud (VPC), Subnet, network address translation (NAT) Gateway, virtual private network (VPN), Service Mesh | 12 |
+| **AI & agents** | large language model (LLM) Gateway, Orchestrator, Tool Registry, Memory Fabric, Safety Mesh | 13 |
 | **External** | 3rd Party API, Payment, Email | 5 |
 
 <p class="small">Each component has an entry in the <b>component catalog</b>: what it is, when (not) to use it, numbers, failure modes, real products.</p>
@@ -132,7 +156,7 @@ There is no right architecture — only **justified** ones. The skill is to turn
 
 - **Labs** every week: the real BoxOffice (Spring Boot, PostgreSQL, Redis, Kafka, Kubernetes…), **measured** with k6
 - **Exercises**: estimation, playground designs, load-test reports
-- **Team project**: design doc → load test to an SLO → chaos game day
+- **Team project**: design doc → load test to a service level objective (SLO) → chaos game day
 - **Interview** prep all along
 
 </div>
@@ -147,7 +171,7 @@ A simulator where every palette component is a block you drop, connect and **loa
 1. **Build** — pick components, connect them.
 2. **Configure** — capacities, replicas, hit ratios, timeouts.
 3. **Load** — `smoke`, `load`, `stress`, `spike`, `soak`, `breakpoint`, `chaos`.
-4. **Read** — throughput, p50/p99, error rate, utilization, cost.
+4. **Read** — throughput, latency percentiles (p50, p99), error rate, utilization, cost.
 5. **Change one thing and run again.**
 
 <div class="warn">
@@ -196,22 +220,46 @@ Scenario `monolith`: one app server, one SQL database. Increase the load. What b
 | **Availability** | up when needed? | checkout 99.95% per rolling 28 days |
 | **Latency** | how long users wait? | catalog p99 < 200 ms |
 | **Consistency** | readers see the latest write? | seats: never sold twice |
-| **Durability** | confirmed data never lost? | RPO = 0 for paid orders |
+| **Durability** | confirmed data never lost? | recovery point objective (RPO) = 0 for paid orders |
 | **Cost** | how much to run? | < R$ 0.10 per ticket sold |
 | **Security** | protected from misuse? | no card data stored; bots blocked |
-| **Operability** | can the team run and fix it? | MTTR < 30 min; daily deploys |
+| **Operability** | can the team run and fix it? | mean time to recovery (MTTR) < 30 min; daily deploys |
 
 ---
 
 ## Make it measurable
 
-**Quality attribute scenario**: source → stimulus → environment → artifact → response → **response measure**.
+**Quality attribute scenario** — the on-sale in six parts:
 
-> 2 M fans arrive within 60 s of 10:00 and request holds; the waiting room and `inventory` give everyone a place in line and never hold a seat twice — admission p99 < 500 ms, hold p99 < 300 ms, **0 double bookings**.
+<div class="flow">
+<div class="box muted">source<small>2 M fans, web and mobile</small></div><div class="arrow">→</div>
+<div class="box">stimulus<small>arrive within 60 s of 10:00, request holds</small></div><div class="arrow">→</div>
+<div class="box">environment<small>normal operation, flash sale</small></div><div class="arrow">→</div>
+<div class="box accent">artifact<small>waiting room + <code>inventory</code> + seats database</small></div><div class="arrow">→</div>
+<div class="box">response<small>a place in line for all; no seat held twice</small></div><div class="arrow">→</div>
+<div class="box green">response measure<small>admission p99 &lt; 500 ms · hold p99 &lt; 300 ms · <b>0 double bookings</b> · errors &lt; 0.1%</small></div>
+</div>
 
 <div class="warn">
 
 "Fast", "scalable", "never goes down" are not requirements. Add a number, a percentile, a load level and a window.
+
+</div>
+
+---
+
+## Not all data needs the same consistency
+
+| BoxOffice data | Required consistency | Why |
+|---|---|---|
+| Seat state (free / held / sold) | 🔴 **strong** | two fans must never buy the same seat |
+| Order and payment status | 🔴 strong, per order | a fan must see "paid" after paying |
+| Event description, listed prices | 🟢 eventual (seconds to a minute) | a stale description harms no one; the hold re-checks the price |
+| "1,234 people are looking at this event" | 🟢 approximate | a hint, not a promise |
+
+<div class="ok">
+
+Strong consistency costs latency and availability (class 3 shows why): pay for it **only where the business needs it**.
 
 </div>
 
@@ -242,10 +290,10 @@ Different parts, different qualities: catalog **cache-everything**, inventory **
 
 | Stage | Symptom | Add | New problem |
 |---|---|---|---|
-| 0 | — | one box: app + DB | everything fails together |
+| 0 | — | one box: app + database | everything fails together |
 | 1 | app and DB fight for resources | separate **SQL Database** | network hop |
 | 2 | a deploy or crash = downtime | **Load Balancer** + stateless replicas + **Health Check** | session state must leave the server |
-| 3 | DB CPU high, 95% reads | **read replicas** | replication lag |
+| 3 | database CPU (central processing unit) high, 95% reads | **read replicas** | replication lag |
 | 4 | catalog p99 grows with traffic | **Cache** (cache-aside) | invalidation, stampede |
 | 5 | 1 MB of images per page view | **CDN** + **Object Store** | invalidation at the edge |
 
@@ -274,15 +322,17 @@ Different parts, different qualities: catalog **cache-everything**, inventory **
 
 ## The interview framework (45 min)
 
-| # | Step | Time |
-|---|---|---|
-| 1 | **Clarify** requirements — and name what is hard | 0–5 |
-| 2 | **Estimate** — numbers that change decisions | 5–10 |
-| 3 | **API & data model** | 10–15 |
-| 4 | **High-level design** — every requirement, end to end | 15–25 |
-| 5 | **Deep dives** — 1–3 hardest parts, with alternatives | 25–37 |
-| 6 | **Bottlenecks & trade-offs** | 37–42 |
-| 7 | **Wrap-up** | 42–45 |
+<div class="flow">
+<div class="box accent">1 · Clarify<small>0–5 min · and name what is hard</small></div><div class="arrow">→</div>
+<div class="box">2 · Estimate<small>5–10 · numbers that change decisions</small></div><div class="arrow">→</div>
+<div class="box">3 · API &amp; data model<small>10–15</small></div><div class="arrow">→</div>
+<div class="box green">4 · High-level design<small>15–25 · every requirement, end to end</small></div>
+</div>
+<div class="flow">
+<div class="box orange">5 · Deep dives<small>25–37 · 1–3 hardest parts, with alternatives</small></div><div class="arrow">→</div>
+<div class="box red">6 · Bottlenecks &amp; trade-offs<small>37–42</small></div><div class="arrow">→</div>
+<div class="box muted">7 · Wrap-up<small>42–45</small></div>
+</div>
 
 <p class="small">Interviewers score problem navigation, solution design, technical depth, trade-off reasoning and communication.</p>
 
@@ -290,8 +340,11 @@ Different parts, different qualities: catalog **cache-everything**, inventory **
 
 ## Deep dive: never sell a seat twice
 
-- Options: pessimistic lock (`SELECT … FOR UPDATE`), **conditional update**, distributed lock.
-- Choice: one atomic statement in the single source of truth.
+<div class="flow">
+<div class="box orange">🟡 pessimistic lock<small><code>SELECT … FOR UPDATE</code>: correct, locks queue under contention</small></div>
+<div class="box green">✅ conditional update<small>one atomic statement; check the row count</small></div>
+<div class="box red">⚠️ distributed lock (Redis)<small>two systems must agree — avoid when the database can do it</small></div>
+</div>
 
 ```sql
 UPDATE seat
@@ -301,7 +354,7 @@ UPDATE seat
    AND status = 'FREE';
 ```
 
-<p class="small">Rows updated = seats requested → hold created; otherwise roll back and answer <code>409</code>. Expired holds released by a scheduled job.</p>
+<p class="small">Two fans, seat A-12, same millisecond: the row lock orders the statements — fan A gets 1 row (<code>201</code>), fan B gets 0 rows (<code>409 seat taken</code>). Expired holds are released by a scheduled job.</p>
 
 ---
 
@@ -331,12 +384,24 @@ Say the seven steps at the start: the interviewer sees a plan, and you get a che
 | `client` `mobile` | *who* uses it, for what? | actors, functional requirements |
 | `lb` `app` `healthcheck` | how does a crash stop being an outage? | stateless replicas, scale out |
 | `sql` | where does the truth live? | replicas, lag, strong consistency for seats |
-| `cache` `cdn` `objstore` | how to stop sending the same bytes? | hit ratio, TTL, versioned files |
+| `cache` `cdn` `objstore` | how to stop sending the same bytes? | hit ratio, time to live (TTL), versioned files |
 | `queue` `worker` | what can happen *later*? the spike? | async work, waiting room, idempotency |
 | `apigw` `stream` `nosql` `search` `dwh` | many teams, too much data? | services, partitioning, specialized stores |
 | `waf` `dns` | bots, attacks, a region outage? | rate limiting, multi-region failover |
 
 <p class="small">Each component buys a <b>quality attribute</b> and brings a new problem — add it only when a measured symptom calls for it.</p>
+
+---
+
+## What breaks next
+
+<div class="flow">
+<div class="box accent">requirements with numbers<small>2 M fans in 60 s · 60 k seats · hold p99 &lt; 300 ms · checkout 99.95%</small></div><div class="arrow">→</div>
+<div class="box">one PostgreSQL<small>never checked against them</small></div><div class="arrow">→</div>
+<div class="box red">class 2 · estimation<small>~33,000 hold attempts/s against ~1,100 that one database sustains</small></div>
+</div>
+
+<p class="small">Whether one database takes the on-sale is not an opinion: it is arithmetic — requests per second, the time one hold keeps the database busy, how full it can run.</p>
 
 ---
 

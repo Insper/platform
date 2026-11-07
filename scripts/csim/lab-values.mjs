@@ -278,4 +278,28 @@ export default [
     ].map(e => ({ sim: "kind-lab", ...e }));
   })(),
 
+  // hands-on/2: the lab twin of lab 2 (lab 1's pool and CPU, load.js, stress.js, sweep.sh, the page's commands)
+  ...(() => {
+    const L2 = H + "2/code/", page = H + "2/index.md", load = L2 + "load/load.js", stress = L2 + "load/stress.js", sweep = L2 + "scripts/sweep.sh";
+    return [
+      { key: "pool", value: 10, lab: H + "1/code/services/catalog/src/main/resources/application.yaml", read: num(/maximum-pool-size:\s*\$\{DB_POOL_SIZE:(\d+)\}/) },
+      { key: "bigPool", value: 30, lab: page, read: num(/DB_POOL_SIZE=(\d+) docker compose up -d catalog/) },
+      { key: "threads", value: 200, lab: page, read: num(/`server\.tomcat\.threads\.max` = (\d+)/) },
+      { key: "cpus", value: 1, lab: H + "1/code/docker-compose.yaml", read: num(/cpus:\s*"([\d.]+)"/) },
+      { key: "listShare", value: 0.2, lab: load, read: num(/LIST_SHARE \|\| ([\d.]+)\)/) },
+      { key: "rates", value: "50 100 200 300 400 500 600", lab: page, read: t => { const m = t.match(/bash scripts\/sweep\.sh ([\d ]+)\n/); return m ? m[1].trim() : undefined; } },
+      { key: "warmup", value: 30, unit: "s", lab: sweep, read: num(/-e DURATION=(\d+)s load\/load\.js/) },
+      { key: "duration", value: 60, unit: "s", lab: sweep, read: has(/DURATION=\$\{DURATION:-1m\}/, 60) },
+      { key: "pause", value: 10, unit: "s", lab: sweep, read: num(/sleep (\d+)/) },
+      { key: "preMin", value: 20, lab: load, read: num(/preAllocatedVUs: Math\.max\((\d+), RATE\)/) },
+      { key: "maxMin", value: 200, lab: load, read: num(/maxVUs: Math\.max\((\d+), RATE \* \d+\)/) },
+      { key: "maxMult", value: 10, lab: load, read: num(/maxVUs: Math\.max\(\d+, RATE \* (\d+)\)/) },
+      { key: "peak", value: 600, unit: "req/s", lab: stress, read: num(/PEAK \|\| (\d+)\)/) },
+      { key: "stressVUs", value: 2000, lab: stress, read: num(/maxVUs: (\d+)/) },
+      { key: "stressTimeout", value: 10, unit: "s", lab: stress, read: num(/timeout: '(\d+)s'/) },
+      { key: "stages", value: "0.25/30 0.25/30 0.5/30 0.5/30 0.75/30 0.75/30 1/30 1/60 0.25/15 0.25/60", lab: stress,
+        read: t => [...t.matchAll(/step\(([\d.]+), '(\d+)(s|m)'\)/g)].map(m => `${+m[1]}/${+m[2] * (m[3] === "m" ? 60 : 1)}`).join(" ") || undefined },
+    ].map(e => ({ sim: "catalog-sweep", ...e }));
+  })(),
+
 ];

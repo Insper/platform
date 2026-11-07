@@ -14,6 +14,10 @@ theme: platform
 {{INCLUDE:scripts/slides/theme.js}}
 </script>
 
+<style>
+{{INCLUDE:scripts/slides/diagram.css}}
+</style>
+
 <div class="kicker">System Architecture · Insper · Lab 0</div>
 
 # Lab 0 — Environment
@@ -21,7 +25,7 @@ theme: platform
 **One toolchain, one repository, one set of names — and a first measurement**
 
 <!--
-Outline: (1) what BoxOffice becomes over 12 labs; (2) the toolchain; (3) the services/ports table;
+Outline: (1) what BoxOffice becomes over 13 labs; (2) the toolchain; (3) the services/ports table;
 (4) the repository; (5) the baseline measurement with k6; (6) first look at the playground.
 -->
 
@@ -35,11 +39,23 @@ A stadium show goes on sale at 10:00: **2 M fans, 60 k seats**. What has to exis
 
 </div>
 
-- Lab 1: one service (`catalog`) + PostgreSQL.
-- Lab 2: **measure** it — find where it breaks.
-- Labs 3–6: edge, gateway, cache, data at scale.
-- Labs 7–9: async, observability, resilience.
-- Labs 10–12: Kubernetes, delivery, AI assistant.
+<div class="flow">
+<div class="box muted">fan / k6</div><div class="arrow">→</div>
+<div class="box accent">edge<small>Nginx · lab 3</small></div><div class="arrow">→</div>
+<div class="box orange">gateway + auth<small>lab 4</small></div><div class="arrow">→</div>
+<div class="box">catalog ×3<small>lab 1 · cache lab 5</small></div>
+<div class="box">inventory<small>lab 6 · replica, PgBouncer</small></div>
+<div class="box">order → payment<small>labs 7, 9</small></div>
+</div>
+<div class="flow">
+<div class="box green">PostgreSQL<small>one schema per service</small></div>
+<div class="box green">Redis · Kafka<small>labs 5, 7</small></div>
+<div class="box">observability<small>lab 8</small></div>
+<div class="box accent">Kubernetes · delivery<small>labs 10, 11</small></div>
+<div class="box red">artificial intelligence (AI)<small>assistant lab 12 · review lab 13</small></div>
+</div>
+
+<p class="small">Lab 2 <b>measures</b> where one <code>catalog</code> breaks. Every lab adds a box — and ends with a measurement.</p>
 
 <!--
 Every lab adds one palette component and ends with a measurement. The flash sale is the thread
@@ -53,7 +69,7 @@ that ties them together.
 | Tool | For |
 |---|---|
 | **Docker + Compose v2** | every service and database runs in a container |
-| **JDK 21 + Maven** | Spring Boot services |
+| **Java Development Kit (JDK) 21 + Maven** | Spring Boot services |
 | **uv + Python 3.12** | result scripts, AI assistant (no pip) |
 | **k6** | load tests, written in JavaScript |
 | **kubectl + kind/minikube** | local Kubernetes (lab 10) |
@@ -70,11 +86,11 @@ that ties them together.
 ## Give Docker room
 
 - macOS and Windows: Docker Desktop → *Settings → Resources*.
-- Linux: Docker Engine uses the whole machine, no VM in between.
+- Linux: Docker Engine uses the whole machine, no virtual machine (VM) in between.
 
 <div class="warn">
 
-Docker Desktop's default resources are small: give it **≥ 4 CPUs and 8 GB**, or every later measurement is distorted.
+Docker Desktop's default resources are small: give it **≥ 4 central processing units (CPUs) and 8 GB**, or every later measurement is distorted.
 
 </div>
 
@@ -102,7 +118,7 @@ Docker Desktop's default resources are small: give it **≥ 4 CPUs and 8 GB**, o
 - Each service serves **only under its prefix** → routing without rewrites.
 - One PostgreSQL, **one schema per service**, owned by its Flyway migrations.
 - Same env var names everywhere: `DB_HOST`, `DB_USER`, `REDIS_HOST`, `BASE_URL`…
-- Errors as RFC 9457 `problem+json`; health at `/actuator/health`.
+- Errors as Request for Comments (RFC) 9457 `problem+json`; health at `/actuator/health`.
 
 <div class="q">
 
@@ -139,7 +155,7 @@ k6 run -e VUS=50 load/hello.js
 ```
 
 - Target does almost nothing → the **best case** for your laptop.
-- Every BoxOffice number later is lower; the gap is the cost of code, DB and hops.
+- Every BoxOffice number later is lower; the gap is the cost of code, database and hops.
 
 ---
 
@@ -147,11 +163,26 @@ k6 run -e VUS=50 load/hello.js
 
 | Line | Meaning |
 |---|---|
-| `http_reqs … /s` | **throughput** (RPS) |
+| `http_reqs … /s` | **throughput** (requests per second, RPS) |
 | `http_req_duration med` | median latency (p50) |
-| `p(95)`, `p(99)` | tail: 1 in 20 / 1 in 100 is slower |
+| `p(95)`, `p(99)` | tail, the 95th and 99th percentiles (p95, p99): 1 in 20 / 1 in 100 is slower |
 | `http_req_failed` | error rate |
-| `vus` | **concurrency** (closed model) |
+| `vus` | **concurrency**: virtual users (VUs), a closed model |
+
+---
+
+## A closed model: each VU waits for its answer
+
+<div class="flow">
+<div class="box accent">VU sends <code>GET /</code></div><div class="arrow">→</div>
+<div class="box">Nginx answers<small>after W, the latency</small></div><div class="arrow">→</div>
+<div class="box accent">VU sends again<small>at once, no think time</small></div><div class="arrow">→</div>
+<div class="box muted">…<small>1 / W requests per second per VU</small></div>
+</div>
+
+- 10 VUs → throughput λ = 10 / W → **L = λ × W = 10** requests inside, whatever the server.
+- The load generator fixes L; the server's latency fixes the throughput.
+- When the server slows down, a closed model sends **less** — lab 2 shows why that hides overload.
 
 <div class="ok">
 
@@ -166,9 +197,11 @@ Little's Law: **VUs ≈ throughput × latency**. Check it on your own numbers.
 <div class="cols">
 <div>
 
-- 1 VU: latency = service time; RPS = 1 / latency.
-- More VUs: RPS grows **while cores are idle**.
-- Past saturation: RPS **flat**, latency **grows** with VUs.
+<div class="flow">
+<div class="box green">1 VU<small>latency = service time · RPS = 1 / latency</small></div><div class="arrow">→</div>
+<div class="box accent">10 VUs<small>RPS grows <b>while cores are idle</b></small></div><div class="arrow">→</div>
+<div class="box red">50 VUs<small>past saturation: RPS <b>flat</b>, latency <b>grows</b> with VUs</small></div>
+</div>
 
 </div>
 <div>
@@ -187,7 +220,7 @@ k6 runs on the same cores: at tens of thousands of RPS you are measuring k6 too.
 ## First look at the playground
 
 - The **System Design Playground** simulates the same components under load.
-- Open the `monolith` scenario: client → app → SQL.
+- Open the `monolith` scenario: client → app → Structured Query Language (SQL) database.
 - Raise the load until p99 jumps. **Which component saturates first?**
 - Write the hypothesis down — lab 2 checks it against your real `catalog`.
 

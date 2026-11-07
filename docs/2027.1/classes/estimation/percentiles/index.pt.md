@@ -149,7 +149,7 @@ A latência de cauda raramente é causada pelo caminho "normal" do código. Caus
 |---|---|---|
 | **Filas** | uma rajada chega enquanto um servidor está ocupado | folga (utilização menor), balanceamento pelo menos carregado |
 | **Recursos compartilhados** | vizinhos barulhentos no mesmo host, disco ou rede | isolamento, capacidade dedicada para caminhos críticos |
-| **Coleta de lixo** | uma JVM pausa por 200 ms | ajuste do GC, coletores de pausa curta, heaps menores |
+| **Coleta de lixo** | uma máquina virtual Java (JVM) pausa por 200 ms | ajuste do coletor de lixo (GC, *garbage collector*), coletores de pausa curta, heaps menores |
 | **Trabalho em segundo plano** | compactação do banco, rotação de logs, backups | agendar fora do pico, limitar a taxa das tarefas em segundo plano |
 | **Cache misses** | cache frio depois de um deploy; chaves raras | pré-aquecimento, cache maior, coalescência de requisições |
 | **Novas tentativas e timeouts** | a primeira tentativa estoura o timeout em 1 s, a nova tentativa funciona | timeouts bem ajustados, hedging em vez de esperar |
@@ -169,13 +169,29 @@ Você não consegue eliminar a variabilidade; consegue projetar para que ela nã
 - **Tire trabalho do caminho crítico**: o que não precisa terminar antes da resposta (e-mails, analytics, indexação de busca) vai para uma fila.
 - **Mantenha a utilização baixa** nos componentes críticos em latência e **isole-os** do trabalho em lote.
 
+Uma requisição com hedge, passo a passo — um dos 20 shards da busca trava numa pausa de coleta de lixo:
+
+``` diagram-sim
+sequenceDiagram
+    participant S as serviço de busca
+    participant A as shard 7, réplica A
+    participant B as shard 7, réplica B
+    S->>A: consulta (os outros 19 shards respondem em ~15 ms)
+    Note over A: uma pausa de 200 ms de coleta de lixo
+    Note over S: nenhuma resposta depois do p95 do shard
+    S->>B: a mesma consulta, uma segunda cópia
+    B-->>S: resultados em ~15 ms
+    S->>A: cancela a primeira cópia
+    Note over S,B: o usuário espera p95 + 15 ms em vez da pausa e só ~5% das consultas saíram duas vezes
+```
+
 ### Orçamentos de latência { #latency-budgets }
 
 Uma meta voltada ao usuário precisa ser dividida entre os componentes do caminho. Para o checkout da BoxOffice (p99 < 1,5 s):
 
 | Etapa | Orçamento (p99) | Observações |
 |---|---|---|
-| Borda (CDN, WAF, gateway) | 50 ms | terminação TLS perto do usuário |
+| Borda (rede de distribuição de conteúdo, CDN; firewall de aplicação web, WAF; gateway) | 50 ms | terminação TLS (*Transport Layer Security*) perto do usuário |
 | Lógica do serviço `order` | 50 ms | validação, checagem de idempotência |
 | `inventory` (confirmar reserva) | 100 ms | uma transação no primário |
 | `payment` → provedor | 1.000 ms | o provedor domina; timeout em 1,2 s |
@@ -206,7 +222,7 @@ Duas armadilhas fazem a latência de cauda parecer melhor do que é:
 
 <div class="sdp" data-scenario="scale-out" data-mode="compact" data-profile="load" data-chaos="low" data-height="500"></div>
 
-??? question "Pense antes: SLO para o mapa de lugares"
+??? question "Pense antes: um objetivo de nível de serviço (SLO, *service level objective*) para o mapa de lugares"
 
     A BoxOffice quer um SLO para o endpoint do mapa de lugares. Opção A: "latência média < 100 ms". Opção B: "99% das requisições < 300 ms, medido no gateway ao longo de 28 dias". Qual e por quê?
 

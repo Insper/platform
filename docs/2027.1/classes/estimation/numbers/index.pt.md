@@ -1,5 +1,5 @@
 
-Quanto tempo leva para ler um lugar da memória? De um SSD? De um banco no mesmo data centre? De um servidor na Virgínia, com o fã em São Paulo? As respostas cobrem **oito ordens de grandeza** — de um nanossegundo a cem milissegundos — e a maioria das regras práticas de arquitetura ("ponha em cache", "agrupe as chamadas", "não chame outra região de forma síncrona") são apenas consequências dessa amplitude. Esta página reúne os números que vale a pena memorizar e mostra como transformá-los, junto com algumas premissas sobre os usuários, em requisições por segundo, armazenamento e banda.
+Quanto tempo leva para ler um lugar da memória? De uma unidade de estado sólido (SSD, *solid-state drive*)? De um banco no mesmo data centre? De um servidor na Virgínia, com o fã em São Paulo? As respostas cobrem **oito ordens de grandeza** — de um nanossegundo a cem milissegundos — e a maioria das regras práticas de arquitetura ("ponha em cache", "agrupe as chamadas", "não chame outra região de forma síncrona") são apenas consequências dessa amplitude. Esta página reúne os números que vale a pena memorizar e mostra como transformá-los, junto com algumas premissas sobre os usuários, em requisições por segundo, armazenamento e banda.
 
 ---
 
@@ -9,7 +9,7 @@ Tamanhos de dados são potências de dois; estimativas são mais fáceis em pot�
 
 | Potência de dois | Valor exato | ≈ Potência de dez | Unidade | Algo desse tamanho |
 |---|---|---|---|---|
-| 2¹⁰ | 1.024 | 10³ (mil) | 1 KB | uma resposta JSON curta; um registro de lugar ×10 |
+| 2¹⁰ | 1.024 | 10³ (mil) | 1 KB | uma resposta JSON (*JavaScript Object Notation*) curta; um registro de lugar ×10 |
 | 2²⁰ | 1.048.576 | 10⁶ (milhão) | 1 MB | um pôster de evento (foto comprimida) |
 | 2³⁰ | ≈ 1,07 × 10⁹ | 10⁹ (bilhão) | 1 GB | um ano de dados de lugares da BoxOffice (ilustrativo) |
 | 2⁴⁰ | ≈ 1,10 × 10¹² | 10¹² (trilhão) | 1 TB | um banco grande num único nó |
@@ -58,21 +58,21 @@ Em 2009, Jeff Dean (Google) popularizou uma lista de "números que todos deveria
 | Leitura aleatória de 4 KB num SSD NVMe | ~20–100 µs | 6–28 h |
 | Ida e volta dentro de um data centre / zona de disponibilidade | ~0,1–0,5 ms | 1–6 dias |
 | Ler 1 MB sequencialmente de um SSD NVMe | ~0,2 ms | 2,3 dias |
-| `GET` no Redis ou consulta SQL por chave primária, mesma zona (quase toda rede) | ~0,2–1 ms | 2–12 dias |
+| `GET` no Redis ou consulta SQL (*Structured Query Language*) por chave primária, mesma zona (quase toda rede) | ~0,2–1 ms | 2–12 dias |
 | Ida e volta entre zonas de disponibilidade de uma região | ~1–2 ms | 12–23 dias |
 | Seek de disco giratório (HDD) | ~5–10 ms | 2–4 meses |
 | Ler 1 MB sequencialmente de um HDD | ~5 ms | 2 meses |
-| Ida e volta São Paulo ↔ costa leste dos EUA (Virgínia) | ~110–130 ms | ~4 anos |
+| Ida e volta São Paulo ↔ costa leste dos Estados Unidos (Virgínia) | ~110–130 ms | ~4 anos |
 | Ida e volta atravessando o Atlântico / Pacífico | ~80–200 ms | 3–6 anos |
-| Handshake TCP + TLS com um servidor distante | 2–3 idas e voltas | — |
+| Handshake TCP (*Transmission Control Protocol*) + TLS (*Transport Layer Security*) com um servidor distante | 2–3 idas e voltas | — |
 
 ### O que a tabela ensina { #what-the-table-teaches }
 
 1. **A memória é ~1.000× mais rápida que o SSD e o SSD ~100× mais rápido que o HDD em leituras aleatórias.** É por isso que caches (o Redis mantém tudo em RAM) e índices em memória existem.
-2. **Dentro de um data centre, a rede custa mais que o trabalho.** Um `GET` no Redis consome microssegundos de CPU no servidor; o que você espera é a ida e volta. Uma página que faz 50 chamadas sequenciais ao Redis gasta ~10–25 ms só em idas e voltas — **agrupe-as** (`MGET`, pipelining) ou use cache no próprio processo.
+2. **Dentro de um data centre, a rede custa mais que o trabalho.** Um `GET` no Redis consome microssegundos de CPU (unidade central de processamento) no servidor; o que você espera é a ida e volta. Uma página que faz 50 chamadas sequenciais ao Redis gasta ~10–25 ms só em idas e voltas — **agrupe-as** (`MGET`, pipelining) ou use cache no próprio processo.
 3. **Entre regiões, a física vence.** A luz na fibra óptica viaja a cerca de 200.000 km/s, isto é, **~5 µs por km**, então cada 100 km acrescentam cerca de **1 ms de ida e volta** antes de qualquer roteador ou servidor tocar no pacote. São Paulo–Virgínia são ~7.500 km em linha reta, então a ida e volta mínima teórica é de ~75 ms; as rotas reais dão ~110–130 ms. Nenhuma tecnologia remove isso: **evite chamadas síncronas entre regiões no caminho crítico** e atenda os usuários de perto (CDN, implantações regionais).
 4. **Sequencial ganha de aleatório.** Ler 1 MB sequencialmente de um SSD custa mais ou menos o mesmo que algumas leituras aleatórias de 4 KB. Armazenamento estruturado em log, o log append-only do Kafka e o processamento em lote exploram isso.
-5. **Idas e voltas se somam; a banda raramente limita requisições pequenas.** Para uma resposta de API de 2 KB, a latência é dominada pelas idas e voltas (abertura de conexão, TLS, a própria requisição), não pelo tempo de transferência. Reaproveitar conexões (keep-alive, HTTP/2) importa mais que um cano mais largo.
+5. **Idas e voltas se somam; a banda raramente limita requisições pequenas.** Para uma resposta de API (interface de programação, *application programming interface*) de 2 KB, a latência é dominada pelas idas e voltas (abertura de conexão, TLS, a própria requisição), não pelo tempo de transferência. Reaproveitar conexões (keep-alive, HTTP/2) importa mais que um cano mais largo.
 
 !!! example "BoxOffice — o mapa de lugares, de três jeitos"
 
@@ -110,15 +110,15 @@ O padrão a lembrar: **leituras são mais baratas que escritas duráveis**, **me
 |---|---|---|
 | Booleano / byte | 1 B | — |
 | Inteiro / timestamp | 4–8 B | `bigint`, epoch em milissegundos |
-| UUID | 16 B (36 B como texto) | armazene em binário quando puder |
+| Identificador universal único (UUID, *universally unique identifier*) | 16 B (36 B como texto) | armazene em binário quando puder |
 | String curta (nome, e-mail) | 20–100 B | UTF-8 |
 | Linha de lugar da BoxOffice | ~100 B | ids, status, preço, id da reserva, versão |
 | Pedido da BoxOffice | ~1 KB | com itens e referência de pagamento |
 | Evento da BoxOffice (descrição, metadados) | ~2–5 KB | — |
 | Resposta JSON de API (uma página de resultados) | 2–50 KB | antes da compressão |
-| PDF do ingresso | ~100 KB | — |
+| PDF (*Portable Document Format*) do ingresso | ~100 KB | — |
 | Foto comprimida (pôster) | 200 KB – 2 MB | várias resoluções |
-| 1 minuto de vídeo HD | 50–100 MB | depende do bitrate |
+| 1 minuto de vídeo em alta definição (HD, *high definition*) | 50–100 MB | depende do bitrate |
 | Um vetor de embedding (1.024 dimensões × 4 B) | ~4 KB | relevante para bancos vetoriais (aula 13) |
 
 Dois multiplicadores são fáceis de esquecer: **replicação** (um banco normalmente mantém 3 cópias; object stores replicam internamente) e **índices e overhead** (muitas vezes 1,5–2× os dados brutos num banco relacional).
@@ -216,7 +216,7 @@ Para a **memória de cache**, uma regra prática comum é a regra 80/20: uma peq
     --8<-- "docs/2027.1/hands-on/1/code/docker-compose.yaml:21:39"
     ```
 
-??? question "Pense antes: estime um encurtador de URLs"
+??? question "Pense antes: estime um encurtador de URLs (*Uniform Resource Locators*)"
 
     100 M de novas URLs curtas por mês; leituras são 100× as escritas; cada registro tem ~500 B; manter por 5 anos.
 
@@ -244,7 +244,7 @@ Para a **memória de cache**, uma regra prática comum é a regra 80/20: uma peq
     - **Esquecer as idas e voltas**: 100 chamadas sequenciais de 0,5 ms são 50 ms, mesmo que cada chamada quase não faça nada.
     - **Dimensionar para a média diária** em vez do pico — ou esquecer o pico repentino.
     - **Ignorar replicação, índices e retenção** no armazenamento.
-    - **Bits vs bytes** e **86.400 vs 10⁵** quando a precisão importa (por exemplo, em cálculos de SLA — use o valor exato aí).
+    - **Bits vs bytes** e **86.400 vs 10⁵** quando a precisão importa (por exemplo, em cálculos de acordo de nível de serviço (SLA, *service level agreement*) — use o valor exato aí).
 
 ---
 

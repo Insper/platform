@@ -14,6 +14,10 @@ theme: platform
 {{INCLUDE:scripts/slides/theme.js}}
 </script>
 
+<style>
+{{INCLUDE:scripts/slides/diagram.css}}
+</style>
+
 <div class="kicker">System Architecture · Insper · Lab 2</div>
 
 # Lab 2 — Measure first
@@ -41,13 +45,31 @@ inside; (5) the sweep and the knee; (6) Little's Law and the pool; (7) moving th
 
 ---
 
+## Before you measure: a hypothesis
+
+<div class="flow">
+<div class="box muted">playground <code>monolith</code><small>breakpoint profile: which box turns red first?</small></div><div class="arrow">→</div>
+<div class="box accent">preset <code>boxoffice-pool</code><small>catalog + pool of 10 under a ramp</small></div><div class="arrow">→</div>
+<div class="box orange">your prediction<small>"breaks at ___ req/s because ___ saturates"</small></div><div class="arrow">→</div>
+<div class="box green">the lab<small>sweep, gauges, docker stats</small></div>
+</div>
+
+- The playground models the catalog's CPU (800 req/s) and the pool as the only limits: it predicts that **30 connections** move the knee past 600 req/s.
+- Write it down. Step 6 tests the prediction on the real service.
+
+<!--
+A model is a hypothesis. The deliverable has a "hypothesis check" line: right or wrong, and why.
+-->
+
+---
+
 ## Closed vs open workload
 
-| | Closed (`vus`) | Open (`*-arrival-rate`) |
+| | Closed (`vus`: virtual users, VUs) | Open (`*-arrival-rate`) |
 |---|---|---|
 | You set | concurrent users | requests per second |
-| Server slows down | k6 sends **less** | k6 keeps the rate |
-| Overload | hidden | latency + `dropped_iterations` |
+| Server slows down | k6 sends **less** | k6 keeps the rate and starts more VUs |
+| Overload | ⚠️ hidden | ✅ latency + `dropped_iterations` |
 
 <div class="warn">
 
@@ -62,7 +84,7 @@ inside; (5) the sweep and the knee; (6) Little's Law and the pool; (7) moving th
 | Test | Question |
 |---|---|
 | smoke | does it work, how fast with 1 user? |
-| load | at X req/s, what are p50/p95/p99? |
+| load | at X req/s, what are the percentiles p50, p95, p99 (median, 95th, 99th)? |
 | sweep | where is the knee? |
 | stress | what happens past it — and does it recover? |
 
@@ -74,11 +96,15 @@ k6 run -e RATE=200 -e DURATION=1m load/load.js
 
 ## Gauges from the inside
 
-| Metric | Limit |
-|---|---|
-| `tomcat.threads.busy` | 200 threads |
-| `hikaricp.connections.active` | pool = **10** |
-| `hikaricp.connections.pending` | should be 0 |
+<div class="flow">
+<div class="box muted">k6<small>open model, RATE req/s</small></div><div class="arrow">→</div>
+<div class="box accent">Tomcat threads<small><code>tomcat.threads.busy</code> · max 200</small></div><div class="arrow">wait →</div>
+<div class="box orange">Hikari pool<small><code>connections.pending</code> waiting · <code>active</code> ≤ <b>10</b></small></div><div class="arrow">→</div>
+<div class="box green">PostgreSQL<small>its CPU in <code>docker stats</code></small></div>
+</div>
+
+- A thread holds a connection only during its transaction: busy ≥ active + pending.
+- `pending` > 0 means threads are waiting for a connection, not short of work.
 
 ```bash
 bash scripts/watch-metrics.sh http://localhost:8082
@@ -95,12 +121,12 @@ bash scripts/sweep.sh 50 100 200 300 400 500 600
 uv run scripts/summarize.py results/lab2/rate-*.json
 ```
 
-- One minute per rate, **warm-up first**.
+- One minute per rate, **warm-up first** (a cold Java virtual machine, JVM, spoils the first point), 10 s of pause between steps.
 - One row per rate: throughput, p50, p95, p99, errors, dropped.
 
 ---
 
-## An example knee (1 CPU, pool of 10)
+## An example knee (1 central processing unit, CPU; pool of 10)
 
 | Offered | Served | p50 | p99 |
 |---|---|---|---|
@@ -118,7 +144,7 @@ uv run scripts/summarize.py results/lab2/rate-*.json
 <div class="cols">
 <div>
 
-- Waiting ≈ `S / (1 − ρ)`.
+- Response ≈ `S / (1 − ρ)`, so the wait ≈ `ρ / (1 − ρ) × S`.
 - ρ = 50% → wait ≈ 1×S.
 - ρ = 90% → ≈ 9×S.
 - ρ = 99% → ≈ 99×S.
@@ -139,9 +165,10 @@ uv run scripts/summarize.py results/lab2/rate-*.json
 
 ## Little's Law: L = λ × W
 
-* 300 req/s × 20 ms = **6** requests inside → `tomcat.threads.busy` ≈ 6.
-* The pool is a server with **10** slots: it saturates when λ × (DB time per request) = 10.
-* At the knee: `db_active = 10`, `db_pending` grows → **the pool is the bottleneck**.
+* 300 req/s × 10 ms = **3** requests inside → `tomcat.threads.busy` ≈ 3.
+* The pool is a server with **10** slots: it saturates when λ × (database time per request) = 10.
+* ~8 ms per request without load → 1,250 req/s. The knee is far lower: under load each query gets slower and holds its connection longer.
+* At the knee: `db_active = 10`, `db_pending` grows → **the queue is at the pool**.
 
 <div class="q">
 
@@ -158,7 +185,12 @@ DB_POOL_SIZE=30 docker compose up -d catalog
 OUT=results/lab2-pool30 bash scripts/sweep.sh 50 100 200 300 400 500 600
 ```
 
-- Knee moves **up** — until the next resource saturates (CPU, PostgreSQL).
+<div class="cols">
+<div class="box green">the knee moves <b>up</b><small>the pool was the narrowest pipe — until the next resource saturates: the catalog's CPU or PostgreSQL</small></div>
+<div class="box red">the knee <b>barely moves</b><small><code>db</code> at its CPU limit in <code>docker stats</code>: the pool was only where the queue showed</small></div>
+</div>
+
+- Either result answers the question: the evidence is **which resource is full**. Compare with your playground prediction.
 - Bigger pools cost database processes: 3 services × 3 replicas × 30 > `max_connections`.
 
 ---
@@ -170,8 +202,28 @@ K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_EXPORT=results/lab2-stress.html \
   k6 run -e PEAK=600 load/stress.js
 ```
 
-- Knee on the way up; VUs climb at the peak (Little's Law on the client).
-- **Recovery** after the drop: seconds? never?
+<div class="flow">
+<div class="box accent">1 · the knee<small>on the way up, p95 leaves the floor</small></div><div class="arrow">→</div>
+<div class="box red">2 · the peak (600 req/s)<small>VUs climb towards <code>maxVUs</code>: Little's Law on the client</small></div><div class="arrow">→</div>
+<div class="box green">3 · the recovery<small>after the drop to 25%: seconds? never?</small></div>
+</div>
+
+<p class="small">A service that recovers by itself is <b>stable</b>; one that stays slow needs load shedding (labs 3 and 9).</p>
+
+---
+
+## Without Docker: the twin
+
+A model of the lab's stack (200 threads, the pool, 1 CPU, PostgreSQL with 7 cores) replays steps 1, 4, 6 and 7 with the page's k6 commands.
+
+| Step | What the twin shows |
+|---|---|
+| 4 · sweep | p99 flat to 300 req/s, 159 ms at 400, a wall at 500: 463 req/s, 1,688 dropped |
+| 6 · pool of 30 | the knee does not move; details faster, listings slower; `db` at 700% |
+| 1 · closed vs open | 50 VUs: p99 266 ms, "all fine"; open at 500 req/s: 1,336 ms |
+| 7 · stress | back under 300 ms 8 s after the drop |
+
+<p class="small">Service times chosen to match the shape of the page's run — not measured. Your laptop decides which case of step 6 you get.</p>
 
 ---
 
@@ -189,5 +241,5 @@ K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_EXPORT=results/lab2-stress.html \
 1. Use an **open** model for public traffic; watch `dropped_iterations`.
 2. The **knee**: flat latency, then explosion — capacity lives just below it.
 3. **Little's Law** links throughput, latency and concurrency — check it with real gauges.
-4. The bottleneck is the resource whose **queue grows** (here: the DB pool).
+4. The queue shows **where** requests wait (here: the pool); `docker stats` shows **which resource is full**.
 5. Fixing one bottleneck **moves** it; measure again after every change.

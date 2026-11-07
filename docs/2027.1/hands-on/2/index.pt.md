@@ -57,9 +57,13 @@ Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** a
 
 O playground roda o mesmo experimento em segundos. Forme uma hipótese primeiro e depois confira-a contra o serviço real.
 
-**Experimente:** o cenário `monolith` abaixo começa com o perfil *breakpoint* — a carga cresce até algo ceder. Observe qual componente fica vermelho primeiro e como o p99 se comporta logo antes. Depois anote o seu palpite para o `catalog`: *"ele vai quebrar em cerca de ___ req/s porque ___ satura primeiro"*.
+**Experimente:** o cenário `monolith` abaixo começa com o perfil *breakpoint* — a carga cresce até algo ceder. Observe qual componente fica vermelho primeiro e como o percentil 99 (p99) se comporta logo antes. Depois anote o seu palpite para o `catalog`: *"ele vai quebrar em cerca de ___ req/s porque ___ satura primeiro"*.
 
 <div class="sdp" data-scenario="monolith" data-mode="compact" data-profile="breakpoint" data-height="480"></div>
+
+Depois, o cenário deste lab: um `catalog` e seu PostgreSQL com o pool padrão de 10 conexões, sob uma rampa como a do `stress.js`. Encontre o joelho e o componente que o Relatório culpa e siga as dicas: o playground prevê que 30 conexões levam o joelho para além de 600 req/s, porque modela a CPU do catalog (800 req/s) e o pool como os únicos limites. Anote essa previsão — o passo 6 a testa no serviço real.
+
+<div class="sdp" data-scenario="boxoffice-pool" data-mode="compact" data-height="440"></div>
 
 ## 1. Modelo de carga fechado ou aberto? { #1-closed-or-open-workload }
 
@@ -69,8 +73,8 @@ No lab 0, cada usuário virtual (VU) mandava uma requisição, esperava a respos
 |---|---|---|
 | Você define | o número de usuários simultâneos | a **taxa de chegada** (requisições por segundo) |
 | Quando o servidor fica lento | o k6 manda menos requisições | o k6 mantém a taxa e inicia mais VUs |
-| Bom para | "N usuários trabalhando num back office" | sites públicos, APIs, vendas relâmpago |
-| Esconde a sobrecarga? | **sim** — o throughput cai em silêncio (*coordinated omission*) | não — latência e fila crescem à vista |
+| Bom para | "N usuários trabalhando num back office" | sites públicos, APIs (interfaces de programação), vendas relâmpago |
+| Esconde a sobrecarga? | ⚠️ **sim** — o throughput cai em silêncio (*coordinated omission*) | ✅ não — latência e fila crescem à vista |
 | Sinal de saturação | latência sobe, throughput fica plano | a latência explode, **`dropped_iterations`** > 0 |
 
 !!! warning "Coordinated omission"
@@ -108,6 +112,24 @@ O k6 vê o serviço de fora. Para descobrir *por que* a latência cresce, você 
 | `hikaricp.connections.active` | conexões com o banco em uso | tamanho do pool (`DB_POOL_SIZE`, padrão **10**) |
 | `hikaricp.connections.pending` | requisições **esperando** uma conexão | — (deveria ser 0) |
 
+``` diagram-sim
+sequenceDiagram
+    participant K as k6 (um VU)
+    participant T as thread do Tomcat
+    participant P as pool Hikari
+    participant D as PostgreSQL
+    K->>T: GET /catalog/events/42 (busy_threads + 1)
+    T->>P: getConnection()
+    Note over T,P: as 10 em uso: a thread espera (db_pending + 1)
+    P-->>T: uma conexão livre (db_active + 1)
+    T->>D: SELECT do evento pelo id
+    D-->>T: uma linha
+    T->>P: close() devolve a conexão (db_active - 1)
+    T-->>K: 200 e o JSON (busy_threads - 1)
+```
+
+Uma thread segura uma conexão só durante a sua transação, então `busy_threads` ≥ `db_active` + `db_pending`; quando `db_pending` cresce, as threads não estão sem trabalho — esperam uma conexão.
+
 ``` { .bash title="scripts/watch-metrics.sh" .copy linenums="1" }
 --8<-- "docs/2027.1/hands-on/2/code/scripts/watch-metrics.sh"
 ```
@@ -125,7 +147,7 @@ time      busy_threads  db_active  db_pending
 
 ## 4. Encontre o joelho { #4-find-the-knee }
 
-Rode o `load.js` com taxas crescentes, um minuto cada, e salve cada resumo. O script de varredura cuida da contabilidade (e faz um aquecimento antes: uma JVM fria estragaria o primeiro ponto):
+Rode o `load.js` com taxas crescentes, um minuto cada, e salve cada resumo. O script de varredura cuida da contabilidade (e faz um aquecimento antes: uma máquina virtual Java (JVM) fria estragaria o primeiro ponto):
 
 ``` { .bash title="scripts/sweep.sh" .copy linenums="1" }
 --8<-- "docs/2027.1/hands-on/2/code/scripts/sweep.sh"
@@ -193,7 +215,7 @@ OUT=results/lab2-pool30 bash scripts/sweep.sh 50 100 200 300 400 500 600
 uv run scripts/summarize.py results/lab2-pool30/rate-*.json
 ```
 
-Compare as duas tabelas. Em geral o joelho **sobe**, mas não para sempre: com 30 conexões, o próximo recurso satura — a única CPU do `catalog` ou o próprio PostgreSQL (observe o `docker stats`). Um pool maior também tem custo: cada conexão é um processo no PostgreSQL e no lab 6 três serviços × três réplicas × 30 conexões passariam de `max_connections`. Otimizar um recurso sempre muda o gargalo de lugar; o trabalho é saber para onde ele foi.
+Compare as duas tabelas — e compare-as com a sua previsão do playground. Se o pool era o cano mais estreito, o joelho **sobe**, mas não para sempre: com 30 conexões o próximo recurso satura — a única CPU do `catalog` ou o próprio PostgreSQL. Se o joelho **quase não se move**, o pool era só onde a fila aparecia: o `docker stats` mostra o `db` no limite de CPU e 30 conexões deixam mais listagens dividirem os mesmos núcleos (o gêmeo no fim do passo 7 reproduz esse caso; o lab 3 o encontra de novo com três réplicas). Os dois resultados respondem à pergunta; a evidência é qual recurso está cheio. Um pool maior também tem custo: cada conexão é um processo no PostgreSQL e no lab 6 três serviços × três réplicas × 30 conexões passariam de `max_connections`. Otimizar um recurso sempre muda o gargalo de lugar; o trabalho é saber para onde ele foi.
 
 ## 7. Estresse: além do joelho e de volta { #7-stress-past-the-knee-and-back }
 
@@ -203,11 +225,22 @@ K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_EXPORT=results/lab2-stress.html \
   k6 run -e PEAK=600 load/stress.js
 ```
 
-Abra [http://localhost:5665](http://localhost:5665){target="_blank"} enquanto ele roda: o dashboard web do k6 plota a taxa de requisições, os percentis de latência e os VUs ao longo do tempo; o relatório HTML é salvo no fim. Procure três momentos:
+Abra [http://localhost:5665](http://localhost:5665){target="_blank"} enquanto ele roda: o dashboard web do k6 plota a taxa de requisições, os percentis de latência e os VUs ao longo do tempo; o relatório HTML (*HyperText Markup Language*) é salvo no fim. Procure três momentos:
 
 1. **O joelho** na subida: o p95 sai do chão.
 2. **O pico**: os VUs sobem em direção a `maxVUs` — o k6 precisa de mais usuários simultâneos para manter a taxa porque cada requisição demora mais (a Lei de Little de novo, do lado do cliente).
 3. **A recuperação**: depois da queda para 25% do pico, quantos segundos até o p95 voltar ao normal? Um serviço que se recupera sozinho é *estável*; um que continua lento (filas que nunca esvaziam, um coletor de lixo que nunca alcança) precisa de load shedding — tema dos labs 3 e 9.
+
+**Sem Docker: o gêmeo.** O simulador repete este lab com um modelo da sua pilha — as 200 threads do Tomcat, o pool de `DB_POOL_SIZE` conexões, uma CPU para o `catalog`, o PostgreSQL com 7 núcleos (o lab 3 o viu a ~670% de CPU) — carregado como o `load.js`, o `sweep.sh` e o `stress.js` o carregam. Os tempos de serviço não são medidos: foram escolhidos para que a varredura tenha a forma da execução de exemplo do passo 4 (um detalhe de evento quase não custa nada; uma listagem por cidade ocupa o banco). Cada roteiro é um passo desta página.
+
+<div class="csim" data-sim="catalog-sweep" data-script="sweep"></div>
+
+!!! tip "Experimente"
+
+    1. **4 · varredura**: o p99 fica plano até 300 req/s (83 ms), sai do chão em 400 (159 ms) e bate no muro em 500: 1.364 ms, só 463 req/s atendidas e 1.688 iterações descartadas. A execução da página deu 224 ms, 2.056 ms, 490 req/s e 410: a mesma forma, outros números. No fim do passo de 600 req/s, o watch-metrics imprime a linha do passo 3 — 200 threads ocupadas, 10 ativas, 190 esperando — enquanto o `docker stats` mostra o `db` com 700% de CPU — todos os seus 7 núcleos — e o `catalog` com 61%.
+    2. **6 · pool de 30**: o joelho não se move — 464 req/s em 500. Em 400 req/s o p99 dos detalhes cai de 93 ms para 9 ms (eles não esperam mais atrás das listagens por uma conexão) e o p99 das listagens sobe de 210 ms para 289 ms (mais delas dividem os núcleos do banco). Neste modelo o pool era onde a fila aparecia e o PostgreSQL era o que estava cheio; a sua máquina decide qual caso você encontra.
+    3. **1 · fechado × aberto**: 50 VUs que esperam as respostas obtêm 459 req/s com p99 de 266 ms — dentro de uma meta de 300 ms, nada parece errado. O modelo aberto a 500 req/s, no mesmo serviço, dá p99 de 1.336 ms e 1.558 iterações descartadas.
+    4. **7 · estresse**: no pico o k6 descarta iterações e os VUs sobem; depois da queda para 150 req/s, o p99 de cada segundo volta para baixo de 300 ms 8 s depois do início da queda — este catalog se recupera sozinho.
 
 ## Meça { #measure-it }
 
@@ -253,11 +286,11 @@ Setup: catalog 1 CPU / 768 MB, Hikari pool = 10, PostgreSQL 17, k6 open model (8
 |---|---|---|
 | toda requisição falha com `connection refused` | a stack não está rodando, ou `BASE_URL` aponta para outro lugar | `docker compose ps`; no lab 2 o alvo é `http://localhost:8082` (o padrão) |
 | `level=warning msg="Insufficient VUs, reached 2000 active VUs and cannot initialize more"` | a taxa de chegada precisa de mais requisições simultâneas que `maxVUs` | esperado além do joelho; a execução continua válida — anote `dropped_iterations` |
-| `summarize.py` imprime só o cabeçalho | nenhum JSON casou com o glob (pasta `OUT` errada) | `ls results/lab2/`; passe a mesma pasta que você deu ao `sweep.sh` |
+| `summarize.py` imprime só o cabeçalho | nenhum arquivo JSON (*JavaScript Object Notation*) casou com o glob (pasta `OUT` errada) | `ls results/lab2/`; passe a mesma pasta que você deu ao `sweep.sh` |
 | `watch-metrics.sh` imprime `?` | falta o `jq`, ou o `catalog` não responde na 8082 | instale o `jq`; `curl localhost:8082/actuator/metrics` precisa listar `tomcat.threads.busy` |
 | `uv: command not found` | uv não instalado | lab 0, passo 1 — ou rode `python3 scripts/summarize.py …` (ele só usa a biblioteca padrão) |
 | o primeiro ponto de uma varredura é pior que os seguintes | JVM fria | o `sweep.sh` já faz aquecimento; repita a execução se a sua máquina estava ocupada |
-| os números variam muito entre duas execuções idênticas | carga de fundo (navegador, IDE, outros containers) | feche o que puder, pare containers não relacionados (`docker ps`), rode duas vezes e fique com a segunda |
+| os números variam muito entre duas execuções idênticas | carga de fundo (navegador, ambiente de desenvolvimento integrado (IDE, *integrated development environment*), outros containers) | feche o que puder, pare containers não relacionados (`docker ps`), rode duas vezes e fique com a segunda |
 
 !!! success "Boas práticas neste lab"
 

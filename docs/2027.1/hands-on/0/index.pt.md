@@ -1,11 +1,11 @@
 !!! abstract "Neste lab"
 
-    - Instalar e verificar as ferramentas usadas em **todos** os labs: Docker + Compose, JDK 21, Maven, uv + Python 3.12, k6, kubectl, kind ou minikube, Git.
-    - Criar **o seu repositório BoxOffice** com a estrutura que os próximos doze labs vão preencher.
+    - Instalar e verificar as ferramentas usadas em **todos** os labs: Docker + Compose, kit de desenvolvimento Java (JDK, *Java Development Kit*) 21, Maven, uv + Python 3.12, k6, kubectl, kind ou minikube, Git.
+    - Criar **o seu repositório BoxOffice** com a estrutura que os próximos treze labs vão preencher.
     - Conhecer os **nomes de serviços, portas, variáveis de ambiente e convenções** que todos os labs compartilham.
     - **Medir** a sua máquina pela primeira vez: quantas requisições por segundo ela atende e com que latência?
 
-Durante o semestre você vai construir o **BoxOffice**, uma plataforma de venda de ingressos para shows, jogos e festivais. Ele começa como um pequeno serviço no seu notebook e cresce, lab após lab, até virar um sistema com proxy de borda, API gateway, cache, banco replicado, stream de eventos, observabilidade, Kubernetes e um assistente de IA. Cada lab acrescenta um componente da paleta do [System Design Playground](../../../playground/index.md) e **cada lab termina com uma medição**: projeto de sistemas é feito de trade-offs e um trade-off só é real quando você consegue colocar um número nele.
+Durante o semestre você vai construir o **BoxOffice**, uma plataforma de venda de ingressos para shows, jogos e festivais. Ele começa como um pequeno serviço no seu notebook e cresce, lab após lab, até virar um sistema com proxy de borda, API gateway, cache, banco replicado, stream de eventos, observabilidade, Kubernetes e um assistente de inteligência artificial (IA). Cada lab acrescenta um componente da paleta do [System Design Playground](../../../playground/index.md) e **cada lab termina com uma medição**: projeto de sistemas é feito de trade-offs e um trade-off só é real quando você consegue colocar um número nele.
 
 Este primeiro lab é curto, mas importante: um ambiente quebrado custa horas depois, no meio de um teste de carga.
 
@@ -14,7 +14,7 @@ Este primeiro lab é curto, mas importante: um ambiente quebrado custa horas dep
 | | |
 |---|---|
 | **Tempo** | 1–2 horas (a maior parte são downloads) |
-| **Você precisa de** | um computador com **8 GB de RAM ou mais** (16 GB é confortável a partir do lab 4), ~20 GB livres em disco, direitos de administrador, acesso à internet |
+| **Você precisa de** | um computador com **8 GB de memória (RAM, *random-access memory*) ou mais** (16 GB é confortável a partir do lab 4), ~20 GB livres em disco, direitos de administrador, acesso à internet |
 | **Sistema operacional** | macOS, Linux ou Windows 10/11 (todo comando da disciplina roda em um shell Bash) |
 | **Estado inicial** | nenhum: este lab cria o repositório `boxoffice/` a partir de uma pasta vazia |
 
@@ -65,11 +65,11 @@ Todos os labs — e todos os projetos em equipe — usam os nomes abaixo. **Não
 
 **Serviços de aplicação** (uma pasta cada em `services/`):
 
-| Serviço no Compose | Lab | Stack | Porta | Prefixo público de rota | Schema no BD | Papel |
+| Serviço no Compose | Lab | Stack | Porta | Prefixo público de rota | Schema no banco | Papel |
 |---|---|---|---|---|---|---|
 | `edge` | 3 | Nginx 1.30 | **80** | — | — | proxy reverso, balanceador de carga, rate limiting: a única entrada pública a partir do lab 3 |
-| `gateway` | 4 | Spring Cloud Gateway | **8080** | todos | — | roteamento, validação de JWT, cabeçalhos de identidade |
-| `auth` | 4 | Spring Boot | **8081** | `/auth/**` | `auth` | usuários, login, emite JWTs (RS256) e publica o JWKS |
+| `gateway` | 4 | Spring Cloud Gateway | **8080** | todos | — | roteamento, validação de JWT (*JSON Web Token*), cabeçalhos de identidade |
+| `auth` | 4 | Spring Boot | **8081** | `/auth/**` | `auth` | usuários, login, emite JWTs (RS256) e publica o JWKS (*JSON Web Key Set*) |
 | `catalog` | 1 | Spring Boot | **8082** | `/catalog/**` | `catalog` | eventos e locais (muita leitura). Roda como `catalog-1`, `catalog-2`, `catalog-3` a partir do lab 3 |
 | `inventory` | 6 | Spring Boot | **8083** | `/inventory/**` | `inventory` | assentos e reservas (fortemente consistente) |
 | `order` | 7 | Spring Boot | **8084** | `/orders/**` | `orders` | pedidos, transactional outbox |
@@ -85,11 +85,11 @@ Todos os labs — e todos os projetos em equipe — usam os nomes abaixo. **Não
 | `db` | 1 | `postgres:17` | **5432** | banco `boxoffice`, usuário `boxoffice`, senha `boxoffice`; **um schema por serviço** |
 | `db-replica` | 6 | `postgres:17` | **5433** | réplica por streaming do `db`, somente leitura |
 | `pgbouncer` | 6 | `edoburu/pgbouncer:v1.26.0-p0` | **6432** | pool de conexões na frente do `db` |
-| `redis` | 5 | `redis:8-alpine` | **6379** | cache (`maxmemory` + LRU) |
+| `redis` | 5 | `redis:8-alpine` | **6379** | cache (`maxmemory` + remoção do menos usado recentemente, LRU, *least recently used*) |
 | `kafka` | 7 | Apache Kafka (KRaft) | **9092** | stream de eventos |
 | `otel-lgtm` | 8 | `grafana/otel-lgtm` | **3000** (Grafana), **4317**/**4318** (OTLP gRPC/HTTP) | métricas, logs, traces |
 | `toxiproxy` | 9 | `ghcr.io/shopify/toxiproxy` | **8474** (API) | injeção de latência e falhas |
-| `ollama` | 12 | `ollama/ollama` | **11434** | LLM local |
+| `ollama` | 12 | `ollama/ollama` | **11434** | modelo de linguagem de grande porte (LLM, *large language model*) local |
 | painel web do k6 | 2 | — | **5665** | `K6_WEB_DASHBOARD=true k6 run …` |
 | hello (só no lab 0) | 0 | `nginx:1.30-alpine` | **8888** | alvo da medição de referência |
 
@@ -97,15 +97,15 @@ Todos os labs — e todos os projetos em equipe — usam os nomes abaixo. **Não
 
 | Tema | Convenção |
 |---|---|
-| Java | JDK **21**, Spring Boot **4.1.x** (Spring Framework 7, Jackson 3), Spring Cloud **2025.1.x**, Maven, sem Lombok (`record`s do Java para os DTOs) |
+| Java | JDK **21**, Spring Boot **4.1.x** (Spring Framework 7, Jackson 3), Spring Cloud **2025.1.x**, Maven, sem Lombok (`record`s do Java para os objetos de transferência de dados, DTOs, *data transfer objects*) |
 | Python | Python 3.12 gerenciado pelo **uv** (`uv init`, `uv add <pacote>`, `uv run <cmd>`, `uvx <ferramenta>`); nunca `pip`/`venv`. Dockerfiles copiam o uv com `COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/` e rodam `uv sync --frozen` |
 | Pacotes | `boxoffice.<serviço>` (ex.: `boxoffice.catalog`); `groupId` Maven `boxoffice`, `artifactId` = nome do serviço |
-| Caminhos HTTP | cada serviço atende **apenas** sob o seu prefixo (`catalog` → `/catalog/...`), então o edge e o gateway roteiam sem reescrever caminhos |
+| Caminhos HTTP (*Hypertext Transfer Protocol*) | cada serviço atende **apenas** sob o seu prefixo (`catalog` → `/catalog/...`), então o edge e o gateway roteiam sem reescrever caminhos |
 | Banco de dados | uma instância PostgreSQL (`db`), um **schema por serviço**, de propriedade das migrations Flyway daquele serviço (`src/main/resources/db/migration`); nada de joins entre schemas |
 | Saúde | Spring Boot Actuator: `/actuator/health`, `/actuator/health/liveness`, `/actuator/health/readiness`, `/actuator/metrics` |
-| Erros | RFC 9457 `application/problem+json` (`spring.mvc.problemdetails.enabled: true`) |
+| Erros | RFC (*Request for Comments*) 9457 `application/problem+json` (`spring.mvc.problemdetails.enabled: true`) |
 | Arquivo Compose | `docker-compose.yaml` na raiz do repositório, nome de projeto `boxoffice` |
-| Scripts de carga | `load/*.js` (k6), URL base em `BASE_URL`; resultados salvos em `results/` |
+| Scripts de carga | `load/*.js` (k6), URL (*Uniform Resource Locator*) base em `BASE_URL`; resultados salvos em `results/` |
 
 **Variáveis de ambiente** (o mesmo nome em todo lugar; padrões entre parênteses):
 
@@ -163,7 +163,7 @@ A tabela lista para que serve cada ferramenta; as abas abaixo mostram como insta
     uv python install 3.12              # Python is managed by uv, not by Homebrew or pip
     ```
 
-    Abra o Docker Desktop uma vez para ele iniciar o engine e dê a ele **pelo menos 4 CPUs e 8 GB de memória** (*Settings → Resources*).
+    Abra o Docker Desktop uma vez para ele iniciar o engine e dê a ele **pelo menos 4 CPUs (unidades centrais de processamento) e 8 GB de memória** (*Settings → Resources*).
 
 === ":simple-linux: Linux (Ubuntu 24.04)"
 
@@ -345,13 +345,27 @@ docker stop hello
     vus............................: 10     min=10          max=10
 ```
 
-Seus números dependem da máquina. Com o Docker Desktop (macOS, Windows) cada requisição também atravessa o encaminhamento de portas da VM, então espere algumas vezes menos do que no Linux nativo — cerca de 15.000 req/s com 10 VUs em um notebook Apple Silicon de 8 núcleos.
+Seus números dependem da máquina. Com o Docker Desktop (macOS, Windows) cada requisição também atravessa o encaminhamento de portas da máquina virtual (VM, *virtual machine*), então espere algumas vezes menos do que no Linux nativo — cerca de 15.000 req/s com 10 VUs em um notebook Apple Silicon de 8 núcleos.
 
 Leia o resumo assim:
 
 - `http_reqs … /s` é a **vazão** (throughput, em requisições por segundo, RPS).
 - `http_req_duration` dá a distribuição de **latência**: `med` é a mediana (p50), `p(95)`/`p(99)` são os percentis 95 e 99 — 1 requisição em 100 é mais lenta que o p99.
 - `vus` é a **concorrência**: cada usuário virtual envia uma requisição, espera a resposta e envia a próxima (um modelo de carga *fechado*).
+
+``` diagram-sim
+sequenceDiagram
+    participant V as VU 1 (de 10)
+    participant N as hello (Nginx)
+    V->>N: GET /
+    N-->>V: 200 depois de W, a latência
+    V->>N: GET / de novo na hora (sem tempo de pensar)
+    N-->>V: 200 depois de W
+    Note over V,N: um VU completa 1 / W requisições por segundo
+    Note over V,N: 10 VUs completam λ = 10 / W, então L = λ × W = 10 requisições dentro
+```
+
+É por isso que `vus` ≈ throughput × latência média em toda execução: o gerador de carga decide quantas requisições estão dentro e a latência do servidor decide o throughput. Quando o servidor fica lento, um modelo fechado manda *menos* — o lab 2 mostra por que isso esconde a sobrecarga.
 
 Registre os resultados em `results/lab0.md`:
 
@@ -382,7 +396,7 @@ Little's Law check (VUs ≈ throughput × average latency):
 
 O [System Design Playground](../../../playground/index.md) simula, sob carga e em segundos, os mesmos componentes que você vai construir. Cada lab incorpora o cenário que está prestes a medir de verdade, para você formar uma hipótese *antes* de rodar o k6.
 
-**Experimente:** aperte **Run** no cenário `monolith` abaixo (um servidor de aplicação, um banco SQL). Aumente a carga até o p99 saltar. Qual componente satura primeiro? Anote a resposta — você vai confrontá-la com o seu próprio serviço `catalog` no lab 2.
+**Experimente:** aperte **Run** no cenário `monolith` abaixo (um servidor de aplicação, um banco SQL, *Structured Query Language*). Aumente a carga até o p99 saltar. Qual componente satura primeiro? Anote a resposta — você vai confrontá-la com o seu próprio serviço `catalog` no lab 2.
 
 <div class="sdp" data-scenario="monolith" data-mode="compact" data-height="460"></div>
 
@@ -400,7 +414,7 @@ O [System Design Playground](../../../playground/index.md) simula, sob carga e e
 !!! success "Boas práticas neste lab"
 
     - **Confira o ferramental com um script, não de memória** — `scripts/check-env.sh` mostra cada ferramenta e versão, então um ambiente quebrado aparece em segundos, não no meio de um teste de carga. Por que importa: toda medição da disciplina supõe o mesmo ambiente ([Como estudar projeto de sistemas](../../classes/intro/index.md)).
-    - **Mantenha segredos e saídas volumosas fora do Git** — o `.gitignore` exclui `.env` e os relatórios HTML do k6 e mantém os resumos JSON e as tabelas em `results/*.md`. Segurança é um atributo de qualidade desde o primeiro dia ([Requisitos](../../classes/intro/requirements/index.md)).
+    - **Mantenha segredos e saídas volumosas fora do Git** — o `.gitignore` exclui `.env` e os relatórios HTML (*HyperText Markup Language*) do k6 e mantém os resumos JSON (*JavaScript Object Notation*) e as tabelas em `results/*.md`. Segurança é um atributo de qualidade desde o primeiro dia ([Requisitos](../../classes/intro/requirements/index.md)).
     - **Meça uma referência antes de mudar qualquer coisa** — `load/hello.js` diz o que a *sua* máquina atende, a referência de todo número seguinte ([Estimativas](../../classes/estimation/index.md)).
     - **Anote cada medição com o seu ambiente** — `results/lab0.md` registra máquina, taxa e latência; um número sem o ambiente não pode ser comparado ([Tornando requisitos mensuráveis](../../classes/intro/requirements/index.md)).
 

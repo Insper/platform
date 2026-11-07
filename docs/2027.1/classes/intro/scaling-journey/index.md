@@ -1,5 +1,5 @@
 
-Most famous architectures were not designed; they **evolved**. They started as one program and one database on one machine, and each new component was added because a specific symptom — a saturated CPU, a slow page, an outage during a deploy — made it necessary. This page follows BoxOffice along that path, from its first user to ten million, one symptom at a time[^1].
+Most famous architectures were not designed; they **evolved**. They started as one program and one database on one machine, and each new component was added because a specific symptom — a saturated central processing unit (CPU), a slow page, an outage during a deploy — made it necessary. This page follows BoxOffice along that path, from its first user to ten million, one symptom at a time[^1].
 
 Two rules guide the whole journey:
 
@@ -9,15 +9,15 @@ Two rules guide the whole journey:
 | Stage | Scale (illustrative) | Symptom | What is added | New problem it brings |
 |---|---|---|---|---|
 | 0 | first users | — | one server: app + database | everything fails together |
-| 1 | ~10 k users | app and DB fight for CPU and memory | separate **SQL Database** | network hop; two things to run |
+| 1 | ~10 k users | app and database fight for CPU and memory | separate **Structured Query Language (SQL) Database** | network hop; two things to run |
 | 2 | ~100 k daily users | a deploy or a crash takes the site down | **Load Balancer** + stateless **App Server** replicas + **Health Check** | session state must leave the server |
 | 3 | ~1 M daily users | database CPU high, mostly reads | **read replicas** | replication lag, stale reads |
 | 4 | same | catalog p99 grows with traffic | **Cache** | invalidation, cold cache, stampede |
-| 5 | same | bandwidth bill and page weight | **CDN** + **Object Store** | cache invalidation at the edge |
+| 5 | same | bandwidth bill and page weight | **content delivery network (CDN)** + **Object Store** | cache invalidation at the edge |
 | 6 | first big on-sale | checkout slowed by e-mail; spike crushes inventory | **Message Queue** + **Worker**; waiting room | duplicates, backlog, ordering |
-| 7 | many teams, many features | one bug or one deploy affects everything | split into **services**; **API Gateway**; **Event Stream** | network calls fail; distributed data |
+| 7 | many teams, many features | one bug or one deploy affects everything | split into **services**; **application programming interface (API) Gateway**; **Event Stream** | network calls fail; distributed data |
 | 8 | ~10 M daily users | one database is too big / too hot | **partitioning**, **Search**, **Data Warehouse** | hot partitions, cross-shard queries |
-| 9 | national scale | bots, attacks, a region outage | **WAF**, rate limiting, **multi-region** + **DNS** failover | data replication across regions |
+| 9 | national scale | bots, attacks, a region outage | **web application firewall (WAF)**, rate limiting, **multi-region** + **Domain Name System (DNS)** failover | data replication across regions |
 
 The numbers are orders of magnitude for a read-heavy web product, not thresholds: a different workload hits each wall at a different point. **Measure, then decide.**
 
@@ -25,7 +25,7 @@ The numbers are orders of magnitude for a read-heavy web product, not thresholds
 
 ## Stage 0 — one box
 
-The first version of BoxOffice is a single Spring Boot application and a PostgreSQL database **on the same virtual machine**. DNS points the domain to its IP address.
+The first version of BoxOffice is a single Spring Boot application and a PostgreSQL database **on the same virtual machine**. DNS points the domain to its Internet Protocol (IP) address.
 
 ``` diagram-sim
 flowchart LR
@@ -38,7 +38,7 @@ This is the **right** architecture for the first users: one thing to deploy, mon
 
 ## Stage 1 — separate the database
 
-**Symptom**: under load, the database's buffer cache and the JVM fight for memory; a heavy report slows down every page; restarting the app for a deploy also risks the database.
+**Symptom**: under load, the database's buffer cache and the Java virtual machine (JVM) fight for memory; a heavy report slows down every page; restarting the app for a deploy also risks the database.
 
 **Change**: move PostgreSQL to its own machine — or better, a **managed** database service that handles backups, patches and failover. Now the web tier and the data tier can be sized and scaled **independently**: the app needs CPU, the database needs memory and fast disks.
 
@@ -90,6 +90,24 @@ flowchart LR
 
 **New problem — replication lag**: replicas are a few milliseconds (or, under load, seconds) behind the primary. A fan pays, is redirected to "My orders", the page reads from a replica… and the order is not there yet. Fixes include **read-your-writes** (read the fan's own recent data from the primary) or routing whole critical flows to the primary. And the seat inventory, which must never be stale, keeps reading from the primary.
 
+``` diagram-sim
+sequenceDiagram
+    participant F as Fan
+    participant A as App
+    participant P as Primary
+    participant R as Replica
+    F->>A: POST /orders (pay)
+    A->>P: INSERT the order
+    P-->>A: committed
+    P-)R: replication (arrives a moment later)
+    A-->>F: 302 to My orders
+    F->>A: GET /orders/mine
+    A->>R: SELECT the fan's orders
+    R-->>A: no order yet: the replica is behind
+    A-->>F: My orders is empty
+    Note over A,P: read-your-writes: for a few seconds after a write, read this fan's data from the primary
+```
+
 **Try it:** add read replicas and watch the primary's utilization fall; then increase the replication lag and look for stale reads. Which BoxOffice pages could tolerate them?
 
 <div class="sdp" data-scenario="db-replicas" data-mode="compact" data-height="500"></div>
@@ -112,7 +130,7 @@ The arithmetic is what makes caches the most powerful tool in the palette. With 
 
 **Symptom**: event pages carry posters and venue photos — about 1 MB per page view. At 1,000 page views per second that is **1 GB/s (8 Gbit/s)** leaving BoxOffice's servers, most of it identical bytes sent again and again. Fans far from the data centre wait for every image.
 
-**Change**: move images and static files (JavaScript, CSS) to an **object store** (S3-like: cheap, durable, unlimited) and serve them through a **CDN** (*Content Delivery Network*), a network of edge servers near the users that cache those files. The origin serves each file once per edge location instead of once per fan.
+**Change**: move images and static files (JavaScript, Cascading Style Sheets — CSS) to an **object store** (S3-like: cheap, durable, unlimited) and serve them through a **CDN** (*Content Delivery Network*), a network of edge servers near the users that cache those files. The origin serves each file once per edge location instead of once per fan.
 
 **New problem**: a changed poster stays cached at hundreds of edge locations. The common fix is **versioned file names** (`poster.v2.jpg`, or a content hash) instead of trying to purge every edge.
 
@@ -122,7 +140,7 @@ The arithmetic is what makes caches the most powerful tool in the palette. With 
 
 ## Stage 6 — asynchronous work and the first on-sale
 
-**Symptom 1**: checkout takes 2–3 s, and most of it is not paying — it is generating the PDF ticket and sending the e-mail *while the fan waits*. When the e-mail provider is slow, checkout is slow; when it is down, **checkout fails**.
+**Symptom 1**: checkout takes 2–3 s, and most of it is not paying — it is generating the PDF (Portable Document Format) ticket and sending the e-mail *while the fan waits*. When the e-mail provider is slow, checkout is slow; when it is down, **checkout fails**.
 
 **Change**: anything that does not need to finish before the response goes to a **message queue**. Checkout writes the order, publishes a `TicketIssued` message and answers immediately; **workers** consume the queue, render the PDF and send the e-mail at their own pace, retrying on failure.
 
@@ -177,7 +195,7 @@ flowchart LR
 
 **Change**: a **WAF** (*Web Application Firewall*) and bot mitigation at the edge; **rate limiting** in the API Gateway (per fan, per IP, per card); deployment across **multiple availability zones** first, then **multiple regions** with **DNS** failover.
 
-**New problem**: data now lives far apart. Replicating the seat inventory across regions synchronously costs tens of milliseconds per write (the speed of light is a hard limit); asynchronously, it risks selling a seat twice during a failover. The usual compromise: each event's inventory has **one home region**, and other regions forward holds to it. Class 3 explains why there is no free lunch here (CAP and PACELC).
+**New problem**: data now lives far apart. Replicating the seat inventory across regions synchronously costs tens of milliseconds per write (the speed of light is a hard limit); asynchronously, it risks selling a seat twice during a failover. The usual compromise: each event's inventory has **one home region**, and other regions forward holds to it. Class 3 explains why there is no free lunch here (the CAP and PACELC theorems).
 
 **Try it:** the final scenario is a flash sale (our 10:00 on-sale) on a design that has none of these components yet: `users → lb → app → inventory-db`, plus the `payment provider`. Press **Run**: when the sale opens (t = 60 s) the traffic jumps 20×. Find the first bottleneck, raise its capacity and find the next one. Then open it in the full playground (↗) and press **Show a possible solution** to see the components of this journey working together — CDN, cache, API gateway and a waiting-room queue.
 

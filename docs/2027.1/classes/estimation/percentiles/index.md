@@ -149,7 +149,7 @@ Tail latency is rarely caused by the "normal" code path. Typical causes[^3]:
 |---|---|---|
 | **Queueing** | a burst arrives while a server is busy | headroom (lower utilization), load balancing on least-loaded |
 | **Shared resources** | noisy neighbours on the same host, disk or network | isolation, dedicated capacity for critical paths |
-| **Garbage collection** | a JVM pauses for 200 ms | GC tuning, low-pause collectors, smaller heaps |
+| **Garbage collection** | a Java virtual machine (JVM) pauses for 200 ms | garbage-collector (GC) tuning, low-pause collectors, smaller heaps |
 | **Background work** | database compaction, log rotation, backups | schedule off-peak, rate-limit background tasks |
 | **Cache misses** | cold cache after deploy; rare keys | pre-warming, larger cache, request coalescing |
 | **Retries and timeouts** | the first attempt times out at 1 s, the retry succeeds | well-tuned timeouts, hedging instead of waiting |
@@ -169,13 +169,29 @@ You cannot eliminate variability; you can design so that it does not reach the u
 - **Take work off the critical path**: what does not need to finish before the response (e-mails, analytics, search indexing) goes to a queue.
 - **Keep utilization low** on latency-critical components, and **isolate** them from batch work.
 
+A hedged request, step by step — one of the 20 search shards stalls on a garbage-collection pause:
+
+``` diagram-sim
+sequenceDiagram
+    participant S as search service
+    participant A as shard 7, replica A
+    participant B as shard 7, replica B
+    S->>A: query (the other 19 shards answer in ~15 ms)
+    Note over A: a 200 ms garbage-collection pause
+    Note over S: no answer after the shard's p95
+    S->>B: the same query, a second copy
+    B-->>S: results in ~15 ms
+    S->>A: cancel the first copy
+    Note over S,B: the user waits p95 + 15 ms instead of the pause, and only ~5% of queries went out twice
+```
+
 ### Latency budgets
 
 A user-facing target must be split across the components on the path. For BoxOffice checkout (p99 < 1.5 s):
 
 | Step | Budget (p99) | Notes |
 |---|---|---|
-| Edge (CDN, WAF, gateway) | 50 ms | TLS termination near the user |
+| Edge (content delivery network, CDN; web application firewall, WAF; gateway) | 50 ms | Transport Layer Security (TLS) termination near the user |
 | `order` service logic | 50 ms | validation, idempotency check |
 | `inventory` (confirm hold) | 100 ms | one transaction on the primary |
 | `payment` → provider | 1,000 ms | the provider dominates; timeout at 1.2 s |
@@ -206,7 +222,7 @@ Two traps make tail latency look better than it is:
 
 <div class="sdp" data-scenario="scale-out" data-mode="compact" data-profile="load" data-chaos="low" data-height="500"></div>
 
-??? question "Think first: SLO for the seat map"
+??? question "Think first: a service level objective (SLO) for the seat map"
 
     BoxOffice wants an SLO for the seat-map endpoint. Option A: "average latency < 100 ms". Option B: "99% of requests < 300 ms, measured at the gateway over 28 days". Which one, and why?
 

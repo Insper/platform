@@ -3,14 +3,14 @@ A BoxOffice promete aos organizadores que o checkout estará disponível **99,95
 
 ---
 
-## Disponibilidade, MTTF e MTTR { #availability-mttf-and-mttr }
+## Disponibilidade, tempo médio até a falha (MTTF) e até a recuperação (MTTR) { #availability-mttf-and-mttr }
 
 **Disponibilidade** é a fração do tempo — ou das requisições — em que um sistema faz o seu trabalho. Duas formas de medi-la são comuns:
 
 | Tipo | Fórmula | Bom para |
 |---|---|---|
 | **Baseada em tempo** | tempo no ar / (tempo no ar + tempo fora do ar) | infraestrutura, "está no ar?" |
-| **Baseada em requisições** | requisições bem-sucedidas / requisições válidas | serviços; o que os usuários realmente experimentam; a base dos SLOs[^2] |
+| **Baseada em requisições** | requisições bem-sucedidas / requisições válidas | serviços; o que os usuários realmente experimentam; a base dos objetivos de nível de serviço (SLOs, *service level objectives*)[^2] |
 
 Para um componente que alterna entre funcionar e estar em reparo, a disponibilidade sai de duas médias:
 
@@ -160,10 +160,10 @@ flowchart LR
 
 | Design | Cálculo | Disponibilidade | Falhas a cada 30 dias |
 |---|---|---|---|
-| **Ingênuo** (tudo síncrono, em série) | 0,9999 × 0,9995⁴ × 0,999 × 0,995 | **99,19%** | ~5,8 h |
-| **E-mail assíncrono** (fila + worker; fora do caminho crítico) | 0,9999 × 0,9995⁴ × 0,999 | 99,69% | ~2,2 h |
-| **+ segundo provedor de pagamento** (failover quando o primeiro cai) | 0,9999 × 0,9995⁴ × (1 − 0,001²) | 99,79% | ~1,5 h |
-| **+ todo componente interno a 99,99%** (réplicas, failover automático, deploys seguros) | 0,9999⁵ × (1 − 0,001²) | **99,95%** | ~22 min |
+| **Ingênuo** (tudo síncrono, em série) | 0,9999 × 0,9995⁴ × 0,999 × 0,995 | 🔴 **99,19%** | ~5,8 h |
+| **E-mail assíncrono** (fila + worker; fora do caminho crítico) | 0,9999 × 0,9995⁴ × 0,999 | 🟡 99,69% | ~2,2 h |
+| **+ segundo provedor de pagamento** (failover quando o primeiro cai) | 0,9999 × 0,9995⁴ × (1 − 0,001²) | 🟡 99,79% | ~1,5 h |
+| **+ todo componente interno a 99,99%** (réplicas, failover automático, deploys seguros) | 0,9999⁵ × (1 − 0,001²) | ✅ **99,95%** | ~22 min |
 
 Três lições, em ordem decrescente de custo-benefício:
 
@@ -173,7 +173,7 @@ Três lições, em ordem decrescente de custo-benefício:
 
 !!! tip "Dependências suaves não entram na cadeia"
 
-    Uma dependência cuja falha o serviço consegue **tolerar** — servindo um valor em cache, um padrão ou uma página parcial — não se multiplica na disponibilidade do caminho crítico. Recomendações, contadores de visualização e o assistente de IA devem ser todos dependências *suaves* do checkout: se falharem, o checkout continua funcionando. Transformar dependências rígidas em suaves (fallbacks, caches, assíncrono) é uma habilidade de design que você vai praticar na [aula 10](../../reliability/index.md).
+    Uma dependência cuja falha o serviço consegue **tolerar** — servindo um valor em cache, um padrão ou uma página parcial — não se multiplica na disponibilidade do caminho crítico. Recomendações, contadores de visualização e o assistente de inteligência artificial (IA) devem ser todos dependências *suaves* do checkout: se falharem, o checkout continua funcionando. Transformar dependências rígidas em suaves (fallbacks, caches, assíncrono) é uma habilidade de design que você vai praticar na [aula 10](../../reliability/index.md).
 
 ---
 
@@ -184,7 +184,7 @@ Todas as fórmulas acima supõem que os componentes falham de forma **independen
 - Duas réplicas no **mesmo host, rack ou zona de disponibilidade** caem junto com ele.
 - Duas réplicas rodando a **mesma versão com bug** quebram com a mesma entrada.
 - Uma **configuração ruim** aplicada em todo lugar de uma vez quebra todas as réplicas de uma vez.
-- Uma dependência compartilhada — o mesmo provedor de DNS, o mesmo certificado que expira, o mesmo banco — é um **ponto único de falha** escondido atrás de uma redundância aparente.
+- Uma dependência compartilhada — o mesmo provedor de DNS (*Domain Name System*), o mesmo certificado que expira, o mesmo banco — é um **ponto único de falha** escondido atrás de uma redundância aparente.
 - Sobrecarga: quando uma réplica morre, seu tráfego vai para as outras, que podem falhar também (uma falha em cascata).
 
 !!! example "BoxOffice — três réplicas, uma queda"
@@ -225,7 +225,7 @@ Dez failovers por ano a 30 s + 30 s cada dão 10 minutos: tudo bem para 99,99% (
 
     A BoxOffice roda em uma região com três zonas de disponibilidade. A documentação do provedor sugere que a queda de uma região inteira é rara, mas, quando acontece, pode durar horas. Uma segunda região (ativo-passivo, com failover por DNS) dobraria aproximadamente o custo de infraestrutura. Como você decidiria?
 
-    **Esboço de resposta**: estime o **custo esperado da indisponibilidade** contra o custo da segunda região. Se uma queda regional de ~4 h acontece mais ou menos uma vez a cada dois anos (uma premissa a validar com o histórico do seu provedor), a indisponibilidade esperada é de ~2 h/ano — quase metade das ~4,4 h/ano que uma meta de 99,95% permite, antes de qualquer outro incidente. Depois considere *quando* ela acontece: uma queda regional durante a abertura de vendas de um estádio custa ao negócio muito mais que uma às 4 da manhã de uma terça-feira. Se o SLA com os organizadores prevê multas, ou se uma abertura de vendas perdida custa mais que um ano de uma segunda região, vale a pena — e aí a parte difícil são os dados (aula 3 e aula 10), não os servidores.
+    **Esboço de resposta**: estime o **custo esperado da indisponibilidade** contra o custo da segunda região. Se uma queda regional de ~4 h acontece mais ou menos uma vez a cada dois anos (uma premissa a validar com o histórico do seu provedor), a indisponibilidade esperada é de ~2 h/ano — quase metade das ~4,4 h/ano que uma meta de 99,95% permite, antes de qualquer outro incidente. Depois considere *quando* ela acontece: uma queda regional durante a abertura de vendas de um estádio custa ao negócio muito mais que uma às 4 da manhã de uma terça-feira. Se o acordo de nível de serviço (SLA, *service level agreement*) com os organizadores prevê multas, ou se uma abertura de vendas perdida custa mais que um ano de uma segunda região, vale a pena — e aí a parte difícil são os dados (aula 3 e aula 10), não os servidores.
 
 !!! tip "Na entrevista"
 

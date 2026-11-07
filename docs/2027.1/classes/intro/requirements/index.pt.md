@@ -11,9 +11,9 @@ Requisitos são a entrada de todo design. Um design só pode ser julgado em rela
 |---|---|---|
 | **Descrevem** | *o que* o sistema faz — funcionalidades, comportamentos | *quão bem* ele faz — qualidades e restrições |
 | **Forma típica** | "Um fã pode reservar até 6 lugares por 10 minutos" | "Reservas de lugares terminam em menos de 300 ms (p99) com 5.000 reservas/s" |
-| **Respondidos por** | casos de uso, APIs, modelo de dados | arquitetura: componentes, replicação, cache, filas |
-| **Se faltarem** | o sistema faz a coisa errada | o sistema faz a coisa certa — para 10 usuários, num dia bom |
-| **Também chamados** | funcionalidades, requisitos comportamentais | atributos de qualidade, "-idades", RNFs |
+| **Respondidos por** | casos de uso, interfaces de programação (APIs, *application programming interfaces*), modelo de dados | arquitetura: componentes, replicação, cache, filas |
+| **Se faltarem** | ❌ o sistema faz a coisa errada | ⚠️ o sistema faz a coisa certa — para 10 usuários, num dia bom |
+| **Também chamados** | funcionalidades, requisitos comportamentais | atributos de qualidade, "-idades", RNFs (requisitos não funcionais) |
 
 Os requisitos funcionais decidem **quais APIs e dados** existem. Os não funcionais decidem **qual arquitetura** os entrega. Em design de sistemas, o lado não funcional comanda quase todas as decisões: a mesma funcionalidade "vender um ingresso" pode ser uma única tabela do PostgreSQL para um teatro de 200 lugares, ou uma sala de espera, um inventário particionado e um event stream para um estádio.
 
@@ -28,7 +28,7 @@ Comece pelos **atores** (quem usa o sistema) e seus **objetivos**. Para a BoxOff
 | **Fã** | navegar e buscar eventos; ver o mapa de lugares; reservar lugares; pagar; receber o ingresso; transferir ou cancelar |
 | **Organizador** | criar um evento; configurar setores e preços do local; agendar a abertura das vendas; acompanhar as vendas ao vivo |
 | **Equipe do local** | validar ingressos no portão (QR code), mesmo com rede ruim |
-| **Suporte** | responder às dúvidas dos fãs (com ajuda do assistente de IA); emitir reembolsos |
+| **Suporte** | responder às dúvidas dos fãs (com ajuda do assistente de inteligência artificial, IA); emitir reembolsos |
 | **Sistemas externos** | o provedor de pagamentos confirma ou recusa cobranças; provedores de e-mail/push entregam mensagens |
 
 Depois, transforme os objetivos numa lista curta e priorizada. Na prática — e numa entrevista — você não consegue projetar tudo, então escolhe o **caminho principal** e diz explicitamente o que fica fora do escopo:
@@ -66,14 +66,14 @@ Requisitos não funcionais descrevem **qualidades** do sistema. A literatura de 
 
 | Atributo de qualidade | Pergunta que responde | Como medir | Meta da BoxOffice (premissa) | Componentes da paleta que ajudam |
 |---|---|---|---|---|
-| **Escalabilidade** | Dá conta de mais carga acrescentando recursos? | throughput máximo sustentável dentro da meta de latência | 2 M de fãs chegando em 1 min numa abertura de vendas; 1.500 req/s no catálogo num dia normal | Load Balancer, réplicas de App Server, Cache, CDN, Queue, partições NoSQL |
-| **Disponibilidade** | Está no ar quando os usuários precisam? | % de requisições bem-sucedidas numa janela | 99,95% para o checkout em janela móvel de 28 dias | réplicas, Health Check, multi-AZ, failover por DNS |
+| **Escalabilidade** | Dá conta de mais carga acrescentando recursos? | throughput máximo sustentável dentro da meta de latência | 2 M de fãs chegando em 1 min numa abertura de vendas; 1.500 req/s no catálogo num dia normal | Load Balancer, réplicas de App Server, Cache, rede de distribuição de conteúdo (CDN, *content delivery network*), Queue, partições NoSQL |
+| **Disponibilidade** | Está no ar quando os usuários precisam? | % de requisições bem-sucedidas numa janela | 99,95% para o checkout em janela móvel de 28 dias | réplicas, Health Check, várias zonas de disponibilidade (multi-AZ, *availability zones*), failover por DNS (*Domain Name System*) |
 | **Latência** | Quanto tempo o usuário espera? | percentis (p50, p99) do tempo de resposta | catálogo p99 < 200 ms; reserva p99 < 300 ms; checkout p99 < 1,5 s | Cache, CDN, trabalho assíncrono, índices |
-| **Consistência** | Todos os leitores veem o mesmo dado, o mais recente? | anomalias permitidas (leituras desatualizadas, escritas duplicadas) | um lugar é vendido **no máximo uma vez**; o catálogo pode ter 60 s de atraso | transações SQL, líder único, consenso |
-| **Durabilidade** | Um dado confirmado pode se perder? | eventos de perda de dados; RPO | zero pedidos confirmados perdidos; RPO = 0 para pedidos | replicação, backups, Object Store |
+| **Consistência** | Todos os leitores veem o mesmo dado, o mais recente? | anomalias permitidas (leituras desatualizadas, escritas duplicadas) | um lugar é vendido **no máximo uma vez**; o catálogo pode ter 60 s de atraso | transações SQL (*Structured Query Language*), líder único, consenso |
+| **Durabilidade** | Um dado confirmado pode se perder? | eventos de perda de dados; objetivo de ponto de recuperação (RPO, *recovery point objective*) | zero pedidos confirmados perdidos; RPO = 0 para pedidos | replicação, backups, Object Store |
 | **Custo** | Quanto custa para rodar? | dinheiro por mês; custo por unidade de negócio | < R$ 0,10 de infraestrutura por ingresso vendido | dimensionamento correto, autoscaling, Serverless, descarga na CDN |
-| **Segurança** | Está protegido contra uso indevido e ataques? | ameaças mitigadas; achados de auditoria | nenhum dado de cartão armazenado (escopo PCI minimizado); robôs bloqueados | WAF, Auth Service, API Gateway, VPC, Safety Mesh |
-| **Operabilidade** | A equipe consegue rodar, mudar e consertar? | MTTR, frequência de deploys, qualidade dos alertas | deploy diário sem indisponibilidade; MTTR < 30 min | Metrics, Logs, Tracing, Alerting, CI/CD |
+| **Segurança** | Está protegido contra uso indevido e ataques? | ameaças mitigadas; achados de auditoria | nenhum dado de cartão armazenado (escopo PCI, *Payment Card Industry*, minimizado); robôs bloqueados | firewall de aplicação web (WAF, *web application firewall*), Auth Service, API Gateway, nuvem privada virtual (VPC, *virtual private cloud*), Safety Mesh |
+| **Operabilidade** | A equipe consegue rodar, mudar e consertar? | tempo médio de recuperação (MTTR, *mean time to recovery*), frequência de deploys, qualidade dos alertas | deploy diário sem indisponibilidade; MTTR < 30 min | Metrics, Logs, Tracing, Alerting, CI/CD |
 
 O restante desta seção dá a cada atributo um significado preciso — "escalável" e "disponível" são usados de forma vaga no dia a dia e palavras vagas geram requisitos ruins.
 
@@ -115,7 +115,7 @@ A ideia-chave é que **nem todo dado precisa da mesma consistência**:
 | Descrição do evento, preços mostrados nas listagens | eventual (segundos a um minuto) | uma descrição um pouco desatualizada não prejudica ninguém; a reserva confere o preço de novo |
 | "1.234 pessoas estão vendo este evento" | aproximada | é uma dica, não uma promessa |
 
-Consistência forte custa latência e disponibilidade (você verá por quê com CAP e PACELC na [aula 3](../../distributed/index.md)), então você paga por ela **só onde o negócio precisa**.
+Consistência forte custa latência e disponibilidade (você verá por quê com os teoremas CAP e PACELC — consistência, disponibilidade, tolerância a partição, latência — na [aula 3](../../distributed/index.md)), então você paga por ela **só onde o negócio precisa**.
 
 ### Durabilidade { #durability }
 
@@ -129,7 +129,7 @@ Todo componente tem um preço: máquinas, serviços gerenciados, armazenamento, 
 
 ### Segurança { #security }
 
-**Segurança** protege a **confidencialidade** (só as pessoas certas leem os dados), a **integridade** (só as pessoas certas os alteram) e a **disponibilidade** (atacantes não conseguem derrubá-los) — a tríade CIA. Na BoxOffice, ela se traduz em requisitos concretos: fãs se autenticam antes de comprar; um organizador só vê os próprios eventos; robôs não conseguem comprar 500 ingressos em um segundo; números de cartão **nunca** passam pelos servidores da BoxOffice (o provedor de pagamentos os tokeniza, o que deixa a BoxOffice fora da maior parte do escopo do PCI DSS[^5]); dados pessoais seguem a lei brasileira de proteção de dados, a LGPD (*Lei Geral de Proteção de Dados*)[^6].
+**Segurança** protege a **confidencialidade** (só as pessoas certas leem os dados), a **integridade** (só as pessoas certas os alteram) e a **disponibilidade** (atacantes não conseguem derrubá-los) — a tríade CIA (*confidentiality, integrity, availability*). Na BoxOffice, ela se traduz em requisitos concretos: fãs se autenticam antes de comprar; um organizador só vê os próprios eventos; robôs não conseguem comprar 500 ingressos em um segundo; números de cartão **nunca** passam pelos servidores da BoxOffice (o provedor de pagamentos os tokeniza, o que deixa a BoxOffice fora da maior parte do escopo do PCI DSS (*Data Security Standard*)[^5]); dados pessoais seguem a lei brasileira de proteção de dados, a LGPD (*Lei Geral de Proteção de Dados*)[^6].
 
 ### Operabilidade { #operability }
 
@@ -169,7 +169,7 @@ Escrito como requisitos, um conjunto mensurável para a BoxOffice fica assim:
     - **Durabilidade**: zero perda de pedidos pagos (RPO = 0); analytics com RPO de 15 min.
     - **Segurança**: nenhum dado de cartão armazenado; compras por robôs bloqueadas na borda; conformidade com a LGPD.
     - **Custo**: < R$ 0,10 de infraestrutura por ingresso vendido; custo ocioso < R$ 15 mil/mês.
-    - **Operabilidade**: deploys sem indisponibilidade; plantão alertado em até 5 min quando um SLO começa a queimar; MTTR < 30 min.
+    - **Operabilidade**: deploys sem indisponibilidade; plantão alertado em até 5 min quando um objetivo de nível de serviço (SLO, *service level objective*) começa a queimar; MTTR < 30 min.
 
 Cada linha é testável — com um teste de carga, um experimento de caos ou a fatura do mês — e cada linha vai guiar uma decisão de design nas próximas aulas.
 
@@ -221,7 +221,7 @@ Os requisitos vêm acompanhados de **restrições** — decisões já tomadas po
 - **Prazo**: "abertura de vendas em 8 semanas" descarta reescrever tudo como microsserviços.
 - **Orçamento**: um teto mensal, ou uma meta de custo por ingresso.
 - **Regulação**: LGPD para dados pessoais; PCI DSS para pagamentos; regras fiscais para notas.
-- **Sistemas existentes**: a API do provedor de pagamentos e seus limites de taxa; o ERP do organizador.
+- **Sistemas existentes**: a API do provedor de pagamentos e seus limites de taxa; o sistema de gestão (ERP, *enterprise resource planning*) do organizador.
 - **Premissas**: "os fãs por abertura de vendas seguem a distribuição do ano passado", "o provedor responde em 300–800 ms". Anote-as — quando uma premissa estiver errada, você saberá qual parte do design rever.
 
 !!! tip "Na entrevista"

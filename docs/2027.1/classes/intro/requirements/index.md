@@ -11,9 +11,9 @@ Requirements are the input of every design. A design can only be judged against 
 |---|---|---|
 | **Describe** | *what* the system does — features, behaviours | *how well* it does it — qualities and constraints |
 | **Typical form** | "A fan can hold up to 6 seats for 10 minutes" | "Seat holds succeed in under 300 ms (p99) at 5,000 holds/s" |
-| **Answered by** | use cases, APIs, data model | architecture: components, replication, caching, queues |
-| **If missing** | the system does the wrong thing | the system does the right thing — for 10 users, on a good day |
-| **Also called** | features, behavioural requirements | quality attributes, "-ilities", NFRs |
+| **Answered by** | use cases, application programming interfaces (APIs), data model | architecture: components, replication, caching, queues |
+| **If missing** | ❌ the system does the wrong thing | ⚠️ the system does the right thing — for 10 users, on a good day |
+| **Also called** | features, behavioural requirements | quality attributes, "-ilities", NFRs (non-functional requirements) |
 
 Functional requirements decide **which APIs and data** exist. Non-functional requirements decide **which architecture** delivers them. In system design, the non-functional side drives almost every decision: the same "sell a ticket" feature can be a single PostgreSQL table for a theatre with 200 seats, or a waiting room, a sharded inventory and an event stream for a stadium.
 
@@ -28,7 +28,7 @@ Start from **actors** (who uses the system) and their **goals**. For BoxOffice:
 | **Fan** | browse and search events; see the seat map; hold seats; pay; receive the ticket; transfer or cancel |
 | **Organizer** | create an event; configure venue sections and prices; schedule the on-sale; follow sales live |
 | **Venue staff** | validate tickets at the gate (QR code), even with a poor network |
-| **Support** | answer fans' questions (helped by the AI assistant); issue refunds |
+| **Support** | answer fans' questions (helped by the artificial intelligence, AI, assistant); issue refunds |
 | **External systems** | the payment provider confirms or declines charges; e-mail/push providers deliver messages |
 
 Then turn the goals into a short, prioritized list. In practice — and in an interview — you cannot design everything, so you pick the **core path** and say explicitly what is out of scope:
@@ -66,14 +66,14 @@ Non-functional requirements describe **qualities** of the system. Software archi
 
 | Quality attribute | Question it answers | How to measure | BoxOffice target (assumption) | Palette components that help |
 |---|---|---|---|---|
-| **Scalability** | Can it handle more load by adding resources? | max sustainable throughput at the latency target | 2 M fans arriving in 1 min at an on-sale; 1,500 catalog req/s on a normal day | Load Balancer, App Server replicas, Cache, CDN, Queue, NoSQL partitions |
-| **Availability** | Is it up when users need it? | % of successful requests over a window | 99.95% for checkout per rolling 28 days | replicas, Health Check, multi-AZ, DNS failover |
+| **Scalability** | Can it handle more load by adding resources? | max sustainable throughput at the latency target | 2 M fans arriving in 1 min at an on-sale; 1,500 catalog req/s on a normal day | Load Balancer, App Server replicas, Cache, content delivery network (CDN), Queue, NoSQL partitions |
+| **Availability** | Is it up when users need it? | % of successful requests over a window | 99.95% for checkout per rolling 28 days | replicas, Health Check, multiple availability zones (multi-AZ), Domain Name System (DNS) failover |
 | **Latency** | How long does a user wait? | percentiles (p50, p99) of response time | catalog p99 < 200 ms; hold p99 < 300 ms; checkout p99 < 1.5 s | Cache, CDN, async work, indexes |
-| **Consistency** | Do all readers see the same, latest data? | anomalies allowed (stale reads, double writes) | a seat is sold **at most once**; catalog may be 60 s stale | SQL transactions, single leader, consensus |
-| **Durability** | Is confirmed data ever lost? | data-loss events; RPO | zero confirmed orders lost; RPO = 0 for orders | replication, backups, Object Store |
+| **Consistency** | Do all readers see the same, latest data? | anomalies allowed (stale reads, double writes) | a seat is sold **at most once**; catalog may be 60 s stale | Structured Query Language (SQL) transactions, single leader, consensus |
+| **Durability** | Is confirmed data ever lost? | data-loss events; recovery point objective (RPO) | zero confirmed orders lost; RPO = 0 for orders | replication, backups, Object Store |
 | **Cost** | How much does it cost to run? | money per month; cost per unit of business | < R$ 0.10 of infrastructure per ticket sold | right-sizing, autoscaling, Serverless, CDN offload |
-| **Security** | Is it protected against misuse and attack? | threats mitigated; audit findings | no card data stored (PCI scope minimized); bots blocked | WAF, Auth Service, API Gateway, VPC, Safety Mesh |
-| **Operability** | Can the team run, change and fix it? | MTTR, deploy frequency, alert quality | deploy daily without downtime; MTTR < 30 min | Metrics, Logs, Tracing, Alerting, CI/CD |
+| **Security** | Is it protected against misuse and attack? | threats mitigated; audit findings | no card data stored (Payment Card Industry, PCI, scope minimized); bots blocked | web application firewall (WAF), Auth Service, API Gateway, virtual private cloud (VPC), Safety Mesh |
+| **Operability** | Can the team run, change and fix it? | mean time to recovery (MTTR), deploy frequency, alert quality | deploy daily without downtime; MTTR < 30 min | Metrics, Logs, Tracing, Alerting, CI/CD |
 
 The rest of this section gives each attribute a precise meaning — "scalable" and "available" are used loosely in everyday speech, and loose words make bad requirements.
 
@@ -115,7 +115,7 @@ The key insight is that **not all data needs the same consistency**:
 | Event description, prices shown in listings | eventual (seconds to a minute) | a slightly stale description harms no one; the hold re-checks the price |
 | "1,234 people are looking at this event" | approximate | it is a hint, not a promise |
 
-Strong consistency costs latency and availability (you will see why with CAP and PACELC in [class 3](../../distributed/index.md)), so you pay for it **only where the business needs it**.
+Strong consistency costs latency and availability (you will see why with the CAP and PACELC theorems — consistency, availability, partition tolerance, latency — in [class 3](../../distributed/index.md)), so you pay for it **only where the business needs it**.
 
 ### Durability
 
@@ -129,7 +129,7 @@ Every component has a price: machines, managed services, storage, network egress
 
 ### Security
 
-**Security** protects **confidentiality** (only the right people read data), **integrity** (only the right people change it) and **availability** (attackers cannot take it down) — the CIA triad. For BoxOffice it translates into concrete requirements: fans authenticate before buying; an organizer only sees their own events; bots cannot buy 500 tickets in one second; card numbers **never** touch BoxOffice servers (the payment provider tokenizes them, which keeps BoxOffice out of most of the PCI DSS scope[^5]); personal data follows Brazil's data-protection law, the LGPD (*Lei Geral de Proteção de Dados*)[^6].
+**Security** protects **confidentiality** (only the right people read data), **integrity** (only the right people change it) and **availability** (attackers cannot take it down) — the CIA (confidentiality, integrity, availability) triad. For BoxOffice it translates into concrete requirements: fans authenticate before buying; an organizer only sees their own events; bots cannot buy 500 tickets in one second; card numbers **never** touch BoxOffice servers (the payment provider tokenizes them, which keeps BoxOffice out of most of the PCI Data Security Standard (DSS) scope[^5]); personal data follows Brazil's data-protection law, the LGPD (*Lei Geral de Proteção de Dados*)[^6].
 
 ### Operability
 
@@ -169,7 +169,7 @@ Written as requirements, a measurable set for BoxOffice looks like this:
     - **Durability**: zero loss of paid orders (RPO = 0); analytics RPO 15 min.
     - **Security**: no card data stored; bot purchases blocked at the edge; LGPD compliant.
     - **Cost**: < R$ 0.10 of infrastructure per ticket sold; idle cost < R$ 15k/month.
-    - **Operability**: zero-downtime deploys; on-call alerted within 5 min of an SLO burn; MTTR < 30 min.
+    - **Operability**: zero-downtime deploys; on-call alerted within 5 min of a service level objective (SLO) burn; MTTR < 30 min.
 
 Each line is testable — with a load test, a chaos experiment or a monthly bill — and each line will drive a design decision in the coming classes.
 
@@ -221,7 +221,7 @@ Requirements come with **constraints** — decisions already made for you — an
 - **Time**: "on-sale in 8 weeks" rules out rewriting everything as microservices.
 - **Budget**: a monthly ceiling, or a cost-per-ticket target.
 - **Regulation**: LGPD for personal data; PCI DSS for payments; tax rules for invoices.
-- **Existing systems**: the payment provider's API and its rate limits; the organizer's ERP.
+- **Existing systems**: the payment provider's API and its rate limits; the organizer's enterprise resource planning (ERP) system.
 - **Assumptions**: "fans per on-sale follow last year's distribution", "the provider answers in 300–800 ms". Write them down — when an assumption is wrong, you know which part of the design to revisit.
 
 !!! tip "In the interview"

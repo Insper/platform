@@ -1,11 +1,11 @@
 
-O banco de inventário da BoxOffice está a 70% de CPU durante uma abertura de vendas normal e as reservas levam cerca de 75 ms no p99. A equipe conclui que tem "30% de sobra". Na abertura de vendas seguinte, maior, a CPU chega a 92% — só 22 pontos a mais — e o p99 salta para quase 300 ms, quatro vezes pior e bem na meta de 300 ms da reserva. Timeouts disparam, os clientes tentam de novo e a carga extra leva o banco a 100%. Nada estava "quebrado"; a equipe simplesmente não conhecia a forma da curva que relaciona **carga** e **latência**. Esta página deduz essa curva de algumas leis simples e depois usa as mesmas leis para responder às perguntas que toda decisão de capacidade faz: *quantas requisições estão em andamento? que tamanho este pool precisa ter? quão cheio este componente pode rodar? acrescentar nós vai ajudar?*
+O banco de inventário da BoxOffice está a 70% de CPU (unidade central de processamento) durante uma abertura de vendas normal e as reservas levam cerca de 75 ms no percentil 99 (p99). A equipe conclui que tem "30% de sobra". Na abertura de vendas seguinte, maior, a CPU chega a 92% — só 22 pontos a mais — e o p99 salta para quase 300 ms, quatro vezes pior e bem na meta de 300 ms da reserva. Timeouts disparam, os clientes tentam de novo e a carga extra leva o banco a 100%. Nada estava "quebrado"; a equipe simplesmente não conhecia a forma da curva que relaciona **carga** e **latência**. Esta página deduz essa curva de algumas leis simples e depois usa as mesmas leis para responder às perguntas que toda decisão de capacidade faz: *quantas requisições estão em andamento? que tamanho este pool precisa ter? quão cheio este componente pode rodar? acrescentar nós vai ajudar?*
 
 ---
 
 ## O vocabulário de uma fila { #the-vocabulary-of-a-queue }
 
-Todo componente que atende requisições — um núcleo de CPU, um pool de threads, uma conexão de banco, uma API de pagamentos — pode ser visto como uma **fila** diante de um ou mais **servidores** (em teoria de filas, "servidor" é qualquer coisa que atende uma requisição):
+Todo componente que atende requisições — um núcleo de CPU, um pool de threads, uma conexão de banco, uma API (interface de programação, *application programming interface*) de pagamentos — pode ser visto como uma **fila** diante de um ou mais **servidores** (em teoria de filas, "servidor" é qualquer coisa que atende uma requisição):
 
 ``` diagram-sim
 flowchart LR
@@ -167,6 +167,17 @@ $$
 
 em que $C_a$ e $C_s$ são os coeficientes de variação (desvio padrão / média) dos intervalos entre chegadas e dos tempos de serviço. O primeiro fator é o efeito da utilização; o segundo, o efeito da **variabilidade**. Uma sala de espera que admite fãs a uma taxa constante reduz $C_a$; cortar os casos lentos (uma consulta pesada que leva 50× o tempo normal) reduz $C_s$. Os dois reduzem as filas sem acrescentar um único servidor.
 
+O simulador transforma as três lições em controles. As reservas esperam numa única fila por **c** servidores, cada reserva ocupa um servidor por 5 ms em média e a taxa de chegada decorre da utilização que você escolhe (λ = ρ · c / S). Cada mudança começa um novo experimento e deixa o anterior como um ponto ao lado da curva M/M/c.
+
+<div class="csim" data-sim="hold-queue" data-servers="1" data-rho="70" data-arrivals="random"></div>
+
+!!! tip "Experimente"
+
+    1. Aperte play com um servidor a ρ = 70%: depois de 60 s os indicadores mostram um R médio de 18,2 ms e um p99 de 77 ms — os "75 ms a 70%" da história do início desta página. L = 2,59 requisições no sistema e λ × W = 2,59: a Lei de Little vale.
+    2. Leve ρ a 92%: a média vai a 68,3 ms e o p99 a 285 ms — 22 pontos a mais de carga, quase quatro vezes a cauda, bem na meta de 300 ms.
+    3. Mantenha 92% e mude só as chegadas: **constantes** (uma sala de espera) baixam a média para 31,7 ms, **em rajadas** a sobem para 98,8 ms. Mesma carga, mesmo servidor: só a variabilidade mudou — o segundo fator de Kingman.
+    4. Escolha 8 servidores a 70%: p99 de 24 ms, o número M/M/c da [verificação de capacidade da visão geral](../index.md); a 92% ainda é 42 ms. Uma fila na frente de muitos servidores empurra o joelho para a direita.
+
 ### Com que utilização você deve rodar? { #what-utilization-should-you-run-at }
 
 | Componente | Meta sustentada típica | Por quê |
@@ -185,9 +196,13 @@ A redundância empurra na mesma direção: com **4 réplicas a 60%**, perder uma
 
 **Experimente:** rode o perfil breakpoint, depois dobre a capacidade do banco (ou acrescente réplicas da aplicação) e rode de novo. O joelho se move? Quanto? Se acrescentar réplicas da aplicação não o move, qual componente é o gargalo?
 
+O próprio sistema do lab 2, como cenário: um `catalog` e seu PostgreSQL com o pool padrão de 10 conexões, sob uma rampa de breakpoint. O playground trata o pool como os *c* servidores desta página (10 conexões ÷ ≈ 20 ms por consulta ≈ 480 consultas/s), então o joelho fica um pouco abaixo disso. Encontre-o e leia qual componente o Relatório culpa.
+
+<div class="sdp" data-scenario="boxoffice-pool" data-mode="compact" data-height="440"></div>
+
 !!! example "No código do BoxOffice: o joelho do `catalog`, medido (lab 2)"
 
-    O [Hands-on 2](../../../hands-on/2/index.md) desenha esta curva para o serviço real. A varredura roda o teste de carga de modelo aberto uma vez por taxa de chegada, um minuto cada, depois de um aquecimento (uma JVM fria estragaria o primeiro ponto) e com uma pausa entre os passos para as filas esvaziarem. Na execução de exemplo do laboratório (1 CPU, um pool de 10 conexões), o p99 foi 39 ms em 300 req/s, 224 ms em 400 e 2.056 ms em 500 req/s, onde o k6 ainda teve de descartar 410 iterações: plano, depois um muro. A Lei de Little dá nome à fila: em 600 req/s o laboratório viu as 200 threads do Tomcat ocupadas, 10 conexões com o banco ativas e **190 requisições esperando por uma conexão** — o pool de 10 são os *c* servidores desta página, e o joelho é onde ele satura. O passo 6 do laboratório aumenta o pool para 30 e observa o gargalo se mover.
+    O [Hands-on 2](../../../hands-on/2/index.md) desenha esta curva para o serviço real. A varredura roda o teste de carga de modelo aberto uma vez por taxa de chegada, um minuto cada, depois de um aquecimento (uma máquina virtual Java, JVM, fria estragaria o primeiro ponto) e com uma pausa entre os passos para as filas esvaziarem. Na execução de exemplo do laboratório (1 CPU, um pool de 10 conexões), o p99 foi 39 ms em 300 req/s, 224 ms em 400 e 2.056 ms em 500 req/s, onde o k6 ainda teve de descartar 410 iterações: plano, depois um muro. A Lei de Little dá nome à fila: em 600 req/s o laboratório viu as 200 threads do Tomcat ocupadas, 10 conexões com o banco ativas e **190 requisições esperando por uma conexão** — a fila se forma no pool de 10, os *c* servidores desta página. O passo 6 do laboratório aumenta o pool para 30 e confere se o joelho se move junto ou se o pool era só onde a fila aparecia e o PostgreSQL era o que estava cheio.
 
     ``` { .bash title="scripts/sweep.sh" }
     --8<-- "docs/2027.1/hands-on/2/code/scripts/sweep.sh"
@@ -279,7 +294,7 @@ O uso prático da USL é **ajustar** σ e κ a algumas medições de teste de ca
     - **Dimensione todo pool com a Lei de Little e deixe a fórmula num comentário** — threads = λ × W, conexões = λ × tempo segurando uma; um pool dimensionado "por segurança" só move a fila para dentro do banco.
     - **Observe a fila na frente do gargalo, não só a sua utilização** — conexões pendentes e threads ocupadas sobem antes de o gráfico de CPU parecer alarmante. Na BoxOffice: `hikaricp.connections.pending` no `scripts/watch-metrics.sh` do lab 2 ([Hands-on 2](../../../hands-on/2/index.md)).
     - **Varra a taxa de chegada com modelo aberto, aquecimento e uma pausa entre os passos** — um ponto não é uma curva, uma JVM fria não é o seu serviço e filas que sobraram estragam o passo seguinte. Na BoxOffice: `scripts/sweep.sh` (quadro acima).
-    - **Ponha as metas de autoscaling bem à esquerda do joelho** — escalar leva minutos e o pico chega nesse meio-tempo. Na BoxOffice: o HPA do lab 10 mira 60% de CPU.
+    - **Ponha as metas de autoscaling bem à esquerda do joelho** — escalar leva minutos e o pico chega nesse meio-tempo. Na BoxOffice: o HPA (*Horizontal Pod Autoscaler*) do lab 10 mira 60% de CPU.
     - **Reduza a variabilidade antes de acrescentar servidores** — admita num ritmo constante e elimine os lentos fora da curva; a fórmula de Kingman mostra que os dois encolhem a fila de graça. Na BoxOffice: a sala de espera (lab 7) e os índices do lab 6.
 
 !!! warning "Armadilhas comuns"

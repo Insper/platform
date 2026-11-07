@@ -33,7 +33,7 @@ Expectations grow with seniority. A rough guide:
 |---|---|---|---|
 | 1 | **Clarify requirements** | 0–5 min | functional list (3–5 items) + non-functional targets |
 | 2 | **Estimate** | 5–10 min | requests/s (average and peak), storage, bandwidth — and what they imply |
-| 3 | **API & data model** | 10–15 min | 4–6 endpoints; main entities with keys |
+| 3 | **Application programming interface (API) & data model** | 10–15 min | 4–6 endpoints; main entities with keys |
 | 4 | **High-level design** | 15–25 min | box-and-arrow diagram covering every functional requirement |
 | 5 | **Deep dives** | 25–37 min | detail of the 1–3 hardest parts |
 | 6 | **Bottlenecks & trade-offs** | 37–42 min | what breaks first, how to fix it, what each choice costs |
@@ -113,13 +113,13 @@ GET  /orders/{orderId}                status and tickets
 | `seat` | (`event_id`, `seat_id`) | section, row, price, **status** (free / held / sold), `hold_id`, `version` | SQL (inventory) |
 | `hold` | `hold_id` | `fan_id`, `event_id`, seat list, `expires_at` | SQL (inventory) |
 | `order` | `order_id` | `fan_id`, `hold_id`, amount, status, **idempotency key** | SQL (orders) |
-| `ticket` | `ticket_id` | `order_id`, seat, QR code | SQL / Object Store (PDF) |
+| `ticket` | `ticket_id` | `order_id`, seat, Quick Response (QR) code | SQL / Object Store (PDF) |
 
 Mention the access pattern next to each entity: the seat map is read by `event_id`; holds update a few seats of one event; orders are read by `fan_id`. Those patterns drive indexes and, later, partition keys.
 
 ## Step 4 — High-level design (≈ 10 min)
 
-**Goal**: a diagram that serves **every functional requirement** end to end. Start simple, then add what the estimates demand. Walk through one request at a time as you draw ("the fan opens the event page: CDN, gateway, catalog, cache…").
+**Goal**: a diagram that serves **every functional requirement** end to end. Start simple, then add what the estimates demand. Walk through one request at a time as you draw ("the fan opens the event page: content delivery network (CDN), gateway, catalog, cache…").
 
 ``` diagram-sim
 flowchart LR
@@ -153,9 +153,9 @@ flowchart LR
 
     | Option | How | Trade-off |
     |---|---|---|
-    | Pessimistic lock | `SELECT … FOR UPDATE` on the seat rows inside a transaction | simple and correct; locks queue under contention |
-    | **Conditional update** (optimistic) | one atomic `UPDATE … WHERE status = 'FREE'`; check the row count | no long locks; a loser just retries other seats |
-    | Distributed lock (Redis) | lock per seat in Redis, then write to SQL | extra component, and two systems must agree — avoid when the DB can do it |
+    | 🟡 Pessimistic lock | `SELECT … FOR UPDATE` on the seat rows inside a transaction | simple and correct; locks queue under contention |
+    | ✅ **Conditional update** (optimistic) | one atomic `UPDATE … WHERE status = 'FREE'`; check the row count | no long locks; a loser just retries other seats |
+    | ⚠️ Distributed lock (Redis) | lock per seat in Redis, then write to SQL | extra component, and two systems must agree — avoid when the database can do it |
 
     *Choice*: conditional update in the inventory database — the database is the single source of truth, and the check-and-set is one atomic statement:
 
@@ -169,6 +169,25 @@ flowchart LR
     ```
 
     Expired holds are released by a scheduled job (`status = 'HELD' AND expires_at < now()`), or lazily at read time.
+
+Two fans click the same seat in the same millisecond. Press play: the database decides, one statement at a time, and the loser learns it at once:
+
+``` diagram-sim
+sequenceDiagram
+    participant A as Fan A
+    participant B as Fan B
+    participant I as inventory
+    participant D as Inventory SQL
+    A->>I: POST /events/42/holds (seat A-12)
+    B->>I: POST /events/42/holds (seat A-12)
+    I->>D: UPDATE seat SET HELD WHERE A-12 is FREE (for A)
+    I->>D: UPDATE seat SET HELD WHERE A-12 is FREE (for B)
+    Note over D: the row lock orders the two statements
+    D-->>I: 1 row updated (A)
+    D-->>I: 0 rows updated (B), the seat is no longer FREE
+    I-->>A: 201 holdId, expiresAt
+    I-->>B: 409 seat taken
+```
 
 !!! example "BoxOffice — deep dive 2: the 10:00 spike"
 
@@ -188,13 +207,13 @@ flowchart LR
 | Payment provider slow or down | timeout + circuit breaker; hold extended while payment is pending | complexity; seats locked longer |
 | Catalog cache stampede at 10:00 | pre-warm; request coalescing | more moving parts |
 | Inventory primary failure | synchronous standby + automatic failover | write latency; a few seconds of unavailability |
-| Bots | WAF, rate limit per fan/card, CAPTCHA at queue entry | friction for real fans |
+| Bots | web application firewall (WAF), rate limit per fan/card, CAPTCHA (a challenge only humans should pass) at queue entry | friction for real fans |
 
 Then name the main trade-offs **explicitly**: *"I chose strong consistency for seats over availability: if the inventory primary is unreachable, holds fail rather than risk a double sale. The catalog is the opposite: I accept 60 s staleness for speed."*
 
 ## Step 7 — Wrap-up (≈ 3 min)
 
-**Goal**: leave a clear final picture. In three or four sentences: what you designed, how it meets the key requirements, what you would do next with more time (monitoring and SLO alerts, multi-region, the AI assistant…), and any open questions. Do not introduce new components now.
+**Goal**: leave a clear final picture. In three or four sentences: what you designed, how it meets the key requirements, what you would do next with more time (monitoring and service level objective (SLO) alerts, multi-region, the artificial intelligence (AI) assistant…), and any open questions. Do not introduce new components now.
 
 ---
 
