@@ -283,6 +283,10 @@ Experimente: no cenário abaixo, rode o perfil `spike` com 2 réplicas e depois 
 
 <div class="sdp" data-scenario="scale-out" data-mode="compact" data-profile="spike" data-height="520"></div>
 
+O preset `boxoffice-hpa` reproduz o lab 10: `catalog` no kind com 2 pods, um HPA de 2 a 8 pods com 60% de CPU e pods que levam cerca de 40 s para ficar prontos. Em t = 60 s a rampa empurra 1.000 req/s e os dois pods ocupados descartam requisições enquanto os novos sobem; aumente o mínimo do HPA para 4 (o pré-escalonamento das 09:45) e 1.000 ÷ (4 × 500) = 50% fica abaixo do alvo, então os erros somem.
+
+<div class="sdp" data-scenario="boxoffice-hpa" data-mode="compact" data-height="440"></div>
+
 ---
 
 ## Onde rodar Kubernetes { #where-to-run-kubernetes }

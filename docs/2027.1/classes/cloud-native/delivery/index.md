@@ -379,6 +379,10 @@ for p1 in (0.010, 0.005, 0.002):
 
 Large regressions show up in a minute or two; a doubling of a small error rate needs a quarter of an hour at 5 %. That is why canary steps are measured in **minutes, not seconds**, why the analysis compares the canary with the **stable baseline** running at the same time (same traffic, same hour), and why low-traffic services are better served by longer pauses or synthetic traffic. Google's SRE workbook discusses these trade-offs in its chapter on canarying releases[^6].
 
+The `boxoffice-canary` preset ships lab 11's bad release (v2 fails 30% of its answers) to all 4 `catalog` pods at once, at 600 req/s, until the rollback about a minute later. Redraw it as a canary, 3 pods of v1 and 1 of v2 so that the ingress sends v2 a quarter of the traffic (the Playground splits by capacity, not by version weights): the same bug costs about a quarter of the errors. A canary does not prevent the bug, it shrinks its blast radius.
+
+<div class="sdp" data-scenario="boxoffice-canary" data-mode="compact" data-height="440"></div>
+
 !!! example "BoxOffice: no canaries during the on-sale"
 
     Even with automated analysis, BoxOffice declares a **change freeze** on the purchase path from 30 minutes before an on-sale until it ends: the traffic is too unusual for the baseline to mean anything, and the cost of a bad rollout is highest. The 09:40 fix from the introduction therefore waits — unless the person in charge of the on-sale grants an exception, through a path also written in advance: an *expedited* canary (5 % → 100 % with a 5-minute analysis) at 09:42. Writing that rule down in advance is part of delivery engineering.

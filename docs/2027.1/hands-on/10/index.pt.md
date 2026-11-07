@@ -123,6 +123,10 @@ por quanto tempo o load balancer continua mandando tráfego para ela?
 
 <div class="sdp" data-scenario="scale-out" data-mode="compact" data-height="520" data-profile="stress"></div>
 
+Depois abra o `boxoffice-hpa`, este lab no Playground: 2 pods do `catalog` no kind, um HPA de 2 a 8 com 60% de CPU, pods prontos cerca de 40 s depois de pedidos e uma rampa até 1.000 req/s em t = 60 s. O HPA reage em 15 s, mas requisições são descartadas até os pods novos ficarem prontos; subir o `minReplicas` para 4 antes da rampa, o pré-escalonamento que a sua tabela de resultados pede para defender, elimina a perda.
+
+<div class="sdp" data-scenario="boxoffice-hpa" data-mode="compact" data-height="440"></div>
+
 O simulador completo está no [playground](../../../playground/index.md).
 
 ## Meça { #measure-it }

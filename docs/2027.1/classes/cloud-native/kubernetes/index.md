@@ -283,6 +283,10 @@ Try it: in the scenario below, run the `spike` profile with 2 replicas, then wit
 
 <div class="sdp" data-scenario="scale-out" data-mode="compact" data-profile="spike" data-height="520"></div>
 
+The `boxoffice-hpa` preset replays lab 10: `catalog` on kind with 2 pods, an HPA from 2 to 8 pods at 60% CPU and pods that take about 40 s to become ready. At t = 60 s the ramp pushes 1,000 req/s and the two busy pods drop requests while the new ones start; raise the HPA minimum to 4 (the 09:45 pre-scale) and 1,000 ÷ (4 × 500) = 50% stays below the target, so the errors go away.
+
+<div class="sdp" data-scenario="boxoffice-hpa" data-mode="compact" data-height="440"></div>
+
 ---
 
 ## Where to run Kubernetes

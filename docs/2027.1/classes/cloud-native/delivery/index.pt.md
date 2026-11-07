@@ -379,6 +379,10 @@ for p1 in (0.010, 0.005, 0.002):
 
 Regressões grandes aparecem em um ou dois minutos; dobrar uma taxa de erros pequena exige um quarto de hora a 5 %. É por isso que as etapas de um canary são medidas em **minutos, não segundos**, por que a análise compara o canary com a **linha de base estável** rodando ao mesmo tempo (mesmo tráfego, mesmo horário) e por que serviços com pouco tráfego se beneficiam de pausas mais longas ou de tráfego sintético. O SRE workbook do Google discute esses trade-offs no capítulo sobre canarying de releases[^6].
 
+O preset `boxoffice-canary` publica a versão ruim do lab 11 (a v2 erra 30% das respostas) nos 4 pods do `catalog` de uma vez, a 600 req/s, até o rollback cerca de um minuto depois. Redesenhe-a como canary, 3 pods da v1 e 1 da v2 para que o ingress mande à v2 um quarto do tráfego (o Playground divide pela capacidade, não por pesos de versão): o mesmo bug custa cerca de um quarto dos erros. O canary não impede o bug, ele reduz o raio de impacto.
+
+<div class="sdp" data-scenario="boxoffice-canary" data-mode="compact" data-height="440"></div>
+
 !!! example "BoxOffice: nada de canary durante a venda"
 
     Mesmo com análise automática, o BoxOffice declara um **congelamento de mudanças** no caminho de compra de 30 minutos antes de uma venda até o fim dela: o tráfego é incomum demais para a linha de base significar algo e o custo de um rollout ruim é máximo. A correção das 09:40 da introdução, portanto, espera — a menos que o responsável pela venda autorize uma exceção, por um caminho também escrito com antecedência: um canary *expresso* (5 % → 100 % com 5 minutos de análise) às 09:42. Escrever essa regra com antecedência faz parte da engenharia de entrega.

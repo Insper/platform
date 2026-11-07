@@ -133,6 +133,10 @@ Abra o cenário `async-queue`: produtores escrevem numa fila esvaziada por um po
 
 <div class="sdp" data-scenario="async-queue" data-mode="compact" data-height="520" data-profile="spike"></div>
 
+O preset `boxoffice-tickets-pdf` é a versão BoxOffice: 30.000 pedidos em 3 minutos (≈ 167/s), 0,4 s por PDF de ingresso e só 20 workers, então o backlog chega a cerca de 21.000 jobs e os fãs esperam minutos pelos ingressos. Dimensione o pool com a lei de Little (167 × 0,4 ≈ 67 workers ocupados, cerca de 95 com 70% de utilização) até o consumer lag ficar abaixo de um minuto: os compradores nunca esperam, só o atraso falha.
+
+<div class="sdp" data-scenario="boxoffice-tickets-pdf" data-mode="compact" data-height="440"></div>
+
 ---
 
 ## Projetando jobs que sobrevivem ao mundo real { #designing-jobs-that-survive-the-real-world }

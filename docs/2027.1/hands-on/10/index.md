@@ -122,6 +122,10 @@ does the load balancer keep sending it traffic?
 
 <div class="sdp" data-scenario="scale-out" data-mode="compact" data-height="520" data-profile="stress"></div>
 
+Then open `boxoffice-hpa`, this lab in the Playground: 2 `catalog` pods on kind, an HPA from 2 to 8 at 60% CPU, pods ready about 40 s after they are asked for, and a ramp to 1,000 req/s at t = 60 s. The HPA reacts within 15 s, but requests are dropped until the new pods are ready; raising `minReplicas` to 4 before the ramp, the pre-scale your results table asks you to argue for, removes the loss.
+
+<div class="sdp" data-scenario="boxoffice-hpa" data-mode="compact" data-height="440"></div>
+
 The full simulator is in the [playground](../../../playground/index.md).
 
 ## Measure it
