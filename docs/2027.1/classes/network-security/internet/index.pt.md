@@ -43,7 +43,7 @@ Nenhum roteador conhece o caminho inteiro. Cada um faz a mesma coisa com cada pa
 
 1. Lê o IP de destino.
 2. Encontra na sua tabela a **rota mais específica** que o contém (**maior prefixo**, *longest prefix match*: uma rota para um `/24` vence uma rota para um `/16`, que vence a rota padrão `0.0.0.0/0`).
-3. Envia o pacote ao **próximo salto** dessa rota e decrementa o **TTL** do pacote (um contador de saltos que mata pacotes presos em laços).
+3. Envia o pacote ao **próximo salto** dessa rota e decrementa o **TTL** (tempo de vida, *time to live*) do pacote (um contador de saltos que mata pacotes presos em laços).
 
 Aperte play para seguir um pacote do celular do fã até o BoxOffice (os endereços são exemplos de documentação[^2]):
 
@@ -87,7 +87,7 @@ A notação **CIDR** (Classless Inter-Domain Routing)[^3] escreve a divisão dep
 
 **Experimente:**
 
-1. O explorador começa com `10.20.40.17/19`. Os bits de host não são zero, então o explorador mostra o **bloco** que contém este endereço: `10.20.32.0/19`, a sub-rede privada de aplicação do BoxOffice na AZ a. Arraste o prefixo de `/19` até `/24` e veja o bloco cair pela metade a cada passo.
+1. O explorador começa com `10.20.40.17/19`. Os bits de host não são zero, então o explorador mostra o **bloco** que contém este endereço: `10.20.32.0/19`, a sub-rede privada de aplicação do BoxOffice na zona de disponibilidade (AZ, *availability zone*) a. Arraste o prefixo de `/19` até `/24` e veja o bloco cair pela metade a cada passo.
 2. Digite `10.20.0.0/16`, escolha **Dividir em 4 sub-redes** e teste o endereço `10.20.40.17`: em qual dos quatro blocos `/18` ele cai?
 3. Clique nos exemplos: `192.168.0.12` (a sua casa), `100.64.7.9` (o NAT da sua operadora de celular), `169.254.169.254` (o serviço de metadados da nuvem), `8.8.8.8` (público). A linha **tipo do endereço** diz quais a Internet consegue rotear.
 
@@ -106,7 +106,7 @@ Trinta e dois bits dão 2³² ≈ **4,3 bilhões** de endereços — menos do qu
 
 | Bloco | Tamanho | Tipo | Roteado na Internet? | Onde você o encontra |
 |---|---|---|---|---|
-| `10.0.0.0/8` | 16,8 mi | privado | não | a VPC do BoxOffice `10.20.0.0/16`; os pods do kind `10.244.0.0/16` |
+| `10.0.0.0/8` | 16,8 mi | privado | não | a nuvem privada virtual (VPC, *virtual private cloud*) do BoxOffice `10.20.0.0/16`; os pods do kind `10.244.0.0/16` |
 | `172.16.0.0/12` | 1 mi | privado | não | as redes do Docker (`172.18.0.0/16` no [lab 3](../../../hands-on/3/index.md)) |
 | `192.168.0.0/16` | 65 536 | privado | não | roteadores domésticos (`192.168.0.0/24`) |
 | `100.64.0.0/10` | 4,2 mi | compartilhado (CGNAT)[^5] | não | o seu celular no 4G/5G, atrás do NAT da operadora |
@@ -176,7 +176,7 @@ Um NAT também tem **capacidade**: cada conexão para o mesmo destino precisa da
 
 ## Sub-redes e o gateway { #subnets }
 
-Um host não roteia pacotes como o núcleo da Internet. A sua configuração de rede tem só três números — **o seu endereço**, **o seu prefixo** e **o seu gateway padrão** (mais um servidor DNS) — e ele toma uma decisão para cada pacote:
+Um host não roteia pacotes como o núcleo da Internet. A sua configuração de rede tem só três números — **o seu endereço**, **o seu prefixo** e **o seu gateway padrão** (mais um servidor do Sistema de Nomes de Domínio, DNS, *Domain Name System*) — e ele toma uma decisão para cada pacote:
 
 ``` diagram-sim
 flowchart TD

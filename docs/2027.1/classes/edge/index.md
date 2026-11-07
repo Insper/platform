@@ -12,20 +12,20 @@ In this course, **the edge** means the set of components that receive, filter, r
 
     By the end of this class you should be able to:
 
-    - **Trace** a request from a client to a service through DNS, CDN, WAF, load balancer, API gateway and ingress, and **explain** what each hop decides.
+    - **Trace** a request from a client to a service through the Domain Name System (DNS), a content delivery network (CDN), a web application firewall (WAF), a load balancer, an API gateway and an ingress, and **explain** what each hop decides.
     - **Configure** DNS records and TTLs, and CDN caching (`Cache-Control`, cache keys, invalidation) for a read-heavy page, and **compute** the origin load for a given hit ratio.
     - **Compare** L4 and L7 load balancing and **choose** a balancing algorithm (round robin, least connections, power of two choices, consistent hashing) for a workload.
     - **Design** a rate-limiting policy with token bucket or sliding window, and **place** it at the right layer.
-    - **Contrast** HTTP/1.1, HTTP/2, HTTP/3 (QUIC), WebSockets, SSE and gRPC, and **select** one for a given interaction.
-    - **Defend** an edge architecture against bots and DDoS attacks with WAF rules, rate limits, challenges and a waiting room.
+    - **Contrast** HTTP/1.1, HTTP/2, HTTP/3 (QUIC), WebSockets, Server-Sent Events (SSE) and gRPC, and **select** one for a given interaction.
+    - **Defend** an edge architecture against bots and distributed denial-of-service (DDoS) attacks with WAF rules, rate limits, challenges and a waiting room.
 
 ## Roadmap
 
-1. **This overview** — the request's journey through the edge, reverse proxies, TLS termination, a latency budget, and edge security (WAF, bots, DDoS).
+1. **This overview** — the request's journey through the edge, reverse proxies, Transport Layer Security (TLS) termination, a latency budget, and edge security (WAF, bots, DDoS).
 2. [DNS & CDN](dns-cdn/index.md) — name resolution, TTLs, GeoDNS and anycast; content delivery networks, cache keys, invalidation and edge compute.
 3. [Load Balancing](load-balancing/index.md) — L4 vs L7, algorithms, consistent hashing, service discovery, health checks, and Kubernetes Ingress / Gateway API.
-4. [API Gateway & Rate Limiting](api-gateway/index.md) — what a gateway centralises, the BFF pattern, and the rate-limiting algorithms.
-5. [Identity: OAuth 2.1, OIDC & JWT](identity/index.md) — who the caller is: tokens issued by `auth` and validated once, at the gateway.
+4. [API Gateway & Rate Limiting](api-gateway/index.md) — what a gateway centralises, the Backend for Frontend (BFF) pattern, and the rate-limiting algorithms.
+5. [Identity: OAuth 2.1, OpenID Connect (OIDC) & JSON Web Tokens (JWT)](identity/index.md) — who the caller is: tokens issued by `auth` and validated once, at the gateway.
 6. [Protocols](protocols/index.md) — HTTP/1.1, HTTP/2, HTTP/3 and QUIC, TLS 1.3, WebSockets, SSE and gRPC.
 7. [Quiz](quiz.md) — check your understanding.
 
@@ -127,7 +127,7 @@ TLS (Transport Layer Security) encrypts the traffic between two endpoints. On th
 
 | Option | How it works | Pros | Cons |
 |---|---|---|---|
-| **Terminate at the edge** | CDN / LB decrypts; plain HTTP inside the private network | simple; the proxy can read headers and cache | traffic inside the network is readable by anyone who gets in |
+| **Terminate at the edge** | CDN / load balancer (LB) decrypts; plain HTTP inside the private network | simple; the proxy can read headers and cache | traffic inside the network is readable by anyone who gets in |
 | **Re-encrypt** (TLS bridging) | edge decrypts, inspects, opens a new TLS connection to the backend | inspection *and* encryption in transit | two handshakes, certificates on the backends |
 | **Pass-through** | L4 LB forwards encrypted bytes; the service terminates TLS | end-to-end encryption | no L7 routing, caching or WAF at the LB |
 
@@ -140,12 +140,12 @@ Modern architectures follow a **zero-trust** posture: terminate public TLS at th
 
 ## A latency budget for the edge { #latency-budget }
 
-Every hop adds time. Suppose BoxOffice wants the seat map API to answer in **under 200 ms at p99** for fans in Brazil. Where does the time go? The figures below are **illustrative assumptions** for a São Paulo user and a São Paulo region; the method matters more than the numbers.
+Every hop adds time. Suppose BoxOffice wants the seat map API to answer in **under 200 ms at the 99th percentile (p99)** for fans in Brazil. Where does the time go? The figures below are **illustrative assumptions** for a São Paulo user and a São Paulo region; the method matters more than the numbers.
 
 | Step | Cold (first visit) | Warm (connection reused) |
 |---|---|---|
 | DNS lookup (resolver cache miss / hit) | 30 ms | 0 ms (cached) |
-| TCP + TLS 1.3 handshake to the edge (2 RTT × 10 ms) | 20 ms | 0 ms (connection reused) |
+| TCP + TLS 1.3 handshake to the edge (2 round-trip times, RTT, × 10 ms) | 20 ms | 0 ms (connection reused) |
 | CDN edge → WAF → LB (same metro) | 5 ms | 5 ms |
 | API gateway: JWT check + rate-limit lookup in Redis | 5 ms | 5 ms |
 | Ingress → `inventory` → PostgreSQL | 40 ms | 40 ms |
@@ -205,7 +205,7 @@ The key idea is **asymmetry**: you cannot out-provision an attacker with your ow
 !!! example "BoxOffice: 10:00, the sale opens"
     The edge configuration for the stadium sale, layer by layer:
 
-    - **DNS**: `boxoffice.com` points to the CDN's anycast addresses; TTL 60 s so that the team can redirect traffic quickly if a region fails.
+    - **DNS**: `boxoffice.com` points to the CDN's anycast addresses; a time to live (TTL) of 60 s so that the team can redirect traffic quickly if a region fails.
     - **CDN**: the event page, JavaScript and images are cached with long TTLs and fingerprinted file names; the seat-availability JSON is **micro-cached for 1 second** — 2 million fans polling every 5 s become, at most, one origin request per second per edge location.
     - **WAF**: OWASP managed rules on; a custom rule allows `POST /api/holds` only with a valid waiting-room token; `POST /login` limited per IP and per account.
     - **Bots**: JavaScript challenge on suspicious fingerprints; data-centre ASNs challenged before entering the queue.
@@ -243,8 +243,6 @@ flowchart LR
     c2 -.- d2["caching patterns<br/>(class 7)"]
     c4 -.- d3["stateless services,<br/>autoscaling (class 5)"]
     c5 -.- d4["identity, JWT<br/>(Identity, this class)"]
-    classDef comp fill:#1e9e5a22,stroke:#1e9e5a
-    classDef tech fill:#2f6fed22,stroke:#2f6fed
 ```
 
 | Palette component | Question it answers | Concepts | Taught in | Scenarios |
@@ -294,7 +292,7 @@ The edge decides which replica serves each request, and the gateway checks the c
 
 - [Hands-on 3 — Edge](../../hands-on/3/index.md): Nginx reverse proxy and load balancer over 3 replicas, health checks and rate limiting, measured with k6.
 - [Hands-on 4 — Gateway & identity](../../hands-on/4/index.md): Spring Cloud Gateway with JWT validation.
-- [Exercise — Playground design](../../exercises/playground-design/index.md): solve playground challenges with SLO and cost goals.
+- [Exercise — Playground design](../../exercises/playground-design/index.md): solve playground challenges with service level objective (SLO) and cost goals.
 - Case studies: [Rate limiter](../case-studies/rate-limiter/index.md) and [Ticketing (BoxOffice flash sale)](../case-studies/ticketing/index.md).
 - [System Design Playground](../../../playground/index.md) and the [component catalog — Traffic & Edge](../../reference/components/edge/index.md).
 - [Interview preparation](../../support/interview/index.md).

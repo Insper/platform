@@ -1,4 +1,4 @@
-BoxOffice has nine services. Without a gateway, the mobile app would need to know nine addresses, every service would validate JWTs on its own (with nine slightly different bugs), every service would implement its own rate limit, and a fan's script hammering `POST /api/holds` 500 times per second would go straight to `inventory`. The **API gateway** is the single front door that solves all of this in one place — and it is also the place where many architectures quietly grow a bottleneck or a second monolith.
+BoxOffice has nine services. Without a gateway, the mobile app would need to know nine addresses, every service would validate JSON Web Tokens (JWTs) on its own (with nine slightly different bugs), every service would implement its own rate limit, and a fan's script hammering `POST /api/holds` 500 times per second would go straight to `inventory`. The **API gateway** is the single front door that solves all of this in one place — and it is also the place where many architectures quietly grow a bottleneck or a second monolith.
 
 An **API gateway** is an L7 reverse proxy specialised for APIs: it is the single entry point for clients, routes each request to the right service, and applies **cross-cutting policies** — authentication, rate limits, quotas, transformations, observability — before the request reaches any business code[^1]. It is the `apigw` component of the palette.
 
@@ -32,7 +32,7 @@ flowchart LR
 | **Request/response transformation** | rename headers, strip internal fields, convert protocols (REST ↔ gRPC) | expose `inventory`'s gRPC API as REST to the web app |
 | **Aggregation** | one client call fans out to several services and merges the answers | `GET /api/events/42/page` returns event + venue + availability |
 | **Caching** | cache GET responses for a short time | event details for 30 s |
-| **Observability** | access logs, RED metrics per route, start the distributed trace | p99 per route, `traceparent` header injected |
+| **Observability** | access logs, RED metrics per route, start the distributed trace | 99th-percentile latency (p99) per route, `traceparent` header injected |
 | **Resilience** | timeouts, retries, circuit breakers per route | 2 s timeout to `inventory`; no retries on `POST` |
 | **API products** | API keys, developer portal, plans, usage billing | ticket resale partners |
 
@@ -55,7 +55,7 @@ These four components overlap, and products blur the lines (Envoy is the engine 
 | | Load balancer (`lb`) | Ingress / Gateway API (`ingress`) | API gateway (`apigw`) | Service mesh (`mesh`) |
 |---|---|---|---|---|
 | Traffic | north-south (into the system) | north-south into a Kubernetes cluster | north-south, API traffic | **east-west** (service to service) |
-| Main job | spread load over healthy replicas | route HTTP by host/path to Services | API policies: auth, limits, keys, transformations | mTLS, retries, timeouts, telemetry between services |
+| Main job | spread load over healthy replicas | route HTTP by host/path to Services | API policies: auth, limits, keys, transformations | mutual TLS (mTLS), retries, timeouts, telemetry between services |
 | Knows about | backends, health | Services, hosts, paths | consumers, API keys, plans, routes | every service identity |
 | Typical products | ALB/NLB, Nginx, HAProxy | Envoy Gateway, Traefik, cloud controllers | Kong, Apigee, AWS API Gateway, Azure APIM, Spring Cloud Gateway | Istio, Linkerd, Cilium |
 
@@ -216,7 +216,25 @@ Example: limit 100/min. The previous minute had 80 requests; 15 s into the curre
 
 BoxOffice runs **six gateway replicas**. If each keeps its counters in memory, a fan whose requests are spread across them gets **six times** the limit. A rate limit that must hold across replicas needs a **shared counter store**, almost always **Redis**: fast (sub-millisecond in the same zone), with atomic operations and expiry.
 
-The read-modify-write of a token bucket must be **atomic** — two gateway replicas reading "1 token left" at the same time would both accept. A Lua script runs atomically inside Redis:
+The read-modify-write of a token bucket must be **atomic** — two gateway replicas reading "1 token left" at the same time would both accept, as the first half of the diagram shows. A Lua script runs atomically inside Redis — the second half:
+
+``` diagram-sim
+sequenceDiagram
+    participant G1 as gateway-1
+    participant R as Redis
+    participant G2 as gateway-2
+    Note over R: the bucket of fan 7 holds 1 token
+    G1->>R: HMGET (reads 1 token)
+    G2->>R: HMGET (reads 1 token)
+    G1->>R: HSET tokens = 0, accept
+    G2->>R: HSET tokens = 0, accept
+    Note over G1,G2: two requests passed on one token
+    G1->>R: EVAL token_bucket.lua
+    Note over R: the script runs alone, read + refill + take
+    R-->>G1: allowed, 0 tokens left
+    G2->>R: EVAL token_bucket.lua
+    R-->>G2: rejected, answer 429
+```
 
 ```lua title="token_bucket.lua"
 -- KEYS[1] = bucket key (e.g. "rl:user:7:holds")
@@ -256,7 +274,7 @@ Design points worth saying out loud:
 
 | Layer | Key | Protects against | Example |
 |---|---|---|---|
-| **Edge / CDN / WAF** | IP, fingerprint, ASN | floods, scrapers, credential stuffing — before any cost | 100 req/10 s per IP on `/login` |
+| **Edge / content delivery network (CDN) / web application firewall (WAF)** | IP, fingerprint, autonomous system number (ASN) | floods, scrapers, credential stuffing — before any cost | 100 req/10 s per IP on `/login` |
 | **API gateway** | user id, API key, route | abusive users, plan quotas, fairness | 10 req/s per fan, bursts of 20 |
 | **Service** | business entity | business abuse the gateway cannot see | max 6 seats per hold, 1 active hold per event per user |
 | **Outbound (client side)** | the provider's quota | exceeding a 3rd-party limit (payment, e-mail) | 100 req/s to the payment provider |
@@ -381,7 +399,7 @@ The full design of a distributed rate limiter, as an interview problem, is in th
         - `inventory`: at most 6 seats per hold and one active hold per user per event (a business rule, enforced with the database).
     - **Store**: Redis (with a replica) for the buckets; if it fails, gateways **fail open** with a local limit of 1/6 of the global one.
     - **Answers**: `429` with `Retry-After`; the app backs off with jitter and shows "too many attempts, try again in a few seconds".
-    - **Assistant**: a separate, lower limit and a token-cost-based quota, because an LLM call is far more expensive than a catalog read (see [AI systems](../../ai-systems/index.md)).
+    - **Assistant**: a separate, lower limit and a token-cost-based quota, because a large language model (LLM) call is far more expensive than a catalog read (see [AI systems](../../ai-systems/index.md)).
 
 !!! tip "In the interview"
     - Put the API gateway in the high-level design and list what it centralises: **routing, authentication, rate limiting, observability**. Then move on — unless the question is a rate limiter.
@@ -394,7 +412,7 @@ The full design of a distributed rate limiter, as an interview problem, is in th
     - **Answer `429` with `Retry-After` (and the `RateLimit` headers)** — well-behaved clients back off exactly as long as needed instead of guessing.
     - **Run a new limit in count (log-only) mode before enforcing it** — measure who would have been limited, then switch it on.
     - **Give each route its own timeout and retry policy, with retries only on idempotent methods** — In BoxOffice: the gateway's 1 s connect / 5 s response timeouts and a `Retry` filter limited to `GET` in [lab 4](../../../hands-on/4/gateway/index.md) (box above).
-    - **Validate JWTs locally with cached public keys** — a JWKS fetched and cached by the gateway costs no call to `auth` per request. In BoxOffice: `jwk-set-uri` in lab 4's `application.yaml`.
+    - **Validate JWTs locally with cached public keys** — a JSON Web Key Set (JWKS) fetched and cached by the gateway costs no call to `auth` per request. In BoxOffice: `jwk-set-uri` in lab 4's `application.yaml`.
     - **Measure the gateway's own overhead and capacity** — p50 through the gateway versus direct, and its breaking point, so it is sized like any other tier.
 
 !!! warning "Pitfalls"
@@ -402,7 +420,7 @@ The full design of a distributed rate limiter, as an interview problem, is in th
     - **Business logic in the gateway**: scripts and plugins that compute prices or allocate seats create a second, hidden monolith that nobody tests. Keep the gateway dumb and the services smart.
     - **Trusting the gateway alone**: services must still verify identity and authorisation (zero trust); an attacker inside the network bypasses the gateway.
     - **Per-replica counters** that silently multiply the limit by the number of replicas.
-    - **Rate-limiting by IP only**: thousands of fans behind one mobile carrier's NAT share an IP; botnets have thousands of IPs. Prefer user/API-key keys, with IP limits only at the edge and generous.
+    - **Rate-limiting by IP only**: thousands of fans behind one mobile carrier's network address translation (NAT) share an IP; botnets have thousands of IPs. Prefer user/API-key keys, with IP limits only at the edge and generous.
     - **Retrying `429` immediately**: clients without backoff turn a limit into a retry storm.
 
 ---

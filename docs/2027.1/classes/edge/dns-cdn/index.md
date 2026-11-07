@@ -54,7 +54,7 @@ A cold lookup costs several round trips (tens to hundreds of milliseconds); a ca
 | **MX** | domain → mail servers | `boxoffice.com → mail.provider.com` | receiving e-mail |
 | **TXT** | name → free text | `v=spf1 include:…` | domain ownership proofs, SPF/DKIM/DMARC for e-mail |
 | **SRV** | service → host + port | `_sip._tcp.boxoffice.com` | service discovery (Kubernetes DNS uses it internally) |
-| **CAA** | domain → allowed certificate authorities | `0 issue "letsencrypt.org"` | restricts who may issue TLS certificates for the domain |
+| **CAA** | domain → allowed certificate authorities | `0 issue "letsencrypt.org"` | restricts who may issue Transport Layer Security (TLS) certificates for the domain |
 
 ### TTL: freshness versus load { #ttl }
 
@@ -125,7 +125,7 @@ Anycast gives three things at once, without any DNS trick:
 
 - **Low latency**: every client reaches a nearby location.
 - **Automatic failover**: if a location stops announcing the address, routing converges to the next-nearest one, typically within seconds.
-- **DDoS absorption**: an attack from a global botnet is split among all the locations instead of hitting one (see [edge security](../index.md#ddos)).
+- **DDoS absorption** (distributed denial of service): an attack from a global botnet is split among all the locations instead of hitting one (see [edge security](../index.md#ddos)).
 
 The root DNS servers, public resolvers like `1.1.1.1` and `8.8.8.8`, and every large CDN use anycast. Anycast works best with short, mostly stateless exchanges (DNS over UDP, HTTP requests at an edge cache); a route change in the middle of a long TCP connection can break it, which large providers mitigate with careful routing.
 
@@ -190,6 +190,23 @@ The origin tells every cache — the browser, the CDN, any proxy in between — 
 | `immutable` | the content will never change at this URL; do not even revalidate |
 
 Revalidation uses **validators**: the origin sends an `ETag` (a version identifier) or `Last-Modified`; the cache asks `If-None-Match: "v42"`, and the origin answers `304 Not Modified` with no body when nothing changed — cheap for both sides.
+
+With `stale-while-revalidate`, the fan does not even wait for that check:
+
+``` diagram-sim
+sequenceDiagram
+    participant F as Fan
+    participant E as CDN PoP
+    participant O as Origin
+    F->>E: GET /events/42 (s-maxage=300 expired 20 s ago)
+    Note over E: still inside stale-while-revalidate=60
+    E-->>F: 200 with the stale copy, at once
+    E->>O: GET /events/42, If-None-Match v42
+    O-->>E: 304 Not Modified (no body)
+    Note over E: fresh again for 300 s
+    F->>E: GET /events/42 (the next fan)
+    E-->>F: 200 from the PoP, origin untouched
+```
 
 ```http title="Typical BoxOffice responses"
 # fingerprinted JavaScript bundle: cache "forever"
@@ -277,7 +294,7 @@ Going from 90% to 99% hit ratio looks like a small improvement ("only nine point
 
 Modern CDNs also run **your code** in the PoPs: Cloudflare Workers, AWS CloudFront Functions and Lambda@Edge, Fastly Compute, Akamai EdgeWorkers. These are small functions (milliseconds of CPU, limited memory, usually JavaScript or WebAssembly) executed on each request, before the cache or the origin. Good uses:
 
-- **Validate a waiting-room token** or a JWT signature at the edge and reject invalid requests before they cross the ocean.
+- **Validate a waiting-room token** or a JSON Web Token (JWT) signature at the edge and reject invalid requests before they cross the ocean.
 - **Rewrite and redirect**: A/B tests, language redirects, normalising the cache key (removing `utm_*` parameters).
 - **Assemble responses** from cached fragments, or add security headers.
 - Serve a **waiting-room page** entirely from the edge while the origin is protected.
@@ -319,7 +336,7 @@ Bad uses: anything that needs your database on every request (the function is fa
 |---|---|---|---|
 | DNS TTL | short (30–60 s) | long (hours) | you need fast failover or plan a change |
 | Routing | latency-based / GeoDNS | anycast | you need per-region control (data residency, canaries) |
-| Failover | DNS failover | anycast / global LB | a few minutes of failover time is acceptable and cheap matters |
+| Failover | DNS failover | anycast / global load balancer | a few minutes of failover time is acceptable and cheap matters |
 | CDN model | pull | push | content is requested unpredictably (most web traffic) |
 | Freshness | purge on change | versioned URLs | the URL cannot change (the HTML page itself, an API) |
 | Dynamic data | micro-cache (1–5 s) | no cache | slightly stale data is acceptable and the endpoint is hot |

@@ -1,5 +1,5 @@
 
-O BoxOffice lança o seu app mobile. Alguém propõe o projeto óbvio: uma tela de login no app, o app envia e-mail e senha para `POST /login`, guarda a senha no celular "para o usuário não precisar digitar de novo" e a envia em toda requisição. Em uma semana, o time de produto também quer **"Entrar com Google"**, um **checkout web**, um **job noturno de conciliação** em `order` que chama `inventory` sem nenhum usuário por trás e um **assistente de IA** que age em nome do usuário. Um login caseiro não consegue expressar nada disso com segurança. Esta página trata dos padrões que conseguem: **sessões e tokens**, **JWT**, **OAuth 2.1** e **OpenID Connect**, e dos modelos de autorização que decidem *o que* um chamador autenticado pode fazer.
+O BoxOffice lança o seu app mobile. Alguém propõe o projeto óbvio: uma tela de login no app, o app envia e-mail e senha para `POST /login`, guarda a senha no celular "para o usuário não precisar digitar de novo" e a envia em toda requisição. Em uma semana, o time de produto também quer **"Entrar com Google"**, um **checkout web**, um **job noturno de conciliação** em `order` que chama `inventory` sem nenhum usuário por trás e um **assistente de IA** que age em nome do usuário. Um login caseiro não consegue expressar nada disso com segurança. Esta página trata dos padrões que conseguem: **sessões e tokens**, **JSON Web Tokens (JWT)**, **OAuth 2.1** e **OpenID Connect**, e dos modelos de autorização que decidem *o que* um chamador autenticado pode fazer.
 
 ---
 
@@ -42,7 +42,7 @@ flowchart LR
 | Escala horizontal | precisa de um store compartilhado e altamente disponível | sem estado; qualquer instância valida |
 | Uso entre serviços | os serviços precisam chamar o store de sessões | qualquer serviço com a chave pública verifica |
 | Tamanho por requisição | ~32 bytes | frequentemente 0,5–2 KB em todo cabeçalho de requisição |
-| Melhor para | aplicações web clássicas, o padrão BFF | APIs, apps mobile, serviço a serviço |
+| Melhor para | aplicações web clássicas, o padrão Backend for Frontend (BFF) | APIs, apps mobile, serviço a serviço |
 
 Nenhum dos dois é "o moderno". Sistemas grandes combinam os dois: um **JWT de vida curta** (minutos) para APIs e um **refresh token ou sessão revogável** guardado no servidor. A latência de revogação passa a ser igual ao tempo de vida do access token — um número que você escolhe.
 
@@ -91,7 +91,7 @@ A RFC 8725 (JWT Best Current Practices) é a referência[^1]. Um resource server
 
 !!! example "No código do BoxOffice: o `auth` assina os tokens (lab 4)"
 
-    No [Hands-on 4 — auth](../../../hands-on/4/auth/index.md), o BoxOffice ganha sua porta de entrada: o `auth` assina todo token com **RS256**, a chave privada nunca sai dele e a chave pública é servida como JWKS em `/auth/.well-known/jwks.json`, para que o gateway verifique sem compartilhar um segredo que também permitiria forjar tokens. Compare as claims com a checklist: `iss`, `aud`, `sub`, `exp`, `jti` e o cabeçalho `kid` estão lá, e o papel vira uma claim `scope` (`user` ou `user admin`). Três atalhos, cada um com seu preço: `typ` é um `JWT` simples (ainda não há ID tokens com que confundi-lo); o par de chaves é gerado a cada inicialização, então reiniciar o `auth` rejeita todo token emitido antes (`kid` desconhecido) — o aviso do lab explica por que chaves reais vivem num KMS e giram com duas chaves no JWKS; e a validade é de 1 hora (`JWT_TTL`), sem refresh token, então um token roubado funciona por até uma hora, não 15 minutos.
+    No [Hands-on 4 — auth](../../../hands-on/4/auth/index.md), o BoxOffice ganha sua porta de entrada: o `auth` assina todo token com **RS256**, a chave privada nunca sai dele e a chave pública é servida como JWKS em `/auth/.well-known/jwks.json`, para que o gateway verifique sem compartilhar um segredo que também permitiria forjar tokens. Compare as claims com a checklist: `iss`, `aud`, `sub`, `exp`, `jti` e o cabeçalho `kid` estão lá, e o papel vira uma claim `scope` (`user` ou `user admin`). Três atalhos, cada um com seu preço: `typ` é um `JWT` simples (ainda não há ID tokens com que confundi-lo); o par de chaves é gerado a cada inicialização, então reiniciar o `auth` rejeita todo token emitido antes (`kid` desconhecido) — o aviso do lab explica por que chaves reais vivem num serviço de gerenciamento de chaves (KMS, *key management service*) e giram com duas chaves no JWKS; e a validade é de 1 hora (`JWT_TTL`), sem refresh token, então um token roubado funciona por até uma hora, não 15 minutos.
 
     ``` { .java title="services/auth/src/main/java/boxoffice/auth/TokenService.java (signing a token)" }
     --8<-- "docs/2027.1/hands-on/4/code/services/auth/src/main/java/boxoffice/auth/TokenService.java:48:72"
@@ -118,9 +118,9 @@ O OAuth 2.0 (RFC 6749, 2012) acumulou uma década de lições de segurança em d
 
 | O OAuth 2.0 permitia | O OAuth 2.1 exige |
 |---|---|
-| Authorization Code com ou sem PKCE | **PKCE para todo cliente** que usa o authorization code, inclusive os confidenciais |
+| Authorization Code com ou sem PKCE (*Proof Key for Code Exchange*) | **PKCE para todo cliente** que usa o authorization code, inclusive os confidenciais |
 | Grant **Implicit** (token no fragmento da URL) | removido — tokens vazavam por histórico, referrers, logs |
-| **Resource Owner Password Credentials** (o app coleta a senha) | removido — anula a delegação, impede MFA, ensina usuários a digitar senhas em qualquer lugar |
+| **Resource Owner Password Credentials** (o app coleta a senha) | removido — anula a delegação, impede a autenticação multifator (MFA, *multi-factor authentication*), ensina usuários a digitar senhas em qualquer lugar |
 | redirect URIs comparadas por prefixo ou padrão | **comparação exata de strings** das redirect URIs |
 | bearer tokens em query strings | **nunca** na URL; só no cabeçalho ou no corpo |
 | refresh tokens de vida longa para clientes públicos | refresh tokens **vinculados ao remetente ou rotacionados** a cada uso |
@@ -193,6 +193,22 @@ O parâmetro `state` impede que um atacante injete o código *dele* na sessão d
 
 **Onde o app mobile guarda os tokens.** O access token fica em memória; o refresh token, no armazenamento seguro da plataforma (Keychain no iOS, armazenamento apoiado no Keystore no Android). O authorization server **rotaciona** o refresh token a cada uso: se uma cópia roubada e o app legítimo tentarem usar o mesmo, o servidor detecta o reuso e revoga a família inteira.
 
+``` diagram-sim
+sequenceDiagram
+    participant App as app BoxOffice
+    participant T as Ladrão
+    participant AS as auth
+    App->>AS: POST /token (refresh_token R1)
+    AS-->>App: novo access token + R2 (R1 agora está gasto)
+    Note over T: R1 foi copiado do celular
+    T->>AS: POST /token (refresh_token R1)
+    Note over AS: R1 já foi usado, então a família vazou
+    AS-->>T: 400 invalid_grant
+    AS->>AS: revoga R2 e todo token da família
+    App->>AS: POST /token (refresh_token R2)
+    AS-->>App: 400 invalid_grant, Ana faz login de novo
+```
+
 ---
 
 ## OpenID Connect: quem é o usuário? { #openid-connect-who-is-the-user }
@@ -240,9 +256,9 @@ sequenceDiagram
 
 | Onde o navegador guarda credenciais | Legível por JS? | Principal risco |
 |---|---|---|
-| `localStorage` / `sessionStorage` | sim | qualquer XSS (cross-site scripting) rouba o token |
-| cookie `HttpOnly` com o token | não | CSRF (cross-site request forgery); mitigado por `SameSite` + tokens CSRF |
-| cookie de sessão do BFF, tokens no servidor | nenhum token no navegador | roubo de sessão; o BFF é um componente a mais para escalar |
+| `localStorage` / `sessionStorage` | ❌ sim | qualquer XSS (cross-site scripting) rouba o token |
+| cookie `HttpOnly` com o token | ✅ não | CSRF (cross-site request forgery); mitigado por `SameSite` + tokens CSRF |
+| cookie de sessão do BFF, tokens no servidor | ✅ nenhum token no navegador | roubo de sessão; o BFF é um componente a mais para escalar |
 
 ---
 
@@ -268,7 +284,7 @@ O `assistant` de IA precisa chamar `order` *em nome da Ana*, com menos poder que
 
 ### Tokens vinculados ao remetente { #sender-constrained-tokens }
 
-Um bearer token funciona para quem o roubar. Tokens **vinculados ao remetente** (*sender-constrained*) ficam amarrados a uma chave que o cliente legítimo possui: com **DPoP** (RFC 9449), o cliente assina uma pequena prova a cada requisição com uma chave privada no dispositivo; com **tokens vinculados a mTLS** (RFC 8705), o token fica amarrado ao certificado do cliente. Um token roubado sozinho fica inútil. APIs de nível financeiro os exigem; no BoxOffice, valem a pena nos endpoints de pagamento.
+Um bearer token funciona para quem o roubar. Tokens **vinculados ao remetente** (*sender-constrained*) ficam amarrados a uma chave que o cliente legítimo possui: com **DPoP** (*Demonstrating Proof of Possession*, RFC 9449), o cliente assina uma pequena prova a cada requisição com uma chave privada no dispositivo; com **tokens vinculados a mTLS** (RFC 8705), o token fica amarrado ao certificado do cliente. Um token roubado sozinho fica inútil. APIs de nível financeiro os exigem; no BoxOffice, valem a pena nos endpoints de pagamento.
 
 ### Passkeys
 
@@ -323,11 +339,11 @@ A autenticação produziu uma identidade. Agora: *esta* identidade pode fazer *e
 
 | Modelo | Decide por | Exemplo no BoxOffice | Bom para | Fraco em |
 |---|---|---|---|---|
-| **RBAC** (baseado em papéis) | os papéis do usuário | `organizer` pode criar eventos; `support` pode ler qualquer pedido | permissões amplas e estáveis | regras por objeto ("só os eventos *dele*") |
-| **ABAC** (baseado em atributos) | atributos do usuário, do recurso, do contexto | estornos permitidos se `order.eventDate > now + 48h` e `user.country == order.country` | regras ricas e contextuais | difícil auditar "quem consegue acessar X?" |
-| **ReBAC** (baseado em relacionamentos) | um grafo de relacionamentos | Ana pode ver o pedido 1042 porque é *dona* dele; Bruno, porque Ana *compartilhou* o ingresso com ele | compartilhamento, organizações, hierarquias | precisa de um store de relacionamentos (Google Zanzibar, OpenFGA, SpiceDB) |
+| **RBAC** (controle de acesso baseado em papéis, *role-based access control*) | os papéis do usuário | `organizer` pode criar eventos; `support` pode ler qualquer pedido | permissões amplas e estáveis | regras por objeto ("só os eventos *dele*") |
+| **ABAC** (controle de acesso baseado em atributos, *attribute-based access control*) | atributos do usuário, do recurso, do contexto | estornos permitidos se `order.eventDate > now + 48h` e `user.country == order.country` | regras ricas e contextuais | difícil auditar "quem consegue acessar X?" |
+| **ReBAC** (controle de acesso baseado em relacionamentos, *relationship-based access control*) | um grafo de relacionamentos | Ana pode ver o pedido 1042 porque é *dona* dele; Bruno, porque Ana *compartilhou* o ingresso com ele | compartilhamento, organizações, hierarquias | precisa de um store de relacionamentos (Google Zanzibar, OpenFGA, SpiceDB) |
 
-**Escopos OAuth** não são substitutos: um escopo limita o que o *cliente* pode fazer (`orders:read`), não quais *objetos* o usuário pode tocar. A verificação de posse — a correção do OWASP **API1: BOLA** — sempre roda no serviço que é dono dos dados[^9]:
+**Escopos OAuth** não são substitutos: um escopo limita o que o *cliente* pode fazer (`orders:read`), não quais *objetos* o usuário pode tocar. A verificação de posse — a correção do **API1: BOLA** (autorização quebrada no nível do objeto, *Broken Object Level Authorization*) da lista OWASP (*Open Worldwide Application Security Project*) — sempre roda no serviço que é dono dos dados[^9]:
 
 === "No código (serviço order)"
 

@@ -12,20 +12,20 @@ Neste curso, **a borda** é o conjunto de componentes que recebem, filtram, rote
 
     Ao final desta aula você deve ser capaz de:
 
-    - **Rastrear** uma requisição de um cliente até um serviço passando por DNS, CDN, WAF, load balancer, API gateway e ingress, e **explicar** o que cada salto decide.
+    - **Rastrear** uma requisição de um cliente até um serviço passando pelo Sistema de Nomes de Domínio (DNS, *Domain Name System*), uma rede de distribuição de conteúdo (CDN, *content delivery network*), um firewall de aplicação web (WAF, *web application firewall*), um load balancer, um API gateway e um ingress, e **explicar** o que cada salto decide.
     - **Configurar** registros DNS e TTLs e o cache da CDN (`Cache-Control`, cache keys, invalidação) para uma página de muita leitura e **calcular** a carga na origem para um dado hit ratio.
     - **Comparar** load balancing L4 e L7 e **escolher** um algoritmo de balanceamento (round robin, least connections, power of two choices, consistent hashing) para uma carga de trabalho.
     - **Projetar** uma política de rate limiting com token bucket ou sliding window e **posicioná-la** na camada certa.
-    - **Contrastar** HTTP/1.1, HTTP/2, HTTP/3 (QUIC), WebSockets, SSE e gRPC, e **selecionar** um deles para uma dada interação.
-    - **Defender** uma arquitetura de borda contra bots e ataques DDoS com regras de WAF, rate limits, desafios e uma sala de espera.
+    - **Contrastar** HTTP/1.1, HTTP/2, HTTP/3 (QUIC), WebSockets, Server-Sent Events (SSE) e gRPC, e **selecionar** um deles para uma dada interação.
+    - **Defender** uma arquitetura de borda contra bots e ataques de negação de serviço distribuída (DDoS, *distributed denial of service*) com regras de WAF, rate limits, desafios e uma sala de espera.
 
 ## Roteiro { #roadmap }
 
-1. **Esta visão geral** — a jornada da requisição pela borda, reverse proxies, terminação TLS, um orçamento de latência e segurança na borda (WAF, bots, DDoS).
+1. **Esta visão geral** — a jornada da requisição pela borda, reverse proxies, terminação de segurança da camada de transporte (TLS, *Transport Layer Security*), um orçamento de latência e segurança na borda (WAF, bots, DDoS).
 2. [DNS & CDN](dns-cdn/index.md) — resolução de nomes, TTLs, GeoDNS e anycast; redes de entrega de conteúdo, cache keys, invalidação e edge compute.
 3. [Load Balancing](load-balancing/index.md) — L4 vs L7, algoritmos, consistent hashing, service discovery, health checks e Kubernetes Ingress / Gateway API.
-4. [API Gateway & Rate Limiting](api-gateway/index.md) — o que um gateway centraliza, o padrão BFF e os algoritmos de rate limiting.
-5. [Identidade: OAuth 2.1, OIDC & JWT](identity/index.md) — quem é o chamador: tokens emitidos por `auth` e validados uma vez, no gateway.
+4. [API Gateway & Rate Limiting](api-gateway/index.md) — o que um gateway centraliza, o padrão Backend for Frontend (BFF) e os algoritmos de rate limiting.
+5. [Identidade: OAuth 2.1, OpenID Connect (OIDC) & JSON Web Tokens (JWT)](identity/index.md) — quem é o chamador: tokens emitidos por `auth` e validados uma vez, no gateway.
 6. [Protocolos](protocols/index.md) — HTTP/1.1, HTTP/2, HTTP/3 e QUIC, TLS 1.3, WebSockets, SSE e gRPC.
 7. [Quiz](quiz.md) — teste o seu entendimento.
 
@@ -127,7 +127,7 @@ O TLS (Transport Layer Security) criptografa o tráfego entre dois pontos. Na bo
 
 | Opção | Como funciona | Prós | Contras |
 |---|---|---|---|
-| **Terminar na borda** | CDN / LB decifra; HTTP puro dentro da rede privada | simples; o proxy pode ler cabeçalhos e cachear | o tráfego dentro da rede fica legível para quem conseguir entrar |
+| **Terminar na borda** | CDN / load balancer (LB) decifra; HTTP puro dentro da rede privada | simples; o proxy pode ler cabeçalhos e cachear | o tráfego dentro da rede fica legível para quem conseguir entrar |
 | **Recriptografar** (TLS bridging) | a borda decifra, inspeciona e abre uma nova conexão TLS até o backend | inspeção *e* criptografia em trânsito | dois handshakes, certificados nos backends |
 | **Pass-through** | o LB L4 repassa bytes criptografados; o serviço termina o TLS | criptografia de ponta a ponta | sem roteamento L7, cache nem WAF no LB |
 
@@ -140,12 +140,12 @@ Arquiteturas modernas seguem uma postura **zero trust**: terminar o TLS público
 
 ## Um orçamento de latência para a borda { #latency-budget }
 
-Cada salto adiciona tempo. Suponha que o BoxOffice queira que a API do mapa de assentos responda em **menos de 200 ms no p99** para fãs no Brasil. Para onde vai o tempo? Os valores abaixo são **suposições ilustrativas** para um usuário em São Paulo e uma região em São Paulo; o método importa mais que os números.
+Cada salto adiciona tempo. Suponha que o BoxOffice queira que a API do mapa de assentos responda em **menos de 200 ms no percentil 99 (p99)** para fãs no Brasil. Para onde vai o tempo? Os valores abaixo são **suposições ilustrativas** para um usuário em São Paulo e uma região em São Paulo; o método importa mais que os números.
 
 | Etapa | Fria (primeira visita) | Quente (conexão reaproveitada) |
 |---|---|---|
 | Consulta DNS (miss / hit no cache do resolver) | 30 ms | 0 ms (em cache) |
-| Handshake TCP + TLS 1.3 até a borda (2 RTT × 10 ms) | 20 ms | 0 ms (conexão reaproveitada) |
+| Handshake TCP + TLS 1.3 até a borda (2 tempos de ida e volta, RTT, *round-trip time*, × 10 ms) | 20 ms | 0 ms (conexão reaproveitada) |
 | Borda da CDN → WAF → LB (mesma região metropolitana) | 5 ms | 5 ms |
 | API gateway: checagem do JWT + consulta de rate limit no Redis | 5 ms | 5 ms |
 | Ingress → `inventory` → PostgreSQL | 40 ms | 40 ms |
@@ -205,7 +205,7 @@ A ideia-chave é a **assimetria**: você não consegue superar um atacante em ca
 !!! example "BoxOffice: 10:00, a venda abre"
     A configuração de borda para a venda do estádio, camada por camada:
 
-    - **DNS**: `boxoffice.com` aponta para os endereços anycast da CDN; TTL de 60 s para que o time possa redirecionar o tráfego rapidamente se uma região falhar.
+    - **DNS**: `boxoffice.com` aponta para os endereços anycast da CDN; tempo de vida (TTL, *time to live*) de 60 s para que o time possa redirecionar o tráfego rapidamente se uma região falhar.
     - **CDN**: a página do evento, o JavaScript e as imagens ficam em cache com TTLs longos e nomes de arquivo com fingerprint; o JSON de disponibilidade de assentos recebe **micro-caching de 1 segundo** — 2 milhões de fãs fazendo polling a cada 5 s viram, no máximo, uma requisição à origem por segundo por localidade de borda.
     - **WAF**: regras gerenciadas da OWASP ligadas; uma regra customizada só permite `POST /api/holds` com um token válido da sala de espera; `POST /login` limitado por IP e por conta.
     - **Bots**: desafio JavaScript para fingerprints suspeitos; ASNs de data center desafiados antes de entrar na fila.
@@ -243,8 +243,6 @@ flowchart LR
     c2 -.- d2["padrões de cache<br/>(aula 7)"]
     c4 -.- d3["serviços stateless,<br/>autoscaling (aula 5)"]
     c5 -.- d4["identidade, JWT<br/>(Identidade, esta aula)"]
-    classDef comp fill:#1e9e5a22,stroke:#1e9e5a
-    classDef tech fill:#2f6fed22,stroke:#2f6fed
 ```
 
 | Componente da paleta | Pergunta que responde | Conceitos | Ensinado em | Cenários |
@@ -294,7 +292,7 @@ A borda decide qual réplica atende cada requisição e o gateway confere o toke
 
 - [Hands-on 3 — Edge](../../hands-on/3/index.md): reverse proxy e load balancer Nginx sobre 3 réplicas, health checks e rate limiting, medidos com k6.
 - [Hands-on 4 — Gateway & identidade](../../hands-on/4/index.md): Spring Cloud Gateway com validação de JWT.
-- [Exercício — Design no playground](../../exercises/playground-design/index.md): resolva desafios do playground com metas de SLO e custo.
+- [Exercício — Design no playground](../../exercises/playground-design/index.md): resolva desafios do playground com metas de objetivo de nível de serviço (SLO, *service level objective*) e custo.
 - Estudos de caso: [Rate limiter](../case-studies/rate-limiter/index.md) e [Ingressos (venda relâmpago do BoxOffice)](../case-studies/ticketing/index.md).
 - [System Design Playground](../../../playground/index.md) e o [catálogo de componentes — Traffic & Edge](../../reference/components/edge/index.md).
 - [Preparação para entrevistas](../../support/interview/index.md).

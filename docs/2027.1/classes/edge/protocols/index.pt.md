@@ -1,6 +1,6 @@
 O mapa de assentos do BoxOffice tem um problema. Durante a venda, os assentos mudam de cor a cada segundo, conforme outros fãs os reservam. A primeira versão do web app pedia `GET /api/events/42/seats` a cada 2 segundos: 2 milhões de fãs × 0,5 requisição por segundo = **1 milhão de requisições por segundo**, a maioria respondendo "nada mudou". Enquanto isso, fãs num trem em São Paulo reclamam que o app "trava" toda vez que o celular troca de antena. Os dois problemas são problemas de **protocolo** — a escolha de como os bytes viajam entre o celular e a borda — e os dois têm boas respostas modernas.
 
-Esta página revisa os protocolos que rodam na borda: as três gerações do HTTP, o handshake TLS que as protege, as opções para atualizações em **tempo real** (polling, long polling, Server-Sent Events, WebSockets) e o gRPC para chamadas entre serviços. O objetivo não é decorar cabeçalhos, mas saber **quanto cada protocolo custa em round trips e conexões**, e para que ele serve.
+Esta página revisa os protocolos que rodam na borda: as três gerações do HTTP, o handshake de segurança da camada de transporte (TLS, *Transport Layer Security*) que as protege, as opções para atualizações em **tempo real** (polling, long polling, Server-Sent Events, WebSockets) e o gRPC para chamadas entre serviços. O objetivo não é decorar cabeçalhos, mas saber **quanto cada protocolo custa em round trips e conexões**, e para que ele serve.
 
 ---
 
@@ -53,8 +53,8 @@ Os custos: o UDP às vezes é bloqueado ou estrangulado por redes corporativas (
 | Head-of-line blocking | nível HTTP e TCP | só nível TCP | nenhum entre streams |
 | Compressão de cabeçalhos | nenhuma | HPACK | QPACK |
 | Handshake antes dos dados (conexão nova) | TCP + TLS: 2–3 RTT | TCP + TLS: 2–3 RTT | 1 RTT (0-RTT na retomada) |
-| Sobrevive à troca de IP | não | não | sim (migração de conexão) |
-| Lugar típico | backends, clientes simples | navegadores, gRPC, interno | navegadores e mobile ↔ CDN/borda |
+| Sobrevive à troca de IP | ❌ não | ❌ não | ✅ sim (migração de conexão) |
+| Lugar típico | backends, clientes simples | navegadores, gRPC, interno | navegadores e mobile ↔ rede de distribuição de conteúdo (CDN, *content delivery network*) / borda |
 
 ---
 
@@ -123,6 +123,17 @@ Duas conclusões. Primeiro, o protocolo importa **mais quando o servidor está l
 ??? question "Pense antes: o app mobile faz 30 chamadas pequenas à API quando a tela do evento abre. A API está na Virgínia (RTT de 150 ms a partir de São Paulo) e o app abre uma nova conexão HTTP/1.1 com TLS 1.2 para cada chamada, 6 por vez. Quanto tempo isso leva, aproximadamente?"
     Cada chamada numa conexão nova custa 4 RTT ≈ 600 ms; 30 chamadas em lotes de 6 dão 5 lotes ≈ **3 segundos**, antes de qualquer tempo de servidor. Correções, em ordem de impacto: reaproveitar conexões (keep-alive) e **multiplexá-las** com HTTP/2 ou HTTP/3 (as 30 chamadas numa conexão só: 1 handshake + cerca de 1 RTT ≈ 300–450 ms); terminar o TLS numa **borda perto do fã**; e **agregar** as 30 chamadas em uma chamada por tela num BFF ([API gateway](../api-gateway/index.md#bff)).
 
+O simulador manda essas 30 chamadas por quatro pilhas ao mesmo tempo — com a mesma ida e volta e, quando você acrescenta perda, os mesmos pacotes perdidos — e desenha uma delas chamada por chamada. Ele mostra também o que o gráfico acima não mostra: o que um pacote perdido faz com as chamadas que dividem uma conexão TCP.
+
+<div class="csim" data-sim="http-versions" data-rtt="150" data-loss="0" data-lane="h2"></div>
+
+!!! tip "Experimente"
+
+    1. Com 150 ms e sem perda os blocos respondem à pergunta acima: 3,00 s com uma conexão HTTP/1.1 nova por chamada, 1,05 s com 6 conexões reaproveitadas, 459 ms numa conexão HTTP/2 e 309 ms em HTTP/3. Sem perda, toda a diferença são idas e voltas.
+    2. Suba a perda para 2%. O HTTP/2 completa a tela em 603 ms e o HTTP/3 em 453 ms: uma ida e volta a mais em cada. Agora leia a cascata do HTTP/2: 29 das 30 chamadas esperam (vermelho) por um pacote de outra chamada e metade delas só volta em 603 ms; no HTTP/3, metade volta em 307 ms. Isso é o bloqueio de cabeça de fila (*head-of-line blocking*) do TCP — e o motivo do QUIC.
+    3. Aperte **outros pacotes perdidos** algumas vezes: os números mudam, o padrão não.
+    4. Ponha a ida e volta em 10 ms, uma borda na cidade do fã: 201 ms na pior pilha e 39 ms no HTTP/2. Terminar as conexões perto do usuário encolhe todas as idas e voltas de uma vez.
+
 ---
 
 ## Tempo real: levando atualizações ao cliente { #real-time }
@@ -151,7 +162,7 @@ id: 1843
 data: {"seat": "B-13", "status": "sold"}
 ```
 
-O SSE é **unidirecional** (servidor → cliente), só texto, e roda sobre HTTP normal — então passa por proxies, CDNs e load balancers, funciona sobre a multiplexação do HTTP/2 e a API `EventSource` do navegador **se reconecta automaticamente**, enviando o último `id` recebido num cabeçalho `Last-Event-ID` para que o servidor possa retomar. É a resposta boa mais simples para "empurrar atualizações para muitos clientes": placares ao vivo, notificações, a posição na sala de espera e o stream token a token de uma resposta de LLM.
+O SSE é **unidirecional** (servidor → cliente), só texto, e roda sobre HTTP normal — então passa por proxies, CDNs e load balancers, funciona sobre a multiplexação do HTTP/2 e a API `EventSource` do navegador **se reconecta automaticamente**, enviando o último `id` recebido num cabeçalho `Last-Event-ID` para que o servidor possa retomar. É a resposta boa mais simples para "empurrar atualizações para muitos clientes": placares ao vivo, notificações, a posição na sala de espera e o stream token a token de uma resposta de um modelo de linguagem grande (LLM, *large language model*).
 
 !!! example "No código do BoxOffice: o assistente transmite com SSE (lab 12)"
 

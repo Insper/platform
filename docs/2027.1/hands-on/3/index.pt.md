@@ -3,7 +3,7 @@
     - Rodar **três réplicas** do `catalog` e colocar o **Nginx** na frente delas como a **borda** do BoxOffice: proxy reverso, balanceador de carga, rate limiter.
     - Ver a carga se espalhar pelas réplicas, matar e congelar réplicas, e ver o que fazem os **health checks passivos**, os **timeouts** e os **retries**.
     - Limitar um cliente de API guloso com **rate limiting** (HTTP 429).
-    - **Medir** o scale-out: throughput e p99 com 1 réplica contra 3. Fica 3× melhor?
+    - **Medir** o scale-out: throughput e latência no percentil 99 (p99) com 1 réplica contra 3. Fica 3× melhor?
 
 No lab 2 você encontrou o joelho de uma única instância do `catalog`. O jeito mais simples de deslocá-lo é a **escala horizontal**: mais cópias idênticas e *stateless* do serviço atrás de um balanceador de carga. A mesma caixa resolve um segundo problema — com uma instância, uma queda ou um deploy derruba o BoxOffice. Com três, uma pode falhar enquanto as outras continuam atendendo. Este lab constrói a **borda** do sistema: a única porta de entrada pública que toda requisição atravessa primeiro.
 
@@ -115,7 +115,7 @@ O Nginx[^1] lê um arquivo de configuração. Toda diretiva abaixo aparece nele,
 | Diretiva | O que faz |
 |---|---|
 | `upstream catalog { server ...; }` | o pool de réplicas; o algoritmo padrão é **round robin** |
-| `resolve` + `resolver 127.0.0.11` + `zone` | o Nginx resolve os nomes de novo pelo DNS do Docker: ele sobe mesmo com uma réplica fora do ar e a retoma quando ela volta (Nginx open source ≥ 1.27.3) |
+| `resolve` + `resolver 127.0.0.11` + `zone` | o Nginx resolve os nomes de novo pelo servidor do Sistema de Nomes de Domínio (DNS, *Domain Name System*) do Docker: ele sobe mesmo com uma réplica fora do ar e a retoma quando ela volta (Nginx open source ≥ 1.27.3) |
 | `max_fails=3 fail_timeout=10s` | **health check passivo**: 3 falhas em 10 s tiram a réplica do rodízio por 10 s |
 | `keepalive 64` + `proxy_http_version 1.1` + `Connection ""` | reaproveita conexões TCP com as réplicas em vez de abrir uma por requisição |
 | `proxy_next_upstream error timeout http_502 http_503 http_504` | se uma réplica falha, **repete a requisição em outra** (só para métodos idempotentes, como GET) |
@@ -177,6 +177,24 @@ O que procurar no resumo do k6 e em `docker compose logs edge`:
 | **pause** (processo congelado) | nenhuma resposta: numa conexão mantida aberta ele espera `proxy_read_timeout` (5 s), numa nova `proxy_connect_timeout` (1 s) — `upstream timed out (110: Operation timed out)` — e então faz retry | uma rajada de requisições que levam **~1 s ou ~5 s** — o p99 explode, mas sem erros |
 | **depois de 3 falhas** | `max_fails` atingido → réplica fora do rodízio por `fail_timeout` (10 s) | a latência volta ao normal |
 
+Uma requisição que cai no `catalog-3` congelado, passo a passo:
+
+``` diagram-sim
+sequenceDiagram
+    participant K as k6
+    participant N as edge (Nginx)
+    participant C3 as catalog-3 (pausado)
+    participant C1 as catalog-1
+    K->>N: GET /catalog/events/1
+    N->>C3: encaminha (a vez dele no round robin)
+    Note over C3: congelado, nada responde
+    Note over N: espera proxy_connect_timeout 1s (5 s numa conexão reaproveitada)
+    N->>C1: proxy_next_upstream, a segunda tentativa
+    C1-->>N: 200
+    N-->>K: 200, cerca de 1 s atrasado
+    Note over N: terceira falha do catalog-3, fora por fail_timeout 10s
+```
+
 Você deve ver algo assim no fim da execução do k6 (uma execução deste lab: nenhum erro, mas a pausa aparece na cauda; o p99 pode ficar entre ~1 s e ~5 s, conforme quantas requisições o congelamento pegou):
 
 ``` { .text }
@@ -184,7 +202,18 @@ Você deve ver algo assim no fim da execução do k6 (uma execução deste lab: 
     http_req_failed................: 0.00%  0 out of 14990
 ```
 
-A lição: uma réplica **morta** é fácil; uma **lenta** é perigosa. Os timeouts decidem quanto uma réplica lenta custa. O Nginx open source só tem checks *passivos*[^2] (ele aprende com requisições reais que falharam); checks ativos — sondar `/actuator/health/readiness` a cada poucos segundos — existem no Nginx Plus, no HAProxy, no Envoy, nos balanceadores de carga da nuvem e nas readiness probes do Kubernetes (lab 10).
+A lição: uma réplica **morta** é fácil; uma **lenta** é perigosa. Os timeouts decidem quanto uma réplica lenta custa. O Nginx open source só tem checks *passivos*[^2] (ele aprende com requisições reais que falharam); checks ativos — sondar `/actuator/health/readiness` a cada poucos segundos — existem no Nginx Plus, no HAProxy, no Envoy, nos balanceadores de carga da nuvem e nas readiness probes do Kubernetes (lab 10). O Kubernetes separa duas perguntas: **readiness** (*pode atender agora?* — se não, sai do pool do balanceador) e **liveness** (*está viva?* — se não, é reiniciada).
+
+**Sem Docker: o gêmeo.** O simulador repete este lab requisição por requisição com o `nginx.conf` dele: round robin, o health check passivo (`max_fails=3 fail_timeout=10s`), os dois timeouts, a repetição em outra réplica e o rate limit. Cada roteiro é um passo desta página e cada botão é um dos comandos dela.
+
+<div class="csim" data-sim="nginx-edge" data-script="failures"></div>
+
+!!! tip "Experimente"
+
+    1. **5 · parar e congelar** repete os comandos acima. Parar o `catalog-2` custa poucas tentativas recusadas, cada uma repetida na hora, e nenhuma requisição lenta. Pausar o `catalog-3` custa a cauda: 58 requisições esperam um timeout — 1 s numa conexão nova, 5 s numa reaproveitada (keep-alive) — antes que o Nginx as repita em outra réplica.
+    2. Leia o resumo do k6 no fim: 0 erros, 64 repetidas, máximo de 5,02s — e um p99 de 29,22ms, porque 58 requisições lentas em 18.000 são menos de 1%. Na execução acima o congelamento pegou mais requisições e o p99 chegou a 1 s: quantas requisições o congelamento pega decide o p99.
+    3. **livre**: pause uma réplica e rode o k6 por 10 s duas vezes. Na segunda vez só 1 requisição é lenta: depois do `fail_timeout`, o Nginx deixa passar uma única requisição de teste e ela falha de novo.
+    4. **4 · distribuição** dá 3 por réplica; **6 · rate limit** termina com greedy 640 × 200 (o burst de 40 mais 20/s por 30 s) e 860 × 429, e polite 300 × 200 sem nenhum 429. O k6 imprimiu 299 e 843 na execução da página: ele iniciou algumas requisições a menos nos 30 s dele.
 
 ??? question "Pense antes: por que não colocar `proxy_read_timeout 100ms`, para que réplicas congeladas sejam detectadas na hora?"
 
@@ -217,9 +246,18 @@ Você deve ver (de uma execução deste lab — 30 s a 50 e a 10 req/s):
 
 Formato esperado (as contagens variam): o cliente `polite` (10 req/s) só recebe `200`; o `greedy` (50 req/s) recebe cerca de 20 `200` por segundo e o resto `429`. O Nginx implementa um **leaky bucket**: as requisições escoam a `rate`; `burst` é o tamanho do balde; `nodelay` atende a rajada imediatamente em vez de espaçá-la.
 
+``` diagram-sim
+flowchart LR
+    r(["GET /catalog/... com X-Api-Key"]) --> k{"chave vazia?"}
+    k -->|"sim: sem limite"| p["proxy para o catalog"]
+    k -->|não| b{"excesso desta chave<br/>dentro de burst=40?<br/>(escoa a 20/s)"}
+    b -->|sim| p
+    b -->|não| x["429 Too Many Requests"]:::problem
+```
+
 !!! warning "Quem é o cliente?"
 
-    Aqui a chave é um cabeçalho que o cliente escolhe, então um cliente malicioso poderia simplesmente trocar de chave. Sistemas reais limitam por uma identidade **autenticada** (uma chave de API emitida e verificada, o id do usuário num JWT — lab 4) e também por IP para tráfego anônimo. No lab não limitamos por IP porque toda requisição do k6 vem do mesmo endereço: os testes de carga se estrangulariam.
+    Aqui a chave é um cabeçalho que o cliente escolhe, então um cliente malicioso poderia simplesmente trocar de chave. Sistemas reais limitam por uma identidade **autenticada** (uma chave de API emitida e verificada, o id do usuário num JSON Web Token (JWT) — lab 4) e também por IP para tráfego anônimo. No lab não limitamos por IP porque toda requisição do k6 vem do mesmo endereço: os testes de carga se estrangulariam.
 
 ## 7. Meça: 3× as réplicas dá 3× o throughput? { #measure-it }
 

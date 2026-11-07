@@ -1,4 +1,4 @@
-O BoxOffice tem nove serviços. Sem um gateway, o app mobile precisaria conhecer nove endereços, cada serviço validaria JWTs por conta própria (com nove bugs ligeiramente diferentes), cada serviço implementaria o seu próprio rate limit e o script de um fã martelando `POST /api/holds` 500 vezes por segundo iria direto para `inventory`. O **API gateway** é a porta de entrada única que resolve tudo isso num só lugar — e é também o lugar onde muitas arquiteturas, sem alarde, criam um gargalo ou um segundo monólito.
+O BoxOffice tem nove serviços. Sem um gateway, o app mobile precisaria conhecer nove endereços, cada serviço validaria JSON Web Tokens (JWTs) por conta própria (com nove bugs ligeiramente diferentes), cada serviço implementaria o seu próprio rate limit e o script de um fã martelando `POST /api/holds` 500 vezes por segundo iria direto para `inventory`. O **API gateway** é a porta de entrada única que resolve tudo isso num só lugar — e é também o lugar onde muitas arquiteturas, sem alarde, criam um gargalo ou um segundo monólito.
 
 Um **API gateway** é um reverse proxy L7 especializado em APIs: é o ponto de entrada único dos clientes, roteia cada requisição para o serviço certo e aplica **políticas transversais** — autenticação, rate limits, cotas, transformações, observabilidade — antes que a requisição chegue a qualquer código de negócio[^1]. Ele é o componente `apigw` da paleta.
 
@@ -32,7 +32,7 @@ flowchart LR
 | **Transformação de requisição/resposta** | renomear headers, remover campos internos, converter protocolos (REST ↔ gRPC) | expor a API gRPC de `inventory` como REST para o app web |
 | **Agregação** | uma chamada do cliente se espalha por vários serviços e junta as respostas | `GET /api/events/42/page` devolve evento + local + disponibilidade |
 | **Cache** | guardar respostas de GET por pouco tempo | detalhes do evento por 30 s |
-| **Observabilidade** | access logs, métricas RED por rota, início do trace distribuído | p99 por rota, header `traceparent` injetado |
+| **Observabilidade** | access logs, métricas RED por rota, início do trace distribuído | latência no percentil 99 (p99) por rota, header `traceparent` injetado |
 | **Resiliência** | timeouts, retries, circuit breakers por rota | timeout de 2 s para `inventory`; sem retries em `POST` |
 | **Produtos de API** | API keys, portal do desenvolvedor, planos, cobrança por uso | parceiros de revenda de ingressos |
 
@@ -55,7 +55,7 @@ Esses quatro componentes se sobrepõem e os produtos borram as fronteiras (o Env
 | | Load balancer (`lb`) | Ingress / Gateway API (`ingress`) | API gateway (`apigw`) | Service mesh (`mesh`) |
 |---|---|---|---|---|
 | Tráfego | norte-sul (entrando no sistema) | norte-sul entrando num cluster Kubernetes | norte-sul, tráfego de API | **leste-oeste** (serviço a serviço) |
-| Papel principal | distribuir a carga entre réplicas saudáveis | rotear HTTP por host/path para Services | políticas de API: auth, limites, keys, transformações | mTLS, retries, timeouts, telemetria entre serviços |
+| Papel principal | distribuir a carga entre réplicas saudáveis | rotear HTTP por host/path para Services | políticas de API: auth, limites, keys, transformações | TLS mútuo (mTLS), retries, timeouts, telemetria entre serviços |
 | Conhece | backends, saúde | Services, hosts, paths | consumidores, API keys, planos, rotas | a identidade de cada serviço |
 | Produtos típicos | ALB/NLB, Nginx, HAProxy | Envoy Gateway, Traefik, controllers de nuvem | Kong, Apigee, AWS API Gateway, Azure APIM, Spring Cloud Gateway | Istio, Linkerd, Cilium |
 
@@ -216,7 +216,25 @@ Exemplo: limite de 100/min. O minuto anterior teve 80 requisições; 15 s depois
 
 O BoxOffice roda **seis réplicas do gateway**. Se cada uma mantiver os contadores em memória, um fã cujas requisições se espalham entre elas recebe **seis vezes** o limite. Um rate limit que precisa valer entre réplicas exige um **store de contadores compartilhado**, quase sempre o **Redis**: rápido (menos de um milissegundo na mesma zona), com operações atômicas e expiração.
 
-O read-modify-write de um token bucket precisa ser **atômico** — duas réplicas do gateway lendo "resta 1 token" ao mesmo tempo aceitariam as duas. Um script Lua roda atomicamente dentro do Redis:
+O read-modify-write de um token bucket precisa ser **atômico** — duas réplicas do gateway lendo "resta 1 token" ao mesmo tempo aceitariam as duas, como mostra a primeira metade do diagrama. Um script Lua roda atomicamente dentro do Redis — a segunda metade:
+
+``` diagram-sim
+sequenceDiagram
+    participant G1 as gateway-1
+    participant R as Redis
+    participant G2 as gateway-2
+    Note over R: o balde do fã 7 tem 1 token
+    G1->>R: HMGET (lê 1 token)
+    G2->>R: HMGET (lê 1 token)
+    G1->>R: HSET tokens = 0, aceita
+    G2->>R: HSET tokens = 0, aceita
+    Note over G1,G2: duas requisições passaram com um token
+    G1->>R: EVAL token_bucket.lua
+    Note over R: o script roda sozinho, lê + repõe + retira
+    R-->>G1: permitida, restam 0 tokens
+    G2->>R: EVAL token_bucket.lua
+    R-->>G2: rejeitada, responde 429
+```
 
 ```lua title="token_bucket.lua"
 -- KEYS[1] = bucket key (e.g. "rl:user:7:holds")
@@ -256,7 +274,7 @@ Pontos de projeto que vale a pena dizer em voz alta:
 
 | Camada | Chave | Protege contra | Exemplo |
 |---|---|---|---|
-| **Borda / CDN / WAF** | IP, fingerprint, ASN | inundações, scrapers, credential stuffing — antes de qualquer custo | 100 req/10 s por IP em `/login` |
+| **Borda / rede de distribuição de conteúdo (CDN, *content delivery network*) / firewall de aplicação web (WAF, *web application firewall*)** | IP, fingerprint, número de sistema autônomo (ASN, *autonomous system number*) | inundações, scrapers, credential stuffing — antes de qualquer custo | 100 req/10 s por IP em `/login` |
 | **API gateway** | id do usuário, API key, rota | usuários abusivos, cotas de plano, justiça | 10 req/s por fã, rajadas de 20 |
 | **Serviço** | entidade de negócio | abuso de negócio que o gateway não enxerga | no máximo 6 assentos por hold, 1 hold ativo por evento por usuário |
 | **Saída (lado do cliente)** | a cota do provedor | estourar o limite de um terceiro (pagamento, e-mail) | 100 req/s para o provedor de pagamento |
@@ -381,7 +399,7 @@ O projeto completo de um rate limiter distribuído, como problema de entrevista,
         - `inventory`: no máximo 6 assentos por hold e um hold ativo por usuário por evento (uma regra de negócio, garantida com o banco de dados).
     - **Store**: Redis (com uma réplica) para os baldes; se ele falhar, os gateways fazem **fail open** com um limite local de 1/6 do global.
     - **Respostas**: `429` com `Retry-After`; o app recua com jitter e mostra "muitas tentativas, tente de novo em alguns segundos".
-    - **Assistente**: um limite separado e mais baixo e uma cota baseada no custo em tokens, porque uma chamada de LLM é muito mais cara que uma leitura do catálogo (veja [Sistemas de IA](../../ai-systems/index.md)).
+    - **Assistente**: um limite separado e mais baixo e uma cota baseada no custo em tokens, porque uma chamada a um modelo de linguagem grande (LLM, *large language model*) é muito mais cara que uma leitura do catálogo (veja [Sistemas de IA](../../ai-systems/index.md)).
 
 !!! tip "Na entrevista"
     - Coloque o API gateway no desenho de alto nível e liste o que ele centraliza: **roteamento, autenticação, rate limiting, observabilidade**. Depois siga em frente — a menos que a pergunta seja um rate limiter.
@@ -394,7 +412,7 @@ O projeto completo de um rate limiter distribuído, como problema de entrevista,
     - **Responda `429` com `Retry-After` (e os headers `RateLimit`)** — clientes bem-comportados recuam exatamente o tempo necessário, em vez de adivinhar.
     - **Rode um limite novo em modo de contagem (só log) antes de aplicá-lo** — meça quem teria sido limitado e só então ligue.
     - **Dê a cada rota a sua própria política de timeout e retry, com retries só em métodos idempotentes** — No BoxOffice: os timeouts de 1 s de conexão / 5 s de resposta do gateway e um filtro `Retry` limitado a `GET` no [lab 4](../../../hands-on/4/gateway/index.md) (quadro acima).
-    - **Valide os JWTs localmente com chaves públicas em cache** — um JWKS buscado e guardado em cache pelo gateway não custa nenhuma chamada a `auth` por requisição. No BoxOffice: `jwk-set-uri` no `application.yaml` do lab 4.
+    - **Valide os JWTs localmente com chaves públicas em cache** — um JSON Web Key Set (JWKS) buscado e guardado em cache pelo gateway não custa nenhuma chamada a `auth` por requisição. No BoxOffice: `jwk-set-uri` no `application.yaml` do lab 4.
     - **Meça o overhead e a capacidade do próprio gateway** — p50 passando pelo gateway versus direto e o seu ponto de ruptura, para dimensioná-lo como qualquer outra camada.
 
 !!! warning "Armadilhas"
@@ -402,7 +420,7 @@ O projeto completo de um rate limiter distribuído, como problema de entrevista,
     - **Lógica de negócio no gateway**: scripts e plugins que calculam preços ou alocam assentos criam um segundo monólito, escondido, que ninguém testa. Mantenha o gateway burro e os serviços espertos.
     - **Confiar só no gateway**: os serviços ainda precisam verificar identidade e autorização (zero trust); um atacante dentro da rede contorna o gateway.
     - **Contadores por réplica** que multiplicam silenciosamente o limite pelo número de réplicas.
-    - **Rate limiting só por IP**: milhares de fãs atrás do NAT de uma operadora móvel compartilham um IP; botnets têm milhares de IPs. Prefira chaves por usuário/API key, com limites por IP só na borda, e generosos.
+    - **Rate limiting só por IP**: milhares de fãs atrás da tradução de endereços (NAT, *network address translation*) de uma operadora móvel compartilham um IP; botnets têm milhares de IPs. Prefira chaves por usuário/API key, com limites por IP só na borda, e generosos.
     - **Refazer um `429` imediatamente**: clientes sem backoff transformam um limite numa tempestade de retries.
 
 ---

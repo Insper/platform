@@ -32,7 +32,7 @@ flowchart LR
 
 Load balancers diferem em **quanto do tráfego eles entendem**.
 
-Um load balancer de **camada 4 (L4)** trabalha com conexões TCP ou datagramas UDP. Ele vê endereços IP e portas, escolhe um backend quando uma conexão abre e encaminha os bytes daquela conexão para ele. Ele não lê HTTP: não consegue rotear por path, não percebe que uma conexão carrega 1.000 requisições e não precisa decifrar TLS.
+Um load balancer de **camada 4 (L4)** trabalha com conexões TCP ou datagramas UDP. Ele vê endereços IP e portas, escolhe um backend quando uma conexão abre e encaminha os bytes daquela conexão para ele. Ele não lê HTTP: não consegue rotear por path, não percebe que uma conexão carrega 1.000 requisições e não precisa decifrar a segurança da camada de transporte (TLS, *Transport Layer Security*).
 
 Um load balancer de **camada 7 (L7)** fala HTTP. Ele termina a conexão do cliente, lê cada **requisição** (método, path, headers, cookies), escolhe um backend por requisição e abre (ou reaproveita) a sua própria conexão com ele. É um reverse proxy completo.
 
@@ -47,7 +47,7 @@ Um load balancer de **camada 7 (L7)** fala HTTP. Ele termina a conexão do clien
 | Conexões de longa duração (gRPC, HTTP/2, WebSockets) | balanceadas uma vez, na conexão | pode balancear cada requisição/stream |
 | Exemplos | AWS NLB, GCP passthrough Network LB, Azure Load Balancer, Linux IPVS, HAProxy em modo TCP | AWS ALB, GCP Application LB, Azure Application Gateway, Nginx, HAProxy, Envoy, Traefik |
 
-Um layout comum em produção usa **os dois**: um load balancer L4 (ou anycast) na frente, pela capacidade bruta e pela resiliência a DDoS, distribuindo conexões por uma frota de proxies L7 (Envoy, Nginx) que fazem TLS, roteamento e balanceamento por requisição. É assim que os front ends do Google e da Cloudflare são construídos.
+Um layout comum em produção usa **os dois**: um load balancer L4 (ou anycast) na frente, pela capacidade bruta e pela resiliência a ataques de negação de serviço distribuída (DDoS, *distributed denial of service*), distribuindo conexões por uma frota de proxies L7 (Envoy, Nginx) que fazem TLS, roteamento e balanceamento por requisição. É assim que os front ends do Google e da Cloudflare são construídos.
 
 ??? question "Pense antes: o serviço `order` chama `inventory` via gRPC através de um load balancer L4. Há 4 réplicas de `inventory`, mas uma delas recebe quase todo o tráfego. Por quê?"
     O gRPC roda sobre HTTP/2, que multiplexa muitas requisições sobre **uma única conexão TCP de longa duração**. Um load balancer L4 escolhe o backend uma vez por conexão; então, se `order` abriu uma conexão (ou poucas) e a mantém por horas, todas as suas requisições vão para a mesma réplica. Soluções: um load balancer L7 que balanceie por requisição (Envoy, um service mesh), balanceamento no cliente pela biblioteca gRPC, ou limitar a idade das conexões (`max_connection_age`) para que os clientes reconectem periodicamente. Mais em [Protocolos](../protocols/index.md).
@@ -78,7 +78,7 @@ Escolher o backend menos carregado entre *todos* parece ideal, mas, com muitas i
 <div class="csim" data-sim="lb" data-algo="rr" data-rate="100" data-factor="5"></div>
 
 !!! tip "Experimente"
-    Os quatro algoritmos roteiam as **mesmas** 100 requisições/s para quatro réplicas de `catalog` de cerca de 40 requisições/s cada; o gráfico desenha o p99 de cada um.
+    Os quatro algoritmos roteiam as **mesmas** 100 requisições/s para quatro réplicas de `catalog` de cerca de 40 requisições/s cada; o gráfico desenha a latência no percentil 99 (p99) de cada um.
 
     1. Rode por 10 s com réplicas saudáveis: todos os p99 ficam baixos (cerca de 100 ms; o aleatório, cerca de 200 ms, pelo seu desequilíbrio de curto prazo).
     2. Ligue **catalog-3 fica lento**. O round robin continua mandando para ele **25%** das requisições, mais do que as suas 8/s: depois de 10 s a fila dele tem cerca de 180 requisições e o p99 chega a cerca de **23 s** — enquanto o p50 fica perto de 30 ms, porque só uma requisição em cada quatro espera.
@@ -201,7 +201,7 @@ flowchart LR
 | | Discovery no servidor | Discovery no cliente |
 |---|---|---|
 | **Quem escolhe a réplica** | um load balancer ou proxy no caminho | o próprio serviço chamador, com uma biblioteca cliente |
-| **Registry** | a plataforma (endpoints do Kubernetes, target groups da nuvem) | Consul, Eureka, etcd, registros DNS SRV |
+| **Registry** | a plataforma (endpoints do Kubernetes, target groups da nuvem) | Consul, Eureka, etcd, registros SRV do Sistema de Nomes de Domínio (DNS, *Domain Name System*) |
 | **Salto extra** | sim (o proxy) | não |
 | **Acoplamento à linguagem** | nenhum: qualquer cliente só chama um nome | cada linguagem precisa da biblioteca (ou um sidecar faz isso — o service mesh) |
 | **Típico hoje** | `Service` do Kubernetes + DNS, LBs de nuvem | clientes gRPC com xDS, service meshes, stacks antigas de Spring Cloud Netflix |
@@ -225,6 +225,23 @@ Projete o endpoint de saúde com cuidado. A **readiness** ("consigo atender trá
 
 Quando uma réplica é removida — por scale-in ou substituída por um deploy —, cortá-la de repente faz falhar toda requisição em andamento. O **connection draining** (deregistration delay) resolve isso: o LB para de mandar requisições *novas* para a réplica, espera as que estão em andamento terminarem (até, digamos, 30 s) e só então a remove. No Kubernetes, o pod passa a *not ready*, é removido dos endpoints do Service e recebe `SIGTERM`; a aplicação deve terminar as requisições em curso antes de sair (Spring Boot: `server.shutdown=graceful`).
 
+A vida de uma réplica como o load balancer a vê — o check ativo da tabela acima, a detecção de outliers e o draining — passo a passo:
+
+``` diagram-sim
+stateDiagram-v2
+    state "iniciando" as S
+    state "no pool" as H
+    state "fora do pool" as U
+    state "drenando" as D
+    [*] --> S
+    S --> H: readiness passa
+    H --> U: 2 sondas falham seguidas
+    U --> H: 3 sondas passam
+    H --> U: detecção de outliers (5 x 5xx)
+    H --> D: deploy ou scale-in
+    D --> [*]: requisições em andamento terminam (até 30 s)
+```
+
 ---
 
 ## Sticky sessions { #sticky-sessions }
@@ -234,7 +251,7 @@ A **afinidade de sessão** ("sticky sessions") faz o LB mandar toda requisição
 | | Sticky sessions | Réplicas stateless + store compartilhado |
 |---|---|---|
 | Onde o estado fica | na memória de uma réplica | Redis / banco de dados / token no cliente (JWT) |
-| Uma réplica morre | os usuários dela perdem a sessão | nada se perde |
+| Uma réplica morre | ❌ os usuários dela perdem a sessão | ✅ nada se perde |
 | Equilíbrio | desigual: usuários pesados ficam presos a uma réplica | qualquer réplica atende qualquer requisição |
 | Scale-in / deploys | é preciso esperar as sessões acabarem ou perdê-las | drenagem em segundos |
 | Custo extra | nenhum | uma chamada de rede ao store compartilhado |
@@ -291,7 +308,7 @@ Note o que é configurado além do algoritmo: **timeouts** em direção aos back
 
 No Kubernetes, três objetos dividem o trabalho de balanceamento.
 
-**Service** — um IP virtual e um nome DNS estáveis (`inventory.boxoffice.svc.cluster.local`) na frente dos pods que casam com um label selector. Só os pods **ready** aparecem como endpoints. O tráfego para o IP do Service é distribuído entre eles em L4, pelo `kube-proxy` (regras iptables/IPVS) ou por um data plane eBPF como o Cilium. Um Service do tipo `LoadBalancer` também pede ao provedor de nuvem um load balancer L4 externo.
+**Service** — um IP virtual e um nome DNS estáveis (`inventory.boxoffice.svc.cluster.local`) na frente dos pods que casam com um label selector. Só os pods **ready** aparecem como endpoints. O tráfego para o IP do Service é distribuído entre eles em L4, pelo `kube-proxy` (regras iptables/IPVS) ou por um data plane eBPF (*extended Berkeley Packet Filter*) como o Cilium. Um Service do tipo `LoadBalancer` também pede ao provedor de nuvem um load balancer L4 externo.
 
 ```yaml title="inventory-service.yaml"
 apiVersion: v1

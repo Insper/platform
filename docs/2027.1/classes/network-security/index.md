@@ -11,19 +11,19 @@ None of these is a bug in a single line of code. They are **design** problems: w
 
     By the end of this class you should be able to:
 
-    - **Build** a threat model of a BoxOffice flow with STRIDE, and **map** each threat to a control and to the OWASP API Security Top 10.
-    - **Design** a cloud network for BoxOffice: VPC, CIDR plan, public/private/isolated subnets across zones, route tables, NAT gateway, security groups and private connectivity.
-    - **Explain** what a service mesh adds (mTLS, traffic policy, telemetry), **compare** sidecar, ambient and eBPF data planes, and **write** an authorization policy between two services.
-    - **Choose** the right OAuth 2.1 / OpenID Connect flow for each client (mobile app, web app, batch job), and **validate** a JWT correctly at the gateway.
-    - **Apply** Zero Trust to service-to-service traffic, **design** the lifecycle of a secret (the payment API key), and **secure** the software supply chain with SBOMs and signed images.
+    - **Build** a threat model of a BoxOffice flow with STRIDE (spoofing, tampering, repudiation, information disclosure, denial of service, elevation of privilege), and **map** each threat to a control and to the OWASP (Open Worldwide Application Security Project) API Security Top 10.
+    - **Design** a cloud network for BoxOffice: virtual private cloud (VPC), classless inter-domain routing (CIDR) plan, public/private/isolated subnets across zones, route tables, network address translation (NAT) gateway, security groups and private connectivity.
+    - **Explain** what a service mesh adds (mTLS, traffic policy, telemetry), **compare** sidecar, ambient and eBPF (extended Berkeley Packet Filter) data planes, and **write** an authorization policy between two services.
+    - **Choose** the right OAuth 2.1 / OpenID Connect flow for each client (mobile app, web app, batch job), and **validate** a JSON Web Token (JWT) correctly at the gateway.
+    - **Apply** Zero Trust to service-to-service traffic, **design** the lifecycle of a secret (the payment API key), and **secure** the software supply chain with software bills of materials (SBOMs) and signed images.
 
 ## Roadmap
 
-1. **This overview** — security as design: threat modeling with STRIDE, defense in depth, and the OWASP API Security Top 10 mapped to BoxOffice. Identity — tokens, OAuth 2.1 and OIDC — was taught where BoxOffice first needed it, at the gateway: [class 4 — Identity](../edge/identity/index.md).
+1. **This overview** — security as design: threat modeling with STRIDE, defense in depth, and the OWASP API Security Top 10 mapped to BoxOffice. Identity — tokens, OAuth 2.1 and OpenID Connect (OIDC) — was taught where BoxOffice first needed it, at the gateway: [class 4 — Identity](../edge/identity/index.md).
 2. [How the Internet works](internet/index.md) — layers, routing hop by hop and BGP, IP addresses and CIDR, public vs private addresses, NAT, subnets and the default gateway; two simulators (address explorer, packet walk through the BoxOffice VPC).
 3. [Cloud networking](cloud-network/index.md) — VPC, subnets, route tables, Internet and NAT gateways, security groups vs NACLs, private endpoints, VPN and dedicated links.
 4. [Service mesh](service-mesh/index.md) — data plane and control plane, sidecar vs ambient vs eBPF, mTLS, authorization and traffic policies.
-5. [Zero Trust, secrets & supply chain](zero-trust/index.md) — never trust the network, workload identity, secrets management, SBOM, image signing and SLSA.
+5. [Zero Trust, secrets & supply chain](zero-trust/index.md) — never trust the network, workload identity, secrets management, SBOM, image signing and Supply-chain Levels for Software Artifacts (SLSA).
 6. [Quiz](quiz.md) — check your understanding.
 
 ## Slides
@@ -110,10 +110,10 @@ Five trust boundaries are crossed in a single checkout: Internet → edge, edge 
 | Threat | Violated property | BoxOffice example | Control | Where |
 |---|---|---|---|---|
 | **S**poofing | Authentication | an attacker calls `payment` pretending to be `order`; a forged webhook says "payment captured" | OAuth tokens, mTLS between services, webhook signature (HMAC) | [Identity](../edge/identity/index.md), [Service mesh](service-mesh/index.md) |
-| **T**ampering | Integrity | the price is changed in the request body; a malicious image is pushed to the registry | server-side pricing, TLS, signed images | [Zero Trust](zero-trust/index.md#supply-chain-security) |
+| **T**ampering | Integrity | the price is changed in the request body; a malicious image is pushed to the registry | server-side pricing, Transport Layer Security (TLS), signed images | [Zero Trust](zero-trust/index.md#supply-chain-security) |
 | **R**epudiation | Non-repudiation | a customer says "I never bought these tickets" and we cannot prove otherwise | audit log with user id + trace id, signed events | [Observability](../observability/index.md) |
 | **I**nformation disclosure | Confidentiality | `GET /orders/1042` returns another user's order; the API key leaks in a log | object-level authorization, secrets manager, log masking | [Identity](../edge/identity/index.md#authorization-models), [Zero Trust](zero-trust/index.md#secrets-management) |
-| **D**enial of service | Availability | bots open 100 000 seat holds and nobody else can buy | WAF, rate limiting, waiting room, hold TTL | [Edge](../edge/index.md) |
+| **D**enial of service | Availability | bots open 100 000 seat holds and nobody else can buy | web application firewall (WAF), rate limiting, waiting room, hold time to live (TTL) | [Edge](../edge/index.md) |
 | **E**levation of privilege | Authorization | a normal user calls `POST /admin/events`; the compromised `search` pod reaches the database | function-level authorization, NetworkPolicy, least privilege | [Zero Trust](zero-trust/index.md), [Cloud networking](cloud-network/index.md) |
 
 STRIDE is applied **per element of the DFD**: processes are exposed to all six; data stores mainly to tampering, information disclosure and denial of service; data flows to tampering, disclosure and DoS; external entities to spoofing and repudiation[^2].
@@ -126,9 +126,9 @@ Not every threat deserves the same effort. A simple practice is to estimate **li
 
     | Threat | Likelihood × impact | Decision |
     |---|---|---|
-    | Bots hoard seat holds at 10:00 | high × high | **Mitigate**: WAF bot rules + per-account and per-IP rate limits + waiting room + 10-minute hold TTL |
-    | Forged "payment captured" webhook | medium × high | **Mitigate**: verify the provider's HMAC signature and re-query the payment status before issuing tickets |
-    | Provider outage leaks no data but blocks sales | medium × medium | **Accept** for now; revisit with a second provider next quarter |
+    | Bots hoard seat holds at 10:00 | 🔴 high × high | **Mitigate**: WAF bot rules + per-account and per-IP rate limits + waiting room + 10-minute hold TTL |
+    | Forged "payment captured" webhook | 🟠 medium × high | **Mitigate**: verify the provider's HMAC signature and re-query the payment status before issuing tickets |
+    | Provider outage leaks no data but blocks sales | 🟡 medium × medium | **Accept** for now; revisit with a second provider next quarter |
 
 ??? question "Think first: where is the most valuable asset in BoxOffice?"
 
@@ -152,8 +152,8 @@ flowchart LR
 
 | # | Layer | Main threats | Controls | Subpage |
 |---|---|---|---|---|
-| 1 | Edge | DDoS, bots, injection, eavesdropping | TLS, WAF, rate limiting, waiting room | [Edge](../edge/index.md) |
-| 2 | Identity | stolen or forged credentials | OAuth 2.1 / OIDC, short-lived tokens, MFA, passkeys | [Identity](../edge/identity/index.md) |
+| 1 | Edge | distributed denial of service (DDoS), bots, injection, eavesdropping | TLS, WAF, rate limiting, waiting room | [Edge](../edge/index.md) |
+| 2 | Identity | stolen or forged credentials | OAuth 2.1 / OIDC, short-lived tokens, multi-factor authentication (MFA), passkeys | [Identity](../edge/identity/index.md) |
 | 3 | Request authorization | user reads someone else's data | ownership, roles, scopes checked in each service | [Identity](../edge/identity/index.md#authorization-models) |
 | 4 | Service to service | lateral movement, spoofed callers | mTLS, mesh authorization policy | [Service mesh](service-mesh/index.md) |
 | 5 | Network | reaching what should be unreachable | private subnets, security groups, NetworkPolicy, no public DB | [Cloud networking](cloud-network/index.md) |
@@ -184,7 +184,7 @@ The **OWASP** (Open Worldwide Application Security Project) publishes a list of 
 !!! warning "BOLA is number one for a reason"
     The gateway can say "this is user 42". Only the `order` service knows whether order 1042 belongs to user 42. Object-level authorization **cannot** be centralized at the edge; it lives in the code that owns the data. Test it explicitly: "user A requests user B's order → `404` or `403`".
 
-**Try it.** Open the `flash-sale` scenario and press **Run**: watch how the burst when the sale opens (t = 60 s, our 10:00) saturates `app` and then `inventory-db`. Now select `users` and set its *bot traffic* to 0.45 — bots become about 30% of the requests (API6) — and run again. Which component would you add first, and where — WAF at the edge, rate limiting at the gateway, or the waiting-room queue? Use the [full playground](../../../playground/index.md) (↗) to add the components and compare p99 and the error rate (goals count only real users).
+**Try it.** Open the `flash-sale` scenario and press **Run**: watch how the burst when the sale opens (t = 60 s, our 10:00) saturates `app` and then `inventory-db`. Now select `users` and set its *bot traffic* to 0.45 — bots become about 30% of the requests (API6) — and run again. Which component would you add first, and where — WAF at the edge, rate limiting at the gateway, or the waiting-room queue? Use the [full playground](../../../playground/index.md) (↗) to add the components and compare the 99th-percentile latency (p99) and the error rate (goals count only real users).
 
 <div class="sdp" data-scenario="flash-sale" data-mode="compact" data-height="520"></div>
 
@@ -208,19 +208,17 @@ flowchart LR
     pay -.- c6["secrets manager,<br/>dual-key rotation"]:::tech
     c4 -.- d1["Zero Trust: assume breach,<br/>default deny"]
     c1 -.- d2["STRIDE, OWASP API Top 10<br/>(this overview)"]
-    classDef comp fill:#1e9e5a22,stroke:#1e9e5a
-    classDef tech fill:#2f6fed22,stroke:#2f6fed
 ```
 
 | Palette component | Question it answers | Concepts | Taught in | Scenarios |
 |---|---|---|---|---|
 | [`waf`](../../reference/components/edge/index.md#waf) | Is this request an attack or a bot? | OWASP API4/API6, bot rules, rate limits, waiting room | [OWASP API Top 10](#owasp-api-top-10), [Edge — security](../edge/index.md#edge-security) | `flash-sale`, `rate-limiter` |
-| [`auth`](../../reference/components/compute/index.md#auth) | *Who* is the user, and which client asks? | OAuth 2.1, Authorization Code + PKCE, OIDC, Client Credentials, Token Exchange | [Identity](../edge/identity/index.md#oauth) | `flash-sale` (extend it), `blank` |
+| [`auth`](../../reference/components/compute/index.md#auth) | *Who* is the user, and which client asks? | OAuth 2.1, Authorization Code + PKCE (Proof Key for Code Exchange), OIDC, Client Credentials, Token Exchange | [Identity](../edge/identity/index.md#oauth) | `flash-sale` (extend it), `blank` |
 | [`apigw`](../../reference/components/edge/index.md#apigw) | Does the request carry a valid token? | JWT validation (JWKS, `iss`, `aud`, `exp`), header stripping | [Identity — gateway](../edge/identity/index.md#gateway-validation) | `rate-limiter`, `flash-sale` |
 | [`vpc`](../../reference/components/network/index.md#vpc) · [`subnet`](../../reference/components/network/index.md#subnet) | *Where* does each component live, and what can reach it? | CIDR plan, public/private/isolated subnets, route tables, SGs/NACLs | [Cloud networking](cloud-network/index.md#subnets) | `multi-region`, `scale-out` |
-| [`nat`](../../reference/components/network/index.md#nat) | How do private services call *out*? | NAT per AZ, stable egress IP, VPC endpoints | [Cloud networking](cloud-network/index.md#subnets) | `payment-system` |
+| [`nat`](../../reference/components/network/index.md#nat) | How do private services call *out*? | NAT per availability zone (AZ), stable egress IP, VPC endpoints | [Cloud networking](cloud-network/index.md#subnets) | `payment-system` |
 | [`vpn`](../../reference/components/network/index.md#vpn) | How do other networks and people get *in*? | peering, transit, PrivateLink, VPN, session manager | [Cloud networking](cloud-network/index.md#private-connectivity) | `multi-region` |
-| [`mesh`](../../reference/components/network/index.md#mesh) | *Which service* may call which? | mTLS, SPIFFE, authorization policy, traffic policy, NetworkPolicy | [Service mesh](service-mesh/index.md) | `cascading-failure`, `retry-storm` |
+| [`mesh`](../../reference/components/network/index.md#mesh) | *Which service* may call which? | mTLS, SPIFFE (Secure Production Identity Framework For Everyone), authorization policy, traffic policy, NetworkPolicy | [Service mesh](service-mesh/index.md) | `cascading-failure`, `retry-storm` |
 | [`payment`](../../reference/components/external/index.md#payment) | Who holds the key that moves money? | secrets manager, dual-key rotation, workload identity, webhook HMAC | [Zero Trust — secrets](zero-trust/index.md#secrets-management) | `payment-system` |
 | *(all of them)* | Can we trust the code that runs? | Zero Trust, SBOM, scanning, signing, SLSA | [Zero Trust — supply chain](zero-trust/index.md#supply-chain-security) | `ai-assistant` |
 

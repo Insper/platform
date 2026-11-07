@@ -69,6 +69,28 @@ export default [
   { sim: "rate-limiter", key: "burst", attr: "burst", value: 40,
     lab: H + "3/code/infra/nginx/nginx.conf", read: num(/limit_req\s+zone=per_key\s+burst=(\d+)/) },
 
+  // hands-on 3: the lab twin of the edge (nginx.conf, the page's commands, ratelimit.js, lab 2's load.js)
+  ...(() => {
+    const conf = H + "3/code/infra/nginx/nginx.conf", page = H + "3/index.md", rl = H + "3/code/load/ratelimit.js";
+    return [
+      { key: "replicas", value: 3, lab: conf, read: t => (t.match(/^\s*server catalog-\d+:8082 /gm) || []).length || undefined },
+      { key: "maxFails", value: 3, lab: conf, read: num(/max_fails=(\d+)/) },
+      { key: "failTimeout", value: 10, unit: "s", lab: conf, read: num(/fail_timeout=(\d+)s/) },
+      { key: "connectTimeout", value: 1, unit: "s", lab: conf, read: num(/proxy_connect_timeout\s+(\d+)s;/) },
+      { key: "readTimeout", value: 5, unit: "s", lab: conf, read: num(/proxy_read_timeout\s+(\d+)s;/) },
+      { key: "tries", value: 2, lab: conf, read: num(/proxy_next_upstream_tries\s+(\d+);/) },
+      { key: "resolverValid", value: 10, unit: "s", lab: conf, read: num(/resolver\s+127\.0\.0\.11\s+valid=(\d+)s/) },
+      { key: "rate", value: 20, unit: "req/s", lab: conf, read: num(/limit_req_zone .* rate=(\d+)r\/s/) },
+      { key: "burst", value: 40, lab: conf, read: num(/limit_req\s+zone=per_key\s+burst=(\d+)/) },
+      { key: "loadRate", value: 150, unit: "req/s", lab: page, read: num(/k6 run -e RATE=(\d+) -e DURATION=2m load\/load\.js/) },
+      { key: "startup", value: 10, unit: "s", lab: page, read: num(/startup takes ~(\d+) s/) },
+      { key: "greedy", value: 50, unit: "req/s", lab: rl, read: num(/greedy: \{\s*executor: 'constant-arrival-rate', rate: (\d+)/) },
+      { key: "polite", value: 10, unit: "req/s", lab: rl, read: num(/polite: \{\s*executor: 'constant-arrival-rate', rate: (\d+)/) },
+      { key: "rlSeconds", value: 30, unit: "s", lab: rl, read: num(/duration: '(\d+)s'/) },
+      { key: "listShare", value: 0.2, lab: H + "2/code/load/load.js", read: num(/LIST_SHARE \|\| ([\d.]+)\)/) },
+    ].map(e => ({ sim: "nginx-edge", ...e }));
+  })(),
+
   // reliability/patterns: lab 9's order → payment client (application.yaml) and load (k6)
   ...(() => {
     const yaml = H + "9/code/services/order/src/main/resources/application.yaml";
@@ -109,6 +131,7 @@ export default [
       { key: "limit", value: 1000, unit: "millicores", lab: dep, read: t => { const m = t.match(/limits:[^]*?cpu:\s*"?(\d+)(m?)"?/); return m ? +m[1] * (m[2] ? 1 : 1000) : undefined; } },
     ].map(e => ({ sim: "autoscale", ...e }));
   })(),
+
   // compute/integrations: lab 9's payment client (timeout, retry) and its idempotency key
   ...(() => {
     const yaml = H + "9/code/services/order/src/main/resources/application.yaml";

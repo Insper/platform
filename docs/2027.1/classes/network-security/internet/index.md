@@ -43,7 +43,7 @@ No router knows the whole path. Each one does the same thing for every packet:
 
 1. Read the destination IP.
 2. Find the **most specific route** that contains it in its table (**longest prefix match**: a route to `/24` beats a route to `/16`, which beats the default route `0.0.0.0/0`).
-3. Send the packet to the **next hop** of that route, and decrement the packet's **TTL** (a hop counter that kills packets caught in loops).
+3. Send the packet to the **next hop** of that route, and decrement the packet's **TTL** (time to live, a hop counter that kills packets caught in loops).
 
 Press play to follow one packet from the fan's phone to BoxOffice (the addresses are documentation examples[^2]):
 
@@ -87,7 +87,7 @@ An IPv4 address is a **32-bit number**, written as four decimal octets: `10.20.4
 
 **Try it:**
 
-1. The explorer starts with `10.20.40.17/19`. The host bits are not zero, so the explorer tells you the **block** that contains this address: `10.20.32.0/19`, the private app subnet of BoxOffice in AZ a. Drag the prefix slider from `/19` to `/24` and watch the block shrink by half at every step.
+1. The explorer starts with `10.20.40.17/19`. The host bits are not zero, so the explorer tells you the **block** that contains this address: `10.20.32.0/19`, the private app subnet of BoxOffice in availability zone (AZ) a. Drag the prefix slider from `/19` to `/24` and watch the block shrink by half at every step.
 2. Type `10.20.0.0/16`, choose **Split into 4 subnets** and test the address `10.20.40.17`: in which of the four `/18` blocks does it fall?
 3. Click the examples: `192.168.0.12` (your home), `100.64.7.9` (your mobile carrier's NAT), `169.254.169.254` (the cloud metadata service), `8.8.8.8` (public). The **kind of address** line says which ones the Internet can route.
 
@@ -106,7 +106,7 @@ Thirty-two bits give 2³² ≈ **4.3 billion** addresses — fewer than the phon
 
 | Block | Size | Kind | Routed on the Internet? | Where you meet it |
 |---|---|---|---|---|
-| `10.0.0.0/8` | 16.8 M | private | no | the BoxOffice VPC `10.20.0.0/16`; kind pods `10.244.0.0/16` |
+| `10.0.0.0/8` | 16.8 M | private | no | the BoxOffice virtual private cloud (VPC) `10.20.0.0/16`; kind pods `10.244.0.0/16` |
 | `172.16.0.0/12` | 1 M | private | no | Docker's networks (`172.18.0.0/16` in [lab 3](../../../hands-on/3/index.md)) |
 | `192.168.0.0/16` | 65 536 | private | no | home routers (`192.168.0.0/24`) |
 | `100.64.0.0/10` | 4.2 M | shared (CGNAT)[^5] | no | your phone on 4G/5G, behind the carrier's NAT |
@@ -176,7 +176,7 @@ A NAT also has a **capacity**: each connection to the same destination needs its
 
 ## Subnets and the gateway { #subnets }
 
-A host does not route packets the way the Internet core does. Its network configuration has only three numbers — **its address**, **its prefix** and **its default gateway** (plus a DNS server) — and it makes one decision for every packet:
+A host does not route packets the way the Internet core does. Its network configuration has only three numbers — **its address**, **its prefix** and **its default gateway** (plus a Domain Name System, DNS, server) — and it makes one decision for every packet:
 
 ``` diagram-sim
 flowchart TD

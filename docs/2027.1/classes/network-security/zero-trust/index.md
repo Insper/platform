@@ -1,5 +1,5 @@
 
-A vulnerable image-parsing library lets an attacker run code inside one `search` pod. Now replay the default setup. From that pod, the attacker calls `order` with the header `X-Account-Id: acc-42` and reads Ana's orders, because "only the gateway can reach `order`". They read the environment variables and find `DATABASE_URL` with the one password every service shares. They find `PSP_API_KEY`, because the payment key was put in a ConfigMap "temporarily". They open a connection to `https://attacker.example` and upload everything, because the private subnet has a NAT route and nothing restricts egress. Every step was possible because something **trusted the network**.
+A vulnerable image-parsing library lets an attacker run code inside one `search` pod. Now replay the default setup. From that pod, the attacker calls `order` with the header `X-Account-Id: acc-42` and reads Ana's orders, because "only the gateway can reach `order`". They read the environment variables and find `DATABASE_URL` with the one password every service shares. They find `PSP_API_KEY`, because the payment key was put in a ConfigMap "temporarily". They open a connection to `https://attacker.example` and upload everything, because the private subnet has a network address translation (NAT) route and nothing restricts egress. Every step was possible because something **trusted the network**.
 
 This page is about the architecture that removes that trust — **Zero Trust** — and about two places where trust hides in every system: **secrets** and the **software supply chain**.
 
@@ -30,7 +30,7 @@ NIST names the moving parts: a **Policy Enforcement Point (PEP)** sits in the pa
 
 | Principle | What it means | BoxOffice mechanisms |
 |---|---|---|
-| **Verify explicitly** | every user *and every workload* proves who it is on every request | OIDC tokens, mTLS with SPIFFE identities, signed webhooks |
+| **Verify explicitly** | every user *and every workload* proves who it is on every request | OpenID Connect (OIDC) tokens, mutual TLS (mTLS) with SPIFFE (Secure Production Identity Framework For Everyone) identities, signed webhooks |
 | **Least privilege** | the minimum access, for the minimum time | narrow scopes, one DB user per service, short-lived credentials, egress allow-lists |
 | **Assume breach** | design as if an attacker is already inside; limit the blast radius | default-deny NetworkPolicy, isolated subnets, per-service secrets, audit logs |
 | **Continuous evaluation** | trust is re-checked, not granted once | short token lifetimes, re-authentication for sensitive actions, anomaly alerts |
@@ -39,11 +39,11 @@ NIST names the moving parts: a **Policy Enforcement Point (PEP)** sits in the pa
 
 | Attacker step | Perimeter model | Zero Trust control | Where |
 |---|---|---|---|
-| Call `order` with a forged `X-Account-Id` | accepted — "only internal callers" | `order` accepts calls only from the gateway's mesh identity; header stripped at the edge | [Service mesh](../service-mesh/index.md), [Identity](../../edge/identity/index.md) |
-| Connect to PostgreSQL with the shared password | works | `search` has no route/SG/NetworkPolicy to the DB, and no DB credential at all | [Cloud networking](../cloud-network/index.md) |
-| Read `PSP_API_KEY` from the environment | it is there | the key exists only in `payment` pods, fetched from a secrets manager | [Secrets](#secrets-management) |
-| Exfiltrate to the Internet | NAT route, no egress rules | egress default-deny; only `payment` may reach the provider | [Service mesh](../service-mesh/index.md) |
-| Stay hidden | nobody looks at internal traffic | denied calls are logged and alerted | [Observability](../../observability/index.md) |
+| Call `order` with a forged `X-Account-Id` | ❌ accepted — "only internal callers" | `order` accepts calls only from the gateway's mesh identity; header stripped at the edge | [Service mesh](../service-mesh/index.md), [Identity](../../edge/identity/index.md) |
+| Connect to PostgreSQL with the shared password | ❌ works | `search` has no route/SG/NetworkPolicy to the DB, and no DB credential at all | [Cloud networking](../cloud-network/index.md) |
+| Read `PSP_API_KEY` from the environment | ❌ it is there | the key exists only in `payment` pods, fetched from a secrets manager | [Secrets](#secrets-management) |
+| Exfiltrate to the Internet | ❌ NAT route, no egress rules | egress default-deny; only `payment` may reach the provider | [Service mesh](../service-mesh/index.md) |
+| Stay hidden | ❌ nobody looks at internal traffic | denied calls are logged and alerted | [Observability](../../observability/index.md) |
 
 The attack still *started* — Zero Trust does not prevent the first compromise. It makes the compromised pod a **dead end**.
 
@@ -56,7 +56,7 @@ Zero Trust needs every workload to have an identity it can prove **without a sta
 | Workload | Identity mechanism | What it replaces |
 |---|---|---|
 | Pod → pod | SPIFFE ID in an mTLS certificate issued by the mesh or SPIRE, rotated hourly to daily | IP allow-lists, shared API tokens |
-| Pod → cloud API (S3, Secrets Manager, KMS) | the Kubernetes service account federated to a cloud role: EKS Pod Identity / IRSA, GKE Workload Identity Federation, Azure Workload Identity | access keys in environment variables |
+| Pod → cloud API (S3, Secrets Manager, KMS, the key management service) | the Kubernetes service account federated to a cloud role: EKS Pod Identity / IRSA, GKE Workload Identity Federation, Azure Workload Identity | access keys in environment variables |
 | CI pipeline → cloud | the CI system's **OIDC token** exchanged for short-lived cloud credentials | cloud access keys stored as CI secrets |
 
 The third is a small change with a big effect: GitHub Actions can request an OIDC token that says "I am workflow `release.yaml` of this repository on branch `main`", and the cloud trusts that claim for a role valid only for the job's duration[^3]:
@@ -78,8 +78,23 @@ jobs:
 
 No AWS key is stored in GitHub; the role's trust policy accepts only tokens whose `sub` matches `repo:<org>/<repo>:ref:refs/heads/main`. A forked repository or another branch cannot assume it.
 
+``` diagram-sim
+sequenceDiagram
+    participant J as CI job (release.yaml, main)
+    participant GH as GitHub OIDC provider
+    participant STS as AWS STS
+    participant EKS as EKS
+    J->>GH: request an ID token (id-token: write)
+    GH-->>J: signed JWT, sub = repo:org/repo:ref:refs/heads/main, valid for minutes
+    J->>STS: AssumeRoleWithWebIdentity (role boxoffice-deploy, the JWT)
+    Note over STS: verify signature, iss, aud and the sub the trust policy expects
+    STS-->>J: temporary credentials, gone when the job ends
+    J->>EKS: aws eks update-kubeconfig, then deploy
+    Note over J,EKS: no long-lived key was ever stored in GitHub
+```
+
 !!! note "People are workloads too"
-    For engineers, Zero Trust means: single sign-on with MFA or passkeys, device posture checks, and access through an identity-aware proxy or session manager instead of a VPN that puts the laptop "inside" ([Cloud networking](../cloud-network/index.md)). Every access is per application and logged.
+    For engineers, Zero Trust means: single sign-on with multi-factor authentication (MFA) or passkeys, device posture checks, and access through an identity-aware proxy or session manager instead of a VPN that puts the laptop "inside" ([Cloud networking](../cloud-network/index.md)). Every access is per application and logged.
 
 ---
 
@@ -94,7 +109,7 @@ A **secret** is any value that grants access: the payment provider API key, data
     kubectl get secret psp-api-key -n boxoffice -o jsonpath='{.data.PSP_API_KEY}' | base64 -d
     ```
 
-    By default they are also stored unencrypted in etcd. Minimum hygiene: **encryption at rest** for etcd (with a KMS provider), tight **RBAC** on Secrets, and **never** committing Secret manifests to Git unencrypted[^4].
+    By default they are also stored unencrypted in etcd. Minimum hygiene: **encryption at rest** for etcd (with a KMS provider), tight **RBAC** (role-based access control) on Secrets, and **never** committing Secret manifests to Git unencrypted[^4].
 
 ### Where secrets should live
 
@@ -102,7 +117,7 @@ A **secret** is any value that grants access: the payment provider API key, data
 |---|---|---|
 | Kubernetes Secrets only | simple, native | base64; rotation and audit are on you |
 | Encrypted in Git (Sealed Secrets, SOPS) | GitOps-friendly, reviewed in PRs | rotation still manual; key management for the sealing key |
-| **Cloud secrets manager** (AWS Secrets Manager, GCP Secret Manager, Azure Key Vault) | managed, versioned, audit log, rotation hooks, IAM per secret | tied to one cloud; per-secret and per-call cost |
+| **Cloud secrets manager** (AWS Secrets Manager, GCP Secret Manager, Azure Key Vault) | managed, versioned, audit log, rotation hooks, identity and access management (IAM) per secret | tied to one cloud; per-secret and per-call cost |
 | **HashiCorp Vault / OpenBao** | dynamic secrets, any cloud, fine-grained policies and audit | a critical, stateful system to operate |
 
 The **External Secrets Operator** (ESO) bridges both worlds: the source of truth is the secrets manager; ESO syncs values into native Secrets that pods read as usual.
@@ -292,7 +307,7 @@ spec:
 
 Other habits that close common gaps: **pin by digest** (`image@sha256:…`, actions by commit SHA), use minimal or distroless base images, run containers as non-root with a read-only filesystem, use a private package proxy with scoped names to prevent dependency confusion, and follow the NIST Secure Software Development Framework (SSDF) as the checklist for the process[^8].
 
-**Try it.** Open the `ai-assistant` scenario. The assistant calls tools (`catalog`, `order`) on the user's behalf: list every identity in the path (user, assistant, tool registry, services) and what each one should be allowed to do. Where would you put the PEP for a tool call? Which secrets does the LLM gateway hold? (The [AI systems](../../ai-systems/index.md) class goes deeper into the safety mesh.)
+**Try it.** Open the `ai-assistant` scenario. The assistant calls tools (`catalog`, `order`) on the user's behalf: list every identity in the path (user, assistant, tool registry, services) and what each one should be allowed to do. Where would you put the PEP for a tool call? Which secrets does the large language model (LLM) gateway hold? (The [AI systems](../../ai-systems/index.md) class goes deeper into the safety mesh.)
 
 <div class="sdp" data-scenario="ai-assistant" data-mode="compact" data-height="520"></div>
 
@@ -304,10 +319,10 @@ Other habits that close common gaps: **pin by digest** (`image@sha256:…`, acti
 |---|---|---|
 | Network | isolated data subnets, per-AZ NAT, egress default-deny | `search` cannot open a TCP connection to the DB or the Internet |
 | Workload identity | mesh mTLS STRICT + authorization policies | `curl payment/charges` from `search` returns 403 |
-| User identity | OIDC, PKCE, 15-minute access tokens, rotating refresh tokens | no password ever touches the app or our services |
+| User identity | OIDC, PKCE (Proof Key for Code Exchange), 15-minute access tokens, rotating refresh tokens | no password ever touches the app or our services |
 | Authorization | ownership checks; admin API separated | test "user A reads user B's order" fails |
 | Secrets | secrets manager + ESO, per-service IAM, dual-key rotation | `PSP_API_KEY` readable only by `payment`; rotation runbook tested |
-| Data | KMS encryption at rest, TLS in transit | backups and snapshots are encrypted |
+| Data | KMS encryption at rest, Transport Layer Security (TLS) in transit | backups and snapshots are encrypted |
 | Supply chain | SBOM, scan gate, keyless signing, admission verification | an unsigned image cannot start in `boxoffice` |
 | Detection | audit logs, denied-request alerts | a denied call from `search` pages someone |
 
@@ -318,7 +333,7 @@ Other habits that close common gaps: **pin by digest** (`image@sha256:…`, acti
 
     - **Give every workload its own identity and a least-privilege role** — `payment` alone may read `PSP_API_KEY`; a leak then points at one service and rotation touches one service.
     - **Rotate every secret on a schedule and rehearse the leak runbook** — dual-key rotation (e.g. every 90 days) and a drill each quarter, timed: how many minutes from "key leaked" to "old key revoked"?
-    - **Prefer dynamic, short-lived credentials** — database users issued per pod with a 1-hour TTL by a secrets engine instead of one password that lives for years.
+    - **Prefer dynamic, short-lived credentials** — database users issued per pod with a 1-hour time to live (TTL) by a secrets engine instead of one password that lives for years.
     - **Scan every push for secrets** — a secret scanner with push protection (in the repository and in CI) blocks the commit before the key is public.
     - **Pin third-party actions and base images to a commit SHA or digest, and let a bot propose the updates** — in BoxOffice: lab 11's `ci.yaml` pins every action, and `dependabot.yml` opens weekly pull requests ([supply-chain box](#supply-chain-security)).
     - **Give CI jobs the minimum token permissions** — `contents: read` by default, `id-token: write` only in the job that signs. In BoxOffice: the `image` job of [lab 11](../../../hands-on/11/supply-chain/index.md).

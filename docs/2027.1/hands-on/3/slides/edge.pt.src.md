@@ -14,6 +14,10 @@ theme: platform
 {{INCLUDE:scripts/slides/theme.js}}
 </script>
 
+<style>
+{{INCLUDE:scripts/slides/diagram.css}}
+</style>
+
 <div class="kicker">Arquitetura de Sistemas · Insper · Lab 3</div>
 
 # Lab 3 — Borda
@@ -31,7 +35,7 @@ Roteiro: (1) por que escalar horizontalmente; (2) a topologia; (3) réplicas no 
 
 <div class="q">
 
-O `catalog` satura em ~400 req/s e um deploy o derruba. O que resolve os dois de uma vez?
+O `catalog` sai da meta de latência em algumas centenas de req/s (o joelho do lab 2) e um deploy o derruba. O que resolve os dois de uma vez?
 
 </div>
 
@@ -43,14 +47,15 @@ O `catalog` satura em ~400 req/s e um deploy o derruba. O que resolve os dois de
 
 ## A topologia
 
-```text
-k6 ──► edge :80 (Nginx) ──► catalog-1 ┐
-                         ├─► catalog-2 ├──► db
-                         └─► catalog-3 ┘
-```
+<div class="flow">
+<div class="box muted" style="flex: .6">k6 / fãs</div><div class="arrow">:80 →</div>
+<div class="box accent">edge<small>Nginx 1.30 · a única porta publicada</small></div><div class="arrow">round robin →</div>
+<div class="group"><div class="caption">rede do Compose · sem <code>ports:</code></div><div class="box">catalog-1<small>1 CPU</small></div><div class="box">catalog-2<small>1 CPU</small></div><div class="box">catalog-3<small>1 CPU</small></div></div><div class="arrow">→</div>
+<div class="box green" style="flex: .7">db<small>PostgreSQL, compartilhado</small></div>
+</div>
 
-- Só a borda publica uma porta; as réplicas são privadas.
-- Cabeçalho `X-Instance`: qual réplica respondeu.
+- As réplicas são privadas, como instâncias numa sub-rede privada de uma VPC na nuvem (aula 12).
+- Cabeçalho `X-Instance`: qual réplica respondeu. A única mudança de código do lab.
 
 ---
 
@@ -83,11 +88,18 @@ upstream catalog {
 ```
 
 - Round robin por padrão; `least_conn` a uma linha de distância.
-- `resolve`: sobe mesmo com uma réplica fora do ar; retoma-a quando ela volta.
+- `resolve`: resolve os nomes de novo pelo Sistema de Nomes de Domínio (DNS, *Domain Name System*) do Docker a cada 10 s — sobe mesmo com uma réplica fora do ar e a retoma quando ela volta.
 
 ---
 
 ## Timeouts e retries
+
+<div class="flow">
+<div class="box">GET</div><div class="arrow">→</div>
+<div class="box red">catalog-3 congelado<small>connect 1 s · read 5 s numa conexão reaproveitada</small></div><div class="arrow">timeout →</div>
+<div class="box accent">next upstream<small>segunda e última tentativa</small></div><div class="arrow">→</div>
+<div class="box green">catalog-1: 200<small>cerca de 1 s atrasado, sem erro</small></div>
+</div>
 
 ```nginx
 proxy_connect_timeout  1s;
@@ -105,9 +117,9 @@ proxy_next_upstream_tries  2;
 
 | Falha | O Nginx vê | O cliente vê |
 |---|---|---|
-| `stop` | conexão recusada → retry na hora | ~nada |
-| `pause` | sem resposta por 5 s → retry | p99 ≈ **5 s** |
-| 3 falhas | fora do rodízio por 10 s | normal de novo |
+| `stop` | recusada → retry na hora; depois o nome some do DNS | ✅ ~nada |
+| `pause` | sem resposta: 1 s (conexão nova) ou 5 s (reaproveitada) → retry | ⚠️ nenhum erro, latência no percentil 99 (p99) de ~1–5 s |
+| 3 falhas em 10 s | fora do rodízio por 10 s, depois uma requisição de teste | normal de novo |
 
 <div class="warn">
 
@@ -120,7 +132,7 @@ Uma réplica **morta** é fácil. Uma **lenta** é perigosa: o timeout decide qu
 ## Health checks passivos vs ativos
 
 - **Passivos** (Nginx open source): aprendem com requisições reais que falharam.
-- **Ativos** (Envoy, HAProxy, LBs da nuvem, readiness do Kubernetes): sondam `/actuator/health/readiness`.
+- **Ativos** (Envoy, HAProxy, load balancers da nuvem, readiness do Kubernetes): sondam `/actuator/health/readiness`.
 - Readiness ≠ liveness: *pode atender* vs *está viva*.
 
 <div class="q">
@@ -144,13 +156,38 @@ limit_req_status  429;
 | greedy, 50 req/s | 1.500 | ~640 | ~860 |
 | polite, 10 req/s | 300 | 300 | 0 |
 
+<div class="flow">
+<div class="box">requisição</div><div class="arrow">→</div>
+<div class="box muted">sem <code>X-Api-Key</code>?<small>chave vazia: sem limite</small></div><div class="arrow">senão →</div>
+<div class="box accent">excesso dentro de burst=40?<small>escoa a 20/s</small></div><div class="arrow">→</div>
+<div class="box green">proxy</div><div class="box red">429</div>
+</div>
+
 ---
 
 ## Quem é o cliente?
 
 - Um cabeçalho escolhido pelo cliente pode ser **trocado** por um atacante.
-- Limites reais: identidades verificadas (chaves de API emitidas, `sub` do JWT) **mais** limite por IP para tráfego anônimo.
-- Limite por IP erra atrás de NAT — e estrangula o nosso k6 de um único IP.
+- Limites reais: identidades verificadas (chaves de API emitidas, o `sub` de um JSON Web Token, JWT — lab 4) **mais** limite por IP para tráfego anônimo.
+- Limite por IP erra atrás de tradução de endereços (NAT, *network address translation*) — e estrangula o nosso k6 de um único IP.
+
+---
+
+## Sem Docker: o gêmeo
+
+<div class="flow">
+<div class="box accent">4 · distribuição<small>9 curls: 3 por réplica · log de acesso com rt e ut</small></div>
+<div class="box red">5 · parar e congelar<small>stop: nenhuma requisição lenta · pause: 58 esperam 1 ou 5 s · 0 erros, máximo de 5,02 s</small></div>
+<div class="box orange">6 · rate limit<small>greedy 640 × 200, 860 × 429 · polite 300 × 200</small></div>
+</div>
+
+- O `nginx.conf` do lab, requisição por requisição: round robin, `max_fails`, os dois timeouts, a repetição, `limit_req`.
+- O p99 do gêmeo fica em 29 ms: 58 requisições lentas em 18.000 são menos de 1%. A execução da página pegou mais e o p99 dela chegou a 1 s.
+- Depois do `fail_timeout`, o Nginx deixa passar **uma** requisição de teste a cada 10 s.
+
+<!--
+O simulador está no passo 5 da página do lab; cada roteiro repete um passo da página.
+-->
 
 ---
 

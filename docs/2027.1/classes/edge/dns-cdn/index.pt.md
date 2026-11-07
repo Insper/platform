@@ -54,7 +54,7 @@ Uma consulta a frio custa várias idas e voltas (dezenas a centenas de milissegu
 | **MX** | domínio → servidores de e-mail | `boxoffice.com → mail.provider.com` | receber e-mail |
 | **TXT** | nome → texto livre | `v=spf1 include:…` | provas de posse do domínio, SPF/DKIM/DMARC para e-mail |
 | **SRV** | serviço → host + porta | `_sip._tcp.boxoffice.com` | service discovery (o DNS do Kubernetes usa internamente) |
-| **CAA** | domínio → autoridades certificadoras permitidas | `0 issue "letsencrypt.org"` | restringe quem pode emitir certificados TLS para o domínio |
+| **CAA** | domínio → autoridades certificadoras permitidas | `0 issue "letsencrypt.org"` | restringe quem pode emitir certificados de segurança da camada de transporte (TLS, *Transport Layer Security*) para o domínio |
 
 ### TTL: atualidade versus carga { #ttl }
 
@@ -125,7 +125,7 @@ O anycast dá três coisas de uma vez, sem nenhum truque de DNS:
 
 - **Baixa latência**: todo cliente chega a um local próximo.
 - **Failover automático**: se um local para de anunciar o endereço, o roteamento converge para o próximo mais perto, tipicamente em segundos.
-- **Absorção de DDoS**: um ataque de uma botnet global é dividido entre todos os locais em vez de atingir um só (veja [segurança na borda](../index.md#ddos)).
+- **Absorção de DDoS** (negação de serviço distribuída, *distributed denial of service*): um ataque de uma botnet global é dividido entre todos os locais em vez de atingir um só (veja [segurança na borda](../index.md#ddos)).
 
 Os servidores DNS raiz, resolvers públicos como `1.1.1.1` e `8.8.8.8`, e toda grande CDN usam anycast. O anycast funciona melhor com trocas curtas e quase sem estado (DNS sobre UDP, requisições HTTP a um cache de borda); uma mudança de rota no meio de uma conexão TCP longa pode quebrá-la, o que os grandes provedores mitigam com um roteamento cuidadoso.
 
@@ -190,6 +190,23 @@ A origem diz a todo cache — o navegador, a CDN, qualquer proxy no meio — o q
 | `immutable` | o conteúdo nunca vai mudar nesta URL; nem revalide |
 
 A revalidação usa **validadores**: a origem envia um `ETag` (um identificador de versão) ou `Last-Modified`; o cache pergunta `If-None-Match: "v42"` e a origem responde `304 Not Modified` sem corpo quando nada mudou — barato para os dois lados.
+
+Com `stale-while-revalidate`, o fã nem espera essa verificação:
+
+``` diagram-sim
+sequenceDiagram
+    participant F as Fã
+    participant E as PoP da CDN
+    participant O as Origem
+    F->>E: GET /events/42 (s-maxage=300 expirou há 20 s)
+    Note over E: ainda dentro de stale-while-revalidate=60
+    E-->>F: 200 com a cópia velha, na hora
+    E->>O: GET /events/42, If-None-Match v42
+    O-->>E: 304 Not Modified (sem corpo)
+    Note over E: fresca de novo por 300 s
+    F->>E: GET /events/42 (o próximo fã)
+    E-->>F: 200 do PoP, origem intocada
+```
 
 ```http title="Typical BoxOffice responses"
 # fingerprinted JavaScript bundle: cache "forever"
@@ -277,7 +294,7 @@ Ir de 90% para 99% de taxa de acerto parece uma melhora pequena ("só nove ponto
 
 CDNs modernas também executam **o seu código** nos PoPs: Cloudflare Workers, AWS CloudFront Functions e Lambda@Edge, Fastly Compute, Akamai EdgeWorkers. São funções pequenas (milissegundos de CPU, memória limitada, normalmente JavaScript ou WebAssembly) executadas a cada requisição, antes do cache ou da origem. Bons usos:
 
-- **Validar um token de sala de espera** ou a assinatura de um JWT na borda e rejeitar requisições inválidas antes que atravessem o oceano.
+- **Validar um token de sala de espera** ou a assinatura de um JSON Web Token (JWT) na borda e rejeitar requisições inválidas antes que atravessem o oceano.
 - **Reescrever e redirecionar**: testes A/B, redirecionamentos por idioma, normalizar a chave de cache (removendo os parâmetros `utm_*`).
 - **Montar respostas** a partir de fragmentos em cache, ou acrescentar headers de segurança.
 - Servir uma **página de sala de espera** inteiramente a partir da borda enquanto a origem é protegida.
@@ -319,7 +336,7 @@ Maus usos: qualquer coisa que precise do seu banco de dados a cada requisição 
 |---|---|---|---|
 | TTL do DNS | curto (30–60 s) | longo (horas) | você precisa de failover rápido ou planeja uma mudança |
 | Roteamento | por latência / GeoDNS | anycast | você precisa de controle por região (residência de dados, canários) |
-| Failover | failover por DNS | anycast / LB global | alguns minutos de failover são aceitáveis e o custo baixo importa |
+| Failover | failover por DNS | anycast / load balancer global | alguns minutos de failover são aceitáveis e o custo baixo importa |
 | Modelo de CDN | pull | push | o conteúdo é requisitado de forma imprevisível (a maior parte do tráfego web) |
 | Atualidade | purge na mudança | URLs versionadas | a URL não pode mudar (a própria página HTML, uma API) |
 | Dados dinâmicos | micro-cache (1–5 s) | sem cache | dados um pouco desatualizados são aceitáveis e o endpoint é quente |

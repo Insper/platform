@@ -7,7 +7,7 @@ O BoxOffice agora roda nove serviços no Kubernetes. Cada time reimplementou as 
 
 Um service mesh é uma camada de infraestrutura dedicada à **comunicação entre serviços**[^1]. Ele tem duas partes:
 
-- **Plano de dados** (*data plane*) — proxies que ficam no caminho de toda requisição entre serviços. Eles terminam e originam TLS, aplicam políticas, fazem retry, timeout, balanceamento de carga e emitem métricas e traces.
+- **Plano de dados** (*data plane*) — proxies que ficam no caminho de toda requisição entre serviços. Eles terminam e originam segurança da camada de transporte (TLS, *Transport Layer Security*), aplicam políticas, fazem retry, timeout, balanceamento de carga e emitem métricas e traces.
 - **Plano de controle** (*control plane*) — o cérebro que configura os proxies: distribui regras de roteamento e políticas e atua como **autoridade certificadora** que emite a identidade de cada workload.
 
 ``` diagram
@@ -35,7 +35,7 @@ A aplicação continua chamando `http://payment:8080/charges` em HTTP puro. O pr
 
 | Capacidade | Sem mesh | Com mesh |
 |---|---|---|
-| Criptografia em trânsito | cada time configura TLS (normalmente ninguém o faz dentro do cluster) | mTLS em todo lugar, certificados rotacionados automaticamente |
+| Criptografia em trânsito | cada time configura TLS (normalmente ninguém o faz dentro do cluster) | TLS mútuo (mTLS) em todo lugar, certificados rotacionados automaticamente |
 | Identidade de serviço | endereços IP, segredos compartilhados | uma identidade criptográfica por workload (SPIFFE) |
 | Autorização entre serviços | no código, quando existe | políticas declarativas: "só `order` pode fazer `POST /charges` em `payment`" |
 | Timeouts, retries, circuit breaking | bibliotecas em cada linguagem (Resilience4j, Polly…) | configuração uniforme por rota |
@@ -78,7 +78,32 @@ Onde o proxy roda? Três projetos estão em produção hoje[^2][^3].
 | Latência extra por salto | dois proxies no caminho | um salto no nível do nó; +waypoint para L7 | caminho rápido no kernel |
 | Impacto de atualização | reiniciar todos os pods | atualizar agentes dos nós e waypoints | atualizar o agente do nó |
 | Raio de impacto de um bug no proxy | um pod | todos os pods do nó (ztunnel) | o nó |
-| Maturidade | o mais antigo em produção | GA no Istio desde a 1.24 (2024) | muito usado como CNI; recursos de mesh mais novos |
+| Maturidade | o mais antigo em produção | GA no Istio desde a 1.24 (2024) | muito usado como plugin CNI (*Container Network Interface*); recursos de mesh mais novos |
+
+A mesma chamada, `order` → `payment`, nos três desenhos:
+
+``` diagram
+flowchart TB
+    subgraph sc ["Sidecar · um proxy em cada pod"]
+        direction LR
+        o1["order"]:::comp --> s1["proxy sidecar"]:::tech
+        s1 -->|"mTLS · L7"| s2["proxy sidecar"]:::tech
+        s2 --> p1["payment"]:::comp
+    end
+    subgraph am ["Ambient · um ztunnel por nó, um waypoint só para L7"]
+        direction LR
+        o2["order"]:::comp --> z1["ztunnel · nó A"]:::tech
+        z1 -->|"mTLS · L4"| w["waypoint · L7"]:::tech
+        w --> z2["ztunnel · nó B"]:::tech
+        z2 --> p2["payment"]:::comp
+    end
+    subgraph eb ["eBPF · o kernel, um Envoy compartilhado para L7"]
+        direction LR
+        o3["order"]:::comp --> k1["eBPF · kernel do nó A"]:::tech
+        k1 -->|"WireGuard · L3/L4"| k2["eBPF · kernel do nó B"]:::tech
+        k2 --> p3["payment"]:::comp
+    end
+```
 
 !!! note "gRPC sem proxy"
     Uma quarta opção dispensa o proxy: bibliotecas gRPC podem receber a configuração do mesh diretamente do plano de controle (o protocolo xDS). É eficiente, mas só funciona para serviços gRPC escritos com uma biblioteca compatível.
@@ -272,7 +297,7 @@ spec:
 
 A **detecção de outliers** tira uma *réplica* problemática do pool de balanceamento por um tempo — um circuit breaker por instância. Os limites do **pool de conexões** são um bulkhead: quando `payment` está lento, no máximo 200 requisições esperam por ele, em vez de todas as threads de `order`.
 
-**Experimente.** Abra o cenário `cascading-failure`: uma dependência externa lenta, sem timeouts, esgota as threads de quem a chama e requisições sem relação começam a falhar. Ligue o timeout e o circuit breaker, rode de novo e compare a taxa de erros e o p99 das outras rotas. No BoxOffice, o timeout do `VirtualService` e os limites da `DestinationRule` do mesh são uma forma de aplicar exatamente essa correção sem tocar no código.
+**Experimente.** Abra o cenário `cascading-failure`: uma dependência externa lenta, sem timeouts, esgota as threads de quem a chama e requisições sem relação começam a falhar. Ligue o timeout e o circuit breaker, rode de novo e compare a taxa de erros e a latência no percentil 99 (p99) das outras rotas. No BoxOffice, o timeout do `VirtualService` e os limites da `DestinationRule` do mesh são uma forma de aplicar exatamente essa correção sem tocar no código.
 
 <div class="sdp" data-scenario="cascading-failure" data-mode="compact" data-height="520" data-profile="load"></div>
 
@@ -316,8 +341,8 @@ Uma **NetworkPolicy** do Kubernetes é um firewall para pods em L3/L4 (IP e port
 | Camada | L3/L4 — IPs, portas | L7 — identidade, método, caminho, cabeçalhos |
 | Identidade | labels do pod → IPs | identidade SPIFFE no certificado |
 | Aplicada por | o CNI, no kernel | o proxy (sidecar, ztunnel, waypoint) |
-| Resiste a um proxy contornado? | sim | não |
-| Consegue dizer "só `POST /charges`"? | não | sim |
+| Resiste a um proxy contornado? | ✅ sim | ❌ não |
+| Consegue dizer "só `POST /charges`"? | ❌ não | ✅ sim |
 
 Comece com **negar por padrão** na camada de rede e depois abra só as arestas do grafo de chamadas:
 

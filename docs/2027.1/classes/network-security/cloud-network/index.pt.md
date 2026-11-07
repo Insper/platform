@@ -1,7 +1,7 @@
 
 No laptop de um desenvolvedor, o BoxOffice vive em uma rede Docker: todo container alcança todos os outros e só o Nginx publica uma porta. Na nuvem, a decisão equivalente é muito maior e muito mais difícil de mudar depois. Quais máquinas recebem um endereço público? O banco de dados consegue chegar à Internet — e a Internet consegue chegar ao banco? Como o serviço `payment` chama o provedor, que só aceita requisições de **endereços IP em uma lista de permissão** (*allow-list*)? Como um engenheiro depura um pod sem abrir SSH para o mundo? Esta página constrói a rede do BoxOffice em um provedor de nuvem, um componente de cada vez.
 
-Os exemplos usam os nomes da AWS, os mais comuns em descrições de vagas; as abas no fim mapeiam esses nomes para Google Cloud e Azure. As ideias são as mesmas em todo lugar[^1]. Esta página supõe que você sabe o que são um endereço IP, um bloco CIDR, um endereço privado e o NAT — se não, leia antes [Como a Internet funciona](../internet/index.md): ela tem a mesma rede do BoxOffice como um caminho de pacote interativo.
+Os exemplos usam os nomes da AWS, os mais comuns em descrições de vagas; as abas no fim mapeiam esses nomes para Google Cloud e Azure. As ideias são as mesmas em todo lugar[^1]. Esta página supõe que você sabe o que são um endereço IP, um bloco CIDR (*classless inter-domain routing*), um endereço privado e o NAT (tradução de endereços, *network address translation*) — se não, leia antes [Como a Internet funciona](../internet/index.md): ela tem a mesma rede do BoxOffice como um caminho de pacote interativo.
 
 ---
 
@@ -26,7 +26,7 @@ A VPC deve usar uma **faixa privada** (RFC 1918: `10.0.0.0/8`, `172.16.0.0/12`, 
 1. **Não sobreponha** com outras redes a que você talvez se conecte um dia — o escritório, outra VPC, um parceiro. Duas redes com faixas sobrepostas não podem ser roteadas entre si (o peering é recusado).
 2. **Deixe espaço**: a faixa de uma VPC é difícil de mudar. Planeje para mais AZs e mais camadas de sub-redes do que você precisa hoje.
 
-A AWS reserva **5 endereços em toda sub-rede** (endereço de rede, roteador da VPC, DNS, um reservado para uso futuro, broadcast)[^1]. A tabela abaixo é calculada, não digitada:
+A AWS reserva **5 endereços em toda sub-rede** (endereço de rede, roteador da VPC, DNS (*Domain Name System*), um reservado para uso futuro, broadcast)[^1]. A tabela abaixo é calculada, não digitada:
 
 ```python exec="true"
 rows = []
@@ -45,7 +45,7 @@ print("\n".join(rows))
     | Camada | AZ a | AZ b | AZ c | Por que esse tamanho |
     |---|---|---|---|---|
     | Pública (load balancer, NAT) | `10.20.0.0/24` | `10.20.1.0/24` | `10.20.2.0/24` | poucos recursos vivem aqui |
-    | Aplicação privada (nós e pods do Kubernetes) | `10.20.32.0/19` | `10.20.64.0/19` | `10.20.96.0/19` | no AWS VPC CNI cada pod ocupa um IP: 8 187 utilizáveis por AZ |
+    | Aplicação privada (nós e pods do Kubernetes) | `10.20.32.0/19` | `10.20.64.0/19` | `10.20.96.0/19` | no AWS VPC CNI (*Container Network Interface*) cada pod ocupa um IP: 8 187 utilizáveis por AZ |
     | Dados isolados (PostgreSQL, Redis, Kafka) | `10.20.8.0/22` | `10.20.12.0/22` | `10.20.16.0/22` | bancos são poucos, mas precisam de espaço para réplicas e failover |
 
     Cerca de metade do `/16` continua livre para uma quarta AZ ou uma nova camada. Os pods do Kubernetes são o motivo de as sub-redes de aplicação serem grandes: com o AWS VPC CNI, cada pod recebe um endereço real da VPC.
@@ -147,6 +147,10 @@ flowchart LR
     ALB -->|"8080 a partir de sg-alb"| N
     N -->|"5432 a partir de sg-app"| DB
 ```
+
+O caminho do pacote de [Como a Internet funciona](../internet/index.md#packet-walk) confere essas regras salto a salto. Aqui ele começa com *order consulta o PostgreSQL* e a regra *sg-data aceita 5432 de sg-app* desligada: a tabela de rotas deixa o pacote passar (a rota local), o security group do banco o descarta e o `order` não recebe erro nenhum — só um timeout. Marque a regra de novo e rode outra vez; depois escolha *Um scanner tenta a porta 5432 no IP do load balancer*: um endereço público não abre uma porta que o security group não permite.
+
+<div class="netsim" data-tool="packet" data-scenario="order-db" data-dbrule="off"></div>
 
 !!! warning "Security groups não são identidade"
     Uma regra de SG diz "qualquer coisa nos nós de aplicação pode alcançar o banco". Com Kubernetes, *todo* pod nesses nós — inclusive o pod `search` comprometido — se encaixa. Um controle mais fino exige security groups por pod, NetworkPolicy do Kubernetes ou uma política de autorização do [service mesh](../service-mesh/index.md), além de credenciais de banco por serviço ([Zero Trust](../zero-trust/index.md)).
@@ -313,7 +317,7 @@ O BoxOffice logo precisa falar com redes que não são suas: o escritório, a VP
 
 ### Dando acesso aos engenheiros: bastion vs session manager { #getting-engineers-in-bastion-vs-session-manager }
 
-A resposta antiga é um **bastion host**: uma VM pequena em uma sub-rede pública com SSH aberto, de onde os engenheiros saltam para a rede privada. Ele é superfície de ataque (porta 22 na Internet) e um problema de gestão de chaves. A resposta moderna é um **serviço de sessão baseado em agente** (AWS Systems Manager Session Manager, GCP IAP TCP forwarding, Azure Bastion): o engenheiro se autentica no provedor de identidade da empresa com MFA, a sessão é aberta por um agente de dentro, **nenhuma porta de entrada fica aberta** e todo comando é registrado. Para o Kubernetes, o `kubectl` pela API autenticada do cluster cumpre o mesmo papel. Isso é Zero Trust aplicado a pessoas ([Zero Trust](../zero-trust/index.md)).
+A resposta antiga é um **bastion host**: uma VM pequena em uma sub-rede pública com SSH aberto, de onde os engenheiros saltam para a rede privada. Ele é superfície de ataque (porta 22 na Internet) e um problema de gestão de chaves. A resposta moderna é um **serviço de sessão baseado em agente** (AWS Systems Manager Session Manager, GCP IAP TCP forwarding, Azure Bastion): o engenheiro se autentica no provedor de identidade da empresa com autenticação multifator (MFA, *multi-factor authentication*), a sessão é aberta por um agente de dentro, **nenhuma porta de entrada fica aberta** e todo comando é registrado. Para o Kubernetes, o `kubectl` pela API autenticada do cluster cumpre o mesmo papel. Isso é Zero Trust aplicado a pessoas ([Zero Trust](../zero-trust/index.md)).
 
 ### DNS dentro da VPC { #dns-inside-the-vpc }
 

@@ -1,7 +1,7 @@
 
 On a developer laptop, BoxOffice lives in one Docker network: every container can reach every other container, and only Nginx publishes a port. In the cloud, the equivalent decision is far bigger and much harder to change later. Which machines get a public address? Can the database reach the Internet — and can the Internet reach the database? How does the `payment` service call the provider, which only accepts requests from **allow-listed IP addresses**? How does an engineer debug a pod without opening SSH to the world? This page builds the BoxOffice network in a cloud provider, one component at a time.
 
-The examples use AWS names, the most common in job descriptions; the tabs at the end map them to Google Cloud and Azure. The ideas are the same everywhere[^1]. This page assumes you know what an IP address, a CIDR block, a private address and NAT are — if not, read [How the Internet works](../internet/index.md) first: it has the same BoxOffice network as an interactive packet walk.
+The examples use AWS names, the most common in job descriptions; the tabs at the end map them to Google Cloud and Azure. The ideas are the same everywhere[^1]. This page assumes you know what an IP address, a CIDR (classless inter-domain routing) block, a private address and NAT (network address translation) are — if not, read [How the Internet works](../internet/index.md) first: it has the same BoxOffice network as an interactive packet walk.
 
 ---
 
@@ -26,7 +26,7 @@ The VPC should use a **private range** (RFC 1918: `10.0.0.0/8`, `172.16.0.0/12`,
 1. **Do not overlap** with other networks you may ever connect to — the office, another VPC, a partner. Two networks with overlapping ranges cannot be routed to each other (peering is refused).
 2. **Leave room**: a VPC range is hard to change. Plan for more AZs and more subnet tiers than you need today.
 
-AWS reserves **5 addresses in every subnet** (network address, VPC router, DNS, one reserved for future use, broadcast)[^1]. The table below is computed, not typed:
+AWS reserves **5 addresses in every subnet** (network address, VPC router, DNS (Domain Name System), one reserved for future use, broadcast)[^1]. The table below is computed, not typed:
 
 ```python exec="true"
 rows = []
@@ -45,7 +45,7 @@ print("\n".join(rows))
     | Tier | AZ a | AZ b | AZ c | Why this size |
     |---|---|---|---|---|
     | Public (load balancer, NAT) | `10.20.0.0/24` | `10.20.1.0/24` | `10.20.2.0/24` | few resources live here |
-    | Private app (Kubernetes nodes and pods) | `10.20.32.0/19` | `10.20.64.0/19` | `10.20.96.0/19` | pods take one IP each in AWS VPC CNI: 8 187 usable per AZ |
+    | Private app (Kubernetes nodes and pods) | `10.20.32.0/19` | `10.20.64.0/19` | `10.20.96.0/19` | pods take one IP each in the AWS VPC CNI (Container Network Interface): 8 187 usable per AZ |
     | Isolated data (PostgreSQL, Redis, Kafka) | `10.20.8.0/22` | `10.20.12.0/22` | `10.20.16.0/22` | databases are few but need room for replicas and failover |
 
     About half of the `/16` is still free for a fourth AZ or a new tier. Kubernetes pods are the reason the app subnets are big: with the AWS VPC CNI every pod gets a real VPC address.
@@ -147,6 +147,10 @@ flowchart LR
     ALB -->|"8080 from sg-alb"| N
     N -->|"5432 from sg-app"| DB
 ```
+
+The packet walk of [How the Internet works](../internet/index.md#packet-walk) checks these rules hop by hop. Here it starts with *order queries PostgreSQL* and the rule *sg-data accepts 5432 from sg-app* switched off: the route table lets the packet through (the local route), the security group of the database drops it, and `order` gets no error — only a timeout. Tick the rule again and rerun; then pick *A scanner tries port 5432 on the load balancer's IP*: a public address does not open a port that the security group does not allow.
+
+<div class="netsim" data-tool="packet" data-scenario="order-db" data-dbrule="off"></div>
 
 !!! warning "Security groups are not identity"
     An SG rule says "anything on the app nodes may reach the database". With Kubernetes, *every* pod on those nodes — including the compromised `search` pod — matches. Finer control needs per-pod security groups, Kubernetes NetworkPolicy or a [service mesh](../service-mesh/index.md) authorization policy, and per-service database credentials ([Zero Trust](../zero-trust/index.md)).
@@ -313,7 +317,7 @@ BoxOffice soon needs to talk to networks it does not own: the office, the data t
 
 ### Getting engineers in: bastion vs session manager
 
-The old answer is a **bastion host**: a small VM in a public subnet with SSH open, from which engineers jump into the private network. It is an attack surface (port 22 on the Internet) and a key-management problem. The modern answer is an **agent-based session service** (AWS Systems Manager Session Manager, GCP IAP TCP forwarding, Azure Bastion): the engineer authenticates with the company identity provider and MFA, the session is opened by an agent from the inside, **no inbound port is open**, and every command is logged. For Kubernetes, `kubectl` through the cluster's authenticated API plays the same role. This is Zero Trust applied to people ([Zero Trust](../zero-trust/index.md)).
+The old answer is a **bastion host**: a small VM in a public subnet with SSH open, from which engineers jump into the private network. It is an attack surface (port 22 on the Internet) and a key-management problem. The modern answer is an **agent-based session service** (AWS Systems Manager Session Manager, GCP IAP TCP forwarding, Azure Bastion): the engineer authenticates with the company identity provider and multi-factor authentication (MFA), the session is opened by an agent from the inside, **no inbound port is open**, and every command is logged. For Kubernetes, `kubectl` through the cluster's authenticated API plays the same role. This is Zero Trust applied to people ([Zero Trust](../zero-trust/index.md)).
 
 ### DNS inside the VPC
 

@@ -32,7 +32,7 @@ flowchart LR
 
 Load balancers differ in **how much of the traffic they understand**.
 
-A **layer-4 (L4)** load balancer works with TCP connections or UDP datagrams. It sees IP addresses and ports, picks a backend when a connection opens, and forwards the bytes of that connection to it. It does not read HTTP: it cannot route by path, it cannot see that one connection carries 1 000 requests, and it does not need to decrypt TLS.
+A **layer-4 (L4)** load balancer works with TCP connections or UDP datagrams. It sees IP addresses and ports, picks a backend when a connection opens, and forwards the bytes of that connection to it. It does not read HTTP: it cannot route by path, it cannot see that one connection carries 1 000 requests, and it does not need to decrypt Transport Layer Security (TLS).
 
 A **layer-7 (L7)** load balancer speaks HTTP. It terminates the client's connection, reads each **request** (method, path, headers, cookies), picks a backend per request, and opens (or reuses) its own connection to it. It is a full reverse proxy.
 
@@ -47,7 +47,7 @@ A **layer-7 (L7)** load balancer speaks HTTP. It terminates the client's connect
 | Long-lived connections (gRPC, HTTP/2, WebSockets) | balanced once, at connect time | can balance each request/stream |
 | Examples | AWS NLB, GCP passthrough Network LB, Azure Load Balancer, Linux IPVS, HAProxy in TCP mode | AWS ALB, GCP Application LB, Azure Application Gateway, Nginx, HAProxy, Envoy, Traefik |
 
-A common production layout uses **both**: an L4 load balancer (or anycast) at the front for raw capacity and DDoS resilience, spreading connections over a fleet of L7 proxies (Envoy, Nginx) that do TLS, routing and per-request balancing. This is how Google's and Cloudflare's front ends are built.
+A common production layout uses **both**: an L4 load balancer (or anycast) at the front for raw capacity and resilience to distributed denial-of-service (DDoS) attacks, spreading connections over a fleet of L7 proxies (Envoy, Nginx) that do TLS, routing and per-request balancing. This is how Google's and Cloudflare's front ends are built.
 
 ??? question "Think first: the `order` service calls `inventory` over gRPC through an L4 load balancer. There are 4 `inventory` replicas, but one of them receives almost all the traffic. Why?"
     gRPC runs over HTTP/2, which multiplexes many requests over **one long-lived TCP connection**. An L4 load balancer chooses a backend once per connection, so if `order` opened one connection (or a few) and keeps it for hours, all its requests go to the same replica. Fixes: an L7 load balancer that balances per request (Envoy, a service mesh), client-side load balancing in the gRPC library, or limiting connection age (`max_connection_age`) so clients reconnect periodically. More in [Protocols](../protocols/index.md).
@@ -78,7 +78,7 @@ Choosing the least-loaded backend among *all* of them sounds ideal, but with man
 <div class="csim" data-sim="lb" data-algo="rr" data-rate="100" data-factor="5"></div>
 
 !!! tip "Try it"
-    The four algorithms route the **same** 100 requests/s to four `catalog` replicas of about 40 requests/s each; the chart draws the p99 of each one.
+    The four algorithms route the **same** 100 requests/s to four `catalog` replicas of about 40 requests/s each; the chart draws the 99th-percentile latency (p99) of each one.
 
     1. Play for 10 s with healthy replicas: all p99s stay low (about 100 ms; random about 200 ms, its short-term imbalance).
     2. Switch on **catalog-3 slows down**. Round robin keeps sending it **25%** of the requests, more than its 8/s: after 10 s its queue holds about 180 requests and the p99 reaches about **23 s** — while the p50 stays near 30 ms, because only one request in four waits.
@@ -201,7 +201,7 @@ flowchart LR
 | | Server-side discovery | Client-side discovery |
 |---|---|---|
 | **Who chooses the replica** | a load balancer or proxy in the path | the calling service, with a client library |
-| **Registry** | the platform (Kubernetes endpoints, cloud target groups) | Consul, Eureka, etcd, DNS SRV records |
+| **Registry** | the platform (Kubernetes endpoints, cloud target groups) | Consul, Eureka, etcd, Domain Name System (DNS) SRV records |
 | **Extra hop** | yes (the proxy) | no |
 | **Language coupling** | none: any client just calls a name | every language needs the library (or a sidecar does it — the service mesh) |
 | **Typical today** | Kubernetes `Service` + DNS, cloud LBs | gRPC clients with xDS, service meshes, older Spring Cloud Netflix stacks |
@@ -225,6 +225,23 @@ Design the health endpoint carefully. **Readiness** ("can I serve traffic now?")
 
 When a replica is removed — scaled in, or replaced by a deploy — cutting it off abruptly fails every request in flight. **Connection draining** (deregistration delay) fixes this: the LB stops sending *new* requests to the replica, waits for the in-flight ones to finish (up to, say, 30 s), and only then removes it. In Kubernetes, the pod becomes *not ready*, is removed from the Service endpoints, and receives `SIGTERM`; the application should finish its current requests before exiting (Spring Boot: `server.shutdown=graceful`).
 
+The life of one replica as the load balancer sees it — the active check of the table above, outlier detection and draining — step by step:
+
+``` diagram-sim
+stateDiagram-v2
+    state "starting" as S
+    state "in the pool" as H
+    state "out of the pool" as U
+    state "draining" as D
+    [*] --> S
+    S --> H: readiness passes
+    H --> U: 2 probes fail in a row
+    U --> H: 3 probes pass
+    H --> U: outlier detection (5 x 5xx)
+    H --> D: deploy or scale-in
+    D --> [*]: in-flight requests done (up to 30 s)
+```
+
 ---
 
 ## Sticky sessions { #sticky-sessions }
@@ -234,7 +251,7 @@ When a replica is removed — scaled in, or replaced by a deploy — cutting it 
 | | Sticky sessions | Stateless replicas + shared store |
 |---|---|---|
 | Where state lives | in one replica's memory | Redis / database / client token (JWT) |
-| A replica dies | its users lose their session | nothing is lost |
+| A replica dies | ❌ its users lose their session | ✅ nothing is lost |
 | Balance | uneven: heavy users stick to one replica | any replica takes any request |
 | Scaling in / deploys | must wait for sessions to end or lose them | drain in seconds |
 | Extra cost | none | one network call to the shared store |
@@ -291,7 +308,7 @@ Note what is configured besides the algorithm: **timeouts** toward the backends,
 
 In Kubernetes, three objects share the load-balancing work.
 
-**Service** — a stable virtual IP and DNS name (`inventory.boxoffice.svc.cluster.local`) in front of the pods that match a label selector. Only **ready** pods are listed as endpoints. Traffic to the Service IP is spread across them at L4, by `kube-proxy` (iptables/IPVS rules) or by an eBPF data plane such as Cilium. A Service of type `LoadBalancer` also asks the cloud provider for an external L4 load balancer.
+**Service** — a stable virtual IP and DNS name (`inventory.boxoffice.svc.cluster.local`) in front of the pods that match a label selector. Only **ready** pods are listed as endpoints. Traffic to the Service IP is spread across them at L4, by `kube-proxy` (iptables/IPVS rules) or by an eBPF (extended Berkeley Packet Filter) data plane such as Cilium. A Service of type `LoadBalancer` also asks the cloud provider for an external L4 load balancer.
 
 ```yaml title="inventory-service.yaml"
 apiVersion: v1

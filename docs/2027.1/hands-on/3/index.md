@@ -3,7 +3,7 @@
     - Run **three replicas** of `catalog` and put **Nginx** in front of them as the BoxOffice **edge**: reverse proxy, load balancer, rate limiter.
     - Watch the load spread across replicas, kill and freeze replicas, and see what **passive health checks**, **timeouts** and **retries** do.
     - Limit a greedy API client with **rate limiting** (HTTP 429).
-    - **Measure** scale-out: throughput and p99 with 1 replica versus 3. Is it 3× better?
+    - **Measure** scale-out: throughput and 99th-percentile latency (p99) with 1 replica versus 3. Is it 3× better?
 
 In lab 2 you found the knee of a single `catalog` instance. The simplest way to move it is **horizontal scaling**: more identical, *stateless* copies of the service behind a load balancer. The same box also solves a second problem — with one instance, a crash or a deploy takes BoxOffice down. With three, one can fail while the others keep serving. This lab builds the **edge** of the system: the single public entry point that every request crosses first.
 
@@ -115,7 +115,7 @@ Nginx[^1] reads one configuration file. Every directive below appears in it, in 
 | Directive | What it does |
 |---|---|
 | `upstream catalog { server ...; }` | the pool of replicas; the default algorithm is **round robin** |
-| `resolve` + `resolver 127.0.0.11` + `zone` | Nginx re-resolves the names through Docker's DNS: it starts even if a replica is down and picks it up when it comes back (open-source Nginx ≥ 1.27.3) |
+| `resolve` + `resolver 127.0.0.11` + `zone` | Nginx re-resolves the names through Docker's Domain Name System (DNS) server: it starts even if a replica is down and picks it up when it comes back (open-source Nginx ≥ 1.27.3) |
 | `max_fails=3 fail_timeout=10s` | **passive health check**: 3 failures in 10 s take the replica out of rotation for 10 s |
 | `keepalive 64` + `proxy_http_version 1.1` + `Connection ""` | reuse TCP connections to the replicas instead of opening one per request |
 | `proxy_next_upstream error timeout http_502 http_503 http_504` | if a replica fails, **retry the request on another one** (only for idempotent methods such as GET) |
@@ -177,6 +177,24 @@ What to look for in the k6 summary and in `docker compose logs edge`:
 | **pause** (process frozen) | no answer: on a kept-alive connection it waits `proxy_read_timeout` (5 s), on a new one `proxy_connect_timeout` (1 s) — `upstream timed out (110: Operation timed out)` — then retries | a burst of requests that take **~1 s or ~5 s** — p99 explodes, but no errors |
 | **after 3 failures** | `max_fails` reached → replica out of rotation for `fail_timeout` (10 s) | latency back to normal |
 
+One request that lands on the frozen `catalog-3`, step by step:
+
+``` diagram-sim
+sequenceDiagram
+    participant K as k6
+    participant N as edge (Nginx)
+    participant C3 as catalog-3 (paused)
+    participant C1 as catalog-1
+    K->>N: GET /catalog/events/1
+    N->>C3: forward (its turn in the round robin)
+    Note over C3: frozen, nothing answers
+    Note over N: waits proxy_connect_timeout 1s (5 s on a kept-alive connection)
+    N->>C1: proxy_next_upstream, the second try
+    C1-->>N: 200
+    N-->>K: 200, about 1 s late
+    Note over N: third failure of catalog-3, out for fail_timeout 10s
+```
+
 You should see something like this at the end of the k6 run (a run for this lab: not a single error, but the pause shows up in the tail; p99 can be anywhere from ~1 s to ~5 s, depending on how many requests the freeze caught):
 
 ``` { .text }
@@ -184,7 +202,18 @@ You should see something like this at the end of the k6 run (a run for this lab:
     http_req_failed................: 0.00%  0 out of 14990
 ```
 
-The lesson: a **dead** replica is easy; a **slow** one is dangerous. Timeouts decide how much a slow replica costs you. Nginx open source only has *passive* checks[^2] (it learns from failed real requests); active checks — probing `/actuator/health/readiness` every few seconds — exist in Nginx Plus, HAProxy, Envoy, cloud load balancers and Kubernetes readiness probes (lab 10).
+The lesson: a **dead** replica is easy; a **slow** one is dangerous. Timeouts decide how much a slow replica costs you. Nginx open source only has *passive* checks[^2] (it learns from failed real requests); active checks — probing `/actuator/health/readiness` every few seconds — exist in Nginx Plus, HAProxy, Envoy, cloud load balancers and Kubernetes readiness probes (lab 10). Kubernetes separates two questions: **readiness** (*can it serve now?* — if not, it leaves the load balancer's pool) and **liveness** (*is it alive at all?* — if not, it is restarted).
+
+**Without Docker: the twin.** The simulator replays this lab request by request with its `nginx.conf`: round robin, the passive health check (`max_fails=3 fail_timeout=10s`), the two timeouts, the retry on another replica and the rate limit. Each script is one step of this page, and every button is one of its commands.
+
+<div class="csim" data-sim="nginx-edge" data-script="failures"></div>
+
+!!! tip "Try it"
+
+    1. **5 · stop and freeze** replays the commands above. Stopping `catalog-2` costs a few refused attempts, each retried at once, and no slow request. Pausing `catalog-3` costs the tail: 58 requests wait for a timeout — 1 s on a new connection, 5 s on a kept-alive one — before Nginx retries them on another replica.
+    2. Read k6's summary at the end: 0 errors, 64 retried, max 5.02s — and a p99 of 29.22ms, because 58 slow requests out of 18,000 are fewer than 1%. In the run above the freeze caught more requests and the p99 reached 1 s: how many requests the freeze catches decides the p99.
+    3. **free**: pause a replica and run k6 for 10 s twice. The second time only 1 request is slow: after `fail_timeout`, Nginx lets a single trial request through, and it fails again.
+    4. **4 · spread** gives 3 per replica; **6 · rate limit** ends with greedy 640 × 200 (the burst of 40 plus 20/s for 30 s) and 860 × 429, and polite 300 × 200 with no 429. k6 printed 299 and 843 in the page's run: it started a few fewer requests in its 30 s.
 
 ??? question "Think first: why not set `proxy_read_timeout 100ms`, so frozen replicas are detected immediately?"
 
@@ -217,9 +246,18 @@ You should see (from a run for this lab — 30 s at 50 and 10 req/s):
 
 Expected shape (counts vary): the `polite` client (10 req/s) gets only `200`s; the `greedy` one (50 req/s) gets about 20 `200`s per second and the rest `429`. Nginx implements a **leaky bucket**: requests drain at `rate`; `burst` is the size of the bucket; `nodelay` serves the burst immediately instead of spacing it out.
 
+``` diagram-sim
+flowchart LR
+    r(["GET /catalog/... with X-Api-Key"]) --> k{"key empty?"}
+    k -->|"yes: not limited"| p["proxy to catalog"]
+    k -->|no| b{"excess of this key<br/>within burst=40?<br/>(drains at 20/s)"}
+    b -->|yes| p
+    b -->|no| x["429 Too Many Requests"]:::problem
+```
+
 !!! warning "Who is the client?"
 
-    The key here is a header the client chooses, so a malicious client could simply rotate keys. Real systems limit by an **authenticated** identity (API key issued and verified, user id from a JWT — lab 4) and also per IP for anonymous traffic. We do not limit by IP in the lab because every k6 request comes from the same address: the load tests would throttle themselves.
+    The key here is a header the client chooses, so a malicious client could simply rotate keys. Real systems limit by an **authenticated** identity (API key issued and verified, user id from a JSON Web Token (JWT) — lab 4) and also per IP for anonymous traffic. We do not limit by IP in the lab because every k6 request comes from the same address: the load tests would throttle themselves.
 
 ## 7. Measure it: does 3× the replicas give 3× the throughput? { #measure-it }
 

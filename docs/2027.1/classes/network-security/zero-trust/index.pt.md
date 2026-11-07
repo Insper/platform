@@ -1,5 +1,5 @@
 
-Uma biblioteca vulnerável de processamento de imagens permite que um atacante execute código dentro de um pod `search`. Agora repita o filme na configuração padrão. Desse pod, o atacante chama `order` com o cabeçalho `X-Account-Id: acc-42` e lê os pedidos da Ana, porque "só o gateway alcança `order`". Ele lê as variáveis de ambiente e encontra `DATABASE_URL` com a única senha que todos os serviços compartilham. Encontra `PSP_API_KEY`, porque a chave de pagamento foi colocada em um ConfigMap "temporariamente". Abre uma conexão com `https://attacker.example` e envia tudo, porque a sub-rede privada tem uma rota para o NAT e nada restringe a saída. Cada passo foi possível porque algo **confiou na rede**.
+Uma biblioteca vulnerável de processamento de imagens permite que um atacante execute código dentro de um pod `search`. Agora repita o filme na configuração padrão. Desse pod, o atacante chama `order` com o cabeçalho `X-Account-Id: acc-42` e lê os pedidos da Ana, porque "só o gateway alcança `order`". Ele lê as variáveis de ambiente e encontra `DATABASE_URL` com a única senha que todos os serviços compartilham. Encontra `PSP_API_KEY`, porque a chave de pagamento foi colocada em um ConfigMap "temporariamente". Abre uma conexão com `https://attacker.example` e envia tudo, porque a sub-rede privada tem uma rota para o NAT (tradução de endereços, *network address translation*) e nada restringe a saída. Cada passo foi possível porque algo **confiou na rede**.
 
 Esta página trata da arquitetura que remove essa confiança — **Zero Trust** — e de dois lugares onde a confiança se esconde em todo sistema: os **segredos** e a **cadeia de suprimentos de software**.
 
@@ -30,7 +30,7 @@ O NIST dá nome às peças: um **Policy Enforcement Point (PEP)** fica no caminh
 
 | Princípio | O que significa | Mecanismos no BoxOffice |
 |---|---|---|
-| **Verificar explicitamente** | todo usuário *e todo workload* prova quem é em toda requisição | tokens OIDC, mTLS com identidades SPIFFE, webhooks assinados |
+| **Verificar explicitamente** | todo usuário *e todo workload* prova quem é em toda requisição | tokens OpenID Connect (OIDC), TLS mútuo (mTLS) com identidades SPIFFE (*Secure Production Identity Framework For Everyone*), webhooks assinados |
 | **Menor privilégio** | o mínimo de acesso, pelo mínimo de tempo | escopos estreitos, um usuário de banco por serviço, credenciais de vida curta, allow-lists de saída |
 | **Assumir a violação** | projetar como se o atacante já estivesse dentro; limitar o raio de impacto | NetworkPolicy com negação padrão, sub-redes isoladas, segredos por serviço, logs de auditoria |
 | **Avaliação contínua** | a confiança é reavaliada, não concedida uma vez | tokens de vida curta, reautenticação para ações sensíveis, alertas de anomalia |
@@ -39,11 +39,11 @@ O NIST dá nome às peças: um **Policy Enforcement Point (PEP)** fica no caminh
 
 | Passo do atacante | Modelo de perímetro | Controle Zero Trust | Onde |
 |---|---|---|---|
-| Chamar `order` com um `X-Account-Id` forjado | aceito — "só chamadores internos" | `order` aceita chamadas só da identidade de mesh do gateway; cabeçalho removido na borda | [Service mesh](../service-mesh/index.md), [Identidade](../../edge/identity/index.md) |
-| Conectar ao PostgreSQL com a senha compartilhada | funciona | `search` não tem rota/SG/NetworkPolicy até o banco, nem credencial de banco alguma | [Redes em nuvem](../cloud-network/index.md) |
-| Ler `PSP_API_KEY` do ambiente | está lá | a chave só existe nos pods de `payment`, buscada em um gerenciador de segredos | [Segredos](#secrets-management) |
-| Exfiltrar para a Internet | rota pelo NAT, sem regras de saída | saída negada por padrão; só `payment` alcança o provedor | [Service mesh](../service-mesh/index.md) |
-| Continuar escondido | ninguém olha o tráfego interno | chamadas negadas são registradas e geram alerta | [Observabilidade](../../observability/index.md) |
+| Chamar `order` com um `X-Account-Id` forjado | ❌ aceito — "só chamadores internos" | `order` aceita chamadas só da identidade de mesh do gateway; cabeçalho removido na borda | [Service mesh](../service-mesh/index.md), [Identidade](../../edge/identity/index.md) |
+| Conectar ao PostgreSQL com a senha compartilhada | ❌ funciona | `search` não tem rota/SG/NetworkPolicy até o banco, nem credencial de banco alguma | [Redes em nuvem](../cloud-network/index.md) |
+| Ler `PSP_API_KEY` do ambiente | ❌ está lá | a chave só existe nos pods de `payment`, buscada em um gerenciador de segredos | [Segredos](#secrets-management) |
+| Exfiltrar para a Internet | ❌ rota pelo NAT, sem regras de saída | saída negada por padrão; só `payment` alcança o provedor | [Service mesh](../service-mesh/index.md) |
+| Continuar escondido | ❌ ninguém olha o tráfego interno | chamadas negadas são registradas e geram alerta | [Observabilidade](../../observability/index.md) |
 
 O ataque ainda *começou* — o Zero Trust não impede o primeiro comprometimento. Ele faz do pod comprometido um **beco sem saída**.
 
@@ -56,7 +56,7 @@ O Zero Trust exige que todo workload tenha uma identidade que consiga provar **s
 | Workload | Mecanismo de identidade | O que substitui |
 |---|---|---|
 | Pod → pod | SPIFFE ID em um certificado mTLS emitido pelo mesh ou pelo SPIRE, rotacionado de hora em hora ou diariamente | allow-lists de IP, tokens de API compartilhados |
-| Pod → API da nuvem (S3, Secrets Manager, KMS) | a service account do Kubernetes federada a um papel na nuvem: EKS Pod Identity / IRSA, GKE Workload Identity Federation, Azure Workload Identity | chaves de acesso em variáveis de ambiente |
+| Pod → API da nuvem (S3, Secrets Manager, KMS, o serviço de gerenciamento de chaves) | a service account do Kubernetes federada a um papel na nuvem: EKS Pod Identity / IRSA, GKE Workload Identity Federation, Azure Workload Identity | chaves de acesso em variáveis de ambiente |
 | Pipeline de CI → nuvem | o **token OIDC** do sistema de CI trocado por credenciais de nuvem de vida curta | chaves de acesso da nuvem guardadas como segredos do CI |
 
 A terceira é uma mudança pequena com grande efeito: o GitHub Actions consegue pedir um token OIDC que diz "sou o workflow `release.yaml` deste repositório, no branch `main`" e a nuvem confia nessa afirmação para um papel válido só durante o job[^3]:
@@ -78,8 +78,23 @@ jobs:
 
 Nenhuma chave da AWS fica guardada no GitHub; a política de confiança do papel aceita só tokens cujo `sub` case com `repo:<org>/<repo>:ref:refs/heads/main`. Um fork do repositório ou outro branch não consegue assumi-lo.
 
+``` diagram-sim
+sequenceDiagram
+    participant J as job de CI (release.yaml, main)
+    participant GH as provedor OIDC do GitHub
+    participant STS as AWS STS
+    participant EKS as EKS
+    J->>GH: pede um ID token (id-token: write)
+    GH-->>J: JWT assinado, sub = repo:org/repo:ref:refs/heads/main, válido por minutos
+    J->>STS: AssumeRoleWithWebIdentity (papel boxoffice-deploy, o JWT)
+    Note over STS: verifica assinatura, iss, aud e o sub que a política de confiança espera
+    STS-->>J: credenciais temporárias, somem quando o job termina
+    J->>EKS: aws eks update-kubeconfig, depois o deploy
+    Note over J,EKS: nenhuma chave de longa duração ficou guardada no GitHub
+```
+
 !!! note "Pessoas também são workloads"
-    Para engenheiros, Zero Trust significa: single sign-on com MFA ou passkeys, verificação da postura do dispositivo e acesso por um proxy com reconhecimento de identidade ou um session manager, em vez de uma VPN que coloca o laptop "dentro" ([Redes em nuvem](../cloud-network/index.md)). Todo acesso é por aplicação e registrado.
+    Para engenheiros, Zero Trust significa: single sign-on com autenticação multifator (MFA, *multi-factor authentication*) ou passkeys, verificação da postura do dispositivo e acesso por um proxy com reconhecimento de identidade ou um session manager, em vez de uma VPN que coloca o laptop "dentro" ([Redes em nuvem](../cloud-network/index.md)). Todo acesso é por aplicação e registrado.
 
 ---
 
@@ -94,7 +109,7 @@ Um **segredo** é qualquer valor que concede acesso: a chave de API do provedor 
     kubectl get secret psp-api-key -n boxoffice -o jsonpath='{.data.PSP_API_KEY}' | base64 -d
     ```
 
-    Por padrão, eles também ficam sem criptografia no etcd. Higiene mínima: **criptografia em repouso** para o etcd (com um provedor KMS), **RBAC** restrito sobre Secrets e **nunca** versionar manifestos de Secret no Git sem criptografia[^4].
+    Por padrão, eles também ficam sem criptografia no etcd. Higiene mínima: **criptografia em repouso** para o etcd (com um provedor KMS), **RBAC** (controle de acesso baseado em papéis, *role-based access control*) restrito sobre Secrets e **nunca** versionar manifestos de Secret no Git sem criptografia[^4].
 
 ### Onde os segredos devem morar { #where-secrets-should-live }
 
@@ -102,7 +117,7 @@ Um **segredo** é qualquer valor que concede acesso: a chave de API do provedor 
 |---|---|---|
 | Só Secrets do Kubernetes | simples, nativo | base64; rotação e auditoria por sua conta |
 | Criptografados no Git (Sealed Secrets, SOPS) | combina com GitOps, revisados em PRs | rotação continua manual; gestão da chave de selagem |
-| **Gerenciador de segredos da nuvem** (AWS Secrets Manager, GCP Secret Manager, Azure Key Vault) | gerenciado, versionado, log de auditoria, ganchos de rotação, IAM por segredo | preso a uma nuvem; custo por segredo e por chamada |
+| **Gerenciador de segredos da nuvem** (AWS Secrets Manager, GCP Secret Manager, Azure Key Vault) | gerenciado, versionado, log de auditoria, ganchos de rotação, gestão de identidade e acesso (IAM, *identity and access management*) por segredo | preso a uma nuvem; custo por segredo e por chamada |
 | **HashiCorp Vault / OpenBao** | segredos dinâmicos, qualquer nuvem, políticas e auditoria finas | um sistema crítico e com estado para operar |
 
 O **External Secrets Operator** (ESO) liga os dois mundos: a fonte da verdade é o gerenciador de segredos; o ESO sincroniza os valores em Secrets nativos que os pods leem como sempre.
@@ -292,7 +307,7 @@ spec:
 
 Outros hábitos que fecham lacunas comuns: **fixar por digest** (`image@sha256:…`, actions pelo SHA do commit), usar imagens base mínimas ou distroless, rodar containers sem root e com sistema de arquivos somente leitura, usar um proxy de pacotes privado com nomes escopados para evitar dependency confusion e seguir o Secure Software Development Framework (SSDF) do NIST como checklist do processo[^8].
 
-**Experimente.** Abra o cenário `ai-assistant`. O assistente chama ferramentas (`catalog`, `order`) em nome do usuário: liste cada identidade no caminho (usuário, assistente, registro de ferramentas, serviços) e o que cada uma deveria poder fazer. Onde você colocaria o PEP de uma chamada de ferramenta? Quais segredos o LLM gateway guarda? (A aula de [Sistemas de IA](../../ai-systems/index.md) aprofunda o safety mesh.)
+**Experimente.** Abra o cenário `ai-assistant`. O assistente chama ferramentas (`catalog`, `order`) em nome do usuário: liste cada identidade no caminho (usuário, assistente, registro de ferramentas, serviços) e o que cada uma deveria poder fazer. Onde você colocaria o PEP de uma chamada de ferramenta? Quais segredos o gateway do modelo de linguagem grande (LLM, *large language model*) guarda? (A aula de [Sistemas de IA](../../ai-systems/index.md) aprofunda o safety mesh.)
 
 <div class="sdp" data-scenario="ai-assistant" data-mode="compact" data-height="520"></div>
 
@@ -304,10 +319,10 @@ Outros hábitos que fecham lacunas comuns: **fixar por digest** (`image@sha256:�
 |---|---|---|
 | Rede | sub-redes de dados isoladas, NAT por AZ, saída negada por padrão | `search` não consegue abrir uma conexão TCP com o banco nem com a Internet |
 | Identidade de workload | mTLS STRICT no mesh + políticas de autorização | `curl payment/charges` a partir de `search` devolve 403 |
-| Identidade de usuário | OIDC, PKCE, access tokens de 15 minutos, refresh tokens rotativos | nenhuma senha passa pelo app nem pelos nossos serviços |
+| Identidade de usuário | OIDC, PKCE (*Proof Key for Code Exchange*), access tokens de 15 minutos, refresh tokens rotativos | nenhuma senha passa pelo app nem pelos nossos serviços |
 | Autorização | verificações de posse; API de admin separada | o teste "usuário A lê o pedido do usuário B" falha |
 | Segredos | gerenciador de segredos + ESO, IAM por serviço, rotação com duas chaves | `PSP_API_KEY` legível só por `payment`; runbook de rotação testado |
-| Dados | criptografia em repouso com KMS, TLS em trânsito | backups e snapshots criptografados |
+| Dados | criptografia em repouso com KMS, segurança da camada de transporte (TLS, *Transport Layer Security*) em trânsito | backups e snapshots criptografados |
 | Cadeia de suprimentos | SBOM, bloqueio por varredura, assinatura keyless, verificação na admissão | uma imagem não assinada não consegue subir em `boxoffice` |
 | Detecção | logs de auditoria, alertas de requisições negadas | uma chamada negada vinda de `search` aciona alguém do plantão |
 
@@ -318,7 +333,7 @@ Outros hábitos que fecham lacunas comuns: **fixar por digest** (`image@sha256:�
 
     - **Dê a cada workload sua própria identidade e um papel de menor privilégio** — só o `payment` pode ler a `PSP_API_KEY`; um vazamento então aponta para um serviço e a rotação mexe em um serviço.
     - **Gire todo segredo com agenda e ensaie o runbook de vazamento** — rotação com duas chaves (por exemplo, a cada 90 dias) e um exercício por trimestre, cronometrado: quantos minutos de "chave vazou" até "chave antiga revogada"?
-    - **Prefira credenciais dinâmicas e de vida curta** — usuários de banco emitidos por pod com TTL de 1 hora por um motor de segredos, em vez de uma senha que vive por anos.
+    - **Prefira credenciais dinâmicas e de vida curta** — usuários de banco emitidos por pod com tempo de vida (TTL, *time to live*) de 1 hora por um motor de segredos, em vez de uma senha que vive por anos.
     - **Procure segredos em todo push** — um scanner de segredos com proteção de push (no repositório e no CI) bloqueia o commit antes de a chave ficar pública.
     - **Fixe actions de terceiros e imagens base num SHA de commit ou digest e deixe um bot propor as atualizações** — no BoxOffice: o `ci.yaml` do lab 11 fixa toda action e o `dependabot.yml` abre pull requests semanais ([quadro da cadeia de suprimentos](#supply-chain-security)).
     - **Dê aos jobs de CI as permissões mínimas de token** — `contents: read` por padrão, `id-token: write` só no job que assina. No BoxOffice: o job `image` do [lab 11](../../../hands-on/11/supply-chain/index.md).

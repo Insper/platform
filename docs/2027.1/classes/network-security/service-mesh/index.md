@@ -7,7 +7,7 @@ BoxOffice now runs nine services in Kubernetes. Each team has re-implemented the
 
 A service mesh is a dedicated infrastructure layer that handles **service-to-service communication**[^1]. It has two parts:
 
-- **Data plane** — proxies that sit in the path of every request between services. They terminate and originate TLS, enforce policies, retry, time out, balance load and emit metrics and traces.
+- **Data plane** — proxies that sit in the path of every request between services. They terminate and originate Transport Layer Security (TLS), enforce policies, retry, time out, balance load and emit metrics and traces.
 - **Control plane** — the brain that configures the proxies: it distributes routing rules and policies, and acts as a **certificate authority** that issues each workload its identity.
 
 ``` diagram
@@ -35,7 +35,7 @@ The application still calls `http://payment:8080/charges` in plain HTTP. The pro
 
 | Capability | Without a mesh | With a mesh |
 |---|---|---|
-| Encryption in transit | each team configures TLS (usually nobody does inside the cluster) | mTLS everywhere, certificates rotated automatically |
+| Encryption in transit | each team configures TLS (usually nobody does inside the cluster) | mutual TLS (mTLS) everywhere, certificates rotated automatically |
 | Service identity | IP addresses, shared secrets | a cryptographic identity per workload (SPIFFE) |
 | Authorization between services | in code, if at all | declarative policies: "only `order` may `POST /charges` on `payment`" |
 | Timeouts, retries, circuit breaking | libraries in each language (Resilience4j, Polly…) | uniform config per route |
@@ -78,7 +78,32 @@ Where does the proxy run? Three designs are in production today[^2][^3].
 | Added latency per hop | two proxies on the path | node-level hop; +waypoint for L7 | kernel fast path |
 | Upgrade impact | restart every pod | upgrade node agents and waypoints | upgrade the node agent |
 | Blast radius of a proxy bug | one pod | all pods on the node (ztunnel) | the node |
-| Maturity | longest in production | GA in Istio since 1.24 (2024) | widely used as CNI; mesh features newer |
+| Maturity | longest in production | GA in Istio since 1.24 (2024) | widely used as CNI (Container Network Interface) plugin; mesh features newer |
+
+The same call, `order` → `payment`, in the three designs:
+
+``` diagram
+flowchart TB
+    subgraph sc ["Sidecar · a proxy in every pod"]
+        direction LR
+        o1["order"]:::comp --> s1["sidecar proxy"]:::tech
+        s1 -->|"mTLS · L7"| s2["sidecar proxy"]:::tech
+        s2 --> p1["payment"]:::comp
+    end
+    subgraph am ["Ambient · a ztunnel per node, a waypoint only for L7"]
+        direction LR
+        o2["order"]:::comp --> z1["ztunnel · node A"]:::tech
+        z1 -->|"mTLS · L4"| w["waypoint · L7"]:::tech
+        w --> z2["ztunnel · node B"]:::tech
+        z2 --> p2["payment"]:::comp
+    end
+    subgraph eb ["eBPF · the kernel, a shared Envoy for L7"]
+        direction LR
+        o3["order"]:::comp --> k1["eBPF · node A kernel"]:::tech
+        k1 -->|"WireGuard · L3/L4"| k2["eBPF · node B kernel"]:::tech
+        k2 --> p3["payment"]:::comp
+    end
+```
 
 !!! note "Proxyless gRPC"
     A fourth option skips the proxy entirely: gRPC libraries can receive mesh configuration directly from the control plane (the xDS protocol). It is efficient but only works for gRPC services written with a supporting library.
@@ -272,7 +297,7 @@ spec:
 
 **Outlier detection** removes a misbehaving *replica* from the load-balancing pool for a while — a per-instance circuit breaker. The **connection pool** limits are a bulkhead: when `payment` is slow, at most 200 requests wait on it, instead of every thread of `order`.
 
-**Try it.** Open the `cascading-failure` scenario: a slow third-party dependency with no timeouts exhausts the caller's threads, and unrelated requests start failing. Turn on the timeout and the circuit breaker, run again, and compare the error rate and p99 of the other routes. In BoxOffice, the mesh `VirtualService` timeout and `DestinationRule` limits are one way to apply exactly that fix without touching the code.
+**Try it.** Open the `cascading-failure` scenario: a slow third-party dependency with no timeouts exhausts the caller's threads, and unrelated requests start failing. Turn on the timeout and the circuit breaker, run again, and compare the error rate and the 99th-percentile latency (p99) of the other routes. In BoxOffice, the mesh `VirtualService` timeout and `DestinationRule` limits are one way to apply exactly that fix without touching the code.
 
 <div class="sdp" data-scenario="cascading-failure" data-mode="compact" data-height="520" data-profile="load"></div>
 
@@ -316,8 +341,8 @@ A Kubernetes **NetworkPolicy** is a firewall for pods at L3/L4 (IP and port), en
 | Layer | L3/L4 — IPs, ports | L7 — identity, method, path, headers |
 | Identity | pod labels → IPs | SPIFFE identity in the certificate |
 | Enforced by | the CNI, in the kernel | the proxy (sidecar, ztunnel, waypoint) |
-| Survives a bypassed proxy? | yes | no |
-| Can say "only `POST /charges`"? | no | yes |
+| Survives a bypassed proxy? | ✅ yes | ❌ no |
+| Can say "only `POST /charges`"? | ❌ no | ✅ yes |
 
 Start with **default deny** at the network layer, then open only the edges of the call graph:
 

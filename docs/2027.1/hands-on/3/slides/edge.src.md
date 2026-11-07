@@ -14,6 +14,10 @@ theme: platform
 {{INCLUDE:scripts/slides/theme.js}}
 </script>
 
+<style>
+{{INCLUDE:scripts/slides/diagram.css}}
+</style>
+
 <div class="kicker">System Architecture · Insper · Lab 3</div>
 
 # Lab 3 — Edge
@@ -31,7 +35,7 @@ Outline: (1) why scale out; (2) the topology; (3) replicas in Compose; (4) nginx
 
 <div class="q">
 
-`catalog` saturates at ~400 req/s and a deploy takes it down. What fixes both at once?
+`catalog` leaves its latency target at a few hundred req/s (the knee of lab 2), and a deploy takes it down. What fixes both at once?
 
 </div>
 
@@ -43,14 +47,15 @@ Outline: (1) why scale out; (2) the topology; (3) replicas in Compose; (4) nginx
 
 ## The topology
 
-```text
-k6 ──► edge :80 (Nginx) ──► catalog-1 ┐
-                         ├─► catalog-2 ├──► db
-                         └─► catalog-3 ┘
-```
+<div class="flow">
+<div class="box muted" style="flex: .6">k6 / fans</div><div class="arrow">:80 →</div>
+<div class="box accent">edge<small>Nginx 1.30 · the only published port</small></div><div class="arrow">round robin →</div>
+<div class="group"><div class="caption">Compose network · no <code>ports:</code></div><div class="box">catalog-1<small>1 CPU</small></div><div class="box">catalog-2<small>1 CPU</small></div><div class="box">catalog-3<small>1 CPU</small></div></div><div class="arrow">→</div>
+<div class="box green" style="flex: .7">db<small>PostgreSQL, shared</small></div>
+</div>
 
-- Only the edge publishes a port; replicas are private.
-- `X-Instance` header: which replica answered.
+- The replicas are private, like instances in a cloud VPC's private subnet (class 12).
+- `X-Instance` header: which replica answered. Only code change of the lab.
 
 ---
 
@@ -83,11 +88,18 @@ upstream catalog {
 ```
 
 - Round robin by default; `least_conn` one line away.
-- `resolve`: start even if a replica is down; pick it up when it returns.
+- `resolve`: re-resolve the names through Docker's Domain Name System (DNS) every 10 s — start even if a replica is down, pick it up when it returns.
 
 ---
 
 ## Timeouts and retries
+
+<div class="flow">
+<div class="box">GET</div><div class="arrow">→</div>
+<div class="box red">catalog-3 frozen<small>connect 1 s · read 5 s on a kept-alive connection</small></div><div class="arrow">timeout →</div>
+<div class="box accent">next upstream<small>second and last try</small></div><div class="arrow">→</div>
+<div class="box green">catalog-1: 200<small>about 1 s late, no error</small></div>
+</div>
 
 ```nginx
 proxy_connect_timeout  1s;
@@ -105,9 +117,9 @@ proxy_next_upstream_tries  2;
 
 | Failure | Nginx sees | Client sees |
 |---|---|---|
-| `stop` | connection refused → instant retry | ~nothing |
-| `pause` | no answer for 5 s → retry | p99 ≈ **5 s** |
-| 3 failures | out of rotation for 10 s | normal again |
+| `stop` | refused → instant retry; then the name stops resolving | ✅ ~nothing |
+| `pause` | no answer: 1 s (new connection) or 5 s (kept-alive) → retry | ⚠️ no errors, a 99th-percentile latency (p99) of ~1–5 s |
+| 3 failures in 10 s | out of rotation for 10 s, then one trial request | normal again |
 
 <div class="warn">
 
@@ -120,7 +132,7 @@ A **dead** replica is easy. A **slow** one is dangerous: the timeout decides its
 ## Passive vs active health checks
 
 - **Passive** (open-source Nginx): learn from failed real requests.
-- **Active** (Envoy, HAProxy, cloud LBs, Kubernetes readiness): probe `/actuator/health/readiness`.
+- **Active** (Envoy, HAProxy, cloud load balancers, Kubernetes readiness): probe `/actuator/health/readiness`.
 - Readiness ≠ liveness: *can serve* vs *is alive*.
 
 <div class="q">
@@ -144,13 +156,38 @@ limit_req_status  429;
 | greedy, 50 req/s | 1,500 | ~640 | ~860 |
 | polite, 10 req/s | 300 | 300 | 0 |
 
+<div class="flow">
+<div class="box">request</div><div class="arrow">→</div>
+<div class="box muted">no <code>X-Api-Key</code>?<small>empty key: not limited</small></div><div class="arrow">else →</div>
+<div class="box accent">excess within burst=40?<small>drains at 20/s</small></div><div class="arrow">→</div>
+<div class="box green">proxy</div><div class="box red">429</div>
+</div>
+
 ---
 
 ## Who is the client?
 
 - A header chosen by the client can be **rotated** by an attacker.
-- Real limits: verified identities (issued API keys, JWT `sub`) **plus** per-IP for anonymous traffic.
-- Per-IP misfires behind NAT — and throttles our single-IP k6.
+- Real limits: verified identities (issued API keys, the `sub` of a JSON Web Token, JWT — lab 4) **plus** per-IP for anonymous traffic.
+- Per-IP misfires behind network address translation (NAT) — and throttles our single-IP k6.
+
+---
+
+## Without Docker: the twin
+
+<div class="flow">
+<div class="box accent">4 · spread<small>9 curls: 3 per replica · access log with rt and ut</small></div>
+<div class="box red">5 · stop and freeze<small>stop: no slow request · pause: 58 wait 1 or 5 s · 0 errors, max 5.02 s</small></div>
+<div class="box orange">6 · rate limit<small>greedy 640 × 200, 860 × 429 · polite 300 × 200</small></div>
+</div>
+
+- The lab's `nginx.conf`, request by request: round robin, `max_fails`, the two timeouts, the retry, `limit_req`.
+- The twin's p99 stays at 29 ms: 58 slow requests out of 18,000 are fewer than 1%. The page's run caught more, and its p99 reached 1 s.
+- After `fail_timeout`, Nginx lets **one** trial request through every 10 s.
+
+<!--
+The simulator sits in step 5 of the lab page; each script replays one step of the page.
+-->
 
 ---
 

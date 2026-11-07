@@ -1,6 +1,6 @@
 The BoxOffice seat map has a problem. During the sale, seats change colour every second as other fans hold them. The first version of the web app asked `GET /api/events/42/seats` every 2 seconds: 2 million fans × 0.5 requests per second = **1 million requests per second**, most of them answering "nothing changed". Meanwhile, fans on a train in São Paulo complain that the app "freezes" every time the phone switches between cell towers. Both problems are **protocol** problems — the choice of how bytes travel between the phone and the edge — and both have good modern answers.
 
-This page reviews the protocols that run on the edge: the three generations of HTTP, the TLS handshake that protects them, the options for **real-time** updates (polling, long polling, Server-Sent Events, WebSockets), and gRPC for service-to-service calls. The goal is not to memorise headers, but to know **what each protocol costs in round trips and connections**, and what it is good for.
+This page reviews the protocols that run on the edge: the three generations of HTTP, the Transport Layer Security (TLS) handshake that protects them, the options for **real-time** updates (polling, long polling, Server-Sent Events, WebSockets), and gRPC for service-to-service calls. The goal is not to memorise headers, but to know **what each protocol costs in round trips and connections**, and what it is good for.
 
 ---
 
@@ -53,8 +53,8 @@ The costs: UDP is sometimes blocked or throttled by corporate networks (browsers
 | Head-of-line blocking | HTTP and TCP level | TCP level only | none across streams |
 | Header compression | none | HPACK | QPACK |
 | Handshake before data (new connection) | TCP + TLS: 2–3 RTT | TCP + TLS: 2–3 RTT | 1 RTT (0-RTT on resumption) |
-| Survives IP change | no | no | yes (connection migration) |
-| Typical place | backends, simple clients | browsers, gRPC, internal | browsers and mobile ↔ CDN/edge |
+| Survives IP change | ❌ no | ❌ no | ✅ yes (connection migration) |
+| Typical place | backends, simple clients | browsers, gRPC, internal | browsers and mobile ↔ content delivery network (CDN) / edge |
 
 ---
 
@@ -123,6 +123,17 @@ Two conclusions. First, the protocol matters **most when the server is far away*
 ??? question "Think first: the mobile app makes 30 small API calls when the event screen opens. The API is in Virginia (RTT 150 ms from São Paulo) and the app opens a new HTTP/1.1 connection with TLS 1.2 for each call, 6 at a time. Roughly how long does it take?"
     Each call on a fresh connection costs 4 RTT ≈ 600 ms; 30 calls in batches of 6 means 5 batches ≈ **3 seconds**, before any server time. Fixes, in order of impact: reuse connections (keep-alive) and **multiplex** them with HTTP/2 or HTTP/3 (all 30 calls over one connection: 1 handshake + roughly 1 RTT ≈ 300–450 ms); terminate TLS at an **edge close to the fan**; and **aggregate** the 30 calls into one screen-level call in a BFF ([API gateway](../api-gateway/index.md#bff)).
 
+The simulator sends those 30 calls through four stacks at once — with the same round trip and, when you add loss, the same lost packets — and draws one of them call by call. It also shows what the chart above cannot: what a lost packet does to calls that share one TCP connection.
+
+<div class="csim" data-sim="http-versions" data-rtt="150" data-loss="0" data-lane="h2"></div>
+
+!!! tip "Try it"
+
+    1. With 150 ms and no loss the tiles answer the question above: 3.00 s with a new HTTP/1.1 connection per call, 1.05 s over 6 kept-alive connections, 459 ms over one HTTP/2 connection and 309 ms over HTTP/3. Without loss, the whole gap is round trips.
+    2. Raise the loss to 2%. HTTP/2 completes the screen at 603 ms and HTTP/3 at 453 ms: one extra round trip each. Now read the waterfall of HTTP/2: 29 of the 30 calls wait (red) for a packet of another call, and half of the calls are back only at 603 ms; over HTTP/3, half are back at 307 ms. That is TCP head-of-line blocking — and the reason for QUIC.
+    3. Press **other lost packets** a few times: the numbers move, the pattern does not.
+    4. Set the round trip to 10 ms, an edge in the fan's city: 201 ms for the worst stack and 39 ms for HTTP/2. Terminating connections close to the user shrinks every round trip at once.
+
 ---
 
 ## Real-time: getting updates to the client { #real-time }
@@ -151,7 +162,7 @@ id: 1843
 data: {"seat": "B-13", "status": "sold"}
 ```
 
-SSE is **one-way** (server → client), text-only, and runs over normal HTTP — so it passes through proxies, CDNs and load balancers, works over HTTP/2 multiplexing, and the browser's `EventSource` API **reconnects automatically**, sending the last received `id` in a `Last-Event-ID` header so the server can resume. It is the simplest good answer for "push updates to many clients": live scores, notifications, the waiting-room position, and the token-by-token stream of an LLM response.
+SSE is **one-way** (server → client), text-only, and runs over normal HTTP — so it passes through proxies, CDNs and load balancers, works over HTTP/2 multiplexing, and the browser's `EventSource` API **reconnects automatically**, sending the last received `id` in a `Last-Event-ID` header so the server can resume. It is the simplest good answer for "push updates to many clients": live scores, notifications, the waiting-room position, and the token-by-token stream of a large language model (LLM) response.
 
 !!! example "In the BoxOffice code: the assistant streams with SSE (lab 12)"
 
