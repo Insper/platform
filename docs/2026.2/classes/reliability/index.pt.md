@@ -8,9 +8,9 @@ Um sistema confiável não é aquele que nunca falha. É aquele que **falha de f
 
     Ao final desta aula, você deve ser capaz de:
 
-    - **Calcular** a disponibilidade a partir de MTTF e MTTR, o tempo de indisponibilidade permitido por um número de "noves" e a disponibilidade ponta a ponta de serviços em série e em paralelo.
-    - **Classificar** uma falha (transitória, permanente, intermitente, bizantina) e **explicar** como uma falha em cascata se espalha por meio de recursos esgotados.
-    - **Definir** SLIs e SLOs para um serviço da loja e **calcular** seu error budget e sua burn rate.
+    - **Calcular** a disponibilidade a partir do tempo médio até a falha (MTTF, *mean time to failure*) e do tempo médio de reparo (MTTR, *mean time to repair*), o tempo de indisponibilidade permitido por um número de "noves" e a disponibilidade ponta a ponta de serviços em série e em paralelo.
+    - **Classificar** uma falha por quanto tempo ela dura (transitória, intermitente, permanente) e por como ela se comporta (queda, lentidão, bizantina) e **explicar** como uma falha em cascata se espalha por meio de recursos esgotados.
+    - **Definir** indicadores de nível de serviço (SLIs, *service level indicators*) e objetivos de nível de serviço (SLOs, *service level objectives*) para um serviço da loja e **calcular** seu error budget e sua burn rate.
     - **Escolher e configurar** padrões de resiliência — timeout, retry com backoff e jitter, circuit breaker, bulkhead, rate limiting, health checks — para uma chamada entre dois serviços.
     - **Projetar** um experimento de caos com uma hipótese de estado estável e um raio de impacto controlado.
 
@@ -104,17 +104,29 @@ Requisições reais atravessam vários componentes, então a disponibilidade que
     A_{parallel} = 1 - (1 - a)^n
     $$
 
-    Duas réplicas do gateway com 99% cada atrás do Nginx ([Hands-on 7](../../hands-on/7/index.md)): $1 - 0.01^2 = 99.99\%$. A redundância transforma dois componentes medianos em um muito disponível — desde que suas falhas sejam realmente independentes (o mesmo bug, o mesmo host ou a mesma zona quebram essa premissa).
+    Duas réplicas do gateway com 99% cada atrás do Nginx ([Hands-on 7](../../hands-on/7/index.md)): $1 - 0.01^2 = 99.99\%$. A redundância transforma dois componentes medianos em um muito disponível — desde que suas falhas sejam realmente independentes (o mesmo bug, o mesmo host ou a mesma zona quebram essa premissa). No Hands-on 7 todas as réplicas rodam no seu notebook: um host só, então uma queda de energia derruba todas.
+
+Caminhos reais misturam os dois. O diagrama abaixo percorre uma requisição na loja: o Nginx, duas réplicas do gateway em paralelo e depois order e product em série.
 
 ``` mermaid-sim
 flowchart LR
-    user([Usuário]) --> lb["Nginx"]
-    lb --> g1["gateway #1<br/>99%"]
-    lb --> g2["gateway #2<br/>99%"]
+    user([Usuário]) --> lb["Nginx<br/>99,99%"]
+    lb --> g1["gateway 1<br/>99%"]
+    lb --> g2["gateway 2<br/>99%"]
     g1 --> order["order<br/>99,9%"]
     g2 --> order
     order --> product["product<br/>99,9%"]
 ```
+
+!!! example "Exemplo resolvido — o caminho inteiro"
+
+    Reduza primeiro a parte em paralelo e depois multiplique a série (o Nginx com 99,99% é uma premissa do exemplo):
+
+    $$
+    A = \underbrace{0.9999}_{\text{Nginx}} \times \underbrace{(1 - 0.01^2)}_{\text{2 gateways}} \times \underbrace{0.999}_{\text{order}} \times \underbrace{0.999}_{\text{product}} \approx 99.78\%
+    $$
+
+    São cerca de **19 horas de indisponibilidade por ano**. Quase tudo vem das duas réplicas únicas, order e product (0,1% cada); os gateways redundantes somam só 0,01%. Um terceiro gateway economizaria menos de uma hora por ano; replicar order e product — os **elos mais fracos** — eliminaria a maior parte das 19 horas.
 
 É por isso que existem a redundância (múltiplas instâncias) e os padrões de isolamento (circuit breakers): para quebrar a cadeia de propagação de falhas.
 
@@ -124,23 +136,29 @@ flowchart LR
 
 Sistemas distribuídos falham de formas que sistemas de uma única máquina não falham. **Falhas parciais** — em que alguns componentes funcionam e outros não — são muito mais comuns do que indisponibilidades totais e consideravelmente mais difíceis de tratar corretamente.
 
+Uma falha tem duas propriedades independentes: **quanto tempo dura** e **como o componente se comporta** enquanto ela dura. Um pod morto por falta de memória (OOM, *out of memory*) é permanente *e* crash-stop; uma pausa de coleta de lixo (GC, *garbage collection*) é intermitente *e* lenta.
+
 ``` mermaid-sim
 flowchart TD
-    F[Falha] --> T["Transitória<br/>Temporária, se resolve sozinha<br/>ex.: oscilação breve de rede"]
-    F --> P["Permanente<br/>Exige intervenção<br/>ex.: pane de disco, OOM kill"]
-    F --> I["Intermitente<br/>Recorrência imprevisível<br/>ex.: vazamento de memória, pausa de GC"]
-    P --> CS["Crash-stop<br/>O nó para e permanece parado"]
-    P --> BZ["Bizantina<br/>O nó se comporta de forma arbitrária ou incorreta"]
+    F[Falha] --> D["Quanto tempo dura?"]
+    F --> B["Como se comporta?"]
+    D --> T["Transitória<br/>some em segundos<br/>ex.: oscilação de rede"]
+    D --> I["Intermitente<br/>vai e volta<br/>ex.: pausa de GC, vazamento de memória"]
+    D --> P["Permanente<br/>até alguém agir<br/>ex.: pane de disco, OOM kill"]
+    B --> CS["Crash-stop<br/>para e permanece parado"]
+    B --> SL["Lenta<br/>responde, mas tarde demais"]
+    B --> BZ["Bizantina<br/>responde dados errados"]
 ```
 
 | Classe de falha | Características | Estratégia de tratamento |
 |---|---|---|
 | **Transitória** | Resolve-se sozinha em segundos; é seguro fazer retry | Retry com backoff exponencial e jitter |
-| **Permanente (crash-stop)** | O nó para de responder e nunca se recupera | Circuit breaker + failover para uma réplica saudável |
-| **Intermitente** | Aparece e desaparece sem um gatilho claro | Histogramas de latência P99; alertas baseados em anomalias |
+| **Intermitente** | Aparece e desaparece sem um gatilho claro | Histogramas de latência no percentil 99 (P99); alertas baseados em anomalias |
+| **Permanente (crash-stop)** | O nó para de responder e não se recupera sozinho | Health checks + failover para uma réplica saudável; circuit breaker enquanto isso |
+| **Lenta** | O nó responde, mas tarde; continua parecendo vivo | Timeout + circuit breaker (chamadas lentas) + bulkhead |
 | **Bizantina** | O nó retorna dados incorretos sem cair | Protocolos de consenso; checksums; validação de entrada |
 
-A falha mais comum na prática não é uma queda, mas uma resposta **lenta**: quem chama não consegue distinguir um nó lento de um nó morto (veja [Sistemas Distribuídos](../distributed_systems/index.md)), então continua esperando.
+A falha mais comum na prática não é uma queda, mas uma resposta **lenta**: quem chama não consegue distinguir um nó lento de um nó morto (veja [Sistemas Distribuídos](../distributed_systems/index.md)), então continua esperando. Um nó que caiu ao menos recusa conexões na hora; um nó lento prende os recursos de quem chama.
 
 ### Falhas em cascata
 
@@ -154,13 +172,13 @@ sequenceDiagram
     U->>O: POST /orders (muitos por segundo)
     O->>P: cobrança (normalmente 100 ms)
     Note over P: degrada: 3 s por chamada
-    Note over O: threads esperam 30× mais → todas as 200 ocupadas
+    Note over O: threads esperam 30× mais → 180 de 200 presas no pagamento
     U->>O: GET /orders/42 (sem pagamento)
     O-->>U: 503 — nenhuma thread livre
     Note over U,O: rotas não relacionadas também falham
 ```
 
-A aritmética é simples (lei de Little: requisições em andamento = taxa de chegada × tempo de cada uma). Com 60 pedidos por segundo e 100 ms por chamada de pagamento, cerca de 6 threads ficam ocupadas esperando o pagamento. Com 3 s por chamada, são 180 threads — quase o pool inteiro — e todas as outras rotas do serviço de pedidos ficam sem recursos. Se o gateway, por sua vez, espera pelo serviço de pedidos, o esgotamento sobe mais um nível. **Timeouts, circuit breakers e bulkheads** ([Padrões de Resiliência](patterns/index.md)) são a resposta da engenharia a esse modo de falha.
+A aritmética é simples (lei de Little: requisições em andamento = taxa de chegada × tempo de cada uma). Com 60 pedidos por segundo e 100 ms por chamada de pagamento, cerca de 6 threads ficam ocupadas esperando o pagamento. Com 3 s por chamada, são 180 threads — quase o pool inteiro de 200 (o padrão do Tomcat) — e todas as outras rotas do serviço de pedidos disputam as 20 que sobram: as chegadas vêm em rajadas, então o pool enche de vez em quando e o `GET /orders/42` recebe `503`. Se o gateway, por sua vez, espera pelo serviço de pedidos, o esgotamento sobe mais um nível. **Timeouts, circuit breakers e bulkheads** ([Padrões de Resiliência](patterns/index.md)) são a resposta da engenharia a esse modo de falha; o simulador daquela página reproduz exatamente esses números, com e sem cada padrão.
 
 !!! warning "Armadilhas comuns"
 
@@ -175,14 +193,14 @@ A aritmética é simples (lei de Little: requisições em andamento = taxa de ch
 
 - [Sistemas Distribuídos](../distributed_systems/index.md) — falha parcial e a impossibilidade de distinguir lento de morto.
 - [Observabilidade](../observability/index.md) — SLIs são calculados a partir de métricas; sem ela não há como operar SLOs nem experimentos de caos.
-- [Arquitetura Orientada a Eventos](../event_driven/index.md) — mensageria assíncrona tira a espera de quem chama da cadeia; DLQs tratam mensagens envenenadas.
+- [Arquitetura Orientada a Eventos](../event_driven/index.md) — mensageria assíncrona tira a espera de quem chama da cadeia; filas de mensagens mortas (DLQs, *dead-letter queues*) tratam mensagens envenenadas.
 - [Hands-on 5](../../hands-on/5/index.md) (autorrecuperação no Kubernetes), [Hands-on 7](../../hands-on/7/index.md) (réplicas atrás de um balanceador de carga) e [Hands-on 6](../../hands-on/6/index.md) (Prometheus e Grafana para SLIs).
 
 ## Pontos-chave
 
 - Disponibilidade = MTTF / (MTTF + MTTR); recuperar mais rápido costuma ser a melhoria mais barata.
 - Cada nove a mais significa 10× menos indisponibilidade — e sempre informe a **janela** a que um número se refere.
-- Em série, as disponibilidades se **multiplicam** (pior do que qualquer parte); em paralelo, a redundância dá $1-(1-a)^n$.
+- Em série, as disponibilidades se **multiplicam** (pior do que qualquer parte); em paralelo, a redundância dá $1-(1-a)^n$. Num caminho real, as réplicas únicas — os elos mais fracos — decidem.
 - Falhas parciais e **lentas** são a norma; uma dependência lenta esgota os recursos de quem a chama e se propaga **em cascata** para cima.
 - O restante da aula mede a confiabilidade (SLOs, error budgets), contém as falhas (padrões de resiliência) e prova que a contenção funciona (engenharia do caos).
 

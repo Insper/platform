@@ -24,7 +24,7 @@ A prática foi posta à prova de verdade em abril de 2011, quando uma grande fal
 | **Security Monkey** | Encontra e relata violações de políticas de segurança |
 | **Chaos Gorilla** | Simula a falha de uma Availability Zone inteira da AWS |
 
-A percepção foi transformadora: **a falha não é um caso especial a ser evitado; é o ambiente em que os sistemas de produção vivem e a única forma de saber se o seu sistema sobrevive a ela é testá-lo ali.** Em 2016, engenheiros da Netflix formalizaram a prática e lhe deram nome em um artigo da IEEE Software[^2]; os princípios abaixo vêm desse trabalho.
+A percepção foi transformadora: **a falha não é um caso especial a ser evitado; é o ambiente em que os sistemas de produção vivem e a única forma de saber se o seu sistema sobrevive a ela é testá-lo ali.** Engenheiros da Netflix depois registraram a prática por escrito, nos Princípios da Engenharia do Caos e em um artigo da IEEE Software em 2016[^2]; os princípios abaixo vêm desse trabalho.
 
 ---
 
@@ -33,7 +33,7 @@ A percepção foi transformadora: **a falha não é um caso especial a ser evita
 Os [Principles of Chaos Engineering](https://principlesofchaos.org){target="_blank"}[^1] definem a disciplina em torno de cinco ideias centrais:
 
 **1. Construa uma hipótese em torno do comportamento em estado estável**
-: Defina como é o "normal" antes de injetar falhas — em termos de saídas mensuráveis (taxa de requisições, taxa de erros, latência). A hipótese é: *"Este sistema continuará exibindo o estado estável mesmo quando a condição X for introduzida."*
+: Defina como é o "normal" antes de injetar falhas — em termos de saídas mensuráveis, os indicadores de nível de serviço (SLIs, *service level indicators*) do sistema (taxa de requisições, taxa de erros, latência). A hipótese é: *"Este sistema continuará exibindo o estado estável mesmo quando a condição X for introduzida."*
 
 **2. Varie eventos do mundo real**
 : Simule eventos que realmente acontecem: queda de servidor, partição de rede, disco cheio, desvio de relógio, timeout de dependência, pico de tráfego. Falhas sintéticas ou artificiais que nunca ocorrem na prática produzem uma confiança enganosa.
@@ -55,15 +55,15 @@ Cada experimento segue o método científico[^3]: diga o que você espera, mude 
 
 ``` mermaid-sim
 flowchart LR
-    H["1. Formular hipótese\nDefinir estado estável\ne comportamento esperado"]
-    D["2. Projetar\nEscolher tipo de falha\ne raio de impacto"]
-    I["3. Injetar\nIntroduzir a\nfalha controlada"]
-    O["4. Observar\nMedir SLIs e o\ncomportamento do sistema"]
-    A["5. Analisar\nComparar o real com\no comportamento esperado"]
-    R["6. Melhorar\nCorrigir fraquezas;\natualizar runbooks"]
+    H["1. Formular hipótese<br/>Definir estado estável<br/>e comportamento esperado"]
+    D["2. Projetar<br/>Escolher tipo de falha<br/>e raio de impacto"]
+    I["3. Injetar<br/>Introduzir a<br/>falha controlada"]
+    O["4. Observar<br/>Medir SLIs e o<br/>comportamento do sistema"]
+    A["5. Analisar<br/>Comparar o real com<br/>o comportamento esperado"]
+    R["6. Melhorar<br/>Corrigir fraquezas;<br/>atualizar runbooks"]
 
     H --> D --> I --> O --> A --> R
-    R -->|"rodar de novo\ncom escopo maior"| H
+    R -->|"rodar de novo<br/>com escopo maior"| H
 ```
 
 Um experimento de caos que **confirma a hipótese** (o sistema se comporta como esperado) gera confiança naquele modo de falha. Um experimento que **refuta a hipótese** é uma descoberta: o sistema não trata aquela falha corretamente e a equipe agora sabe disso antes que um incidente real a ensine.
@@ -72,14 +72,33 @@ Um experimento de caos que **confirma a hipótese** (o sistema se comporta como 
 
     | Etapa | Conteúdo |
     |---|---|
-    | **Estado estável** | `POST /orders`: disponibilidade ≥ 99,9% e latência P95 < 500 ms (do dashboard do Grafana do [Hands-on 6](../../../hands-on/6/index.md)). |
-    | **Hipótese** | "Se o serviço de produtos responder em 3 s em vez de 50 ms, o circuit breaker do serviço de pedidos abre em até 30 s, os pedidos falham rápido com um `503` claro e `GET /orders` mantém sua latência normal." |
+    | **Estado estável** | `GET /orders`: disponibilidade ≥ 99,9% e latência no percentil 95 (P95) < 300 ms; `POST /orders`: P95 < 500 ms (do dashboard do Grafana do [Hands-on 6](../../../hands-on/6/index.md)). |
+    | **Hipótese** | "Se o serviço de produtos responder em 3 s em vez de 50 ms, o circuit breaker do serviço de pedidos abre em até 10 s, `POST /orders` falha rápido (em menos de 1 s) com um `503` claro e `GET /orders` mantém seu estado estável." |
     | **Injeção** | Colocar o Toxiproxy entre order e product e adicionar um toxic de `latency` de 3 s — primeiro no ambiente Docker Compose, depois em uma réplica. |
     | **Raio de impacto** | Um ambiente, 10 minutos, abortar se a disponibilidade de `GET /orders` cair abaixo de 99%. |
     | **Observar** | `resilience4j_circuitbreaker_state`, taxa de erros e P95 por rota, threads ocupadas do serviço de pedidos, traces no Jaeger. |
-    | **Descobertas possíveis** | O read timeout do Feign nunca foi configurado, então o breaker só contabiliza as chamadas depois de 60 s; ou o retry multiplica as chamadas e o breaker abre tarde demais. |
+    | **Descobertas possíveis** | O read timeout do Feign nunca foi configurado (padrão de 60 s): cada chamada simplesmente leva 3 s e *dá certo*, então o breaker só abre pela taxa de chamadas lentas — ou nunca, se ela não estiver definida — enquanto as threads se acumulam; ou o retry envolve o breaker do jeito errado e multiplica as chamadas. |
 
     Os dois resultados são úteis: uma hipótese confirmada é evidência de que os padrões funcionam; uma refutada é um bug encontrado nos seus termos.
+
+    O experimento da loja, passo a passo (o simulador de [Padrões de Resiliência](../patterns/index.md#play-it-a-slow-product-service) reproduz a mesma falha com números):
+
+    ``` mermaid-sim
+    sequenceDiagram
+        participant E as Engenheira
+        participant T as Toxiproxy
+        participant O as Serviço de pedidos
+        participant G as Grafana
+        E->>G: estado estável? GET /orders 99,9%, P95 abaixo de 300 ms
+        E->>T: adiciona um toxic de latência: 3 s em order → product
+        O->>T: chamadas ao product agora levam 3 s
+        Note over O: read timeout em 1 s, o breaker abre em segundos
+        G-->>E: POST /orders: 503 rápidos. GET /orders: sem mudança
+        E->>G: condição de aborto: GET /orders abaixo de 99%?
+        G-->>E: não: segue pelos 10 minutos
+        E->>T: remove o toxic
+        Note over E,G: hipótese confirmada: ampliar o escopo da próxima vez
+    ```
 
 ---
 
@@ -87,12 +106,12 @@ Um experimento de caos que **confirma a hipótese** (o sistema se comporta como 
 
 | Categoria | Exemplos | Ferramentas |
 |---|---|---|
-| **Processo / instância** | Matar container, matar processo por OOM, encerrar VM | Chaos Monkey, LitmusChaos |
+| **Processo / instância** | Matar container, matar processo por falta de memória (OOM, *out of memory*), encerrar VM | Chaos Monkey, LitmusChaos |
 | **Rede** | Adicionar latência, descartar pacotes, corromper pacotes, particionar um segmento de rede | Toxiproxy, Gremlin, Chaos Mesh |
 | **Recursos** | Saturar CPU, encher o disco, esgotar a memória, encher a tabela de descritores de arquivo | Stress-ng, Gremlin |
-| **Dependência** | Retornar HTTP 500, injetar timeouts, retornar respostas malformadas | Wiremock, Toxiproxy |
+| **Dependência** | Retornar HTTP 500, injetar timeouts, retornar respostas malformadas | WireMock, Toxiproxy |
 | **Estado** | Corromper registros do banco, fazer rollback de um deploy, expirar certificados TLS | Manual, Gremlin |
-| **Infraestrutura** | Encerrar uma Availability Zone, perder uma região, simular falha de CDN | Chaos Gorilla, AWS Fault Injection Simulator |
+| **Infraestrutura** | Encerrar uma Availability Zone, perder uma região, simular falha de CDN | Chaos Gorilla, AWS Fault Injection Service (FIS) |
 
 ---
 
@@ -102,10 +121,10 @@ O raio de impacto de um experimento de caos é o conjunto de usuários e sistema
 
 ``` mermaid-sim
 flowchart TD
-    S1["Estágio 1\nTestes unitários / de integração\n(nenhum usuário afetado)"]
-    S2["Estágio 2\nAmbiente de staging / canário\n(só usuários internos)"]
-    S3["Estágio 3\n1% do tráfego de produção\n(pequeno grupo de usuários)"]
-    S4["Estágio 4\nProdução completa\n(todo o tráfego, todas as regiões)"]
+    S1["Estágio 1<br/>Testes unitários / de integração<br/>(nenhum usuário afetado)"]
+    S2["Estágio 2<br/>Ambiente de staging / canário<br/>(só usuários internos)"]
+    S3["Estágio 3<br/>1% do tráfego de produção<br/>(pequeno grupo de usuários)"]
+    S4["Estágio 4<br/>Produção completa<br/>(todo o tráfego, todas as regiões)"]
 
     S1 -->|confiança aumenta| S2
     S2 -->|sem descobertas| S3
@@ -143,10 +162,10 @@ Um GameDay típico:
 |---|---|---|
 | [Chaos Monkey](https://github.com/Netflix/chaosmonkey){target="_blank"} | Netflix | Encerramento de instâncias; a original |
 | [Gremlin](https://www.gremlin.com){target="_blank"} | Gremlin Inc. | SaaS; ampla biblioteca de falhas; guiada por interface gráfica |
-| [LitmusChaos](https://litmuschaos.io){target="_blank"} | CNCF | Nativa do Kubernetes; compatível com GitOps |
+| [LitmusChaos](https://litmuschaos.io){target="_blank"} | Cloud Native Computing Foundation (CNCF) | Nativa do Kubernetes; compatível com GitOps |
 | [Chaos Mesh](https://chaos-mesh.org){target="_blank"} | CNCF | Nativa do Kubernetes; ampla biblioteca de falhas |
 | [Toxiproxy](https://github.com/Shopify/toxiproxy){target="_blank"} | Shopify | Proxy TCP; adiciona latência/descarta pacotes; ideal para testes de integração |
-| [AWS FIS](https://aws.amazon.com/fis/){target="_blank"} | Amazon | Integração nativa com a AWS; controlada por IAM; condições de aborto seguras |
+| [AWS FIS](https://aws.amazon.com/fis/){target="_blank"} (Fault Injection Service, antes Fault Injection Simulator) | Amazon | Integração nativa com a AWS; controlada por IAM; condições de aborto seguras |
 
 ---
 
@@ -155,7 +174,7 @@ Um GameDay típico:
 Engenharia do caos sem observabilidade é perigosa e improdutiva. Antes de rodar qualquer experimento, a equipe precisa ser capaz de:
 
 1. **Medir o estado estável**: dashboards de SLI precisam existir e mostrar os valores de referência.
-2. **Detectar desvios**: alertas precisam disparar segundos depois de um SLI cair.
+2. **Detectar desvios**: dashboards precisam mostrar a queda de um SLI em segundos e alertas em minutos (os alertas de burn rate de [SLI / SLO / SLA](../sli-slo-sla/index.md)).
 3. **Atribuir causalidade**: o rastreamento distribuído precisa permitir que a equipe identifique qual componente introduziu a latência ou os erros.
 4. **Abortar com segurança**: um kill switch automatizado precisa conseguir interromper o experimento imediatamente se ele ultrapassar o raio de impacto definido.
 

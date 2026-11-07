@@ -25,7 +25,7 @@ The practice was tested for real in April 2011, when a large AWS failure in the 
 | **Security Monkey** | Finds and reports security policy violations |
 | **Chaos Gorilla** | Simulates failure of an entire AWS Availability Zone |
 
-The insight was transformational: **failure is not a special case to be avoided; it is the environment that production systems live in, and the only way to know your system survives it is to test it there.** In 2016 Netflix engineers formalised the practice and gave it its name in an IEEE Software article[^2]; the principles below come from that work.
+The insight was transformational: **failure is not a special case to be avoided; it is the environment that production systems live in, and the only way to know your system survives it is to test it there.** Netflix engineers then wrote the practice down, as the Principles of Chaos Engineering and in an IEEE Software article in 2016[^2]; the principles below come from that work.
 
 ---
 
@@ -34,7 +34,7 @@ The insight was transformational: **failure is not a special case to be avoided;
 The [Principles of Chaos Engineering](https://principlesofchaos.org){target="_blank"}[^1] define the discipline across five core ideas:
 
 **1. Build a hypothesis around steady state behaviour**
-: Define what "normal" looks like before injecting failures — in terms of measurable outputs (request rate, error rate, latency). The hypothesis is: *"This system will continue to exhibit the steady state even when condition X is introduced."*
+: Define what "normal" looks like before injecting failures — in terms of measurable outputs, the service level indicators (SLIs) of the system (request rate, error rate, latency). The hypothesis is: *"This system will continue to exhibit the steady state even when condition X is introduced."*
 
 **2. Vary real-world events**
 : Simulate events that actually happen: server crashes, network partition, disk full, clock skew, dependency timeout, traffic spike. Synthetic or artificial failures that never occur in practice produce misleading confidence.
@@ -56,15 +56,15 @@ Each experiment follows the scientific method[^3]: state what you expect, change
 
 ``` mermaid-sim
 flowchart LR
-    H["1. Hypothesise\nDefine steady state\nand expected behaviour"]
-    D["2. Design\nChoose failure type\nand blast radius"]
-    I["3. Inject\nIntroduce the\ncontrolled failure"]
-    O["4. Observe\nMeasure SLIs\nand system behaviour"]
-    A["5. Analyse\nCompare actual vs\nhypothesised behaviour"]
-    R["6. Improve\nFix weaknesses;\nupdate runbooks"]
+    H["1. Hypothesise<br/>Define steady state<br/>and expected behaviour"]
+    D["2. Design<br/>Choose failure type<br/>and blast radius"]
+    I["3. Inject<br/>Introduce the<br/>controlled failure"]
+    O["4. Observe<br/>Measure SLIs<br/>and system behaviour"]
+    A["5. Analyse<br/>Compare actual vs<br/>hypothesised behaviour"]
+    R["6. Improve<br/>Fix weaknesses;<br/>update runbooks"]
 
     H --> D --> I --> O --> A --> R
-    R -->|"run again\nwith wider scope"| H
+    R -->|"run again<br/>with wider scope"| H
 ```
 
 A chaos experiment that **confirms the hypothesis** (the system behaves as expected) builds confidence in that failure mode. An experiment that **falsifies the hypothesis** is a finding: the system does not handle this failure correctly, and the team now knows before a real incident teaches them.
@@ -73,14 +73,33 @@ A chaos experiment that **confirms the hypothesis** (the system behaves as expec
 
     | Step | Content |
     |---|---|
-    | **Steady state** | `POST /orders`: availability ≥ 99.9% and P95 latency < 500 ms (from the Grafana dashboard of [Hands-on 6](../../../hands-on/6/index.md)). |
-    | **Hypothesis** | "If the product service answers in 3 s instead of 50 ms, the order service's circuit breaker opens within 30 s, orders fail fast with a clear `503`, and `GET /orders` keeps its normal latency." |
+    | **Steady state** | `GET /orders`: availability ≥ 99.9% and 95th-percentile (P95) latency < 300 ms; `POST /orders`: P95 < 500 ms (from the Grafana dashboard of [Hands-on 6](../../../hands-on/6/index.md)). |
+    | **Hypothesis** | "If the product service answers in 3 s instead of 50 ms, the order service's circuit breaker opens within 10 s, `POST /orders` fails fast (under 1 s) with a clear `503`, and `GET /orders` keeps its steady state." |
     | **Injection** | Put Toxiproxy between order and product and add a 3 s `latency` toxic — first in the Docker Compose environment, later on one replica. |
     | **Blast radius** | One environment, 10 minutes, abort if the availability of `GET /orders` drops below 99%. |
     | **Observe** | `resilience4j_circuitbreaker_state`, error rate and P95 per route, the order service's busy threads, traces in Jaeger. |
-    | **Possible findings** | The Feign read timeout was never configured, so the breaker only counts calls after 60 s; or the retry multiplies calls and the breaker opens too late. |
+    | **Possible findings** | The Feign read timeout was never configured (default 60 s): each call simply takes 3 s and *succeeds*, so the breaker opens only through its slow-call rate — or never, if none is set — while threads pile up; or the retry wraps the breaker the wrong way and multiplies the calls. |
 
     Either outcome is useful: a confirmed hypothesis is evidence that the patterns work; a falsified one is a bug found on your terms.
+
+    The store's experiment, step by step (the simulator of [Resilience Patterns](../patterns/index.md#play-it-a-slow-product-service) plays the same fault with numbers):
+
+    ``` mermaid-sim
+    sequenceDiagram
+        participant E as Engineer
+        participant T as Toxiproxy
+        participant O as Order service
+        participant G as Grafana
+        E->>G: steady state? GET /orders 99.9%, P95 under 300 ms
+        E->>T: add a latency toxic: 3 s on order → product
+        O->>T: calls to product now take 3 s
+        Note over O: read timeout at 1 s, the breaker opens in seconds
+        G-->>E: POST /orders: fast 503s. GET /orders: unchanged
+        E->>G: abort condition: GET /orders below 99%?
+        G-->>E: no: keep going for the 10 minutes
+        E->>T: remove the toxic
+        Note over E,G: hypothesis confirmed: widen the scope next time
+    ```
 
 ---
 
@@ -88,12 +107,12 @@ A chaos experiment that **confirms the hypothesis** (the system behaves as expec
 
 | Category | Examples | Tools |
 |---|---|---|
-| **Process / instance** | Kill container, OOM-kill process, terminate VM | Chaos Monkey, LitmusChaos |
+| **Process / instance** | Kill container, out-of-memory (OOM) kill a process, terminate VM | Chaos Monkey, LitmusChaos |
 | **Network** | Add latency, drop packets, corrupt packets, partition network segment | Toxiproxy, Gremlin, Chaos Mesh |
 | **Resource** | Saturate CPU, fill disk, exhaust memory, fill file descriptor table | Stress-ng, Gremlin |
-| **Dependency** | Return HTTP 500, inject timeouts, return malformed responses | Wiremock, Toxiproxy |
+| **Dependency** | Return HTTP 500, inject timeouts, return malformed responses | WireMock, Toxiproxy |
 | **State** | Corrupt database records, roll back a deployment, expire TLS certificates | Manual, Gremlin |
-| **Infrastructure** | Terminate an Availability Zone, lose a region, simulate CDN failure | Chaos Gorilla, AWS Fault Injection Simulator |
+| **Infrastructure** | Terminate an Availability Zone, lose a region, simulate CDN failure | Chaos Gorilla, AWS Fault Injection Service (FIS) |
 
 ---
 
@@ -103,10 +122,10 @@ The blast radius of a chaos experiment is the set of users and systems affected 
 
 ``` mermaid-sim
 flowchart TD
-    S1["Stage 1\nUnit / integration tests\n(no users affected)"]
-    S2["Stage 2\nStaging / canary environment\n(internal users only)"]
-    S3["Stage 3\n1% of production traffic\n(small user cohort)"]
-    S4["Stage 4\nFull production\n(all traffic, all regions)"]
+    S1["Stage 1<br/>Unit / integration tests<br/>(no users affected)"]
+    S2["Stage 2<br/>Staging / canary environment<br/>(internal users only)"]
+    S3["Stage 3<br/>1% of production traffic<br/>(small user cohort)"]
+    S4["Stage 4<br/>Full production<br/>(all traffic, all regions)"]
 
     S1 -->|confidence increases| S2
     S2 -->|no findings| S3
@@ -144,10 +163,10 @@ A typical GameDay:
 |---|---|---|
 | [Chaos Monkey](https://github.com/Netflix/chaosmonkey){target="_blank"} | Netflix | Instance termination; the original |
 | [Gremlin](https://www.gremlin.com){target="_blank"} | Gremlin Inc. | SaaS; broad failure library; UI-driven |
-| [LitmusChaos](https://litmuschaos.io){target="_blank"} | CNCF | Kubernetes-native; GitOps-friendly |
+| [LitmusChaos](https://litmuschaos.io){target="_blank"} | Cloud Native Computing Foundation (CNCF) | Kubernetes-native; GitOps-friendly |
 | [Chaos Mesh](https://chaos-mesh.org){target="_blank"} | CNCF | Kubernetes-native; broad failure library |
 | [Toxiproxy](https://github.com/Shopify/toxiproxy){target="_blank"} | Shopify | TCP proxy; adds latency/drops packets; ideal for integration tests |
-| [AWS FIS](https://aws.amazon.com/fis/){target="_blank"} | Amazon | Native AWS integration; IAM-controlled; safe abort conditions |
+| [AWS FIS](https://aws.amazon.com/fis/){target="_blank"} (Fault Injection Service, formerly Fault Injection Simulator) | Amazon | Native AWS integration; IAM-controlled; safe abort conditions |
 
 ---
 
@@ -156,7 +175,7 @@ A typical GameDay:
 Chaos engineering without observability is dangerous and unproductive. Before running any experiment, the team must be able to:
 
 1. **Measure steady state**: SLI dashboards must exist and show baseline values.
-2. **Detect deviations**: alerts must fire within seconds of an SLI dropping.
+2. **Detect deviations**: dashboards must show an SLI drop within seconds, and alerts within minutes (the burn-rate alerts of [SLI / SLO / SLA](../sli-slo-sla/index.md)).
 3. **Attribute causality**: distributed tracing must allow the team to identify which component introduced the latency or errors.
 4. **Abort safely**: an automated kill switch must be able to halt the experiment immediately if it exceeds the defined blast radius.
 

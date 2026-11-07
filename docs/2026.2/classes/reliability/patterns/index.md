@@ -6,11 +6,8 @@ Resilience patterns are design decisions that interrupt this propagation. They d
 ``` mermaid-sim
 flowchart LR
     client --> gateway
-    gateway -->|"Timeout\nCircuit Breaker\nBulkhead"| downstream:::slow
-    gateway -->|"fast failure\nor fallback"| client:::ok
-
-    classDef slow fill:#f90,color:#000
-    classDef ok fill:#6c6,color:#fff
+    gateway -->|"timeout<br/>circuit breaker<br/>bulkhead"| downstream["downstream<br/>(slow)"]
+    gateway -->|"fast failure<br/>or fallback"| client
 ```
 
 The patterns below are complementary — production systems use them in combination, not in isolation. Throughout the page we use one running example from the store: the **order service** calls the **product service** (through an OpenFeign client, as in [Hands-on 1](../../../hands-on/1/index.md)) to check prices before saving an order.
@@ -43,14 +40,14 @@ sequenceDiagram
     G->>+P: POST /charge
     Note over P: processing...
     Note over G: deadline exceeded (500 ms)
-    G-->>-C: 503 Service Unavailable
+    G-->>-C: 504 Gateway Timeout
     P-->>-G: (response arrives late — discarded)
 ```
 
 ### Choosing timeout values
 
 - **Percentile-based**: set the timeout at the P99.9 latency of the downstream service under normal conditions. Anything slower than that is already abnormal.
-- **Budget-aware**: if the upstream call has its own timeout of 1 s, all downstream calls within that request must complete well under 1 s combined.
+- **Budget-aware**: if the upstream call has its own timeout of 1 s, all downstream calls within that request — retries and their waits included — must complete well under 1 s combined.
 - **Distinct per dependency**: a database query, a third-party API, and an internal microservice have very different latency profiles. A single global timeout value is almost always wrong.
 
 There are usually two timeouts on an HTTP call: the **connect timeout** (how long to wait to open the TCP connection) and the **read timeout** (how long to wait for the response once connected). Configure both.
@@ -70,6 +67,30 @@ There are usually two timeouts on an HTTP call: the **connect timeout** (how lon
     ```
 
     If the product service takes more than one second, the order service gets an exception instead of a blocked thread, and can decide what to do next.
+
+### The timeout budget across hops
+
+Timeouts nest: each hop must finish inside the deadline of the hop that called it. Suppose the gateway waits at most **3 s** for the order service, and the order service calls product with the settings of this page: read timeout 1 s, 3 attempts, waits of 0.5 s and 1 s. In the worst case the order service needs 1 + 0.5 + 1 + 1 + 1 = **4.5 s** — longer than anyone waits for it.
+
+``` mermaid-sim
+sequenceDiagram
+    participant C as Client
+    participant G as Gateway (waits 3 s)
+    participant O as Order service
+    participant P as Product service (slow)
+    C->>G: POST /orders
+    G->>O: POST /orders
+    O->>P: attempt 1
+    Note over O: read timeout at 1 s, then wait 0.5 s
+    O->>P: attempt 2
+    Note over O: read timeout at 2.5 s, then wait 1 s
+    Note over G: 3 s gone: gives up
+    G-->>C: 504 Gateway Timeout
+    O->>P: attempt 3 (nobody waits for it)
+    Note over O: fails at 4.5 s: wasted work and load
+```
+
+Fit the inner budget inside the outer one: 2 attempts (1 + 0.5 + 1 = 2.5 s), a shorter read timeout, or a deadline passed along with the request so each hop knows how much time is left (gRPC does this with deadlines).
 
 !!! warning "Timeouts are only the first step"
     A timeout on its own just converts a hang into a fast error. Combine it with a retry policy (below) for transient failures, and with a circuit breaker and a fallback for longer outages.
@@ -103,14 +124,16 @@ $$
 \text{wait}_n = \min\left(c \cdot 2^n,\ \text{max\_wait}\right)
 $$
 
-| Attempt | Formula | Wait (c = 1 s) |
-|---|---|---|
-| 1 | $1 \cdot 2^0$ | 1 s |
-| 2 | $1 \cdot 2^1$ | 2 s |
-| 3 | $1 \cdot 2^2$ | 4 s |
-| 4 | $1 \cdot 2^3$ | 8 s |
-| 5 | $1 \cdot 2^4$, capped | 16 s (= `max_wait` of 16 s) |
-| 6+ | capped at max | 16 s |
+where $n$ counts the retries from 0 (the wait before the first retry is $c$):
+
+| Before retry | Formula | Wait (c = 1 s, max_wait = 16 s) | Time since the first failure |
+|---|---|---|---|
+| 1st ($n$ = 0) | $1 \cdot 2^0$ | 1 s | 1 s |
+| 2nd ($n$ = 1) | $1 \cdot 2^1$ | 2 s | 3 s |
+| 3rd ($n$ = 2) | $1 \cdot 2^2$ | 4 s | 7 s |
+| 4th ($n$ = 3) | $1 \cdot 2^3$ | 8 s | 15 s |
+| 5th ($n$ = 4) | $1 \cdot 2^4$ | 16 s (reaches `max_wait`) | 31 s |
+| 6th and later | capped | 16 s | +16 s each |
 
 ### Jitter
 
@@ -126,7 +149,21 @@ $$
 \text{wait}_n = \text{random}\left(0,\ \min\left(c \cdot 2^n,\ \text{max\_wait}\right)\right)
 $$
 
-With 1,000 clients failing at the same instant, full jitter spreads their retries uniformly over the interval instead of sending 1,000 requests at exactly t = 1 s, 2 s, 4 s.
+With 1,000 clients failing at the same instant, full jitter spreads their retries uniformly over the interval instead of sending 1,000 requests at exactly t = 1 s, 3 s and 7 s. (Brooker found full jitter and "decorrelated" jitter both far better than none; full jitter is the simplest.)
+
+``` mermaid-sim
+sequenceDiagram
+    participant C as 1,000 clients
+    participant S as Product service (just restarted)
+    Note over C,S: backoff without jitter
+    C->>S: t = 0 s: 1,000 requests fail together
+    C->>S: t = 1 s: 1,000 retries in the same millisecond
+    S-->>C: overloaded again: 503 for most
+    C->>S: t = 3 s: the same wave, again
+    Note over C,S: backoff with full jitter
+    C->>S: retries spread over 0 to 1 s: about 1 per millisecond
+    S-->>C: a steady load it can absorb: 200 OK
+```
 
 ### What to retry — and what not to
 
@@ -138,7 +175,15 @@ With 1,000 clients failing at the same instant, full jitter spreads their retrie
 | `400`, `401`, `403`, `404`, `422` | No | The request itself is wrong; retrying cannot fix it |
 
 !!! warning "Retry amplification"
-    Retries multiply load exactly when the system is weakest. If the gateway, the order service and the product client each retry 3 times, one user click can become 3 × 3 × 3 = **27** calls to a struggling product service. Retry at **one** layer only (usually the one closest to the failing dependency), cap the number of attempts, and stop retrying when the circuit breaker is open.
+    Retries multiply load exactly when the system is weakest. If the gateway, the order service and the product client each make up to 3 attempts, one user click can become 3 × 3 × 3 = **27** calls to a struggling product service. Retry at **one** layer only (usually the one closest to the failing dependency), cap the number of attempts, and stop retrying when the circuit breaker is open.
+
+``` mermaid-sim
+flowchart LR
+    U["1 click"] --> G["gateway<br/>3 attempts"]
+    G -->|"3 calls"| O["order service<br/>3 attempts each"]
+    O -->|"9 calls"| F["Feign client<br/>3 attempts each"]
+    F -->|"27 calls"| P["product service<br/>(already struggling)"]
+```
 
 !!! danger "Do not retry non-idempotent operations"
     Retrying a `POST /orders` that creates a new order may create duplicates. Only retry operations that are **idempotent** (`GET`, `PUT`, `DELETE`) or that are explicitly designed for retry safety (idempotency keys, deduplication tokens).
@@ -162,53 +207,78 @@ sequenceDiagram
 
 ## Circuit Breaker
 
-The circuit breaker[^3] is named by analogy with the electrical component: when the current load exceeds safe limits, the breaker trips and interrupts the circuit. In software, when a downstream service failure rate exceeds a threshold, the circuit breaker *opens* and immediately rejects calls to that service — without attempting the network call at all.
+The circuit breaker[^3] is named by analogy with the electrical component: when the current load exceeds safe limits, the breaker trips and interrupts the circuit. In software, when the failure rate of the calls to a downstream service reaches a threshold, the circuit breaker *opens* and immediately rejects calls to that service — without attempting the network call at all.
 
 This prevents the calling service from wasting threads and connections on a dependency that is known to be unavailable.
 
 ``` mermaid-sim
 stateDiagram-v2
     [*] --> Closed
-
-    Closed --> Open : failure rate exceeds threshold\n(e.g. > 50% errors in last 10 calls)
-    Open --> HalfOpen : wait timeout expires\n(e.g. 30 seconds)
-    HalfOpen --> Closed : probe request succeeds
-    HalfOpen --> Open : probe request fails
+    Closed --> Open : 50% or more of the last 10 calls failed or were slow
+    Open --> HalfOpen : 30 s in Open, then the next call
+    HalfOpen --> Closed : the 3 probe calls stay below the thresholds
+    HalfOpen --> Open : the probes fail or are slow again
 ```
 
 **Closed** (normal operation)
-: Requests pass through. The breaker counts successes and failures. If the failure rate crosses the configured threshold, the breaker trips to Open.
+: Requests pass through. The breaker records the outcome of the last calls (a sliding window). Once enough calls are recorded, if the share that failed — or that were slower than a threshold — reaches the configured rate, the breaker trips to Open.
 
 **Open** (failing fast)
-: All requests are rejected immediately with an error — no network call is made. This protects the caller's resources and gives the downstream service time to recover. After a configured wait timeout, the breaker moves to Half-Open.
+: All requests are rejected immediately with an error (`CallNotPermittedException` in Resilience4j) — no network call is made. This protects the caller's resources and gives the downstream service time to recover. After the configured wait duration, the breaker moves to Half-Open.
 
 **Half-Open** (testing recovery)
-: A limited number of probe requests are allowed through. If they succeed, the downstream service has recovered and the breaker closes. If they fail, the breaker returns to Open.
+: A limited number of probe calls are allowed through; any other call is still rejected. When the probes are done, the breaker computes their failure and slow-call rates: below the thresholds, the dependency has recovered and the breaker closes; otherwise it returns to Open for another wait.
+
+The sequence below plays one cycle with the configuration of the example further down:
+
+``` mermaid-sim
+sequenceDiagram
+    participant O as Order service
+    participant B as Breaker (product)
+    participant P as Product service
+    Note over B: Closed
+    O->>B: findProduct
+    B->>P: GET /products/42
+    P--xB: no answer: read timeout after 1 s
+    Note over B: 5 of the last 10 calls failed: Open
+    O->>B: findProduct
+    B-->>O: CallNotPermittedException in under 1 ms
+    Note over B: 30 s later, the next call: Half-Open
+    O->>B: findProduct (probe 1 of 3)
+    B->>P: GET /products/42
+    P-->>B: 200 OK in 50 ms
+    Note over B: 3 probes fast and OK: Closed
+```
 
 ### Configuration knobs
 
-| Parameter | Typical value | Effect |
-|---|---|---|
-| **Failure threshold** | 50% of last 10–20 calls | Sensitivity to failures |
-| **Wait timeout** | 30–60 seconds | How long the service gets to recover |
-| **Half-Open probe count** | 3–5 requests | How cautiously to test recovery |
-| **Slow call threshold** | 2× normal P99 | Treat slow calls as failures |
+| Parameter (Resilience4j property) | Default | Typical value | Effect |
+|---|---|---|---|
+| **Failure threshold** (`failure-rate-threshold`) | 50% | 50% | Share of failed calls in the window that opens the breaker |
+| **Window** (`sliding-window-size`, `minimum-number-of-calls`) | 100 calls, 100 | 10–20 calls | How many recent calls are judged; no decision before the minimum |
+| **Slow calls** (`slow-call-duration-threshold`, `slow-call-rate-threshold`) | 60 s, 100% | below the timeout, 50% | Slow calls open the breaker too, before they time out |
+| **Wait in Open** (`wait-duration-in-open-state`) | 60 s | 10–60 s | How long the dependency gets to recover |
+| **Half-Open probes** (`permitted-number-of-calls-in-half-open-state`) | 10 | 3–5 | How cautiously to test recovery |
 
-**Spring Boot**: the [Resilience4j](https://resilience4j.readme.io/docs/circuitbreaker){target="_blank"} library[^4] implements all of these patterns with `@CircuitBreaker`, `@Retry`, `@Bulkhead`, `@RateLimiter` and `@TimeLimiter` annotations (dependency `io.github.resilience4j:resilience4j-spring-boot3` plus `spring-boot-starter-aop`).
+The defaults are conservative: with a window of 100 calls, the breaker of a service that receives 1 call per second needs well over a minute to decide. Slow calls are judged by their own rate — with the default 100%, they open the breaker only when *every* call in the window is slow.
+
+**Spring Boot**: the [Resilience4j](https://resilience4j.readme.io/docs/circuitbreaker){target="_blank"} library[^4] implements all of these patterns with `@CircuitBreaker`, `@Retry`, `@Bulkhead`, `@RateLimiter` and `@TimeLimiter` annotations. With Spring Boot 4 (the version of the hands-on), the dependencies are `io.github.resilience4j:resilience4j-spring-boot4` and `spring-boot-starter-aspectj`; with Spring Boot 3 they were `resilience4j-spring-boot3` and `spring-boot-starter-aop`.
 
 !!! example "Circuit breaker and retry around the product call"
 
     === "OrderService.java"
 
         ```java
-        @CircuitBreaker(name = "product", fallbackMethod = "priceFallback")
-        @Retry(name = "product")
+        // Resilience4j's default order: Retry ( CircuitBreaker ( call ) ).
+        // The fallback sits on the OUTERMOST layer, so it runs once: after
+        // the retries are exhausted, or at once when the breaker is open.
+        @Retry(name = "product", fallbackMethod = "priceFallback")
+        @CircuitBreaker(name = "product")
         public ProductOut findProduct(String id) {
             return productController.findById(id).getBody();   // Feign call
         }
 
-        // Same signature + the exception. Called when the call fails
-        // or when the breaker is open (CallNotPermittedException).
+        // Same signature + the exception.
         private ProductOut priceFallback(String id, Throwable t) {
             throw new ResponseStatusException(
                 HttpStatus.SERVICE_UNAVAILABLE, "catalogue unavailable, try again later");
@@ -222,9 +292,11 @@ stateDiagram-v2
           circuitbreaker:
             instances:
               product:
-                sliding-window-size: 10                  # last 10 calls
-                failure-rate-threshold: 50               # % → Open
-                slow-call-duration-threshold: 2s         # slow = failure
+                sliding-window-size: 10                  # the last 10 calls
+                minimum-number-of-calls: 10              # judge only after 10 calls
+                failure-rate-threshold: 50               # >= 50% failed → Open
+                slow-call-duration-threshold: 500ms      # slower than this = slow (below the 1 s timeout)
+                slow-call-rate-threshold: 50             # >= 50% slow → Open
                 wait-duration-in-open-state: 30s         # Open → Half-Open
                 permitted-number-of-calls-in-half-open-state: 3
           retry:
@@ -232,94 +304,29 @@ stateDiagram-v2
               product:
                 max-attempts: 3                          # 1 call + 2 retries
                 wait-duration: 500ms
-                enable-exponential-backoff: true         # 500 ms, 1 s, ...
-                exponential-backoff-multiplier: 2
+                enable-exponential-backoff: true
+                exponential-backoff-multiplier: 2        # 500 ms, then 1 s
+                enable-randomized-wait: true
+                randomized-wait-factor: 0.5              # each wait ± 50% (jitter)
+                retry-exceptions:
+                  - feign.RetryableException             # timeouts and connection errors
+                  - feign.FeignException$ServiceUnavailable   # 503
+                ignore-exceptions:
+                  - io.github.resilience4j.circuitbreaker.CallNotPermittedException  # breaker open: fail fast
         ```
 
     The breaker's state is exported as a metric (`resilience4j_circuitbreaker_state`) through Actuator, so you can graph it in Grafana ([Hands-on 6](../../../hands-on/6/index.md)).
 
-The simulation below shows the circuit breaker cycling through all three states as the failure rate changes:
+Three details of this configuration matter. The slow-call threshold (500 ms) is **below** the read timeout (1 s): a call slower than the timeout never completes, so a threshold above it would never see a slow call. The retry lists the exceptions worth retrying and **ignores** `CallNotPermittedException`: when the breaker is open there is nothing to wait for. And the fallback is on `@Retry`, the outer annotation: placed on `@CircuitBreaker`, it would run *inside* the retry and turn every failure into the fallback's exception before the retry sees it — so the retry would either retry the fallback (if it retried everything) or never retry at all.
 
-```python exec="1" html="1"
-import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
-import numpy as np
+### Play it: a slow product service
 
-rng = np.random.default_rng(42)
-steps = 60
-state = "Closed"
-failure_window = []
-window_size = 10
-threshold = 0.5
-wait_steps = 10
-half_open_at = None
-probe_allowed = False
+The simulator puts the order service of the [overview](../index.md#cascading-failures) — 200 threads, 60 orders per second — in front of a product service that degrades for one minute, and lets you switch on the timeout, the retry and the breaker of the configuration above.
 
-states, rates = [], []
+<div class="csim" data-sim="slow-dependency" data-fault="slow" data-latency="3000"></div>
 
-for t in range(steps):
-    # inject failures: high in t=15..29, recover at t=40
-    if 15 <= t < 30:
-        success = rng.random() > 0.75  # 75% failure
-    elif t >= 40:
-        success = rng.random() > 0.05  # 5% failure (recovered)
-    else:
-        success = rng.random() > 0.1   # 10% failure (normal)
-
-    if state == "Closed":
-        failure_window.append(0 if success else 1)
-        if len(failure_window) > window_size:
-            failure_window.pop(0)
-        rate = sum(failure_window) / len(failure_window) if failure_window else 0
-        if rate > threshold and len(failure_window) >= window_size:
-            state = "Open"
-            half_open_at = t + wait_steps
-    elif state == "Open":
-        rate = 1.0
-        if t >= half_open_at:
-            state = "Half-Open"
-            probe_allowed = True
-    elif state == "Half-Open":
-        rate = sum(failure_window) / len(failure_window) if failure_window else 0
-        if probe_allowed:
-            probe_allowed = False
-            if success:
-                state = "Closed"
-                failure_window = []
-            else:
-                state = "Open"
-                half_open_at = t + wait_steps
-
-    states.append(state)
-    rates.append(rate)
-
-color_map = {"Closed": "steelblue", "Open": "tomato", "Half-Open": "goldenrod"}
-colors = [color_map[s] for s in states]
-
-fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(11, 4), sharex=True)
-
-ax1.bar(range(steps), [1 - r for r in rates], color=colors, alpha=0.85)
-ax1.set_ylabel("Success rate")
-ax1.set_ylim(0, 1.1)
-ax1.set_title("Circuit Breaker Simulation", fontweight="bold")
-
-for i, (s, c) in enumerate(zip(states, colors)):
-    ax2.barh(0, 1, left=i, color=c, alpha=0.9, height=0.6)
-ax2.set_xlim(0, steps)
-ax2.set_yticks([])
-ax2.set_xlabel("Time step")
-ax2.set_ylabel("State")
-
-legend = [mpatches.Patch(color=v, label=k) for k, v in color_map.items()]
-ax2.legend(handles=legend, loc="upper right", fontsize=8)
-
-plt.tight_layout()
-from io import StringIO
-buf = StringIO()
-plt.savefig(buf, format="svg", transparent=True)
-print(buf.getvalue())
-plt.close()
-```
+!!! tip "Try it"
+    With no pattern, the 3-second calls keep about **176** threads busy (Little's law: 60 × 3 s = 180) and the pool hits its 200 threads in **8** of the 60 seconds: only **98.4%** of `GET /orders` succeed, although they never call product. Switch on the **timeout**: about **60** threads (60 × 1 s) and `GET /orders` back to **100%** — but every order now fails after 1 s. Add the **retry**: each order holds its thread for up to 4.5 s, the pool is full during **51** seconds, only **71.2%** of `GET /orders` succeed and product receives **128** calls per second instead of 60 — worse than no pattern at all. Add the **breaker**: it opens **1.1 s** after the fault begins, orders fail in under a millisecond, about **2** threads stay busy, the probes at 41 s fail and the breaker closes at t = **72.2 s**, 2.2 s after product recovers. Then pick **product down**: with timeout and retry but no breaker, product receives **3.0** calls per order while it refuses them all.
 
 ---
 
@@ -345,20 +352,32 @@ The bulkhead pattern — named after watertight compartments in a ship hull — 
 
 ``` mermaid-sim
 flowchart TD
-    gateway --> poolA["Thread Pool A\n(max 10 threads)"]
-    gateway --> poolB["Thread Pool B\n(max 10 threads)"]
-    poolA --> payment["Payment Service\n(degraded ⚠️)"]:::slow
-    poolB --> inventory["Inventory Service\n(healthy ✓)"]:::ok
-
-    classDef slow fill:#f90,color:#000
-    classDef ok fill:#6c6,color:#fff
+    gateway --> poolA["Bulkhead A<br/>(max 10 concurrent calls)"]
+    gateway --> poolB["Bulkhead B<br/>(max 10 concurrent calls)"]
+    poolA --> payment["Payment Service<br/>(degraded ⚠️)"]
+    poolB --> inventory["Inventory Service<br/>(healthy ✅)"]
 ```
 
-If Payment Service degrades and fills all 10 threads in Pool A, Pool B is completely unaffected. Inventory Service continues to handle requests at full speed. Without bulkheads, a single slow dependency saturates the shared pool and degrades all other calls equally.
+If Payment Service degrades and fills all 10 slots of Bulkhead A, Bulkhead B is completely unaffected. Inventory Service continues to handle requests at full speed. Without bulkheads, a single slow dependency saturates the shared pool and degrades all other calls equally. Step by step, with the order service's 200 threads:
 
-The cost of bulkheads is resource overhead: ten separate pools of 10 threads each use more memory than one pool of 100 threads. The trade-off is almost always worth it for critical-path dependencies.
+``` mermaid-sim
+sequenceDiagram
+    participant O as Order service (200 threads)
+    participant A as Bulkhead payment (10)
+    participant P as Payment (slow)
+    participant I as Inventory
+    O->>A: charge (calls 1 to 10)
+    A->>P: 10 calls waiting 3 s each
+    O->>A: charge (call 11)
+    A-->>O: BulkheadFullException at once, fallback 503
+    O->>I: reserve stock (its own bulkhead has room)
+    I-->>O: 200 OK in 30 ms
+    Note over O,I: payment holds at most 10 threads, the other 190 keep working
+```
 
-Resilience4j offers two kinds of bulkhead: a **semaphore** bulkhead (`max-concurrent-calls`, limits how many threads may be inside the call at once — cheap, the default) and a **thread-pool** bulkhead (the call runs in a dedicated pool). The same idea applies outside the JVM: separate database connection pools per workload, or separate Kubernetes deployments for critical and non-critical traffic.
+The cost of bulkheads is **capacity that cannot be shared**: with ten pools of 10, a burst on one dependency is refused at 10 concurrent calls even while the other 90 slots sit idle, whereas one pool of 100 would have absorbed it. Sizing each bulkhead is the work (Little's law again: calls per second × normal latency, plus a margin). The trade-off is almost always worth it for critical-path dependencies.
+
+Resilience4j offers two kinds of bulkhead: a **semaphore** bulkhead (`max-concurrent-calls`, default 25, limits how many threads may be inside the call at once — cheap, the default; `max-wait-duration: 0` rejects at once when full) and a **thread-pool** bulkhead (the call runs in a dedicated pool). The same idea applies outside the JVM: separate database connection pools per workload, or separate Kubernetes deployments for critical and non-critical traffic.
 
 ---
 
@@ -372,10 +391,10 @@ The **token bucket** is the most common rate limiting algorithm. It models a buc
 
 ``` mermaid-sim
 flowchart LR
-    refill["Token source\n(refill rate: 100 req/s)"] -->|adds tokens| bucket["Token Bucket\n(capacity: 200)"]
-    request["Incoming\nRequest"] -->|consumes 1 token| bucket
-    bucket -->|tokens available| allowed["✓ Allowed"]
-    bucket -->|bucket empty| rejected["✗ 429 Too Many Requests"]
+    refill["Token source<br/>(refill rate: 100 req/s)"] -->|adds tokens| bucket["Token Bucket<br/>(capacity: 200)"]
+    request["Incoming<br/>Request"] -->|consumes 1 token| bucket
+    bucket -->|tokens available| allowed["✅ Allowed"]
+    bucket -->|bucket empty| rejected["❌ 429 Too Many Requests"]
 ```
 
 | Property | Effect |
@@ -388,7 +407,8 @@ A bucket capacity larger than the refill rate allows short bursts while still en
 !!! example "Rate limiting at the store's edge (Nginx)"
 
     ```nginx
-    # 10 requests/s per client IP, bursts of up to 20 queued requests
+    # 10 requests/s per client IP; up to 20 extra requests of a burst are
+    # served at once (nodelay) and their slots free up at 10/s; beyond that, 429
     limit_req_zone $binary_remote_addr zone=api:10m rate=10r/s;
 
     server {
@@ -419,21 +439,26 @@ Two distinct types serve different purposes:
 **Startup** (Kubernetes)
 : *Has the application finished starting?* Liveness and readiness checks are not run until it succeeds, so a slow-starting JVM is not killed during boot.
 
+The sequence plays a 10-second database blip on a pod whose readiness includes the database and whose liveness does not:
+
 ``` mermaid-sim
-flowchart LR
-    lb["Load Balancer"] -->|"GET /actuator/health/readiness"| svc["Service Instance"]
-    svc -->|200 OK| lb
-    lb -->|routes traffic| svc
-
-    svc2["Service Instance\n(db connection lost)"]
-    lb -->|"GET /actuator/health/readiness"| svc2
-    svc2 -->|503 DOWN| lb
-    lb -->|removed from pool| svc2:::failed
-
-    classDef failed fill:#f66,color:#fff
+sequenceDiagram
+    participant K as Kubernetes
+    participant P as order pod
+    participant D as Postgres
+    Note over D: blip: unreachable for 10 s
+    K->>P: GET /actuator/health/readiness
+    P-->>K: 503 DOWN (db)
+    Note over K: removes the pod from the Service, no restart
+    K->>P: GET /actuator/health/liveness
+    P-->>K: 200 UP (the process is fine)
+    Note over D: reachable again
+    K->>P: GET /actuator/health/readiness
+    P-->>K: 200 UP
+    Note over K: the pod receives traffic again
 ```
 
-Spring Boot Actuator exposes both at `/actuator/health/liveness` and `/actuator/health/readiness`. They are enabled automatically when the application detects it runs on Kubernetes; elsewhere (e.g. Docker Compose) set `management.endpoint.health.probes.enabled=true`. By default they reflect only the application's internal state; add a dependency to readiness explicitly, e.g. `management.endpoint.health.group.readiness.include=readinessState,db`.
+Spring Boot Actuator exposes both at `/actuator/health/liveness` and `/actuator/health/readiness`. In Spring Boot 4 (the hands-on's version) these probe groups are enabled by default, in any environment; in Spring Boot 2.3 to 3.x they were automatic only on Kubernetes, and elsewhere (e.g. Docker Compose) you set `management.endpoint.health.probes.enabled=true`. By default they reflect only the application's internal state; add a dependency to readiness explicitly, e.g. `management.endpoint.health.group.readiness.include=readinessState,db`.
 
 !!! example "Probes for the order service on Kubernetes"
 
@@ -464,26 +489,28 @@ These patterns are layered, not chosen in isolation. A production-grade call cha
 
 ``` mermaid-sim
 flowchart LR
-    client --> rl["Rate Limiter\n(protect service)"]
-    rl --> cb["Circuit Breaker\n(fast-fail open deps)"]
-    cb --> bh["Bulkhead\n(isolate thread pool)"]
-    bh --> to["Timeout\n(bound wait time)"]
-    to --> retry["Retry + Backoff\n(handle transients)"]
-    retry --> downstream[Downstream Service]
+    client --> rl["Rate limiter<br/>at the edge (Nginx, gateway)"]
+    rl --> retry
+    subgraph order["order service, around each call to product"]
+        retry["Retry + backoff<br/>(outermost)"] --> cb["Circuit breaker<br/>(counts every attempt)"]
+        cb --> bh["Bulkhead<br/>(caps the threads on product)"]
+        bh --> to["Timeout<br/>(bounds each attempt)"]
+    end
+    to --> downstream["product service"]
 ```
 
 Each layer handles a different failure scenario:
 
-| Layer | What it handles |
-|---|---|
-| Rate limiter | Traffic spikes, abusive clients |
-| Circuit breaker | Known-failing dependencies |
-| Bulkhead | Slow dependencies bleeding into other calls |
-| Timeout | Unbounded waiting |
-| Retry + backoff | Transient errors |
+| Layer, outermost first | What it handles | Why in this position |
+|---|---|---|
+| Rate limiter (inbound) | Traffic spikes, abusive clients | Refuses excess work before it costs anything |
+| Retry + backoff | Transient errors | Outside the breaker: an open breaker stops the retries at once |
+| Circuit breaker | Known-failing dependencies | Sees every attempt, timeouts included, as a call to judge |
+| Bulkhead | Slow dependencies bleeding into other calls | Caps the threads that the attempts can hold |
+| Timeout | Unbounded waiting | Innermost: bounds each attempt, not the sum |
 
 !!! info "The order is a design decision"
-    The diagram shows one common conceptual layering. Libraries make their own choice: in Resilience4j's Spring Boot integration the default aspect order is `Retry ( CircuitBreaker ( RateLimiter ( TimeLimiter ( Bulkhead ( call ) ) ) ) )` — the retry is the **outermost** layer, so every attempt is counted by the circuit breaker and an open breaker makes the remaining attempts fail immediately. Whatever the order, check that retries do not bypass the breaker and that the sum of timeouts × attempts fits in the caller's own deadline.
+    This is the order of Resilience4j's Spring Boot integration, whose default aspect order is `Retry ( CircuitBreaker ( RateLimiter ( TimeLimiter ( Bulkhead ( call ) ) ) ) )` (the Feign read timeout plays the time limiter's role here, inside the call). Microsoft's standard resilience handler for .NET's `HttpClient` stacks the same way: rate limiter → total timeout → retry → circuit breaker → attempt timeout[^5]. Whatever the library, check that retries do not bypass the breaker and that attempts × timeout + waits fit in the caller's own deadline ([the timeout budget](#the-timeout-budget-across-hops)).
 
 ---
 
@@ -496,9 +523,10 @@ Each layer handles a different failure scenario:
 
 ## Key takeaways
 
-- Every remote call needs a **timeout** (connect + read), chosen per dependency and inside the caller's budget.
+- Every remote call needs a **timeout** (connect + read), chosen per dependency and inside the caller's budget — attempts × timeout + waits included.
 - **Retry** only transient failures and idempotent operations, with **exponential backoff and full jitter**, at one layer only; use **idempotency keys** to make `POST` safe.
-- A **circuit breaker** (Closed → Open → Half-Open) fails fast on a dependency known to be down; pair it with a safe **fallback**.
+- A **circuit breaker** (Closed → Open → Half-Open) fails fast on a dependency known to be down or slow — set its slow-call threshold below the timeout; pair it with a safe **fallback** on the outermost layer.
+- A timeout plus a retry **without** a breaker can be worse than nothing: each call holds its thread for every attempt and wait, and the dependency receives several times the load.
 - **Bulkheads** keep one slow dependency from consuming all threads or connections; **rate limiting** (token / leaky bucket) protects the service from excess traffic.
 - **Liveness** restarts, **readiness** removes from the load balancer; never check external dependencies in liveness.
 - The patterns are layered; their order and combined timeouts must be designed, then verified with [chaos experiments](../chaos/index.md).
@@ -509,3 +537,4 @@ Each layer handles a different failure scenario:
 [^2]: BROOKER, M. [Exponential Backoff And Jitter](https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/){target="_blank"}. AWS Architecture Blog, 2015.
 [^3]: FOWLER, M. [CircuitBreaker](https://martinfowler.com/bliki/CircuitBreaker.html){target="_blank"}. martinfowler.com, 2014.
 [^4]: [Resilience4j Documentation](https://resilience4j.readme.io/docs){target="_blank"}.
+[^5]: MICROSOFT. [Build resilient HTTP apps: key development patterns](https://learn.microsoft.com/en-us/dotnet/core/resilience/http-resilience){target="_blank"}. Microsoft Learn (standard resilience handler defaults).

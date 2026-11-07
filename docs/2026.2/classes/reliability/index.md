@@ -9,9 +9,9 @@ A reliable system is not one that never fails. It is one that **fails gracefully
 
     By the end of this class you should be able to:
 
-    - **Calculate** availability from MTTF and MTTR, the downtime allowed by a number of "nines", and the end-to-end availability of services in series and in parallel.
-    - **Classify** a failure (transient, permanent, intermittent, Byzantine) and **explain** how a cascading failure spreads through exhausted resources.
-    - **Define** SLIs and SLOs for a service of the store and **compute** its error budget and burn rate.
+    - **Calculate** availability from the mean time to failure (MTTF) and the mean time to repair (MTTR), the downtime allowed by a number of "nines", and the end-to-end availability of services in series and in parallel.
+    - **Classify** a failure by how long it lasts (transient, intermittent, permanent) and by how it behaves (crash, slow, Byzantine), and **explain** how a cascading failure spreads through exhausted resources.
+    - **Define** service level indicators (SLIs) and service level objectives (SLOs) for a service of the store and **compute** its error budget and burn rate.
     - **Choose and configure** resilience patterns — timeout, retry with backoff and jitter, circuit breaker, bulkhead, rate limiting, health checks — for a call between two services.
     - **Design** a chaos experiment with a steady-state hypothesis and a controlled blast radius.
 
@@ -105,17 +105,29 @@ Real requests cross several components, so the availability the user sees depend
     A_{parallel} = 1 - (1 - a)^n
     $$
 
-    Two gateway replicas at 99% each behind Nginx ([Hands-on 7](../../hands-on/7/index.md)): $1 - 0.01^2 = 99.99\%$. Redundancy turns two mediocre components into a very available one — as long as their failures really are independent (same bug, same host or same zone break that assumption).
+    Two gateway replicas at 99% each behind Nginx ([Hands-on 7](../../hands-on/7/index.md)): $1 - 0.01^2 = 99.99\%$. Redundancy turns two mediocre components into a very available one — as long as their failures really are independent (same bug, same host or same zone break that assumption). In Hands-on 7 every replica runs on your laptop: one host, so one power cut takes them all.
+
+Real paths mix both. The diagram below plays a request through the store: Nginx, two gateway replicas in parallel, then order and product in series.
 
 ``` mermaid-sim
 flowchart LR
-    user([User]) --> lb["Nginx"]
-    lb --> g1["gateway #1<br/>99%"]
-    lb --> g2["gateway #2<br/>99%"]
+    user([User]) --> lb["Nginx<br/>99.99%"]
+    lb --> g1["gateway 1<br/>99%"]
+    lb --> g2["gateway 2<br/>99%"]
     g1 --> order["order<br/>99.9%"]
     g2 --> order
     order --> product["product<br/>99.9%"]
 ```
+
+!!! example "Worked example — the whole path"
+
+    Reduce the parallel part first, then multiply the series (Nginx at 99.99% is an assumption for the example):
+
+    $$
+    A = \underbrace{0.9999}_{\text{Nginx}} \times \underbrace{(1 - 0.01^2)}_{\text{2 gateways}} \times \underbrace{0.999}_{\text{order}} \times \underbrace{0.999}_{\text{product}} \approx 99.78\%
+    $$
+
+    That is about **19 hours of downtime a year**. Almost all of it comes from the two single replicas, order and product (0.1% each); the redundant gateways add only 0.01%. A third gateway would save less than an hour a year; replicating order and product — the **weakest links** — would remove most of the 19 hours.
 
 This is why redundancy (multiple instances) and isolation patterns (circuit breakers) exist: to break the failure-propagation chain.
 
@@ -125,23 +137,29 @@ This is why redundancy (multiple instances) and isolation patterns (circuit brea
 
 Distributed systems fail in ways that single-machine systems do not. **Partial failures** — where some components work and others do not — are far more common than total outages, and substantially harder to handle correctly.
 
+A failure has two independent properties: **how long it lasts** and **how the failed component behaves** while it lasts. A pod killed for running out of memory (OOM) is permanent *and* crash-stop; a garbage collection (GC) pause is intermittent *and* slow.
+
 ``` mermaid-sim
 flowchart TD
-    F[Failure] --> T["Transient<br/>Temporary, self-healing<br/>e.g. brief network blip"]
-    F --> P["Permanent<br/>Requires intervention<br/>e.g. disk crash, OOM kill"]
-    F --> I["Intermittent<br/>Unpredictable recurrence<br/>e.g. memory leak, GC pause"]
-    P --> CS["Crash-stop<br/>Node halts and stays halted"]
-    P --> BZ["Byzantine<br/>Node behaves arbitrarily or incorrectly"]
+    F[Failure] --> D["How long?"]
+    F --> B["How does it behave?"]
+    D --> T["Transient<br/>gone in seconds<br/>e.g. network blip"]
+    D --> I["Intermittent<br/>comes and goes<br/>e.g. GC pause, memory leak"]
+    D --> P["Permanent<br/>until someone acts<br/>e.g. disk crash, OOM kill"]
+    B --> CS["Crash-stop<br/>halts and stays halted"]
+    B --> SL["Slow<br/>answers, but too late"]
+    B --> BZ["Byzantine<br/>answers wrong data"]
 ```
 
 | Failure class | Characteristics | Handling strategy |
 |---|---|---|
 | **Transient** | Self-resolves within seconds; safe to retry | Retry with exponential backoff and jitter |
-| **Permanent (crash-stop)** | Node stops responding and never recovers | Circuit breaker + failover to healthy replica |
-| **Intermittent** | Appears and disappears without a clear trigger | P99 latency histograms; anomaly-based alerting |
+| **Intermittent** | Appears and disappears without a clear trigger | 99th-percentile (P99) latency histograms; anomaly-based alerting |
+| **Permanent (crash-stop)** | Node stops responding and never recovers by itself | Health checks + failover to a healthy replica; circuit breaker meanwhile |
+| **Slow** | Node answers, but late; it still looks alive | Timeout + circuit breaker (slow calls) + bulkhead |
 | **Byzantine** | Node returns incorrect data without crashing | Consensus protocols; checksums; input validation |
 
-The most common failure in practice is not a crash but a **slow** response: the caller cannot tell a slow node from a dead one (see [Distributed Systems](../distributed_systems/index.md)), so it keeps waiting.
+The most common failure in practice is not a crash but a **slow** response: the caller cannot tell a slow node from a dead one (see [Distributed Systems](../distributed_systems/index.md)), so it keeps waiting. A crashed node at least refuses connections at once; a slow one holds the caller's resources.
 
 ### Cascading failures
 
@@ -155,13 +173,13 @@ sequenceDiagram
     U->>O: POST /orders (many per second)
     O->>P: charge (normally 100 ms)
     Note over P: degrades: 3 s per call
-    Note over O: threads wait 30× longer → all 200 busy
+    Note over O: threads wait 30× longer → 180 of 200 busy on payment
     U->>O: GET /orders/42 (no payment needed)
     O-->>U: 503 — no free thread
     Note over U,O: unrelated routes fail too
 ```
 
-The arithmetic is simple (Little's law: requests in flight = arrival rate × time each one takes). At 60 orders per second and 100 ms per payment call, about 6 threads are busy waiting on payment. At 3 s per call, 180 threads are — almost the whole pool — and every other route of the order service starves. If the gateway in turn waits on the order service, the exhaustion climbs one more level. **Timeouts, circuit breakers, and bulkheads** ([Resilience Patterns](patterns/index.md)) are the engineering response to this failure mode.
+The arithmetic is simple (Little's law: requests in flight = arrival rate × time each one takes). At 60 orders per second and 100 ms per payment call, about 6 threads are busy waiting on payment. At 3 s per call, 180 threads are — almost the whole pool of 200 (Tomcat's default) — and every other route of the order service competes for the 20 left: arrivals come in bursts, so the pool fills up now and then and `GET /orders/42` gets `503`. If the gateway in turn waits on the order service, the exhaustion climbs one more level. **Timeouts, circuit breakers, and bulkheads** ([Resilience Patterns](patterns/index.md)) are the engineering response to this failure mode; the simulator on that page plays these exact numbers, with and without each pattern.
 
 !!! warning "Common pitfalls"
 
@@ -176,14 +194,14 @@ The arithmetic is simple (Little's law: requests in flight = arrival rate × tim
 
 - [Distributed Systems](../distributed_systems/index.md) — partial failure and the impossibility of telling slow from dead.
 - [Observability](../observability/index.md) — SLIs are computed from metrics; you cannot run SLOs or chaos experiments without it.
-- [Event-Driven Architecture](../event_driven/index.md) — asynchronous messaging removes the caller's wait from the chain; DLQs handle poison messages.
+- [Event-Driven Architecture](../event_driven/index.md) — asynchronous messaging removes the caller's wait from the chain; dead-letter queues (DLQs) handle poison messages.
 - [Hands-on 5](../../hands-on/5/index.md) (Kubernetes self-healing), [Hands-on 7](../../hands-on/7/index.md) (replicas behind a load balancer) and [Hands-on 6](../../hands-on/6/index.md) (Prometheus and Grafana for SLIs).
 
 ## Key takeaways
 
 - Availability = MTTF / (MTTF + MTTR); faster recovery is often the cheapest improvement.
 - Each extra nine is 10× less downtime — and always state the **window** a number refers to.
-- In series availabilities **multiply** (worse than any part); in parallel, redundancy gives $1-(1-a)^n$.
+- In series availabilities **multiply** (worse than any part); in parallel, redundancy gives $1-(1-a)^n$. On a real path, the single replicas — the weakest links — decide.
 - Partial and **slow** failures are the norm; a slow dependency exhausts its caller's resources and **cascades** upstream.
 - The rest of the class measures reliability (SLOs, error budgets), contains failures (resilience patterns), and proves the containment works (chaos engineering).
 

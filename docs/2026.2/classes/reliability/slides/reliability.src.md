@@ -14,6 +14,10 @@ theme: platform
 {{INCLUDE:scripts/slides/theme.js}}
 </script>
 
+<style>
+{{INCLUDE:scripts/slides/diagram.css}}
+</style>
+
 <div class="kicker">Platforms, Microservices, DevOps and APIs · Insper</div>
 
 # Reliability
@@ -22,9 +26,10 @@ theme: platform
 
 <!--
 Outline: (1) overview: availability, the nines, composite availability, failure modes, cascading
-failures; (2) SLI / SLO / SLA: measuring, targets, error budget, burn rate, contracts; (3) resilience
-patterns: timeout, retry, circuit breaker, fallback, bulkhead, rate limiting, health checks, layering;
-(4) chaos engineering: proving that the patterns work.
+failures; (2) SLI / SLO / SLA: measuring, targets, error budget, burn rate and multiwindow alerts,
+contracts; (3) resilience patterns: timeout and its budget, retry, circuit breaker, fallback, bulkhead,
+rate limiting, health checks, layering; (4) chaos engineering: proving that the patterns work.
+Two simulators: error-budget-burn (SLI / SLO / SLA) and slow-dependency (Resilience Patterns).
 -->
 
 ---
@@ -88,54 +93,51 @@ conditions, for a period. Roadmap: overview → SLI/SLO/SLA → resilience patte
 
 ## Composite availability
 
-<div class="cols">
-<div>
+- **In series** (every component needed): availabilities **multiply** — gateway → order → product at 99.9% each: `0.999³ ≈ 99.7%`.
+- **In parallel** (any one of n replicas): `1 − (1 − a)ⁿ` — two gateways at 99%: `1 − 0.01² = 99.99%`, only if failures are **independent**.
 
-### In series
-
-A request needs **every** component: availabilities **multiply**.
-
-gateway → order → product, 99.9% each:
-`0.999³ ≈ 99.7%`
-
-Worse than any single part: every synchronous dependency **lowers the ceiling**.
-
+<div class="flow" style="align-items: stretch">
+<div class="box" style="display: flex; flex-direction: column; justify-content: center">Nginx<small>99.99% (assumed)</small></div>
+<div class="arrow" style="align-self: center">→</div>
+<div class="group">
+<div class="caption">in parallel · 99.99%</div>
+<div class="box green">gateway 1<small>99%</small></div>
+<div class="box green">gateway 2<small>99%</small></div>
 </div>
-<div>
-
-### In parallel
-
-**Any one** of n replicas is enough:
-`1 − (1 − a)ⁿ`
-
-Two gateways at 99% behind Nginx:
-`1 − 0.01² = 99.99%`
-
-Only if failures are **independent** — same bug, host or zone breaks it.
-
-</div>
+<div class="arrow" style="align-self: center">→</div>
+<div class="box orange" style="display: flex; flex-direction: column; justify-content: center">order<small>99.9% · one replica</small></div>
+<div class="arrow" style="align-self: center">→</div>
+<div class="box orange" style="display: flex; flex-direction: column; justify-content: center">product<small>99.9% · one replica</small></div>
 </div>
 
 <div class="ok">
 
-Redundancy and isolation patterns exist to **break the failure-propagation chain**.
+Whole path ≈ **99.78%** ≈ **19 h of downtime a year** — almost all from order and product. A third gateway saves under an hour; replicating the **weakest links** removes most of it.
 
 </div>
 
+<!--
+The page's worked example: reduce the parallel part first, then multiply the series. Hands-on 7 runs
+every replica on one laptop: one host, so not independent.
+-->
+
 ---
+
+<!-- _class: tight -->
 
 ## Failure modes
 
-**Partial failures** — some components work, others do not — are the norm, and harder than total outages.
+Two properties: **how long** (transient, intermittent, permanent) and **how it behaves** (crash, slow, Byzantine). **Partial failures** are the norm.
 
 | Failure class | Characteristics | Handling strategy |
 |---|---|---|
 | **Transient** | self-resolves in seconds; safe to retry | retry with exponential backoff and jitter |
-| **Permanent (crash-stop)** | node stops and never recovers | circuit breaker + failover to a healthy replica |
-| **Intermittent** | appears and disappears, no clear trigger | P99 latency histograms; anomaly alerting |
+| **Intermittent** | appears and disappears, no clear trigger | 99th-percentile (P99) latency histograms; anomaly alerting |
+| **Permanent (crash-stop)** | node stops, does not recover by itself | health checks + failover; circuit breaker meanwhile |
+| **Slow** | answers, but late; still looks alive | timeout + circuit breaker (slow calls) + bulkhead |
 | **Byzantine** | returns incorrect data without crashing | consensus; checksums; input validation |
 
-<p class="small">The most common failure is not a crash but a <b>slow</b> response: the caller cannot tell slow from dead, so it keeps waiting.</p>
+<p class="small">The most common failure is not a crash but a <b>slow</b> response: the caller cannot tell slow from dead, so it keeps waiting — and a slow node holds the caller's resources.</p>
 
 ---
 
@@ -145,7 +147,7 @@ A slow dependency exhausts its caller's **threads, connections, memory** — and
 
 - **Little's law**: requests in flight = arrival rate × time each one takes.
 - 60 orders/s × 100 ms per payment call → **6** threads waiting on payment.
-- 60 orders/s × 3 s → **180** of 200 threads: `GET /orders/42`, which needs no payment, gets `503`.
+- 60 orders/s × 3 s → **180** of Tomcat's **200** threads: arrivals come in bursts, the pool fills now and then, and `GET /orders/42`, which needs no payment, gets `503`.
 - If the gateway waits on order, the exhaustion climbs one more level.
 
 <div class="warn">
@@ -166,7 +168,7 @@ Pitfalls: **no timeout**; **retrying blindly**; **one shared pool** for every de
 | **SLO** | Service Level Objective | an internal target for that metric |
 | **SLA** | Service Level Agreement | a contractual commitment to customers |
 
-**telemetry** → aggregated into an **SLI** → evaluated against the **SLO** → informs the **SLA**; the remainder of the SLO becomes the **error budget**.
+**telemetry** → aggregated into an **SLI** → evaluated against the **SLO** → informs the **SLA**; the remainder of the SLO becomes the **error budget**. (Google's site reliability engineering, SRE, practice.)
 
 ---
 
@@ -179,7 +181,7 @@ Pitfalls: **no timeout**; **retrying blindly**; **one shared pool** for every de
 | Category | Example measurement |
 |---|---|
 | **Availability** | `non-5xx responses / total HTTP requests` |
-| **Latency** | `requests faster than 200 ms / total` (≈ P95 < 200 ms) |
+| **Latency** | `requests faster than 200 ms / total` (a 95% target = 95th percentile, P95, < 200 ms) |
 | **Error rate** | `HTTP 5xx / total` (the complement of availability) |
 | **Durability** · **Freshness** | successful reads / attempted · time since last refresh |
 
@@ -187,7 +189,7 @@ Pitfalls: **no timeout**; **retrying blindly**; **one shared pool** for every de
 
 <div class="warn">
 
-CPU, heap size and GC pauses are **vanity metrics**: 95% CPU can serve everyone; 10% CPU can be fully down.
+CPU, heap size and garbage collection (GC) pauses are **vanity metrics**: 95% CPU can serve everyone; 10% CPU can be fully down.
 
 </div>
 
@@ -213,7 +215,7 @@ CPU, heap size and GC pauses are **vanity metrics**: 95% CPU can serve everyone;
 
 > Error budget = 1 − SLO target — the team's **licence to take risk**.
 
-99.9% over 28 days → **≈ 40.3 minutes**, or **28,000** failed requests out of 28 million (a bad deploy with 20,000 errors burns ~70% at once).
+99.9% over 28 days → **≈ 40.3 minutes**, or **28,000** failed requests out of 28 million (a bad deploy with 20,000 errors burns ~71% at once).
 
 <div class="cols">
 <div>
@@ -245,20 +247,56 @@ minutes of degradation misses the SLO — wait."
 
 ---
 
+<!-- _class: tight -->
+
 ## Burn rate
 
-`burn rate = observed error rate ÷ (1 − SLO)` — with a 99.9% SLO, 1.44% errors = 14.4×.
+`burn rate = observed error rate ÷ (1 − SLO)` — with a 99.9% SLO, 1.44% errors = 14.4×. In a period *t* it spends *b · t / window* of the budget.
 
-| Burn rate | 28-day budget exhausted in | Severity |
-|---|---|---|
-| 1× | end of the window (28 days) | normal |
-| 2× | 14 days | warning |
-| 6× | ~4.7 days | high — ticket |
-| 14.4× | ~1.9 days (~47 h) | critical — page immediately |
+| Burn rate | 28-day budget gone in | Alert when it lasts | Spent by then | Action |
+|---|---|---|---|---|
+| 1× | 28 days | 3 days | ~10% | 🟡 ticket |
+| 6× | ~4.7 days | 6 hours | ~5% | 🔴 page |
+| 14.4× | ~1.9 days (~47 h) | 1 hour | ~2% | 🔴 page immediately |
+| 1000× (all fail) | ~40 minutes | — | — | 🔴 the 1 h page fires in ~1 min |
 
-- SRE Workbook: 14.4× for 1 h burns ~2% of the budget; 6× for 6 h burns ~5%.
-- **High** burn rates catch fast incidents; **low** burn rates catch slow degradation.
+- SRE Workbook's pairs, derived for 30 days (14.4 × 1 h / 720 h = 2%); with 28 days: 2.1%, 5.4%, 10.7%.
 - Alert on a **symptom users feel** (errors burning the budget), not on a cause such as CPU.
+
+---
+
+## Multiwindow alerts: fast to fire, fast to stop
+
+<div class="flow">
+<div class="box">error ratio<small>over several windows</small></div><div class="arrow">→</div>
+<div class="box red">1 h <b>and</b> 5 min &gt; 14.4×<small>page · 2% in 1 h</small></div><div class="arrow">else →</div>
+<div class="box red">6 h <b>and</b> 30 min &gt; 6×<small>page · 5% in 6 h</small></div><div class="arrow">else →</div>
+<div class="box orange">3 d <b>and</b> 6 h &gt; 1×<small>ticket · 10% in 3 days</small></div><div class="arrow">else →</div>
+<div class="box green">no alert<small>the budget absorbs it</small></div>
+</div>
+
+- The **long** window proves a real share of the budget was spent; the **short** one (1/12 of it) proves it is **still** burning.
+- A single 1-hour window keeps paging for most of an hour after the fix.
+- No `for:` durations: they do not scale with severity and reset when the ratio dips.
+
+<p class="small">PromQL: the 1 h ratio <code>&gt; (14.4 * 0.001)</code> <b>and</b> the 5 min ratio <code>&gt; (14.4 * 0.001)</code> on <code>http_server_requests_seconds_count{job="OrderMetrics"}</code>.</p>
+
+---
+
+## Simulator: who gets paged, and when?
+
+<div class="q">
+
+The order service (1 M requests/day, SLO 99.9%, budget 28,000 errors) against four incidents and the three rules.
+
+</div>
+
+- **Bad deploy** (48% for 1 h): **480×**, **71%** of the budget; page after **2 min**, silent **4 min** after the rollback — a single-window rule keeps paging **58 min**.
+- **Partial outage** (2% for 6 h, 20×): page after **44 min**; **18%** of the budget.
+- **Slow leak** (0.3% for 3 days, 3×): never pages, spends **32%** — only the ticket, after **22.4 h**.
+- **Short blip** (10% for 5 min): nothing fires, **1.2%** — that is what the budget is for.
+
+<p class="small">SLI / SLO / SLA page → "Multiwindow alerts", simulator <code>error-budget-burn</code>.</p>
 
 ---
 
@@ -307,7 +345,7 @@ Set the **SLO stricter than the SLA**: SLA 99.9% → SLO 99.95%. The gap is the 
 
 <div class="warn">
 
-**Wrong thing**: an SLI from the health check says nothing about `POST /orders`. **Averages**: a mean of 80 ms can hide 5% waiting 4 s. **Mixed windows** (30 vs 28 days). **SLO without a policy**: just a number on a dashboard.
+**Wrong thing**: an SLI from the health check says nothing about `POST /orders`. **Averages**: a mean of 80 ms can hide 5% waiting 4 s. **Mixed windows** (30 vs 28 days). **One long alert window**. **SLO without a policy**: just a number on a dashboard.
 
 </div>
 
@@ -333,10 +371,10 @@ They do not prevent failures; they **limit how far a failure travels**. Running 
 
 ## Timeout
 
-A deadline on every outbound call: it bounds the damage of one slow call.
+A deadline on every outbound call: it bounds the damage of one slow call (a gateway that gives up answers `504`).
 
 - **Percentile-based**: near the downstream **P99.9** under normal conditions.
-- **Budget-aware**: inside the caller's own deadline. **Per dependency**: one global value is almost always wrong.
+- **Budget-aware**: inside the caller's own deadline, retries included. **Per dependency**: one global value is almost always wrong.
 - Two timeouts: **connect** (open the TCP connection) and **read** (wait for the response).
 
 ```yaml
@@ -350,13 +388,35 @@ spring.cloud.openfeign.client.config:
 
 ---
 
+## The timeout budget across hops
+
+<div class="flow">
+<div class="box">gateway<small>waits 3 s</small></div><div class="arrow">→</div>
+<div class="box">attempt 1<small>timeout at 1 s</small></div><div class="arrow">0.5 s →</div>
+<div class="box">attempt 2<small>timeout at 2.5 s</small></div><div class="arrow">1 s →</div>
+<div class="box red">gateway gives up<small>3 s · 504 to the client</small></div><div class="arrow">→</div>
+<div class="box muted">attempt 3<small>fails at 4.5 s · for nobody</small></div>
+</div>
+
+- Order → product with this page's settings: 1 + 0.5 + 1 + 1 + 1 = **4.5 s** worst case, but the gateway waits **3 s**.
+- The third attempt is wasted work and extra load on a struggling service.
+- Fit it: **2 attempts** (2.5 s), a shorter read timeout, or a **deadline** passed along with the request (gRPC).
+
+<div class="ok">
+
+Rule: **attempts × timeout + waits** must fit inside the caller's deadline.
+
+</div>
+
+---
+
 ## Retry with exponential backoff and jitter
 
 Retry only **transient** failures, spaced out so a restart is not hit by a *thundering herd*:
 
-- **Exponential backoff**: `wait = min(c · 2ⁿ, max_wait)` → 1 s, 2 s, 4 s, 8 s, 16 s (cap).
+- **Exponential backoff**: `wait = min(c · 2ⁿ, max_wait)` → 1 s, 2 s, 4 s, 8 s, 16 s (cap): retries at t = 1, 3, 7, 15, 31 s.
 - Clients that failed together still retry together → add **jitter**.
-- **Full jitter** (Marc Brooker, AWS): `wait = random(0, min(c · 2ⁿ, max_wait))` — 1,000 clients spread uniformly instead of 1,000 requests at t = 1 s, 2 s, 4 s.
+- **Full jitter** (Marc Brooker, AWS): `wait = random(0, min(c · 2ⁿ, max_wait))` — 1,000 clients spread uniformly instead of 1,000 requests at t = 1 s, 3 s and 7 s.
 
 | Response | Retry? |
 |---|---|
@@ -369,30 +429,39 @@ Retry only **transient** failures, spaced out so a restart is not hit by a *thun
 
 ## Retry safely
 
-<div class="warn">
-
-**Retry amplification**: gateway, order and the product client each retrying 3 times → one click = 3 × 3 × 3 = **27** calls to a struggling service. Retry at **one** layer, cap the attempts, stop when the breaker is open.
-
+<div class="flow">
+<div class="box">1 click</div><div class="arrow">→</div>
+<div class="box">gateway<small>3 attempts</small></div><div class="arrow">3 calls →</div>
+<div class="box">order<small>3 attempts each</small></div><div class="arrow">9 calls →</div>
+<div class="box">Feign client<small>3 attempts each</small></div><div class="arrow">27 calls →</div>
+<div class="box red">product<small>already struggling</small></div>
 </div>
 
-- Retrying `POST /orders` can create **duplicates**: retry only **idempotent** operations (`GET`, `PUT`, `DELETE`).
-- **Idempotent**: doing it twice has the same effect as doing it once.
+- **Retry amplification**: retry at **one** layer, cap the attempts, stop when the breaker is open.
+- Retrying `POST /orders` can create **duplicates**: retry only **idempotent** operations (`GET`, `PUT`, `DELETE`) — doing it twice has the same effect as once.
 - **Idempotency key**: the client sends a UUID per logical operation (`Idempotency-Key: k-42`); the server stores processed keys and, on a repeat, returns the stored result — same order, no duplicate.
 
 ---
 
+<!-- _class: tight -->
+
 ## Circuit breaker
 
-**Closed** → (failure rate > threshold) → **Open** → (wait timeout) → **Half-Open** → probe succeeds → **Closed** · probe fails → **Open**
+<div class="flow">
+<div class="box green">Closed<small>calls pass · last 10 recorded</small></div><div class="arrow">≥ 50% failed or slow →</div>
+<div class="box red">Open<small>reject in &lt; 1 ms · no network call</small></div><div class="arrow">30 s, next call →</div>
+<div class="box orange">Half-Open<small>3 probe calls</small></div><div class="arrow">probes OK → Closed<br>probes bad → Open</div>
+</div>
 
-| Parameter | Typical value | Effect |
+| Resilience4j property | Default | Typical |
 |---|---|---|
-| Failure threshold | 50% of last 10–20 calls | sensitivity to failures |
-| Wait timeout | 30–60 s | time the service gets to recover |
-| Half-Open probe count | 3–5 requests | how cautiously to test recovery |
-| Slow call threshold | 2× normal P99 | slow calls count as failures |
+| `failure-rate-threshold` | 50% | 50% |
+| `sliding-window-size` · `minimum-number-of-calls` | 100 · 100 | 10–20 |
+| `slow-call-duration-threshold` · `slow-call-rate-threshold` | 60 s · 100% | **below the timeout** · 50% |
+| `wait-duration-in-open-state` | 60 s | 10–60 s |
+| `permitted-number-of-calls-in-half-open-state` | 10 | 3–5 |
 
-<p class="small">Open = reject immediately, no network call: frees the caller's threads and gives the dependency time to recover.</p>
+<p class="small">Slow calls have their own rate: with the default 100% they open the breaker only when every call in the window is slow.</p>
 
 ---
 
@@ -400,27 +469,60 @@ Retry only **transient** failures, spaced out so a restart is not hit by a *thun
 
 ## Circuit breaker + retry with Resilience4j
 
+<div class="cols">
+<div>
+
 ```java
-@CircuitBreaker(name = "product", fallbackMethod = "priceFallback")
-@Retry(name = "product")
-public ProductOut findProduct(String id) { ... }   // Feign call
+// default order: Retry ( CircuitBreaker ( call ) )
+@Retry(name = "product", fallbackMethod = "priceFallback")
+@CircuitBreaker(name = "product")
+public ProductOut findProduct(String id) { ... }
 ```
+
+- Fallback on the **outer** `@Retry`: runs once, after the retries or at once when Open.
+- Slow-call threshold **below** the 1 s timeout.
+- `CallNotPermittedException` **not retried**.
+- Spring Boot 4: `resilience4j-spring-boot4` + `spring-boot-starter-aspectj`.
+
+</div>
+<div>
 
 ```yaml
-resilience4j:
-  circuitbreaker.instances.product:
-    sliding-window-size: 10                  # last 10 calls
-    failure-rate-threshold: 50               # % → Open
-    slow-call-duration-threshold: 2s         # slow = failure
-    wait-duration-in-open-state: 30s         # Open → Half-Open
-    permitted-number-of-calls-in-half-open-state: 3
-  retry.instances.product:
-    max-attempts: 3                          # 1 call + 2 retries
-    wait-duration: 500ms
-    enable-exponential-backoff: true         # 500 ms, 1 s, ...
+circuitbreaker.instances.product:
+  sliding-window-size: 10
+  minimum-number-of-calls: 10
+  failure-rate-threshold: 50
+  slow-call-duration-threshold: 500ms
+  slow-call-rate-threshold: 50
+  wait-duration-in-open-state: 30s
+  permitted-number-of-calls-in-half-open-state: 3
+retry.instances.product:
+  max-attempts: 3            # waits 500 ms, 1 s
+  enable-exponential-backoff: true
+  enable-randomized-wait: true   # ± 50%
+  retry-exceptions: [feign.RetryableException]
+  ignore-exceptions: [...CallNotPermittedException]
 ```
 
-<p class="small">The state is exported as <code>resilience4j_circuitbreaker_state</code> through Actuator — graph it in Grafana (Hands-on 6).</p>
+</div>
+</div>
+
+---
+
+## Simulator: a slow product service
+
+<div class="q">
+
+Order (200 threads, 60 POST /orders/s + 40 GET /orders/s) calls product, which answers in **3 s** from 10 s to 70 s.
+
+</div>
+
+- **No pattern**: ~**176** threads busy (60 × 3 s), pool full in **8** s → only **98.4%** of `GET /orders` OK.
+- **Timeout**: ~**60** threads, `GET /orders` **100%** — every order fails after 1 s.
+- **+ Retry**: pool full **51** s, `GET /orders` **71.2%**, product gets **128** calls/s instead of 60 — **worse than nothing**.
+- **+ Breaker**: opens **1.1 s** after the fault, orders fail in < 1 ms, ~**2** threads busy; closes at t = **72.2 s**, 2.2 s after recovery.
+
+<p class="small">Resilience Patterns page → "Play it", simulator <code>slow-dependency</code>. Also try "product down": timeout + retry sends 3.0 calls per order.</p>
 
 ---
 
@@ -443,6 +545,8 @@ A fallback must be **safe and simple**: a remote fallback can fail too, and char
 
 ---
 
+<!-- _class: tight -->
+
 ## Bulkhead and rate limiting
 
 <div class="cols">
@@ -450,11 +554,14 @@ A fallback must be **safe and simple**: a remote fallback can fail too, and char
 
 ### Bulkhead
 
-Watertight compartments: **one pool per dependency**.
+Watertight compartments: **a cap per dependency**.
 
-Pool A (10 threads) → payment, degraded; Pool B (10 threads) → inventory **unaffected**.
+<div class="flow">
+<div class="box red">payment<small>10 slots full · call 11 rejected at once</small></div>
+<div class="box green">inventory<small>own 10 slots · 200 OK in 30 ms</small></div>
+</div>
 
-<p class="small">Resilience4j: <b>semaphore</b> (<code>max-concurrent-calls</code>, the default) or <b>thread-pool</b>. Same idea: separate DB pools, separate deployments.</p>
+<p class="small">Cost: capacity that cannot be shared — a burst on one pool is refused while others sit idle. Size it with Little's law. Resilience4j: <b>semaphore</b> (<code>max-concurrent-calls</code>, default 25) or <b>thread-pool</b>.</p>
 
 </div>
 <div>
@@ -469,7 +576,7 @@ limit_req_zone $binary_remote_addr
 limit_req zone=api burst=20 nodelay;
 ```
 
-<p class="small">Nginx uses a <b>leaky bucket</b>. Per user or API key: in the gateway.</p>
+<p class="small">Nginx uses a <b>leaky bucket</b>; with <code>nodelay</code> 20 extra requests pass at once, then 10/s. Per user or API key: in the gateway.</p>
 
 </div>
 </div>
@@ -480,11 +587,11 @@ limit_req zone=api burst=20 nodelay;
 
 | Probe | Question | When it fails |
 |---|---|---|
-| **Liveness** | is the process alive (not deadlocked)? | the orchestrator **restarts** the container |
+| **Liveness** | is the process alive (not stuck)? | the orchestrator **restarts** the container |
 | **Readiness** | can it serve traffic now? | **removed from the load balancer**, not restarted |
 | **Startup** (K8s) | has it finished starting? | liveness and readiness wait — a slow JVM is not killed at boot |
 
-<p class="small">Actuator: <code>/actuator/health/liveness</code> and <code>/readiness</code> (automatic on Kubernetes; elsewhere <code>management.endpoint.health.probes.enabled=true</code>).</p>
+<p class="small">Actuator: <code>/actuator/health/liveness</code> and <code>/readiness</code>, enabled by default in Spring Boot 4 (in 2.3–3.x only on Kubernetes; elsewhere <code>management.endpoint.health.probes.enabled=true</code>).</p>
 
 <div class="warn">
 
@@ -496,17 +603,20 @@ limit_req zone=api burst=20 nodelay;
 
 ## Defence in depth
 
-client → **rate limiter** → **circuit breaker** → **bulkhead** → **timeout** → **retry + backoff** → downstream
+<div class="flow">
+<div class="box">rate limiter<small>edge: Nginx, gateway</small></div><div class="arrow">→</div>
+<div class="box accent">retry<small>outermost</small></div><div class="arrow">→</div>
+<div class="box accent">circuit breaker<small>counts every attempt</small></div><div class="arrow">→</div>
+<div class="box accent">bulkhead<small>caps threads</small></div><div class="arrow">→</div>
+<div class="box accent">timeout<small>bounds each attempt</small></div><div class="arrow">→</div>
+<div class="box">product</div>
+</div>
 
-| Layer | What it handles |
-|---|---|
-| Rate limiter | traffic spikes, abusive clients |
-| Circuit breaker | known-failing dependencies |
-| Bulkhead | slow dependencies bleeding into other calls |
-| Timeout | unbounded waiting |
-| Retry + backoff | transient errors |
+- **Retry outside the breaker**: an open breaker stops the retries at once.
+- **Breaker outside the timeout**: timeouts count as failures. **Timeout innermost**: it bounds each attempt, not the sum.
+- Resilience4j's default `Retry(CircuitBreaker(RateLimiter(TimeLimiter(Bulkhead(call)))))`; .NET's standard handler: rate limiter → total timeout → retry → breaker → attempt timeout.
 
-<p class="small"><b>The order is a design decision</b>: Resilience4j's default is <code>Retry(CircuitBreaker(RateLimiter(TimeLimiter(Bulkhead(call)))))</code> — retry outermost, so the breaker counts every attempt. Check that timeouts × attempts fit the caller's deadline.</p>
+<p class="small">Then check that attempts × timeout + waits fit the caller's deadline — and verify it all with chaos experiments.</p>
 
 ---
 
@@ -528,13 +638,13 @@ Timeouts, a breaker and a fallback on order → product. **Do they work?** Nobod
 
 ## Principles of chaos engineering
 
-1. **Hypothesis around steady state** — measurable outputs: request rate, error rate, latency.
+1. **Hypothesis around steady state** — measurable outputs (SLIs): request rate, error rate, latency.
 2. **Vary real-world events** — crashes, partitions, disk full, clock skew, dependency timeouts, spikes.
 3. **Run experiments in production** — staging does not reproduce load, data or dependencies.
 4. **Automate them to run continuously** — new deploys reintroduce weaknesses.
 5. **Minimise the blast radius** — the fewest users needed; widen only after small experiments pass.
 
-<p class="small">Formalised and named by Netflix engineers in IEEE Software (2016).</p>
+<p class="small">Written down by Netflix engineers: principlesofchaos.org and an IEEE Software article (2016).</p>
 
 ---
 
@@ -546,12 +656,12 @@ Timeouts, a breaker and a fallback on order → product. **Do they work?** Nobod
 
 | Step | Content |
 |---|---|
-| **Steady state** | `POST /orders`: availability ≥ 99.9%, P95 < 500 ms (Grafana, Hands-on 6) |
-| **Hypothesis** | product at 3 s → the breaker opens within 30 s, orders fail fast with `503`, `GET /orders` keeps its latency |
+| **Steady state** | `GET /orders` ≥ 99.9%, P95 < 300 ms; `POST /orders` P95 < 500 ms (Grafana, Hands-on 6) |
+| **Hypothesis** | product at 3 s → the breaker opens within 10 s, `POST /orders` fails fast with `503`, `GET /orders` keeps its steady state |
 | **Injection** | Toxiproxy between order and product, 3 s `latency` toxic — Compose first, later one replica |
 | **Blast radius** | one environment, 10 minutes, abort if `GET /orders` < 99% |
 | **Observe** | breaker state, error rate and P95 per route, busy threads, traces in Jaeger |
-| **Findings?** | Feign read timeout never set (breaker counts after 60 s); retries open the breaker too late |
+| **Findings?** | no Feign read timeout (default 60 s): calls take 3 s and *succeed*, the breaker never opens without a slow-call rate; retries multiply the calls |
 
 <p class="small">A confirmed hypothesis is evidence; a <b>falsified</b> one is a finding — a bug found on your terms.</p>
 
@@ -563,12 +673,12 @@ Timeouts, a breaker and a fallback on order → product. **Do they work?** Nobod
 
 | Category | Examples | Tools |
 |---|---|---|
-| **Process / instance** | kill container, OOM-kill, terminate VM | Chaos Monkey, LitmusChaos |
+| **Process / instance** | kill container, out-of-memory (OOM) kill, terminate VM | Chaos Monkey, LitmusChaos |
 | **Network** | latency, packet loss, partition | Toxiproxy, Gremlin, Chaos Mesh |
 | **Resource** | saturate CPU, fill disk, exhaust memory | stress-ng, Gremlin |
 | **Dependency** | HTTP 500, timeouts, malformed responses | WireMock, Toxiproxy |
 | **State** | corrupt records, roll back a deploy, expire certificates | manual, Gremlin |
-| **Infrastructure** | lose an Availability Zone or a region | Chaos Gorilla, AWS FIS |
+| **Infrastructure** | lose an Availability Zone or a region | Chaos Gorilla, AWS Fault Injection Service (FIS) |
 
 **Blast radius**: tests → staging/canary → **1% of traffic** → full production. Controls: feature flags, business hours, **automated abort** on an SLI, shadow traffic.
 
@@ -583,13 +693,13 @@ A **GameDay** is a planned, team-wide exercise — process as much as technology
 3. **Observe** time to detect and to recover, and which runbooks helped.
 4. **Debrief**: a **blameless** post-mortem — a list of improvements, not of culprits.
 
-<p class="small">Tools: Chaos Monkey (Netflix), Gremlin (SaaS), LitmusChaos and Chaos Mesh (CNCF, Kubernetes-native), Toxiproxy (Shopify, integration tests), AWS FIS (IAM, abort conditions).</p>
+<p class="small">Tools: Chaos Monkey (Netflix), Gremlin (SaaS), LitmusChaos and Chaos Mesh (Cloud Native Computing Foundation, Kubernetes-native), Toxiproxy (Shopify, integration tests), AWS FIS (IAM, abort conditions).</p>
 
 ---
 
 ## Observability first
 
-Before any experiment the team must **measure** steady state (SLI dashboards), **detect** deviations (alerts in seconds), **attribute** causes (tracing) and **abort** safely (kill switch).
+Before any experiment the team must **measure** steady state (SLI dashboards), **detect** deviations (dashboards in seconds, burn-rate alerts in minutes), **attribute** causes (tracing) and **abort** safely (kill switch).
 
 <div class="ok">
 
@@ -607,9 +717,9 @@ Pitfalls: chaos **without a hypothesis** is just breaking things; **starting in 
 
 ## Takeaways
 
-1. Availability = MTTF / (MTTF + MTTR); faster recovery is often the cheapest gain. In series availabilities **multiply**; in parallel, `1 − (1 − a)ⁿ`.
+1. Availability = MTTF / (MTTF + MTTR); faster recovery is often the cheapest gain. In series availabilities **multiply**; in parallel, `1 − (1 − a)ⁿ`; the **weakest links** decide.
 2. Each extra **nine** is 10× less downtime — always state the **window**.
 3. **Slow** dependencies exhaust threads and **cascade** upstream.
-4. **SLI** measures, **SLO** targets, **SLA** contracts (looser than the SLO); the **error budget** (≈ 40.3 min per 28 days at 99.9%) and its **burn rate** decide between features and reliability.
-5. Timeout, retry + full jitter (idempotent only), circuit breaker + safe fallback, bulkhead, rate limit, health checks — **in designed layers**.
+4. **SLI** measures, **SLO** targets, **SLA** contracts (looser than the SLO); the **error budget** (≈ 40.3 min per 28 days at 99.9%) and **multiwindow burn-rate alerts** decide between features and reliability.
+5. Timeout (inside the caller's budget), retry + full jitter (idempotent only), circuit breaker (slow-call threshold below the timeout) + safe fallback, bulkhead, rate limit, health checks — **in designed layers**; a retry without a breaker can be worse than nothing.
 6. **Chaos engineering** proves the patterns work: a hypothesis, a small blast radius, observability first.

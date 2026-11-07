@@ -1,4 +1,4 @@
-"A loja é confiável o suficiente?" é uma pergunta que ninguém consegue responder sem números. A gerente de produto quer lançar um novo checkout esta semana; o engenheiro de plantão diz que o serviço de pedidos teve um mês ruim e quer congelar os deploys. Sem uma definição compartilhada de "bom o suficiente", essa discussão é opinião contra opinião. Medir a confiabilidade exige um vocabulário comum que ligue a telemetria bruta às decisões de engenharia e aos compromissos com os clientes. A prática de Site Reliability Engineering do Google introduziu um modelo de três camadas com esse objetivo[^1], hoje padrão na indústria.
+"A loja é confiável o suficiente?" é uma pergunta que ninguém consegue responder sem números. A gerente de produto quer lançar um novo checkout esta semana; o engenheiro de plantão diz que o serviço de pedidos teve um mês ruim e quer congelar os deploys. Sem uma definição compartilhada de "bom o suficiente", essa discussão é opinião contra opinião. Medir a confiabilidade exige um vocabulário comum que ligue a telemetria bruta às decisões de engenharia e aos compromissos com os clientes. A prática de engenharia de confiabilidade de sites (SRE, *Site Reliability Engineering*) do Google introduziu um modelo de três camadas com esse objetivo[^1], hoje padrão na indústria.
 
 | Termo | Nome completo | Natureza |
 |---|---|---|
@@ -8,11 +8,11 @@
 
 ``` mermaid-sim
 flowchart LR
-    telemetry["Telemetria\n(logs, métricas, traces)"]
-    sli["SLI\nMedição bruta"]
-    slo["SLO\nMeta interna"]
-    sla["SLA\nContrato externo"]
-    budget["Error Budget\nAlavanca de engenharia"]
+    telemetry["Telemetria<br/>(logs, métricas, traces)"]
+    sli["SLI<br/>Medição bruta"]
+    slo["SLO<br/>Meta interna"]
+    sla["SLA<br/>Contrato externo"]
+    budget["Error Budget<br/>Alavanca de engenharia"]
 
     telemetry e1@-->|agregada em| sli
     sli e2@-->|avaliado contra| slo
@@ -44,7 +44,7 @@ Por exemplo: *"a proporção de requisições `GET /products` que retornam um st
 | Categoria | O que mede | Exemplo de medição |
 |---|---|---|
 | **Disponibilidade** | Fração das requisições atendidas com sucesso | `non-5xx responses / total HTTP requests` |
-| **Latência** | Fração das requisições atendidas rápido o suficiente | `requests faster than 200 ms / total requests` (equivalente a P95 < 200 ms) |
+| **Latência** | Fração das requisições atendidas rápido o suficiente | `requests faster than 200 ms / total requests` (uma meta de 95% para ele é o mesmo que "percentil 95 (P95) < 200 ms") |
 | **Taxa de erros** | Fração das requisições que resultam em erro | `HTTP 5xx / total HTTP requests` (o complemento da disponibilidade) |
 | **Vazão** | Volume de trabalho que o sistema processa | `Requests per second` (geralmente uma métrica de capacidade e não um SLI) |
 | **Durabilidade** | Fração dos dados que podem ser recuperados | `Successful reads / total attempted reads` |
@@ -62,12 +62,12 @@ Por exemplo: *"a proporção de requisições `GET /products` que retornam um st
 
 !!! example "O SLI de disponibilidade da loja em PromQL"
 
-    O Spring Boot exporta o contador `http_server_requests_seconds_count` com um label `status`. O SLI de disponibilidade do serviço de pedidos nos últimos 5 minutos é:
+    O Spring Boot exporta o contador `http_server_requests_seconds_count` com um label `status` e o Prometheus acrescenta o label `job` do job de coleta (nomeado por serviço, como no [Hands-on 6](../../../hands-on/6/index.md); aqui `OrderMetrics`). O SLI de disponibilidade do serviço de pedidos nos últimos 5 minutos é:
 
     ```promql
-    sum(rate(http_server_requests_seconds_count{application="order", status!~"5.."}[5m]))
+    sum(rate(http_server_requests_seconds_count{job="OrderMetrics", status!~"5.."}[5m]))
     /
-    sum(rate(http_server_requests_seconds_count{application="order"}[5m]))
+    sum(rate(http_server_requests_seconds_count{job="OrderMetrics"}[5m]))
     ```
 
     O numerador conta os eventos bons (tudo que não é `5xx`), o denominador conta todos os eventos. Veja a aula de [Observabilidade](../../observability/index.md) para PromQL.
@@ -132,7 +132,7 @@ Para um SLO de disponibilidade de 99,9%, o orçamento é 0,1% — do **tempo** o
     0.1\% \times 28\,000\,000 = 28\,000 \text{ failed requests}
     $$
 
-    Um deploy ruim que retorna `500` para 20.000 requisições em uma hora consome cerca de 70% do orçamento do mês de uma só vez.
+    Um deploy ruim que retorna `500` para 20.000 requisições em uma hora consome cerca de 70% do orçamento de 28 dias de uma só vez (20.000 / 28.000 ≈ 71%).
 
 Se o error budget está **intacto**, a equipe pode:
 
@@ -159,18 +159,43 @@ $$
 \text{burn rate} = \frac{\text{observed error rate}}{1 - \text{SLO}}
 $$
 
-Com um SLO de 99,9%, uma taxa de erros de 0,1% é uma burn rate de 1 — o orçamento dura exatamente a janela inteira. Uma taxa de erros de 1,44% é uma burn rate de 14,4. Uma burn rate de $b$ esgota o orçamento em (janela ÷ $b$).
+Com um SLO de 99,9%, uma taxa de erros de 0,1% é uma burn rate de 1 — o orçamento dura exatamente a janela inteira. Uma taxa de erros de 1,44% é uma burn rate de 14,4. Uma burn rate de $b$ esgota o orçamento em (janela ÷ $b$) e, em um período $t$, gasta a fração $b \cdot t / \text{janela}$ do orçamento.
 
-Para uma janela de 28 dias:
+Para uma janela de 28 dias, com os alertas que o SRE Workbook recomenda[^2]:
 
-| Burn rate | Orçamento esgotado em | Severidade |
-|---|---|---|
-| 1× | Fim da janela do SLO (28 dias) | Normal |
-| 2× | 14 dias | Aviso |
-| 6× | ~4,7 dias | Alta — abrir um ticket |
-| 14,4× | ~1,9 dia (~47 horas) | Crítica — acionar o plantão imediatamente |
+| Burn rate | Orçamento esgotado em | Alertar quando durar… | Orçamento gasto até lá | Ação |
+|---|---|---|---|---|
+| 1× | 28 dias (a janela inteira) | 3 dias | ~10% | 🟡 ticket: olhar em horário comercial |
+| 6× | ~4,7 dias | 6 horas | ~5% | 🔴 acionar o plantão |
+| 14,4× | ~1,9 dia (~47 horas) | 1 hora | ~2% | 🔴 acionar o plantão imediatamente |
+| 1000× (toda requisição falha) | ~40 minutos | — | — | 🔴 o alerta de 1 hora dispara em cerca de um minuto |
 
-Os limites de 14,4× e 6× vêm do SRE Workbook: sustentada por 1 hora, uma burn rate de 14,4× consome cerca de 2% do orçamento; sustentada por 6 horas, uma de 6× consome cerca de 5%. (O Workbook os deriva para uma janela de 30 dias; com 28 dias as porcentagens são quase as mesmas.) Alertas de burn rate alta pegam cedo os incidentes rápidos, enquanto alertas de burn rate baixa pegam degradações lentas que, de outra forma, seriam invisíveis[^2].
+O Workbook deriva esses pares para uma janela de 30 dias (14,4 × 1 h / 720 h = 2%; 6 × 6 h / 720 h = 5%; 1 × 72 h / 720 h = 10%); com 28 dias as porcentagens são quase as mesmas (2,1%, 5,4%, 10,7%). Alertas de burn rate alta pegam cedo os incidentes rápidos, enquanto alertas de burn rate baixa pegam degradações lentas que, de outra forma, seriam invisíveis.
+
+### Alertas com várias janelas: rápidos para disparar, rápidos para parar
+
+Um alerta sobre uma única janela longa tem dois problemas. Ele demora a ver uma queima pequena mas constante — por isso as regras mais lentas usam janelas mais longas. E continua disparando muito depois da correção: uma média de 1 hora ainda contém os minutos ruins por até uma hora depois que os erros param. A resposta do Workbook é exigir **duas janelas ao mesmo tempo**: a longa prova que uma parte relevante do orçamento foi gasta; uma curta (1/12 da longa, pela orientação deles) prova que ele *ainda* está queimando agora.
+
+| Notificação | Janela longa | Janela curta | Burn rate acima de | Orçamento gasto (30 dias) |
+|---|---|---|---|---|
+| 🔴 Page | 1 hora | 5 minutos | 14,4 | 2% |
+| 🔴 Page | 6 horas | 30 minutos | 6 | 5% |
+| 🟡 Ticket | 3 dias | 6 horas | 1 | 10% |
+
+O diagrama reproduz a decisão que as regras de alerta tomam a cada avaliação:
+
+``` mermaid-sim
+flowchart TD
+    E["taxa de erro do serviço de pedidos<br/>em várias janelas"] --> Q1{"1 h e 5 min<br/>ambas acima de 14,4×?"}
+    Q1 -->|sim| P1["acionar agora<br/>2% do orçamento em 1 h"]
+    Q1 -->|não| Q2{"6 h e 30 min<br/>ambas acima de 6×?"}
+    Q2 -->|sim| P2["acionar<br/>5% em 6 h"]
+    Q2 -->|não| Q3{"3 dias e 6 h<br/>ambas acima de 1×?"}
+    Q3 -->|sim| TK["ticket<br/>10% em 3 dias"]
+    Q3 -->|não| OK["nenhum alerta<br/>o orçamento absorve"]
+```
+
+O Workbook também desaconselha durações `for:` como forma de alongar uma janela: a duração não acompanha a gravidade (uma queda total espera tanto quanto uma pequena) e recomeça sempre que a taxa cai abaixo do limiar.
 
 !!! example "Um alerta de burn rate para o serviço de pedidos"
 
@@ -179,16 +204,28 @@ Os limites de 14,4× e 6× vêm do SRE Workbook: sustentada por 1 hora, uma burn
     - alert: OrderErrorBudgetFastBurn
       expr: |
         (
-          sum(rate(http_server_requests_seconds_count{application="order", status=~"5.."}[1h]))
+          sum(rate(http_server_requests_seconds_count{job="OrderMetrics", status=~"5.."}[1h]))
           /
-          sum(rate(http_server_requests_seconds_count{application="order"}[1h]))
+          sum(rate(http_server_requests_seconds_count{job="OrderMetrics"}[1h]))
         ) > (14.4 * 0.001)
-      for: 2m
+        and
+        (
+          sum(rate(http_server_requests_seconds_count{job="OrderMetrics", status=~"5.."}[5m]))
+          /
+          sum(rate(http_server_requests_seconds_count{job="OrderMetrics"}[5m]))
+        ) > (14.4 * 0.001)
       labels:
         severity: page
     ```
 
-    O alerta dispara por um *sintoma que os usuários sentem* (erros consumindo o orçamento), não por uma causa como CPU — veja alertas na aula de [Observabilidade](../../observability/index.md).
+    O page lento (6 h e 30 min acima de 6) e o ticket (3 dias e 6 h acima de 1) são mais duas regras com a mesma forma. O alerta dispara por um *sintoma que os usuários sentem* (erros consumindo o orçamento), não por uma causa como CPU — veja alertas na aula de [Observabilidade](../../observability/index.md).
+
+O simulador roda os quatro incidentes desta página — o deploy ruim, uma falha parcial, um vazamento lento e um soluço curto — contra as três regras e contra uma primeira tentativa comum com uma única janela (1 hora acima de 14,4, `for: 2m`).
+
+<div class="csim" data-sim="error-budget-burn" data-scenario="deploy"></div>
+
+!!! tip "Experimente"
+    O **deploy ruim** (48% de erros por uma hora: as 20.000 requisições com falha da página) queima a **480×** e gasta **71%** do orçamento de 28 dias. A regra de 1 h / 5 min aciona depois de **2 min** e silencia **4 min** depois que o deploy é revertido; a regra de janela única aciona depois de **4 min** e continua acionando por **58 min** depois do fim. Escolha a **falha parcial** (2% por 6 horas, 20×): o page vem depois de **44 min** e a falha gasta **18%** do orçamento. O **vazamento lento** (0,3% por 3 dias, 3×) nunca aciona o plantão, mas gasta **32%**: só o ticket o pega, depois de **22,4 h**. O **soluço curto** (10% por 5 minutos) não dispara nada e custa **1,2%** — absorvê-lo é para isso que o orçamento existe.
 
 ---
 
@@ -248,6 +285,7 @@ SLA e SLO são frequentemente confundidos. A distinção crucial:
     - **Medir a coisa errada**: um SLI calculado só a partir do endpoint de health check não diz nada sobre `POST /orders`.
     - **Médias em vez de percentis**: uma latência média de 80 ms pode esconder 5% dos usuários esperando 4 s. Use percentis ou "fração das requisições mais rápidas que X".
     - **Misturar janelas**: um error budget calculado em 30 dias comparado com um SLO em 28 dias leva a decisões erradas.
+    - **Uma única janela longa no alerta**: uma regra de 1 hora continua acionando durante boa parte da hora seguinte à correção; combine-a com uma janela curta.
     - **SLO sem política**: se nada muda quando o orçamento acaba, o SLO é só um número em um dashboard.
 
 ---
@@ -256,7 +294,7 @@ SLA e SLO são frequentemente confundidos. A distinção crucial:
 
 - Um **SLI** é a razão entre eventos bons e eventos válidos que reflete o que os usuários sentem; um **SLO** é uma meta para ele em uma janela; um **SLA** é um contrato com penalidades, mais frouxo que o SLO.
 - O **error budget** é 1 − SLO, em tempo ou em requisições: 99,9% em 28 dias ≈ 40,3 minutos (≈ 43,8 minutos em um mês de 30,44 dias).
-- **Burn rate** = taxa de erros observada ÷ orçamento; 14,4× esvazia um orçamento de 28 dias em cerca de 2 dias e deve acionar alguém.
+- **Burn rate** = taxa de erros observada ÷ orçamento; 14,4× esvazia um orçamento de 28 dias em cerca de 2 dias. Acione o plantão quando **ambas** as janelas, uma longa e uma curta, queimam rápido (1 h e 5 min acima de 14,4; 6 h e 30 min acima de 6) e abra um ticket para uma queima lenta (3 dias e 6 h acima de 1).
 - O orçamento transforma "lançar ou congelar?" em uma decisão baseada em dados — se houver uma política acordada.
 - Sempre informe a **janela** e use **percentis**, nunca médias, para latência.
 

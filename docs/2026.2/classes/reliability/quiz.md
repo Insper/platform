@@ -19,7 +19,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ---
 
-**Q2.** For a **99.9% availability SLO** over 28 days, approximately how many minutes of downtime are permitted?
+**Q2.** For a **99.9% availability** service level objective (SLO) over 28 days, approximately how many minutes of downtime are permitted?
 
 - A. ~4.03 minutes
 - B. ~40.3 minutes
@@ -37,17 +37,17 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 - A. The SLO is automatically relaxed to 99.5% for the remainder of the window
 - B. The operations team takes over all deployments until the next window starts
-- C. Non-essential deployments are frozen and reliability work takes priority over feature work until the budget resets
+- C. Non-essential deployments are frozen and reliability work takes priority over feature work until the budget recovers
 - D. The team pages the on-call engineer who must approve all subsequent commits
 
 ??? success "Answer"
     **C — Non-essential deploys frozen; reliability work prioritised.**
 
-    The error budget is the team's licence to take risk. When it is gone, further risky deployments would push the SLO breach from "possible" to "guaranteed." The budget policy creates an objective, data-driven mechanism for the SRE and PM to agree: "we're out of budget this month, features wait."
+    The error budget is the team's licence to take risk. When it is gone, further risky deployments would push the SLO breach from "possible" to "guaranteed." The budget policy creates an objective, data-driven mechanism for the site reliability engineers (SRE) and the product manager (PM) to agree: "we're out of budget in this window, features wait."
 
 ---
 
-**Q4.** What is the key distinction between an **SLO** and an **SLA**?
+**Q4.** What is the key distinction between an **SLO** and a **service level agreement (SLA)**?
 
 - A. An SLO applies to APIs; an SLA applies to databases
 - B. An SLO is an internal engineering target (stricter); an SLA is a legal contract with customers that carries financial consequences if breached (more lenient)
@@ -75,7 +75,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ---
 
-**Q6.** What is the **difference between MTTF and MTTR**, and which lever is faster to improve in a production incident?
+**Q6.** What is the **difference between the mean time to failure (MTTF) and the mean time to repair (MTTR)**, and which lever is faster to improve in a production incident?
 
 - A. MTTF is failure frequency; MTTR is repair time — MTTF is faster to improve
 - B. MTTF is mean time to failure (how long before it breaks); MTTR is mean time to repair (how long to fix it) — MTTR is faster to improve during an active incident
@@ -85,13 +85,27 @@ Click **"Answer"** to reveal the correct answer and explanation.
 ??? success "Answer"
     **B — MTTF = time before failure; MTTR = time to repair; MTTR is faster to improve during an incident.**
 
-    During an active incident, you cannot retroactively prevent the failure (MTTF is already 0 — it happened). What you control is MTTR: faster detection (alerting), faster diagnosis (runbooks, distributed tracing), and faster mitigation (feature flags, rollback procedures). Long-term, MTTF improves through better testing and fault-tolerant design.
+    During an active incident, you cannot retroactively prevent the failure: it has already happened. What you control is MTTR: faster detection (alerting), faster diagnosis (runbooks, distributed tracing), and faster mitigation (feature flags, rollback procedures). Long-term, MTTF improves through better testing and fault-tolerant design.
+
+---
+
+**Q7.** The order service's fast-burn page requires the burn rate over **1 hour and over 5 minutes** to be above 14.4 at the same time. What does the 5-minute window add?
+
+- A. It makes the alert fire faster than a 1-hour window alone could
+- B. It stops the page a few minutes after the errors stop, instead of letting the 1-hour average keep it firing for most of an hour
+- C. It lowers the share of the budget that must be spent before anyone is paged
+- D. It filters out errors caused by the clients (`4xx`)
+
+??? success "Answer"
+    **B — The short window lets the alert stop soon after the incident.**
+
+    The long window proves that a meaningful share of the budget was spent (14.4× for 1 hour ≈ 2%); the short one proves that it is *still* burning now. Without it, the 1-hour average still contains the bad minutes after the fix: in the page's simulator, the bad deploy keeps a single-window rule paging 58 minutes after the rollback, against 4 minutes with both windows. The short window does not speed up detection (A) — the long window is the stricter one while the incident runs.
 
 ---
 
 ## Resilience Patterns
 
-**Q7.** What state does a circuit breaker enter after its **wait timeout** expires while in the Open state?
+**Q8.** What state does a circuit breaker enter after its **wait duration** in the Open state expires?
 
 - A. Closed — it automatically assumes the service has recovered
 - B. Failed — it requires manual intervention to reset
@@ -101,11 +115,11 @@ Click **"Answer"** to reveal the correct answer and explanation.
 ??? success "Answer"
     **C — Half-Open.**
 
-    The Open state blocks all requests. After a configured wait timeout (e.g., 30 seconds), the breaker moves to Half-Open and allows a small number of probe requests through. If they succeed, the service has recovered and the breaker closes. If they fail, the service is still down and the breaker returns to Open.
+    The Open state blocks all requests. After the configured wait duration (e.g., 30 seconds), the breaker moves to Half-Open and allows a small number of probe calls through (Resilience4j moves on the next call, unless the automatic transition is enabled). If their failure and slow-call rates stay below the thresholds, the service has recovered and the breaker closes; otherwise it returns to Open for another wait.
 
 ---
 
-**Q8.** Why should you **never retry** a non-idempotent `POST /orders` without additional safeguards?
+**Q9.** Why should you **never retry** a non-idempotent `POST /orders` without additional safeguards?
 
 - A. `POST` is not retryable at the HTTP protocol level
 - B. The server will return 405 Method Not Allowed on the second attempt
@@ -119,7 +133,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ---
 
-**Q9.** What problem does adding **jitter** to exponential backoff solve?
+**Q10.** What problem does adding **jitter** to exponential backoff solve?
 
 - A. It prevents the backoff delay from growing indefinitely
 - B. It ensures all clients use the same retry interval for predictability
@@ -129,25 +143,24 @@ Click **"Answer"** to reveal the correct answer and explanation.
 ??? success "Answer"
     **C — Breaks the thundering herd.**
 
-    Imagine 1,000 clients all failing at t=0 and retrying at t=1s, t=2s, t=4s in perfect synchrony. Each retry wave hits the recovering service with a massive spike, potentially causing it to fail again. Adding random jitter spreads retries across a time window, converting a spike into a manageable steady stream.
+    Imagine 1,000 clients all failing at t = 0 and retrying at t = 1 s, 3 s and 7 s in perfect synchrony. Each retry wave hits the recovering service with a massive spike, potentially causing it to fail again. Adding random jitter spreads retries across a time window, converting a spike into a manageable steady stream.
 
 ---
 
-**Q10.** Which patterns combine to form a **defence-in-depth** call chain? Select the most complete answer.
+**Q11.** Which patterns combine to form a **defence-in-depth** call chain? Select the most complete answer.
 
 - A. Only circuit breaker + timeout — the others add unnecessary complexity
-- B. Rate limiter → circuit breaker → bulkhead → timeout → retry with backoff
+- B. Rate limiter → retry with backoff → circuit breaker → bulkhead → timeout
 - C. Load balancer → health check → circuit breaker
 - D. Retry with backoff → bulkhead → rate limiter → timeout
 
 ??? success "Answer"
-    **B — Rate limiter → circuit breaker → bulkhead → timeout → retry with backoff.**
+    **B — Rate limiter → retry with backoff → circuit breaker → bulkhead → timeout.**
 
-    Each layer handles a distinct failure scenario: the rate limiter protects against traffic spikes and abuse; the circuit breaker fast-fails calls to known-failing dependencies; the bulkhead isolates thread pools so one slow dependency cannot starve others; the timeout bounds wait time; the retry handles transient failures. In the layering shown in class, rate limiting and fast-failing happen before consuming a bulkhead thread. Libraries may nest them differently — Resilience4j's default puts Retry outermost so each attempt passes through the breaker — but the set of layers is the same, and C and D each miss essential ones.
-
+    Each layer handles a distinct failure scenario: the rate limiter refuses excess traffic at the edge before it costs anything; the retry handles transient failures and sits outside the breaker, so an open breaker stops the retries at once; the circuit breaker sees every attempt, timeouts included; the bulkhead caps the threads the attempts can hold; the timeout, innermost, bounds each attempt. This is Resilience4j's default order (`Retry ( CircuitBreaker ( … ( Bulkhead ( call ) ) ) )`) and the order of .NET's standard resilience handler. C and D each miss essential layers.
 ---
 
-**Q11.** Two gateway replicas, each available 99% of the time and failing independently, sit behind Nginx. Any one replica can serve all traffic. What is the availability of the gateway layer (ignoring Nginx)?
+**Q12.** Two gateway replicas, each available 99% of the time and failing independently, sit behind Nginx. Any one replica can serve all traffic. What is the availability of the gateway layer (ignoring Nginx)?
 
 - A. 98.01%
 - B. 99%
@@ -161,7 +174,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ---
 
-**Q12.** The order service's liveness probe calls the database and fails when it is unreachable. The database is down for 15 seconds. What happens on Kubernetes?
+**Q13.** The order service's liveness probe calls the database and fails when it is unreachable. The database is down for 15 seconds. What happens on Kubernetes?
 
 - A. Nothing — Kubernetes ignores liveness failures shorter than one minute
 - B. The pods are removed from the Service's endpoints until the database is back, then receive traffic again
@@ -175,7 +188,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ---
 
-**Q13.** The gateway, the order service and its Feign client for the product service each retry failed calls up to 3 times. The product service starts failing. How many calls can a single user request generate to the product service in the worst case?
+**Q14.** The gateway, the order service and its Feign client for the product service each make up to 3 attempts on failed calls. The product service starts failing. How many calls can a single user request generate to the product service in the worst case?
 
 - A. 3
 - B. 9
@@ -189,7 +202,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ---
 
-**Q14.** A client sends `POST /orders` with the header `Idempotency-Key: k-42`. The server creates the order, but the response is lost and the client retries with the same key. What should the server do?
+**Q15.** A client sends `POST /orders` with the header `Idempotency-Key: k-42`. The server creates the order, but the response is lost and the client retries with the same key. What should the server do?
 
 - A. Create a second order, because every `POST` creates a new resource
 - B. Return `409 Conflict` and ask the client to generate a new key
@@ -203,9 +216,37 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ---
 
+**Q16.** The gateway waits at most **3 s** for the order service. The order service calls product with a read timeout of 1 s, 3 attempts and waits of 0.5 s then 1 s. What happens when product stops answering?
+
+- A. Nothing goes wrong: each attempt is bounded by 1 s
+- B. The order service needs up to 4.5 s, so the gateway answers `504` at 3 s while the order service keeps retrying for nobody
+- C. The gateway retries too, so the client waits 9 s
+- D. The circuit breaker opens after the first attempt
+
+??? success "Answer"
+    **B — 1 + 0.5 + 1 + 1 + 1 = 4.5 s, longer than the 3 s anyone waits.**
+
+    Timeouts nest: attempts × timeout + waits must fit inside the caller's deadline. Here the third attempt runs after the gateway has given up — wasted work and extra load on a struggling service. Fit the budget: 2 attempts (2.5 s), a shorter read timeout, or a deadline propagated with the request.
+
+---
+
+**Q17.** A breaker is configured with `slow-call-duration-threshold: 2s`, while the Feign read timeout is 1 s. Product starts answering in 3 s. What does the slow-call rule do?
+
+- A. It opens the breaker after 2 s
+- B. Nothing: no call ever completes after 2 s — each fails at 1 s as a timeout — so no call is ever counted as slow; only the failure rate can open the breaker
+- C. It doubles the read timeout to 2 s
+- D. It counts every call as both slow and failed, opening the breaker twice as fast
+
+??? success "Answer"
+    **B — A slow-call threshold above the timeout never sees a slow call.**
+
+    The slow-call threshold must sit **below** the timeout (the page uses 500 ms with a 1 s timeout), so the breaker can react to calls that are slow but still complete. Remember also that slow calls have their own rate (`slow-call-rate-threshold`, default 100%): they are not added to the failure rate.
+
+---
+
 ## Chaos Engineering
 
-**Q15 (bonus).** The first Principle of Chaos Engineering requires establishing a **steady state** before injecting failures. What does "steady state" refer to?
+**Q18 (bonus).** The first Principle of Chaos Engineering requires establishing a **steady state** before injecting failures. What does "steady state" refer to?
 
 - A. A deployment freeze where no code changes are made during the experiment
 - B. A measurable baseline of normal system behaviour expressed as SLIs — request rate, error rate, latency — against which the experiment's impact is evaluated
