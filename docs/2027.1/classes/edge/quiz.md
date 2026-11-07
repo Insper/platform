@@ -192,17 +192,17 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ---
 
-**Q14.** BoxOffice runs **6 gateway replicas** behind a load balancer, and each replica keeps its rate-limit counters in local memory with a limit of 10 req/s per user. Requests are spread evenly across replicas. What limit does a user actually get, and what is the usual fix?
+**Q14.** BoxOffice runs **6 gateway replicas** behind a load balancer, and each replica keeps its rate-limit counters in local memory with a limit of 20 req/s per user. Requests are spread evenly across replicas. What limit does a user actually get, and what is the usual fix?
 
-- A. 10 req/s; no fix needed
-- B. Up to about 60 req/s; store the counters in a shared store such as Redis and update them atomically (e.g. with a Lua script)
-- C. About 1.7 req/s; increase the limit to 60
-- D. 10 req/s, but only if sticky sessions are enabled
+- A. 20 req/s; no fix needed
+- B. Up to about 120 req/s; store the counters in a shared store such as Redis and update them atomically (e.g. with a Lua script)
+- C. About 3.3 req/s; increase the limit to 120
+- D. 20 req/s, but only if sticky sessions are enabled
 
 ??? success "Answer"
     **B — Up to 6× the limit; use a shared, atomic counter.**
 
-    Each replica sees one sixth of the user's requests and applies the full limit to them, so the effective limit is ~60 req/s. A shared store (Redis) with an atomic read-modify-write (a Lua script, or `INCR` with expiry for windows) gives one consistent count. Alternatives accept approximation: each replica enforces `limit / replicas`, or replicas sync counters asynchronously. Sticky sessions would help only partially and harm load balancing.
+    Each replica sees one sixth of the user's requests and applies the full limit to them, so the effective limit is ~120 req/s. A shared store (Redis) with an atomic read-modify-write (a Lua script, or `INCR` with expiry for windows) gives one consistent count. Alternatives accept approximation: each replica enforces `limit / replicas`, or replicas sync counters asynchronously. Sticky sessions would help only partially and harm load balancing.
 
 ---
 

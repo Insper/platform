@@ -192,17 +192,17 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q14.** O BoxOffice roda **6 réplicas do gateway** atrás de um load balancer e cada réplica guarda seus contadores de rate limit na memória local, com limite de 10 req/s por usuário. As requisições se espalham igualmente entre as réplicas. Que limite o usuário tem de fato e qual é a correção usual?
+**Q14.** O BoxOffice roda **6 réplicas do gateway** atrás de um load balancer e cada réplica guarda seus contadores de rate limit na memória local, com limite de 20 req/s por usuário. As requisições se espalham igualmente entre as réplicas. Que limite o usuário tem de fato e qual é a correção usual?
 
-- A. 10 req/s; nenhuma correção necessária
-- B. Até cerca de 60 req/s; guardar os contadores em um store compartilhado como o Redis e atualizá-los de forma atômica (por exemplo, com um script Lua)
-- C. Cerca de 1,7 req/s; aumentar o limite para 60
-- D. 10 req/s, mas só se sticky sessions estiverem habilitadas
+- A. 20 req/s; nenhuma correção necessária
+- B. Até cerca de 120 req/s; guardar os contadores em um store compartilhado como o Redis e atualizá-los de forma atômica (por exemplo, com um script Lua)
+- C. Cerca de 3,3 req/s; aumentar o limite para 120
+- D. 20 req/s, mas só se sticky sessions estiverem habilitadas
 
 ??? success "Resposta"
     **B — Até 6× o limite; use um contador compartilhado e atômico.**
 
-    Cada réplica vê um sexto das requisições do usuário e aplica o limite inteiro a elas, então o limite efetivo é ~60 req/s. Um store compartilhado (Redis) com um read-modify-write atômico (um script Lua, ou `INCR` com expiração para janelas) dá uma contagem única e consistente. As alternativas aceitam aproximação: cada réplica aplica `limit / replicas`, ou as réplicas sincronizam os contadores de forma assíncrona. Sticky sessions ajudariam só em parte e prejudicariam o load balancing.
+    Cada réplica vê um sexto das requisições do usuário e aplica o limite inteiro a elas, então o limite efetivo é ~120 req/s. Um store compartilhado (Redis) com um read-modify-write atômico (um script Lua, ou `INCR` com expiração para janelas) dá uma contagem única e consistente. As alternativas aceitam aproximação: cada réplica aplica `limit / replicas`, ou as réplicas sincronizam os contadores de forma assíncrona. Sticky sessions ajudariam só em parte e prejudicariam o load balancing.
 
 ---
 

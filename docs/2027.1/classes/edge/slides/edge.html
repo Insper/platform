@@ -235,7 +235,7 @@ How many of those requests should reach the <code>inventory</code> service?</p>
 <div class="flow">
 <div class="box red">bots<small>JavaScript challenge on suspicious fingerprints and data-centre networks</small></div>
 <div class="box orange">waiting room<small>admits N users/min, sized from <code>inventory</code> and <code>payment</code></small></div>
-<div class="box orange">API gateway<small>JWT check · token bucket 10 req/s, bursts of 20 · 6 seats per hold</small></div>
+<div class="box orange">API gateway<small>JWT check · token bucket 20 req/s, bursts of 40 · 6 seats per hold</small></div>
 </div>
 <div class="ok">
 <p>The core sees thousands of requests per second instead of millions — in the order the waiting room decided, not the fastest bot.</p>

@@ -210,7 +210,7 @@ A ideia-chave é a **assimetria**: você não consegue superar um atacante em ca
     - **WAF**: regras gerenciadas da OWASP ligadas; uma regra customizada só permite `POST /api/holds` com um token válido da sala de espera; `POST /login` limitado por IP e por conta.
     - **Bots**: desafio JavaScript para fingerprints suspeitos; ASNs de data center desafiados antes de entrar na fila.
     - **Sala de espera**: admite um número fixo de usuários por minuto, dimensionado pela capacidade de `inventory` e `payment` medida nos testes de carga.
-    - **API gateway**: validação do JWT e um token bucket de 10 requisições/s por usuário com rajadas de 20 e um limite de 6 assentos por reserva.
+    - **API gateway**: validação do JWT e um token bucket de 20 requisições/s por usuário com rajadas de 40 e um limite de 6 assentos por reserva.
 
     O resultado: os serviços centrais veem milhares de requisições por segundo em vez de milhões e as veem na ordem que a sala de espera decidiu — não na ordem que o bot mais rápido decidiu.
 

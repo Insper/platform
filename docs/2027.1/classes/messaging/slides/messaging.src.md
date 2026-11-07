@@ -416,6 +416,7 @@ Changing N moves keys (`hash mod N` changes) — size partitions with headroom u
 - Peak: 30,000 orders × 10 events / 180 s ≈ **1,700 events/s** — trivial for producers.
 - `notification`: 50 ms per e-mail → `c = 20/s` per partition.
 - `OrderConfirmed` ≈ 167/s → `N ≥ 167 / 20 ≈ 9` → create **24**.
+- Lab 7: one broker, **6** partitions → at most 6 × 20 = **120/s**; a 7th thread idles.
 
 <div class="ok">
 

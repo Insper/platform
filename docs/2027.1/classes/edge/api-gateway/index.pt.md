@@ -28,7 +28,7 @@ flowchart LR
 | **Roteamento** | mapear host/path/método para um serviço e uma versão | `/api/holds/**` → `inventory`, `/api/v2/orders/**` → `order` v2 |
 | **Offload de autenticação (authN)** | validar a assinatura e a expiração do JWT, ou a API key, uma única vez | rejeitar tokens expirados antes que cheguem a qualquer serviço; repassar `X-User-Id` adiante |
 | **Autorização grossa (authZ)** | regras por rota: escopos, papéis | `/api/admin/**` exige o papel `admin`; regras finas ("este usuário pode cancelar *este* pedido?") ficam no serviço |
-| **Rate limiting e cotas** | requisições por segundo por usuário/IP/key; cotas mensais por plano | 10 req/s por fã, rajadas de 20; planos de parceiros de 1 M chamadas/mês |
+| **Rate limiting e cotas** | requisições por segundo por usuário/IP/key; cotas mensais por plano | 20 req/s por fã, rajadas de 40; planos de parceiros de 1 M chamadas/mês |
 | **Transformação de requisição/resposta** | renomear headers, remover campos internos, converter protocolos (REST ↔ gRPC) | expor a API gRPC de `inventory` como REST para o app web |
 | **Agregação** | uma chamada do cliente se espalha por vários serviços e junta as respostas | `GET /api/events/42/page` devolve evento + local + disponibilidade |
 | **Cache** | guardar respostas de GET por pouco tempo | detalhes do evento por 30 s |
@@ -275,7 +275,7 @@ Pontos de projeto que vale a pena dizer em voz alta:
 | Camada | Chave | Protege contra | Exemplo |
 |---|---|---|---|
 | **Borda / rede de distribuição de conteúdo (CDN, *content delivery network*) / firewall de aplicação web (WAF, *web application firewall*)** | IP, fingerprint, número de sistema autônomo (ASN, *autonomous system number*) | inundações, scrapers, credential stuffing — antes de qualquer custo | 100 req/10 s por IP em `/login` |
-| **API gateway** | id do usuário, API key, rota | usuários abusivos, cotas de plano, justiça | 10 req/s por fã, rajadas de 20 |
+| **API gateway** | id do usuário, API key, rota | usuários abusivos, cotas de plano, justiça | 20 req/s por fã, rajadas de 40 |
 | **Serviço** | entidade de negócio | abuso de negócio que o gateway não enxerga | no máximo 6 assentos por hold, 1 hold ativo por evento por usuário |
 | **Saída (lado do cliente)** | a cota do provedor | estourar o limite de um terceiro (pagamento, e-mail) | 100 req/s para o provedor de pagamento |
 
@@ -317,8 +317,8 @@ Content-Type: application/problem+json
                   filters:
                     - name: RequestRateLimiter
                       args:
-                        redis-rate-limiter.replenishRate: 10   # tokens per second
-                        redis-rate-limiter.burstCapacity: 20   # bucket capacity
+                        redis-rate-limiter.replenishRate: 20   # tokens per second
+                        redis-rate-limiter.burstCapacity: 40   # bucket capacity
                         redis-rate-limiter.requestedTokens: 1  # cost of one request
                         key-resolver: "#{@userKeyResolver}"
     ```
@@ -343,11 +343,11 @@ Content-Type: application/problem+json
 
     ```nginx title="nginx.conf"
     # 10 MB of shared memory holds about 160 000 IP states
-    limit_req_zone $binary_remote_addr zone=per_ip:10m rate=10r/s;
+    limit_req_zone $binary_remote_addr zone=per_ip:10m rate=20r/s;
 
     server {
         location /api/ {
-            limit_req zone=per_ip burst=20 nodelay;   # absorb bursts of 20, no queueing delay
+            limit_req zone=per_ip burst=40 nodelay;   # absorb bursts of 40, no queueing delay
             limit_req_status 429;
             proxy_pass http://gateway;
         }
@@ -399,7 +399,7 @@ O projeto completo de um rate limiter distribuído, como problema de entrevista,
     - **Autenticação**: o gateway valida o JWT emitido por `auth` (assinatura com as chaves públicas em cache, expiração, audience) e repassa `X-User-Id`; os GETs de `catalog` são públicos.
     - **Rate limits** (várias camadas):
         - borda/WAF: 100 requisições por 10 s por IP em `/login`; token da sala de espera obrigatório em `/api/holds`;
-        - gateway: token bucket por usuário, 10 req/s com rajadas de 20 em `/api/**` e 1 req/s com rajadas de 3 em `POST /api/holds`;
+        - gateway: token bucket por usuário, 20 req/s com rajadas de 40 em `/api/**` e 1 req/s com rajadas de 3 em `POST /api/holds`;
         - `inventory`: no máximo 6 assentos por hold e um hold ativo por usuário por evento (uma regra de negócio, garantida com o banco de dados).
     - **Store**: Redis (com uma réplica) para os baldes; se ele falhar, os gateways fazem **fail open** com um limite local de 1/6 do global.
     - **Respostas**: `429` com `Retry-After`; o app recua com jitter e mostra "muitas tentativas, tente de novo em alguns segundos".

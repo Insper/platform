@@ -488,6 +488,7 @@ O provedor de e-mail passa de 80 ms para 800 ms. O que acontece com o botão &qu
 <li>Pico: 30.000 pedidos × 10 eventos / 180 s ≈ <strong>1.700 eventos/s</strong> — trivial para os produtores.</li>
 <li><code>notification</code>: 50 ms por e-mail → <code>c = 20/s</code> por partição.</li>
 <li><code>OrderConfirmed</code> ≈ 167/s → <code>N ≥ 167 / 20 ≈ 9</code> → crie <strong>24</strong>.</li>
+<li>Lab 7: um broker, <strong>6</strong> partições → no máximo 6 × 20 = <strong>120/s</strong>; uma 7ª thread fica ociosa.</li>
 </ul>
 <div class="ok">
 <p>O <strong>consumidor</strong> costuma ser o gargalo. Alternativas a mais partições: lotes, concorrência por chave.</p>

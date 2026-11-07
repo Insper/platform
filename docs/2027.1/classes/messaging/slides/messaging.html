@@ -488,6 +488,7 @@ The e-mail provider slows from 80 ms to 800 ms. What happens to the &quot;Buy&qu
 <li>Peak: 30,000 orders × 10 events / 180 s ≈ <strong>1,700 events/s</strong> — trivial for producers.</li>
 <li><code>notification</code>: 50 ms per e-mail → <code>c = 20/s</code> per partition.</li>
 <li><code>OrderConfirmed</code> ≈ 167/s → <code>N ≥ 167 / 20 ≈ 9</code> → create <strong>24</strong>.</li>
+<li>Lab 7: one broker, <strong>6</strong> partitions → at most 6 × 20 = <strong>120/s</strong>; a 7th thread idles.</li>
 </ul>
 <div class="ok">
 <p>The <strong>consumer</strong> is usually the bottleneck. Alternatives to more partitions: batching, per-key concurrency.</p>

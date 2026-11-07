@@ -306,6 +306,8 @@ then round up with headroom for growth, because increasing partitions later move
 
     With headroom for bigger shows and growth, BoxOffice creates `order-events` with **24 partitions**. If one day that is not enough, `notification` can batch e-mails or process records concurrently *per key* inside each partition instead of adding partitions.
 
+    That is the production cluster (three brokers, replication factor 3). [Hands-on 7](../../../hands-on/7/index.md) runs a single broker on a laptop and creates `order-events` with **6 partitions** and replication factor 1: its load is far smaller, and the same rule sets its ceiling — at 20 e-mails/s per partition, 6 partitions deliver at most 120 confirmations/s, and a seventh `notification` thread would sit idle.
+
 The topic is created explicitly (never rely on auto-creation in production):
 
 ```bash

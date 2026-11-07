@@ -135,7 +135,7 @@ A borda é o **lugar mais barato** para descartar tráfego ruim: ele ainda não 
 <div class="flow">
 <div class="box red">bots<small>desafio JavaScript em fingerprints suspeitos e redes de data center</small></div>
 <div class="box orange">sala de espera<small>admite N usuários/min, dimensionada por <code>inventory</code> e <code>payment</code></small></div>
-<div class="box orange">API gateway<small>checagem do JWT · token bucket de 10 req/s, rajadas de 20 · 6 assentos por reserva</small></div>
+<div class="box orange">API gateway<small>checagem do JWT · token bucket de 20 req/s, rajadas de 40 · 6 assentos por reserva</small></div>
 </div>
 
 <div class="ok">

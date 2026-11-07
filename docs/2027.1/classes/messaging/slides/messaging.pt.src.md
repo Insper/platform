@@ -417,6 +417,7 @@ Mudar N move as chaves (`hash mod N` muda) — dimensione as partições com fol
 - Pico: 30.000 pedidos × 10 eventos / 180 s ≈ **1.700 eventos/s** — trivial para os produtores.
 - `notification`: 50 ms por e-mail → `c = 20/s` por partição.
 - `OrderConfirmed` ≈ 167/s → `N ≥ 167 / 20 ≈ 9` → crie **24**.
+- Lab 7: um broker, **6** partições → no máximo 6 × 20 = **120/s**; uma 7ª thread fica ociosa.
 
 <div class="ok">
 

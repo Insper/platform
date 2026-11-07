@@ -135,7 +135,7 @@ The edge is the **cheapest place** to drop bad traffic: it has not cost the core
 <div class="flow">
 <div class="box red">bots<small>JavaScript challenge on suspicious fingerprints and data-centre networks</small></div>
 <div class="box orange">waiting room<small>admits N users/min, sized from <code>inventory</code> and <code>payment</code></small></div>
-<div class="box orange">API gateway<small>JWT check · token bucket 10 req/s, bursts of 20 · 6 seats per hold</small></div>
+<div class="box orange">API gateway<small>JWT check · token bucket 20 req/s, bursts of 40 · 6 seats per hold</small></div>
 </div>
 
 <div class="ok">

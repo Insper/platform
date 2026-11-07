@@ -306,6 +306,8 @@ e depois arredonde para cima com folga para crescimento, porque aumentar partiç
 
     Com folga para shows maiores e crescimento, o BoxOffice cria `order-events` com **24 partições**. Se um dia isso não bastar, o `notification` pode enviar e-mails em lote ou processar registros em paralelo *por chave* dentro de cada partição, em vez de adicionar partições.
 
+    Esse é o cluster de produção (três brokers, fator de replicação 3). O [Hands-on 7](../../../hands-on/7/index.md) roda um broker só, num laptop, e cria `order-events` com **6 partições** e fator de replicação 1: a carga dele é bem menor e a mesma regra define o seu teto — a 20 e-mails/s por partição, 6 partições entregam no máximo 120 confirmações/s e uma sétima thread do `notification` ficaria ociosa.
+
 O tópico é criado explicitamente (nunca dependa de criação automática em produção):
 
 ```bash

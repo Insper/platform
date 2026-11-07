@@ -28,7 +28,7 @@ flowchart LR
 | **Routing** | map host/path/method to a service and version | `/api/holds/**` → `inventory`, `/api/v2/orders/**` → `order` v2 |
 | **Authentication (authN) offload** | validate the JWT signature and expiry, or the API key, once | reject expired tokens before they reach any service; pass `X-User-Id` downstream |
 | **Coarse authorisation (authZ)** | route-level rules: scopes, roles | `/api/admin/**` requires the `admin` role; fine-grained rules ("can this user cancel *this* order?") stay in the service |
-| **Rate limiting and quotas** | requests per second per user/IP/key; monthly quotas per plan | 10 req/s per fan, bursts of 20; partner plans of 1 M calls/month |
+| **Rate limiting and quotas** | requests per second per user/IP/key; monthly quotas per plan | 20 req/s per fan, bursts of 40; partner plans of 1 M calls/month |
 | **Request/response transformation** | rename headers, strip internal fields, convert protocols (REST ↔ gRPC) | expose `inventory`'s gRPC API as REST to the web app |
 | **Aggregation** | one client call fans out to several services and merges the answers | `GET /api/events/42/page` returns event + venue + availability |
 | **Caching** | cache GET responses for a short time | event details for 30 s |
@@ -275,7 +275,7 @@ Design points worth saying out loud:
 | Layer | Key | Protects against | Example |
 |---|---|---|---|
 | **Edge / content delivery network (CDN) / web application firewall (WAF)** | IP, fingerprint, autonomous system number (ASN) | floods, scrapers, credential stuffing — before any cost | 100 req/10 s per IP on `/login` |
-| **API gateway** | user id, API key, route | abusive users, plan quotas, fairness | 10 req/s per fan, bursts of 20 |
+| **API gateway** | user id, API key, route | abusive users, plan quotas, fairness | 20 req/s per fan, bursts of 40 |
 | **Service** | business entity | business abuse the gateway cannot see | max 6 seats per hold, 1 active hold per event per user |
 | **Outbound (client side)** | the provider's quota | exceeding a 3rd-party limit (payment, e-mail) | 100 req/s to the payment provider |
 
@@ -317,8 +317,8 @@ Content-Type: application/problem+json
                   filters:
                     - name: RequestRateLimiter
                       args:
-                        redis-rate-limiter.replenishRate: 10   # tokens per second
-                        redis-rate-limiter.burstCapacity: 20   # bucket capacity
+                        redis-rate-limiter.replenishRate: 20   # tokens per second
+                        redis-rate-limiter.burstCapacity: 40   # bucket capacity
                         redis-rate-limiter.requestedTokens: 1  # cost of one request
                         key-resolver: "#{@userKeyResolver}"
     ```
@@ -343,11 +343,11 @@ Content-Type: application/problem+json
 
     ```nginx title="nginx.conf"
     # 10 MB of shared memory holds about 160 000 IP states
-    limit_req_zone $binary_remote_addr zone=per_ip:10m rate=10r/s;
+    limit_req_zone $binary_remote_addr zone=per_ip:10m rate=20r/s;
 
     server {
         location /api/ {
-            limit_req zone=per_ip burst=20 nodelay;   # absorb bursts of 20, no queueing delay
+            limit_req zone=per_ip burst=40 nodelay;   # absorb bursts of 40, no queueing delay
             limit_req_status 429;
             proxy_pass http://gateway;
         }
@@ -399,7 +399,7 @@ The full design of a distributed rate limiter, as an interview problem, is in th
     - **Authentication**: the gateway validates the JWT issued by `auth` (signature with the cached public keys, expiry, audience) and forwards `X-User-Id`; `catalog` GETs are public.
     - **Rate limits** (several layers):
         - edge/WAF: 100 requests per 10 s per IP on `/login`; waiting-room token required on `/api/holds`;
-        - gateway: token bucket per user, 10 req/s with bursts of 20 on `/api/**`, and 1 req/s with bursts of 3 on `POST /api/holds`;
+        - gateway: token bucket per user, 20 req/s with bursts of 40 on `/api/**`, and 1 req/s with bursts of 3 on `POST /api/holds`;
         - `inventory`: at most 6 seats per hold and one active hold per user per event (a business rule, enforced with the database).
     - **Store**: Redis (with a replica) for the buckets; if it fails, gateways **fail open** with a local limit of 1/6 of the global one.
     - **Answers**: `429` with `Retry-After`; the app backs off with jitter and shows "too many attempts, try again in a few seconds".

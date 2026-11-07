@@ -210,7 +210,7 @@ The key idea is **asymmetry**: you cannot out-provision an attacker with your ow
     - **WAF**: OWASP managed rules on; a custom rule allows `POST /api/holds` only with a valid waiting-room token; `POST /login` limited per IP and per account.
     - **Bots**: JavaScript challenge on suspicious fingerprints; data-centre ASNs challenged before entering the queue.
     - **Waiting room**: admits a fixed number of users per minute, sized from the capacity of `inventory` and `payment` measured in the load tests.
-    - **API gateway**: JWT validation and a token bucket of 10 requests/s per user with bursts of 20, and a limit of 6 seats per hold.
+    - **API gateway**: JWT validation and a token bucket of 20 requests/s per user with bursts of 40, and a limit of 6 seats per hold.
 
     The result: the core services see thousands of requests per second instead of millions, and they see them in the order the waiting room decided — not in the order the fastest bot decided.
 
