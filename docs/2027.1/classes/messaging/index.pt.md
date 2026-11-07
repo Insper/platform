@@ -375,6 +375,16 @@ flowchart LR
 - **Estudos de caso:** [Venda de ingressos (flash sale do BoxOffice)](../case-studies/ticketing/index.md), [Sistema de notificações](../case-studies/notification-system/index.md), [Sistema de pagamentos](../case-studies/payment-system/index.md), [Chat](../case-studies/chat/index.md).
 - **Aulas:** [Computação — trabalho assíncrono](../compute/async-work/index.md) (workers e schedulers), [Observabilidade](../observability/index.md) (consumer lag e tracing entre tópicos), [Confiabilidade](../reliability/index.md) (retries, backoff, idempotência).
 
+## Pontos-chave { #key-takeaways }
+
+!!! takeaways ""
+
+    - **Chame** quando precisa da resposta agora; **mande uma mensagem** quando o trabalho pode acontecer depois. Só fica na requisição o trabalho que precisa dar certo para o fã receber a resposta.
+    - Uma fila transforma um pico em **backlog**: dimensione os workers com a Lei de Little contra um objetivo de atraso e alerte sobre o lag do consumidor e a idade da mensagem mais antiga.
+    - No Kafka, a **chave** dá ordem e equilíbrio e o número de **partições** limita o paralelismo de um consumer group; fator de replicação 3 com `acks=all` e duas réplicas sincronizadas preserva os registros confirmados.
+    - A entrega é **pelo menos uma vez**: torne os consumidores idempotentes, estacione as mensagens venenosas numa DLQ e evolua os schemas de forma compatível.
+    - Publique com o **transactional outbox**, coordene entre serviços com **sagas** e compensações e use CQRS ou event sourcing só quando o problema pedir.
+
 ## O que quebra em seguida { #what-breaks-next }
 
 O e-mail saiu da requisição: no lab 7, uma falha no e-mail não derruba mais nenhum pedido e a sala de espera só deixa entrar o que o `inventory` consegue atender. O preço é a visibilidade. Uma compra agora é uma requisição, uma linha no banco, um relay do outbox, um registro no Kafka e um consumidor, em quatro processos e em quatro momentos diferentes: quando um fã diz "paguei e não recebi o e-mail", ninguém consegue dizer onde o pedido parou. E quando o provedor de pagamento fica lento, as médias nos dashboards continuam verdes enquanto os fãs falham no checkout. Seguir um pedido entre serviços e medir o que os fãs de fato sentem é a [aula 9 — Observabilidade](../observability/index.md).

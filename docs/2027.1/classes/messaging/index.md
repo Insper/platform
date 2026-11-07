@@ -375,6 +375,16 @@ flowchart LR
 - **Case studies:** [Ticketing (BoxOffice flash sale)](../case-studies/ticketing/index.md), [Notification system](../case-studies/notification-system/index.md), [Payment system](../case-studies/payment-system/index.md), [Chat](../case-studies/chat/index.md).
 - **Classes:** [Compute — async work](../compute/async-work/index.md) (workers and schedulers), [Observability](../observability/index.md) (consumer lag and tracing across topics), [Reliability](../reliability/index.md) (retries, backoff, idempotency).
 
+## Key takeaways { #key-takeaways }
+
+!!! takeaways ""
+
+    - **Call** when you need the answer now; **send a message** when the work can happen later. Only the work that must succeed for the fan to get an answer stays in the request.
+    - A queue turns a spike into a **backlog**: size the workers with Little's Law against a delay objective, and alert on consumer lag and on the age of the oldest message.
+    - In Kafka the **key** gives ordering and balance, and the number of **partitions** caps the parallelism of a consumer group; replication factor 3 with `acks=all` and two in-sync replicas keeps acknowledged records.
+    - Delivery is **at least once**: make consumers idempotent, park poison messages in a DLQ and evolve schemas compatibly.
+    - Publish with the **transactional outbox**, coordinate across services with **sagas** and compensations, and use CQRS or event sourcing only when the problem asks for them.
+
 ## What breaks next { #what-breaks-next }
 
 The e-mail left the request: in lab 7, an e-mail outage no longer fails a single order, and the waiting room lets in only what `inventory` can serve. The price is visibility. A purchase is now a request, a database row, an outbox relay, a Kafka record and a consumer, in four processes and at four different times: when a fan says "I paid and got no e-mail", nobody can say where the order stopped. And when the payment provider slows down, the averages on the dashboards stay green while fans fail at checkout. Following one order across services, and measuring what fans actually feel, is [class 9 — Observability](../observability/index.md).
