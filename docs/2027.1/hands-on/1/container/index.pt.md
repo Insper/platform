@@ -11,7 +11,7 @@ flowchart LR
 
 ## 1. Dockerfile
 
-Um build **multi-stage**: o primeiro estágio tem o JDK e o Maven e compila o jar; o segundo tem só um JRE e o jar. A imagem final é menor, não tem compilador e não exige Maven na máquina que faz o build.
+Um build **multi-stage**: o primeiro estágio tem o kit de desenvolvimento Java (JDK, *Java Development Kit*) e o Maven e compila o jar; o segundo tem só um ambiente de execução Java (JRE, *Java Runtime Environment*) e o jar. A imagem final é menor, não tem compilador e não exige Maven na máquina que faz o build.
 
 ``` { .dockerfile title="services/catalog/Dockerfile" .copy linenums="1" }
 --8<-- "docs/2027.1/hands-on/1/code/services/catalog/Dockerfile"
@@ -21,11 +21,22 @@ Um build **multi-stage**: o primeiro estágio tem o JDK e o Maven e compila o ja
 --8<-- "docs/2027.1/hands-on/1/code/services/catalog/.dockerignore"
 ```
 
+``` diagram
+flowchart LR
+    subgraph build["estágio build: maven:3.9-eclipse-temurin-21"]
+        src["pom.xml + src/"] --> mvn["mvn package<br/>~/.m2 num cache mount"] --> jar["target/app.jar"]
+    end
+    subgraph runtime["estágio runtime: eclipse-temurin:21-jre, sem JDK, sem Maven"]
+        app["app.jar, rodado pelo usuário app<br/>java -XX:MaxRAMPercentage=75"]:::comp
+    end
+    jar -->|"COPY --from=build"| app
+```
+
 | Linha | Por quê |
 |---|---|
 | `--mount=type=cache,target=/root/.m2` | o BuildKit guarda o repositório Maven entre builds: o primeiro baixa as dependências (alguns minutos), os seguintes levam segundos |
 | `useradd` + `USER app` | o processo não roda como root dentro do container |
-| `-XX:MaxRAMPercentage=75` | a JVM dimensiona o heap pelo limite de memória do **container**, não pela RAM do seu notebook |
+| `-XX:MaxRAMPercentage=75` | a máquina virtual Java (JVM, *Java virtual machine*) dimensiona o heap pelo limite de memória do **container**, não pela RAM do seu notebook |
 | `.dockerignore` | uma pasta `target/` local nunca é enviada ao build |
 
 ## 2. docker-compose.yaml
@@ -63,6 +74,28 @@ Migrating schema "catalog" to version "1 - create catalog"
 Migrating schema "catalog" to version "2 - seed catalog"
 Successfully applied 2 migrations to schema "catalog", now at version v2 (execution time 00:01.204s)
 Started CatalogApplication in 10.4 seconds (process running for 11.178)
+```
+
+O que o `up` esperou, em ordem:
+
+``` diagram-sim
+sequenceDiagram
+    autonumber
+    participant C as docker compose
+    participant DB as db
+    participant App as catalog
+    C->>DB: inicia postgres:17
+    loop a cada 5 s
+        C->>DB: pg_isready
+    end
+    DB-->>C: aceitando conexões: healthy
+    C->>App: inicia (depends_on: service_healthy)
+    App->>DB: Flyway: V1, V2 (200.000 eventos)
+    App->>DB: o Hibernate valida as entidades contra as tabelas
+    loop até responder
+        C->>App: wget /actuator/health/readiness
+    end
+    App-->>C: UP: healthy
 ```
 
 Agora chame a API:

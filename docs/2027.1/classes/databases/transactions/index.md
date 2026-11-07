@@ -201,7 +201,7 @@ WHERE event_id = 42 AND seat_id = 'A-12' AND version = 7;
 -- 0 rows → somebody changed the seat since you read it: reload and retry
 ```
 
-JPA/Hibernate does this automatically with an `@Version` field and throws `OptimisticLockException`. It shines when conflicts are **rare** (editing an event description) and holds no locks during user think time. It is a poor fit for a flash sale, where thousands of fans collide on the same few rows and most attempts fail and retry.
+Jakarta Persistence (JPA) with Hibernate does this automatically with an `@Version` field and throws `OptimisticLockException`. It shines when conflicts are **rare** (editing an event description) and holds no locks during user think time. It is a poor fit for a flash sale, where thousands of fans collide on the same few rows and most attempts fail and retry.
 
 ### 4. Let a constraint decide
 
@@ -228,11 +228,17 @@ ON CONFLICT (event_id, seat_id) DO UPDATE
 
 | Approach | How conflicts are resolved | Under heavy contention | Round trips | Best for |
 |---|---|---|---|---|
-| Conditional `UPDATE` | the `WHERE` is re-checked; loser updates 0 rows | good: short lock, no retries | 1 | single-row check-and-set (seat hold) |
-| `SELECT … FOR UPDATE` | losers wait for the lock | waits pile up; use `NOWAIT` / `SKIP LOCKED` | 2+ | logic between read and write; multi-row decisions |
-| Optimistic (`version`) | loser detects the change and retries | many failed attempts and retries | 2 + retries | rare conflicts, long user think time |
-| Unique constraint / upsert | loser gets a constraint violation or 0 rows | good | 1 | "at most one" invariants; last line of defense |
-| Serializable + retry | database aborts one transaction | aborts grow with contention | n + retries | complex invariants across many rows |
+| Conditional `UPDATE` | the `WHERE` is re-checked; loser updates 0 rows | ✅ good: short lock, no retries | 1 | single-row check-and-set (seat hold) |
+| `SELECT … FOR UPDATE` | losers wait for the lock | ⚠️ waits pile up; use `NOWAIT` / `SKIP LOCKED` | 2+ | logic between read and write; multi-row decisions |
+| Optimistic (`version`) | loser detects the change and retries | ❌ many failed attempts and retries | 2 + retries | rare conflicts, long user think time |
+| Unique constraint / upsert | loser gets a constraint violation or 0 rows | ✅ good | 1 | "at most one" invariants; last line of defense |
+| Serializable + retry | database aborts one transaction | ⚠️ aborts grow with contention | n + retries | complex invariants across many rows |
+
+<div class="csim" data-sim="seat-race" data-strategy="naive"></div>
+
+!!! tip "Try it"
+
+    The simulator opens on the bug: **naive**, interleaved. Press play: both `SELECT`s read AVAILABLE, Bob's `UPDATE` waits for Alice's row lock, runs after her `COMMIT` and overwrites her hold: both fans hear 201 and held_by ends as Bob. Switch to **conditional UPDATE**: Bob's `UPDATE` waits the same way, then reports `UPDATE 0` and he gets 409. With **FOR UPDATE** Bob waits at the read instead, and reads HELD; with **optimistic**, his `UPDATE … AND version = 7` finds version 8 and matches 0 rows; at **repeatable read** the naive code fails with 40001 and must retry. Finally choose **Alice first**: every strategy is safe when the two transactions do not overlap, which is why a unit test never finds the bug. Or build an order yourself with the two buttons.
 
 !!! example "In the BoxOffice code: three strategies behind one switch (lab 6)"
 
@@ -348,9 +354,28 @@ The lessons:
 
 The hold lives in the `inventory` database, the order in the `order` database, and the payment at an external provider. No single ACID transaction spans them.
 
-- **Two-phase commit (2PC)** coordinates several databases: a coordinator asks every participant to *prepare* (promise to commit), then tells all of them to *commit*. It is atomic, but a participant that prepared must wait — holding locks — until the coordinator answers; if the coordinator crashes at the wrong moment, they block. It is used inside some databases and with XA transactions, rarely across microservices, and never across an external payment provider.
+- **Two-phase commit (2PC)** coordinates several databases: a coordinator asks every participant to *prepare* (promise to commit), then tells all of them to *commit*. It is atomic, but a participant that prepared must wait — holding locks — until the coordinator answers; if the coordinator crashes at the wrong moment, they block. It is used inside some databases and with XA transactions (the X/Open distributed transaction standard), rarely across microservices, and never across an external payment provider.
 - **Sagas** split the business transaction into local transactions, each with a **compensation** (release the hold, refund the payment), coordinated by events or an orchestrator. Combined with the **transactional outbox** (write the event in the same local transaction as the state change), they give atomicity *eventually*. See [Messaging patterns](../../messaging/patterns/index.md).
 - Calls to the payment provider carry an **idempotency key**, so a retry never charges twice. See [Integrations](../../compute/integrations/index.md).
+
+``` diagram-sim
+sequenceDiagram
+    autonumber
+    participant O as order
+    participant I as inventory
+    participant Pay as payment
+    participant Prov as provider
+    O->>I: hold: conditional UPDATE, seat HELD for 10 min
+    I-->>O: COMMIT, about 2 ms of lock
+    O->>O: INSERT order PENDING + outbox OrderCreated, COMMIT
+    O->>Pay: OrderCreated (event)
+    Pay->>Prov: charge, idempotency key = order id
+    Note over Pay,Prov: no database transaction is open while the network answers
+    Prov-->>Pay: paid
+    Pay->>I: PaymentSucceeded (event)
+    I->>I: conditional confirm: HELD by this customer, not expired → SOLD, INSERT ticket, COMMIT
+    Note over O,Prov: on failure or timeout, compensations release the hold and cancel the order
+```
 
 !!! example "BoxOffice: the checkout, transaction by transaction"
 

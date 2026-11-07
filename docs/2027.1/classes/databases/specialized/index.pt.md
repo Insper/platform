@@ -54,6 +54,18 @@ Uma consulta faz a interseção ou a união de listas de postings, o que é ráp
 
 O mesmo analisador roda sobre a consulta, então "SÃO PAULO" e "sao paulo" casam com os mesmos termos. O **casamento aproximado** (*fuzzy matching*) aceita termos dentro de uma distância de edição (`tayler` → `taylor`, distância 1) e **edge n-grams** ou *completion suggesters* indexam prefixos (`tay`, `tayl`, …) para o autocomplete.
 
+``` diagram-sim
+flowchart LR
+    q["consulta: TAYLOR São Paulo"] --> an["analisador<br/>tokeniza, minúsculas, tira acentos"]
+    an --> t1["taylor → 42, 77"]
+    an --> t2["sao → 42, 51, 77"]
+    an --> t3["paulo → 42, 51, 77"]
+    t1 --> x["intersecta as postings ordenadas<br/>→ 42, 77"]
+    t2 --> x
+    t3 --> x
+    x --> r["ordena: BM25 + popularidade"]:::comp
+```
+
 ### Ranking
 
 Os documentos que casam recebem uma pontuação de **relevância**. O padrão no Elasticsearch, no OpenSearch e no Lucene é o **BM25**[^2], que cresce com a frequência de um termo da consulta no documento (com retornos decrescentes), diminui para termos comuns a todos os documentos (`show`, `ingresso`) e normaliza pelo tamanho do documento. Os produtos então combinam esse valor com sinais de negócio: popularidade, proximidade da data, disponibilidade de ingressos.
@@ -160,7 +172,7 @@ def poster_upload_url(event_id: int) -> str:
     )
 ```
 
-As leituras passam pela **CDN** (veja [DNS & CDN](../../edge/dns-cdn/index.md)) com tempos de cache longos e chaves versionadas (`hero.v3.webp`), de modo que o bucket vê uma fração mínima do tráfego. **Regras de ciclo de vida** movem objetos antigos para camadas mais baratas (acesso infrequente, arquivo) e apagam os temporários automaticamente; o **upload multipart** envia arquivos grandes em partes paralelas que podem ser reenviadas individualmente.
+As leituras passam pela **rede de entrega de conteúdo** (CDN, *content delivery network*; veja [DNS & CDN](../../edge/dns-cdn/index.md)) com tempos de cache longos e chaves versionadas (`hero.v3.webp`), de modo que o bucket vê uma fração mínima do tráfego. **Regras de ciclo de vida** movem objetos antigos para camadas mais baratas (acesso infrequente, arquivo) e apagam os temporários automaticamente; o **upload multipart** envia arquivos grandes em partes paralelas que podem ser reenviadas individualmente.
 
 === "AWS"
 
@@ -401,7 +413,7 @@ LIMIT 5;
 | Opção | Boa quando | Cuidado com |
 |---|---|---|
 | **pgvector** no PostgreSQL existente | até milhões de vetores; você quer filtros, joins e transações com o resto dos dados | tempo de construção do índice e memória no primário; ajuste `ef_search` |
-| kNN do mecanismo de busca (Elasticsearch, OpenSearch) | você já opera um; **busca híbrida** (BM25 + vetores) em uma única consulta | memória por shard |
+| busca de k vizinhos mais próximos (kNN, *k-nearest neighbours*) do mecanismo de busca (Elasticsearch, OpenSearch) | você já opera um; **busca híbrida** (BM25 + vetores) em uma única consulta | memória por shard |
 | Vector DB dedicado (Qdrant, Weaviate, Milvus, Pinecone) | centenas de milhões de vetores, filtragem pesada, multi-tenant | mais um sistema para operar e manter sincronizado |
 | Busca vetorial no Redis / Valkey | conjuntos pequenos e quentes com latência muito baixa | custo de memória |
 

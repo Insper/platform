@@ -100,13 +100,13 @@ A **document database** stores self-contained, nested documents — usually JSON
 - **Flexible schema** (**schema-on-read**): a festival can carry a `stages` array that a football game does not have.
 - **Weakness — many-to-many relationships**: the venue is *copied* into every event. Renaming the venue means updating thousands of documents, or accepting stale copies. Queries that cut across documents ("all events at venue 7") need secondary indexes or a different collection.
 
-Products: MongoDB, Couchbase, Google Firestore, Azure Cosmos DB, Amazon DocumentDB — and PostgreSQL itself with `JSONB` columns and GIN indexes, which is often enough.
+Products: MongoDB, Couchbase, Google Firestore, Azure Cosmos DB, Amazon DocumentDB — and PostgreSQL itself with `JSONB` columns and generalized inverted indexes (GIN), which is often enough.
 
 ---
 
 ## Key-value stores
 
-The simplest model: an opaque **value** looked up by a **key** — `GET`, `PUT`, `DELETE`, sometimes with a TTL. No queries by value, no joins, so the store can be extremely fast and easy to partition by key.
+The simplest model: an opaque **value** looked up by a **key** — `GET`, `PUT`, `DELETE`, sometimes with a time to live (TTL). No queries by value, no joins, so the store can be extremely fast and easy to partition by key.
 
 | Store | Typical use at BoxOffice |
 |---|---|
@@ -151,7 +151,7 @@ The syntax looks like SQL, but the rules are different: you can only filter by t
 
 ## Graph databases
 
-When the questions are about **relationships** — paths, neighbours, communities — a **graph database** stores nodes and edges as first-class citizens. Neo4j (query language Cypher), Amazon Neptune and the ISO standard query language GQL (2024) are examples.
+When the questions are about **relationships** — paths, neighbours, communities — a **graph database** stores nodes and edges as first-class citizens. Neo4j (query language Cypher), Amazon Neptune and the ISO standard Graph Query Language (GQL, 2024) are examples.
 
 ```cypher title="Fans who bought this show also bought…"
 MATCH (e:Event {id: 42})<-[:BOUGHT]-(f:Fan)-[:BOUGHT]->(other:Event)
@@ -246,7 +246,7 @@ A billion-row table is **4 levels deep**, and the top levels stay cached in memo
 
 ### LSM-trees { #lsm-trees }
 
-A **log-structured merge-tree** (LSM-tree) never updates in place[^4]. Writes go to the WAL and to an in-memory sorted table (the **memtable**); when it fills, it is flushed to disk as an immutable sorted file (an **SSTable**). Background **compaction** merges SSTables into larger, sorted levels and drops overwritten and deleted values.
+A **log-structured merge-tree** (LSM-tree) never updates in place[^4]. Writes go to the WAL and to an in-memory sorted table (the **memtable**); when it fills, it is flushed to disk as an immutable sorted file (a sorted string table, **SSTable**). Background **compaction** merges SSTables into larger, sorted levels and drops overwritten and deleted values.
 
 ``` diagram-sim
 flowchart LR
@@ -323,7 +323,7 @@ Read the plot as intuition:
 | Range scan | excellent: leaves are sorted and linked | good, but merges several levels |
 | Random small writes | in-place page writes; amplification depends on record size | sequential appends; amplification ≈ levels × size ratio |
 | Space | some free space inside pages (fragmentation) | obsolete versions until compaction; compressed files |
-| Latency predictability | stable | compaction can cause background I/O spikes |
+| Latency predictability | ✅ stable | ⚠️ compaction can cause background I/O spikes |
 | Typical engines | PostgreSQL, InnoDB, SQL Server, SQLite | RocksDB, Cassandra, ScyllaDB, HBase, Pebble |
 
 ---
@@ -340,7 +340,7 @@ An **index** is an additional data structure — usually a B-tree — that maps 
 | Partial | indexes only rows matching a condition | `seats(event_id, hold_expires_at) WHERE status = 'HELD'` — only holds, tiny |
 | Unique | rejects duplicates | `tickets(event_id, seat_id)` — the anti-double-booking guarantee |
 | GIN / full-text | inverted index on words or JSON keys | `events USING GIN (to_tsvector('portuguese', title))` |
-| Vector (HNSW, IVF) | approximate nearest neighbours | `pgvector` index for the assistant ([Specialized](../specialized/index.md#vector-databases)) |
+| Vector (hierarchical navigable small world, HNSW; inverted file, IVF) | approximate nearest neighbours | `pgvector` index for the assistant ([Specialized](../specialized/index.md#vector-databases)) |
 
 A composite index follows the **leftmost-prefix rule**: an index on `(event_id, section, status)` helps queries that filter by `event_id`, by `event_id AND section`, or by all three — but not by `section` alone, just as a phone book sorted by surname then first name does not help you find everyone named "Ana".
 
@@ -369,6 +369,15 @@ CREATE INDEX CONCURRENTLY seats_event_section_status_idx
 --                    (actual time=0.025..0.391 rows=287 loops=1)
 --   Index Cond: ((event_id = 42) AND (section = 'B') AND (status = 'AVAILABLE'))
 -- Execution Time: 0.430 ms
+```
+
+``` diagram
+flowchart LR
+    q["WHERE event_id = 42<br/>AND section = 'B'<br/>AND status = 'AVAILABLE'"]
+    q -->|"no index fits"| seq["Seq Scan<br/>read all 3,000,000 rows,<br/>throw away 2,999,713"]:::problem
+    q -->|"an index on the filter"| idx["Index Scan<br/>walk the B-tree to 287 entries"]
+    idx -->|"fetch each row"| heap[("table pages")]
+    q -->|"the index holds every column needed"| ios["Index Only Scan<br/>answer from the index alone"]:::comp
 ```
 
 Reading guide: **Seq Scan** with a large "Rows Removed by Filter" means a missing index; **Index Scan** walks the index and fetches rows from the table; **Index Only Scan** answers from the index alone; `cost` is the planner's estimate in arbitrary units, `actual time` is what happened. `CONCURRENTLY` builds the index without blocking writes — essential on a live table. [Hands-on 6](../../../hands-on/6/index.md) does the same diagnosis on the catalog (box below).
@@ -433,7 +442,7 @@ flowchart LR
     KV --> CACHE["in memory<br/>→ Caching, Redis"]
 ```
 
-**Palette components:** [`sql`](../../../reference/components/storage/index.md#sql) (the default for data with invariants and ad hoc queries) · [`nosql`](../../../reference/components/storage/index.md#nosql) (key-value, document, wide-column or graph — chosen by access pattern, keys derived from the queries) · [`cache`](../../../reference/components/storage/index.md#cache) (a key-value store in memory) · [`vectordb`](../../../reference/components/storage/index.md#vectordb) (an ANN index is one more index type). **Scenarios:** `monolith`, `sharding`. **Continues in:** [Transactions](../transactions/index.md), [Partitioning](../partitioning/index.md), [Caching — Redis](../../caching/redis/index.md), [Estimation — numbers](../../estimation/numbers/index.md), [Hands-on 6](../../../hands-on/6/index.md) (indexes and `EXPLAIN`).
+**Palette components:** [`sql`](../../../reference/components/storage/index.md#sql) (the default for data with invariants and ad hoc queries) · [`nosql`](../../../reference/components/storage/index.md#nosql) (key-value, document, wide-column or graph — chosen by access pattern, keys derived from the queries) · [`cache`](../../../reference/components/storage/index.md#cache) (a key-value store in memory) · [`vectordb`](../../../reference/components/storage/index.md#vectordb) (an approximate nearest neighbour (ANN) index is one more index type). **Scenarios:** `monolith`, `sharding`. **Continues in:** [Transactions](../transactions/index.md), [Partitioning](../partitioning/index.md), [Caching — Redis](../../caching/redis/index.md), [Estimation — numbers](../../estimation/numbers/index.md), [Hands-on 6](../../../hands-on/6/index.md) (indexes and `EXPLAIN`).
 
 ---
 

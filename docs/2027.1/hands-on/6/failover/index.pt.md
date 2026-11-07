@@ -21,6 +21,12 @@ sequenceDiagram
 
 Todo comando roda a partir da raiz do seu repositório `boxoffice/`, com a stack do [passo 2](../replicas/index.md#3-compose) rodando.
 
+<div class="csim" data-sim="boxoffice-db" data-script="crash"></div>
+
+!!! tip "Experimente"
+
+    O passo inteiro no navegador: aqui o simulador abre na queda (seções 3 e 4). O simulador parte da stack do passo 2: `db` primário, `db-replica` recebendo o log de escrita antecipada (WAL, *write-ahead log*) de forma assíncrona, todos os assentos à venda; play ou → roda os comandos do lab e os botões funcionam a qualquer momento. Em **Réplica**, com `REPLICA_DELAY=1s`, a reserva da Ana responde `201`, mas o mapa lido logo depois ainda mostra o assento 1 AVAILABLE; 1 s depois ele está HELD. Em **Síncrona**, `remote_apply` faz a reserva levar 1,03 s e a leitura vir atualizada; com `db-replica` parado, a reserva do assento 10 recebe 504 depois de 5 s e mesmo assim o assento 10 está HELD. Em **Queda**, as sondas dão 200 para o mapa e 504 para o resto; depois de `pg_promote()` e do nome movido, 15 s depois todos os caminhos respondem e a reserva da Ana é 404. Em **Split brain**, dois primários discordam sobre o assento 20, o `pg_rewind` descarta a reserva da Ana e o switchback termina na timeline 3. No modo **livre**, tente o que o lab avisa: `start` em vez de `up --no-deps`, ou `pg_rewind` sem `wal_log_hints`.
+
 ## 1. Prepare o cluster { #prepare }
 
 Duas mudanças pequenas nos scripts do passo 2. O primário liga o `wal_log_hints`, de que o `pg_rewind` precisa na seção 6:
@@ -85,9 +91,27 @@ O `sync_state` vira `sync` (`potential` quer dizer que foi lido cedo demais: rod
 
 | `synchronous_commit` | O `COMMIT` volta quando o WAL está… | Uma queda do primário perde | Leituras defasadas na réplica |
 |---|---|---|---|
-| `local` | no disco do primário | as últimas transações | sim |
-| **`on`** (padrão) | no disco do primário **e do standby** | nada | **sim**: estar no disco não é ter sido reaplicado |
-| `remote_apply` | **reaplicado** no standby | nada | **não** |
+| `local` | no disco do primário | ⚠️ as últimas transações | ⚠️ sim |
+| **`on`** (padrão) | no disco do primário **e do standby** | ✅ nada | ⚠️ **sim**: estar no disco não é ter sido reaplicado |
+| `remote_apply` | **reaplicado** no standby | ✅ nada | ✅ **não** |
+
+``` diagram-sim
+sequenceDiagram
+    participant I as inventory
+    participant P as db (primário)
+    participant R as db-replica
+    I->>P: COMMIT (a reserva)
+    P->>P: grava o WAL no disco do primário
+    Note over I,P: local volta aqui
+    P->>R: envia o WAL
+    R->>R: grava o WAL no disco da réplica
+    R-->>P: gravado
+    Note over P,R: on (o padrão) volta aqui
+    R->>R: reaplica, depois do REPLICA_DELAY
+    R-->>P: reaplicado
+    Note over P,R: remote_apply volta aqui
+    P-->>I: COMMIT ok
+```
 
 Meça as duas últimas colunas com o teste de read-your-writes do passo 2, com o atraso artificial de 1 segundo:
 
@@ -189,7 +213,7 @@ Você deve ver:
 504 5.01s  event 1 (catalog)
 ```
 
-A réplica mantém os mapas de assentos de pé: uma réplica de leitura também é um pouco de **disponibilidade**. Tudo o que escreve e tudo o que lê do primário espera até o gateway desistir. (Um item do catálogo que ainda estiver no Redis responderia `200` até o TTL expirar: o cache do lab 5 é outra camada que esconde uma queda do banco, por um tempo.)
+A réplica mantém os mapas de assentos de pé: uma réplica de leitura também é um pouco de **disponibilidade**. Tudo o que escreve e tudo o que lê do primário espera até o gateway desistir. (Um item do catálogo que ainda estiver no Redis responderia `200` até o tempo de vida (TTL, *time to live*) expirar: o cache do lab 5 é outra camada que esconde uma queda do banco, por um tempo.)
 
 ## 4. Faça o failover { #failover }
 
@@ -199,7 +223,7 @@ Um failover são duas decisões: **qual** nó vira o primário e **como os clien
 docker compose exec db-replica psql -U boxoffice -c "SELECT pg_promote()" -c "SELECT pg_is_in_recovery()"
 ```
 
-`pg_is_in_recovery` = `f`: o `db-replica` agora aceita escritas, numa nova **timeline** (a história dele se separa da do antigo primário aqui). Mas todo serviço ainda se conecta ao nome `db`: o PgBouncer, o `auth`, os três `catalog`, as migrações do `inventory`. Em vez de reconfigurar todos eles, **mova o nome**. O DNS do Docker responde `db` com o endereço do contêiner que tiver esse alias na rede:
+`pg_is_in_recovery` = `f`: o `db-replica` agora aceita escritas, numa nova **timeline** (a história dele se separa da do antigo primário aqui). Mas todo serviço ainda se conecta ao nome `db`: o PgBouncer, o `auth`, os três `catalog`, as migrações do `inventory`. Em vez de reconfigurar todos eles, **mova o nome**. O servidor de nomes (DNS, *Domain Name System*) do Docker responde `db` com o endereço do contêiner que tiver esse alias na rede:
 
 ``` { .bash .copy }
 docker network disconnect boxoffice_default boxoffice-db-replica-1
@@ -222,7 +246,7 @@ probe "login" -X POST localhost/auth/login -H 'Content-Type: application/json' \
 probe "event 1" localhost/catalog/events/1
 ```
 
-Numa execução deste lab, a primeira rodada logo depois da mudança ainda teve `504`; 15 segundos depois, tudo respondeu `200`/`201`. Os pools descartam as conexões quebradas e abrem novas e cada processo resolve `db` de novo (a JVM guarda um nome por 30 s, o PgBouncer por até 15 s). Nenhum arquivo mudou, nenhum serviço reiniciou.
+Numa execução deste lab, a primeira rodada logo depois da mudança ainda teve `504`; 15 segundos depois, tudo respondeu `200`/`201`. Os pools descartam as conexões quebradas e abrem novas e cada processo resolve `db` de novo (a máquina virtual Java, JVM, *Java virtual machine*, guarda um nome por 30 s, o PgBouncer por até 15 s). Nenhum arquivo mudou, nenhum serviço reiniciou.
 
 Agora procure a reserva da Ana:
 
@@ -268,6 +292,21 @@ db-replica: primary=t, seat 20=AVAILABLE
 
 Dois primários, um nome, duas respostas sobre o assento 20. Cada conexão nova com `db` cai em qualquer um dos dois: o PgBouncer poderia pôr a próxima reserva da Ana num servidor e a auditoria no outro e os dois responderiam satisfeitos. Nada aqui consegue dizer qual está certo. Isso é um **split brain**.
 
+``` diagram-sim
+sequenceDiagram
+    participant I as inventory via PgBouncer
+    participant N as DNS do Docker
+    participant P1 as db (primário antigo, timeline 1)
+    participant P2 as db-replica (primário, timeline 2)
+    I->>N: quem é db?
+    N-->>I: 172.23.0.8 e 172.23.0.3
+    I->>P1: conexão 1: a próxima reserva da Ana
+    P1-->>I: 201, aqui o assento 20 está HELD
+    I->>P2: conexão 2: a auditoria
+    P2-->>I: aqui o assento 20 está AVAILABLE
+    Note over P1,P2: os dois aceitam escritas: duas histórias que nada consegue juntar
+```
+
 **Isole** (fencing) o antigo primário antes que algo escreva nele:
 
 ``` { .bash .copy }
@@ -276,9 +315,29 @@ docker compose stop db
 
 Em produção, uma pessoa fazendo isso à mão às 10:01 é lenta e arriscada demais. Um gerenciador de failover como o Patroni guarda uma **chave de líder** no etcd, renovada a cada poucos segundos: um primário que não consegue renová-la se rebaixa e um nó só pode se promover se tiver a chave. É o consenso decidindo quem é o líder ([Consenso e quóruns](../../../classes/distributed/consensus/index.md)) e o fencing garantindo que o perdedor pare (no extremo, STONITH: "shoot the other node in the head", derrubar o outro nó à força).
 
+<div class="csim" data-sim="boxoffice-db" data-script="split-brain"></div>
+
+!!! tip "Experimente"
+
+    Aqui o simulador abre onde a seção 4 termina, para repetir as seções 5 a 7. O simulador parte da stack do passo 2: `db` primário, `db-replica` recebendo o WAL de forma assíncrona, todos os assentos à venda; play ou → roda os comandos do lab e os botões funcionam a qualquer momento. Em **Réplica**, com `REPLICA_DELAY=1s`, a reserva da Ana responde `201`, mas o mapa lido logo depois ainda mostra o assento 1 AVAILABLE; 1 s depois ele está HELD. Em **Síncrona**, `remote_apply` faz a reserva levar 1,03 s e a leitura vir atualizada; com `db-replica` parado, a reserva do assento 10 recebe 504 depois de 5 s e mesmo assim o assento 10 está HELD. Em **Queda**, as sondas dão 200 para o mapa e 504 para o resto; depois de `pg_promote()` e do nome movido, 15 s depois todos os caminhos respondem e a reserva da Ana é 404. Em **Split brain**, dois primários discordam sobre o assento 20, o `pg_rewind` descarta a reserva da Ana e o switchback termina na timeline 3. No modo **livre**, tente o que o lab avisa: `start` em vez de `up --no-deps`, ou `pg_rewind` sem `wal_log_hints`.
+
 ## 6. Traga o antigo primário de volta com o `pg_rewind` { #rejoin }
 
 O diretório de dados do antigo primário tem uma história que o novo primário nunca teve: a reserva perdida da Ana e depois a escrita do assento 20 durante o split brain. Ele não pode simplesmente seguir o novo primário. O `pg_rewind` encontra onde as duas timelines se separaram, copia do novo primário todo bloco que mudou desde então e joga fora o que só o antigo tinha:
+
+``` diagram-sim
+flowchart LR
+    c["história comum<br/>timeline 1"]
+    ana["reserva da Ana, assentos 20 e 21<br/>só no db antigo"]:::problem
+    tl2["pg_promote() no db-replica<br/>timeline 2, a reserva do assento 40"]:::comp
+    rw["pg_rewind: copia de volta os blocos alterados,<br/>corta db na bifurcação"]
+    f["db segue a timeline 2<br/>como standby"]:::comp
+    c -->|"db continuou escrevendo"| ana
+    c -->|"failover"| tl2
+    ana -.->|"descartada"| rw
+    rw --> f
+    tl2 -->|"WAL"| f
+```
 
 ``` { .bash title="infra/postgres/rejoin-as-replica.sh" .copy linenums="1" }
 --8<-- "docs/2027.1/hands-on/6/code/infra/postgres/rejoin-as-replica.sh"
@@ -368,7 +427,7 @@ Todos os testes respondem `200` ou `201` e a auditoria diz `{"doubleBookedSeats"
 
 | Etapa | À mão neste lab | Em produção |
 |---|---|---|
-| Detectar a falha | você o matou | health checks com timeout (Patroni, RDS): curto demais faz failover numa pausa de GC, longo demais significa minutos sem escritas |
+| Detectar a falha | você o matou | health checks com timeout (Patroni, RDS): curto demais faz failover numa pausa de coleta de lixo (GC, *garbage collection*), longo demais significa minutos sem escritas |
 | Escolher o novo primário | a única réplica | o standby mais atualizado, escolhido por consenso (chave de líder no etcd) |
 | Promover | `pg_promote()` | o gerenciador de failover |
 | Mover os clientes | um alias na rede do Docker | DNS (endpoint do RDS), um IP virtual, um proxy (HAProxy, PgBouncer reconfigurado), ou strings de conexão com vários hosts (`targetServerType=primary`) |
@@ -376,7 +435,7 @@ Todos os testes respondem `200` ou `201` e a auditoria diz `{"doubleBookedSeats"
 | Trazê-lo de volta | `pg_rewind` + `standby.signal` | o gerenciador de failover roda o `pg_rewind` |
 | Decidir o que pode se perder | assíncrona: a última reserva | `synchronous_standby_names = 'ANY 1 (…)'` com dois standbys: RPO 0 sem que uma réplica pare as escritas |
 
-Os serviços gerenciados (RDS Multi-AZ, Cloud SQL HA, Azure zone-redundant HA) fazem tudo isso por você, tipicamente em dezenas de segundos a alguns minutos. O seu design ainda precisa decidir o que a aplicação faz nesse meio-tempo: tentar de novo com backoff, mostrar "tente de novo", segurar a requisição numa fila (lab 7). Veja [Replicação — failover](../../../classes/databases/replication/index.md#failover-when-the-leader-dies) para a teoria.
+Os serviços gerenciados (RDS Multi-AZ, alta disponibilidade do Cloud SQL, alta disponibilidade com redundância de zona do Azure) fazem tudo isso por você, tipicamente em dezenas de segundos a alguns minutos. O seu design ainda precisa decidir o que a aplicação faz nesse meio-tempo: tentar de novo com backoff, mostrar "tente de novo", segurar a requisição numa fila (lab 7). Veja [Replicação — failover](../../../classes/databases/replication/index.md#failover-when-the-leader-dies) para a teoria.
 
 ??? question "Pense primeiro: a Ana recebeu `201`, a reserva se perdeu e os assentos foram vendidos para outra pessoa. De quem é o problema e o que poderia ter evitado?"
 
@@ -384,6 +443,6 @@ Os serviços gerenciados (RDS Multi-AZ, Cloud SQL HA, Azure zone-redundant HA) f
 
 !!! tip "Na entrevista"
 
-    Quando desenhar um primário e uma réplica, diga o que acontece quando o primário morre: **RPO** (o que se perde: assíncrona = os últimos commits, síncrona = nada), **RTO** (quanto tempo as escritas ficam fora: detecção + promoção + reconexão dos clientes), **split brain** (quem decide o líder e como o antigo é isolado) e **como os clientes encontram o novo primário** (DNS, VIP, proxy, driver). "Colocamos uma réplica para ter alta disponibilidade" fica incompleto sem esses quatro.
+    Quando desenhar um primário e uma réplica, diga o que acontece quando o primário morre: **RPO** (o que se perde: assíncrona = os últimos commits, síncrona = nada), **RTO** (quanto tempo as escritas ficam fora: detecção + promoção + reconexão dos clientes), **split brain** (quem decide o líder e como o antigo é isolado) e **como os clientes encontram o novo primário** (DNS, um IP virtual (VIP, *virtual IP*), proxy, driver). "Colocamos uma réplica para ter alta disponibilidade" fica incompleto sem esses quatro.
 
 Volte à [visão geral do lab](../index.md#measure-it) para registrar os resultados.

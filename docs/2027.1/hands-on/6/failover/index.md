@@ -21,6 +21,12 @@ sequenceDiagram
 
 Every command runs from the root of your `boxoffice/` repository, with the stack of [step 2](../replicas/index.md#3-compose) running.
 
+<div class="csim" data-sim="boxoffice-db" data-script="crash"></div>
+
+!!! tip "Try it"
+
+    The whole step in the browser: here the simulator opens on the crash (sections 3 and 4). The simulator starts from the stack of step 2: `db` primary, `db-replica` streaming asynchronously, every seat on sale; play or → runs the lab's commands, and the buttons work at any time. In **Replica**, with `REPLICA_DELAY=1s`, Ana's hold answers `201` but the seat map read right after still shows seat 1 AVAILABLE; 1 s later it is HELD. In **Synchronous**, `remote_apply` makes the hold take 1.03 s and the read fresh; with `db-replica` stopped, the hold on seat 10 gets 504 after 5 s, and seat 10 is HELD anyway. In **Crash**, the probes give 200 for the seat map and 504 for the rest; after `pg_promote()` and the moved name, 15 s later every path answers, and Ana's hold is 404. In **Split brain**, two primaries disagree about seat 20, `pg_rewind` discards Ana's hold, and the switchback ends on timeline 3. In **free** mode, try what the lab warns about: `start` instead of `up --no-deps`, or `pg_rewind` without `wal_log_hints`.
+
 ## 1. Prepare the cluster { #prepare }
 
 Two small changes to the scripts of step 2. The primary turns on `wal_log_hints`, which `pg_rewind` needs in section 6:
@@ -68,7 +74,7 @@ export TOKEN=$(curl -s -X POST localhost/auth/login -H 'Content-Type: applicatio
 
 ## 2. Synchronous replication { #synchronous }
 
-So far the primary answers `COMMIT` as soon as the WAL is on **its own** disk: if it dies a moment later, the replica may never receive that transaction. `synchronous_standby_names` makes the primary wait for a standby before it answers:
+So far the primary answers `COMMIT` as soon as the write-ahead log (WAL) is on **its own** disk: if it dies a moment later, the replica may never receive that transaction. `synchronous_standby_names` makes the primary wait for a standby before it answers:
 
 ``` { .bash .copy }
 docker compose exec -T db psql -U boxoffice <<'SQL'
@@ -85,9 +91,27 @@ SQL
 
 | `synchronous_commit` | `COMMIT` returns when the WAL is… | A crash of the primary loses | Stale reads on the replica |
 |---|---|---|---|
-| `local` | on the primary's disk | the last transactions | yes |
-| **`on`** (default) | on the primary's **and the standby's** disk | nothing | **yes**: on disk is not replayed yet |
-| `remote_apply` | **replayed** on the standby | nothing | **no** |
+| `local` | on the primary's disk | ⚠️ the last transactions | ⚠️ yes |
+| **`on`** (default) | on the primary's **and the standby's** disk | ✅ nothing | ⚠️ **yes**: on disk is not replayed yet |
+| `remote_apply` | **replayed** on the standby | ✅ nothing | ✅ **no** |
+
+``` diagram-sim
+sequenceDiagram
+    participant I as inventory
+    participant P as db (primary)
+    participant R as db-replica
+    I->>P: COMMIT (the hold)
+    P->>P: write the WAL to the primary's disk
+    Note over I,P: local returns here
+    P->>R: stream the WAL
+    R->>R: write the WAL to the replica's disk
+    R-->>P: flushed
+    Note over P,R: on (the default) returns here
+    R->>R: replay it, after REPLICA_DELAY
+    R-->>P: replayed
+    Note over P,R: remote_apply returns here
+    P-->>I: COMMIT ok
+```
 
 Measure the last two columns with the read-your-writes test of step 2, with the artificial lag of 1 second:
 
@@ -189,7 +213,7 @@ You should see:
 504 5.01s  event 1 (catalog)
 ```
 
-The replica keeps the seat maps alive: a read replica is also a little **availability**. Everything that writes, and everything that reads from the primary, waits until the gateway gives up. (A catalog entry still in Redis would answer `200` until its TTL expires: the cache of lab 5 is another layer that hides a database outage, for a while.)
+The replica keeps the seat maps alive: a read replica is also a little **availability**. Everything that writes, and everything that reads from the primary, waits until the gateway gives up. (A catalog entry still in Redis would answer `200` until its time to live (TTL) expires: the cache of lab 5 is another layer that hides a database outage, for a while.)
 
 ## 4. Fail over { #failover }
 
@@ -199,7 +223,7 @@ A failover is two decisions: **which** node becomes the primary, and **how the c
 docker compose exec db-replica psql -U boxoffice -c "SELECT pg_promote()" -c "SELECT pg_is_in_recovery()"
 ```
 
-`pg_is_in_recovery` = `f`: `db-replica` now accepts writes, on a new **timeline** (its history forks from the old primary's here). But every service still connects to the name `db`: PgBouncer, `auth`, the three `catalog`s, `inventory`'s migrations. Instead of reconfiguring all of them, **move the name**. Docker's DNS answers `db` with the address of whatever container holds that alias on the network:
+`pg_is_in_recovery` = `f`: `db-replica` now accepts writes, on a new **timeline** (its history forks from the old primary's here). But every service still connects to the name `db`: PgBouncer, `auth`, the three `catalog`s, `inventory`'s migrations. Instead of reconfiguring all of them, **move the name**. Docker's Domain Name System (DNS) server answers `db` with the address of whatever container holds that alias on the network:
 
 ``` { .bash .copy }
 docker network disconnect boxoffice_default boxoffice-db-replica-1
@@ -222,7 +246,7 @@ probe "login" -X POST localhost/auth/login -H 'Content-Type: application/json' \
 probe "event 1" localhost/catalog/events/1
 ```
 
-In a run for this lab, the first round right after the move still had `504`s; 15 seconds later everything answered `200`/`201`. The pools drop their broken connections and open new ones, and each process resolves `db` again (the JVM caches a name for 30 s, PgBouncer for up to 15 s). No file changed, no service restarted.
+In a run for this lab, the first round right after the move still had `504`s; 15 seconds later everything answered `200`/`201`. The pools drop their broken connections and open new ones, and each process resolves `db` again (the Java virtual machine, JVM, caches a name for 30 s, PgBouncer for up to 15 s). No file changed, no service restarted.
 
 Now look for Ana's hold:
 
@@ -268,6 +292,21 @@ db-replica: primary=t, seat 20=AVAILABLE
 
 Two primaries, one name, two answers about seat 20. Each new connection to `db` lands on either one: PgBouncer could put Ana's next hold on one server and the audit on the other, and both would answer happily. Nothing here can tell which one is right. That is a **split brain**.
 
+``` diagram-sim
+sequenceDiagram
+    participant I as inventory via PgBouncer
+    participant N as Docker DNS
+    participant P1 as db (old primary, timeline 1)
+    participant P2 as db-replica (primary, timeline 2)
+    I->>N: who is db?
+    N-->>I: 172.23.0.8 and 172.23.0.3
+    I->>P1: connection 1: Ana's next hold
+    P1-->>I: 201, seat 20 is HELD here
+    I->>P2: connection 2: the audit
+    P2-->>I: seat 20 is AVAILABLE here
+    Note over P1,P2: both accept writes: two histories that nothing can merge
+```
+
 **Fence** the old primary before anything writes to it:
 
 ``` { .bash .copy }
@@ -276,9 +315,29 @@ docker compose stop db
 
 In production, a human doing this by hand at 10:01 is too slow and too risky. A failover manager such as Patroni keeps a **leader key** in etcd, renewed every few seconds: a primary that cannot renew it demotes itself, and a node can only promote if it holds the key. That is consensus deciding who the leader is ([Consensus & quorums](../../../classes/distributed/consensus/index.md)), and fencing making sure the loser stops (in the extreme, STONITH: "shoot the other node in the head").
 
+<div class="csim" data-sim="boxoffice-db" data-script="split-brain"></div>
+
+!!! tip "Try it"
+
+    Here the simulator opens where section 4 ends, to replay sections 5 to 7. The simulator starts from the stack of step 2: `db` primary, `db-replica` streaming asynchronously, every seat on sale; play or → runs the lab's commands, and the buttons work at any time. In **Replica**, with `REPLICA_DELAY=1s`, Ana's hold answers `201` but the seat map read right after still shows seat 1 AVAILABLE; 1 s later it is HELD. In **Synchronous**, `remote_apply` makes the hold take 1.03 s and the read fresh; with `db-replica` stopped, the hold on seat 10 gets 504 after 5 s, and seat 10 is HELD anyway. In **Crash**, the probes give 200 for the seat map and 504 for the rest; after `pg_promote()` and the moved name, 15 s later every path answers, and Ana's hold is 404. In **Split brain**, two primaries disagree about seat 20, `pg_rewind` discards Ana's hold, and the switchback ends on timeline 3. In **free** mode, try what the lab warns about: `start` instead of `up --no-deps`, or `pg_rewind` without `wal_log_hints`.
+
 ## 6. Rejoin the old primary with `pg_rewind` { #rejoin }
 
 The old primary's data directory has a history the new primary never had: Ana's lost hold, then the seat 20 write of the split brain. It cannot simply follow the new primary. `pg_rewind` finds where the two timelines forked, copies back from the new primary every block that changed since then, and throws away what only the old one had:
+
+``` diagram-sim
+flowchart LR
+    c["common history<br/>timeline 1"]
+    ana["Ana's hold, seats 20 and 21<br/>only on the old db"]:::problem
+    tl2["pg_promote() on db-replica<br/>timeline 2, the hold on seat 40"]:::comp
+    rw["pg_rewind: copy back the changed blocks,<br/>cut db at the fork"]
+    f["db follows timeline 2<br/>as a standby"]:::comp
+    c -->|"db kept writing"| ana
+    c -->|"failover"| tl2
+    ana -.->|"discarded"| rw
+    rw --> f
+    tl2 -->|"WAL"| f
+```
 
 ``` { .bash title="infra/postgres/rejoin-as-replica.sh" .copy linenums="1" }
 --8<-- "docs/2027.1/hands-on/6/code/infra/postgres/rejoin-as-replica.sh"
@@ -368,7 +427,7 @@ Every probe answers `200` or `201`, and the audit says `{"doubleBookedSeats":0}`
 
 | Step | By hand in this lab | In production |
 |---|---|---|
-| Detect the failure | you killed it | health checks with a timeout (Patroni, RDS): too short fails over on a GC pause, too long means minutes without writes |
+| Detect the failure | you killed it | health checks with a timeout (Patroni, RDS): too short fails over on a garbage-collection (GC) pause, too long means minutes without writes |
 | Choose the new primary | the only replica | the most up-to-date standby, chosen by consensus (leader key in etcd) |
 | Promote | `pg_promote()` | the failover manager |
 | Move the clients | a Docker network alias | DNS (RDS endpoint), a virtual IP, a proxy (HAProxy, PgBouncer reconfigured), or multi-host connection strings (`targetServerType=primary`) |
@@ -376,7 +435,7 @@ Every probe answers `200` or `201`, and the audit says `{"doubleBookedSeats":0}`
 | Rejoin it | `pg_rewind` + `standby.signal` | the failover manager runs `pg_rewind` |
 | Decide what may be lost | asynchronous: the last hold | `synchronous_standby_names = 'ANY 1 (…)'` with two standbys: RPO 0 without one replica stopping writes |
 
-Managed services (RDS Multi-AZ, Cloud SQL HA, Azure zone-redundant HA) run all of this for you, typically in tens of seconds to a couple of minutes. Your design still has to decide what the application does meanwhile: retry with backoff, show "try again", hold the request in a queue (lab 7). See [Replication — failover](../../../classes/databases/replication/index.md#failover-when-the-leader-dies) for the theory.
+Managed services (RDS Multi-AZ, Cloud SQL high availability, Azure zone-redundant high availability) run all of this for you, typically in tens of seconds to a couple of minutes. Your design still has to decide what the application does meanwhile: retry with backoff, show "try again", hold the request in a queue (lab 7). See [Replication — failover](../../../classes/databases/replication/index.md#failover-when-the-leader-dies) for the theory.
 
 ??? question "Think first: Ana got `201`, the hold was lost, and the seats were sold to someone else. Whose problem is it, and what could have prevented it?"
 
@@ -384,6 +443,6 @@ Managed services (RDS Multi-AZ, Cloud SQL HA, Azure zone-redundant HA) run all o
 
 !!! tip "In the interview"
 
-    When you draw a primary and a replica, say what happens when the primary dies: **RPO** (what is lost: asynchronous = the last commits, synchronous = nothing), **RTO** (how long writes are down: detection + promotion + clients reconnecting), **split brain** (who decides the leader, and how the old one is fenced), and **how clients find the new primary** (DNS, VIP, proxy, driver). "We add a replica for high availability" is incomplete without those four.
+    When you draw a primary and a replica, say what happens when the primary dies: **RPO** (what is lost: asynchronous = the last commits, synchronous = nothing), **RTO** (how long writes are down: detection + promotion + clients reconnecting), **split brain** (who decides the leader, and how the old one is fenced), and **how clients find the new primary** (DNS, a virtual IP (VIP), proxy, driver). "We add a replica for high availability" is incomplete without those four.
 
 Back to the [lab overview](../index.md#measure-it) to record the results.

@@ -135,9 +135,9 @@ The catch: choose the count well. Too few partitions limits how far you can scal
 
 | Strategy | Key → partition | Range queries | Adding a node | Used by |
 |---|---|---|---|---|
-| Key range | sorted boundaries, split when large | efficient | split and move ranges | Bigtable, HBase, CockroachDB, TiDB, MongoDB (ranged) |
-| Hash mod N | `hash(k) mod N` | scatter to all | **moves almost everything** | nothing serious — avoid |
-| Consistent hashing | first node clockwise on a ring | scatter to all | ~1/N of keys move | Dynamo, Cassandra, Riak, Memcached clients |
+| Key range | sorted boundaries, split when large | ✅ efficient | split and move ranges | Bigtable, HBase, CockroachDB, TiDB, MongoDB (ranged) |
+| Hash mod N | `hash(k) mod N` | scatter to all | ❌ **moves almost everything** | nothing serious — avoid |
+| Consistent hashing | first node clockwise on a ring | scatter to all | ✅ ~1/N of keys move | Dynamo, Cassandra, Riak, Memcached clients |
 | Fixed partitions | `hash(k) mod P`, P fixed and large | scatter to all | move whole partitions | Redis Cluster, Elasticsearch, Kafka, Couchbase |
 | Directory | lookup table key → shard | depends | update the table | custom sharding, Vitess (vindexes) |
 
@@ -153,11 +153,11 @@ The partition key is the most consequential and the least reversible decision of
 
 | BoxOffice data | Candidate key | Locality | Distribution | Verdict |
 |---|---|---|---|---|
-| `orders`, `tickets` | `customer_id` | "my orders" and checkout touch one shard | millions of customers, even | **good**; event-level reports scatter → run them in the [warehouse](../specialized/index.md#data-warehouses) |
-| `orders` | `created_at` | time ranges are local | all of today's writes on one shard | bad (sequential key) |
-| `seats` (inventory) | `event_id` | a hold transaction stays in one shard | **one stadium show = one hot shard** | good locality, dangerous skew — see below |
-| `seats` | `(event_id, section)` | a hold of seats in one section stays local | the stadium show spreads over ~40 sections | **better** for big events |
-| `gate_scans` | `(event_id, gate)` | the gate's recent scans are local | 50 gates spread the load | good |
+| `orders`, `tickets` | `customer_id` | "my orders" and checkout touch one shard | millions of customers, even | ✅ **good**; event-level reports scatter → run them in the [warehouse](../specialized/index.md#data-warehouses) |
+| `orders` | `created_at` | time ranges are local | all of today's writes on one shard | ❌ bad (sequential key) |
+| `seats` (inventory) | `event_id` | a hold transaction stays in one shard | **one stadium show = one hot shard** | ⚠️ good locality, dangerous skew — see below |
+| `seats` | `(event_id, section)` | a hold of seats in one section stays local | the stadium show spreads over ~40 sections | ✅ **better** for big events |
+| `gate_scans` | `(event_id, gate)` | the gate's recent scans are local | 50 gates spread the load | ✅ good |
 
 ??? question "Think first: why not partition `seats` by `seat_id` alone?"
 
@@ -177,7 +177,7 @@ Mitigations, from the least to the most invasive:
 
 | Technique | How | Cost |
 |---|---|---|
-| **Cache the reads** | the hot event page is served from the cache or CDN, not the shard ([Caching](../../caching/index.md)) | staleness |
+| **Cache the reads** | the hot event page is served from the cache or a content delivery network (CDN), not the shard ([Caching](../../caching/index.md)) | staleness |
 | **Throttle and queue the writes** | a waiting room admits fans at the rate the shard can serve ([flash-sale scenario](../transactions/index.md#contention)) | users wait |
 | **Finer key** | `(event_id, section)` instead of `event_id` | queries over the whole event scatter over ~40 partitions |
 | **Key salting / write sharding** | append a suffix `0–9` to a hot key (`event:42#7`); writes pick a random suffix, reads merge all ten | reads do 10× the work |
@@ -292,7 +292,7 @@ sequenceDiagram
 | | Single-node SQL + replicas | Sharded SQL (Citus, Vitess) | Distributed SQL (Spanner, CockroachDB…) | NoSQL (Cassandra, DynamoDB) |
 |---|---|---|---|---|
 | Write scaling | one primary | per shard | automatic, per range | automatic, per partition |
-| Cross-partition transactions | n/a (one node) | limited / 2PC | **yes**, serializable | limited or none |
+| Cross-partition transactions | n/a (one node) | limited / two-phase commit (2PC) | **yes**, serializable | limited or none |
 | Write latency | lowest | low | + consensus round trip (more if multi-region) | low, tunable |
 | SQL and joins | full | most, with caveats | most | none / limited |
 | Operations | simple | sharding layer to run | managed or complex | managed or complex |

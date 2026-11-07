@@ -31,9 +31,28 @@ O isolamento padrão do PostgreSQL, **READ COMMITTED**, não impede esse *lost u
 | **Update condicional** | `UPDATE … WHERE id IN (…) AND status = 'AVAILABLE'` e confere a contagem de linhas | 409 na hora | um único comando consegue expressar a verificação (uma variante da otimista) |
 | Isolamento serializável | `SET TRANSACTION ISOLATION LEVEL SERIALIZABLE` | o banco aborta uma transação (`40001`), a aplicação tenta de novo | invariantes complexos sobre muitas linhas |
 
+A correção pessimista repete a mesma corrida com `FOR UPDATE`: agora a segunda transação espera na leitura, não na escrita, e decide sobre a linha como a primeira a deixou.
+
+``` diagram-sim
+sequenceDiagram
+    autonumber
+    participant A as Fã A (tx 1)
+    participant DB as PostgreSQL
+    participant B as Fã B (tx 2)
+    A->>DB: SELECT … WHERE id IN (7,8) ORDER BY id FOR UPDATE
+    DB-->>A: AVAILABLE, AVAILABLE (linhas 7 e 8 travadas)
+    B->>DB: SELECT … WHERE id IN (7,8) ORDER BY id FOR UPDATE
+    Note over DB,B: B espera os locks de linha de A
+    A->>DB: UPDATE seats SET status='HELD', hold_id=A …
+    A->>DB: COMMIT
+    DB-->>B: as linhas travadas, relidas: HELD, HELD
+    B->>DB: ROLLBACK (requireAvailable lança)
+    Note over A,B: A recebe 201, B recebe 409: um assento, uma reserva
+```
+
 ## 2. O serviço `inventory` { #2-the-inventory-service }
 
-Crie `services/inventory` (porta **8083**, schema `inventory`, mesmo padrão de `Dockerfile` com `EXPOSE 8083`). Ele usa o **JdbcClient** com SQL puro em vez de JPA: todo lock e todo `WHERE` ficam visíveis no código, que é o propósito deste lab.
+Crie `services/inventory` (porta **8083**, schema `inventory`, mesmo padrão de `Dockerfile` com `EXPOSE 8083`). Ele usa o **JdbcClient** com SQL puro em vez de Jakarta Persistence (JPA): todo lock e todo `WHERE` ficam visíveis no código, que é o propósito deste lab.
 
 ??? example "`services/inventory/Dockerfile` e `.dockerignore` (iguais aos do `catalog`, só muda o `EXPOSE 8083`)"
 
@@ -111,7 +130,7 @@ Leia estratégia por estratégia:
 - **pessimistic**: `read(…, "ORDER BY id FOR UPDATE")`. A segunda transação bloqueia nos locks de linha; quando a primeira faz commit, o PostgreSQL relê as linhas travadas, a segunda vê `HELD` e o `requireAvailable` lança `409`. **Travar numa ordem fixa** (`ORDER BY id`) importa: o fã A reservando os assentos 7→8 e o fã B reservando 8→7 em ordem oposta entrariam em deadlock.
 - **optimistic**: sem locks; o `UPDATE` só tem sucesso se o `version` ainda for o que lemos. Se outra transação alterou o assento nesse meio-tempo, 0 linhas mudam, lançamos uma exceção e o `@Transactional` desfaz tudo (inclusive os assentos já atualizados no laço).
 - Toda reserva também confere se **todos** os assentos pertencem ao evento (`400` caso contrário) e limita uma reserva a **6 assentos**.
-- `find`, `confirm` e `release` filtram por `user_id`: um fã não consegue ver nem cancelar a reserva de outra pessoa (isso seria um *IDOR*, insecure direct object reference — OWASP API #1).
+- `find`, `confirm` e `release` filtram por `user_id`: um fã não consegue ver nem cancelar a reserva de outra pessoa (isso seria um *IDOR*, insecure direct object reference — o número 1 do API Security Top 10 da OWASP, *Open Worldwide Application Security Project*).
 - `expireHolds` roda a cada 5 s em cada réplica; `FOR UPDATE SKIP LOCKED` deixa várias réplicas dividirem o trabalho sem bloquear umas às outras nem processar uma reserva duas vezes — o mesmo truque usado por filas de jobs construídas sobre o PostgreSQL.
 
 As consultas somente leitura ficam numa classe separada, porque vão para a réplica (passo 2):
@@ -238,6 +257,6 @@ Esses números vêm de uma execução num notebook ocupado — os seus vão dife
 
 !!! tip "Na entrevista"
 
-    Para "projete o Ticketmaster", diga explicitamente: *"o inventário de assentos é o único lugar que precisa de consistência forte; vou usar um banco relacional com lock por linha (ou updates condicionais) para as reservas, com um TTL em cada reserva, e todo o resto — catálogo, busca, mapas de assentos — pode ser eventualmente consistente e ficar em cache."* Depois mencione o problema da linha quente: milhares de fãs nos mesmos 100 assentos se serializam nos locks, então coloque-os numa fila *antes* do banco.
+    Para "projete o Ticketmaster", diga explicitamente: *"o inventário de assentos é o único lugar que precisa de consistência forte; vou usar um banco relacional com lock por linha (ou updates condicionais) para as reservas, com um tempo de vida (TTL, *time to live*) em cada reserva, e todo o resto — catálogo, busca, mapas de assentos — pode ser eventualmente consistente e ficar em cache."* Depois mencione o problema da linha quente: milhares de fãs nos mesmos 100 assentos se serializam nos locks, então coloque-os numa fila *antes* do banco.
 
 Próximo: [2. Réplica e pool de conexões](../replicas/index.md).

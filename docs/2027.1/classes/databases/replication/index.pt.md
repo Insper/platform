@@ -54,10 +54,10 @@ sequenceDiagram
 
 | Modo | O líder responde "confirmado" depois de… | Durabilidade se o líder for perdido | Latência de escrita | Risco de disponibilidade |
 |---|---|---|---|---|
-| **Assíncrona** | gravar no próprio disco | as últimas escritas ainda não enviadas são **perdidas** | a menor | nenhum vindo das réplicas |
-| **Síncrona** (todas as réplicas) | todas as réplicas confirmarem | nenhuma perda | a maior: a réplica mais lenta decide | qualquer réplica fora do ar bloqueia as escritas |
-| **Semissíncrona** / um standby síncrono | uma réplica confirmar, as outras assíncronas | nenhuma perda se esse standby sobreviver | + uma ida e volta na rede | se o standby síncrono morrer, outro precisa assumir o papel |
-| **Armazenamento com quorum** (Aurora: 4 de 6 cópias em 3 zonas)[^4] | um quorum de escrita dos nós de armazenamento confirmar | sobrevive à perda de uma zona | + ida e volta até o quorum | tolera nós lentos |
+| **Assíncrona** | gravar no próprio disco | ❌ as últimas escritas ainda não enviadas são **perdidas** | a menor | nenhum vindo das réplicas |
+| **Síncrona** (todas as réplicas) | todas as réplicas confirmarem | ✅ nenhuma perda | a maior: a réplica mais lenta decide | qualquer réplica fora do ar bloqueia as escritas |
+| **Semissíncrona** / um standby síncrono | uma réplica confirmar, as outras assíncronas | ✅ nenhuma perda se esse standby sobreviver | + uma ida e volta na rede | se o standby síncrono morrer, outro precisa assumir o papel |
+| **Armazenamento com quorum** (Aurora: 4 de 6 cópias em 3 zonas)[^4] | um quorum de escrita dos nós de armazenamento confirmar | ✅ sobrevive à perda de uma zona | + ida e volta até o quorum | tolera nós lentos |
 
 No PostgreSQL, isso são as configurações `synchronous_commit` e `synchronous_standby_names`[^5]; `ANY 1 (s1, s2)` significa "espere qualquer um dos dois standbys" — um quorum que tolera um standby lento. Dentro de uma região, uma ida e volta síncrona custa cerca de um milissegundo; entre continentes custa de dezenas a centenas de milissegundos e é por isso que réplicas entre regiões são quase sempre assíncronas.
 
@@ -72,6 +72,8 @@ Uma réplica assíncrona fica atrás do líder pelo **atraso de replicação** (
 | **Ler a própria escrita falha** | paga, abre *Meus ingressos*, não vê nada | consistência **read-your-writes** (ler as próprias escritas, *read-after-write*) |
 | **O tempo anda para trás** | atualiza a página: o ingresso aparece; atualiza de novo: sumiu (a segunda leitura caiu numa réplica mais atrasada) | **leituras monotônicas** (*monotonic reads*) |
 | **Efeito antes da causa** | vê a resposta "estorno aprovado" antes do pedido de estorno numa conversa | **leituras de prefixo consistente** (*consistent prefix reads*) |
+
+Leituras de prefixo consistente vêm de mandar escritas causalmente relacionadas (uma pergunta e sua resposta) pelo mesmo líder ou partição, para que toda réplica as aplique na ordem em que aconteceram.
 
 ``` diagram-sim
 sequenceDiagram
@@ -139,7 +141,7 @@ Num dia tranquilo o bug é invisível; durante a abertura das vendas — justame
 |---|---|---|
 | **Ler do líder depois de uma escrita** | por N segundos depois que um usuário escreve, direcione as leituras *daquele usuário* para o primário (um timestamp na sessão ou num cookie) | simples; o primário recebe algumas leituras extras |
 | **Ler do líder os dados do próprio usuário** | "meus pedidos", "meus ingressos" sempre no primário; catálogo nas réplicas | regra simples; não escala se a maioria das leituras for "minha" |
-| **Esperar a réplica alcançar** | a escrita devolve sua posição no log (LSN no PostgreSQL, GTID no MySQL); a próxima leitura só vai para uma réplica depois que ela reaplicou essa posição (`pg_last_wal_replay_lsn()`) | preciso; exige encanamento na camada de acesso a dados |
+| **Esperar a réplica alcançar** | a escrita devolve sua posição no log (o número de sequência do log (LSN, *log sequence number*) no PostgreSQL, o identificador global de transação (GTID, *global transaction identifier*) no MySQL); a próxima leitura só vai para uma réplica depois que ela reaplicou essa posição (`pg_last_wal_replay_lsn()`) | preciso; exige encanamento na camada de acesso a dados |
 | **Réplica fixa por usuário** | faça hash do usuário para uma réplica | garante **leituras monotônicas**, não read-your-writes |
 | **Réplica síncrona para leituras** | leia de um standby síncrono | sem atraso, mas as escritas pagam a latência |
 
@@ -161,6 +163,10 @@ Monitore o atraso como métrica de primeira classe — `pg_stat_replication.repl
 **Experimente.** No cenário `db-replicas`, um primário recebe as escritas e as réplicas atendem as leituras. Adicione réplicas e veja a vazão de leitura subir enquanto a carga do primário fica estável; depois aumente a taxa de escrita e veja o atraso de replicação crescer — e, com ele, a fração de leituras desatualizadas.
 
 <div class="sdp" data-scenario="db-replicas" data-mode="compact" data-height="520"></div>
+
+A versão do lab 6, `boxoffice-read-your-writes`, junta os dois bugs desta página numa execução: o `inventory` relê as reservas dos fãs de uma réplica 1 s atrasada e em t = 90 s o primário morre. Como desenhado, cerca de 20% das leituras vêm desatualizadas e cerca de 105 reservas se perdem (100 escritas/s × 1 s de atraso). Ponha *Leituras de* = `primary` (ler as próprias escritas), depois a replicação em `sync`: as duas caem a 0 e o p99 de escrita sobe de cerca de 35 ms para cerca de 1 s.
+
+<div class="sdp" data-scenario="boxoffice-read-your-writes" data-mode="compact" data-height="440"></div>
 
 ---
 
@@ -203,12 +209,12 @@ sequenceDiagram
 
 Cada passo esconde um problema difícil:
 
-- A **detecção** usa timeouts. Curto demais: uma pausa de GC ou um soluço de rede dispara um failover desnecessário. Longo demais: minutos sem escritas.
+- A **detecção** usa timeouts. Curto demais: uma pausa de coleta de lixo (GC, *garbage collection*) ou um soluço de rede dispara um failover desnecessário. Longo demais: minutos sem escritas.
 - **Escritas perdidas.** Com replicação assíncrona, as escritas confirmadas pelo líder antigo mas ainda não enviadas desaparecem. Se eram reservas de assentos, o novo primário pode vender os mesmos assentos de novo.
 - **Split brain.** Se o líder antigo estava apenas *particionado* e não morto, dois nós podem aceitar escritas. Os sistemas evitam isso com consenso sobre quem é o líder (o Patroni guarda a chave do líder no etcd; veja [Consenso](../../distributed/consensus/index.md)) e com **fencing**: o líder antigo é isolado (STONITH, "shoot the other node in the head") ou suas escritas são rejeitadas por fencing tokens.
-- **Os clientes precisam acompanhar.** Por DNS, IP virtual, proxy ou um driver que conhece a topologia.
+- **Os clientes precisam acompanhar.** Pelo sistema de nomes de domínio (DNS, *Domain Name System*), IP virtual, proxy ou um driver que conhece a topologia.
 
-Os serviços gerenciados empacotam tudo isso — Amazon RDS Multi-AZ com standby síncrono, Aurora com armazenamento em quorum, alta disponibilidade do Cloud SQL, HA com redundância de zona no Azure — com failovers que costumam levar de dezenas de segundos a alguns minutos; a pergunta de design para você é o que a aplicação faz enquanto isso (novas tentativas com backoff, veja [Confiabilidade](../../reliability/patterns/index.md)).
+Os serviços gerenciados empacotam tudo isso — Amazon RDS Multi-AZ com standby síncrono, Aurora com armazenamento em quorum, alta disponibilidade do Cloud SQL, alta disponibilidade com redundância de zona no Azure — com failovers que costumam levar de dezenas de segundos a alguns minutos; a pergunta de design para você é o que a aplicação faz enquanto isso (novas tentativas com backoff, veja [Confiabilidade](../../reliability/patterns/index.md)).
 
 !!! example "No código do BoxOffice: um failover à mão e o antigo primário voltando (lab 6)"
 
@@ -218,7 +224,7 @@ Os serviços gerenciados empacotam tudo isso — Amazon RDS Multi-AZ com standby
     --8<-- "docs/2027.1/hands-on/6/code/infra/postgres/rejoin-as-replica.sh:12:20"
     ```
 
-**Experimente.** O cenário `db-failover` é um checkout de venda relâmpago num cluster com um primário e um seguidor **assíncrono**: 1.500 req/s, metade escritas. Em t = 90 s o primário morre. Execute-o e leia o relatório: com a semente padrão cerca de **1.600 escritas se perdem** (confirmadas pelo primário antigo, nunca enviadas ao seguidor) e a disponibilidade cai para cerca de **90,6%**, porque toda escrita falha durante os 30 s de failover. Selecione `orders-db` e mude *Replicação* para `sync`: as escritas perdidas caem para **0**, mas a disponibilidade não se mexe. Volte para `async` e ponha o *Tempo de failover* em 5 s: a disponibilidade sobe para cerca de **98%** e as escritas voltam a se perder. Os dois controles respondem a perguntas diferentes: o modo de replicação define quanto você perde (o RPO), a detecção e a promoção definem quanto tempo você fica fora (o RTO). A solução possível (abra no playground completo ↗) combina replicação por quórum com 2 seguidores, 2 shards e failover de 5 s: 0 escritas perdidas, cerca de 99,2% de disponibilidade.
+**Experimente.** O cenário `db-failover` é um checkout de venda relâmpago num cluster com um primário e um seguidor **assíncrono**: 1.500 req/s, metade escritas. Em t = 90 s o primário morre. Execute-o e leia o relatório: com a semente padrão cerca de **1.600 escritas se perdem** (confirmadas pelo primário antigo, nunca enviadas ao seguidor) e a disponibilidade cai para cerca de **90,6%**, porque toda escrita falha durante os 30 s de failover. Selecione `orders-db` e mude *Replicação* para `sync`: as escritas perdidas caem para **0**, mas a disponibilidade não se mexe. Volte para `async` e ponha o *Tempo de failover* em 5 s: a disponibilidade sobe para cerca de **98%** e as escritas voltam a se perder. Os dois controles respondem a perguntas diferentes: o modo de replicação define quanto você perde (o objetivo de ponto de recuperação, RPO, *recovery point objective*), a detecção e a promoção definem quanto tempo você fica fora (o objetivo de tempo de recuperação, RTO, *recovery time objective*). A solução possível (abra no playground completo ↗) combina replicação por quórum com 2 seguidores, 2 shards e failover de 5 s: 0 escritas perdidas, cerca de 99,2% de disponibilidade.
 
 <div class="sdp" data-scenario="db-failover" data-mode="compact" data-height="520"></div>
 
@@ -236,6 +242,22 @@ O preço são os **conflitos de escrita**: dois líderes aceitam escritas difere
 | **Merge** | merge específico da aplicação (união de tags, soma de contadores) | só funciona para dados mescláveis |
 | **CRDTs** | tipos de dados replicados livres de conflito, que se mesclam automaticamente (contadores, conjuntos, texto) | tipos de dados limitados; mais metadados |
 | **Evitar conflitos** | direcionar todas as escritas de um registro para um líder "de origem" | volta ao líder único, por registro |
+
+``` diagram-sim
+sequenceDiagram
+    participant A as Equipe em São Paulo
+    participant L1 as Líder, América do Sul
+    participant L2 as Líder, Europa
+    participant B as Equipe em Lisboa
+    A->>L1: portões abrem às 19:00 (relógio 10:00:01.200)
+    B->>L2: portões abrem às 20:00 (relógio 10:00:01.150)
+    L1-->>A: ok
+    L2-->>B: ok
+    L1->>L2: replica 19:00
+    L2->>L1: replica 20:00
+    Note over L1,L2: last write wins: os dois ficam com 19:00, o maior timestamp
+    Note over A,B: a edição das 20:00 sumiu e ninguém foi avisado
+```
 
 !!! example "BoxOffice: onde o multilíder cabe — e onde não pode entrar"
 
@@ -272,10 +294,10 @@ As escritas perdidas são reparadas por **read repair** (uma leitura que vê uma
 | | Líder único | Multilíder | Sem líder |
 |---|---|---|---|
 | Escritas aceitas por | um nó | vários líderes | quaisquer W de N réplicas |
-| Conflitos de escrita | nenhum (uma ordem) | sim — precisam ser resolvidos | sim — versões, LWW ou *siblings* |
-| Failover | necessário, delicado | outro líder continua | desnecessário |
+| Conflitos de escrita | ✅ nenhum (uma ordem) | ⚠️ sim — precisam ser resolvidos | ⚠️ sim — versões, LWW ou *siblings* |
+| Failover | ⚠️ necessário, delicado | ✅ outro líder continua | ✅ desnecessário |
 | Read-your-writes | por truques de roteamento | por líder | com R + W > N, quase sempre |
-| Bom para | a maior parte do OLTP: pedidos, inventário, usuários | escritas multirregião, clientes offline | alta disponibilidade de escrita, séries temporais, carrinhos |
+| Bom para | a maior parte do processamento transacional online (OLTP, *online transaction processing*): pedidos, inventário, usuários | escritas multirregião, clientes offline | alta disponibilidade de escrita, séries temporais, carrinhos |
 | Exemplos | PostgreSQL, MySQL, RDS, MongoDB | MySQL group replication (multi-primary), CouchDB, editores colaborativos | Cassandra, ScyllaDB, Riak, DynamoDB internamente |
 
 !!! example "BoxOffice: o plano de replicação"

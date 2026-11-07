@@ -75,6 +75,21 @@ Aggregate  (actual time=4.006..4.006 rows=1)
 Execution Time: 4.028 ms
 ```
 
+``` diagram
+flowchart TB
+    subgraph before["before V3: 36.8 ms"]
+        L1["Limit 20"] --> S1["Sort by starts_at, id"]:::problem
+        S1 --> H1["Hash Join"]
+        H1 --> E1["Parallel Seq Scan on events<br/>all 200,000 rows"]:::problem
+        H1 --> V1["Seq Scan on venues<br/>city = Recife: 5 rows"]
+    end
+    subgraph after["after V3: 0.62 ms"]
+        L2["Limit 20"] --> N2["Nested Loop"]
+        N2 --> E2["Index Scan on events_starts_at_idx<br/>189 entries, already in date order"]:::comp
+        N2 --> V2["Index Scan on venues_pkey<br/>one lookup per event"]:::comp
+    end
+```
+
 With `events_starts_at_idx`, PostgreSQL walks the events **already in date order** and stops as soon as it has 20 from Recife (it read 189 index entries instead of 200,000 rows): the page query drops from ~37 ms to well under 1 ms. The count still visits every event of the city, but through the smaller `(venue_id, starts_at)` index, without touching the table (*Index Only Scan*): ~14 ms → ~4 ms.
 
 !!! warning "Indexes are not free"
@@ -95,7 +110,7 @@ Compare with the no-cache numbers of lab 3. Then turn the cache back on and deci
 
 ??? question "Think first: the count query still reads 20,000 index entries per request. What would you do about it?"
 
-    Options, from cheapest: cache the count separately with a longer TTL (it changes slowly); return an estimate ("20,000+"); drop it and return only `hasNext` (a `Slice` instead of a `Page`); or maintain a counter per city updated on writes. Each trades exactness for cost — a product decision as much as a technical one.
+    Options, from cheapest: cache the count separately with a longer time to live (TTL; it changes slowly); return an estimate ("20,000+"); drop it and return only `hasNext` (a `Slice` instead of a `Page`); or maintain a counter per city updated on writes. Each trades exactness for cost — a product decision as much as a technical one.
 
 !!! tip "In the interview"
 

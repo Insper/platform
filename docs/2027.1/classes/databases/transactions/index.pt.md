@@ -201,7 +201,7 @@ WHERE event_id = 42 AND seat_id = 'A-12' AND version = 7;
 -- 0 rows → somebody changed the seat since you read it: reload and retry
 ```
 
-O JPA/Hibernate faz isso automaticamente com um campo `@Version` e lança `OptimisticLockException`. Brilha quando os conflitos são **raros** (editar a descrição de um evento) e não segura nenhum lock durante o tempo em que o usuário pensa. É uma escolha ruim para uma flash sale, em que milhares de fãs colidem nas mesmas poucas linhas e a maioria das tentativas falha e é refeita.
+A Jakarta Persistence (JPA) com o Hibernate faz isso automaticamente com um campo `@Version` e lança `OptimisticLockException`. Brilha quando os conflitos são **raros** (editar a descrição de um evento) e não segura nenhum lock durante o tempo em que o usuário pensa. É uma escolha ruim para uma flash sale, em que milhares de fãs colidem nas mesmas poucas linhas e a maioria das tentativas falha e é refeita.
 
 ### 4. Deixe uma constraint decidir { #4-let-a-constraint-decide }
 
@@ -228,11 +228,17 @@ ON CONFLICT (event_id, seat_id) DO UPDATE
 
 | Abordagem | Como os conflitos são resolvidos | Sob muita contenção | Idas e voltas | Melhor para |
 |---|---|---|---|---|
-| `UPDATE` condicional | o `WHERE` é reavaliado; o perdedor atualiza 0 linhas | bom: lock curto, sem novas tentativas | 1 | check-and-set de uma linha (reserva de assento) |
-| `SELECT … FOR UPDATE` | os perdedores esperam o lock | as esperas se acumulam; use `NOWAIT` / `SKIP LOCKED` | 2+ | lógica entre leitura e escrita; decisões sobre várias linhas |
-| Otimista (`version`) | o perdedor detecta a mudança e tenta de novo | muitas tentativas falhas e repetidas | 2 + novas tentativas | conflitos raros, usuário pensando por muito tempo |
-| Constraint de unicidade / upsert | o perdedor recebe uma violação de constraint ou 0 linhas | bom | 1 | invariantes do tipo "no máximo um"; última linha de defesa |
-| Serializable + nova tentativa | o banco aborta uma das transações | os abortos crescem com a contenção | n + novas tentativas | invariantes complexas sobre muitas linhas |
+| `UPDATE` condicional | o `WHERE` é reavaliado; o perdedor atualiza 0 linhas | ✅ bom: lock curto, sem novas tentativas | 1 | check-and-set de uma linha (reserva de assento) |
+| `SELECT … FOR UPDATE` | os perdedores esperam o lock | ⚠️ as esperas se acumulam; use `NOWAIT` / `SKIP LOCKED` | 2+ | lógica entre leitura e escrita; decisões sobre várias linhas |
+| Otimista (`version`) | o perdedor detecta a mudança e tenta de novo | ❌ muitas tentativas falhas e repetidas | 2 + novas tentativas | conflitos raros, usuário pensando por muito tempo |
+| Constraint de unicidade / upsert | o perdedor recebe uma violação de constraint ou 0 linhas | ✅ bom | 1 | invariantes do tipo "no máximo um"; última linha de defesa |
+| Serializable + nova tentativa | o banco aborta uma das transações | ⚠️ os abortos crescem com a contenção | n + novas tentativas | invariantes complexas sobre muitas linhas |
+
+<div class="csim" data-sim="seat-race" data-strategy="naive"></div>
+
+!!! tip "Experimente"
+
+    O simulador abre no bug: **ingênua**, intercalada. Aperte play: os dois `SELECT`s leem AVAILABLE, o `UPDATE` de Bob espera o lock de linha de Alice, roda depois do `COMMIT` dela e sobrescreve a reserva: os dois fãs ouvem 201 e held_by termina como Bob. Mude para **UPDATE condicional**: o `UPDATE` de Bob espera do mesmo jeito, depois informa `UPDATE 0` e ele recebe 409. Com **FOR UPDATE** Bob espera já na leitura e lê HELD; com **otimista**, o `UPDATE … AND version = 7` dele encontra a version 8 e casa 0 linhas; em **repeatable read** o código ingênuo falha com 40001 e precisa repetir. Por fim, escolha **Alice primeiro**: toda estratégia é segura quando as duas transações não se sobrepõem, e é por isso que um teste unitário nunca encontra o bug. Ou monte uma ordem você mesmo com os dois botões.
 
 !!! example "No código do BoxOffice: três estratégias atrás de uma chave (lab 6)"
 
@@ -348,9 +354,28 @@ As lições:
 
 A reserva vive no banco do `inventory`, o pedido no banco do `order` e o pagamento num provedor externo. Nenhuma transação ACID única abrange todos eles.
 
-- O **commit em duas fases** (*two-phase commit*, 2PC) coordena vários bancos: um coordenador pede a cada participante que se *prepare* (prometa fazer commit) e depois manda todos fazerem *commit*. É atômico, mas um participante que se preparou precisa esperar — segurando locks — até o coordenador responder; se o coordenador cair no momento errado, eles ficam bloqueados. É usado dentro de alguns bancos e com transações XA, raramente entre microsserviços e nunca com um provedor de pagamento externo.
+- O **commit em duas fases** (*two-phase commit*, 2PC) coordena vários bancos: um coordenador pede a cada participante que se *prepare* (prometa fazer commit) e depois manda todos fazerem *commit*. É atômico, mas um participante que se preparou precisa esperar — segurando locks — até o coordenador responder; se o coordenador cair no momento errado, eles ficam bloqueados. É usado dentro de alguns bancos e com transações XA (o padrão X/Open de transações distribuídas), raramente entre microsserviços e nunca com um provedor de pagamento externo.
 - **Sagas** dividem a transação de negócio em transações locais, cada uma com uma **compensação** (liberar a reserva, estornar o pagamento), coordenadas por eventos ou por um orquestrador. Combinadas com o **outbox transacional** (gravar o evento na mesma transação local que a mudança de estado), elas dão atomicidade *eventualmente*. Veja [Padrões de mensageria](../../messaging/patterns/index.md).
 - As chamadas ao provedor de pagamento levam uma **chave de idempotência**, para que uma nova tentativa nunca cobre duas vezes. Veja [Integrações](../../compute/integrations/index.md).
+
+``` diagram-sim
+sequenceDiagram
+    autonumber
+    participant O as order
+    participant I as inventory
+    participant Pay as payment
+    participant Prov as provedor
+    O->>I: reserva: UPDATE condicional, assento HELD por 10 min
+    I-->>O: COMMIT, cerca de 2 ms de lock
+    O->>O: INSERT do pedido PENDING + outbox OrderCreated, COMMIT
+    O->>Pay: OrderCreated (evento)
+    Pay->>Prov: cobrança, chave de idempotência = id do pedido
+    Note over Pay,Prov: nenhuma transação de banco aberta enquanto a rede responde
+    Prov-->>Pay: pago
+    Pay->>I: PaymentSucceeded (evento)
+    I->>I: confirmação condicional: HELD por este cliente, não expirada → SOLD, INSERT do ingresso, COMMIT
+    Note over O,Prov: em falha ou timeout, compensações liberam a reserva e cancelam o pedido
+```
 
 !!! example "BoxOffice: o checkout, transação por transação"
 

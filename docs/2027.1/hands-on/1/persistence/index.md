@@ -37,7 +37,7 @@ An entity is a Java class mapped to a table. These two have no public setters: `
 
 ## 2. Repositories
 
-Spring Data generates the implementation of these interfaces. The custom queries are written in JPQL (queries over entities, not tables):
+Spring Data generates the implementation of these interfaces. The custom queries are written in the Jakarta Persistence Query Language (JPQL: queries over entities, not tables):
 
 ``` { .java title="services/catalog/src/main/java/boxoffice/catalog/EventRepository.java" .copy linenums="1" }
 --8<-- "docs/2027.1/hands-on/1/code/services/catalog/src/main/java/boxoffice/catalog/EventRepository.java"
@@ -50,6 +50,23 @@ Spring Data generates the implementation of these interfaces. The custom queries
 !!! warning "The N+1 query problem"
 
     Without `join fetch`, listing 20 events runs **1** query for the events and then **20** more, one per venue, when `EventOut.of` touches `event.getVenue()`. With `join fetch e.venue`, it is a single SQL `JOIN`. N+1 is invisible with one user and devastating under load: 21 round trips instead of 1, each one holding a pooled connection.
+
+``` diagram-sim
+sequenceDiagram
+    participant S as CatalogService
+    participant H as Hibernate
+    participant DB as PostgreSQL
+    Note over S,DB: without join fetch
+    S->>H: findUpcomingInCity (page of 20)
+    H->>DB: SELECT … FROM events … LIMIT 20
+    DB-->>H: 20 events, venues not loaded
+    S->>H: EventOut.of touches event.getVenue()
+    H->>DB: SELECT … FROM venues WHERE id = ? (×20, one per event)
+    Note over S,DB: with join fetch e.venue
+    S->>H: findUpcomingInCity (page of 20)
+    H->>DB: SELECT … FROM events JOIN venues … LIMIT 20
+    DB-->>H: 20 events with their venues, 1 round trip
+```
 
 A `Page<Event>` result costs **two** queries: the page itself (`... ORDER BY starts_at LIMIT 20 OFFSET ?`) and a `count(*)` over every matching row, so the client can show "page 1 of 1,001". On 200,000 events without an index, both are full scans — the listing you will measure in lab 2, cache in lab 5 and index in lab 6.
 
@@ -69,7 +86,7 @@ Business rules that live here:
 
 ## 4. Migrations with Flyway
 
-The schema is code: versioned SQL files in `src/main/resources/db/migration`, applied **in order, once**, at startup. Flyway records what it ran in `catalog.flyway_schema_history`, so every environment — your laptop, CI, Kubernetes — converges to the same schema.
+The schema is code: versioned SQL files in `src/main/resources/db/migration`, applied **in order, once**, at startup. Flyway records what it ran in `catalog.flyway_schema_history`, so every environment — your laptop, continuous integration (CI), Kubernetes — converges to the same schema.
 
 === "V1__create_catalog.sql"
 
@@ -98,7 +115,7 @@ Rules of the game:
 
 | Property | Why |
 |---|---|
-| `${DB_HOST:localhost}` … | the connection comes from the environment variables of [lab 0](../../0/index.md#boxoffice-services-and-ports); the defaults work from your IDE |
+| `${DB_HOST:localhost}` … | the connection comes from the environment variables of [lab 0](../../0/index.md#boxoffice-services-and-ports); the defaults work from your integrated development environment (IDE) |
 | `hikari.maximum-pool-size: ${DB_POOL_SIZE:10}` | the pool size, configurable without rebuilding — you will change it in lab 2 |
 | `flyway.schemas: catalog` | Flyway creates the schema and keeps its history table there |
 | `open-in-view: false` | no lazy loading during JSON serialization: the transaction ends in the service |
@@ -115,7 +132,7 @@ Rules of the game:
 
 ## 6. Checkpoint: does it compile?
 
-If you have JDK 21 and Maven installed (lab 0), compile the service now, before Docker enters the picture:
+If you have the Java Development Kit (JDK) 21 and Maven installed (lab 0), compile the service now, before Docker enters the picture:
 
 ``` { .bash .copy }
 cd services/catalog

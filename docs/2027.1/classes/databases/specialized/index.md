@@ -54,6 +54,18 @@ A query intersects or unions postings lists, which is fast because they are sort
 
 The same analyzer runs on the query, so "SÃO PAULO" and "sao paulo" match the same terms. **Fuzzy matching** accepts terms within an edit distance (`tayler` → `taylor`, distance 1), and **edge n-grams** or completion suggesters index prefixes (`tay`, `tayl`, …) for autocomplete.
 
+``` diagram-sim
+flowchart LR
+    q["query: TAYLOR São Paulo"] --> an["analyzer<br/>tokenize, lowercase, strip accents"]
+    an --> t1["taylor → 42, 77"]
+    an --> t2["sao → 42, 51, 77"]
+    an --> t3["paulo → 42, 51, 77"]
+    t1 --> x["intersect the sorted postings<br/>→ 42, 77"]
+    t2 --> x
+    t3 --> x
+    x --> r["rank: BM25 + popularity"]:::comp
+```
+
 ### Ranking
 
 Matching documents are scored for **relevance**. The default in Elasticsearch, OpenSearch and Lucene is **BM25**[^2], which grows with how often a query term appears in a document (with diminishing returns), shrinks for terms common to every document (`show`, `ingresso`), and normalizes for document length. Products then blend it with business signals: popularity, date proximity, ticket availability.
@@ -160,7 +172,7 @@ def poster_upload_url(event_id: int) -> str:
     )
 ```
 
-Reads go through the **CDN** (see [DNS & CDN](../../edge/dns-cdn/index.md)) with long cache lifetimes and versioned keys (`hero.v3.webp`), so the bucket sees a tiny fraction of the traffic. **Lifecycle rules** move old objects to cheaper tiers (infrequent access, archive) and delete temporary ones automatically; **multipart upload** sends large files in parallel parts that can be retried individually.
+Reads go through the **content delivery network** (CDN; see [DNS & CDN](../../edge/dns-cdn/index.md)) with long cache lifetimes and versioned keys (`hero.v3.webp`), so the bucket sees a tiny fraction of the traffic. **Lifecycle rules** move old objects to cheaper tiers (infrequent access, archive) and delete temporary ones automatically; **multipart upload** sends large files in parallel parts that can be retried individually.
 
 === "AWS"
 
@@ -401,7 +413,7 @@ LIMIT 5;
 | Option | Good when | Watch out for |
 |---|---|---|
 | **pgvector** in the existing PostgreSQL | up to millions of vectors; you want filters, joins and transactions with the rest of the data | index build time and memory on the primary; tune `ef_search` |
-| Search engine kNN (Elasticsearch, OpenSearch) | you already run one; **hybrid search** (BM25 + vectors) in one query | memory per shard |
+| Search engine k-nearest-neighbour (kNN) search (Elasticsearch, OpenSearch) | you already run one; **hybrid search** (BM25 + vectors) in one query | memory per shard |
 | Dedicated vector DB (Qdrant, Weaviate, Milvus, Pinecone) | hundreds of millions of vectors, heavy filtering, multi-tenant | one more system to run and keep in sync |
 | Redis / Valkey vector search | small, hot sets with very low latency | memory cost |
 

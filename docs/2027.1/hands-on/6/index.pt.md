@@ -16,7 +16,7 @@ Este lab constrói o capítulo 6 da [história da disciplina](../../index.md#sto
 | | |
 |---|---|
 | **Tempo** | 5–6 horas (quatro partes: faça uma por encontro, se precisar) |
-| **Você precisa de** | as ferramentas do lab 0; Docker com **8 GB** (onze contêineres, seis JVMs); portas 80, 8080, 8083, 5432, **5433**, **6432** e 6379 livres |
+| **Você precisa de** | as ferramentas do lab 0; Docker com **8 GB** (onze contêineres, seis máquinas virtuais Java, JVMs, *Java virtual machines*); portas 80, 8080, 8083, 5432, **5433**, **6432** e 6379 livres |
 | **Diretório** | todo comando roda na raiz do seu repositório `boxoffice/` |
 
 ``` { .bash .copy }
@@ -63,6 +63,10 @@ Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** a
 **Experimente:** o cenário `db-replicas` tem um primário e réplicas de leitura, com leituras e escritas separadas. Rode-o e depois aumente a fração de escritas: o que acontece com o primário enquanto as réplicas ficam ociosas? Aumente o atraso de replicação e observe o indicador de "leituras desatualizadas". Anote com que tipo de tráfego as réplicas ajudam — e com qual elas não ajudam em nada.
 
 <div class="sdp" data-scenario="db-replicas" data-mode="compact" data-height="500"></div>
+
+Agora o par do próprio lab, `boxoffice-read-your-writes`: reservas no primário, "minhas reservas" relidas de uma réplica com `REPLICA_DELAY=1s` e o primário morrendo em t = 90 s. Antes de construir, preveja a fração de leituras desatualizadas e quantas reservas o failover perde; rode, depois experimente *Leituras de* = `primary` e replicação `sync` e anote o que cada correção custa. Os passos 2 e 4 medem o mesmo compromisso na stack real.
+
+<div class="sdp" data-scenario="boxoffice-read-your-writes" data-mode="compact" data-height="440"></div>
 
 Depois olhe a venda inteira em `flash-sale`: a sala de espera, o inventário em SQL, o pagamento. O lab 7 constrói a sala de espera; hoje você constrói a caixa do inventário.
 

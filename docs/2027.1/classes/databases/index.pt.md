@@ -15,7 +15,7 @@ Não havia nada "errado" com o PostgreSQL. O problema era que **dados diferentes
     - **Explicar** como funcionam os motores de armazenamento B-tree e LSM-tree e os índices e **prever** seu efeito no custo de leitura e de escrita.
     - **Diagnosticar** anomalias de isolamento (*lost update*, *write skew*, fantasmas) e **corrigir** um bug de venda duplicada com `SELECT … FOR UPDATE`, updates condicionais, locking otimista ou constraints.
     - **Projetar** replicação (líder-seguidor, multi-líder, sem líder) e particionamento (por faixa, por hash, hashing consistente) para uma carga e **antecipar** o atraso de replicação, as partições quentes e o resharding.
-    - **Decidir** quando um motor de busca, um object storage, um data warehouse ou um banco vetorial pertence à arquitetura e como os dados chegam até ele (CDC, ETL/ELT, embeddings).
+    - **Decidir** quando um motor de busca, um object storage, um data warehouse ou um banco vetorial pertence à arquitetura e como os dados chegam até ele (captura de dados de mudança (CDC, *change data capture*), pipelines de extração, transformação e carga (ETL/ELT, *extract, transform, load*), embeddings).
 
 ## Roteiro { #roadmap }
 
@@ -57,9 +57,9 @@ Aplicá-las ao BoxOffice produz um **mapa de dados**. Os volumes abaixo são sup
 | Pedidos e pagamentos | pedido 9001: 2 ingressos, R$ 980, `PAID` | ~100 mil pedidos/dia (≈ 36 M/ano) × ~1 KB ≈ 37 GB/ano | por id, por cliente; joins com ingressos | **forte** — dinheiro | `sql` |
 | Catálogo de eventos | nome, local, data, atrações, preços | ~20 mil eventos/ano, alguns KB cada | leitura intensa (≫ 100 leituras por escrita), por id e por listagem | atraso de segundos é aceitável | `sql` + [`cache`](../../reference/components/storage/index.md#cache) |
 | Busca | "taylor são paulo dezembro" | os mesmos eventos, como índice invertido | texto livre, tolerante a erros de digitação, ranqueado, autocompletar | eventual (segundos) | [`search`](../../reference/components/compute/index.md#search) |
-| Pôsteres de eventos e ingressos em PDF | `posters/42/hero.webp`, 2 MB | pôsteres: ~20 mil eventos × ~5 imagens ≈ 100 GB/ano; PDFs de ingressos: ~7 TB/ano (ou gerados sob demanda) | objeto inteiro por chave, servido por uma CDN | escreve uma vez, lê muitas | [`objstore`](../../reference/components/storage/index.md#objstore) |
+| Pôsteres de eventos e ingressos em PDF | `posters/42/hero.webp`, 2 MB | pôsteres: ~20 mil eventos × ~5 imagens ≈ 100 GB/ano; PDFs de ingressos: ~7 TB/ano (ou gerados sob demanda) | objeto inteiro por chave, servido por uma rede de entrega de conteúdo (CDN, *content delivery network*) | escreve uma vez, lê muitas | [`objstore`](../../reference/components/storage/index.md#objstore) |
 | Clickstream e análise de vendas | eventos `page_view`, `add_to_cart`, `purchase` | ~100 M eventos/dia × ~200 B ≈ 20 GB/dia | agregações ao longo de meses ("vendas por minuto por cidade") | minutos de atraso são aceitáveis | [`dwh`](../../reference/components/storage/index.md#dwh) |
-| Sessões, contadores de rate limit, posição na sala de espera | `session:abc → user 7` | milhões de chaves pequenas | busca por chave, abaixo de um milissegundo, com TTL | perder algumas é tolerável | `cache` / [`nosql`](../../reference/components/storage/index.md#nosql) |
+| Sessões, contadores de rate limit, posição na sala de espera | `session:abc → user 7` | milhões de chaves pequenas | busca por chave, abaixo de um milissegundo, com tempo de vida (TTL, *time to live*) | perder algumas é tolerável | `cache` / [`nosql`](../../reference/components/storage/index.md#nosql) |
 | Conhecimento do assistente | trechos do FAQ, política de reembolso, descrições de eventos como embeddings | ~100 mil vetores × 1.024 dimensões × 4 B ≈ 400 MB | vizinho mais próximo por significado | eventual | [`vectordb`](../../reference/components/storage/index.md#vectordb) |
 
 Repare que as linhas diferem em **ordens de grandeza** em todas as colunas. Um armazenamento ajustado para a primeira linha (pequena, quente, transacional) é uma escolha ruim para a sexta (enorme, só de inserção, varrida em massa) e vice-versa.
@@ -96,7 +96,7 @@ Quando chega um requisito — numa revisão de design ou numa entrevista — per
 
 1. **Qual é o sistema de registro e quais são os seus invariantes?** Assentos nunca podem ser vendidos duas vezes; o total de um pedido deve ser igual à soma dos seus itens. Invariantes que abrangem várias linhas pedem **transações** — um banco relacional é o padrão.
 2. **Quais são as 3 principais consultas e elas são conhecidas de antemão?** Buscas por chave conhecidas, em escala enorme, combinam com um armazenamento chave-valor ou wide-column; consultas desconhecidas, ad hoc, combinam com SQL.
-3. **Qual o tamanho, qual a velocidade, crescendo como?** Estime o QPS de pico e os bytes (veja [Estimativas](../estimation/numbers/index.md)). Se um nó com réplicas aguenta os próximos dois ou três anos, você ainda não precisa particionar.
+3. **Qual o tamanho, qual a velocidade, crescendo como?** Estime as consultas por segundo (QPS, *queries per second*) de pico e os bytes (veja [Estimativas](../estimation/numbers/index.md)). Se um nó com réplicas aguenta os próximos dois ou três anos, você ainda não precisa particionar.
 4. **Quão desatualizada uma leitura pode estar?** Segundos de atraso liberam réplicas, caches e índices assíncronos — as ferramentas de escala mais baratas que existem.
 5. **O que o time consegue operar?** Um PostgreSQL gerenciado que todo mundo entende vence um armazenamento exótico que só uma pessoa consegue depurar às 3 da manhã.
 
@@ -127,6 +127,17 @@ O banco de dados costuma ser o primeiro componente a saturar, porque é o único
 | 7. Particionar (sharding) | Espalhar uma tabela por vários nós segundo uma chave ([Particionamento](partitioning/index.md)) | Vazão de escrita e armazenamento × shards | Consultas entre shards, resharding, operação |
 | 8. Armazenamentos especializados | Busca, warehouse, object store, banco vetorial para dados derivados | Cada consulta no motor feito para ela | Mais sistemas e pipelines para operar |
 
+``` diagram-sim
+flowchart LR
+    subgraph cheap["baratos e reversíveis"]
+        s1["1. corrigir as consultas<br/>índices, EXPLAIN"] --> s2["2. pool de conexões"] --> s3["3. escalar verticalmente"] --> s4["4. cache de leituras"] --> s5["5. réplicas de leitura"]
+    end
+    subgraph arch["mudam a arquitetura"]
+        s6["6. dividir por função<br/>um banco por serviço"] --> s7["7. particionar (shard)"]:::problem --> s8["8. armazenamentos especializados"]
+    end
+    s5 -->|"medido: ainda não basta"| s6
+```
+
 Os degraus 1–5 são baratos e reversíveis; os degraus 6–8 mudam a arquitetura. Em 2026, um único nó relacional bem ajustado, com algumas réplicas, atende com folga a grande maioria dos produtos; o sharding é para os poucos que o superam e o SQL distribuído gerenciado (veja [NewSQL](partitioning/index.md#newsql)) tornou esse último degrau menos doloroso do que costumava ser.
 
 **Experimente.** O cenário abaixo é o ponto de partida com um nó: cliente → app → SQL. Aumente a carga até o banco saturar e observe a latência p99 se curvar para cima (o "joelho" de [Filas](../estimation/queueing/index.md)). Depois pense em qual degrau da escada você subiria primeiro — e confira no cenário `db-replicas` da página de [Replicação](replication/index.md).
@@ -143,15 +154,15 @@ Dois conselhos opostos coexistem e ambos estão certos no seu contexto.
 
 **Banco por serviço.** Numa arquitetura de microsserviços, cada serviço é dono dos seus dados e ninguém mais lê as suas tabelas ([Computação e Serviços](../compute/services/index.md)). O catálogo pode mudar seu esquema sem quebrar o estoque; uma consulta analítica lenta não consegue travar as tabelas de pedidos. O preço: nada de joins nem de transações entre serviços — você precisa de eventos, sagas e do transactional outbox ([Padrões de mensageria](../messaging/patterns/index.md)).
 
-**"Use só o Postgres".** O PostgreSQL moderno cobre um leque surpreendente[^3]: documentos JSONB com índices GIN, busca textual (`tsvector`), dados geoespaciais (PostGIS), séries temporais (tabelas particionadas, TimescaleDB), filas (`SELECT … FOR UPDATE SKIP LOCKED`) e busca vetorial (`pgvector`). Menos sistemas significa menos coisas para operar, fazer backup, proteger e aprender.
+**"Use só o Postgres".** O PostgreSQL moderno cobre um leque surpreendente[^3]: documentos JSONB com índices invertidos generalizados (GIN, *generalized inverted index*), busca textual (`tsvector`), dados geoespaciais (PostGIS), séries temporais (tabelas particionadas, TimescaleDB), filas (`SELECT … FOR UPDATE SKIP LOCKED`) e busca vetorial (`pgvector`). Menos sistemas significa menos coisas para operar, fazer backup, proteger e aprender.
 
 | | Um motor para muitas necessidades | Um armazenamento especializado por necessidade |
 |---|---|---|
-| Operação | uma coisa para rodar, monitorar e fazer backup | um sistema a mais por necessidade |
-| Consistência | pode atualizar tudo numa só transação | armazenamentos derivados ficam para trás (CDC, ETL) |
-| Desempenho máximo | bom o bastante até a média escala | o melhor para aquele padrão de acesso em grande escala |
-| Funcionalidades | busca textual básica, busca vetorial básica | ajuste de relevância, facetas, bilhões de vetores, varreduras colunares |
-| Habilidades do time | um conjunto de habilidades | vários |
+| Operação | ✅ uma coisa para rodar, monitorar e fazer backup | ⚠️ um sistema a mais por necessidade |
+| Consistência | ✅ pode atualizar tudo numa só transação | ⚠️ armazenamentos derivados ficam para trás (CDC, ETL) |
+| Desempenho máximo | ⚠️ bom o bastante até a média escala | ✅ o melhor para aquele padrão de acesso em grande escala |
+| Funcionalidades | ⚠️ busca textual básica, busca vetorial básica | ✅ ajuste de relevância, facetas, bilhões de vetores, varreduras colunares |
+| Habilidades do time | ✅ um conjunto de habilidades | ⚠️ vários |
 
 O caminho pragmático para o BoxOffice: começar com PostgreSQL por serviço (esquemas próprios, bancos separados ou ao menos usuários separados) e **acrescentar um armazenamento especializado quando surgir uma necessidade medida** — o time de relevância de busca precisa de facetas e tolerância a erros de digitação, os analistas precisam varrer dois anos de cliques, o assistente precisa de dezenas de milhões de vetores.
 
@@ -184,8 +195,8 @@ flowchart LR
 | [`nosql`](../../reference/components/storage/index.md#nosql) (particionado) | Como escritas e armazenamento crescem além de um nó? | faixa vs hash, hashing consistente, partições quentes, resharding, quóruns sem líder, NewSQL | [Particionamento](partitioning/index.md), [Replicação — sem líder](replication/index.md#leaderless) | `sharding` |
 | [`search`](../../reference/components/compute/index.md#search) | Como os fãs encontram "rock em São Paulo"? | índice invertido, ranqueamento, sincronizado por CDC, dado derivado | [Especializados — motores de busca](specialized/index.md#search-engines) | `search-autocomplete` |
 | [`objstore`](../../reference/components/storage/index.md#objstore) | Onde moram os pôsteres e os PDFs dos ingressos? | objetos por chave, URLs pré-assinadas, uma CDN na frente | [Especializados — object storage](specialized/index.md#object-storage) | `cdn-static`, `video-streaming` |
-| [`dwh`](../../reference/components/storage/index.md#dwh) | Onde rodam as consultas dos analistas? | OLTP vs OLAP, armazenamento colunar, esquema estrela, ETL/ELT, lakehouse | [Especializados — warehouses](specialized/index.md#data-warehouses) | `event-fanout` |
-| [`vectordb`](../../reference/components/storage/index.md#vectordb) | Como o assistente encontra textos pelo significado? | embeddings, busca exata vs aproximada, HNSW, pgvector primeiro | [Especializados — bancos vetoriais](specialized/index.md#vector-databases) | `ai-assistant` |
+| [`dwh`](../../reference/components/storage/index.md#dwh) | Onde rodam as consultas dos analistas? | processamento transacional vs analítico online (OLTP vs OLAP, *online transaction / analytical processing*), armazenamento colunar, esquema estrela, ETL/ELT, lakehouse | [Especializados — warehouses](specialized/index.md#data-warehouses) | `event-fanout` |
+| [`vectordb`](../../reference/components/storage/index.md#vectordb) | Como o assistente encontra textos pelo significado? | embeddings, busca exata vs aproximada, índices de mundo pequeno navegável hierárquico (HNSW, *hierarchical navigable small world*), pgvector primeiro | [Especializados — bancos vetoriais](specialized/index.md#vector-databases) | `ai-assistant` |
 | [`cache`](../../reference/components/storage/index.md#cache) · [`stream`](../../reference/components/messaging/index.md#stream) | Como as leituras evitam o banco e os derivados ficam sincronizados? | a escada de escalabilidade, cache-aside, CDC, outbox | [esta visão geral](#scaling-ladder), [Caching](../caching/index.md) | `read-heavy-cache` |
 
 !!! tip "Na entrevista"
@@ -216,7 +227,7 @@ flowchart LR
 - [Sistemas Distribuídos](../distributed/index.md) — replicação e particionamento dependem dos seus modelos de consistência, quóruns e consenso.
 - [Cache](../caching/index.md) — o degrau 4 da escada e a próxima aula.
 - [Mensageria e Arquitetura Orientada a Eventos](../messaging/index.md) — CDC e o transactional outbox mantêm os armazenamentos derivados sincronizados.
-- [Sistemas de IA](../ai-systems/rag-memory/index.md) — o banco vetorial dentro de um pipeline de RAG.
+- [Sistemas de IA](../ai-systems/rag-memory/index.md) — o banco vetorial dentro de um pipeline de geração aumentada por recuperação (RAG, *retrieval-augmented generation*).
 
 **Relacionados:** [Hands-on 6 — Dados em escala](../../hands-on/6/index.md) (reservas de assento, réplica de leitura, PgBouncer, `EXPLAIN`) · [Hands-on 1 — Primeiro serviço](../../hands-on/1/index.md) (catálogo em PostgreSQL + Flyway) · [Exercício: cache + banco de dados](../../exercises/cache-db/index.md) · [Estudo de caso: venda de ingressos do BoxOffice](../case-studies/ticketing/index.md) · [Estudo de caso: encurtador de URL](../case-studies/url-shortener/index.md) · [Preparação para entrevistas](../../support/interview/index.md) · Catálogo de componentes: [Armazenamento](../../reference/components/storage/index.md).
 

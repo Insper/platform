@@ -66,7 +66,7 @@ sequenceDiagram
     C-->>Fan: 200 {items: [...], page: 0, totalItems: 20000}
 ```
 
-The service follows a classic three-layer structure — **controller** (HTTP, validation, DTOs) → **service** (business rules, transactions) → **repository** (SQL through JPA) — with one rule that matters for everything that follows: the API never exposes the database entities, only **records** (`EventOut`, `VenueOut`) that you control.
+The service follows a classic three-layer structure — **controller** (HTTP, validation, data transfer objects, DTOs) → **service** (business rules, transactions) → **repository** (SQL through Jakarta Persistence, JPA) — with one rule that matters for everything that follows: the API never exposes the database entities, only **records** (`EventOut`, `VenueOut`) that you control.
 
 | Method | Path | Body | Answer |
 |---|---|---|---|
@@ -177,7 +177,7 @@ With the stack running ([step 3](container/index.md)):
     http_reqs.............................: 112    3.678382/s
 ```
 
-The numbers above come from a run on a laptop; yours will differ. Two things should stand out anyway: the **listing is clearly slower than the detail**, about 2 to 6 times (it joins two tables, sorts and counts thousands of rows; the detail is a primary-key lookup), and **p99 is far from the median** even with a single user (JIT compilation, garbage collection, the first connections of the pool).
+The numbers above come from a run on a laptop; yours will differ. Two things should stand out anyway: the **listing is clearly slower than the detail**, about 2 to 6 times (it joins two tables, sorts and counts thousands of rows; the detail is a primary-key lookup), and **p99 is far from the median** even with a single user (just-in-time (JIT) compilation, garbage collection, the first connections of the pool).
 
 Record the results in `results/lab1.md`:
 
@@ -197,11 +197,15 @@ Record the results in `results/lab1.md`:
 
 ??? question "Think first: run the smoke test twice. Why is the second run faster?"
 
-    The first requests after a start hit a **cold** JVM (classes loading, the JIT still interpreting bytecode), an empty connection pool and PostgreSQL pages not yet in its buffer cache. After a few hundred requests everything is **warm**. Load tests therefore always have a warm-up, and you should never compare a cold run with a warm one.
+    The first requests after a start hit a **cold** Java virtual machine (JVM: classes loading, the JIT still interpreting bytecode), an empty connection pool and PostgreSQL pages not yet in its buffer cache. After a few hundred requests everything is **warm**. Load tests therefore always have a warm-up, and you should never compare a cold run with a warm one.
 
 !!! note "If your numbers differ"
 
-    Absolute values depend on your CPU, on the memory given to Docker and on what else is running (close the browser tabs and IDEs you do not need). What must hold everywhere: every check passes, the detail is clearly faster than the listing (about 2× or more), and the second run is faster than the first. If the detail p95 is above ~100 ms with one user, Docker is probably short of CPU or memory (`docker stats`).
+    Absolute values depend on your CPU, on the memory given to Docker and on what else is running (close the browser tabs and integrated development environments (IDEs) you do not need). What must hold everywhere: every check passes, the detail is clearly faster than the listing (about 2× or more), and the second run is faster than the first. If the detail p95 is above ~100 ms with one user, Docker is probably short of CPU or memory (`docker stats`).
+
+**A preview of lab 2.** The service you just measured, one `catalog` with 1 CPU and a pool of 10 connections, is the `boxoffice-pool` preset. Press ▶ and read where it breaks and why: as drawn, at about 530 req/s, with `catalog-db` out of connections while the CPU is below 70%. Write that number next to your service time; lab 2 measures it for real.
+
+<div class="sdp" data-scenario="boxoffice-pool" data-mode="compact" data-height="440"></div>
 
 ## Troubleshooting
 

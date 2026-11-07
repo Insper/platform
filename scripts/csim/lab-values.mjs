@@ -29,6 +29,14 @@ export default [
   { sim: "replication", key: "lag", attr: "lag", value: 1000, unit: "ms",
     lab: H + "6/replicas/index.md", read: t => (num(/REPLICA_DELAY=(\d+)s docker compose/)(t) ?? NaN) * 1000 },
 
+  // hands-on 6 (lab twin boxoffice-db): the artificial lag, the gateway's timeout, the reconnect wait
+  { sim: "boxoffice-db", key: "delay", value: 1000, unit: "ms",
+    lab: H + "6/failover/index.md", read: t => (num(/REPLICA_DELAY=(\d+)s docker compose up -d --wait db-replica/)(t) ?? NaN) * 1000 },
+  { sim: "boxoffice-db", key: "timeout", value: 5000, unit: "ms",
+    lab: H + "6/code/services/gateway/src/main/resources/application.yaml", read: t => (num(/response-timeout:\s*(\d+)s/)(t) ?? NaN) * 1000 },
+  { sim: "boxoffice-db", key: "reconnect", value: 15000, unit: "ms",
+    lab: H + "6/failover/index.md", read: t => (num(/sleep (\d+); probe "hold"/)(t) ?? NaN) * 1000 },
+
   // caching/patterns: lab 5's event TTL
   { sim: "cache", key: "ttl", attr: "ttl", value: 60, unit: "s",
     lab: H + "5/code/services/catalog/src/main/resources/application.yaml", read: num(/event-ttl:\s*\$\{CACHE_TTL_EVENT:(\d+)s\}/) },
@@ -168,4 +176,5 @@ export default [
       { key: "cluster", value: "boxoffice", lab: kind, read: has(/^name: boxoffice$/m, "boxoffice") },
     ].map(e => ({ sim: "kind-lab", ...e }));
   })(),
+
 ];

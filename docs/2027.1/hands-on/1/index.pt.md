@@ -66,7 +66,7 @@ sequenceDiagram
     C-->>Fan: 200 {items: [...], page: 0, totalItems: 20000}
 ```
 
-O serviço segue a estrutura clássica de três camadas — **controller** (HTTP, validação, DTOs) → **service** (regras de negócio, transações) → **repository** (SQL via JPA) — com uma regra que importa para tudo que vem depois: a API nunca expõe as entidades do banco, só **records** (`EventOut`, `VenueOut`) que você controla.
+O serviço segue a estrutura clássica de três camadas — **controller** (HTTP, validação, objetos de transferência de dados, DTOs, *data transfer objects*) → **service** (regras de negócio, transações) → **repository** (SQL via Jakarta Persistence, JPA) — com uma regra que importa para tudo que vem depois: a API nunca expõe as entidades do banco, só **records** (`EventOut`, `VenueOut`) que você controla.
 
 | Método | Caminho | Corpo | Resposta |
 |---|---|---|---|
@@ -177,7 +177,7 @@ Com a stack rodando ([passo 3](container/index.md)):
     http_reqs.............................: 112    3.678382/s
 ```
 
-Os números acima vêm de uma execução em um notebook; os seus serão diferentes. Duas coisas devem chamar a atenção mesmo assim: a **listagem é claramente mais lenta que o detalhe**, umas 2 a 6 vezes (ela junta duas tabelas, ordena e conta milhares de linhas; o detalhe é uma busca por chave primária) e **o p99 fica longe da mediana** mesmo com um único usuário (compilação JIT, coleta de lixo, as primeiras conexões do pool).
+Os números acima vêm de uma execução em um notebook; os seus serão diferentes. Duas coisas devem chamar a atenção mesmo assim: a **listagem é claramente mais lenta que o detalhe**, umas 2 a 6 vezes (ela junta duas tabelas, ordena e conta milhares de linhas; o detalhe é uma busca por chave primária) e **o p99 fica longe da mediana** mesmo com um único usuário (compilação just-in-time (JIT), coleta de lixo, as primeiras conexões do pool).
 
 Registre os resultados em `results/lab1.md`:
 
@@ -197,11 +197,15 @@ Registre os resultados em `results/lab1.md`:
 
 ??? question "Pense antes: rode o smoke test duas vezes. Por que a segunda execução é mais rápida?"
 
-    As primeiras requisições depois de uma inicialização encontram uma JVM **fria** (classes carregando, o JIT ainda interpretando bytecode), um pool de conexões vazio e páginas do PostgreSQL que ainda não estão no seu buffer cache. Depois de algumas centenas de requisições, tudo está **aquecido**. Por isso testes de carga sempre têm aquecimento e você nunca deve comparar uma execução fria com uma aquecida.
+    As primeiras requisições depois de uma inicialização encontram uma máquina virtual Java (JVM, *Java virtual machine*) **fria** (classes carregando, o JIT ainda interpretando bytecode), um pool de conexões vazio e páginas do PostgreSQL que ainda não estão no seu buffer cache. Depois de algumas centenas de requisições, tudo está **aquecido**. Por isso testes de carga sempre têm aquecimento e você nunca deve comparar uma execução fria com uma aquecida.
 
 !!! note "Se os seus números forem diferentes"
 
-    Os valores absolutos dependem da sua CPU, da memória dada ao Docker e do que mais está rodando (feche abas e IDEs que não estiver usando). O que deve valer em qualquer máquina: todos os checks passam, o detalhe é claramente mais rápido que a listagem (umas 2 vezes ou mais) e a segunda execução é mais rápida que a primeira. Se o p95 do detalhe passar de ~100 ms com um usuário, provavelmente falta CPU ou memória ao Docker (`docker stats`).
+    Os valores absolutos dependem da sua CPU, da memória dada ao Docker e do que mais está rodando (feche abas e ambientes de desenvolvimento (IDEs, *integrated development environments*) que não estiver usando). O que deve valer em qualquer máquina: todos os checks passam, o detalhe é claramente mais rápido que a listagem (umas 2 vezes ou mais) e a segunda execução é mais rápida que a primeira. Se o p95 do detalhe passar de ~100 ms com um usuário, provavelmente falta CPU ou memória ao Docker (`docker stats`).
+
+**Uma prévia do lab 2.** O serviço que você acabou de medir, um `catalog` com 1 CPU e um pool de 10 conexões, é o preset `boxoffice-pool`. Aperte ▶ e leia onde ele quebra e por quê: como desenhado, em cerca de 530 req/s, com o `catalog-db` sem conexões enquanto a CPU está abaixo de 70%. Anote esse número ao lado do seu tempo de serviço; o lab 2 o mede de verdade.
+
+<div class="sdp" data-scenario="boxoffice-pool" data-mode="compact" data-height="440"></div>
 
 ## Solução de problemas { #troubleshooting }
 

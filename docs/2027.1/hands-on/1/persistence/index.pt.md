@@ -37,7 +37,7 @@ Uma entidade é uma classe Java mapeada para uma tabela. Estas duas não têm se
 
 ## 2. Repositórios { #2-repositories }
 
-O Spring Data gera a implementação destas interfaces. As consultas próprias são escritas em JPQL (consultas sobre entidades, não tabelas):
+O Spring Data gera a implementação destas interfaces. As consultas próprias são escritas em JPQL (*Jakarta Persistence Query Language*: consultas sobre entidades, não tabelas):
 
 ``` { .java title="services/catalog/src/main/java/boxoffice/catalog/EventRepository.java" .copy linenums="1" }
 --8<-- "docs/2027.1/hands-on/1/code/services/catalog/src/main/java/boxoffice/catalog/EventRepository.java"
@@ -50,6 +50,23 @@ O Spring Data gera a implementação destas interfaces. As consultas próprias s
 !!! warning "O problema das N+1 consultas"
 
     Sem `join fetch`, listar 20 eventos executa **1** consulta para os eventos e mais **20**, uma por local, quando `EventOut.of` toca `event.getVenue()`. Com `join fetch e.venue`, é um único `JOIN` em SQL. O N+1 é invisível com um usuário e devastador sob carga: 21 idas e voltas em vez de 1, cada uma segurando uma conexão do pool.
+
+``` diagram-sim
+sequenceDiagram
+    participant S as CatalogService
+    participant H as Hibernate
+    participant DB as PostgreSQL
+    Note over S,DB: sem join fetch
+    S->>H: findUpcomingInCity (página de 20)
+    H->>DB: SELECT … FROM events … LIMIT 20
+    DB-->>H: 20 eventos, locais não carregados
+    S->>H: EventOut.of toca event.getVenue()
+    H->>DB: SELECT … FROM venues WHERE id = ? (×20, um por evento)
+    Note over S,DB: com join fetch e.venue
+    S->>H: findUpcomingInCity (página de 20)
+    H->>DB: SELECT … FROM events JOIN venues … LIMIT 20
+    DB-->>H: 20 eventos com seus locais, 1 ida e volta
+```
 
 Um resultado `Page<Event>` custa **duas** consultas: a página em si (`... ORDER BY starts_at LIMIT 20 OFFSET ?`) e um `count(*)` sobre todas as linhas que casam, para o cliente mostrar "página 1 de 1.001". Em 200.000 eventos sem índice, as duas são varreduras completas — a listagem que você vai medir no lab 2, colocar em cache no lab 5 e indexar no lab 6.
 
@@ -69,7 +86,7 @@ Regras de negócio que vivem aqui:
 
 ## 4. Migrations com Flyway { #4-migrations-with-flyway }
 
-O schema é código: arquivos SQL versionados em `src/main/resources/db/migration`, aplicados **em ordem, uma vez**, na inicialização. O Flyway registra o que executou em `catalog.flyway_schema_history`, então todo ambiente — o seu notebook, a CI, o Kubernetes — converge para o mesmo schema.
+O schema é código: arquivos SQL versionados em `src/main/resources/db/migration`, aplicados **em ordem, uma vez**, na inicialização. O Flyway registra o que executou em `catalog.flyway_schema_history`, então todo ambiente — o seu notebook, a integração contínua (CI, *continuous integration*), o Kubernetes — converge para o mesmo schema.
 
 === "V1__create_catalog.sql"
 
@@ -98,7 +115,7 @@ Regras do jogo:
 
 | Propriedade | Por quê |
 |---|---|
-| `${DB_HOST:localhost}` … | a conexão vem das variáveis de ambiente do [lab 0](../../0/index.md#boxoffice-services-and-ports); os padrões funcionam a partir da sua IDE |
+| `${DB_HOST:localhost}` … | a conexão vem das variáveis de ambiente do [lab 0](../../0/index.md#boxoffice-services-and-ports); os padrões funcionam a partir do seu ambiente de desenvolvimento (IDE, *integrated development environment*) |
 | `hikari.maximum-pool-size: ${DB_POOL_SIZE:10}` | o tamanho do pool, configurável sem recompilar — você vai mudá-lo no lab 2 |
 | `flyway.schemas: catalog` | o Flyway cria o schema e mantém nele a sua tabela de histórico |
 | `open-in-view: false` | nada de lazy loading durante a serialização do JSON: a transação termina no serviço |
@@ -115,7 +132,7 @@ Regras do jogo:
 
 ## 6. Ponto de controle: compila? { #6-checkpoint-does-it-compile }
 
-Se você tem o JDK 21 e o Maven instalados (lab 0), compile o serviço agora, antes de o Docker entrar em cena:
+Se você tem o kit de desenvolvimento Java (JDK, *Java Development Kit*) 21 e o Maven instalados (lab 0), compile o serviço agora, antes de o Docker entrar em cena:
 
 ``` { .bash .copy }
 cd services/catalog

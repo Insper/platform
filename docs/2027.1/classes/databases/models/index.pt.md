@@ -100,13 +100,13 @@ Um **banco de documentos** guarda documentos autocontidos e aninhados — normal
 - **Esquema flexível** (**schema-on-read**): um festival pode ter um array `stages` que um jogo de futebol não tem.
 - **Ponto fraco — relacionamentos muitos-para-muitos**: o local é *copiado* em cada evento. Renomear o local significa atualizar milhares de documentos, ou aceitar cópias desatualizadas. Consultas que atravessam documentos ("todos os eventos no local 7") exigem índices secundários ou outra coleção.
 
-Produtos: MongoDB, Couchbase, Google Firestore, Azure Cosmos DB, Amazon DocumentDB — e o próprio PostgreSQL com colunas `JSONB` e índices GIN, o que muitas vezes basta.
+Produtos: MongoDB, Couchbase, Google Firestore, Azure Cosmos DB, Amazon DocumentDB — e o próprio PostgreSQL com colunas `JSONB` e índices invertidos generalizados (GIN, *generalized inverted index*), o que muitas vezes basta.
 
 ---
 
 ## Armazenamentos chave-valor { #key-value-stores }
 
-O modelo mais simples: um **valor** opaco buscado por uma **chave** — `GET`, `PUT`, `DELETE`, às vezes com TTL. Sem consultas por valor, sem joins; por isso o armazenamento pode ser extremamente rápido e fácil de particionar por chave.
+O modelo mais simples: um **valor** opaco buscado por uma **chave** — `GET`, `PUT`, `DELETE`, às vezes com tempo de vida (TTL, *time to live*). Sem consultas por valor, sem joins; por isso o armazenamento pode ser extremamente rápido e fácil de particionar por chave.
 
 | Armazenamento | Uso típico no BoxOffice |
 |---|---|
@@ -151,7 +151,7 @@ A sintaxe parece SQL, mas as regras são outras: só se pode filtrar pela partit
 
 ## Bancos de grafos { #graph-databases }
 
-Quando as perguntas são sobre **relacionamentos** — caminhos, vizinhos, comunidades —, um **banco de grafos** guarda nós e arestas como cidadãos de primeira classe. Neo4j (linguagem de consulta Cypher), Amazon Neptune e a linguagem de consulta padrão ISO GQL (2024) são exemplos.
+Quando as perguntas são sobre **relacionamentos** — caminhos, vizinhos, comunidades —, um **banco de grafos** guarda nós e arestas como cidadãos de primeira classe. Neo4j (linguagem de consulta Cypher), Amazon Neptune e a linguagem de consulta de grafos padrão ISO (GQL, *Graph Query Language*, 2024) são exemplos.
 
 ```cypher title="Fans who bought this show also bought…"
 MATCH (e:Event {id: 42})<-[:BOUGHT]-(f:Fan)-[:BOUGHT]->(other:Event)
@@ -246,7 +246,7 @@ Uma tabela de um bilhão de linhas tem **4 níveis de profundidade** e os nívei
 
 ### LSM-trees { #lsm-trees }
 
-Uma **log-structured merge-tree** (LSM-tree) nunca atualiza no lugar[^4]. As escritas vão para o WAL e para uma tabela ordenada em memória (a **memtable**); quando ela enche, é descarregada no disco como um arquivo ordenado e imutável (uma **SSTable**). A **compactação** (*compaction*) em segundo plano mescla SSTables em níveis maiores e ordenados e descarta valores sobrescritos e apagados.
+Uma **log-structured merge-tree** (LSM-tree) nunca atualiza no lugar[^4]. As escritas vão para o WAL e para uma tabela ordenada em memória (a **memtable**); quando ela enche, é descarregada no disco como um arquivo ordenado e imutável (uma tabela de strings ordenada, **SSTable**, *sorted string table*). A **compactação** (*compaction*) em segundo plano mescla SSTables em níveis maiores e ordenados e descarta valores sobrescritos e apagados.
 
 ``` diagram-sim
 flowchart LR
@@ -323,7 +323,7 @@ Leia o gráfico como intuição:
 | Varredura por faixa | excelente: as folhas são ordenadas e encadeadas | boa, mas mescla vários níveis |
 | Pequenas escritas aleatórias | escritas de página no lugar; a amplificação depende do tamanho do registro | acréscimos sequenciais; amplificação ≈ níveis × razão de tamanho |
 | Espaço | algum espaço livre dentro das páginas (fragmentação) | versões obsoletas até a compactação; arquivos comprimidos |
-| Previsibilidade de latência | estável | a compactação pode causar picos de I/O em segundo plano |
+| Previsibilidade de latência | ✅ estável | ⚠️ a compactação pode causar picos de I/O em segundo plano |
 | Motores típicos | PostgreSQL, InnoDB, SQL Server, SQLite | RocksDB, Cassandra, ScyllaDB, HBase, Pebble |
 
 ---
@@ -340,7 +340,7 @@ Um **índice** é uma estrutura de dados adicional — normalmente uma B-tree �
 | Parcial | indexa só as linhas que satisfazem uma condição | `seats(event_id, hold_expires_at) WHERE status = 'HELD'` — só as reservas, minúsculo |
 | Único | rejeita duplicatas | `tickets(event_id, seat_id)` — a garantia contra venda duplicada |
 | GIN / texto livre | índice invertido sobre palavras ou chaves JSON | `events USING GIN (to_tsvector('portuguese', title))` |
-| Vetorial (HNSW, IVF) | vizinhos mais próximos aproximados | índice `pgvector` para o assistente ([Especializados](../specialized/index.md#vector-databases)) |
+| Vetorial (HNSW, *hierarchical navigable small world*; IVF, *inverted file*) | vizinhos mais próximos aproximados | índice `pgvector` para o assistente ([Especializados](../specialized/index.md#vector-databases)) |
 
 Um índice composto segue a **regra do prefixo mais à esquerda** (*leftmost prefix*): um índice em `(event_id, section, status)` ajuda consultas que filtram por `event_id`, por `event_id AND section` ou pelas três — mas não por `section` sozinha, assim como uma lista telefônica ordenada por sobrenome e depois por nome não ajuda a achar todo mundo chamado "Ana".
 
@@ -369,6 +369,15 @@ CREATE INDEX CONCURRENTLY seats_event_section_status_idx
 --                    (actual time=0.025..0.391 rows=287 loops=1)
 --   Index Cond: ((event_id = 42) AND (section = 'B') AND (status = 'AVAILABLE'))
 -- Execution Time: 0.430 ms
+```
+
+``` diagram
+flowchart LR
+    q["WHERE event_id = 42<br/>AND section = 'B'<br/>AND status = 'AVAILABLE'"]
+    q -->|"nenhum índice serve"| seq["Seq Scan<br/>lê as 3.000.000 linhas,<br/>descarta 2.999.713"]:::problem
+    q -->|"um índice sobre o filtro"| idx["Index Scan<br/>percorre a B-tree até 287 entradas"]
+    idx -->|"busca cada linha"| heap[("páginas da tabela")]
+    q -->|"o índice tem todas as colunas necessárias"| ios["Index Only Scan<br/>responde só com o índice"]:::comp
 ```
 
 Guia de leitura: **Seq Scan** com um "Rows Removed by Filter" grande indica um índice faltando; **Index Scan** percorre o índice e busca as linhas na tabela; **Index Only Scan** responde só com o índice; `cost` é a estimativa do planejador em unidades arbitrárias, `actual time` é o que aconteceu de fato. `CONCURRENTLY` cria o índice sem bloquear as escritas — essencial numa tabela em produção. O [Hands-on 6](../../../hands-on/6/index.md) faz o mesmo diagnóstico no catálogo (quadro abaixo).
@@ -433,7 +442,7 @@ flowchart LR
     KV --> CACHE["em memória<br/>→ Caching, Redis"]
 ```
 
-**Componentes da paleta:** [`sql`](../../../reference/components/storage/index.md#sql) (o padrão para dados com invariantes e consultas ad hoc) · [`nosql`](../../../reference/components/storage/index.md#nosql) (chave-valor, documento, wide-column ou grafo — escolhidos pelo padrão de acesso, chaves derivadas das consultas) · [`cache`](../../../reference/components/storage/index.md#cache) (um armazenamento chave-valor em memória) · [`vectordb`](../../../reference/components/storage/index.md#vectordb) (um índice ANN é só mais um tipo de índice). **Cenários:** `monolith`, `sharding`. **Continua em:** [Transações](../transactions/index.md), [Particionamento](../partitioning/index.md), [Caching — Redis](../../caching/redis/index.md), [Estimativa — números](../../estimation/numbers/index.md), [Hands-on 6](../../../hands-on/6/index.md) (índices e `EXPLAIN`).
+**Componentes da paleta:** [`sql`](../../../reference/components/storage/index.md#sql) (o padrão para dados com invariantes e consultas ad hoc) · [`nosql`](../../../reference/components/storage/index.md#nosql) (chave-valor, documento, wide-column ou grafo — escolhidos pelo padrão de acesso, chaves derivadas das consultas) · [`cache`](../../../reference/components/storage/index.md#cache) (um armazenamento chave-valor em memória) · [`vectordb`](../../../reference/components/storage/index.md#vectordb) (um índice de vizinho mais próximo aproximado (ANN, *approximate nearest neighbour*) é só mais um tipo de índice). **Cenários:** `monolith`, `sharding`. **Continua em:** [Transações](../transactions/index.md), [Particionamento](../partitioning/index.md), [Caching — Redis](../../caching/redis/index.md), [Estimativa — números](../../estimation/numbers/index.md), [Hands-on 6](../../../hands-on/6/index.md) (índices e `EXPLAIN`).
 
 ---
 

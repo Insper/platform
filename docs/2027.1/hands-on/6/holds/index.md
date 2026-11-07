@@ -31,9 +31,28 @@ PostgreSQL's default isolation, **READ COMMITTED**, does not prevent this *lost 
 | **Conditional update** | `UPDATE … WHERE id IN (…) AND status = 'AVAILABLE'` and check the row count | 409 immediately | a single statement can express the check (a variant of optimistic) |
 | Serializable isolation | `SET TRANSACTION ISOLATION LEVEL SERIALIZABLE` | the database aborts one transaction (`40001`), the app retries | complex invariants over many rows |
 
+The pessimistic fix replays the same race with `FOR UPDATE`: the second transaction now waits at the read, not at the write, and decides on the row as the first one left it.
+
+``` diagram-sim
+sequenceDiagram
+    autonumber
+    participant A as Fan A (tx 1)
+    participant DB as PostgreSQL
+    participant B as Fan B (tx 2)
+    A->>DB: SELECT … WHERE id IN (7,8) ORDER BY id FOR UPDATE
+    DB-->>A: AVAILABLE, AVAILABLE (rows 7 and 8 locked)
+    B->>DB: SELECT … WHERE id IN (7,8) ORDER BY id FOR UPDATE
+    Note over DB,B: B waits for the row locks of A
+    A->>DB: UPDATE seats SET status='HELD', hold_id=A …
+    A->>DB: COMMIT
+    DB-->>B: the locked rows, re-read: HELD, HELD
+    B->>DB: ROLLBACK (requireAvailable throws)
+    Note over A,B: A gets 201, B gets 409: one seat, one hold
+```
+
 ## 2. The `inventory` service
 
-Create `services/inventory` (port **8083**, schema `inventory`, same `Dockerfile` pattern with `EXPOSE 8083`). It uses **JdbcClient** with plain SQL instead of JPA: every lock and every `WHERE` is visible in the code, which is the point of this lab.
+Create `services/inventory` (port **8083**, schema `inventory`, same `Dockerfile` pattern with `EXPOSE 8083`). It uses **JdbcClient** with plain SQL instead of Jakarta Persistence (JPA): every lock and every `WHERE` is visible in the code, which is the point of this lab.
 
 ??? example "`services/inventory/Dockerfile` and `.dockerignore` (same as `catalog`, only `EXPOSE 8083` changes)"
 
@@ -111,7 +130,7 @@ Read it strategy by strategy:
 - **pessimistic**: `read(…, "ORDER BY id FOR UPDATE")`. The second transaction blocks on the row locks; when the first commits, PostgreSQL re-reads the locked rows, the second sees `HELD`, and `requireAvailable` throws `409`. **Locking in a fixed order** (`ORDER BY id`) matters: fan A holding seats 7→8 and fan B holding 8→7 in opposite order would deadlock.
 - **optimistic**: no locks; the `UPDATE` only succeeds if `version` is still the one we read. If another transaction changed the seat in between, 0 rows change, we throw, and `@Transactional` rolls back everything (including seats already updated in the loop).
 - Every hold also checks that **all** seats belong to the event (`400` otherwise) and limits a hold to **6 seats**.
-- `find`, `confirm` and `release` filter by `user_id`: a fan cannot see or cancel somebody else's hold (that would be an *IDOR*, insecure direct object reference — OWASP API #1).
+- `find`, `confirm` and `release` filter by `user_id`: a fan cannot see or cancel somebody else's hold (that would be an *IDOR*, insecure direct object reference — number 1 of the OWASP (Open Worldwide Application Security Project) API Security Top 10).
 - `expireHolds` runs every 5 s on every replica; `FOR UPDATE SKIP LOCKED` lets several replicas share the work without blocking each other or processing a hold twice — the same trick used by job queues built on PostgreSQL.
 
 The read-only queries live in a separate class, because they go to the replica (step 2):
@@ -238,6 +257,6 @@ These numbers come from one run on a busy laptop — yours will differ — but t
 
 !!! tip "In the interview"
 
-    For "design Ticketmaster", say explicitly: *"seat inventory is the one place that needs strong consistency; I will use a relational database with row-level locking (or conditional updates) for holds, with a TTL on each hold, and everything else — catalog, search, seat maps — can be eventually consistent and cached."* Then mention the hot-row problem: thousands of fans on the same 100 seats serialize on their locks, so queue them *before* the database.
+    For "design Ticketmaster", say explicitly: *"seat inventory is the one place that needs strong consistency; I will use a relational database with row-level locking (or conditional updates) for holds, with a time to live (TTL) on each hold, and everything else — catalog, search, seat maps — can be eventually consistent and cached."* Then mention the hot-row problem: thousands of fans on the same 100 seats serialize on their locks, so queue them *before* the database.
 
 Next: [2. Replica and pooling](../replicas/index.md).

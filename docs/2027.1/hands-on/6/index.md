@@ -16,7 +16,7 @@ This lab builds chapter 6 of the [story of the course](../../index.md#story), th
 | | |
 |---|---|
 | **Time** | 5–6 hours (four parts: do one per sitting if needed) |
-| **You need** | the tools of lab 0; Docker with **8 GB** (eleven containers, six JVMs); ports 80, 8080, 8083, 5432, **5433**, **6432**, 6379 free |
+| **You need** | the tools of lab 0; Docker with **8 GB** (eleven containers, six Java virtual machines, JVMs); ports 80, 8080, 8083, 5432, **5433**, **6432**, 6379 free |
 | **Directory** | every command runs from the root of your `boxoffice/` repository |
 
 ``` { .bash .copy }
@@ -63,6 +63,10 @@ Click the slides and use ← → to move through them; **F** goes full screen an
 **Try it:** the `db-replicas` scenario has a primary and read replicas, with reads and writes split. Run it, then raise the share of writes: what happens to the primary while the replicas stay idle? Increase the replication lag and watch the "stale reads" indicator. Write down which kind of traffic replicas help with — and which they cannot help with at all.
 
 <div class="sdp" data-scenario="db-replicas" data-mode="compact" data-height="500"></div>
+
+Now the lab's own pair, `boxoffice-read-your-writes`: holds on the primary, "my holds" read back from a replica with `REPLICA_DELAY=1s`, and the primary dying at t = 90 s. Before you build it, predict the share of stale reads and how many holds the failover loses; run it, then try *Reads from* = `primary` and replication `sync`, and note what each fix costs. Steps 2 and 4 measure the same trade-off on the real stack.
+
+<div class="sdp" data-scenario="boxoffice-read-your-writes" data-mode="compact" data-height="440"></div>
 
 Then look at the whole sale in `flash-sale`: the waiting room, inventory in SQL, payment. Lab 7 builds the waiting room; today you build the inventory box.
 

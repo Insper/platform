@@ -19,10 +19,10 @@ Then add the `pom.xml`:
 |---|---|
 | `spring-boot-starter-webmvc` | Spring MVC + embedded Tomcat: one thread per in-flight request (you will count them in lab 2) |
 | `spring-boot-starter-validation` | Bean Validation annotations on records and parameters |
-| `spring-boot-starter-data-jpa` | JPA/Hibernate, repositories, transactions, the HikariCP connection pool |
+| `spring-boot-starter-data-jpa` | Jakarta Persistence (JPA) with Hibernate, repositories, transactions, the HikariCP connection pool |
 | `spring-boot-starter-actuator` | `/actuator/health` (used by Compose, Nginx and Kubernetes) and `/actuator/metrics` |
 | `spring-boot-starter-flyway` + `flyway-database-postgresql` | versioned schema migrations (in Spring Boot 4 each technology has its own starter and auto-configuration module; `flyway-core` alone is no longer picked up) |
-| `postgresql` | JDBC driver |
+| `postgresql` | Java Database Connectivity (JDBC) driver |
 | `springdoc-openapi-starter-webmvc-ui` (3.x) | generates the OpenAPI document from the controllers, plus Swagger UI (springdoc 3 is the line for Spring Boot 4) |
 
 !!! tip "Prefer a generator?"
@@ -72,7 +72,7 @@ classDiagram
 | Default listing | **upcoming** events, soonest first | it is what the home page shows; past events are not for sale |
 | Money | `BigDecimal` / `NUMERIC(10,2)` | never `double` for prices |
 | Time | `OffsetDateTime` / `TIMESTAMPTZ`, ISO-8601 in JSON | events happen in different time zones |
-| Errors | RFC 9457 `application/problem+json` | one machine-readable error shape for every service |
+| Errors | Request for Comments (RFC) 9457 `application/problem+json` | one machine-readable error shape for every service |
 | Create | `201 Created` + `Location: /catalog/events/{id}` | the client learns where the new resource lives |
 
 ## 3. Request and response records
@@ -115,7 +115,7 @@ The API never returns JPA entities. **Records** are immutable, have no persisten
     --8<-- "docs/2027.1/hands-on/1/code/services/catalog/src/main/java/boxoffice/catalog/Category.java"
     ```
 
-All of them live in `src/main/java/boxoffice/catalog/`. The static factories `EventOut.of(Event)` and `VenueOut.of(Venue)` are the only place where an entity becomes a DTO.
+All of them live in `src/main/java/boxoffice/catalog/`. The static factories `EventOut.of(Event)` and `VenueOut.of(Venue)` are the only place where an entity becomes a data transfer object (DTO).
 
 ## 4. Controllers
 
@@ -134,6 +134,17 @@ How validation works here:
 - `@Valid @RequestBody EventIn in` checks the annotations of the record (`@NotBlank`, `@NotNull`, `@PositiveOrZero`) and answers **400** before the method runs.
 - `@Min(0)` / `@Max(50)` on `page` and `size` use Spring's built-in **method validation** (Spring Framework 6.1+): `?size=5000` is rejected with **400** instead of loading 5,000 rows.
 - With `spring.mvc.problemdetails.enabled: true` (next step), both cases come back as `application/problem+json`.
+
+Put together, the status code of a request is decided in this order, and only the last two steps run your code:
+
+``` diagram-sim
+flowchart LR
+    req["POST /catalog/events"] --> v{"@Valid EventIn<br/>and @Min / @Max pass?"}
+    v -->|"no"| b1["400 problem+json<br/>the method never runs"]:::problem
+    v -->|"yes"| svc{"CatalogService:<br/>does the venue exist?"}
+    svc -->|"no"| b2["400 problem+json"]:::problem
+    svc -->|"yes"| ok["201 Created<br/>+ Location: /catalog/events/{id}"]:::comp
+```
 
 !!! example "What a client sees"
 

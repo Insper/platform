@@ -11,7 +11,7 @@ flowchart LR
 
 ## 1. Dockerfile
 
-A **multi-stage** build: the first stage has the JDK and Maven and compiles the jar; the second has only a JRE and the jar. The final image is smaller, has no compiler and does not need Maven on the machine that builds it.
+A **multi-stage** build: the first stage has the Java Development Kit (JDK) and Maven and compiles the jar; the second has only a Java Runtime Environment (JRE) and the jar. The final image is smaller, has no compiler and does not need Maven on the machine that builds it.
 
 ``` { .dockerfile title="services/catalog/Dockerfile" .copy linenums="1" }
 --8<-- "docs/2027.1/hands-on/1/code/services/catalog/Dockerfile"
@@ -21,11 +21,22 @@ A **multi-stage** build: the first stage has the JDK and Maven and compiles the 
 --8<-- "docs/2027.1/hands-on/1/code/services/catalog/.dockerignore"
 ```
 
+``` diagram
+flowchart LR
+    subgraph build["stage build: maven:3.9-eclipse-temurin-21"]
+        src["pom.xml + src/"] --> mvn["mvn package<br/>~/.m2 in a cache mount"] --> jar["target/app.jar"]
+    end
+    subgraph runtime["stage runtime: eclipse-temurin:21-jre, no JDK, no Maven"]
+        app["app.jar, run by user app<br/>java -XX:MaxRAMPercentage=75"]:::comp
+    end
+    jar -->|"COPY --from=build"| app
+```
+
 | Line | Why |
 |---|---|
 | `--mount=type=cache,target=/root/.m2` | BuildKit keeps the Maven repository between builds: the first build downloads the dependencies (a few minutes), the next ones take seconds |
 | `useradd` + `USER app` | the process does not run as root inside the container |
-| `-XX:MaxRAMPercentage=75` | the JVM sizes its heap from the **container** memory limit, not from your laptop's RAM |
+| `-XX:MaxRAMPercentage=75` | the Java virtual machine (JVM) sizes its heap from the **container** memory limit, not from your laptop's RAM |
 | `.dockerignore` | a local `target/` folder is never sent to the build |
 
 ## 2. docker-compose.yaml
@@ -63,6 +74,28 @@ Migrating schema "catalog" to version "1 - create catalog"
 Migrating schema "catalog" to version "2 - seed catalog"
 Successfully applied 2 migrations to schema "catalog", now at version v2 (execution time 00:01.204s)
 Started CatalogApplication in 10.4 seconds (process running for 11.178)
+```
+
+What `up` waited for, in order:
+
+``` diagram-sim
+sequenceDiagram
+    autonumber
+    participant C as docker compose
+    participant DB as db
+    participant App as catalog
+    C->>DB: start postgres:17
+    loop every 5 s
+        C->>DB: pg_isready
+    end
+    DB-->>C: accepting connections: healthy
+    C->>App: start (depends_on: service_healthy)
+    App->>DB: Flyway: V1, V2 (200,000 events)
+    App->>DB: Hibernate validates the entities against the tables
+    loop until it answers
+        C->>App: wget /actuator/health/readiness
+    end
+    App-->>C: UP: healthy
 ```
 
 Now call the API:

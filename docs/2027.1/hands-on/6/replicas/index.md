@@ -38,6 +38,15 @@ The replica clones the primary on its first start and then follows it:
 
 Each PostgreSQL connection is an operating-system **process** with its own memory; a few hundred are fine, thousands are not. Count the clients: 3 catalog replicas × 10 + auth × 10 + inventory × 20 × 2 pools… and in lab 10 Kubernetes will autoscale replicas. **PgBouncer** accepts many cheap client connections and multiplexes them onto a small pool of real ones.
 
+``` diagram
+flowchart LR
+    cat["catalog ×3<br/>3 × 10 connections"] --> db[("db<br/>one process per connection")]
+    auth["auth<br/>10 connections"] --> db
+    inv["inventory<br/>up to 1,000 client connections"] --> pgb["pgbouncer :6432<br/>transaction pooling"]:::comp
+    pgb -->|"at most 20 server connections"| db
+    fly["Flyway migrations"] -->|"direct: session locks"| db
+```
+
 ``` { .ini title="infra/pgbouncer/pgbouncer.ini" .copy linenums="1" }
 --8<-- "docs/2027.1/hands-on/6/code/infra/pgbouncer/pgbouncer.ini"
 ```
@@ -48,9 +57,9 @@ Each PostgreSQL connection is an operating-system **process** with its own memor
 
 | Pool mode | A server connection is lent for… | Breaks |
 |---|---|---|
-| `session` | the whole client connection | nothing, but saves little |
-| **`transaction`** | one transaction | session state: `SET`, session advisory locks, `LISTEN`, temp tables |
-| `statement` | one statement | multi-statement transactions |
+| `session` | the whole client connection | ✅ nothing, but saves little |
+| **`transaction`** | one transaction | ⚠️ session state: `SET`, session advisory locks, `LISTEN`, temp tables |
+| `statement` | one statement | ❌ multi-statement transactions |
 
 Transaction pooling is what makes PgBouncer effective — and why **Flyway does not go through it**: migrations use session-level locks. `inventory` therefore has two hosts: `DB_HOST=pgbouncer` for the application, `DB_MIGRATION_HOST=db` for Flyway.
 
@@ -84,6 +93,15 @@ ERROR:  cannot execute INSERT in a read-only transaction
 
 ``` { .java title="services/inventory/src/main/java/boxoffice/inventory/DataSourceConfig.java" .copy linenums="1" }
 --8<-- "docs/2027.1/hands-on/6/code/services/inventory/src/main/java/boxoffice/inventory/DataSourceConfig.java"
+```
+
+``` diagram-sim
+flowchart LR
+    tx["a @Transactional method starts"] --> lazy["LazyConnectionDataSourceProxy<br/>hands out a placeholder"]
+    lazy --> first["the first SQL statement"]
+    first --> q{"readOnly = true?"}
+    q -->|"yes: availability, seats"| rp[("replica pool<br/>db-replica")]
+    q -->|"no: hold, confirm, release, find, audit"| pp[("primary pool<br/>pgbouncer → db")]
 ```
 
 `LazyConnectionDataSourceProxy` hands out a placeholder connection when a transaction starts and fetches the real one at the first statement — by then Spring knows whether the transaction is `readOnly`, and picks the pool. The rule becomes an annotation:
@@ -132,6 +150,12 @@ REPLICA_DELAY=0 docker compose up -d db-replica
 Even with no artificial delay, `stale_reads` is not zero: in a test run for this lab it was **about 6%** — the replica on the same machine is only milliseconds behind, but the fan's next request arrives within milliseconds too. With `REPLICA_DELAY=1s` it was **98%**: almost no fan **saw their own hold** on the seat map, although `GET /inventory/holds/{id}` (primary) shows it. In production, lag grows with write volume, network distance and long queries on the replica — exactly during a flash sale.
 
 Ways out: read your own recent writes from the primary (what `find` does), route a user to the primary for a few seconds after they write ("sticky" reads), or wait until the replica has replayed the write's LSN (log sequence number).
+
+<div class="csim" data-sim="boxoffice-db" data-script="replica"></div>
+
+!!! tip "Try it"
+
+    No Docker at hand, or want to see the lag between two commands? Here the simulator opens on the read-your-writes experiment. The simulator starts from the stack of step 2: `db` primary, `db-replica` streaming asynchronously, every seat on sale; play or → runs the lab's commands, and the buttons work at any time. In **Replica**, with `REPLICA_DELAY=1s`, Ana's hold answers `201` but the seat map read right after still shows seat 1 AVAILABLE; 1 s later it is HELD. In **Synchronous**, `remote_apply` makes the hold take 1.03 s and the read fresh; with `db-replica` stopped, the hold on seat 10 gets 504 after 5 s, and seat 10 is HELD anyway. In **Crash**, the probes give 200 for the seat map and 504 for the rest; after `pg_promote()` and the moved name, 15 s later every path answers, and Ana's hold is 404. In **Split brain**, two primaries disagree about seat 20, `pg_rewind` discards Ana's hold, and the switchback ends on timeline 3. In **free** mode, try what the lab warns about: `start` instead of `up --no-deps`, or `pg_rewind` without `wal_log_hints`.
 
 **PgBouncer.** Count connections during the flash sale, with and without the pooler:
 

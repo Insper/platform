@@ -15,7 +15,7 @@ Nothing was "wrong" with PostgreSQL. The problem was that **different data has d
     - **Explain** how B-tree and LSM-tree storage engines and indexes work, and **predict** their effect on read and write cost.
     - **Diagnose** isolation anomalies (lost update, write skew, phantoms) and **fix** a double-booking bug with `SELECT … FOR UPDATE`, conditional updates, optimistic locking or constraints.
     - **Design** replication (leader-follower, multi-leader, leaderless) and partitioning (range, hash, consistent hashing) for a workload, and **anticipate** replication lag, hot partitions and resharding.
-    - **Decide** when a search engine, object storage, a data warehouse or a vector database belongs in the architecture, and how data flows into it (CDC, ETL/ELT, embeddings).
+    - **Decide** when a search engine, object storage, a data warehouse or a vector database belongs in the architecture, and how data flows into it (change data capture (CDC), extract-transform-load pipelines (ETL/ELT), embeddings).
 
 ## Roadmap
 
@@ -57,9 +57,9 @@ Applying them to BoxOffice gives a **data map**. The volumes below are illustrat
 | Orders and payments | order 9001: 2 tickets, R$ 980, `PAID` | ~100 k orders/day (≈ 36 M/year) × ~1 KB ≈ 37 GB/year | by id, by customer; joins with tickets | **strong** — money | `sql` |
 | Event catalog | name, venue, date, lineup, prices | ~20 k events/year, a few KB each | read-heavy (≫ 100 reads per write), by id and by listing | stale by seconds is fine | `sql` + [`cache`](../../reference/components/storage/index.md#cache) |
 | Search | "taylor são paulo december" | same events, as an inverted index | full-text, typo-tolerant, ranked, autocomplete | eventual (seconds) | [`search`](../../reference/components/compute/index.md#search) |
-| Event posters and tickets as PDF | `posters/42/hero.webp`, 2 MB | posters: ~20 k events × ~5 images ≈ 100 GB/year; ticket PDFs: ~7 TB/year (or render on demand) | whole object by key, served through a CDN | write once, read many | [`objstore`](../../reference/components/storage/index.md#objstore) |
+| Event posters and tickets as PDF | `posters/42/hero.webp`, 2 MB | posters: ~20 k events × ~5 images ≈ 100 GB/year; ticket PDFs: ~7 TB/year (or render on demand) | whole object by key, served through a content delivery network (CDN) | write once, read many | [`objstore`](../../reference/components/storage/index.md#objstore) |
 | Clickstream and sales analytics | `page_view`, `add_to_cart`, `purchase` events | ~100 M events/day × ~200 B ≈ 20 GB/day | aggregations over months ("sales per minute per city") | minutes of delay is fine | [`dwh`](../../reference/components/storage/index.md#dwh) |
-| Sessions, rate-limit counters, waiting-room position | `session:abc → user 7` | millions of small keys | key lookup, sub-millisecond, with TTL | losing some is tolerable | `cache` / [`nosql`](../../reference/components/storage/index.md#nosql) |
+| Sessions, rate-limit counters, waiting-room position | `session:abc → user 7` | millions of small keys | key lookup, sub-millisecond, with a time to live (TTL) | losing some is tolerable | `cache` / [`nosql`](../../reference/components/storage/index.md#nosql) |
 | Assistant knowledge | FAQ chunks, refund policy, event descriptions as embeddings | ~100 k vectors × 1,024 dims × 4 B ≈ 400 MB | nearest-neighbour by meaning | eventual | [`vectordb`](../../reference/components/storage/index.md#vectordb) |
 
 Notice that the rows differ by **orders of magnitude** in every column. A store tuned for the first row (small, hot, transactional) is a poor fit for the sixth (huge, append-only, scanned in bulk), and vice versa.
@@ -96,7 +96,7 @@ When a requirement arrives — in a design review or in an interview — walk th
 
 1. **What is the system of record, and what are its invariants?** Seats must never be sold twice; an order total must equal the sum of its items. Invariants that span several rows want **transactions** — a relational database is the default.
 2. **What are the top 3 queries, and are they known in advance?** Known key lookups at huge scale fit a key-value or wide-column store; unknown, ad hoc queries fit SQL.
-3. **How big, how fast, growing how?** Estimate peak QPS and bytes (see [Estimation](../estimation/numbers/index.md)). If one node with replicas can hold it for the next two to three years, you do not need to partition yet.
+3. **How big, how fast, growing how?** Estimate peak queries per second (QPS) and bytes (see [Estimation](../estimation/numbers/index.md)). If one node with replicas can hold it for the next two to three years, you do not need to partition yet.
 4. **How stale can a read be?** Seconds of staleness unlock replicas, caches and asynchronous indexes — the cheapest scaling tools there are.
 5. **What can the team operate?** A managed PostgreSQL that everybody understands beats an exotic store that one person can debug at 3 a.m.
 
@@ -127,6 +127,17 @@ The database is usually the first component to saturate, because it is the one c
 | 7. Partition (shard) | Spread one table across nodes by key ([Partitioning](partitioning/index.md)) | Write throughput and storage × shards | Cross-shard queries, resharding, operations |
 | 8. Specialized stores | Search, warehouse, object store, vector DB for derived data | Each query on the engine built for it | More systems and pipelines to run |
 
+``` diagram-sim
+flowchart LR
+    subgraph cheap["cheap and reversible"]
+        s1["1. fix the queries<br/>indexes, EXPLAIN"] --> s2["2. pool connections"] --> s3["3. scale up"] --> s4["4. cache reads"] --> s5["5. read replicas"]
+    end
+    subgraph arch["changes the architecture"]
+        s6["6. split by function<br/>one database per service"] --> s7["7. partition (shard)"]:::problem --> s8["8. specialized stores"]
+    end
+    s5 -->|"measured: still not enough"| s6
+```
+
 Steps 1–5 are cheap and reversible; steps 6–8 change the architecture. In 2026 a single well-tuned relational node with a few replicas comfortably serves a large majority of products; sharding is for the few that outgrow it, and managed distributed SQL (see [NewSQL](partitioning/index.md#newsql)) has made that last step less painful than it used to be.
 
 **Try it.** The scenario below is the one-node starting point: client → app → SQL. Raise the load until the database saturates and watch the p99 latency bend upward (the "knee" from [Queueing](../estimation/queueing/index.md)). Then think about which rung of the ladder you would climb first — and check it in the `db-replicas` scenario on the [Replication](replication/index.md) page.
@@ -143,15 +154,15 @@ Two opposite pieces of advice coexist, and both are right in their context.
 
 **Database per service.** In a microservice architecture each service owns its data and nobody else reads its tables ([Compute & Services](../compute/services/index.md)). The catalog can change its schema without breaking inventory; a slow analytics query cannot lock the order tables. The price: no joins and no transactions across services — you need events, sagas and the transactional outbox ([Messaging patterns](../messaging/patterns/index.md)).
 
-**"Just use Postgres".** Modern PostgreSQL covers a surprising range[^3]: JSONB documents with GIN indexes, full-text search (`tsvector`), geospatial (PostGIS), time series (partitioned tables, TimescaleDB), queues (`SELECT … FOR UPDATE SKIP LOCKED`), and vector search (`pgvector`). Fewer systems means fewer things to operate, back up, secure and learn.
+**"Just use Postgres".** Modern PostgreSQL covers a surprising range[^3]: JSONB documents with generalized inverted indexes (GIN), full-text search (`tsvector`), geospatial (PostGIS), time series (partitioned tables, TimescaleDB), queues (`SELECT … FOR UPDATE SKIP LOCKED`), and vector search (`pgvector`). Fewer systems means fewer things to operate, back up, secure and learn.
 
 | | One engine for many needs | Specialized store per need |
 |---|---|---|
-| Operations | one thing to run, monitor and back up | one more system per need |
-| Consistency | can update everything in one transaction | derived stores lag behind (CDC, ETL) |
-| Peak performance | good enough up to medium scale | best for that access pattern at large scale |
-| Features | basic full-text, basic vector search | relevance tuning, facets, billions of vectors, columnar scans |
-| Team skills | one skill set | several |
+| Operations | ✅ one thing to run, monitor and back up | ⚠️ one more system per need |
+| Consistency | ✅ can update everything in one transaction | ⚠️ derived stores lag behind (CDC, ETL) |
+| Peak performance | ⚠️ good enough up to medium scale | ✅ best for that access pattern at large scale |
+| Features | ⚠️ basic full-text, basic vector search | ✅ relevance tuning, facets, billions of vectors, columnar scans |
+| Team skills | ✅ one skill set | ⚠️ several |
 
 The pragmatic path for BoxOffice: start with PostgreSQL per service (owned schemas, separate databases or at least separate users), and **add a specialized store when a measured need appears** — the search relevance team needs facets and typo tolerance, analysts need to scan two years of clicks, the assistant needs tens of millions of vectors.
 
@@ -184,8 +195,8 @@ flowchart LR
 | [`nosql`](../../reference/components/storage/index.md#nosql) (partitioned) | How do writes and storage grow past one node? | range vs hash, consistent hashing, hot partitions, resharding, leaderless quorums, NewSQL | [Partitioning](partitioning/index.md), [Replication — leaderless](replication/index.md#leaderless) | `sharding` |
 | [`search`](../../reference/components/compute/index.md#search) | How do fans find "rock in São Paulo"? | inverted index, ranking, kept in sync by CDC, derived data | [Specialized — search engines](specialized/index.md#search-engines) | `search-autocomplete` |
 | [`objstore`](../../reference/components/storage/index.md#objstore) | Where do posters and ticket PDFs live? | objects by key, presigned URLs, a CDN in front | [Specialized — object storage](specialized/index.md#object-storage) | `cdn-static`, `video-streaming` |
-| [`dwh`](../../reference/components/storage/index.md#dwh) | Where do the analysts' queries run? | OLTP vs OLAP, columnar storage, star schema, ETL/ELT, lakehouse | [Specialized — warehouses](specialized/index.md#data-warehouses) | `event-fanout` |
-| [`vectordb`](../../reference/components/storage/index.md#vectordb) | How does the assistant find text by meaning? | embeddings, exact vs approximate search, HNSW, pgvector first | [Specialized — vector databases](specialized/index.md#vector-databases) | `ai-assistant` |
+| [`dwh`](../../reference/components/storage/index.md#dwh) | Where do the analysts' queries run? | online transaction vs analytical processing (OLTP vs OLAP), columnar storage, star schema, ETL/ELT, lakehouse | [Specialized — warehouses](specialized/index.md#data-warehouses) | `event-fanout` |
+| [`vectordb`](../../reference/components/storage/index.md#vectordb) | How does the assistant find text by meaning? | embeddings, exact vs approximate search, hierarchical navigable small world (HNSW) indexes, pgvector first | [Specialized — vector databases](specialized/index.md#vector-databases) | `ai-assistant` |
 | [`cache`](../../reference/components/storage/index.md#cache) · [`stream`](../../reference/components/messaging/index.md#stream) | How do reads skip the database, and derived stores stay in sync? | the scaling ladder, cache-aside, CDC, outbox | [this overview](#scaling-ladder), [Caching](../caching/index.md) | `read-heavy-cache` |
 
 !!! tip "In the interview"
@@ -216,7 +227,7 @@ flowchart LR
 - [Distributed Systems](../distributed/index.md) — replication and partitioning rely on its consistency models, quorums and consensus.
 - [Caching](../caching/index.md) — step 4 of the ladder, and the next class.
 - [Messaging & Event-Driven](../messaging/index.md) — CDC and the transactional outbox keep derived stores in sync.
-- [AI Systems](../ai-systems/rag-memory/index.md) — the vector database inside a RAG pipeline.
+- [AI Systems](../ai-systems/rag-memory/index.md) — the vector database inside a retrieval-augmented generation (RAG) pipeline.
 
 **Related:** [Hands-on 6 — Data at scale](../../hands-on/6/index.md) (seat holds, read replica, PgBouncer, `EXPLAIN`) · [Hands-on 1 — First service](../../hands-on/1/index.md) (catalog on PostgreSQL + Flyway) · [Exercise: cache + database](../../exercises/cache-db/index.md) · [Case study: BoxOffice ticketing](../case-studies/ticketing/index.md) · [Case study: URL shortener](../case-studies/url-shortener/index.md) · [Interview prep](../../support/interview/index.md) · Component catalog: [Storage](../../reference/components/storage/index.md).
 

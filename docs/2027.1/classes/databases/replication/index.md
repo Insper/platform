@@ -54,10 +54,10 @@ sequenceDiagram
 
 | Mode | Leader answers "committed" after… | Durability on leader loss | Write latency | Availability risk |
 |---|---|---|---|---|
-| **Asynchronous** | its own disk flush | the last writes not yet shipped are **lost** | lowest | none from replicas |
-| **Synchronous** (all replicas) | every replica confirms | no loss | highest: slowest replica decides | any replica down blocks writes |
-| **Semi-synchronous** / one sync standby | one replica confirms, others async | no loss if that standby survives | + one network round trip | if the sync standby dies, another must take its role |
-| **Quorum storage** (Aurora: 4 of 6 copies across 3 zones)[^4] | a write quorum of storage nodes confirms | survives a zone loss | + round trip to the quorum | tolerates slow nodes |
+| **Asynchronous** | its own disk flush | ❌ the last writes not yet shipped are **lost** | lowest | none from replicas |
+| **Synchronous** (all replicas) | every replica confirms | ✅ no loss | highest: slowest replica decides | any replica down blocks writes |
+| **Semi-synchronous** / one sync standby | one replica confirms, others async | ✅ no loss if that standby survives | + one network round trip | if the sync standby dies, another must take its role |
+| **Quorum storage** (Aurora: 4 of 6 copies across 3 zones)[^4] | a write quorum of storage nodes confirms | ✅ survives a zone loss | + round trip to the quorum | tolerates slow nodes |
 
 In PostgreSQL this is the `synchronous_commit` and `synchronous_standby_names` settings[^5]; `ANY 1 (s1, s2)` means "wait for any one of the two standbys" — a quorum that tolerates one slow standby. Within one region, a synchronous round trip costs around a millisecond; across continents it costs tens to hundreds of milliseconds, which is why cross-region replicas are almost always asynchronous.
 
@@ -72,6 +72,8 @@ An asynchronous replica is behind the leader by the **replication lag**: usually
 | **Reading your own write fails** | pays, opens *My tickets*, sees nothing | **read-your-writes** (read-after-write) consistency |
 | **Time goes backwards** | refreshes the page: the ticket appears, refreshes again: gone (second read hit a more-lagged replica) | **monotonic reads** |
 | **Effect before cause** | sees the reply "refund approved" before the refund request in a chat thread | **consistent prefix reads** |
+
+Consistent prefix reads come from sending causally related writes (a question and its answer) through the same leader or partition, so that every replica applies them in the order they happened.
 
 ``` diagram-sim
 sequenceDiagram
@@ -139,7 +141,7 @@ On a quiet day the bug is invisible; during the on-sale — exactly when the mos
 |---|---|---|
 | **Read from the leader after a write** | for N seconds after a user writes, route *that user's* reads to the primary (a timestamp in the session or a cookie) | simple; the primary takes some extra reads |
 | **Read from the leader for owned data** | "my orders", "my tickets" always on the primary; catalog on replicas | simple rule; does not scale if most reads are "mine" |
-| **Wait for the replica to catch up** | the write returns its log position (PostgreSQL LSN, MySQL GTID); the next read goes to a replica only once it has replayed that position (`pg_last_wal_replay_lsn()`) | precise; needs plumbing in the data access layer |
+| **Wait for the replica to catch up** | the write returns its log position (the PostgreSQL log sequence number (LSN), the MySQL global transaction identifier (GTID)); the next read goes to a replica only once it has replayed that position (`pg_last_wal_replay_lsn()`) | precise; needs plumbing in the data access layer |
 | **Sticky replica per user** | hash the user to one replica | gives **monotonic reads**, not read-your-writes |
 | **Synchronous replica for reads** | read from a sync standby | no lag, but writes pay the latency |
 
@@ -161,6 +163,10 @@ Monitor lag as a first-class metric — `pg_stat_replication.replay_lag` in Post
 **Try it.** In the `db-replicas` scenario, a primary takes the writes and replicas serve the reads. Add replicas and watch read throughput rise while the primary's load stays flat; then increase the write rate and watch the replication lag grow — and with it, the share of stale reads.
 
 <div class="sdp" data-scenario="db-replicas" data-mode="compact" data-height="520"></div>
+
+The lab 6 version, `boxoffice-read-your-writes`, puts both bugs of this page in one run: `inventory` reads the fans' holds back from a replica 1 s behind, and at t = 90 s the primary dies. As drawn, about 20% of the reads are stale and about 105 holds are lost (100 writes/s × 1 s of lag). Set *Reads from* = `primary` (read your writes), then the replication to `sync`: both drop to 0, and the write p99 climbs from about 35 ms to about 1 s.
+
+<div class="sdp" data-scenario="boxoffice-read-your-writes" data-mode="compact" data-height="440"></div>
 
 ---
 
@@ -203,12 +209,12 @@ sequenceDiagram
 
 Each step hides a hard problem:
 
-- **Detection** uses timeouts. Too short: a GC pause or network blip triggers an unnecessary failover. Too long: minutes of write downtime.
+- **Detection** uses timeouts. Too short: a garbage-collection (GC) pause or network blip triggers an unnecessary failover. Too long: minutes of write downtime.
 - **Lost writes.** With asynchronous replication, writes acknowledged by the old leader but not yet shipped are gone. If those were seat holds, the new primary may sell the same seats again.
 - **Split brain.** If the old leader was only *partitioned*, not dead, two nodes may accept writes. Systems prevent this with consensus on who the leader is (Patroni stores the leader key in etcd; see [Consensus](../../distributed/consensus/index.md)) and **fencing**: the old leader is cut off (STONITH, "shoot the other node in the head") or its writes are rejected by fencing tokens.
-- **Clients must follow.** Through DNS, a virtual IP, a proxy or a driver that knows the topology.
+- **Clients must follow.** Through the Domain Name System (DNS), a virtual IP, a proxy or a driver that knows the topology.
 
-Managed services package all of this — Amazon RDS Multi-AZ with a synchronous standby, Aurora with quorum storage, Cloud SQL high availability, Azure zone-redundant HA — with failovers that typically take from tens of seconds to a couple of minutes; the design question for you is what the application does meanwhile (retries with backoff, see [Reliability](../../reliability/patterns/index.md)).
+Managed services package all of this — Amazon RDS Multi-AZ with a synchronous standby, Aurora with quorum storage, Cloud SQL high availability, Azure zone-redundant high availability — with failovers that typically take from tens of seconds to a couple of minutes; the design question for you is what the application does meanwhile (retries with backoff, see [Reliability](../../reliability/patterns/index.md)).
 
 !!! example "In the BoxOffice code: a failover by hand, and the old primary rejoining (lab 6)"
 
@@ -218,7 +224,7 @@ Managed services package all of this — Amazon RDS Multi-AZ with a synchronous 
     --8<-- "docs/2027.1/hands-on/6/code/infra/postgres/rejoin-as-replica.sh:12:20"
     ```
 
-**Try it.** The `db-failover` scenario is a flash-sale checkout on a cluster with one primary and one **asynchronous** follower: 1,500 req/s, half of them writes. At t = 90 s the primary dies. Press **Run** and read the report: with the default seed about **1,600 writes are lost** (acknowledged by the old primary, never shipped to the follower) and availability falls to about **90.6%**, because every write fails during the 30 s failover. Select `orders-db` and set *Replication* to `sync`: lost writes drop to **0**, but availability does not move. Set it back to `async` and the *Failover time* to 5 s: availability rises to about **98%**, and the writes are lost again. The two knobs answer different questions: replication mode sets how much you lose (the RPO), detection and promotion set how long you are down (the RTO). The possible solution (open it in the full playground ↗) combines quorum replication with 2 followers, 2 shards and a 5 s failover: 0 lost writes, about 99.2% availability.
+**Try it.** The `db-failover` scenario is a flash-sale checkout on a cluster with one primary and one **asynchronous** follower: 1,500 req/s, half of them writes. At t = 90 s the primary dies. Press **Run** and read the report: with the default seed about **1,600 writes are lost** (acknowledged by the old primary, never shipped to the follower) and availability falls to about **90.6%**, because every write fails during the 30 s failover. Select `orders-db` and set *Replication* to `sync`: lost writes drop to **0**, but availability does not move. Set it back to `async` and the *Failover time* to 5 s: availability rises to about **98%**, and the writes are lost again. The two knobs answer different questions: replication mode sets how much you lose (the recovery point objective, RPO), detection and promotion set how long you are down (the recovery time objective, RTO). The possible solution (open it in the full playground ↗) combines quorum replication with 2 followers, 2 shards and a 5 s failover: 0 lost writes, about 99.2% availability.
 
 <div class="sdp" data-scenario="db-failover" data-mode="compact" data-height="520"></div>
 
@@ -236,6 +242,22 @@ The price is **write conflicts**: two leaders accept different writes to the sam
 | **Merge** | application-specific merge (union of tags, sum of counters) | only works for mergeable data |
 | **CRDTs** | conflict-free replicated data types that merge automatically (counters, sets, text) | limited data types; more metadata |
 | **Avoid conflicts** | route all writes for a record to one "home" leader | back to single-leader, per record |
+
+``` diagram-sim
+sequenceDiagram
+    participant A as Staff in São Paulo
+    participant L1 as Leader, South America
+    participant L2 as Leader, Europe
+    participant B as Staff in Lisbon
+    A->>L1: doors open at 19:00 (clock 10:00:01.200)
+    B->>L2: doors open at 20:00 (clock 10:00:01.150)
+    L1-->>A: ok
+    L2-->>B: ok
+    L1->>L2: replicate 19:00
+    L2->>L1: replicate 20:00
+    Note over L1,L2: last write wins: both keep 19:00, the higher timestamp
+    Note over A,B: the 20:00 edit vanished, and nobody was told
+```
 
 !!! example "BoxOffice: where multi-leader fits — and where it must not"
 
@@ -272,10 +294,10 @@ Missed writes are repaired by **read repair** (a read that sees an old version w
 | | Single-leader | Multi-leader | Leaderless |
 |---|---|---|---|
 | Writes accepted by | one node | several leaders | any W of N replicas |
-| Write conflicts | none (one order) | yes — must be resolved | yes — versions, LWW or siblings |
-| Failover | needed, delicate | another leader keeps going | not needed |
+| Write conflicts | ✅ none (one order) | ⚠️ yes — must be resolved | ⚠️ yes — versions, LWW or siblings |
+| Failover | ⚠️ needed, delicate | ✅ another leader keeps going | ✅ not needed |
 | Read-your-writes | via routing tricks | per leader | with R + W > N, mostly |
-| Good for | most OLTP: orders, inventory, users | multi-region writes, offline clients | high write availability, time series, carts |
+| Good for | most online transaction processing (OLTP): orders, inventory, users | multi-region writes, offline clients | high write availability, time series, carts |
 | Examples | PostgreSQL, MySQL, RDS, MongoDB | MySQL group replication (multi-primary), CouchDB, collaborative editors | Cassandra, ScyllaDB, Riak, DynamoDB internally |
 
 !!! example "BoxOffice: the replication plan"

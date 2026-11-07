@@ -19,10 +19,10 @@ Depois acrescente o `pom.xml`:
 |---|---|
 | `spring-boot-starter-webmvc` | Spring MVC + Tomcat embutido: uma thread por requisição em andamento (você vai contá-las no lab 2) |
 | `spring-boot-starter-validation` | anotações de Bean Validation em records e parâmetros |
-| `spring-boot-starter-data-jpa` | JPA/Hibernate, repositórios, transações, o pool de conexões HikariCP |
+| `spring-boot-starter-data-jpa` | Jakarta Persistence (JPA) com Hibernate, repositórios, transações, o pool de conexões HikariCP |
 | `spring-boot-starter-actuator` | `/actuator/health` (usado pelo Compose, pelo Nginx e pelo Kubernetes) e `/actuator/metrics` |
 | `spring-boot-starter-flyway` + `flyway-database-postgresql` | migrations versionadas do schema (no Spring Boot 4 cada tecnologia tem o seu starter e módulo de auto-configuração; só o `flyway-core` não é mais detectado) |
-| `postgresql` | driver JDBC |
+| `postgresql` | driver JDBC (*Java Database Connectivity*) |
 | `springdoc-openapi-starter-webmvc-ui` (3.x) | gera o documento OpenAPI a partir dos controllers, mais o Swagger UI (o springdoc 3 é a linha do Spring Boot 4) |
 
 !!! tip "Prefere um gerador?"
@@ -72,7 +72,7 @@ classDiagram
 | Listagem padrão | **próximos** eventos, os mais próximos primeiro | é o que a página inicial mostra; eventos passados não estão à venda |
 | Dinheiro | `BigDecimal` / `NUMERIC(10,2)` | nunca `double` para preços |
 | Tempo | `OffsetDateTime` / `TIMESTAMPTZ`, ISO-8601 no JSON | eventos acontecem em fusos horários diferentes |
-| Erros | RFC 9457 `application/problem+json` | um formato de erro legível por máquina para todo serviço |
+| Erros | pedido de comentários (RFC, *Request for Comments*) 9457 `application/problem+json` | um formato de erro legível por máquina para todo serviço |
 | Criação | `201 Created` + `Location: /catalog/events/{id}` | o cliente descobre onde o novo recurso vive |
 
 ## 3. Records de requisição e resposta { #3-request-and-response-records }
@@ -115,7 +115,7 @@ A API nunca devolve entidades JPA. **Records** são imutáveis, não têm anota�
     --8<-- "docs/2027.1/hands-on/1/code/services/catalog/src/main/java/boxoffice/catalog/Category.java"
     ```
 
-Todos ficam em `src/main/java/boxoffice/catalog/`. As fábricas estáticas `EventOut.of(Event)` e `VenueOut.of(Venue)` são o único lugar em que uma entidade vira DTO.
+Todos ficam em `src/main/java/boxoffice/catalog/`. As fábricas estáticas `EventOut.of(Event)` e `VenueOut.of(Venue)` são o único lugar em que uma entidade vira objeto de transferência de dados (DTO, *data transfer object*).
 
 ## 4. Controllers
 
@@ -134,6 +134,17 @@ Como a validação funciona aqui:
 - `@Valid @RequestBody EventIn in` verifica as anotações do record (`@NotBlank`, `@NotNull`, `@PositiveOrZero`) e responde **400** antes de o método rodar.
 - `@Min(0)` / `@Max(50)` em `page` e `size` usam a **validação de métodos** embutida no Spring (Spring Framework 6.1+): `?size=5000` é rejeitado com **400** em vez de carregar 5.000 linhas.
 - Com `spring.mvc.problemdetails.enabled: true` (próximo passo), os dois casos voltam como `application/problem+json`.
+
+Juntando tudo, o código de status de uma requisição é decidido nesta ordem e só os dois últimos passos rodam o seu código:
+
+``` diagram-sim
+flowchart LR
+    req["POST /catalog/events"] --> v{"@Valid EventIn<br/>e @Min / @Max passam?"}
+    v -->|"não"| b1["400 problem+json<br/>o método nem roda"]:::problem
+    v -->|"sim"| svc{"CatalogService:<br/>o local existe?"}
+    svc -->|"não"| b2["400 problem+json"]:::problem
+    svc -->|"sim"| ok["201 Created<br/>+ Location: /catalog/events/{id}"]:::comp
+```
 
 !!! example "O que um cliente vê"
 

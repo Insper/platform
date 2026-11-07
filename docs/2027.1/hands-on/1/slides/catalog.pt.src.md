@@ -14,15 +14,20 @@ theme: platform
 {{INCLUDE:scripts/slides/theme.js}}
 </script>
 
+<style>
+{{INCLUDE:scripts/slides/diagram.css}}
+</style>
+
 <div class="kicker">Arquitetura de Sistemas · Insper · Lab 1</div>
 
 # Lab 1 — Primeiro serviço: `catalog`
 
-**Uma API REST de eventos e locais: Spring Boot, PostgreSQL, Flyway, um container — e a sua latência sem carga**
+**Um serviço web de eventos e locais: Spring Boot, PostgreSQL, Flyway, um container — e a sua latência sem carga**
 
 <!--
-Roteiro: (1) por que o catalog primeiro; (2) o contrato da API; (3) camadas e DTOs; (4) JPA, N+1, o pool;
-(5) Flyway; (6) Dockerfile e Compose; (7) smoke test e tempo de serviço.
+Roteiro: (1) por que o catalog primeiro; (2) o que você vai construir; (3) o contrato da API; (4) camadas,
+DTOs e códigos de status; (5) JPA, N+1, o pool; (6) Flyway; (7) Dockerfile e Compose; (8) smoke test e
+tempo de serviço.
 -->
 
 ---
@@ -38,6 +43,24 @@ Durante a venda relâmpago, quantas leituras da página do evento acontecem para
 - Milhões de fãs recarregam; um punhado de administradores edita → **muita leitura**.
 - Ele será a cobaia do **balanceamento de carga** (lab 3), do **cache** (lab 5), dos **índices** (lab 6).
 - Hoje: a **versão mais simples que funciona** — monolith-first.
+
+---
+
+## O que você vai construir
+
+<div class="flow">
+<div class="box muted">fã<small>GET /catalog/events?city=Recife</small></div><div class="arrow">→</div>
+<div class="box accent">catalog :8082<small>Spring Boot · 1 CPU, 768 MB</small></div><div class="arrow">→</div>
+<div class="box green">db :5432<small>PostgreSQL 17, schema catalog</small></div>
+</div>
+<div class="flow">
+<div class="box">consulta 1<small>events JOIN venues · ORDER BY starts_at · LIMIT 20</small></div>
+<div class="box">consulta 2<small>count(*) para os links de página: 20.000</small></div>
+<div class="box green">200<small>{items, page: 0, totalItems: 20000}</small></div>
+</div>
+
+- **50 locais em 10 cidades, 200.000 eventos**, criados por uma migration: um volume realista de propósito.
+- Evento **1**: *BoxOffice Fest — Stadium Night*, num estádio de 60.000 lugares — o show da venda relâmpago do curso.
 
 ---
 
@@ -59,7 +82,7 @@ Durante a venda relâmpago, quantas leituras da página do evento acontecem para
 
 - Coleções são **paginadas**, `size ≤ 50` — toda lista é limitada.
 - Dinheiro é `BigDecimal` / `NUMERIC(10,2)`; tempo é `TIMESTAMPTZ`, ISO-8601.
-- Erros são **`problem+json`** (RFC 9457).
+- Erros seguem o pedido de comentários (RFC, *Request for Comments*) 9457: **`problem+json`**.
 - `201 Created` + `Location` para recursos novos.
 
 <div class="ok">
@@ -77,14 +100,14 @@ Na entrevista: recursos + verbos, **estratégia de paginação**, modelo de erro
 
 - **Controller**: HTTP, validação, códigos de status.
 - **Service**: regras de negócio, `@Transactional`.
-- **Repository**: consultas (JPA).
+- **Repository**: consultas (JPA, *Jakarta Persistence*).
 
 </div>
 <div>
 
 <div class="warn">
 
-A API **nunca** devolve entidades: só records (`EventOut`, `VenueOut`). Uma coluna nova não pode vazar; uma associação lazy não pode explodir.
+A interface de programação (API, *application programming interface*) **nunca** devolve entidades: só records, os objetos de transferência de dados (`EventOut`, `VenueOut`). Uma coluna nova não pode vazar; uma associação lazy não pode explodir.
 
 </div>
 
@@ -93,17 +116,25 @@ A API **nunca** devolve entidades: só records (`EventOut`, `VenueOut`). Uma col
 
 ---
 
-## Validação na borda do serviço
+## Qual código de status?
+
+<div class="flow">
+<div class="box muted">POST /catalog/events</div><div class="arrow">→</div>
+<div class="box">@Valid EventIn, @Min / @Max<small>conferidos antes de o método rodar</small></div><div class="arrow">→</div>
+<div class="box">CatalogService<small>o local existe?</small></div><div class="arrow">→</div>
+<div class="box green">201 Created<small>+ Location</small></div>
+</div>
+<div class="flow">
+<div class="arrow" style="flex: 1.3"></div>
+<div class="box red">400 problem+json<small>sem título, preço −1, ?size=500</small></div>
+<div class="box red">400 / 404<small>local desconhecido / id desconhecido</small></div>
+<div class="arrow" style="flex: .6"></div>
+</div>
 
 ```java
-@GetMapping
-public PageOut<EventOut> list(
-        @RequestParam(required = false) String city,
-        @RequestParam(defaultValue = "0") @Min(0) int page,
-        @RequestParam(defaultValue = "20") @Min(1) @Max(50) int size)
+@RequestParam(defaultValue = "20") @Min(1) @Max(50) int size
 ```
 
-- `@Valid @RequestBody EventIn` → `400` antes de o método rodar.
 - `?size=500` → `400 problem+json`, não uma consulta de 500 linhas.
 
 ---
@@ -112,7 +143,7 @@ public PageOut<EventOut> list(
 
 <div class="q">
 
-Listar 20 eventos, cada um com o seu local. Quantas consultas SQL?
+Listar 20 eventos, cada um com o seu local. Quantas consultas na linguagem de consulta estruturada (SQL, *Structured Query Language*)?
 
 </div>
 
@@ -133,27 +164,40 @@ Listar 20 eventos, cada um com o seu local. Quantas consultas SQL?
 
 ---
 
-## O container
+## O container: dois estágios
 
-```dockerfile
-FROM maven:3.9-eclipse-temurin-21 AS build
-RUN --mount=type=cache,target=/root/.m2 mvn -B -q package -DskipTests
-FROM eclipse-temurin:21-jre
-COPY --from=build /src/target/app.jar app.jar
-USER app
-ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "-jar", "app.jar"]
-```
+<div class="flow" style="align-items: stretch">
+<div class="group">
+<div class="caption">build · maven:3.9-eclipse-temurin-21</div>
+<div class="box">pom.xml + src/</div>
+<div class="box">mvn package<small>~/.m2 num cache mount</small></div>
+<div class="box">target/app.jar</div>
+</div>
+<div class="arrow" style="align-self: center">COPY --from=build →</div>
+<div class="group">
+<div class="caption">runtime · eclipse-temurin:21-jre</div>
+<div class="box green">app.jar<small>rodado pelo usuário app, não root</small></div>
+<div class="box muted">sem kit de desenvolvimento Java (JDK, <em>Java Development Kit</em>), sem Maven, sem código-fonte</div>
+</div>
+</div>
 
-- As ferramentas de build ficam no primeiro estágio; a imagem leva um JRE + o jar.
+- `java -XX:MaxRAMPercentage=75`: o heap segue o limite de memória **do container**.
+- A imagem leva só um ambiente de execução Java (JRE, *Java Runtime Environment*) e o jar.
 
 ---
 
-## Compose: `db` + `catalog`
+## Compose: o que o `up` espera
 
-- `depends_on: condition: service_healthy` — esperar o `pg_isready`, não só "iniciado".
+<div class="flow">
+<div class="box">db inicia</div><div class="arrow">→</div>
+<div class="box green">pg_isready<small>a cada 5 s → healthy</small></div><div class="arrow">→</div>
+<div class="box">catalog inicia<small>depends_on: service_healthy</small></div><div class="arrow">→</div>
+<div class="box accent">Flyway V1, V2<small>depois o Hibernate valida</small></div><div class="arrow">→</div>
+<div class="box green">/actuator/health/readiness<small>UP → healthy</small></div>
+</div>
+
 - Volume `db-data`: os dados sobrevivem ao `down`; `down -v` zera.
 - **1 CPU, 768 MB** por `catalog`: uma unidade fixa de capacidade.
-- Saúde em `/actuator/health/readiness`.
 
 <div class="warn">
 
@@ -180,8 +224,8 @@ k6 run load/smoke.js        # 1 VU, 30 s, think time 0.5 s
 
 ## Lendo a referência
 
-- Listagem ≈ **6×** o detalhe: join + ordenação + `count(*)` sobre 20.000 linhas.
-- p99 ≫ p50 mesmo com **um** usuário: JIT, GC, pool frio, páginas frias.
+- Listagem ≈ **2–6×** o detalhe: join + ordenação + `count(*)` sobre 20.000 linhas; o detalhe é uma busca pela chave primária.
+- p99 ≫ p50 mesmo com **um** usuário: compilação just-in-time (JIT), coleta de lixo, pool frio, páginas frias.
 - Sempre **aqueça** antes de medir; nunca compare frio com aquecido.
 
 <div class="q">
@@ -195,7 +239,7 @@ Qual endpoint vai quebrar primeiro sob carga? Anote a hipótese para o lab 2.
 ## Pontos-chave
 
 1. Desenhe o **contrato** primeiro: recursos, coleções limitadas, códigos de status, `problem+json`.
-2. DTOs (records) **desacoplam** a API das tabelas.
+2. Records **desacoplam** a API das tabelas.
 3. `join fetch` evita o **N+1**; toda consulta pega emprestada uma conexão do pool.
 4. O **Flyway** é dono do schema; migrations aplicadas nunca mudam.
 5. Um comando para rodar tudo: `docker compose up --build`.

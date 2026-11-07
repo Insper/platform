@@ -75,6 +75,21 @@ Aggregate  (actual time=4.006..4.006 rows=1)
 Execution Time: 4.028 ms
 ```
 
+``` diagram
+flowchart TB
+    subgraph before["antes do V3: 36,8 ms"]
+        L1["Limit 20"] --> S1["Sort por starts_at, id"]:::problem
+        S1 --> H1["Hash Join"]
+        H1 --> E1["Parallel Seq Scan em events<br/>todas as 200.000 linhas"]:::problem
+        H1 --> V1["Seq Scan em venues<br/>city = Recife: 5 linhas"]
+    end
+    subgraph after["depois do V3: 0,62 ms"]
+        L2["Limit 20"] --> N2["Nested Loop"]
+        N2 --> E2["Index Scan em events_starts_at_idx<br/>189 entradas, já em ordem de data"]:::comp
+        N2 --> V2["Index Scan em venues_pkey<br/>uma busca por evento"]:::comp
+    end
+```
+
 Com o `events_starts_at_idx`, o PostgreSQL percorre os eventos **já em ordem de data** e para assim que tem 20 de Recife (leu 189 entradas do índice em vez de 200.000 linhas): a consulta da página cai de ~37 ms para bem menos de 1 ms. A contagem ainda visita todos os eventos da cidade, mas pelo índice menor `(venue_id, starts_at)`, sem tocar a tabela (*Index Only Scan*): ~14 ms → ~4 ms.
 
 !!! warning "Índices não são de graça"
@@ -95,7 +110,7 @@ Compare com os números sem cache do lab 3. Depois religue o cache e decida, com
 
 ??? question "Pense primeiro: a consulta de contagem ainda lê 20.000 entradas do índice por requisição. O que você faria a respeito?"
 
-    Opções, da mais barata: fazer cache da contagem separadamente com um TTL maior (ela muda devagar); devolver uma estimativa ("20.000+"); abandoná-la e devolver só `hasNext` (um `Slice` em vez de uma `Page`); ou manter um contador por cidade atualizado nas escritas. Cada uma troca exatidão por custo — uma decisão de produto tanto quanto técnica.
+    Opções, da mais barata: fazer cache da contagem separadamente com um tempo de vida (TTL, *time to live*) maior (ela muda devagar); devolver uma estimativa ("20.000+"); abandoná-la e devolver só `hasNext` (um `Slice` em vez de uma `Page`); ou manter um contador por cidade atualizado nas escritas. Cada uma troca exatidão por custo — uma decisão de produto tanto quanto técnica.
 
 !!! tip "Na entrevista"
 

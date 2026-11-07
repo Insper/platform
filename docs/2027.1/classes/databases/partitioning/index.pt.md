@@ -135,9 +135,9 @@ O porém: escolha bem a quantidade. Partições de menos limitam até onde você
 
 | Estratégia | Chave → partição | Consultas por intervalo | Adicionar um nó | Usada por |
 |---|---|---|---|---|
-| Intervalo de chaves | limites ordenados, divididos quando crescem | eficientes | dividir e mover intervalos | Bigtable, HBase, CockroachDB, TiDB, MongoDB (ranged) |
-| Hash mod N | `hash(k) mod N` | espalham para todas | **move quase tudo** | nada sério — evite |
-| Hashing consistente | primeiro nó no sentido horário do anel | espalham para todas | ~1/N das chaves se move | Dynamo, Cassandra, Riak, clientes Memcached |
+| Intervalo de chaves | limites ordenados, divididos quando crescem | ✅ eficientes | dividir e mover intervalos | Bigtable, HBase, CockroachDB, TiDB, MongoDB (ranged) |
+| Hash mod N | `hash(k) mod N` | espalham para todas | ❌ **move quase tudo** | nada sério — evite |
+| Hashing consistente | primeiro nó no sentido horário do anel | espalham para todas | ✅ ~1/N das chaves se move | Dynamo, Cassandra, Riak, clientes Memcached |
 | Partições fixas | `hash(k) mod P`, P fixo e grande | espalham para todas | mover partições inteiras | Redis Cluster, Elasticsearch, Kafka, Couchbase |
 | Diretório | tabela de consulta chave → shard | depende | atualizar a tabela | sharding sob medida, Vitess (vindexes) |
 
@@ -153,11 +153,11 @@ A chave de partição é a decisão de maior consequência e a menos reversível
 
 | Dado da BoxOffice | Chave candidata | Localidade | Distribuição | Veredito |
 |---|---|---|---|---|
-| `orders`, `tickets` | `customer_id` | "meus pedidos" e o checkout tocam um shard | milhões de clientes, equilibrada | **boa**; relatórios por evento se espalham → rode-os no [data warehouse](../specialized/index.md#data-warehouses) |
-| `orders` | `created_at` | intervalos de tempo são locais | todas as escritas de hoje num shard | ruim (chave sequencial) |
-| `seats` (inventário) | `event_id` | uma transação de reserva fica num shard | **um show no estádio = um shard quente** | boa localidade, desequilíbrio perigoso — veja abaixo |
-| `seats` | `(event_id, section)` | uma reserva de assentos de um setor fica local | o show no estádio se espalha por ~40 setores | **melhor** para grandes eventos |
-| `gate_scans` | `(event_id, gate)` | as leituras recentes do portão são locais | 50 portões espalham a carga | boa |
+| `orders`, `tickets` | `customer_id` | "meus pedidos" e o checkout tocam um shard | milhões de clientes, equilibrada | ✅ **boa**; relatórios por evento se espalham → rode-os no [data warehouse](../specialized/index.md#data-warehouses) |
+| `orders` | `created_at` | intervalos de tempo são locais | todas as escritas de hoje num shard | ❌ ruim (chave sequencial) |
+| `seats` (inventário) | `event_id` | uma transação de reserva fica num shard | **um show no estádio = um shard quente** | ⚠️ boa localidade, desequilíbrio perigoso — veja abaixo |
+| `seats` | `(event_id, section)` | uma reserva de assentos de um setor fica local | o show no estádio se espalha por ~40 setores | ✅ **melhor** para grandes eventos |
+| `gate_scans` | `(event_id, gate)` | as leituras recentes do portão são locais | 50 portões espalham a carga | ✅ boa |
 
 ??? question "Pense antes: por que não particionar `seats` apenas por `seat_id`?"
 
@@ -177,7 +177,7 @@ Mitigações, da menos à mais invasiva:
 
 | Técnica | Como | Custo |
 |---|---|---|
-| **Cachear as leituras** | a página do evento quente é servida pelo cache ou pela CDN, não pelo shard ([Cache](../../caching/index.md)) | dados desatualizados |
+| **Cachear as leituras** | a página do evento quente é servida pelo cache ou por uma rede de entrega de conteúdo (CDN, *content delivery network*), não pelo shard ([Cache](../../caching/index.md)) | dados desatualizados |
 | **Limitar e enfileirar as escritas** | uma sala de espera admite fãs no ritmo que o shard consegue atender ([cenário flash-sale](../transactions/index.md#contention)) | os usuários esperam |
 | **Chave mais fina** | `(event_id, section)` em vez de `event_id` | consultas sobre o evento inteiro se espalham por ~40 partições |
 | **Salting de chave / write sharding** | acrescente um sufixo `0–9` a uma chave quente (`event:42#7`); as escritas escolhem um sufixo aleatório, as leituras juntam os dez | as leituras fazem 10× o trabalho |
@@ -292,7 +292,7 @@ sequenceDiagram
 | | SQL em um nó + réplicas | SQL com sharding (Citus, Vitess) | SQL distribuído (Spanner, CockroachDB…) | NoSQL (Cassandra, DynamoDB) |
 |---|---|---|---|---|
 | Escala de escrita | um primário | por shard | automática, por intervalo | automática, por partição |
-| Transações entre partições | n/a (um nó) | limitadas / 2PC | **sim**, serializable | limitadas ou nenhuma |
+| Transações entre partições | n/a (um nó) | limitadas / commit em duas fases (2PC, *two-phase commit*) | **sim**, serializable | limitadas ou nenhuma |
 | Latência de escrita | a menor | baixa | + ida e volta do consenso (mais se for multirregião) | baixa, ajustável |
 | SQL e joins | completos | a maior parte, com ressalvas | a maior parte | nenhum / limitado |
 | Operação | simples | camada de sharding para operar | gerenciada ou complexa | gerenciada ou complexa |
