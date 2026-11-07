@@ -1,7 +1,7 @@
 # 5. Measure It
 
 Five experiments, one results table. Run each experiment at least twice and report the second run
-(the first one warms up the JVMs and the connection pools). The numbers in the "expected shape"
+(the first one warms up the Java virtual machines (JVMs) and the connection pools). The numbers in the "expected shape"
 boxes are **illustrative** — what matters is that you can explain *your* numbers.
 
 | # | Experiment | Knob | What you record |
@@ -10,7 +10,7 @@ boxes are **illustrative** — what matters is that you can explain *your* numbe
 | B | `notification` outage | stop the container mid-test | error rate, lag peak, time to drain |
 | C | burst and drain | `NOTIFY_CONCURRENCY` 1 vs 6 | lag over time, drain time, e-mail delay p95 |
 | D | replay | `NOTIFY_IDEMPOTENT` | e-mails per order after an offset reset |
-| E | flash-sale spike | waiting room open, `ADMIT_PER_SECOND=10` | admitted/s, wait p95, ETA error, order p95 |
+| E | flash-sale spike | waiting room open, `ADMIT_PER_SECOND=10` | admitted/s, wait p95, error of the estimated time of arrival (ETA), order p95 |
 
 ## The k6 scripts
 
@@ -117,8 +117,27 @@ e-mails of the other run, and of experiment B, would distort the percentiles.
     drains at 20/s → **≈ 240 s** to empty. With six threads (capacity 120/s > 100/s) the lag stays near
     zero. More than six threads would not help: the topic has six partitions. A test run for this lab
     peaked at about 4 900 messages and took about 320 s to drain: each e-mail costs a little more than
-    the 50 ms of simulated latency (SMTP, the database transaction). With six threads the lag stayed
+    the 50 ms of simulated latency (the database transaction and the Simple Mail Transfer Protocol, SMTP). With six threads the lag stayed
     below about 200.
+
+Before you run B and C, play them in the twin of this lab: the same partitions, threads and e-mail latency, one second at a time. Change `NOTIFY_CONCURRENCY` and watch the lag curve.
+
+<div class="csim" data-sim="async-orders" data-script="drain"></div>
+
+!!! tip "Try it"
+
+    The simulator runs this lab's stack without Docker: `order-events` with 6 partitions, `notification` with 3
+    threads, one e-mail per 50 ms; play or → runs a page step by step, and the buttons and knobs work at any time.
+    In **2 · Outbox**, the second `curl` gets `200` and writes no row, the order placed while Kafka is stopped waits
+    in the outbox until Kafka is back, and a relay killed after the ack publishes the same event twice. In
+    **3 · Consumer**, the three tour messages go straight to `order-events-dlt`, Mailpit still has 2
+    e-mails after the replay and 4 with `NOTIFY_IDEMPOTENT=false`, and with Mailpit stopped an order is retried
+    after 0.5, 1 and 2 s before it is dead-lettered. In **5 · Measure (B, C)**, `sync` loses 1,000 of 3,000
+    orders (33 %) to the 20 s outage while `outbox` loses none: the lag peaks at 1,002 and drains 16 s after
+    the load (the model restarts `notification` at once; in the lab, Spring Boot needs a few more seconds). At 100 orders/s, one
+    thread lets the lag reach 4,800 and drain 240 s after the load, three threads 2,400 and 45 s, six threads
+    keep it at 17 or less, and eight change nothing: two threads stay idle. Four or five threads still take
+    45 s: thread 1 still reads two partitions.
 
 ## D. Replay
 

@@ -24,7 +24,7 @@ Há três famílias, que se distinguem por **quem aceita escritas**[^1].
 
 ### Com um único líder (primário–réplica) { #single-leader-primaryreplica }
 
-Um nó, o **líder** (primário), aceita todas as escritas e envia um log de mudanças aos **seguidores** (réplicas). As leituras podem ir ao líder ou aos seguidores. É o padrão no PostgreSQL, MySQL, MongoDB, Redis e Kafka (um líder por partição).
+Um nó, o **líder** (primário), aceita todas as escritas e envia um log de mudanças (no PostgreSQL, o log de escrita antecipada, WAL, *write-ahead log*) aos **seguidores** (réplicas). As leituras podem ir ao líder ou aos seguidores. É o padrão no PostgreSQL, MySQL, MongoDB, Redis e Kafka (um líder por partição).
 
 ``` diagram-sim
 flowchart LR
@@ -39,6 +39,24 @@ flowchart LR
 
 Vários nós aceitam escritas — tipicamente um líder por data center ou região — e replicam entre si de forma assíncrona. As escritas são rápidas e locais em todo lugar, mas dois líderes podem aceitar escritas **conflitantes** no mesmo registro, que precisam ser resolvidas depois. Usos típicos: implantações multirregião, apps offline-first (cada celular é um "líder"), edição colaborativa.
 
+``` diagram-sim
+sequenceDiagram
+    participant F as Fã 42 (São Paulo)
+    participant SP as líder São Paulo
+    participant LIS as líder Lisboa
+    participant S as atendente do suporte (Lisboa)
+    F->>SP: muda o e-mail para ana@new.com
+    SP-->>F: OK (escrita local)
+    S->>LIS: corrige o e-mail para ana@work.com
+    LIS-->>S: OK (escrita local)
+    SP->>LIS: replica e-mail = ana@new.com
+    LIS->>SP: replica e-mail = ana@work.com
+    Note over SP,LIS: cada líder aplica por último a escrita do outro:<br/>as cópias trocaram de valor e as duas escritas foram confirmadas
+    Note over SP,LIS: um conflito a resolver: LWW, um merge ou um líder de origem por registro
+```
+
+Nenhuma escrita foi rejeitada e os dois usuários ouviram "OK"; só uma regra de resolução de conflitos (veja [Consistência eventual](#eventual)) faz as duas cópias voltarem a concordar.
+
 ### Sem líder (leaderless) { #leaderless }
 
 Qualquer réplica aceita leituras e escritas. O cliente (ou um coordenador) envia cada escrita a várias réplicas e cada leitura a várias réplicas e **quóruns** decidem o que conta como sucesso (`R + W > N`, veja [Consenso e Quóruns](../consensus/index.md#quorums)). É o projeto do artigo Dynamo, da Amazon[^2], do Cassandra e do ScyllaDB.
@@ -46,10 +64,10 @@ Qualquer réplica aceita leituras e escritas. O cliente (ou um coordenador) envi
 | | Um líder | Vários líderes | Sem líder |
 |---|---|---|---|
 | **Quem aceita escritas** | Um líder | Um líder por região/site | Qualquer réplica |
-| **Conflitos de escrita** | Nenhum (o líder ordena as escritas) | Sim — precisam ser resolvidos | Sim — precisam ser resolvidos |
+| **Conflitos de escrita** | ✅ Nenhum (o líder ordena as escritas) | ⚠️ Sim — precisam ser resolvidos | ⚠️ Sim — precisam ser resolvidos |
 | **Latência de escrita** | Ida e volta até o líder (talvez distante) | Local | Ida e volta até W réplicas |
 | **Falha do líder** | Precisa de failover (segundos) | Os outros líderes continuam | Não há líder a perder |
-| **Consistência forte possível?** | Sim (leitura no líder, replicação síncrona) | Não entre líderes | Só aproximadamente (quóruns) |
+| **Consistência forte possível?** | ✅ Sim (leitura no líder, replicação síncrona) | ❌ Não entre líderes | ⚠️ Só aproximadamente (quóruns) |
 | **Sistemas típicos** | PostgreSQL, MySQL, MongoDB, partições do Kafka | Montagens multirregião de MySQL/Postgres, CouchDB, Redis Active-Active | Cassandra, ScyllaDB, Riak, DynamoDB (internamente) |
 | **Uso no BoxOffice** | `inventory`, `order`, `payment` | — (evite para assentos!) | Atividade dos fãs, contadores de visualização |
 
@@ -74,12 +92,12 @@ sequenceDiagram
 
 | Modo | O cliente recebe OK quando… | Se o líder morre logo após o OK | Latência de escrita | Disponibilidade de escrita |
 |---|---|---|---|---|
-| **Assíncrono** | o líder gravou localmente | Escritas recentes podem ser **perdidas** | A menor | Alta: seguidores podem estar fora |
-| **Síncrono (todos)** | todos os seguidores gravaram | Nada se perde | O seguidor mais lento decide | Baixa: qualquer seguidor fora bloqueia as escritas |
-| **Semissíncrono** | o líder + *k* seguidores gravaram | Nada se perde se um seguidor síncrono for promovido | Uma ida e volta a mais | Boa: tolera outros seguidores fora |
-| **Quórum (consenso)** | uma maioria gravou | Nada se perde | Mediana da maioria mais rápida | Tolera uma minoria fora |
+| **Assíncrono** | o líder gravou localmente | ❌ Escritas recentes podem ser **perdidas** | A menor | Alta: seguidores podem estar fora |
+| **Síncrono (todos)** | todos os seguidores gravaram | ✅ Nada se perde | O seguidor mais lento decide | Baixa: qualquer seguidor fora bloqueia as escritas |
+| **Semissíncrono** | o líder + *k* seguidores gravaram | ✅ Nada se perde se um seguidor síncrono for promovido | Uma ida e volta a mais | Boa: tolera outros seguidores fora |
+| **Quórum (consenso)** | uma maioria gravou | ✅ Nada se perde | Mediana da maioria mais rápida | Tolera uma minoria fora |
 
-O PostgreSQL expõe essa escolha em `synchronous_commit` e `synchronous_standby_names` (por exemplo `ANY 1 (replica_a, replica_b)` — semissíncrono com uma de duas). Na prática, "totalmente síncrono" é raro: um seguidor lento travaria toda escrita. Replicação semissíncrona ou por quórum é o meio-termo usual.
+O PostgreSQL expõe essa escolha em `synchronous_commit` e `synchronous_standby_names` (por exemplo `ANY 1 (replica_a, replica_b)` — semissíncrono com uma de duas). Na prática, "totalmente síncrono" é raro: um seguidor lento travaria toda escrita. Replicação semissíncrona ou por quórum é o meio-termo usual. O [simulador de replicação](../../databases/replication/index.md#fixing-read-your-writes) da aula de Bancos de Dados reproduz os três modos com um líder e dois seguidores: derrube o líder no modo `async` e veja as últimas reservas sumirem.
 
 ### Atraso de replicação { #replication-lag }
 
@@ -116,11 +134,15 @@ plt.close()
 
 Com um atraso (suposto) exponencial, a mesma tela que quase nunca está desatualizada em um dia tranquilo fica desatualizada para cerca de **69%** das fãs que a abrem 300 ms depois de pagar durante a abertura das vendas, quando o atraso médio sobe para 800 ms. O bug da história de abertura não é raro sob carga — é o comportamento *esperado*.
 
-**Experimente.** Carregue o cenário `db-replicas`, rode o perfil `load` e observe a métrica de atraso da réplica. Depois aumente a taxa de escrita (ou mude para `spike`) e veja o atraso — e a fração de leituras desatualizadas — crescer. Por fim, mande as leituras para o primário e compare a CPU e o p99 do primário.
+**Experimente.** Carregue o cenário `db-replicas`, rode o perfil `load` e observe a métrica de atraso da réplica. Depois aumente a taxa de escrita (ou mude para `spike`) e veja o atraso — e a fração de leituras desatualizadas — crescer. Por fim, mande as leituras para o primário e compare a carga da unidade central de processamento (CPU, *central processing unit*) e a latência no percentil 99 (p99) do primário.
 
 <div class="sdp" data-scenario="db-replicas" data-mode="compact" data-height="520"></div>
 
 [:material-open-in-new: Abrir o playground completo](../../../../playground/index.md)
+
+**A versão do BoxOffice.** O preset `boxoffice-read-your-writes` é a réplica do lab 6, 1 s atrás do primário: 200 req/s, metade reservas de assento e metade leituras de "minhas reservas". Como está desenhado, cerca de 20% das leituras são velhas e, quando o primário morre em t = 90 s, cerca de 105 reservas ainda dentro do atraso se perdem (100 escritas/s × 1 s). Ponha **Reads from** no primário e depois mude a replicação para síncrona: os dois caem para 0, mas o p99 das escritas vai de cerca de 35 ms para cerca de 1 s.
+
+<div class="sdp" data-scenario="boxoffice-read-your-writes" data-mode="compact" data-height="440"></div>
 
 ---
 
@@ -224,7 +246,7 @@ Como oferecê-las em cima de réplicas assíncronas:
 
 ### Consistência eventual { #eventual }
 
-A **consistência eventual** só promete que, *se as escritas pararem*, todas as réplicas vão **eventualmente convergir** para o mesmo valor. Não diz *quando* e não diz nada sobre o que você lê enquanto isso. É a garantia do DNS, da maioria dos caches e CDNs, das réplicas assíncronas e dos armazenamentos sem líder em configurações de quórum baixas.
+A **consistência eventual** só promete que, *se as escritas pararem*, todas as réplicas vão **eventualmente convergir** para o mesmo valor. Não diz *quando* e não diz nada sobre o que você lê enquanto isso. É a garantia do sistema de nomes de domínio (DNS, *Domain Name System*), da maioria dos caches e das redes de distribuição de conteúdo (CDNs, *content delivery networks*), das réplicas assíncronas e dos armazenamentos sem líder em configurações de quórum baixas.
 
 Ela serve perfeitamente para muitos domínios — a descrição do evento, a imagem do cartaz, o contador "312 pessoas estão vendo este evento". A parte difícil é o que acontece quando réplicas aceitaram **escritas concorrentes** no mesmo item e precisam convergir:
 
@@ -232,7 +254,7 @@ Ela serve perfeitamente para muitos domínios — a descrição do evento, a ima
 |---|---|---|
 | **Last-write-wins (LWW)** | Fica a escrita com o maior timestamp | Simples; **descarta silenciosamente** escritas concorrentes e depende de relógios que derivam ([Tempo e Relógios](../time-clocks/index.md#lww)) |
 | **Vetores de versão / irmãos** | Detecta versões concorrentes, guarda todas, deixa a aplicação mesclar | Nenhuma perda silenciosa; a aplicação precisa escrever a lógica de merge (o carrinho do Dynamo mesclava por união) |
-| **CRDTs** | Tipos de dados cujo merge é comutativo, associativo e idempotente | Automático, convergência demonstrável; só para dados que cabem em um CRDT (contadores, conjuntos, registradores, texto) |
+| **CRDTs** (tipos de dados replicados livres de conflito) | Tipos de dados cujo merge é comutativo, associativo e idempotente | Automático, convergência demonstrável; só para dados que cabem em um CRDT (contadores, conjuntos, registradores, texto) |
 | **Evitar conflitos** | Rotear todas as escritas de uma chave para um líder (uma região "de origem") | Nenhum conflito; as escritas dessa chave pagam a latência até a origem |
 
 Um **CRDT** (*Conflict-free Replicated Data Type*, tipo de dado replicado livre de conflitos)[^7] é projetado para que as réplicas possam trocar estado em qualquer ordem, quantas vezes for, e ainda terminar iguais. O mais simples é o contador que só cresce: cada réplica incrementa apenas a sua posição e o merge pega o máximo elemento a elemento.
@@ -265,11 +287,11 @@ Se São Paulo contou `[3, 0, 0]` e Lisboa `[0, 2, 0]`, ambas mesclam para `[3, 2
 
 | Modelo | Garantia | Custo de coordenação | Disponível durante uma partição? | Implementação típica |
 |---|---|---|---|---|
-| **Linearizável** | Cópia única, atualidade em tempo real | O maior: ida e volta ao líder ou à maioria por operação | Não (o lado minoritário precisa recusar) | Armazenamentos baseados em Raft/Paxos (etcd, Spanner, CockroachDB), um líder com leituras no líder |
-| **Sequencial** | Uma ordem global para todos | Alto | Não | Sobretudo teoria / modelos de memória de hardware |
-| **Causal** | Causa antes do efeito, para todos | Médio: rastrear dependências | **Sim** | Relógios lógicos/vetoriais, sessões causais |
-| **Read-your-writes, leituras monotônicas** | Sanidade por sessão | Baixo: rotear ou esperar por sessão | Sim, se a sessão ficar do seu lado | Leituras no líder após escrita, tokens de LSN, réplicas fixas |
-| **Eventual** | Converge se as escritas pararem | O menor | Sim | Replicação assíncrona, caches, DNS, sem líder em `ONE` |
+| **Linearizável** | Cópia única, atualidade em tempo real | O maior: ida e volta ao líder ou à maioria por operação | ❌ Não (o lado minoritário precisa recusar) | Armazenamentos baseados em Raft/Paxos (etcd, Spanner, CockroachDB), um líder com leituras no líder |
+| **Sequencial** | Uma ordem global para todos | Alto | ❌ Não | Sobretudo teoria / modelos de memória de hardware |
+| **Causal** | Causa antes do efeito, para todos | Médio: rastrear dependências | ✅ **Sim** | Relógios lógicos/vetoriais, sessões causais |
+| **Read-your-writes, leituras monotônicas** | Sanidade por sessão | Baixo: rotear ou esperar por sessão | ✅ Sim, se a sessão ficar do seu lado | Leituras no líder após escrita, tokens de LSN, réplicas fixas |
+| **Eventual** | Converge se as escritas pararem | O menor | ✅ Sim | Replicação assíncrona, caches, DNS, sem líder em `ONE` |
 
 !!! example "BoxOffice: um modelo de consistência por domínio de dados"
     | Dado | Modelo | Por quê | Como |
@@ -277,7 +299,7 @@ Se São Paulo contou `[3, 0, 0]` e Lisboa `[0, 2, 0]`, ambas mesclam para `[3, 2
     | Estado dos assentos e reservas | **Linearizável** | Dois fãs nunca podem reservar o mesmo assento | Um único primário PostgreSQL por evento; `UPDATE` condicional/`SELECT … FOR UPDATE` |
     | Pagamentos | **Linearizável** + idempotente | Uma cobrança em dobro é inaceitável | Só no primário; chave de idempotência repassada ao provedor |
     | *Meus ingressos*, *Meus pedidos* | **Read-your-writes** | A fã precisa ver o que acabou de comprar | Ler do primário os dados da própria fã, ou token de LSN |
-    | Contador de assentos restantes na página do evento | **Leituras monotônicas** (eventual é tolerável) | Pode atrasar, mas não pode voltar para trás | Réplica fixa ou cache com TTL curto |
+    | Contador de assentos restantes na página do evento | **Leituras monotônicas** (eventual é tolerável) | Pode atrasar, mas não pode voltar para trás | Réplica fixa ou cache com tempo de vida (TTL, *time to live*) curto |
     | Catálogo de eventos, imagens, descrições | **Eventual** | Segundos de atraso não prejudicam ninguém | Réplicas, cache, CDN |
     | Contadores de "fãs interessados", analytics | **Eventual** (CRDT) | Aproximado basta, disponibilidade importa | Contadores por região mesclados |
 

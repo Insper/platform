@@ -48,11 +48,11 @@ Ninguém distribui um sistema por diversão: um único processo com um único ba
 
 | Motivo | O que uma máquina não consegue fazer | No BoxOffice |
 |---|---|---|
-| **Escalabilidade** | Atender mais requisições, guardar mais dados ou executar mais computação do que sua CPU, memória, disco ou placa de rede permitem | 2 M de fãs no primeiro minuto de uma abertura de vendas; um servidor não consegue nem aceitar tantas conexões TLS |
+| **Escalabilidade** | Atender mais requisições, guardar mais dados ou executar mais computação do que sua unidade central de processamento (CPU, *central processing unit*), memória, disco ou placa de rede permitem | 2 M de fãs no primeiro minuto de uma abertura de vendas; um servidor não consegue nem aceitar tantas conexões de segurança da camada de transporte (TLS, *Transport Layer Security*) |
 | **Tolerância a falhas / disponibilidade** | Sobreviver à própria falha — um disco, uma fonte, um kernel panic, um deploy que deu errado | Se a única máquina do `inventory` morre às 10:00:05, a venda para |
 | **Latência** | Estar perto de todos os usuários; a luz na fibra leva ~100 ms para atravessar meio planeta (~20.000 km), só de ida | Fãs em Lisboa e em São Paulo esperam um mapa de assentos rápido |
 | **Isolamento e organização** | Permitir que times façam deploy de forma independente, ou conter uma falha em uma parte do produto | Um bug em `search` não deve parar o `payment` |
-| **Residência de dados** | Manter dados pessoais em uma jurisdição (por exemplo, LGPD no Brasil, GDPR na Europa) | Os dados dos fãs europeus ficam em uma região da UE |
+| **Residência de dados** | Manter dados pessoais em uma jurisdição (por exemplo, a Lei Geral de Proteção de Dados, LGPD, no Brasil; o Regulamento Geral sobre a Proteção de Dados, GDPR, *General Data Protection Regulation*, na Europa) | Os dados dos fãs europeus ficam em uma região da União Europeia (UE) |
 
 Escalar verticalmente — uma máquina maior — é a primeira resposta e, por um tempo, muitas vezes a certa. Ela para de funcionar por três motivos: existe uma maior máquina que se pode comprar; no topo, o preço cresce mais rápido que a capacidade; e, por maior que seja, ela continua sendo **uma** máquina — um ponto único de falha (SPOF, *single point of failure*).
 
@@ -116,7 +116,7 @@ flowchart LR
     gw -->|"valida o token"| auth[auth]
     gw -->|"encaminha"| inv[inventory]
     inv -->|"UPDATE seat ... (transação)"| pg[("PostgreSQL primário")]
-    pg -->|"replica o WAL"| rep[("PostgreSQL réplica")]
+    pg -->|"replica o log de escrita antecipada (WAL)"| rep[("PostgreSQL réplica")]
     inv -->|"cacheia o mapa de assentos"| redis[("Redis")]
     inv -->|"evento SeatHeld"| kafka[["Kafka (3 brokers)"]]
     kafka -->|"consome"| notif[notification]
@@ -132,11 +132,11 @@ Um **modelo de falha** diz o que um componente defeituoso pode fazer. Ele import
 
 | Modelo | O que o nó (ou enlace) defeituoso faz | Exemplo no BoxOffice | Defesa típica |
 |---|---|---|---|
-| **Crash-stop** | Para e nunca mais volta | Uma VM é encerrada | Réplicas + failover |
-| **Crash-recovery** | Para e depois reinicia com o que tinha em disco | Um pod do `inventory` é morto por falta de memória (OOM) e reiniciado | Logs duráveis; reprocessamento idempotente |
+| **Crash-stop** | Para e nunca mais volta | Uma máquina virtual (VM, *virtual machine*) é encerrada | Réplicas + failover |
+| **Crash-recovery** | Para e depois reinicia com o que tinha em disco | Um pod do `inventory` é morto por falta de memória (OOM, *out of memory*) e reiniciado | Logs duráveis; reprocessamento idempotente |
 | **Omissão** | Descarta silenciosamente algumas mensagens que deveria enviar ou receber | Um buffer de socket cheio descarta o evento `SeatHeld` | Confirmações (acks), retries, timeouts |
-| **Temporização (desempenho)** | Responde, mas tarde demais | Uma pausa de 3 segundos de garbage collection no `payment` | Timeouts, hedging, circuit breakers |
-| **Bizantina** | Comporta-se de forma arbitrária: corrompe, mente, diz coisas diferentes a nós diferentes | Um bit trocado corrompe uma mensagem; um cliente comprometido forja ingressos | Checksums, assinaturas, validação; protocolos BFT (3f + 1 nós) |
+| **Temporização (desempenho)** | Responde, mas tarde demais | Uma pausa de 3 segundos de coleta de lixo (GC, *garbage collection*) no `payment` | Timeouts, hedging, circuit breakers |
+| **Bizantina** | Comporta-se de forma arbitrária: corrompe, mente, diz coisas diferentes a nós diferentes | Um bit trocado corrompe uma mensagem; um cliente comprometido forja ingressos | Checksums, assinaturas, validação; protocolos tolerantes a falhas bizantinas (BFT, *Byzantine fault tolerance*), com 3f + 1 nós |
 | **Falha cinza** | Parece saudável para o health check, mas falha para os usuários | `/health` responde 200 enquanto toda consulta real dá timeout | Health checks que exercitam o caminho real; sinais do lado do cliente |
 
 Mais duas ideias completam o vocabulário:
@@ -159,7 +159,7 @@ Nos anos 1990, L. Peter Deutsch e colegas da Sun Microsystems listaram as suposi
 |---|---|---|
 | 1. A rede é confiável | Pacotes são descartados, enlaces caem, switches reiniciam | A conexão `inventory → PostgreSQL` é resetada no meio de uma transação |
 | 2. A latência é zero | Mesmo data center ≈ 0,5 ms de ida e volta; entre continentes ≈ 150 ms[^6] | Seis chamadas sequenciais de 30 ms cada fazem um checkout de 180 ms |
-| 3. A largura de banda é infinita | Enlaces saturam, principalmente nos picos | Devolver o mapa completo de 60.000 assentos em JSON para 2 M de fãs |
+| 3. A largura de banda é infinita | Enlaces saturam, principalmente nos picos | Devolver o mapa completo de 60.000 assentos em JSON (*JavaScript Object Notation*) para 2 M de fãs |
 | 4. A rede é segura | O tráfego pode ser lido, alterado ou forjado | Serviços confiam em qualquer chamador dentro do cluster |
 | 5. A topologia não muda | Nós entram e saem; IPs mudam | Um pod do Kubernetes é reagendado com um novo IP durante a abertura das vendas |
 | 6. Existe um administrador | Muitos times, contas, provedores e políticas | O provedor de pagamentos muda uma configuração de TLS do lado dele |
@@ -186,8 +186,15 @@ sequenceDiagram
 
 Do lado de quem chama, uma requisição perdida, um servidor que caiu, uma resposta perdida e um servidor muito lento parecem a mesma coisa: **silêncio**. A única ferramenta prática é um **timeout** — depois de um prazo, *supor* que houve falha. Mas um timeout não diz se a operação foi executada e daí decorrem duas coisas:
 
-1. **Escolher o timeout é um trade-off.** Longo demais e as threads de quem chama se acumulam esperando (a falha em cascata de [Confiabilidade](../reliability/index.md)); curto demais e você declara mortos nós saudáveis mas lentos, faz retry e adiciona carga justamente quando o sistema está sofrendo. Um ponto de partida comum é um pouco acima da latência p99,9 do serviço chamado, dentro do orçamento de latência de quem chama. Sistemas como Cassandra e Akka vão além e usam detectores de falha *adaptativos* (o detector φ accrual), que aprendem a distribuição normal dos atrasos dos heartbeats[^7].
+1. **Escolher o timeout é um trade-off.** Longo demais e as threads de quem chama se acumulam esperando (a falha em cascata de [Confiabilidade](../reliability/index.md)); curto demais e você declara mortos nós saudáveis mas lentos, faz retry e adiciona carga justamente quando o sistema está sofrendo. Um ponto de partida comum é um pouco acima da latência no percentil 99,9 (p99,9) do serviço chamado, dentro do orçamento de latência de quem chama. Sistemas como Cassandra e Akka vão além e usam detectores de falha *adaptativos* (o detector φ accrual), que aprendem a distribuição normal dos atrasos dos heartbeats[^7].
 2. **Retries precisam ser seguros.** Se o retry pode aplicar a operação uma segunda vez, isso precisa ser inofensivo — a operação precisa ser **idempotente**.
+
+As duas consequências, medidas numa chamada que não mexe com dinheiro — o `gateway` transformando 200 holds de assento em pedidos com `POST /orders`, por uma rede que perde mensagens:
+
+<div class="csim" data-sim="timeout-retry" data-timeout="2000" data-loss="5" data-policy="retry"></div>
+
+!!! tip "Experimente"
+    O simulador começa em **tentar de novo**, com timeout de **2 s** e 5% das requisições e das respostas perdidas: 8 das 200 primeiras chamadas passam do timeout enquanto o `order` ainda grava e 13 holds ganham dois pedidos, em 23 retentativas. Aperte play para ver os fãs sem resposta a tempo: toda duplicata vem do caso (c) ou (d). Suba o timeout para **5 s**: as duplicatas caem para 6 — respostas perdidas não ligam para o timeout — e a espera p99 do fã cresce de 2,8 s para 5,8 s. Baixe para **300 ms**: 26 holds ganham dois pedidos. Escolha **desistir**: nenhuma duplicata, mas com 2 s 9 fãs ficam sem pedido nenhum e 13 ouvem "falhou" por um pedido que existe — isso é no máximo uma vez. Escolha **tentar + deduplicar por hold** (o `ON CONFLICT (hold_id) DO NOTHING` do lab 7): nenhuma duplicata em nenhum timeout e, com 300 ms, 2 fãs ainda esgotam as tentativas com um pedido que existe — antes de dizer "falhou", pergunte ao `order` (próxima seção). A versão com pagamento, chave de idempotência e as configurações de cliente do lab 9 está na [página de integrações](../compute/integrations/index.md).
 
 ---
 
@@ -199,8 +206,8 @@ Sempre que uma mensagem atravessa uma rede não confiável, o remetente escolhe 
 
 | Semântica | Como | Risco | Use para |
 |---|---|---|---|
-| **No máximo uma vez** (*at most once*) | Envia uma vez, nunca faz retry | Mensagens perdidas | Amostras de métricas, sinais de "fã está digitando…" |
-| **Pelo menos uma vez** (*at least once*) | Faz retry até receber confirmação | Duplicatas | Quase tudo: pedidos, eventos, e-mails |
+| **No máximo uma vez** (*at most once*) | Envia uma vez, nunca faz retry | ❌ Mensagens perdidas | Amostras de métricas, sinais de "fã está digitando…" |
+| **Pelo menos uma vez** (*at least once*) | Faz retry até receber confirmação | ⚠️ Duplicatas | Quase tudo: pedidos, eventos, e-mails |
 | **Exatamente uma vez** (*exactly once*) | Não é alcançável só pela rede | — | Obtida como **pelo menos uma vez + processamento idempotente** ("efetivamente uma vez") |
 
 "Entrega exatamente uma vez" por uma rede não confiável é impossível em geral — o remetente nunca pode ter certeza de que o destinatário não processou uma mensagem cuja confirmação se perdeu. O que sistemas como o Kafka chamam de *exactly-once* é **processamento** exatamente uma vez: duplicatas podem chegar, mas seu **efeito** é aplicado uma vez, por deduplicação ou transações[^8]. A aula de [Mensageria](../messaging/index.md) aprofunda o tema.
@@ -211,17 +218,17 @@ Uma operação é **idempotente** se aplicá-la várias vezes tem o mesmo efeito
 
 | Operação | Idempotente? | Por quê |
 |---|---|---|
-| `GET /events/42` | Sim | Leituras não mudam nada |
-| `PUT /holds/A-12 {fan: 42}` | Sim | Define o estado como um valor; repetir define o mesmo valor |
-| `DELETE /holds/A-12` | Sim | A reserva some na primeira chamada; a segunda pode devolver `404`, mas o **estado** é o mesmo |
-| `POST /orders` | **Não** | Cada chamada cria um novo pedido |
-| `UPDATE seats SET sold = sold + 1` | **Não** | Cada chamada incrementa de novo |
-| `UPDATE seats SET status = 'HELD', fan = 42 WHERE id = 'A-12' AND status = 'FREE'` | Sim | Uma **escrita condicional**: a segunda chamada não encontra nenhuma linha |
+| `GET /events/42` | ✅ Sim | Leituras não mudam nada |
+| `PUT /holds/A-12 {fan: 42}` | ✅ Sim | Define o estado como um valor; repetir define o mesmo valor |
+| `DELETE /holds/A-12` | ✅ Sim | A reserva some na primeira chamada; a segunda pode devolver `404`, mas o **estado** é o mesmo |
+| `POST /orders` | ❌ **Não** | Cada chamada cria um novo pedido |
+| `UPDATE seats SET sold = sold + 1` | ❌ **Não** | Cada chamada incrementa de novo |
+| `UPDATE seats SET status = 'HELD', fan = 42 WHERE id = 'A-12' AND status = 'FREE'` | ✅ Sim | Uma **escrita condicional**: a segunda chamada não encontra nenhuma linha |
 
 Duas técnicas tornam seguras para retry as operações não idempotentes:
 
 1. **Reescrever como uma transição de estado com condição** (*compare-and-set*): "marque o assento como HELD **se** ele estiver FREE", "grave a versão 8 **se** a versão atual for 7". Uma duplicata não satisfaz a condição e não muda nada.
-2. **Chaves de idempotência**: o cliente gera uma chave única por operação *pretendida* e a envia em todas as tentativas; o servidor guarda a chave junto com o resultado e, diante de uma duplicata, devolve o resultado guardado em vez de executar de novo. A API pública do Stripe popularizou o cabeçalho `Idempotency-Key`[^9] e há um rascunho do IETF padronizando-o.
+2. **Chaves de idempotência**: o cliente gera uma chave única por operação *pretendida* e a envia em todas as tentativas; o servidor guarda a chave junto com o resultado e, diante de uma duplicata, devolve o resultado guardado em vez de executar de novo. A API pública do Stripe popularizou o cabeçalho `Idempotency-Key`[^9] e há um rascunho da força-tarefa de engenharia da internet (IETF, *Internet Engineering Task Force*) padronizando-o.
 
 ``` diagram-sim
 sequenceDiagram
@@ -259,7 +266,7 @@ COMMIT;
 ```
 
 !!! example "BoxOffice: reservando um assento com segurança"
-    O app gera um UUID quando o fã toca em **Reservar assento** e o reutiliza em todo retry desse toque. O `inventory` executa `UPDATE seats SET status = 'HELD', fan_id = :fan, hold_key = :key WHERE id = :seat AND (status = 'FREE' OR hold_key = :key)`. A primeira tentativa reserva o assento; um retry com a mesma chave encontra a linha de novo e não muda nada; a requisição de um fã **diferente** não encontra nenhuma linha e recebe `409 Conflict`. O adaptador `payment` repassa a mesma chave ao provedor externo, então uma cobrança refeita não é cobrada duas vezes ([Integrações](../compute/integrations/index.md)).
+    O app gera um identificador único universal (UUID, *universally unique identifier*) quando o fã toca em **Reservar assento** e o reutiliza em todo retry desse toque. O `inventory` executa `UPDATE seats SET status = 'HELD', fan_id = :fan, hold_key = :key WHERE id = :seat AND (status = 'FREE' OR hold_key = :key)`. A primeira tentativa reserva o assento; um retry com a mesma chave encontra a linha de novo e não muda nada; a requisição de um fã **diferente** não encontra nenhuma linha e recebe `409 Conflict`. O adaptador `payment` repassa a mesma chave ao provedor externo, então uma cobrança refeita não é cobrada duas vezes ([Integrações](../compute/integrations/index.md)).
 
 !!! example "No código do BoxOffice: uma escrita condicional e uma chave de idempotência (labs 6 e 9)"
 
@@ -302,9 +309,6 @@ flowchart LR
     IDEM -.-> pay["payment · queue"]:::comp
     TX -.-> stream["stream · kafka"]:::comp
     CAP -.-> dns["dns (multirregião)"]:::comp
-    classDef problem fill:#e5484d22,stroke:#e5484d
-    classDef comp fill:#1e9e5a22,stroke:#1e9e5a
-    classDef tech fill:#2f6fed22,stroke:#2f6fed
     class REP,IDEM,ORD,CM,CAP,CONS,TX tech
 ```
 

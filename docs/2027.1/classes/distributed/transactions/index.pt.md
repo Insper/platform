@@ -24,7 +24,7 @@ Existem duas famílias de soluções:
 
 | Abordagem | Ideia | Isolamento | Disponibilidade |
 |---|---|---|---|
-| **Commit atômico (2PC)** | Todos *se preparam*, depois um coordenador decide commit/abort para todos | ACID completo entre os participantes | Todos os participantes e o coordenador precisam estar no ar ao mesmo tempo |
+| **Commit atômico (2PC)** | Todos *se preparam*, depois um coordenador decide commit/abort para todos | ACID completo (atomicidade, consistência, isolamento, durabilidade) entre os participantes | Todos os participantes e o coordenador precisam estar no ar ao mesmo tempo |
 | **Sagas e compensações** | Uma sequência de transações locais; em caso de falha, execute transações de **compensação** que desfazem os passos anteriores | Nenhum entre os passos (estados intermediários ficam visíveis) | Cada passo só precisa do próprio serviço |
 
 ---
@@ -52,7 +52,7 @@ sequenceDiagram
     R-->>C: feito
 ```
 
-O PostgreSQL expõe o lado do participante como `PREPARE TRANSACTION 'id'` seguido, mais tarde, de `COMMIT PREPARED 'id'` ou `ROLLBACK PREPARED 'id'`; o padrão X/Open **XA** define o mesmo protocolo para bancos de dados e message brokers coordenados por um gerenciador de transações (como no Jakarta EE).
+O PostgreSQL expõe o lado do participante como `PREPARE TRANSACTION 'id'` seguido, mais tarde, de `COMMIT PREPARED 'id'` ou `ROLLBACK PREPARED 'id'`; o padrão X/Open **XA** (*eXtended Architecture*) define o mesmo protocolo para bancos de dados e message brokers coordenados por um gerenciador de transações (como no Jakarta EE).
 
 ### O problema do bloqueio { #blocking }
 
@@ -142,9 +142,26 @@ Duas formas de coordenar os passos:
 
     Um **orquestrador** central (aqui, o serviço `order` ou um motor de workflow como Temporal ou AWS Step Functions) diz a cada participante o que fazer e decide quando compensar. A lógica da saga fica em um só lugar, fácil de ler, monitorar e mudar; o orquestrador precisa persistir seu estado para sobreviver a reinícios. Preferível quando há mais do que alguns poucos passos.
 
+    ``` diagram-sim
+    flowchart LR
+        O["order<br/>orquestrador + log da saga"]:::comp -->|"1 · reserva A-12"| I[inventory]
+        O -->|"2 · cobra R$ 450"| P[payment]
+        P -.->|"3 · recusado"| O
+        O -.->|"4 · compensa: libera A-12"| I
+        O -->|"(se der certo) emite o ingresso"| T[ticket]
+    ```
+
 === "Coreografia"
 
     Sem cérebro central: cada serviço reage a **eventos** dos outros (`OrderCreated` → `inventory` reserva → `SeatReserved` → `payment` cobra → `PaymentFailed` → `inventory` libera…). Pouco acoplada e simples para dois ou três passos; com mais, o fluxo fica espalhado por muitos serviços e difícil de acompanhar ("quem compensa o quê?"). Tratada com Kafka em [Mensageria — padrões](../../messaging/patterns/index.md).
+
+    ``` diagram-sim
+    flowchart LR
+        O[order] -->|"1 · OrderCreated"| I[inventory]
+        I -->|"2 · SeatReserved"| P[payment]
+        P -->|"3 · PaymentFailed"| I2["inventory<br/>libera A-12"]
+        P -->|"3 · PaymentFailed"| O2["order<br/>cancela 981"]
+    ```
 
 ### Sagas abrem mão do isolamento { #sagas-give-up-isolation }
 
@@ -167,6 +184,17 @@ Entre os passos, outras transações veem estados intermediários: um pedido `PE
 
 O padrão **TCC** (try–confirm–cancel) faz cada participante oferecer uma operação *provisória* com um timeout. O BoxOffice já funciona assim: o **hold** é o *try* (o assento fica reservado por 10 minutos), a **venda** é o *confirm* e a **expiração ou liberação** é o *cancel*. Provedores de pagamento oferecem o mesmo formato: **autorizar** (reservar o valor) → **capturar** (efetivar a cobrança) ou **cancelar** (*void*, liberar o valor). Como todo estado provisório expira sozinho, uma queda em qualquer lugar deixa o sistema convergindo para um estado seguro em vez de bloquear.
 
+``` diagram-sim
+stateDiagram-v2
+  [*] --> FREE
+  FREE --> HELD : try, reserva por 10 min
+  HELD --> SOLD : confirm, pagamento capturado
+  HELD --> FREE : cancel, liberação ou expiração
+  SOLD --> [*]
+```
+
+Nenhum caminho deixa o assento preso: de `HELD` as únicas saídas são um confirm ou o relógio.
+
 ---
 
 ## O problema da escrita dupla e o outbox { #outbox }
@@ -181,7 +209,7 @@ sequenceDiagram
     I->>DB: UPDATE do assento + INSERT INTO outbox (SeatReserved), um COMMIT
     Note over I,DB: uma transação local: as duas ou nenhuma
     DB-->>I: commit feito
-    Note over DB,K: um relay (poller ou CDC como o Debezium)<br/>lê a tabela de outbox
+    Note over DB,K: um relay (poller ou captura de dados de mudança,<br/>CDC, como o Debezium)<br/>lê a tabela de outbox
     DB->>K: publica SeatReserved
     K-->>DB: ack: marca a linha do outbox como enviada
 ```
@@ -202,11 +230,11 @@ O **outbox transacional** grava o evento em uma tabela `outbox` **na mesma trans
 
 | | Transação local | 2PC / banco distribuído | Saga (orquestrada) | Saga (coreografada) | TCC / reserva |
 |---|---|---|---|---|---|
-| **Atomicidade** | Sim | Sim | Eventual, via compensação | Eventual, via compensação | Eventual, via confirm/cancel |
-| **Isolamento** | Sim | Sim | Não (locks semânticos) | Não | Parcial (a reserva) |
+| **Atomicidade** | ✅ Sim | ✅ Sim | ⚠️ Eventual, via compensação | ⚠️ Eventual, via compensação | ⚠️ Eventual, via confirm/cancel |
+| **Isolamento** | ✅ Sim | ✅ Sim | ❌ Não (locks semânticos) | ❌ Não | ⚠️ Parcial (a reserva) |
 | **Disponibilidade** | Um banco | Todos os participantes ao mesmo tempo | Cada passo de forma independente | Cada passo de forma independente | Cada passo de forma independente |
 | **Latência** | A menor | 2 idas e voltas + fsyncs, locks mantidos | Soma dos passos, pode ser assíncrona | Assíncrona | Try agora, confirm depois |
-| **Funciona com terceiros** | — | Não | Sim | Sim | Sim, se oferecerem reservar/capturar |
+| **Funciona com terceiros** | — | ❌ Não | ✅ Sim | ✅ Sim | ✅ Sim, se oferecerem reservar/capturar |
 | **Complexidade** | A menor | No banco de dados (se ele oferecer) | Estado do orquestrador, compensações | Fluxo de eventos espalhado pelos serviços | Lógica de timeouts e expiração |
 | **Uso no BoxOffice** | Segurar um assento; assento + linha do outbox | Dentro do CockroachDB/Spanner, se usados | Checkout | Notificações, analytics | Hold do assento; autorizar/capturar o cartão |
 

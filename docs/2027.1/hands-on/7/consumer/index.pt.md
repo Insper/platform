@@ -9,7 +9,7 @@ mensagem ruim parar a partição inteira.
 | Problema | Técnica | Onde no código |
 |---|---|---|
 | o mesmo evento chega duas vezes | **consumidor idempotente**: lembrar os `eventId` processados, na mesma transação do efeito | `NotificationService` |
-| uma falha transitória (soluço do SMTP) | **retentativa com *backoff* exponencial**, no lugar | `KafkaConfig` |
+| uma falha transitória (soluço do SMTP, *Simple Mail Transfer Protocol*) | **retentativa com *backoff* exponencial**, no lugar | `KafkaConfig` |
 | uma mensagem que nunca vai dar certo (malformada, endereço inválido) | **tópico de mensagens mortas** (DLT): estacioná-la e manter a partição andando | `KafkaConfig`, `DeadLetterListener` |
 
 ## O serviço `notification` { #the-notification-service }
@@ -121,6 +121,23 @@ provedor (a maioria das APIs de e-mail e de pagamento aceita uma — passe o `ev
 processamento *exactly-once* dentro do Kafka (transações, `read_committed`) cobre pipelines de Kafka
 para Kafka, não e-mails.
 
+``` diagram-sim
+sequenceDiagram
+    participant K as order-events
+    participant N as notification
+    participant DB as banco do notification
+    participant M as provedor de e-mail
+    K->>N: OrderPlaced, eventId e1
+    N->>DB: INSERT processed_events e1 (a reivindicação)
+    N->>M: envia o e-mail
+    N-xDB: o COMMIT falha, banco fora do ar
+    Note over N,DB: a reivindicação é desfeita e o offset não é confirmado
+    K->>N: OrderPlaced e1, entregue de novo
+    N->>DB: INSERT processed_events e1, a reivindicação dá certo de novo
+    N->>M: um segundo e-mail, a menos que o provedor deduplique pela chave e1
+    N->>DB: COMMIT
+```
+
 !!! tip "Na entrevista"
 
     "O Kafka dá *at-least-once*; eu torno os consumidores idempotentes com uma tabela de deduplicação
@@ -153,6 +170,21 @@ para Kafka, não e-mails.
     ``` java title="services/notification/src/main/java/boxoffice/notification/NotificationController.java"
     --8<-- "docs/2027.1/hands-on/7/code/services/notification/src/main/java/boxoffice/notification/NotificationController.java"
     ```
+
+Todo registro termina de um destes jeitos; só uma falha transitória é tentada de novo:
+
+``` diagram-sim
+flowchart LR
+    rec["registro de order-events"] --> L{"listener"}
+    L -->|"e-mail enviado"| C["confirma o offset,<br/>próximo registro"]:::comp
+    L -->|"eventId já em processed_events"| C
+    L -->|"MailSendException (transitória)"| R["tenta de novo no lugar após<br/>0,5 s, 1 s, 2 s"]:::tech
+    R -->|dá certo| C
+    R -->|"continua falhando"| D[("order-events-dlt<br/>mesma partição")]:::problem
+    L -->|"IllegalArgumentException,<br/>JacksonException"| D
+    D --> C
+    D -.->|DeadLetterListener| T["tabela dead_letters"]
+```
 
 Como flui um registro que falha:
 
@@ -278,6 +310,26 @@ O pedido dá certo (o fã não é afetado), o e-mail falha de forma permanente e
 `order-events-dlt`: depois de um ou dois segundos, a última linha da consulta é o pedido envenenado (as
 linhas antes dela são as mensagens do passeio, uma vez por passagem do grupo pelo tópico); abra-o no
 Kafka UI e veja os *headers* `kafka_dlt-*` (tópico, partição e offset originais, exceção).
+
+Repita os experimentos deste passo sem Docker e veja o que uma falha transitória (Mailpit parado) faz com uma partição:
+
+<div class="csim" data-sim="async-orders" data-script="consumer"></div>
+
+!!! tip "Experimente"
+
+    O simulador roda a stack deste lab sem Docker: `order-events` com 6 partições, `notification` com 3
+    threads, um e-mail a cada 50 ms; play ou → roda uma página passo a passo e os botões e controles funcionam a
+    qualquer momento. Em **2 · Outbox**, o segundo `curl` recebe `200` e não grava linha, o pedido feito com o
+    Kafka parado espera no outbox até o Kafka voltar e um relay morto depois do ack publica o mesmo evento duas
+    vezes. Em **3 · Consumidor**, as três mensagens do passeio vão direto para `order-events-dlt`, o
+    Mailpit continua com 2 e-mails depois do reprocessamento e fica com 4 com `NOTIFY_IDEMPOTENT=false` e, com
+    o Mailpit parado, um pedido é tentado de novo depois de 0,5, 1 e 2 s antes de ir para o tópico de mensagens mortas. Em
+    **5 · Medir (B, C)**, `sync` perde 1.000 de 3.000 pedidos (33 %) na queda de 20 s enquanto `outbox` não
+    perde nenhum: o *lag* chega a 1.002 e drena 16 s depois da carga (o modelo reinicia o `notification` na
+    hora; no lab, o Spring Boot precisa de mais alguns segundos). A 100 pedidos/s, uma thread deixa o *lag* chegar a 4.800 e drenar 240 s
+    depois da carga, três threads, 2.400 e 45 s, seis threads o mantêm em 17 ou menos e oito não mudam nada:
+    duas threads ficam ociosas. Quatro ou cinco threads ainda levam 45 s: a thread 1 continua lendo duas
+    partições.
 
 !!! warning "Uma DLT que ninguém lê é perda de dados silenciosa"
 

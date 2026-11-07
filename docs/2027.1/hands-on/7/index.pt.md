@@ -37,8 +37,8 @@ Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** a
 | | |
 |---|---|
 | Tempo | cerca de 4 horas (dois encontros) |
-| Ferramentas | Docker com Compose v2 (`docker compose version`), k6 1.x (`k6 version`), `curl`, `jq` — todos do [lab 0](../0/index.md). Os serviços Java são construídos **dentro do Docker**: não é preciso JDK nem Maven locais neste lab |
-| Recursos do Docker | pelo menos 4 CPUs e **8 GB** de memória (o Kafka e mais duas JVMs entram na stack do lab 6) |
+| Ferramentas | Docker com Compose v2 (`docker compose version`), k6 1.x (`k6 version`), `curl`, `jq` — todos do [lab 0](../0/index.md). Os serviços Java são construídos **dentro do Docker**: não é preciso kit de desenvolvimento Java (JDK, *Java Development Kit*) nem Maven locais neste lab |
+| Recursos do Docker | pelo menos 4 CPUs e **8 GB** de memória (o Kafka e mais duas máquinas virtuais Java, JVMs, *Java virtual machines*, entram na stack do lab 6) |
 | Portas | livres na sua máquina: 8084, 8086, 8089, 8025, 1025, 9094 (além das do lab 6) |
 
 Seu repositório precisa estar no estado em que o lab 6 o deixou. Todo comando deste lab roda na
@@ -70,12 +70,12 @@ publicado em `https://insper.github.io/platform/2027.1/hands-on/7/code/<caminho>
 
 === "Antes (síncrono)"
 
-    ``` mermaid-sim
+    ``` diagram-sim
     flowchart LR
         fan[Fã] -->|POST /orders| gw[gateway]
         gw --> order[order]
         order -->|INSERT do pedido| db[(PostgreSQL)]
-        order -->|"POST /notifications (espera)"| notification[notification]
+        order -->|"POST /notifications (espera)"| notification[notification]:::problem
         notification -->|SMTP| mail[mailpit]
         notification -->|201 depois do e-mail| order
         order -->|201| gw
@@ -83,19 +83,19 @@ publicado em `https://insper.github.io/platform/2027.1/hands-on/7/code/<caminho>
 
 === "Depois (eventos)"
 
-    ``` mermaid-sim
+    ``` diagram-sim
     flowchart LR
-        fan[Fã] -->|entra| wr[sala de espera]
+        fan[Fã] -->|entra| wr[sala de espera]:::comp
         wr -->|admitido| gw[gateway]
         gw -->|POST /orders| order[order]
         order -->|"INSERT pedido + outbox (1 tx)"| db[(PostgreSQL)]
         order -->|201 na hora| gw
-        relay[relay do outbox] -->|busca não publicados| db
-        relay -->|publica OrderPlaced| kafka[(Kafka: order-events)]
+        relay[relay do outbox]:::comp -->|busca não publicados| db
+        relay -->|publica OrderPlaced| kafka[(Kafka: order-events)]:::comp
         kafka -->|grupo de consumidores notification| notification[notification]
         notification -->|"processed_events (dedup)"| ndb[(PostgreSQL)]
         notification -->|SMTP| mail[mailpit]
-        notification -.->|após 3 tentativas falhas| dlt[(order-events-dlt)]
+        notification -.->|após 3 tentativas falhas| dlt[(order-events-dlt)]:::problem
     ```
 
 A requisição do fã agora termina no *commit* do banco. Tudo o que vem depois — publicar, enviar o
@@ -107,10 +107,10 @@ que o fã perceba.
     | Componente da paleta | Neste lab |
     |---|---|
     | [Kafka](../../reference/components/messaging/index.md#kafka) | Kafka 4 de um nó em modo KRaft, tópico `order-events` com 6 partições |
-    | [Message Queue](../../reference/components/messaging/index.md#queue) | a sala de espera: uma FIFO de fãs no Redis, esvaziada a uma taxa fixa de admissão |
+    | [Message Queue](../../reference/components/messaging/index.md#queue) | a sala de espera: uma fila FIFO (*first-in, first-out*, o primeiro a entrar é o primeiro a sair) de fãs no Redis, esvaziada a uma taxa fixa de admissão |
     | [App Server](../../reference/components/compute/index.md#app) | `order` (produtor, relay do outbox, sala de espera) |
     | [Notifications](../../reference/components/compute/index.md#notifications) | `notification` (consumidor idempotente, DLT) |
-    | [Email](../../reference/components/external/index.md#email) | Mailpit, um servidor SMTP local com caixa de entrada web |
+    | [Email](../../reference/components/external/index.md#email) | Mailpit, um servidor SMTP (*Simple Mail Transfer Protocol*) local com caixa de entrada web |
 
 ## O que você vai medir { #what-you-will-measure }
 
@@ -133,7 +133,7 @@ que o fã perceba.
 
 ## Passos { #steps }
 
-1. [Kafka no Compose](kafka/index.md) — um broker KRaft, o tópico `order-events`, o Kafka UI e o Mailpit; um passeio pela CLI.
+1. [Kafka no Compose](kafka/index.md) — um broker KRaft (*Kafka Raft*), o tópico `order-events`, o Kafka UI e o Mailpit; um passeio pela interface de linha de comando (CLI, *command-line interface*).
 2. [Transactional outbox](outbox/index.md) — o serviço `order` grava o pedido e o evento em uma transação; um relay o publica.
 3. [Consumidor idempotente e DLT](consumer/index.md) — o serviço `notification` deduplica por `eventId`, tenta de novo com *backoff* e manda mensagens envenenadas para a DLT.
 4. [Sala de espera](waiting-room/index.md) — uma FIFO no Redis que admite fãs a uma taxa fixa durante a abertura das vendas.
@@ -143,7 +143,7 @@ que o fã perceba.
 
 Antes de escrever código, veja as duas formas que este lab constrói. **Experimente:** no primeiro
 simulador, rode o perfil `load` e observe cada serviço consumidor receber sua própria cópia de cada
-evento (*fan-out*); depois aumente o RPS alvo até um consumidor ficar para trás enquanto o produtor
+evento (*fan-out*); depois aumente a meta de requisições por segundo (RPS, *requests per second*) até um consumidor ficar para trás enquanto o produtor
 continua rápido. No segundo, rode `spike` e observe o *backlog* da fila crescer e drenar enquanto os
 *workers* seguem em ritmo constante.
 
@@ -151,7 +151,16 @@ continua rápido. No segundo, rode `spike` e observe o *backlog* da fila crescer
 
 <div class="sdp" data-scenario="async-queue" data-mode="compact" data-height="520" data-profile="spike"></div>
 
+O terceiro é este lab em números (`boxoffice-outbox`): o `order` chama o `notification`, que envia cada e-mail em 50 ms (no máximo 60 e-mails/s com 3 consumidores), e uma rajada de 30 s a 200 pedidos/s derruba cerca de 35% dos pedidos. Troque a chamada por `order` → Kafka (6 partições) → `notification` e rode com 3 consumidores, depois 6 e 12: com 6 nada falha e o lag chega a cerca de 30 s; 12 atrasam exatamente como 6.
+
+<div class="sdp" data-scenario="boxoffice-outbox" data-mode="compact" data-height="440"></div>
+
 O simulador completo está no [playground](../../../playground/index.md).
+
+Os passos [2](outbox/index.md), [3](consumer/index.md) e [5](measure/index.md) também embutem um gêmeo deste lab:
+o mesmo tópico, as mesmas partições, threads consumidoras, *backoff* e latência de e-mail, para você
+repetir cada página (Kafka parado, um reprocessamento com e sem deduplicação, um pedido envenenado, o
+*lag* dos experimentos B e C) antes de rodá-la na sua própria stack.
 
 ## Meça { #measure-it }
 

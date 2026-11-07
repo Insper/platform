@@ -13,8 +13,8 @@ Every operating system offers two different clocks, and mixing them up is a clas
 | **Answers** | "What date and time is it?" | "How much time has passed?" |
 | **Java** | `System.currentTimeMillis()`, `Instant.now()` | `System.nanoTime()` |
 | **Linux** | `CLOCK_REALTIME` | `CLOCK_MONOTONIC` |
-| **Can jump?** | **Yes** — NTP steps it, an admin changes it, leap seconds | Never goes backwards |
-| **Comparable across machines?** | Roughly (within the sync error) | **No** — its zero is arbitrary per machine |
+| **Can jump?** | ⚠️ **Yes** — the Network Time Protocol (NTP) steps it, an admin changes it, leap seconds | ✅ Never goes backwards |
+| **Comparable across machines?** | ⚠️ Roughly (within the sync error) | ❌ **No** — its zero is arbitrary per machine |
 | **Use for** | Timestamps shown to people, dates, expiry *deadlines* stored in a database | Timeouts, durations, rate limiting, latency metrics |
 
 ```java title="Durations.java"
@@ -81,7 +81,7 @@ The synchronised servers stay within a couple of milliseconds of each other (a s
 | None (free-running quartz) | Seconds per day | Never acceptable for servers |
 | NTP over the public internet | Milliseconds to tens of ms | Asymmetric routes add error |
 | NTP inside a data centre / cloud time service | Sub-millisecond to ~1 ms | E.g. Amazon Time Sync Service, Google's internal NTP |
-| PTP (Precision Time Protocol, IEEE 1588) with hardware timestamps | Microseconds | Needs NIC/switch support; offered on some cloud instances |
+| PTP (Precision Time Protocol, IEEE 1588) with hardware timestamps | Microseconds | Needs network interface card (NIC) and switch support; offered on some cloud instances |
 | GPS + atomic clocks per data centre (Google TrueTime) | ε of a few ms, **with a known bound** | See [TrueTime](#truetime) |
 
 !!! info "Leap seconds and smearing"
@@ -269,7 +269,7 @@ Most systems never implement vector clocks or TrueTime. They get order from simp
 | **Vector / version vectors** | Versions of one item | Detects concurrency | Leaderless stores, sync/offline apps |
 | **HLC** | All events in a cluster | Causal + close to real time | CockroachDB, YugabyteDB, MongoDB |
 | **TrueTime** | All transactions globally | External consistency | Spanner |
-| **Time-ordered IDs** (Snowflake, UUIDv7, ULID) | IDs by creation time, roughly | Sortable, unique; **not** causal across machines | Primary keys, log/event ids |
+| **Time-ordered IDs** (Snowflake, UUIDv7 — a universally unique identifier, version 7 —, ULID) | IDs by creation time, roughly | Sortable, unique; **not** causal across machines | Primary keys, log/event ids |
 
 A **Snowflake ID** (Twitter, 2010) packs a 64-bit integer with a 41-bit millisecond timestamp, a 10-bit machine id and a 12-bit per-millisecond sequence — up to 4,096 ids per millisecond per machine, unique without coordination, and roughly sortable by time. **UUIDv7** (RFC 9562, 2024)[^7] standardises the same idea in a 128-bit UUID with a 48-bit Unix-millisecond prefix: B-tree indexes stay compact because new keys are appended at the end instead of scattered like random UUIDv4.
 
@@ -304,7 +304,7 @@ final class Snowflake {
 !!! example "BoxOffice: where time and order come from"
     - **Who got seat A-12** — decided by the single `inventory` primary for that event (conditional `UPDATE`); no timestamps compared at all.
     - **Hold expiry** — `expires_at = now() + interval '10 minutes'` computed **by PostgreSQL on the primary**, and the sweeper compares against the same database's `now()`: one clock, so skew between app servers is irrelevant.
-    - **Event ordering** — every event about one show (`SeatHeld`, `SeatReleased`, `OrderPaid`) is published with Kafka key = `eventId`, so they land in **one partition** and every consumer sees them in the same order.
+    - **Event ordering** — every event about one show (`SeatHeld`, `SeatReleased`, `OrderPaid`) is published with the show's id as the Kafka key, so they land in **one partition** and every consumer sees them in the same order.
     - **Ids** — orders and tickets use **UUIDv7**: unique without coordination, index-friendly, roughly time-sortable — never used to decide *who was first*.
     - **Durations and timeouts** — measured with the monotonic clock (`System.nanoTime()`), never with wall-clock differences.
     - **Monitoring** — an alert on NTP offset per node (e.g. > 50 ms), because a machine that lost NTP is silent otherwise.

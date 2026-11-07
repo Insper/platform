@@ -24,9 +24,10 @@ Any order of the two writes has a failure window:
 
 | Write order | Crash between the writes | Result |
 |---|---|---|
-| DB, then Kafka | order stored, event lost | no e-mail, and no other service ever hears of the order |
-| Kafka, then DB | event published, DB insert fails | a *ghost* order: e-mail for an order that does not exist |
-| Kafka inside a DB transaction | Kafka publish succeeds, commit fails | same ghost; Kafka cannot be rolled back by PostgreSQL |
+| Database, then Kafka | order stored, event lost | ❌ no e-mail, and no other service ever hears of the order |
+| Kafka, then database | event published, database insert fails | ❌ a *ghost* order: e-mail for an order that does not exist |
+| Kafka inside a database transaction | Kafka publish succeeds, commit fails | ❌ same ghost; Kafka cannot be rolled back by PostgreSQL |
+| **Outbox**: order and event row in one local transaction | crash anywhere | ✅ both rows or neither; the relay publishes the row later |
 
 The **outbox** removes the second system from the request: the service writes the event as a row in
 an `outbox` table **in the same local transaction** as the order. Either both rows exist or neither.
@@ -55,7 +56,7 @@ If the relay crashes after Kafka's ack but before the `UPDATE`, the row is publi
 run: the outbox gives **at-least-once** publication. That is fine, because the consumer in
 [step 3](../consumer/index.md) is idempotent and each event carries a unique `eventId`.
 
-!!! tip "Polling relay or CDC?"
+!!! tip "Polling relay or change data capture?"
 
     The relay here **polls** the table — simple, no extra infrastructure, a few hundred milliseconds of
     delay. The alternative is **change data capture** (CDC): a tool such as Debezium reads the
@@ -66,7 +67,7 @@ run: the outbox gives **at-least-once** publication. That is fine, because the c
 ## The `order` service
 
 A new Spring Boot service in `services/order/`, on port **8084**, serving everything under `/orders`. It
-uses plain JDBC (`JdbcClient`) instead of JPA so that every statement of the transaction is visible.
+uses plain Java Database Connectivity (JDBC, `JdbcClient`) instead of the Jakarta Persistence API (JPA) so that every statement of the transaction is visible.
 
 ```
 services/order/
@@ -336,6 +337,25 @@ Now prove the two guarantees:
     fan never saw the outage. While Kafka is down for more than 5 s, `docker compose logs order` shows `ERROR … Unexpected error
     occurred in scheduled task` every few seconds: each relay run fails after `max.block.ms` (5 s)
     and the next one retries — expected.
+
+The same experiments without Docker, plus one that is hard to stage: a relay that dies between Kafka's ack and the `UPDATE`.
+
+<div class="csim" data-sim="async-orders" data-script="outbox"></div>
+
+!!! tip "Try it"
+
+    The simulator runs this lab's stack without Docker: `order-events` with 6 partitions, `notification` with 3
+    threads, one e-mail per 50 ms; play or → runs a page step by step, and the buttons and knobs work at any time.
+    In **2 · Outbox**, the second `curl` gets `200` and writes no row, the order placed while Kafka is stopped waits
+    in the outbox until Kafka is back, and a relay killed after the ack publishes the same event twice. In
+    **3 · Consumer**, the three tour messages go straight to `order-events-dlt`, Mailpit still has 2
+    e-mails after the replay and 4 with `NOTIFY_IDEMPOTENT=false`, and with Mailpit stopped an order is retried
+    after 0.5, 1 and 2 s before it is dead-lettered. In **5 · Measure (B, C)**, `sync` loses 1,000 of 3,000
+    orders (33 %) to the 20 s outage while `outbox` loses none: the lag peaks at 1,002 and drains 16 s after
+    the load (the model restarts `notification` at once; in the lab, Spring Boot needs a few more seconds). At 100 orders/s, one
+    thread lets the lag reach 4,800 and drain 240 s after the load, three threads 2,400 and 45 s, six threads
+    keep it at 17 or less, and eight change nothing: two threads stay idle. Four or five threads still take
+    45 s: thread 1 still reads two partitions.
 
 !!! warning "Pitfalls"
 

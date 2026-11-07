@@ -115,7 +115,7 @@ This is exactly the CP behaviour of [CAP](../cap-pacelc/index.md): the minority 
 
 ## Raft { #raft }
 
-Raft (Ongaro and Ousterhout, 2014)[^2] was designed to be **understandable**, and it is the consensus algorithm you are most likely to meet: etcd (Kubernetes), Consul, CockroachDB, TiKV, YugabyteDB and Kafka's KRaft controller all use it. It splits the problem into three parts:
+Raft (Ongaro and Ousterhout, 2014)[^2] was designed to be **understandable**, and it is the consensus algorithm you are most likely to meet: etcd (Kubernetes), Consul, CockroachDB, TiKV, YugabyteDB and Kafka's KRaft (Kafka Raft) controller all use it. It splits the problem into three parts:
 
 1. **Leader election** — exactly one leader per term; all writes go through it.
 2. **Log replication** — the leader appends commands to its log and replicates them to followers.
@@ -221,12 +221,12 @@ When **R + W > N**, at least one replica in any read set holds the latest acknow
 
 | Setting | W | R | R + W > N? | Behaviour |
 |---|---|---|---|---|
-| write `ONE`, read `ONE` | 1 | 1 | No | Fastest; reads may be stale; available with 2 nodes down |
-| write `QUORUM`, read `QUORUM` | 2 | 2 | **Yes** | Reads see the latest acknowledged write; tolerates 1 node down |
-| write `ALL`, read `ONE` | 3 | 1 | Yes | Fast reads, but one node down blocks every write |
-| write `ONE`, read `ALL` | 1 | 3 | Yes | Fast writes, but one node down blocks every read |
+| write `ONE`, read `ONE` | 1 | 1 | ❌ No | Fastest; reads may be stale; available with 2 nodes down |
+| write `QUORUM`, read `QUORUM` | 2 | 2 | ✅ **Yes** | Reads see the latest acknowledged write; tolerates 1 node down |
+| write `ALL`, read `ONE` | 3 | 1 | ✅ Yes | Fast reads, but one node down blocks every write |
+| write `ONE`, read `ALL` | 1 | 3 | ✅ Yes | Fast writes, but one node down blocks every read |
 
-Three mechanisms make leaderless replicas converge: **read repair** (a read that sees an old version writes back the newest), **hinted handoff** (a write meant for a dead node is held by another and delivered later — a *sloppy quorum* that breaks the overlap guarantee meanwhile), and **anti-entropy** (background comparison of replicas using Merkle trees)[^5].
+Three mechanisms make leaderless replicas converge: **read repair** (a read that sees an old version writes back the newest), **hinted handoff** (a write meant for a dead node is held by another and delivered later — a *sloppy quorum* that breaks the overlap guarantee meanwhile), and **anti-entropy** (background comparison of replicas using Merkle trees)[^5]. The [quorum simulator](../../databases/replication/index.md#leaderless) of the Databases class lets you set N, W and R and take replicas down: with `R + W > N` no read is stale, and with fewer than W live replicas the write fails.
 
 !!! warning "R + W > N is necessary, not sufficient"
     The overlap guarantees that a read *contacts* a replica with the latest write. It does not make the store linearizable: concurrent writes, a write that reached fewer than W replicas and was reported as failed (but stays on some), sloppy quorums and LWW with skewed clocks all produce anomalies. Quorum stores offer **tunable** consistency, not consensus. Use a consensus-based store when you need a single agreed order.
@@ -235,7 +235,7 @@ Three mechanisms make leaderless replicas converge: **read repair** (a read that
 
 ## Leases, locks and fencing tokens { #fencing }
 
-A common use of consensus is a **distributed lock** or **lease**: "only one `scheduler` replica sends the 09:55 *on-sale starts soon* push". You take a lease from etcd/ZooKeeper/Consul with a time-to-live and renew it while you are alive. But a lock holder can **pause** — a long garbage collection, a VM migration — and keep working after its lease expired and someone else took it[^6]:
+A common use of consensus is a **distributed lock** or **lease**: "only one `scheduler` replica sends the 09:55 *on-sale starts soon* push". You take a lease from etcd/ZooKeeper/Consul with a time to live (TTL) and renew it while you are alive. But a lock holder can **pause** — a long garbage collection (GC), a virtual machine (VM) migration — and keep working after its lease expired and someone else took it[^6]:
 
 ``` diagram-sim
 sequenceDiagram
@@ -273,13 +273,30 @@ UPDATE scheduled_jobs
 |---|---|---|
 | **etcd** | Kubernetes state, leader election, config, locks | Raft |
 | **Apache ZooKeeper** | Coordination for older Hadoop/Kafka-era systems | ZAB |
-| **Consul** | Service discovery, KV config, locks | Raft |
+| **Consul** | Service discovery, key-value (KV) config, locks | Raft |
 | **Kafka (KRaft)** | Cluster metadata and controller election; ZooKeeper mode removed in Kafka 4.0 | Raft-based |
-| **Patroni** (for PostgreSQL) | Automatic primary failover, with leader key in etcd/Consul/ZooKeeper | Delegates to the DCS |
+| **Patroni** (for PostgreSQL) | Automatic primary failover, with leader key in etcd/Consul/ZooKeeper | Delegates to the distributed configuration store (DCS) |
 | **Spanner, CockroachDB, YugabyteDB, TiDB** | SQL with consensus per data range | Paxos (Spanner) / Raft |
 
 !!! example "BoxOffice: who is the primary?"
     The `inventory` PostgreSQL runs under **Patroni**, with a 3-node **etcd** cluster spread across 3 availability zones. The primary holds a **leader key** in etcd with a TTL of ~30 s (Patroni's default), renewed every ~10 s. If it stops renewing — crash, freeze, network loss — the key expires, the healthiest synchronous standby takes it (an atomic compare-and-set in etcd: only one can win), promotes itself, and clients follow the new leader through the service endpoint. An old primary that wakes up finds it no longer holds the key and **demotes itself** (Patroni can also use a watchdog to reset the machine). The seat decision itself stays a plain `UPDATE … WHERE status = 'FREE'` on the single primary — consensus is used **only** to decide which node that is.
+
+    ``` diagram-sim
+    sequenceDiagram
+        participant P1 as pg-1 (primary)
+        participant E as etcd (3 nodes)
+        participant P2 as pg-2 (sync standby)
+        participant I as inventory
+        P1->>E: renew the leader key (TTL 30 s), every 10 s
+        Note over P1: freezes at 10:00:03
+        Note over E: no renewal: the key expires
+        P2->>E: compare-and-set: take the leader key
+        E-->>P2: granted (only one candidate can win)
+        P2->>P2: promote to primary
+        I->>P2: writes follow the service endpoint
+        Note over P1: wakes up: the key is no longer mine
+        P1->>P1: demote to replica (or the watchdog resets the machine)
+    ```
 
 **Try it.** The `db-failover` scenario is the opening story, measured: checkout at 1,500 req/s, half of them writes, on a cluster with one primary and one follower replicated **asynchronously**. At t = 90 s the primary dies, and promoting the follower takes 30 s — about Patroni's leader-key TTL above. Press **Run** and read *lost writes* and *availability* in the goals bar. Then click `orders-db` and change one knob at a time: **Replication** `sync` (or `quorum` with 2 followers per shard), **Failover time** 5 s, **Shards** 2.
 
@@ -287,7 +304,7 @@ UPDATE scheduled_jobs
 
 ??? question "What should you have observed?"
 
-    As drawn, about **1,570 writes are lost** (with the default seed; between ~700 and ~1,800 with others) — orders the old primary acknowledged but had not yet shipped to the follower — and availability is about **90.6%**: every write fails during the 30 s of promotion. `sync` or `quorum` replication brings lost writes to **0** but does not move availability: they fix the RPO, not the RTO. A 5 s failover lifts availability to about **98%** while still losing writes. Only the combination — quorum with 2 followers, 5 s failover and 2 shards, so a dead primary takes only half of the writes — meets every goal: 0 lost, about 99.2%, write p99 ≈ 34 ms, at twice the monthly cost. Consensus decides **safely who** the primary is; how fast it decides and what the new primary already has are separate knobs, each with its price.
+    As drawn, about **1,570 writes are lost** (with the default seed; between ~700 and ~1,800 with others) — orders the old primary acknowledged but had not yet shipped to the follower — and availability is about **90.6%**: every write fails during the 30 s of promotion. `sync` or `quorum` replication brings lost writes to **0** but does not move availability: they fix the recovery point objective (RPO), not the recovery time objective (RTO). A 5 s failover lifts availability to about **98%** while still losing writes. Only the combination — quorum with 2 followers, 5 s failover and 2 shards, so a dead primary takes only half of the writes — meets every goal: 0 lost, about 99.2%, write 99th-percentile latency (p99) ≈ 34 ms, at twice the monthly cost. Consensus decides **safely who** the primary is; how fast it decides and what the new primary already has are separate knobs, each with its price.
 
 !!! tip "In the interview"
     Use consensus as a **component**, not a topic to re-derive. Say: *"leader election and the cluster metadata go in etcd/ZooKeeper (Raft, 3 or 5 nodes across 3 zones); the data path stays on a single leader per shard."* Know the numbers: N nodes tolerate ⌊(N−1)/2⌋ failures; a leader failover costs about an election timeout (~1 s in etcd defaults); every committed write pays a majority round trip. If you mention locks, mention **fencing tokens** — it is the follow-up question that separates candidates.

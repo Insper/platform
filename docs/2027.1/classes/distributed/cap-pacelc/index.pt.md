@@ -18,10 +18,10 @@ O **teorema CAP**, conjecturado por Eric Brewer em 2000 e provado por Seth Gilbe
 : O sistema continua operando quando a rede se **particiona** — divide os nós em grupos que estão vivos, mas não conseguem trocar mensagens (ou as trocam com atraso ilimitado).
 
 !!! warning "P não é opcional"
-    Partições não são uma escolha de projeto; elas acontecem — um switch falha, um cabo é cortado, o enlace de uma região de nuvem degrada, uma pausa longa de GC faz um nó parecer inacessível. Qualquer sistema cujos dados vivem em mais de uma máquina precisa decidir o que fazer *quando* elas acontecem. Então a escolha real é **C ou A, durante uma partição**. O próprio Brewer, doze anos depois, ressaltou que partições são raras e que o trabalho de projeto interessante está em **detectá-las**, operar em modo limitado enquanto duram e **se recuperar** depois[^4].
+    Partições não são uma escolha de projeto; elas acontecem — um switch falha, um cabo é cortado, o enlace de uma região de nuvem degrada, uma pausa longa de coleta de lixo (GC, *garbage collection*) faz um nó parecer inacessível. Qualquer sistema cujos dados vivem em mais de uma máquina precisa decidir o que fazer *quando* elas acontecem. Então a escolha real é **C ou A, durante uma partição**. O próprio Brewer, doze anos depois, ressaltou que partições são raras e que o trabalho de projeto interessante está em **detectá-las**, operar em modo limitado enquanto duram e **se recuperar** depois[^4].
 
 !!! warning "O C do CAP não é o C do ACID"
-    Em transações ACID, *consistência* significa "a transação preserva as invariantes" (restrições, chaves estrangeiras, `CHECK`). No CAP significa linearizabilidade. Um único servidor PostgreSQL é consistente no sentido ACID e o CAP nem se aplica a ele — o CAP trata de **réplicas**.
+    Em transações ACID (atomicidade, consistência, isolamento, durabilidade), *consistência* significa "a transação preserva as invariantes" (restrições, chaves estrangeiras, `CHECK`). No CAP significa linearizabilidade. Um único servidor PostgreSQL é consistente no sentido ACID e o CAP nem se aplica a ele — o CAP trata de **réplicas**.
 
 ---
 
@@ -72,7 +72,7 @@ flowchart LR
     A ==>|"5 · partição resolvida: merge"| B
 ```
 
-- **Exemplos:** Cassandra e DynamoDB nas configurações padrão, CouchDB, Riak, DNS, CDNs, a maioria dos caches.
+- **Exemplos:** Cassandra e DynamoDB nas configurações padrão, CouchDB, Riak, o sistema de nomes de domínio (DNS, *Domain Name System*), as redes de distribuição de conteúdo (CDNs, *content delivery networks*), a maioria dos caches.
 - **Use quando:** uma resposta um pouco desatualizada é melhor do que nenhuma — catálogo, recomendações, contadores, carrinhos, feeds.
 
 ### "CA"
@@ -143,13 +143,31 @@ Regiões falham — raramente, mas por inteiro — e o BoxOffice quer sobreviver
 
 | Topologia | Escritas | Durante a perda de uma região | Consistência | Custo e complexidade |
 |---|---|---|---|---|
-| **Uma região, várias zonas** | Um primário, standby síncrono em outra zona | Região fora = BoxOffice fora | Forte | O menor; o ponto de partida padrão |
-| **Ativo–passivo (warm standby)** | Só na região primária; réplica assíncrona na região 2 | Failover (DNS) para a região 2; perde os últimos segundos de escritas (RPO > 0) | Forte em operação normal | Moderado; o failover precisa ser ensaiado |
-| **Ativo–ativo, particionado por origem** | Cada registro tem uma região de origem; as escritas vão para lá | Registros com origem na região morta ficam indisponíveis; os outros não são afetados | Forte por registro | Maior; roteamento por região de origem |
-| **Ativo–ativo, tudo em todo lugar** | Qualquer região escreve qualquer registro | Todas as regiões continuam escrevendo | Eventual; conflitos a resolver | O maior; só para dados que toleram conflitos |
-| **Banco de dados globalmente consistente** | Consenso entre regiões (Spanner, CockroachDB) | Sobrevive a uma região se a maioria das réplicas restar | Forte em todo lugar | Latência de escrita ≥ RTT entre regiões; custo premium |
+| **Uma região, várias zonas** (multi-AZ, *availability zones*) | Um primário, standby síncrono em outra zona | ❌ Região fora = BoxOffice fora | Forte | O menor; o ponto de partida padrão |
+| **Ativo–passivo (warm standby)** | Só na região primária; réplica assíncrona na região 2 | ⚠️ Failover (DNS) para a região 2; perde os últimos segundos de escritas (objetivo de ponto de recuperação, RPO > 0, *recovery point objective*) | Forte em operação normal | Moderado; o failover precisa ser ensaiado |
+| **Ativo–ativo, particionado por origem** | Cada registro tem uma região de origem; as escritas vão para lá | ⚠️ Registros com origem na região morta ficam indisponíveis; os outros não são afetados | Forte por registro | Maior; roteamento por região de origem |
+| **Ativo–ativo, tudo em todo lugar** | Qualquer região escreve qualquer registro | ✅ Todas as regiões continuam escrevendo | Eventual; conflitos a resolver | O maior; só para dados que toleram conflitos |
+| **Banco de dados globalmente consistente** | Consenso entre regiões (Spanner, CockroachDB) | ✅ Sobrevive a uma região se a maioria das réplicas restar | Forte em todo lugar | Latência de escrita ≥ RTT entre regiões; custo premium |
 
-**Experimente.** No cenário `multi-region`, rode o perfil `load` e depois derrube a região primária. Observe quanto tempo o DNS leva para desviar o tráfego (o TTL), quantas requisições falham durante a troca e o que acontece com as escritas que ainda não tinham sido replicadas. Depois reduza o TTL do DNS e repita.
+A escolha do BoxOffice, *ativo–ativo particionado por origem*, durante uma partição transatlântica — cada reserva vai ao primário da região de origem do seu show, então só as requisições que precisam cruzar o oceano são recusadas:
+
+``` diagram-sim
+flowchart LR
+    subgraph EU ["Europa"]
+        lf(["Fã em Lisboa"])
+        lis[("Primário de Lisboa<br/>origem dos shows de Lisboa")]
+    end
+    subgraph BR ["Brasil"]
+        sf(["Fã em São Paulo"])
+        sp[("Primário de São Paulo<br/>origem dos shows de São Paulo")]
+    end
+    lf -->|"1 · reserva, show de Lisboa: local, forte"| lis
+    sf -->|"2 · reserva, show de São Paulo: local, forte"| sp
+    lis -.-x|"3 · ✗ partição transatlântica"| sp
+    lf -.-x|"4 · reserva, show de São Paulo: recusada até o link voltar"| sp
+```
+
+**Experimente.** No cenário `multi-region`, rode o perfil `load` e depois derrube a região primária. Observe quanto tempo o DNS leva para desviar o tráfego (o tempo de vida, TTL, *time to live*), quantas requisições falham durante a troca e o que acontece com as escritas que ainda não tinham sido replicadas. Depois reduza o TTL do DNS e repita.
 
 <div class="sdp" data-scenario="multi-region" data-mode="compact" data-height="520"></div>
 
@@ -159,7 +177,7 @@ Regiões falham — raramente, mas por inteiro — e o BoxOffice quer sobreviver
     - **Assentos, reservas, pedidos, pagamentos** — *ativo–ativo particionado por região de origem*: o estoque de cada evento vive na região do local do show, em um primário PostgreSQL com um **standby síncrono em outra zona** (PC/EC dentro da região). Uma fã em Lisboa comprando um show em São Paulo paga uma ida e volta transatlântica na reserva — aceitável para uma ação ocasional.
     - **Catálogo, imagens, índice de busca** — replicados de forma assíncrona para todas as regiões e cacheados na CDN (PA/EL). Um evento novo aparece na Europa alguns segundos depois; ninguém percebe.
     - **Contas / autenticação** — majoritariamente leitura; replicadas em todo lugar, com escritas (troca de senha, logout em todos os dispositivos) indo para uma região de origem.
-    - **Recuperação de desastres** — o banco de cada região envia backups e uma réplica assíncrona para outra região (ativo–passivo por região); as metas de RPO/RTO são discutidas em [Confiabilidade — recuperação de desastres](../../reliability/disaster-recovery/index.md).
+    - **Recuperação de desastres (DR, *disaster recovery*)** — o banco de cada região envia backups e uma réplica assíncrona para outra região (ativo–passivo por região); as metas de RPO e de objetivo de tempo de recuperação (RTO, *recovery time objective*) são discutidas em [Confiabilidade — recuperação de desastres](../../reliability/disaster-recovery/index.md).
 
 !!! tip "Na entrevista"
     Nunca diga "vou escolher CP" (ou AP) **para o sistema inteiro**. Diga por dado e diga o que o usuário vê: *"O estoque de assentos é CP: durante uma partição, o lado minoritário devolve 503 e o app diz 'tente novamente'; reserva em dobro é inaceitável. O catálogo é AP: pode estar segundos desatualizado."* Depois traga o **PACELC** — o entrevistador normalmente se importa mais com a latência do dia a dia do que com partições: *"dentro de uma região eu replico de forma síncrona entre zonas (~1–2 ms); entre regiões eu particiono por região de origem em vez de pagar 150 ms por escrita."* Mencionar que o C do CAP é linearizabilidade (e não o C do ACID) é um sinal forte e barato.
@@ -168,7 +186,7 @@ Regiões falham — raramente, mas por inteiro — e o BoxOffice quer sobreviver
 
     - **Escreva, por operação, o que acontece durante uma partição** — "reservas são recusadas (CP); o catálogo é servido defasado (AP)" — e faça o cliente tratar as duas respostas.
     - **Dê a cada chave uma região de origem** — as escritas de um evento vão para um líder e as outras regiões as encaminham; não existe conflito entre regiões para uma chave que tem um único escritor.
-    - **Meça quanto a consistência custa nas suas escritas** — o p99 de uma escrita com e sem replicação síncrona, na sua topologia; o PACELC é um número, não um slogan. Experimente no cenário `db-failover` de [Consenso](../consensus/index.md).
+    - **Meça quanto a consistência custa nas suas escritas** — a latência no percentil 99 (p99) de uma escrita com e sem replicação síncrona, na sua topologia; o PACELC é um número, não um slogan. Experimente no cenário `db-failover` de [Consenso](../consensus/index.md).
     - **Faça do "indisponível" uma resposta rápida e explícita** — uma operação CP que não alcança a maioria deve falhar em milissegundos com um erro que pode ser repetido, não ficar pendurada até um timeout.
     - **Rotule respostas defasadas na API** — um cabeçalho ou campo com a idade do dado deixa o cliente decidir se uma resposta AP basta.
 

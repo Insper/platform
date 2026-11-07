@@ -24,7 +24,7 @@ Two families of solutions exist:
 
 | Approach | Idea | Isolation | Availability |
 |---|---|---|---|
-| **Atomic commitment (2PC)** | Everyone *prepares*, then a coordinator decides commit/abort for all | Full ACID across participants | All participants and the coordinator must be up at the same time |
+| **Atomic commitment (2PC)** | Everyone *prepares*, then a coordinator decides commit/abort for all | Full ACID (atomicity, consistency, isolation, durability) across participants | All participants and the coordinator must be up at the same time |
 | **Sagas and compensations** | A sequence of local transactions; on failure, run **compensating** transactions that undo the earlier steps | None between steps (intermediate states are visible) | Each step only needs its own service |
 
 ---
@@ -52,7 +52,7 @@ sequenceDiagram
     R-->>C: done
 ```
 
-PostgreSQL exposes the participant side as `PREPARE TRANSACTION 'id'` followed later by `COMMIT PREPARED 'id'` or `ROLLBACK PREPARED 'id'`; the X/Open **XA** standard defines the same protocol for databases and message brokers coordinated by a transaction manager (as in Jakarta EE).
+PostgreSQL exposes the participant side as `PREPARE TRANSACTION 'id'` followed later by `COMMIT PREPARED 'id'` or `ROLLBACK PREPARED 'id'`; the X/Open **XA** (eXtended Architecture) standard defines the same protocol for databases and message brokers coordinated by a transaction manager (as in Jakarta EE).
 
 ### The blocking problem { #blocking }
 
@@ -142,9 +142,26 @@ Two ways to coordinate the steps:
 
     A central **orchestrator** (here, the `order` service or a workflow engine such as Temporal or AWS Step Functions) tells each participant what to do and decides when to compensate. The saga's logic is in one place, easy to read, monitor and change; the orchestrator must persist its state so it survives restarts. Preferred when there are more than a few steps.
 
+    ``` diagram-sim
+    flowchart LR
+        O["order<br/>orchestrator + saga log"]:::comp -->|"1 · reserve A-12"| I[inventory]
+        O -->|"2 · charge R$ 450"| P[payment]
+        P -.->|"3 · declined"| O
+        O -.->|"4 · compensate: release A-12"| I
+        O -->|"(on success) issue ticket"| T[ticket]
+    ```
+
 === "Choreography"
 
     No central brain: each service reacts to **events** from the others (`OrderCreated` → `inventory` reserves → `SeatReserved` → `payment` charges → `PaymentFailed` → `inventory` releases…). Loosely coupled and simple for two or three steps; with more, the flow is spread over many services and hard to follow ("who compensates what?"). Covered with Kafka in [Messaging — patterns](../../messaging/patterns/index.md).
+
+    ``` diagram-sim
+    flowchart LR
+        O[order] -->|"1 · OrderCreated"| I[inventory]
+        I -->|"2 · SeatReserved"| P[payment]
+        P -->|"3 · PaymentFailed"| I2["inventory<br/>releases A-12"]
+        P -->|"3 · PaymentFailed"| O2["order<br/>cancels 981"]
+    ```
 
 ### Sagas give up isolation
 
@@ -167,6 +184,17 @@ Between steps, other transactions see intermediate states: an order `PENDING`, a
 
 The **TCC** pattern (try–confirm–cancel) makes each participant offer a *tentative* operation with a timeout. BoxOffice already works this way: the **hold** is the *try* (the seat is reserved for 10 minutes), the **sale** is the *confirm*, and **expiry or release** is the *cancel*. Payment providers offer the same shape: **authorise** (reserve funds) → **capture** (take them) or **void** (release them). Because every tentative state expires by itself, a crash anywhere leaves the system converging to a safe state instead of blocking.
 
+``` diagram-sim
+stateDiagram-v2
+  [*] --> FREE
+  FREE --> HELD : try, hold for 10 min
+  HELD --> SOLD : confirm, payment captured
+  HELD --> FREE : cancel, release or expiry
+  SOLD --> [*]
+```
+
+No path leaves the seat stuck: from `HELD` the only exits are a confirm or the clock.
+
 ---
 
 ## The dual-write problem and the outbox { #outbox }
@@ -181,7 +209,7 @@ sequenceDiagram
     I->>DB: UPDATE seat + INSERT INTO outbox (SeatReserved), one COMMIT
     Note over I,DB: one local transaction: both or neither
     DB-->>I: committed
-    Note over DB,K: a relay (poller or CDC such as Debezium)<br/>reads the outbox table
+    Note over DB,K: a relay (poller or change data capture,<br/>CDC, such as Debezium)<br/>reads the outbox table
     DB->>K: publish SeatReserved
     K-->>DB: ack: mark outbox row as sent
 ```
@@ -202,11 +230,11 @@ The **transactional outbox** writes the event into an `outbox` table **in the sa
 
 | | Local transaction | 2PC / distributed DB | Saga (orchestrated) | Saga (choreographed) | TCC / reservation |
 |---|---|---|---|---|---|
-| **Atomicity** | Yes | Yes | Eventually, via compensation | Eventually, via compensation | Eventually, via confirm/cancel |
-| **Isolation** | Yes | Yes | No (semantic locks) | No | Partial (the reservation) |
+| **Atomicity** | ✅ Yes | ✅ Yes | ⚠️ Eventually, via compensation | ⚠️ Eventually, via compensation | ⚠️ Eventually, via confirm/cancel |
+| **Isolation** | ✅ Yes | ✅ Yes | ❌ No (semantic locks) | ❌ No | ⚠️ Partial (the reservation) |
 | **Availability** | One DB | All participants at once | Each step independently | Each step independently | Each step independently |
 | **Latency** | Lowest | 2 round trips + fsyncs, locks held | Sum of steps, asynchronous possible | Asynchronous | Try now, confirm later |
-| **Works with third parties** | — | No | Yes | Yes | Yes, if they offer reserve/capture |
+| **Works with third parties** | — | ❌ No | ✅ Yes | ✅ Yes | ✅ Yes, if they offer reserve/capture |
 | **Complexity** | Lowest | In the database (if it offers it) | Orchestrator state, compensations | Event flow spread across services | Timeouts and expiry logic |
 | **BoxOffice use** | Hold a seat; seat + outbox row | Inside CockroachDB/Spanner if used | Checkout | Notifications, analytics | Seat hold; card authorise/capture |
 

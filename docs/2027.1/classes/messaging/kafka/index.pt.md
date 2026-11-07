@@ -167,7 +167,7 @@ Regras que decorrem de "uma partição, um consumidor por grupo":
 
 - **Paralelismo máximo de um grupo = número de partições.** Com 6 partições, uma 7ª instância de `notification` não recebe nada e fica ociosa.
 - **A ordem por chave se mantém** enquanto o consumidor processa os registros de uma partição em sequência. Se ele entrega os registros a um pool de threads, quebra a ordem de novo (a não ser que paralelize *por chave*).
-- Quando um consumidor entra, sai ou fica tempo demais sem fazer poll (`max.poll.interval.ms`), o grupo faz um **rebalance**: as partições são redistribuídas. Rebalances clássicos pausavam o grupo inteiro; o protocolo novo (KIP-848, disponível de forma geral no Kafka 4.0) e a atribuição cooperativa movem só as partições que precisam mudar.
+- Quando um consumidor entra, sai ou fica tempo demais sem fazer poll (`max.poll.interval.ms`), o grupo faz um **rebalance**: as partições são redistribuídas. Rebalances clássicos pausavam o grupo inteiro; o protocolo novo (KIP-848, *Kafka Improvement Proposal*, disponível de forma geral no Kafka 4.0) e a atribuição cooperativa movem só as partições que precisam mudar.
 
 <div class="csim" data-sim="kafka" data-key="order"></div>
 
@@ -194,13 +194,17 @@ notification  order-events  1          181902          181910          8      no
 notification  order-events  2          120004          184771          64767  notification-2-...
 ```
 
-A partição 2 está 64.767 registros atrás enquanto as outras estão perto de zero: uma chave quente, um consumidor travado ou uma mensagem venenosa naquela partição — não um problema geral de capacidade. O lag em **registros** é fácil de ler do Kafka; o lag em **segundos** (agora menos o timestamp do último registro processado) é o que vai em um SLO de atualidade.
+A partição 2 está 64.767 registros atrás enquanto as outras estão perto de zero: uma chave quente, um consumidor travado ou uma mensagem venenosa naquela partição — não um problema geral de capacidade. O lag em **registros** é fácil de ler do Kafka; o lag em **segundos** (agora menos o timestamp do último registro processado) é o que vai em um objetivo de nível de serviço (SLO, *service level objective*) de atualidade.
 
 !!! info "Experimente no playground"
 
     O cenário `event-fanout` publica eventos de pedido no Kafka com vários serviços consumidores. Rode com o perfil **load** e observe o lag de cada consumidor. Depois deixe um consumidor mais lento (aumente o tempo de processamento dele) e confirme que só o lag *dele* cresce — o produtor e os outros consumidores não são afetados. Por fim, adicione instâncias ao serviço lento e observe que ele para de melhorar quando o número de instâncias iguala o de partições.
 
 <div class="sdp" data-scenario="event-fanout" data-mode="compact" data-profile="load" data-height="540"></div>
+
+O preset `boxoffice-outbox` é o lab 7 em números: o `notification` envia cada e-mail em 50 ms, então 3 consumidores enviam no máximo 60 e-mails/s, e uma rajada de 200 pedidos/s dura 30 s. Ponha o Kafka (6 partições) entre o `order` e o `notification`: com 6 consumidores os e-mails alcançam com cerca de 30 s de lag, com 3 o lag passa de 60 s e 12 consumidores atrasam exatamente como 6 — as partições limitam o grupo.
+
+<div class="sdp" data-scenario="boxoffice-outbox" data-mode="compact" data-height="440"></div>
 
 ---
 
@@ -229,9 +233,9 @@ A configuração `acks` do produtor escolhe quanto disso o produtor espera:
 
 | `acks` | O produtor recebe a confirmação quando… | Uma falha de broker pode… | Latência |
 |---|---|---|---|
-| `0` | o registro é enviado (sem confirmação) | perder registros em silêncio | a menor |
-| `1` | a líder o escreveu | perder registros confirmados se a líder morrer antes de as seguidoras copiarem | baixa |
-| `all` | toda réplica sincronizada o tem | não perder registros confirmados, se `min.insync.replicas` ≥ 2 | a maior (uma ida e volta extra dentro do cluster) |
+| `0` | o registro é enviado (sem confirmação) | ❌ perder registros em silêncio | a menor |
+| `1` | a líder o escreveu | ⚠️ perder registros confirmados se a líder morrer antes de as seguidoras copiarem | baixa |
+| `all` | toda réplica sincronizada o tem | ✅ não perder registros confirmados, se `min.insync.replicas` ≥ 2 | a maior (uma ida e volta extra dentro do cluster) |
 
 `acks=all` sozinho não basta: se o ISR encolhe até só a líder, "todas as réplicas sincronizadas" é uma réplica. **`min.insync.replicas=2`** faz o broker recusar escritas quando há menos de 2 réplicas sincronizadas. Com RF = 3 e min ISR = 2, o tópico continua aceitando escritas com um broker fora do ar e nunca confirma uma escrita que existe em uma só máquina. Mantenha `unclean.leader.election.enable=false` (o padrão) para que uma réplica desatualizada nunca seja eleita líder. Desde o Kafka 3.0, os produtores usam por padrão `acks=all` com idempotência habilitada.
 
@@ -253,6 +257,15 @@ Um log não pode crescer para sempre. Cada tópico tem uma **política de limpez
 
 Um tópico **compactado** se comporta como uma tabela que também é um stream: um consumidor novo o lê desde o início e termina com o valor mais recente de cada chave. Apagar uma chave é feito escrevendo um **tombstone** (a chave com valor `null`). O próprio `__consumer_offsets` do Kafka é um tópico compactado.
 
+``` diagram
+flowchart LR
+    b0["0 · ev-88<br/>21:00"]:::problem --- b1["1 · ev-90<br/>Jazz"]:::problem --- b2["2 · ev-88<br/>20:00"] --- b3["3 · ev-91<br/>Theater"] --- b4["4 · ev-90<br/>tombstone"]
+    b4 ==>|"a compactação mantém o registro mais recente de cada chave"| a2["2 · ev-88<br/>20:00"]:::comp
+    a2 --- a3["3 · ev-91<br/>Theater"]:::comp
+```
+
+A compactação remove os registros que um registro mais novo da mesma chave substituiu (offsets 0 e 1) e, mais tarde, o próprio tombstone (depois de `delete.retention.ms`, um dia por padrão). Os sobreviventes mantêm seus offsets: um consumidor que guardou o offset 3 continua certo.
+
 O **armazenamento em camadas** (*tiered storage*, pronto para produção desde o Kafka 3.9) mantém só os segmentos recentes nos discos dos brokers e move os segmentos antigos para object storage (S3, GCS, Azure Blob). Retenção longa — meses de eventos para replay — fica barata e os brokers ficam mais leves de substituir.
 
 ---
@@ -267,7 +280,7 @@ Um broker Kafka movimenta com frequência centenas de megabytes por segundo em h
 - **Lotes e compressão.** Os produtores agrupam registros em lotes por partição (`linger.ms`, `batch.size`) e comprimem lotes inteiros (`zstd`, `lz4`). Menos requisições e maiores; menos bytes em disco e na rede.
 - **Particionamento.** A carga se espalha por muitos brokers e muitos consumidores.
 
-O custo é latência: os lotes adicionam alguns milissegundos (`linger.ms`) e `acks=all` adiciona uma ida e volta de replicação. A latência típica de ponta a ponta fica entre alguns e dezenas de milissegundos — ótimo para eventos, mas não substitui uma chamada RPC em memória.
+O custo é latência: os lotes adicionam alguns milissegundos (`linger.ms`) e `acks=all` adiciona uma ida e volta de replicação. A latência típica de ponta a ponta fica entre alguns e dezenas de milissegundos — ótimo para eventos, mas não substitui uma chamada de procedimento remoto (RPC, *remote procedure call*) em memória.
 
 ---
 
@@ -358,8 +371,8 @@ E os serviços Spring Boot configuram seus clientes de acordo:
 | **Modelo** | log particionado e replicado | log particionado (shards) | pub/sub com ack por mensagem | pub/sub + log (segmentos no BookKeeper) |
 | **Ordenação** | por partição | por shard | por chave de ordenação (opcional) | por partição / chave |
 | **Replay** | sim, qualquer offset dentro da retenção | sim, dentro da retenção (até 365 dias) | seek para um instante ou snapshot | sim |
-| **Operação** | autogerenciado ou gerenciado (MSK, Confluent Cloud, Aiven) | totalmente gerenciado | totalmente gerenciado, global | autogerenciado ou gerenciado |
-| **Bom para** | espinha dorsal de eventos, CDC, stream processing, throughput muito alto | streaming nativo da AWS | fan-out nativo do GCP, push para serverless | mensageria e streaming multi-tenant |
+| **Operação** | autogerenciado ou gerenciado (Amazon MSK, Confluent Cloud, Aiven) | totalmente gerenciado | totalmente gerenciado, global | autogerenciado ou gerenciado |
+| **Bom para** | espinha dorsal de eventos, captura de mudanças (CDC, *change data capture*), stream processing, throughput muito alto | streaming nativo da AWS | fan-out nativo do Google Cloud, push para serverless | mensageria e streaming multi-tenant |
 
 O Redpanda e o Azure Event Hubs expõem o **protocolo do Kafka**, então clientes Kafka funcionam com eles sem mudanças. O próprio Kafka também está ganhando semântica de fila: os **share groups** ("Queues for Kafka", KIP-932, introduzidos no Kafka 4.0) deixam vários consumidores dividirem uma partição com confirmação por registro, como uma fila clássica.
 
@@ -382,7 +395,7 @@ O Redpanda e o Azure Event Hubs expõem o **protocolo do Kafka**, então cliente
     - **`acks=1` ou `min.insync.replicas=1`** para eventos de negócio: "confirmado" não significa "seguro".
     - **Processar uma partição com um pool de threads** sem separar o trabalho por chave: a ordem se perde em silêncio.
     - **Processamento lento dentro do loop de poll** além de `max.poll.interval.ms`: o consumidor é expulso, o grupo faz rebalance, outro consumidor recebe os mesmos registros — uma tempestade de rebalances com duplicatas.
-    - **Usar o Kafka como banco de dados** para consultas por campos arbitrários. O Kafka é lido sequencialmente por offset; construa modelos de consulta em um banco a partir dele ([CQRS](../patterns/index.md#cqrs)).
+    - **Usar o Kafka como banco de dados** para consultas por campos arbitrários. O Kafka é lido sequencialmente por offset; construa modelos de consulta em um banco a partir dele ([CQRS, *Command Query Responsibility Segregation*](../patterns/index.md#cqrs)).
 
 ## Como se conecta { #how-it-connects }
 

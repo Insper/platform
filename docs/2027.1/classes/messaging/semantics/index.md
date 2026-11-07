@@ -33,9 +33,9 @@ A **delivery guarantee** says how many times each message is *processed* in the 
 
 | Guarantee | Meaning | How (Kafka consumer) | A crash means | Use when |
 |---|---|---|---|---|
-| **At-most-once** | 0 or 1 time | commit the offset **before** processing | the message may be **lost** | losing some is acceptable: metrics samples, "user is typing" |
-| **At-least-once** | 1 or more times | commit the offset **after** processing | the message is **processed again** | almost always — with idempotent consumers |
-| **Exactly-once** | exactly 1 time (in effect) | at-least-once + deduplication, or Kafka transactions within Kafka | neither | money, inventory, anything counted |
+| **At-most-once** | 0 or 1 time | commit the offset **before** processing | ❌ the message may be **lost** | losing some is acceptable: metrics samples, "user is typing" |
+| **At-least-once** | 1 or more times | commit the offset **after** processing | ⚠️ the message is **processed again** | almost always — with idempotent consumers |
+| **Exactly-once** | exactly 1 time (in effect) | at-least-once + deduplication, or Kafka transactions within Kafka | ✅ neither | money, inventory, anything counted |
 
 <div class="csim" data-sim="delivery" data-commit="after" data-crash="charge" data-at="2"></div>
 
@@ -56,6 +56,20 @@ A **delivery guarantee** says how many times each message is *processed* in the 
 - **Kafka transactions**[^2]. A producer can write to several partitions *and* commit consumer offsets atomically. Consumers with `isolation.level=read_committed` only see committed transactions. This gives exactly-once for **read from Kafka → process → write to Kafka** pipelines (Kafka Streams: `processing.guarantee=exactly_once_v2`).
 - **The boundary.** Kafka transactions cannot un-send an e-mail, un-charge a card or roll back a row in PostgreSQL. As soon as a side effect leaves Kafka, you are back to at-least-once.
 
+The idempotent producer, step by step — the ack of a write is lost and the producer retries:
+
+``` diagram-sim
+sequenceDiagram
+    participant P as producer (order, id 7)
+    participant B as leader of partition 3
+    P->>B: batch seq 41 (OrderConfirmed o-7731)
+    B->>B: append at offset 812
+    B--xP: ack lost on the network
+    P->>B: retry: batch seq 41
+    B->>B: seq 41 already written for producer 7: discard
+    B-->>P: ack (offset 812), no second copy
+```
+
 So the practical recipe, used almost everywhere, is:
 
 > **Effectively-once = at-least-once delivery + idempotent processing.**
@@ -72,7 +86,7 @@ An operation is **idempotent** if doing it twice has the same effect as doing it
 | **Deduplication table** | Record each processed message id in the same transaction as the business change; skip ids already recorded | `processed_events (consumer, event_id)` in `notification`'s database |
 | **Unique constraint / conditional write** | Let the database reject the second effect | `UNIQUE (order_id, kind)` on the e-mails table; `INSERT … ON CONFLICT DO NOTHING` |
 
-The deduplication table is the general solution. It requires every message to carry a unique **event id** (a UUID generated once, by the producer, when the event is created — not on each retry):
+The deduplication table is the general solution. It requires every message to carry a unique **event id** (a universally unique identifier, UUID, generated once, by the producer, when the event is created — not on each retry):
 
 ```sql
 CREATE TABLE processed_events (
@@ -145,6 +159,23 @@ UPDATE event_availability
 
 This makes the update idempotent *and* order-insensitive: applying versions 7, 9, 8 leaves version 9.
 
+``` diagram-sim
+sequenceDiagram
+    participant I as inventory
+    participant K as Kafka (retries, other topics)
+    participant S as search
+    I->>K: ev-88 seats left 120 (version 7)
+    I->>K: ev-88 seats left 80 (version 8)
+    I->>K: ev-88 seats left 60 (version 9)
+    K->>S: version 7
+    S->>S: apply: 120 seats (7 is newer than 6)
+    K->>S: version 9 (it overtook 8)
+    S->>S: apply: 60 seats
+    K->>S: version 8, late
+    S->>S: ignore: 8 is not newer than 9
+    Note over S: ends at version 9, 60 seats left, as inventory says
+```
+
 ??? question "Think first: is ordering by `orderId` enough for the search index?"
 
     Not if the events come from different services. `inventory` publishes `SeatsHeld` and `SeatsReleased` keyed by seat or event, `order` publishes `OrderConfirmed` keyed by order. The search index sees them in an arbitrary interleaving. The fix is not a global order (which would kill parallelism) but a **version per entity** produced by the service that owns it: the availability of event `ev-88` is versioned by `inventory`, and search applies only newer versions.
@@ -210,6 +241,15 @@ Operating a DLQ:
     --8<-- "docs/2027.1/hands-on/7/code/services/notification/src/main/java/boxoffice/notification/DeadLetterListener.java:24:36"
     ```
 
+<div class="csim" data-sim="retry-topics" data-strategy="blocking" data-failure="transient"></div>
+
+!!! tip "Try it"
+    The simulator starts with lab 7's blocking retries (0.5 s, 1 s, 2 s): the e-mail of `OrderConfirmed o-1005` fails for its first 2 s, and `OrderCancelled o-1005` arrives on the same key 1 s later. Press play.
+
+    - **Blocking**: o-1005 succeeds at attempt 4, the partition stops for 3.5 s and the lag peaks at 8 records — and `OrderCancelled` is sent after `OrderConfirmed`.
+    - **Retry topics** (1 s, 4 s, 16 s): the partition never stops (max lag 1), but `OrderCancelled` is sent 4.1 s before OrderConfirmed: the fan reads "cancelled", then "confirmed".
+    - Switch to **poison** and turn off *permanent errors skip the retries*: blocking stops the partition 3.5 s before the DLT, retry topics park it 21.2 s before the DLT, and **forever** never lets go — 53 records wait after 30 s. Turn the switch back on (lab 7 does it for `IllegalArgumentException`): every strategy sends the record straight to the DLT, with no wait.
+
 ### Backpressure in the consumer
 
 A Kafka consumer *pulls*, so it is never flooded by the broker — but it can flood what it calls. The `notification` service must not exceed the e-mail provider's rate limit just because a backlog of 100,000 messages is waiting. Control the pace with `max.poll.records` and a client-side rate limiter, **pause** partitions while a downstream circuit breaker is open (see [Resilience patterns](../../reliability/patterns/index.md)), and let lag grow: a backlog that drains at the provider's pace is better than a ban from the provider.
@@ -225,7 +265,7 @@ Events outlive the code that produced them: a topic with 7 days of retention con
 | **Backward** | new consumers can read data written with the old schema | delete fields; add fields **with defaults** | consumers first |
 | **Forward** | old consumers can read data written with the new schema | add fields; delete fields that had defaults | producers first |
 | **Full** | both | add or delete optional fields with defaults | any order |
-| **None** | nothing | anything — breaks consumers | new topic |
+| **None** | nothing | ❌ anything — breaks consumers | new topic |
 
 Never compatible: renaming a field, changing its type (`total` from number to string), changing its meaning (`total` from reais to cents), reusing a Protobuf field number.
 
@@ -252,7 +292,7 @@ The tools:
 
 - **Serialization formats with schemas**: Avro, Protobuf or JSON Schema. Plain JSON without a schema "works" until the first silent break.
 - **A schema registry** (Confluent Schema Registry, Apicurio, AWS Glue Schema Registry) stores every version, checks compatibility when a producer registers a new one, and lets messages carry a small schema id instead of the full schema.
-- **An envelope** with standard metadata. The CNCF **CloudEvents** specification defines common attributes so tools can route and trace events without parsing the payload:
+- **An envelope** with standard metadata. The **CloudEvents** specification of the Cloud Native Computing Foundation (CNCF) defines common attributes so tools can route and trace events without parsing the payload:
 
 ```json
 {
@@ -277,7 +317,7 @@ For a truly **breaking** change, publish the new version to a new topic (`order-
 |---|---|
 | Producer duplicates | Idempotent producer (`enable.idempotence=true`, `acks=all`) |
 | Producer losses (crash after DB commit) | Transactional outbox |
-| Broker losses | RF 3, `min.insync.replicas=2`, no unclean leader election |
+| Broker losses | replication factor 3, `min.insync.replicas=2`, no unclean leader election |
 | Consumer guarantee | At-least-once: commit after processing |
 | Duplicates in consumers | `processed_events` table in the same transaction; idempotency keys towards external providers |
 | Ordering | Key by `orderId`; version-guarded updates for cross-service views |
@@ -292,7 +332,7 @@ For a truly **breaking** change, publish the new version to a new topic (`order-
     - **Classify errors and bound the retries** — transient ones get a few retries with exponential backoff, permanent ones (parse errors, invalid data) go straight to the DLQ. In BoxOffice: 3 retries at 0.5 s, 1 s, 2 s; `JacksonException` and `IllegalArgumentException` are not retryable ([DLT box](#dlq)).
     - **Store each dead letter with its context and give the DLQ an owner and a replay command** — topic, partition, offset, key, payload and cause. In BoxOffice: `DeadLetterListener` writes them to the `dead_letters` table.
     - **Prove idempotency with a replay test** — rewind the consumer group to the earliest offset and check that e-mails sent = distinct orders. In BoxOffice: experiment D of [lab 7 — measure](../../../hands-on/7/measure/index.md).
-    - **Register event schemas and check compatibility in CI** — the registry rejects a producer change that breaks the consumers still running (backward or full compatibility).
+    - **Register event schemas and check compatibility in continuous integration (CI)** — the registry rejects a producer change that breaks the consumers still running (backward or full compatibility).
     - **Carry a per-entity version in events that update derived state, and apply only newer versions** — reordering and duplicates become harmless for "seats left" in search.
     - **Pace the consumer to the downstream's limit** — `max.poll.records` and a rate limiter at about 80% of the e-mail provider's quota; pause partitions while its circuit breaker is open.
 

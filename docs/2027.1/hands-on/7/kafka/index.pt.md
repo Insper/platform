@@ -6,10 +6,10 @@ novos contêineres de infraestrutura e conhece o Kafka pela linha de comando. To
 
 | Contêiner | Imagem | Porta no host | Papel |
 |---|---|---|---|
-| `kafka` | `apache/kafka:4.3.1` | 9094 | um broker que também é o próprio controlador (KRaft) |
+| `kafka` | `apache/kafka:4.3.1` | 9094 | um broker que também é o próprio controlador (KRaft, *Kafka Raft*) |
 | `kafka-init` | `apache/kafka:4.3.1` | — | tarefa única: cria os tópicos e termina |
 | `kafka-ui` | `kafbat/kafka-ui:v1.5.0` | 8089 | navegar por tópicos, mensagens, *headers* e *lag* dos consumidores |
-| `mailpit` | `axllent/mailpit:v1.31` | 8025 (web), 1025 (SMTP) | provedor de e-mail falso, com caixa de entrada e API |
+| `mailpit` | `axllent/mailpit:v1.31` | 8025 (web), 1025 (SMTP, *Simple Mail Transfer Protocol*) | provedor de e-mail falso, com caixa de entrada e API |
 
 ## Kafka em modo KRaft { #kafka-in-kraft-mode }
 
@@ -101,7 +101,7 @@ os dois papéis, `broker,controller`. Esta é a parte nova do `docker-compose.ya
 Três detalhes importam:
 
 - **Dois *listeners* de cliente.** Os contêineres chegam ao broker como `kafka:9092` (`PLAINTEXT`). Um
-  programa no seu notebook (uma execução na IDE, uma CLI) usa `localhost:9094` (`EXTERNAL`). O cliente
+  programa no seu notebook (uma execução no ambiente de desenvolvimento, IDE, *integrated development environment*, ou uma interface de linha de comando, CLI, *command-line interface*) usa `localhost:9094` (`EXTERNAL`). O cliente
   primeiro se conecta a qualquer endereço, depois recebe o endereço *anunciado* do líder de cada
   partição e se reconecta lá — então cada listener precisa anunciar um nome que os *seus* clientes
   consigam resolver. Trocar um pelo outro é o clássico bug "conecta e depois dá timeout". Por isso o
@@ -110,8 +110,25 @@ Três detalhes importam:
 - **Os tópicos são criados explicitamente** (`KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"`). A criação
   automática usa o padrão do broker, 1 partição, o que limitaria em silêncio o paralelismo dos
   consumidores a 1.
-- **O tópico de mensagens mortas tem tantas partições quanto o principal**: o publicador de DLT do
+- **O tópico de mensagens mortas tem tantas partições quanto o principal**: o publicador de DLT (*dead-letter topic*) do
   Spring grava um registro que falhou no *mesmo número de partição* em `order-events-dlt`.
+
+Os dois listeners, como cada cliente os vê: o endereço de partida só encontra o broker; o endereço que
+o broker **anuncia** de volta é onde o cliente de fato se conecta.
+
+``` diagram-sim
+sequenceDiagram
+    participant S as order (contêiner)
+    participant L as CLI no seu notebook
+    participant B as broker kafka
+    S->>B: bootstrap kafka:9092 (PLAINTEXT), pede os metadados
+    B-->>S: líder de toda partição em kafka:9092
+    S->>B: produz em kafka:9092
+    L->>B: bootstrap localhost:9094 (EXTERNAL), pede os metadados
+    B-->>L: líder de toda partição em localhost:9094
+    L->>B: produz em localhost:9094
+    Note over L,B: um listener só para os dois anunciaria kafka:9092 também ao notebook, um nome que ele não resolve: conecta e depois dá timeout
+```
 
 !!! info "Por que 6 partições?"
 

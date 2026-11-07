@@ -6,10 +6,10 @@ it. All commands run from the **root of your `boxoffice` repository**.
 
 | Container | Image | Host port | Role |
 |---|---|---|---|
-| `kafka` | `apache/kafka:4.3.1` | 9094 | one broker that is also its own controller (KRaft) |
+| `kafka` | `apache/kafka:4.3.1` | 9094 | one broker that is also its own controller (KRaft, Kafka Raft) |
 | `kafka-init` | `apache/kafka:4.3.1` | — | one-shot job: creates the topics and exits |
 | `kafka-ui` | `kafbat/kafka-ui:v1.5.0` | 8089 | browse topics, messages, headers and consumer lag |
-| `mailpit` | `axllent/mailpit:v1.31` | 8025 (web), 1025 (SMTP) | fake e-mail provider with an inbox and an API |
+| `mailpit` | `axllent/mailpit:v1.31` | 8025 (web), 1025 (Simple Mail Transfer Protocol, SMTP) | fake e-mail provider with an inbox and an API |
 
 ## Kafka in KRaft mode
 
@@ -101,7 +101,7 @@ Kafka keeps its own metadata (topics, partitions, leaders) in a Raft quorum of *
 Three details matter:
 
 - **Two client listeners.** Containers reach the broker as `kafka:9092` (`PLAINTEXT`). A program on
-  your laptop (an IDE run, a CLI) uses `localhost:9094` (`EXTERNAL`). A client first connects to any
+  your laptop (a run in your integrated development environment, IDE, or a command-line interface, CLI) uses `localhost:9094` (`EXTERNAL`). A client first connects to any
   address, then receives the *advertised* address of each partition leader and reconnects there — so
   each listener must advertise a name that *its* clients can resolve. Mixing them up is the classic
   "connects, then times out" bug. That is why Kafka is the one exception to the "same port inside and
@@ -110,6 +110,23 @@ Three details matter:
   the broker default of 1 partition, which would silently cap the consumer parallelism at 1.
 - **The dead-letter topic has as many partitions as the main topic**: Spring's dead-letter
   publisher writes a failed record to the *same partition number* in `order-events-dlt`.
+
+The two listeners, as each client sees them: the address it starts from only finds the broker; the
+address the broker **advertises** back is where the client really connects.
+
+``` diagram-sim
+sequenceDiagram
+    participant S as order (container)
+    participant L as CLI on your laptop
+    participant B as kafka broker
+    S->>B: bootstrap kafka:9092 (PLAINTEXT), ask for metadata
+    B-->>S: leader of every partition at kafka:9092
+    S->>B: produce to kafka:9092
+    L->>B: bootstrap localhost:9094 (EXTERNAL), ask for metadata
+    B-->>L: leader of every partition at localhost:9094
+    L->>B: produce to localhost:9094
+    Note over L,B: one listener for both would advertise kafka:9092 to the laptop too, a name it cannot resolve: connects, then times out
+```
 
 !!! info "Why 6 partitions?"
 

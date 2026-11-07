@@ -25,9 +25,10 @@ Qualquer ordem das duas escritas tem uma janela de falha:
 
 | Ordem das escritas | Queda entre as escritas | Resultado |
 |---|---|---|
-| Banco, depois Kafka | pedido gravado, evento perdido | nenhum e-mail e nenhum outro serviço fica sabendo do pedido |
-| Kafka, depois banco | evento publicado, INSERT falha | um pedido *fantasma*: e-mail de um pedido que não existe |
-| Kafka dentro da transação do banco | a publicação no Kafka dá certo, o commit falha | o mesmo fantasma; o PostgreSQL não consegue desfazer o Kafka |
+| Banco, depois Kafka | pedido gravado, evento perdido | ❌ nenhum e-mail e nenhum outro serviço fica sabendo do pedido |
+| Kafka, depois banco | evento publicado, INSERT falha | ❌ um pedido *fantasma*: e-mail de um pedido que não existe |
+| Kafka dentro da transação do banco | a publicação no Kafka dá certo, o commit falha | ❌ o mesmo fantasma; o PostgreSQL não consegue desfazer o Kafka |
+| **Outbox**: pedido e linha do evento numa só transação local | queda em qualquer ponto | ✅ as duas linhas ou nenhuma; o relay publica a linha depois |
 
 O **outbox** tira o segundo sistema da requisição: o serviço grava o evento como uma linha de uma
 tabela `outbox` **na mesma transação local** do pedido. Ou as duas linhas existem, ou nenhuma. Um
@@ -56,7 +57,7 @@ Se o relay cair depois do *ack* do Kafka mas antes do `UPDATE`, a linha é publi
 próxima execução: o outbox dá publicação ***at-least-once***. Tudo bem, porque o consumidor do
 [passo 3](../consumer/index.md) é idempotente e cada evento carrega um `eventId` único.
 
-!!! tip "Relay por polling ou CDC?"
+!!! tip "Relay por polling ou captura de mudanças?"
 
     O relay aqui faz ***polling*** da tabela — simples, sem infraestrutura extra, algumas centenas de
     milissegundos de atraso. A alternativa é a **captura de mudanças** (*change data capture*, CDC):
@@ -67,7 +68,7 @@ próxima execução: o outbox dá publicação ***at-least-once***. Tudo bem, po
 ## O serviço `order` { #the-order-service }
 
 Um novo serviço Spring Boot em `services/order/`, na porta **8084**, servindo tudo sob `/orders`. Ele
-usa JDBC puro (`JdbcClient`) em vez de JPA para que cada comando da transação fique visível.
+usa JDBC (*Java Database Connectivity*) puro (`JdbcClient`) em vez de JPA (*Jakarta Persistence API*) para que cada comando da transação fique visível.
 
 ```
 services/order/
@@ -337,6 +338,26 @@ Agora prove as duas garantias:
     viu a queda. Enquanto o Kafka fica fora por mais de 5 s, `docker compose logs order` mostra `ERROR … Unexpected error occurred
     in scheduled task` a cada poucos segundos: cada execução do relay falha depois de `max.block.ms`
     (5 s) e a próxima tenta de novo — esperado.
+
+Os mesmos experimentos sem Docker, mais um difícil de encenar: um relay que morre entre o ack do Kafka e o `UPDATE`.
+
+<div class="csim" data-sim="async-orders" data-script="outbox"></div>
+
+!!! tip "Experimente"
+
+    O simulador roda a stack deste lab sem Docker: `order-events` com 6 partições, `notification` com 3
+    threads, um e-mail a cada 50 ms; play ou → roda uma página passo a passo e os botões e controles funcionam a
+    qualquer momento. Em **2 · Outbox**, o segundo `curl` recebe `200` e não grava linha, o pedido feito com o
+    Kafka parado espera no outbox até o Kafka voltar e um relay morto depois do ack publica o mesmo evento duas
+    vezes. Em **3 · Consumidor**, as três mensagens do passeio vão direto para `order-events-dlt`, o
+    Mailpit continua com 2 e-mails depois do reprocessamento e fica com 4 com `NOTIFY_IDEMPOTENT=false` e, com
+    o Mailpit parado, um pedido é tentado de novo depois de 0,5, 1 e 2 s antes de ir para o tópico de mensagens mortas. Em
+    **5 · Medir (B, C)**, `sync` perde 1.000 de 3.000 pedidos (33 %) na queda de 20 s enquanto `outbox` não
+    perde nenhum: o *lag* chega a 1.002 e drena 16 s depois da carga (o modelo reinicia o `notification` na
+    hora; no lab, o Spring Boot precisa de mais alguns segundos). A 100 pedidos/s, uma thread deixa o *lag* chegar a 4.800 e drenar 240 s
+    depois da carga, três threads, 2.400 e 45 s, seis threads o mantêm em 17 ou menos e oito não mudam nada:
+    duas threads ficam ociosas. Quatro ou cinco threads ainda levam 45 s: a thread 1 continua lendo duas
+    partições.
 
 !!! warning "Armadilhas"
 

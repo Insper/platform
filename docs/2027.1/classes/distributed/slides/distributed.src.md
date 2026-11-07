@@ -14,6 +14,10 @@ theme: platform
 {{INCLUDE:scripts/slides/theme.js}}
 </script>
 
+<style>
+{{INCLUDE:scripts/slides/diagram.css}}
+</style>
+
 <div class="kicker">System Architecture · Insper</div>
 
 # Distributed Systems Fundamentals
@@ -56,7 +60,7 @@ She taps again. **Did the first tap hold a seat? Will she hold two? Be charged t
 - **Fault tolerance**: no single point of failure
 - **Latency**: be close to users
 - **Isolation**: teams, blast radius
-- **Data residency** (LGPD, GDPR)
+- **Data residency** (Brazil's LGPD, *Lei Geral de Proteção de Dados*; Europe's GDPR, General Data Protection Regulation)
 
 </div>
 <div>
@@ -76,14 +80,45 @@ She taps again. **Did the first tap hold a seat? Will she hold two? Be charged t
 
 ---
 
+## BoxOffice is a distributed system
+
+<div class="flow">
+<div class="box">Fan's phone</div><div class="arrow">POST /holds →</div>
+<div class="box">gateway<small>validates the token with auth</small></div><div class="arrow">→</div>
+<div class="box accent">inventory</div><div class="arrow">UPDATE →</div>
+<div class="box">PostgreSQL primary</div><div class="arrow">replicates →</div>
+<div class="box muted" style="flex: 1.5">PostgreSQL replica<small>through the write-ahead log (WAL)</small></div>
+</div>
+<div class="flow">
+<div class="arrow" style="flex: .6; text-align: left">inventory also →</div>
+<div class="box">Redis<small>caches the seat map</small></div><div class="arrow">and</div>
+<div class="box orange">Kafka, 3 brokers<small>SeatHeld event</small></div><div class="arrow">consume →</div>
+<div class="box">notification</div>
+</div>
+
+- Every arrow is a **message** over the network; every box can fail, pause or slow down **on its own**.
+- Redis slow → `inventory` waits · replica lags → stale read · Kafka unreachable → hold committed, `SeatHeld` never published.
+
+<div class="warn">
+
+Nothing shares memory or a clock: each of these is a **partial failure**.
+
+</div>
+
+<!--
+The page follows one click on "Hold seat A-12" through the same diagram, step by step.
+-->
+
+---
+
 ## Failure models
 
 | Model | The faulty node… | BoxOffice example |
 |---|---|---|
-| **Crash-stop** | halts forever | VM terminated |
-| **Crash-recovery** | halts, restarts from disk | `inventory` pod OOM-killed |
+| **Crash-stop** | halts forever | virtual machine (VM) terminated |
+| **Crash-recovery** | halts, restarts from disk | `inventory` pod killed out of memory (OOM) |
 | **Omission** | drops messages | the `SeatHeld` event never sent |
-| **Timing** | answers too late | 3 s GC pause in `payment` |
+| **Timing** | answers too late | 3 s garbage-collection (GC) pause in `payment` |
 | **Byzantine** | lies, corrupts | forged ticket, bit flip |
 | **Gray** | looks healthy, fails users | `/health` 200, every query times out |
 
@@ -98,7 +133,7 @@ The failures that hurt are not clean crashes: they are **slow**, **partial** and
 ## The 8 fallacies of distributed computing
 
 1. The network is reliable
-2. Latency is zero — same DC ≈ 0.5 ms RTT, across continents ≈ 150 ms
+2. Latency is zero — same data centre ≈ 0.5 ms round-trip time (RTT), across continents ≈ 150 ms
 3. Bandwidth is infinite
 4. The network is secure
 5. Topology doesn't change
@@ -112,11 +147,16 @@ The failures that hurt are not clean crashes: they are **slow**, **partial** and
 
 ## Slow or dead?
 
-`inventory → payment: authorise R$ 450` … **silence** … timeout after 2 s.
+<div class="flow">
+<div class="box accent" style="flex: .8">inventory<small>authorise R$ 450</small></div><div class="arrow">silence →</div>
+<div class="box muted">(a) request lost<small>not charged</small></div>
+<div class="box muted">(b) payment crashed<small>not charged</small></div>
+<div class="box red">(c) reply lost<small>charged</small></div>
+<div class="box red">(d) just slow<small>charged</small></div>
+<div class="arrow">→ timeout 2 s</div>
+</div>
 
-- (a) request lost · (b) `payment` crashed · (c) **reply lost** · (d) `payment` **just slow**
-- All four look identical to the caller.
-- A **timeout** lets you *assume* failure — not know it.
+- All four look identical to the caller: a **timeout** lets you *assume* failure — not know it.
 - In (c) and (d) the charge **happened**: a blind retry charges twice.
 
 <div class="ok">
@@ -124,6 +164,25 @@ The failures that hurt are not clean crashes: they are **slow**, **partial** and
 Timeouts are a trade-off (too long: threads pile up; too short: false alarms and extra load). Retries must be **safe** → **idempotency**.
 
 </div>
+
+---
+
+## Slow or dead? The simulator
+
+<div class="flow">
+<div class="box orange">give up<small>at most once · 9 holds with no order · 13 told "failed" for an order that exists</small></div>
+<div class="box red">retry, timeout 2 s<small>at least once · 13 holds with two orders</small></div>
+<div class="box red">retry, timeout 300 ms<small>26 holds with two orders</small></div>
+<div class="box green">retry + dedupe by hold<small>0 duplicates at any timeout</small></div>
+</div>
+
+- On the overview page: the gateway turns 200 seat holds into orders; 5% of requests and of replies are lost; at most 3 attempts.
+- A longer timeout only removes case (d): at 5 s, **lost replies** still make 6 duplicates.
+- Dedupe is lab 7's `ON CONFLICT (hold_id) DO NOTHING`; the payment version (idempotency key, lab 9) is on the integrations page.
+
+<!--
+p99 = the 99th-percentile wait: 2.8 s at a 2 s timeout, 5.8 s at 5 s. Play walks through the fans whose first attempt got no reply in time.
+-->
 
 ---
 
@@ -155,8 +214,39 @@ UPDATE seats SET status = 'HELD', fan_id = 42, hold_key = :key
  WHERE id = 'A-12' AND (status = 'FREE' OR hold_key = :key);
 ```
 
-- **Idempotency key**: the client sends a UUID per intended action; the server stores key + result **in the same transaction** and replays the stored result on a duplicate.
+- **Idempotency key**: the client sends a universally unique identifier (UUID) per intended action; the server stores key + result **in the same transaction** and replays the stored result on a duplicate.
 - Store keys in **shared** storage — the retry lands on another replica.
+
+---
+
+## The concept map
+
+<div class="flow" style="align-items: stretch">
+<div class="group">
+<div class="caption">Partial failure</div>
+<div class="box red">some nodes fail, nobody sees which</div>
+<div class="box accent">replication · consistency models</div>
+<div class="box accent">CAP / PACELC · multi-region</div>
+<div class="box accent">consensus · quorums · fencing</div>
+<div class="box green">sql · nosql · cache · cdn · dns</div>
+</div>
+<div class="group">
+<div class="caption">Unreliable network</div>
+<div class="box red">messages lost, delayed, duplicated</div>
+<div class="box accent">timeouts · retries · idempotency</div>
+<div class="box accent">sagas · outbox · 2PC</div>
+<div class="box green">payment · queue · stream · kafka</div>
+</div>
+<div class="group">
+<div class="caption">No global clock</div>
+<div class="box red">clocks drift and disagree</div>
+<div class="box accent">logical / hybrid clocks</div>
+<div class="box accent">single authority · ordered ids</div>
+<div class="box green">kafka · sql · scheduler</div>
+</div>
+</div>
+
+<p class="small">Red: the root problem · blue: the techniques of this class · green: palette components where you meet it in the playground. Every component inherits one of these problems — ask which one before adding it to a design.</p>
 
 ---
 
@@ -165,8 +255,8 @@ UPDATE seats SET status = 'HELD', fan_id = 42, hold_key = :key
 | | Single-leader | Multi-leader | Leaderless |
 |---|---|---|---|
 | Who writes | one leader | one per region | any replica |
-| Write conflicts | none | yes | yes |
-| Strong consistency | possible | not across leaders | only approximate |
+| Write conflicts | ✅ none | ⚠️ yes | ⚠️ yes |
+| Strong consistency | ✅ possible | ❌ not across leaders | ⚠️ only approximate |
 | Examples | PostgreSQL, Kafka partitions | multi-region setups, CouchDB | Cassandra, Dynamo |
 
 <p class="small">When to say OK: <b>async</b> (fast, may lose writes on failover) · <b>sync</b> (slowest follower decides) · <b>semi-sync / quorum</b> (the usual compromise).</p>
@@ -197,46 +287,43 @@ Fix it precisely: **read-your-writes**, not global strong consistency.
 
 | Model | Promise | Available in a partition? |
 |---|---|---|
-| **Linearizable** | behaves like a single copy, real-time recency | no |
-| **Causal** | cause before effect, for everyone | **yes** |
+| **Linearizable** | behaves like a single copy, real-time recency | ❌ no |
+| **Causal** | cause before effect, for everyone | ✅ **yes** |
 | **Read-your-writes** | you see your own writes | yes (per session) |
 | **Monotonic reads** | your view never goes back in time | yes (per session) |
 | **Eventual** | replicas converge if writes stop | yes |
 
 - Linearizable for **seats, money, uniqueness, leaders**.
-- Session guarantees via leader reads after a write, **LSN tokens**, sticky replicas.
-- Eventual conflicts: **LWW** (loses writes), version vectors, **CRDTs**.
+- Session guarantees via leader reads after a write, **log sequence number (LSN) tokens**, sticky replicas.
+- Eventual conflicts: **last-write-wins (LWW)** loses writes; version vectors; **conflict-free replicated data types (CRDTs)**.
 
 ---
 
 ## CAP: during a partition, choose
 
-<div class="cols">
-<div>
+<p class="small">Consistency, Availability, Partition tolerance (CAP): a replicated store cannot guarantee all three.</p>
 
-### CP — refuse
-
-- minority side returns errors
-- no double-sold seat
-- etcd, ZooKeeper, Spanner, PostgreSQL sync
-
+<div class="flow">
+<div class="box">Fan A<small>holds A-12</small></div><div class="arrow">→</div>
+<div class="box accent">node A · majority<small>A-12 = HELD</small></div>
+<div class="arrow">✗ partition ✗</div>
+<div class="box">node B · minority<small>A-12 = FREE</small></div><div class="arrow">←</div>
+<div class="box">Fan B<small>is A-12 free?</small></div>
 </div>
-<div>
-
-### AP — answer
-
-- every node answers, maybe stale
-- reconcile afterwards
-- Cassandra (defaults), DNS, CDN, caches
-
-</div>
+<div class="flow">
+<div class="box red">CP — node B refuses: 503, no double-sold seat<small>etcd, ZooKeeper, Spanner, PostgreSQL sync</small></div>
+<div class="box orange">AP — node B answers "FREE": reconcile afterwards<small>Cassandra (defaults), DNS, CDN, caches</small></div>
 </div>
 
 <div class="warn">
 
-**P is not optional** — "CA" is not a choice for replicated data. And CAP's C is **linearizability**, not ACID's C.
+**P is not optional** — "CA" is not a choice for replicated data. And CAP's C is **linearizability**, not the C of ACID (atomicity, consistency, isolation, durability).
 
 </div>
+
+<!--
+DNS = Domain Name System; CDN = content delivery network. The page's simulator plays both modes with a São Paulo – Lisbon link.
+-->
 
 ---
 
@@ -261,11 +348,11 @@ Fix it precisely: **read-your-writes**, not global strong consistency.
 |---|---|---|
 | Seats, holds, payments | **CP / linearizable** | one primary per event, conditional `UPDATE` |
 | *My tickets* | **read-your-writes** | user's own data from the primary |
-| Seats-left counter | **monotonic reads** | sticky replica / short-TTL cache |
+| Seats-left counter | **monotonic reads** | sticky replica / short time-to-live (TTL) cache |
 | Catalogue, images | **AP / eventual** | replicas, cache, CDN |
 | Interest counters | **eventual (CRDT)** | per-region counters merged |
 
-<p class="small">Multi-region: each event has a <b>home region</b> (the venue's) — strong consistency stays local, a partition only affects cross-region holds.</p>
+<p class="small">Multi-region (active–active partitioned by home): each event has a <b>home region</b> (the venue's) — strong consistency stays local, a partition only refuses the holds that must cross it.</p>
 
 ---
 
@@ -273,8 +360,28 @@ Fix it precisely: **read-your-writes**, not global strong consistency.
 
 - **Replicated state machine**: same commands, same order → same state on every node.
 - **Safety** always (never two different decisions); **liveness** when the network behaves.
-- **FLP**: no deterministic algorithm always terminates in an asynchronous system → timeouts.
+- **FLP** (Fischer, Lynch, Paterson): no deterministic algorithm always terminates in an asynchronous system → timeouts.
 - **Majorities overlap** → no split brain.
+
+---
+
+## Split brain, and why the majority prevents it
+
+<div class="flow" style="align-items: stretch">
+<div class="group">
+<div class="caption">majority side · 3 of 5</div>
+<div class="box green">node 1 · leader</div><div class="box green">node 2</div><div class="box green">node 3</div>
+</div>
+<div class="arrow" style="align-self: center">✗ partition ✗</div>
+<div class="group">
+<div class="caption">minority side · 2 of 5</div>
+<div class="box muted">node 4</div><div class="box muted">node 5</div>
+</div>
+</div>
+<div class="flow">
+<div class="box green">elects and commits: keeps selling seats</div>
+<div class="box red">cannot reach 3 votes: rejects writes, 503</div>
+</div>
 
 | N | 1 | 2 | 3 | 4 | 5 | 7 |
 |---|---|---|---|---|---|---|
@@ -292,7 +399,7 @@ Fix it precisely: **read-your-writes**, not global strong consistency.
 - Leader appends, replicates with `AppendEntries`, **commits after a majority** wrote to disk.
 - A stale leader sees a higher term → **steps down**.
 
-<p class="small">etcd defaults: heartbeat 100 ms, election timeout 1,000 ms → a leader crash costs ~1–2 s of no writes. Used by etcd, Consul, CockroachDB, Kafka KRaft.</p>
+<p class="small">etcd defaults: heartbeat 100 ms, election timeout 1,000 ms → a leader crash costs ~1–2 s of no writes. Used by etcd, Consul, CockroachDB, Kafka KRaft (Kafka Raft).</p>
 
 ---
 
@@ -300,9 +407,9 @@ Fix it precisely: **read-your-writes**, not global strong consistency.
 
 | N = 3 | W | R | R + W > N? | Behaviour |
 |---|---|---|---|---|
-| `ONE` / `ONE` | 1 | 1 | no | fastest, may be stale |
-| `QUORUM` / `QUORUM` | 2 | 2 | **yes** | sees latest ack'd write, tolerates 1 down |
-| `ALL` / `ONE` | 3 | 1 | yes | one node down blocks writes |
+| `ONE` / `ONE` | 1 | 1 | ❌ no | fastest, may be stale |
+| `QUORUM` / `QUORUM` | 2 | 2 | ✅ **yes** | sees latest ack'd write, tolerates 1 down |
+| `ALL` / `ONE` | 3 | 1 | ✅ yes | one node down blocks writes |
 
 <div class="warn">
 
@@ -331,7 +438,7 @@ BoxOffice: Patroni + 3-node etcd elects the PostgreSQL primary; the old primary 
 
 ---
 
-## Atomic across services? Two-phase commit
+## Atomic across services? Two-phase commit (2PC)
 
 1. **Prepare**: every participant writes its changes + a *prepared* record, keeps the locks, votes **yes/no**.
 2. **Commit**: all yes → coordinator logs COMMIT and tells everyone; any no → ABORT.
@@ -352,7 +459,7 @@ Coordinator crashes after the votes → participants are **in doubt**, seat A-12
 |---|---|---|
 | 1 | order `PENDING` | order `CANCELLED` |
 | 2 | seat → `RESERVED_FOR_PAYMENT` | release the seat |
-| 3 | **authorise** the card (pivot) | void / refund |
+| 3 | **charge** the card — the pivot once it succeeds | refund |
 | 4 | seat `SOLD`, order `CONFIRMED` | — retry until it succeeds |
 
 - **Orchestrated** (one brain, e.g. `order` or Temporal) or **choreographed** (events).
@@ -361,9 +468,31 @@ Coordinator crashes after the votes → participants are **in doubt**, seat A-12
 
 ---
 
+## Reservations: try, confirm, cancel
+
+<div class="flow">
+<div class="box">FREE</div><div class="arrow">try: hold for 10 min →</div>
+<div class="box orange">HELD<small>expires by itself</small></div><div class="arrow">confirm: paid →</div>
+<div class="box green">SOLD</div>
+</div>
+<div class="flow">
+<div class="box orange">HELD</div><div class="arrow">cancel: release or expiry →</div>
+<div class="box">FREE</div>
+</div>
+
+- The try–confirm–cancel (TCC) pattern: every participant offers a **tentative** operation with a timeout.
+- Card payments have the same shape: **authorise** → **capture** or **void**.
+- Every tentative state expires → a crash anywhere **converges to a safe state** instead of blocking.
+
+<!--
+BoxOffice already works this way: the hold is the try, the sale the confirm, expiry or release the cancel.
+-->
+
+---
+
 ## No global clock
 
-- Quartz drifts: 20 ppm ≈ **1.7 s/day**; NTP keeps servers within ~ms — if it keeps running.
+- Quartz drifts: 20 parts per million (ppm) ≈ **1.7 s/day**; the Network Time Protocol (NTP) keeps servers within ~ms — if it keeps running.
 - **Wall clock** (`currentTimeMillis`) can jump → only for human timestamps.
 - **Monotonic clock** (`nanoTime`) → durations, timeouts.
 
@@ -381,26 +510,11 @@ Coordinator crashes after the votes → participants are **in doubt**, seat A-12
 |---|---|---|
 | **Lamport clock** | a → b ⇒ L(a) < L(b) | Raft terms, fencing |
 | **Vector clock** | detects **concurrency** | Dynamo, Riak |
-| **HLC** | causal + close to real time, 64 bits | CockroachDB, YugabyteDB, MongoDB |
+| **Hybrid logical clock (HLC)** | causal + close to real time, 64 bits | CockroachDB, YugabyteDB, MongoDB |
 | **TrueTime** | bounded uncertainty, **commit wait** | Spanner |
 | **Single authority** | total order from one leader | DB sequence, conditional `UPDATE` |
 | **Kafka key → partition** | order per key | events of one show |
 | **Snowflake / UUIDv7** | unique, roughly time-sorted ids | keys — **not** "who came first" |
-
----
-
-## The concept map
-
-| Root problem | Technique | Palette components |
-|---|---|---|
-| Partial failure | replication, consistency models | `sql` `nosql` `cache` `cdn` |
-| Partial failure | CAP / PACELC, multi-region | `dns` `sql` `nosql` |
-| Unreliable network | timeouts, retries, idempotency | `payment` `thirdparty` `queue` |
-| Unreliable network | sagas, outbox, 2PC | `stream` `kafka` `payment` |
-| No global clock | consensus, quorums, fencing | `kafka` `scheduler` `sql` |
-| No global clock | logical / hybrid clocks, ids | `kafka` `sql` `scheduler` |
-
-<p class="small">Every component in the playground inherits one of these problems — ask which one before adding it to a design.</p>
 
 ---
 

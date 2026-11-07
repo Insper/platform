@@ -1,4 +1,4 @@
-Uma compra no BoxOffice envolve três serviços e cada um é dono dos seus dados: `order` (o pedido), `inventory` (os lugares) e `payment` (a cobrança, por meio de um provedor externo). Em um monólito com um só banco de dados, a compra seria uma transação ACID: reservar os lugares, cobrar, confirmar — tudo ou nada. Dividida em serviços, não há um banco único nem uma transação única. A resposta clássica, uma transação distribuída com two-phase commit (2PC), também não serve: o provedor de pagamento não vai participar da sua transação e o 2PC bloqueia todos os participantes enquanto um coordenador estiver inacessível.
+Uma compra no BoxOffice envolve três serviços e cada um é dono dos seus dados: `order` (o pedido), `inventory` (os lugares) e `payment` (a cobrança, por meio de um provedor externo). Em um monólito com um só banco de dados, a compra seria uma transação ACID (atômica, consistente, isolada e durável): reservar os lugares, cobrar, confirmar — tudo ou nada. Dividida em serviços, não há um banco único nem uma transação única. A resposta clássica, uma transação distribuída com two-phase commit (2PC), também não serve: o provedor de pagamento não vai participar da sua transação e o 2PC bloqueia todos os participantes enquanto um coordenador estiver inacessível.
 
 Esta página reúne os padrões que substituem a transação distribuída em sistemas orientados a eventos. Cada um responde a uma pergunta precisa:
 
@@ -7,7 +7,7 @@ Esta página reúne os padrões que substituem a transação distribuída em sis
 | Como atualizo meu banco de dados **e** publico um evento sem perder nenhum dos dois? | [Transactional outbox](#transactional-outbox) |
 | Como transformo mudanças em um banco de dados em um fluxo de eventos? | [Change data capture](#cdc) |
 | Como executo uma transação de negócio que atravessa vários serviços? | [Saga](#sagas) |
-| Como atendo consultas que precisam de dados num formato diferente do das escritas? | [CQRS](#cqrs) |
+| Como atendo consultas que precisam de dados num formato diferente do das escritas? | [CQRS (*Command Query Responsibility Segregation*)](#cqrs) |
 | Como mantenho o histórico completo como fonte da verdade? | [Event sourcing](#event-sourcing) |
 
 ---
@@ -122,7 +122,7 @@ O relay tem duas implementações comuns:
 
     Simples e portável, mas adiciona carga de polling no banco e até um intervalo de polling de latência. Rode um único relay ativo (ou particione o trabalho por agregado) para que os eventos do mesmo pedido fiquem em ordem e apague as linhas publicadas depois de alguns dias.
 
-=== "CDC por log (Debezium)"
+=== "Captura de mudanças pelo log (Debezium)"
 
     O Debezium lê o log de replicação do banco e publica cada nova linha do outbox; nada faz polling na tabela. O seu *outbox event router* transforma as linhas em eventos no tópico certo, com a chave certa.
 
@@ -153,7 +153,7 @@ O relay tem duas implementações comuns:
 
 !!! example "No código do BoxOffice: o outbox no `order` (lab 7)"
 
-    O [Hands-on 7 — Transactional outbox](../../../hands-on/7/outbox/index.md) constrói o publicador por polling. `place()` insere o pedido e, no mesmo método `@Transactional`, acrescenta `OrderPlaced` ao outbox (`Outbox.append` é `Propagation.MANDATORY`: falha se alguém o chamar fora de uma transação). `NOTIFY_MODE=sync` mantém a versão "antes", que chama o `notification` por HTTP, para que você possa medir as duas. O relay envia um lote de até 100 linhas, espera o ack do Kafka para **todas** e só então marca as linhas: um crash no meio as republica (pelo menos uma vez), nunca as perde. Note uma diferença em relação ao conselho acima: várias réplicas do `order` podem fazer o relay em paralelo (`SKIP LOCKED`), o que é seguro aqui porque, por enquanto, cada pedido produz um único evento; com mais eventos por pedido, a ordem por pedido exigiria um único relay ou o particionamento por agregado. Numa execução de teste num laptop ocupado, o p50 do `POST /orders` caiu de **4,12 s** (sync) para **47 ms** (outbox) e parar o `notification` por 20 s derrubou cerca de um terço dos pedidos no modo sync e nenhum com o outbox ([Meça](../../../hands-on/7/measure/index.md)).
+    O [Hands-on 7 — Transactional outbox](../../../hands-on/7/outbox/index.md) constrói o publicador por polling. `place()` insere o pedido e, no mesmo método `@Transactional`, acrescenta `OrderPlaced` ao outbox (`Outbox.append` é `Propagation.MANDATORY`: falha se alguém o chamar fora de uma transação). `NOTIFY_MODE=sync` mantém a versão "antes", que chama o `notification` por HTTP, para que você possa medir as duas. O relay envia um lote de até 100 linhas, espera o ack do Kafka para **todas** e só então marca as linhas: um crash no meio as republica (pelo menos uma vez), nunca as perde. Note uma diferença em relação ao conselho acima: várias réplicas do `order` podem fazer o relay em paralelo (`SKIP LOCKED`), o que é seguro aqui porque, por enquanto, cada pedido produz um único evento; com mais eventos por pedido, a ordem por pedido exigiria um único relay ou o particionamento por agregado. Numa execução de teste num laptop ocupado a 200 pedidos/s, o p50 do `POST /orders` caiu de **2,7 s** (sync) para **1,8 ms** (outbox) e parar o `notification` por 20 s derrubou 54% das requisições no modo sync e nenhuma com o outbox ([Meça](../../../hands-on/7/measure/index.md)).
 
     ``` { .java title="services/order/src/main/java/boxoffice/order/OrderService.java (order + event, one transaction)" }
     --8<-- "docs/2027.1/hands-on/7/code/services/order/src/main/java/boxoffice/order/OrderService.java:35:62"
@@ -162,6 +162,10 @@ O relay tem duas implementações comuns:
     ``` { .java title="services/order/src/main/java/boxoffice/order/outbox/OutboxRelay.java (the polling publisher)" }
     --8<-- "docs/2027.1/hands-on/7/code/services/order/src/main/java/boxoffice/order/outbox/OutboxRelay.java:42:74"
     ```
+
+**Experimente no playground.** No preset `boxoffice-outbox`, o `order` ainda chama o `notification` de forma síncrona: uma rajada de 30 s a 200 pedidos/s derruba cerca de 35% dos pedidos e o p99 chega a cerca de 4 s, porque o comprador espera (e falha junto com) o e-mail. Troque essa chamada por `order` → Kafka (6 partições) → `notification`, que é o que o outbox torna seguro: nada falha, o p99 fica em cerca de 40 ms e os e-mails alcançam com cerca de 30 s de lag.
+
+<div class="sdp" data-scenario="boxoffice-outbox" data-mode="compact" data-height="440"></div>
 
 ---
 
@@ -215,7 +219,7 @@ Há duas formas de coordenar os passos.
 
     Sem coordenador central: cada serviço reage aos eventos dos outros.
 
-    ``` mermaid-sim
+    ``` diagram-sim
     sequenceDiagram
         participant O as order
         participant I as inventory
@@ -241,7 +245,7 @@ Há duas formas de coordenar os passos.
 
     Um **orquestrador da saga** (aqui, dentro do `order`) envia comandos e reage às respostas. O fluxo inteiro fica em um só lugar.
 
-    ``` mermaid-sim
+    ``` diagram-sim
     sequenceDiagram
         participant S as saga de compra (order)
         participant I as inventory
@@ -352,14 +356,34 @@ flowchart LR
 
 A página "Meus ingressos" precisa, para um fã, de todos os ingressos com nome do show, data, local, lugar e QR code — dados que pertencem ao `order`, ao `catalog` e ao `inventory`. Fazer join entre três serviços a cada visualização da página é lento e frágil. Em vez disso, um projetor consome os eventos deles e mantém uma tabela `my_tickets` com exatamente as colunas de que a página precisa. As leituras viram uma única consulta indexada e o lado de leitura escala de forma independente (réplicas, cache, até um banco de dados diferente).
 
-O preço é a **consistência eventual entre escrita e leitura**: logo depois de comprar, o fã abre "Meus ingressos" e o ingresso novo ainda não está lá, porque o projetor está algumas centenas de milissegundos atrás. Soluções comuns para esse problema de *read-your-writes* (veja [Consistência](../../distributed/consistency/index.md)):
+O preço é a **consistência eventual entre escrita e leitura**: logo depois de comprar, o fã abre "Meus ingressos" e o ingresso novo ainda não está lá, porque o projetor está algumas centenas de milissegundos atrás:
+
+``` diagram-sim
+sequenceDiagram
+    participant F as Fã
+    participant O as order (modelo de escrita)
+    participant K as Kafka
+    participant P as projetor de meus ingressos
+    participant V as visão my_tickets
+    F->>O: POST /orders (compra B-12)
+    O-->>F: 201 Created (versão 42)
+    F->>V: GET /me/tickets
+    V-->>F: ainda sem B-12 (a visão está na versão 41)
+    O->>K: OrderConfirmed (versão 42)
+    K->>P: OrderConfirmed
+    P->>V: upsert B-12, versão 42
+    F->>V: GET /me/tickets (no mínimo versão 42)
+    V-->>F: B-12 está lá
+```
+
+Soluções comuns para esse problema de *read-your-writes* (veja [Consistência](../../distributed/consistency/index.md)):
 
 - Devolver o novo estado na resposta do comando e deixar o cliente exibi-lo imediatamente.
 - Passar um token de versão: o cliente envia "preciso de pelo menos a versão 42" e o lado de leitura espera um pouco (ou recorre ao modelo de escrita) até tê-la.
 - Ler as escritas **recentes do próprio usuário** do modelo de escrita e todo o resto da projeção.
 
 !!! warning "CQRS não é padrão"
-    CQRS adiciona peças móveis: projetores, mais armazenamento, lag para monitorar, procedimentos de reconstrução. Use onde leituras e escritas realmente diferem em formato ou escala (a navegação no catálogo do BoxOffice, "Meus ingressos", a busca), não para toda entidade CRUD.
+    CQRS adiciona peças móveis: projetores, mais armazenamento, lag para monitorar, procedimentos de reconstrução. Use onde leituras e escritas realmente diferem em formato ou escala (a navegação no catálogo do BoxOffice, "Meus ingressos", a busca), não para toda entidade CRUD (*create, read, update, delete*).
 
 ---
 
@@ -406,7 +430,7 @@ Para mudar um pedido, o serviço carrega seus eventos, reconstrói o estado, ver
 | Trilha de auditoria completa: *por que* e *quando* cada mudança aconteceu | Eventos são um contrato permanente: toda versão precisa continuar legível para sempre |
 | Consultas temporais: "como estava este pedido às 10:03?" | Consultas precisam de projeções; "todos os pedidos acima de R$ 1.000" não é um simples `SELECT` |
 | Depuração por replay; novos modelos de leitura construídos a partir do histórico | Pouco familiar para a maioria dos times; fácil de errar |
-| Encaixe natural com integração orientada a eventos | Apagar dados pessoais (LGPD/GDPR) em um log imutável exige cuidado (por exemplo, cifrar por cliente e apagar a chave) |
+| Encaixe natural com integração orientada a eventos | Apagar dados pessoais (Lei Geral de Proteção de Dados, LGPD, e o GDPR europeu, *General Data Protection Regulation*) em um log imutável exige cuidado (por exemplo, cifrar por cliente e apagar a chave) |
 
 !!! tip "Onde event sourcing cabe no BoxOffice"
     Bons candidatos: o **livro-razão de pagamentos** (dinheiro precisa ser auditável e um razão só de acréscimos é como a contabilidade já funciona) e o histórico de pedidos. Maus candidatos: o catálogo de eventos (uma tabela simples com CDC basta) e o mapa de lugares durante uma abertura de vendas (precisa de atualizações rápidas e com lock do estado atual, não de um histórico crescente).

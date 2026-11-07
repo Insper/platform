@@ -12,13 +12,13 @@ flowchart LR
     fans["2 M fans"] -->|POST join| wr["waiting room (Redis FIFO)"]
     wr -->|"position, ETA"| fans
     adm["admitter (every 1 s)"] -->|"ZPOPMIN N"| wr
-    adm -->|"admitted ticket, TTL 5 min"| redis[(Redis)]
+    adm -->|"admitted ticket,<br/>time to live (TTL) 5 min"| redis[(Redis)]
     fans -->|"POST /orders + X-Admission-Ticket"| order[order]
     order -->|"ticket admitted?"| redis
 ```
 
 This is **queue-based load leveling**: arrivals are bursty, service is constant, and the queue holds
-the difference. Little's Law gives the honest ETA a fan sees:
+the difference. Little's Law gives the honest estimated time of arrival (ETA) a fan sees:
 
 $$
 \text{wait} \approx \frac{\text{position in the queue}}{\text{admission rate}}
@@ -33,12 +33,12 @@ $$
 | Fairness | sequence from `INCR`, not client timestamps | clients' clocks lie; the server decides the order |
 | Admission | every second, pop `admit-per-second` tickets and mark them admitted with a TTL | the rate is the knob; the TTL frees capacity of fans who give up |
 | Gate | `POST /orders` requires an admitted `X-Admission-Ticket` **while the on-sale is open** | without enforcement, bots skip the queue |
-| Position | the client polls `GET /tickets/{id}` | simple; at scale, push via SSE/WebSocket or long polling |
+| Position | the client polls `GET /tickets/{id}` | simple; at scale, push via server-sent events (SSE), WebSocket or long polling |
 
 !!! warning "Where the gate belongs"
 
     The gate must cover **every** expensive step of the on-sale (seat holds in `inventory` and orders),
-    so in production it lives at the edge: a gateway filter ([lab 4](../../4/index.md)) or a CDN
+    so in production it lives at the edge: a gateway filter ([lab 4](../../4/index.md)) or a content delivery network (CDN)
     waiting-room product. This lab enforces it in `order` to stay small; moving it to the gateway is
     a good extension.
 
@@ -107,6 +107,26 @@ boxoffice:
 201
 ```
 
+The same exchange, with the admitter running in the background:
+
+``` diagram-sim
+sequenceDiagram
+    participant F as fan
+    participant O as order (waiting room)
+    participant R as Redis
+    F->>O: POST /orders/waiting-room/show-42/join
+    O->>R: INCR wr:show-42:seq, ZADD wr:show-42:queue
+    O-->>F: WAITING, position 1, ETA 1 s
+    Note over O,R: every second the admitter takes the first N with ZPOPMIN and marks them admitted, TTL 5 min
+    F->>O: GET /orders/waiting-room/show-42/tickets/id
+    O-->>F: ADMITTED, expires in 298 s
+    F->>O: POST /orders, no X-Admission-Ticket
+    O-->>F: 403 on-sale in progress
+    F->>O: POST /orders, X-Admission-Ticket id
+    O->>R: is ticket id admitted?
+    O-->>F: 201 Created
+```
+
 Peek at the data structure while a k6 spike runs ([step 5](../measure/index.md)):
 
 ``` shell
@@ -124,6 +144,6 @@ docker compose exec redis redis-cli ZRANGE wr:show-42:queue 0 4 WITHSCORES
     - **The waiting room itself must scale.** Joins and polls are cheap Redis operations, but 2 M fans
       polling every second is 2 M requests per second: poll less often as the position is far, serve
       the waiting page from the CDN, and keep the queue on its own Redis.
-    - **Bots** join many times. Rate-limit joins per client and require a challenge (WAF) before joining.
+    - **Bots** join many times. Rate-limit joins per client and require a challenge (web application firewall, WAF) before joining.
 
 [Next: Measure it](../measure/index.md){ .md-button .md-button--primary }

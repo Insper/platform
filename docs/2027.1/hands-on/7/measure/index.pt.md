@@ -1,7 +1,7 @@
 # 5. Meça { #5-measure-it }
 
 Cinco experimentos, uma tabela de resultados. Rode cada experimento pelo menos duas vezes e relate a
-segunda execução (a primeira aquece as JVMs e os pools de conexão). Os números das caixas "forma
+segunda execução (a primeira aquece as máquinas virtuais Java (JVMs, *Java virtual machines*) e os pools de conexão). Os números das caixas "forma
 esperada" são **ilustrativos** — o que importa é você conseguir explicar os *seus* números.
 
 | # | Experimento | Botão | O que registrar |
@@ -10,7 +10,7 @@ esperada" são **ilustrativos** — o que importa é você conseguir explicar os
 | B | queda do `notification` | parar o contêiner no meio do teste | taxa de erro, pico de *lag*, tempo de drenagem |
 | C | rajada e drenagem | `NOTIFY_CONCURRENCY` 1 vs 6 | *lag* ao longo do tempo, tempo de drenagem, atraso p95 do e-mail |
 | D | reprocessamento | `NOTIFY_IDEMPOTENT` | e-mails por pedido depois de um *reset* de offsets |
-| E | pico da venda relâmpago | sala de espera aberta, `ADMIT_PER_SECOND=10` | admitidos/s, espera p95, erro do ETA, p95 dos pedidos |
+| E | pico da venda relâmpago | sala de espera aberta, `ADMIT_PER_SECOND=10` | admitidos/s, espera p95, erro da estimativa de espera (ETA, *estimated time of arrival*), p95 dos pedidos |
 
 ## Os scripts do k6 { #the-k6-scripts }
 
@@ -119,8 +119,28 @@ execução: os e-mails da outra execução e do experimento B distorceriam os pe
     *lag* e ele drena a 20/s → **≈ 240 s** para esvaziar. Com seis threads (capacidade 120/s > 100/s)
     o *lag* fica perto de zero. Mais de seis threads não ajudariam: o tópico tem seis partições. Uma
     execução de teste deste lab chegou a cerca de 4 900 mensagens e levou cerca de 320 s para drenar:
-    cada e-mail custa um pouco mais que os 50 ms de latência simulada (SMTP, a transação no banco). Com
+    cada e-mail custa um pouco mais que os 50 ms de latência simulada (a transação no banco e o SMTP, *Simple Mail Transfer Protocol*). Com
     seis threads o *lag* ficou abaixo de cerca de 200.
+
+Antes de rodar B e C, jogue com eles no gêmeo deste lab: as mesmas partições, threads e latência de e-mail, segundo a segundo. Mude `NOTIFY_CONCURRENCY` e veja a curva do *lag*.
+
+<div class="csim" data-sim="async-orders" data-script="drain"></div>
+
+!!! tip "Experimente"
+
+    O simulador roda a stack deste lab sem Docker: `order-events` com 6 partições, `notification` com 3
+    threads, um e-mail a cada 50 ms; play ou → roda uma página passo a passo e os botões e controles funcionam a
+    qualquer momento. Em **2 · Outbox**, o segundo `curl` recebe `200` e não grava linha, o pedido feito com o
+    Kafka parado espera no outbox até o Kafka voltar e um relay morto depois do ack publica o mesmo evento duas
+    vezes. Em **3 · Consumidor**, as três mensagens do passeio vão direto para `order-events-dlt`, o
+    Mailpit continua com 2 e-mails depois do reprocessamento e fica com 4 com `NOTIFY_IDEMPOTENT=false` e, com
+    o Mailpit parado, um pedido é tentado de novo depois de 0,5, 1 e 2 s antes de ir para o tópico de mensagens mortas. Em
+    **5 · Medir (B, C)**, `sync` perde 1.000 de 3.000 pedidos (33 %) na queda de 20 s enquanto `outbox` não
+    perde nenhum: o *lag* chega a 1.002 e drena 16 s depois da carga (o modelo reinicia o `notification` na
+    hora; no lab, o Spring Boot precisa de mais alguns segundos). A 100 pedidos/s, uma thread deixa o *lag* chegar a 4.800 e drenar 240 s
+    depois da carga, três threads, 2.400 e 45 s, seis threads o mantêm em 17 ou menos e oito não mudam nada:
+    duas threads ficam ociosas. Quatro ou cinco threads ainda levam 45 s: a thread 1 continua lendo duas
+    partições.
 
 ## D. Reprocessamento { #d-replay }
 

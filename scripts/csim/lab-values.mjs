@@ -91,6 +91,18 @@ export default [
   { sim: "delivery", key: "idempotent", module: false, value: true, quote: "NOTIFY_IDEMPOTENT=true",
     lab: H + "7/code/services/notification/src/main/resources/application.yaml", read: has(/idempotent:\s*\$\{NOTIFY_IDEMPOTENT:true\}/, true) },
 
+  // messaging/semantics: lab 7's blocking retries (KafkaConfig) and e-mail latency, in the retry-topics simulator
+  ...(() => {
+    const cfg = H + "7/code/services/notification/src/main/java/boxoffice/notification/KafkaConfig.java";
+    return [
+      { key: "emailMs", value: 50, unit: "ms", lab: H + "7/code/services/notification/src/main/resources/application.yaml", read: num(/email-latency:\s*\$\{EMAIL_LATENCY:(\d+)ms\}/) },
+      { key: "retries", value: 3, lab: cfg, read: num(/new ExponentialBackOffWithMaxRetries\((\d+)\)/) },
+      { key: "backoffMs", value: 500, unit: "ms", lab: cfg, read: num(/setInitialInterval\((\d+)L\)/) },
+      { key: "multiplier", value: 2, lab: cfg, read: num(/setMultiplier\(([\d.]+)\)/) },
+      { key: "maxBackoffMs", value: 5000, unit: "ms", lab: cfg, read: t => num(/setMaxInterval\(([\d_]+)L\)/)(t.replace(/(\d)_(\d)/g, "$1$2")) },
+    ].map(e => ({ sim: "retry-topics", ...e }));
+  })(),
+
   // observability/slo: lab 9's SLO window and burn-rate rules for order
   { sim: "slo-burn", key: "days", attr: "days", value: 28, unit: "days",
     lab: H + "9/code/infra/grafana/alerting/slo-order.yaml", read: num(/SLO: [\d.]+% \/ (\d+) days/) },
@@ -186,6 +198,30 @@ export default [
         lab: H + "9/code/services/order/src/main/java/boxoffice/order/payment/PaymentClient.java",
         read: has(/"Idempotency-Key", "order-" \+ orderId/, "order-<orderId>") },
     ].map(e => ({ sim: "idempotent-retry", ...e }));
+  })(),
+
+  // hands-on/7: the lab twin of lab 7 (outbox, relay, consumer, DLT, the lag of experiments B and C)
+  ...(() => {
+    const L7 = H + "7/code/", nyaml = L7 + "services/notification/src/main/resources/application.yaml";
+    const oyaml = L7 + "services/order/src/main/resources/application.yaml";
+    const kcfg = L7 + "services/notification/src/main/java/boxoffice/notification/KafkaConfig.java";
+    const k6 = L7 + "load/orders-load.js", measure = H + "7/measure/index.md";
+    return [
+      { key: "partitions", value: 6, lab: L7 + "docker-compose.yaml", read: num(/--topic order-events --partitions (\d+)/) },
+      { key: "concurrency", value: 3, lab: nyaml, read: num(/concurrency:\s*\$\{NOTIFY_CONCURRENCY:(\d+)\}/) },
+      { key: "emailMs", value: 50, unit: "ms", lab: nyaml, read: num(/email-latency:\s*\$\{EMAIL_LATENCY:(\d+)ms\}/) },
+      { key: "idempotent", value: true, lab: nyaml, read: has(/idempotent:\s*\$\{NOTIFY_IDEMPOTENT:true\}/, true) },
+      { key: "retries", value: 3, lab: kcfg, read: num(/new ExponentialBackOffWithMaxRetries\((\d+)\)/) },
+      { key: "backoffMs", value: 500, unit: "ms", lab: kcfg, read: num(/setInitialInterval\((\d+)L\)/) },
+      { key: "backoffMult", value: 2, lab: kcfg, read: num(/setMultiplier\(([\d.]+)\)/) },
+      { key: "relayMs", value: 200, unit: "ms", lab: oyaml, read: num(/relay-interval-ms:\s*(\d+)/) },
+      { key: "maxBlockMs", value: 5000, unit: "ms", lab: oyaml, read: num(/max\.block\.ms:\s*(\d+)/) },
+      { key: "rate", value: 50, unit: "orders/s", lab: k6, read: num(/rate: Number\(__ENV\.RATE \|\| (\d+)\)/) },
+      { key: "duration", value: 60, unit: "s", lab: k6, read: num(/duration: __ENV\.DURATION \|\| '(\d+)s'/) },
+      { key: "outageAt", value: 20, unit: "s", lab: measure, read: num(/sleep (\d+); docker compose stop notification/) },
+      { key: "outageFor", value: 20, unit: "s", lab: measure, read: num(/docker compose stop notification; sleep (\d+); docker compose start notification/) },
+      { key: "burstRate", value: 100, unit: "orders/s", lab: measure, read: num(/RATE=(\d+) k6 run load\/orders-load\.js/) },
+    ].map(e => ({ sim: "async-orders", ...e }));
   })(),
 
   // hands-on/10: the lab twin of lab 10 (catalog.yaml, kind.yaml, the k6 command of experiment B)

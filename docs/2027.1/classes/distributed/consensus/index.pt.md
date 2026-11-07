@@ -115,7 +115,7 @@ flowchart LR
 
 ## Raft { #raft }
 
-O Raft (Ongaro e Ousterhout, 2014)[^2] foi projetado para ser **compreensível** e é o algoritmo de consenso que você tem mais chance de encontrar: etcd (Kubernetes), Consul, CockroachDB, TiKV, YugabyteDB e o controlador KRaft do Kafka o usam. Ele divide o problema em três partes:
+O Raft (Ongaro e Ousterhout, 2014)[^2] foi projetado para ser **compreensível** e é o algoritmo de consenso que você tem mais chance de encontrar: etcd (Kubernetes), Consul, CockroachDB, TiKV, YugabyteDB e o controlador KRaft (*Kafka Raft*) do Kafka o usam. Ele divide o problema em três partes:
 
 1. **Eleição de líder** — exatamente um líder por termo; todas as escritas passam por ele.
 2. **Replicação do log** — o líder acrescenta comandos ao seu log e os replica para os seguidores.
@@ -224,12 +224,12 @@ Quando **R + W > N**, pelo menos uma réplica em qualquer conjunto de leitura te
 
 | Configuração | W | R | R + W > N? | Comportamento |
 |---|---|---|---|---|
-| escrita `ONE`, leitura `ONE` | 1 | 1 | Não | O mais rápido; leituras podem estar desatualizadas; disponível com 2 nós fora |
-| escrita `QUORUM`, leitura `QUORUM` | 2 | 2 | **Sim** | Leituras veem a última escrita confirmada; tolera 1 nó fora |
-| escrita `ALL`, leitura `ONE` | 3 | 1 | Sim | Leituras rápidas, mas um nó fora bloqueia toda escrita |
-| escrita `ONE`, leitura `ALL` | 1 | 3 | Sim | Escritas rápidas, mas um nó fora bloqueia toda leitura |
+| escrita `ONE`, leitura `ONE` | 1 | 1 | ❌ Não | O mais rápido; leituras podem estar desatualizadas; disponível com 2 nós fora |
+| escrita `QUORUM`, leitura `QUORUM` | 2 | 2 | ✅ **Sim** | Leituras veem a última escrita confirmada; tolera 1 nó fora |
+| escrita `ALL`, leitura `ONE` | 3 | 1 | ✅ Sim | Leituras rápidas, mas um nó fora bloqueia toda escrita |
+| escrita `ONE`, leitura `ALL` | 1 | 3 | ✅ Sim | Escritas rápidas, mas um nó fora bloqueia toda leitura |
 
-Três mecanismos fazem as réplicas sem líder convergirem: **read repair** (uma leitura que vê uma versão antiga grava de volta a mais nova), **hinted handoff** (uma escrita destinada a um nó morto fica com outro e é entregue depois — um *quórum relaxado* (*sloppy quorum*) que quebra a garantia de sobreposição nesse meio-tempo) e **anti-entropia** (comparação das réplicas em segundo plano usando árvores de Merkle)[^5].
+Três mecanismos fazem as réplicas sem líder convergirem: **read repair** (uma leitura que vê uma versão antiga grava de volta a mais nova), **hinted handoff** (uma escrita destinada a um nó morto fica com outro e é entregue depois — um *quórum relaxado* (*sloppy quorum*) que quebra a garantia de sobreposição nesse meio-tempo) e **anti-entropia** (comparação das réplicas em segundo plano usando árvores de Merkle)[^5]. O [simulador de quóruns](../../databases/replication/index.md#leaderless) da aula de Bancos de Dados deixa você escolher N, W e R e derrubar réplicas: com `R + W > N` nenhuma leitura sai desatualizada e com menos de W réplicas vivas a escrita falha.
 
 !!! warning "R + W > N é necessário, não suficiente"
     A sobreposição garante que uma leitura *contata* uma réplica com a última escrita. Ela não torna o armazenamento linearizável: escritas concorrentes, uma escrita que chegou a menos de W réplicas e foi reportada como falha (mas ficou em algumas), quóruns relaxados e LWW com relógios defasados produzem anomalias. Armazenamentos por quórum oferecem consistência **ajustável**, não consenso. Use um armazenamento baseado em consenso quando precisar de uma única ordem acordada.
@@ -238,7 +238,7 @@ Três mecanismos fazem as réplicas sem líder convergirem: **read repair** (uma
 
 ## Leases, locks e fencing tokens { #fencing }
 
-Um uso comum de consenso é um **lock distribuído** ou **lease**: "só uma réplica do `scheduler` envia o push das 09:55 *as vendas abrem em breve*". Você obtém um lease do etcd/ZooKeeper/Consul com um tempo de vida e o renova enquanto estiver vivo. Mas quem tem o lock pode **pausar** — uma coleta de lixo longa, a migração de uma VM — e continuar trabalhando depois de o lease expirar e outro processo tê-lo obtido[^6]:
+Um uso comum de consenso é um **lock distribuído** ou **lease**: "só uma réplica do `scheduler` envia o push das 09:55 *as vendas abrem em breve*". Você obtém um lease do etcd/ZooKeeper/Consul com um tempo de vida (TTL, *time to live*) e o renova enquanto estiver vivo. Mas quem tem o lock pode **pausar** — uma coleta de lixo (GC, *garbage collection*) longa, a migração de uma máquina virtual (VM, *virtual machine*) — e continuar trabalhando depois de o lease expirar e outro processo tê-lo obtido[^6]:
 
 ``` diagram-sim
 sequenceDiagram
@@ -276,13 +276,30 @@ UPDATE scheduled_jobs
 |---|---|---|
 | **etcd** | Estado do Kubernetes, eleição de líder, configuração, locks | Raft |
 | **Apache ZooKeeper** | Coordenação de sistemas da era Hadoop/Kafka mais antiga | ZAB |
-| **Consul** | Descoberta de serviços, configuração chave-valor, locks | Raft |
+| **Consul** | Descoberta de serviços, configuração chave-valor (KV, *key-value*), locks | Raft |
 | **Kafka (KRaft)** | Metadados do cluster e eleição do controlador; o modo ZooKeeper foi removido no Kafka 4.0 | Baseado em Raft |
-| **Patroni** (para PostgreSQL) | Failover automático do primário, com a chave do líder no etcd/Consul/ZooKeeper | Delega ao DCS |
+| **Patroni** (para PostgreSQL) | Failover automático do primário, com a chave do líder no etcd/Consul/ZooKeeper | Delega ao armazenamento distribuído de configuração (DCS, *distributed configuration store*) |
 | **Spanner, CockroachDB, YugabyteDB, TiDB** | SQL com consenso por faixa de dados | Paxos (Spanner) / Raft |
 
 !!! example "BoxOffice: quem é o primário?"
     O PostgreSQL do `inventory` roda sob o **Patroni**, com um cluster **etcd** de 3 nós espalhado por 3 zonas de disponibilidade. O primário detém uma **chave de líder** no etcd com TTL de ~30 s (o padrão do Patroni), renovada a cada ~10 s. Se ele para de renovar — crash, congelamento, perda de rede —, a chave expira, o standby síncrono mais saudável a obtém (um compare-and-set atômico no etcd: só um pode vencer), promove a si mesmo e os clientes seguem o novo líder pelo endpoint do serviço. Um primário antigo que acorda descobre que não detém mais a chave e **se rebaixa** (o Patroni também pode usar um watchdog para reiniciar a máquina). A decisão do assento em si continua sendo um simples `UPDATE … WHERE status = 'FREE'` no único primário — o consenso é usado **apenas** para decidir qual nó é esse.
+
+    ``` diagram-sim
+    sequenceDiagram
+        participant P1 as pg-1 (primário)
+        participant E as etcd (3 nós)
+        participant P2 as pg-2 (standby síncrono)
+        participant I as inventory
+        P1->>E: renova a chave de líder (TTL 30 s), a cada 10 s
+        Note over P1: congela às 10:00:03
+        Note over E: sem renovação: a chave expira
+        P2->>E: compare-and-set: toma a chave de líder
+        E-->>P2: concedida (só um candidato pode vencer)
+        P2->>P2: promove-se a primário
+        I->>P2: as escritas seguem o endpoint do serviço
+        Note over P1: acorda: a chave não é mais minha
+        P1->>P1: rebaixa-se a réplica (ou o watchdog reinicia a máquina)
+    ```
 
 **Experimente.** O cenário `db-failover` é a história do início da página, medida: checkout a 1.500 req/s, metade delas escritas, num cluster com um primário e um seguidor replicado de forma **assíncrona**. Em t = 90 s o primário morre e promover o seguidor leva 30 s — mais ou menos o TTL da chave de líder do Patroni acima. Aperte **Run** e leia *escritas perdidas* e *disponibilidade* na barra de metas. Depois clique em `orders-db` e mude um botão por vez: **Replicação** `sync` (ou `quorum` com 2 seguidores por shard), **Tempo de failover** 5 s, **Shards** 2.
 
@@ -290,7 +307,7 @@ UPDATE scheduled_jobs
 
 ??? question "O que você deveria ter observado?"
 
-    Como desenhado, cerca de **1.570 escritas se perdem** (com a semente padrão; entre ~700 e ~1.800 com outras) — pedidos que o primário antigo confirmou mas ainda não tinha mandado ao seguidor — e a disponibilidade fica em cerca de **90,6%**: toda escrita falha durante os 30 s da promoção. Replicação `sync` ou `quorum` leva as escritas perdidas a **0**, mas não mexe na disponibilidade: elas resolvem o RPO, não o RTO. Um failover de 5 s sobe a disponibilidade para cerca de **98%**, ainda perdendo escritas. Só a combinação — quorum com 2 seguidores, failover de 5 s e 2 shards, para que um primário morto leve só metade das escritas — cumpre todas as metas: 0 perdidas, cerca de 99,2%, p99 de escrita ≈ 34 ms, pelo dobro do custo mensal. O consenso decide **com segurança quem** é o primário; quão rápido ele decide e o que o novo primário já tem são botões separados, cada um com seu preço.
+    Como desenhado, cerca de **1.570 escritas se perdem** (com a semente padrão; entre ~700 e ~1.800 com outras) — pedidos que o primário antigo confirmou mas ainda não tinha mandado ao seguidor — e a disponibilidade fica em cerca de **90,6%**: toda escrita falha durante os 30 s da promoção. Replicação `sync` ou `quorum` leva as escritas perdidas a **0**, mas não mexe na disponibilidade: elas resolvem o objetivo de ponto de recuperação (RPO, *recovery point objective*), não o objetivo de tempo de recuperação (RTO, *recovery time objective*). Um failover de 5 s sobe a disponibilidade para cerca de **98%**, ainda perdendo escritas. Só a combinação — quorum com 2 seguidores, failover de 5 s e 2 shards, para que um primário morto leve só metade das escritas — cumpre todas as metas: 0 perdidas, cerca de 99,2%, latência de escrita no percentil 99 (p99) ≈ 34 ms, pelo dobro do custo mensal. O consenso decide **com segurança quem** é o primário; quão rápido ele decide e o que o novo primário já tem são botões separados, cada um com seu preço.
 
 !!! tip "Na entrevista"
     Use consenso como um **componente**, não como um tema a ser deduzido de novo. Diga: *"a eleição de líder e os metadados do cluster ficam no etcd/ZooKeeper (Raft, 3 ou 5 nós em 3 zonas); o caminho dos dados fica em um único líder por shard."* Saiba os números: N nós toleram ⌊(N−1)/2⌋ falhas; um failover de líder custa cerca de um election timeout (~1 s nos padrões do etcd); toda escrita confirmada paga uma ida e volta até uma maioria. Se mencionar locks, mencione **fencing tokens** — é a pergunta de acompanhamento que separa os candidatos.

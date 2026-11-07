@@ -13,8 +13,8 @@ Todo sistema operacional oferece dois relógios diferentes e confundi-los é um 
 | **Responde** | "Que data e hora são?" | "Quanto tempo passou?" |
 | **Java** | `System.currentTimeMillis()`, `Instant.now()` | `System.nanoTime()` |
 | **Linux** | `CLOCK_REALTIME` | `CLOCK_MONOTONIC` |
-| **Pode pular?** | **Sim** — o NTP o ajusta de uma vez, um administrador o altera, segundos bissextos | Nunca anda para trás |
-| **Comparável entre máquinas?** | Aproximadamente (dentro do erro de sincronização) | **Não** — seu zero é arbitrário em cada máquina |
+| **Pode pular?** | ⚠️ **Sim** — o protocolo de tempo de rede (NTP, *Network Time Protocol*) o ajusta de uma vez, um administrador o altera, segundos bissextos | ✅ Nunca anda para trás |
+| **Comparável entre máquinas?** | ⚠️ Aproximadamente (dentro do erro de sincronização) | ❌ **Não** — seu zero é arbitrário em cada máquina |
 | **Use para** | Timestamps mostrados a pessoas, datas, *prazos* de expiração guardados em um banco | Timeouts, durações, rate limiting, métricas de latência |
 
 ```java title="Durations.java"
@@ -81,7 +81,7 @@ Os servidores sincronizados ficam a poucos milissegundos uns dos outros (um dent
 | Nenhuma (quartzo livre) | Segundos por dia | Nunca aceitável para servidores |
 | NTP pela internet pública | De milissegundos a dezenas de ms | Rotas assimétricas acrescentam erro |
 | NTP dentro de um data center / serviço de tempo da nuvem | Abaixo de um milissegundo a ~1 ms | Por exemplo, Amazon Time Sync Service, NTP interno do Google |
-| PTP (*Precision Time Protocol*, IEEE 1588) com timestamps em hardware | Microssegundos | Exige suporte na placa de rede/switch; oferecido em algumas instâncias de nuvem |
+| PTP (*Precision Time Protocol*, IEEE 1588) com timestamps em hardware | Microssegundos | Exige suporte na placa de rede (NIC, *network interface card*) e no switch; oferecido em algumas instâncias de nuvem |
 | GPS + relógios atômicos por data center (TrueTime do Google) | ε de poucos ms, **com um limite conhecido** | Veja [TrueTime](#truetime) |
 
 !!! info "Segundos bissextos e smearing"
@@ -269,7 +269,7 @@ A maioria dos sistemas nunca implementa relógios vetoriais nem TrueTime. Eles o
 | **Vetores / vetores de versão** | Versões de um item | Detecta concorrência | Armazenamentos sem líder, apps de sincronização/offline |
 | **HLC** | Todos os eventos de um cluster | Causal + perto do tempo real | CockroachDB, YugabyteDB, MongoDB |
 | **TrueTime** | Todas as transações, globalmente | Consistência externa | Spanner |
-| **IDs ordenados por tempo** (Snowflake, UUIDv7, ULID) | IDs por momento de criação, aproximadamente | Ordenáveis, únicos; **não** causais entre máquinas | Chaves primárias, ids de log/evento |
+| **IDs ordenados por tempo** (Snowflake, UUIDv7 — identificador único universal, versão 7 —, ULID) | IDs por momento de criação, aproximadamente | Ordenáveis, únicos; **não** causais entre máquinas | Chaves primárias, ids de log/evento |
 
 Um **ID Snowflake** (Twitter, 2010) empacota em um inteiro de 64 bits um timestamp de 41 bits em milissegundos, um id de máquina de 10 bits e uma sequência de 12 bits por milissegundo — até 4.096 ids por milissegundo por máquina, únicos sem coordenação e aproximadamente ordenáveis por tempo. O **UUIDv7** (RFC 9562, 2024)[^7] padroniza a mesma ideia em um UUID de 128 bits com um prefixo de 48 bits em milissegundos Unix: índices B-tree ficam compactos porque as chaves novas são acrescentadas no fim, em vez de espalhadas como os UUIDv4 aleatórios.
 
@@ -304,7 +304,7 @@ final class Snowflake {
 !!! example "BoxOffice: de onde vêm o tempo e a ordem"
     - **Quem pegou o assento A-12** — decidido pelo único primário do `inventory` daquele evento (`UPDATE` condicional); nenhum timestamp é comparado.
     - **Expiração da reserva** — `expires_at = now() + interval '10 minutes'` calculado **pelo PostgreSQL no primário** e o processo de varredura compara com o `now()` do mesmo banco: um relógio só, então a defasagem entre os servidores de aplicação é irrelevante.
-    - **Ordem dos eventos** — todo evento sobre um show (`SeatHeld`, `SeatReleased`, `OrderPaid`) é publicado com chave Kafka = `eventId`, então eles caem em **uma partição** e todo consumidor os vê na mesma ordem.
+    - **Ordem dos eventos** — todo evento sobre um show (`SeatHeld`, `SeatReleased`, `OrderPaid`) é publicado com o id do show como chave Kafka, então eles caem em **uma partição** e todo consumidor os vê na mesma ordem.
     - **IDs** — pedidos e ingressos usam **UUIDv7**: únicos sem coordenação, bons para o índice, aproximadamente ordenáveis por tempo — nunca usados para decidir *quem chegou primeiro*.
     - **Durações e timeouts** — medidos com o relógio monotônico (`System.nanoTime()`), nunca com diferenças de relógio de parede.
     - **Monitoramento** — um alerta sobre o offset do NTP por nó (por exemplo, > 50 ms), porque uma máquina que perdeu o NTP fica em silêncio caso contrário.

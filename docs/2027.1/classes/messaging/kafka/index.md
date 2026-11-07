@@ -167,7 +167,7 @@ Rules that follow from "one partition, one consumer per group":
 
 - **Maximum parallelism of a group = number of partitions.** With 6 partitions, a 7th `notification` instance gets nothing and sits idle.
 - **Order per key is kept** as long as a consumer processes a partition's records sequentially. If it hands records to a thread pool, it breaks ordering again (unless it parallelizes *by key*).
-- When a consumer joins, leaves or stops polling for too long (`max.poll.interval.ms`), the group **rebalances**: partitions are reassigned. Classic rebalances paused the whole group; the newer protocol (KIP-848, generally available in Kafka 4.0) and cooperative assignment move only the partitions that need to move.
+- When a consumer joins, leaves or stops polling for too long (`max.poll.interval.ms`), the group **rebalances**: partitions are reassigned. Classic rebalances paused the whole group; the newer protocol (Kafka Improvement Proposal KIP-848, generally available in Kafka 4.0) and cooperative assignment move only the partitions that need to move.
 
 <div class="csim" data-sim="kafka" data-key="order"></div>
 
@@ -194,13 +194,17 @@ notification  order-events  1          181902          181910          8      no
 notification  order-events  2          120004          184771          64767  notification-2-...
 ```
 
-Partition 2 is 64,767 records behind while the others are near zero: a hot key, a stuck consumer or a poison message in that partition — not a general capacity problem. Lag in **records** is easy to read from Kafka; lag in **seconds** (now minus the timestamp of the last processed record) is what you put in a freshness SLO.
+Partition 2 is 64,767 records behind while the others are near zero: a hot key, a stuck consumer or a poison message in that partition — not a general capacity problem. Lag in **records** is easy to read from Kafka; lag in **seconds** (now minus the timestamp of the last processed record) is what you put in a freshness service level objective (SLO).
 
 !!! info "Try it in the playground"
 
     The `event-fanout` scenario publishes order events to Kafka with several consumer services. Run it with the **load** profile and watch the per-consumer lag. Then slow down one consumer (raise its processing time) and confirm that only *its* lag grows — the producer and the other consumers are unaffected. Finally add consumer instances to the slow service and observe that it stops improving once instances equal partitions.
 
 <div class="sdp" data-scenario="event-fanout" data-mode="compact" data-profile="load" data-height="540"></div>
+
+The `boxoffice-outbox` preset is lab 7 in numbers: `notification` sends each e-mail in 50 ms, so 3 consumers send at most 60 e-mails/s, and a burst of 200 orders/s lasts 30 s. Put Kafka (6 partitions) between `order` and `notification`: with 6 consumers the e-mails catch up with about 30 s of lag, with 3 the lag passes 60 s, and 12 consumers lag exactly like 6 — the partitions cap the group.
+
+<div class="sdp" data-scenario="boxoffice-outbox" data-mode="compact" data-height="440"></div>
 
 ---
 
@@ -229,9 +233,9 @@ The producer setting `acks` chooses how much of this the producer waits for:
 
 | `acks` | Producer gets the confirmation when… | A broker failure can… | Latency |
 |---|---|---|---|
-| `0` | the record is sent (no confirmation) | lose records silently | lowest |
-| `1` | the leader has written it | lose acknowledged records if the leader dies before followers copy them | low |
-| `all` | every in-sync replica has it | not lose acknowledged records, if `min.insync.replicas` ≥ 2 | highest (one extra round trip inside the cluster) |
+| `0` | the record is sent (no confirmation) | ❌ lose records silently | lowest |
+| `1` | the leader has written it | ⚠️ lose acknowledged records if the leader dies before followers copy them | low |
+| `all` | every in-sync replica has it | ✅ not lose acknowledged records, if `min.insync.replicas` ≥ 2 | highest (one extra round trip inside the cluster) |
 
 `acks=all` alone is not enough: if the ISR shrinks to just the leader, "all in-sync replicas" is one replica. **`min.insync.replicas=2`** makes the broker refuse writes when fewer than 2 replicas are in sync. With RF = 3 and min ISR = 2, the topic keeps accepting writes with one broker down and never acknowledges a write that exists on only one machine. Keep `unclean.leader.election.enable=false` (the default) so an out-of-date replica is never elected leader. Since Kafka 3.0, producers default to `acks=all` with idempotence enabled.
 
@@ -253,6 +257,15 @@ A log cannot grow forever. Each topic has a **cleanup policy**:
 
 A **compacted** topic behaves like a table that is also a stream: a new consumer reads it from the start and ends up with the latest value of every key. Deleting a key is done by writing a **tombstone** (the key with a `null` value). Kafka's own `__consumer_offsets` is a compacted topic.
 
+``` diagram
+flowchart LR
+    b0["0 · ev-88<br/>21:00"]:::problem --- b1["1 · ev-90<br/>Jazz"]:::problem --- b2["2 · ev-88<br/>20:00"] --- b3["3 · ev-91<br/>Theater"] --- b4["4 · ev-90<br/>tombstone"]
+    b4 ==>|"compaction keeps the latest record of each key"| a2["2 · ev-88<br/>20:00"]:::comp
+    a2 --- a3["3 · ev-91<br/>Theater"]:::comp
+```
+
+Compaction removes records that a newer record of the same key replaced (offsets 0 and 1), and later the tombstone itself (after `delete.retention.ms`, one day by default). The survivors keep their offsets: a consumer that stored offset 3 is still right.
+
 **Tiered storage** (production-ready since Kafka 3.9) keeps only recent segments on the brokers' disks and moves older segments to object storage (S3, GCS, Azure Blob). Long retention — months of events for replay — becomes cheap, and brokers become lighter to replace.
 
 ---
@@ -267,7 +280,7 @@ A Kafka broker routinely moves hundreds of megabytes per second on commodity har
 - **Batching and compression.** Producers group records into batches per partition (`linger.ms`, `batch.size`) and compress whole batches (`zstd`, `lz4`). Fewer, bigger requests; fewer bytes on disk and on the network.
 - **Partitioning.** Load spreads across many brokers and many consumers.
 
-The trade-off is latency: batching adds a few milliseconds (`linger.ms`), and `acks=all` adds a replication round trip. Typical end-to-end latency is a few to tens of milliseconds — fine for events, not a replacement for an in-memory RPC.
+The trade-off is latency: batching adds a few milliseconds (`linger.ms`), and `acks=all` adds a replication round trip. Typical end-to-end latency is a few to tens of milliseconds — fine for events, not a replacement for an in-memory remote procedure call (RPC).
 
 ---
 
@@ -358,8 +371,8 @@ And the Spring Boot services configure their clients accordingly:
 | **Model** | partitioned replicated log | partitioned log (shards) | pub/sub with per-message ack | pub/sub + log (segments in BookKeeper) |
 | **Ordering** | per partition | per shard | per ordering key (optional) | per partition / key |
 | **Replay** | yes, any offset in retention | yes, within retention (up to 365 days) | seek to a time or snapshot | yes |
-| **Operations** | self-managed or managed (MSK, Confluent Cloud, Aiven) | fully managed | fully managed, global | self-managed or managed |
-| **Good fit** | event backbone, CDC, stream processing, very high throughput | AWS-native streaming | GCP-native fan-out, push to serverless | multi-tenant messaging and streaming |
+| **Operations** | self-managed or managed (Amazon MSK, Confluent Cloud, Aiven) | fully managed | fully managed, global | self-managed or managed |
+| **Good fit** | event backbone, change data capture (CDC), stream processing, very high throughput | AWS-native streaming | Google Cloud-native fan-out, push to serverless | multi-tenant messaging and streaming |
 
 Redpanda and Azure Event Hubs expose the **Kafka protocol**, so Kafka clients work against them unchanged. Kafka itself is also growing queue semantics: **share groups** ("Queues for Kafka", KIP-932, introduced in Kafka 4.0) let several consumers share a partition with per-record acknowledgement, like a classic queue.
 
@@ -382,7 +395,7 @@ Redpanda and Azure Event Hubs expose the **Kafka protocol**, so Kafka clients wo
     - **`acks=1` or `min.insync.replicas=1`** for business events: "acknowledged" does not mean "safe".
     - **Processing a partition with a thread pool** without keying the work: ordering is silently lost.
     - **Slow processing inside the poll loop** beyond `max.poll.interval.ms`: the consumer is kicked out, the group rebalances, another consumer gets the same records — a rebalance storm with duplicates.
-    - **Using Kafka as a database** for queries by arbitrary fields. Kafka is read sequentially by offset; build query models in a database from it ([CQRS](../patterns/index.md#cqrs)).
+    - **Using Kafka as a database** for queries by arbitrary fields. Kafka is read sequentially by offset; build query models in a database from it ([Command Query Responsibility Segregation, CQRS](../patterns/index.md#cqrs)).
 
 ## How it connects { #how-it-connects }
 

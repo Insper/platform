@@ -48,11 +48,11 @@ Nobody distributes a system for fun: a single process with a single database is 
 
 | Reason | What one machine cannot do | In BoxOffice |
 |---|---|---|
-| **Scalability** | Serve more requests, store more data or run more computation than its CPU, memory, disk or network card allow | 2 M fans in the first minute of an on-sale; one server cannot even accept that many TLS connections |
+| **Scalability** | Serve more requests, store more data or run more computation than its central processing unit (CPU), memory, disk or network card allow | 2 M fans in the first minute of an on-sale; one server cannot even accept that many Transport Layer Security (TLS) connections |
 | **Fault tolerance / availability** | Survive its own failure — a disk, a power supply, a kernel panic, a deploy gone wrong | If the only `inventory` machine dies at 10:00:05, the sale stops |
 | **Latency** | Be close to every user; light in fibre needs ~100 ms to cross half the planet (~20,000 km) one way | Fans in Lisbon and in São Paulo both expect a fast seat map |
 | **Isolation and organisation** | Let teams deploy independently, or contain a failure to one part of the product | A bug in `search` should not stop `payment` |
-| **Data residency** | Keep personal data in a jurisdiction (e.g. LGPD in Brazil, GDPR in Europe) | European fans' data stays in an EU region |
+| **Data residency** | Keep personal data in a jurisdiction (e.g. the General Data Protection Law, LGPD, in Brazil; the General Data Protection Regulation, GDPR, in Europe) | European fans' data stays in a European Union (EU) region |
 
 Vertical scaling — a bigger machine — is the first answer and often the right one for a while. It stops working for three reasons: there is a largest machine you can buy; the price grows faster than the capacity at the top end; and, however big it is, it is still **one** machine — a single point of failure (SPOF).
 
@@ -116,7 +116,7 @@ flowchart LR
     gw -->|"validate token"| auth[auth]
     gw -->|"forward"| inv[inventory]
     inv -->|"UPDATE seat ... (transaction)"| pg[("PostgreSQL primary")]
-    pg -->|"replicate WAL"| rep[("PostgreSQL replica")]
+    pg -->|"replicate the write-ahead log (WAL)"| rep[("PostgreSQL replica")]
     inv -->|"cache seat map"| redis[("Redis")]
     inv -->|"SeatHeld event"| kafka[["Kafka (3 brokers)"]]
     kafka -->|"consume"| notif[notification]
@@ -132,11 +132,11 @@ A **failure model** states what a faulty component may do. It matters because ev
 
 | Model | What the faulty node (or link) does | Example in BoxOffice | Typical defence |
 |---|---|---|---|
-| **Crash-stop** | Halts and never comes back | A VM is terminated | Replicas + failover |
-| **Crash-recovery** | Halts, later restarts with what it had on disk | An `inventory` pod is OOM-killed and restarted | Durable logs; idempotent replays |
+| **Crash-stop** | Halts and never comes back | A virtual machine (VM) is terminated | Replicas + failover |
+| **Crash-recovery** | Halts, later restarts with what it had on disk | An `inventory` pod is killed for running out of memory (OOM) and restarted | Durable logs; idempotent replays |
 | **Omission** | Silently drops some messages it should send or receive | A full socket buffer drops the `SeatHeld` event | Acknowledgements, retries, timeouts |
-| **Timing (performance)** | Responds, but too late | A 3-second garbage-collection pause in `payment` | Timeouts, hedging, circuit breakers |
-| **Byzantine** | Behaves arbitrarily: corrupts, lies, equivocates | A bit flip corrupts a message; a compromised client forges tickets | Checksums, signatures, validation; BFT protocols (3f + 1 nodes) |
+| **Timing (performance)** | Responds, but too late | A 3-second garbage-collection (GC) pause in `payment` | Timeouts, hedging, circuit breakers |
+| **Byzantine** | Behaves arbitrarily: corrupts, lies, equivocates | A bit flip corrupts a message; a compromised client forges tickets | Checksums, signatures, validation; Byzantine fault-tolerant (BFT) protocols, with 3f + 1 nodes |
 | **Gray failure** | Looks healthy to the health check but fails for users | `/health` returns 200 while every real query times out | Health checks that exercise the real path; client-side signals |
 
 Two more ideas complete the vocabulary:
@@ -159,7 +159,7 @@ In the 1990s, L. Peter Deutsch and colleagues at Sun Microsystems listed the ass
 |---|---|---|
 | 1. The network is reliable | Packets are dropped, links fail, switches reboot | The `inventory → PostgreSQL` connection resets mid-transaction |
 | 2. Latency is zero | Same data centre ≈ 0.5 ms round trip; across continents ≈ 150 ms[^6] | Six sequential service calls of 30 ms each make a 180 ms checkout |
-| 3. Bandwidth is infinite | Links saturate, especially at peaks | Returning the full 60,000-seat map as JSON to 2 M fans |
+| 3. Bandwidth is infinite | Links saturate, especially at peaks | Returning the full 60,000-seat map as JavaScript Object Notation (JSON) to 2 M fans |
 | 4. The network is secure | Traffic can be read, modified or forged | Services trust any caller inside the cluster |
 | 5. Topology doesn't change | Nodes come and go; IPs change | A Kubernetes pod is rescheduled with a new IP during the on-sale |
 | 6. There is one administrator | Many teams, accounts, providers and policies | The payment provider changes a TLS setting on their side |
@@ -186,8 +186,15 @@ sequenceDiagram
 
 From the caller's side, a lost request, a crashed server, a lost reply and a very slow server all look the same: **silence**. The only practical tool is a **timeout** — after a deadline, *assume* failure. But a timeout does not tell you whether the operation ran, so two things follow:
 
-1. **Choosing the timeout is a trade-off.** Too long and the caller's threads pile up waiting (the cascading failure of [Reliability](../reliability/index.md)); too short and you declare healthy-but-slow nodes dead, retry, and add load exactly when the system is struggling. A common starting point is slightly above the downstream's p99.9 latency, within the caller's own latency budget. Systems such as Cassandra and Akka go further and use *adaptive* failure detectors (the φ accrual detector) that learn the normal distribution of heartbeat delays[^7].
+1. **Choosing the timeout is a trade-off.** Too long and the caller's threads pile up waiting (the cascading failure of [Reliability](../reliability/index.md)); too short and you declare healthy-but-slow nodes dead, retry, and add load exactly when the system is struggling. A common starting point is slightly above the downstream's 99.9th-percentile (p99.9) latency, within the caller's own latency budget. Systems such as Cassandra and Akka go further and use *adaptive* failure detectors (the φ accrual detector) that learn the normal distribution of heartbeat delays[^7].
 2. **Retries must be safe.** If the retry can apply the operation a second time, it must be harmless to do so — the operation must be **idempotent**.
+
+Both consequences, measured on a call that moves no money — the `gateway` turning 200 seat holds into orders with `POST /orders`, over a network that loses messages:
+
+<div class="csim" data-sim="timeout-retry" data-timeout="2000" data-loss="5" data-policy="retry"></div>
+
+!!! tip "Try it"
+    The simulator starts at **retry**, a **2 s** timeout and 5% of the requests and of the replies lost: 8 of the 200 first calls outlive the timeout while `order` is still writing, and 13 holds get two orders, out of 23 retries. Press play to walk through the fans without a timely reply: every duplicate comes from case (c) or (d). Raise the timeout to **5 s**: duplicates drop to 6 — lost replies do not care about the timeout — and the fan's p99 wait grows from 2.8 s to 5.8 s. Lower it to **300 ms**: 26 holds get two orders. Choose **give up**: no duplicate, but at 2 s 9 fans have no order at all and 13 hear "failed" for an order that exists — that is at most once. Choose **retry + dedupe by hold** (lab 7's `ON CONFLICT (hold_id) DO NOTHING`): no duplicate at any timeout, and at 300 ms 2 fans still run out of attempts with an order that exists — before saying "failed", ask `order` (next section). The payment version, with an idempotency key and lab 9's client settings, is on the [integrations page](../compute/integrations/index.md).
 
 ---
 
@@ -199,8 +206,8 @@ Whenever a message crosses an unreliable network, the sender chooses a **deliver
 
 | Semantics | How | Risk | Use for |
 |---|---|---|---|
-| **At most once** | Send once, never retry | Messages lost | Metrics samples, "fan is typing…" signals |
-| **At least once** | Retry until acknowledged | Duplicates | Almost everything: orders, events, e-mails |
+| **At most once** | Send once, never retry | ❌ Messages lost | Metrics samples, "fan is typing…" signals |
+| **At least once** | Retry until acknowledged | ⚠️ Duplicates | Almost everything: orders, events, e-mails |
 | **Exactly once** | Not achievable by the network alone | — | Obtained as **at least once + idempotent processing** ("effectively once") |
 
 "Exactly-once delivery" over an unreliable network is impossible in general — the sender can never be sure the receiver did not process a message whose acknowledgement was lost. What systems such as Kafka call *exactly-once* is exactly-once **processing**: duplicates may arrive, but their **effect** is applied once, through deduplication or transactions[^8]. The [Messaging](../messaging/index.md) class covers this in depth.
@@ -211,17 +218,17 @@ An operation is **idempotent** if applying it several times has the same effect 
 
 | Operation | Idempotent? | Why |
 |---|---|---|
-| `GET /events/42` | Yes | Reads change nothing |
-| `PUT /holds/A-12 {fan: 42}` | Yes | Sets the state to a value; repeating sets the same value |
-| `DELETE /holds/A-12` | Yes | The hold is gone after the first call; the second may return `404`, but the **state** is the same |
-| `POST /orders` | **No** | Each call creates a new order |
-| `UPDATE seats SET sold = sold + 1` | **No** | Each call increments again |
-| `UPDATE seats SET status = 'HELD', fan = 42 WHERE id = 'A-12' AND status = 'FREE'` | Yes | A **conditional write**: the second call matches no row |
+| `GET /events/42` | ✅ Yes | Reads change nothing |
+| `PUT /holds/A-12 {fan: 42}` | ✅ Yes | Sets the state to a value; repeating sets the same value |
+| `DELETE /holds/A-12` | ✅ Yes | The hold is gone after the first call; the second may return `404`, but the **state** is the same |
+| `POST /orders` | ❌ **No** | Each call creates a new order |
+| `UPDATE seats SET sold = sold + 1` | ❌ **No** | Each call increments again |
+| `UPDATE seats SET status = 'HELD', fan = 42 WHERE id = 'A-12' AND status = 'FREE'` | ✅ Yes | A **conditional write**: the second call matches no row |
 
 Two techniques make non-idempotent operations safe to retry:
 
 1. **Rewrite it as a state transition with a condition** (*compare-and-set*): "set the seat to HELD **if** it is FREE", "set version 8 **if** the current version is 7". A duplicate fails the condition and changes nothing.
-2. **Idempotency keys**: the client generates a unique key per *intended* operation and sends it with every attempt; the server stores the key with the result and, on a duplicate, returns the stored result instead of executing again. Stripe's public API popularised the `Idempotency-Key` header[^9], and there is an IETF draft standardising it.
+2. **Idempotency keys**: the client generates a unique key per *intended* operation and sends it with every attempt; the server stores the key with the result and, on a duplicate, returns the stored result instead of executing again. Stripe's public API popularised the `Idempotency-Key` header[^9], and there is an Internet Engineering Task Force (IETF) draft standardising it.
 
 ``` diagram-sim
 sequenceDiagram
@@ -259,7 +266,7 @@ COMMIT;
 ```
 
 !!! example "BoxOffice: holding a seat safely"
-    The app generates a UUID when the fan taps **Hold seat** and reuses it for every retry of that tap. `inventory` executes `UPDATE seats SET status = 'HELD', fan_id = :fan, hold_key = :key WHERE id = :seat AND (status = 'FREE' OR hold_key = :key)`. The first attempt holds the seat; a retry with the same key matches the row again and changes nothing; a **different** fan's request matches no row and gets `409 Conflict`. The `payment` adapter forwards the same key to the external provider, so a retried charge is not charged twice ([Integrations](../compute/integrations/index.md)).
+    The app generates a universally unique identifier (UUID) when the fan taps **Hold seat** and reuses it for every retry of that tap. `inventory` executes `UPDATE seats SET status = 'HELD', fan_id = :fan, hold_key = :key WHERE id = :seat AND (status = 'FREE' OR hold_key = :key)`. The first attempt holds the seat; a retry with the same key matches the row again and changes nothing; a **different** fan's request matches no row and gets `409 Conflict`. The `payment` adapter forwards the same key to the external provider, so a retried charge is not charged twice ([Integrations](../compute/integrations/index.md)).
 
 !!! example "In the BoxOffice code: a conditional write and an idempotency key (labs 6 and 9)"
 
@@ -302,9 +309,6 @@ flowchart LR
     IDEM -.-> pay["payment · queue"]:::comp
     TX -.-> stream["stream · kafka"]:::comp
     CAP -.-> dns["dns (multi-region)"]:::comp
-    classDef problem fill:#e5484d22,stroke:#e5484d
-    classDef comp fill:#1e9e5a22,stroke:#1e9e5a
-    classDef tech fill:#2f6fed22,stroke:#2f6fed
     class REP,IDEM,ORD,CM,CAP,CONS,TX tech
 ```
 

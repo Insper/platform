@@ -1,4 +1,4 @@
-It is 09:59:58 and a stadium show is about to go on sale on BoxOffice. At 10:00 two million fans press "Buy" for sixty thousand seats. Behind that button, the first version of BoxOffice does everything in one synchronous request: hold the seats, charge the card, send the e-mail, push a notification to the phone, update the search index and record the sale for analytics. The e-mail provider is a little slow today (800 ms instead of 80 ms), so every purchase now takes a second longer, the order service runs out of threads, and fans who were about to pay see a spinner and then an error. Nothing was *broken* — the system was simply wired so that every step had to finish before any user got an answer.
+It is 09:59:58 and a stadium show is about to go on sale on BoxOffice. At 10:00 two million fans press "Buy" for sixty thousand seats. Behind that button, the first version of BoxOffice does everything in one synchronous request: hold the seats, charge the card, send the e-mail, push a notification to the phone, update the search index and record the sale for analytics. The e-mail provider is a little slow today (800 ms instead of 80 ms), so every purchase now takes 720 ms longer, the order service runs out of threads, and fans who were about to pay see a spinner and then an error. Nothing was *broken* — the system was simply wired so that every step had to finish before any user got an answer.
 
 This class is about the other wiring: **messages**. Instead of calling every service and waiting, a service writes a message to a broker and moves on; whoever needs it reads it when it can. Done right, messaging absorbs spikes, decouples teams and keeps slow or failing services out of the critical path. Done carelessly, it loses orders, duplicates e-mails and hides failures in a queue nobody watches. We will learn both sides.
 
@@ -14,8 +14,8 @@ This class is about the other wiring: **messages**. Instead of calling every ser
     - **Compare** message queues, pub/sub topics and event logs, and **choose** the right palette component (`queue`, `pubsub`, `stream`, `kafka`) for a requirement.
     - **Explain** how Kafka stores and serves data — topics, partitions, offsets, consumer groups, replication, retention and compaction — and **size** the number of partitions for a target throughput.
     - **Estimate** backlog, consumer lag and drain time under a traffic spike, and **design** backpressure for a queue.
-    - **Explain** at-most-once, at-least-once and exactly-once delivery, and **implement** an idempotent consumer and a dead letter queue.
-    - **Apply** the transactional outbox, change data capture, sagas (choreography and orchestration), CQRS and event sourcing to keep services consistent without distributed transactions.
+    - **Explain** at-most-once, at-least-once and exactly-once delivery, and **implement** an idempotent consumer and a dead letter queue (DLQ).
+    - **Apply** the transactional outbox, change data capture (CDC), sagas (choreography and orchestration), Command Query Responsibility Segregation (CQRS) and event sourcing to keep services consistent without distributed transactions.
     - **Evolve** an event schema without breaking consumers.
 
 ## Roadmap
@@ -46,7 +46,7 @@ Compare the two versions of the BoxOffice purchase. The user clicks "Buy"; the `
 
 === "Synchronous chain"
 
-    ``` mermaid-sim
+    ``` diagram-sim
     sequenceDiagram
         autonumber
         participant U as Fan
@@ -68,7 +68,7 @@ Compare the two versions of the BoxOffice purchase. The user clicks "Buy"; the `
 
 === "Asynchronous events"
 
-    ``` mermaid-sim
+    ``` diagram-sim
     sequenceDiagram
         autonumber
         participant U as Fan
@@ -95,7 +95,7 @@ The difference is not only speed. It shows up in three numbers you already know 
 | **Availability** of "Buy" | $A_{order} \times A_{notif} \times A_{search} \times A_{analytics}$ | $A_{order} \times A_{broker}$ |
 | **Coupling** | `order` knows every consumer and its API | `order` knows one topic name and the event schema |
 | **Consistency** | everything is done when the user sees "201" | consumers catch up later (**eventual consistency**) |
-| **Failure of a consumer** | the purchase fails | the consumer's backlog grows; the purchase still works |
+| **Failure of a consumer** | ❌ the purchase fails | ✅ the consumer's backlog grows; the purchase still works |
 | **Debugging** | one request, one stack of calls | a flow spread across topics and services: needs tracing |
 
 !!! example "BoxOffice: availability of the Buy button"
@@ -236,7 +236,23 @@ Martin Fowler distinguishes several things people mean by "event-driven"[^3]. Tw
     { "type": "OrderConfirmed", "eventId": "e-9f2c", "orderId": "o-7731", "occurredAt": "2027-03-14T10:00:07Z" }
     ```
 
-    Small and stable, but every consumer adds load on `order` (and depends on it being up) to fetch the details.
+    Small and stable, but every consumer adds load on `order` (and depends on it being up) to fetch the details:
+
+    ``` diagram-sim
+    sequenceDiagram
+        participant O as order
+        participant K as Kafka
+        participant N as notification
+        participant S as search
+        O->>K: OrderConfirmed (only orderId o-7731)
+        K-->>N: OrderConfirmed
+        K-->>S: OrderConfirmed
+        N->>O: GET /orders/o-7731 (e-mail, seats, total)
+        O-->>N: order details
+        S->>O: GET /orders/o-7731 (show, seats)
+        O-->>S: order details
+        Note over O: one extra call per consumer per event, and order must be up
+    ```
 
 === "Event-carried state transfer"
 
@@ -264,7 +280,7 @@ The [System Design Playground](../../../playground/index.md) has four messaging 
 
 | Component | Shape | Who gets a message | After it is consumed | Ordering | Typical products |
 |---|---|---|---|---|---|
-| [`queue`](../../reference/components/messaging/index.md#queue) Message Queue | point-to-point | **one** consumer of the pool | deleted | usually none (FIFO queues: per group) | Amazon SQS, RabbitMQ, Azure Service Bus queues, Google Cloud Tasks |
+| [`queue`](../../reference/components/messaging/index.md#queue) Message Queue | point-to-point | **one** consumer of the pool | deleted | usually none (first-in, first-out (FIFO) queues: per group) | Amazon SQS, RabbitMQ, Azure Service Bus queues, Google Cloud Tasks |
 | [`pubsub`](../../reference/components/messaging/index.md#pubsub) Pub/Sub | fan-out | **every** subscription (one copy each) | deleted per subscription | usually none (optional ordering keys) | Google Cloud Pub/Sub, Amazon SNS, Azure Service Bus topics, NATS, Redis Pub/Sub |
 | [`stream`](../../reference/components/messaging/index.md#stream) Event Stream | partitioned log (managed) | every consumer group, each at its own position | **kept** until retention expires | per partition / shard | Amazon Kinesis Data Streams, Azure Event Hubs, Redis Streams |
 | [`kafka`](../../reference/components/messaging/index.md#kafka) Kafka | partitioned, replicated log | every consumer group, each at its own position | **kept** until retention expires (or compacted) | per partition | Apache Kafka, Confluent Cloud, Amazon MSK, Redpanda |
@@ -329,7 +345,7 @@ flowchart LR
 | [`pubsub`](../../reference/components/messaging/index.md#pubsub) | How does *every* interested service get its own copy? | topic, subscriptions, push/pull, filters, durable vs ephemeral | [Queues and pub/sub](queues-pubsub/index.md#pubsub) | `notification-system`, `chat` |
 | [`stream`](../../reference/components/messaging/index.md#stream) · [`kafka`](../../reference/components/messaging/index.md#kafka) | Who needs *history*, replay and order per key? | log, partitions, keys, consumer groups, lag, replication, retention, compaction | [Kafka and event logs](kafka/index.md) | `event-fanout` |
 | [`worker`](../../reference/components/compute/index.md#worker) · [`notifications`](../../reference/components/compute/index.md#notifications) · [`search`](../../reference/components/compute/index.md#search) · [`analytics`](../../reference/components/compute/index.md#analytics) | What if a message arrives *twice*, late, out of order or broken? | at-least-once, idempotent consumer, version-guarded updates, DLQ, schema evolution | [Delivery semantics](semantics/index.md) | `notification-system`, `payment-system` |
-| [`sql`](../../reference/components/storage/index.md#sql) + [`kafka`](../../reference/components/messaging/index.md#kafka) · [`payment`](../../reference/components/external/index.md#payment) | How do I change my data *and* publish, across services, without 2PC? | transactional outbox, CDC, sagas, CQRS, event sourcing | [Patterns](patterns/index.md) | `payment-system`, `flash-sale` |
+| [`sql`](../../reference/components/storage/index.md#sql) + [`kafka`](../../reference/components/messaging/index.md#kafka) · [`payment`](../../reference/components/external/index.md#payment) | How do I change my data *and* publish, across services, without two-phase commit (2PC)? | transactional outbox, CDC, sagas, CQRS, event sourcing | [Patterns](patterns/index.md) | `payment-system`, `flash-sale` |
 
 !!! tip "In the interview"
     Interviewers listen for *why* you add a queue. "I'll put Kafka here" is a red flag on its own; "the e-mail does not need to block the purchase, so `order` publishes `OrderConfirmed` and `notification` consumes it — that removes the e-mail provider from the purchase's availability chain and absorbs the 10:00 spike as backlog" is a strong signal. Always follow with the consequences you will handle: duplicates (idempotent consumer), ordering (key by `orderId`), failures (retries + DLQ) and monitoring (consumer lag)[^4].

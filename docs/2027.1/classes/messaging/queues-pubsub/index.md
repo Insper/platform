@@ -49,7 +49,7 @@ This protocol gives **at-least-once** delivery: no message is lost when a worker
 |---|---|---|
 | **Visibility timeout** (SQS) / ack timeout | How long a received message stays hidden before redelivery | A few times the p99 processing time (here: 30 s for a 400 ms job) |
 | **Prefetch** (RabbitMQ `basic.qos`) / batch size | How many unacknowledged messages a consumer may hold | Small (1–20) for slow jobs, so work spreads evenly |
-| **Max receive count** | How many deliveries before a message is moved to the dead letter queue | 3–10 |
+| **Max receive count** | How many deliveries before a message is moved to the dead letter queue (DLQ) | 3–10 |
 | **Message retention** | How long an unconsumed message survives | SQS: 4 days by default, up to 14 days |
 | **Delay** | Hide a new message for some time before first delivery | "Send the reminder 24 h before the show" |
 
@@ -60,7 +60,7 @@ This protocol gives **at-least-once** delivery: no message is lost when a worker
 
 With competing consumers, **order is not preserved**: message 2 may finish before message 1 because they run on different workers. For most jobs (PDFs, e-mails) this is fine. When it is not, you need a way to serialize related messages:
 
-- **FIFO queues with a group id** (SQS FIFO `MessageGroupId`, Azure Service Bus sessions): messages with the same group are delivered in order, one at a time; different groups run in parallel.
+- **First-in, first-out (FIFO) queues with a group id** (SQS FIFO `MessageGroupId`, Azure Service Bus sessions): messages with the same group are delivered in order, one at a time; different groups run in parallel.
 - **A partitioned log keyed by the entity** — Kafka, next page — gives the same "ordered per key, parallel across keys" behaviour at high throughput.
 
 ### Sizing the worker pool
@@ -90,6 +90,10 @@ $$
     - Back at 95, press **on-sale spike** (3× for 20 s): the backlog peaks at about 5,300 jobs, the oldest waits 22 s, and the queue is empty only about 100 s after the spike began — it drains at the spare 71 jobs/s.
     - Turn on **scale workers on backlog** and spike again: new workers need 15 s to start, so the peak barely changes (about 4,500), but the oldest job waits 9 s and the queue is empty after about 27 s.
 
+**The same burst in the playground.** The `boxoffice-tickets-pdf` preset sends the 167 orders/s through a queue of PDF jobs. With 20 workers the backlog passes 19,000 jobs and the consumer lag reaches about 380 s, while the orders themselves stay fast (p99 about 32 ms): too few workers fail nothing, they turn into delay. Set the workers for ρ ≈ 0.7 (95): the lag stays near 0 and the bill goes from about 2,800 to about 8,900 USD/month — an autoscaler on the lag would pay for them only during the burst.
+
+<div class="sdp" data-scenario="boxoffice-tickets-pdf" data-mode="compact" data-height="440"></div>
+
 ---
 
 ## Backpressure { #backpressure }
@@ -101,14 +105,14 @@ A queue that is allowed to grow without limit is a lie: memory or disk runs out 
 | Strategy | What happens | BoxOffice example | Cost |
 |---|---|---|---|
 | **Buffer (bounded)** | Absorb up to N messages or T minutes of backlog | PDF queue absorbs the on-sale spike | Delay grows with the backlog |
-| **Scale consumers** | Add workers when depth or lag grows | KEDA scales PDF workers on queue length | Needs headroom downstream (DB, object store) |
+| **Scale consumers** | Add workers when depth or lag grows | KEDA (Kubernetes Event-driven Autoscaling) scales PDF workers on queue length | Needs headroom downstream (DB, object store) |
 | **Reject at the edge** | Refuse new work with `429`/`503` + `Retry-After` | Gateway rejects purchases when the waiting room is full | Users see an error — but a fast, honest one |
 | **Slow the producer** | Producer blocks or receives fewer credits | Kafka producer blocks when its buffer is full (`max.block.ms`) | The latency moves to the producer |
-| **Drop / expire** | Discard low-value or old messages | Drop "seats left" updates older than 30 s; TTL on push notifications | Data loss, by design |
+| **Drop / expire** | Discard low-value or old messages | Drop "seats left" updates older than 30 s; a time to live (TTL) on push notifications | Data loss, by design |
 | **Shed by priority** | Keep critical messages, drop or delay the rest | Purchase confirmations before marketing e-mails | Requires separate queues or priorities |
 
 !!! tip "Monitor age, not only depth"
-    Queue depth alone is ambiguous: 50,000 messages is fine for a pool that does 10,000/s and a disaster for one that does 10/s. The **age of the oldest message** (SQS `ApproximateAgeOfOldestMessage`, Kafka consumer lag in time) is what the user feels. Write the freshness SLO on it — "99% of confirmation e-mails sent within 2 minutes" — and alert when it is at risk (see [SLOs](../../observability/slo/index.md)).
+    Queue depth alone is ambiguous: 50,000 messages is fine for a pool that does 10,000/s and a disaster for one that does 10/s. The **age of the oldest message** (SQS `ApproximateAgeOfOldestMessage`, Kafka consumer lag in time) is what the user feels. Write the freshness service level objective (SLO) on it — "99% of confirmation e-mails sent within 2 minutes" — and alert when it is at risk (see [SLOs](../../observability/slo/index.md)).
 
 ---
 
@@ -167,11 +171,11 @@ Design decisions worth discussing:
 - **Fairness.** Strict FIFO rewards whoever has the lowest latency to the data center (and bots). Many ticketing sites give fans who arrived *before* the on-sale time a **random** position at 10:00, and FIFO only after that.
 - **Bots.** The waiting room is the place to require a challenge and apply bot detection and per-account limits (see [Traffic & edge](../../edge/index.md)).
 - **Hold expiry.** Admission gives a fan a time-boxed right to buy; the seat hold expires (here, after 10 minutes) and the seats go back to the pool. That is a timer — another asynchronous job.
-- **Where it runs.** Positions are served from the edge (CDN functions or a small, horizontally scaled service with Redis), so polling by two million browsers never reaches the core services.
+- **Where it runs.** Positions are served from the edge (content delivery network (CDN) functions or a small, horizontally scaled service with Redis), so polling by two million browsers never reaches the core services.
 
 !!! example "In the BoxOffice code: the waiting room in `order` (lab 7)"
 
-    [Hands-on 7 — Waiting room](../../../hands-on/7/waiting-room/index.md) builds a smaller version of this design. The queue is the same Redis sorted set, but the score comes from `INCR`, not from a timestamp: the server decides the order, because clients' clocks lie. Every second `admit()` pops `admit-per-second` fans (20 by default) and gives each an *admitted* key with a 5-minute TTL, in one Lua script so a polling fan never sees a ticket that is neither queued nor admitted — a Redis key, not a signed token — and `mayEnter` is checked by `POST /orders`, not by the gateway: the lab says so, and calls moving the gate to the edge a good extension. Look at the comment on `admit()`: with three `order` replicas, three schedulers would admit three times the rate. In the lab's spike (about 700 fans in 40 s, 10 admitted per second), the order latency stays flat and the actual wait stays within a couple of seconds of the ETA promised at join — Little's law is an honest promise when the rate is constant.
+    [Hands-on 7 — Waiting room](../../../hands-on/7/waiting-room/index.md) builds a smaller version of this design. The queue is the same Redis sorted set, but the score comes from `INCR`, not from a timestamp: the server decides the order, because clients' clocks lie. Every second `admit()` pops `admit-per-second` fans (20 by default) and gives each an *admitted* key with a 5-minute TTL, in one Lua script so a polling fan never sees a ticket that is neither queued nor admitted — a Redis key, not a signed token — and `mayEnter` is checked by `POST /orders`, not by the gateway: the lab says so, and calls moving the gate to the edge a good extension. Look at the comment on `admit()`: with three `order` replicas, three schedulers would admit three times the rate. In the lab's spike (about 700 fans in 40 s, 10 admitted per second), the order latency stays flat and the actual wait stays within a couple of seconds of the estimated time of arrival (ETA) promised at join — Little's law is an honest promise when the rate is constant.
 
     ``` { .java title="services/order/src/main/java/boxoffice/order/waitingroom/WaitingRoom.java (join, admit, gate)" }
     --8<-- "docs/2027.1/hands-on/7/code/services/order/src/main/java/boxoffice/order/waitingroom/WaitingRoom.java:37:42,59:86"
@@ -182,6 +186,10 @@ Design decisions worth discussing:
     The `flash-sale` scenario is a generic version of BoxOffice at 10:00, and it starts **without** a waiting room: `users → lb → app → inventory-db`, with buyers also calling the `payment provider` (quota 500 req/s). Press **Run**: when the sale opens (t = 60 s) the traffic jumps 20×, `app` saturates and errors appear; raise its replicas and `inventory-db` and the payment provider saturate instead. Then open it in the full playground (↗) and build the waiting room — an API Gateway that sends writes to a Message Queue drained by `order` workers (the hints, or **Show a possible solution**). The number of workers is the admission rate: with too few, the consumer lag (how long a buyer waits in line) passes the 300 s goal; with too many, `inventory-db` and the payment quota are under pressure again. Find the count that keeps both within their goals.
 
 <div class="sdp" data-scenario="flash-sale" data-mode="compact" data-height="560"></div>
+
+The `boxoffice-onsale` preset is the BoxOffice version on one database: at 10:00 about 33,000 holds/s arrive at an inventory database that does about 1,100/s at a sane 70%. As drawn, about 91% of the requests fail during the sale. Replace the synchronous path by gateway → Message Queue → inventory workers that admit about 1,000 holds/s: every hold succeeds in about 10 ms at p99, and the line grows by about 32,000 fans per second — the consumer lag is the wait a fan sees (the simulator does not model the sell-out).
+
+<div class="sdp" data-scenario="boxoffice-onsale" data-mode="compact" data-height="440"></div>
 
 ---
 
@@ -216,6 +224,16 @@ Adding a fourth consumer — say, a loyalty program that grants points — is a 
 
 Not every subscriber wants every message. Brokers let a subscription declare a **filter** on message attributes, so only matching messages are copied to it — for example, the SMS service subscribes only to `OrderConfirmed` events whose `channel` attribute is `sms`. RabbitMQ generalizes this with **exchanges**: a `fanout` exchange copies to every bound queue, a `direct` exchange routes by an exact routing key, and a `topic` exchange routes by patterns such as `order.*.br`.
 
+``` diagram
+flowchart LR
+    order["order"] -->|"routing key order.confirmed.br"| ex{{"topic exchange: orders"}}
+    ex -->|"binding order.*.br: match"| q1[["queue: sms-br"]]
+    ex -->|"binding order.confirmed.*: match"| q2[["queue: notification"]]
+    ex -.->|"binding order.cancelled.*: no match"| q3[["queue: refunds"]]
+```
+
+The producer only names *what happened* in the routing key; each queue's binding decides what it receives, so a new consumer adds a binding and the producer does not change.
+
 ### Durable and ephemeral pub/sub
 
 Some pub/sub systems do not store messages at all: Redis Pub/Sub and core NATS deliver a message only to subscribers connected *at that moment*. If a subscriber is down, it simply misses the message. That is perfect for "user is typing…" indicators in a chat and unacceptable for order confirmations. Durable pub/sub (Google Cloud Pub/Sub, SNS → SQS, NATS JetStream, Kafka) keeps each subscription's messages until they are acknowledged.
@@ -234,7 +252,7 @@ The next page introduces the third shape, the **log** (Kafka, Kinesis). The tabl
 |---|---|---|---|
 | **Delivery** | each message to one consumer | each message to every subscription | every consumer group reads everything |
 | **After reading** | deleted on ack | deleted per subscription on ack | kept until retention expires |
-| **Replay old messages** | no | limited (some offer seek/snapshot) | yes: reset the offset |
+| **Replay old messages** | ❌ no | ⚠️ limited (some offer seek/snapshot) | ✅ yes: reset the offset |
 | **Per-message ack and redelivery** | yes | yes | no: a consumer commits a *position* |
 | **Ordering** | none (FIFO queues: per group) | none (optional ordering keys) | per partition (per key) |
 | **New consumer sees** | only new messages | only messages after it subscribes | history still in retention |
@@ -264,7 +282,7 @@ The next page introduces the third shape, the **log** (Kafka, Kinesis). The tabl
 
 === "Open source"
 
-    - **RabbitMQ** — the classic AMQP broker; exchanges for routing, quorum queues (Raft-replicated), and streams.
+    - **RabbitMQ** — the classic broker of the Advanced Message Queuing Protocol (AMQP); exchanges for routing, quorum queues (Raft-replicated), and streams.
     - **NATS** — very light pub/sub; **JetStream** adds persistence, replay and acknowledgements.
     - **Redis** — Lists (`LPUSH`/`BRPOP`) as simple queues, Pub/Sub (ephemeral), Streams (log with consumer groups).
     - **Apache ActiveMQ Artemis**, **Apache Pulsar** (pub/sub and log in one system).

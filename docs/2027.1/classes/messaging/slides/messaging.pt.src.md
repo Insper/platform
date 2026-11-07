@@ -14,6 +14,10 @@ theme: platform
 {{INCLUDE:scripts/slides/theme.js}}
 </script>
 
+<style>
+{{INCLUDE:scripts/slides/diagram.css}}
+</style>
+
 <div class="kicker">Arquitetura de Sistemas · Insper</div>
 
 # Mensageria e Arquitetura Orientada a Eventos
@@ -44,6 +48,36 @@ O provedor de e-mail passa de 80 ms para 800 ms. O que acontece com o botão "Co
 <!--
 Deixe a turma responder. O ponto: o e-mail não é necessário para responder ao fã, mas está no
 caminho crítico. Essa é toda a motivação da mensageria.
+-->
+
+---
+
+## Duas ligações da compra
+
+<div class="flow">
+<div class="arrow" style="flex: .4; text-align: left">Síncrono</div>
+<div class="box">fã</div><div class="arrow">→</div>
+<div class="box accent">order</div><div class="arrow">espera →</div>
+<div class="box red">notification<small>800 ms hoje</small></div><div class="arrow">→</div>
+<div class="box">search</div><div class="arrow">→</div>
+<div class="box">analytics</div><div class="arrow">→ 201</div>
+</div>
+<div class="flow" style="align-items: stretch">
+<div class="arrow" style="flex: .4; text-align: left; align-self: center">Assíncrono</div>
+<div class="box" style="align-self: center">fã</div><div class="arrow" style="align-self: center">→</div>
+<div class="box accent" style="align-self: center">order<small>201 depois de salvar e publicar</small></div><div class="arrow" style="align-self: center">publica →</div>
+<div class="box orange" style="align-self: center">Kafka<small>OrderConfirmed</small></div><div class="arrow" style="align-self: center">→</div>
+<div class="group">
+<div class="caption">cada um no seu ritmo</div>
+<div class="box green">notification</div><div class="box green">search</div><div class="box green">analytics</div>
+</div>
+</div>
+
+- Síncrono: o fã espera a **soma** das chamadas e **qualquer** falha derruba a compra.
+- Assíncrono: o fã espera um salvamento e uma publicação; um consumidor lento só aumenta o backlog **dele**.
+
+<!--
+A página desenha os dois como diagramas de sequência passo a passo (as duas abas de "Síncrono vs assíncrono").
 -->
 
 ---
@@ -134,16 +168,78 @@ Fila: ler é tirar. Log: ler é olhar, com um marcador por leitor.
 
 ---
 
+## O que vai dentro de um evento
+
+<div class="cols">
+<div>
+
+### Notificação de evento
+
+`{ type, eventId, orderId, occurredAt }`
+
+- Pequeno e estável.
+- Cada consumidor **chama de volta** `GET /orders/o-7731`: uma chamada a mais por consumidor e por evento, e o `order` precisa estar no ar.
+
+</div>
+<div>
+
+### Transferência de estado no evento
+
+`{ …, customer, event, seats, total }`
+
+- Os consumidores **nunca chamam de volta**: desacoplados da disponibilidade do `order`.
+- Payload maior, schema mais difícil de mudar, dado pessoal (o e-mail) copiado para todo consumidor.
+
+</div>
+</div>
+
+<div class="ok">
+
+Dê nome aos eventos **no passado** (`OrderConfirmed`); `SendConfirmationEmail` é um comando disfarçado.
+
+</div>
+
+---
+
+## Chamada, fila, pub/sub ou log?
+
+<div class="flow">
+<div class="box accent" style="flex: 2">Quem chama precisa da resposta para continuar?</div><div class="arrow">sim →</div>
+<div class="box" style="flex: 1.4">chamada síncrona<small>com timeout: login, reservar lugares</small></div>
+</div>
+<div class="flow">
+<div class="arrow" style="flex: .3">não ↓</div>
+<div class="box accent" style="flex: 1.7">Quantos serviços precisam reagir?</div><div class="arrow">um trabalho só →</div>
+<div class="box green" style="flex: 1.4">queue<small>consumidores concorrentes: o PDF do ingresso</small></div>
+</div>
+<div class="flow">
+<div class="arrow" style="flex: .3">vários ↓</div>
+<div class="box accent" style="flex: 1.7">Precisa de replay, ordem por chave, alto throughput?</div><div class="arrow">não →</div>
+<div class="box green">pubsub<small>e-mail e push</small></div><div class="arrow">sim →</div>
+<div class="box orange">stream · kafka<small>warehouse, busca</small></div>
+</div>
+
+<p class="small">Numa fila, ler é <b>tirar</b>; num log, ler é <b>olhar</b>, com um marcador por leitor. A tabela "Quando <i>não</i> ir para o assíncrono" da página classifica oito interações do BoxOffice assim.</p>
+
+---
+
 ## A vida de uma mensagem na fila
 
-1. **Receber** — o broker esconde a mensagem (visibility timeout / sem ack).
-2. **Processar** — gerar o PDF, fazer upload de `tickets/o-7731.pdf`.
-3. **Ack** — só agora ela é apagada.
-4. Sem ack a tempo → visível de novo → **outro worker** a recebe.
+<div class="flow">
+<div class="box">receber<small>worker 1 pega o o-7731</small></div><div class="arrow">→</div>
+<div class="box orange">escondida 30 s<small>visibility timeout</small></div><div class="arrow">→</div>
+<div class="box red">worker 1 cai<small>antes do ack</small></div><div class="arrow">→</div>
+<div class="box orange">visível de novo</div><div class="arrow">→</div>
+<div class="box">worker 2<small>entrega 2</small></div><div class="arrow">ack →</div>
+<div class="box green">apagada</div>
+</div>
+
+- O broker só apaga a mensagem no **ack**: nenhuma mensagem se perde quando um worker morre.
+- Com consumidores concorrentes **não há ordem**; filas FIFO (*first-in, first-out*) a mantêm por id de grupo.
 
 <div class="warn">
 
-At-least-once: um crash depois do upload faz o job rodar duas vezes → consumidor **idempotente**. Um visibility timeout **menor que o job** faz todo job lento rodar duas vezes.
+At-least-once: um crash depois do upload faz o job rodar duas vezes → consumidor **idempotente** (`tickets/o-7731.pdf` é um nome determinístico). Um visibility timeout **menor que o job** faz todo job lento rodar duas vezes.
 
 </div>
 
@@ -163,6 +259,8 @@ Trabalho assíncrono é dimensionado por um **objetivo de atraso** ("ingressos p
 
 </div>
 
+<p class="small">Simulador <code>queue</code>: 95 workers (ρ = 0,70) dão conta; com 60 (ρ = 1,11) o backlog só cresce; um pico de 3× chega a cerca de 5.300 jobs.</p>
+
 ---
 
 <!-- _class: tight -->
@@ -172,10 +270,10 @@ Trabalho assíncrono é dimensionado por um **objetivo de atraso** ("ingressos p
 | Estratégia | Exemplo no BoxOffice | Custo |
 |---|---|---|
 | Buffer (limitado) | a fila de PDF absorve a abertura | o atraso cresce |
-| Escalar consumidores | KEDA pelo tamanho da fila | a carga vai para frente |
+| Escalar consumidores | KEDA (*Kubernetes Event-driven Autoscaling*) pelo tamanho da fila | a carga vai para frente |
 | Rejeitar na borda | `429` / `503` + `Retry-After` | erro rápido e honesto |
 | Desacelerar o produtor | o producer do Kafka bloqueia (`max.block.ms`) | a latência vai para trás |
-| Descartar / expirar | "lugares restantes" velhos, TTL no push | perda de dados por projeto |
+| Descartar / expirar | "lugares restantes" velhos, tempo de vida (TTL, *time to live*) no push | perda de dados por projeto |
 | Descartar por prioridade | confirmações antes de marketing | filas separadas |
 
 <div class="ok">
@@ -188,28 +286,38 @@ Alerte sobre a **idade da mensagem mais antiga**, não só sobre a profundidade.
 
 ## A sala de espera da flash sale
 
-1. Os fãs recebem uma **posição** (sorted set do Redis: `ZADD`, `ZRANK`).
-2. Um job de admissão libera **N fãs/s** — capacidade medida do `inventory` × fator de segurança.
-3. Fãs admitidos recebem um **token assinado** de vida curta; o gateway o exige.
-4. Inventário zerado → "**esgotou**" pela borda, sem tocar no banco.
+<div class="flow">
+<div class="box">2 M de fãs</div><div class="arrow">entram →</div>
+<div class="box orange">sala de espera<small>sorted set do Redis: posição</small></div><div class="arrow">admite N/s →</div>
+<div class="box accent">token de admissão<small>vida curta, assinado</small></div><div class="arrow">→</div>
+<div class="box">gateway<small>rejeita chamadas sem ele</small></div><div class="arrow">→</div>
+<div class="box green">inventory<small>~1.100 reservas/s</small></div>
+</div>
 
-- Justiça: posição aleatória para quem chegou cedo, FIFO depois.
-- Bots: desafio e limites por conta na sala de espera.
+- N = capacidade medida × fator de segurança: `1.100 × 0,5 ≈ 500` fãs/s; espera honesta = posição / N.
+- Esgotou → "**esgotado**" pela borda, sem tocar no banco. Bots: desafio e limites por conta aqui.
+- Justiça: posição aleatória para quem chegou cedo, ordem de chegada depois.
+- Lab 7: o score vem de `INCR` (o servidor decide a ordem), 20 fãs/s por padrão, uma chave de *admitido* com TTL de 5 minutos, conferida pelo `POST /orders`.
 
-<p class="small">Playground: <code>flash-sale</code> — remova a fila e veja o SQL saturar.</p>
+<p class="small">Playground: <code>flash-sale</code> começa <b>sem</b> sala de espera — veja <code>app</code> e <code>inventory-db</code> saturarem às 10:00 e depois construa a fila.</p>
 
 ---
 
+<!-- _class: tight -->
+
 ## Publish/subscribe
 
-- O produtor publica em um **tópico**; cada **assinatura** recebe a própria cópia.
-- Dentro de uma assinatura os consumidores competem; entre assinaturas todos veem tudo.
-- Adicionar um consumidor de pontos de fidelidade = **uma assinatura nova**, `order` intacto.
+<div class="flow" style="align-items: stretch">
+<div class="box accent" style="align-self: center; flex: .8">order</div><div class="arrow" style="align-self: center">OrderConfirmed →</div>
+<div class="box orange" style="align-self: center">tópico<small>order-events</small></div><div class="arrow" style="align-self: center">uma cópia cada →</div>
+<div class="group"><div class="caption">assinatura notification</div><div class="box green">notification #1</div><div class="box green">notification #2</div></div>
+<div class="group"><div class="caption">assinatura search</div><div class="box green">indexador da busca</div></div>
+<div class="group"><div class="caption">assinatura analytics</div><div class="box green">carregador do analytics</div></div>
+</div>
 
-| Pull | Push |
-|---|---|
-| consumidores pedem; controle de fluxo natural | o broker chama um endpoint HTTPS |
-| workers, alto throughput | serverless, webhooks |
+- Dentro de uma assinatura os consumidores **competem**; entre assinaturas todos veem tudo.
+- Um consumidor de pontos de fidelidade = **uma assinatura nova**, `order` intacto e sem saber.
+- **Pull**: os consumidores pedem, controle de fluxo natural (workers). **Push**: o broker chama um endpoint HTTPS (serverless, webhooks).
 
 <div class="warn">
 
@@ -250,14 +358,25 @@ Mudar N move as chaves (`hash mod N` muda) — dimensione as partições com fol
 
 ---
 
+<!-- _class: tight -->
+
 ## Consumer groups e lag
 
-- Cada partição → **exatamente um** consumidor por grupo; grupos diferentes = fan-out.
-- Paralelismo máximo de um grupo = **número de partições** (12 consumidores, 8 partições → 4 ociosos).
-- Rebalance quando membros entram/saem ou param de fazer poll (`max.poll.interval.ms`).
-- **Consumer lag** = offset do fim do log − offset confirmado: *a* métrica de saúde do consumidor.
+<div class="flow" style="align-items: stretch">
+<div class="group" style="flex: .7"><div class="caption">order-events · 6 partições</div>
+<div class="box orange">P0 · P1</div><div class="box orange">P2 · P3</div><div class="box orange">P4 · P5</div></div>
+<div class="arrow" style="align-self: center">um leitor por<br>partição, por grupo →</div>
+<div class="group"><div class="caption">grupo notification · 3 consumidores</div>
+<div class="box green">notification #1<small>P0, P1</small></div><div class="box green">notification #2<small>P2, P3</small></div><div class="box green">notification #3<small>P4, P5</small></div></div>
+<div class="group" style="flex: .8"><div class="caption">grupo analytics</div>
+<div class="box green">analytics #1<small>as 6, com offsets próprios</small></div></div>
+</div>
 
-<p class="small">Lag concentrado em uma partição = chave quente, consumidor travado ou mensagem venenosa — não falta de capacidade. Playground: <code>event-fanout</code>.</p>
+- Paralelismo máximo de um grupo = **número de partições**: 8 consumidores em 6 partições → 2 ociosos.
+- **Lag** = offset do fim do log − offset confirmado, por partição: uma partição quente = chave quente, consumidor travado ou mensagem venenosa.
+- Rebalance quando membros entram, saem ou param de fazer poll (`max.poll.interval.ms`).
+
+<p class="small">Simulador <code>kafka</code> (as 6 partições e os 3 consumidores do lab 7): chave pelo show → <code>ev-1</code> cai na P5, que fica para trás. Playground: <code>event-fanout</code>.</p>
 
 ---
 
@@ -265,12 +384,29 @@ Mudar N move as chaves (`hash mod N` muda) — dimensione as partições com fol
 
 | `acks` | Confirmado quando… | Uma falha de broker pode… |
 |---|---|---|
-| `0` | enviado | perder registros em silêncio |
-| `1` | a líder gravou | perder registros confirmados |
-| `all` | toda réplica sincronizada tem | não perdê-los, com min ISR ≥ 2 |
+| `0` | enviado | ❌ perder registros em silêncio |
+| `1` | a líder gravou | ⚠️ perder registros confirmados |
+| `all` | toda réplica sincronizada (ISR, *in-sync replica*) tem | ✅ não perdê-los, com min ISR ≥ 2 |
 
-- **RF 3 entre AZs + `min.insync.replicas=2` + `acks=all`**: um broker fora, as escritas continuam; nada confirmado vive em uma só máquina.
+- **Fator de replicação (RF, *replication factor*) 3 entre zonas de disponibilidade (AZs, *availability zones*) + `min.insync.replicas=2` + `acks=all`**: um broker fora, as escritas continuam; nada confirmado vive em uma só máquina.
+- O lab 7 roda um broker com RF 1: ali `acks: all` espera exatamente uma réplica — a armadilha acima.
 - Metadados com controllers **KRaft** (Raft); ZooKeeper removido no Kafka 4.0.
+
+---
+
+## Retenção, compactação e por que o Kafka é rápido
+
+<div class="flow">
+<div class="box red">0 · ev-88<small>21:00</small></div><div class="box red">1 · ev-90<small>Jazz Night</small></div>
+<div class="box">2 · ev-88<small>20:00</small></div><div class="box">3 · ev-91<small>Theater</small></div><div class="box muted">4 · ev-90<small>null (tombstone)</small></div>
+<div class="arrow">compacta →</div>
+<div class="box green">2 · ev-88<small>20:00</small></div><div class="box green">3 · ev-91<small>Theater</small></div>
+</div>
+
+- **Apagar** por tempo (`retention.ms`, 7 dias para `order-events`: replay e o warehouse) ou por tamanho.
+- **Compactar** (`event-catalog`): sobrevive o registro mais recente de cada chave, com seu offset; um tombstone apaga uma chave.
+- **Tiered storage**: segmentos antigos vão para object storage — meses de retenção, barato.
+- Rápido: acréscimos sequenciais, o page cache do sistema operacional, zero-copy com `sendfile`, lotes comprimidos com `zstd`. O preço: alguns ms de `linger.ms`.
 
 ---
 
@@ -290,19 +426,39 @@ O **consumidor** costuma ser o gargalo. Alternativas a mais partições: lotes, 
 
 ---
 
+## Onde uma mensagem se perde ou se duplica
+
+<div class="flow">
+<div class="box accent">order<small>produtor</small></div><div class="arrow">1 · envia →</div>
+<div class="box orange">Kafka<small>2 · replica</small></div><div class="arrow">3 · entrega →</div>
+<div class="box">notification<small>consumidor</small></div><div class="arrow">4 · e-mail →</div>
+<div class="box">provedor</div><div class="arrow">5 · commit do offset ↩</div>
+</div>
+
+| Trecho | Falha | Efeito | Defesa |
+|---|---|---|---|
+| 1 | ack perdido, o produtor tenta de novo | duplicata no log | produtor idempotente |
+| 1 | crash antes de enviar | **perda** (Bruno) | transactional outbox |
+| 2 | a líder morre com `acks=1` | **perda** de registro confirmado | `acks=all`, min ISR 2 |
+| 3–5 | crash entre o e-mail e o commit | duplicata (Ana, três vezes) | consumidor idempotente |
+
+---
+
 ## Semântica de entrega
 
 | Garantia | Consumidor Kafka | Um crash significa |
 |---|---|---|
-| At-most-once | commit **antes** de processar | mensagem **perdida** |
-| At-least-once | commit **depois** de processar | mensagem **repetida** |
-| Exactly-once | transações do Kafka — *só dentro do Kafka* | nenhum dos dois |
+| At-most-once | commit **antes** de processar | ❌ mensagem **perdida** |
+| At-least-once | commit **depois** de processar | ⚠️ mensagem **repetida** |
+| Exactly-once | transações do Kafka — *só dentro do Kafka* | ✅ nenhum dos dois |
 
 <div class="ok">
 
 **Efetivamente uma vez = at-least-once + processamento idempotente.** O Kafka não desenvia um e-mail.
 
 </div>
+
+<p class="small">Simulador <code>delivery</code>: cobra → commit com um crash → 7 cobranças para 6 pedidos; commit → cobra → o pedido se perde; a chave de idempotência resolve a repetição, não a perda.</p>
 
 <!--
 Os três e-mails da Ana: crash entre o envio e o commit, duas vezes. O e-mail que faltou para o
@@ -328,6 +484,7 @@ public void on(OrderConfirmed event) {
 
 - Linha de deduplicação e mudança de negócio **em uma transação**; offset confirmado depois.
 - Chamadas externas levam uma **chave de idempotência**; o id do evento é criado **uma vez**, pelo produtor.
+- Lab 7: `processed_events (event_id)`, mas o e-mail é **enviado** dentro da transação — um crash depois do envio o repete.
 
 ---
 
@@ -335,14 +492,39 @@ public void on(OrderConfirmed event) {
 
 - A ordem quebra com: retries do produtor (resolvido pela idempotência), tópicos diferentes, pools de threads, tópicos de retry.
 - Visões entre serviços: **versão por entidade**, aplique só as mais novas (`WHERE version < :v`).
-- Erro **transitório** → retry com backoff (1 s, 4 s, 16 s).
-- **Mensagem venenosa** → depois de N tentativas, o **dead letter topic** — e um alerta.
+- Erro **transitório** → retries **bloqueantes** no lugar (lab 7: 0,5 s, 1 s, 2 s — a partição espera, a ordem se mantém) ou **tópicos de retry** (1 s, 4 s, 16 s — a partição segue, eventos posteriores ultrapassam).
+- **Mensagem venenosa** → a fila de mensagens mortas (DLQ, *dead letter queue*; no Kafka, um dead letter topic) depois de N tentativas — ou na hora, para erros de parsing — e um alerta.
 
 <div class="warn">
 
 Uma DLQ que ninguém lê é um jeito mais lento de perder mensagens. O redrive só é seguro porque os consumidores são idempotentes.
 
 </div>
+
+---
+
+## O simulador: retry no lugar ou em tópicos de retry?
+
+<div class="flow">
+<div class="arrow" style="flex: .55; text-align: left">Bloqueante</div>
+<div class="box red">o-1005 falha<small>nos primeiros 2 s</small></div><div class="arrow">→</div>
+<div class="box orange">espera 0,5 s, 1 s, 2 s<small>no lugar</small></div><div class="arrow">→</div>
+<div class="box green">enviado na tentativa 4<small>parada 3,5 s · atraso 8 · ordem mantida ✅</small></div>
+</div>
+<div class="flow">
+<div class="arrow" style="flex: .55; text-align: left">Tópicos de retry</div>
+<div class="box red">o-1005 falha</div><div class="arrow">→</div>
+<div class="box orange">retry-0 · 1 s<small>falha de novo</small></div><div class="arrow">→</div>
+<div class="box orange">retry-1 · 4 s</div><div class="arrow">→</div>
+<div class="box red">enviado<small>nunca parou · Cancelled 4,1 s antes ❌</small></div>
+</div>
+
+- **Venenosa** sem classificação: o bloqueante chega à DLQ depois de 3,5 s, os tópicos de retry depois de 21,2 s; **para sempre** nunca larga — 53 registros esperam depois de 30 s.
+- Classifique os erros permanentes (lab 7: `IllegalArgumentException`): direto para a DLQ, sem espera.
+
+<!--
+O simulador está na página Semântica de entrega, em "Retries e dead letter queues" (retry-topics). Os mesmos números da dica dele.
+-->
 
 ---
 
@@ -361,24 +543,17 @@ Uma DLQ que ninguém lê é um jeito mais lento de perder mensagens. O redrive s
 
 ## Escrita dupla → transactional outbox
 
-<div class="cols">
-<div>
-
-### Escrita dupla
-
-`COMMIT` do pedido → crash → evento **nunca publicado** (Bruno).
-Publicar antes → rollback → **evento fantasma**.
-
+<div class="flow" style="align-items: stretch">
+<div class="box accent" style="align-self: center; flex: .8">order<small>POST /orders</small></div><div class="arrow" style="align-self: center">uma transação →</div>
+<div class="group" style="flex: .9"><div class="caption">banco do order</div><div class="box">INSERT orders</div><div class="box">INSERT outbox</div></div>
+<div class="arrow" style="align-self: center">relay faz polling →<br>SKIP LOCKED</div>
+<div class="box orange" style="align-self: center">Kafka<small>chave = orderId, acks=all</small></div><div class="arrow" style="align-self: center">ack →</div>
+<div class="box green" style="align-self: center">marca como publicado</div>
 </div>
-<div>
 
-### Outbox
-
-`INSERT` do evento em `outbox` **na mesma transação**.
-Um relay (polling com `SKIP LOCKED`, ou **CDC com Debezium**) o publica pelo menos uma vez.
-
-</div>
-</div>
+- **Escrita dupla**: `COMMIT`, crash, evento nunca publicado (Bruno); publicar antes, rollback, **evento fantasma**.
+- Um crash depois do ack e antes da marcação **republica**: pelo menos uma vez, nunca perdido.
+- Relay por polling (lab 7) ou por captura de mudanças (CDC, *change data capture*) com Debezium, que lê o write-ahead log. Lab 7 a 200 pedidos/s: p50 do `POST /orders` **2,7 s** (sync) → **1,8 ms** (outbox).
 
 <p class="small">O CDC também mantém busca, cache e warehouse sincronizados a partir do banco do catalog — mas CDC bruto vaza o schema das suas tabelas; use eventos projetados para outros times.</p>
 
@@ -398,9 +573,30 @@ Um relay (polling com `SKIP LOCKED`, ou **CDC com Debezium**) o publica pelo men
 
 <div class="warn">
 
-Uma saga é **ACD sem o I**: mostre o estado intermediário ("lugares reservados — processando pagamento"). Num timeout do pagamento, **reconcilie** com o provedor antes de compensar.
+Uma saga é atômica, consistente e durável, mas **não isolada**: mostre o estado intermediário ("lugares reservados — processando pagamento"). Num timeout do pagamento, **reconcilie** com o provedor antes de compensar.
 
 </div>
+
+---
+
+## A saga como máquina de estados
+
+<div class="flow">
+<div class="box">PENDING</div><div class="arrow">SeatsHeld →</div>
+<div class="box">SEATS_HELD</div><div class="arrow">PaymentCaptured →<br>(o pivô)</div>
+<div class="box accent">PAID</div><div class="arrow">SeatsSold →<br>repetido até dar certo</div>
+<div class="box green">CONFIRMED</div>
+</div>
+<div class="flow">
+<div class="box muted">SEATS_HELD</div>
+<div class="arrow">PaymentFailed / timeout →</div>
+<div class="box orange">RELEASING</div><div class="arrow">SeatsReleased →</div>
+<div class="box red">CANCELLED</div>
+</div>
+
+- Antes do pivô todo passo pode ser **compensado**; depois dele, os passos são **repetidos**, nunca desfeitos.
+- O status do pedido *é* o estado da saga: mude-o com updates condicionais (`WHERE status = 'PENDING_PAYMENT'`).
+- O fã recebe `202 Accepted` e "lugares reservados — processando pagamento" (um bloqueio semântico), não um spinner.
 
 ---
 
@@ -417,7 +613,7 @@ Uma saga é **ACD sem o I**: mostre o estado intermediário ("lugares reservados
 
 ---
 
-## CQRS e event sourcing
+## Segregação de comando e consulta (CQRS) e event sourcing
 
 <div class="cols">
 <div>
@@ -426,7 +622,7 @@ Uma saga é **ACD sem o I**: mostre o estado intermediário ("lugares reservados
 
 - Modelo de escrita para invariantes; **projeções** para leitura.
 - "Meus ingressos" = uma tabela indexada alimentada por eventos.
-- Custo: lag → tratar **read-your-writes**.
+- Custo: lag → tratar **read-your-writes** (devolver o estado novo ou um token de versão).
 
 </div>
 <div>

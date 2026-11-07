@@ -9,7 +9,7 @@ whole partition.
 | Problem | Technique | Where in the code |
 |---|---|---|
 | the same event arrives twice | **idempotent consumer**: remember processed `eventId`s, in the same transaction as the effect | `NotificationService` |
-| a transient failure (SMTP hiccup) | **retry with exponential backoff**, in place | `KafkaConfig` |
+| a transient failure (a hiccup of the Simple Mail Transfer Protocol, SMTP) | **retry with exponential backoff**, in place | `KafkaConfig` |
 | a message that can never succeed (malformed, invalid address) | **dead-letter topic** (DLT): park it, keep the partition flowing | `KafkaConfig`, `DeadLetterListener` |
 
 ## The `notification` service
@@ -119,6 +119,23 @@ effect exactly-once on its own; the complete fix is an **idempotency key** accep
 (most e-mail and payment APIs take one — pass the `eventId`). Exactly-once *processing* inside Kafka
 (transactions, `read_committed`) covers Kafka-to-Kafka pipelines, not e-mails.
 
+``` diagram-sim
+sequenceDiagram
+    participant K as order-events
+    participant N as notification
+    participant DB as notification DB
+    participant M as e-mail provider
+    K->>N: OrderPlaced, eventId e1
+    N->>DB: INSERT processed_events e1 (the claim)
+    N->>M: send the e-mail
+    N-xDB: COMMIT fails, database down
+    Note over N,DB: the claim rolls back and the offset is not committed
+    K->>N: OrderPlaced e1, delivered again
+    N->>DB: INSERT processed_events e1, the claim succeeds again
+    N->>M: a second e-mail, unless the provider dedupes by the key e1
+    N->>DB: COMMIT
+```
+
 !!! tip "In the interview"
 
     "Kafka gives at-least-once; I make consumers idempotent with a dedupe table keyed by event id,
@@ -150,6 +167,21 @@ effect exactly-once on its own; the complete fix is an **idempotency key** accep
     ``` java title="services/notification/src/main/java/boxoffice/notification/NotificationController.java"
     --8<-- "docs/2027.1/hands-on/7/code/services/notification/src/main/java/boxoffice/notification/NotificationController.java"
     ```
+
+Every record ends in one of these ways; only a transient failure is retried:
+
+``` diagram-sim
+flowchart LR
+    rec["record from order-events"] --> L{"listener"}
+    L -->|"e-mail sent"| C["commit the offset,<br/>next record"]:::comp
+    L -->|"eventId already in processed_events"| C
+    L -->|"MailSendException (transient)"| R["retry in place after<br/>0.5 s, 1 s, 2 s"]:::tech
+    R -->|succeeds| C
+    R -->|"still failing"| D[("order-events-dlt<br/>same partition")]:::problem
+    L -->|"IllegalArgumentException,<br/>JacksonException"| D
+    D --> C
+    D -.->|DeadLetterListener| T["dead_letters table"]
+```
 
 How a failing record flows:
 
@@ -273,6 +305,25 @@ The order succeeds (the fan is not affected), the e-mail fails permanently, and 
 `order-events-dlt`: after a second or two, the query's last row is the poison order (the rows before
 it are the tour messages, once per pass of the group over the topic); open it in Kafka UI and look
 at the `kafka_dlt-*` headers (original topic, partition, offset, exception).
+
+Replay this step's experiments without Docker, and see what a transient failure (Mailpit stopped) does to one partition:
+
+<div class="csim" data-sim="async-orders" data-script="consumer"></div>
+
+!!! tip "Try it"
+
+    The simulator runs this lab's stack without Docker: `order-events` with 6 partitions, `notification` with 3
+    threads, one e-mail per 50 ms; play or → runs a page step by step, and the buttons and knobs work at any time.
+    In **2 · Outbox**, the second `curl` gets `200` and writes no row, the order placed while Kafka is stopped waits
+    in the outbox until Kafka is back, and a relay killed after the ack publishes the same event twice. In
+    **3 · Consumer**, the three tour messages go straight to `order-events-dlt`, Mailpit still has 2
+    e-mails after the replay and 4 with `NOTIFY_IDEMPOTENT=false`, and with Mailpit stopped an order is retried
+    after 0.5, 1 and 2 s before it is dead-lettered. In **5 · Measure (B, C)**, `sync` loses 1,000 of 3,000
+    orders (33 %) to the 20 s outage while `outbox` loses none: the lag peaks at 1,002 and drains 16 s after
+    the load (the model restarts `notification` at once; in the lab, Spring Boot needs a few more seconds). At 100 orders/s, one
+    thread lets the lag reach 4,800 and drain 240 s after the load, three threads 2,400 and 45 s, six threads
+    keep it at 17 or less, and eight change nothing: two threads stay idle. Four or five threads still take
+    45 s: thread 1 still reads two partitions.
 
 !!! warning "A DLT nobody reads is a silent data loss"
 

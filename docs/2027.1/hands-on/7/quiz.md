@@ -118,7 +118,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ---
 
-## Errors and the DLT
+## Errors and the dead-letter topic (DLT) { #errors-and-the-dlt }
 
 **Q9.** A message on partition 3 makes the listener throw a transient `MailSendException` every time, and the error handler is configured with 3 retries and exponential backoff (0.5 s, 1 s, 2 s). What happens to the other messages?
 
@@ -150,7 +150,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ## Waiting room and capacity
 
-**Q11.** The waiting room admits 500 fans per second. A fan joins and is at position 45 000. What ETA should the page show, and which law justifies it?
+**Q11.** The waiting room admits 500 fans per second. A fan joins and is at position 45 000. What estimated time of arrival (ETA) should the page show, and which law justifies it?
 
 - A. 9 s — position × rate
 - B. 90 s — Little's Law: wait = queue length / throughput

@@ -12,14 +12,14 @@ flowchart LR
     fans["2 M de fãs"] -->|POST join| wr["sala de espera (FIFO no Redis)"]
     wr -->|"posição, ETA"| fans
     adm["admissor (a cada 1 s)"] -->|"ZPOPMIN N"| wr
-    adm -->|"ticket admitido, TTL 5 min"| redis[(Redis)]
+    adm -->|"ticket admitido,<br/>tempo de vida (TTL) 5 min"| redis[(Redis)]
     fans -->|"POST /orders + X-Admission-Ticket"| order[order]
     order -->|"ticket admitido?"| redis
 ```
 
 Isso é **nivelamento de carga por fila** (*queue-based load leveling*): as chegadas vêm em rajadas, o
-atendimento é constante e a fila guarda a diferença. A Lei de Little dá a estimativa honesta que o fã
-vê:
+atendimento é constante e a fila guarda a diferença. A Lei de Little dá a estimativa honesta de espera (ETA, *estimated time of arrival*)
+que o fã vê:
 
 $$
 \text{espera} \approx \frac{\text{posição na fila}}{\text{taxa de admissão}}
@@ -34,13 +34,13 @@ $$
 | Justiça | sequência vinda do `INCR`, não do relógio do cliente | o relógio dos clientes mente; quem decide a ordem é o servidor |
 | Admissão | a cada segundo, retirar `admit-per-second` tickets e marcá-los como admitidos com TTL | a taxa é o botão de controle; o TTL libera a capacidade de quem desiste |
 | Barreira | `POST /orders` exige um `X-Admission-Ticket` admitido **enquanto a venda está aberta** | sem fiscalização, robôs furam a fila |
-| Posição | o cliente consulta `GET /tickets/{id}` periodicamente | simples; em escala, *push* por SSE/WebSocket ou *long polling* |
+| Posição | o cliente consulta `GET /tickets/{id}` periodicamente | simples; em escala, *push* por SSE (*server-sent events*), WebSocket ou *long polling* |
 
 !!! warning "Onde fica a barreira"
 
     A barreira precisa cobrir **todos** os passos caros da venda (reservas de assentos no `inventory`
     e pedidos); por isso, em produção, ela vive na borda: um filtro no gateway ([lab 4](../../4/index.md))
-    ou um produto de sala de espera de CDN. Este lab a aplica em `order` para ficar pequeno; movê-la
+    ou um produto de sala de espera de rede de distribuição de conteúdo (CDN, *content delivery network*). Este lab a aplica em `order` para ficar pequeno; movê-la
     para o gateway é uma boa extensão.
 
 ## Código (no serviço `order`) { #code-in-the-order-service }
@@ -108,6 +108,26 @@ boxoffice:
 201
 ```
 
+A mesma troca, com o admissor rodando em segundo plano:
+
+``` diagram-sim
+sequenceDiagram
+    participant F as fã
+    participant O as order (sala de espera)
+    participant R as Redis
+    F->>O: POST /orders/waiting-room/show-42/join
+    O->>R: INCR wr:show-42:seq, ZADD wr:show-42:queue
+    O-->>F: WAITING, posição 1, ETA 1 s
+    Note over O,R: a cada segundo o admissor tira os N primeiros com ZPOPMIN e os marca como admitidos, TTL 5 min
+    F->>O: GET /orders/waiting-room/show-42/tickets/id
+    O-->>F: ADMITTED, expira em 298 s
+    F->>O: POST /orders, sem X-Admission-Ticket
+    O-->>F: 403 on-sale in progress
+    F->>O: POST /orders, X-Admission-Ticket id
+    O->>R: o ticket id foi admitido?
+    O-->>F: 201 Created
+```
+
 Espie a estrutura de dados enquanto um pico do k6 roda ([passo 5](../measure/index.md)):
 
 ``` shell
@@ -127,7 +147,7 @@ docker compose exec redis redis-cli ZRANGE wr:show-42:queue 0 4 WITHSCORES
       mas 2 M de fãs consultando a cada segundo são 2 M de requisições por segundo: consulte com menos
       frequência quando a posição está longe, sirva a página de espera pela CDN e mantenha a fila em um
       Redis próprio.
-    - **Robôs** entram muitas vezes. Limite as entradas por cliente e exija um desafio (WAF) antes de
+    - **Robôs** entram muitas vezes. Limite as entradas por cliente e exija um desafio (WAF, *web application firewall*) antes de
       entrar.
 
 [Próximo: Meça](../measure/index.md){ .md-button .md-button--primary }

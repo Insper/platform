@@ -33,9 +33,9 @@ Uma **garantia de entrega** diz quantas vezes cada mensagem é *processada* na p
 
 | Garantia | Significado | Como (consumidor Kafka) | Um crash significa | Use quando |
 |---|---|---|---|---|
-| **At-most-once** | 0 ou 1 vez | commit do offset **antes** de processar | a mensagem pode ser **perdida** | perder algumas é aceitável: amostras de métricas, "usuário está digitando" |
-| **At-least-once** | 1 ou mais vezes | commit do offset **depois** de processar | a mensagem é **processada de novo** | quase sempre — com consumidores idempotentes |
-| **Exactly-once** | exatamente 1 vez (no efeito) | at-least-once + deduplicação, ou transações do Kafka dentro do Kafka | nenhum dos dois | dinheiro, inventário, qualquer coisa que se conte |
+| **At-most-once** | 0 ou 1 vez | commit do offset **antes** de processar | ❌ a mensagem pode ser **perdida** | perder algumas é aceitável: amostras de métricas, "usuário está digitando" |
+| **At-least-once** | 1 ou mais vezes | commit do offset **depois** de processar | ⚠️ a mensagem é **processada de novo** | quase sempre — com consumidores idempotentes |
+| **Exactly-once** | exatamente 1 vez (no efeito) | at-least-once + deduplicação, ou transações do Kafka dentro do Kafka | ✅ nenhum dos dois | dinheiro, inventário, qualquer coisa que se conte |
 
 <div class="csim" data-sim="delivery" data-commit="after" data-crash="charge" data-at="2"></div>
 
@@ -56,6 +56,20 @@ Uma **garantia de entrega** diz quantas vezes cada mensagem é *processada* na p
 - **Transações do Kafka**[^2]. Um produtor pode escrever em várias partições *e* confirmar offsets de consumo de forma atômica. Consumidores com `isolation.level=read_committed` só veem transações confirmadas. Isso dá exactly-once para pipelines **ler do Kafka → processar → escrever no Kafka** (Kafka Streams: `processing.guarantee=exactly_once_v2`).
 - **A fronteira.** Transações do Kafka não conseguem desenviar um e-mail, estornar uma cobrança no cartão ou desfazer uma linha no PostgreSQL. Assim que um efeito colateral sai do Kafka, você volta ao at-least-once.
 
+O produtor idempotente, passo a passo — o ack de uma escrita se perde e o produtor tenta de novo:
+
+``` diagram-sim
+sequenceDiagram
+    participant P as produtor (order, id 7)
+    participant B as líder da partição 3
+    P->>B: lote seq 41 (OrderConfirmed o-7731)
+    B->>B: grava no offset 812
+    B--xP: ack perdido na rede
+    P->>B: retry: lote seq 41
+    B->>B: seq 41 já gravada para o produtor 7: descarta
+    B-->>P: ack (offset 812), sem segunda cópia
+```
+
 Então a receita prática, usada em quase todo lugar, é:
 
 > **Efetivamente uma vez = entrega at-least-once + processamento idempotente.**
@@ -72,7 +86,7 @@ Uma operação é **idempotente** se fazê-la duas vezes tem o mesmo efeito que 
 | **Tabela de deduplicação** | Registrar o id de cada mensagem processada na mesma transação da mudança de negócio; pular ids já registrados | `processed_events (consumer, event_id)` no banco do `notification` |
 | **Restrição de unicidade / escrita condicional** | Deixar o banco rejeitar o segundo efeito | `UNIQUE (order_id, kind)` na tabela de e-mails; `INSERT … ON CONFLICT DO NOTHING` |
 
-A tabela de deduplicação é a solução geral. Ela exige que toda mensagem carregue um **id de evento** único (um UUID gerado uma vez, pelo produtor, quando o evento é criado — não a cada retry):
+A tabela de deduplicação é a solução geral. Ela exige que toda mensagem carregue um **id de evento** único (um identificador único universal, UUID, *universally unique identifier*, gerado uma vez, pelo produtor, quando o evento é criado — não a cada retry):
 
 ```sql
 CREATE TABLE processed_events (
@@ -145,6 +159,23 @@ UPDATE event_availability
 
 Isso torna a atualização idempotente *e* insensível à ordem: aplicar as versões 7, 9, 8 deixa a versão 9.
 
+``` diagram-sim
+sequenceDiagram
+    participant I as inventory
+    participant K as Kafka (retries, outros tópicos)
+    participant S as search
+    I->>K: ev-88 restam 120 lugares (versão 7)
+    I->>K: ev-88 restam 80 lugares (versão 8)
+    I->>K: ev-88 restam 60 lugares (versão 9)
+    K->>S: versão 7
+    S->>S: aplica: 120 lugares (7 é mais nova que 6)
+    K->>S: versão 9 (ultrapassou a 8)
+    S->>S: aplica: 60 lugares
+    K->>S: versão 8, atrasada
+    S->>S: ignora: 8 não é mais nova que 9
+    Note over S: termina na versão 9, 60 lugares, como diz o inventory
+```
+
 ??? question "Pense antes: ordenar por `orderId` basta para o índice de busca?"
 
     Não, se os eventos vêm de serviços diferentes. O `inventory` publica `SeatsHeld` e `SeatsReleased` com chave pelo lugar ou pelo evento, o `order` publica `OrderConfirmed` com chave pelo pedido. O índice de busca os vê intercalados de forma arbitrária. A solução não é uma ordem global (que mataria o paralelismo) e sim uma **versão por entidade** produzida pelo serviço que é dono dela: a disponibilidade do evento `ev-88` é versionada pelo `inventory` e a busca só aplica versões mais novas.
@@ -214,6 +245,15 @@ Operando uma DLQ:
     --8<-- "docs/2027.1/hands-on/7/code/services/notification/src/main/java/boxoffice/notification/DeadLetterListener.java:24:36"
     ```
 
+<div class="csim" data-sim="retry-topics" data-strategy="blocking" data-failure="transient"></div>
+
+!!! tip "Experimente"
+    O simulador começa com os retries bloqueantes do lab 7 (0,5 s, 1 s, 2 s): o e-mail de `OrderConfirmed o-1005` falha nos primeiros 2 s e `OrderCancelled o-1005` chega na mesma chave 1 s depois. Dê play.
+
+    - **Bloqueante**: o o-1005 dá certo na tentativa 4, a partição para por 3,5 s e o atraso chega a 8 registros — e `OrderCancelled` é enviado depois de `OrderConfirmed`.
+    - **Tópicos de retry** (1 s, 4 s, 16 s): a partição nunca para (atraso máximo 1), mas `OrderCancelled` é enviado 4,1 s antes de OrderConfirmed: o fã lê "cancelado" e depois "confirmado".
+    - Mude para **venenosa** e desligue *erros permanentes pulam os retries*: o bloqueante para a partição 3,5 s antes da DLT, os tópicos de retry o estacionam 21,2 s antes da DLT e **para sempre** nunca larga — 53 registros esperam depois de 30 s. Ligue a chave de novo (o lab 7 faz isso para `IllegalArgumentException`): toda estratégia manda o registro direto para a DLT, sem espera.
+
 ### Backpressure no consumidor { #backpressure-in-the-consumer }
 
 Um consumidor Kafka *puxa* as mensagens, então nunca é inundado pelo broker — mas ele pode inundar quem ele chama. O serviço `notification` não deve exceder o limite de taxa do provedor de e-mail só porque há um backlog de 100.000 mensagens esperando. Controle o ritmo com `max.poll.records` e um rate limiter no cliente, **pause** as partições enquanto um circuit breaker mais adiante estiver aberto (veja [Padrões de resiliência](../../reliability/patterns/index.md)) e deixe o lag crescer: um backlog que escoa no ritmo do provedor é melhor que ser banido pelo provedor.
@@ -229,7 +269,7 @@ Eventos vivem mais que o código que os produziu: um tópico com 7 dias de reten
 | **Backward** | consumidores novos leem dados escritos com o schema antigo | remover campos; adicionar campos **com default** | consumidores primeiro |
 | **Forward** | consumidores antigos leem dados escritos com o schema novo | adicionar campos; remover campos que tinham default | produtores primeiro |
 | **Full** | as duas | adicionar ou remover campos opcionais com default | qualquer ordem |
-| **None** | nada | qualquer coisa — quebra consumidores | tópico novo |
+| **None** | nada | ❌ qualquer coisa — quebra consumidores | tópico novo |
 
 Nunca compatível: renomear um campo, mudar seu tipo (`total` de número para string), mudar seu significado (`total` de reais para centavos), reutilizar um número de campo do Protobuf.
 
@@ -256,7 +296,7 @@ As ferramentas:
 
 - **Formatos de serialização com schema**: Avro, Protobuf ou JSON Schema. JSON puro sem schema "funciona" até a primeira quebra silenciosa.
 - **Um schema registry** (Confluent Schema Registry, Apicurio, AWS Glue Schema Registry) guarda todas as versões, verifica a compatibilidade quando um produtor registra uma nova e deixa as mensagens carregarem um pequeno id de schema em vez do schema inteiro.
-- **Um envelope** com metadados padronizados. A especificação **CloudEvents** da CNCF define atributos comuns para que ferramentas possam rotear e rastrear eventos sem interpretar o payload:
+- **Um envelope** com metadados padronizados. A especificação **CloudEvents** da CNCF (*Cloud Native Computing Foundation*) define atributos comuns para que ferramentas possam rotear e rastrear eventos sem interpretar o payload:
 
 ```json
 {
@@ -281,7 +321,7 @@ Para uma mudança realmente **incompatível**, publique a nova versão em um tó
 |---|---|
 | Duplicatas do produtor | Produtor idempotente (`enable.idempotence=true`, `acks=all`) |
 | Perdas no produtor (crash depois do commit no banco) | Transactional outbox |
-| Perdas no broker | RF 3, `min.insync.replicas=2`, sem eleição de líder "unclean" |
+| Perdas no broker | fator de replicação 3, `min.insync.replicas=2`, sem eleição de líder "unclean" |
 | Garantia no consumidor | At-least-once: commit depois de processar |
 | Duplicatas nos consumidores | Tabela `processed_events` na mesma transação; chaves de idempotência para provedores externos |
 | Ordenação | Chave por `orderId`; atualizações protegidas por versão para visões entre serviços |
@@ -296,7 +336,7 @@ Para uma mudança realmente **incompatível**, publique a nova versão em um tó
     - **Classifique os erros e limite os retries** — os transitórios ganham alguns retries com backoff exponencial, os permanentes (erros de parse, dados inválidos) vão direto para a DLQ. No BoxOffice: 3 retries a 0,5 s, 1 s, 2 s; `JacksonException` e `IllegalArgumentException` não são retentáveis ([quadro do DLT](#dlq)).
     - **Guarde cada mensagem morta com seu contexto e dê à DLQ um dono e um comando de replay** — tópico, partição, offset, chave, payload e causa. No BoxOffice: o `DeadLetterListener` as grava na tabela `dead_letters`.
     - **Prove a idempotência com um teste de replay** — rebobine o grupo de consumidores até o offset mais antigo e confira que e-mails enviados = pedidos distintos. No BoxOffice: o experimento D de [lab 7 — meça](../../../hands-on/7/measure/index.md).
-    - **Registre os schemas dos eventos e verifique a compatibilidade no CI** — o registry rejeita uma mudança no produtor que quebra os consumidores ainda em execução (compatibilidade backward ou full).
+    - **Registre os schemas dos eventos e verifique a compatibilidade na integração contínua (CI, *continuous integration*)** — o registry rejeita uma mudança no produtor que quebra os consumidores ainda em execução (compatibilidade backward ou full).
     - **Leve uma versão por entidade nos eventos que atualizam estado derivado e aplique só versões mais novas** — reordenação e duplicatas ficam inofensivas para os "lugares restantes" na busca.
     - **Ajuste o ritmo do consumidor ao limite do sistema a jusante** — `max.poll.records` e um rate limiter em cerca de 80% da cota do provedor de e-mail; pause partições enquanto o circuit breaker dele estiver aberto.
 

@@ -49,7 +49,7 @@ Esse protocolo dá entrega **at-least-once**: nenhuma mensagem se perde quando u
 |---|---|---|
 | **Visibility timeout** (SQS) / timeout de ack | Quanto tempo uma mensagem recebida fica escondida antes de ser reentregue | Algumas vezes o p99 do tempo de processamento (aqui: 30 s para um job de 400 ms) |
 | **Prefetch** (RabbitMQ `basic.qos`) / tamanho do lote | Quantas mensagens não confirmadas um consumidor pode segurar | Pequeno (1–20) para jobs lentos, para o trabalho se espalhar por igual |
-| **Máximo de recebimentos** | Quantas entregas antes de a mensagem ir para a dead letter queue | 3–10 |
+| **Máximo de recebimentos** | Quantas entregas antes de a mensagem ir para a fila de mensagens mortas (DLQ, *dead letter queue*) | 3–10 |
 | **Retenção da mensagem** | Quanto tempo uma mensagem não consumida sobrevive | SQS: 4 dias por padrão, até 14 dias |
 | **Atraso** | Esconde uma mensagem nova por um tempo antes da primeira entrega | "Envie o lembrete 24 h antes do show" |
 
@@ -60,7 +60,7 @@ Esse protocolo dá entrega **at-least-once**: nenhuma mensagem se perde quando u
 
 Com consumidores concorrentes, **a ordem não é preservada**: a mensagem 2 pode terminar antes da mensagem 1 porque elas rodam em workers diferentes. Para a maioria dos jobs (PDFs, e-mails) isso não é problema. Quando é, você precisa de um jeito de serializar mensagens relacionadas:
 
-- **Filas FIFO com id de grupo** (`MessageGroupId` no SQS FIFO, sessions no Azure Service Bus): mensagens do mesmo grupo são entregues em ordem, uma de cada vez; grupos diferentes rodam em paralelo.
+- **Filas FIFO (*first-in, first-out*) com id de grupo** (`MessageGroupId` no SQS FIFO, sessions no Azure Service Bus): mensagens do mesmo grupo são entregues em ordem, uma de cada vez; grupos diferentes rodam em paralelo.
 - **Um log particionado com chave pela entidade** — Kafka, na próxima página — dá o mesmo comportamento "ordenado por chave, paralelo entre chaves" com alto throughput.
 
 ### Dimensionando o pool de workers { #sizing-the-worker-pool }
@@ -90,6 +90,10 @@ $$
     - De volta a 95, aperte **pico de abertura** (3× por 20 s): o backlog chega a cerca de 5.300 jobs, o mais antigo espera 22 s e a fila só esvazia cerca de 100 s depois do início do pico — ela escoa nos 71 jobs/s de sobra.
     - Ligue **escalar workers pelo backlog** e repita o pico: os novos workers levam 15 s para subir, então o pico quase não muda (cerca de 4.500), mas o job mais antigo espera 9 s e a fila esvazia em cerca de 27 s.
 
+**A mesma rajada no playground.** O preset `boxoffice-tickets-pdf` manda os 167 pedidos/s por uma fila de jobs de PDF. Com 20 workers o backlog passa de 19.000 jobs e o lag do consumidor chega a cerca de 380 s, enquanto os pedidos continuam rápidos (p99 de cerca de 32 ms): workers de menos não derrubam nada, viram atraso. Dimensione os workers para ρ ≈ 0,7 (95): o lag fica perto de 0 e a conta vai de cerca de 2.800 para cerca de 8.900 USD/mês — um autoscaler pelo lag pagaria por eles só durante a rajada.
+
+<div class="sdp" data-scenario="boxoffice-tickets-pdf" data-mode="compact" data-height="440"></div>
+
 ---
 
 ## Backpressure { #backpressure }
@@ -101,14 +105,14 @@ Uma fila que pode crescer sem limite é uma ilusão: a memória ou o disco acaba
 | Estratégia | O que acontece | Exemplo no BoxOffice | Custo |
 |---|---|---|---|
 | **Buffer (limitado)** | Absorve até N mensagens ou T minutos de backlog | A fila de PDF absorve o pico da abertura de vendas | O atraso cresce com o backlog |
-| **Escalar consumidores** | Adiciona workers quando a profundidade ou o lag crescem | O KEDA escala os workers de PDF pelo tamanho da fila | Exige folga mais adiante (banco, object store) |
+| **Escalar consumidores** | Adiciona workers quando a profundidade ou o lag crescem | O KEDA (*Kubernetes Event-driven Autoscaling*) escala os workers de PDF pelo tamanho da fila | Exige folga mais adiante (banco, object store) |
 | **Rejeitar na borda** | Recusa trabalho novo com `429`/`503` + `Retry-After` | O gateway rejeita compras quando a sala de espera está cheia | Usuários veem um erro — mas um erro rápido e honesto |
 | **Desacelerar o produtor** | O produtor bloqueia ou recebe menos créditos | O producer do Kafka bloqueia quando seu buffer enche (`max.block.ms`) | A latência passa para o produtor |
-| **Descartar / expirar** | Descarta mensagens de pouco valor ou antigas | Descartar atualizações de "lugares restantes" com mais de 30 s; TTL nos pushes | Perda de dados, por projeto |
+| **Descartar / expirar** | Descarta mensagens de pouco valor ou antigas | Descartar atualizações de "lugares restantes" com mais de 30 s; tempo de vida (TTL, *time to live*) nos pushes | Perda de dados, por projeto |
 | **Descartar por prioridade** | Mantém as mensagens críticas, descarta ou atrasa o resto | Confirmações de compra antes de e-mails de marketing | Exige filas ou prioridades separadas |
 
 !!! tip "Monitore a idade, não só a profundidade"
-    A profundidade da fila sozinha é ambígua: 50.000 mensagens está ótimo para um pool que faz 10.000/s e é um desastre para um que faz 10/s. A **idade da mensagem mais antiga** (`ApproximateAgeOfOldestMessage` no SQS, consumer lag em tempo no Kafka) é o que o usuário sente. Escreva o SLO de atualidade sobre ela — "99% dos e-mails de confirmação enviados em até 2 minutos" — e alerte quando ele estiver em risco (veja [SLOs](../../observability/slo/index.md)).
+    A profundidade da fila sozinha é ambígua: 50.000 mensagens está ótimo para um pool que faz 10.000/s e é um desastre para um que faz 10/s. A **idade da mensagem mais antiga** (`ApproximateAgeOfOldestMessage` no SQS, consumer lag em tempo no Kafka) é o que o usuário sente. Escreva o objetivo de nível de serviço (SLO, *service level objective*) de atualidade sobre ela — "99% dos e-mails de confirmação enviados em até 2 minutos" — e alerte quando ele estiver em risco (veja [SLOs](../../observability/slo/index.md)).
 
 ---
 
@@ -167,11 +171,11 @@ Decisões de projeto que vale discutir:
 - **Justiça.** FIFO estrito premia quem tem a menor latência até o data center (e os bots). Muitos sites de ingressos dão aos fãs que chegaram *antes* do horário de abertura uma posição **aleatória** às 10:00 e só usam FIFO depois disso.
 - **Bots.** A sala de espera é o lugar de exigir um desafio e aplicar detecção de bots e limites por conta (veja [Tráfego e borda](../../edge/index.md)).
 - **Expiração da reserva.** A admissão dá ao fã um direito de compra com prazo; a reserva dos lugares expira (aqui, depois de 10 minutos) e os lugares voltam para o estoque. Isso é um timer — outro job assíncrono.
-- **Onde roda.** As posições são servidas pela borda (funções de CDN ou um serviço pequeno, escalado horizontalmente, com Redis), então o polling de dois milhões de navegadores nunca chega aos serviços centrais.
+- **Onde roda.** As posições são servidas pela borda (funções de rede de distribuição de conteúdo, CDN, *content delivery network*, ou um serviço pequeno, escalado horizontalmente, com Redis), então o polling de dois milhões de navegadores nunca chega aos serviços centrais.
 
 !!! example "No código do BoxOffice: a sala de espera no `order` (lab 7)"
 
-    O [Hands-on 7 — Sala de espera](../../../hands-on/7/waiting-room/index.md) constrói uma versão menor deste projeto. A fila é o mesmo sorted set do Redis, mas o score vem de `INCR`, não de um timestamp: o servidor decide a ordem, porque o relógio dos clientes mente. A cada segundo, `admit()` retira `admit-per-second` fãs (20 por padrão) e dá a cada um uma chave de *admitido* com TTL de 5 minutos, num único script Lua para que um fã que consulta nunca veja um ticket que não está nem na fila nem admitido — uma chave no Redis, não um token assinado — e quem confere `mayEnter` é o `POST /orders`, não o gateway: o lab diz isso e chama de boa extensão levar o portão para a borda. Veja o comentário em `admit()`: com três réplicas do `order`, três schedulers admitiriam o triplo da taxa. No pico do lab (cerca de 700 fãs em 40 s, 10 admitidos por segundo), a latência dos pedidos fica estável e a espera real fica a poucos segundos do ETA prometido na entrada — a lei de Little é uma promessa honesta quando a taxa é constante.
+    O [Hands-on 7 — Sala de espera](../../../hands-on/7/waiting-room/index.md) constrói uma versão menor deste projeto. A fila é o mesmo sorted set do Redis, mas o score vem de `INCR`, não de um timestamp: o servidor decide a ordem, porque o relógio dos clientes mente. A cada segundo, `admit()` retira `admit-per-second` fãs (20 por padrão) e dá a cada um uma chave de *admitido* com TTL de 5 minutos, num único script Lua para que um fã que consulta nunca veja um ticket que não está nem na fila nem admitido — uma chave no Redis, não um token assinado — e quem confere `mayEnter` é o `POST /orders`, não o gateway: o lab diz isso e chama de boa extensão levar o portão para a borda. Veja o comentário em `admit()`: com três réplicas do `order`, três schedulers admitiriam o triplo da taxa. No pico do lab (cerca de 700 fãs em 40 s, 10 admitidos por segundo), a latência dos pedidos fica estável e a espera real fica a poucos segundos do tempo estimado (ETA, *estimated time of arrival*) prometido na entrada — a lei de Little é uma promessa honesta quando a taxa é constante.
 
     ``` { .java title="services/order/src/main/java/boxoffice/order/waitingroom/WaitingRoom.java (join, admit, gate)" }
     --8<-- "docs/2027.1/hands-on/7/code/services/order/src/main/java/boxoffice/order/waitingroom/WaitingRoom.java:37:42,59:86"
@@ -182,6 +186,10 @@ Decisões de projeto que vale discutir:
     O cenário `flash-sale` é uma versão genérica do BoxOffice às 10:00 e começa **sem** sala de espera: `users → lb → app → inventory-db`, com os compradores chamando também o `payment provider` (cota de 500 req/s). Aperte **Run**: quando a venda abre (t = 60 s) o tráfego salta 20×, o `app` satura e aparecem erros; aumente as réplicas dele e quem satura passa a ser o `inventory-db` e o provedor de pagamento. Depois abra no playground completo (↗) e monte a sala de espera — um API Gateway que manda as escritas para uma Message Queue drenada por workers `order` (as dicas, ou **Mostrar uma solução possível**). O número de workers é a taxa de admissão: com poucos, o atraso do consumidor (quanto o comprador espera na fila) passa da meta de 300 s; com muitos, o `inventory-db` e a cota do pagamento voltam a ficar sob pressão. Ache a quantidade que mantém os dois dentro das metas.
 
 <div class="sdp" data-scenario="flash-sale" data-mode="compact" data-height="560"></div>
+
+O preset `boxoffice-onsale` é a versão do BoxOffice com um único banco: às 10:00 chegam cerca de 33.000 reservas/s a um banco de inventário que faz cerca de 1.100/s a 70%, um nível são. Como está desenhado, cerca de 91% das requisições falham durante a venda. Troque o caminho síncrono por gateway → Message Queue → workers do inventory que admitem cerca de 1.000 reservas/s: toda reserva dá certo em cerca de 10 ms no p99 e a fila cresce cerca de 32.000 fãs por segundo — o lag do consumidor é a espera que o fã vê (o simulador não modela o esgotamento dos ingressos).
+
+<div class="sdp" data-scenario="boxoffice-onsale" data-mode="compact" data-height="440"></div>
 
 ---
 
@@ -216,6 +224,16 @@ Adicionar um quarto consumidor — digamos, um programa de fidelidade que dá po
 
 Nem todo assinante quer toda mensagem. Os brokers deixam uma assinatura declarar um **filtro** sobre atributos da mensagem, de modo que só as mensagens que casam são copiadas para ela — por exemplo, o serviço de SMS assina apenas eventos `OrderConfirmed` cujo atributo `channel` é `sms`. O RabbitMQ generaliza isso com **exchanges**: uma exchange `fanout` copia para toda fila ligada a ela, uma `direct` roteia por uma routing key exata e uma `topic` roteia por padrões como `order.*.br`.
 
+``` diagram
+flowchart LR
+    order["order"] -->|"routing key order.confirmed.br"| ex{{"exchange topic: orders"}}
+    ex -->|"binding order.*.br: casa"| q1[["fila: sms-br"]]
+    ex -->|"binding order.confirmed.*: casa"| q2[["fila: notification"]]
+    ex -.->|"binding order.cancelled.*: não casa"| q3[["fila: refunds"]]
+```
+
+O produtor só diz *o que aconteceu* na routing key; o binding de cada fila decide o que ela recebe, então um consumidor novo acrescenta um binding e o produtor não muda.
+
 ### Pub/sub durável e efêmero { #durable-and-ephemeral-pubsub }
 
 Alguns sistemas pub/sub não armazenam mensagens: o Redis Pub/Sub e o NATS core entregam uma mensagem apenas aos assinantes conectados *naquele momento*. Se um assinante está fora do ar, ele simplesmente perde a mensagem. Isso é perfeito para indicadores de "usuário está digitando…" em um chat e inaceitável para confirmações de pedido. O pub/sub durável (Google Cloud Pub/Sub, SNS → SQS, NATS JetStream, Kafka) guarda as mensagens de cada assinatura até serem confirmadas.
@@ -234,7 +252,7 @@ A próxima página apresenta a terceira forma, o **log** (Kafka, Kinesis). A tab
 |---|---|---|---|
 | **Entrega** | cada mensagem a um consumidor | cada mensagem a toda assinatura | todo consumer group lê tudo |
 | **Depois da leitura** | apagada no ack | apagada por assinatura no ack | mantida até a retenção expirar |
-| **Replay de mensagens antigas** | não | limitado (alguns oferecem seek/snapshot) | sim: volte o offset |
+| **Replay de mensagens antigas** | ❌ não | ⚠️ limitado (alguns oferecem seek/snapshot) | ✅ sim: volte o offset |
 | **Ack e reentrega por mensagem** | sim | sim | não: o consumidor confirma uma *posição* |
 | **Ordenação** | nenhuma (filas FIFO: por grupo) | nenhuma (chaves de ordenação opcionais) | por partição (por chave) |
 | **Um consumidor novo vê** | só mensagens novas | só mensagens depois da assinatura | o histórico ainda em retenção |
@@ -264,7 +282,7 @@ A próxima página apresenta a terceira forma, o **log** (Kafka, Kinesis). A tab
 
 === "Open source"
 
-    - **RabbitMQ** — o broker AMQP clássico; exchanges para roteamento, quorum queues (replicadas com Raft) e streams.
+    - **RabbitMQ** — o broker clássico do AMQP (*Advanced Message Queuing Protocol*); exchanges para roteamento, quorum queues (replicadas com Raft) e streams.
     - **NATS** — pub/sub muito leve; o **JetStream** adiciona persistência, replay e confirmações.
     - **Redis** — Lists (`LPUSH`/`BRPOP`) como filas simples, Pub/Sub (efêmero), Streams (log com consumer groups).
     - **Apache ActiveMQ Artemis**, **Apache Pulsar** (pub/sub e log em um único sistema).

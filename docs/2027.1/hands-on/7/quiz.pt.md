@@ -118,7 +118,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-## Erros e a DLT { #errors-and-the-dlt }
+## Erros e o tópico de mensagens mortas (DLT, *dead-letter topic*) { #errors-and-the-dlt }
 
 **Q9.** Uma mensagem na partição 3 faz o listener lançar uma `MailSendException` transitória toda vez e o *error handler* está configurado com 3 retentativas e *backoff* exponencial (0,5 s, 1 s, 2 s). O que acontece com as outras mensagens?
 
@@ -150,7 +150,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ## Sala de espera e capacidade { #waiting-room-and-capacity }
 
-**Q11.** A sala de espera admite 500 fãs por segundo. Um fã entra e fica na posição 45 000. Que ETA a página deve mostrar e que lei o justifica?
+**Q11.** A sala de espera admite 500 fãs por segundo. Um fã entra e fica na posição 45 000. Que estimativa de espera (ETA, *estimated time of arrival*) a página deve mostrar e que lei o justifica?
 
 - A. 9 s — posição × taxa
 - B. 90 s — Lei de Little: espera = tamanho da fila / vazão

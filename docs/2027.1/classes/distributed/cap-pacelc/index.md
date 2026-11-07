@@ -18,10 +18,10 @@ The **CAP theorem**, conjectured by Eric Brewer in 2000 and proven by Seth Gilbe
 : The system keeps operating when the network **partitions** — splits the nodes into groups that are alive but cannot exchange messages (or exchange them with unbounded delay).
 
 !!! warning "P is not optional"
-    Partitions are not a design choice; they happen — a switch fails, a cable is cut, a cloud region's link degrades, a long GC pause makes a node look unreachable. Any system whose data lives on more than one machine must decide what to do *when* they happen. So the real choice is **C or A, during a partition**. Brewer himself, twelve years later, stressed that partitions are rare and that the interesting design work is in **detecting** them, operating in a limited mode while they last, and **recovering** afterwards[^4].
+    Partitions are not a design choice; they happen — a switch fails, a cable is cut, a cloud region's link degrades, a long garbage-collection (GC) pause makes a node look unreachable. Any system whose data lives on more than one machine must decide what to do *when* they happen. So the real choice is **C or A, during a partition**. Brewer himself, twelve years later, stressed that partitions are rare and that the interesting design work is in **detecting** them, operating in a limited mode while they last, and **recovering** afterwards[^4].
 
 !!! warning "The C in CAP is not the C in ACID"
-    In ACID transactions, *consistency* means "the transaction preserves the invariants" (constraints, foreign keys, `CHECK`). In CAP it means linearizability. A single PostgreSQL server is ACID-consistent and CAP does not even apply to it — CAP is about **replicas**.
+    In ACID transactions (atomicity, consistency, isolation, durability), *consistency* means "the transaction preserves the invariants" (constraints, foreign keys, `CHECK`). In CAP it means linearizability. A single PostgreSQL server is ACID-consistent and CAP does not even apply to it — CAP is about **replicas**.
 
 ---
 
@@ -72,7 +72,7 @@ flowchart LR
     A ==>|"5 · partition heals: merge"| B
 ```
 
-- **Examples:** Cassandra and DynamoDB at default settings, CouchDB, Riak, DNS, CDNs, most caches.
+- **Examples:** Cassandra and DynamoDB at default settings, CouchDB, Riak, the Domain Name System (DNS), content delivery networks (CDNs), most caches.
 - **Use when:** a slightly stale answer is better than no answer — catalogue, recommendations, counters, carts, feeds.
 
 ### "CA"
@@ -143,13 +143,31 @@ Regions fail — rarely, but entirely — and BoxOffice wants to survive that. T
 
 | Topology | Writes | During a region loss | Consistency | Cost and complexity |
 |---|---|---|---|---|
-| **Single region, multi-AZ** | One primary, sync standby in another zone | Region down = BoxOffice down | Strong | Lowest; the default starting point |
-| **Active–passive (warm standby)** | Primary region only; async replica in region 2 | Fail over (DNS) to region 2; lose the last seconds of writes (RPO > 0) | Strong in normal operation | Moderate; failover must be rehearsed |
-| **Active–active, partitioned by home** | Each record has a home region; writes go there | Records homed in the dead region are unavailable; others unaffected | Strong per record | Higher; routing by home region |
-| **Active–active, everything everywhere** | Any region writes any record | All regions keep writing | Eventual; conflicts to resolve | Highest; only for conflict-tolerant data |
-| **Globally consistent database** | Consensus across regions (Spanner, CockroachDB) | Survives a region if a majority of replicas remain | Strong everywhere | Write latency ≥ cross-region RTT; premium cost |
+| **Single region, multi-AZ** (several availability zones) | One primary, sync standby in another zone | ❌ Region down = BoxOffice down | Strong | Lowest; the default starting point |
+| **Active–passive (warm standby)** | Primary region only; async replica in region 2 | ⚠️ Fail over (DNS) to region 2; lose the last seconds of writes (recovery point objective, RPO > 0) | Strong in normal operation | Moderate; failover must be rehearsed |
+| **Active–active, partitioned by home** | Each record has a home region; writes go there | ⚠️ Records homed in the dead region are unavailable; others unaffected | Strong per record | Higher; routing by home region |
+| **Active–active, everything everywhere** | Any region writes any record | ✅ All regions keep writing | Eventual; conflicts to resolve | Highest; only for conflict-tolerant data |
+| **Globally consistent database** | Consensus across regions (Spanner, CockroachDB) | ✅ Survives a region if a majority of replicas remain | Strong everywhere | Write latency ≥ cross-region RTT; premium cost |
 
-**Try it.** In the `multi-region` scenario, run the `load` profile, then fail the primary region. Watch how long DNS takes to shift traffic (the TTL), how many requests fail during the switch, and what happens to writes that had not yet replicated. Then lower the DNS TTL and repeat.
+The BoxOffice choice, *active–active partitioned by home*, during a transatlantic partition — each hold goes to the primary of its show's home region, so only the requests that must cross the ocean are refused:
+
+``` diagram-sim
+flowchart LR
+    subgraph EU ["Europe"]
+        lf(["Lisbon fan"])
+        lis[("Lisbon primary<br/>home of the Lisbon shows")]
+    end
+    subgraph BR ["Brazil"]
+        sf(["São Paulo fan"])
+        sp[("São Paulo primary<br/>home of the São Paulo shows")]
+    end
+    lf -->|"1 · hold, Lisbon show: local, strong"| lis
+    sf -->|"2 · hold, São Paulo show: local, strong"| sp
+    lis -.-x|"3 · ✗ transatlantic partition"| sp
+    lf -.-x|"4 · hold, São Paulo show: refused until the link heals"| sp
+```
+
+**Try it.** In the `multi-region` scenario, run the `load` profile, then fail the primary region. Watch how long DNS takes to shift traffic (the time to live, TTL), how many requests fail during the switch, and what happens to writes that had not yet replicated. Then lower the DNS TTL and repeat.
 
 <div class="sdp" data-scenario="multi-region" data-mode="compact" data-height="520"></div>
 
@@ -159,7 +177,7 @@ Regions fail — rarely, but entirely — and BoxOffice wants to survive that. T
     - **Seats, holds, orders, payments** — *active–active partitioned by home region*: each event's inventory lives in the region of its venue, in a PostgreSQL primary with a **synchronous standby in another zone** (PC/EC inside the region). A Lisbon fan buying a São Paulo show pays one transatlantic round trip on the hold — acceptable for a once-in-a-while action.
     - **Catalogue, images, search index** — replicated asynchronously to every region and cached at the CDN (PA/EL). A new event appears in Europe a few seconds later; nobody notices.
     - **Accounts / auth** — read-mostly; replicated everywhere, with writes (password change, logout everywhere) going to a home region.
-    - **Disaster recovery** — each region's database ships backups and an async replica to another region (active–passive per region); the RPO/RTO targets are discussed in [Reliability — disaster recovery](../../reliability/disaster-recovery/index.md).
+    - **Disaster recovery (DR)** — each region's database ships backups and an async replica to another region (active–passive per region); the RPO and recovery time objective (RTO) targets are discussed in [Reliability — disaster recovery](../../reliability/disaster-recovery/index.md).
 
 !!! tip "In the interview"
     Never say "I'll pick CP" (or AP) **for the whole system**. Say it per data, and say what the user sees: *"Seat inventory is CP: during a partition, the minority side returns 503 and the app says 'try again'; double booking is unacceptable. The catalogue is AP: it may be seconds stale."* Then bring up **PACELC** — the interviewer usually cares more about everyday latency than about partitions: *"inside a region I replicate synchronously across zones (~1–2 ms); across regions I partition by home region instead of paying 150 ms per write."* Mentioning that CAP's C is linearizability (not ACID's C) is a cheap, strong signal.
@@ -168,7 +186,7 @@ Regions fail — rarely, but entirely — and BoxOffice wants to survive that. T
 
     - **Write, per operation, what happens during a partition** — "holds are refused (CP); the catalogue is served stale (AP)" — and make the client handle both answers.
     - **Give each key one home region** — writes for one event go to one leader and other regions forward them; no cross-region conflict can exist for a key that has one writer.
-    - **Measure what consistency costs on your writes** — the p99 of a write with and without synchronous replication, in your topology; PACELC is a number, not a slogan. Try it in the `db-failover` scenario of [Consensus](../consensus/index.md).
+    - **Measure what consistency costs on your writes** — the 99th-percentile latency (p99) of a write with and without synchronous replication, in your topology; PACELC is a number, not a slogan. Try it in the `db-failover` scenario of [Consensus](../consensus/index.md).
     - **Make "unavailable" a fast, explicit answer** — a CP operation that cannot reach a majority should fail in milliseconds with a retryable error, not hang until a timeout.
     - **Label stale answers in the API** — a header or field with the data's age lets clients decide whether an AP answer is good enough.
 

@@ -1,4 +1,4 @@
-São 09:59:58 e um show em estádio está prestes a abrir as vendas no BoxOffice. Às 10:00, dois milhões de fãs apertam "Comprar" para sessenta mil lugares. Por trás desse botão, a primeira versão do BoxOffice faz tudo em uma única requisição síncrona: reserva os lugares, cobra o cartão, envia o e-mail, manda uma notificação push para o celular, atualiza o índice de busca e registra a venda para o analytics. O provedor de e-mail está um pouco lento hoje (800 ms em vez de 80 ms), então cada compra passa a levar um segundo a mais, o serviço `order` fica sem threads e os fãs que estavam prestes a pagar veem um spinner e depois um erro. Nada estava *quebrado* — o sistema simplesmente foi ligado de um jeito em que cada passo precisava terminar antes que qualquer usuário recebesse uma resposta.
+São 09:59:58 e um show em estádio está prestes a abrir as vendas no BoxOffice. Às 10:00, dois milhões de fãs apertam "Comprar" para sessenta mil lugares. Por trás desse botão, a primeira versão do BoxOffice faz tudo em uma única requisição síncrona: reserva os lugares, cobra o cartão, envia o e-mail, manda uma notificação push para o celular, atualiza o índice de busca e registra a venda para o analytics. O provedor de e-mail está um pouco lento hoje (800 ms em vez de 80 ms), então cada compra passa a levar 720 ms a mais, o serviço `order` fica sem threads e os fãs que estavam prestes a pagar veem um spinner e depois um erro. Nada estava *quebrado* — o sistema simplesmente foi ligado de um jeito em que cada passo precisava terminar antes que qualquer usuário recebesse uma resposta.
 
 Esta aula é sobre a outra forma de ligar os serviços: **mensagens**. Em vez de chamar cada serviço e esperar, um serviço escreve uma mensagem em um broker e segue em frente; quem precisa dela a lê quando puder. Bem feita, a mensageria absorve picos, desacopla times e tira serviços lentos ou com falha do caminho crítico. Feita sem cuidado, perde pedidos, duplica e-mails e esconde falhas em uma fila que ninguém observa. Vamos aprender os dois lados.
 
@@ -14,8 +14,8 @@ Esta aula é sobre a outra forma de ligar os serviços: **mensagens**. Em vez de
     - **Comparar** filas de mensagens, tópicos pub/sub e logs de eventos, e **escolher** o componente certo da paleta (`queue`, `pubsub`, `stream`, `kafka`) para um requisito.
     - **Explicar** como o Kafka armazena e entrega dados — tópicos, partições, offsets, consumer groups, replicação, retenção e compactação — e **dimensionar** o número de partições para um throughput-alvo.
     - **Estimar** backlog, consumer lag e tempo de escoamento sob um pico de tráfego, e **projetar** backpressure para uma fila.
-    - **Explicar** entrega at-most-once, at-least-once e exactly-once, e **implementar** um consumidor idempotente e uma dead letter queue.
-    - **Aplicar** transactional outbox, change data capture, sagas (coreografia e orquestração), CQRS e event sourcing para manter serviços consistentes sem transações distribuídas.
+    - **Explicar** entrega at-most-once, at-least-once e exactly-once, e **implementar** um consumidor idempotente e uma fila de mensagens mortas (DLQ, *dead letter queue*).
+    - **Aplicar** transactional outbox, captura de mudanças de dados (CDC, *change data capture*), sagas (coreografia e orquestração), segregação de responsabilidade entre comando e consulta (CQRS, *Command Query Responsibility Segregation*) e event sourcing para manter serviços consistentes sem transações distribuídas.
     - **Evoluir** o schema de um evento sem quebrar os consumidores.
 
 ## Roteiro { #roadmap }
@@ -46,7 +46,7 @@ Compare as duas versões da compra no BoxOffice. O usuário clica em "Comprar"; 
 
 === "Cadeia síncrona"
 
-    ``` mermaid-sim
+    ``` diagram-sim
     sequenceDiagram
         autonumber
         participant U as Fã
@@ -68,7 +68,7 @@ Compare as duas versões da compra no BoxOffice. O usuário clica em "Comprar"; 
 
 === "Eventos assíncronos"
 
-    ``` mermaid-sim
+    ``` diagram-sim
     sequenceDiagram
         autonumber
         participant U as Fã
@@ -95,7 +95,7 @@ A diferença não é só velocidade. Ela aparece em três números que você já
 | **Disponibilidade** do "Comprar" | $A_{order} \times A_{notif} \times A_{search} \times A_{analytics}$ | $A_{order} \times A_{broker}$ |
 | **Acoplamento** | `order` conhece cada consumidor e sua API | `order` conhece o nome de um tópico e o schema do evento |
 | **Consistência** | tudo está feito quando o usuário vê "201" | os consumidores alcançam depois (**consistência eventual**) |
-| **Falha de um consumidor** | a compra falha | o backlog do consumidor cresce; a compra continua funcionando |
+| **Falha de um consumidor** | ❌ a compra falha | ✅ o backlog do consumidor cresce; a compra continua funcionando |
 | **Depuração** | uma requisição, uma pilha de chamadas | um fluxo espalhado por tópicos e serviços: exige tracing |
 
 !!! example "BoxOffice: disponibilidade do botão Comprar"
@@ -236,7 +236,23 @@ Martin Fowler distingue várias coisas que as pessoas querem dizer com "orientad
     { "type": "OrderConfirmed", "eventId": "e-9f2c", "orderId": "o-7731", "occurredAt": "2027-03-14T10:00:07Z" }
     ```
 
-    Pequeno e estável, mas cada consumidor gera carga no `order` (e depende de ele estar no ar) para buscar os detalhes.
+    Pequeno e estável, mas cada consumidor gera carga no `order` (e depende de ele estar no ar) para buscar os detalhes:
+
+    ``` diagram-sim
+    sequenceDiagram
+        participant O as order
+        participant K as Kafka
+        participant N as notification
+        participant S as search
+        O->>K: OrderConfirmed (só o orderId o-7731)
+        K-->>N: OrderConfirmed
+        K-->>S: OrderConfirmed
+        N->>O: GET /orders/o-7731 (e-mail, lugares, total)
+        O-->>N: detalhes do pedido
+        S->>O: GET /orders/o-7731 (show, lugares)
+        O-->>S: detalhes do pedido
+        Note over O: uma chamada a mais por consumidor e por evento, e o order precisa estar no ar
+    ```
 
 === "Transferência de estado no evento"
 
@@ -264,7 +280,7 @@ O [System Design Playground](../../../playground/index.md) tem quatro componente
 
 | Componente | Forma | Quem recebe uma mensagem | Depois de consumida | Ordenação | Produtos típicos |
 |---|---|---|---|---|---|
-| [`queue`](../../reference/components/messaging/index.md#queue) Message Queue | ponto a ponto | **um** consumidor do pool | apagada | em geral nenhuma (filas FIFO: por grupo) | Amazon SQS, RabbitMQ, filas do Azure Service Bus, Google Cloud Tasks |
+| [`queue`](../../reference/components/messaging/index.md#queue) Message Queue | ponto a ponto | **um** consumidor do pool | apagada | em geral nenhuma (filas FIFO, *first-in, first-out*: por grupo) | Amazon SQS, RabbitMQ, filas do Azure Service Bus, Google Cloud Tasks |
 | [`pubsub`](../../reference/components/messaging/index.md#pubsub) Pub/Sub | fan-out | **toda** assinatura (uma cópia para cada) | apagada por assinatura | em geral nenhuma (chaves de ordenação opcionais) | Google Cloud Pub/Sub, Amazon SNS, tópicos do Azure Service Bus, NATS, Redis Pub/Sub |
 | [`stream`](../../reference/components/messaging/index.md#stream) Event Stream | log particionado (gerenciado) | todo consumer group, cada um na sua posição | **mantida** até a retenção expirar | por partição / shard | Amazon Kinesis Data Streams, Azure Event Hubs, Redis Streams |
 | [`kafka`](../../reference/components/messaging/index.md#kafka) Kafka | log particionado e replicado | todo consumer group, cada um na sua posição | **mantida** até a retenção expirar (ou compactada) | por partição | Apache Kafka, Confluent Cloud, Amazon MSK, Redpanda |
@@ -329,7 +345,7 @@ flowchart LR
 | [`pubsub`](../../reference/components/messaging/index.md#pubsub) | Como *cada* serviço interessado recebe a sua cópia? | tópico, assinaturas, push/pull, filtros, durável vs efêmero | [Filas e pub/sub](queues-pubsub/index.md#pubsub) | `notification-system`, `chat` |
 | [`stream`](../../reference/components/messaging/index.md#stream) · [`kafka`](../../reference/components/messaging/index.md#kafka) | Quem precisa de *histórico*, replay e ordem por chave? | log, partições, chaves, consumer groups, lag, replicação, retenção, compactação | [Kafka e logs de eventos](kafka/index.md) | `event-fanout` |
 | [`worker`](../../reference/components/compute/index.md#worker) · [`notifications`](../../reference/components/compute/index.md#notifications) · [`search`](../../reference/components/compute/index.md#search) · [`analytics`](../../reference/components/compute/index.md#analytics) | E se uma mensagem chegar *duas vezes*, atrasada, fora de ordem ou quebrada? | pelo menos uma vez, consumidor idempotente, atualizações guardadas por versão, DLQ, evolução de schema | [Semântica de entrega](semantics/index.md) | `notification-system`, `payment-system` |
-| [`sql`](../../reference/components/storage/index.md#sql) + [`kafka`](../../reference/components/messaging/index.md#kafka) · [`payment`](../../reference/components/external/index.md#payment) | Como altero meus dados *e* publico, entre serviços, sem 2PC? | transactional outbox, CDC, sagas, CQRS, event sourcing | [Padrões](patterns/index.md) | `payment-system`, `flash-sale` |
+| [`sql`](../../reference/components/storage/index.md#sql) + [`kafka`](../../reference/components/messaging/index.md#kafka) · [`payment`](../../reference/components/external/index.md#payment) | Como altero meus dados *e* publico, entre serviços, sem commit em duas fases (2PC, *two-phase commit*)? | transactional outbox, CDC, sagas, CQRS, event sourcing | [Padrões](patterns/index.md) | `payment-system`, `flash-sale` |
 
 !!! tip "Na entrevista"
     Entrevistadores prestam atenção no *porquê* de você adicionar uma fila. "Vou colocar Kafka aqui", sozinho, é um sinal ruim; "o e-mail não precisa bloquear a compra, então o `order` publica `OrderConfirmed` e o `notification` consome — isso tira o provedor de e-mail da cadeia de disponibilidade da compra e absorve o pico das 10:00 como backlog" é um sinal forte. Sempre continue com as consequências que você vai tratar: duplicatas (consumidor idempotente), ordenação (chave por `orderId`), falhas (retries + DLQ) e monitoramento (consumer lag)[^4].

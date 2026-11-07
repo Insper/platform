@@ -24,7 +24,7 @@ There are three families, distinguished by **who accepts writes**[^1].
 
 ### Single-leader (primary–replica)
 
-One node, the **leader** (primary), accepts all writes and streams a log of changes to the **followers** (replicas). Reads can go to the leader or to followers. This is the default in PostgreSQL, MySQL, MongoDB, Redis and Kafka (one leader per partition).
+One node, the **leader** (primary), accepts all writes and streams a log of changes (in PostgreSQL, the write-ahead log, WAL) to the **followers** (replicas). Reads can go to the leader or to followers. This is the default in PostgreSQL, MySQL, MongoDB, Redis and Kafka (one leader per partition).
 
 ``` diagram-sim
 flowchart LR
@@ -39,6 +39,24 @@ flowchart LR
 
 Several nodes accept writes — typically one leader per data centre or region — and replicate to each other asynchronously. Writes are fast and local everywhere, but two leaders can accept **conflicting** writes to the same record, which must be resolved later. Typical uses: multi-region deployments, offline-first apps (each phone is a "leader"), collaborative editing.
 
+``` diagram-sim
+sequenceDiagram
+    participant F as Fan 42 (São Paulo)
+    participant SP as leader São Paulo
+    participant LIS as leader Lisbon
+    participant S as support agent (Lisbon)
+    F->>SP: change e-mail to ana@new.com
+    SP-->>F: OK (local write)
+    S->>LIS: fix e-mail to ana@work.com
+    LIS-->>S: OK (local write)
+    SP->>LIS: replicate e-mail = ana@new.com
+    LIS->>SP: replicate e-mail = ana@work.com
+    Note over SP,LIS: each leader applies the other's write last:<br/>the copies swapped values, both writes were confirmed
+    Note over SP,LIS: a conflict to resolve: LWW, a merge, or one home leader per record
+```
+
+Neither write was rejected and both users were told "OK"; only a conflict-resolution rule (see [Eventual consistency](#eventual)) can make the two copies agree again.
+
 ### Leaderless
 
 Any replica accepts reads and writes. The client (or a coordinator) sends each write to several replicas and each read to several replicas, and **quorums** decide what counts as success (`R + W > N`, see [Consensus & Quorums](../consensus/index.md#quorums)). This is the design of Amazon's Dynamo paper[^2], Cassandra and ScyllaDB.
@@ -46,10 +64,10 @@ Any replica accepts reads and writes. The client (or a coordinator) sends each w
 | | Single-leader | Multi-leader | Leaderless |
 |---|---|---|---|
 | **Who accepts writes** | One leader | One leader per region/site | Any replica |
-| **Write conflicts** | None (the leader orders writes) | Yes — must be resolved | Yes — must be resolved |
+| **Write conflicts** | ✅ None (the leader orders writes) | ⚠️ Yes — must be resolved | ⚠️ Yes — must be resolved |
 | **Write latency** | Round trip to the leader (maybe far away) | Local | Round trip to W replicas |
 | **Leader failure** | Failover needed (seconds) | Other leaders continue | No leader to lose |
-| **Strong consistency possible?** | Yes (read from leader, sync replication) | Not across leaders | Only approximately (quorums) |
+| **Strong consistency possible?** | ✅ Yes (read from leader, sync replication) | ❌ Not across leaders | ⚠️ Only approximately (quorums) |
 | **Typical systems** | PostgreSQL, MySQL, MongoDB, Kafka partitions | Multi-region MySQL/Postgres setups, CouchDB, Active-Active Redis | Cassandra, ScyllaDB, Riak, DynamoDB (internally) |
 | **BoxOffice use** | `inventory`, `order`, `payment` | — (avoid for seats!) | Fan activity, view counters |
 
@@ -74,12 +92,12 @@ sequenceDiagram
 
 | Mode | Client gets OK when… | If the leader dies right after OK | Write latency | Availability of writes |
 |---|---|---|---|---|
-| **Asynchronous** | the leader wrote locally | Recent writes may be **lost** | Lowest | High: followers can be down |
-| **Synchronous (all)** | every follower wrote | Nothing lost | Slowest follower decides | Low: any follower down blocks writes |
-| **Semi-synchronous** | the leader + *k* followers wrote | Nothing lost if a sync follower is promoted | One extra round trip | Good: tolerates other followers down |
-| **Quorum (consensus)** | a majority wrote | Nothing lost | Median of the fastest majority | Tolerates a minority down |
+| **Asynchronous** | the leader wrote locally | ❌ Recent writes may be **lost** | Lowest | High: followers can be down |
+| **Synchronous (all)** | every follower wrote | ✅ Nothing lost | Slowest follower decides | Low: any follower down blocks writes |
+| **Semi-synchronous** | the leader + *k* followers wrote | ✅ Nothing lost if a sync follower is promoted | One extra round trip | Good: tolerates other followers down |
+| **Quorum (consensus)** | a majority wrote | ✅ Nothing lost | Median of the fastest majority | Tolerates a minority down |
 
-PostgreSQL exposes this choice in `synchronous_commit` and `synchronous_standby_names` (for example `ANY 1 (replica_a, replica_b)` — semi-synchronous with one of two). In practice, "fully synchronous" is rare: one slow follower would stall every write. Semi-synchronous or quorum replication is the usual compromise.
+PostgreSQL exposes this choice in `synchronous_commit` and `synchronous_standby_names` (for example `ANY 1 (replica_a, replica_b)` — semi-synchronous with one of two). In practice, "fully synchronous" is rare: one slow follower would stall every write. Semi-synchronous or quorum replication is the usual compromise. The [replication simulator](../../databases/replication/index.md#fixing-read-your-writes) of the Databases class plays the three modes on one leader and two followers: crash the leader in `async` mode and watch the last holds disappear.
 
 ### Replication lag
 
@@ -116,11 +134,15 @@ plt.close()
 
 With an (assumed) exponential lag, the same screen that is almost never stale on a quiet day is stale for about **69%** of fans who open it 300 ms after paying during the on-sale, when the mean lag grows to 800 ms. The bug of the opening story is not rare under load — it is the *expected* behaviour.
 
-**Try it.** Load the `db-replicas` scenario, run the `load` profile and watch the replica lag metric. Then raise the write rate (or switch to `spike`) and see the lag — and the fraction of stale reads — grow. Finally route the reads to the primary and compare the primary's CPU and p99.
+**Try it.** Load the `db-replicas` scenario, run the `load` profile and watch the replica lag metric. Then raise the write rate (or switch to `spike`) and see the lag — and the fraction of stale reads — grow. Finally route the reads to the primary and compare the primary's central processing unit (CPU) load and its 99th-percentile latency (p99).
 
 <div class="sdp" data-scenario="db-replicas" data-mode="compact" data-height="520"></div>
 
 [:material-open-in-new: Open the full playground](../../../../playground/index.md)
+
+**The BoxOffice version.** The `boxoffice-read-your-writes` preset is lab 6's replica, 1 s behind the primary: 200 req/s, half seat holds and half "my holds" reads. As drawn, about 20% of the reads are stale, and when the primary dies at t = 90 s about 105 holds still inside the lag are lost (100 writes/s × 1 s). Set **Reads from** to the primary, then switch the replication to sync: both drop to 0, but the write p99 goes from about 35 ms to about 1 s.
+
+<div class="sdp" data-scenario="boxoffice-read-your-writes" data-mode="compact" data-height="440"></div>
 
 ---
 
@@ -224,7 +246,7 @@ How to provide them on top of asynchronous replicas:
 
 ### Eventual consistency { #eventual }
 
-**Eventual consistency** only promises that *if writes stop*, all replicas will **eventually converge** to the same value. It says nothing about *when*, and nothing about what you read meanwhile. It is the guarantee of DNS, of most caches and CDNs, of asynchronous replicas, and of leaderless stores at low quorum settings.
+**Eventual consistency** only promises that *if writes stop*, all replicas will **eventually converge** to the same value. It says nothing about *when*, and nothing about what you read meanwhile. It is the guarantee of the Domain Name System (DNS), of most caches and content delivery networks (CDNs), of asynchronous replicas, and of leaderless stores at low quorum settings.
 
 It is perfectly fine for many domains — the event description, the poster image, the "312 people are looking at this event" counter. The hard part is what happens when replicas accepted **concurrent writes** to the same item and must converge:
 
@@ -232,7 +254,7 @@ It is perfectly fine for many domains — the event description, the poster imag
 |---|---|---|
 | **Last-write-wins (LWW)** | Keep the write with the highest timestamp | Simple; **silently drops** concurrent writes and depends on clocks that drift ([Time & Clocks](../time-clocks/index.md#lww)) |
 | **Version vectors / siblings** | Detect concurrent versions, keep all, let the application merge | No silent loss; the application must write merge logic (Dynamo's shopping cart merged by union) |
-| **CRDTs** | Data types whose merge is commutative, associative and idempotent | Automatic, provably convergent; only for data that fits a CRDT (counters, sets, registers, text) |
+| **CRDTs** (conflict-free replicated data types) | Data types whose merge is commutative, associative and idempotent | Automatic, provably convergent; only for data that fits a CRDT (counters, sets, registers, text) |
 | **Avoid conflicts** | Route all writes for a key to one leader (a "home" region) | No conflicts at all; that key's writes pay the latency to its home |
 
 A **CRDT** (Conflict-free Replicated Data Type)[^7] is designed so that replicas can exchange state in any order, any number of times, and still end up equal. The simplest is the grow-only counter: each replica increments only its own slot, and merge takes the element-wise maximum.
@@ -265,11 +287,11 @@ If São Paulo counted `[3, 0, 0]` and Lisbon `[0, 2, 0]`, both merge to `[3, 2, 
 
 | Model | Guarantee | Coordination cost | Available during a partition? | Typical implementation |
 |---|---|---|---|---|
-| **Linearizable** | Single-copy, real-time recency | Highest: leader or majority round trip per operation | No (minority side must refuse) | Raft/Paxos-based stores (etcd, Spanner, CockroachDB), single leader with reads at the leader |
-| **Sequential** | One global order for all | High | No | Mostly theory / hardware memory models |
-| **Causal** | Cause before effect, for everyone | Medium: track dependencies | **Yes** | Logical/vector clocks, causal sessions |
-| **Read-your-writes, monotonic reads** | Per-session sanity | Low: route or wait per session | Yes, if the session stays on its side | Leader reads after write, LSN tokens, sticky replicas |
-| **Eventual** | Converge if writes stop | Lowest | Yes | Async replication, caches, DNS, leaderless at `ONE` |
+| **Linearizable** | Single-copy, real-time recency | Highest: leader or majority round trip per operation | ❌ No (minority side must refuse) | Raft/Paxos-based stores (etcd, Spanner, CockroachDB), single leader with reads at the leader |
+| **Sequential** | One global order for all | High | ❌ No | Mostly theory / hardware memory models |
+| **Causal** | Cause before effect, for everyone | Medium: track dependencies | ✅ **Yes** | Logical/vector clocks, causal sessions |
+| **Read-your-writes, monotonic reads** | Per-session sanity | Low: route or wait per session | ✅ Yes, if the session stays on its side | Leader reads after write, LSN tokens, sticky replicas |
+| **Eventual** | Converge if writes stop | Lowest | ✅ Yes | Async replication, caches, DNS, leaderless at `ONE` |
 
 !!! example "BoxOffice: one consistency model per data domain"
     | Data | Model | Why | How |
@@ -277,7 +299,7 @@ If São Paulo counted `[3, 0, 0]` and Lisbon `[0, 2, 0]`, both merge to `[3, 2, 
     | Seat status and holds | **Linearizable** | Two fans must never hold the same seat | Single PostgreSQL primary per event; conditional `UPDATE`/`SELECT … FOR UPDATE` |
     | Payments | **Linearizable** + idempotent | A double charge is unacceptable | Primary only; idempotency key forwarded to the provider |
     | *My tickets*, *My orders* | **Read-your-writes** | The fan must see what she just bought | Read from the primary for the fan's own data, or LSN token |
-    | Remaining-seats counter on the event page | **Monotonic reads** (eventual is tolerable) | It may lag, but must not jump backwards | Sticky replica or cache with a short TTL |
+    | Remaining-seats counter on the event page | **Monotonic reads** (eventual is tolerable) | It may lag, but must not jump backwards | Sticky replica or cache with a short time to live (TTL) |
     | Event catalogue, images, descriptions | **Eventual** | Seconds of staleness hurt nobody | Replicas, cache, CDN |
     | "Fans interested" counters, analytics | **Eventual** (CRDT) | Approximate is fine, availability matters | Per-region counters merged |
 
