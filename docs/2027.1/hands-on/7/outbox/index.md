@@ -257,7 +257,7 @@ Read the relay slowly; each line answers a failure question:
 
 ## Add `order` to Compose and test
 
-``` yaml title="docker-compose.yaml (excerpt)"
+``` yaml title="compose.yaml (excerpt)"
   order:
     build: ./services/order
     environment:

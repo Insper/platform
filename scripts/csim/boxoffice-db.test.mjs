@@ -8,9 +8,9 @@ const read = f => readFileSync(path.join(ROOT, LAB, f), "utf8");
 const ops = (res, re) => res.out.filter(r => re.test(r.cmd));
 const secs = ms => fmt(ms / 1000, 0) + " s";
 
-test("the nodes and the pooler are services of the lab's docker-compose.yaml; db-replica depends on db", () => {
-  const compose = read("code/docker-compose.yaml");
-  for (const n of [...M.NAMES, "pgbouncer"]) ok(new RegExp(`^  ${n}:`, "m").test(compose), `docker-compose.yaml has no service ${n}`);
+test("the nodes and the pooler are services of the lab's compose.yaml; db-replica depends on db", () => {
+  const compose = read("code/compose.yaml");
+  for (const n of [...M.NAMES, "pgbouncer"]) ok(new RegExp(`^  ${n}:`, "m").test(compose), `compose.yaml has no service ${n}`);
   const replica = compose.split(/^  db-replica:/m)[1].split(/^  \S/m)[0];
   ok(/depends_on:[^]*?\bdb\b/.test(replica), "db-replica depends on db (why plain start brings db back)");
   const st = M.create();

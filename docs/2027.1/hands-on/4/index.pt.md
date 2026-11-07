@@ -29,7 +29,7 @@ uv --version                  # uv (runs the Python helper scripts)
 
 ``` { .tree title="boxoffice/ at the start of lab 4" }
 boxoffice/
-    docker-compose.yaml        # db, catalog-1..3, edge
+    compose.yaml               # db, catalog-1..3, edge
     infra/nginx/nginx.conf     # edge -> catalog replicas
     load/  hello.js smoke.js load.js stress.js ratelimit.js
     results/ ...
@@ -39,7 +39,7 @@ boxoffice/
 
 !!! tip "Recupere o atraso"
 
-    Pulou ou quebrou o lab 3? Baixe [boxoffice-after-lab-3.zip](../3/boxoffice-after-lab-3.zip), descompacte e `cd boxoffice`. Este lab **adiciona** dois serviços (`services/auth`, `services/gateway`) e dois scripts do k6, e **substitui** o `docker-compose.yaml` e o `infra/nginx/nginx.conf`; todo arquivo aparece completo nas próximas páginas e está em [`code/`](code/docker-compose.yaml).
+    Pulou ou quebrou o lab 3? Baixe [boxoffice-after-lab-3.zip](../3/boxoffice-after-lab-3.zip), descompacte e `cd boxoffice`. Este lab **adiciona** dois serviços (`services/auth`, `services/gateway`) e dois scripts do k6, e **substitui** o `compose.yaml` e o `infra/nginx/nginx.conf`; todo arquivo aparece completo nas próximas páginas e está em [`code/`](code/compose.yaml).
 
 ## Slides
 
@@ -237,7 +237,7 @@ Veja a corrida de logins antes de provocá-la: em `boxoffice-gateway`, 200 req/s
 | `403` como admin | você usou o token do usuário, ou o admin não foi criado | `docker compose logs auth \| grep administrator`; faça login com `admin@boxoffice.dev` / `boxoffice-admin` |
 | `409 e-mail already registered` | você rodou o comando de cadastro duas vezes | tudo bem: só faça login |
 | `Bind for 0.0.0.0:8080 failed` | outro programa usa a 8080 | mude só o lado do host: `"18080:8080"` |
-| o gateway registra `Unable to resolve the Configuration with the provided Issuer` ou erros de JWKS | `AUTH_JWKS_URI`/`JWT_ISSUER` diferem entre `auth` e `gateway` | use o `docker-compose.yaml` deste lab sem alterações |
+| o gateway registra `Unable to resolve the Configuration with the provided Issuer` ou erros de JWKS | `AUTH_JWKS_URI`/`JWT_ISSUER` diferem entre `auth` e `gateway` | use o `compose.yaml` deste lab sem alterações |
 | contêineres reiniciam ou são mortos (`exit 137`) | o Docker está sem memória | dê ≥ 6 GB ao Docker (Docker Desktop → Settings → Resources) |
 
 !!! success "Boas práticas neste lab"
@@ -269,7 +269,7 @@ Guarde tudo: o lab 5 adiciona o Redis a esta stack.
 
 ``` { .tree title="changed in lab 4" }
 boxoffice/
-    docker-compose.yaml        # replaced: + auth (8081), + gateway (8080); edge -> gateway
+    compose.yaml               # replaced: + auth (8081), + gateway (8080); edge -> gateway
     infra/nginx/nginx.conf     # replaced: everything goes to the gateway, /actuator hidden
     load/gateway.js  load/login.js           # new
     services/auth/             # new: users, BCrypt, RS256 JWT, JWKS

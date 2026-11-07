@@ -39,7 +39,7 @@ boxoffice/
 
 !!! tip "Catch up"
 
-    Skipped or broke lab 0? Download [boxoffice-after-lab-0.zip](../0/boxoffice-after-lab-0.zip), unzip it and `cd boxoffice` (then `git init -b main` if you want version control). Every file of this lab is shown in full on the next pages, and the same files are in this lab's `code/` folder (for example [`code/docker-compose.yaml`](code/docker-compose.yaml)).
+    Skipped or broke lab 0? Download [boxoffice-after-lab-0.zip](../0/boxoffice-after-lab-0.zip), unzip it and `cd boxoffice` (then `git init -b main` if you want version control). Every file of this lab is shown in full on the next pages, and the same files are in this lab's `code/` folder (for example [`code/compose.yaml`](code/compose.yaml)).
 
 ## Slides
 
@@ -107,7 +107,7 @@ The database starts with **50 venues in 10 cities and 200,000 events** (one per 
 
     ---
 
-    A multi-stage Dockerfile, the first `docker-compose.yaml`, and the service running with PostgreSQL.
+    A multi-stage Dockerfile, the first `compose.yaml`, and the service running with PostgreSQL.
 
 </div>
 
@@ -115,7 +115,7 @@ When the three steps are done, your repository looks like this:
 
 ``` { .tree title="boxoffice/" }
 boxoffice/
-    docker-compose.yaml
+    compose.yaml
     load/
         hello.js
         smoke.js
@@ -211,10 +211,10 @@ Record the results in `results/lab1.md`:
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| `Bind for 0.0.0.0:5432 failed: port is already allocated` | a local PostgreSQL is running | stop it (`brew services stop postgresql`, `sudo systemctl stop postgresql`) or map `"15432:5432"` in `docker-compose.yaml` |
+| `Bind for 0.0.0.0:5432 failed: port is already allocated` | a local PostgreSQL is running | stop it (`brew services stop postgresql`, `sudo systemctl stop postgresql`) or map `"15432:5432"` in `compose.yaml` |
 | build fails in `mvn … package` with `Could not resolve dependencies` | no internet, proxy, or a broken download | check the connection and run `docker compose build --no-cache catalog` |
 | `catalog` stays `starting`/`unhealthy` | it is still migrating/starting (the first start seeds 200,000 events), or it crashed | `docker compose logs catalog`; look for `Started CatalogApplication` or the first `ERROR` |
-| `Connection to localhost:5432 refused` in the catalog logs | `DB_HOST` is not `db` inside Compose | use the `docker-compose.yaml` of this page unchanged |
+| `Connection to localhost:5432 refused` in the catalog logs | `DB_HOST` is not `db` inside Compose | use the `compose.yaml` of this page unchanged |
 | `Validate failed: Migrations have failed validation` | an applied migration was edited | restore the file; on your laptop only, `docker compose down -v` resets the database |
 | `curl: (7) Failed to connect to localhost port 8082` | the container is not up yet, or port not published | `docker compose ps`; wait for `healthy` |
 | `?city=São Paulo` returns 400 or nothing | the space and the `ã` must be URL-encoded | use `?city=S%C3%A3o%20Paulo` (k6 does it with `encodeURIComponent`) |
@@ -222,7 +222,7 @@ Record the results in `results/lab1.md`:
 
 !!! success "Best practices in this lab"
 
-    - **Configure through environment variables with safe defaults** — `DB_POOL_SIZE: ${DB_POOL_SIZE:-10}` in `docker-compose.yaml` and `application.yaml` lets lab 2 change the pool without a rebuild; the formula behind the number is in [Queueing](../../classes/estimation/queueing/index.md).
+    - **Configure through environment variables with safe defaults** — `DB_POOL_SIZE: ${DB_POOL_SIZE:-10}` in `compose.yaml` and `application.yaml` lets lab 2 change the pool without a rebuild; the formula behind the number is in [Queueing](../../classes/estimation/queueing/index.md).
     - **Fix the resources of every container** — `cpus: "1.0"` and `memory: 768M` make one replica's capacity a measurable number ([Numbers — servers](../../classes/estimation/numbers/index.md)).
     - **Version the schema as migrations** — Flyway's `V1__create_catalog.sql` and `V2__seed_catalog.sql` rebuild the same database on every machine; a schema changed by hand drifts.
     - **Expose a readiness endpoint and let the platform use it** — the Compose `healthcheck` calls `/actuator/health/readiness`; load balancers rely on the same signal ([Load balancing — health checks](../../classes/edge/load-balancing/index.md#health-checks)).
@@ -249,7 +249,7 @@ Keep the repository as it is: lab 2 measures this same service.
 
 ``` { .tree title="added in lab 1" }
 boxoffice/
-    docker-compose.yaml                      # new: db + catalog
+    compose.yaml                             # new: db + catalog
     load/smoke.js                            # new
     results/lab1.md                          # your measurements
     services/catalog/                        # new: the whole service

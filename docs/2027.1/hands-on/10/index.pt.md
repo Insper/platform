@@ -9,7 +9,7 @@
     quão rápido a capacidade acompanha a carga, quantas requisições um rolling update perde e quanto
     tempo a autocura leva.
 
-No lab 3 você escalou o `catalog` editando o `docker-compose.yaml` e reiniciando; no lab 9 você viu um
+No lab 3 você escalou o `catalog` editando o `compose.yaml` e reiniciando; no lab 9 você viu um
 serviço cair e teve que reiniciá-lo à mão. Às 10:00 do dia da venda ninguém deveria estar editando YAML
 ou reiniciando contêineres. O Kubernetes transforma as duas coisas em **laços de controle**: você
 declara o estado desejado — "pelo menos duas réplicas prontas, mais quando o uso de unidade central de processamento (CPU, *central processing unit*) passar de 60%" — e os
@@ -43,7 +43,7 @@ Todo comando roda na **raiz do seu repositório `boxoffice`**, no estado em que 
 
 ``` text title="Start state (end of lab 9)"
 boxoffice/
-├── docker-compose.yaml     # the full Compose stack of labs 1-9
+├── compose.yaml            # the full Compose stack of labs 1-9
 ├── infra/  load/  scripts/
 └── services/               # auth, catalog, gateway, inventory, notification, order, payment
 ```

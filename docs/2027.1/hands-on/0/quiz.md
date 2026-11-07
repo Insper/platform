@@ -130,7 +130,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 **Q10.** Which file should **never** be committed to your BoxOffice repository?
 
-- A. `docker-compose.yaml`
+- A. `compose.yaml`
 - B. `load/hello.js`
 - C. `.env` with real passwords or API keys
 - D. `results/lab0.md`

@@ -47,7 +47,7 @@ Every command runs from the **root of your `boxoffice` repository**, in the stat
 
 ``` text title="Start state (end of lab 8)"
 boxoffice/
-├── docker-compose.yaml     # labs 1-8: ... kafka, order, notification, otel-lgtm (+ x-otel anchor)
+├── compose.yaml            # labs 1-8: ... kafka, order, notification, otel-lgtm (+ x-otel anchor)
 ├── infra/                  # nginx/, postgres/, pgbouncer/, grafana/, otel/
 ├── load/  scripts/
 └── services/
@@ -144,7 +144,7 @@ in `results/lab9.md`; the game-day reviews go to `results/lab9-gameday.md`.
 | every payment fails with `I/O error … Connection refused` | the `payment` proxy was left disabled by an experiment | `curl -s -X POST localhost:8474/reset` (removes toxics, re-enables proxies) |
 | `pay` returns `503` even with no toxic | the circuit breaker is still `OPEN` from the last experiment, or the first call was cold | wait 10 s (`wait-duration-in-open-state`) and retry; check `/actuator/circuitbreakers` |
 | `psp` answers `404` | the WireMock stub was not mounted | the file must be `infra/psp/mappings/charge.json`; `docker compose restart psp` |
-| `PAYMENT_*` variables seem ignored | they only reach the container through `docker-compose.yaml` and a recreate | `PAYMENT_BULKHEAD=10 docker compose up -d order` (not `restart`) |
+| `PAYMENT_*` variables seem ignored | they only reach the container through `compose.yaml` and a recreate | `PAYMENT_BULKHEAD=10 docker compose up -d order` (not `restart`) |
 | results vary a lot between runs | the laptop runs k6 and 20 containers | close other apps, run each experiment twice, compare **ratios** |
 
 !!! success "Best practices in this lab"
@@ -167,7 +167,7 @@ docker compose down -v                  # or remove everything
 
 ``` text title="End state (what this lab added or changed)"
 boxoffice/
-├── docker-compose.yaml     # + psp, toxiproxy, payment; order -> toxiproxy:18085 + PAYMENT_* knobs
+├── compose.yaml            # + psp, toxiproxy, payment; order -> toxiproxy:18085 + PAYMENT_* knobs
 ├── infra/
 │   ├── grafana/alerting/slo-order.yaml   # the lab 8 burn-rate alerts, for order (game day)
 │   ├── psp/mappings/charge.json
@@ -185,7 +185,7 @@ Commit and tag: `git add -A && git commit -m "lab 9: resilience" && git tag lab9
 
 ## Checklist
 
-- [ ] `payment`, `psp` and `toxiproxy` run in `docker-compose.yaml`; `order` and `payment` reach their dependencies through Toxiproxy
+- [ ] `payment`, `psp` and `toxiproxy` run in `compose.yaml`; `order` and `payment` reach their dependencies through Toxiproxy
 - [ ] `POST /payments` is idempotent by `Idempotency-Key`, and the key is forwarded to the provider
 - [ ] `POST /orders/{id}/pay` confirms the order (status `CONFIRMED` + `OrderConfirmed` in the outbox) and is protected by timeout, retry, circuit breaker and bulkhead
 - [ ] the unprotected run shows the cascade (`browse` degraded); each pattern's run shows its effect, in numbers

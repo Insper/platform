@@ -229,8 +229,8 @@ Now put the pieces together. The simulator below is a small version of the BoxOf
 
     [Hands-on 3](../../../hands-on/3/index.md) already has the shape of the cloud network. Docker Compose creates a **private bridge network** for the project (in the lab's logs, `172.18.0.0/16`, an RFC 1918 block). The three `catalog` replicas have **no `ports:`** — like pods in a private subnet, they are reachable only from inside that network, by name, through Docker's DNS. Only `edge` publishes `80:80`: a **destination NAT** from your machine's port 80 to the Nginx container, the laptop's version of a load balancer with a public IP.
 
-    ``` { .yaml title="docker-compose.yaml (the private replicas and the published edge)" }
-    --8<-- "docs/2027.1/hands-on/3/code/docker-compose.yaml:47:67"
+    ``` { .yaml title="compose.yaml (the private replicas and the published edge)" }
+    --8<-- "docs/2027.1/hands-on/3/code/compose.yaml:47:67"
     ```
 
     Nginx resolves the replicas' names with Docker's internal DNS server (`127.0.0.11`) and balances over their private addresses. In the lab's access log every request arrives **from `172.18.0.1`** — the bridge's gateway, not your browser: the server sees the NAT, exactly as the payment provider sees BoxOffice's NAT gateway.

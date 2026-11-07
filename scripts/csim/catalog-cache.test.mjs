@@ -32,7 +32,7 @@ test("event 42 and the Brasília listing are the lab's seed data", () => {
 });
 
 test("Redis is a pure cache: no persistence", () => {
-  const compose = read("5/code/docker-compose.yaml");
+  const compose = read("5/code/compose.yaml");
   ok(compose.includes('"--save", "", "--appendonly", "no"'), "--save \"\" --appendonly no");
   const r = M.play("check");
   const after = r.out.filter(x => x.outcome).slice(-2);

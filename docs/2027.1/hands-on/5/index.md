@@ -29,7 +29,7 @@ uv --version                  # uv (runs the Python helper scripts)
 
 ``` { .tree title="boxoffice/ at the start of lab 5" }
 boxoffice/
-    docker-compose.yaml        # db, catalog-1..3, auth, gateway, edge
+    compose.yaml               # db, catalog-1..3, auth, gateway, edge
     infra/nginx/nginx.conf     # edge -> gateway
     load/  ... gateway.js login.js
     services/auth/  services/catalog/  services/gateway/
@@ -37,7 +37,7 @@ boxoffice/
 
 !!! tip "Catch up"
 
-    Skipped or broke lab 4? Download [boxoffice-after-lab-4.zip](../4/boxoffice-after-lab-4.zip), unzip it and `cd boxoffice`. This lab **adds** `EventCache.java` and two k6 scripts, and **replaces** `docker-compose.yaml`, the catalog `pom.xml`, `application.yaml` and `EventController.java`; all are shown in full on the next pages and are in [`code/`](code/docker-compose.yaml).
+    Skipped or broke lab 4? Download [boxoffice-after-lab-4.zip](../4/boxoffice-after-lab-4.zip), unzip it and `cd boxoffice`. This lab **adds** `EventCache.java` and two k6 scripts, and **replaces** `compose.yaml`, the catalog `pom.xml`, `application.yaml` and `EventController.java`; all are shown in full on the next pages and are in [`code/`](code/compose.yaml).
 
 ## Slides
 
@@ -221,7 +221,7 @@ Keep everything: lab 6 adds `inventory`, a read replica and PgBouncer to this st
 
 ## Deliverable
 
-- [ ] Redis in `docker-compose.yaml`; `EventCache` and the new `EventController` in `catalog`.
+- [ ] Redis in `compose.yaml`; `EventCache` and the new `EventController` in `catalog`.
 - [ ] `X-Cache` visible: `curl -sI localhost/catalog/events/1` twice shows `MISS` then `HIT`.
 - [ ] An update through the gateway (admin token) evicts the event: the next read is a `MISS` with the new data.
 - [ ] Stopping Redis (`docker compose stop redis`) does **not** break the catalog: requests answer with `X-Cache: MISS`.
@@ -232,7 +232,7 @@ Keep everything: lab 6 adds `inventory`, a read replica and PgBouncer to this st
 
 ``` { .tree title="changed in lab 5" }
 boxoffice/
-    docker-compose.yaml        # replaced: + redis (6379), catalog gets REDIS_* and CACHE_* variables
+    compose.yaml               # replaced: + redis (6379), catalog gets REDIS_* and CACHE_* variables
     load/cache.js  load/stampede.js                       # new
     services/catalog/pom.xml                              # replaced: + spring-boot-starter-data-redis
     services/catalog/src/main/resources/application.yaml  # replaced: Redis + cache settings

@@ -8,7 +8,7 @@
     **Horizontal Pod Autoscaler** (HPA) scale `catalog` under a k6 ramp. Measure how fast capacity follows
     load, how many requests a rolling update loses, and how long self-healing takes.
 
-In lab 3 you scaled `catalog` by editing `docker-compose.yaml` and restarting; in lab 9 you watched a
+In lab 3 you scaled `catalog` by editing `compose.yaml` and restarting; in lab 9 you watched a
 service fall over and had to restart it by hand. At 10:00 on sale day nobody should be editing YAML
 or restarting containers. Kubernetes turns both into **control loops**: you declare the desired
 state — "at least two ready replicas, more when their central processing unit (CPU) use passes 60%" — and controllers keep reality there,
@@ -42,7 +42,7 @@ Every command runs from the **root of your `boxoffice` repository**, in the stat
 
 ``` text title="Start state (end of lab 9)"
 boxoffice/
-├── docker-compose.yaml     # the full Compose stack of labs 1-9
+├── compose.yaml            # the full Compose stack of labs 1-9
 ├── infra/  load/  scripts/
 └── services/               # auth, catalog, gateway, inventory, notification, order, payment
 ```

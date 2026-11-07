@@ -14,7 +14,7 @@ cima, já ligado de modo que um *exemplar* de métrica abre o seu trace e um tra
 produção esses são sistemas separados e replicados (ou um serviço gerenciado); o protocolo que seus
 serviços falam — o OTLP — continua o mesmo.
 
-``` yaml title="docker-compose.yaml (excerpt)"
+``` yaml title="compose.yaml (excerpt)"
   otel-lgtm:
     image: grafana/otel-lgtm:0.37.0
     ports:
@@ -59,7 +59,7 @@ script):
 As imagens **não** mudam: o Compose monta `infra/otel/` somente leitura em cada serviço Java e liga o
 agente com variáveis de ambiente compartilhadas por uma **âncora** YAML:
 
-``` yaml title="docker-compose.yaml (excerpt)"
+``` yaml title="compose.yaml (excerpt)"
 # lab 8: OpenTelemetry settings shared by every Java service (merged into each "environment")
 x-otel: &otel
   JAVA_TOOL_OPTIONS: -javaagent:/otel/opentelemetry-javaagent.jar
@@ -96,13 +96,13 @@ Pegue o arquivo completo deste lab (é o arquivo do lab 7 mais a âncora, os vol
 e um `start_period` maior nos health checks dos serviços Java):
 
 ``` shell
-curl -fsSL -o docker-compose.yaml https://insper.github.io/platform/2027.1/hands-on/8/code/docker-compose.yaml
+curl -fsSL -o compose.yaml https://insper.github.io/platform/2027.1/hands-on/8/code/compose.yaml
 ```
 
-??? example "docker-compose.yaml — o arquivo completo ao fim deste lab"
+??? example "compose.yaml — o arquivo completo ao fim deste lab"
 
-    ``` yaml title="docker-compose.yaml"
-    --8<-- "docs/2027.1/hands-on/8/code/docker-compose.yaml"
+    ``` yaml title="compose.yaml"
+    --8<-- "docs/2027.1/hands-on/8/code/compose.yaml"
     ```
 
 Crie as pastas de provisionamento (os passos 2 e 3 as preenchem) e salve o provider de dashboards,

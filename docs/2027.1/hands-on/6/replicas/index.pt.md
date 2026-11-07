@@ -65,8 +65,8 @@ O pooling por transação é o que torna o PgBouncer eficaz — e é por isso qu
 
 ## 3. Compose { #3-compose }
 
-``` { .yaml title="docker-compose.yaml" .copy linenums="1" }
---8<-- "docs/2027.1/hands-on/6/code/docker-compose.yaml"
+``` { .yaml title="compose.yaml" .copy linenums="1" }
+--8<-- "docs/2027.1/hands-on/6/code/compose.yaml"
 ```
 
 ``` { .bash .copy }

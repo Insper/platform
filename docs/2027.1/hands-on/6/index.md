@@ -31,7 +31,7 @@ uv --version                  # uv (runs the Python helper scripts)
 
 ``` { .tree title="boxoffice/ at the start of lab 6" }
 boxoffice/
-    docker-compose.yaml        # db, redis, catalog-1..3, auth, gateway, edge
+    compose.yaml               # db, redis, catalog-1..3, auth, gateway, edge
     infra/nginx/nginx.conf
     load/ ...  scripts/ ...  results/ ...
     services/auth/  services/catalog/ (with the cache)  services/gateway/
@@ -39,7 +39,7 @@ boxoffice/
 
 !!! tip "Catch up"
 
-    Skipped or broke lab 5? Download [boxoffice-after-lab-5.zip](../5/boxoffice-after-lab-5.zip), unzip it and `cd boxoffice`. This lab **adds** `services/inventory`, `infra/postgres/*`, `infra/pgbouncer/*`, the catalog migration `V3__index_events.sql`, four k6 files and `scripts/reset-inventory.sh`, and `infra/postgres/rejoin-as-replica.sh` (step 4), and **replaces** `docker-compose.yaml` and the gateway's `application.yaml` and `SecurityConfig.java`; all are shown in full on the next pages and are in [`code/`](code/docker-compose.yaml). It also needs a **fresh database volume** (`docker compose down -v`, explained in step 2).
+    Skipped or broke lab 5? Download [boxoffice-after-lab-5.zip](../5/boxoffice-after-lab-5.zip), unzip it and `cd boxoffice`. This lab **adds** `services/inventory`, `infra/postgres/*`, `infra/pgbouncer/*`, the catalog migration `V3__index_events.sql`, four k6 files and `scripts/reset-inventory.sh`, and `infra/postgres/rejoin-as-replica.sh` (step 4), and **replaces** `compose.yaml` and the gateway's `application.yaml` and `SecurityConfig.java`; all are shown in full on the next pages and are in [`code/`](code/compose.yaml). It also needs a **fresh database volume** (`docker compose down -v`, explained in step 2).
 
 ## Slides
 
@@ -242,7 +242,7 @@ Keep everything: lab 7 adds `order` and Kafka on top of this stack and confirms 
 
 ``` { .tree title="changed in lab 6" }
 boxoffice/
-    docker-compose.yaml        # replaced: + db-replica (5433), + pgbouncer (6432), + inventory (8083)
+    compose.yaml               # replaced: + db-replica (5433), + pgbouncer (6432), + inventory (8083)
     infra/postgres/10-replication.sh  infra/postgres/replica-entrypoint.sh     # new
     infra/postgres/rejoin-as-replica.sh                                       # new: pg_rewind after a failover
     infra/pgbouncer/pgbouncer.ini  infra/pgbouncer/userlist.txt               # new

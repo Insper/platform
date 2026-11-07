@@ -14,9 +14,9 @@ provedor falha e quanto custa cada resposta. Todos os comandos rodam na **raiz d
 | `db` e `db-replica` | `pgvector/pgvector:0.8.7-pg17-trixie` | 5432 / 5433 | o mesmo PostgreSQL 17, agora com a extensão `vector` disponível |
 | `assistant` | `services/assistant` | 8088 | o serviço FastAPI deste lab |
 
-A parte nova do `docker-compose.yaml`:
+A parte nova do `compose.yaml`:
 
-``` yaml title="docker-compose.yaml (excerpt)"
+``` yaml title="compose.yaml (excerpt)"
   ollama:
     image: ollama/ollama:0.40.6
     ports:
@@ -48,13 +48,13 @@ Baixe o arquivo completo (o do lab 9 mais a imagem do pgvector para `db`/`db-rep
 `ollama-init` e `assistant`):
 
 ``` shell
-curl -fsSL -o docker-compose.yaml https://insper.github.io/platform/2027.1/hands-on/12/code/docker-compose.yaml
+curl -fsSL -o compose.yaml https://insper.github.io/platform/2027.1/hands-on/12/code/compose.yaml
 ```
 
-??? example "docker-compose.yaml — o arquivo completo ao fim deste lab"
+??? example "compose.yaml — o arquivo completo ao fim deste lab"
 
-    ``` yaml title="docker-compose.yaml"
-    --8<-- "docs/2027.1/hands-on/12/code/docker-compose.yaml"
+    ``` yaml title="compose.yaml"
+    --8<-- "docs/2027.1/hands-on/12/code/compose.yaml"
     ```
 
 !!! warning "Onde o modelo deve rodar? (leia antes de baixar)"
@@ -223,7 +223,7 @@ milhão de tokens de saída; uma pergunta deste lab usa cerca de 1.000 tokens de
 ≈ US$ 0,006) e exporte-a **antes** de subir o assistente:
 
 ``` shell
-export ANTHROPIC_API_KEY=sk-ant-...       # never commit it; docker-compose.yaml reads it from the shell
+export ANTHROPIC_API_KEY=sk-ant-...       # never commit it; compose.yaml reads it from the shell
 ```
 
 Com a chave, a rota padrão passa a ser `claude`; envie `"route": "local"` numa requisição para comparar.

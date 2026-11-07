@@ -90,7 +90,7 @@ An experiment that **confirms** the hypothesis is evidence that a defence works.
 [Toxiproxy](https://github.com/Shopify/toxiproxy){target="_blank"} is a TCP proxy with an API to add "toxics" — latency, timeouts, bandwidth limits, connection resets — to a connection. Put it between `payment` and the provider stub in Docker Compose, and point `payment` at the proxy:
 
 ```yaml
-# docker-compose.yaml (excerpt)
+# compose.yaml (excerpt)
 services:
   toxiproxy:
     image: ghcr.io/shopify/toxiproxy:2.13.0

@@ -39,12 +39,12 @@ flowchart LR
 | `-XX:MaxRAMPercentage=75` | the Java virtual machine (JVM) sizes its heap from the **container** memory limit, not from your laptop's RAM |
 | `.dockerignore` | a local `target/` folder is never sent to the build |
 
-## 2. docker-compose.yaml
+## 2. compose.yaml
 
 Create it at the **root** of the repository:
 
-``` { .yaml title="docker-compose.yaml" .copy linenums="1" }
---8<-- "docs/2027.1/hands-on/1/code/docker-compose.yaml"
+``` { .yaml title="compose.yaml" .copy linenums="1" }
+--8<-- "docs/2027.1/hands-on/1/code/compose.yaml"
 ```
 
 | Setting | Why |

@@ -11,8 +11,8 @@
 
 Add a `redis` service and give the catalog replicas the cache settings (the whole file, for reference):
 
-``` { .yaml title="docker-compose.yaml" .copy linenums="1" }
---8<-- "docs/2027.1/hands-on/5/code/docker-compose.yaml"
+``` { .yaml title="compose.yaml" .copy linenums="1" }
+--8<-- "docs/2027.1/hands-on/5/code/compose.yaml"
 ```
 
 | Setting | Why |

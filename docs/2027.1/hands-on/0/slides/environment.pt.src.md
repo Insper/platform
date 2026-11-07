@@ -132,7 +132,7 @@ Por que "um schema por serviço, sem joins entre schemas" é isolamento suficien
 
 ```text
 boxoffice/
-  docker-compose.yaml     grows every lab
+  compose.yaml            grows every lab
   services/               catalog, auth, gateway, inventory, ...
   infra/                  nginx, postgres, pgbouncer
   load/                   k6 scripts

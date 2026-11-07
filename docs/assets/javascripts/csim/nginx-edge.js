@@ -30,7 +30,7 @@
 (function () {
   "use strict";
 
-  /* the lab's values: nginx.conf, docker-compose.yaml, index.md, load/ratelimit.js, lab 2's load.js */
+  /* the lab's values: nginx.conf, compose.yaml, index.md, load/ratelimit.js, lab 2's load.js */
   var LAB = { replicas: 3, maxFails: 3, failTimeout: 10, connectTimeout: 1, readTimeout: 5, tries: 2, resolverValid: 10,
     rate: 20, burst: 40, loadRate: 150, greedy: 50, polite: 10, rlSeconds: 30, listShare: 0.2, startup: 10 };
   var DETAIL = [0.9, 0.9], LIST = [10, 20];   /* ms, illustrative: detail = 0.9 + exp(mean 0.9); list = 10 + U(0, 20) */

@@ -65,7 +65,7 @@ export default [
       { key: "listTtl", value: 10, unit: "s", lab: yaml, read: num(/list-ttl:\s*\$\{CACHE_TTL_LIST:(\d+)s\}/) },
       { key: "jitter", value: 10, unit: "%", lab: H + "5/code/services/catalog/src/main/java/boxoffice/catalog/EventCache.java",
         read: t => Math.round((num(/ttl\.toMillis\(\) \* ([\d.]+) \*/)(t) ?? NaN) * 100) },
-      { key: "redisPort", value: 6379, lab: H + "5/code/docker-compose.yaml", read: num(/REDIS_PORT:\s*(\d+)/) },
+      { key: "redisPort", value: 6379, lab: H + "5/code/compose.yaml", read: num(/REDIS_PORT:\s*(\d+)/) },
     ].map(e => ({ sim: "catalog-cache", ...e }));
   })(),
 
@@ -81,7 +81,7 @@ export default [
 
   // messaging/kafka: lab 7's topic and consumer
   { sim: "kafka", key: "partitions", attr: "partitions", value: 6,
-    lab: H + "7/code/docker-compose.yaml", read: num(/--topic order-events --partitions (\d+)/) },
+    lab: H + "7/code/compose.yaml", read: num(/--topic order-events --partitions (\d+)/) },
   { sim: "kafka", key: "consumers", attr: "consumers", value: 3,
     lab: H + "7/code/services/notification/src/main/resources/application.yaml", read: num(/concurrency:\s*\$\{NOTIFY_CONCURRENCY:(\d+)\}/) },
 
@@ -240,7 +240,7 @@ export default [
     const kcfg = L7 + "services/notification/src/main/java/boxoffice/notification/KafkaConfig.java";
     const k6 = L7 + "load/orders-load.js", measure = H + "7/measure/index.md";
     return [
-      { key: "partitions", value: 6, lab: L7 + "docker-compose.yaml", read: num(/--topic order-events --partitions (\d+)/) },
+      { key: "partitions", value: 6, lab: L7 + "compose.yaml", read: num(/--topic order-events --partitions (\d+)/) },
       { key: "concurrency", value: 3, lab: nyaml, read: num(/concurrency:\s*\$\{NOTIFY_CONCURRENCY:(\d+)\}/) },
       { key: "emailMs", value: 50, unit: "ms", lab: nyaml, read: num(/email-latency:\s*\$\{EMAIL_LATENCY:(\d+)ms\}/) },
       { key: "idempotent", value: true, lab: nyaml, read: has(/idempotent:\s*\$\{NOTIFY_IDEMPOTENT:true\}/, true) },
@@ -300,7 +300,7 @@ export default [
       { key: "pool", value: 10, lab: H + "1/code/services/catalog/src/main/resources/application.yaml", read: num(/maximum-pool-size:\s*\$\{DB_POOL_SIZE:(\d+)\}/) },
       { key: "bigPool", value: 30, lab: page, read: num(/DB_POOL_SIZE=(\d+) docker compose up -d catalog/) },
       { key: "threads", value: 200, lab: page, read: num(/`server\.tomcat\.threads\.max` = (\d+)/) },
-      { key: "cpus", value: 1, lab: H + "1/code/docker-compose.yaml", read: num(/cpus:\s*"([\d.]+)"/) },
+      { key: "cpus", value: 1, lab: H + "1/code/compose.yaml", read: num(/cpus:\s*"([\d.]+)"/) },
       { key: "listShare", value: 0.2, lab: load, read: num(/LIST_SHARE \|\| ([\d.]+)\)/) },
       { key: "rates", value: "50 100 200 300 400 500 600", lab: page, read: t => { const m = t.match(/bash scripts\/sweep\.sh ([\d ]+)\n/); return m ? m[1].trim() : undefined; } },
       { key: "warmup", value: 30, unit: "s", lab: sweep, read: num(/-e DURATION=(\d+)s load\/load\.js/) },
@@ -336,7 +336,7 @@ export default [
       { key: "slowFor", value: 300, unit: "s", lab: rule, read: forS(1) },
       { key: "interval", value: 30, unit: "s", lab: rule, read: num(/^\s*interval: (\d+)s$/m) },
       { key: "rate", value: 50, unit: "req/s", lab: slo, read: num(/k6 run -e RATE=(\d+) -e DURATION=15m load\/catalog-otel\.js &/) },
-      { key: "exportS", value: 10, unit: "s", lab: H + "8/code/docker-compose.yaml", read: t => (num(/OTEL_METRIC_EXPORT_INTERVAL: "(\d+)"/)(t) ?? NaN) / 1000 },
+      { key: "exportS", value: 10, unit: "s", lab: H + "8/code/compose.yaml", read: t => (num(/OTEL_METRIC_EXPORT_INTERVAL: "(\d+)"/)(t) ?? NaN) / 1000 },
       { key: "peak", value: 600, unit: "req/s", lab: dash, read: num(/-e PEAK=(\d+) load\/stress\.js/) },
       { key: "gwMax", value: 320, unit: "req/s", lab: dash, read: num(/about 95% CPU at about (\d+) req\/s/) },
       { key: "startRate", value: 10, unit: "req/s", lab: stress, read: num(/startRate: (\d+),/) },
@@ -377,7 +377,7 @@ export default [
 
   // hands-on/12: the lab twin of the assistant (config.py, the compose service, the model tag)
   ...(() => {
-    const cfg = H + "12/code/services/assistant/app/config.py", compose = H + "12/code/docker-compose.yaml";
+    const cfg = H + "12/code/services/assistant/app/config.py", compose = H + "12/code/compose.yaml";
     return [
       { key: "maxSteps", value: 4, lab: cfg, read: num(/"MAX_STEPS", "(\d+)"/) },
       { key: "k", value: 5, lab: cfg, read: num(/"RETRIEVE_K", "(\d+)"/) },

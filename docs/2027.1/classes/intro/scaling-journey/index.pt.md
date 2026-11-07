@@ -69,8 +69,8 @@ Você explorou esta etapa na visão geral com o cenário `scale-out`: as réplic
 
     O [Hands-on 3](../../../hands-on/3/index.md) constrói este estágio com Docker Compose: três réplicas idênticas do `catalog` iniciadas a partir de uma única definição, **nenhuma porta publicada** em nenhuma delas e o Nginx como única porta de entrada. A única mudança de código é um filtro que carimba o nome da réplica em cada resposta — um serviço sem estado escala horizontalmente sem tocar na sua lógica. O laboratório então mede o alerta acima: com requisições baratas, três réplicas trazem três núcleos; com a mistura do lab 2, o PostgreSQL é o gargalo — numa execução de teste, o `db` ficou em ~670% de CPU enquanto cada réplica usava ~20% — e as réplicas a mais só mandam mais consultas concorrentes ao mesmo banco. Esse é o sintoma que abre o estágio 3 (e os labs 5 e 6).
 
-    ``` { .yaml title="docker-compose.yaml (three replicas, one door)" }
-    --8<-- "docs/2027.1/hands-on/3/code/docker-compose.yaml:47:67"
+    ``` { .yaml title="compose.yaml (three replicas, one door)" }
+    --8<-- "docs/2027.1/hands-on/3/code/compose.yaml:47:67"
     ```
 
 ## Etapa 3 — réplicas de leitura { #stage-3-read-replicas }

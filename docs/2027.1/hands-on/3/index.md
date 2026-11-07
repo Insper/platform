@@ -27,7 +27,7 @@ uv --version                  # uv (runs the Python helper scripts)
 
 ``` { .tree title="boxoffice/ at the start of lab 3" }
 boxoffice/
-    docker-compose.yaml        # db + catalog
+    compose.yaml               # db + catalog
     load/  hello.js smoke.js load.js stress.js
     results/  lab0.md lab1.md lab2.md lab2/ ...
     scripts/  check-env.sh sweep.sh summarize.py watch-metrics.sh
@@ -36,7 +36,7 @@ boxoffice/
 
 !!! tip "Catch up"
 
-    Skipped or broke lab 2? Download [boxoffice-after-lab-2.zip](../2/boxoffice-after-lab-2.zip), unzip it and `cd boxoffice`. This lab **adds** `InstanceHeaderFilter.java` and `infra/nginx/nginx.conf` and **replaces** `docker-compose.yaml`; all three are shown in full below and are in [`code/`](code/docker-compose.yaml).
+    Skipped or broke lab 2? Download [boxoffice-after-lab-2.zip](../2/boxoffice-after-lab-2.zip), unzip it and `cd boxoffice`. This lab **adds** `InstanceHeaderFilter.java` and `infra/nginx/nginx.conf` and **replaces** `compose.yaml`; all three are shown in full below and are in [`code/`](code/compose.yaml).
 
 ## Slides
 
@@ -91,10 +91,10 @@ That is the only code change in this lab. Everything else is configuration — a
 
 ## 2. Three replicas in Compose
 
-Replace your `docker-compose.yaml`. The `x-catalog` block is a **YAML anchor**: one definition, reused by `catalog-1`, `catalog-2` and `catalog-3`; each only adds its own `hostname`.
+Replace your `compose.yaml`. The `x-catalog` block is a **YAML anchor**: one definition, reused by `catalog-1`, `catalog-2` and `catalog-3`; each only adds its own `hostname`.
 
-``` { .yaml title="docker-compose.yaml" .copy linenums="1" }
---8<-- "docs/2027.1/hands-on/3/code/docker-compose.yaml"
+``` { .yaml title="compose.yaml" .copy linenums="1" }
+--8<-- "docs/2027.1/hands-on/3/code/compose.yaml"
 ```
 
 | Change | Why |
@@ -351,7 +351,7 @@ Scaling efficiency = capacity(3) / (3 × capacity(1)):
 
 !!! success "Best practices in this lab"
 
-    - **Publish one door and keep the replicas private** — no `ports:` on `catalog-1..3` in `docker-compose.yaml`, and `location / { return 404; }` in `nginx.conf` ([Traffic & edge — reverse proxies](../../classes/edge/index.md#reverse-proxies)).
+    - **Publish one door and keep the replicas private** — no `ports:` on `catalog-1..3` in `compose.yaml`, and `location / { return 404; }` in `nginx.conf` ([Traffic & edge — reverse proxies](../../classes/edge/index.md#reverse-proxies)).
     - **Detect failures and retry only what is safe** — `max_fails=3 fail_timeout=10s` and `proxy_next_upstream` in `nginx.conf`; Nginx does not retry a `POST` ([Load balancing — health checks](../../classes/edge/load-balancing/index.md#health-checks)).
     - **Set timeouts from measured latency** — `proxy_connect_timeout 1s`, `proxy_read_timeout 5s`, above the healthy p99.9 measured in lab 2 ([Load balancing — Nginx](../../classes/edge/load-balancing/index.md#nginx)).
     - **Tag every request at the edge** — `X-Request-Id $request_id` goes to the replica and back to the client, and into the access log next to the upstream and its time ([Traffic & edge](../../classes/edge/index.md)).
@@ -369,7 +369,7 @@ Keep everything: lab 4 puts the gateway behind this edge.
 
 ## Deliverable
 
-- [ ] `InstanceHeaderFilter`, the three-replica `docker-compose.yaml` and `infra/nginx/nginx.conf` in your repository.
+- [ ] `InstanceHeaderFilter`, the three-replica `compose.yaml` and `infra/nginx/nginx.conf` in your repository.
 - [ ] The distribution check (9 requests, 3 per replica) pasted in `results/lab3.md`.
 - [ ] The failure experiment (stop and pause) described with numbers.
 - [ ] The rate-limit table.
@@ -380,7 +380,7 @@ Keep everything: lab 4 puts the gateway behind this edge.
 
 ``` { .tree title="changed in lab 3" }
 boxoffice/
-    docker-compose.yaml        # replaced: db, catalog-1..3 (no host ports), edge on port 80
+    compose.yaml               # replaced: db, catalog-1..3 (no host ports), edge on port 80
     infra/nginx/nginx.conf     # new: reverse proxy, load balancer, rate limiter
     load/ratelimit.js          # new
     services/catalog/src/main/java/boxoffice/catalog/InstanceHeaderFilter.java   # new

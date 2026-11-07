@@ -27,7 +27,7 @@ uv --version                  # uv (runs the Python helper scripts)
 
 ``` { .tree title="boxoffice/ at the start of lab 2" }
 boxoffice/
-    docker-compose.yaml        # db + catalog (port 8082)
+    compose.yaml               # db + catalog (port 8082)
     load/hello.js  load/smoke.js
     results/lab0.md  results/lab1.md
     scripts/check-env.sh

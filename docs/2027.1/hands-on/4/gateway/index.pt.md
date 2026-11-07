@@ -107,8 +107,8 @@ Agora o edge encaminha tudo para o gateway; o roteamento por caminho foi um salt
 
 ## 6. Compose
 
-``` { .yaml title="docker-compose.yaml" .copy linenums="1" }
---8<-- "docs/2027.1/hands-on/4/code/docker-compose.yaml"
+``` { .yaml title="compose.yaml" .copy linenums="1" }
+--8<-- "docs/2027.1/hands-on/4/code/compose.yaml"
 ```
 
 O gateway publica a porta 8080 só para que você possa medi-lo diretamente; em produção, só o edge ficaria exposto.

@@ -212,8 +212,8 @@ Para a **memória de cache**, uma regra prática comum é a regra 80/20: uma peq
 
     A estimativa acima *supõe* 1.000 req/s por instância do catálogo. Os laboratórios trocam a suposição por uma medição. O [Hands-on 1](../../../hands-on/1/container/index.md) fixa o tamanho de um nó — 1 CPU, 768 MB e um pool de 10 conexões com o banco — e o [Hands-on 2](../../../hands-on/2/index.md) mede o que ele atende: na execução de exemplo do laboratório, o p99 ficou abaixo de 40 ms até 300 req/s, chegou a 224 ms em 400 req/s e a 2 s em 500 req/s. A capacidade com p99 < 300 ms é, portanto, **~400 req/s**, não 1.000. Refaça a conta: 1.200 / (400 × 0,6) = 5 → **5 + 1 reserva = 6 instâncias**, o dobro da primeira resposta — e o [lab 3](../../../hands-on/3/index.md#measure-it) mostra que elas só ajudam enquanto o PostgreSQL compartilhado aguenta.
 
-    ``` { .yaml title="docker-compose.yaml (the size of one catalog node)" }
-    --8<-- "docs/2027.1/hands-on/1/code/docker-compose.yaml:21:39"
+    ``` { .yaml title="compose.yaml (the size of one catalog node)" }
+    --8<-- "docs/2027.1/hands-on/1/code/compose.yaml:21:39"
     ```
 
 ??? question "Pense antes: estime um encurtador de URLs (*Uniform Resource Locators*)"

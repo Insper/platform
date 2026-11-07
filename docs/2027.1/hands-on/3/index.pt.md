@@ -27,7 +27,7 @@ uv --version                  # uv (runs the Python helper scripts)
 
 ``` { .tree title="boxoffice/ at the start of lab 3" }
 boxoffice/
-    docker-compose.yaml        # db + catalog
+    compose.yaml               # db + catalog
     load/  hello.js smoke.js load.js stress.js
     results/  lab0.md lab1.md lab2.md lab2/ ...
     scripts/  check-env.sh sweep.sh summarize.py watch-metrics.sh
@@ -36,7 +36,7 @@ boxoffice/
 
 !!! tip "Recupere o atraso"
 
-    Pulou ou quebrou o lab 2? Baixe [boxoffice-after-lab-2.zip](../2/boxoffice-after-lab-2.zip), descompacte e `cd boxoffice`. Este lab **acrescenta** `InstanceHeaderFilter.java` e `infra/nginx/nginx.conf` e **substitui** o `docker-compose.yaml`; os três aparecem completos abaixo e estão em [`code/`](code/docker-compose.yaml).
+    Pulou ou quebrou o lab 2? Baixe [boxoffice-after-lab-2.zip](../2/boxoffice-after-lab-2.zip), descompacte e `cd boxoffice`. Este lab **acrescenta** `InstanceHeaderFilter.java` e `infra/nginx/nginx.conf` e **substitui** o `compose.yaml`; os três aparecem completos abaixo e estão em [`code/`](code/compose.yaml).
 
 ## Slides
 
@@ -91,10 +91,10 @@ Essa é a única mudança de código deste lab. Todo o resto é configuração �
 
 ## 2. Três réplicas no Compose { #2-three-replicas-in-compose }
 
-Substitua o seu `docker-compose.yaml`. O bloco `x-catalog` é uma **âncora YAML**: uma definição, reaproveitada por `catalog-1`, `catalog-2` e `catalog-3`; cada um só acrescenta o próprio `hostname`.
+Substitua o seu `compose.yaml`. O bloco `x-catalog` é uma **âncora YAML**: uma definição, reaproveitada por `catalog-1`, `catalog-2` e `catalog-3`; cada um só acrescenta o próprio `hostname`.
 
-``` { .yaml title="docker-compose.yaml" .copy linenums="1" }
---8<-- "docs/2027.1/hands-on/3/code/docker-compose.yaml"
+``` { .yaml title="compose.yaml" .copy linenums="1" }
+--8<-- "docs/2027.1/hands-on/3/code/compose.yaml"
 ```
 
 | Mudança | Por quê |
@@ -351,7 +351,7 @@ Scaling efficiency = capacity(3) / (3 × capacity(1)):
 
 !!! success "Boas práticas neste lab"
 
-    - **Publique uma única porta e mantenha as réplicas privadas** — nenhum `ports:` em `catalog-1..3` no `docker-compose.yaml` e `location / { return 404; }` no `nginx.conf` ([Tráfego e borda — proxies reversos](../../classes/edge/index.md#reverse-proxies)).
+    - **Publique uma única porta e mantenha as réplicas privadas** — nenhum `ports:` em `catalog-1..3` no `compose.yaml` e `location / { return 404; }` no `nginx.conf` ([Tráfego e borda — proxies reversos](../../classes/edge/index.md#reverse-proxies)).
     - **Detecte falhas e só faça retry do que é seguro** — `max_fails=3 fail_timeout=10s` e `proxy_next_upstream` no `nginx.conf`; o Nginx não repete um `POST` ([Balanceamento de carga — health checks](../../classes/edge/load-balancing/index.md#health-checks)).
     - **Defina timeouts a partir da latência medida** — `proxy_connect_timeout 1s`, `proxy_read_timeout 5s`, acima do p99,9 saudável medido no lab 2 ([Balanceamento de carga — Nginx](../../classes/edge/load-balancing/index.md#nginx)).
     - **Marque toda requisição na borda** — `X-Request-Id $request_id` vai para a réplica e volta para o cliente e entra no access log ao lado do upstream e do seu tempo ([Tráfego e borda](../../classes/edge/index.md)).
@@ -369,7 +369,7 @@ Guarde tudo: o lab 4 coloca o gateway atrás desta borda.
 
 ## Entrega { #deliverable }
 
-- [ ] O `InstanceHeaderFilter`, o `docker-compose.yaml` com três réplicas e o `infra/nginx/nginx.conf` no seu repositório.
+- [ ] O `InstanceHeaderFilter`, o `compose.yaml` com três réplicas e o `infra/nginx/nginx.conf` no seu repositório.
 - [ ] A verificação da distribuição (9 requisições, 3 por réplica) colada em `results/lab3.md`.
 - [ ] O experimento de falhas (stop e pause) descrito com números.
 - [ ] A tabela do rate limit.
@@ -380,7 +380,7 @@ Guarde tudo: o lab 4 coloca o gateway atrás desta borda.
 
 ``` { .tree title="changed in lab 3" }
 boxoffice/
-    docker-compose.yaml        # replaced: db, catalog-1..3 (no host ports), edge on port 80
+    compose.yaml               # replaced: db, catalog-1..3 (no host ports), edge on port 80
     infra/nginx/nginx.conf     # new: reverse proxy, load balancer, rate limiter
     load/ratelimit.js          # new
     services/catalog/src/main/java/boxoffice/catalog/InstanceHeaderFilter.java   # new

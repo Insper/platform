@@ -130,7 +130,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 **Q10.** Qual arquivo **nunca** deve ir para o commit do seu repositório BoxOffice?
 
-- A. `docker-compose.yaml`
+- A. `compose.yaml`
 - B. `load/hello.js`
 - C. `.env` com senhas ou chaves de API reais
 - D. `results/lab0.md`

@@ -104,7 +104,7 @@ Todos os labs — e todos os projetos em equipe — usam os nomes abaixo. **Não
 | Banco de dados | uma instância PostgreSQL (`db`), um **schema por serviço**, de propriedade das migrations Flyway daquele serviço (`src/main/resources/db/migration`); nada de joins entre schemas |
 | Saúde | Spring Boot Actuator: `/actuator/health`, `/actuator/health/liveness`, `/actuator/health/readiness`, `/actuator/metrics` |
 | Erros | RFC (*Request for Comments*) 9457 `application/problem+json` (`spring.mvc.problemdetails.enabled: true`) |
-| Arquivo Compose | `docker-compose.yaml` na raiz do repositório, nome de projeto `boxoffice` |
+| Arquivo Compose | `compose.yaml` na raiz do repositório, nome de projeto `boxoffice` |
 | Scripts de carga | `load/*.js` (k6), URL (*Uniform Resource Locator*) base em `BASE_URL`; resultados salvos em `results/` |
 
 **Variáveis de ambiente** (o mesmo nome em todo lugar; padrões entre parênteses):
@@ -134,7 +134,7 @@ Todos os labs — e todos os projetos em equipe — usam os nomes abaixo. **Não
 
 !!! warning "Portas já em uso?"
 
-    Se algo na sua máquina já usa a porta 80, 5432 ou 6379 (um PostgreSQL local, por exemplo), pare-o, ou mude **apenas o lado do host** do mapeamento no `docker-compose.yaml` (`"15432:5432"`). Nunca mude a porta dentro do container: os outros serviços dependem dela.
+    Se algo na sua máquina já usa a porta 80, 5432 ou 6379 (um PostgreSQL local, por exemplo), pare-o, ou mude **apenas o lado do host** do mapeamento no `compose.yaml` (`"15432:5432"`). Nunca mude a porta dentro do container: os outros serviços dependem dela.
 
 ## 1. Instale as ferramentas { #1-install-the-tools }
 
@@ -263,7 +263,7 @@ No fim do semestre ele terá esta cara — cada pasta aparece no lab indicado no
 
 ``` { .tree title="boxoffice/" }
 boxoffice/
-    docker-compose.yaml        # lab 1, grows in every lab
+    compose.yaml               # lab 1, grows in every lab
     .gitignore
     README.md                  # how to run your BoxOffice
     services/

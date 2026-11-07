@@ -3,7 +3,7 @@
 The tools of the trade, grouped by job. For each one: what it is in one line, when to reach for it, the lab where we use it in this course, and its official site. The course stack is deliberately small: **Docker Compose** to run everything locally, **k6** to load-test, **OpenTelemetry + `grafana/otel-lgtm`** to observe, **Toxiproxy** to inject faults, **kind or minikube** for Kubernetes, **GitHub Actions** and **Argo CD** to deliver, and **LiteLLM + Ollama + pgvector** for the AI service. The alternatives are listed so you recognize them in job descriptions and engineering blogs.
 
 !!! note "About the links"
-    Links go to each project's official site or official repository. Tools change fast: check the current documentation before copying a command from a blog post, and pin versions in your `docker-compose.yaml` and CI files.
+    Links go to each project's official site or official repository. Tools change fast: check the current documentation before copying a command from a blog post, and pin versions in your `compose.yaml` and CI files.
 
 ## Which tool for which job
 

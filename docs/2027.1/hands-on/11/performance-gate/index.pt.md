@@ -9,7 +9,7 @@ request** quando um threshold é ultrapassado.
 ## Um ambiente fixo { #a-fixed-environment }
 
 Comparações só fazem sentido se toda execução usa o mesmo ambiente. O CI sobe uma stack pequena e
-dedicada — PostgreSQL, Redis e `catalog` com o mesmo limite de CPU do `docker-compose.yaml` — a partir
+dedicada — PostgreSQL, Redis e `catalog` com o mesmo limite de CPU do `compose.yaml` — a partir
 do seu próprio arquivo Compose:
 
 ``` yaml title=".github/ci/compose.perf.yaml"

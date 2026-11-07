@@ -8,7 +8,7 @@ const read = f => readFileSync(path.join(ROOT, LAB, f), "utf8");
 const page = read("index.md");
 
 test("the replicas are the lab's: catalog-1..3 in compose and in the upstream, private, behind the edge", () => {
-  const compose = read("code/docker-compose.yaml"), conf = read("code/infra/nginx/nginx.conf");
+  const compose = read("code/compose.yaml"), conf = read("code/infra/nginx/nginx.conf");
   eq(M.create().peers.map(p => p.name), ["catalog-1", "catalog-2", "catalog-3"], "peers");
   for (const p of M.create().peers) {
     ok(compose.includes(`hostname: ${p.name}`), `compose has ${p.name}`);

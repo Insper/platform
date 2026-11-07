@@ -35,7 +35,7 @@ ollama --version              # installed in step 0.1
 ``` { .tree title="boxoffice/ at the start of lab 13" }
 boxoffice/
     .github/workflows/ci.yaml   # lab 11: "name: CI", runs `mvn -B verify` for each service
-    docker-compose.yaml  infra/  load/  scripts/  results/
+    compose.yaml         infra/  load/  scripts/  results/
     services/catalog/  services/inventory/  services/auth/  services/gateway/  ...
     k8s/ ...                    # lab 10-11 (only needed for the optional live canary, step 5.4)
 ```

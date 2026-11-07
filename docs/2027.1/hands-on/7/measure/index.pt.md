@@ -47,7 +47,7 @@ NOTIFY_MODE=outbox docker compose up -d --wait order      # "after"
 k6 run --summary-trend-stats="avg,p(50),p(95),p(99),max" load/orders-load.js
 ```
 
-As variáveis chegam aos contêineres porque o `docker-compose.yaml` as interpola
+As variáveis chegam aos contêineres porque o `compose.yaml` as interpola
 (`NOTIFY_MODE: ${NOTIFY_MODE:-outbox}`), como escrito nos passos 2 e 3.
 
 !!! example "Forma esperada (ilustrativa)"

@@ -125,7 +125,7 @@ ENTRYPOINT ["java", "-javaagent:/otel/opentelemetry-javaagent.jar", "-jar", "/ap
 ```
 
 ```yaml
-# docker-compose.yaml (excerpt) — the order service
+# compose.yaml (excerpt) — the order service
 environment:
   OTEL_SERVICE_NAME: order
   OTEL_RESOURCE_ATTRIBUTES: service.namespace=boxoffice,service.version=1.4.2,deployment.environment.name=dev
@@ -140,8 +140,8 @@ environment:
 
     O [Hands-on 8 — instrumente tudo](../../../hands-on/8/instrument/index.md) não embute o agente nas imagens, como faz o Dockerfile acima: o `scripts/get-otel-agent.sh` baixa uma versão fixada (2.32.0) uma vez em `infra/otel/` e todo serviço Java a monta só para leitura e a carrega por `JAVA_TOOL_OPTIONS`. As configurações ficam numa única âncora YAML mesclada em cada serviço, para que os serviços não divirjam; só o `OTEL_SERVICE_NAME` muda — três réplicas do `catalog`, **um** serviço. `OTEL_ON=false` roda a mesma imagem sem o agente e é assim que o lab mede quanto o agente custa; as métricas são exportadas a cada 10 s em vez de 60 s, para que os dashboards reajam dentro de um experimento curto.
 
-    ``` { .yaml title="docker-compose.yaml (the x-otel anchor and the catalog replicas)" }
-    --8<-- "docs/2027.1/hands-on/8/code/docker-compose.yaml:3:12,15:22"
+    ``` { .yaml title="compose.yaml (the x-otel anchor and the catalog replicas)" }
+    --8<-- "docs/2027.1/hands-on/8/code/compose.yaml:3:12,15:22"
     ```
 
 **Veja no playground.** O preset `boxoffice-observability` é o `catalog` do lab 8 antes do agente: nenhum serviço manda métricas (a utilização aparece como "?"), não há traces nem alerta. Em t = 60 s o banco para; o Redis ainda responde os acertos, todo miss falha e ninguém percebe por 100 s. Conecte o Metrics a todos os serviços e o Tracing e o Logs ao `catalog` — o que uma linha de `JAVA_TOOL_OPTIONS` faz no lab — e depois conecte o Alerting ao Metrics e veja o reparo começar antes.
@@ -357,7 +357,7 @@ O OpenTelemetry deixa o backend por sua conta. Os mesmos dados OTLP podem ir par
 Para desenvolvimento — e no [Hands-on 8](../../../hands-on/8/index.md) — um único container junta um Collector com toda a stack LGTM:
 
 ```yaml
-# docker-compose.yaml (excerpt)
+# compose.yaml (excerpt)
 services:
   otel-lgtm:
     image: grafana/otel-lgtm

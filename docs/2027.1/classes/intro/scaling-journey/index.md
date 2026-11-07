@@ -69,8 +69,8 @@ You explored this stage in the overview with the `scale-out` scenario: replicas 
 
     [Hands-on 3](../../../hands-on/3/index.md) builds this stage with Docker Compose: three identical `catalog` replicas started from one definition, **no published port** on any of them, and Nginx as the only door. The only code change is a filter that stamps the replica's name on each response — a stateless service scales out without touching its logic. The lab then measures the warning above: with cheap requests, three replicas bring three cores; with the lab 2 mix, PostgreSQL is the bottleneck — in a test run, `db` sat at ~670% CPU while each replica used ~20% — and the extra replicas only send more concurrent queries to the same database. That is the symptom that opens stage 3 (and labs 5 and 6).
 
-    ``` { .yaml title="docker-compose.yaml (three replicas, one door)" }
-    --8<-- "docs/2027.1/hands-on/3/code/docker-compose.yaml:47:67"
+    ``` { .yaml title="compose.yaml (three replicas, one door)" }
+    --8<-- "docs/2027.1/hands-on/3/code/compose.yaml:47:67"
     ```
 
 ## Stage 3 — read replicas

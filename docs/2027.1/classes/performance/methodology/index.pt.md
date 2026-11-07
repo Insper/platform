@@ -156,7 +156,7 @@ Como a infraestrutura é código ([Entrega](../../cloud-native/delivery/index.md
 
 !!! example "No código do BoxOffice: um ambiente pequeno, idêntico em toda execução (lab 11)"
 
-    O gate de desempenho do [Hands-on 11](../../../hands-on/11/performance-gate/index.md) não pode ter paridade com a produção — roda num runner compartilhado da CI —, então escolhe **paridade entre execuções**: seu próprio arquivo Compose sobe PostgreSQL, Redis e `catalog` com o mesmo limite de CPU (1 CPU) do `docker-compose.yaml`, porque os orçamentos são por réplica; e o healthcheck de prontidão mais o `docker compose … up --wait` garantem que o k6 nunca meça uma JVM que ainda está subindo. O preço: os números dizem se *esta mudança* deixou o `catalog` mais lento, não quantos fãs a produção aguenta.
+    O gate de desempenho do [Hands-on 11](../../../hands-on/11/performance-gate/index.md) não pode ter paridade com a produção — roda num runner compartilhado da CI —, então escolhe **paridade entre execuções**: seu próprio arquivo Compose sobe PostgreSQL, Redis e `catalog` com o mesmo limite de CPU (1 CPU) do `compose.yaml`, porque os orçamentos são por réplica; e o healthcheck de prontidão mais o `docker compose … up --wait` garantem que o k6 nunca meça uma JVM que ainda está subindo. O preço: os números dizem se *esta mudança* deixou o `catalog` mais lento, não quantos fãs a produção aguenta.
 
     ``` { .yaml title=".github/ci/compose.perf.yaml (the service under test)" }
     --8<-- "docs/2027.1/hands-on/11/code/.github/ci/compose.perf.yaml:27:54"

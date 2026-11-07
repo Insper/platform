@@ -212,8 +212,8 @@ For **cache memory**, a common rule of thumb is the 80/20 rule: a small fraction
 
     The estimate above *assumes* 1,000 req/s per catalog instance. The labs replace the assumption with a measurement. [Hands-on 1](../../../hands-on/1/container/index.md) fixes the size of one node — 1 CPU, 768 MB and a pool of 10 database connections — and [Hands-on 2](../../../hands-on/2/index.md) measures what it serves: in the lab's example run, p99 stayed under 40 ms up to 300 req/s, reached 224 ms at 400 req/s and 2 s at 500 req/s. Capacity with p99 < 300 ms is therefore **~400 req/s**, not 1,000. Redo the line: 1,200 / (400 × 0.6) = 5 → **5 + 1 spare = 6 instances**, twice the first answer — and [lab 3](../../../hands-on/3/index.md#measure-it) shows they help only while the shared PostgreSQL keeps up.
 
-    ``` { .yaml title="docker-compose.yaml (the size of one catalog node)" }
-    --8<-- "docs/2027.1/hands-on/1/code/docker-compose.yaml:21:39"
+    ``` { .yaml title="compose.yaml (the size of one catalog node)" }
+    --8<-- "docs/2027.1/hands-on/1/code/compose.yaml:21:39"
     ```
 
 ??? question "Think first: estimate a Uniform Resource Locator (URL) shortener"

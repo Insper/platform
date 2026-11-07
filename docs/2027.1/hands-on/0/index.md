@@ -104,7 +104,7 @@ Every lab — and every team project — uses the names below. **Do not rename t
 | Database | one PostgreSQL instance (`db`), one **schema per service**, owned by that service's Flyway migrations (`src/main/resources/db/migration`); no cross-schema joins |
 | Health | Spring Boot Actuator: `/actuator/health`, `/actuator/health/liveness`, `/actuator/health/readiness`, `/actuator/metrics` |
 | Errors | Request for Comments (RFC) 9457 `application/problem+json` (`spring.mvc.problemdetails.enabled: true`) |
-| Compose file | `docker-compose.yaml` at the repository root, project name `boxoffice` |
+| Compose file | `compose.yaml` at the repository root, project name `boxoffice` |
 | Load scripts | `load/*.js` (k6), base Uniform Resource Locator (URL) from `BASE_URL`; results saved under `results/` |
 
 **Environment variables** (the same name everywhere; defaults in parentheses):
@@ -134,7 +134,7 @@ Every lab — and every team project — uses the names below. **Do not rename t
 
 !!! warning "Ports already in use?"
 
-    If something on your machine already uses port 80, 5432 or 6379 (a local PostgreSQL, for instance), stop it, or change **only the host side** of the mapping in `docker-compose.yaml` (`"15432:5432"`). Never change the port inside the container: the other services rely on it.
+    If something on your machine already uses port 80, 5432 or 6379 (a local PostgreSQL, for instance), stop it, or change **only the host side** of the mapping in `compose.yaml` (`"15432:5432"`). Never change the port inside the container: the other services rely on it.
 
 ## 1. Install the tools
 
@@ -263,7 +263,7 @@ At the end of the semester it will look like this — each folder appears in the
 
 ``` { .tree title="boxoffice/" }
 boxoffice/
-    docker-compose.yaml        # lab 1, grows in every lab
+    compose.yaml               # lab 1, grows in every lab
     .gitignore
     README.md                  # how to run your BoxOffice
     services/

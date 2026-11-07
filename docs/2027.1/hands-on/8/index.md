@@ -46,7 +46,7 @@ left it:
 
 ``` text title="Start state (end of lab 7)"
 boxoffice/
-├── docker-compose.yaml     # lab 6 stack + kafka, kafka-init, kafka-ui, mailpit, order, notification
+├── compose.yaml            # lab 6 stack + kafka, kafka-init, kafka-ui, mailpit, order, notification
 ├── infra/                  # nginx/, postgres/, pgbouncer/
 ├── load/                   # ... orders-load.js, waiting-room-spike.js
 ├── scripts/                # ... kafka-lag.sh
@@ -169,7 +169,7 @@ in `results/lab8.md`.
 
 !!! success "Best practices in this lab"
 
-    - **Telemetry configured once, for every service** — the `x-otel` anchor in `docker-compose.yaml`, with one `OTEL_SERVICE_NAME` per service ([OpenTelemetry](../../classes/observability/opentelemetry/index.md)).
+    - **Telemetry configured once, for every service** — the `x-otel` anchor in `compose.yaml`, with one `OTEL_SERVICE_NAME` per service ([OpenTelemetry](../../classes/observability/opentelemetry/index.md)).
     - **Trace context carried across the asynchronous hop** — `Outbox.java`, `OutboxRelay.java` and `V2__outbox_traceparent.sql` store and restore the `traceparent` ([OpenTelemetry — context propagation](../../classes/observability/opentelemetry/index.md)).
     - **Dashboards and alerts as code** — `infra/grafana/dashboards/boxoffice-red.json` and `infra/grafana/alerting/slo-catalog.yaml`, provisioned at startup ([Signals — dashboards](../../classes/observability/signals/index.md)).
     - **An SLI that counts only fans** — `http_route!~"/actuator.*"` in every query of `slo-catalog.yaml` ([SLOs](../../classes/observability/slo/index.md)).
@@ -189,7 +189,7 @@ Lab 9 uses this dashboard during its game day: keep `infra/grafana/` and `infra/
 ``` text title="End state (what this lab added or changed)"
 boxoffice/
 ├── .gitignore              # + infra/otel/*.jar
-├── docker-compose.yaml     # + x-otel anchor, agent volume in every Java service, otel-lgtm
+├── compose.yaml            # + x-otel anchor, agent volume in every Java service, otel-lgtm
 ├── infra/
 │   ├── grafana/
 │   │   ├── dashboards.yaml
@@ -209,7 +209,7 @@ Commit and tag: `git add -A && git commit -m "lab 8: observability" && git tag l
 
 ## Checklist
 
-- [ ] `scripts/get-otel-agent.sh` downloads the agent, and `docker-compose.yaml` attaches it to every Java service through the `x-otel` anchor and the `infra/otel` volume, each with its own `OTEL_SERVICE_NAME`
+- [ ] `scripts/get-otel-agent.sh` downloads the agent, and `compose.yaml` attaches it to every Java service through the `x-otel` anchor and the `infra/otel` volume, each with its own `OTEL_SERVICE_NAME`
 - [ ] Grafana Explore shows `http_server_request_duration_seconds_*` for every service, traces in Tempo and logs with `trace_id` in Loki
 - [ ] a single trace goes from `POST /orders` in `order` through the outbox relay and Kafka to `notification`
 - [ ] `infra/grafana/` holds the dashboard provider, `boxoffice-red.json` and `slo-catalog.yaml`, loaded at startup

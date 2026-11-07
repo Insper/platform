@@ -43,7 +43,7 @@ Every command runs from the **root of your `boxoffice` repository**, in the stat
 
 ``` text title="Start state (end of lab 10)"
 boxoffice/
-├── docker-compose.yaml     # the Compose stack of labs 1-9
+├── compose.yaml            # the Compose stack of labs 1-9
 ├── k8s/                    # lab 10: kind.yaml, base/, overlays/local/
 ├── infra/  load/  scripts/
 └── services/               # auth, catalog, gateway, inventory, notification, order, payment

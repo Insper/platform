@@ -3,7 +3,7 @@
 As ferramentas do ofício, agrupadas por função. Para cada uma: o que é em uma linha, quando recorrer a ela, o laboratório em que a usamos neste curso e o site oficial. A pilha do curso é pequena de propósito: **Docker Compose** para rodar tudo localmente, **k6** para testes de carga, **OpenTelemetry + `grafana/otel-lgtm`** para observar, **Toxiproxy** para injetar falhas, **kind ou minikube** para Kubernetes, **GitHub Actions** e **Argo CD** para entregar, e **LiteLLM + Ollama + pgvector** para o serviço de IA. As alternativas estão listadas para que você as reconheça em vagas de emprego e em blogs de engenharia.
 
 !!! note "Sobre os links"
-    Os links levam ao site oficial ou ao repositório oficial de cada projeto. As ferramentas mudam rápido: confira a documentação atual antes de copiar um comando de um post de blog e fixe as versões no seu `docker-compose.yaml` e nos arquivos de CI.
+    Os links levam ao site oficial ou ao repositório oficial de cada projeto. As ferramentas mudam rápido: confira a documentação atual antes de copiar um comando de um post de blog e fixe as versões no seu `compose.yaml` e nos arquivos de CI.
 
 ## Qual ferramenta para qual trabalho { #which-tool-for-which-job }
 

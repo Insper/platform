@@ -132,7 +132,7 @@ Why is "one schema per service, no cross-schema joins" enough isolation for now?
 
 ```text
 boxoffice/
-  docker-compose.yaml     grows every lab
+  compose.yaml            grows every lab
   services/               catalog, auth, gateway, inventory, ...
   infra/                  nginx, postgres, pgbouncer
   load/                   k6 scripts

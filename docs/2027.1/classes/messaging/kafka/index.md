@@ -360,8 +360,8 @@ And the Spring Boot services configure their clients accordingly:
 
     [Hands-on 7 — Kafka in Compose](../../../hands-on/7/kafka/index.md) runs **one** node that is broker and KRaft controller at once, with auto-creation off and both topics created by a one-shot container: `order-events` and `order-events-dlt` with **6 partitions** and **replication factor 1**. One laptop cannot hold three brokers in three zones, so this is the place where the lab is *not* production: `acks: all` in `order` waits for "all in-sync replicas", and with RF = 1 that is one replica — exactly the trap described in [Replication and durability](#replication-and-durability). The 6 partitions bound the consumer side: `notification` runs 3 threads (`NOTIFY_CONCURRENCY`), and more than 6 would sit idle. The lab's [burst-and-drain experiment](../../../hands-on/7/measure/index.md) applies this page's arithmetic: one thread at 50 ms per e-mail handles 20/s, so 100 orders/s for 60 s leave about 4,800 messages of lag that take about 240 s to drain; six threads keep the lag near zero.
 
-    ``` { .yaml title="docker-compose.yaml (one KRaft node, topics created explicitly)" }
-    --8<-- "docs/2027.1/hands-on/7/code/docker-compose.yaml:216:234,242:254"
+    ``` { .yaml title="compose.yaml (one KRaft node, topics created explicitly)" }
+    --8<-- "docs/2027.1/hands-on/7/code/compose.yaml:216:234,242:254"
     ```
 
 ---

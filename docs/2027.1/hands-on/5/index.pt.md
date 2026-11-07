@@ -29,7 +29,7 @@ uv --version                  # uv (runs the Python helper scripts)
 
 ``` { .tree title="boxoffice/ at the start of lab 5" }
 boxoffice/
-    docker-compose.yaml        # db, catalog-1..3, auth, gateway, edge
+    compose.yaml               # db, catalog-1..3, auth, gateway, edge
     infra/nginx/nginx.conf     # edge -> gateway
     load/  ... gateway.js login.js
     services/auth/  services/catalog/  services/gateway/
@@ -37,7 +37,7 @@ boxoffice/
 
 !!! tip "Recupere o atraso"
 
-    Pulou ou quebrou o lab 4? Baixe [boxoffice-after-lab-4.zip](../4/boxoffice-after-lab-4.zip), descompacte e `cd boxoffice`. Este lab **adiciona** o `EventCache.java` e dois scripts do k6 e **substitui** o `docker-compose.yaml`, o `pom.xml` do catalog, o `application.yaml` e o `EventController.java`; todos aparecem completos nas próximas páginas e estão em [`code/`](code/docker-compose.yaml).
+    Pulou ou quebrou o lab 4? Baixe [boxoffice-after-lab-4.zip](../4/boxoffice-after-lab-4.zip), descompacte e `cd boxoffice`. Este lab **adiciona** o `EventCache.java` e dois scripts do k6 e **substitui** o `compose.yaml`, o `pom.xml` do catalog, o `application.yaml` e o `EventController.java`; todos aparecem completos nas próximas páginas e estão em [`code/`](code/compose.yaml).
 
 ## Slides
 
@@ -221,7 +221,7 @@ Guarde tudo: o lab 6 adiciona o `inventory`, uma réplica de leitura e o PgBounc
 
 ## Entrega { #deliverable }
 
-- [ ] Redis no `docker-compose.yaml`; `EventCache` e o novo `EventController` no `catalog`.
+- [ ] Redis no `compose.yaml`; `EventCache` e o novo `EventController` no `catalog`.
 - [ ] `X-Cache` visível: `curl -sI localhost/catalog/events/1` duas vezes mostra `MISS` e depois `HIT`.
 - [ ] Uma atualização pelo gateway (token de admin) remove o evento do cache: a próxima leitura é um `MISS` com os dados novos.
 - [ ] Parar o Redis (`docker compose stop redis`) **não** quebra o catálogo: as requisições respondem com `X-Cache: MISS`.
@@ -232,7 +232,7 @@ Guarde tudo: o lab 6 adiciona o `inventory`, uma réplica de leitura e o PgBounc
 
 ``` { .tree title="changed in lab 5" }
 boxoffice/
-    docker-compose.yaml        # replaced: + redis (6379), catalog gets REDIS_* and CACHE_* variables
+    compose.yaml               # replaced: + redis (6379), catalog gets REDIS_* and CACHE_* variables
     load/cache.js  load/stampede.js                       # new
     services/catalog/pom.xml                              # replaced: + spring-boot-starter-data-redis
     services/catalog/src/main/resources/application.yaml  # replaced: Redis + cache settings

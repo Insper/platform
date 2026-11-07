@@ -1,6 +1,6 @@
 # 1. Kafka in Compose
 
-In this step you replace your `docker-compose.yaml` with the complete file of this lab, start the four
+In this step you replace your `compose.yaml` with the complete file of this lab, start the four
 new infrastructure containers and get to know Kafka from the command line before any Java code uses
 it. All commands run from the **root of your `boxoffice` repository**.
 
@@ -15,9 +15,9 @@ it. All commands run from the **root of your `boxoffice` repository**.
 
 Kafka keeps its own metadata (topics, partitions, leaders) in a Raft quorum of **controllers** —
 **KRaft**. ZooKeeper is gone since Kafka 4.0. Here a single node plays both roles,
-`broker,controller`. This is the new part of `docker-compose.yaml`:
+`broker,controller`. This is the new part of `compose.yaml`:
 
-``` yaml title="docker-compose.yaml (excerpt)"
+``` yaml title="compose.yaml (excerpt)"
   kafka:
     image: apache/kafka:4.3.1
     hostname: kafka
@@ -82,20 +82,20 @@ Kafka keeps its own metadata (topics, partitions, leaders) in a Raft quorum of *
     changed it):
 
     ``` shell
-    cp docker-compose.yaml docker-compose.lab6.yaml
-    curl -fsSL -o docker-compose.yaml https://insper.github.io/platform/2027.1/hands-on/7/code/docker-compose.yaml
+    cp compose.yaml compose.lab6.yaml
+    curl -fsSL -o compose.yaml https://insper.github.io/platform/2027.1/hands-on/7/code/compose.yaml
     docker compose config --services
     ```
 
     You should see the lab 6 services plus `kafka`, `kafka-init`, `kafka-ui`, `mailpit`, `order` and
     `notification`. `order` and `notification` are built in steps 2 and 3; until then, start only the
-    services named in each command. Delete `docker-compose.lab6.yaml` before you commit: Git already
-    keeps the lab 6 version (`git show lab6:docker-compose.yaml`).
+    services named in each command. Delete `compose.lab6.yaml` before you commit: Git already
+    keeps the lab 6 version (`git show lab6:compose.yaml`).
 
-??? example "docker-compose.yaml — the complete file at the end of this lab"
+??? example "compose.yaml — the complete file at the end of this lab"
 
-    ``` yaml title="docker-compose.yaml"
-    --8<-- "docs/2027.1/hands-on/7/code/docker-compose.yaml"
+    ``` yaml title="compose.yaml"
+    --8<-- "docs/2027.1/hands-on/7/code/compose.yaml"
     ```
 
 Three details matter:

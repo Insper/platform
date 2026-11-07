@@ -21,7 +21,7 @@ test("the tour of step 1: order-1 → partition 4, order-2 → partition 3, as t
 
 test("the names are the lab's: topic, DLT, group, the first order's id", () => {
   ok(code("services/order/src/main/resources/application.yaml").includes(`topic: ${M.TOPIC}`), "topic");
-  ok(code("docker-compose.yaml").includes(`--topic ${M.DLT} --partitions ${M.LAB.partitions}`), "DLT with as many partitions");
+  ok(code("compose.yaml").includes(`--topic ${M.DLT} --partitions ${M.LAB.partitions}`), "DLT with as many partitions");
   ok(code("services/notification/src/main/java/boxoffice/notification/OrderEventListener.java").includes(`groupId = "${M.GROUP}"`), "group");
   ok(outboxPage.includes(`{"id":"${M.FIRST_ID}"`), "the id of the outbox page's curl");
   eq(M.backoffs(), [500, 1000, 2000], "0.5 s, 1 s, 2 s");

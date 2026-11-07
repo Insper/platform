@@ -45,7 +45,7 @@ of your `boxoffice` repository**.
 
 ``` text title="Start state (end of lab 6)"
 boxoffice/
-├── docker-compose.yaml     # db, db-replica, pgbouncer, redis, catalog-1..3, inventory, auth, gateway, edge
+├── compose.yaml            # db, db-replica, pgbouncer, redis, catalog-1..3, inventory, auth, gateway, edge
 ├── infra/                  # nginx/, postgres/, pgbouncer/
 ├── load/                   # k6 scripts of labs 0-6
 ├── scripts/
@@ -63,7 +63,7 @@ boxoffice/
 
 Every file of this lab is shown **in full** on these pages, with its path as the title, and is also
 published under `https://insper.github.io/platform/2027.1/hands-on/7/code/<path>` — for example
-`curl -fsSL -o docker-compose.yaml https://insper.github.io/platform/2027.1/hands-on/7/code/docker-compose.yaml`.
+`curl -fsSL -o compose.yaml https://insper.github.io/platform/2027.1/hands-on/7/code/compose.yaml`.
 
 ## Architecture
 
@@ -171,7 +171,7 @@ it in your repository: it is part of the deliverable.
 |---|---|---|
 | `kafka` stays `starting`/`unhealthy`; `kafka-init` never runs | not enough memory for Docker, or port 9094 in use | give Docker 8 GB; `lsof -i :9094`; `docker compose logs kafka` |
 | `order`/`notification` restart with `Connection to node -1 … could not be established` | they started before Kafka was ready (only if you removed `depends_on`) | `docker compose up -d order notification` again once `kafka` is healthy |
-| `order` fails with `Unable to obtain connection from database` | `db` not healthy yet, or wrong `DB_*` variables | `docker compose ps db`; the variables are in the `order` service of `docker-compose.yaml` |
+| `order` fails with `Unable to obtain connection from database` | `db` not healthy yet, or wrong `DB_*` variables | `docker compose ps db`; the variables are in the `order` service of `compose.yaml` |
 | `POST /orders` answers `403 on-sale in progress` | the waiting room of that show is open (step 4) | use another `showId`, or `curl -X POST localhost:8084/orders/waiting-room/show-42/close` |
 | No e-mail in Mailpit | `notification` is down, lagging, or the event went to the DLT | `docker compose logs notification`; `sh scripts/kafka-lag.sh`; query `notification.dead_letters` |
 | `docker compose exec kafka …` fails with `service "kafka" is not running` | the broker was stopped in an experiment | `docker compose start kafka` |
@@ -183,7 +183,7 @@ it in your repository: it is part of the deliverable.
     - **Write the event in the same transaction as the business change** — `OrderService.java` calls `Outbox.append` (which refuses to run outside a transaction) and `OutboxRelay.java` publishes after the commit. Why: [transactional outbox](../../classes/messaging/patterns/index.md#transactional-outbox).
     - **Make the consumer idempotent in its own database** — `NotificationService.java` inserts the `eventId` into `processed_events` (`V1__create_notification.sql`) in the same transaction as the e-mail row. Why: [idempotent consumers](../../classes/messaging/semantics/index.md#idempotent-consumers).
     - **Bound the retries and keep poison messages for inspection** — `KafkaConfig.java` (3 retries, then `order-events-dlt`; parse errors not retried) and `DeadLetterListener.java` (the `dead_letters` table). Why: [retries and dead letter queues](../../classes/messaging/semantics/index.md#dlq).
-    - **Create topics explicitly and produce durably** — `docker-compose.yaml` (`kafka-init`, auto-creation off) and `services/order/src/main/resources/application.yaml` (`acks: all`, `enable.idempotence: true`). Why: [replication and durability](../../classes/messaging/kafka/index.md#replication-and-durability).
+    - **Create topics explicitly and produce durably** — `compose.yaml` (`kafka-init`, auto-creation off) and `services/order/src/main/resources/application.yaml` (`acks: all`, `enable.idempotence: true`). Why: [replication and durability](../../classes/messaging/kafka/index.md#replication-and-durability).
     - **Admit the crowd at a configured, measured rate, in an order the server decides** — `WaitingRoom.java` (`INCR` sequence, `ADMIT_PER_SECOND`). Why: [the flash-sale waiting room](../../classes/messaging/queues-pubsub/index.md#the-flash-sale-waiting-room).
 
 ## Clean up
@@ -201,7 +201,7 @@ Lab 8 starts from this state; nothing needs to be kept besides your repository.
 
 ``` text title="End state (what this lab added)"
 boxoffice/
-├── docker-compose.yaml     # + kafka, kafka-init, kafka-ui, mailpit, order, notification
+├── compose.yaml            # + kafka, kafka-init, kafka-ui, mailpit, order, notification
 ├── load/
 │   ├── orders-load.js
 │   └── waiting-room-spike.js
@@ -216,7 +216,7 @@ Commit and tag: `git add -A && git commit -m "lab 7: async messaging" && git tag
 
 ## Checklist
 
-- [ ] `kafka`, `kafka-init`, `kafka-ui` and `mailpit` run in `docker-compose.yaml`; `order-events` and `order-events-dlt` have 6 partitions each
+- [ ] `kafka`, `kafka-init`, `kafka-ui` and `mailpit` run in `compose.yaml`; `order-events` and `order-events-dlt` have 6 partitions each
 - [ ] `order` writes `orders` and `outbox` in one transaction; retrying `POST /orders` with the same `holdId` returns the same order and creates no new event
 - [ ] the outbox relay publishes with key = `orderId` and marks rows as published; stopping Kafka loses no event
 - [ ] `notification` sends one e-mail per order even after an offset reset (duplicates are skipped)

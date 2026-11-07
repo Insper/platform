@@ -8,9 +8,9 @@ const read = f => readFileSync(path.join(ROOT, LAB, f), "utf8");
 const statuses = r => r.out.filter(x => x.status).map(x => x.status);
 
 test("the replicas are services of the lab's compose file and instances of lb://catalog", () => {
-  const compose = read("code/docker-compose.yaml"), gw = read("code/services/gateway/src/main/resources/application.yaml");
+  const compose = read("code/compose.yaml"), gw = read("code/services/gateway/src/main/resources/application.yaml");
   for (const n of M.REPLICAS) {
-    ok(new RegExp(`^  ${n}:`, "m").test(compose), `docker-compose.yaml has no service ${n}`);
+    ok(new RegExp(`^  ${n}:`, "m").test(compose), `compose.yaml has no service ${n}`);
     ok(gw.includes(`uri: http://${n}:${M.LAB.catalogPort}`), `the gateway does not list ${n}`);
   }
 });

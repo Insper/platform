@@ -11,8 +11,8 @@
 
 Adicione um serviço `redis` e dê às réplicas do catalog as configurações do cache (o arquivo inteiro, para referência):
 
-``` { .yaml title="docker-compose.yaml" .copy linenums="1" }
---8<-- "docs/2027.1/hands-on/5/code/docker-compose.yaml"
+``` { .yaml title="compose.yaml" .copy linenums="1" }
+--8<-- "docs/2027.1/hands-on/5/code/compose.yaml"
 ```
 
 | Configuração | Por quê |

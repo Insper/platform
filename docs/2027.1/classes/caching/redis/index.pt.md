@@ -268,8 +268,8 @@ Serviços gerenciados cuidam de failover, atualizações e backups; continuam se
 
     O próprio Redis roda como cache puro: memória limitada, despejo do menos usado recentemente, sem persistência.
 
-    ``` { .yaml title="docker-compose.yaml (the redis service)" }
-    --8<-- "docs/2027.1/hands-on/5/code/docker-compose.yaml:55:61"
+    ``` { .yaml title="compose.yaml (the redis service)" }
+    --8<-- "docs/2027.1/hands-on/5/code/compose.yaml:55:61"
     ```
 
     Com `@Cacheable` ([Padrões](../patterns/index.md#cache-aside)), o Spring acrescenta `spring.cache.type: redis` e os padrões da `RedisCacheConfiguration` (TTL, `disableCachingNullValues`, um prefixo de chave); um Redis Cluster troca `host` e `port` por `spring.data.redis.cluster.nodes`.

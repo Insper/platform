@@ -14,9 +14,9 @@ do when a provider fails, and how much each answer costs. All commands run from 
 | `db` and `db-replica` | `pgvector/pgvector:0.8.7-pg17-trixie` | 5432 / 5433 | the same PostgreSQL 17, now with the `vector` extension available |
 | `assistant` | `services/assistant` | 8088 | the FastAPI service of this lab |
 
-The new part of `docker-compose.yaml`:
+The new part of `compose.yaml`:
 
-``` yaml title="docker-compose.yaml (excerpt)"
+``` yaml title="compose.yaml (excerpt)"
   ollama:
     image: ollama/ollama:0.40.6
     ports:
@@ -48,13 +48,13 @@ Get the complete file (lab 9's plus the pgvector image for `db`/`db-replica`, `o
 and `assistant`):
 
 ``` shell
-curl -fsSL -o docker-compose.yaml https://insper.github.io/platform/2027.1/hands-on/12/code/docker-compose.yaml
+curl -fsSL -o compose.yaml https://insper.github.io/platform/2027.1/hands-on/12/code/compose.yaml
 ```
 
-??? example "docker-compose.yaml — the complete file at the end of this lab"
+??? example "compose.yaml — the complete file at the end of this lab"
 
-    ``` yaml title="docker-compose.yaml"
-    --8<-- "docs/2027.1/hands-on/12/code/docker-compose.yaml"
+    ``` yaml title="compose.yaml"
+    --8<-- "docs/2027.1/hands-on/12/code/compose.yaml"
     ```
 
 !!! warning "Where should the model run? (read before pulling)"
@@ -221,7 +221,7 @@ output tokens; one question of this lab uses about 1 000 input and 100 output to
 export it **before** starting the assistant:
 
 ``` shell
-export ANTHROPIC_API_KEY=sk-ant-...       # never commit it; docker-compose.yaml reads it from the shell
+export ANTHROPIC_API_KEY=sk-ant-...       # never commit it; compose.yaml reads it from the shell
 ```
 
 With the key, the default route becomes `claude`; send `"route": "local"` in a request to compare. Without it, nothing

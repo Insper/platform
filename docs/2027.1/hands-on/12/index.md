@@ -43,7 +43,7 @@ Every command runs from the **root of your `boxoffice` repository**, in the stat
 
 ``` text title="Start state (end of lab 11)"
 boxoffice/
-├── docker-compose.yaml     # the Compose stack of labs 1-9 (catalog behind gateway, order, ...)
+├── compose.yaml            # the Compose stack of labs 1-9 (catalog behind gateway, order, ...)
 ├── .github/  k8s/          # labs 10-11
 ├── infra/  load/  scripts/
 └── services/               # auth, catalog, gateway, inventory, notification, order, payment
@@ -146,7 +146,7 @@ The [Measure it](measure/index.md) step has the scripts and the results table to
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | answers take minutes | the model runs on a CPU (always the case in Docker on macOS) | run Ollama natively and set `OLLAMA_URL=http://host.docker.internal:11434`; close other stacks; ask shorter questions |
-| `litellm.APIConnectionError … Connection refused` in the logs | Ollama is not running or `OLLAMA_URL` is wrong | `docker compose ps ollama` / `ollama list`; check the variable in `docker-compose.yaml` |
+| `litellm.APIConnectionError … Connection refused` in the logs | Ollama is not running or `OLLAMA_URL` is wrong | `docker compose ps ollama` / `ollama list`; check the variable in `compose.yaml` |
 | `model "qwen2.5:1.5b" not found` | the model was not pulled | `docker compose up ollama-init` (or `ollama pull qwen2.5:1.5b` natively) |
 | startup fails with `type "vector" does not exist` | `db` still runs the plain `postgres:17` image | `docker compose up -d db` after updating the compose file; `docker compose exec db psql -U boxoffice -c "\dx"` lists `vector` |
 | `/assistant/ingest` returns `Internal Server Error` or `{"ingested":0}` | the gateway is not running (`Name or service not known` in `docker compose logs assistant`), or the catalog behind it is down | `docker compose up -d --wait gateway`; `docker compose ps gateway catalog-1`; `docker compose exec assistant python -c "import urllib.request;print(urllib.request.urlopen('http://gateway:8080/catalog/events/1').status)"` |
@@ -181,7 +181,7 @@ again. Keep it if you continue to lab 13, which can use the same local model. Wi
 ``` text title="End state (what this lab added or changed)"
 boxoffice/
 ├── .gitignore              # + __pycache__/, .venv/
-├── docker-compose.yaml     # db/db-replica -> pgvector image; + ollama, ollama-init, assistant
+├── compose.yaml            # db/db-replica -> pgvector image; + ollama, ollama-init, assistant
 ├── scripts/
 │   ├── assistant_load.py   # TTFT load test (uv inline script)
 │   └── eval_retrieval.py   # hit@k / MRR (uv inline script)
@@ -194,7 +194,7 @@ Commit and tag: `git add -A && git commit -m "lab 12: AI assistant" && git tag l
 
 ## Checklist
 
-- [ ] `ollama`, `ollama-init` and `assistant` run in `docker-compose.yaml` (or Ollama natively, with `OLLAMA_URL`); `db` uses the pgvector image
+- [ ] `ollama`, `ollama-init` and `assistant` run in `compose.yaml` (or Ollama natively, with `OLLAMA_URL`); `db` uses the pgvector image
 - [ ] `services/assistant` is a uv project with `pyproject.toml` and `uv.lock` committed; the image builds with `uv sync --frozen`
 - [ ] `/assistant/ingest` loaded at least 300 events; `scripts/eval_retrieval.py` reports hit@5 and MRR
 - [ ] `/assistant/chat` and `/assistant/chat/stream` answer with citations checked by the output guard; an injection attempt returns `422`

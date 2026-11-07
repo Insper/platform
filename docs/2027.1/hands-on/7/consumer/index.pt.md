@@ -222,7 +222,7 @@ sequenceDiagram
 
 ## Adicione `notification` ao Compose e teste { #add-notification-to-compose-and-test }
 
-``` yaml title="docker-compose.yaml (excerpt)"
+``` yaml title="compose.yaml (excerpt)"
   notification:
     build: ./services/notification
     environment:

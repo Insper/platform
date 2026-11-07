@@ -39,7 +39,7 @@ boxoffice/
 
 !!! tip "Recupere o atraso"
 
-    Pulou ou quebrou o lab 0? Baixe [boxoffice-after-lab-0.zip](../0/boxoffice-after-lab-0.zip), descompacte e `cd boxoffice` (depois `git init -b main`, se quiser controle de versão). Todo arquivo deste lab aparece completo nas próximas páginas e os mesmos arquivos estão na pasta `code/` deste lab (por exemplo [`code/docker-compose.yaml`](code/docker-compose.yaml)).
+    Pulou ou quebrou o lab 0? Baixe [boxoffice-after-lab-0.zip](../0/boxoffice-after-lab-0.zip), descompacte e `cd boxoffice` (depois `git init -b main`, se quiser controle de versão). Todo arquivo deste lab aparece completo nas próximas páginas e os mesmos arquivos estão na pasta `code/` deste lab (por exemplo [`code/compose.yaml`](code/compose.yaml)).
 
 ## Slides
 
@@ -107,7 +107,7 @@ O banco começa com **50 locais em 10 cidades e 200.000 eventos** (um por hora a
 
     ---
 
-    Um Dockerfile multi-stage, o primeiro `docker-compose.yaml` e o serviço rodando com o PostgreSQL.
+    Um Dockerfile multi-stage, o primeiro `compose.yaml` e o serviço rodando com o PostgreSQL.
 
 </div>
 
@@ -115,7 +115,7 @@ Ao fim dos três passos, o seu repositório fica assim:
 
 ``` { .tree title="boxoffice/" }
 boxoffice/
-    docker-compose.yaml
+    compose.yaml
     load/
         hello.js
         smoke.js
@@ -211,10 +211,10 @@ Registre os resultados em `results/lab1.md`:
 
 | Sintoma | Causa | Correção |
 |---|---|---|
-| `Bind for 0.0.0.0:5432 failed: port is already allocated` | há um PostgreSQL local rodando | pare-o (`brew services stop postgresql`, `sudo systemctl stop postgresql`) ou mapeie `"15432:5432"` no `docker-compose.yaml` |
+| `Bind for 0.0.0.0:5432 failed: port is already allocated` | há um PostgreSQL local rodando | pare-o (`brew services stop postgresql`, `sudo systemctl stop postgresql`) ou mapeie `"15432:5432"` no `compose.yaml` |
 | o build falha em `mvn … package` com `Could not resolve dependencies` | sem internet, proxy ou download corrompido | confira a conexão e rode `docker compose build --no-cache catalog` |
 | `catalog` fica `starting`/`unhealthy` | ainda migrando/iniciando (a primeira inicialização carrega 200.000 eventos), ou quebrou | `docker compose logs catalog`; procure `Started CatalogApplication` ou o primeiro `ERROR` |
-| `Connection to localhost:5432 refused` nos logs do catalog | `DB_HOST` não é `db` dentro do Compose | use o `docker-compose.yaml` desta página sem mudanças |
+| `Connection to localhost:5432 refused` nos logs do catalog | `DB_HOST` não é `db` dentro do Compose | use o `compose.yaml` desta página sem mudanças |
 | `Validate failed: Migrations have failed validation` | uma migration aplicada foi editada | restaure o arquivo; só no seu notebook, `docker compose down -v` zera o banco |
 | `curl: (7) Failed to connect to localhost port 8082` | o container ainda não subiu, ou a porta não está publicada | `docker compose ps`; espere `healthy` |
 | `?city=São Paulo` devolve 400 ou nada | o espaço e o `ã` precisam ser codificados na URL | use `?city=S%C3%A3o%20Paulo` (o k6 faz isso com `encodeURIComponent`) |
@@ -222,7 +222,7 @@ Registre os resultados em `results/lab1.md`:
 
 !!! success "Boas práticas neste lab"
 
-    - **Configure por variáveis de ambiente com padrões seguros** — `DB_POOL_SIZE: ${DB_POOL_SIZE:-10}` no `docker-compose.yaml` e no `application.yaml` deixa o lab 2 mudar o pool sem rebuild; a fórmula por trás do número está em [Filas](../../classes/estimation/queueing/index.md).
+    - **Configure por variáveis de ambiente com padrões seguros** — `DB_POOL_SIZE: ${DB_POOL_SIZE:-10}` no `compose.yaml` e no `application.yaml` deixa o lab 2 mudar o pool sem rebuild; a fórmula por trás do número está em [Filas](../../classes/estimation/queueing/index.md).
     - **Fixe os recursos de todo contêiner** — `cpus: "1.0"` e `memory: 768M` fazem da capacidade de uma réplica um número mensurável ([Números — servidores](../../classes/estimation/numbers/index.md)).
     - **Versione o schema como migrations** — `V1__create_catalog.sql` e `V2__seed_catalog.sql` do Flyway reconstroem o mesmo banco em toda máquina; um schema mudado à mão se desencontra.
     - **Exponha um endpoint de prontidão e deixe a plataforma usá-lo** — o `healthcheck` do Compose chama `/actuator/health/readiness`; os balanceadores de carga dependem do mesmo sinal ([Balanceamento — health checks](../../classes/edge/load-balancing/index.md#health-checks)).
@@ -249,7 +249,7 @@ Mantenha o repositório como está: o lab 2 mede este mesmo serviço.
 
 ``` { .tree title="added in lab 1" }
 boxoffice/
-    docker-compose.yaml                      # new: db + catalog
+    compose.yaml                             # new: db + catalog
     load/smoke.js                            # new
     results/lab1.md                          # your measurements
     services/catalog/                        # new: the whole service

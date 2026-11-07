@@ -156,7 +156,7 @@ Because infrastructure is code ([Delivery](../../cloud-native/delivery/index.md)
 
 !!! example "In the BoxOffice code: a small environment, identical on every run (lab 11)"
 
-    The performance gate of [Hands-on 11](../../../hands-on/11/performance-gate/index.md) cannot have production parity — it runs on a shared CI runner — so it chooses **run-to-run parity** instead: its own Compose file starts PostgreSQL, Redis and `catalog` with the same CPU limit (1 CPU) as `docker-compose.yaml`, because budgets are per replica; and the readiness healthcheck plus `docker compose … up --wait` make sure k6 never measures a JVM that is still starting. The price: its numbers say whether *this change* made `catalog` slower, not how many fans production can take.
+    The performance gate of [Hands-on 11](../../../hands-on/11/performance-gate/index.md) cannot have production parity — it runs on a shared CI runner — so it chooses **run-to-run parity** instead: its own Compose file starts PostgreSQL, Redis and `catalog` with the same CPU limit (1 CPU) as `compose.yaml`, because budgets are per replica; and the readiness healthcheck plus `docker compose … up --wait` make sure k6 never measures a JVM that is still starting. The price: its numbers say whether *this change* made `catalog` slower, not how many fans production can take.
 
     ``` { .yaml title=".github/ci/compose.perf.yaml (the service under test)" }
     --8<-- "docs/2027.1/hands-on/11/code/.github/ci/compose.perf.yaml:27:54"

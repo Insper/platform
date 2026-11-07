@@ -1,4 +1,4 @@
-# Non-secret settings shared by the services (the same variables as in docker-compose.yaml)
+# Non-secret settings shared by the services (the same variables as in compose.yaml)
 apiVersion: v1
 kind: ConfigMap
 metadata:

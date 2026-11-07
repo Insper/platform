@@ -44,7 +44,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "1.0"          # the same limit as in docker-compose.yaml: budgets are per replica
+          cpus: "1.0"          # the same limit as in compose.yaml: budgets are per replica
           memory: 768M
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8082/actuator/health/readiness || exit 1"]

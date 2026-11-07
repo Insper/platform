@@ -268,8 +268,8 @@ Managed services take care of failover, patching and backups; you still own **si
 
     Redis itself runs as a pure cache: bounded memory, least-recently-used eviction, no persistence.
 
-    ``` { .yaml title="docker-compose.yaml (the redis service)" }
-    --8<-- "docs/2027.1/hands-on/5/code/docker-compose.yaml:55:61"
+    ``` { .yaml title="compose.yaml (the redis service)" }
+    --8<-- "docs/2027.1/hands-on/5/code/compose.yaml:55:61"
     ```
 
     With `@Cacheable` instead ([Patterns](../patterns/index.md#cache-aside)), Spring adds `spring.cache.type: redis` and the defaults of `RedisCacheConfiguration` (TTL, `disableCachingNullValues`, a key prefix); a Redis Cluster replaces `host` and `port` with `spring.data.redis.cluster.nodes`.

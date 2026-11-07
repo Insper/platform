@@ -107,8 +107,8 @@ The edge now forwards everything to the gateway; routing by path moved one hop i
 
 ## 6. Compose
 
-``` { .yaml title="docker-compose.yaml" .copy linenums="1" }
---8<-- "docs/2027.1/hands-on/4/code/docker-compose.yaml"
+``` { .yaml title="compose.yaml" .copy linenums="1" }
+--8<-- "docs/2027.1/hands-on/4/code/compose.yaml"
 ```
 
 The gateway publishes port 8080 only so that you can measure it directly; in production only the edge would be exposed.

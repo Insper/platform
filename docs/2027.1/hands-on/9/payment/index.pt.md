@@ -145,7 +145,7 @@ O Toxiproxy lê os seus proxies de um arquivo JSON na inicialização:
 
 ## Compose
 
-``` yaml title="docker-compose.yaml (excerpt)"
+``` yaml title="compose.yaml (excerpt)"
   psp:
     image: wiremock/wiremock:3.13.2
     volumes:
@@ -197,7 +197,7 @@ O Toxiproxy lê os seus proxies de um arquivo JSON na inicialização:
 e o serviço `order` agora chega ao `payment` pelo proxy (não diretamente), com os ajustes do
 [passo 2](../patterns/index.md) como variáveis:
 
-``` yaml title="docker-compose.yaml (excerpt of the order service)"
+``` yaml title="compose.yaml (excerpt of the order service)"
       PAYMENT_URL: http://toxiproxy:18085            # lab 9: through Toxiproxy, not payment:8085
       PAYMENT_RESILIENCE: ${PAYMENT_RESILIENCE:-true}
       PAYMENT_READ_TIMEOUT: ${PAYMENT_READ_TIMEOUT:-1s}
@@ -208,13 +208,13 @@ e o serviço `order` agora chega ao `payment` pelo proxy (não diretamente), com
 Pegue o arquivo completo (o do lab 8 mais estes serviços e variáveis), na raiz do repositório:
 
 ``` shell
-curl -fsSL -o docker-compose.yaml https://insper.github.io/platform/2027.1/hands-on/9/code/docker-compose.yaml
+curl -fsSL -o compose.yaml https://insper.github.io/platform/2027.1/hands-on/9/code/compose.yaml
 ```
 
-??? example "docker-compose.yaml — o arquivo completo ao fim deste lab"
+??? example "compose.yaml — o arquivo completo ao fim deste lab"
 
-    ``` yaml title="docker-compose.yaml"
-    --8<-- "docs/2027.1/hands-on/9/code/docker-compose.yaml"
+    ``` yaml title="compose.yaml"
+    --8<-- "docs/2027.1/hands-on/9/code/compose.yaml"
     ```
 
 Suba os três contêineres novos; o `--wait` retorna quando o `payment` está saudável (o primeiro build

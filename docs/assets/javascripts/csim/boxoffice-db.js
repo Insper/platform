@@ -3,7 +3,7 @@
  *
  *   <div class="csim" data-sim="boxoffice-db" data-script="crash"></div>
  *
- * db (primary) and db-replica (streaming standby), the services of the lab's docker-compose.yaml,
+ * db (primary) and db-replica (streaming standby), the services of the lab's compose.yaml,
  * with the two Docker names the services connect to: "db" (PgBouncer, auth, catalog: holds and every
  * other read and write) and "db-replica" (inventory's readOnly transactions: the seat map). Every
  * button is a command of the lab (curl a hold, the seat map or Ana's hold; the probes; docker compose
