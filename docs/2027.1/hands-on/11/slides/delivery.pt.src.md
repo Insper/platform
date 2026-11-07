@@ -14,6 +14,10 @@ theme: platform
 {{INCLUDE:scripts/slides/theme.js}}
 </script>
 
+<style>
+{{INCLUDE:scripts/slides/diagram.css}}
+</style>
+
 <div class="kicker">Arquitetura de Sistemas · Insper</div>
 
 # Hands-on 11 — Entrega
@@ -39,19 +43,28 @@ Cada mudança pode quebrar o checkout: uma query lenta, uma biblioteca vulneráv
 
 - Ninguém consegue: o **pipeline** precisa responder "isto é seguro?" automaticamente.
 - E quando ele erra, a **release** precisa limitar o estrago.
-- Meça: **lead time** e **taxa de falha de mudanças** (DORA).
+- Meça: **lead time** e **taxa de falha de mudanças** (DORA, *DevOps Research and Assessment*).
 
 ---
 
 ## O pipeline
 
-| Workflow | Job | Responde |
-|---|---|---|
-| `CI` | `test` (matriz) | funciona? (Testcontainers) |
-| `CI` | `performance budget` | é rápido o bastante? (k6) |
-| `CI` | `image` | o que há dentro, é vulnerável, quem construiu? |
-| `Deploy` | `promote` | qual versão deve rodar? (um commit no Git) |
-| Argo CD + Rollouts | no cluster | faz o deploy, com cuidado |
+<div class="flow">
+<div class="group">
+<div class="caption">CI: integração contínua, em todo push e pull request</div>
+<div class="box accent">test (matriz)<small>funciona? Testcontainers</small></div>
+<div class="box accent">performance budget<small>é rápido o bastante? k6</small></div>
+<div class="box accent">image<small>o que há dentro, é vulnerável, quem construiu?</small></div>
+</div>
+<div class="arrow">na main →</div>
+<div class="box orange" style="flex: .6">Deploy<small>qual versão deve rodar? um commit no Git</small></div>
+<div class="arrow">pull →</div>
+<div class="group">
+<div class="caption">no cluster</div>
+<div class="box green">Argo CD<small>aplica o overlay</small></div>
+<div class="box green">Argo Rollouts<small>faz o deploy, com cuidado</small></div>
+</div>
+</div>
 
 ---
 
@@ -75,10 +88,16 @@ class CatalogApiTest {
 
 ## Passo 2 · Cadeia de suprimentos
 
-- **Build** com `load: true` → relatório do **Trivy** (aba Security) → **portão**: CRITICAL com correção reprova.
-- **SBOM** (Syft, SPDX): todo pacote e versão na imagem.
-- **Push** para `ghcr.io/<you>/boxoffice-catalog:sha-<commit>`.
-- **Atestação** de proveniência + SBOM: assinadas (Sigstore), ligadas ao digest.
+<div class="flow">
+<div class="box">build<small>load: true, ainda sem push</small></div><div class="arrow">→</div>
+<div class="box orange">Trivy<small>relatório em Security; portão: CRITICAL com correção reprova</small></div><div class="arrow">→</div>
+<div class="box accent">SBOM<small>Syft, SPDX: todo pacote e versão</small></div><div class="arrow">→</div>
+<div class="box accent">push<small>ghcr.io/…/boxoffice-catalog:sha-…</small></div><div class="arrow">→</div>
+<div class="box green">atestação<small>proveniência + SBOM, assinadas, ligadas ao digest</small></div>
+</div>
+
+- **Escaneie antes de publicar**: uma imagem vulnerável nunca chega ao registry.
+- A lista de materiais de software (**SBOM**, *software bill of materials*) responde "o que há dentro"; a proveniência assinada responde "quem construiu, a partir de qual commit".
 
 <div class="warn">
 
@@ -98,15 +117,21 @@ thresholds: {
 ```
 
 - Ambiente fixo (`.github/ci/compose.perf.yaml`), aquecimento de 20 s não medido.
-- Execução normal: p95 ≈ 7 ms. Com `Thread.sleep(400)`: ✗ → o PR fica vermelho.
+- Execução normal: p95 ≈ 7 ms. Com `Thread.sleep(400)`: ✗ → o pull request (PR) fica vermelho.
 - Margem de propósito: um **portão ruidoso** é ignorado.
 
 ---
 
 ## Passo 4 · GitOps
 
-- O CI nunca toca no cluster; o **Deploy** faz commit da nova tag em `k8s/overlays/gitops`.
-- O **Argo CD** (no cluster) puxa o Git e aplica: `prune`, `selfHeal`.
+<div class="flow">
+<div class="box accent">CI<small>imagem sha-…</small></div><div class="arrow">→</div>
+<div class="box orange">Deploy<small>commit da tag em k8s/overlays/gitops</small></div><div class="arrow">→</div>
+<div class="box">Git<small>o estado desejado</small></div><div class="arrow">← consulta a cada 3 min ←</div>
+<div class="box green">Argo CD<small>dentro do cluster: aplica, poda, se autocorrige</small></div>
+</div>
+
+- O CI nunca toca no cluster: ele só escreve no Git.
 - Rollback = `git revert`; auditoria = `git log`; drift → revertido em segundos.
 
 <div class="ok">
@@ -119,12 +144,17 @@ As credenciais do cluster nunca saem do cluster.
 
 ## Passo 5 · O canary
 
-| Objeto | Papel |
-|---|---|
-| `Rollout` (`workloadRef` → o Deployment) | 25% → 2 min → 50% → 2 min → 100% |
-| Services `catalog-stable` / `catalog-canary` | apontam para os pods de cada versão |
-| `AnalysisTemplate` | a cada 30 s: taxa de erro do canary < 1%, p99 < 500 ms |
-| Prometheus | faz scrape de `/actuator/prometheus`, label `service` |
+<div class="flow">
+<div class="box orange">setWeight 25<small>1 pod canary + 2 estáveis: cerca de um terço</small></div><div class="arrow">pausa 2 min →</div>
+<div class="box orange">setWeight 50<small>1 canary + 1 estável</small></div><div class="arrow">pausa 2 min →</div>
+<div class="box green">o canary vira o estável</div>
+</div>
+<div class="flow">
+<div class="box accent">AnalysisRun, a cada 30 s desde o primeiro passo<small>taxa de erro do canary &lt; 1% e p99 &lt; 500 ms · failureLimit: 1 · resultado vazio = aprovado</small></div>
+</div>
+
+- Sem traffic router: o `Rollout` chega a um peso pela **contagem de réplicas** (`workloadRef` → o Deployment).
+- Os Services `catalog-stable` / `catalog-canary` apontam para cada versão; o Prometheus marca toda série com `service`.
 
 ---
 
@@ -139,6 +169,22 @@ As credenciais do cluster nunca saem do cluster.
 * O Argo CD sincroniza → o Rollout inicia um pod canary.
 * Análise: `[]` (ainda sem dados), **0,068**, **0,285** → duas falhas > `failureLimit: 1`.
 * `RolloutAborted` → canary reduzido a zero; o estável continua atendendo. Corrija para a frente: `git revert`.
+
+---
+
+## Sem cluster: repita a análise
+
+<div class="flow">
+<div class="box">t = 0 s<small>[] · ainda sem série 500</small></div><div class="arrow">→</div>
+<div class="box red">t = 30 s<small>0.258 ✖ (1)</small></div><div class="arrow">→</div>
+<div class="box red">t = 60 s<small>0.284 ✖ (2) &gt; failureLimit 1</small></div><div class="arrow">→</div>
+<div class="box orange">RolloutAborted<small>cerca de 120 requisições com falha, 10% daquele minuto</small></div>
+</div>
+
+- O simulador do passo do canary: uma release boa → todo resultado `[]` → estável em **240 s**.
+- **0 req/s** com 0.3 → todo resultado `[]` → a release ruim é **promovida**: sem tráfego, sem evidência.
+- `Thread.sleep(400)` → p99 de 0,409 s passa no canary; só o portão do passo 3 a barra.
+- Playground `boxoffice-canary`: o mesmo bug como canary custa um quarto dos erros.
 
 ---
 
@@ -171,6 +217,6 @@ As credenciais do cluster nunca saem do cluster.
 1. Teste contra **dependências reais** (Testcontainers); rode o CI em todo PR e na `main`.
 2. **Privilégio mínimo** por job; fixe toda action num SHA de commit.
 3. Escaneie **antes** de publicar; SBOM + proveniência assinada respondem "o quê" e "quem".
-4. Um **orçamento de desempenho** transforma o SLO numa verificação do build — com margem.
+4. Um **orçamento de desempenho** transforma o objetivo de nível de serviço (SLO) numa verificação do build — com margem.
 5. **GitOps**: o Git é a fonte da verdade; o cluster puxa.
 6. **Canary + análise** para releases ruins automaticamente. Próximo: o [lab 13](../../13/index.md) adiciona IA a este pipeline.

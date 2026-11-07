@@ -317,6 +317,60 @@ export default [
     ].map(e => ({ sim: "catalog-sweep", ...e }));
   })(),
 
+  // hands-on/8: the lab twin of "Fire it" (slo-catalog.yaml, the page's k6 command, the export interval, step 2's stress test)
+  ...(() => {
+    const rule = H + "8/code/infra/grafana/alerting/slo-catalog.yaml", slo = H + "8/slo/index.md", dash = H + "8/dashboard/index.md";
+    const stress = H + "2/code/load/stress.js";
+    const nth = (re, i) => t => [...t.matchAll(re)].map(m => +m[1])[i];
+    const range = i => nth(/relativeTimeRange: \{ from: (\d+), to: 0 \}/g, i);
+    const forS = i => t => { const v = [...t.matchAll(/^\s*for: (\d+)(s|m)$/gm)][i]; return v ? +v[1] * (v[2] === "m" ? 60 : 1) : undefined; };
+    return [
+      { key: "budget", value: 0.005, lab: rule, read: num(/\) \/ ([\d.]+)\n/) },
+      { key: "fastBurn", value: 14.4, lab: rule, read: nth(/expression: "\$A > ([\d.]+) && \$B > [\d.]+"/g, 0) },
+      { key: "slowBurn", value: 6, lab: rule, read: nth(/expression: "\$A > ([\d.]+) && \$B > [\d.]+"/g, 1) },
+      { key: "fastLong", value: 3600, unit: "s", lab: rule, read: range(0) },
+      { key: "fastShort", value: 300, unit: "s", lab: rule, read: range(1) },
+      { key: "slowLong", value: 21600, unit: "s", lab: rule, read: range(2) },
+      { key: "slowShort", value: 1800, unit: "s", lab: rule, read: range(3) },
+      { key: "fastFor", value: 60, unit: "s", lab: rule, read: forS(0) },
+      { key: "slowFor", value: 300, unit: "s", lab: rule, read: forS(1) },
+      { key: "interval", value: 30, unit: "s", lab: rule, read: num(/^\s*interval: (\d+)s$/m) },
+      { key: "rate", value: 50, unit: "req/s", lab: slo, read: num(/k6 run -e RATE=(\d+) -e DURATION=15m load\/catalog-otel\.js &/) },
+      { key: "exportS", value: 10, unit: "s", lab: H + "8/code/docker-compose.yaml", read: t => (num(/OTEL_METRIC_EXPORT_INTERVAL: "(\d+)"/)(t) ?? NaN) / 1000 },
+      { key: "peak", value: 600, unit: "req/s", lab: dash, read: num(/-e PEAK=(\d+) load\/stress\.js/) },
+      { key: "gwMax", value: 320, unit: "req/s", lab: dash, read: num(/about 95% CPU at about (\d+) req\/s/) },
+      { key: "startRate", value: 10, unit: "req/s", lab: stress, read: num(/startRate: (\d+),/) },
+      { key: "stages", value: "0.25/30 0.25/30 0.5/30 0.5/30 0.75/30 0.75/30 1/30 1/60 0.25/15 0.25/60", lab: stress,
+        read: t => [...t.matchAll(/step\(([\d.]+), '(\d+)(s|m)'\)/g)].map(m => `${+m[1]}/${+m[2] * (m[3] === "m" ? 60 : 1)}`).join(" ") || undefined },
+    ].map(e => ({ sim: "catalog-slo-alert", ...e }));
+  })(),
+
+  // hands-on/11: the lab twin of the canary (catalog-rollout.yaml, catalog-analysis.yaml, prometheus.yaml, lab 10's HPA, probes and k6)
+  ...(() => {
+    const L11 = H + "11/code/", ro = L11 + "k8s/overlays/gitops/catalog-rollout.yaml", an = L11 + "k8s/overlays/gitops/catalog-analysis.yaml";
+    const canary = H + "11/canary/index.md", dep = H + "10/code/k8s/base/catalog.yaml";
+    const nth = (re, i) => t => [...t.matchAll(re)].map(m => +m[1])[i];
+    const period = name => num(new RegExp(name + ":[^\\n]*\\n\\s+httpGet:[^\\n]*\\n\\s+periodSeconds:\\s*(\\d+)"));
+    return [
+      { key: "weight1", value: 25, unit: "%", lab: ro, read: nth(/setWeight: (\d+)/g, 0) },
+      { key: "weight2", value: 50, unit: "%", lab: ro, read: nth(/setWeight: (\d+)/g, 1) },
+      { key: "pause", value: 120, unit: "s", lab: ro, read: t => (num(/pause: \{ duration: (\d+)m \}/)(t) ?? NaN) * 60 },
+      { key: "interval", value: 30, unit: "s", lab: an, read: num(/interval: (\d+)s/) },
+      { key: "failureLimit", value: 1, lab: an, read: num(/failureLimit: (\d+)/) },
+      { key: "maxError", value: 0.01, lab: an, read: nth(/result\[0\] < ([\d.]+)/g, 0) },
+      { key: "maxP99", value: 0.5, unit: "s", lab: an, read: nth(/result\[0\] < ([\d.]+)/g, 1) },
+      { key: "window", value: 60, unit: "s", lab: an, read: t => (num(/\[(\d+)m\]\)\)/)(t) ?? NaN) * 60 },
+      { key: "scrape", value: 15, unit: "s", lab: L11 + "k8s/monitoring/prometheus.yaml", read: num(/scrape_interval: (\d+)s/) },
+      { key: "replicas", value: 2, lab: H + "10/code/k8s/base/catalog-hpa.yaml", read: num(/minReplicas:\s*(\d+)/) },
+      { key: "chaos", attr: "chaos", value: 0.3, lab: canary, read: num(/name: CHAOS_ERROR_RATE, value: "([\d.]+)"/) },
+      { key: "readinessPeriod", value: 5, unit: "s", lab: dep, read: period("readinessProbe") },
+      { key: "livenessPeriod", value: 10, unit: "s", lab: dep, read: period("livenessProbe") },
+      { key: "startRate", attr: "rate", value: 20, unit: "req/s", lab: H + "10/code/load/catalog-hpa.js", read: num(/startRate: (\d+),/) },
+      { key: "peak", value: 40, unit: "req/s", lab: canary, read: num(/k6 run -e PEAK=(\d+) load\/catalog-hpa\.js &/) },
+      { key: "sleepMs", value: 400, unit: "ms", lab: H + "11/performance-gate/index.md", read: num(/try \{ Thread\.sleep\((\d+)\); \}/) },
+    ].map(e => ({ sim: "canary-analysis", ...e }));
+  })(),
+
   // classes/ai-systems (RAG & Memory): lab 12 retrieves the top RETRIEVE_K events
   { sim: "rag-hybrid", key: "k", attr: "k", value: 5,
     lab: H + "12/code/services/assistant/app/config.py", read: num(/"RETRIEVE_K", "(\d+)"/) },

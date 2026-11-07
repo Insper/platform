@@ -13,8 +13,21 @@ Um bom *page* (o acionamento do on-call) é **urgente**, **acionável** e sobre 
 | Error budget queimando devagar: vai acabar em 10 dias | não | sim | um pouco | **ticket** para o time, nesta semana |
 | O disco do broker Kafka vai encher em 4 dias neste ritmo | não | sim | ainda não | **ticket** |
 | Um de 30 pods do `catalog` reiniciou e se recuperou | não | não | não | só **dashboard / log** |
-| CPU em 85% enquanto todos os SLIs estão bem | não | não | não | nada — ou uma revisão de capacidade |
+| CPU em 85% enquanto todos os indicadores de nível de serviço (SLIs, *service level indicators*) estão bem | não | não | não | nada — ou uma revisão de capacidade |
 | O próprio pipeline de alertas está quebrado | sim | sim | indiretamente | page (via um *dead man's switch*, abaixo) |
+
+As três perguntas formam uma decisão, em ordem. Execute-a:
+
+``` diagram-sim
+flowchart TD
+    A["Algo parece errado"] --> U{"Os usuários sofrem,<br/>agora ou em breve?"}
+    U -->|não| D["Só dashboard ou log"]
+    U -->|sim| AC{"Um humano pode<br/>fazer algo a respeito?"}
+    AC -->|não| FX["Conserte o alerta ou automatize a correção"]:::problem
+    AC -->|sim| UR{"Precisa acontecer<br/>em minutos?"}
+    UR -->|sim| P["Acione o on-call (page)"]:::problem
+    UR -->|não| T["Ticket para o time"]:::tech
+```
 
 ### Sintomas, não causas { #symptoms-not-causes }
 
@@ -22,7 +35,7 @@ Alerte sobre **sintomas** — o que os usuários vivenciam: erros, latência, at
 
 | | Alerta baseado em sintoma | Alerta baseado em causa |
 |---|---|---|
-| Exemplo | "razão de sucesso do checkout abaixo do SLO" | "CPU do PostgreSQL > 90%" |
+| Exemplo | "razão de sucesso do checkout abaixo do objetivo de nível de serviço (SLO, *service level objective*)" | "CPU do PostgreSQL > 90%" |
 | Dispara quando os usuários estão bem? | não | com frequência (CPU alta, usuários felizes) |
 | Perde problemas reais? | raramente — seja qual for a causa, os usuários sentem | com frequência — a falha que você não previu não tem alerta |
 | Número de regras | poucas, por jornada do usuário | muitas, por componente e recurso |
@@ -64,16 +77,16 @@ Um burn rate de 1000× é uma indisponibilidade total (100% de erros contra um b
 
 ### Seis jeitos de escrever o alerta { #six-ways-to-write-the-alert }
 
-O SRE Workbook[^2] compara seis desenhos progressivamente melhores para um alerta de SLO. Sua qualidade é medida por quatro propriedades: **precisão** (fração dos alertas que eram problemas reais), **recall** (fração dos problemas reais que geraram alerta), **tempo de detecção** e **tempo de reset** (quanto tempo o alerta continua disparando depois que o problema acaba).
+O SRE Workbook[^2] (*Site Reliability Engineering Workbook*) compara seis desenhos progressivamente melhores para um alerta de SLO. Sua qualidade é medida por quatro propriedades: **precisão** (fração dos alertas que eram problemas reais), **recall** (fração dos problemas reais que geraram alerta), **tempo de detecção** e **tempo de reset** (quanto tempo o alerta continua disparando depois que o problema acaba).
 
 | # | Regra | Precisão | Recall | Detecção | Reset | Problema |
 |---|---|---|---|---|---|---|
-| 1 | razão de erros > 0,1% em 10 min | baixa | alto | rápida | rápido | aciona por oscilações que mal tocam o budget |
-| 2 | razão de erros > 0,1% em 36 h | alta | alto | **muito lenta** | **muito lento** | uma indisponibilidade total leva ~2 min para alertar e o alerta dura 36 h |
-| 3 | regra 1 + `for: 1h` | média | **baixo** | lenta | rápido | uma indisponibilidade de 100% ainda espera uma hora |
-| 4 | burn rate de 14,4× em 1 h | alta | médio | boa | lento | queimas lentas (3×) nunca alertam; o reset leva até uma hora |
-| 5 | vários burn rates (14,4× / 6× / 1×) | alta | alto | boa | lento | complexo; ainda lento para resetar |
-| 6 | **multiwindow, multi-burn-rate** | alta | alto | boa | **rápido** | o maior número de regras — gere-as com uma ferramenta |
+| 1 | razão de erros > 0,1% em 10 min | 🔴 baixa | 🟢 alto | 🟢 rápida | 🟢 rápido | aciona por oscilações que mal tocam o budget |
+| 2 | razão de erros > 0,1% em 36 h | 🟢 alta | 🟢 alto | 🔴 **muito lenta** | 🔴 **muito lento** | uma indisponibilidade total leva ~2 min para alertar e o alerta dura 36 h |
+| 3 | regra 1 + `for: 1h` | 🟡 média | 🔴 **baixo** | 🔴 lenta | 🟢 rápido | uma indisponibilidade de 100% ainda espera uma hora |
+| 4 | burn rate de 14,4× em 1 h | 🟢 alta | 🟡 médio | 🟢 boa | 🔴 lento | queimas lentas (3×) nunca alertam; o reset leva até uma hora |
+| 5 | vários burn rates (14,4× / 6× / 1×) | 🟢 alta | 🟢 alto | 🟢 boa | 🔴 lento | complexo; ainda lento para resetar |
+| 6 | **multiwindow, multi-burn-rate** | 🟢 alta | 🟢 alto | 🟢 boa | 🟢 **rápido** | o maior número de regras — gere-as com uma ferramenta |
 
 ### Multiwindow, multi-burn-rate
 
@@ -274,7 +287,7 @@ Para jornadas com pouco tráfego à noite, uma razão sobre zero requisições �
 
 ## Runbooks
 
-Todo page precisa apontar para um **runbook**: um documento curto que diz a um engenheiro cansado o que o alerta significa e o que tentar primeiro. Runbooks reduzem o MTTR porque os primeiros 10 minutos deixam de ser improviso.
+Todo page precisa apontar para um **runbook**: um documento curto que diz a um engenheiro cansado o que o alerta significa e o que tentar primeiro. Runbooks reduzem o tempo médio de recuperação (MTTR, *mean time to recovery*) porque os primeiros 10 minutos deixam de ser improviso.
 
 ```markdown
 # CheckoutErrorBudgetFastBurn
@@ -308,6 +321,10 @@ Um alerta não tira uma réplica quebrada do balanceador: um health check faz is
 ??? question "O que você deveria ter observado?"
 
     A curva de erros não muda: a disponibilidade continua em 99,4%, porque o health check já tinha tirado a réplica morta da rotação após 3 s. O que muda é o reparo: com alguém acionado, a réplica volta em t = 90 s em vez de t = 130 s e o BoxOffice roda com duas de suas três réplicas por 40 s em vez de 80 s. Sem o health check, o Alerting sozinho também não ajuda os fãs — o balanceador continua mandando um terço das requisições para a réplica morta por 30 s (93,8% de disponibilidade). Máquinas contornam uma falha em segundos; pessoas a reparam em minutos e o alerta é o que dá início aos minutos.
+
+**A mesma história no BoxOffice.** O preset `boxoffice-observability` é a falha do lab 8: em t = 60 s o banco do `catalog` para por 100 s e nada o vigia. Aqui um health check não ajuda — todas as réplicas dividem o mesmo banco quebrado, então não há instância saudável para onde rotear. Monte a pilha que o lab instala (Metrics em todos os serviços, Tracing e Logs no `catalog`) e depois conecte o Alerting ao Metrics: só o page encurta esta queda, porque só uma pessoa pode subir o banco de novo.
+
+<div class="sdp" data-scenario="boxoffice-observability" data-mode="compact" data-height="460"></div>
 
 ---
 

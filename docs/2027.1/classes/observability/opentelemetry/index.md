@@ -5,11 +5,11 @@ BoxOffice is written in Java (gateway, order, inventory, payment, catalog), Pyth
 
 ## What OpenTelemetry is (and is not)
 
-OpenTelemetry is a CNCF project that defines **how telemetry is produced and transported**. It is **not** a backend: it does not store or display anything. You still choose where the data goes — Prometheus, Tempo, Jaeger, Loki, a cloud service or a vendor — and you can change that choice without touching application code.
+OpenTelemetry is a Cloud Native Computing Foundation (CNCF) project that defines **how telemetry is produced and transported**. It is **not** a backend: it does not store or display anything. You still choose where the data goes — Prometheus, Tempo, Jaeger, Loki, a cloud service or a vendor — and you can change that choice without touching application code.
 
 | Piece | What it is | BoxOffice example |
 |---|---|---|
-| **API** | interfaces to create spans, metrics and logs; safe no-ops if no SDK is installed | `Tracer`, `Meter` used inside `payment` |
+| **API** (application programming interface) | interfaces to create spans, metrics and logs; safe no-ops if no SDK (software development kit) is installed | `Tracer`, `Meter` used inside `payment` |
 | **SDK** | the implementation: sampling, batching, resource detection, exporters | configured by the Java agent from environment variables |
 | **Instrumentation libraries** | ready-made spans/metrics for frameworks: Spring MVC, JDBC, Kafka clients, FastAPI, HTTP clients | the `SELECT seat_holds` span, created without any code |
 | **Semantic conventions** | standard names for attributes and metrics: `http.route`, `db.system`, `messaging.destination.name` | every service names the route the same way, so one dashboard works for all |
@@ -44,7 +44,7 @@ A trace exists only if every hop knows which trace it belongs to. **Context prop
 
 ### The `traceparent` header
 
-OpenTelemetry uses the W3C Trace Context standard[^2] by default. One header carries the context:
+OpenTelemetry uses the Trace Context standard[^2] of the World Wide Web Consortium (W3C) by default. One header carries the context:
 
 ```text
 traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
@@ -116,7 +116,7 @@ Three details matter in practice:
 
 ### Zero-code: the Java agent
 
-The OpenTelemetry Java agent attaches to the JVM and instruments hundreds of libraries — Spring MVC/WebFlux, JDBC, HikariCP, Kafka clients, HTTP clients, Logback — by bytecode injection, with no code changes. It also puts `trace_id` and `span_id` into the logging context (MDC), so structured logs carry them automatically.
+The OpenTelemetry Java agent attaches to the JVM and instruments hundreds of libraries — Spring MVC/WebFlux, JDBC, HikariCP, Kafka clients, HTTP clients, Logback — by bytecode injection, with no code changes. It also puts `trace_id` and `span_id` into the logging context (the mapped diagnostic context, MDC), so structured logs carry them automatically.
 
 ```dockerfile
 # Dockerfile (excerpt) — pin a version; check the latest release before upgrading
@@ -143,6 +143,10 @@ environment:
     ``` { .yaml title="docker-compose.yaml (the x-otel anchor and the catalog replicas)" }
     --8<-- "docs/2027.1/hands-on/8/code/docker-compose.yaml:3:12,15:22"
     ```
+
+**See it in the playground.** The `boxoffice-observability` preset is lab 8's `catalog` before the agent: no service sends metrics (utilization shows "?"), there are no traces and no alert. At t = 60 s the database stops; Redis still answers the hits, every miss fails, and nobody notices for 100 s. Connect Metrics to every service and Tracing and Logs to `catalog` — what one line of `JAVA_TOOL_OPTIONS` does in the lab — then connect Alerting to Metrics and watch the repair start sooner.
+
+<div class="sdp" data-scenario="boxoffice-observability" data-mode="compact" data-height="460"></div>
 
 ### Zero-code: the Python `assistant`
 
@@ -277,6 +281,15 @@ Keeping every span of every request is rarely affordable (see [what telemetry co
 | **Tail sampling**[^3] | in the Collector, after the whole trace has arrived (`decision_wait`) | keeps *interesting* traces: every error, every slow request, plus a sample of the rest | every span must reach the Collector; memory to buffer; all spans of a trace on one instance |
 | **Rate limiting** | SDK or Collector: at most N traces per second | predictable cost | during a spike, almost everything is dropped — exactly when you need it |
 
+``` diagram
+flowchart LR
+    R["root span<br/>head decision, once"]:::comp -->|"traceparent …-01: sampled"| SVC["every downstream service<br/>follows the flag"]
+    R -.->|"flag 00: no span exported"| X["gone for good"]:::problem
+    SVC -->|"OTLP: every span of the kept traces"| COL["gateway Collector<br/>waits decision_wait = 10 s"]:::comp
+    COL -->|"error, slow or 5%"| TB[("tracing backend")]
+    COL -.->|"the rest"| D["dropped"]
+```
+
 Head and tail sampling are applied in sequence: a trace dropped at the head can never be rescued by the tail. The comparison below uses illustrative numbers for a busy BoxOffice day — 2,000 requests/s, 8 spans per request of 500 bytes, 1% of requests failing and 2% slower than the 2 s threshold:
 
 ```python exec="true"
@@ -299,7 +312,17 @@ for name, kept, err_kept in strategies:
     print(f"| {name} | {kept:.1%} | {gb_per_day(kept):,.1f} GB | {errors_per_day * err_kept:,.0f} ({err_kept:.0%}) |")
 ```
 
-Tail sampling stores less than 10% head sampling and still keeps **every** error trace — at the price of shipping 100% of the spans over the network to the Collector and buffering them for the decision window. A common production recipe: head sampling at 100% (or a high ratio) in the services, tail sampling in a gateway Collector, and **metrics computed from all requests before sampling**, so dashboards and SLOs are exact even though most traces are discarded.
+Tail sampling stores less than 10% head sampling and still keeps **every** error trace — at the price of shipping 100% of the spans over the network to the Collector and buffering them for the decision window. A common production recipe: head sampling at 100% (or a high ratio) in the services, tail sampling in a gateway Collector, and **metrics computed from all requests before sampling**, so dashboards and service level objectives (SLOs) are exact even though most traces are discarded.
+
+<div class="csim" data-sim="trace-sampling" data-head="1" data-tail="on" data-collectors="one"></div>
+
+!!! tip "Try it"
+
+    Each row is one trace of the waterfall in [Signals](../signals/index.md#reading-a-waterfall); the numbers count 100,000 of them.
+
+    - As it opens — head 100%, tail sampling in one gateway Collector — it stores **54.3 GB** a day instead of **691 GB**, and **100%** of the error and slow traces arrive whole.
+    - Turn the tail off and set the head to **10%**: **69.1 GB**, and only **9.9%** of the error traces — the head is blind to the outcome. Turn the tail back on: **5.4 GB**, still **9.9%**. The tail cannot rescue what the head dropped.
+    - Back to head 100%, and put **3 Collectors behind round robin**: each decides on the spans it happens to hold, so only **36%** of the error traces arrive whole and **15%** of the stored traces have holes. Route **by trace id** (the `loadbalancing` exporter): back to **100%**.
 
 !!! example "Exemplars: from a metric to a trace"
 

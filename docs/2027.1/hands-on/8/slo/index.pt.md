@@ -2,7 +2,7 @@
 
 Um dashboard precisa de alguém olhando para ele. Um **alerta** olha por você — e um alerta ruim te
 acorda às 3 da manhã por nada, até você aprender a ignorá-lo. Este passo transforma uma promessa ao
-usuário em um alerta que dispara quando e somente quando a promessa está em risco. A teoria está na
+usuário em um objetivo de nível de serviço (SLO, *service level objective*) e um alerta que dispara quando e somente quando a promessa está em risco. A teoria está na
 [aula de alertas](../../../classes/observability/alerting/index.md) e na
 [aula de SLO](../../../classes/observability/slo/index.md).
 
@@ -10,14 +10,14 @@ usuário em um alerta que dispara quando e somente quando a promessa está em ri
 
 | Termo | `catalog` do BoxOffice |
 |---|---|
-| **SLI** (indicador) | fração das requisições ao `catalog`, sem os *health checks*, **não** respondidas com 5xx |
-| **SLO** (objetivo) | 99,5% em 28 dias corridos (a janela padrão do curso: quatro semanas inteiras) |
+| **SLI** (indicador de nível de serviço, *service level indicator*) | fração das requisições ao `catalog`, sem os *health checks*, **não** respondidas com 5xx |
+| **SLO** (objetivo de nível de serviço) | 99,5% em 28 dias corridos (a janela padrão do curso: quatro semanas inteiras) |
 | **Orçamento de erros** | 0,5% das requisições podem falhar: a 100 req/s, 100 × 86 400 × 28 × 0,005 ≈ **1,21 milhão** de requisições com falha, ou cerca de **202 minutos** de queda total a cada 28 dias |
 | ***Burn rate*** (taxa de queima) | quão rápido o orçamento está sendo gasto, relativo a "exatamente no orçamento": `fração de erros / 0,005` |
 
 Uma taxa de queima de **1** gasta o orçamento inteiro em exatamente 28 dias. Uma taxa de **14,4**
 gasta cerca de 2,1% dele em uma hora (14,4 × 1 h / 672 h ≈ 2,1%) e todo ele em menos de dois dias. (Os limiares
-14,4 e 6 vêm do *SRE workbook* do Google, que os derivou para uma janela de 30 dias: 2% e 5% do orçamento;
+14,4 e 6 vêm do *SRE workbook* (*Site Reliability Engineering*) do Google, que os derivou para uma janela de 30 dias: 2% e 5% do orçamento;
 com 28 dias eles significam 2,1% e 5,4% — perto o bastante para manter os números padrão.)
 
 ??? question "Por que excluir `/actuator/*` do SLI?"
@@ -31,9 +31,9 @@ com 28 dias eles significam 2,1% e 5,4% — perto o bastante para manter os núm
 
 | Alerta | Problema |
 |---|---|
-| `erros > 1%` por 5 min | dispara num soluço de 5 minutos que custou cerca de 0,01% do orçamento (ruído) e fica calado com uma taxa de erros de 0,8% que queima o orçamento inteiro em 17,5 dias (perdido) |
-| `erros > 0` | aciona o tempo todo |
-| `p99 > 1 s` em uma instância | mede uma máquina, não usuários |
+| ❌ `erros > 1%` por 5 min | dispara num soluço de 5 minutos que custou cerca de 0,01% do orçamento (ruído) e fica calado com uma taxa de erros de 0,8% que queima o orçamento inteiro em 17,5 dias (perdido) |
+| ❌ `erros > 0` | aciona o tempo todo |
+| ❌ `p99 > 1 s` em uma instância | mede uma máquina, não usuários |
 
 A resposta do *SRE workbook* do Google é o alerta de **múltiplas janelas e múltiplas taxas de
 queima**: acionar quando o orçamento queima rápido em uma janela **longa** (é um problema real, não um
@@ -63,6 +63,17 @@ condição.
 Reinicie o `otel-lgtm` e abra **Alerting → Alert rules**: as duas regras aparecem na pasta
 *BoxOffice* como *Normal*.
 
+Cada regra passa por três estados, decididos a cada avaliação (`interval: 30s`):
+
+``` diagram-sim
+stateDiagram-v2
+    [*] --> Normal
+    Normal --> Pending : C verdadeira numa avaliação
+    Pending --> Normal : C falsa de novo
+    Pending --> Firing : C ainda verdadeira após for 1m
+    Firing --> Normal : C falsa, em geral B cai primeiro
+```
+
 ## Dispare-o { #fire-it }
 
 Gere tráfego constante e então quebre o banco de que o `catalog` depende:
@@ -77,9 +88,10 @@ Gere tráfego constante e então quebre o banco de que o `catalog` depende:
 > docker compose start db
 ```
 
-Inicie o `db` assim que a regra disparar e deixe o k6 rodando: com tráfego, a taxa de queima de
-5 minutos cai abaixo de 14,4 em um ou dois minutos e a página volta a *Normal*. Sem tráfego, a fração
-é 0 / 0 (`NaN`) e o Grafana mantém o alerta no último estado.
+Inicie o `db` assim que a regra disparar e deixe o k6 rodando: com tráfego, o page volta a *Normal*
+cerca de cinco minutos depois. A taxa de queima de 5 minutos precisa cair abaixo de 14,4, ou seja,
+abaixo de 7,2% de erros — então a queda precisa sair quase inteira da janela de 5 minutos. Sem
+tráfego, a fração é 0 / 0 (`NaN`) e o Grafana mantém o alerta no último estado.
 
 !!! note "Por que o gateway sonda `/actuator/health/readiness`"
 
@@ -110,6 +122,17 @@ Numa execução de teste deste lab (com o teste de estresse do passo 2 ainda na 
 regra ficou *Pending* cerca de 6,5 minutos e *Firing* **cerca de 440 s** depois de o `db` parar, com a
 descrição *"Burn rate 17.0 (1 h) and 200.0 (5 min)"*. O ticket de queima lenta também disparou,
 cerca de um minuto depois.
+
+<div class="csim" data-sim="catalog-slo-alert" data-history="hour" data-fault="stop"></div>
+
+!!! tip "Experimente"
+
+    O simulador repete este experimento: as duas regras do `slo-catalog.yaml`, avaliadas a cada 30 s, e os 50 req/s do k6; um tick são 10 s.
+
+    - **1 h** de histórico saudável, como na previsão acima: a taxa de queima de 1 hora passa de 14,4 após 260 s (4,3 minutos), a regra fica *Pending* na avaliação seguinte e *Firing* em **5:30**, com *"Burn rate 18.3 (1 h) and 200.0 (5 min)"*.
+    - **1 h + teste de estresse**: a escada do passo 2 soma cerca de 84 mil requisições saudáveis (limitadas pelo gateway a cerca de 320 req/s); o page dispara em **7:30**, com *"Burn rate 17.0 (1 h) and 200.0 (5 min)"* — perto da execução de teste.
+    - Com *start db quando disparar* ligado, veja a recuperação: o page volta a *Normal* **5:00** depois que o banco volta, quando a queda saiu da janela de 5 minutos; o ticket continua disparado por **29,5 minutos**, até a queda sair da janela de 30 minutos.
+    - **10 min** de histórico guardam pouco tráfego saudável: o page dispara em **2:00**. **4% de erros**: nenhum page; o ticket de 6 horas dispara após **3,1 horas** (as 4,5 horas da previsão supõem seis horas inteiras de histórico saudável).
 
 Registre nos seus resultados a hora em que parou o `db`, a hora em que a regra ficou *Pending* e
 *Firing*, e as taxas de queima mostradas na descrição do alerta.

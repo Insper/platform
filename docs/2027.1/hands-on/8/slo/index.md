@@ -1,7 +1,7 @@
 # 3. SLO and Burn-Rate Alert
 
 A dashboard needs someone looking at it. An **alert** looks for you — and a bad alert wakes you up at
-3 a.m. for nothing, until you learn to ignore it. This step turns a user-facing promise into an alert
+3 a.m. for nothing, until you learn to ignore it. This step turns a user-facing promise into a service level objective (SLO) and an alert
 that fires when, and only when, the promise is at risk. The theory is in the
 [alerting class](../../../classes/observability/alerting/index.md) and the
 [SLO class](../../../classes/observability/slo/index.md).
@@ -10,14 +10,14 @@ that fires when, and only when, the promise is at risk. The theory is in the
 
 | Term | BoxOffice `catalog` |
 |---|---|
-| **SLI** (indicator) | share of `catalog` requests, health checks excluded, **not** answered with a 5xx |
-| **SLO** (objective) | 99.5% over a rolling 28 days (the course standard window: four whole weeks) |
+| **SLI** (service level indicator) | share of `catalog` requests, health checks excluded, **not** answered with a 5xx |
+| **SLO** (service level objective) | 99.5% over a rolling 28 days (the course standard window: four whole weeks) |
 | **Error budget** | 0.5% of the requests may fail: at 100 req/s, 100 × 86 400 × 28 × 0.005 ≈ **1.21 million** failed requests, or about **202 minutes** of total outage per 28 days |
 | **Burn rate** | how fast the budget is being spent, relative to "exactly on budget": `error ratio / 0.005` |
 
 A burn rate of **1** spends the whole budget in exactly 28 days. A burn rate of **14.4** spends about 2.1% of
 it in one hour (14.4 × 1 h / 672 h ≈ 2.1%) and all of it in less than two days. (The thresholds 14.4 and 6
-come from the Google SRE workbook, which derived them for a 30-day window: 2% and 5% of the budget;
+come from the Google Site Reliability Engineering (SRE) workbook, which derived them for a 30-day window: 2% and 5% of the budget;
 with 28 days they mean 2.1% and 5.4% — close enough to keep the standard numbers.)
 
 ??? question "Why exclude `/actuator/*` from the SLI?"
@@ -31,9 +31,9 @@ with 28 days they mean 2.1% and 5.4% — close enough to keep the standard numbe
 
 | Alert | Problem |
 |---|---|
-| `errors > 1%` for 5 min | fires on a 5-minute blip that cost about 0.01% of the budget (noise), and stays silent on a 0.8% error rate that burns the whole budget in 17.5 days (missed) |
-| `errors > 0` | pages all the time |
-| `p99 > 1 s` on one instance | measures a machine, not users |
+| ❌ `errors > 1%` for 5 min | fires on a 5-minute blip that cost about 0.01% of the budget (noise), and stays silent on a 0.8% error rate that burns the whole budget in 17.5 days (missed) |
+| ❌ `errors > 0` | pages all the time |
+| ❌ `p99 > 1 s` on one instance | measures a machine, not users |
 
 The Google SRE workbook's answer is the **multiwindow, multi-burn-rate** alert: page when the budget
 burns fast over a **long** window (it is a real problem, not a blip) **and** over a **short** window
@@ -61,6 +61,17 @@ Grafana loads alert rules from YAML files in its provisioning folder (mounted in
 Restart `otel-lgtm` and open **Alerting → Alert rules**: both rules are listed in the folder
 *BoxOffice* as *Normal*.
 
+Each rule moves through three states, decided at every evaluation (`interval: 30s`):
+
+``` diagram-sim
+stateDiagram-v2
+    [*] --> Normal
+    Normal --> Pending : C is true at an evaluation
+    Pending --> Normal : C is false again
+    Pending --> Firing : C still true after for 1m
+    Firing --> Normal : C false, usually B drops first
+```
+
 ## Fire it
 
 Produce steady traffic, then break the database that `catalog` depends on:
@@ -75,8 +86,9 @@ Produce steady traffic, then break the database that `catalog` depends on:
 > docker compose start db
 ```
 
-Start `db` once the rule fires, and leave k6 running: with traffic, the 5-minute burn rate falls
-below 14.4 within a minute or two and the page returns to *Normal*. Without traffic, the ratio is
+Start `db` once the rule fires, and leave k6 running: with traffic, the page returns to *Normal*
+about five minutes later. The 5-minute burn rate must fall below 14.4, that is, below 7.2% errors —
+so the outage has to leave the 5-minute window almost entirely. Without traffic, the ratio is
 0 / 0 (`NaN`) and Grafana keeps the alert in its last state.
 
 !!! note "Why the gateway probes `/actuator/health/readiness`"
@@ -106,6 +118,17 @@ below 14.4 within a minute or two and the page returns to *Normal*. Without traf
 In a test run of this lab (with the stress test of step 2 still in the 1-hour window), the rule became
 *Pending* about 6.5 minutes and *Firing* **about 440 s** after `db` was stopped, with the description
 *"Burn rate 17.0 (1 h) and 200.0 (5 min)"*. The slow-burn ticket fired too, about a minute later.
+
+<div class="csim" data-sim="catalog-slo-alert" data-history="hour" data-fault="stop"></div>
+
+!!! tip "Try it"
+
+    The simulator replays this experiment: the two rules of `slo-catalog.yaml`, evaluated every 30 s, and k6's 50 req/s; one tick is 10 s.
+
+    - **1 h** of healthy history, as in the prediction above: the 1-hour burn rate crosses 14.4 after 260 s (4.3 minutes), the rule is *Pending* at the next evaluation and *Firing* at **5:30**, with *"Burn rate 18.3 (1 h) and 200.0 (5 min)"*.
+    - **1 h + stress test**: step 2's staircase adds about 84 thousand healthy requests (capped by the gateway at about 320 req/s); the page fires at **7:30**, with *"Burn rate 17.0 (1 h) and 200.0 (5 min)"* — close to the test run.
+    - With *start db when it fires* on, watch the recovery: the page returns to *Normal* **5:00** after the database is back, once the outage has left the 5-minute window; the ticket keeps firing for **29.5 minutes**, until the outage leaves the 30-minute window.
+    - **10 min** of history holds little healthy traffic: the page fires at **2:00**. **4% errors**: no page at all; the 6-hour ticket fires after **3.1 hours** (the prediction's 4.5 hours assume six full hours of healthy history).
 
 Record in your results the time you stopped `db`, the time the rule became *Pending* and *Firing*,
 and the burn rates shown in the alert's description.

@@ -14,6 +14,10 @@ theme: platform
 {{INCLUDE:scripts/slides/theme.js}}
 </script>
 
+<style>
+{{INCLUDE:scripts/slides/diagram.css}}
+</style>
+
 <div class="kicker">Arquitetura de Sistemas · Insper</div>
 
 # Observabilidade
@@ -41,7 +45,7 @@ Onde você olharia primeiro?
 
 * Os dashboards acompanham **causas** escolhidas de antemão, em média sobre todas as rotas.
 * O problema é um sintoma de **latência**, em **uma jornada**, na **cauda** (p99), causado por uma dependência **externa**.
-* Você precisa de SLIs por jornada para enxergá-lo — e de **traces** para achar para onde foi o tempo.
+* Você precisa de indicadores de nível de serviço (SLIs, *service level indicators*) por jornada para enxergá-lo — e de **traces** para achar para onde foi o tempo.
 
 <!--
 Deixe a turma responder antes de revelar. A ideia: o sistema não está fora do ar, está lento de um
@@ -84,14 +88,23 @@ A cola é o **contexto**: o mesmo `trace_id` na linha de log, no trace e no exem
 
 ## O ciclo de investigação
 
-1. **Alerta** sobre um sintoma: SLO do checkout queimando 14×.
-2. **Dashboard RED**: p99 do `POST /checkout` 400 ms → 9 s; as outras rotas, normais.
-3. **Exemplar**: uma amostra lenta → seu `trace_id`.
-4. **Trace**: 8 dos 9 s dentro do span `payment`.
-5. **Logs** daquele span: `connection pool exhausted, waited 7.9 s`.
-6. **Mitigar** (breaker, failover), depois **postmortem**.
+<div class="flow">
+<div class="box red">Alerta<small>SLO do checkout queimando 14×</small></div><div class="arrow">→</div>
+<div class="box accent">Dashboard RED<small>p99 do /checkout: 400 ms → 9 s</small></div><div class="arrow">→</div>
+<div class="box accent">Exemplar<small>o trace_id de uma amostra lenta</small></div><div class="arrow">→</div>
+<div class="box accent">Trace<small>8 dos 9 s no payment</small></div>
+</div>
+<div class="flow">
+<div class="arrow">→</div>
+<div class="box accent">Logs daquele span<small>pool esgotado, esperou 7,9 s</small></div><div class="arrow">→</div>
+<div class="box muted">Profile<small>qual caminho de código</small></div><div class="arrow">→</div>
+<div class="box green">Mitigar<small>breaker, failover</small></div><div class="arrow">→</div>
+<div class="box">Postmortem<small>prevenir a classe de falha</small></div>
+</div>
 
-<p class="small">De sinais baratos e agregados para sinais caros e detalhados — estreitando a busca a cada passo.</p>
+- O alerta dispara sobre um **objetivo de nível de serviço (SLO, *service level objective*)**: uma promessa sobre um sintoma que o usuário sente.
+- **RED** (taxa, erros e duração, *rate, errors, duration*) por rota localiza; o **exemplar** liga uma amostra lenta ao seu trace.
+- De sinais baratos e agregados para sinais caros e detalhados — estreitando a busca a cada passo.
 
 ---
 
@@ -103,15 +116,30 @@ A cola é o **contexto**: o mesmo `trace_id` na linha de log, no trace e no exem
 |---|---|---|---|
 | **Startup** | terminou de iniciar? | espera; mata após o limite | app inicializada |
 | **Liveness** | travou sem conserto? | **reinicia** | só o próprio processo |
-| **Readiness** | consegue atender *agora*? | **sai do LB** | o que esta instância precisa localmente |
+| **Readiness** | consegue atender *agora*? | **sai do load balancer** | o que esta instância precisa localmente |
 
-<div class="warn">
+- Um check **raso** pergunta "meu processo está vivo?"; um **profundo** também chama o PostgreSQL, o Redis, o provedor.
+- Checks profundos parecem mais honestos — e essa é a armadilha: todas as instâncias dividem as mesmas dependências.
 
-**Cascata do check profundo**: a readiness verifica o PostgreSQL → um failover de 20 s deixa **todos** os pods do `order` não prontos → o Service fica sem endpoints → todas as rotas falham. Se a **liveness** verifica o banco, todos os pods reiniciam juntos → tempestade de reinícios.
+---
 
+## A cascata do check profundo
+
+<div class="flow">
+<div class="box red">o PostgreSQL faz failover<small>por 20 s</small></div><div class="arrow">→</div>
+<div class="box orange">a readiness profunda falha<small>em todos os pods do order ao mesmo tempo</small></div><div class="arrow">→</div>
+<div class="box red">Service sem endpoints<small>503 em todas as rotas</small></div><div class="arrow">→</div>
+<div class="box muted">o GET /events também falha<small>ele só lê o Redis</small></div>
 </div>
 
+- Simulador na página de visão geral: readiness no PostgreSQL → nenhum pod por **12 s**, `GET /events` em **92,0%**; probes só no processo → **100%**.
+- **Liveness** profunda: 3 falhas × 10 s duram mais que um failover de 20 s; com **60 s**, os **4** pods reiniciam e ficam fora **32 s** depois que o banco volta.
+
+<div class="ok">
+
 **A liveness nunca verifica dependências.** Saúde das dependências → métricas, alertas, timeouts, breakers.
+
+</div>
 
 ---
 
@@ -258,12 +286,12 @@ gateway    SERVER POST /checkout          |████████████�
 
 ## SLI → SLO → error budget → SLA
 
-| Termo | Exemplo no BoxOffice |
-|---|---|
-| **SLI** — o que o usuário sente | % de `POST /holds` não-5xx em < 500 ms |
-| **SLO** — meta interna | ≥ 99,9% em 28 dias |
-| **Error budget** — 1 − SLO | 0,1% das reservas podem falhar ou ser lentas |
-| **SLA** — contrato, multas | casas parceiras: 99,5% ao mês, ou créditos |
+<div class="flow">
+<div class="box accent">SLI<small>o que o usuário sente: % de POST /holds não-5xx em &lt; 500 ms</small></div><div class="arrow">→</div>
+<div class="box green">SLO<small>meta interna: ≥ 99,9% em 28 dias</small></div><div class="arrow">→</div>
+<div class="box orange">Error budget<small>1 − SLO: 0,1% das reservas podem falhar ou ser lentas</small></div><div class="arrow">→</div>
+<div class="box muted">SLA<small>acordo de nível de serviço: 99,5% ao mês, ou créditos</small></div>
+</div>
 
 - SLI = **eventos bons / eventos válidos**, medido perto do usuário (gateway, probes sintéticos).
 - CPU, heap, número de pods **não** são SLIs. Mantenha o SLO **mais rígido** que o SLA.
@@ -333,12 +361,12 @@ Assinada por produto **e** engenharia, de antemão. Sem política, um SLO é dec
 | **API / SDK** | criar spans, métricas, logs; amostragem, batching, exportação |
 | **Instrumentação** | sem código: agente Java, `opentelemetry-instrument` em Python |
 | **Semantic conventions** | `http.route`, `db.system`, `service.name`… os mesmos nomes em todo lugar |
-| **OTLP** | o protocolo: gRPC **4317**, HTTP **4318** |
+| **OTLP** | o OpenTelemetry Protocol: gRPC **4317**, HTTP **4318** |
 | **Collector** | receber → processar → exportar |
 
 <div class="ok">
 
-O OTel padroniza a **produção e o transporte**, não o backend: troque o Tempo por um SaaS sem reinstrumentar.
+O OpenTelemetry (OTel) padroniza a **produção e o transporte**, não o backend: troque o Tempo por um SaaS sem reinstrumentar.
 
 </div>
 
@@ -362,20 +390,26 @@ traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
 
 ## O pipeline do Collector
 
-```yaml
-processors:
-  memory_limiter: { check_interval: 1s, limit_percentage: 80, spike_limit_percentage: 20 }
-  attributes/redact: { actions: [ { key: payment.card_number, action: delete } ] }
-  tail_sampling:
-    decision_wait: 10s
-    policies:
-      - { name: keep-errors, type: status_code, status_code: { status_codes: [ERROR] } }
-      - { name: keep-slow, type: latency, latency: { threshold_ms: 2000 } }
-      - { name: some-of-the-rest, type: probabilistic, probabilistic: { sampling_percentage: 5 } }
-  batch: {}
-```
+<div class="flow">
+<div class="box" style="flex: .7">serviços<small>agente Java, SDK Python, Nginx</small></div>
+<div class="arrow">OTLP →</div>
+<div class="group">
+<div class="caption">pipeline do Collector</div>
+<div class="box accent">receivers<small>otlp: 4317 gRPC, 4318 HTTP</small></div>
+<div class="box orange">processors, em ordem<small>memory_limiter → redact → tail_sampling → batch</small></div>
+<div class="box accent">exporters</div>
+</div>
+<div class="arrow">→</div>
+<div class="group">
+<div class="caption">backends</div>
+<div class="box green">Tempo<small>traces</small></div>
+<div class="box green">Prometheus<small>métricas</small></div>
+<div class="box green">Loki<small>logs</small></div>
+</div>
+</div>
 
-- `memory_limiter` **primeiro**, `batch` **por último**. Agente (por nó) vs **gateway** (política central).
+- `memory_limiter` **primeiro** (descarta em vez de cair), `batch` **por último**. Agente (por nó) vs **gateway** (política central).
+- Políticas de cauda: guardar todo `ERROR`, todo trace ≥ 2 s, 5% do resto; a redação apaga `payment.card_number`.
 - Perder telemetria é aceitável; **deixar o checkout lento para reportar sobre ele, não**.
 
 ---
@@ -392,6 +426,23 @@ processors:
 - Head = decidido no primeiro span, **cego** ao resultado. Tail = decidido no Collector depois que o trace termina.
 - O tail sampling precisa de **todos os spans de um trace numa instância** (roteie por trace ID).
 - Calcule **métricas sobre 100% do tráfego** antes de amostrar; use **exemplars** para saltar para os traces.
+
+---
+
+## Cabeça primeiro, cauda depois
+
+<div class="flow">
+<div class="box accent">span raiz<small>decisão de cabeça, uma vez: a flag sampled</small></div><div class="arrow">traceparent →</div>
+<div class="box">todo serviço segue a flag</div><div class="arrow">OTLP →</div>
+<div class="box orange">Collector gateway<small>espera 10 s, decide sobre o trace inteiro</small></div><div class="arrow">→</div>
+<div class="box green">guardados<small>erros, lentos, 5% do resto</small></div>
+</div>
+<div class="flow">
+<div class="box red" style="flex: .45">flag 00<small>nenhum span exportado: a cauda nunca o vê</small></div>
+</div>
+
+- Simulador na página de OpenTelemetry: só a cauda → **54,3 GB/dia**, todo trace de erro inteiro; cabeça 10% antes → **9,9%** dos traces de erro, com ou sem a cauda.
+- **3 Collectors atrás de round robin** → só **36%** dos traces de erro chegam inteiros; roteie **por trace id**.
 
 ---
 
@@ -437,11 +488,28 @@ Alerte sobre **sintomas** (queima do SLO), não **causas** (CPU, reinícios): ca
 
 - Janela **longa**: a queima é significativa. Janela **curta**: ainda está acontecendo → reset rápido.
 - Indisponibilidade total → dispara em < 1 min; 2% de erros → ~43 min.
-- O **Alertmanager** agrupa, deduplica, inibe, silencia, roteia; um **dead man's switch** vigia o vigia.
 
 <!--
 Um budget de 28 dias não protege uma abertura de vendas de 30 minutos: dê aos eventos críticos o próprio SLO, com janelas curtas.
 -->
+
+---
+
+## De uma regra disparada a uma pessoa
+
+<div class="flow" style="align-items: stretch">
+<div class="box" style="display: flex; flex-direction: column; justify-content: center">avaliação da regra<small>Prometheus / Grafana</small></div><div class="arrow" style="align-self: center">→</div>
+<div class="box orange" style="display: flex; flex-direction: column; justify-content: center">alerta disparado<small>severity=page, team=checkout</small></div><div class="arrow" style="align-self: center">→</div>
+<div class="box accent" style="display: flex; flex-direction: column; justify-content: center">Alertmanager<small>agrupa · deduplica · inibe · silencia</small></div><div class="arrow" style="align-self: center">roteia por labels →</div>
+<div class="group">
+<div class="box red">pager + runbook</div>
+<div class="box">Slack #incidents</div>
+<div class="box muted">fila de tickets</div>
+</div>
+</div>
+
+- Um **dead man's switch** (`vector(1)`) e alertas de `absent()` vigiam o vigia: silêncio parece saúde.
+- **Máquinas detectam, pessoas reparam**: um health check tira uma réplica morta em segundos sem acordar ninguém; o page inicia o reparo, em minutos.
 
 ---
 
@@ -454,14 +522,14 @@ Um budget de 28 dias não protege uma abertura de vendas de 30 minutos: dê aos 
 | **Líder de comunicação** | atualizações a cada 15–30 min, página de status | especular em público |
 | **Escriba** | registra com horário tudo o que foi visto, decidido, alterado | filtrar |
 
-- **SEV1**: jornada principal fora do ar ou qualquer abertura de vendas afetada → page, IC, página de status.
+- **SEV1** (severidade 1): jornada principal fora do ar ou qualquer abertura de vendas afetada → page, um incident commander (IC), página de status.
 - **Declare cedo, rebaixe à vontade.** O on-call precisa ser sustentável (≈ ≤ 2 incidentes por turno).
 
 ---
 
 ## Mitigar primeiro
 
-* 10h02 impacto → 10h03 page (**MTTD 1 min**) → 10h14 provedor secundário + sala de espera estrangulada (**MTTM 12 min**) → 10h40 resolvido.
+* 10h02 impacto → 10h03 page (tempo médio para detectar, **MTTD: 1 min**) → 10h14 provedor secundário + sala de espera estrangulada (tempo para mitigar, **MTTM: 12 min**) → 10h40 resolvido.
 * Mitigações genéricas e ensaiadas: **rollback**, **desligar flag**, **failover**, **descartar carga**, escalar, bloquear tráfego ruim.
 * Custo: 200 tentativas/s × 720 s × 12% ≈ **17.300 checkouts com falha** contra um budget de 28 dias de **2.000**.
 * A política de error budget entra em ação: funcionalidades do checkout pausam até as ações de confiabilidade saírem.

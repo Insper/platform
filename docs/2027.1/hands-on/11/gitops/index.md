@@ -3,7 +3,7 @@
 Until now you deployed with `kubectl apply` from your laptop: whoever has the credentials changes the
 cluster, and nothing records what is running. **GitOps** inverts the direction: the desired state
 lives in Git, and an agent **inside** the cluster — **Argo CD** — pulls it and keeps the cluster equal
-to it, forever. CI never touches the cluster; it only writes to Git. The theory is in the
+to it, forever. CI never touches the cluster; it only writes to Git, so the cluster's credentials never leave the cluster. The theory is in the
 [delivery class](../../../classes/cloud-native/delivery/index.md).
 
 ``` diagram-sim
@@ -29,7 +29,7 @@ kubectl delete namespace boxoffice --wait=true
 ```
 
 Install Argo CD, Argo Rollouts (step 5 uses it, and the GitOps overlay already contains a `Rollout`)
-and the small Prometheus of step 5. The large CRDs need server-side apply:
+and the small Prometheus of step 5. The large custom resource definitions (CRDs) need server-side apply:
 
 ``` shell
 kubectl create namespace argocd
@@ -93,7 +93,7 @@ kubectl -n boxoffice create secret docker-registry ghcr-pull \
 
 ## The GitOps overlay
 
-A new overlay, next to lab 10's `local` one: the same base, the image from GHCR, the `Rollout` of
+A new overlay, next to lab 10's `local` one: the same base, the image from the GitHub Container Registry (GHCR), the `Rollout` of
 step 5, and a patch that exposes `/actuator/prometheus`.
 
 === "kustomization.yaml"

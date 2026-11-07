@@ -1,7 +1,7 @@
 # 6. Meça { #6-measure-it }
 
 Entrega se mede por quão rápido uma mudança chega aos usuários e com que segurança. As quatro **métricas
-DORA** — frequência de deploy, **lead time de mudanças**, taxa de falha de mudanças e tempo de
+DORA** (*DevOps Research and Assessment*) — frequência de deploy, **lead time de mudanças**, taxa de falha de mudanças e tempo de
 restauração — são o vocabulário da indústria; este passo mede as duas que dá para observar num lab, mais
 o custo de cada etapa do seu pipeline.
 
@@ -42,6 +42,15 @@ kubectl argo rollouts -n boxoffice get rollout catalog --watch    # note the tim
 
 As maiores fatias costumam ser os testes (imagens do Testcontainers, Maven), o build da imagem e as
 pausas do canary — as pausas são um preço deliberado pela segurança.
+
+``` diagram-sim
+flowchart LR
+    P["git push"] --> CI["CI: testes, orçamento, imagem<br/>alguns minutos por job"]
+    CI --> D["Deploy: commit da tag<br/>menos de um minuto"]
+    D --> A["o Argo CD consulta o Git<br/>até 3 min"]
+    A --> C["canary: 25% por 2 min,<br/>50% por 2 min"]:::tech
+    C --> S["nova versão estável<br/>algo como 10–20 min após o push"]:::comp
+```
 
 ## C. Portão de desempenho { #c-performance-gate }
 

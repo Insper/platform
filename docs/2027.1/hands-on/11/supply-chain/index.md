@@ -1,8 +1,8 @@
 # 2. Image and Supply Chain
 
 Your code is a small part of what runs in production: the image also contains a Linux distribution,
-a JRE and around a hundred libraries. **Supply-chain security** asks three questions about every image
-before it runs: *what is inside it?* (an SBOM), *does it contain known vulnerabilities?* (a scan),
+a Java Runtime Environment (JRE) and around a hundred libraries. **Supply-chain security** asks three questions about every image
+before it runs: *what is inside it?* (a software bill of materials, SBOM), *does it contain known vulnerabilities?* (a scan),
 and *was it really built by our pipeline, from this commit?* (provenance). The `image` job of
 `ci.yaml` answers the three, in this order:
 
@@ -24,11 +24,11 @@ explains its steps.
 
 | Step | Action | Notes |
 |---|---|---|
-| image name | shell | `ghcr.io/<owner>/boxoffice-catalog`, **lowercase** (GHCR rejects uppercase; `${VAR,,}` lowercases in Bash) |
+| image name | shell | `ghcr.io/<owner>/boxoffice-catalog`, **lowercase** (the GitHub Container Registry, GHCR, rejects uppercase; `${VAR,,}` lowercases in Bash) |
 | `docker/setup-buildx-action` (v4.4.1), `docker/login-action` (v4.6.0) | | BuildKit, and a login to GitHub's registry with the job's own `GITHUB_TOKEN` (`packages: write`) |
 | `docker/metadata-action` (v6.2.0) | | tags `sha-<full commit sha>` (immutable, what we deploy) and `main` (moving, for humans) |
 | build with `load: true` | `docker/build-push-action` (v7.4.0) | the image goes to the runner's Docker, **not** to the registry yet; layers cached in GitHub's cache (`type=gha`) |
-| Trivy report | `aquasecurity/trivy-action` | SARIF uploaded to **Security → Code scanning**, never fails |
+| Trivy report | `aquasecurity/trivy-action` | SARIF (Static Analysis Results Interchange Format) uploaded to **Security → Code scanning**, never fails |
 | Trivy gate | `aquasecurity/trivy-action` | **fails** on a `CRITICAL` vulnerability **that has a fix** (`ignore-unfixed`): something you can act on now |
 | SBOM | `anchore/sbom-action` (Syft) | `sbom.spdx.json`: every package and version in the image |
 | push | `docker/build-push-action` (v7.4.0) | same layers (cache hit), now pushed with the tags |

@@ -5,16 +5,16 @@ This is the moment observability exists for. The system is not *down* — it is 
 
 !!! quote "The story so far"
 
-    Chapter 9 of the [story of the course](../../index.md#story). [Class 8](../messaging/index.md) took the slow work out of the request: the order goes to an outbox, through Kafka, to `notification`, and a waiting room lets the crowd in at the pace `inventory` can serve. Asynchrony has a price: failures stop showing up in requests. An order confirmed at 10:01 whose e-mail never arrives produced no `5xx` and no slow endpoint — it vanished somewhere between the outbox, Kafka and the consumer — and dashboards of causes (pods, CPU, averages) stay green while fans fail, as on the morning above. **This class** answers: what must BoxOffice emit to follow one order across services and Kafka, what promise do we measure it against (the [SLO](slo/index.md)), and who is woken up when the promise breaks?
+    Chapter 9 of the [story of the course](../../index.md#story). [Class 8](../messaging/index.md) took the slow work out of the request: the order goes to an outbox, through Kafka, to `notification`, and a waiting room lets the crowd in at the pace `inventory` can serve. Asynchrony has a price: failures stop showing up in requests. An order confirmed at 10:01 whose e-mail never arrives produced no `5xx` and no slow endpoint — it vanished somewhere between the outbox, Kafka and the consumer — and dashboards of causes (pods, CPU, averages) stay green while fans fail, as on the morning above. **This class** answers: what must BoxOffice emit to follow one order across services and Kafka, what promise do we measure it against (the [service level objective (SLO)](slo/index.md)), and who is woken up when the promise breaks?
 
 !!! abstract "Learning objectives"
 
     By the end of this class you should be able to:
 
     - **Distinguish** monitoring from observability and **map** the five observability components of the palette (metrics, logs, tracing, alerting, health checks) to the questions they answer.
-    - **Instrument** a service with the right signal for each question, applying **RED**, **USE** and the **golden signals**, and **estimate** the cost and cardinality of the telemetry it produces.
+    - **Instrument** a service with the right signal for each question, applying **RED** (rate, errors, duration), **USE** (utilization, saturation, errors) and the **golden signals**, and **estimate** the cost and cardinality of the telemetry it produces.
     - **Explain** how OpenTelemetry propagates trace context across HTTP and Kafka, and **configure** a Collector pipeline with sampling.
-    - **Define** SLIs and SLOs for BoxOffice's user journeys, and **compute** error budgets and burn rates.
+    - **Define** service level indicators (SLIs) and SLOs for BoxOffice's user journeys, and **compute** error budgets and burn rates.
     - **Design** SLO-based alerts with multiwindow, multi-burn-rate rules and **route** them to the right people.
     - **Configure** liveness, readiness and startup probes without causing cascading restarts.
     - **Run** an incident with clear roles and **write** a blameless postmortem with actionable follow-ups.
@@ -187,7 +187,7 @@ A **shallow** check answers "is my process alive?". A **deep** check also calls 
 
 !!! warning "The deep-check cascade"
 
-    Suppose the readiness probe of `order` includes the PostgreSQL connection. The database has a 20-second failover. Every `order` pod fails readiness at the same moment, Kubernetes removes **all** of them from the Service, and the gateway now returns `503` for every route — including the ones that only read from Redis. Worse, if the *liveness* probe includes the database, Kubernetes **restarts** every pod at once; they all start cold, hammer the database together as it comes back, and the outage extends itself.
+    Suppose the readiness probe of `order` includes the PostgreSQL connection. The database has a 20-second failover. Every `order` pod fails readiness at the same moment, Kubernetes removes **all** of them from the Service, and the gateway now returns `503` for every route — including the ones that only read from Redis. Worse, if the *liveness* probe includes the database and the failover outlasts its three failures (30 s with the probes above), Kubernetes **restarts** every pod at once; they all start cold, hammer the database together as it comes back, and the outage extends itself.
 
     Rules of thumb: **liveness never checks dependencies**; readiness checks only what *this* instance needs locally and what a *different* instance would not fix; dependency health belongs in **metrics and alerts**, and degraded dependencies are handled with timeouts, circuit breakers and fallbacks ([Resilience patterns](../reliability/patterns/index.md)).
 
@@ -197,6 +197,16 @@ A **shallow** check answers "is my process alive?". A **deep** check also calls 
 | Risk | instance "healthy" but useless if a dependency is down | **correlated failure**: all instances fail together → total outage, restart storms |
 | Cost | trivial | each probe calls the dependency (N pods × every 5 s) |
 | Use for | liveness, load-balancer checks | readiness *only* for dependencies one instance owns; otherwise a separate status endpoint for humans |
+
+<div class="csim" data-sim="probe-cascade" data-readiness="deep" data-liveness="shallow" data-failover="20"></div>
+
+!!! tip "Try it"
+
+    The simulator opens on the warning's case: readiness checks PostgreSQL. Press play, then change the probes.
+
+    - **Deep readiness, 20 s failover**: every pod fails its second readiness check within 8 s, the Service has no pod for **12 s**, and `GET /events` — which only reads Redis — answers **92.0%** of its requests.
+    - **Both probes on the process only**: no pod leaves the Service; `POST /orders` fails while the database is away (**86.7%** OK) and `GET /events` stays at **100%**.
+    - **Deep liveness, 20 s failover**: still no restart — three failures 10 s apart need 30 s. Set the failover to **60 s**: all **4** pods restart and can only start once the database is back, so no pod is ready for **65 s**, and the outage outlasts the database's by **32 s**.
 
 Load balancers at the edge use the same idea (see [Load balancing](../edge/load-balancing/index.md)): they remove a backend after N failed checks and add it back after M successes — the hysteresis avoids flapping.
 
@@ -209,7 +219,7 @@ Observability is not free, and in an interview — or in the cloud bill — you 
 | Assumption | Value |
 |---|---|
 | Average traffic | 500 requests/s |
-| Spans per request (gateway, order, inventory, DB, payment, Kafka…) | 8 |
+| Spans per request (gateway, order, inventory, database, payment, Kafka…) | 8 |
 | Average span size (with attributes) | 500 bytes |
 | Log lines per request (all services) | 5, of 300 bytes each |
 
@@ -245,9 +255,7 @@ flowchart LR
     hc -.- c5["liveness, readiness, startup,<br/>shallow vs deep"]:::tech
     c4 --> c6["incident roles, mitigate first,<br/>postmortems"]:::tech
     c4 -.- d1["SLI, SLO, error budget<br/>(class 9)"]
-    c5 -.- d2["Kubernetes probes, LB checks<br/>(classes 4 and 11)"]
-    classDef comp fill:#1e9e5a22,stroke:#1e9e5a
-    classDef tech fill:#2f6fed22,stroke:#2f6fed
+    c5 -.- d2["Kubernetes probes, load balancer checks<br/>(classes 4 and 11)"]
 ```
 
 | Palette component | Question it answers | Concepts | Taught in | Scenarios |

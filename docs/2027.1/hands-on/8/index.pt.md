@@ -3,9 +3,9 @@
 !!! info "Objetivo"
 
     Fazer o BoxOffice se explicar. Conectar o **agente Java do OpenTelemetry** a todos os serviços e
-    enviar traces, métricas e logs para o **`grafana/otel-lgtm`**; construir um **dashboard RED** como
+    enviar traces, métricas e logs para o **`grafana/otel-lgtm`**; construir um **dashboard RED** (taxa, erros e duração, *rate, errors, duration*) como
     código; seguir um pedido da borda até o e-mail, passando pelo Kafka, em um único **trace**; e
-    transformar uma promessa aos usuários em um **SLO** com um **alerta de *burn rate* com múltiplas
+    transformar uma promessa aos usuários em um **objetivo de nível de serviço (SLO, *service level objective*)** com um **alerta de *burn rate* com múltiplas
     janelas** — depois derrubar o banco de dados e cronometrar quanto tempo o alerta leva para disparar.
 
 A venda relâmpago entrou no ar e o canal de suporte enche: *"o checkout está lento"*, *"a página
@@ -124,8 +124,8 @@ latência abre o seu trace, um span abre os logs que ele escreveu.
 ## Passos { #steps }
 
 1. [Instrumente tudo](instrument/index.md) — o `otel-lgtm`, o agente Java em todos os serviços, logs com trace id e o contexto do trace levado através do outbox.
-2. [Dashboard RED](dashboard/index.md) — um dashboard provisionado: Rate, Errors, Duration por serviço, mais USE para as JVMs e os pools de conexão.
-3. [SLO e alerta de *burn rate*](slo/index.md) — SLI, SLO e orçamento de erros do `catalog`; regras de queima rápida e lenta como código; dispare uma.
+2. [Dashboard RED](dashboard/index.md) — um dashboard provisionado: Rate, Errors, Duration por serviço, mais USE (utilização, saturação e erros, *utilization, saturation, errors*) para as JVMs e os pools de conexão.
+3. [SLO e alerta de *burn rate*](slo/index.md) — SLI, SLO e orçamento de erros do `catalog`; regras de queima rápida e lenta como código; dispare uma e repita-a num simulador.
 4. [Meça](measure/index.md) — custo do agente, amostragem, cardinalidade e tempo de detecção.
 
 ## Experimente no playground { #try-it-in-the-playground }
@@ -136,6 +136,13 @@ mede. Conecte-o e observe qual sinal reage primeiro quando uma falha aleatória 
 erros, os percentis de latência ou o *health check*.
 
 <div class="sdp" data-scenario="observability-stack" data-mode="compact" data-height="520" data-profile="chaos"></div>
+
+Depois, a versão BoxOffice deste lab: o preset `boxoffice-observability` para o banco do `catalog`
+em t = 60 s por 100 s, sem nada vigiando. Monte o que este lab instala — Metrics em todos os serviços,
+Tracing e Logs no `catalog`, Alerting no Metrics — e compare a duração da queda com e sem o alerta: um
+*health check* não contorna um banco que todas as réplicas dividem, então só o page a encurta.
+
+<div class="sdp" data-scenario="boxoffice-observability" data-mode="compact" data-height="460"></div>
 
 O simulador completo está no [playground](../../../playground/index.md).
 

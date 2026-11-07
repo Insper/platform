@@ -46,17 +46,33 @@ Every distinct combination of label values is a **separate time series** that th
 | **Histogram** | counts observations in **buckets** (`le` = less or equal) plus `_sum` and `_count` | latency and size distributions, percentiles | checkout duration |
 | **Summary** | quantiles computed **in the process** | legacy; a single instance's percentiles | — avoid: cannot be aggregated |
 
-Histograms are the important one. Each bucket is a counter "how many observations were ≤ this bound": with bounds 0.1, 0.25, 0.5, 1, 2.5 s, a 0.3 s checkout increments the buckets `0.5`, `1`, `2.5` and `+Inf`. Because buckets are counters, histograms from 20 pods can be **summed** and a percentile estimated from the total. Newer formats — Prometheus *native histograms* and OpenTelemetry *exponential histograms* — choose bucket bounds automatically with bounded relative error, which removes the most common mistake: buckets that do not cover your SLO threshold.
+Histograms are the important one. Each bucket is a counter "how many observations were ≤ this bound": with bounds 0.1, 0.25, 0.5, 1, 2.5 s, a 0.3 s checkout increments the buckets `0.5`, `1`, `2.5` and `+Inf`. Because buckets are counters, histograms from 20 pods can be **summed** and a percentile estimated from the total. Newer formats — Prometheus *native histograms* and OpenTelemetry *exponential histograms* — choose bucket bounds automatically with bounded relative error, which removes the most common mistake: buckets that do not cover your service level objective (SLO) threshold.
 
 ### Pull vs push
 
 | | Pull (scrape) | Push |
 |---|---|---|
-| How | Prometheus calls `GET /metrics` on every target every 15–60 s | the process sends metrics (OTLP, StatsD) to a collector |
+| How | Prometheus calls `GET /metrics` on every target every 15–60 s | the process sends metrics (OpenTelemetry Protocol, OTLP; StatsD) to a collector |
 | Discovers dead targets | yes — a failed scrape is itself a signal (`up == 0`) | only by absence of data |
 | Short-lived jobs, serverless | awkward (needs a push gateway) | natural |
 | Behind NAT / many networks | the scraper must reach every target | targets only need to reach the collector |
-| Typical stack | Prometheus + Kubernetes service discovery | OpenTelemetry SDK → Collector → Prometheus/Mimir (OTLP) |
+| Typical stack | Prometheus + Kubernetes service discovery | OpenTelemetry software development kit (SDK) → Collector → Prometheus/Mimir (OTLP) |
+
+``` diagram
+flowchart LR
+    subgraph pull ["Pull: the scraper asks"]
+        PR["Prometheus"]:::comp -->|"GET /metrics<br/>every 15–60 s"| A["order pod"]
+        PR -->|"GET /metrics"| B["payment pod"]
+        PR -.->|"no answer:<br/>up == 0"| D["dead pod"]:::problem
+    end
+    subgraph push ["Push: the process sends"]
+        S["order + OTel SDK"] -->|"OTLP"| COL["Collector"]:::comp
+        J["short batch job"] -->|"OTLP, then exits"| COL
+        COL --> TS[("Prometheus / Mimir")]
+    end
+```
+
+The arrows point from whoever starts the conversation. In pull, a missing answer is itself data; in push, a dead process just goes quiet — which is why push stacks alert on **absent** data.
 
 Both are fine; modern stacks mix them. With OpenTelemetry the default is **push over OTLP** to a Collector, which can also **scrape** existing Prometheus endpoints ([OpenTelemetry](../opentelemetry/index.md)).
 
@@ -68,7 +84,7 @@ You do not need hundreds of metrics per service. Three well-known checklists tel
 |---|---|---|---|
 | **RED** | request-driven services (APIs) | **R**ate, **E**rrors, **D**uration | Tom Wilkie (Weaveworks/Grafana)[^2] |
 | **USE** | resources (CPU, disk, pools, queues) | **U**tilization, **S**aturation, **E**rrors | Brendan Gregg[^3] |
-| **Four golden signals** | any user-facing system | latency, traffic, errors, saturation | Google SRE book[^4] |
+| **Four golden signals** | any user-facing system | latency, traffic, errors, saturation | Google's Site Reliability Engineering (SRE) book[^4] |
 
 The golden signals are essentially RED + saturation. **Saturation** is the subtle one: how *full* a resource is, usually visible as **waiting** — a queue, a pool with pending requests, threads blocked. Utilization near 100% is not a problem by itself; work waiting in line is.
 
@@ -79,8 +95,8 @@ The golden signals are essentially RED + saturation. **Saturation** is the subtl
     | `order` (`POST /checkout`) | RED | checkouts/s; fraction of `5xx`; p50/p95/p99 duration |
     | `payment` → external provider | RED (client side) | calls/s; fraction failed or timed out; p99 of the provider call |
     | PostgreSQL connection pool of `inventory` | USE | active / max connections; **pending** acquisitions and wait time; acquisition timeouts |
-    | Kafka topic `order-events` | USE | produce rate vs consume rate; **consumer lag** (messages and seconds); failed deliveries / DLQ size |
-    | `order` JVM | USE | CPU; heap after GC; GC pause time; thread pool queue |
+    | Kafka topic `order-events` | USE | produce rate vs consume rate; **consumer lag** (messages and seconds); failed deliveries / dead-letter queue (DLQ) size |
+    | `order` JVM | USE | CPU; heap after garbage collection (GC); GC pause time; thread pool queue |
 
     During the flash sale, the payment pool's **pending acquisitions** (saturation) rose two minutes before the checkout p99 alert fired. Saturation is the leading indicator; RED is what users feel.
 
@@ -190,10 +206,10 @@ The first five labels are **bounded**: their number of values is small and known
 
 | Label | Bounded? | Where it belongs |
 |---|---|---|
-| `http_route` (template), `method`, `status_code`, `region`, `pod` | yes | metric labels |
-| `event_id` (≈ thousands of events on sale) | borderline — only if small and you need per-event SLOs | usually traces |
-| `customer_id`, `order_id`, `email`, full URL, `trace_id` | **no** | **traces and logs** (high-cardinality data is their job) |
-| error message text | no (free text) | logs; use an error *class* as the label |
+| `http_route` (template), `method`, `status_code`, `region`, `pod` | ✅ yes | metric labels |
+| `event_id` (≈ thousands of events on sale) | ⚠️ borderline — only if small and you need per-event SLOs | usually traces |
+| `customer_id`, `order_id`, `email`, full URL, `trace_id` | ❌ **no** | **traces and logs** (high-cardinality data is their job) |
+| error message text | ❌ no (free text) | logs; use an error *class* as the label |
 
 !!! tip "High cardinality is not bad — it is in the wrong place"
 
@@ -249,7 +265,7 @@ The `trace_id` and `span_id` fields are what turn a log line into part of an inv
 
 ### Querying logs
 
-With Loki (the "L" of the Grafana LGTM stack), labels select streams and the rest of the line is parsed at query time, which keeps indexing cheap:
+With Loki (the "L" of the Grafana LGTM stack: Loki, Grafana, Tempo, Mimir), labels select streams and the rest of the line is parsed at query time, which keeps indexing cheap:
 
 ```text
 {service_name="payment"} | json | level="WARN" | duration_ms > 5000
@@ -327,9 +343,9 @@ A dashboard is a set of saved queries arranged to answer a question quickly. Mos
 
 ``` diagram
 flowchart TB
-    L1["1 · User journeys and SLOs<br/>search, seat hold, checkout: SLI, budget left"]
+    L1["1 · User journeys and SLOs<br/>search, seat hold, checkout: service level<br/>indicator (SLI), budget left"]
     L2["2 · Services — RED<br/>per service and route: rate, errors, p50/p99"]
-    L3["3 · Dependencies<br/>provider latency, DB, cache hit ratio, Kafka lag"]
+    L3["3 · Dependencies<br/>provider latency, database, cache hit ratio, Kafka lag"]
     L4["4 · Resources — USE<br/>CPU, memory, pools, queues per pod/node"]
     L1 --> L2 --> L3 --> L4
 ```

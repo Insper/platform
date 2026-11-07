@@ -60,10 +60,18 @@ Both words matter. **Good** defines success from the user's point of view — "s
 
 | Measurement point | Sees | Misses |
 |---|---|---|
-| **Application metrics** (OpenTelemetry, Micrometer) | Per-route detail, cheap | Requests that never reached the app (LB, DNS, network) |
-| **Load balancer / gateway logs** | Everything that reached the edge | Client-side failures, CDN |
+| **Application metrics** (OpenTelemetry, Micrometer) | Per-route detail, cheap | Requests that never reached the app (load balancer, DNS, network) |
+| **Load balancer / gateway logs** | Everything that reached the edge | Client-side failures, the content delivery network (CDN) |
 | **Synthetic probes** | A scripted journey from outside, even with no traffic | Real users' diversity |
 | **Client (browser / app) telemetry** | What users truly experience | Noisy; depends on users' networks |
+
+``` diagram
+flowchart LR
+    FAN["fan's browser or app<br/>client telemetry"] --> CDN["CDN"] --> LB["load balancer"] --> GW["gateway<br/>BoxOffice's SLI"]:::comp --> APP["order, inventory<br/>application metrics"]
+    SYN["synthetic probe<br/>buys a test ticket every minute"]:::tech --> CDN
+```
+
+Each point sees only the requests that reached it: the further left, the closer to what fans feel and the noisier the data. The gateway is the leftmost point BoxOffice fully controls.
 
 A common choice is to compute SLIs at the **gateway** (close to the user, but under your control) and complement them with synthetic probes of the purchase journey. With OpenTelemetry metrics exported to Prometheus (see [Signals](../signals/index.md)), the availability SLI of the seat-hold route over 5 minutes is:
 
@@ -254,7 +262,17 @@ The details of alert design, routing and on-call are in [Observability — alert
 
 ### The error budget policy
 
-An error budget is only a number on a dashboard unless product and engineering agree **in advance** what happens as it is spent. That agreement is the **error budget policy**:
+An error budget is only a number on a dashboard unless product and engineering agree **in advance** what happens as it is spent. That agreement is the **error budget policy**. Play its ship-or-freeze decision:
+
+``` diagram-sim
+flowchart TD
+    S["A change to the purchase path<br/>is ready to ship"] --> O{"Major on-sale<br/>in the next 24 h?"}
+    O -->|yes| W["Wait: no deploys,<br/>whatever the budget"]:::problem
+    O -->|no| Q{"Error budget left<br/>in the 28-day window?"}
+    Q -->|"above 50%"| N["Ship any working day,<br/>experiments allowed"]:::comp
+    Q -->|"0 to 50%"| C["Ship behind a canary,<br/>with a rollback plan"]:::tech
+    Q -->|exhausted| F["Freeze features:<br/>only fixes and reliability work"]:::problem
+```
 
 !!! example "BoxOffice error budget policy (purchase path)"
 
@@ -281,7 +299,7 @@ The commitments below come from the providers' public SLA pages[^3]; conditions 
 
 | Provider | Service | Monthly commitment | Condition |
 |---|---|---|---|
-| AWS | Amazon EC2 | 99.99% (region level) | Instances across multiple AZs |
+| AWS | Amazon EC2 | 99.99% (region level) | Instances across multiple availability zones (AZs) |
 | AWS | Amazon RDS | 99.95% | Multi-AZ deployments |
 | AWS | Amazon S3 Standard | 99.9% | — |
 | Google Cloud | Compute Engine | 99.99% | Instances in multiple zones |
@@ -335,6 +353,18 @@ flowchart LR
 ```
 
 **Palette components:** [`metrics`](../../../reference/components/observability/index.md#metrics) (the SLI is a ratio of request counters) · [`alerting`](../../../reference/components/observability/index.md#alerting) (multi-window burn-rate rules) · [`apigw`](../../../reference/components/edge/index.md#apigw) (where BoxOffice measures the purchase SLI) · [`kafka`](../../../reference/components/messaging/index.md#kafka) (consumer lag, the early warning of the ticket-delivery freshness SLI) · [`payment`](../../../reference/components/external/index.md#payment) (its 99.9% caps the purchase SLO). **Scenarios:** `observability-stack`, `flash-sale` (the event-scoped on-sale SLO). **Continues in:** [Observability — alerting](../alerting/index.md), [Observability — incident response](../incident-response/index.md), [Estimation — availability math](../../estimation/availability-math/index.md), [Cloud-native — delivery](../../cloud-native/delivery/index.md), [Hands-on 8 — SLO and burn-rate alert](../../../hands-on/8/slo/index.md).
+
+---
+
+## Key takeaways { #key-takeaways }
+
+!!! takeaways ""
+
+    - An **SLI** is a ratio of good to valid events, measured close to the user; an **SLO** is its target over a rolling window (28 days); the **error budget** is 1 − SLO.
+    - Start from the **critical user journeys** and give each the SLI it needs: availability, latency, or **freshness** for asynchronous work, which request SLIs cannot see.
+    - Set the target from measurements and dependency math, never 100%, and keep the **SLO stricter than the SLA**: an SLA only transfers a little financial risk.
+    - **Burn rate** = observed error ratio ÷ budget; alert with **multi-window, multi-burn-rate** rules: 14.4× and 6× page, 1× opens a ticket.
+    - An **error budget policy**, signed in advance, turns the budget into ship-or-freeze decisions.
 
 ---
 

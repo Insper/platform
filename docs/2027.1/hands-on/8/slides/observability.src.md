@@ -14,11 +14,15 @@ theme: platform
 {{INCLUDE:scripts/slides/theme.js}}
 </script>
 
+<style>
+{{INCLUDE:scripts/slides/diagram.css}}
+</style>
+
 <div class="kicker">System Architecture · Insper</div>
 
 # Hands-on 8 — Observability
 
-**OpenTelemetry, a RED dashboard, one trace across Kafka and an SLO that pages on time**
+**OpenTelemetry, a RED (rate, errors, duration) dashboard, one trace across Kafka and a service level objective (SLO) that pages on time**
 
 <!--
 Outline: (1) the questions k6 cannot answer; (2) otel-lgtm and the Java agent; (3) the outbox breaks
@@ -45,10 +49,26 @@ The database, the pool, Kafka, the e-mail provider?
 
 ## Architecture
 
-- Every Java service runs the **OpenTelemetry Java agent**.
-- It pushes **OTLP** to `otel-lgtm` (port 4318).
-- Inside: OTel **Collector** → **Prometheus** (metrics), **Tempo** (traces), **Loki** (logs).
-- **Grafana** (port 3000) links them: exemplar → trace → logs.
+<div class="flow">
+<div class="group">
+<div class="caption">every Java service + the agent</div>
+<div class="box">gateway</div>
+<div class="box">catalog ×3</div>
+<div class="box">order · notification</div>
+</div>
+<div class="arrow">OTLP :4318 →</div>
+<div class="group">
+<div class="caption">otel-lgtm (one container)</div>
+<div class="box accent">OpenTelemetry Collector</div>
+<div class="box green">Prometheus<small>metrics</small></div>
+<div class="box green">Tempo<small>traces</small></div>
+<div class="box green">Loki<small>logs</small></div>
+</div>
+<div class="arrow">→</div>
+<div class="box orange" style="flex: .7">Grafana :3000<small>exemplar → trace → logs; alert rules</small></div>
+</div>
+
+- The agent pushes **OTLP** (the OpenTelemetry Protocol); Grafana links the three signals.
 
 <div class="ok">
 
@@ -62,6 +82,8 @@ Development backend in one image; production swaps it for separate systems — t
 
 ```shell
 sh scripts/get-otel-agent.sh      # downloads infra/otel/opentelemetry-javaagent.jar (v2.32.0)
+```
+
 ```yaml
 x-otel: &otel
   JAVA_TOOL_OPTIONS: -javaagent:/otel/opentelemetry-javaagent.jar
@@ -90,10 +112,15 @@ An order produces **two unrelated traces**: `POST /orders`, and later the relay 
 
 </div>
 
-- The outbox is a **database row** read by another thread: the request's context was not stored.
-- Fix: save the request's W3C **`traceparent`** in the row (`V2__outbox_traceparent.sql`).
-- The relay makes that context current before `kafka.send` → the agent injects the **same** trace id.
-- Result: one trace, with the relay delay visible as a gap.
+<div class="flow">
+<div class="box">order<small>HTTP thread</small></div><div class="arrow">INSERT →</div>
+<div class="box accent">outbox row<small>+ traceparent (V2 migration)</small></div><div class="arrow">SELECT →</div>
+<div class="box">relay<small>scheduler thread: makeCurrent()</small></div><div class="arrow">→</div>
+<div class="box green">Kafka → notification<small>the same trace id</small></div>
+</div>
+
+- The outbox is a **database row** read by another thread: the request's context must travel in it.
+- Result: **one** trace — 9 ms of request, the relay 22 ms later, 67 ms in `notification`.
 
 ---
 
@@ -130,7 +157,7 @@ db_client_connections_pending_requests                                      # Sa
 
 | Term | `catalog` |
 |---|---|
-| SLI | share of requests (no `/actuator`) not answered 5xx |
+| SLI (service level indicator) | share of requests (no `/actuator`) not answered 5xx |
 | SLO | 99.5% over 28 days |
 | Error budget | 0.5% → ≈ 202 min of total outage per 28 days |
 | Burn rate | error ratio / 0.005 (1 = exactly on budget) |
@@ -162,6 +189,24 @@ Steady traffic, one healthy hour, then `docker compose stop db`. When does the f
 * The 1-hour error ratio must reach 14.4 × 0.5% = **7.2%**.
 * 0.072 × 60 min ≈ **4.3 min** of outage, + `for: 1m` + evaluation ≈ **5–6 min**.
 * A 30-second blip never pages; a slow 4% leak is caught by the 6-hour rule.
+* Test run: *Firing* **about 440 s** after the stop — step 2's stress test was still in the 1-hour window.
+* `start db`: the page clears **about 5 min later**, once the outage leaves the 5-minute window.
+
+---
+
+## Without Docker: replay it
+
+<div class="flow">
+<div class="box red">10:12:31<small>stop db</small></div><div class="arrow">→</div>
+<div class="box orange">5-min burn rate: 200<small>within a minute</small></div><div class="arrow">→</div>
+<div class="box orange">1-h burn rate &gt; 14.4<small>after 4.3 min</small></div><div class="arrow">→</div>
+<div class="box red">Pending → Firing<small>for: 1m → 5:30</small></div><div class="arrow">→</div>
+<div class="box green">start db → Normal<small>5:00 later</small></div>
+</div>
+
+- The simulator on the SLO step: `slo-catalog.yaml` evaluated every 30 s, k6 at 50 req/s, one tick = 10 s.
+- With step 2's stress test in the window → **7:30**, "Burn rate 17.0 (1 h) and 200.0 (5 min)"; 10 min of history → **2:00**.
+- 4% errors never page; the 6-hour ticket fires after **3.1 h**.
 
 ---
 
@@ -195,6 +240,7 @@ Steady traffic, one healthy hour, then `docker compose stop db`. When does the f
 - `observability-stack` with the `chaos` profile.
 - Disconnect metrics from a service: its utilization becomes "?".
 - Which reacts first to a failure: errors, percentiles or health checks?
+- `boxoffice-observability`: the `catalog` database stops for 100 s; only Alerting shortens the outage.
 
 <div class="ok">
 

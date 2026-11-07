@@ -3,9 +3,9 @@
 !!! info "Goal"
 
     Make BoxOffice explain itself. Attach the **OpenTelemetry Java agent** to every service and send
-    traces, metrics and logs to **`grafana/otel-lgtm`**; build a **RED dashboard** as code; follow one
+    traces, metrics and logs to **`grafana/otel-lgtm`**; build a **RED dashboard** (rate, errors, duration) as code; follow one
     order from the edge through Kafka to the e-mail in a single **trace**; and turn a promise to users
-    into an **SLO** with a **multiwindow burn-rate alert** — then break the database and time how
+    into a **service level objective (SLO)** with a **multiwindow burn-rate alert** — then break the database and time how
     long the alert takes to fire.
 
 The flash sale went live, and the support channel fills up: *"checkout is slow"*, *"the page shows an
@@ -124,8 +124,8 @@ chart opens its trace, a span opens the logs it wrote.
 ## Steps
 
 1. [Instrument everything](instrument/index.md) — `otel-lgtm`, the Java agent in every service, logs with trace ids, and the trace context carried through the outbox.
-2. [RED dashboard](dashboard/index.md) — a provisioned dashboard: Rate, Errors, Duration per service, plus USE for JVMs and connection pools.
-3. [SLO and burn-rate alert](slo/index.md) — SLI, SLO and error budget for `catalog`; fast- and slow-burn rules as code; fire one.
+2. [RED dashboard](dashboard/index.md) — a provisioned dashboard: Rate, Errors, Duration per service, plus USE (utilization, saturation, errors) for JVMs and connection pools.
+3. [SLO and burn-rate alert](slo/index.md) — SLI, SLO and error budget for `catalog`; fast- and slow-burn rules as code; fire one, and replay it in a simulator.
 4. [Measure it](measure/index.md) — agent overhead, sampling, cardinality and time to detect.
 
 ## Try it in the playground
@@ -136,6 +136,14 @@ measure. Connect it, then watch which signal reacts first when a random failure 
 the latency percentiles or the health check.
 
 <div class="sdp" data-scenario="observability-stack" data-mode="compact" data-height="520" data-profile="chaos"></div>
+
+Then the BoxOffice version of this lab: the `boxoffice-observability` preset stops the `catalog`
+database at t = 60 s for 100 s, with nothing watching. Wire what this lab installs — Metrics on every
+service, Tracing and Logs on `catalog`, Alerting on Metrics — and compare the length of the outage
+with and without the alert: a health check cannot route around a database every replica shares, so
+only the page shortens it.
+
+<div class="sdp" data-scenario="boxoffice-observability" data-mode="compact" data-height="460"></div>
 
 The full simulator is in the [playground](../../../playground/index.md).
 

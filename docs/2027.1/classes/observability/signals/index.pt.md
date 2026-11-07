@@ -46,17 +46,33 @@ Cada combinação distinta de valores de labels é uma **série temporal separad
 | **Histogram** | conta observações em **buckets** (`le` = menor ou igual) mais `_sum` e `_count` | distribuições de latência e tamanho, percentis | duração do checkout |
 | **Summary** | quantis calculados **no processo** | legado; percentis de uma única instância | — evite: não pode ser agregado |
 
-Os histogramas são os importantes. Cada bucket é um contador "quantas observações foram ≤ este limite": com limites 0,1, 0,25, 0,5, 1, 2,5 s, um checkout de 0,3 s incrementa os buckets `0.5`, `1`, `2.5` e `+Inf`. Como os buckets são contadores, os histogramas de 20 pods podem ser **somados** e um percentil estimado a partir do total. Formatos mais novos — os *native histograms* do Prometheus e os *exponential histograms* do OpenTelemetry — escolhem os limites dos buckets automaticamente, com erro relativo limitado, o que elimina o erro mais comum: buckets que não cobrem o limiar do seu SLO.
+Os histogramas são os importantes. Cada bucket é um contador "quantas observações foram ≤ este limite": com limites 0,1, 0,25, 0,5, 1, 2,5 s, um checkout de 0,3 s incrementa os buckets `0.5`, `1`, `2.5` e `+Inf`. Como os buckets são contadores, os histogramas de 20 pods podem ser **somados** e um percentil estimado a partir do total. Formatos mais novos — os *native histograms* do Prometheus e os *exponential histograms* do OpenTelemetry — escolhem os limites dos buckets automaticamente, com erro relativo limitado, o que elimina o erro mais comum: buckets que não cobrem o limiar do seu objetivo de nível de serviço (SLO, *service level objective*).
 
 ### Pull vs push
 
 | | Pull (scrape) | Push |
 |---|---|---|
-| Como | o Prometheus chama `GET /metrics` em cada alvo a cada 15–60 s | o processo envia métricas (OTLP, StatsD) para um coletor |
+| Como | o Prometheus chama `GET /metrics` em cada alvo a cada 15–60 s | o processo envia métricas (OpenTelemetry Protocol, OTLP; StatsD) para um coletor |
 | Descobre alvos mortos | sim — um scrape com falha já é um sinal (`up == 0`) | só pela ausência de dados |
 | Jobs de vida curta, serverless | desajeitado (precisa de um push gateway) | natural |
 | Atrás de NAT / muitas redes | quem faz o scrape precisa alcançar cada alvo | os alvos só precisam alcançar o coletor |
-| Stack típica | Prometheus + service discovery do Kubernetes | SDK OpenTelemetry → Collector → Prometheus/Mimir (OTLP) |
+| Stack típica | Prometheus + service discovery do Kubernetes | kit de desenvolvimento (SDK, *software development kit*) OpenTelemetry → Collector → Prometheus/Mimir (OTLP) |
+
+``` diagram
+flowchart LR
+    subgraph pull ["Pull: quem coleta pergunta"]
+        PR["Prometheus"]:::comp -->|"GET /metrics<br/>a cada 15–60 s"| A["pod do order"]
+        PR -->|"GET /metrics"| B["pod do payment"]
+        PR -.->|"sem resposta:<br/>up == 0"| D["pod morto"]:::problem
+    end
+    subgraph push ["Push: o processo envia"]
+        S["order + SDK OTel"] -->|"OTLP"| COL["Collector"]:::comp
+        J["job em lote curto"] -->|"OTLP e depois sai"| COL
+        COL --> TS[("Prometheus / Mimir")]
+    end
+```
+
+As setas partem de quem começa a conversa. No pull, uma resposta que falta já é um dado; no push, um processo morto só fica em silêncio — por isso stacks de push alertam sobre dados **ausentes**.
 
 Os dois funcionam; stacks modernas misturam ambos. Com OpenTelemetry, o padrão é **push via OTLP** para um Collector, que também pode fazer **scrape** de endpoints Prometheus existentes ([OpenTelemetry](../opentelemetry/index.md)).
 
@@ -68,7 +84,7 @@ Você não precisa de centenas de métricas por serviço. Três checklists conhe
 |---|---|---|---|
 | **RED** | serviços orientados a requisições (APIs) | **R**ate (taxa), **E**rrors (erros), **D**uration (duração) | Tom Wilkie (Weaveworks/Grafana)[^2] |
 | **USE** | recursos (CPU, disco, pools, filas) | **U**tilization (utilização), **S**aturation (saturação), **E**rrors (erros) | Brendan Gregg[^3] |
-| **Quatro golden signals** | qualquer sistema voltado ao usuário | latência, tráfego, erros, saturação | livro de SRE do Google[^4] |
+| **Quatro golden signals** | qualquer sistema voltado ao usuário | latência, tráfego, erros, saturação | livro de engenharia de confiabilidade de sites (SRE, *Site Reliability Engineering*) do Google[^4] |
 
 Os golden signals são essencialmente RED + saturação. A **saturação** é o sutil: o quão *cheio* um recurso está, geralmente visível como **espera** — uma fila, um pool com pedidos pendentes, threads bloqueadas. Utilização perto de 100% não é um problema por si só; trabalho esperando na fila é.
 
@@ -79,8 +95,8 @@ Os golden signals são essencialmente RED + saturação. A **saturação** é o 
     | `order` (`POST /checkout`) | RED | checkouts/s; fração de `5xx`; duração p50/p95/p99 |
     | `payment` → provedor externo | RED (lado do cliente) | chamadas/s; fração com falha ou timeout; p99 da chamada ao provedor |
     | Pool de conexões PostgreSQL do `inventory` | USE | conexões ativas / máximo; aquisições **pendentes** e tempo de espera; timeouts de aquisição |
-    | Tópico Kafka `order-events` | USE | taxa de produção vs consumo; **consumer lag** (mensagens e segundos); entregas com falha / tamanho da DLQ |
-    | JVM do `order` | USE | CPU; heap após GC; tempo de pausa de GC; fila do pool de threads |
+    | Tópico Kafka `order-events` | USE | taxa de produção vs consumo; **consumer lag** (mensagens e segundos); entregas com falha / tamanho da fila de mensagens mortas (DLQ, *dead-letter queue*) |
+    | JVM do `order` | USE | CPU; heap após a coleta de lixo (GC, *garbage collection*); tempo de pausa de GC; fila do pool de threads |
 
     Durante a venda relâmpago, as **aquisições pendentes** do pool de pagamentos (saturação) subiram dois minutos antes de o alerta de p99 do checkout disparar. A saturação é o indicador antecedente; RED é o que os usuários sentem.
 
@@ -190,10 +206,10 @@ Os cinco primeiros labels são **limitados**: o número de valores é pequeno e 
 
 | Label | Limitado? | Onde deve ficar |
 |---|---|---|
-| `http_route` (template), `method`, `status_code`, `region`, `pod` | sim | labels de métrica |
-| `event_id` (≈ milhares de eventos à venda) | no limite — só se for pequeno e você precisar de SLOs por evento | geralmente traces |
-| `customer_id`, `order_id`, `email`, URL completa, `trace_id` | **não** | **traces e logs** (dados de alta cardinalidade são o trabalho deles) |
-| texto de mensagem de erro | não (texto livre) | logs; use uma *classe* de erro como label |
+| `http_route` (template), `method`, `status_code`, `region`, `pod` | ✅ sim | labels de métrica |
+| `event_id` (≈ milhares de eventos à venda) | ⚠️ no limite — só se for pequeno e você precisar de SLOs por evento | geralmente traces |
+| `customer_id`, `order_id`, `email`, URL completa, `trace_id` | ❌ **não** | **traces e logs** (dados de alta cardinalidade são o trabalho deles) |
+| texto de mensagem de erro | ❌ não (texto livre) | logs; use uma *classe* de erro como label |
 
 !!! tip "Alta cardinalidade não é ruim — está no lugar errado"
 
@@ -249,7 +265,7 @@ Os campos `trace_id` e `span_id` são o que transforma uma linha de log em parte
 
 ### Consultando logs { #querying-logs }
 
-Com o Loki (o "L" da stack Grafana LGTM), os labels selecionam os *streams* e o resto da linha é interpretado na hora da consulta, o que mantém a indexação barata:
+Com o Loki (o "L" da stack Grafana LGTM: Loki, Grafana, Tempo, Mimir), os labels selecionam os *streams* e o resto da linha é interpretado na hora da consulta, o que mantém a indexação barata:
 
 ```text
 {service_name="payment"} | json | level="WARN" | duration_ms > 5000
@@ -327,9 +343,9 @@ Um dashboard é um conjunto de consultas salvas, organizadas para responder rapi
 
 ``` diagram
 flowchart TB
-    L1["1 · Jornadas do usuário e SLOs<br/>busca, reserva de assento, checkout: SLI, budget restante"]
+    L1["1 · Jornadas do usuário e SLOs<br/>busca, reserva de assento, checkout: indicador de nível<br/>de serviço (SLI), budget restante"]
     L2["2 · Serviços — RED<br/>por serviço e rota: taxa, erros, p50/p99"]
-    L3["3 · Dependências<br/>latência do provedor, BD, hit ratio do cache, lag do Kafka"]
+    L3["3 · Dependências<br/>latência do provedor, banco, hit ratio do cache, lag do Kafka"]
     L4["4 · Recursos — USE<br/>CPU, memória, pools, filas por pod/nó"]
     L1 --> L2 --> L3 --> L4
 ```

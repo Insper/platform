@@ -60,10 +60,18 @@ As duas palavras importam. **Bom** define sucesso do ponto de vista do usuário 
 
 | Ponto de medição | Vê | Não vê |
 |---|---|---|
-| **Métricas da aplicação** (OpenTelemetry, Micrometer) | Detalhe por rota, barato | Requisições que nunca chegaram ao app (LB, DNS, rede) |
-| **Logs do load balancer / gateway** | Tudo o que chegou à borda | Falhas do lado do cliente, CDN |
+| **Métricas da aplicação** (OpenTelemetry, Micrometer) | Detalhe por rota, barato | Requisições que nunca chegaram ao app (load balancer, DNS, rede) |
+| **Logs do load balancer / gateway** | Tudo o que chegou à borda | Falhas do lado do cliente, a rede de distribuição de conteúdo (CDN, *content delivery network*) |
 | **Probes sintéticos** | Uma jornada roteirizada de fora, mesmo sem tráfego | A diversidade dos usuários reais |
 | **Telemetria do cliente (navegador / app)** | O que os usuários realmente vivenciam | Ruidosa; depende da rede dos usuários |
+
+``` diagram
+flowchart LR
+    FAN["navegador ou app do fã<br/>telemetria do cliente"] --> CDN["CDN"] --> LB["load balancer"] --> GW["gateway<br/>o SLI do BoxOffice"]:::comp --> APP["order, inventory<br/>métricas da aplicação"]
+    SYN["probe sintético<br/>compra um ingresso de teste por minuto"]:::tech --> CDN
+```
+
+Cada ponto só vê as requisições que chegaram até ele: quanto mais à esquerda, mais perto do que os fãs sentem e mais ruidosos os dados. O gateway é o ponto mais à esquerda que o BoxOffice controla por inteiro.
 
 Uma escolha comum é calcular os SLIs no **gateway** (perto do usuário, mas sob seu controle) e complementá-los com probes sintéticos da jornada de compra. Com métricas OpenTelemetry exportadas para o Prometheus (veja [Sinais](../signals/index.md)), o SLI de disponibilidade da rota de reserva em 5 minutos é:
 
@@ -254,7 +262,17 @@ Os detalhes do projeto de alertas, do roteamento e do plantão estão em [Observ
 
 ### A política de error budget { #the-error-budget-policy }
 
-Um error budget é só um número num dashboard, a menos que produto e engenharia combinem **de antemão** o que acontece à medida que ele é gasto. Esse acordo é a **política de error budget**:
+Um error budget é só um número num dashboard, a menos que produto e engenharia combinem **de antemão** o que acontece à medida que ele é gasto. Esse acordo é a **política de error budget**. Execute a decisão de publicar ou congelar:
+
+``` diagram-sim
+flowchart TD
+    S["Uma mudança no caminho de compra<br/>está pronta para publicar"] --> O{"Grande abertura de vendas<br/>nas próximas 24 h?"}
+    O -->|sim| W["Espere: nenhum deploy,<br/>seja qual for o budget"]:::problem
+    O -->|não| Q{"Error budget restante<br/>na janela de 28 dias?"}
+    Q -->|"acima de 50%"| N["Publique em qualquer dia útil,<br/>experimentos liberados"]:::comp
+    Q -->|"de 0 a 50%"| C["Publique atrás de um canário,<br/>com plano de rollback"]:::tech
+    Q -->|esgotado| F["Congele features:<br/>só correções e confiabilidade"]:::problem
+```
 
 !!! example "Política de error budget do BoxOffice (caminho de compra)"
 
@@ -281,7 +299,7 @@ Os compromissos abaixo vêm das páginas públicas de SLA dos provedores[^3]; as
 
 | Provedor | Serviço | Compromisso mensal | Condição |
 |---|---|---|---|
-| AWS | Amazon EC2 | 99,99% (no nível da região) | Instâncias em várias AZs |
+| AWS | Amazon EC2 | 99,99% (no nível da região) | Instâncias em várias zonas de disponibilidade (AZs, *availability zones*) |
 | AWS | Amazon RDS | 99,95% | Implantações Multi-AZ |
 | AWS | Amazon S3 Standard | 99,9% | — |
 | Google Cloud | Compute Engine | 99,99% | Instâncias em várias zonas |
@@ -335,6 +353,18 @@ flowchart LR
 ```
 
 **Componentes da paleta:** [`metrics`](../../../reference/components/observability/index.md#metrics) (o SLI é uma razão de contadores de requisições) · [`alerting`](../../../reference/components/observability/index.md#alerting) (regras de burn rate multijanela) · [`apigw`](../../../reference/components/edge/index.md#apigw) (onde o BoxOffice mede o SLI da compra) · [`kafka`](../../../reference/components/messaging/index.md#kafka) (o consumer lag, alerta antecipado do SLI de frescor da entrega de ingressos) · [`payment`](../../../reference/components/external/index.md#payment) (seus 99,9% limitam o SLO da compra). **Cenários:** `observability-stack`, `flash-sale` (o SLO por evento de abertura de vendas). **Continua em:** [Observabilidade — alertas](../alerting/index.md), [Observabilidade — resposta a incidentes](../incident-response/index.md), [Estimativas — matemática da disponibilidade](../../estimation/availability-math/index.md), [Cloud-native — entrega](../../cloud-native/delivery/index.md), [Hands-on 8 — SLO e alerta de burn rate](../../../hands-on/8/slo/index.md).
+
+---
+
+## Pontos-chave { #key-takeaways }
+
+!!! takeaways ""
+
+    - Um **SLI** é uma razão entre eventos bons e válidos, medida perto do usuário; um **SLO** é a meta dele numa janela móvel (28 dias); o **error budget** é 1 − SLO.
+    - Comece pelas **jornadas críticas do usuário** e dê a cada uma o SLI de que ela precisa: disponibilidade, latência ou **frescor** para o trabalho assíncrono, que SLIs de requisição não enxergam.
+    - Defina a meta a partir de medições e da matemática das dependências, nunca 100%, e mantenha o **SLO mais rígido que o SLA**: um SLA só transfere um pouco de risco financeiro.
+    - **Burn rate** = razão de erros observada ÷ budget; alerte com regras **multijanela e multi-burn-rate**: 14,4× e 6× acionam alguém (page), 1× abre um ticket.
+    - Uma **política de error budget**, assinada de antemão, transforma o budget em decisões de publicar ou congelar.
 
 ---
 

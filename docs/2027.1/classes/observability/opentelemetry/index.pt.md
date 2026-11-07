@@ -5,11 +5,11 @@ O BoxOffice é escrito em Java (gateway, order, inventory, payment, catalog) e P
 
 ## O que o OpenTelemetry é (e o que não é) { #what-opentelemetry-is-and-is-not }
 
-O OpenTelemetry é um projeto da CNCF que define **como a telemetria é produzida e transportada**. Ele **não** é um backend: não armazena nem exibe nada. Você continua escolhendo para onde os dados vão — Prometheus, Tempo, Jaeger, Loki, um serviço de nuvem ou um fornecedor — e pode mudar essa escolha sem tocar no código da aplicação.
+O OpenTelemetry é um projeto da Cloud Native Computing Foundation (CNCF) que define **como a telemetria é produzida e transportada**. Ele **não** é um backend: não armazena nem exibe nada. Você continua escolhendo para onde os dados vão — Prometheus, Tempo, Jaeger, Loki, um serviço de nuvem ou um fornecedor — e pode mudar essa escolha sem tocar no código da aplicação.
 
 | Peça | O que é | Exemplo no BoxOffice |
 |---|---|---|
-| **API** | interfaces para criar spans, métricas e logs; viram no-ops seguros se nenhum SDK estiver instalado | `Tracer`, `Meter` usados dentro do `payment` |
+| **API** (interface de programação, *application programming interface*) | interfaces para criar spans, métricas e logs; viram no-ops seguros se nenhum SDK (kit de desenvolvimento, *software development kit*) estiver instalado | `Tracer`, `Meter` usados dentro do `payment` |
 | **SDK** | a implementação: amostragem, batching, detecção de recursos, exporters | configurado pelo agente Java a partir de variáveis de ambiente |
 | **Bibliotecas de instrumentação** | spans/métricas prontos para frameworks: Spring MVC, JDBC, clientes Kafka, FastAPI, clientes HTTP | o span `SELECT seat_holds`, criado sem nenhum código |
 | **Semantic conventions** | nomes padronizados para atributos e métricas: `http.route`, `db.system`, `messaging.destination.name` | todo serviço nomeia a rota do mesmo jeito, então um dashboard serve para todos |
@@ -44,7 +44,7 @@ Um trace só existe se cada salto souber a qual trace pertence. A **propagação
 
 ### O header `traceparent` { #the-traceparent-header }
 
-O OpenTelemetry usa por padrão o padrão W3C Trace Context[^2]. Um único header carrega o contexto:
+O OpenTelemetry usa por padrão o padrão Trace Context[^2] do World Wide Web Consortium (W3C). Um único header carrega o contexto:
 
 ```text
 traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
@@ -116,7 +116,7 @@ Três detalhes importam na prática:
 
 ### Sem código: o agente Java { #zero-code-the-java-agent }
 
-O agente Java do OpenTelemetry se anexa à JVM e instrumenta centenas de bibliotecas — Spring MVC/WebFlux, JDBC, HikariCP, clientes Kafka, clientes HTTP, Logback — por injeção de bytecode, sem mudanças no código. Ele também coloca `trace_id` e `span_id` no contexto de logging (MDC), então os logs estruturados os carregam automaticamente.
+O agente Java do OpenTelemetry se anexa à JVM e instrumenta centenas de bibliotecas — Spring MVC/WebFlux, JDBC, HikariCP, clientes Kafka, clientes HTTP, Logback — por injeção de bytecode, sem mudanças no código. Ele também coloca `trace_id` e `span_id` no contexto de logging (o *mapped diagnostic context*, MDC), então os logs estruturados os carregam automaticamente.
 
 ```dockerfile
 # Dockerfile (excerpt) — pin a version; check the latest release before upgrading
@@ -143,6 +143,10 @@ environment:
     ``` { .yaml title="docker-compose.yaml (the x-otel anchor and the catalog replicas)" }
     --8<-- "docs/2027.1/hands-on/8/code/docker-compose.yaml:3:12,15:22"
     ```
+
+**Veja no playground.** O preset `boxoffice-observability` é o `catalog` do lab 8 antes do agente: nenhum serviço manda métricas (a utilização aparece como "?"), não há traces nem alerta. Em t = 60 s o banco para; o Redis ainda responde os acertos, todo miss falha e ninguém percebe por 100 s. Conecte o Metrics a todos os serviços e o Tracing e o Logs ao `catalog` — o que uma linha de `JAVA_TOOL_OPTIONS` faz no lab — e depois conecte o Alerting ao Metrics e veja o reparo começar antes.
+
+<div class="sdp" data-scenario="boxoffice-observability" data-mode="compact" data-height="460"></div>
 
 ### Sem código: o `assistant` em Python { #zero-code-the-python-assistant }
 
@@ -277,6 +281,15 @@ Guardar todos os spans de todas as requisições raramente cabe no orçamento (v
 | **Tail sampling**[^3] | no Collector, depois que o trace inteiro chegou (`decision_wait`) | guarda traces *interessantes*: todo erro, toda requisição lenta, mais uma amostra do resto | todo span precisa chegar ao Collector; memória para o buffer; todos os spans de um trace numa instância |
 | **Rate limiting** | SDK ou Collector: no máximo N traces por segundo | custo previsível | durante um pico, quase tudo é descartado — exatamente quando você mais precisa |
 
+``` diagram
+flowchart LR
+    R["span raiz<br/>decisão de cabeça, uma vez"]:::comp -->|"traceparent …-01: amostrado"| SVC["todo serviço seguinte<br/>segue a flag"]
+    R -.->|"flag 00: nenhum span exportado"| X["perdido de vez"]:::problem
+    SVC -->|"OTLP: todos os spans dos traces mantidos"| COL["Collector gateway<br/>espera decision_wait = 10 s"]:::comp
+    COL -->|"erro, lento ou 5%"| TB[("backend de tracing")]
+    COL -.->|"o resto"| D["descartado"]
+```
+
 Head e tail sampling são aplicados em sequência: um trace descartado na cabeça nunca pode ser resgatado na cauda. A comparação abaixo usa números ilustrativos para um dia movimentado do BoxOffice — 2.000 requisições/s, 8 spans por requisição de 500 bytes, 1% das requisições falhando e 2% mais lentas que o limiar de 2 s:
 
 ```python exec="true"
@@ -299,7 +312,17 @@ for name, kept, err_kept in strategies:
     print(f"| {name} | {kept:.1%} | {gb_per_day(kept):,.1f} GB | {errors_per_day * err_kept:,.0f} ({err_kept:.0%}) |")
 ```
 
-O tail sampling armazena menos que o head sampling de 10% e ainda guarda **todos** os traces de erro — ao preço de enviar 100% dos spans pela rede até o Collector e mantê-los em buffer durante a janela de decisão. Uma receita comum em produção: head sampling de 100% (ou uma razão alta) nos serviços, tail sampling num Collector gateway e **métricas calculadas a partir de todas as requisições antes da amostragem**, para que dashboards e SLOs sejam exatos mesmo que a maioria dos traces seja descartada.
+O tail sampling armazena menos que o head sampling de 10% e ainda guarda **todos** os traces de erro — ao preço de enviar 100% dos spans pela rede até o Collector e mantê-los em buffer durante a janela de decisão. Uma receita comum em produção: head sampling de 100% (ou uma razão alta) nos serviços, tail sampling num Collector gateway e **métricas calculadas a partir de todas as requisições antes da amostragem**, para que dashboards e objetivos de nível de serviço (SLOs, *service level objectives*) sejam exatos mesmo que a maioria dos traces seja descartada.
+
+<div class="csim" data-sim="trace-sampling" data-head="1" data-tail="on" data-collectors="one"></div>
+
+!!! tip "Experimente"
+
+    Cada linha é um trace da cascata de [Sinais](../signals/index.md#reading-a-waterfall); os números contam 100.000 deles.
+
+    - Como abre — cabeça 100%, tail sampling num Collector gateway — ele guarda **54,3 GB** por dia em vez de **691 GB** e **100%** dos traces de erro e lentos chegam inteiros.
+    - Desligue a cauda e ponha a cabeça em **10%**: **69,1 GB** e só **9,9%** dos traces de erro — a cabeça é cega ao resultado. Ligue a cauda de novo: **5,4 GB** e ainda **9,9%**. A cauda não resgata o que a cabeça descartou.
+    - Volte a cabeça para 100% e ponha **3 Collectors atrás de round robin**: cada um decide sobre os spans que lhe couberam, então só **36%** dos traces de erro chegam inteiros e **15%** dos traces guardados têm buracos. Roteie **por trace id** (o exporter `loadbalancing`): de volta a **100%**.
 
 !!! example "Exemplars: de uma métrica para um trace"
 

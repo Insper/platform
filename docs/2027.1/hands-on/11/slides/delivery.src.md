@@ -14,6 +14,10 @@ theme: platform
 {{INCLUDE:scripts/slides/theme.js}}
 </script>
 
+<style>
+{{INCLUDE:scripts/slides/diagram.css}}
+</style>
+
 <div class="kicker">System Architecture · Insper</div>
 
 # Hands-on 11 — Delivery
@@ -39,19 +43,28 @@ the requests. Who reviews all of them by hand?
 
 - Nobody can: the **pipeline** must answer "is this safe?" automatically.
 - And when it is wrong, the **release** must limit the damage.
-- Measure it: **lead time** and **change failure rate** (DORA).
+- Measure it: **lead time** and **change failure rate** (DORA: DevOps Research and Assessment).
 
 ---
 
 ## The pipeline
 
-| Workflow | Job | Answers |
-|---|---|---|
-| `CI` | `test` (matrix) | does it work? (Testcontainers) |
-| `CI` | `performance budget` | is it fast enough? (k6) |
-| `CI` | `image` | what is inside, is it vulnerable, who built it? |
-| `Deploy` | `promote` | which version should run? (a Git commit) |
-| Argo CD + Rollouts | in the cluster | deploy it, carefully |
+<div class="flow">
+<div class="group">
+<div class="caption">CI: continuous integration, on every push and pull request</div>
+<div class="box accent">test (matrix)<small>does it work? Testcontainers</small></div>
+<div class="box accent">performance budget<small>is it fast enough? k6</small></div>
+<div class="box accent">image<small>what is inside, is it vulnerable, who built it?</small></div>
+</div>
+<div class="arrow">on main →</div>
+<div class="box orange" style="flex: .6">Deploy<small>which version should run? a Git commit</small></div>
+<div class="arrow">pull →</div>
+<div class="group">
+<div class="caption">in the cluster</div>
+<div class="box green">Argo CD<small>applies the overlay</small></div>
+<div class="box green">Argo Rollouts<small>deploys it, carefully</small></div>
+</div>
+</div>
 
 ---
 
@@ -75,10 +88,16 @@ class CatalogApiTest {
 
 ## Step 2 · Supply chain
 
-- **Build** with `load: true` → **Trivy** report (Security tab) → **gate**: fixable CRITICAL fails.
-- **SBOM** (Syft, SPDX): every package and version in the image.
-- **Push** to `ghcr.io/<you>/boxoffice-catalog:sha-<commit>`.
-- **Attest** provenance + SBOM: signed (Sigstore), bound to the digest.
+<div class="flow">
+<div class="box">build<small>load: true, not pushed yet</small></div><div class="arrow">→</div>
+<div class="box orange">Trivy<small>report in Security; gate: fixable CRITICAL fails</small></div><div class="arrow">→</div>
+<div class="box accent">SBOM<small>Syft, SPDX: every package and version</small></div><div class="arrow">→</div>
+<div class="box accent">push<small>ghcr.io/…/boxoffice-catalog:sha-…</small></div><div class="arrow">→</div>
+<div class="box green">attest<small>provenance + SBOM, signed, bound to the digest</small></div>
+</div>
+
+- **Scan before publishing**: a vulnerable image never reaches the registry.
+- The software bill of materials (**SBOM**) answers "what is inside"; signed provenance answers "who built it, from which commit".
 
 <div class="warn">
 
@@ -98,15 +117,21 @@ thresholds: {
 ```
 
 - Fixed environment (`.github/ci/compose.perf.yaml`), 20 s warm-up not measured.
-- Normal run: p95 ≈ 7 ms. With `Thread.sleep(400)`: ✗ → the PR is red.
+- Normal run: p95 ≈ 7 ms. With `Thread.sleep(400)`: ✗ → the pull request (PR) is red.
 - Margin on purpose: a **noisy gate** gets ignored.
 
 ---
 
 ## Step 4 · GitOps
 
-- CI never touches the cluster; **Deploy** commits the new tag to `k8s/overlays/gitops`.
-- **Argo CD** (in the cluster) pulls Git and applies: `prune`, `selfHeal`.
+<div class="flow">
+<div class="box accent">CI<small>image sha-…</small></div><div class="arrow">→</div>
+<div class="box orange">Deploy<small>commits the tag to k8s/overlays/gitops</small></div><div class="arrow">→</div>
+<div class="box">Git<small>the desired state</small></div><div class="arrow">← polls every 3 min ←</div>
+<div class="box green">Argo CD<small>inside the cluster: apply, prune, self-heal</small></div>
+</div>
+
+- CI never touches the cluster: it only writes to Git.
 - Rollback = `git revert`; audit = `git log`; drift → reverted in seconds.
 
 <div class="ok">
@@ -119,12 +144,17 @@ The cluster credentials never leave the cluster.
 
 ## Step 5 · The canary
 
-| Object | Role |
-|---|---|
-| `Rollout` (`workloadRef` → the Deployment) | 25% → 2 min → 50% → 2 min → 100% |
-| `catalog-stable` / `catalog-canary` Services | point at each version's pods |
-| `AnalysisTemplate` | every 30 s: canary error ratio < 1%, p99 < 500 ms |
-| Prometheus | scrapes `/actuator/prometheus`, label `service` |
+<div class="flow">
+<div class="box orange">setWeight 25<small>1 canary pod + 2 stable: about a third</small></div><div class="arrow">pause 2 min →</div>
+<div class="box orange">setWeight 50<small>1 canary + 1 stable</small></div><div class="arrow">pause 2 min →</div>
+<div class="box green">the canary becomes stable</div>
+</div>
+<div class="flow">
+<div class="box accent">AnalysisRun, every 30 s from the first step<small>canary error ratio &lt; 1% and p99 &lt; 500 ms · failureLimit: 1 · empty result = pass</small></div>
+</div>
+
+- No traffic router: the `Rollout` reaches a weight by **replica counts** (`workloadRef` → the Deployment).
+- `catalog-stable` / `catalog-canary` Services point at each version; Prometheus labels every series with `service`.
 
 ---
 
@@ -139,6 +169,22 @@ The cluster credentials never leave the cluster.
 * Argo CD syncs → the Rollout starts a canary pod.
 * Analysis: `[]` (no data yet), **0.068**, **0.285** → failed twice > `failureLimit: 1`.
 * `RolloutAborted` → canary scaled down; stable keeps serving. Fix forward: `git revert`.
+
+---
+
+## Without a cluster: replay the analysis
+
+<div class="flow">
+<div class="box">t = 0 s<small>[] · no 500 series yet</small></div><div class="arrow">→</div>
+<div class="box red">t = 30 s<small>0.258 ✖ (1)</small></div><div class="arrow">→</div>
+<div class="box red">t = 60 s<small>0.284 ✖ (2) &gt; failureLimit 1</small></div><div class="arrow">→</div>
+<div class="box orange">RolloutAborted<small>about 120 failed requests, 10% of that minute</small></div>
+</div>
+
+- The simulator on the canary step: a good release → every result `[]` → stable at **240 s**.
+- **0 req/s** with 0.3 → every result `[]` → the bad release is **promoted**: no traffic, no evidence.
+- `Thread.sleep(400)` → p99 0.409 s passes the canary; only the step 3 gate stops it.
+- Playground `boxoffice-canary`: the same bug as a canary costs a quarter of the errors.
 
 ---
 
@@ -171,6 +217,6 @@ The cluster credentials never leave the cluster.
 1. Test against **real dependencies** (Testcontainers); run CI on every PR and on `main`.
 2. **Least privilege** per job; pin every action to a commit SHA.
 3. Scan **before** publishing; SBOM + signed provenance answer "what" and "who".
-4. A **performance budget** turns the SLO into a build check — with margin.
+4. A **performance budget** turns the service level objective (SLO) into a build check — with margin.
 5. **GitOps**: Git is the source of truth; the cluster pulls.
 6. **Canary + analysis** stops bad releases automatically. Next: [lab 13](../../13/index.md) adds AI to this pipeline.

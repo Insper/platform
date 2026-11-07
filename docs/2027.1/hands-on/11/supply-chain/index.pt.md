@@ -1,8 +1,8 @@
 # 2. Imagem e Cadeia de Suprimentos { #2-image-and-supply-chain }
 
 O seu código é uma parte pequena do que roda em produção: a imagem também contém uma distribuição Linux,
-um JRE e cerca de cem bibliotecas. A **segurança da cadeia de suprimentos** faz três perguntas sobre toda
-imagem antes que ela rode: *o que há dentro dela?* (um SBOM), *ela contém vulnerabilidades conhecidas?*
+um Java Runtime Environment (JRE) e cerca de cem bibliotecas. A **segurança da cadeia de suprimentos** faz três perguntas sobre toda
+imagem antes que ela rode: *o que há dentro dela?* (uma lista de materiais de software, SBOM, *software bill of materials*), *ela contém vulnerabilidades conhecidas?*
 (um scan) e *ela foi mesmo construída pelo nosso pipeline, a partir deste commit?* (proveniência). O job
 `image` do `ci.yaml` responde às três, nesta ordem:
 
@@ -24,11 +24,11 @@ explica os seus steps.
 
 | Step | Action | Observações |
 |---|---|---|
-| nome da imagem | shell | `ghcr.io/<owner>/boxoffice-catalog`, **em minúsculas** (o GHCR rejeita maiúsculas; `${VAR,,}` converte para minúsculas no Bash) |
+| nome da imagem | shell | `ghcr.io/<owner>/boxoffice-catalog`, **em minúsculas** (o GitHub Container Registry, GHCR, rejeita maiúsculas; `${VAR,,}` converte para minúsculas no Bash) |
 | `docker/setup-buildx-action` (v4.4.1), `docker/login-action` (v4.6.0) | | BuildKit e um login no registry do GitHub com o próprio `GITHUB_TOKEN` do job (`packages: write`) |
 | `docker/metadata-action` (v6.2.0) | | tags `sha-<sha completo do commit>` (imutável, o que vai para o deploy) e `main` (móvel, para humanos) |
 | build com `load: true` | `docker/build-push-action` (v7.4.0) | a imagem vai para o Docker do runner, **ainda não** para o registry; camadas em cache no cache do GitHub (`type=gha`) |
-| relatório do Trivy | `aquasecurity/trivy-action` | SARIF enviado para **Security → Code scanning**, nunca falha |
+| relatório do Trivy | `aquasecurity/trivy-action` | SARIF (*Static Analysis Results Interchange Format*) enviado para **Security → Code scanning**, nunca falha |
 | portão do Trivy | `aquasecurity/trivy-action` | **falha** numa vulnerabilidade `CRITICAL` **que tem correção** (`ignore-unfixed`): algo sobre o que você pode agir agora |
 | SBOM | `anchore/sbom-action` (Syft) | `sbom.spdx.json`: todo pacote e versão na imagem |
 | push | `docker/build-push-action` (v7.4.0) | as mesmas camadas (cache hit), agora enviadas com as tags |

@@ -14,11 +14,15 @@ theme: platform
 {{INCLUDE:scripts/slides/theme.js}}
 </script>
 
+<style>
+{{INCLUDE:scripts/slides/diagram.css}}
+</style>
+
 <div class="kicker">Arquitetura de Sistemas · Insper</div>
 
 # Hands-on 8 — Observabilidade
 
-**OpenTelemetry, um dashboard RED, um trace atravessando o Kafka e um SLO que aciona na hora certa**
+**OpenTelemetry, um dashboard RED (taxa, erros e duração, *rate, errors, duration*), um trace atravessando o Kafka e um objetivo de nível de serviço (SLO, *service level objective*) que aciona na hora certa**
 
 <!--
 Roteiro: (1) as perguntas que o k6 não responde; (2) otel-lgtm e o agente Java; (3) o outbox quebra
@@ -46,10 +50,26 @@ serviços? O banco, o pool, o Kafka, o provedor de e-mail?
 
 ## Arquitetura
 
-- Todo serviço Java roda o **agente Java do OpenTelemetry**.
-- Ele envia **OTLP** para o `otel-lgtm` (porta 4318).
-- Dentro: **Collector** do OTel → **Prometheus** (métricas), **Tempo** (traces), **Loki** (logs).
-- O **Grafana** (porta 3000) os liga: exemplar → trace → logs.
+<div class="flow">
+<div class="group">
+<div class="caption">todo serviço Java + o agente</div>
+<div class="box">gateway</div>
+<div class="box">catalog ×3</div>
+<div class="box">order · notification</div>
+</div>
+<div class="arrow">OTLP :4318 →</div>
+<div class="group">
+<div class="caption">otel-lgtm (um contêiner)</div>
+<div class="box accent">OpenTelemetry Collector</div>
+<div class="box green">Prometheus<small>métricas</small></div>
+<div class="box green">Tempo<small>traces</small></div>
+<div class="box green">Loki<small>logs</small></div>
+</div>
+<div class="arrow">→</div>
+<div class="box orange" style="flex: .7">Grafana :3000<small>exemplar → trace → logs; regras de alerta</small></div>
+</div>
+
+- O agente envia **OTLP** (o OpenTelemetry Protocol); o Grafana liga os três sinais.
 
 <div class="ok">
 
@@ -63,6 +83,8 @@ Backend de desenvolvimento em uma imagem; produção o troca por sistemas separa
 
 ```shell
 sh scripts/get-otel-agent.sh      # downloads infra/otel/opentelemetry-javaagent.jar (v2.32.0)
+```
+
 ```yaml
 x-otel: &otel
   JAVA_TOOL_OPTIONS: -javaagent:/otel/opentelemetry-javaagent.jar
@@ -91,10 +113,15 @@ Um pedido produz **dois traces sem relação**: `POST /orders` e, depois, relay 
 
 </div>
 
-- O outbox é uma **linha do banco** lida por outra thread: o contexto da requisição não foi guardado.
-- Correção: salvar o **`traceparent`** W3C da requisição na linha (`V2__outbox_traceparent.sql`).
-- O relay torna esse contexto atual antes do `kafka.send` → o agente injeta o **mesmo** trace id.
-- Resultado: um trace, com o atraso do relay visível como um intervalo.
+<div class="flow">
+<div class="box">order<small>thread HTTP</small></div><div class="arrow">INSERT →</div>
+<div class="box accent">linha do outbox<small>+ traceparent (migração V2)</small></div><div class="arrow">SELECT →</div>
+<div class="box">relay<small>thread do scheduler: makeCurrent()</small></div><div class="arrow">→</div>
+<div class="box green">Kafka → notification<small>o mesmo trace id</small></div>
+</div>
+
+- O outbox é uma **linha do banco** lida por outra thread: o contexto da requisição precisa viajar nela.
+- Resultado: **um** trace — 9 ms de requisição, o relay 22 ms depois, 67 ms no `notification`.
 
 ---
 
@@ -131,7 +158,7 @@ db_client_connections_pending_requests                                      # Sa
 
 | Termo | `catalog` |
 |---|---|
-| SLI | fração das requisições (sem `/actuator`) não respondidas com 5xx |
+| SLI (indicador de nível de serviço) | fração das requisições (sem `/actuator`) não respondidas com 5xx |
 | SLO | 99,5% em 28 dias |
 | Orçamento de erros | 0,5% → ≈ 202 min de queda total a cada 28 dias |
 | Taxa de queima | fração de erros / 0,005 (1 = exatamente no orçamento) |
@@ -142,8 +169,8 @@ db_client_connections_pending_requests                                      # Sa
 
 | Severidade | Taxa | Longa | Curta | Orçamento gasto |
 |---|---|---|---|---|
-| página | 14,4 | 1 h | 5 min | ≈ 2,1% |
-| página / ticket | 6 | 6 h | 30 min | ≈ 5,4% |
+| page | 14,4 | 1 h | 5 min | ≈ 2,1% |
+| page / ticket | 6 | 6 h | 30 min | ≈ 5,4% |
 | ticket | 1 | 3 dias | 6 h | ≈ 10,7% |
 
 - Janela **longa**: o problema é significativo, não um soluço.
@@ -163,6 +190,24 @@ Tráfego constante, uma hora saudável, depois `docker compose stop db`. Quando 
 * A fração de erros da última hora precisa chegar a 14,4 × 0,5% = **7,2%**.
 * 0,072 × 60 min ≈ **4,3 min** de queda, + `for: 1m` + avaliação ≈ **5–6 min**.
 * Um soluço de 30 segundos nunca aciona; um vazamento lento de 4% é pego pela regra de 6 horas.
+* Execução de teste: *Firing* **cerca de 440 s** depois do stop — o teste de estresse do passo 2 ainda estava na janela de 1 hora.
+* `start db`: o page some **cerca de 5 min depois**, quando a queda sai da janela de 5 minutos.
+
+---
+
+## Sem Docker: repita-o
+
+<div class="flow">
+<div class="box red">10:12:31<small>stop db</small></div><div class="arrow">→</div>
+<div class="box orange">taxa de queima de 5 min: 200<small>em um minuto</small></div><div class="arrow">→</div>
+<div class="box orange">taxa de queima de 1 h &gt; 14,4<small>após 4,3 min</small></div><div class="arrow">→</div>
+<div class="box red">Pending → Firing<small>for: 1m → 5:30</small></div><div class="arrow">→</div>
+<div class="box green">start db → Normal<small>5:00 depois</small></div>
+</div>
+
+- O simulador do passo de SLO: `slo-catalog.yaml` avaliado a cada 30 s, k6 a 50 req/s, um tick = 10 s.
+- Com o teste de estresse do passo 2 na janela → **7:30**, "Burn rate 17.0 (1 h) and 200.0 (5 min)"; 10 min de histórico → **2:00**.
+- 4% de erros nunca acionam; o ticket de 6 horas dispara após **3,1 h**.
 
 ---
 
@@ -196,6 +241,7 @@ Tráfego constante, uma hora saudável, depois `docker compose stop db`. Quando 
 - `observability-stack` com o perfil `chaos`.
 - Desconecte as métricas de um serviço: a utilização dele vira "?".
 - O que reage primeiro a uma falha: erros, percentis ou *health checks*?
+- `boxoffice-observability`: o banco do `catalog` para por 100 s; só o Alerting encurta a queda.
 
 <div class="ok">
 

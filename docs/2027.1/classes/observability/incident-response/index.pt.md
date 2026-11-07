@@ -5,14 +5,14 @@
 
 ## O que conta como incidente { #what-counts-as-an-incident }
 
-Um **incidente** é um evento não planejado que degrada ou ameaça um serviço do qual os usuários dependem e que precisa de uma resposta **coordenada**. Nem todo alerta é um incidente; um incidente é declarado quando a resposta precisa de mais de uma pessoa trabalhando do jeito normal. **Níveis de severidade** tornam essa decisão rápida e consistente — ninguém deveria discutir a definição às 3 da manhã.
+Um **incidente** é um evento não planejado que degrada ou ameaça um serviço do qual os usuários dependem e que precisa de uma resposta **coordenada**. Nem todo alerta é um incidente; um incidente é declarado quando a resposta precisa de mais de uma pessoa trabalhando do jeito normal. **Níveis de severidade** (SEV1 a SEV4) tornam essa decisão rápida e consistente — ninguém deveria discutir a definição às 3 da manhã.
 
 | Severidade | Critérios (BoxOffice) | Exemplo | Resposta |
 |---|---|---|---|
-| **SEV1** | jornada principal fora do ar ou muito degradada para muitos usuários; perda de dados ou violação de segurança; qualquer abertura de vendas afetada | checkout falhando para 10% dos fãs durante uma abertura de vendas | page imediato, incident commander, página de status, atualizações a cada 15–30 min |
-| **SEV2** | degradação significativa com contorno disponível, ou uma jornada não principal fora do ar | a busca devolve resultados desatualizados; e-mails atrasados em 1 h | page para o time dono, canal do incidente, atualizações internas |
-| **SEV3** | impacto pequeno, poucos usuários, sem pressão de prazo | o mapa de assentos está lento para um local de evento | ticket, correção em horário comercial |
-| **SEV4** | sem impacto no usuário ainda; um quase-incidente (*near miss*) | um certificado expirando em 7 dias | ticket |
+| 🔴 **SEV1** | jornada principal fora do ar ou muito degradada para muitos usuários; perda de dados ou violação de segurança; qualquer abertura de vendas afetada | checkout falhando para 10% dos fãs durante uma abertura de vendas | page imediato, incident commander, página de status, atualizações a cada 15–30 min |
+| 🟠 **SEV2** | degradação significativa com contorno disponível, ou uma jornada não principal fora do ar | a busca devolve resultados desatualizados; e-mails atrasados em 1 h | page para o time dono, canal do incidente, atualizações internas |
+| 🟡 **SEV3** | impacto pequeno, poucos usuários, sem pressão de prazo | o mapa de assentos está lento para um local de evento | ticket, correção em horário comercial |
+| ⚪ **SEV4** | sem impacto no usuário ainda; um quase-incidente (*near miss*) | um certificado expirando em 7 dias | ticket |
 
 !!! tip "Declare cedo, rebaixe à vontade"
 
@@ -41,7 +41,7 @@ stateDiagram-v2
     Triado --> Declarado : severidade definida, commander e canal atribuídos
     Triado --> Encerrado : alarme falso ou sem impacto (ajuste o alerta)
     Declarado --> Mitigando : estancar o sangramento
-    Mitigando --> Monitorando : impacto acabou, SLIs se recuperando
+    Mitigando --> Monitorando : impacto acabou, SLIs (indicadores de nível de serviço) se recuperando
     Monitorando --> Mitigando : o impacto volta
     Monitorando --> Resolvido : estável, correção definitiva agendada
     Resolvido --> Revisado : postmortem blameless, ações
@@ -53,7 +53,7 @@ Cada transição tem um timestamp e os intervalos entre elas são as métricas q
 
 | Métrica | De → até | Melhora com |
 |---|---|---|
-| **MTTD** — tempo médio para detectar | o impacto começa → alguém fica sabendo | alertas de burn rate do SLO, probes sintéticas |
+| **MTTD** — tempo médio para detectar | o impacto começa → alguém fica sabendo | alertas de burn rate do objetivo de nível de serviço (SLO, *service level objective*), probes sintéticas |
 | **MTTA** — tempo médio para confirmar | page → um humano assume | carga de pages razoável, políticas de escalonamento |
 | **MTTM** — tempo médio para mitigar | o impacto começa → os usuários deixam de ser afetados | runbooks, rollbacks, feature flags, mitigações genéricas |
 | **MTTR** — tempo médio para resolver / recuperar | o impacto começa → resolvido | tudo acima, mais diagnóstico rápido (traces) |
@@ -115,7 +115,7 @@ Durante um incidente, o objetivo é **parar o impacto**, não entendê-lo. O ent
 | **Failover / drenar** | uma zona, região ou provedor está com problema | trocar para o provedor de pagamentos secundário; drenar `sa-east-1a` | um secundário testado e a troca documentada |
 | **Descartar carga** (*shed load*) | a demanda excede a capacidade | estrangular a taxa de admissão da sala de espera | uma sala de espera / rate limiter instalados |
 | **Escalar horizontalmente** | saturação, o código está bem | mais réplicas do `inventory`, pool de conexões maior *se* o banco aguentar | folga de capacidade, limites de autoscaling conhecidos |
-| **Bloquear tráfego ruim** | bots abusivos ou um ataque | regra de WAF para o ASN dos cambistas | WAF e rate limits na borda |
+| **Bloquear tráfego ruim** | bots abusivos ou um ataque | regra do firewall de aplicação web (WAF, *web application firewall*) para o número de sistema autônomo (ASN, *autonomous system number*) dos cambistas | WAF e rate limits na borda |
 | **Degradar graciosamente** | uma dependência não crítica falha | esconder recomendações, manter o checkout | fallbacks projetados desde o início |
 
 !!! warning "Não depure em produção durante o incidente, a menos que isso mitigue"
@@ -222,7 +222,7 @@ As ações são a única parte de um postmortem que muda alguma coisa. Cada uma 
 - **Compartilhe amplamente**: outros times têm o mesmo pool, o mesmo timeout faltando.
 - **Procure tendências**: muitos incidentes vindos de deploys → invista em canaries e rollbacks ([Entrega](../../cloud-native/delivery/index.md)); muitos vindos de uma dependência → bulkheads e fallbacks.
 - **Pratique**: transforme o incidente num cenário de **game day** — injete latência no provedor com o Toxiproxy e verifique se o novo timeout, o breaker e o alerta se comportam ([Hands-on 9](../../../hands-on/9/index.md)).
-- **Meça a saúde da entrega**: as métricas DORA *change failure rate* e *failed deployment recovery time*[^6] mostram se os incidentes causados por mudanças estão ficando mais raros e mais curtos.
+- **Meça a saúde da entrega**: as métricas DORA (*DevOps Research and Assessment*) *change failure rate* e *failed deployment recovery time*[^6] mostram se os incidentes causados por mudanças estão ficando mais raros e mais curtos.
 
 !!! example "No código do BoxOffice: um incidente ensaiado (lab 9)"
 
@@ -234,7 +234,7 @@ As ações são a única parte de um postmortem que muda alguma coisa. Cada uma 
 
 !!! note "Assistentes de IA na resposta a incidentes"
 
-    Em 2026, muitos times usam assistentes baseados em LLM para resumir o canal do incidente num rascunho de linha do tempo, sugerir consultas ou buscar em postmortems passados incidentes parecidos. São bons escribas e boas ferramentas de busca. Não são incident commanders: um assistente pode produzir uma causa raiz convincente porém errada, então toda afirmação precisa ser conferida com a telemetria e as decisões ficam com os humanos nos papéis acima.
+    Em 2026, muitos times usam assistentes baseados em modelos de linguagem de grande porte (LLMs, *large language models*) para resumir o canal do incidente num rascunho de linha do tempo, sugerir consultas ou buscar em postmortems passados incidentes parecidos. São bons escribas e boas ferramentas de busca. Não são incident commanders: um assistente pode produzir uma causa raiz convincente porém errada, então toda afirmação precisa ser conferida com a telemetria e as decisões ficam com os humanos nos papéis acima.
 
 ---
 

@@ -1,6 +1,6 @@
 # 6. Measure It
 
-Delivery is measured by how fast a change reaches users and how safely. The four **DORA metrics** —
+Delivery is measured by how fast a change reaches users and how safely. The four **DORA metrics** (DevOps Research and Assessment) —
 deployment frequency, **lead time for changes**, change failure rate and time to restore — are the
 industry vocabulary; this step measures the two you can observe in a lab, plus the cost of each
 stage of your pipeline.
@@ -42,6 +42,15 @@ kubectl argo rollouts -n boxoffice get rollout catalog --watch    # note the tim
 
 The biggest slices are usually the tests (Testcontainers images, Maven), the image build and the
 canary pauses — the pauses are a deliberate price for safety.
+
+``` diagram-sim
+flowchart LR
+    P["git push"] --> CI["CI: tests, budget, image<br/>a few minutes per job"]
+    CI --> D["Deploy: commit the tag<br/>under a minute"]
+    D --> A["Argo CD polls Git<br/>up to 3 min"]
+    A --> C["canary: 25% for 2 min,<br/>50% for 2 min"]:::tech
+    C --> S["new version stable<br/>roughly 10–20 min after the push"]:::comp
+```
 
 ## C. Performance gate
 

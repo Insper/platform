@@ -5,16 +5,16 @@ Sábado, 9h59. Um show de estádio abre as vendas às 10h00 no BoxOffice: 2 milh
 
 !!! quote "A história até aqui"
 
-    Capítulo 9 da [história do curso](../../index.md#story). A [aula 8](../messaging/index.md) tirou o trabalho lento da requisição: o pedido vai para um outbox, passa pelo Kafka e chega ao `notification`, e uma sala de espera deixa a multidão entrar no ritmo que o `inventory` consegue atender. A assincronia tem um preço: as falhas deixam de aparecer nas requisições. Um pedido confirmado às 10h01 cujo e-mail nunca chega não gerou nenhum `5xx` nem endpoint lento — sumiu em algum ponto entre o outbox, o Kafka e o consumidor —, e dashboards de causas (pods, CPU, médias) continuam verdes enquanto os fãs falham, como na manhã acima. **Esta aula** responde: o que o BoxOffice precisa emitir para seguir um pedido entre serviços e pelo Kafka, contra qual promessa o medimos (o [SLO](slo/index.md)) e quem é acordado quando a promessa quebra?
+    Capítulo 9 da [história do curso](../../index.md#story). A [aula 8](../messaging/index.md) tirou o trabalho lento da requisição: o pedido vai para um outbox, passa pelo Kafka e chega ao `notification`, e uma sala de espera deixa a multidão entrar no ritmo que o `inventory` consegue atender. A assincronia tem um preço: as falhas deixam de aparecer nas requisições. Um pedido confirmado às 10h01 cujo e-mail nunca chega não gerou nenhum `5xx` nem endpoint lento — sumiu em algum ponto entre o outbox, o Kafka e o consumidor —, e dashboards de causas (pods, CPU, médias) continuam verdes enquanto os fãs falham, como na manhã acima. **Esta aula** responde: o que o BoxOffice precisa emitir para seguir um pedido entre serviços e pelo Kafka, contra qual promessa o medimos (o [objetivo de nível de serviço (SLO, *service level objective*)](slo/index.md)) e quem é acordado quando a promessa quebra?
 
 !!! abstract "Objetivos de aprendizagem"
 
     Ao final desta aula, você deve ser capaz de:
 
     - **Distinguir** monitoramento de observabilidade e **mapear** os cinco componentes de observabilidade da paleta (métricas, logs, tracing, alertas, health checks) para as perguntas que eles respondem.
-    - **Instrumentar** um serviço com o sinal certo para cada pergunta, aplicando **RED**, **USE** e os **golden signals**, e **estimar** o custo e a cardinalidade da telemetria que ele produz.
+    - **Instrumentar** um serviço com o sinal certo para cada pergunta, aplicando **RED** (taxa, erros e duração, *rate, errors, duration*), **USE** (utilização, saturação e erros, *utilization, saturation, errors*) e os **golden signals**, e **estimar** o custo e a cardinalidade da telemetria que ele produz.
     - **Explicar** como o OpenTelemetry propaga o contexto de trace por HTTP e Kafka e **configurar** um pipeline do Collector com amostragem.
-    - **Definir** SLIs e SLOs para as jornadas de usuário do BoxOffice e **calcular** error budgets e burn rates.
+    - **Definir** indicadores de nível de serviço (SLIs, *service level indicators*) e SLOs para as jornadas de usuário do BoxOffice e **calcular** error budgets e burn rates.
     - **Projetar** alertas baseados em SLO com regras *multiwindow, multi-burn-rate* e **roteá-los** para as pessoas certas.
     - **Configurar** probes de liveness, readiness e startup sem causar reinícios em cascata.
     - **Conduzir** um incidente com papéis claros e **escrever** um postmortem *blameless* com ações concretas.
@@ -187,7 +187,7 @@ Um check **raso** (*shallow*) responde "meu processo está vivo?". Um check **pr
 
 !!! warning "A cascata do check profundo"
 
-    Suponha que a probe de readiness do `order` inclua a conexão com o PostgreSQL. O banco faz um failover de 20 segundos. Todos os pods do `order` falham a readiness no mesmo instante, o Kubernetes remove **todos** eles do Service e o gateway passa a devolver `503` para todas as rotas — inclusive as que só leem do Redis. Pior: se a probe de *liveness* incluir o banco, o Kubernetes **reinicia** todos os pods ao mesmo tempo; todos sobem frios, martelam juntos o banco enquanto ele volta e a indisponibilidade se prolonga sozinha.
+    Suponha que a probe de readiness do `order` inclua a conexão com o PostgreSQL. O banco faz um failover de 20 segundos. Todos os pods do `order` falham a readiness no mesmo instante, o Kubernetes remove **todos** eles do Service e o gateway passa a devolver `503` para todas as rotas — inclusive as que só leem do Redis. Pior: se a probe de *liveness* incluir o banco e o failover durar mais que as três falhas dela (30 s com as probes acima), o Kubernetes **reinicia** todos os pods ao mesmo tempo; todos sobem frios, martelam juntos o banco enquanto ele volta e a indisponibilidade se prolonga sozinha.
 
     Regras práticas: **a liveness nunca verifica dependências**; a readiness verifica só o que *esta* instância precisa localmente e o que *outra* instância não resolveria; a saúde das dependências pertence a **métricas e alertas** e dependências degradadas são tratadas com timeouts, circuit breakers e fallbacks ([Padrões de resiliência](../reliability/patterns/index.md)).
 
@@ -197,6 +197,16 @@ Um check **raso** (*shallow*) responde "meu processo está vivo?". Um check **pr
 | Risco | instância "saudável" mas inútil se uma dependência cair | **falha correlacionada**: todas as instâncias falham juntas → indisponibilidade total, tempestades de reinício |
 | Custo | trivial | cada probe chama a dependência (N pods × a cada 5 s) |
 | Use para | liveness, checks do load balancer | readiness *apenas* para dependências que uma instância possui; caso contrário, um endpoint de status separado para humanos |
+
+<div class="csim" data-sim="probe-cascade" data-readiness="deep" data-liveness="shallow" data-failover="20"></div>
+
+!!! tip "Experimente"
+
+    O simulador abre no caso do aviso: a readiness verifica o PostgreSQL. Dê play e depois mude as probes.
+
+    - **Readiness profunda, failover de 20 s**: todos os pods falham a segunda verificação de readiness em até 8 s, o Service fica sem pod por **12 s** e o `GET /events` — que só lê o Redis — responde **92,0%** das requisições.
+    - **As duas probes só no processo**: nenhum pod sai do Service; o `POST /orders` falha enquanto o banco está fora (**86,7%** OK) e o `GET /events` fica em **100%**.
+    - **Liveness profunda, failover de 20 s**: ainda nenhum reinício — três falhas com 10 s de intervalo precisam de 30 s. Ponha o failover em **60 s**: os **4** pods reiniciam e só conseguem subir com o banco de volta, então nenhum pod fica pronto por **65 s** e a indisponibilidade dura **32 s** a mais que a do banco.
 
 Os load balancers na borda usam a mesma ideia (veja [Balanceamento de carga](../edge/load-balancing/index.md)): removem um backend após N checks com falha e o recolocam após M sucessos — a histerese evita oscilação.
 
@@ -209,7 +219,7 @@ Observabilidade não é de graça e, numa entrevista — ou na fatura da nuvem �
 | Premissa | Valor |
 |---|---|
 | Tráfego médio | 500 requisições/s |
-| Spans por requisição (gateway, order, inventory, BD, payment, Kafka…) | 8 |
+| Spans por requisição (gateway, order, inventory, banco de dados, payment, Kafka…) | 8 |
 | Tamanho médio de um span (com atributos) | 500 bytes |
 | Linhas de log por requisição (todos os serviços) | 5, de 300 bytes cada |
 
@@ -231,23 +241,21 @@ Os cinco componentes de observabilidade descrevem as mesmas requisições por â
 
 ``` diagram
 flowchart LR
-    svc["app · worker<br/>(BoxOffice services)"]:::comp --> metrics["metrics"]:::comp
+    svc["app · worker<br/>(serviços do BoxOffice)"]:::comp --> metrics["metrics"]:::comp
     svc --> tracing["tracing"]:::comp
     svc --> logs["logs"]:::comp
     metrics -->|"exemplar"| tracing
     tracing -->|"trace_id"| logs
     metrics --> alerting["alerting"]:::comp
     hc["healthcheck"]:::comp -->|"probes"| svc
-    metrics -.- c1["RED, USE, golden signals,<br/>histograms, cardinality"]:::tech
-    logs -.- c2["structured logs,<br/>levels, redaction"]:::tech
+    metrics -.- c1["RED, USE, golden signals,<br/>histogramas, cardinalidade"]:::tech
+    logs -.- c2["logs estruturados,<br/>níveis, redação"]:::tech
     tracing -.- c3["traceparent, Collector,<br/>tail sampling"]:::tech
-    alerting -.- c4["SLO burn rate, multiwindow,<br/>routing, runbooks"]:::tech
-    hc -.- c5["liveness, readiness, startup,<br/>shallow vs deep"]:::tech
-    c4 --> c6["incident roles, mitigate first,<br/>postmortems"]:::tech
-    c4 -.- d1["SLI, SLO, error budget<br/>(class 9)"]
-    c5 -.- d2["Kubernetes probes, LB checks<br/>(classes 4 and 11)"]
-    classDef comp fill:#1e9e5a22,stroke:#1e9e5a
-    classDef tech fill:#2f6fed22,stroke:#2f6fed
+    alerting -.- c4["burn rate do SLO, multijanela,<br/>roteamento, runbooks"]:::tech
+    hc -.- c5["liveness, readiness, startup,<br/>raso vs profundo"]:::tech
+    c4 --> c6["papéis no incidente, mitigar primeiro,<br/>postmortems"]:::tech
+    c4 -.- d1["SLI, SLO, error budget<br/>(aula 9)"]
+    c5 -.- d2["probes do Kubernetes, checks do load balancer<br/>(aulas 4 e 11)"]
 ```
 
 | Componente da paleta | Pergunta que responde | Conceitos | Ensinado em | Cenários |

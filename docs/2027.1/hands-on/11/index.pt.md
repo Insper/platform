@@ -3,9 +3,9 @@
 !!! info "Objetivo"
 
     Transformar o `git push` num deploy seguro e medido. Adicionar um teste de integração com
-    **Testcontainers** e um pipeline no **GitHub Actions** (`CI`) que testa todo serviço, impõe um
-    **orçamento de desempenho com k6**, constrói a imagem, a **escaneia** (Trivy), produz um **SBOM** e
-    uma **proveniência** assinada, e a publica no GHCR. Depois, fazer o deploy por **GitOps**: um workflow
+    **Testcontainers** e um pipeline de integração contínua no **GitHub Actions** (`CI`) que testa todo serviço, impõe um
+    **orçamento de desempenho com k6**, constrói a imagem, a **escaneia** (Trivy), produz uma **lista de materiais de software (SBOM, *software bill of materials*)** e
+    uma **proveniência** assinada, e a publica no GitHub Container Registry (GHCR). Depois, fazer o deploy por **GitOps**: um workflow
     `Deploy` grava a nova tag da imagem no Git, o **Argo CD** a aplica ao cluster do lab 10 e o **Argo
     Rollouts** a libera como um **canary** que aborta sozinho quando o Prometheus mostra erros.
 
@@ -36,7 +36,7 @@ Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** a
 |---|---|
 | Tempo | cerca de 6 horas (dois ou três encontros); a maior parte é esperando pipelines |
 | Contas | uma conta no **GitHub** com o seu repositório `boxoffice` (lab 0). O GitHub Actions e o GHCR são gratuitos para repositórios públicos e incluem minutos e armazenamento gratuitos para os privados; nada neste lab precisa de plano pago ou de conta em nuvem |
-| Ferramentas | Git, Docker, `kubectl`, `kind`, Helm e k6 (labs 0 e 10); **GitHub CLI** `gh` (`gh --version`, `gh auth login`); JDK 21 + Maven só para rodar os testes localmente (opcional) |
+| Ferramentas | Git, Docker, `kubectl`, `kind`, Helm e k6 (labs 0 e 10); **GitHub CLI** (interface de linha de comando) `gh` (`gh --version`, `gh auth login`); Java Development Kit (JDK) 21 + Maven só para rodar os testes localmente (opcional) |
 | Cluster | o cluster kind do lab 10 com Traefik e metrics-server (recrie-o com o [lab 10, passo 1](../10/cluster/index.md) se preciso); Docker com pelo menos 8 GB |
 
 Todo comando roda na **raiz do seu repositório `boxoffice`**, no estado em que o lab 10 o deixou:
@@ -94,7 +94,7 @@ flowchart LR
 
 ## Pré-requisitos { #prerequisites }
 
-- Labs [8](../8/index.md) (SLOs, métricas) e [10](../10/index.md) (o cluster e o `k8s/`) concluídos.
+- Labs [8](../8/index.md) (objetivos de nível de serviço, ou SLOs, e métricas) e [10](../10/index.md) (o cluster e o `k8s/`) concluídos.
 - Leia a [página de entrega](../../classes/cloud-native/delivery/index.md) e
   [segurança da cadeia de suprimentos](../../classes/network-security/zero-trust/index.md); sobre orçamentos,
   [orçamentos de desempenho](../../classes/performance/capacity-planning/index.md#performance-budgets).
@@ -105,8 +105,21 @@ flowchart LR
 2. [Imagem e cadeia de suprimentos](supply-chain/index.md) — build, relatório e portão do Trivy, SBOM, push, atestações assinadas, Dependabot.
 3. [Portão de desempenho](performance-gate/index.md) — um orçamento k6 que reprova o pull request; quebre-o de propósito.
 4. [GitOps com Argo CD](gitops/index.md) — Argo CD, o overlay de GitOps, o workflow `Deploy`, drift e autocorreção.
-5. [Canary com Argo Rollouts](canary/index.md) — Rollout + AnalysisTemplate sobre o Prometheus; uma release ruim aborta sozinha.
+5. [Canary com Argo Rollouts](canary/index.md) — Rollout + AnalysisTemplate sobre o Prometheus; uma release ruim aborta sozinha; repita a análise num simulador.
 6. [Meça](measure/index.md) — duração das etapas, lead time, o portão e o canary em números.
+
+## Experimente no playground { #try-it-in-the-playground }
+
+O preset `boxoffice-canary` é a release ruim deste lab: em t = 60 s, a v2 do `catalog` — 30% das
+respostas falham — substitui os 4 pods de uma vez, a 600 req/s, até a análise revertê-la um minuto
+depois. Publique-a como canary: um nó "catalog v1" com 3 pods ao lado da v2 com 1 pod, para que o
+ingress (que divide pela capacidade) dê um quarto do tráfego à v2. O bug é o mesmo; o raio de impacto
+é um quarto: erros ≈ fatia da v2 × 30% × o tempo até o rollback.
+
+<div class="sdp" data-scenario="boxoffice-canary" data-mode="compact" data-height="440"></div>
+
+O simulador completo está no [playground](../../../playground/index.md). A análise em si — as medições a
+cada 30 s e o `failureLimit` — tem o seu próprio simulador no [passo 5](canary/index.md).
 
 ## Meça { #measure-it }
 
@@ -123,15 +136,15 @@ O passo [Meça](measure/index.md) tem a tabela de resultados para guardar em `re
 | `Deploy` falha com `remote rejected … protected branch` | a proteção de branch proíbe o push do bot | permita que o GitHub Actions faça bypass, ou abra um pull request em vez disso (veja o passo 4) |
 | o Argo CD mostra `ComparisonError … authentication required` | o segredo do repositório está faltando ou o token expirou | recrie o `boxoffice-repo` (passo 4) |
 | pods em `ImagePullBackOff` com `ghcr.io/...` | pacote privado e nenhum pull secret, ou dono errado na imagem | crie o `ghcr-pull` (passo 4) ou torne o pacote público; confira o `newName` |
-| o Rollout fica em `Paused`/`Progressing` e a análise dá `Inconclusive` | nenhum tráfego chega ao canary, ou o Prometheus não tem dados | mantenha o k6 rodando; `kubectl -n monitoring port-forward svc/prometheus 9090` e consulte `http_server_requests_seconds_count` |
+| toda medição de `error-rate` é `[]` e uma release que deveria abortar foi promovida | nenhum tráfego chega ao canary, ou o Prometheus não tem dados: um resultado vazio passa (`len(result) == 0`) | mantenha o k6 rodando durante todo o rollout; `kubectl -n monitoring port-forward svc/prometheus 9090` e consulte `http_server_requests_seconds_count` |
 
 !!! success "Boas práticas neste lab"
 
     - **Nenhuma imagem a menos que os testes e o orçamento de desempenho passem** — `needs: [test, performance]` em `.github/workflows/ci.yaml`; por quê: [integração contínua](../../classes/cloud-native/delivery/index.md#continuous-integration).
-    - **Cadeia de suprimentos sob controle**: actions fixadas por SHA, um portão do Trivy para CVEs críticas com correção, um SBOM e atestações de proveniência, atualizações semanais do Dependabot — `ci.yaml`, `.github/dependabot.yml`; por quê: [contêineres — cadeia de suprimentos](../../classes/cloud-native/containers/index.md#supply-chain).
+    - **Cadeia de suprimentos sob controle**: actions fixadas pelo hash do commit (SHA), um portão do Trivy para vulnerabilidades críticas com correção (CVEs, *Common Vulnerabilities and Exposures*), um SBOM e atestações de proveniência, atualizações semanais do Dependabot — `ci.yaml`, `.github/dependabot.yml`; por quê: [contêineres — cadeia de suprimentos](../../classes/cloud-native/containers/index.md#supply-chain).
     - **Privilégio mínimo**: `contents: read` por padrão, permissões de escrita só nos jobs que precisam delas — `ci.yaml`, `deploy.yaml`; por quê: [GitOps — credenciais](../../classes/cloud-native/delivery/index.md#gitops).
     - **O CI nunca toca no cluster**: o `Deploy` só faz commit de uma tag, o Argo CD a puxa, um deploy de cada vez — `deploy.yaml`, `k8s/argocd/application.yaml`; por quê: [GitOps](../../classes/cloud-native/delivery/index.md#gitops).
-    - **Releases julgadas por SLIs que o usuário sente, com abort automático** — taxa de erro e p99 do canary em `k8s/overlays/gitops/catalog-analysis.yaml`; por quê: [canary com análise de métricas](../../classes/cloud-native/delivery/index.md#canary-with-automated-metrics-analysis).
+    - **Releases julgadas por indicadores de nível de serviço (SLIs) que o usuário sente, com abort automático** — taxa de erro e p99 do canary em `k8s/overlays/gitops/catalog-analysis.yaml`; por quê: [canary com análise de métricas](../../classes/cloud-native/delivery/index.md#canary-with-automated-metrics-analysis).
 
 ## Limpeza { #clean-up }
 

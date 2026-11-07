@@ -3,7 +3,7 @@
 A rolling update replaces every pod with the new version as soon as it is *ready* — but "ready" only
 means the process started. A version that answers 20% of the requests with `500` is ready too. A
 **canary** sends a small share of the traffic to the new version first, **measures** it against the
-SLO, and continues only while the numbers are good; otherwise it aborts and the old version keeps
+service level objective (SLO), and continues only while the numbers are good; otherwise it aborts and the old version keeps
 serving. With **Argo Rollouts** the decision is automatic.
 
 ## The pieces
@@ -14,7 +14,7 @@ serving. With **Argo Rollouts** the decision is automatic.
 | `Service` `catalog-stable` / `catalog-canary` | `catalog-services.yaml` | Argo Rollouts points each at its version's pods (it adds the pod-template hash to the selectors) |
 | `AnalysisTemplate` `catalog-slo` | `catalog-analysis.yaml` | every 30 s, two PromQL queries on the **canary**: error ratio < 1%, p99 < 500 ms |
 | Prometheus | `k8s/monitoring/prometheus.yaml` | scrapes the annotated Services and labels every series with `service="<Service name>"` |
-| HPA | patched by the overlay | now scales the `Rollout` |
+| HorizontalPodAutoscaler (HPA) | patched by the overlay | now scales the `Rollout` |
 
 The Prometheus of this lab is deliberately minimal (one Deployment, one scrape job):
 
@@ -36,6 +36,32 @@ Without a traffic router, Argo Rollouts reaches a weight by **replica counts** (
 "25%" is 1 canary pod next to the stable ones), so the real share is approximate; the
 [delivery class](../../../classes/cloud-native/delivery/index.md#canary-with-automated-metrics-analysis)
 shows exact weights with the Gateway API plugin.
+
+``` diagram
+flowchart LR
+    K6["k6 / fans"] --> ING["Traefik Ingress"] --> SVC["Service catalog<br/>selects every catalog pod"]
+    SVC --> S1["stable pod"]:::comp
+    SVC --> S2["stable pod"]:::comp
+    SVC --> C1["canary pod<br/>about a third of the requests"]
+    CS["Service catalog-canary<br/>+ the pod-template hash"] -.-> C1
+    PR["Prometheus<br/>scrapes every 15 s"]:::tech -->|"labels service=catalog-canary"| CS
+    AN["AnalysisRun<br/>every 30 s"]:::tech -->|"PromQL"| PR
+```
+
+Play the life of one release — the two ways it can end:
+
+``` diagram-sim
+stateDiagram-v2
+    [*] --> SetWeight25 : Argo CD syncs a new image
+    SetWeight25 --> Pause1 : the canary pod is ready
+    Pause1 --> SetWeight50 : 2 min
+    SetWeight50 --> Pause2 : stable scaled to 1 pod
+    Pause2 --> Healthy : 2 min, the canary becomes stable
+    Pause1 --> Degraded : second failed measurement
+    Pause2 --> Degraded : second failed measurement
+    Degraded --> [*] : canary scaled to 0
+    Healthy --> [*]
+```
 
 ## Watch a rollout
 
@@ -116,6 +142,17 @@ and the measurements of the `error-rate` metric were `[]` (no canary traffic yet
 success by `len(result) == 0`), `0.068` and `0.285` — two failures above `failureLimit: 1`. The fans
 who hit the canary saw errors for about a minute; everyone else never noticed.
 
+<div class="csim" data-sim="canary-analysis" data-chaos="0.3" data-rate="20"></div>
+
+!!! tip "Try it"
+
+    The simulator replays the rollout from the moment the canary pod is ready, with the files of this lab. Like the real query, it counts the kubelet's probes and Prometheus's scrapes of the canary pod too, and a series needs two scrapes inside the 1-minute window.
+
+    - As it opens — `CHAOS_ERROR_RATE` 0.3, k6 at 20 req/s — the measurements are `[]`, `0.258` and `0.284`, and the rollout aborts **60 s** after the canary got traffic, at the third measurement, as in the test run (`[]`, `0.068`, `0.285`; the model leaves out a new pod's first seconds). About **120** requests failed, **10%** of those sent in that minute.
+    - **0**: every result is `[]` — with no errors there is no 500 series — and v2 becomes stable after the two pauses, at **240 s**.
+    - **0.02**: the first errors take longer to show up as a series, and the rollout aborts at **90 s**. **0.005**: under the 1% threshold every time, so v2 is promoted and fails 0.5% of everyone's requests.
+    - **0 req/s** with 0.3: every result is `[]`, and `len(result) == 0` promotes the bad release. **+ Thread.sleep(400)**: a p99 of 0.409 s passes the canary's 0.5 s; only the performance gate of [step 3](../performance-gate/index.md) stops that regression.
+
 `Degraded` is the signal to fix forward in Git: revert the experiment (`git revert HEAD && git push`),
 Argo CD syncs, and the next rollout starts from a clean state.
 
@@ -125,5 +162,6 @@ Argo CD syncs, and the next rollout starts from a clean state.
       (expand/contract), because the old version keeps running during — and after an aborted — canary.
     - **Rare errors** need many canary requests to be visible; at low traffic, lengthen the pauses.
     - **Side effects** (payments, e-mails) of canary requests are real.
+    - **No traffic, no evidence**: with no canary requests every result is `[]`, which `len(result) == 0` counts as a pass — keep load on the service for the whole rollout.
 
 [Next: Measure it](../measure/index.md){ .md-button .md-button--primary }

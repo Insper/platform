@@ -13,8 +13,21 @@ A good page is **urgent**, **actionable**, and about a **user-visible** problem[
 | Error budget burning slowly: will run out in 10 days | no | yes | a little | **ticket** for the team, this week |
 | Disk of the Kafka broker will be full in 4 days at this rate | no | yes | not yet | **ticket** |
 | One of 30 `catalog` pods restarted and recovered | no | no | no | **dashboard / log** only |
-| CPU at 85% while all SLIs are fine | no | no | no | nothing — or a capacity review |
+| CPU at 85% while all service level indicators (SLIs) are fine | no | no | no | nothing — or a capacity review |
 | The alerting pipeline itself is broken | yes | yes | indirectly | page (via a *dead man's switch*, below) |
+
+The three questions form a decision, in order. Play it:
+
+``` diagram-sim
+flowchart TD
+    A["Something looks wrong"] --> U{"Are users hurt,<br/>now or soon?"}
+    U -->|no| D["Dashboard or log only"]
+    U -->|yes| AC{"Can a human<br/>do something about it?"}
+    AC -->|no| FX["Fix the alert or automate the fix"]:::problem
+    AC -->|yes| UR{"Must it happen<br/>within minutes?"}
+    UR -->|yes| P["Page the on-call"]:::problem
+    UR -->|no| T["Ticket for the team"]:::tech
+```
 
 ### Symptoms, not causes
 
@@ -22,7 +35,7 @@ Alert on **symptoms** — what users experience: errors, latency, freshness, cor
 
 | | Symptom-based alert | Cause-based alert |
 |---|---|---|
-| Example | "checkout success ratio below SLO" | "PostgreSQL CPU > 90%" |
+| Example | "checkout success ratio below its service level objective (SLO)" | "PostgreSQL CPU > 90%" |
 | Fires when users are fine? | no | often (high CPU, happy users) |
 | Misses real problems? | rarely — whatever the cause, users feel it | often — the failure you did not predict has no alert |
 | Number of rules | few, per user journey | many, per component and resource |
@@ -64,16 +77,16 @@ A burn rate of 1000× is a total outage (100% errors against a 0.1% budget): the
 
 ### Six ways to write the alert
 
-The SRE Workbook[^2] compares six progressively better designs for an SLO alert. Their quality is measured by four properties: **precision** (fraction of alerts that were real problems), **recall** (fraction of real problems that alerted), **detection time** and **reset time** (how long the alert keeps firing after the problem ends).
+The Site Reliability Engineering (SRE) Workbook[^2] compares six progressively better designs for an SLO alert. Their quality is measured by four properties: **precision** (fraction of alerts that were real problems), **recall** (fraction of real problems that alerted), **detection time** and **reset time** (how long the alert keeps firing after the problem ends).
 
 | # | Rule | Precision | Recall | Detection | Reset | Problem |
 |---|---|---|---|---|---|---|
-| 1 | error ratio > 0.1% over 10 min | low | high | fast | fast | pages for blips that barely touch the budget |
-| 2 | error ratio > 0.1% over 36 h | high | high | **very slow** | **very slow** | a total outage takes ~2 min to alert, and the alert lasts 36 h |
-| 3 | rule 1 + `for: 1h` | medium | **low** | slow | fast | a 100% outage still waits an hour |
-| 4 | burn rate 14.4× over 1 h | high | medium | good | slow | slow burns (3×) never alert; reset takes up to an hour |
-| 5 | several burn rates (14.4× / 6× / 1×) | high | high | good | slow | complex; still slow to reset |
-| 6 | **multiwindow, multi-burn-rate** | high | high | good | **fast** | the most rules — generate them with a tool |
+| 1 | error ratio > 0.1% over 10 min | 🔴 low | 🟢 high | 🟢 fast | 🟢 fast | pages for blips that barely touch the budget |
+| 2 | error ratio > 0.1% over 36 h | 🟢 high | 🟢 high | 🔴 **very slow** | 🔴 **very slow** | a total outage takes ~2 min to alert, and the alert lasts 36 h |
+| 3 | rule 1 + `for: 1h` | 🟡 medium | 🔴 **low** | 🔴 slow | 🟢 fast | a 100% outage still waits an hour |
+| 4 | burn rate 14.4× over 1 h | 🟢 high | 🟡 medium | 🟢 good | 🔴 slow | slow burns (3×) never alert; reset takes up to an hour |
+| 5 | several burn rates (14.4× / 6× / 1×) | 🟢 high | 🟢 high | 🟢 good | 🔴 slow | complex; still slow to reset |
+| 6 | **multiwindow, multi-burn-rate** | 🟢 high | 🟢 high | 🟢 good | 🟢 **fast** | the most rules — generate them with a tool |
 
 ### Multiwindow, multi-burn-rate
 
@@ -274,7 +287,7 @@ For journeys with little traffic at night, a ratio of zero requests is undefined
 
 ## Runbooks
 
-Every page must link a **runbook**: a short document that tells a tired engineer what the alert means and what to try first. Runbooks reduce MTTR because the first 10 minutes stop being improvisation.
+Every page must link a **runbook**: a short document that tells a tired engineer what the alert means and what to try first. Runbooks reduce the mean time to recovery (MTTR) because the first 10 minutes stop being improvisation.
 
 ```markdown
 # CheckoutErrorBudgetFastBurn
@@ -308,6 +321,10 @@ An alert does not take a broken replica out of the load balancer: a health check
 ??? question "What should you have observed?"
 
     The error curve does not change: availability stays at 99.4%, because the health check had already removed the dead replica from rotation after 3 s. What changes is the repair: with someone paged, the replica is back at t = 90 s instead of t = 130 s, so BoxOffice runs on two of its three replicas for 40 s instead of 80 s. Without the health check, Alerting alone does not help the fans either — the load balancer still sends a third of the requests to the dead replica for 30 s (93.8% availability). Machines route around a failure in seconds; people repair it in minutes, and the alert is what starts the minutes.
+
+**The same story in BoxOffice.** The `boxoffice-observability` preset is lab 8's failure: at t = 60 s the `catalog` database stops for 100 s, and nothing watches it. Here a health check cannot help — every replica shares the same broken database, so there is no healthy instance to route to. Wire the stack the lab installs (Metrics on every service, Tracing and Logs on `catalog`), then connect Alerting to Metrics: only the page shortens this outage, because only a person can start the database again.
+
+<div class="sdp" data-scenario="boxoffice-observability" data-mode="compact" data-height="460"></div>
 
 ---
 

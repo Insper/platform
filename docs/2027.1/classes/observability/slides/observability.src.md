@@ -14,6 +14,10 @@ theme: platform
 {{INCLUDE:scripts/slides/theme.js}}
 </script>
 
+<style>
+{{INCLUDE:scripts/slides/diagram.css}}
+</style>
+
 <div class="kicker">System Architecture · Insper</div>
 
 # Observability
@@ -41,7 +45,7 @@ Where would you look first?
 
 * The dashboards watch **causes** chosen in advance, averaged over every route.
 * The problem is a **latency** symptom, on **one journey**, in the **tail** (p99), caused by an **external** dependency.
-* You need per-journey SLIs to see it — and **traces** to find where the time went.
+* You need per-journey service level indicators (SLIs) to see it — and **traces** to find where the time went.
 
 <!--
 Let the class answer before revealing. The point: the system is not down, it is slow in a way
@@ -84,14 +88,23 @@ The glue is **context**: the same `trace_id` in the log line, the trace and the 
 
 ## The investigation loop
 
-1. **Alert** on a symptom: checkout SLO burning 14×.
-2. **RED dashboard**: `POST /checkout` p99 400 ms → 9 s; other routes normal.
-3. **Exemplar**: one slow sample → its `trace_id`.
-4. **Trace**: 8 of 9 s inside the `payment` span.
-5. **Logs** of that span: `connection pool exhausted, waited 7.9 s`.
-6. **Mitigate** (breaker, failover), then **postmortem**.
+<div class="flow">
+<div class="box red">Alert<small>checkout SLO burning 14×</small></div><div class="arrow">→</div>
+<div class="box accent">RED dashboard<small>/checkout p99: 400 ms → 9 s</small></div><div class="arrow">→</div>
+<div class="box accent">Exemplar<small>one slow sample's trace_id</small></div><div class="arrow">→</div>
+<div class="box accent">Trace<small>8 of the 9 s in payment</small></div>
+</div>
+<div class="flow">
+<div class="arrow">→</div>
+<div class="box accent">Logs of that span<small>pool exhausted, waited 7.9 s</small></div><div class="arrow">→</div>
+<div class="box muted">Profile<small>which code path</small></div><div class="arrow">→</div>
+<div class="box green">Mitigate<small>breaker, failover</small></div><div class="arrow">→</div>
+<div class="box">Postmortem<small>prevent the class of failure</small></div>
+</div>
 
-<p class="small">From cheap, aggregated signals to expensive, detailed ones — narrowing the search at each step.</p>
+- The alert fires on a **service level objective (SLO)**: a promise about a symptom users feel.
+- **RED** (rate, errors, duration) per route localizes; the **exemplar** links a slow sample to its trace.
+- From cheap, aggregated signals to expensive, detailed ones — narrowing the search at each step.
 
 ---
 
@@ -103,15 +116,30 @@ The glue is **context**: the same `trace_id` in the log line, the trace and the 
 |---|---|---|---|
 | **Startup** | finished starting? | wait; kill after the budget | app initialized |
 | **Liveness** | stuck beyond repair? | **restart** | only the process itself |
-| **Readiness** | can serve *right now*? | **remove from LB** | what this instance needs locally |
+| **Readiness** | can serve *right now*? | **remove from the load balancer** | what this instance needs locally |
 
-<div class="warn">
+- A **shallow** check asks "is my process alive?"; a **deep** one also calls PostgreSQL, Redis, the provider.
+- Deep checks look more honest — and that is the trap: every instance shares the same dependencies.
 
-**Deep-check cascade**: readiness checks PostgreSQL → a 20 s DB failover makes **every** `order` pod unready → the Service has no endpoints → all routes fail. If **liveness** checks the DB, every pod restarts at once → restart storm.
+---
 
+## The deep-check cascade
+
+<div class="flow">
+<div class="box red">PostgreSQL fails over<small>for 20 s</small></div><div class="arrow">→</div>
+<div class="box orange">deep readiness fails<small>on every order pod at once</small></div><div class="arrow">→</div>
+<div class="box red">Service: no endpoints<small>503 on every route</small></div><div class="arrow">→</div>
+<div class="box muted">GET /events fails too<small>it only reads Redis</small></div>
 </div>
 
+- Simulator on the overview page: readiness on PostgreSQL → no pod for **12 s**, `GET /events` at **92.0%**; probes on the process only → **100%**.
+- Deep **liveness**: 3 failures × 10 s outlast a 20 s failover; at **60 s**, all **4** pods restart and stay down **32 s** after the database is back.
+
+<div class="ok">
+
 **Liveness never checks dependencies.** Dependency health → metrics, alerts, timeouts, breakers.
+
+</div>
 
 ---
 
@@ -258,12 +286,12 @@ gateway    SERVER POST /checkout          |████████████�
 
 ## SLI → SLO → error budget → SLA
 
-| Term | BoxOffice example |
-|---|---|
-| **SLI** — what users feel | % of `POST /holds` non-5xx in < 500 ms |
-| **SLO** — internal target | ≥ 99.9% over 28 days |
-| **Error budget** — 1 − SLO | 0.1% of holds may fail or be slow |
-| **SLA** — contract, penalties | partner venues: 99.5% monthly, or credits |
+<div class="flow">
+<div class="box accent">SLI<small>what users feel: % of POST /holds non-5xx in &lt; 500 ms</small></div><div class="arrow">→</div>
+<div class="box green">SLO<small>internal target: ≥ 99.9% over 28 days</small></div><div class="arrow">→</div>
+<div class="box orange">Error budget<small>1 − SLO: 0.1% of the holds may fail or be slow</small></div><div class="arrow">→</div>
+<div class="box muted">SLA<small>service level agreement: 99.5% monthly, or credits</small></div>
+</div>
 
 - SLI = **good events / valid events**, measured near the user (gateway, synthetic probes).
 - CPU, heap, pod count are **not** SLIs. Keep the SLO **stricter** than the SLA.
@@ -333,12 +361,12 @@ Signed by product **and** engineering, in advance. Without a policy, an SLO is d
 | **API / SDK** | create spans, metrics, logs; sampling, batching, export |
 | **Instrumentation** | zero-code: Java agent, Python `opentelemetry-instrument` |
 | **Semantic conventions** | `http.route`, `db.system`, `service.name`… same names everywhere |
-| **OTLP** | the protocol: gRPC **4317**, HTTP **4318** |
+| **OTLP** | the OpenTelemetry Protocol: gRPC **4317**, HTTP **4318** |
 | **Collector** | receive → process → export |
 
 <div class="ok">
 
-OTel standardises **production and transport**, not the backend: change Tempo for a SaaS without re-instrumenting.
+OpenTelemetry (OTel) standardises **production and transport**, not the backend: change Tempo for a SaaS without re-instrumenting.
 
 </div>
 
@@ -362,20 +390,26 @@ traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
 
 ## The Collector pipeline
 
-```yaml
-processors:
-  memory_limiter: { check_interval: 1s, limit_percentage: 80, spike_limit_percentage: 20 }
-  attributes/redact: { actions: [ { key: payment.card_number, action: delete } ] }
-  tail_sampling:
-    decision_wait: 10s
-    policies:
-      - { name: keep-errors, type: status_code, status_code: { status_codes: [ERROR] } }
-      - { name: keep-slow, type: latency, latency: { threshold_ms: 2000 } }
-      - { name: some-of-the-rest, type: probabilistic, probabilistic: { sampling_percentage: 5 } }
-  batch: {}
-```
+<div class="flow">
+<div class="box" style="flex: .7">services<small>Java agent, Python SDK, Nginx</small></div>
+<div class="arrow">OTLP →</div>
+<div class="group">
+<div class="caption">Collector pipeline</div>
+<div class="box accent">receivers<small>otlp: 4317 gRPC, 4318 HTTP</small></div>
+<div class="box orange">processors, in order<small>memory_limiter → redact → tail_sampling → batch</small></div>
+<div class="box accent">exporters</div>
+</div>
+<div class="arrow">→</div>
+<div class="group">
+<div class="caption">backends</div>
+<div class="box green">Tempo<small>traces</small></div>
+<div class="box green">Prometheus<small>metrics</small></div>
+<div class="box green">Loki<small>logs</small></div>
+</div>
+</div>
 
-- `memory_limiter` **first**, `batch` **last**. Agent (per node) vs **gateway** (central policy).
+- `memory_limiter` **first** (shed, do not crash), `batch` **last**. Agent (per node) vs **gateway** (central policy).
+- Tail policies: keep every `ERROR`, every trace ≥ 2 s, 5% of the rest; redaction deletes `payment.card_number`.
 - Losing telemetry is acceptable; **slowing checkout to report on it is not**.
 
 ---
@@ -392,6 +426,23 @@ processors:
 - Head = decided at the first span, **blind** to the outcome. Tail = decided in the Collector after the trace ends.
 - Tail sampling needs **all spans of a trace on one instance** (route by trace ID).
 - Compute **metrics from 100% of traffic** before sampling; use **exemplars** to jump to traces.
+
+---
+
+## Head first, tail second
+
+<div class="flow">
+<div class="box accent">root span<small>head decision, once: the sampled flag</small></div><div class="arrow">traceparent →</div>
+<div class="box">every service follows the flag</div><div class="arrow">OTLP →</div>
+<div class="box orange">gateway Collector<small>waits 10 s, decides on the whole trace</small></div><div class="arrow">→</div>
+<div class="box green">kept<small>errors, slow, 5% of the rest</small></div>
+</div>
+<div class="flow">
+<div class="box red" style="flex: .45">flag 00<small>no span exported: the tail never sees it</small></div>
+</div>
+
+- Simulator on the OpenTelemetry page: tail only → **54.3 GB/day**, every error trace whole; head 10% first → **9.9%** of the error traces, with or without the tail.
+- **3 Collectors behind round robin** → only **36%** of the error traces arrive whole; route **by trace id**.
 
 ---
 
@@ -437,11 +488,28 @@ Alert on **symptoms** (SLO burn), not **causes** (CPU, restarts): causes page fo
 
 - **Long** window: the burn is significant. **Short** window: it is still happening → fast reset.
 - Total outage → fires in < 1 min; 2% errors → ~43 min.
-- **Alertmanager** groups, dedupes, inhibits, silences, routes; a **dead man's switch** watches the watcher.
 
 <!--
 A 28-day budget cannot protect a 30-minute on-sale: give critical events their own SLO with short windows.
 -->
+
+---
+
+## From a firing rule to a person
+
+<div class="flow" style="align-items: stretch">
+<div class="box" style="display: flex; flex-direction: column; justify-content: center">rule evaluation<small>Prometheus / Grafana</small></div><div class="arrow" style="align-self: center">→</div>
+<div class="box orange" style="display: flex; flex-direction: column; justify-content: center">firing alert<small>severity=page, team=checkout</small></div><div class="arrow" style="align-self: center">→</div>
+<div class="box accent" style="display: flex; flex-direction: column; justify-content: center">Alertmanager<small>group · dedupe · inhibit · silence</small></div><div class="arrow" style="align-self: center">route by labels →</div>
+<div class="group">
+<div class="box red">pager + runbook</div>
+<div class="box">Slack #incidents</div>
+<div class="box muted">ticket queue</div>
+</div>
+</div>
+
+- A **dead man's switch** (`vector(1)`) and `absent()` alerts watch the watcher: silence looks like health.
+- **Machines detect, people repair**: a health check takes a dead replica out in seconds and wakes nobody; the page starts the repair, in minutes.
 
 ---
 
@@ -454,14 +522,14 @@ A 28-day budget cannot protect a 30-minute on-sale: give critical events their o
 | **Comms lead** | updates every 15–30 min, status page | speculate in public |
 | **Scribe** | timestamps everything seen, decided, changed | filter |
 
-- **SEV1**: core journey down or any on-sale affected → page, IC, status page.
+- **SEV1** (severity 1): core journey down or any on-sale affected → page, an incident commander (IC), status page.
 - **Declare early, downgrade freely.** On-call must be sustainable (≈ ≤ 2 incidents per shift).
 
 ---
 
 ## Mitigate first
 
-* 10:02 impact → 10:03 page (**MTTD 1 min**) → 10:14 secondary provider + throttled waiting room (**MTTM 12 min**) → 10:40 resolved.
+* 10:02 impact → 10:03 page (mean time to detect, **MTTD: 1 min**) → 10:14 secondary provider + throttled waiting room (time to mitigate, **MTTM: 12 min**) → 10:40 resolved.
 * Generic, rehearsed mitigations: **rollback**, **flag off**, **failover**, **shed load**, scale out, block bad traffic.
 * Cost: 200 attempts/s × 720 s × 12% ≈ **17,300 failed checkouts** vs a 28-day budget of **2,000**.
 * The error budget policy kicks in: checkout features pause until the reliability actions ship.

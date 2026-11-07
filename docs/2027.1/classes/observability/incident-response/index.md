@@ -5,14 +5,14 @@
 
 ## What counts as an incident
 
-An **incident** is an unplanned event that degrades or threatens a service users depend on, and that needs a **coordinated** response. Not every alert is an incident; an incident is declared when the response needs more than one person working the normal way. **Severity levels** make that decision fast and consistent — nobody should debate the definition at 3 a.m.
+An **incident** is an unplanned event that degrades or threatens a service users depend on, and that needs a **coordinated** response. Not every alert is an incident; an incident is declared when the response needs more than one person working the normal way. **Severity levels** (SEV1 to SEV4) make that decision fast and consistent — nobody should debate the definition at 3 a.m.
 
 | Severity | Criteria (BoxOffice) | Example | Response |
 |---|---|---|---|
-| **SEV1** | core journey down or badly degraded for many users; data loss or security breach; any on-sale affected | checkout failing for 10% of fans during an on-sale | page immediately, incident commander, status page, updates every 15–30 min |
-| **SEV2** | significant degradation, workaround exists, or a non-core journey down | search returns stale results; e-mails delayed by 1 h | page the owning team, incident channel, internal updates |
-| **SEV3** | minor impact, few users, no deadline pressure | the seat map is slow for one venue | ticket, fix in working hours |
-| **SEV4** | no user impact yet; a near miss | a certificate expiring in 7 days | ticket |
+| 🔴 **SEV1** | core journey down or badly degraded for many users; data loss or security breach; any on-sale affected | checkout failing for 10% of fans during an on-sale | page immediately, incident commander, status page, updates every 15–30 min |
+| 🟠 **SEV2** | significant degradation, workaround exists, or a non-core journey down | search returns stale results; e-mails delayed by 1 h | page the owning team, incident channel, internal updates |
+| 🟡 **SEV3** | minor impact, few users, no deadline pressure | the seat map is slow for one venue | ticket, fix in working hours |
+| ⚪ **SEV4** | no user impact yet; a near miss | a certificate expiring in 7 days | ticket |
 
 !!! tip "Declare early, downgrade freely"
 
@@ -41,7 +41,7 @@ stateDiagram-v2
     Triaged --> Declared : severity set, commander and channel assigned
     Triaged --> Closed : false alarm or no impact (tune the alert)
     Declared --> Mitigating : stop the bleeding
-    Mitigating --> Monitoring : impact gone, SLIs recovering
+    Mitigating --> Monitoring : impact gone, SLIs (service level indicators) recovering
     Monitoring --> Mitigating : impact returns
     Monitoring --> Resolved : stable, root fix scheduled
     Resolved --> Reviewed : blameless postmortem, action items
@@ -53,7 +53,7 @@ Each transition has a timestamp, and the gaps between them are the metrics that 
 
 | Metric | From → to | Improved by |
 |---|---|---|
-| **MTTD** — mean time to detect | impact starts → someone knows | SLO burn-rate alerts, synthetic probes |
+| **MTTD** — mean time to detect | impact starts → someone knows | service level objective (SLO) burn-rate alerts, synthetic probes |
 | **MTTA** — mean time to acknowledge | page → human on it | sane paging load, escalation policies |
 | **MTTM** — mean time to mitigate | impact starts → users no longer affected | runbooks, rollbacks, feature flags, generic mitigations |
 | **MTTR** — mean time to resolve / recover | impact starts → resolved | all of the above, plus fast diagnosis (traces) |
@@ -115,7 +115,7 @@ During an incident the goal is to **stop the impact**, not to understand it. Und
 | **Fail over / drain** | one zone, region or provider is bad | switch to the secondary payment provider; drain `sa-east-1a` | a tested secondary and the switch documented |
 | **Shed load** | demand exceeds capacity | throttle the waiting room admission rate | a waiting room / rate limiter in place |
 | **Scale out** | saturation, the code is fine | more `inventory` replicas, bigger connection pool *if* the DB can take it | headroom, autoscaling limits known |
-| **Block bad traffic** | abusive bots or an attack | WAF rule for the scalper ASN | WAF and rate limits at the edge |
+| **Block bad traffic** | abusive bots or an attack | web application firewall (WAF) rule for the scalpers' autonomous system number (ASN) | WAF and rate limits at the edge |
 | **Degrade gracefully** | a non-critical dependency fails | hide recommendations, keep checkout | fallbacks designed in |
 
 !!! warning "Do not debug in production during the incident unless it mitigates"
@@ -222,7 +222,7 @@ Action items are the only part of a postmortem that changes anything. Each one i
 - **Share widely**: other teams have the same pool, the same missing timeout.
 - **Look for trends**: many incidents from deploys → invest in canaries and rollbacks ([Delivery](../../cloud-native/delivery/index.md)); many from one dependency → bulkheads and fallbacks.
 - **Practice**: turn the incident into a **game day** scenario — inject provider latency with Toxiproxy and check that the new timeout, breaker and alert behave ([Hands-on 9](../../../hands-on/9/index.md)).
-- **Measure delivery health**: the DORA metrics *change failure rate* and *failed deployment recovery time*[^6] show whether incidents caused by changes are becoming rarer and shorter.
+- **Measure delivery health**: the DevOps Research and Assessment (DORA) metrics *change failure rate* and *failed deployment recovery time*[^6] show whether incidents caused by changes are becoming rarer and shorter.
 
 !!! example "In the BoxOffice code: a rehearsed incident (lab 9)"
 
@@ -234,7 +234,7 @@ Action items are the only part of a postmortem that changes anything. Each one i
 
 !!! note "AI assistants in incident response"
 
-    In 2026 many teams use LLM-based assistants to summarise the incident channel into a draft timeline, suggest queries, or search past postmortems for similar incidents. They are useful scribes and search tools. They are not incident commanders: an assistant can produce a confident but wrong root cause, so every claim must be checked against the telemetry, and decisions stay with the humans in the roles above.
+    In 2026 many teams use assistants based on large language models (LLMs) to summarise the incident channel into a draft timeline, suggest queries, or search past postmortems for similar incidents. They are useful scribes and search tools. They are not incident commanders: an assistant can produce a confident but wrong root cause, so every claim must be checked against the telemetry, and decisions stay with the humans in the roles above.
 
 ---
 

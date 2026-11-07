@@ -1,7 +1,7 @@
 # 3. Portão de Desempenho { #3-performance-gate }
 
 Testes pegam respostas erradas; não pegam uma mudança que deixa a resposta certa dez vezes mais lenta.
-Um **orçamento de desempenho** transforma a latência que você prometeu (o SLO do lab 8, o
+Um **orçamento de desempenho** transforma a latência que você prometeu (o objetivo de nível de serviço, ou SLO, do lab 8, o
 [planejamento de capacidade](../../../classes/performance/capacity-planning/index.md#performance-budgets))
 numa verificação do build: o CI sobe o serviço, roda um teste k6 curto com thresholds e **reprova o pull
 request** quando um threshold é ultrapassado.
@@ -27,7 +27,7 @@ JVM que ainda está subindo.
 
 | Escolha | Por quê |
 |---|---|
-| um cenário `warmup` de 20 s, não medido | a compilação JIT, os pools de conexão e o cache esquentam; os thresholds só valem para `scenario:budget` |
+| um cenário `warmup` de 20 s, não medido | a compilação *just-in-time* (JIT), os pools de conexão e o cache esquentam; os thresholds só valem para `scenario:budget` |
 | modelo aberto (`constant-arrival-rate`) | a taxa de chegada não diminui quando o serviço fica lento, como com usuários reais |
 | p95 < 300 ms **e** p99 < 800 ms | a requisição típica e a cauda; folgados para um runner, para que só regressões reais reprovem |
 | falhas < 1%, checks > 99% | um `500` rápido não é um sucesso |
@@ -35,6 +35,15 @@ JVM que ainda está subindo.
 O job `performance budget` do `ci.yaml` (passo 1) instala o k6 com `grafana/setup-k6-action`, roda o
 script com `grafana/run-k6-action` e imprime os logs do serviço se falhar. Um threshold ultrapassado faz
 o k6 sair com código 99 e o job falha.
+
+``` diagram-sim
+flowchart LR
+    PR["pull request"] --> UP["compose.perf.yaml up --wait<br/>db, redis, catalog"]
+    UP --> WU["warmup: 20 s,<br/>não medido"]
+    WU --> B["cenário budget:<br/>p95, p99, failed, checks"]
+    B -->|"todo threshold passa"| OK["job verde"]:::comp
+    B -->|"um threshold é ultrapassado"| X["o k6 sai com 99, job vermelho,<br/>o botão de merge avisa"]:::problem
+```
 
 ## Rode localmente { #run-it-locally }
 

@@ -1,7 +1,7 @@
 # 3. Performance Gate
 
 Tests catch wrong answers; they do not catch a change that makes the right answer ten times slower.
-A **performance budget** turns the latency you promised (lab 8's SLO, the
+A **performance budget** turns the latency you promised (lab 8's service level objective, or SLO, the
 [capacity plan](../../../classes/performance/capacity-planning/index.md#performance-budgets)) into a
 build check: CI starts the service, runs a short k6 test with thresholds, and **fails the pull
 request** when a threshold is crossed.
@@ -27,7 +27,7 @@ that is still starting.
 
 | Choice | Why |
 |---|---|
-| a 20 s `warmup` scenario, not measured | JIT compilation, connection pools and the cache warm up; thresholds only apply to `scenario:budget` |
+| a 20 s `warmup` scenario, not measured | just-in-time (JIT) compilation, connection pools and the cache warm up; thresholds only apply to `scenario:budget` |
 | open model (`constant-arrival-rate`) | the arrival rate does not slow down when the service does, as with real users |
 | p95 < 300 ms **and** p99 < 800 ms | the typical request and the tail; generous for one runner, so that only real regressions fail |
 | failed < 1%, checks > 99% | a fast `500` is not a success |
@@ -35,6 +35,15 @@ that is still starting.
 The `performance budget` job of `ci.yaml` (step 1) installs k6 with `grafana/setup-k6-action`, runs the
 script with `grafana/run-k6-action`, and prints the service logs if it fails. A crossed threshold makes
 k6 exit with code 99 and the job fails.
+
+``` diagram-sim
+flowchart LR
+    PR["pull request"] --> UP["compose.perf.yaml up --wait<br/>db, redis, catalog"]
+    UP --> WU["warmup: 20 s,<br/>not measured"]
+    WU --> B["budget scenario:<br/>p95, p99, failed, checks"]
+    B -->|"every threshold passes"| OK["job green"]:::comp
+    B -->|"a threshold is crossed"| X["k6 exits 99, job red,<br/>the merge button warns"]:::problem
+```
 
 ## Run it locally
 
