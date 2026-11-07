@@ -60,6 +60,10 @@ Click the slides and use ← → to move through them; **F** goes full screen an
 
 <div class="sdp" data-scenario="scale-out" data-mode="compact" data-height="500"></div>
 
+Then this lab's own preset: the edge in front of `catalog`, 400 req/s of fans plus a greedy API key at twice that, and `catalog-2` stopped for 20 s at t = 80 s. Predict what fixes it before you build it: more replicas, the passive health check (`max_fails`), a limit per key (`limit_req`) — or all three? In the full playground (↗), the hints and **Show a possible solution** answer with replicas, a health check and a 600 req/s limit at the edge.
+
+<div class="sdp" data-scenario="boxoffice-edge" data-mode="compact" data-height="440"></div>
+
 ## What you will build
 
 ``` diagram-sim

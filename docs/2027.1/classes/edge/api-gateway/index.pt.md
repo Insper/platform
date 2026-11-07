@@ -375,6 +375,10 @@ Content-Type: application/problem+json
 
 [:material-open-in-new: Abrir o playground completo](../../../../playground/index.md)
 
+O mesmo limite na borda do próprio BoxOffice: no preset do lab 3 uma chave de API gananciosa manda o dobro dos 400 req/s dos fãs. Sem limite o p99 de todos sofre; com 600 req/s na borda o excesso do cliente mais pesado vira `429` e os fãs ficam abaixo de 300 ms — mesmo com uma réplica parada.
+
+<div class="sdp" data-scenario="boxoffice-edge" data-mode="compact" data-height="440"></div>
+
 O projeto completo de um rate limiter distribuído, como problema de entrevista, está no [estudo de caso do rate limiter](../../case-studies/rate-limiter/index.md).
 
 ---

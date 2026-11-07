@@ -286,6 +286,10 @@ flowchart TB
 
 [:material-open-in-new: Open the full playground](../../../../playground/index.md)
 
+**BoxOffice's own edge.** The lab 3 preset puts 400 req/s of fans plus a greedy API key that sends twice as much on one `catalog` replica (about 500 req/s), and stops a replica for 20 s at t = 80 s. Three replicas behind the edge are not enough while one is down: add the health check (Nginx's `max_fails`), then a 600 req/s limit at the edge that cuts the heaviest client first, and watch p99 drop under the lab's 300 ms.
+
+<div class="sdp" data-scenario="boxoffice-edge" data-mode="compact" data-height="440"></div>
+
 ---
 
 ## A load balancer in practice: Nginx { #nginx }

@@ -286,6 +286,10 @@ flowchart TB
 
 [:material-open-in-new: Abrir o playground completo](../../../../playground/index.md)
 
+**A borda do próprio BoxOffice.** O preset do lab 3 põe 400 req/s de fãs mais uma chave de API gananciosa que manda o dobro numa réplica só do `catalog` (cerca de 500 req/s) e para uma réplica por 20 s em t = 80 s. Três réplicas atrás da borda não bastam enquanto uma está fora: acrescente o health check (o `max_fails` do Nginx), depois um limite de 600 req/s na borda que corta primeiro o cliente mais pesado, e veja o p99 cair abaixo dos 300 ms do lab.
+
+<div class="sdp" data-scenario="boxoffice-edge" data-mode="compact" data-height="440"></div>
+
 ---
 
 ## Um load balancer na prática: Nginx { #nginx }

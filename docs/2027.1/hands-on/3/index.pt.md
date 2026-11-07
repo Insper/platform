@@ -60,6 +60,10 @@ Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** a
 
 <div class="sdp" data-scenario="scale-out" data-mode="compact" data-height="500"></div>
 
+Depois, o preset deste lab: a borda na frente do `catalog`, 400 req/s de fãs mais uma chave de API gananciosa com o dobro disso, e o `catalog-2` parado por 20 s em t = 80 s. Preveja o que resolve antes de construir: mais réplicas, o health check passivo (`max_fails`), um limite por chave (`limit_req`) — ou os três? No playground completo (↗), as dicas e **Mostrar uma solução possível** respondem com réplicas, um health check e um limite de 600 req/s na borda.
+
+<div class="sdp" data-scenario="boxoffice-edge" data-mode="compact" data-height="440"></div>
+
 ## O que você vai construir { #what-you-will-build }
 
 ``` diagram-sim

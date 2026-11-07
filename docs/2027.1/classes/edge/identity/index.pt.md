@@ -331,6 +331,10 @@ spring:
     --8<-- "docs/2027.1/hands-on/4/code/services/gateway/src/main/java/boxoffice/gateway/UserHeadersFilter.java:21:44"
     ```
 
+**Experimente.** A validação local tira o `auth` de toda requisição, mas não de todo login. O preset do lab 4 manda 200 req/s com 5% de logins e em t = 60 s todo mundo faz login antes da venda (3× por 30 s): uma réplica do `auth` faz cerca de 10 logins BCrypt/s e desaba, e o retry do gateway depois de um timeout de 5 s cai no mesmo `auth` sobrecarregado. Dimensione o `auth` para o pico (4 réplicas), não para a média — e não reduza o custo do BCrypt para ganhar velocidade.
+
+<div class="sdp" data-scenario="boxoffice-gateway" data-mode="compact" data-height="440"></div>
+
 ---
 
 ## Modelos de autorização { #authorization-models }

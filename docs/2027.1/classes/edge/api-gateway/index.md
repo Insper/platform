@@ -375,6 +375,10 @@ Content-Type: application/problem+json
 
 [:material-open-in-new: Open the full playground](../../../../playground/index.md)
 
+The same limit in BoxOffice's own edge: in the lab 3 preset a greedy API key sends twice the fans' 400 req/s. Without a limit everybody's p99 suffers; with 600 req/s at the edge the excess of the heaviest client becomes `429` and the fans stay under 300 ms — even while one replica is stopped.
+
+<div class="sdp" data-scenario="boxoffice-edge" data-mode="compact" data-height="440"></div>
+
 The full design of a distributed rate limiter, as an interview problem, is in the [rate limiter case study](../../case-studies/rate-limiter/index.md).
 
 ---
