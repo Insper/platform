@@ -137,6 +137,24 @@ A defesa mais barata e mais forte contra a agência excessiva é perguntar ao us
 - **Classifique o risco** ([Agentes e ferramentas](../agents/index.md#side-effects)): leituras e ações reversíveis rodam sozinhas dentro de limites; ações irreversíveis e financeiras sempre pedem confirmação; algumas ações simplesmente não são oferecidas.
 - **Evite a fadiga de aprovação**: se todo passo pede confirmação, o usuário clica "sim" sem ler. Confirme pouco e só o que importa.
 
+``` diagram-sim
+sequenceDiagram
+    actor F as Fã
+    participant UI as interface do BoxOffice
+    participant O as Orquestrador
+    participant M as Modelo
+    participant T as serviço order
+    M-->>O: tool_call create_order(evt_8812, [C12, C13])
+    O->>O: nível de risco: irreversível, então pausa
+    O->>UI: cartão de confirmação: C12 e C13, sábado 13/03, R$560
+    Note over M,O: o modelo escrever "o fã disse sim" não muda nada
+    F->>UI: aperta Confirmar
+    UI->>O: confirm(id da ação, mesmos parâmetros)
+    O->>T: create_order como o fã, chave de idempotência
+    T-->>O: pedido criado
+    O->>M: resultado da ferramenta: pedido criado
+```
+
 ### Uma verificação de guardrail em código { #guardrail-code }
 
 O loop do orquestrador ([Agentes e ferramentas](../agents/index.md#loop)) chama uma verificação como esta antes de executar qualquer chamada de ferramenta:
@@ -295,6 +313,19 @@ No CI, o golden set roda como o orçamento de desempenho com k6 do [Hands-on 11]
 
 Prompts e modelos novos entram em produção como qualquer mudança: um **canário** (canary) com uma pequena fatia do tráfego atrás do alias do gateway, comparação das métricas online e, depois, promoção ou rollback.
 
+``` diagram-sim
+flowchart LR
+    chg["mudança: prompt, modelo,<br/>descrição de ferramenta, k"] --> det{"verificações determinísticas<br/>schema, citações, sem PII"}
+    det -- falha --> back(["volta para o autor"]):::problem
+    det -- passa --> gold{"golden set ≥ limiares?<br/>reservas 95%, fidelidade 90%"}
+    gold -- não --> back
+    gold -- sim --> judge["LLM-as-judge numa amostra<br/>(um juiz validado)"]
+    judge --> can["canário: uma pequena fatia<br/>atrás do alias do gateway"]
+    can --> online{"métricas online se mantêm?<br/>sucesso, escalonamentos, TTFT, custo"}
+    online -- sim --> prom(["promove"])
+    online -- não --> rb(["rollback do alias"]):::problem
+```
+
 ---
 
 ## Observabilidade de aplicações com LLM { #observability }
@@ -405,15 +436,15 @@ O prompt e a resposta são os dados de depuração mais úteis — e os mais sen
 
 ``` diagram
 flowchart LR
-    UN["untrusted text: user,<br/>documents, tool results"] --> MESH["Safety Mesh"]
-    MESH --> INJ["prompt injection,<br/>break the lethal trifecta"]
-    MESH --> PII["PII redaction before<br/>provider, logs, traces"]
-    MESH --> VAL["validate output<br/>and tool calls"]
-    MESH --> HITL["human-in-the-loop<br/>for irreversible actions"]
-    EV["golden sets, pass^k,<br/>LLM-as-judge"] --> CI["eval gate in CI<br/>→ Cloud-native delivery"]
-    EV --> CAN["canary behind<br/>the gateway alias"]
-    OT["GenAI spans: model,<br/>tokens, cost, TTFT"] --> OTEL["→ Observability OpenTelemetry"]
-    OT --> BURN["cost burn-rate alert<br/>→ Observability alerting"]
+    UN["texto não confiável: usuário,<br/>documentos, resultados de ferramentas"] --> MESH["Safety Mesh"]
+    MESH --> INJ["prompt injection,<br/>quebrar a trifeta letal"]
+    MESH --> PII["mascarar PII antes de<br/>provedor, logs, traces"]
+    MESH --> VAL["validar a saída<br/>e as chamadas de ferramenta"]
+    MESH --> HITL["humano no loop<br/>para ações irreversíveis"]
+    EV["golden sets, pass^k,<br/>LLM-as-judge"] --> CI["gate de avaliação no CI<br/>→ Cloud-native: entrega"]
+    EV --> CAN["canário atrás<br/>do alias do gateway"]
+    OT["spans GenAI: modelo,<br/>tokens, custo, TTFT"] --> OTEL["→ Observabilidade: OpenTelemetry"]
+    OT --> BURN["alerta de taxa de queima de custo<br/>→ Observabilidade: alertas"]
 ```
 
 **Componentes da paleta:** [`safety`](../../../reference/components/ai/index.md#safety) (verificações em toda entrada, saída e ação) · [`waf`](../../../reference/components/edge/index.md#waf) (seu primo clássico na borda) · [`llmgw`](../../../reference/components/ai/index.md#llmgw) (cotas contra consumo ilimitado, canários por alias) · [`toolreg`](../../../reference/components/ai/index.md#toolreg) (menor privilégio por ferramenta) · [`tracing`](../../../reference/components/observability/index.md#tracing), [`metrics`](../../../reference/components/observability/index.md#metrics), [`logs`](../../../reference/components/observability/index.md#logs) e [`alerting`](../../../reference/components/observability/index.md#alerting) (traces GenAI, dashboards de qualidade e custo, alertas de taxa de queima). **Cenários:** `ai-assistant`, `observability-stack`. **Continua em:** [Observabilidade — OpenTelemetry](../../observability/opentelemetry/index.md), [Observabilidade — alertas](../../observability/alerting/index.md), [Cloud-native — entrega](../../cloud-native/delivery/index.md) (canários e gates), [Rede e Segurança — zero trust](../../network-security/zero-trust/index.md), [Entrega assistida por IA — segurança e governança](../../ai-delivery/security-governance/index.md) (as mesmas ameaças dentro do pipeline).

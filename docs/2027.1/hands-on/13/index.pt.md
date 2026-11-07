@@ -1,9 +1,9 @@
 !!! abstract "Neste lab"
 
-    - Adicionar **cinco etapas de IA** ao pipeline do BoxOffice do [lab 11](../11/index.md): um revisor de pull requests, um gerador de testes avaliado por testes de mutação, um agente que propõe uma correção quando o CI falha, release notes a cada tag e um veredito de canary explicado.
-    - Executar todas as etapas por meio de **um cliente pequeno e neutro em relação ao provedor**: um **modelo local com o Ollama** (gratuito, o padrão), o Claude pelo SDK oficial, ou qualquer endpoint compatível com OpenAI pelo LiteLLM.
+    - Adicionar **cinco etapas de inteligência artificial (IA)** ao pipeline do BoxOffice do [lab 11](../11/index.md): um revisor de pull requests, um gerador de testes avaliado por testes de mutação, um agente que propõe uma correção quando a integração contínua (CI, *continuous integration*) falha, release notes a cada tag e um veredito de canary explicado.
+    - Executar todas as etapas por meio de **um cliente pequeno e neutro em relação ao provedor**: um **modelo local com o Ollama** (gratuito, o padrão), o Claude pelo kit de desenvolvimento de software (SDK, *software development kit*) oficial, ou qualquer endpoint compatível com OpenAI pelo LiteLLM.
     - **Endurecer** os workflows: permissões, gatilhos, segredos e um teste de prompt injection ao qual o revisor precisa resistir.
-    - **Medir**: precisão das revisões, custo por PR, minutos de CI e tempo até o merge ao longo de uma semana de pull requests.
+    - **Medir**: precisão das revisões, custo por pull request (PR), minutos de CI e tempo até o merge ao longo de uma semana de pull requests.
 
 O lab 11 deu ao BoxOffice um pipeline que compila, testa, escaneia, assina e libera cada mudança por trás de um canary. O lab 12 colocou um modelo de linguagem *dentro* do produto. Este lab coloca modelos de linguagem **dentro do pipeline** — e os trata com a mesma disciplina de qualquer outra dependência: privilégio mínimo, orçamentos, validação de toda saída e números que digam se eles ajudam.
 Na [história da disciplina](../../index.md#story) ele constrói o capítulo 14: as decisões de [revisão de código](../../classes/ai-delivery/code-review/index.md), [testes gerados por IA](../../classes/ai-delivery/testing/index.md), [agentes no CI](../../classes/ai-delivery/agents-in-ci/index.md), [liberação e operação](../../classes/ai-delivery/release-operate/index.md) e [segurança e governança](../../classes/ai-delivery/security-governance/index.md).
@@ -15,7 +15,7 @@ A regra do lab inteiro: **a IA propõe; regras e humanos decidem.** Nenhuma etap
 | | |
 |---|---|
 | **Tempo** | 6–8 horas para as partes 0–6 (uma parte por sessão é ok), mais ~15 minutos por dia durante uma semana na parte 7 |
-| **Você precisa** | das ferramentas do lab 0; de uma **conta no GitHub** (o repositório no GitHub, a CLI `gh` autenticada); para o modelo gratuito, **~6 GB de RAM livre e ~5 GB de disco** (máquinas de 8 GB: veja [Solução de problemas](#troubleshooting)) |
+| **Você precisa** | das ferramentas do lab 0; de uma **conta no GitHub** (o repositório no GitHub, a interface de linha de comando (CLI, *command-line interface*) `gh` autenticada); para o modelo gratuito, **~6 GB de memória de acesso aleatório (RAM, *random-access memory*) livre e ~5 GB de disco** (máquinas de 8 GB: veja [Solução de problemas](#troubleshooting)) |
 | **Diretório** | todo comando roda na raiz do seu repositório `boxoffice/` |
 | **Custos** | **zero** no caminho padrão: o modelo roda na sua máquina (Ollama) ou no runner do GitHub. O que pode custar dinheiro está em [O que custa dinheiro](#costs) |
 
@@ -55,7 +55,7 @@ Este lab usa principalmente `services/catalog` (um serviço Spring Boot 4.1.1 na
 
 !!! info "Siglas usadas neste lab"
 
-    **PR** pull request · **CI** integração contínua · **LLM** modelo de linguagem grande · **ADR** registro de decisão de arquitetura · **PIT** a ferramenta de testes de mutação para Java ([pitest.org](https://pitest.org){target="_blank"}) · **SHA** o hash que identifica um commit Git · **pp** pontos percentuais (5 % → 10 % é +5 pp) · **SDK** kit de desenvolvimento de software.
+    **PR** pull request · **CI** integração contínua · **LLM** modelo de linguagem grande · **ADR** registro de decisão de arquitetura · **PIT** a ferramenta de testes de mutação para Java ([pitest.org](https://pitest.org){target="_blank"}) · **SHA** o hash que identifica um commit Git · **pp** pontos percentuais (5 % → 10 % é +5 pp) · **SDK** kit de desenvolvimento de software · **API** interface de programação de aplicações · **JSON** JavaScript Object Notation · **CPU** unidade central de processamento.
 
 ## Slides
 
@@ -171,10 +171,14 @@ Todos os scripts ficam em `.github/ai/` do seu repositório e importam um único
 
 | Item | Custo |
 |---|---|
-| Ollama na sua máquina | gratuito (energia, ~5 GB de disco) |
-| Minutos do GitHub Actions | **gratuitos em repositórios públicos**; num repositório privado contam na cota mensal do seu plano ([cobrança do GitHub](https://docs.github.com/en/billing/concepts/product-billing/github-actions){target="_blank"}) — o caminho do Ollama usa vários minutos de runner por job de IA |
-| API do Claude (`LLM_PROVIDER=anthropic` e o caminho A da parte 3) | **paga** por token; proteja-a com um limite de gasto no workspace. Cada job imprime o seu custo em US$ |
-| Um proxy LiteLLM na internet | o que o provedor por trás dele cobrar |
+| Ollama na sua máquina | 🟢 gratuito (energia, ~5 GB de disco) |
+| Minutos do GitHub Actions | 🟡 **gratuitos em repositórios públicos**; num repositório privado contam na cota mensal do seu plano ([cobrança do GitHub](https://docs.github.com/en/billing/concepts/product-billing/github-actions){target="_blank"}) — o caminho do Ollama usa vários minutos de runner por job de IA |
+| API do Claude (`LLM_PROVIDER=anthropic` e o caminho A da parte 3) | 🔴 **paga** por token; proteja-a com um limite de gasto no workspace. Cada job imprime o seu custo em US$ |
+| Um proxy LiteLLM na internet | 🟡 o que o provedor por trás dele cobrar |
+
+Dinheiro não é o único orçamento. Se a sua CI chega a um modelo pelo mesmo LLM gateway do assistente dos fãs do lab 12, a **cota** também é dividida. O preset do playground abaixo coloca os dois num gateway de 10 chamadas/s: o assistente precisa de 3 chamadas/s e, a cada 2 minutos, um lote de 100 revisões de pull request e agentes de correção de 6 turnos cada pede 600 chamadas em 10 s — e os fãs recebem `429`. Aperte ▶ e depois tente a correção que o preset sugere: uma fila antes dos agentes de CI com concorrência fixa (a CI pode esperar, os fãs não), menos turnos por job ou uma chave e uma cota separadas por carga de trabalho.
+
+<div class="sdp" data-scenario="boxoffice-shared-llm" data-mode="compact" data-height="440"></div>
 
 !!! warning "Política do curso para este lab"
 

@@ -3,9 +3,9 @@
 !!! info "Objetivo"
 
     Adicionar o **assistente** de suporte do BoxOffice: um serviço Python 3.12 + FastAPI, gerenciado com
-    **uv**, que responde às perguntas dos fãs com um LLM por trás de um pequeno **gateway de LLM**
-    (LiteLLM: rotas, fallback, timeouts, custos); ancora as respostas no catálogo com **RAG** sobre
-    **pgvector**; consulta dados ao vivo por um **registro de ferramentas** no formato do MCP, dentro de
+    **uv**, que responde às perguntas dos fãs com um modelo de linguagem de grande porte (LLM, *large language model*) por trás de um pequeno **gateway de LLM**
+    (LiteLLM: rotas, fallback, timeouts, custos); ancora as respostas no catálogo com **geração aumentada por recuperação (RAG, *retrieval-augmented generation*)** sobre
+    **pgvector**; consulta dados ao vivo por um **registro de ferramentas** no formato do Model Context Protocol (MCP), dentro de
     um **loop de agente** limitado; protege o modelo e os usuários com **guardrails**; exporta **tokens,
     custo e tempo até o primeiro token** para o Grafana do lab 8; e passa por teste de carga onde dói —
     no primeiro token.
@@ -88,16 +88,16 @@ flowchart LR
     | [Orchestrator](../../reference/components/ai/index.md#orchestrator) | o loop de agente limitado de `agent.py` |
     | [Tool Registry](../../reference/components/ai/index.md#toolreg) | três ferramentas só de leitura com JSON schemas (no estilo do MCP) |
     | [Memory Fabric](../../reference/components/ai/index.md#memory) | RAG: embeddings dos eventos do catálogo no pgvector |
-    | [Vector DB](../../reference/components/storage/index.md#vectordb) | PostgreSQL 17 + pgvector, índice HNSW |
-    | [Safety Mesh](../../reference/components/ai/index.md#safety) | guardrails de entrada e de saída, mascaramento de PII |
+    | [Vector DB](../../reference/components/storage/index.md#vectordb) | PostgreSQL 17 + pgvector, índice HNSW (*Hierarchical Navigable Small World*) |
+    | [Safety Mesh](../../reference/components/ai/index.md#safety) | guardrails de entrada e de saída, mascaramento de dados pessoais (PII, *personally identifiable information*) |
 
 ## O que você vai medir { #what-you-will-measure }
 
 | Pergunta | Métrica | Ferramenta |
 |---|---|---|
-| Quanto tempo até o fã ver a primeira palavra? | TTFT p50/p95 sob concorrência | `scripts/assistant_load.py` |
+| Quanto tempo até o fã ver a primeira palavra? | tempo até o primeiro token (TTFT, *time to first token*) p50/p95 sob concorrência | `scripts/assistant_load.py` |
 | Com que rapidez os tokens são produzidos? | tokens/s, requisições/min | o mesmo |
-| A recuperação encontra os eventos certos? | hit@5, MRR | `scripts/eval_retrieval.py` |
+| A recuperação encontra os eventos certos? | hit@5, posição recíproca média (MRR, *mean reciprocal rank*) | `scripts/eval_retrieval.py` |
 | As respostas são ancoradas? | fração de `grounded: true` | a API, a métrica do guarda |
 | Quanto custa uma resposta? | tokens e US$ por requisição | a API, `assistant_llm_cost_usd_total` |
 
@@ -126,6 +126,15 @@ ao LLM. Depois ative o cache semântico do gateway de LLM e veja que fração do
 modelo.
 
 <div class="sdp" data-scenario="ai-assistant" data-mode="compact" data-height="520"></div>
+
+O preset **deste lab** usa os números dele: `MAX_STEPS` = 4 chamadas ao modelo por pergunta, um modelo
+local que responde uma chamada em ≈ 3 s e aceita ≈ 1 chamada/s, recuperação de 5 trechos e nada na frente
+filtrando o que os fãs digitam. Com 0,5 pergunta/s o loop já pede 2 chamadas/s ao modelo. Rode-o e depois
+aplique o que o lab faz e o que ele deixa para depois: menos passos (recuperar primeiro e depois
+responder), um cache semântico e o fallback do LiteLLM no gateway, e um Safety Mesh na frente do
+assistente.
+
+<div class="sdp" data-scenario="boxoffice-assistant" data-mode="compact" data-height="440"></div>
 
 O simulador completo está no [playground](../../../playground/index.md).
 

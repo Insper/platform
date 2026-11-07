@@ -1,4 +1,4 @@
-A suíte de testes da BoxOffice cresceu para cerca de 4.000 testes. Uma execução completa do CI leva 25 minutos, mais ou menos uma execução em cada trinta falha por motivos que ninguém entende e passa quando repetida, e o serviço `inventory` — aquele em que um bug significa assentos vendidos duas vezes — é o que tem menos testes, porque sua lógica é a mais difícil de testar. A IA pode escrever testes, fazer a triagem de falhas e escolher quais testes rodar. Cada uma dessas coisas é útil e cada uma tem uma armadilha: um teste gerado pode **proteger um bug**, um bot de triagem pode **esconder uma falha real** atrás da palavra "flaky" e um seletor de testes pode **pular justamente o teste que importava**. Esta página trata de colher o benefício sem cair nas armadilhas.
+A suíte de testes da BoxOffice cresceu para cerca de 4.000 testes. Uma execução completa da integração contínua (CI, *continuous integration*) leva 25 minutos, mais ou menos uma execução em cada trinta falha por motivos que ninguém entende e passa quando repetida, e o serviço `inventory` — aquele em que um bug significa assentos vendidos duas vezes — é o que tem menos testes, porque sua lógica é a mais difícil de testar. A IA pode escrever testes, fazer a triagem de falhas e escolher quais testes rodar. Cada uma dessas coisas é útil e cada uma tem uma armadilha: um teste gerado pode **proteger um bug**, um bot de triagem pode **esconder uma falha real** atrás da palavra "flaky" e um seletor de testes pode **pular justamente o teste que importava**. Esta página trata de colher o benefício sem cair nas armadilhas.
 
 ---
 
@@ -26,11 +26,11 @@ Para que os testes gerados servem de forma confiável:
 - **Testes de regressão para a correção de um bug**, quando o prompt inclui o relato do bug e o comportamento esperado.
 - **Casos de borda** que um humano depois confere contra a especificação.
 
-O que eles não conseguem fazer é decidir o que é *correto*. Requisitos, exemplos na issue ou um ADR precisam estar no contexto — e um humano precisa ler as asserções.
+O que eles não conseguem fazer é decidir o que é *correto*. Requisitos, exemplos na issue ou um registro de decisão de arquitetura (ADR, *architecture decision record*) precisam estar no contexto — e um humano precisa ler as asserções.
 
 ### A cobertura mente; o teste de mutação não (tanto) { #coverage-lies-mutation-testing-does-not-as-much }
 
-A cobertura de linhas mede quais linhas **executaram** durante os testes. Um teste que chama todos os métodos e não afirma nada tem cobertura total e não pega bug algum. O **teste de mutação** mede se os testes **percebem** uma mudança: a ferramenta cria *mutantes* — pequenas modificações como `<` → `<=`, `+` → `-`, uma chamada de método removida, um retorno constante — e roda os testes contra cada um. Um mutante é **morto** se algum teste falhar; o **mutation score** é mortos ÷ total. Mutantes sobreviventes apontam para comportamentos que nenhum teste verifica. A ideia é antiga (DeMillo, Lipton e Sayward, 1978); ferramentas como o [PIT](https://pitest.org){target="_blank"} a tornam prática na JVM[^2].
+A cobertura de linhas mede quais linhas **executaram** durante os testes. Um teste que chama todos os métodos e não afirma nada tem cobertura total e não pega bug algum. O **teste de mutação** mede se os testes **percebem** uma mudança: a ferramenta cria *mutantes* — pequenas modificações como `<` → `<=`, `+` → `-`, uma chamada de método removida, um retorno constante — e roda os testes contra cada um. Um mutante é **morto** se algum teste falhar; o **mutation score** é mortos ÷ total. Mutantes sobreviventes apontam para comportamentos que nenhum teste verifica. A ideia é antiga (DeMillo, Lipton e Sayward, 1978); ferramentas como o [PIT](https://pitest.org){target="_blank"} a tornam prática na máquina virtual Java (JVM, *Java virtual machine*)[^2].
 
 ``` diagram-sim
 flowchart LR
@@ -56,7 +56,7 @@ O loop acima devolve ao modelo os **mutantes sobreviventes** ("linha 42: a front
 
 !!! warning "Teste de mutação é caro"
 
-    Cada mutante executa de novo (parte da) suíte de testes. Em um serviço inteiro, uma execução de mutação pode levar muito mais tempo que o build normal. Mire nas **classes alteradas** de um PR, rode **sob demanda** ou à noite e use análise incremental quando a ferramenta suportar.
+    Cada mutante executa de novo (parte da) suíte de testes. Em um serviço inteiro, uma execução de mutação pode levar muito mais tempo que o build normal. Mire nas **classes alteradas** de um pull request (PR), rode **sob demanda** ou à noite e use análise incremental quando a ferramenta suportar.
 
 ---
 
@@ -116,7 +116,21 @@ Um modelo que lê o log da falha e o histórico consegue classificar rapidamente
 | Falha em código tocado pelo PR | Diff vs. stack trace | Regressão real |
 | `Connection refused`, `OOMKilled`, timeouts do registry | Padrões no log | Infraestrutura |
 
-O trabalho do LLM é a parte difícil de fazer com regras: ler um log de 2.000 linhas, encontrar o primeiro erro significativo, relacioná-lo ao diff e escrever uma explicação curta com uma categoria proposta. Sua saída é um **rótulo com evidências**, não uma ação:
+``` diagram-sim
+flowchart LR
+    red["Build vermelho"] --> rerun{"passa ao rodar de novo<br/>o mesmo commit?"}
+    rerun -->|"não"| diff{"falha em código<br/>que o PR tocou?"}
+    diff -->|"sim"| reg["Regressão real<br/>corrigir antes do merge"]:::problem
+    diff -->|"não"| llm["LLM lê log, diff e histórico<br/>rótulo com evidências"]
+    rerun -->|"sim"| hist["histórico de 30 dias, runner,<br/>padrões de log"]
+    hist --> llm
+    llm --> policy{"política: falhou e passou no<br/>mesmo commit duas vezes na semana?"}
+    policy -->|"sim"| quar["Quarentena<br/>dono, ticket, prazo"]
+    policy -->|"não"| human["Uma pessoa decide"]
+```
+
+
+O trabalho do modelo de linguagem (LLM, *large language model*) é a parte difícil de fazer com regras: ler um log de 2.000 linhas, encontrar o primeiro erro significativo, relacioná-lo ao diff e escrever uma explicação curta com uma categoria proposta. Sua saída é um **rótulo com evidências**, não uma ação:
 
 ```json
 {
@@ -166,7 +180,7 @@ Com recall de 95%, o time economiza cerca de doze horas de runner de CI por dia 
 
 Testes precisam de dados: locais com mapas de assentos estranhos, eventos em vários fusos horários, nomes com acentos, endereços de e-mail no limite de tamanho. Os modelos geram rapidamente dados **falsos** ricos e realistas. Três regras:
 
-1. **Nunca** envie dados de produção (nomes de clientes, e-mails, dados de pagamento) a um modelo para "deixar realista". Pela LGPD e por leis semelhantes, isso é tratamento de dados pessoais por um terceiro, com obrigações legais — e é desnecessário.
+1. **Nunca** envie dados de produção (nomes de clientes, e-mails, dados de pagamento) a um modelo para "deixar realista". Pela Lei Geral de Proteção de Dados (LGPD) e por leis semelhantes, isso é tratamento de dados pessoais por um terceiro, com obrigações legais — e é desnecessário.
 2. **Congele a saída.** Gere uma vez, revise, faça commit da fixture (ou de um gerador com semente). Testes que chamam um modelo em tempo de execução são lentos, custam dinheiro e não são determinísticos.
 3. **Peça os casos de borda explicitamente**: um evento às 23h30 do dia em que muda o horário de verão, um local com 0 assentos em um setor, um nome com 300 caracteres. Dados realistas valem menos que dados *adversariais*.
 

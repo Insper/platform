@@ -1,4 +1,4 @@
-Um pull request no `order` muda o checkout para que ele confirme a reserva do assento com um único comando SQL, em vez de uma chamada HTTP ao `inventory` — "é mais rápido". O código compila, os testes passam e o revisor, às 18h40 de uma sexta-feira, aprova. Três semanas depois, durante uma abertura de vendas, o `inventory` muda sua tabela de reservas e o checkout quebra. A regra violada — *um schema por serviço* — estava escrita numa página da wiki que ninguém abria. Um revisor que tivesse lido essa página, toda vez, em todo PR, teria pegado o problema.
+Um pull request no `order` muda o checkout para que ele confirme a reserva do assento com um único comando SQL, em vez de uma chamada HTTP ao `inventory` — "é mais rápido". O código compila, os testes passam e o revisor, às 18h40 de uma sexta-feira, aprova. Três semanas depois, durante uma abertura de vendas, o `inventory` muda sua tabela de reservas e o checkout quebra. A regra violada — *um schema por serviço* — estava escrita numa página da wiki que ninguém abria. Um revisor que tivesse lido essa página, toda vez, em todo pull request (PR), teria pegado o problema.
 
 Essa é a promessa da **revisão de código por IA**: um revisor que lê cada diff em minutos, nunca se cansa e pode ser informado das regras do time. Esta página trata de transformar essa promessa em uma ferramenta em que as pessoas realmente confiem.
 
@@ -15,11 +15,11 @@ A revisão de código moderna — uma revisão leve, apoiada em ferramentas, de 
 
 ## Em que a revisão por IA é boa e em que é ruim { #what-ai-review-is-good-and-bad-at }
 
-| Boa em (alta precisão quando recebe contexto) | Ruim em (baixa precisão ou cega) |
+| ✅ Boa em (alta precisão quando recebe contexto) | ❌ Ruim em (baixa precisão ou cega) |
 |---|---|
 | Bugs locais visíveis no diff: tratamento de null, off-by-one, comparação errada, vazamento de recursos | Bugs que exigem conhecimento de execução: desempenho sob carga, condições de corrida entre serviços |
 | Padrões de segurança: SQL por concatenação, segredos no código, verificação de autorização ausente, desserialização insegura | Se a funcionalidade é a funcionalidade **certa**: a intenção de produto não está no diff |
-| Violações de convenções e ADRs **escritos** | Convenções que ninguém escreveu |
+| Violações de convenções e registros de decisão de arquitetura (ADRs, *architecture decision records*) **escritos** | Convenções que ninguém escreveu |
 | Testes ausentes para lógica arriscada; testes que não verificam nada | Julgar se um teste verifica o valor esperado **correto** (o problema do oráculo) |
 | Explicar código desconhecido ao revisor humano | Grandes refatorações que abrangem centenas de arquivos (limites de contexto, diluição da atenção) |
 | Consistência: formatos de erro, códigos de status, logging, nomes | Trade-offs de arquitetura que exigem pesar o contexto de negócio |
@@ -60,7 +60,7 @@ Um modelo só consegue revisar contra aquilo que recebe. **Engenharia de context
 
 | Contexto | Por quê | Custo / risco | BoxOffice |
 |---|---|---|---|
-| **O diff, com números de linha** | O objeto da revisão; linhas numeradas permitem que o modelo cite linhas exatas | Cresce com o tamanho do PR; não confiável | `git diff base...head`, cada linha nova como `L21 + …` |
+| **O diff, com números de linha** | O objeto da revisão; modelos contam linhas mal, então linhas numeradas permitem que o modelo cite linhas exatas | Cresce com o tamanho do PR; não confiável | `git diff base...head`, cada linha nova como `L21 + …` |
 | **Convenções do repositório** | Transforma conselhos genéricos nas *suas* regras | Precisam ser curtas e atuais; lidas em toda execução | `CONVENTIONS.md`: schema por serviço, timeouts, dinheiro em centavos |
 | **Decisões de arquitetura (ADRs)** | O *porquê* das regras; permite que o modelo aponte decisões sendo revertidas | Longos; resuma ou recupere os relevantes | `0001-schema-per-service.md`, `0004-outbox-for-events.md` |
 | **Código ao redor** | A função ou classe inteira em torno de um trecho; quem chama um método alterado | Caro em tokens; exige recuperação em repositórios grandes | O `HoldService.java` inteiro quando um trecho altera `expire()` |
@@ -70,7 +70,7 @@ Um modelo só consegue revisar contra aquilo que recebe. **Engenharia de context
 
 Três regras práticas:
 
-1. **Ordene pensando no cache.** Coloque o conteúdo estável primeiro (instruções, convenções, ADRs) e o conteúdo de cada execução por último (diff). O prompt caching é uma correspondência de prefixo: se a parte estável for idêntica byte a byte, as revisões repetidas a leem por uma fração do preço ([LLM gateway](../../ai-systems/llm-gateway/index.md)).
+1. **Ordene pensando no cache.** Coloque o conteúdo estável primeiro (instruções, convenções, ADRs) e o conteúdo de cada execução por último (diff). O prompt caching é uma correspondência de prefixo: se a parte estável for idêntica byte a byte, as revisões repetidas a leem por uma fração do preço ([LLM gateway](../../ai-systems/llm-gateway/index.md), o gateway do modelo de linguagem de grande porte, *large language model*).
 2. **Orce, não trunque.** Um PR de 5.000 linhas não cabe — e não deveria ser revisado como um único bloco. Mantenha arquivos inteiros por prioridade (código de produção antes de testes, antes de configuração), liste na revisão os arquivos pulados, ou divida: uma chamada por arquivo ou por serviço (*map*) e depois uma chamada para juntar e deduplicar (*reduce*). Cortar um diff no meio produz absurdos confiantes sobre código que o modelo nunca viu.
 3. **Escreva as convenções primeiro para humanos.** Se uma regra não é clara para um engenheiro novo, não é clara para o modelo. Uma regra que precisa de um parágrafo de nuances costuma funcionar melhor como verificação determinística (abaixo).
 
@@ -78,7 +78,7 @@ Três regras práticas:
 
     A BoxOffice vira um monorepo de 40 serviços e 2 milhões de linhas. Um PR muda a assinatura de `InventoryClient.confirmHold`. Que contexto extra mais melhoraria a revisão e como encontrá-lo sem enviar o repositório inteiro?
 
-    Os **pontos de chamada** do método alterado e o **contrato** da API que ele encapsula. Encontre-os de forma determinística — um índice de código (language server, `ctags`, um serviço de busca de código) ou um simples `git grep confirmHold` — e adicione os 5–10 trechos mais relevantes. A recuperação baseada em embeddings sobre o repositório ([RAG](../../ai-systems/rag-memory/index.md)) ajuda em perguntas vagas ("onde mais calculamos preços de assentos?"), mas, para "quem chama este método", um índice de símbolos é exato e mais barato.
+    Os **pontos de chamada** do método alterado e o **contrato** da API que ele encapsula. Encontre-os de forma determinística — um índice de código (language server, `ctags`, um serviço de busca de código) ou um simples `git grep confirmHold` — e adicione os 5–10 trechos mais relevantes. A recuperação baseada em embeddings sobre o repositório (geração aumentada por recuperação, [RAG](../../ai-systems/rag-memory/index.md), *retrieval-augmented generation*) ajuda em perguntas vagas ("onde mais calculamos preços de assentos?"), mas, para "quem chama este método", um índice de símbolos é exato e mais barato.
 
 ---
 
@@ -150,6 +150,12 @@ for name, emitted, real in buckets:
 
 Publicar tudo encontra a maior parte dos problemas e é ignorado por todo mundo (3 comentários por PR, 4 em cada 10 úteis). Publicar só os de confiança alta gera confiança e deixa passar dois terços dos problemas. A maioria dos times começa com **alta + média para severidades ≥ minor**, mede e ajusta por categoria: segredos e SQL injection podem ficar em média; estilo nunca é publicado.
 
+<div class="csim" data-sim="review-noise"></div>
+
+!!! tip "Experimente"
+
+    Comece pela configuração do revisor do lab 13: confiança ≥ média e no máximo 6 comentários por PR (`AI_REVIEW_MAX_COMMENTS`). Ele publica **1,4 comentários por PR** e acha 60% dos problemas reais (recall de 60%); o teto cortou só 6 achados em 2 PRs grandes. Agora publique tudo (baixa): 3,0 comentários por PR, precisão de 41% e recall de 82% — e com 5.000 revisões por semana (500 engenheiros) as pessoas gastam **148 horas** por semana lendo o ruído, contra 45 horas na configuração do lab e 0,5 hora para os 60 PRs da BoxOffice. Só alta dá precisão de 80% e recall de 32%: confiável e cega para dois terços dos problemas. O teto é uma proteção contra enxurradas, não um botão de precisão: baixe-o para 1 e veja o recall cair mais rápido do que a precisão sobe.
+
 !!! example "No código do BoxOffice: o filtro do revisor (lab 13)"
 
     O [Hands-on 13 — O revisor](../../../hands-on/13/review/index.md) constrói a anatomia acima num único script. O título, a descrição e o diff do PR vão ao modelo embrulhados como dados **não confiáveis**; o modelo responde JSON contra um schema; e o código — não o modelo — mantém só os achados em linhas **adicionadas**, com severidade ≥ `minor`, sem confiança baixa, no máximo 6 por PR, os mais graves primeiro. Uma impressão digital de cada achado impede que ele seja publicado de novo no próximo push e um erro do modelo encerra o job com exit code 0: **fail open**, porque uma etapa consultiva nunca pode bloquear merges. Uma execução de teste com o modelo local publicou um achado, o SQL injection plantado em `EventSearch.java`; com o Claude, uma revisão do golden set do lab custou cerca de US$ 0,012.
@@ -165,12 +171,25 @@ Publicar tudo encontra a maior parte dos problemas e é ignorado por todo mundo 
 | | Consultivo | Gate (check obrigatório) |
 |---|---|---|
 | Efeito | Comentários; humanos decidem | Merge bloqueado até o achado ser corrigido ou ignorado com justificativa |
-| Custo de um falso positivo | Um minuto de leitura | Um PR bloqueado, uma liberação manual, frustração — e pressão para desligar o bot |
-| Custo de um falso negativo | O mesmo de hoje | Falsa sensação de segurança se os humanos relaxarem |
+| Custo de um falso positivo | 🟢 Um minuto de leitura | 🔴 Um PR bloqueado, uma liberação manual, frustração — e pressão para desligar o bot |
+| Custo de um falso negativo | 🟡 O mesmo de hoje | 🔴 Falsa sensação de segurança se os humanos relaxarem |
 | Requisitos | Nada de especial | **Alta precisão medida** naquela categoria; um caminho para liberação manual; confiabilidade com fail closed |
 | Bom para | Tudo, no começo | Categorias estreitas e de alta precisão: segredos no código, SQL por concatenação, acesso proibido entre schemas |
 
 Uma implantação segura: **sombra** (achados registrados, não publicados; compare com o que os humanos encontraram) → **consultivo** para times voluntários → **gate por categoria** quando a precisão estiver comprovada. Mesmo como gate, uma verificação de IA é um *status check obrigatório* — nunca uma aprovação. A aprovação continua humana, imposta pela proteção de branch.
+
+``` diagram-sim
+stateDiagram-v2
+    state "Sombra: achados registrados, não publicados" as Shadow
+    state "Consultivo: comentários, humanos decidem" as Advisory
+    state "Gate por categoria: check obrigatório, nunca aprovação" as Gate
+    [*] --> Shadow
+    Shadow --> Advisory: achados batem com as revisões humanas
+    Advisory --> Gate: precisão comprovada numa categoria
+    Gate --> Advisory: bloqueios falsos ou precisão em queda
+    Advisory --> Shadow: novo modelo ou prompt
+```
+
 
 ---
 
@@ -181,7 +200,7 @@ Não dá para ajustar o que não se mede e "o time gosta" não é uma medida.
 | Métrica | Como | Observações |
 |---|---|---|
 | **Precisão** | Comentários aceitos ÷ (aceitos + descartados); reações ou um botão de resolver com motivo | Exige que as pessoas avaliem; use amostragem se necessário |
-| **Recall** | Encontrados ÷ plantados, em um **golden set** de PRs com problemas conhecidos | Rode a cada mudança de prompt ou de modelo, no CI |
+| **Recall** | Encontrados ÷ plantados, em um **golden set** de PRs com problemas conhecidos | Rode a cada mudança de prompt ou de modelo, na integração contínua (CI, *continuous integration*) |
 | **Defeitos escapados** | Bugs encontrados depois em código que o bot revisou | Lenta, mas é a métrica que interessa ao negócio |
 | **Ruído** | Comentários por PR; % de PRs sem nenhum comentário | Zero muitas vezes é a resposta certa |
 | **Custo e latência** | US$ e minutos por revisão | A partir do uso de tokens do job |

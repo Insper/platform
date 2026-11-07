@@ -278,6 +278,21 @@ export default [
     ].map(e => ({ sim: "kind-lab", ...e }));
   })(),
 
+  // classes/ai-delivery (code review): the cap per PR of lab 13's reviewer
+  { sim: "review-noise", key: "cap", attr: "cap", value: 6,
+    lab: H + "13/code/.github/ai/review.py", read: num(/AI_REVIEW_MAX_COMMENTS", "(\d+)"/) },
+
+  // hands-on/13: the lab twin of part 5 (canary_explain.py policy)
+  ...(() => {
+    const py = H + "13/code/.github/ai/canary_explain.py";
+    return [
+      { key: "minRps", value: 2, unit: "req/s", lab: py, read: num(/^MIN_RPS = ([\d.]+)/m) },
+      { key: "maxErrorRate", value: 0.01, lab: py, read: num(/^MAX_ERROR_RATE = ([\d.]+)/m) },
+      { key: "maxErrorDelta", value: 0.005, lab: py, read: num(/^MAX_ERROR_DELTA = ([\d.]+)/m) },
+      { key: "maxP99Ratio", value: 1.25, lab: py, read: num(/^MAX_P99_RATIO = ([\d.]+)/m) },
+    ].map(e => ({ sim: "canary-explain", ...e }));
+  })(),
+
   // hands-on/2: the lab twin of lab 2 (lab 1's pool and CPU, load.js, stress.js, sweep.sh, the page's commands)
   ...(() => {
     const L2 = H + "2/code/", page = H + "2/index.md", load = L2 + "load/load.js", stress = L2 + "load/stress.js", sweep = L2 + "scripts/sweep.sh";
@@ -302,4 +317,19 @@ export default [
     ].map(e => ({ sim: "catalog-sweep", ...e }));
   })(),
 
+  // classes/ai-systems (RAG & Memory): lab 12 retrieves the top RETRIEVE_K events
+  { sim: "rag-hybrid", key: "k", attr: "k", value: 5,
+    lab: H + "12/code/services/assistant/app/config.py", read: num(/"RETRIEVE_K", "(\d+)"/) },
+
+  // hands-on/12: the lab twin of the assistant (config.py, the compose service, the model tag)
+  ...(() => {
+    const cfg = H + "12/code/services/assistant/app/config.py", compose = H + "12/code/docker-compose.yaml";
+    return [
+      { key: "maxSteps", value: 4, lab: cfg, read: num(/"MAX_STEPS", "(\d+)"/) },
+      { key: "k", value: 5, lab: cfg, read: num(/"RETRIEVE_K", "(\d+)"/) },
+      { key: "maxInputChars", value: 2000, lab: cfg, read: num(/"MAX_INPUT_CHARS", "(\d+)"/) },
+      { key: "model", value: "qwen2.5:1.5b", lab: compose, read: t => (t.match(/LOCAL_MODEL: ollama_chat\/\$\{LOCAL_MODEL_TAG:-([\w.:-]+)\}/) || [])[1] },
+      { key: "port", value: 8088, lab: compose, read: num(/- "(\d+):8088"/) },
+    ].map(e => ({ sim: "assistant-lab", ...e }));
+  })(),
 ];

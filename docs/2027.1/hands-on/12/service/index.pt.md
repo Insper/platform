@@ -1,7 +1,7 @@
 # 1. O Serviço e o Gateway de LLM { #1-the-service-and-the-llm-gateway }
 
 Este passo cria o serviço `assistant` — Python 3.12 + FastAPI, gerenciado com **uv** — e o seu **gateway
-de LLM**: o único módulo que sabe quais modelos existem, qual responde por padrão, o que fazer quando um
+de LLM** (modelo de linguagem de grande porte, *large language model*): o único módulo que sabe quais modelos existem, qual responde por padrão, o que fazer quando um
 provedor falha e quanto custa cada resposta. Todos os comandos rodam na **raiz do seu repositório
 `boxoffice`**, a menos que um `cd` diga o contrário.
 
@@ -194,6 +194,17 @@ O LiteLLM dá a todo provedor a mesma interface no estilo da OpenAI e o seu `Rou
 | **Fallback** | `claude` → `local` quando o provedor falha (queda, rate limit, sem crédito) |
 | **Timeouts e retries** | 120 s por chamada, 1 retry — uma chamada ao LLM é a dependência mais lenta que o BoxOffice tem |
 | **Custo** | o `app/metrics.py` (passo 4) multiplica os tokens de cada resposta pelo preço do provedor |
+
+``` diagram-sim
+flowchart LR
+    q["pergunta<br/>rota: ASSISTANT_ROUTE ou o pedido"] --> r{"Router do LiteLLM"}
+    r -->|"rota claude"| c["anthropic/claude-opus-5-5<br/>timeout 120 s, 1 retry"]
+    r -->|"rota local"| l["ollama_chat/qwen2.5:1.5b"]
+    c -->|"queda, rate limit, sem crédito"| l
+    c --> a(["resposta, tokens, custo"])
+    l --> a
+    nokey["sem ANTHROPIC_API_KEY"] -.->|"só a rota local existe"| r
+```
 
 !!! info "Por que um SDK dentro do processo e não o proxy do LiteLLM?"
 

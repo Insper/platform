@@ -1,4 +1,4 @@
-O revisor da parte 1 faz **uma** chamada ao modelo e posta texto. Um **agente** é diferente: ele roda um loop — lê um arquivo, edita, roda o build, lê o erro, edita de novo — escolhendo o próprio próximo passo até a tarefa terminar ou um orçamento se esgotar (veja [Agentes e ferramentas](../../../classes/ai-systems/agents/index.md)). Isso o torna muito mais capaz e muito mais perigoso: ele executa comandos, escreve código e custa mais a cada passo. Esta parte constrói um agente que reage a uma **execução de CI com falha** propondo uma correção como um **pull request em rascunho** — e gasta a maior parte das suas linhas mantendo esse agente dentro de uma caixa.
+O revisor da parte 1 faz **uma** chamada ao modelo e posta texto. Um **agente** é diferente: ele roda um loop — lê um arquivo, edita, roda o build, lê o erro, edita de novo — escolhendo o próprio próximo passo até a tarefa terminar ou um orçamento se esgotar (veja [Agentes e ferramentas](../../../classes/ai-systems/agents/index.md)). Isso o torna muito mais capaz e muito mais perigoso: ele executa comandos, escreve código e custa mais a cada passo. Esta parte constrói um agente que reage a uma **execução de integração contínua (CI, *continuous integration*) com falha** propondo uma correção como um **pull request (PR) em rascunho** — e gasta a maior parte das suas linhas mantendo esse agente dentro de uma caixa.
 
 ## 3.1 O fluxo e suas fronteiras de confiança { #31-the-flow-and-its-trust-boundaries }
 
@@ -36,16 +36,16 @@ E um humano faz o merge. Nada neste workflow chega à `main` sem um review exigi
 
 ## 3.2 Caminho A — Claude Code, headless (pago) { #32-path-a-claude-code-headless-paid }
 
-O [Claude Code](https://code.claude.com/docs/en/headless){target="_blank"} pode rodar de forma não interativa com `claude -p`. As flags usadas aqui, da sua referência de CLI:
+O [Claude Code](https://code.claude.com/docs/en/headless){target="_blank"} pode rodar de forma não interativa com `claude -p`. As flags usadas aqui, da sua referência de interface de linha de comando (CLI, *command-line interface*):
 
 | Flag | Papel neste lab |
 |---|---|
-| `--bare` | Pula a descoberta automática de hooks, skills, plugins, servidores MCP e `CLAUDE.md` do repositório — o agente carrega **só** o que a linha de comando lhe dá, igual em todo runner |
+| `--bare` | Pula a descoberta automática de hooks, skills, plugins, servidores do Model Context Protocol (MCP) e `CLAUDE.md` do repositório — o agente carrega **só** o que a linha de comando lhe dá, igual em todo runner |
 | `--allowedTools "Read,Edit,Write,Bash(mvn -B *)"` | Ferramentas que rodam sem perguntar; o shell fica limitado a comandos que começam com `mvn -B` |
 | `--permission-mode dontAsk` | Tudo o que não é permitido é **negado**, não perguntado (ninguém consegue responder a uma pergunta no CI) |
 | `--max-turns 25` | Limite de turnos do agente |
 | `--max-budget-usd 1.50` | Para a execução quando o gasto estimado atinge o limite (uma estimativa do lado do cliente — deixe folga) |
-| `--output-format stream-json --verbose` | Um evento JSON por linha: a transcrição completa, guardada como **log de auditoria**; a última linha é o resultado com `total_cost_usd` |
+| `--output-format stream-json --verbose` | Um evento JSON (*JavaScript Object Notation*) por linha: a transcrição completa, guardada como **log de auditoria**; a última linha é o resultado com `total_cost_usd` |
 | `--model` | O modelo, vindo da variável `LLM_MODEL` |
 
 O log da falha chega pela **stdin**, então o agente não precisa de permissão para ler arquivos fora do repositório.
@@ -88,11 +88,28 @@ Para ver que um agente é "só um loop", o `fix_agent.py` implementa um sobre qu
 | `on: workflow_run` | Roda **depois** que o CI termina, com a definição do workflow do branch padrão |
 | `head_repository.full_name == github.repository` | O `workflow_run` roda com os segredos deste repositório mesmo quando a execução de CI veio de um fork; fazer checkout e build do código do fork aqui seria um *pwn request* (parte 6) |
 | `!startsWith(head_branch, 'ai-fix/')` | Os próprios branches do agente nunca disparam outro agente: nada de loops |
-| `concurrency` no SHA do head + verificação do branch `ai-fix/<sha8>` | **Idempotente**: uma proposta por commit com falha, mesmo que a execução seja repetida |
+| `concurrency` no hash do commit do head (SHA, *secure hash algorithm*) + verificação do branch `ai-fix/<sha8>` | **Idempotente**: uma proposta por commit com falha, mesmo que a execução seja repetida |
 | `if-no-files-found: ignore` + `always()` | A transcrição é enviada mesmo quando o agente falha — é justamente quando você precisa dela |
+| `--trailer "AI-assisted: ..."` | O commit diz que foi gerado por inteligência artificial (IA) e com qual modelo |
+| `vars.LLM_PROVIDER == 'anthropic'` → caminho A, senão caminho B | Uma variável troca o agente; sem variável nenhuma, o caminho B roda com o Ollama **no runner** (gratuito, mas um runner só com processador (CPU, *central processing unit*) precisa de muitos minutos para 20 passos — a execução local da 3.5 é bem mais rápida) |
 
-| `--trailer "AI-assisted: ..."` | O commit diz que foi gerado por IA e com qual modelo |
-| `vars.LLM_PROVIDER == 'anthropic'` → caminho A, senão caminho B | Uma variável troca o agente; sem variável nenhuma, o caminho B roda com o Ollama **no runner** (gratuito, mas um runner só com CPU precisa de muitos minutos para 20 passos — a execução local da 3.5 é bem mais rápida) |
+O `if:` do job `fix` e o seu primeiro passo decidem, nesta ordem, se um agente roda — cada "pula" é uma das linhas acima:
+
+``` diagram-sim
+flowchart TD
+    run["execução de CI terminou"] --> fail{"conclusion<br/>failure?"}
+    fail -->|"não"| s1["pula"]
+    fail -->|"sim"| same{"repositório do head =<br/>este repositório?"}
+    same -->|"não: um fork"| s2["pula: nada de código de fork<br/>perto dos segredos"]
+    same -->|"sim"| own{"branch começa com<br/>ai-fix/ ou ai-tests/?"}
+    own -->|"sim"| s3["pula: um bot nunca<br/>reage a outro bot"]
+    own -->|"não"| dup{"o branch ai-fix/sha8<br/>já existe?"}
+    dup -->|"sim"| s4["pula: uma proposta<br/>por commit com falha"]
+    dup -->|"não"| agent["o agente roda<br/>token só de leitura, orçamento"]:::comp
+    agent --> verify{"só src/, nenhum teste removido,<br/>mvn verify verde?"}
+    verify -->|"não"| none["nenhum PR<br/>transcrição enviada"]:::problem
+    verify -->|"sim"| pr["open-pr: PR rascunho<br/>do branch ai-fix/sha8"]:::comp
+```
 
 !!! warning "Duas configurações do GitHub que você precisa conhecer"
 

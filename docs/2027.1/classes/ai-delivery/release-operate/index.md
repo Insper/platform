@@ -22,9 +22,9 @@ The pattern is the same as in [code review](../code-review/index.md): the output
 
 ## Release notes and changelogs
 
-Release notes answer two audiences: **operators** ("what must I do before deploying `v1.8.0`? which migrations run?") and **users** ("what is new?"). Both are derivable from the commits, PR titles, labels and migration files — if those are written well. A model groups and rewrites them in minutes. The failure mode is the **plausible invention**: a feature that sounds right, a ticket number that does not exist.
+Release notes answer two audiences: **operators** ("what must I do before deploying `v1.8.0`? which migrations run?") and **users** ("what is new?"). Both are derivable from the commits, pull request (PR) titles, labels and migration files — if those are written well. A model groups and rewrites them in minutes. The failure mode is the **plausible invention**: a feature that sounds right, a ticket number that does not exist.
 
-The fix is a **grounding check in code**: every item must cite a commit SHA or PR number that is really in the range `previous_tag..tag`; ungrounded items are dropped and reported. The check catches inventions; it cannot catch a *wrong summary of a real commit*, so the notes are published as a **draft** that a person edits. Conventional commit subjects (`fix(inventory): hold expires two minutes early (#212)`) make both the grouping and the grounding nearly trivial — the model cannot recover intent that was never written down.
+The fix is a **grounding check in code**: every item must cite a commit SHA (the hash that names a commit) or PR number that is really in the range `previous_tag..tag`; ungrounded items are dropped and reported. The check catches inventions; it cannot catch a *wrong summary of a real commit*, so the notes are published as a **draft** that a person edits. Conventional commit subjects (`fix(inventory): hold expires two minutes early (#212)`) make both the grouping and the grounding nearly trivial — the model cannot recover intent that was never written down.
 
 !!! example "In the BoxOffice code: release notes that must cite (lab 13)"
 
@@ -53,6 +53,21 @@ The strongest signals are structural and cheap to compute:
 | Calendar | Same change, different risk | 2 hours before the stadium on-sale |
 
 A model contributes two things: **semantic signals** that are hard to compute ("this changes how holds expire", "this removes an authorization check") and a **readable summary** of why the score is high. The score itself is best kept as a transparent formula or a simple model trained on history, and it should only **route** — require a second reviewer, choose the slow canary profile, block deploys inside a freeze window by policy — never approve or reject a change on its own.
+
+``` diagram-sim
+flowchart LR
+    pr["Change"] --> sig["Structural signals<br/>size, critical paths, migration,<br/>tests, incident history"]
+    pr --> sem["Model: semantic signals<br/>(changes how holds expire)"]
+    sig --> score["Risk score<br/>transparent formula"]
+    sem --> score
+    score -->|"low"| fast["One reviewer,<br/>standard canary"]
+    score -->|"high"| slow["Second reviewer,<br/>slow canary profile"]
+    score --> cal{"inside a freeze window?<br/>(2 h before the on-sale)"}
+    cal -->|"yes, by policy"| hold["Deploy waits"]:::problem
+    fast --> gates["Deterministic gates decide<br/>tests, scans, approvals"]
+    slow --> gates
+```
+
 
 ??? question "Think first: should a high AI risk score block the merge?"
 
@@ -113,13 +128,13 @@ sequenceDiagram
 
 | AI task | Inputs | Output | Guardrail |
 |---|---|---|---|
-| **Alert summary** | Firing alerts, SLO burn rates | "What is broken, for whom, since when" | Links to the dashboards it read |
+| **Alert summary** | Firing alerts, service level objective (SLO) burn rates | "What is broken, for whom, since when" | Links to the dashboards it read |
 | **Change correlation** | Deploys, config and flag changes in the window | "`inventory v1.8.0` reached 25 % at 21:50; errors began 21:52" | Deterministic data, model only formats |
 | **Hypotheses** | Traces, logs, the diff of the suspect change | Ranked list, each with evidence and a query to verify | Labelled as hypotheses; never actions |
-| **Runbook lookup** | The alert and the team's runbooks ([RAG](../../ai-systems/rag-memory/index.md)) | The relevant runbook steps | Steps are executed by humans or by authorised automation |
+| **Runbook lookup** | The alert and the team's runbooks (retrieval-augmented generation, [RAG](../../ai-systems/rag-memory/index.md)) | The relevant runbook steps | Steps are executed by humans or by authorised automation |
 | **Status updates** | Incident channel | Draft update for stakeholders every 30 min | Human sends |
 
-**Suggesting a rollback** is fine; **executing** one is a policy decision. Many teams already roll back automatically on a failed canary analysis — that automation is deterministic and tested. An LLM that "decides" to roll back production based on its reading of logs adds a non-deterministic, manipulable actor to the most sensitive moment of the system's life. Tools given to an incident assistant are **read-only** by default; any write action goes through the same authorization, confirmation and audit as a human's.
+**Suggesting a rollback** is fine; **executing** one is a policy decision. Many teams already roll back automatically on a failed canary analysis — that automation is deterministic and tested. A large language model (LLM) that "decides" to roll back production based on its reading of logs adds a non-deterministic, manipulable actor to the most sensitive moment of the system's life. Tools given to an incident assistant are **read-only** by default; any write action goes through the same authorization, confirmation and audit as a human's.
 
 !!! warning "Anchoring"
 
@@ -146,7 +161,7 @@ A good split: AI drafts the timeline (with sources) and a list of **questions** 
 | Decision | Choose A when… | Choose B when… |
 |---|---|---|
 | Release notes: AI draft vs hand-written | Many changes per release; good commit messages | Few, high-stakes releases; regulated changelogs |
-| Risk score: formula vs ML/LLM | Few teams, little history; transparency first | Large organization with labelled incident history |
+| Risk score: formula vs machine learning (ML) or LLM | Few teams, little history; transparency first | Large organization with labelled incident history |
 | Canary: thresholds vs statistical comparison | Low metric count, clear SLOs | Many metrics, noisy signals (Kayenta-style) |
 | Incident assistant: summary-only vs with tools | Starting out; low trust | Read-only tools proven precise; write actions stay human |
 | Auto-rollback: on policy vs on human decision | Verdict is deterministic and well-tested | Ambiguous signals, stateful changes (migrations) |

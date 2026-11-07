@@ -1,14 +1,14 @@
 # 5. Meça { #5-measure-it }
 
-Um endpoint de LLM é a dependência mais lenta e mais cara que o BoxOffice tem e a sua latência tem uma
+Um endpoint de modelo de linguagem de grande porte (LLM, *large language model*) é a dependência mais lenta e mais cara que o BoxOffice tem e a sua latência tem uma
 forma própria: uma espera longa pelo **primeiro token** (o modelo lê o prompt inteiro), depois um fluxo
 de tokens a uma velocidade mais ou menos constante. Os usuários julgam a primeira parte — um balão vazio
 — com muito mais rigor que a segunda. Este passo mede as duas e o custo, sob concorrência.
 
 | # | Experimento | O que você registra |
 |---|---|---|
-| A | latência com concorrência 1, 2, 4 | TTFT p50/p95, total p50/p95, tokens/s, requisições/min |
-| B | qualidade da recuperação | hit@5 e MRR (passo 2) |
+| A | latência com concorrência 1, 2, 4 | tempo até o primeiro token (TTFT, *time to first token*) p50/p95, total p50/p95, tokens/s, requisições/min |
+| B | qualidade da recuperação | hit@5 e posição recíproca média (MRR, *mean reciprocal rank*) (passo 2) |
 | C | qualidade das respostas | fração de respostas `grounded` em 10 perguntas |
 | D | escolha do modelo (opcional) | A e C de novo com um modelo local maior ou com a rota do Claude, mais US$ por requisição |
 
@@ -65,6 +65,8 @@ Leia isso como um problema de capacidade, com as fórmulas da
 - A **Lei de Little** vale como em todo lugar: requisições em andamento = taxa de chegada × tempo por
   requisição. Com ~2 minutos por resposta, *um* fã por minuto já mantém duas requisições em andamento.
   É por isso que servir LLMs precisa de batching, GPUs e controle de admissão — ou de uma API hospedada.
+- O **custo** escala com as perguntas, não com o hardware: na rota do Claude, a ≈ US$ 0,006 por pergunta
+  ([passo 1](../service/index.md#the-optional-claude-route-costs-money)), 20.000 perguntas custam ≈ US$ 120.
 
 !!! tip "Se os seus números estão lentos assim"
 

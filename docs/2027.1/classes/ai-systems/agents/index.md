@@ -25,7 +25,7 @@ Start at the top of the table and move down **only when the simpler level measur
 
 ## The agent loop { #loop }
 
-An agent is a loop around a model call. In the **ReAct** formulation[^2] the model alternates *reasoning* (what do I know, what do I need), *acting* (requesting a tool call) and *observing* (reading the tool result), until it can answer.
+An agent is a loop around a call to a large language model (LLM). In the **ReAct** formulation[^2] the model alternates *reasoning* (what do I know, what do I need), *acting* (requesting a tool call) and *observing* (reading the tool result), until it can answer.
 
 ``` diagram-sim
 flowchart TD
@@ -103,6 +103,18 @@ Five details in those 25 lines carry most of the engineering:
 
 As the history grows, **context engineering** keeps it useful: tools return compact results (5 seat options, not 5,000 seats); older turns are **compacted** into a summary; large documents are referenced by ID and fetched only when needed. A focused context is cheaper, faster, and more accurate than a long one[^3].
 
+<div class="csim" data-sim="agent-loop" data-steps="8"></div>
+
+!!! tip "Try it"
+
+    With the model that **finds the seats**, the loop makes **4 model calls** and sends **16,920 input tokens** in total — US$ **22.83** per 1,000 requests at 90% prompt-cache hits, the numbers of the [overview's table](../index.md#numbers); the answer starts after **6.8 s**. Turn parallel tool calls off: **5 model calls**, US$ **29.44**, **8.9 s** — the round the [trace of one task](#boxoffice-the-trace-of-one-task) saves. Switch to the model that **gets stuck** repeating `search_seats`: with `MAX_STEPS` = 8 it sends **46,320 tokens** and ends with an apology; raise `MAX_STEPS` to 12 and the token budget stops it at the same call. Turn **loop detection** on: the repeated call is caught at **call 3**, after **11,520 tokens**. Finally turn on **last call without tools**: lab 12's choice turns the step limit into an answer — partial, but an answer.
+
+!!! example "See it in the playground: the lab 12 assistant under load"
+
+    The preset runs the lab's assistant: up to `MAX_STEPS` = 4 model calls per question on a local model that answers one call in ≈ 3 s and takes ≈ 1 call/s. At 0.5 questions/s the loop already asks for 2 calls/s, twice what the model takes. Run it, then lower the orchestrator's `steps` to 2 (retrieve first, then answer) and turn on the gateway's semantic cache and fallback model: the load on the model is questions × steps, so cutting steps helps as much as adding capacity.
+
+<div class="sdp" data-scenario="boxoffice-assistant" data-mode="compact" data-height="440"></div>
+
 ---
 
 ## Tool calling
@@ -116,7 +128,7 @@ Tool calling (also called *function calling*) is the contract between the model 
 
 The model chooses tools **by reading their names and descriptions**, so the tool interface is a prompt and an API at the same time. Good tools are designed for the model, not copied from the internal API:
 
-| Principle | Bad | Good |
+| Principle | ❌ Bad | ✅ Good |
 |---|---|---|
 | Task-level, not table-level | `run_sql(query)`, `get_all_seats(event_id)` | `search_seats(event_id, quantity, max_price_brl)` |
 | Few and distinct | 40 tools with overlapping names | ~5–15 tools per agent, clearly separated |
@@ -132,6 +144,18 @@ The model chooses tools **by reading their names and descriptions**, so the tool
 
 A model call can be retried freely. A tool call **changes the world**. If `hold_seats` times out and the loop retries, did the first hold happen? This is the integration problem of [Compute & services](../../compute/integrations/index.md), and it has the same answers:
 
+``` diagram-sim
+sequenceDiagram
+    participant O as Orchestrator
+    participant I as inventory service
+    O->>I: hold_seats(evt_8812, [C12, C13], key conv_51f3:step3:call1)
+    I->>I: hold h_77a created, key stored
+    I--xO: the response is lost (timeout)
+    O->>I: retry: hold_seats(..., same key)
+    I-->>O: hold h_77a again, no second hold
+    Note over O,I: without the key, the retry holds C12 and C13 twice
+```
+
 - **Idempotency keys.** The orchestrator derives a key from `(conversation, step, call)` and passes it to every write tool; the service returns the same result for the same key.
 - **Reversible first.** Prefer actions with a natural undo — a **hold** expires in 10 minutes; an **order** with payment does not.
 - **Compensation.** If a later step fails, run the inverse action (`release_hold`), exactly as in a [saga](../../messaging/patterns/index.md).
@@ -139,10 +163,10 @@ A model call can be retried freely. A tool call **changes the world**. If `hold_
 
 | Tier | Examples | Policy |
 |---|---|---|
-| Read | `search_events`, `search_seats`, `get_order` | automatic |
-| Reversible write | `hold_seats`, `add_to_wishlist` | automatic within limits (≤ 6 seats, ≤ 1 active hold) |
-| Irreversible / financial | `create_order`, `refund_order`, `charge` | **explicit user confirmation** in the UI, never by text alone |
-| External communication | `send_email`, `post_review` | confirmation, or not offered at all |
+| 🟢 Read | `search_events`, `search_seats`, `get_order` | automatic |
+| 🟡 Reversible write | `hold_seats`, `add_to_wishlist` | automatic within limits (≤ 6 seats, ≤ 1 active hold) |
+| 🔴 Irreversible / financial | `create_order`, `refund_order`, `charge` | **explicit user confirmation** in the UI, never by text alone |
+| 🔴 External communication | `send_email`, `post_review` | confirmation, or not offered at all |
 
 !!! example "In the BoxOffice code: read-only tools, identity from the gateway (lab 12)"
 
@@ -302,7 +326,7 @@ MCP standardizes the *wire*; the **Tool Registry** component is the governance a
 
 | Registry concern | What it records / enforces |
 |---|---|
-| Catalog | which MCP servers exist, owner team, version, endpoint, SLO |
+| Catalog | which MCP servers exist, owner team, version, endpoint, service level objective (SLO) |
 | Exposure | which tools each agent (and each user role) may see |
 | Risk tier | read / reversible / irreversible / external — feeds the [Safety Mesh](../safety-evals/index.md) |
 | Authentication | OAuth scopes per tool; tokens per user, not a shared super-token |

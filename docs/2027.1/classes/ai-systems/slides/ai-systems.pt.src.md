@@ -14,11 +14,15 @@ theme: platform
 {{INCLUDE:scripts/slides/theme.js}}
 </script>
 
+<style>
+{{INCLUDE:scripts/slides/diagram.css}}
+</style>
+
 <div class="kicker">Arquitetura de Sistemas · Insper</div>
 
 # Sistemas de IA e Agentes
 
-**O LLM é uma dependência: lento, cobrado por token, probabilístico**
+**O modelo de linguagem de grande porte (LLM, *large language model*) é uma dependência: lento, cobrado por token, probabilístico**
 
 <!--
 Roteiro: (1) o LLM como dependência e os cinco componentes de IA e agentes; (2) custo e latência
@@ -69,9 +73,9 @@ máquina: latência, capacidade, custo, consistência e segurança são problema
 |---|---|---|
 | **LLM Gateway** | roteamento, fallbacks, cotas, cache, telemetria de custo | API gateway + rate limiter + breaker |
 | **Orchestrator** | executa o loop do agente ou o workflow; dono do estado e dos orçamentos | app server + motor de workflow |
-| **Tool Registry** | catálogo de ferramentas (servidores MCP), permissões, níveis de risco | service registry + auth |
-| **Memory Fabric** | sessão, memória do usuário, base de conhecimento (RAG) | cache + SQL + vector DB |
-| **Safety Mesh** | verificações em toda entrada, saída e ação | WAF + política de mesh + DLP |
+| **Tool Registry** | catálogo de ferramentas (servidores MCP, *Model Context Protocol*), permissões, níveis de risco | service registry + auth |
+| **Memory Fabric** | sessão, memória do usuário, base de conhecimento (RAG, *retrieval-augmented generation*) | cache + SQL + vector DB |
+| **Safety Mesh** | verificações em toda entrada, saída e ação | firewall web (WAF) + política de mesh + prevenção de vazamento de dados (DLP) |
 
 <div class="ok">
 
@@ -81,13 +85,39 @@ O modelo **escolhe** as ferramentas; o orquestrador **decide** se elas rodam —
 
 ---
 
+## As cinco caixas reaproveitam as antigas
+
+<div class="flow">
+<div class="box muted">fã</div><div class="arrow">→</div>
+<div class="box">API gateway<small>autenticação, limite de taxa</small></div><div class="arrow">→</div>
+<div class="box accent">Orquestrador<small>serviço assistant</small></div><div class="arrow">→</div>
+<div class="box orange">Safety Mesh<small>entrada, saída, ação</small></div><div class="arrow">→</div>
+<div class="box accent">LLM Gateway<small>roteamento, cotas, cache</small></div><div class="arrow">→</div>
+<div class="group"><div class="caption">modelos</div><div class="box">grande<small>provedor A</small></div><div class="box">pequeno<small>provedor B / próprio</small></div></div>
+</div>
+<div class="flow">
+<div class="arrow" style="flex: .9">O orquestrador também chama →</div>
+<div class="group"><div class="caption">Memory Fabric</div><div class="box green">cache<small>sessão</small></div><div class="box green">vector DB<small>base de conhecimento</small></div></div>
+<div class="group"><div class="caption">Tool Registry (MCP)</div><div class="box green">catalog</div><div class="box green">inventory<small>busca, reserva</small></div><div class="box green">order<small>só leitura</small></div></div>
+</div>
+
+- As ferramentas chamam o **mesmo** `catalog` e o **mesmo** `inventory` que o front-end web chama, com a mesma autorização: sem porta dos fundos.
+
+<!--
+O diagrama passo a passo "Como eles se ligam ao resto do sistema" da visão geral desenha a mesma figura, com o Kafka refazendo os embeddings do catálogo e a telemetria do gateway.
+-->
+
+---
+
 ## Anatomia de uma requisição
 
-1. Carrega sessão + preferências (Memory Fabric); verificação de entrada (Safety Mesh).
-2. Chamada 1 → `search_events(São Paulo, Saturday)`.
-3. Chamada 2 → `search_seats(event, 2, max 300)`.
-4. Chamada 3 → `hold_seats(event, [C12, C13])` → **reversível**: permitido.
-5. Chamada 4 → resposta em **streaming** com link de checkout; o pagamento fica com o fã.
+<div class="flow">
+<div class="box muted">sessão + preferências<small>verificação de entrada</small></div><div class="arrow">→</div>
+<div class="box accent">chamada 1<small>search_events(São Paulo, Saturday)</small></div><div class="arrow">→</div>
+<div class="box accent">chamada 2<small>search_seats(event, 2, max 300)</small></div><div class="arrow">→</div>
+<div class="box orange">chamada 3<small>hold_seats(C12, C13): reversível, permitido</small></div><div class="arrow">→</div>
+<div class="box green">chamada 4<small>resposta em streaming + link de checkout</small></div>
+</div>
 
 - **4 chamadas ao modelo** para uma mensagem; o contexto cresce a cada chamada.
 - "Abaixo de R$ 300" é **dado estruturado e vivo → ferramenta**, não RAG.
@@ -171,11 +201,17 @@ Um modelo de fallback é **outro programa**: rode as avaliações em todos os mo
 
 ## Cotas e orçamentos de tokens
 
-- Limites do provedor: **RPM, TPM**, concorrência — compartilhados por todas as funcionalidades (vizinho barulhento).
+- Limites do provedor: **requisições por minuto (RPM) e tokens por minuto (TPM)**, concorrência — compartilhados por todas as funcionalidades (vizinho barulhento).
 - Limites do gateway: por usuário, por funcionalidade, por requisição (`max_tokens`, máx. de passos), por mês (US$).
-- Saída desconhecida: **reserve** `input + max_tokens` e depois **reconcilie** com o uso real.
 - Orçamento acabou → **degradar** (modelo menor, cache de FAQ), **enfileirar** (lote), **descartar** (`429`).
 - Prioridades: interativo > lote; fluxos de compra > navegação.
+
+<div class="flow">
+<div class="box">conta a entrada<small>3.100 tokens</small></div><div class="arrow">→</div>
+<div class="box accent">reserva entrada + max_tokens<small>3.100 + 600 = 3.700</small></div><div class="arrow">→</div>
+<div class="box">chama o modelo<small>180 tokens de saída</small></div><div class="arrow">→</div>
+<div class="box green">concilia<small>devolve os 420 não usados</small></div>
+</div>
 
 <div class="ok">
 
@@ -190,11 +226,18 @@ Venda relâmpago: assistente fica com 70% do TPM, embedding noturno pausado, FAQ
 | | Resposta exata | **Prompt (prefixo)** | **Semântico** |
 |---|---|---|---|
 | Chave | hash da requisição inteira | prefixo idêntico do prompt | embedding da pergunta ≥ limiar |
-| Reaproveita | a resposta | a computação do modelo (KV) | resposta a uma pergunta *parecida* |
-| Economiza | a chamada | custo de entrada + TTFT | a chamada |
+| Reaproveita | a resposta | o cache de chave/valor (KV) do modelo | resposta a uma pergunta *parecida* |
+| Economiza | a chamada | custo de entrada + tempo até o primeiro token (TTFT) | a chamada |
 | Risco | nenhum | **nenhum** | **acertos falsos** |
 
-- Ordem do prompt: sistema → ferramentas → documentos → histórico → **mensagem nova por último**.
+<div class="flow">
+<div class="box green">prompt de sistema<small>estático</small></div><div class="arrow">→</div>
+<div class="box green">definições de ferramentas<small>estáticas</small></div><div class="arrow">→</div>
+<div class="box">documentos recuperados<small>por conversa</small></div><div class="arrow">→</div>
+<div class="box">histórico<small>cresce</small></div><div class="arrow">→</div>
+<div class="box orange">mensagem nova<small>muda a cada chamada: por último</small></div>
+</div>
+
 - Cache semântico: escopo nas chaves (evento, idioma, versão da política); só respostas genéricas.
 
 <!--
@@ -210,8 +253,8 @@ no topo do prompt de sistema é o destruidor clássico do cache de prompt.
 
 > latência = TTFT + TPOT × (N_saída − 1)  ·  0,6 s + 20 ms × 249 ≈ **5,6 s** para 250 tokens
 
-- **Prefill** (paralelo, limitado por computação) → **TTFT**: o SLO interativo, escondido pelo **streaming** (SSE).
-- **Decode** (um token por vez, limitado por memória) → **TPOT**: só precisa vencer a velocidade de leitura.
+- **Prefill** (paralelo, limitado por computação) → **TTFT**: o objetivo de nível de serviço (SLO) interativo, escondido pelo **streaming** (Server-Sent Events, SSE).
+- **Decode** (um token por vez, limitado por memória) → tempo por token de saída (**TPOT**): só precisa vencer a velocidade de leitura.
 - Batching divide cada leitura dos pesos: vazão da réplica ↑, velocidade por usuário ↓ devagar.
 - **Continuous batching** + **PagedAttention** tornaram isso prático.
 - KV cache: 2 × camadas × cabeças KV × dim. da cabeça × bytes → **128 KiB/token** (modelo 8B) → 8 mil tokens ≈ 1 GiB → ~64 conversas por GPU de 80 GB.
@@ -255,6 +298,25 @@ return "Escalating to a human agent."
 
 - O modelo **pede**; o orquestrador valida, autoriza **como o usuário** e executa.
 - Erros voltam como dados; orçamentos: passos, tokens, tempo; detecção de loop.
+
+---
+
+## Experimente: o loop do agente
+
+<div class="flow">
+<div class="box green">acha os assentos<small>4 chamadas · 16.920 tokens · US$ 22,83 / mil · 6,8 s</small></div>
+<div class="box">sem chamadas em paralelo<small>5 chamadas · US$ 29,44 · 8,9 s</small></div>
+<div class="box red">fica preso, MAX_STEPS 8<small>46.320 tokens e um pedido de desculpas</small></div>
+<div class="box orange">detecção de loop<small>pego na chamada 3, 11.520 tokens</small></div>
+</div>
+
+- A página Agentes e ferramentas embute o loop: cada barra é uma chamada, a altura é o contexto que ela reenvia.
+- Controles: `MAX_STEPS`, chamadas de ferramenta em paralelo, detecção de loop, acertos no cache de prompt, última chamada sem ferramentas (lab 12).
+- Subir `MAX_STEPS` para 12 não ajuda o modelo preso: o orçamento de 40.000 tokens o para na mesma chamada.
+
+<!--
+Os números são os da tabela de custo da visão geral, chamada a chamada. O assistente do lab 12 faz a quarta chamada sem ferramentas, então o limite de passos termina com uma resposta.
+-->
 
 ---
 
@@ -321,27 +383,19 @@ Anotações (`readOnlyHint`…) são **alegações**; descrições são **prompt
 
 ## RAG: dois pipelines
 
-<div class="cols">
-<div>
-
-**Ingestão (assíncrona)**
-
-- extrair + limpar; metadados (local, versão, acesso)
-- **chunking**: por estrutura, pai–filho, cabeçalhos de contexto
-- **embedding** (mesmo modelo nas consultas), guardar o nome do modelo
-- manter fresco com **eventos de mudança**; propagar remoções
-
+<div class="flow" style="align-items: stretch">
+<div class="group"><div class="caption">ingestão (assíncrona)</div>
+<div class="box">extrair + limpar<small>metadados: local, versão, acesso</small></div>
+<div class="box">chunking<small>por estrutura, cabeçalhos de contexto</small></div>
+<div class="box">embedding (lote)<small>guardar o nome do modelo</small></div>
 </div>
-<div>
-
-**Consulta (online)**
-
-- reescrever como pergunta autônoma; extrair filtros
-- **busca híbrida**: vetores + palavras-chave
-- **reranquear** top 20–50 → manter 3–8
-- prompt com as fontes, a melhor primeiro
-- responder **com citações**; verificá-las
-
+<div class="arrow" style="align-self: center">→</div>
+<div class="box accent" style="flex: .7; display: flex; flex-direction: column; justify-content: center">índice vetorial + palavras-chave<small>atualizado por eventos de mudança; remoções também</small></div>
+<div class="arrow" style="align-self: center">←</div>
+<div class="group"><div class="caption">consulta (online)</div>
+<div class="box">reescrever<small>pergunta autônoma, filtros</small></div>
+<div class="box">busca híbrida → reranquear<small>top 20–50 → manter 3–8</small></div>
+<div class="box green">prompt com as fontes<small>resposta com citações verificadas</small></div>
 </div>
 </div>
 
@@ -357,7 +411,7 @@ Anotações (`readOnlyHint`…) são **alegações**; descrições são **prompt
 - **Reciprocal Rank Fusion**: score(d) = Σ 1 / (60 + posição) — só posições, sem calibrar scores.
 - 1º por palavras-chave + 3º por vetores → 1/61 + 1/63 ≈ **0,032** vence 1º só por vetores (0,016).
 - **Reranqueador cross-encoder** lê pergunta + chunk juntos: preciso, mais lento (dezenas a centenas de ms).
-- ANN (HNSW): ajuste `ef_search` entre recall e latência; **filtros** pedem iterative scans ou partições.
+- Índice de vizinho mais próximo aproximado (ANN), HNSW: ajuste `ef_search` entre recall e latência; **filtros** pedem iterative scans ou partições.
 
 ```sql
 SELECT id, coalesce(1.0/(60 + s.rank), 0) + coalesce(1.0/(60 + k.rank), 0) AS rrf
@@ -367,19 +421,35 @@ ORDER BY rrf DESC LIMIT 20;   -- then rerank
 
 ---
 
+## Experimente: o que chega ao prompt
+
+<div class="flow">
+<div class="box red">setor C, só vetorial<small>elevadores 0,84 · Estádio Sul 0,83 · a resposta 0,79</small></div><div class="arrow">→</div>
+<div class="box green">híbrida (RRF)<small>a resposta primeiro: 0,0323 vs 0,0164 · k = 1 basta</small></div>
+</div>
+<div class="flow">
+<div class="box red">câmera, sem contexto<small>Estádio Sul 0,81 vence o §4 0,74, em todos os modos</small></div><div class="arrow">→</div>
+<div class="box green">chunks com contexto<small>título + seção no chunk: §4 primeiro</small></div>
+</div>
+
+- A página RAG e memória embute a busca: vetorial, por palavra-chave ou híbrida; top-k; similaridade mínima; chunks com contexto.
+- *Piscina*: nenhum chunk responde; um limiar de 0,60 transforma cinco chunks sem relação em "não sei" — só na metade vetorial.
+
+---
+
 ## Tipos de memória
 
 | Tipo | Exemplo na BoxOffice | Onde fica | Duração |
 |---|---|---|---|
 | De trabalho | o prompt desta chamada | a chamada ao modelo | uma chamada |
-| Curto prazo (sessão) | escolhendo C12–C13 ou D4–D5 | Redis + TTL | horas |
+| Curto prazo (sessão) | escolhendo C12–C13 ou D4–D5 | Redis + tempo de vida (TTL) | horas |
 | Longo prazo semântica | "prefere assentos no corredor" | SQL, editável | até ser apagada |
 | Longo prazo episódica | "o reembolso do mês passado" | índice vetorial | política de retenção |
 | Procedural | prompt de sistema, regras | Git, avaliado | por release |
 
 <div class="warn">
 
-Extraia memórias só das **mensagens do próprio usuário** (envenenamento de memória). A remoção precisa alcançar **todas as cópias**: perfil, vetores, caches, logs, traces (LGPD).
+Extraia memórias só das **mensagens do próprio usuário** (envenenamento de memória). A remoção precisa alcançar **todas as cópias**: perfil, vetores, caches, logs, traces (Lei Geral de Proteção de Dados, LGPD).
 
 </div>
 
@@ -407,7 +477,7 @@ Extraia memórias só das **mensagens do próprio usuário** (envenenamento de m
 
 | Ponto de verificação | Exemplos | Tipo |
 |---|---|---|
-| 1. Entrada | mascaramento de PII (CPF, Luhn para cartões), score de injeção | determinística + modelo pequeno |
+| 1. Entrada | mascaramento de dados pessoais (PII): CPF, Luhn para cartões; score de injeção | determinística + modelo pequeno |
 | 2. Recuperação | filtro de permissão na consulta; marcar texto não confiável | determinística |
 | 3. Chamada de ferramenta | schema, autorização como o usuário, nível de risco | determinística |
 | 4. Resultado da ferramenta | limite de tamanho, score de injeção | ambas |
@@ -430,8 +500,16 @@ Prefira verificações determinísticas: rápidas, testáveis e ninguém as conv
 - Avalie o **resultado** (a reserva certa existe?) mais do que a trajetória exata.
 - Não determinismo: rode k tentativas. p = 0,9 → **pass@4 ≈ 100%**, **pass^4 ≈ 66%** — o fã vive o pass^k.
 - Vieses do juiz: **posição**, **verbosidade**, **autopreferência** → rubrica, inverter ordem, outra família, validar com humanos.
-- Portão de CI em toda mudança de prompt/modelo/ferramenta; **canário** atrás do alias do gateway.
 - Online: reservas → pedidos, escalonamentos, guardrails acionados, recusas, TTFT p95, **custo por conversa resolvida**.
+
+<div class="flow">
+<div class="box">mudança<small>prompt, modelo, ferramenta, k</small></div><div class="arrow">→</div>
+<div class="box">verificações determinísticas</div><div class="arrow">→</div>
+<div class="box accent">portão do golden set<small>integração contínua (CI)</small></div><div class="arrow">→</div>
+<div class="box">amostra do juiz</div><div class="arrow">→</div>
+<div class="box orange">canário<small>atrás do alias</small></div><div class="arrow">→</div>
+<div class="box green">promove<small>ou rollback</small></div>
+</div>
 
 ---
 
@@ -445,7 +523,7 @@ invoke_agent boxoffice-assistant                        10.1 s
 └── chat assistant-default      in 5,300  out 212        4.9 s
 ```
 
-- Convenções GenAI do OTel: `gen_ai.operation.name`, `gen_ai.request.model`, `gen_ai.usage.input_tokens` / `output_tokens`, `gen_ai.response.finish_reasons`; métricas de TTFT/TPOT.
+- Convenções GenAI do OpenTelemetry (OTel): `gen_ai.operation.name`, `gen_ai.request.model`, `gen_ai.usage.input_tokens` / `output_tokens`, `gen_ai.response.finish_reasons`; métricas de TTFT/TPOT.
 - Custo no seu próprio namespace; **captura de conteúdo opt-in**, mascarada, retenção curta.
 - Alertas: SLO de TTFT, taxa de fallback, **taxa de queima do orçamento**, picos de guardrail.
 
@@ -469,6 +547,20 @@ invoke_agent boxoffice-assistant                        10.1 s
 <!--
 A mesma tabela está na página de visão geral, com links para as subpáginas e o catálogo de componentes.
 -->
+
+---
+
+## O que quebra a seguir
+
+<div class="q">
+
+Um prompt, a descrição de uma ferramenta, a versão de um modelo, o `k` da recuperação: cada um muda o comportamento sem uma linha de Java e cada um é um deploy que precisa passar pelo portão de avaliação.
+
+</div>
+
+- Enquanto isso, os mesmos modelos escrevem o código do time: os pull requests chegam mais rápido do que as pessoas revisam, testam e liberam.
+- A rede de proteção do lab 11 (testes, scans, um canário) foi dimensionada para a velocidade humana.
+- Aula 14: IA dentro do pipeline de entrega, sem deixá-la aprovar o próprio trabalho.
 
 ---
 

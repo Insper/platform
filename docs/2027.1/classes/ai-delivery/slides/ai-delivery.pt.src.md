@@ -14,6 +14,10 @@ theme: platform
 {{INCLUDE:scripts/slides/theme.js}}
 </script>
 
+<style>
+{{INCLUDE:scripts/slides/diagram.css}}
+</style>
+
 <div class="kicker">Arquitetura de Sistemas · Insper</div>
 
 # Entrega Assistida por IA
@@ -22,8 +26,8 @@ theme: platform
 
 <!--
 Roteiro: (1) IA ao longo do ciclo de entrega e o espectro de autonomia; (2) o contrato de uma etapa de IA,
-DORA e custo; (3) revisão de código; (4) testes; (5) agentes no CI; (6) liberação e operação;
-(7) segurança e governança.
+DORA, custo e o LLM gateway compartilhado; (3) revisão de código; (4) testes; (5) agentes no CI;
+(6) liberação e operação; (7) segurança e governança.
 -->
 
 ---
@@ -32,7 +36,7 @@ DORA e custo; (3) revisão de código; (4) testes; (5) agentes no CI; (6) libera
 
 <div class="q">
 
-Duas semanas depois, a BoxOffice tem: 15 comentários de bot por PR, um agente que apagou um teste que falhava, notas de versão anunciando uma funcionalidade que ninguém construiu e uma fatura surpresa. O que deu errado?
+Doze engenheiros, sessenta pull requests (PRs) por semana. Duas semanas depois de "vamos pôr IA", a BoxOffice tem: 15 comentários de bot por PR, um agente que apagou um teste que falhava, notas de versão anunciando uma funcionalidade que ninguém construiu e uma fatura surpresa. O que deu errado?
 
 </div>
 
@@ -47,13 +51,40 @@ Duas semanas depois, a BoxOffice tem: 15 comentários de bot por PR, um agente q
 
 | Etapa | A IA faz | Principal risco | Controle |
 |---|---|---|---|
-| Planejar | rascunha ADRs, especificações | raciocínio errado e confiante | ADR sob responsabilidade humana |
+| Planejar | rascunha registros de decisão de arquitetura (ADRs), especificações | raciocínio errado e confiante | ADR sob responsabilidade humana |
 | Codificar | escreve código | bugs sutis, pacotes inventados | revisão, testes, política de dependências |
 | Revisar | comenta PRs | ruído, credulidade | precisão medida, aprovação humana |
 | Testar | gera, faz triagem, seleciona | testes que protegem bugs | mutation score, suíte completa como rede de segurança |
 | Construir | conserta builds vermelhos | dobra testes, permissões amplas | sandbox, verificação, PR em rascunho |
 | Liberar | notas, pontuações de risco | funcionalidades inventadas | ancoragem, rascunhos |
 | Operar | explica canaries, incidentes | diagnóstico errado, ações automáticas | a política decide, a IA explica |
+
+---
+
+## O formato: a IA se ramifica, uma verificação a traz de volta
+
+<div class="flow">
+<div class="box accent">Pull request</div><div class="arrow">→</div>
+<div class="box accent">Integração contínua (CI)<small>build · teste · scan</small></div><div class="arrow">→</div>
+<div class="box green">Aprovação humana<small>proteção de branch</small></div><div class="arrow">→</div>
+<div class="box accent">Build · assinatura</div><div class="arrow">→</div>
+<div class="box accent">Canary<small>veredito da política</small></div><div class="arrow">→</div>
+<div class="box green">Produção</div>
+</div>
+<div class="flow">
+<div class="box orange">Revisão por IA<small>comentários consultivos</small></div>
+<div class="box orange">Testes por IA<small>mantidos se o mutation score sobe</small></div>
+<div class="box orange">Agente de correção<small>PR em rascunho</small></div>
+<div class="box orange">Notas de versão<small>rascunho ancorado</small></div>
+<div class="box orange">Explicação do canary<small>precisa repetir o veredito</small></div>
+</div>
+
+- Toda etapa de IA **propõe**; uma verificação determinística ou uma pessoa decide antes que algo chegue à produção.
+
+<!--
+A página desenha o mesmo ciclo como diagrama passo a passo: as etapas de IA saem do caminho principal e voltam
+por uma verificação ou por um humano.
+-->
 
 ---
 
@@ -77,23 +108,28 @@ Escolha o nível pelo **raio de impacto** e pela **verificabilidade** — o trav
 
 ## O contrato de uma etapa de IA
 
-| Parte | Exemplo do revisor |
-|---|---|
-| **Gatilho** | PR opened/synchronize; não em rascunhos, não em forks |
-| **Contexto** | diff, texto do PR (**não confiável**), convenções, ADRs |
-| **Saída** | achados em JSON, validados pelo schema, só linhas adicionadas |
-| **Ação** | comentários inline, `pull-requests: write`, nunca aprova |
-| **Orçamento e fallback** | 10 min, ~US$ 0,02, fail open |
+<div class="flow">
+<div class="box">Gatilho<small>PR aberto / push; não rascunhos, não forks</small></div><div class="arrow">→</div>
+<div class="box">Contexto<small>diff, texto do PR (<b>não confiável</b>), convenções, ADRs</small></div><div class="arrow">→</div>
+<div class="box accent">Chamada ao modelo<small>10 min, ~US$ 0,02</small></div><div class="arrow">→</div>
+<div class="box">Saída<small>achados em JSON, schema, só linhas adicionadas</small></div><div class="arrow">→</div>
+<div class="box green">Ação<small>comentários, <code>pull-requests: write</code>, nunca aprova</small></div>
+</div>
+<div class="flow">
+<div class="arrow" style="flex: .9; text-align: left">Modelo fora do ar ou sem orçamento?</div>
+<div class="box green">Etapa consultiva → <b>fail open</b><small>pulada, o PR ainda é mergeado</small></div>
+<div class="box red">Gate do qual você depende → <b>fail closed</b><small>bloqueia: então precisa ser muito confiável</small></div>
+</div>
 
 - A **permissão** da ação é o pior caso de qualquer prompt injection.
 
 ---
 
-## DORA: meça, não suponha
+## DORA (*DevOps Research and Assessment*): meça
 
 - DORA 2024: +25% de adoção de IA ≈ **−1,5% de vazão, −7,2% de estabilidade** (estimativa), apesar dos ganhos individuais.
 - DORA 2025: a IA é um **amplificador** da organização que você já é.
-- Ensaio randomizado do METR, 2025: desenvolvedores experientes **19% mais lentos**, acreditando estar ~20% mais rápidos.
+- Ensaio randomizado controlado do METR, 2025: desenvolvedores experientes **19% mais lentos**, acreditando estar ~20% mais rápidos.
 
 <div class="warn">
 
@@ -114,13 +150,48 @@ Prefixo de 8 mil tokens em cache + 6 mil de diff + 1,5 mil de saída, preços de
 | Pequeno (Haiku 4.5) | ~0,016 | ~US$ 320 |
 | Local (Ollama) | 0 tokens | minutos de runner, recall menor |
 
-- Tokens são baratos; **atenção** não é: 40% de precisão × 4 comentários × 5.000 revisões/semana = semanas de engenheiros lendo ruído.
+- Tokens são baratos; **atenção** não é: 40% de precisão × 4 comentários × 5.000 revisões/semana ≈ 12.000 comentários inúteis ≈ **200 horas** — as semanas de cinco engenheiros.
+
+---
+
+## O LLM gateway (*large language model*) é compartilhado
+
+<div class="flow" style="align-items: stretch">
+<div class="group">
+<div class="caption">clientes do mesmo gateway</div>
+<div class="box green">Assistente dos fãs<small>1 pergunta/s × 3 chamadas ao modelo</small></div>
+<div class="box orange">Agentes de CI<small>100 revisões + agentes de correção × 6 turnos, a cada 2 min, em 10 s</small></div>
+</div>
+<div class="arrow" style="align-self: center">→</div>
+<div class="box accent" style="display: flex; flex-direction: column; justify-content: center">LLM gateway<small>cota de 10 chamadas/s · chaves · roteamento · custo por time</small></div>
+<div class="arrow" style="align-self: center">→</div>
+<div class="box muted" style="display: flex; flex-direction: column; justify-content: center">Provedores<small>grande · pequeno · local</small></div>
+</div>
+
+- O lote despeja 600 chamadas em 10 s: **os fãs recebem os 429**.
+- Correção: **uma cota por cliente** com prioridade para o tráfego interativo; uma fila e concorrência fixa para a CI.
+- Preset do playground `boxoffice-shared-llm` na página de visão geral.
+
+---
+
+## Anatomia de um revisor por IA
+
+<div class="flow">
+<div class="box">PR aberto / push</div><div class="arrow">→</div>
+<div class="box accent">Montador de contexto<small>diff numerado, convenções, ADRs, código relacionado</small></div><div class="arrow">→</div>
+<div class="box">Modelo<small>achados em JSON, validados pelo schema</small></div><div class="arrow">→</div>
+<div class="box accent">Filtro<small>linhas adicionadas, severidade, confiança, dedup, teto</small></div><div class="arrow">→</div>
+<div class="box green">Uma revisão<small>evento <code>COMMENT</code>, escolhido pelo código</small></div>
+</div>
+
+- O modelo é **uma caixa de oito**: a maior parte da qualidade está no montador de contexto e no filtro.
+- Uma revisão com comentários inline por push: uma notificação, não doze.
 
 ---
 
 ## Revisão de código: engenharia de contexto
 
-- **Diff com números de linha** (`L21 + …`): modelos não sabem contar linhas.
+- **Diff com números de linha** (`L21 + …`): modelos contam linhas mal.
 - **Convenções + ADRs**: conselhos genéricos viram as *suas* regras.
 - **Código ao redor, pontos de chamada** por busca de símbolos; mapa de responsáveis.
 - **O texto do PR não é confiável**: delimitado, canal de injeção.
@@ -140,6 +211,20 @@ Prefixo de 8 mil tokens em cache + 6 mil de diff + 1,5 mil de saída, preços de
 - Implantação: **sombra → consultivo → gate por categoria comprovada**. Um gate é um check obrigatório, nunca uma aprovação.
 
 <p class="small">Amostra rotulada ilustrativa de 100 PRs.</p>
+
+---
+
+## Experimente: controle de ruído
+
+<div class="flow">
+<div class="box accent">Configuração do lab 13<small>confiança ≥ média, teto 6: 1,4 comentários por PR, recall de 60%</small></div>
+<div class="box red">Publicar tudo<small>3,0 por PR, precisão de 41%: 148 h/semana de ruído com 5.000 revisões</small></div>
+<div class="box orange">Só alta<small>precisão de 80%, recall de 32%</small></div>
+<div class="box green">Teto = contra enxurradas<small>teto 1: o recall cai mais rápido do que a precisão sobe</small></div>
+</div>
+
+- A página de revisão de código traz a amostra rotulada como simulador: 100 PRs, um quadrado por achado.
+- Mude a confiança, o teto e a escala; leia precisão, recall e horas de atenção.
 
 ---
 
@@ -169,16 +254,31 @@ Regras que importam vivem em **testes, lints e grants** — não só num prompt.
 ## Testes: triagem e seleção
 
 - **Triagem de flaky**: sinais determinísticos primeiro (reexecução, histórico, correlação com o diff); o modelo rotula com evidências; **a quarentena é uma política**, com um responsável.
-- **Seleção de testes**: estática, baseada em cobertura ou preditiva — 95% de recall economiza horas de CI por dia *se* a suíte completa rodar na `main` ou à noite.
-- **Dados sintéticos**: gerados uma vez, revisados, congelados; nunca dados de produção em prompts (LGPD).
+- **Seleção de testes**: estática, baseada em cobertura ou preditiva — 95% de recall economiza ~12 horas de runner de CI por dia *se* a suíte completa rodar na `main` ou à noite.
+- **Dados sintéticos**: gerados uma vez, revisados, congelados; nunca dados de produção em prompts (Lei Geral de Proteção de Dados, LGPD).
 
 ---
 
 ## Agentes no CI: o orquestrador é o produto
 
-- Consertar o build · upgrades de dependências · migrações (codemod primeiro, agente para a cauda longa) · issue → PR.
-- Headless: `claude -p` com `--bare`, `--allowedTools "Read,Edit,Bash(mvn -B *)"`, `--permission-mode dontAsk`, `--max-turns`, `--max-budget-usd`; ou `claude-code-action@v1`; ou o seu próprio loop.
-- Job do agente: token somente leitura, nenhum segredo além de uma chave com limite de gasto → **patch** → verificado → um job separado abre um **PR em rascunho**.
+<div class="flow" style="align-items: stretch">
+<div class="box muted" style="flex: .6; display: flex; flex-direction: column; justify-content: center">CI falhou<small>dedup pelo SHA do commit</small></div>
+<div class="arrow" style="align-self: center">→</div>
+<div class="group">
+<div class="caption">job fix · contents: read</div>
+<div class="box orange">Loop do agente + build<small>tetos de turnos e de US$, sem segredos</small></div>
+<div class="box">Verificar<small>mvn verify, nenhum teste removido, só src/</small></div>
+</div>
+<div class="arrow" style="align-self: center">patch →</div>
+<div class="group">
+<div class="caption">job open-pr · escrita</div>
+<div class="box green">PR em rascunho<small>sem modelo, sem build</small></div>
+</div>
+<div class="arrow" style="align-self: center">→</div>
+<div class="box accent" style="flex: .6; display: flex; flex-direction: column; justify-content: center">Revisão humana</div>
+</div>
+
+- Headless: `claude -p --bare --allowedTools "Read,Edit,Write,Bash(mvn -B *)" --permission-mode dontAsk --max-turns 25 --max-budget-usd 1.50` ou o seu próprio loop.
 
 ---
 
@@ -186,19 +286,39 @@ Regras que importam vivem em **testes, lints e grants** — não só num prompt.
 
 | Preocupação | Controle |
 |---|---|
-| Custo quadrático nos turnos | prompt caching; tetos de turnos e de US$ no harness |
+| Custo quadrático nos turnos | 10 turnos ≈ US$ 1,3, 40 ≈ US$ 11; com cache ≈ 8× mais barato; tetos no harness |
 | Eventos repetidos | chave de idempotência = SHA do commit; uma proposta por SHA |
 | Loops | nunca rodar em `ai-fix/*`; pushes com o `GITHUB_TOKEN` não disparam o CI |
 | "Consertei" | verificação independente: caminhos, nenhum teste removido, build verde |
 | Responsabilização | transcrição como artefato, trailer no commit, rótulo no PR, humano responsável |
+
+- Acompanhe **US$ por correção mergeada**: US$ 0,80 por execução, uma correção a cada quatro → US$ 3,20.
+
+---
+
+## Canary: a estatística decide, o modelo explica
+
+<div class="flow">
+<div class="box">Prometheus<small>canary vs. estável, ao mesmo tempo</small></div><div class="arrow">→</div>
+<div class="box accent">Política no Git<small>limiares, tráfego mínimo</small></div><div class="arrow">→</div>
+<div class="box green">Veredito + código de saída<small>0 promove · 1 rollback · 2 espera</small></div><div class="arrow">→</div>
+<div class="box">O Argo Rollouts age</div>
+</div>
+<div class="flow">
+<div class="arrow" style="flex: 1.2; text-align: left">O veredito é uma <b>entrada</b> do modelo →</div>
+<div class="box orange">O modelo explica<small>números, causas como hipóteses</small></div><div class="arrow">→</div>
+<div class="box green">Repete o veredito → exibida</div>
+<div class="box red">Discorda → descartada</div>
+</div>
+
+- Reprodutível, auditável, imune a uma linha de log dizendo "promova" — e uma frase errada não custa nada.
 
 ---
 
 ## Liberação e operação: decidir vs. explicar
 
 - **Notas de versão**: ancoradas — todo item cita um SHA/PR real; publicadas como rascunho.
-- **Pontuação de risco**: sinais estruturais + semântica da IA; só **direciona** o escrutínio (revisor extra, canary lento).
-- **Canary**: limiares e estatística decidem; o modelo **repete** o veredito e explica, ou é descartado.
+- **Pontuação de risco**: sinais estruturais + semântica da IA; só **direciona** o escrutínio (revisor extra, canary lento, janela de congelamento por política).
 - **Incidentes**: ferramentas somente leitura, links para evidências, várias hipóteses (ancoragem!); humanos ou uma política testada fazem o rollback.
 - **Postmortems**: a IA rascunha a linha do tempo; os humanos escrevem as lições.
 
@@ -215,16 +335,16 @@ Regras que importam vivem em **testes, lints e grants** — não só num prompt.
 | Separação de privilégios entre jobs | Sinalizar tentativas de injeção |
 | Proteção de branch, aprovação humana | |
 
-<p class="small">Nx s1ngularity (ago. 2025): <code>pull_request_target</code> + título do PR em <code>run:</code> → token roubado → malware que usou CLIs de IA locais para caçar segredos.</p>
+<p class="small">Nx s1ngularity (ago. 2025): <code>pull_request_target</code> + título do PR em <code>run:</code> → token roubado → malware que usou ferramentas de IA de linha de comando locais para caçar segredos.</p>
 
 ---
 
 ## Cadeia de suprimentos e governança
 
 - **Slopsquatting**: pacotes alucinados (≥ 5,2% nos modelos comerciais, 21,7% nos abertos, em um estudo de 2025) → revisão de dependências, proxy de registry, política.
-- **SBOM + assinatura + proveniência** (SLSA), verificados no deploy; **autoria por IA** em trailers e rótulos.
-- **Política como código**: Conftest/OPA nos workflows — permissões declaradas, nada de `${{ github.event }}` em `run:`, actions fixadas por SHA.
-- **Privacidade e PI**: mascarar logs, nada de dados de produção, configurações de retenção, verificação de licenças.
+- **Lista de componentes (SBOM, *software bill of materials*) + assinatura + proveniência** (níveis SLSA), verificadas no deploy; **autoria por IA** em trailers e rótulos.
+- **Política como código**: Conftest / Open Policy Agent nos workflows — permissões declaradas, nada de `${{ github.event }}` em `run:`, actions fixadas por SHA.
+- **Privacidade e propriedade intelectual**: mascarar logs, nada de dados de produção, configurações de retenção, verificação de licenças.
 - **Avalie as ferramentas**: golden set, avaliação de regressão a cada mudança de prompt/modelo, modo sombra.
 
 ---
@@ -253,9 +373,9 @@ Revisão de código e testes atuam no próprio pipeline; a tabela lista os compo
 ## Pontos-chave
 
 1. A IA cabe em todas as etapas da entrega; a **autonomia** acompanha o raio de impacto e a verificabilidade.
-2. Toda etapa de IA tem um **contrato**: gatilho, contexto, saída validada, ação com privilégio mínimo, orçamento.
-3. **Precisão vale mais que recall** para tudo o que fala com humanos; meça-a.
-4. Testes gerados são julgados pelo **mutation score**; o oráculo continua humano.
-5. Agentes vivem dentro de um **orquestrador** determinístico: sem token de escrita, com orçamentos, verificação, rascunhos, auditoria.
+2. Toda etapa de IA tem um **contrato**: gatilho, contexto, saída validada, ação com privilégio mínimo, orçamento, direção segura de falha.
+3. A IA move as métricas DORA nos dois sentidos: **meça** com baselines e métricas por etapa.
+4. Tokens são baratos, **atenção** não: precisão vale mais que recall para tudo o que fala com humanos.
+5. Testes gerados são julgados pelo **mutation score**; agentes vivem dentro de um **orquestrador** determinístico.
 6. **As políticas decidem, a IA explica** — em canaries, risco e incidentes.
 7. Quebre a **tríade letal**; proteja a cadeia de suprimentos; **avalie** as ferramentas de IA continuamente.

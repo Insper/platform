@@ -21,7 +21,7 @@ flowchart LR
 |---|---|---|
 | `MIN_RPS` | 2 req/s | Abaixo disso o canary não recebeu tráfego suficiente: **inconclusivo**, não "saudável" |
 | `MAX_ERROR_RATE` | 1% | Teto absoluto para o canary |
-| `MAX_ERROR_DELTA` | 0,5 pp | O canary não pode ser pior do que o stable (rodando **ao mesmo tempo**) por mais do que isso |
+| `MAX_ERROR_DELTA` | 0,5 ponto percentual (pp) | O canary não pode ser pior do que o stable (rodando **ao mesmo tempo**) por mais do que isso |
 | `MAX_P99_RATIO` | 1,25 | p99 do canary no máximo 25% acima do p99 do stable |
 
 Por que comparar com o **stable no mesmo momento** em vez de um número fixo? Porque às 10:00 de um dia de abertura de vendas tudo fica mais lento; um limite fixo faria rollback de toda release daquele dia. A [página de entrega](../../../classes/cloud-native/delivery/index.md#how-long-must-a-canary-run) mostra quanto tempo um canary precisa rodar para detectar uma regressão de um dado tamanho.
@@ -94,7 +94,7 @@ higher than the stable version's p99 latency of 0.181 ms. [...]
 - Roll back the canary version to the stable version to ensure service reliability.
 ```
 
-Leia com olho crítico: o p99 do stable é **181 ms**, não "0.181 ms" (o modelo misturou segundos e milissegundos), e os próximos passos são genéricos. Na execução saudável, ele escreveu que o canary tinha um "higher RPS (20.1 vs. 380.0)". Um modelo maior se sai melhor — uma execução com `claude-opus-5-5` percebeu que as contagens brutas de `errors` parecem parecidas (0.62 vs 0.40) enquanto o canary, com 1/19 do tráfego, falha cerca de 29× mais por requisição e rotulou as causas como hipóteses. De qualquer forma, uma frase errada não custa nada aqui: **os números que decidem vêm da política, não do modelo**.
+Leia com olho crítico: o p99 do stable é **181 ms**, não "0.181 ms" (o modelo misturou segundos e milissegundos), e os próximos passos são genéricos. Na execução saudável, ele escreveu que o canary tinha um "higher RPS (20.1 vs. 380.0)" (requisições por segundo, *requests per second*). Um modelo maior se sai melhor — uma execução com `claude-opus-5-5` percebeu que as contagens brutas de `errors` parecem parecidas (0.62 vs 0.40) enquanto o canary, com 1/19 do tráfego, falha cerca de 29× mais por requisição e rotulou as causas como hipóteses. De qualquer forma, uma frase errada não custa nada aqui: **os números que decidem vêm da política, não do modelo**.
 
 Agora tente quebrar a regra: edite `SYSTEM` na sua cópia para dizer *"se o canary parecer só um pouco pior, recomende promover"* e rode de novo o cenário de regressão. Não importa o que o modelo escreva, o código de saída continua 1 e, se o `verdict` da explicação discordar da política, ela é descartada (`_(LLM explanation discarded: it disagreed with the policy verdict.)_`). Restaure o `SYSTEM` depois (`git checkout -- .github/ai/canary_explain.py`). Por fim, tire o modelo — Claude sem chave:
 
@@ -105,6 +105,14 @@ env -u ANTHROPIC_API_KEY LLM_PROVIDER=anthropic uv run --no-project --python 3.1
 ```
 
 Você recebe `_(no explanation: TypeError: "Could not resolve authentication method. ...")_` e **o mesmo código de saída 1** — sem modelo, mesma decisão.
+
+As mesmas cinco execuções, sem Python e sem modelo: o simulador abaixo aplica as quatro regras do `canary_explain.py` aos snapshots, imprime a linha de veredito e o código de saída do script e troca o modelo pelos seus três comportamentos desta página. No modo **livre**, mexa nos números do canary e veja qual regra dispara.
+
+<div class="csim" data-sim="canary-explain" data-script="lab"></div>
+
+!!! tip "Experimente"
+
+    Aperte play: `healthy` dá PROMOTE (código de saída 0); `regression` dá ROLLBACK em três regras — `error rate 2.90% > 1.00%`, os erros acima do stable, `p99 412 ms is 2.28x stable` — com código de saída 1; `low-traffic` para em `0.80 req/s` < 2.0, INCONCLUSIVE, código de saída 2. O prompt alterado e a chave ausente mudam a explicação, nunca o código de saída. No modo **livre**, comece por `regression`: o canary só é promovido com **0,60%** de erros ou menos (o stable tem 0,10% e a regra de 0,5 pp aperta antes do teto de 1%) e um p99 de **226 ms** ou menos (1,25 × 181 ms). Depois ligue o dia de venda com `healthy`: o p99 do canary vira 382 ms contra 364 ms, ainda PROMOTE, enquanto um teto fixo de 300 ms faria o rollback — é por isso que a política compara com o stable **no mesmo período**.
 
 ## 5.4 Ao vivo: conecte ao rollout (opcional) { #54-live-wire-it-into-the-rollout-optional }
 
@@ -121,7 +129,7 @@ Este passo precisa do cluster kind do [lab 10](../../10/index.md) (chamado `boxo
       --with-requirements .github/ai/requirements.txt python .github/ai/canary_explain.py
     ```
 
-    O `curl` lista os nomes das métricas HTTP que os seus serviços expõem; se não for `http_server_requests_seconds_count`, defina `METRIC` (e `STATUS_LABEL`) antes do último comando, como explicado na 5.2. Um canary sem tráfego dá `INCONCLUSIVE` (saída 2) — é a política funcionando, não um bug.
+    O `curl` lista os nomes das métricas HTTP (*Hypertext Transfer Protocol*) que os seus serviços expõem; se não for `http_server_requests_seconds_count`, defina `METRIC` (e `STATUS_LABEL`) antes do último comando, como explicado na 5.2. Um canary sem tráfego dá `INCONCLUSIVE` (saída 2) — é a política funcionando, não um bug.
 
 3. Transforme-o num passo de análise. O Argo Rollouts consegue rodar um **Job** do Kubernetes como métrica de análise: código de saída 0 passa, qualquer outro falha. Construa uma imagem pequena com os scripts e carregue-a no cluster:
 
@@ -161,7 +169,7 @@ Este passo precisa do cluster kind do [lab 10](../../10/index.md) (chamado `boxo
     git commit -m "k8s(catalog): explained canary verdict (lab 13)" && git push
     ```
 
-    Com um Job, *inconclusivo* (saída 2) conta como falha — a escolha conservadora. O Job roda uma vez, `initialDelay: 90s` depois do início da análise e olha só o último minuto (`WINDOW=1m`): o Prometheus rotula cada série com o Service que a coletou, então uma janela de 5 minutos ainda contaria, como `catalog-canary`, os pods **antigos** que respondiam atrás desse Service antes de o canary começar — o veredito compararia a versão estável com ela mesma. A explicação fica nos logs do Job do próximo canary — uma nova imagem vinda do CI (`kubectl -n boxoffice logs -l job-name --tail=50`, ou `kubectl -n boxoffice get jobs` e `kubectl -n boxoffice logs job/<nome>`). O template aponta o modelo para o Ollama da sua máquina via `host.docker.internal` (Docker Desktop no macOS e no Windows; no Linux, use o IP do host na rede `kind` ou deixe-o inalcançável); para o Claude, crie o Secret com `kubectl -n boxoffice create secret generic llm --from-literal=anthropic-api-key="$ANTHROPIC_API_KEY"` e defina `LLM_PROVIDER` como `anthropic` no template (e rode o `kubectl apply` de novo). O passo funciona sem modelo nenhum: sem explicação, mesmo veredito.
+    Com um Job, *inconclusivo* (saída 2) conta como falha — a escolha conservadora. O Job roda uma vez, `initialDelay: 90s` depois do início da análise e olha só o último minuto (`WINDOW=1m`): o Prometheus rotula cada série com o Service que a coletou, então uma janela de 5 minutos ainda contaria, como `catalog-canary`, os pods **antigos** que respondiam atrás desse Service antes de o canary começar — o veredito compararia a versão estável com ela mesma. A explicação fica nos logs do Job do próximo canary — uma nova imagem vinda da integração contínua (CI, *continuous integration*) (`kubectl -n boxoffice logs -l job-name --tail=50`, ou `kubectl -n boxoffice get jobs` e `kubectl -n boxoffice logs job/<nome>`). O template aponta o modelo para o Ollama da sua máquina via `host.docker.internal` (Docker Desktop no macOS e no Windows; no Linux, use o endereço IP (*Internet Protocol*) do host na rede `kind` ou deixe-o inalcançável); para o Claude, crie o Secret com `kubectl -n boxoffice create secret generic llm --from-literal=anthropic-api-key="$ANTHROPIC_API_KEY"` e defina `LLM_PROVIDER` como `anthropic` no template (e rode o `kubectl apply` de novo). O passo funciona sem modelo nenhum: sem explicação, mesmo veredito.
 
 ## 5.5 Meça { #55-measure-it }
 

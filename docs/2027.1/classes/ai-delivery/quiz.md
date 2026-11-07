@@ -6,7 +6,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 **Q1.** A team wants an agent to rewrite the `SELECT … FOR UPDATE` logic that prevents double booking in `inventory`, and another to bump a patch version of a logging library in all services. Which autonomy levels are appropriate?
 
-- A. Both autonomous (level 4): CI will catch any problem
+- A. Both autonomous (level 4): continuous integration (CI) will catch any problem
 - B. Seat locking at most level 2–3 (draft for careful human review); the patch bump can be level 4 if CI and canary are trustworthy
 - C. Both level 0: AI must never change code
 - D. Seat locking level 4 because it is critical and needs speed; the library bump level 2
@@ -18,7 +18,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ---
 
-**Q2.** According to the 2024 DORA report, a 25 % increase in AI adoption was associated with which effect on software delivery?
+**Q2.** According to the 2024 DORA (DevOps Research and Assessment) report, a 25 % increase in AI adoption was associated with which effect on software delivery?
 
 - A. Higher throughput and higher stability
 - B. An estimated 1.5 % decrease in delivery throughput and 7.2 % decrease in delivery stability, despite reported individual productivity gains
@@ -62,7 +62,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ## Code review
 
-**Q5.** Your AI reviewer posts 3 comments per PR, and only 4 in 10 are rated useful. What is the most likely consequence, and the best first fix?
+**Q5.** Your AI reviewer posts 3 comments per pull request (PR), and only 4 in 10 are rated useful. What is the most likely consequence, and the best first fix?
 
 - A. Developers read every comment carefully; no fix needed
 - B. Developers start ignoring all bot comments, including the useful ones; raise the confidence/severity thresholds, cap comments, and measure precision again
@@ -180,7 +180,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ## Release & operate
 
-**Q13.** Why should an LLM not be the judge that promotes or aborts a canary?
+**Q13.** Why should a large language model (LLM) not be the judge that promotes or aborts a canary?
 
 - A. LLMs cannot read numbers
 - B. The verdict must be reproducible, auditable, statistically sound and immune to manipulation by text in logs or labels; thresholds and statistical tests in Git provide that, and the model explains the verdict
@@ -201,7 +201,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 - A. Cost, latency and accuracy
 - B. Access to private data, exposure to untrusted content, and the ability to communicate externally — together they let one injected instruction exfiltrate data
 - C. Prompt injection, jailbreaks and hallucinations
-- D. SBOM, signing and provenance
+- D. Software bill of materials (SBOM), signing and provenance
 
 ??? success "Answer"
     **B.**

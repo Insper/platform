@@ -16,10 +16,10 @@ None of these are machine-learning problems. They are **system design** problems
 
     - **Explain** why an LLM call behaves differently from a classic service call (latency in seconds, price per token, rate limits in tokens, probabilistic output, instructions mixed with data).
     - **Describe** the five AI & AGENTS components — LLM Gateway, Orchestrator, Tool Registry, Memory Fabric, Safety Mesh — and **map** each to the classic component it extends.
-    - **Estimate** the cost and latency of an agent request from its number of model calls, tokens per step and prompt-cache hit ratio, and the TTFT, TPOT and throughput of a model endpoint.
-    - **Design** an agent loop with tool calling over MCP, a step and token budget, and a decision on when **not** to use an agent.
+    - **Estimate** the cost and latency of an agent request from its number of model calls, tokens per step and prompt-cache hit ratio, and the time to first token (TTFT), time per output token (TPOT) and throughput of a model endpoint.
+    - **Design** an agent loop with tool calling over the Model Context Protocol (MCP), a step and token budget, and a decision on when **not** to use an agent.
     - **Build** a retrieval-augmented generation (RAG) pipeline — chunking, embeddings, hybrid search, reranking, citations — and **choose** the right memory type for each piece of state.
-    - **Defend** an AI feature against prompt injection (direct and indirect), PII leaks and risky actions, and **evaluate** it with golden sets, LLM-as-judge (aware of its biases) and online metrics, observed through OpenTelemetry GenAI traces.
+    - **Defend** an AI feature against prompt injection (direct and indirect), leaks of personally identifiable information (PII) and risky actions, and **evaluate** it with golden sets, LLM-as-judge (aware of its biases) and online metrics, observed through OpenTelemetry GenAI traces.
 
 ## Roadmap
 
@@ -89,11 +89,11 @@ The playground groups the components of an LLM application into five boxes. None
 | **Orchestrator** (`orchestrator`) | runs the agent loop or workflow: calls the model, executes tools, keeps the state of the task | App Server + workflow engine (saga orchestrator) | turns "two seats under R$300, hold them" into search → filter → hold → answer |
 | **Tool Registry** (`toolreg`) | catalog of the actions the model may request, with schemas, permissions and endpoints (MCP servers) | service registry / API catalog + Auth | exposes `search_events`, `search_seats`, `hold_seats`, `get_order`; **not** `charge_card` |
 | **Memory Fabric** (`memory`) | everything the assistant remembers: session history, user preferences, and the knowledge base searched by RAG | Cache + SQL + Vector DB + Object Store | conversation in Redis; preferences in PostgreSQL; venue rules and FAQ in pgvector |
-| **Safety Mesh** (`safety`) | policy layer around every model input, output and action: injection defense, PII redaction, schema validation, approvals | WAF + service-mesh policy + data-loss prevention (DLP) | redacts CPF and card numbers; blocks a `hold_seats` for 40 seats; asks the fan before anything is paid |
+| **Safety Mesh** (`safety`) | policy layer around every model input, output and action: injection defense, PII redaction, schema validation, approvals | web application firewall (WAF) + service-mesh policy + data-loss prevention (DLP) | redacts CPF (the Brazilian taxpayer number) and card numbers; blocks a `hold_seats` for 40 seats; asks the fan before anything is paid |
 
 ### LLM Gateway
 
-Every team that calls a model needs the same things: credentials, retries, a fallback when the provider is down, a limit so one feature does not burn the monthly budget, and a dashboard of tokens and cost. Putting them in **one gateway** — exactly as the [API Gateway](../edge/api-gateway/index.md) centralizes authentication and rate limiting for HTTP — gives one place to switch models, one bill to read, and one set of metrics. Its numbers are tokens per minute, time to first token (TTFT) and US$ per request. Deep dive: [LLM Gateway](llm-gateway/index.md).
+Every team that calls a model needs the same things: credentials, retries, a fallback when the provider is down, a limit so one feature does not burn the monthly budget, and a dashboard of tokens and cost. Putting them in **one gateway** — exactly as the [API Gateway](../edge/api-gateway/index.md) centralizes authentication and rate limiting for HTTP — gives one place to switch models, one bill to read, and one set of metrics. Its numbers are tokens per minute, TTFT and US$ per request. Deep dive: [LLM Gateway](llm-gateway/index.md).
 
 ### Orchestrator
 
@@ -105,7 +105,7 @@ A **tool** is a function the model may ask the orchestrator to call, described b
 
 ### Memory Fabric
 
-Because the model is stateless, *everything* it should know must be put back into the prompt on every call. The memory fabric decides what: the recent conversation (short-term memory, a cache with a TTL), durable facts about the user (long-term memory, a database), and passages from documents that answer the question (**retrieval-augmented generation**, RAG[^3], over a [Vector DB](../databases/specialized/index.md)). It is a data system with the usual questions — freshness, consistency, access control, retention, the right to be forgotten under the LGPD (Brazil's General Data Protection Law). Deep dive: [RAG & Memory](rag-memory/index.md).
+Because the model is stateless, *everything* it should know must be put back into the prompt on every call. The memory fabric decides what: the recent conversation (short-term memory, a cache with a time to live, TTL), durable facts about the user (long-term memory, a database), and passages from documents that answer the question (**retrieval-augmented generation**, RAG[^3], over a [Vector DB](../databases/specialized/index.md)). It is a data system with the usual questions — freshness, consistency, access control, retention, the right to be forgotten under the LGPD (Brazil's General Data Protection Law). Deep dive: [RAG & Memory](rag-memory/index.md).
 
 ### Safety Mesh
 
@@ -260,7 +260,7 @@ What the numbers say:
 
 !!! success "Best practices"
 
-    - **Write a token budget next to the latency SLO of every AI feature** — for example p95 TTFT < 1.5 s and ≤ 20,000 input tokens per request; with the [numbers above](#numbers), four model calls already use ~17,000, so a fifth step is a design change, not a tweak.
+    - **Write a token budget next to the latency service level objective (SLO) of every AI feature** — for example p95 TTFT < 1.5 s and ≤ 20,000 input tokens per request; with the [numbers above](#numbers), four model calls already use ~17,000, so a fifth step is a design change, not a tweak.
     - **Decide the degraded mode before the launch** — the 10:00 peak asks ~34 M tokens per minute of the gateway; when the quota or the provider runs out, the fan gets the static FAQ link, never a `500`.
     - **Return the model, the tokens and the cost with every answer** — a quality drop can then be tied to a model or prompt change in minutes. In BoxOffice: the `done` event of [lab 12's agent loop](../../hands-on/12/tools/index.md) carries `model`, `usage` and `ttft_ms`.
     - **Make every answer show its sources** — a citation the fan can open is checkable by the fan and by code. In BoxOffice: the [output guard of lab 12](../../hands-on/12/guardrails/index.md) marks answers without valid `[event:id]` citations as `grounded: false`.
@@ -295,8 +295,6 @@ flowchart LR
     stores -.- c4["RAG: chunk, embed,<br/>hybrid search, rerank"]:::tech
     safety -.- c5["prompt injection, PII,<br/>output validation, HITL"]:::tech
     obs -.- c6["golden sets, GenAI traces,<br/>cost burn rate"]:::tech
-    classDef comp fill:#1e9e5a22,stroke:#1e9e5a
-    classDef tech fill:#2f6fed22,stroke:#2f6fed
 ```
 
 | Palette component | Question it answers | Concepts | Taught in | Scenarios |
@@ -305,7 +303,7 @@ flowchart LR
 | [`orchestrator`](../../reference/components/ai/index.md#orchestrator) | Who decides the *next step*, and when does it stop? | workflow vs agent, agent loop, step and token budgets, durable execution, multi-agent | [Agents & Tools](agents/index.md#loop) | `ai-assistant` |
 | [`toolreg`](../../reference/components/ai/index.md#toolreg) | What may the model *ask to do*, and as whom? | tool schemas, MCP servers, permissions, risk tiers, idempotent tools | [Agents & Tools — MCP](agents/index.md#mcp) | `ai-assistant` |
 | [`memory`](../../reference/components/ai/index.md#memory) | What must go *back into the prompt*? | short-term, long-term and episodic memory, RAG, privacy and deletion | [RAG & Memory](rag-memory/index.md#memory) | `ai-assistant` |
-| [`vectordb`](../../reference/components/storage/index.md#vectordb) | Where are the *relevant passages*? | chunking, embeddings, HNSW, hybrid search, reranking, citations | [RAG & Memory](rag-memory/index.md#embeddings) | `ai-assistant` |
+| [`vectordb`](../../reference/components/storage/index.md#vectordb) | Where are the *relevant passages*? | chunking, embeddings, HNSW (*Hierarchical Navigable Small World*) index, hybrid search, reranking, citations | [RAG & Memory](rag-memory/index.md#embeddings) | `ai-assistant` |
 | [`safety`](../../reference/components/ai/index.md#safety) | Is this input, output or *action* allowed? | prompt injection, the lethal trifecta, PII redaction, output validation, human-in-the-loop | [Safety, Evals & Observability](safety-evals/index.md) | `ai-assistant` |
 | [`tracing`](../../reference/components/observability/index.md#tracing) · [`metrics`](../../reference/components/observability/index.md#metrics) | Is it *right, fast and affordable*? | golden sets, LLM-as-judge, pass^k, GenAI semantic conventions, cost burn rate | [Safety, Evals & Observability](safety-evals/index.md#observability) | `ai-assistant`, `observability-stack` |
 | *(all of them)* | *How much* does one request cost, and how long does it take? | tokens, quadratic context growth, cache hits, steps per request | [this overview](#numbers) | `ai-assistant` |

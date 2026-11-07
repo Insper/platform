@@ -1,4 +1,4 @@
-The first AI step is the one with the best cost/benefit ratio: a reviewer that reads every pull request **before** a human does, and leaves a few precise, inline comments — or nothing. Human reviewers are scarce and slow (a PR often waits hours for the first look); a model is fast, cheap per PR and never bored by the hundredth null check. It is also often wrong, verbose and gullible. This part builds a reviewer that is useful *despite* those weaknesses.
+The first artificial intelligence (AI) step is the one with the best cost/benefit ratio: a reviewer that reads every pull request (PR) **before** a human does, and leaves a few precise, inline comments — or nothing. Human reviewers are scarce and slow (a PR often waits hours for the first look); a model is fast, cheap per PR and never bored by the hundredth null check. It is also often wrong, verbose and gullible. This part builds a reviewer that is useful *despite* those weaknesses.
 
 ## 1.1 How it works
 
@@ -23,14 +23,14 @@ sequenceDiagram
 
 Four ideas carry the design; the [Code review](../../../classes/ai-delivery/code-review/index.md) page of the class explains them in depth:
 
-1. **Context engineering.** The model receives the diff *and* what a senior BoxOffice engineer knows: the conventions and the ADRs. Without them it can only give generic advice.
-2. **Structured output.** The answer is JSON with `file`, `line`, `severity`, `category`, `confidence`, `title`, `explanation`, `suggestion` — so code can filter it, deduplicate it and post it exactly where it belongs.
+1. **Context engineering.** The model receives the diff *and* what a senior BoxOffice engineer knows: the conventions and the architecture decision records (ADRs). Without them it can only give generic advice.
+2. **Structured output.** The answer is JavaScript Object Notation (JSON) with `file`, `line`, `severity`, `category`, `confidence`, `title`, `explanation`, `suggestion` — so code can filter it, deduplicate it and post it exactly where it belongs.
 3. **Noise control.** Every comment costs a developer's attention. Comments outside the changed lines, below `minor`, with low confidence, already posted, or over the limit are **dropped** (and listed in the job summary, so you can tune the thresholds).
 4. **Advisory, not a gate.** The bot posts `event: COMMENT` — never `APPROVE` or `REQUEST_CHANGES`. An optional gate mode exists, but you turn it on only after measuring precision in part 7.
 
 ## 1.2 The diff helpers
 
-Models are bad at counting lines. Rather than asking the model to compute line numbers from the `@@ -16,4 +16,9 @@` headers, `diffutil.py` prints **every new-side line with its number** (`L21 + ...`) and later checks that each finding points to a line the PR actually **added**. GitHub rejects a review comment on a line that is not part of the diff, so this check also prevents a failed API call.
+Models are bad at counting lines. Rather than asking the model to compute line numbers from the `@@ -16,4 +16,9 @@` headers, `diffutil.py` prints **every new-side line with its number** (`L21 + ...`) and later checks that each finding points to a line the PR actually **added**. GitHub rejects a review comment on a line that is not part of the diff, so this check also prevents a failed application programming interface (API) call.
 
 ``` { .python title=".github/ai/diffutil.py" .copy linenums="1" }
 --8<-- "docs/2027.1/hands-on/13/code/.github/ai/diffutil.py"
@@ -81,9 +81,9 @@ Read it with these questions in mind:
 | `permissions:` | `contents: read` to check out, `pull-requests: write` to comment. Nothing else: no `actions`, no `packages`, no `id-token` |
 | `concurrency` with `cancel-in-progress` | Three quick pushes → one review of the last one, not three reviews and three bills |
 | `if: !draft && head.repo == repository` | Drafts are not ready; fork PRs on `pull_request` get no secrets anyway (part 6) |
-| `timeout-minutes` from an expression | A local model on a CPU runner gets 25 minutes; a hosted model 10. A hung call cannot burn an hour |
+| `timeout-minutes` from an expression | A local model on a runner with only a central processing unit (CPU) gets 25 minutes; a hosted model 10. A hung call cannot burn an hour |
 | `persist-credentials: false` | The token is not left in `.git/config` for later steps to find |
-| Actions pinned to a commit SHA | A moved tag cannot swap the code you run (part 6) |
+| Actions pinned to the secure hash algorithm (SHA) of a commit | A moved tag cannot swap the code you run (part 6) |
 | `uses: ./.github/actions/ollama` | Only when `LLM_PROVIDER` is `ollama` (or unset): installs the free model on the runner |
 | `vars.*` with defaults | Switch provider, model or thresholds with a repository variable, no code change |
 | PR title and body read from the event file | Never `${{ github.event.pull_request.title }}` inside `run:` — that is a shell injection (part 6) |
@@ -99,7 +99,7 @@ git push
 
 ## 1.5 Try it: locally first, then on a pull request
 
-Create a branch with a **deliberate** problem — a search that builds SQL by concatenating user input (a SQL injection, forbidden by `CONVENTIONS.md`). It compiles and its tests pass, so only a review can catch it:
+Create a branch with a **deliberate** problem — a search that builds structured query language (SQL) by concatenating user input (a SQL injection, forbidden by `CONVENTIONS.md`). It compiles and its tests pass, so only a review can catch it:
 
 ``` { .bash .copy }
 git switch -c try-ai-review

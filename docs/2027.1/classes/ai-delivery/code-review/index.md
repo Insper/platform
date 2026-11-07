@@ -1,4 +1,4 @@
-A pull request to `order` changes the checkout so that it confirms the seat hold with one SQL statement instead of an HTTP call to `inventory` — "it is faster". The code compiles, the tests pass, and the reviewer, at 18:40 on a Friday, approves. Three weeks later, during an on-sale, `inventory` changes its hold table and checkout breaks. The rule that was violated — *one schema per service* — was written in a wiki page nobody opened. A reviewer that had read that page, every time, on every PR, would have caught it.
+A pull request to `order` changes the checkout so that it confirms the seat hold with one SQL statement instead of an HTTP call to `inventory` — "it is faster". The code compiles, the tests pass, and the reviewer, at 18:40 on a Friday, approves. Three weeks later, during an on-sale, `inventory` changes its hold table and checkout breaks. The rule that was violated — *one schema per service* — was written in a wiki page nobody opened. A reviewer that had read that page, every time, on every pull request (PR), would have caught it.
 
 That is the promise of **AI code review**: a reviewer that reads every diff in minutes, never gets tired, and can be told the team's rules. This page is about turning the promise into a tool people actually trust.
 
@@ -15,11 +15,11 @@ Modern code review — a lightweight, tool-based review of each change before me
 
 ## What AI review is good and bad at
 
-| Good at (high precision when given context) | Bad at (low precision or blind) |
+| ✅ Good at (high precision when given context) | ❌ Bad at (low precision or blind) |
 |---|---|
 | Local bugs visible in the diff: null handling, off-by-one, wrong comparison, resource leaks | Bugs that need runtime knowledge: performance under load, race conditions across services |
 | Security patterns: SQL by concatenation, secrets in code, missing authorization check, unsafe deserialization | Whether the feature is the **right** feature: product intent is not in the diff |
-| Violations of **written** conventions and ADRs | Conventions nobody wrote down |
+| Violations of **written** conventions and architecture decision records (ADRs) | Conventions nobody wrote down |
 | Missing tests for risky logic; tests that assert nothing | Judging whether a test asserts the **correct** expected value (the oracle problem) |
 | Explaining unfamiliar code to the human reviewer | Large refactors spanning hundreds of files (context limits, attention dilution) |
 | Consistency: error formats, status codes, logging, naming | Architecture trade-offs that require weighing business context |
@@ -60,7 +60,7 @@ A model can only review against what it is given. **Context engineering** is dec
 
 | Context | Why | Cost / risk | BoxOffice |
 |---|---|---|---|
-| **The diff, with line numbers** | The subject of the review; numbered lines let the model cite exact lines | Grows with PR size; untrusted | `git diff base...head`, each new line as `L21 + …` |
+| **The diff, with line numbers** | The subject of the review; models are unreliable at counting lines, so numbered lines let the model cite exact lines | Grows with PR size; untrusted | `git diff base...head`, each new line as `L21 + …` |
 | **Repository conventions** | Turns generic advice into *your* rules | Must be short and current; read on every run | `CONVENTIONS.md`: schema per service, timeouts, money as cents |
 | **Architecture decisions (ADRs)** | The *why* behind rules; lets the model flag decisions being reversed | Long; summarise or retrieve the relevant ones | `0001-schema-per-service.md`, `0004-outbox-for-events.md` |
 | **Surrounding code** | The full function or class around a hunk; the callers of a changed method | Token-expensive; retrieval needed in big repos | The whole `HoldService.java` when a hunk changes `expire()` |
@@ -70,7 +70,7 @@ A model can only review against what it is given. **Context engineering** is dec
 
 Three practical rules:
 
-1. **Order for caching.** Put stable content first (instructions, conventions, ADRs) and per-run content last (diff). Prompt caching is a prefix match: if the stable part is byte-identical, repeated reviews read it at a fraction of the price ([LLM gateway](../../ai-systems/llm-gateway/index.md)).
+1. **Order for caching.** Put stable content first (instructions, conventions, ADRs) and per-run content last (diff). Prompt caching is a prefix match: if the stable part is byte-identical, repeated reviews read it at a fraction of the price ([large language model (LLM) gateway](../../ai-systems/llm-gateway/index.md)).
 2. **Budget, do not truncate.** A 5,000-line PR does not fit — and should not be reviewed as one blob. Keep whole files by priority (production code before tests before config), list the skipped files in the review, or split: one call per file or per service (*map*), then one call to merge and deduplicate (*reduce*). Cutting a diff in the middle produces confident nonsense about code the model never saw.
 3. **Write conventions for humans first.** If a rule is unclear to a new engineer it is unclear to the model. A rule that needs a paragraph of nuance is usually better as a deterministic check (below).
 
@@ -78,7 +78,7 @@ Three practical rules:
 
     BoxOffice becomes a monorepo of 40 services and 2 M lines. A PR changes the signature of `InventoryClient.confirmHold`. Which extra context would most improve the review, and how do you find it without sending the whole repository?
 
-    The **call sites** of the changed method and the **contract** of the API it wraps. Find them deterministically — a code index (language server, `ctags`, a code-search service) or a simple `git grep confirmHold` — and add the 5–10 most relevant snippets. Embedding-based retrieval over the repository ([RAG](../../ai-systems/rag-memory/index.md)) helps for fuzzy questions ("where else do we compute seat prices?"), but for "who calls this method" a symbol index is exact and cheaper.
+    The **call sites** of the changed method and the **contract** of the API it wraps. Find them deterministically — a code index (language server, `ctags`, a code-search service) or a simple `git grep confirmHold` — and add the 5–10 most relevant snippets. Embedding-based retrieval over the repository (retrieval-augmented generation, [RAG](../../ai-systems/rag-memory/index.md)) helps for fuzzy questions ("where else do we compute seat prices?"), but for "who calls this method" a symbol index is exact and cheaper.
 
 ---
 
@@ -150,6 +150,12 @@ for name, emitted, real in buckets:
 
 Posting everything finds the most problems and is ignored by everybody (3 comments per PR, 4 out of 10 useful). Posting only high confidence is trusted and misses two thirds of the problems. Most teams start at **high + medium for severities ≥ minor**, measure, and move per category: secrets and SQL injection can stay at medium; style never gets posted.
 
+<div class="csim" data-sim="review-noise"></div>
+
+!!! tip "Try it"
+
+    Start at the setting of lab 13's reviewer: confidence ≥ medium and at most 6 comments per PR (`AI_REVIEW_MAX_COMMENTS`). It posts **1.4 comments per PR** and finds 60% of the real problems (recall 60%); the cap cut only 6 findings on 2 big PRs. Now post everything (low): 3.0 comments per PR, 41% precision, 82% recall — and at 5,000 reviews a week (500 engineers) people spend **148 hours** a week reading the noise, against 45 hours at the lab's setting and 0.5 hours for BoxOffice's 60 PRs. High only gives 80% precision and 32% recall: trusted, and blind to two thirds of the problems. The cap is a flood guard, not a precision knob: lower it to 1 and watch the recall fall faster than the precision rises.
+
 !!! example "In the BoxOffice code: the reviewer's filter (lab 13)"
 
     [Hands-on 13 — The reviewer](../../../hands-on/13/review/index.md) builds the anatomy above in one script. The PR title, description and diff go to the model wrapped as **untrusted** data; the model answers JSON against a schema; and the code — not the model — keeps only findings on **added** lines, at severity ≥ `minor`, not low confidence, at most 6 per PR, the most severe first. A fingerprint of each finding stops it from being posted again on the next push, and an error of the model ends the job with exit code 0: **fail open**, because an advisory step must never block merges. A test run with the local model posted one finding, the SQL injection planted in `EventSearch.java`; with Claude, one review of the lab's golden set cost about US$ 0.012.
@@ -165,12 +171,25 @@ Posting everything finds the most problems and is ignored by everybody (3 commen
 | | Advisory | Gate (required check) |
 |---|---|---|
 | Effect | Comments; humans decide | Merge blocked until the finding is fixed or overridden |
-| Cost of a false positive | A minute of reading | A blocked PR, an override, frustration — and pressure to disable the bot |
-| Cost of a false negative | Same as today | False sense of safety if humans relax |
+| Cost of a false positive | 🟢 A minute of reading | 🔴 A blocked PR, an override, frustration — and pressure to disable the bot |
+| Cost of a false negative | 🟡 Same as today | 🔴 False sense of safety if humans relax |
 | Needs | Nothing special | **Measured high precision** in that category; an override path; fail-closed reliability |
 | Good for | Everything, at first | Narrow, high-precision categories: hardcoded secrets, SQL by concatenation, forbidden cross-schema access |
 
 A safe rollout: **shadow** (findings logged, not posted; compare with what humans found) → **advisory** for volunteer teams → **gate per category** once precision is proven. Even as a gate, an AI check is a *required status check* — never an approval. Approval stays human, enforced by branch protection.
+
+``` diagram-sim
+stateDiagram-v2
+    state "Shadow: findings logged, not posted" as Shadow
+    state "Advisory: comments, humans decide" as Advisory
+    state "Gate per category: required check, never an approval" as Gate
+    [*] --> Shadow
+    Shadow --> Advisory: findings agree with the human reviews
+    Advisory --> Gate: precision proven in one category
+    Gate --> Advisory: false blocks or precision drops
+    Advisory --> Shadow: new model or prompt
+```
+
 
 ---
 
@@ -181,7 +200,7 @@ You cannot tune what you do not measure, and "the team likes it" is not a measur
 | Metric | How | Notes |
 |---|---|---|
 | **Precision** | Accepted ÷ (accepted + dismissed) comments; reactions or a resolve-with-reason button | Needs people to rate; sample if necessary |
-| **Recall** | Found ÷ planted, on a **golden set** of PRs with known problems | Run on every prompt or model change, in CI |
+| **Recall** | Found ÷ planted, on a **golden set** of PRs with known problems | Run on every prompt or model change, in continuous integration (CI) |
 | **Escaped defects** | Bugs found later in code the bot reviewed | Slow, but the metric the business cares about |
 | **Noise** | Comments per PR; % of PRs with zero comments | Zero is often the right answer |
 | **Cost and latency** | US$ and minutes per review | From the job's token usage |

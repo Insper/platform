@@ -126,4 +126,20 @@ always call the tool: in a test run it did in 6 of 9 tries, and otherwise asked 
 just received (`.tools` is `[]`). Ask again — and note it: unreliable tool calling is why `run()`
 retrieves first.
 
+No Ollama at hand, or a model too slow to iterate? The simulator replays the runs of this step and the
+guards of step 4 on the lab's code paths: the guards' regular expressions, `get_order_status` and the
+citation check are the lab's; the model's replies are the ones quoted above, or a labelled alternative.
+
+<div class="csim" data-sim="assistant-lab" data-script="ask"></div>
+
+!!! tip "Try it"
+
+    Play **3 · Ask**: the test run's answer has the right facts (event:50) and no citation, so the output
+    guard returns **grounded: false**; when the model cites [event:50] the answer is grounded, and an
+    invented [event:999] becomes **[unverified]**. Play **3 · My order**: the tool returns ana's order only
+    with her header — with bob's it answers **order not found**, exactly as for an id that does not exist.
+    **4 · Guardrails**: the injection gets a **422** before any model call. **MAX_STEPS**: a model that keeps
+    calling tools gets **MAX_STEPS = 4** calls, the last one without tools, and must answer. Notice that every
+    order answer comes back grounded: false as well — the citation check knows only catalog events (step 4).
+
 [Next: Guardrails](../guardrails/index.md){ .md-button .md-button--primary }

@@ -1,4 +1,4 @@
-BoxOffice's test suite has grown to about 4,000 tests. A full CI run takes 25 minutes, roughly one run in thirty fails for reasons nobody understands and passes on retry, and the `inventory` service — the one where a bug means double-booked seats — has the fewest tests, because its logic is the hardest to test. AI can write tests, triage failures and choose which tests to run. Each of those is useful, and each has a trap: a generated test can **protect a bug**, a triage bot can **hide a real failure** behind the word "flaky", and a test selector can **skip the one test that mattered**. This page is about getting the benefit without falling into the traps.
+BoxOffice's test suite has grown to about 4,000 tests. A full continuous integration (CI) run takes 25 minutes, roughly one run in thirty fails for reasons nobody understands and passes on retry, and the `inventory` service — the one where a bug means double-booked seats — has the fewest tests, because its logic is the hardest to test. AI can write tests, triage failures and choose which tests to run. Each of those is useful, and each has a trap: a generated test can **protect a bug**, a triage bot can **hide a real failure** behind the word "flaky", and a test selector can **skip the one test that mattered**. This page is about getting the benefit without falling into the traps.
 
 ---
 
@@ -26,11 +26,11 @@ What generated tests are reliably good for:
 - **Regression tests for a bug fix**, when the prompt includes the bug report and the expected behaviour.
 - **Edge cases** a human then checks against the specification.
 
-What they cannot do is decide what is *correct*. Requirements, examples in the issue, or an ADR must be in the context — and a human must read the assertions.
+What they cannot do is decide what is *correct*. Requirements, examples in the issue, or an architecture decision record (ADR) must be in the context — and a human must read the assertions.
 
 ### Coverage lies; mutation testing does not (as much)
 
-Line coverage measures which lines **ran** during the tests. A test that calls every method and asserts nothing has full coverage and catches no bug. **Mutation testing** measures whether the tests **notice** a change: the tool creates *mutants* — small modifications such as `<` → `<=`, `+` → `-`, a removed method call, a constant return — and runs the tests against each one. A mutant is **killed** if some test fails; the **mutation score** is killed ÷ total. Surviving mutants point at behaviour no test checks. The idea is old (DeMillo, Lipton and Sayward, 1978); tools like [PIT](https://pitest.org){target="_blank"} make it practical on the JVM[^2].
+Line coverage measures which lines **ran** during the tests. A test that calls every method and asserts nothing has full coverage and catches no bug. **Mutation testing** measures whether the tests **notice** a change: the tool creates *mutants* — small modifications such as `<` → `<=`, `+` → `-`, a removed method call, a constant return — and runs the tests against each one. A mutant is **killed** if some test fails; the **mutation score** is killed ÷ total. Surviving mutants point at behaviour no test checks. The idea is old (DeMillo, Lipton and Sayward, 1978); tools like [PIT](https://pitest.org){target="_blank"} make it practical on the Java virtual machine (JVM)[^2].
 
 ``` diagram-sim
 flowchart LR
@@ -56,7 +56,7 @@ The loop above feeds the **surviving mutants** back to the model ("line 42: chan
 
 !!! warning "Mutation testing is expensive"
 
-    Each mutant re-runs (part of) the test suite. On a whole service, a mutation run can take far longer than the normal build. Target the **changed classes** of a PR, run it **on demand** or nightly, and use incremental analysis where the tool supports it.
+    Each mutant re-runs (part of) the test suite. On a whole service, a mutation run can take far longer than the normal build. Target the **changed classes** of a pull request (PR), run it **on demand** or nightly, and use incremental analysis where the tool supports it.
 
 ---
 
@@ -116,7 +116,21 @@ A model reading the failure log plus history can classify quickly — but the **
 | Failure in code touched by the PR | Diff vs stack trace | Real regression |
 | `Connection refused`, `OOMKilled`, registry timeouts | Log patterns | Infrastructure |
 
-The LLM's job is the part that is hard to do with rules: reading a 2,000-line log, finding the first meaningful error, matching it to the diff, and writing a short explanation with a proposed category. Its output is a **label with evidence**, not an action:
+``` diagram-sim
+flowchart LR
+    red["Red build"] --> rerun{"passes on a rerun<br/>of the same commit?"}
+    rerun -->|"no"| diff{"failure in code<br/>the PR touched?"}
+    diff -->|"yes"| reg["Real regression<br/>fix before merging"]:::problem
+    diff -->|"no"| llm["LLM reads log, diff and history<br/>label with evidence"]
+    rerun -->|"yes"| hist["30-day history, runner,<br/>log patterns"]
+    hist --> llm
+    llm --> policy{"policy: failed and passed on<br/>one commit twice this week?"}
+    policy -->|"yes"| quar["Quarantine<br/>owner, ticket, expiry"]
+    policy -->|"no"| human["A person decides"]
+```
+
+
+The large language model's (LLM) job is the part that is hard to do with rules: reading a 2,000-line log, finding the first meaningful error, matching it to the diff, and writing a short explanation with a proposed category. Its output is a **label with evidence**, not an action:
 
 ```json
 {
@@ -166,7 +180,7 @@ At 95 % recall the team saves about twelve runner-hours of CI per day and lets r
 
 Tests need data: venues with odd seat maps, events across time zones, names with accents, e-mail addresses at the length limit. Models generate rich, realistic **fake** data quickly. Three rules:
 
-1. **Never** send production data (customer names, e-mails, payment details) to a model to "make it realistic". Under Brazil's LGPD and similar laws, that is processing personal data by a third party, with legal obligations — and it is unnecessary.
+1. **Never** send production data (customer names, e-mails, payment details) to a model to "make it realistic". Under Brazil's General Data Protection Law (LGPD) and similar laws, that is processing personal data by a third party, with legal obligations — and it is unnecessary.
 2. **Freeze the output.** Generate once, review, commit the fixture (or a seeded generator). Tests that call a model at run time are slow, cost money and are non-deterministic.
 3. **Ask for the edge cases explicitly**: an event at 23:30 on the day daylight-saving time changes, a venue with 0 seats in a section, a name with 300 characters. Realistic data is less valuable than *adversarial* data.
 

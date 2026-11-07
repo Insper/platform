@@ -3,9 +3,9 @@
 !!! info "Goal"
 
     Add the BoxOffice support **assistant**: a Python 3.12 + FastAPI service, managed with **uv**, that
-    answers fans' questions with an LLM behind a small **LLM gateway** (LiteLLM: routes, fallback,
-    timeouts, costs); grounds its answers in the catalog with **RAG** on **pgvector**; looks up live
-    data through a **tool registry** in the shape of MCP, inside a bounded **agent loop**; protects the
+    answers fans' questions with a large language model (LLM) behind a small **LLM gateway** (LiteLLM: routes, fallback,
+    timeouts, costs); grounds its answers in the catalog with **retrieval-augmented generation (RAG)** on **pgvector**; looks up live
+    data through a **tool registry** in the shape of the Model Context Protocol (MCP), inside a bounded **agent loop**; protects the
     model and the users with **guardrails**; exports **tokens, cost and time-to-first-token** to the
     Grafana of lab 8; and is load-tested where it hurts — the first token.
 
@@ -87,16 +87,16 @@ flowchart LR
     | [Orchestrator](../../reference/components/ai/index.md#orchestrator) | the bounded agent loop of `agent.py` |
     | [Tool Registry](../../reference/components/ai/index.md#toolreg) | three read-only tools with JSON schemas (MCP-style) |
     | [Memory Fabric](../../reference/components/ai/index.md#memory) | RAG: embeddings of catalog events in pgvector |
-    | [Vector DB](../../reference/components/storage/index.md#vectordb) | PostgreSQL 17 + pgvector, HNSW index |
-    | [Safety Mesh](../../reference/components/ai/index.md#safety) | input and output guardrails, PII redaction |
+    | [Vector DB](../../reference/components/storage/index.md#vectordb) | PostgreSQL 17 + pgvector, HNSW (Hierarchical Navigable Small World) index |
+    | [Safety Mesh](../../reference/components/ai/index.md#safety) | input and output guardrails, redaction of personally identifiable information (PII) |
 
 ## What you will measure
 
 | Question | Metric | Tool |
 |---|---|---|
-| How long until the fan sees the first word? | TTFT p50/p95 under concurrency | `scripts/assistant_load.py` |
+| How long until the fan sees the first word? | time to first token (TTFT) p50/p95 under concurrency | `scripts/assistant_load.py` |
 | How fast are tokens produced? | tokens/s, requests/min | same |
-| Does retrieval find the right events? | hit@5, MRR | `scripts/eval_retrieval.py` |
+| Does retrieval find the right events? | hit@5, mean reciprocal rank (MRR) | `scripts/eval_retrieval.py` |
 | Are answers grounded? | share of `grounded: true` | the API, the guard metric |
 | What does an answer cost? | tokens and US$ per request | the API, `assistant_llm_cost_usd_total` |
 
@@ -125,6 +125,14 @@ Then enable the semantic cache of the LLM gateway and see which share of the tra
 model.
 
 <div class="sdp" data-scenario="ai-assistant" data-mode="compact" data-height="520"></div>
+
+The preset of **this lab** puts its own numbers in: `MAX_STEPS` = 4 model calls per question, a local
+model that answers one call in ≈ 3 s and takes ≈ 1 call/s, retrieval of 5 passages, and nothing in front
+that screens what fans type. At 0.5 questions/s the loop already asks the model for 2 calls/s. Run it, then
+apply what the lab does and what it leaves for later: fewer steps (retrieve first, then answer), a
+semantic cache and LiteLLM's fallback in the gateway, and a Safety Mesh in front of the assistant.
+
+<div class="sdp" data-scenario="boxoffice-assistant" data-mode="compact" data-height="440"></div>
 
 The full simulator is in the [playground](../../../playground/index.md).
 

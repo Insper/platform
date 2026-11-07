@@ -24,18 +24,18 @@ flowchart LR
 
 ## O que o gateway faz { #what-the-gateway-does }
 
-Um **gateway de LLM** (LLM Gateway) é um proxy reverso especializado em APIs de modelos. Os clientes enviam requisições num formato único para um **alias de modelo** (`assistant-default`, não o nome do modelo de um fornecedor); o gateway decide qual implantação (deployment) real atende a requisição e registra o que aconteceu.
+Um **gateway de LLM** (LLM Gateway; LLM: modelo de linguagem de grande porte, *large language model*) é um proxy reverso especializado em APIs de modelos. Os clientes enviam requisições num formato único para um **alias de modelo** (`assistant-default`, não o nome do modelo de um fornecedor); o gateway decide qual implantação (deployment) real atende a requisição e registra o que aconteceu.
 
 | Responsabilidade | O que significa | Equivalente clássico |
 |---|---|---|
 | **API unificada** | um único formato de requisição/resposta para todos os provedores; os clientes não importam SDKs de fornecedores | adapter / camada anticorrupção |
 | **Credenciais** | as chaves dos provedores ficam só no gateway (cofre de segredos); os clientes se autenticam com a própria identidade de serviço | API gateway + gestão de segredos |
-| **Roteamento** | alias → modelo e implantação, por funcionalidade, dificuldade, custo, latência ou residência de dados | roteamento L7 |
+| **Roteamento** | alias → modelo e implantação, por funcionalidade, dificuldade, custo, latência ou residência de dados | roteamento na camada 7 (L7) |
 | **Fallbacks e retentativas** | em caso de `429`, `5xx` ou primeiro token lento, tenta de novo com backoff ou passa para a próxima implantação | retry + circuit breaker |
 | **Cotas e orçamentos** | requisições e **tokens** por minuto por usuário, time e funcionalidade; orçamentos mensais em dinheiro | rate limiter |
 | **Cache** | caches de resposta por correspondência exata e semânticos; requisições amigáveis ao cache de prompt | cache |
-| **Observabilidade** | um span de trace por chamada com modelo, tokens, custo, TTFT; painéis por funcionalidade | access log + métricas |
-| **Ganchos de política** | chama o [Safety Mesh](../safety-evals/index.md) antes e depois do modelo (mascaramento, filtros) | WAF / filtros |
+| **Observabilidade** | um span de trace por chamada com modelo, tokens, custo, tempo até o primeiro token (TTFT, *time to first token*); painéis por funcionalidade | access log + métricas |
+| **Ganchos de política** | chama o [Safety Mesh](../safety-evals/index.md) antes e depois do modelo (mascaramento, filtros) | firewall de aplicação web (WAF, *web application firewall*) / filtros |
 
 O gateway está no caminho crítico de toda funcionalidade de IA, então ele próprio precisa ser **sem estado, escalado horizontalmente e altamente disponível** — os contadores de cota e os caches ficam no Redis, exatamente como num API gateway com limite de taxa ([Borda](../../edge/api-gateway/index.md)).
 
@@ -86,6 +86,24 @@ Uma chamada ao modelo **não tem efeitos colaterais**: repeti-la é sempre *segu
 | `400` contexto longo demais | o prompt não cabe | **não** repetir na mesma implantação; cortar o histórico ou rotear para um modelo de contexto longo |
 | Recusa / filtro de conteúdo | o modelo ou o provedor recusou | **não** fazer fallback para um modelo "menos rígido"; devolver a resposta padrão da política |
 | JSON / schema inválido | a saída não seguiu o formato pedido | uma tentativa de reparo com o erro de validação, depois falhar; prefira decodificação restrita (structured outputs) |
+
+A tabela vira uma decisão por deployment da cadeia:
+
+``` diagram-sim
+flowchart TD
+    req["chamada ao alias assistant-default"] --> nxt{"outro deployment<br/>na cadeia?"}
+    nxt -- "nenhum" --> fail(["todos falharam: resposta degradada<br/>(link do FAQ, modelo menor)"]):::problem
+    nxt -- sim --> brk{"circuit breaker<br/>dele aberto?"}
+    brk -- "sim: pula" --> nxt
+    brk -- não --> call["chama, com prazo<br/>para o primeiro token"]
+    call --> res{"resultado"}
+    res -- "200" --> ok(["resposta"])
+    res -- "400, contexto longo demais, recusa" --> stop(["falha rápida: tentar de novo não ajuda"]):::problem
+    res -- "429 sem Retry-After" --> nxt
+    res -- "5xx, ou 429 com Retry-After" --> again{"segunda tentativa<br/>já usada?"}
+    again -- "não: espera com backoff e jitter" --> call
+    again -- sim --> nxt
+```
 
 Um esboço simplificado e independente de provedor da cadeia de fallback, combinando os padrões de retry e circuit breaker de [Confiabilidade](../../reliability/patterns/index.md):
 
@@ -159,6 +177,23 @@ O gateway impõe os próprios limites, mais finos:
 
 **Contar tokens antes de conhecê-los.** Um token bucket conta tokens em vez de requisições, mas os tokens de saída só são conhecidos *depois* da chamada. A abordagem usual é **reservar e depois conciliar**: antes da chamada, conte os tokens de entrada com o tokenizador do modelo e reserve `input + max_tokens` do bucket; depois da chamada, devolva a parte não usada. Mantenha os contadores no Redis com scripts atômicos, como no projeto do rate limiter de [Borda](../../edge/api-gateway/index.md).
 
+``` diagram-sim
+sequenceDiagram
+    participant A as assistant
+    participant G as LLM Gateway
+    participant R as Redis (token bucket)
+    participant P as provedor
+    A->>G: chat, max_tokens 600
+    G->>G: conta a entrada: 3.100 tokens
+    G->>R: reserva 3.100 + 600 = 3.700
+    R-->>G: ok, o bucket tem espaço
+    G->>P: chamada
+    P-->>G: resposta: 180 tokens de saída
+    G->>R: devolve os 420 não usados
+    G-->>A: resposta + uso 3.100 de entrada, 180 de saída
+    Note over G,R: bucket vazio significa 429 ou um modelo menor, decidido antes da chamada
+```
+
 **O que acontece quando um orçamento acaba** é uma decisão de produto, tomada com antecedência:
 
 1. **Degradar**: rotear para um modelo menor ou responder a partir do cache/FAQ.
@@ -178,10 +213,10 @@ O gateway impõe os próprios limites, mais finos:
 | | Cache de resposta por correspondência exata | **Cache de prompt** (cache de prefixo) | **Cache semântico** |
 |---|---|---|---|
 | Chave | hash da requisição completa (modelo, prompt, parâmetros) | o maior **prefixo idêntico** do prompt | **embedding** da pergunta do usuário; acerto se a similaridade ≥ limiar |
-| O que é reaproveitado | a resposta final | o estado interno do modelo para o prefixo (o KV cache) | uma resposta guardada para uma pergunta *parecida* |
+| O que é reaproveitado | a resposta final | o estado interno do modelo para o prefixo (o KV cache, de chave/valor) | uma resposta guardada para uma pergunta *parecida* |
 | Onde fica | gateway (Redis) | dentro do servidor do modelo / provedor | gateway (Redis ou um índice vetorial) |
 | Economiza | a chamada inteira | custo dos tokens de entrada (tokens em cache cobrados com desconto) e TTFT | a chamada inteira |
-| Risco de corretude | nenhum (mesma entrada) | **nenhum** — a resposta é calculada normalmente | **falsos acertos**: uma pergunta parecida que precisa de outra resposta |
+| Risco de corretude | ✅ nenhum (mesma entrada) | ✅ **nenhum** — a resposta é calculada normalmente | ⚠️ **falsos acertos**: uma pergunta parecida que precisa de outra resposta |
 | Taxa de acerto num chat | baixa (perguntas raramente se repetem byte a byte) | alta (system prompt + ferramentas + histórico se repetem a cada chamada) | média para tráfego tipo FAQ; ~0 para requisições pessoais, que usam ferramentas |
 
 ### Cache de prompt { #prompt-caching }
@@ -203,12 +238,25 @@ flowchart LR
 
 Um cache semântico gera o embedding da pergunta do usuário (veja [RAG e memória](../rag-memory/index.md#embeddings)) e procura uma pergunta anterior cujo embedding esteja próximo o suficiente. "Que horas abrem os portões da Arena Paulista?" e "quando abrem as portas da Arena Paulista?" devem dar acerto. O perigo é o caso inverso: *"posso ter reembolso do show de sábado?"* e *"posso ter reembolso do show de domingo?"* são quase idênticas como vetores e podem precisar de respostas diferentes.
 
+``` diagram-sim
+flowchart LR
+    q["pergunta do fã"] --> safe{"genérica?<br/>sem ferramentas, sem dado pessoal"}
+    safe -- não --> model["chama o modelo"]
+    safe -- sim --> key["chave = tenant + idioma +<br/>local + versão da política"]
+    key --> emb["embedding da pergunta"]
+    emb --> near{"pergunta em cache mais próxima<br/>nesta chave: similaridade ≥ limiar?"}
+    near -- "sim: acerto" --> hit(["resposta em cache para<br/>quando abrem os portões?"])
+    near -- "não: falta" --> model
+    model --> store["guarda a resposta,<br/>TTL curto"]
+    near -. "reembolso de sábado vs domingo:<br/>vetores próximos, respostas diferentes" .-> bad(["acerto falso"]):::problem
+```
+
 Regras que mantêm um cache semântico seguro:
 
 - **Delimite a chave**: tenant, idioma, ID do evento ou do local e versão da política fazem parte da chave, não só o vetor.
 - **Só para respostas genéricas**: nunca guarde em cache respostas que usaram ferramentas, dados pessoais ou as permissões do usuário.
 - **Ajuste o limiar com dados**: rotule uma amostra de pares (pergunta, pergunta em cache) como iguais/diferentes e escolha o limiar de similaridade para a precisão de que você precisa; taxa de acerto conquistada com respostas erradas é bug.
-- **TTL curto e invalidação** quando o documento de origem muda (o mesmo problema de [Cache](../../caching/invalidation/index.md)).
+- **Tempo de vida (TTL, *time to live*) curto e invalidação** quando o documento de origem muda (o mesmo problema de [Cache](../../caching/invalidation/index.md)).
 
 ---
 
@@ -272,7 +320,7 @@ plt.close()
 
 ### Streaming
 
-Como a resposta chega token a token, o gateway a envia em **streaming** para o cliente — normalmente com Server-Sent Events (SSE) sobre HTTP, como visto em [Protocolos](../../edge/protocols/index.md). O fã começa a ler depois do TTFT e não depois da latência total; é por isso que **o TTFT é o SLO interativo** (por exemplo, TTFT p95 < 1,5 s) e **o TPOT só precisa vencer a velocidade de leitura** (as pessoas leem cerca de 4–8 palavras por segundo, então ~15–20 tokens/s já parece fluido).
+Como a resposta chega token a token, o gateway a envia em **streaming** para o cliente — normalmente com Server-Sent Events (SSE) sobre HTTP, como visto em [Protocolos](../../edge/protocols/index.md). O fã começa a ler depois do TTFT e não depois da latência total; é por isso que **o TTFT é o objetivo de nível de serviço (SLO, *service level objective*) interativo** (por exemplo, TTFT p95 < 1,5 s) e **o TPOT só precisa vencer a velocidade de leitura** (as pessoas leem cerca de 4–8 palavras por segundo, então ~15–20 tokens/s já parece fluido).
 
 O streaming tem consequências arquiteturais:
 
@@ -367,15 +415,15 @@ O gateway é um padrão, não um produto. Exemplos para explorar — consulte a 
 
 ``` diagram
 flowchart LR
-    SVC["assistant, summarizer,<br/>translator, embed job"] --> GW["LLM gateway<br/>routing by alias"]
-    GW --> FB["fallbacks + circuit breaker<br/>→ Reliability"]
-    GW --> Q["token quotas, priorities<br/>→ API gateway rate limiting"]
-    GW --> PC["prompt caching<br/>(stable prefix)"]
-    GW --> SC["semantic caching<br/>→ Caching invalidation"]
-    GW --> ST["streaming over SSE, TTFT<br/>→ Edge protocols"]
-    GW --> CAN["canary by alias<br/>→ Cloud-native delivery"]
-    GW --> OBS["tokens, cost, TTFT<br/>→ Safety, Evals & Observability"]
-    Q --> BG["background work waits<br/>→ Messaging queues"]
+    SVC["assistente, resumidor,<br/>tradutor, job de embeddings"] --> GW["gateway de LLM<br/>roteamento por alias"]
+    GW --> FB["fallbacks + circuit breaker<br/>→ Confiabilidade"]
+    GW --> Q["cotas de tokens, prioridades<br/>→ limite de taxa do API gateway"]
+    GW --> PC["cache de prompt<br/>(prefixo estável)"]
+    GW --> SC["cache semântico<br/>→ Caching: invalidação"]
+    GW --> ST["streaming via SSE, TTFT<br/>→ Borda: protocolos"]
+    GW --> CAN["canário por alias<br/>→ Cloud-native: entrega"]
+    GW --> OBS["tokens, custo, TTFT<br/>→ Segurança, avaliações e observabilidade"]
+    Q --> BG["trabalho em segundo plano espera<br/>→ Mensageria: filas"]
 ```
 
 **Componentes da paleta:** [`llmgw`](../../../reference/components/ai/index.md#llmgw) · [`apigw`](../../../reference/components/edge/index.md#apigw) (seu primo clássico) · [`thirdparty`](../../../reference/components/external/index.md#thirdparty) (os provedores de modelo por trás dele) · [`cache`](../../../reference/components/storage/index.md#cache) (cache semântico) · [`queue`](../../../reference/components/messaging/index.md#queue) (trabalho em segundo plano esperando cota) · [`metrics`](../../../reference/components/observability/index.md#metrics) e [`tracing`](../../../reference/components/observability/index.md#tracing) (tokens, custo, TTFT). **Cenários:** `ai-assistant`, `cascading-failure` (um provedor lento sem circuit breaker), `rate-limiter` (cotas como limites de taxa). **Continua em:** [Tráfego e Borda — API gateway](../../edge/api-gateway/index.md), [Confiabilidade — padrões](../../reliability/patterns/index.md), [Caching — invalidação](../../caching/invalidation/index.md), [Tráfego e Borda — protocolos](../../edge/protocols/index.md), [Agentes e ferramentas](../agents/index.md).

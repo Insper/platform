@@ -6,10 +6,10 @@ Três soluções tentadoras e por que elas não bastam:
 
 | Abordagem | Ideia | Problema para o BoxOffice |
 |---|---|---|
-| **Colocar tudo no prompt** | pôr todos os documentos dos locais na janela de contexto | 4.000 documentos não cabem; mesmo os que cabem custam tokens em toda chamada e diluem a atenção[^6] |
-| **Fazer fine-tuning do modelo** | treinar mais o modelo com os documentos | lento e caro de atualizar a cada temporada; não memoriza fatos de forma confiável; não consegue citar uma fonte; não consegue apagar as regras de um local |
-| **Retrieval-augmented generation (RAG)** | no momento da pergunta, **recuperar** os poucos trechos relevantes e colocar **apenas esses** no prompt | o assunto desta página |
-| *(e para dados ao vivo)* **Ferramentas** | consultar o serviço | preços e disponibilidade de assentos não são documentos — veja [Agentes e ferramentas](../agents/index.md) |
+| ❌ **Colocar tudo no prompt** | pôr todos os documentos dos locais na janela de contexto | 4.000 documentos não cabem; mesmo os que cabem custam tokens em toda chamada e diluem a atenção[^6] |
+| ❌ **Fazer fine-tuning do modelo** | treinar mais o modelo com os documentos | lento e caro de atualizar a cada temporada; não memoriza fatos de forma confiável; não consegue citar uma fonte; não consegue apagar as regras de um local |
+| ✅ **Retrieval-augmented generation (RAG)** | no momento da pergunta, **recuperar** os poucos trechos relevantes e colocar **apenas esses** no prompt | o assunto desta página |
+| ✅ *(e para dados ao vivo)* **Ferramentas** | consultar o serviço | preços e disponibilidade de assentos não são documentos — veja [Agentes e ferramentas](../agents/index.md) |
 
 O RAG[^1] transforma um problema de conhecimento em um **problema de busca** — e busca é um problema de projeto de sistemas que você já sabe medir.
 
@@ -43,9 +43,9 @@ flowchart LR
 
 ### Fontes, extração e atualização { #sources-parsing-and-freshness }
 
-A ingestão começa como um pipeline de dados comum: ler os documentos de onde eles estão (object store, CMS, o banco de dados do `catalog`), extrair texto limpo (a extração de PDFs costuma ser a parte mais difícil: tabelas, colunas, cabeçalhos repetidos em toda página) e anexar **metadados** — `doc_id`, `venue_id`, idioma, versão, data de vigência, nível de acesso. São os metadados que permitem filtrar (*só este local*), citar (*regras da Arena Paulista, §4*) e apagar (*as regras de 2026 estão obsoletas*).
+A ingestão começa como um pipeline de dados comum: ler os documentos de onde eles estão (object store, sistema de gestão de conteúdo (CMS, *content management system*), o banco de dados do `catalog`), extrair texto limpo (a extração de PDFs costuma ser a parte mais difícil: tabelas, colunas, cabeçalhos repetidos em toda página) e anexar **metadados** — `doc_id`, `venue_id`, idioma, versão, data de vigência, nível de acesso. São os metadados que permitem filtrar (*só este local*), citar (*regras da Arena Paulista, §4*) e apagar (*as regras de 2026 estão obsoletas*).
 
-O índice precisa acompanhar as fontes. Em vez de gerar de novo todos os embeddings toda noite, propague as **mudanças**: o serviço `catalog` publica um evento quando uma descrição muda (outbox ou change data capture, como em [Mensageria](../../messaging/patterns/index.md)); um worker de embeddings o consome e atualiza apenas os chunks afetados. As **exclusões** também precisam se propagar — uma regra removida que ainda pode ser recuperada é uma resposta errada esperando para acontecer.
+O índice precisa acompanhar as fontes. Em vez de gerar de novo todos os embeddings toda noite, propague as **mudanças**: o serviço `catalog` publica um evento quando uma descrição muda (outbox ou captura de dados de mudança (CDC, *change data capture*), como em [Mensageria](../../messaging/patterns/index.md)); um worker de embeddings o consome e atualiza apenas os chunks afetados. As **exclusões** também precisam se propagar — uma regra removida que ainda pode ser recuperada é uma resposta errada esperando para acontecer.
 
 ### Chunking { #chunking }
 
@@ -79,7 +79,7 @@ Regras práticas:
 - **Guarde o nome do modelo com cada vetor** (`embed_model`). Trocar o modelo de embedding significa **gerar de novo os embeddings de todo o corpus** — faça isso como um deploy blue/green: construa o novo índice ao lado, mude as leituras e depois descarte o antigo.
 - **Gerar embeddings é barato comparado à geração de texto** (uma única passada pelo modelo, sem decodificação) e o lado da ingestão pode usar APIs em lote; o lado da consulta gera o embedding de uma pergunta curta por requisição (de alguns milissegundos a dezenas de milissegundos).
 
-Quanta memória o índice precisa? Os vetores brutos ocupam $N \times d \times$ bytes por valor; um grafo HNSW acrescenta links para os vizinhos de cada vetor:
+Quanta memória o índice precisa? Os vetores brutos ocupam $N \times d \times$ bytes por valor; um grafo HNSW (*Hierarchical Navigable Small World*) acrescenta links para os vizinhos de cada vetor:
 
 ```python exec="true" html="1" source="tabbed-right"
 # Memory needed by a vector index: raw vectors + HNSW graph links.
@@ -116,7 +116,7 @@ Encontrar os vizinhos mais próximos exatos significa comparar a consulta com **
 |---|---|---|---|
 | **HNSW**[^3] | grafo de proximidade em várias camadas; busca gulosa a partir de uma camada grossa, descendo | recall alto, latência baixa, inserções incrementais | consome muita memória; lento para construir |
 | **IVF** (inverted file) | agrupa os vetores em clusters; busca só nos clusters mais próximos | menor, rápido para construir | precisa de treinamento; o recall cai para dados longe dos centroides |
-| Quantização (PQ, binária) | comprime os vetores | 4–32× menos memória | precisão menor; normalmente reavaliado com os vetores completos |
+| Quantização (quantização de produto, PQ, *product quantization*; binária) | comprime os vetores | 4–32× menos memória | precisão menor; normalmente reavaliado com os vetores completos |
 
 O botão de ajuste é o **trade-off entre recall e latência**: o `ef_search` do HNSW (candidatos explorados por consulta) e os `probes` do IVF aumentam o recall ao custo de latência. Meça o **recall@k em relação à busca exata** em uma amostra de consultas reais, como você mediria a taxa de acerto de um cache.
 
@@ -151,6 +151,12 @@ $$
 $$
 
 Um chunk em 1º lugar pelas palavras-chave e em 3º pelos vetores pontua $1/61 + 1/63 ≈ 0.0323$; um em 1º só pelos vetores pontua $1/61 ≈ 0.0164$. A concordância entre os dois recuperadores vence.
+
+<div class="csim" data-sim="rag-hybrid" data-question="sector" data-mode="vector" data-k="5"></div>
+
+!!! tip "Experimente"
+
+    Comece como o lab 12, só com a busca **vetorial**. Para *setor C*, o chunk genérico sobre elevadores (**0,84**) e as rampas do Estádio Sul (**0,83**) ficam acima do chunk que responde (**0,79**): mesmo com top-k 5, a regra de outro local lidera o prompt. Troque para **híbrida**: o chunk do setor C, 1º pelas palavras-chave e 3º pelos vetores, pontua **0,0323** e vai para o topo; o dos elevadores, 1º só pelos vetores, pontua **0,0164**. Agora **k = 1** basta: **400** tokens de entrada extras por chamada ao modelo em vez de **2.000**. Escolha *câmera*: sem chunks com contexto, o "câmeras de qualquer tipo são permitidas" do Estádio Sul (**0,81**) vence o §4 da Arena Paulista (**0,74**) em todos os modos, inclusive o híbrido; ligue **chunks com contexto** e o §4 vai para o topo. Por fim, *piscina*: nenhum chunk responde e mesmo assim a busca vetorial enche o prompt com cinco; suba a similaridade mínima para **0,60** e o assistente diz que não sabe — mas no modo híbrido com chunks com contexto a metade por palavra-chave ainda casa "Arena Paulista": um limiar protege só a metade vetorial.
 
 ### 3. Reranquear { #3-rerank }
 
@@ -236,7 +242,7 @@ O `ts_rank_cd` do PostgreSQL não é exatamente BM25, mas, para a fusão, só a 
 | Gerar o embedding da consulta | 5–50 ms |
 | Busca vetorial + por palavras-chave (em paralelo) | 5–30 ms |
 | Reranquear 20–40 candidatos | 30–200 ms |
-| Tokens extras no prompt (5 chunks × ~400 tokens) | +2.000 tokens de entrada por chamada ao modelo → custo e TTFT se não houver cache |
+| Tokens extras no prompt (5 chunks × ~400 tokens) | +2.000 tokens de entrada por chamada ao modelo → custo e tempo até o primeiro token (TTFT, *time to first token*) se não houver cache |
 
 A recuperação em si é barata; o que você paga são os **tokens extras que ela acrescenta a cada chamada ao modelo**. Recupere menos chunks e melhores.
 
@@ -275,7 +281,7 @@ O RAG responde *"o que o mundo sabe?"*. A **memória** responde *"o que o assist
 | Tipo de memória | O que guarda | Exemplo no BoxOffice | Onde fica | Tempo de vida |
 |---|---|---|---|---|
 | **De trabalho** | a janela de contexto atual | o prompt desta chamada | a chamada ao modelo | uma chamada |
-| **De curto prazo (sessão)** | a conversa até aqui, o estado da tarefa, reservas pendentes | "o fã está escolhendo entre C12–C13 e D4–D5" | Redis, com chave pela conversa, com TTL | de minutos a horas |
+| **De curto prazo (sessão)** | a conversa até aqui, o estado da tarefa, reservas pendentes | "o fã está escolhendo entre C12–C13 e D4–D5" | Redis, com chave pela conversa, com tempo de vida (TTL, *time to live*) | de minutos a horas |
 | **De longo prazo — semântica** | fatos estáveis e preferências do usuário | "prefere assentos no corredor", "cidade: Campinas" | SQL (tabela de perfil), editável pelo fã | até ser alterada ou apagada |
 | **De longo prazo — episódica** | interações passadas, recuperáveis por similaridade | "no mês passado a transferência do fã falhou; foi reembolsada" | índice vetorial sobre resumos de conversas passadas | política de retenção |
 | **Procedural** | como o assistente se comporta: instruções, regras de uso de ferramentas, exemplos | o system prompt, as regras de reembolso | Git, versionada e avaliada como código | a cada release |
@@ -322,7 +328,7 @@ A memória transforma o assistente em um repositório de dados pessoais. Pela Le
     - **Meça a recuperação num conjunto rotulado antes de ajustar o prompt** — hit@k e MRR dizem se a resposta sequer estava no contexto. No BoxOffice: o `eval_retrieval.py` mediu hit@5 = 1,00 e MRR = 0,94 ([lab 12 — RAG](../../../hands-on/12/rag/index.md)).
     - **Registre o modelo de embedding e a dimensão junto com o índice** — trocar o modelo vira então um re-embedding planejado, como uma migração de schema. No BoxOffice: `EMBED_MODEL` e `EMBED_DIM` (768) são configuração e a tabela declara `vector(768)`.
     - **Faça upsert por um id estável do documento** — a reingestão precisa substituir um documento, não duplicá-lo. No BoxOffice: `ON CONFLICT (id) DO UPDATE` em `event:<id>` no `rag.py`.
-    - **Dê ao índice um SLO de atualização e meça o seu atraso** — por exemplo, uma regra de local alterada fica pesquisável em até 5 minutos; acompanhe o atraso da ingestão como o atraso de um consumidor.
+    - **Dê ao índice um objetivo de nível de serviço (SLO, *service level objective*) de atualização e meça o seu atraso** — por exemplo, uma regra de local alterada fica pesquisável em até 5 minutos; acompanhe o atraso da ingestão como o atraso de um consumidor.
     - **Dê às memórias um TTL e um caminho de exclusão por usuário** — o direito ao esquecimento da LGPD precisa chegar ao cache de sessão, ao armazenamento de longo prazo e ao índice vetorial.
 
 !!! warning "Armadilhas comuns"
@@ -341,16 +347,16 @@ A memória transforma o assistente em um repositório de dados pessoais. Pela Le
 
 ``` diagram
 flowchart LR
-    SRC["venue PDFs, FAQ,<br/>event descriptions"] --> ING["ingestion: parse,<br/>chunk, embed (batch)"]
-    CDC["change events<br/>→ Messaging outbox / CDC"] --> ING
-    ING --> IDX["vector + keyword index<br/>→ Databases specialized"]
-    Q["fan question"] --> HY["rewrite, hybrid search,<br/>RRF, rerank"]
+    SRC["PDFs dos locais, FAQ,<br/>descrições de eventos"] --> ING["ingestão: parse,<br/>chunks, embeddings (lote)"]
+    CDC["eventos de mudança<br/>→ Mensageria: outbox / CDC"] --> ING
+    ING --> IDX["índice vetorial + palavras-chave<br/>→ Bancos de dados especializados"]
+    Q["pergunta do fã"] --> HY["reescrita, busca híbrida,<br/>RRF, reranking"]
     IDX --> HY
-    HY --> P["prompt with citations"]
-    MEM["memory types: session,<br/>profile, episodic"] --> P
-    MEM --> RYW["read-your-writes<br/>→ Distributed consistency"]
-    MEM --> DEL["deletion reaches<br/>every copy (LGPD)"]
-    P --> GUARD["retrieved text is untrusted<br/>→ Safety mesh"]
+    HY --> P["prompt com citações"]
+    MEM["tipos de memória: sessão,<br/>perfil, episódica"] --> P
+    MEM --> RYW["ler as próprias escritas<br/>→ Sistemas distribuídos: consistência"]
+    MEM --> DEL["a exclusão chega<br/>a toda cópia (LGPD)"]
+    P --> GUARD["texto recuperado não é confiável<br/>→ Safety Mesh"]
 ```
 
 **Componentes da paleta:** [`memory`](../../../reference/components/ai/index.md#memory) (a malha inteira) · [`vectordb`](../../../reference/components/storage/index.md#vectordb) (base de conhecimento e memórias episódicas) · [`cache`](../../../reference/components/storage/index.md#cache) (memória de sessão com TTL) · [`sql`](../../../reference/components/storage/index.md#sql) (perfil e preferências; o pgvector também mora aqui) · [`objstore`](../../../reference/components/storage/index.md#objstore) (os documentos de origem) · [`kafka`](../../../reference/components/messaging/index.md#kafka) (eventos de mudança que mantêm o índice atualizado) · [`worker`](../../../reference/components/compute/index.md#worker) (ingestão e extração de memórias fora do caminho da requisição). **Cenários:** `ai-assistant`. **Continua em:** [Bancos de dados — especializados](../../databases/specialized/index.md) (busca vetorial), [Mensageria — padrões](../../messaging/patterns/index.md) (outbox, CDC), [Sistemas distribuídos — consistência](../../distributed/consistency/index.md), [Agentes e ferramentas](../agents/index.md) (dados vivos passam por ferramentas, não por RAG), [Segurança, avaliações e observabilidade](../safety-evals/index.md).

@@ -129,4 +129,22 @@ chama a ferramenta: numa execução de teste, chamou em 6 de 9 tentativas e, nas
 pedido que acabara de receber (`.tools` é `[]`). Pergunte de novo — e anote: chamadas de ferramenta pouco
 confiáveis são o motivo de o `run()` recuperar antes.
 
+Sem Ollama à mão, ou com um modelo lento demais para iterar? O simulador repete as execuções deste passo e
+as guardas do passo 4 pelos caminhos do código do lab: as expressões regulares das guardas, o
+`get_order_status` e a verificação de citações são os do lab; as respostas do modelo são as citadas acima,
+ou uma alternativa indicada.
+
+<div class="csim" data-sim="assistant-lab" data-script="ask"></div>
+
+!!! tip "Experimente"
+
+    Rode **3 · Perguntar**: a resposta do teste tem os fatos certos (event:50) e nenhuma citação, então a
+    guarda de saída devolve **grounded: false**; quando o modelo cita [event:50] a resposta é fundamentada e
+    um [event:999] inventado vira **[unverified]**. Rode **3 · Meu pedido**: a ferramenta devolve o pedido da
+    ana só com o header dela — com o do bob ela responde **order not found**, igual a um id que não existe.
+    **4 · Guardrails**: a injection recebe um **422** antes de qualquer chamada ao modelo. **MAX_STEPS**: um
+    modelo que não para de chamar ferramentas recebe **MAX_STEPS = 4** chamadas, a última sem ferramentas, e
+    precisa responder. Repare que toda resposta de pedido também volta grounded: false — a verificação de
+    citações só conhece eventos do catálogo (passo 4).
+
 [Próximo: Guardrails](../guardrails/index.md){ .md-button .md-button--primary }

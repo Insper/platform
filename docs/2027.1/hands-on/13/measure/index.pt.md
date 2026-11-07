@@ -1,4 +1,4 @@
-Todo lab deste curso termina com uma medição e esta importa mais do que a maioria: ferramentas de IA são adotadas por **sensação**. Num ensaio clínico randomizado de 2025 feito pela METR, desenvolvedores experientes de código aberto usando ferramentas de IA levaram cerca de **19% mais tempo** para concluir as tarefas — enquanto acreditavam ter sido cerca de **20% mais rápidos**[^1]. Um estudo não encerra a questão para o seu time, mas encerra uma coisa: **você precisa medir**. Esta parte mede o revisor da parte 1 (e as outras etapas) ao longo de uma semana de pull requests reais.
+Todo lab deste curso termina com uma medição e esta importa mais do que a maioria: ferramentas de inteligência artificial (IA) são adotadas por **sensação**. Num ensaio clínico randomizado de 2025 feito pela METR, desenvolvedores experientes de código aberto usando ferramentas de IA levaram cerca de **19% mais tempo** para concluir as tarefas — enquanto acreditavam ter sido cerca de **20% mais rápidos**[^1]. Um estudo não encerra a questão para o seu time, mas encerra uma coisa: **você precisa medir**. Esta parte mede o revisor da parte 1 (e as outras etapas) ao longo de uma semana de pull requests (PRs) reais.
 
 ## 7.1 O que medir { #71-what-to-measure }
 
@@ -8,7 +8,7 @@ Todo lab deste curso termina com uma medição e esta importa mais do que a maio
 | **Comentários por PR** | comentários da IA postados ÷ PRs | comentários de review com o marcador de fingerprint | baixa e estável: ruído é um custo |
 | **Comentários desatualizados** | comentários da IA cuja linha mudou depois | `line == null` no comentário | um sinal *fraco* de que o comentário foi tratado |
 | **Custo por PR** | soma de `usd` no comentário fixo ÷ PRs | as linhas ocultas `ai-cost` | conhecido e limitado |
-| **Minutos de CI por PR** | soma das durações dos jobs das execuções do PR | API do Actions | os jobs de IA devem ser uma fração pequena |
+| **Minutos de integração contínua (CI, *continuous integration*) por PR** | soma das durações dos jobs das execuções do PR | API (*application programming interface*) do GitHub Actions | os jobs de IA devem ser uma fração pequena |
 | **Tempo até o merge** | `mergedAt − createdAt` | API de PRs | não deve piorar |
 | **Recall no golden set** | achados esperados encontrados ÷ esperados | `eval_review.py` (parte 6) | ≥ o limite, por modelo |
 
@@ -114,13 +114,24 @@ For each step: keep, tune (which knob?), or remove — and why, with the numbers
 
 ## 7.5 Lendo os números { #75-reading-the-numbers }
 
+Os números da semana decidem o destino do revisor, nesta ordem:
+
+``` diagram
+flowchart LR
+    eval{"recall no golden set<br/>≥ o seu limiar?"} -->|"não"| weak["não pode ser portão:<br/>no máximo consultivo, ou um modelo mais forte"]:::problem
+    eval -->|"sim"| prec{"precisão<br/>na semana?"}
+    prec -->|"abaixo de ~50%"| noise["ruído: aumente MIN_SEVERITY,<br/>diminua MAX_COMMENTS, aumente o eval"]:::problem
+    prec -->|"50–70%"| adv["mantenha consultivo,<br/>ajuste um parâmetro, meça de novo"]
+    prec -->|"≥ 70%, poucos comentários"| gate["candidato a portão: blocker + high,<br/>check obrigatório, nunca uma aprovação"]:::comp
+```
+
 - **Precisão abaixo de ~50%** — o revisor é ruído; as pessoas vão aprender a ignorá-lo, inclusive quando ele estiver certo. Aumente `AI_REVIEW_MIN_SEVERITY`, diminua `AI_REVIEW_MAX_COMMENTS`, adicione os falsos positivos ao `CONVENTIONS.md` ("usamos `double` para coordenadas de propósito") e ao golden set.
 - **Precisão alta, poucos comentários** — candidato ao modo portão para `blocker` + confiança `high`, como check *obrigatório*. Ainda assim, não é uma aprovação.
 - **Custo por PR** — multiplique pelo número de PRs do seu time por mês. A, digamos, US$ 0,02 por review e 400 PRs por mês, o revisor custa cerca de US$ 8: menos do que dez minutos do tempo de um engenheiro. O custo de **atenção** de comentários ruins costuma ser maior do que o custo de tokens.
-- **Tempo até o merge** — com dez PRs, o ruído é maior do que qualquer efeito. Reporte-o, mas não o interprete demais. A página da aula sobre [entrega assistida por IA](../../../classes/ai-delivery/index.md) discute como métricas no estilo DORA devem ser lidas quando a IA entra no pipeline.
+- **Tempo até o merge** — com dez PRs, o ruído é maior do que qualquer efeito. Reporte-o, mas não o interprete demais. A página da aula sobre [entrega assistida por IA](../../../classes/ai-delivery/index.md) discute como métricas do DevOps Research and Assessment (DORA) devem ser lidas quando a IA entra no pipeline.
 
-- **O modelo gratuito** — se o recall dele no golden set for bem menor, a vantagem de custo não é real: uma SQL injection que passou não sai mais barata. O modelo local de 7B marcou 50 % de recall e foi enganado pelos dois casos de injection enquanto este lab era escrito (parte 6).
-- **Segundos e minutos** dependem do seu hardware: um notebook com GPU ou Apple silicon responde em segundos, um runner só com CPU em minutos. Compare tempos entre as suas próprias execuções, não com os números destas páginas; as contagens (achados, recall, mutantes) é que devem ser comparáveis.
+- **O modelo gratuito** — se o recall dele no golden set for bem menor, a vantagem de custo não é real: uma SQL injection (*structured query language*) que passou não sai mais barata. O modelo local de 7B marcou 50 % de recall e foi enganado pelos dois casos de injection enquanto este lab era escrito (parte 6).
+- **Segundos e minutos** dependem do seu hardware: um notebook com placa de vídeo (GPU, *graphics processing unit*) ou Apple silicon responde em segundos, um runner só com processador (CPU, *central processing unit*) em minutos. Compare tempos entre as suas próprias execuções, não com os números destas páginas; as contagens (achados, recall, mutantes) é que devem ser comparáveis.
 
 !!! tip "Na entrevista"
 

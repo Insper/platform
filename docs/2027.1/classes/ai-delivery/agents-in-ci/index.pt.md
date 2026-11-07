@@ -4,11 +4,11 @@ O time atualiza o Spring Boot em toda a BoxOffice numa segunda-feira de manhã. 
 
 ## O que os agentes fazem em um pipeline { #what-agents-do-in-a-pipeline }
 
-O [loop do agente](../../ai-systems/agents/index.md) — o modelo escolhe uma ferramenta, o harness a executa, o resultado volta para o contexto, repete — vira, no CI, um loop sobre o repositório e o build:
+O [loop do agente](../../ai-systems/agents/index.md) — o modelo escolhe uma ferramenta, o harness a executa, o resultado volta para o contexto, repete — vira, na integração contínua (CI, *continuous integration*), um loop sobre o repositório e o build:
 
 | Workflow agêntico | Gatilho | Verificável por | Raio de impacto típico | Autonomia sensata |
 |---|---|---|---|---|
-| **Consertar o build que falhou** | Execução de CI falhou | O build e os testes passam; o diff é pequeno | Uma branch | Supervisionada: PR em rascunho |
+| **Consertar o build que falhou** | Execução de CI falhou | O build e os testes passam; o diff é pequeno | Uma branch | Supervisionada: pull request (PR) em rascunho |
 | **Upgrade de dependência** | PR do Renovate/Dependabot está vermelho | Build, testes, canary | Muitos serviços | Supervisionada; merge automático só de versões de patch com CI verde |
 | **Migração** (JUnit 4 → 5, `javax` → `jakarta`, Java 17 → 21) | Campanha planejada | Build, testes, mais um codemod para a parte mecânica | A base de código inteira, em lotes | Supervisionada, um PR por serviço |
 | **Da issue ao PR** | Issue rotulada ou `@mention` | Testes escritos com os critérios de aceitação da issue | Uma funcionalidade | Supervisionada; revisão humana como de costume |
@@ -50,7 +50,7 @@ Leia como dois programas. O **agente** é não determinístico e não confiável
 
 Agentes no CI rodam **headless**: sem terminal, sem um humano para responder "posso rodar este comando?". Toda decisão que uma pessoa tomaria interativamente precisa ser tomada **de antemão**, como configuração.
 
-=== "Claude Code (CLI)"
+=== "Claude Code (linha de comando, CLI, *command-line interface*)"
 
     `claude -p "<task>"` roda o Claude Code de forma não interativa. Flags relevantes da sua [referência de CLI](https://code.claude.com/docs/en/cli-reference){target="_blank"}:
 
@@ -63,7 +63,7 @@ Agentes no CI rodam **headless**: sem terminal, sem um humano para responder "po
       --output-format stream-json --verbose > transcript.jsonl
     ```
 
-    `--bare` pula a descoberta automática de hooks, plugins, servidores MCP e `CLAUDE.md` (o mesmo comportamento em toda máquina, e nada carregado do repositório que você não tenha escolhido); `--allowedTools` usa a sintaxe de regras de permissão (`Bash(mvn -B *)` permite apenas comandos que começam com `mvn -B`); `dontAsk` nega todo o resto; `--max-turns` e `--max-budget-usd` limitam o loop; `stream-json` produz uma transcrição para o log de auditoria, cuja última linha informa o custo.
+    `--bare` pula a descoberta automática de hooks, plugins, servidores MCP (*Model Context Protocol*) e `CLAUDE.md` (o mesmo comportamento em toda máquina, e nada carregado do repositório que você não tenha escolhido); `--allowedTools` usa a sintaxe de regras de permissão (`Bash(mvn -B *)` permite apenas comandos que começam com `mvn -B`); `dontAsk` nega todo o resto; `--max-turns` e `--max-budget-usd` limitam o loop; `stream-json` produz uma transcrição para o log de auditoria, cuja última linha informa o custo.
 
 === "GitHub Action do Claude Code"
 
@@ -220,8 +220,8 @@ Sem cache, 40 turnos custam mais de oito vezes o que custam 10 turnos (cerca de 
 | Turnos | 20–30 | `--max-turns`, ou o limite do loop |
 | Dólares | US$ 1–2 por execução | `--max-budget-usd`, ou um contador de tokens no loop; **limite de gasto do workspace** no provedor |
 | Tempo de relógio | 20–30 min | `timeout-minutes` no job |
-| Execuções por commit | 1 | Dedup pelo SHA do commit |
-| Execuções por dia por repositório | p. ex. 20 | Cota no LLM gateway |
+| Execuções por commit | 1 | Dedup pelo SHA do commit (o hash que o nomeia) |
+| Execuções por dia por repositório | p. ex. 20 | Cota no LLM gateway (o gateway do modelo de linguagem, *large language model*) |
 
 A razão que importa é **dólares por correção mergeada** e não por execução: um agente que custa US$ 0,80 por execução, mas produz uma correção mergeável uma vez a cada quatro, custa US$ 3,20 por correção útil — compare isso com o tempo de engenheiro que ele economiza.
 
@@ -243,6 +243,27 @@ Agentes são disparados por eventos e eventos se repetem: uma execução de CI �
 - **Nada de autodisparo**: nunca rode o agente nas próprias branches (`ai-fix/*`) e lembre que pushes feitos com o `GITHUB_TOKEN` não disparam novas execuções de workflow no GitHub — um disjuntor de loops embutido.
 - **Retries são para o transporte, não para a tarefa**: os SDKs repetem `429`/`5xx` com backoff. Reexecutar um *agente que falhou* é uma nova tentativa com um novo custo — torne isso uma decisão humana, ou no máximo um retry automático com uma estratégia diferente.
 - **Fail open para agentes consultivos**: se o agente falhar, o build vermelho original continua lá; nada fica pior do que antes.
+
+``` diagram-sim
+sequenceDiagram
+    autonumber
+    actor Dev as Desenvolvedor
+    participant Git as Git host
+    participant CI as CI
+    participant Fix as workflow ai-fix
+    Dev->>Git: push do commit a1b2c3d4
+    Git->>CI: roda a CI (vermelha)
+    CI-->>Fix: workflow_run failed (a1b2c3d4)
+    Fix->>Git: a branch ai-fix/a1b2c3d4 existe?
+    Git-->>Fix: não
+    Fix->>Git: push de ai-fix/a1b2c3d4 + PR draft (GITHUB_TOKEN)
+    Note over Git,CI: um push com o GITHUB_TOKEN não dispara nova execução
+    Dev->>CI: roda de novo a CI que falhou
+    CI-->>Fix: workflow_run failed (mesmo SHA)
+    Fix->>Git: a branch ai-fix/a1b2c3d4 existe?
+    Git-->>Fix: sim — para, uma proposta por SHA
+```
+
 
 ---
 

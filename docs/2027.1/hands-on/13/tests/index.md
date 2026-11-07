@@ -2,7 +2,7 @@ A model can write fifty unit tests in a minute. The hard question is not *can it
 
 ## 2.1 Mutation testing in one paragraph
 
-A mutation-testing tool makes small changes to the production code — each one a **mutant**: `>` becomes `>=`, `a * b` becomes `a / b`, a `return price` becomes `return 0`, a method call is removed — and runs the tests against each mutant. If some test fails, the mutant is **killed** (the tests noticed the bug); if all tests still pass, it **survived** (a bug the tests cannot see). The **mutation score** is killed ÷ total. [PIT](https://pitest.org){target="_blank"} is the standard tool for the JVM[^1].
+A mutation-testing tool makes small changes to the production code — each one a **mutant**: `>` becomes `>=`, `a * b` becomes `a / b`, a `return price` becomes `return 0`, a method call is removed — and runs the tests against each mutant. If some test fails, the mutant is **killed** (the tests noticed the bug); if all tests still pass, it **survived** (a bug the tests cannot see). The **mutation score** is killed ÷ total. [PIT](https://pitest.org){target="_blank"} is the standard tool for the Java virtual machine (JVM)[^1].
 
 ``` diagram-sim
 flowchart LR
@@ -77,7 +77,7 @@ Read it: PIT made **18 mutants** of `CatalogService`; the three tests of `Catalo
 
 !!! tip "Keep PIT targeted"
 
-    Mutation testing is expensive: every mutant runs (part of) the test suite. On a whole service it can take many minutes. Always target the classes the PR changed (`-DtargetClasses`) — that is exactly what the script does.
+    Mutation testing is expensive: every mutant runs (part of) the test suite. On a whole service it can take many minutes. Always target the classes the pull request (PR) changed (`-DtargetClasses`) — that is exactly what the script does.
 
 ## 2.3 The generator
 
@@ -88,10 +88,10 @@ Read it: PIT made **18 mutants** of `CatalogService`; the three tests of `Catalo
 | Rule in the code | Why |
 |---|---|
 | New file `<Class>AiTest.java`, never edits `<Class>Test.java` | Generated tests never overwrite human ones; review sees exactly what is new |
-| `FORBIDDEN` constructs | No `Thread.sleep` (slow and flaky), no `@SpringBootTest` (slow, needs a DB), no `@Disabled` (a disabled test is a lie) |
+| `FORBIDDEN` constructs | No `Thread.sleep` (slow and flaky), no `@SpringBootTest` (slow, needs a database), no `@Disabled` (a disabled test is a lie) |
 | Same-package sources in the prompt | To mock `EventRepository` the model needs its real method signatures, otherwise the test does not compile |
 | Runs the test **twice** | A test that passes once and fails once is worse than no test |
-| `env` without `KEY`/`TOKEN`/`SECRET` | The code under test, and the generated test, never see the API key |
+| `env` without `KEY`/`TOKEN`/`SECRET` | The code under test, and the generated test, never see the application programming interface (API) key |
 | `MIN_GAIN` of 5 percentage points | A test that adds nothing measurable is noise to maintain |
 | Deletes the file if rejected | Nothing unproven is left in the working tree |
 | One line per attempt in the summary | You can see *why* an attempt was rejected: compile error, failing test, or too few mutants killed |
@@ -107,7 +107,7 @@ git commit -m "test(catalog): unit tests, PIT and the AI test generator (lab 13)
 git push
 ```
 
-Then run the generator on `CatalogService`, from the repository root. It needs `mvn` and JDK 21 on your machine, and calls the model up to three times; with the local model expect **5–15 minutes**:
+Then run the generator on `CatalogService`, from the repository root. It needs `mvn` and Java Development Kit (JDK) 21 on your machine, and calls the model up to three times; with the local model expect **5–15 minutes**:
 
 ``` { .bash .copy }
 uv run --no-project --python 3.12 --with-requirements .github/ai/requirements.txt \
@@ -170,7 +170,7 @@ gh pr edit --add-label ai-tests      # the label was created in step 0.4
 gh pr checks --watch                # "AI tests / generate" appears a few seconds after the label
 ```
 
-You should see the `generate` job finish (20–45 minutes with the free model on a CPU runner: the model, two Maven builds per attempt and PIT) and then either:
+You should see the `generate` job finish (20–45 minutes with the free model on a runner with only a central processing unit (CPU): the model, two Maven builds per attempt and PIT) and then either:
 
 - a draft PR `AI tests for #N`, label `ai-generated`, based on `catalog-docs`, with one commit carrying the trailer `AI-assisted: gen_tests.py (...)` — check it with `gh pr list --label ai-generated`; or
 - `publish` **skipped**, and the job summary of `generate` listing the rejected attempts. That is a valid result: write down why.

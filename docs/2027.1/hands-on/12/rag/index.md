@@ -131,6 +131,6 @@ systems combine it with keyword search (**hybrid search**) and a **reranker**.
 
     If the right document is not in the context, no model can answer correctly — and the failure looks
     like a "bad model". Measuring retrieval alone tells you which half of the pipeline to fix, and it is
-    cheap: no LLM call, fully deterministic.
+    cheap: no call to the large language model (LLM), fully deterministic.
 
 [Next: Tools and the agent loop](../tools/index.md){ .md-button .md-button--primary }

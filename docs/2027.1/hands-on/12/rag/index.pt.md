@@ -134,6 +134,6 @@ vetorial é mais fraca; sistemas reais a combinam com busca por palavras-chave (
 
     Se o documento certo não está no contexto, nenhum modelo consegue responder corretamente — e a falha
     parece um "modelo ruim". Medir só a recuperação diz qual metade do pipeline consertar e é barato:
-    nenhuma chamada ao LLM, totalmente determinístico.
+    nenhuma chamada ao modelo de linguagem (LLM, *large language model*), totalmente determinístico.
 
 [Próximo: Ferramentas e o loop do agente](../tools/index.md){ .md-button .md-button--primary }

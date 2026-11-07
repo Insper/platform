@@ -1,4 +1,4 @@
-Every lab of this course ends with a measurement, and this one matters more than most: AI tools are adopted on **feelings**. In a 2025 randomized controlled trial by METR, experienced open-source developers using AI tools took about **19 % longer** to complete their tasks — while believing they had been about **20 % faster**[^1]. One study does not settle the question for your team, but it settles one thing: **you must measure**. This part measures the reviewer of part 1 (and the other steps) over a week of real pull requests.
+Every lab of this course ends with a measurement, and this one matters more than most: artificial intelligence (AI) tools are adopted on **feelings**. In a 2025 randomized controlled trial by METR, experienced open-source developers using AI tools took about **19 % longer** to complete their tasks — while believing they had been about **20 % faster**[^1]. One study does not settle the question for your team, but it settles one thing: **you must measure**. This part measures the reviewer of part 1 (and the other steps) over a week of real pull requests (PRs).
 
 ## 7.1 What to measure
 
@@ -8,7 +8,7 @@ Every lab of this course ends with a measurement, and this one matters more than
 | **Comments per PR** | AI comments posted ÷ PRs | review comments with the fingerprint marker | low and stable: noise is a cost |
 | **Outdated comments** | AI comments whose line changed afterwards | `line == null` on the comment | a *weak* signal that the comment was addressed |
 | **Cost per PR** | sum of `usd` in the sticky comment ÷ PRs | the hidden `ai-cost` lines | known and bounded |
-| **CI minutes per PR** | sum of job durations of the PR's runs | Actions API | the AI jobs should be a small fraction |
+| **Continuous integration (CI) minutes per PR** | sum of job durations of the PR's runs | GitHub Actions application programming interface (API) | the AI jobs should be a small fraction |
 | **Time to merge** | `mergedAt − createdAt` | PR API | should not get worse |
 | **Recall on the golden set** | expected findings found ÷ expected | `eval_review.py` (part 6) | ≥ the threshold, per model |
 
@@ -113,12 +113,23 @@ For each step: keep, tune (which knob?), or remove — and why, with the numbers
 
 ## 7.5 Reading the numbers
 
+The week's numbers decide what happens to the reviewer, in this order:
+
+``` diagram
+flowchart LR
+    eval{"golden-set recall<br/>≥ your threshold?"} -->|"no"| weak["it must not gate:<br/>advisory at most, or a stronger model"]:::problem
+    eval -->|"yes"| prec{"precision<br/>over the week?"}
+    prec -->|"below ~50 %"| noise["noise: raise MIN_SEVERITY,<br/>lower MAX_COMMENTS, grow the eval"]:::problem
+    prec -->|"50–70 %"| adv["keep it advisory,<br/>tune one knob, measure again"]
+    prec -->|"≥ 70 %, few comments"| gate["gate candidate: blocker + high,<br/>a required check, never an approval"]:::comp
+```
+
 - **Precision below ~50 %** — the reviewer is noise; people will learn to ignore it, including when it is right. Raise `AI_REVIEW_MIN_SEVERITY`, lower `AI_REVIEW_MAX_COMMENTS`, add the false positives to `CONVENTIONS.md` ("we use `double` for coordinates on purpose") and to the golden set.
 - **High precision, few comments** — a candidate for gate mode on `blocker` + `high` confidence, as a *required* check. Still not an approval.
 - **Cost per PR** — multiply by your team's PRs per month. At, say, US$ 0.02 per review and 400 PRs a month, the reviewer costs about US$ 8: less than ten minutes of an engineer's time. The **attention** cost of bad comments is usually bigger than the token cost.
-- **Time to merge** — with ten PRs, the noise is larger than any effect. Report it, do not over-interpret it. The class page on [AI-assisted delivery](../../../classes/ai-delivery/index.md) discusses how DORA-style metrics should be read when AI enters the pipeline.
-- **The free model** — if its recall on the golden set is much lower, its cost advantage is not real: a missed SQL injection is not cheaper. The local 7B model scored 50 % recall and was fooled by both injection cases while this lab was written (part 6).
-- **Seconds and minutes** depend on your hardware: a laptop with a GPU or Apple silicon answers in seconds, a CPU-only runner in minutes. Compare times between your own runs, not with the numbers on these pages; the counts (findings, recall, mutants) are what should be comparable.
+- **Time to merge** — with ten PRs, the noise is larger than any effect. Report it, do not over-interpret it. The class page on [AI-assisted delivery](../../../classes/ai-delivery/index.md) discusses how DevOps Research and Assessment (DORA) metrics should be read when AI enters the pipeline.
+- **The free model** — if its recall on the golden set is much lower, its cost advantage is not real: a missed structured query language (SQL) injection is not cheaper. The local 7B model scored 50 % recall and was fooled by both injection cases while this lab was written (part 6).
+- **Seconds and minutes** depend on your hardware: a laptop with a graphics processing unit (GPU) or Apple silicon answers in seconds, a runner with only a central processing unit (CPU) in minutes. Compare times between your own runs, not with the numbers on these pages; the counts (findings, recall, mutants) are what should be comparable.
 
 !!! tip "In the interview"
 

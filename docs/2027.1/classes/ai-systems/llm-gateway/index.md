@@ -24,18 +24,18 @@ flowchart LR
 
 ## What the gateway does
 
-An **LLM gateway** is a reverse proxy specialized for model APIs. Clients send requests in one format to a **model alias** (`assistant-default`, not a vendor model name); the gateway decides which real deployment serves it, and records what happened.
+A **large language model (LLM) gateway** is a reverse proxy specialized for model APIs. Clients send requests in one format to a **model alias** (`assistant-default`, not a vendor model name); the gateway decides which real deployment serves it, and records what happened.
 
 | Responsibility | What it means | Classic equivalent |
 |---|---|---|
 | **Unified API** | one request/response format for every provider; clients do not import vendor SDKs | adapter / anti-corruption layer |
 | **Credentials** | provider keys live only in the gateway (secret store); clients authenticate with their own service identity | API gateway + secrets management |
-| **Routing** | alias → model and deployment, by feature, difficulty, cost, latency or data residency | L7 routing |
+| **Routing** | alias → model and deployment, by feature, difficulty, cost, latency or data residency | layer-7 (L7) routing |
 | **Fallbacks and retries** | on `429`, `5xx` or a slow first token, retry with backoff or move to the next deployment | retry + circuit breaker |
 | **Quotas and budgets** | requests and **tokens** per minute per user, team and feature; currency budgets per month | rate limiter |
 | **Caching** | exact-match and semantic response caches; prompt-cache-friendly requests | cache |
-| **Observability** | one trace span per call with model, tokens, cost, TTFT; dashboards per feature | access log + metrics |
-| **Policy hooks** | calls the [Safety Mesh](../safety-evals/index.md) before and after the model (redaction, filters) | WAF / filters |
+| **Observability** | one trace span per call with model, tokens, cost, time to first token (TTFT); dashboards per feature | access log + metrics |
+| **Policy hooks** | calls the [Safety Mesh](../safety-evals/index.md) before and after the model (redaction, filters) | web application firewall (WAF) / filters |
 
 The gateway is on the critical path of every AI feature, so it must itself be **stateless, horizontally scaled and highly available** — the quota counters and caches live in Redis, exactly like a rate-limiting API gateway ([Edge](../../edge/api-gateway/index.md)).
 
@@ -52,7 +52,7 @@ The same prompt can be served by models that differ by an order of magnitude in 
 | **Cascade** | try the small model first; escalate when its answer fails validation or a confidence check[^1] | high volume, mostly easy requests | worst-case latency = small + large |
 | **Learned router** | a model trained on preference data predicts whether the small model suffices[^2] | very high volume | needs training data and monitoring |
 | **Latency/cost aware** | send to the deployment with the lowest current TTFT or price | multi-provider, multi-region | oscillation; keep some stickiness |
-| **Compliance** | personal data stays in deployments in an approved region, or self-hosted | LGPD, contractual constraints | fewer fallbacks available |
+| **Compliance** | personal data stays in deployments in an approved region, or self-hosted | LGPD (Brazil's General Data Protection Law), contractual constraints | fewer fallbacks available |
 
 ``` diagram-sim
 flowchart TD
@@ -86,6 +86,24 @@ A model call has **no side effects**: retrying it is always *safe* (tool calls a
 | `400` context too long | the prompt does not fit | do **not** retry the same deployment; trim history, or route to a long-context model |
 | Refusal / content filter | the model or provider declined | do **not** fall back to a "less strict" model; return the policy answer |
 | Invalid JSON / schema | output did not match the requested format | one repair attempt with the validation error, then fail; prefer constrained decoding (structured outputs) |
+
+The table becomes one decision per deployment of the chain:
+
+``` diagram-sim
+flowchart TD
+    req["call the alias assistant-default"] --> nxt{"another deployment<br/>in the chain?"}
+    nxt -- "none left" --> fail(["all failed: degraded answer<br/>(FAQ link, smaller model)"]):::problem
+    nxt -- yes --> brk{"its circuit<br/>breaker open?"}
+    brk -- "yes: skip it" --> nxt
+    brk -- no --> call["call it, with a<br/>first-token deadline"]
+    call --> res{"result"}
+    res -- "200" --> ok(["reply"])
+    res -- "400, context too long, refusal" --> stop(["fail fast: another try will not help"]):::problem
+    res -- "429 without Retry-After" --> nxt
+    res -- "5xx, or 429 with Retry-After" --> again{"second attempt<br/>already used?"}
+    again -- "no: back off with jitter" --> call
+    again -- yes --> nxt
+```
 
 A simplified, provider-agnostic sketch of the fallback chain, combining the retry and circuit-breaker patterns of [Reliability](../../reliability/patterns/index.md):
 
@@ -159,6 +177,23 @@ The gateway enforces its own, finer limits:
 
 **Counting tokens before you know them.** A token bucket counts tokens instead of requests, but output tokens are only known *after* the call. The usual approach is **reserve, then reconcile**: before the call, count the input tokens with the model's tokenizer and reserve `input + max_tokens` from the bucket; after the call, return the unused part. Keep the counters in Redis with atomic scripts, as in the rate-limiter design of [Edge](../../edge/api-gateway/index.md).
 
+``` diagram-sim
+sequenceDiagram
+    participant A as assistant
+    participant G as LLM Gateway
+    participant R as Redis (token bucket)
+    participant P as provider
+    A->>G: chat, max_tokens 600
+    G->>G: count the input: 3,100 tokens
+    G->>R: reserve 3,100 + 600 = 3,700
+    R-->>G: ok, bucket has room
+    G->>P: call
+    P-->>G: answer: 180 output tokens
+    G->>R: return the unused 420
+    G-->>A: answer + usage 3,100 in, 180 out
+    Note over G,R: an empty bucket means 429 or a smaller model, decided before the call
+```
+
 **What happens when a budget runs out** is a product decision, decided in advance:
 
 1. **Degrade**: route to a smaller model or answer from the cache/FAQ.
@@ -178,10 +213,10 @@ The gateway enforces its own, finer limits:
 | | Exact-match response cache | **Prompt caching** (prefix cache) | **Semantic cache** |
 |---|---|---|---|
 | Key | hash of the full request (model, prompt, parameters) | the longest **identical prefix** of the prompt | **embedding** of the user question; hit if similarity ≥ threshold |
-| What is reused | the final answer | the model's internal state for the prefix (the KV cache) | a stored answer to a *similar* question |
+| What is reused | the final answer | the model's internal state for the prefix (the key/value, KV, cache) | a stored answer to a *similar* question |
 | Where it lives | gateway (Redis) | inside the model server / provider | gateway (Redis or a vector index) |
 | Saves | the whole call | input-token cost (cached tokens billed at a discount) and TTFT | the whole call |
-| Correctness risk | none (same input) | **none** — the answer is computed normally | **false hits**: a similar question that needs a different answer |
+| Correctness risk | ✅ none (same input) | ✅ **none** — the answer is computed normally | ⚠️ **false hits**: a similar question that needs a different answer |
 | Hit ratio in a chat | low (questions rarely repeat byte-for-byte) | high (system prompt + tools + history repeat on every call) | medium for FAQ-like traffic; ~0 for personal, tool-using requests |
 
 ### Prompt caching
@@ -203,12 +238,25 @@ flowchart LR
 
 A semantic cache embeds the user question (see [RAG & Memory](../rag-memory/index.md#embeddings)) and looks for a previous question whose embedding is close enough. "What time do the gates open at Arena Paulista?" and "when do doors open at Arena Paulista?" should hit. The danger is the reverse case: *"can I get a refund for the Saturday show?"* and *"can I get a refund for the Sunday show?"* are almost identical as vectors and may need different answers.
 
+``` diagram-sim
+flowchart LR
+    q["fan question"] --> safe{"generic?<br/>no tools, no personal data"}
+    safe -- no --> model["call the model"]
+    safe -- yes --> key["key = tenant + language +<br/>venue + policy version"]
+    key --> emb["embed the question"]
+    emb --> near{"nearest cached question<br/>within this key: similarity ≥ threshold?"}
+    near -- "yes: hit" --> hit(["cached answer to<br/>when do the gates open?"])
+    near -- "no: miss" --> model
+    model --> store["store the answer,<br/>short TTL"]
+    near -. "Saturday vs Sunday refund:<br/>close vectors, different answers" .-> bad(["false hit"]):::problem
+```
+
 Rules that keep a semantic cache safe:
 
 - **Scope the key**: tenant, language, event or venue ID, and policy version are part of the key, not only the vector.
 - **Only for generic answers**: never cache answers that used tools, personal data or the user's permissions.
 - **Tune the threshold with data**: label a sample of (question, cached question) pairs as same/different and pick the similarity threshold for the precision you need; a hit ratio gained with wrong answers is a bug.
-- **Short TTL and invalidation** when the source document changes (the same problem as in [Caching](../../caching/invalidation/index.md)).
+- **Short time to live (TTL) and invalidation** when the source document changes (the same problem as in [Caching](../../caching/invalidation/index.md)).
 
 ---
 
@@ -272,7 +320,7 @@ plt.close()
 
 ### Streaming
 
-Since the answer arrives token by token, the gateway **streams** it to the client — usually with Server-Sent Events (SSE) over HTTP, as seen in [Protocols](../../edge/protocols/index.md). The fan starts reading after the TTFT instead of after the full latency, which is why **TTFT is the interactive SLO** (e.g. p95 TTFT < 1.5 s) and **TPOT only needs to beat reading speed** (people read roughly 4–8 words per second, so ~15–20 tokens/s already feels fluent).
+Since the answer arrives token by token, the gateway **streams** it to the client — usually with Server-Sent Events (SSE) over HTTP, as seen in [Protocols](../../edge/protocols/index.md). The fan starts reading after the TTFT instead of after the full latency, which is why **TTFT is the interactive service level objective (SLO)** (e.g. p95 TTFT < 1.5 s) and **TPOT only needs to beat reading speed** (people read roughly 4–8 words per second, so ~15–20 tokens/s already feels fluent).
 
 Streaming has architectural consequences:
 

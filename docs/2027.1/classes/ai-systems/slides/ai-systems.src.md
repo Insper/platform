@@ -14,11 +14,15 @@ theme: platform
 {{INCLUDE:scripts/slides/theme.js}}
 </script>
 
+<style>
+{{INCLUDE:scripts/slides/diagram.css}}
+</style>
+
 <div class="kicker">System Architecture · Insper</div>
 
 # AI Systems & Agents
 
-**The LLM is a dependency: slow, priced per token, probabilistic**
+**The large language model (LLM) is a dependency: slow, priced per token, probabilistic**
 
 <!--
 Outline: (1) the LLM as a dependency and the five AI & AGENTS components; (2) cost and latency of
@@ -69,9 +73,9 @@ latency, capacity, cost, consistency and security are system design problems.
 |---|---|---|
 | **LLM Gateway** | routing, fallbacks, quotas, caching, cost telemetry | API gateway + rate limiter + breaker |
 | **Orchestrator** | runs the agent loop or workflow; owns task state and budgets | app server + workflow engine |
-| **Tool Registry** | catalog of tools (MCP servers), permissions, risk tiers | service registry + auth |
-| **Memory Fabric** | session, user memory, knowledge base (RAG) | cache + SQL + vector DB |
-| **Safety Mesh** | checks on every input, output and action | WAF + mesh policy + DLP |
+| **Tool Registry** | catalog of tools (Model Context Protocol, MCP, servers), permissions, risk tiers | service registry + auth |
+| **Memory Fabric** | session, user memory, knowledge base (retrieval-augmented generation, RAG) | cache + SQL + vector DB |
+| **Safety Mesh** | checks on every input, output and action | web firewall (WAF) + mesh policy + data-loss prevention (DLP) |
 
 <div class="ok">
 
@@ -81,13 +85,39 @@ The model **chooses** tools; the orchestrator **decides** whether they run — a
 
 ---
 
+## The five boxes reuse the old ones
+
+<div class="flow">
+<div class="box muted">fan</div><div class="arrow">→</div>
+<div class="box">API gateway<small>auth, rate limit</small></div><div class="arrow">→</div>
+<div class="box accent">Orchestrator<small>assistant service</small></div><div class="arrow">→</div>
+<div class="box orange">Safety Mesh<small>input, output, action</small></div><div class="arrow">→</div>
+<div class="box accent">LLM Gateway<small>routing, quotas, cache</small></div><div class="arrow">→</div>
+<div class="group"><div class="caption">models</div><div class="box">large<small>provider A</small></div><div class="box">small<small>provider B / self-hosted</small></div></div>
+</div>
+<div class="flow">
+<div class="arrow" style="flex: .9">Orchestrator also calls →</div>
+<div class="group"><div class="caption">Memory Fabric</div><div class="box green">cache<small>session</small></div><div class="box green">vector DB<small>knowledge base</small></div></div>
+<div class="group"><div class="caption">Tool Registry (MCP)</div><div class="box green">catalog</div><div class="box green">inventory<small>search, hold</small></div><div class="box green">order<small>read only</small></div></div>
+</div>
+
+- The tools call the **same** `catalog` and `inventory` the web front end calls, with the same authorization: no back door.
+
+<!--
+The overview page's step-by-step diagram "How they connect to the rest of the system" draws the same picture, plus Kafka re-embedding the catalog and the gateway's telemetry.
+-->
+
+---
+
 ## Anatomy of one request
 
-1. Load session + preferences (Memory Fabric); input check (Safety Mesh).
-2. Call 1 → `search_events(São Paulo, Saturday)`.
-3. Call 2 → `search_seats(event, 2, max 300)`.
-4. Call 3 → `hold_seats(event, [C12, C13])` → **reversible**: allowed.
-5. Call 4 → answer **streamed** with a checkout link; payment stays with the fan.
+<div class="flow">
+<div class="box muted">session + preferences<small>input check</small></div><div class="arrow">→</div>
+<div class="box accent">call 1<small>search_events(São Paulo, Saturday)</small></div><div class="arrow">→</div>
+<div class="box accent">call 2<small>search_seats(event, 2, max 300)</small></div><div class="arrow">→</div>
+<div class="box orange">call 3<small>hold_seats(C12, C13): reversible, allowed</small></div><div class="arrow">→</div>
+<div class="box green">call 4<small>answer streamed + checkout link</small></div>
+</div>
 
 - **4 model calls** for one message; the context grows at every call.
 - "Under R$300" is **live structured data → tool**, not RAG.
@@ -171,11 +201,17 @@ A fallback model is a **different program**: run the evals on every model in the
 
 ## Quotas and token budgets
 
-- Provider limits: **RPM, TPM**, concurrency — shared by every feature (noisy neighbor).
+- Provider limits: **requests per minute (RPM), tokens per minute (TPM)**, concurrency — shared by every feature (noisy neighbor).
 - Gateway limits: per user, per feature, per request (`max_tokens`, max steps), per month (US$).
-- Counting unknown output: **reserve** `input + max_tokens`, then **reconcile** with real usage.
 - Budget gone → **degrade** (smaller model, FAQ cache), **queue** (batch work), **shed** (`429`).
 - Priorities: interactive > batch; paying flows > browsing.
+
+<div class="flow">
+<div class="box">count the input<small>3,100 tokens</small></div><div class="arrow">→</div>
+<div class="box accent">reserve input + max_tokens<small>3,100 + 600 = 3,700</small></div><div class="arrow">→</div>
+<div class="box">call the model<small>180 output tokens</small></div><div class="arrow">→</div>
+<div class="box green">reconcile<small>return the unused 420</small></div>
+</div>
 
 <div class="ok">
 
@@ -190,11 +226,18 @@ Flash sale: assistant gets 70% of TPM, nightly embedding paused, FAQ → small m
 | | Exact response | **Prompt (prefix)** | **Semantic** |
 |---|---|---|---|
 | Key | hash of the full request | identical prompt prefix | question embedding ≥ threshold |
-| Reuses | the answer | the model's computation (KV) | an answer to a *similar* question |
-| Saves | the call | input cost + TTFT | the call |
+| Reuses | the answer | the model's key/value (KV) cache | an answer to a *similar* question |
+| Saves | the call | input cost + time to first token (TTFT) | the call |
 | Risk | none | **none** | **false hits** |
 
-- Prompt order: system → tools → documents → history → **new message last**.
+<div class="flow">
+<div class="box green">system prompt<small>static</small></div><div class="arrow">→</div>
+<div class="box green">tool definitions<small>static</small></div><div class="arrow">→</div>
+<div class="box">retrieved documents<small>per conversation</small></div><div class="arrow">→</div>
+<div class="box">history<small>grows</small></div><div class="arrow">→</div>
+<div class="box orange">new message<small>changes every call: last</small></div>
+</div>
+
 - Semantic cache: scope keys (event, language, policy version); generic answers only.
 
 <!--
@@ -210,8 +253,8 @@ top of the system prompt are the classic prompt-cache buster.
 
 > latency = TTFT + TPOT × (N_out − 1)  ·  0.6 s + 20 ms × 249 ≈ **5.6 s** for 250 tokens
 
-- **Prefill** (parallel, compute-bound) → **TTFT**: the interactive SLO, hidden by **streaming** (SSE).
-- **Decode** (one token at a time, memory-bound) → **TPOT**: only needs to beat reading speed.
+- **Prefill** (parallel, compute-bound) → **TTFT**: the interactive service level objective (SLO), hidden by **streaming** (Server-Sent Events, SSE).
+- **Decode** (one token at a time, memory-bound) → time per output token (**TPOT**): only needs to beat reading speed.
 - Batching shares each read of the weights: replica throughput ↑, per-user speed ↓ slowly.
 - **Continuous batching** + **PagedAttention** made it practical.
 - KV cache: 2 × layers × KV heads × head dim × bytes → **128 KiB/token** (8B model) → 8k tokens ≈ 1 GiB → ~64 conversations per 80 GB GPU.
@@ -255,6 +298,25 @@ return "Escalating to a human agent."
 
 - The model **requests**; the orchestrator validates, authorizes **as the user**, executes.
 - Errors go back as data; budgets: steps, tokens, time; loop detection.
+
+---
+
+## Play it: the agent loop
+
+<div class="flow">
+<div class="box green">finds the seats<small>4 calls · 16,920 tokens · US$ 22.83 / 1k · 6.8 s</small></div>
+<div class="box">no parallel calls<small>5 calls · US$ 29.44 · 8.9 s</small></div>
+<div class="box red">gets stuck, MAX_STEPS 8<small>46,320 tokens, then an apology</small></div>
+<div class="box orange">loop detection<small>caught at call 3, 11,520 tokens</small></div>
+</div>
+
+- The Agents & Tools page embeds the loop: each bar is one call, its height the context it re-sends.
+- Knobs: `MAX_STEPS`, parallel tool calls, loop detection, prompt-cache hits, a tool-less last call (lab 12).
+- Raising `MAX_STEPS` to 12 does not help the stuck model: the 40,000-token budget stops it at the same call.
+
+<!--
+The numbers are the overview's cost table, call by call. Lab 12's assistant makes its fourth call without tools, so the step limit ends with an answer.
+-->
 
 ---
 
@@ -321,27 +383,19 @@ Annotations (`readOnlyHint`…) are **claims**; descriptions are **prompts**. Re
 
 ## RAG: two pipelines
 
-<div class="cols">
-<div>
-
-**Ingestion (async)**
-
-- parse + clean; metadata (venue, version, access)
-- **chunk**: structure-aware, parent–child, contextual headers
-- **embed** (same model for queries), store model name
-- keep fresh with **change events**; propagate deletes
-
+<div class="flow" style="align-items: stretch">
+<div class="group"><div class="caption">ingestion (async)</div>
+<div class="box">parse + clean<small>metadata: venue, version, access</small></div>
+<div class="box">chunk<small>structure-aware, contextual headers</small></div>
+<div class="box">embed (batch)<small>store the model name</small></div>
 </div>
-<div>
-
-**Query (online)**
-
-- rewrite to a standalone question; extract filters
-- **hybrid search**: vectors + keywords
-- **rerank** top 20–50 → keep 3–8
-- prompt with sources, best first
-- answer **with citations**; verify them
-
+<div class="arrow" style="align-self: center">→</div>
+<div class="box accent" style="flex: .7; display: flex; flex-direction: column; justify-content: center">vector + keyword index<small>kept fresh by change events; deletes too</small></div>
+<div class="arrow" style="align-self: center">←</div>
+<div class="group"><div class="caption">query (online)</div>
+<div class="box">rewrite<small>standalone question, filters</small></div>
+<div class="box">hybrid search → rerank<small>top 20–50 → keep 3–8</small></div>
+<div class="box green">prompt with sources<small>answer with citations, verified</small></div>
 </div>
 </div>
 
@@ -357,7 +411,7 @@ Annotations (`readOnlyHint`…) are **claims**; descriptions are **prompts**. Re
 - **Reciprocal Rank Fusion**: score(d) = Σ 1 / (60 + rank) — ranks only, no score calibration.
 - 1st by keywords + 3rd by vectors → 1/61 + 1/63 ≈ **0.032** beats 1st by vectors only (0.016).
 - **Cross-encoder reranker** reads question + chunk together: precise, slower (tens–hundreds of ms).
-- ANN (HNSW): tune `ef_search` for recall vs latency; **filters** need iterative scans or partitions.
+- Approximate nearest neighbor (ANN) index, HNSW: tune `ef_search` for recall vs latency; **filters** need iterative scans or partitions.
 
 ```sql
 SELECT id, coalesce(1.0/(60 + s.rank), 0) + coalesce(1.0/(60 + k.rank), 0) AS rrf
@@ -367,19 +421,35 @@ ORDER BY rrf DESC LIMIT 20;   -- then rerank
 
 ---
 
+## Play it: what reaches the prompt
+
+<div class="flow">
+<div class="box red">sector C, vector only<small>lifts 0.84 · Estádio Sul 0.83 · the answer 0.79</small></div><div class="arrow">→</div>
+<div class="box green">hybrid (RRF)<small>the answer first: 0.0323 vs 0.0164 · k = 1 is enough</small></div>
+</div>
+<div class="flow">
+<div class="box red">camera, no context<small>Estádio Sul 0.81 beats §4 0.74, in every mode</small></div><div class="arrow">→</div>
+<div class="box green">contextual chunks<small>title + section in the chunk: §4 first</small></div>
+</div>
+
+- The RAG & Memory page embeds the search: vector, keyword or hybrid; top-k; a minimum similarity; contextual chunks.
+- *Pool*: no chunk answers; a 0.60 threshold turns five unrelated chunks into "I don't know" — for the vector half only.
+
+---
+
 ## Memory types
 
 | Type | BoxOffice example | Store | Lifetime |
 |---|---|---|---|
 | Working | this call's prompt | the model call | one call |
-| Short-term (session) | choosing C12–C13 vs D4–D5 | Redis + TTL | hours |
+| Short-term (session) | choosing C12–C13 vs D4–D5 | Redis + time to live (TTL) | hours |
 | Long-term semantic | "prefers aisle seats" | SQL, editable | until deleted |
 | Long-term episodic | "last month's refund" | vector index | retention policy |
 | Procedural | system prompt, rules | Git, evaluated | per release |
 
 <div class="warn">
 
-Extract memories only from the **user's own messages** (memory poisoning). Deletion must reach **every copy**: profile, vectors, caches, logs, traces (LGPD).
+Extract memories only from the **user's own messages** (memory poisoning). Deletion must reach **every copy**: profile, vectors, caches, logs, traces (LGPD, Brazil's data protection law).
 
 </div>
 
@@ -407,7 +477,7 @@ Extract memories only from the **user's own messages** (memory poisoning). Delet
 
 | Check point | Examples | Type |
 |---|---|---|
-| 1. Input | PII redaction (CPF, Luhn for cards), injection score | deterministic + small model |
+| 1. Input | personal data (PII) redaction: CPF, Luhn for cards; injection score | deterministic + small model |
 | 2. Retrieval | permission filter in the query; mark untrusted text | deterministic |
 | 3. Tool call | schema, authorization as the user, risk tier | deterministic |
 | 4. Tool result | size limit, injection score | both |
@@ -430,8 +500,16 @@ Prefer deterministic checks: fast, testable, and they cannot be talked out of a 
 - Grade the **outcome** (is the right hold there?) more than the exact trajectory.
 - Non-determinism: run k attempts. p = 0.9 → **pass@4 ≈ 100%**, **pass^4 ≈ 66%** — fans live pass^k.
 - Judge biases: **position**, **verbosity**, **self-preference** → rubric, swap order, other family, validate vs humans.
-- CI gate on every prompt/model/tool change; **canary** behind the gateway alias.
 - Online: holds → orders, escalations, guardrail triggers, refusals, TTFT p95, **cost per resolved conversation**.
+
+<div class="flow">
+<div class="box">change<small>prompt, model, tool, k</small></div><div class="arrow">→</div>
+<div class="box">deterministic checks</div><div class="arrow">→</div>
+<div class="box accent">golden set gate<small>continuous integration (CI)</small></div><div class="arrow">→</div>
+<div class="box">judge sample</div><div class="arrow">→</div>
+<div class="box orange">canary<small>behind the alias</small></div><div class="arrow">→</div>
+<div class="box green">promote<small>or roll back</small></div>
+</div>
 
 ---
 
@@ -445,7 +523,7 @@ invoke_agent boxoffice-assistant                        10.1 s
 └── chat assistant-default      in 5,300  out 212        4.9 s
 ```
 
-- OTel GenAI conventions: `gen_ai.operation.name`, `gen_ai.request.model`, `gen_ai.usage.input_tokens` / `output_tokens`, `gen_ai.response.finish_reasons`; TTFT/TPOT metrics.
+- OpenTelemetry (OTel) GenAI conventions: `gen_ai.operation.name`, `gen_ai.request.model`, `gen_ai.usage.input_tokens` / `output_tokens`, `gen_ai.response.finish_reasons`; TTFT/TPOT metrics.
 - Cost under your own namespace; **content capture opt-in**, redacted, short retention.
 - Alerts: TTFT SLO, fallback rate, **cost burn rate**, guardrail spikes.
 
@@ -469,6 +547,20 @@ invoke_agent boxoffice-assistant                        10.1 s
 <!--
 The same table is on the overview page, with links to the subpages and the component catalog.
 -->
+
+---
+
+## What breaks next
+
+<div class="q">
+
+A prompt, a tool description, a model version, the `k` of the retrieval: each one changes behavior without a line of Java, and each one is a deploy that must pass the eval gate.
+
+</div>
+
+- Meanwhile the same models write the team's code: pull requests arrive faster than people review, test and release them.
+- The safety net of lab 11 (tests, scans, a canary) was sized for human speed.
+- Class 14: AI inside the delivery pipeline, without letting it approve its own work.
 
 ---
 

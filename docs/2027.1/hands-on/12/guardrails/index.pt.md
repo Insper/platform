@@ -26,7 +26,7 @@ flowchart LR
 |---|---|---|---|
 | limite de tamanho | entrada | ataques de custo, documentos enormes colados | — |
 | padrões de injection | entrada | o óbvio "ignore previous instructions" | paráfrases, outros idiomas, injections dentro de documentos ou de resultados de ferramentas |
-| mascaramento de PII | entrada | CPF, números de cartão e e-mails chegando ao modelo, aos logs ou a um provedor terceiro | nomes, endereços, dados pessoais em texto livre |
+| mascaramento de dados pessoais (PII, *personally identifiable information*) | entrada | CPF, números de cartão e e-mails chegando ao modelo, aos logs ou a um provedor terceiro | nomes, endereços, dados pessoais em texto livre |
 | verificação de citações | saída | citações de documentos que o modelo nunca recebeu; respostas sem nenhuma citação | uma frase errada ao lado de uma citação válida |
 | ferramentas só de leitura, identidade vinda dos headers | ferramentas (passo 3) | um modelo manipulado comprando, cancelando ou lendo pedidos de outros | — |
 
@@ -34,6 +34,11 @@ Casamento de padrões é uma primeira camada, barata e explicável, nunca a úni
 neste design é **arquitetural** — ferramentas só de leitura e uma identidade que o modelo não consegue
 forjar. Sistemas em produção acrescentam modelos classificadores (para injection e conteúdo nocivo),
 saídas estruturadas e revisão humana de conversas amostradas.
+
+Um limite da verificação de citações aparece na pergunta de pedido do passo 3: a evidência só tem ids de
+eventos do catálogo, então uma resposta montada com `get_order_status` não tem o que citar e volta
+`grounded: false` — um alarme falso. Uma guarda mais completa contaria também os resultados das
+ferramentas como evidência.
 
 Experimente:
 
@@ -45,7 +50,7 @@ Experimente:
 {"detail":{"blocked":"prompt_injection","message":"I can only help with BoxOffice events, tickets and orders."}} 422
 ```
 
-Você deve ver HTTP `422` com `"blocked":"prompt_injection"` — e nenhuma chamada ao LLM (instantâneo). O
+Você deve ver HTTP `422` com `"blocked":"prompt_injection"` — e nenhuma chamada ao modelo de linguagem (LLM, *large language model*): instantâneo. O
 mascaramento pode ser conferido diretamente em Python:
 
 ``` shell
@@ -62,7 +67,7 @@ Você deve ver `my CPF is [CPF] and card [CARD], mail [EMAIL]`.
 --8<-- "docs/2027.1/hands-on/12/code/services/assistant/app/metrics.py"
 ```
 
-O assistente usa o **SDK** do OpenTelemetry (aqui o Python não tem um agente como o do Java) e envia OTLP
+O assistente usa o **SDK** (*software development kit*) do OpenTelemetry (aqui o Python não tem um agente como o do Java) e envia OTLP (*OpenTelemetry Protocol*)
 para o `otel-lgtm`, então as suas métricas ficam ao lado das dos serviços Java:
 
 | Métrica do Prometheus | Labels | Pergunta que responde |

@@ -1,4 +1,4 @@
-A primeira etapa de IA é a de melhor relação custo/benefício: um revisor que lê cada pull request **antes** de um humano e deixa alguns comentários inline precisos — ou nada. Revisores humanos são escassos e lentos (um PR muitas vezes espera horas pela primeira olhada); um modelo é rápido, barato por PR e nunca se cansa da centésima verificação de nulo. Ele também erra com frequência, é prolixo e crédulo. Esta parte constrói um revisor que é útil *apesar* dessas fraquezas.
+A primeira etapa de inteligência artificial (IA) é a de melhor relação custo/benefício: um revisor que lê cada pull request (PR) **antes** de um humano e deixa alguns comentários inline precisos — ou nada. Revisores humanos são escassos e lentos (um PR muitas vezes espera horas pela primeira olhada); um modelo é rápido, barato por PR e nunca se cansa da centésima verificação de nulo. Ele também erra com frequência, é prolixo e crédulo. Esta parte constrói um revisor que é útil *apesar* dessas fraquezas.
 
 ## 1.1 Como funciona { #11-how-it-works }
 
@@ -23,14 +23,14 @@ sequenceDiagram
 
 Quatro ideias sustentam o projeto; a página [Code review](../../../classes/ai-delivery/code-review/index.md) da aula as explica em profundidade:
 
-1. **Engenharia de contexto.** O modelo recebe o diff *e* o que um engenheiro sênior do BoxOffice sabe: as convenções e os ADRs. Sem eles, ele só consegue dar conselhos genéricos.
-2. **Saída estruturada.** A resposta é um JSON com `file`, `line`, `severity`, `category`, `confidence`, `title`, `explanation`, `suggestion` — assim o código consegue filtrá-la, deduplicá-la e postá-la exatamente onde ela pertence.
+1. **Engenharia de contexto.** O modelo recebe o diff *e* o que um engenheiro sênior do BoxOffice sabe: as convenções e os registros de decisão de arquitetura (ADRs, *architecture decision records*). Sem eles, ele só consegue dar conselhos genéricos.
+2. **Saída estruturada.** A resposta é um JSON (*JavaScript Object Notation*) com `file`, `line`, `severity`, `category`, `confidence`, `title`, `explanation`, `suggestion` — assim o código consegue filtrá-la, deduplicá-la e postá-la exatamente onde ela pertence.
 3. **Controle de ruído.** Cada comentário custa a atenção de um desenvolvedor. Comentários fora das linhas alteradas, abaixo de `minor`, com confiança baixa, já postados ou acima do limite são **descartados** (e listados no resumo do job, para que você possa ajustar os limites).
 4. **Consultivo, não um portão.** O bot posta `event: COMMENT` — nunca `APPROVE` nem `REQUEST_CHANGES`. Existe um modo de portão opcional, mas você só o liga depois de medir a precisão na parte 7.
 
 ## 1.2 Os utilitários de diff { #12-the-diff-helpers }
 
-Modelos são ruins em contar linhas. Em vez de pedir ao modelo que calcule números de linha a partir dos cabeçalhos `@@ -16,4 +16,9 @@`, o `diffutil.py` imprime **cada linha do lado novo com o seu número** (`L21 + ...`) e depois verifica que cada achado aponta para uma linha que o PR realmente **adicionou**. O GitHub rejeita um comentário de review numa linha que não faz parte do diff, então essa verificação também evita uma chamada de API com falha.
+Modelos são ruins em contar linhas. Em vez de pedir ao modelo que calcule números de linha a partir dos cabeçalhos `@@ -16,4 +16,9 @@`, o `diffutil.py` imprime **cada linha do lado novo com o seu número** (`L21 + ...`) e depois verifica que cada achado aponta para uma linha que o PR realmente **adicionou**. O GitHub rejeita um comentário de review numa linha que não faz parte do diff, então essa verificação também evita uma chamada de interface de programação de aplicações (API, *application programming interface*) com falha.
 
 ``` { .python title=".github/ai/diffutil.py" .copy linenums="1" }
 --8<-- "docs/2027.1/hands-on/13/code/.github/ai/diffutil.py"
@@ -82,9 +82,9 @@ Leia o código com estas perguntas em mente:
 | `permissions:` | `contents: read` para o checkout, `pull-requests: write` para comentar. Nada mais: nada de `actions`, `packages` ou `id-token` |
 | `concurrency` com `cancel-in-progress` | Três pushes rápidos → um review do último, não três reviews e três contas |
 | `if: !draft && head.repo == repository` | Rascunhos não estão prontos; PRs de forks em `pull_request` não recebem segredos de qualquer forma (parte 6) |
-| `timeout-minutes` por expressão | Um modelo local num runner só com CPU ganha 25 minutos; um modelo hospedado, 10. Uma chamada travada não queima uma hora |
+| `timeout-minutes` por expressão | Um modelo local num runner só com processador (CPU, *central processing unit*) ganha 25 minutos; um modelo hospedado, 10. Uma chamada travada não queima uma hora |
 | `persist-credentials: false` | O token não fica em `.git/config` para os passos seguintes encontrarem |
-| Actions fixadas por SHA de commit | Uma tag movida não troca o código que você executa (parte 6) |
+| Actions fixadas pelo hash do commit (SHA, *secure hash algorithm*) | Uma tag movida não troca o código que você executa (parte 6) |
 | `uses: ./.github/actions/ollama` | Só quando `LLM_PROVIDER` é `ollama` (ou não está definido): instala o modelo gratuito no runner |
 | `vars.*` com padrões | Troque provedor, modelo ou limites com uma variável de repositório, sem mudar código |
 | Título e corpo do PR lidos do arquivo do evento | Nunca use `${{ github.event.pull_request.title }}` dentro de `run:` — isso é uma injeção de shell (parte 6) |
@@ -100,7 +100,7 @@ git push
 
 ## 1.5 Experimente: localmente primeiro, depois num pull request { #15-try-it-locally-first-then-on-a-pull-request }
 
-Crie um branch com um problema **proposital** — uma busca que monta SQL concatenando a entrada do usuário (uma SQL injection, proibida pelo `CONVENTIONS.md`). Ele compila e os testes passam, então só um review pega:
+Crie um branch com um problema **proposital** — uma busca que monta SQL (*structured query language*) concatenando a entrada do usuário (uma SQL injection, proibida pelo `CONVENTIONS.md`). Ele compila e os testes passam, então só um review pega:
 
 ``` { .bash .copy }
 git switch -c try-ai-review

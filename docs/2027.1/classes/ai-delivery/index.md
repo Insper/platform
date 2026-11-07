@@ -1,4 +1,4 @@
-BoxOffice has twelve engineers and merges about sixty pull requests a week. A PR waits, on average, most of a working day for its first human review; the on-sale of a stadium show is in three weeks. At the planning meeting someone says the obvious thing: *"Let's put AI in the pipeline."* Two weeks later the team has a bot that leaves fifteen comments on every PR (people stopped reading them on day three), an agent that "fixed" a red build by deleting the failing test, release notes announcing a refund feature nobody built, and an invoice nobody predicted.
+BoxOffice has twelve engineers and merges about sixty pull requests (PRs) a week. A PR waits, on average, most of a working day for its first human review; the on-sale of a stadium show is in three weeks. At the planning meeting someone says the obvious thing: *"Let's put AI in the pipeline."* Two weeks later the team has a bot that leaves fifteen comments on every PR (people stopped reading them on day three), an agent that "fixed" a red build by deleting the failing test, release notes announcing a refund feature nobody built, and an invoice nobody predicted.
 
 None of that is a problem of the models. The same tools, designed well, cut review latency, find real bugs, write useful tests and shorten incidents. The difference is **system design**: where the AI step sits in the delivery lifecycle, what context it gets, what it is allowed to do, how its output is checked, what it costs, and how the team knows whether it helps. This class applies the course's toolbox — components, failure modes, numbers, trade-offs — to **AI inside the software delivery pipeline**.
 
@@ -13,10 +13,10 @@ None of that is a problem of the models. The same tools, designed well, cut revi
     - **Map** AI capabilities to each stage of the delivery lifecycle (plan, code, review, test, build, release, operate) and **place** a tool on the spectrum from assistant to autonomous agent.
     - **Design** an AI pull-request reviewer: context, structured output, noise control, advisory vs gate, and how to **measure** its precision.
     - **Evaluate** AI-generated tests with mutation testing and **explain** the oracle problem, flaky-test triage and test selection.
-    - **Specify** an agent that runs headless in CI with least privilege, budgets, idempotency, verification and an audit trail.
+    - **Specify** an agent that runs headless in continuous integration (CI) with least privilege, budgets, idempotency, verification and an audit trail.
     - **Separate** decision from explanation in release and operations: risk scoring, canary analysis, incident summaries, postmortems.
     - **Threat-model** AI in the pipeline (prompt injection, secret exfiltration, slopsquatting, supply chain) and **define** a governance policy, including evaluation of the AI tools themselves.
-    - **Estimate** the token, runner and attention cost of an AI step and **predict** its effect on the DORA metrics.
+    - **Estimate** the token, runner and attention cost of an AI step and **predict** its effect on the DORA (DevOps Research and Assessment) metrics.
 
 ## Roadmap
 
@@ -25,7 +25,7 @@ None of that is a problem of the models. The same tools, designed well, cut revi
 3. [Testing](testing/index.md) — generated tests and mutation testing, contract and property-based tests, load scripts from OpenAPI, flaky-test triage, test selection, synthetic data, the oracle problem.
 4. [Agents in CI](agents-in-ci/index.md) — fix-the-build, dependency and migration agents; headless runs; sandboxing, permissions, budgets, idempotency and audit.
 5. [Release & operate](release-operate/index.md) — release notes, change risk scoring, canary analysis, incident response, postmortems, ChatOps: *AI proposes, policies and humans dispose*.
-6. [Security & governance](security-governance/index.md) — prompt injection in the pipeline, exfiltration, slopsquatting, SLSA, SBOM and signing, policy as code, licensing, privacy, cost governance and evaluation of AI tools.
+6. [Security & governance](security-governance/index.md) — prompt injection in the pipeline, exfiltration, slopsquatting, Supply-chain Levels for Software Artifacts (SLSA), software bill of materials (SBOM) and signing, policy as code, licensing, privacy, cost governance and evaluation of AI tools.
 7. [Quiz](quiz.md) — check your understanding.
 
 ## Slides
@@ -44,7 +44,7 @@ Click the slides and use ← → to move through them; **F** goes full screen an
 This class does not repeat two foundations; read them first if needed:
 
 - [Cloud-native — Delivery](../cloud-native/delivery/index.md): CI, GitOps with Argo CD, deployment strategies, canary analysis with Argo Rollouts, and the DORA metrics. Every AI step here **plugs into** that pipeline.
-- [AI systems & agents](../ai-systems/index.md): the LLM as a dependency (tokens, latency, cost), the [LLM gateway](../ai-systems/llm-gateway/index.md), the [agent loop](../ai-systems/agents/index.md), and [safety and evals](../ai-systems/safety-evals/index.md). Here the "users" of the model are not fans but **engineers and pipelines**.
+- [AI systems & agents](../ai-systems/index.md): the large language model (LLM) as a dependency (tokens, latency, cost), the [LLM gateway](../ai-systems/llm-gateway/index.md), the [agent loop](../ai-systems/agents/index.md), and [safety and evals](../ai-systems/safety-evals/index.md). Here the "users" of the model are not fans but **engineers and pipelines**.
 
 ---
 
@@ -54,8 +54,8 @@ The software delivery lifecycle is a sequence of stages, each with its own input
 
 | Stage | What AI does | BoxOffice example | Main risk | Control |
 |---|---|---|---|---|
-| **Plan** | Drafts specs, ADRs, splits work, estimates impact | Draft ADR "Redis for seat holds vs PostgreSQL" from the discussion | Confident but wrong design reasoning | Human-owned ADR, review by the architect |
-| **Code** | Completes code, writes features in the IDE or as an agent | Implements `GET /catalog/events?city=` with tests | Plausible code with subtle bugs; insecure patterns; invented packages | Review, tests, SAST, dependency policy |
+| **Plan** | Drafts specs, architecture decision records (ADRs), splits work, estimates impact | Draft ADR "Redis for seat holds vs PostgreSQL" from the discussion | Confident but wrong design reasoning | Human-owned ADR, review by the architect |
+| **Code** | Completes code, writes features in the integrated development environment (IDE) or as an agent | Implements `GET /catalog/events?city=` with tests | Plausible code with subtle bugs; insecure patterns; invented packages | Review, tests, static application security testing (SAST), dependency policy |
 | **Review** | Reviews PRs: bugs, security, conventions, architecture rules | Flags `order` writing to the `inventory` schema | Noise; false sense of safety; gullible to injected text | Precision measured, advisory first, human approval |
 | **Test** | Generates tests, triages flaky ones, selects what to run | Unit tests for hold expiry; picks the 40 relevant tests of 4,000 | Tests that assert bugs; skipped relevant tests | Mutation score, safety net of full runs |
 | **Build** | Explains failures, proposes fixes, upgrades dependencies | Fixes a compile error after a Spring Boot upgrade | Agent bends tests to pass; excessive permissions | Sandbox, no write token, verification, draft PRs |
@@ -116,6 +116,20 @@ Every AI step in a pipeline — review, test generation, fix agent, notes, canar
 | **Output** | What shape, and how is it validated? | JSON findings against a schema; only added lines; thresholds |
 | **Action** | What does it change, with which permission? | Inline comments, `pull-requests: write`; never approves |
 | **Budget & fallback** | Max time, tokens, dollars? What if the model is down or wrong? | 10 min, ~US$ 0.02; fail open (no comments) |
+
+``` diagram-sim
+flowchart LR
+    trig["Trigger<br/>PR opened or pushed"] --> ctx["Context<br/>diff + PR text (untrusted),<br/>conventions, ADRs"]
+    ctx --> model["Model call<br/>budget: 10 min, ~US$ 0.02"]
+    model --> valid{"output valid?<br/>schema, added lines, thresholds"}
+    valid -->|"yes"| act["Action<br/>review comments<br/>(pull-requests: write)"]
+    valid -->|"no"| drop["output dropped"]
+    act --> human["Human approves<br/>(branch protection)"]
+    model -->|"model down or over budget"| safe{"fail-safe direction"}
+    safe -->|"advisory step"| open["Fail open<br/>step skipped, PR still merges"]
+    safe -->|"gate you rely on"| closed["Fail closed<br/>merge blocked until it answers"]:::problem
+```
+
 
 Two properties follow from the contract. **Least privilege**: the permission of the action is the most the step can ever do, whatever the model says. **Fail-safe direction**: decide in advance whether an AI outage blocks the pipeline (fail closed) or skips the step (fail open). Advisory steps fail open; a security gate that you rely on must fail closed — and then it must be very reliable.
 
@@ -198,6 +212,10 @@ Try it: open the scenario below with the `spike` profile and imagine the spike i
 
 <div class="sdp" data-scenario="ai-assistant" data-mode="compact" data-profile="spike" data-height="520"></div>
 
+The BoxOffice preset below puts **both clients** on the canvas. The fans' assistant asks 1 question per second, 3 model calls each; every 2 minutes a batch of 100 PR reviews and fix agents (6 turns each) starts within 10 s — 600 model calls landing on the same gateway of 10 calls/s. Run it and watch the errors jump each time the batch lands. The goal is errors under 1 % without a bigger quota: CI does not need an answer in seconds, so put a **queue** in front of the CI agents and give them a fixed concurrency — they drain the batch at the pace the quota leaves free, the gateway's version of a bulkhead.
+
+<div class="sdp" data-scenario="boxoffice-shared-llm" data-mode="compact" data-height="440"></div>
+
 [Open the full playground](../../../playground/index.md) to change the components yourself. The gateway component is described in the [component catalog](../../reference/components/ai/index.md#llmgw).
 
 !!! tip "In the interview"
@@ -246,8 +264,6 @@ flowchart LR
     safety -.- c4["injection in PR text,<br/>slopsquatting, policy as code"]:::tech
     obs -.- c5["canary verdict by policy,<br/>AI explains"]:::tech
     obs -.- c6["DORA, reviewer precision,<br/>mutation score"]:::tech
-    classDef comp fill:#1e9e5a22,stroke:#1e9e5a
-    classDef tech fill:#2f6fed22,stroke:#2f6fed
 ```
 
 | Palette component | Question it answers | Concepts | Taught in | Scenarios |

@@ -16,10 +16,10 @@ Nenhum desses é um problema de aprendizado de máquina. São problemas de **pro
 
     - **Explicar** por que uma chamada a um LLM se comporta de modo diferente de uma chamada a um serviço clássico (latência em segundos, preço por token, limites de taxa em tokens, saída probabilística, instruções misturadas com dados).
     - **Descrever** os cinco componentes de AI & AGENTS — LLM Gateway, Orchestrator, Tool Registry, Memory Fabric, Safety Mesh — e **associar** cada um ao componente clássico que ele estende.
-    - **Estimar** o custo e a latência de uma requisição de agente a partir do número de chamadas ao modelo, dos tokens por passo e da taxa de acerto do cache de prompt, além do TTFT, do TPOT e da vazão (throughput) de um endpoint de modelo.
-    - **Projetar** um loop de agente com chamadas de ferramenta via MCP, um orçamento de passos e de tokens, e uma decisão sobre quando **não** usar um agente.
+    - **Estimar** o custo e a latência de uma requisição de agente a partir do número de chamadas ao modelo, dos tokens por passo e da taxa de acerto do cache de prompt, além do tempo até o primeiro token (TTFT, *time to first token*), do tempo por token de saída (TPOT, *time per output token*) e da vazão (throughput) de um endpoint de modelo.
+    - **Projetar** um loop de agente com chamadas de ferramenta via Model Context Protocol (MCP), um orçamento de passos e de tokens, e uma decisão sobre quando **não** usar um agente.
     - **Construir** um pipeline de geração aumentada por recuperação (RAG) — chunking, embeddings, busca híbrida, reranking, citações — e **escolher** o tipo de memória certo para cada parte do estado.
-    - **Defender** uma funcionalidade de IA contra prompt injection (direta e indireta), vazamento de dados pessoais (PII) e ações arriscadas, e **avaliá-la** com conjuntos de referência (golden sets), LLM como juiz (ciente de seus vieses) e métricas online, observando tudo por traces GenAI do OpenTelemetry.
+    - **Defender** uma funcionalidade de IA contra prompt injection (direta e indireta), vazamento de dados pessoais (PII, *personally identifiable information*) e ações arriscadas, e **avaliá-la** com conjuntos de referência (golden sets), LLM como juiz (ciente de seus vieses) e métricas online, observando tudo por traces GenAI do OpenTelemetry.
 
 ## Roteiro { #roadmap }
 
@@ -89,11 +89,11 @@ O playground agrupa os componentes de uma aplicação com LLM em cinco caixas. N
 | **Orchestrator** (`orchestrator`) | executa o loop do agente ou o workflow: chama o modelo, executa ferramentas, guarda o estado da tarefa | servidor de aplicação + motor de workflow (orquestrador de saga) | transforma "dois assentos abaixo de R$ 300, segure para mim" em buscar → filtrar → reservar → responder |
 | **Tool Registry** (`toolreg`) | catálogo das ações que o modelo pode solicitar, com schemas, permissões e endpoints (servidores MCP) | service registry / catálogo de APIs + Auth | expõe `search_events`, `search_seats`, `hold_seats`, `get_order`; **não** `charge_card` |
 | **Memory Fabric** (`memory`) | tudo o que o assistente lembra: histórico da sessão, preferências do usuário e a base de conhecimento consultada pelo RAG | Cache + SQL + Vector DB + Object Store | conversa no Redis; preferências no PostgreSQL; regras dos locais e FAQ no pgvector |
-| **Safety Mesh** (`safety`) | camada de políticas em torno de toda entrada, saída e ação do modelo: defesa contra injeção, mascaramento de PII, validação de schema, aprovações | WAF + políticas de service mesh + prevenção de perda de dados (DLP) | mascara CPF e números de cartão; bloqueia um `hold_seats` de 40 assentos; pergunta ao fã antes de qualquer pagamento |
+| **Safety Mesh** (`safety`) | camada de políticas em torno de toda entrada, saída e ação do modelo: defesa contra injeção, mascaramento de PII, validação de schema, aprovações | firewall de aplicação web (WAF, *web application firewall*) + políticas de service mesh + prevenção de perda de dados (DLP) | mascara CPF e números de cartão; bloqueia um `hold_seats` de 40 assentos; pergunta ao fã antes de qualquer pagamento |
 
 ### LLM Gateway
 
-Todo time que chama um modelo precisa das mesmas coisas: credenciais, retentativas, um fallback quando o provedor cai, um limite para que uma funcionalidade não consuma o orçamento do mês inteiro e um painel de tokens e custo. Colocar tudo isso em **um gateway** (o gateway de LLM) — exatamente como o [API Gateway](../edge/api-gateway/index.md) centraliza autenticação e limite de taxa para HTTP — dá um único lugar para trocar de modelo, uma única fatura para ler e um único conjunto de métricas. Seus números são tokens por minuto, tempo até o primeiro token (TTFT, *time to first token*) e US$ por requisição. Aprofundamento: [LLM Gateway](llm-gateway/index.md).
+Todo time que chama um modelo precisa das mesmas coisas: credenciais, retentativas, um fallback quando o provedor cai, um limite para que uma funcionalidade não consuma o orçamento do mês inteiro e um painel de tokens e custo. Colocar tudo isso em **um gateway** (o gateway de LLM) — exatamente como o [API Gateway](../edge/api-gateway/index.md) centraliza autenticação e limite de taxa para HTTP — dá um único lugar para trocar de modelo, uma única fatura para ler e um único conjunto de métricas. Seus números são tokens por minuto, TTFT e US$ por requisição. Aprofundamento: [LLM Gateway](llm-gateway/index.md).
 
 ### Orchestrator
 
@@ -105,7 +105,7 @@ Uma **ferramenta** é uma função que o modelo pode pedir ao orquestrador para 
 
 ### Memory Fabric
 
-Como o modelo não tem estado, *tudo* o que ele deve saber precisa ser colocado de volta no prompt a cada chamada. O Memory Fabric (tecido de memória) decide o quê: a conversa recente (memória de curto prazo, um cache com TTL), fatos duráveis sobre o usuário (memória de longo prazo, um banco de dados) e trechos de documentos que respondem à pergunta (**geração aumentada por recuperação**, RAG[^3], sobre um [Vector DB](../databases/specialized/index.md)). É um sistema de dados com as perguntas de sempre — atualidade, consistência, controle de acesso, retenção, direito ao esquecimento sob a LGPD (Lei Geral de Proteção de Dados). Aprofundamento: [RAG e memória](rag-memory/index.md).
+Como o modelo não tem estado, *tudo* o que ele deve saber precisa ser colocado de volta no prompt a cada chamada. O Memory Fabric (tecido de memória) decide o quê: a conversa recente (memória de curto prazo, um cache com tempo de vida, TTL, *time to live*), fatos duráveis sobre o usuário (memória de longo prazo, um banco de dados) e trechos de documentos que respondem à pergunta (**geração aumentada por recuperação**, RAG[^3], sobre um [Vector DB](../databases/specialized/index.md)). É um sistema de dados com as perguntas de sempre — atualidade, consistência, controle de acesso, retenção, direito ao esquecimento sob a LGPD (Lei Geral de Proteção de Dados). Aprofundamento: [RAG e memória](rag-memory/index.md).
 
 ### Safety Mesh
 
@@ -260,7 +260,7 @@ O que os números dizem:
 
 !!! success "Boas práticas"
 
-    - **Escreva um orçamento de tokens ao lado do SLO de latência de toda funcionalidade de IA** — por exemplo p95 de TTFT < 1,5 s e ≤ 20.000 tokens de entrada por requisição; com os [números acima](#numbers), quatro chamadas ao modelo já usam ~17.000, então um quinto passo é uma mudança de projeto, não um ajuste.
+    - **Escreva um orçamento de tokens ao lado do objetivo de nível de serviço (SLO, *service level objective*) de latência de toda funcionalidade de IA** — por exemplo p95 de TTFT < 1,5 s e ≤ 20.000 tokens de entrada por requisição; com os [números acima](#numbers), quatro chamadas ao modelo já usam ~17.000, então um quinto passo é uma mudança de projeto, não um ajuste.
     - **Decida o modo degradado antes do lançamento** — o pico das 10:00 pede ~34 M de tokens por minuto ao gateway; quando a cota ou o provedor acabam, o fã recebe o link do FAQ estático, nunca um `500`.
     - **Devolva o modelo, os tokens e o custo com toda resposta** — assim uma queda de qualidade pode ser ligada a uma mudança de modelo ou de prompt em minutos. No BoxOffice: o evento `done` do [laço do agente do lab 12](../../hands-on/12/tools/index.md) traz `model`, `usage` e `ttft_ms`.
     - **Faça toda resposta mostrar as suas fontes** — uma citação que o fã consegue abrir é verificável pelo fã e pelo código. No BoxOffice: a [verificação de saída do lab 12](../../hands-on/12/guardrails/index.md) marca respostas sem citações `[event:id]` válidas como `grounded: false`.
@@ -289,14 +289,12 @@ flowchart LR
     orch --> memory["memory"]:::comp
     memory --> stores["cache · sql · vectordb"]:::comp
     llmgw -.-> obs["tracing · metrics"]:::comp
-    llmgw -.- c1["alias routing, fallbacks,<br/>token quotas, prompt cache"]:::tech
-    orch -.- c2["agent loop, budgets,<br/>durable execution"]:::tech
-    toolreg -.- c3["MCP, tool schemas,<br/>user-scoped permissions"]:::tech
-    stores -.- c4["RAG: chunk, embed,<br/>hybrid search, rerank"]:::tech
-    safety -.- c5["prompt injection, PII,<br/>output validation, HITL"]:::tech
-    obs -.- c6["golden sets, GenAI traces,<br/>cost burn rate"]:::tech
-    classDef comp fill:#1e9e5a22,stroke:#1e9e5a
-    classDef tech fill:#2f6fed22,stroke:#2f6fed
+    llmgw -.- c1["roteamento por alias, fallbacks,<br/>cotas de tokens, cache de prompt"]:::tech
+    orch -.- c2["loop do agente, orçamentos,<br/>execução durável"]:::tech
+    toolreg -.- c3["MCP, schemas de ferramentas,<br/>permissões do usuário"]:::tech
+    stores -.- c4["RAG: chunks, embeddings,<br/>busca híbrida, reranking"]:::tech
+    safety -.- c5["prompt injection, PII,<br/>validação da saída, humano no loop"]:::tech
+    obs -.- c6["golden sets, traces GenAI,<br/>taxa de queima de custo"]:::tech
 ```
 
 | Componente da paleta | Pergunta que responde | Conceitos | Ensinado em | Cenários |
@@ -305,7 +303,7 @@ flowchart LR
 | [`orchestrator`](../../reference/components/ai/index.md#orchestrator) | Quem decide o *próximo passo* e quando ele para? | workflow vs agente, loop do agente, orçamentos de passos e tokens, execução durável, multiagente | [Agentes e ferramentas](agents/index.md#loop) | `ai-assistant` |
 | [`toolreg`](../../reference/components/ai/index.md#toolreg) | O que o modelo pode *pedir para fazer*, e em nome de quem? | schemas de ferramentas, servidores MCP, permissões, níveis de risco, ferramentas idempotentes | [Agentes e ferramentas — MCP](agents/index.md#mcp) | `ai-assistant` |
 | [`memory`](../../reference/components/ai/index.md#memory) | O que precisa *voltar para o prompt*? | memória de curto prazo, de longo prazo e episódica, RAG, privacidade e exclusão | [RAG e memória](rag-memory/index.md#memory) | `ai-assistant` |
-| [`vectordb`](../../reference/components/storage/index.md#vectordb) | Onde estão os *trechos relevantes*? | chunking, embeddings, HNSW, busca híbrida, reranking, citações | [RAG e memória](rag-memory/index.md#embeddings) | `ai-assistant` |
+| [`vectordb`](../../reference/components/storage/index.md#vectordb) | Onde estão os *trechos relevantes*? | chunking, embeddings, índice HNSW (*Hierarchical Navigable Small World*), busca híbrida, reranking, citações | [RAG e memória](rag-memory/index.md#embeddings) | `ai-assistant` |
 | [`safety`](../../reference/components/ai/index.md#safety) | Esta entrada, saída ou *ação* é permitida? | prompt injection, a tríade letal, redação de PII, validação de saída, humano no circuito | [Segurança, avaliações e observabilidade](safety-evals/index.md) | `ai-assistant` |
 | [`tracing`](../../reference/components/observability/index.md#tracing) · [`metrics`](../../reference/components/observability/index.md#metrics) | A resposta está *certa, rápida e barata*? | golden sets, LLM-as-judge, pass^k, convenções semânticas GenAI, taxa de queima de custo | [Segurança, avaliações e observabilidade](safety-evals/index.md#observability) | `ai-assistant`, `observability-stack` |
 | *(todos)* | *Quanto* custa uma requisição e quanto ela demora? | tokens, crescimento quadrático do contexto, acertos de cache, passos por requisição | [esta visão geral](#numbers) | `ai-assistant` |

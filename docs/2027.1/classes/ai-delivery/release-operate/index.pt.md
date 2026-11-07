@@ -22,9 +22,9 @@ O padrão é o mesmo da [revisão de código](../code-review/index.md): a saída
 
 ## Notas de versão e changelogs { #release-notes-and-changelogs }
 
-As notas de versão atendem a dois públicos: **operadores** ("o que preciso fazer antes do deploy da `v1.8.0`? que migrações rodam?") e **usuários** ("o que há de novo?"). Ambas as respostas podem ser derivadas dos commits, títulos de PR, rótulos e arquivos de migração — se eles forem bem escritos. Um modelo os agrupa e reescreve em minutos. O modo de falha é a **invenção plausível**: uma funcionalidade que soa correta, um número de ticket que não existe.
+As notas de versão atendem a dois públicos: **operadores** ("o que preciso fazer antes do deploy da `v1.8.0`? que migrações rodam?") e **usuários** ("o que há de novo?"). Ambas as respostas podem ser derivadas dos commits, títulos de pull request (PR), rótulos e arquivos de migração — se eles forem bem escritos. Um modelo os agrupa e reescreve em minutos. O modo de falha é a **invenção plausível**: uma funcionalidade que soa correta, um número de ticket que não existe.
 
-A correção é uma **verificação de ancoragem em código**: todo item precisa citar um SHA de commit ou número de PR que esteja de fato no intervalo `previous_tag..tag`; itens sem ancoragem são descartados e reportados. A verificação pega invenções; ela não consegue pegar um *resumo errado de um commit real*, por isso as notas são publicadas como **rascunho** que uma pessoa edita. Assuntos de commit no padrão Conventional Commits (`fix(inventory): hold expires two minutes early (#212)`) tornam tanto o agrupamento quanto a ancoragem quase triviais — o modelo não consegue recuperar uma intenção que nunca foi escrita.
+A correção é uma **verificação de ancoragem em código**: todo item precisa citar um SHA de commit (o hash que nomeia o commit) ou número de PR que esteja de fato no intervalo `previous_tag..tag`; itens sem ancoragem são descartados e reportados. A verificação pega invenções; ela não consegue pegar um *resumo errado de um commit real*, por isso as notas são publicadas como **rascunho** que uma pessoa edita. Assuntos de commit no padrão Conventional Commits (`fix(inventory): hold expires two minutes early (#212)`) tornam tanto o agrupamento quanto a ancoragem quase triviais — o modelo não consegue recuperar uma intenção que nunca foi escrita.
 
 !!! example "No código do BoxOffice: notas de versão que precisam citar (lab 13)"
 
@@ -53,6 +53,21 @@ Os sinais mais fortes são estruturais e baratos de calcular:
 | Calendário | Mesma mudança, risco diferente | 2 horas antes da abertura de vendas do show no estádio |
 
 Um modelo contribui com duas coisas: **sinais semânticos** difíceis de calcular ("isto muda como as reservas expiram", "isto remove uma verificação de autorização") e um **resumo legível** de por que a pontuação está alta. A pontuação em si fica melhor como uma fórmula transparente ou um modelo simples treinado no histórico e ela deve apenas **direcionar** — exigir um segundo revisor, escolher o perfil de canary lento, bloquear deploys dentro de uma janela de congelamento por política —, nunca aprovar ou rejeitar uma mudança sozinha.
+
+``` diagram-sim
+flowchart LR
+    pr["Mudança"] --> sig["Sinais estruturais<br/>tamanho, caminhos críticos, migração,<br/>testes, histórico de incidentes"]
+    pr --> sem["Modelo: sinais semânticos<br/>(muda como as reservas expiram)"]
+    sig --> score["Pontuação de risco<br/>fórmula transparente"]
+    sem --> score
+    score -->|"baixa"| fast["Um revisor,<br/>canary padrão"]
+    score -->|"alta"| slow["Segundo revisor,<br/>perfil de canary lento"]
+    score --> cal{"dentro de uma janela de congelamento?<br/>(2 h antes da abertura das vendas)"}
+    cal -->|"sim, por política"| hold["O deploy espera"]:::problem
+    fast --> gates["Gates determinísticos decidem<br/>testes, scans, aprovações"]
+    slow --> gates
+```
+
 
 ??? question "Pense primeiro: uma pontuação de risco alta da IA deveria bloquear o merge?"
 
@@ -113,13 +128,13 @@ sequenceDiagram
 
 | Tarefa da IA | Entradas | Saída | Proteção |
 |---|---|---|---|
-| **Resumo de alertas** | Alertas disparados, burn rates dos SLOs | "O que está quebrado, para quem, desde quando" | Links para os dashboards que leu |
+| **Resumo de alertas** | Alertas disparados, burn rates dos objetivos de nível de serviço (SLOs, *service level objectives*) | "O que está quebrado, para quem, desde quando" | Links para os dashboards que leu |
 | **Correlação com mudanças** | Deploys, mudanças de configuração e de flags na janela | "`inventory v1.8.0` chegou a 25% às 21h50; os erros começaram às 21h52" | Dados determinísticos; o modelo só formata |
 | **Hipóteses** | Traces, logs, o diff da mudança suspeita | Lista ordenada, cada uma com evidência e uma consulta para verificar | Rotuladas como hipóteses; nunca ações |
-| **Busca de runbooks** | O alerta e os runbooks do time ([RAG](../../ai-systems/rag-memory/index.md)) | Os passos relevantes do runbook | Os passos são executados por humanos ou por automação autorizada |
+| **Busca de runbooks** | O alerta e os runbooks do time (geração aumentada por recuperação, [RAG](../../ai-systems/rag-memory/index.md), *retrieval-augmented generation*) | Os passos relevantes do runbook | Os passos são executados por humanos ou por automação autorizada |
 | **Atualizações de status** | Canal do incidente | Rascunho de atualização para as partes interessadas a cada 30 min | Um humano envia |
 
-**Sugerir um rollback** tudo bem; **executar** um é uma decisão de política. Muitos times já fazem rollback automático quando a análise de canary falha — essa automação é determinística e testada. Um LLM que "decide" fazer rollback da produção com base na sua leitura dos logs acrescenta um ator não determinístico e manipulável ao momento mais sensível da vida do sistema. As ferramentas dadas a um assistente de incidentes são **somente leitura** por padrão; qualquer ação de escrita passa pela mesma autorização, confirmação e auditoria que a de um humano.
+**Sugerir um rollback** tudo bem; **executar** um é uma decisão de política. Muitos times já fazem rollback automático quando a análise de canary falha — essa automação é determinística e testada. Um modelo de linguagem (LLM, *large language model*) que "decide" fazer rollback da produção com base na sua leitura dos logs acrescenta um ator não determinístico e manipulável ao momento mais sensível da vida do sistema. As ferramentas dadas a um assistente de incidentes são **somente leitura** por padrão; qualquer ação de escrita passa pela mesma autorização, confirmação e auditoria que a de um humano.
 
 !!! warning "Ancoragem"
 
@@ -146,7 +161,7 @@ O **ChatOps** conduz a operação a partir do chat do time: `/boxoffice status i
 | Decisão | Escolha A quando… | Escolha B quando… |
 |---|---|---|
 | Notas de versão: rascunho da IA vs. escritas à mão | Muitas mudanças por release; boas mensagens de commit | Poucas releases, de alto risco; changelogs regulados |
-| Pontuação de risco: fórmula vs. ML/LLM | Poucos times, pouco histórico; transparência em primeiro lugar | Organização grande com histórico de incidentes rotulado |
+| Pontuação de risco: fórmula vs. aprendizado de máquina (ML, *machine learning*) ou LLM | Poucos times, pouco histórico; transparência em primeiro lugar | Organização grande com histórico de incidentes rotulado |
 | Canary: limiares vs. comparação estatística | Poucas métricas, SLOs claros | Muitas métricas, sinais ruidosos (ao estilo Kayenta) |
 | Assistente de incidentes: só resumo vs. com ferramentas | No começo; pouca confiança | Ferramentas somente leitura com precisão comprovada; ações de escrita continuam humanas |
 | Rollback automático: por política vs. por decisão humana | O veredito é determinístico e bem testado | Sinais ambíguos, mudanças com estado (migrações) |

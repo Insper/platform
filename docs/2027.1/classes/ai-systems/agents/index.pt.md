@@ -25,7 +25,7 @@ Comece pelo topo da tabela e desça **apenas quando o nível mais simples falhar
 
 ## O loop do agente { #loop }
 
-Um agente é um loop em torno de uma chamada ao modelo. Na formulação **ReAct**[^2], o modelo alterna entre *raciocinar* (o que eu sei, do que eu preciso), *agir* (pedir uma chamada de ferramenta) e *observar* (ler o resultado da ferramenta), até conseguir responder.
+Um agente é um loop em torno de uma chamada a um modelo de linguagem de grande porte (LLM, *large language model*). Na formulação **ReAct**[^2], o modelo alterna entre *raciocinar* (o que eu sei, do que eu preciso), *agir* (pedir uma chamada de ferramenta) e *observar* (ler o resultado da ferramenta), até conseguir responder.
 
 ``` diagram-sim
 flowchart TD
@@ -103,6 +103,18 @@ Cinco detalhes nessas 25 linhas concentram a maior parte da engenharia:
 
 À medida que o histórico cresce, a **engenharia de contexto** o mantém útil: as ferramentas devolvem resultados compactos (5 opções de assento, não 5.000 assentos); turnos antigos são **compactados** em um resumo; documentos grandes são referenciados por ID e buscados só quando necessário. Um contexto focado é mais barato, mais rápido e mais preciso do que um longo[^3].
 
+<div class="csim" data-sim="agent-loop" data-steps="8"></div>
+
+!!! tip "Experimente"
+
+    Com o modelo que **acha os assentos**, o loop faz **4 chamadas ao modelo** e envia **16.920 tokens de entrada** no total — US$ **22,83** por 1.000 pedidos com 90% de acertos no cache de prompt, os números da [tabela da visão geral](../index.md#numbers); a resposta começa após **6,8 s**. Desligue as chamadas de ferramenta em paralelo: **5 chamadas ao modelo**, US$ **29,44**, **8,9 s** — a rodada que o [rastro de uma tarefa](#boxoffice-the-trace-of-one-task) economiza. Troque para o modelo que **fica preso** repetindo `search_seats`: com `MAX_STEPS` = 8 ele envia **46.320 tokens** e termina com um pedido de desculpas; suba `MAX_STEPS` para 12 e o orçamento de tokens o para na mesma chamada. Ligue a **detecção de loop**: a chamada repetida é pega na **chamada 3**, após **11.520 tokens**. Por fim ligue **última chamada sem ferramentas**: a escolha do lab 12 transforma o limite de passos numa resposta — parcial, mas uma resposta.
+
+!!! example "Veja no playground: o assistente do lab 12 sob carga"
+
+    O preset roda o assistente do lab: até `MAX_STEPS` = 4 chamadas ao modelo por pergunta num modelo local que responde uma chamada em ≈ 3 s e aceita ≈ 1 chamada/s. Com 0,5 pergunta/s o loop já pede 2 chamadas/s, o dobro do que o modelo aceita. Rode-o, depois baixe os `steps` do orquestrador para 2 (recuperar primeiro e depois responder) e ligue o cache semântico e o modelo de fallback do gateway: a carga no modelo é perguntas × passos, então cortar passos ajuda tanto quanto somar capacidade.
+
+<div class="sdp" data-scenario="boxoffice-assistant" data-mode="compact" data-height="440"></div>
+
 ---
 
 ## Chamada de ferramentas { #tool-calling }
@@ -116,7 +128,7 @@ A chamada de ferramentas (tool calling, também conhecida como *function calling
 
 O modelo escolhe as ferramentas **lendo seus nomes e descrições**, então a interface da ferramenta é, ao mesmo tempo, um prompt e uma API. Boas ferramentas são projetadas para o modelo, não copiadas da API interna:
 
-| Princípio | Ruim | Bom |
+| Princípio | ❌ Ruim | ✅ Bom |
 |---|---|---|
 | No nível da tarefa, não da tabela | `run_sql(query)`, `get_all_seats(event_id)` | `search_seats(event_id, quantity, max_price_brl)` |
 | Poucas e distintas | 40 ferramentas com nomes que se sobrepõem | ~5–15 ferramentas por agente, bem separadas |
@@ -132,6 +144,18 @@ O modelo escolhe as ferramentas **lendo seus nomes e descrições**, então a in
 
 Uma chamada ao modelo pode ser repetida à vontade. Uma chamada de ferramenta **muda o mundo**. Se `hold_seats` estoura o tempo e o loop tenta de novo, a primeira reserva aconteceu ou não? Esse é o problema de integração de [Computação e serviços](../../compute/integrations/index.md) e as respostas são as mesmas:
 
+``` diagram-sim
+sequenceDiagram
+    participant O as Orquestrador
+    participant I as serviço inventory
+    O->>I: hold_seats(evt_8812, [C12, C13], chave conv_51f3:step3:call1)
+    I->>I: reserva h_77a criada, chave guardada
+    I--xO: a resposta se perde (timeout)
+    O->>I: nova tentativa: hold_seats(..., mesma chave)
+    I-->>O: a mesma reserva h_77a, sem segunda reserva
+    Note over O,I: sem a chave, a nova tentativa reserva C12 e C13 duas vezes
+```
+
 - **Chaves de idempotência.** O orquestrador deriva uma chave de `(conversation, step, call)` e a passa para toda ferramenta de escrita; o serviço devolve o mesmo resultado para a mesma chave.
 - **Reversível primeiro.** Prefira ações que tenham um "desfazer" natural — uma **reserva temporária (hold)** expira em 10 minutos; um **pedido** com pagamento, não.
 - **Compensação.** Se um passo posterior falhar, execute a ação inversa (`release_hold`), exatamente como em uma [saga](../../messaging/patterns/index.md).
@@ -139,10 +163,10 @@ Uma chamada ao modelo pode ser repetida à vontade. Uma chamada de ferramenta **
 
 | Nível | Exemplos | Política |
 |---|---|---|
-| Leitura | `search_events`, `search_seats`, `get_order` | automática |
-| Escrita reversível | `hold_seats`, `add_to_wishlist` | automática dentro de limites (≤ 6 assentos, ≤ 1 reserva ativa) |
-| Irreversível / financeira | `create_order`, `refund_order`, `charge` | **confirmação explícita do usuário** na interface, nunca apenas por texto |
-| Comunicação externa | `send_email`, `post_review` | confirmação, ou nem é oferecida |
+| 🟢 Leitura | `search_events`, `search_seats`, `get_order` | automática |
+| 🟡 Escrita reversível | `hold_seats`, `add_to_wishlist` | automática dentro de limites (≤ 6 assentos, ≤ 1 reserva ativa) |
+| 🔴 Irreversível / financeira | `create_order`, `refund_order`, `charge` | **confirmação explícita do usuário** na interface, nunca apenas por texto |
+| 🔴 Comunicação externa | `send_email`, `post_review` | confirmação, ou nem é oferecida |
 
 !!! example "No código do BoxOffice: ferramentas só de leitura, identidade vinda do gateway (lab 12)"
 
@@ -302,7 +326,7 @@ O MCP padroniza o *protocolo de rede*; o componente **Tool Registry** é a gover
 
 | Preocupação do registro | O que ele registra / impõe |
 |---|---|
-| Catálogo | quais servidores MCP existem, time responsável, versão, endpoint, SLO |
+| Catálogo | quais servidores MCP existem, time responsável, versão, endpoint, objetivo de nível de serviço (SLO, *service level objective*) |
 | Exposição | quais ferramentas cada agente (e cada papel de usuário) pode ver |
 | Nível de risco | leitura / reversível / irreversível / externa — alimenta o [Safety Mesh](../safety-evals/index.md) |
 | Autenticação | escopos OAuth por ferramenta; tokens por usuário, não um super-token compartilhado |
@@ -409,16 +433,16 @@ As chamadas de ferramenta em paralelo economizaram uma rodada inteira (≈ 2 s).
 
 ``` diagram
 flowchart LR
-    WF{"steps known<br/>in advance?"} -->|"yes"| FLOW["workflow<br/>(code decides)"]
-    WF -->|"no"| LOOP["agent loop<br/>(model decides)"]
-    LOOP --> BUD["budgets: steps,<br/>tokens, time"]
-    LOOP --> DUR["durable execution:<br/>state after every step"]
-    LOOP --> MATH["0.95^10 ≈ 60 %<br/>→ Estimation availability math"]
-    LOOP --> TOOLS["tool calls via MCP<br/>→ tool registry"]
-    TOOLS --> AUTH["authorized as the user<br/>→ Network & Security identity"]
-    TOOLS --> IDEM["idempotency keys, compensation<br/>→ Messaging sagas"]
-    LOOP --> CTX["context<br/>→ RAG & Memory"]
-    TOOLS --> HITL["confirmation for risky actions<br/>→ Safety mesh"]
+    WF{"passos conhecidos<br/>de antemão?"} -->|"sim"| FLOW["workflow<br/>(o código decide)"]
+    WF -->|"não"| LOOP["loop do agente<br/>(o modelo decide)"]
+    LOOP --> BUD["orçamentos: passos,<br/>tokens, tempo"]
+    LOOP --> DUR["execução durável:<br/>estado após cada passo"]
+    LOOP --> MATH["0,95^10 ≈ 60 %<br/>→ Estimativas: matemática da disponibilidade"]
+    LOOP --> TOOLS["chamadas de ferramenta via MCP<br/>→ registro de ferramentas"]
+    TOOLS --> AUTH["autorizadas como o usuário<br/>→ Rede e Segurança: identidade"]
+    TOOLS --> IDEM["chaves de idempotência, compensação<br/>→ Mensageria: sagas"]
+    LOOP --> CTX["contexto<br/>→ RAG e memória"]
+    TOOLS --> HITL["confirmação de ações arriscadas<br/>→ Safety Mesh"]
 ```
 
 **Componentes da paleta:** [`orchestrator`](../../../reference/components/ai/index.md#orchestrator) (executa o loop e controla os orçamentos) · [`toolreg`](../../../reference/components/ai/index.md#toolreg) (servidores MCP, permissões, níveis de risco) · [`llmgw`](../../../reference/components/ai/index.md#llmgw) (toda chamada ao modelo) · [`safety`](../../../reference/components/ai/index.md#safety) (aprovação de ações arriscadas) · [`auth`](../../../reference/components/compute/index.md#auth) (a identidade do usuário em cada chamada de ferramenta) · [`app`](../../../reference/components/compute/index.md#app) (os mesmos serviços `catalog` e `inventory` que o front end web chama). **Cenários:** `ai-assistant`. **Continua em:** [Mensageria — padrões](../../messaging/patterns/index.md) (sagas e compensação), [Rede e Segurança — identidade](../../edge/identity/index.md), [Estimativas — matemática da disponibilidade](../../estimation/availability-math/index.md), [Compute — integrações](../../compute/integrations/index.md) (chaves de idempotência), [RAG e memória](../rag-memory/index.md), [Segurança, avaliações e observabilidade](../safety-evals/index.md).

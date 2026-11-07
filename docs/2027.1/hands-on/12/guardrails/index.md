@@ -1,7 +1,7 @@
 # 4. Guardrails and Metrics
 
-An assistant that talks to 2 million fans will be asked to ignore its rules, will be given CPFs and
-card numbers, and will sometimes invent an event. The **safety mesh** of the
+An assistant that talks to 2 million fans will be asked to ignore its rules, will be given CPFs (Brazilian taxpayer
+numbers) and card numbers, and will sometimes invent an event. The **safety mesh** of the
 [safety and evals class](../../../classes/ai-systems/safety-evals/index.md) puts checks on both sides
 of the model, and **metrics** make the cost and the latency of every answer visible next to the rest
 of BoxOffice in Grafana (lab 8).
@@ -26,7 +26,7 @@ flowchart LR
 |---|---|---|---|
 | length limit | input | cost attacks, huge pasted documents | — |
 | injection patterns | input | the obvious "ignore previous instructions" | paraphrases, other languages, injections inside documents or tool results |
-| PII redaction | input | CPF, card numbers and e-mails reaching the model, the logs or a third-party provider | names, addresses, free-form personal data |
+| redaction of personally identifiable information (PII) | input | CPF, card numbers and e-mails reaching the model, the logs or a third-party provider | names, addresses, free-form personal data |
 | citation check | output | citations of documents the model never received; answers with no citation at all | a wrong sentence next to a valid citation |
 | read-only tools, identity from headers | tools (step 3) | a manipulated model buying, cancelling or reading others' orders | — |
 
@@ -34,6 +34,10 @@ Pattern matching is a first layer, cheap and explainable, never the only one: th
 this design is **architectural** — read-only tools and identity that the model cannot forge.
 Production systems add classifier models (for injection and harmful content), structured outputs,
 and human review of sampled conversations.
+
+One limit of the citation check shows in step 3's order question: the evidence holds only catalog event
+ids, so an answer built from `get_order_status` has nothing to cite and comes back `grounded: false` — a
+false alarm. A fuller guard would count tool results as evidence too.
 
 Try them:
 
@@ -45,7 +49,7 @@ Try them:
 {"detail":{"blocked":"prompt_injection","message":"I can only help with BoxOffice events, tickets and orders."}} 422
 ```
 
-You should see HTTP `422` with `"blocked":"prompt_injection"` — and no LLM call (instant). The
+You should see HTTP `422` with `"blocked":"prompt_injection"` — and no call to the large language model (LLM): instant. The
 redaction can be checked directly in Python:
 
 ``` shell
@@ -62,7 +66,7 @@ You should see `my CPF is [CPF] and card [CARD], mail [EMAIL]`.
 --8<-- "docs/2027.1/hands-on/12/code/services/assistant/app/metrics.py"
 ```
 
-The assistant uses the OpenTelemetry **SDK** (Python has no Java-style agent here) and pushes OTLP to
+The assistant uses the OpenTelemetry **software development kit (SDK)** (Python has no Java-style agent here) and pushes the OpenTelemetry Protocol (OTLP) to
 `otel-lgtm`, so its metrics live next to those of the Java services:
 
 | Prometheus metric | Labels | Question it answers |

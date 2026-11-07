@@ -4,11 +4,11 @@ The team upgrades Spring Boot across BoxOffice on a Monday morning. Fourteen ser
 
 ## What agents do in a pipeline
 
-The [agent loop](../../ai-systems/agents/index.md) — the model chooses a tool, the harness runs it, the result goes back into the context, repeat — becomes, in CI, a loop over the repository and the build:
+The [agent loop](../../ai-systems/agents/index.md) — the model chooses a tool, the harness runs it, the result goes back into the context, repeat — becomes, in continuous integration (CI), a loop over the repository and the build:
 
 | Agentic workflow | Trigger | Verifiable by | Typical blast radius | Sensible autonomy |
 |---|---|---|---|---|
-| **Fix the failing build** | CI run failed | The build and tests pass; diff is small | One branch | Supervised: draft PR |
+| **Fix the failing build** | CI run failed | The build and tests pass; diff is small | One branch | Supervised: draft pull request (PR) |
 | **Dependency upgrade** | Renovate/Dependabot PR is red | Build, tests, canary | Many services | Supervised; auto-merge only patch versions with green CI |
 | **Migration** (JUnit 4 → 5, `javax` → `jakarta`, Java 17 → 21) | Planned campaign | Build, tests, plus a codemod for the mechanical part | Whole codebase, in batches | Supervised, one PR per service |
 | **Issue to PR** | Issue labelled or `@mention` | Tests written with the issue's acceptance criteria | One feature | Supervised; human review as usual |
@@ -50,7 +50,7 @@ Read it as two programs. The **agent** is non-deterministic and untrusted: it ma
 
 Agents in CI run **headless**: no terminal, no human to answer "may I run this command?". Every decision a person would make interactively must be made **in advance**, as configuration.
 
-=== "Claude Code (CLI)"
+=== "Claude Code (command-line interface, CLI)"
 
     `claude -p "<task>"` runs Claude Code non-interactively. Relevant flags from its [CLI reference](https://code.claude.com/docs/en/cli-reference){target="_blank"}:
 
@@ -63,7 +63,7 @@ Agents in CI run **headless**: no terminal, no human to answer "may I run this c
       --output-format stream-json --verbose > transcript.jsonl
     ```
 
-    `--bare` skips auto-discovery of hooks, plugins, MCP servers and `CLAUDE.md` (the same behaviour on every machine, and nothing loaded from the repository you did not choose); `--allowedTools` uses permission-rule syntax (`Bash(mvn -B *)` allows only commands starting with `mvn -B`); `dontAsk` denies everything else; `--max-turns` and `--max-budget-usd` bound the loop; `stream-json` produces a transcript for the audit log, whose last line reports the cost.
+    `--bare` skips auto-discovery of hooks, plugins, Model Context Protocol (MCP) servers and `CLAUDE.md` (the same behaviour on every machine, and nothing loaded from the repository you did not choose); `--allowedTools` uses permission-rule syntax (`Bash(mvn -B *)` allows only commands starting with `mvn -B`); `dontAsk` denies everything else; `--max-turns` and `--max-budget-usd` bound the loop; `stream-json` produces a transcript for the audit log, whose last line reports the cost.
 
 === "Claude Code GitHub Action"
 
@@ -220,8 +220,8 @@ Without caching, 40 turns cost more than eight times what 10 turns cost (about U
 | Turns | 20–30 | `--max-turns`, or the loop bound |
 | Dollars | US$ 1–2 per run | `--max-budget-usd`, or a token counter in the loop; **workspace spend limit** at the provider |
 | Wall time | 20–30 min | `timeout-minutes` on the job |
-| Runs per commit | 1 | Dedupe on the commit SHA |
-| Runs per day per repository | e.g. 20 | Quota in the LLM gateway |
+| Runs per commit | 1 | Dedupe on the commit SHA (the hash that names it) |
+| Runs per day per repository | e.g. 20 | Quota in the large language model (LLM) gateway |
 
 The ratio that matters is **dollars per merged fix**, not per run: an agent that costs US$ 0.80 per run but produces a mergeable fix one time in four costs US$ 3.20 per useful fix — compare that with the engineer-time it saves.
 
@@ -243,6 +243,27 @@ Agents are triggered by events, and events repeat: a CI run is re-run, two pushe
 - **No self-triggering**: never run the agent on its own branches (`ai-fix/*`), and remember that pushes with the `GITHUB_TOKEN` do not trigger new workflow runs on GitHub — a built-in loop breaker.
 - **Retries are for transport, not for the task**: SDKs retry `429`/`5xx` with backoff. Re-running a *failed agent* is a new attempt with a new cost — make it a human decision, or at most one automatic retry with a different strategy.
 - **Fail open for advisory agents**: if the agent fails, the original red build is still there; nothing is worse than before.
+
+``` diagram-sim
+sequenceDiagram
+    autonumber
+    actor Dev as Developer
+    participant Git as Git host
+    participant CI as CI
+    participant Fix as ai-fix workflow
+    Dev->>Git: push commit a1b2c3d4
+    Git->>CI: run CI (red)
+    CI-->>Fix: workflow_run failed (a1b2c3d4)
+    Fix->>Git: does branch ai-fix/a1b2c3d4 exist?
+    Git-->>Fix: no
+    Fix->>Git: push ai-fix/a1b2c3d4 + draft PR (GITHUB_TOKEN)
+    Note over Git,CI: a push with the GITHUB_TOKEN starts no new run
+    Dev->>CI: re-run the failed CI
+    CI-->>Fix: workflow_run failed (same SHA)
+    Fix->>Git: does branch ai-fix/a1b2c3d4 exist?
+    Git-->>Fix: yes — stop, one proposal per SHA
+```
+
 
 ---
 

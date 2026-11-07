@@ -1,14 +1,14 @@
 # 5. Measure It
 
-An LLM endpoint is the slowest and most expensive dependency BoxOffice has, and its latency has a shape
+A large language model (LLM) endpoint is the slowest and most expensive dependency BoxOffice has, and its latency has a shape
 of its own: a long wait for the **first token** (the model reads the whole prompt), then a stream of
 tokens at a roughly constant speed. Users judge the first part — an empty bubble — much more harshly
 than the second. This step measures both, and the cost, under concurrency.
 
 | # | Experiment | What you record |
 |---|---|---|
-| A | latency under concurrency 1, 2, 4 | TTFT p50/p95, total p50/p95, tokens/s, requests/min |
-| B | retrieval quality | hit@5 and MRR (step 2) |
+| A | latency under concurrency 1, 2, 4 | time to first token (TTFT) p50/p95, total p50/p95, tokens/s, requests/min |
+| B | retrieval quality | hit@5 and mean reciprocal rank (MRR) (step 2) |
 | C | answer quality | share of `grounded` answers over 10 questions |
 | D | model choice (optional) | A and C again with a larger local model or the Claude route, plus US$ per request |
 
@@ -64,6 +64,8 @@ Read it as a capacity problem, with the formulas of the
 - **Little's Law** applies as everywhere: requests in flight = arrival rate × time per request. With
   ~2 minutes per answer, *one* fan per minute already keeps two requests in flight. That is why LLM
   serving needs batching, GPUs and admission control — or a hosted API.
+- **Cost** scales with questions, not with hardware: on the Claude route, at ≈ US$ 0.006 per question
+  ([step 1](../service/index.md#the-optional-claude-route-costs-money)), 20,000 questions cost ≈ US$ 120.
 
 !!! tip "If your numbers are this slow"
 

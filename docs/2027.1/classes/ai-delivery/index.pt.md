@@ -1,4 +1,4 @@
-A BoxOffice tem doze engenheiros e faz merge de cerca de sessenta pull requests por semana. Um PR espera, em média, quase um dia útil inteiro pela primeira revisão humana; a abertura das vendas de um show em estádio é daqui a três semanas. Na reunião de planejamento, alguém diz o óbvio: *"Vamos colocar IA no pipeline."* Duas semanas depois, o time tem um bot que deixa quinze comentários em cada PR (as pessoas pararam de lê-los no terceiro dia), um agente que "consertou" um build vermelho apagando o teste que falhava, notas de versão anunciando uma funcionalidade de reembolso que ninguém construiu e uma fatura que ninguém previu.
+A BoxOffice tem doze engenheiros e faz merge de cerca de sessenta pull requests (PRs) por semana. Um PR espera, em média, quase um dia útil inteiro pela primeira revisão humana; a abertura das vendas de um show em estádio é daqui a três semanas. Na reunião de planejamento, alguém diz o óbvio: *"Vamos colocar IA no pipeline."* Duas semanas depois, o time tem um bot que deixa quinze comentários em cada PR (as pessoas pararam de lê-los no terceiro dia), um agente que "consertou" um build vermelho apagando o teste que falhava, notas de versão anunciando uma funcionalidade de reembolso que ninguém construiu e uma fatura que ninguém previu.
 
 Nada disso é problema dos modelos. As mesmas ferramentas, bem projetadas, reduzem a latência da revisão, encontram bugs reais, escrevem testes úteis e encurtam incidentes. A diferença está no **projeto do sistema**: onde a etapa de IA fica no ciclo de entrega, que contexto recebe, o que tem permissão para fazer, como sua saída é verificada, quanto custa e como o time sabe se ela ajuda. Esta aula aplica a caixa de ferramentas do curso — componentes, modos de falha, números, trade-offs — à **IA dentro do pipeline de entrega de software**.
 
@@ -13,10 +13,10 @@ Nada disso é problema dos modelos. As mesmas ferramentas, bem projetadas, reduz
     - **Mapear** as capacidades de IA para cada etapa do ciclo de entrega (planejar, codificar, revisar, testar, construir, liberar, operar) e **posicionar** uma ferramenta no espectro que vai do assistente ao agente autônomo.
     - **Projetar** um revisor de pull requests com IA: contexto, saída estruturada, controle de ruído, consultivo vs. gate e como **medir** sua precisão.
     - **Avaliar** testes gerados por IA com testes de mutação e **explicar** o problema do oráculo, a triagem de testes flaky e a seleção de testes.
-    - **Especificar** um agente que roda sem interface (headless) no CI com privilégio mínimo, orçamentos, idempotência, verificação e trilha de auditoria.
+    - **Especificar** um agente que roda sem interface (headless) na integração contínua (CI, *continuous integration*) com privilégio mínimo, orçamentos, idempotência, verificação e trilha de auditoria.
     - **Separar** decisão de explicação na liberação e na operação: pontuação de risco, análise de canary, resumos de incidentes, postmortems.
     - **Modelar as ameaças** da IA no pipeline (prompt injection, exfiltração de segredos, slopsquatting, cadeia de suprimentos) e **definir** uma política de governança, incluindo a avaliação das próprias ferramentas de IA.
-    - **Estimar** o custo em tokens, em runner e em atenção de uma etapa de IA e **prever** seu efeito nas métricas DORA.
+    - **Estimar** o custo em tokens, em runner e em atenção de uma etapa de IA e **prever** seu efeito nas métricas DORA (*DevOps Research and Assessment*).
 
 ## Roteiro { #roadmap }
 
@@ -25,7 +25,7 @@ Nada disso é problema dos modelos. As mesmas ferramentas, bem projetadas, reduz
 3. [Testes](testing/index.md) — testes gerados e testes de mutação, testes de contrato e baseados em propriedades, scripts de carga a partir do OpenAPI, triagem de testes flaky, seleção de testes, dados sintéticos, o problema do oráculo.
 4. [Agentes no CI](agents-in-ci/index.md) — agentes de correção do build, de dependências e de migração; execuções headless; sandboxing, permissões, orçamentos, idempotência e auditoria.
 5. [Liberação e operação](release-operate/index.md) — notas de versão, pontuação de risco de mudanças, análise de canary, resposta a incidentes, postmortems, ChatOps: *a IA propõe, políticas e humanos decidem*.
-6. [Segurança e governança](security-governance/index.md) — prompt injection no pipeline, exfiltração, slopsquatting, SLSA, SBOM e assinatura, política como código, licenciamento, privacidade, governança de custos e avaliação de ferramentas de IA.
+6. [Segurança e governança](security-governance/index.md) — prompt injection no pipeline, exfiltração, slopsquatting, níveis de cadeia de suprimentos (SLSA, *Supply-chain Levels for Software Artifacts*), lista de componentes de software (SBOM, *software bill of materials*) e assinatura, política como código, licenciamento, privacidade, governança de custos e avaliação de ferramentas de IA.
 7. [Quiz](quiz.md) — verifique seu entendimento.
 
 ## Slides
@@ -44,7 +44,7 @@ Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** a
 Esta aula não repete dois fundamentos; leia-os antes, se necessário:
 
 - [Cloud-native — Entrega](../cloud-native/delivery/index.md): CI, GitOps com Argo CD, estratégias de deploy, análise de canary com Argo Rollouts e as métricas DORA. Cada etapa de IA aqui **se encaixa** nesse pipeline.
-- [Sistemas de IA e agentes](../ai-systems/index.md): o LLM como dependência (tokens, latência, custo), o [LLM gateway](../ai-systems/llm-gateway/index.md), o [loop do agente](../ai-systems/agents/index.md) e [segurança e avaliações](../ai-systems/safety-evals/index.md). Aqui os "usuários" do modelo não são fãs, mas **engenheiros e pipelines**.
+- [Sistemas de IA e agentes](../ai-systems/index.md): o modelo de linguagem de grande porte (LLM, *large language model*) como dependência (tokens, latência, custo), o [LLM gateway](../ai-systems/llm-gateway/index.md), o [loop do agente](../ai-systems/agents/index.md) e [segurança e avaliações](../ai-systems/safety-evals/index.md). Aqui os "usuários" do modelo não são fãs, mas **engenheiros e pipelines**.
 
 ---
 
@@ -54,8 +54,8 @@ O ciclo de entrega de software é uma sequência de etapas, cada uma com suas en
 
 | Etapa | O que a IA faz | Exemplo na BoxOffice | Principal risco | Controle |
 |---|---|---|---|---|
-| **Planejar** | Rascunha especificações e ADRs, divide o trabalho, estima impacto | Rascunho do ADR "Redis para reservas de assentos vs. PostgreSQL" a partir da discussão | Raciocínio de projeto confiante, mas errado | ADR sob responsabilidade humana, revisado pelo arquiteto |
-| **Codificar** | Completa código, escreve funcionalidades na IDE ou como agente | Implementa `GET /catalog/events?city=` com testes | Código plausível com bugs sutis; padrões inseguros; pacotes inventados | Revisão, testes, SAST, política de dependências |
+| **Planejar** | Rascunha especificações e registros de decisão de arquitetura (ADRs, *architecture decision records*), divide o trabalho, estima impacto | Rascunho do ADR "Redis para reservas de assentos vs. PostgreSQL" a partir da discussão | Raciocínio de projeto confiante, mas errado | ADR sob responsabilidade humana, revisado pelo arquiteto |
+| **Codificar** | Completa código, escreve funcionalidades no ambiente de desenvolvimento (IDE, *integrated development environment*) ou como agente | Implementa `GET /catalog/events?city=` com testes | Código plausível com bugs sutis; padrões inseguros; pacotes inventados | Revisão, testes, teste estático de segurança (SAST, *static application security testing*), política de dependências |
 | **Revisar** | Revisa PRs: bugs, segurança, convenções, regras de arquitetura | Aponta o `order` escrevendo no schema de `inventory` | Ruído; falsa sensação de segurança; ingenuidade diante de texto injetado | Precisão medida, consultivo primeiro, aprovação humana |
 | **Testar** | Gera testes, faz triagem dos flaky, seleciona o que rodar | Testes unitários para a expiração de reservas; escolhe os 40 testes relevantes entre 4.000 | Testes que afirmam bugs; testes relevantes pulados | Mutation score, rede de segurança com execuções completas |
 | **Construir** | Explica falhas, propõe correções, atualiza dependências | Corrige um erro de compilação após um upgrade do Spring Boot | Agente dobra os testes para passar; permissões excessivas | Sandbox, nenhum token de escrita, verificação, PRs em rascunho |
@@ -116,6 +116,20 @@ Toda etapa de IA em um pipeline — revisão, geração de testes, agente de cor
 | **Saída** | Em que formato e como é validada? | Achados em JSON contra um schema; só linhas adicionadas; limiares |
 | **Ação** | O que ela altera, com qual permissão? | Comentários inline, `pull-requests: write`; nunca aprova |
 | **Orçamento e fallback** | Tempo, tokens e dólares máximos? E se o modelo estiver fora do ar ou errado? | 10 min, ~US$ 0,02; fail open (sem comentários) |
+
+``` diagram-sim
+flowchart LR
+    trig["Gatilho<br/>PR aberto ou push"] --> ctx["Contexto<br/>diff + texto do PR (não confiável),<br/>convenções, ADRs"]
+    ctx --> model["Chamada ao modelo<br/>orçamento: 10 min, ~US$ 0,02"]
+    model --> valid{"saída válida?<br/>schema, linhas adicionadas, limiares"}
+    valid -->|"sim"| act["Ação<br/>comentários de revisão<br/>(pull-requests: write)"]
+    valid -->|"não"| drop["saída descartada"]
+    act --> human["Humano aprova<br/>(proteção de branch)"]
+    model -->|"modelo fora do ar ou sem orçamento"| safe{"direção segura de falha"}
+    safe -->|"etapa consultiva"| open["Fail open<br/>etapa pulada, o PR ainda é mergeado"]
+    safe -->|"gate do qual você depende"| closed["Fail closed<br/>merge bloqueado até responder"]:::problem
+```
+
 
 Duas propriedades decorrem do contrato. **Privilégio mínimo**: a permissão da ação é o máximo que a etapa pode fazer, diga o modelo o que disser. **Direção segura de falha**: decida de antemão se uma indisponibilidade da IA bloqueia o pipeline (fail closed) ou pula a etapa (fail open). Etapas consultivas falham abertas; um gate de segurança do qual você depende deve falhar fechado — e então precisa ser muito confiável.
 
@@ -198,6 +212,10 @@ Experimente: abra o cenário abaixo com o perfil `spike` e imagine que o pico n�
 
 <div class="sdp" data-scenario="ai-assistant" data-mode="compact" data-profile="spike" data-height="520"></div>
 
+O preset da BoxOffice abaixo coloca **os dois clientes** no canvas. O assistente dos fãs recebe 1 pergunta por segundo, com 3 chamadas ao modelo cada; a cada 2 minutos um lote de 100 revisões de PR e agentes de correção (6 turnos cada) começa em 10 s — 600 chamadas ao modelo chegando ao mesmo gateway de 10 chamadas/s. Rode-o e veja os erros saltarem a cada lote. A meta é manter os erros abaixo de 1 % sem uma cota maior: a CI não precisa de resposta em segundos, então coloque uma **fila** antes dos agentes de CI e dê a eles uma concorrência fixa — eles drenam o lote no ritmo que a cota deixa livre, a versão de bulkhead do gateway.
+
+<div class="sdp" data-scenario="boxoffice-shared-llm" data-mode="compact" data-height="440"></div>
+
 [Abra o playground completo](../../../playground/index.md) para alterar os componentes você mesmo. O componente de gateway está descrito no [catálogo de componentes](../../reference/components/ai/index.md#llmgw).
 
 !!! tip "Na entrevista"
@@ -246,8 +264,6 @@ flowchart LR
     safety -.- c4["injection in PR text,<br/>slopsquatting, policy as code"]:::tech
     obs -.- c5["canary verdict by policy,<br/>AI explains"]:::tech
     obs -.- c6["DORA, reviewer precision,<br/>mutation score"]:::tech
-    classDef comp fill:#1e9e5a22,stroke:#1e9e5a
-    classDef tech fill:#2f6fed22,stroke:#2f6fed
 ```
 
 | Componente da paleta | Pergunta que responde | Conceitos | Ensinado em | Cenários |

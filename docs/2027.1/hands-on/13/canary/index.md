@@ -21,7 +21,7 @@ flowchart LR
 |---|---|---|
 | `MIN_RPS` | 2 req/s | Below this the canary has not seen enough traffic: **inconclusive**, not "healthy" |
 | `MAX_ERROR_RATE` | 1 % | Absolute ceiling for the canary |
-| `MAX_ERROR_DELTA` | 0.5 pp | Canary may not be worse than stable (running **at the same time**) by more than this |
+| `MAX_ERROR_DELTA` | 0.5 percentage points (pp) | Canary may not be worse than stable (running **at the same time**) by more than this |
 | `MAX_P99_RATIO` | 1.25 | Canary p99 at most 25 % above stable p99 |
 
 Why compare with **stable at the same time** instead of a fixed number? Because at 10:00 on an on-sale day everything is slower; a fixed threshold would roll back every release that day. The [delivery page](../../../classes/cloud-native/delivery/index.md#how-long-must-a-canary-run) shows how long a canary must run to detect a regression of a given size.
@@ -93,7 +93,7 @@ higher than the stable version's p99 latency of 0.181 ms. [...]
 - Roll back the canary version to the stable version to ensure service reliability.
 ```
 
-Read it critically: the stable p99 is **181 ms**, not "0.181 ms" (the model mixed seconds and milliseconds), and the next steps are generic. In the healthy run it wrote that the canary had a "higher RPS (20.1 vs. 380.0)". A larger model does better — a run with `claude-opus-5-5` noticed that the raw `errors` counts look similar (0.62 vs 0.40) while the canary, with 1/19 of the traffic, fails about 29× more often per request, and labelled its causes as hypotheses. Either way, a wrong sentence costs nothing here: **the numbers that decide come from the policy, not from the model**.
+Read it critically: the stable p99 is **181 ms**, not "0.181 ms" (the model mixed seconds and milliseconds), and the next steps are generic. In the healthy run it wrote that the canary had a "higher RPS (20.1 vs. 380.0)" (requests per second). A larger model does better — a run with `claude-opus-5-5` noticed that the raw `errors` counts look similar (0.62 vs 0.40) while the canary, with 1/19 of the traffic, fails about 29× more often per request, and labelled its causes as hypotheses. Either way, a wrong sentence costs nothing here: **the numbers that decide come from the policy, not from the model**.
 
 Now try to break the rule: edit `SYSTEM` in your copy to say *"if the canary looks only slightly worse, recommend promote"* and run the regression scenario again. Whatever the model writes, the exit code stays 1, and if the explanation's `verdict` disagrees with the policy it is discarded (`_(LLM explanation discarded: it disagreed with the policy verdict.)_`). Restore `SYSTEM` afterwards (`git checkout -- .github/ai/canary_explain.py`). Finally, take the model away — Claude without a key:
 
@@ -104,6 +104,14 @@ env -u ANTHROPIC_API_KEY LLM_PROVIDER=anthropic uv run --no-project --python 3.1
 ```
 
 You get `_(no explanation: TypeError: "Could not resolve authentication method. ...")_` and **the same exit code 1** — no model, same decision.
+
+The same five runs, without Python or a model: the simulator below applies the four rules of `canary_explain.py` to the snapshots, prints the script's verdict line and exit code, and replaces the model by its three behaviours of this page. In **free** mode, move the canary's numbers and watch which rule fires.
+
+<div class="csim" data-sim="canary-explain" data-script="lab"></div>
+
+!!! tip "Try it"
+
+    Press play: `healthy` gives PROMOTE (exit code 0); `regression` gives ROLLBACK on three rules — `error rate 2.90% > 1.00%`, the errors over stable, `p99 412 ms is 2.28x stable` — with exit code 1; `low-traffic` stops at `0.80 req/s` < 2.0, INCONCLUSIVE, exit code 2. The tampered prompt and the missing key change the explanation, never the exit code. In **free** mode, start from `regression`: the canary is promoted only at **0.60%** errors or less (stable has 0.10%, and the 0.5 pp rule binds before the 1% ceiling) and a p99 of **226 ms** or less (1.25 × 181 ms). Then switch on the on-sale day with `healthy`: the canary's p99 becomes 382 ms against 364 ms, still PROMOTE, while a fixed ceiling of 300 ms would roll it back — that is why the policy compares with stable **at the same time**.
 
 ## 5.4 Live: wire it into the rollout (optional)
 
@@ -120,7 +128,7 @@ This step needs the kind cluster of [lab 10](../../10/index.md) (named `boxoffic
       --with-requirements .github/ai/requirements.txt python .github/ai/canary_explain.py
     ```
 
-    The `curl` lists the HTTP metric names your services expose; if it is not `http_server_requests_seconds_count`, set `METRIC` (and `STATUS_LABEL`) before the last command, as explained in 5.2. A canary with no traffic gives `INCONCLUSIVE` (exit 2) — that is the policy working, not a bug.
+    The `curl` lists the Hypertext Transfer Protocol (HTTP) metric names your services expose; if it is not `http_server_requests_seconds_count`, set `METRIC` (and `STATUS_LABEL`) before the last command, as explained in 5.2. A canary with no traffic gives `INCONCLUSIVE` (exit 2) — that is the policy working, not a bug.
 
 3. Make it an analysis step. Argo Rollouts can run a Kubernetes **Job** as an analysis metric: exit code 0 passes, any other fails. Build a small image with the scripts and load it into the cluster:
 
@@ -160,7 +168,7 @@ This step needs the kind cluster of [lab 10](../../10/index.md) (named `boxoffic
     git commit -m "k8s(catalog): explained canary verdict (lab 13)" && git push
     ```
 
-    With a Job, *inconclusive* (exit 2) counts as a failure — the conservative choice. The Job runs once, `initialDelay: 90s` after the analysis starts, and looks at the last minute only (`WINDOW=1m`): Prometheus labels each series with the Service that scraped it, so a 5-minute window would still count, as `catalog-canary`, the **old** pods that served behind that Service before the canary began — the verdict would compare the stable version with itself. The explanation is in the Job's logs of the next canary — a new image from CI (`kubectl -n boxoffice logs -l job-name --tail=50`, or `kubectl -n boxoffice get jobs` and `kubectl -n boxoffice logs job/<name>`). The template points the model at Ollama on your machine through `host.docker.internal` (Docker Desktop on macOS and Windows; on Linux, use the host IP of the `kind` network or leave it unreachable); for Claude, create the Secret with `kubectl -n boxoffice create secret generic llm --from-literal=anthropic-api-key="$ANTHROPIC_API_KEY"` and set `LLM_PROVIDER` to `anthropic` in the template (then `kubectl apply` it again). The step works without any model: no explanation, same verdict.
+    With a Job, *inconclusive* (exit 2) counts as a failure — the conservative choice. The Job runs once, `initialDelay: 90s` after the analysis starts, and looks at the last minute only (`WINDOW=1m`): Prometheus labels each series with the Service that scraped it, so a 5-minute window would still count, as `catalog-canary`, the **old** pods that served behind that Service before the canary began — the verdict would compare the stable version with itself. The explanation is in the Job's logs of the next canary — a new image from continuous integration (CI) (`kubectl -n boxoffice logs -l job-name --tail=50`, or `kubectl -n boxoffice get jobs` and `kubectl -n boxoffice logs job/<name>`). The template points the model at Ollama on your machine through `host.docker.internal` (Docker Desktop on macOS and Windows; on Linux, use the host's Internet Protocol (IP) address on the `kind` network or leave it unreachable); for Claude, create the Secret with `kubectl -n boxoffice create secret generic llm --from-literal=anthropic-api-key="$ANTHROPIC_API_KEY"` and set `LLM_PROVIDER` to `anthropic` in the template (then `kubectl apply` it again). The step works without any model: no explanation, same verdict.
 
 ## 5.5 Measure it
 

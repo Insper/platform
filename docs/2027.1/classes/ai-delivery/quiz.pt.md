@@ -6,7 +6,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 **Q1.** Um time quer que um agente reescreva a lógica de `SELECT … FOR UPDATE` que impede a venda dupla no `inventory` e que outro atualize a versão de patch de uma biblioteca de logging em todos os serviços. Quais níveis de autonomia são adequados?
 
-- A. Ambos autônomos (nível 4): o CI vai pegar qualquer problema
+- A. Ambos autônomos (nível 4): a integração contínua (CI, *continuous integration*) vai pegar qualquer problema
 - B. O travamento de assentos no máximo nível 2–3 (rascunho para uma revisão humana cuidadosa); a atualização de patch pode ser nível 4 se o CI e o canary forem confiáveis
 - C. Ambos nível 0: a IA nunca deve alterar código
 - D. O travamento de assentos nível 4, porque é crítico e precisa de velocidade; a atualização da biblioteca nível 2
@@ -18,7 +18,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q2.** Segundo o relatório DORA de 2024, um aumento de 25% na adoção de IA esteve associado a qual efeito sobre a entrega de software?
+**Q2.** Segundo o relatório DORA (*DevOps Research and Assessment*) de 2024, um aumento de 25% na adoção de IA esteve associado a qual efeito sobre a entrega de software?
 
 - A. Maior vazão e maior estabilidade
 - B. Uma queda estimada de 1,5% na vazão de entrega e de 7,2% na estabilidade da entrega, apesar dos ganhos de produtividade individual relatados
@@ -62,7 +62,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ## Revisão de código { #code-review }
 
-**Q5.** Seu revisor de IA publica 3 comentários por PR e só 4 em cada 10 são avaliados como úteis. Qual é a consequência mais provável e a melhor primeira correção?
+**Q5.** Seu revisor de IA publica 3 comentários por pull request (PR) e só 4 em cada 10 são avaliados como úteis. Qual é a consequência mais provável e a melhor primeira correção?
 
 - A. Os desenvolvedores leem cada comentário com atenção; nenhuma correção é necessária
 - B. Os desenvolvedores passam a ignorar todos os comentários do bot, inclusive os úteis; aumente os limiares de confiança/severidade, imponha um teto de comentários e meça a precisão de novo
@@ -180,7 +180,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ## Liberação e operação { #release-operate }
 
-**Q13.** Por que um LLM não deve ser o juiz que promove ou aborta um canary?
+**Q13.** Por que um modelo de linguagem (LLM, *large language model*) não deve ser o juiz que promove ou aborta um canary?
 
 - A. LLMs não conseguem ler números
 - B. O veredito precisa ser reproduzível, auditável, estatisticamente sólido e imune à manipulação por texto em logs ou rótulos; limiares e testes estatísticos no Git oferecem isso e o modelo explica o veredito
@@ -201,7 +201,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 - A. Custo, latência e acurácia
 - B. Acesso a dados privados, exposição a conteúdo não confiável e capacidade de se comunicar com o exterior — juntos, eles permitem que uma única instrução injetada exfiltre dados
 - C. Prompt injection, jailbreaks e alucinações
-- D. SBOM, assinatura e proveniência
+- D. Lista de componentes de software (SBOM, *software bill of materials*), assinatura e proveniência
 
 ??? success "Resposta"
     **B.**

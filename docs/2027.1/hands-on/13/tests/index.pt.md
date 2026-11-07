@@ -2,7 +2,7 @@ Um modelo consegue escrever cinquenta testes unitários em um minuto. A pergunta
 
 ## 2.1 Testes de mutação em um parágrafo { #21-mutation-testing-in-one-paragraph }
 
-Uma ferramenta de testes de mutação faz pequenas alterações no código de produção — cada uma é um **mutante**: `>` vira `>=`, `a * b` vira `a / b`, um `return price` vira `return 0`, uma chamada de método é removida — e roda os testes contra cada mutante. Se algum teste falha, o mutante é **morto** (os testes perceberam o bug); se todos os testes continuam passando, ele **sobreviveu** (um bug que os testes não enxergam). O **score de mutação** é mortos ÷ total. O [PIT](https://pitest.org){target="_blank"} é a ferramenta padrão para a JVM[^1].
+Uma ferramenta de testes de mutação faz pequenas alterações no código de produção — cada uma é um **mutante**: `>` vira `>=`, `a * b` vira `a / b`, um `return price` vira `return 0`, uma chamada de método é removida — e roda os testes contra cada mutante. Se algum teste falha, o mutante é **morto** (os testes perceberam o bug); se todos os testes continuam passando, ele **sobreviveu** (um bug que os testes não enxergam). O **score de mutação** é mortos ÷ total. O [PIT](https://pitest.org){target="_blank"} é a ferramenta padrão para a máquina virtual Java (JVM, *Java virtual machine*)[^1].
 
 
 ``` diagram-sim
@@ -78,7 +78,7 @@ Leia: o PIT fez **18 mutantes** de `CatalogService`; os três testes do `Catalog
 
 !!! tip "Mantenha o PIT focado"
 
-    Testes de mutação são caros: cada mutante roda (parte da) suíte de testes. Num serviço inteiro, isso pode levar muitos minutos. Sempre mire nas classes que o PR alterou (`-DtargetClasses`) — é exatamente o que o script faz.
+    Testes de mutação são caros: cada mutante roda (parte da) suíte de testes. Num serviço inteiro, isso pode levar muitos minutos. Sempre mire nas classes que o pull request (PR) alterou (`-DtargetClasses`) — é exatamente o que o script faz.
 
 ## 2.3 O gerador { #23-the-generator }
 
@@ -93,7 +93,7 @@ Leia: o PIT fez **18 mutantes** de `CatalogService`; os três testes do `Catalog
 
 | Código-fonte do mesmo pacote no prompt | Para fazer mock de `EventRepository`, o modelo precisa das assinaturas reais dos métodos; caso contrário, o teste não compila |
 | Roda o teste **duas vezes** | Um teste que passa uma vez e falha na outra é pior do que nenhum teste |
-| `env` sem `KEY`/`TOKEN`/`SECRET` | O código sob teste e o teste gerado nunca veem a chave de API |
+| `env` sem `KEY`/`TOKEN`/`SECRET` | O código sob teste e o teste gerado nunca veem a chave de interface de programação de aplicações (API, *application programming interface*) |
 | `MIN_GAIN` de 5 pontos percentuais | Um teste que não acrescenta nada mensurável é ruído a manter |
 | Apaga o arquivo se for rejeitado | Nada que não foi comprovado fica na árvore de trabalho |
 | Uma linha por tentativa no resumo | Você vê *por que* uma tentativa foi rejeitada: erro de compilação, teste falhando ou poucos mutantes mortos |
@@ -109,7 +109,7 @@ git commit -m "test(catalog): unit tests, PIT and the AI test generator (lab 13)
 git push
 ```
 
-Depois rode o gerador em `CatalogService`, a partir da raiz do repositório. Ele precisa de `mvn` e do JDK 21 na sua máquina e chama o modelo até três vezes; com o modelo local, espere **5–15 minutos**:
+Depois rode o gerador em `CatalogService`, a partir da raiz do repositório. Ele precisa de `mvn` e do kit de desenvolvimento Java (JDK, *Java Development Kit*) 21 na sua máquina e chama o modelo até três vezes; com o modelo local, espere **5–15 minutos**:
 
 ``` { .bash .copy }
 uv run --no-project --python 3.12 --with-requirements .github/ai/requirements.txt \
@@ -172,7 +172,7 @@ gh pr edit --add-label ai-tests      # the label was created in step 0.4
 gh pr checks --watch                # "AI tests / generate" appears a few seconds after the label
 ```
 
-Você deve ver o job `generate` terminar (20–45 minutos com o modelo gratuito num runner só com CPU: o modelo, dois builds Maven por tentativa e o PIT) e então:
+Você deve ver o job `generate` terminar (20–45 minutos com o modelo gratuito num runner só com processador (CPU, *central processing unit*): o modelo, dois builds Maven por tentativa e o PIT) e então:
 
 - um PR em rascunho `AI tests for #N`, com o label `ai-generated`, baseado em `catalog-docs`, com um commit que leva o trailer `AI-assisted: gen_tests.py (...)` — confira com `gh pr list --label ai-generated`; ou
 - `publish` **pulado** e o resumo do job `generate` listando as tentativas rejeitadas. Esse é um resultado válido: anote o porquê.

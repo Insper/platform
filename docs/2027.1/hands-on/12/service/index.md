@@ -1,7 +1,7 @@
 # 1. The Service and the LLM Gateway
 
 This step creates the `assistant` service — Python 3.12 + FastAPI, managed with **uv** — and its
-**LLM gateway**: the one module that knows which models exist, which one answers by default, what to
+**large language model (LLM) gateway**: the one module that knows which models exist, which one answers by default, what to
 do when a provider fails, and how much each answer costs. All commands run from the **root of your
 `boxoffice` repository** unless a `cd` says otherwise.
 
@@ -193,6 +193,17 @@ LiteLLM gives every provider the same OpenAI-style interface, and its `Router` i
 | **Fallback** | `claude` → `local` when the provider fails (outage, rate limit, no credit) |
 | **Timeouts and retries** | 120 s per call, 1 retry — an LLM call is the slowest dependency BoxOffice has |
 | **Cost** | `app/metrics.py` (step 4) multiplies the tokens of each answer by the provider's price |
+
+``` diagram-sim
+flowchart LR
+    q["question<br/>route: ASSISTANT_ROUTE or the request"] --> r{"LiteLLM Router"}
+    r -->|"route claude"| c["anthropic/claude-opus-5-5<br/>timeout 120 s, 1 retry"]
+    r -->|"route local"| l["ollama_chat/qwen2.5:1.5b"]
+    c -->|"outage, rate limit, no credit"| l
+    c --> a(["answer, tokens, cost"])
+    l --> a
+    nokey["no ANTHROPIC_API_KEY"] -.->|"only the local route exists"| r
+```
 
 !!! info "Why an in-process SDK and not the LiteLLM proxy?"
 

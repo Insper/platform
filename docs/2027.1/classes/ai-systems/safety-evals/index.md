@@ -137,6 +137,24 @@ The cheapest and strongest defense against excessive agency is asking the user. 
 - **Tier the risk** ([Agents & Tools](../agents/index.md#side-effects)): reads and reversible actions run automatically within limits; irreversible and financial actions always need confirmation; some actions are simply not offered.
 - **Avoid approval fatigue**: if every step asks, users click "yes" without reading. Confirm rarely, and only what matters.
 
+``` diagram-sim
+sequenceDiagram
+    actor F as Fan
+    participant UI as BoxOffice UI
+    participant O as Orchestrator
+    participant M as Model
+    participant T as order service
+    M-->>O: tool_call create_order(evt_8812, [C12, C13])
+    O->>O: risk tier: irreversible, so pause
+    O->>UI: confirmation card: C12 and C13, Saturday 13/03, R$560
+    Note over M,O: the model typing "the fan said yes" changes nothing
+    F->>UI: presses Confirm
+    UI->>O: confirm(action id, same parameters)
+    O->>T: create_order as the fan, idempotency key
+    T-->>O: order created
+    O->>M: tool result: order created
+```
+
 ### A guardrail check in code { #guardrail-code }
 
 The orchestrator's loop ([Agents & Tools](../agents/index.md#loop)) calls a check like this before executing any tool call:
@@ -294,6 +312,19 @@ In CI, the golden set runs like the k6 performance budget of [Hands-on 11](../..
 | Cost per resolved conversation; cache hit ratio; fallback rate | economics and provider health |
 
 New prompts and models roll out like any change: **canary** a small share of traffic behind the gateway alias, compare online metrics, then promote or roll back.
+
+``` diagram-sim
+flowchart LR
+    chg["change: prompt, model,<br/>tool description, k"] --> det{"deterministic checks<br/>schema, citations, no PII"}
+    det -- fail --> back(["back to the author"]):::problem
+    det -- pass --> gold{"golden set ≥ thresholds?<br/>booking 95%, faithfulness 90%"}
+    gold -- no --> back
+    gold -- yes --> judge["LLM-as-judge on a sample<br/>(a validated judge)"]
+    judge --> can["canary: a small share<br/>behind the gateway alias"]
+    can --> online{"online metrics hold?<br/>success, escalations, TTFT, cost"}
+    online -- yes --> prom(["promote"])
+    online -- no --> rb(["roll back the alias"]):::problem
+```
 
 ---
 

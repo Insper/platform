@@ -6,10 +6,10 @@ Three tempting fixes, and why they fall short:
 
 | Approach | Idea | Problem for BoxOffice |
 |---|---|---|
-| **Stuff everything in the prompt** | put all venue documents in the context window | 4,000 documents do not fit; even the ones that fit cost tokens on every call and dilute attention[^6] |
-| **Fine-tune the model** | train the model further on the documents | slow and expensive to update every season; does not reliably memorize facts; cannot cite a source; cannot delete one venue's rules |
-| **Retrieval-augmented generation (RAG)** | at question time, **retrieve** the few relevant passages and put **only those** in the prompt | the subject of this page |
-| *(and for live data)* **Tools** | query the service | prices and seat availability are not documents — see [Agents & Tools](../agents/index.md) |
+| ❌ **Stuff everything in the prompt** | put all venue documents in the context window | 4,000 documents do not fit; even the ones that fit cost tokens on every call and dilute attention[^6] |
+| ❌ **Fine-tune the model** | train the model further on the documents | slow and expensive to update every season; does not reliably memorize facts; cannot cite a source; cannot delete one venue's rules |
+| ✅ **Retrieval-augmented generation (RAG)** | at question time, **retrieve** the few relevant passages and put **only those** in the prompt | the subject of this page |
+| ✅ *(and for live data)* **Tools** | query the service | prices and seat availability are not documents — see [Agents & Tools](../agents/index.md) |
 
 RAG[^1] turns a knowledge problem into a **search problem** — and search is a system design problem you already know how to measure.
 
@@ -43,9 +43,9 @@ flowchart LR
 
 ### Sources, parsing and freshness
 
-Ingestion starts as an ordinary data pipeline: read documents from where they live (object store, CMS, the `catalog` database), extract clean text (PDF parsing is often the hardest part: tables, columns, headers repeated on every page), and attach **metadata** — `doc_id`, `venue_id`, language, version, effective date, access level. Metadata is what lets you filter (*only this venue*), cite (*Arena Paulista rules, §4*) and delete (*the 2026 rules are obsolete*).
+Ingestion starts as an ordinary data pipeline: read documents from where they live (object store, content management system (CMS), the `catalog` database), extract clean text (PDF parsing is often the hardest part: tables, columns, headers repeated on every page), and attach **metadata** — `doc_id`, `venue_id`, language, version, effective date, access level. Metadata is what lets you filter (*only this venue*), cite (*Arena Paulista rules, §4*) and delete (*the 2026 rules are obsolete*).
 
-The index must follow the sources. Rather than re-embedding everything nightly, propagate **changes**: the `catalog` service publishes an event when a description changes (outbox or change data capture, as in [Messaging](../../messaging/patterns/index.md)); an embedding worker consumes it and updates only the affected chunks. **Deletions** must propagate too — a removed rule that is still retrievable is a wrong answer waiting to happen.
+The index must follow the sources. Rather than re-embedding everything nightly, propagate **changes**: the `catalog` service publishes an event when a description changes (outbox or change data capture (CDC), as in [Messaging](../../messaging/patterns/index.md)); an embedding worker consumes it and updates only the affected chunks. **Deletions** must propagate too — a removed rule that is still retrievable is a wrong answer waiting to happen.
 
 ### Chunking { #chunking }
 
@@ -79,7 +79,7 @@ Practical rules:
 - **Store the model name with each vector** (`embed_model`). Changing the embedding model means **re-embedding the whole corpus** — run it like a blue/green deployment: build the new index alongside, switch reads, then drop the old one.
 - **Embedding is cheap compared to generation** (one forward pass, no decoding), and the ingestion side can use batch APIs; the query side embeds one short question per request (a few milliseconds to tens of milliseconds).
 
-How much memory does the index need? Raw vectors are $N \times d \times$ bytes per value; an HNSW graph adds neighbor links per vector:
+How much memory does the index need? Raw vectors are $N \times d \times$ bytes per value; a Hierarchical Navigable Small World (HNSW) graph adds neighbor links per vector:
 
 ```python exec="true" html="1" source="tabbed-right"
 # Memory needed by a vector index: raw vectors + HNSW graph links.
@@ -116,7 +116,7 @@ Finding the exact nearest neighbors means comparing the query with **every** vec
 |---|---|---|---|
 | **HNSW**[^3] | multi-layer proximity graph; greedy search from a coarse layer down | high recall, low latency, incremental inserts | memory-hungry; slow to build |
 | **IVF** (inverted file) | cluster vectors; search only the closest clusters | smaller, fast to build | needs training; recall drops for data far from centroids |
-| Quantization (PQ, binary) | compress vectors | 4–32× less memory | lower precision; usually re-scored with full vectors |
+| Quantization (product quantization, PQ; binary) | compress vectors | 4–32× less memory | lower precision; usually re-scored with full vectors |
 
 The knob is the **recall/latency trade-off**: HNSW's `ef_search` (candidates explored per query) and IVF's `probes` raise recall at the cost of latency. Measure **recall@k against exact search** on a sample of real queries, as you would measure a cache's hit ratio.
 
@@ -151,6 +151,12 @@ $$
 $$
 
 A chunk ranked 1st by keywords and 3rd by vectors scores $1/61 + 1/63 ≈ 0.0323$; one ranked 1st by vectors only scores $1/61 ≈ 0.0164$. Agreement between the two retrievers wins.
+
+<div class="csim" data-sim="rag-hybrid" data-question="sector" data-mode="vector" data-k="5"></div>
+
+!!! tip "Try it"
+
+    Start as lab 12 does, with **vector** search only. For *sector C*, the generic chunk about lifts (**0.84**) and Estádio Sul's ramps (**0.83**) rank above the chunk that answers (**0.79**): even at top-k 5, another venue's rule leads the prompt. Switch to **hybrid**: the sector C chunk, 1st by keywords and 3rd by vectors, scores **0.0323** and goes first; the lifts chunk, 1st by vectors only, scores **0.0164**. Now **k = 1** is enough: **400** extra input tokens per model call instead of **2,000**. Pick *camera*: without contextual chunks, Estádio Sul's "cameras of any kind are allowed" (**0.81**) beats Arena Paulista's §4 (**0.74**) in every mode, hybrid included; turn **contextual chunks** on and §4 goes first. Last, *pool*: no chunk answers, yet vector search fills the prompt with five; raise the minimum similarity to **0.60** and the assistant says it does not know — but in hybrid mode with contextual chunks the keyword half still matches "Arena Paulista": a threshold guards only the vector half.
 
 ### 3. Rerank
 
@@ -236,7 +242,7 @@ PostgreSQL's `ts_rank_cd` is not exactly BM25, but for fusion only the **rank or
 | Embed query | 5–50 ms |
 | Vector + keyword search (in parallel) | 5–30 ms |
 | Rerank 20–40 candidates | 30–200 ms |
-| Extra prompt tokens (5 chunks × ~400 tokens) | +2,000 input tokens per model call → cost, and TTFT if not cached |
+| Extra prompt tokens (5 chunks × ~400 tokens) | +2,000 input tokens per model call → cost, and time to first token (TTFT) if not cached |
 
 Retrieval itself is cheap; the **extra tokens it adds to every model call** are what you pay for. Retrieve fewer, better chunks.
 
@@ -275,7 +281,7 @@ RAG answers *"what does the world know?"*. **Memory** answers *"what does the as
 | Memory type | What it holds | BoxOffice example | Where it lives | Lifetime |
 |---|---|---|---|---|
 | **Working** | the current context window | this call's prompt | the model call | one call |
-| **Short-term (session)** | the conversation so far, task state, pending holds | "the fan is choosing between C12–C13 and D4–D5" | Redis, keyed by conversation, with TTL | minutes to hours |
+| **Short-term (session)** | the conversation so far, task state, pending holds | "the fan is choosing between C12–C13 and D4–D5" | Redis, keyed by conversation, with a time to live (TTL) | minutes to hours |
 | **Long-term — semantic** | stable facts and preferences about the user | "prefers aisle seats", "home city: Campinas" | SQL (profile table), editable by the fan | until changed or deleted |
 | **Long-term — episodic** | past interactions, retrievable by similarity | "last month the fan's transfer failed; it was refunded" | vector index over summaries of past conversations | retention policy |
 | **Procedural** | how the assistant behaves: instructions, tool usage rules, examples | the system prompt, refund rules | Git, versioned and evaluated like code | per release |
@@ -303,7 +309,7 @@ Reading memory is retrieval; **writing** it is where the risks are:
 
 ### Privacy is a design constraint
 
-Memory makes the assistant a store of personal data. Under the LGPD, health information such as a disability is **sensitive personal data**, requiring specific consent. The design implications are concrete:
+Memory makes the assistant a store of personal data. Under the LGPD (Brazil's General Data Protection Law), health information such as a disability is **sensitive personal data**, requiring specific consent. The design implications are concrete:
 
 - Show the fan what is remembered, and let them **edit and delete** it.
 - **Deletion must reach every copy**: the profile row, the episodic vectors, the session cache, the semantic cache, the logs and traces that captured prompts. Design the `doc_id`/`user_id` keys so a delete is one query per store, not an archaeology project.
@@ -322,7 +328,7 @@ Memory makes the assistant a store of personal data. Under the LGPD, health info
     - **Measure retrieval on a labeled set before tuning the prompt** — hit@k and MRR say whether the answer was even in the context. In BoxOffice: `eval_retrieval.py` scored hit@5 = 1.00 and MRR = 0.94 ([lab 12 — RAG](../../../hands-on/12/rag/index.md)).
     - **Record the embedding model and dimension with the index** — changing the model then becomes a planned re-embedding, like a schema migration. In BoxOffice: `EMBED_MODEL` and `EMBED_DIM` (768) are configuration, and the table declares `vector(768)`.
     - **Upsert by a stable document id** — re-ingestion must replace a document, not duplicate it. In BoxOffice: `ON CONFLICT (id) DO UPDATE` on `event:<id>` in `rag.py`.
-    - **Give the index a freshness SLO and measure its lag** — for example, a changed venue rule is searchable within 5 minutes; watch the ingestion lag like a consumer lag.
+    - **Give the index a freshness service level objective (SLO) and measure its lag** — for example, a changed venue rule is searchable within 5 minutes; watch the ingestion lag like a consumer lag.
     - **Give memories a TTL and a per-user delete path** — the right to be forgotten under the LGPD must reach the session cache, the long-term store and the vector index.
 
 !!! warning "Common pitfalls"

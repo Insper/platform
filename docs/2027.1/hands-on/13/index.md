@@ -1,9 +1,9 @@
 !!! abstract "In this lab"
 
-    - Add **five AI steps** to the BoxOffice pipeline of [lab 11](../11/index.md): a pull-request reviewer, a test generator checked by mutation testing, an agent that proposes a fix when CI fails, release notes on every tag, and an explained canary verdict.
-    - Run every step through **one small, provider-neutral client**: a **local model with Ollama** (free, the default), Claude through the official SDK, or any OpenAI-compatible endpoint through LiteLLM.
+    - Add **five artificial intelligence (AI) steps** to the BoxOffice pipeline of [lab 11](../11/index.md): a pull-request reviewer, a test generator checked by mutation testing, an agent that proposes a fix when continuous integration (CI) fails, release notes on every tag, and an explained canary verdict.
+    - Run every step through **one small, provider-neutral client**: a **local model with Ollama** (free, the default), Claude through the official software development kit (SDK), or any OpenAI-compatible endpoint through LiteLLM.
     - **Harden** the workflows: permissions, triggers, secrets, and a prompt-injection test that the reviewer must survive.
-    - **Measure it**: review precision, cost per PR, CI minutes and time to merge over a week of pull requests.
+    - **Measure it**: review precision, cost per pull request (PR), CI minutes and time to merge over a week of pull requests.
 
 Lab 11 gave BoxOffice a pipeline that builds, tests, scans, signs and rolls out each change behind a canary. Lab 12 put a language model *inside* the product. This lab puts language models **inside the pipeline** — and treats them with the same discipline as any other dependency: least privilege, budgets, validation of every output, and numbers that say whether they help.
 In the [story of the course](../../index.md#story) it builds chapter 14: the decisions of [code review](../../classes/ai-delivery/code-review/index.md), [AI-generated tests](../../classes/ai-delivery/testing/index.md), [agents in CI](../../classes/ai-delivery/agents-in-ci/index.md), [release and operate](../../classes/ai-delivery/release-operate/index.md) and [security & governance](../../classes/ai-delivery/security-governance/index.md).
@@ -15,7 +15,7 @@ The rule for the whole lab: **AI proposes, rules and humans dispose.** No step i
 | | |
 |---|---|
 | **Time** | 6–8 hours for parts 0–6 (one part per sitting is fine), plus ~15 minutes a day for one week in part 7 |
-| **You need** | the tools of lab 0; a **GitHub account** (the repository on GitHub, the `gh` CLI logged in); for the free model, **~6 GB of free RAM and ~5 GB of disk** (8 GB machines: see [Troubleshooting](#troubleshooting)) |
+| **You need** | the tools of lab 0; a **GitHub account** (the repository on GitHub, the `gh` command-line interface (CLI) logged in); for the free model, **~6 GB of free random-access memory (RAM) and ~5 GB of disk** (8 GB machines: see [Troubleshooting](#troubleshooting)) |
 | **Directory** | every command runs from the root of your `boxoffice/` repository |
 | **Costs** | **zero** on the default path: the model runs on your machine (Ollama) or on the GitHub runner. What can cost money is listed in [What costs money](#costs) |
 
@@ -55,7 +55,7 @@ This lab uses mostly `services/catalog` (a Spring Boot 4.1.1 service on port 808
 
 !!! info "Acronyms used in this lab"
 
-    **PR** pull request · **CI** continuous integration · **LLM** large language model · **ADR** architecture decision record · **PIT** the mutation-testing tool for Java ([pitest.org](https://pitest.org){target="_blank"}) · **SHA** the hash that names a Git commit · **pp** percentage points (5 % → 10 % is +5 pp) · **SDK** software development kit.
+    **PR** pull request · **CI** continuous integration · **LLM** large language model · **ADR** architecture decision record · **PIT** the mutation-testing tool for Java ([pitest.org](https://pitest.org){target="_blank"}) · **SHA** the hash that names a Git commit · **pp** percentage points (5 % → 10 % is +5 pp) · **SDK** software development kit · **API** application programming interface · **JSON** JavaScript Object Notation · **CPU** central processing unit.
 
 ## Slides
 
@@ -169,10 +169,14 @@ All scripts live in `.github/ai/` of your repository and import one module, `llm
 
 | Item | Cost |
 |---|---|
-| Ollama on your machine | free (electricity, ~5 GB of disk) |
-| GitHub Actions minutes | **free for public repositories**; in a private repository they count against your plan's monthly minutes ([GitHub billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions){target="_blank"}) — the Ollama path uses several runner minutes per AI job |
-| Claude API (`LLM_PROVIDER=anthropic`, and path A of part 3) | **paid** per token; protect it with a workspace spend limit. Each job prints its cost in US$ |
-| A LiteLLM proxy on the internet | whatever its upstream provider charges |
+| Ollama on your machine | 🟢 free (electricity, ~5 GB of disk) |
+| GitHub Actions minutes | 🟡 **free for public repositories**; in a private repository they count against your plan's monthly minutes ([GitHub billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions){target="_blank"}) — the Ollama path uses several runner minutes per AI job |
+| Claude API (`LLM_PROVIDER=anthropic`, and path A of part 3) | 🔴 **paid** per token; protect it with a workspace spend limit. Each job prints its cost in US$ |
+| A LiteLLM proxy on the internet | 🟡 whatever its upstream provider charges |
+
+Money is not the only budget. If your CI reaches a model through the same LLM gateway as the fans' assistant of lab 12, its **quota** is shared too. The playground preset below puts both on one gateway of 10 calls/s: the assistant needs 3 calls/s, and every 2 minutes a batch of 100 pull-request reviews and fix agents of 6 turns each asks for 600 calls within 10 s — and the fans get `429`s. Press ▶, then try the fix the preset hints at: a queue in front of the CI agents with a fixed concurrency (CI can wait, fans cannot), fewer turns per job, or a separate key and quota per workload.
+
+<div class="sdp" data-scenario="boxoffice-shared-llm" data-mode="compact" data-height="440"></div>
 
 !!! warning "Course policy for this lab"
 
