@@ -389,7 +389,7 @@
     var sizes = {};
     var DIRS = { LR: "RIGHT", RL: "LEFT", TB: "DOWN", BT: "UP" };
     var root = {
-      id: "root",
+      id: "__elk_root__",   /* not "root": a node may be called that */
       layoutOptions: {
         "elk.algorithm": "layered",
         "elk.direction": DIRS[dir] || "DOWN",
@@ -411,7 +411,7 @@
       },
       children: [], edges: []
     };
-    var holders = { root: root };
+    var holders = {};   /* group id → ELK node; anything else lives in root */
     /* the groups a node or group sits in, innermost first */
     function chain(id) {
       var out = [], p = g.nodes[id] ? g.nodes[id].parent : g.groups[id] ? g.groups[id].parent : null;
@@ -622,7 +622,7 @@
     var groupsLayer = s("g"), edgesLayer = s("g"), labelsLayer = s("g"), nodesLayer = s("g");
     var nodeEls = {}, steps = [];
     /* ELK gives each node relative to its parent and each edge relative to its container */
-    var origin = { root: { x: 0, y: 0 } };
+    var origin = { __elk_root__: { x: 0, y: 0 } };
     (function walk(n, ox, oy) {
       (n.children || []).forEach(function (c0) {
         var c = { id: c0.id, x: c0.x + ox, y: c0.y + oy, width: c0.width, height: c0.height, children: c0.children };
@@ -651,7 +651,7 @@
     allEdges.forEach(function (oe) {
       var i = +oe.id.slice(1), e = g.edges[i];
       if (e.style === "invisible") return;
-      var pts = [], o = origin[oe.container] || origin.root;
+      var pts = [], o = origin[oe.container] || origin.__elk_root__;
       var at = function (p) { return { x: p.x + o.x, y: p.y + o.y }; };
       (oe.sections || []).forEach(function (sec) {
         pts.push(at(sec.startPoint));
