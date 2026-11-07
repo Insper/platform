@@ -37,6 +37,38 @@ export default [
   { sim: "boxoffice-db", key: "reconnect", value: 15000, unit: "ms",
     lab: H + "6/failover/index.md", read: t => (num(/sleep (\d+); probe "hold"/)(t) ?? NaN) * 1000 },
 
+  // hands-on 4 (lab twin front-door): ports, the edge's rate limit, the gateway's balancer, token lifetimes
+  ...(() => {
+    const nginx = H + "4/code/infra/nginx/nginx.conf", gw = H + "4/code/services/gateway/src/main/resources/application.yaml";
+    const auth = H + "4/code/services/auth/src/main/resources/application.yaml", page = H + "4/index.md";
+    const port = num(/^server:\s*\n\s*port:\s*(\d+)/m);
+    return [
+      { key: "edgePort", value: 80, lab: nginx, read: num(/^\s*listen\s+(\d+);/m) },
+      { key: "gatewayPort", value: 8080, lab: gw, read: port },
+      { key: "authPort", value: 8081, lab: auth, read: port },
+      { key: "catalogPort", value: 8082, lab: gw, read: num(/uri: http:\/\/catalog-1:(\d+)/) },
+      { key: "limit", value: 20, unit: "req/s", lab: nginx, read: num(/limit_req_zone .* rate=(\d+)r\/s/) },
+      { key: "burst", value: 40, lab: nginx, read: num(/limit_req\s+zone=per_key\s+burst=(\d+)/) },
+      { key: "probe", value: 5, unit: "s", lab: gw, read: num(/health-check:\s*\n\s*interval:\s*(\d+)s/) },
+      { key: "retries", value: 1, lab: gw, read: num(/retries:\s*(\d+)/) },
+      { key: "ttl", value: 3600, unit: "s", lab: auth, read: t => (num(/ttl:\s*\$\{JWT_TTL:PT(\d+)H\}/)(t) ?? NaN) * 3600 },
+      { key: "shortTtl", value: 30, unit: "s", lab: page, read: num(/JWT_TTL=PT(\d+)S docker compose up -d auth/) },
+      { key: "skew", value: 60, unit: "s", lab: page, read: num(/tolerates (\d+) s of clock skew/) },
+    ].map(e => ({ sim: "front-door", ...e }));
+  })(),
+
+  // hands-on 5 (lab twin catalog-cache): the TTLs, the jitter, Redis's port
+  ...(() => {
+    const yaml = H + "5/code/services/catalog/src/main/resources/application.yaml";
+    return [
+      { key: "eventTtl", value: 60, unit: "s", lab: yaml, read: num(/event-ttl:\s*\$\{CACHE_TTL_EVENT:(\d+)s\}/) },
+      { key: "listTtl", value: 10, unit: "s", lab: yaml, read: num(/list-ttl:\s*\$\{CACHE_TTL_LIST:(\d+)s\}/) },
+      { key: "jitter", value: 10, unit: "%", lab: H + "5/code/services/catalog/src/main/java/boxoffice/catalog/EventCache.java",
+        read: t => Math.round((num(/ttl\.toMillis\(\) \* ([\d.]+) \*/)(t) ?? NaN) * 100) },
+      { key: "redisPort", value: 6379, lab: H + "5/code/docker-compose.yaml", read: num(/REDIS_PORT:\s*(\d+)/) },
+    ].map(e => ({ sim: "catalog-cache", ...e }));
+  })(),
+
   // caching/patterns: lab 5's event TTL
   { sim: "cache", key: "ttl", attr: "ttl", value: 60, unit: "s",
     lab: H + "5/code/services/catalog/src/main/resources/application.yaml", read: num(/event-ttl:\s*\$\{CACHE_TTL_EVENT:(\d+)s\}/) },

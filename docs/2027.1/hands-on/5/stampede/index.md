@@ -22,7 +22,7 @@ sequenceDiagram
 
 ## 1. Reproduce it
 
-Make the problem frequent: a hot listing with a **3 s TTL**, hammered by 200 closed-model users without think time.
+Make the problem frequent: a hot listing with a **3 s time to live (TTL)**, hammered by 200 closed-model users without think time.
 
 ``` { .javascript title="load/stampede.js" .copy linenums="1" }
 --8<-- "docs/2027.1/hands-on/5/code/load/stampede.js"
@@ -34,7 +34,7 @@ k6 run -q -e DURATION=20s load/stampede.js > /dev/null    # warm-up: the replica
 k6 run load/stampede.js
 ```
 
-In 60 s the key expires about 20 times. Without protection, `cache_misses` is far above 20 — each expiry lets through every request that arrived during the reload, one heavy query each. Watch `docker stats` during the test: the CPU of `db` spikes every ~3 seconds, and so does the latency (look at `max` and `p(99)` versus `med`).
+In 60 s the key expires about 20 times. Without protection, `cache_misses` is far above 20 — each expiry lets through every request that arrived during the reload, one heavy query each. Watch `docker stats` during the test: the central processing unit (CPU) of `db` spikes every ~3 seconds, and so does the latency (look at `max` and `p(99)` versus `med`).
 
 ## 2. Fix it: one rebuild per key
 
@@ -44,6 +44,30 @@ The fix implemented in `EventCache` (already in your code, behind a switch) is a
 2. The winner double-checks the cache, runs the query, writes the value, releases the lock.
 3. The losers do **not** query the database: they poll the cache every 25 ms for up to 500 ms and return the value as soon as the winner writes it (a `HIT`).
 4. If the winner dies, the lock expires after 2 s, so nobody waits forever.
+
+``` diagram-sim
+sequenceDiagram
+    autonumber
+    participant W as request A (catalog-1)
+    participant L as request B (catalog-3)
+    participant R as redis
+    participant DB as db
+    Note over R: the listing key just expired
+    W->>R: GET key, nil
+    L->>R: GET key, nil
+    W->>R: SET key:lock tokenA NX PX 2000
+    R-->>W: OK, A loads
+    L->>R: SET key:lock tokenB NX PX 2000
+    R-->>L: nil, someone is loading
+    W->>R: GET key again, still nil
+    W->>DB: the heavy query, once
+    L->>R: GET key every 25 ms, nil
+    DB-->>W: rows
+    W->>R: SET key json PX 3000 + jitter
+    W->>R: GET key:lock is tokenA, then DEL
+    L->>R: GET key
+    R-->>L: json, B answers HIT
+```
 
 ``` { .java title="excerpt of services/catalog/src/main/java/boxoffice/catalog/EventCache.java (already in your code)" }
 if (stampedeProtection) {
@@ -78,7 +102,7 @@ k6 run -q -e DURATION=20s load/stampede.js > /dev/null    # warm-up: the replica
 k6 run load/stampede.js
 ```
 
-Now `cache_misses` should be close to the number of expirations (~20 per minute). In a test run of this script as it is (200 VUs, 60 s, TTL 3 s), the misses dropped from **2,238 to 19** — one database query per expiration instead of about a hundred and ten. In the same run p99 fell from about 1 s to about 0.3 s and the average CPU of `db` from 234% to 4%. The latency gain varies from machine to machine (Redis, the edge and the gateway also weigh on each request), but the database load during each expiration drops by about two orders of magnitude, and that is what protects it during a real spike. Fill in the stampede table of `results/lab5.md`.
+Now `cache_misses` should be close to the number of expirations (~20 per minute). In a test run of this script as it is (200 virtual users, VUs, 60 s, TTL 3 s), the misses dropped from **2,238 to 19** — one database query per expiration instead of about a hundred and ten. In the same run p99 fell from about 1 s to about 0.3 s and the average CPU of `db` from 234% to 4%. The latency gain varies from machine to machine (Redis, the edge and the gateway also weigh on each request), but the database load during each expiration drops by about two orders of magnitude, and that is what protects it during a real spike. Fill in the stampede table of `results/lab5.md`.
 
 ## 3. Other cures, and their trade-offs
 
@@ -89,7 +113,7 @@ Now `cache_misses` should be close to the number of expirations (~20 per minute)
 | **Probabilistic early refresh** (XFetch) | each request may refresh *before* expiry, with a probability that grows as expiry approaches | no locks; some duplicate work |
 | **Stale-while-revalidate** | serve the expired value while one request refreshes in the background | clients see slightly stale data |
 | **Refresh-ahead** | a background job refreshes hot keys before they expire | needs to know which keys are hot |
-| **Request coalescing at the edge** | the CDN/proxy collapses identical concurrent misses (`proxy_cache_lock` in Nginx) | only for cacheable HTTP responses |
+| **Request coalescing at the edge** | the content delivery network (CDN) or proxy collapses identical concurrent misses (`proxy_cache_lock` in Nginx) | only for cacheable Hypertext Transfer Protocol (HTTP) responses |
 
 !!! warning "Pitfalls of the lock"
 

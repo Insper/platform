@@ -22,7 +22,7 @@ sequenceDiagram
 
 ## 1. Reproduza { #1-reproduce-it }
 
-Torne o problema frequente: uma listagem quente com **TTL de 3 s**, martelada por 200 usuários em modelo fechado, sem tempo de pensar.
+Torne o problema frequente: uma listagem quente com **tempo de vida (TTL, *time to live*) de 3 s**, martelada por 200 usuários em modelo fechado, sem tempo de pensar.
 
 ``` { .javascript title="load/stampede.js" .copy linenums="1" }
 --8<-- "docs/2027.1/hands-on/5/code/load/stampede.js"
@@ -34,7 +34,7 @@ k6 run -q -e DURATION=20s load/stampede.js > /dev/null    # warm-up: the replica
 k6 run load/stampede.js
 ```
 
-Em 60 s a chave expira cerca de 20 vezes. Sem proteção, `cache_misses` fica muito acima de 20 — cada expiração deixa passar toda requisição que chegou durante a recarga, uma consulta pesada para cada uma. Acompanhe o `docker stats` durante o teste: a CPU do `db` dá um pico a cada ~3 segundos e a latência também (compare `max` e `p(99)` com `med`).
+Em 60 s a chave expira cerca de 20 vezes. Sem proteção, `cache_misses` fica muito acima de 20 — cada expiração deixa passar toda requisição que chegou durante a recarga, uma consulta pesada para cada uma. Acompanhe o `docker stats` durante o teste: a unidade central de processamento (CPU, *central processing unit*) do `db` dá um pico a cada ~3 segundos e a latência também (compare `max` e `p(99)` com `med`).
 
 ## 2. Corrija: uma reconstrução por chave { #2-fix-it-one-rebuild-per-key }
 
@@ -44,6 +44,30 @@ A correção implementada no `EventCache` (já está no seu código, atrás de u
 2. A vencedora confere o cache de novo, roda a consulta, escreve o valor e libera o lock.
 3. As perdedoras **não** consultam o banco: elas consultam o cache a cada 25 ms por até 500 ms e devolvem o valor assim que a vencedora o escreve (um `HIT`).
 4. Se a vencedora morrer, o lock expira depois de 2 s, então ninguém espera para sempre.
+
+``` diagram-sim
+sequenceDiagram
+    autonumber
+    participant W as requisição A (catalog-1)
+    participant L as requisição B (catalog-3)
+    participant R as redis
+    participant DB as db
+    Note over R: a chave da listagem acabou de expirar
+    W->>R: GET key, nil
+    L->>R: GET key, nil
+    W->>R: SET key:lock tokenA NX PX 2000
+    R-->>W: OK, A carrega
+    L->>R: SET key:lock tokenB NX PX 2000
+    R-->>L: nil, alguém está carregando
+    W->>R: GET key de novo, ainda nil
+    W->>DB: a consulta pesada, uma vez
+    L->>R: GET key a cada 25 ms, nil
+    DB-->>W: linhas
+    W->>R: SET key json PX 3000 + jitter
+    W->>R: GET key:lock é tokenA, depois DEL
+    L->>R: GET key
+    R-->>L: json, B responde HIT
+```
 
 ``` { .java title="excerpt of services/catalog/src/main/java/boxoffice/catalog/EventCache.java (already in your code)" }
 if (stampedeProtection) {
@@ -78,7 +102,7 @@ k6 run -q -e DURATION=20s load/stampede.js > /dev/null    # warm-up: the replica
 k6 run load/stampede.js
 ```
 
-Agora `cache_misses` deve ficar perto do número de expirações (~20 por minuto). Numa execução de teste deste script como está (200 VUs, 60 s, TTL de 3 s), os misses caíram de **2.238 para 19** — uma consulta ao banco por expiração em vez de cerca de cento e dez. Na mesma execução o p99 caiu de cerca de 1 s para cerca de 0,3 s e a CPU média do `db`, de 234% para 4%. O ganho de latência varia de máquina para máquina (o Redis, o edge e o gateway também pesam em cada requisição), mas a carga no banco durante cada expiração cai cerca de duas ordens de grandeza e é isso que o protege durante um pico real. Preencha a tabela do stampede em `results/lab5.md`.
+Agora `cache_misses` deve ficar perto do número de expirações (~20 por minuto). Numa execução de teste deste script como está (200 usuários virtuais, VUs, *virtual users*, 60 s, TTL de 3 s), os misses caíram de **2.238 para 19** — uma consulta ao banco por expiração em vez de cerca de cento e dez. Na mesma execução o p99 caiu de cerca de 1 s para cerca de 0,3 s e a CPU média do `db`, de 234% para 4%. O ganho de latência varia de máquina para máquina (o Redis, o edge e o gateway também pesam em cada requisição), mas a carga no banco durante cada expiração cai cerca de duas ordens de grandeza e é isso que o protege durante um pico real. Preencha a tabela do stampede em `results/lab5.md`.
 
 ## 3. Outras curas e os seus trade-offs { #3-other-cures-and-their-trade-offs }
 
@@ -89,7 +113,7 @@ Agora `cache_misses` deve ficar perto do número de expirações (~20 por minuto
 | **Atualização antecipada probabilística** (XFetch) | cada requisição pode atualizar *antes* da expiração, com uma probabilidade que cresce conforme a expiração se aproxima | sem locks; algum trabalho duplicado |
 | **Stale-while-revalidate** | serve o valor expirado enquanto uma requisição atualiza em segundo plano | os clientes veem dados um pouco desatualizados |
 | **Refresh-ahead** | um job em segundo plano atualiza as chaves quentes antes de expirarem | precisa saber quais chaves são quentes |
-| **Agrupamento de requisições na borda** | o CDN/proxy junta misses concorrentes idênticos (`proxy_cache_lock` no Nginx) | só para respostas HTTP cacheáveis |
+| **Agrupamento de requisições na borda** | a rede de distribuição de conteúdo (CDN, *content delivery network*) ou o proxy junta misses concorrentes idênticos (`proxy_cache_lock` no Nginx) | só para respostas cacheáveis do protocolo de transferência de hipertexto (HTTP, *Hypertext Transfer Protocol*) |
 
 !!! warning "Armadilhas do lock"
 

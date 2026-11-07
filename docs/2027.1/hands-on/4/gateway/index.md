@@ -1,10 +1,10 @@
-The gateway is the API's front door: every request that passes the edge goes through it. It is built on **Spring Cloud Gateway**, which runs on Spring WebFlux and Netty — non-blocking, so a few threads proxy thousands of concurrent requests — on port **8080**.
+The gateway is the front door of the application programming interface (API): every request that passes the edge goes through it. It is built on **Spring Cloud Gateway**, which runs on Spring WebFlux and Netty — non-blocking, so a few threads proxy thousands of concurrent requests — on port **8080**.
 
 | Responsibility | How |
 |---|---|
 | **Routing** | `/auth/**` → `auth`; `/catalog/**` → `lb://catalog` |
 | **Load balancing** over service instances | Spring Cloud LoadBalancer over `catalog-1..3`, skipping unhealthy ones |
-| **Authentication** | validates the JWT: signature (JWKS), `exp`, `iss`, `aud` |
+| **Authentication** | validates the JSON Web Token (JWT): signature against the JSON Web Key Set (JWKS), `exp`, `iss`, `aud` |
 | **Authorization** (coarse) | open / any token / scope `admin`, per path and method |
 | **Identity propagation** | `X-User-Id`, `X-User-Email`, `X-User-Scope` for the services |
 | **Timeouts and retries** | connect 1 s, response 5 s; one retry for idempotent GETs |
@@ -37,19 +37,38 @@ Create `services/gateway` (same `Dockerfile` with `EXPOSE 8080`, same `.dockerig
 --8<-- "docs/2027.1/hands-on/4/code/services/gateway/src/main/resources/application.yaml"
 ```
 
-- A **route** = id + predicates (when it matches) + URI (where it goes) + filters.
+- A **route** has an id, predicates (when it matches), a uniform resource identifier (URI) saying where it goes, and filters.
 - `uri: lb://catalog` asks Spring Cloud LoadBalancer for an instance of `catalog` on each request (round robin). The instance list here is static (`discovery.client.simple`); with Kubernetes in lab 10 a `Service` takes over this job.
 - `configurations: health-check` makes the balancer poll each instance's `/actuator/health/readiness` every 5 s and skip those that are not `UP` — an **active** health check, the thing open-source Nginx could not do in lab 3. It uses a `WebClient` to probe, which in Spring Boot 4 lives in its own starter: that is why the pom has `spring-boot-starter-webclient`. Until the first round of probes completes (a few seconds after startup) the balancer knows no healthy instance and the gateway answers `503`. It probes *readiness*, not `/actuator/health`: the full health includes `db` and `redis`, which every replica shares, so one stopped dependency would mark all three *down* at once and the gateway would answer `503` for everything — even for requests that the cache, or a fallback, could serve.
 - `Retry` re-sends a failed GET once (to another instance); never POSTs, which might not be idempotent.
 
 !!! note "Two load balancers?"
 
-    Yes, on purpose: the **edge** balances across *gateway* replicas (add `gateway-2` to the Nginx upstream when one gateway is not enough), and the **gateway** balances across *service* instances. That mirrors the cloud: a public L7 load balancer in front of a fleet of API gateways, which call services through internal load balancing.
+    Yes, on purpose: the **edge** balances across *gateway* replicas (add `gateway-2` to the Nginx upstream when one gateway is not enough), and the **gateway** balances across *service* instances. That mirrors the cloud: a public layer-7 (L7) load balancer in front of a fleet of API gateways, which call services through internal load balancing.
 
 ## 3. Security: who may call what
 
 ``` { .java title="services/gateway/src/main/java/boxoffice/gateway/SecurityConfig.java" .copy linenums="1" }
 --8<-- "docs/2027.1/hands-on/4/code/services/gateway/src/main/java/boxoffice/gateway/SecurityConfig.java"
+```
+
+``` diagram-sim
+flowchart TD
+    R["request at the gateway<br/>client X-User-* removed"] --> T{"Authorization:<br/>Bearer token?"}
+    T -->|"yes"| V{"signature (JWKS),<br/>exp, iss, aud ok?"}
+    V -->|"no"| X1["401 invalid_token<br/>even on an open route"]:::problem
+    V -->|"yes"| M{"first rule<br/>that matches"}
+    T -->|"no"| M
+    M -->|"/auth/register, /auth/login,<br/>/auth/.well-known/**"| OK["permitted:<br/>route it"]
+    M -->|"GET or HEAD /catalog/**"| OK
+    M -->|"any other /catalog/**"| S{"token with<br/>SCOPE_admin?"}
+    S -->|"no token"| X2["401"]:::problem
+    S -->|"token with scope user"| X3["403 insufficient_scope"]:::problem
+    S -->|"yes"| OK
+    M -->|"/actuator/**"| OK
+    M -->|"anything else"| AU{"valid token?"}
+    AU -->|"no"| X4["401"]:::problem
+    AU -->|"yes"| OK
 ```
 
 - Rules are evaluated **in order**; the first match wins. `anyExchange().authenticated()` is the safe default: a new route added next month is protected unless someone opens it explicitly.
@@ -61,6 +80,19 @@ Create `services/gateway` (same `Dockerfile` with `EXPOSE 8080`, same `.dockerig
 
 ``` { .java title="services/gateway/src/main/java/boxoffice/gateway/UserHeadersFilter.java" .copy linenums="1" }
 --8<-- "docs/2027.1/hands-on/4/code/services/gateway/src/main/java/boxoffice/gateway/UserHeadersFilter.java"
+```
+
+``` diagram-sim
+sequenceDiagram
+    autonumber
+    actor Ana
+    participant G as gateway
+    participant A as auth
+    Ana->>G: GET /auth/me + Bearer (Ana) + X-User-Id = the admin id
+    G->>G: remove X-User-Id, X-User-Email, X-User-Scope
+    G->>G: validate the JWT, sub = the id of Ana
+    G->>A: GET /auth/me + X-User-Id = the id of Ana
+    A-->>Ana: 200 Ana (the forged id never arrives)
 ```
 
 A `GlobalFilter` runs for every route. It first **strips** any `X-User-*` header sent by the client, then, if the request carries a validated JWT, adds the identity taken from the token. Services read a plain header instead of parsing tokens — simple, but it only holds as long as nobody can reach the services without crossing the gateway.
@@ -96,8 +128,8 @@ catalog
 !!! warning "Pitfalls"
 
     - **`401` on every protected route right after startup**: the gateway fetches the JWKS lazily; if `auth` was down at that moment, retry — and check `AUTH_JWKS_URI`.
-    - **`401` after restarting `auth`**: the old tokens were signed with the old key. Log in again.
-    - **Clock skew**: `exp`/`iat` are compared with the gateway's clock; containers share the host clock, but servers in production need NTP (class 3).
-    - **CORS**: a browser front end on another origin needs CORS configured at the gateway (`spring.cloud.gateway.server.webflux.globalcors`) — not needed for k6 or curl.
+    - **`401` after restarting `auth`**: the old tokens were signed with the old key. They still pass while the gateway holds the old JWKS, and fail as soon as the first token with the new `kid` makes it download the new one. Log in again.
+    - **Clock skew**: `exp`/`iat` are compared with the gateway's clock; containers share the host clock, but servers in production need the Network Time Protocol (NTP), see class 3.
+    - **Cross-origin resource sharing (CORS)**: a browser front end on another origin needs CORS configured at the gateway (`spring.cloud.gateway.server.webflux.globalcors`) — not needed for k6 or curl.
 
 Back to the [lab overview](../index.md#measure-it) to try it and measure it.

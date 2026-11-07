@@ -1,6 +1,6 @@
 > "There are only two hard things in Computer Science: cache invalidation and naming things." ("Só existem duas coisas difíceis em Ciência da Computação: invalidação de cache e dar nomes às coisas.") — Phil Karlton[^1]
 
-Preencher um cache é fácil. O difícil é saber **quando uma cópia deixou de ser verdade**. O banco muda; a cópia no Redis, em vinte JVMs, numa CDN e em um milhão de navegadores não fica sabendo. Todo desenho de cache é, no fundo, uma resposta a duas perguntas:
+Preencher um cache é fácil. O difícil é saber **quando uma cópia deixou de ser verdade**. O banco muda; a cópia no Redis, em vinte máquinas virtuais Java (JVM, *Java virtual machine*), numa rede de distribuição de conteúdo (CDN, *content delivery network*) e em um milhão de navegadores não fica sabendo. Todo desenho de cache é, no fundo, uma resposta a duas perguntas:
 
 1. **Quão defasado cada dado pode estar?** (o *orçamento de defasagem*)
 2. **Como uma mudança na fonte chega a todas as cópias dentro desse orçamento?** (o *mecanismo de invalidação*)
@@ -17,7 +17,7 @@ Antes de escolher um mecanismo, decida — com o time de produto, não sozinho �
 
     | Dado | Muda | Defasagem aceitável | Mecanismo | Por quê |
     |---|---|---|---|---|
-    | Descrição, imagens, line-up do evento | raramente (edições do organizador) | ~1 minuto | remoção na escrita + TTL 5 min | a correção de um erro de digitação pode levar um minuto para aparecer |
+    | Descrição, imagens, line-up do evento | raramente (edições do organizador) | ~1 minuto | remoção na escrita + tempo de vida (TTL, *time to live*) de 5 min | a correção de um erro de digitação pode levar um minuto para aparecer |
     | Geometria do local | quase nunca | horas | TTL 1 h + chave versionada na mudança | imutável na prática |
     | Tabela de preços | preço dinâmico, durante as vendas | **segundos** | TTL 30 s + remoção na escrita; preço relido do banco no checkout | exibir um preço antigo é tolerável; *cobrar* não é |
     | Mapa de assentos (exibição) | a cada reserva e venda | 1–2 s | TTL 1 s, ou sem cache | um mapa defasado só causa "lugar não disponível" |
@@ -32,7 +32,7 @@ Escrever essa tabela é metade do desenho: quando cada linha tem um orçamento, 
 
 ## TTL: a rede de segurança { #ttl-the-safety-net }
 
-Um **TTL** (*time to live*, tempo de vida) faz cada entrada expirar depois de um tempo fixo. É o mecanismo mais simples e o que você deve ter **sempre**, mesmo quando também invalida explicitamente — porque a invalidação explícita, em algum momento, vai deixar algo passar (um bug, uma correção manual em SQL, um processo que caiu entre o commit e a remoção), e o TTL limita quanto tempo o erro vive.
+Um **TTL** (*time to live*, tempo de vida) faz cada entrada expirar depois de um tempo fixo. É o mecanismo mais simples e o que você deve ter **sempre**, mesmo quando também invalida explicitamente — porque a invalidação explícita, em algum momento, vai deixar algo passar — um bug, uma correção manual em linguagem de consulta estruturada (SQL, *Structured Query Language*), um processo que caiu entre o commit e a remoção — e o TTL limita quanto tempo o erro vive.
 
 Escolher o TTL é um compromisso entre atualidade e taxa de acerto:
 
@@ -74,10 +74,26 @@ As escritas chegaram ao banco numa ordem e ao cache na outra. Com **remoção**,
 
 | Ordem | O que pode dar errado |
 |---|---|
-| Remover do cache → escrever no banco | entre as duas, um leitor erra, lê a linha **antiga** e a coloca de volta. O cache fica velho até o TTL. **Evite.** |
-| Escrever no banco → remover do cache (depois do commit) | sobra uma corrida estreita (próxima seção), mas esta é a escolha padrão |
-| Escrever no banco → atualizar o cache | escritores concorrentes podem se reordenar (acima) |
-| Escrever no banco, remover **dentro** da transação | a remoção pode acontecer antes de o commit ficar visível; um leitor recoloca o valor antigo. Remova **depois do commit**. |
+| ❌ Remover do cache → escrever no banco | entre as duas, um leitor erra, lê a linha **antiga** e a coloca de volta. O cache fica velho até o TTL. **Evite.** |
+| ✅ Escrever no banco → remover do cache (depois do commit) | sobra uma corrida estreita (próxima seção), mas esta é a escolha padrão |
+| ⚠️ Escrever no banco → atualizar o cache | escritores concorrentes podem se reordenar (acima) |
+| ❌ Escrever no banco, remover **dentro** da transação | a remoção pode acontecer antes de o commit ficar visível; um leitor recoloca o valor antigo. Remova **depois do commit**. |
+
+``` diagram-sim
+sequenceDiagram
+    participant W as Escritor
+    participant R as Redis
+    participant Rd as Leitor
+    participant D as PostgreSQL
+    W->>R: DEL event:42 (remove antes)
+    Rd->>R: GET event:42
+    R-->>Rd: falta
+    Rd->>D: SELECT evento 42
+    D-->>Rd: linha antiga v1
+    W->>D: UPDATE evento 42 para v2 e COMMIT
+    Rd->>R: SET event:42 v1
+    Note over R: v1 velho até o TTL, a remoção veio cedo demais
+```
 
 ### A corrida do cache-aside { #race }
 
@@ -104,7 +120,7 @@ O leitor leu antes da escrita e gravou depois da remoção. É raro — o leitor
 
 1. **Um TTL como rede de segurança** — limita o estrago. Para a maioria dos dados, basta.
 2. **Remoção dupla atrasada** (*delayed double delete*) — o escritor remove e remove de novo pouco depois (por exemplo, 500 ms, mais que uma leitura típica). A segunda remoção apaga o que um leitor lento recolocou. Barato, mas probabilístico.
-3. **Valores versionados** — guarde a versão da linha junto com o valor e só escreva no cache se a versão for mais nova que a que está lá. Como as versões vêm do banco (coluna `version`, ou o LSN do commit), um leitor lento com `v1` não consegue sobrescrever `v2`. Com versões, *atualizar* na escrita também passa a ser seguro.
+3. **Valores versionados** — guarde a versão da linha junto com o valor e só escreva no cache se a versão for mais nova que a que está lá. Como as versões vêm do banco (coluna `version`, ou o número de sequência do log do commit, o LSN, *log sequence number*), um leitor lento com `v1` não consegue sobrescrever `v2`. Com versões, *atualizar* na escrita também passa a ser seguro.
 4. **Leases** — numa falta, o cache entrega ao leitor um **token de lease**; uma remoção invalida os tokens pendentes e um `SET` com token inválido é rejeitado. O memcache do Facebook usa leases tanto para essa corrida quanto para limitar *stampedes* (um só lease por chave a cada poucos segundos)[^2].
 
 ```lua title="set_if_newer.lua — versioned set in Redis"
@@ -124,7 +140,7 @@ O script executa de forma atômica dentro do Redis ([Redis — atomicidade](../r
 
 ## Invalidação a partir do log do banco (CDC) { #cdc }
 
-A invalidação no código da aplicação tem uma fraqueza estrutural: só cobre as escritas que passam por *aquele* código. Um job em lote, outro serviço, uma migração ou um DBA corrigindo uma linha à mão vão mudar o banco sem remover nada.
+A invalidação no código da aplicação tem uma fraqueza estrutural: só cobre as escritas que passam por *aquele* código. Um job em lote, outro serviço, uma migração ou um administrador de banco de dados (DBA, *database administrator*) corrigindo uma linha à mão vão mudar o banco sem remover nada.
 
 A **captura de mudanças de dados** (*change data capture*, CDC) leva a invalidação para a fonte: um conector lê o log de replicação do banco (o *write-ahead log*, WAL, do PostgreSQL) e publica cada mudança confirmada como um evento. Um invalidador consome os eventos e remove as chaves afetadas.
 
@@ -153,8 +169,8 @@ Um valor pode estar cacheado em vários lugares ao mesmo tempo. Cada um precisa 
 | Cópia | Como invalidar | Observações |
 |---|---|---|
 | Redis (compartilhado) | `DEL chave` | uma chamada alcança todos os leitores |
-| L1 em processo em cada réplica | difusão por pub/sub (`PUBLISH` do Redis, Kafka) ou client-side caching do Redis (`CLIENT TRACKING`); ou um TTL bem curto | uma réplica que perde a mensagem fica desatualizada até o TTL |
-| CDN | API de purge (por URL ou por **tag** / *surrogate key*) | purges levam segundos para se propagar pelo mundo e podem ter limite de taxa; prefira URLs versionadas para arquivos estáticos |
+| Cache em processo de nível 1 (L1, *level 1*) em cada réplica | difusão por pub/sub (`PUBLISH` do Redis, Kafka) ou client-side caching do Redis (`CLIENT TRACKING`); ou um TTL bem curto | uma réplica que perde a mensagem fica desatualizada até o TTL |
+| CDN | interface de programação (API, *application programming interface*) de purge, por localizador uniforme de recurso (URL, *uniform resource locator*) ou por **tag** / *surrogate key* | purges levam segundos para se propagar pelo mundo e podem ter limite de taxa; prefira URLs versionadas para arquivos estáticos |
 | Navegador / app mobile | **impossível** recolher | só `Cache-Control: max-age` (curto para dados) e URLs versionadas (para arquivos estáticos) |
 
 A **invalidação por tag** ajuda quando uma mudança afeta muitas chaves: marque cada resposta cacheada que contém o evento 42 com `event-42` e faça o purge pela tag. Algumas CDNs suportam isso nativamente; no Redis você pode manter um conjunto de chaves por tag (`SADD tag:event-42 key1 key2`) e removê-las juntas.
@@ -310,8 +326,8 @@ Um cache-aside na frente de um banco é **eventualmente consistente**: depois de
 |---|---|---|
 | **Defasagem limitada** | nenhum valor mais velho que T | TTL ≤ T (e nada mais é necessário) |
 | **Read-your-writes** | depois que eu escrevo, *eu* vejo minha escrita | write-through para essa chave; ou marcar a sessão como "escreveu agora" e ignorar o cache por alguns segundos; para caches L1, rotear o usuário para a mesma réplica |
-| **Leituras monotônicas** | nunca vejo um valor voltar no tempo | evitar misturar caches com atualidades diferentes para o mesmo usuário (ex.: L1 com TTL de 30 s e L2 com 5 s) |
-| **Linearizabilidade** | todos veem a última escrita | **não com cache.** Leia a fonte da verdade. |
+| **Leituras monotônicas** | nunca vejo um valor voltar no tempo | evitar misturar caches com atualidades diferentes para o mesmo usuário (ex.: um L1 com TTL de 30 s e um cache de nível 2, L2, com 5 s) |
+| **Linearizabilidade** | todos veem a última escrita | ❌ **não com cache.** Leia a fonte da verdade. |
 
 São os mesmos modelos de consistência vistos em [Sistemas Distribuídos](../../distributed/consistency/index.md) — um cache é só mais uma réplica, com garantias mais fracas e sem protocolo de replicação.
 

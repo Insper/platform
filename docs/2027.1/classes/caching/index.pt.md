@@ -1,4 +1,4 @@
-São 9h59 do dia em que um show de estádio abre as vendas. A BoxOffice tem 60.000 lugares para vender e cerca de 2 milhões de fãs com a página do evento aberta, apertando F5. Às 10h00 o serviço `catalog` recebe dezenas de milhares de requisições `GET /events/42` por segundo e cada uma executa as mesmas três consultas SQL: o evento, o local, a tabela de preços. Os dados não mudam há uma semana. Mesmo assim, o banco do catálogo chega a 100% de CPU, consultas que levavam 3 ms passam a levar 800 ms e o **checkout** — que compartilha esse banco — começa a dar timeout. Ninguém comprou um ingresso ainda e o sistema já caiu.
+São 9h59 do dia em que um show de estádio abre as vendas. A BoxOffice tem 60.000 lugares para vender e cerca de 2 milhões de fãs com a página do evento aberta, apertando F5. Às 10h00 o serviço `catalog` recebe dezenas de milhares de requisições `GET /events/42` por segundo e cada uma executa as mesmas três consultas em linguagem de consulta estruturada (SQL, *Structured Query Language*): o evento, o local, a tabela de preços. Os dados não mudam há uma semana. Mesmo assim, o banco do catálogo chega a 100% da unidade central de processamento (CPU, *central processing unit*), consultas que levavam 3 ms passam a levar 800 ms e o **checkout** — que compartilha esse banco — começa a dar timeout. Ninguém comprou um ingresso ainda e o sistema já caiu.
 
 A solução não é um banco maior. É parar de fazer ao banco a mesma pergunta dois milhões de vezes. Isso é **cache**: guardar uma cópia da resposta a uma pergunta cara em um lugar mais rápido e mais barato de ler e servir a cópia enquanto ela for boa o suficiente.
 
@@ -13,7 +13,7 @@ A solução não é um banco maior. É parar de fazer ao banco a mesma pergunta 
     - **Explicar** por que caches funcionam (localidade e popularidade concentrada) e **identificar** as camadas onde uma requisição pode ser cacheada, do navegador ao buffer pool do banco.
     - **Calcular** a latência efetiva e a carga no banco para uma dada taxa de acerto (*hit ratio*) e **dimensionar** um cache para um conjunto de trabalho (*working set*).
     - **Comparar** cache-aside, read-through, write-through, write-behind, write-around e refresh-ahead, e **escolher** um para cada tipo de dado da BoxOffice.
-    - **Projetar** uma estratégia de invalidação (TTL, remoção explícita, chaves versionadas, captura de mudanças) e **selecionar** uma política de despejo (*eviction*).
+    - **Projetar** uma estratégia de invalidação — tempo de vida (TTL, *time to live*), remoção explícita, chaves versionadas, captura de mudanças (CDC, *change data capture*) — e **selecionar** uma política de despejo (*eviction*).
     - **Diagnosticar** modos de falha de cache — *stampede*, avalanche, penetração, chaves quentes, queda do cache — e **aplicar** a correção adequada.
     - **Usar** as estruturas de dados do Redis e **raciocinar** sobre persistência, replicação e os hash slots do Redis Cluster.
 
@@ -21,7 +21,7 @@ A solução não é um banco maior. É parar de fazer ao banco a mesma pergunta 
 
 1. **Esta visão geral** — por que o cache funciona, onde os caches ficam, a matemática da taxa de acerto, dimensionamento e o que nunca cachear.
 2. [Padrões de Cache](patterns/index.md) — cache-aside, read-through, write-through, write-behind, write-around, refresh-ahead; desenho de chaves.
-3. [Invalidação e Despejo](invalidation/index.md) — TTLs, invalidação explícita, a corrida do cache-aside, CDC, LRU/LFU/W-TinyLFU.
+3. [Invalidação e Despejo](invalidation/index.md) — TTLs, invalidação explícita, a corrida do cache-aside, CDC, menos usado recentemente (LRU, *least recently used*), menos usado com frequência (LFU, *least frequently used*), W-TinyLFU.
 4. [Modos de Falha](failure-modes/index.md) — cache frio, *stampede*, avalanche, penetração, chaves quentes, a queda do cache.
 5. [Redis](redis/index.md) — estruturas de dados, atomicidade, persistência, replicação, Redis Cluster, serviços gerenciados.
 6. [Quiz](quiz.md) — verifique seu entendimento.
@@ -54,10 +54,10 @@ A popularidade na web segue, aproximadamente, uma **distribuição do tipo Zipf*
 
 O segundo ingrediente é a **diferença de latência** entre as camadas de armazenamento. Os números abaixo são ordens de grandeza — variam com o hardware e a rede, mas o que importa são as razões entre eles[^2]:
 
-| Operação | Ordem de grandeza | Em relação a uma leitura de RAM |
+| Operação | Ordem de grandeza | Em relação a uma leitura da memória de acesso aleatório (RAM, *random-access memory*) |
 |---|---|---|
-| Leitura da memória principal (RAM) | ~100 ns | 1× |
-| Leitura aleatória de 4 KB de um SSD NVMe | ~10–100 µs | ~100–1.000× |
+| Leitura da memória principal | ~100 ns | 1× |
+| Leitura aleatória de 4 KB de uma unidade de estado sólido (SSD, *solid-state drive*) NVMe (*NVM Express*) | ~10–100 µs | ~100–1.000× |
 | Ida e volta dentro de um data center | ~0,5 ms | ~5.000× |
 | `GET` de uma chave pequena no Redis no mesmo data center (com a rede) | ~0,2–1 ms | ~2.000–10.000× |
 | Consulta SQL indexada em um banco aquecido (com a rede) | ~1–5 ms | ~10.000–50.000× |
@@ -85,12 +85,12 @@ flowchart LR
 
 | Camada | O que guarda | TTL típico | Quem invalida | Exemplo na BoxOffice |
 |---|---|---|---|---|
-| **Cliente** (navegador, app) | respostas HTTP, imagens, scripts, via `Cache-Control`, `ETag` e requisições condicionais `If-None-Match`[^3] | segundos a um ano (arquivos versionados) | o servidor, só por cabeçalhos; não dá para apagar uma cópia no celular do usuário | `app.3f9a1c.js` cacheado por um ano; JSON do evento com `max-age=10` |
-| **CDN** (Content Delivery Network) | arquivos estáticos, imagens, páginas públicas em pontos de presença perto do usuário | minutos a dias | API de purge, URLs versionadas | pôsteres dos eventos vindos do object store; a página pública do evento |
+| **Cliente** (navegador, app) | respostas do protocolo de transferência de hipertexto (HTTP, *Hypertext Transfer Protocol*), imagens, scripts, via `Cache-Control`, `ETag` e requisições condicionais `If-None-Match`[^3] | segundos a um ano (arquivos versionados) | o servidor, só por cabeçalhos; não dá para apagar uma cópia no celular do usuário | `app.3f9a1c.js` cacheado por um ano; notação de objetos JavaScript (JSON, *JavaScript Object Notation*) do evento com `max-age=10` |
+| **CDN** (Content Delivery Network) | arquivos estáticos, imagens, páginas públicas em pontos de presença perto do usuário | minutos a dias | interface de programação (API, *application programming interface*) de purge, localizadores uniformes de recurso (URLs, *uniform resource locators*) versionados | pôsteres dos eventos vindos do object store; a página pública do evento |
 | **API gateway / proxy reverso** | respostas inteiras de rotas `GET` públicas | segundos | TTL curto; raramente explícito | `GET /events/42` cacheado por 5 s no gateway durante a abertura das vendas |
-| **Em processo** (local, ex.: Caffeine na JVM) | objetos quentes no heap do próprio serviço | segundos a minutos | cada réplica separadamente (difícil!) | geometria do local e do mapa de assentos, que quase nunca mudam |
+| **Em processo** (local, ex.: Caffeine na máquina virtual Java, JVM, *Java virtual machine*) | objetos quentes no heap do próprio serviço | segundos a minutos | cada réplica separadamente (difícil!) | geometria do local e do mapa de assentos, que quase nunca mudam |
 | **Cache distribuído** (Redis, Valkey, Memcached) | objetos e resultados de consultas compartilhados por todas as réplicas | segundos a horas | a aplicação (remove na escrita) ou o TTL | detalhes do evento, tabelas de preço, resultados de busca, sessões |
-| **Banco de dados** (buffer pool, page cache do SO) | páginas de dados e de índices em RAM | gerenciado pelo motor (parecido com LRU) | o próprio motor — sempre consistente | páginas do índice de `seats` dos eventos da noite |
+| **Banco de dados** (buffer pool, page cache do sistema operacional, SO) | páginas de dados e de índices em RAM | gerenciado pelo motor (parecido com LRU) | o próprio motor — sempre consistente | páginas do índice de `seats` dos eventos da noite |
 
 Quanto mais profunda a camada, mais consistente ela é: o buffer pool do banco nunca devolve um dado velho, enquanto uma cópia no navegador não pode ser recolhida de jeito nenhum. Escolher *onde* cachear é, portanto, escolher **quanta defasagem cada tipo de dado tolera** — o assunto de [Invalidação e Despejo](invalidation/index.md). CDNs e cache HTTP são tratados em profundidade em [Tráfego e Borda](../edge/dns-cdn/index.md); esta aula se concentra no lado da aplicação: caches em processo e distribuídos.
 
@@ -112,7 +112,7 @@ $$
 
 onde $t_{\text{miss}}$ inclui a consulta frustrada ao cache *mais* a consulta ao banco (e a escrita de volta no cache).
 
-**Carga no banco** — as leituras que passam:
+**Carga no banco** — as leituras que passam, em consultas por segundo (QPS, *queries per second*):
 
 $$
 \text{QPS}_{\text{DB}} = (1 - h) \cdot \text{QPS}_{\text{total}}
@@ -232,6 +232,18 @@ Um cache responde *"qual era o valor um instante atrás?"*. Algumas perguntas pr
 
 A mesma lógica vale para saldos de conta, status de pagamento, chaves de idempotência e qualquer coisa em que agir sobre um valor antigo cause uma ação errada e irreversível. Uma boa regra: **cacheie o que você exibe, não aquilo sobre o que você decide**.
 
+``` diagram-sim
+flowchart LR
+    FAN["fã na página do evento"] --> MAP["mapa de assentos<br/>quais lugares parecem livres"]
+    MAP -->|"exibir: 1–2 s de atraso tudo bem"| CACHE[("cache")]
+    FAN --> CLICK["clique: reservar o assento A-12"]
+    CLICK -->|"filtro rápido opcional"| PRE["pré-reserva no Redis,<br/>recusa os perdedores óbvios"]
+    PRE --> INV["inventory"]
+    CLICK --> INV
+    INV -->|"decidir: transação SQL"| DB[("PostgreSQL<br/>fonte da verdade")]
+    INV -.->|"nunca decide com base no"| CACHE
+```
+
 Outras coisas que não devem ir para um cache compartilhado: dados lidos uma única vez (um cache cheio de itens de uma leitura só despeja os úteis), dados pessoais sem TTL claro e sem controle de acesso (um cache é uma cópia que também precisa ser protegida e apagada) e valores que são mais baratos de calcular do que de buscar pela rede.
 
 ---
@@ -243,6 +255,10 @@ Experimente: o cenário abaixo coloca um Redis em cache-aside na frente do banco
 <div class="sdp" data-scenario="read-heavy-cache" data-mode="compact" data-height="520"></div>
 
 Abra o [playground completo](../../../playground/index.md) para adicionar um cache em processo ou uma CDN na frente do mesmo desenho. O componente `cache` é descrito no [catálogo de componentes](../../reference/components/storage/index.md#cache).
+
+A mesma ideia na própria BoxOffice: `boxoffice-cache` manda 1.500 req/s de páginas de evento por quatro réplicas do `catalog` a um banco que não aguenta (cerca de um terço das requisições falha). Acrescente um Cache entre o `catalog` e o banco e rode de novo: com cerca de 80% de acertos o banco vê só as faltas e nada falha.
+
+<div class="sdp" data-scenario="boxoffice-cache" data-mode="compact" data-height="440"></div>
 
 ## O mapa de conceitos de caching { #concept-map }
 
@@ -272,11 +288,11 @@ flowchart LR
 | [`client`](../../reference/components/client/index.md#client) · [`mobile`](../../reference/components/client/index.md#mobile) | O dispositivo pode pular a requisição inteira? | `Cache-Control`, `ETag`, requisições condicionais, assets versionados | esta visão geral (*Onde os caches ficam*), [Borda — DNS e CDN](../edge/dns-cdn/index.md#cdn) | `cdn-static` |
 | [`cdn`](../../reference/components/edge/index.md#cdn) | A borda pode responder pela origem? | páginas públicas e assets, URLs versionadas, purge por URL ou tag | [Borda — DNS e CDN](../edge/dns-cdn/index.md#cdn), [Invalidação — CDC](invalidation/index.md#cdc) | `cdn-static`, `video-streaming` |
 | [`apigw`](../../reference/components/edge/index.md#apigw) | Um `GET` público pode ser respondido sem o serviço? | cache da resposta inteira com TTL de segundos durante a abertura de vendas | esta visão geral (*Onde os caches ficam*) | `flash-sale` |
-| [`app`](../../reference/components/compute/index.md#app) | Cada réplica pode manter os objetos mais quentes no próprio heap? | L1 em processo (Caffeine), near cache, invalidação por broadcast | [Padrões — cache em dois níveis](patterns/index.md#two-level) | `read-heavy-cache` |
+| [`app`](../../reference/components/compute/index.md#app) | Cada réplica pode manter os objetos mais quentes no próprio heap? | cache em processo de nível 1 (L1, *level 1*) com Caffeine, near cache, invalidação por broadcast | [Padrões — cache em dois níveis](patterns/index.md#two-level) | `read-heavy-cache` |
 | [`cache`](../../reference/components/storage/index.md#cache) | Uma cópia compartilhada absorve a maioria das leituras? | cache-aside, read/write-through, write-behind, TTL, LRU/LFU/W-TinyLFU, matemática da taxa de acerto, dimensionamento, estruturas do Redis | [Padrões](patterns/index.md), [Invalidação](invalidation/index.md), [Redis](redis/index.md) | `read-heavy-cache`, `search-autocomplete` |
 | [`cache`](../../reference/components/storage/index.md#cache) (sob estresse) | O que acontece quando uma chave quente expira, ou o cache cai? | cache frio, stampede, avalanche, penetração, chaves quentes e grandes, fallback protegido | [Modos de Falha](failure-modes/index.md) | `read-heavy-cache`, `flash-sale` |
 | [`sql`](../../reference/components/storage/index.md#sql) | O que o cache protege — e o que nunca pode vir dele? | fonte da verdade, buffer pool, "cacheie o que você exibe, não aquilo com que você decide" | esta visão geral (*O que não cachear*), [Bancos de dados — transações](../databases/transactions/index.md#double-booking) | `db-replicas`, `flash-sale` |
-| [`stream`](../../reference/components/messaging/index.md#stream) · [`kafka`](../../reference/components/messaging/index.md#kafka) · [`pubsub`](../../reference/components/messaging/index.md#pubsub) | Como uma mudança no banco chega a todas as cópias? | CDC a partir do WAL (Debezium), ordenado por chave, broadcast para os caches L1 | [Invalidação — CDC](invalidation/index.md#cdc) | `event-fanout` |
+| [`stream`](../../reference/components/messaging/index.md#stream) · [`kafka`](../../reference/components/messaging/index.md#kafka) · [`pubsub`](../../reference/components/messaging/index.md#pubsub) | Como uma mudança no banco chega a todas as cópias? | CDC a partir do log de escrita antecipada (WAL, *write-ahead log*) com Debezium, ordenado por chave, broadcast para os caches L1 | [Invalidação — CDC](invalidation/index.md#cdc) | `event-fanout` |
 
 !!! tip "Na entrevista"
 
@@ -285,7 +301,7 @@ flowchart LR
 !!! success "Boas práticas"
 
     - **Justifique o cache com números antes de adicioná-lo**: razão leitura/escrita, concentração, taxa de acerto esperada e a carga que ele tira do banco ("95% → o banco vê 1 leitura em 20"). No BoxOffice: o [lab 5 mede](../../hands-on/5/index.md#measure-it) a taxa de acerto, o p99 e a capacidade antes e depois.
-    - **Faça cada resposta dizer o que aconteceu** (`HIT`, `MISS`, `BYPASS` num cabeçalho e num contador): uma taxa de acerto que você não vê é uma taxa de acerto que você não consegue defender. No BoxOffice: `X-Cache` no `EventCache.java`.
+    - **Faça cada resposta dizer o que aconteceu** (`HIT`, `MISS`, `BYPASS` num cabeçalho e num contador): uma taxa de acerto que você não vê é uma taxa de acerto que você não consegue defender. No BoxOffice: o `EventCache.java` devolve o resultado e o conta, e o `EventController.java` o coloca no cabeçalho `X-Cache`.
     - **Dê um TTL a toda chave**, mesmo às que você invalida explicitamente, e dimensione o TTL pela defasagem que cada tipo de dado tolera ([orçamento de defasagem](invalidation/index.md)).
     - **Trate o cache como opcional**: timeouts curtos no cliente, fallback para a fonte da verdade e um banco dimensionado para sobreviver a um cache frio na carga esperada.
     - **Mantenha as decisões na fonte da verdade**: reservas de assento, pagamentos e saldos nunca vêm de uma cópia.

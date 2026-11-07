@@ -14,6 +14,10 @@ theme: platform
 {{INCLUDE:scripts/slides/theme.js}}
 </script>
 
+<style>
+{{INCLUDE:scripts/slides/diagram.css}}
+</style>
+
 <div class="kicker">Arquitetura de Sistemas · Insper</div>
 
 # Cache
@@ -32,7 +36,7 @@ dimensionamento; (3) padrões; (4) invalidação e despejo; (5) modos de falha; 
 <div class="q">
 
 2 M fãs apertam F5 na mesma página de evento. Os dados não mudam há uma semana.
-Por que o banco do catálogo chega a 100% de CPU — e derruba o checkout junto?
+Por que o banco do catálogo chega a 100% da unidade central de processamento (CPU, *central processing unit*) — e derruba o checkout junto?
 
 </div>
 
@@ -52,7 +56,7 @@ Deixe a turma responder primeiro. Leve-os a: o trabalho é redundante, então el
 - **Localidade temporal** — o que foi lido há pouco será lido de novo (F5).
 - **Concentração** — a popularidade é aproximadamente **Zipf**: a posição $i$ recebe $\propto 1/i^s$ das requisições.
 - Com $s \approx 1$, o **1%** mais popular de 100.000 eventos leva **~60%** das leituras.
-- **Diferença de latência**: RAM ~100 ns · Redis no DC ~0,5 ms · SQL 1–100 ms.
+- **Diferença de latência**: memória de acesso aleatório (RAM, *random-access memory*) ~100 ns · Redis no mesmo data center ~0,5 ms · uma consulta em linguagem de consulta estruturada (SQL, *Structured Query Language*) 1–100 ms.
 
 <div class="ok">
 
@@ -62,20 +66,20 @@ Um cache deixa as leituras mais rápidas, mas seu trabalho real é **tirar traba
 
 ---
 
-<!-- _class: tight -->
-
 ## Onde os caches ficam
 
-| Camada | Guarda | Invalidado por | BoxOffice |
-|---|---|---|---|
-| Cliente (navegador, app) | respostas HTTP (`Cache-Control`, `ETag`) | só cabeçalhos — não dá para recolher | JS versionado, JSON do evento `max-age=10` |
-| CDN | estáticos, páginas públicas | API de purge, URLs versionadas | pôsteres, página pública do evento |
-| API gateway | respostas `GET` inteiras | TTL curto | `GET /events/42` por 5 s |
-| Em processo (Caffeine) | objetos quentes no heap | cada réplica separadamente | geometria do local |
-| Distribuído (Redis, Valkey) | objetos, resultados, sessões | app (remoção) + TTL | detalhes do evento, busca |
-| Banco de dados | páginas no buffer pool | o motor — sempre consistente | páginas do índice de `seats` |
+<div class="flow">
+<div class="box">navegador / app<small>Cache-Control, ETag · não dá para recolher</small></div><div class="arrow">falta →</div>
+<div class="box">rede de distribuição de conteúdo (CDN, <em>content delivery network</em>)<small>páginas públicas · purge, endereços versionados</small></div><div class="arrow">→</div>
+<div class="box">gateway<small>respostas GET inteiras, alguns segundos</small></div><div class="arrow">→</div>
+<div class="box accent">em processo<small>Caffeine · cada réplica por si</small></div><div class="arrow">→</div>
+<div class="box green">Redis<small>compartilhado · remoção na escrita + tempo de vida (TTL, <em>time to live</em>)</small></div><div class="arrow">→</div>
+<div class="box orange">banco de dados<small>buffer pool · sempre consistente</small></div>
+</div>
 
-<p class="small">Mais perto do usuário: mais rápido e mais barato por acerto, porém mais difícil de invalidar.</p>
+- Mais perto do usuário: mais rápido e mais barato por acerto, porém **mais difícil de invalidar**.
+- BoxOffice: notação de objetos JavaScript (JSON, *JavaScript Object Notation*) do evento com `max-age=10` no navegador, `GET /events/42` por 5 s no gateway, geometria do local no Caffeine, detalhes do evento no Redis.
+- Esta aula: o lado da aplicação, caches em processo e distribuídos; as CDNs ficam em Tráfego e Borda.
 
 ---
 
@@ -83,7 +87,7 @@ Um cache deixa as leituras mais rápidas, mas seu trabalho real é **tirar traba
 
 $$t_{\text{eff}} = h \cdot t_{\text{hit}} + (1-h) \cdot t_{\text{miss}} \qquad \text{QPS}_{\text{DB}} = (1-h) \cdot \text{QPS}$$
 
-| Taxa de acerto | Latência efetiva (0,5 / 8,5 ms) | Carga no banco com 50.000 leituras/s |
+| Taxa de acerto | Latência efetiva (0,5 / 8,5 ms) | Carga no banco (consultas por segundo, QPS, *queries per second*) com 50.000 leituras/s |
 |---|---|---|
 | 90% | 1,3 ms | 5.000 QPS |
 | 99% | 0,58 ms | 500 QPS |
@@ -113,22 +117,19 @@ Pense na **taxa de falta**: cada nove a mais é **10× menos** carga no banco.
 
 ## Cache-aside: o padrão default
 
-<div class="cols">
-<div>
-
-**Leitura**: `GET` → acertou? devolve. Falta → lê o banco → `SET key EX ttl` → devolve.
-
-**Escrita**: atualiza o banco → **commit** → `DEL key`.
-
+<div class="flow">
+<div class="arrow" style="flex: .35; text-align: left">Leitura</div>
+<div class="box">GET key</div><div class="arrow">acerto →</div><div class="box green">devolve</div>
+<div class="arrow">falta →</div><div class="box orange">lê o banco</div><div class="arrow">→</div>
+<div class="box accent">SET key EX ttl</div><div class="arrow">→</div><div class="box">devolve</div>
 </div>
-<div>
-
-- Só o que é lido vai para o cache.
-- Cache fora → a app lê o banco (se ele aguentar).
-- Custos: primeira leitura lenta; defasagem limitada pelo TTL.
-
+<div class="flow">
+<div class="arrow" style="flex: .35; text-align: left">Escrita</div>
+<div class="box">atualiza o banco</div><div class="arrow">→</div><div class="box accent">commit</div><div class="arrow">→</div>
+<div class="box green">DEL key<small>a próxima leitura a preenche</small></div>
 </div>
-</div>
+
+- Só o que é lido vai para o cache; cache fora → a app lê o banco (se ele aguentar).
 
 ```java
 @Cacheable(cacheNames = "events", key = "#id")
@@ -147,7 +148,7 @@ public EventDto update(long id, EventUpdate change) { ... }
 | Padrão | Ideia | Bom | Risco | BoxOffice |
 |---|---|---|---|---|
 | Read-through | o cache carrega na falta | agrupa faltas concorrentes | — | geometria do local (Caffeine) |
-| Write-through | escreve cache + banco juntos | leituras frescas após escritas | duas escritas, não atômicas | painel do organizador |
+| Write-through | escreve cache + banco de dados (DB, *database*) juntos | leituras frescas após escritas | duas escritas, não atômicas | painel do organizador |
 | Write-behind | cache agora, banco depois | escritas na velocidade da memória | **perde escritas confirmadas** | contadores de visualização |
 | Write-around | escreve no banco, pula o cache | sem poluição | primeira leitura erra | ingressos, histórico de pedidos |
 | Refresh-ahead | recarrega antes de expirar | chaves quentes nunca erram | atualizações desperdiçadas | aberturas de venda de hoje |
@@ -164,9 +165,9 @@ Write-behind para reservas de assento = venda dupla depois de uma falha do cache
 
 - Chaves com namespace e versão: `boxoffice:catalog:event:42:v3`.
 - Coloque na chave **tudo que muda a resposta**: idioma, moeda, página, usuário.
-- Valores pequenos (comprima acima de alguns KB); cacheie **DTOs**, não entidades JPA.
+- Valores pequenos (comprima acima de alguns KB); cacheie **objetos de transferência de dados (DTOs, *data transfer objects*)**, não entidades da Java Persistence API (JPA).
 - **Cache negativo**: guarde "não encontrado" por 30–60 s.
-- **L1 + L2**: Caffeine em cada réplica (µs) na frente do Redis (~0,5 ms) — absorve chaves quentes, mas agora são **20 cópias** para invalidar.
+- **Nível 1 + nível 2 (L1 + L2, *level 1 + level 2*)**: Caffeine em cada réplica (µs) na frente do Redis (~0,5 ms) — absorve chaves quentes, mas agora são **20 cópias** para invalidar.
 
 ---
 
@@ -190,15 +191,34 @@ Decida o orçamento por tipo de dado **com o time de produto**; o mecanismo deco
 
 ## Remova, não atualize — e cuidado com a corrida
 
-- **Atualizar na escrita**: dois escritores chegam ao banco e ao cache em ordens diferentes → o cache fica com o valor mais antigo.
-- **Remover** é idempotente e independe da ordem.
-- Ainda sobra uma corrida: leitor lento lê `v1` → escritor confirma `v2` + `DEL` → leitor faz `SET v1`.
-- Correções: **TTL** (sempre) · remoção dupla atrasada · **set-if-newer versionado** (Lua) · **leases** (memcache do Facebook).
-- Muitos escritores (jobs, scripts)? **CDC**: Debezium lê o WAL → Kafka → invalidador `DEL` + pub/sub para o L1.
+<div class="flow">
+<div class="box">leitor: falta<small>o SELECT lê v1</small></div><div class="arrow">pausa →</div>
+<div class="box accent">escritor: v2 + COMMIT<small>depois DEL key</small></div><div class="arrow">→</div>
+<div class="box orange">leitor: SET key v1<small>depois da remoção</small></div><div class="arrow">→</div>
+<div class="box red">v1 velho<small>até o TTL</small></div>
+</div>
+
+- **Atualizar na escrita**: dois escritores chegam ao banco e ao cache em ordens diferentes → fica o valor mais antigo. **Remover** é idempotente.
+- Primeiro escreve, depois remove — **depois do commit**; remover antes deixa um leitor recolocar a linha antiga.
+- Correções para a corrida acima: **TTL** (sempre) · remoção dupla atrasada · **set-if-newer versionado** (Lua) · **leases**.
 
 <!--
-Desenhe a corrida no quadro como uma linha do tempo de quatro passos.
+A página desenha as duas corridas passo a passo: as atualizações reordenadas e o leitor lento.
 -->
+
+---
+
+## Muitos escritores, muitas cópias — e o que um cache pode prometer
+
+- Jobs, scripts, outros serviços? **Captura de mudanças (CDC, *change data capture*)**: o Debezium lê o log de escrita antecipada (WAL, *write-ahead log*) → Kafka → invalidador `DEL` + pub/sub para cada L1.
+- Cópias que você não consegue apagar (assets na CDN, navegadores): **versione o localizador uniforme de recurso (URL, *uniform resource locator*)**.
+
+| Garantia | Com um cache |
+|---|---|
+| Defasagem limitada | ✅ TTL ≤ T |
+| Read-your-writes | ⚠️ write-through para aquela chave, ou desviar do cache por um instante |
+| Leituras monotônicas | ⚠️ não misture caches de atualidades diferentes para um usuário |
+| Linearizabilidade | ❌ não com cache: leia a fonte da verdade (o checkout lê o preço) |
 
 ---
 
@@ -206,9 +226,9 @@ Desenhe a corrida no quadro como uma linha do tempo de quatro passos.
 
 | Política | Mantém | Fraqueza |
 |---|---|---|
-| LRU | os usados recentemente | uma **varredura** expulsa o conjunto quente |
-| LFU | os usados com frequência | demora a esquecer (precisa envelhecer) |
-| FIFO / aleatória | — | ignoram a popularidade |
+| menos usado recentemente (LRU, *least recently used*) | os usados recentemente | uma **varredura** expulsa o conjunto quente |
+| menos usado com frequência (LFU, *least frequently used*) | os usados com frequência | demora a esquecer (precisa envelhecer) |
+| primeiro a entrar, primeiro a sair (FIFO, *first in, first out*) / aleatória | — | ignoram a popularidade |
 | W-TinyLFU (Caffeine) | admitidos por frequência + pequena janela LRU | mais complexa |
 
 - Redis: `allkeys-lru` / `allkeys-lfu` para caches; `noeviction` para sessões e locks.
@@ -221,7 +241,7 @@ Desenhe a corrida no quadro como uma linha do tempo de quatro passos.
 | Falha | Sintoma | Correção |
 |---|---|---|
 | Cache frio | o banco recebe tudo após reinício/deploy | aquecimento, deslocamento gradual |
-| ***Stampede*** | chave quente expira, N consultas idênticas | agrupamento, lock, SWR, XFetch |
+| ***Stampede*** | chave quente expira, N consultas idênticas | agrupamento, lock, stale-while-revalidate, XFetch |
 | Avalanche | muitas chaves expiram juntas | **jitter no TTL** |
 | Penetração | ids que não existem | cache negativo, filtro de Bloom |
 | Chave quente | um nó satura | cache L1, replicação da chave |
@@ -297,7 +317,7 @@ Quando o banco depende da taxa de acerto, o cache é uma **dependência que sust
 - Servidor em memória de **estruturas de dados**; uma thread executa os comandos → cada comando é **atômico**.
 - Strings · hashes (sessões) · sorted sets (**sala de espera**) · HyperLogLog (visitantes únicos) · streams.
 - Atomicidade em vários passos: `MULTI/EXEC` (sem rollback), **scripts Lua / functions**.
-- Persistência: nenhuma · snapshots RDB · AOF (`everysec`) · ambos.
+- Persistência: nenhuma · snapshots do Redis Database (RDB) · arquivo só de acréscimo (AOF, *append-only file*, `everysec`) · ambos.
 - Replicação **assíncrona**; o Sentinel promove uma réplica em segundos.
 - 2024: troca de licença → fork **Valkey** (Linux Foundation); 2025: o Redis 8 acrescenta a AGPLv3.
 
@@ -305,10 +325,18 @@ Quando o banco depende da taxa de acerto, o cache é uma **dependência que sust
 
 ## Redis Cluster
 
-- **16.384 hash slots**; `slot = CRC16(key) mod 16384`; cada primário é dono de uma faixa.
-- Clientes cluster-aware guardam o mapa; `MOVED` / `ASK` redirecionam quando ele muda.
-- Acrescentar um nó = mover slots, com o sistema no ar.
-- Operações multichave só dentro de um slot → **hash tags**: `{event:42}:seats`, `{event:42}:prices`.
+<div class="flow">
+<div class="box">cliente cluster-aware<small>mapa de slots em cache</small></div><div class="arrow">CRC16(key) mod 16384 →</div>
+<div class="group">
+<div class="caption">3 primários, cada um com uma réplica</div>
+<div class="box">primário A<small>slots 0–5460</small></div>
+<div class="box">primário B<small>5461–10922 · prices:42 → 9049</small></div>
+<div class="box accent">primário C<small>10923–16383 · event:42 → 16271</small></div>
+</div>
+</div>
+
+- **16.384 hash slots** (uma verificação de redundância cíclica, CRC16, *cyclic redundancy check*, escolhe o slot); `MOVED` / `ASK` redirecionam quando o mapa muda.
+- Acrescentar um nó = mover slots, no ar. Operações multichave só dentro de um slot → **hash tags**: `{event:42}:seats`.
 
 <div class="warn">
 
@@ -320,12 +348,15 @@ Quando o banco depende da taxa de acerto, o cache é uma **dependência que sust
 
 ## Pré-reserva de assento: o Redis filtra, o SQL decide
 
-```text
-> SET hold:42:A-12 fan:1017 NX PX 600000
-OK
-> SET hold:42:A-12 fan:2203 NX PX 600000
-(nil)
-```
+<div class="flow">
+<div class="box">fã 1017<small>SET hold:42:A-12 … NX PX 600000</small></div><div class="arrow">OK →</div>
+<div class="box accent">inventory</div><div class="arrow">→</div>
+<div class="box green">transação PostgreSQL<small>única por assento: ela decide</small></div>
+</div>
+<div class="flow">
+<div class="box">fã 2203<small>o mesmo SET</small></div><div class="arrow">nil →</div>
+<div class="box red">"lugar ocupado"<small>microssegundos, sem trabalho no banco</small></div>
+</div>
 
 - Rejeita a maioria dos cliques concorrentes em microssegundos, antes do banco.
 - Mas replicação assíncrona, despejo ou um flush podem **perder** uma reserva concedida.
@@ -336,6 +367,22 @@ OK
 Se o Redis perder uma pré-reserva, dois fãs chegam ao banco e um perde lá. A correção nunca dependeu do Redis.
 
 </div>
+
+---
+
+## Experimente: os dois simuladores
+
+<div class="flow">
+<div class="box accent">cache (Padrões)<small>TTL de 60 s, o do lab 5: ~86% de acertos, ~29 das 200 leituras/s chegam ao banco, nenhuma leitura desatualizada · só TTL: ~11% desatualizadas</small></div>
+<div class="box orange">stampede (Modos de falha)<small>sem proteção: ~1.060 consultas/s em t = 3 s, p99 ~5 s · agrupamento: 122 consultas · + jitter: pico de 120/s · as três: 90/s</small></div>
+</div>
+
+- Cada controle é uma decisão desta aula: estratégia de invalidação, TTL, tamanho do cache; agrupamento, jitter, XFetch.
+- Os dois tiram os padrões do lab 5 (`CACHE_TTL_EVENT`, o teste de stampede de 3 s, 10% de jitter).
+
+<!--
+O simulador de cache fica depois da comparação dos padrões; o de stampede, depois da tabela de correções.
+-->
 
 ---
 

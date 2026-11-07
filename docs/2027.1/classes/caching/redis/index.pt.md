@@ -4,21 +4,21 @@ O **Redis** (*REmote DIctionary Server*) é a resposta padrão para "qual cache 
 
 ## O que torna o Redis rápido { #what-makes-redis-fast }
 
-- **Tudo está em RAM.** Uma leitura é uma consulta a uma tabela hash mais uma cópia de memória; o disco só é usado para persistência, em segundo plano.
-- **Uma thread executa os comandos.** Os comandos rodam um de cada vez numa única thread principal (desde o Redis 6, threads de I/O separadas podem cuidar da leitura e escrita na rede). Não há locks dentro do servidor e **todo comando é atômico**: nenhum outro comando roda no meio de um `INCR`.
+- **Tudo está na memória de acesso aleatório (RAM, *random-access memory*).** Uma leitura é uma consulta a uma tabela hash mais uma cópia de memória; o disco só é usado para persistência, em segundo plano.
+- **Uma thread executa os comandos.** Os comandos rodam um de cada vez numa única thread principal (desde o Redis 6, threads de entrada e saída (I/O, *input/output*) separadas podem cuidar da leitura e escrita na rede). Não há locks dentro do servidor e **todo comando é atômico**: nenhum outro comando roda no meio de um `INCR`.
 - **Protocolo simples, valores pequenos.** A maioria dos comandos é O(1) ou O(log n). No mesmo data center, a ida e volta de um `GET` pequeno custa uma fração de milissegundo, dominada pela rede.
 
 A thread única também é a principal limitação do Redis: um comando lento (uma varredura O(n) de uma chave grande, um script Lua demorado) **bloqueia todos os clientes**. A vazão por nó é alta — da ordem de 100.000 comandos simples por segundo ou mais em hardware típico, um número ilustrativo que você deve verificar com o `redis-benchmark` no seu ambiente — e escalar além de um nó significa usar o [Redis Cluster](#cluster).
 
 ### Redis, Valkey e as alternativas (2026) { #redis-valkey-and-the-alternatives-2026 }
 
-Em 2024 o Redis trocou a licença open source BSD por licenças *source-available* (RSALv2/SSPLv1). Em resposta, a Linux Foundation iniciou o **Valkey**, um fork do Redis 7.2 apoiado por vários provedores de nuvem, que continua com licença BSD e compatível no protocolo. Em 2025, o Redis 8 acrescentou a AGPLv3, open source, como opção de licença. Neste curso — e na maioria das entrevistas — "Redis" significa o protocolo e o modelo de dados, que Redis e Valkey compartilham[^1][^2].
+Em 2024 o Redis trocou a licença open source BSD (*Berkeley Software Distribution*) por licenças *source-available* (RSALv2/SSPLv1). Em resposta, a Linux Foundation iniciou o **Valkey**, um fork do Redis 7.2 apoiado por vários provedores de nuvem, que continua com licença BSD e compatível no protocolo. Em 2025, o Redis 8 acrescentou a AGPLv3, open source, como opção de licença. Neste curso — e na maioria das entrevistas — "Redis" significa o protocolo e o modelo de dados, que Redis e Valkey compartilham[^1][^2].
 
 | | Redis / Valkey | Memcached | Dragonfly |
 |---|---|---|---|
 | Modelo de dados | estruturas de dados ricas | só strings | compatível com Redis |
 | Threads | uma thread de comandos (+ threads de I/O) | multithread | multithread, *shared-nothing* |
-| Persistência | RDB, AOF | nenhuma | snapshots |
+| Persistência | snapshots do Redis Database (RDB), arquivo só de acréscimo (AOF, *append-only file*) | nenhuma | snapshots |
 | Replicação / cluster | embutidos (Sentinel, Cluster) | nenhum (os clientes particionam) | replicação embutida |
 | Quando | escolha padrão | um cache puro, simples e muito grande de blobs | quando um nó grande precisa substituir um cluster |
 
@@ -28,7 +28,7 @@ Em 2024 o Redis trocou a licença open source BSD por licenças *source-availabl
 
 | Tipo | Comandos principais | Complexidade | Uso na BoxOffice |
 |---|---|---|---|
-| **String** | `GET` `SET` `INCR` `EXPIRE` `MGET` | O(1) | JSON do evento cacheado; contadores; marcadores de idempotência |
+| **String** | `GET` `SET` `INCR` `EXPIRE` `MGET` | O(1) | notação de objetos JavaScript (JSON, *JavaScript Object Notation*) do evento cacheado; contadores; marcadores de idempotência |
 | **Hash** | `HSET` `HGET` `HGETALL` `HINCRBY` | O(1) por campo | sessão (`session:9f1c` → usuário, papéis, carrinho); campos do evento atualizados separadamente |
 | **List** | `LPUSH` `RPOP` `LRANGE` | O(1) nas pontas | filas de trabalho simples; "últimos 10 eventos vistos" |
 | **Set** | `SADD` `SISMEMBER` `SMEMBERS` | O(1) por membro | tags de um evento; ids já notificados |
@@ -78,7 +78,7 @@ Como os comandos rodam um de cada vez, um comando isolado é atômico. Para mais
 | **`MULTI` / `EXEC`** (+ `WATCH`) | enfileira comandos e os executa juntos, sem intercalação; o `WATCH` aborta se uma chave observada mudou (lock otimista) | **sem rollback**: se um comando falha, os outros executam mesmo assim; não dá para usar o resultado de uma leitura dentro da transação |
 | **Scripts Lua** (`EVAL`) / **functions** (`FCALL`, Redis 7+) | lógica arbitrária executada atomicamente no servidor | bloqueia o servidor enquanto roda — mantenha os scripts curtos |
 
-Um **rate limiter** de janela fixa para o API gateway em dois comandos:
+Um **rate limiter** de janela fixa para o gateway da interface de programação de aplicações (API, *application programming interface*) em dois comandos:
 
 ```text title="redis-cli — 100 requests per minute per client"
 > INCR rl:client:abc:202610171000
@@ -91,7 +91,7 @@ Se o contador devolvido pelo `INCR` passar de 100, a requisição é rejeitada. 
 
 ### Uma pré-reserva de assento no Redis — e por que o SQL ainda decide { #a-seat-pre-hold-in-redis-and-why-sql-still-decides }
 
-Durante a venda relâmpago, milhares de fãs clicam nos mesmos bons lugares. Uma **pré-reserva** no Redis consegue rejeitar a maioria dos perdedores em microssegundos, antes de chegarem ao banco:
+Durante a venda relâmpago, milhares de fãs clicam nos mesmos bons lugares. Uma **pré-reserva** no Redis consegue rejeitar a maioria dos perdedores em microssegundos, antes de chegarem ao banco de linguagem de consulta estruturada (SQL, *Structured Query Language*):
 
 ```text title="redis-cli — pre-hold seat A-12 of event 42 for 10 minutes"
 > SET hold:42:A-12 fan:1017 NX PX 600000
@@ -101,6 +101,23 @@ OK
 ```
 
 O `NX` faz a gravação dar certo só se ninguém tiver a chave; o `PX 600000` a libera automaticamente depois de 10 minutos. O segundo fã recebe `nil` na hora: "lugar ocupado".
+
+``` diagram-sim
+sequenceDiagram
+    participant F1 as fã 1017
+    participant F2 as fã 2203
+    participant R as Redis
+    participant I as inventory
+    participant D as PostgreSQL
+    F1->>R: SET hold:42:A-12 fan:1017 NX PX 600000
+    R-->>F1: OK, siga para o inventory
+    F2->>R: SET hold:42:A-12 fan:2203 NX PX 600000
+    R-->>F2: nil, lugar ocupado (sem trabalho no banco)
+    F1->>I: reservar o assento A-12
+    I->>D: INSERT da reserva numa transação, única por assento
+    D-->>I: COMMIT
+    I-->>F1: assento A-12 reservado por 10 minutos
+```
 
 É tentador parar aí. Não pare. O fã que recebeu `OK` ainda passa pelo serviço `inventory`, que faz a reserva **numa transação PostgreSQL** com uma restrição que torna a venda dupla impossível ([Bancos de dados — o bug da venda dupla](../../databases/transactions/index.md#double-booking)). O Redis é um **filtro rápido**; o banco **decide**. Por quê:
 
@@ -118,10 +135,10 @@ O Redis mantém os dados em memória, mas pode gravá-los em disco, para que um 
 
 | Modo | Como funciona | Perda de dados numa queda | Reinício | Uso |
 |---|---|---|---|---|
-| **Nenhum** | só memória | tudo | frio, rápido | cache puro que pode ser reconstruído |
-| **RDB** (snapshot) | faz *fork* e grava um snapshot de um instante a cada N minutos / M escritas | desde o último snapshot (minutos) | carga rápida de um arquivo compacto | caches que devem reiniciar aquecidos; backups |
-| **AOF** (*append-only file*) | registra cada escrita; `appendfsync everysec` (padrão) ou `always` | ~1 s com `everysec`; quase nada com `always` (lento) | reexecuta o log (mais lento) | Redis como armazenamento principal de dados não críticos (sessões) |
-| **RDB + AOF** | os dois | como o AOF | o AOF é usado na recuperação | a configuração recomendada quando os dados importam |
+| **Nenhum** | só memória | 🔴 tudo | frio, rápido | cache puro que pode ser reconstruído |
+| **RDB** (snapshot) | faz *fork* e grava um snapshot de um instante a cada N minutos / M escritas | 🟡 desde o último snapshot (minutos) | carga rápida de um arquivo compacto | caches que devem reiniciar aquecidos; backups |
+| **AOF** (*append-only file*) | registra cada escrita; `appendfsync everysec` (padrão) ou `always` | 🟢 ~1 s com `everysec`; quase nada com `always` (lento) | reexecuta o log (mais lento) | Redis como armazenamento principal de dados não críticos (sessões) |
+| **RDB + AOF** | os dois | 🟢 como o AOF | o AOF é usado na recuperação | a configuração recomendada quando os dados importam |
 
 Para um cache, **RDB ou nada** costuma bastar. Se você se pegar ajustando `appendfsync always`, pergunte-se se esse dado não deveria estar num banco de dados.
 
@@ -202,8 +219,8 @@ O Memcached segue outro caminho: os servidores não se conhecem e **o cliente** 
 
 === "AWS"
 
-    - **Amazon ElastiCache** (Redis OSS, Valkey, Memcached): cache gerenciado com replicação, failover automático, modo Cluster e uma opção serverless.
-    - **Amazon MemoryDB**: compatível com Redis/Valkey, com um log de transações durável e multi-AZ — pensado para ser um banco de dados principal, não só um cache.
+    - **Amazon ElastiCache** (Redis open source, OSS, *open-source software*; Valkey; Memcached): cache gerenciado com replicação, failover automático, modo Cluster e uma opção serverless.
+    - **Amazon MemoryDB**: compatível com Redis/Valkey, com um log de transações durável em várias zonas de disponibilidade (AZs, *availability zones*) — pensado para ser um banco de dados principal, não só um cache.
 
 === "GCP"
 
@@ -216,7 +233,7 @@ O Memcached segue outro caminho: os servidores não se conhecem e **o cliente** 
 
 === "Open source"
 
-    - **Redis** ou **Valkey** auto-hospedados: um único nó com Docker para desenvolvimento ([Hands-on 5](../../../hands-on/5/index.md)); Sentinel ou Cluster em VMs; no Kubernetes com um operator ou um Helm chart (StatefulSet + volumes persistentes).
+    - **Redis** ou **Valkey** auto-hospedados: um único nó com Docker para desenvolvimento ([Hands-on 5](../../../hands-on/5/index.md)); Sentinel ou Cluster em máquinas virtuais (VMs, *virtual machines*); no Kubernetes com um operator ou um Helm chart (StatefulSet + volumes persistentes).
     - **Memcached** e **Dragonfly** como alternativas.
 
 Serviços gerenciados cuidam de failover, atualizações e backups; continuam sendo seus o **dimensionamento, a política de despejo, o desenho das chaves, os timeouts e o que acontece quando ele falha**.
@@ -232,7 +249,7 @@ Serviços gerenciados cuidam de failover, atualizações e backups; continuam se
     - Dados: 2.000.000 × (50 + 2.048 + 100) B ≈ **4,4 GB**.
     - Folga para fragmentação e crescimento (+30%): ≈ 5,7 GB.
     - Folga para o *fork* dos snapshots RDB num primário com muitas escritas: manter o uso de memória ≤ ~70% da RAM → ≈ **8 GB por cópia**.
-    - Vazão: 300.000 leituras/s no pico depois dos caches L1; supondo (a medir em benchmark) ~100.000 ops/s por primário → **3 primários**, cada um com **1 réplica**.
+    - Vazão: 300.000 leituras/s no pico depois dos caches de nível 1 (L1, *level 1*); supondo (a medir em benchmark) ~100.000 ops/s por primário → **3 primários**, cada um com **1 réplica**.
     - Resultado: Redis Cluster com 3 primários × ~1,5 GB de dados cada (≈ 2,7 GB de RAM com a folga acima) + 3 réplicas — **6 nós com 4–8 GB de RAM**. A restrição é a vazão, não a memória.
 
     As sessões (2 M fãs × 0,5 KB ≈ 1 GB) vão para uma instância pequena **separada**, com `noeviction` e AOF, para que despejos do cache nunca desconectem um fã.
@@ -241,34 +258,21 @@ Serviços gerenciados cuidam de failover, atualizações e backups; continuam se
 
 ## Conectando a partir do Spring Boot { #connecting-from-spring-boot }
 
-A configuração usada no [Hands-on 5](../../../hands-on/5/index.md):
+!!! example "No código da BoxOffice: Redis para o `catalog` (lab 5)"
 
-```yaml title="catalog/src/main/resources/application.yaml"
-spring:
-  data:
-    redis:
-      host: ${REDIS_HOST:redis}
-      port: 6379
-      timeout: 50ms            # command timeout: fail fast if Redis is slow
-      connect-timeout: 200ms
-      # cluster:
-      #   nodes: redis-0:6379,redis-1:6379,redis-2:6379
-  cache:
-    type: redis
-    redis:
-      time-to-live: 5m         # default TTL for @Cacheable caches
-      cache-null-values: false
-      key-prefix: "boxoffice:catalog:"
-```
+    O [Hands-on 5](../../../hands-on/5/cache-aside/index.md) se conecta com o Spring Data Redis (o cliente Lettuce) e escreve o cache-aside à mão, então não precisa de configurações `spring.cache.*`: só a conexão, com timeouts de 200 ms em vez do padrão de 60 s do Lettuce, e os seus próprios TTLs e chaves de liga/desliga.
 
-```yaml title="compose.yaml (excerpt)"
-services:
-  redis:
-    image: redis:8-alpine
-    command: ["redis-server", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
-    ports:
-      - "6379:6379"
-```
+    ``` { .yaml title="services/catalog/src/main/resources/application.yaml (Redis and the cache settings)" }
+    --8<-- "docs/2027.1/hands-on/5/code/services/catalog/src/main/resources/application.yaml:7:7,16:21,32:37"
+    ```
+
+    O próprio Redis roda como cache puro: memória limitada, despejo do menos usado recentemente, sem persistência.
+
+    ``` { .yaml title="docker-compose.yaml (the redis service)" }
+    --8<-- "docs/2027.1/hands-on/5/code/docker-compose.yaml:55:61"
+    ```
+
+    Com `@Cacheable` ([Padrões](../patterns/index.md#cache-aside)), o Spring acrescenta `spring.cache.type: redis` e os padrões da `RedisCacheConfiguration` (TTL, `disableCachingNullValues`, um prefixo de chave); um Redis Cluster troca `host` e `port` por `spring.data.redis.cluster.nodes`.
 
 !!! tip "Na entrevista"
 
@@ -285,7 +289,7 @@ services:
 !!! warning "Armadilhas comuns"
 
     - **`KEYS *` em produção** — O(n) sobre todo o espaço de chaves, bloqueia o servidor. Use `SCAN`.
-    - **Chaves sem TTL** num cache — a memória cresce até começarem os despejos ou os erros de `OOM`.
+    - **Chaves sem tempo de vida (TTL, *time to live*)** num cache — a memória cresce até começarem os despejos ou os erros de `OOM`.
     - **Valores grandes e coleções enormes** — veja [chaves grandes](../failure-modes/index.md#big-keys).
     - **Redis como única cópia de dados de dinheiro** — pedidos, pagamentos e reservas de assento pertencem ao banco.
     - **Timeouts padrão** — um Redis lento ou falhando não pode travar o serviço.

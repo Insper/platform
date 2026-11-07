@@ -1,6 +1,6 @@
 > "There are only two hard things in Computer Science: cache invalidation and naming things." — Phil Karlton[^1]
 
-Filling a cache is easy. The hard part is knowing **when a copy stopped being true**. The database changes; the copy in Redis, in twenty JVMs, in a CDN and in a million browsers does not know it. Every caching design is, at its core, an answer to two questions:
+Filling a cache is easy. The hard part is knowing **when a copy stopped being true**. The database changes; the copy in Redis, in twenty Java virtual machines (JVMs), in a content delivery network (CDN) and in a million browsers does not know it. Every caching design is, at its core, an answer to two questions:
 
 1. **How stale may each piece of data be?** (the *staleness budget*)
 2. **How does a change in the source reach every copy within that budget?** (the *invalidation mechanism*)
@@ -17,9 +17,9 @@ Before choosing a mechanism, decide — with the product team, not alone — how
 
     | Data | Changes | Acceptable staleness | Mechanism | Why |
     |---|---|---|---|---|
-    | Event description, images, line-up | rarely (organizer edits) | ~1 minute | delete on write + TTL 5 min | a typo fix may take a minute to appear |
+    | Event description, images, line-up | rarely (organizer edits) | ~1 minute | delete on write + time to live (TTL) of 5 min | a typo fix may take a minute to appear |
     | Venue geometry | almost never | hours | TTL 1 h + versioned key on change | immutable in practice |
-    | Price table | dynamic pricing, during sales | **seconds** | TTL 30 s + delete on write; price re-read from DB at checkout | displaying an old price is tolerable; *charging* it is not |
+    | Price table | dynamic pricing, during sales | **seconds** | TTL 30 s + delete on write; price re-read from the database at checkout | displaying an old price is tolerable; *charging* it is not |
     | Seat map (display) | every hold and sale | 1–2 s | TTL 1 s, or no cache | a stale map only causes "seat no longer available" |
     | Availability counter ("1,203 left") | every sale | a few seconds | TTL 2 s | approximate is fine for display |
     | User profile | rarely | ~1 minute, but **read-your-writes** for the owner | delete on write; owner reads bypass the cache briefly | the user must see their own edit |
@@ -32,7 +32,7 @@ Writing this table is half of the design: once each row has a budget, the mechan
 
 ## TTL: the safety net
 
-A **TTL** (time to live) makes every entry expire after a fixed time. It is the simplest mechanism and the one you should **always** have, even when you also invalidate explicitly — because explicit invalidation will eventually miss something (a bug, a manual SQL fix, a crashed process between the commit and the delete), and the TTL bounds how long the error lives.
+A **TTL** (time to live) makes every entry expire after a fixed time. It is the simplest mechanism and the one you should **always** have, even when you also invalidate explicitly — because explicit invalidation will eventually miss something — a bug, a manual Structured Query Language (SQL) fix, a crashed process between the commit and the delete — and the TTL bounds how long the error lives.
 
 Choosing the TTL is a trade-off between freshness and hit ratio:
 
@@ -74,10 +74,26 @@ The writes reached the database in one order and the cache in the other. With **
 
 | Order | What can go wrong |
 |---|---|
-| Delete cache → write DB | between the two, a reader misses, reads the **old** row and puts it back. The cache is stale until the TTL. **Avoid.** |
-| Write DB → delete cache (after commit) | a narrow race remains (next section), but this is the standard choice |
-| Write DB → update cache | concurrent writers can reorder (above) |
-| Write DB, delete **inside** the transaction | the delete can happen before the commit is visible; a reader refills the old value. Delete **after commit**. |
+| ❌ Delete cache → write DB | between the two, a reader misses, reads the **old** row and puts it back. The cache is stale until the TTL. **Avoid.** |
+| ✅ Write DB → delete cache (after commit) | a narrow race remains (next section), but this is the standard choice |
+| ⚠️ Write DB → update cache | concurrent writers can reorder (above) |
+| ❌ Write DB, delete **inside** the transaction | the delete can happen before the commit is visible; a reader refills the old value. Delete **after commit**. |
+
+``` diagram-sim
+sequenceDiagram
+    participant W as Writer
+    participant R as Redis
+    participant Rd as Reader
+    participant D as PostgreSQL
+    W->>R: DEL event:42 (delete first)
+    Rd->>R: GET event:42
+    R-->>Rd: miss
+    Rd->>D: SELECT event 42
+    D-->>Rd: old row v1
+    W->>D: UPDATE event 42 to v2 and COMMIT
+    Rd->>R: SET event:42 v1
+    Note over R: stale v1 until the TTL, the delete came too early
+```
 
 ### The cache-aside race { #race }
 
@@ -104,7 +120,7 @@ The reader read before the write and stored after the delete. It is rare — the
 
 1. **A TTL as safety net** — bounds the damage. For most data, this is enough.
 2. **Delayed double delete** — the writer deletes, and deletes again a short time later (e.g. 500 ms, longer than a typical read). The second delete removes what a slow reader put back. Cheap, but probabilistic.
-3. **Versioned values** — store the row version with the value and only write to the cache if the version is newer than what is there. Since versions come from the database (`version` column, or the commit LSN), a slow reader with `v1` cannot overwrite `v2`. With versions, *updating* on write is safe too.
+3. **Versioned values** — store the row version with the value and only write to the cache if the version is newer than what is there. Since versions come from the database (`version` column, or the commit log sequence number, LSN), a slow reader with `v1` cannot overwrite `v2`. With versions, *updating* on write is safe too.
 4. **Leases** — on a miss, the cache hands the reader a **lease token**; a delete invalidates outstanding tokens, and a `SET` with an invalid token is rejected. Facebook's memcache uses leases both for this race and to limit stampedes (only one lease per key every few seconds)[^2].
 
 ```lua title="set_if_newer.lua — versioned set in Redis"
@@ -124,7 +140,7 @@ The script runs atomically inside Redis ([Redis — atomicity](../redis/index.md
 
 ## Invalidation from the database log (CDC) { #cdc }
 
-Invalidation in application code has a structural weakness: it only covers writes that go through *that* code. A batch job, another service, a migration or a DBA fixing a row by hand will change the database without deleting anything.
+Invalidation in application code has a structural weakness: it only covers writes that go through *that* code. A batch job, another service, a migration or a database administrator (DBA) fixing a row by hand will change the database without deleting anything.
 
 **Change data capture (CDC)** moves invalidation to the source: a connector reads the database's replication log (the PostgreSQL write-ahead log, WAL) and publishes every committed change as an event. An invalidator consumes the events and deletes the affected keys.
 
@@ -153,8 +169,8 @@ A value may be cached in several places at once. Each needs its own mechanism:
 | Copy | How to invalidate | Notes |
 |---|---|---|
 | Redis (shared) | `DEL key` | one call reaches every reader |
-| In-process L1 in each replica | broadcast via pub/sub (Redis `PUBLISH`, Kafka) or Redis client-side caching (`CLIENT TRACKING`); or a very short TTL | a replica that misses the message stays stale until its TTL |
-| CDN | purge API (by URL or by **tag** / surrogate key) | purges take seconds to propagate worldwide and may be rate-limited; prefer versioned URLs for assets |
+| In-process level-1 (L1) cache in each replica | broadcast via pub/sub (Redis `PUBLISH`, Kafka) or Redis client-side caching (`CLIENT TRACKING`); or a very short TTL | a replica that misses the message stays stale until its TTL |
+| CDN | purge application programming interface (API), by uniform resource locator (URL) or by **tag** / surrogate key | purges take seconds to propagate worldwide and may be rate-limited; prefer versioned URLs for assets |
 | Browser / mobile app | **impossible** to recall | only `Cache-Control: max-age` (short for data) and versioned URLs (for assets) |
 
 **Tag-based invalidation** helps when one change affects many keys: tag every cached response that contains event 42 with `event-42` and purge by tag. Some CDNs support it natively; in Redis you can keep a set of keys per tag (`SADD tag:event-42 key1 key2`) and delete them together.
@@ -310,8 +326,8 @@ A cache-aside cache in front of a database is **eventually consistent**: after a
 |---|---|---|
 | **Bounded staleness** | no value older than T | TTL ≤ T (and nothing else is needed) |
 | **Read-your-writes** | after I write, *I* see my write | write-through for that key; or mark the session "recently wrote" and bypass the cache for a few seconds; for L1 caches, route the user to the same replica |
-| **Monotonic reads** | I never see a value go back in time | avoid mixing caches with different freshness for the same user (e.g. L1 with 30 s TTL and L2 with 5 s) |
-| **Linearizability** | everyone sees the latest write | **not with a cache.** Read the source of truth. |
+| **Monotonic reads** | I never see a value go back in time | avoid mixing caches with different freshness for the same user (e.g. an L1 with a 30 s TTL and a level-2 (L2) cache with 5 s) |
+| **Linearizability** | everyone sees the latest write | ❌ **not with a cache.** Read the source of truth. |
 
 These are the same consistency models seen in [Distributed Systems](../../distributed/consistency/index.md) — a cache is just another replica, with weaker guarantees and no replication protocol.
 

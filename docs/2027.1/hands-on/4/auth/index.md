@@ -14,14 +14,14 @@ flowchart LR
 
 After login, every request must prove who is calling. Two families of solutions:
 
-| | Server-side session | Self-contained token (JWT) |
+| | Server-side session | Self-contained token: JSON Web Token (JWT) |
 |---|---|---|
 | What the client holds | a random session id (cookie) | the claims themselves, signed: `sub`, `scope`, `exp`… |
-| How a request is checked | look the id up in a session store (Redis, DB) | verify the signature with the public key — **no lookup** |
-| Revocation | delete the session: immediate | hard: the token is valid until `exp` (keep it short) |
-| Scales with | the session store | CPU only; every node can verify alone |
+| How a request is checked | ⚠️ look the id up in a session store (Redis, a database) | ✅ verify the signature with the public key — **no lookup** |
+| Revocation | ✅ delete the session: immediate | ⚠️ hard: the token is valid until `exp` (keep it short) |
+| Scales with | the session store | central processing unit (CPU) only; every node can verify alone |
 
-BoxOffice uses JWTs signed with **RS256** (RSA + SHA-256): `auth` signs with a **private key** only it knows; the gateway verifies with the **public key**, published as a JWKS (JSON Web Key Set). The gateway can verify tokens but can never mint one — unlike HS256, where the same shared secret signs and verifies, and every service holding it could forge tokens.
+BoxOffice uses JWTs signed with **RS256**, a Rivest–Shamir–Adleman (RSA) signature over SHA-256: `auth` signs with a **private key** only it knows; the gateway verifies with the **public key**, published as a JSON Web Key Set (JWKS). The gateway can verify tokens but can never mint one — unlike a hash-based message authentication code with SHA-256 (HS256), where the same shared secret signs and verifies, and every service holding it could forge tokens.
 
 A token looks like `header.payload.signature`, each part Base64URL-encoded:
 
@@ -132,7 +132,7 @@ The records exchanged with clients:
 | Claim | Meaning | Checked by the gateway |
 |---|---|---|
 | `iss` | who issued it (`boxoffice-auth`) | yes: must match `JWT_ISSUER` |
-| `aud` | who it is for (`boxoffice`) | yes: a token for another API is refused |
+| `aud` | who it is for (`boxoffice`) | yes: a token for another application programming interface (API) is refused |
 | `sub` | the user id | becomes `X-User-Id` |
 | `scope` | `user` or `user admin` | becomes the authorities `SCOPE_user`, `SCOPE_admin` |
 | `exp` | expiry | yes (with a 60 s clock-skew allowance) |
@@ -140,7 +140,26 @@ The records exchanged with clients:
 
 !!! warning "A new key at every restart"
 
-    `TokenService` generates the RSA key pair in memory when `auth` starts. Restart `auth` and every token issued before is rejected (unknown `kid`), and two `auth` replicas would each sign with a different key. In production the private key lives in a **KMS or secrets manager**, the JWKS lists the current **and** the previous key during a rotation, and keys rotate on a schedule. For a lab, a restart that logs everybody out is a feature: you see why rotation needs care.
+    `TokenService` generates the RSA key pair in memory when `auth` starts. Restart `auth` and every token issued before is doomed: the gateway still has the old public key in its cached JWKS, so old tokens pass until the first token with the new `kid` makes it download the JWKS again, and from then on they are rejected (unknown `kid`). Two `auth` replicas would each sign with a different key. In production the private key lives in a **key management service (KMS) or secrets manager**, the JWKS lists the current **and** the previous key during a rotation, and keys rotate on a schedule. For a lab, a restart that logs everybody out is a feature: you see why rotation needs care.
+
+    ``` diagram-sim
+    sequenceDiagram
+        participant C as client
+        participant G as gateway
+        participant A as auth
+        Note over G: JWKS in cache: kid A
+        A->>A: restart, new key pair, kid B
+        C->>G: old token (kid A)
+        G-->>C: 200, kid A is still in its cache
+        C->>A: login, through the gateway
+        A-->>C: new token (kid B)
+        C->>G: new token (kid B)
+        G->>A: kid B unknown, GET jwks.json
+        A-->>G: keys: kid B only
+        G-->>C: 200
+        C->>G: old token (kid A)
+        G-->>C: 401, kid A is not in the JWKS
+    ```
 
 ## 5. Register, login, me
 

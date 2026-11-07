@@ -14,6 +14,10 @@ theme: platform
 {{INCLUDE:scripts/slides/theme.js}}
 </script>
 
+<style>
+{{INCLUDE:scripts/slides/diagram.css}}
+</style>
+
 <div class="kicker">System Architecture · Insper</div>
 
 # Caching
@@ -32,7 +36,7 @@ Outline: (1) why caches work and where they live; (2) hit-ratio math and sizing;
 <div class="q">
 
 2 M fans press F5 on the same event page. The data has not changed in a week.
-Why does the catalog database reach 100% CPU — and take the checkout down with it?
+Why does the catalog database reach 100% of its central processing unit (CPU) — and take the checkout down with it?
 
 </div>
 
@@ -52,7 +56,7 @@ Let the class answer first. Lead them to: the work is redundant, so remove it.
 - **Temporal locality** — what was read recently will be read again (F5).
 - **Skew** — popularity is roughly **Zipf**: rank $i$ gets $\propto 1/i^s$ of the requests.
 - With $s \approx 1$, the top **1%** of 100,000 events takes **~60%** of the reads.
-- **Latency gap**: RAM ~100 ns · Redis in the DC ~0.5 ms · SQL 1–100 ms.
+- **Latency gap**: random-access memory (RAM) ~100 ns · Redis in the same data center ~0.5 ms · a Structured Query Language (SQL) query 1–100 ms.
 
 <div class="ok">
 
@@ -62,20 +66,20 @@ A cache makes reads faster, but its real job is to **remove work** from the sour
 
 ---
 
-<!-- _class: tight -->
-
 ## Where caches live
 
-| Layer | Caches | Invalidated by | BoxOffice |
-|---|---|---|---|
-| Client (browser, app) | HTTP responses (`Cache-Control`, `ETag`) | headers only — cannot recall | versioned JS, event JSON `max-age=10` |
-| CDN | static assets, public pages | purge API, versioned URLs | posters, public event page |
-| API gateway | whole `GET` responses | short TTL | `GET /events/42` for 5 s |
-| In-process (Caffeine) | hot objects in the heap | each replica separately | venue geometry |
-| Distributed (Redis, Valkey) | objects, query results, sessions | app (delete) + TTL | event details, search |
-| Database | pages in the buffer pool | the engine — always consistent | `seats` index pages |
+<div class="flow">
+<div class="box">browser / app<small>Cache-Control, ETag · cannot be recalled</small></div><div class="arrow">miss →</div>
+<div class="box">content delivery network (CDN)<small>public pages · purge, versioned addresses</small></div><div class="arrow">→</div>
+<div class="box">gateway<small>whole GET responses, a few seconds</small></div><div class="arrow">→</div>
+<div class="box accent">in-process<small>Caffeine · each replica on its own</small></div><div class="arrow">→</div>
+<div class="box green">Redis<small>shared · delete on write + time to live (TTL)</small></div><div class="arrow">→</div>
+<div class="box orange">database<small>buffer pool · always consistent</small></div>
+</div>
 
-<p class="small">Closer to the user: faster and cheaper per hit, but harder to invalidate.</p>
+- Closer to the user: faster and cheaper per hit, but **harder to invalidate**.
+- BoxOffice: event JavaScript Object Notation (JSON) with `max-age=10` in the browser, `GET /events/42` for 5 s at the gateway, venue geometry in Caffeine, event details in Redis.
+- This class: the application side, in-process and distributed caches; CDNs are in Traffic & Edge.
 
 ---
 
@@ -83,7 +87,7 @@ A cache makes reads faster, but its real job is to **remove work** from the sour
 
 $$t_{\text{eff}} = h \cdot t_{\text{hit}} + (1-h) \cdot t_{\text{miss}} \qquad \text{QPS}_{\text{DB}} = (1-h) \cdot \text{QPS}$$
 
-| Hit ratio | Effective latency (0.5 / 8.5 ms) | DB load at 50,000 reads/s |
+| Hit ratio | Effective latency (0.5 / 8.5 ms) | Database load (queries per second, QPS) at 50,000 reads/s |
 |---|---|---|
 | 90% | 1.3 ms | 5,000 QPS |
 | 99% | 0.58 ms | 500 QPS |
@@ -113,22 +117,19 @@ Think in **miss ratio**: each extra nine is **10× less** database load.
 
 ## Cache-aside: the default
 
-<div class="cols">
-<div>
-
-**Read**: `GET` → hit? return. Miss → read DB → `SET key EX ttl` → return.
-
-**Write**: update DB → **commit** → `DEL key`.
-
+<div class="flow">
+<div class="arrow" style="flex: .35; text-align: left">Read</div>
+<div class="box">GET key</div><div class="arrow">hit →</div><div class="box green">return</div>
+<div class="arrow">miss →</div><div class="box orange">read the database</div><div class="arrow">→</div>
+<div class="box accent">SET key EX ttl</div><div class="arrow">→</div><div class="box">return</div>
 </div>
-<div>
-
-- Only what is read is cached.
-- Cache down → app reads the DB (if it can take it).
-- Costs: slow first read; staleness bounded by the TTL.
-
+<div class="flow">
+<div class="arrow" style="flex: .35; text-align: left">Write</div>
+<div class="box">update the database</div><div class="arrow">→</div><div class="box accent">commit</div><div class="arrow">→</div>
+<div class="box green">DEL key<small>the next read refills it</small></div>
 </div>
-</div>
+
+- Only what is read is cached; cache down → the app reads the database (if it can take it).
 
 ```java
 @Cacheable(cacheNames = "events", key = "#id")
@@ -147,7 +148,7 @@ public EventDto update(long id, EventUpdate change) { ... }
 | Pattern | Idea | Good | Risk | BoxOffice |
 |---|---|---|---|---|
 | Read-through | the cache loads on miss | coalesces concurrent misses | — | venue geometry (Caffeine) |
-| Write-through | write cache + DB together | fresh reads after writes | two writes, not atomic | organizer dashboard |
+| Write-through | write cache + database (DB) together | fresh reads after writes | two writes, not atomic | organizer dashboard |
 | Write-behind | write cache now, DB later | memory-speed writes | **loses acked writes** | view counters |
 | Write-around | write DB, skip cache | no pollution | first read misses | tickets, order history |
 | Refresh-ahead | reload before expiry | hot keys never miss | wasted refreshes | today's on-sales |
@@ -164,9 +165,9 @@ Write-behind for seat holds = double booking after a cache failure.
 
 - Namespaced, versioned keys: `boxoffice:catalog:event:42:v3`.
 - Put **everything that changes the answer** in the key: language, currency, page, user.
-- Small values (compress > few KB); cache **DTOs**, not JPA entities.
+- Small values (compress > few KB); cache **data transfer objects (DTOs)**, not Java Persistence API (JPA) entities.
 - **Negative caching**: store "not found" for 30–60 s.
-- **L1 + L2**: Caffeine in each replica (µs) in front of Redis (~0.5 ms) — absorbs hot keys, but now **20 copies** to invalidate.
+- **Level 1 + level 2 (L1 + L2)**: Caffeine in each replica (µs) in front of Redis (~0.5 ms) — absorbs hot keys, but now **20 copies** to invalidate.
 
 ---
 
@@ -190,15 +191,34 @@ Decide the budget per data type **with the product team**; the mechanism follows
 
 ## Delete, don't update — and mind the race
 
-- **Update on write**: two writers reach DB and cache in different orders → cache keeps the older value.
-- **Delete** is idempotent and order-independent.
-- Still one race: slow reader reads `v1` → writer commits `v2` + `DEL` → reader `SET v1`.
-- Fixes: **TTL** (always) · delayed double delete · **versioned set-if-newer** (Lua) · **leases** (Facebook memcache).
-- Many writers (jobs, scripts)? **CDC**: Debezium reads the WAL → Kafka → invalidator `DEL` + pub/sub to L1.
+<div class="flow">
+<div class="box">reader: miss<small>SELECT reads v1</small></div><div class="arrow">pauses →</div>
+<div class="box accent">writer: v2 + COMMIT<small>then DEL key</small></div><div class="arrow">→</div>
+<div class="box orange">reader: SET key v1<small>after the delete</small></div><div class="arrow">→</div>
+<div class="box red">stale v1<small>until the TTL</small></div>
+</div>
+
+- **Update on write**: two writers reach DB and cache in different orders → the older value stays. **Delete** is idempotent.
+- Write first, then delete — **after the commit**; deleting first lets a reader refill the old row.
+- Fixes for the race above: **TTL** (always) · delayed double delete · **versioned set-if-newer** (Lua) · **leases**.
 
 <!--
-Draw the race on the board as a timeline with four steps.
+The page draws both races step by step: the reordered updates, and the slow reader.
 -->
+
+---
+
+## Many writers, many copies — and what a cache can promise
+
+- Jobs, scripts, other services? **Change data capture (CDC)**: Debezium reads the write-ahead log (WAL) → Kafka → invalidator `DEL` + pub/sub to every L1.
+- Copies you cannot delete (CDN assets, browsers): **version the uniform resource locator (URL)** instead.
+
+| Guarantee | With a cache |
+|---|---|
+| Bounded staleness | ✅ TTL ≤ T |
+| Read-your-writes | ⚠️ write-through for that key, or bypass the cache briefly |
+| Monotonic reads | ⚠️ do not mix caches of different freshness for one user |
+| Linearizability | ❌ not with a cache: read the source of truth (the checkout reads the price) |
 
 ---
 
@@ -206,9 +226,9 @@ Draw the race on the board as a timeline with four steps.
 
 | Policy | Keeps | Weakness |
 |---|---|---|
-| LRU | recently used | one **scan** flushes the hot set |
-| LFU | frequently used | slow to forget (needs aging) |
-| FIFO / random | — | ignore popularity |
+| least recently used (LRU) | recently used | one **scan** flushes the hot set |
+| least frequently used (LFU) | frequently used | slow to forget (needs aging) |
+| first in, first out (FIFO) / random | — | ignore popularity |
 | W-TinyLFU (Caffeine) | frequency-admitted + small LRU window | more complex |
 
 - Redis: `allkeys-lru` / `allkeys-lfu` for caches; `noeviction` for sessions and locks.
@@ -221,7 +241,7 @@ Draw the race on the board as a timeline with four steps.
 | Failure | Symptom | Fix |
 |---|---|---|
 | Cold cache | DB gets everything after restart/deploy | warm-up, gradual shift |
-| **Stampede** | hot key expires, N identical queries | coalescing, lock, SWR, XFetch |
+| **Stampede** | hot key expires, N identical queries | coalescing, lock, stale-while-revalidate, XFetch |
 | Avalanche | many keys expire together | **TTL jitter** |
 | Penetration | ids that do not exist | negative cache, Bloom filter |
 | Hot key | one node saturates | L1 cache, key replication |
@@ -297,7 +317,7 @@ Once the DB depends on the hit ratio, the cache is a **load-bearing dependency**
 - In-memory server of **data structures**; one thread executes commands → each command is **atomic**.
 - Strings · hashes (sessions) · sorted sets (**waiting room**) · HyperLogLog (unique visitors) · streams.
 - Atomic multi-step: `MULTI/EXEC` (no rollback), **Lua scripts / functions**.
-- Persistence: none · RDB snapshots · AOF (`everysec`) · both.
+- Persistence: none · Redis Database (RDB) snapshots · append-only file (AOF, `everysec`) · both.
 - Replication **asynchronous**; Sentinel promotes a replica in seconds.
 - 2024: license change → **Valkey** fork (Linux Foundation); 2025: Redis 8 adds AGPLv3.
 
@@ -305,10 +325,18 @@ Once the DB depends on the hit ratio, the cache is a **load-bearing dependency**
 
 ## Redis Cluster
 
-- **16,384 hash slots**; `slot = CRC16(key) mod 16384`; each primary owns a range.
-- Cluster-aware clients cache the map; `MOVED` / `ASK` redirect when it changes.
-- Adding a node = moving slots, live.
-- Multi-key ops only within one slot → **hash tags**: `{event:42}:seats`, `{event:42}:prices`.
+<div class="flow">
+<div class="box">cluster-aware client<small>slot map cached</small></div><div class="arrow">CRC16(key) mod 16384 →</div>
+<div class="group">
+<div class="caption">3 primaries, each with a replica</div>
+<div class="box">primary A<small>slots 0–5460</small></div>
+<div class="box">primary B<small>5461–10922 · prices:42 → 9049</small></div>
+<div class="box accent">primary C<small>10923–16383 · event:42 → 16271</small></div>
+</div>
+</div>
+
+- **16,384 hash slots** (a cyclic redundancy check, CRC16, picks the slot); `MOVED` / `ASK` redirect when the map changes.
+- Adding a node = moving slots, live. Multi-key ops only within one slot → **hash tags**: `{event:42}:seats`.
 
 <div class="warn">
 
@@ -320,12 +348,15 @@ Once the DB depends on the hit ratio, the cache is a **load-bearing dependency**
 
 ## Seat pre-hold: Redis filters, SQL decides
 
-```text
-> SET hold:42:A-12 fan:1017 NX PX 600000
-OK
-> SET hold:42:A-12 fan:2203 NX PX 600000
-(nil)
-```
+<div class="flow">
+<div class="box">fan 1017<small>SET hold:42:A-12 … NX PX 600000</small></div><div class="arrow">OK →</div>
+<div class="box accent">inventory</div><div class="arrow">→</div>
+<div class="box green">PostgreSQL transaction<small>unique per seat: it decides</small></div>
+</div>
+<div class="flow">
+<div class="box">fan 2203<small>the same SET</small></div><div class="arrow">nil →</div>
+<div class="box red">"seat taken"<small>microseconds, no database work</small></div>
+</div>
 
 - Rejects most competing clicks in microseconds, before the database.
 - But async replication, eviction or a flush can **lose** a granted hold.
@@ -336,6 +367,22 @@ OK
 If Redis loses a pre-hold, two fans reach the DB and one loses there. Correctness never depended on Redis.
 
 </div>
+
+---
+
+## Play it: the two simulators
+
+<div class="flow">
+<div class="box accent">cache (Patterns)<small>TTL 60 s, lab 5's: ~86% hits, ~29 of 200 reads/s reach the database, no stale read · TTL only: ~11% stale</small></div>
+<div class="box orange">stampede (Failure modes)<small>no protection: ~1,060 queries/s at t = 3 s, p99 ~5 s · coalescing: 122 queries · + jitter: peak 120/s · all three: 90/s</small></div>
+</div>
+
+- Each knob is a decision of this class: invalidation strategy, TTL, cache size; coalescing, jitter, XFetch.
+- Both take their defaults from lab 5 (`CACHE_TTL_EVENT`, the 3 s stampede test, 10% jitter).
+
+<!--
+The cache simulator sits after the comparison of patterns; the stampede simulator after the table of fixes.
+-->
 
 ---
 

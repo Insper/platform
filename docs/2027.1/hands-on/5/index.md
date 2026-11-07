@@ -1,6 +1,6 @@
 !!! abstract "In this lab"
 
-    - Add **Redis** to BoxOffice and implement **cache-aside** in `catalog`: read the cache first, load from PostgreSQL on a miss, store with a **TTL**.
+    - Add **Redis** to BoxOffice and implement **cache-aside** in `catalog`: read the cache first, load from PostgreSQL on a miss, store with a **time to live (TTL)**.
     - Invalidate on writes, survive a Redis outage, and expose the outcome of every request in an `X-Cache` header.
     - **Measure** the hit ratio and its effect on p99 and capacity, with a realistic *skewed* popularity.
     - Reproduce a **cache stampede** on a hot key, then fix it with a distributed lock and TTL jitter — and measure the fix.
@@ -55,9 +55,13 @@ Click the slides and use ← → to move through them; **F** goes full screen an
 
 ## Before you measure: the playground
 
-**Try it:** the `read-heavy-cache` scenario puts a cache in front of a SQL database. Run it and note the hit ratio and the database load. Then (1) lower the cache TTL or size and watch the hit ratio fall and p99 rise; (2) restart with a **cold** cache and watch the first seconds; (3) switch to the *spike* profile and look for the moment many misses hit the database at once. Write down: *"with a hit ratio of 90%, the database receives ___% of the reads"*.
+**Try it:** the `read-heavy-cache` scenario puts a cache in front of a Structured Query Language (SQL) database. Run it and note the hit ratio and the database load. Then (1) lower the cache TTL or size and watch the hit ratio fall and p99 rise; (2) restart with a **cold** cache and watch the first seconds; (3) switch to the *spike* profile and look for the moment many misses hit the database at once. Write down: *"with a hit ratio of 90%, the database receives ___% of the reads"*.
 
 <div class="sdp" data-scenario="read-heavy-cache" data-mode="compact" data-height="500"></div>
+
+Then the lab itself: `boxoffice-cache` is this stack at the top of the lab 2 sweep (1,500 req/s, four `catalog` replicas, one database that fails about a third of the requests). Add a Cache between `catalog` and the database, and watch t = 100 s, when Redis restarts empty: with request coalescing on (the job of `CACHE_STAMPEDE_PROTECTION` in step 2) nothing fails; with it off, errors come back for several seconds.
+
+<div class="sdp" data-scenario="boxoffice-cache" data-mode="compact" data-height="440"></div>
 
 ## What you will build
 
@@ -83,7 +87,7 @@ sequenceDiagram
 
 | Key | Value | TTL | Invalidated when |
 |---|---|---|---|
-| `catalog:event:{id}` | JSON of `GET /catalog/events/{id}` | `CACHE_TTL_EVENT` (60 s) | the event is updated or deleted |
+| `catalog:event:{id}` | JavaScript Object Notation (JSON) of `GET /catalog/events/{id}` | `CACHE_TTL_EVENT` (60 s) | the event is updated or deleted |
 | `catalog:events:city=…:page=…:size=…` | JSON of a listing page | `CACHE_TTL_LIST` (10 s) | never: it simply expires |
 | `…:lock` | a random token | 2 s | released by its owner (stampede protection) |
 
@@ -202,7 +206,7 @@ Record in `results/lab5.md`:
     - **The cache is optional**: 200 ms client timeouts and every Redis error treated as a miss (`application.yaml`, `read()` in `EventCache.java`); the deliverable checks that stopping Redis does not break `catalog`. Why: [failure modes — the cache goes down](../../classes/caching/failure-modes/index.md#cache-down).
     - **Commit, then delete**: `EventController.java` evicts the key after `updateEvent` returns. Why: [invalidation — delete, don't update](../../classes/caching/invalidation/index.md#delete-vs-update).
     - **TTL with jitter on every key** (`withJitter` in `EventCache.java`), so a warm-up does not schedule an avalanche. Why: [avalanche](../../classes/caching/failure-modes/index.md#avalanche).
-    - **One rebuild per key** under load (`SET … NX PX 2000` lock): misses dropped from 2,238 to 19 in a test run (200 VUs, 60 s). Why: [stampede](../../classes/caching/failure-modes/index.md#stampede).
+    - **One rebuild per key** under load (`SET … NX PX 2000` lock): misses dropped from 2,238 to 19 in a test run (200 virtual users, VUs, 60 s). Why: [stampede](../../classes/caching/failure-modes/index.md#stampede).
     - **Measure, don't assume**: `X-Cache` plus a counter per outcome, and the same load before and after. Why: [hit-ratio math](../../classes/caching/index.md#hit-ratio-math).
 
 ## Clean up

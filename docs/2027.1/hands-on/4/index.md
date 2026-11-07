@@ -1,11 +1,11 @@
 !!! abstract "In this lab"
 
-    - Build **`auth`**: users, BCrypt passwords, login that returns a **JWT signed with RS256**, and a public **JWKS** endpoint.
+    - Build **`auth`**: users, BCrypt passwords, login that returns a **JSON Web Token (JWT) signed with RS256**, a Rivest–Shamir–Adleman (RSA) signature over SHA-256, and a public **JSON Web Key Set (JWKS)** endpoint.
     - Put **Spring Cloud Gateway** behind the edge: one place for **routing**, **token validation** and **authorization** (open vs protected vs admin routes).
     - Propagate the user's identity to the services as trusted headers (`X-User-Id`).
     - **Measure** what the extra hop and the token check cost, and how many logins per second `auth` can take.
 
-Until now anyone could create or delete events in the catalog. BoxOffice needs to know **who** is calling (authentication) and **what they may do** (authorization) — and it should not ask every service to solve that problem again. The standard answer is an **API gateway**[^1]: the single front door for the API, where tokens are validated once and requests are routed to the right service. Behind it, services trust the identity the gateway passes along.
+Until now anyone could create or delete events in the catalog. BoxOffice needs to know **who** is calling (authentication) and **what they may do** (authorization) — and it should not ask every service to solve that problem again. The standard answer is a gateway for the application programming interface (API), an **API gateway**[^1]: the single front door, where tokens are validated once and requests are routed to the right service. Behind it, services trust the identity the gateway passes along.
 
 This lab builds chapter 5 of the [story of the course](../../index.md#story): the front door that [stateless replicas](../../classes/compute/index.md#stateless-app-servers) need, where the token is checked once for every service and no replica keeps a session. It implements the [API gateway](../../classes/edge/api-gateway/index.md) of class 4, the [service map](../../classes/compute/services/index.md) of class 5 and the [token validation at the gateway](../../classes/edge/identity/index.md#gateway-validation) of the identity page.
 
@@ -14,7 +14,7 @@ This lab builds chapter 5 of the [story of the course](../../index.md#story): th
 | | |
 |---|---|
 | **Time** | 3–4 hours |
-| **You need** | the tools of lab 0; Docker with at least **6 GB** (five JVMs from now on); ports **80** and **8080** free |
+| **You need** | the tools of lab 0; Docker with at least **6 GB** — five Java virtual machines (JVMs) from now on; ports **80** and **8080** free |
 | **Directory** | every command runs from the root of your `boxoffice/` repository |
 
 ``` { .bash .copy }
@@ -52,8 +52,8 @@ Click the slides and use ← → to move through them; **F** goes full screen an
 
 !!! info "Theory connection"
 
-    - Class 4, [API gateway](../../classes/edge/api-gateway/index.md): routing, authentication at the edge, rate limiting, BFF.
-    - Class 4, [Identity](../../classes/edge/identity/index.md): OAuth 2.1/OIDC, JWT, sessions; [Zero trust](../../classes/network-security/zero-trust/index.md): why "trust the gateway's headers" is only acceptable inside a protected network.
+    - Class 4, [API gateway](../../classes/edge/api-gateway/index.md): routing, authentication at the edge, rate limiting, backend for frontend (BFF).
+    - Class 4, [Identity](../../classes/edge/identity/index.md): OAuth 2.1/OpenID Connect (OIDC), JWT, sessions; [Zero trust](../../classes/network-security/zero-trust/index.md): why "trust the gateway's headers" is only acceptable inside a protected network.
     - Component catalog: [API Gateway](../../reference/components/edge/index.md#apigw), [Auth Service](../../reference/components/compute/index.md#auth).
 
 ## What you will build
@@ -79,7 +79,7 @@ sequenceDiagram
     C-->>Fan: 201 Created
 ```
 
-Tokens are JWTs[^2]: signed JSON that any holder of the public key can verify without calling `auth`.
+Tokens are JWTs[^2]: signed JavaScript Object Notation (JSON) that any holder of the public key can verify without calling `auth`.
 
 | Route | Who may call it | Enforced by |
 |---|---|---|
@@ -88,7 +88,21 @@ Tokens are JWTs[^2]: signed JSON that any holder of the public key can verify wi
 | `POST`/`PUT`/`DELETE /catalog/**` | tokens with scope `admin` | gateway: `hasAuthority("SCOPE_admin")` |
 | `GET /auth/me` and **every other route** (including future ones) | any valid token | gateway: `anyExchange().authenticated()` |
 
-The topology after this lab: **edge** (Nginx: TLS termination in production, rate limiting, load balancing over gateway replicas) → **gateway** (identity, routing, load balancing over service instances) → **services**.
+The topology after this lab: **edge** (Nginx: Transport Layer Security (TLS) termination in production, rate limiting, load balancing over gateway replicas) → **gateway** (identity, routing, load balancing over service instances) → **services**.
+
+``` diagram
+flowchart LR
+    F(["fans · k6"]) -->|":80"| E["edge · Nginx<br/>rate limit, /actuator → 404"]
+    E -->|"balances the gateways"| G["gateway :8080<br/>JWT, rules, routes"]
+    G -->|"/auth/**"| A["auth :8081"]
+    G -->|"lb://catalog"| C1["catalog-1 :8082"]
+    G -->|"lb://catalog"| C2["catalog-2 :8082"]
+    G -->|"lb://catalog"| C3["catalog-3 :8082"]
+    A --> DB[("db<br/>schemas auth, catalog")]
+    C1 --> DB
+    C2 --> DB
+    C3 --> DB
+```
 
 ## Steps
 
@@ -147,7 +161,12 @@ echo "$ADMIN" | jq -R 'split(".")[1] | gsub("-";"+") | gsub("_";"/") | @base64d 
 
     Nothing useful for the attacker: the gateway's `UserHeadersFilter` **removes** any `X-User-*` header coming from outside before setting its own from the validated token. Without that line, any client could impersonate any user, because the services trust those headers blindly. That trust is acceptable only because the services are not reachable except through the gateway — zero-trust networks (class 12) go further and authenticate every hop (mTLS, or re-validating the JWT in each service).
 
-Try the other failure cases too: an expired token (`JWT_TTL=PT30S docker compose up -d auth`, log in again, wait two minutes — the gateway tolerates 60 s of clock skew past `exp` — then `docker compose up -d auth` to go back to one hour), a token with one character changed (signature check fails), and restarting `auth` (new key pair: old tokens are rejected because their `kid` no longer exists in the JWKS — see the warning in [step 1](auth/index.md)).
+Try the other failure cases too: an expired token (`JWT_TTL=PT30S docker compose up -d auth`, log in again, wait two minutes — the gateway tolerates 60 s of clock skew past `exp` — then `docker compose up -d auth` to go back to one hour), a token with one character changed (signature check fails), and restarting `auth` (a new key pair: an old token still passes until the gateway sees the first token with the new `kid` and downloads the JWKS again; from then on every old token is rejected — see the warning in [step 1](auth/index.md)).
+
+<div class="csim" data-sim="front-door" data-script="curl"></div>
+
+!!! tip "Try it"
+    The simulator runs this page without Docker: the same stack, the same commands, and the hop that answered each one. **Try it end to end** replays the curl session: 201, 200, 200, 401, 403, then the admin's update and three anonymous reads spread over `catalog-1..3`, with one JWKS download for all of them, because validation is local. **Failure cases** replays the paragraph above: the forged `X-User-Id` is replaced by Ana's, an edited payload gets `401` even on an open route, the admin's old token still passes right after `auth` is recreated and fails once the gateway downloads the new JWKS; a 30-second token is accepted until 60 s after its `exp`. **Edge and replicas**: `/actuator` is a 404 from Nginx but a 200 on port 8080, a stopped replica costs one retried GET until the next probe, and of 50 requests sent at once with an `X-Api-Key`, 41 pass and 9 get 429 from the edge (the limit of lab 3, still in this `nginx.conf`).
 
 ## Measure it: the price of a front door { #measure-it }
 
@@ -198,12 +217,16 @@ At p50: gateway hop = direct − service ≈ ____ ms; edge hop = open − direct
 
 How to read it:
 
-- Each scenario is named after its path in k6's summary (`http_req_duration{scenario:service}` …). Every path adds one piece to the previous one, so the differences are the costs: the **gateway hop** and the **edge hop** each add a fraction of a millisecond to a few milliseconds at p50 (an extra network hop and a proxy). Signature checking with RS256 is microseconds of CPU: JWT validation is cheap **because it is local** — the gateway fetched the public key once and never calls `auth` per request — so `jwt` and `open` are within noise of each other. The catalog route is open, but a request that *carries* a token still has it validated: a tampered one gets `401` there too.
-- **Login is expensive on purpose.** BCrypt with cost 10 burns tens of milliseconds of CPU per attempt, so `auth` with 1 CPU tops out at roughly **ten to twenty logins per second** (in a run for this lab, 10 logins/s kept p99 under 200 ms with `auth` at ~80% CPU, and 20 logins/s overloaded it). Past the ceiling it does not degrade gently: the logins share the CPU, all of them slow down, and once they exceed the gateway's 5 s `response-timeout` they fail with `504` — most of them, at 20 logins/s. That is exactly what makes password guessing slow — and why clients must **reuse tokens** instead of logging in per request. During a flash sale, logins should happen *before* 10:00.
+- Each scenario is named after its path in k6's summary (`http_req_duration{scenario:service}` …). Every path adds one piece to the previous one, so the differences are the costs: the **gateway hop** and the **edge hop** each add a fraction of a millisecond to a few milliseconds at p50 (an extra network hop and a proxy). Signature checking with RS256 is microseconds of central processing unit (CPU) time: JWT validation is cheap **because it is local** — the gateway fetched the public key once and never calls `auth` per request — so `jwt` and `open` are within noise of each other. The catalog route is open, but a request that *carries* a token still has it validated: a tampered one gets `401` there too.
+- **Login is expensive on purpose.** BCrypt with cost 10 burns tens of milliseconds of CPU per attempt, so `auth` with 1 CPU tops out at roughly **ten to twenty logins per second** (in a run for this lab, 10 logins/s kept p99 under 200 ms with `auth` at ~80% CPU, and 20 logins/s overloaded it). Past the ceiling it does not degrade gently: the logins share the CPU, all of them slow down, and once they exceed the gateway's 5 s `response-timeout` they fail with `504` — most of them, at 20 logins/s. That is exactly what makes password guessing slow — and why clients must **reuse tokens** instead of logging in per request, and `/auth/login` deserves a rate limit of its own at the edge. During a flash sale, logins should happen *before* 10:00.
+
+See the login rush before you cause it: in `boxoffice-gateway`, 200 req/s with 5% logins triple for 30 s when everybody logs in before the sale. With one `auth` replica, logins wait up to the 5 s timeout and about 3.8% of all requests fail; raise the `auth` replicas until its utilization stays below about 0.7 during the rush (4 replicas: nothing fails). The catalog reads never notice, because the gateway validates tokens by itself.
+
+<div class="sdp" data-scenario="boxoffice-gateway" data-mode="compact" data-height="440"></div>
 
 !!! note "If your numbers differ"
 
-    On a laptop, the gateway (1 CPU) shares the machine with five other JVMs and PostgreSQL, so the hop can cost more than in production — in a run for this lab on a busy machine, p50 reached hundreds of milliseconds at 150 req/s. Compare **relative** costs on the same machine and the same run: service vs direct to the gateway vs through the edge vs with JWT. k6 runs in a container so that every path starts inside the same network; on Docker Desktop, k6 on the host would add the VM's port forwarding to every path. Right after a build the tail still pays JIT compilation even after the warm-up: if the p99 thresholds fail, run the measurement once more and record the second run. For logins, the ceiling scales with CPU: one core gives roughly 10–20 BCrypt checks per second.
+    On a laptop, the gateway (1 CPU) shares the machine with five other JVMs and PostgreSQL, so the hop can cost more than in production — in a run for this lab on a busy machine, p50 reached hundreds of milliseconds at 150 req/s. Compare **relative** costs on the same machine and the same run: service vs direct to the gateway vs through the edge vs with JWT. k6 runs in a container so that every path starts inside the same network; on Docker Desktop, k6 on the host would add the port forwarding of the virtual machine (VM) to every path. Right after a build the tail still pays just-in-time (JIT) compilation even after the warm-up: if the p99 thresholds fail, run the measurement once more and record the second run. For logins, the ceiling scales with CPU: one core gives roughly 10–20 BCrypt checks per second.
 
 ## Troubleshooting
 

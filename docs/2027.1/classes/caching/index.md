@@ -1,4 +1,4 @@
-It is 09:59 on the day a stadium show goes on sale. BoxOffice has 60,000 seats to sell and about 2 million fans with the event page open, pressing F5. At 10:00 the `catalog` service receives tens of thousands of `GET /events/42` requests per second, and each one runs the same three SQL queries: the event, the venue, the price table. The data has not changed in a week. Still, the catalog database reaches 100% CPU, queries that took 3 ms now take 800 ms, and the **checkout** — which shares that database — starts timing out. Nobody bought a ticket yet, and the system is already down.
+It is 09:59 on the day a stadium show goes on sale. BoxOffice has 60,000 seats to sell and about 2 million fans with the event page open, pressing F5. At 10:00 the `catalog` service receives tens of thousands of `GET /events/42` requests per second, and each one runs the same three Structured Query Language (SQL) queries: the event, the venue, the price table. The data has not changed in a week. Still, the catalog database reaches 100% of its central processing unit (CPU), queries that took 3 ms now take 800 ms, and the **checkout** — which shares that database — starts timing out. Nobody bought a ticket yet, and the system is already down.
 
 The fix is not a bigger database. It is to stop asking the database the same question two million times. That is **caching**: keeping a copy of the answer to an expensive question in a place that is faster and cheaper to read, and serving the copy for as long as it is good enough.
 
@@ -13,7 +13,7 @@ The fix is not a bigger database. It is to stop asking the database the same que
     - **Explain** why caches work (locality and skewed popularity) and **identify** the layers where a request can be cached, from the browser to the database buffer pool.
     - **Calculate** the effective latency and the database load for a given hit ratio, and **size** a cache for a working set.
     - **Compare** cache-aside, read-through, write-through, write-behind, write-around and refresh-ahead, and **choose** one for each kind of BoxOffice data.
-    - **Design** an invalidation strategy (TTL, explicit delete, versioned keys, change data capture) and **select** an eviction policy.
+    - **Design** an invalidation strategy — time to live (TTL), explicit delete, versioned keys, change data capture (CDC) — and **select** an eviction policy.
     - **Diagnose** cache failure modes — stampede, avalanche, penetration, hot keys, cache outage — and **apply** the matching fix.
     - **Use** Redis data structures and **reason** about Redis persistence, replication and Cluster hash slots.
 
@@ -21,7 +21,7 @@ The fix is not a bigger database. It is to stop asking the database the same que
 
 1. **This overview** — why caching works, where caches live, hit-ratio math, sizing and what never to cache.
 2. [Caching Patterns](patterns/index.md) — cache-aside, read-through, write-through, write-behind, write-around, refresh-ahead; key design.
-3. [Invalidation & Eviction](invalidation/index.md) — TTLs, explicit invalidation, the cache-aside race, CDC, LRU/LFU/W-TinyLFU.
+3. [Invalidation & Eviction](invalidation/index.md) — TTLs, explicit invalidation, the cache-aside race, CDC, least recently used (LRU), least frequently used (LFU), W-TinyLFU.
 4. [Failure Modes](failure-modes/index.md) — cold cache, stampede, avalanche, penetration, hot keys, the cache going down.
 5. [Redis](redis/index.md) — data structures, atomicity, persistence, replication, Redis Cluster, managed offerings.
 6. [Quiz](quiz.md) — check your understanding.
@@ -54,10 +54,10 @@ Popularity on the web follows, approximately, a **Zipf-like distribution**: the 
 
 The second ingredient is the **latency gap** between storage layers. The numbers below are orders of magnitude — they vary with hardware and network, but the ratios between them are what matter[^2]:
 
-| Operation | Order of magnitude | Relative to a RAM read |
+| Operation | Order of magnitude | Relative to a random-access memory (RAM) read |
 |---|---|---|
-| Read from main memory (RAM) | ~100 ns | 1× |
-| Read 4 KB at random from an NVMe SSD | ~10–100 µs | ~100–1,000× |
+| Read from main memory | ~100 ns | 1× |
+| Read 4 KB at random from a solid-state drive (SSD) on NVM Express (NVMe) | ~10–100 µs | ~100–1,000× |
 | Round trip inside one data center | ~0.5 ms | ~5,000× |
 | `GET` of a small key from Redis in the same data center (network included) | ~0.2–1 ms | ~2,000–10,000× |
 | Indexed SQL query on a warm database (network included) | ~1–5 ms | ~10,000–50,000× |
@@ -85,12 +85,12 @@ flowchart LR
 
 | Layer | What it caches | Typical TTL | Who invalidates | BoxOffice example |
 |---|---|---|---|---|
-| **Client** (browser, mobile app) | HTTP responses, images, scripts, using `Cache-Control`, `ETag` and conditional `If-None-Match` requests[^3] | seconds to a year (versioned assets) | the server, only through headers; you cannot delete a copy on a user's phone | `app.3f9a1c.js` cached for a year; event JSON with `max-age=10` |
-| **CDN** (Content Delivery Network) | static assets, images, public pages at points of presence near the user | minutes to days | purge API, versioned URLs | event posters from the object store; the public event page |
+| **Client** (browser, mobile app) | Hypertext Transfer Protocol (HTTP) responses, images, scripts, using `Cache-Control`, `ETag` and conditional `If-None-Match` requests[^3] | seconds to a year (versioned assets) | the server, only through headers; you cannot delete a copy on a user's phone | `app.3f9a1c.js` cached for a year; event JavaScript Object Notation (JSON) with `max-age=10` |
+| **CDN** (Content Delivery Network) | static assets, images, public pages at points of presence near the user | minutes to days | purge application programming interface (API), versioned uniform resource locators (URLs) | event posters from the object store; the public event page |
 | **API gateway / reverse proxy** | whole responses of public `GET` routes | seconds | short TTL; rarely explicit | `GET /events/42` cached for 5 s at the gateway during the on-sale |
-| **In-process** (local, e.g. Caffeine in the JVM) | hot objects in the service's own heap | seconds to minutes | each replica separately (hard!) | venue and seat-map geometry, which almost never change |
+| **In-process** (local, e.g. Caffeine in the Java virtual machine, JVM) | hot objects in the service's own heap | seconds to minutes | each replica separately (hard!) | venue and seat-map geometry, which almost never change |
 | **Distributed cache** (Redis, Valkey, Memcached) | objects and query results shared by all replicas | seconds to hours | the application (delete on write) or TTL | event details, price tables, search results, sessions |
-| **Database** (buffer pool, OS page cache) | data and index pages in RAM | managed by the engine (LRU-like) | the engine itself — always consistent | the `seats` index pages of tonight's events |
+| **Database** (buffer pool, operating system (OS) page cache) | data and index pages in RAM | managed by the engine (LRU-like) | the engine itself — always consistent | the `seats` index pages of tonight's events |
 
 The deeper the layer, the more consistent it is: the database buffer pool can never return stale data, while a copy in the browser cannot be recalled at all. Choosing *where* to cache is therefore a choice about **how much staleness each kind of data tolerates** — the subject of [Invalidation & Eviction](invalidation/index.md). CDNs and HTTP caching are covered in depth in [Traffic & Edge](../edge/dns-cdn/index.md); this class focuses on the application side: in-process and distributed caches.
 
@@ -112,7 +112,7 @@ $$
 
 where $t_{\text{miss}}$ includes the failed cache lookup *plus* the database query (and the write-back to the cache).
 
-**Load on the database** — the reads that pass through:
+**Load on the database** — the reads that pass through, in queries per second (QPS):
 
 $$
 \text{QPS}_{\text{DB}} = (1 - h) \cdot \text{QPS}_{\text{total}}
@@ -232,6 +232,18 @@ A cache answers *"what was the value a moment ago?"*. Some questions need *"what
 
 The same logic applies to account balances, payment status, idempotency keys, and anything where acting on an old value causes a wrong, irreversible action. A good rule: **cache what you display, not what you decide on**.
 
+``` diagram-sim
+flowchart LR
+    FAN["fan on the event page"] --> MAP["seat map<br/>which seats look free"]
+    MAP -->|"display: 1–2 s stale is fine"| CACHE[("cache")]
+    FAN --> CLICK["click: hold seat A-12"]
+    CLICK -->|"optional fast filter"| PRE["Redis pre-hold,<br/>rejects obvious losers"]
+    PRE --> INV["inventory"]
+    CLICK --> INV
+    INV -->|"decide: SQL transaction"| DB[("PostgreSQL<br/>source of truth")]
+    INV -.->|"never decides on"| CACHE
+```
+
 Other things that should not go in a shared cache: data that is read once (a cache full of one-hit items only evicts useful ones), personal data without a clear TTL and access control (a cache is a copy that also needs to be protected and erased), and values that are cheaper to compute than to fetch over the network.
 
 ---
@@ -243,6 +255,10 @@ Try it: the scenario below puts a cache-aside Redis in front of the catalog data
 <div class="sdp" data-scenario="read-heavy-cache" data-mode="compact" data-height="520"></div>
 
 Open the [full playground](../../../playground/index.md) to add an in-process cache or a CDN in front of the same design. The `cache` component is described in the [component catalog](../../reference/components/storage/index.md#cache).
+
+The same idea on BoxOffice itself: `boxoffice-cache` sends 1,500 req/s of event pages through four `catalog` replicas to one database that cannot take them (about a third of the requests fail). Add a Cache between `catalog` and the database and run again: with about 80% hits the database sees only the misses and nothing fails.
+
+<div class="sdp" data-scenario="boxoffice-cache" data-mode="compact" data-height="440"></div>
 
 ## The caching concept map { #concept-map }
 
@@ -272,11 +288,11 @@ flowchart LR
 | [`client`](../../reference/components/client/index.md#client) · [`mobile`](../../reference/components/client/index.md#mobile) | Can the device skip the request entirely? | `Cache-Control`, `ETag`, conditional requests, versioned assets | this overview (*Where caches live*), [Edge — DNS & CDN](../edge/dns-cdn/index.md#cdn) | `cdn-static` |
 | [`cdn`](../../reference/components/edge/index.md#cdn) | Can the edge answer for the origin? | public pages and assets, versioned URLs, purge by URL or tag | [Edge — DNS & CDN](../edge/dns-cdn/index.md#cdn), [Invalidation — CDC](invalidation/index.md#cdc) | `cdn-static`, `video-streaming` |
 | [`apigw`](../../reference/components/edge/index.md#apigw) | Can a public `GET` be answered without the service? | whole-response cache with a TTL of seconds during the on-sale | this overview (*Where caches live*) | `flash-sale` |
-| [`app`](../../reference/components/compute/index.md#app) | Can each replica keep the hottest objects in its own heap? | in-process L1 (Caffeine), near cache, invalidation by broadcast | [Patterns — two-level cache](patterns/index.md#two-level) | `read-heavy-cache` |
+| [`app`](../../reference/components/compute/index.md#app) | Can each replica keep the hottest objects in its own heap? | in-process level-1 (L1) cache (Caffeine), near cache, invalidation by broadcast | [Patterns — two-level cache](patterns/index.md#two-level) | `read-heavy-cache` |
 | [`cache`](../../reference/components/storage/index.md#cache) | Can a shared copy absorb most reads? | cache-aside, read/write-through, write-behind, TTL, LRU/LFU/W-TinyLFU, hit-ratio math, sizing, Redis structures | [Patterns](patterns/index.md), [Invalidation](invalidation/index.md), [Redis](redis/index.md) | `read-heavy-cache`, `search-autocomplete` |
 | [`cache`](../../reference/components/storage/index.md#cache) (under stress) | What happens when a hot key expires, or the cache dies? | cold cache, stampede, avalanche, penetration, hot and big keys, protected fallback | [Failure Modes](failure-modes/index.md) | `read-heavy-cache`, `flash-sale` |
 | [`sql`](../../reference/components/storage/index.md#sql) | What does the cache protect — and what must never come from it? | source of truth, buffer pool, "cache what you display, not what you decide on" | this overview (*What not to cache*), [Databases — transactions](../databases/transactions/index.md#double-booking) | `db-replicas`, `flash-sale` |
-| [`stream`](../../reference/components/messaging/index.md#stream) · [`kafka`](../../reference/components/messaging/index.md#kafka) · [`pubsub`](../../reference/components/messaging/index.md#pubsub) | How does a change in the database reach every copy? | CDC from the WAL (Debezium), ordered per key, broadcast to L1 caches | [Invalidation — CDC](invalidation/index.md#cdc) | `event-fanout` |
+| [`stream`](../../reference/components/messaging/index.md#stream) · [`kafka`](../../reference/components/messaging/index.md#kafka) · [`pubsub`](../../reference/components/messaging/index.md#pubsub) | How does a change in the database reach every copy? | CDC from the write-ahead log (WAL) with Debezium, ordered per key, broadcast to L1 caches | [Invalidation — CDC](invalidation/index.md#cdc) | `event-fanout` |
 
 !!! tip "In the interview"
 
@@ -285,7 +301,7 @@ flowchart LR
 !!! success "Best practices"
 
     - **Justify the cache with numbers before adding it**: read/write ratio, skew, expected hit ratio and the database load it removes ("95% → the DB sees 1 read in 20"). In BoxOffice: [lab 5 measures](../../hands-on/5/index.md#measure-it) the hit ratio, p99 and capacity before and after.
-    - **Make every response say what happened** (`HIT`, `MISS`, `BYPASS` in a header and a counter): a hit ratio you cannot see is a hit ratio you cannot defend. In BoxOffice: `X-Cache` in `EventCache.java`.
+    - **Make every response say what happened** (`HIT`, `MISS`, `BYPASS` in a header and a counter): a hit ratio you cannot see is a hit ratio you cannot defend. In BoxOffice: `EventCache.java` returns the outcome and counts it, and `EventController.java` puts it in the `X-Cache` header.
     - **Give every key a TTL**, even the ones you invalidate explicitly, and size the TTL by the staleness each kind of data tolerates ([staleness budget](invalidation/index.md)).
     - **Treat the cache as optional**: short client timeouts and a fallback to the source of truth, and a database sized to survive a cold cache at the expected load.
     - **Keep decisions on the source of truth**: seat holds, payments and balances never come from a copy.

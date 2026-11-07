@@ -4,21 +4,21 @@
 
 ## What makes Redis fast
 
-- **Everything is in RAM.** A read is a hash-table lookup plus a memory copy; disk is only used for persistence, in the background.
-- **One thread executes commands.** Commands run one at a time on a single main thread (since Redis 6, separate I/O threads can handle network reads and writes). There are no locks inside the server, and **every command is atomic**: no other command runs in the middle of an `INCR`.
+- **Everything is in random-access memory (RAM).** A read is a hash-table lookup plus a memory copy; disk is only used for persistence, in the background.
+- **One thread executes commands.** Commands run one at a time on a single main thread (since Redis 6, separate input/output (I/O) threads can handle network reads and writes). There are no locks inside the server, and **every command is atomic**: no other command runs in the middle of an `INCR`.
 - **Simple protocol, small values.** Most commands are O(1) or O(log n). In the same data center, a round trip of a small `GET` costs a fraction of a millisecond, dominated by the network.
 
 The single thread is also Redis's main constraint: one slow command (an O(n) scan of a big key, a long Lua script) **blocks every client**. Throughput per node is high — on the order of 100,000 simple commands per second or more on typical hardware, an illustrative figure you should verify with `redis-benchmark` on your own setup — and scaling beyond one node means [Redis Cluster](#cluster).
 
 ### Redis, Valkey and the alternatives (2026)
 
-In 2024 Redis changed from the open-source BSD license to source-available licenses (RSALv2/SSPLv1). In response, the Linux Foundation started **Valkey**, a fork of Redis 7.2 backed by several cloud providers, which stays BSD-licensed and protocol-compatible. In 2025, Redis 8 added the open-source AGPLv3 as a license option. For this course — and in most interviews — "Redis" means the protocol and data model, which Redis and Valkey share[^1][^2].
+In 2024 Redis changed from the open-source Berkeley Software Distribution (BSD) license to source-available licenses (RSALv2/SSPLv1). In response, the Linux Foundation started **Valkey**, a fork of Redis 7.2 backed by several cloud providers, which stays BSD-licensed and protocol-compatible. In 2025, Redis 8 added the open-source AGPLv3 as a license option. For this course — and in most interviews — "Redis" means the protocol and data model, which Redis and Valkey share[^1][^2].
 
 | | Redis / Valkey | Memcached | Dragonfly |
 |---|---|---|---|
 | Data model | rich data structures | strings only | Redis-compatible |
 | Threads | single command thread (+ I/O threads) | multi-threaded | multi-threaded, shared-nothing |
-| Persistence | RDB, AOF | none | snapshots |
+| Persistence | Redis Database (RDB) snapshots, append-only file (AOF) | none | snapshots |
 | Replication / cluster | built-in (Sentinel, Cluster) | none (clients shard) | built-in replication |
 | When | default choice | a pure, simple, very large cache of blobs | when one big node must replace a cluster |
 
@@ -28,7 +28,7 @@ In 2024 Redis changed from the open-source BSD license to source-available licen
 
 | Type | Key commands | Complexity | BoxOffice use |
 |---|---|---|---|
-| **String** | `GET` `SET` `INCR` `EXPIRE` `MGET` | O(1) | cached event JSON; counters; idempotency markers |
+| **String** | `GET` `SET` `INCR` `EXPIRE` `MGET` | O(1) | cached event JavaScript Object Notation (JSON); counters; idempotency markers |
 | **Hash** | `HSET` `HGET` `HGETALL` `HINCRBY` | O(1) per field | session (`session:9f1c` → user, roles, cart); event fields updated separately |
 | **List** | `LPUSH` `RPOP` `LRANGE` | O(1) at the ends | simple work queues; "last 10 events viewed" |
 | **Set** | `SADD` `SISMEMBER` `SMEMBERS` | O(1) per member | tags of an event; ids already notified |
@@ -78,7 +78,7 @@ Because commands run one at a time, a single command is atomic. For more than on
 | **`MULTI` / `EXEC`** (+ `WATCH`) | queue commands and run them together, without interleaving; `WATCH` aborts if a watched key changed (optimistic locking) | **no rollback**: if a command fails, the others still run; cannot use a read result inside the transaction |
 | **Lua scripts** (`EVAL`) / **functions** (`FCALL`, Redis 7+) | arbitrary logic executed atomically on the server | blocks the server while it runs — keep scripts short |
 
-A fixed-window **rate limiter** for the API gateway in two commands:
+A fixed-window **rate limiter** for the application programming interface (API) gateway in two commands:
 
 ```text title="redis-cli — 100 requests per minute per client"
 > INCR rl:client:abc:202610171000
@@ -91,7 +91,7 @@ If the counter returned by `INCR` exceeds 100, the request is rejected. (`EXPIRE
 
 ### A seat pre-hold in Redis — and why SQL still decides
 
-During the flash sale, thousands of fans click the same good seats. A Redis **pre-hold** can reject most of the losers in microseconds, before they reach the database:
+During the flash sale, thousands of fans click the same good seats. A Redis **pre-hold** can reject most of the losers in microseconds, before they reach the Structured Query Language (SQL) database:
 
 ```text title="redis-cli — pre-hold seat A-12 of event 42 for 10 minutes"
 > SET hold:42:A-12 fan:1017 NX PX 600000
@@ -101,6 +101,23 @@ OK
 ```
 
 `NX` makes the set succeed only if nobody holds the key; `PX 600000` releases it automatically after 10 minutes. The second fan gets `nil` immediately: "seat taken".
+
+``` diagram-sim
+sequenceDiagram
+    participant F1 as fan 1017
+    participant F2 as fan 2203
+    participant R as Redis
+    participant I as inventory
+    participant D as PostgreSQL
+    F1->>R: SET hold:42:A-12 fan:1017 NX PX 600000
+    R-->>F1: OK, go on to inventory
+    F2->>R: SET hold:42:A-12 fan:2203 NX PX 600000
+    R-->>F2: nil, seat taken (no database work)
+    F1->>I: hold seat A-12
+    I->>D: INSERT the hold in a transaction, unique per seat
+    D-->>I: COMMIT
+    I-->>F1: seat A-12 held for 10 minutes
+```
 
 It is tempting to stop there. Do not. The fan who got `OK` still goes to the `inventory` service, which takes the hold **in a PostgreSQL transaction** with a constraint that makes double booking impossible ([Databases — the double-booking bug](../../databases/transactions/index.md#double-booking)). Redis is a **fast filter**; the database **decides**. Why:
 
@@ -118,10 +135,10 @@ Redis keeps data in memory but can write it to disk, so a restart does not start
 
 | Mode | How it works | Data loss on crash | Restart | Use |
 |---|---|---|---|---|
-| **None** | memory only | everything | cold, fast | pure cache that can be rebuilt |
-| **RDB** (snapshot) | forks and writes a point-in-time snapshot every N minutes / M writes | since the last snapshot (minutes) | fast load of a compact file | caches that should restart warm; backups |
-| **AOF** (append-only file) | logs every write; `appendfsync everysec` (default) or `always` | ~1 s with `everysec`; ~none with `always` (slow) | replays the log (slower) | Redis as a primary store for non-critical data (sessions) |
-| **RDB + AOF** | both | as AOF | AOF used for recovery | the recommended setting when data matters |
+| **None** | memory only | 🔴 everything | cold, fast | pure cache that can be rebuilt |
+| **RDB** (snapshot) | forks and writes a point-in-time snapshot every N minutes / M writes | 🟡 since the last snapshot (minutes) | fast load of a compact file | caches that should restart warm; backups |
+| **AOF** (append-only file) | logs every write; `appendfsync everysec` (default) or `always` | 🟢 ~1 s with `everysec`; ~none with `always` (slow) | replays the log (slower) | Redis as a primary store for non-critical data (sessions) |
+| **RDB + AOF** | both | 🟢 as AOF | AOF used for recovery | the recommended setting when data matters |
 
 For a cache, **RDB or nothing** is usually enough. If you find yourself tuning `appendfsync always`, ask whether this data belongs in a database.
 
@@ -202,8 +219,8 @@ Memcached takes a different approach: the servers do not know about each other, 
 
 === "AWS"
 
-    - **Amazon ElastiCache** (Redis OSS, Valkey, Memcached): managed cache with replication, automatic failover, Cluster mode and a serverless option.
-    - **Amazon MemoryDB**: Redis/Valkey-compatible with a durable, multi-AZ transaction log — designed to be a primary database, not just a cache.
+    - **Amazon ElastiCache** (Redis open-source software, OSS; Valkey; Memcached): managed cache with replication, automatic failover, Cluster mode and a serverless option.
+    - **Amazon MemoryDB**: Redis/Valkey-compatible with a durable transaction log across several availability zones (AZs) — designed to be a primary database, not just a cache.
 
 === "GCP"
 
@@ -216,7 +233,7 @@ Memcached takes a different approach: the servers do not know about each other, 
 
 === "Open source"
 
-    - Self-hosted **Redis** or **Valkey**: a single node with Docker for development ([Hands-on 5](../../../hands-on/5/index.md)); Sentinel or Cluster on VMs; on Kubernetes with an operator or a Helm chart (StatefulSet + persistent volumes).
+    - Self-hosted **Redis** or **Valkey**: a single node with Docker for development ([Hands-on 5](../../../hands-on/5/index.md)); Sentinel or Cluster on virtual machines (VMs); on Kubernetes with an operator or a Helm chart (StatefulSet + persistent volumes).
     - **Memcached** and **Dragonfly** as alternatives.
 
 Managed services take care of failover, patching and backups; you still own **sizing, eviction policy, key design, timeouts and what happens when it fails**.
@@ -232,7 +249,7 @@ Managed services take care of failover, patching and backups; you still own **si
     - Data: 2,000,000 × (50 + 2,048 + 100) B ≈ **4.4 GB**.
     - Fragmentation and growth headroom (+30%): ≈ 5.7 GB.
     - Fork headroom for RDB snapshots on a write-heavy primary: keep memory use ≤ ~70% of RAM → ≈ **8 GB per copy**.
-    - Throughput: 300,000 reads/s at peak after the L1 caches; assume (to be benchmarked) ~100,000 ops/s per primary → **3 primaries**, each with **1 replica**.
+    - Throughput: 300,000 reads/s at peak after the level-1 (L1) caches; assume (to be benchmarked) ~100,000 ops/s per primary → **3 primaries**, each with **1 replica**.
     - Result: Redis Cluster with 3 primaries × ~1.5 GB of data each (≈ 2.7 GB of RAM with the headroom above) + 3 replicas — **6 nodes with 4–8 GB of RAM**. The constraint is throughput, not memory.
 
     Sessions (2 M fans × 0.5 KB ≈ 1 GB) go to a **separate** small instance with `noeviction` and AOF, so cache evictions can never log a fan out.
@@ -241,34 +258,21 @@ Managed services take care of failover, patching and backups; you still own **si
 
 ## Connecting from Spring Boot
 
-The configuration used in [Hands-on 5](../../../hands-on/5/index.md):
+!!! example "In the BoxOffice code: Redis for `catalog` (lab 5)"
 
-```yaml title="catalog/src/main/resources/application.yaml"
-spring:
-  data:
-    redis:
-      host: ${REDIS_HOST:redis}
-      port: 6379
-      timeout: 50ms            # command timeout: fail fast if Redis is slow
-      connect-timeout: 200ms
-      # cluster:
-      #   nodes: redis-0:6379,redis-1:6379,redis-2:6379
-  cache:
-    type: redis
-    redis:
-      time-to-live: 5m         # default TTL for @Cacheable caches
-      cache-null-values: false
-      key-prefix: "boxoffice:catalog:"
-```
+    [Hands-on 5](../../../hands-on/5/cache-aside/index.md) connects with Spring Data Redis (the Lettuce client) and writes cache-aside by hand, so it needs no `spring.cache.*` settings: only the connection, with timeouts of 200 ms instead of Lettuce's default of 60 s, and its own TTLs and switches.
 
-```yaml title="compose.yaml (excerpt)"
-services:
-  redis:
-    image: redis:8-alpine
-    command: ["redis-server", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
-    ports:
-      - "6379:6379"
-```
+    ``` { .yaml title="services/catalog/src/main/resources/application.yaml (Redis and the cache settings)" }
+    --8<-- "docs/2027.1/hands-on/5/code/services/catalog/src/main/resources/application.yaml:7:7,16:21,32:37"
+    ```
+
+    Redis itself runs as a pure cache: bounded memory, least-recently-used eviction, no persistence.
+
+    ``` { .yaml title="docker-compose.yaml (the redis service)" }
+    --8<-- "docs/2027.1/hands-on/5/code/docker-compose.yaml:55:61"
+    ```
+
+    With `@Cacheable` instead ([Patterns](../patterns/index.md#cache-aside)), Spring adds `spring.cache.type: redis` and the defaults of `RedisCacheConfiguration` (TTL, `disableCachingNullValues`, a key prefix); a Redis Cluster replaces `host` and `port` with `spring.data.redis.cluster.nodes`.
 
 !!! tip "In the interview"
 
@@ -285,7 +289,7 @@ services:
 !!! warning "Common pitfalls"
 
     - **`KEYS *` in production** — O(n) over the whole keyspace, blocks the server. Use `SCAN`.
-    - **Keys without TTL** in a cache — memory grows until evictions or `OOM` errors start.
+    - **Keys without a time to live (TTL)** in a cache — memory grows until evictions or `OOM` errors start.
     - **Big values and huge collections** — see [big keys](../failure-modes/index.md#big-keys).
     - **Redis as the only copy of money data** — orders, payments, seat holds belong in the database.
     - **Default timeouts** — a slow or failing Redis must not stall the service.

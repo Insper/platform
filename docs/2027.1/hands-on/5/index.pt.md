@@ -1,6 +1,6 @@
 !!! abstract "Neste lab"
 
-    - Adicione o **Redis** ao BoxOffice e implemente **cache-aside** no `catalog`: leia primeiro o cache, carregue do PostgreSQL em um miss, guarde com um **TTL**.
+    - Adicione o **Redis** ao BoxOffice e implemente **cache-aside** no `catalog`: leia primeiro o cache, carregue do PostgreSQL em um miss, guarde com um **tempo de vida (TTL, *time to live*)**.
     - Invalide nas escritas, sobreviva a uma queda do Redis e exponha o resultado de cada requisição em um header `X-Cache`.
     - **Meça** o hit ratio e o seu efeito no p99 e na capacidade, com uma popularidade realista e *concentrada*.
     - Reproduza um **cache stampede** em uma chave quente e corrija-o com um lock distribuído e jitter no TTL — e meça a correção.
@@ -55,9 +55,13 @@ Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** a
 
 ## Antes de medir: o playground { #before-you-measure-the-playground }
 
-**Experimente:** o cenário `read-heavy-cache` põe um cache na frente de um banco SQL. Rode-o e anote o hit ratio e a carga no banco. Depois (1) diminua o TTL ou o tamanho do cache e veja o hit ratio cair e o p99 subir; (2) reinicie com o cache **frio** e observe os primeiros segundos; (3) mude para o perfil *spike* e procure o momento em que muitos misses atingem o banco ao mesmo tempo. Anote: *"com um hit ratio de 90%, o banco recebe ___% das leituras"*.
+**Experimente:** o cenário `read-heavy-cache` põe um cache na frente de um banco de dados relacional (SQL, *Structured Query Language*). Rode-o e anote o hit ratio e a carga no banco. Depois (1) diminua o TTL ou o tamanho do cache e veja o hit ratio cair e o p99 subir; (2) reinicie com o cache **frio** e observe os primeiros segundos; (3) mude para o perfil *spike* e procure o momento em que muitos misses atingem o banco ao mesmo tempo. Anote: *"com um hit ratio de 90%, o banco recebe ___% das leituras"*.
 
 <div class="sdp" data-scenario="read-heavy-cache" data-mode="compact" data-height="500"></div>
+
+Depois o próprio lab: `boxoffice-cache` é esta pilha no topo da varredura do lab 2 (1.500 req/s, quatro réplicas do `catalog`, um banco que falha cerca de um terço das requisições). Acrescente um Cache entre o `catalog` e o banco e observe t = 100 s, quando o Redis reinicia vazio: com o agrupamento de requisições ligado (o papel do `CACHE_STAMPEDE_PROTECTION` no passo 2) nada falha; desligado, os erros voltam por vários segundos.
+
+<div class="sdp" data-scenario="boxoffice-cache" data-mode="compact" data-height="440"></div>
 
 ## O que você vai construir { #what-you-will-build }
 
@@ -83,7 +87,7 @@ sequenceDiagram
 
 | Chave | Valor | TTL | Invalidada quando |
 |---|---|---|---|
-| `catalog:event:{id}` | JSON de `GET /catalog/events/{id}` | `CACHE_TTL_EVENT` (60 s) | o evento é atualizado ou apagado |
+| `catalog:event:{id}` | notação de objetos JavaScript (JSON, *JavaScript Object Notation*) de `GET /catalog/events/{id}` | `CACHE_TTL_EVENT` (60 s) | o evento é atualizado ou apagado |
 | `catalog:events:city=…:page=…:size=…` | JSON de uma página da listagem | `CACHE_TTL_LIST` (10 s) | nunca: ela simplesmente expira |
 | `…:lock` | um token aleatório | 2 s | liberado pelo dono (proteção contra stampede) |
 
@@ -202,7 +206,7 @@ Registre em `results/lab5.md`:
     - **O cache é opcional**: timeouts de cliente de 200 ms e todo erro do Redis tratado como miss (`application.yaml`, `read()` no `EventCache.java`); a entrega verifica que parar o Redis não quebra o `catalog`. Por quê: [modos de falha — o cache cai](../../classes/caching/failure-modes/index.md#cache-down).
     - **Commit, depois delete**: o `EventController.java` remove a chave depois que `updateEvent` retorna. Por quê: [invalidação — apague, não atualize](../../classes/caching/invalidation/index.md#delete-vs-update).
     - **TTL com jitter em toda chave** (`withJitter` no `EventCache.java`), para que um aquecimento não agende uma avalanche. Por quê: [avalanche](../../classes/caching/failure-modes/index.md#avalanche).
-    - **Uma reconstrução por chave** sob carga (lock `SET … NX PX 2000`): os misses caíram de 2.238 para 19 numa execução de teste (200 VUs, 60 s). Por quê: [stampede](../../classes/caching/failure-modes/index.md#stampede).
+    - **Uma reconstrução por chave** sob carga (lock `SET … NX PX 2000`): os misses caíram de 2.238 para 19 numa execução de teste (200 usuários virtuais, VUs, *virtual users*, 60 s). Por quê: [stampede](../../classes/caching/failure-modes/index.md#stampede).
     - **Meça, não suponha**: `X-Cache` mais um contador por resultado e a mesma carga antes e depois. Por quê: [a conta do hit ratio](../../classes/caching/index.md#hit-ratio-math).
 
 ## Limpeza { #clean-up }

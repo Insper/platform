@@ -1,4 +1,4 @@
-Colocar um cache na frente de um banco levanta duas perguntas que não têm nada a ver com o Redis em si: **quem preenche o cache** quando um valor está faltando e **o que acontece com o cache quando o dado é escrito**. As respostas formam um pequeno conjunto de padrões com nome. Vale a pena conhecê-los pelo nome: numa revisão de arquitetura ou numa entrevista, "cache-aside com remoção na escrita e TTL de 5 minutos" diz numa frase o que de outro jeito levaria um parágrafo[^2].
+Colocar um cache na frente de um banco levanta duas perguntas que não têm nada a ver com o Redis em si: **quem preenche o cache** quando um valor está faltando e **o que acontece com o cache quando o dado é escrito**. As respostas formam um pequeno conjunto de padrões com nome. Vale a pena conhecê-los pelo nome: numa revisão de arquitetura ou numa entrevista, "cache-aside com remoção na escrita e tempo de vida (TTL, *time to live*) de 5 minutos" diz numa frase o que de outro jeito levaria um parágrafo[^2].
 
 | Padrão | Quem lê o banco numa falta | O que acontece numa escrita |
 |---|---|---|
@@ -107,7 +107,7 @@ public class CacheConfig {
 
 !!! example "No código do BoxOffice: cache-aside no `catalog` (lab 5)"
 
-    O [Hands-on 5 — Cache-aside](../../../hands-on/5/cache-aside/index.md) implementa o padrão sem anotações, para que as decisões fiquem explícitas: lê o Redis primeiro; num miss, carrega do PostgreSQL e guarda o JSON exato devolvido ao cliente, com o TTL mais até 10% de jitter; se o Redis falha, registra no log e trata como miss — **o cache é uma otimização, não uma dependência**. Toda resposta traz o resultado (`HIT`, `MISS`, `BYPASS`) num cabeçalho `X-Cache` e num contador, que é como o lab mede a taxa de acerto.
+    O [Hands-on 5 — Cache-aside](../../../hands-on/5/cache-aside/index.md) implementa o padrão sem anotações, para que as decisões fiquem explícitas: lê o Redis primeiro; num miss, carrega do PostgreSQL e guarda a notação de objetos JavaScript (JSON, *JavaScript Object Notation*) exata devolvida ao cliente, com o TTL mais até 10% de jitter; se o Redis falha, registra no log e trata como miss — **o cache é uma otimização, não uma dependência**. Toda resposta traz o resultado (`HIT`, `MISS`, `BYPASS`) num cabeçalho `X-Cache` e num contador, que é como o lab mede a taxa de acerto.
 
     ``` { .java title="services/catalog/src/main/java/boxoffice/catalog/EventCache.java (get and load)" }
     --8<-- "docs/2027.1/hands-on/5/code/services/catalog/src/main/java/boxoffice/catalog/EventCache.java:54:61,86:87,99:117"
@@ -224,7 +224,7 @@ Use só para dados em que perder alguns segundos de escritas é aceitável: cont
 
 ??? question "Pense antes: write-behind para reservas de assento?"
 
-    Durante a venda relâmpago, gravar cada reserva de assento no SQL é o gargalo. Um colega propõe: "grave as reservas no Redis, confirme para o fã e descarregue no PostgreSQL a cada segundo". O que pode dar errado?
+    Durante a venda relâmpago, gravar cada reserva de assento no banco de linguagem de consulta estruturada (SQL, *Structured Query Language*) é o gargalo. Um colega propõe: "grave as reservas no Redis, confirme para o fã e descarregue no PostgreSQL a cada segundo". O que pode dar errado?
 
     Se o primário do Redis falhar antes do descarregamento, reservas que os fãs já viram como confirmadas desaparecem — e os assentos podem ser vendidos de novo: venda dupla, o único bug que a BoxOffice nunca pode ter. Mesmo com replicação no Redis, a replicação é assíncrona ([Redis](../redis/index.md#replication)) e as últimas escritas confirmadas podem se perder num failover. As ferramentas certas para o gargalo das reservas estão em outro lugar: uma sala de espera para limitar a taxa de chegada, locks finos por linha e particionamento do inventário ([Bancos de dados](../../databases/transactions/index.md#double-booking)).
 
@@ -256,7 +256,7 @@ sequenceDiagram
 - **Bom**: chaves quentes nunca expiram sob carga — sem pico de latência, sem *stampede*.
 - **Ruim**: se a previsão estiver errada, o cache atualiza chaves que ninguém vai ler (carga desperdiçada no banco). Funciona melhor para um **conjunto pequeno e conhecido de chaves quentes** — como os eventos que abrem vendas hoje.
 
-O Caffeine implementa isso com `refreshAfterWrite`; a versão probabilística, que dispensa tarefa em segundo plano, é o **XFetch** ([Modos de Falha](../failure-modes/index.md#xfetch)). Uma ideia parecida no HTTP é o `Cache-Control: stale-while-revalidate`, que permite à CDN servir a cópia antiga enquanto busca uma nova.
+O Caffeine implementa isso com `refreshAfterWrite`; a versão probabilística, que dispensa tarefa em segundo plano, é o **XFetch** ([Modos de Falha](../failure-modes/index.md#xfetch)). Uma ideia parecida no protocolo de transferência de hipertexto (HTTP, *Hypertext Transfer Protocol*) é o `Cache-Control: stale-while-revalidate`, que permite à rede de distribuição de conteúdo (CDN, *content delivery network*) servir a cópia antiga enquanto busca uma nova.
 
 ---
 
@@ -267,9 +267,9 @@ O Caffeine implementa isso com `refreshAfterWrite`; a versão probabilística, q
 | **Consistência com o banco** | eventual (limitada pelo TTL) | eventual | quase forte (duas escritas, não atômicas) | o banco fica atrás do cache | eventual | eventual |
 | **Latência de leitura na falta** | alta (3 idas e voltas) | alta (escondida no cache) | faltas raras após escritas | faltas raras | alta na primeira leitura | quase nunca erra |
 | **Latência de escrita** | banco + remoção | — | banco + cache | só memória | só banco | — |
-| **Risco de perder dados** | nenhum | nenhum | nenhum | **sim** (escritas não descarregadas) | nenhum | nenhum |
+| **Risco de perder dados** | ✅ nenhum | ✅ nenhum | ✅ nenhum | ❌ **sim** (escritas não descarregadas) | ✅ nenhum | ✅ nenhum |
 | **Complexidade** | baixa | baixa (em processo) / média | média | alta | baixa | média |
-| **Sobrevive à queda do cache?** | a aplicação recorre ao banco | depende da biblioteca | escritas falham ou degradam | **escritas são perdidas** | sim | volta a ter faltas |
+| **Sobrevive à queda do cache?** | ✅ a aplicação recorre ao banco | ⚠️ depende da biblioteca | ⚠️ escritas falham ou degradam | ❌ **escritas são perdidas** | ✅ sim | ✅ volta a ter faltas |
 | **Uso na BoxOffice** | detalhes do evento, resultados de busca | geometria do local (Caffeine) | painel do próprio organizador | contadores de visualização, "N pessoas vendo" | ingressos, histórico de pedidos | eventos que abrem vendas hoje |
 
 Na prática, os sistemas **combinam** os padrões: cache-aside + write-around (remoção na escrita) é a base comum; refresh-ahead é acrescentado para as poucas chaves mais quentes; write-behind fica reservado para contadores.
@@ -277,7 +277,7 @@ Na prática, os sistemas **combinam** os padrões: cache-aside + write-around (r
 <div class="csim" data-sim="cache" data-size="500" data-strategy="aside"></div>
 
 !!! tip "Experimente"
-    O TTL começa em 60 s, o `CACHE_TTL_EVENT` do [Hands-on 5](../../../hands-on/5/cache-aside/index.md). Dê play e deixe o cache aquecer: depois de um minuto a taxa de acerto se estabiliza perto de 86% e o banco recebe cerca de 29 das 200 leituras/s, sem nenhuma leitura desatualizada, porque cada edição apaga sua chave. Mude para **só TTL**: células laranja aparecem nos eventos quentes e cerca de 11% das leituras devolvem um evento mais velho que o banco (com TTL de 10 s, cerca de 2%, mas a taxa de acerto cai para 79%: o TTL troca frescor por carga). **Write-through** é tão atualizado quanto apagar a chave e evita a falta depois de cada edição. Reduza o cache para 100 chaves: o LRU despeja parte do conjunto quente e a taxa de acerto cai para cerca de 58% (85 leituras/s no banco).
+    O TTL começa em 60 s, o `CACHE_TTL_EVENT` do [Hands-on 5](../../../hands-on/5/cache-aside/index.md). Dê play e deixe o cache aquecer: depois de um minuto a taxa de acerto se estabiliza perto de 86% e o banco recebe cerca de 29 das 200 leituras/s, sem nenhuma leitura desatualizada, porque cada edição apaga sua chave. Mude para **só TTL**: células laranja aparecem nos eventos quentes e cerca de 11% das leituras devolvem um evento mais velho que o banco (com TTL de 10 s, cerca de 2%, mas a taxa de acerto cai para 79%: o TTL troca frescor por carga). **Write-through** é tão atualizado quanto apagar a chave e evita a falta depois de cada edição. Reduza o cache para 100 chaves: o despejo do menos usado recentemente (LRU, *least recently used*) tira parte do conjunto quente e a taxa de acerto cai para cerca de 58% (85 leituras/s no banco).
 
 ---
 
@@ -304,7 +304,7 @@ boxoffice:session:9f1c2e...                   # a session
 |---|---|---|---|
 | **Linha do banco / objeto** | `event:42` | reaproveitável por muitas páginas; fácil de invalidar | a página precisa de várias buscas |
 | **Resultado de consulta** | `search:q=rock` | economiza o trabalho mais caro | difícil de invalidar (quais consultas contêm o evento 42?) — dependa do TTL |
-| **Fragmento renderizado / resposta** | HTML do card do evento, resposta JSON inteira | o mais rápido | o mais duplicado; a invalidação é grosseira |
+| **Fragmento renderizado / resposta** | linguagem de marcação de hipertexto (HTML, *HyperText Markup Language*) do card do evento, resposta JSON inteira | o mais rápido | o mais duplicado; a invalidação é grosseira |
 
 **Valores.** JSON é legível e fácil de depurar; formatos binários (Protocol Buffers, MessagePack, Kryo) são menores e mais rápidos de interpretar. Comprima valores acima de alguns kilobytes (por exemplo, com LZ4 ou Zstandard). Valores grandes atrapalham mais do que parece: um valor de 1 MB leva ~1 ms de transferência de rede por leitura num link de 10 Gbit/s e bloqueia o Redis enquanto é copiado ([Modos de Falha — chaves grandes](../failure-modes/index.md#big-keys)).
 
@@ -314,7 +314,7 @@ boxoffice:session:9f1c2e...                   # a session
 
 ## Cache em dois níveis (near cache) { #two-level }
 
-Cada réplica do serviço `catalog` pode manter um pequeno **cache em processo (L1)** na frente do **Redis compartilhado (L2)**:
+Cada réplica do serviço `catalog` pode manter um pequeno **cache em processo, de nível 1 (L1, *level 1*)**, na frente do **Redis compartilhado, de nível 2 (L2, *level 2*)**:
 
 ``` diagram-sim
 flowchart LR
@@ -346,7 +346,7 @@ flowchart LR
 !!! success "Boas práticas"
 
     - **Comece com cache-aside**; troque de padrão só quando um requisito pedir (read-through para compartilhar o carregador, write-through quando as leituras precisam ver a última escrita, write-behind só para dados que você pode perder).
-    - **Cacheie o DTO ou a resposta exata**, não a entidade: um acerto então não custa consulta nem serialização. No BoxOffice: o `catalog` guarda o JSON que devolve ([quadro acima](#cache-aside)).
+    - **Cacheie o objeto de transferência de dados (DTO, *data transfer object*) ou a resposta exata**, não a entidade: um acerto então não custa consulta nem serialização. No BoxOffice: o `catalog` guarda o JSON que devolve ([quadro acima](#cache-aside)).
     - **Projete as chaves de propósito**: um namespace, toda dimensão de que a resposta depende (idioma, moeda, página) e um sufixo de versão que você pode subir quando o formato muda (`boxoffice:catalog:event:42:v3`).
     - **Faça o commit, depois remova a chave** — depois da transação, nunca dentro dela.
     - **Cacheie respostas negativas por pouco tempo** (um id inexistente por alguns segundos), para que misses repetidos não cheguem ao banco.
@@ -358,7 +358,7 @@ flowchart LR
     - **Cachear `null` sem querer** — ou nunca cachear e deixar ids inexistentes baterem no banco.
     - **Write-behind para dados que você não pode perder.**
     - **Chaves que esquecem uma dimensão** (idioma, moeda, usuário) — o cache serve a resposta errada, rapidamente.
-    - **Serialização Java de entidades com relações lazy** — serializar uma entidade JPA pode disparar consultas ou falhar; cacheie DTOs, não entidades.
+    - **Serialização Java de entidades com relações lazy** — serializar uma entidade da Java Persistence API (JPA) pode disparar consultas ou falhar; cacheie DTOs, não entidades.
 
 ## Como se conecta { #how-it-connects }
 

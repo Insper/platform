@@ -1,6 +1,6 @@
-Putting a cache in front of a database raises two questions that have nothing to do with Redis itself: **who fills the cache** when a value is missing, and **what happens to the cache when the data is written**. The answers form a small set of named patterns. They are worth knowing by name: in a design review or an interview, "cache-aside with delete-on-write and a 5-minute TTL" says in one sentence what would otherwise take a paragraph[^2].
+Putting a cache in front of a database raises two questions that have nothing to do with Redis itself: **who fills the cache** when a value is missing, and **what happens to the cache when the data is written**. The answers form a small set of named patterns. They are worth knowing by name: in a design review or an interview, "cache-aside with delete-on-write and a 5-minute time to live (TTL)" says in one sentence what would otherwise take a paragraph[^2].
 
-| Pattern | Who reads the DB on a miss | What happens on a write |
+| Pattern | Who reads the database on a miss | What happens on a write |
 |---|---|---|
 | [Cache-aside](#cache-aside) | the application | app writes the DB, then **deletes** the key |
 | [Read-through](#read-through) | the cache (through a loader) | combined with one of the write patterns |
@@ -107,7 +107,7 @@ public class CacheConfig {
 
 !!! example "In the BoxOffice code: cache-aside in `catalog` (lab 5)"
 
-    [Hands-on 5 — Cache-aside](../../../hands-on/5/cache-aside/index.md) implements the pattern without annotations, so the decisions are explicit: read Redis first; on a miss, load from PostgreSQL and store the exact JSON returned to the client, with the TTL plus up to 10% of jitter; if Redis fails, log and treat it as a miss — **the cache is an optimization, not a dependency**. Every response carries the outcome (`HIT`, `MISS`, `BYPASS`) in an `X-Cache` header and a counter, which is how the lab measures the hit ratio.
+    [Hands-on 5 — Cache-aside](../../../hands-on/5/cache-aside/index.md) implements the pattern without annotations, so the decisions are explicit: read Redis first; on a miss, load from PostgreSQL and store the exact JavaScript Object Notation (JSON) returned to the client, with the TTL plus up to 10% of jitter; if Redis fails, log and treat it as a miss — **the cache is an optimization, not a dependency**. Every response carries the outcome (`HIT`, `MISS`, `BYPASS`) in an `X-Cache` header and a counter, which is how the lab measures the hit ratio.
 
     ``` { .java title="services/catalog/src/main/java/boxoffice/catalog/EventCache.java (get and load)" }
     --8<-- "docs/2027.1/hands-on/5/code/services/catalog/src/main/java/boxoffice/catalog/EventCache.java:54:61,86:87,99:117"
@@ -224,7 +224,7 @@ Use it only for data where losing a few seconds of writes is acceptable: view co
 
 ??? question "Think first: write-behind for seat holds?"
 
-    During the flash sale, writing every seat hold to SQL is the bottleneck. A colleague proposes: "write holds to Redis, acknowledge the fan, and flush to PostgreSQL every second". What can go wrong?
+    During the flash sale, writing every seat hold to the Structured Query Language (SQL) database is the bottleneck. A colleague proposes: "write holds to Redis, acknowledge the fan, and flush to PostgreSQL every second". What can go wrong?
 
     If the Redis primary fails before the flush, holds that fans already saw as confirmed vanish — and the seats can be sold again: double booking, the one bug BoxOffice must never have. Even with Redis replication, replication is asynchronous ([Redis](../redis/index.md#replication)) and the last acknowledged writes can be lost on failover. The right tools for the hold bottleneck are elsewhere: a waiting room to cap the arrival rate, fine-grained row locks, and partitioning the inventory ([Databases](../../databases/transactions/index.md#double-booking)).
 
@@ -256,7 +256,7 @@ sequenceDiagram
 - **Good**: hot keys never expire under load — no latency spike, no stampede.
 - **Bad**: if the prediction is wrong, the cache refreshes keys nobody will read (wasted database load). Works best for a **small, known set of hot keys** — like the events going on sale today.
 
-Caffeine implements it with `refreshAfterWrite`; the probabilistic version, which needs no background job, is **XFetch** ([Failure Modes](../failure-modes/index.md#xfetch)). A related HTTP idea is `Cache-Control: stale-while-revalidate`, which lets a CDN serve the old copy while it fetches a new one.
+Caffeine implements it with `refreshAfterWrite`; the probabilistic version, which needs no background job, is **XFetch** ([Failure Modes](../failure-modes/index.md#xfetch)). A related Hypertext Transfer Protocol (HTTP) idea is `Cache-Control: stale-while-revalidate`, which lets a content delivery network (CDN) serve the old copy while it fetches a new one.
 
 ---
 
@@ -267,9 +267,9 @@ Caffeine implements it with `refreshAfterWrite`; the probabilistic version, whic
 | **Consistency with DB** | eventual (TTL-bounded) | eventual | strong-ish (two writes, not atomic) | DB lags the cache | eventual | eventual |
 | **Read latency on miss** | high (3 round trips) | high (hidden in cache) | rare misses after writes | rare misses | high on first read | almost never misses |
 | **Write latency** | DB + delete | — | DB + cache | memory only | DB only | — |
-| **Risk of data loss** | none | none | none | **yes** (unflushed writes) | none | none |
+| **Risk of data loss** | ✅ none | ✅ none | ✅ none | ❌ **yes** (unflushed writes) | ✅ none | ✅ none |
 | **Complexity** | low | low (in-process) / medium | medium | high | low | medium |
-| **Cache survives outage?** | app falls back to DB | depends on library | writes fail or degrade | **writes are lost** | yes | falls back to misses |
+| **Cache survives outage?** | ✅ app falls back to the database | ⚠️ depends on library | ⚠️ writes fail or degrade | ❌ **writes are lost** | ✅ yes | ✅ falls back to misses |
 | **BoxOffice use** | event details, search results | venue geometry (Caffeine) | organizer's own dashboard | view counters, "N people viewing" | tickets, order history | today's on-sale events |
 
 In practice, systems **combine** them: cache-aside + write-around (delete on write) is the common baseline; refresh-ahead is added for the few hottest keys; write-behind is reserved for counters.
@@ -277,7 +277,7 @@ In practice, systems **combine** them: cache-aside + write-around (delete on wri
 <div class="csim" data-sim="cache" data-size="500" data-strategy="aside"></div>
 
 !!! tip "Try it"
-    The TTL starts at 60 s, the `CACHE_TTL_EVENT` of [Hands-on 5](../../../hands-on/5/cache-aside/index.md). Press play and let the cache warm up: after a minute the hit ratio settles around 86% and the database takes about 29 of the 200 reads/s, with no stale read, because each edit deletes its key. Switch to **TTL only**: orange cells appear on the hot events, and about 11% of the reads return an event older than the database (with a 10 s TTL, about 2%, but the hit ratio drops to 79%: the TTL trades freshness for load). **Write-through** is as fresh as deleting the key and skips the miss after each edit. Shrink the cache to 100 keys: LRU evicts part of the hot set, and the hit ratio falls to about 58% (85 database reads/s).
+    The TTL starts at 60 s, the `CACHE_TTL_EVENT` of [Hands-on 5](../../../hands-on/5/cache-aside/index.md). Press play and let the cache warm up: after a minute the hit ratio settles around 86% and the database takes about 29 of the 200 reads/s, with no stale read, because each edit deletes its key. Switch to **TTL only**: orange cells appear on the hot events, and about 11% of the reads return an event older than the database (with a 10 s TTL, about 2%, but the hit ratio drops to 79%: the TTL trades freshness for load). **Write-through** is as fresh as deleting the key and skips the miss after each edit. Shrink the cache to 100 keys: least recently used (LRU) eviction drops part of the hot set, and the hit ratio falls to about 58% (85 database reads/s).
 
 ---
 
@@ -304,7 +304,7 @@ boxoffice:session:9f1c2e...                   # a session
 |---|---|---|---|
 | **Database row / object** | `event:42` | reusable by many pages; easy to invalidate | page needs several lookups |
 | **Query result** | `search:q=rock` | saves the most expensive work | hard to invalidate (which queries contain event 42?) — rely on TTL |
-| **Rendered fragment / response** | HTML of the event card, full JSON response | fastest | most duplicated; invalidation is coarse |
+| **Rendered fragment / response** | HyperText Markup Language (HTML) of the event card, full JSON response | fastest | most duplicated; invalidation is coarse |
 
 **Values.** JSON is readable and debuggable; binary formats (Protocol Buffers, MessagePack, Kryo) are smaller and faster to parse. Compress values above a few kilobytes (e.g. with LZ4 or Zstandard). Large values hurt more than they seem: a 1 MB value takes ~1 ms of network transfer per read on a 10 Gbit/s link and blocks Redis while it is being copied ([Failure Modes — big keys](../failure-modes/index.md#big-keys)).
 
@@ -314,7 +314,7 @@ boxoffice:session:9f1c2e...                   # a session
 
 ## Two-level cache (near cache) { #two-level }
 
-Each replica of the `catalog` service can keep a small **in-process cache (L1)** in front of the shared **Redis (L2)**:
+Each replica of the `catalog` service can keep a small **in-process cache, level 1 (L1)**, in front of the shared **Redis, level 2 (L2)**:
 
 ``` diagram-sim
 flowchart LR
@@ -346,7 +346,7 @@ flowchart LR
 !!! success "Best practices"
 
     - **Start with cache-aside**; move to another pattern only when a requirement asks for it (read-through to share the loader, write-through when reads must see the last write, write-behind only for data you can lose).
-    - **Cache the DTO or the exact response**, not the entity: a hit then costs no query and no serialization. In BoxOffice: `catalog` stores the JSON it returns ([box above](#cache-aside)).
+    - **Cache the data transfer object (DTO) or the exact response**, not the entity: a hit then costs no query and no serialization. In BoxOffice: `catalog` stores the JSON it returns ([box above](#cache-aside)).
     - **Design keys on purpose**: a namespace, every dimension the answer depends on (language, currency, page), and a version suffix you can bump on a format change (`boxoffice:catalog:event:42:v3`).
     - **Commit, then delete the key** — after the transaction, never inside it.
     - **Cache negative answers briefly** (a missing id for a few seconds), so repeated misses do not reach the database.
@@ -358,7 +358,7 @@ flowchart LR
     - **Caching `null` without meaning to** — or never caching it, and letting missing ids hit the database.
     - **Write-behind for data you cannot lose.**
     - **Keys that forget a dimension** (language, currency, user) — the cache serves the wrong answer, quickly.
-    - **Java serialization of entities with lazy relations** — serializing a JPA entity can trigger queries or fail; cache DTOs, not entities.
+    - **Java serialization of entities with lazy relations** — serializing a Java Persistence API (JPA) entity can trigger queries or fail; cache DTOs, not entities.
 
 ## How it connects { #how-it-connects }
 

@@ -1,10 +1,10 @@
-O gateway é a porta de entrada da API: toda requisição que passa pelo edge atravessa ele. Ele é construído com o **Spring Cloud Gateway**, que roda sobre Spring WebFlux e Netty — não bloqueante, então poucas threads fazem o proxy de milhares de requisições concorrentes — na porta **8080**.
+O gateway é a porta de entrada da interface de programação de aplicações (API, *application programming interface*): toda requisição que passa pelo edge atravessa ele. Ele é construído com o **Spring Cloud Gateway**, que roda sobre Spring WebFlux e Netty — não bloqueante, então poucas threads fazem o proxy de milhares de requisições concorrentes — na porta **8080**.
 
 | Responsabilidade | Como |
 |---|---|
 | **Roteamento** | `/auth/**` → `auth`; `/catalog/**` → `lb://catalog` |
 | **Balanceamento de carga** entre instâncias dos serviços | Spring Cloud LoadBalancer entre `catalog-1..3`, pulando as que não estão saudáveis |
-| **Autenticação** | valida o JWT: assinatura (JWKS), `exp`, `iss`, `aud` |
+| **Autenticação** | valida o JSON Web Token (JWT): assinatura contra o JSON Web Key Set (JWKS), `exp`, `iss`, `aud` |
 | **Autorização** (grossa) | aberta / qualquer token / scope `admin`, por caminho e método |
 | **Propagação de identidade** | `X-User-Id`, `X-User-Email`, `X-User-Scope` para os serviços |
 | **Timeouts e retries** | conexão 1 s, resposta 5 s; um retry para GETs idempotentes |
@@ -37,19 +37,38 @@ Crie `services/gateway` (mesmo `Dockerfile` com `EXPOSE 8080`, mesmo `.dockerign
 --8<-- "docs/2027.1/hands-on/4/code/services/gateway/src/main/resources/application.yaml"
 ```
 
-- Uma **rota** = id + predicados (quando ela casa) + URI (para onde vai) + filtros.
+- Uma **rota** tem um id, predicados (quando ela casa), um identificador uniforme de recurso (URI, *uniform resource identifier*) que diz para onde vai e filtros.
 - `uri: lb://catalog` pede ao Spring Cloud LoadBalancer uma instância do `catalog` a cada requisição (round robin). A lista de instâncias aqui é estática (`discovery.client.simple`); com o Kubernetes no lab 10, um `Service` assume esse papel.
 - `configurations: health-check` faz o balanceador consultar o `/actuator/health/readiness` de cada instância a cada 5 s e pular as que não estão `UP` — um health check **ativo**, o que o Nginx open source não conseguia fazer no lab 3. Ele usa um `WebClient` para a sondagem, que no Spring Boot 4 fica em um starter próprio: é por isso que o pom tem `spring-boot-starter-webclient`. Até a primeira rodada de sondagens terminar (alguns segundos depois da inicialização), o balanceador não conhece nenhuma instância saudável e o gateway responde `503`. Ele sonda a *readiness*, não o `/actuator/health`: a saúde completa inclui o `db` e o `redis`, que todas as réplicas compartilham, então uma única dependência parada marcaria as três como *down* de uma vez e o gateway responderia `503` para tudo — até para requisições que o cache, ou um fallback, poderiam atender.
 - `Retry` reenvia uma vez um GET que falhou (para outra instância); nunca POSTs, que podem não ser idempotentes.
 
 !!! note "Dois load balancers?"
 
-    Sim, de propósito: o **edge** balanceia entre réplicas do *gateway* (acrescente `gateway-2` ao upstream do Nginx quando um gateway não bastar) e o **gateway** balanceia entre instâncias dos *serviços*. Isso espelha a nuvem: um load balancer L7 público na frente de uma frota de API gateways, que chamam os serviços por balanceamento de carga interno.
+    Sim, de propósito: o **edge** balanceia entre réplicas do *gateway* (acrescente `gateway-2` ao upstream do Nginx quando um gateway não bastar) e o **gateway** balanceia entre instâncias dos *serviços*. Isso espelha a nuvem: um load balancer público de camada 7 (L7) na frente de uma frota de API gateways, que chamam os serviços por balanceamento de carga interno.
 
 ## 3. Segurança: quem pode chamar o quê { #3-security-who-may-call-what }
 
 ``` { .java title="services/gateway/src/main/java/boxoffice/gateway/SecurityConfig.java" .copy linenums="1" }
 --8<-- "docs/2027.1/hands-on/4/code/services/gateway/src/main/java/boxoffice/gateway/SecurityConfig.java"
+```
+
+``` diagram-sim
+flowchart TD
+    R["requisição no gateway<br/>X-User-* do cliente removidos"] --> T{"Authorization:<br/>Bearer token?"}
+    T -->|"sim"| V{"assinatura (JWKS),<br/>exp, iss, aud ok?"}
+    V -->|"não"| X1["401 invalid_token<br/>mesmo numa rota aberta"]:::problem
+    V -->|"sim"| M{"primeira regra<br/>que casa"}
+    T -->|"não"| M
+    M -->|"/auth/register, /auth/login,<br/>/auth/.well-known/**"| OK["permitida:<br/>roteia"]
+    M -->|"GET ou HEAD /catalog/**"| OK
+    M -->|"qualquer outro /catalog/**"| S{"token com<br/>SCOPE_admin?"}
+    S -->|"sem token"| X2["401"]:::problem
+    S -->|"token com scope user"| X3["403 insufficient_scope"]:::problem
+    S -->|"sim"| OK
+    M -->|"/actuator/**"| OK
+    M -->|"qualquer outra coisa"| AU{"token válido?"}
+    AU -->|"não"| X4["401"]:::problem
+    AU -->|"sim"| OK
 ```
 
 - As regras são avaliadas **em ordem**; a primeira que casa vence. `anyExchange().authenticated()` é o padrão seguro: uma rota nova acrescentada no mês que vem fica protegida, a menos que alguém a abra explicitamente.
@@ -61,6 +80,19 @@ Crie `services/gateway` (mesmo `Dockerfile` com `EXPOSE 8080`, mesmo `.dockerign
 
 ``` { .java title="services/gateway/src/main/java/boxoffice/gateway/UserHeadersFilter.java" .copy linenums="1" }
 --8<-- "docs/2027.1/hands-on/4/code/services/gateway/src/main/java/boxoffice/gateway/UserHeadersFilter.java"
+```
+
+``` diagram-sim
+sequenceDiagram
+    autonumber
+    actor Ana
+    participant G as gateway
+    participant A as auth
+    Ana->>G: GET /auth/me + Bearer (Ana) + X-User-Id = o id do admin
+    G->>G: remove X-User-Id, X-User-Email, X-User-Scope
+    G->>G: valida o JWT, sub = o id da Ana
+    G->>A: GET /auth/me + X-User-Id = o id da Ana
+    A-->>Ana: 200 Ana (o id forjado nunca chega)
 ```
 
 Um `GlobalFilter` roda em toda rota. Primeiro ele **remove** qualquer header `X-User-*` enviado pelo cliente e então, se a requisição traz um JWT validado, acrescenta a identidade tirada do token. Os serviços leem um header simples em vez de interpretar tokens — simples, mas só vale enquanto ninguém conseguir alcançar os serviços sem passar pelo gateway.
@@ -96,8 +128,8 @@ catalog
 !!! warning "Armadilhas"
 
     - **`401` em toda rota protegida logo depois da inicialização**: o gateway busca o JWKS sob demanda; se o `auth` estava fora do ar naquele momento, tente de novo — e confira o `AUTH_JWKS_URI`.
-    - **`401` depois de reiniciar o `auth`**: os tokens antigos foram assinados com a chave antiga. Faça login de novo.
-    - **Diferença de relógio**: `exp`/`iat` são comparados com o relógio do gateway; os contêineres compartilham o relógio do host, mas servidores em produção precisam de NTP (aula 3).
-    - **CORS**: um front-end no navegador em outra origem precisa de CORS configurado no gateway (`spring.cloud.gateway.server.webflux.globalcors`) — desnecessário para o k6 ou o curl.
+    - **`401` depois de reiniciar o `auth`**: os tokens antigos foram assinados com a chave antiga. Eles ainda passam enquanto o gateway guarda o JWKS antigo e falham assim que o primeiro token com o `kid` novo o faz baixar o novo. Faça login de novo.
+    - **Diferença de relógio**: `exp`/`iat` são comparados com o relógio do gateway; os contêineres compartilham o relógio do host, mas servidores em produção precisam do protocolo de tempo de rede (NTP, *Network Time Protocol*), veja a aula 3.
+    - **Compartilhamento de recursos entre origens (CORS, *cross-origin resource sharing*)**: um front-end no navegador em outra origem precisa de CORS configurado no gateway (`spring.cloud.gateway.server.webflux.globalcors`) — desnecessário para o k6 ou o curl.
 
 Volte à [visão geral do lab](../index.md#measure-it) para testar e medir.

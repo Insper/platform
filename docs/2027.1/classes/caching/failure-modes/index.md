@@ -6,9 +6,9 @@ This page goes through the classic failure modes in the order they tend to appea
 |---|---|---|
 | [Cold cache](#cold-cache) | empty cache after restart or deploy | warm-up, gradual traffic shift |
 | [Stampede](#stampede) | a hot key expires; thousands recompute it at once | lock/lease, coalescing, stale-while-revalidate, XFetch |
-| [Avalanche](#avalanche) | many keys expire at the same moment | TTL jitter |
+| [Avalanche](#avalanche) | many keys expire at the same moment | time-to-live (TTL) jitter |
 | [Penetration](#penetration) | requests for keys that never exist | negative caching, Bloom filter, validation |
-| [Hot key](#hot-keys) | one key overloads one cache node | local L1 cache, key replication |
+| [Hot key](#hot-keys) | one key overloads one cache node | local level-1 (L1) cache, key replication |
 | [Big key](#big-keys) | huge values block the cache | split, compress, `UNLINK` |
 | [Cache down](#cache-down) | the cache cluster fails | timeouts, fallback with load shedding, replicas, gutter pool |
 | [Memory pressure](#memory) | evictions and fragmentation | sizing, separate instances, eviction policy |
@@ -19,7 +19,7 @@ This page goes through the classic failure modes in the order they tend to appea
 
 A **cold cache** is an empty one: after a restart of Redis without persistence, a deploy that changes the key version (`:v3` → `:v4`), a new region, or a cache node replaced by autoscaling. The hit ratio starts at zero and climbs as keys are read.
 
-The danger is the gap between the load the database was sized for (the misses) and the load it receives (everything). With 50,000 reads/s and a usual 98% hit ratio, the database is sized for ~1,000 QPS; a cold start sends it 50,000.
+The danger is the gap between the load the database was sized for (the misses) and the load it receives (everything). With 50,000 reads/s and a usual 98% hit ratio, the database is sized for ~1,000 queries per second (QPS); a cold start sends it 50,000.
 
 ??? question "Think first: when is the safest moment to deploy a new cache key version?"
 
@@ -31,9 +31,9 @@ Fixes:
 
 - **Warm-up**: before a known peak, preload the keys you know will be hot — the events going on sale today, the home page lists — with a job that reads them through the normal path.
 - **Gradual traffic shift**: send 5%, then 25%, then 100% of traffic to a new cache node or region (canary), so it warms under a fraction of the load.
-- **Persistence for big caches**: a Redis restart that reloads an RDB snapshot comes back warm ([Redis — persistence](../redis/index.md#persistence)).
+- **Persistence for big caches**: a Redis restart that reloads a Redis Database (RDB) snapshot comes back warm ([Redis — persistence](../redis/index.md#persistence)).
 - **Never restart all cache nodes at once.**
-- **Capacity floor**: know how many QPS the database can take with an empty cache, and protect it with load shedding (see [cache down](#cache-down)). The Google SRE book lists cold caches among the classic triggers of cascading failures[^1].
+- **Capacity floor**: know how many QPS the database can take with an empty cache, and protect it with load shedding (see [cache down](#cache-down)). The Google site reliability engineering (SRE) book lists cold caches among the classic triggers of cascading failures[^1].
 
 ---
 
@@ -115,7 +115,24 @@ Coalescing does not need Redis: with 20 replicas, a stampede of 4,000 requests b
 
 ### 3. Stale-while-revalidate
 
-Keep two expirations: a **soft TTL** stored inside the value (e.g. 60 s) and a longer **hard TTL** on the key (e.g. 10 min). After the soft TTL, the first reader triggers a background refresh (guarded by a lock) and *everyone*, including that reader, keeps getting the stale value until the new one arrives. Readers never wait; the database sees one query. The same idea exists in HTTP as `Cache-Control: max-age=60, stale-while-revalidate=600`.
+Keep two expirations: a **soft TTL** stored inside the value (e.g. 60 s) and a longer **hard TTL** on the key (e.g. 10 min). After the soft TTL, the first reader triggers a background refresh (guarded by a lock) and *everyone*, including that reader, keeps getting the stale value until the new one arrives. Readers never wait; the database sees one query. The same idea exists in the Hypertext Transfer Protocol (HTTP) as `Cache-Control: max-age=60, stale-while-revalidate=600`.
+
+``` diagram-sim
+sequenceDiagram
+    participant A as reader 1
+    participant B as readers 2..N
+    participant R as Redis
+    participant D as PostgreSQL
+    Note over R: event:42 past its soft TTL (60 s), hard TTL still 9 min
+    A->>R: GET event:42
+    R-->>A: the stale value, served at once
+    A->>R: SET lock NX PX 5000, won
+    A->>D: refresh in the background
+    B->>R: GET event:42
+    R-->>B: the stale value, nobody waits
+    D-->>A: fresh row
+    A->>R: SET event:42, new soft TTL inside, new hard TTL
+```
 
 ### 4. Probabilistic early expiration (XFetch) { #xfetch }
 
@@ -197,12 +214,12 @@ def xfetch(r, key: str, recompute, ttl: int = 300, beta: float = 1.0):
     return value
 ```
 
-| Fix | Readers wait? | DB queries per expiry | Complexity | Best for |
+| Fix | Readers wait? | Database queries per expiry | Complexity | Best for |
 |---|---|---|---|---|
-| Lock / lease | yes (losers) | 1 | medium | any shared hot key |
-| Coalescing | yes, per process | 1 per replica | low (library) | always, as a baseline |
-| Stale-while-revalidate | no | 1 | medium | data that tolerates seconds of staleness |
-| XFetch | no | ~1 | low | hot keys with a known recompute cost |
+| Lock / lease | ⚠️ yes (losers) | 1 | medium | any shared hot key |
+| Coalescing | ⚠️ yes, per process | 1 per replica | low (library) | always, as a baseline |
+| Stale-while-revalidate | ✅ no | 1 | medium | data that tolerates seconds of staleness |
+| XFetch | ✅ no | ~1 | low | hot keys with a known recompute cost |
 
 <div class="csim" data-sim="stampede" data-rate="500"></div>
 
@@ -240,7 +257,20 @@ Fixes, in layers:
 1. **Validate input** before touching anything: malformed or out-of-range ids are rejected at the gateway.
 2. **Negative caching**: cache "not found" with a short TTL (e.g. 30–60 s) — see [patterns](../patterns/index.md).
 3. **Bloom filter** of existing ids: a compact probabilistic set that answers "definitely not present" or "probably present". A request for an id the filter says is absent never reaches the cache or the database. Sizing: about $-\ln p / (\ln 2)^2 \approx 9.6$ bits per element for a 1% false-positive rate — **~120 KB** for 100,000 events[^4]. Redis Stack / Redis 8 offer Bloom filters natively (`BF.ADD`, `BF.EXISTS`).
-4. **Rate limiting and bot mitigation** at the edge (WAF), since penetration is often abuse ([Traffic & Edge](../../edge/api-gateway/index.md)).
+4. **Rate limiting and bot mitigation** at the edge (a web application firewall, WAF), since penetration is often abuse ([Traffic & Edge](../../edge/api-gateway/index.md)).
+
+``` diagram-sim
+flowchart LR
+    BOT["GET /events/99999999"] --> V{"valid id,<br/>in range?"}
+    V -->|"no"| R1["rejected at the gateway"]:::problem
+    V -->|"yes"| BF{"Bloom filter:<br/>may the id exist?"}
+    BF -->|"definitely not"| R2["404, no lookup at all"]
+    BF -->|"probably yes"| C{"cache"}
+    C -->|"value"| OK["200 from the cache"]
+    C -->|"∅ sentinel"| R3["404 from the cache"]
+    C -->|"miss"| DB[("PostgreSQL")]
+    DB -->|"not found: SET ∅ EX 30"| C
+```
 
 ---
 
@@ -257,10 +287,10 @@ Fixes:
 - **L1 in-process cache** with a short TTL (1–2 s) in each `catalog` replica ([two-level cache](../patterns/index.md#two-level)). With 50 replicas and a 1 s TTL, Redis sees ~50 reads/s for that key instead of 400,000. This is by far the most effective fix.
 - **Key replication**: store N copies under different keys (`event:42#0` … `event:42#7`), which hash to different nodes; readers pick one at random. Writes and invalidations must touch all N copies.
 - **Read replicas** of the cache shard (Redis replicas with `READONLY` reads in Cluster), accepting slightly staler reads.
-- **Shrink the value**: send the static part (description, images) through the CDN and cache only the small dynamic part.
+- **Shrink the value**: send the static part (description, images) through the content delivery network (CDN) and cache only the small dynamic part.
 - **Cache higher up**: the public event page can be cached at the CDN or gateway for a few seconds, so the hot key never reaches the application.
 
-Detecting hot keys: client-side metrics per key prefix, `redis-cli --hotkeys` (requires an LFU eviction policy), or the `MONITOR` command on a replica for a few seconds (never on a busy primary).
+Detecting hot keys: client-side metrics per key prefix, `redis-cli --hotkeys` (requires a least-frequently-used (LFU) eviction policy), or the `MONITOR` command on a replica for a few seconds (never on a busy primary).
 
 ---
 
@@ -304,7 +334,7 @@ The uncomfortable truth: **once the database is sized for the misses, the cache 
 
 - **Eviction storms**: when the working set outgrows `maxmemory`, the cache evicts keys that will be needed again; the hit ratio falls, the database load rises. Watch `evicted_keys` and the hit ratio together.
 - **Fragmentation**: memory used by the process can exceed the data size (`mem_fragmentation_ratio` in `INFO memory`); leave headroom.
-- **Snapshot fork**: an RDB snapshot or AOF rewrite forks the process; with copy-on-write, a write-heavy instance can need up to twice its memory during the snapshot. Size for it, or run persistence on a replica.
+- **Snapshot fork**: an RDB snapshot or an append-only file (AOF) rewrite forks the process; with copy-on-write, a write-heavy instance can need up to twice its memory during the snapshot. Size for it, or run persistence on a replica.
 - **Stale data after failover**: Redis replication is asynchronous. If the primary acknowledged a `DEL` and failed before replicating it, the promoted replica still has the old value — invalidations can be lost. One more reason every key needs a TTL.
 
 ---
@@ -317,6 +347,10 @@ Try it: this scenario runs the `read-heavy-cache` design under a **spike**. Firs
 
 The [full playground](../../../../playground/index.md) lets you add a second cache layer or a waiting room and compare.
 
+On BoxOffice, `boxoffice-cache` restarts Redis empty at t = 100 s, the cold cache of this page at the worst moment. Add the Cache, run, and watch the seconds after the restart with request coalescing on and off: with it, one load per key keeps the database under capacity; without it, the stampede brings errors back for several seconds.
+
+<div class="sdp" data-scenario="boxoffice-cache" data-mode="compact" data-height="440"></div>
+
 !!! example "BoxOffice: an on-sale, minute by minute"
 
     | Time | Event | Failure mode avoided |
@@ -324,7 +358,7 @@ The [full playground](../../../../playground/index.md) lets you add a second cac
     | 09:30 | no cache-invalidating deploys until 11:00 | cold cache |
     | 09:45 | warm-up job loads today's on-sale events, TTL 600 s **+ jitter 0–120 s** | cold cache, avalanche |
     | 09:59 | 2 M fans on the event page; `catalog` serves it from a 1 s L1 cache in each replica | hot key |
-    | 10:00 | the price table is edited; delete after commit, CDC broadcasts to L1 caches | stale data |
+    | 10:00 | the price table is edited; delete after commit, change data capture (CDC) broadcasts to L1 caches | stale data |
     | 10:02 | `event:42` reaches its soft TTL; one replica refreshes it in the background, others serve stale | stampede |
     | 10:05 | bots probe `/events/<random id>`; WAF rate-limits, Bloom filter and negative cache absorb the rest | penetration |
     | 10:11 | Redis primary fails; failover in 15 s; cache calls time out at 50 ms; circuit breaker opens; misses are limited to 2,000 QPS, the rest see the waiting room | cache down |

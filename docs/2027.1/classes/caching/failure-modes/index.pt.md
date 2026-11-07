@@ -6,9 +6,9 @@ Esta página percorre os modos de falha clássicos na ordem em que costumam apar
 |---|---|---|
 | [Cache frio](#cold-cache) | cache vazio depois de reinício ou deploy | aquecimento, deslocamento gradual do tráfego |
 | [*Stampede*](#stampede) | uma chave quente expira; milhares a recalculam ao mesmo tempo | lock/lease, agrupamento, stale-while-revalidate, XFetch |
-| [Avalanche](#avalanche) | muitas chaves expiram no mesmo instante | jitter no TTL |
+| [Avalanche](#avalanche) | muitas chaves expiram no mesmo instante | jitter no tempo de vida (TTL, *time to live*) |
 | [Penetração](#penetration) | requisições para chaves que nunca existem | cache negativo, filtro de Bloom, validação |
-| [Chave quente](#hot-keys) | uma chave sobrecarrega um nó do cache | cache L1 local, replicação da chave |
+| [Chave quente](#hot-keys) | uma chave sobrecarrega um nó do cache | cache local de nível 1 (L1, *level 1*), replicação da chave |
 | [Chave grande](#big-keys) | valores enormes bloqueiam o cache | dividir, comprimir, `UNLINK` |
 | [Cache fora do ar](#cache-down) | o cluster de cache falha | timeouts, fallback com descarte de carga, réplicas, gutter pool |
 | [Pressão de memória](#memory) | despejos e fragmentação | dimensionamento, instâncias separadas, política de despejo |
@@ -19,7 +19,7 @@ Esta página percorre os modos de falha clássicos na ordem em que costumam apar
 
 Um **cache frio** é um cache vazio: depois de reiniciar um Redis sem persistência, de um deploy que muda a versão da chave (`:v3` → `:v4`), de uma nova região, ou de um nó substituído pelo autoscaling. A taxa de acerto começa em zero e sobe conforme as chaves são lidas.
 
-O perigo é a distância entre a carga para a qual o banco foi dimensionado (as faltas) e a carga que ele recebe (tudo). Com 50.000 leituras/s e uma taxa de acerto habitual de 98%, o banco está dimensionado para ~1.000 QPS; um início a frio manda 50.000.
+O perigo é a distância entre a carga para a qual o banco foi dimensionado (as faltas) e a carga que ele recebe (tudo). Com 50.000 leituras/s e uma taxa de acerto habitual de 98%, o banco está dimensionado para ~1.000 consultas por segundo (QPS, *queries per second*); um início a frio manda 50.000.
 
 ??? question "Pense antes: qual o momento mais seguro para publicar uma nova versão de chave do cache?"
 
@@ -31,9 +31,9 @@ Correções:
 
 - **Aquecimento** (*warm-up*): antes de um pico conhecido, pré-carregue as chaves que você sabe que serão quentes — os eventos que abrem vendas hoje, as listas da home — com um job que as lê pelo caminho normal.
 - **Deslocamento gradual do tráfego**: mande 5%, depois 25%, depois 100% do tráfego para um novo nó de cache ou região (canário), para que ele aqueça com uma fração da carga.
-- **Persistência para caches grandes**: um Redis que reinicia recarregando um snapshot RDB volta aquecido ([Redis — persistência](../redis/index.md#persistence)).
+- **Persistência para caches grandes**: um Redis que reinicia recarregando um snapshot do Redis Database (RDB) volta aquecido ([Redis — persistência](../redis/index.md#persistence)).
 - **Nunca reinicie todos os nós do cache ao mesmo tempo.**
-- **Piso de capacidade**: saiba quantos QPS o banco aguenta com o cache vazio e proteja-o com descarte de carga (veja [cache fora do ar](#cache-down)). O livro de SRE do Google lista caches frios entre os gatilhos clássicos de falhas em cascata[^1].
+- **Piso de capacidade**: saiba quantos QPS o banco aguenta com o cache vazio e proteja-o com descarte de carga (veja [cache fora do ar](#cache-down)). O livro de engenharia de confiabilidade de sites (SRE, *site reliability engineering*) do Google lista caches frios entre os gatilhos clássicos de falhas em cascata[^1].
 
 ---
 
@@ -115,7 +115,24 @@ O agrupamento não precisa do Redis: com 20 réplicas, um *stampede* de 4.000 re
 
 ### 3. Stale-while-revalidate
 
-Mantenha duas expirações: um **TTL suave** guardado dentro do valor (por exemplo, 60 s) e um **TTL rígido** mais longo na chave (por exemplo, 10 min). Depois do TTL suave, o primeiro leitor dispara uma atualização em segundo plano (protegida por um lock) e *todos*, inclusive esse leitor, continuam recebendo o valor velho até o novo chegar. Ninguém espera; o banco vê uma consulta. A mesma ideia existe no HTTP como `Cache-Control: max-age=60, stale-while-revalidate=600`.
+Mantenha duas expirações: um **TTL suave** guardado dentro do valor (por exemplo, 60 s) e um **TTL rígido** mais longo na chave (por exemplo, 10 min). Depois do TTL suave, o primeiro leitor dispara uma atualização em segundo plano (protegida por um lock) e *todos*, inclusive esse leitor, continuam recebendo o valor velho até o novo chegar. Ninguém espera; o banco vê uma consulta. A mesma ideia existe no protocolo de transferência de hipertexto (HTTP, *Hypertext Transfer Protocol*) como `Cache-Control: max-age=60, stale-while-revalidate=600`.
+
+``` diagram-sim
+sequenceDiagram
+    participant A as leitor 1
+    participant B as leitores 2..N
+    participant R as Redis
+    participant D as PostgreSQL
+    Note over R: event:42 passou do TTL suave (60 s), TTL rígido ainda 9 min
+    A->>R: GET event:42
+    R-->>A: o valor velho, servido na hora
+    A->>R: SET lock NX PX 5000, ganhou
+    A->>D: atualiza em segundo plano
+    B->>R: GET event:42
+    R-->>B: o valor velho, ninguém espera
+    D-->>A: linha nova
+    A->>R: SET event:42, novo TTL suave dentro, novo TTL rígido
+```
 
 ### 4. Expiração antecipada probabilística (XFetch) { #xfetch }
 
@@ -199,10 +216,10 @@ def xfetch(r, key: str, recompute, ttl: int = 300, beta: float = 1.0):
 
 | Correção | Leitores esperam? | Consultas ao banco por expiração | Complexidade | Melhor para |
 |---|---|---|---|---|
-| Lock / lease | sim (as perdedoras) | 1 | média | qualquer chave quente compartilhada |
-| Agrupamento | sim, por processo | 1 por réplica | baixa (biblioteca) | sempre, como base |
-| Stale-while-revalidate | não | 1 | média | dados que toleram segundos de defasagem |
-| XFetch | não | ~1 | baixa | chaves quentes com custo de recálculo conhecido |
+| Lock / lease | ⚠️ sim (as perdedoras) | 1 | média | qualquer chave quente compartilhada |
+| Agrupamento | ⚠️ sim, por processo | 1 por réplica | baixa (biblioteca) | sempre, como base |
+| Stale-while-revalidate | ✅ não | 1 | média | dados que toleram segundos de defasagem |
+| XFetch | ✅ não | ~1 | baixa | chaves quentes com custo de recálculo conhecido |
 
 <div class="csim" data-sim="stampede" data-rate="500"></div>
 
@@ -240,7 +257,20 @@ Correções, em camadas:
 1. **Valide a entrada** antes de tocar em qualquer coisa: ids malformados ou fora da faixa são rejeitados no gateway.
 2. **Cache negativo**: cacheie "não encontrado" com TTL curto (por exemplo, 30–60 s) — veja [padrões](../patterns/index.md).
 3. **Filtro de Bloom** dos ids existentes: um conjunto probabilístico compacto que responde "com certeza não está" ou "provavelmente está". Uma requisição para um id que o filtro diz estar ausente nunca chega ao cache nem ao banco. Dimensionamento: cerca de $-\ln p / (\ln 2)^2 \approx 9{,}6$ bits por elemento para 1% de falsos positivos — **~120 KB** para 100.000 eventos[^4]. O Redis Stack / Redis 8 oferecem filtros de Bloom nativamente (`BF.ADD`, `BF.EXISTS`).
-4. **Rate limiting e mitigação de bots** na borda (WAF), já que a penetração costuma ser abuso ([Tráfego e Borda](../../edge/api-gateway/index.md)).
+4. **Rate limiting e mitigação de bots** na borda (um firewall de aplicação web, WAF, *web application firewall*), já que a penetração costuma ser abuso ([Tráfego e Borda](../../edge/api-gateway/index.md)).
+
+``` diagram-sim
+flowchart LR
+    BOT["GET /events/99999999"] --> V{"id válido,<br/>na faixa?"}
+    V -->|"não"| R1["recusado no gateway"]:::problem
+    V -->|"sim"| BF{"filtro de Bloom:<br/>o id pode existir?"}
+    BF -->|"com certeza não"| R2["404, nenhuma busca"]
+    BF -->|"provavelmente sim"| C{"cache"}
+    C -->|"valor"| OK["200 do cache"]
+    C -->|"sentinela ∅"| R3["404 do cache"]
+    C -->|"falta"| DB[("PostgreSQL")]
+    DB -->|"não achou: SET ∅ EX 30"| C
+```
 
 ---
 
@@ -257,10 +287,10 @@ Correções:
 - **Cache L1 em processo** com TTL curto (1–2 s) em cada réplica do `catalog` ([cache em dois níveis](../patterns/index.md#two-level)). Com 50 réplicas e TTL de 1 s, o Redis vê ~50 leituras/s dessa chave em vez de 400.000. É de longe a correção mais eficaz.
 - **Replicação da chave**: guarde N cópias com chaves diferentes (`event:42#0` … `event:42#7`), que caem em nós diferentes; os leitores escolhem uma ao acaso. Escritas e invalidações precisam tocar as N cópias.
 - **Réplicas de leitura** do shard do cache (réplicas do Redis com leituras `READONLY` no Cluster), aceitando leituras um pouco mais defasadas.
-- **Diminua o valor**: mande a parte estática (descrição, imagens) pela CDN e cacheie só a pequena parte dinâmica.
+- **Diminua o valor**: mande a parte estática (descrição, imagens) pela rede de distribuição de conteúdo (CDN, *content delivery network*) e cacheie só a pequena parte dinâmica.
 - **Cacheie mais acima**: a página pública do evento pode ser cacheada na CDN ou no gateway por alguns segundos, de modo que a chave quente nunca chegue à aplicação.
 
-Detectando chaves quentes: métricas no cliente por prefixo de chave, `redis-cli --hotkeys` (exige uma política de despejo LFU), ou o comando `MONITOR` numa réplica por alguns segundos (nunca num primário ocupado).
+Detectando chaves quentes: métricas no cliente por prefixo de chave, `redis-cli --hotkeys` (exige uma política de despejo do menos usado com frequência, LFU, *least frequently used*), ou o comando `MONITOR` numa réplica por alguns segundos (nunca num primário ocupado).
 
 ---
 
@@ -304,7 +334,7 @@ A verdade incômoda: **depois que o banco é dimensionado para as faltas, o cach
 
 - **Tempestades de despejo**: quando o conjunto de trabalho passa do `maxmemory`, o cache despeja chaves que serão necessárias de novo; a taxa de acerto cai, a carga no banco sobe. Acompanhe `evicted_keys` e a taxa de acerto juntos.
 - **Fragmentação**: a memória usada pelo processo pode passar do tamanho dos dados (`mem_fragmentation_ratio` no `INFO memory`); deixe folga.
-- **Fork do snapshot**: um snapshot RDB ou uma reescrita do AOF fazem *fork* do processo; com copy-on-write, uma instância com muitas escritas pode precisar de até o dobro da memória durante o snapshot. Dimensione para isso, ou rode a persistência numa réplica.
+- **Fork do snapshot**: um snapshot RDB ou uma reescrita do arquivo só de acréscimo (AOF, *append-only file*) fazem *fork* do processo; com copy-on-write, uma instância com muitas escritas pode precisar de até o dobro da memória durante o snapshot. Dimensione para isso, ou rode a persistência numa réplica.
 - **Dados velhos depois do failover**: a replicação do Redis é assíncrona. Se o primário confirmou um `DEL` e falhou antes de replicá-lo, a réplica promovida ainda tem o valor antigo — invalidações podem se perder. Mais um motivo para toda chave ter TTL.
 
 ---
@@ -317,6 +347,10 @@ Experimente: este cenário roda o desenho `read-heavy-cache` sob um **pico** (*s
 
 O [playground completo](../../../../playground/index.md) permite acrescentar uma segunda camada de cache ou uma sala de espera e comparar.
 
+Na BoxOffice, `boxoffice-cache` reinicia o Redis vazio em t = 100 s, o cache frio desta página no pior momento. Acrescente o Cache, rode e observe os segundos depois do reinício com o agrupamento de requisições ligado e desligado: com ele, uma carga por chave mantém o banco abaixo da capacidade; sem ele, o *stampede* traz os erros de volta por vários segundos.
+
+<div class="sdp" data-scenario="boxoffice-cache" data-mode="compact" data-height="440"></div>
+
 !!! example "BoxOffice: uma abertura de vendas, minuto a minuto"
 
     | Hora | Evento | Modo de falha evitado |
@@ -324,7 +358,7 @@ O [playground completo](../../../../playground/index.md) permite acrescentar uma
     | 9h30 | nenhum deploy que invalide o cache até as 11h00 | cache frio |
     | 9h45 | job de aquecimento carrega os eventos que abrem vendas hoje, TTL 600 s **+ jitter 0–120 s** | cache frio, avalanche |
     | 9h59 | 2 M fãs na página do evento; o `catalog` a serve de um cache L1 de 1 s em cada réplica | chave quente |
-    | 10h00 | a tabela de preços é editada; remoção depois do commit, o CDC difunde para os caches L1 | dado velho |
+    | 10h00 | a tabela de preços é editada; remoção depois do commit, a captura de mudanças (CDC, *change data capture*) difunde para os caches L1 | dado velho |
     | 10h02 | `event:42` atinge o TTL suave; uma réplica o atualiza em segundo plano, as outras servem o valor velho | *stampede* |
     | 10h05 | bots sondam `/events/<id aleatório>`; o WAF limita a taxa, o filtro de Bloom e o cache negativo absorvem o resto | penetração |
     | 10h11 | o primário do Redis falha; failover em 15 s; chamadas ao cache dão timeout em 50 ms; o circuit breaker abre; as faltas ficam limitadas a 2.000 QPS, o restante vê a sala de espera | cache fora do ar |

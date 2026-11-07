@@ -14,14 +14,14 @@ flowchart LR
 
 Depois do login, toda requisição precisa provar quem está chamando. Duas famílias de soluções:
 
-| | Sessão no servidor | Token autocontido (JWT) |
+| | Sessão no servidor | Token autocontido: JSON Web Token (JWT) |
 |---|---|---|
 | O que o cliente guarda | um id de sessão aleatório (cookie) | as próprias claims, assinadas: `sub`, `scope`, `exp`… |
-| Como uma requisição é verificada | busca o id em um armazenamento de sessões (Redis, banco) | verifica a assinatura com a chave pública — **sem busca** |
-| Revogação | apaga a sessão: imediata | difícil: o token vale até o `exp` (mantenha-o curto) |
-| Escala com | o armazenamento de sessões | só CPU; cada nó verifica sozinho |
+| Como uma requisição é verificada | ⚠️ busca o id em um armazenamento de sessões (Redis, banco) | ✅ verifica a assinatura com a chave pública — **sem busca** |
+| Revogação | ✅ apaga a sessão: imediata | ⚠️ difícil: o token vale até o `exp` (mantenha-o curto) |
+| Escala com | o armazenamento de sessões | só unidade central de processamento (CPU, *central processing unit*); cada nó verifica sozinho |
 
-O BoxOffice usa JWTs assinados com **RS256** (RSA + SHA-256): o `auth` assina com uma **chave privada** que só ele conhece; o gateway verifica com a **chave pública**, publicada como um JWKS (JSON Web Key Set). O gateway consegue verificar tokens mas nunca consegue emitir um — ao contrário do HS256, em que o mesmo segredo compartilhado assina e verifica, e todo serviço que o tivesse poderia forjar tokens.
+O BoxOffice usa JWTs assinados com **RS256**, uma assinatura Rivest–Shamir–Adleman (RSA) sobre SHA-256: o `auth` assina com uma **chave privada** que só ele conhece; o gateway verifica com a **chave pública**, publicada como um JSON Web Key Set (JWKS). O gateway consegue verificar tokens mas nunca consegue emitir um — ao contrário de um código de autenticação de mensagem baseado em hash com SHA-256 (HS256, *HMAC with SHA-256*), em que o mesmo segredo compartilhado assina e verifica, e todo serviço que o tivesse poderia forjar tokens.
 
 Um token tem a forma `header.payload.signature`, cada parte codificada em Base64URL:
 
@@ -132,7 +132,7 @@ Os records trocados com os clientes:
 | Claim | Significado | Verificada pelo gateway |
 |---|---|---|
 | `iss` | quem emitiu (`boxoffice-auth`) | sim: precisa bater com `JWT_ISSUER` |
-| `aud` | para quem é (`boxoffice`) | sim: um token de outra API é recusado |
+| `aud` | para quem é (`boxoffice`) | sim: um token de outra interface de programação de aplicações (API, *application programming interface*) é recusado |
 | `sub` | o id do usuário | vira `X-User-Id` |
 | `scope` | `user` ou `user admin` | vira as authorities `SCOPE_user`, `SCOPE_admin` |
 | `exp` | expiração | sim (com 60 s de tolerância de diferença de relógio) |
@@ -140,7 +140,26 @@ Os records trocados com os clientes:
 
 !!! warning "Uma chave nova a cada reinício"
 
-    O `TokenService` gera o par de chaves RSA em memória quando o `auth` sobe. Reinicie o `auth` e todo token emitido antes é rejeitado (`kid` desconhecido) e duas réplicas do `auth` assinariam cada uma com uma chave diferente. Em produção, a chave privada fica em um **KMS ou gerenciador de segredos**, o JWKS lista a chave atual **e** a anterior durante uma rotação e as chaves giram em um calendário. Num lab, um reinício que desloga todo mundo é uma vantagem: você vê por que a rotação exige cuidado.
+    O `TokenService` gera o par de chaves RSA em memória quando o `auth` sobe. Reinicie o `auth` e todo token emitido antes está condenado: o gateway ainda tem a chave pública antiga no JWKS em cache, então os tokens antigos passam até o primeiro token com o `kid` novo o fazer baixar o JWKS de novo e, a partir daí, são rejeitados (`kid` desconhecido). Duas réplicas do `auth` assinariam cada uma com uma chave diferente. Em produção, a chave privada fica em um **serviço de gerenciamento de chaves (KMS, *key management service*) ou gerenciador de segredos**, o JWKS lista a chave atual **e** a anterior durante uma rotação e as chaves giram em um calendário. Num lab, um reinício que desloga todo mundo é uma vantagem: você vê por que a rotação exige cuidado.
+
+    ``` diagram-sim
+    sequenceDiagram
+        participant C as cliente
+        participant G as gateway
+        participant A as auth
+        Note over G: JWKS em cache: kid A
+        A->>A: reinicia, novo par de chaves, kid B
+        C->>G: token antigo (kid A)
+        G-->>C: 200, kid A ainda está no cache
+        C->>A: login, pelo gateway
+        A-->>C: token novo (kid B)
+        C->>G: token novo (kid B)
+        G->>A: kid B desconhecido, GET jwks.json
+        A-->>G: chaves: só kid B
+        G-->>C: 200
+        C->>G: token antigo (kid A)
+        G-->>C: 401, kid A não está no JWKS
+    ```
 
 ## 5. Cadastro, login, me { #5-register-login-me }
 
