@@ -8,7 +8,7 @@ Este é o serviço `payment` do BoxOffice — o adaptador por trás do fluxo de 
 | | |
 |---|---|
 | **Dificuldade** | :material-star::material-star::material-star: difícil |
-| **Conceitos-chave** | chaves de idempotência, efeito de exatamente uma vez sobre entrega pelo-menos-uma-vez, máquina de estados do pagamento com um estado `UNKNOWN`, livro-razão de partidas dobradas, integração com PSP (página hospedada, tokenização, 3-D Secure, webhooks assinados), conciliação com arquivos de liquidação, outbox transacional, retentativas com backoff e DLQ |
+| **Conceitos-chave** | chaves de idempotência, efeito de exatamente uma vez sobre entrega pelo-menos-uma-vez, máquina de estados do pagamento com um estado `UNKNOWN`, livro-razão de partidas dobradas, integração com PSP (página hospedada, tokenização, 3-D Secure, webhooks assinados), conciliação com arquivos de liquidação, outbox transacional, retentativas com backoff e fila de mensagens mortas (DLQ, *dead-letter queue*) |
 | **Componentes da paleta** | [`apigw`](../../../reference/components/edge/index.md#apigw), [`app`](../../../reference/components/compute/index.md#app), [`sql`](../../../reference/components/storage/index.md#sql), [`kafka`](../../../reference/components/messaging/index.md#kafka), [`queue`](../../../reference/components/messaging/index.md#queue), [`worker`](../../../reference/components/compute/index.md#worker), [`scheduler`](../../../reference/components/compute/index.md#scheduler), [`payment`](../../../reference/components/external/index.md#payment), [`dwh`](../../../reference/components/storage/index.md#dwh) |
 | **Cenário do playground** | `payment-system` |
 
@@ -17,7 +17,7 @@ Este é o serviço `payment` do BoxOffice — o adaptador por trás do fluxo de 
     - **Explicar** por que a "entrega exatamente uma vez" não existe e **construir** um *efeito* de exatamente uma vez a partir de retentativas mais idempotência.
     - **Projetar** um armazenamento de chaves de idempotência que lida com duplicatas concorrentes, repetições e payloads alterados.
     - **Registrar** movimentações de dinheiro num livro-razão de partidas dobradas e **verificar** que toda transação fecha.
-    - **Integrar** com um provedor de serviços de pagamento (PSP) ficando fora da maior parte do escopo do PCI DSS e **tratar** timeouts de resultado desconhecido.
+    - **Integrar** com um provedor de serviços de pagamento (PSP) ficando fora da maior parte do escopo do padrão de segurança de dados da indústria de cartões (PCI DSS, *Payment Card Industry Data Security Standard*) e **tratar** timeouts de resultado desconhecido.
     - **Projetar** a conciliação entre o livro-razão e os relatórios de liquidação do provedor.
 
 ---
@@ -187,13 +187,13 @@ CREATE TABLE outbox (id BIGSERIAL PRIMARY KEY, topic TEXT, payload JSONB, create
 
 ``` diagram-sim
 flowchart LR
-    fan([Navegador do fã]) -->|"dados do cartão"| psp[["PSP<br/>campos hospedados, 3-D Secure"]]
+    fan([Navegador do fã]) -->|"dados do cartão"| psp[["PSP<br/>campos hospedados, 3-D Secure"]]:::problem
     fan --> gw["API gateway"]
     gw --> ord["order"]
-    ord --> pay["serviço payment"]
+    ord --> pay["serviço payment"]:::tech
     pay --> db[("PostgreSQL<br/>pagamento, idempotência,<br/>livro-razão, outbox")]
     pay -->|"cobrança(token, chave)"| psp
-    psp -. "webhook assinado" .-> wh["handler de webhooks"]
+    psp -. "webhook assinado" .-> wh["handler de webhooks"]:::tech
     wh --> db
     db -. relay do outbox .-> k[["Kafka<br/>eventos de pagamento"]]
     k --> ord
@@ -201,7 +201,7 @@ flowchart LR
     q[["Fila de retentativas + DLQ"]] --> wk["workers<br/>retentativas, reembolsos, repasses"]
     pay --> q
     wk --> psp
-    sched["scheduler<br/>conciliação"] --> rec["job de conciliação"]
+    sched["scheduler<br/>conciliação"] --> rec["job de conciliação"]:::tech
     psp -. "arquivo de liquidação (diário)" .-> rec
     rec --> dwh[("Data warehouse")]
     rec --> db
@@ -476,18 +476,16 @@ Quais aulas este caso testa? Cada ramo é uma aula cujas ideias o design usa (az
 
 ``` diagram
 flowchart LR
-    CASE(["Payment system"]) --> DIS["Distributed<br/>exactly-once effect, unknown outcome"]:::tech
-    CASE --> CMP["Compute<br/>PSP integration, webhooks, reconciliation"]:::tech
-    CASE --> DB["Databases<br/>double-entry ledger, transactions"]:::tech
-    CASE --> MSG["Messaging<br/>outbox, payment events"]:::tech
-    CASE --> REL["Reliability<br/>backoff, retry storms, breakers"]:::tech
-    CASE --> SEC["Network & Security<br/>PCI DSS scope, hosted fields"]:::tech
-    DIS -.-> k1["sql<br/>(idempotency keys)"]:::comp
+    CASE(["Sistema de pagamentos"]) --> DIS["Distribuídos<br/>efeito exatamente uma vez, resultado desconhecido"]:::tech
+    CASE --> CMP["Compute<br/>integração com o PSP, webhooks, conciliação"]:::tech
+    CASE --> DB["Bancos de dados<br/>livro-razão de partidas dobradas, transações"]:::tech
+    CASE --> MSG["Mensageria<br/>outbox, eventos de pagamento"]:::tech
+    CASE --> REL["Confiabilidade<br/>backoff, tempestades de retentativas, disjuntores"]:::tech
+    CASE --> SEC["Redes e segurança<br/>escopo do PCI DSS, campos hospedados"]:::tech
+    DIS -.-> k1["sql<br/>(chaves de idempotência)"]:::comp
     CMP -.-> k2["payment · scheduler · dwh"]:::comp
     MSG -.-> k3["kafka · queue · worker"]:::comp
     SEC -.-> k4["apigw · app"]:::comp
-    classDef comp fill:#1e9e5a22,stroke:#1e9e5a
-    classDef tech fill:#2f6fed22,stroke:#2f6fed
 ```
 
 **Aulas que ele testa:** [Distribuídos — idempotência](../../distributed/index.md#idempotency) · [Distribuídos — transações](../../distributed/transactions/index.md) · [Compute — integrações](../../compute/integrations/index.md) · [Bancos de dados — transações](../../databases/transactions/index.md) · [Mensageria — padrões](../../messaging/patterns/index.md) · [Confiabilidade — padrões](../../reliability/patterns/index.md) · [Rede e Segurança](../../network-security/index.md) · [Hands-on 7](../../../hands-on/7/index.md) e [Hands-on 9](../../../hands-on/9/index.md). **Componentes da paleta:** [`apigw`](../../../reference/components/edge/index.md#apigw) · [`app`](../../../reference/components/compute/index.md#app) · [`sql`](../../../reference/components/storage/index.md#sql) · [`kafka`](../../../reference/components/messaging/index.md#kafka) · [`queue`](../../../reference/components/messaging/index.md#queue) · [`worker`](../../../reference/components/compute/index.md#worker) · [`scheduler`](../../../reference/components/compute/index.md#scheduler) · [`payment`](../../../reference/components/external/index.md#payment) · [`dwh`](../../../reference/components/storage/index.md#dwh). **Cenários:** `payment-system`, `retry-storm`.

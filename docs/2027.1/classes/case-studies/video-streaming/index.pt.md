@@ -1,14 +1,14 @@
 
 > *"Projete uma plataforma de vídeo como o YouTube: criadores enviam vídeos, a plataforma os processa e milhões de espectadores assistem sem travar, em qualquer dispositivo e qualquer rede."*
 
-Vídeo é o caso em que **banda e não requisições é o gargalo**. Um redirecionamento tem 500 bytes; um minuto de vídeo HD tem dezenas de megabytes. Quase toda decisão de design decorre disso: os espectadores nunca tocam seus servidores (uma **CDN** entrega os bytes), os uploads nunca passam pelos seus servidores (vão **direto para o object storage**) e o trabalho pesado de CPU (**transcodificação**) é um pipeline em lote de workers que pode levar minutos. As partes interessantes são o pipeline, o **streaming com bitrate adaptativo** e a **economia** do tráfego de saída (*egress*).
+Vídeo é o caso em que **banda e não requisições é o gargalo**. Um redirecionamento tem 500 bytes; um minuto de vídeo HD tem dezenas de megabytes. Quase toda decisão de design decorre disso: os espectadores nunca tocam seus servidores (uma **rede de distribuição de conteúdo (CDN, *content delivery network*)** entrega os bytes), os uploads nunca passam pelos seus servidores (vão **direto para o object storage**) e o trabalho pesado de CPU (**transcodificação**) é um pipeline em lote de workers que pode levar minutos. As partes interessantes são o pipeline, o **streaming com bitrate adaptativo** e a **economia** do tráfego de saída (*egress*).
 
 O BoxOffice usa vídeo em toda página de evento — trailers de artistas, tours pelos locais, replays de shows transmitidos ao vivo. Seu volume é pequeno perto do YouTube, mas a arquitetura é a mesma e no dia em que um artista anuncia uma turnê com um vídeo, é a CDN que mantém a página do evento de pé.
 
 | | |
 |---|---|
 | **Dificuldade** | :material-star::material-star::material-star: difícil |
-| **Conceitos-chave** | uploads pré-assinados e multipart retomáveis, transcodificação como um DAG de workers movidos por fila, renditions e a escada de bitrates, streaming com bitrate adaptativo (HLS/DASH), codificação por título, CDN com origin shield, custo de egress, popularidade de cauda longa, contagem de visualizações assíncrona |
+| **Conceitos-chave** | uploads pré-assinados e multipart retomáveis, transcodificação como um grafo acíclico dirigido (DAG, *directed acyclic graph*) de workers movidos por fila, renditions e a escada de bitrates, streaming com taxa de bits adaptativa (ABR, *adaptive bitrate*) via HTTP Live Streaming (HLS) ou Dynamic Adaptive Streaming over HTTP (DASH), codificação por título, CDN com origin shield, custo de egress, popularidade de cauda longa, contagem de visualizações assíncrona |
 | **Componentes da paleta** | [`client`](../../../reference/components/client/index.md#client), [`cdn`](../../../reference/components/edge/index.md#cdn), [`apigw`](../../../reference/components/edge/index.md#apigw), [`app`](../../../reference/components/compute/index.md#app), [`objstore`](../../../reference/components/storage/index.md#objstore), [`queue`](../../../reference/components/messaging/index.md#queue), [`worker`](../../../reference/components/compute/index.md#worker), [`sql`](../../../reference/components/storage/index.md#sql), [`nosql`](../../../reference/components/storage/index.md#nosql), [`analytics`](../../../reference/components/compute/index.md#analytics) |
 | **Cenário do playground** | `video-streaming` |
 
@@ -46,7 +46,7 @@ O BoxOffice usa vídeo em toda página de evento — trailers de artistas, tours
 
 ### Fora do escopo (diga explicitamente) { #out-of-scope-say-it-explicitly }
 
-Recomendações, comentários, monetização/anúncios, transmissão ao vivo (um follow-up), detecção de direitos autorais (cite como etapa assíncrona), detalhes de DRM.
+Recomendações, comentários, monetização/anúncios, transmissão ao vivo (um follow-up), detecção de direitos autorais (cite como etapa assíncrona), detalhes de gestão de direitos digitais (DRM, *digital rights management*).
 
 ??? question "Perguntas para fazer ao entrevistador"
 
@@ -54,7 +54,7 @@ Recomendações, comentários, monetização/anúncios, transmissão ao vivo (um
     |---|---|
     | Só vídeo sob demanda, ou ao vivo também? | Ao vivo tem segundos de orçamento: não há tempo para um pipeline completo de transcodificação. |
     | Tamanho e duração máximos do upload? | Uploads multipart/retomáveis, transcodificação em pedaços. |
-    | Quais dispositivos? | Formatos (HLS para Apple, DASH no resto, CMAF para os dois), codecs (H.264 em todo lugar, AV1/HEVC onde houver suporte). |
+    | Quais dispositivos? | Formatos (HLS para Apple, DASH no resto, Common Media Application Format (CMAF) para os dois), codecs (H.264 em todo lugar, AV1/High Efficiency Video Coding (HEVC) onde houver suporte). |
     | Público global? | Presença da CDN, multi-CDN, armazenamento regional. |
     | Tudo bem se as resoluções altas aparecerem depois das baixas? | Permite publicar rápido e terminar a escada em segundo plano. |
     | Quão precisa precisa ser a contagem de visualizações? | Exata e em tempo real é caro; aproximada e com atraso é barato. |
@@ -181,13 +181,13 @@ thumbs/{video_id}/{n}.jpg
 flowchart LR
     cr([Criador]) --> api["API de vídeo"]
     api --> meta[("Metadados<br/>SQL")]
-    cr -. "partes via<br/>URLs pré-assinadas" .-> raw[("Object store<br/>raw/")]
+    cr -. "partes via<br/>URLs pré-assinadas" .-> raw[("Object store<br/>raw/")]:::tech
     raw -. upload concluído .-> q[["Fila de transcodificação"]]
-    q --> w["Workers de transcodificação<br/>divide · codifica · empacota"]
+    q --> w["Workers de transcodificação<br/>divide · codifica · empacota"]:::tech
     w --> vod[("Object store<br/>vod/")]
     w --> meta
-    v([Espectador]) --> cdn["Borda da CDN"]
-    cdn --> shield["Origin shield"]
+    v([Espectador]) --> cdn["Borda da CDN"]:::tech
+    cdn --> shield["Origin shield"]:::tech
     shield --> vod
     v -. beacons de reprodução .-> an["Analytics<br/>visualizações, QoE"]
 ```
@@ -277,6 +277,26 @@ Cada vídeo é codificado numa **escada** de renditions, cada uma cortada em seg
 1080p/index.m3u8
 ```
 
+Um player num celular, segmento a segmento (segmentos de 4 s, taxas da escada acima):
+
+``` diagram-sim
+sequenceDiagram
+    autonumber
+    participant P as Player
+    participant E as Borda da CDN
+    P->>E: GET master.m3u8
+    E-->>P: escada 240p … 1080p
+    P->>E: segmento 1 em 360p (começa baixo)
+    E-->>P: 3,2 Mbit em 0,5 s, então cerca de 6 Mbit/s medidos
+    P->>E: segmento 2 em 720p (3 Mbit/s cabem, buffer enchendo)
+    P->>E: segmento 3 em 1080p (5 Mbit/s ainda cabem)
+    Note over P: o trem entra num túnel, a vazão cai para 1 Mbit/s
+    P->>E: segmento 4 em 360p (desce antes de o buffer secar)
+    P->>E: segmento 5 em 720p quando a vazão volta
+```
+
+O servidor nunca decide: cada segmento de cada versão é um arquivo comum na CDN e a escolha do player a cada segmento é o que mantém o vídeo tocando numa rede ruim.
+
 - **Comece baixo, suba rápido**: o primeiro segmento vem de um degrau baixo para a reprodução começar em menos de 2 s; o player sobe conforme o buffer enche.
 - **Codificação por título**: um desenho animado precisa de bem menos bits do que um show com confete e luzes estroboscópicas para a mesma qualidade visual. Analisar cada vídeo e escolher sua própria escada (a "per-title encode optimization" da Netflix) economiza uma boa parte da banda em conteúdo simples.
 - **Codecs**: H.264 toca em todo lugar; HEVC e AV1 entregam a mesma qualidade com bem menos bits, mas custam muito mais CPU para codificar e não são suportados em todo dispositivo. Codifique os codecs caros só para vídeos com visualizações suficientes para pagar o custo.
@@ -333,7 +353,7 @@ O cenário `video-streaming` tem o object store, uma CDN na frente dele e uma fi
 
 ??? question "O que muda para transmissão ao vivo (ex.: um show do BoxOffice transmitido ao vivo)?"
 
-    O orçamento cai de minutos para segundos. O codificador recebe um sinal ao vivo (RTMP/SRT/WebRTC) e produz a escada **em tempo real** — sem DAG paralelo por pedaços; os segmentos são publicados conforme são produzidos e as playlists são atualizadas continuamente. Low-latency HLS / CMAF em pedaços entregam segmentos parciais para chegar a poucos segundos de latência ponta a ponta. A CDN continua carregando os bytes e o pico de audiência no início do show é previsível, então pré-aqueça a capacidade. Um replay são só os segmentos gravados transformados em VOD.
+    O orçamento cai de minutos para segundos. O codificador recebe um sinal ao vivo (RTMP/SRT/WebRTC) e produz a escada **em tempo real** — sem DAG paralelo por pedaços; os segmentos são publicados conforme são produzidos e as playlists são atualizadas continuamente. Low-latency HLS / CMAF em pedaços entregam segmentos parciais para chegar a poucos segundos de latência ponta a ponta. A CDN continua carregando os bytes e o pico de audiência no início do show é previsível, então pré-aqueça a capacidade. Um replay são só os segmentos gravados transformados em vídeo sob demanda (VOD, *video on demand*).
 
 ??? question "O vídeo de um criador viraliza dez minutos após o upload. O que acontece?"
 
@@ -383,18 +403,16 @@ Quais aulas este caso testa? Cada ramo é uma aula cujas ideias o design usa (az
 
 ``` diagram
 flowchart LR
-    CASE(["Video streaming"]) --> EST["Estimation<br/>egress bandwidth dominates"]:::tech
-    CASE --> DB["Databases<br/>object store, pre-signed uploads"]:::tech
-    CASE --> CMP["Compute<br/>transcoding DAG, idempotent workers"]:::tech
-    CASE --> MSG["Messaging<br/>transcode queue"]:::tech
-    CASE --> EDG["Edge<br/>CDN, origin shield, ABR segments"]:::tech
-    CASE --> FIN["Cloud-native<br/>FinOps: cost of egress"]:::tech
+    CASE(["Streaming de vídeo"]) --> EST["Estimativa<br/>a banda de egress domina"]:::tech
+    CASE --> DB["Bancos de dados<br/>object store, uploads pré-assinados"]:::tech
+    CASE --> CMP["Compute<br/>DAG de transcodificação, workers idempotentes"]:::tech
+    CASE --> MSG["Mensageria<br/>fila de transcodificação"]:::tech
+    CASE --> EDG["Borda<br/>CDN, origin shield, segmentos ABR"]:::tech
+    CASE --> FIN["Cloud-native<br/>FinOps: custo do egress"]:::tech
     DB -.-> k1["objstore · sql"]:::comp
     CMP -.-> k2["worker"]:::comp
     MSG -.-> k3["queue"]:::comp
     EDG -.-> k4["cdn · analytics"]:::comp
-    classDef comp fill:#1e9e5a22,stroke:#1e9e5a
-    classDef tech fill:#2f6fed22,stroke:#2f6fed
 ```
 
 **Aulas que ele testa:** [Borda — DNS e CDN](../../edge/dns-cdn/index.md) · [Bancos de dados — especializados](../../databases/specialized/index.md) (armazenamento de objetos) · [Compute — trabalho assíncrono](../../compute/async-work/index.md) · [Mensageria — filas e pub/sub](../../messaging/queues-pubsub/index.md) · [Cloud-native — FinOps](../../cloud-native/finops/index.md) · [Hands-on 7](../../../hands-on/7/index.md). **Componentes da paleta:** [`cdn`](../../../reference/components/edge/index.md#cdn) · [`objstore`](../../../reference/components/storage/index.md#objstore) · [`queue`](../../../reference/components/messaging/index.md#queue) · [`worker`](../../../reference/components/compute/index.md#worker) · [`sql`](../../../reference/components/storage/index.md#sql) · [`analytics`](../../../reference/components/compute/index.md#analytics). **Cenários:** `video-streaming`, `cdn-static`.

@@ -8,7 +8,7 @@ BoxOffice has the same shape: fans **follow** artists and venues, and the "Follo
 | | |
 |---|---|
 | **Difficulty** | :material-star::material-star::material-star: hard |
-| **Key concepts** | fan-out on write (push) vs. on read (pull) vs. hybrid, the celebrity problem, timeline cache of IDs, hydration, ranking pipeline, cursor pagination, media via CDN |
+| **Key concepts** | fan-out on write (push) vs. on read (pull) vs. hybrid, the celebrity problem, timeline cache of IDs, hydration, ranking pipeline, cursor pagination, media via content delivery network (CDN) |
 | **Palette components** | [`lb`](../../../reference/components/edge/index.md#lb), [`app`](../../../reference/components/compute/index.md#app), [`cache`](../../../reference/components/storage/index.md#cache), [`nosql`](../../../reference/components/storage/index.md#nosql), [`kafka`](../../../reference/components/messaging/index.md#kafka), [`worker`](../../../reference/components/compute/index.md#worker), [`objstore`](../../../reference/components/storage/index.md#objstore), [`cdn`](../../../reference/components/edge/index.md#cdn) |
 | **Playground scenario** | `news-feed` |
 
@@ -171,14 +171,14 @@ flowchart LR
     lb --> ps["Post service"]
     ps --> pdb[("Posts store<br/>by author")]
     ps --> k[["Kafka<br/>post-created"]]
-    k --> fw["Fan-out workers"]
+    k --> fw["Fan-out workers"]:::tech
     fw --> g[("Social graph<br/>followers")]
-    fw --> tl[("Timeline cache<br/>feed:{user} → IDs")]
+    fw --> tl[("Timeline cache<br/>feed:{user} → IDs")]:::tech
     lb --> fs["Feed service"]
     fs --> tl
     fs --> pc[("Post cache")]
     pc --> pdb
-    fs --> rk["Ranking"]
+    fs --> rk["Ranking"]:::tech
     u -. images .-> cdn["CDN"] --> obj[("Object store")]
 ```
 
@@ -228,11 +228,27 @@ sequenceDiagram
 
 | | Push | Pull | Hybrid |
 |---|---|---|---|
-| Read latency | Lowest (one cache read) | Highest (N queries + merge) | Low (cache read + few celebrity reads) |
-| Write cost | Followers × posts | One insert | Followers × posts, capped at threshold |
-| Freshness | Seconds to minutes (queue) | Immediate | Seconds |
-| Celebrity post | Millions of inserts | Free | Free (pulled) |
-| Inactive users | Wasted inserts | Free | Skip them; rebuild on login |
+| Read latency | ✅ Lowest (one cache read) | ❌ Highest (N queries + merge) | ✅ Low (cache read + few celebrity reads) |
+| Write cost | ⚠️ Followers × posts | ✅ One insert | ⚠️ Followers × posts, capped at threshold |
+| Freshness | ⚠️ Seconds to minutes (queue) | ✅ Immediate | ✅ Seconds |
+| Celebrity post | ❌ Millions of inserts | ✅ Free | ✅ Free (pulled) |
+| Inactive users | ❌ Wasted inserts | ✅ Free | ✅ Skip them; rebuild on login |
+
+The hybrid decides per post, in the fan-out worker; the feed service merges both sources at read time:
+
+``` diagram-sim
+flowchart LR
+    post["New post<br/>by author A"] --> k[["Kafka<br/>post-created"]]
+    k --> fw["Fan-out worker"]
+    fw --> t{"A has at least<br/>100 k followers?"}
+    t -->|"no: ordinary author"| push["push the ID into each<br/>follower's timeline<br/>(1 insert per follower)"]:::tech
+    t -->|"yes: celebrity"| keep["keep it only in A's<br/>recent posts<br/>(0 inserts)"]:::tech
+    push --> tl[("Timeline cache<br/>one list per follower")]
+    keep --> cp[("Celebrity posts<br/>read by millions, always cached")]
+    tl --> merge["Feed service<br/>merge at read"]
+    cp --> merge
+    merge --> page["Top 20 for the reader"]
+```
 
 How much work does a threshold save? With a heavy-tailed distribution of followers, a tiny share of authors produces most of the fan-out:
 
@@ -254,6 +270,17 @@ for threshold in (10_000, 100_000, 1_000_000):
 ```
 
 Pulling the posts of a fraction of a percent of the authors removes most of the fan-out writes. The threshold is a tuning knob: lower it and reads get a bit more expensive (more celebrities to merge per user), raise it and celebrity posts take longer to fan out.
+
+The table counts writes; the queue shows what they cost in time. Play twenty minutes of fan-out with the numbers of section 2 (230 posts/s × 200 followers = 46,000 inserts/s) and one post by an account with 50 M followers at t = 60 s:
+
+<div class="csim" data-sim="feed-fanout" data-strategy="push" data-workers="20" data-threshold="100000"></div>
+
+!!! tip "Try it"
+
+    - **Push, 20 workers** (100 k inserts/s): the celebrity post puts 50 M inserts in the queue. The queue is first in, first out, so every ordinary post written after it reaches its followers **500 s** late (8 min), and the backlog takes **926 s** (15 min) to clear.
+    - **10 workers**: the same post makes ordinary posts **1,000 s** late, and the backlog needs **12,500 s** (3.5 h). With 9 workers (45 k/s) push cannot keep up even with the average of 46 k/s.
+    - **Hybrid, threshold 100 k**: the same post adds 0 inserts and the steady load drops to **7,406** inserts/s (the 84% of the table is pulled). The price moves to the read: **10** reads per feed open (the timeline + 9 celebrities), **350,000** reads/s at the peak, all from lists that stay in cache.
+    - **Pull**: nothing to fan out, but **200** reads per feed open — **7,000,000** reads/s at the peak. That is why nobody runs pull alone at this scale.
 
 ### 6.2 The timeline cache and hydration
 
@@ -337,7 +364,7 @@ The `news-feed` scenario contains the post service, a fan-out path through a que
 
 ??? question "How would you show like counts that update in real time?"
 
-    Counters are a separate, write-heavy concern. Keep them in a counter service with **sharded counters** (or Redis `INCR` per post, aggregated periodically to the database), accept a few seconds of staleness, and push updates only for posts currently visible on screen (via WebSocket/SSE), if at all. Never store the count inside the timeline.
+    Counters are a separate, write-heavy concern. Keep them in a counter service with **sharded counters** (or Redis `INCR` per post, aggregated periodically to the database), accept a few seconds of staleness, and push updates only for posts currently visible on screen (via WebSocket/Server-Sent Events (SSE)), if at all. Never store the count inside the timeline.
 
 ??? question "What changes for a brand-new user with no follows?"
 
@@ -389,8 +416,6 @@ flowchart LR
     CAC -.-> k2["cache"]:::comp
     DB -.-> k3["nosql · objstore · cdn"]:::comp
     REL -.-> k4["app · lb"]:::comp
-    classDef comp fill:#1e9e5a22,stroke:#1e9e5a
-    classDef tech fill:#2f6fed22,stroke:#2f6fed
 ```
 
 **Classes it tests:** [Messaging — Kafka](../../messaging/kafka/index.md) · [Caching — patterns](../../caching/patterns/index.md) · [Databases — partitioning](../../databases/partitioning/index.md) · [Distributed — consistency](../../distributed/consistency/index.md) · [Reliability — patterns](../../reliability/patterns/index.md) · [Hands-on 5](../../../hands-on/5/index.md) and [Hands-on 7](../../../hands-on/7/index.md). **Palette components:** [`lb`](../../../reference/components/edge/index.md#lb) · [`app`](../../../reference/components/compute/index.md#app) · [`cache`](../../../reference/components/storage/index.md#cache) · [`nosql`](../../../reference/components/storage/index.md#nosql) · [`kafka`](../../../reference/components/messaging/index.md#kafka) · [`worker`](../../../reference/components/compute/index.md#worker) · [`objstore`](../../../reference/components/storage/index.md#objstore) · [`cdn`](../../../reference/components/edge/index.md#cdn). **Scenarios:** `news-feed`.

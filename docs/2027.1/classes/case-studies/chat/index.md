@@ -106,7 +106,7 @@ What the numbers tell us:
 - **~23 k messages/s on average, ~70 k at peak**, and group fan-out turns them into **~460 k deliveries/s**. ⇒ delivery is a routing problem across many machines, not a database problem.
 - **15 M concurrent connections** need **~300 gateway nodes**. ⇒ gateways are a large, **stateful** fleet: deploys, crashes and scaling all disconnect users, so reconnection must be cheap and well behaved.
 - If every client sent an app-level heartbeat to a central presence service, that would be **500 k writes/s** just to say "I'm still here". ⇒ presence must be derived from the **connection itself** at the gateway, and only **changes** published.
-- History grows by **~1.8 TB/day replicated, ~0.66 PB/year**. ⇒ a horizontally scalable, write-optimized store (wide-column / LSM), partitioned by conversation.
+- History grows by **~1.8 TB/day replicated, ~0.66 PB/year**. ⇒ a horizontally scalable, write-optimized store (wide-column / log-structured merge (LSM)), partitioned by conversation.
 
 ---
 
@@ -190,12 +190,12 @@ seq:g-42           → 1043
 flowchart LR
     a([Alice phone]) --> lb["L4 load balancer<br/>long-lived TCP"]
     b([Bob desktop]) --> lb
-    lb --> gw1["Gateway gw-031<br/>WebSockets"]
-    lb --> gw2["Gateway gw-117<br/>WebSockets"]
-    gw1 --> cs["Chat service<br/>sequencer, fan-out"]
+    lb --> gw1["Gateway gw-031<br/>WebSockets"]:::tech
+    lb --> gw2["Gateway gw-117<br/>WebSockets"]:::tech
+    gw1 --> cs["Chat service<br/>sequencer, fan-out"]:::tech
     gw2 --> cs
     cs --> db[("Messages<br/>wide-column")]
-    cs --> reg[("Session registry<br/>+ presence")]
+    cs --> reg[("Session registry<br/>+ presence")]:::tech
     cs --> ps[["Pub/sub<br/>channel per gateway"]]
     ps --> gw1
     ps --> gw2
@@ -368,7 +368,7 @@ The `chat` scenario has gateways holding WebSocket connections, a pub/sub layer 
 |---|---|
 | **Junior** | A REST API to send and poll messages; a messages table; maybe WebSockets without explaining routing between servers. |
 | **Mid** | WebSocket gateways, a session registry and pub/sub to route between them; messages stored per conversation; offline users get push and sync on reconnect; receipts. |
-| **Senior** | Per-conversation sequencing by a single owner; at-least-once + `clientMsgId` dedupe for exactly-once display; per-device cursors; presence derived from connections and published as changes to subscribers only; reconnect storms and gateway drains; storage partitioning with buckets; group vs. broadcast fan-out; E2E encryption trade-offs; multi-region home regions. |
+| **Senior** | Per-conversation sequencing by a single owner; at-least-once + `clientMsgId` dedupe for exactly-once display; per-device cursors; presence derived from connections and published as changes to subscribers only; reconnect storms and gateway drains; storage partitioning with buckets; group vs. broadcast fan-out; end-to-end (E2E) encryption trade-offs; multi-region home regions. |
 
 **Related:** [Protocols (WebSockets, SSE)](../../edge/protocols/index.md), [Messaging semantics](../../messaging/semantics/index.md), [Partitioning](../../databases/partitioning/index.md), [Notification system case](../notification-system/index.md), [Hands-on 7](../../../hands-on/7/index.md).
 
@@ -398,8 +398,6 @@ flowchart LR
     MSG -.-> k2["pubsub"]:::comp
     DB -.-> k3["nosql · cache<br/>(session registry)"]:::comp
     CMP -.-> k4["notifications"]:::comp
-    classDef comp fill:#1e9e5a22,stroke:#1e9e5a
-    classDef tech fill:#2f6fed22,stroke:#2f6fed
 ```
 
 **Classes it tests:** [Edge — protocols](../../edge/protocols/index.md) · [Edge — load balancing](../../edge/load-balancing/index.md) · [Messaging — semantics](../../messaging/semantics/index.md) · [Distributed — time & clocks](../../distributed/time-clocks/index.md) · [Databases — partitioning](../../databases/partitioning/index.md) · [Reliability — patterns](../../reliability/patterns/index.md) · [Hands-on 7](../../../hands-on/7/index.md). **Palette components:** [`lb`](../../../reference/components/edge/index.md#lb) · [`app`](../../../reference/components/compute/index.md#app) · [`pubsub`](../../../reference/components/messaging/index.md#pubsub) · [`nosql`](../../../reference/components/storage/index.md#nosql) · [`cache`](../../../reference/components/storage/index.md#cache) · [`notifications`](../../../reference/components/compute/index.md#notifications) · [`objstore`](../../../reference/components/storage/index.md#objstore) · [`cdn`](../../../reference/components/edge/index.md#cdn). **Scenarios:** `chat`.

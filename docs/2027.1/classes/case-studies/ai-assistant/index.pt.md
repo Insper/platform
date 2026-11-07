@@ -1,7 +1,7 @@
 
 > *"Projete um assistente de atendimento com IA para uma plataforma de ingressos. Ele responde a perguntas dos fãs sobre eventos, locais e políticas, e pode consultar — e, com confirmação, alterar — os pedidos do próprio fã."*
 
-Aplicações com LLM são a família mais nova de perguntas de entrevista e são primeiro problemas de system design e só depois problemas de IA. O modelo é uma **dependência externa lenta, cara e não determinística**, com custo por token; o design interessante é tudo o que fica em volta dele: de onde vem o conhecimento (**recuperação**), como as chamadas são roteadas, guardadas em cache, medidas e redirecionadas em falhas (**LLM gateway**), como o assistente executa ações com segurança (**loop de agente com ferramentas**) e como impedir que ele seja enganado ou vaze dados (**segurança e avaliação**). Um candidato que desenha "usuário → GPT → resposta" reprova; um que dimensiona tokens, streams, Lei de Little e guardrails passa.
+Aplicações com modelo de linguagem de grande porte (LLM, *large language model*) são a família mais nova de perguntas de entrevista e são primeiro problemas de system design e só depois problemas de IA. O modelo é uma **dependência externa lenta, cara e não determinística**, com custo por token; o design interessante é tudo o que fica em volta dele: de onde vem o conhecimento (**recuperação**), como as chamadas são roteadas, guardadas em cache, medidas e redirecionadas em falhas (**LLM gateway**), como o assistente executa ações com segurança (**loop de agente com ferramentas**) e como impedir que ele seja enganado ou vaze dados (**segurança e avaliação**). Um candidato que desenha "usuário → GPT → resposta" reprova; um que dimensiona tokens, streams, Lei de Little e guardrails passa.
 
 Este é o serviço `assistant` do BoxOffice (o [Hands-on 12](../../../hands-on/12/index.md) constrói uma versão pequena com FastAPI, pgvector e LiteLLM). Os fãs perguntam "posso levar power bank ao estádio?", "cadê meu ingresso?", "posso passar meu pedido para sábado?". A primeira é **recuperação** sobre documentos de políticas; a segunda é uma **ferramenta de leitura** (`get_order`); a terceira é uma **ferramenta com efeito colateral** (`transfer_order`) que nunca pode rodar sem a confirmação explícita do fã.
 
@@ -211,14 +211,14 @@ backend: order-service  POST /v1/orders/{order_id}/transfer
 flowchart LR
     fan([App / web do fã]) --> gw["API gateway<br/>auth, rate limit"]
     gw --> orch["Orquestrador<br/>loop de agente"]
-    orch --> safe["Safety mesh<br/>guardas de entrada + saída,<br/>mascaramento de dados pessoais"]
+    orch --> safe["Safety mesh<br/>guardas de entrada + saída,<br/>mascaramento de dados pessoais"]:::tech
     orch --> mem["Memory fabric<br/>histórico, resumo"]
-    orch --> ret["Recuperador<br/>busca híbrida + rerank"]
+    orch --> ret["Recuperador<br/>busca híbrida + rerank"]:::tech
     ret --> vdb[("Índice vetorial<br/>pgvector")]
-    orch --> llmgw["LLM gateway<br/>roteamento, fallback,<br/>cotas, cache semântico"]
-    llmgw --> m1[["Modelo pequeno"]]
-    llmgw --> m2[["Modelo grande"]]
-    orch --> treg["Registro de ferramentas<br/>schemas, políticas"]
+    orch --> llmgw["LLM gateway<br/>roteamento, fallback,<br/>cotas, cache semântico"]:::tech
+    llmgw --> m1[["Modelo pequeno"]]:::problem
+    llmgw --> m2[["Modelo grande"]]:::problem
+    orch --> treg["Registro de ferramentas<br/>schemas, políticas"]:::tech
     treg --> ordsvc["serviço order"]
     treg --> catsvc["serviço catalog"]
     ing["Workers de ingestão<br/>chunking + embedding"] --> vdb
@@ -294,7 +294,7 @@ Todas as chamadas a modelos passam por um único serviço interno (LiteLLM ou si
 | **Cotas e rate limits** | Tokens por minuto por usuário, por funcionalidade, por dia; proteger os limites da conta no provedor | Um usuário abusivo ou um loop não pode queimar o orçamento |
 | **Cache semântico** | Devolver uma resposta guardada para uma pergunta quase idêntica (similaridade de embedding acima de um limiar, mesmo idioma, sem dados pessoais) | Tráfego com muito FAQ; nunca guardar respostas que dependem do usuário |
 | **Cache de prompt** | Reaproveitar o cache do provedor para o prefixo fixo (prompt de sistema, schemas das ferramentas) | Tokens de entrada dominam custo e TTFT |
-| **Medição** | Registrar tokens, latência (TTFT, total), custo por chamada, modelo, funcionalidade | Custo é um SLO; dashboards e orçamentos por equipe |
+| **Medição** | Registrar tokens, latência (TTFT, total), custo por chamada, modelo, funcionalidade | Custo é um objetivo de nível de serviço (SLO, *service level objective*); dashboards e orçamentos por equipe |
 | **Streaming** | Repassar os tokens como Server-Sent Events | Latência percebida = TTFT |
 
 !!! warning "Timeouts para streams"
@@ -449,19 +449,17 @@ Quais aulas este caso testa? Cada ramo é uma aula cujas ideias o design usa (az
 
 ``` diagram
 flowchart LR
-    CASE(["AI assistant"]) --> EST["Estimation<br/>tokens/s, concurrent streams"]:::tech
-    CASE --> GW["AI systems<br/>LLM gateway: routing, quotas"]:::tech
-    CASE --> AG["AI systems<br/>agent loop, tools via a registry"]:::tech
-    CASE --> RAG["AI systems<br/>RAG: hybrid search, rerank, cite"]:::tech
-    CASE --> SAF["AI systems<br/>safety mesh, evals"]:::tech
-    CASE --> EDG["Edge<br/>API gateway: auth, rate limits"]:::tech
+    CASE(["Assistente de IA"]) --> EST["Estimativa<br/>tokens/s, streams simultâneos"]:::tech
+    CASE --> GW["Sistemas de IA<br/>gateway de LLM: roteamento, cotas"]:::tech
+    CASE --> AG["Sistemas de IA<br/>loop de agente, ferramentas por um registro"]:::tech
+    CASE --> RAG["Sistemas de IA<br/>RAG: busca híbrida, reranqueamento, citação"]:::tech
+    CASE --> SAF["Sistemas de IA<br/>malha de segurança, avaliações"]:::tech
+    CASE --> EDG["Borda<br/>API gateway: autenticação, limites de taxa"]:::tech
     GW -.-> k1["llmgw"]:::comp
     AG -.-> k2["orchestrator · toolreg"]:::comp
     RAG -.-> k3["memory · vectordb · worker"]:::comp
     SAF -.-> k4["safety · metrics · tracing"]:::comp
     EDG -.-> k5["apigw"]:::comp
-    classDef comp fill:#1e9e5a22,stroke:#1e9e5a
-    classDef tech fill:#2f6fed22,stroke:#2f6fed
 ```
 
 **Aulas que ele testa:** [Sistemas de IA — LLM gateway](../../ai-systems/llm-gateway/index.md) · [Sistemas de IA — agentes](../../ai-systems/agents/index.md) · [Sistemas de IA — RAG e memória](../../ai-systems/rag-memory/index.md) · [Sistemas de IA — segurança e avaliações](../../ai-systems/safety-evals/index.md) · [Bancos de dados — especializados](../../databases/specialized/index.md) (busca vetorial) · [Borda — API gateway](../../edge/api-gateway/index.md) · [Estimativas — filas](../../estimation/queueing/index.md) (Lei de Little). **Componentes da paleta:** [`apigw`](../../../reference/components/edge/index.md#apigw) · [`orchestrator`](../../../reference/components/ai/index.md#orchestrator) · [`llmgw`](../../../reference/components/ai/index.md#llmgw) · [`toolreg`](../../../reference/components/ai/index.md#toolreg) · [`memory`](../../../reference/components/ai/index.md#memory) · [`safety`](../../../reference/components/ai/index.md#safety) · [`vectordb`](../../../reference/components/storage/index.md#vectordb) · [`worker`](../../../reference/components/compute/index.md#worker) · [`metrics`](../../../reference/components/observability/index.md#metrics) · [`tracing`](../../../reference/components/observability/index.md#tracing). **Cenários:** `ai-assistant`.

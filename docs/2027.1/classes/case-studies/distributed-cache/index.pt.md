@@ -10,7 +10,7 @@ No BoxOffice, o cache guarda páginas de eventos, retratos da disponibilidade de
 | **Dificuldade** | :material-star::material-star: médio |
 | **Conceitos-chave** | particionamento com hash consistente e nós virtuais, hash slots, despejo (LRU, LFU, W-TinyLFU) e TTL, dimensionamento de memória, replicação primário/réplica e failover, split brain, chaves quentes e chaves grandes, roteamento no cliente vs. proxy, cache-aside, proteção contra estouro de manada (leases, coalescência de requisições, expiração antecipada) |
 | **Componentes da paleta** | [`cache`](../../../reference/components/storage/index.md#cache), [`app`](../../../reference/components/compute/index.md#app), [`nosql`](../../../reference/components/storage/index.md#nosql), [`metrics`](../../../reference/components/observability/index.md#metrics) |
-| **Cenários do playground** | `read-heavy-cache`, `sharding` |
+| **Cenários do playground** | `distributed-cache`, `read-heavy-cache`, `sharding` |
 
 !!! abstract "O que este caso treina"
 
@@ -151,14 +151,14 @@ slots 10923–16383 → node-c (primary), node-f (replica)
 
 ``` diagram-sim
 flowchart LR
-    app1["Servidor de app #1<br/>cliente que conhece o cluster"] --> a["node-a<br/>slots 0–5460"]
-    app1 --> b["node-b<br/>slots 5461–10922"]
+    app1["Servidor de app #1<br/>cliente que conhece o cluster"] --> a["node-a<br/>slots 0–5460"]:::tech
+    app1 --> b["node-b<br/>slots 5461–10922"]:::tech
     app2["Servidor de app #2<br/>cliente que conhece o cluster"] --> b
-    app2 --> c["node-c<br/>slots 10923–16383"]
+    app2 --> c["node-c<br/>slots 10923–16383"]:::tech
     a -. replicação assíncrona .-> ra["réplica a'"]
     b -. replicação assíncrona .-> rb["réplica b'"]
     c -. replicação assíncrona .-> rc["réplica c'"]
-    app1 -- falta --> db[("Banco de dados<br/>fonte da verdade")]
+    app1 -- falta --> db[("Banco de dados<br/>fonte da verdade")]:::problem
     app2 -- falta --> db
     a -. métricas .-> m["Métricas"]
 ```
@@ -313,8 +313,8 @@ def should_refresh_early(expires_at: float, recompute_s: float, beta: float = 1.
 
 | | Roteamento no cliente (cliente esperto) | Proxy (twemproxy, mcrouter, Envoy) | Redirecionamentos do servidor (Redis Cluster) |
 |---|---|---|---|
-| Saltos | 1 (cliente → nó) | 2 (cliente → proxy → nó) | 1, mais um redirecionamento após rebalancear |
-| Complexidade do cliente | Alta (mapa, retentativas, pool em cada linguagem) | Baixa (parece um servidor só) | Média (cliente que conhece o cluster) |
+| Saltos | ✅ 1 (cliente → nó) | ⚠️ 2 (cliente → proxy → nó) | ✅ 1, mais um redirecionamento após rebalancear |
+| Complexidade do cliente | ❌ Alta (mapa, retentativas, pool em cada linguagem) | ✅ Baixa (parece um servidor só) | ⚠️ Média (cliente que conhece o cluster) |
 | Mudanças de configuração | Enviadas a cada cliente | Só aos proxies | Aprendidas pelo `MOVED` |
 | Recursos extras | — | Pool, replicação, tráfego espelhado | Migração de slots embutida |
 
@@ -341,7 +341,11 @@ Os trade-offs para **dizer em voz alta**: **disponibilidade e velocidade acima d
 
 ## 8. Experimente no playground { #8-try-it-in-the-playground }
 
-Dois cenários cobrem as duas metades deste caso: o cache na frente de um banco e o particionamento dos dados entre nós.
+Comece pelos números desta página: o cenário `distributed-cache` tem 1 bilhão de itens de 1 KB e 2 M de leituras/s com 95% de acertos, em 17 nós — memória suficiente (1,1 TB ÷ 64 GB), mas só 17 × 80 000 = 1,36 M ops/s. Rode: o cluster satura antes de a memória acabar. A solução dimensiona pelo maior dos dois limites e acrescenta uma cópia de cada shard (50 nós). Depois coloque a taxa de acerto em 0,90 e veja a carga do banco dobrar, de 100 000 para 200 000 req/s.
+
+<div class="sdp" data-scenario="distributed-cache" data-mode="compact" data-height="460"></div>
+
+Outros dois cenários cobrem as duas metades deste caso: o cache na frente de um banco e o particionamento dos dados entre nós.
 
 !!! tip "Experimente — cache na frente do banco"
 
@@ -417,21 +421,19 @@ Quais aulas este caso testa? Cada ramo é uma aula cujas ideias o design usa (az
 
 ``` diagram
 flowchart LR
-    CASE(["Distributed cache"]) --> EST["Estimation<br/>size by memory and ops/s"]:::tech
-    CASE --> PART["Databases<br/>consistent hashing, virtual nodes"]:::tech
-    CASE --> EVI["Caching<br/>eviction LRU, LFU, W-TinyLFU, TTL"]:::tech
-    CASE --> REP["Databases<br/>async replication, failover"]:::tech
-    CASE --> HOT["Caching<br/>hot keys, big keys, stampedes"]:::tech
-    CASE --> ROUTE["routing<br/>cluster-aware client"]:::tech
+    CASE(["Cache distribuído"]) --> EST["Estimativa<br/>dimensione por memória e ops/s"]:::tech
+    CASE --> PART["Bancos de dados<br/>hash consistente, nós virtuais"]:::tech
+    CASE --> EVI["Cache<br/>despejo LRU, LFU, W-TinyLFU, TTL"]:::tech
+    CASE --> REP["Bancos de dados<br/>replicação assíncrona, failover"]:::tech
+    CASE --> HOT["Cache<br/>chaves quentes, chaves grandes, stampedes"]:::tech
+    CASE --> ROUTE["roteamento<br/>cliente que conhece o cluster"]:::tech
     PART -.-> k1["cache (cluster)"]:::comp
-    REP -.-> k2["sql · nosql<br/>(source of truth)"]:::comp
+    REP -.-> k2["sql · nosql<br/>(fonte da verdade)"]:::comp
     ROUTE -.-> k3["app"]:::comp
     HOT -.-> k4["metrics"]:::comp
-    classDef comp fill:#1e9e5a22,stroke:#1e9e5a
-    classDef tech fill:#2f6fed22,stroke:#2f6fed
 ```
 
-**Aulas que ele testa:** [Caching — padrões](../../caching/patterns/index.md) · [Caching — Redis](../../caching/redis/index.md) · [Cache — modos de falha](../../caching/failure-modes/index.md) · [Bancos de dados — particionamento](../../databases/partitioning/index.md) · [Bancos de dados — replicação](../../databases/replication/index.md) · [Estimativas — números](../../estimation/numbers/index.md) · [Hands-on 5](../../../hands-on/5/index.md). **Componentes da paleta:** [`cache`](../../../reference/components/storage/index.md#cache) · [`app`](../../../reference/components/compute/index.md#app) · [`sql`](../../../reference/components/storage/index.md#sql) · [`nosql`](../../../reference/components/storage/index.md#nosql) · [`metrics`](../../../reference/components/observability/index.md#metrics). **Cenários:** `read-heavy-cache`, `sharding`.
+**Aulas que ele testa:** [Caching — padrões](../../caching/patterns/index.md) · [Caching — Redis](../../caching/redis/index.md) · [Cache — modos de falha](../../caching/failure-modes/index.md) · [Bancos de dados — particionamento](../../databases/partitioning/index.md) · [Bancos de dados — replicação](../../databases/replication/index.md) · [Estimativas — números](../../estimation/numbers/index.md) · [Hands-on 5](../../../hands-on/5/index.md). **Componentes da paleta:** [`cache`](../../../reference/components/storage/index.md#cache) · [`app`](../../../reference/components/compute/index.md#app) · [`sql`](../../../reference/components/storage/index.md#sql) · [`nosql`](../../../reference/components/storage/index.md#nosql) · [`metrics`](../../../reference/components/observability/index.md#metrics). **Cenários:** `distributed-cache`, `read-heavy-cache`, `sharding`.
 
 ---
 

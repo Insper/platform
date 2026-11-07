@@ -1,14 +1,14 @@
 
 > *"Design the search box suggestions of a large site: as the user types, show the 5–10 most likely completions of what they are typing, fast enough to feel instantaneous."*
 
-Autocomplete (also called *typeahead* or *search-as-you-type*) looks like a small UI feature and is a very instructive system. Every **keystroke** is a request, so it is one of the highest-QPS endpoints of any site; the answer must arrive in well under 100 ms or it is useless (the user already typed the next letter); and the suggestions are **derived data** — computed offline from millions of past searches, then served from memory. The interview tests whether you separate the **serving path** (a read-only, in-memory index) from the **data path** (logs → aggregation → index build), and whether you know which data structure answers "top-k completions of a prefix" without scanning.
+Autocomplete (also called *typeahead* or *search-as-you-type*) looks like a small UI feature and is a very instructive system. Every **keystroke** is a request, so it is one of the endpoints with the most queries per second (QPS) of any site; the answer must arrive in well under 100 ms or it is useless (the user already typed the next letter); and the suggestions are **derived data** — computed offline from millions of past searches, then served from memory. The interview tests whether you separate the **serving path** (a read-only, in-memory index) from the **data path** (logs → aggregation → index build), and whether you know which data structure answers "top-k completions of a prefix" without scanning.
 
 BoxOffice needs exactly this: fans type `col…` and expect *Coldplay*, *Coldplay São Paulo*, *Coala Festival*, mixing artists, venues and cities. When a tour is announced, searches for that artist jump within minutes — and yesterday's suggestions do not know it yet. That freshness problem is one of the deep dives below.
 
 | | |
 |---|---|
 | **Difficulty** | :material-star::material-star: medium |
-| **Key concepts** | trie with top-k cached per node, prefix hash table, finite-state transducers, offline aggregation with time decay, immutable index snapshots and atomic swap, trending overlay, sharding by prefix and skew, browser/CDN caching, client debouncing, blocklists |
+| **Key concepts** | trie with top-k cached per node, prefix hash table, finite-state transducers, offline aggregation with time decay, immutable index snapshots and atomic swap, trending overlay, sharding by prefix and skew, browser/content delivery network (CDN) caching, client debouncing, blocklists |
 | **Palette components** | [`client`](../../../reference/components/client/index.md#client), [`cdn`](../../../reference/components/edge/index.md#cdn), [`apigw`](../../../reference/components/edge/index.md#apigw), [`search`](../../../reference/components/compute/index.md#search), [`cache`](../../../reference/components/storage/index.md#cache), [`analytics`](../../../reference/components/compute/index.md#analytics), [`stream`](../../../reference/components/messaging/index.md#stream), [`dwh`](../../../reference/components/storage/index.md#dwh), [`worker`](../../../reference/components/compute/index.md#worker) |
 | **Playground scenario** | `search-autocomplete` |
 
@@ -52,7 +52,7 @@ The full search results page (ranking, inverted index — see the [search compon
 
     | Question | Why it matters |
     |---|---|
-    | Prefix match only, or also matches in the middle of words ("paulo" → "Coldplay São Paulo")? | Prefix → trie/FST; infix → n-gram or inverted index, more memory. |
+    | Prefix match only, or also matches in the middle of words ("paulo" → "Coldplay São Paulo")? | Prefix → trie/finite-state transducer (FST); infix → n-gram or inverted index, more memory. |
     | How many suggestions, and ranked by what? | Top-k per prefix is precomputed with a fixed k and a fixed score. |
     | How fresh must suggestions be? | Daily rebuild vs. a streaming "trending" layer. |
     | Personalized per user? | Personalized results cannot be cached at the CDN. |
@@ -172,14 +172,14 @@ CREATE TABLE query_counts_daily (
 flowchart LR
     u([Browser / app]) --> cdn["CDN<br/>short prefixes, 60 s"]
     cdn --> gw["API gateway"]
-    gw --> ac["Autocomplete service<br/>in-memory index (replicas)"]
+    gw --> ac["Autocomplete service<br/>in-memory index (replicas)"]:::tech
     ac --> tr[("Cache<br/>trending overlay")]
     u -. search events .-> st[["Event stream<br/>search logs"]]
     st --> agg["Aggregation workers<br/>counts with decay"]
     agg --> dwh[("Data warehouse<br/>query counts")]
     st --> trend["Trending job<br/>last 15 min"]
     trend --> tr
-    dwh --> build["Index builder<br/>(hourly / daily)"]
+    dwh --> build["Index builder<br/>(hourly / daily)"]:::tech
     build --> obj[("Object store<br/>index snapshots")]
     obj -. load + atomic swap .-> ac
 ```
@@ -256,6 +256,21 @@ for p in ("c", "co", "col", "m", "ma", "mar", "x"):
     print(f"| `{p}` | {', '.join(suggest(root, p)) or '—'} |")
 ```
 
+The trie of the example above, with the list each node keeps; typing `col` walks three nodes and returns the list of the last one:
+
+``` diagram
+flowchart TD
+    trie(("root")) --> c["c<br/>coldplay · coldplay sao paulo · concert tickets"]:::tech
+    trie --> m["m<br/>metallica · madonna · maroon 5"]
+    c --> co["co<br/>coldplay · coldplay sao paulo · concert tickets"]:::tech
+    co --> col["col<br/>coldplay · coldplay sao paulo · coldplay rio"]:::comp
+    co --> coa["coa<br/>coala festival"]
+    co --> con["con<br/>concert tickets"]
+    m --> ma["ma<br/>madonna · maroon 5 · maracana"]
+    m --> me["me<br/>metallica · metallica 2027"]
+    ma --> mar["mar<br/>maroon 5 · maracana · marisa monte"]
+```
+
 The price is memory (k entries per node, most of them repeated along a path) and **rebuild instead of update**: changing one count can change the top-k of every ancestor. That is why the index is built offline and served read-only.
 
 === "Trie with top-k per node"
@@ -273,10 +288,10 @@ The price is memory (k entries per node, most of them repeated along a path) and
 | | Trie + top-k | Prefix hash table | FST (search engine) |
 |---|---|---|---|
 | Lookup | O(prefix length) | O(1) | O(prefix length) |
-| Memory | Medium | Highest | **Lowest** |
+| Memory | 🟡 Medium | 🔴 Highest | 🟢 **Lowest** |
 | Sharding | By prefix range | By key (any KV store) | By index/shard of the engine |
 | Build | Custom job | Custom job | Engine indexing |
-| Typo tolerance | Custom | Hard | Built-in (fuzzy) |
+| Typo tolerance | ⚠️ Custom | ❌ Hard | ✅ Built-in (fuzzy) |
 
 ### 6.2 The data pipeline: from logs to snapshots
 
@@ -391,7 +406,7 @@ The `search-autocomplete` scenario puts a search service behind a cache, with a 
 
     - **Debounce on the client and cancel stale requests** — about 100 ms of debounce removes most keystroke requests, and a cancelled request is one the server never serves.
     - **Build the index offline and swap it atomically** — the serving nodes only read; a bad build is rolled back by pointing to the previous version.
-    - **Cache short prefixes at the CDN with a short TTL** — one- and two-letter prefixes are the same for everyone and the most requested.
+    - **Cache short prefixes at the CDN with a short time to live (TTL)** — one- and two-letter prefixes are the same for everyone and the most requested.
     - **Filter suggestions through a blocklist before they are published** — an offensive or legally sensitive suggestion is an incident even if a million users typed it.
     - **Keep a latency budget per keystroke, e.g. p99 < 100 ms** — a suggestion that arrives after the next letter is useless.
 
@@ -414,8 +429,6 @@ flowchart LR
     DB -.-> k3["dwh · objstore"]:::comp
     CAC -.-> k4["cache"]:::comp
     MSG -.-> k5["stream"]:::comp
-    classDef comp fill:#1e9e5a22,stroke:#1e9e5a
-    classDef tech fill:#2f6fed22,stroke:#2f6fed
 ```
 
 **Classes it tests:** [Edge — DNS & CDN](../../edge/dns-cdn/index.md) · [Compute — async work](../../compute/async-work/index.md) · [Databases — specialized](../../databases/specialized/index.md) · [Caching — patterns](../../caching/patterns/index.md) · [Messaging — Kafka](../../messaging/kafka/index.md) · [Estimation — numbers](../../estimation/numbers/index.md). **Palette components:** [`cdn`](../../../reference/components/edge/index.md#cdn) · [`apigw`](../../../reference/components/edge/index.md#apigw) · [`search`](../../../reference/components/compute/index.md#search) · [`cache`](../../../reference/components/storage/index.md#cache) · [`stream`](../../../reference/components/messaging/index.md#stream) · [`worker`](../../../reference/components/compute/index.md#worker) · [`dwh`](../../../reference/components/storage/index.md#dwh) · [`objstore`](../../../reference/components/storage/index.md#objstore). **Scenarios:** `search-autocomplete`.

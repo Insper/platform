@@ -106,7 +106,7 @@ O que os números dizem:
 - **~23 mil mensagens/s em média, ~70 mil no pico**, e o fan-out dos grupos as transforma em **~460 mil entregas/s**. ⇒ a entrega é um problema de roteamento entre muitas máquinas, não um problema de banco de dados.
 - **15 M de conexões simultâneas** precisam de **~300 nós de gateway**. ⇒ os gateways são uma frota grande e **com estado**: deploys, quedas e escalonamento desconectam usuários, então a reconexão precisa ser barata e bem-comportada.
 - Se cada cliente mandasse um heartbeat de aplicação para um serviço central de presença, seriam **500 mil escritas/s** só para dizer "ainda estou aqui". ⇒ a presença precisa ser derivada da **própria conexão** no gateway e só as **mudanças** publicadas.
-- O histórico cresce **~1,8 TB/dia replicado, ~0,66 PB/ano**. ⇒ um armazenamento horizontalmente escalável e otimizado para escrita (wide-column / LSM), particionado por conversa.
+- O histórico cresce **~1,8 TB/dia replicado, ~0,66 PB/ano**. ⇒ um armazenamento horizontalmente escalável e otimizado para escrita (wide-column / árvore de mesclagem estruturada em log (LSM, *log-structured merge*)), particionado por conversa.
 
 ---
 
@@ -190,12 +190,12 @@ seq:g-42           → 1043
 flowchart LR
     a([Celular da Alice]) --> lb["Balanceador L4<br/>TCP de longa duração"]
     b([Desktop do Bob]) --> lb
-    lb --> gw1["Gateway gw-031<br/>WebSockets"]
-    lb --> gw2["Gateway gw-117<br/>WebSockets"]
-    gw1 --> cs["Serviço de chat<br/>sequenciador, fan-out"]
+    lb --> gw1["Gateway gw-031<br/>WebSockets"]:::tech
+    lb --> gw2["Gateway gw-117<br/>WebSockets"]:::tech
+    gw1 --> cs["Serviço de chat<br/>sequenciador, fan-out"]:::tech
     gw2 --> cs
     cs --> db[("Mensagens<br/>wide-column")]
-    cs --> reg[("Registro de sessões<br/>+ presença")]
+    cs --> reg[("Registro de sessões<br/>+ presença")]:::tech
     cs --> ps[["Pub/sub<br/>canal por gateway"]]
     ps --> gw1
     ps --> gw2
@@ -388,18 +388,16 @@ Quais aulas este caso testa? Cada ramo é uma aula cujas ideias o design usa (az
 
 ``` diagram
 flowchart LR
-    CASE(["Chat"]) --> EDG["Edge<br/>WebSockets, L4 LB, stateful gateways"]:::tech
-    CASE --> MSG["Messaging<br/>pub/sub per gateway, at-least-once"]:::tech
-    CASE --> DIS["Distributed<br/>per-conversation sequence, no device clocks"]:::tech
-    CASE --> DB["Databases<br/>wide-column, partition by conversation"]:::tech
-    CASE --> REL["Reliability<br/>reconnect storms: backoff + jitter"]:::tech
-    CASE --> CMP["Compute<br/>push for offline devices"]:::tech
+    CASE(["Chat"]) --> EDG["Borda<br/>WebSockets, LB L4, gateways com estado"]:::tech
+    CASE --> MSG["Mensageria<br/>pub/sub por gateway, pelo menos uma vez"]:::tech
+    CASE --> DIS["Distribuídos<br/>sequência por conversa, sem relógio do aparelho"]:::tech
+    CASE --> DB["Bancos de dados<br/>wide-column, partição por conversa"]:::tech
+    CASE --> REL["Confiabilidade<br/>tempestades de reconexão: backoff + jitter"]:::tech
+    CASE --> CMP["Compute<br/>push para dispositivos offline"]:::tech
     EDG -.-> k1["lb · app"]:::comp
     MSG -.-> k2["pubsub"]:::comp
-    DB -.-> k3["nosql · cache<br/>(session registry)"]:::comp
+    DB -.-> k3["nosql · cache<br/>(registro de sessões)"]:::comp
     CMP -.-> k4["notifications"]:::comp
-    classDef comp fill:#1e9e5a22,stroke:#1e9e5a
-    classDef tech fill:#2f6fed22,stroke:#2f6fed
 ```
 
 **Aulas que ele testa:** [Borda — protocolos](../../edge/protocols/index.md) · [Borda — balanceamento de carga](../../edge/load-balancing/index.md) · [Mensageria — semântica](../../messaging/semantics/index.md) · [Distribuídos — tempo e relógios](../../distributed/time-clocks/index.md) · [Bancos de dados — particionamento](../../databases/partitioning/index.md) · [Confiabilidade — padrões](../../reliability/patterns/index.md) · [Hands-on 7](../../../hands-on/7/index.md). **Componentes da paleta:** [`lb`](../../../reference/components/edge/index.md#lb) · [`app`](../../../reference/components/compute/index.md#app) · [`pubsub`](../../../reference/components/messaging/index.md#pubsub) · [`nosql`](../../../reference/components/storage/index.md#nosql) · [`cache`](../../../reference/components/storage/index.md#cache) · [`notifications`](../../../reference/components/compute/index.md#notifications) · [`objstore`](../../../reference/components/storage/index.md#objstore) · [`cdn`](../../../reference/components/edge/index.md#cdn). **Cenários:** `chat`.

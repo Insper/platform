@@ -8,7 +8,7 @@ Este é o caso principal da disciplina porque é o próprio **BoxOffice** e porq
 | **Dificuldade** | :material-star::material-star::material-star: difícil (favorito para sênior) |
 | **Conceitos-chave** | sala de espera / fila virtual, controle de admissão com a Lei de Little, reservas de lugar com TTL, controle de concorrência (pessimista, otimista, update condicional), idempotência, máquina de estados do pedido, webhooks de pagamento |
 | **Componentes da paleta** | [`cdn`](../../../reference/components/edge/index.md#cdn), [`waf`](../../../reference/components/edge/index.md#waf), [`apigw`](../../../reference/components/edge/index.md#apigw), [`queue`](../../../reference/components/messaging/index.md#queue), [`app`](../../../reference/components/compute/index.md#app), [`sql`](../../../reference/components/storage/index.md#sql), [`cache`](../../../reference/components/storage/index.md#cache), [`scheduler`](../../../reference/components/compute/index.md#scheduler), [`kafka`](../../../reference/components/messaging/index.md#kafka), [`payment`](../../../reference/components/external/index.md#payment), [`notifications`](../../../reference/components/compute/index.md#notifications), [`email`](../../../reference/components/external/index.md#email) |
-| **Cenário do playground** | `flash-sale` |
+| **Cenários do playground** | `ticketing`, `flash-sale` |
 
 !!! abstract "O que este caso treina"
 
@@ -55,7 +55,7 @@ Cadastro de eventos pelos produtores, preço dinâmico, marketplace de revenda, 
     | O fã escolhe o lugar exato, ou atribuímos o "melhor disponível"? | "Melhor disponível" permite ao servidor agrupar pedidos e evitar conflitos. |
     | Quanto dura uma reserva? Máximo de ingressos por conta? | O TTL da reserva e os limites alimentam a Lei de Little e a justiça. |
     | Processamos pagamentos ou usamos um provedor (Stripe, Adyen, Mercado Pago…)? | Provedor externo ⇒ webhooks, idempotência, conciliação. |
-    | A sala de espera é FIFO ou um sorteio entre quem chegou cedo? | Política de justiça; FIFO premia bots com rede rápida. |
+    | A sala de espera é primeiro a entrar, primeiro a sair (FIFO, *first in, first out*) ou um sorteio entre quem chegou cedo? | Política de justiça; FIFO premia bots com rede rápida. |
 
 ---
 
@@ -107,7 +107,7 @@ O que os números dizem — este parágrafo é o que o entrevistador quer ouvir:
 
 - **Sem sala de espera**, o estoque veria ~170 mil requisições/s durante um minuto. Um único primário PostgreSQL faz alguns milhares de pequenas transações de escrita por segundo; nenhuma quantidade de servidores de aplicação resolve, porque o gargalo é um punhado de **linhas quentes**. ⇒ precisamos de **controle de admissão**.
 - Com 10 mil compradores simultâneos e 5 minutos cada, a Lei de Little dá uma taxa de admissão de **~33 fãs/s (2 000/min)**, esgotamento em **~25 minutos** e apenas **~20 pedidos/s** — tranquilo para um banco bem indexado.
-- A própria sala de espera precisa aguentar **~17 mil entradas/s** e, se todo mundo consultar a origem, **200 mil consultas/s**. ⇒ sirva a página pela **CDN** e torne o endpoint de status barato (um token assinado + a leitura de um único contador, cacheável por um segundo).
+- A própria sala de espera precisa aguentar **~17 mil entradas/s** e, se todo mundo consultar a origem, **200 mil consultas/s**. ⇒ sirva a página pela **rede de distribuição de conteúdo (CDN, *content delivery network*)** e torne o endpoint de status barato (um token assinado + a leitura de um único contador, cacheável por um segundo).
 - Cerca de **40 chamadas de pagamento estão em andamento** a qualquer momento (20/s × 2 s). ⇒ dimensione o pool de conexões e o bulkhead do adaptador de pagamento para isso, não para os 2 M de fãs.
 - O estoque inteiro tem **~6 MB**: armazenamento não é problema; **disputa** (*contention*) é.
 
@@ -204,16 +204,16 @@ flowchart LR
     fan([Fã / mobile]) --> cdn["CDN<br/>páginas de evento, página de espera"]
     cdn --> waf["WAF<br/>bots, DDoS"]
     waf --> gw["API Gateway<br/>auth, rate limit,<br/>checagem do access token"]
-    gw --> wr["Sala de espera"]
+    gw --> wr["Sala de espera"]:::tech
     wr --> q[("Fila<br/>sorted set no Redis")]
     gw --> cat["catalog"]
     cat --> cache[("Cache<br/>disponibilidade 1 s")]
-    gw --> inv["inventory<br/>reservas"]
-    inv --> sql[("PostgreSQL<br/>seat, hold, order")]
-    gw --> ord["order"]
+    gw --> inv["inventory<br/>reservas"]:::tech
+    inv --> sql[("PostgreSQL<br/>seat, hold, order")]:::problem
+    gw --> ord["order"]:::tech
     ord --> sql
     ord --> pay["adaptador de pagamento"]
-    pay --> psp[["Provedor de pagamento"]]
+    pay --> psp[["Provedor de pagamento"]]:::problem
     psp -. webhook .-> pay
     sql -. outbox .-> kafka[["Kafka<br/>eventos de pedido"]]
     kafka --> notif["notification"] --> email[["E-mail / push"]]
@@ -275,7 +275,29 @@ O entrevistador vai escolher um ou dois destes. Comece pelo que protege a **corr
 
 ### 6.1 Reservas de lugar sem venda duplicada { #61-seat-holds-without-double-booking }
 
-Dois fãs clicam no lugar A-12-07 no mesmo milissegundo. Exatamente um deve ganhar. Há quatro formas clássicas de garantir isso ([transações e isolamento](../../databases/transactions/index.md)):
+Dois fãs clicam no lugar A-12-07 no mesmo milissegundo. Exatamente um deve ganhar. Com o update condicional recomendado, quem decide é o banco:
+
+``` diagram-sim
+sequenceDiagram
+    autonumber
+    participant F1 as Fã 1
+    participant I as inventory
+    participant D as PostgreSQL
+    participant F2 as Fã 2
+    F1->>I: POST /holds A-12-07
+    F2->>I: POST /holds A-12-07
+    I->>D: UPDATE seat … WHERE status = AVAILABLE (fã 1)
+    I->>D: UPDATE seat … WHERE status = AVAILABLE (fã 2)
+    Note over D: o lock da linha os ordena, o fã 2 espera o commit do fã 1 e reavalia o WHERE
+    D-->>I: 1 linha atualizada (fã 1)
+    I-->>F1: 201 reserva, expira em 10 min
+    D-->>I: 0 linhas atualizadas (fã 2, o lugar agora está HELD)
+    I-->>F2: 409 lugar ocupado, escolha outro
+```
+
+O perdedor espera só a transação de um comando do vencedor (milissegundos), nunca um lock mantido durante uma ida e volta ao navegador.
+
+Há quatro formas clássicas de garantir isso ([transações e isolamento](../../databases/transactions/index.md)):
 
 === "Update condicional (recomendado)"
 
@@ -327,10 +349,10 @@ Dois fãs clicam no lugar A-12-07 no mesmo milissegundo. Exatamente um deve ganh
 
 | Abordagem | Comportamento sob disputa | Armadilhas | Use quando |
 |---|---|---|---|
-| `UPDATE … WHERE status='AVAILABLE'` condicional | Os perdedores falham rápido (0 linhas) | É preciso checar o número de linhas | Padrão para lugares marcados |
-| `SELECT … FOR UPDATE` | Os perdedores **esperam** o lock | Deadlocks, locks longos, pool esgotado | Verificações em várias etapas numa transação |
-| Otimista (`version`) | Os perdedores repetem | Tempestade de retentativas em linhas quentes | Pouca disputa (dias normais) |
-| Redis `SET NX EX` | O mais rápido, TTL embutido | Duas fontes de verdade | Taxas extremas, necessidade medida |
+| `UPDATE … WHERE status='AVAILABLE'` condicional | ✅ Os perdedores falham rápido (0 linhas) | É preciso checar o número de linhas | Padrão para lugares marcados |
+| `SELECT … FOR UPDATE` | ⚠️ Os perdedores **esperam** o lock | Deadlocks, locks longos, pool esgotado | Verificações em várias etapas numa transação |
+| Otimista (`version`) | ⚠️ Os perdedores repetem | Tempestade de retentativas em linhas quentes | Pouca disputa (dias normais) |
+| Redis `SET NX EX` | ✅ O mais rápido, TTL embutido | Duas fontes de verdade | Taxas extremas, necessidade medida |
 
 **Expiração.** Uma reserva precisa acabar mesmo que o fã feche o navegador. Combine (a) **expiração preguiçosa** no comando de reserva (um lugar `HELD` expirado conta como disponível), (b) um job do **scheduler** que varre as linhas de `hold` com `expires_at < now()` a cada poucos segundos e devolve os lugares para `AVAILABLE`, para o mapa ficar correto e (c) **estender** a reserva enquanto um pagamento está em andamento, para que um fã que está pagando não perca o lugar no segundo 601.
 
@@ -358,7 +380,7 @@ Pontos de design:
 2. **Taxa de admissão pela Lei de Little.** O admissor deixa entrar `λ = L / W` fãs por segundo, onde `L` é o número de compradores que o caminho de checkout consegue atender (medido no teste de carga, ex.: 10 mil) e `W` o tempo que cada um passa (5 min). É um **laço fechado**: admite mais quando compradores saem cedo, admite menos quando o p99 de `POST /holds` sobe ou o provedor de pagamento fica lento.
 3. **Justiça.** FIFO puro premia quem tem a conexão mais rápida — normalmente os bots. Uma política comum: todos que chegam **antes** das 10:00 recebem uma posição **aleatória** às 10:00 (um sorteio) e quem chega depois vai para o fim da fila em ordem de chegada.
 4. **Tokens, não sessões.** A admissão gera um `accessToken` assinado (evento, usuário, validade). O gateway verifica a assinatura localmente — sem armazenamento de sessão compartilhado no caminho quente — e aplica o "máximo de 6 ingressos por conta".
-5. **Bots.** O [WAF](../../edge/index.md) faz pontuação de bots, rate limit por IP/ASN e desafios; exigir uma conta logada e verificada para entrar na fila é o filtro mais forte. Queue-it, Cloudflare Waiting Room e a solução AWS Virtual Waiting Room são produtos reais construídos sobre essas ideias.
+5. **Bots.** O [firewall de aplicação web (WAF, *web application firewall*)](../../edge/index.md) faz pontuação de bots, rate limit por IP/ASN e desafios; exigir uma conta logada e verificada para entrar na fila é o filtro mais forte. Queue-it, Cloudflare Waiting Room e a solução AWS Virtual Waiting Room são produtos reais construídos sobre essas ideias.
 
 !!! example "Por que não só escalar automaticamente?"
 
@@ -429,6 +451,10 @@ O cenário `flash-sale` reproduz o pico da abertura da venda (as nossas 10:00) n
 
 <div class="sdp" data-scenario="flash-sale" data-mode="full" data-height="640"></div>
 
+O cenário `ticketing` usa os números desta página: 2 M de fãs em 120 s, ≈ 17 000 entradas/s e ≈ 200 000 consultas de posição/s (cada fã a cada 10 s) sobre 40 servidores de venda e um banco de inventário, com um provedor de pagamento que leva 2 s. No desenho inicial toda requisição chega à origem: preveja o que satura primeiro e rode contra a meta de p99 da reserva abaixo de 300 ms. A solução manda as consultas para uma CDN com micro-cache de 1 s (≈ 98% de acertos) na frente de um pequeno serviço de status e as entradas para uma sala de espera drenada a ≈ 33 fãs/s — a taxa de admissão da seção 2. Compare as requisições que chegam ao banco de inventário antes e depois.
+
+<div class="sdp" data-scenario="ticketing" data-mode="compact" data-height="460"></div>
+
 [Abrir o playground completo](../../../../playground/index.md){ .md-button }
 
 ---
@@ -491,23 +517,21 @@ Quais aulas este caso testa? Cada ramo é uma aula cujas ideias o design usa (az
 
 ``` diagram
 flowchart LR
-    CASE(["Ticketing (BoxOffice)"]) --> PERF["Performance<br/>Little's Law admission, spike test"]:::tech
-    CASE --> EDG["Edge<br/>CDN, WAF, waiting room"]:::tech
-    CASE --> DB["Databases<br/>seat holds: locks, conditional updates"]:::tech
-    CASE --> CAC["Caching<br/>availability cached for 1 s"]:::tech
-    CASE --> CMP["Compute<br/>checkout state machine, payment adapter"]:::tech
-    CASE --> MSG["Messaging<br/>outbox, order events"]:::tech
-    CASE --> REL["Reliability<br/>timeouts, retries, admission control"]:::tech
+    CASE(["Ingressos (BoxOffice)"]) --> PERF["Desempenho<br/>admissão pela Lei de Little, teste de pico"]:::tech
+    CASE --> EDG["Borda<br/>CDN, WAF, sala de espera"]:::tech
+    CASE --> DB["Bancos de dados<br/>reservas de lugar: locks, updates condicionais"]:::tech
+    CASE --> CAC["Cache<br/>disponibilidade em cache por 1 s"]:::tech
+    CASE --> CMP["Compute<br/>máquina de estados do checkout, adaptador de pagamento"]:::tech
+    CASE --> MSG["Mensageria<br/>outbox, eventos de pedido"]:::tech
+    CASE --> REL["Confiabilidade<br/>timeouts, retentativas, controle de admissão"]:::tech
     EDG -.-> k1["cdn · waf · apigw · queue"]:::comp
     DB -.-> k2["sql · scheduler"]:::comp
     CAC -.-> k3["cache"]:::comp
     CMP -.-> k4["payment"]:::comp
     MSG -.-> k5["kafka · notifications · analytics"]:::comp
-    classDef comp fill:#1e9e5a22,stroke:#1e9e5a
-    classDef tech fill:#2f6fed22,stroke:#2f6fed
 ```
 
-**Aulas que ele testa:** [Borda](../../edge/index.md) (WAF, bots, sala de espera) · [Bancos de dados — transações](../../databases/transactions/index.md) · [Cache — modos de falha](../../caching/failure-modes/index.md) · [Compute — integrações](../../compute/integrations/index.md) · [Mensageria — padrões](../../messaging/patterns/index.md) · [Confiabilidade — padrões](../../reliability/patterns/index.md) · [Desempenho — planejamento de capacidade](../../performance/capacity-planning/index.md) · [Hands-on 6](../../../hands-on/6/index.md), [7](../../../hands-on/7/index.md) e [9](../../../hands-on/9/index.md). **Componentes da paleta:** [`cdn`](../../../reference/components/edge/index.md#cdn) · [`waf`](../../../reference/components/edge/index.md#waf) · [`apigw`](../../../reference/components/edge/index.md#apigw) · [`queue`](../../../reference/components/messaging/index.md#queue) · [`sql`](../../../reference/components/storage/index.md#sql) · [`cache`](../../../reference/components/storage/index.md#cache) · [`kafka`](../../../reference/components/messaging/index.md#kafka) · [`scheduler`](../../../reference/components/compute/index.md#scheduler) · [`payment`](../../../reference/components/external/index.md#payment) · [`notifications`](../../../reference/components/compute/index.md#notifications) · [`analytics`](../../../reference/components/compute/index.md#analytics). **Cenários:** `flash-sale`.
+**Aulas que ele testa:** [Borda](../../edge/index.md) (WAF, bots, sala de espera) · [Bancos de dados — transações](../../databases/transactions/index.md) · [Cache — modos de falha](../../caching/failure-modes/index.md) · [Compute — integrações](../../compute/integrations/index.md) · [Mensageria — padrões](../../messaging/patterns/index.md) · [Confiabilidade — padrões](../../reliability/patterns/index.md) · [Desempenho — planejamento de capacidade](../../performance/capacity-planning/index.md) · [Hands-on 6](../../../hands-on/6/index.md), [7](../../../hands-on/7/index.md) e [9](../../../hands-on/9/index.md). **Componentes da paleta:** [`cdn`](../../../reference/components/edge/index.md#cdn) · [`waf`](../../../reference/components/edge/index.md#waf) · [`apigw`](../../../reference/components/edge/index.md#apigw) · [`queue`](../../../reference/components/messaging/index.md#queue) · [`sql`](../../../reference/components/storage/index.md#sql) · [`cache`](../../../reference/components/storage/index.md#cache) · [`kafka`](../../../reference/components/messaging/index.md#kafka) · [`scheduler`](../../../reference/components/compute/index.md#scheduler) · [`payment`](../../../reference/components/external/index.md#payment) · [`notifications`](../../../reference/components/compute/index.md#notifications) · [`analytics`](../../../reference/components/compute/index.md#analytics). **Cenários:** `ticketing`, `flash-sale`.
 
 ---
 

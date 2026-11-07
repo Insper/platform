@@ -1,5 +1,5 @@
 
-It is 10:00 and BoxOffice opens the sale of a stadium show: two million fans, sixty thousand seats. Over the semester you built every piece needed to survive that morning — a CDN and a WAF at the edge, stateless services behind a load balancer, a cache, a database that never sells a seat twice, a queue, a payment integration, observability, a load test that found the knee. This class puts the pieces together **the way an interviewer asks for them**: a one-sentence prompt, a blank whiteboard and 45 minutes.
+It is 10:00 and BoxOffice opens the sale of a stadium show: two million fans, sixty thousand seats. Over the semester you built every piece needed to survive that morning — a content delivery network (CDN) and a web application firewall (WAF) at the edge, stateless services behind a load balancer, a cache, a database that never sells a seat twice, a queue, a payment integration, observability, a load test that found the knee. This class puts the pieces together **the way an interviewer asks for them**: a one-sentence prompt, a blank whiteboard and 45 minutes.
 
 The twelve case studies below are the classic system-design interview problems. They are not twelve unrelated systems: they are **the same few ideas** — cache the hot reads, take slow work off the critical path, choose a partition key, make retries safe, protect the one resource that cannot scale — combined in different proportions. Studying them is how the vocabulary of the course becomes a reflex.
 
@@ -13,7 +13,7 @@ The twelve case studies below are the classic system-design interview problems. 
 
     - **Apply** the interview framework of class 1 to an unseen problem within 45 minutes: clarify, estimate, API and data model, high-level design, deep dives, bottlenecks and wrap-up.
     - **Estimate** the load of a system from a few assumptions and **derive** design decisions from the numbers.
-    - **Compose** palette components (edge, compute, storage, messaging, observability, AI) into a design and **justify** each one.
+    - **Compose** palette components (edge, compute, storage, messaging, observability, artificial intelligence (AI)) into a design and **justify** each one.
     - **Analyze** a design for bottlenecks and failure modes and **defend** its trade-offs out loud.
     - **Validate** a design under load in the System Design Playground and **explain** what the metrics show.
     - **Evaluate** your own answer against a junior / mid / senior rubric.
@@ -30,9 +30,9 @@ The twelve case studies below are the classic system-design interview problems. 
 8. [Chat](chat/index.md) — WebSockets, routing between gateways, ordering, offline delivery, presence.
 9. [Ride sharing](ride-sharing/index.md) — location ingestion, geospatial indexes, matching without double assignment.
 10. [Video streaming](video-streaming/index.md) — uploads, transcoding pipeline, adaptive bitrate, CDN economics.
-11. [Payment system](payment-system/index.md) — idempotency, double-entry ledger, PSP integration, reconciliation.
+11. [Payment system](payment-system/index.md) — idempotency, double-entry ledger, payment service provider (PSP) integration, reconciliation.
 12. [Ticketing — the BoxOffice flash sale](ticketing/index.md) — the flagship: waiting room, seat holds, checkout.
-13. [AI assistant](ai-assistant/index.md) — RAG, LLM gateway, agents with tools, guardrails and evals.
+13. [AI assistant](ai-assistant/index.md) — retrieval-augmented generation (RAG), large language model (LLM) gateway, agents with tools, guardrails and evals.
 14. [Quiz](quiz.md) — check your understanding.
 
 ## Slides
@@ -53,7 +53,7 @@ Every case page follows the **interview framework** of [class 1](../intro/interv
 | # | Step | Minutes | What you produce | Typical mistake |
 |---|---|---:|---|---|
 | 1 | **Clarify the requirements** | 5 | Functional list, non-functional targets with numbers, out of scope | Designing before knowing whether it is 1 k or 1 M users |
-| 2 | **Estimate** | 5 | QPS (average and peak), storage, bandwidth, memory — and one sentence on what they imply | Computing numbers and never using them |
+| 2 | **Estimate** | 5 | queries per second (QPS), average and peak, storage, bandwidth, memory — and one sentence on what they imply | Computing numbers and never using them |
 | 3 | **API and data model** | 5–7 | A handful of endpoints, main entities, the store for each and why | Twenty endpoints, no idempotency, no pagination |
 | 4 | **High-level design** | 10 | One diagram with the read path and the write path | Boxes without data flows; every component "because big systems have it" |
 | 5 | **Deep dives** | 10–15 | Two or three hard parts solved with alternatives and a choice | Going deep on the easy part |
@@ -61,6 +61,8 @@ Every case page follows the **interview framework** of [class 1](../intro/interv
 | 7 | **Wrap-up** | 2–3 | Summary, what you would do next, how you would measure it | Running out of time mid-sentence |
 
 The ten sections of each case page map onto these steps: requirements (1), estimates (2), API and data model (3), high-level design (4), deep dives (5), bottlenecks and trade-offs (6), and then three study aids — **Try it in the playground**, **Follow-up questions** and a **self-assessment rubric**.
+
+The diagrams use the same colours on every case. In the high-level design (section 5), the **blue** boxes are the mechanisms the deep dives open, and the **red** ones are the resource the design protects: the one that cannot scale (a hot row, a provider's quota) or that fails in ways you do not control. In the *How it connects* map at the end, blue is a class and green a palette component.
 
 !!! tip "A study method that works"
 
@@ -98,16 +100,16 @@ Suggested order: from the easy warm-ups to the flagship. The difficulty is the u
 |---|---|---|---|---|
 | [URL shortener](url-shortener/index.md) | :material-star: | base62, ID generation vs. hashing, 301/302, cache-aside, async analytics | `lb` `app` `cache` `nosql` `kafka` `analytics` | `url-shortener` |
 | [Rate limiter](rate-limiter/index.md) | :material-star::material-star: | token bucket, sliding window, Lua atomicity, 429, fail-open/closed | `apigw` `lb` `waf` `cache` `metrics` | `rate-limiter` |
-| [Distributed cache](distributed-cache/index.md) | :material-star::material-star: | consistent hashing, virtual nodes, eviction (LRU/LFU/W-TinyLFU), replication, hot keys | `cache` `app` `nosql` `metrics` | `read-heavy-cache`, `sharding` |
+| [Distributed cache](distributed-cache/index.md) | :material-star::material-star: | consistent hashing, virtual nodes, eviction (least recently used, LRU; least frequently used, LFU; W-TinyLFU), replication, hot keys | `cache` `app` `nosql` `metrics` | `distributed-cache`, `read-heavy-cache`, `sharding` |
 | [Search autocomplete](search-autocomplete/index.md) | :material-star::material-star: | trie + top-k, offline aggregation, immutable snapshots, prefix sharding, debouncing | `cdn` `search` `cache` `stream` `dwh` `worker` | `search-autocomplete` |
-| [Notification system](notification-system/index.md) | :material-star::material-star: | queue per channel, retries + DLQ, dedup, preferences, provider failover, scheduled campaigns | `scheduler` `queue` `worker` `notifications` `email` `thirdparty` | `notification-system` |
+| [Notification system](notification-system/index.md) | :material-star::material-star: | queue per channel, retries + dead-letter queue (DLQ), dedup, preferences, provider failover, scheduled campaigns | `scheduler` `queue` `worker` `notifications` `email` `thirdparty` | `notification-system` |
 | [News feed](news-feed/index.md) | :material-star::material-star::material-star: | fan-out on write vs. read, celebrities, timeline cache, hydration, ranking, cursors | `app` `cache` `nosql` `kafka` `worker` `objstore` `cdn` | `news-feed` |
 | [Chat](chat/index.md) | :material-star::material-star::material-star: | WebSocket gateways, session registry, pub/sub, per-conversation sequence, receipts, presence | `lb` `app` `pubsub` `nosql` `cache` `notifications` | `chat` |
 | [Ride sharing](ride-sharing/index.md) | :material-star::material-star::material-star: | write-heavy locations, geohash/quadtree/H3, matching with locks, trip state machine | `mobile` `apigw` `stream` `cache` `sql` `payment` | `ride-sharing` |
-| [Video streaming](video-streaming/index.md) | :material-star::material-star::material-star: | pre-signed uploads, transcoding DAG, ABR (HLS/DASH), CDN + shield, egress cost | `cdn` `objstore` `queue` `worker` `sql` `analytics` | `video-streaming` |
+| [Video streaming](video-streaming/index.md) | :material-star::material-star::material-star: | pre-signed uploads, transcoding as a directed acyclic graph (DAG), adaptive bitrate (ABR) with HLS/DASH (HTTP streaming formats), CDN + shield, egress cost | `cdn` `objstore` `queue` `worker` `sql` `analytics` | `video-streaming` |
 | [Payment system](payment-system/index.md) | :material-star::material-star::material-star: | idempotency keys, double-entry ledger, PSP webhooks, reconciliation, outbox | `apigw` `app` `sql` `kafka` `scheduler` `payment` `dwh` | `payment-system` |
-| [Ticketing (BoxOffice)](ticketing/index.md) | :material-star::material-star::material-star: | waiting room, Little's Law admission, seat holds with TTL, concurrency control, checkout state machine | `cdn` `waf` `apigw` `queue` `sql` `cache` `kafka` `payment` | `flash-sale` |
-| [AI assistant](ai-assistant/index.md) | :material-star::material-star::material-star: | RAG, LLM gateway, agent loop with tools (MCP), guardrails, evals, token cost | `llmgw` `orchestrator` `toolreg` `memory` `safety` `vectordb` | `ai-assistant` |
+| [Ticketing (BoxOffice)](ticketing/index.md) | :material-star::material-star::material-star: | waiting room, Little's Law admission, seat holds with a time to live (TTL), concurrency control, checkout state machine | `cdn` `waf` `apigw` `queue` `sql` `cache` `kafka` `payment` | `ticketing`, `flash-sale` |
+| [AI assistant](ai-assistant/index.md) | :material-star::material-star::material-star: | RAG, LLM gateway, agent loop with tools (Model Context Protocol, MCP), guardrails, evals, token cost | `llmgw` `orchestrator` `toolreg` `memory` `safety` `vectordb` | `ai-assistant` |
 
 The component ids are the ones of the playground palette; each is described in the [component catalog](../../reference/components/index.md).
 
@@ -164,8 +166,6 @@ flowchart LR
     p3 --> k3["sql · payment"]:::comp
     p4 --> k4["nosql · stream · cache"]:::comp
     p5 --> k5["waf · apigw · queue · llmgw"]:::comp
-    classDef comp fill:#1e9e5a22,stroke:#1e9e5a
-    classDef tech fill:#2f6fed22,stroke:#2f6fed
 ```
 
 | Case | [Distributed](../distributed/index.md) | [Edge](../edge/index.md) | [Compute](../compute/index.md) | [Databases](../databases/index.md) | [Caching](../caching/index.md) | [Messaging](../messaging/index.md) | [Reliability](../reliability/index.md) | Also tests |
@@ -179,9 +179,20 @@ flowchart LR
 | [Chat](chat/index.md) | ● | ● | ○ | ● | ○ | ● | ○ | — |
 | [Ride sharing](ride-sharing/index.md) | ● | ○ | ○ | ● | ● | ● | ○ | — |
 | [Video streaming](video-streaming/index.md) | — | ● | ● | ● | — | ○ | — | Cloud-native (FinOps: egress cost) |
-| [Payment system](payment-system/index.md) | ● | ○ | ● | ● | — | ● | ● | Network & Security (PCI DSS scope) |
+| [Payment system](payment-system/index.md) | ● | ○ | ● | ● | — | ● | ● | Network & Security (Payment Card Industry Data Security Standard, PCI DSS, scope) |
 | [Ticketing (BoxOffice)](ticketing/index.md) | ○ | ● | ○ | ● | ○ | ● | ● | Performance (Little's Law admission, spike test) |
 | [AI assistant](ai-assistant/index.md) | — | ○ | — | ○ | ○ | — | ○ | **AI systems ●** (gateway, agents, RAG, safety) |
+
+## Key takeaways { #key-takeaways }
+
+!!! takeaways ""
+
+    - Use the **framework** and its clock: clarify, estimate, API and data model, high-level design, deep dives, trade-offs, wrap-up.
+    - Every number must end in a **decision**: "so the hot set fits in memory", "so we need a queue".
+    - Twelve problems, **a handful of patterns**: cache the hot reads, take slow work off the critical path, make retries safe, choose the partition key, protect what cannot scale.
+    - Strong consistency **only where it matters**: seats, money, driver assignments — not feeds, counters or positions.
+    - Design the **failure path** as carefully as the happy path: "what happens when X is down?" is always the next question.
+    - Practice: attempt first, compare section by section, run the scenario, answer the follow-ups, grade yourself, repeat a week later.
 
 ## What breaks next { #what-breaks-next }
 

@@ -8,7 +8,7 @@ This is BoxOffice's `payment` service — the adapter behind the order flow of t
 | | |
 |---|---|
 | **Difficulty** | :material-star::material-star::material-star: hard |
-| **Key concepts** | idempotency keys, exactly-once effect over at-least-once delivery, payment state machine with an `UNKNOWN` state, double-entry ledger, PSP integration (hosted page, tokenization, 3-D Secure, signed webhooks), reconciliation with settlement files, transactional outbox, retries with backoff and DLQ |
+| **Key concepts** | idempotency keys, exactly-once effect over at-least-once delivery, payment state machine with an `UNKNOWN` state, double-entry ledger, payment service provider (PSP) integration (hosted page, tokenization, 3-D Secure, signed webhooks), reconciliation with settlement files, transactional outbox, retries with backoff and dead-letter queue (DLQ) |
 | **Palette components** | [`apigw`](../../../reference/components/edge/index.md#apigw), [`app`](../../../reference/components/compute/index.md#app), [`sql`](../../../reference/components/storage/index.md#sql), [`kafka`](../../../reference/components/messaging/index.md#kafka), [`queue`](../../../reference/components/messaging/index.md#queue), [`worker`](../../../reference/components/compute/index.md#worker), [`scheduler`](../../../reference/components/compute/index.md#scheduler), [`payment`](../../../reference/components/external/index.md#payment), [`dwh`](../../../reference/components/storage/index.md#dwh) |
 | **Playground scenario** | `payment-system` |
 
@@ -17,7 +17,7 @@ This is BoxOffice's `payment` service — the adapter behind the order flow of t
     - **Explain** why "exactly-once delivery" does not exist and **build** an exactly-once *effect* from retries plus idempotency.
     - **Design** an idempotency-key store that handles concurrent duplicates, replays and changed payloads.
     - **Record** money movements in a double-entry ledger and **verify** that every transaction balances.
-    - **Integrate** with a payment service provider (PSP) while staying out of most of the PCI DSS scope, and **handle** timeouts whose outcome is unknown.
+    - **Integrate** with a payment service provider (PSP) while staying out of most of the Payment Card Industry Data Security Standard (PCI DSS) scope, and **handle** timeouts whose outcome is unknown.
     - **Design** reconciliation between the ledger and the provider's settlement reports.
 
 ---
@@ -187,13 +187,13 @@ CREATE TABLE outbox (id BIGSERIAL PRIMARY KEY, topic TEXT, payload JSONB, create
 
 ``` diagram-sim
 flowchart LR
-    fan([Fan browser]) -->|"card data"| psp[["PSP<br/>hosted fields, 3-D Secure"]]
+    fan([Fan browser]) -->|"card data"| psp[["PSP<br/>hosted fields, 3-D Secure"]]:::problem
     fan --> gw["API gateway"]
     gw --> ord["order"]
-    ord --> pay["payment service"]
+    ord --> pay["payment service"]:::tech
     pay --> db[("PostgreSQL<br/>payment, idempotency,<br/>ledger, outbox")]
     pay -->|"charge(token, key)"| psp
-    psp -. "signed webhook" .-> wh["webhook handler"]
+    psp -. "signed webhook" .-> wh["webhook handler"]:::tech
     wh --> db
     db -. outbox relay .-> k[["Kafka<br/>payment events"]]
     k --> ord
@@ -201,7 +201,7 @@ flowchart LR
     q[["Retry queue + DLQ"]] --> wk["workers<br/>retries, refunds, payouts"]
     pay --> q
     wk --> psp
-    sched["scheduler<br/>reconciliation"] --> rec["reconciliation job"]
+    sched["scheduler<br/>reconciliation"] --> rec["reconciliation job"]:::tech
     psp -. "settlement file (daily)" .-> rec
     rec --> dwh[("Data warehouse")]
     rec --> db
@@ -486,8 +486,6 @@ flowchart LR
     CMP -.-> k2["payment · scheduler · dwh"]:::comp
     MSG -.-> k3["kafka · queue · worker"]:::comp
     SEC -.-> k4["apigw · app"]:::comp
-    classDef comp fill:#1e9e5a22,stroke:#1e9e5a
-    classDef tech fill:#2f6fed22,stroke:#2f6fed
 ```
 
 **Classes it tests:** [Distributed — idempotency](../../distributed/index.md#idempotency) · [Distributed — transactions](../../distributed/transactions/index.md) · [Compute — integrations](../../compute/integrations/index.md) · [Databases — transactions](../../databases/transactions/index.md) · [Messaging — patterns](../../messaging/patterns/index.md) · [Reliability — patterns](../../reliability/patterns/index.md) · [Network & Security](../../network-security/index.md) · [Hands-on 7](../../../hands-on/7/index.md) and [Hands-on 9](../../../hands-on/9/index.md). **Palette components:** [`apigw`](../../../reference/components/edge/index.md#apigw) · [`app`](../../../reference/components/compute/index.md#app) · [`sql`](../../../reference/components/storage/index.md#sql) · [`kafka`](../../../reference/components/messaging/index.md#kafka) · [`queue`](../../../reference/components/messaging/index.md#queue) · [`worker`](../../../reference/components/compute/index.md#worker) · [`scheduler`](../../../reference/components/compute/index.md#scheduler) · [`payment`](../../../reference/components/external/index.md#payment) · [`dwh`](../../../reference/components/storage/index.md#dwh). **Scenarios:** `payment-system`, `retry-storm`.

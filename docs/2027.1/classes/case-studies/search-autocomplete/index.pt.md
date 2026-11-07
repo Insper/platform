@@ -1,7 +1,7 @@
 
 > *"Projete as sugestões da caixa de busca de um site grande: enquanto o usuário digita, mostre as 5–10 complementações mais prováveis do que ele está digitando, rápido o bastante para parecer instantâneo."*
 
-O autocomplete (também chamado de *typeahead* ou *busca enquanto se digita*) parece uma pequena funcionalidade de interface e é um sistema muito instrutivo. Cada **tecla** é uma requisição, então ele é um dos endpoints de maior QPS de qualquer site; a resposta precisa chegar bem abaixo de 100 ms ou não serve para nada (o usuário já digitou a próxima letra); e as sugestões são **dados derivados** — calculados offline a partir de milhões de buscas passadas e depois servidos da memória. A entrevista testa se você separa o **caminho de atendimento** (um índice só de leitura, em memória) do **caminho de dados** (logs → agregação → construção do índice) e se você sabe qual estrutura de dados responde "as top-k complementações de um prefixo" sem varrer nada.
+O autocomplete (também chamado de *typeahead* ou *busca enquanto se digita*) parece uma pequena funcionalidade de interface e é um sistema muito instrutivo. Cada **tecla** é uma requisição, então ele é um dos endpoints com mais consultas por segundo (QPS, *queries per second*) de qualquer site; a resposta precisa chegar bem abaixo de 100 ms ou não serve para nada (o usuário já digitou a próxima letra); e as sugestões são **dados derivados** — calculados offline a partir de milhões de buscas passadas e depois servidos da memória. A entrevista testa se você separa o **caminho de atendimento** (um índice só de leitura, em memória) do **caminho de dados** (logs → agregação → construção do índice) e se você sabe qual estrutura de dados responde "as top-k complementações de um prefixo" sem varrer nada.
 
 O BoxOffice precisa exatamente disso: fãs digitam `col…` e esperam *Coldplay*, *Coldplay São Paulo*, *Coala Festival*, misturando artistas, locais e cidades. Quando uma turnê é anunciada, as buscas por aquele artista disparam em minutos — e as sugestões de ontem ainda não sabem disso. Esse problema de atualidade é um dos aprofundamentos abaixo.
 
@@ -52,7 +52,7 @@ A página completa de resultados de busca (ranqueamento, índice invertido — v
 
     | Pergunta | Por que importa |
     |---|---|
-    | Só casamento de prefixo, ou também no meio das palavras ("paulo" → "Coldplay São Paulo")? | Prefixo → trie/FST; infixo → n-gramas ou índice invertido, mais memória. |
+    | Só casamento de prefixo, ou também no meio das palavras ("paulo" → "Coldplay São Paulo")? | Prefixo → trie/transdutor de estados finitos (FST, *finite-state transducer*); infixo → n-gramas ou índice invertido, mais memória. |
     | Quantas sugestões, ordenadas por quê? | O top-k por prefixo é pré-computado com um k e uma pontuação fixos. |
     | Quão atualizadas precisam ser as sugestões? | Reconstrução diária vs. uma camada de "tendências" em streaming. |
     | Personalizadas por usuário? | Resultados personalizados não podem ficar em cache na CDN. |
@@ -172,14 +172,14 @@ CREATE TABLE query_counts_daily (
 flowchart LR
     u([Navegador / app]) --> cdn["CDN<br/>prefixos curtos, 60 s"]
     cdn --> gw["API gateway"]
-    gw --> ac["Serviço de autocomplete<br/>índice em memória (réplicas)"]
+    gw --> ac["Serviço de autocomplete<br/>índice em memória (réplicas)"]:::tech
     ac --> tr[("Cache<br/>camada de tendências")]
     u -. eventos de busca .-> st[["Stream de eventos<br/>logs de busca"]]
     st --> agg["Workers de agregação<br/>contagens com decaimento"]
     agg --> dwh[("Data warehouse<br/>contagens de buscas")]
     st --> trend["Job de tendências<br/>últimos 15 min"]
     trend --> tr
-    dwh --> build["Construtor do índice<br/>(por hora / por dia)"]
+    dwh --> build["Construtor do índice<br/>(por hora / por dia)"]:::tech
     build --> obj[("Object store<br/>snapshots do índice")]
     obj -. carga + troca atômica .-> ac
 ```
@@ -256,6 +256,21 @@ for p in ("c", "co", "col", "m", "ma", "mar", "x"):
     print(f"| `{p}` | {', '.join(suggest(root, p)) or '—'} |")
 ```
 
+A trie do exemplo acima, com a lista que cada nó guarda; digitar `col` percorre três nós e devolve a lista do último:
+
+``` diagram
+flowchart TD
+    trie(("raiz")) --> c["c<br/>coldplay · coldplay sao paulo · concert tickets"]:::tech
+    trie --> m["m<br/>metallica · madonna · maroon 5"]
+    c --> co["co<br/>coldplay · coldplay sao paulo · concert tickets"]:::tech
+    co --> col["col<br/>coldplay · coldplay sao paulo · coldplay rio"]:::comp
+    co --> coa["coa<br/>coala festival"]
+    co --> con["con<br/>concert tickets"]
+    m --> ma["ma<br/>madonna · maroon 5 · maracana"]
+    m --> me["me<br/>metallica · metallica 2027"]
+    ma --> mar["mar<br/>maroon 5 · maracana · marisa monte"]
+```
+
 O preço é memória (k entradas por nó, a maioria repetida ao longo de um caminho) e **reconstruir em vez de atualizar**: mudar uma contagem pode mudar o top-k de todos os ancestrais. Por isso o índice é construído offline e servido só para leitura.
 
 === "Trie com top-k por nó"
@@ -273,10 +288,10 @@ O preço é memória (k entradas por nó, a maioria repetida ao longo de um cami
 | | Trie + top-k | Tabela hash de prefixos | FST (motor de busca) |
 |---|---|---|---|
 | Consulta | O(tamanho do prefixo) | O(1) | O(tamanho do prefixo) |
-| Memória | Média | A maior | **A menor** |
+| Memória | 🟡 Média | 🔴 A maior | 🟢 **A menor** |
 | Fragmentação | Por faixa de prefixo | Por chave (qualquer KV) | Por índice/shard do motor |
 | Construção | Job próprio | Job próprio | Indexação do motor |
-| Tolerância a erros | Própria | Difícil | Nativa (fuzzy) |
+| Tolerância a erros | ⚠️ Própria | ❌ Difícil | ✅ Nativa (fuzzy) |
 
 ### 6.2 O pipeline de dados: dos logs aos snapshots { #62-the-data-pipeline-from-logs-to-snapshots }
 
@@ -391,7 +406,7 @@ O cenário `search-autocomplete` coloca um serviço de busca atrás de um cache,
 
     - **Faça debounce no cliente e cancele requisições obsoletas** — cerca de 100 ms de debounce eliminam a maior parte das requisições por tecla e uma requisição cancelada é uma que o servidor nunca atende.
     - **Construa o índice offline e troque-o de forma atômica** — os nós que servem só leem; um build ruim é revertido apontando para a versão anterior.
-    - **Guarde prefixos curtos em cache na CDN com TTL curto** — prefixos de uma e duas letras são iguais para todos e os mais pedidos.
+    - **Guarde prefixos curtos em cache na CDN com tempo de vida (TTL, *time to live*) curto** — prefixos de uma e duas letras são iguais para todos e os mais pedidos.
     - **Filtre as sugestões por uma lista de bloqueio antes de publicá-las** — uma sugestão ofensiva ou juridicamente sensível é um incidente mesmo que um milhão de usuários a tenha digitado.
     - **Mantenha um orçamento de latência por tecla, por exemplo p99 < 100 ms** — uma sugestão que chega depois da próxima letra é inútil.
 
@@ -403,19 +418,17 @@ Quais aulas este caso testa? Cada ramo é uma aula cujas ideias o design usa (az
 
 ``` diagram
 flowchart LR
-    CASE(["Search autocomplete"]) --> EST["Estimation<br/>keystrokes, debouncing"]:::tech
-    CASE --> EDG["Edge<br/>CDN for short prefixes"]:::tech
-    CASE --> CMP["Compute<br/>in-memory service, index builders"]:::tech
-    CASE --> DB["Databases<br/>trie with top-k, snapshots"]:::tech
-    CASE --> CAC["Caching<br/>trending overlay"]:::tech
-    CASE --> MSG["Messaging<br/>search logs as a stream"]:::tech
+    CASE(["Autocompletar de busca"]) --> EST["Estimativa<br/>teclas, debounce"]:::tech
+    CASE --> EDG["Borda<br/>CDN para prefixos curtos"]:::tech
+    CASE --> CMP["Compute<br/>serviço em memória, construtores de índice"]:::tech
+    CASE --> DB["Bancos de dados<br/>trie com top-k, snapshots"]:::tech
+    CASE --> CAC["Cache<br/>camada de tendências"]:::tech
+    CASE --> MSG["Mensageria<br/>logs de busca como stream"]:::tech
     EDG -.-> k1["cdn · apigw"]:::comp
     CMP -.-> k2["search · worker"]:::comp
     DB -.-> k3["dwh · objstore"]:::comp
     CAC -.-> k4["cache"]:::comp
     MSG -.-> k5["stream"]:::comp
-    classDef comp fill:#1e9e5a22,stroke:#1e9e5a
-    classDef tech fill:#2f6fed22,stroke:#2f6fed
 ```
 
 **Aulas que ele testa:** [Borda — DNS e CDN](../../edge/dns-cdn/index.md) · [Compute — trabalho assíncrono](../../compute/async-work/index.md) · [Bancos de dados — especializados](../../databases/specialized/index.md) · [Caching — padrões](../../caching/patterns/index.md) · [Mensageria — Kafka](../../messaging/kafka/index.md) · [Estimativas — números](../../estimation/numbers/index.md). **Componentes da paleta:** [`cdn`](../../../reference/components/edge/index.md#cdn) · [`apigw`](../../../reference/components/edge/index.md#apigw) · [`search`](../../../reference/components/compute/index.md#search) · [`cache`](../../../reference/components/storage/index.md#cache) · [`stream`](../../../reference/components/messaging/index.md#stream) · [`worker`](../../../reference/components/compute/index.md#worker) · [`dwh`](../../../reference/components/storage/index.md#dwh) · [`objstore`](../../../reference/components/storage/index.md#objstore). **Cenários:** `search-autocomplete`.

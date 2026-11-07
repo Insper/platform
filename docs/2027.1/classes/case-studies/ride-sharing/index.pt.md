@@ -180,12 +180,12 @@ flowchart LR
     d([App do motorista]) --> gw["Gateway<br/>conexões persistentes"]
     r([App do passageiro]) --> gw
     gw --> loc["Serviço de localização"]
-    loc --> st[["Stream de localizações<br/>particionado por cidade"]]
-    st --> geo[("Índice geográfico<br/>últimas posições")]
+    loc --> st[["Stream de localizações<br/>particionado por cidade"]]:::tech
+    st --> geo[("Índice geográfico<br/>últimas posições")]:::tech
     st --> hist[("Histórico<br/>object store")]
     st --> surge["Preço dinâmico<br/>oferta/demanda por célula"]
     gw --> ride["Serviço de corridas"]
-    ride --> match["Matching / despacho"]
+    ride --> match["Matching / despacho"]:::tech
     match --> geo
     match --> eta["ETA / rotas"]
     match -. oferta .-> gw
@@ -228,7 +228,7 @@ sequenceDiagram
 - **A última posição é o produto; o rastro é analytics.** O serviço de localização valida o ponto (velocidade plausível, fora do oceano), grava o último valor no índice geográfico e o acrescenta ao stream. Nada no caminho quente lê o histórico.
 - **Agrupe e aglutine.** O gateway pode aglutinar atualizações por motorista (se duas chegam na mesma janela de 100 ms, fica a mais nova) e gravar no índice geográfico em lotes com pipelining.
 - **Frequência adaptativa.** Um motorista disponível parado não precisa informar a cada 4 s; um motorista se aproximando do embarque precisa de mais. O app adapta o intervalo à velocidade e ao estado — menos escritas, mais atualidade onde importa.
-- **Desatualização.** Cada estado de motorista tem um TTL renovado pelas atualizações; um celular que fica em silêncio por 30 s sai do conjunto de candidatos automaticamente, sem job de limpeza.
+- **Desatualização.** Cada estado de motorista tem um tempo de vida (TTL, *time to live*) renovado pelas atualizações; um celular que fica em silêncio por 30 s sai do conjunto de candidatos automaticamente, sem job de limpeza.
 - **Particione por cidade.** O tópico do stream, o índice geográfico e o banco de corridas são todos particionados por cidade (ou região), então uma consulta em São Paulo nunca toca os shards de Lisboa ([particionamento](../../databases/partitioning/index.md)).
 
 ### 6.2 O índice espacial: geohash, quadtree ou H3 { #62-the-spatial-index-geohash-quadtree-or-h3 }
@@ -250,8 +250,8 @@ Uma B-tree em `(lat, lon)` não responde "dentro de 2 km" de forma eficiente: el
 | | Geohash | Quadtree | H3 |
 |---|---|---|---|
 | Forma da célula | Retângulos, grade fixa | Quadrados, adaptativa | Hexágonos, hierarquia fixa |
-| Adapta-se à densidade | Não (escolha uma precisão) | **Sim** | Não (escolha uma resolução) |
-| Busca de vizinhos | 8 vizinhos + a própria (arestas e cantos a distâncias diferentes) | Percurso na árvore | Anel `k`, distâncias uniformes |
+| Adapta-se à densidade | ❌ Não (escolha uma precisão) | ✅ **Sim** | ❌ Não (escolha uma resolução) |
+| Busca de vizinhos | ⚠️ 8 vizinhos + a própria (arestas e cantos a distâncias diferentes) | Percurso na árvore | ✅ Anel `k`, distâncias uniformes |
 | Armazenamento | Chave string/inteiro em qualquer KV | Árvore em memória | ID de 64 bits em qualquer KV |
 | Uso típico | Redis GEO, geo do Elasticsearch, serviços simples | Serviços espaciais em memória | Mapas de preço dinâmico, analytics, despacho em escala |
 
@@ -271,6 +271,18 @@ for p in range(4, 9):
 ```
 
 A precisão 6 (~1,1 × 0,6 km) é um bom balde para "motoristas a uns dois km". **Problema da borda:** um passageiro na beirada de uma célula pode estar a 50 m de um motorista na célula vizinha — sempre busque a célula **mais suas 8 vizinhas** (ou um anel `k` do H3) e depois filtre pela distância real. Se poucos motoristas forem encontrados, **amplie o anel** (precisão 5, ou `k + 1`) até aparecerem candidatos suficientes ou atingir um raio máximo.
+
+``` diagram-sim
+flowchart LR
+    r["Passageiro no embarque<br/>geohash precisão 6"] --> n["busca a célula<br/>+ suas 8 vizinhas"]:::tech
+    n --> f["filtra pela distância real<br/>só motoristas AVAILABLE"]
+    f --> e{"20 candidatos<br/>a até 2 km?"}
+    e -->|"sim"| rank["ordena pelo ETA na rua<br/>(matching)"]
+    e -->|"não"| x{"raio máximo<br/>atingido?"}
+    x -->|"não"| grow["amplia o anel<br/>precisão 5, ou k + 1"]:::tech
+    grow --> f
+    x -->|"sim"| none["nenhum motorista perto<br/>avisa o passageiro"]:::problem
+```
 
 ### 6.3 Matching sem atribuição dupla { #63-matching-without-double-assignment }
 
@@ -394,18 +406,16 @@ Quais aulas este caso testa? Cada ramo é uma aula cujas ideias o design usa (az
 
 ``` diagram
 flowchart LR
-    CASE(["Ride sharing"]) --> EST["Estimation<br/>location writes, latest position fits in memory"]:::tech
-    CASE --> DB["Databases<br/>geohash, quadtree, H3, partition by city"]:::tech
-    CASE --> MSG["Messaging<br/>location stream by city"]:::tech
-    CASE --> DIS["Distributed<br/>one driver, one ride: atomic guard"]:::tech
-    CASE --> CMP["Compute<br/>trip state machine, payment"]:::tech
-    CASE --> EDG["Edge<br/>persistent connections"]:::tech
-    DB -.-> k1["cache (geo index) · sql"]:::comp
+    CASE(["Corridas por aplicativo"]) --> EST["Estimativa<br/>escritas de localização, a última posição cabe na memória"]:::tech
+    CASE --> DB["Bancos de dados<br/>geohash, quadtree, H3, partição por cidade"]:::tech
+    CASE --> MSG["Mensageria<br/>stream de localizações por cidade"]:::tech
+    CASE --> DIS["Distribuídos<br/>um motorista, uma corrida: guarda atômica"]:::tech
+    CASE --> CMP["Compute<br/>máquina de estados da corrida, pagamento"]:::tech
+    CASE --> EDG["Borda<br/>conexões persistentes"]:::tech
+    DB -.-> k1["cache (índice geo) · sql"]:::comp
     MSG -.-> k2["stream · objstore"]:::comp
     CMP -.-> k3["payment · notifications"]:::comp
     EDG -.-> k4["mobile · apigw"]:::comp
-    classDef comp fill:#1e9e5a22,stroke:#1e9e5a
-    classDef tech fill:#2f6fed22,stroke:#2f6fed
 ```
 
 **Aulas que ele testa:** [Bancos de dados — especializados](../../databases/specialized/index.md) · [Bancos de dados — particionamento](../../databases/partitioning/index.md) · [Mensageria — Kafka](../../messaging/kafka/index.md) · [Distribuídos — consenso](../../distributed/consensus/index.md) · [Compute — integrações](../../compute/integrations/index.md) · [Caching — Redis](../../caching/redis/index.md) (comandos geo) · [Hands-on 6](../../../hands-on/6/index.md). **Componentes da paleta:** [`mobile`](../../../reference/components/client/index.md#mobile) · [`apigw`](../../../reference/components/edge/index.md#apigw) · [`stream`](../../../reference/components/messaging/index.md#stream) · [`cache`](../../../reference/components/storage/index.md#cache) · [`sql`](../../../reference/components/storage/index.md#sql) · [`objstore`](../../../reference/components/storage/index.md#objstore) · [`payment`](../../../reference/components/external/index.md#payment) · [`notifications`](../../../reference/components/compute/index.md#notifications). **Cenários:** `ride-sharing`.

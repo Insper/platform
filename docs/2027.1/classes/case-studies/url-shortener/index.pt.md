@@ -157,7 +157,7 @@ CREATE TABLE id_range (
 | Dado | Armazenamento | Por quê |
 |---|---|---|
 | `code → long_url` | NoSQL chave-valor / wide-column (`nosql`), particionado por `code` | Consultas pontuais, escala horizontal, sem joins; 3 TB espalhados pelos nós |
-| Códigos quentes | Cache (`cache`), cache-aside, TTL de horas | Conjunto quente de ~33 GB; a maioria dos redirecionamentos nunca toca o banco |
+| Códigos quentes | Cache (`cache`), cache-aside, tempo de vida (TTL, *time to live*) de horas | Conjunto quente de ~33 GB; a maioria dos redirecionamentos nunca toca o banco |
 | Faixas de IDs | Pequena tabela SQL ou um serviço de coordenação (etcd, ZooKeeper) | Poucas escritas por minuto; precisa de incrementos atômicos |
 | Eventos de clique | Kafka (`kafka`) → armazenamento de analytics / data warehouse | Alto volume, só inserção, lidos de forma agregada |
 
@@ -174,10 +174,10 @@ flowchart LR
     u([Navegador / app]) --> dns["DNS"]
     dns --> lb["Balanceador de carga"]
     lb --> app["App encurtador<br/>(sem estado, N réplicas)"]
-    app --> cache[("Cache<br/>códigos quentes")]
+    app --> cache[("Cache<br/>códigos quentes")]:::tech
     app --> db[("NoSQL<br/>code → long_url")]
-    app --> ids["Alocador de IDs<br/>(faixas)"]
-    app -. evento de clique .-> k[["Kafka<br/>cliques"]]
+    app --> ids["Alocador de IDs<br/>(faixas)"]:::tech
+    app -. evento de clique .-> k[["Kafka<br/>cliques"]]:::tech
     k --> agg["Workers de analytics<br/>agregam"]
     agg --> dwh[("Armazenamento de analytics")]
 ```
@@ -238,10 +238,10 @@ Este é o aprofundamento que todo entrevistador espera. Quatro famílias, cada u
 
 | Estratégia | Colisões | Coordenação | Previsível? | Tamanho do código | Mesma URL → mesmo código |
 |---|---|---|---|---|---|
-| Hash + truncamento | Sim, precisa repetir | Nenhuma (mas uma escrita condicional) | Não | 7 | Sim |
-| Contador + base62 (faixas) | Não | Uma atualização atômica por bloco | **Sim** (sequencial) | 7 | Não |
-| KGS | Não | Serviço KGS | Não | 7 | Não |
-| Snowflake | Não | Só IDs de máquina | Em parte (ordenado no tempo) | ~11 | Não |
+| Hash + truncamento | ❌ Sim, precisa repetir | Nenhuma (mas uma escrita condicional) | ✅ Não | 7 | Sim |
+| Contador + base62 (faixas) | ✅ Não | Uma atualização atômica por bloco | ⚠️ **Sim** (sequencial) | 7 | Não |
+| KGS | ✅ Não | Serviço KGS | ✅ Não | 7 | Não |
+| Snowflake | ✅ Não | Só IDs de máquina | ⚠️ Em parte (ordenado no tempo) | ⚠️ ~11 | Não |
 
 A codificação base62 em si são poucas linhas:
 
@@ -264,14 +264,37 @@ def base62(n: int) -> str:
 
 **Recomendação para a entrevista:** contador com alocação por faixas + embaralhamento para códigos gerados; uma inserção condicional (`IF NOT EXISTS`) para aliases personalizados. Cite o hash e por que você não o escolheu (colisões, estatísticas compartilhadas).
 
+Como o gerador recomendado se comporta com dois servidores de aplicação e quanto custa uma queda:
+
+``` diagram-sim
+sequenceDiagram
+    autonumber
+    participant A as app-1
+    participant D as id_range (SQL)
+    participant B as app-2
+    A->>D: UPDATE … next_start + 10000 RETURNING
+    D-->>A: bloco 1 – 10.000
+    B->>D: UPDATE … next_start + 10000 RETURNING
+    D-->>B: bloco 10.001 – 20.000
+    A->>A: link id 1 → embaralha → base62 → Op1frbP
+    A->>A: link id 2 → embaralha → base62 → CO2uSnE
+    B->>B: link id 10.001 → embaralha → base62 → pUtl23D
+    Note over A: app-1 cai depois do id 4.210
+    A->>D: (reiniciado) aluga o próximo bloco
+    D-->>A: bloco 20.001 – 30.000
+    Note over A,D: os ids 4.211 – 10.000 nunca são usados, uma lacuna que não custa nada
+```
+
+Uma ida ao SQL a cada 10.000 links e nenhuma coordenação entre os servidores nesse intervalo. Ids consecutivos (1, 2) geram códigos sem nada em comum; a multiplicação por uma constante grande módulo 62^7 é uma bijeção, então dois ids nunca recebem o mesmo código.
+
 ### 6.2 O redirecionamento: 301 ou 302 e o cache { #62-the-redirect-301-or-302-and-caching }
 
 | | 301 Moved Permanently | 302 Found (ou 307) |
 |---|---|---|
 | O navegador guarda em cache? | Sim, potencialmente para sempre | Não (a menos que o `Cache-Control` diga) |
-| Carga nos nossos servidores | Menor: cliques repetidos nunca chegam até nós | Todo clique chega até nós |
-| Analytics | Subconta visitas repetidas | Completo |
-| Mudar/expirar o link depois | Difícil: navegadores guardam a resposta antiga | Fácil |
+| Carga nos nossos servidores | ✅ Menor: cliques repetidos nunca chegam até nós | ⚠️ Todo clique chega até nós |
+| Analytics | ❌ Subconta visitas repetidas | ✅ Completo |
+| Mudar/expirar o link depois | ❌ Difícil: navegadores guardam a resposta antiga | ✅ Fácil |
 
 A maioria dos encurtadores comerciais responde **302** (ou 301 com um `Cache-Control: max-age` curto) porque o analytics e a capacidade de desativar um link malicioso fazem parte do produto. Seja qual for a escolha, **diga por quê** ([semântica HTTP](../../edge/protocols/index.md)).
 
@@ -350,7 +373,7 @@ O cenário `url-shortener` tem o caminho de leitura desta página: balanceador d
 
 ??? question "Como você conta cliques únicos por link?"
 
-    Contagens exatas de únicos exigem o conjunto de IDs de visitantes — enorme para links populares. Use **HyperLogLog** por link por dia (`PFADD`/`PFCOUNT` no Redis, ou a função de distintos aproximados do armazenamento de analytics): ~1% de erro com alguns kilobytes por contador e HLLs podem ser combinados entre dias.
+    Contagens exatas de únicos exigem o conjunto de IDs de visitantes — enorme para links populares. Use **HyperLogLog** por link por dia (`PFADD`/`PFCOUNT` no Redis, ou a função de distintos aproximados do armazenamento de analytics): ~1% de erro com alguns kilobytes por contador e HyperLogLog (HLLs) podem ser combinados entre dias.
 
 ??? question "Como você limpa links expirados? Códigos podem ser reutilizados?"
 
@@ -392,18 +415,16 @@ Quais aulas este caso testa? Cada ramo é uma aula cujas ideias o design usa (az
 
 ``` diagram
 flowchart LR
-    CASE(["URL shortener"]) --> EST["Estimation<br/>reads ≫ writes, hot set"]:::tech
-    CASE --> DIS["Distributed<br/>unique IDs: ranges, Snowflake"]:::tech
-    CASE --> EDG["Edge<br/>DNS, LB, 301 vs 302"]:::tech
-    CASE --> DB["Databases<br/>key-value: code → long URL"]:::tech
-    CASE --> CAC["Caching<br/>cache-aside for hot codes"]:::tech
-    CASE --> MSG["Messaging<br/>clicks as events"]:::tech
+    CASE(["Encurtador de URLs"]) --> EST["Estimativa<br/>leituras ≫ escritas, conjunto quente"]:::tech
+    CASE --> DIS["Distribuídos<br/>IDs únicos: faixas, Snowflake"]:::tech
+    CASE --> EDG["Borda<br/>DNS, LB, 301 vs 302"]:::tech
+    CASE --> DB["Bancos de dados<br/>chave-valor: código → URL longa"]:::tech
+    CASE --> CAC["Cache<br/>cache-aside para códigos quentes"]:::tech
+    CASE --> MSG["Mensageria<br/>cliques como eventos"]:::tech
     EDG -.-> k1["dns · lb · app"]:::comp
     DB -.-> k2["nosql"]:::comp
     CAC -.-> k3["cache"]:::comp
     MSG -.-> k4["kafka · analytics"]:::comp
-    classDef comp fill:#1e9e5a22,stroke:#1e9e5a
-    classDef tech fill:#2f6fed22,stroke:#2f6fed
 ```
 
 **Aulas que ele testa:** [Estimativas — números](../../estimation/numbers/index.md) · [Distribuídos — tempo e relógios](../../distributed/time-clocks/index.md) (IDs únicos) · [Borda — protocolos](../../edge/protocols/index.md) (redirecionamentos) · [Bancos de dados — modelos](../../databases/models/index.md) · [Caching — padrões](../../caching/patterns/index.md) · [Mensageria — semântica](../../messaging/semantics/index.md). **Componentes da paleta:** [`dns`](../../../reference/components/edge/index.md#dns) · [`lb`](../../../reference/components/edge/index.md#lb) · [`app`](../../../reference/components/compute/index.md#app) · [`cache`](../../../reference/components/storage/index.md#cache) · [`nosql`](../../../reference/components/storage/index.md#nosql) · [`kafka`](../../../reference/components/messaging/index.md#kafka) · [`analytics`](../../../reference/components/compute/index.md#analytics) · [`dwh`](../../../reference/components/storage/index.md#dwh). **Cenários:** `url-shortener`, `read-heavy-cache`.

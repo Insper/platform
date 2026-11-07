@@ -3,7 +3,7 @@
 
 Every public API needs one, and every large system has several: at the edge against floods, at the gateway per client, inside services to protect a fragile dependency. The problem is small enough to design end to end in 45 minutes and deep enough to separate levels: a junior candidate names "token bucket"; a senior one explains **why** a sliding-window counter is accurate enough, how to make the check **atomic** across 20 gateway replicas, what happens when the counter store is **down**, and why rate limiting alone does not stop an overload.
 
-In BoxOffice, the rate limiter is the second line of defense of the flash sale: the [WAF](../../../reference/components/edge/index.md#waf) stops obvious floods, the waiting room meters admissions, and the gateway enforces "5 hold attempts per minute per account" and the quotas of reseller partners.
+In BoxOffice, the rate limiter is the second line of defense of the flash sale: the [web application firewall (WAF)](../../../reference/components/edge/index.md#waf) stops obvious floods, the waiting room meters admissions, and the gateway enforces "5 hold attempts per minute per account" and the quotas of reseller partners.
 
 | | |
 |---|---|
@@ -46,7 +46,7 @@ The word "rate limiter" hides several different products. Ask before drawing ([i
 
 ### Out of scope (say it explicitly)
 
-DDoS protection at the network layer (that is the WAF/CDN's job), billing based on usage, abuse detection with machine learning. Mention that they exist in the layers around the limiter.
+DDoS protection at the network layer (that is the WAF/content delivery network (CDN)'s job), billing based on usage, abuse detection with machine learning. Mention that they exist in the layers around the limiter.
 
 ??? question "Questions to ask the interviewer"
 
@@ -57,7 +57,7 @@ DDoS protection at the network layer (that is the WAF/CDN's job), billing based 
     | Hard limit or soft (allow a burst)? | Token bucket allows bursts; leaky bucket smooths them. |
     | How many gateway replicas, how many regions? | A per-replica limit is wrong by a factor N; a global limit needs shared state. |
     | What should happen if the limiter's storage is down? | Fail-open (availability) vs. fail-closed (protection). |
-    | Is the limit about **rate** or about **concurrency** or **cost**? | "10 requests/s" vs. "5 in flight" vs. "100 k LLM tokens/min" are different mechanisms. |
+    | Is the limit about **rate** or about **concurrency** or **cost**? | "10 requests/s" vs. "5 in flight" vs. "100 k large language model (LLM) tokens/min" are different mechanisms. |
 
 ---
 
@@ -166,7 +166,7 @@ rl:log:user:42         → { 1767261600123, 1767261600201, ... }
 
 | Data | Store | Why |
 |---|---|---|
-| Counters / buckets | In-memory KV with TTL and atomic scripts: Redis (`cache`) | Sub-millisecond, atomic, expires by itself; losing it costs only a few extra requests |
+| Counters / buckets | In-memory KV with time to live (TTL) and atomic scripts: Redis (`cache`) | Sub-millisecond, atomic, expires by itself; losing it costs only a few extra requests |
 | Rules | Config service or SQL, cached in every gateway (refresh every few seconds) | Read on every request: must be local |
 | Allowed / rejected events | Metrics (`metrics`), sampled logs | Dashboards, alerting on unusual rejection rates, tuning limits |
 
@@ -178,13 +178,13 @@ rl:log:user:42         → { 1767261600123, 1767261600201, ... }
 flowchart LR
     c([Clients]) --> waf["WAF / CDN<br/>coarse per-IP limits"]
     waf --> lb["Load balancer"]
-    lb --> gw1["API gateway #1<br/>rate-limit filter"]
-    lb --> gw2["API gateway #N<br/>rate-limit filter"]
-    gw1 --> r[("Redis Cluster<br/>counters, Lua")]
+    lb --> gw1["API gateway #1<br/>rate-limit filter"]:::tech
+    lb --> gw2["API gateway #N<br/>rate-limit filter"]:::tech
+    gw1 --> r[("Redis Cluster<br/>counters, Lua")]:::tech
     gw2 --> r
     cfg["Rules config<br/>service"] -. pushed / cached .-> gw1
     cfg -. pushed / cached .-> gw2
-    gw1 --> svc["Backend services"]
+    gw1 --> svc["Backend services"]:::problem
     gw2 --> svc
     gw1 -. allowed / 429 .-> m["Metrics"]
 ```
@@ -221,9 +221,9 @@ sequenceDiagram
 |---|---|---|---|---|---|
 | **Token bucket** | Bucket of capacity `b` refilled at `r` tokens/s; each request takes a token | Allows bursts up to `b` | 2 numbers | Exact | API limits (AWS, Stripe-style) |
 | **Leaky bucket** | Requests enter a FIFO drained at a constant rate | Smooths them out (queues or drops) | A queue or 2 numbers | Exact | Shaping traffic to a fragile backend |
-| **Fixed window** | Counter per window `floor(now / w)` | Up to **2×** at window boundaries | 1 number | Weak at edges | Coarse quotas (per day) |
-| **Sliding window log** | Store every timestamp; count those in the last `w` | None | One entry per request | Exact | Low-volume, high-value limits |
-| **Sliding window counter** | Current count + previous count × overlap fraction | Small | 2 numbers | Approximate (assumes uniform previous window) | Large-scale API limits (Cloudflare-style) |
+| **Fixed window** | Counter per window `floor(now / w)` | ❌ Up to **2×** at window boundaries | 1 number | ⚠️ Weak at edges | Coarse quotas (per day) |
+| **Sliding window log** | Store every timestamp; count those in the last `w` | None | ⚠️ One entry per request | Exact | Low-volume, high-value limits |
+| **Sliding window counter** | Current count + previous count × overlap fraction | Small | 2 numbers | ⚠️ Approximate (assumes uniform previous window) | Large-scale API limits (Cloudflare-style) |
 | **GCRA** | Tracks a "theoretical arrival time"; equivalent to a token bucket | Configurable | 1 timestamp | Exact | Same as token bucket, less state |
 
 The boundary problem of fixed windows is easiest to see with a trace. Limit: 10 requests per second; a client sends 10 requests at t = 0.99 s and 10 more at t = 1.01 s:
@@ -294,10 +294,26 @@ The fixed window lets **20 requests through in 20 ms** — twice the limit — b
 
 The naive implementation has a race:
 
-```text
-gateway A: GET rl:user:42      → 9          gateway B: GET rl:user:42 → 9
-gateway A: 9 < 10 → allow, SET 10           gateway B: 9 < 10 → allow, SET 10
-                       → 11 requests allowed, counter says 10
+``` diagram-sim
+sequenceDiagram
+    autonumber
+    participant A as Gateway A
+    participant R as Redis
+    participant B as Gateway B
+    alt naive: GET, check, SET
+        A->>R: GET rl:user:42
+        R-->>A: 9
+        B->>R: GET rl:user:42
+        R-->>B: 9
+        A->>R: 9 is below 10, allow, SET rl:user:42 10
+        B->>R: 9 is below 10, allow, SET rl:user:42 10
+        Note over A,B: 11 requests allowed, the counter says 10
+    else atomic: one Lua script per request
+        A->>R: EVALSHA token_bucket (read, check and write in one step)
+        R-->>A: allowed = 1
+        B->>R: EVALSHA token_bucket
+        R-->>B: allowed = 0, retry after …
+    end
 ```
 
 Read-check-write must be **one atomic operation** on the store. In Redis, use `INCR` (atomic) for counters, or a **Lua script**, which runs atomically on the shard that owns the key:
@@ -368,7 +384,7 @@ flowchart LR
 ### 6.4 When the limiter itself fails
 
 - **Fail-open** (allow when Redis is unreachable) keeps the API available — the right default for ordinary limits, because the limiter exists to protect the backend, and a short period without limits is rarely worse than a full outage. Pair it with a **local fallback bucket** so the protection degrades instead of disappearing.
-- **Fail-closed** (reject) for limits that guard security: login attempts, password reset, OTP verification — otherwise an attacker who can overload Redis also disables brute-force protection.
+- **Fail-closed** (reject) for limits that guard security: login attempts, password reset, one-time password (OTP) verification — otherwise an attacker who can overload Redis also disables brute-force protection.
 - Put a **tight timeout** (a few ms) on the Redis call and a circuit breaker around it: a slow limiter is worse than none, because it adds latency to every request ([reliability patterns](../../reliability/patterns/index.md)).
 
 !!! warning "Rate limiting is not overload protection"
@@ -477,8 +493,6 @@ flowchart LR
     EDG -.-> k1["waf · cdn · lb · apigw"]:::comp
     CAC -.-> k2["cache"]:::comp
     REL -.-> k3["metrics"]:::comp
-    classDef comp fill:#1e9e5a22,stroke:#1e9e5a
-    classDef tech fill:#2f6fed22,stroke:#2f6fed
 ```
 
 **Classes it tests:** [Edge — API gateway](../../edge/api-gateway/index.md) · [Caching — Redis](../../caching/redis/index.md) · [Reliability — patterns](../../reliability/patterns/index.md) (load shedding, backoff with jitter) · [Performance](../../performance/index.md) · [Hands-on 3](../../../hands-on/3/index.md) and [Hands-on 4](../../../hands-on/4/index.md). **Palette components:** [`waf`](../../../reference/components/edge/index.md#waf) · [`cdn`](../../../reference/components/edge/index.md#cdn) · [`lb`](../../../reference/components/edge/index.md#lb) · [`apigw`](../../../reference/components/edge/index.md#apigw) · [`cache`](../../../reference/components/storage/index.md#cache) · [`metrics`](../../../reference/components/observability/index.md#metrics). **Scenarios:** `rate-limiter`.

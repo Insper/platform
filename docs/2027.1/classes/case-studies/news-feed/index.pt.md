@@ -8,7 +8,7 @@ O BoxOffice tem o mesmo formato: fãs **seguem** artistas e locais e a aba "Segu
 | | |
 |---|---|
 | **Dificuldade** | :material-star::material-star::material-star: difícil |
-| **Conceitos-chave** | fan-out na escrita (push) vs. na leitura (pull) vs. híbrido, o problema das celebridades, cache de timeline com IDs, hidratação, pipeline de ranqueamento, paginação por cursor, mídia via CDN |
+| **Conceitos-chave** | fan-out na escrita (push) vs. na leitura (pull) vs. híbrido, o problema das celebridades, cache de timeline com IDs, hidratação, pipeline de ranqueamento, paginação por cursor, mídia via rede de distribuição de conteúdo (CDN, *content delivery network*) |
 | **Componentes da paleta** | [`lb`](../../../reference/components/edge/index.md#lb), [`app`](../../../reference/components/compute/index.md#app), [`cache`](../../../reference/components/storage/index.md#cache), [`nosql`](../../../reference/components/storage/index.md#nosql), [`kafka`](../../../reference/components/messaging/index.md#kafka), [`worker`](../../../reference/components/compute/index.md#worker), [`objstore`](../../../reference/components/storage/index.md#objstore), [`cdn`](../../../reference/components/edge/index.md#cdn) |
 | **Cenário do playground** | `news-feed` |
 
@@ -171,14 +171,14 @@ flowchart LR
     lb --> ps["Serviço de posts"]
     ps --> pdb[("Armazenamento de posts<br/>por autor")]
     ps --> k[["Kafka<br/>post-created"]]
-    k --> fw["Workers de fan-out"]
+    k --> fw["Workers de fan-out"]:::tech
     fw --> g[("Grafo social<br/>seguidores")]
-    fw --> tl[("Cache de timelines<br/>feed:{user} → IDs")]
+    fw --> tl[("Cache de timelines<br/>feed:{user} → IDs")]:::tech
     lb --> fs["Serviço de feed"]
     fs --> tl
     fs --> pc[("Cache de posts")]
     pc --> pdb
-    fs --> rk["Ranqueamento"]
+    fs --> rk["Ranqueamento"]:::tech
     u -. imagens .-> cdn["CDN"] --> obj[("Object store")]
 ```
 
@@ -228,11 +228,27 @@ sequenceDiagram
 
 | | Push | Pull | Híbrido |
 |---|---|---|---|
-| Latência de leitura | A menor (uma leitura de cache) | A maior (N consultas + mescla) | Baixa (leitura de cache + poucas leituras de celebridades) |
-| Custo de escrita | Seguidores × posts | Uma inserção | Seguidores × posts, limitado pelo limiar |
-| Atualidade | Segundos a minutos (fila) | Imediata | Segundos |
-| Post de celebridade | Milhões de inserções | De graça | De graça (puxado) |
-| Usuários inativos | Inserções desperdiçadas | De graça | Pule-os; reconstrua no login |
+| Latência de leitura | ✅ A menor (uma leitura de cache) | ❌ A maior (N consultas + mescla) | ✅ Baixa (leitura de cache + poucas leituras de celebridades) |
+| Custo de escrita | ⚠️ Seguidores × posts | ✅ Uma inserção | ⚠️ Seguidores × posts, limitado pelo limiar |
+| Atualidade | ⚠️ Segundos a minutos (fila) | ✅ Imediata | ✅ Segundos |
+| Post de celebridade | ❌ Milhões de inserções | ✅ De graça | ✅ De graça (puxado) |
+| Usuários inativos | ❌ Inserções desperdiçadas | ✅ De graça | ✅ Pule-os; reconstrua no login |
+
+O híbrido decide por post, no worker de fan-out; o serviço de feed junta as duas fontes na leitura:
+
+``` diagram-sim
+flowchart LR
+    post["Novo post<br/>do autor A"] --> k[["Kafka<br/>post-created"]]
+    k --> fw["Worker de fan-out"]
+    fw --> t{"A tem pelo menos<br/>100 mil seguidores?"}
+    t -->|"não: autor comum"| push["empurra o ID para a<br/>timeline de cada seguidor<br/>(1 inserção por seguidor)"]:::tech
+    t -->|"sim: celebridade"| keep["guarda só nos posts<br/>recentes de A<br/>(0 inserções)"]:::tech
+    push --> tl[("Cache de timelines<br/>uma lista por seguidor")]
+    keep --> cp[("Posts de celebridades<br/>lidos por milhões, sempre em cache")]
+    tl --> merge["Serviço de feed<br/>junta na leitura"]
+    cp --> merge
+    merge --> page["Top 20 para o leitor"]
+```
 
 Quanto trabalho um limiar economiza? Com uma distribuição de seguidores de cauda pesada, uma fatia minúscula dos autores produz a maior parte do fan-out:
 
@@ -254,6 +270,17 @@ for threshold in (10_000, 100_000, 1_000_000):
 ```
 
 Puxar os posts de uma fração de um por cento dos autores elimina a maior parte das escritas de fan-out. O limiar é um botão de ajuste: abaixe-o e as leituras ficam um pouco mais caras (mais celebridades para mesclar por usuário), suba-o e os posts de celebridades demoram mais para se espalhar.
+
+A tabela conta escritas; a fila mostra quanto elas custam em tempo. Rode vinte minutos de fan-out com os números da seção 2 (230 posts/s × 200 seguidores = 46.000 inserções/s) e um post de uma conta com 50 M de seguidores em t = 60 s:
+
+<div class="csim" data-sim="feed-fanout" data-strategy="push" data-workers="20" data-threshold="100000"></div>
+
+!!! tip "Experimente"
+
+    - **Push, 20 workers** (100 mil inserções/s): o post da celebridade põe 50 M de inserções na fila. A fila é FIFO (primeiro a entrar, primeiro a sair), então todo post comum escrito depois dele chega aos seguidores **500 s** atrasado (8 min) e o acúmulo leva **926 s** (15 min) para zerar.
+    - **10 workers**: o mesmo post atrasa os posts comuns em **1.000 s** e o acúmulo precisa de **12.500 s** (3,5 h). Com 9 workers (45 mil/s) o push não acompanha nem a média de 46 mil/s.
+    - **Híbrido, limiar de 100 mil**: o mesmo post acrescenta 0 inserções e a carga constante cai para **7.406** inserções/s (os 84% da tabela são puxados). O preço vai para a leitura: **10** leituras por abertura do feed (a timeline + 9 celebridades), **350.000** leituras/s no pico, todas de listas que ficam em cache.
+    - **Pull**: nada para espalhar, mas **200** leituras por abertura do feed — **7.000.000** de leituras/s no pico. Por isso ninguém usa só pull nessa escala.
 
 ### 6.2 O cache de timelines e a hidratação { #62-the-timeline-cache-and-hydration }
 
@@ -337,7 +364,7 @@ O cenário `news-feed` contém o serviço de posts, um caminho de fan-out por um
 
 ??? question "Como você mostraria contadores de curtidas que atualizam em tempo real?"
 
-    Contadores são uma preocupação separada, de muita escrita. Mantenha-os num serviço de contadores com **contadores fragmentados** (ou `INCR` no Redis por post, agregado periodicamente no banco), aceite alguns segundos de desatualização e envie atualizações só para posts visíveis na tela (via WebSocket/SSE), se tanto. Nunca guarde a contagem dentro da timeline.
+    Contadores são uma preocupação separada, de muita escrita. Mantenha-os num serviço de contadores com **contadores fragmentados** (ou `INCR` no Redis por post, agregado periodicamente no banco), aceite alguns segundos de desatualização e envie atualizações só para posts visíveis na tela (via WebSocket/Server-Sent Events (SSE)), se tanto. Nunca guarde a contagem dentro da timeline.
 
 ??? question "O que muda para um usuário novo que não segue ninguém?"
 
@@ -379,18 +406,16 @@ Quais aulas este caso testa? Cada ramo é uma aula cujas ideias o design usa (az
 
 ``` diagram
 flowchart LR
-    CASE(["News feed"]) --> EST["Estimation<br/>fan-out write amplification"]:::tech
-    CASE --> MSG["Messaging<br/>post events, fan-out workers"]:::tech
-    CASE --> CAC["Caching<br/>timeline cache, hydration"]:::tech
-    CASE --> DB["Databases<br/>partition posts and timelines"]:::tech
-    CASE --> DIS["Distributed<br/>read-your-writes for the author"]:::tech
-    CASE --> REL["Reliability<br/>fallback to chronological order"]:::tech
+    CASE(["News feed"]) --> EST["Estimativa<br/>amplificação de escrita do fan-out"]:::tech
+    CASE --> MSG["Mensageria<br/>eventos de post, workers de fan-out"]:::tech
+    CASE --> CAC["Cache<br/>cache de timelines, hidratação"]:::tech
+    CASE --> DB["Bancos de dados<br/>partição de posts e timelines"]:::tech
+    CASE --> DIS["Distribuídos<br/>ler as próprias escritas, para o autor"]:::tech
+    CASE --> REL["Confiabilidade<br/>fallback para ordem cronológica"]:::tech
     MSG -.-> k1["kafka · worker"]:::comp
     CAC -.-> k2["cache"]:::comp
     DB -.-> k3["nosql · objstore · cdn"]:::comp
     REL -.-> k4["app · lb"]:::comp
-    classDef comp fill:#1e9e5a22,stroke:#1e9e5a
-    classDef tech fill:#2f6fed22,stroke:#2f6fed
 ```
 
 **Aulas que ele testa:** [Mensageria — Kafka](../../messaging/kafka/index.md) · [Caching — padrões](../../caching/patterns/index.md) · [Bancos de dados — particionamento](../../databases/partitioning/index.md) · [Distribuídos — consistência](../../distributed/consistency/index.md) · [Confiabilidade — padrões](../../reliability/patterns/index.md) · [Hands-on 5](../../../hands-on/5/index.md) e [Hands-on 7](../../../hands-on/7/index.md). **Componentes da paleta:** [`lb`](../../../reference/components/edge/index.md#lb) · [`app`](../../../reference/components/compute/index.md#app) · [`cache`](../../../reference/components/storage/index.md#cache) · [`nosql`](../../../reference/components/storage/index.md#nosql) · [`kafka`](../../../reference/components/messaging/index.md#kafka) · [`worker`](../../../reference/components/compute/index.md#worker) · [`objstore`](../../../reference/components/storage/index.md#objstore) · [`cdn`](../../../reference/components/edge/index.md#cdn). **Cenários:** `news-feed`.

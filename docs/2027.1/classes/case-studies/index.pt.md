@@ -1,5 +1,5 @@
 
-São 10:00 e o BoxOffice abre a venda de um show de estádio: dois milhões de fãs, sessenta mil lugares. Ao longo do semestre você construiu todas as peças necessárias para sobreviver àquela manhã — uma CDN e um WAF na borda, serviços sem estado atrás de um balanceador de carga, um cache, um banco que nunca vende um lugar duas vezes, uma fila, uma integração de pagamento, observabilidade, um teste de carga que encontrou o joelho da curva. Esta aula junta as peças **do jeito que um entrevistador pede**: um enunciado de uma frase, uma lousa em branco e 45 minutos.
+São 10:00 e o BoxOffice abre a venda de um show de estádio: dois milhões de fãs, sessenta mil lugares. Ao longo do semestre você construiu todas as peças necessárias para sobreviver àquela manhã — uma rede de distribuição de conteúdo (CDN, *content delivery network*) e um firewall de aplicação web (WAF, *web application firewall*) na borda, serviços sem estado atrás de um balanceador de carga, um cache, um banco que nunca vende um lugar duas vezes, uma fila, uma integração de pagamento, observabilidade, um teste de carga que encontrou o joelho da curva. Esta aula junta as peças **do jeito que um entrevistador pede**: um enunciado de uma frase, uma lousa em branco e 45 minutos.
 
 Os doze estudos de caso abaixo são os problemas clássicos das entrevistas de system design. Não são doze sistemas sem relação: são **as mesmas poucas ideias** — guardar em cache as leituras quentes, tirar o trabalho lento do caminho crítico, escolher uma chave de partição, tornar as retentativas seguras, proteger o único recurso que não escala — combinadas em proporções diferentes. Estudá-los é como o vocabulário da disciplina vira reflexo.
 
@@ -13,7 +13,7 @@ Os doze estudos de caso abaixo são os problemas clássicos das entrevistas de s
 
     - **Aplicar** o roteiro de entrevista da aula 1 a um problema inédito em 45 minutos: esclarecer, estimar, API e modelo de dados, design de alto nível, aprofundamentos, gargalos e fechamento.
     - **Estimar** a carga de um sistema a partir de poucas premissas e **derivar** decisões de design dos números.
-    - **Compor** componentes da paleta (borda, computação, armazenamento, mensageria, observabilidade, IA) num design e **justificar** cada um.
+    - **Compor** componentes da paleta (borda, computação, armazenamento, mensageria, observabilidade, inteligência artificial (IA)) num design e **justificar** cada um.
     - **Analisar** um design em busca de gargalos e modos de falha e **defender** seus trade-offs em voz alta.
     - **Validar** um design sob carga no System Design Playground e **explicar** o que as métricas mostram.
     - **Avaliar** a própria resposta com uma rubrica júnior / pleno / sênior.
@@ -30,9 +30,9 @@ Os doze estudos de caso abaixo são os problemas clássicos das entrevistas de s
 8. [Chat](chat/index.md) — WebSockets, roteamento entre gateways, ordem, entrega offline, presença.
 9. [Corridas por aplicativo](ride-sharing/index.md) — ingestão de localizações, índices geoespaciais, matching sem atribuição dupla.
 10. [Streaming de vídeo](video-streaming/index.md) — uploads, pipeline de transcodificação, bitrate adaptativo, economia da CDN.
-11. [Sistema de pagamentos](payment-system/index.md) — idempotência, razão contábil de partidas dobradas, integração com PSP, conciliação.
+11. [Sistema de pagamentos](payment-system/index.md) — idempotência, razão contábil de partidas dobradas, integração com o provedor de serviços de pagamento (PSP, *payment service provider*), conciliação.
 12. [Ingressos — a venda relâmpago do BoxOffice](ticketing/index.md) — o caso principal: sala de espera, reservas de lugar, checkout.
-13. [Assistente de IA](ai-assistant/index.md) — RAG, LLM gateway, agentes com ferramentas, guardrails e avaliações.
+13. [Assistente de IA](ai-assistant/index.md) — geração aumentada por recuperação (RAG, *retrieval-augmented generation*), gateway de modelo de linguagem de grande porte (LLM, *large language model*), agentes com ferramentas, guardrails e avaliações.
 14. [Quiz](quiz.md) — verifique seu entendimento.
 
 ## Slides
@@ -53,7 +53,7 @@ Toda página de caso segue o **roteiro de entrevista** da [aula 1](../intro/inte
 | # | Etapa | Minutos | O que você produz | Erro típico |
 |---|---|---:|---|---|
 | 1 | **Esclarecer os requisitos** | 5 | Lista funcional, metas não funcionais com números, fora do escopo | Projetar antes de saber se são 1 mil ou 1 M de usuários |
-| 2 | **Estimar** | 5 | QPS (médio e de pico), armazenamento, banda, memória — e uma frase sobre o que implicam | Calcular números e nunca usá-los |
+| 2 | **Estimar** | 5 | consultas por segundo (QPS, *queries per second*), médias e de pico, armazenamento, banda, memória — e uma frase sobre o que implicam | Calcular números e nunca usá-los |
 | 3 | **API e modelo de dados** | 5–7 | Um punhado de endpoints, as entidades principais, o armazenamento de cada uma e por quê | Vinte endpoints, sem idempotência, sem paginação |
 | 4 | **Design de alto nível** | 10 | Um diagrama com o caminho de leitura e o de escrita | Caixas sem fluxo de dados; todo componente "porque sistemas grandes têm" |
 | 5 | **Aprofundamentos** | 10–15 | Duas ou três partes difíceis resolvidas com alternativas e uma escolha | Aprofundar a parte fácil |
@@ -61,6 +61,8 @@ Toda página de caso segue o **roteiro de entrevista** da [aula 1](../intro/inte
 | 7 | **Fechamento** | 2–3 | Resumo, o que faria em seguida, como mediria | Acabar o tempo no meio da frase |
 
 As dez seções de cada página de caso correspondem a essas etapas: requisitos (1), estimativas (2), API e modelo de dados (3), design de alto nível (4), aprofundamentos (5), gargalos e trade-offs (6), e depois três apoios ao estudo — **Experimente no playground**, **Perguntas de follow-up** e uma **rubrica de autoavaliação**.
+
+Os diagramas usam as mesmas cores em todos os casos. No design de alto nível (seção 5), as caixas **azuis** são os mecanismos que os aprofundamentos abrem e as **vermelhas** são o recurso que o design protege: o que não escala (uma linha quente, a cota de um provedor) ou que falha de jeitos que você não controla. No mapa *Como se conecta* do fim, azul é uma aula e verde um componente da paleta.
 
 !!! tip "Um método de estudo que funciona"
 
@@ -98,16 +100,16 @@ Ordem sugerida: dos aquecimentos fáceis ao caso principal. A dificuldade é o n
 |---|---|---|---|---|
 | [Encurtador de URLs](url-shortener/index.md) | :material-star: | base62, geração de IDs vs. hash, 301/302, cache-aside, analytics assíncrono | `lb` `app` `cache` `nosql` `kafka` `analytics` | `url-shortener` |
 | [Rate limiter](rate-limiter/index.md) | :material-star::material-star: | token bucket, janela deslizante, atomicidade com Lua, 429, fail-open/closed | `apigw` `lb` `waf` `cache` `metrics` | `rate-limiter` |
-| [Cache distribuído](distributed-cache/index.md) | :material-star::material-star: | hash consistente, nós virtuais, despejo (LRU/LFU/W-TinyLFU), replicação, chaves quentes | `cache` `app` `nosql` `metrics` | `read-heavy-cache`, `sharding` |
+| [Cache distribuído](distributed-cache/index.md) | :material-star::material-star: | hash consistente, nós virtuais, despejo (LRU, *least recently used*; LFU, *least frequently used*; W-TinyLFU), replicação, chaves quentes | `cache` `app` `nosql` `metrics` | `distributed-cache`, `read-heavy-cache`, `sharding` |
 | [Autocompletar de busca](search-autocomplete/index.md) | :material-star::material-star: | trie + top-k, agregação offline, snapshots imutáveis, fragmentação por prefixo, debouncing | `cdn` `search` `cache` `stream` `dwh` `worker` | `search-autocomplete` |
-| [Sistema de notificações](notification-system/index.md) | :material-star::material-star: | fila por canal, retentativas + DLQ, deduplicação, preferências, failover de provedor, campanhas agendadas | `scheduler` `queue` `worker` `notifications` `email` `thirdparty` | `notification-system` |
+| [Sistema de notificações](notification-system/index.md) | :material-star::material-star: | fila por canal, retentativas + fila de mensagens mortas (DLQ, *dead-letter queue*), deduplicação, preferências, failover de provedor, campanhas agendadas | `scheduler` `queue` `worker` `notifications` `email` `thirdparty` | `notification-system` |
 | [News feed](news-feed/index.md) | :material-star::material-star::material-star: | fan-out na escrita vs. na leitura, celebridades, cache de timelines, hidratação, ranqueamento, cursores | `app` `cache` `nosql` `kafka` `worker` `objstore` `cdn` | `news-feed` |
 | [Chat](chat/index.md) | :material-star::material-star::material-star: | gateways WebSocket, registro de sessões, pub/sub, sequência por conversa, confirmações, presença | `lb` `app` `pubsub` `nosql` `cache` `notifications` | `chat` |
 | [Corridas por aplicativo](ride-sharing/index.md) | :material-star::material-star::material-star: | localizações com muita escrita, geohash/quadtree/H3, matching com locks, máquina de estados da corrida | `mobile` `apigw` `stream` `cache` `sql` `payment` | `ride-sharing` |
-| [Streaming de vídeo](video-streaming/index.md) | :material-star::material-star::material-star: | uploads pré-assinados, DAG de transcodificação, ABR (HLS/DASH), CDN + shield, custo de egress | `cdn` `objstore` `queue` `worker` `sql` `analytics` | `video-streaming` |
+| [Streaming de vídeo](video-streaming/index.md) | :material-star::material-star::material-star: | uploads pré-assinados, transcodificação como grafo acíclico dirigido (DAG, *directed acyclic graph*), taxa de bits adaptativa (ABR, *adaptive bitrate*) com HLS/DASH (formatos de streaming sobre HTTP), CDN + shield, custo de egress | `cdn` `objstore` `queue` `worker` `sql` `analytics` | `video-streaming` |
 | [Sistema de pagamentos](payment-system/index.md) | :material-star::material-star::material-star: | chaves de idempotência, razão de partidas dobradas, webhooks do PSP, conciliação, outbox | `apigw` `app` `sql` `kafka` `scheduler` `payment` `dwh` | `payment-system` |
-| [Ingressos (BoxOffice)](ticketing/index.md) | :material-star::material-star::material-star: | sala de espera, admissão pela Lei de Little, reservas com TTL, controle de concorrência, máquina de estados do checkout | `cdn` `waf` `apigw` `queue` `sql` `cache` `kafka` `payment` | `flash-sale` |
-| [Assistente de IA](ai-assistant/index.md) | :material-star::material-star::material-star: | RAG, LLM gateway, loop de agente com ferramentas (MCP), guardrails, avaliações, custo em tokens | `llmgw` `orchestrator` `toolreg` `memory` `safety` `vectordb` | `ai-assistant` |
+| [Ingressos (BoxOffice)](ticketing/index.md) | :material-star::material-star::material-star: | sala de espera, admissão pela Lei de Little, reservas com tempo de vida (TTL, *time to live*), controle de concorrência, máquina de estados do checkout | `cdn` `waf` `apigw` `queue` `sql` `cache` `kafka` `payment` | `ticketing`, `flash-sale` |
+| [Assistente de IA](ai-assistant/index.md) | :material-star::material-star::material-star: | RAG, LLM gateway, loop de agente com ferramentas (Model Context Protocol, MCP), guardrails, avaliações, custo em tokens | `llmgw` `orchestrator` `toolreg` `memory` `safety` `vectordb` | `ai-assistant` |
 
 Os ids dos componentes são os da paleta do playground; cada um está descrito no [catálogo de componentes](../../reference/components/index.md).
 
@@ -164,8 +166,6 @@ flowchart LR
     p3 --> k3["sql · payment"]:::comp
     p4 --> k4["nosql · stream · cache"]:::comp
     p5 --> k5["waf · apigw · queue · llmgw"]:::comp
-    classDef comp fill:#1e9e5a22,stroke:#1e9e5a
-    classDef tech fill:#2f6fed22,stroke:#2f6fed
 ```
 
 | Caso | [Distribuídos](../distributed/index.md) | [Borda](../edge/index.md) | [Compute](../compute/index.md) | [Bancos de dados](../databases/index.md) | [Caching](../caching/index.md) | [Mensageria](../messaging/index.md) | [Confiabilidade](../reliability/index.md) | Também testa |
@@ -179,9 +179,20 @@ flowchart LR
 | [Chat](chat/index.md) | ● | ● | ○ | ● | ○ | ● | ○ | — |
 | [Corridas por aplicativo](ride-sharing/index.md) | ● | ○ | ○ | ● | ● | ● | ○ | — |
 | [Streaming de vídeo](video-streaming/index.md) | — | ● | ● | ● | — | ○ | — | Cloud-native (FinOps: custo de egress) |
-| [Sistema de pagamentos](payment-system/index.md) | ● | ○ | ● | ● | — | ● | ● | Rede e Segurança (escopo PCI DSS) |
+| [Sistema de pagamentos](payment-system/index.md) | ● | ○ | ● | ● | — | ● | ● | Rede e Segurança (escopo do PCI DSS, *Payment Card Industry Data Security Standard*) |
 | [Ingressos (BoxOffice)](ticketing/index.md) | ○ | ● | ○ | ● | ○ | ● | ● | Desempenho (admissão pela Lei de Little, teste de pico) |
 | [Assistente de IA](ai-assistant/index.md) | — | ○ | — | ○ | ○ | — | ○ | **Sistemas de IA ●** (gateway, agentes, RAG, segurança) |
+
+## Pontos-chave { #key-takeaways }
+
+!!! takeaways ""
+
+    - Use o **roteiro** e o seu relógio: esclarecer, estimar, API e modelo de dados, design de alto nível, aprofundamentos, trade-offs, fechamento.
+    - Todo número precisa terminar numa **decisão**: "então o conjunto quente cabe na memória", "então precisamos de uma fila".
+    - Doze problemas, **um punhado de padrões**: cachear as leituras quentes, tirar o trabalho lento do caminho crítico, tornar as retentativas seguras, escolher a chave de partição, proteger o que não escala.
+    - Consistência forte **só onde importa**: lugares, dinheiro, atribuição de motoristas — não feeds, contadores ou posições.
+    - Desenhe o **caminho de falha** com o mesmo cuidado do caminho feliz: "o que acontece quando X cai?" é sempre a próxima pergunta.
+    - Pratique: tente primeiro, compare seção por seção, rode o cenário, responda aos follow-ups, dê sua nota e repita uma semana depois.
 
 ## O que quebra em seguida { #what-breaks-next }
 

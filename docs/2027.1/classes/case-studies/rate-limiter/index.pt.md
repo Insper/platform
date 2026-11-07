@@ -3,7 +3,7 @@
 
 Toda API pública precisa de um e todo sistema grande tem vários: na borda contra inundações, no gateway por cliente, dentro dos serviços para proteger uma dependência frágil. O problema é pequeno o bastante para ser projetado de ponta a ponta em 45 minutos e profundo o bastante para separar níveis: um candidato júnior diz "token bucket"; um sênior explica **por que** um contador de janela deslizante é preciso o suficiente, como tornar a verificação **atômica** entre 20 réplicas do gateway, o que acontece quando o armazenamento dos contadores **cai** e por que só rate limiting não impede uma sobrecarga.
 
-No BoxOffice, o rate limiter é a segunda linha de defesa da venda relâmpago: o [WAF](../../../reference/components/edge/index.md#waf) barra inundações óbvias, a sala de espera dosa as admissões e o gateway aplica "5 tentativas de reserva por minuto por conta" e as cotas dos parceiros revendedores.
+No BoxOffice, o rate limiter é a segunda linha de defesa da venda relâmpago: o [firewall de aplicação web (WAF, *web application firewall*)](../../../reference/components/edge/index.md#waf) barra inundações óbvias, a sala de espera dosa as admissões e o gateway aplica "5 tentativas de reserva por minuto por conta" e as cotas dos parceiros revendedores.
 
 | | |
 |---|---|
@@ -46,7 +46,7 @@ A expressão "rate limiter" esconde vários produtos diferentes. Pergunte antes 
 
 ### Fora do escopo (diga explicitamente) { #out-of-scope-say-it-explicitly }
 
-Proteção contra DDoS na camada de rede (é trabalho do WAF/CDN), cobrança por uso, detecção de abuso com aprendizado de máquina. Mencione que existem nas camadas em volta do limitador.
+Proteção contra DDoS na camada de rede (é trabalho do WAF/rede de distribuição de conteúdo (CDN, *content delivery network*)), cobrança por uso, detecção de abuso com aprendizado de máquina. Mencione que existem nas camadas em volta do limitador.
 
 ??? question "Perguntas para fazer ao entrevistador"
 
@@ -57,7 +57,7 @@ Proteção contra DDoS na camada de rede (é trabalho do WAF/CDN), cobrança por
     | Limite rígido ou flexível (permite rajada)? | Token bucket permite rajadas; leaky bucket as suaviza. |
     | Quantas réplicas do gateway, quantas regiões? | Um limite por réplica erra por um fator N; um limite global precisa de estado compartilhado. |
     | O que deve acontecer se o armazenamento do limitador cair? | Fail-open (disponibilidade) vs. fail-closed (proteção). |
-    | O limite é sobre **taxa**, **concorrência** ou **custo**? | "10 requisições/s" vs. "5 em andamento" vs. "100 mil tokens de LLM/min" são mecanismos diferentes. |
+    | O limite é sobre **taxa**, **concorrência** ou **custo**? | "10 requisições/s" vs. "5 em andamento" vs. "100 mil tokens de modelo de linguagem de grande porte (LLM, *large language model*)/min" são mecanismos diferentes. |
 
 ---
 
@@ -166,7 +166,7 @@ rl:log:user:42         → { 1767261600123, 1767261600201, ... }
 
 | Dado | Armazenamento | Por quê |
 |---|---|---|
-| Contadores / buckets | KV em memória com TTL e scripts atômicos: Redis (`cache`) | Submilissegundo, atômico, expira sozinho; perdê-lo custa só algumas requisições a mais |
+| Contadores / buckets | KV em memória com tempo de vida (TTL, *time to live*) e scripts atômicos: Redis (`cache`) | Submilissegundo, atômico, expira sozinho; perdê-lo custa só algumas requisições a mais |
 | Regras | Serviço de configuração ou SQL, em cache em todo gateway (atualiza a cada poucos segundos) | Lidas em toda requisição: precisam ser locais |
 | Eventos de permitido / rejeitado | Métricas (`metrics`), logs amostrados | Dashboards, alertas sobre taxas de rejeição incomuns, ajuste dos limites |
 
@@ -178,13 +178,13 @@ rl:log:user:42         → { 1767261600123, 1767261600201, ... }
 flowchart LR
     c([Clientes]) --> waf["WAF / CDN<br/>limites grossos por IP"]
     waf --> lb["Balanceador de carga"]
-    lb --> gw1["API gateway #1<br/>filtro de rate limit"]
-    lb --> gw2["API gateway #N<br/>filtro de rate limit"]
-    gw1 --> r[("Redis Cluster<br/>contadores, Lua")]
+    lb --> gw1["API gateway #1<br/>filtro de rate limit"]:::tech
+    lb --> gw2["API gateway #N<br/>filtro de rate limit"]:::tech
+    gw1 --> r[("Redis Cluster<br/>contadores, Lua")]:::tech
     gw2 --> r
     cfg["Serviço de configuração<br/>das regras"] -. enviado / em cache .-> gw1
     cfg -. enviado / em cache .-> gw2
-    gw1 --> svc["Serviços de backend"]
+    gw1 --> svc["Serviços de backend"]:::problem
     gw2 --> svc
     gw1 -. permitido / 429 .-> m["Métricas"]
 ```
@@ -221,9 +221,9 @@ sequenceDiagram
 |---|---|---|---|---|---|
 | **Token bucket** | Balde de capacidade `b` reabastecido a `r` tokens/s; cada requisição consome um token | Permite rajadas de até `b` | 2 números | Exato | Limites de API (estilo AWS, Stripe) |
 | **Leaky bucket** | Requisições entram numa FIFO esvaziada a taxa constante | Suaviza (enfileira ou descarta) | Uma fila ou 2 números | Exato | Moldar o tráfego para um backend frágil |
-| **Janela fixa** | Contador por janela `floor(now / w)` | Até **2×** nas fronteiras das janelas | 1 número | Fraco nas bordas | Cotas grossas (por dia) |
-| **Log de janela deslizante** | Guarda todo timestamp; conta os dos últimos `w` | Nenhuma | Uma entrada por requisição | Exato | Limites de baixo volume e alto valor |
-| **Contador de janela deslizante** | Contagem atual + contagem anterior × fração de sobreposição | Pequenas | 2 números | Aproximado (supõe a janela anterior uniforme) | Limites de API em larga escala (estilo Cloudflare) |
+| **Janela fixa** | Contador por janela `floor(now / w)` | ❌ Até **2×** nas fronteiras das janelas | 1 número | ⚠️ Fraco nas bordas | Cotas grossas (por dia) |
+| **Log de janela deslizante** | Guarda todo timestamp; conta os dos últimos `w` | Nenhuma | ⚠️ Uma entrada por requisição | Exato | Limites de baixo volume e alto valor |
+| **Contador de janela deslizante** | Contagem atual + contagem anterior × fração de sobreposição | Pequenas | 2 números | ⚠️ Aproximado (supõe a janela anterior uniforme) | Limites de API em larga escala (estilo Cloudflare) |
 | **GCRA** | Acompanha um "tempo teórico de chegada"; equivale a um token bucket | Configuráveis | 1 timestamp | Exato | O mesmo que token bucket, com menos estado |
 
 O problema de fronteira das janelas fixas é mais fácil de ver com um traço. Limite: 10 requisições por segundo; um cliente envia 10 requisições em t = 0,99 s e mais 10 em t = 1,01 s:
@@ -294,10 +294,26 @@ A janela fixa deixa passar **20 requisições em 20 ms** — o dobro do limite �
 
 A implementação ingênua tem uma condição de corrida:
 
-```text
-gateway A: GET rl:user:42      → 9          gateway B: GET rl:user:42 → 9
-gateway A: 9 < 10 → allow, SET 10           gateway B: 9 < 10 → allow, SET 10
-                       → 11 requests allowed, counter says 10
+``` diagram-sim
+sequenceDiagram
+    autonumber
+    participant A as Gateway A
+    participant R as Redis
+    participant B as Gateway B
+    alt ingênuo: GET, verifica, SET
+        A->>R: GET rl:user:42
+        R-->>A: 9
+        B->>R: GET rl:user:42
+        R-->>B: 9
+        A->>R: 9 é menor que 10, permite, SET rl:user:42 10
+        B->>R: 9 é menor que 10, permite, SET rl:user:42 10
+        Note over A,B: 11 requisições permitidas, o contador diz 10
+    else atômico: um script Lua por requisição
+        A->>R: EVALSHA token_bucket (lê, verifica e escreve num passo só)
+        R-->>A: allowed = 1
+        B->>R: EVALSHA token_bucket
+        R-->>B: allowed = 0, tente de novo em …
+    end
 ```
 
 Ler-verificar-escrever precisa ser **uma operação atômica** no armazenamento. No Redis, use `INCR` (atômico) para contadores, ou um **script Lua**, que roda atomicamente no shard dono da chave:
@@ -368,7 +384,7 @@ flowchart LR
 ### 6.4 Quando o próprio limitador falha { #64-when-the-limiter-itself-fails }
 
 - **Fail-open** (permitir quando o Redis está inacessível) mantém a API disponível — o padrão certo para limites comuns, porque o limitador existe para proteger o backend, e um curto período sem limites raramente é pior do que uma queda total. Combine com um **bucket local de reserva** para a proteção degradar em vez de sumir.
-- **Fail-closed** (rejeitar) para limites que guardam segurança: tentativas de login, redefinição de senha, verificação de OTP — senão um atacante capaz de sobrecarregar o Redis também desliga a proteção contra força bruta.
+- **Fail-closed** (rejeitar) para limites que guardam segurança: tentativas de login, redefinição de senha, verificação de senha de uso único (OTP, *one-time password*) — senão um atacante capaz de sobrecarregar o Redis também desliga a proteção contra força bruta.
 - Coloque um **timeout apertado** (poucos ms) na chamada ao Redis e um circuit breaker em volta: um limitador lento é pior que nenhum, porque acrescenta latência a toda requisição ([padrões de confiabilidade](../../reliability/patterns/index.md)).
 
 !!! warning "Rate limiting não é proteção contra sobrecarga"
@@ -469,16 +485,14 @@ Quais aulas este caso testa? Cada ramo é uma aula cujas ideias o design usa (az
 
 ``` diagram
 flowchart LR
-    CASE(["Rate limiter"]) --> EDG["Edge<br/>where limits live: WAF, gateway"]:::tech
-    CASE --> CAC["Caching<br/>Redis counters, Lua atomicity"]:::tech
-    CASE --> REL["Reliability<br/>fail-open vs fail-closed, load shedding"]:::tech
-    CASE --> CLI["client contract<br/>429, Retry-After, jitter"]:::tech
-    CASE --> PERF["Performance<br/>k6 at a known arrival rate"]:::tech
+    CASE(["Rate limiter"]) --> EDG["Borda<br/>onde ficam os limites: WAF, gateway"]:::tech
+    CASE --> CAC["Cache<br/>contadores no Redis, atomicidade com Lua"]:::tech
+    CASE --> REL["Confiabilidade<br/>fail-open vs fail-closed, descarte de carga"]:::tech
+    CASE --> CLI["contrato com o cliente<br/>429, Retry-After, jitter"]:::tech
+    CASE --> PERF["Desempenho<br/>k6 a uma taxa de chegada conhecida"]:::tech
     EDG -.-> k1["waf · cdn · lb · apigw"]:::comp
     CAC -.-> k2["cache"]:::comp
     REL -.-> k3["metrics"]:::comp
-    classDef comp fill:#1e9e5a22,stroke:#1e9e5a
-    classDef tech fill:#2f6fed22,stroke:#2f6fed
 ```
 
 **Aulas que ele testa:** [Borda — API gateway](../../edge/api-gateway/index.md) · [Caching — Redis](../../caching/redis/index.md) · [Confiabilidade — padrões](../../reliability/patterns/index.md) (load shedding, backoff com jitter) · [Desempenho](../../performance/index.md) · [Hands-on 3](../../../hands-on/3/index.md) e [Hands-on 4](../../../hands-on/4/index.md). **Componentes da paleta:** [`waf`](../../../reference/components/edge/index.md#waf) · [`cdn`](../../../reference/components/edge/index.md#cdn) · [`lb`](../../../reference/components/edge/index.md#lb) · [`apigw`](../../../reference/components/edge/index.md#apigw) · [`cache`](../../../reference/components/storage/index.md#cache) · [`metrics`](../../../reference/components/observability/index.md#metrics). **Cenários:** `rate-limiter`.

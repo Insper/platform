@@ -29,7 +29,7 @@ BoxOffice meets the same problems twice. Its "events near me" search uses the sa
 ### Functional requirements
 
 1. Drivers go **online/offline** and, while online, send their **location** every few seconds.
-2. A rider sees **nearby drivers** on the map and an **ETA** and **price estimate**.
+2. A rider sees **nearby drivers** on the map and an **estimated time of arrival (ETA)** and **price estimate**.
 3. A rider **requests** a ride; the system **matches** a driver, who accepts or declines within a few seconds.
 4. During the trip, both apps show **live location**; the trip ends with **payment** and a rating.
 5. Trip **history** for riders, drivers and support.
@@ -180,12 +180,12 @@ flowchart LR
     d([Driver app]) --> gw["Gateway<br/>persistent connections"]
     r([Rider app]) --> gw
     gw --> loc["Location service"]
-    loc --> st[["Location stream<br/>partitioned by city"]]
-    st --> geo[("Geo index<br/>latest positions")]
+    loc --> st[["Location stream<br/>partitioned by city"]]:::tech
+    st --> geo[("Geo index<br/>latest positions")]:::tech
     st --> hist[("History<br/>object store")]
     st --> surge["Surge pricing<br/>supply/demand per cell"]
     gw --> ride["Ride service"]
-    ride --> match["Matching / dispatch"]
+    ride --> match["Matching / dispatch"]:::tech
     match --> geo
     match --> eta["ETA / routing"]
     match -. offer .-> gw
@@ -228,7 +228,7 @@ sequenceDiagram
 - **The latest position is the product; the trail is analytics.** The location service validates the point (plausible speed, not in the ocean), writes the latest value to the geo index and appends it to the stream. Nothing on the hot path reads history.
 - **Batch and coalesce.** The gateway can coalesce updates per driver (if two arrive in the same 100 ms window, keep the newest) and write to the geo index in pipelined batches.
 - **Adaptive frequency.** An available driver standing still does not need to report every 4 s; a driver approaching a pickup needs more. The app adapts the interval to speed and state — fewer writes, better freshness where it matters.
-- **Staleness.** Each driver state has a TTL refreshed by updates; a phone that goes silent for 30 s drops out of the candidate set automatically, without a cleanup job.
+- **Staleness.** Each driver state has a time to live (TTL) refreshed by updates; a phone that goes silent for 30 s drops out of the candidate set automatically, without a cleanup job.
 - **Partition by city.** The stream topic, the geo index and the rides database are all partitioned by city (or region), so a query in São Paulo never touches Lisbon's shards ([partitioning](../../databases/partitioning/index.md)).
 
 ### 6.2 The spatial index: geohash, quadtree or H3
@@ -250,8 +250,8 @@ A B-tree on `(lat, lon)` cannot answer "within 2 km" efficiently: it orders by o
 | | Geohash | Quadtree | H3 |
 |---|---|---|---|
 | Cell shape | Rectangles, fixed grid | Squares, adaptive | Hexagons, fixed hierarchy |
-| Adapts to density | No (pick a precision) | **Yes** | No (pick a resolution) |
-| Neighbor search | 8 neighbors + self (edges and corners differ in distance) | Tree traversal | `k`-ring, uniform distances |
+| Adapts to density | ❌ No (pick a precision) | ✅ **Yes** | ❌ No (pick a resolution) |
+| Neighbor search | ⚠️ 8 neighbors + self (edges and corners differ in distance) | Tree traversal | ✅ `k`-ring, uniform distances |
 | Storage | String/integer key in any KV store | In-memory tree | 64-bit ID in any KV store |
 | Typical use | Redis GEO, Elasticsearch geo, simple services | In-memory spatial services | Surge maps, analytics, dispatch at scale |
 
@@ -271,6 +271,18 @@ for p in range(4, 9):
 ```
 
 Precision 6 (~1.1 × 0.6 km) is a good bucket for "drivers within a couple of km". **Border problem:** a rider at the edge of a cell may be 50 m from a driver in the next cell — always search the cell **plus its 8 neighbors** (or an H3 `k`-ring), then filter by real distance. If too few drivers are found, **expand the ring** (precision 5, or `k + 1`) until enough candidates appear or a maximum radius is reached.
+
+``` diagram-sim
+flowchart LR
+    r["Rider at the pickup<br/>geohash precision 6"] --> n["search the cell<br/>+ its 8 neighbors"]:::tech
+    n --> f["filter by real distance<br/>AVAILABLE drivers only"]
+    f --> e{"20 candidates<br/>within 2 km?"}
+    e -->|"yes"| rank["rank by road ETA<br/>(matching)"]
+    e -->|"no"| x{"maximum radius<br/>reached?"}
+    x -->|"no"| grow["expand the ring<br/>precision 5, or k + 1"]:::tech
+    grow --> f
+    x -->|"yes"| none["no driver nearby<br/>tell the rider"]:::problem
+```
 
 ### 6.3 Matching without double assignment
 
@@ -404,8 +416,6 @@ flowchart LR
     MSG -.-> k2["stream · objstore"]:::comp
     CMP -.-> k3["payment · notifications"]:::comp
     EDG -.-> k4["mobile · apigw"]:::comp
-    classDef comp fill:#1e9e5a22,stroke:#1e9e5a
-    classDef tech fill:#2f6fed22,stroke:#2f6fed
 ```
 
 **Classes it tests:** [Databases — specialized](../../databases/specialized/index.md) · [Databases — partitioning](../../databases/partitioning/index.md) · [Messaging — Kafka](../../messaging/kafka/index.md) · [Distributed — consensus](../../distributed/consensus/index.md) · [Compute — integrations](../../compute/integrations/index.md) · [Caching — Redis](../../caching/redis/index.md) (geo commands) · [Hands-on 6](../../../hands-on/6/index.md). **Palette components:** [`mobile`](../../../reference/components/client/index.md#mobile) · [`apigw`](../../../reference/components/edge/index.md#apigw) · [`stream`](../../../reference/components/messaging/index.md#stream) · [`cache`](../../../reference/components/storage/index.md#cache) · [`sql`](../../../reference/components/storage/index.md#sql) · [`objstore`](../../../reference/components/storage/index.md#objstore) · [`payment`](../../../reference/components/external/index.md#payment) · [`notifications`](../../../reference/components/compute/index.md#notifications). **Scenarios:** `ride-sharing`.

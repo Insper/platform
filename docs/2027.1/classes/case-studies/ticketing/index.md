@@ -8,7 +8,7 @@ This is the flagship case of the course because it is **BoxOffice** itself, and 
 | **Difficulty** | :material-star::material-star::material-star: hard (senior favorite) |
 | **Key concepts** | waiting room / virtual queue, admission control with Little's Law, seat holds with TTL, concurrency control (pessimistic, optimistic, conditional update), idempotency, order state machine, payment webhooks |
 | **Palette components** | [`cdn`](../../../reference/components/edge/index.md#cdn), [`waf`](../../../reference/components/edge/index.md#waf), [`apigw`](../../../reference/components/edge/index.md#apigw), [`queue`](../../../reference/components/messaging/index.md#queue), [`app`](../../../reference/components/compute/index.md#app), [`sql`](../../../reference/components/storage/index.md#sql), [`cache`](../../../reference/components/storage/index.md#cache), [`scheduler`](../../../reference/components/compute/index.md#scheduler), [`kafka`](../../../reference/components/messaging/index.md#kafka), [`payment`](../../../reference/components/external/index.md#payment), [`notifications`](../../../reference/components/compute/index.md#notifications), [`email`](../../../reference/components/external/index.md#email) |
-| **Playground scenario** | `flash-sale` |
+| **Playground scenarios** | `ticketing`, `flash-sale` |
 
 !!! abstract "What this case trains"
 
@@ -55,7 +55,7 @@ Event creation by promoters, dynamic pricing, resale marketplace, physical ticke
     | Can a fan pick the exact seat, or do we assign "best available"? | "Best available" lets the server batch and avoid conflicts. |
     | How long is a hold? Max tickets per account? | Hold TTL and limits drive Little's Law and fairness. |
     | Do we own payments or use a provider (Stripe, Adyen, Mercado Pago…)? | External provider ⇒ webhooks, idempotency, reconciliation. |
-    | Is the waiting room FIFO or a randomized lottery for early arrivals? | Fairness policy; FIFO rewards bots with fast networks. |
+    | Is the waiting room first in, first out (FIFO) or a randomized lottery for early arrivals? | Fairness policy; FIFO rewards bots with fast networks. |
 
 ---
 
@@ -107,7 +107,7 @@ What the numbers tell us — this paragraph is the part the interviewer is liste
 
 - **Without a waiting room** the inventory would see ~170 k requests/s for a minute. A single PostgreSQL primary does a few thousand small write transactions per second; no amount of app servers fixes that, because the bottleneck is a handful of **hot rows**. ⇒ we need **admission control**.
 - With 10 k concurrent shoppers and 5 minutes each, Little's Law gives an admission rate of **~33 fans/s (2 000/min)**, a sell-out in **~25 minutes** and only **~20 orders/s** — easy for one well-indexed database.
-- The waiting room itself must take **~17 k joins/s** and, if everybody polls the origin, **200 k polls/s**. ⇒ serve the page from the **CDN** and make the status endpoint cheap (a signed token + a single counter read, cacheable for a second).
+- The waiting room itself must take **~17 k joins/s** and, if everybody polls the origin, **200 k polls/s**. ⇒ serve the page from the **content delivery network (CDN)** and make the status endpoint cheap (a signed token + a single counter read, cacheable for a second).
 - About **40 payment calls are in flight** at any time (20/s × 2 s). ⇒ size the connection pool and bulkhead of the payment adapter for that, not for the 2 M fans.
 - The entire inventory is **~6 MB**: storage is not a problem; **contention** is.
 
@@ -204,16 +204,16 @@ flowchart LR
     fan([Fan / mobile]) --> cdn["CDN<br/>event pages, waiting page"]
     cdn --> waf["WAF<br/>bots, DDoS"]
     waf --> gw["API Gateway<br/>auth, rate limit,<br/>access token check"]
-    gw --> wr["Waiting room"]
+    gw --> wr["Waiting room"]:::tech
     wr --> q[("Queue<br/>Redis sorted set")]
     gw --> cat["catalog"]
     cat --> cache[("Cache<br/>availability 1 s")]
-    gw --> inv["inventory<br/>holds"]
-    inv --> sql[("PostgreSQL<br/>seat, hold, order")]
-    gw --> ord["order"]
+    gw --> inv["inventory<br/>holds"]:::tech
+    inv --> sql[("PostgreSQL<br/>seat, hold, order")]:::problem
+    gw --> ord["order"]:::tech
     ord --> sql
     ord --> pay["payment adapter"]
-    pay --> psp[["Payment provider"]]
+    pay --> psp[["Payment provider"]]:::problem
     psp -. webhook .-> pay
     sql -. outbox .-> kafka[["Kafka<br/>order events"]]
     kafka --> notif["notification"] --> email[["E-mail / push"]]
@@ -275,7 +275,29 @@ The interviewer will pick one or two of these. Lead with the one that protects *
 
 ### 6.1 Seat holds without double booking
 
-Two fans click seat A-12-07 in the same millisecond. Exactly one must win. There are four classic ways to guarantee it ([transactions & isolation](../../databases/transactions/index.md)):
+Two fans click seat A-12-07 in the same millisecond. Exactly one must win. With the recommended conditional update, the database decides:
+
+``` diagram-sim
+sequenceDiagram
+    autonumber
+    participant F1 as Fan 1
+    participant I as inventory
+    participant D as PostgreSQL
+    participant F2 as Fan 2
+    F1->>I: POST /holds A-12-07
+    F2->>I: POST /holds A-12-07
+    I->>D: UPDATE seat … WHERE status = AVAILABLE (fan 1)
+    I->>D: UPDATE seat … WHERE status = AVAILABLE (fan 2)
+    Note over D: the row lock orders them, fan 2 waits for fan 1 to commit, then re-checks the WHERE
+    D-->>I: 1 row updated (fan 1)
+    I-->>F1: 201 hold, expires in 10 min
+    D-->>I: 0 rows updated (fan 2, the seat is HELD now)
+    I-->>F2: 409 seat taken, pick another
+```
+
+The loser waits only for the winner's single-statement transaction (milliseconds), never for a lock held across a round trip to the browser.
+
+There are four classic ways to guarantee it ([transactions & isolation](../../databases/transactions/index.md)):
 
 === "Conditional update (recommended)"
 
@@ -327,10 +349,10 @@ Two fans click seat A-12-07 in the same millisecond. Exactly one must win. There
 
 | Approach | Contention behavior | Pitfalls | Use when |
 |---|---|---|---|
-| Conditional `UPDATE … WHERE status='AVAILABLE'` | Losers fail fast (0 rows) | Must check the row count | Default for reserved seats |
-| `SELECT … FOR UPDATE` | Losers **wait** for the lock | Deadlocks, long lock holds, pool exhaustion | Multi-step checks in one transaction |
-| Optimistic (`version`) | Losers retry | Retry storms on hot rows | Low contention (normal days) |
-| Redis `SET NX EX` | Fastest, TTL built in | Two sources of truth | Extreme rates, measured need |
+| Conditional `UPDATE … WHERE status='AVAILABLE'` | ✅ Losers fail fast (0 rows) | Must check the row count | Default for reserved seats |
+| `SELECT … FOR UPDATE` | ⚠️ Losers **wait** for the lock | Deadlocks, long lock holds, pool exhaustion | Multi-step checks in one transaction |
+| Optimistic (`version`) | ⚠️ Losers retry | Retry storms on hot rows | Low contention (normal days) |
+| Redis `SET NX EX` | ✅ Fastest, TTL built in | Two sources of truth | Extreme rates, measured need |
 
 **Expiration.** A hold must end even if the fan closes the browser. Combine (a) **lazy expiration** in the hold statement (an expired `HELD` seat counts as available), (b) a **scheduler** job that sweeps `hold` rows with `expires_at < now()` every few seconds and flips seats back to `AVAILABLE` so the seat map is accurate, and (c) **extending** the hold while a payment is in flight, so a fan who is paying does not lose the seat at second 601.
 
@@ -358,7 +380,7 @@ Design points:
 2. **Admission rate from Little's Law.** The admitter lets in `λ = L / W` fans per second, where `L` is the number of shoppers the checkout path can serve (measured in the load test, e.g. 10 k) and `W` the time each spends (5 min). It is a **closed loop**: admit more when shoppers leave early, admit fewer when p99 of `POST /holds` rises or the payment provider slows down.
 3. **Fairness.** Pure FIFO rewards whoever has the fastest connection — usually bots. A common policy: everyone who arrives **before** 10:00 gets a **random** position at 10:00 (a lottery), and late arrivals go to the back in FIFO order.
 4. **Tokens, not sessions.** Admission produces a signed `accessToken` (event, user, expiry). The gateway verifies the signature locally — no shared session store on the hot path — and enforces "max 6 tickets per account".
-5. **Bots.** The [WAF](../../edge/index.md) does bot scoring, rate limits per IP/ASN and challenges; requiring a logged-in, verified account to join is the strongest filter. Queue-it, Cloudflare Waiting Room and the AWS Virtual Waiting Room solution are real products built on these ideas.
+5. **Bots.** The [web application firewall (WAF)](../../edge/index.md) does bot scoring, rate limits per IP/ASN and challenges; requiring a logged-in, verified account to join is the strongest filter. Queue-it, Cloudflare Waiting Room and the AWS Virtual Waiting Room solution are real products built on these ideas.
 
 !!! example "Why not just autoscale?"
 
@@ -429,6 +451,10 @@ The `flash-sale` scenario replays the spike when the sale opens (our 10:00) on a
 
 <div class="sdp" data-scenario="flash-sale" data-mode="full" data-height="640"></div>
 
+The `ticketing` scenario uses the numbers of this page instead: 2 M fans in 120 s, ≈ 17,000 joins/s and ≈ 200,000 status polls/s (every fan every 10 s) on 40 sale servers and one inventory database, with a payment provider that takes 2 s. As drawn, every request reaches the origin: predict what saturates first, then run it against the goal of a hold p99 under 300 ms. The solution sends the polls to a CDN with a 1 s micro-cache (≈ 98% hits) in front of a small status service, and the joins to a waiting room drained at ≈ 33 fans/s — the admission rate of section 2. Compare the requests that reach the inventory database before and after.
+
+<div class="sdp" data-scenario="ticketing" data-mode="compact" data-height="460"></div>
+
 [Open the full playground](../../../../playground/index.md){ .md-button }
 
 ---
@@ -461,7 +487,7 @@ The `flash-sale` scenario replays the spike when the sale opens (our 10:00) on a
 
 ??? question "How would you show fans an accurate ETA in the queue?"
 
-    ETA ≈ position / admission rate. Because the admission rate is adjusted dynamically, smooth it (moving average) and show a range ("about 20–30 minutes"). Also show when tickets are likely to be gone: if `remaining seats / tickets per order` is smaller than the number of fans ahead of you, tell the fan the truth early.
+    estimated time of arrival (ETA) ≈ position / admission rate. Because the admission rate is adjusted dynamically, smooth it (moving average) and show a range ("about 20–30 minutes"). Also show when tickets are likely to be gone: if `remaining seats / tickets per order` is smaller than the number of fans ahead of you, tell the fan the truth early.
 
 ---
 
@@ -503,11 +529,9 @@ flowchart LR
     CAC -.-> k3["cache"]:::comp
     CMP -.-> k4["payment"]:::comp
     MSG -.-> k5["kafka · notifications · analytics"]:::comp
-    classDef comp fill:#1e9e5a22,stroke:#1e9e5a
-    classDef tech fill:#2f6fed22,stroke:#2f6fed
 ```
 
-**Classes it tests:** [Edge](../../edge/index.md) (WAF, bots, waiting room) · [Databases — transactions](../../databases/transactions/index.md) · [Caching — failure modes](../../caching/failure-modes/index.md) · [Compute — integrations](../../compute/integrations/index.md) · [Messaging — patterns](../../messaging/patterns/index.md) · [Reliability — patterns](../../reliability/patterns/index.md) · [Performance — capacity planning](../../performance/capacity-planning/index.md) · [Hands-on 6](../../../hands-on/6/index.md), [7](../../../hands-on/7/index.md) and [9](../../../hands-on/9/index.md). **Palette components:** [`cdn`](../../../reference/components/edge/index.md#cdn) · [`waf`](../../../reference/components/edge/index.md#waf) · [`apigw`](../../../reference/components/edge/index.md#apigw) · [`queue`](../../../reference/components/messaging/index.md#queue) · [`sql`](../../../reference/components/storage/index.md#sql) · [`cache`](../../../reference/components/storage/index.md#cache) · [`kafka`](../../../reference/components/messaging/index.md#kafka) · [`scheduler`](../../../reference/components/compute/index.md#scheduler) · [`payment`](../../../reference/components/external/index.md#payment) · [`notifications`](../../../reference/components/compute/index.md#notifications) · [`analytics`](../../../reference/components/compute/index.md#analytics). **Scenarios:** `flash-sale`.
+**Classes it tests:** [Edge](../../edge/index.md) (WAF, bots, waiting room) · [Databases — transactions](../../databases/transactions/index.md) · [Caching — failure modes](../../caching/failure-modes/index.md) · [Compute — integrations](../../compute/integrations/index.md) · [Messaging — patterns](../../messaging/patterns/index.md) · [Reliability — patterns](../../reliability/patterns/index.md) · [Performance — capacity planning](../../performance/capacity-planning/index.md) · [Hands-on 6](../../../hands-on/6/index.md), [7](../../../hands-on/7/index.md) and [9](../../../hands-on/9/index.md). **Palette components:** [`cdn`](../../../reference/components/edge/index.md#cdn) · [`waf`](../../../reference/components/edge/index.md#waf) · [`apigw`](../../../reference/components/edge/index.md#apigw) · [`queue`](../../../reference/components/messaging/index.md#queue) · [`sql`](../../../reference/components/storage/index.md#sql) · [`cache`](../../../reference/components/storage/index.md#cache) · [`kafka`](../../../reference/components/messaging/index.md#kafka) · [`scheduler`](../../../reference/components/compute/index.md#scheduler) · [`payment`](../../../reference/components/external/index.md#payment) · [`notifications`](../../../reference/components/compute/index.md#notifications) · [`analytics`](../../../reference/components/compute/index.md#analytics). **Scenarios:** `ticketing`, `flash-sale`.
 
 ---
 

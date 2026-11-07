@@ -10,7 +10,7 @@ In BoxOffice, the cache holds event pages, seat-availability snapshots and sessi
 | **Difficulty** | :material-star::material-star: medium |
 | **Key concepts** | partitioning with consistent hashing and virtual nodes, hash slots, eviction (LRU, LFU, W-TinyLFU) and TTL, memory sizing, primary/replica replication and failover, split brain, hot keys and big keys, client-side vs. proxy routing, cache-aside, stampede protection (leases, request coalescing, early expiration) |
 | **Palette components** | [`cache`](../../../reference/components/storage/index.md#cache), [`app`](../../../reference/components/compute/index.md#app), [`nosql`](../../../reference/components/storage/index.md#nosql), [`metrics`](../../../reference/components/observability/index.md#metrics) |
-| **Playground scenarios** | `read-heavy-cache`, `sharding` |
+| **Playground scenarios** | `distributed-cache`, `read-heavy-cache`, `sharding` |
 
 !!! abstract "What this case trains"
 
@@ -151,14 +151,14 @@ slots 10923–16383 → node-c (primary), node-f (replica)
 
 ``` diagram-sim
 flowchart LR
-    app1["App server #1<br/>cluster-aware client"] --> a["node-a<br/>slots 0–5460"]
-    app1 --> b["node-b<br/>slots 5461–10922"]
+    app1["App server #1<br/>cluster-aware client"] --> a["node-a<br/>slots 0–5460"]:::tech
+    app1 --> b["node-b<br/>slots 5461–10922"]:::tech
     app2["App server #2<br/>cluster-aware client"] --> b
-    app2 --> c["node-c<br/>slots 10923–16383"]
+    app2 --> c["node-c<br/>slots 10923–16383"]:::tech
     a -. async replication .-> ra["replica a'"]
     b -. async replication .-> rb["replica b'"]
     c -. async replication .-> rc["replica c'"]
-    app1 -- miss --> db[("Database<br/>source of truth")]
+    app1 -- miss --> db[("Database<br/>source of truth")]:::problem
     app2 -- miss --> db
     a -. metrics .-> m["Metrics"]
 ```
@@ -313,8 +313,8 @@ def should_refresh_early(expires_at: float, recompute_s: float, beta: float = 1.
 
 | | Client-side routing (smart client) | Proxy (twemproxy, mcrouter, Envoy) | Server-side redirects (Redis Cluster) |
 |---|---|---|---|
-| Hops | 1 (client → node) | 2 (client → proxy → node) | 1, plus a redirect after rebalancing |
-| Client complexity | High (map, retries, pooling in every language) | Low (looks like one server) | Medium (cluster-aware client) |
+| Hops | ✅ 1 (client → node) | ⚠️ 2 (client → proxy → node) | ✅ 1, plus a redirect after rebalancing |
+| Client complexity | ❌ High (map, retries, pooling in every language) | ✅ Low (looks like one server) | ⚠️ Medium (cluster-aware client) |
 | Config changes | Pushed to every client | Only to proxies | Learned through `MOVED` |
 | Extra features | — | Pooling, replication, shadow traffic | Slot migration built in |
 
@@ -341,7 +341,11 @@ The trade-offs to **say out loud**: **availability and speed over consistency** 
 
 ## 8. Try it in the playground
 
-Two scenarios cover the two halves of this case: the cache in front of a database, and the partitioning of data over nodes.
+Start with the numbers of this page: the `distributed-cache` scenario has 1 billion items of 1 KB and 2 M reads/s at 95% hits, on 17 nodes — enough memory (1.1 TB ÷ 64 GB) but only 17 × 80,000 = 1.36 M ops/s. Run it: the cluster saturates before memory runs out. The solution sizes by the larger of the two limits and adds a copy of every shard (50 nodes). Then set the hit ratio to 0.90 and watch the database load double, from 100,000 to 200,000 req/s.
+
+<div class="sdp" data-scenario="distributed-cache" data-mode="compact" data-height="460"></div>
+
+Two more scenarios cover the two halves of this case: the cache in front of a database, and the partitioning of data over nodes.
 
 !!! tip "Try it — cache in front of the database"
 
@@ -427,11 +431,9 @@ flowchart LR
     REP -.-> k2["sql · nosql<br/>(source of truth)"]:::comp
     ROUTE -.-> k3["app"]:::comp
     HOT -.-> k4["metrics"]:::comp
-    classDef comp fill:#1e9e5a22,stroke:#1e9e5a
-    classDef tech fill:#2f6fed22,stroke:#2f6fed
 ```
 
-**Classes it tests:** [Caching — patterns](../../caching/patterns/index.md) · [Caching — Redis](../../caching/redis/index.md) · [Caching — failure modes](../../caching/failure-modes/index.md) · [Databases — partitioning](../../databases/partitioning/index.md) · [Databases — replication](../../databases/replication/index.md) · [Estimation — numbers](../../estimation/numbers/index.md) · [Hands-on 5](../../../hands-on/5/index.md). **Palette components:** [`cache`](../../../reference/components/storage/index.md#cache) · [`app`](../../../reference/components/compute/index.md#app) · [`sql`](../../../reference/components/storage/index.md#sql) · [`nosql`](../../../reference/components/storage/index.md#nosql) · [`metrics`](../../../reference/components/observability/index.md#metrics). **Scenarios:** `read-heavy-cache`, `sharding`.
+**Classes it tests:** [Caching — patterns](../../caching/patterns/index.md) · [Caching — Redis](../../caching/redis/index.md) · [Caching — failure modes](../../caching/failure-modes/index.md) · [Databases — partitioning](../../databases/partitioning/index.md) · [Databases — replication](../../databases/replication/index.md) · [Estimation — numbers](../../estimation/numbers/index.md) · [Hands-on 5](../../../hands-on/5/index.md). **Palette components:** [`cache`](../../../reference/components/storage/index.md#cache) · [`app`](../../../reference/components/compute/index.md#app) · [`sql`](../../../reference/components/storage/index.md#sql) · [`nosql`](../../../reference/components/storage/index.md#nosql) · [`metrics`](../../../reference/components/observability/index.md#metrics). **Scenarios:** `distributed-cache`, `read-heavy-cache`, `sharding`.
 
 ---
 

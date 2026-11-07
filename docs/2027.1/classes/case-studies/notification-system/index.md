@@ -33,7 +33,7 @@ BoxOffice sends three very different kinds of notification, and they make the re
 ### Functional requirements
 
 1. Internal services **trigger** notifications through one API (`order`, `inventory`, `auth`…), by user and type, with data for the template.
-2. Channels: **push** (iOS via APNs, Android via FCM), **e-mail** and **SMS**.
+2. Channels: **push** (iOS via APNs, Android via Firebase Cloud Messaging (FCM)), **e-mail** and **SMS**.
 3. **Scheduled** notifications (send at a time) and **campaigns** (send to an audience, e.g. all followers of an artist).
 4. **Templates** per type, channel and language.
 5. **User preferences**: opt-out per category and channel, quiet hours, unsubscribe link in every marketing e-mail.
@@ -199,20 +199,20 @@ INCR cap:42:marketing:2027-03-10  → 2      EXPIRE … 86400
 
 ``` diagram-sim
 flowchart LR
-    ord["order / inventory /<br/>auth services"] --> api["Notification API<br/>validate, idempotency"]
+    ord["order / inventory /<br/>auth services"] --> api["Notification API<br/>validate, idempotency"]:::tech
     camp["Campaign service"] --> sch["Scheduler<br/>sendAt, spread, quiet hours"]
     sch --> api
-    api --> route["Router<br/>preferences, templates,<br/>devices, caps"]
-    route --> qt[["Queues: transactional<br/>push · email · sms"]]
-    route --> qm[["Queues: bulk<br/>push · email · sms"]]
+    api --> route["Router<br/>preferences, templates,<br/>devices, caps"]:::tech
+    route --> qt[["Queues: transactional<br/>push · email · sms"]]:::tech
+    route --> qm[["Queues: bulk<br/>push · email · sms"]]:::tech
     qt --> wp["Push workers"]
     qm --> wp
     qt --> we["E-mail workers"]
     qm --> we
     qt --> ws["SMS workers"]
     wp --> apns[["APNs / FCM"]]
-    we --> esp[["E-mail provider A / B"]]
-    ws --> sms[["SMS provider"]]
+    we --> esp[["E-mail provider A / B"]]:::problem
+    ws --> sms[["SMS provider"]]:::problem
     wp -. failed after retries .-> dlq[["DLQ"]]
     esp -. webhooks .-> trk["Tracking"]
     trk --> an[("Analytics")]
@@ -270,9 +270,9 @@ Each channel has its own provider, failure modes and limits, so each gets its **
 
 | Channel | Typical latency | Cost per message | Reliability signal | Main limit |
 |---|---|---|---|---|
-| Push | Seconds | ~Free | Provider accepted; device delivery not guaranteed | Token validity, payload size |
-| E-mail | Seconds to minutes | Low | Delivered / bounced / complaint webhooks | Provider rate, domain reputation |
-| SMS | Seconds | High | Delivery receipts (DLR) | Cost, carrier rules, provider rate |
+| Push | Seconds | 🟢 ~Free | Provider accepted; device delivery not guaranteed | Token validity, payload size |
+| E-mail | Seconds to minutes | 🟢 Low | Delivered / bounced / complaint webhooks | Provider rate, domain reputation |
+| SMS | Seconds | 🔴 High | Delivery receipts (DLR) | Cost, carrier rules, provider rate |
 
 **Priorities.** Two separate queues per channel (or one queue system with strict priority) and **separate worker pools or reserved capacity** for transactional. A campaign of 2.5 M e-mails then drains at the provider's limit *minus* the share reserved for transactional, and the order confirmation still leaves in seconds.
 
@@ -480,8 +480,6 @@ flowchart LR
     MSG -.-> k2["queue"]:::comp
     REL -.-> k3["email · thirdparty"]:::comp
     DIS -.-> k4["nosql<br/>(notification log)"]:::comp
-    classDef comp fill:#1e9e5a22,stroke:#1e9e5a
-    classDef tech fill:#2f6fed22,stroke:#2f6fed
 ```
 
 **Classes it tests:** [Compute — async work](../../compute/async-work/index.md) · [Compute — integrations](../../compute/integrations/index.md) · [Messaging — queues & pub/sub](../../messaging/queues-pubsub/index.md) · [Messaging — semantics](../../messaging/semantics/index.md) · [Reliability — patterns](../../reliability/patterns/index.md) · [Hands-on 7](../../../hands-on/7/index.md). **Palette components:** [`scheduler`](../../../reference/components/compute/index.md#scheduler) · [`queue`](../../../reference/components/messaging/index.md#queue) · [`worker`](../../../reference/components/compute/index.md#worker) · [`notifications`](../../../reference/components/compute/index.md#notifications) · [`email`](../../../reference/components/external/index.md#email) · [`thirdparty`](../../../reference/components/external/index.md#thirdparty) · [`nosql`](../../../reference/components/storage/index.md#nosql) · [`analytics`](../../../reference/components/compute/index.md#analytics). **Scenarios:** `notification-system`, `async-queue`.

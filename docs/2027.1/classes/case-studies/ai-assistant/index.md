@@ -1,14 +1,14 @@
 
 > *"Design an AI support assistant for a ticketing platform. It answers fans' questions about events, venues and policies, and it can look up — and, with confirmation, change — the fan's own orders."*
 
-LLM applications are the newest family of interview questions, and they are system design problems first and AI problems second. The model is a **slow, expensive, non-deterministic external dependency** with a token-based cost; the interesting design is everything around it: where the knowledge comes from (**retrieval**), how calls are routed, cached, metered and failed over (**LLM gateway**), how the assistant takes actions safely (**agent loop with tools**), and how you stop it from being tricked or from leaking data (**safety and evaluation**). A candidate who draws "user → GPT → answer" fails; one who sizes tokens, streams, Little's Law and guardrails passes.
+large language model (LLM) applications are the newest family of interview questions, and they are system design problems first and AI problems second. The model is a **slow, expensive, non-deterministic external dependency** with a token-based cost; the interesting design is everything around it: where the knowledge comes from (**retrieval**), how calls are routed, cached, metered and failed over (**LLM gateway**), how the assistant takes actions safely (**agent loop with tools**), and how you stop it from being tricked or from leaking data (**safety and evaluation**). A candidate who draws "user → GPT → answer" fails; one who sizes tokens, streams, Little's Law and guardrails passes.
 
 This is BoxOffice's `assistant` service ([Hands-on 12](../../../hands-on/12/index.md) builds a small version with FastAPI, pgvector and LiteLLM). Fans ask "can I bring a power bank to the stadium?", "where is my ticket?", "can I move my order to Saturday?". The first is **retrieval** over policy documents; the second is a **read tool** (`get_order`); the third is a **side-effecting tool** (`transfer_order`) that must never run without the fan's explicit confirmation.
 
 | | |
 |---|---|
 | **Difficulty** | :material-star::material-star::material-star: hard |
-| **Key concepts** | retrieval-augmented generation (chunking, embeddings, vector DB, hybrid search, reranking, citations), LLM gateway (routing, fallbacks, quotas, semantic cache, cost tracking), streaming and time to first token, agent loop and tool registry (MCP), permissions and human confirmation, prompt injection (direct and indirect), PII redaction, offline and online evaluation |
+| **Key concepts** | retrieval-augmented generation (chunking, embeddings, vector DB, hybrid search, reranking, citations), LLM gateway (routing, fallbacks, quotas, semantic cache, cost tracking), streaming and time to first token, agent loop and tool registry (MCP), permissions and human confirmation, prompt injection (direct and indirect), personally identifiable information (PII) redaction, offline and online evaluation |
 | **Palette components** | [`client`](../../../reference/components/client/index.md#client), [`apigw`](../../../reference/components/edge/index.md#apigw), [`llmgw`](../../../reference/components/ai/index.md#llmgw), [`orchestrator`](../../../reference/components/ai/index.md#orchestrator), [`toolreg`](../../../reference/components/ai/index.md#toolreg), [`memory`](../../../reference/components/ai/index.md#memory), [`safety`](../../../reference/components/ai/index.md#safety), [`vectordb`](../../../reference/components/storage/index.md#vectordb), [`cache`](../../../reference/components/storage/index.md#cache), [`app`](../../../reference/components/compute/index.md#app), [`sql`](../../../reference/components/storage/index.md#sql), [`metrics`](../../../reference/components/observability/index.md#metrics), [`tracing`](../../../reference/components/observability/index.md#tracing) |
 | **Playground scenario** | `ai-assistant` |
 
@@ -211,14 +211,14 @@ backend: order-service  POST /v1/orders/{order_id}/transfer
 flowchart LR
     fan([Fan app / web]) --> gw["API gateway<br/>auth, rate limit"]
     gw --> orch["Orchestrator<br/>agent loop"]
-    orch --> safe["Safety mesh<br/>input + output guards,<br/>PII redaction"]
+    orch --> safe["Safety mesh<br/>input + output guards,<br/>PII redaction"]:::tech
     orch --> mem["Memory fabric<br/>history, summary"]
-    orch --> ret["Retriever<br/>hybrid search + rerank"]
+    orch --> ret["Retriever<br/>hybrid search + rerank"]:::tech
     ret --> vdb[("Vector index<br/>pgvector")]
-    orch --> llmgw["LLM gateway<br/>routing, fallback,<br/>quotas, semantic cache"]
-    llmgw --> m1[["Small model"]]
-    llmgw --> m2[["Large model"]]
-    orch --> treg["Tool registry<br/>schemas, policies"]
+    orch --> llmgw["LLM gateway<br/>routing, fallback,<br/>quotas, semantic cache"]:::tech
+    llmgw --> m1[["Small model"]]:::problem
+    llmgw --> m2[["Large model"]]:::problem
+    orch --> treg["Tool registry<br/>schemas, policies"]:::tech
     treg --> ordsvc["order service"]
     treg --> catsvc["catalog service"]
     ing["Ingestion workers<br/>chunk + embed"] --> vdb
@@ -294,7 +294,7 @@ All model calls go through one internal service (LiteLLM or similar), never dire
 | **Quotas & rate limits** | Tokens per minute per user, per feature, per day; protect the provider's account limits | One abusive user or a loop must not burn the budget |
 | **Semantic cache** | Return a stored answer for a near-identical question (embedding similarity above a threshold, same locale, no personal data) | FAQ-heavy traffic; must never cache answers that depend on the user |
 | **Prompt caching** | Reuse the provider's cache for the fixed prefix (system prompt, tool schemas) | Input tokens dominate cost and TTFT |
-| **Metering** | Record tokens, latency (TTFT, total), cost per call, model, feature | Cost is an SLO; dashboards and budgets per team |
+| **Metering** | Record tokens, latency (TTFT, total), cost per call, model, feature | Cost is an service level objective (SLO); dashboards and budgets per team |
 | **Streaming** | Pass tokens through as Server-Sent Events | Perceived latency = TTFT |
 
 !!! warning "Timeouts for streams"
@@ -460,8 +460,6 @@ flowchart LR
     RAG -.-> k3["memory · vectordb · worker"]:::comp
     SAF -.-> k4["safety · metrics · tracing"]:::comp
     EDG -.-> k5["apigw"]:::comp
-    classDef comp fill:#1e9e5a22,stroke:#1e9e5a
-    classDef tech fill:#2f6fed22,stroke:#2f6fed
 ```
 
 **Classes it tests:** [AI systems — LLM gateway](../../ai-systems/llm-gateway/index.md) · [AI systems — agents](../../ai-systems/agents/index.md) · [AI systems — RAG & memory](../../ai-systems/rag-memory/index.md) · [AI systems — safety & evals](../../ai-systems/safety-evals/index.md) · [Databases — specialized](../../databases/specialized/index.md) (vector search) · [Edge — API gateway](../../edge/api-gateway/index.md) · [Estimation — queueing](../../estimation/queueing/index.md) (Little's Law). **Palette components:** [`apigw`](../../../reference/components/edge/index.md#apigw) · [`orchestrator`](../../../reference/components/ai/index.md#orchestrator) · [`llmgw`](../../../reference/components/ai/index.md#llmgw) · [`toolreg`](../../../reference/components/ai/index.md#toolreg) · [`memory`](../../../reference/components/ai/index.md#memory) · [`safety`](../../../reference/components/ai/index.md#safety) · [`vectordb`](../../../reference/components/storage/index.md#vectordb) · [`worker`](../../../reference/components/compute/index.md#worker) · [`metrics`](../../../reference/components/observability/index.md#metrics) · [`tracing`](../../../reference/components/observability/index.md#tracing). **Scenarios:** `ai-assistant`.

@@ -33,7 +33,7 @@ O BoxOffice envia três tipos bem diferentes de notificação e eles tornam os r
 ### Requisitos funcionais { #functional-requirements }
 
 1. Serviços internos **disparam** notificações por uma única API (`order`, `inventory`, `auth`…), por usuário e tipo, com os dados para o template.
-2. Canais: **push** (iOS via APNs, Android via FCM), **e-mail** e **SMS**.
+2. Canais: **push** (iOS via APNs, Android via Firebase Cloud Messaging (FCM)), **e-mail** e **SMS**.
 3. Notificações **agendadas** (enviar num horário) e **campanhas** (enviar para um público, ex.: todos os seguidores de um artista).
 4. **Templates** por tipo, canal e idioma.
 5. **Preferências do usuário**: opt-out por categoria e canal, horário de silêncio, link de descadastro em todo e-mail de marketing.
@@ -199,20 +199,20 @@ INCR cap:42:marketing:2027-03-10  → 2      EXPIRE … 86400
 
 ``` diagram-sim
 flowchart LR
-    ord["serviços order / inventory /<br/>auth"] --> api["API de notificações<br/>valida, idempotência"]
+    ord["serviços order / inventory /<br/>auth"] --> api["API de notificações<br/>valida, idempotência"]:::tech
     camp["Serviço de campanhas"] --> sch["Scheduler<br/>sendAt, espalhamento, silêncio"]
     sch --> api
-    api --> route["Roteador<br/>preferências, templates,<br/>dispositivos, limites"]
-    route --> qt[["Filas: transacional<br/>push · email · sms"]]
-    route --> qm[["Filas: em massa<br/>push · email · sms"]]
+    api --> route["Roteador<br/>preferências, templates,<br/>dispositivos, limites"]:::tech
+    route --> qt[["Filas: transacional<br/>push · email · sms"]]:::tech
+    route --> qm[["Filas: em massa<br/>push · email · sms"]]:::tech
     qt --> wp["Workers de push"]
     qm --> wp
     qt --> we["Workers de e-mail"]
     qm --> we
     qt --> ws["Workers de SMS"]
     wp --> apns[["APNs / FCM"]]
-    we --> esp[["Provedor de e-mail A / B"]]
-    ws --> sms[["Provedor de SMS"]]
+    we --> esp[["Provedor de e-mail A / B"]]:::problem
+    ws --> sms[["Provedor de SMS"]]:::problem
     wp -. falhou após retentativas .-> dlq[["DLQ"]]
     esp -. webhooks .-> trk["Rastreamento"]
     trk --> an[("Analytics")]
@@ -270,9 +270,9 @@ Cada canal tem seu próprio provedor, modos de falha e limites, então cada um g
 
 | Canal | Latência típica | Custo por mensagem | Sinal de confiabilidade | Limite principal |
 |---|---|---|---|---|
-| Push | Segundos | ~De graça | Provedor aceitou; entrega no aparelho não garantida | Validade do token, tamanho do payload |
-| E-mail | Segundos a minutos | Baixo | Webhooks de entregue / devolvido / reclamação | Taxa do provedor, reputação do domínio |
-| SMS | Segundos | Alto | Recibos de entrega (DLR) | Custo, regras das operadoras, taxa do provedor |
+| Push | Segundos | 🟢 ~De graça | Provedor aceitou; entrega no aparelho não garantida | Validade do token, tamanho do payload |
+| E-mail | Segundos a minutos | 🟢 Baixo | Webhooks de entregue / devolvido / reclamação | Taxa do provedor, reputação do domínio |
+| SMS | Segundos | 🔴 Alto | Recibos de entrega (DLR) | Custo, regras das operadoras, taxa do provedor |
 
 **Prioridades.** Duas filas separadas por canal (ou um sistema de filas com prioridade estrita) e **pools de workers separados ou capacidade reservada** para o transacional. Uma campanha de 2,5 M de e-mails escoa então no limite do provedor *menos* a fatia reservada ao transacional e a confirmação do pedido continua saindo em segundos.
 
@@ -471,17 +471,15 @@ Quais aulas este caso testa? Cada ramo é uma aula cujas ideias o design usa (az
 
 ``` diagram
 flowchart LR
-    CASE(["Notification system"]) --> EST["Estimation<br/>a provider limit sets campaign time"]:::tech
-    CASE --> CMP["Compute<br/>scheduler, workers, provider adapters"]:::tech
-    CASE --> MSG["Messaging<br/>queue per channel and priority, DLQ"]:::tech
-    CASE --> DIS["Distributed<br/>dedup, at-most-once effect"]:::tech
-    CASE --> REL["Reliability<br/>retries + jitter, bulkheads, failover"]:::tech
+    CASE(["Sistema de notificações"]) --> EST["Estimativa<br/>o limite do provedor define a duração da campanha"]:::tech
+    CASE --> CMP["Compute<br/>agendador, workers, adaptadores de provedor"]:::tech
+    CASE --> MSG["Mensageria<br/>fila por canal e prioridade, DLQ"]:::tech
+    CASE --> DIS["Distribuídos<br/>deduplicação, efeito no máximo uma vez"]:::tech
+    CASE --> REL["Confiabilidade<br/>retentativas + jitter, bulkheads, failover"]:::tech
     CMP -.-> k1["scheduler · worker<br/>notifications"]:::comp
     MSG -.-> k2["queue"]:::comp
     REL -.-> k3["email · thirdparty"]:::comp
-    DIS -.-> k4["nosql<br/>(notification log)"]:::comp
-    classDef comp fill:#1e9e5a22,stroke:#1e9e5a
-    classDef tech fill:#2f6fed22,stroke:#2f6fed
+    DIS -.-> k4["nosql<br/>(log de notificações)"]:::comp
 ```
 
 **Aulas que ele testa:** [Compute — trabalho assíncrono](../../compute/async-work/index.md) · [Compute — integrações](../../compute/integrations/index.md) · [Mensageria — filas e pub/sub](../../messaging/queues-pubsub/index.md) · [Mensageria — semântica](../../messaging/semantics/index.md) · [Confiabilidade — padrões](../../reliability/patterns/index.md) · [Hands-on 7](../../../hands-on/7/index.md). **Componentes da paleta:** [`scheduler`](../../../reference/components/compute/index.md#scheduler) · [`queue`](../../../reference/components/messaging/index.md#queue) · [`worker`](../../../reference/components/compute/index.md#worker) · [`notifications`](../../../reference/components/compute/index.md#notifications) · [`email`](../../../reference/components/external/index.md#email) · [`thirdparty`](../../../reference/components/external/index.md#thirdparty) · [`nosql`](../../../reference/components/storage/index.md#nosql) · [`analytics`](../../../reference/components/compute/index.md#analytics). **Cenários:** `notification-system`, `async-queue`.

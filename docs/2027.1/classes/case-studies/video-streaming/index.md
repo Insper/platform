@@ -1,14 +1,14 @@
 
 > *"Design a video platform like YouTube: creators upload videos, the platform processes them, and millions of viewers watch them smoothly on any device and any network."*
 
-Video is the case where **bandwidth, not requests, is the bottleneck**. A redirect is 500 bytes; one minute of HD video is tens of megabytes. Almost every design decision follows from that: viewers never touch your servers (a **CDN** delivers the bytes), uploads never pass through your servers (they go **straight to object storage**), and the heavy CPU work (**transcoding**) is a batch pipeline of workers that can take minutes. The interesting parts are the pipeline, **adaptive bitrate streaming** and the **economics** of egress.
+Video is the case where **bandwidth, not requests, is the bottleneck**. A redirect is 500 bytes; one minute of HD video is tens of megabytes. Almost every design decision follows from that: viewers never touch your servers (a **content delivery network (CDN)** delivers the bytes), uploads never pass through your servers (they go **straight to object storage**), and the heavy CPU work (**transcoding**) is a batch pipeline of workers that can take minutes. The interesting parts are the pipeline, **adaptive bitrate streaming** and the **economics** of egress.
 
 BoxOffice uses video on every event page — artist trailers, venue tours, replays of livestreamed shows. Its volume is small next to YouTube, but the architecture is the same, and the day an artist announces a tour with a video, the CDN is what keeps the event page alive.
 
 | | |
 |---|---|
 | **Difficulty** | :material-star::material-star::material-star: hard |
-| **Key concepts** | pre-signed and resumable multipart uploads, transcoding as a DAG of queue-driven workers, renditions and the bitrate ladder, adaptive bitrate streaming (HLS/DASH), per-title encoding, CDN with origin shield, egress cost, long-tail popularity, asynchronous view counting |
+| **Key concepts** | pre-signed and resumable multipart uploads, transcoding as a directed acyclic graph (DAG) of queue-driven workers, renditions and the bitrate ladder, adaptive bitrate (ABR) streaming with HTTP Live Streaming (HLS) or Dynamic Adaptive Streaming over HTTP (DASH), per-title encoding, CDN with origin shield, egress cost, long-tail popularity, asynchronous view counting |
 | **Palette components** | [`client`](../../../reference/components/client/index.md#client), [`cdn`](../../../reference/components/edge/index.md#cdn), [`apigw`](../../../reference/components/edge/index.md#apigw), [`app`](../../../reference/components/compute/index.md#app), [`objstore`](../../../reference/components/storage/index.md#objstore), [`queue`](../../../reference/components/messaging/index.md#queue), [`worker`](../../../reference/components/compute/index.md#worker), [`sql`](../../../reference/components/storage/index.md#sql), [`nosql`](../../../reference/components/storage/index.md#nosql), [`analytics`](../../../reference/components/compute/index.md#analytics) |
 | **Playground scenario** | `video-streaming` |
 
@@ -46,7 +46,7 @@ BoxOffice uses video on every event page — artist trailers, venue tours, repla
 
 ### Out of scope (say it explicitly)
 
-Recommendations, comments, monetization/ads, live streaming (a follow-up), copyright detection (mention it as an asynchronous step), DRM details.
+Recommendations, comments, monetization/ads, live streaming (a follow-up), copyright detection (mention it as an asynchronous step), digital rights management (DRM) details.
 
 ??? question "Questions to ask the interviewer"
 
@@ -54,7 +54,7 @@ Recommendations, comments, monetization/ads, live streaming (a follow-up), copyr
     |---|---|
     | Video on demand only, or live too? | Live has seconds of budget: no time for a full transcoding pipeline. |
     | Max upload size and duration? | Multipart/resumable uploads, chunked transcoding. |
-    | Which devices? | Formats (HLS for Apple, DASH elsewhere, CMAF for both), codecs (H.264 everywhere, AV1/HEVC where supported). |
+    | Which devices? | Formats (HLS for Apple, DASH elsewhere, Common Media Application Format (CMAF) for both), codecs (H.264 everywhere, AV1/High Efficiency Video Coding (HEVC) where supported). |
     | Global audience? | CDN footprint, multi-CDN, regional storage. |
     | Is it OK if high resolutions appear later than low ones? | Lets you publish fast and finish the ladder in the background. |
     | How accurate must view counts be? | Exact and real-time is expensive; approximate and delayed is cheap. |
@@ -181,13 +181,13 @@ thumbs/{video_id}/{n}.jpg
 flowchart LR
     cr([Creator]) --> api["Video API"]
     api --> meta[("Metadata<br/>SQL")]
-    cr -. "parts via<br/>pre-signed URLs" .-> raw[("Object store<br/>raw/")]
+    cr -. "parts via<br/>pre-signed URLs" .-> raw[("Object store<br/>raw/")]:::tech
     raw -. upload completed .-> q[["Transcode queue"]]
-    q --> w["Transcoding workers<br/>split · encode · package"]
+    q --> w["Transcoding workers<br/>split · encode · package"]:::tech
     w --> vod[("Object store<br/>vod/")]
     w --> meta
-    v([Viewer]) --> cdn["CDN edge"]
-    cdn --> shield["Origin shield"]
+    v([Viewer]) --> cdn["CDN edge"]:::tech
+    cdn --> shield["Origin shield"]:::tech
     shield --> vod
     v -. playback beacons .-> an["Analytics<br/>views, QoE"]
 ```
@@ -277,6 +277,26 @@ Each video is encoded into a **ladder** of renditions, each cut into short segme
 1080p/index.m3u8
 ```
 
+A player on a phone, segment by segment (4 s segments, bitrates of the ladder above):
+
+``` diagram-sim
+sequenceDiagram
+    autonumber
+    participant P as Player
+    participant E as CDN edge
+    P->>E: GET master.m3u8
+    E-->>P: ladder 240p … 1080p
+    P->>E: segment 1 at 360p (start low)
+    E-->>P: 3.2 Mbit in 0.5 s, so about 6 Mbit/s measured
+    P->>E: segment 2 at 720p (3 Mbit/s fits, buffer filling)
+    P->>E: segment 3 at 1080p (5 Mbit/s still fits)
+    Note over P: the train enters a tunnel, throughput falls to 1 Mbit/s
+    P->>E: segment 4 at 360p (drop before the buffer runs dry)
+    P->>E: segment 5 at 720p once throughput recovers
+```
+
+The server never decides: every segment of every rendition is a plain file on the CDN, and the player's choice per segment is what keeps the video playing on a bad network.
+
 - **Start low, climb fast**: the first segment comes from a low rung so playback starts in under 2 s; the player climbs as its buffer fills.
 - **Per-title encoding**: a cartoon needs far fewer bits than a concert with confetti and strobes for the same visual quality. Analyzing each video and choosing its own ladder (Netflix's "per-title encode optimization") saves a large share of bandwidth for simple content.
 - **Codecs**: H.264 plays everywhere; HEVC and AV1 deliver the same quality with notably fewer bits but cost much more CPU to encode and are not supported on every device. Encode the expensive codecs only for videos that get enough views to pay for it.
@@ -333,7 +353,7 @@ The `video-streaming` scenario has the object store, a CDN in front of it, and a
 
 ??? question "What changes for live streaming (e.g. a BoxOffice livestreamed concert)?"
 
-    The budget drops from minutes to seconds. The encoder ingests a live feed (RTMP/SRT/WebRTC) and produces the ladder **in real time** — no chunk-parallel DAG; segments are published as they are produced, and playlists are updated continuously. Low-latency HLS / chunked CMAF deliver partial segments to reach a few seconds of glass-to-glass latency. The CDN still carries the bytes, and the audience spike at the show's start is predictable, so pre-warm capacity. A replay is just the recorded segments turned into VOD.
+    The budget drops from minutes to seconds. The encoder ingests a live feed (RTMP/SRT/WebRTC) and produces the ladder **in real time** — no chunk-parallel DAG; segments are published as they are produced, and playlists are updated continuously. Low-latency HLS / chunked CMAF deliver partial segments to reach a few seconds of glass-to-glass latency. The CDN still carries the bytes, and the audience spike at the show's start is predictable, so pre-warm capacity. A replay is just the recorded segments turned into video on demand (VOD).
 
 ??? question "A creator's video goes viral ten minutes after upload. What happens?"
 
@@ -341,7 +361,7 @@ The `video-streaming` scenario has the object store, a CDN in front of it, and a
 
 ??? question "How do you reduce the delivery bill?"
 
-    In order of impact: raise the cache hit ratio (shield, pre-positioning, longer TTLs for immutable segments); spend fewer bits per view (per-title encoding, HEVC/AV1 for popular videos, capping resolution on small screens); negotiate or mix CDNs; and at very large scale, place caches inside ISPs. Measure **cost per hour watched** as the metric.
+    In order of impact: raise the cache hit ratio (shield, pre-positioning, longer TTLs for immutable segments); spend fewer bits per view (per-title encoding, HEVC/AV1 for popular videos, capping resolution on small screens); negotiate or mix CDNs; and at very large scale, place caches inside internet service providers (ISPs). Measure **cost per hour watched** as the metric.
 
 ??? question "How do you count views accurately?"
 
@@ -393,8 +413,6 @@ flowchart LR
     CMP -.-> k2["worker"]:::comp
     MSG -.-> k3["queue"]:::comp
     EDG -.-> k4["cdn · analytics"]:::comp
-    classDef comp fill:#1e9e5a22,stroke:#1e9e5a
-    classDef tech fill:#2f6fed22,stroke:#2f6fed
 ```
 
 **Classes it tests:** [Edge — DNS & CDN](../../edge/dns-cdn/index.md) · [Databases — specialized](../../databases/specialized/index.md) (object storage) · [Compute — async work](../../compute/async-work/index.md) · [Messaging — queues & pub/sub](../../messaging/queues-pubsub/index.md) · [Cloud-native — FinOps](../../cloud-native/finops/index.md) · [Hands-on 7](../../../hands-on/7/index.md). **Palette components:** [`cdn`](../../../reference/components/edge/index.md#cdn) · [`objstore`](../../../reference/components/storage/index.md#objstore) · [`queue`](../../../reference/components/messaging/index.md#queue) · [`worker`](../../../reference/components/compute/index.md#worker) · [`sql`](../../../reference/components/storage/index.md#sql) · [`analytics`](../../../reference/components/compute/index.md#analytics). **Scenarios:** `video-streaming`, `cdn-static`.

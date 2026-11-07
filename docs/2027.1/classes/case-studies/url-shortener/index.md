@@ -157,7 +157,7 @@ CREATE TABLE id_range (
 | Data | Store | Why |
 |---|---|---|
 | `code → long_url` | NoSQL key-value / wide-column (`nosql`), partitioned by `code` | Point lookups, horizontal scale, no joins; 3 TB spread over nodes |
-| Hot codes | Cache (`cache`), cache-aside, TTL hours | ~33 GB hot set; most redirects never touch the database |
+| Hot codes | Cache (`cache`), cache-aside, time to live (TTL) hours | ~33 GB hot set; most redirects never touch the database |
 | ID ranges | Small SQL table or a coordination service (etcd, ZooKeeper) | A few writes per minute; needs atomic increments |
 | Click events | Kafka (`kafka`) → analytics store / data warehouse | High volume, append-only, read in aggregate |
 
@@ -174,10 +174,10 @@ flowchart LR
     u([Browser / app]) --> dns["DNS"]
     dns --> lb["Load balancer"]
     lb --> app["Shortener app<br/>(stateless, N replicas)"]
-    app --> cache[("Cache<br/>hot codes")]
+    app --> cache[("Cache<br/>hot codes")]:::tech
     app --> db[("NoSQL<br/>code → long_url")]
-    app --> ids["ID allocator<br/>(ranges)"]
-    app -. click event .-> k[["Kafka<br/>clicks"]]
+    app --> ids["ID allocator<br/>(ranges)"]:::tech
+    app -. click event .-> k[["Kafka<br/>clicks"]]:::tech
     k --> agg["Analytics workers<br/>aggregate"]
     agg --> dwh[("Analytics store")]
 ```
@@ -238,10 +238,10 @@ This is the deep dive every interviewer expects. Four families, each with a diff
 
 | Strategy | Collisions | Coordination | Predictable? | Code length | Same URL → same code |
 |---|---|---|---|---|---|
-| Hash + truncate | Yes, must retry | None (but a conditional write) | No | 7 | Yes |
-| Counter + base62 (ranges) | No | One atomic update per block | **Yes** (sequential) | 7 | No |
-| KGS | No | KGS service | No | 7 | No |
-| Snowflake | No | Machine IDs only | Partially (time-ordered) | ~11 | No |
+| Hash + truncate | ❌ Yes, must retry | None (but a conditional write) | ✅ No | 7 | Yes |
+| Counter + base62 (ranges) | ✅ No | One atomic update per block | ⚠️ **Yes** (sequential) | 7 | No |
+| KGS | ✅ No | KGS service | ✅ No | 7 | No |
+| Snowflake | ✅ No | Machine IDs only | ⚠️ Partially (time-ordered) | ⚠️ ~11 | No |
 
 The base62 encoding itself is a few lines:
 
@@ -264,14 +264,37 @@ def base62(n: int) -> str:
 
 **Recommendation for the interview:** counter with range allocation + scrambling for generated codes; a conditional insert (`IF NOT EXISTS`) for custom aliases. Mention hashing and why you did not choose it (collisions, shared stats).
 
+How the recommended generator behaves with two app servers, and what a crash costs:
+
+``` diagram-sim
+sequenceDiagram
+    autonumber
+    participant A as app-1
+    participant D as id_range (SQL)
+    participant B as app-2
+    A->>D: UPDATE … next_start + 10000 RETURNING
+    D-->>A: block 1 – 10,000
+    B->>D: UPDATE … next_start + 10000 RETURNING
+    D-->>B: block 10,001 – 20,000
+    A->>A: link id 1 → scramble → base62 → Op1frbP
+    A->>A: link id 2 → scramble → base62 → CO2uSnE
+    B->>B: link id 10,001 → scramble → base62 → pUtl23D
+    Note over A: app-1 crashes after id 4,210
+    A->>D: (restarted) lease the next block
+    D-->>A: block 20,001 – 30,000
+    Note over A,D: ids 4,211 – 10,000 are never used, a gap that costs nothing
+```
+
+One SQL round trip per 10,000 links and no coordination between the servers in between. Consecutive ids (1, 2) give codes that share nothing, and the multiplication by a large constant modulo 62^7 is a bijection, so two ids never get the same code.
+
 ### 6.2 The redirect: 301 or 302, and caching
 
 | | 301 Moved Permanently | 302 Found (or 307) |
 |---|---|---|
 | Browser caches it? | Yes, potentially forever | No (unless `Cache-Control` says so) |
-| Load on our servers | Lower: repeat clicks never reach us | Every click reaches us |
-| Analytics | Undercounts repeat visits | Complete |
-| Changing/expiring the link later | Hard: browsers keep the old answer | Easy |
+| Load on our servers | ✅ Lower: repeat clicks never reach us | ⚠️ Every click reaches us |
+| Analytics | ❌ Undercounts repeat visits | ✅ Complete |
+| Changing/expiring the link later | ❌ Hard: browsers keep the old answer | ✅ Easy |
 
 Most commercial shorteners answer **302** (or 301 with a short `Cache-Control: max-age`) because analytics and the ability to disable a malicious link are part of the product. Whatever you choose, **say why** ([HTTP semantics](../../edge/protocols/index.md)).
 
@@ -307,7 +330,7 @@ flowchart LR
 |---|---|---|---|
 | Database reads | Every redirect hits the store; p99 grows with load | Cache-aside + L1 in-process cache; read replicas | Staleness after delete (bounded by TTL) |
 | Viral link | One hot key saturates one cache shard | L1 cache with seconds of TTL; replicate the hot key | More memory, slightly staler data |
-| ID allocator | Single counter = bottleneck and SPOF | Range leasing; allocator replicated (SQL with failover) | Gaps in the sequence after crashes (harmless) |
+| ID allocator | Single counter = bottleneck and single point of failure (SPOF) | Range leasing; allocator replicated (SQL with failover) | Gaps in the sequence after crashes (harmless) |
 | Code scanning | Bots try random codes → misses hit the DB | Negative caching; rate limit per IP; non-sequential codes | Little memory for negative entries |
 | Malicious destinations | Shortener used to hide phishing | Check URLs against a reputation list at creation and asynchronously later; disable link (302 makes this effective) | Creation latency; false positives |
 | Analytics pipeline | Kafka slow or down | Fire-and-forget with a bounded buffer; drop on overflow | Some clicks lost (acceptable by requirement) |
@@ -350,7 +373,7 @@ The `url-shortener` scenario has the read path of this page: load balancer, app 
 
 ??? question "How do you count unique clicks per link?"
 
-    Exact unique counts need the set of visitor IDs — huge for popular links. Use **HyperLogLog** per link per day (Redis `PFADD`/`PFCOUNT`, or the analytics store's approximate distinct function): ~1% error with a few kilobytes per counter, and HLLs can be merged across days.
+    Exact unique counts need the set of visitor IDs — huge for popular links. Use **HyperLogLog** per link per day (Redis `PFADD`/`PFCOUNT`, or the analytics store's approximate distinct function): ~1% error with a few kilobytes per counter, and HyperLogLogs (HLLs) can be merged across days.
 
 ??? question "How do you clean up expired links? Can codes be reused?"
 
@@ -402,8 +425,6 @@ flowchart LR
     DB -.-> k2["nosql"]:::comp
     CAC -.-> k3["cache"]:::comp
     MSG -.-> k4["kafka · analytics"]:::comp
-    classDef comp fill:#1e9e5a22,stroke:#1e9e5a
-    classDef tech fill:#2f6fed22,stroke:#2f6fed
 ```
 
 **Classes it tests:** [Estimation — numbers](../../estimation/numbers/index.md) · [Distributed — time & clocks](../../distributed/time-clocks/index.md) (unique IDs) · [Edge — protocols](../../edge/protocols/index.md) (redirects) · [Databases — models](../../databases/models/index.md) · [Caching — patterns](../../caching/patterns/index.md) · [Messaging — semantics](../../messaging/semantics/index.md). **Palette components:** [`dns`](../../../reference/components/edge/index.md#dns) · [`lb`](../../../reference/components/edge/index.md#lb) · [`app`](../../../reference/components/compute/index.md#app) · [`cache`](../../../reference/components/storage/index.md#cache) · [`nosql`](../../../reference/components/storage/index.md#nosql) · [`kafka`](../../../reference/components/messaging/index.md#kafka) · [`analytics`](../../../reference/components/compute/index.md#analytics) · [`dwh`](../../../reference/components/storage/index.md#dwh). **Scenarios:** `url-shortener`, `read-heavy-cache`.
